@@ -2967,6 +2967,20 @@ def _bind(lib: ctypes.CDLL) -> None:
                 _CP, _CP, _SZ, _VP, _SZ, _VP, _SZ, _PSZ]
             lib.srmech_mcp_marshal_roundtrip.restype = ctypes.c_int
 
+        # rc188 — the tools/call DISPATCH SPINE (invoke_tool). New symbols →
+        # hasattr-guarded (a stale rc187 lib keeps the rest + falls back to the
+        # pure invoke_tool); additive → ABI stays 4.
+        #   srmech_invoke_tool(name, params_json, params_len, ws, ws_len,
+        #                      buf, buf_len, out_len, out_kind)
+        #   size_t srmech_invoke_tool_arena_bytes(size_t params_len)
+        if hasattr(lib, "srmech_invoke_tool"):
+            _PINT = ctypes.POINTER(ctypes.c_int)
+            lib.srmech_invoke_tool.argtypes = [
+                _CP, _CP, _SZ, _VP, _SZ, _VP, _SZ, _PSZ, _PINT]
+            lib.srmech_invoke_tool.restype = ctypes.c_int
+            lib.srmech_invoke_tool_arena_bytes.argtypes = [_SZ]
+            lib.srmech_invoke_tool_arena_bytes.restype = ctypes.c_size_t
+
     # ------------------------------------------------------------------
     # Class A — op-provenance canonical record hasher (0.9.0rc117; the
     # op-carrying carrier, dives #718/#719). The C peer of
@@ -5225,6 +5239,7 @@ def tool_entries_to_mcp_defs_c() -> "bytes | None":
 MCP_KIND_RESPONSE: int = 0
 MCP_KIND_NO_RESPONSE: int = 1
 MCP_KIND_DEFER_CALL: int = 2
+MCP_KIND_CALL_RESULT: int = 3   # rc188 — tools/call RAN in C; buf = result text
 
 # Parse arena for one control-message dispatch. The lifecycle/discovery
 # requests (initialize / tools/list / ping / shutdown / notifications) are all
@@ -5264,6 +5279,9 @@ def mcp_handle_c(request: bytes) -> "tuple[int, bytes | None] | None":
         return None
     if kind.value in (MCP_KIND_NO_RESPONSE, MCP_KIND_DEFER_CALL):
         return (kind.value, None)
+    # RESPONSE (lifecycle/discovery JSON-RPC envelope) and CALL_RESULT (rc188 —
+    # tools/call RAN in C; buf = the result TEXT the caller wraps in the content
+    # + attestation envelope) both carry bytes: two-pass size-query → fill.
     size = need.value
     raw = (ctypes.c_char * size)() if size > 0 else None
     got = ctypes.c_size_t(0)
@@ -5272,9 +5290,9 @@ def mcp_handle_c(request: bytes) -> "tuple[int, bytes | None] | None":
     rc = LIB.srmech_mcp_handle(
         request, len(request), ws_p, _MCP_HANDLE_WS,
         buf_p, ctypes.c_size_t(size), ctypes.byref(got), ctypes.byref(kind2), 1)
-    if rc != SRMECH_OK or kind2.value != MCP_KIND_RESPONSE:
+    if rc != SRMECH_OK or kind2.value not in (MCP_KIND_RESPONSE, MCP_KIND_CALL_RESULT):
         return None
-    return (MCP_KIND_RESPONSE, bytes(raw[:got.value]) if raw is not None else b"")
+    return (kind2.value, bytes(raw[:got.value]) if raw is not None else b"")
 
 
 def mcp_build_attestation_c(
@@ -5367,6 +5385,62 @@ def mcp_marshal_roundtrip_c(
     if rc != SRMECH_OK:
         return (rc, None)
     return (MARSHAL_OK, bytes(out[:got.value]))
+
+
+# ----------------------------------------------------------------------
+# rc188 — the tools/call DISPATCH SPINE (invoke_tool). ``invoke_tool_c`` drives
+# the C ``srmech_invoke_tool`` for one tool call: registry_find → per-arg
+# marshal_arg → the signature-shape thunk table → serialise the result. For a
+# CLEAN batch-1 c_dispatched tool it computes the result IN C and returns the
+# result TEXT byte-identical to the pure ``serialise_result(invoke_tool(...))``;
+# the still-wide surface (383 tools with no single C kernel, an unregistered
+# name, an extra / malformed arg) DEFERS to the pure invoke_tool.
+# ----------------------------------------------------------------------
+
+# srmech_invoke_tool out_kind (mirror SRMECH_INVOKE_* in srmech.h).
+INVOKE_DISPATCHED: int = 0
+INVOKE_DEFER: int = 1
+
+
+def has_native_invoke() -> bool:
+    """True iff the rc188 tools/call invoke-spine C peer is loaded + bound."""
+    return bool(
+        HAS_NATIVE and LIB is not None
+        and hasattr(LIB, "srmech_invoke_tool")
+    )
+
+
+def invoke_tool_c(
+    name: str, arguments: "dict"
+) -> "tuple[bool, str | None]":
+    """Run one tool call through the C ``srmech_invoke_tool`` spine. ``name`` is
+    the dotted tool name; ``arguments`` is the tools/call arguments object.
+
+    Returns ``(dispatched, result_text)``: on a clean batch-1 dispatch
+    ``(True, text)`` where ``text`` == the pure
+    ``serialise_result(invoke_tool(name, arguments))`` (json.dumps default
+    form); otherwise ``(False, None)`` — the caller runs the pure invoke_tool +
+    attests (rc103 inform-don't-limit). Returns ``(False, None)`` when the C peer
+    is unavailable. numpy-free; single-pass over a generously-sized buffer."""
+    if not has_native_invoke():
+        return (False, None)
+    import json as _json
+    nm = name.encode("utf-8")
+    args_json = _json.dumps(arguments or {}, separators=(",", ":")).encode("utf-8")
+    ws_len = int(LIB.srmech_invoke_tool_arena_bytes(len(args_json)))
+    ws = (ctypes.c_char * ws_len)()
+    out_cap = 256 * len(args_json) + 8192
+    out = (ctypes.c_char * out_cap)()
+    got = ctypes.c_size_t(0)
+    kind = ctypes.c_int(-1)
+    rc = LIB.srmech_invoke_tool(
+        nm, args_json, len(args_json),
+        ctypes.cast(ws, ctypes.c_void_p), ws_len,
+        ctypes.cast(out, ctypes.c_void_p), out_cap,
+        ctypes.byref(got), ctypes.byref(kind))
+    if rc != SRMECH_OK or kind.value != INVOKE_DISPATCHED:
+        return (False, None)
+    return (True, bytes(out[:got.value]).decode("utf-8"))
 
 
 def sha256_hex_c(data: bytes) -> str:

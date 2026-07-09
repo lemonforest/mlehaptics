@@ -796,7 +796,30 @@ CEIL_BIGNUM_REFERENCE = 0
 # CEIL_NON_COMPUTE_OWED 15 → 12. ABI stays 4 (additive symbols). The 12 owed left =
 # the MCP JSON-RPC-stdio server LOOP + tool-call arg-marshalling + the 403-tool
 # dispatch tail + the CLI grammar (rc186+).
-CEIL_NON_COMPUTE_OWED = 11
+# rc186 (2026-07-08): the MCP-server CONTROL SPINE — srmech_mcp_handle (the JSON-RPC
+# protocol + method dispatch) + srmech_mcp_serve_stdio (the stdio read/frame/write
+# LOOP) + srmech_mcp_build_attestation in C. serve_stdio moved owed_orchestration →
+# composes_c (the loop + initialize/tools-list/ping/shutdown run in C; tools/call
+# routes to the still-owed invoke_tool). owed 12 → 11; composes_c 106 → 107.
+# CEIL_NON_COMPUTE_OWED 12 → 11.
+# rc188 (2026-07-09): the tools/call DISPATCH SPINE — srmech_invoke_tool (+ the
+# parsed-args sibling srmech_invoke_tool_json) makes MCP `tools/call` genuinely RUN
+# in C. It composes registry_find (rc184) → per-arg srmech_mcp_marshal_arg (rc187) →
+# a SIGNATURE-SHAPE-batched thunk table → serialise-the-result, and the MCP server's
+# tools/call routes a CLEAN BATCH of 20 c_dispatched tools through it (native == pure,
+# result text byte-identical to serialise_result): cyclic {gcd,lcm,mod_add,mod_mul,
+# mod_pow,mod_inv,three_cycle} + cascade.cyclic_gcd + primes {is_prime,next_prime,
+# factor} + rational.best_rational + format.sha256_bytes + tlv.tlv_pack + hdc {bind,
+# permute,hamming} + dispatch.mirror_pattern + search {byte_search,byte_search_backward}.
+# The 383 tools with no single C kernel (nested / float-carrier / Mat / handle) — plus
+# an extra/malformed arg, an unregistered name, or an out-of-domain input — DEFER to
+# the pure invoke_tool (rc103 inform-don't-limit). srmech.mcp._tools.invoke_tool moved
+# owed_orchestration → composes_c (it earned its C peer; the server dispatches through
+# it, the pure path is the complete fallback; the transitive walk reaches no NOT-READY
+# leaf). owed 11 → 10; composes_c 107 → 108; sum stays 177. CEIL_NON_COMPUTE_OWED
+# 11 → 10. ABI stays 4 (additive symbols). The 10 owed left = serve_http_sse + the CLI
+# grammar (main/build_parser + 5 add_arguments) + make_class / run_class_method.
+CEIL_NON_COMPUTE_OWED = 10
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

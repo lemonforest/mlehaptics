@@ -51,13 +51,13 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # resolve to the already-classified srmech.dsl._class_surface pair and are NOT
 # here (they are rc177 dev_tooling rows, deduped by canonical key).
 _ANNEX_ROWS = {
-    # owed_orchestration (9) — the CLI/MCP control-grammar + dispatch a bare-C
-    # host reimplements: the 2 remaining MCP tool-serving ops (invoke_tool +
-    # serve_http_sse), the 2 CLI top-level dispatch ops, and the 5 subcommand
-    # add_arguments (the argparse grammar). rc185 moved tool_entries_to_mcp_defs
-    # owed → composes_c (it earned its C projection peer); rc186 moved serve_stdio
-    # owed → composes_c (the MCP JSON-RPC protocol + stdio LOOP earned its C peer).
-    "srmech.mcp._tools.invoke_tool": "owed_orchestration",
+    # owed_orchestration (8) — the CLI/MCP control-grammar + dispatch a bare-C
+    # host reimplements: the 1 remaining MCP tool-serving op (serve_http_sse), the
+    # 2 CLI top-level dispatch ops, and the 5 subcommand add_arguments (the argparse
+    # grammar). rc185 moved tool_entries_to_mcp_defs owed → composes_c (it earned its
+    # C projection peer); rc186 moved serve_stdio owed → composes_c (the MCP JSON-RPC
+    # protocol + stdio LOOP earned its C peer); rc188 moved invoke_tool owed →
+    # composes_c (the tools/call DISPATCH SPINE srmech_invoke_tool earned its C peer).
     "srmech.mcp._sse.serve_http_sse": "owed_orchestration",
     "srmech.cli.main.main": "owed_orchestration",
     "srmech.cli.main.build_parser": "owed_orchestration",
@@ -66,14 +66,17 @@ _ANNEX_ROWS = {
     "srmech.cli.mcp.add_arguments": "owed_orchestration",
     "srmech.cli.klass.add_arguments": "owed_orchestration",
     "srmech.cli.status.add_arguments": "owed_orchestration",
-    # composes_c (11) — the mcp tool_entries_to_mcp_defs projection (rc185: earned
+    # composes_c (12) — the mcp tool_entries_to_mcp_defs projection (rc185: earned
     # its C peer srmech_tool_entries_to_mcp_defs) + serve_stdio (rc186: earned its C
     # peer srmech_mcp_serve_stdio — the loop + framing + initialize/tools-list/ping/
-    # shutdown run in C; tools/call routes to the still-owed invoke_tool) + the
-    # subcommand run/run_* dispatch bodies over already-C / non_compute leaves (the
-    # fully-C bus, the C DSL chain, the owed serve/class ops); each reaches no
-    # python_only_debt / bignum_reference / c_exists_unbound leaf (all three are 0).
+    # shutdown run in C) + invoke_tool (rc188: earned its C peer srmech_invoke_tool —
+    # the tools/call DISPATCH SPINE; the server routes a clean 20-tool batch through
+    # it, the pure invoke_tool is the complete fallback) + the subcommand run/run_*
+    # dispatch bodies over already-C / non_compute leaves (the fully-C bus, the C DSL
+    # chain, the owed serve/class ops); each reaches no python_only_debt /
+    # bignum_reference / c_exists_unbound leaf (all three are 0).
     "srmech.mcp._tools.tool_entries_to_mcp_defs": "composes_c",
+    "srmech.mcp._tools.invoke_tool": "composes_c",
     "srmech.mcp._stdio.serve_stdio": "composes_c",
     "srmech.cli.bus.run": "composes_c",
     "srmech.cli.bus.run_list": "composes_c",
@@ -97,15 +100,16 @@ _ANNEX_ROWS = {
 
 # the +24 annex delta by kind (what the host-glue annex ADDS to the pre-rc183
 # split; rc185 moved tool_entries_to_mcp_defs owed → composes_c, rc186 moved
-# serve_stdio owed → composes_c, so the annex split is now 9/11/1/3 — the rows are
-# still rc183-introduced annex rows, just now C-backed)
-_ANNEX_DELTA = {"owed_orchestration": 9, "composes_c": 11, "host_glue": 1,
+# serve_stdio owed → composes_c, rc188 moved invoke_tool owed → composes_c, so the
+# annex split is now 8/12/1/3 — the rows are still rc183-introduced annex rows, just
+# now C-backed)
+_ANNEX_DELTA = {"owed_orchestration": 8, "composes_c": 12, "host_glue": 1,
                 "dev_tooling": 3}
 # the FULL split after the host-glue annex (post-rc182 4/94/14/41 + the +24 delta;
 # rc185 living-pin bump: the 3 tool_schema projection rows earned C → owed 15→12,
-# composes_c 103→106; rc186 living-pin bump: serve_stdio earned C → owed 12→11,
-# composes_c 106→107; sum stays 177)
-_FULL_SPLIT = {"owed_orchestration": 11, "composes_c": 107, "host_glue": 15,
+# composes_c 103→106; rc186: serve_stdio earned C → owed 12→11, composes_c 106→107;
+# rc188: invoke_tool earned C → owed 11→10, composes_c 107→108; sum stays 177)
+_FULL_SPLIT = {"owed_orchestration": 10, "composes_c": 108, "host_glue": 15,
                "dev_tooling": 44}
 _TOTAL_NON_COMPUTE = 177
 _HOSTGLUE_ROOTS = ("srmech.mcp", "srmech.cli", "srmech.llm")
@@ -157,10 +161,11 @@ def test_annex_rows_are_live():
     )
 
 
-def test_annex_delta_is_24_split_9_11_1_3():
-    """The +24 annex rows split exactly 9 owed / 11 composes_c / 1 host_glue /
+def test_annex_delta_is_24_split_8_12_1_3():
+    """The +24 annex rows split exactly 8 owed / 12 composes_c / 1 host_glue /
     3 dev_tooling (rc185 moved tool_entries_to_mcp_defs owed → composes_c;
-    rc186 moved serve_stdio owed → composes_c)."""
+    rc186 moved serve_stdio owed → composes_c; rc188 moved invoke_tool owed →
+    composes_c)."""
     counts = Counter(_ANNEX_ROWS.values())
     assert dict(counts) == _ANNEX_DELTA, (
         f"annex +24 split drifted: got {dict(counts)}, expected {_ANNEX_DELTA}"
@@ -170,7 +175,7 @@ def test_annex_delta_is_24_split_9_11_1_3():
 
 def test_full_non_compute_split_sums_to_177():
     """The full non_compute ledger split (the bus/dsl annex + the rc183 host-glue
-    annex) is 11/107/15/44 = 177 (rc185 + rc186 living-pin bumps)."""
+    annex) is 10/108/15/44 = 177 (rc185 + rc186 + rc188 living-pin bumps)."""
     counts = Counter(r["non_compute_kind"] for r in _rows()
                      if r.get("bucket") == "non_compute")
     assert dict(counts) == _FULL_SPLIT, (
@@ -180,13 +185,14 @@ def test_full_non_compute_split_sums_to_177():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_11():
-    """The phase-driver ceiling is 11 after rc186 — the rc185 residue of 12 minus
-    the serve_stdio row that earned its C peer (the MCP JSON-RPC protocol + stdio
-    LOOP in C). rc187+ build the tools/call arg-marshalling + invoke_tool dispatch
-    (+ the CLI dispatch) to C and drive the owed count back down."""
-    assert CEIL_NON_COMPUTE_OWED == 11, (
-        f"CEIL_NON_COMPUTE_OWED must be 11 after rc186; got "
+def test_ceil_non_compute_owed_is_10():
+    """The phase-driver ceiling is 10 after rc188 — the rc186 residue of 11 minus
+    the invoke_tool row that earned its C peer (the tools/call DISPATCH SPINE
+    srmech_invoke_tool; the MCP server routes a clean 20-tool batch through it, the
+    pure invoke_tool is the complete fallback). rc189+ finish the bucket-(a) batch +
+    the float/nested marshal, and build the CLI dispatch to C, driving owed down."""
+    assert CEIL_NON_COMPUTE_OWED == 10, (
+        f"CEIL_NON_COMPUTE_OWED must be 10 after rc188; got "
         f"{CEIL_NON_COMPUTE_OWED}"
     )
 

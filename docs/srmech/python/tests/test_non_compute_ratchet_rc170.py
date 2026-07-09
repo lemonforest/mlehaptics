@@ -151,9 +151,16 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # invoke_tool via inform-don't-limit). owed 12 → 11; composes_c 106 → 107; sum stays
 # 177. CEIL_NON_COMPUTE_OWED 12 → 11. The 11 owed left = invoke_tool + serve_http_sse
 # + the 2 CLI top-level dispatch ops + the 5 cli subcommand add_arguments + ... .
+# rc188 (2026-07-09): the tools/call DISPATCH SPINE — srmech_invoke_tool (+ the
+# parsed-args srmech_invoke_tool_json) makes MCP tools/call RUN in C for a clean
+# 20-tool batch (registry_find → marshal_arg → signature-shape thunk table →
+# serialise; the 383 no-single-kernel tools defer to the pure invoke_tool). invoke_tool
+# moved owed_orchestration → composes_c. owed 11 → 10; composes_c 107 → 108; sum stays
+# 177. CEIL_NON_COMPUTE_OWED 11 → 10. The 10 owed left = serve_http_sse + the 2 CLI
+# top-level dispatch ops + the 5 cli subcommand add_arguments + make_class/run_class_method.
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 11,
-    "composes_c": 107,
+    "owed_orchestration": 10,
+    "composes_c": 108,
     "host_glue": 15,
     "dev_tooling": 44,
 }
