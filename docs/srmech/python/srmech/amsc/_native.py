@@ -292,6 +292,35 @@ BUS_SUBSCRIBER_CALLBACK = ctypes.CFUNCTYPE(
 )
 
 
+# rc184 — ctypes mirrors of srmech_tool_param_t / srmech_tool_entry_t (the
+# C MCP-server FOUNDATION GATE tool registry). Field order MUST match
+# c/include/srmech.h exactly so the accessors read the const table back.
+class _SrmechToolParamC(ctypes.Structure):
+    _fields_ = [
+        ("name", ctypes.c_char_p),
+        ("type", ctypes.c_char_p),
+        ("required", ctypes.c_int),
+        ("summary", ctypes.c_char_p),
+    ]
+
+
+class _SrmechToolEntryC(ctypes.Structure):
+    _fields_ = [
+        ("name", ctypes.c_char_p),
+        ("owner", ctypes.c_char_p),
+        ("category", ctypes.c_char_p),
+        ("summary", ctypes.c_char_p),
+        ("params", ctypes.POINTER(_SrmechToolParamC)),
+        ("param_count", ctypes.c_uint32),
+        ("returns_type", ctypes.c_char_p),
+        ("returns_shape", ctypes.c_char_p),
+        ("mcp_callable", ctypes.c_int),
+        ("mcp_unavailable_reason", ctypes.c_char_p),
+        ("example_json", ctypes.c_char_p),
+        ("smoke_json", ctypes.c_char_p),
+    ]
+
+
 def _bind(lib: ctypes.CDLL) -> None:
     """Set argtypes / restype for every function we call into."""
     # const char *srmech_version(void)
@@ -2866,6 +2895,25 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_json_write_ws.argtypes = [_VP, _CP, _SZ, _PSZ, _VP, _SZ]
             lib.srmech_json_write_ws.restype = ctypes.c_int
 
+        # rc184 — tool-schema registry (the C MCP-server FOUNDATION GATE).
+        # The 403-entry ToolEntry registry as a const table + a canonical
+        # JSON serialiser byte-identical to the Python tool_schema_sha256
+        # pre-image. NEW symbols → hasattr-guarded (a stale lib keeps the
+        # rest of the native surface); additive → ABI stays 4.
+        #   srmech_status_t srmech_tool_schema_to_json(char *buf,
+        #       size_t buf_len, size_t *out_len)   (buf==NULL ⇒ size-query)
+        if hasattr(lib, "srmech_tool_schema_to_json"):
+            lib.srmech_tool_schema_to_json.argtypes = [_VP, _SZ, _PSZ]
+            lib.srmech_tool_schema_to_json.restype = ctypes.c_int
+            lib.srmech_tool_registry_count.argtypes = []
+            lib.srmech_tool_registry_count.restype = ctypes.c_size_t
+            lib.srmech_tool_registry_get.argtypes = [_SZ]
+            lib.srmech_tool_registry_get.restype = ctypes.POINTER(
+                _SrmechToolEntryC)
+            lib.srmech_tool_registry_find.argtypes = [_CP]
+            lib.srmech_tool_registry_find.restype = ctypes.POINTER(
+                _SrmechToolEntryC)
+
     # ------------------------------------------------------------------
     # Class A — op-provenance canonical record hasher (0.9.0rc117; the
     # op-carrying carrier, dives #718/#719). The C peer of
@@ -4975,6 +5023,80 @@ if _LIB_PATH is not None:
         # AttributeError: a bound symbol doesn't exist (stale .so from
         # an older srmech version). Either way, fall back cleanly.
         LOAD_ERROR = f"native lib at {_LIB_PATH}: load failed: {e!r}"
+
+
+# ----------------------------------------------------------------------
+# rc184 — tool-schema registry (the C MCP-server FOUNDATION GATE). A
+# bare-C host produces the 403-tool registry DATA + the canonical
+# tool_schema_sha256 via the const table + srmech_tool_schema_to_json,
+# byte-identical to the Python SSoT. These helpers exercise that surface
+# from Python (the hash-ratchet + accessor round-trip tests).
+# ----------------------------------------------------------------------
+
+def has_native_tool_schema() -> bool:
+    """True iff the rc184 tool-schema registry C peer is loaded + bound."""
+    return bool(
+        HAS_NATIVE and LIB is not None
+        and hasattr(LIB, "srmech_tool_schema_to_json")
+    )
+
+
+def tool_schema_json_c() -> "bytes | None":
+    """The canonical tool-schema JSON from the C const registry table,
+    byte-identical to ``json.dumps(get_tool_schema().to_jsonable(),
+    sort_keys=True, separators=(",", ":"))``. Two-pass (NULL buffer size
+    query, then fill). Returns ``None`` when the rc184 C peer is
+    unavailable (stale / no-C host → caller uses the pure path)."""
+    if not has_native_tool_schema():
+        return None
+    need = ctypes.c_size_t(0)
+    rc = LIB.srmech_tool_schema_to_json(
+        None, ctypes.c_size_t(0), ctypes.byref(need))
+    if rc != SRMECH_OK:
+        return None
+    size = need.value
+    raw = (ctypes.c_char * size)()
+    got = ctypes.c_size_t(0)
+    rc = LIB.srmech_tool_schema_to_json(
+        ctypes.cast(raw, ctypes.c_void_p), ctypes.c_size_t(size),
+        ctypes.byref(got))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(raw[:got.value])
+
+
+def tool_registry_count_c() -> "int | None":
+    """Entry count in the C const registry table, or ``None`` if no C."""
+    if not has_native_tool_schema():
+        return None
+    return int(LIB.srmech_tool_registry_count())
+
+
+def tool_registry_names_c() -> "list[str] | None":
+    """Every tool name from the C table in table order — exercises
+    srmech_tool_registry_count + srmech_tool_registry_get. ``None`` if no C."""
+    if not has_native_tool_schema():
+        return None
+    n = int(LIB.srmech_tool_registry_count())
+    names: "list[str]" = []
+    for i in range(n):
+        ptr = LIB.srmech_tool_registry_get(ctypes.c_size_t(i))
+        if not ptr:
+            return None
+        names.append(ptr.contents.name.decode("utf-8"))
+    return names
+
+
+def tool_registry_find_name_c(name: str) -> "str | None":
+    """The ``name`` field of the entry the C get-by-name accessor returns
+    for ``name`` (round-trips srmech_tool_registry_find), or ``None`` when
+    absent / no C."""
+    if not has_native_tool_schema():
+        return None
+    ptr = LIB.srmech_tool_registry_find(name.encode("utf-8"))
+    if not ptr:
+        return None
+    return ptr.contents.name.decode("utf-8")
 
 
 def sha256_hex_c(data: bytes) -> str:
