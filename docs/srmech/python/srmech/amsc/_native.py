@@ -2931,6 +2931,27 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_tool_entries_to_mcp_defs.argtypes = [_VP, _SZ, _PSZ]
             lib.srmech_tool_entries_to_mcp_defs.restype = ctypes.c_int
 
+        # rc186 — the MCP-server CONTROL SPINE (the JSON-RPC protocol + stdio
+        # loop in C). New symbols → hasattr-guarded (a stale rc185 lib keeps the
+        # rest of the surface + falls back to the pure Python MCPServer.handle /
+        # serve_stdio); additive → ABI stays 4.
+        #   srmech_mcp_handle(req, req_len, ws, ws_len, buf, buf_len,
+        #                     out_len, out_kind, defer_calls)
+        #   srmech_mcp_build_attestation(tool, result, ts, ws, ws_len,
+        #                                buf, buf_len, out_len)
+        #   srmech_mcp_serve_stdio(line_buf, line_cap, ws, ws_len,
+        #                          resp_buf, resp_cap)
+        if hasattr(lib, "srmech_mcp_handle"):
+            _PINT = ctypes.POINTER(ctypes.c_int)
+            lib.srmech_mcp_handle.argtypes = [
+                _CP, _SZ, _VP, _SZ, _VP, _SZ, _PSZ, _PINT, ctypes.c_int]
+            lib.srmech_mcp_handle.restype = ctypes.c_int
+            lib.srmech_mcp_build_attestation.argtypes = [
+                _CP, _CP, _CP, _VP, _SZ, _VP, _SZ, _PSZ]
+            lib.srmech_mcp_build_attestation.restype = ctypes.c_int
+            lib.srmech_mcp_serve_stdio.argtypes = [_VP, _SZ, _VP, _SZ, _VP, _SZ]
+            lib.srmech_mcp_serve_stdio.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # Class A — op-provenance canonical record hasher (0.9.0rc117; the
     # op-carrying carrier, dives #718/#719). The C peer of
@@ -5175,6 +5196,108 @@ def tool_entries_to_mcp_defs_c() -> "bytes | None":
     if not has_native_tool_schema_ops():
         return None
     return _tool_schema_two_pass(LIB.srmech_tool_entries_to_mcp_defs)
+
+
+# ----------------------------------------------------------------------
+# rc186 — the MCP-server CONTROL SPINE (the JSON-RPC protocol + stdio LOOP
+# in C). C peers of srmech.mcp._server.MCPServer.handle / build_attestation
+# + srmech.mcp._stdio.serve_stdio, so a bare-C host serves the MCP lifecycle
+# + discovery (initialize / notifications/initialized / tools/list / ping /
+# shutdown) natively. tools/call defers to the pure invoke_tool (rc187+ arc).
+# ----------------------------------------------------------------------
+
+# out_kind values (mirror SRMECH_MCP_* in srmech.h).
+MCP_KIND_RESPONSE: int = 0
+MCP_KIND_NO_RESPONSE: int = 1
+MCP_KIND_DEFER_CALL: int = 2
+
+# Parse arena for one control-message dispatch. The lifecycle/discovery
+# requests (initialize / tools/list / ping / shutdown / notifications) are all
+# small; tools/call is NOT routed through the C handle (the caller defers it to
+# pure invoke_tool before ever calling here), so a modest bounded arena is ample.
+_MCP_HANDLE_WS: int = 1 << 16
+
+
+def has_native_mcp() -> bool:
+    """True iff the rc186 MCP control-spine C peer is loaded + bound."""
+    return bool(
+        HAS_NATIVE and LIB is not None and hasattr(LIB, "srmech_mcp_handle")
+    )
+
+
+def mcp_handle_c(request: bytes) -> "tuple[int, bytes | None] | None":
+    """Dispatch one JSON-RPC ``request`` (raw bytes) through the C
+    ``srmech_mcp_handle`` (default server: name ``srmech-mcp``, no filter,
+    ``defer_calls=1``). Returns ``(kind, response_bytes)`` where ``kind`` is one
+    of ``MCP_KIND_{RESPONSE,NO_RESPONSE,DEFER_CALL}`` and ``response_bytes`` is
+    the byte-identical JSON-RPC response (or ``None`` for NO_RESPONSE /
+    DEFER_CALL). Returns ``None`` when the C peer is unavailable / a non-OK
+    status (the caller falls back to the pure Python dispatch).
+
+    Two-pass (NULL-buffer size query, then fill), mirroring the tool_schema C
+    projections. numpy-free."""
+    if not has_native_mcp():
+        return None
+    ws = (ctypes.c_char * _MCP_HANDLE_WS)()
+    ws_p = ctypes.cast(ws, ctypes.c_void_p)
+    need = ctypes.c_size_t(0)
+    kind = ctypes.c_int(-1)
+    rc = LIB.srmech_mcp_handle(
+        request, len(request), ws_p, _MCP_HANDLE_WS,
+        None, ctypes.c_size_t(0), ctypes.byref(need), ctypes.byref(kind), 1)
+    if rc != SRMECH_OK:
+        return None
+    if kind.value in (MCP_KIND_NO_RESPONSE, MCP_KIND_DEFER_CALL):
+        return (kind.value, None)
+    size = need.value
+    raw = (ctypes.c_char * size)() if size > 0 else None
+    got = ctypes.c_size_t(0)
+    kind2 = ctypes.c_int(-1)
+    buf_p = ctypes.cast(raw, ctypes.c_void_p) if raw is not None else None
+    rc = LIB.srmech_mcp_handle(
+        request, len(request), ws_p, _MCP_HANDLE_WS,
+        buf_p, ctypes.c_size_t(size), ctypes.byref(got), ctypes.byref(kind2), 1)
+    if rc != SRMECH_OK or kind2.value != MCP_KIND_RESPONSE:
+        return None
+    return (MCP_KIND_RESPONSE, bytes(raw[:got.value]) if raw is not None else b"")
+
+
+def mcp_build_attestation_c(
+    tool_name: str, result_text: str, retrieved_at: str
+) -> "bytes | None":
+    """The MPR attestation JSON object from the C ``srmech_mcp_build_attestation``
+    (``response_sha256`` over the exact preimage), byte-identical to
+    ``json.dumps(build_attestation(...), separators=(",", ":"))`` for the same
+    ``retrieved_at``. ``None`` if the rc186 C peer is unavailable / non-OK.
+
+    numpy-free; two-pass (the size query needs no ws, the fill assembles the
+    preimage in a caller arena sized to its exact length)."""
+    if not has_native_mcp():
+        return None
+    tn = tool_name.encode("utf-8")
+    rt = result_text.encode("utf-8")
+    ra = retrieved_at.encode("utf-8")
+    # size query (buf == NULL; ws not needed to size the fixed-shape object)
+    need = ctypes.c_size_t(0)
+    rc = LIB.srmech_mcp_build_attestation(
+        tn, rt, ra, None, ctypes.c_size_t(0),
+        None, ctypes.c_size_t(0), ctypes.byref(need))
+    if rc != SRMECH_OK:
+        return None
+    # ws must hold tool \x1f "srmech <ver>" \x1f result \x1f ts; the parser
+    # version ("srmech <=32 chars") + 3 separators fit comfortably in +64 slack.
+    ws_len = len(tn) + len(rt) + len(ra) + 64
+    ws = (ctypes.c_char * ws_len)()
+    size = need.value
+    raw = (ctypes.c_char * size)()
+    got = ctypes.c_size_t(0)
+    rc = LIB.srmech_mcp_build_attestation(
+        tn, rt, ra, ctypes.cast(ws, ctypes.c_void_p), ws_len,
+        ctypes.cast(raw, ctypes.c_void_p), ctypes.c_size_t(size),
+        ctypes.byref(got))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(raw[:got.value])
 
 
 def sha256_hex_c(data: bytes) -> str:

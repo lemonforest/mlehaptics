@@ -149,6 +149,11 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
                                 # 1/0 (is a directory-iteration backend
                                 # present?). No state to assert; see
                                 # c/JPL_AUDIT.md.
+    "srmech_plat_has_stdio",    # PAL trivial accessor (rc186): returns a
+                                # compile-time 1/0 (is a stdin/stdout backend
+                                # present?). No state to assert; the stdin_read
+                                # / stdout_write fns carry >=2 asserts. See
+                                # c/JPL_AUDIT.md.
     # sha256 inline helpers — 4-7 lines each, no anomalous conditions
     "srmech_ror32",
     "srmech_ch",

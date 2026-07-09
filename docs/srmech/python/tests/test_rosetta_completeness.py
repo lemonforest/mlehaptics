@@ -796,7 +796,7 @@ CEIL_BIGNUM_REFERENCE = 0
 # CEIL_NON_COMPUTE_OWED 15 → 12. ABI stays 4 (additive symbols). The 12 owed left =
 # the MCP JSON-RPC-stdio server LOOP + tool-call arg-marshalling + the 403-tool
 # dispatch tail + the CLI grammar (rc186+).
-CEIL_NON_COMPUTE_OWED = 12
+CEIL_NON_COMPUTE_OWED = 11
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

@@ -1202,3 +1202,145 @@ srmech_status_t srmech_plat_now_ns(int64_t *out_ns)
     *out_ns = ((int64_t)ts.tv_sec * 1000000000LL) + (int64_t)ts.tv_nsec;
     return SRMECH_OK;
 }
+
+/* ================================================================== *
+ * STANDARD I/O (rc186) — POSIX read(0)/write(1) / Windows ReadFile/WriteFile
+ * on GetStdHandle. The MCP stdio loop (srmech_mcp.c) is the consumer; it
+ * carries no #ifdef. EOF (0-byte read / broken pipe) is a clean terminator.
+ * ================================================================== */
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__unix__) \
+    || defined(__APPLE__) || defined(__linux__)
+#  define SRMECH_PLAT_STDIO 1
+#endif
+
+int srmech_plat_has_stdio(void)
+{
+#if defined(SRMECH_PLAT_STDIO)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+#if defined(SRMECH_PLAT_STDIO) && (defined(_WIN32) || defined(_WIN64))
+
+srmech_status_t srmech_plat_stdin_read(unsigned char *buf, size_t cap,
+                                       size_t *out_n)
+{
+    HANDLE h;
+    DWORD got = 0;
+    BOOL ok;
+    assert(buf != NULL || cap == 0u);
+    assert(out_n != NULL);
+    *out_n = 0u;
+    if (cap == 0u) {
+        return SRMECH_OK;
+    }
+    h = GetStdHandle(STD_INPUT_HANDLE);
+    if (h == INVALID_HANDLE_VALUE || h == NULL) {
+        return SRMECH_ERR_IO;
+    }
+    ok = ReadFile(h, buf, (DWORD)cap, &got, NULL);
+    if (!ok) {
+        DWORD le = GetLastError();
+        if (le == ERROR_BROKEN_PIPE || le == ERROR_HANDLE_EOF) {
+            return SRMECH_OK;   /* peer closed stdin → clean EOF (*out_n == 0) */
+        }
+        return SRMECH_ERR_IO;
+    }
+    *out_n = (size_t)got;       /* got == 0 is also EOF */
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_stdout_write(const unsigned char *buf, size_t n)
+{
+    HANDLE h;
+    DWORD sent_total = 0;
+    assert(buf != NULL || n == 0u);
+    assert(n == 0u || buf != NULL);
+    if (n == 0u) {
+        return SRMECH_OK;
+    }
+    h = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (h == INVALID_HANDLE_VALUE || h == NULL) {
+        return SRMECH_ERR_IO;
+    }
+    while (sent_total < n) {
+        DWORD sent = 0;
+        BOOL ok = WriteFile(h, buf + sent_total,
+                            (DWORD)(n - sent_total), &sent, NULL);
+        if (!ok || sent == 0) {
+            return SRMECH_ERR_IO;
+        }
+        sent_total += sent;
+    }
+    return SRMECH_OK;
+}
+
+#elif defined(SRMECH_PLAT_STDIO)
+
+srmech_status_t srmech_plat_stdin_read(unsigned char *buf, size_t cap,
+                                       size_t *out_n)
+{
+    assert(buf != NULL || cap == 0u);
+    assert(out_n != NULL);
+    *out_n = 0u;
+    if (cap == 0u) {
+        return SRMECH_OK;
+    }
+    for (;;) {
+        ssize_t r = read(0, buf, cap);
+        if (r < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return SRMECH_ERR_IO;
+        }
+        *out_n = (size_t)r;   /* r == 0 is EOF (closed stdin) */
+        return SRMECH_OK;
+    }
+}
+
+srmech_status_t srmech_plat_stdout_write(const unsigned char *buf, size_t n)
+{
+    size_t sent = 0u;
+    assert(buf != NULL || n == 0u);
+    assert(n == 0u || buf != NULL);
+    while (sent < n) {
+        ssize_t w = write(1, buf + sent, n - sent);
+        if (w < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return SRMECH_ERR_IO;
+        }
+        sent += (size_t)w;
+    }
+    assert(sent == n);
+    return SRMECH_OK;
+}
+
+#else  /* bare-metal: no standard streams — the MCP loop feeds bytes another way */
+
+srmech_status_t srmech_plat_stdin_read(unsigned char *buf, size_t cap,
+                                       size_t *out_n)
+{
+    assert(srmech_plat_has_stdio() == 0);
+    assert(out_n != NULL);
+    (void)buf;
+    (void)cap;
+    *out_n = 0u;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_stdout_write(const unsigned char *buf, size_t n)
+{
+    assert(srmech_plat_has_stdio() == 0);
+    assert(buf != NULL || n == 0u);
+    (void)buf;
+    (void)n;
+    return SRMECH_ERR_IO;
+}
+
+#endif  /* SRMECH_PLAT_STDIO backends */
