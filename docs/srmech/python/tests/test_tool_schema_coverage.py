@@ -259,6 +259,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.one.one_grammar_slots",
     "srmech.amsc.cascade.one.one_flat_rational",
     "srmech.amsc.cascade.one.one_matrix",
+    # cascade.one.one_from_jsonable (v0.9.0rc195, #818 make_class→C arc) — the One
+    # carrier's canonical-DICT reconstruction CONSTRUCTOR (the deserialisation
+    # inverse of the private ``One._to_jsonable`` serialiser): takes the plain
+    # ``{sigma, theta, terms}`` JSON dict = the R1 One↔DICT contract the make_class
+    # object model marshals a One field/result through, and rebuilds the One
+    # (regenerating ``blocks`` via the rc138 ``srmech_the_one`` adjoint). A bare
+    # carrier constructor / marshalling plumbing, NOT a user-facing engine
+    # ToolEntry — exempt exactly like the modular_forms_ring / eisenstein carrier
+    # constructors and the ``one.one_*`` accessors above.
+    "srmech.amsc.cascade.one.one_from_jsonable",
     # cascade.one.winding_tower (v0.9.0rc137, gh#1276) — the divmod-recursive
     # binary-tower chirality grading of a WHOLE winding ``w`` (the (ℤ/2)^d
     # Cayley–Dickson doubling coordinate; the anti-collapse of ``w mod 2``). A

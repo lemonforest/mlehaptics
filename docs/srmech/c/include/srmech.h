@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc194"
-#define SRMECH_VERSION       "0.9.0rc194"
+#define SRMECH_VERSION_PRE   "rc195"
+#define SRMECH_VERSION       "0.9.0rc195"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5602,6 +5602,60 @@ srmech_status_t srmech_the_one(int32_t sigma,
                                srmech_bigint_t *out_num,
                                srmech_bigint_t *out_den,
                                void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_one_scalar / srmech_one_matrix — the One-family COMPUTE leaf ops
+ * (0.9.0rc195; the make_class -> C arc, #887). C peers of the one.toml [class]
+ * One accessor ops srmech.amsc.cascade.to_scalar / one_matrix: they COMPOSE
+ * srmech_the_one (regenerate the 14 exact adjoint rationals) then assemble
+ * exactly like One.to_scalar / One.to_matrix, so a bare-C host runs the object
+ * model's scalar / matrix methods with no per-method Python shell-out.
+ *
+ * sigma in {+1,-1} (Class-K/C chirality; a sign is applied by negating the
+ * sign-magnitude numerator, never abs()). theta_den->sign must be > 0. num_terms
+ * <= 50. Additive symbols -> SRMECH_ABI_VERSION stays 4. See c/src/srmech_one.c.
+ * ------------------------------------------------------------------ */
+
+/* Minimum ws_len BYTES for srmech_one_scalar with theta rationals of the given
+ * limb sizes + N terms (8-byte-aligned uint32 bump arena: the 14 flat carriers +
+ * the scalar-accumulation scratch + the srmech_the_one series scratch). */
+size_t srmech_one_scalar_ws_bound(size_t num_limbs, size_t den_limbs,
+                                  uint32_t num_terms);
+
+/* The scalar projection of S(sigma, theta_num/theta_den) to N terms:
+ *   mode 0 (trace)     Tr G = 3 + 3*sigma + 8*sigma*cos(theta), EXACT (num,den)
+ *   mode 1 (sqnorm)    Sum (num/den)^2 over the 14 state rationals, EXACT
+ *   mode 2 (component) the `index`-th (0..13) of the 14 exact rationals
+ * out_num/out_den receive the reduced exact rational (positive denominator) —
+ * BYTE-IDENTICAL to the pure Python One.to_scalar (the as_float terminal cast
+ * stays in the caller). Bad sigma / theta_den <= 0 / num_terms > 50 / mode / index
+ * -> SRMECH_ERR_BAD_INPUT; too-small out cap or ws -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_one_scalar(int32_t sigma,
+                                  const srmech_bigint_t *theta_num,
+                                  const srmech_bigint_t *theta_den,
+                                  uint32_t num_terms, int32_t mode, int32_t index,
+                                  srmech_bigint_t *out_num,
+                                  srmech_bigint_t *out_den,
+                                  void *ws, size_t ws_len);
+
+/* Minimum ws_len BYTES for srmech_one_matrix (the 14 flat carriers + the
+ * bignum-rational->double scratch + the srmech_the_one series scratch). */
+size_t srmech_one_matrix_ws_bound(size_t num_limbs, size_t den_limbs,
+                                  uint32_t num_terms);
+
+/* The 14x14 block-diagonal float operator G(sigma,theta) = (+)_n (1 (+) sigma
+ * R_n(theta)) written into `out` as ONE_DIM*ONE_DIM = 196 row-major doubles
+ * (out_count must be >= 196). cos/sin are read from the exact flat rationals +
+ * rounded to double, then the +-1 / +-cos / +-sin tile is placed with NO float
+ * accumulation (FMA-safe) — NUMERIC (the opt-in lossy [scientific] realisation),
+ * WITHIN-TOL (<= 1e-12) to the pure Python One.to_matrix, NOT byte-identical.
+ * Bad sigma / theta_den <= 0 / num_terms > 50 -> SRMECH_ERR_BAD_INPUT; out_count
+ * < 196 or too-small ws -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_one_matrix(int32_t sigma,
+                                  const srmech_bigint_t *theta_num,
+                                  const srmech_bigint_t *theta_den,
+                                  uint32_t num_terms, double *out, size_t out_count,
+                                  void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_jacobi — BIGNUM-EXACT Jacobi elliptic sn/cn/dn Maclaurin truncation
