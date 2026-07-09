@@ -165,13 +165,21 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # the handle-based srmech_mcp_sse_serve/_port/_stop, over the new rc194 TCP PAL,
 # composing srmech_mcp_handle). serve_http_sse moved owed_orchestration →
 # composes_c → owed 3 → 2, composes_c 115 → 116; sum stays 177.
+# rc196 (make_class → C leaf-batch 2, the genome CAP FOUNDATION): genome.encode_shape
+# earned its C peer srmech_genome_encode_shape and LEFT non_compute for c_dispatched
+# (a pure-integer in-memory compute op that now dispatches to a dedicated C symbol,
+# parallel to telomere_tick / gene_express). genome.telomere ALSO earned its C peer
+# srmech_genome_telomere but moved composition_of_c → c_dispatched (NOT a non_compute
+# row). So ONLY encode_shape leaves this bucket: composes_c 116 → 115; non_compute
+# total 177 → 176. CEIL_NON_COMPUTE_OWED stays 2 (make_class / run_class_method are
+# the 2 owed; they discharge in rc201/rc202).
 _EXPECTED_SPLIT = {
     "owed_orchestration": 2,
-    "composes_c": 116,
+    "composes_c": 115,
     "host_glue": 15,
     "dev_tooling": 44,
 }
-_TOTAL_NON_COMPUTE = 177
+_TOTAL_NON_COMPUTE = 176
 
 
 def _rows():

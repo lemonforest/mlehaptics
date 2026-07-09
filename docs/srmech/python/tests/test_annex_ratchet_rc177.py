@@ -134,9 +134,13 @@ _ANNEX_DELTA = {"owed_orchestration": 2, "composes_c": 11, "host_glue": 12,
 # PAL) → serve_http_sse owed→composes_c → owed 3→2, composes_c 115→116 (sum stays
 # 177). The bus/dsl _ANNEX_ROWS / _ANNEX_DELTA are untouched (rc194 moves no
 # bus/dsl row; the mcp serve_http_sse row is pinned in test_annex_ratchet_rc183.py).
-_FULL_SPLIT = {"owed_orchestration": 2, "composes_c": 116, "host_glue": 15,
+# rc196 (make_class → C leaf-batch 2): genome.encode_shape left non_compute for
+# c_dispatched (its C peer srmech_genome_encode_shape) → composes_c 116 → 115;
+# non_compute total 177 → 176. (genome.telomere also earned a C peer but moved
+# composition_of_c → c_dispatched, not a non_compute row.)
+_FULL_SPLIT = {"owed_orchestration": 2, "composes_c": 115, "host_glue": 15,
                "dev_tooling": 44}
-_TOTAL_NON_COMPUTE = 177
+_TOTAL_NON_COMPUTE = 176
 
 
 def _rows():

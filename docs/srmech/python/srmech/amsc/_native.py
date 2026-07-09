@@ -2845,6 +2845,23 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_gene_express_plan.argtypes = [
                 _CP, ctypes.c_uint64, _U8, _SZ, _U8, _SZ, _PSZ, _VP, _SZ]
             lib.srmech_genome_gene_express_plan.restype = ctypes.c_int
+        # rc196 (#887) — the make_class → C leaf-batch 2 CAP FOUNDATION: the two
+        # smallest in-memory leaf ops of the genome [class]. Both are pure /
+        # byte-exact (no arena). NEW symbols → hasattr-guarded (a stale lib keeps
+        # the rest of the genome surface); additive → EXPECTED_ABI_VERSION stays 4.
+        #   int srmech_genome_encode_shape(uint64_t n, uint64_t *leaves_out,
+        #       uint32_t *depth_out)
+        if hasattr(lib, "srmech_genome_encode_shape"):
+            lib.srmech_genome_encode_shape.argtypes = [
+                ctypes.c_uint64,
+                ctypes.POINTER(ctypes.c_uint64),
+                ctypes.POINTER(ctypes.c_uint32)]
+            lib.srmech_genome_encode_shape.restype = ctypes.c_int
+        #   int srmech_genome_telomere(const unsigned char *label, size_t label_len,
+        #       uint32_t dim, unsigned char *out, size_t out_cap)
+        if hasattr(lib, "srmech_genome_telomere"):
+            lib.srmech_genome_telomere.argtypes = [_U8, _SZ, _U32, _U8, _SZ]
+            lib.srmech_genome_telomere.restype = ctypes.c_int
         # §133/rc133 (#733) — MODULATOR-RECOVERY (the INVERSE of gene_express): M1 the
         # two-sided cell-state FLOOR, M2 the candidate consistency verdict. Whole-strand
         # (the GENE-CAP subset body), caller-arena-free. NEW symbols → hasattr-guarded (a
@@ -14422,6 +14439,64 @@ def genome_telomere_tick_c(cap: bytes, leaf_dim: int):
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_telomere_tick", rc)
     return bool(senescent.value), int(count_after.value), bytes(out[:leaf_dim])
+
+
+def has_native_genome_encode_shape() -> bool:
+    """True iff the rc196 srmech_genome_encode_shape C peer is loaded + bound.
+    False on a no-C or pre-rc196 lib — the pure ``srmech.amsc.genome.encode_shape``
+    integer body is the complete alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_encode_shape"))
+
+
+def genome_encode_shape_c(n: int):
+    """Native §44/F715 shape planner (parity peer ``srmech_genome_encode_shape``):
+    ``n`` (a positive kernel size) → ``(leaves, depth)`` ints, where
+    ``leaves = ceil(n / 256)`` and ``depth = ceil(log4(leaves))``. Returns ``None``
+    when the symbol is absent OR ``n`` is out of the uint64 fast-path range
+    (``n <= 0`` / ``n >= 2**64``) — the caller runs the exact pure Python (which
+    also raises the ValueError for ``n <= 0``). Byte-identical to the arithmetic in
+    the pure ``encode_shape``; the caller maps depth → shape + builds the dict."""
+    if not has_native_genome_encode_shape():
+        return None
+    if not isinstance(n, int) or isinstance(n, bool) or n <= 0 or n >= (1 << 64):
+        return None
+    leaves = ctypes.c_uint64(0)
+    depth = ctypes.c_uint32(0)
+    rc = LIB.srmech_genome_encode_shape(
+        ctypes.c_uint64(n), ctypes.byref(leaves), ctypes.byref(depth))
+    if rc != SRMECH_OK:
+        return None
+    return int(leaves.value), int(depth.value)
+
+
+def has_native_genome_telomere() -> bool:
+    """True iff the rc196 srmech_genome_telomere C peer is loaded + bound. False on
+    a no-C or pre-rc196 lib — the pure ``srmech.amsc.genome._pack_cap`` body is the
+    complete alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_telomere"))
+
+
+def genome_telomere_c(label, dim: int):
+    """Native §44 CHROM telomere cap writer (parity peer ``srmech_genome_telomere``):
+    ``(label, dim)`` → the packed ``dim``-byte cap bytes
+    ``[0x43] + utf-8(label), NUL-padded``, or ``None`` when the symbol is absent OR
+    the label does not fit ``dim - 1`` bytes (the caller runs the pure ``_pack_cap``,
+    which raises the exact ValueError for an over-long label). Byte-identical to the
+    bytes the pure path wraps in ``HV(sectors=256)``."""
+    if not has_native_genome_telomere():
+        return None
+    raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    if dim <= 0 or len(raw) > dim - 1:
+        return None
+    out = (ctypes.c_uint8 * dim)()
+    rc = LIB.srmech_genome_telomere(
+        _u8(raw), ctypes.c_size_t(len(raw)), ctypes.c_uint32(dim),
+        out, ctypes.c_size_t(dim))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:dim])
 
 
 def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
