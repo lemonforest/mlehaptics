@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc197"
-#define SRMECH_VERSION       "0.9.0rc197"
+#define SRMECH_VERSION_PRE   "rc198"
+#define SRMECH_VERSION       "0.9.0rc198"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4671,6 +4671,70 @@ srmech_status_t srmech_genome_recall(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     const unsigned char *the_one,
     unsigned char *out, size_t out_cap, size_t *n_leaves_out);
+
+/* rc198 (#887) make_class → C leaf-batch 4 — the genome [class]'s MULTI-KERNEL +
+ * PARTITION in-memory leaf ops, COMPLETING the genome leaf-family in C (all 10
+ * leaves C-realizable for the rc201 object-model engine). Both LOOP the rc197
+ * in-memory leaves (srmech_genome_chromosome to assemble, the recall re-bind to
+ * recover) and reuse the rc196 cap foundation (genome_pack_cap / genome_cap_kind /
+ * genome_decode_label) verbatim, so a bare-C host builds / splits a multi-kernel
+ * genome strand natively, BYTE-IDENTICAL to the Python. The §44 chromosomes=
+ * multi-gene assembly form opens its own gene caps and stays pure.
+ * Additive symbols only → SRMECH_ABI_VERSION stays 4. */
+
+/* GENOME — assemble `n_kernels` labelled kernels into ONE strand: each kernel
+ * becomes a CHROM-capped chromosome (srmech_genome_chromosome), concatenated in
+ * kernel order. BYTE-IDENTICAL to srmech.amsc.genome.genome(kernels, the_one) for
+ * the plain single-gene-per-chromosome path.
+ *   labels / label_lens : the n_kernels raw UTF-8 labels CONCATENATED, label_lens[k]
+ *                         the k-th label's byte length (its slice into `labels`).
+ *   the_one             : the shared Klein-4 invariant (leaf_dim bytes, {0,1,2,3}).
+ *   leaf_dim            : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   leaves / leaf_counts: the kernels' leaves CONCATENATED (each leaf_dim bytes),
+ *                         leaf_counts[k] the k-th kernel's leaf count.
+ *   n_kernels           : the kernel count (labels/label_lens/leaf_counts may be
+ *                         NULL iff n_kernels 0).
+ *   out / out_cap       : caller buffer; out_cap >= (n_kernels + Σ leaf_counts)*leaf_dim.
+ *   n_blocks_out        : out — the total strand block count written.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out / the_one / n_blocks_out NULL, or a NULL kernel array
+ *                          with n_kernels > 0, or a kernel with a NULL leaf run.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, an over-long label, or a leaf byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the strand. */
+srmech_status_t srmech_genome_genome(
+    const unsigned char *labels, const size_t *label_lens,
+    const unsigned char *the_one, uint32_t leaf_dim,
+    const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out);
+
+/* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
+ * srmech_genome_genome): a CHROM / kernel-telomere / active-telomere cap opens a
+ * partition (label read INLINE); a gene / header cap is SKIPPED (the partition
+ * flattens across genes); each data turn until the next opening cap is re-bound
+ * through `the_one` as that partition's leaf. BYTE-IDENTICAL to
+ * srmech.amsc.genome.partition; the caller applies the dict overwrite-on-duplicate-
+ * label + `labels=` filter semantics over these ORDERED partitions.
+ *   strand / n_blocks : the strand's n_blocks blocks, each leaf_dim bytes, contiguous.
+ *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   the_one           : the shared Klein-4 invariant (leaf_dim bytes).
+ *   out_leaves        : caller buffer for the recovered leaves (leaf_dim bytes each,
+ *                       partition order); out_leaves_cap >= (data-turn count)*leaf_dim.
+ *   out_labels        : caller buffer for the partition labels, one leaf_dim-byte
+ *                       NUL-terminated slot each; out_labels_cap >= n_parts*leaf_dim.
+ *   part_leaf_counts  : caller buffer [counts_cap] — the per-partition leaf count.
+ *   n_parts_out       : out — the partition (opening-cap) count.
+ *   n_leaves_out      : out — the total recovered-leaf count.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — any pointer arg is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, an over-long label, or a data byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_leaves / out_labels / part_leaf_counts too small. */
+srmech_status_t srmech_genome_partition(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one,
+    unsigned char *out_leaves, size_t out_leaves_cap,
+    unsigned char *out_labels, size_t out_labels_cap,
+    uint32_t *part_leaf_counts, size_t counts_cap,
+    size_t *n_parts_out, size_t *n_leaves_out);
 
 /* SAVE: write <dir>/turns.bin (= `body` verbatim, body_len bytes) and
  * <dir>/manifest.json (byte-identical to the Python genome_save manifest).

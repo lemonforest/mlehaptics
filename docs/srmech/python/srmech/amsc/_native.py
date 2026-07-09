@@ -2882,6 +2882,31 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_recall.argtypes = [
                 _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
             lib.srmech_genome_recall.restype = ctypes.c_int
+        # rc198 (#887) — the make_class → C leaf-batch 4: the genome [class]'s
+        # MULTI-KERNEL assemble (genome) + PARTITION, COMPLETING the genome leaf-
+        # family in C. Both loop the rc197 leaves + reuse the rc196 cap foundation,
+        # byte-exact, caller-provided out buffers (no arena). NEW symbols →
+        # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 4.
+        #   int srmech_genome_genome(const unsigned char *labels,
+        #       const size_t *label_lens, const unsigned char *the_one,
+        #       uint32_t leaf_dim, const unsigned char *leaves,
+        #       const size_t *leaf_counts, size_t n_kernels,
+        #       unsigned char *out, size_t out_cap, size_t *n_blocks_out)
+        if hasattr(lib, "srmech_genome_genome"):
+            lib.srmech_genome_genome.argtypes = [
+                _U8, _PSZ, _U8, _U32, _U8, _PSZ, _SZ, _U8, _SZ, _PSZ]
+            lib.srmech_genome_genome.restype = ctypes.c_int
+        #   int srmech_genome_partition(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *the_one,
+        #       unsigned char *out_leaves, size_t out_leaves_cap,
+        #       unsigned char *out_labels, size_t out_labels_cap,
+        #       uint32_t *part_leaf_counts, size_t counts_cap,
+        #       size_t *n_parts_out, size_t *n_leaves_out)
+        if hasattr(lib, "srmech_genome_partition"):
+            lib.srmech_genome_partition.argtypes = [
+                _U8, _SZ, _U32, _U8, _U8, _SZ, _U8, _SZ,
+                ctypes.POINTER(ctypes.c_uint32), _SZ, _PSZ, _PSZ]
+            lib.srmech_genome_partition.restype = ctypes.c_int
         # §133/rc133 (#733) — MODULATOR-RECOVERY (the INVERSE of gene_express): M1 the
         # two-sided cell-state FLOOR, M2 the candidate consistency verdict. Whole-strand
         # (the GENE-CAP subset body), caller-arena-free. NEW symbols → hasattr-guarded (a
@@ -14587,6 +14612,101 @@ def genome_recall_c(strand: bytes, n_blocks: int, leaf_dim: int, the_one: bytes)
         return None
     n = int(n_out.value)
     return bytes(out[:n * leaf_dim]), n
+
+
+def has_native_genome_genome() -> bool:
+    """True iff the rc198 srmech_genome_genome C peer is loaded + bound. False on a
+    no-C or pre-rc198 lib — the pure ``srmech.amsc.genome.genome`` body is the
+    complete alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_genome"))
+
+
+def genome_genome_c(labels, the_one: bytes, leaves: bytes, leaf_counts,
+                    leaf_dim: int):
+    """Native rc198 multi-kernel assemble (parity peer ``srmech_genome_genome``): each
+    labelled kernel becomes a CHROM-capped chromosome, concatenated in kernel order.
+    ``labels`` is the per-kernel label list (``str`` / ``bytes``); ``leaves`` is the
+    RAW (uncoupled) leaves of ALL kernels concatenated (``Σ leaf_counts × leaf_dim``
+    bytes); ``leaf_counts`` is the per-kernel leaf count. Returns the whole strand
+    bytes (``(n_kernels + Σ leaf_counts) × leaf_dim``), or ``None`` when the symbol is
+    absent OR the inputs do not fit the fast path (over-long label, width mismatch, a
+    leaf byte > 3) — the caller then runs the exact pure Python. Byte-identical to the
+    bytes behind the Python strand."""
+    if not has_native_genome_genome():
+        return None
+    raw_labels = [(l.encode("utf-8") if isinstance(l, str) else bytes(l))
+                  for l in labels]
+    counts = [int(c) for c in leaf_counts]
+    n_kernels = len(raw_labels)
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(the_one) != leaf_dim
+            or n_kernels != len(counts)
+            or any(len(rl) > leaf_dim - 1 for rl in raw_labels)
+            or sum(counts) * leaf_dim != len(leaves)):
+        return None
+    labels_blob = b"".join(raw_labels)
+    lens_arr = (ctypes.c_size_t * max(n_kernels, 1))(*[len(rl) for rl in raw_labels])
+    counts_arr = (ctypes.c_size_t * max(n_kernels, 1))(*counts)
+    total = (n_kernels + sum(counts)) * leaf_dim
+    out = (ctypes.c_uint8 * max(total, 1))()
+    n_blocks = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_genome(
+        _u8(labels_blob), lens_arr, _u8(the_one), ctypes.c_uint32(leaf_dim),
+        _u8(leaves), counts_arr, ctypes.c_size_t(n_kernels),
+        out, ctypes.c_size_t(total), ctypes.byref(n_blocks))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:total])
+
+
+def has_native_genome_partition() -> bool:
+    """True iff the rc198 srmech_genome_partition C peer is loaded + bound. False on a
+    no-C or pre-rc198 lib — the pure ``srmech.amsc.genome.partition`` body is the
+    complete alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_partition"))
+
+
+def genome_partition_c(strand: bytes, n_blocks: int, leaf_dim: int, the_one: bytes):
+    """Native rc198 partition (parity peer ``srmech_genome_partition``): walk the
+    ``n_blocks`` fixed-width ``leaf_dim``-byte blocks of ``strand``; a CHROM /
+    kernel-telomere / active-telomere cap opens a partition (label read inline), a
+    gene / header cap is skipped (flatten), each data turn until the next opening cap
+    is re-bound through ``the_one`` as that partition's leaf. Returns
+    ``(leaf_bytes, labels, counts)`` — ``leaf_bytes`` the recovered leaves
+    (``n_leaves × leaf_dim``, partition order), ``labels`` the per-partition label
+    strings, ``counts`` the per-partition leaf counts — or ``None`` when the symbol is
+    absent OR the inputs do not fit the fast path (width mismatch, a data byte > 3).
+    The caller builds ``{label: [leaves]}`` (dict overwrite-on-duplicate-label) and
+    applies any ``labels=`` filter — byte-identical to ``partition``."""
+    if not has_native_genome_partition():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(the_one) != leaf_dim
+            or len(strand) != n_blocks * leaf_dim):
+        return None
+    cap = max(n_blocks * leaf_dim, 1)
+    out_leaves = (ctypes.c_uint8 * cap)()
+    out_labels = (ctypes.c_uint8 * cap)()
+    part_counts = (ctypes.c_uint32 * max(n_blocks, 1))()
+    n_parts = ctypes.c_size_t(0)
+    n_leaves = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_partition(
+        _u8(strand), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(the_one), out_leaves, ctypes.c_size_t(n_blocks * leaf_dim),
+        out_labels, ctypes.c_size_t(n_blocks * leaf_dim),
+        part_counts, ctypes.c_size_t(n_blocks),
+        ctypes.byref(n_parts), ctypes.byref(n_leaves))
+    if rc != SRMECH_OK:
+        return None
+    np_ = int(n_parts.value)
+    nl = int(n_leaves.value)
+    leaf_bytes = bytes(out_leaves[:nl * leaf_dim])
+    labels = []
+    for p in range(np_):
+        slot = bytes(out_labels[p * leaf_dim:(p + 1) * leaf_dim])
+        labels.append(slot.split(b"\x00", 1)[0].decode("utf-8"))
+    counts = [int(part_counts[p]) for p in range(np_)]
+    return leaf_bytes, labels, counts
 
 
 def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
