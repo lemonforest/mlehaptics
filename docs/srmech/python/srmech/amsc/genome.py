@@ -1467,6 +1467,21 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     else:
         cap = telomere(label, dim=dim)
     if genes is None:
+        # rc197 (#887): DISPATCH the plain single-kernel path (no genes / kernel /
+        # active_count) to the srmech_genome_chromosome C peer when HAS_NATIVE —
+        # byte-identical (the CHROM cap via genome_pack_cap + each turn via the
+        # reversible srmech_klein4_bind). The pure list-comp below is the numpy-free
+        # fallback + parity oracle; the kernel / active-telomere / gene forms open
+        # their own boundary caps and stay pure (they are not this fast path).
+        if not kernel and active_count is None:
+            leaf_bytes = _leaf_blocks(list(leaves))
+            if all(len(b) == dim for b in leaf_bytes):
+                native = _native.genome_chromosome_c(
+                    label, _the_one_block_bytes(the_one), b"".join(leaf_bytes),
+                    len(leaf_bytes), dim)
+                if native is not None:
+                    return [_hv_from_block(native[i * dim:(i + 1) * dim])
+                            for i in range(len(native) // dim)]
         return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
     strand = [cap]
     # §128/§129: a gene MAY carry regulatory MASK(s) — open it with a REGULATORY GENE cap
@@ -1585,6 +1600,22 @@ def recall(strand, the_one, telomere=None):
     ``telomere`` parameter is accepted for back-compat and ignored. (Use :func:`genes`
     on a multi-gene chromosome to keep the per-gene split; ``recall`` flattens.)
     """
+    # rc197 (#887): DISPATCH to the srmech_genome_recall C peer when HAS_NATIVE and
+    # the strand is uniform fixed-width leaf_dim blocks — byte-identical (skip every
+    # cap via genome_cap_kind, re-bind each data turn via the reversible
+    # srmech_klein4_bind). recall is gate-agnostic (it flattens across CHROM / GENE /
+    # kernel / active-telomere caps alike), so the C peer covers the multi-gene strand
+    # too. The pure walk below is the numpy-free fallback + parity oracle, and handles
+    # any non-uniform strand (e.g. a variable-width packed turn).
+    dim = len(list(the_one))
+    blocks = _leaf_blocks(strand)
+    if dim > 0 and blocks and all(len(b) == dim for b in blocks):
+        native = _native.genome_recall_c(
+            b"".join(blocks), len(blocks), dim, _the_one_block_bytes(the_one))
+        if native is not None:
+            leaf_bytes, n = native
+            return [_HV.from_sequence(leaf_bytes[i * dim:(i + 1) * dim], sectors=QUAD)
+                    for i in range(n)]
     leaves = []
     for hv in strand:
         if _cap_kind(hv) is not None:   # a CHROM/GENE cap — a delimiter, not data

@@ -2862,6 +2862,26 @@ def _bind(lib: ctypes.CDLL) -> None:
         if hasattr(lib, "srmech_genome_telomere"):
             lib.srmech_genome_telomere.argtypes = [_U8, _SZ, _U32, _U8, _SZ]
             lib.srmech_genome_telomere.restype = ctypes.c_int
+        # rc197 (#887) — the make_class → C leaf-batch 3: the genome [class]'s plain
+        # CHROMOSOME builder + RECALL. Both are byte-exact (cap framing + reversible
+        # Klein-4 XOR), caller-provided out buffers (no arena). NEW symbols →
+        # hasattr-guarded (a stale lib keeps the rest of the genome surface); additive
+        # → EXPECTED_ABI_VERSION stays 4.
+        #   int srmech_genome_chromosome(const unsigned char *label, size_t label_len,
+        #       const unsigned char *the_one, uint32_t leaf_dim,
+        #       const unsigned char *leaves, size_t n_leaves,
+        #       unsigned char *out, size_t out_cap)
+        if hasattr(lib, "srmech_genome_chromosome"):
+            lib.srmech_genome_chromosome.argtypes = [
+                _U8, _SZ, _U8, _U32, _U8, _SZ, _U8, _SZ]
+            lib.srmech_genome_chromosome.restype = ctypes.c_int
+        #   int srmech_genome_recall(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *the_one,
+        #       unsigned char *out, size_t out_cap, size_t *n_leaves_out)
+        if hasattr(lib, "srmech_genome_recall"):
+            lib.srmech_genome_recall.argtypes = [
+                _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
+            lib.srmech_genome_recall.restype = ctypes.c_int
         # §133/rc133 (#733) — MODULATOR-RECOVERY (the INVERSE of gene_express): M1 the
         # two-sided cell-state FLOOR, M2 the candidate consistency verdict. Whole-strand
         # (the GENE-CAP subset body), caller-arena-free. NEW symbols → hasattr-guarded (a
@@ -14497,6 +14517,76 @@ def genome_telomere_c(label, dim: int):
     if rc != SRMECH_OK:
         return None
     return bytes(out[:dim])
+
+
+def has_native_genome_chromosome() -> bool:
+    """True iff the rc197 srmech_genome_chromosome C peer is loaded + bound. False
+    on a no-C or pre-rc197 lib — the pure ``srmech.amsc.genome.chromosome`` body is
+    the complete alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_chromosome"))
+
+
+def genome_chromosome_c(label, the_one: bytes, leaves: bytes, n_leaves: int,
+                        leaf_dim: int):
+    """Native rc197 plain-path chromosome builder (parity peer
+    ``srmech_genome_chromosome``): a leading CHROM telomere cap over ``label`` then
+    each of ``n_leaves`` leaves (``leaves`` = the ``n_leaves × leaf_dim`` contiguous
+    leaf bytes) coupled through ``the_one`` (``leaf_dim`` bytes). Returns the
+    ``(1 + n_leaves) × leaf_dim`` strand bytes, or ``None`` when the symbol is absent
+    OR the inputs do not fit the fast path (over-long label, width mismatch, a leaf
+    byte > 3) — the caller then runs the exact pure Python (which raises / coerces).
+    Byte-identical to the bytes behind the Python strand."""
+    if not has_native_genome_chromosome():
+        return None
+    raw_label = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(raw_label) > leaf_dim - 1
+            or len(the_one) != leaf_dim or len(leaves) != n_leaves * leaf_dim):
+        return None
+    total = (n_leaves + 1) * leaf_dim
+    out = (ctypes.c_uint8 * total)()
+    rc = LIB.srmech_genome_chromosome(
+        _u8(raw_label), ctypes.c_size_t(len(raw_label)),
+        _u8(the_one), ctypes.c_uint32(leaf_dim),
+        _u8(leaves), ctypes.c_size_t(n_leaves),
+        out, ctypes.c_size_t(total))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:total])
+
+
+def has_native_genome_recall() -> bool:
+    """True iff the rc197 srmech_genome_recall C peer is loaded + bound. False on a
+    no-C or pre-rc197 lib — the pure ``srmech.amsc.genome.recall`` body is the
+    complete alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_recall"))
+
+
+def genome_recall_c(strand: bytes, n_blocks: int, leaf_dim: int, the_one: bytes):
+    """Native rc197 plain-path recall (parity peer ``srmech_genome_recall``): walk the
+    ``n_blocks`` fixed-width ``leaf_dim``-byte blocks of ``strand``, skip every cap,
+    and re-bind each data turn through ``the_one`` (``leaf_dim`` bytes) to recover the
+    original leaf. Returns ``(leaf_bytes, n_leaves)`` where ``leaf_bytes`` is the
+    ``n_leaves × leaf_dim`` recovered leaves, or ``None`` when the symbol is absent OR
+    the inputs do not fit the fast path (width mismatch, a data-turn byte > 3) — the
+    caller then runs the exact pure Python. Byte-identical to ``recall``."""
+    if not has_native_genome_recall():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(the_one) != leaf_dim
+            or len(strand) != n_blocks * leaf_dim):
+        return None
+    cap = max(n_blocks * leaf_dim, 1)
+    out = (ctypes.c_uint8 * cap)()
+    n_out = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_recall(
+        _u8(strand), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(the_one), out, ctypes.c_size_t(n_blocks * leaf_dim),
+        ctypes.byref(n_out))
+    if rc != SRMECH_OK:
+        return None
+    n = int(n_out.value)
+    return bytes(out[:n * leaf_dim]), n
 
 
 def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
