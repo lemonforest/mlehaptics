@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc204"
-#define SRMECH_VERSION       "0.9.0rc204"
+#define SRMECH_VERSION_PRE   "rc205"
+#define SRMECH_VERSION       "0.9.0rc205"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -9271,6 +9271,76 @@ srmech_status_t srmech_vec_neg(const srmech_vec_t *a, srmech_vec_t *out);
  * kernels already take.) */
 srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
                                        const srmech_mat_t *b, srmech_mat_t *out);
+
+/* ------------------------------------------------------------------
+ * Carrier (operand) introspection registry (0.9.0rc205; gh #1293).
+ *
+ * The noun-side DUAL of the rc184 tool-schema registry: where the tool
+ * table exposes the OPS (the A-N operator verbs), this table exposes the
+ * CARRIER TYPES (the operand nouns — Poly/BiPoly/TriPoly/QPoly/QBiPoly,
+ * the Cayley-Dickson rungs float/complex/quaternion/octonion/sedenion,
+ * Mat/Vec/HV, the exact scalars int/Fraction/Q, the elliptic
+ * EllMonomial/EllRatio/ThetaSum, the weight-axis UnaryTheta/MockQSeries/
+ * HarmonicMaass, and the HDC objects One/SedenionRegister) with, per
+ * carrier: a one-line human-readable description, its promote/project
+ * ladder + rung (NULL/0 off-ladder), its shift variables, and the DERIVED
+ * ops back-index (which registered tools consume / produce it) — so a
+ * bare-C host (no Python) discovers BOTH the verbs and the nouns
+ * (the Siona / RBS-LM self-hosting ask).
+ *
+ * The table lives in the GENERATED translation unit
+ * `srmech_carrier_registry.c` (regenerate with
+ * c/tools/gen_carrier_registry.py); the accessors + the whole-schema
+ * assembler live in srmech_carrier_schema.c.
+ *
+ * srmech_carrier_schema emits bytes BYTE-IDENTICAL to CPython
+ *   json.dumps(srmech.amsc.carrier_schema._pure_carrier_schema(),
+ *              sort_keys=True, separators=(",", ":"))
+ * (each per-carrier entry payload is baked pre-canonical; rows are in
+ * byte-sorted name order == the sort_keys key order, so the assembler is
+ * plain concatenation). This byte-identity IS the hash-ratchet contract
+ * locking the C table to the Python SSoT.
+ *
+ * ABI-additive: new symbols + one struct, so SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* One carrier (operand) type in the registry. All string pointers are
+ * NUL-terminated decoded UTF-8; `entry_json` is the per-carrier payload
+ * {"description","ladder","name","ops","rung","variables"} as its
+ * pre-canonical compact-ASCII JSON fragment (`entry_len` bytes, excluding
+ * the NUL). */
+typedef struct {
+    const char *name;        /* carrier name (the registry key)          */
+    const char *description; /* one-line human-readable description      */
+    const char *ladder;      /* promote/project ladder, NULL off-ladder  */
+    int         rung;        /* rung on the ladder, 0 off-ladder         */
+    const char *entry_json;  /* pre-canonical compact JSON entry payload */
+    size_t      entry_len;   /* bytes in entry_json (excluding the NUL)  */
+} srmech_carrier_entry_t;
+
+/* The compiled-in registry table + count (defined in the generated
+ * srmech_carrier_registry.c). */
+extern const srmech_carrier_entry_t srmech_carrier_registry_table[];
+extern const size_t srmech_carrier_registry_len;
+
+/* Number of registered carrier entries in the const table. */
+size_t srmech_carrier_registry_count(void);
+
+/* The entry at `index`, or NULL if `index` is out of range. */
+const srmech_carrier_entry_t *srmech_carrier_registry_get(size_t index);
+
+/* The entry whose `name` equals `name` (bounded linear scan), or NULL
+ * for an unknown name / a NULL `name`. `name` must be NUL-terminated. */
+const srmech_carrier_entry_t *srmech_carrier_registry_find(const char *name);
+
+/* Assemble the whole carrier schema as canonical JSON (see byte-identity
+ * contract above) into `buf` (capacity `buf_len`; NO trailing NUL) and
+ * set *out_len to the byte count. If `buf` is NULL this is a SIZE-QUERY
+ * (nothing written; *out_len receives the exact full length). A
+ * too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW; `out_len == NULL`
+ * returns SRMECH_ERR_NULL_ARG. */
+srmech_status_t srmech_carrier_schema(char *buf, size_t buf_len,
+                                      size_t *out_len);
 
 #ifdef __cplusplus
 }

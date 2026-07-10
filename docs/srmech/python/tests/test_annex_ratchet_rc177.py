@@ -143,8 +143,11 @@ _ANNEX_DELTA = {"composes_c": 13, "host_glue": 12, "dev_tooling": 14}
 # non_compute total 177 → 176. (genome.telomere also earned a C peer but moved
 # composition_of_c → c_dispatched, not a non_compute row.)
 # rc202: owed_orchestration EMPTY (run_class_method discharged -> composes_c 117).
-_FULL_SPLIT = {"composes_c": 117, "host_glue": 15, "dev_tooling": 44}
-_TOTAL_NON_COMPUTE = 176
+# rc205 (gh #1293): +1 composes_c — srmech.amsc.carrier_schema.carrier_schema (the
+# CARRIER introspection surface; dispatches to its C peer srmech_carrier_schema
+# over the compiled-in const registry). composes_c 117 -> 118; sum 176 -> 177.
+_FULL_SPLIT = {"composes_c": 118, "host_glue": 15, "dev_tooling": 44}
+_TOTAL_NON_COMPUTE = 177
 
 
 def _rows():

@@ -4041,6 +4041,50 @@ def _register_primitive_class_tools() -> None:
                       "'produces'}}}"),
         ),
         # ────────────────────────────────────────────────────────────
+        # rc205 (gh #1293): the CARRIER (operand) introspection surface
+        # — the noun-side DUAL of tool_schema (Siona / RBS-LM finding
+        # 1110; UPSTREAM_NOTES §91): tool_schema exposes the ops (verbs)
+        # richly, but the carrier TYPES (the operand nouns) were not
+        # first-class introspectable — a consumer had to scrape
+        # carrier_ladder_descriptor's ladder/rung INTS with no
+        # human-readable description, so introspection could not say
+        # what a TriPoly IS beyond "rung 3".
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.carrier_schema.carrier_schema",
+            owner="srmech", category="carrier_schema",
+            summary="The CARRIER (operand) introspection registry (gh "
+                    "#1293) — the noun-side DUAL of tool_schema: per "
+                    "carrier TYPE (the operand nouns Poly/BiPoly/TriPoly/"
+                    "QPoly/QBiPoly, the Cayley–Dickson rungs float/complex/"
+                    "quaternion/octonion/sedenion, Mat/Vec/HV, the exact "
+                    "scalars int/Fraction/Q, the elliptic EllMonomial/"
+                    "EllRatio/ThetaSum, the weight-axis UnaryTheta/"
+                    "MockQSeries/HarmonicMaass, and the HDC objects One/"
+                    "SedenionRegister) returns {'name', a one-line "
+                    "human-readable 'description' (what it is, its variable "
+                    "semantics, when to use it), 'ladder', 'rung', "
+                    "'variables', 'ops': {'consumes', 'produces'}} keyed by "
+                    "carrier name. The ops back-index is DERIVED (never "
+                    "hand-maintained) from the ToolEntry param/return type "
+                    "strings + the rc120 per-op carrier contract; ladder/"
+                    "rung agree with carrier_ladder_descriptor. With "
+                    "tool_schema this lets ANY consumer (Siona's "
+                    "introspect_carriers; a human reader) discover BOTH the "
+                    "verbs and the nouns and distinguish carriers that "
+                    "differ only by a rung number. Native-dispatched to the "
+                    "C peer srmech_carrier_schema over the compiled-in "
+                    "srmech_carrier_registry const table (canonical JSON "
+                    "byte-identical to the pure path — the sha256 "
+                    "hash-ratchet); pure fallback complete → composes_c. "
+                    "numpy-free; no float math.",
+            parameters=(),
+            returns=R("dict",
+                      "{<carrier>: {'name', 'description', 'ladder', "
+                      "'rung', 'variables', 'ops': {'consumes': [tool "
+                      "names], 'produces': [tool names]}}}"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # rc117 (dives #718/#719): OPERATORS⊗OPERANDS as ONE addressable
         # object — the op-carrying carrier (srmech.amsc.op_provenance).
         # The value of an inexact-frontier op is a PROJECTION; the exact
