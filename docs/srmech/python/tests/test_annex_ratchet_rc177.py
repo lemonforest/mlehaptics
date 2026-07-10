@@ -38,16 +38,18 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # classification (defined_at -> non_compute_kind). These are the ACTUAL canonical
 # <module>.<qualname> keys the ledger walk emits (verified against the live walk).
 _ANNEX_ROWS = {
-    # owed_orchestration (2) — the DSL CLASS interpreter's still-owed rows. rc178
+    # owed_orchestration (1) — the DSL CLASS interpreter's still-owed row. rc178
     # moved the bus decode_splice owed → composes_c; rc180 moved the bus pipe owed
     # → composes_c (BUS FULLY C); rc181 moved lookup_cascade_op +
     # build_chain_from_dict owed → composes_c (the DSL chain FOUNDATION); rc182
     # moved chain (Chain.run) + run_toml_chain + build_chain_from_toml{,_str} owed
     # → composes_c (the loop/fold/reduce COMBINATORS + the TOML front-ends — the
-    # DSL CHAIN interpreter is COMPLETE). The 2 left: make_class + run_class_method
-    # (HONEST-DEFERRED — leaf-op-blocked on the genome / sed_* domain-leaf C backlog,
-    # past Batch B).
-    "srmech.dsl._class_catalog.make_class": "owed_orchestration",
+    # DSL CHAIN interpreter is COMPLETE). rc201b moved make_class owed → composes_c
+    # (the [class] OBJECT-MODEL engine srmech_make_class_run runs the object model
+    # across ALL route types in C — plain / returns=self / mutates / appends / chain
+    # — over the genome / sed_* domain-leaf C peers; byte-identical to CatalogClass).
+    # The 1 left: run_class_method (the class-surface interpreter — rc202).
+    "srmech.dsl._class_catalog.make_class": "composes_c",
     "srmech.dsl._class_surface.run_class_method": "owed_orchestration",
     # composes_c (11) — compose existing C (sha256 / json / cipher backend / bus
     # pub/sub / the DSL chain F1 carrier-FFI + combinators + the TOML bridge), reach
@@ -101,7 +103,7 @@ _ANNEX_ROWS = {
 # is now 2/11/12/14: rc181 moved lookup_cascade_op + build_chain_from_dict →
 # composes_c; rc182 moved chain + run_toml_chain + build_chain_from_toml{,_str} →
 # composes_c — the DSL CHAIN interpreter is COMPLETE)
-_ANNEX_DELTA = {"owed_orchestration": 2, "composes_c": 11, "host_glue": 12,
+_ANNEX_DELTA = {"owed_orchestration": 1, "composes_c": 12, "host_glue": 12,
                 "dev_tooling": 14}
 # the FULL split after the annex (pre-rc177 2/83/2/27 + the delta; rc178: owed
 # 12→11, composes_c 86→87 as decode_splice earned its C peer; rc180: owed 11→10,
@@ -138,7 +140,7 @@ _ANNEX_DELTA = {"owed_orchestration": 2, "composes_c": 11, "host_glue": 12,
 # c_dispatched (its C peer srmech_genome_encode_shape) → composes_c 116 → 115;
 # non_compute total 177 → 176. (genome.telomere also earned a C peer but moved
 # composition_of_c → c_dispatched, not a non_compute row.)
-_FULL_SPLIT = {"owed_orchestration": 2, "composes_c": 115, "host_glue": 15,
+_FULL_SPLIT = {"owed_orchestration": 1, "composes_c": 116, "host_glue": 15,
                "dev_tooling": 44}
 _TOTAL_NON_COMPUTE = 176
 
@@ -187,13 +189,14 @@ def test_annex_rows_are_live():
     )
 
 
-def test_annex_delta_is_39_split_2_11_12_14():
-    """The +39 annex rows split exactly 2 owed / 11 composes_c / 12 host_glue /
+def test_annex_delta_is_39_split_1_12_12_14():
+    """The +39 annex rows split exactly 1 owed / 12 composes_c / 12 host_glue /
     14 dev_tooling (rc178 moved decode_splice owed → composes_c; rc180 moved the
     bus pipe owed → composes_c — BUS FULLY C; rc181 moved lookup_cascade_op +
     build_chain_from_dict owed → composes_c — the DSL chain FOUNDATION → C; rc182
     moved chain + run_toml_chain + build_chain_from_toml{,_str} owed → composes_c —
-    the DSL CHAIN interpreter COMPLETE)."""
+    the DSL CHAIN interpreter COMPLETE; rc201b moved make_class owed → composes_c —
+    the DSL CLASS object-model engine RUNS in C across all route types)."""
     counts = Counter(_ANNEX_ROWS.values())
     assert dict(counts) == _ANNEX_DELTA, (
         f"annex +39 split drifted: got {dict(counts)}, expected {_ANNEX_DELTA}"
@@ -213,14 +216,14 @@ def test_full_non_compute_split_sums_to_153():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_2():
-    """The phase-driver ceiling is 2 after rc194 — the rc193 residue of 3 minus
-    serve_http_sse, which earned its C peer (the MCP HTTP+SSE transport in C over
-    the new rc194 TCP PAL, composing srmech_mcp_handle). The 2 owed left =
-    make_class / run_class_method (leaf-op-blocked on the genome / sed_* domain-leaf
-    C backlog)."""
-    assert CEIL_NON_COMPUTE_OWED == 2, (
-        f"CEIL_NON_COMPUTE_OWED must be 2 after rc194; got "
+def test_ceil_non_compute_owed_is_1():
+    """The phase-driver ceiling is 1 after rc201b — rc194's residue of 2 minus
+    make_class, whose [class] OBJECT-MODEL engine (srmech_make_class_run) now RUNS
+    the object model across ALL route types in C (plain / returns=self / mutates /
+    appends / chain over the genome / sed_* domain-leaf peers). The 1 owed left =
+    run_class_method (the class-surface interpreter — rc202)."""
+    assert CEIL_NON_COMPUTE_OWED == 1, (
+        f"CEIL_NON_COMPUTE_OWED must be 1 after rc201b; got "
         f"{CEIL_NON_COMPUTE_OWED}"
     )
 

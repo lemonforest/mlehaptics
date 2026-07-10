@@ -152,22 +152,25 @@ def test_sed_navigate_returns_self_matches_pure(j):
     assert got["result"]["codebook"] == fields["codebook"]
 
 
-# ── the DEFER contract (rc201b/rc202 heavy-carrier leaves) ─────────────────
+# ── the DEFER contract (the leaves the mval carrier can't emit byte-identically) ──
 
 def test_heavy_leaves_defer_to_pure():
+    """rc201b wired the byte-representable heavy leaves (sed write/materialize/
+    read/carry/correct + genome chromosome/recall/genome/partition); what STILL
+    defers is exactly what the int64/bytes mval carrier cannot emit byte-
+    identically: the One bignum leaves (flat/scalar exact rationals overflow
+    int64; matrix is float within-tol) + the float couple/uncouple working word.
+    (rc103 inform-don't-limit: pure runs these, never a wrong answer.)"""
     oj = the_one(+1, 1, 2)._to_jsonable()
-    for method in ["flat", "matrix", "scalar"]:            # One bignum leaves
+    for method in ["flat", "matrix", "scalar"]:            # One bignum / float leaves
         dispatched, _ = _run_c(_ONE_TOML, method, {"one": oj}, {})
-        assert not dispatched, f"One.{method} must DEFER (rc201b bignum leaf)"
+        assert not dispatched, f"One.{method} must DEFER (bignum/float, not int64-emit)"
     reg = _make_reg()
     fields = _sed_fields(reg)
-    for method, args in [("write", {"slot": 1, "key": "x"}),
-                         ("materialize", {}),
-                         ("read", {"slot": 0}),            # the chain method
-                         ("couple_working", {"vals": [1.0, 2.0]}),
-                         ("carry", {"overflow_bits": [1, 0, 1]})]:
+    for method, args in [("couple_working", {"vals": [1.0, 2.0]}),
+                         ("uncouple_working", {"octonion": [1.0, 2.0]})]:
         dispatched, _ = _run_c(_SED_TOML, method, fields, args)
-        assert not dispatched, f"Sed.{method} must DEFER (rc201b heavy leaf)"
+        assert not dispatched, f"Sed.{method} must DEFER (float working word)"
 
 
 def test_unknown_method_and_class_defer():

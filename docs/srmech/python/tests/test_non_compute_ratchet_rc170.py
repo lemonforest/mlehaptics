@@ -173,9 +173,15 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # row). So ONLY encode_shape leaves this bucket: composes_c 116 → 115; non_compute
 # total 177 → 176. CEIL_NON_COMPUTE_OWED stays 2 (make_class / run_class_method are
 # the 2 owed; they discharge in rc201/rc202).
+# rc201b (make_class → C, engine 2/2): the DSL [class] OBJECT-MODEL engine
+# srmech_make_class_run RUNS the object model across ALL route types in C (plain /
+# returns=self / mutates / appends / chain over the genome / sed_* domain-leaf
+# peers, byte-identical to CatalogClass). make_class moved owed_orchestration →
+# composes_c → owed 2 → 1, composes_c 115 → 116; sum stays 176. CEIL 2 → 1. The 1
+# owed left = run_class_method (rc202).
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 2,
-    "composes_c": 115,
+    "owed_orchestration": 1,
+    "composes_c": 116,
     "host_glue": 15,
     "dev_tooling": 44,
 }

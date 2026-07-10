@@ -550,7 +550,7 @@
 {"exposed_as": "srmech.dsl.get_class_descriptor", "defined_at": "srmech.dsl._class_catalog.get_class_descriptor", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.dsl.list_classes", "defined_at": "srmech.dsl._class_catalog.list_classes", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.load_class_catalog", "defined_at": "srmech.dsl._class_catalog.load_class_catalog", "bucket": "non_compute", "non_compute_kind": "host_glue"}
-{"exposed_as": "srmech.dsl.make_class", "defined_at": "srmech.dsl._class_catalog.make_class", "bucket": "non_compute", "non_compute_kind": "owed_orchestration"}
+{"exposed_as": "srmech.dsl.make_class", "defined_at": "srmech.dsl._class_catalog.make_class", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.dsl.register_class_dir", "defined_at": "srmech.dsl._class_catalog.register_class_dir", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.describe_class", "defined_at": "srmech.dsl._class_surface.describe_class", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.list_class_surface", "defined_at": "srmech.dsl._class_surface.list_class_surface", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
