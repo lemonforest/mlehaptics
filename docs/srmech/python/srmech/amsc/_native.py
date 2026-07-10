@@ -567,6 +567,19 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int64),     # turns_out[3]
         ]
         lib.srmech_unwrapped_phase.restype = ctypes.c_int
+    # rc207 (gh#1276): the 2π seam-fold DIVMOD with the quotient KEPT —
+    # theta = 2π·w + theta_fold, w = round(theta/2π), |theta_fold| <= π,
+    # on the SAME Q61 2/π machinery srmech_cos/sin fold with. NEW symbol,
+    # hasattr-guarded (ABI stays 4).
+    if hasattr(lib, "srmech_winding_fold"):
+        # int srmech_winding_fold(double theta, int64_t *w_out,
+        #     double *theta_out)
+        lib.srmech_winding_fold.argtypes = [
+            ctypes.c_double,                    # theta (radians)
+            ctypes.POINTER(ctypes.c_int64),     # w_out (metacycle turns)
+            ctypes.POINTER(ctypes.c_double),    # theta_out (|theta| <= pi)
+        ]
+        lib.srmech_winding_fold.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # Class L — graph Laplacian (Task #217 Phase C1 rc2).
@@ -1092,6 +1105,47 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_size_t,                    # ws_len (arena bytes)
         ]
         lib.srmech_eph_propagate_sparse.restype = ctypes.c_int
+
+    # rc207 (siona gh#1276): the WOUND EPH propagator — the SAME harvest
+    # e^{-zL}·u0 as srmech_eph_propagate (byte-identical; carrying w does
+    # not perturb it) PLUS the per-mode winding readout the 2π seam-fold
+    # used to discard: eigenvalues, metacycle winding w_k, epicycle residue
+    # theta_k, tower-graded sigma_effective, double-cover spinor sign. The
+    # C twin of srmech.amsc.laplacian.propagate_wound. NEW symbols,
+    # hasattr-guarded (ABI stays 4) so a stale lib keeps the rest of the
+    # native surface and the pure-Python op is the complete alternative.
+    #   size_t srmech_eph_propagate_wound_arena_bytes(uint32_t n,
+    #       int is_complex)
+    if hasattr(lib, "srmech_eph_propagate_wound_arena_bytes"):
+        lib.srmech_eph_propagate_wound_arena_bytes.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # is_complex
+        ]
+        lib.srmech_eph_propagate_wound_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_eph_propagate_wound(uint32_t n, int is_complex,
+    #       const double *L, const double *u0_interleaved, double z_re,
+    #       double z_im, double *out_harvest_interleaved,
+    #       double *out_eigvals, int64_t *out_winding, double *out_theta,
+    #       int32_t *out_sigma_effective, int32_t *out_spinor_sign,
+    #       double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_eph_propagate_wound"):
+        lib.srmech_eph_propagate_wound.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # is_complex
+            ctypes.POINTER(ctypes.c_double),    # L (n*n | 2*n*n interleaved)
+            ctypes.POINTER(ctypes.c_double),    # u0 (2*n interleaved)
+            ctypes.c_double,                    # z_re
+            ctypes.c_double,                    # z_im
+            ctypes.POINTER(ctypes.c_double),    # out_harvest (2*n interleaved)
+            ctypes.POINTER(ctypes.c_double),    # out_eigvals (n)
+            ctypes.POINTER(ctypes.c_int64),     # out_winding (n)
+            ctypes.POINTER(ctypes.c_double),    # out_theta (n)
+            ctypes.POINTER(ctypes.c_int32),     # out_sigma_effective (n)
+            ctypes.POINTER(ctypes.c_int32),     # out_spinor_sign (n)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_eph_propagate_wound.restype = ctypes.c_int
 
     # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
     # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of

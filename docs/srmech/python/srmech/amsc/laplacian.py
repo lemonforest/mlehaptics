@@ -209,6 +209,7 @@ __all__ = [
     "propagate",
     "eph_harvest",
     "propagate_sparse",
+    "propagate_wound",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
     "MAX_NATIVE_HERMITIAN_NODES",
@@ -3311,21 +3312,23 @@ def _eph_exp_real(g: float) -> float:
     return e
 
 
-def _eph_cos_sin(theta: float) -> Tuple[float, float]:
-    """``(cos θ, sin θ)`` via the MANDATORY 2π seam-fold + the Class-N
-    :func:`cos_series_truncate` / :func:`sin_series_truncate`.
+def _eph_seam_fold(theta: float) -> Tuple[int, int]:
+    """The 2π seam-fold as the DIVMOD it is — ``(w, qn)`` with the quotient
+    KEPT (0.9.0rc207; gh#1276 — the #741 mod-should-be-divmod audit's first
+    concrete instance).
 
-    THE CORRECTNESS CRUX: the raw trig series BLOW UP past a convergence
-    radius (``cos_series_truncate(44, 1, N)`` is ~2.3e17, not ~1.0). Before
-    the series, argument-reduce (seam-fold) ``θ`` modulo 2π — the BEAT SEAM —
-    using the exact Machin-2π (:data:`_EPH_TWO_PI`): the winding
-    ``w = round(θ/2π)`` is stripped in exact rational arithmetic, leaving
-    ``|θ − w·2π| ≤ π`` where the bounded series is exact. This restores
-    exactness at ANY t·λ. (The fold discards ``w`` — folds to one seam side,
-    the epicycle harvest; carrying ``w`` to expose the metacycle harvest is a
-    separate rc, #1276.)"""
+    ``w = round(θ/2π)`` (exact rational arithmetic on the dyadic θ over the
+    Machin-2π :data:`_EPH_TWO_PI` — round-half-toward-+∞ via
+    :func:`_eph_round_div`) is the **metacycle winding** — the whole 2π
+    turns. ``qn`` is the **epicycle residue** ``θ − w·2π`` quantised to the
+    fixed grid ``qn / _EPH_FOLD_DEN`` (``|θ_fold| ≤ π``). Lossless:
+    ``2π·w + qn/_EPH_FOLD_DEN`` reconstructs θ to the fold grid (the
+    ``One.unwrapped_phase`` reconstruction). :func:`_eph_cos_sin` calls this
+    and discards ``w`` (the trig readout is 2π-periodic);
+    :func:`propagate_wound` calls the SAME fold and KEEPS it — one divmod,
+    both harvests."""
     if theta == 0.0:
-        return (1.0, 0.0)
+        return (0, 0)
     tn, td = float(theta).as_integer_ratio()   # EXACT dyadic rational of θ
     pn, pd = _EPH_TWO_PI
     # winding w = round(θ / 2π) = round((tn·pd) / (td·pn)); td > 0, pn > 0.
@@ -3336,6 +3339,25 @@ def _eph_cos_sin(theta: float) -> Tuple[float, float]:
     # re-quantise the small folded angle to the fixed-grid denominator
     # _EPH_FOLD_DEN (exact-integer rounding) so the bounded series stays fast.
     qn = _eph_round_div(fn * _EPH_FOLD_DEN, fd)
+    return (w, qn)
+
+
+def _eph_cos_sin(theta: float) -> Tuple[float, float]:
+    """``(cos θ, sin θ)`` via the MANDATORY 2π seam-fold + the Class-N
+    :func:`cos_series_truncate` / :func:`sin_series_truncate`.
+
+    THE CORRECTNESS CRUX: the raw trig series BLOW UP past a convergence
+    radius (``cos_series_truncate(44, 1, N)`` is ~2.3e17, not ~1.0). Before
+    the series, argument-reduce (seam-fold) ``θ`` modulo 2π — the BEAT SEAM —
+    via :func:`_eph_seam_fold` (the exact Machin-2π divmod): the winding
+    ``w = round(θ/2π)`` is stripped in exact rational arithmetic, leaving
+    ``|θ − w·2π| ≤ π`` where the bounded series is exact. This restores
+    exactness at ANY t·λ. (This 2π-periodic readout discards ``w`` — the
+    epicycle side of the seam; :func:`propagate_wound` (rc207, gh#1276)
+    keeps the SAME fold's quotient to expose the metacycle harvest.)"""
+    if theta == 0.0:
+        return (1.0, 0.0)
+    _w, qn = _eph_seam_fold(theta)         # the SAME divmod; w folds away here
     c_n, c_d = _cos_series(qn, _EPH_FOLD_DEN, _EPH_TRIG_TERMS)
     s_n, s_d = _sin_series(qn, _EPH_FOLD_DEN, _EPH_TRIG_TERMS)
     return (c_n / c_d, s_n / s_d)
@@ -3398,13 +3420,16 @@ def _eph_propagate_native(rows, u, zr: float, zi: float, is_complex: bool):
     return [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
 
 
-def _eph_propagate_py(rows, u, zr: float, zi: float, is_complex: bool):
-    """The pure-Python complete alternative for :func:`propagate` — the ONE
-    eigensolve (:func:`symmetric_eigendecompose` real /
+def _eph_propagate_eig_py(rows, u, zr: float, zi: float, is_complex: bool):
+    """The pure-Python EPH eigenbasis cascade — returns ``(harvest, lam)``:
+    the ONE eigensolve (:func:`symmetric_eigendecompose` real /
     :func:`hermitian_eigendecompose` complex, srmech's own Class-L cascades),
     then per-mode scale by the seam-folded Class-N Wick factor and recombine.
     harvest = V·diag(e^{-z·λ_k})·V^H·u0 (basis-invariant, so it matches the C
-    peer regardless of the eigenvector sign / degenerate basis)."""
+    peer regardless of the eigenvector sign / degenerate basis). ``lam`` is
+    returned alongside so :func:`propagate_wound` (rc207) can fold the SAME
+    per-mode oscillation arguments the harvest used — one eigensolve, both
+    harvests."""
     n = len(rows)
     if is_complex:
         eigvals, V = hermitian_eigendecompose(rows)
@@ -3430,6 +3455,14 @@ def _eph_propagate_py(rows, u, zr: float, zi: float, is_complex: bool):
         for k in range(n):
             acc += Vl[i][k] * c[k]
         harvest[i] = acc
+    return harvest, lam
+
+
+def _eph_propagate_py(rows, u, zr: float, zi: float, is_complex: bool):
+    """The pure-Python complete alternative for :func:`propagate` — the
+    harvest half of :func:`_eph_propagate_eig_py` (byte-identical; the
+    eigenvalues are simply not read here)."""
+    harvest, _lam = _eph_propagate_eig_py(rows, u, zr, zi, is_complex)
     return harvest
 
 
@@ -3468,8 +3501,9 @@ def propagate(L, u0, z) -> "Vec":
     ~2.3e17, not ~1.0). ``propagate`` argument-reduces (seam-folds) the
     oscillation argument ``Im(z)·λ_k`` modulo 2π — the beat seam — using the
     exact Machin-2π (``2π = 32·atan(1/5) − 8·atan(1/239)``), so it is EXACT at
-    ANY t·λ. (The fold discards the winding ``w``; carrying it to expose the
-    metacycle harvest is a separate rc, #1276.)
+    ANY t·λ. (This 2π-periodic readout discards the winding ``w``;
+    :func:`propagate_wound` (rc207, gh#1276) keeps the SAME fold's quotient
+    to expose the metacycle harvest alongside the identical epicycle one.)
 
     Args:
         L: an ``(n, n)`` real-symmetric OR complex-Hermitian Laplacian /
@@ -3572,6 +3606,204 @@ def eph_harvest(L, u0, z) -> dict:
         "total_energy": total,
         "harvest_re": hre,
         "harvest_im": him,
+    }
+
+
+# =====================================================================
+# EPH WOUND — the wound propagator (0.9.0rc207; siona gh#1276). The SAME
+# harvest e^{-zL}·u0 as :func:`propagate` with the 2π seam-fold's DIVMOD
+# QUOTIENT KEPT: the fold is a divmod (quotient = the metacycle winding
+# w, remainder = the epicycle residue θ); propagate discards w (the
+# mod-collapse); propagate_wound keeps the GRADING — both harvests at
+# the seam. The #741 mod-should-be-divmod audit's first concrete
+# instance; the_one(σ, θ, w) is the crank vocabulary of the readout.
+# =====================================================================
+
+
+def _eph_propagate_wound_native(rows, u, zr: float, zi: float,
+                                is_complex: bool):
+    """numpy-free native dispatch for :func:`propagate_wound` — ONE call to
+    the composite C peer ``srmech_eph_propagate_wound`` (the
+    ``srmech_eph_propagate`` cascade + the per-mode winding readout composed
+    from the EXISTING gh#1276 winding C peers). Returns ``(harvest, lam, w,
+    theta, sigma_eff, spinor)`` lists, or ``None`` on any missing symbol /
+    non-OK status (caller then runs the pure-Python complete
+    alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_eph_propagate_wound")
+        and hasattr(_native.LIB, "srmech_eph_propagate_wound_arena_bytes")
+    ):
+        return None
+    n = len(rows)
+    if is_complex:
+        flat = []
+        for r in rows:
+            for x in r:
+                z = complex(x)
+                flat.append(z.real)
+                flat.append(z.imag)
+    else:
+        flat = [float(x.real if isinstance(x, complex) else x)
+                for r in rows for x in r]
+    L_c = (ctypes.c_double * len(flat))(*flat)
+    u_il = []
+    for x in u:
+        z = complex(x)
+        u_il.append(z.real)
+        u_il.append(z.imag)
+    u_c = (ctypes.c_double * (2 * n))(*u_il)
+    out = (ctypes.c_double * (2 * n))()
+    out_lam = (ctypes.c_double * n)()
+    out_w = (ctypes.c_int64 * n)()
+    out_theta = (ctypes.c_double * n)()
+    out_sig = (ctypes.c_int32 * n)()
+    out_spin = (ctypes.c_int32 * n)()
+    ws_bytes = _native.LIB.srmech_eph_propagate_wound_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0)
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_eph_propagate_wound(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0), L_c, u_c,
+        ctypes.c_double(zr), ctypes.c_double(zi), out, out_lam, out_w,
+        out_theta, out_sig, out_spin, ws, ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    harvest = [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
+    return (harvest,
+            [float(out_lam[k]) for k in range(n)],
+            [int(out_w[k]) for k in range(n)],
+            [float(out_theta[k]) for k in range(n)],
+            [int(out_sig[k]) for k in range(n)],
+            [int(out_spin[k]) for k in range(n)])
+
+
+def _eph_propagate_wound_py(rows, u, zr: float, zi: float, is_complex: bool):
+    """The pure-Python complete alternative for :func:`propagate_wound` —
+    the SAME :func:`_eph_propagate_eig_py` cascade :func:`propagate`'s pure
+    path runs (byte-identical harvest), then the SAME :func:`_eph_seam_fold`
+    divmod the harvest's Wick factors folded with, per mode — quotient KEPT
+    this time. The chirality readouts reuse the One's EXISTING gh#1276
+    winding surface (never re-derived)."""
+    from srmech.amsc.cascade.one import (      # lazy: no import cycle
+        _sigma_effective_from_triad, _spinor_sign_from_triad)
+    n = len(rows)
+    harvest, lam = _eph_propagate_eig_py(rows, u, zr, zi, is_complex)
+    w_list = []
+    theta_list = []
+    sig_list = []
+    spin_list = []
+    for k in range(n):
+        w, qn = _eph_seam_fold(zi * lam[k])    # the SAME divmod, KEPT
+        w_list.append(w)
+        theta_list.append(qn / _EPH_FOLD_DEN)  # the epicycle residue, |θ| ≤ π
+        triad = (w, 0, 0)                      # the mode's metacycle triad
+        sig_list.append(_sigma_effective_from_triad(1, triad))
+        spin_list.append(_spinor_sign_from_triad(triad))
+    return harvest, lam, w_list, theta_list, sig_list, spin_list
+
+
+def propagate_wound(L, u0, z) -> dict:
+    """EPH WOUND — :func:`propagate` with the 2π seam-fold's DIVMOD quotient
+    KEPT (0.9.0rc207; siona gh#1276 — the #741 mod-should-be-divmod audit's
+    first concrete instance).
+
+    :func:`propagate`'s mandatory 2π seam-fold argument-reduces each
+    per-mode oscillation argument ``Im(z)·λ_k`` modulo 2π. That fold IS a
+    divmod: **quotient** ``w_k = round(Im(z)·λ_k / 2π)`` = the METACYCLE
+    winding (the whole 2π turns — what ``propagate`` throws away, the
+    mod-collapse), **remainder** ``θ_k`` = the EPICYCLE residue (``|θ| ≤ π``
+    — what ``propagate`` keeps). ``propagate_wound`` keeps the GRADING:
+    BOTH harvests at the seam, from the SAME fold (:func:`_eph_seam_fold`
+    pure / ``srmech_winding_fold`` native — the exact Machin-2π / Q61 2/π
+    constants ``propagate`` already folds with; no forked path). Carrying
+    ``w`` does NOT perturb the epicycle harvest: it is byte-identical to
+    ``propagate``'s at the same dispatch tier (same cascade, same order).
+
+    THE CRANK — ``the_one(σ, θ, w)`` is the readout vocabulary (per mode,
+    the winding fills the One's fast metacycle dial as the triad
+    ``(w_k, 0, 0)``):
+
+    * ``winding`` — ``w_k`` (whole ℤ, never ``% 2``): the metacycle turns;
+    * ``theta`` — ``θ_k``: the epicycle phase; ``2π·w_k + θ_k`` reconstructs
+      ``Im(z)·λ_k`` LOSSLESSLY on the fold grid (the
+      :meth:`~srmech.amsc.cascade.one.One.unwrapped_phase` reconstruction);
+    * ``sigma_effective`` — the tower-graded chirality dial ``±1`` via the
+      winding's divmod binary tower (the EXISTING
+      :meth:`~srmech.amsc.cascade.one.One.sigma_effective` readout — NOT the
+      melding bare ``w mod 2``: ``w=5`` (popcount 2) and ``w=7`` (popcount
+      3) are DISTINGUISHED);
+    * ``spinor_sign`` — the double-cover sign ``(−1)^{w_k}`` (the EXISTING
+      :meth:`~srmech.amsc.cascade.one.One.spinor_sign` readout — one full
+      winding flips the spinor, two restore it).
+
+    Lift a mode into a full One with
+    ``the_one(+1, theta_num, theta_den, w=(w_k, 0, 0))``.
+
+    Args:
+        L, u0, z: exactly as :func:`propagate` (the operator, the
+            excitation, the complex time / coherence dial).
+
+    Returns:
+        a JSON-native dict, per-mode arrays in the eigensolve's mode order:
+
+        * ``harvest_re`` / ``harvest_im`` — the epicycle harvest
+          ``e^{-zL}·u0`` per NODE (byte-identical to :func:`propagate` at
+          the same dispatch tier);
+        * ``eigenvalues`` — ``λ_k`` per mode;
+        * ``winding`` — ``w_k`` (int) per mode: the metacycle turns the
+          seam-fold used to discard;
+        * ``theta`` — ``θ_k`` (float, ``|θ| ≤ π``) per mode: the folded
+          epicycle residue;
+        * ``sigma_effective`` — ``±1`` per mode (tower-graded);
+        * ``spinor_sign`` — ``±1`` per mode (double-cover).
+
+    Native (rc207): ONE call to the composite C peer
+    ``srmech_eph_propagate_wound`` (the ``srmech_eph_propagate`` cascade +
+    ``srmech_winding_fold`` + the EXISTING ``srmech_sigma_effective`` /
+    ``srmech_spinor_sign`` winding peers per mode); pure Python is the
+    complete alternative (the same :func:`_eph_propagate_eig_py` +
+    :func:`_eph_seam_fold` cascade). numpy-free; no ``abs()`` (the winding
+    sign is the Class-K pin, retrograde is the Class-C negate — carried by
+    the reused readouts).
+
+    Raises:
+        ValueError: non-square ``L``, or ``len(u0) != n``.
+    """
+    rows = _as_rows(L)
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(
+                f"propagate_wound: L must be square; got {n} rows")
+    z = complex(z)
+    u = _vec(u0)
+    if len(u) != n:
+        raise ValueError(
+            f"propagate_wound: len(u0) ({len(u)}) must equal n ({n})"
+        )
+    if n == 0:
+        return {
+            "harvest_re": [], "harvest_im": [], "eigenvalues": [],
+            "winding": [], "theta": [], "sigma_effective": [],
+            "spinor_sign": [],
+        }
+    is_complex = _has_complex(rows)
+    got = _eph_propagate_wound_native(rows, u, z.real, z.imag, is_complex)
+    if got is None:
+        got = _eph_propagate_wound_py(rows, u, z.real, z.imag, is_complex)
+    harvest, lam, w_list, theta_list, sig_list, spin_list = got
+    return {
+        "harvest_re": [h.real for h in harvest],
+        "harvest_im": [h.imag for h in harvest],
+        "eigenvalues": lam,
+        "winding": w_list,
+        "theta": theta_list,
+        "sigma_effective": sig_list,
+        "spinor_sign": spin_list,
     }
 
 
@@ -4885,6 +5117,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "propagate",
     "eph_harvest",
     "propagate_sparse",
+    "propagate_wound",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc206"
-#define SRMECH_VERSION       "0.9.0rc206"
+#define SRMECH_VERSION_PRE   "rc207"
+#define SRMECH_VERSION       "0.9.0rc207"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -921,6 +921,21 @@ srmech_status_t srmech_spinor_sign(int64_t w0, int64_t w1, int64_t w2,
 srmech_status_t srmech_unwrapped_phase(int64_t w0, int64_t w1, int64_t w2,
                                        int64_t *turns_out);
 
+/* The 2π seam-fold DIVMOD with the quotient KEPT (0.9.0rc207; gh#1276 —
+ * the #741 mod-should-be-divmod audit's first concrete instance):
+ * theta = 2π·(*w_out) + (*theta_out), *w_out = round(theta/2π)
+ * (round-half-toward-+inf, the Python _eph_round_div convention),
+ * |*theta_out| <= π. Computed on the SAME integer 2/π quarter-turn
+ * machinery srmech_cos / srmech_sin already fold with (no forked 2π
+ * constant), so the (w, theta) pair IS the fold's own divmod — the
+ * quotient (the METACYCLE winding) retained instead of discarded, the
+ * remainder the EPICYCLE residue. Same domain as srmech_cos: returns
+ * SRMECH_ERR_BAD_INPUT for Inf / |theta| >= 2^55 (*theta_out NaN); a
+ * quiet-NaN input propagates as NaN with SRMECH_OK (the srmech_cos
+ * convention); SRMECH_ERR_NULL_ARG for a NULL out pointer. */
+srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
+                                    double *theta_out);
+
 /* ------------------------------------------------------------------ *
  * Class L — graph Laplacian (Task #217 Phase C1)
  *
@@ -1725,6 +1740,66 @@ srmech_status_t srmech_eph_propagate_sparse(
     uint32_t       *out_degree_used,
     double         *ws,
     size_t          ws_len);
+
+/* ------------------------------------------------------------------ *
+ * EPH WOUND — the wound propagator (0.9.0rc207; siona gh#1276) — the
+ * SAME harvest e^{-zL}·u0 as srmech_eph_propagate with the 2π
+ * seam-fold's DIVMOD QUOTIENT KEPT (the #741 mod-should-be-divmod
+ * audit's first concrete instance). srmech_eph_propagate's per-mode
+ * fold discards the whole-turn winding w_k of the oscillation
+ * argument Im(z)·λ_k (the mod-collapse); this peer keeps the grading —
+ * BOTH harvests at the seam: the EPICYCLE harvest (byte-identical to
+ * srmech_eph_propagate — same statics, same order; carrying w does
+ * not perturb it) PLUS the per-mode METACYCLE readout, wired in the
+ * One's (σ, θ, w) crank vocabulary:
+ *   w_k     = round(Im(z)·λ_k / 2π)  — the metacycle winding, the
+ *             quotient of the SAME divmod the fold performs
+ *             (srmech_winding_fold — no forked 2π constant);
+ *   θ_k     = the folded epicycle residue, |θ| <= π,
+ *             2π·w_k + θ_k == Im(z)·λ_k on the fold's grid (lossless —
+ *             the One.unwrapped_phase reconstruction per mode);
+ *   σ_eff_k = the tower-graded chirality dial via the winding's
+ *             binary tower on the mode triad (w_k, 0, 0) — the
+ *             EXISTING srmech_sigma_effective readout (NOT the
+ *             melding bare `w mod 2`);
+ *   spin_k  = the double-cover sign (-1)^{w_k} — the EXISTING
+ *             srmech_spinor_sign readout.
+ * Standalone-complete: all scratch is bump-carved from the CALLER
+ * arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 4.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_eph_propagate_wound needs for
+ * an n*n L — the srmech_eph_propagate carve minus the eigvals row
+ * (λ writes straight to the caller's out_eigvals). Size ws_len >= this. */
+size_t srmech_eph_propagate_wound_arena_bytes(uint32_t n, int is_complex);
+
+/* harvest = e^{-zL}·u0 with the per-mode winding KEPT. The first seven
+ * parameters follow srmech_eph_propagate exactly (same conventions,
+ * byte-identical harvest). The five readout arrays are each length n,
+ * in the eigensolve's mode order: out_eigvals (λ_k), out_winding
+ * (w_k, int64), out_theta (θ_k, |θ| <= π), out_sigma_effective /
+ * out_spinor_sign (±1 each, int32). n == 0 writes nothing. `ws`
+ * (ws_len bytes) sized from srmech_eph_propagate_wound_arena_bytes.
+ * Returns SRMECH_ERR_NULL_ARG for a NULL required pointer,
+ * SRMECH_ERR_OVERFLOW for a too-small arena / a non-convergent
+ * eigensolve, SRMECH_ERR_BAD_INPUT if an oscillation argument
+ * |Im(z)·λ_k| exceeds the fold's reduction bound (~2^55, the
+ * srmech_cos domain). */
+srmech_status_t srmech_eph_propagate_wound(
+    uint32_t       n,
+    int            is_complex,
+    const double  *L,
+    const double  *u0_interleaved,
+    double         z_re,
+    double         z_im,
+    double        *out_harvest_interleaved,
+    double        *out_eigvals,
+    int64_t       *out_winding,
+    double        *out_theta,
+    int32_t       *out_sigma_effective,
+    int32_t       *out_spinor_sign,
+    double        *ws,
+    size_t         ws_len);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)

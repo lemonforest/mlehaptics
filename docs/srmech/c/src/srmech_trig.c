@@ -99,13 +99,17 @@ static int64_t trig_fxmul(int64_t a, int64_t b)
     return neg ? -(int64_t)mag : (int64_t)mag;
 }
 
-/* Integer cyclic octant reduction: x (radians) -> (*octant in 0..3, *r in Q61
- * with |r| <= pi/4). PURE INTEGER except the bit-read of x. Returns false for
- * |x| >= 2^55 (far beyond any physical angle — the 2-word product would lose
- * the high octant bits) or non-finite x. */
-static bool trig_reduce(double x, int *octant, int64_t *r_q61)
+/* Integer cyclic quarter-turn reduction with the FULL quotient KEPT:
+ * x (radians) -> (*k_out = round(x / (pi/2)), *r in Q61 with |r| <= pi/4,
+ * x == k*(pi/2) + r on the Q61 grid). PURE INTEGER except the bit-read of x.
+ * Returns false for |x| >= 2^55 (far beyond any physical angle — the 2-word
+ * product would lose the high quotient bits) or non-finite x. This is the
+ * gh#1276 mod-should-be-divmod refactor of the octant fold: the quotient the
+ * trig readouts mask to `k & 3` is retained WHOLE here so srmech_winding_fold
+ * can expose the metacycle winding the 2π seam-fold used to throw away. */
+static bool trig_reduce_k(double x, int64_t *k_out, int64_t *r_q61)
 {
-    assert(octant != NULL);
+    assert(k_out != NULL);
     assert(r_q61 != NULL);
     uint64_t bits;
     memcpy(&bits, &x, sizeof bits);
@@ -113,7 +117,7 @@ static bool trig_reduce(double x, int *octant, int64_t *r_q61)
     uint32_t raw = (uint32_t)((bits >> 52) & 0x7FFu);
     uint64_t frac = bits & ((UINT64_C(1) << 52) - 1);
     if (raw == 0x7FFu) { return false; }                 /* Inf / NaN */
-    if (raw == 0 && frac == 0) { *octant = 0; *r_q61 = 0; return true; }
+    if (raw == 0 && frac == 0) { *k_out = 0; *r_q61 = 0; return true; }
     uint64_t mant = (raw == 0) ? frac : (frac | (UINT64_C(1) << 52));
     int e = (raw == 0) ? -1074 : (int)raw - 1075;        /* x = +/- mant*2^e */
     if (e >= 3) { return false; }                        /* |x| >= 2^55 */
@@ -121,7 +125,7 @@ static bool trig_reduce(double x, int *octant, int64_t *r_q61)
     trig_umul64(mant, SRMECH_TRIG_TWO_OVER_PI_Q64, &phi, &plo);  /* |x|*2/pi*2^(64-e) */
     int s = 3 - e;                                        /* >= 1: right shift to V=...*2^61 */
     uint64_t vhi, vlo;
-    if (s >= 128) { *octant = 0; *r_q61 = sign ? -(int64_t)0 : 0; return true; }
+    if (s >= 128) { *k_out = 0; *r_q61 = sign ? -(int64_t)0 : 0; return true; }
     if (s >= 64)  { vhi = 0; vlo = phi >> (s - 64); }
     else          { vhi = phi >> s; vlo = (plo >> s) | (phi << (64 - s)); }
     uint64_t q = (vhi << 3) | (vlo >> SRMECH_TRIG_FBITS); /* floor(V / 2^61) */
@@ -134,8 +138,22 @@ static bool trig_reduce(double x, int *octant, int64_t *r_q61)
         k = q; fr = (int64_t)vlo61;
     }
     if (sign) { fr = -fr; k = (uint64_t)(-(int64_t)k); }
-    *octant = (int)(k & 3u);
+    *k_out = (int64_t)k;                                 /* the WHOLE quotient */
     *r_q61 = trig_fxmul(fr, SRMECH_TRIG_HALF_PI_Q61);    /* r = frac * (pi/2) */
+    return true;
+}
+
+/* Integer cyclic octant reduction: x (radians) -> (*octant in 0..3, *r in Q61
+ * with |r| <= pi/4). The trig-readout projection of trig_reduce_k — the
+ * quotient masked to its octant (byte-identical to the pre-rc207 fold; the
+ * full quotient is kept by trig_reduce_k for srmech_winding_fold). */
+static bool trig_reduce(double x, int *octant, int64_t *r_q61)
+{
+    assert(octant != NULL);
+    assert(r_q61 != NULL);
+    int64_t k = 0;
+    if (!trig_reduce_k(x, &k, r_q61)) { return false; }
+    *octant = (int)((uint64_t)k & 3u);
     return true;
 }
 
@@ -227,6 +245,58 @@ srmech_status_t srmech_cos(double x, double *out)
     int64_t sc = trig_sin_core(r), cc = trig_cos_core(r);
     int64_t v = (oct == 0) ? cc : (oct == 1) ? -sc : (oct == 2) ? -cc : sc;
     *out = trig_to_double(v);
+    return SRMECH_OK;
+}
+
+/* gh#1276 (0.9.0rc207): the 2π seam-fold DIVMOD with the quotient KEPT —
+ * theta = 2π·w + theta_fold, w = round(theta/2π) (round-half-toward-+inf,
+ * the Python _eph_round_div convention), |theta_fold| <= π. Computed on the
+ * SAME integer 2/π quarter-turn machinery srmech_cos / srmech_sin fold with
+ * (trig_reduce_k — no forked 2π constant): the whole-turn quotient w and the
+ * folded residue are read off the retained quarter-turn count k = 4w +
+ * oct_rel (oct_rel in {-2..2}) and the Q61 remainder r, so the (w, theta)
+ * pair is EXACTLY the divmod the trig fold performs internally — just kept.
+ * w is the METACYCLE winding (the harvest the mod-collapse threw away);
+ * theta_fold is the EPICYCLE residue. Sign is Class-K/Class-C (no fabs).
+ * Same domain as srmech_cos: non-finite or |theta| >= 2^55 ->
+ * SRMECH_ERR_BAD_INPUT (out set to NaN; a quiet NaN input propagates OK). */
+srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
+                                    double *theta_out)
+{
+    assert(w_out != NULL);
+    assert(theta_out != NULL);
+    if (w_out == NULL || theta_out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    int64_t k = 0;
+    int64_t r = 0;
+    if (!trig_reduce_k(theta, &k, &r)) {
+        *w_out = 0;
+        *theta_out = theta - theta;        /* NaN for Inf / NaN input        */
+        return (theta == theta) ? SRMECH_ERR_BAD_INPUT : SRMECH_OK;
+    }
+    uint64_t oct = (uint64_t)k & 3u;       /* residue mod 4, negative-safe   */
+    int64_t w;
+    int64_t oct_rel;                       /* k - 4w, in {-2, -1, 0, 1, 2}   */
+    if (oct == 0u) {
+        w = k / 4;                         /* exact: k ≡ 0 (mod 4)           */
+        oct_rel = 0;
+    } else if (oct == 1u) {
+        w = (k - 1) / 4;                   /* exact division                 */
+        oct_rel = 1;
+    } else if (oct == 2u) {
+        /* the half-turn boundary theta/2π = w + 1/2 + r/2π: round-half-
+         * toward-+inf — r >= 0 rounds UP (matches Python's floor-divmod
+         * `2r >= den` half rule). */
+        w = ((k - 2) / 4) + ((r >= 0) ? 1 : 0);
+        oct_rel = (r >= 0) ? -2 : 2;
+    } else {
+        w = (k + 1) / 4;                   /* exact: k ≡ 3 (mod 4)           */
+        oct_rel = -1;
+    }
+    int64_t theta_q61 = oct_rel * SRMECH_TRIG_HALF_PI_Q61 + r;
+    assert(theta_q61 <= 2 * SRMECH_TRIG_HALF_PI_Q61
+           && theta_q61 >= -2 * SRMECH_TRIG_HALF_PI_Q61);  /* |theta| <= π   */
+    *w_out = w;
+    *theta_out = (double)theta_q61 / (double)SRMECH_TRIG_ONE;
     return SRMECH_OK;
 }
 

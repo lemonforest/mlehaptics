@@ -1232,6 +1232,66 @@ def _register_primitive_class_tools() -> None:
             returns=R("Vec", "the harvest e^{−zL}·u0 — a length-n complex Vec "
                              "(the propagate return contract)"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc207 (siona gh#1276) — the WOUND EPH propagator: the 2π
+        # seam-fold's divmod quotient KEPT (the #741 mod-should-be-
+        # divmod audit's first concrete instance), Class-L with the 1:1
+        # C peer srmech_eph_propagate_wound.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.propagate_wound", owner="srmech",
+            category="laplacian",
+            summary="EPH WOUND — propagate with the 2π seam-fold's DIVMOD "
+                    "quotient KEPT (siona gh#1276; the #741 mod-should-be-"
+                    "divmod audit's first concrete instance). propagate's "
+                    "mandatory seam-fold argument-reduces each per-mode "
+                    "oscillation argument Im(z)·λ_k modulo 2π; that fold IS "
+                    "a divmod — quotient w_k = round(Im(z)·λ_k / 2π) = the "
+                    "METACYCLE winding (the whole 2π turns propagate throws "
+                    "away, the mod-collapse), remainder θ_k = the EPICYCLE "
+                    "residue (|θ| ≤ π, what propagate keeps). "
+                    "propagate_wound keeps the GRADING: BOTH harvests at "
+                    "the seam, from the SAME fold (the exact Machin-2π "
+                    "divmod pure / the Q61 2/π quarter-turn machinery "
+                    "native — no forked 2π constant). Carrying w does NOT "
+                    "perturb the epicycle harvest — byte-identical to "
+                    "propagate at the same dispatch tier (same cascade, "
+                    "same order). The readout is the One's the_one(σ, θ, w) "
+                    "CRANK vocabulary per mode (the winding fills the fast "
+                    "metacycle dial as the triad (w_k, 0, 0)): winding = "
+                    "the whole-ℤ metacycle turns (never % 2); theta = the "
+                    "epicycle phase, with 2π·w_k + θ_k reconstructing "
+                    "Im(z)·λ_k LOSSLESSLY on the fold grid (the "
+                    "One.unwrapped_phase reconstruction); sigma_effective = "
+                    "the tower-graded chirality dial ±1 via the winding's "
+                    "divmod binary tower (the EXISTING One.sigma_effective "
+                    "readout — NOT the melding bare w mod 2; w=5 and w=7 "
+                    "are DISTINGUISHED); spinor_sign = the double-cover "
+                    "(−1)^{w_k} (the EXISTING One.spinor_sign readout). 1:1 "
+                    "C peer srmech_eph_propagate_wound (ONE native call: "
+                    "the srmech_eph_propagate cascade + srmech_winding_fold "
+                    "+ the existing srmech_sigma_effective / "
+                    "srmech_spinor_sign winding peers per mode); pure "
+                    "Python the complete alternative. numpy-free; no "
+                    "abs().",
+            parameters=(P("L", "Mat", True,
+                          "(n, n) real-symmetric or complex-Hermitian "
+                          "operator (as propagate)"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or "
+                          "complex) — the seed the propagator acts on"),
+                        P("z", "complex", True,
+                          "the complex time; arg(z) is the coherence dial "
+                          "(as propagate)")),
+            returns=R("dict", "JSON-native, per-mode arrays in eigensolve "
+                              "mode order: harvest_re / harvest_im (the "
+                              "epicycle harvest, byte-identical to "
+                              "propagate) / eigenvalues / winding (the "
+                              "metacycle turns, int) / theta (the folded "
+                              "epicycle residue, |θ| ≤ π) / sigma_effective "
+                              "(±1, tower-graded) / spinor_sign (±1, "
+                              "double-cover)"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
             category="laplacian",
