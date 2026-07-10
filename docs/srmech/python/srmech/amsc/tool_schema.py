@@ -1171,6 +1171,67 @@ def _register_primitive_class_tools() -> None:
                               "total_energy / harvest_re / harvest_im "
                               "(JSON-native)"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc206 (siona gh#1274 item 1c) — the SPARSE-SCALED EPH
+        # propagator: the corpus-scale residual, Class-L with the 1:1 C
+        # peer srmech_eph_propagate_sparse.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.propagate_sparse", owner="srmech",
+            category="laplacian",
+            summary="EPH SPARSE — the sparse-scaled propagator harvest = "
+                    "e^{−zL}·u0 (siona gh#1274 item 1c, the corpus-scale "
+                    "residual). The SAME harvest as propagate (same complex-z "
+                    "convention, same arg(z) coherence dial: z real → thermal, "
+                    "z imaginary → coherent, between → partial; same "
+                    "seam-folded Wick factor) computed by a CHEBYSHEV "
+                    "polynomial of the operator applied with MATRIX-VECTOR "
+                    "PRODUCTS ONLY — no eigendecomposition, no dense e^{−zL} "
+                    "— so it runs on a corpus-scale L past the n ≤ 256 "
+                    "dense-eigensolve cap (O(m·n_edges) time, O(n) memory, m "
+                    "= the Chebyshev degree). The operator is the SIGNED "
+                    "graph Laplacian read off the edge list (the "
+                    "signed_laplacian / fiedler_sparse sparse-input "
+                    "convention; deg = Σ|w| by Class-K sign branch, never "
+                    "abs(); self-loops skipped; duplicate edges read "
+                    "per-edge). Spectral interval [0, 2·max deg] by "
+                    "Gershgorin (deterministic), affine-mapped to [−1, 1]; "
+                    "Chebyshev coefficients of e^{−z·λ(s)} from the Chebyshev "
+                    "nodes (the rc136 Wick machinery — Class-N exp + the "
+                    "MANDATORY Machin-2π seam-folded cos/sin), node count "
+                    "adaptively doubled 64 → the HARD CAP max_degree+1, "
+                    "accepted when the coefficient tail (top eighth) falls "
+                    "below tol·max|e^{−z·λ}|; then the forward T_{k+1} = "
+                    "2·L̃·T_k − T_{k−1} vector recurrence (‖T_k‖ ≤ 1 → "
+                    "stable). Not converged within max_degree → an HONEST "
+                    "ValueError (raise max_degree or shrink |z|), never a "
+                    "silently degraded tolerance. 1:1 C peer "
+                    "srmech_eph_propagate_sparse (native when present, "
+                    "pure-Python the complete alternative — same algorithm, "
+                    "same accumulation order, within-tol parity). numpy-free; "
+                    "no abs().",
+            parameters=(P("n", "int", True, "number of graph nodes"),
+                        P("edges", "list[tuple[int, int]]", True,
+                          "undirected edges (u, v), 0 ≤ u, v < n (the "
+                          "fiedler_sparse / signed_laplacian convention)"),
+                        P("weights", "Optional[list[float]]", False,
+                          "per-edge weights (default all 1.0); may be "
+                          "negative — the signed degree keeps L PSD"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or complex) "
+                          "— the seed the propagator acts on (keyword-only)"),
+                        P("z", "complex", True,
+                          "the complex time; arg(z) is the coherence dial "
+                          "(as propagate; keyword-only)"),
+                        P("tol", "float", False,
+                          "relative coefficient-tail tolerance (default "
+                          "1e-10)"),
+                        P("max_degree", "int", False,
+                          "the HARD Chebyshev degree cap, 1..2^28 (default "
+                          "2048 — covers |z|·λ_max up to ~4000)")),
+            returns=R("Vec", "the harvest e^{−zL}·u0 — a length-n complex Vec "
+                             "(the propagate return contract)"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
             category="laplacian",

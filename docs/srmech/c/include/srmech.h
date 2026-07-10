@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc205"
-#define SRMECH_VERSION       "0.9.0rc205"
+#define SRMECH_VERSION_PRE   "rc206"
+#define SRMECH_VERSION       "0.9.0rc206"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1657,6 +1657,74 @@ srmech_status_t srmech_eph_propagate(
     double        *out_harvest_interleaved,
     double        *ws,
     size_t         ws_len);
+
+/* ------------------------------------------------------------------ *
+ * EPH SPARSE — the sparse-scaled propagator (0.9.0rc206; siona
+ * gh#1274 item 1c, the corpus-scale residual) — the SAME harvest
+ * e^{-zL}·u0 as srmech_eph_propagate (same complex-z convention, same
+ * arg(z) coherence dial, same seam-folded Wick factor) computed by a
+ * CHEBYSHEV polynomial of the operator applied with MATRIX-VECTOR
+ * PRODUCTS ONLY — no eigendecomposition, no dense e^{-zL} — so it runs
+ * on a corpus-scale L past the n<=256 dense-eigensolve cap.
+ *
+ * The operator is the SIGNED graph Laplacian read off the edge list
+ * (the signed_laplacian convention): (L v)[i] = deg[i]·v[i] −
+ * Σ_{(i,j)} w_ij·v[j], deg[i] = Σ_incident |w| (Class-K sign branch,
+ * never fabs; self-loops skipped; duplicate edges read PER-EDGE).
+ * Spectral interval by Gershgorin ([0, 2·max deg] — deterministic, an
+ * overestimate only widens the interval), affine-mapped to [-1, 1];
+ * Chebyshev interpolation coefficients of e^{-z·lambda(s)} from the
+ * Chebyshev nodes (srmech_exp + srmech_cos / srmech_sin per node — the
+ * Q61 octant reduction IS the 2π seam-fold), node count adaptively
+ * DOUBLED from 64 up to the HARD CAP max_degree+1, accepted when the
+ * coefficient tail (top eighth) falls below tol·max|e^{-z·lambda}|;
+ * then the forward T_{k+1} = 2·L~·T_k − T_{k-1} vector recurrence
+ * (m matvecs, O(m·n_edges) time, O(n) memory). Not converged at the
+ * cap → honest SRMECH_ERR_OVERFLOW (raise max_degree or shrink |z|).
+ * Standalone-complete: all scratch is bump-carved from the CALLER
+ * arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 4.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_eph_propagate_sparse needs for
+ * n nodes / n_edges edges / a max_degree cap: the signed degrees + three
+ * interleaved-complex recurrence vectors (the harvest accumulates into
+ * the caller's output buffer) + the Chebyshev node/coefficient staging
+ * (5·(max_degree+1) doubles). Size `ws_len` >= this. */
+size_t srmech_eph_propagate_sparse_arena_bytes(uint32_t n, uint32_t n_edges,
+                                               uint32_t max_degree);
+
+/* harvest = e^{-zL}·u0 on the SPARSE signed Laplacian of the edge list
+ * (edges_u/edges_v parallel uint32 arrays; `weights` NULL → unit, may
+ * be negative for a signed graph). `u0_interleaved` / `out_harvest_
+ * interleaved` are each n INTERLEAVED-complex (re, im) pairs (a real
+ * excitation rides as (re, 0)). z = z_re + i·z_im is the complex time
+ * (the arg(z) coherence dial, as srmech_eph_propagate). `tol` (> 0) is
+ * the RELATIVE coefficient-tail tolerance (relative to the max
+ * propagator magnitude over the spectral interval); `max_degree`
+ * (1..2^28) is the HARD Chebyshev degree cap. Writes the Chebyshev
+ * degree actually used to *out_degree_used when non-NULL. n == 0
+ * writes nothing. `ws` (ws_len bytes) sized from
+ * srmech_eph_propagate_sparse_arena_bytes. Returns SRMECH_ERR_NULL_ARG
+ * for a NULL required pointer, SRMECH_ERR_BAD_INPUT for an out-of-range
+ * edge endpoint / non-finite weight / tol <= 0 / max_degree out of
+ * range / a non-finite propagator value (exp overflow on a backward
+ * z), SRMECH_ERR_OVERFLOW for a too-small arena or a coefficient tail
+ * not below tol within the max_degree cap. */
+srmech_status_t srmech_eph_propagate_sparse(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *weights,
+    const double   *u0_interleaved,
+    double          z_re,
+    double          z_im,
+    double          tol,
+    uint32_t        max_degree,
+    double         *out_harvest_interleaved,
+    uint32_t       *out_degree_used,
+    double         *ws,
+    size_t          ws_len);
 
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)

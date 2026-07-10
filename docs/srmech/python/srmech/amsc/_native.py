@@ -1051,6 +1051,48 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_eph_propagate.restype = ctypes.c_int
 
+    # rc206 (siona gh#1274 item 1c): the SPARSE-SCALED EPH propagator —
+    # the SAME harvest e^{-zL}·u0 as srmech_eph_propagate but via a
+    # Chebyshev polynomial applied with MATVECS ONLY on the sparse signed
+    # Laplacian of an edge list (no eigendecomposition → runs past the
+    # n<=256 dense-eigensolve cap), the C twin of
+    # srmech.amsc.laplacian.propagate_sparse. NEW symbols, hasattr-guarded
+    # (ABI stays 4) so a stale lib keeps the rest of the native surface
+    # and the pure-Python op is the complete alternative.
+    #   size_t srmech_eph_propagate_sparse_arena_bytes(uint32_t n,
+    #       uint32_t n_edges, uint32_t max_degree)
+    if hasattr(lib, "srmech_eph_propagate_sparse_arena_bytes"):
+        lib.srmech_eph_propagate_sparse_arena_bytes.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.c_uint32,                    # max_degree
+        ]
+        lib.srmech_eph_propagate_sparse_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_eph_propagate_sparse(uint32_t n, uint32_t n_edges,
+    #       const uint32_t *edges_u, const uint32_t *edges_v,
+    #       const double *weights, const double *u0_interleaved,
+    #       double z_re, double z_im, double tol, uint32_t max_degree,
+    #       double *out_harvest_interleaved, uint32_t *out_degree_used,
+    #       double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_eph_propagate_sparse"):
+        lib.srmech_eph_propagate_sparse.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u (n_edges | NULL)
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v (n_edges | NULL)
+            ctypes.POINTER(ctypes.c_double),    # weights (n_edges | NULL)
+            ctypes.POINTER(ctypes.c_double),    # u0 (2*n interleaved)
+            ctypes.c_double,                    # z_re
+            ctypes.c_double,                    # z_im
+            ctypes.c_double,                    # tol
+            ctypes.c_uint32,                    # max_degree
+            ctypes.POINTER(ctypes.c_double),    # out_harvest (2*n interleaved)
+            ctypes.POINTER(ctypes.c_uint32),    # out_degree_used (| NULL)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_eph_propagate_sparse.restype = ctypes.c_int
+
     # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
     # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of
     # the native surface. uint8 0/1 buffers; lean-ALU XOR (no float, no libm).

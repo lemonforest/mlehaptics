@@ -208,6 +208,7 @@ __all__ = [
     "ground_state_flux_response",
     "propagate",
     "eph_harvest",
+    "propagate_sparse",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
     "MAX_NATIVE_HERMITIAN_NODES",
@@ -3574,6 +3575,374 @@ def eph_harvest(L, u0, z) -> dict:
     }
 
 
+# =====================================================================
+# EPH SPARSE — the sparse-scaled propagator (0.9.0rc206; siona gh#1274
+# item 1c, the corpus-scale residual). The SAME harvest e^{-zL}·u0 as
+# :func:`propagate` (same complex-z convention, same arg(z) coherence
+# dial, same seam-folded Wick factor) computed by a CHEBYSHEV polynomial
+# of the operator applied with MATRIX-VECTOR PRODUCTS ONLY — no
+# eigendecomposition, no dense e^{-zL} — so it runs on a corpus-scale L
+# past the n <= 256 dense-eigensolve cap.
+# =====================================================================
+
+#: Initial Chebyshev node count of the adaptive expansion (doubled up to
+#: max_degree+1). 64 covers |z|·λ_max up to ~40 at tol 1e-10.
+_EPH_SPARSE_M0: int = 64
+
+#: Sanity cap on the caller's max_degree (matches the C peer's bound —
+#: keeps the uint32 node count from wrapping and the arena finite).
+_EPH_SPARSE_DEGREE_CAP: int = 1 << 28
+
+
+def _eph_sparse_degrees(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+) -> Tuple[List[float], float]:
+    """Signed degrees ``deg[i] = Σ_incident |w|`` (a Class-K sign BRANCH,
+    never ``abs()``; self-loops skipped — the :func:`signed_laplacian`
+    convention; duplicate edges read PER-EDGE) + the Gershgorin bound
+    ``λ_max = 2·max_i deg[i]`` (the signed Laplacian is PSD, so the
+    spectral interval is ``[0, λ_max]`` — deterministic, an overestimate
+    only widens the interval). A non-finite weight raises ``ValueError``
+    (the C peer's ``SRMECH_ERR_BAD_INPUT``)."""
+    deg = [0.0] * n
+    for (a, b), w in zip(edge_list, w_list):
+        if a == b:
+            continue                       # self-loop cancels in D̄ − A
+        if not _finite_real(w):
+            raise ValueError(
+                f"propagate_sparse: edge weight must be finite; got {w!r}")
+        m = w if w >= 0.0 else -w          # Class-K magnitude, never abs()
+        deg[a] += m
+        deg[b] += m
+    lam_max = 0.0
+    for d in deg:
+        if 2.0 * d > lam_max:
+            lam_max = 2.0 * d
+    return deg, lam_max
+
+
+def _eph_sparse_coeffs(
+    zr: float,
+    zi: float,
+    cc: float,
+    h: float,
+    tol: float,
+    max_degree: int,
+) -> List[complex]:
+    """Adaptive Chebyshev interpolation coefficients of the propagator
+    scalar ``g(s) = e^{-z·(cc + h·s)}`` on ``s ∈ [-1, 1]`` — the SAME
+    schedule as the C peer's ``ephs_expand``: evaluate ``g`` at the M
+    Chebyshev nodes ``s_j = cos(π(2j+1)/(2M))`` (the rc136 Wick-factor
+    machinery — Class-N exp + the Machin-2π seam-folded cos/sin), form
+    ``c_k = (2−δ_k0)/M · Σ_j g(s_j)·cos(k·θ_j)`` with ``cos(k·θ_j)`` by
+    the 3-term recurrence (j-outer / k-inner, NO per-(k,j) trig), accept
+    when the coefficient tail (the top eighth — the aliasing guard) falls
+    below ``tol·max_j|g(s_j)|`` (compared in SQUARES — no ``abs()``, no
+    sqrt), else DOUBLE M up to the hard cap ``max_degree+1``. Returns the
+    truncated coefficient list ``c_0..c_m``; not converged at the cap →
+    honest ``ValueError`` (raise max_degree or shrink |z|)."""
+    mcap = max_degree + 1
+    M = _EPH_SPARSE_M0 if _EPH_SPARSE_M0 < mcap else mcap
+    while True:
+        cosn = [0.0] * M
+        f = [0j] * M
+        scale2 = 0.0
+        for j in range(M):
+            theta = _PI * (2 * j + 1) / (2.0 * M)
+            cth, _sth = _eph_cos_sin(theta)
+            lam = cc + h * cth
+            fj = _eph_wick_factor(zr, zi, lam)
+            if not (_finite_real(fj.real) and _finite_real(fj.imag)):
+                raise ValueError(
+                    f"propagate_sparse: propagator magnitude e^{{-Re(z)·λ}} "
+                    f"overflowed at λ={lam!r} (backward z too large)")
+            cosn[j] = cth
+            f[j] = fj
+            m2 = fj.real * fj.real + fj.imag * fj.imag
+            if m2 > scale2:
+                scale2 = m2
+        coeff = [0j] * M
+        for j in range(M):                 # j-outer / k-inner (the C order)
+            fj = f[j]
+            t_prev = 1.0                   # T_0(s_j)
+            t_cur = cosn[j]                # T_1(s_j)
+            coeff[0] += fj
+            if M > 1:
+                coeff[1] += fj * t_cur
+            for k in range(2, M):
+                t_next = 2.0 * cosn[j] * t_cur - t_prev
+                coeff[k] += fj * t_next
+                t_prev, t_cur = t_cur, t_next
+        inv = 1.0 / M
+        coeff[0] *= inv
+        for k in range(1, M):
+            coeff[k] *= 2.0 * inv
+        thresh2 = (tol * tol) * scale2
+        m_eff = 0
+        for k in range(M - 1, -1, -1):
+            ck = coeff[k]
+            if ck.real * ck.real + ck.imag * ck.imag > thresh2:
+                m_eff = k
+                break
+        guard = M // 8 if M // 8 > 1 else 1
+        if m_eff + guard <= M - 1:
+            return coeff[: m_eff + 1]
+        if M >= mcap:
+            raise ValueError(
+                f"propagate_sparse: Chebyshev tail not below tol={tol} within "
+                f"max_degree={max_degree} (|z|·λ_max needs a higher degree — "
+                f"raise max_degree or shrink |z|)")
+        M = 2 * M if M <= mcap // 2 else mcap
+
+
+def _eph_sparse_matvec(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+    deg: List[float],
+    cc: float,
+    hinv: float,
+    v: List[complex],
+) -> List[complex]:
+    """One scaled matvec ``L̃·v = ((L·v) − cc·v)/h`` on the sparse signed
+    Laplacian: ``(L v)[i] = deg[i]·v[i] − Σ_{(a,b) edge} w·v[other]`` by
+    edge-scatter — the SAME accumulation order as the C peer's
+    ``ephs_matvec``. O(n + n_edges) per call; matvec-only is the whole
+    point (no dense matrix is ever formed)."""
+    out = [deg[i] * v[i] for i in range(n)]
+    for (a, b), w in zip(edge_list, w_list):
+        if a == b:
+            continue                       # self-loop cancels in D̄ − A
+        out[a] -= w * v[b]
+        out[b] -= w * v[a]
+    return [(out[i] - cc * v[i]) * hinv for i in range(n)]
+
+
+def _eph_propagate_sparse_py(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+    u,
+    zr: float,
+    zi: float,
+    tol: float,
+    max_degree: int,
+) -> List[complex]:
+    """The pure-Python complete alternative for :func:`propagate_sparse` —
+    the Chebyshev cascade (degrees → adaptive coefficients → forward
+    ``T_{k+1} = 2·L̃·T_k − T_{k−1}`` vector recurrence), the SAME
+    algorithm and accumulation order as the C peer (value-parity within
+    tol, not a rescue)."""
+    deg, lam_max = _eph_sparse_degrees(n, edge_list, w_list)
+    uc = [complex(x) for x in u]
+    if lam_max <= 0.0:
+        return uc                          # L = 0 → e^{-z·0} = I
+    cc = 0.5 * lam_max
+    hinv = 2.0 / lam_max
+    coeff = _eph_sparse_coeffs(zr, zi, cc, 0.5 * lam_max, tol, max_degree)
+    y = [coeff[0] * x for x in uc]
+    if len(coeff) > 1:
+        v_prev = uc
+        v_cur = _eph_sparse_matvec(n, edge_list, w_list, deg, cc, hinv, uc)
+        for k in range(1, len(coeff)):
+            ck = coeff[k]
+            for i in range(n):
+                y[i] += ck * v_cur[i]
+            if k == len(coeff) - 1:
+                break                      # last term: no further matvec
+            mv = _eph_sparse_matvec(n, edge_list, w_list, deg, cc, hinv,
+                                    v_cur)
+            v_next = [2.0 * mv[i] - v_prev[i] for i in range(n)]
+            v_prev, v_cur = v_cur, v_next
+    return y
+
+
+def _eph_propagate_sparse_native(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+    u,
+    zr: float,
+    zi: float,
+    tol: float,
+    max_degree: int,
+):
+    """numpy-free native dispatch for :func:`propagate_sparse` — marshals
+    the edge endpoints / weights / interleaved u0 into ctypes buffers and
+    calls the standalone-C ``srmech_eph_propagate_sparse`` with a caller
+    arena sized from ``srmech_eph_propagate_sparse_arena_bytes``. Returns
+    the ``list[complex]`` harvest, or ``None`` on any missing symbol /
+    non-OK status (caller then runs the pure-Python complete
+    alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_eph_propagate_sparse")
+        and hasattr(_native.LIB, "srmech_eph_propagate_sparse_arena_bytes")
+    ):
+        return None
+    n_edges = len(edge_list)
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(a) for a, _ in edge_list))
+        ev = (ctypes.c_uint32 * n_edges)(*(int(b) for _, b in edge_list))
+        wbuf = (ctypes.c_double * n_edges)(*(float(w) for w in w_list))
+    else:
+        eu = ev = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+        wbuf = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    u_il = []
+    for x in u:
+        z = complex(x)
+        u_il.append(z.real)
+        u_il.append(z.imag)
+    u_c = (ctypes.c_double * (2 * n))(*u_il)
+    out = (ctypes.c_double * (2 * n))()
+    deg_used = ctypes.c_uint32(0)
+    ws_bytes = _native.LIB.srmech_eph_propagate_sparse_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges),
+        ctypes.c_uint32(int(max_degree)),
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_eph_propagate_sparse(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wbuf, u_c,
+        ctypes.c_double(zr), ctypes.c_double(zi), ctypes.c_double(tol),
+        ctypes.c_uint32(int(max_degree)), out, ctypes.byref(deg_used), ws,
+        ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
+
+
+def propagate_sparse(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    u0,
+    z,
+    tol: float = 1e-10,
+    max_degree: int = 2048,
+) -> "Vec":
+    """EPH SPARSE — the sparse-scaled propagator ``harvest = e^{-zL}·u0``
+    (0.9.0rc206; siona gh#1274 item 1c — the corpus-scale residual).
+
+    The SAME harvest as :func:`propagate` (same complex-z convention, same
+    ``arg(z)`` coherence dial — z real → thermal, z imaginary → coherent,
+    between → partial — same seam-folded Wick factor) computed by a
+    **Chebyshev polynomial of the operator applied with matrix-vector
+    products ONLY**: no eigendecomposition, no dense ``e^{-zL}``, so it
+    runs on a corpus-scale ``L`` past the ``n ≤ 256`` dense-eigensolve cap
+    (``O(m·n_edges)`` time, ``O(n)`` memory, ``m`` = the Chebyshev degree).
+    Compose with the Born-rule read exactly as :func:`eph_harvest` does
+    over :func:`propagate`.
+
+    The operator is the SIGNED graph Laplacian read straight off the edge
+    list (the :func:`signed_laplacian` convention, matching the sparse-
+    graph input of :func:`fiedler_sparse` / :func:`spectral_spine`):
+    ``(L v)[i] = deg[i]·v[i] − Σ_{(i,j)} w_ij·v[j]`` with the signed degree
+    ``deg[i] = Σ_incident |w|`` (Class-K magnitude — a sign branch, never
+    ``abs()``), self-loops skipped. Duplicate edges are read PER-EDGE (each
+    contributes ``|w|`` to the degree) — pre-merge duplicates that may
+    carry opposite signs if exact :func:`signed_laplacian` parity is
+    needed for such a list.
+
+    Method (deterministic Chebyshev — no Lanczos, no orthogonalisation, no
+    randomness): the spectral interval ``[0, 2·max_i deg[i]]`` by
+    Gershgorin (cheap + deterministic; the signed Laplacian is PSD; an
+    overestimate only widens the interval), affine-mapped to ``[-1, 1]``;
+    Chebyshev interpolation coefficients of ``e^{-z·λ(s)}`` from the
+    Chebyshev nodes (the rc136 Wick-factor machinery — Class-N exp + the
+    MANDATORY Machin-2π seam-folded cos/sin, so it stays exact at any
+    ``t·λ``); the node count adaptively DOUBLES from 64 up to the HARD CAP
+    ``max_degree+1``, accepting when the coefficient tail (the top eighth
+    — the aliasing guard) falls below ``tol·max|e^{-z·λ}|``; then the
+    forward ``T_{k+1} = 2·L̃·T_k − T_{k−1}`` vector recurrence (``T_k`` of
+    an operator with spectrum in ``[-1, 1]`` has norm ≤ 1 → stable).
+
+    Convergence regime (honest): the needed degree grows like
+    ``|z|·λ_max/2 + O(log 1/tol)`` — super-geometric once past the wave
+    zone (the Bessel-tail decay of the exp expansion). Thermal ``z``
+    (real, ≥ 0) truncates earliest; coherent ``z`` (imaginary) needs the
+    full ``~|z|·λ_max/2`` terms before the tail drops; backward
+    propagation (``Re z < 0``) converges but its error is relative to the
+    max propagator magnitude over the WHOLE interval
+    (``~tol·e^{|Re z|·λ_max}`` absolute — inherent to any polynomial
+    approximation of exp on an interval). Not converged within
+    ``max_degree`` → an honest ``ValueError`` (raise ``max_degree`` or
+    shrink ``|z|``); the tolerance is never silently degraded.
+
+    Parameters
+    ----------
+    n : int
+        Number of graph nodes.
+    edges : Iterable[Tuple[int, int]]
+        Undirected edges ``(u, v)`` with ``0 ≤ u, v < n`` (the
+        :func:`fiedler_sparse` / :func:`signed_laplacian` convention).
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); same length as ``edges``.
+        May be negative — the signed degree keeps ``L`` PSD.
+    u0 : Vec | list (keyword-only)
+        The excitation vector (length ``n``, real or complex) — the seed
+        the propagator acts on (as :func:`propagate`).
+    z : complex (keyword-only)
+        The complex time; ``arg(z)`` is the coherence dial (as
+        :func:`propagate`; a ``[re, im]`` pair is accepted).
+    tol : float
+        Relative coefficient-tail tolerance (relative to the max
+        propagator magnitude over the spectral interval). Default 1e-10.
+    max_degree : int
+        The HARD Chebyshev degree cap (1 .. 2^28). Default 2048 — covers
+        ``|z|·λ_max`` up to ~4000 at the default tol.
+
+    Returns
+    -------
+    Vec
+        The harvest ``e^{-zL}·u0`` — a length-``n`` complex
+        :class:`~srmech.amsc.vec.Vec` (the :func:`propagate` return
+        contract). ``n = 0`` gives the empty harvest.
+
+    Native (rc206): dispatches to the standalone-C
+    ``srmech_eph_propagate_sparse`` (degrees + node evaluation +
+    coefficients + the vector recurrence all in C, caller-arena, no
+    caps beyond the caller's ``max_degree``); pure Python is the complete
+    alternative — same algorithm, same accumulation order, NUMERIC
+    (FPU-tol) within-tol parity (differential-tested), not byte-for-byte.
+    numpy-free; no ``abs()`` (Class-K sign branch / magnitude-squares).
+
+    Raises:
+        ValueError: bad ``n`` / edge / weight (the
+            :func:`fiedler_sparse` contracts), ``len(u0) != n``, a
+            non-finite weight, ``tol <= 0``, ``max_degree`` out of range,
+            or a coefficient tail not below ``tol`` within ``max_degree``
+            (the honest non-convergence).
+    """
+    edge_list, w_list = _validate_edges_weights_py(n, edges, weights)
+    z = complex(z[0], z[1]) if isinstance(z, (list, tuple)) else complex(z)
+    u = _vec(u0)
+    if len(u) != n:
+        raise ValueError(
+            f"propagate_sparse: len(u0) ({len(u)}) must equal n ({n})")
+    tol = float(tol)
+    if not (tol > 0.0):
+        raise ValueError(f"propagate_sparse: tol must be > 0; got {tol!r}")
+    max_degree = int(max_degree)
+    if max_degree < 1 or max_degree > _EPH_SPARSE_DEGREE_CAP:
+        raise ValueError(
+            f"propagate_sparse: max_degree must be in 1..2^28; got "
+            f"{max_degree}")
+    if n == 0:
+        return Vec(array("d"), 0, is_complex=True)
+    harvest = _eph_propagate_sparse_native(
+        n, edge_list, w_list, u, z.real, z.imag, tol, max_degree)
+    if harvest is None:
+        harvest = _eph_propagate_sparse_py(
+            n, edge_list, w_list, u, z.real, z.imag, tol, max_degree)
+    return Vec.from_sequence(harvest, is_complex=True)
+
+
 def fiedler_vector(matrix) -> "Vec":
     """The Fiedler navigation embedding — eigenvector of ``λ₂``.
 
@@ -4515,6 +4884,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "ground_state_flux_response",
     "propagate",
     "eph_harvest",
+    "propagate_sparse",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",
