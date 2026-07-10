@@ -871,7 +871,20 @@ CEIL_BIGNUM_REFERENCE = 0
 # owed 2 -> 1; composes_c 115 -> 116; sum stays 176. CEIL_NON_COMPUTE_OWED 2 -> 1.
 # ABI stays 4 (additive leaves; no wire change). The 1 owed left = run_class_method
 # (the class-surface interpreter -- rc202).
-CEIL_NON_COMPUTE_OWED = 1
+# rc202 (make_class -> C, the FINAL owed row): run_class_method -> C. The stateless
+# one-shot RESOLVES a class NAME to its packaged [class] descriptor (the compiled-in
+# srmech_class_registry_table -- codegen'd by c/tools/gen_class_registry.py, the rc184
+# tool-registry model; a bare-C host needs NO Python + NO filesystem), runs one method
+# through the rc201 srmech_make_class_run engine, and WRAPS as {"class","method",
+# "result","fields"} byte-identical to the pure run_class_method (srmech_run_class_method,
+# JPL-clean, shares the mc_run_from_toml spine). The NAME->descriptor resolve is genuinely
+# IN C, so the whole construct+invoke+wrap LOGIC is standalone; an unknown / register_class_
+# dir USER class or an engine-deferred leaf DEFERS to pure (rc103 inform-don't-limit).
+# run_class_method moved owed_orchestration -> composes_c. owed 1 -> 0; composes_c 116 ->
+# 117; sum stays 176. CEIL_NON_COMPUTE_OWED 1 -> 0 -- the everything-to-C program is
+# COMPLETE (a bare-C host runs the WHOLE apparatus; NO owed orchestration row remains).
+# ABI stays 4 (additive symbols; no wire change).
+CEIL_NON_COMPUTE_OWED = 0
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host

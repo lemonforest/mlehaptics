@@ -122,8 +122,8 @@ _ANNEX_DELTA = {"composes_c": 20, "host_glue": 1, "dev_tooling": 3}
 # c_dispatched (its C peer srmech_genome_encode_shape) → composes_c 116 → 115;
 # non_compute total 177 → 176. (genome.telomere also earned a C peer but moved
 # composition_of_c → c_dispatched, not a non_compute row.)
-_FULL_SPLIT = {"owed_orchestration": 1, "composes_c": 116, "host_glue": 15,
-               "dev_tooling": 44}
+# rc202: owed_orchestration EMPTY (run_class_method discharged -> composes_c 117).
+_FULL_SPLIT = {"composes_c": 117, "host_glue": 15, "dev_tooling": 44}
 _TOTAL_NON_COMPUTE = 176
 _HOSTGLUE_ROOTS = ("srmech.mcp", "srmech.cli", "srmech.llm")
 
@@ -198,15 +198,14 @@ def test_full_non_compute_split_sums_to_177():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_1():
-    """The phase-driver ceiling is 1 after rc201b — rc194's residue of 2 minus
-    make_class, whose [class] OBJECT-MODEL engine (srmech_make_class_run) now RUNS
-    the object model across ALL route types in C (the plain / returns=self spine plus
-    the mutates / appends / chain machinery over the genome / sed_* domain-leaf peers).
-    The 1 owed left = run_class_method (the class-surface interpreter — rc202)."""
-    assert CEIL_NON_COMPUTE_OWED == 1, (
-        f"CEIL_NON_COMPUTE_OWED must be 1 after rc201b; got "
-        f"{CEIL_NON_COMPUTE_OWED}"
+def test_ceil_non_compute_owed_is_0():
+    """The phase-driver ceiling is 0 after rc202 — the FINAL owed row
+    run_class_method earned its C peer (srmech_run_class_method: NAME->descriptor
+    resolve IN C + the rc201 engine + the 4-key wrap, byte-identical to pure). NO
+    owed_orchestration row remains: the everything-to-C program is COMPLETE."""
+    assert CEIL_NON_COMPUTE_OWED == 0, (
+        f"CEIL_NON_COMPUTE_OWED must be 0 after rc202 (everything-to-C complete); "
+        f"got {CEIL_NON_COMPUTE_OWED}"
     )
 
 

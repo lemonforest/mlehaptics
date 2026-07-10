@@ -5298,6 +5298,49 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int),
         ]
         lib.srmech_make_class_run.restype = ctypes.c_int
+    # rc202 (#887) — run_class_method: NAME->descriptor resolve + the engine +
+    # the 4-key wrap. The size_t params MUST be declared for the SAME reason as
+    # make_class_run above (a bare c_int marshal leaves the upper 32 bits of each
+    # 64-bit register UNDEFINED — the ubuntu gcc-13 ABI-UB that cost rc201 a CI
+    # cycle). NOTE: srmech_run_class_method_arena_bytes takes (const char *,
+    # size_t, size_t) — the class_name resolves its descriptor length internally.
+    #   size_t srmech_run_class_method_arena_bytes(const char *class_name,
+    #       size_t fields_len, size_t args_len)
+    if hasattr(lib, "srmech_run_class_method_arena_bytes"):
+        lib.srmech_run_class_method_arena_bytes.argtypes = [
+            ctypes.c_char_p,
+            ctypes.c_size_t,
+            ctypes.c_size_t,
+        ]
+        lib.srmech_run_class_method_arena_bytes.restype = ctypes.c_size_t
+    #   const char *srmech_class_descriptor_lookup(const char *name,
+    #       size_t *out_len)
+    if hasattr(lib, "srmech_class_descriptor_lookup"):
+        lib.srmech_class_descriptor_lookup.argtypes = [
+            ctypes.c_char_p,
+            ctypes.POINTER(ctypes.c_size_t),
+        ]
+        lib.srmech_class_descriptor_lookup.restype = ctypes.c_char_p
+    #   srmech_status_t srmech_run_class_method(const char *class_name,
+    #       const char *method, const char *fields_json, size_t fields_len,
+    #       const char *args_json, size_t args_len, void *ws, size_t ws_len,
+    #       char *out, size_t out_cap, size_t *out_len, int *out_kind)
+    if hasattr(lib, "srmech_run_class_method"):
+        lib.srmech_run_class_method.argtypes = [
+            ctypes.c_char_p,
+            ctypes.c_char_p,
+            ctypes.c_char_p,
+            ctypes.c_size_t,
+            ctypes.c_char_p,
+            ctypes.c_size_t,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        lib.srmech_run_class_method.restype = ctypes.c_int
 
 
 _LIB_PATH: Optional[Path] = _find_library()
@@ -5852,6 +5895,62 @@ def make_class_run_c(
     rc = LIB.srmech_make_class_run(
         toml_b, len(toml_b), method_b,
         fields_b, len(fields_b), args_b, len(args_b),
+        ctypes.cast(ws, ctypes.c_void_p), ws_len,
+        ctypes.cast(out, ctypes.c_void_p), out_cap,
+        ctypes.byref(got), ctypes.byref(kind))
+    if rc != SRMECH_OK or kind.value != MAKE_CLASS_DISPATCHED:
+        return (False, None)
+    return (True, bytes(out[:got.value]).decode("utf-8"))
+
+
+# ----------------------------------------------------------------------
+# rc202 (#887): run_class_method -> C — the STATELESS one-shot + the FINAL owed
+# orchestration row. ``srmech_run_class_method`` RESOLVES a class NAME to its
+# packaged [class] descriptor (the compiled-in srmech_class_registry_table — no
+# Python, no host-FS), runs one method through the rc201 engine, and WRAPS the
+# result as {"class","method","result","fields"} (byte-identical to the pure
+# srmech.dsl.run_class_method). An unknown / register_class_dir USER class or a
+# method the engine defers DEFERS to pure (rc103 inform-don't-limit). Private
+# prover binding (the pure run_class_method is the SSoT; this proves the standalone
+# C capability, the rc185 pure-constructor-with-proven-equivalent-C-peer precedent).
+# ----------------------------------------------------------------------
+
+
+def has_native_run_class_method() -> bool:
+    """True iff the rc202 run_class_method C peer is loaded + bound."""
+    return bool(
+        HAS_NATIVE and LIB is not None
+        and hasattr(LIB, "srmech_run_class_method")
+    )
+
+
+def run_class_method_c(
+    class_name: str, method: str, fields: "dict", args: "dict"
+) -> "tuple[bool, str | None]":
+    """Resolve ``class_name`` -> its packaged descriptor + run ``method`` through
+    the C ``srmech_run_class_method`` engine (NAME resolve happens IN C).
+
+    Returns ``(dispatched, result_text)``: on a clean dispatch ``(True, text)``
+    where ``text`` is ``{"class", "method", "result", "fields"}`` canonical JSON
+    (byte-identical to json.dumps of the pure run_class_method dict); otherwise
+    ``(False, None)`` — the caller runs the pure run_class_method (an unknown /
+    user class, or a leaf the engine defers). numpy-free."""
+    if not has_native_run_class_method():
+        return (False, None)
+    import json as _json
+    name_b = class_name.encode("utf-8")
+    method_b = method.encode("utf-8")
+    fields_b = _json.dumps(fields or {}, separators=(",", ":")).encode("utf-8")
+    args_b = _json.dumps(args or {}, separators=(",", ":")).encode("utf-8")
+    ws_len = int(LIB.srmech_run_class_method_arena_bytes(
+        name_b, len(fields_b), len(args_b)))
+    ws = (ctypes.c_char * ws_len)()
+    out_cap = 64 * (len(name_b) + len(method_b) + len(fields_b) + len(args_b)) + 16384
+    out = (ctypes.c_char * out_cap)()
+    got = ctypes.c_size_t(0)
+    kind = ctypes.c_int(-1)
+    rc = LIB.srmech_run_class_method(
+        name_b, method_b, fields_b, len(fields_b), args_b, len(args_b),
         ctypes.cast(ws, ctypes.c_void_p), ws_len,
         ctypes.cast(out, ctypes.c_void_p), out_cap,
         ctypes.byref(got), ctypes.byref(kind))
