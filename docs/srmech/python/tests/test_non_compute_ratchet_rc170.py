@@ -179,14 +179,21 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # peers, byte-identical to CatalogClass). make_class moved owed_orchestration →
 # composes_c → owed 2 → 1, composes_c 115 → 116; sum stays 176. CEIL 2 → 1. The 1
 # owed left = run_class_method (rc202).
+# rc205 (gh #1293): carrier_schema — the CARRIER (operand) introspection surface,
+# the noun-side dual of tool_schema. ONE new non_compute row (srmech.amsc.
+# carrier_schema.carrier_schema), composes_c: it runtime-dispatches to its C peer
+# srmech_carrier_schema over the compiled-in srmech_carrier_registry const table
+# (canonical JSON byte-identical to the pure path, sha256 hash-ratcheted); the
+# pure derivation is the complete fallback. NOT owed_orchestration (CEIL stays 0).
+# composes_c 117 -> 118; sum 176 -> 177.
 _EXPECTED_SPLIT = {
     # rc202 discharged the FINAL owed row (run_class_method -> C); owed_orchestration
     # is now EMPTY (a live Counter has no zero key), so it is absent from the split.
-    "composes_c": 117,
+    "composes_c": 118,
     "host_glue": 15,
     "dev_tooling": 44,
 }
-_TOTAL_NON_COMPUTE = 176
+_TOTAL_NON_COMPUTE = 177
 
 
 def _rows():

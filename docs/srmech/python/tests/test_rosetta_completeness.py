@@ -884,6 +884,13 @@ CEIL_BIGNUM_REFERENCE = 0
 # 117; sum stays 176. CEIL_NON_COMPUTE_OWED 1 -> 0 -- the everything-to-C program is
 # COMPLETE (a bare-C host runs the WHOLE apparatus; NO owed orchestration row remains).
 # ABI stays 4 (additive symbols; no wire change).
+# rc205 (gh #1293): carrier_schema — the CARRIER (operand) introspection surface,
+# the noun-side dual of tool_schema — ships composes_c FROM BIRTH: it dispatches
+# to its same-rc C peer srmech_carrier_schema over the compiled-in
+# srmech_carrier_registry const table (gen_carrier_registry.py, the rc184/rc202
+# codegen model; canonical JSON byte-identical to the pure path, sha256
+# hash-ratcheted), pure fallback complete. owed_orchestration stays EMPTY -- the
+# ceiling HOLDS at 0 (composes_c 117 -> 118; non_compute sum 176 -> 177).
 CEIL_NON_COMPUTE_OWED = 0
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
