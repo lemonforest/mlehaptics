@@ -499,6 +499,7 @@
 {"exposed_as": "srmech.amsc.laplacian.ground_state_flux_response", "defined_at": "srmech.amsc.laplacian.ground_state_flux_response", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.propagate", "defined_at": "srmech.amsc.laplacian.propagate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.eph_harvest", "defined_at": "srmech.amsc.laplacian.eph_harvest", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.laplacian.propagate_sparse", "defined_at": "srmech.amsc.laplacian.propagate_sparse", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.spectral_spine", "defined_at": "srmech.amsc.laplacian.spectral_spine", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.relational_structure", "defined_at": "srmech.amsc.laplacian.relational_structure", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_mult_table", "defined_at": "srmech.qm.quaternion.quaternion_mult_table", "bucket": "composition_of_c"}
