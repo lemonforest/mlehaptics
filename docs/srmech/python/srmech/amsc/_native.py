@@ -5261,6 +5261,43 @@ def _bind(lib: ctypes.CDLL) -> None:
     if hasattr(lib, "srmech_mat_matmul_c128"):
         lib.srmech_mat_matmul_c128.argtypes = [_MATP, _MATP, _MATP]
         lib.srmech_mat_matmul_c128.restype = ctypes.c_int
+    # rc201 (#887) — the make_class OBJECT-MODEL ENGINE. These MUST be declared:
+    # the size_t length/arena params are passed as Python ints, and without an
+    # explicit argtypes ctypes marshals them as 32-bit c_int, leaving the upper
+    # 32 bits of each 64-bit size_t register UNDEFINED (ABI-UB). That reads clean
+    # on some libffi/ABIs and garbage on others (ubuntu gcc-13 CI saw garbage
+    # toml_len/ws_len/out_cap -> the engine deferred every method).
+    #   size_t srmech_make_class_run_arena_bytes(size_t toml_len,
+    #       size_t fields_len, size_t args_len)
+    if hasattr(lib, "srmech_make_class_run_arena_bytes"):
+        lib.srmech_make_class_run_arena_bytes.argtypes = [
+            ctypes.c_size_t,
+            ctypes.c_size_t,
+            ctypes.c_size_t,
+        ]
+        lib.srmech_make_class_run_arena_bytes.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_make_class_run(const char *class_toml,
+    #       size_t toml_len, const char *method, const char *fields_json,
+    #       size_t fields_len, const char *args_json, size_t args_len,
+    #       void *ws, size_t ws_len, char *out, size_t out_cap,
+    #       size_t *out_len, int *out_kind)
+    if hasattr(lib, "srmech_make_class_run"):
+        lib.srmech_make_class_run.argtypes = [
+            ctypes.c_char_p,
+            ctypes.c_size_t,
+            ctypes.c_char_p,
+            ctypes.c_char_p,
+            ctypes.c_size_t,
+            ctypes.c_char_p,
+            ctypes.c_size_t,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_size_t),
+            ctypes.POINTER(ctypes.c_int),
+        ]
+        lib.srmech_make_class_run.restype = ctypes.c_int
 
 
 _LIB_PATH: Optional[Path] = _find_library()
