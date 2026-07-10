@@ -180,8 +180,9 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # composes_c → owed 2 → 1, composes_c 115 → 116; sum stays 176. CEIL 2 → 1. The 1
 # owed left = run_class_method (rc202).
 _EXPECTED_SPLIT = {
-    "owed_orchestration": 1,
-    "composes_c": 116,
+    # rc202 discharged the FINAL owed row (run_class_method -> C); owed_orchestration
+    # is now EMPTY (a live Counter has no zero key), so it is absent from the split.
+    "composes_c": 117,
     "host_glue": 15,
     "dev_tooling": 44,
 }
@@ -259,10 +260,12 @@ def test_owed_ceiling_is_tight():
                     if r.get("bucket") == "non_compute"
                     and r.get("non_compute_kind") == "owed_orchestration"
                     and r["defined_at"] in live)
-    assert CEIL_NON_COMPUTE_OWED == live_owed == _EXPECTED_SPLIT["owed_orchestration"], (
+    assert CEIL_NON_COMPUTE_OWED == live_owed == _EXPECTED_SPLIT.get(
+        "owed_orchestration", 0), (
         f"CEIL_NON_COMPUTE_OWED ({CEIL_NON_COMPUTE_OWED}) must equal the live "
         f"owed_orchestration count ({live_owed}) and the pinned "
-        f"{_EXPECTED_SPLIT['owed_orchestration']}."
+        f"{_EXPECTED_SPLIT.get('owed_orchestration', 0)} (rc202: owed is EMPTY — "
+        f"the everything-to-C program is complete)."
     )
 
 

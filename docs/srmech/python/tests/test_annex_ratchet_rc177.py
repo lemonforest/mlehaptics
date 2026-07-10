@@ -50,7 +50,7 @@ _ANNEX_ROWS = {
     # — over the genome / sed_* domain-leaf C peers; byte-identical to CatalogClass).
     # The 1 left: run_class_method (the class-surface interpreter — rc202).
     "srmech.dsl._class_catalog.make_class": "composes_c",
-    "srmech.dsl._class_surface.run_class_method": "owed_orchestration",
+    "srmech.dsl._class_surface.run_class_method": "composes_c",
     # composes_c (11) — compose existing C (sha256 / json / cipher backend / bus
     # pub/sub / the DSL chain F1 carrier-FFI + combinators + the TOML bridge), reach
     # no non-standalone-ready leaf
@@ -103,8 +103,10 @@ _ANNEX_ROWS = {
 # is now 2/11/12/14: rc181 moved lookup_cascade_op + build_chain_from_dict →
 # composes_c; rc182 moved chain + run_toml_chain + build_chain_from_toml{,_str} →
 # composes_c — the DSL CHAIN interpreter is COMPLETE)
-_ANNEX_DELTA = {"owed_orchestration": 1, "composes_c": 12, "host_glue": 12,
-                "dev_tooling": 14}
+# rc202 discharged run_class_method (the last annex owed row) owed -> composes_c,
+# so owed_orchestration is now EMPTY across the annex (a live Counter has no zero
+# key). The +39 annex split is now 13 composes_c / 12 host_glue / 14 dev_tooling.
+_ANNEX_DELTA = {"composes_c": 13, "host_glue": 12, "dev_tooling": 14}
 # the FULL split after the annex (pre-rc177 2/83/2/27 + the delta; rc178: owed
 # 12→11, composes_c 86→87 as decode_splice earned its C peer; rc180: owed 11→10,
 # composes_c 87→88 as the bus pipe earned its C peer — BUS FULLY C; rc181: owed
@@ -140,8 +142,8 @@ _ANNEX_DELTA = {"owed_orchestration": 1, "composes_c": 12, "host_glue": 12,
 # c_dispatched (its C peer srmech_genome_encode_shape) → composes_c 116 → 115;
 # non_compute total 177 → 176. (genome.telomere also earned a C peer but moved
 # composition_of_c → c_dispatched, not a non_compute row.)
-_FULL_SPLIT = {"owed_orchestration": 1, "composes_c": 116, "host_glue": 15,
-               "dev_tooling": 44}
+# rc202: owed_orchestration EMPTY (run_class_method discharged -> composes_c 117).
+_FULL_SPLIT = {"composes_c": 117, "host_glue": 15, "dev_tooling": 44}
 _TOTAL_NON_COMPUTE = 176
 
 
@@ -216,15 +218,15 @@ def test_full_non_compute_split_sums_to_153():
     assert sum(counts.values()) == _TOTAL_NON_COMPUTE == sum(_FULL_SPLIT.values())
 
 
-def test_ceil_non_compute_owed_is_1():
-    """The phase-driver ceiling is 1 after rc201b — rc194's residue of 2 minus
-    make_class, whose [class] OBJECT-MODEL engine (srmech_make_class_run) now RUNS
-    the object model across ALL route types in C (plain / returns=self / mutates /
-    appends / chain over the genome / sed_* domain-leaf peers). The 1 owed left =
-    run_class_method (the class-surface interpreter — rc202)."""
-    assert CEIL_NON_COMPUTE_OWED == 1, (
-        f"CEIL_NON_COMPUTE_OWED must be 1 after rc201b; got "
-        f"{CEIL_NON_COMPUTE_OWED}"
+def test_ceil_non_compute_owed_is_0():
+    """The phase-driver ceiling is 0 after rc202 — the FINAL owed row
+    run_class_method earned its C peer (srmech_run_class_method: NAME->descriptor
+    resolve IN C + the rc201 engine + the 4-key wrap, byte-identical to pure). NO
+    owed_orchestration row remains: the everything-to-C program is COMPLETE (a
+    bare-C host runs the WHOLE apparatus)."""
+    assert CEIL_NON_COMPUTE_OWED == 0, (
+        f"CEIL_NON_COMPUTE_OWED must be 0 after rc202 (everything-to-C complete); "
+        f"got {CEIL_NON_COMPUTE_OWED}"
     )
 
 

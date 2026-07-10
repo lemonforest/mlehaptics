@@ -1527,6 +1527,38 @@ static srmech_status_t mc_emit(srmech_marshal_arena_t *a, srmech_mval_t *result,
 }
 
 /* ------------------------------------------------------------------
+ * Emit {"class",<name>,"method",<method>,"result",<result>,"fields",<fields>}
+ * as canonical JSON — the run_class_method 4-key wrap (rc202). Insertion-order
+ * (NOT sorted-key), matching the pure run_class_method dict {"class","method",
+ * "result","fields"}.
+ * ------------------------------------------------------------------ */
+
+static srmech_status_t mc_emit_named(srmech_marshal_arena_t *a,
+                                     const char *class_name, const char *method,
+                                     srmech_mval_t *result,
+                                     const srmech_mval_t *fields,
+                                     char *out, size_t out_cap, size_t *out_len)
+{
+    srmech_mval_t *obj;
+    assert(a != NULL && result != NULL && out_len != NULL);
+    assert(class_name != NULL && method != NULL);
+    obj = mc_dict(a, 4u);
+    if (obj == NULL) { return SRMECH_ERR_OVERFLOW; }
+    obj->keys[0] = mc_str_copy(a, "class", 5u);
+    obj->items[0] = mc_str_copy(a, class_name, (uint32_t)strlen(class_name));
+    obj->keys[1] = mc_str_copy(a, "method", 6u);
+    obj->items[1] = mc_str_copy(a, method, (uint32_t)strlen(method));
+    obj->keys[2] = mc_str_copy(a, "result", 6u); obj->items[2] = result;
+    obj->keys[3] = mc_str_copy(a, "fields", 6u);
+    obj->items[3] = (srmech_mval_t *)fields;
+    if (obj->keys[0] == NULL || obj->items[0] == NULL || obj->keys[1] == NULL
+        || obj->items[1] == NULL || obj->keys[2] == NULL || obj->keys[3] == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    return srmech_mcp_serialise_result(obj, out, out_cap, out_len);
+}
+
+/* ------------------------------------------------------------------
  * The workspace bound + the PUBLIC prover entry.
  * ------------------------------------------------------------------ */
 
@@ -1559,6 +1591,39 @@ static int mc_parse_map(const char *json, size_t len, srmech_marshal_arena_t *a,
     return srmech_mval_from_json(jroot, a, out) == SRMECH_OK;
 }
 
+/* The shared spine of srmech_make_class_run + srmech_run_class_method: parse the
+ * [class] TOML, resolve the `method` spec, parse the fields/args JSON maps, build
+ * the field-state, dispatch. Writes (res, out_fields) over arena `a`. Returns 1
+ * on a clean C dispatch, 0 to DEFER to pure (unparseable descriptor / unknown
+ * method / unrepresentable input / a leaf the engine defers). */
+static int mc_run_from_toml(srmech_marshal_arena_t *a,
+                            const char *class_toml, size_t toml_len,
+                            const char *method,
+                            const char *fields_json, size_t fields_len,
+                            const char *args_json, size_t args_len,
+                            srmech_mval_t **res, const srmech_mval_t **out_fields)
+{
+    srmech_toml_value_t *root; const srmech_toml_value_t *spec;
+    const srmech_toml_value_t *field_tbl = NULL;
+    srmech_mval_t *fields, *args, *state; unsigned char *tws; size_t tws_len;
+    assert(a != NULL && class_toml != NULL && method != NULL);
+    assert(res != NULL && out_fields != NULL);
+    tws_len = 32u * toml_len + 8192u;
+    tws = mc_carve(a, tws_len);
+    if (tws == NULL) { return 0; }
+    if (srmech_toml_parse(class_toml, toml_len, tws, tws_len, &root) != SRMECH_OK) {
+        return 0;                                  /* unparseable -> DEFER */
+    }
+    spec = mc_method_spec(root, method, &field_tbl);
+    if (spec == NULL) { return 0; }                /* unknown method -> DEFER */
+    if (!mc_parse_map(fields_json, fields_len, a, &fields)) { return 0; }
+    if (!mc_parse_map(args_json, args_len, a, &args)) { return 0; }
+    state = mc_build_fields(a, field_tbl, fields);
+    if (state == NULL) { return 0; }
+    *out_fields = state;
+    return mc_run_method(a, spec, args, state, res, out_fields);
+}
+
 srmech_status_t srmech_make_class_run(const char *class_toml, size_t toml_len,
                                       const char *method,
                                       const char *fields_json, size_t fields_len,
@@ -1567,30 +1632,84 @@ srmech_status_t srmech_make_class_run(const char *class_toml, size_t toml_len,
                                       char *out, size_t out_cap, size_t *out_len,
                                       int *out_kind)
 {
-    srmech_marshal_arena_t a; srmech_toml_value_t *root; const srmech_toml_value_t *spec;
-    const srmech_toml_value_t *field_tbl = NULL; srmech_mval_t *fields, *args, *state, *res;
-    const srmech_mval_t *out_fields; unsigned char *tws; size_t tws_len;
+    srmech_marshal_arena_t a; srmech_mval_t *res; const srmech_mval_t *out_fields;
     if (class_toml == NULL || method == NULL || ws == NULL || out == NULL
         || out_len == NULL || out_kind == NULL) { return SRMECH_ERR_NULL_ARG; }
     assert(ws_len > 0u);
     assert(out_cap > 0u);
     *out_kind = SRMECH_MAKE_CLASS_DEFER;
     srmech_marshal_arena_init(&a, ws, ws_len);
-    tws_len = 32u * toml_len + 8192u;
-    tws = mc_carve(&a, tws_len);
-    if (tws == NULL) { return SRMECH_ERR_OVERFLOW; }
-    if (srmech_toml_parse(class_toml, toml_len, tws, tws_len, &root) != SRMECH_OK) {
-        return SRMECH_OK;                          /* unparseable -> DEFER to pure */
+    if (!mc_run_from_toml(&a, class_toml, toml_len, method, fields_json, fields_len,
+                          args_json, args_len, &res, &out_fields)) {
+        return SRMECH_OK;                          /* DEFER to pure CatalogClass */
     }
-    spec = mc_method_spec(root, method, &field_tbl);
-    if (spec == NULL) { return SRMECH_OK; }        /* unknown method -> DEFER */
-    if (!mc_parse_map(fields_json, fields_len, &a, &fields)) { return SRMECH_OK; }
-    if (!mc_parse_map(args_json, args_len, &a, &args)) { return SRMECH_OK; }
-    state = mc_build_fields(&a, field_tbl, fields);
-    if (state == NULL) { return SRMECH_OK; }
-    out_fields = state;
-    if (!mc_run_method(&a, spec, args, state, &res, &out_fields)) { return SRMECH_OK; }
     if (mc_emit(&a, res, out_fields, out, out_cap, out_len) != SRMECH_OK) {
+        return SRMECH_OK;                          /* serialise overflow -> DEFER */
+    }
+    *out_kind = SRMECH_MAKE_CLASS_DISPATCHED;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * run_class_method (rc202) — the STATELESS one-shot: RESOLVE a class NAME to its
+ * packaged descriptor (the compiled-in registry — no Python, no host-FS), run
+ * one method through the engine, WRAP as {"class","method","result","fields"}.
+ * The FINAL owed_orchestration row; discharge -> CEIL_NON_COMPUTE_OWED 1 -> 0.
+ * ------------------------------------------------------------------ */
+
+const char *srmech_class_descriptor_lookup(const char *name, size_t *out_len)
+{
+    size_t i;
+    if (name == NULL) { return NULL; }
+    assert(srmech_class_registry_table != NULL);
+    assert(srmech_class_registry_len > 0u);
+    for (i = 0u; i < srmech_class_registry_len; i++) {
+        if (strcmp(srmech_class_registry_table[i].name, name) == 0) {
+            if (out_len != NULL) {
+                *out_len = srmech_class_registry_table[i].toml_len;
+            }
+            return srmech_class_registry_table[i].toml;
+        }
+    }
+    return NULL;                                   /* unknown / user class */
+}
+
+size_t srmech_run_class_method_arena_bytes(const char *class_name,
+                                           size_t fields_len, size_t args_len)
+{
+    size_t toml_len = 0u;
+    if (class_name != NULL) {
+        (void)srmech_class_descriptor_lookup(class_name, &toml_len);
+    }
+    assert(srmech_class_registry_len > 0u);
+    assert(toml_len < ((size_t)1u << 40));         /* a descriptor is small + bounded */
+    return srmech_make_class_run_arena_bytes(toml_len, fields_len, args_len);
+}
+
+srmech_status_t srmech_run_class_method(const char *class_name,
+                                        const char *method,
+                                        const char *fields_json, size_t fields_len,
+                                        const char *args_json, size_t args_len,
+                                        void *ws, size_t ws_len,
+                                        char *out, size_t out_cap, size_t *out_len,
+                                        int *out_kind)
+{
+    srmech_marshal_arena_t a; srmech_mval_t *res; const srmech_mval_t *out_fields;
+    const char *class_toml; size_t toml_len = 0u;
+    if (class_name == NULL || method == NULL || ws == NULL || out == NULL
+        || out_len == NULL || out_kind == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(ws_len > 0u);
+    assert(out_cap > 0u);
+    *out_kind = SRMECH_MAKE_CLASS_DEFER;
+    class_toml = srmech_class_descriptor_lookup(class_name, &toml_len);
+    if (class_toml == NULL) { return SRMECH_OK; }  /* unknown / user class -> DEFER */
+    srmech_marshal_arena_init(&a, ws, ws_len);
+    if (!mc_run_from_toml(&a, class_toml, toml_len, method, fields_json, fields_len,
+                          args_json, args_len, &res, &out_fields)) {
+        return SRMECH_OK;                          /* method defers -> pure */
+    }
+    if (mc_emit_named(&a, class_name, method, res, out_fields,
+                      out, out_cap, out_len) != SRMECH_OK) {
         return SRMECH_OK;                          /* serialise overflow -> DEFER */
     }
     *out_kind = SRMECH_MAKE_CLASS_DISPATCHED;
