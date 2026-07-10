@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc199"
-#define SRMECH_VERSION       "0.9.0rc199"
+#define SRMECH_VERSION_PRE   "rc200"
+#define SRMECH_VERSION       "0.9.0rc200"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -198,6 +198,26 @@ srmech_status_t srmech_sha256_shani(const uint8_t *data,
 srmech_status_t srmech_hmac_sha256(const uint8_t *key, size_t key_len,
                                    const uint8_t *msg, size_t msg_len,
                                    uint8_t       *out32);
+
+/* rc200 (make_class -> C, leaf-batch 6/8; #887): the deterministic RBS-HDC
+ * VECTOR MINTER — the Class-A content-addressed hypervector the sedenion
+ * HDC-storage leaves (sed_write / materialize / read / clean) compose in C.
+ * Mirror of Python srmech.signal_processing.mint_vector, byte-for-byte: writes
+ * `n_bytes` of the SHA-256 chain
+ *     out = ( SHA256(name || u64_be(0)) || SHA256(name || u64_be(1)) || ... )
+ *           [0 : n_bytes]
+ * where each counter is an 8-byte BIG-ENDIAN unsigned integer concatenated AFTER
+ * the raw UTF-8 `name` bytes, chained (counter 0,1,2,...) until n_bytes are
+ * filled and truncated to n_bytes. `name` may be NULL iff name_len == 0. `out`
+ * is a caller buffer of at least n_bytes; the mint uses bounded stack only (no
+ * malloc). n_bytes >= 1. Errors: SRMECH_ERR_NULL_ARG (out NULL, or name NULL
+ * with name_len != 0); SRMECH_ERR_BAD_INPUT (n_bytes == 0). Routes through the
+ * srmech SHA-256 core (Merkle-Damgard midstate over the name's full 64-byte
+ * blocks, re-finalised per counter). Byte-identical to the pure chain, attested
+ * by tests/test_sed_storage_c_rc200.py. ABI-additive: a new symbol, no callback
+ * typedef, so SRMECH_ABI_VERSION stays 4. See srmech_sha256.c. */
+srmech_status_t srmech_mint_vector(const uint8_t *name, size_t name_len,
+                                   uint32_t n_bytes, uint8_t *out);
 
 /* B4: NDJSON streaming line iterator. Caller provides a file path
  *     and a per-line callback; srmech_ndjson_iter walks the file

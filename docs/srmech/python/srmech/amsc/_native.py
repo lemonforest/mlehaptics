@@ -384,6 +384,20 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_uint8),
         ]
         lib.srmech_hmac_sha256.restype = ctypes.c_int
+    # rc200 (make_class -> C, leaf-batch 6/8; #887): the deterministic RBS-HDC
+    # vector minter — the Class-A SHA-256(name || u64_be(counter)) chain the
+    # sedenion HDC-storage leaves compose in C. hasattr-guarded so a stale lib
+    # (pre-rc200) keeps the rest.
+    #   int srmech_mint_vector(const uint8_t *name, size_t name_len,
+    #                          uint32_t n_bytes, uint8_t *out)
+    if hasattr(lib, "srmech_mint_vector"):
+        lib.srmech_mint_vector.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # name (raw utf-8 bytes)
+            ctypes.c_size_t,                    # name_len
+            ctypes.c_uint32,                    # n_bytes (= D / 8)
+            ctypes.POINTER(ctypes.c_uint8),     # out[n_bytes]
+        ]
+        lib.srmech_mint_vector.restype = ctypes.c_int
     #   int srmech_bio_totp_derive_key(const uint8_t *dna, size_t dna_len,
     #                                  int64_t time_ns, int64_t window_ns,
     #                                  uint8_t *out16)
@@ -14162,6 +14176,38 @@ def sed_slots_c(in_slots, in_signs):
     if rc != SRMECH_OK:
         return None
     return ([int(osl[m]) for m in range(cnt)], [int(osg[m]) for m in range(cnt)])
+
+
+def has_native_mint_vector() -> bool:
+    """True iff the rc200 srmech_mint_vector C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_mint_vector"))
+
+
+def mint_vector_c(name_bytes: bytes, n_bytes: int):
+    """Native srmech_mint_vector → the ``n_bytes``-long deterministic RBS-HDC
+    vector minted from the raw UTF-8 ``name_bytes`` via the SHA-256(name ||
+    u64_be(counter)) chain, or ``None`` when the C peer is absent / the call
+    fails (the Python caller then runs the byte-identical pure chain — the
+    complete alternative for a no-C host / Pyodide). rc200 (make_class → C,
+    leaf-batch 6/8): the foundation the sedenion HDC-storage leaves
+    (sed_write / materialize / read / clean) compose in C."""
+    if not has_native_mint_vector():
+        return None
+    nb = int(n_bytes)
+    if nb <= 0:
+        return None
+    name_len = len(name_bytes)
+    name_ptr = None
+    if name_len:
+        name_buf = (ctypes.c_uint8 * name_len).from_buffer_copy(name_bytes)
+        name_ptr = ctypes.cast(name_buf, ctypes.POINTER(ctypes.c_uint8))
+    out = (ctypes.c_uint8 * nb)()
+    rc = LIB.srmech_mint_vector(
+        name_ptr, ctypes.c_size_t(name_len), ctypes.c_uint32(nb), out)
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out)
 
 
 def has_native_hypercomplex_exp() -> bool:
