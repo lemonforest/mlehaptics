@@ -5763,6 +5763,67 @@ def invoke_tool_c(
 
 
 # ----------------------------------------------------------------------
+# rc201 (#887): the make_class OBJECT-MODEL ENGINE. ``srmech_make_class_run``
+# constructs a DSL [class] instance from its packaged TOML descriptor + a
+# field-state map and RUNS one declared method IN C, returning
+# {"result": ..., "fields": ...} as canonical JSON (byte-identical to the pure
+# CatalogClass). rc201 dispatches the One inline-constant accessors + the
+# sedenion address-algebra methods (navmap/slots/is_navigable plain +
+# navigate returns="self"); every other method DEFERS to pure (rc103
+# inform-don't-limit). This is a private prover binding (no public callable) —
+# the CatalogClass wiring + the heavy-carrier leaf batch land in rc201b/rc202.
+# ----------------------------------------------------------------------
+
+# srmech_make_class_run out_kind (mirror SRMECH_MAKE_CLASS_* in srmech.h).
+MAKE_CLASS_DISPATCHED: int = 0
+MAKE_CLASS_DEFER: int = 1
+
+
+def has_native_make_class() -> bool:
+    """True iff the rc201 make_class object-model engine C peer is loaded + bound."""
+    return bool(
+        HAS_NATIVE and LIB is not None
+        and hasattr(LIB, "srmech_make_class_run")
+    )
+
+
+def make_class_run_c(
+    class_toml: str, method: str, fields: "dict", args: "dict"
+) -> "tuple[bool, str | None]":
+    """Run one DSL [class] method through the C ``srmech_make_class_run`` engine.
+
+    ``class_toml`` is the [class] descriptor TOML; ``method`` the method name;
+    ``fields`` / ``args`` the instance field-state + call-args maps. Returns
+    ``(dispatched, result_text)``: on a clean rc201-batch dispatch ``(True,
+    text)`` where ``text`` is ``{"result": ..., "fields": ...}`` canonical JSON
+    (for returns="self" "result" is the NEW instance's field DICT); otherwise
+    ``(False, None)`` — the caller runs the pure CatalogClass. numpy-free."""
+    if not has_native_make_class():
+        return (False, None)
+    import json as _json
+    toml_b = class_toml.encode("utf-8")
+    method_b = method.encode("utf-8")
+    fields_b = _json.dumps(fields or {}, separators=(",", ":")).encode("utf-8")
+    args_b = _json.dumps(args or {}, separators=(",", ":")).encode("utf-8")
+    ws_len = int(LIB.srmech_make_class_run_arena_bytes(
+        len(toml_b), len(fields_b), len(args_b)))
+    ws = (ctypes.c_char * ws_len)()
+    out_cap = 64 * (len(toml_b) + len(fields_b) + len(args_b)) + 16384
+    out = (ctypes.c_char * out_cap)()
+    got = ctypes.c_size_t(0)
+    kind = ctypes.c_int(-1)
+    rc = LIB.srmech_make_class_run(
+        toml_b, len(toml_b), method_b,
+        fields_b, len(fields_b), args_b, len(args_b),
+        ctypes.cast(ws, ctypes.c_void_p), ws_len,
+        ctypes.cast(out, ctypes.c_void_p), out_cap,
+        ctypes.byref(got), ctypes.byref(kind))
+    if rc != SRMECH_OK or kind.value != MAKE_CLASS_DISPATCHED:
+        return (False, None)
+    return (True, bytes(out[:got.value]).decode("utf-8"))
+
+
+# ----------------------------------------------------------------------
 # rc193 (HOST-GLUE): the CLI arg-GRAMMAR + dispatch. ``srmech.cli.main.main``
 # runs the argv through the C ``srmech_cli_parse`` (the grammar for all five
 # subcommands) + ``srmech_cli_dispatch`` (the run-body routing) on the clean
