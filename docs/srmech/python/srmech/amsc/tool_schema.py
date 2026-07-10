@@ -1759,6 +1759,64 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("L", "Mat", True, "real-symmetric matrix"),),
             returns=R("dict", "low/mid/high eigenvector bands (each a real Mat)"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc204 (gh#1324 / F1167–F1169) — the spectral SPINE + the
+        # relational-structure sugar, the DOMINANT-mode read-out that
+        # completes the community/spine pair with the LOW-mode
+        # fiedler_sparse / three_fold_eigvec_groups. C peer
+        # srmech_spectral_spine.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.spectral_spine", owner="srmech",
+            category="laplacian",
+            summary="The spectral SPINE of a relational graph: the top-|component| "
+                    "nodes of the DOMINANT (largest-λ) eigenvector of the (signed) "
+                    "Laplacian L = D̄ − A. The largest-eigenvalue eigenvector "
+                    "concentrates on the structurally CENTRAL items, so its "
+                    "top-magnitude nodes ARE the spine — the dominant-mode "
+                    "read-out that completes the community/spine PAIR with the "
+                    "LOW-mode fiedler_vector / fiedler_sparse (2-way) + "
+                    "three_fold_eigvec_groups (3-way). Domain-free (edges = any "
+                    "relational graph: siona describe-spine, ephemerides central "
+                    "bodies). n is inferred as one past the largest endpoint. "
+                    "Ranking is Class-K |component|² (re²+im², no abs / no sqrt), "
+                    "descending, ties by ascending index. 1:1 C peer "
+                    "srmech_spectral_spine (native when present, pure-Python — "
+                    "signed_laplacian + symmetric_eigendecompose + top-k — the "
+                    "complete alternative). NUMERIC within-tol native==pure; "
+                    "numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "undirected relational edges; n inferred from endpoints"),
+                        P("weights", "Optional[list[float]]", False,
+                          "per-edge weights (default 1.0); may be negative"),
+                        P("k", "int", False,
+                          "spine cap (keyword-only; default 8); returns "
+                          "min(k, n) indices")),
+            returns=R("list[int]", "up to k central node indices, descending "
+                                   "|component| of the dominant eigenvector"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.relational_structure", owner="srmech",
+            category="laplacian",
+            summary="The full spectral structure of a relational graph in ONE "
+                    "call: {spine, communities, coherence} from a single "
+                    "eigendecomposition of the (signed) Laplacian. spine = the "
+                    "top-8 central nodes (the DOMINANT mode, spectral_spine); "
+                    "communities = [left, right] the Fiedler 2-way sign bisection "
+                    "(the LOW mode, the normalized_cut_bisect convention — a "
+                    "Class-K sign split); coherence = λ₂ the algebraic "
+                    "connectivity (small ⇒ near-disconnected). Ergonomic sugar "
+                    "that COMPOSES signed_laplacian + symmetric_eigendecompose + "
+                    "the spectral_spine top-k + the Fiedler sign split (no "
+                    "dedicated C symbol — a pure composition of the C-backed "
+                    "atoms). numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "undirected relational edges; n inferred from endpoints"),
+                        P("weights", "Optional[list[float]]", False,
+                          "per-edge weights (default 1.0); may be negative")),
+            returns=R("dict", "{spine: list[int], communities: [list[int], "
+                              "list[int]], coherence: float}"),
+        ),
         # NOTE: srmech.amsc.compose.greedy_bipartite_alignment (§2.2) is NOT
         # registered — it takes a Python `similarity_fn` callable that cannot
         # cross the JSON-RPC boundary, so it is not an MCP tool. It is exempt
