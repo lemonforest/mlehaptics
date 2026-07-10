@@ -857,7 +857,21 @@ CEIL_BIGNUM_REFERENCE = 0
 # follow-up; on Windows the C server declines and a Python host runs the pure
 # http.server, and the SSE server-driving test is @posix_only (no CI hang). The 2
 # owed left = make_class / run_class_method (HONEST-DEFERRED -- the domain-leaf arc).
-CEIL_NON_COMPUTE_OWED = 2
+# rc201b (make_class -> C, engine 2/2): the DSL [class] OBJECT-MODEL engine
+# srmech_make_class_run now RUNS the object model across ALL route types in C --
+# the plain / returns="self" spine (rc201) PLUS the heavy-carrier leaves + the
+# mutates / appends / chain state-route machinery (rc201b): SedenionRegister
+# write(mutates) / materialize / read(chain) / carry / correct + Genome
+# add_chromosome(appends) / recall / assemble / partition, each BYTE-IDENTICAL to
+# the pure CatalogClass (composing srmech_mint_vector + srmech_hdc_* + srmech_genome_*
+# + srmech_hamming_*). make_class moved owed_orchestration -> composes_c (the C
+# engine composes the shipped C leaves to run the object model; the One bignum
+# leaves -- exact rationals overflow the int64 mval carrier -- + the float
+# couple/uncouple + host-FS save/load DEFER to pure, rc103 inform-don't-limit).
+# owed 2 -> 1; composes_c 115 -> 116; sum stays 176. CEIL_NON_COMPUTE_OWED 2 -> 1.
+# ABI stays 4 (additive leaves; no wire change). The 1 owed left = run_class_method
+# (the class-surface interpreter -- rc202).
+CEIL_NON_COMPUTE_OWED = 1
 
 # The PINNED dev-tooling allowlist — the exact ``non_compute_kind == "dev_tooling"``
 # set. A row here is JUSTIFIED as a genuine dev / LLM-affordance a bare-C host
