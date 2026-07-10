@@ -293,6 +293,54 @@ def _triad_in_int64(w: Tuple[int, int, int]) -> bool:
     return all(_WINDING_INT64_MIN <= wk <= _WINDING_INT64_MAX for wk in w)
 
 
+def _spinor_sign_from_triad(w: Tuple[int, int, int]) -> int:
+    """The double-cover sign ``(−1)^Σw`` of a winding triad (Class-K ±1) —
+    the ONE implementation behind :attr:`One.spinor_sign`, module-level so
+    other cascades (the rc207 wound propagator, gh#1276) reuse the SAME
+    readout instead of re-deriving it. Byte-identical native peer
+    (``srmech_spinor_sign``) when the triad fits int64; pure parity path
+    otherwise."""
+    nat = _winding_native()
+    if (nat is not None and hasattr(nat.LIB, "srmech_spinor_sign")
+            and _triad_in_int64(w)):
+        import ctypes
+        out = ctypes.c_int32(0)
+        rc = nat.LIB.srmech_spinor_sign(
+            ctypes.c_int64(w[0]), ctypes.c_int64(w[1]),
+            ctypes.c_int64(w[2]), ctypes.byref(out))
+        if rc != nat.SRMECH_OK:
+            raise RuntimeError(f"srmech_spinor_sign returned status {rc}")
+        return int(out.value)
+    return 1 if _sum_triad(w) % 2 == 0 else -1
+
+
+def _sigma_effective_from_triad(sigma: int, w: Tuple[int, int, int]) -> int:
+    """The tower-graded chirality readout ``σ·(−1)^popcount(towers(w))`` —
+    the ONE implementation behind :meth:`One.sigma_effective`, module-level
+    so other cascades (the rc207 wound propagator, gh#1276) reuse the SAME
+    readout instead of re-deriving it. NOT the melding bare ``w mod 2``:
+    the popcount over the whole divmod binary tower distinguishes ``w = 5``
+    (popcount 2 → even) from ``w = 7`` (popcount 3 → odd). Byte-identical
+    native peer (``srmech_sigma_effective``) when the triad fits int64."""
+    nat = _winding_native()
+    if (nat is not None and hasattr(nat.LIB, "srmech_sigma_effective")
+            and _triad_in_int64(w)):
+        import ctypes
+        out = ctypes.c_int32(0)
+        rc = nat.LIB.srmech_sigma_effective(
+            ctypes.c_int32(sigma), ctypes.c_int64(w[0]),
+            ctypes.c_int64(w[1]), ctypes.c_int64(w[2]), ctypes.byref(out))
+        if rc != nat.SRMECH_OK:
+            raise RuntimeError(
+                f"srmech_sigma_effective returned status {rc}")
+        return int(out.value)
+    total_bits = 0
+    for wk in w:
+        total_bits += sum(winding_tower(wk))   # popcount over the whole tower
+    # Class-K/C: σ · (−1)^popcount — tower-graded chirality, no bare `w % 2`.
+    return sigma if total_bits % 2 == 0 else -sigma
+
+
 @dataclass(frozen=True)
 class Block:
     """One Hurwitz block ``ℝ·1 ⊕ σ e^{Î_n θ} Im 𝔸_n`` of ``S(σ,θ)``.
@@ -519,21 +567,11 @@ class One:
         at 4π. This IS ℤ/2 on the *sign* (correct double-cover physics), while
         the winding itself is carried WHOLE in :attr:`winding` (no collapse).
         Byte-identical native peer (``srmech_spinor_sign``) when the triad
-        fits int64.
+        fits int64. Delegates to the module-level
+        :func:`_spinor_sign_from_triad` (the ONE implementation — reused by
+        the rc207 wound propagator, gh#1276).
         """
-        w = self.winding
-        nat = _winding_native()
-        if (nat is not None and hasattr(nat.LIB, "srmech_spinor_sign")
-                and _triad_in_int64(w)):
-            import ctypes
-            out = ctypes.c_int32(0)
-            rc = nat.LIB.srmech_spinor_sign(
-                ctypes.c_int64(w[0]), ctypes.c_int64(w[1]),
-                ctypes.c_int64(w[2]), ctypes.byref(out))
-            if rc != nat.SRMECH_OK:
-                raise RuntimeError(f"srmech_spinor_sign returned status {rc}")
-            return int(out.value)
-        return 1 if _sum_triad(w) % 2 == 0 else -1
+        return _spinor_sign_from_triad(self.winding)
 
     def winding_tower(self) -> Tuple[Tuple[int, ...], Tuple[int, ...], Tuple[int, ...]]:
         """The per-component **divmod binary-tower** grading of the winding triad
@@ -557,26 +595,11 @@ class One:
         from ``w = 7`` (popcount 3 → odd). Returns ``±1`` (the Class-K sign, no
         ``abs()``). At ``w = (0,0,0)`` this is exactly ``σ`` (back-compat).
         Byte-identical native peer (``srmech_sigma_effective``) when the triad
-        fits int64.
+        fits int64. Delegates to the module-level
+        :func:`_sigma_effective_from_triad` (the ONE implementation — reused
+        by the rc207 wound propagator, gh#1276).
         """
-        w = self.winding
-        nat = _winding_native()
-        if (nat is not None and hasattr(nat.LIB, "srmech_sigma_effective")
-                and _triad_in_int64(w)):
-            import ctypes
-            out = ctypes.c_int32(0)
-            rc = nat.LIB.srmech_sigma_effective(
-                ctypes.c_int32(self.sigma), ctypes.c_int64(w[0]),
-                ctypes.c_int64(w[1]), ctypes.c_int64(w[2]), ctypes.byref(out))
-            if rc != nat.SRMECH_OK:
-                raise RuntimeError(
-                    f"srmech_sigma_effective returned status {rc}")
-            return int(out.value)
-        total_bits = 0
-        for wk in w:
-            total_bits += sum(winding_tower(wk))   # popcount over the whole tower
-        # Class-K/C: σ · (−1)^popcount — tower-graded chirality, no bare `w % 2`.
-        return self.sigma if total_bits % 2 == 0 else -self.sigma
+        return _sigma_effective_from_triad(self.sigma, self.winding)
 
     def trace_spinor(self, *, as_float: bool = False):
         """The half-angle **spinor character** ``2·(−1)^Σw·cos(θ/2)`` — the

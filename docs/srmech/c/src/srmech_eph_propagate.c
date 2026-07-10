@@ -139,6 +139,26 @@ static srmech_status_t eph_project_scale(uint32_t n, const double *V,
     return SRMECH_OK;
 }
 
+/* Lift the caller's L into the interleaved Hermitian staging buffer H_il:
+ * a complex L copies through; a real L rides as (re, 0). Shared by
+ * srmech_eph_propagate and srmech_eph_propagate_wound (rc207) so the two
+ * harvests are byte-identical by construction. */
+static void eph_lift_hermitian(size_t nn, int is_complex, const double *L,
+                               double *H_il)
+{
+    assert(L != NULL || nn == 0);
+    assert(H_il != NULL || nn == 0);
+    for (size_t e = 0; e < nn; e++) {
+        if (is_complex != 0) {
+            H_il[2u * e] = L[2u * e];
+            H_il[2u * e + 1u] = L[2u * e + 1u];
+        } else {
+            H_il[2u * e] = L[e];
+            H_il[2u * e + 1u] = 0.0;
+        }
+    }
+}
+
 /* Recombine the scaled modes: harvest_i = Σ_k V[i,k]·c_k (complex). */
 static void eph_recombine(uint32_t n, const double *V, const double *c,
                           double *out)
@@ -208,15 +228,7 @@ srmech_status_t srmech_eph_propagate(
         || c == NULL) {
         return SRMECH_ERR_OVERFLOW;
     }
-    for (size_t e = 0; e < nn; e++) {     /* lift to interleaved Hermitian  */
-        if (is_complex != 0) {
-            H_il[2u * e] = L[2u * e];
-            H_il[2u * e + 1u] = L[2u * e + 1u];
-        } else {
-            H_il[2u * e] = L[e];
-            H_il[2u * e + 1u] = 0.0;
-        }
-    }
+    eph_lift_hermitian(nn, is_complex, L, H_il);
     srmech_status_t st = srmech_hermitian_eigendecompose_ws(
         n, H_il, lam, V_il, eig_ws, nn * 2u);
     if (st != SRMECH_OK) {
@@ -228,4 +240,114 @@ srmech_status_t srmech_eph_propagate(
     }
     eph_recombine(n, V_il, c, out_harvest_interleaved);
     return SRMECH_OK;
+}
+
+/* ── EPH WOUND (0.9.0rc207; siona gh#1276) — the SAME propagate with the
+ * seam-fold's DIVMOD QUOTIENT KEPT. srmech_eph_propagate's per-mode fold
+ * (inside srmech_cos / srmech_sin) discards the whole-turn winding w of the
+ * oscillation argument Im(z)·λ_k; this peer carries it out: the harvest is
+ * byte-identical (same statics, same order — carrying w must not perturb
+ * it) PLUS per-mode readouts composed from the EXISTING gh#1276 winding
+ * C peers (srmech_winding_fold + srmech_sigma_effective +
+ * srmech_spinor_sign over the mode triad (w_k, 0, 0)). ─────────────── */
+
+/* Per-mode winding readout: fold Im(z)·λ_k (divmod kept) -> the metacycle
+ * winding w_k + the epicycle residue theta_k (|theta| <= π), then the
+ * crank chirality dials — sigma_effective (tower-graded, NOT bare w mod 2)
+ * and the double-cover spinor sign (-1)^w — via the existing winding peers
+ * on the triad (w_k, 0, 0). */
+static srmech_status_t eph_winding_readout(uint32_t n, double z_im,
+                                           const double *lam,
+                                           int64_t *out_winding,
+                                           double *out_theta,
+                                           int32_t *out_sigma_eff,
+                                           int32_t *out_spinor_sign)
+{
+    assert(lam != NULL || n == 0);
+    assert(out_winding != NULL || n == 0);
+    for (uint32_t k = 0; k < n; k++) {
+        int64_t w = 0;
+        double th = 0.0;
+        srmech_status_t st = srmech_winding_fold(z_im * lam[k], &w, &th);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        out_winding[k] = w;
+        out_theta[k] = th;
+        st = srmech_sigma_effective(1, w, 0, 0, &out_sigma_eff[k]);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        st = srmech_spinor_sign(w, 0, 0, &out_spinor_sign[k]);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+    }
+    return SRMECH_OK;
+}
+
+size_t srmech_eph_propagate_wound_arena_bytes(uint32_t n, int is_complex)
+{
+    /* Same carve as srmech_eph_propagate MINUS the eigvals row (λ writes
+     * straight to the caller's out_eigvals): H interleaved (2nn) + eigvecs
+     * V (2nn) + eig workspace (2nn) + the projected mode vector c (2n). */
+    (void)is_complex;
+    size_t nn = (size_t)n * (size_t)n;
+    assert(n == 0u || nn / (size_t)n == (size_t)n);   /* n*n no overflow    */
+    assert(nn <= SIZE_MAX / (7u * sizeof(double)));   /* 6nn+2n no overflow */
+    size_t doubles = nn * 6u + (size_t)n * 2u;
+    return doubles * sizeof(double);
+}
+
+srmech_status_t srmech_eph_propagate_wound(
+    uint32_t       n,
+    int            is_complex,
+    const double  *L,
+    const double  *u0_interleaved,
+    double         z_re,
+    double         z_im,
+    double        *out_harvest_interleaved,
+    double        *out_eigvals,
+    int64_t       *out_winding,
+    double        *out_theta,
+    int32_t       *out_sigma_effective,
+    int32_t       *out_spinor_sign,
+    double        *ws,
+    size_t         ws_len)
+{
+    assert(n == 0 || L != NULL);
+    assert(n == 0 || (u0_interleaved != NULL && out_harvest_interleaved != NULL));
+    if (n == 0) {
+        return SRMECH_OK;                 /* empty problem: nothing written */
+    }
+    if (L == NULL || u0_interleaved == NULL || out_harvest_interleaved == NULL
+        || out_eigvals == NULL || out_winding == NULL || out_theta == NULL
+        || out_sigma_effective == NULL || out_spinor_sign == NULL
+        || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    size_t cap = ws_len / sizeof(double);
+    size_t off = 0;
+    size_t nn = (size_t)n * (size_t)n;
+    double *H_il = eph_bump(ws, cap, &off, nn * 2u);
+    double *V_il = eph_bump(ws, cap, &off, nn * 2u);
+    double *eig_ws = eph_bump(ws, cap, &off, nn * 2u);
+    double *c = eph_bump(ws, cap, &off, (size_t)n * 2u);
+    if (H_il == NULL || V_il == NULL || eig_ws == NULL || c == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    eph_lift_hermitian(nn, is_complex, L, H_il);
+    srmech_status_t st = srmech_hermitian_eigendecompose_ws(
+        n, H_il, out_eigvals, V_il, eig_ws, nn * 2u);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    st = eph_project_scale(n, V_il, u0_interleaved, z_re, z_im, out_eigvals,
+                           c);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    eph_recombine(n, V_il, c, out_harvest_interleaved);
+    return eph_winding_readout(n, z_im, out_eigvals, out_winding, out_theta,
+                               out_sigma_effective, out_spinor_sign);
 }
