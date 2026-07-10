@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc203"
-#define SRMECH_VERSION       "0.9.0rc203"
+#define SRMECH_VERSION_PRE   "rc204"
+#define SRMECH_VERSION       "0.9.0rc204"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1532,6 +1532,65 @@ srmech_status_t srmech_ground_state_flux_response(
     uint32_t        n_flux,
     const double   *fluxes,
     double         *out_lambda_min,
+    double         *ws,
+    size_t          ws_len);
+
+/* ------------------------------------------------------------------ *
+ * The spectral SPINE (0.9.0rc204; gh#1324 / F1167–F1169) — a Class-L
+ * COMPOSITE over the existing kernels (srmech_graph_dense_adjacency +
+ * srmech_hermitian_eigendecompose_ws), the C twin of
+ * srmech.amsc.laplacian.spectral_spine. It completes the community/spine
+ * PAIR srmech already ships: srmech_laplacian_fiedler_sparse /
+ * srmech_three_fold_bands read the LOW modes (2-/3-way community split),
+ * this reads the DOMINANT mode. The largest-eigenvalue eigenvector of a
+ * (signed) graph Laplacian concentrates on the structurally CENTRAL
+ * items; its top-|component| nodes ARE the spine. Domain-free (edges =
+ * any relational graph).
+ *
+ * Build → decompose → select: the signed Laplacian L = D̄ − A (signed
+ * degree D̄_ii = Σ|A_ij|, the Class-K magnitude — a sign branch, NOT
+ * fabs) is built from the edge list (srmech_graph_dense_adjacency then
+ * the in-arena D̄ − A pass), embedded real → interleaved-complex, and
+ * ONE srmech_hermitian_eigendecompose_ws gives the ascending spectrum +
+ * unitary eigenvectors. The DOMINANT eigenvector is the LAST column
+ * (largest λ); the top-k nodes by |component|² (re²+im², a Class-K
+ * magnitude-square — NO fabs, NO sqrt) are the spine, ordered by
+ * descending magnitude, ties broken by ascending index (bit-matching the
+ * Python op's sort key). NUMERIC (FPU-tol): the eigenvector basis is
+ * non-unique, so native == pure agrees WITHIN-TOL (the selected index
+ * SET / order is stable for a non-degenerate dominant eigenvalue), NOT
+ * byte-for-byte — contrast the exact-integer ops. Standalone-complete:
+ * all scratch is bump-carved from the CALLER arena `ws` (no malloc). The
+ * Python op is the COMPLETE alternative for a no-C host. ABI-additive:
+ * new symbols, so SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_spectral_spine needs for an n×n
+ * signed Laplacian (the real adjacency + the interleaved-H copy + the
+ * eigenvector staging + the eigensolve workspace + eigvals + the
+ * magnitude-square scratch). Size `ws_len` ≥ this. */
+size_t srmech_spectral_spine_arena_bytes(uint32_t n);
+
+/* The spectral spine of the relational graph on `n` nodes with `n_edges`
+ * undirected edges (edges_u/edges_v parallel uint32 arrays; `weights`
+ * NULL → unit weights, may be negative for a signed graph). Writes the
+ * top-min(k, n) central node indices (descending |component| of the
+ * dominant eigenvector, ties by ascending index) into `out_spine` (caller
+ * sizes it ≥ min(k, n)) and their count into `*out_count`. n == 0 (empty
+ * graph) writes *out_count = 0 and nothing else. `ws` (ws_len bytes) sized
+ * from srmech_spectral_spine_arena_bytes. Returns SRMECH_ERR_NULL_ARG for
+ * a NULL required pointer, SRMECH_ERR_BAD_INPUT for an out-of-range edge
+ * endpoint, SRMECH_ERR_OVERFLOW for a too-small arena or a non-convergent
+ * eigensolve. */
+srmech_status_t srmech_spectral_spine(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *weights,
+    uint32_t        k,
+    uint32_t       *out_spine,
+    uint32_t       *out_count,
     double         *ws,
     size_t          ws_len);
 

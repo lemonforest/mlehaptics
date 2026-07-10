@@ -945,6 +945,37 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_ground_state_flux_response.restype = ctypes.c_int
 
+    # rc204 (gh#1324 / F1167–F1169): the spectral SPINE — the top-|component|
+    # nodes of the DOMINANT eigenvector of a (signed) graph Laplacian = the
+    # structurally central items; the dominant-mode PAIR of the low-mode
+    # fiedler_sparse / three_fold_bands community reads. A Class-L composite over
+    # srmech_graph_dense_adjacency + srmech_hermitian_eigendecompose_ws, the C
+    # twin of srmech.amsc.laplacian.spectral_spine. NEW symbols, hasattr-guarded
+    # (ABI stays 4) so a stale lib keeps the rest of the native surface and the
+    # pure-Python op is the complete path.
+    #   size_t srmech_spectral_spine_arena_bytes(uint32_t n)
+    if hasattr(lib, "srmech_spectral_spine_arena_bytes"):
+        lib.srmech_spectral_spine_arena_bytes.argtypes = [ctypes.c_uint32]
+        lib.srmech_spectral_spine_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_spectral_spine(uint32_t n, uint32_t n_edges,
+    #       const uint32_t *edges_u, const uint32_t *edges_v,
+    #       const double *weights, uint32_t k, uint32_t *out_spine,
+    #       uint32_t *out_count, double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_spectral_spine"):
+        lib.srmech_spectral_spine.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u (n_edges)
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v (n_edges)
+            ctypes.POINTER(ctypes.c_double),    # weights (n_edges | NULL)
+            ctypes.c_uint32,                    # k
+            ctypes.POINTER(ctypes.c_uint32),    # out_spine (min(k, n))
+            ctypes.POINTER(ctypes.c_uint32),    # out_count
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_spectral_spine.restype = ctypes.c_int
+
     # rc136 (siona gh#1274): the EPH complex-time Wick-rotation propagator
     # harvest = e^{-zL}·u0 — a Class-L composite over
     # srmech_hermitian_eigendecompose_ws + srmech_exp + srmech_cos +
@@ -13783,6 +13814,18 @@ def has_native_fiedler_sparse() -> bool:
     pre-rc166 lib — the pure-Python cascade is the complete alternative."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_laplacian_fiedler_sparse"))
+
+
+def has_native_spectral_spine() -> bool:
+    """True iff the rc204 native spectral-spine composite is loaded + bound
+    (gh#1324): the (signed) Laplacian build + dominant-eigenvector top-|component|
+    selection runs in C (caller-arena, no malloc), so
+    :func:`srmech.amsc.laplacian.spectral_spine` dispatches to the C twin. False
+    on a no-C or pre-rc204 lib — the pure-Python cascade (signed_laplacian +
+    symmetric_eigendecompose + top-k) is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_spectral_spine")
+                and hasattr(LIB, "srmech_spectral_spine_arena_bytes"))
 
 
 def has_native_fiedler_sparse_file() -> bool:

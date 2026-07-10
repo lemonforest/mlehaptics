@@ -212,6 +212,8 @@ __all__ = [
     "MAX_NATIVE_NODES",
     "MAX_NATIVE_HERMITIAN_NODES",
     "three_fold_eigvec_groups",
+    "spectral_spine",
+    "relational_structure",
 ]
 
 MAX_NATIVE_NODES: int = 256
@@ -3604,6 +3606,214 @@ def fiedler_vector(matrix) -> "Vec":
     return Vec.from_sequence(
         [V[i, 1] for i in range(V.n_rows)], is_complex=is_cx
     )
+
+
+# =====================================================================
+# rc204 (gh#1324; F1167–F1169) — the spectral SPINE: the DOMINANT-mode
+# read-out that completes the community/spine pair with the LOW-mode
+# fiedler_vector / fiedler_sparse (2-way) + three_fold_eigvec_groups (3-way).
+# =====================================================================
+#
+# The community side reads the LOW modes of a graph Laplacian (λ₂ = the Fiedler
+# navigation / bisection; the three low/mid/high bands). The SPINE is the dual
+# read: the DOMINANT eigenvector (largest λ) of the (signed) Laplacian
+# concentrates on the structurally CENTRAL items of the relational graph, so its
+# top-|component| nodes ARE the spine (F1167–F1169). Domain-free — the edge list
+# is any relational graph (siona describe-spine; ephemerides central bodies).
+
+
+def _infer_n_from_edges(edge_list: List[Tuple[int, int]]) -> int:
+    """The node count of a relational graph given only its edges: one past the
+    largest endpoint (isolated high-index nodes carry no relationship, so they
+    are never central and their omission never changes the spine). No ``abs()``
+    — endpoints are non-negative node indices."""
+    n = 0
+    for (u, v) in edge_list:
+        iu, iv = int(u), int(v)
+        if iu + 1 > n:
+            n = iu + 1
+        if iv + 1 > n:
+            n = iv + 1
+    return n
+
+
+def _spine_from_V(V, k: int) -> List[int]:
+    """Top-``min(k, n)`` node indices by |component|² of the DOMINANT eigenvector
+    (the LAST column of an ascending-eigenvalue ``V`` — the largest λ), ordered by
+    descending magnitude, ties broken by ascending index. Class-K magnitude-square
+    (``re²+im²``; sign-invariant, so no eigenvector sign-canon is needed) — NO
+    ``abs()`` and NO float square root. Mirrors the C ``spine_select_topk`` sort
+    key exactly."""
+    n_rows = V.n_rows
+    if n_rows == 0 or k <= 0:
+        return []
+    col = V.n_cols - 1  # dominant = largest eigenvalue (ascending spectrum)
+    magsq: List[float] = []
+    for i in range(n_rows):
+        x = V[i, col]
+        if isinstance(x, complex):
+            magsq.append(x.real * x.real + x.imag * x.imag)
+        else:
+            magsq.append(x * x)
+    order = sorted(range(n_rows), key=lambda i: (-magsq[i], i))
+    return order[: min(int(k), n_rows)]
+
+
+def _spectral_spine_native(n, edge_list, w_list, k) -> Optional[List[int]]:
+    """numpy-free native dispatch for :func:`spectral_spine` — marshals the edge
+    endpoints (uint32) + weights (double) into ctypes buffers and calls the
+    composite C peer ``srmech_spectral_spine`` with a caller arena sized from
+    ``srmech_spectral_spine_arena_bytes``. Returns the ``list[int]`` spine, or
+    ``None`` on any missing symbol / non-OK status (caller then runs the
+    pure-Python complete alternative)."""
+    if not _native.has_native_spectral_spine():
+        return None
+    n_edges = len(edge_list)
+    want = min(int(k), n)
+    if want <= 0:
+        return []
+    eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in edge_list))
+    ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in edge_list))
+    wb = (ctypes.c_double * n_edges)(*(float(w) for w in w_list))
+    out = (ctypes.c_uint32 * want)()
+    cnt = ctypes.c_uint32(0)
+    ws_bytes = _native.LIB.srmech_spectral_spine_arena_bytes(ctypes.c_uint32(n))
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_spectral_spine(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wb,
+        ctypes.c_uint32(int(k)), out, ctypes.byref(cnt), ws,
+        ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(out[i]) for i in range(cnt.value)]
+
+
+def spectral_spine(
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    k: int = 8,
+) -> List[int]:
+    """The spectral SPINE of a relational graph — the structurally CENTRAL nodes
+    (gh#1324; F1167–F1169).
+
+    Build the (signed) Laplacian ``L = D̄ − A`` from the edge list, take the
+    DOMINANT eigenvector (the largest-eigenvalue eigenvector via
+    :func:`symmetric_eigendecompose`), and return the top-``k`` nodes by
+    |component| (Class-K magnitude). The largest-eigenvalue eigenvector of a
+    graph Laplacian concentrates on the structurally central items, so its
+    top-magnitude nodes ARE the spine — the DOMINANT-mode read-out that completes
+    the community/spine PAIR with the LOW-mode :func:`fiedler_vector` /
+    :func:`fiedler_sparse` (2-way community) + :func:`three_fold_eigvec_groups`
+    (3-way). Domain-free: ``edges`` is any relational graph (siona describe-spine;
+    ephemerides central bodies).
+
+    Parameters
+    ----------
+    edges : Iterable[Tuple[int, int]]
+        Undirected relational edges ``(u, v)`` with non-negative node indices.
+        The node count ``n`` is inferred as one past the largest endpoint
+        (isolated high-index nodes are never central, so their omission never
+        changes the spine); mirror the ``(edges, weights)`` convention of the
+        other edge-taking Class-L ops (:func:`signed_laplacian` /
+        :func:`fiedler_sparse`).
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); same length as ``edges``. May be
+        negative — the signed Laplacian's signed degree ``Σ|A_ij|`` keeps ``L``
+        PSD (the dissolved Class-O signed-metric leg).
+    k : int
+        Spine cap (keyword-only; default 8). At most ``min(k, n)`` node indices
+        are returned. ``k <= 0`` → ``[]``.
+
+    Returns
+    -------
+    list[int]
+        Up to ``k`` central node indices, ordered by descending |component| of
+        the dominant eigenvector (ties broken by ascending index). ``[]`` for an
+        empty graph (no edges → no relational structure).
+
+    Dispatches to the standalone-C composite ``srmech_spectral_spine`` when
+    ``HAS_NATIVE`` (the build + eigensolve + top-k selection run in C, caller-
+    arena, no caps); else srmech's own pure-Python cascade
+    (:func:`signed_laplacian` + :func:`symmetric_eigendecompose` + top-k). NUMERIC
+    (FPU-tol): the eigenvector basis is non-unique, so native == pure agrees
+    WITHIN-TOL — the selected index set / order is stable for a non-degenerate
+    dominant eigenvalue, NOT byte-for-byte. numpy-free; no ``abs()``.
+    """
+    edge_list = [tuple(e) for e in edges]
+    n = _infer_n_from_edges(edge_list)
+    if n == 0:
+        return []
+    _el, w_list = _validate_edges_weights_py(n, edge_list, weights)
+    kk = min(int(k), n)
+    if kk <= 0:
+        return []
+    idxs = _spectral_spine_native(n, edge_list, w_list, k)
+    if idxs is not None:
+        return idxs
+    # Pure-Python complete alternative: signed Laplacian → eigendecompose → top-k.
+    L = signed_laplacian(n, edge_list, w_list)
+    _eigvals, V = symmetric_eigendecompose(L)
+    return _spine_from_V(V, kk)
+
+
+def relational_structure(
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+) -> dict:
+    """The full spectral structure of a relational graph in ONE call (gh#1324) —
+    the ergonomic sugar that composes the Class-L atoms.
+
+    Reads a graph as BOTH its central spine AND its community split from a single
+    eigendecomposition of the (signed) Laplacian::
+
+        {"spine": [...],          # top-8 central nodes (the DOMINANT mode)
+         "communities": [L, R],   # the Fiedler 2-way sign bisection (the LOW mode)
+         "coherence": λ₂}         # algebraic connectivity (the Fiedler value)
+
+    Composes :func:`signed_laplacian` + :func:`symmetric_eigendecompose` (ONE
+    eigensolve) + the :func:`spectral_spine` top-k selection (dominant column) +
+    the Fiedler sign split (λ₂ column) — no dedicated C symbol, a pure composition
+    of the C-backed atoms. ``"communities"`` is ``[left, right]`` where ``left``
+    are the negative-Fiedler-sign nodes and ``right`` the non-negative (the
+    :func:`normalized_cut_bisect` convention; a Class-K sign split, no ``abs()``).
+    ``"coherence"`` is the second-smallest eigenvalue λ₂ (the algebraic
+    connectivity — small ⇒ a near-disconnected graph). numpy-free.
+
+    Parameters
+    ----------
+    edges : Iterable[Tuple[int, int]]
+        Undirected relational edges (``n`` inferred as in :func:`spectral_spine`).
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); may be negative.
+
+    Returns
+    -------
+    dict
+        ``{"spine": list[int], "communities": [list[int], list[int]],
+        "coherence": float}``. An empty graph → empty spine, empty communities,
+        ``coherence = 0.0``; a single node → spine ``[0]``, communities
+        ``[[0], []]``, ``coherence = 0.0`` (no λ₂).
+    """
+    edge_list = [tuple(e) for e in edges]
+    n = _infer_n_from_edges(edge_list)
+    if n == 0:
+        return {"spine": [], "communities": [[], []], "coherence": 0.0}
+    _el, w_list = _validate_edges_weights_py(n, edge_list, weights)
+    L = signed_laplacian(n, edge_list, w_list)
+    eigvals, V = symmetric_eigendecompose(L)  # ascending eigvals, columns = eigvecs
+    spine = _spine_from_V(V, min(8, n))
+    if n >= 2:
+        # λ₂ Fiedler vector = column 1; the sign split is the normalized cut.
+        left = [i for i in range(n) if V[i, 1] < 0.0]
+        right = [i for i in range(n) if V[i, 1] >= 0.0]
+        coherence = float(eigvals[1])
+    else:
+        left, right = [0], []          # a single node: no bisection
+        coherence = 0.0
+    return {"spine": spine, "communities": [left, right], "coherence": coherence}
 
 
 # --- §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler ---------
