@@ -210,6 +210,7 @@ __all__ = [
     "eph_harvest",
     "propagate_sparse",
     "propagate_wound",
+    "responsion",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
     "MAX_NATIVE_HERMITIAN_NODES",
@@ -3530,6 +3531,12 @@ def propagate(L, u0, z) -> "Vec":
     eigensolve tolerance regardless of the eigenvector convention. numpy-free;
     no ``abs()`` (Class-K magnitude / Class-C sign).
 
+    → extended by :func:`responsion` (rc208, F1186): ``propagate`` IS the
+    time-domain member of the RESPONSION response-function family —
+    ``responsion(L, u0, z, kind="propagator")`` delegates here verbatim,
+    and ``kind="resolvent"`` is its Laplace-transform dual
+    ``(zI − L)^{−1}·u0`` (the Green's function).
+
     Raises:
         ValueError: non-square ``L``, or ``len(u0) != n``.
     """
@@ -3805,6 +3812,207 @@ def propagate_wound(L, u0, z) -> dict:
         "sigma_effective": sig_list,
         "spinor_sign": spin_list,
     }
+
+
+# =====================================================================
+# RESPONSION — the response-function family (0.9.0rc208; F1186). The
+# op⊗operand DUALITY (A-N operator verbs ⊗ carrier operand nouns =
+# field⊗excitation) has a k=3 completion: the RESPONSION — the
+# answering-correspondence between successive op-on-operand
+# applications, the stored relationship itself (srmech = Stored-
+# RELATIONSHIP Mechanism — the responsion is the package's reason for
+# being). The exact/discrete regime sees one op(operand)=result; the
+# continuous/asymptotic regime (the beat, the resolvent, the
+# propagator) is where the responsion lives. Two canonical members,
+# LAPLACE-TRANSFORM DUALS: the propagator e^{-zL} (time domain — the
+# shipped EPH) and the resolvent (zI−L)^{-1} (frequency/energy domain —
+# the Green's function, NEW here).
+# =====================================================================
+
+
+def _responsion_resolvent_native(rows, u, zr: float, zi: float,
+                                 is_complex: bool):
+    """numpy-free native dispatch for :func:`responsion` kind="resolvent" —
+    marshals the flat matrix + the interleaved u0 into ctypes buffers and
+    calls the composite C peer ``srmech_responsion`` (kind=1) with a caller
+    arena sized from ``srmech_responsion_arena_bytes``. Returns the
+    ``list[complex]`` response, raises :class:`ZeroDivisionError` on the
+    C peer's honest pole signal (``SRMECH_ERR_BAD_INPUT`` — ``z`` exactly
+    in the spectrum of ``L``), or returns ``None`` on any missing symbol /
+    other non-OK status (caller then runs the pure-Python complete
+    alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_responsion")
+        and hasattr(_native.LIB, "srmech_responsion_arena_bytes")
+    ):
+        return None
+    n = len(rows)
+    if is_complex:
+        flat = []
+        for r in rows:
+            for x in r:
+                zc = complex(x)
+                flat.append(zc.real)
+                flat.append(zc.imag)
+    else:
+        flat = [float(x.real if isinstance(x, complex) else x)
+                for r in rows for x in r]
+    L_c = (ctypes.c_double * len(flat))(*flat)
+    u_il = []
+    for x in u:
+        zc = complex(x)
+        u_il.append(zc.real)
+        u_il.append(zc.imag)
+    u_c = (ctypes.c_double * (2 * n))(*u_il)
+    out = (ctypes.c_double * (2 * n))()
+    ws_bytes = _native.LIB.srmech_responsion_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0),
+        ctypes.c_int(1),
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_responsion(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0),
+        ctypes.c_int(1), L_c, u_c,
+        ctypes.c_double(zr), ctypes.c_double(zi), out, ws,
+        ctypes.c_size_t(wsd * 8),
+    )
+    if rc == _native.SRMECH_ERR_BAD_INPUT:
+        # The C peer's honest resolvent-pole signal: z ∈ spec(L) ⇒ the
+        # block embedding of (zI − L) is singular. Same exception the
+        # pure path's solve raises — two complete implementations, one
+        # documented pole contract.
+        raise ZeroDivisionError(
+            "responsion: z is a pole of the resolvent (z is in the "
+            "spectrum of L — (zI − L) is singular)"
+        )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
+
+
+def _responsion_resolvent_py(rows, u, zr: float, zi: float):
+    """The pure-Python complete alternative for :func:`responsion`
+    kind="resolvent" — build ``A = zI − L`` (complex leaves; the ``z − L``
+    subtraction is Class-C signed arithmetic) and solve ``A·x = u0`` via
+    :func:`_dense_solve_complex` (the SAME real 2n×2n block embedding the
+    C peer runs, over :func:`mat_solve`). A singular ``A`` (``z`` exactly
+    in the spectrum of ``L`` — the resolvent pole) raises
+    :class:`ZeroDivisionError` from the solve — the same honest pole
+    contract as the native path."""
+    n = len(rows)
+    z = complex(zr, zi)
+    A = [[(z if i == j else 0j) - complex(rows[i][j]) for j in range(n)]
+         for i in range(n)]
+    x = _dense_solve_complex(A, [complex(v) for v in u])
+    return [complex(v) for v in x]
+
+
+def responsion(L, u0, z, *, kind: str = "propagator") -> "Vec":
+    """RESPONSION — the response-function family of a generator ``L``
+    acting on an excitation ``u0`` (0.9.0rc208; F1186 — the
+    op⊗operand⊗responsion k=3 completion).
+
+    The op⊗operand DUALITY (A-N operator verbs ⊗ carrier operand nouns =
+    field⊗excitation) completes at k=3 with the RESPONSION: the
+    answering-correspondence between successive op-on-operand
+    applications — **the stored relationship itself** (srmech =
+    Stored-RELATIONSHIP Mechanism). The exact/discrete regime sees one
+    ``op(operand) = result``; the continuous/asymptotic regime (the beat,
+    the resolvent, the propagator) is where the responsion lives. The
+    family generalizes EPH's ``e^{−zL}`` to the general response function
+    of ``L``, and its two canonical continuous-form members are
+    **Laplace-transform duals** — a tight, framework-honest pair, not a
+    grab-bag:
+
+    * ``kind="propagator"`` (time domain): ``e^{−zL}·u0`` — this IS the
+      shipped EPH :func:`propagate` (rc136), and the call DELEGATES to it
+      verbatim (same arg(z) coherence dial: z real → thermal, imaginary →
+      coherent, between → partial; same mandatory 2π seam-fold; same
+      native/pure dispatch). ``responsion`` SUBSUMES ``propagate`` as its
+      time-domain member; ``propagate`` remains the named EPH surface
+      (back-compat + the :func:`propagate_wound` / :func:`propagate_sparse`
+      / :func:`eph_harvest` sibling family hangs off it).
+    * ``kind="resolvent"`` (frequency/energy domain — the Green's
+      function): ``(zI − L)^{−1}·u0`` — **NEW**. The Laplace transform of
+      the (semigroup) propagator::
+
+          (zI − L)^{−1} = ∫₀^∞ e^{−zt}·e^{tL} dt      (Re z > max λ(L))
+
+      with ``e^{tL}·u0 = propagate(L, u0, −t)`` (the shipped propagator at
+      negative time), so per eigenmode the dual pair is ``e^{−z·λ}`` ⟷
+      ``1/(z − λ)``. Realised as a REAL complex linear solve
+      ``(zI − L)·x = u0`` — the real 2n×2n block embedding
+      ``[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]]·[u;v] = [bᵣ;bᵢ]`` over the shipped
+      Gauss–Jordan kernel (native: the composite C peer
+      ``srmech_responsion`` composing ``srmech_dense_solve_f64_ws``;
+      pure: :func:`_dense_solve_complex` — the SAME embedding, the
+      complete alternative). ``z`` exactly in the spectrum of ``L`` is a
+      **resolvent pole** and raises :class:`ZeroDivisionError` honestly
+      (the pole IS the physics — never a garbage number).
+
+    Args:
+        L: an ``(n, n)`` real-symmetric OR complex-Hermitian operator
+            (:class:`~srmech.amsc.mat.Mat` / list-of-rows / ndarray-like),
+            exactly as :func:`propagate`.
+        u0: the excitation vector (length ``n``, real or complex) — the
+            seed the response acts on.
+        z: the complex argument. For the propagator: the complex time
+            (arg(z) = the coherence dial). For the resolvent: the complex
+            frequency/energy (the Green's-function argument; poles at the
+            spectrum of ``L``).
+        kind: ``"propagator"`` (default — delegates to :func:`propagate`)
+            or ``"resolvent"`` (the new Laplace-dual member).
+
+    Returns:
+        the response — a length-``n`` complex :class:`~srmech.amsc.vec.Vec`
+        (the :func:`propagate` return contract). An empty ``L`` (n = 0)
+        gives the empty response.
+
+    Raises:
+        ValueError: unknown ``kind``, non-square ``L``, or
+            ``len(u0) != n``.
+        ZeroDivisionError: kind="resolvent" with ``z`` in the spectrum of
+            ``L`` (the resolvent pole).
+
+    Native (rc208): the composite C peer ``srmech_responsion`` — kind 0
+    delegates to ``srmech_eph_propagate``, kind 1 composes
+    ``srmech_dense_solve_f64_ws`` via the block embedding — so a bare-C
+    host runs BOTH members. numpy-free; no ``abs()`` (the ``z − L``
+    subtraction is Class-C signed arithmetic; the solve pivot is the
+    composed kernel's Class-K sign branch).
+    """
+    if kind not in ("propagator", "resolvent"):
+        raise ValueError(
+            f"responsion: unknown kind {kind!r} — the family members are "
+            f"'propagator' (e^{{-zL}}·u0, the time-domain EPH) and "
+            f"'resolvent' ((zI-L)^{{-1}}·u0, the Laplace-dual Green's "
+            f"function)"
+        )
+    if kind == "propagator":
+        # The time-domain member IS the shipped EPH propagator — pure
+        # delegation (same dispatch, same seam-fold, same coherence dial).
+        return propagate(L, u0, z)
+    rows = _as_rows(L)
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(f"responsion: L must be square; got {n} rows")
+    z = complex(z)
+    u = _vec(u0)
+    if len(u) != n:
+        raise ValueError(
+            f"responsion: len(u0) ({len(u)}) must equal n ({n})"
+        )
+    if n == 0:
+        return Vec(array("d"), 0, is_complex=True)
+    is_complex = _has_complex(rows)
+    resp = _responsion_resolvent_native(rows, u, z.real, z.imag, is_complex)
+    if resp is None:
+        resp = _responsion_resolvent_py(rows, u, z.real, z.imag)
+    return Vec.from_sequence(resp, is_complex=True)
 
 
 # =====================================================================
@@ -5118,6 +5326,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "eph_harvest",
     "propagate_sparse",
     "propagate_wound",
+    "responsion",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",

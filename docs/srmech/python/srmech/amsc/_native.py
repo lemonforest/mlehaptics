@@ -1147,6 +1147,43 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_eph_propagate_wound.restype = ctypes.c_int
 
+    # rc208 (F1186): RESPONSION — the response-function family of a
+    # generator L on an excitation u0, the op(x)operand(x)responsion k=3
+    # completion. kind 0 = propagator e^{-zL}·u0 (delegates to
+    # srmech_eph_propagate); kind 1 = resolvent (zI - L)^{-1}·u0 (the
+    # Laplace-transform dual, via the real 2n x 2n block embedding over
+    # srmech_dense_solve_f64_ws). The C twin of
+    # srmech.amsc.laplacian.responsion. NEW symbols, hasattr-guarded (ABI
+    # stays 4) so a stale lib keeps the rest of the native surface and the
+    # pure-Python op is the complete alternative.
+    #   size_t srmech_responsion_arena_bytes(uint32_t n, int is_complex,
+    #       int kind)
+    if hasattr(lib, "srmech_responsion_arena_bytes"):
+        lib.srmech_responsion_arena_bytes.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # is_complex (0/1)
+            ctypes.c_int,                       # kind (0 prop / 1 resolvent)
+        ]
+        lib.srmech_responsion_arena_bytes.restype = ctypes.c_size_t
+    #   int srmech_responsion(uint32_t n, int is_complex, int kind,
+    #       const double *L, const double *u0_interleaved, double z_re,
+    #       double z_im, double *out_response_interleaved, double *ws,
+    #       size_t ws_len)
+    if hasattr(lib, "srmech_responsion"):
+        lib.srmech_responsion.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_int,                       # is_complex (0/1)
+            ctypes.c_int,                       # kind (0 prop / 1 resolvent)
+            ctypes.POINTER(ctypes.c_double),    # L (n*n | 2*n*n interleaved)
+            ctypes.POINTER(ctypes.c_double),    # u0 (2*n interleaved)
+            ctypes.c_double,                    # z_re
+            ctypes.c_double,                    # z_im
+            ctypes.POINTER(ctypes.c_double),    # out_response (2*n interleaved)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_responsion.restype = ctypes.c_int
+
     # v0.7.2rc2 (#910 / §30; F442/F449): Hamming / GF(2) block-code family.
     # NEW symbols — hasattr-guarded so a stale lib (pre-rc2) keeps the rest of
     # the native surface. uint8 0/1 buffers; lean-ALU XOR (no float, no libm).

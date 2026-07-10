@@ -1292,6 +1292,64 @@ def _register_primitive_class_tools() -> None:
                               "(±1, tower-graded) / spinor_sign (±1, "
                               "double-cover)"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc208 (F1186) — RESPONSION, the response-function family of a
+        # generator L on an excitation u0: the op⊗operand⊗responsion
+        # k=3 completion (the stored relationship itself), Class-L with
+        # the 1:1 C peer srmech_responsion.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.responsion", owner="srmech",
+            category="laplacian",
+            summary="RESPONSION — the response-function family of a "
+                    "generator L acting on an excitation u0 (F1186: the "
+                    "op⊗operand⊗responsion k=3 completion — the "
+                    "answering-correspondence between successive "
+                    "op-on-operand applications, the stored relationship "
+                    "itself; srmech = Stored-RELATIONSHIP Mechanism). "
+                    "Generalizes EPH's e^{−zL} to the general response "
+                    "function; the two canonical continuous-form members "
+                    "are LAPLACE-TRANSFORM DUALS: kind='propagator' (time "
+                    "domain) = e^{−zL}·u0 — DELEGATES verbatim to the "
+                    "shipped propagate (rc136; same arg(z) coherence dial, "
+                    "same mandatory 2π seam-fold — responsion SUBSUMES "
+                    "propagate as its time-domain member, propagate stays "
+                    "the named EPH surface); kind='resolvent' (frequency/"
+                    "energy domain, the Green's function) = (zI−L)^{−1}·u0 "
+                    "— NEW: the Laplace transform of the semigroup "
+                    "propagator, (zI−L)^{−1} = ∫₀^∞ e^{−zt}·e^{tL} dt for "
+                    "Re z > max λ(L), per eigenmode the dual pair "
+                    "e^{−z·λ} ⟷ 1/(z−λ). Realised as a REAL complex "
+                    "linear solve via the real 2n×2n block embedding "
+                    "[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]] over the shipped Gauss–Jordan "
+                    "kernel. z exactly in spec(L) is a resolvent POLE and "
+                    "raises ZeroDivisionError honestly (the pole IS the "
+                    "physics). 1:1 C peer srmech_responsion (kind 0 "
+                    "delegates to srmech_eph_propagate; kind 1 composes "
+                    "srmech_dense_solve_f64_ws — a bare-C host runs BOTH "
+                    "members); pure Python the complete alternative (the "
+                    "SAME embedding via mat_solve). numpy-free; no abs() "
+                    "(z−L is Class-C signed arithmetic; the solve pivot "
+                    "is the composed kernel's Class-K sign branch).",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric or complex-Hermitian "
+                          "operator (as propagate)"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or "
+                          "complex) — the seed the response acts on"),
+                        P("z", "complex", True,
+                          "the complex argument: the complex time for the "
+                          "propagator (arg(z) = the coherence dial), the "
+                          "complex frequency/energy for the resolvent "
+                          "(poles at spec(L))"),
+                        P("kind", "str", False,
+                          "'propagator' (default; e^{−zL}·u0, delegates "
+                          "to propagate) or 'resolvent' ((zI−L)^{−1}·u0, "
+                          "the Laplace-dual Green's function; "
+                          "keyword-only)")),
+            returns=R("Vec", "the response — a length-n complex Vec (the "
+                             "propagate return contract)"),
+        ),
         ToolEntry(
             name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
             category="laplacian",

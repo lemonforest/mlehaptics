@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc207"
-#define SRMECH_VERSION       "0.9.0rc207"
+#define SRMECH_VERSION_PRE   "rc208"
+#define SRMECH_VERSION       "0.9.0rc208"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1798,6 +1798,68 @@ srmech_status_t srmech_eph_propagate_wound(
     double        *out_theta,
     int32_t       *out_sigma_effective,
     int32_t       *out_spinor_sign,
+    double        *ws,
+    size_t         ws_len);
+
+/* ------------------------------------------------------------------ *
+ * RESPONSION — the response-function family of a generator L acting
+ * on an excitation u0 (0.9.0rc208; F1186 — the op(x)operand(x)responsion
+ * k=3 completion: the stored relationship itself, the answering-
+ * correspondence between successive op-on-operand applications). The
+ * family has TWO canonical continuous-form members that are LAPLACE-
+ * TRANSFORM DUALS of one another:
+ *
+ *   kind == 0 (PROPAGATOR, time domain):   e^{-zL}·u0
+ *     — delegates to the shipped srmech_eph_propagate cascade (rc136;
+ *       same complex-z convention, same arg(z) coherence dial, same
+ *       mandatory 2-pi seam-fold).
+ *   kind == 1 (RESOLVENT, frequency/energy domain, the Green's
+ *              function): (zI - L)^{-1}·u0
+ *     — the Laplace transform of the (semigroup) propagator:
+ *       (zI - L)^{-1} = integral_0^inf e^{-zt}·e^{tL} dt for
+ *       Re(z) > max Re(lambda(L)); per eigenmode the pair is
+ *       e^{-z·lambda}  <->  1/(z - lambda). Realised as the REAL
+ *       2n x 2n block embedding [[Ar, -Ai], [Ai, Ar]]·[u; v] =
+ *       [br; bi] of the complex system A = zI - L over the shipped
+ *       srmech_dense_solve_f64_ws Gauss-Jordan kernel (the SAME
+ *       embedding the Python mat_solve complex path rides) — a
+ *       composition of existing C, no forked solve.
+ *
+ * A singular A (z EXACTLY in the spectrum of L — a resolvent POLE)
+ * returns SRMECH_ERR_BAD_INPUT (the honest pole signal, not a number).
+ * Standalone-complete: all scratch is bump-carved from the CALLER
+ * arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 4.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_responsion needs for an n*n L
+ * and the given kind: kind == 0 -> the srmech_eph_propagate carve
+ * (identical, pass-through); kind == 1 -> the 2n x 2n real block
+ * embedding + the stacked RHS/solution columns + the inner
+ * srmech_dense_solve_arena_bytes(2n, 1) solve arena. Size ws_len >=
+ * this. An unknown kind returns 0. */
+size_t srmech_responsion_arena_bytes(uint32_t n, int is_complex, int kind);
+
+/* response = R(z)·u0 for the selected kind (0 = propagator e^{-zL}·u0,
+ * 1 = resolvent (zI - L)^{-1}·u0). is_complex == 0: `L` is n*n
+ * row-major REAL symmetric; is_complex != 0: `L` is n*n row-major
+ * INTERLEAVED-complex (re, im) Hermitian. `u0_interleaved` and
+ * `out_response_interleaved` are each n INTERLEAVED-complex (re, im)
+ * pairs (a real excitation rides as (re, 0)). z = z_re + i·z_im.
+ * n == 0 writes nothing. `ws` (ws_len bytes) sized from
+ * srmech_responsion_arena_bytes for the SAME kind. Returns
+ * SRMECH_ERR_NULL_ARG for a NULL required pointer, SRMECH_ERR_BAD_INPUT
+ * for an unknown kind or a resolvent pole (z in spec(L)) or a
+ * propagator fold-domain overflow, SRMECH_ERR_OVERFLOW for a too-small
+ * arena / a non-convergent eigensolve (propagator kind). */
+srmech_status_t srmech_responsion(
+    uint32_t       n,
+    int            is_complex,
+    int            kind,
+    const double  *L,
+    const double  *u0_interleaved,
+    double         z_re,
+    double         z_im,
+    double        *out_response_interleaved,
     double        *ws,
     size_t         ws_len);
 
