@@ -218,7 +218,7 @@
 {"exposed_as": "srmech.signal_processing.mint_cascade_composition", "defined_at": "srmech.signal_processing.rbs_hdc_instrument.mint_cascade_composition", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.mint_class_operator", "defined_at": "srmech.signal_processing.rbs_hdc_instrument.mint_class_operator", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.mint_stance_fingerprint", "defined_at": "srmech.signal_processing.rbs_hdc_instrument.mint_stance_fingerprint", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.signal_processing.mint_vector", "defined_at": "srmech.signal_processing.rbs_hdc_instrument.mint_vector", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.signal_processing.mint_vector", "defined_at": "srmech.signal_processing.rbs_hdc_instrument.mint_vector", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.path_b_ops.hdc_truncation.op", "defined_at": "srmech.signal_processing.path_b_ops.hdc_truncation.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.verify_rotation_class_n_cycle_order", "defined_at": "srmech.signal_processing.form_function_rotation.verify_rotation_class_n_cycle_order", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.attestation_audit", "defined_at": "srmech.amsc.catalog.attestation_audit", "bucket": "non_compute", "non_compute_kind": "composes_c"}

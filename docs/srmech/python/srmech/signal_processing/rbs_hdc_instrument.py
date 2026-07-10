@@ -87,6 +87,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from srmech.amsc import hdc as _M
+from srmech.amsc import _native
 # Route the mint hash through format.sha256_raw so it picks up the native C
 # SHA-256 dispatch transparently (CLAUDE.md: no raw hashlib.sha256 callsites);
 # sha256_raw(x) is bit-identical to hashlib.sha256(x).digest() (raw 32 bytes).
@@ -236,9 +237,19 @@ def mint_vector(name: str, *, D: int = D_DEFAULT) -> bytes:
         D/8 bytes of pseudo-random content; deterministic in ``name``.
     """
     n_bytes = _validate_D(D)
+    name_bytes = name.encode("utf-8")
+    # rc200 (make_class → C, leaf-batch 6/8; #887): dispatch the WHOLE
+    # SHA-256(name || u64_be(counter)) chain to the standalone-C
+    # srmech_mint_vector when native is present — byte-identical to the pure
+    # chain below (proven in tests/test_sed_storage_c_rc200.py). This is the
+    # foundation the sedenion HDC-storage leaves (sed_write / materialize /
+    # read / clean) compose in C; pure-Python is the complete alternative for a
+    # no-C host / Pyodide.
+    native = _native.mint_vector_c(name_bytes, n_bytes)
+    if native is not None:
+        return native
     out = bytearray()
     counter = 0
-    name_bytes = name.encode("utf-8")
     while len(out) < n_bytes:
         h = _sha256_raw(name_bytes + counter.to_bytes(8, "big"))
         out.extend(h)

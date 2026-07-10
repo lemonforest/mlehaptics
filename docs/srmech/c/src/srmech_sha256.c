@@ -321,6 +321,88 @@ static void srmech_hmac_half(const uint8_t pad_block[64],
 }
 
 /* ------------------------------------------------------------------ *
+ * rc200 (make_class -> C, leaf-batch 6/8): finish ONE mint digest.
+ *
+ * Given a precomputed midstate `mid` over the name's full 64-byte blocks and
+ * the name TAIL (`name_tail`, `rem` bytes, rem < 64), compute the raw 32-byte
+ * SHA-256 digest of the complete message (name || u64_be(counter)) whose total
+ * length is `total` bytes, and write it to out32. The 8-byte BIG-ENDIAN counter
+ * is appended to the name tail; the combined tail (rem + 8, in [8, 71]) either
+ * finalises directly (< 64) or fills one more block first (>= 64). Byte-exact
+ * with sha256(name || counter8) — the Merkle-Damgard state is history-only.
+ * ------------------------------------------------------------------ */
+static void srmech_mint_digest(const uint32_t mid[8], const uint8_t *name_tail,
+                               size_t rem, uint64_t counter, uint64_t total,
+                               uint8_t out32[32])
+{
+    assert(mid != NULL && out32 != NULL);
+    assert(rem < 64u && (name_tail != NULL || rem == 0u));
+    uint32_t st[8];
+    uint8_t  blk[72];                       /* rem(<64) + 8 counter bytes <= 71 */
+    memcpy(st, mid, sizeof(st));
+    if (rem > 0u) {
+        memcpy(blk, name_tail, rem);
+    }
+    for (size_t i = 0; i < 8u; i++) {       /* u64 big-endian counter suffix */
+        blk[rem + i] = (uint8_t)(counter >> (56u - (8u * i)));
+    }
+    const size_t tot = rem + 8u;
+    if (tot >= 64u) {
+        srmech_sha256_compress(st, blk);
+        srmech_sha256_finalize(st, blk + 64u, tot - 64u, total);
+    } else {
+        srmech_sha256_finalize(st, blk, tot, total);
+    }
+    srmech_sha256_words_be(st, out32);
+}
+
+/* ------------------------------------------------------------------ *
+ * Public entry — declared in srmech.h.
+ *
+ * The deterministic RBS-HDC vector minter (Class-A content addressing). Fills
+ * `out[0..n_bytes)` with the SHA-256(name || u64_be(counter)) chain — counter
+ * 0,1,2,... concatenated as an 8-byte big-endian suffix, 32 bytes per link,
+ * truncated to n_bytes. Byte-identical to Python mint_vector. Bounded stack
+ * only (no malloc): the name's full 64-byte blocks compress ONCE into a
+ * midstate, then each counter re-finalises the shared tail.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_mint_vector(const uint8_t *name, size_t name_len,
+                                   uint32_t n_bytes, uint8_t *out)
+{
+    if (out == NULL || (name == NULL && name_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_bytes == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(out != NULL);
+    assert(name != NULL || name_len == 0u);
+
+    uint32_t mid[8];
+    memcpy(mid, SRMECH_SHA256_H0, sizeof(mid));
+    const size_t full = name_len / 64u;
+    for (size_t i = 0; i < full; i++) {
+        srmech_sha256_compress(mid, name + (i * 64u));
+    }
+    const size_t rem = name_len - (full * 64u);
+    const uint8_t *tail = (rem > 0u) ? (name + (full * 64u)) : NULL;
+    const uint64_t total = (uint64_t)name_len + 8u;
+
+    uint64_t counter = 0u;
+    uint32_t written = 0u;
+    uint8_t  digest[32];
+    while (written < n_bytes) {
+        srmech_mint_digest(mid, tail, rem, counter, total, digest);
+        uint32_t take = n_bytes - written;
+        if (take > 32u) { take = 32u; }
+        memcpy(out + written, digest, take);
+        written += take;
+        counter++;
+    }
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
  * Public entry — declared in srmech.h.
  *
  * Standard RFC 2104 HMAC-SHA-256 over the srmech SHA-256 compression: the
