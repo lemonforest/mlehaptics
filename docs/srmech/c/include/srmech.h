@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc200"
-#define SRMECH_VERSION       "0.9.0rc200"
+#define SRMECH_VERSION_PRE   "rc201"
+#define SRMECH_VERSION       "0.9.0rc201"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4109,6 +4109,56 @@ srmech_status_t srmech_invoke_tool_json(const char *name,
 /* Workspace bytes srmech_invoke_tool needs for a `params_len`-byte argument
  * object (the parse tree + carrier tree + decoded byte buffers + result). */
 size_t srmech_invoke_tool_arena_bytes(size_t params_len);
+
+/* ------------------------------------------------------------------
+ * make_class OBJECT-MODEL ENGINE (0.9.0rc201; the make_class -> C arc, #887).
+ * The C peer of the compute half of srmech.dsl._class_catalog.CatalogClass: a
+ * bare-C host constructs a DSL [class] instance from its packaged TOML descriptor
+ * + a field-state map and RUNS its declared methods natively (rc194-200 made all
+ * 31 leaf ops C-realizable; this builds the descriptor->field-state->dispatch->
+ * route ENGINE on top, with a leaf VTABLE that returns LIVE srmech_mval_t carriers
+ * so the routes compose — distinct from the rc188 invoke_tool text vtable).
+ *
+ * srmech_make_class_run takes the [class] descriptor TOML (`class_toml`[0..
+ * `toml_len`)), a `method` name, the instance FIELD-STATE as a JSON object
+ * (`fields_json`[0..`fields_len`)), and the call ARGS as a JSON object
+ * (`args_json`[0..`args_len`)); for a method in the rc201 PROVEN BATCH it runs
+ * the method IN C and writes {"result": <value>, "fields": <post-self-state>} as
+ * canonical JSON (byte-identical to json.dumps(serialise_native(...))) into `out`
+ * (cap `out_cap`; NO trailing NUL), setting *out_len + *out_kind =
+ * SRMECH_MAKE_CLASS_DISPATCHED. For a returns="self" method "result" is the NEW
+ * instance's field-state DICT (self untouched).
+ *
+ * rc201 BATCH: One's 5 inline-constant accessors (dim/imag_dims/partition/
+ * plane_counts/grammar_slots) + the sedenion ADDRESS-ALGEBRA methods
+ * navmap/slots/is_navigable (plain) + navigate (returns="self"). Any OTHER method
+ * — a chain, an appends/sets/mutates route, an op outside the batch (the One
+ * bignum + genome byte/disk + sed HDC leaves = rc201b), an unknown method/class,
+ * or an unparseable descriptor — sets *out_kind = SRMECH_MAKE_CLASS_DEFER and the
+ * caller runs the COMPLETE pure CatalogClass (rc103 inform-don't-limit; never a
+ * wrong answer). A user register_class_dir class DEFERS the same way (no host
+ * op-resolver callback -> SRMECH_ABI_VERSION stays 4).
+ *
+ * JPL-clean: caller-arena only (no malloc), <=60-line functions, >=2 asserts, no
+ * goto/abs/libm. Additive symbols -> SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* srmech_make_class_run out_kind: whether the C engine ran the method. */
+#define SRMECH_MAKE_CLASS_DISPATCHED 0  /* out holds {"result",...} (native==pure) */
+#define SRMECH_MAKE_CLASS_DEFER      1  /* caller runs the pure CatalogClass       */
+
+/* Workspace bytes srmech_make_class_run needs for the given input sizes (the
+ * TOML tree + two JSON trees + two mval trees + the result carriers). */
+size_t srmech_make_class_run_arena_bytes(size_t toml_len, size_t fields_len,
+                                         size_t args_len);
+
+srmech_status_t srmech_make_class_run(const char *class_toml, size_t toml_len,
+                                      const char *method,
+                                      const char *fields_json, size_t fields_len,
+                                      const char *args_json, size_t args_len,
+                                      void *ws, size_t ws_len,
+                                      char *out, size_t out_cap, size_t *out_len,
+                                      int *out_kind);
 
 /* ------------------------------------------------------------------
  * CLI arg-grammar + dispatch (0.9.0rc193; the HOST-GLUE console-script
