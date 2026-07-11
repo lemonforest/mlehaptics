@@ -22,13 +22,14 @@ from pathlib import Path
 import srmech
 from srmech.amsc import laplacian as L
 
-ASSOC = Path.home() / "corpora" / "wikipedia" / "simplewiki_assoc.json"
-OUT = Path.home() / "corpora" / "wikipedia" / "simplewiki_tome_tree.json"
-H_DROP = 300
-MIN_INDEG = 3
-MAXTOME = 12
+ASSOC = Path(os.environ.get("ASSOC", str(Path.home() / "corpora" / "wikipedia" / "simplewiki_assoc.json")))
+OUT = Path(os.environ.get("OUT", str(Path.home() / "corpora" / "wikipedia" / "simplewiki_tome_tree.json")))
+H_DROP = int(os.environ.get("H_DROP", "300"))               # drop top-df hubs (scale H_DROP with the graph, e.g. enwiki)
+MIN_INDEG = int(os.environ.get("MIN_INDEG", "3"))
+MAXTOME = int(os.environ.get("MAXTOME", "12"))
 MAX_ITERS = 250
 MAX_NODES = int(os.environ.get("MAX_NODES", "0"))
+SRC_LABEL = ASSOC.stem                                       # e.g. 'simplewiki_assoc' / 'enwiki_assoc' (attestation)
 PROBES = "ketchup tomato planet star music guitar france dog volcano computer".split()
 _MONTH = re.compile(r".+(january|february|march|april|may|june|july|august|september|october|november|december)$")
 
@@ -133,12 +134,12 @@ def main():
     print(f"  community: within {win:.1f} vs cross {cross:.1f} -> within-fraction {win/max(1e-9,win+cross):.1%}; web tome-pairs {len(web)}")
 
     OUT.write_text(json.dumps({
-        "source": "simplewiki_assoc", "srmech": srmech.__version__, "n_nodes": nv, "n_edges": n_edges,
+        "source": SRC_LABEL, "srmech": srmech.__version__, "n_nodes": nv, "n_edges": n_edges,
         "h_drop": H_DROP, "min_indeg": MIN_INDEG, "maxtome": MAXTOME, "n_tomes": len(leaves),
         "tomes": [[words[g] for g in mem] for mem, _ in leaves],
         "paths": [p for _, p in leaves],
         "web": webout,
-        "attestation": {"source_url": "https://dumps.wikimedia.org/simplewiki/latest/", "license": "CC-BY-SA-4.0",
+        "attestation": {"source_url": f"https://dumps.wikimedia.org/{SRC_LABEL.split('_')[0]}/latest/", "license": "CC-BY-SA-4.0",
                         "method": f"native §51 normalized_cut_bisect recursive (srmech {srmech.__version__})"}}))
     print(f"  persisted tome-tree + web -> {OUT.name} ({OUT.stat().st_size/1e6:.1f} MB)")
 
