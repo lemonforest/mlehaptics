@@ -48,8 +48,10 @@ Canonical SSoT:
 
 from __future__ import annotations
 
+import ctypes
 from typing import List, Sequence, Tuple
 
+from srmech.amsc import _native
 from srmech.amsc import rational as _srn
 from srmech.amsc.laplacian import (
     mat_hermitian_eigendecompose,
@@ -58,6 +60,14 @@ from srmech.amsc.laplacian import (
 )
 from srmech.amsc.mat import Mat
 from srmech.qm.spin import pauli_matrices
+
+
+# Canonical −i: a TRUE-ZERO real part (+0.0). The literal ``-1j`` carries
+# re = −0.0 (unary minus negates BOTH components) — a byte-identity hazard
+# for the standalone-C constant emitter, canonicalized at rc212 (the −0.0
+# was a construction artifact, not a signed zero the math depends on: each
+# λ entry is exactly −i, whose real part is zero).
+_MINUS_I = complex(0.0, -1.0)
 
 
 # ----------------------------------------------------------------------
@@ -133,12 +143,19 @@ def su2_generators() -> Tuple["Mat", "Mat", "Mat"]:
 def su2_structure_constants() -> List[List[List[float]]]:
     """Levi-Civita ``ε^{abc}`` — SU(2) structure constants.
 
+    rc212 (#755): dispatches to the standalone-C constant emitter
+    ``srmech_qm_su2_structure`` when native is present (byte-identical to
+    the pure fill), so a bare-C host produces the same constant DATA.
+
     Canonical SSoT: Peskin-Schroeder §15.1 eq 15.4 (``[T^a, T^b] = i ε^{abc} T^c``).
 
     Returns:
         Real (3, 3, 3) nested list; ``f[a][b][c] = ε^{abc}`` (``Mat`` is 2-D
         only, so the rank-3 tensor is a plain Python nested list).
     """
+    native = _qm_structure_native("srmech_qm_su2_structure", 3)
+    if native is not None:
+        return native
     f = [[[0.0] * 3 for _ in range(3)] for _ in range(3)]
     cyclic = [(0, 1, 2), (1, 2, 0), (2, 0, 1)]
     for a, b, c in cyclic:
@@ -152,10 +169,55 @@ def su2_structure_constants() -> List[List[List[float]]]:
 # ----------------------------------------------------------------------
 
 
+def _qm_gell_mann_native() -> "Tuple[Mat, ...] | None":
+    """The eight λ^a from the standalone-C constant emitter
+    ``srmech_qm_gell_mann`` (rc212) — ``None`` when the symbol is absent /
+    a call fails (the canonical pure literals below are the complete,
+    byte-identical alternative, not a rescue)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_qm_gell_mann")):
+        return None
+    lam = []
+    for a in range(1, 9):
+        out = (ctypes.c_double * 18)()
+        rc = _native.LIB.srmech_qm_gell_mann(ctypes.c_int32(a), out)
+        if rc != _native.SRMECH_OK:
+            return None
+        lam.append(Mat.from_rows(
+            [[complex(out[2 * (3 * i + j)], out[2 * (3 * i + j) + 1])
+              for j in range(3)] for i in range(3)],
+            is_complex=True,
+        ))
+    return tuple(lam)
+
+
+def _qm_structure_native(symbol: str, n: int) -> "List[List[List[float]]] | None":
+    """A rank-3 structure-constant tensor from a standalone-C constant
+    emitter (rc212: ``srmech_qm_su2_structure`` n=3 /
+    ``srmech_qm_su3_structure`` n=8) — ``None`` when the symbol is absent /
+    the call fails (the pure fill below is the complete, byte-identical
+    alternative)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, symbol)):
+        return None
+    out = (ctypes.c_double * (n * n * n))()
+    rc = getattr(_native.LIB, symbol)(out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [[[out[(a * n + b) * n + c] for c in range(n)]
+             for b in range(n)] for a in range(n)]
+
+
 def su3_gell_mann_matrices() -> Tuple["Mat", ...]:
     """The eight Gell-Mann matrices ``λ^1, ..., λ^8`` (Hermitian traceless 3×3).
 
     Normalization: ``tr(λ^a λ^b) = 2 δ^{ab}``.
+
+    rc212 (#755): dispatches to the standalone-C constant emitter
+    ``srmech_qm_gell_mann`` when native is present — byte-identical to the
+    canonical pure literals (every true-zero slot is +0.0, see ``_MINUS_I``;
+    the λ⁸ 1/√3 normaliser routes through the same libm-free rational-sqrt
+    cascade on both paths), so a bare-C host produces the same constant DATA.
 
     Canonical SSoT: Gell-Mann (1962) *Phys. Rev.* 125, 1067 eq 16;
     Peskin-Schroeder eq 17.32; Schwartz §25.2.
@@ -163,21 +225,27 @@ def su3_gell_mann_matrices() -> Tuple["Mat", ...]:
     Returns:
         Tuple of eight 3×3 complex Hermitian traceless ``Mat``.
     """
+    native = _qm_gell_mann_native()
+    if native is not None:
+        return native
     lam = []
     # λ^1: (1,2) real symmetric
     lam.append(Mat.from_rows([[0, 1, 0], [1, 0, 0], [0, 0, 0]], is_complex=True))
     # λ^2: (1,2) imaginary antisymmetric
-    lam.append(Mat.from_rows([[0, -1j, 0], [1j, 0, 0], [0, 0, 0]], is_complex=True))
+    lam.append(Mat.from_rows(
+        [[0, _MINUS_I, 0], [1j, 0, 0], [0, 0, 0]], is_complex=True))
     # λ^3: diagonal SU(2) within 1-2
     lam.append(Mat.from_rows([[1, 0, 0], [0, -1, 0], [0, 0, 0]], is_complex=True))
     # λ^4: (1,3) real
     lam.append(Mat.from_rows([[0, 0, 1], [0, 0, 0], [1, 0, 0]], is_complex=True))
     # λ^5: (1,3) imaginary
-    lam.append(Mat.from_rows([[0, 0, -1j], [0, 0, 0], [1j, 0, 0]], is_complex=True))
+    lam.append(Mat.from_rows(
+        [[0, 0, _MINUS_I], [0, 0, 0], [1j, 0, 0]], is_complex=True))
     # λ^6: (2,3) real
     lam.append(Mat.from_rows([[0, 0, 0], [0, 0, 1], [0, 1, 0]], is_complex=True))
     # λ^7: (2,3) imaginary
-    lam.append(Mat.from_rows([[0, 0, 0], [0, 0, -1j], [0, 1j, 0]], is_complex=True))
+    lam.append(Mat.from_rows(
+        [[0, 0, 0], [0, 0, _MINUS_I], [0, 1j, 0]], is_complex=True))
     # λ^8: diagonal hypercharge-like; the 1/√3 normaliser is the Class-N
     # rational.sqrt (libm-free).
     lam.append(_scale(
@@ -213,10 +281,19 @@ def su3_structure_constants() -> List[List[List[float]]]:
     All other independent components are zero; remaining entries fill in
     by total antisymmetry.
 
+    rc212 (#755): dispatches to the standalone-C constant emitter
+    ``srmech_qm_su3_structure`` when native is present — byte-identical to
+    the pure fill (same seed order, same permutation order, same sign·value
+    multiplies; the √3/2 routes through the same libm-free rational-sqrt
+    cascade on both paths), so a bare-C host produces the same constant DATA.
+
     Returns:
         Real (8, 8, 8) nested list (``Mat`` is 2-D only, so the rank-3 tensor
         is a plain Python nested list).
     """
+    native = _qm_structure_native("srmech_qm_su3_structure", 8)
+    if native is not None:
+        return native
     f = [[[0.0] * 8 for _ in range(8)] for _ in range(8)]
     seed_values = [
         (0, 1, 2, 1.0),

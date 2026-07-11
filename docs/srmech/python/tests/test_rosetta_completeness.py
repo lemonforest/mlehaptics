@@ -172,6 +172,14 @@ _ROOTS = (
 # slots (from -1j / -1.0·0) — a byte-identity hazard with no standalone gain — so
 # the honest classification is composition_of_c (the fewest new C symbols: zero).
 # python_only_debt 68 -> 62.
+#   [rc212 note, #755: the parenthetical above was SUPERSEDED for the base
+#   CONSTANTS — a bare-C host could not produce the constant DATA, so the -0.0
+#   slots were canonicalized (+0.0 true zeros) and the 7 constant ops
+#   (pauli_matrices / pauli_identity / gamma_matrices / minkowski_metric /
+#   su3_gell_mann_matrices / su2+su3_structure_constants) moved
+#   composition_of_c -> c_dispatched onto the new srmech_qm_* emitters.
+#   Neither bucket is a ceilinged debt bucket, so no ceiling moves; the 6
+#   rc145 DERIVED ops stay composition_of_c.]
 # rc146 (BATCH B8b — qm_exact_assembly part 2): the 9 so(8)/octonion/triality ops
 # move to composition_of_c. Two honest sub-classes, BOTH standalone-C-reproducible
 # with NO new C symbol (ABI stays 3):
