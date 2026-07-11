@@ -24,6 +24,17 @@ SUPRA = {"ˈ": "primary_stress", "ˌ": "secondary_stress", ".": "syllable_break"
          "|": "minor_break", "‖": "major_break", "↗": "rising", "↘": "falling"}
 LENGTH = {"ː", "ˑ"}
 _DELIMS = "/[]()⟨⟩ \t"
+# {{IPAc-en}} ascii CODE -> IPA (standard Help:IPA/English subset; second ratchet pass closes the 25% pure-ascii gap).
+IPAC_EN = {
+    "b": "b", "ch": "tʃ", "d": "d", "dh": "ð", "f": "f", "g": "ɡ", "gh": "ɡ", "h": "h", "hw": "ʍ", "j": "dʒ",
+    "jh": "dʒ", "k": "k", "kh": "x", "l": "l", "m": "m", "n": "n", "ng": "ŋ", "p": "p", "r": "ɹ", "rh": "r",
+    "s": "s", "sh": "ʃ", "t": "t", "th": "θ", "v": "v", "w": "w", "y": "j", "z": "z", "zh": "ʒ",
+    "'": "ˈ", ",": "ˌ", ".": ".", "_": " ",
+    "a": "æ", "ah": "ɑː", "ar": "ɑːr", "air": "ɛər", "aw": "ɔː", "awr": "ɔːr", "ay": "eɪ", "e": "ɛ", "ee": "iː",
+    "eer": "ɪər", "i": "ɪ", "ir": "ɜːr", "o": "ɒ", "oh": "oʊ", "oi": "ɔɪ", "oo": "uː", "oor": "ʊər", "or": "ɔːr",
+    "ou": "aʊ", "ow": "aʊ", "oy": "ɔɪ", "u": "ʌ", "uh": "ə", "ur": "ɜːr", "uu": "ʊ", "uw": "uː", "yoo": "juː",
+    "yuu": "juː", "arr": "ær", "err": "ɛr", "orr": "ɒr", "urr": "ʌr", "eye": "aɪ", "ohr": "ɔːr", "ury": "jʊər",
+}
 
 
 def understand_ipa(src):
@@ -40,7 +51,9 @@ def understand_ipa(src):
     """
     s = src.strip()
     typ = "phonemic" if s.startswith("/") else "phonetic" if s.startswith("[") else "unspecified"
-    parts = [p for p in s.split("|") if "=" not in p]        # drop audio=…/lang=… args; join pipe-separated phonemes
+    parts = [p for p in s.split("|") if "=" not in p]        # drop audio=…/lang=… args
+    if len(parts) > 1:                                        # {{IPAc-en}} pipe-separated code form -> map codes to IPA
+        parts = [IPAC_EN.get(p.strip().lower(), p.strip()) for p in parts]
     s = "".join(parts)
     s = s.strip(_DELIMS)
 
@@ -71,7 +84,8 @@ def understand_ipa(src):
         phonemes.append(cur)
 
     def _is_vowel(p):
-        return bool(p) and p[0] in IPA_VOWELS
+        # NFD-decompose to the base char so diacritic vowels (ä centralized / ã nasalized / ö) count as vowels
+        return bool(p) and (p[0] in IPA_VOWELS or unicodedata.normalize("NFD", p[0])[0] in IPA_VOWELS)
     vowels = [p for p in phonemes if _is_vowel(p)]
     consonants = [p for p in phonemes if p and not _is_vowel(p)]
     # syllable estimate = number of vowel GROUPS (merge adjacent vowels into one diphthong nucleus)

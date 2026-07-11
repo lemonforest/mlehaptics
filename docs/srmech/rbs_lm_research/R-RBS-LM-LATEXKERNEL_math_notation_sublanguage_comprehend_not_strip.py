@@ -67,6 +67,22 @@ BINARY.update({"\\cup": "union", "\\cap": "inter", "\\setminus": "setminus", "\\
                "\\star": "star", "\\land": "and", "\\lor": "or", "\\wedge": "and", "\\vee": "or", "\\neg": "not",
                "\\lnot": "not", "\\over": "div", "\\odot": "odot", "\\ominus": "ominus", "\\sqcup": "sqcup",
                "\\uplus": "uplus", "\\amalg": "amalg", "\\bigcup": "union", "\\bigcap": "inter"})
+# --- second ratchet pass: close the 2% tail (measured over 60,701 real <math> exprs) ---
+GREEK |= set("Alpha Beta Gamma Delta Epsilon Zeta Eta Theta Iota Kappa Mu Nu Xi Omicron Rho Tau Upsilon Chi".split())
+FUNCTIONS |= set("Pr sgn sech csch tr rank span diag curl grad erf erfc sinc argmax argmin varprojlim varinjlim".split())
+CONSTANTS.update({"prime": "prime", "dagger": "dagger", "Box": "box", "square": "square", "blacksquare": "qed",
+                  "bigstar": "star", "clubsuit": "club", "spadesuit": "spade", "flat": "flat", "sharp": "sharp"})
+DELIMS |= set("Bigl Bigr Biggl Biggr biggl biggr ulcorner urcorner lgroup rgroup".split())
+FMT |= set(("cal hbox mbox mathbin mathrel mathop bigm cancel boxed not overset underset stackrel atop overbrace ce "
+            "underbrace overrightarrow overleftarrow substack smash hphantom textcolor mathclap hline choose").split())
+RELATIONS.update({"\\uparrow": "up", "\\downarrow": "down", "\\leftrightarrow": "iff", "\\longleftrightarrow": "iff",
+                  "\\leftarrow": "from", "\\longleftarrow": "from", "\\nrightarrow": "notmaps", "\\rarr": "maps",
+                  "\\larr": "from", "\\harr": "iff", "\\Rarr": "implies", "\\Larr": "impliedby", "\\hookrightarrow": "maps",
+                  "\\therefore": "therefore", "\\because": "because", "\\exist": "exists", "\\isin": "in",
+                  "\\Longleftrightarrow": "iff", "\\nleftrightarrow": "niff", "\\rightleftharpoons": "equilibrium",
+                  "\\dashrightarrow": "maps", "\\twoheadrightarrow": "onto", "\\xrightarrow": "maps"})
+BINARY.update({"\\and": "and", "\\smallsetminus": "setminus", "\\bigoplus": "dsum", "\\bigwedge": "and",
+               "\\bigvee": "or", "\\sqcap": "sqcap", "\\boxtimes": "boxtimes"})
 _TOK = re.compile(r"\\\\|\\[a-zA-Z]+|\\[^a-zA-Z]|[A-Za-z]|[0-9]+|\^|_|\{|\}|[=<>+\-*/]|\S")
 
 

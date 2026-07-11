@@ -80,6 +80,19 @@ MODULE_CUES = {
     "coupling": ("coupling", "resonant", "spectrum", "epicycle"),
     "carrier_ladder": ("promote", "project", "ladder", "bipoly", "tripoly"),
     "carrier": ("carrier", "polynomial", "octonion", "scalar", "variable", "float"),
+    # the qm / QFT / Standard-Model physics layer (F1204) — so physics queries route to their qm module, not rational.
+    "single_particle": ("schrodinger", "tdse", "tise", "heisenberg", "commutator", "hamiltonian", "wavefunction",
+                         "liouville", "evolve"),
+    "spin": ("spin", "pauli", "clifford", "spinor", "kron"),
+    "potentials": ("potential", "hydrogen", "oscillator", "harmonic", "radial", "well"),
+    "relativistic": ("dirac", "gamma", "weyl", "klein", "gordon", "conjugation", "relativistic", "antiparticle"),
+    "propagators": ("propagator", "feynman", "photon"),
+    "pseudo_hermitian": ("pseudo", "hermitian", "eta", "expectation"),
+    "gauge": ("gauge", "gell", "mann", "casimir", "wilson", "generator", "yang", "mills"),
+    "sm": ("standard", "model", "weak", "mixing", "boson", "higgs", "ckm", "yukawa", "quark", "electroweak",
+           "weinberg", "vev", "vacuum", "fermion"),
+    "so8": ("adjoint", "root", "embedding", "octonionic"),
+    "triality": ("triality", "automorphism", "companion", "outer"),
 }
 
 

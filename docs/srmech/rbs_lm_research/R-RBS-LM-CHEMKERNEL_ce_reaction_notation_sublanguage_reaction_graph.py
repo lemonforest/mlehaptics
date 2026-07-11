@@ -62,6 +62,47 @@ def _species_list(seg):
     return out
 
 
+_ELEM = re.compile(r"([A-Z][a-z]?)(\d*)")
+_PLACEHOLDER = re.compile(r"(?:^|[^A-Za-z])[RXMLQ](?:['0-9]|$|[^a-z])")   # organic/generic placeholders R, X, R', …
+
+
+def _element_counts(node):
+    r"""molecular formula -> {element: count}; expand one level of (group)n parens. Charge/brackets don't add atoms."""
+    node = re.sub(r"[+\-\[\]]", "", node)
+    node = re.sub(r"\(([A-Za-z0-9]*)\)(\d+)", lambda m: m.group(1) * int(m.group(2)), node)   # (CO)3 -> COCOCO
+    counts = {}
+    for el, n in _ELEM.findall(node):
+        if el:
+            counts[el] = counts.get(el, 0) + (int(n) if n else 1)
+    return counts
+
+
+def _mass_no(node):
+    return int(node.split("-")[1]) if ("-" in node and node.split("-")[-1].isdigit()) else 0
+
+
+def _balance(reactants, products, is_nuclear):
+    r"""the reaction's CONSERVATION EC (op(x)operand(x)EC, F1154): does matter balance across the arrow? molecular ->
+    element-count balance (FORMULA-ONLY, no external knowledge); nuclear -> mass-number A balance (atomic-number Z
+    balance + ion charge balance need a PERIODIC-TABLE knowledge kernel — the MFO-principled knowledge gap, flagged)."""
+    if is_nuclear:
+        la = sum(c * _mass_no(n) for c, n in reactants)
+        ra = sum(c * _mass_no(n) for c, n in products)
+        return {"kind": "nuclear", "balanced": la == ra if (la and ra) else None, "mass_left": la, "mass_right": ra,
+                "gap": "atomic-number Z balance needs a periodic-table knowledge kernel"}
+    if any(_PLACEHOLDER.search(n) for _c, n in reactants + products):
+        return {"kind": "molecular", "balanced": None, "gap": "R/X placeholder — unknowable from formula alone"}
+    left, right = {}, {}
+    for c, n in reactants:
+        for el, k in _element_counts(n).items():
+            left[el] = left.get(el, 0) + k * c
+    for c, n in products:
+        for el, k in _element_counts(n).items():
+            right[el] = right.get(el, 0) + k * c
+    return {"kind": "molecular", "balanced": left == right, "left": left, "right": right,
+            "gap": "charge balance needs the periodic-table valence knowledge kernel"}
+
+
 def understand_chem(src):
     r"""Comprehend an mhchem <ce> reaction into a reaction graph. Returns:
         species   : ordered unique species nodes (molecules / ions / nuclides)
@@ -75,6 +116,10 @@ def understand_chem(src):
     s = s.replace("\\longrightarrow", "->").replace("\\rightarrow", "->").replace("\\to", "->")
     s = s.replace("\\longleftrightarrow", "<->").replace("\\rightleftharpoons", "<=>")
     s = re.sub(r"\\(uparrow|downarrow|gas|sld)", " ", s)              # phase markers (gas evolved / precipitate)
+    s = re.sub(r"\\(?:mathit|mathrm|mathbf|text|displaystyle|textstyle|mathsf|overset|underset|atop|overbrace|underbrace|"
+               r"color|boldsymbol)\b", "", s)                         # shared FMT-unwrap (chem inherits it — F1204 ratchet)
+    s = re.sub(r"\^?\s*\\circ", "°", s)                          # ^\circ -> degree symbol (in conditions)
+    s = s.replace("\\leftrightharpoons", "<=>").replace("\\rightleftharpoons", "<=>").replace("\\rightleftarrows", "<=>")
     is_nuclear = bool(_NUCLIDE.search(s) or re.search(r"\\(alpha|beta|gamma)\b", s))
 
     arrows = list(_ARROW.finditer(s))
@@ -95,7 +140,8 @@ def understand_chem(src):
         conds = re.findall(r"\[([^\]]*)\]", a.group(2) or "")
         conds = [re.sub(r"[\\{}]", "", c).strip() for c in conds if c.strip()]
         rt = _reltype(arrow, is_nuclear)
-        reactions.append({"reactants": left, "products": right, "reltype": rt, "conditions": conds})
+        reactions.append({"reactants": left, "products": right, "reltype": rt, "conditions": conds,
+                          "balance": _balance(left, right, is_nuclear)})           # the conservation EC (③ responsion)
         cstr = "|".join(conds)
         for _cr, r in left:
             for _cp, p in right:
@@ -126,4 +172,7 @@ if __name__ == "__main__":
             rhs = " + ".join(f"{c if c > 1 else ''}{n}" for c, n in rx["products"])
             cc = f"  [{'; '.join(rx['conditions'])}]" if rx["conditions"] else ""
             print(f"    reaction: {lhs}  --{rx['reltype']}-->  {rhs}{cc}")
+            b = rx["balance"]
+            verdict = {True: "BALANCED ✓", False: "UNBALANCED ✗", None: "unknown"}[b["balanced"]]
+            print(f"      conservation-EC ({b['kind']}): {verdict}")
         print()

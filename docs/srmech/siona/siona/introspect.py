@@ -33,6 +33,12 @@ SRMECH_MODULES = [
     "srmech.amsc.genome", "srmech.amsc.laplacian", "srmech.amsc.hdc", "srmech.amsc.cascade",
     "srmech.amsc.rational", "srmech.amsc.format", "srmech.amsc.cyclic", "srmech.calculus",
     "srmech.amsc.coupling", "srmech.amsc.carrier_ladder",
+    # The qm / QFT / Standard-Model physics layer (F1204): srmech's _REGISTRY (409 ops) has these, but Siona's
+    # introspection omitted them — she couldn't answer "how do I compute the weak mixing angle" because her
+    # self-knowledge never mined srmech.qm.*. The Standard Model (qm.sm) was INVISIBLE to her. Now included.
+    "srmech.qm.single_particle", "srmech.qm.spin", "srmech.qm.potentials", "srmech.qm.relativistic",
+    "srmech.qm.propagators", "srmech.qm.pseudo_hermitian", "srmech.qm.gauge", "srmech.qm.sm",
+    "srmech.qm.so8", "srmech.qm.triality",
 ]
 
 
