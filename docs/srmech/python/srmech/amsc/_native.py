@@ -12120,14 +12120,17 @@ def thetasum_is_zero_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
 
 
 # ----------------------------------------------------------------------
-# rc99: srmech_thetasum_is_zero_interpolation — the C peer of the ThetaSum
-# STRUCTURAL ELLIPTIC-INTERPOLATION is_zero completion (the COMPLETE multi-variable
-# elliptic decision). srmech.amsc.thetasum.ThetaSum._is_zero_interpolation is the
-# pure-Python parity oracle; the C verdict EQUALS it byte-for-byte (True AND False),
-# so the dispatched is_zero trusts a non-None C verdict directly. When the caller
-# arena / coefficient cap is outgrown the C peer returns SRMECH_ERR_OVERFLOW; the
-# Python marshaler catches it and returns None -> the caller falls to the pure
-# oracle (the C peer is the accelerator, the pure path the authority).
+# rc99 (REBUILT rc210): srmech_thetasum_is_zero_interpolation — the C peer of the
+# ThetaSum SOUND structural CERTIFICATE recursion (the rc210 is_zero soundness
+# rebuild; the pre-rc210 "COMPLETE" band/mixed-character decision certified
+# provably-NONZERO objects as zero and was replaced). The C bool is the 1:1 mirror
+# of srmech.amsc.thetasum.ThetaSum._is_zero_interpolation: True ⟺ certificate-
+# proven zero, False = "not proven" (never a nonzero CLAIM); the pure Python is
+# the parity oracle (the committed corpus suite pins native == pure). When the
+# caller arena / coefficient cap is outgrown the C peer returns
+# SRMECH_ERR_OVERFLOW; the Python marshaler catches it and returns None -> the
+# caller falls to the pure oracle (the C peer is the accelerator, the pure path
+# the authority).
 # ----------------------------------------------------------------------
 
 _THETASUM_INTERP_SYMS = (
@@ -12183,8 +12186,9 @@ def _iszero_ws_budget_bytes() -> int:
 
 
 def thetasum_is_zero_interpolation_c(n_syms, xsym, ysym, psym, term_nthetas, monomials):
-    """Native COMPLETE structural-interpolation ThetaSum.is_zero decision → ``bool``
-    (trusted True AND False), or ``None`` if the native symbols are absent OR the C
+    """Native structural CERTIFICATE-recursion ThetaSum.is_zero decision → ``bool``
+    (rc210: True ⟺ certificate-proven zero, False = not proven — the 1:1 mirror of
+    the pure sound bool), or ``None`` if the native symbols are absent OR the C
     peer declined (SRMECH_ERR_OVERFLOW — the caller then falls to the pure oracle).
     ``monomials`` is the flat ``(num, den, exps_row)`` list in the order term0.pref,
     term0.theta0..K, term1.pref, … (identical to :func:`thetasum_is_zero_c`)."""

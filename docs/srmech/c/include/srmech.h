@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc209"
-#define SRMECH_VERSION       "0.9.0rc209"
+#define SRMECH_VERSION_PRE   "rc210"
+#define SRMECH_VERSION       "0.9.0rc210"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -7635,55 +7635,59 @@ srmech_status_t srmech_thetasum_is_zero(size_t n_syms, int xsym, int ysym, int p
                                         void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
- * srmech_thetasum_is_zero_interpolation — the C peer of the ThetaSum
- * STRUCTURAL ELLIPTIC-INTERPOLATION is_zero completion (the pure-Python
- * srmech.amsc.thetasum._structural_is_zero / ThetaSum._is_zero_interpolation,
- * rc98). Where srmech_thetasum_is_zero is the SOUND +/- -pair fast path
- * (complete only for the single-variable class), THIS is the COMPLETE
- * multi-variable elliptic decision: a 1:1 STRUCTURAL MIRROR whose verdict
- * EQUALS the pure-Python _is_zero_interpolation verdict — True AND False —
- * so the Python dispatch trusts it directly.
+ * srmech_thetasum_is_zero_interpolation — the C peer of the ThetaSum SOUND
+ * structural CERTIFICATE recursion (REBUILT in rc210 — the is_zero soundness
+ * stop-the-line fix). A 1:1 mirror of the consumer BOOL of the pure-Python
+ * srmech.amsc.thetasum._decide_struct (ThetaSum._is_zero_interpolation):
+ * *out_is_zero = 1 IFF the cleared numerator is CERTIFICATE-PROVEN identically
+ * zero; 0 = "not proven" (a proven-nonzero object or an honest decline — the
+ * sound contract is True-only, so a 0 is never a nonzero CLAIM).
  *
- * The algorithm (Rosengren arXiv:1608.06161v3 Prop 1.6.1 / eq 1.22 + Cor
- * 1.3.5): interpolate in ONE variable v at D_v+1 distinct points (a degree-D
- * theta vanishing at D+1 points is == 0) — a lower-variable is_zero RECURSES,
- * base = the single-variable degree-bound q-expansion. Nodes = the theta-FACTOR
- * ZEROS (killing terms via theta(1)=0) augmented with GLOBALLY-DISTINCT PRIMES
- * threaded through the recursion (so no two variables collide to a spurious
- * theta(1) — load-bearing for soundness). Recursion -> an EXPLICIT arena-mark
- * DFS (JPL Rule 1: no recursion). A too-small caller arena / coefficient cap ->
- * SRMECH_ERR_OVERFLOW and the caller falls to the COMPLETE pure oracle.
+ * The pre-rc210 decision here claimed COMPLETENESS via a single-variable
+ * p-order band + a mixed-character node count; both were UNSOUND (they
+ * certified provably-NONZERO objects as zero) and were REPLACED, not repaired.
+ * The certificates (Rosengren arXiv:1608.06161v3): Z1 exact combine-
+ * cancellation + theta(1)=0; Z3s the exact per-symbol joint-CHARACTER split
+ * (degree D_v = sum e^2 + the full Eq. 1.6 multiplier mu_v — different
+ * characters are linearly independent, so all components proven zero => zero);
+ * Z2 the Weierstrass three-term +/- -pair reduction (Eq. 1.12) to the EMPTY
+ * normal form, generalized over a component's ACTUAL live symbols; Z4
+ * per-character elliptic interpolation at D_v+1 nodes PAIRWISE DISTINCT mod
+ * p^Z (Cor. 1.3.5), the nodes = theta-factor zeros + DEDUPLICATED globally-
+ * distinct augment primes. NO numeric band anywhere on the proving side.
+ * Recursion -> an EXPLICIT arena-mark DFS (JPL Rule 1). A too-small caller
+ * arena / coefficient cap -> SRMECH_ERR_OVERFLOW and the caller falls to the
+ * sound pure oracle.
  *
- * Wire form + args are IDENTICAL to srmech_thetasum_is_zero. Additive symbol ->
- * ABI unchanged (stays 3). License: MIT. ------- */
+ * Wire form + args are IDENTICAL to srmech_thetasum_is_zero. rc210 is an
+ * internal rebuild (same symbols, same wire) -> ABI unchanged (stays 4).
+ * License: MIT. ------- */
 
 /* Minimum `ws_len` BYTES srmech_thetasum_is_zero_interpolation needs for the given
- * shape. rc102 degree-aware sizer: `max_theta_sq_sum` is the base case's TRUE p-order
- * band degree — `ti_deg` = the max over terms of SUM of squared THETA-argument
- * exponents in a base variable (what ti_one_var actually consumes, k = max(deg-1,0) +
- * MARGIN), NOT `max_abs_exp` squared. A leaf with >=2 same-variable thetas has
- * SUM(e^2) >> max(e^2), so the pre-rc102 max_abs_exp^2 UNDER-sized k and the peer
- * false-declined (SRMECH_ERR_OVERFLOW); `max_abs_exp` (largest |exponent| across ALL
- * monomials incl. the prefactor) still bounds the w-band span + prefactor offset.
- * Additive symbol -> SRMECH_ABI_VERSION stays 3. */
+ * shape (rc210 certificate-recursion sizer; signature unchanged from rc102).
+ * `max_theta_sq_sum` (the max per-term/per-variable sum of squared THETA-argument
+ * exponents) bounds the per-frame Z4 node count D+1; the old base-case series grid
+ * is GONE, so the arena is the DFS path + the transient character table + the
+ * transient Z2 pair-reduce work buffers. `max_abs_exp` rides only as slack. */
 size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_terms,
                                                        size_t max_thetas,
                                                        size_t coeff_limbs,
                                                        size_t max_abs_exp,
                                                        size_t max_theta_sq_sum);
 
-/* Legacy 5-arg entry (pre-rc102). Reproduces the old sizing byte-for-byte (passes
- * max_abs_exp^2 as the degree) so a stale ABI-3 caller / lib still links + behaves as
- * before; new callers use srmech_thetasum_is_zero_interpolation_ws_bound2. */
+/* Legacy 5-arg entry (pre-rc102). Passes max_abs_exp^2 as the degree bound so a
+ * stale caller still links + gets a valid (conservative) sizing; new callers use
+ * srmech_thetasum_is_zero_interpolation_ws_bound2. */
 size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_terms,
                                                       size_t max_thetas,
                                                       size_t coeff_limbs,
                                                       size_t max_abs_exp);
 
-/* Decide whether the cleared ThetaSum numerator is identically zero by the exact
- * structural elliptic interpolation (the COMPLETE multi-variable mirror).
- * *out_is_zero = 1 iff == 0. Caller arena `ws`. n_terms == 0 -> == 0. A required
- * NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW. */
+/* Decide whether the cleared ThetaSum numerator is CERTIFICATE-PROVEN identically
+ * zero (the rc210 sound recursion — see the block comment above). *out_is_zero =
+ * 1 iff proven == 0; 0 = not proven. Caller arena `ws`. n_terms == 0 -> == 0. A
+ * required NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena ->
+ * SRMECH_ERR_OVERFLOW (the Python dispatch then falls to the pure oracle). */
 srmech_status_t srmech_thetasum_is_zero_interpolation(
     size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
     const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
@@ -7692,37 +7696,35 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
 
 /* ------------------------------------------------------------------ *
  * srmech_thetasum_is_zero_interpolation_parallel — the rc103 CHIRALITY-
- * PRESERVING native PARALLEL fan-out for the structural elliptic-interpolation
- * is_zero (the FIRST realization of the general parallel_independent_dispatch
- * pattern). Peels the top branching levels of the interpolation tree into
- * independent sub-problems, runs the EXISTING sequential ti_decide DFS on each
- * over a PAL worker pool (deeper recursion stays serial), AND-folds with a
- * best-effort cancel flag (first False short-circuits, preserving the serial
- * early-exit); bit-identical serial fallback when the PAL has no threads OR
- * n_workers <= 1.
+ * PRESERVING native PARALLEL fan-out, retargeted in rc210 onto the SOUND
+ * certificate tree (a branch's children are its joint-character components OR
+ * its interpolation nodes). Peels the top branching levels into independent
+ * sub-problems, runs the sequential certificate DFS on each over a PAL worker
+ * pool (deeper recursion stays serial), AND-folds with a best-effort cancel
+ * flag (first not-proven short-circuits, preserving the serial early-exit);
+ * bit-identical serial fallback when the PAL has no threads OR n_workers <= 1.
  *
  * TWO first-class CONTRACTS: (1) CARRIER — the verdict is BYTE-FOR-BYTE the
  * srmech_thetasum_is_zero_interpolation verdict (exact-Q, no float); (2)
- * CHIRALITY — the fan-out is ORDER-FREE (the interpolation +/- -pairs are the two
- * chiral halves): the verdict is invariant to the task enumeration/scheduling
- * order, neither chirality privileged. `task_order` (0 forward / 1 reverse) exists
- * to make the order-invariance contract testable. Does NOT lift the fundamental
- * n=2/N=2 wall (the documented frontier). Additive symbol -> ABI stays 3. ---- */
+ * CHIRALITY — the fan-out is ORDER-FREE: the verdict is invariant to the task
+ * enumeration/scheduling order, neither chirality privileged. `task_order`
+ * (0 forward / 1 reverse) exists to make the order-invariance contract
+ * testable. rc210 rebuild: same symbols, same wire -> ABI stays 4. ---- */
 
 /* Minimum `ws_len` BYTES the parallel entry needs for the given shape + width:
- * a fixed control band (the task frontier) + n_workers disjoint arena slices
- * (each the ws_bound2 sizing + a replay margin). See the ws_bound2 doc for the
- * degree-aware sizing args. Additive symbol -> SRMECH_ABI_VERSION stays 3. */
+ * a fixed control band (the task frontier) + a parse-sized shared-root region +
+ * n_workers disjoint arena slices (each the ws_bound2 sizing). See the
+ * ws_bound2 doc for the sizing args. */
 size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
     size_t n_syms, size_t n_terms, size_t max_thetas, size_t coeff_limbs,
     size_t max_abs_exp, size_t max_theta_sq_sum, size_t n_workers);
 
-/* Decide the cleared ThetaSum numerator's is_zero by the CHIRALITY-PRESERVING
- * PARALLEL structural elliptic interpolation. Wire form + verdict IDENTICAL to
+/* Decide the cleared ThetaSum numerator's certificate-proven is_zero by the
+ * CHIRALITY-PRESERVING PARALLEL fan-out. Wire form + verdict IDENTICAL to
  * srmech_thetasum_is_zero_interpolation. `n_workers` = the parallel width (clamped
  * to [1, 32]); `task_order` = 0 (forward) / 1 (reverse) task enumeration — the
- * verdict is invariant either way. *out_is_zero = 1 iff == 0. Caller arena `ws`
- * (size via ..._parallel_ws_bound). A too-small arena -> SRMECH_ERR_OVERFLOW. */
+ * verdict is invariant either way. *out_is_zero = 1 iff proven == 0. Caller arena
+ * `ws` (size via ..._parallel_ws_bound). A too-small arena -> SRMECH_ERR_OVERFLOW. */
 srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
     size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
     const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
