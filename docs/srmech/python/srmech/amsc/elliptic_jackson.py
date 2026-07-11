@@ -46,8 +46,15 @@ Exact SELF-verification of the reduction (summing the n-fold Cₙ sum symbolical
 exact-verification frontier of this row; it is NOT required for this constructive evaluator,
 which delivers the exact MPM-verified closed form for the full Theorem 2.1 family.
 
-Reference (MPM-verified at build): Hjalmar Rosengren, "A multivariable elliptic summation
-formula," arXiv:math/0101073 [math.CA], Theorem 2.1 (Eq. 5) + Lemma 2.2.
+Both sides of the identity are first-class ops (rc216): :func:`cn_vwp_multisum_lhs` builds
+the LEFT-hand side (the n-fold Cₙ VWP sum, symbolically, as an exact ``ThetaSum`` — the
+rc96 test oracle → rc101 symbolic-verify engine promoted public) and
+:func:`multivariate_elliptic_jackson` constructs the RIGHT-hand side (the closed-form
+theta-quotient product); ``(LHS − RHS).is_zero`` is the rc101 per-call proof.
+
+Reference (MPM-verified at build from the extracted PDF): Hjalmar Rosengren, "A proof of a
+multivariable elliptic summation formula conjectured by Warnaar," arXiv:math/0101073v1
+[math.CA] (9 Jan 2001), Theorem 2.1 (Eq. 5) + Lemma 2.2.
 """
 
 from __future__ import annotations
@@ -57,7 +64,7 @@ from typing import List
 
 from .ellbase import EllMonomial, EllRatio, Theta
 
-__all__ = ["multivariate_elliptic_jackson"]
+__all__ = ["multivariate_elliptic_jackson", "cn_vwp_multisum_lhs"]
 
 # The per-call VERIFY feasibility cap — a TERM-COUNT cap on the n-fold Cₙ sum.
 # The symbolic proof builds the LHS as a sum over the ``C(N+n, n)`` partitions
@@ -82,11 +89,11 @@ __all__ = ["multivariate_elliptic_jackson"]
 _VERIFY_MAX_PARTITIONS: int = 4
 
 
-def _coerce_monomial(v, what: str) -> EllMonomial:
+def _coerce_monomial(v, what: str, op: str = "multivariate_elliptic_jackson") -> EllMonomial:
     if isinstance(v, EllMonomial):
         return v
     raise TypeError(
-        f"multivariate_elliptic_jackson: {what} must be an EllMonomial; got {v!r}")
+        f"{op}: {what} must be an EllMonomial; got {v!r}")
 
 
 def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int, *,
@@ -153,6 +160,120 @@ def multivariate_elliptic_jackson(a, b, c, d, x, q, N: int, n: int, *,
         return closed
     verified = _verify_cn_reduction(aa, bb, cc, dd, xx, qq, N, n, closed)
     return {"closed_form": closed, "verified": verified}
+
+
+def cn_vwp_multisum_lhs(a, b, c, d, x, q, N: int, n: int):
+    """Build the LEFT-hand side of the Cₙ elliptic Jackson summation — the n-fold Cₙ
+    very-well-poised (VWP) elliptic sum over the partitions
+    ``Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}`` — SYMBOLICALLY, as an exact
+    :class:`~srmech.amsc.thetasum.ThetaSum` (the ADDITIVE theta carrier):
+
+        Σ_{λ∈Λ_{nN}} ∏_{i=1}^n [θ(a·x^{2(1-i)}·q^{2λᵢ})/θ(a·x^{2(1-i)}) · q^{λᵢ}x^{2(i-1)λᵢ}]
+            · ∏_{1≤i<j≤n} [θ(x^{j-i}q^{λᵢ-λⱼ})/θ(x^{j-i})
+                           · θ(a·x^{2-i-j}q^{λᵢ+λⱼ})/θ(a·x^{2-i-j})
+                           · (a·x^{3-i-j};q)_{λᵢ+λⱼ}(x^{j-i+1};q)_{λᵢ-λⱼ}
+                             / ((aq·x^{1-i-j};q)_{λᵢ+λⱼ}(q·x^{j-i-1};q)_{λᵢ-λⱼ})]
+            · (a·x^{1-n}, b, c, d, e, q^{-N}; q, x)_λ
+              / (q·x^{n-1}, aq/b, aq/c, aq/d, aq/e, a·q^{N+1}; q, x)_λ,
+
+    with the theta-Pochhammer ``(u; q)_k = ∏_{t=0}^{k-1} θ(u·qᵗ)``, the VECTOR
+    theta-Pochhammer ``(u; q, x)_λ = ∏_{j=1}^n (u·x^{1-j}; q)_{λⱼ}``, and the remaining
+    parameter ``e`` fixed by the balancing ``b·c·d·e·x^{n-1} = a²·q^{N+1}`` (so the sum is
+    balanced by construction). By Rosengren's Theorem 2.1 this sum EQUALS the closed-form
+    theta-quotient product :func:`multivariate_elliptic_jackson` constructs — subtracting
+    the two and deciding ``.is_zero`` is exactly the rc101 per-call proof, now exposed as
+    first-class ops on both sides of the identity.
+
+    ``a, b, c, d, x, q`` are :class:`~srmech.amsc.ellbase.EllMonomial` parameters and
+    ``N`` (partition ceiling) / ``n`` (rank) are positive ints. Raises ``TypeError`` on a
+    non-EllMonomial parameter and ``ValueError`` if ``N < 1`` or ``n < 1``. Each
+    partition's summand is an :class:`~srmech.amsc.ellbase.EllRatio` (theta-quotient; the
+    per-term monomial prefactor ``∏ᵢ q^{λᵢ}·x^{2(i-1)λᵢ}`` carries sign in the Class-K
+    ``EllMonomial`` coeff branch, never ``abs()``); the partitions are summed into one
+    exact ``ThetaSum``. No float, no numpy, no ``math``. NOTE the term-count is
+    ``C(N+n, n)`` — the build cost grows combinatorially, and DECIDING anything about the
+    result (``is_zero``) has the measured feasibility frontier documented at
+    :data:`_VERIFY_MAX_PARTITIONS`; the CONSTRUCTION itself is exact at any size you can
+    afford to hold.
+
+    This is the rc96 test-oracle / rc101 symbolic-verify LHS builder (the private
+    ``_cn_lhs_thetasum``) promoted to a first-class public op (rc216): the exact symbolic
+    twin of the independent numeric ``_cn_sum`` oracle in
+    ``tests/test_multivariate_elliptic_jackson_rc96.py``.
+
+    DISPATCHES to the native ``srmech_cn_vwp_multisum_lhs`` C peer when it is loaded.
+    Because the returned object is a :class:`ThetaSum` (a SUM of ``C(N+n, n)``
+    :class:`EllRatio` terms) — the rc95 ``elliptic_partial_fraction`` pattern, where the
+    C peer builds the term EllRatios and the summation happens in pure carrier algebra —
+    the native ThetaSum is trusted ONLY after it is rebuilt and confirmed ``==`` the
+    pure-Python ThetaSum (which is the COMPLETE alternative + the C peer's parity
+    oracle); otherwise the pure result is returned.
+
+    Reference (MPM-verified at build from the extracted PDF, sha256
+    be4a18685749cf05a358cf4b56170ac929940eb0d100ea550d72b1b1cab6fee9): Hjalmar Rosengren,
+    "A proof of a multivariable elliptic summation formula conjectured by Warnaar",
+    arXiv:math/0101073v1 [math.CA] (9 Jan 2001), Theorem 2.1, Eq. (5).
+    """
+    aa = _coerce_monomial(a, "a", op="cn_vwp_multisum_lhs")
+    bb = _coerce_monomial(b, "b", op="cn_vwp_multisum_lhs")
+    cc = _coerce_monomial(c, "c", op="cn_vwp_multisum_lhs")
+    dd = _coerce_monomial(d, "d", op="cn_vwp_multisum_lhs")
+    xx = _coerce_monomial(x, "x", op="cn_vwp_multisum_lhs")
+    qq = _coerce_monomial(q, "q", op="cn_vwp_multisum_lhs")
+    if not isinstance(N, int) or not isinstance(n, int):
+        raise TypeError("cn_vwp_multisum_lhs: N and n must be int")
+    if N < 1:
+        raise ValueError(f"cn_vwp_multisum_lhs: N must be >= 1; got {N}")
+    if n < 1:
+        raise ValueError(f"cn_vwp_multisum_lhs: n must be >= 1; got {n}")
+    pure = _cn_lhs_thetasum(aa, bb, cc, dd, xx, qq, N, n)
+    native = _cn_vwp_multisum_lhs_c(aa, bb, cc, dd, xx, qq, N, n)
+    if native is not None and native == pure:
+        return native
+    return pure
+
+
+def _cn_vwp_multisum_lhs_c(aa: EllMonomial, bb: EllMonomial, cc: EllMonomial,
+                           dd: EllMonomial, xx: EllMonomial, qq: EllMonomial,
+                           N: int, n: int):
+    """Dispatch the Cₙ VWP multisum LHS construction to the native
+    ``srmech_cn_vwp_multisum_lhs`` C peer → the ``C(N+n, n)``-term
+    :class:`~srmech.amsc.thetasum.ThetaSum` (each term an :class:`EllRatio` the C peer
+    builds byte-exact to the pure carrier, in the same lexicographic partition order,
+    summed here identically to the pure path via :meth:`ThetaSum.from_ellratio` + ``+``),
+    or ``None`` when the native symbols are absent (the caller uses the pure result).
+    The interned symbol universe MUST include ``p``: the :meth:`Theta.canonicalize`
+    quasi-periodicity rewrite reads/writes the nome ``p`` off ``psym`` (mirrors the same
+    forcing in :func:`_multivariate_elliptic_jackson_c`)."""
+    from . import _native as _nat
+    from .ellbase import _P, _ellratio_from_form, _mono_to_form
+    from .thetasum import ThetaSum
+    if not _nat.has_native_cn_vwp_multisum_lhs():
+        return None
+    syms = {_P}
+    for u in (aa, bb, cc, dd, xx, qq):
+        syms.update(u.exps.keys())
+    sym_list = sorted(syms)
+    idx = {s: i for i, s in enumerate(sym_list)}
+    n_syms = len(sym_list)
+    monos = [_mono_to_form(u, idx, n_syms) for u in (aa, bb, cc, dd, xx, qq)]
+    forms = _nat.cn_vwp_multisum_lhs_c(
+        n_syms, idx.get(_P, -1), N, n, monos[0], monos[1], monos[2], monos[3],
+        monos[4], monos[5], _num_partitions(N, n), _max_thetas_per_side(N, n))
+    if forms is None:
+        return None
+    result = ThetaSum.zero()
+    for f in forms:
+        result = result + ThetaSum.from_ellratio(_ellratio_from_form(f, sym_list))
+    return result
+
+
+def _max_thetas_per_side(N: int, n: int) -> int:
+    """The per-side MAX theta count of one partition summand (mirrors the C peer's
+    ``cvl_nt_max``): ``n`` diagonal args + ``(2 + 2λᵢ) ≤ (2 + 2N)`` per (i, j) pair +
+    the six vector theta-Pochhammers of ``≤ n·N`` each. Sizes the native output row
+    buffers. Pure integer arithmetic."""
+    return n + (n * (n - 1) // 2) * (2 + 2 * N) + 6 * n * N
 
 
 def _num_partitions(N: int, n: int) -> int:
