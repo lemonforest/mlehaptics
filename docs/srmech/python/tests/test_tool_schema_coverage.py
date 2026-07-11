@@ -278,6 +278,14 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # Dispatches to the same-rc BYTE-IDENTICAL C peer ``srmech_winding_tower``
     # (classified ``c_dispatched`` in the Rosetta ledger).
     "srmech.amsc.cascade.one.winding_tower",
+    # cascade.one.winding_fold (v0.9.0rc215, the #741 divmod audit F-2) — the
+    # public 2π seam-fold divmod theta → (w, theta_res). Registered under its
+    # STABLE FLAT public name ``srmech.amsc.cascade.winding_fold`` (the
+    # ToolEntry); ``one.winding_fold`` is the same object at its defining
+    # module — exempt exactly like ``one.the_one`` above. Dispatches to the
+    # rc207 C peer ``srmech_winding_fold`` (``c_dispatched`` in the Rosetta
+    # ledger).
+    "srmech.amsc.cascade.one.winding_fold",
     # cascade.sedenion_register.sed_* (v0.7.5rc140, #564 / PR #687 §31 /
     # [[feedback_prefer_config_driven_toml_classes]]) — the flat cascade-op
     # adapter layer that the packaged ``sedenion_register.toml`` ([class]

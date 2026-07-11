@@ -325,3 +325,111 @@ def test_riemann_theta_source_is_numpy_math_abs_free():
     assert "import math" not in text
     assert re.search(r"abs\([^)]", text) is None         # no bare abs() CALL
     assert "float(" not in text                          # no float in the carrier
+
+
+# ── R-1 (rc215, the #741 divmod-audit residue): the kexp-COMPOSITION gap ──────
+#
+# STANDING XFAIL — a REAL, LATENT bug recorded in-repo (task #824). The divmod
+# audit asked: does `transform`'s 8th-root multiplier exponent `kexp` COMPOSE?
+# For any consistent theta-transformation convention
+#     θ[γ·m] = ζ₈^{kexp(γ,m)} · κ₀(γ) · θ[m]
+# the κ₀(γ) piece (the Maslov / Weil cocycle) is CHARACTERISTIC-INDEPENDENT, so
+# the composed-vs-direct exponent DEFECT
+#     d(γ₂,γ₁,m) = ( kexp(γ₂γ₁, m) − kexp(γ₁, m) − kexp(γ₂, γ₁·m) ) mod 8
+# MUST be independent of the characteristic m (it can only be the γ-only κ₀
+# cocycle 2-cochain). It is NOT: for many generator pairs it takes BOTH values
+# {0, 4} varying WITH m — the mod-2 OUTPUT fold `RiemannTheta(new_epp % 2, …)`
+# drops the characteristic-shift sign θ[ε+2δ] = (−1)^{…}·θ[ε] (a ζ₈⁴ = −1) that
+# belongs INSIDE kexp. `_char_transform_int` (the integer characteristic) + the
+# single-γ kexp values are correct; only the COMPOSED multiplier is wrong.
+#
+# Measured (pure path): the char-DEPENDENT-defect pairs are g2 31/81,
+# g3 8/25, g4 8/25 (all standard-generator pairs). The canonical witness — the
+# pair Urot·T11 at genus 2, both plain Sp(4,ℤ) generators — per characteristic
+# m = [ε'; ε]  (k_direct, k1, k2, defect):
+#
+#   [(0,0);(0,0)]  0 0 0 → 0     [(0,1);(0,0)]  4 0 0 → 4  ← char-dependent
+#   [(0,0);(0,1)]  0 0 0 → 0     [(0,1);(0,1)]  4 0 0 → 4  ← char-dependent
+#   [(0,0);(1,0)]  0 0 0 → 0     [(0,1);(1,0)]  4 0 0 → 4  ← char-dependent
+#   [(0,0);(1,1)]  0 0 0 → 0     [(0,1);(1,1)]  4 0 0 → 4  ← char-dependent
+#   [(1,0);(0,0)]  0 4 0 → 4  ←  [(1,1);(0,0)]  4 4 0 → 0
+#   [(1,0);(0,1)]  0 4 0 → 4  ←  [(1,1);(0,1)]  4 4 0 → 0
+#   [(1,0);(1,0)]  0 4 0 → 4  ←  [(1,1);(1,0)]  4 4 0 → 0
+#   [(1,0);(1,1)]  0 4 0 → 4  ←  [(1,1);(1,1)]  4 4 0 → 0
+#
+# The defect flips with ε' (the upper characteristic that the D·ε' − C·ε map
+# pushes out of {0,1} and the output fold then reduces) — the signature of the
+# dropped mod-2 shift sign. LATENT: no operational (non-test) consumer composes
+# two transforms (only a _native.py comment references `.transform`; the shipped
+# Göpel/Rosenhain g2–g4 suites test SINGLE transforms), so no shipped result is
+# affected. `strict=True` → the moment #824 folds the shift sign into kexp this
+# XPASSES and FAILS, the natural close signal to delete the marker.
+
+
+def _kexp_defect_is_char_dependent(gens, all_chars, compose) -> bool:
+    """True iff some generator pair has a CHARACTERISTIC-DEPENDENT composed-vs-
+    direct kexp defect (the bug). A correct kexp makes every pair's defect a
+    single m-independent value (the γ-only κ₀ cocycle)."""
+    for g1 in gens:
+        for g2 in gens:
+            g21 = compose(g2, g1)
+            defects = set()
+            for rt in all_chars:
+                _direct, kd = rt.transform(g21)
+                step1, k1 = rt.transform(g1)
+                _step2, k2 = step1.transform(g2)
+                defects.add((kd - k1 - k2) % 8)
+            if len(defects) != 1:
+                return True
+    return False
+
+
+@pytest.mark.xfail(
+    reason="riemann_theta.transform kexp composition bug — g2/g3/g4 "
+           "characteristic-dependent ζ₈⁴ sign defect; the mod-2 "
+           "characteristic-shift sign θ[ε+2δ]=±θ[ε] "
+           "is not folded into kexp; LATENT (no operational consumer composes "
+           "transforms); tracked as task #824",
+    strict=True,
+)
+def test_kexp_composes_consistently_all_genera():
+    """R-1 GATE (task #824): the transform multiplier exponent kexp must COMPOSE
+    — the composed-vs-direct defect is the γ-only κ₀ cocycle, so it is
+    CHARACTERISTIC-INDEPENDENT for every generator pair, at every genus. This
+    asserts the CORRECT behaviour; it currently fails (the bug) → strict-xfail.
+    When #824 folds the mod-2 characteristic-shift sign into kexp, this passes →
+    XPASS → strict failure → remove the marker (the close signal)."""
+    from srmech.amsc.riemann_theta import RiemannThetaG3, RiemannThetaG4
+
+    # genus 2 — Sp(4,ℤ): the canonical Urot·T11 witness lives here
+    g2_gens = list(_gens().values())
+    g2_chars = ALL16
+    assert not _kexp_defect_is_char_dependent(
+        g2_gens, g2_chars, RiemannTheta.sp4_compose), "genus-2 kexp defect"
+
+    # genus 3 — Sp(6,ℤ)
+    B1 = ((1, 0, 0), (0, 0, 0), (0, 0, 0))
+    Boff = ((0, 1, 0), (1, 0, 1), (0, 1, 0))
+    Ush = ((1, 1, 0), (0, 1, 0), (0, 0, 1))
+    g3_gens = [RiemannThetaG3.sp6_translation(B1),
+               RiemannThetaG3.sp6_translation(Boff),
+               RiemannThetaG3.sp6_gl_twist(Ush),
+               RiemannThetaG3.sp6_inversion()]
+    g3_chars = [RiemannThetaG3(a, b, c, d, e, f)
+                for a in (0, 1) for b in (0, 1) for c in (0, 1)
+                for d in (0, 1) for e in (0, 1) for f in (0, 1)]
+    assert not _kexp_defect_is_char_dependent(
+        g3_gens, g3_chars, RiemannThetaG3.sp6_compose), "genus-3 kexp defect"
+
+    # genus 4 — Sp(8,ℤ)
+    B41 = ((1, 0, 0, 0), (0, 0, 0, 0), (0, 0, 0, 0), (0, 0, 0, 0))
+    B4off = ((0, 1, 0, 0), (1, 0, 0, 1), (0, 0, 0, 0), (0, 1, 0, 0))
+    U4 = ((1, 1, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1))
+    g4_gens = [RiemannThetaG4.sp8_translation(B41),
+               RiemannThetaG4.sp8_translation(B4off),
+               RiemannThetaG4.sp8_gl_twist(U4),
+               RiemannThetaG4.sp8_inversion()]
+    g4_chars = [RiemannThetaG4(*[(i >> k) & 1 for k in range(8)])
+                for i in range(256)]
+    assert not _kexp_defect_is_char_dependent(
+        g4_gens, g4_chars, RiemannThetaG4.sp8_compose), "genus-4 kexp defect"

@@ -341,6 +341,99 @@ def _sigma_effective_from_triad(sigma: int, w: Tuple[int, int, int]) -> int:
     return sigma if total_bits % 2 == 0 else -sigma
 
 
+#: IEEE-754 infinity — named once so the finite-domain guard needs no ``math``.
+_INF: float = float("inf")
+
+
+def winding_fold(theta: float) -> Tuple[int, float]:
+    """The 2π seam-fold as the DIVMOD it is — ``theta → (w, theta_res)`` with
+    ``theta = 2π·w + theta_res``, the quotient KEPT (0.9.0rc215; the #741
+    mod-should-be-divmod audit's F-2 finding — the fold existed natively as
+    ``srmech_winding_fold`` and pure as the laplacian ``_eph_seam_fold`` since
+    rc207/gh#1276, but was reachable only through
+    :func:`~srmech.amsc.laplacian.propagate_wound`; this is the same fold as a
+    first-class public op).
+
+    ``w = round(theta/2π)`` (round-half-toward-+∞) is the **metacycle
+    winding** — the whole 2π turns a bare float ``theta % (2*pi)`` throws away
+    (the grading-collapse the divmod audit hunts) — and ``theta_res`` is the
+    **epicycle residue** (``|theta_res| ≤ π``). An external consumer with an
+    accumulated angle (a Kuramoto phase, an ``Im(z)·λ`` from its own solve) no
+    longer hand-rolls the float modulo: this op is the EXACT fold — one
+    divmod, both harvests. The winding ``w`` feeds the One's metacycle dial
+    directly (``the_one(σ, θ_num, θ_den, w=(w, 0, 0))`` →
+    :meth:`One.sigma_effective` / :attr:`One.spinor_sign` /
+    :meth:`One.unwrapped_phase`).
+
+    Cascade decomposition (no new primitive class): the divmod against the
+    period is **Class I** (cyclic reduction) with the quotient retained; the
+    2π enters as the exact **Class-N** cascade constant (the Machin-2π
+    rational pure / the Q61 2/π quarter-turn grid native — the SAME constants
+    :func:`~srmech.amsc.laplacian.propagate` folds with, no forked 2π); the
+    residue sign is **Class K/C** (an explicit branch, never ``abs()``).
+
+    Dispatch: the native C peer ``srmech_winding_fold`` (rc207; the exact
+    Q61 2/π machinery ``srmech_cos``/``srmech_sin`` fold with) when
+    ``HAS_NATIVE`` and the angle is inside its ``|theta| < 2^55`` domain;
+    otherwise the COMPLETE pure alternative — the laplacian
+    :func:`~srmech.amsc.laplacian._eph_seam_fold` exact-rational Machin-2π
+    divmod (arbitrary-precision, any finite float; the same fold
+    ``propagate_wound``'s pure path runs). Native == pure: ``w`` exact-integer
+    equal, ``theta_res`` equal to the fold grids' common resolution (the two
+    grids are Q61 native / 2⁻⁴⁴ pure — both quantise the SAME real residue).
+
+    Args:
+        theta: the accumulated angle in radians — any FINITE real (complex is
+            rejected: the fold is a real-axis operation; non-finite is
+            rejected: the fold's domain is finite angles).
+
+    Returns:
+        ``(w, theta_res)`` — ``w`` the whole-ℤ metacycle winding (``int``),
+        ``theta_res`` the folded epicycle residue (``float``, ``|theta_res| ≤
+        π``); ``2π·w + theta_res`` reconstructs ``theta`` losslessly on the
+        fold grid (the :meth:`One.unwrapped_phase` reconstruction).
+
+    Raises:
+        TypeError: complex ``theta`` (a real-axis fold — the complex phase
+            is a different op: fold ``cmath.phase``'s output, not the number).
+        ValueError: non-finite ``theta`` (NaN / ±Inf).
+    """
+    is_complex = isinstance(theta, complex)
+    if not is_complex:
+        # numpy complex scalars: dtype kind 'c' (the atoms._require_real check)
+        is_complex = getattr(getattr(theta, "dtype", None), "kind", None) == "c"
+    if is_complex:
+        raise TypeError(
+            f"winding_fold is a real-axis 2π seam-fold and does not accept "
+            f"complex input ({theta!r}); fold the real accumulated angle "
+            f"(e.g. a phase), not a complex number."
+        )
+    f = float(theta)
+    if f != f or f == _INF or f == -_INF:
+        raise ValueError(
+            f"winding_fold: theta must be finite; got {theta!r} (the 2π "
+            f"seam-fold's domain is finite angles)."
+        )
+    nat = _winding_native()
+    if nat is not None and hasattr(nat.LIB, "srmech_winding_fold"):
+        import ctypes
+        w_out = ctypes.c_int64(0)
+        theta_out = ctypes.c_double(0.0)
+        rc = nat.LIB.srmech_winding_fold(
+            ctypes.c_double(f), ctypes.byref(w_out), ctypes.byref(theta_out))
+        if rc == nat.SRMECH_OK:
+            return int(w_out.value), float(theta_out.value)
+        # non-OK == the |theta| >= 2^55 native domain boundary (the same
+        # honest bound as srmech_cos): fall to the complete pure fold below,
+        # which is exact at ANY finite float (arbitrary-precision rationals).
+    # the COMPLETE pure alternative — the SAME Machin-2π divmod
+    # propagate_wound's pure path runs (lazy import: laplacian imports
+    # cascade.one lazily for the wound readouts, so this must be lazy too).
+    from srmech.amsc.laplacian import _eph_seam_fold, _EPH_FOLD_DEN
+    w, qn = _eph_seam_fold(f)
+    return w, qn / _EPH_FOLD_DEN
+
+
 @dataclass(frozen=True)
 class Block:
     """One Hurwitz block ``ℝ·1 ⊕ σ e^{Î_n θ} Im 𝔸_n`` of ``S(σ,θ)``.
@@ -1048,6 +1141,7 @@ __all__ = [
     "s_generator",
     "to_scalar",
     "winding_tower",
+    "winding_fold",
     # flat cascade-op accessors — the one.toml ([class] One) binding surface
     "one_dim",
     "one_imag_dims",

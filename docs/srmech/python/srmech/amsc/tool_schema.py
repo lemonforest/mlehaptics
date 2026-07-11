@@ -6099,6 +6099,52 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("One", "structured generator: three Blocks tiling 1+3+7+3 = 14"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc215 (the #741 divmod audit, finding F-2) — the 2π seam-fold
+        # DIVMOD as a first-class public op: the exact fold existed
+        # natively (srmech_winding_fold, rc207/gh#1276) and pure (the
+        # laplacian _eph_seam_fold) but was reachable only through
+        # propagate_wound; an external consumer with an accumulated
+        # angle had to hand-roll a float `theta % 2π` — BOTH the
+        # grading-collapse the audit hunts AND a precision hazard.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.cascade.winding_fold", owner="srmech",
+            category="cascade",
+            summary="The 2π seam-fold as the DIVMOD it is: theta → (w, "
+                    "theta_res) with theta = 2π·w + theta_res, the quotient "
+                    "KEPT (the #741 mod-should-be-divmod audit, finding F-2). "
+                    "w = round(theta/2π) (round-half-toward-+∞) is the "
+                    "METACYCLE winding — the whole 2π turns a bare float "
+                    "`theta % (2*pi)` throws away (the grading-collapse the "
+                    "audit hunts, and a precision hazard vs the exact fold); "
+                    "theta_res is the EPICYCLE residue (|theta_res| ≤ π). The "
+                    "op an external consumer folds an accumulated angle with "
+                    "(a Kuramoto phase, an Im(z)·λ from its own solve) — the "
+                    "SAME fold propagate/propagate_wound run at the seam (no "
+                    "forked 2π constant), exposed first-class. The winding "
+                    "feeds the One's metacycle dial directly (the_one(σ, "
+                    "θ_num, θ_den, w=(w,0,0)) → sigma_effective / spinor_sign "
+                    "/ unwrapped_phase). Cascade: Class-I divmod (quotient "
+                    "retained) over the exact Class-N 2π (Machin-2π rational "
+                    "pure / Q61 2/π native); residue sign Class K/C, never "
+                    "abs(). Dispatches to the native srmech_winding_fold "
+                    "(rc207) inside its |theta| < 2^55 domain; the pure "
+                    "exact-rational Machin-2π divmod is the COMPLETE "
+                    "alternative at any finite float. Native == pure: w "
+                    "exact-integer equal; theta_res to the fold grids' "
+                    "common resolution. Complex input rejected (real-axis "
+                    "fold); non-finite rejected (finite-angle domain).",
+            parameters=(
+                P("theta", "float", True,
+                  "the accumulated angle in radians — any finite real"),
+            ),
+            returns=R("tuple", "(w, theta_res) — w the whole-ℤ metacycle "
+                               "winding (int), theta_res the folded epicycle "
+                               "residue (float, |theta_res| ≤ π); 2π·w + "
+                               "theta_res reconstructs theta on the fold "
+                               "grid"),
+        ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
         # of Class C orientation + Class K sign; no new class, no C symbol.

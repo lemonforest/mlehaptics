@@ -12,7 +12,7 @@ This suite pins:
      dominant eigenvector (the C composite vs the genuinely-pure Jacobi cascade).
   3. relational_structure — spine + Fiedler communities + λ₂ coherence.
   4. Edge cases — empty graph, single node, k ≤ 0, k > n, weights, no abs().
-  5. Registration — the two ToolEntries, tools.total == 409, the Rosetta rows,
+  5. Registration — the two ToolEntries, tools.total == 410, the Rosetta rows,
      the C peer exists / is JPL-clean-adjacent.
 
 Numpy-free (the whole laplacian surface is numpy-free); the test is numpy-free.
@@ -193,7 +193,7 @@ def test_tool_schema_registration():
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.laplacian.spectral_spine" in names
     assert "srmech.amsc.laplacian.relational_structure" in names
-    assert len(get_tool_schema().tools) == 409
+    assert len(get_tool_schema().tools) == 410
 
 
 def test_rosetta_ledger_rows():

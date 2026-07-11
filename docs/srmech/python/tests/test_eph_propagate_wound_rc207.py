@@ -28,7 +28,7 @@ Covers:
   (f) Python == C parity — winding / σ_eff / spinor exact-integer equal,
       θ / harvest within-tol (the eigensolve tolerance);
   (g) read-only inputs; contracts (non-square L, u0 mismatch, n = 0);
-      registration (ToolEntry; tools.total == 409; LAPLACIAN_OPS).
+      registration (ToolEntry; tools.total == 410; LAPLACIAN_OPS).
 
 numpy-free. The 2π used by the round-trip check is the module's own
 Machin-2π (``_EPH_TWO_PI``) — no forked constant in the test either.
@@ -343,6 +343,6 @@ def test_registration_and_count():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.laplacian.propagate_wound" in names
-    assert len(get_tool_schema().tools) == 409
-    assert srmech.describe()["tools"]["total"] == 409
+    assert len(get_tool_schema().tools) == 410
+    assert srmech.describe()["tools"]["total"] == 410
     assert "propagate_wound" in L.LAPLACIAN_OPS
