@@ -15,10 +15,16 @@ kwargs / random sweep / banker's-rounding boundary.
 
 Banker's-rounding parity (load-bearing): Python's built-in round() uses
 round-half-to-even (banker's rounding); C99 round() uses round-half-
-AWAY-from-zero. These diverge at the .5 boundary. The C peer uses
-llrint() under the default IEEE-754 FE_TONEAREST mode (= round-half-to-
-even) for bit-exact match with Python at the boundary; the dedicated
-banker's-rounding test case confirms this matches.
+AWAY-from-zero. These diverge at the .5 boundary. The C peer uses a
+LIBM-FREE round-half-to-even branch (v0.9.0rc211; formerly llrint()
+under the default IEEE-754 FE_TONEAREST mode — byte-identical on the
+fed range 0 <= v < 2^63, differentially pinned by the rc210 tests at
+the bottom of this file) for bit-exact match with Python at the
+boundary; the dedicated banker's-rounding test case confirms this
+matches. Products >= 2^63 overflow the int64 ABI: the C peer returns
+SRMECH_ERR_BAD_INPUT (previously an unspecified, platform-divergent
+llrint() domain-error result) and the dispatch falls through to the
+Python reference path.
 """
 import math
 import random
@@ -286,9 +292,10 @@ def test_bankers_rounding_boundary_native_matches_python():
 
     Python's round(0.5) is 0 (banker's, round-half-to-even);
     C99 round(0.5) is 1 (round-half-AWAY-from-zero). The C peer uses
-    llrint() under default IEEE-754 FE_TONEAREST mode (banker's),
-    so the cascade native path matches Python's round() at the
-    boundary bit-exactly.
+    a libm-free round-half-to-even branch (v0.9.0rc211; formerly
+    llrint() under default IEEE-754 FE_TONEAREST mode — byte-identical
+    on the fed range), so the cascade native path matches Python's
+    round() at the boundary bit-exactly.
 
     We construct x and fine_scale so that magnitude * fine_scale ==
     0.5 exactly. round(0.5) -> 0 in Python, so the cascade returns
@@ -310,8 +317,8 @@ def test_bankers_rounding_boundary_native_matches_python():
     assert result_05 == ref_05, (
         f"banker's-rounding boundary mismatch at x=0.5, "
         f"max_denom=1, fine_scale=1: cascade={result_05}, "
-        f"Python ref={ref_05} (cascade C peer must use llrint() "
-        f"with FE_TONEAREST to match Python's round() at .5)"
+        f"Python ref={ref_05} (cascade C peer must round half-to-even "
+        f"to match Python's round() at .5)"
     )
 
 
@@ -321,7 +328,7 @@ def test_bankers_rounding_boundary_negative_native_matches_python():
     magnitude = 0.5, fine_scale = 1, magnitude * fine_scale = 0.5
     -> round(0.5) = 0 (banker's) -> (0, 1) [orientation discarded
     because num_pos == 0]. The C peer must reach the same (0, 1)
-    result via llrint(0.5) = 0 under FE_TONEAREST.
+    result via its round-half-to-even branch (0.5 ties to even 0).
     """
     result = cascade.best_rational_signed(
         -0.5, max_denominator=1, fine_scale=1,
@@ -373,3 +380,148 @@ def test_class_n_primitive_symbol_still_exposed():
         "exposed in libsrmech (cascade wrapper composes around it, "
         "not replaces it)"
     )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# v0.9.0rc211 — libm-free round differential (new round == old llrint)
+#
+# The C peer's llrint() (the last libm import in libsrmech) was
+# replaced by the libm-free _cascade_brs_round_half_even branch. These
+# tests differentially pin the replacement: Python's built-in round()
+# on a float IS correctly-rounded ties-to-even on the double — exactly
+# llrint() under the default IEEE-754 FE_TONEAREST mode — so
+# "mirror == round()" across the fed range IS "new round == old
+# llrint", with the native end-to-end sweep proving the shipped binary
+# agrees.
+# ──────────────────────────────────────────────────────────────────────
+
+def _round_half_even_c_mirror(v):
+    """Pure-Python mirror of the C helper _cascade_brs_round_half_even.
+
+    Same algorithm, statement for statement: exact truncation, exact
+    fractional part (both exact in IEEE-754 for 0 <= v < 2^63), and the
+    tie-to-even branch t + (t & 1). Python int(float) truncates toward
+    zero like the C cast; float(int) round-trips exactly for the values
+    involved (v < 2^53 has t < 2^53 exactly representable; v >= 2^52 is
+    already integral so frac == 0.0 identically).
+    """
+    assert v >= 0.0
+    assert v < 2.0 ** 63
+    t = int(v)                # exact truncation (C: (long long)v)
+    frac = v - float(t)       # exact under IEEE-754 (C: v - (double)t)
+    if frac > 0.5:
+        return t + 1
+    if frac == 0.5:
+        return t + (t & 1)    # tie goes to the even neighbour
+    return t
+
+
+def _rc210_fed_range_sweep():
+    """The differential sweep: exact ties (both parities), random
+    magnitudes across the full fed range, and the representability
+    boundaries where the algorithm's exactness argument is tightest.
+    """
+    values = []
+    # Exact .5 ties, even and odd integer parts.
+    values += [k + 0.5 for k in range(0, 64)]
+    values += [k + 0.5 for k in (999, 1000, 10**6, 10**12, 2**40)]
+    # The largest sub-2^52 tie: ulp in [2^51, 2^52) is 0.5, so
+    # 2^52 - 0.5 is exactly representable AND an exact tie.
+    values += [2.0**52 - 0.5, 2.0**52 - 1.5, 2.0**51 + 0.5]
+    # Integral-by-construction region (ulp >= 1): 2^52 .. just below 2^63.
+    values += [2.0**52, 2.0**52 + 1.0, 2.0**53, 2.0**53 + 2.0,
+               2.0**62, 2.0**63 - 1024.0]  # 2^63 - 1024 = largest double < 2^63
+    # Near-half neighbours (one ulp off the tie — must NOT round as ties).
+    values += [0.5 - 2.0**-54, 0.5 + 2.0**-53,
+               1.5 - 2.0**-52, 1.5 + 2.0**-52]
+    # Sub-half + tiny (round to 0, as llrint does).
+    values += [0.0, 0.25, 0.49999999999999994, 5e-324, 1e-12]
+    # Deterministic random sweep across magnitudes.
+    rng = random.Random(20260710)
+    for _ in range(500):
+        values.append(rng.uniform(0.0, 1.0))
+        values.append(rng.uniform(0.0, 1000.0))
+        values.append(rng.uniform(0.0, 2.0**32))
+        values.append(rng.uniform(0.0, 2.0**52))
+    return values
+
+
+def test_rc211_round_mirror_matches_python_round_across_fed_range():
+    """Differential check: the C rounding algorithm (mirrored exactly in
+    Python) == Python round() == old llrint()@FE_TONEAREST, across the
+    fed range including every tie parity and representability boundary.
+    """
+    for v in _rc210_fed_range_sweep():
+        expected = round(v)  # ties-to-even on the double == llrint
+        got = _round_half_even_c_mirror(v)
+        assert got == expected, (
+            f"rc210 round-half-even mirror diverged from Python round() "
+            f"(== llrint @ FE_TONEAREST) at v={v!r} ({v.hex()}): "
+            f"mirror={got}, round={expected}"
+        )
+
+
+@SKIP_IF_NO_BEST_RATIONAL_SIGNED_NATIVE
+def test_rc211_native_round_differential_end_to_end():
+    """End-to-end: with fine_scale=1 and max_denominator=1 the cascade
+    output numerator IS round(magnitude), so sweeping x = v through the
+    NATIVE path differentially pins the shipped C binary's new rounding
+    against Python round() (== the old llrint) across the fed range.
+    """
+    for v in _rc210_fed_range_sweep():
+        if not v < 2.0**63:  # stay inside the int64 ABI (fed range)
+            continue
+        expected_num = round(v)
+        expected = (0, 1) if expected_num == 0 else (expected_num, 1)
+        got = cascade.best_rational_signed(v, max_denominator=1, fine_scale=1)
+        assert got == expected, (
+            f"rc210 native rounding diverged at x={v!r} ({v.hex()}): "
+            f"cascade={got}, expected={expected}"
+        )
+        # Negative branch: Class K strips the sign ahead of the round,
+        # so |x| rounds identically and Class C re-applies the sign.
+        if expected_num > 0:
+            got_neg = cascade.best_rational_signed(
+                -v, max_denominator=1, fine_scale=1,
+            )
+            assert got_neg == (-expected_num, 1), (
+                f"rc210 native rounding diverged at x={-v!r}: "
+                f"cascade={got_neg}, expected={(-expected_num, 1)}"
+            )
+
+
+@SKIP_IF_NO_BEST_RATIONAL_SIGNED_NATIVE
+def test_rc211_product_at_2_63_falls_back_to_python_ref():
+    """A product in [2^63, 2^64) exceeds the int64 ABI: the C peer now
+    returns SRMECH_ERR_BAD_INPUT and the dispatch falls through to the
+    Python reference path, which computes the EXACT convergent
+    (numerator still fits uint64). Previously llrint()'s domain error
+    made this platform-divergent nonsense (x86-64: (0, 1) via LLONG_MIN;
+    aarch64: a convergent of the saturated LLONG_MAX).
+    """
+    # 1e13 * 10^6 = 1e19, and 2^63 < 1e19 < 2^64. 1e19 is exactly
+    # representable (10^19 = 2^19 * 5^19, 5^19 < 2^53), so the Python
+    # path rounds it to exactly 10**19 and 10**19 / 10**6 = 10**13.
+    x = 1e13
+    assert 2**63 < x * 10**6 < 2**64
+    result = cascade.best_rational_signed(x)  # default fine_scale=10^6
+    ref = _python_ref(x)
+    assert ref == (10**13, 1)
+    assert result == ref, (
+        f"int64-overflow fallback diverged from Python ref at x={x!r}: "
+        f"cascade={result}, ref={ref} (the C peer must reject >= 2^63 "
+        f"products so the dispatch reaches the exact Python path)"
+    )
+    assert cascade.best_rational_signed(-x) == (-(10**13), 1)
+
+
+def test_rc211_product_beyond_uint64_raises_like_pure_python():
+    """A product >= 2^64 reaches the Python reference path (native
+    rejects it at the 2^63 int64 bound) where the Class N primitive's
+    uint64 contract raises ValueError — the SAME behaviour the
+    pure-Python surface always had. Pinned so the native-enabled and
+    pure-Python surfaces agree instead of the pre-rc210 silent
+    platform-divergent llrint() domain-error result.
+    """
+    with pytest.raises(ValueError, match="uint64"):
+        cascade.best_rational_signed(1e300)

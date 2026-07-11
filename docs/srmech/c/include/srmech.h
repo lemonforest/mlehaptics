@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc210"
-#define SRMECH_VERSION       "0.9.0rc210"
+#define SRMECH_VERSION_PRE   "rc211"
+#define SRMECH_VERSION       "0.9.0rc211"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -442,17 +442,25 @@ srmech_status_t srmech_cascade_cyclic_gcd_u64(uint64_t  a,
  * (0, 1). NaN maps to (0, 1) via the Class K dead-band (both `x > 0`
  * and `x < 0` evaluate false for NaN under IEEE-754).
  *
- * Rounding: the magnitude * fine_scale product is rounded to int64 via
- * llrint() under the default IEEE-754 FE_TONEAREST mode (round-half-to-
- * even / banker's rounding) — this matches Python's built-in round() at
- * the .5 boundary bit-exactly. C99 round() is round-half-AWAY-from-zero
- * and would diverge from Python at the boundary; llrint() with default
- * fenv is the canonical match.
+ * Rounding: the magnitude * fine_scale product is rounded to int64 by
+ * a LIBM-FREE round-half-to-even (banker's rounding) Class-K/N branch
+ * (v0.9.0rc211; formerly llrint(), the last libm import in libsrmech —
+ * a bare-C-host executable needed -lm for it). The branch is byte-
+ * identical to llrint() under the default IEEE-754 FE_TONEAREST mode
+ * across the full 0 <= v < 2^63 range this cascade feeds it, and so
+ * matches Python's built-in round() at the .5 boundary bit-exactly.
+ * C99 round() is round-half-AWAY-from-zero and would diverge from
+ * Python at the boundary.
  *
  * Error returns:
  *   SRMECH_OK              — success
  *   SRMECH_ERR_NULL_ARG    — out_num or out_den is NULL
- *   SRMECH_ERR_BAD_INPUT   — max_denominator < 1 or fine_scale < 1
+ *   SRMECH_ERR_BAD_INPUT   — max_denominator < 1 or fine_scale < 1, or
+ *                            magnitude * fine_scale >= 2^63 (int64 ABI
+ *                            overflow; previously an unspecified
+ *                            llrint() domain-error result — the Python
+ *                            dispatch falls back to its Python
+ *                            reference path on this status)
  *   (any other status propagated from the underlying srmech_best_rational)
  */
 srmech_status_t srmech_cascade_best_rational_signed_f64(
