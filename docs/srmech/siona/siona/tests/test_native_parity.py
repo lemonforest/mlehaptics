@@ -53,5 +53,48 @@ def test_profile_native_surface():
     prof = srmech.profile("siona")
     assert prof.native is not None, "profile did not load the native plugin"
     assert "plugin" in repr(prof)
-    # the bound lib exposes our declared symbol
-    assert hasattr(prof.native, "siona_native_fnv1a64")
+    # every declared symbol is bound
+    for sym in ("siona_native_fnv1a64", "siona_native_tokenize",
+                "siona_native_cooccurrence_accumulate", "siona_native_arena_compact"):
+        assert hasattr(prof.native, sym), f"missing {sym}"
+
+
+# ── tokenize (byte-scan word boundaries; native == pure-Python) ─────────
+@pytest.mark.parametrize("s", [
+    b"", b"the Quick brown fox", b"klein4 sha256  E=mc^2", b"a.b,c;d!e?f",
+    b"   spaced   out   ", "café σ_OC ≠ σ_SC".encode("utf-8"),
+])
+def test_tokenize_spans_parity(s):
+    assert _native.tokenize_spans(s) == _native._tokenize_spans_py(s)
+
+
+def test_tokenize_strings():
+    assert _native.tokenize("The CAT sat") == ["the", "cat", "sat"]
+    assert _native.tokenize("klein4 sha256") == ["klein4", "sha256"]
+
+
+# ── windowed co-occurrence (native == pure-Python, order-independent) ────
+def test_cooccurrence_parity_dicts():
+    import random
+    rng = random.Random(99)
+    for _ in range(200):
+        docs = [[rng.randint(0, 40) for _ in range(rng.randint(0, 15))]
+                for _ in range(rng.randint(1, 4))]
+        tids, dends = _native.flatten_docs(docs)
+        w = rng.randint(1, 4)
+        py = _native._cooccurrence_counts_py(tids, dends, w)
+        # parallel form
+        ii, jj, ww = _native.cooccurrence_edges_parallel(tids, dends, w)
+        got = {(ii[k], jj[k]): ww[k] for k in range(len(ii))}
+        assert got == py
+        # tuple form
+        edges, weights = _native.cooccurrence_edges(tids, dends, w)
+        assert dict(zip(edges, weights)) == py
+
+
+def test_cooccurrence_known_example():
+    docs = [[0, 1, 0], [0, 1]]  # "a b a" ; "a b"  (0=a, 1=b)
+    tids, dends = _native.flatten_docs(docs)
+    ii, jj, ww = _native.cooccurrence_edges_parallel(tids, dends, window=2)
+    got = {(i, j): w for i, j, w in zip(ii, jj, ww)}
+    assert got == {(0, 1): 3}  # doc1: (a,b),(b,a)->(0,1)x2 ; doc2: (a,b)x1

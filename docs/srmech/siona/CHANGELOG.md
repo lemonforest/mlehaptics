@@ -14,6 +14,19 @@ artifacts** (CC-BY-SA-compliant by the MPR attestation each acquired fact carrie
 `PKG1_DECISION.md`).
 
 ### Added
+- **`[profile.native]` C tier — Siona's own `libsiona_native.so`** (`c/siona_native.{c,h}` + `c/Makefile`,
+  JPL Power-of-Ten clean). srmech's profile loader loads it as `srmech.profile("siona").native` after an ABI
+  handshake; `siona._native` dispatches to it with a **bit-for-bit pure-Python fallback** (the has_native
+  pattern, so the surface is identical with or without the `.so`). rc1 ops: `fnv1a64` (content hash),
+  `tokenize` (byte-scan word boundaries; ~3–8× the Python scan), and the windowed **co-occurrence
+  accumulator** (`cooccurrence_edges_parallel`, tokens→edges via a caller-arena open-addressing hash;
+  ~1.3–1.6× in the dense parallel form). FFI note: the co-occurrence win survives only while the edge list
+  stays dense — it is Θ(input) for a large vocabulary, so a Python dict/tuple/sort materialisation gives the
+  C win back (that is why the whole tokens→edges→laplacian pipeline wants to stay native). Local/dev build:
+  `make -C c`; a release ships true per-OS wheels via cibuildwheel.
+- **Fix:** the `board` bridge surface (a `Board` data constant, not a callable) is removed from
+  `[profile.bridge]` — it failed the loader's callability smoke test and blocked the whole profile from
+  activating. The default board stays reachable as `siona.boards.ENGLISH`.
 - `siona.bridge` — the de Bruijn fiber walk + full-body recall (walk/recall/route/two_mode_recall);
   symbol-agnostic (integer ids); pure-Python, exact.
 - `siona.infer` — the grounded inference loop (research findings F1008–F1012):
