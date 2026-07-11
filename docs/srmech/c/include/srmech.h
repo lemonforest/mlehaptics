@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc212"
-#define SRMECH_VERSION       "0.9.0rc212"
+#define SRMECH_VERSION_PRE   "rc213"
+#define SRMECH_VERSION       "0.9.0rc213"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -9556,6 +9556,56 @@ const srmech_carrier_entry_t *srmech_carrier_registry_find(const char *name);
  * returns SRMECH_ERR_NULL_ARG. */
 srmech_status_t srmech_carrier_schema(char *buf, size_t buf_len,
                                       size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * qm CONSTANT-matrix builders (0.9.0rc213, #755)
+ *
+ * The base qm constant matrices were Python LITERALS with no C source —
+ * classified `composition_of_c`, yet a bare-C host could not produce the
+ * constant DATA (a real python-free gap). These builders EMIT the
+ * canonical constant data BYTE-IDENTICAL to the (rc212-canonicalized)
+ * Python constants: every mathematically-zero slot is +0.0 (the Python
+ * literals' -0.0 slots from `-1j` / `-1.0 · Mat` were canonicalized in
+ * the same rc), integer entries are exact, and the two irrational
+ * values (the λ⁸ 1/√3 normaliser; the SU(3) f^{458} = f^{678} = √3/2)
+ * route through srmech's own libm-free srmech_rational_sqrt so the
+ * double projection matches Python's float(rational.sqrt(3.0)) path
+ * bit-for-bit.
+ *
+ * Layout: complex matrices are row-major interleaved (re,im) doubles
+ * (the Mat carrier layout); the Minkowski metric is row-major REAL
+ * doubles; structure constants are flat rank-3 row-major f[a][b][c].
+ *
+ * Errors: SRMECH_ERR_NULL_ARG (out NULL); SRMECH_ERR_BAD_INPUT
+ * (selector out of range).
+ *
+ * ABI-additive: new symbols, no callback typedef — SRMECH_ABI_VERSION
+ * stays 4. See srmech_qm_constants.c; parity attested by
+ * tests/test_qm_constants_c_rc212.py.
+ * ------------------------------------------------------------------ */
+
+/* Pauli 2×2: which = 0 (σ_x), 1 (σ_y), 2 (σ_z), 3 (I₂). out = 8 doubles. */
+srmech_status_t srmech_qm_pauli(int32_t which, double *out);
+
+/* Dirac γ^mu 4×4 (Dirac/standard basis, Peskin-Schroeder eq 3.25):
+ * mu in 0..3. out = 32 doubles. */
+srmech_status_t srmech_qm_dirac_gamma(int32_t mu, double *out);
+
+/* Mostly-minus Minkowski metric η = diag(+1,-1,-1,-1). out = 16 REAL
+ * doubles (row-major, no interleaving — the real-Mat layout). */
+srmech_status_t srmech_qm_minkowski_metric(double *out);
+
+/* Gell-Mann λ^a 3×3 (Gell-Mann 1962 eq 16): a in 1..8. out = 18 doubles.
+ * λ⁸ carries the 1/√3 normaliser via srmech_rational_sqrt. */
+srmech_status_t srmech_qm_gell_mann(int32_t a, double *out);
+
+/* SU(2) structure constants ε^{abc}. out = 27 doubles (f[a][b][c]). */
+srmech_status_t srmech_qm_su2_structure(double *out);
+
+/* SU(3) structure constants f^{abc} (Peskin-Schroeder eq 17.34), filled
+ * by total antisymmetry; f^{458} = f^{678} = √3/2 via
+ * srmech_rational_sqrt. out = 512 doubles (f[a][b][c]). */
+srmech_status_t srmech_qm_su3_structure(double *out);
 
 #ifdef __cplusplus
 }

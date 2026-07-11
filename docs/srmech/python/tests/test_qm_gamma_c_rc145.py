@@ -18,6 +18,14 @@ standalone-ready ``composition_of_c`` data; re-emitting them in C would only hav
 to reproduce the Python literals' ``-0.0`` slots, a byte-identity hazard with no
 standalone gain).
 
+**rc212 note (#755):** the "no new C symbol for the constants" decision above
+was SUPERSEDED — the ``-0.0`` slots were canonicalized to ``+0.0`` (true zeros,
+never signed zeros the math depends on) and the base constants now DISPATCH to
+the standalone-C emitters ``srmech_qm_pauli`` / ``srmech_qm_dirac_gamma`` (→
+``c_dispatched``), closing the bare-C-host data gap the old rationale left
+open. The 6 DERIVED ops pinned here are unchanged (still ``composition_of_c``);
+see tests/test_qm_constants_c_rc212.py.
+
 This test proves, for every op, that the native path (matmul + scale + add/sub in
 C) equals the FORCED-pure path bit-for-bit, and cross-checks each against an
 INDEPENDENT exact oracle (the Dirac-basis constants) — including the exact-zero

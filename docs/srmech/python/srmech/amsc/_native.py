@@ -1034,6 +1034,55 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_carrier_schema.restype = ctypes.c_int
 
+    # rc212 (task #755): the qm CONSTANT-matrix builders — the base γ / Pauli /
+    # Minkowski / Gell-Mann / structure-constant LITERALS were Python-only
+    # data with no C source (a python-free gap despite the composition_of_c
+    # tag); these emit the canonical constant data BYTE-IDENTICAL to the
+    # rc212-canonicalized Python literals (every true-zero slot +0.0; the λ⁸
+    # 1/√3 + the SU(3) f^{458}=f^{678}=√3/2 via the libm-free
+    # srmech_rational_sqrt). NEW symbols, each hasattr-guarded (additive —
+    # ABI stays 4); the pure-Python canonical literals remain the complete,
+    # byte-identical alternative.
+    #   srmech_status_t srmech_qm_pauli(int32_t which, double *out)     (8 dbl)
+    if hasattr(lib, "srmech_qm_pauli"):
+        lib.srmech_qm_pauli.argtypes = [
+            ctypes.c_int32,                     # which (0 σx, 1 σy, 2 σz, 3 I₂)
+            ctypes.POINTER(ctypes.c_double),    # out (2×2 interleaved re,im)
+        ]
+        lib.srmech_qm_pauli.restype = ctypes.c_int
+    #   srmech_status_t srmech_qm_dirac_gamma(int32_t mu, double *out)  (32 dbl)
+    if hasattr(lib, "srmech_qm_dirac_gamma"):
+        lib.srmech_qm_dirac_gamma.argtypes = [
+            ctypes.c_int32,                     # mu (0..3, Dirac basis)
+            ctypes.POINTER(ctypes.c_double),    # out (4×4 interleaved re,im)
+        ]
+        lib.srmech_qm_dirac_gamma.restype = ctypes.c_int
+    #   srmech_status_t srmech_qm_minkowski_metric(double *out)         (16 dbl)
+    if hasattr(lib, "srmech_qm_minkowski_metric"):
+        lib.srmech_qm_minkowski_metric.argtypes = [
+            ctypes.POINTER(ctypes.c_double),    # out (4×4 row-major REAL)
+        ]
+        lib.srmech_qm_minkowski_metric.restype = ctypes.c_int
+    #   srmech_status_t srmech_qm_gell_mann(int32_t a, double *out)     (18 dbl)
+    if hasattr(lib, "srmech_qm_gell_mann"):
+        lib.srmech_qm_gell_mann.argtypes = [
+            ctypes.c_int32,                     # a (1..8)
+            ctypes.POINTER(ctypes.c_double),    # out (3×3 interleaved re,im)
+        ]
+        lib.srmech_qm_gell_mann.restype = ctypes.c_int
+    #   srmech_status_t srmech_qm_su2_structure(double *out)            (27 dbl)
+    if hasattr(lib, "srmech_qm_su2_structure"):
+        lib.srmech_qm_su2_structure.argtypes = [
+            ctypes.POINTER(ctypes.c_double),    # out (flat rank-3 f[a][b][c])
+        ]
+        lib.srmech_qm_su2_structure.restype = ctypes.c_int
+    #   srmech_status_t srmech_qm_su3_structure(double *out)           (512 dbl)
+    if hasattr(lib, "srmech_qm_su3_structure"):
+        lib.srmech_qm_su3_structure.argtypes = [
+            ctypes.POINTER(ctypes.c_double),    # out (flat rank-3 f[a][b][c])
+        ]
+        lib.srmech_qm_su3_structure.restype = ctypes.c_int
+
     # rc136 (siona gh#1274): the EPH complex-time Wick-rotation propagator
     # harvest = e^{-zL}·u0 — a Class-L composite over
     # srmech_hermitian_eigendecompose_ws + srmech_exp + srmech_cos +

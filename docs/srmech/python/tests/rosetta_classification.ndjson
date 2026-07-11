@@ -160,10 +160,10 @@
 {"exposed_as": "srmech.amsc.rational.tan", "defined_at": "srmech.amsc.rational.tan", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.gauge.gauge_connection_matrix", "defined_at": "srmech.qm.gauge.gauge_connection_matrix", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.gauge.su2_generators", "defined_at": "srmech.qm.gauge.su2_generators", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.gauge.su2_structure_constants", "defined_at": "srmech.qm.gauge.su2_structure_constants", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.gauge.su3_gell_mann_matrices", "defined_at": "srmech.qm.gauge.su3_gell_mann_matrices", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.gauge.su2_structure_constants", "defined_at": "srmech.qm.gauge.su2_structure_constants", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.qm.gauge.su3_gell_mann_matrices", "defined_at": "srmech.qm.gauge.su3_gell_mann_matrices", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.gauge.su3_generators", "defined_at": "srmech.qm.gauge.su3_generators", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.gauge.su3_structure_constants", "defined_at": "srmech.qm.gauge.su3_structure_constants", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.gauge.su3_structure_constants", "defined_at": "srmech.qm.gauge.su3_structure_constants", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.hurwitz.hurwitz_planes", "defined_at": "srmech.qm.hurwitz.hurwitz_planes", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_conjugate", "defined_at": "srmech.qm.octonion.octonion_conjugate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.octonion.octonion_left_mult", "defined_at": "srmech.qm.octonion.octonion_left_mult", "bucket": "composition_of_c"}
@@ -183,9 +183,9 @@
 {"exposed_as": "srmech.qm.pseudo_hermitian.inner_product_eta", "defined_at": "srmech.qm.pseudo_hermitian.inner_product_eta", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.relativistic.dirac_operator_momentum_space", "defined_at": "srmech.qm.relativistic.dirac_operator_momentum_space", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.relativistic.four_momentum_squared", "defined_at": "srmech.qm.relativistic.four_momentum_squared", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.relativistic.gamma_matrices", "defined_at": "srmech.qm.relativistic.gamma_matrices", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.relativistic.gamma_matrices", "defined_at": "srmech.qm.relativistic.gamma_matrices", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.relativistic.klein_gordon_dispersion", "defined_at": "srmech.qm.relativistic.klein_gordon_dispersion", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.relativistic.minkowski_metric", "defined_at": "srmech.qm.relativistic.minkowski_metric", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.relativistic.minkowski_metric", "defined_at": "srmech.qm.relativistic.minkowski_metric", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.single_particle.density_matrix", "defined_at": "srmech.qm.single_particle.density_matrix", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.single_particle.lattice_momentum", "defined_at": "srmech.qm.single_particle.lattice_momentum", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.single_particle.tdse_evolve", "defined_at": "srmech.qm.single_particle.tdse_evolve", "bucket": "composition_of_c"}
@@ -199,8 +199,8 @@
 {"exposed_as": "srmech.qm.sm.weak_mixing_angle", "defined_at": "srmech.qm.sm.weak_mixing_angle", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.sm.weinberg_relation_residual", "defined_at": "srmech.qm.sm.weinberg_relation_residual", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.sm.z_boson_mass", "defined_at": "srmech.qm.sm.z_boson_mass", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.spin.pauli_identity", "defined_at": "srmech.qm.spin.pauli_identity", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.qm.spin.pauli_matrices", "defined_at": "srmech.qm.spin.pauli_matrices", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.spin.pauli_identity", "defined_at": "srmech.qm.spin.pauli_identity", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.qm.spin.pauli_matrices", "defined_at": "srmech.qm.spin.pauli_matrices", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.spin.pauli_spin_operator", "defined_at": "srmech.qm.spin.pauli_spin_operator", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.triality_apply", "defined_at": "srmech.qm.triality.triality_apply", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.triality_cycle", "defined_at": "srmech.qm.triality.triality_cycle", "bucket": "composition_of_c"}
