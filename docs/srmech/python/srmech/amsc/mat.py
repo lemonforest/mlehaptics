@@ -47,7 +47,14 @@ class Mat:
     C99 ``double _Complex`` order).
     """
 
-    __slots__ = ("_buf", "n_rows", "n_cols", "_complex")
+    # ``_srmech_desc_hash_memo`` (rc219; gh #827): the lazily-attached
+    # per-carrier memo dict ``srmech.spectral._descriptor_hash`` keys its
+    # substrate-descriptor hex on (carrier identity × encoder_tag) — the
+    # profiled O(n²) per-state descriptor re-hash collapse. Never touched by
+    # the carrier itself; shares the documented ``buffer`` caveat (an in-place
+    # buffer mutation invalidates no cache — pass a fresh ``Mat``).
+    __slots__ = ("_buf", "n_rows", "n_cols", "_complex",
+                 "_srmech_desc_hash_memo")
 
     def __init__(
         self, buf: "array", n_rows: int, n_cols: int, *, is_complex: bool = False

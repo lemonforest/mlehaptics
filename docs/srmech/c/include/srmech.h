@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc218"
-#define SRMECH_VERSION       "0.9.0rc218"
+#define SRMECH_VERSION_PRE   "rc219"
+#define SRMECH_VERSION       "0.9.0rc219"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -9838,6 +9838,106 @@ srmech_status_t srmech_text_cooccurrence_topk_extract(
     uint32_t *topk_nbr, uint64_t *topk_w, uint32_t *topk_len,
     uint64_t *edge_recs, size_t edge_cap_recs, size_t *out_n_edges,
     uint64_t *node_scr, size_t node_scr_cap_recs);
+
+/* ------------------------------------------------------------------ *
+ * rc219 (gh #827): the encode-pipeline's other half — batched C peers.
+ *
+ * srmech_rbs_lm_* mirrors the `srmech.rbs_lm.substrate` Klein-4 encode
+ * kernels (srmech_rbs_lm.c): the per-token word encode and the WHOLE
+ * last-k-token context-window encode in ONE call (profile: ~90%+ of the
+ * measured 127 ms/window at D=4096, k=16 was Python per-token
+ * orchestration + k FFI hops around a few ms of C work). EXACT
+ * byte-identical parity — every leaf is integer/byte (sha256 seeds,
+ * the CPython-replicating MT19937 mint, XOR bind, strict majority
+ * bundle).
+ *
+ * srmech_spectral_* mirrors the per-state half of `srmech.spectral`
+ * decompose/recompose over the CACHED eigenbasis
+ * (srmech_spectral_codec.c): marshal + matvec + complex128 pack + sha
+ * in one crossing, through the SAME srmech_dense_matmul_complex kernel
+ * the carrier route uses. NUMERIC float-eig-derived parity: same-machine
+ * byte-identity by construction; cross-platform/arm within-tol only
+ * (the rc218 macOS lesson — never a hardcoded cross-platform SHA).
+ *
+ * All workspaces are caller arenas (JPL Rule 3). ABI-additive: new
+ * symbols, no callback typedef — SRMECH_ABI_VERSION stays 4.
+ * Parity attested by tests/test_rbs_lm_encode_context_rc219.py +
+ * tests/test_spectral_c_peer_rc219.py.
+ * ------------------------------------------------------------------ */
+
+/* One token → its Klein-4 word vector, byte-identical to
+ * substrate.encode_word_byteglyph (enc_mode 0) / encode_word_k4 (enc_mode 1):
+ *   byteglyph — klein4_encode_bytes over the token's UTF-8 bytes (an empty
+ *               token routes to the seed-0 neutral atom), then the sector
+ *               XOR bind;
+ *   wordhash  — klein4_random seeded by token_seed(tok, hex_chars) (the
+ *               sha256 hex prefix as a CPython init_by_array key), then the
+ *               sector XOR bind.
+ * `acc` is a (1 + 2*D) uint32 caller accumulator; `scratch` is 3*D caller
+ * bytes; `out` is D bytes. sector <= 3; enc_mode wordhash needs hex_chars in
+ * 1..64 (byteglyph ignores it). tok may be NULL iff tok_len == 0. */
+srmech_status_t srmech_rbs_lm_encode_word(
+    const uint8_t *tok, size_t tok_len, uint32_t D, uint8_t sector,
+    uint32_t hex_chars, uint32_t enc_mode, uint32_t *acc, uint8_t *scratch,
+    uint8_t *out);
+
+/* The WHOLE last-k-token context window → ONE Klein-4 state, byte-identical
+ * to ContextSubstrate.encode_context: per token p, klein4_bind(pos_key(p),
+ * enc(token_p)) (pos_key = the wordhash atom of "__ctx_pos_{p}__", enc_mode-
+ * independent), majority-bundled with the even-count odd-pad (an even window
+ * — including the empty one — APPENDS the fixed neutral pad
+ * enc("__bundle_pad__"); never drops a real token). Tokens ride as
+ * concatenated UTF-8 `tok_bytes` + n_tokens+1 `tok_off` offsets. `pad` may be
+ * the caller's precomputed D-byte pad vector (the substrate caches it) or
+ * NULL to compute it here.
+ *
+ * mint_cache / mint_flags (BOTH non-NULL or both NULL) are an optional
+ * caller-owned WINDOW-INVARIANT mint cache — the dominant residual cost of
+ * the collapsed call is the MT19937 mints (~85 µs each at D=4096; ~260 per
+ * byteglyph window), and the byte vocab, byteglyph position keys and window
+ * position keys are the same on every call. Layout: (256 + n_bytepos +
+ * n_ctxpos) D-byte rows — [0,256) the byte vocab (seed = byte value),
+ * [256, 256+n_bytepos) the byteglyph position keys (seed 0x10000+i),
+ * [256+n_bytepos, ...) the RAW (pre-sector-bind) window position-key mints —
+ * with one occupancy flag byte per row (mint_flags, zero-initialised by the
+ * caller ONCE; rows fill lazily and persist across calls). A cached mint is
+ * byte-identical to a fresh one by construction; byte positions ≥ n_bytepos /
+ * window positions ≥ n_ctxpos simply mint uncached. The caller must never
+ * mutate the arenas and must pass the SAME pair while D / sector / hex_chars
+ * stay fixed (the Python ContextSubstrate owns one pair per instance, exactly
+ * like its pure-path _poskey dict).
+ *
+ * acc_outer / acc_inner are (1 + 2*D) uint32 caller accumulators; `scratch`
+ * is 4*D caller bytes; `out` is D bytes. */
+srmech_status_t srmech_rbs_lm_encode_context(
+    const uint8_t *tok_bytes, const uint32_t *tok_off, uint32_t n_tokens,
+    uint32_t D, uint8_t sector, uint32_t hex_chars, uint32_t enc_mode,
+    const uint8_t *pad, uint8_t *mint_cache, uint8_t *mint_flags,
+    uint32_t n_bytepos, uint32_t n_ctxpos, uint32_t *acc_outer,
+    uint32_t *acc_inner, uint8_t *scratch, uint8_t *out);
+
+/* coeffs = Vᴴ·state over the CACHED eigenbasis + the complex128 pack + the
+ * Class-A content sha, in one call. `v_interleaved` is the n×n eigenvector
+ * Mat buffer (row-major interleaved (re, im); columns = eigenvectors), read
+ * zero-copy; `state_interleaved` is n interleaved pairs; `scratch_vh` is a
+ * 2*n*n-double caller arena (the Vᴴ staging — exact transpose + imag
+ * sign-flip, then the SAME srmech_dense_matmul_complex kernel the carrier
+ * mat_matvec route dispatches to); `out_coeffs` is 2*n doubles whose raw
+ * bytes ARE the SpectralHandle coefficients_bytes; `out_sha_hex` is 65 bytes
+ * (their lowercase content sha). No aliasing between scratch/out and the
+ * inputs. NUMERIC parity: same-machine byte-identity by construction;
+ * cross-platform within-tol only. */
+srmech_status_t srmech_spectral_decompose(
+    uint32_t n, const double *v_interleaved, const double *state_interleaved,
+    double *scratch_vh, double *out_coeffs, char *out_sha_hex);
+
+/* state = V·coeffs — the inverse projection back to the node domain, through
+ * the same public matmul kernel (n×n · n×1). `coeffs_interleaved` is the
+ * handle's coefficients_bytes viewed as 2*n doubles; `out_state` is 2*n
+ * doubles (must not alias the inputs). */
+srmech_status_t srmech_spectral_recompose(
+    uint32_t n, const double *v_interleaved, const double *coeffs_interleaved,
+    double *out_state);
 
 #ifdef __cplusplus
 }

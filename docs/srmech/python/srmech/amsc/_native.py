@@ -5308,6 +5308,62 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_text_cooccurrence_topk_extract.restype = ctypes.c_int
 
+    # rc219: srmech_rbs_lm_* + srmech_spectral_* — the encode-pipeline's other
+    # half (gh #827). srmech_rbs_lm_encode_word / _encode_context collapse the
+    # per-token / per-window Klein-4 encode loop (sha256 token seeds + MT19937
+    # mint + XOR bind + majority bundle + the even-count odd-pad) into ONE
+    # crossing — EXACT byte-identical to the pure substrate path (all
+    # integer/byte leaves). srmech_spectral_decompose / _recompose collapse the
+    # cached-eigenbasis projection (Vᴴ·state / V·coeffs) + complex128 pack +
+    # content sha into one crossing over the carrier buffer zero-copy —
+    # NUMERIC float-eig parity (same-machine byte-identity via the same
+    # srmech_dense_matmul_complex kernel; cross-platform within-tol only, the
+    # rc218 lesson). Explicit argtypes/restype per the rc201 discipline.
+    if hasattr(lib, "srmech_rbs_lm_encode_word"):
+        lib.srmech_rbs_lm_encode_word.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # tok, tok_len
+            ctypes.c_uint32, ctypes.c_uint8,                   # D, sector
+            ctypes.c_uint32, ctypes.c_uint32,                  # hex_chars, enc_mode
+            ctypes.POINTER(ctypes.c_uint32),                   # acc (1 + 2*D)
+            ctypes.POINTER(ctypes.c_uint8),                    # scratch (3*D)
+            ctypes.POINTER(ctypes.c_uint8),                    # out (D)
+        ]
+        lib.srmech_rbs_lm_encode_word.restype = ctypes.c_int
+    if hasattr(lib, "srmech_rbs_lm_encode_context"):
+        lib.srmech_rbs_lm_encode_context.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),                    # tok_bytes
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_uint32,  # tok_off, n_tokens
+            ctypes.c_uint32, ctypes.c_uint8,                   # D, sector
+            ctypes.c_uint32, ctypes.c_uint32,                  # hex_chars, enc_mode
+            ctypes.POINTER(ctypes.c_uint8),                    # pad (D or NULL)
+            ctypes.POINTER(ctypes.c_uint8),                    # mint_cache (or NULL)
+            ctypes.POINTER(ctypes.c_uint8),                    # mint_flags (or NULL)
+            ctypes.c_uint32, ctypes.c_uint32,                  # n_bytepos, n_ctxpos
+            ctypes.POINTER(ctypes.c_uint32),                   # acc_outer (1 + 2*D)
+            ctypes.POINTER(ctypes.c_uint32),                   # acc_inner (1 + 2*D)
+            ctypes.POINTER(ctypes.c_uint8),                    # scratch (4*D)
+            ctypes.POINTER(ctypes.c_uint8),                    # out (D)
+        ]
+        lib.srmech_rbs_lm_encode_context.restype = ctypes.c_int
+    if hasattr(lib, "srmech_spectral_decompose"):
+        lib.srmech_spectral_decompose.argtypes = [
+            ctypes.c_uint32,                                   # n
+            ctypes.POINTER(ctypes.c_double),                   # v_interleaved (2*n*n)
+            ctypes.POINTER(ctypes.c_double),                   # state_interleaved (2*n)
+            ctypes.POINTER(ctypes.c_double),                   # scratch_vh (2*n*n)
+            ctypes.POINTER(ctypes.c_double),                   # out_coeffs (2*n)
+            ctypes.c_char_p,                                   # out_sha_hex (65)
+        ]
+        lib.srmech_spectral_decompose.restype = ctypes.c_int
+    if hasattr(lib, "srmech_spectral_recompose"):
+        lib.srmech_spectral_recompose.argtypes = [
+            ctypes.c_uint32,                                   # n
+            ctypes.POINTER(ctypes.c_double),                   # v_interleaved (2*n*n)
+            ctypes.POINTER(ctypes.c_double),                   # coeffs_interleaved (2*n)
+            ctypes.POINTER(ctypes.c_double),                   # out_state (2*n)
+        ]
+        lib.srmech_spectral_recompose.restype = ctypes.c_int
+
     # rc68: srmech_elliptic_recurrence_8w7 — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for
     # the Frenkel–Turaev ₈ω₇ summation. The C peer of
     # srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7. The term-ratio rides as the
@@ -14337,6 +14393,52 @@ def has_native_text_cooccurrence_topk() -> bool:
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_text_cooccurrence_topk")
                 and hasattr(LIB, "srmech_text_cooccurrence_topk_extract"))
+
+
+def has_native_rbs_lm_encode_word() -> bool:
+    """True iff the rc219 srmech_rbs_lm_encode_word C peer is loaded + bound:
+    one token → its Klein-4 word vector (byteglyph / wordhash + sector bind)
+    in one C crossing. False on a no-C or pre-rc219 lib — the pure-Python
+    :func:`srmech.rbs_lm.substrate.encode_word_byteglyph` /
+    :func:`~srmech.rbs_lm.substrate.encode_word_k4` bodies are the complete
+    alternative (and the byte-identical parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_rbs_lm_encode_word"))
+
+
+def has_native_rbs_lm_encode_context() -> bool:
+    """True iff the rc219 srmech_rbs_lm_encode_context C peer is loaded +
+    bound: the WHOLE last-k-token context-window encode (per-token encode +
+    positional role-filler bind + odd-padded majority bundle) runs in ONE C
+    crossing — the per-window latency that compounds to the multi-day enwiki
+    encode estimate. False on a no-C or pre-rc219 lib — the pure-Python
+    :meth:`srmech.rbs_lm.ContextSubstrate.encode_context` body is the
+    complete alternative (and the byte-identical parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_rbs_lm_encode_context"))
+
+
+def has_native_spectral_decompose() -> bool:
+    """True iff the rc219 srmech_spectral_decompose C peer is loaded + bound:
+    the cached-eigenbasis projection Vᴴ·state + complex128 pack + content sha
+    run in one C crossing over the carrier buffer zero-copy. False on a no-C
+    or pre-rc219 lib — the mat_matvec composition in
+    :func:`srmech.spectral.decompose` is the complete alternative. NUMERIC
+    float-eig parity (same-machine byte-identity; cross-platform within-tol
+    only — the rc218 lesson)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_spectral_decompose"))
+
+
+def has_native_spectral_recompose() -> bool:
+    """True iff the rc219 srmech_spectral_recompose C peer is loaded + bound:
+    the inverse projection V·coeffs runs in one C crossing over the carrier
+    buffer zero-copy. False on a no-C or pre-rc219 lib — the mat_matvec
+    composition in :func:`srmech.spectral.recompose` is the complete
+    alternative. NUMERIC float-eig parity (same-machine byte-identity;
+    cross-platform within-tol only)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_spectral_recompose"))
 
 
 def has_native_klein4_fold() -> bool:
