@@ -5151,6 +5151,69 @@ def _register_primitive_class_tools() -> None:
                       "Raises ValueError if N < 1 or n < 1"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The SYMBOLIC Cₙ VWP MULTISUM LHS builder — the LEFT-hand side of
+        # the Cₙ elliptic Jackson summation as an exact ThetaSum (the rc96
+        # test oracle → rc101 symbolic-verify engine promoted public,
+        # rc216). The other side of the Thm 2.1 identity from
+        # multivariate_elliptic_jackson (the RHS reducer): LHS − RHS
+        # |> is_zero IS the rc101 per-call proof. 1:1 C peer
+        # srmech_cn_vwp_multisum_lhs (the rc95 multi-term wire form).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs",
+            owner="srmech", category="elliptic_jackson",
+            summary="The SYMBOLIC Cₙ VERY-WELL-POISED (VWP) elliptic multisum LHS "
+                    "builder — the LEFT-hand side of the Cₙ elliptic Jackson summation "
+                    "(Hjalmar Rosengren, 'A proof of a multivariable elliptic summation "
+                    "formula conjectured by Warnaar', arXiv:math/0101073v1 [math.CA] "
+                    "(9 Jan 2001), Theorem 2.1, Eq. 5) built SYMBOLICALLY as an exact "
+                    "ThetaSum over the modified-theta algebra. For the parameters "
+                    "a, b, c, d and the base variables x, q it constructs the n-fold Cₙ "
+                    "VWP sum over the partitions Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}: per "
+                    "partition, the diagonal θ(a·x^{2(1-i)}q^{2λᵢ})/θ(a·x^{2(1-i)}) "
+                    "quotients with the monomial prefactor ∏ᵢ q^{λᵢ}x^{2(i-1)λᵢ}, the "
+                    "off-diagonal (i<j) root-system coupling quartet, and the six num / "
+                    "six den vector theta-Pochhammer bases (a·x^{1-n}, b, c, d, e, "
+                    "q^{-N}; q, x)_λ / (q·x^{n-1}, aq/b, aq/c, aq/d, aq/e, a·q^{N+1}; "
+                    "q, x)_λ, with e fixed by the balancing bcde·x^{n-1} = a²q^{N+1}. "
+                    "Each summand is an EllRatio; the returned ThetaSum is their exact "
+                    "carrier sum (C(N+n, n) terms). This is the rc96 test-oracle / "
+                    "rc101 symbolic-verify LHS builder (_cn_lhs_thetasum) promoted to a "
+                    "first-class public op: by Thm 2.1 it EQUALS the closed form "
+                    "multivariate_elliptic_jackson constructs, so (LHS − RHS).is_zero "
+                    "is the rc101 per-call proof with both sides now first-class. 1:1 C "
+                    "peer srmech_cn_vwp_multisum_lhs builds the SAME per-partition "
+                    "EllRatio terms over the shared srmech_ellbase_* monomial algebra + "
+                    "er_build in the same lexicographic partition order (byte-exact to "
+                    "the Python carrier; the native ThetaSum is trusted only after it "
+                    "== the pure ThetaSum, which is the complete alternative + the "
+                    "parity oracle). Exact over the modified-theta algebra (no float), "
+                    "no abs() (Class-K sign), no numpy / math.",
+            parameters=(
+                P("a", "EllMonomial", True,
+                  "the parameter a of the balanced Cₙ elliptic Jackson summation (an "
+                  "EllMonomial over the exact-ℚ argument-lattice)"),
+                P("b", "EllMonomial", True, "the parameter b (an EllMonomial)"),
+                P("c", "EllMonomial", True, "the parameter c (an EllMonomial)"),
+                P("d", "EllMonomial", True, "the parameter d (an EllMonomial)"),
+                P("x", "EllMonomial", True,
+                  "the base variable x of the vector elliptic Pochhammer (an "
+                  "EllMonomial)"),
+                P("q", "EllMonomial", True,
+                  "the base q of the vector elliptic Pochhammer (an EllMonomial)"),
+                P("N", "int", True,
+                  "the partition ceiling N (a positive int; N ≥ λ₁ ≥ … ≥ λₙ ≥ 0)"),
+                P("n", "int", True,
+                  "the rank / number of variables n (a positive int)"),
+            ),
+            returns=R("ThetaSum",
+                      "the exact n-fold Cₙ VWP elliptic sum over the partitions Λ_{nN} "
+                      "as a ThetaSum of C(N+n, n) theta-quotient terms (the Rosengren "
+                      "Thm 2.1 Eq 5 LEFT-hand side; equal, by the theorem, to the "
+                      "multivariate_elliptic_jackson closed form). Raises ValueError "
+                      "if N < 1 or n < 1"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

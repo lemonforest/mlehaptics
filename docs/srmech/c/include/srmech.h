@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc215"
-#define SRMECH_VERSION       "0.9.0rc215"
+#define SRMECH_VERSION_PRE   "rc216"
+#define SRMECH_VERSION       "0.9.0rc216"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -8153,6 +8153,95 @@ srmech_status_t srmech_multivariate_elliptic_jackson(size_t n_syms, int psym, si
                                                      size_t out_exps_cap_rows,
                                                      size_t *out_n_num, size_t *out_n_den,
                                                      void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_cn_vwp_multisum_lhs — the C peer of the ThetaSum-returning op
+ * srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs (rc216), the SYMBOLIC Cn
+ * very-well-poised (VWP) elliptic multisum LHS builder: the exact per-partition
+ * theta-quotient TERMS of the LEFT-hand side of the Cn elliptic Jackson
+ * summation (Hjalmar Rosengren, "A proof of a multivariable elliptic summation
+ * formula conjectured by Warnaar", arXiv:math/0101073v1 [math.CA] (9 Jan 2001),
+ * Theorem 2.1, Eq. 5), over the partitions
+ * Lambda_{nN} = {N >= lambda_1 >= ... >= lambda_n >= 0} with the balancing
+ * b*c*d*e*x^{n-1} = a^2*q^{N+1} (e fixed by construction). A C-MIRROR PARITY
+ * build (NOT a new algorithm): it constructs the EXACT per-partition EllRatio
+ * TERMS the pure-Python builder (the rc96 test oracle -> rc101 symbolic verify
+ * engine, promoted public at rc216) builds, byte-for-byte; the Python side SUMS
+ * them into the ThetaSum (there is NO ThetaSum-CONSTRUCTION C surface, so the
+ * peer returns the terms as a row stream, exactly like
+ * srmech_elliptic_partial_fraction).
+ *
+ * Each partition's summand is one EllRatio: the monomial prefactor
+ * PROD_i q^{li} x^{2(i-1)li}, the diagonal num/den theta args
+ * E(a x^{2(1-i)} q^{2li}) / E(a x^{2(1-i)}), the off-diagonal (i<j) coupling
+ * E(x^{j-i} q^{li-lj})/E(x^{j-i}) * E(a x^{2-i-j} q^{li+lj})/E(a x^{2-i-j})
+ * * (a x^{3-i-j};q)_{li+lj} (x^{j-i+1};q)_{li-lj}
+ *   / ((aq x^{1-i-j};q)_{li+lj} (q x^{j-i-1};q)_{li-lj}),
+ * and the six num / six den VECTOR theta-Pochhammer bases
+ * (a x^{1-n}, b, c, d, e, q^{-N}; q, x)_lambda /
+ * (q x^{n-1}, aq/b, aq/c, aq/d, aq/e, a q^{N+1}; q, x)_lambda. er_build folds
+ * each theta's canonicalize prefactor, cancels matching thetas, sorts the
+ * survivors. Pure composition of the shared srmech_ellbase_* monomial algebra
+ * + er_build.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms`; `psym` the interned
+ * index of the nome p (-1 if absent); the positive ints `N` (partition ceiling)
+ * + `n` (rank) + `n_terms` (the partition count C(N+n, n), computed by the
+ * caller); each of the 6 parameter monomials a/b/c/d/x/q as a (num, den)
+ * srmech_bigint pair + its flat int32[n_syms] exponent row. `coeff_cap` is the
+ * per-bigint limb cap.
+ *
+ * Output: the n_terms TERM EllRatios written out flat in the LEXICOGRAPHIC
+ * partition order (all-zeros first; the exact order the Python oracle's
+ * filtered itertools.product enumerates) -- per term t, `out_n_num[t]` /
+ * `out_n_den[t]` the survivor theta counts, and the canonical rows appended
+ * (per term: its prefactor row, then its num rows, then its den rows; each row
+ * carries its exact-Q coeff AND its dense int32[n_syms] exponent row).
+ * `out_exps_cap_rows` is the row capacity; too small -> SRMECH_ERR_OVERFLOW.
+ * N == 0, n == 0 or n_terms == 0 -> SRMECH_ERR_NULL_ARG (Python raises
+ * ValueError); a wrong n_terms (not C(N+n, n)) -> SRMECH_ERR_BAD_INPUT; a
+ * required NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena ->
+ * SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (N, n, n_syms) -- no
+ * compiled-in cap. Additive symbol -> ABI unchanged (stays 4). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_cn_vwp_multisum_lhs needs for the given shape
+ * (n_syms symbols, N the partition ceiling, n the rank, coeff_limbs the
+ * per-coefficient significant-limb estimate). */
+size_t srmech_cn_vwp_multisum_lhs_ws_bound(size_t n_syms, size_t N, size_t n,
+                                           size_t coeff_limbs);
+
+/* Build the n_terms per-partition Cn VWP multisum LHS TERM EllRatios (see
+ * above); the Python side sums them into the returned ThetaSum. */
+srmech_status_t srmech_cn_vwp_multisum_lhs(size_t n_syms, int psym, size_t N,
+                                           size_t n, size_t n_terms,
+                                           const srmech_bigint_t *a_num,
+                                           const srmech_bigint_t *a_den,
+                                           const int32_t *a_exps,
+                                           const srmech_bigint_t *b_num,
+                                           const srmech_bigint_t *b_den,
+                                           const int32_t *b_exps,
+                                           const srmech_bigint_t *c_num,
+                                           const srmech_bigint_t *c_den,
+                                           const int32_t *c_exps,
+                                           const srmech_bigint_t *d_num,
+                                           const srmech_bigint_t *d_den,
+                                           const int32_t *d_exps,
+                                           const srmech_bigint_t *x_num,
+                                           const srmech_bigint_t *x_den,
+                                           const int32_t *x_exps,
+                                           const srmech_bigint_t *q_num,
+                                           const srmech_bigint_t *q_den,
+                                           const int32_t *q_exps,
+                                           uint32_t coeff_cap,
+                                           srmech_bigint_t *out_coeff_num,
+                                           srmech_bigint_t *out_coeff_den,
+                                           int32_t *out_exps_flat,
+                                           size_t out_exps_cap_rows,
+                                           size_t *out_n_num, size_t *out_n_den,
+                                           void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
