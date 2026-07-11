@@ -2853,3 +2853,18 @@ structurally-central bodies of a catalog, the F1168 planetary demo). Optional co
 edges, weights) → {spine, communities, coherence}` convenience bundle (sugar over signed_laplacian +
 symmetric_eigendecompose + fiedler/three_fold + spine). **Stays consumer-side (do NOT upstream):** the
 feature-encoding (dataset→graph), the sign-assignment convention (what earns a −edge), and the render. See F1169.
+
+## §93 (2026-07-11) — `srmech.amsc.text` is Python-only (no C peer) — breaks full-1:1 C-parity for the streaming Class-L precursor [FILED → #1360]
+
+**Ask:** add C peers for the three `srmech.amsc.text` ops — `tokenize`, `cooccurrence_edges`, `cooccurrence_topk`
+(the rc50 §40 "Class-L precursor"). Surfaced by the full-enwiki comprehended encode: its per-article hot-path is
+`text.tokenize` + `text.cooccurrence_edges` (windowed tokens→sparse-edges), which feeds `dense_laplacian`. The
+platform wheel's `libsrmech.so` loads + dispatches (`has_native:True`, ABI 4), but **can't bite on this step** —
+these three ops are pure-Python with no C symbol. **Attested (srmech 0.9.0rc209):** `nm -D libsrmech.so` = 645
+`srmech_` symbols; `grep -iE 'text|cooc|token|ngram'` → only `srmech_klein4_cooccurrence_fold` (a *different* op —
+the Klein-4 HDC fold, not the sparse tokens→edges accumulator). No `srmech_text_tokenize` /
+`srmech_text_cooccurrence_edges` / `srmech_text_cooccurrence_topk` exist. This violates the **rc128 full-1:1
+C-parity mandate** (a C-only/MCU host should run the plumbing/glue with no Python present — the same rationale that
+put `srmech_json`+`srmech_toml` in C). Additive symbols → no ABI bump. **Secondary:** these rc50 ops seem to have
+entered the Python surface without tripping the **#928 down-only Rosetta C/Python parity ratchet** — confirm whether
+`text` is exempt or slipped, and sweep for other shipped-Python-without-C-peer ops to close the general guarantee.
