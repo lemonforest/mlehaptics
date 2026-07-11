@@ -38,9 +38,11 @@ CHEM = _load("ch", _D + "R-RBS-LM-CHEMKERNEL_ce_reaction_notation_sublanguage_re
 SCORE = _load("sc", _D + "R-RBS-LM-SCOREKERNEL_music_notation_sublanguage_pitch_class_cycle.py")
 IPA = _load("ip", _D + "R-RBS-LM-IPAKERNEL_phonetic_notation_sublanguage_pronunciation_sequence.py")
 CONVERT = _load("cv", _D + "R-RBS-LM-CONVERTKERNEL_quantity_unit_sublanguage_the_mass_count_determinative.py")
+CITE = _load("ci", _D + "R-RBS-LM-CITEKERNEL_citation_sublanguage_attestable_source_graph.py")
 
 _CE_IN_MATH = re.compile(r"\\ce\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}")
 _LANG = re.compile(r"\{\{\s*lang(?:-([a-z][a-z][a-z]?))?\s*\|([^{}]*)\}\}", re.I)      # {{lang|fr|x}} / {{lang-fr|x}}
+_CITE_T = re.compile(r"\{\{\s*(cite [a-z]+|citation|sfn[a-z]*|harv[a-z]*)\s*\|([^{}]*(?:\{\{[^{}]*\}\}[^{}]*)*)\}\}", re.I)
 
 
 def _edges_from(typ, comp):
@@ -53,7 +55,7 @@ def _edges_from(typ, comp):
     elif typ == "chem":
         for ed in comp.get("edges", []):
             e.append((ed[0], "chem:" + ed[1], ed[2]))
-    elif typ in ("convert", "ipa", "score"):
+    elif typ in ("convert", "ipa", "score", "cite"):
         ed = comp.get("edge")
         if ed:
             e.append((ed[0], ed[1], ed[2]))
@@ -105,6 +107,16 @@ def route_article(raw):
             edges.append((inner[:40], "in_language", code))
         return " " + inner + " "                                    # keep the foreign text inline (route to NL kernel later)
     text = _LANG.sub(_lang, text)
+
+    # 3b. CITATIONS: {{cite …}}/{{citation}}/{{sfn}}/{{harvnb}} (inside <ref> or standalone) -> attestable source record.
+    text = _CITE_T.sub(lambda m: _emit("cite", CITE.understand_citation(m.group(2), m.group(1))), text)
+    def _ref(m):                                                    # <ref>…</ref>: unwrap; a bare-text ref -> cite kernel
+        body = m.group(1) or ""
+        if "⟦cite" in body or not body.strip():               # a cite template already placeholdered inside
+            return " " + body + " "
+        return _emit("cite", CITE.understand_citation(body, "ref"))
+    text = re.sub(r"<ref\b[^>]*>(.*?)</ref>", _ref, text, flags=re.S | re.I)
+    text = re.sub(r"<ref\b[^>]*/\s*>", " ", text)                   # self-closing named refs <ref name=x/>
 
     # 4. the wikitext OUTER grammar: links -> curated edges, prose; residual gaps = what STILL has no kernel (F819)
     gaps = {}
