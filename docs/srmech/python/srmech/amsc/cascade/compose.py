@@ -91,11 +91,16 @@ def _try_native_best_rational_signed(x, max_denominator, fine_scale):
     (int, numpy scalar, Decimal, ...) stay on the Python path so the
     public API behaviour is preserved exactly.
 
-    Banker's-rounding parity: the C peer uses ``llrint()`` under the
-    default IEEE-754 ``FE_TONEAREST`` mode (round-half-to-even), which
-    matches Python's built-in ``round()`` at the ``.5`` boundary
-    bit-exactly. C99 ``round()`` would diverge (round-half-AWAY-from-
-    zero); the cascade wrapper deliberately avoids C99 ``round()``.
+    Banker's-rounding parity: the C peer uses a libm-free round-half-
+    to-even branch (v0.9.0rc210; formerly ``llrint()`` under the
+    default IEEE-754 ``FE_TONEAREST`` mode — byte-identical on the fed
+    range), which matches Python's built-in ``round()`` at the ``.5``
+    boundary bit-exactly. C99 ``round()`` would diverge (round-half-
+    AWAY-from-zero); the cascade wrapper deliberately avoids it.
+    Products ``>= 2**63`` overflow the int64 ABI: the C peer returns a
+    non-OK status and this dispatch falls through to the Python
+    reference path below (exact up to uint64 numerators; ValueError
+    beyond, same as the pure-Python surface).
     """
     if not (_native.HAS_NATIVE and _native.LIB is not None):
         return None
@@ -155,10 +160,11 @@ def best_rational_signed(
     handles numpy scalars, Decimal, larger-than-int64 kwargs, and any
     other shape the strict native ABI doesn't cover.
 
-    Banker's-rounding parity: the C peer uses ``llrint()`` under the
-    default IEEE-754 ``FE_TONEAREST`` mode (round-half-to-even), so the
-    ``round(magnitude * fine_scale)`` step matches Python's built-in
-    ``round()`` at the ``.5`` boundary bit-exactly.
+    Banker's-rounding parity: the C peer uses a libm-free round-half-
+    to-even branch (v0.9.0rc210; formerly ``llrint()`` under the
+    default IEEE-754 ``FE_TONEAREST`` mode — byte-identical on the fed
+    range), so the ``round(magnitude * fine_scale)`` step matches
+    Python's built-in ``round()`` at the ``.5`` boundary bit-exactly.
 
     Args:
         x: A real value (the irrational/float to anchor).

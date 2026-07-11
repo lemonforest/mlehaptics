@@ -2581,9 +2581,11 @@ def _bind(lib: ctypes.CDLL) -> None:
         #     int64_t  *out_num, int64_t *out_den)
         # v0.4.5rc7 — Class K ∘ Class N ∘ Class C; multi-stage cascade
         # delegating the Class N stage to srmech_best_rational with the
-        # Class K + Class C stages inlined. Banker's rounding via
-        # llrint() under default IEEE-754 FE_TONEAREST mode for parity
-        # with Python's built-in round().
+        # Class K + Class C stages inlined. Banker's rounding via a
+        # libm-free round-half-to-even branch (v0.9.0rc210; formerly
+        # llrint() under default IEEE-754 FE_TONEAREST mode — byte-
+        # identical on the fed range) for parity with Python's
+        # built-in round().
         lib.srmech_cascade_best_rational_signed_f64.argtypes = [
             ctypes.c_double,
             ctypes.c_int64,
