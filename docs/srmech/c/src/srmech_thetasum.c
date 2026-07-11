@@ -53,6 +53,7 @@
 
 #include "srmech.h"
 #include "srmech_ellbase_internal.h"
+#include "srmech_thetasum_internal.h"
 
 #include <assert.h>
 #include <stdint.h>
@@ -102,11 +103,10 @@ typedef srmech_ell_ctx_t  ts_ctx_t;
 #define ts_mono_sqrt         srmech_ellbase_mono_sqrt
 #define ts_theta_canon_arg   srmech_ellbase_theta_canon_arg
 
-/* A canonical +/- -pair (alpha, beta): theta(alpha*beta^pm). */
-typedef struct ts_pair {
-    ts_mono_t alpha;
-    ts_mono_t beta;
-} ts_pair_t;
+/* A canonical +/- -pair (alpha, beta): theta(alpha*beta^pm). The struct is the
+ * SHARED srmech_ts_pair_t (srmech_thetasum_internal.h, rc210) so the structural-
+ * certificate peer rides the same pair algebra; the local name is an alias. */
+typedef srmech_ts_pair_t ts_pair_t;
 
 /* The arena bump primitives + per-bigint / per-monomial binds are the SHARED kernels
  * (srmech_ellbase_take_words / align8 / take_exps / bind_bi / bind_q / bind_mono,
@@ -324,13 +324,9 @@ static srmech_status_t ts_canon_pair(ts_ctx_t *c, const ts_mono_t *u,
  *
  * A reduced term = (prefactor monomial, array of canonical +/- -pairs). The whole
  * reduction works over a fixed-capacity arena array of rterms; each rewrite splits
- * one rterm into two, bounded by TS_REDUCE_MAX_PASSES passes. */
-typedef struct ts_rterm {
-    ts_mono_t  pref;
-    ts_pair_t *pairs;     /* arena array, length n_pairs                       */
-    size_t     n_pairs;
-    int        live;      /* 0 once combined away (coeff cancelled / consumed) */
-} ts_rterm_t;
+ * one rterm into two, bounded by TS_REDUCE_MAX_PASSES passes. The struct is the
+ * SHARED srmech_ts_rterm_t (rc210); the local name is an alias. */
+typedef srmech_ts_rterm_t ts_rterm_t;
 
 static srmech_status_t ts_bind_rterm(ts_ctx_t *c, ts_rterm_t *rt,
                                      size_t max_pairs)
@@ -392,21 +388,12 @@ static int ts_pairs_cmp(const ts_ctx_t *c, const ts_pair_t *pa, size_t na,
 }
 
 /* A bundle of reusable scratch monomials + bigints for the pair / rewrite algebra,
- * carved once. `pm` is an array of >= TS_SCR_MONOS monomials; g/t0/t1 bigints. */
-#define TS_SCR_MONOS 16u
-#define TS_REWRITE_MONOS 6u
-#define TS_REWRITE_PAIRS 4u
-typedef struct ts_scr {
-    ts_mono_t  *pm;        /* TS_SCR_MONOS canon_pair / general scratch monos */
-    ts_mono_t  *cm;        /* TS_REWRITE_MONOS rewrite coeff scratch monos    */
-    ts_mono_t  *ca;        /* max_thetas canonical-arg scratch monos          */
-    ts_pair_t  *rp;        /* TS_REWRITE_PAIRS rewrite output pairs           */
-    int        *used_pairs;/* >= max_pairs flags for the multiset compare    */
-    srmech_bigint_t g;
-    srmech_bigint_t t0;
-    srmech_bigint_t t1;
-    int         psym;      /* the interned p index (-1 if absent)            */
-} ts_scr_t;
+ * carved once. The struct is the SHARED srmech_ts_scr_t (rc210); the local names
+ * alias the shared constants. */
+#define TS_SCR_MONOS SRMECH_TS_SCR_MONOS
+#define TS_REWRITE_MONOS SRMECH_TS_REWRITE_MONOS
+#define TS_REWRITE_PAIRS SRMECH_TS_REWRITE_PAIRS
+typedef srmech_ts_scr_t ts_scr_t;
 
 /* ts_bind_mono_arr is the SHARED srmech_ellbase_bind_mono_arr (aliased above). */
 
@@ -431,7 +418,9 @@ static srmech_status_t ts_bind_pair_arr(ts_ctx_t *c, ts_pair_t **out, size_t cou
     return SRMECH_OK;
 }
 
-static srmech_status_t ts_bind_scr(ts_ctx_t *c, ts_scr_t *s, size_t max_thetas)
+/* Bind the shared scratch bundle (EXPORTED rc210 — the certificate peer binds one
+ * per worker arena; srmech_thetasum_internal.h). */
+srmech_status_t srmech_ts_bind_scr(ts_ctx_t *c, ts_scr_t *s, size_t max_thetas)
 {
     size_t max_pairs = (max_thetas / 2u) + 1u;
     uint32_t *raw;
@@ -498,8 +487,9 @@ static srmech_status_t ts_try_pair(ts_ctx_t *c, ts_rterm_t *rt,
  * (the term's `n_thetas` canonical theta ARGUMENT monomials in `targs`) into `rt`
  * (its pref pre-set to the term prefactor; this folds each inversion prefactor in).
  * Sets *ok = 0 when the product is NOT a clean product of +/- -pairs (odd count, no
- * consistent pairing) -> the class is honestly NOT-zero. Mirrors _recover_pairs. */
-static srmech_status_t ts_recover_pairs(ts_ctx_t *c, ts_rterm_t *rt,
+ * consistent pairing) -> the class is honestly NOT-zero. Mirrors _recover_pairs.
+ * EXPORTED rc210 (srmech_thetasum_internal.h) for the certificate peer's Z2. */
+srmech_status_t srmech_ts_recover_pairs(ts_ctx_t *c, ts_rterm_t *rt,
                                         const ts_mono_t *targs, size_t n_thetas,
                                         int xsym, int ysym, int *ok,
                                         ts_scr_t *s, int *used)
@@ -737,16 +727,12 @@ static srmech_status_t ts_build_rewrite(ts_ctx_t *c, const ts_rterm_t *src,
                               &rp[2], &rp[3], s);
 }
 
-/* The double-buffered rterm work arrays + counts for a class reduction. */
-typedef struct ts_work {
-    ts_rterm_t *cur;       /* current live rterms                            */
-    size_t      n_cur;
-    ts_rterm_t *nxt;       /* the rewrite output buffer                      */
-    size_t      n_nxt;
-    size_t      cap;       /* per-buffer rterm slot capacity                 */
-} ts_work_t;
+/* The double-buffered rterm work arrays + counts for a class reduction (the SHARED
+ * srmech_ts_work_t, rc210; local alias). */
+typedef srmech_ts_work_t ts_work_t;
 
-static srmech_status_t ts_bind_rterm_arr(ts_ctx_t *c, ts_rterm_t **out,
+/* EXPORTED rc210 (srmech_thetasum_internal.h) for the certificate peer's Z2. */
+srmech_status_t srmech_ts_bind_rterm_arr(ts_ctx_t *c, ts_rterm_t **out,
                                          size_t count, size_t max_pairs)
 {
     size_t i;
@@ -835,22 +821,25 @@ static srmech_status_t ts_build_rewrite_if(ts_ctx_t *c, const ts_rterm_t *src,
                             xsym, ysym, s);
 }
 
-/* Reduce ONE quasi-periodicity class (its members in `cur[0..n_cur)`, already
- * recovered into +/- -pairs) to canonical Weierstrass normal form: repeatedly apply
- * the strictly-decreasing three-term rewrite on x then y until no change, combining
- * like terms each pass. The class is == 0 IFF the final live count is 0. Sets
- * *is_zero accordingly. Mirrors _reduce_class + _class_is_zero (the reduce-None
- * case -- a non-+/- -pair member -- is handled by the caller before this). */
-static srmech_status_t ts_reduce_class(ts_ctx_t *c, ts_work_t *w, int xsym,
-                                       int ysym, int *is_zero, ts_scr_t *s)
+/* Reduce the recovered members in `cur[0..n_cur)` to canonical Weierstrass normal
+ * form: repeatedly apply the strictly-decreasing three-term rewrite over the ORDERED
+ * symbol list rw_syms[0..n_rw) until no change, combining like terms each pass. The
+ * component is == 0 IFF the final live count is 0. Sets *is_zero accordingly.
+ * Mirrors _reduce_class (rw = {x, y}) AND the rc210 generalized
+ * _pair_reduce_component (rw = the component's live symbols, ascending). xsym/ysym
+ * feed only the canonical pair ORIENTATION inside the rewrites (Python's
+ * _canon_half hardcodes x, y). EXPORTED rc210 (srmech_thetasum_internal.h). */
+srmech_status_t srmech_ts_reduce_syms(ts_ctx_t *c, ts_work_t *w, int xsym,
+                                      int ysym, const int32_t *rw_syms,
+                                      size_t n_rw, int *is_zero, ts_scr_t *s)
 {
     uint32_t pass;
-    int syms2[2];
     size_t i;
-    int which;
+    size_t which;
     srmech_status_t st;
     assert(c != NULL && w != NULL && is_zero != NULL && s != NULL);
     assert(w->cur != NULL && w->n_cur <= w->cap);
+    assert(rw_syms != NULL || n_rw == 0u);
     *is_zero = 0;
     /* initial combine of the recovered members. */
     st = ts_combine_rterms(c, w->cur, w->n_cur, s);
@@ -868,13 +857,11 @@ static srmech_status_t ts_reduce_class(ts_ctx_t *c, ts_work_t *w, int xsym,
         }
         w->n_cur = k;
     }
-    syms2[0] = xsym;
-    syms2[1] = ysym;
     for (pass = 0; pass < TS_REDUCE_MAX_PASSES; pass++) {
         int changed = 0;
-        for (which = 0; which < 2; which++) {
-            if (syms2[which] < 0) { continue; }
-            st = ts_reduce_pass(c, w, syms2[which], xsym, ysym, &changed, s);
+        for (which = 0; which < n_rw; which++) {
+            if (rw_syms[which] < 0) { continue; }
+            st = ts_reduce_pass(c, w, (int)rw_syms[which], xsym, ysym, &changed, s);
             if (st != SRMECH_OK) { return st; }
         }
         if (!changed) { break; }
@@ -947,6 +934,7 @@ static srmech_status_t ts_one_class_is_zero(ts_ctx_t *c, const ts_term_t *terms,
 {
     size_t ti;
     int ok;
+    int32_t rw_syms[2];
     srmech_status_t st;
     assert(c != NULL && terms != NULL && key != NULL && w != NULL);
     assert(class_zero != NULL && s != NULL && used != NULL);
@@ -958,15 +946,17 @@ static srmech_status_t ts_one_class_is_zero(ts_ctx_t *c, const ts_term_t *terms,
         st = ts_mono_copy(c, &w->cur[w->n_cur].pref, &terms[ti].pref);
         if (st != SRMECH_OK) { return st; }
         w->cur[w->n_cur].live = 1;
-        st = ts_recover_pairs(c, &w->cur[w->n_cur], terms[ti].targs,
-                              terms[ti].n_thetas, xsym, ysym, &ok, s, used);
+        st = srmech_ts_recover_pairs(c, &w->cur[w->n_cur], terms[ti].targs,
+                                     terms[ti].n_thetas, xsym, ysym, &ok, s, used);
         if (st != SRMECH_OK) { return st; }
         if (!ok) {
             return SRMECH_OK;        /* not a clean +/- -pair shape -> NOT zero */
         }
         w->n_cur++;
     }
-    return ts_reduce_class(c, w, xsym, ysym, class_zero, s);
+    rw_syms[0] = (int32_t)xsym;
+    rw_syms[1] = (int32_t)ysym;
+    return srmech_ts_reduce_syms(c, w, xsym, ysym, rw_syms, 2u, class_zero, s);
 }
 
 /* The public is_zero orchestration: parse the terms, compute each term's quasi-
@@ -1020,7 +1010,9 @@ static srmech_status_t ts_decide(ts_ctx_t *c, ts_term_t *terms, size_t n_terms,
  * live count, but the strictly-decreasing midpoint multiset bounds the firing depth.
  * A generous arena-sized bound (no compiled-in MATH cap -- it scales with the input
  * term count) that the combine step keeps from actually ballooning. */
-static size_t ts_work_cap(size_t n_terms, size_t max_thetas)
+/* EXPORTED rc210 (srmech_thetasum_internal.h) so the certificate peer sizes its
+ * Z2 work buffers by the same formula. */
+size_t srmech_ts_work_cap(size_t n_terms, size_t max_thetas)
 {
     size_t base = (n_terms == 0u) ? 1u : n_terms;
     size_t pairs = (max_thetas / 2u) + 1u;
@@ -1098,16 +1090,20 @@ static srmech_status_t ts_bind_all(ts_ctx_t *c, ts_term_t **terms,
                                    ts_scr_t *scr, ts_work_t *w, int **used)
 {
     size_t max_thetas = ts_max_thetas(term_nthetas, n_terms);
-    size_t cap_rt = ts_work_cap(n_terms, max_thetas);
+    size_t cap_rt = srmech_ts_work_cap(n_terms, max_thetas);
     size_t max_pairs = (max_thetas / 2u) + 1u;
     uint32_t *u;
     srmech_status_t st;
     assert(c != NULL && terms != NULL && scr != NULL && w != NULL && used != NULL);
     assert(n_terms >= 1u);
     st = ts_bind_terms(c, terms, n_terms, term_nthetas);
-    if (st == SRMECH_OK) { st = ts_bind_scr(c, scr, max_thetas); }
-    if (st == SRMECH_OK) { st = ts_bind_rterm_arr(c, &w->cur, cap_rt, max_pairs); }
-    if (st == SRMECH_OK) { st = ts_bind_rterm_arr(c, &w->nxt, cap_rt, max_pairs); }
+    if (st == SRMECH_OK) { st = srmech_ts_bind_scr(c, scr, max_thetas); }
+    if (st == SRMECH_OK) {
+        st = srmech_ts_bind_rterm_arr(c, &w->cur, cap_rt, max_pairs);
+    }
+    if (st == SRMECH_OK) {
+        st = srmech_ts_bind_rterm_arr(c, &w->nxt, cap_rt, max_pairs);
+    }
     if (st != SRMECH_OK) { return st; }
     u = ts_take_words(c, (max_thetas == 0u) ? 1u : max_thetas);
     if (u == NULL) { return SRMECH_ERR_OVERFLOW; }
@@ -1168,7 +1164,7 @@ size_t srmech_thetasum_ws_bound(size_t n_syms, size_t n_terms, size_t max_thetas
 {
     size_t cap = (coeff_limbs < 4u) ? 4u : coeff_limbs;
     size_t ns = (n_syms == 0u) ? 1u : n_syms;
-    size_t cap_rt = ts_work_cap(n_terms, max_thetas);
+    size_t cap_rt = srmech_ts_work_cap(n_terms, max_thetas);
     size_t pairs = (max_thetas / 2u) + 1u;
     /* Per-monomial words: 2 bigints (2*cap) + an exps row (ns int32). */
     size_t mono_words = 2u * cap + ns + 8u;

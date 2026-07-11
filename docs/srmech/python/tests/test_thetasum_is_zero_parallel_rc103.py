@@ -378,16 +378,20 @@ def _wide_deep_true_case():
     not (_HAS_PAR and _HAS_SEQ and (os.cpu_count() or 1) >= 4),
     reason="parallel speedup demo needs the native peer + >= 4 cores")
 def test_parallel_speedup_wide_deep():
-    """Demonstrate a REAL wall-clock speedup on the synthetic wide+deep case while
-    the verdict stays BYTE-FOR-BYTE the sequential verdict (the whole point: the
-    fan-out is correct AND faster on a genuinely parallel tree). Gated to >= 4 cores
-    so the assertion is not flaky on a 1-2 core CI runner; the verdict-parity is
-    checked unconditionally in the suites above."""
+    """The rc103 wide+deep case: the CARRIER (byte-identical verdict) and CHIRALITY
+    (order-free) contracts are asserted unconditionally — they are the load-bearing
+    guarantees. The WALL-CLOCK comparison is asserted only when the sequential
+    decision is actually heavy enough (>= 0.5 s) for a fan-out to be measurable:
+    the rc210 soundness rebuild deleted the series-band base case whose cost made
+    this synthetic object slow (it now decides in ~milliseconds through the sound
+    certificate recursion, where thread spawn/join overhead dominates any timing),
+    so a strict par<seq assert here would only measure jitter. On a future case
+    heavy enough to clear the floor, the speedup assertion re-arms itself."""
     import time
 
     ts = _wide_deep_true_case()
-    # Capped at 4 for memory frugality: wide_deep's arena at nw=4 (~0.2 GB) DECIDES
-    # within the edge budget, and 4 workers already demonstrate the fan-out speedup.
+    # Capped at 4 for memory frugality: wide_deep's arena at nw=4 DECIDES within
+    # the edge budget, and 4 workers already demonstrate the fan-out.
     nw = min(os.cpu_count() or 1, 4)
     # warm (fault in the arena / JIT the marshal path) then time.
     seq0 = _seq(ts)
@@ -403,9 +407,11 @@ def test_parallel_speedup_wide_deep():
     assert par is seq, f"CARRIER divergence: parallel={par} sequential={seq}"
     # CHIRALITY: reverse task order agrees.
     assert par_rev is par, f"CHIRALITY divergence: fwd={par} rev={par_rev}"
-    # SPEEDUP: measurably faster (>= 4 cores). Generous margin absorbs jitter; the
-    # observed win is ~1.9x at nw=4 (see the rc103 CHANGELOG).
-    print(f"\nrc103 wide+deep is_zero speedup: seq={seq_t:.2f}s  "
-          f"par(nw={nw})={par_t:.2f}s  speedup={seq_t / par_t:.2f}x")
-    assert par_t < seq_t, (
-        f"expected parallel faster on >= 4 cores: seq={seq_t:.2f}s par={par_t:.2f}s")
+    print(f"\nrc103 wide+deep is_zero timing: seq={seq_t:.3f}s  "
+          f"par(nw={nw})={par_t:.3f}s")
+    # SPEEDUP: only meaningful on a genuinely heavy sequential decision (>= 4
+    # cores AND a measurable baseline); below the floor the case decides too
+    # fast for wall-clock parallel gains to exist at all (rc210).
+    if seq_t >= 0.5:
+        assert par_t < seq_t, (
+            f"expected parallel faster on >= 4 cores: seq={seq_t:.2f}s par={par_t:.2f}s")

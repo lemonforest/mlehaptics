@@ -1,41 +1,58 @@
 /*
- * srmech_thetasum_interp.c -- the C peer of the ThetaSum STRUCTURAL
- * ELLIPTIC-INTERPOLATION is_zero completion (the pure-Python
- * srmech.amsc.thetasum._structural_is_zero shipped rc98). A 1:1 STRUCTURAL
- * MIRROR: the C verdict EQUALS the pure-Python _is_zero_interpolation verdict
- * (True AND False) -- the COMPLETE multi-variable elliptic decision, NOT the
- * bounded +/- -pair fast path of srmech_thetasum.c.
+ * srmech_thetasum_interp.c -- the C peer of the ThetaSum SOUND structural
+ * CERTIFICATE recursion (rc210 -- the is_zero soundness rebuild). A 1:1 mirror of
+ * the consumer BOOL of the pure-Python srmech.amsc.thetasum._decide_struct:
+ * *out_is_zero = 1 IFF the cleared numerator is CERTIFICATE-PROVEN identically
+ * zero; 0 = "not proven" (a proven-nonzero object or an honest decline -- the
+ * bool deliberately does not distinguish them; the sound contract is True-only).
  *
- * The algorithm (Rosengren arXiv:1608.06161v3 Prop 1.6.1 / eq 1.22 + Cor
- * 1.3.5): the cleared numerator N is a theta section jointly in its symbols;
- * N == 0 IFF -- interpolating in ONE variable v at D_v+1 distinct points (a
- * degree-D theta vanishing at D+1 points is == 0) -- N vanishes at each node,
- * a LOWER-variable is_zero => RECURSE, base = the single-variable degree-bound
- * q-expansion. Nodes = the theta-FACTOR ZEROS (monomials in the remaining vars,
- * killing terms via theta(1)=0) augmented with GLOBALLY-DISTINCT PRIMES threaded
- * through the recursion (so no two variables collide to a spurious theta(1)).
- * Exact-Q, no q-grid, no float.
+ * WHY THE REWRITE (stop-the-line): the pre-rc210 decision in this file certified
+ * provably-NONZERO objects as zero through two unsound devices -- (D1) the
+ * single-variable p-order BAND k = max-term(sum e^2)-1+3 (ti_one_var), which
+ * under-counts MULTI-TERM cancellation gaps, and (D2) the MIXED-character node
+ * count d = max-term sum e^2 (ti_decide), which has no supporting theorem (a sum
+ * of terms of different quasi-periodicity lies in no single theta-section space).
+ * Two more rode along: (D3) ti_collect_vars scanned theta args only (prefactor-
+ * only symbols dropped -> a*theta(2x) - b*theta(2x) "proven" zero) and (D4)
+ * augment primes were not deduplicated against zero-node constants. The True
+ * side was REPLACED, not repaired: there is NO series band anywhere in this file
+ * any more (the old ti_ps_* q-expansion machinery is deleted outright).
  *
- * Recursion -> EXPLICIT STACK (JPL Rule 1 forbids recursion): a depth-bounded
- * DFS over the interpolation tree with per-frame ARENA MARKS. Each frame owns
- * its combined terms + substitution nodes below its child-mark; between children
- * the pool bump-pointer resets to that mark, so the live arena is bounded by the
- * PATH (depth <= #variables) times the per-level term working set -- NOT the total
- * tree-node count. A too-small caller arena / coefficient cap => SRMECH_ERR_OVERFLOW
- * and the Python dispatch falls to the COMPLETE pure oracle (the C peer is the
- * accelerator, the pure path the authority -- the everything-mirrors precedent).
+ * THE CERTIFICATE RECURSION (the bool of thetasum._decide_struct; the NONZERO /
+ * UNKNOWN refinement of the three-valued Python is detection-only and never
+ * feeds back into a ZERO, so the AND-recursion below IS the exact bool mirror):
  *
- * Malloc-free (JPL Rule 3): every working monomial / term / node / series cell +
- * bigint scratch is carved from the caller arena `ws`. The exact-Q monomial +
- * theta-canon KERNELS are the SHARED srmech_ellbase_* single copy (aliased `ti_*`
- * below). Class-K sign is a bigint sign int, never abs().
+ *   Z1  combine -> empty: exact carrier cancellation + theta(1)=0 kills.
+ *   Z3s the exact JOINT-CHARACTER split: per symbol v, a term's character is
+ *       (D_v = sum e^2, mu_v = the full Rosengren Eq. 1.6 multiplier monomial,
+ *       Q*-coefficient included, v-part dropped). Different characters are
+ *       linearly independent over Q(q,p); the sum is proven zero IFF every
+ *       component is (recursively) proven zero.
+ *   Z2  the Weierstrass +/- -pair three-term reduction (Rosengren Eq. 1.12) to
+ *       the EMPTY normal form, generalized over the component's ACTUAL live
+ *       symbols -- the SHARED srmech_ts_* single-copy kernels
+ *       (srmech_thetasum_internal.h).
+ *   Z4  per-character elliptic interpolation: a SINGLE-character component of
+ *       v-degree D >= 1 proven zero at D+1 nodes PAIRWISE DISTINCT mod p^Z is
+ *       identically zero (Rosengren arXiv:1608.06161v3 Cor. 1.3.5). Nodes = the
+ *       theta-factor zeros + DEDUPLICATED globally-distinct augment primes.
+ *   Everything else (a singleton term, a 0-variable residue, an incomplete node
+ *   set, an unproven child) -> NOT PROVEN (0). No band. No exceptions.
  *
- * Additive symbol -> ABI unchanged (stays 3). License: MIT.
+ * Recursion -> EXPLICIT STACK (JPL Rule 1): a depth-bounded DFS with per-frame
+ * ARENA MARKS; a frame's children are either its character COMPONENTS or its
+ * interpolation NODE substitutions. Malloc-free (Rule 3): everything is carved
+ * from the caller arena `ws`; OVERFLOW => decline (the Python dispatch falls to
+ * the sound pure oracle). Class-K sign is a bigint sign int, never abs().
+ *
+ * Wire form + symbol set are UNCHANGED from rc99/rc102/rc103 -> ABI stays 4.
+ * License: MIT.
  */
 
 #include "srmech.h"
 #include "srmech_ellbase_internal.h"
-#include "srmech_platform.h"   /* PAL: srmech_plat_thread_* — the rc103 parallel peer */
+#include "srmech_thetasum_internal.h"
+#include "srmech_platform.h"   /* PAL: srmech_plat_thread_* -- the rc103 parallel peer */
 
 #include <assert.h>
 #include <stdint.h>
@@ -48,12 +65,10 @@ typedef srmech_ell_ctx_t  ti_ctx_t;
 
 #define ti_take_words        srmech_ellbase_take_words
 #define ti_align8            srmech_ellbase_align8
-#define ti_take_exps         srmech_ellbase_take_exps
 #define ti_bind_bi           srmech_ellbase_bind_bi
 #define ti_bind_q            srmech_ellbase_bind_q
 #define ti_bind_mono         srmech_ellbase_bind_mono
 #define ti_bind_mono_arr     srmech_ellbase_bind_mono_arr
-#define ti_q_mul             srmech_ellbase_q_mul
 #define ti_q_add             srmech_ellbase_q_add
 #define ti_q_copy            srmech_ellbase_q_copy
 #define ti_mono_is_zero      srmech_ellbase_mono_is_zero
@@ -66,14 +81,11 @@ typedef srmech_ell_ctx_t  ti_ctx_t;
 #define ti_mono_eq           srmech_ellbase_mono_eq
 #define ti_theta_canon_full  srmech_ellbase_theta_canon_full
 
-/* The single-variable q-expansion degree margin (mirrors thetasum._STRUCT_MARGIN). */
-#define TI_STRUCT_MARGIN 3
-
 /* The globally-distinct augment primes (mirrors thetasum._STRUCT_PRIMES EXACTLY,
  * same values AND same order AND same count -- the (offset+used) % NPR index MUST
- * reproduce Python's threading). The distinct-prime augment is load-bearing for
- * SOUNDNESS: substituting two variables to the SAME constant would make a cross-
- * variable factor theta(x_i/x_j) -> theta(1)=0 a SPURIOUS zero. */
+ * reproduce Python's threading). Distinct primes are load-bearing for SOUNDNESS:
+ * substituting two variables to the SAME constant would make a cross-variable
+ * factor theta(x_i/x_j) -> theta(1)=0 a SPURIOUS zero. */
 static const int32_t TI_STRUCT_PRIMES[] = {
     2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83,
     89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179,
@@ -95,47 +107,62 @@ typedef struct ti_term {
 #define TI_SCR_MONOS 24u
 typedef struct ti_scr {
     ti_mono_t      *m;        /* TI_SCR_MONOS general scratch monomials */
-    ti_q_t          qa;       /* binomial coeff c1 = -ca               */
-    ti_q_t          qb;       /* binomial coeff c2 = -1/ca             */
-    ti_q_t          qmul;     /* per-cell product scratch              */
-    ti_q_t          qtmp;     /* per-cell add scratch                  */
+    ti_q_t          qa;       /* combine coeff-add scratch              */
     srmech_bigint_t g;
     srmech_bigint_t t0;
     srmech_bigint_t t1;
     int             psym;
-    int            *present;  /* n_syms variable-membership flags      */
+    int             xsym;     /* canonical pair orientation (Z2)        */
+    int             ysym;
+    int            *present;  /* n_syms variable-membership flags       */
 } ti_scr_t;
 
-/* A DFS frame: a node of the interpolation tree. */
+/* A DFS frame: one node of the certificate tree. Children are either the frame's
+ * joint-character COMPONENTS (kind 2) or its interpolation NODE substitutions
+ * (kind 1). */
 typedef struct ti_frame {
     ti_term_t *raw;          /* un-combined input terms                 */
     size_t     n_raw;
     ti_term_t *terms;        /* combined terms                          */
     size_t     n_terms;
-    ti_mono_t *nodes;        /* the d+1 substitution nodes              */
-    size_t     n_nodes;
+    int32_t   *comp_of;      /* per-term component id (kind 2)          */
+    ti_mono_t *nodes;        /* the D+1 substitution nodes (kind 1)     */
+    size_t     n_children;
+    int        kind;         /* 1 = nodes, 2 = components               */
+    int        v;            /* interpolation variable index (kind 1)   */
     int32_t    offset;       /* augment-prime offset for THIS frame     */
     int32_t    child_offset;
-    int        v;            /* interpolation variable index            */
     size_t     next_child;
     size_t     frame_mark;   /* pool_cur before this frame's allocs     */
     size_t     child_mark;   /* pool_cur before the first child         */
     int        state;        /* 0 = NEW, 1 = BRANCHING                  */
 } ti_frame_t;
 
-/* A dense p,w-series cell grid: cells[pp*wb + (we - wmin)], pp in 0..K1-1. */
-typedef struct ti_ps {
-    ti_q_t *cells;
-    int     K1;
-    int     wb;
-    int     wmin;
-} ti_ps_t;
+/* The exact v-character of one term (mirrors thetasum._term_char_v): degree D_v,
+ * the multiplier's p-power, and the multiplier monomial (v / p coordinates
+ * zeroed -- the p-power is the explicit int so the character is exact even when
+ * p is absent from the interned table). */
+typedef struct ti_char {
+    ti_mono_t mu;
+    int32_t   D;
+    int32_t   pexp;
+} ti_char_t;
+
+/* The per-worker runtime bundle: general scratch + the SHARED pair-reduce scratch
+ * + recover flags + the DFS frame stack. */
+typedef struct ti_rt {
+    ti_scr_t         s;
+    srmech_ts_scr_t  ts;
+    int             *tsused;   /* >= max_thetas recover flags */
+    ti_frame_t      *frames;
+    size_t           fcap;
+} ti_rt_t;
 
 /* ---- forward declarations (Rule 1: iterative; no recursion) ----------------- */
 static srmech_status_t ti_compact_terms(ti_ctx_t *c, ti_term_t *arr, size_t n,
                                         size_t *n_out);
-static srmech_status_t ti_push_child(ti_ctx_t *c, ti_frame_t *frames, long depth,
-                                     size_t max_thetas, ti_scr_t *s);
+static srmech_status_t ti_expand(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
+                                 ti_rt_t *rt, int *is_leaf, int *verdict);
 
 /* ---- small helpers ---------------------------------------------------------- */
 
@@ -271,9 +298,6 @@ static srmech_status_t ti_bind_scr(ti_ctx_t *c, ti_scr_t *s)
     assert(c->cap > 0u);
     st = ti_bind_mono_arr(c, &s->m, TI_SCR_MONOS);
     if (st == SRMECH_OK) { st = ti_bind_q(c, &s->qa); }
-    if (st == SRMECH_OK) { st = ti_bind_q(c, &s->qb); }
-    if (st == SRMECH_OK) { st = ti_bind_q(c, &s->qmul); }
-    if (st == SRMECH_OK) { st = ti_bind_q(c, &s->qtmp); }
     if (st == SRMECH_OK) { st = ti_bind_bi(c, &s->g); }
     if (st == SRMECH_OK) { st = ti_bind_bi(c, &s->t0); }
     if (st == SRMECH_OK) { st = ti_bind_bi(c, &s->t1); }
@@ -284,12 +308,35 @@ static srmech_status_t ti_bind_scr(ti_ctx_t *c, ti_scr_t *s)
     return SRMECH_OK;
 }
 
+/* Bind an array of ti_char_t (each with a bound mu monomial). */
+static srmech_status_t ti_bind_char_arr(ti_ctx_t *c, ti_char_t **out, size_t count)
+{
+    size_t i;
+    size_t words;
+    uint32_t *raw;
+    srmech_status_t st;
+    assert(c != NULL && out != NULL);
+    assert(count >= 1u);
+    ti_align8(c);
+    words = (count * sizeof(ti_char_t) + sizeof(uint32_t) - 1u) / sizeof(uint32_t);
+    raw = ti_take_words(c, words);
+    if (raw == NULL) { return SRMECH_ERR_OVERFLOW; }
+    *out = (ti_char_t *)raw;
+    for (i = 0; i < count; i++) {
+        st = ti_bind_mono(c, &(*out)[i].mu);
+        if (st != SRMECH_OK) { return st; }
+        (*out)[i].D = 0;
+        (*out)[i].pexp = 0;
+    }
+    return SRMECH_OK;
+}
+
 /* ---- combine (mirrors thetasum._struct_combine) ----------------------------- */
 
 /* Canonicalize ONE raw term into `dst` (fold each theta-canon prefactor into the
  * term prefactor; a theta that canonicalizes to theta(1) KILLS the term). Sets
  * *dead = 1 when the term drops (theta(1) factor OR the folded prefactor is zero).
- * The surviving canonical thetas are written (unsorted) into dst->targs. */
+ * The surviving canonical thetas are written (sorted) into dst->targs. */
 static srmech_status_t ti_canon_term(ti_ctx_t *c, ti_term_t *dst, const ti_term_t *src,
                                      ti_scr_t *s, int *dead)
 {
@@ -397,10 +444,13 @@ static srmech_status_t ti_compact_terms(ti_ctx_t *c, ti_term_t *arr, size_t n,
     return SRMECH_OK;
 }
 
-/* ---- variables / degree / pivot / nodes ------------------------------------- */
+/* ---- variables / degree / character / pivot / nodes ------------------------- */
 
-/* Mark s->present[idx]=1 for every symbol (except psym) with a nonzero exponent in
- * any theta argument. Returns the count of distinct such variables (_struct_variables). */
+/* Mark s->present[idx]=1 for every symbol (except psym) with a nonzero exponent
+ * on a theta argument OR THE PREFACTOR (rc210 defect-D3 fix: prefactor-only
+ * symbols carry a character too -- dropping them merged a*theta(2x) - b*theta(2x)
+ * into one falsely-cancelling class). Returns the count of distinct variables.
+ * Mirrors the fixed thetasum._struct_variables. */
 static size_t ti_collect_vars(const ti_ctx_t *c, const ti_term_t *terms, size_t n,
                               ti_scr_t *s)
 {
@@ -412,6 +462,10 @@ static size_t ti_collect_vars(const ti_ctx_t *c, const ti_term_t *terms, size_t 
     memset(s->present, 0, c->n_syms * sizeof(int));
     for (ti = 0; ti < n; ti++) {
         size_t a;
+        for (j = 0; j < c->n_syms; j++) {
+            if ((int)j == s->psym) { continue; }
+            if (terms[ti].pref.exps[j] != 0) { s->present[j] = 1; }
+        }
         for (a = 0; a < terms[ti].n_thetas; a++) {
             for (j = 0; j < c->n_syms; j++) {
                 if ((int)j == s->psym) { continue; }
@@ -423,18 +477,11 @@ static size_t ti_collect_vars(const ti_ctx_t *c, const ti_term_t *terms, size_t 
     return cnt;
 }
 
-/* deg(v) = max over terms of SUM over theta args of (arg.exps[v])^2 (the elliptic
- * degree in v). Integer; mirrors _structural_is_zero's _deg.
- *
- * SOUNDNESS (#693): the e*e (Sum e^2) weighting is REQUIRED, not slack -- it is the TRUE
- * elliptic degree (quasi-period index = zeros per annulus) of a theta-product in v: under
- * v -> p*v a factor theta(c*v^e;p) gains multiplier z0^{-e} = (c*v^e)^{-e}, whose v-exponent
- * is -e^2. Tightening to Sum|e| was investigated and found UNSOUND: for |e|>=2, Sum|e| < Sum e^2
- * under-provisions the node count / p-order band, so a genuinely NONZERO section can be FALSELY
- * proved == 0 (a false theorem). Counterexample (single var, e=3): N(x) = 2*theta(2x^3)
- * -27*theta(3x^3) +120*theta(4x^3) -250*theta(5x^3) +270*theta(6x^3) -147*theta(7x^3)
- * +32*theta(8x^3) is nonzero (lowest coeff (p^6,x^-9) = -1/112) yet Sum|e| (k=5) misses p^6.
- * Keep this the Python mirror byte-for-byte. See notes/thetasum_is_zero_degree_bound_693.md. */
+/* deg(v) = max over terms of SUM over theta args of (arg.exps[v])^2 -- the TRUE
+ * elliptic degree (quasi-period index = zeros per annulus) of a theta-product in
+ * v (Rosengren Eq. 1.6: theta(c*v^e;p) gains a v^{-e^2} multiplier under v->p*v).
+ * rc210: this feeds ONLY the per-character Z4 node count and the pivot choice --
+ * never a p-order band. */
 static int ti_deg(const ti_ctx_t *c, const ti_term_t *terms, size_t n, int v)
 {
     size_t ti;
@@ -452,6 +499,127 @@ static int ti_deg(const ti_ctx_t *c, const ti_term_t *terms, size_t n, int v)
         if (acc > best) { best = acc; }
     }
     return best;
+}
+
+/* The exact v-character of one term (mirrors thetasum._term_char_v): D = sum e^2
+ * over the theta args; mu = p^{d} * prod_a [(-1)^{e_a} p^{-e_a(e_a-1)/2}
+ * z_a^{-e_a}] with the v / p coordinates lifted out (pexp int; exps[v]=0). The
+ * coefficient is exact Q (sign = Class-K parity flip). */
+static srmech_status_t ti_char_of(ti_ctx_t *c, const ti_term_t *t, int v,
+                                  ti_char_t *ch, ti_scr_t *s)
+{
+    size_t a;
+    int flips = 0;
+    srmech_status_t st;
+    assert(c != NULL && t != NULL && ch != NULL && s != NULL);
+    assert(v >= 0 && (size_t)v < c->n_syms);
+    ch->D = 0;
+    ch->pexp = t->pref.exps[v];                          /* d = pref.exp_of(v) */
+    st = ti_mono_set_one(c, &ch->mu);
+    if (st != SRMECH_OK) { return st; }
+    for (a = 0; a < t->n_thetas; a++) {
+        int32_t e = t->targs[a].exps[v];
+        if (e == 0) { continue; }
+        ch->D += e * e;
+        if (ti_iabs(e) % 2 == 1) { flips++; }
+        ch->pexp -= (e * (e - 1)) / 2;
+        /* mu *= z^{-e} (coefficient part c^{-e} + exps scaled by -e, in one go). */
+        st = ti_mono_pow(c, &s->m[11], &t->targs[a], -e, &s->m[9], &s->m[10], s);
+        if (st != SRMECH_OK) { return st; }
+        st = ti_mono_mul(c, &s->m[12], &ch->mu, &s->m[11], &s->g, &s->t0, &s->t1);
+        if (st != SRMECH_OK) { return st; }
+        st = ti_mono_copy(c, &ch->mu, &s->m[12]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    if (flips % 2 == 1) {                                /* (-1)^{e odd} parity */
+        ch->mu.coeff.num.sign = -ch->mu.coeff.num.sign;
+    }
+    if (s->psym >= 0) {                                  /* fold p into pexp   */
+        ch->pexp += ch->mu.exps[s->psym];
+        ch->mu.exps[s->psym] = 0;
+    }
+    ch->mu.exps[v] = 0;                                  /* the v^{-D} part IS D */
+    return SRMECH_OK;
+}
+
+/* 1 iff two v-characters are equal (exact: degree, p-power, Q coeff, exponents). */
+static int ti_chars_eq(const ti_ctx_t *c, const ti_char_t *a, const ti_char_t *b)
+{
+    assert(c != NULL);
+    assert(a != NULL && b != NULL);
+    if (a->D != b->D || a->pexp != b->pexp) { return 0; }
+    return ti_mono_eq(c, &a->mu, &b->mu);
+}
+
+/* Partition fr->terms by JOINT character over the present variables (ascending
+ * symbol index = Python's sorted-name order): comp_of[i] = the component id of
+ * term i (first-seen ids, matching Python's dict-insertion grouping). The char
+ * table is TRANSIENT (arena mark reset by the caller); comp_of persists. */
+static srmech_status_t ti_partition(ti_ctx_t *c, ti_frame_t *fr, ti_scr_t *s,
+                                    size_t *n_comps)
+{
+    size_t nv = 0;
+    size_t i;
+    size_t j;
+    ti_char_t *chars;
+    srmech_status_t st;
+    assert(c != NULL && fr != NULL && s != NULL && n_comps != NULL);
+    assert(fr->comp_of != NULL);
+    for (j = 0; j < c->n_syms; j++) { nv += (size_t)s->present[j]; }
+    st = ti_bind_char_arr(c, &chars, fr->n_terms * ((nv == 0u) ? 1u : nv));
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0; i < fr->n_terms; i++) {
+        size_t vi = 0;
+        for (j = 0; j < c->n_syms; j++) {
+            if (!s->present[j]) { continue; }
+            st = ti_char_of(c, &fr->terms[i], (int)j, &chars[i * nv + vi], s);
+            if (st != SRMECH_OK) { return st; }
+            vi++;
+        }
+    }
+    *n_comps = 0;
+    for (i = 0; i < fr->n_terms; i++) {
+        size_t g;
+        int found = 0;
+        for (g = 0; g < i; g++) {
+            size_t vi;
+            int eq = 1;
+            for (vi = 0; vi < nv; vi++) {
+                if (!ti_chars_eq(c, &chars[i * nv + vi], &chars[g * nv + vi])) {
+                    eq = 0;
+                    break;
+                }
+            }
+            if (eq) { fr->comp_of[i] = fr->comp_of[g]; found = 1; break; }
+        }
+        if (!found) { fr->comp_of[i] = (int32_t)(*n_comps); (*n_comps)++; }
+    }
+    return SRMECH_OK;
+}
+
+/* Strip every present variable of theta-degree 0 from the (single-character)
+ * component: the character split guarantees a shared prefactor exponent d_v, so
+ * v^d factors out of every term and v disappears (mirror of the Python strip;
+ * unequal d_v would mean the split is broken -> SRMECH_ERR_INTERNAL, and the
+ * Python dispatch declines to the pure oracle). Updates s->present in place. */
+static srmech_status_t ti_strip_deg0(ti_ctx_t *c, ti_frame_t *fr, ti_scr_t *s)
+{
+    size_t j;
+    size_t i;
+    assert(c != NULL && fr != NULL && s != NULL);
+    assert(fr->terms != NULL || fr->n_terms == 0u);
+    for (j = 0; j < c->n_syms; j++) {
+        int32_t d0;
+        if (!s->present[j]) { continue; }
+        if (ti_deg(c, fr->terms, fr->n_terms, (int)j) != 0) { continue; }
+        d0 = fr->terms[0].pref.exps[j];
+        for (i = 1; i < fr->n_terms; i++) {
+            if (fr->terms[i].pref.exps[j] != d0) { return SRMECH_ERR_INTERNAL; }
+        }
+        for (i = 0; i < fr->n_terms; i++) { fr->terms[i].pref.exps[j] = 0; }
+        s->present[j] = 0;
+    }
+    return SRMECH_OK;
 }
 
 /* Pick the interpolation variable v = argmin over present vars of (deg(v), index)
@@ -479,7 +647,7 @@ static void ti_pick_v(const ti_ctx_t *c, const ti_term_t *terms, size_t n,
 
 /* The zero-MONOMIAL node of a LINEAR (exp +/-1) v-theta arg `a`: theta(alpha*v^e)=0
  * at v = (alpha without v)^(-1/e). node = rest.inv() if e==1 else rest, where rest =
- * a with the v-factor stripped. Writes `node`. Mirrors _struct_zero_nodes' inner. */
+ * a with the v-factor stripped. Writes `node`. */
 static srmech_status_t ti_zero_node(ti_ctx_t *c, ti_mono_t *node, const ti_mono_t *a,
                                     int v, int32_t e, ti_scr_t *s)
 {
@@ -495,44 +663,60 @@ static srmech_status_t ti_zero_node(ti_ctx_t *c, ti_mono_t *node, const ti_mono_
     return ti_mono_copy(c, node, &s->m[0]);
 }
 
-/* Build the d+1 interpolation nodes into `nodes`: the distinct zero-MONOMIAL nodes
- * (first-seen, capped at d+1) then GLOBALLY-DISTINCT augment primes threaded via
- * `offset`. *used = the number of primes consumed at this level (for child_offset).
- * Mirrors _structural_is_zero's node loop. */
+/* Build up to `need` = D+1 interpolation nodes into `nodes`: the distinct
+ * theta-factor zero monomials (first-seen order) then augment primes threaded via
+ * `offset` -- with EVERY candidate (zero node AND prime) deduplicated against the
+ * already-chosen nodes by EXACT monomial equality, coefficient included (rc210
+ * defect-D4 fix: a theta(x/5) zero node IS the constant 5; appending the prime 5
+ * again would double-count one point of Cx mod p^Z and under-count the
+ * interpolation). *used = prime candidates consumed (dups included -- mirrors
+ * thetasum._pick_nodes' offset threading); *filled = nodes actually placed
+ * (< need iff the bounded prime scan exhausted: the caller declines to prove). */
 static srmech_status_t ti_build_nodes(ti_ctx_t *c, ti_mono_t *nodes, size_t need,
                                       const ti_term_t *terms, size_t n, int v,
-                                      int32_t offset, ti_scr_t *s, int32_t *used)
+                                      int32_t offset, ti_scr_t *s, int32_t *used,
+                                      size_t *filled)
 {
-    size_t filled = 0;
     size_t ti;
+    int32_t guard = 0;
     srmech_status_t st;
     assert(c != NULL && nodes != NULL && s != NULL && used != NULL);
-    assert(terms != NULL || n == 0u);
-    for (ti = 0; ti < n && filled < need; ti++) {
+    assert(filled != NULL && (terms != NULL || n == 0u));
+    *filled = 0;
+    for (ti = 0; ti < n && *filled < need; ti++) {
         size_t a;
-        for (a = 0; a < terms[ti].n_thetas && filled < need; a++) {
+        for (a = 0; a < terms[ti].n_thetas && *filled < need; a++) {
             size_t j;
             int seen = 0;
             int32_t e = terms[ti].targs[a].exps[v];
             if (e != 1 && e != -1) { continue; }
             st = ti_zero_node(c, &s->m[6], &terms[ti].targs[a], v, e, s);
             if (st != SRMECH_OK) { return st; }
-            for (j = 0; j < filled; j++) {
+            for (j = 0; j < *filled; j++) {
                 if (ti_mono_eq(c, &nodes[j], &s->m[6])) { seen = 1; break; }
             }
             if (seen) { continue; }
-            st = ti_mono_copy(c, &nodes[filled], &s->m[6]);
+            st = ti_mono_copy(c, &nodes[*filled], &s->m[6]);
             if (st != SRMECH_OK) { return st; }
-            filled++;
+            (*filled)++;
         }
     }
     *used = 0;
-    while (filled < need) {
+    while (*filled < need && guard < 4 * TI_NPRIMES) {
+        size_t j;
+        int seen = 0;
         int32_t idx = (offset + *used) % TI_NPRIMES;
-        st = ti_set_prime(c, &nodes[filled], TI_STRUCT_PRIMES[idx]);
+        st = ti_set_prime(c, &s->m[6], TI_STRUCT_PRIMES[idx]);
         if (st != SRMECH_OK) { return st; }
-        filled++;
         (*used)++;
+        guard++;
+        for (j = 0; j < *filled; j++) {
+            if (ti_mono_eq(c, &nodes[j], &s->m[6])) { seen = 1; break; }
+        }
+        if (seen) { continue; }
+        st = ti_mono_copy(c, &nodes[*filled], &s->m[6]);
+        if (st != SRMECH_OK) { return st; }
+        (*filled)++;
     }
     return SRMECH_OK;
 }
@@ -584,297 +768,265 @@ static srmech_status_t ti_subst_terms(ti_ctx_t *c, ti_term_t **out, const ti_ter
     return SRMECH_OK;
 }
 
-/* ---- the single-variable base case (mirrors thetasum._struct_one_var) ------- */
+/* ---- Z2: the generalized Weierstrass pair reduction (SHARED srmech_ts_*) ----- */
 
-/* Compute the base-case sizing: K1 = k+1 (k = max(deg-1,0)+MARGIN) and the
- * conservative w-band [wmin, wmin+wb) covering every term's q-expansion in w. */
-static void ti_one_var_bounds(const ti_ctx_t *c, const ti_term_t *terms, size_t n,
-                              int w, int *out_K1, int *out_wmin, int *out_wb)
+/* Try to prove the (single-character) component zero by the exact three-term
+ * reduction over its live symbols, ascending (mirrors _pair_reduce_component:
+ * the rewrite loop runs over the component's ACTUAL variables, not just x/y;
+ * xsym/ysym feed only the canonical pair orientation). *proved = 1 on the empty
+ * normal form. TRANSIENT: everything is bound above an arena mark and released. */
+static srmech_status_t ti_pair_reduce(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
+                                      ti_rt_t *rt, int *proved)
 {
-    size_t ti;
-    int deg;
-    int k;
-    int lo = 0;
-    int hi = 0;
-    int init = 0;
-    assert(c != NULL && (terms != NULL || n == 0u));
-    assert(out_K1 != NULL && out_wmin != NULL && out_wb != NULL);
-    deg = ti_deg(c, terms, n, w);           /* max over terms of SUM sq(exp_w) */
-    k = ((deg - 1) > 0 ? (deg - 1) : 0) + TI_STRUCT_MARGIN;
-    for (ti = 0; ti < n; ti++) {
-        size_t a;
-        int span = 0;
-        int pw = (int)terms[ti].pref.exps[w];
-        for (a = 0; a < terms[ti].n_thetas; a++) {
-            span += (k + 1) * (int)ti_iabs(terms[ti].targs[a].exps[w]);
-        }
-        if (!init || pw - span < lo) { lo = pw - span; }
-        if (!init || pw + span > hi) { hi = pw + span; }
-        init = 1;
-    }
-    *out_K1 = k + 1;
-    *out_wmin = lo;
-    *out_wb = (hi - lo) + 1;
-}
-
-static srmech_status_t ti_bind_ps(ti_ctx_t *c, ti_ps_t *ps, int K1, int wb, int wmin)
-{
-    size_t cnt = (size_t)K1 * (size_t)wb;
+    size_t mark;
     size_t i;
-    size_t words;
-    uint32_t *raw;
-    srmech_status_t st;
-    assert(c != NULL && ps != NULL);
-    assert(K1 >= 1 && wb >= 1);
-    ti_align8(c);
-    words = (cnt * sizeof(ti_q_t) + sizeof(uint32_t) - 1u) / sizeof(uint32_t);
-    raw = ti_take_words(c, words);
-    if (raw == NULL) { return SRMECH_ERR_OVERFLOW; }
-    ps->cells = (ti_q_t *)raw;
-    ps->K1 = K1;
-    ps->wb = wb;
-    ps->wmin = wmin;
-    for (i = 0; i < cnt; i++) {
-        st = ti_bind_q(c, &ps->cells[i]);
-        if (st != SRMECH_OK) { return st; }
+    size_t n_rw = 0;
+    size_t cap_rt = srmech_ts_work_cap(fr->n_terms, max_thetas);
+    size_t max_pairs = (max_thetas / 2u) + 1u;
+    int32_t *rw;
+    srmech_ts_work_t w;
+    int isz = 0;
+    srmech_status_t st = SRMECH_OK;
+    assert(c != NULL && fr != NULL && rt != NULL && proved != NULL);
+    assert(fr->terms != NULL && fr->n_terms >= 1u);
+    *proved = 0;
+    mark = c->pool_cur;
+    rw = (int32_t *)ti_take_words(c, c->n_syms);
+    if (rw == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0; i < c->n_syms; i++) {
+        if (rt->s.present[i]) { rw[n_rw++] = (int32_t)i; }
     }
+    st = srmech_ts_bind_rterm_arr(c, &w.cur, cap_rt, max_pairs);
+    if (st == SRMECH_OK) { st = srmech_ts_bind_rterm_arr(c, &w.nxt, cap_rt, max_pairs); }
+    if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
+    w.cap = cap_rt;
+    w.n_cur = 0;
+    w.n_nxt = 0;
+    for (i = 0; i < fr->n_terms; i++) {
+        int ok = 0;
+        st = ti_mono_copy(c, &w.cur[i].pref, &fr->terms[i].pref);
+        if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
+        w.cur[i].live = 1;
+        st = srmech_ts_recover_pairs(c, &w.cur[i], fr->terms[i].targs,
+                                     fr->terms[i].n_thetas, rt->s.xsym, rt->s.ysym,
+                                     &ok, &rt->ts, rt->tsused);
+        if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
+        if (!ok) { c->pool_cur = mark; return SRMECH_OK; }   /* not provable here */
+        w.n_cur++;
+    }
+    st = srmech_ts_reduce_syms(c, &w, rt->s.xsym, rt->s.ysym, rw, n_rw, &isz, &rt->ts);
+    c->pool_cur = mark;
+    if (st != SRMECH_OK) { return st; }
+    *proved = isz;
     return SRMECH_OK;
 }
 
-/* Zero every cell (Q = 0/1). */
-static srmech_status_t ti_ps_zero(const ti_ps_t *ps)
-{
-    size_t cnt = (size_t)ps->K1 * (size_t)ps->wb;
-    size_t i;
-    srmech_status_t st;
-    assert(ps != NULL && ps->cells != NULL);
-    assert(ps->K1 >= 1);
-    for (i = 0; i < cnt; i++) {
-        st = srmech_bigint_set_i64(&ps->cells[i].num, 0);
-        if (st != SRMECH_OK) { return st; }
-        st = srmech_bigint_set_i64(&ps->cells[i].den, 1);
-        if (st != SRMECH_OK) { return st; }
-    }
-    return SRMECH_OK;
-}
+/* ---- the frame expansion (the head of thetasum._decide_struct) --------------- */
 
-/* out := in * (1 + coeff * p^jp * w^dwe), truncating p past K1-1 (out fully
- * written; out != in). Mirrors one binomial factor of _struct_theta_p. */
-static srmech_status_t ti_ps_binom(ti_ctx_t *c, const ti_ps_t *in, ti_ps_t *out,
-                                   int jp, int dwe, const ti_q_t *coeff, ti_scr_t *s)
+/* Set up a frame as a BRANCH with `n_children` children. */
+static void ti_branch_setup(ti_ctx_t *c, ti_frame_t *fr, int kind, size_t n_children,
+                            int32_t child_offset)
 {
-    int pp;
-    int w;
-    srmech_status_t st;
-    assert(c != NULL && in != NULL && out != NULL && coeff != NULL && s != NULL);
-    assert(jp >= 0);
-    for (pp = 0; pp < in->K1; pp++) {
-        for (w = 0; w < in->wb; w++) {
-            ti_q_t *dst = &out->cells[pp * in->wb + w];
-            int sp = pp - jp;
-            int sw = w - dwe;
-            st = ti_q_copy(dst, &in->cells[pp * in->wb + w]);
-            if (st != SRMECH_OK) { return st; }
-            if (sp < 0 || sw < 0 || sw >= in->wb) { continue; }
-            st = ti_q_mul(c, &s->qmul, coeff, &in->cells[sp * in->wb + sw],
-                          &s->g, &s->t0, &s->t1);
-            if (st != SRMECH_OK) { return st; }
-            st = ti_q_add(c, &s->qtmp, dst, &s->qmul, &s->g, &s->t0, &s->t1);
-            if (st != SRMECH_OK) { return st; }
-            st = ti_q_copy(dst, &s->qtmp);
-            if (st != SRMECH_OK) { return st; }
-        }
-    }
-    return SRMECH_OK;
-}
-
-/* total += term (cellwise). Both share the K1 x wb band. */
-static srmech_status_t ti_ps_add(ti_ctx_t *c, ti_ps_t *total, const ti_ps_t *term,
-                                 ti_scr_t *s)
-{
-    size_t cnt = (size_t)total->K1 * (size_t)total->wb;
-    size_t i;
-    srmech_status_t st;
-    assert(c != NULL && total != NULL && term != NULL && s != NULL);
-    assert(total->K1 == term->K1 && total->wb == term->wb);
-    for (i = 0; i < cnt; i++) {
-        st = ti_q_add(c, &s->qtmp, &total->cells[i], &term->cells[i],
-                      &s->g, &s->t0, &s->t1);
-        if (st != SRMECH_OK) { return st; }
-        st = ti_q_copy(&total->cells[i], &s->qtmp);
-        if (st != SRMECH_OK) { return st; }
-    }
-    return SRMECH_OK;
-}
-
-/* Multiply the running series in *cur by theta(ca * w^e; p) via its binomial
- * factors ((1 - ca w^e p^j) for j=0..k, (1 - (1/ca) w^{-e} p^{j+1}) for j+1<=k),
- * ping-ponging between *cur and *oth. Mirrors _struct_theta_p folded into the term. */
-static srmech_status_t ti_series_theta(ti_ctx_t *c, ti_ps_t **cur, ti_ps_t **oth,
-                                       const ti_q_t *ca, int e, ti_scr_t *s)
-{
-    int k = (*cur)->K1 - 1;
-    int j;
-    srmech_status_t st;
-    ti_ps_t *tmp;
-    assert(c != NULL && cur != NULL && oth != NULL && ca != NULL && s != NULL);
-    assert((*cur)->K1 >= 1);
-    st = ti_q_copy(&s->qa, ca);                          /* qa = ca */
-    if (st != SRMECH_OK) { return st; }
-    s->qa.num.sign = (s->qa.num.sign == 0) ? 0 : -s->qa.num.sign;   /* qa = -ca */
-    st = srmech_bigint_copy(&s->qb.num, &ca->den);
-    if (st == SRMECH_OK) { st = srmech_bigint_copy(&s->qb.den, &ca->num); }
-    if (st != SRMECH_OK) { return st; }
-    s->qb.num.sign = (s->qb.num.sign == 0) ? 0 : -s->qb.num.sign;   /* qb = -1/ca */
-    if (s->qb.den.sign < 0) { s->qb.den.sign = -s->qb.den.sign; s->qb.num.sign = -s->qb.num.sign; }
-    for (j = 0; j <= k; j++) {
-        st = ti_ps_binom(c, *cur, *oth, j, e, &s->qa, s);
-        if (st != SRMECH_OK) { return st; }
-        tmp = *cur; *cur = *oth; *oth = tmp;
-        if (j + 1 <= k) {
-            st = ti_ps_binom(c, *cur, *oth, j + 1, -e, &s->qb, s);
-            if (st != SRMECH_OK) { return st; }
-            tmp = *cur; *cur = *oth; *oth = tmp;
-        }
-    }
-    return SRMECH_OK;
-}
-
-/* Build ONE term's p,w-series into *cur (starting from its prefactor cell) and add
- * it into `total`. bufA/bufB are the two ping-pong buffers. */
-static srmech_status_t ti_term_series(ti_ctx_t *c, const ti_term_t *t, int w,
-                                      ti_ps_t *total, ti_ps_t *bufA, ti_ps_t *bufB,
-                                      ti_scr_t *s)
-{
-    ti_ps_t *cur = bufA;
-    ti_ps_t *oth = bufB;
-    size_t a;
-    int pw = (int)t->pref.exps[w];
-    srmech_status_t st;
-    assert(c != NULL && t != NULL && total != NULL && s != NULL);
-    assert(bufA != NULL && bufB != NULL);
-    st = ti_ps_zero(cur);
-    if (st != SRMECH_OK) { return st; }
-    st = ti_q_copy(&cur->cells[0 * cur->wb + (pw - cur->wmin)], &t->pref.coeff);
-    if (st != SRMECH_OK) { return st; }
-    for (a = 0; a < t->n_thetas; a++) {
-        st = ti_series_theta(c, &cur, &oth, &t->targs[a].coeff,
-                             (int)t->targs[a].exps[w], s);
-        if (st != SRMECH_OK) { return st; }
-    }
-    return ti_ps_add(c, total, cur, s);
-}
-
-/* The single-variable degree-bound base case: the whole numerator's summed p,w-
- * series in w is identically zero IFF every coefficient cancels. Sets *is_zero.
- * Mirrors _struct_one_var. */
-static srmech_status_t ti_one_var(ti_ctx_t *c, const ti_term_t *terms, size_t n, int w,
-                                  ti_scr_t *s, int *is_zero)
-{
-    int K1;
-    int wmin;
-    int wb;
-    size_t ti;
-    size_t i;
-    size_t cnt;
-    ti_ps_t total;
-    ti_ps_t bufA;
-    ti_ps_t bufB;
-    srmech_status_t st;
-    assert(c != NULL && (terms != NULL || n == 0u) && s != NULL);
-    assert(is_zero != NULL);
-    ti_one_var_bounds(c, terms, n, w, &K1, &wmin, &wb);
-    st = ti_bind_ps(c, &total, K1, wb, wmin);
-    if (st == SRMECH_OK) { st = ti_bind_ps(c, &bufA, K1, wb, wmin); }
-    if (st == SRMECH_OK) { st = ti_bind_ps(c, &bufB, K1, wb, wmin); }
-    if (st != SRMECH_OK) { return st; }
-    st = ti_ps_zero(&total);
-    if (st != SRMECH_OK) { return st; }
-    for (ti = 0; ti < n; ti++) {
-        st = ti_term_series(c, &terms[ti], w, &total, &bufA, &bufB, s);
-        if (st != SRMECH_OK) { return st; }
-    }
-    *is_zero = 1;
-    cnt = (size_t)K1 * (size_t)wb;
-    for (i = 0; i < cnt; i++) {
-        if (!srmech_bigint_is_zero(&total.cells[i].num)) { *is_zero = 0; break; }
-    }
-    return SRMECH_OK;
-}
-
-/* ---- the explicit-stack DFS driver ------------------------------------------ */
-
-/* Expand a NEW frame: combine its raw terms, then either DECIDE a leaf (empty ->
- * zero; no variables -> nonzero residue; one variable -> the base case) or SET UP
- * branching (pick v, build the d+1 nodes, mark child bookkeeping). Sets *is_leaf +
- * (if leaf) *verdict. Mirrors the head of _structural_is_zero. */
-static srmech_status_t ti_expand(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
-                                 ti_scr_t *s, int *is_leaf, int *verdict)
-{
-    size_t nvars;
-    int v;
-    int d;
-    int32_t used;
-    size_t j;
-    int the_var = -1;
-    srmech_status_t st;
-    assert(c != NULL && fr != NULL && s != NULL);
-    assert(is_leaf != NULL && verdict != NULL);
-    *is_leaf = 1;
-    *verdict = 1;
-    st = ti_combine(c, &fr->terms, &fr->n_terms, fr->raw, fr->n_raw, max_thetas, s);
-    if (st != SRMECH_OK) { return st; }
-    if (fr->n_terms == 0u) { return SRMECH_OK; }             /* empty -> zero */
-    nvars = ti_collect_vars(c, fr->terms, fr->n_terms, s);
-    if (nvars == 0u) { *verdict = 0; return SRMECH_OK; }     /* residue -> nonzero */
-    if (nvars == 1u) {
-        for (j = 0; j < c->n_syms; j++) { if (s->present[j]) { the_var = (int)j; break; } }
-        return ti_one_var(c, fr->terms, fr->n_terms, the_var, s, verdict);
-    }
-    ti_pick_v(c, fr->terms, fr->n_terms, s, &v, &d);
-    if ((size_t)(d + 1) > c->n_syms + (size_t)d) { return SRMECH_ERR_INTERNAL; }
-    st = ti_bind_mono_arr(c, &fr->nodes, (size_t)d + 1u);
-    if (st != SRMECH_OK) { return st; }
-    st = ti_build_nodes(c, fr->nodes, (size_t)d + 1u, fr->terms, fr->n_terms, v,
-                        fr->offset, s, &used);
-    if (st != SRMECH_OK) { return st; }
-    fr->v = v;
-    fr->n_nodes = (size_t)d + 1u;
-    fr->child_offset = fr->offset + used;
+    assert(c != NULL && fr != NULL);
+    assert(kind == 1 || kind == 2);
+    fr->kind = kind;
+    fr->n_children = n_children;
+    fr->child_offset = child_offset;
     fr->next_child = 0;
     fr->child_mark = c->pool_cur;
     fr->state = 1;
+}
+
+/* Expansion stage 1: combine + variable scan + joint-character split. On return:
+ * *done = 1 with *is_leaf + *verdict set (leaf) or fr branched (kind 2); *done = 0
+ * -> fall through to stage 2 (single character), *nvars carrying the live count. */
+static srmech_status_t ti_expand_split(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
+                                       ti_rt_t *rt, size_t *nvars, int *done,
+                                       int *is_leaf, int *verdict)
+{
+    size_t n_comps = 0;
+    size_t mark;
+    uint32_t *raw;
+    srmech_status_t st;
+    assert(c != NULL && fr != NULL && rt != NULL && nvars != NULL);
+    assert(done != NULL && is_leaf != NULL && verdict != NULL);
+    *done = 0;
+    *is_leaf = 1;
+    *verdict = 1;
+    st = ti_combine(c, &fr->terms, &fr->n_terms, fr->raw, fr->n_raw, max_thetas,
+                    &rt->s);
+    if (st != SRMECH_OK) { return st; }
+    if (fr->n_terms == 0u) { *done = 1; return SRMECH_OK; }      /* Z1: proven zero */
+    *nvars = ti_collect_vars(c, fr->terms, fr->n_terms, &rt->s);
+    if (*nvars == 0u) { return SRMECH_OK; }
+    ti_align8(c);
+    raw = ti_take_words(c, fr->n_terms);                          /* comp_of persists */
+    if (raw == NULL) { return SRMECH_ERR_OVERFLOW; }
+    fr->comp_of = (int32_t *)raw;
+    mark = c->pool_cur;                                           /* chars transient */
+    st = ti_partition(c, fr, &rt->s, &n_comps);
+    if (st != SRMECH_OK) { return st; }
+    c->pool_cur = mark;
+    if (n_comps > 1u) {
+        /* Z3s branch: every component must be (recursively) proven zero; children
+         * inherit THIS frame's augment-prime offset (mirrors _decide_struct). */
+        ti_branch_setup(c, fr, 2, n_comps, fr->offset);
+        *done = 1;
+        *is_leaf = 0;
+    }
+    return SRMECH_OK;
+}
+
+/* Expansion stage 2 (single joint character): strip degree-0 symbols, the N1 /
+ * 0-variable leaves, the Z2 pair reduction, then the Z4 node branch. */
+static srmech_status_t ti_expand_single(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
+                                        ti_rt_t *rt, size_t nvars, int *is_leaf,
+                                        int *verdict)
+{
+    size_t n_live = 0;
+    size_t j;
+    size_t filled = 0;
+    int32_t used = 0;
+    int proved = 0;
+    int v;
+    int d;
+    srmech_status_t st;
+    assert(c != NULL && fr != NULL && rt != NULL);
+    assert(is_leaf != NULL && verdict != NULL);
+    *is_leaf = 1;
+    *verdict = 1;
+    if (nvars >= 1u) {
+        st = ti_strip_deg0(c, fr, &rt->s);
+        if (st != SRMECH_OK) { return st; }
+    }
+    for (j = 0; j < c->n_syms; j++) { n_live += (size_t)rt->s.present[j]; }
+    if (fr->n_terms == 1u) { *verdict = 0; return SRMECH_OK; }    /* N1: not proven */
+    if (n_live == 0u) { *verdict = 0; return SRMECH_OK; }         /* 0-var residue  */
+    st = ti_pair_reduce(c, fr, max_thetas, rt, &proved);          /* Z2             */
+    if (st != SRMECH_OK) { return st; }
+    if (proved) { return SRMECH_OK; }                             /* proven zero    */
+    ti_pick_v(c, fr->terms, fr->n_terms, &rt->s, &v, &d);
+    st = ti_bind_mono_arr(c, &fr->nodes, (size_t)d + 1u);         /* nodes persist  */
+    if (st != SRMECH_OK) { return st; }
+    st = ti_build_nodes(c, fr->nodes, (size_t)d + 1u, fr->terms, fr->n_terms, v,
+                        fr->offset, &rt->s, &used, &filled);
+    if (st != SRMECH_OK) { return st; }
+    if (filled < (size_t)d + 1u) { *verdict = 0; return SRMECH_OK; }  /* not proven */
+    fr->v = v;
+    ti_branch_setup(c, fr, 1, (size_t)d + 1u, fr->offset + used); /* Z4 branch      */
     *is_leaf = 0;
     return SRMECH_OK;
 }
 
-/* The DFS: N == 0 IFF every leaf of the interpolation tree is zero. Iterative,
- * arena-mark reclaimed (Rule 1: no recursion). Sets *out_is_zero. `start_offset`
- * seeds frame 0's augment-prime offset (0 for a fresh root; the accumulated
- * child-offset when the rc103 parallel peer resumes a REPLAYED subtree, so every
- * augment prime on the whole root->leaf path stays globally distinct). */
-static srmech_status_t ti_decide(ti_ctx_t *c, ti_term_t *root, size_t n_root, int xsym,
-                                 int ysym, int32_t start_offset, ti_frame_t *frames,
-                                 size_t fcap, size_t max_thetas, ti_scr_t *s,
+/* Expand a NEW frame: stage 1 (combine / split) then stage 2 (single character).
+ * On a leaf, *verdict = 1 iff PROVEN zero (Z1 / Z2); on a branch, fr is set up
+ * (kind 1 nodes or kind 2 components) and *is_leaf = 0. */
+static srmech_status_t ti_expand(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
+                                 ti_rt_t *rt, int *is_leaf, int *verdict)
+{
+    size_t nvars = 0;
+    int done = 0;
+    srmech_status_t st;
+    assert(c != NULL && fr != NULL);
+    assert(rt != NULL && is_leaf != NULL && verdict != NULL);
+    st = ti_expand_split(c, fr, max_thetas, rt, &nvars, &done, is_leaf, verdict);
+    if (st != SRMECH_OK) { return st; }
+    if (done) { return SRMECH_OK; }
+    return ti_expand_single(c, fr, max_thetas, rt, nvars, is_leaf, verdict);
+}
+
+/* Materialize child `k` of an EXPANDED branch frame: the node-substituted terms
+ * (kind 1) or the k-th character component's term subset (kind 2). *out_off = the
+ * augment-prime offset the child resumes from. */
+static srmech_status_t ti_child_raw(ti_ctx_t *c, const ti_frame_t *fr, size_t k,
+                                    size_t max_thetas, ti_rt_t *rt,
+                                    ti_term_t **out_raw, size_t *out_n,
+                                    int32_t *out_off)
+{
+    srmech_status_t st;
+    assert(c != NULL && fr != NULL && rt != NULL);
+    assert(out_raw != NULL && out_n != NULL && out_off != NULL);
+    if (fr->kind == 1) {
+        st = ti_subst_terms(c, out_raw, fr->terms, fr->n_terms, fr->v,
+                            &fr->nodes[k], max_thetas, &rt->s);
+        if (st != SRMECH_OK) { return st; }
+        *out_n = fr->n_terms;
+        *out_off = fr->child_offset;
+        return SRMECH_OK;
+    }
+    {
+        size_t i;
+        size_t m = 0;
+        for (i = 0; i < fr->n_terms; i++) {
+            if (fr->comp_of[i] == (int32_t)k) { m++; }
+        }
+        if (m == 0u) { return SRMECH_ERR_INTERNAL; }
+        st = ti_bind_term_arr(c, out_raw, m, max_thetas);
+        if (st != SRMECH_OK) { return st; }
+        m = 0;
+        for (i = 0; i < fr->n_terms; i++) {
+            size_t a;
+            if (fr->comp_of[i] != (int32_t)k) { continue; }
+            st = ti_mono_copy(c, &(*out_raw)[m].pref, &fr->terms[i].pref);
+            if (st != SRMECH_OK) { return st; }
+            for (a = 0; a < fr->terms[i].n_thetas; a++) {
+                st = ti_mono_copy(c, &(*out_raw)[m].targs[a], &fr->terms[i].targs[a]);
+                if (st != SRMECH_OK) { return st; }
+            }
+            (*out_raw)[m].n_thetas = fr->terms[i].n_thetas;
+            m++;
+        }
+        *out_n = m;
+        *out_off = fr->child_offset;      /* == fr->offset for a component branch */
+    }
+    return SRMECH_OK;
+}
+
+/* Build the next child of frames[depth] and initialise its frame slot. Advances
+ * the parent's next_child. */
+static srmech_status_t ti_push_child(ti_ctx_t *c, ti_frame_t *frames, long depth,
+                                     size_t max_thetas, ti_rt_t *rt)
+{
+    ti_frame_t *fr = &frames[depth];
+    ti_frame_t *ch = &frames[depth + 1];
+    size_t k = fr->next_child;
+    srmech_status_t st;
+    assert(c != NULL && frames != NULL && rt != NULL);
+    assert(depth >= 0 && k < fr->n_children);
+    fr->next_child++;
+    ch->frame_mark = c->pool_cur;
+    st = ti_child_raw(c, fr, k, max_thetas, rt, &ch->raw, &ch->n_raw, &ch->offset);
+    if (st != SRMECH_OK) { return st; }
+    ch->state = 0;
+    return SRMECH_OK;
+}
+
+/* The DFS: proven-zero IFF every leaf of the certificate tree is proven zero (the
+ * bool of the three-valued _decide_struct -- its NONZERO/UNKNOWN refinement never
+ * feeds a ZERO, so the AND-fold is the exact mirror). Iterative, arena-mark
+ * reclaimed (Rule 1: no recursion). `start_offset` seeds frame 0's augment-prime
+ * offset (0 for a fresh root; the accumulated offset when the rc103 parallel peer
+ * resumes a REPLAYED subtree). */
+static srmech_status_t ti_decide(ti_ctx_t *c, ti_term_t *root, size_t n_root,
+                                 int32_t start_offset, size_t max_thetas, ti_rt_t *rt,
                                  int *out_is_zero)
 {
     long depth = 0;
     int is_leaf;
     int verdict;
     srmech_status_t st;
-    assert(c != NULL && frames != NULL && s != NULL && out_is_zero != NULL);
+    assert(c != NULL && rt != NULL && out_is_zero != NULL);
     assert(root != NULL || n_root == 0u);
-    (void)xsym; (void)ysym;
     *out_is_zero = 1;
-    frames[0].raw = root;
-    frames[0].n_raw = n_root;
-    frames[0].offset = start_offset;
-    frames[0].frame_mark = c->pool_cur;
-    frames[0].state = 0;
+    rt->frames[0].raw = root;
+    rt->frames[0].n_raw = n_root;
+    rt->frames[0].offset = start_offset;
+    rt->frames[0].frame_mark = c->pool_cur;
+    rt->frames[0].state = 0;
     while (depth >= 0) {
-        ti_frame_t *fr = &frames[depth];
+        ti_frame_t *fr = &rt->frames[depth];
         if (fr->state == 0) {
-            st = ti_expand(c, fr, max_thetas, s, &is_leaf, &verdict);
+            st = ti_expand(c, fr, max_thetas, rt, &is_leaf, &verdict);
             if (st != SRMECH_OK) { return st; }
             if (is_leaf) {
                 if (!verdict) { *out_is_zero = 0; return SRMECH_OK; }
@@ -883,43 +1035,21 @@ static srmech_status_t ti_decide(ti_ctx_t *c, ti_term_t *root, size_t n_root, in
                 continue;
             }
         }
-        if (fr->next_child >= fr->n_nodes) {
+        if (fr->next_child >= fr->n_children) {
             c->pool_cur = fr->frame_mark;
             depth--;
             continue;
         }
         c->pool_cur = fr->child_mark;
-        if ((size_t)(depth + 1) >= fcap) { return SRMECH_ERR_OVERFLOW; }
-        st = ti_push_child(c, frames, depth, max_thetas, s);
+        if ((size_t)(depth + 1) >= rt->fcap) { return SRMECH_ERR_OVERFLOW; }
+        st = ti_push_child(c, rt->frames, depth, max_thetas, rt);
         if (st != SRMECH_OK) { return st; }
         depth++;
     }
     return SRMECH_OK;
 }
 
-/* Build the next child of frames[depth] (substitute v -> the next node) and
- * initialise its frame slot. Advances the parent's next_child. */
-static srmech_status_t ti_push_child(ti_ctx_t *c, ti_frame_t *frames, long depth,
-                                     size_t max_thetas, ti_scr_t *s)
-{
-    ti_frame_t *fr = &frames[depth];
-    ti_frame_t *ch = &frames[depth + 1];
-    ti_mono_t *node = &fr->nodes[fr->next_child];
-    srmech_status_t st;
-    assert(c != NULL && frames != NULL && s != NULL);
-    assert(depth >= 0);
-    fr->next_child++;
-    ch->frame_mark = c->pool_cur;
-    st = ti_subst_terms(c, &ch->raw, fr->terms, fr->n_terms, fr->v, node,
-                        max_thetas, s);
-    if (st != SRMECH_OK) { return st; }
-    ch->n_raw = fr->n_terms;
-    ch->offset = fr->child_offset;
-    ch->state = 0;
-    return SRMECH_OK;
-}
-
-/* ---- wire parse + public entry + ws sizing ---------------------------------- */
+/* ---- wire parse + runtime bind + public entry + ws sizing -------------------- */
 
 /* Parse the flat wire form into `terms` (identical layout to srmech_thetasum_is_zero:
  * term0.pref, term0.theta0..K, term1.pref, ... over coeff_num/coeff_den + exps rows). */
@@ -986,7 +1116,8 @@ static srmech_status_t ti_arena_init(ti_ctx_t *c, void *ws, size_t ws_len)
     return SRMECH_OK;
 }
 
-/* Bind the DFS frame array (one slot per possible depth = #symbols + 2). */
+/* Bind the DFS frame array (one slot per possible depth: a character split adds at
+ * most one extra level per interpolation level, so 2*(n_syms+2)+4 bounds the path). */
 static srmech_status_t ti_bind_frames(ti_ctx_t *c, ti_frame_t **out, size_t count)
 {
     size_t words;
@@ -1002,10 +1133,36 @@ static srmech_status_t ti_bind_frames(ti_ctx_t *c, ti_frame_t **out, size_t coun
     return SRMECH_OK;
 }
 
-/* Decide whether the cleared ThetaSum numerator is identically zero by the exact
- * structural elliptic interpolation -- the COMPLETE multi-variable mirror of the
- * pure-Python ThetaSum._is_zero_interpolation. Wire form + args identical to
- * srmech_thetasum_is_zero. *out_is_zero = 1 iff == 0. Caller arena `ws`. */
+/* Bind the whole per-arena runtime bundle (general scratch + SHARED pair scratch +
+ * recover flags + frames). Sets the symbol indices. */
+static srmech_status_t ti_bind_rt(ti_ctx_t *c, ti_rt_t *rt, size_t max_thetas,
+                                  int xsym, int ysym, int psym)
+{
+    uint32_t *raw;
+    srmech_status_t st;
+    assert(c != NULL && rt != NULL);
+    assert(c->cap > 0u);
+    st = ti_bind_scr(c, &rt->s);
+    if (st == SRMECH_OK) { st = srmech_ts_bind_scr(c, &rt->ts, max_thetas); }
+    if (st != SRMECH_OK) { return st; }
+    raw = ti_take_words(c, (max_thetas == 0u) ? 1u : max_thetas);
+    if (raw == NULL) { return SRMECH_ERR_OVERFLOW; }
+    rt->tsused = (int *)raw;
+    rt->fcap = 2u * (c->n_syms + 2u) + 4u;
+    st = ti_bind_frames(c, &rt->frames, rt->fcap);
+    if (st != SRMECH_OK) { return st; }
+    rt->s.psym = psym;
+    rt->s.xsym = xsym;
+    rt->s.ysym = ysym;
+    rt->ts.psym = psym;
+    return SRMECH_OK;
+}
+
+/* Decide whether the cleared ThetaSum numerator is CERTIFICATE-PROVEN identically
+ * zero -- the 1:1 mirror of the pure-Python sound bool
+ * ThetaSum._is_zero_interpolation (rc210). Wire form + args identical to
+ * srmech_thetasum_is_zero. *out_is_zero = 1 iff proven == 0; 0 = not proven
+ * (nonzero OR honest decline). Caller arena `ws`. */
 srmech_status_t srmech_thetasum_is_zero_interpolation(
     size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
     const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
@@ -1014,10 +1171,8 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
 {
     ti_ctx_t c = {0};
     ti_term_t *terms = NULL;
-    ti_frame_t *frames = NULL;
-    ti_scr_t scr = {0};
+    ti_rt_t rt;
     size_t max_thetas;
-    size_t fcap;
     srmech_status_t st;
     assert(out_is_zero != NULL);
     assert(term_nthetas != NULL || n_terms == 0u);
@@ -1027,34 +1182,30 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
     if (term_nthetas == NULL || coeff_num == NULL || coeff_den == NULL || exps_flat == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
+    memset(&rt, 0, sizeof(rt));
     c.n_syms = (n_syms == 0u) ? 1u : n_syms;
     c.cap = (coeff_cap < 4u) ? 4u : coeff_cap;
     max_thetas = ti_max_thetas(term_nthetas, n_terms);
-    fcap = c.n_syms + 2u;
     st = ti_arena_init(&c, ws, ws_len);
     if (st != SRMECH_OK) { return st; }
-    st = ti_bind_scr(&c, &scr);
-    if (st == SRMECH_OK) { st = ti_bind_frames(&c, &frames, fcap); }
+    st = ti_bind_rt(&c, &rt, max_thetas, xsym, ysym, psym);
     if (st == SRMECH_OK) { st = ti_bind_term_arr(&c, &terms, n_terms, max_thetas); }
     if (st != SRMECH_OK) { return st; }
-    scr.psym = psym;
     st = ti_parse(&c, terms, n_terms, term_nthetas, coeff_num, coeff_den, exps_flat);
     if (st != SRMECH_OK) { return st; }
-    return ti_decide(&c, terms, n_terms, xsym, ysym, 0, frames, fcap, max_thetas, &scr,
-                     out_is_zero);
+    return ti_decide(&c, terms, n_terms, 0, max_thetas, &rt, out_is_zero);
 }
 
 /* The minimum `ws_len` BYTES srmech_thetasum_is_zero_interpolation needs for the
- * given shape (rc102 degree-aware sizer). `max_theta_sq_sum` is the base case's TRUE
- * p-order band degree — `ti_deg` = the max over terms of SUM of squared THETA-argument
- * exponents in a base variable (exactly what `ti_one_var` consumes: k = max(deg-1,0) +
- * MARGIN). This is NOT `max_abs_exp` squared: a leaf with >=2 same-variable thetas has
- * SUM(e^2) >> max(e^2) (the pre-rc102 max_abs_exp^2 UNDER-sized k -> SRMECH_ERR_OVERFLOW
- * false-decline), and a canonicalized prefactor can carry a large single exponent that
- * made max_abs_exp^2 OVER-size k. `max_abs_exp` (the largest |exponent| across ALL
- * monomials incl. the prefactor) still bounds the w-band SPAN + prefactor offset. A
- * shortfall on a pathological deep/wide input still trips SRMECH_ERR_OVERFLOW and the
- * caller falls to the pure oracle. Additive symbol -> SRMECH_ABI_VERSION stays 3. */
+ * given shape (rc210 certificate-recursion sizer). The old base-case series grid
+ * is GONE (no band on the True side), so the arena is the DFS path (two term
+ * arrays + the node monomials + comp ids per level) + the transient character
+ * table + the transient Z2 pair-reduce work buffers + the runtime bundle.
+ * `max_theta_sq_sum` (the max per-term/per-variable sum of squared theta
+ * exponents) bounds the per-frame node count D+1; `max_abs_exp` rides only as
+ * slack (the coefficient growth it used to size is the caller's coeff_cap job).
+ * A shortfall on a pathological input trips SRMECH_ERR_OVERFLOW and the caller
+ * falls to the sound pure oracle. Signature UNCHANGED from rc102 -> ABI stays. */
 size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_terms,
                                                        size_t max_thetas,
                                                        size_t coeff_limbs,
@@ -1063,32 +1214,33 @@ size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_t
 {
     size_t cap = (coeff_limbs < 4u) ? 4u : coeff_limbs;
     size_t ns = (n_syms == 0u) ? 1u : n_syms;
-    size_t depth = ns + 2u;
-    size_t mono_words = 2u * cap + ns + 8u;
     size_t nt = (n_terms == 0u) ? 1u : n_terms;
-    /* per-level term storage: two term arrays (combined + child-raw) + nodes. */
-    size_t term_words = mono_words + (max_thetas + 1u) * mono_words + 32u;
-    size_t level_words = 2u * nt * term_words + (max_thetas + 2u) * mono_words + 64u;
-    /* the base-case series: K1 x wb dense Q grid, three buffers. k mirrors ti_one_var:
-     * k = max(deg-1,0) + MARGIN <= max_theta_sq_sum + MARGIN; the +2 keeps it an UPPER
-     * bound (never under-provision). */
-    size_t k = max_theta_sq_sum + (size_t)TI_STRUCT_MARGIN + 2u;
-    size_t wb = 2u * (k + 1u) * (max_thetas + 1u) * (max_abs_exp + 1u) + 4u;
-    size_t base_words = 3u * (k + 1u) * wb * (2u * cap + 8u) + 256u;
+    size_t depth = 2u * (ns + 2u) + 4u;
+    size_t mono_words = 2u * cap + ns + 8u;
+    size_t term_words = (max_thetas + 1u) * mono_words + ns + 96u;
+    size_t nodes_words = (max_theta_sq_sum + 2u) * mono_words;
+    size_t level_words = 2u * nt * term_words + nt * 4u + nodes_words + 128u;
+    size_t char_words = nt * ns * (mono_words + 16u) + 256u;
+    size_t pairs = (max_thetas / 2u) + 1u;
+    size_t cap_rt = srmech_ts_work_cap(nt, max_thetas);
+    size_t rterm_words = mono_words + pairs * 2u * mono_words + 64u;
+    size_t z2_words = 2u * (cap_rt + 1u) * rterm_words
+                      + (SRMECH_TS_SCR_MONOS + SRMECH_TS_REWRITE_MONOS + max_thetas
+                         + 8u) * mono_words + 12u * mono_words + pairs + max_thetas
+                      + 512u;
+    size_t rt_words = (TI_SCR_MONOS + 8u) * mono_words + ns
+                      + depth * (sizeof(ti_frame_t) / 4u + 8u) + 512u;
     size_t scratch_words = cap * 16u + 512u;
-    size_t total = depth * level_words + base_words
-                   + (TI_SCR_MONOS + 8u) * mono_words + depth * (sizeof(ti_frame_t) / 4u + 4u)
-                   + scratch_words + 4096u;
+    size_t total = depth * level_words + char_words + z2_words + rt_words
+                   + scratch_words + max_abs_exp + 4096u;
     assert(cap >= 4u);
     assert(total >= scratch_words);
     return total * sizeof(uint32_t);
 }
 
-/* Legacy 5-arg entry (pre-rc102). Reproduces the OLD sizing byte-for-byte by passing
- * `max_abs_exp * max_abs_exp` as the base-case degree, so a stale ABI-3 caller / lib
- * still links + behaves exactly as before. New callers use the degree-aware
- * srmech_thetasum_is_zero_interpolation_ws_bound2 above (true ti_deg). Additive symbol
- * set -> SRMECH_ABI_VERSION stays 3. */
+/* Legacy 5-arg entry (pre-rc102). Passes `max_abs_exp^2` as the degree bound, so a
+ * stale caller still links + gets a valid (conservative) sizing. New callers use
+ * srmech_thetasum_is_zero_interpolation_ws_bound2. */
 size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_terms,
                                                       size_t max_thetas,
                                                       size_t coeff_limbs,
@@ -1102,53 +1254,36 @@ size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_te
 }
 
 /* ======================================================================== *
- * rc103 — the CHIRALITY-PRESERVING native PARALLEL fan-out (the FIRST
- * realization of the general parallel_independent_dispatch pattern).
+ * rc103 -- the CHIRALITY-PRESERVING native PARALLEL fan-out, retargeted in
+ * rc210 onto the certificate tree.
  *
  * MODEL. Bounded-depth top-level fan-out: BFS-PEEL the top branching levels of
- * the interpolation tree into a fixed array of independent SUB-PROBLEMS (each a
- * root->node PATH), then run the EXISTING sequential ti_decide DFS on each task
- * over a flat PAL worker pool (deeper recursion stays serial). AND-fold the
- * per-task verdicts with a best-effort cancel flag (first False short-circuits,
- * preserving the serial early-exit). Bit-identical serial fallback when the PAL
- * has no threads OR n_workers <= 1.
+ * the CERTIFICATE tree (a branch's children are its character components OR its
+ * interpolation nodes -- whatever ti_expand produces) into a fixed array of
+ * independent SUB-PROBLEMS (each a root->node PATH), then run the sequential
+ * ti_decide DFS on each task over a flat PAL worker pool. AND-fold the per-task
+ * verdicts with a best-effort cancel flag. Bit-identical serial fallback when
+ * the PAL has no threads OR n_workers <= 1.
  *
- * PATH REPLAY (why it is malloc-free + bit-identical). A task is a small integer
- * PATH, not a stored copy of terms. A worker RE-DERIVES its sub-problem by
- * replaying the path from the read-only wire input into its OWN arena slice —
- * combine -> pick v (ti_pick_v) -> build the d+1 nodes (ti_build_nodes) -> subst
- * (ti_subst_terms), the SAME deterministic functions the serial DFS uses, in the
- * SAME order, threading the SAME augment-prime offset. So each leaf under a task
- * is computed byte-for-byte as the serial DFS would compute it; the peel is a
- * COMPLETE tree-frontier antichain (every branch expanded into ALL its children,
- * leaves kept whole), so ANDing the per-task verdicts EQUALS the serial verdict —
- * ORDER-FREE (the CHIRALITY contract: the ±-pair interpolation nodes are the two
- * chiral halves; neither is privileged, the verdict is invariant to task /
- * branch-node ordering). `task_order` (0 forward / 1 reverse) makes that testable.
+ * PATH REPLAY: a task is a small integer PATH; a worker RE-DERIVES its
+ * sub-problem by replaying the path from the read-only parsed root with the
+ * SAME deterministic ti_expand / ti_child_raw the serial DFS uses, threading the
+ * SAME augment-prime offsets -- so the peel frontier is a COMPLETE antichain of
+ * the serial tree and ANDing the per-task verdicts EQUALS the serial verdict,
+ * ORDER-FREE (`task_order` 0 forward / 1 reverse makes that testable).
  *
- * ARENA (the crux, F: DFS depth = PATH depth, not tree size). Only W (=workers)
- * independent arena slices are needed, NOT one per task: worker w replays +
- * decides one task at a time in slice w, then arena_init resets slice w for the
- * next. Slices are DISJOINT contiguous sub-ranges of the caller `ws` (klein4's
- * disjoint-slice race-freedom argument) — 0 cross-worker writes; the shared wire
- * input is READ-ONLY. All fixed-size, no malloc (JPL Rule 3).
+ * ARENA: W disjoint contiguous slices of the caller ws (klein4's disjoint-slice
+ * race-freedom argument); the shared parsed root is READ-ONLY during the run.
+ * The cancel flag is best-effort (volatile int, sticky 0->1); correctness rides
+ * the disjoint result slots + the join barrier, never the flag.
  *
- * The cancel flag is a best-effort `volatile int` (sticky 0->1). CORRECTNESS does
- * NOT rely on it: the disjoint per-worker result slots + the thread JOIN barrier
- * (klein4 model) are the real synchronisation; cancel only PRUNES work once the
- * answer is already decided False, so a torn/stale read can at worst do a little
- * extra work — never change the verdict.
- *
- * ABI: additive symbols only -> SRMECH_ABI_VERSION stays 3. License: MIT.
+ * ABI: symbols + wire unchanged (rc210 is an internal rebuild) -> stays 4.
  * ======================================================================== */
 
 #define TIP_MAX_WORKERS     32   /* worker/thread stack-array cap                */
 #define TIP_MAX_TASKS      256   /* task-frontier cap (control band is fixed)    */
 #define TIP_MAX_PEEL_DEPTH   8   /* max root->node path length peeled            */
-#define TIP_TARGET_MULT      2   /* aim for K*n_workers tasks (K=2): enough to  */
-                                 /* balance the pool while keeping the peel      */
-                                 /* SHALLOW — deeper peels redundantly re-combine */
-                                 /* shared path-prefixes (O(n_terms^2) each).    */
+#define TIP_TARGET_MULT      2   /* aim for K*n_workers tasks (K=2)              */
 
 /* One peeled sub-problem: a root->node path (nodes[0..len-1]) + a known-leaf
  * flag (so the peel does not try to expand a leaf). len == 0 is the whole root. */
@@ -1158,8 +1293,7 @@ typedef struct tip_task {
     int32_t nodes[TIP_MAX_PEEL_DEPTH];
 } tip_task_t;
 
-/* The read-only shared wire bundle (parsed independently by each worker, exactly
- * like klein4's shared read-only `in`). */
+/* The read-only shared wire bundle (parsed once into the shared region). */
 typedef struct tip_wire {
     size_t                 n_syms;
     int                    xsym;
@@ -1185,10 +1319,7 @@ static size_t tip_control_bytes(void)
 }
 
 /* Parse the root terms ONCE into a dedicated SHARED region (its own ctx / pool),
- * so every worker + the peel REPLAY from these read-only terms instead of
- * re-parsing the whole wire per task (the O(n_terms*tasks) redundancy the fan-out
- * must avoid). The region stays reserved for the whole run; the parsed terms are
- * read-only during it (concurrent worker reads are race-free). */
+ * so every worker + the peel REPLAY from these read-only terms. */
 static srmech_status_t tip_parse_root(const tip_wire_t *w, void *region, size_t region_len,
                                       ti_ctx_t *rc, ti_term_t **root)
 {
@@ -1205,65 +1336,55 @@ static srmech_status_t tip_parse_root(const tip_wire_t *w, void *region, size_t 
                     w->exps_flat);
 }
 
-/* Arena-init a WORKER `slice` + bind its scratch + frame array (NO parse — the
- * worker replays from the SHARED root). The caller passes a ZEROED ctx. Each
- * worker (and the serial peel scratch) owns its OWN disjoint slice. */
+/* Arena-init a WORKER `slice` + bind its runtime bundle (NO parse -- the worker
+ * replays from the SHARED root). The caller passes ZEROED ctx / rt. */
 static srmech_status_t tip_worker_setup(const tip_wire_t *w, void *slice, size_t slice_len,
-                                        ti_ctx_t *c, ti_scr_t *s, ti_frame_t **frames,
-                                        size_t *fcap)
+                                        ti_ctx_t *c, ti_rt_t *rt)
 {
     srmech_status_t st;
-    assert(w != NULL && c != NULL && s != NULL);
-    assert(frames != NULL && fcap != NULL);
+    assert(w != NULL && c != NULL && rt != NULL);
+    assert(slice != NULL || slice_len == 0u);
     c->n_syms = (w->n_syms == 0u) ? 1u : w->n_syms;
     c->cap = (w->coeff_cap < 4u) ? 4u : w->coeff_cap;
-    *fcap = c->n_syms + 2u;
     st = ti_arena_init(c, slice, slice_len);
     if (st != SRMECH_OK) { return st; }
-    st = ti_bind_scr(c, s);
-    if (st == SRMECH_OK) { st = ti_bind_frames(c, frames, *fcap); }
-    if (st != SRMECH_OK) { return st; }
-    s->psym = w->psym;
-    return SRMECH_OK;
+    return ti_bind_rt(c, rt, w->max_thetas, w->xsym, w->ysym, w->psym);
 }
 
-/* ONE peel/replay level: combine `cur`, pick the interpolation variable v, build
- * the d+1 nodes (threading `*off`), substitute child `node_index` -> *out_next
- * (term count unchanged). SRMECH_ERR_INTERNAL if `cur` is not a branch (<=1 var)
- * or node_index is out of range — a malformed path (the caller declines). */
-static srmech_status_t tip_descend(ti_ctx_t *c, ti_scr_t *s, ti_term_t *cur,
+/* ONE peel/replay level: expand `cur` (a scratch frame) and materialize child
+ * `node_index`. SRMECH_ERR_INTERNAL if the frame is a LEAF or node_index is out
+ * of range -- a malformed path (the caller declines to serial). `*off` threads
+ * the augment-prime offset (in: this level's offset; out: the child's). */
+static srmech_status_t tip_descend(ti_ctx_t *c, ti_rt_t *rt, ti_term_t *cur,
                                    size_t ncur, int32_t node_index, size_t max_thetas,
                                    int32_t *off, ti_term_t **out_next, size_t *out_n)
 {
-    ti_term_t *comb;
-    size_t ncomb;
-    ti_mono_t *nodes;
-    int v;
-    int d;
-    int32_t used;
+    ti_frame_t fr;
+    int is_leaf = 0;
+    int verdict = 0;
     srmech_status_t st;
-    assert(c != NULL && s != NULL && off != NULL);
+    assert(c != NULL && rt != NULL && off != NULL);
     assert(out_next != NULL && out_n != NULL);
-    st = ti_combine(c, &comb, &ncomb, cur, ncur, max_thetas, s);
+    memset(&fr, 0, sizeof(fr));
+    fr.raw = cur;
+    fr.n_raw = ncur;
+    fr.offset = *off;
+    fr.frame_mark = c->pool_cur;
+    st = ti_expand(c, &fr, max_thetas, rt, &is_leaf, &verdict);
     if (st != SRMECH_OK) { return st; }
-    if (ti_collect_vars(c, comb, ncomb, s) < 2u) { return SRMECH_ERR_INTERNAL; }
-    ti_pick_v(c, comb, ncomb, s, &v, &d);
-    st = ti_bind_mono_arr(c, &nodes, (size_t)d + 1u);
+    if (is_leaf) { return SRMECH_ERR_INTERNAL; }
+    if (node_index < 0 || (size_t)node_index >= fr.n_children) {
+        return SRMECH_ERR_INTERNAL;
+    }
+    st = ti_child_raw(c, &fr, (size_t)node_index, max_thetas, rt, out_next, out_n, off);
     if (st != SRMECH_OK) { return st; }
-    st = ti_build_nodes(c, nodes, (size_t)d + 1u, comb, ncomb, v, *off, s, &used);
-    if (st != SRMECH_OK) { return st; }
-    *off += used;
-    if (node_index < 0 || node_index > d) { return SRMECH_ERR_INTERNAL; }
-    st = ti_subst_terms(c, out_next, comb, ncomb, v, &nodes[node_index], max_thetas, s);
-    if (st != SRMECH_OK) { return st; }
-    *out_n = ncomb;
     return SRMECH_OK;
 }
 
 /* Replay a task PATH from `root`: descend one level per path step, accumulating
  * the augment-prime offset. *out_cur / *out_n = the sub-problem raw terms at the
  * path end; *out_off = the offset ti_decide must resume from. */
-static srmech_status_t tip_replay(ti_ctx_t *c, ti_scr_t *s, ti_term_t *root,
+static srmech_status_t tip_replay(ti_ctx_t *c, ti_rt_t *rt, ti_term_t *root,
                                   size_t n_root, const tip_task_t *task,
                                   size_t max_thetas, ti_term_t **out_cur,
                                   size_t *out_n, int32_t *out_off)
@@ -1273,12 +1394,13 @@ static srmech_status_t tip_replay(ti_ctx_t *c, ti_scr_t *s, ti_term_t *root,
     int32_t off = 0;
     int32_t lvl;
     srmech_status_t st;
-    assert(c != NULL && s != NULL && task != NULL);
+    assert(c != NULL && rt != NULL && task != NULL);
     assert(out_cur != NULL && out_n != NULL && out_off != NULL);
     for (lvl = 0; lvl < task->len; lvl++) {
         ti_term_t *nxt;
         size_t nn;
-        st = tip_descend(c, s, cur, ncur, task->nodes[lvl], max_thetas, &off, &nxt, &nn);
+        st = tip_descend(c, rt, cur, ncur, task->nodes[lvl], max_thetas, &off,
+                         &nxt, &nn);
         if (st != SRMECH_OK) { return st; }
         cur = nxt;
         ncur = nn;
@@ -1290,17 +1412,14 @@ static srmech_status_t tip_replay(ti_ctx_t *c, ti_scr_t *s, ti_term_t *root,
 }
 
 /* Run ONE task to a verdict in `slice`: worker-setup -> replay the path from the
- * SHARED root -> ti_decide the sub-DFS from the replayed frontier + resumed offset
- * (bit-identical to the serial DFS at this path depth). `root` is the read-only
- * shared parse; the worker only reads it (combine writes go to `slice`). */
+ * SHARED root -> ti_decide the sub-DFS from the replayed frontier + resumed
+ * offset (bit-identical to the serial DFS at this path depth). */
 static srmech_status_t tip_run_subproblem(const tip_wire_t *w, ti_term_t *root,
                                           size_t n_root, const tip_task_t *task,
                                           void *slice, size_t slice_len, int *out_verdict)
 {
     ti_ctx_t c;
-    ti_scr_t s;
-    ti_frame_t *frames;
-    size_t fcap;
+    ti_rt_t rt;
     ti_term_t *cur;
     size_t ncur;
     int32_t off;
@@ -1308,50 +1427,46 @@ static srmech_status_t tip_run_subproblem(const tip_wire_t *w, ti_term_t *root,
     assert(w != NULL && task != NULL && out_verdict != NULL);
     assert(root != NULL || n_root == 0u);
     memset(&c, 0, sizeof(c));
-    memset(&s, 0, sizeof(s));
-    st = tip_worker_setup(w, slice, slice_len, &c, &s, &frames, &fcap);
+    memset(&rt, 0, sizeof(rt));
+    st = tip_worker_setup(w, slice, slice_len, &c, &rt);
     if (st != SRMECH_OK) { return st; }
-    st = tip_replay(&c, &s, root, n_root, task, w->max_thetas, &cur, &ncur, &off);
+    st = tip_replay(&c, &rt, root, n_root, task, w->max_thetas, &cur, &ncur, &off);
     if (st != SRMECH_OK) { return st; }
-    return ti_decide(&c, cur, ncur, w->xsym, w->ysym, off, frames, fcap, w->max_thetas,
-                     &s, out_verdict);
+    return ti_decide(&c, cur, ncur, off, w->max_thetas, &rt, out_verdict);
 }
 
-/* Classify the node at a task PATH: *out_children = -1 iff it is a LEAF (empty /
- * <=1 variable), else the branch child count d+1. Serial peel only; replays from
- * the SHARED root in `slice` (reset each call). */
+/* Classify the node at a task PATH: *out_children = -1 iff it is a LEAF, else the
+ * branch child count. Serial peel only; replays from the SHARED root in `slice`
+ * (reset each call). */
 static srmech_status_t tip_peel_count(const tip_wire_t *w, ti_term_t *root,
                                       size_t n_root, const tip_task_t *task,
                                       void *slice, size_t slice_len, int *out_children)
 {
     ti_ctx_t c;
-    ti_scr_t s;
-    ti_frame_t *frames;
-    size_t fcap;
+    ti_rt_t rt;
     ti_term_t *cur;
-    ti_term_t *comb;
     size_t ncur;
-    size_t ncomb;
     int32_t off;
-    int v;
-    int d;
+    ti_frame_t fr;
+    int is_leaf = 0;
+    int verdict = 0;
     srmech_status_t st;
     assert(w != NULL && task != NULL && out_children != NULL);
     assert(root != NULL || n_root == 0u);
     memset(&c, 0, sizeof(c));
-    memset(&s, 0, sizeof(s));
-    st = tip_worker_setup(w, slice, slice_len, &c, &s, &frames, &fcap);
+    memset(&rt, 0, sizeof(rt));
+    st = tip_worker_setup(w, slice, slice_len, &c, &rt);
     if (st != SRMECH_OK) { return st; }
-    st = tip_replay(&c, &s, root, n_root, task, w->max_thetas, &cur, &ncur, &off);
+    st = tip_replay(&c, &rt, root, n_root, task, w->max_thetas, &cur, &ncur, &off);
     if (st != SRMECH_OK) { return st; }
-    st = ti_combine(&c, &comb, &ncomb, cur, ncur, w->max_thetas, &s);
+    memset(&fr, 0, sizeof(fr));
+    fr.raw = cur;
+    fr.n_raw = ncur;
+    fr.offset = off;
+    fr.frame_mark = c.pool_cur;
+    st = ti_expand(&c, &fr, w->max_thetas, &rt, &is_leaf, &verdict);
     if (st != SRMECH_OK) { return st; }
-    if (ncomb == 0u || ti_collect_vars(&c, comb, ncomb, &s) < 2u) {
-        *out_children = -1;
-        return SRMECH_OK;
-    }
-    ti_pick_v(&c, comb, ncomb, &s, &v, &d);
-    *out_children = d + 1;
+    *out_children = is_leaf ? -1 : (int)fr.n_children;
     return SRMECH_OK;
 }
 
@@ -1391,7 +1506,7 @@ static size_t tip_peel_round(const tip_wire_t *w, ti_term_t *root, size_t n_root
     return k;
 }
 
-/* BFS-peel the interpolation tree into a task frontier (ping-ponging bufA/bufB;
+/* BFS-peel the certificate tree into a task frontier (ping-ponging bufA/bufB;
  * the final frontier is left in bufA). Expands until >= `target` tasks, or the
  * depth / MAX_TASKS budget or a non-expanding round stops it. *ok = 0 on a peel
  * error. Returns the task count. */
@@ -1421,30 +1536,27 @@ static size_t tip_enumerate(const tip_wire_t *w, ti_term_t *root, size_t n_root,
 }
 
 /* The exact SEQUENTIAL path over the WHOLE ws (parse root + ti_decide from offset
- * 0) — bit-identical to srmech_thetasum_is_zero_interpolation. The thread-less /
+ * 0) -- bit-identical to srmech_thetasum_is_zero_interpolation. The thread-less /
  * n_workers<=1 fallback (preserves the capability). */
 static srmech_status_t tip_serial(const tip_wire_t *w, void *ws, size_t ws_len,
                                   int *out_is_zero)
 {
     ti_ctx_t c;
-    ti_scr_t s;
-    ti_frame_t *frames;
-    size_t fcap;
+    ti_rt_t rt;
     ti_term_t *root;
     srmech_status_t st;
     assert(w != NULL && out_is_zero != NULL);
     assert(ws != NULL || ws_len == 0u);
     memset(&c, 0, sizeof(c));
-    memset(&s, 0, sizeof(s));
-    st = tip_worker_setup(w, ws, ws_len, &c, &s, &frames, &fcap);   /* one arena */
+    memset(&rt, 0, sizeof(rt));
+    st = tip_worker_setup(w, ws, ws_len, &c, &rt);   /* one arena */
     if (st != SRMECH_OK) { return st; }
     st = ti_bind_term_arr(&c, &root, w->n_terms, w->max_thetas);
     if (st != SRMECH_OK) { return st; }
     st = ti_parse(&c, root, w->n_terms, w->term_nthetas, w->coeff_num, w->coeff_den,
                   w->exps_flat);
     if (st != SRMECH_OK) { return st; }
-    return ti_decide(&c, root, w->n_terms, w->xsym, w->ysym, 0, frames, fcap,
-                     w->max_thetas, &s, out_is_zero);
+    return ti_decide(&c, root, w->n_terms, 0, w->max_thetas, &rt, out_is_zero);
 }
 
 /* One worker's partition: process tasks {worker_id, +n_workers, ...} (through the
@@ -1485,7 +1597,7 @@ static void tip_worker_run(tip_job_t *job)
     }
 }
 
-/* PAL thread entry — a plain void(void*) job. */
+/* PAL thread entry -- a plain void(void*) job. */
 static void tip_worker_trampoline(void *arg)
 {
     tip_job_t *job;
@@ -1496,8 +1608,8 @@ static void tip_worker_trampoline(void *arg)
 }
 
 /* Fold the finished worker jobs into the verdict: a definitive False (some worker
- * proved a nonzero leaf) WINS over any error; else the first error declines; else
- * all-True. Reads jobs only AFTER join (the happens-before barrier). */
+ * proved a leaf unproven) WINS over any error; else the first error declines;
+ * else all-True. Reads jobs only AFTER join (the happens-before barrier). */
 static srmech_status_t tip_fold(const tip_job_t *jobs, uint32_t nw, int *out_is_zero)
 {
     uint32_t s;
@@ -1550,17 +1662,9 @@ static srmech_status_t tip_threaded(const tip_wire_t *w, ti_term_t *root, size_t
 }
 
 /* The BYTES tip_parse_root needs to parse the root terms ONCE into the read-only
- * SHARED region: ti_arena_init + ti_bind_term_arr(n_terms) + ti_parse. This is a
- * function of the WIRE shape (n_terms, max_thetas, n_syms, coeff cap) ONLY, NOT of
- * the interpolation degree (max_abs_exp / max_theta_sq_sum) — the root parse never
- * runs the DFS nor the base-case series, so it needs NONE of the `base_words` /
- * `depth*level_words` arena a worker slice (ws_bound2) does. Sized generously (the
- * parse is small vs a worker's DFS+base slice) and, crucially, computed by the SAME
- * formula in the parallel ws sizer (which has the shape) AND in tip_dispatch (which
- * reads it back off the wire `w`), so the two agree on the carve without tip_dispatch
- * needing the degree params. PROVABLY < ws_bound2 (a strict subset of the serial
- * arena: serial does this parse THEN the DFS), so it never exceeds a worker slice.
- * rc123 (#706): the pre-rc123 layout gave the shared-root a FULL worker slice. */
+ * SHARED region: a function of the WIRE shape only. Computed by the SAME formula
+ * in the parallel ws sizer AND in tip_dispatch, so the carve agrees. PROVABLY
+ * smaller than a worker slice (the parse is a strict subset of the serial arena). */
 static size_t tip_root_parse_bytes(size_t n_syms, size_t n_terms, size_t max_thetas,
                                    size_t coeff_limbs)
 {
@@ -1581,12 +1685,9 @@ static size_t tip_root_parse_bytes(size_t n_syms, size_t n_terms, size_t max_the
 
 /* Minimum `ws_len` BYTES the parallel entry needs: a fixed control band (the task
  * frontier) + ONE parse-sized shared-root region + nw disjoint worker arena slices,
- * each EXACTLY the ws_bound2 path sizing (rc123 #706: the pre-rc123 +50% replay
- * margin is REMOVED — a worker's peak arena is replay(task_len levels) +
- * sub-DFS(n_syms-task_len+2 levels) + base = the SAME full-path high-water the serial
- * DFS reaches, provably <= ws_bound2, so ws_bound2 already bounds it; the peeled top
- * levels ARE the path's top levels, not extra). A genuine shortfall still trips
- * SRMECH_ERR_OVERFLOW -> the pure oracle. Additive symbol -> ABI stays 3. */
+ * each EXACTLY the ws_bound2 path sizing (a worker's peak arena is the same
+ * full-path high-water the serial DFS reaches). A genuine shortfall still trips
+ * SRMECH_ERR_OVERFLOW -> the pure oracle. Signature unchanged -> ABI stays. */
 size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
     size_t n_syms, size_t n_terms, size_t max_thetas, size_t coeff_limbs,
     size_t max_abs_exp, size_t max_theta_sq_sum, size_t n_workers)
@@ -1607,13 +1708,7 @@ size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
 /* The threaded orchestration: carve `ws` into [control | shared-root | worker
  * region], parse the root ONCE into the shared region, BFS-peel the task frontier
  * (into the control-band double-buffer), then run the worker pool. Any layout /
- * parse / peel shortfall falls to the exact serial path (never a wrong verdict).
- * rc123 (#706): the shared-root region is the parse-only tip_root_parse_bytes (NOT a
- * full worker slice); the REST is split nw ways into worker slices, each the ws_bound2
- * path bound. tip_root_parse_bytes is read off the wire `w` here so it matches the
- * parallel ws sizer's carve EXACTLY (both use the same shape; the sizer laid out
- * control + root + nw*per, so worker_region = ws_len - control - root == nw*per and
- * each slice == per). */
+ * parse / peel shortfall falls to the exact serial path (never a wrong verdict). */
 static srmech_status_t tip_dispatch(const tip_wire_t *w, uint32_t nw, uint32_t task_order,
                                     void *ws, size_t ws_len, int *out_is_zero)
 {
@@ -1652,13 +1747,12 @@ static srmech_status_t tip_dispatch(const tip_wire_t *w, uint32_t nw, uint32_t t
                         base + control + root_bytes, worker_region, out_is_zero);
 }
 
-/* Decide the cleared ThetaSum numerator's is_zero by the CHIRALITY-PRESERVING
- * PARALLEL structural elliptic interpolation. Wire form + verdict are IDENTICAL
- * to srmech_thetasum_is_zero_interpolation (the CARRIER contract: byte-for-byte
- * the same exact-Q verdict). `n_workers` = the parallel width (clamped to
- * [1, TIP_MAX_WORKERS]); `task_order` (0 forward / 1 reverse) exercises the
- * order-invariance (CHIRALITY) contract. No threads OR n_workers <= 1 -> the exact
- * serial path. Additive symbol -> ABI stays 3. */
+/* Decide the cleared ThetaSum numerator's certificate-proven is_zero by the
+ * CHIRALITY-PRESERVING PARALLEL fan-out. Wire form + verdict are IDENTICAL to
+ * srmech_thetasum_is_zero_interpolation (byte-for-byte the same exact-Q verdict).
+ * `n_workers` = the parallel width (clamped to [1, TIP_MAX_WORKERS]);
+ * `task_order` (0 forward / 1 reverse) exercises the order-invariance
+ * (CHIRALITY) contract. No threads OR n_workers <= 1 -> the exact serial path. */
 srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
     size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
     const size_t *term_nthetas, const srmech_bigint_t *coeff_num,

@@ -79,53 +79,54 @@ and (his Eq. 1.4) ``θ(ax^±; p) = θ(ax; p) θ(a/x; p)``.
     at MORE THAN ``d`` distinct points of a period annulus.
 
 
-================================  WHY ``is_zero`` IS EXACT  ================================
+====================  WHY ``is_zero`` IS SOUND (rc210 certificate rebuild)  ====================
 
 ``is_zero`` NEVER accepts on a converging witness (the rc61 / §76 no-hallucination
 standard — a truncated modified-theta product only CONVERGES, it is not exact at
 any finite depth, so a raw ``eval_trunc`` of a theta-bearing residual is NOT an
-exact test). The decision is structural + a degree-bounded EXACT-``ℚ`` confirmation:
+exact test) — and, as of rc210, it NEVER accepts on a numeric p-order band either.
+The contract is SOUND-TRUE-ONLY: ``True`` ⟺ certificate-proven identically zero;
+``False`` = "not proven" (a proven-nonzero object or an honest decline). The
+pre-rc210 decision claimed COMPLETENESS via a single-variable degree-band
+q-expansion + a mixed-character node count; both were UNSOUND (they certified
+provably-NONZERO objects as zero — a multi-term cancellation gap outruns the
+max-single-term band, and a mixed-character sum lies in no single section space),
+so completeness on the True side was RETIRED, not repaired.
 
   1. CLEAR to the numerator. The denominator theta-product is a nonzero elliptic
-     function, so ``self == 0 ⟺ numerator ≡ 0`` (a sum of theta-products).
+     function, so ``self == 0 ⟺ numerator ≡ 0`` (a sum of theta-products); the
+     empty / exactly-cancelled numerator is proven zero outright [Z1].
 
-  2. GROUP the numerator's terms by QUASI-PERIODICITY CLASS — the net multiplier
-     monomial each theta-product acquires under the period shifts ``x ↦ p·x`` AND
-     ``y ↦ p·y`` (computed by the rc59 quasi-periodicity rewrite, Rosengren Eq.
-     1.6, via :meth:`~srmech.amsc.ellbase.Theta.canonicalize`). Theta-products of
-     DIFFERENT quasi-periodicity transform by different multipliers, hence are
-     linearly independent over ``ℚ(q,p)``, so the whole numerator is ``≡ 0`` IFF
-     EACH class-component is ``≡ 0`` (a finite, exact partition — no evaluation).
+  2. FAST PATH — GROUP the numerator's terms by QUASI-PERIODICITY CLASS (the net
+     multiplier monomial under ``x ↦ p·x`` and ``y ↦ p·y``; Rosengren Eq. 1.6 via
+     :meth:`~srmech.amsc.ellbase.Theta.canonicalize`; different classes are linearly
+     independent over ``ℚ(q,p)``) and REDUCE each class by the EXACT Weierstrass
+     three-term relation (theorem (1) below): ``±``-pairs ``θ(α·β^±) = θ(αβ)θ(α/β)``
+     recovered by the exact midpoint / geometric-mean test, driven to a canonical
+     additive normal form by a strictly-decreasing (hence terminating) rewrite.
+     EVERY class reduced to the empty normal form ⇒ proven zero [Z2].
 
-  3. Within a class, REDUCE every theta-product to a CANONICAL ADDITIVE NORMAL FORM
-     by the EXACT Weierstrass three-term relation (theorem (1) below) — a purely
-     SYMBOLIC carrier rewrite, NO evaluation. (a) First, terms whose canonical theta-
-     multiset already agrees combine exactly in the carrier (their ``Q``·prefactor
-     coefficients add). (b) A class whose terms have DIFFERENT theta multisets — e.g.
-     the two-sides-differ-but-equal shape of the Weierstrass relation — is reduced:
-     each theta-product is recognised as a multiset of ``±``-pairs ``θ(α·β^±) =
-     θ(αβ)θ(α/β)`` (the pairing recovered by the exact MIDPOINT / geometric-mean test:
-     ``θ(z₁),θ(z₂)`` pair iff ``z₁z₂`` is a perfect-square monomial), and the
-     three-term relation is applied to drive every summation-symbol pair ``θ(α·s^±)``
-     to a single class reference ``θ(r·s^±)`` (the lex-smallest argument). The rewrite
-     is well-founded — each step strictly lowers the count of non-reference ``s``-pairs
-     — so it TERMINATES. In the common reference basis the products combine exactly.
-     The class is ``≡ 0`` IFF every normal-form coefficient cancels to ``Q(0)`` — an
-     EXACT symbolic carrier decision (the FT degree bound (2) is what guarantees this
-     reduction is a COMPLETE decision procedure for the class, since the reduced
-     ``s``-pair basis has dimension = the elliptic degree; cf. Rosengren Prop. 1.6.1's
-     interpolation). NEVER a converging eval: a term outside the clean ``±``-pair shape
-     this carrier reduces is honestly reported NOT-zero rather than accepted on a
-     numerically-converging :meth:`eval_trunc` witness (the rc61 no-hallucination
-     standard). The :meth:`eval_trunc` method materialises a value ONLY as a
-     truncated-product convergence ORACLE for tests — it is NOT on the ``is_zero``
-     decision path.
+  3. COMPLETION — the three-valued CERTIFICATE RECURSION (:func:`_decide_struct`):
+     split by the exact per-symbol character ``(D_v, μ_v)`` (degree + full Eq.-1.6
+     multiplier; all components proven zero ⇒ zero [Z3s]); inside one character,
+     retry the three-term reduction over the component's ACTUAL variables [Z2];
+     else interpolate ONE variable at ``D_v+1`` PAIRWISE-DISTINCT nodes of
+     ``ℂ*/p^ℤ`` (theta-factor zeros + deduplicated distinct primes) — a
+     degree-``D_v`` section vanishing (recursively PROVEN) at ``D_v+1`` distinct
+     points is identically zero (Rosengren Cor. 1.3.5, theorem (2) below) [Z4].
+     Anything else is honestly ``False``. The NONZERO side (a singleton term, an
+     exact nonzero lattice coefficient, a nonzero node, a nonzero component) is
+     DETECTION ONLY — it can label an object proven-nonzero for diagnostics, but
+     no detection depth ever produces a ``True``. :meth:`eval_trunc` materialises
+     a value ONLY as a truncated-product convergence ORACLE for tests — it is NOT
+     on the ``is_zero`` decision path.
 
-C peer (rc62-prefix, OWED by the everything-mirrors discipline — NOT built this rc,
-exactly like the rc59 ``EllBase`` / rc60 ``EllRatio`` / ``QMat`` C peers): a
-``srmech_thetasum_*`` mirror of the cleared-rational theta-sum algebra +
-degree-bound zero test over the integer theta-exponent lattice; the pure-Python
-body here is the COMPLETE alternative + the parity oracle.
+C peer: ``srmech_thetasum_is_zero`` (the ±-pair fast path, sound-True) +
+``srmech_thetasum_is_zero_interpolation`` (+ the rc103 parallel variant), the
+latter REBUILT in rc210 as the 1:1 mirror of the certificate recursion's bool —
+the old band/mixed-character C decision was the live false-zero surface on native
+builds. The pure-Python body here is the parity oracle (the committed corpus suite
+pins native == pure).
 """
 
 from __future__ import annotations
@@ -171,20 +172,23 @@ _VERIFY_POINTS: Tuple[Dict[str, Q], ...] = (
 _VERIFY_TRUNC = 16
 
 
-# ── the STRUCTURAL elliptic-interpolation zero-test (the COMPLETE multi-variable elliptic
-# is_zero — Rosengren arXiv:1608.06161 Prop 1.6.1 / eq 1.22 + Cor 1.3.5). N (numerator) is a
-# theta section jointly in its symbols; N≡0 IFF, interpolating in ONE variable v at D_v+1
-# distinct points (a degree-D theta vanishing at D+1 points is ≡0), N vanishes at each — a
-# LOWER-variable is_zero → RECURSE, base = the single-variable degree-bound. Nodes = the
-# θ-FACTOR ZEROS (monomials in the remaining vars, killing terms via θ(1)=0) + augment
-# constants; SUBSTITUTING nodes (never MERGING ±-pairs) dissolves the √ the three-term stalls
-# on. Exact-ℚ, no q-grid; the pure-Python parity oracle for the owed native peer.
+# ── shared support for the SOUND structural certificate recursion (rc210 rebuild;
+# the recursion itself is `_decide_struct` below). The Z4 interpolation certificate is
+# Rosengren arXiv:1608.06161 Cor 1.3.5: a SINGLE-character component of v-degree D that
+# vanishes (recursively PROVEN) at D+1 nodes pairwise distinct mod p^ℤ is ≡ 0. Nodes =
+# the θ-FACTOR ZEROS (monomials in the remaining vars, killing terms via θ(1)=0) +
+# deduplicated augment constants; SUBSTITUTING nodes (never MERGING ±-pairs) dissolves
+# the √ obstruction the three-term reduction stalls on. Exact-ℚ, no q-grid; the pure
+# parity oracle for the native peer.
 #
 # The augment constants MUST be GLOBALLY DISTINCT PRIMES threaded through the recursion (not a
 # reused pool): substituting two variables to the SAME constant would make a cross-variable
 # factor θ(x_i/x_j) → θ(1)=0 a SPURIOUS zero, wrongly proving a non-zero product ≡0. With
 # distinct integer primes, θ(∏ pᵢ^{eᵢ}) = θ(1) IFF ∏ pᵢ^{eᵢ}=1 IFF every eᵢ=0 (unique
 # factorization; an integer is never a nome power p^k) — so the ONLY vanishings are genuine.
+#
+# _STRUCT_MARGIN survives rc210 ONLY as the N2 detection-depth floor (and the #693 test's
+# band arithmetic) — there is NO band on the True side anymore.
 _STRUCT_MARGIN = 3
 _STRUCT_PRIMES: "Tuple[int, ...]" = (
     2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83,
@@ -242,8 +246,19 @@ def _struct_combine(terms: "List") -> "List":
 
 
 def _struct_variables(terms: "List") -> "set":
+    """ALL non-``p`` symbols on the theta arguments AND the prefactors.
+
+    The prefactor scan is LOAD-BEARING (rc210 defect D3): scanning theta args only
+    silently dropped prefactor-only symbols, so ``a·θ(2x) − b·θ(2x)`` (a ≠ b) was
+    treated as the single-variable object ``(1−1)·θ(2x)`` and falsely certified
+    zero. With prefactor symbols included, ``a`` / ``b`` carry distinct characters
+    (their prefactor exponents differ), the character split separates the terms,
+    and each singleton is honestly NOT proven zero."""
     s: "set" = set()
     for pref, args in terms:
+        for sym in pref.exps:
+            if sym != _P:
+                s.add(sym)
         for a in args:
             for sym in a.exps:
                 if sym != _P:
@@ -303,25 +318,146 @@ def _struct_theta_p(coeff: Q, e: int, k: int) -> "Dict":
     return acc
 
 
-def _struct_one_var(terms: "List", w: str) -> bool:
-    """single-variable base case: the degree-bound q-expansion in w (feasible — no grid; the
-    non-w symbols are all substituted to constants, so each theta arg is coeff*w^e)."""
-    degree = 0
+# ── the SOUND three-valued structural decision (rc210 — the is_zero soundness rebuild) ──
+#
+# The rc98–rc103 "structural interpolation" completion above was replaced WHOLESALE in
+# rc210: the shipped decision certified provably-NONZERO objects as zero via two unsound
+# devices — (D1) the single-variable p-order BAND k = max-term(Σe²)−1+3 in the old
+# `_struct_one_var`, which under-counts MULTI-TERM cancellation gaps (a 6-term
+# one-character pair family θ(u·x^±) hides its first nonzero coefficient at p⁶ > band 4),
+# and (D2) a MIXED-character node count d = max-term Σe² in the old `_structural_is_zero`,
+# which has no supporting theorem (a sum of terms of DIFFERENT quasi-periodicity is in no
+# single theta-section space, so "degree-d section ⇒ d+1 nodes" does not apply to it).
+# Two further defects rode along: (D3) `_struct_variables` dropped prefactor-only symbols
+# (fixed above) and (D4) augment primes were not deduplicated against zero-node constants
+# (a duplicate node under-counts the interpolation).
+#
+# The replacement is the three-valued CERTIFICATE recursion `_decide_struct`:
+#
+#     ZERO     — proven identically zero (certificate-backed; the ONLY source of True)
+#     NONZERO  — proven not identically zero (an exact nonzero coefficient / a singleton
+#                term / a nonzero node substitution / a nonzero character component)
+#     UNKNOWN  — declined (honest "not proven"); the consumer bool is False
+#
+# Sound TRUE certificates (each exact / theorem-backed; NO numeric band anywhere):
+#   Z1  empty-after-combine: exact carrier cancellation + θ(1)=0 kills          [trivial]
+#   Z2  ±-pair three-term reduction to the EMPTY normal form (Rosengren Eq. 1.12,
+#       value-faithful rewrites; empty ⟺ the component IS zero)                  [exact]
+#   Z3s character split, ZERO direction: all components zero ⇒ the sum is zero  [trivial]
+#   Z4  per-character elliptic interpolation: a SINGLE-character component of
+#       v-degree D ≥ 1 vanishing (recursively PROVEN) at D+1 nodes pairwise
+#       distinct mod p^ℤ is identically zero (Rosengren Cor. 1.3.5: a nonzero
+#       degree-D section has at most D zero classes mod p^ℤ)                    [theorem]
+#
+# Sound FALSE (NONZERO) certificates — DETECTION ONLY, they can never yield a True:
+#   N1  singleton component: a nonzero-coeff monomial × a product of thetas of
+#       non-unit canonical args is a nonzero formal series
+#   N2  the exact lattice expansion to a FINITE depth exhibits a nonzero coefficient
+#       (the depth influences only how often we can say NONZERO instead of UNKNOWN)
+#   N3  a node substitution proven NONZERO ⇒ the component is nonzero (substitution
+#       is a homomorphism)
+#   N4  a character component proven NONZERO ⇒ the sum is nonzero (character
+#       independence; affects only the False label, never True)
+#
+# The CHARACTER of a term in a symbol v is its exact quasi-periodicity datum under
+# v ↦ p·v: the degree D_v = Σₐ e_{v,a}² together with the full Rosengren Eq. 1.6
+# multiplier monomial μ_v (ℚ*-coefficient included, the v-part dropped — it IS D_v).
+# Terms of different (D_v, μ_v) for ANY v lie in different section spaces and are
+# linearly independent over ℚ(q,p), so the split is exact in both directions.
+
+_ZERO, _NONZERO, _UNKNOWN = "ZERO", "NONZERO", "UNKNOWN"
+
+# The N2 detection-depth cap. SOUNDNESS-IRRELEVANT: detection only ever proves NONZERO
+# (an exact nonzero coefficient at a finite order); it never proves ZERO. Chosen so the
+# known gap families are detected: a T-term one-character pair family hides its first
+# nonzero functional no deeper than ~((T−1)·emax)²/4.
+_STRUCT_DETECT_CAP = 80
+
+
+def _term_char_v(pref: EllMonomial, args: "List[EllMonomial]", v: str) -> "Tuple[int, Tuple]":
+    """The EXACT v-character of one term: ``(D_v, μ_v-key)``.
+
+    Under ``v → p·v`` the term ``κ·v^d·∏ θ(z_a)`` (``z_a`` canonical, p-exp 0) acquires
+    the multiplier ``p^d · ∏_a [(−1)^{e_a} p^{−e_a(e_a−1)/2} z_a^{−e_a}] · v^{−D_v}``,
+    with ``D_v = Σ e_a²`` (Rosengren Eq. 1.6 per factor; ``e_a`` = the v-exponent of
+    ``z_a``). ``μ_v`` is that multiplier WITHOUT the ``v^{−D_v}`` part, kept as an exact
+    ``(Q coeff, exponent-monomial)`` key, p-power included."""
+    d = pref.exp_of(v)
+    D = 0
+    coeff = _Q_ONE
+    exps: "Dict[str, int]" = {_P: d}
+    for z in args:
+        e = z.exp_of(v)
+        if e == 0:
+            continue
+        D += e * e
+        if e % 2:
+            coeff = coeff * Q(-1, 1)
+        exps[_P] = exps.get(_P, 0) - (e * (e - 1)) // 2
+        # z^{-e}: coefficient part c^{-e}, monomial part exps scaled by -e
+        c = z.coeff
+        if e > 0:
+            for _ in range(e):
+                coeff = coeff / c
+        else:
+            for _ in range(-e):
+                coeff = coeff * c
+        for s, se in z.exps.items():
+            exps[s] = exps.get(s, 0) - e * se
+    exps.pop(v, None)                      # the v^{-D} part IS D, tracked separately
+    key_exps = tuple(sorted((s, e2) for s, e2 in exps.items() if e2 != 0))
+    return D, (coeff.numerator, coeff.denominator, key_exps)
+
+
+def _joint_char(pref: EllMonomial, args: "List[EllMonomial]", syms: "List[str]") -> "Tuple":
+    """The joint character of a term over the ordered symbol list: one ``(v, D_v, μ_v)``
+    triple per symbol. Two terms with different joint characters are linearly independent
+    over ``ℚ(q,p)`` (character independence), so the partition is exact."""
+    out = []
+    for v in syms:
+        dc = _term_char_v(pref, args, v)
+        out.append((v, dc[0], dc[1]))
+    return tuple(out)
+
+
+def _pair_reduce_component(terms: "List", syms: "List[str]") -> bool:
+    """Z2 generalized: the exact Weierstrass three-term reduction over the component's
+    ACTUAL live variables (the shipped fast path hardcoded x/y). True ONLY on the empty
+    normal form (proven zero — every rewrite is a value-faithful instance of Rosengren
+    Eq. 1.12). False = "not proven here" (a term outside the clean ±-pair shape, or a
+    non-empty normal form) — never a nonzero claim."""
+    rterms = []
     for pref, args in terms:
-        # Σe² (NOT Σ|e|) is REQUIRED for soundness — it is the TRUE elliptic degree (the
-        # quasi-periodicity index = zeros-per-annulus) of a theta-product in w. Under w↦p·w a
-        # factor θ(c·wᵉ;p) gains the multiplier θ(pᵉ·z₀)/θ(z₀) = (−1)ᵉ p^{−e(e−1)/2} z₀^{−e}
-        # (Rosengren Eq. 1.6, ellbase.Theta.canonicalize) with z₀=c·wᵉ, whose w-exponent is
-        # −e² — so a product's index (and its p-order band) is Σe², not Σ|e|. Since e²>|e| for
-        # |e|≥2, Σ|e| UNDER-provisions k and can miss a genuine nonzero coefficient above p^{Σ|e|}
-        # → a FALSE ZERO. #693 investigated the Σe²→Σ|e| tighten and found it UNSOUND; the
-        # discriminating witness (single variable, e=3 ⇒ Σ|e|=3, k_ABS=5 < true p-order 6 ≤
-        # k_SQ=11) is  N(x) = 2·θ(2x³) −27·θ(3x³) +120·θ(4x³) −250·θ(5x³) +270·θ(6x³) −147·θ(7x³)
-        # +32·θ(8x³)  (all ;p): EXACTLY nonzero (lowest coeff (p⁶,x⁻⁹)=−1/112; evaluates to a
-        # stable 0.180756 at p=½,x=¾), yet Σ|e| proves it ≡0. Σe² correctly returns False. See
-        # tests/test_thetasum_degree_bound_soundness_693.py and notes/thetasum_is_zero_degree_bound_693.md.
-        degree = max(degree, sum(a.exps.get(w, 0) ** 2 for a in args))
-    k = max(degree - 1, 0) + _STRUCT_MARGIN
+        rec = _recover_pairs(tuple(Theta(a) for a in args))
+        if rec is None:
+            return False
+        rpref, pairs = rec
+        rterms.append((pref * rpref, tuple(pairs)))
+    work = _combine_rterms(rterms)
+    for _ in range(_REDUCE_MAX_PASSES):
+        changed = False
+        for s in sorted(syms):
+            nxt = []
+            pass_changed = False
+            for pref, pairs in work:
+                rw = _three_term_rewrite(list(pairs), pref, s)
+                if rw is None:
+                    nxt.append((pref, pairs))
+                else:
+                    nxt.extend(rw)
+                    pass_changed = True
+            work = _combine_rterms(nxt)
+            changed = changed or pass_changed
+        if not changed:
+            break
+    return len(work) == 0
+
+
+def _lattice_nonzero_upto(terms: "List", w: str, k: int) -> bool:
+    """N2 detection: the exact p-expansion of the component to order ``k`` (``w`` = the
+    single live variable, or a dummy for the 0-variable case). True iff some coefficient
+    is exactly nonzero ⇒ the component is proven NONZERO. NEVER used to prove zero (a
+    truncation can only ever witness a NONZERO coefficient exactly)."""
     total: "Dict" = {}
     for pref, args in terms:
         term = {0: {pref.exps.get(w, 0): pref.coeff}}
@@ -334,51 +470,174 @@ def _struct_one_var(terms: "List", w: str) -> bool:
     for lp in total.values():
         for vv in lp.values():
             if vv != _Q_ZERO:
-                return False
-    return True
+                return True
+    return False
 
 
-def _structural_is_zero(terms: "List", offset: int = 0) -> bool:
-    """The structural elliptic-interpolation recursion. terms = [(EllMonomial prefactor,
-    list of theta-arg EllMonomials)]; ``offset`` = count of augment-primes already consumed by
-    ANCESTOR levels on this path (so every augment constant on a root->leaf path is a DISTINCT
-    prime — the guard against spurious ``θ(1)`` from constant collisions). Returns the exact
-    ``== 0`` verdict."""
-    terms = _struct_combine(terms)
-    if not terms:
-        return True
-    syms = _struct_variables(terms)
-    if len(syms) <= 1:
-        if not syms:
-            # no variables left: an empty sum already returned True above, so any term that
-            # SURVIVED _struct_combine is a non-cancelling residue (a nonzero constant /
-            # constant-arg theta) -> the sum is NOT identically zero.
-            return False
-        return _struct_one_var(terms, next(iter(syms)))
+def _node_key(m: EllMonomial) -> "Tuple":
+    """The exact node identity key (coefficient + exponent monomial) — two nodes with
+    the same key are the SAME point of ℂ*/p^ℤ (canonical p-exp-0 monomials)."""
+    return (m.coeff.numerator, m.coeff.denominator, tuple(sorted(m.exps.items())))
 
-    def _deg(v: str) -> int:
-        # Σe² = the TRUE elliptic degree in v (quasi-period index / zeros per annulus); the
-        # interpolation substitutes d+1 = Σe²+1 nodes. This bound is SOUND-REQUIRED, not slack:
-        # Σ|e| under-counts the nodes whenever any |e|≥2 (a degree-Σe² section vanishing at only
-        # Σ|e|+1 < Σe²+1 nodes could be FALSELY proved ≡0). #693 confirmed Σ|e| is UNSOUND — see
-        # the counterexample in _struct_one_var above / notes/thetasum_is_zero_degree_bound_693.md.
-        return max(sum(a.exps.get(v, 0) ** 2 for a in args) for (pref, args) in terms)
 
-    v = min(syms, key=lambda s: (_deg(s), s))              # smallest degree -> fewest nodes
-    d = _deg(v)
-    nodes = _struct_zero_nodes(terms, v)                   # zero-monomials (kill terms -> fast)
+def _pick_nodes(terms: "List", v: str, D: int, offset: int
+                ) -> "Tuple[List[EllMonomial], int]":
+    """The D+1 interpolation nodes, pairwise DISTINCT (canonical p-exp-0 monomials, so
+    exact-key distinctness = distinctness mod p^ℤ). rc210 defect-D4 fix: the augment
+    primes are deduplicated against the zero-node constants too (a θ(x/5) zero node IS
+    the constant 5 — appending the prime 5 again would double-count one node and
+    under-count the interpolation). Returns ``(nodes[:D+1], offset+consumed)``."""
+    nodes: "List[EllMonomial]" = []
+    seen: "set" = set()
+    for nd in _struct_zero_nodes(terms, v):
+        kk = _node_key(nd)
+        if kk not in seen:
+            seen.add(kk)
+            nodes.append(nd)
     used = 0
     npr = len(_STRUCT_PRIMES)
-    while len(nodes) < d + 1:                              # augment with GLOBALLY-DISTINCT primes
-        nodes.append(EllMonomial(Q(_STRUCT_PRIMES[(offset + used) % npr], 1)))
+    guard = 0
+    while len(nodes) < D + 1 and guard < 4 * npr:
+        cand = EllMonomial(Q(_STRUCT_PRIMES[(offset + used) % npr], 1))
         used += 1
-    child_offset = offset + used
-    for node in nodes[:d + 1]:
-        sub = [(_struct_subst(pref, v, node), [_struct_subst(a, v, node) for a in args])
-               for (pref, args) in terms]
-        if not _structural_is_zero(sub, child_offset):
-            return False
-    return True
+        guard += 1
+        kk = _node_key(cand)
+        if kk in seen:
+            continue
+        seen.add(kk)
+        nodes.append(cand)
+    return nodes[:D + 1], offset + used
+
+
+def _decide_struct(terms: "List", offset: int = 0, depth: int = 0) -> str:
+    """The sound three-valued decision on a cleared-numerator term list
+    ``[(EllMonomial prefactor, [EllMonomial theta-args])]`` → ``_ZERO`` / ``_NONZERO`` /
+    ``_UNKNOWN``. The DEFAULT is decline: ``_ZERO`` is returned ONLY through the Z1/Z2/
+    Z3s/Z4 certificates (see the block comment above); there is NO numeric band on the
+    True side. ``offset`` threads the globally-distinct augment-prime cursor down the
+    interpolation path (spurious θ(1) collision guard)."""
+    terms = _struct_combine(terms)
+    if not terms:
+        return _ZERO                                           # Z1
+    syms = _struct_variables(terms)
+
+    # ---- exact joint-character split (Z3s: the True direction is trivially sound) ----
+    comps: "Dict[Tuple, List]" = {}
+    for pref, args in terms:
+        comps.setdefault(_joint_char(pref, args, sorted(syms)), []).append((pref, args))
+    if len(comps) > 1:
+        verdicts = [_decide_struct(c, offset, depth) for c in comps.values()]
+        if all(v == _ZERO for v in verdicts):
+            return _ZERO
+        if any(v == _NONZERO for v in verdicts):
+            return _NONZERO                                    # N4 (character independence)
+        return _UNKNOWN
+
+    # ---- single joint character ----
+    # Strip symbols of theta-degree 0 (same character ⇒ same prefactor exponent):
+    # factor v^d out of every prefactor; v disappears from the object.
+    live: "List[str]" = []
+    for v in sorted(syms):
+        D0 = max(sum(a.exp_of(v) ** 2 for a in args) for _pref, args in terms)
+        if D0 == 0:
+            dvals = {pref.exp_of(v) for pref, _args in terms}
+            if len(dvals) != 1:
+                raise AssertionError("joint-char split broken: unequal d_v in one class")
+            terms = [(_struct_subst(pref, v, EllMonomial.one()), args)
+                     for pref, args in terms]
+        else:
+            live.append(v)
+
+    if len(terms) == 1:
+        return _NONZERO                                        # N1
+
+    if not live:
+        # 0-variable: a sum of θ(rational-constant) products. Combine already merged
+        # carrier-equal terms; a surviving multi-term theta-constant sum is decided
+        # NONZERO only by exact finite detection, else HONESTLY declined.
+        if _lattice_nonzero_upto(terms, "__none__", min(_STRUCT_DETECT_CAP, 24)):
+            return _NONZERO                                    # N2
+        return _UNKNOWN                                        # honest decline
+
+    if len(live) == 1:
+        w = live[0]
+        if _pair_reduce_component(terms, [w]):
+            return _ZERO                                       # Z2
+        # last-variable interpolation (Z4 still valid at one variable; the children are
+        # 0-variable objects that may empty-combine to a proven ZERO)
+        D = max(sum(a.exp_of(w) ** 2 for a in args) for _pref, args in terms)
+        nodes, child_offset = _pick_nodes(terms, w, D, offset)
+        if len(nodes) == D + 1:
+            sub = [_decide_struct([(_struct_subst(pref, w, nd),
+                                    [_struct_subst(a, w, nd) for a in args])
+                                   for pref, args in terms], child_offset, depth + 1)
+                   for nd in nodes]
+            if all(v == _ZERO for v in sub):
+                return _ZERO                                   # Z4
+            if any(v == _NONZERO for v in sub):
+                return _NONZERO                                # N3
+        # exact detection (N2): band-informed + term-count-informed depth (Class-K
+        # sign branches, never abs()).
+        emax = 1
+        for _p, args in terms:
+            for a in args:
+                e = a.exp_of(w)
+                if e == 0:
+                    continue
+                mag = e if e >= 0 else -e
+                if mag > emax:
+                    emax = mag
+        band = max(D - 1, 0) + _STRUCT_MARGIN
+        kdet = min(_STRUCT_DETECT_CAP,
+                   max(band, ((len(terms) - 1) * emax) ** 2 // 4 + _STRUCT_MARGIN))
+        if _lattice_nonzero_upto(terms, w, kdet):
+            return _NONZERO                                    # N2
+        return _UNKNOWN
+
+    # ---- multivariate single character: per-character interpolation (Z4) ----
+    if _pair_reduce_component(terms, live):
+        return _ZERO                                           # Z2
+    Dv = {v: max(sum(a.exp_of(v) ** 2 for a in args) for _pref, args in terms)
+          for v in live}
+    v = min(live, key=lambda s: (Dv[s], s))
+    D = Dv[v]
+    nodes, child_offset = _pick_nodes(terms, v, D, offset)
+    if len(nodes) < D + 1:
+        return _UNKNOWN
+    sub = [_decide_struct([(_struct_subst(pref, v, nd),
+                            [_struct_subst(a, v, nd) for a in args])
+                           for pref, args in terms], child_offset, depth + 1)
+           for nd in nodes]
+    if all(vv == _ZERO for vv in sub):
+        return _ZERO                                           # Z4
+    if any(vv == _NONZERO for vv in sub):
+        return _NONZERO                                        # N3
+    return _UNKNOWN
+
+
+def _decide_thetasum(ts: "ThetaSum", use_fastpath: bool = True) -> str:
+    """The three-valued sound decision on a ``ThetaSum`` (cleared numerator) — the
+    internal diagnostic / test surface behind :attr:`ThetaSum.is_zero` (which is
+    ``_decide_thetasum(self) == _ZERO`` on the pure path). ``use_fastpath=False``
+    skips the ±-pair fast path so the certificate recursion alone is exercised."""
+    if not ts.terms:
+        return _ZERO
+    import sys as _sys
+    old = _sys.getrecursionlimit()
+    if old < 100000:                                     # srmech's Q gcd recurses on big ints
+        _sys.setrecursionlimit(100000)
+    try:
+        if use_fastpath:
+            classes: "Dict" = {}
+            for pref, thetas in ts.terms:
+                classes.setdefault(_quasi_period_class_key(thetas), []).append(
+                    (pref, thetas))
+            if all(_class_is_zero(m) for m in classes.values()):
+                return _ZERO
+        term_list = [(pref, [t.arg for t in thetas]) for pref, thetas in ts.terms]
+        return _decide_struct(term_list)
+    finally:
+        _sys.setrecursionlimit(old)
 
 def _net_period_multiplier_exps(thetas: "Tuple[Theta, ...]") -> "Tuple[Tuple[str, int], ...]":
     """The QUASI-PERIODICITY CLASS key of a theta-product: the net multiplier monomial
@@ -749,45 +1008,47 @@ class ThetaSum:
     # ── equality / zero (the load-bearing EXACT decision; NO eval) ───────────
     @property
     def is_zero(self) -> bool:
-        """Decide ``self == 0`` EXACTLY — quasi-periodicity grouping + an EXACT
-        Weierstrass three-term-relation reduction to a canonical additive normal form
-        (NOT a convergence threshold, NOT a numerically-witnessed eval; the rc61 / §76
-        no-hallucination standard). A truncated modified-theta product only CONVERGES, so
-        a genuine theta identity (whose terms have DIFFERENT theta multisets, e.g. the
-        Weierstrass relation) is NEVER exactly 0 at any finite ``eval_trunc`` depth — the
-        decision must be symbolic.
+        """Decide ``self == 0`` by a SOUND-TRUE-ONLY certificate architecture (rc210):
+        ``True`` ⟺ the cleared numerator is PROVEN identically zero by an exact /
+        theorem-backed certificate; ``False`` = "not proven" (a proven-nonzero object
+        or an honest decline). NEVER a convergence threshold, NEVER a numerically-
+        witnessed eval, and — the rc210 stop-the-line fix — NEVER a numeric p-order
+        band on the True side (the pre-rc210 "complete" band/mixed-character decision
+        certified provably-NONZERO objects as zero).
 
-        Steps: (1) cleared → the denominator theta-product is a nonzero elliptic
-        function, so ``self == 0 ⟺ numerator ≡ 0``; the empty / fully-cancelled
-        numerator is ``≡ 0`` with no work. (2) group the numerator's terms by
-        QUASI-PERIODICITY CLASS — the net multiplier monomial under ``x ↦ p·x`` and
-        ``y ↦ p·y`` (Rosengren Eq. 1.6, via
-        :meth:`~srmech.amsc.ellbase.Theta.canonicalize`). Theta-products of different
-        quasi-periodicity are linearly independent over ``ℚ(q,p)``, so the numerator is
-        ``≡ 0`` IFF EACH class vanishes. (3) within a class, reduce every theta-product
-        to a CANONICAL ADDITIVE NORMAL FORM via the EXACT Weierstrass three-term relation
-        (Rosengren §1.4 Eq. 1.12, MPM-verified — see the module docstring): each
-        same-degree, same-quasi-periodicity theta-product over a chosen summation symbol
-        ``s`` is rewritten into the fixed basis ``θ(r·s^±)·(constant-in-s θ-product)``
-        for a canonical reference ``r``; the basis factors then combine exactly in the
-        carrier (their ``Q``·prefactor coefficients add). The class is ``≡ 0`` IFF every
-        normal-form coefficient cancels to 0 — a purely symbolic, EXACT carrier
-        decision, NO evaluation.
+        The True-side certificates (see :func:`_decide_struct`):
 
-        The decision DISPATCHES to the native ``srmech_thetasum_is_zero`` C peer when
-        it is loaded (a 1:1 structural mirror of this exact reduction — the C verdict
-        EQUALS the Python verdict byte-for-byte, so it is trusted unconditionally);
-        otherwise the pure-Python :meth:`_is_zero_py` body decides (it is the COMPLETE
-        alternative + the C peer's parity oracle)."""
+        (1) CLEAR → the denominator theta-product is a nonzero elliptic function, so
+        ``self == 0 ⟺ numerator ≡ 0``; the empty / fully-cancelled numerator is
+        ``≡ 0`` with no work [Z1]. (2) the ±-pair FAST PATH: group by quasi-periodicity
+        class (Rosengren Eq. 1.6 via :meth:`~srmech.amsc.ellbase.Theta.canonicalize`)
+        and reduce each class by the EXACT Weierstrass three-term relation (Rosengren
+        §1.4 Eq. 1.12, MPM-verified — module docstring) to a canonical additive normal
+        form; every class empty ⇒ proven zero [Z2]. (3) the CERTIFICATE RECURSION:
+        split by the exact per-symbol character ``(D_v, μ_v)`` (all components proven
+        zero ⇒ zero [Z3s]), retry the three-term reduction over the component's actual
+        variables [Z2], and interpolate one variable at ``D_v+1`` pairwise-distinct
+        nodes of ℂ*/p^ℤ — a degree-``D_v`` section vanishing (recursively PROVEN) at
+        ``D_v+1`` distinct points is identically zero (Rosengren Cor. 1.3.5) [Z4].
+        A shape none of the certificates prove is HONESTLY reported False — the
+        no-hallucination standard: ``is_zero`` never asserts a theorem it cannot back.
+
+        The decision DISPATCHES to the native ``srmech_thetasum_is_zero_interpolation``
+        C peer when loaded — rebuilt in rc210 as the 1:1 mirror of the SAME certificate
+        recursion (its bool equals the pure bool; a mirror bug is caught by the
+        committed corpus-parity suite), with the ±-pair ``srmech_thetasum_is_zero``
+        peer as a sound-True fast path — otherwise the pure-Python
+        :meth:`_is_zero_py` body decides (the parity oracle)."""
         if not self._terms:
             return True
-        # The COMPLETE structural-interpolation C peer (rc99,
-        # ``srmech_thetasum_is_zero_interpolation``) is a 1:1 mirror of the exact
-        # pure-Python :meth:`_is_zero_interpolation`, so its verdict is trusted
-        # DIRECTLY — True AND False. It returns ``None`` only when absent OR when it
-        # declines (SRMECH_ERR_OVERFLOW: the caller arena / coeff cap outgrown), in
-        # which case we fall through to the complete pure path below. The rc103
-        # CHIRALITY-PRESERVING parallel peer is OPT-IN (env
+        # The structural-certificate C peer (``srmech_thetasum_is_zero_interpolation``,
+        # rebuilt rc210) mirrors the pure :meth:`_is_zero_interpolation` bool 1:1 —
+        # True ⟺ certificate-proven, False = not proven — so its verdict is used in
+        # both directions (parity is enforced by the committed corpus suite, and a
+        # False is never a nonzero CLAIM, just "no proof"). It returns ``None`` only
+        # when absent OR when it declines (SRMECH_ERR_OVERFLOW: the caller arena /
+        # coeff cap outgrown), in which case we fall through to the complete pure path
+        # below. The rc103 CHIRALITY-PRESERVING parallel peer is OPT-IN (env
         # ``SRMECH_THETASUM_PARALLEL_ISZERO``): it returns the BYTE-FOR-BYTE same
         # verdict as the sequential peer, so the default dispatch is correct either
         # way (parallel → sequential → pure).
@@ -806,47 +1067,46 @@ class ThetaSum:
         return self._is_zero_py()
 
     def _is_zero_py(self) -> bool:
-        """The COMPLETE pure-Python ``is_zero`` decision (the parity oracle for the C
-        peer). A TWO-STAGE decision: (FAST PATH) the quasi-periodicity grouping + exact
-        Weierstrass three-term reduction — COMPLETE for the single-variable (₈ω₇) class,
-        a proved ``≡0`` here is sound and returned immediately; (COMPLETION) when the
-        three-term reduction cannot prove ``≡0`` (a shape OUTSIDE the clean ``±``-pair
-        class — e.g. the cross-variable root-system Cₙ coupling ``θ(x_i/x_j)·θ(a x_i x_j)``
-        whose midpoint ``x_i√a`` is not a perfect square, so no pair forms), fall through
-        to the exact STRUCTURAL elliptic-interpolation zero-test
-        (:meth:`_is_zero_interpolation`) — complete for the full multi-variable elliptic
-        case. See :meth:`is_zero` for the theorems."""
+        """The pure-Python ``is_zero`` decision (the parity oracle for the C peer): a
+        TWO-STAGE sound-True-only decision. (FAST PATH) the quasi-periodicity grouping +
+        exact Weierstrass three-term reduction — a proved ``≡0`` here is a genuine
+        certificate and is returned immediately; a class it cannot reduce means ONLY
+        "the fast path did not prove it". (COMPLETION) the three-valued CERTIFICATE
+        RECURSION (:meth:`_is_zero_interpolation` → :func:`_decide_struct`): the exact
+        per-symbol character split + the generalized ±-pair reduction + per-character
+        elliptic interpolation, ``True`` only on a proof [Z1/Z2/Z3s/Z4], honest
+        ``False`` otherwise. See :meth:`is_zero` for the theorems + the rc210
+        soundness rebuild."""
         if not self._terms:
             return True
-        # FAST PATH — the ±-pair three-term reduction (complete for the ₈ω₇ class; a
-        # proved ≡0 is SOUND). Partition by quasi-periodicity class; a class it cannot
-        # reduce returns False, which here means ONLY "the fast path did not prove it".
+        # FAST PATH — the ±-pair three-term reduction (a proved ≡0 is SOUND). Partition
+        # by quasi-periodicity class; a class it cannot reduce returns False, which here
+        # means ONLY "the fast path did not prove it".
         classes: "Dict[Tuple, List[_Term]]" = {}
         for pref, thetas in self._terms:
             key = _quasi_period_class_key(thetas)
             classes.setdefault(key, []).append((pref, thetas))
         if all(_class_is_zero(members) for members in classes.values()):
             return True
-        # COMPLETION — the exact structural elliptic-interpolation zero-test decides
-        # the whole numerator, complete for any shape the ±-pair reduction cannot handle.
+        # COMPLETION — the sound certificate recursion decides the whole numerator
+        # (True only on a Z1/Z2/Z3s/Z4 certificate; honest False otherwise).
         return self._is_zero_interpolation()
 
     def _is_zero_interpolation(self) -> bool:
-        """The exact STRUCTURAL elliptic-interpolation zero-test — the COMPLETE
-        multi-variable elliptic decision (the completion of :meth:`is_zero` for shapes
-        outside the ``+/-``-pair class, e.g. the cross-variable root-system Cn coupling
-        ``theta(x_i/x_j) theta(a x_i x_j)`` whose ``sqrt(a)`` midpoint blocks the three-term
-        merge). By the elliptic Lagrange interpolation (Rosengren arXiv:1608.06161 Prop 1.6.1
-        / eq 1.22 + Cor 1.3.5): the numerator ``N`` is a theta section jointly in its symbols,
-        and ``N == 0`` IFF — interpolating in ONE variable ``v`` at ``D_v+1`` distinct points
-        (a degree-``D_v`` theta vanishing at ``D_v+1`` points is ``== 0``) — ``N`` vanishes at
-        each node, a LOWER-variable ``is_zero`` -> RECURSE, base = the single-variable
-        degree-bound q-expansion. The nodes are the theta-FACTOR ZEROS (monomials in the
-        remaining variables — substituting kills that term via ``theta(1)=0``) augmented with
-        rational constants; SUBSTITUTING nodes (never MERGING ``+/-``-pairs) dissolves the
-        ``sqrt`` obstruction the three-term reduction stalls on. Exact-Q, no q-grid, no float;
-        the pure-Python parity oracle for the owed native
-        ``srmech_thetasum_is_zero_interpolation`` peer (bignum, no Python recursion)."""
+        """The SOUND structural completion of :meth:`is_zero` (rc210 rebuild) — the
+        consumer bool of the three-valued certificate recursion :func:`_decide_struct`:
+        ``True`` ⟺ the cleared numerator is CERTIFICATE-PROVEN identically zero
+        (Z1 exact cancellation / Z2 Weierstrass ±-pair reduction to the empty normal
+        form, Rosengren Eq. 1.12 / Z3s all character components proven zero / Z4
+        per-character elliptic interpolation at ``D_v+1`` pairwise-distinct nodes,
+        Rosengren Cor. 1.3.5); ``False`` = "not proven" (a proven-NONZERO object OR an
+        honest decline — the two are deliberately indistinguishable to the consumer:
+        the contract is sound-True-only). There is NO numeric p-order band anywhere on
+        the True side — the pre-rc210 band/mixed-character decision certified genuinely
+        NONZERO objects as zero (defects D1/D2; see the ``_decide_struct`` block
+        comment). Exact-``ℚ``, no q-grid, no float; the pure parity oracle for the
+        native ``srmech_thetasum_is_zero_interpolation`` peer (rebuilt in rc210 as the
+        1:1 mirror of this certificate recursion's bool)."""
         if not self._terms:
             return True
         import sys as _sys
@@ -855,7 +1115,7 @@ class ThetaSum:
             _sys.setrecursionlimit(100000)
         try:
             term_list = [(pref, [t.arg for t in thetas]) for (pref, thetas) in self._terms]
-            return _structural_is_zero(term_list)
+            return _decide_struct(term_list) == _ZERO
         finally:
             _sys.setrecursionlimit(_old)
 
@@ -940,13 +1200,14 @@ class ThetaSum:
                 term_nthetas, monomials)
 
     def _is_zero_interpolation_c(self, parallel: bool = False) -> "bool | None":
-        """Dispatch the COMPLETE structural elliptic-interpolation ``is_zero`` decision
-        to the native ``srmech_thetasum_is_zero_interpolation`` C peer → the bool verdict
-        (trusted True AND False — a 1:1 mirror of :meth:`_is_zero_interpolation`), or
-        ``None`` when the native symbols are absent OR the peer declines (a
-        ``SRMECH_ERR_OVERFLOW`` size-guard trip → the caller falls to the complete pure
-        path). Keeps ``is_zero`` a TOTAL function: a native size-guard never crashes the
-        decision, it degrades to the exact pure oracle.
+        """Dispatch the structural CERTIFICATE-recursion ``is_zero`` decision to the
+        native ``srmech_thetasum_is_zero_interpolation`` C peer (rebuilt rc210 as the
+        1:1 mirror of :meth:`_is_zero_interpolation`'s sound bool: True ⟺ certificate-
+        proven, False = not proven) → the bool verdict, or ``None`` when the native
+        symbols are absent OR the peer declines (a ``SRMECH_ERR_OVERFLOW`` size-guard
+        trip → the caller falls to the pure path, which is sound). Keeps ``is_zero`` a
+        TOTAL function: a native size-guard never crashes the decision, it degrades to
+        the exact pure oracle.
 
         ``parallel=True`` opts in to the rc103 CHIRALITY-PRESERVING parallel peer
         (``srmech_thetasum_is_zero_interpolation_parallel``) — an ACCELERATOR whose
