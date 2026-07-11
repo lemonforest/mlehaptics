@@ -194,14 +194,24 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # test_rosetta_completeness.py). They earned BYTE-IDENTICAL C peers
 # (srmech_text_*) and moved non_compute -> c_dispatched: composes_c 118 -> 115;
 # non_compute total 177 -> 174.
+# rc218 (#826, the PARITY-COMPLETENESS annex): the ledger walk extends to the
+# LAST 4 untracked Python-only modules (srmech.spectral / srmech.rbs_lm /
+# srmech.introspect / srmech.profile_loader — the +30 rows; 15 compute rows all
+# composition_of_c over already-C-backed ops). The +15 non_compute rows split
+# +5 composes_c (introspect describe + the 4 pinned zero-reach event/native-
+# status accessors) / +6 host_glue (introspect publish/list/by_pid/
+# _maybe_auto_publish + the _writer dir/emit pair — ~/.srmech FS I/O) /
+# +4 dev_tooling (3 profile_loader + spectral.clear_eigenbasis_cache).
+# composes_c 115 → 120, host_glue 15 → 21, dev_tooling 44 → 48; sum 174 → 189.
+# CEIL_NON_COMPUTE_OWED stays 0 (no new owed control logic).
 _EXPECTED_SPLIT = {
     # rc202 discharged the FINAL owed row (run_class_method -> C); owed_orchestration
     # is now EMPTY (a live Counter has no zero key), so it is absent from the split.
-    "composes_c": 115,
-    "host_glue": 15,
-    "dev_tooling": 44,
+    "composes_c": 120,
+    "host_glue": 21,
+    "dev_tooling": 48,
 }
-_TOTAL_NON_COMPUTE = 174
+_TOTAL_NON_COMPUTE = 189
 
 
 def _rows():

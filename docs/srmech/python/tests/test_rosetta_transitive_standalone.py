@@ -37,10 +37,16 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # rc183 HOST-GLUE annex: mirror the extension to mcp/cli/llm too (all +24 rows are
 # non_compute, so likewise a no-op for the composition_of_c assertion; kept for
 # cross-walk consistency).
+# rc218 PARITY-COMPLETENESS annex: mirror the extension to spectral/rbs_lm/
+# introspect/profile_loader (the spectral + rbs_lm compute rows ARE
+# composition_of_c, so this ratchet now walks them for hidden non-ready leaves;
+# kept identical across all four walk sites).
 _ROOTS = (
     "srmech.amsc", "srmech.qm", "srmech.signal_processing",
     "srmech.bus", "srmech.dsl",
     "srmech.mcp", "srmech.cli", "srmech.llm",
+    "srmech.spectral", "srmech.rbs_lm",
+    "srmech.introspect", "srmech.profile_loader",
 )
 
 # Buckets that are NOT standalone-C-ready (a composition_of_c op must not reach
@@ -75,6 +81,8 @@ def _iter_submodules(root_name):
         tail = name.rsplit(".", 1)[-1]
         if tail.startswith("_") and tail != "__init__":
             continue
+        # .adapters = the net/file-IO collector surface (requests + optional
+        # netCDF4/rasterio) — the documented IO-exclusion, see ROSETTA_LEDGER.md.
         if any(p in name for p in ("._research", ".adapters", ".attested", "._native")):
             continue
         try:

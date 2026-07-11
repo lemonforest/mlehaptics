@@ -13,12 +13,25 @@ import json
 import pkgutil
 import sys
 
-# The public submodule roots to walk. The DSL/bus/mcp/agent/profile surfaces are
-# wrapper/IO layers, not compute kernels — enumerated separately if needed.
+# The public submodule roots to walk. Kept IDENTICAL to the three test-side walk
+# sites (tests/test_rosetta_completeness.py _ROOTS / tests/conftest.py
+# _ROSETTA_ROOTS / tests/test_rosetta_transitive_standalone.py _ROOTS): the rc177
+# bus/dsl annex + the rc183 mcp/cli/llm host-glue annex + the rc218
+# parity-completeness annex (spectral / rbs_lm / introspect / profile_loader)
+# all extend this walk so its denominator matches the ledger's.
 ROOTS = [
     "srmech.amsc",
     "srmech.qm",
     "srmech.signal_processing",
+    "srmech.bus",
+    "srmech.dsl",
+    "srmech.mcp",
+    "srmech.cli",
+    "srmech.llm",
+    "srmech.spectral",
+    "srmech.rbs_lm",
+    "srmech.introspect",
+    "srmech.profile_loader",
 ]
 
 
@@ -33,6 +46,8 @@ def _iter_submodules(root_name):
         tail = name.rsplit(".", 1)[-1]
         if tail.startswith("_") and tail != "__init__":
             continue
+        # .adapters = the net/file-IO collector surface (requests + optional
+        # netCDF4/rasterio) — the documented IO-exclusion, see ROSETTA_LEDGER.md.
         if any(p in name for p in ("._research", ".adapters", ".attested", "._native")):
             continue
         try:

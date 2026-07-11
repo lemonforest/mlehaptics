@@ -90,10 +90,23 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # and do NOT count as new). rc184+ build them to C + drive the owed count back
 # down. The conftest _ROSETTA_ROOTS + the transitive-standalone _ROOTS mirror this
 # extension so all three walks agree on the live surface.
+# rc218 (PARITY-COMPLETENESS annex, #826): extend the ledger walk to the LAST 4
+# untracked Python-only modules — srmech.spectral (the runtime spectral-handle
+# surface) + srmech.rbs_lm (the §9 RBS-LM inference substrate) + srmech.introspect
+# (the run-introspection publisher) + srmech.profile_loader (the profile-plugin
+# loader). The +30 rows: 8 spectral + 8 rbs_lm + 11 introspect + 3 profile_loader
+# (7 spectral + 8 rbs_lm compute rows are composition_of_c — every kernel routes
+# through already-C-backed ops; the 15 non_compute rows split 6 host_glue +
+# 5 composes_c + 4 dev_tooling). No new C symbol; all ceilings HOLD at 0. The
+# conftest _ROSETTA_ROOTS + the transitive-standalone _ROOTS + the
+# notes/_rosetta_inventory.py ROOTS mirror this extension so all four walks agree
+# on the live surface.
 _ROOTS = (
     "srmech.amsc", "srmech.qm", "srmech.signal_processing",
     "srmech.bus", "srmech.dsl",
     "srmech.mcp", "srmech.cli", "srmech.llm",
+    "srmech.spectral", "srmech.rbs_lm",
+    "srmech.introspect", "srmech.profile_loader",
 )
 
 # ----- the down-only debt ceilings (rc7 baseline; issue #928) -----------
@@ -968,6 +981,15 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     "srmech.llm.anthropic_agent._to_anthropic_name",
     "srmech.llm.anthropic_agent_cli.build_parser",
     "srmech.llm.anthropic_agent_cli.main",
+    # rc218 PARITY-COMPLETENESS annex — 4 dev/test affordances a bare-C host
+    # never needs: the spectral eigenbasis-LRU test-isolation reset + the
+    # profile-plugin loader surface (Python entry-point enumeration /
+    # importlib.metadata discovery / its test reset — the plugin mechanism is
+    # itself a host-Python affordance).
+    "srmech.profile_loader.list_profiles",
+    "srmech.profile_loader.profile",
+    "srmech.profile_loader.reset_for_testing",
+    "srmech.spectral.clear_eigenbasis_cache",
 })
 
 # The four honest sub-buckets of the non_compute bucket. Every non_compute row
@@ -993,6 +1015,8 @@ def _iter_submodules(root_name):
         tail = name.rsplit(".", 1)[-1]
         if tail.startswith("_") and tail != "__init__":
             continue
+        # .adapters = the net/file-IO collector surface (requests + optional
+        # netCDF4/rasterio) — the documented IO-exclusion, see ROSETTA_LEDGER.md.
         if any(p in name for p in ("._research", ".adapters", ".attested", "._native")):
             continue
         try:
@@ -1329,6 +1353,16 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.mcp._stdio.serve_stdio",
     "srmech.qm.bell.classical_chsh_bound",
     "srmech.signal_processing.closed_form_ops.polyphase.decompose",
+    # rc218 PARITY-COMPLETENESS annex — 4 justified zero-reach introspect rows:
+    # native_status is a pure read-out of the _native module's load state (HAS_
+    # NATIVE / ABI / lib path — no kernel, no srmech-op call for the AST walk to
+    # see); describe_shape / parse / serialize are the introspection Event
+    # wire-format accessors (a str-shape classifier + the NDJSON line
+    # parse/render pair — pure constructors/validators over stdlib json).
+    "srmech.introspect._event.describe_shape",
+    "srmech.introspect._event.parse",
+    "srmech.introspect._event.serialize",
+    "srmech.introspect.native_status",
 })
 
 
