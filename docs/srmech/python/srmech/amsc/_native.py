@@ -7764,7 +7764,8 @@ _BIGQ_SYMS = ("srmech_bigint_add", "srmech_bigint_mul",
               "srmech_bigint_gcd", "srmech_bigint_divmod")
 
 # Dispatch-proof counter: incremented once per SUCCESSFUL big-ℚ native op
-# (bigq_add_c / bigq_mul_c / bigq_div_c / bigq_reduce_c / bigint_gcd_c).
+# (bigq_add_c / bigq_mul_c / bigq_div_c / bigq_reduce_c / bigint_gcd_c /
+# bigint_mul_c).
 # Tests assert this moves to prove the native path is genuinely exercised
 # (never a silent fallback).
 BIGQ_DISPATCH_COUNT: int = 0
@@ -7989,6 +7990,31 @@ def bigq_div_c(a_num: int, a_den: int, b_num: int,
     if out is not None:
         BIGQ_DISPATCH_COUNT += 1
     return out
+
+
+def bigint_mul_c(a: int, b: int) -> "int | None":
+    """RAW ``a · b`` on srmech's C bignum — ``srmech_bigint_mul`` (or the
+    rc168 Karatsuba arena entry ``srmech_bigint_mul_ws`` when present), NO
+    gcd, NO reduce: just the signed integer product. 0.9.0rc220 (#786): the
+    cross-gcd-first ``Q`` multiply (rc212, Knuth TAOCP Vol 2 §4.5.1) proves
+    its product pair coprime BEFORE multiplying, so the fused ``bigq_mul_c``
+    — whose built-in product-scale gcd-reduce is exactly the work the
+    theorem eliminates — is the wrong op for its final product; this raw
+    product keeps the coprime fast path on srmech's own caller-arena bignum
+    (the #765 self-hosting discipline, closing the rc212 honest-note
+    follow-up). ``None`` when native absent / arena overflow — CPython
+    ``int`` multiply is the complete alternative. Byte-identical (the
+    integer product is unique)."""
+    global BIGQ_DISPATCH_COUNT
+    if not has_native_bigq():
+        return None
+    a_bi, _ka = _bigint_from_int(a, _bigq_limbs(a) + 1)
+    b_bi, _kb = _bigint_from_int(b, _bigq_limbs(b) + 1)
+    out = _bigq_mul_into(a_bi, b_bi)
+    if out is None:
+        return None
+    BIGQ_DISPATCH_COUNT += 1
+    return _bigint_to_int(out[0])
 
 
 def bigint_gcd_c(a: int, b: int) -> "int | None":

@@ -60,6 +60,18 @@ a double-width gcd). u64-fit operands skip the cross-reduce and keep riding
 the fused scalar C op unchanged (see :data:`_CROSS_REDUCE_MIN_BITS`); a raw
 house-form ``(num, den)`` tuple operand may be UNREDUCED, so it takes the
 general validating path (cross-reduce + full ``rational_mul`` reduce).
+
+**Self-hosted coprime product (0.9.0rc220, #786 — the rc212 honest-note
+follow-up).** The fast path's final product pair (proven coprime by Knuth's
+theorem) now rides srmech's OWN caller-arena C bignum at/above the
+``rational._BIGQ_MIN_BITS`` threshold via the new RAW ``_native.
+bigint_mul_c`` (``srmech_bigint_mul`` / the rc168 Karatsuba arena entry — no
+fused gcd, unlike ``bigq_mul_c`` whose product-scale reduce is exactly the
+work the theorem eliminates). CPython ``int`` multiply remains the complete
+below-threshold / no-native alternative — byte-identical either way. This
+completes the #765 self-hosting discipline for the cross-gcd multiply: the
+two cross gcds already dispatched to ``srmech_bigint_gcd`` (via
+``cyclic.gcd``); the product was the one leg still on CPython ``int``.
 """
 
 from __future__ import annotations
@@ -67,6 +79,7 @@ from __future__ import annotations
 import numbers
 from typing import Tuple
 
+from . import _native
 from . import cyclic as _cyclic
 from . import rational as _rational
 
@@ -152,6 +165,31 @@ def _cross_reduce(a_num: int, a_den: int, b_num: int, b_den: int):
         b_num //= g2
         a_den //= g2
     return a_num, a_den, b_num, b_den
+
+
+def _coprime_product(x: int, y: int) -> int:
+    """``x · y`` for the cross-reduced (proven-coprime-product) fast path —
+    0.9.0rc220 (#786, closing the rc212 honest-note follow-up). At/above the
+    measured :data:`srmech.amsc.rational._BIGQ_MIN_BITS` threshold the product
+    rides srmech's OWN caller-arena C bignum via :func:`_native.bigint_mul_c`
+    (the RAW ``srmech_bigint_mul`` / rc168 Karatsuba product — NO fused gcd;
+    the fused ``bigq_mul_c``'s product-scale reduce is exactly the work
+    Knuth's theorem eliminates), completing the #765 self-hosting discipline
+    for the one leg of the big-ℚ multiply that still rode CPython ``int``.
+    CPython ``int`` multiply remains the complete below-threshold / no-native
+    alternative — byte-identical either way (the integer product is
+    unique). Attested-to-measurement (Class B, WSL2 gcc 13.4 -O2, Python
+    3.10): the routed leg alone is marshal-overhead-dominated at the low
+    band (0.14–0.83× vs CPython int at 2048–20000 bits), landing the WHOLE
+    ``Q.__mul__`` at 0.81–0.99× — inside the rc167 self-hosting acceptance
+    band (0.59–1.24×): the dispatch buys the architecture at ≈cost-parity,
+    exactly the #765 trade. Cross-cancelling shapes are untouched (their
+    cancelled products sit below the gate)."""
+    if _rational._bigq_max_bits(x, y) >= _rational._BIGQ_MIN_BITS:
+        out = _native.bigint_mul_c(x, y)
+        if out is not None:
+            return out
+    return x * y
 
 
 def _mul_cross_reduced(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
@@ -369,6 +407,10 @@ class Q:
           and build the product DIRECTLY via :meth:`_from_coprime` — by
           Knuth's theorem the cross-reduced product of two reduced fractions
           is already in lowest terms, so NO product-scale gcd runs at all.
+          0.9.0rc220 (#786): the two coprime products ride
+          :func:`_coprime_product` — srmech's own C bignum (raw
+          ``bigint_mul_c``) at/above the 1024-bit ``_BIGQ_MIN_BITS``
+          threshold, CPython ``int`` below — byte-identical either way.
         """
         pair = _as_pair(other)
         if pair is None:
@@ -389,7 +431,8 @@ class Q:
                 _rational.rational_mul((a_num, a_den), pair))
         a_num, a_den, b_num, b_den = _cross_reduce(
             a_num, a_den, b_num, b_den)
-        return Q._from_coprime(a_num * b_num, a_den * b_den)
+        return Q._from_coprime(_coprime_product(a_num, b_num),
+                               _coprime_product(a_den, b_den))
 
     def __mul__(self, other):
         return self._mul(other)
