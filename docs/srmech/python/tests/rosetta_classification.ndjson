@@ -20,6 +20,7 @@
 {"exposed_as": "srmech.amsc.cascade.one.one_flat_rational", "defined_at": "srmech.amsc.cascade.one.one_flat_rational", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.cascade.one.one_matrix", "defined_at": "srmech.amsc.cascade.one.one_matrix", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.winding_tower", "defined_at": "srmech.amsc.cascade.one.winding_tower", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.winding_fold", "defined_at": "srmech.amsc.cascade.one.winding_fold", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.atan_series_truncate", "defined_at": "srmech.amsc.rational.atan_series_truncate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.cos_series_truncate", "defined_at": "srmech.amsc.rational.cos_series_truncate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.exp_series_truncate", "defined_at": "srmech.amsc.rational.exp_series_truncate", "bucket": "c_dispatched"}

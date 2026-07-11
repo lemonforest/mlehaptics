@@ -37,7 +37,7 @@ Covers:
       public op;
   (h) read-only inputs; contracts (unknown kind, non-square L, u0
       mismatch, n = 0); return carrier (complex Vec); registration
-      (ToolEntry; tools.total == 409; LAPLACIAN_OPS).
+      (ToolEntry; tools.total == 410; LAPLACIAN_OPS).
 
 numpy-free. cmath is the test-side INDEPENDENT reference (never the op's
 own machinery).
@@ -406,7 +406,7 @@ def test_registration_and_count():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.laplacian.responsion" in names
-    assert len(get_tool_schema().tools) == 409
-    assert srmech.describe()["tools"]["total"] == 409
+    assert len(get_tool_schema().tools) == 410
+    assert srmech.describe()["tools"]["total"] == 410
     assert "responsion" in L.LAPLACIAN_OPS
     assert "responsion" in L.__all__

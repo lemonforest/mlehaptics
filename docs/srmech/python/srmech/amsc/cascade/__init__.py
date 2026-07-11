@@ -167,6 +167,7 @@ from .one import (
     s_generator,
     to_scalar,
     winding_tower,
+    winding_fold,
 )
 # Cayley–Dickson open-exterior boundary-demonstrator (v0.7.3rc1; #915 / MFO
 # §VII.6.23). The deliberately NON-reversible object on the far side of the
@@ -289,6 +290,7 @@ __all__ = [
     "s_generator",
     "to_scalar",
     "winding_tower",
+    "winding_fold",
     # Cayley–Dickson open-exterior demonstrator (v0.7.3rc1; #915 / MFO §VII.6.23)
     "CD_MAX_DIM",
     "CD_DIMS",
