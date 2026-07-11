@@ -18,12 +18,15 @@ artifacts** (CC-BY-SA-compliant by the MPR attestation each acquired fact carrie
   JPL Power-of-Ten clean). srmech's profile loader loads it as `srmech.profile("siona").native` after an ABI
   handshake; `siona._native` dispatches to it with a **bit-for-bit pure-Python fallback** (the has_native
   pattern, so the surface is identical with or without the `.so`). rc1 ops: `fnv1a64` (content hash),
-  `tokenize` (byte-scan word boundaries; ~3–8× the Python scan), and the windowed **co-occurrence
-  accumulator** (`cooccurrence_edges_parallel`, tokens→edges via a caller-arena open-addressing hash;
-  ~1.3–1.6× in the dense parallel form). FFI note: the co-occurrence win survives only while the edge list
-  stays dense — it is Θ(input) for a large vocabulary, so a Python dict/tuple/sort materialisation gives the
-  C win back (that is why the whole tokens→edges→laplacian pipeline wants to stay native). Local/dev build:
-  `make -C c`; a release ships true per-OS wheels via cibuildwheel.
+  `tokenize` (byte-scan word boundaries; ~3–8× the Python scan), the windowed **co-occurrence accumulator**
+  (`cooccurrence_edges_parallel`, tokens→edges via a caller-arena open-addressing hash; ~3.8× in the dense
+  parallel form after the P0 `array`-buffer readback), and the **fused tokens→subset-Laplacian**
+  (`cooccurrence_laplacian`, P1) — accumulates the ≤256-node subgraph's `L = D − A` directly from the token
+  stream into an `array('d')` that IS srmech's `Mat` wire form (wrapped zero-copy → `symmetric_eigendecompose`),
+  so the Θ(input) edge list NEVER crosses the boundary: **20.3× over the round-trip, bit-for-bit == a
+  `dense_laplacian` compose, identical spectrum**. FFI note: a standalone co-occurrence that hands edges back
+  to Python can't win big (the edge list is Θ(input)); the real win is fusion. Local/dev build: `make -C c`;
+  a release ships true per-OS wheels via cibuildwheel. Optimization path recorded in `c/OPTIMIZATION.md`.
 - **Fix:** the `board` bridge surface (a `Board` data constant, not a callable) is removed from
   `[profile.bridge]` — it failed the loader's callability smoke test and blocked the whole profile from
   activating. The default board stays reachable as `siona.boards.ENGLISH`.

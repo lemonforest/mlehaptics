@@ -78,6 +78,12 @@ def _load() -> None:
             ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_uint32),
             ctypes.c_size_t]
         lib.siona_native_arena_compact.restype = ctypes.c_long
+        lib.siona_native_cooccurrence_laplacian.argtypes = [
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t,
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t, ctypes.c_int,
+            ctypes.POINTER(ctypes.c_int32), ctypes.c_size_t, ctypes.c_int32,
+            ctypes.POINTER(ctypes.c_double)]
+        lib.siona_native_cooccurrence_laplacian.restype = ctypes.c_long
     except (OSError, AttributeError) as exc:
         LOAD_ERROR = f"{type(exc).__name__}: {exc}"
         return
@@ -262,6 +268,54 @@ def cooccurrence_edges(token_ids, doc_ends, window=2) -> tuple:
     the per-edge Python cost that erases the native win for a large vocabulary."""
     ii, jj, ww = cooccurrence_edges_parallel(token_ids, doc_ends, window)
     return list(zip(ii, jj)), ww
+
+
+_MAX_SUBSET = 4096  # matches SIONA_NATIVE_MAX_SUBSET
+
+
+def cooccurrence_laplacian(token_ids, doc_ends, subset, window=2, vocab_size=None):
+    """FUSED (P1): tokens -> the dense Class-L Laplacian (a srmech ``Mat``) of the
+    windowed co-occurrence subgraph restricted to ``subset`` (vocab-ids; keep <=256
+    to feed ``symmetric_eigendecompose`` natively).
+
+    The Theta(input) full-vocab edge list NEVER crosses the ctypes boundary: the C op
+    accumulates the subset adjacency directly from the token stream and writes L = D - A
+    into an ``array('d')`` that IS srmech's ``Mat`` wire form (wrapped zero-copy). The
+    pure-Python fallback composes ``cooccurrence_edges_parallel`` + ``dense_laplacian``
+    to the SAME Mat (bit-for-bit; integer counts are exact float64). Returns the ``Mat``,
+    ready for ``srmech.amsc.laplacian.symmetric_eigendecompose``.
+    """
+    from srmech.amsc.mat import Mat
+    token_ids, doc_ends, subset = list(token_ids), list(doc_ends), list(subset)
+    n_sub = len(subset)
+    if vocab_size is None:
+        vocab_size = (max(subset) + 1) if subset else 0
+
+    if HAS_NATIVE and _LIB is not None and 0 < n_sub <= _MAX_SUBSET:
+        node_map = _array.array("i", b"\xff\xff\xff\xff" * vocab_size)   # all -1
+        for k, vid in enumerate(subset):
+            node_map[vid] = k
+        out_L = _array.array("d", bytes(8 * n_sub * n_sub))
+        _kt, tid = _as_c_int32(token_ids)
+        _kd, de = _as_c_int32(doc_ends)
+        nm = (ctypes.c_int32 * vocab_size).from_buffer(node_map)
+        cL = (ctypes.c_double * (n_sub * n_sub)).from_buffer(out_L)
+        _LIB.siona_native_cooccurrence_laplacian(
+            tid, len(token_ids), de, len(doc_ends), window,
+            nm, vocab_size, n_sub, cL)
+        return Mat(out_L, n_sub, n_sub)
+
+    # fallback: compose cooccurrence + dense_laplacian to the same Mat
+    from srmech.amsc import laplacian as _lap
+    pos = {vid: k for k, vid in enumerate(subset)}
+    ii, jj, ww = cooccurrence_edges_parallel(token_ids, doc_ends, window)
+    edges, weights = [], []
+    for a in range(len(ii)):
+        ka, kb = pos.get(ii[a]), pos.get(jj[a])
+        if ka is not None and kb is not None:
+            edges.append((ka, kb))
+            weights.append(float(ww[a]))
+    return _lap.dense_laplacian(n_sub, edges, weights)
 
 
 def native_status() -> dict:

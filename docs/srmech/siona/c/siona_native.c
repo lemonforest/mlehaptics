@@ -155,3 +155,89 @@ long siona_native_arena_compact(const uint64_t *arena_keys,
     }
     return n;
 }
+
+/* Map a token's vocab id to a subgraph row index, or -1 if out of the subset. */
+static int32_t siona_subset_index(int32_t id, const int32_t *node_map,
+                                  size_t vocab_size)
+{
+    if (id < 0 || (size_t)id >= vocab_size) {
+        return -1;
+    }
+    return node_map[id];
+}
+
+/* Accumulate the symmetric adjacency A of the windowed co-occurrence subgraph
+ * (only pairs with BOTH endpoints in the subset) into the row-major `A`. */
+static void siona_cooc_accumulate_A(const int32_t *token_ids, size_t n_tokens,
+                                    const int32_t *doc_ends, size_t n_docs,
+                                    int window, const int32_t *node_map,
+                                    size_t vocab_size, int32_t n_sub, double *A)
+{
+    assert(node_map != NULL && A != NULL);
+    assert(n_sub >= 0);
+
+    size_t n = (size_t)n_sub;
+    size_t start = 0;
+    for (size_t d = 0; d < n_docs; d++) {
+        size_t end = (size_t)doc_ends[d];
+        if (end > n_tokens) {
+            end = n_tokens;
+        }
+        for (size_t a = start; a < end; a++) {
+            int32_t si = siona_subset_index(token_ids[a], node_map, vocab_size);
+            if (si < 0) {
+                continue;
+            }
+            size_t bmax = a + (size_t)window;
+            if (bmax >= end) {
+                bmax = end - 1;
+            }
+            for (size_t b = a + 1; b <= bmax; b++) {
+                int32_t sj = siona_subset_index(token_ids[b], node_map, vocab_size);
+                if (sj < 0 || sj == si) {
+                    continue;
+                }
+                A[(size_t)si * n + (size_t)sj] += 1.0;   /* symmetric */
+                A[(size_t)sj * n + (size_t)si] += 1.0;
+            }
+        }
+        start = end;
+    }
+}
+
+/* In-place A -> L = D - A: diagonal = row-degree, off-diagonal = -A[i][j]. */
+static void siona_A_to_laplacian(double *M, int32_t n_sub)
+{
+    assert(M != NULL);
+    assert(n_sub >= 0);
+
+    size_t n = (size_t)n_sub;
+    for (size_t i = 0; i < n; i++) {
+        double deg = 0.0;
+        for (size_t j = 0; j < n; j++) {
+            deg += M[i * n + j];                 /* A[i][i] is 0 (no self-pairs) */
+        }
+        for (size_t j = 0; j < n; j++) {
+            M[i * n + j] = (i == j) ? deg : -M[i * n + j];
+        }
+    }
+}
+
+long siona_native_cooccurrence_laplacian(const int32_t *token_ids, size_t n_tokens,
+                                         const int32_t *doc_ends, size_t n_docs,
+                                         int window, const int32_t *node_map,
+                                         size_t vocab_size, int32_t n_sub,
+                                         double *out_L)
+{
+    assert(window >= 1);
+    assert(n_sub >= 0 && (size_t)n_sub <= SIONA_NATIVE_MAX_SUBSET);
+
+    size_t nn = (size_t)n_sub * (size_t)n_sub;
+    for (size_t k = 0; k < nn; k++) {
+        out_L[k] = 0.0;
+    }
+    siona_cooc_accumulate_A(token_ids, n_tokens, doc_ends, n_docs, window,
+                            node_map, vocab_size, n_sub, out_L);
+    siona_A_to_laplacian(out_L, n_sub);
+    return (long)n_sub;
+}

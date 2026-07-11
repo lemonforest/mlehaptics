@@ -38,6 +38,10 @@
  * (i<<32)|j with i<j < 2^31, so it is always < this sentinel. */
 #define SIONA_NATIVE_ARENA_EMPTY ((uint64_t)0xffffffffffffffffULL)
 
+/* Defensive cap on the fused-Laplacian subgraph size (the dense n_sub x n_sub
+ * matrix is caller-allocated; the spectral eigendecomp consumer caps at 256). */
+#define SIONA_NATIVE_MAX_SUBSET 4096
+
 /* The ABI handshake symbol the loader calls (argtypes=[], restype=c_int). */
 int siona_native_abi_version(void);
 
@@ -75,5 +79,19 @@ long siona_native_arena_compact(const uint64_t *arena_keys,
                                 const uint32_t *arena_vals, size_t arena_cap,
                                 int32_t *out_i, int32_t *out_j, uint32_t *out_w,
                                 size_t max_out);
+
+/* FUSED (P1): tokens -> the dense Class-L Laplacian (L = D - A) of the windowed
+ * co-occurrence subgraph restricted to a node subset, written row-major into
+ * caller-allocated `out_L` (n_sub*n_sub float64). `node_map[vocab_id]` = the
+ * subgraph row index in [0, n_sub) or -1 (not in the subset); a token id >=
+ * vocab_size is treated as -1. The full-vocabulary edge list NEVER materialises
+ * — the Laplacian is the only thing that crosses the boundary (as srmech's Mat
+ * array('d') wire form). Returns n_sub. Matches, bit-for-bit,
+ * srmech.dense_laplacian(n_sub, <the subset's co-occurrence edges>). */
+long siona_native_cooccurrence_laplacian(const int32_t *token_ids, size_t n_tokens,
+                                         const int32_t *doc_ends, size_t n_docs,
+                                         int window, const int32_t *node_map,
+                                         size_t vocab_size, int32_t n_sub,
+                                         double *out_L);
 
 #endif /* SIONA_NATIVE_H */

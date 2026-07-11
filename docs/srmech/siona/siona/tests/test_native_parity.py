@@ -55,7 +55,8 @@ def test_profile_native_surface():
     assert "plugin" in repr(prof)
     # every declared symbol is bound
     for sym in ("siona_native_fnv1a64", "siona_native_tokenize",
-                "siona_native_cooccurrence_accumulate", "siona_native_arena_compact"):
+                "siona_native_cooccurrence_accumulate", "siona_native_arena_compact",
+                "siona_native_cooccurrence_laplacian"):
         assert hasattr(prof.native, sym), f"missing {sym}"
 
 
@@ -98,3 +99,33 @@ def test_cooccurrence_known_example():
     ii, jj, ww = _native.cooccurrence_edges_parallel(tids, dends, window=2)
     got = {(i, j): w for i, j, w in zip(ii, jj, ww)}
     assert got == {(0, 1): 3}  # doc1: (a,b),(b,a)->(0,1)x2 ; doc2: (a,b)x1
+
+
+# ── fused tokens -> subset Laplacian (P1); native Mat == composed dense_laplacian ──
+def test_cooccurrence_laplacian_parity():
+    """The fused native Laplacian == cooccurrence_edges + dense_laplacian, bit-for-bit,
+    and the eigen-spectrum is identical."""
+    pytest.importorskip("srmech")
+    from srmech.amsc import laplacian as L
+    import random
+    if not _native.HAS_NATIVE:
+        pytest.skip("native absent; fused path is the pure-Python compose fallback")
+    rng = random.Random(5)
+    for _ in range(150):
+        V = rng.randint(5, 60)
+        docs = [[rng.randint(0, V) for _ in range(rng.randint(0, 20))]
+                for _ in range(rng.randint(1, 4))]
+        tids, dends = _native.flatten_docs(docs)
+        allids = list(range(V + 1))
+        rng.shuffle(allids)
+        subset = allids[:rng.randint(1, min(V + 1, 12))]
+        w = rng.randint(1, 4)
+        fused = _native.cooccurrence_laplacian(tids, dends, subset, window=w)
+        _native.HAS_NATIVE = False
+        try:
+            ref = _native.cooccurrence_laplacian(tids, dends, subset, window=w)
+        finally:
+            _native.HAS_NATIVE = True
+        assert list(fused._buf) == list(ref._buf)          # bit-for-bit Laplacian
+        assert list(L.symmetric_eigendecompose(fused)[0]) == \
+               list(L.symmetric_eigendecompose(ref)[0])    # identical spectrum

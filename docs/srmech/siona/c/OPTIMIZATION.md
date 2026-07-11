@@ -8,12 +8,12 @@ large vocabulary (V≈150k, distinct-edges ≈ pairs), so any per-edge Python
 materialization dominates both paths and erases the C win.
 
 Ranked path below (from a Fable optimization consult, 2026-07-11), highest
-payoff-per-effort first. **P0 is done**; P1–P4 are the queue.
+payoff-per-effort first. **P0 and P1 are done**; P2–P4 are the queue.
 
 | Rank | Change | Regime speedup | Effort | Status |
 |------|--------|----------------|--------|--------|
 | **P0** | Compact **into `array('i')`/`('I')` buffers via `from_buffer`** (zero-copy readback); no `oi[:m]` per-element PyLong list build | op 1.3–1.6× → **3.77× measured** (encode regime; Fable projected 8–15×) | 0.5 d | **DONE** |
-| P1 | **Fuse tokens→subset-Laplacian in C** — emit a flat `array('d')` that IS srmech's `Mat` wire form, hand to `symmetric_eigendecompose` zero-copy. The n≤256 (`MAX_NATIVE_NODES`) spectral consumers make the full-V edge list a *temporary* that never crosses the boundary | spectral pipeline **~50–200×** | 1–2 d | queued |
+| **P1** | **Fuse tokens→subset-Laplacian in C** (`siona_native_cooccurrence_laplacian` → `cooccurrence_laplacian()`) — emit a flat `array('d')` that IS srmech's `Mat` wire form, hand to `symmetric_eigendecompose` zero-copy. The n≤256 (`MAX_NATIVE_NODES`) spectral consumers make the full-V edge list a *temporary* that never crosses the boundary | tokens→L (256-subset, V=150k) **20.3× measured** — bit-for-bit == dense_laplacian, identical spectrum | 1–2 d | **DONE** |
 | P2 | Binary edge-kernel format (raw `array.tobytes()` + TLV header) + optional C top-K neighbor op, for the `relate.py` corpus-kernel build (145k×5.1M edges, today 108 MB JSON) | build/load 10–50× (one-time) | 1–2 d | queued |
 | P3 | Arena mechanics: **sentinel-0** (packed key always ≥1 → drop the 24 MB `memset(0xFF)` + let fresh pages lazy-zero); **batch-stream + growth-retry** (kills the silent `cap > 1<<26` pure-Python bailout past ~8M tokens); Fibonacci hash + 16-byte packed slot | +1.5–2× *after* P0 | 1–1.5 d | queued (needs 1 ABI bump) |
 | P4 | Quarantine the dict-rebuild path to tests only; GIL-overlap 2-thread batching; native FNV intern table for bytes→ids (horizon → full-C pipeline) | ~2× wall / unlocks all-C | 0.1 d–1 wk | queued |
