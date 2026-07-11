@@ -58,17 +58,18 @@ primitive class is introduced.
 
 from __future__ import annotations
 
-import hashlib
 import struct
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import List, Optional
 
 from srmech.amsc import rational
-from srmech.amsc.laplacian import mat_hermitian_eigendecompose
+from srmech.amsc.format import sha256_bytes as _sha256_bytes
+from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matvec
 from srmech.amsc.mat import Mat
 
 from ..amsc.hdc import bind as _hdc_bind
+from ..amsc.hdc import hamming as _hdc_hamming
 from ..amsc.hdc import similarity as _hdc_similarity
 
 __all__ = [
@@ -157,7 +158,9 @@ def _get_cached_eigenbasis(
 
 
 def _sha256_hex(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+    """Class-A content hash via the C-dispatched ``format.sha256_bytes`` (rc218
+    — no direct ``hashlib.sha256`` per the srmech hashing discipline)."""
+    return _sha256_bytes(data)
 
 
 def _to_complex_mat(m) -> "Mat":
@@ -196,15 +199,16 @@ def _descriptor_hash(laplacian, encoder_tag: str = "default") -> str:
     Canonical bytes = row-major complex128 bytes of the Laplacian + b"|" +
     encoder_tag.encode(); numpy-free (struct-packed) since v0.7.5rc125, but
     byte-identical to the prior contiguous-complex128 ``.tobytes()`` carrier.
+    rc218: hashed as ONE ``format.sha256_bytes`` call over the concatenated
+    canonical bytes — the same total byte sequence the prior incremental
+    ``hashlib`` ``h.update()`` chain hashed, so the hex output is unchanged.
     """
     L = _to_complex_mat(laplacian)
     nr, nc = L.shape
     flat = (L[i, j] for i in range(nr) for j in range(nc))
-    h = hashlib.sha256()
-    h.update(_complex128_bytes(flat))
-    h.update(b"|")
-    h.update(encoder_tag.encode("utf-8"))
-    return h.hexdigest()
+    return _sha256_bytes(
+        _complex128_bytes(flat) + b"|" + encoder_tag.encode("utf-8")
+    )
 
 
 def _eigenbasis(laplacian_mat: "Mat", desc_hash: str):
@@ -273,11 +277,12 @@ def decompose(
     desc_hash = _descriptor_hash(L, encoder_tag=encoder_tag)
     eigvals, V = _eigenbasis(L, desc_hash)
     # coeffs = Vᴴ·state — Class-L projection onto the eigenbasis (V columns are
-    # eigenvectors), as an explicit sesquilinear matvec (numpy-free).
-    coeffs = [
-        sum((V[i, k].conjugate() * state_vec[i] for i in range(n)), 0j)
-        for k in range(n)
-    ]
+    # eigenvectors), routed through the C-backed carrier matvec (rc218, the
+    # rc148 dct precedent): Vᴴ = V.conj().T, then ``laplacian.mat_matvec``.
+    # Handle-hash byte-stability vs the prior explicit sesquilinear sum is
+    # pinned by tests/test_spectral_hash_stability_rc218.py.
+    coeffs_vec = mat_matvec(V.conj().T, state_vec)
+    coeffs = [complex(coeffs_vec[k]) for k in range(n)]
     coeffs_bytes = _complex128_bytes(coeffs)
     return SpectralHandle(
         substrate_descriptor_hash=desc_hash,
@@ -377,10 +382,11 @@ def recompose(
     eigvals, V = _eigenbasis(L, desc_hash)
     n = handle.n_modes
     coeffs = _unpack_complex128(handle.coefficients_bytes, n)
-    # state = V·coeffs — inverse projection (Class-L), explicit matvec (numpy-free).
-    return [
-        sum((V[i, k] * coeffs[k] for k in range(n)), 0j) for i in range(n)
-    ]
+    # state = V·coeffs — inverse projection (Class-L), routed through the
+    # C-backed carrier matvec (rc218; value-stability pinned by
+    # tests/test_spectral_hash_stability_rc218.py).
+    state_out = mat_matvec(V, coeffs)
+    return [complex(state_out[i]) for i in range(n)]
 
 
 def similarity(
@@ -564,7 +570,10 @@ def prediction_error(
     total_bits = len(raw_delta) * 8
     if total_bits == 0:
         return raw_delta
-    density = sum(bin(byte).count("1") for byte in raw_delta) / total_bits
+    # popcount(raw_delta) == hamming(raw_delta, 0⃗) — the C-dispatched Class-M
+    # integer bit-count (rc218; exact integer, so the density is value-identical
+    # to the prior bin().count("1") fold).
+    density = _hdc_hamming(raw_delta, b"\x00" * len(raw_delta)) / total_bits
     if density <= threshold:
         return b"\x00" * len(raw_delta)
     return raw_delta

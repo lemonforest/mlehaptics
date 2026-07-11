@@ -130,8 +130,16 @@ _ANNEX_DELTA = {"composes_c": 20, "host_glue": 1, "dev_tooling": 3}
 # non_compute/composes_c -> c_dispatched (they earned byte-identical
 # srmech_text_* C peers; the composes_c mis-classification was the
 # self-contained-kernel hiding spot). composes_c 118 -> 115; total 177 -> 174.
-_FULL_SPLIT = {"composes_c": 115, "host_glue": 15, "dev_tooling": 44}
-_TOTAL_NON_COMPUTE = 174
+# rc218 (#826, living-pin bump — the PARITY-COMPLETENESS annex): the ledger walk
+# extends to srmech.spectral / srmech.rbs_lm / srmech.introspect /
+# srmech.profile_loader (+30 rows; the 15 non_compute rows split +5 composes_c /
+# +6 host_glue / +4 dev_tooling). composes_c 115 -> 120, host_glue 15 -> 21,
+# dev_tooling 44 -> 48; total 174 -> 189. The mcp/cli/llm _ANNEX_ROWS /
+# _ANNEX_DELTA below are untouched (rc218 moves no mcp/cli/llm row; the rc218
+# annex specifics are pinned in test_rosetta_completeness.py +
+# test_non_compute_ratchet_rc170.py).
+_FULL_SPLIT = {"composes_c": 120, "host_glue": 21, "dev_tooling": 48}
+_TOTAL_NON_COMPUTE = 189
 _HOSTGLUE_ROOTS = ("srmech.mcp", "srmech.cli", "srmech.llm")
 
 

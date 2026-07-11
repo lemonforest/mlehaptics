@@ -594,3 +594,33 @@
 {"exposed_as": "srmech.llm.anthropic_agent._to_anthropic_name", "defined_at": "srmech.llm.anthropic_agent._to_anthropic_name", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.llm.anthropic_agent_cli.build_parser", "defined_at": "srmech.llm.anthropic_agent_cli.build_parser", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.llm.anthropic_agent_cli.main", "defined_at": "srmech.llm.anthropic_agent_cli.main", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.spectral.decompose", "defined_at": "srmech.spectral.decompose", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.spectral.recompose", "defined_at": "srmech.spectral.recompose", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.spectral.predict", "defined_at": "srmech.spectral.predict", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.spectral.delta", "defined_at": "srmech.spectral.delta", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.spectral.similarity", "defined_at": "srmech.spectral.similarity", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.spectral.prediction_error", "defined_at": "srmech.spectral.prediction_error", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.spectral.truncate_sparse", "defined_at": "srmech.spectral.truncate_sparse", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.spectral.clear_eigenbasis_cache", "defined_at": "srmech.spectral.clear_eigenbasis_cache", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.rbs_lm.token_seed", "defined_at": "srmech.rbs_lm.substrate.token_seed", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.encode_word_k4", "defined_at": "srmech.rbs_lm.substrate.encode_word_k4", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.substrate.encode_word_byteglyph", "defined_at": "srmech.rbs_lm.substrate.encode_word_byteglyph", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.encode_bigram_l1", "defined_at": "srmech.rbs_lm.substrate.encode_bigram_l1", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.encode_skeleton_l2", "defined_at": "srmech.rbs_lm.substrate.encode_skeleton_l2", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.encode_sentence_l3", "defined_at": "srmech.rbs_lm.substrate.encode_sentence_l3", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.sim_k4_batch", "defined_at": "srmech.rbs_lm.substrate.sim_k4_batch", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.substrate.scale_signature", "defined_at": "srmech.rbs_lm.substrate.scale_signature", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.introspect.publish", "defined_at": "srmech.introspect.publish", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.introspect.list", "defined_at": "srmech.introspect.list", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.introspect.by_pid", "defined_at": "srmech.introspect.by_pid", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.introspect._maybe_auto_publish", "defined_at": "srmech.introspect._maybe_auto_publish", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.introspect.introspect_dir", "defined_at": "srmech.introspect._writer.introspect_dir", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.introspect.emit_if_publishing", "defined_at": "srmech.introspect._writer.emit_if_publishing", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.introspect.describe", "defined_at": "srmech.introspect.describe", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.native_status", "defined_at": "srmech.introspect.native_status", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.describe_shape", "defined_at": "srmech.introspect._event.describe_shape", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.parse", "defined_at": "srmech.introspect._event.parse", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.serialize", "defined_at": "srmech.introspect._event.serialize", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.profile_loader.list_profiles", "defined_at": "srmech.profile_loader.list_profiles", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.profile_loader.profile", "defined_at": "srmech.profile_loader.profile", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.profile_loader.reset_for_testing", "defined_at": "srmech.profile_loader.reset_for_testing", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}

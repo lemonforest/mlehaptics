@@ -56,6 +56,21 @@ loop. CI's cross-OS matrix (Linux gcc / macOS clang / Windows MSVC) is the gate.
 > They are arbitrary-precision oracles the C-bit-exact cascades are checked
 > against — like a higher-precision reference instrument, not a parity gap.
 
+### The adapters IO-exclusion (rc218 — the one deliberate walk exclusion)
+
+Every ledger walk skips `srmech.amsc.adapters` (alongside `._research` /
+`.attested` / `._native`), and that skip is a **documented scope decision, not
+an untracked hole**: the adapters are the **collector surface** — network/file
+IO through `requests` plus the optional heavy-parser extras (`netCDF4`,
+`rasterio`) that fetch and parse upstream scientific sources into attested
+NDJSON records. Collection happens ONCE, on a host Python with network access;
+what a bare-C host / MCU actually consumes is the **already-attested NDJSON**
+output — and that consumption surface IS C-mirrored (`srmech_ndjson_iter` +
+`srmech_json` + `srmech_toml`). Mirroring the collectors themselves would mean
+a C HTTP stack + C netCDF/GeoTIFF parsers to re-fetch data the attestation
+pipeline exists to freeze — outside the standalone-C goal by design. Each of
+the four walk sites carries a one-line comment naming this exclusion.
+
 ---
 
 ## Do-not-mirror gate — known Python bugs (issue [#928](https://github.com/lemonforest/mlehaptics/issues/928))

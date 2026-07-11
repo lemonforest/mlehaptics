@@ -320,10 +320,14 @@ _ROSETTA_FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndj
 # dev_tooling allowlist) sees the +39 bus/dsl rows as live.
 # rc183 HOST-GLUE annex: mirror the extension to mcp/cli/llm so the shared walk
 # sees the +24 mcp/cli/llm rows as live too.
+# rc218 PARITY-COMPLETENESS annex: mirror the extension to spectral/rbs_lm/
+# introspect/profile_loader so the shared walk sees the +30 rows as live too.
 _ROSETTA_ROOTS = (
     "srmech.amsc", "srmech.qm", "srmech.signal_processing",
     "srmech.bus", "srmech.dsl",
     "srmech.mcp", "srmech.cli", "srmech.llm",
+    "srmech.spectral", "srmech.rbs_lm",
+    "srmech.introspect", "srmech.profile_loader",
 )
 
 # Buckets that are NOT standalone-C-ready.
@@ -342,6 +346,8 @@ def _rosetta_iter_submodules(root_name):
         tail = name.rsplit(".", 1)[-1]
         if tail.startswith("_") and tail != "__init__":
             continue
+        # .adapters = the net/file-IO collector surface (requests + optional
+        # netCDF4/rasterio) — the documented IO-exclusion, see ROSETTA_LEDGER.md.
         if any(p in name for p in ("._research", ".adapters", ".attested", "._native")):
             continue
         try:
