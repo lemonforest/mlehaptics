@@ -391,7 +391,7 @@
 {"exposed_as": "srmech.signal_processing.closed_form_ops.ica_jade.op", "defined_at": "srmech.signal_processing.closed_form_ops.ica_jade.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.ifft.op", "defined_at": "srmech.signal_processing.closed_form_ops.ifft.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.iir.op", "defined_at": "srmech.signal_processing.closed_form_ops.iir.op", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.signal_processing.closed_form_ops.jpeg.op", "defined_at": "srmech.signal_processing.closed_form_ops.jpeg.op", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.signal_processing.closed_form_ops.jpeg.op", "defined_at": "srmech.signal_processing.closed_form_ops.jpeg.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.lz77.op", "defined_at": "srmech.signal_processing.closed_form_ops.lz77.op", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.map_ml.op", "defined_at": "srmech.signal_processing.closed_form_ops.map_ml.op", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.signal_processing.closed_form_ops.matched_filter.op", "defined_at": "srmech.signal_processing.closed_form_ops.matched_filter.op", "bucket": "composition_of_c"}

@@ -800,6 +800,53 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_iir_lfilter_f64.restype = ctypes.c_int
 
+    # 0.9.0rc213 (#753): the NUMERIC JPEG-like block-DCT compression pipeline
+    # closed_form_ops.jpeg dispatches to — per bs×bs block: separable 2-D
+    # DCT-II over the caller-supplied cosine basis + Class-K round-half-even
+    # quantise (encode) / dequantise + DCT-III + 1/(2bs)² normalise (decode).
+    # The bases + quant table are caller data (built once in Python through
+    # the byte-exact Class-N rational.cos cascade — the SAME basis the pure
+    # path uses). Caller-arena scratch sized by srmech_jpeg_ws_bound(bs)
+    # (BYTES). NEW symbols, hasattr-guarded (ABI stays 4) so a stale lib
+    # keeps the rest of the native surface and the pure-Python cascade is
+    # the complete path.
+    #   size_t srmech_jpeg_ws_bound(size_t bs)
+    if hasattr(lib, "srmech_jpeg_ws_bound"):
+        lib.srmech_jpeg_ws_bound.argtypes = [ctypes.c_size_t]
+        lib.srmech_jpeg_ws_bound.restype = ctypes.c_size_t
+    #   int srmech_jpeg_encode_f64(const double *image, size_t h, size_t w,
+    #       const double *basis2, const double *qt, size_t bs,
+    #       double *out, double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_jpeg_encode_f64"):
+        lib.srmech_jpeg_encode_f64.argtypes = [
+            ctypes.POINTER(ctypes.c_double),    # image (h*w row-major)
+            ctypes.c_size_t,                    # h
+            ctypes.c_size_t,                    # w
+            ctypes.POINTER(ctypes.c_double),    # basis2 (bs*bs DCT-II)
+            ctypes.POINTER(ctypes.c_double),    # qt (bs*bs)
+            ctypes.c_size_t,                    # bs
+            ctypes.POINTER(ctypes.c_double),    # out (bh*bw*bs*bs)
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_jpeg_encode_f64.restype = ctypes.c_int
+    #   int srmech_jpeg_decode_f64(const double *qblocks, size_t bh, size_t bw,
+    #       const double *basis3, const double *qt, size_t bs,
+    #       double *out, double *ws, size_t ws_len)
+    if hasattr(lib, "srmech_jpeg_decode_f64"):
+        lib.srmech_jpeg_decode_f64.argtypes = [
+            ctypes.POINTER(ctypes.c_double),    # qblocks (bh*bw*bs*bs)
+            ctypes.c_size_t,                    # bh
+            ctypes.c_size_t,                    # bw
+            ctypes.POINTER(ctypes.c_double),    # basis3 (bs*bs DCT-III)
+            ctypes.POINTER(ctypes.c_double),    # qt (bs*bs)
+            ctypes.c_size_t,                    # bs
+            ctypes.POINTER(ctypes.c_double),    # out ((bh*bs)*(bw*bs))
+            ctypes.POINTER(ctypes.c_double),    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len (arena bytes)
+        ]
+        lib.srmech_jpeg_decode_f64.restype = ctypes.c_int
+
     # rc140 Foundation F2: the numeric f64 QR + SVD C peers (real). NEW symbols,
     # hasattr-guarded (ABI stays 3) so a stale ABI-3 lib keeps the rest of the
     # native surface and the pure-Python cascade is the complete path. Caller-
@@ -8027,6 +8074,95 @@ def iir_lfilter_f64_c(b, a, x):
     if rc != SRMECH_OK:
         return None
     return [outbuf[i] for i in range(n)]
+
+
+# ----------------------------------------------------------------------
+# rc213 (#753): the NUMERIC JPEG-like block-DCT compression pipeline C peer
+# (srmech_jpeg_encode_f64 / srmech_jpeg_decode_f64). closed_form_ops.jpeg
+# dispatches its whole blocked pipeline here (ONE ctypes crossing for the
+# whole image — contrast the rc155 composition shape's 4 dispatches PER
+# block); the pure-Python dct.op cascade is the COMPLETE alternative (and
+# the parity oracle) for no-C hosts. NUMERIC (FPU-tol), NOT byte-exact —
+# the same within-tol contract as the F1 FFT / F2 SVD / B4 numeric family.
+# ----------------------------------------------------------------------
+
+
+def has_native_jpeg_f64() -> bool:
+    """True iff the rc213 numeric JPEG block-DCT pipeline C peer
+    (``srmech_jpeg_encode_f64`` + ``srmech_jpeg_decode_f64`` +
+    ``srmech_jpeg_ws_bound``) is loaded + bound. False on a no-C or pre-rc213
+    lib — the pure-Python block-DCT cascade (``closed_form_ops.dct``) is the
+    complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_jpeg_encode_f64")
+            and hasattr(LIB, "srmech_jpeg_decode_f64")
+            and hasattr(LIB, "srmech_jpeg_ws_bound"))
+
+
+def _jpeg_arena(bs: int):
+    """The caller arena for one bs×bs block pipeline (BYTES from the native
+    ``srmech_jpeg_ws_bound``, carved as doubles)."""
+    ws_len = int(LIB.srmech_jpeg_ws_bound(ctypes.c_size_t(bs)))
+    n_doubles = ws_len // ctypes.sizeof(ctypes.c_double) + 1
+    return (ctypes.c_double * n_doubles)(), ws_len
+
+
+def jpeg_encode_f64_c(image_flat, h, w, basis2_flat, qt_flat, bs):
+    """Blocked 2-D DCT-II + Class-K quantise of the row-major ``h×w`` image via
+    the native ``srmech_jpeg_encode_f64`` — returned as a flat ``list[float]``
+    of ``(h//bs)·(w//bs)·bs²`` integer-valued quantised coefficients in block
+    order — or ``None`` when the native symbols are absent / the kernel
+    declines (the caller then runs the pure-Python block-DCT cascade).
+    ``basis2_flat`` / ``qt_flat`` are the flat row-major bs×bs DCT-II cosine
+    basis + quant table (caller-built through the Class-N ``rational.cos``
+    cascade — the SAME basis the pure path uses). NUMERIC (FPU-tol)."""
+    if not has_native_jpeg_f64():
+        return None
+    bh = h // bs
+    bw = w // bs
+    n_out = bh * bw * bs * bs
+    imgbuf = (ctypes.c_double * (h * w))(*[float(v) for v in image_flat])
+    basisbuf = (ctypes.c_double * (bs * bs))(*[float(v) for v in basis2_flat])
+    qtbuf = (ctypes.c_double * (bs * bs))(*[float(v) for v in qt_flat])
+    outbuf = (ctypes.c_double * n_out)() if n_out else (ctypes.c_double * 0)()
+    ws, ws_len = _jpeg_arena(bs)
+    rc = LIB.srmech_jpeg_encode_f64(
+        imgbuf, ctypes.c_size_t(h), ctypes.c_size_t(w),
+        basisbuf, qtbuf, ctypes.c_size_t(bs),
+        outbuf, ws, ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        return None
+    return [outbuf[i] for i in range(n_out)]
+
+
+def jpeg_decode_f64_c(qblocks_flat, bh, bw, basis3_flat, qt_flat, bs):
+    """Blocked dequantise + 2-D DCT-III + 1/(2bs)² normalise of the
+    ``bh·bw·bs²`` flat quantised coefficients via the native
+    ``srmech_jpeg_decode_f64`` — returned as a flat row-major ``list[float]``
+    of the reconstructed ``(bh·bs)×(bw·bs)`` image — or ``None`` when the
+    native symbols are absent / the kernel declines (the caller then runs the
+    pure-Python block-DCT cascade). ``basis3_flat`` is the flat bs×bs DCT-III
+    cosine basis. NUMERIC (FPU-tol)."""
+    if not has_native_jpeg_f64():
+        return None
+    n_in = bh * bw * bs * bs
+    n_out = (bh * bs) * (bw * bs)
+    qbuf = (ctypes.c_double * n_in)(*[float(v) for v in qblocks_flat]) \
+        if n_in else (ctypes.c_double * 0)()
+    basisbuf = (ctypes.c_double * (bs * bs))(*[float(v) for v in basis3_flat])
+    qtbuf = (ctypes.c_double * (bs * bs))(*[float(v) for v in qt_flat])
+    outbuf = (ctypes.c_double * n_out)() if n_out else (ctypes.c_double * 0)()
+    ws, ws_len = _jpeg_arena(bs)
+    rc = LIB.srmech_jpeg_decode_f64(
+        qbuf, ctypes.c_size_t(bh), ctypes.c_size_t(bw),
+        basisbuf, qtbuf, ctypes.c_size_t(bs),
+        outbuf, ws, ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        return None
+    return [outbuf[i] for i in range(n_out)]
 
 
 # ----------------------------------------------------------------------
