@@ -2854,7 +2854,15 @@ edges, weights) → {spine, communities, coherence}` convenience bundle (sugar o
 symmetric_eigendecompose + fiedler/three_fold + spine). **Stays consumer-side (do NOT upstream):** the
 feature-encoding (dataset→graph), the sign-assignment convention (what earns a −edge), and the render. See F1169.
 
-## §93 (2026-07-11) — `srmech.amsc.text` is Python-only (no C peer) — breaks full-1:1 C-parity for the streaming Class-L precursor [FILED → #1360]
+## §93 (2026-07-11) — `srmech.amsc.text` is Python-only (no C peer) — breaks full-1:1 C-parity for the streaming Class-L precursor [FILED → #1360 → RESOLVED in rc217]
+
+**RESOLVED (srmech 0.9.0rc217, verified 2026-07-11):** `libsrmech.so` now exports `srmech_text_tokenize`,
+`srmech_text_cooccurrence_edges`, `srmech_text_cooccurrence_topk`, `srmech_text_cooccurrence_topk_extract`, and
+`srmech.amsc.text.{tokenize, cooccurrence_edges}` native-dispatch (confirmed by `nm -D` + source inspection). The
+full-enwiki streaming encode's hot-path (`build_edges_topk` → `text.cooccurrence_edges`) is now native-accelerated —
+`_HAS_TEXT=True`, no Python co-occurrence loop. This is the same conclusion Fable's optimization consult and the siona
+P1 fusion reached independently (keep tokens→edges native). #1360 left OPEN for the maintainer to close (create-don't-
+close discipline); an informational verification comment was posted.
 
 **Ask:** add C peers for the three `srmech.amsc.text` ops — `tokenize`, `cooccurrence_edges`, `cooccurrence_topk`
 (the rc50 §40 "Class-L precursor"). Surfaced by the full-enwiki comprehended encode: its per-article hot-path is
