@@ -204,13 +204,23 @@ def _cooccurrence_native_edges(token_ids, doc_ends, window):
         tid, n, de, len(doc_ends), window, keys, vals, cap))
     if got < 0:
         return None                            # arena full -> fall back
-    oi = (ctypes.c_int32 * got)()
-    oj = (ctypes.c_int32 * got)()
-    ow = (ctypes.c_uint32 * got)()
-    m = int(_LIB.siona_native_arena_compact(keys, vals, cap, oi, oj, ow, got))
+    if got == 0:
+        return _array.array("i"), _array.array("i"), _array.array("I")
+    # P0 (Fable): compact straight INTO array() buffers via from_buffer — a zero-copy
+    # readback. The old `oi[:m]` ctypes slice built ~m per-element PyLong ints (the real
+    # bottleneck, ~60-75% of native wall time at 800k edges); array buffers skip it and
+    # keep the result as a dense buffer the fused/Laplacian path can consume without
+    # per-edge Python objects.
+    oi = _array.array("i", bytes(4 * got))
+    oj = _array.array("i", bytes(4 * got))
+    ow = _array.array("I", bytes(4 * got))
+    m = int(_LIB.siona_native_arena_compact(
+        keys, vals, cap, (ctypes.c_int32 * got).from_buffer(oi),
+        (ctypes.c_int32 * got).from_buffer(oj),
+        (ctypes.c_uint32 * got).from_buffer(ow), got))
     if m < 0:
         return None
-    return oi[:m], oj[:m], ow[:m]              # ctypes slices = fast C-level lists
+    return oi, oj, ow                          # array('i')/('I') buffers, not lists
 
 
 def _cooccurrence_counts_native(token_ids, doc_ends, window):
@@ -241,7 +251,9 @@ def cooccurrence_edges_parallel(token_ids, doc_ends, window=2) -> tuple:
         if res is not None:
             return res
     counts = _cooccurrence_counts_py(token_ids, doc_ends, window)
-    return ([k[0] for k in counts], [k[1] for k in counts], list(counts.values()))
+    return (_array.array("i", [k[0] for k in counts]),
+            _array.array("i", [k[1] for k in counts]),
+            _array.array("I", counts.values()))
 
 
 def cooccurrence_edges(token_ids, doc_ends, window=2) -> tuple:
