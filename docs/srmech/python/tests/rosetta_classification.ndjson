@@ -80,9 +80,9 @@
 {"exposed_as": "srmech.amsc.kepler.equation_of_centre", "defined_at": "srmech.amsc.kepler.equation_of_centre", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.kepler_solve", "defined_at": "srmech.amsc.kepler.kepler_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.pin_slot", "defined_at": "srmech.amsc.kepler.pin_slot", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.text.tokenize", "defined_at": "srmech.amsc.text.tokenize", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.text.cooccurrence_edges", "defined_at": "srmech.amsc.text.cooccurrence_edges", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.text.cooccurrence_topk", "defined_at": "srmech.amsc.text.cooccurrence_topk", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.text.tokenize", "defined_at": "srmech.amsc.text.tokenize", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.text.cooccurrence_edges", "defined_at": "srmech.amsc.text.cooccurrence_edges", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.text.cooccurrence_topk", "defined_at": "srmech.amsc.text.cooccurrence_topk", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_adjacency", "defined_at": "srmech.amsc.laplacian.dense_adjacency", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_laplacian", "defined_at": "srmech.amsc.laplacian.dense_laplacian", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.fiedler_sparse", "defined_at": "srmech.amsc.laplacian.fiedler_sparse", "bucket": "c_dispatched"}

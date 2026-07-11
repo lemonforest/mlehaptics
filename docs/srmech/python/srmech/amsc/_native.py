@@ -5247,6 +5247,67 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cn_vwp_multisum_lhs.restype = ctypes.c_int
 
+    # rc217: srmech_text_* — the C peers of the srmech.amsc.text §40/§52
+    # text→graph ingestion ops (gh #1360; the enwiki-encode hot loop). All four
+    # are BYTE-IDENTICAL kernels over caller-arena buffers: the tokenizer takes
+    # the caller-built Unicode tables (kept-bitset + casefold exceptions, built
+    # once per process from the RUNNING interpreter's unicodedata — parity by
+    # construction on any Unicode version); the co-occurrence kernels take
+    # per-document uint32 vocab-id streams + a power-of-two (keys, vals) hash
+    # arena (load ≤ 1/2; SRMECH_ERR_OVERFLOW → grow + retry). Explicit
+    # argtypes/restype per the rc201 discipline (size_t marshalling).
+    if hasattr(lib, "srmech_text_tokenize"):
+        lib.srmech_text_tokenize.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,                   # text (zero-copy bytes), len
+            ctypes.POINTER(ctypes.c_uint8),                     # kept_bits
+            ctypes.POINTER(ctypes.c_uint32),                    # fold_cps
+            ctypes.POINTER(ctypes.c_uint32),                    # fold_off
+            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,    # fold_bytes, n_folds
+            ctypes.POINTER(ctypes.c_uint32),                    # stop_off
+            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,    # stop_bytes, n_stop
+            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,    # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),                    # out_len
+        ]
+        lib.srmech_text_tokenize.restype = ctypes.c_int
+    if hasattr(lib, "srmech_text_cooccurrence_edges"):
+        lib.srmech_text_cooccurrence_edges.argtypes = [
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,   # doc_off, n_docs
+            ctypes.c_uint32, ctypes.c_uint32,                   # window, n_vocab
+            ctypes.POINTER(ctypes.c_uint64),                    # ht_keys
+            ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,   # ht_vals, ht_cap
+            ctypes.POINTER(ctypes.c_size_t),                    # out_n_edges
+        ]
+        lib.srmech_text_cooccurrence_edges.restype = ctypes.c_int
+    if hasattr(lib, "srmech_text_cooccurrence_topk"):
+        lib.srmech_text_cooccurrence_topk.argtypes = [
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,   # doc_off, n_docs
+            ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32,  # window, cap, n_vocab
+            ctypes.POINTER(ctypes.c_uint32),                    # store_nbr
+            ctypes.POINTER(ctypes.c_uint64),                    # store_w
+            ctypes.POINTER(ctypes.c_uint32),                    # store_len
+            ctypes.POINTER(ctypes.c_uint64),                    # ht_keys
+            ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,   # ht_vals, ht_cap
+            ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,   # dir, dir_cap_recs
+            ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,   # scr, scr_cap_recs
+        ]
+        lib.srmech_text_cooccurrence_topk.restype = ctypes.c_int
+    if hasattr(lib, "srmech_text_cooccurrence_topk_extract"):
+        lib.srmech_text_cooccurrence_topk_extract.argtypes = [
+            ctypes.POINTER(ctypes.c_uint32),                    # store_nbr
+            ctypes.POINTER(ctypes.c_uint64),                    # store_w
+            ctypes.POINTER(ctypes.c_uint32),                    # store_len
+            ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32,  # n_vocab, cap, k
+            ctypes.POINTER(ctypes.c_uint32),                    # topk_nbr
+            ctypes.POINTER(ctypes.c_uint64),                    # topk_w
+            ctypes.POINTER(ctypes.c_uint32),                    # topk_len
+            ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,   # edge_recs, cap
+            ctypes.POINTER(ctypes.c_size_t),                    # out_n_edges
+            ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,   # node_scr, cap
+        ]
+        lib.srmech_text_cooccurrence_topk_extract.restype = ctypes.c_int
+
     # rc68: srmech_elliptic_recurrence_8w7 — the ELLIPTIC Σ-row ORDER-1 RECURRENCE op for
     # the Frenkel–Turaev ₈ω₇ summation. The C peer of
     # srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7. The term-ratio rides as the
@@ -14244,6 +14305,38 @@ def q_wz_verify_c(rn_num, rn_den, rk_num, rk_den, cert_num, cert_den):
     if rc != SRMECH_OK:
         raise RuntimeError(f"srmech_q_wz_verify returned non-OK status {rc}")
     return bool(out_equal.value)
+
+
+def has_native_text_tokenize() -> bool:
+    """True iff the rc217 srmech_text_tokenize C peer is loaded + bound: the
+    §40/F698 per-codepoint tokenize loop runs in C (the enwiki-encode hot
+    front). False on a no-C or pre-rc217 lib — the pure-Python
+    :func:`srmech.amsc.text.tokenize` body is the complete alternative (and
+    the byte-identical parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_text_tokenize"))
+
+
+def has_native_text_cooccurrence_edges() -> bool:
+    """True iff the rc217 srmech_text_cooccurrence_edges C peer is loaded +
+    bound: the §40 windowed pair-count accumulation + deterministic edge sort
+    run in C. False on a no-C or pre-rc217 lib — the pure-Python
+    :func:`srmech.amsc.text.cooccurrence_edges` body is the complete
+    alternative (and the byte-identical parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_text_cooccurrence_edges"))
+
+
+def has_native_text_cooccurrence_topk() -> bool:
+    """True iff the rc217 srmech_text_cooccurrence_topk chunk-flush kernel AND
+    its _extract read-out sibling are loaded + bound: the §52 bounded
+    streaming encode (window pair accumulation + chunked merge/truncate +
+    final top-K/edge read-out) runs in C. False on a no-C or pre-rc217 lib —
+    the pure-Python :func:`srmech.amsc.text.cooccurrence_topk` body is the
+    complete alternative (and the byte-identical parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_text_cooccurrence_topk")
+                and hasattr(LIB, "srmech_text_cooccurrence_topk_extract"))
 
 
 def has_native_klein4_fold() -> bool:

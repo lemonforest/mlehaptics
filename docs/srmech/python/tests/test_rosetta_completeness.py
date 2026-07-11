@@ -1250,6 +1250,120 @@ def test_non_compute_composes_c_is_transitively_reachable():
     )
 
 
+# ── rc217: the ZERO-REACH composes_c pin (gh #1360 — the text.py lesson) ─────
+#
+# The reachability guard above has a structural blind spot: a SELF-CONTAINED
+# pure-Python COMPUTE KERNEL calls no other srmech op, so its transitive walk
+# reaches NOTHING — it cannot trip the not-ready-leaf assert no matter how much
+# compute it hides. That is exactly how the 3 srmech.amsc.text kernels
+# (tokenize / cooccurrence_edges / cooccurrence_topk — the enwiki-encode hot
+# loop, a measured multi-DAY Python cost at corpus scale) sat mis-classified
+# as non_compute/composes_c while CEIL_PYTHON_ONLY_DEBT read 0.
+#
+# This pin closes the recurrence: the set of composes_c rows whose walk reaches
+# ZERO ledger ops is pinned EXACTLY. Every entry below is a justified
+# accessor / constructor / validator / arg-grammar row (from_coeffs carrier
+# constructors, project/promote accessors, argparse add_arguments grammar,
+# C-dispatching wrappers whose dispatch the AST walk cannot see, …) — NOT a
+# kernel. Adding a NEW zero-reach composes_c row requires DELIBERATELY
+# extending this allowlist, i.e. answering "is this really not a compute
+# kernel?" at classification time — the question text.py never got asked.
+COMPOSES_C_ZERO_REACH_PINNED = frozenset({
+    "srmech.amsc.carrier_ladder.poly_project",
+    "srmech.amsc.carrier_ladder.poly_promote",
+    "srmech.amsc.carrier_ladder.qpoly_project",
+    "srmech.amsc.carrier_ladder.qpoly_promote",
+    "srmech.amsc.cascade.cayley_dickson.cd_project",
+    "srmech.amsc.cascade.cayley_dickson.cd_promote",
+    "srmech.amsc.cascade.cayley_dickson.is_division_algebra_dim",
+    "srmech.amsc.cascade.compose.top_k_by_score",
+    "srmech.amsc.cascade.one.one_dim",
+    "srmech.amsc.cascade.one.one_flat_rational",
+    "srmech.amsc.cascade.one.one_grammar_slots",
+    "srmech.amsc.cascade.one.one_imag_dims",
+    "srmech.amsc.cascade.one.one_partition",
+    "srmech.amsc.cascade.one.one_plane_counts",
+    "srmech.amsc.cascade.sedenion_register.sed_slots",
+    "srmech.amsc.cascade.sedenion_register.sedenion_register",
+    "srmech.amsc.catalog.list_registered_roots",
+    "srmech.amsc.catalog.use_local_kernel",
+    "srmech.amsc.compose.parse_chain_spec",
+    "srmech.amsc.compose.resolve_chain",
+    "srmech.amsc.coupling.fold_encode",
+    "srmech.amsc.coupling.fold_identity",
+    "srmech.amsc.coupling.fractal_spectrum",
+    "srmech.amsc.coupling.from_bodies",
+    "srmech.amsc.descriptor.load_descriptor",
+    "srmech.amsc.descriptor.render_template",
+    "srmech.amsc.dispatch.infer",
+    "srmech.amsc.ellbase.chirality_parity",
+    "srmech.amsc.format.validate_mpr_record",
+    "srmech.amsc.format.write_ndjson",
+    "srmech.amsc.harmonics.classify_harmonic",
+    "srmech.amsc.hdc.klein4_project_axis",
+    "srmech.amsc.laplacian.write_packed_graph",
+    "srmech.amsc.modular_forms_ring.modular_forms_ring",
+    "srmech.amsc.op_provenance.family_verdict",
+    "srmech.amsc.poly.poly_from_coeffs",
+    "srmech.amsc.qbipoly.qbipoly_from_coeffs",
+    "srmech.amsc.qpoly.qpoly_from_coeffs",
+    "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring",
+    "srmech.amsc.tlv.tlv_unpack",
+    "srmech.amsc.tool_schema.get_tool_schema",
+    "srmech.amsc.tripoly.tripoly_from_coeffs",
+    "srmech.amsc.zeilberger.bipoly_from_coeffs",
+    "srmech.bus._server.serve",
+    "srmech.cli.bus.add_arguments",
+    "srmech.cli.bus.run_list",
+    "srmech.cli.bus.run_pipe",
+    "srmech.cli.bus.run_send",
+    "srmech.cli.bus.run_serve",
+    "srmech.cli.bus.run_tap",
+    "srmech.cli.dsl.add_arguments",
+    "srmech.cli.klass.add_arguments",
+    "srmech.cli.main.build_parser",
+    "srmech.cli.mcp.add_arguments",
+    "srmech.cli.status.add_arguments",
+    "srmech.dsl._chain.chain",
+    "srmech.mcp._sse.serve_http_sse",
+    "srmech.mcp._stdio.serve_stdio",
+    "srmech.qm.bell.classical_chsh_bound",
+    "srmech.signal_processing.closed_form_ops.polyphase.decompose",
+})
+
+
+def test_composes_c_zero_reach_rows_are_pinned():
+    """Every ``composes_c`` row whose transitive walk reaches ZERO ledger ops
+    is on the pinned allowlist above — so a self-contained pure-Python compute
+    kernel can never again hide in ``composes_c`` unnoticed (the rc217
+    srmech.amsc.text lesson: the reachability guard only fires on rows that
+    REACH a not-ready leaf; a kernel that calls nothing reaches nothing).
+    A stale entry (row moved bucket / gained a reached op / was removed) must
+    leave the pin, so the set stays exact in both directions."""
+    kinds = _load_non_compute_kinds()
+    cls = _load_classification()
+    objs = rosetta_live_objects()
+    zero_reach = set()
+    for da, k in kinds.items():
+        if k != "composes_c":
+            continue
+        fn = objs.get(da)
+        if fn is None:
+            continue
+        if not rosetta_reached_ledger_ops(fn, cls):
+            zero_reach.add(da)
+    extra = zero_reach - COMPOSES_C_ZERO_REACH_PINNED
+    stale = COMPOSES_C_ZERO_REACH_PINNED - zero_reach
+    assert not extra and not stale, (
+        "the zero-reach composes_c set drifted from the pin.\n"
+        f"  NEW zero-reach rows (JUSTIFY as accessor/constructor/grammar and "
+        f"extend the pin, or classify honestly — a compute kernel belongs in "
+        f"python_only_debt until it earns its C peer): {sorted(extra)}\n"
+        f"  STALE pin entries (no longer live zero-reach composes_c — remove "
+        f"from the pin): {sorted(stale)}"
+    )
+
+
 def test_non_compute_dev_tooling_is_pinned():
     """The live ``dev_tooling`` set is EXACTLY the pinned allowlist
     ``NON_COMPUTE_DEV_TOOLING_EXEMPT``. A dev_tooling row is a justified dev /

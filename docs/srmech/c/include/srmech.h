@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc216"
-#define SRMECH_VERSION       "0.9.0rc216"
+#define SRMECH_VERSION_PRE   "rc217"
+#define SRMECH_VERSION       "0.9.0rc217"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -9744,6 +9744,100 @@ srmech_status_t srmech_qm_su2_structure(double *out);
  * by total antisymmetry; f^{458} = f^{678} = √3/2 via
  * srmech_rational_sqrt. out = 512 doubles (f[a][b][c]). */
 srmech_status_t srmech_qm_su3_structure(double *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech_text — text → tokens → co-occurrence ingestion peers
+ * (v0.9.0rc217; gh #1360)
+ *
+ * The C mirror of `srmech.amsc.text` — the §40/§52 text→graph leaves of
+ * the K1 presence-kernel chain `text → tokenize → cooccurrence_edges →
+ * dense_laplacian`, plus the §52 streaming bounded top-K peer. The
+ * corpus-linear hot loops (per-codepoint tokenize; windowed pair-count
+ * accumulation; bounded chunk merge) run fully in C; the vocab-scale
+ * string→id mapping stays host-side (the srmech_klein4_cooccurrence_fold
+ * split precedent).
+ *
+ * BYTE-IDENTICAL parity contract: each op reproduces the pure-Python
+ * `srmech.amsc.text` result EXACTLY (token stream, integer pair counts,
+ * (-weight, index) tie-breaks, first-seen edge weights, lexicographic
+ * edge order) — the correctness gate for the downstream Laplacian.
+ *
+ * Unicode tables are CALLER-PROVIDED data (caller-arena discipline): the
+ * kept-bitset (0x110000 bits — one per codepoint, set iff Unicode
+ * category major class is L or M) and the casefold exception table
+ * (sorted codepoints + offset-indexed folded-UTF-8 blob, non-identity
+ * rows only). The srmech Python wrapper builds both once per process
+ * from the RUNNING interpreter's unicodedata, so native == pure holds on
+ * any interpreter / Unicode version; a bare-C host supplies its own
+ * tables (inputs, like the stoplist).
+ *
+ * All workspaces are caller arenas (JPL Rule 3); a too-small hash /
+ * scratch arena returns SRMECH_ERR_OVERFLOW (grow + retry — the
+ * OVERFLOW-not-wrap discipline; results are identical at any sufficient
+ * capacity). ABI-additive: new symbols, no callback typedef —
+ * SRMECH_ABI_VERSION stays 4. See srmech_text.c; parity attested by
+ * tests/test_text_c_rc217.py.
+ * ------------------------------------------------------------------ */
+
+/* Tokenize NFC-normalized UTF-8 `text` into '\n'-separated casefolded
+ * content tokens in `out` (*out_len bytes; each kept token is followed
+ * by one '\n'). Runs of kept codepoints (kept_bits) accumulate,
+ * word-internal apostrophes (U+0027 / U+2019, stored as ASCII ') are
+ * kept, each run is per-codepoint casefolded (fold_cps/fold_off/
+ * fold_bytes; identity when absent), end-apostrophe-trimmed, and emitted
+ * iff its folded codepoint count >= 2 and it is not one of the n_stop
+ * sorted stoplist entries (stop_off/stop_bytes, casefolded UTF-8).
+ * out_cap >= 4*text_len + 1 always suffices. Malformed UTF-8 →
+ * SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_text_tokenize(
+    const uint8_t *text, size_t text_len, const uint8_t *kept_bits,
+    const uint32_t *fold_cps, const uint32_t *fold_off,
+    const uint8_t *fold_bytes, size_t n_folds,
+    const uint32_t *stop_off, const uint8_t *stop_bytes, size_t n_stop,
+    uint8_t *out, size_t out_cap, size_t *out_len);
+
+/* Windowed unordered co-occurrence pair counts over per-document vocab-id
+ * streams (doc d = tok_ids[doc_off[d] .. doc_off[d+1]); the window resets
+ * at every document boundary), aggregated in the caller hash arena
+ * (ht_keys/ht_vals; power-of-two ht_cap; load kept <= 1/2 else
+ * SRMECH_ERR_OVERFLOW). On success the *out_n_edges distinct pairs sit
+ * compacted + sorted at the FRONT of ht_keys (key = (u<<32)|v, u < v —
+ * lexicographic edge order) with parallel integer counts in ht_vals. */
+srmech_status_t srmech_text_cooccurrence_edges(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
+    uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, size_t *out_n_edges);
+
+/* One §52 bounded top-K chunk FLUSH: accumulate the chunk's windowed pair
+ * counts (same loop as cooccurrence_edges), then merge each touched
+ * node's directed neighbours into its bounded store row — full
+ * within-chunk weights sum BEFORE any truncation; a row exceeding `cap`
+ * truncates to the cap best by (-weight, neighbour). store_nbr/store_w
+ * are n_vocab × cap row-major (neighbour-ascending rows); store_len[u]
+ * counts row u's live entries. `dir` (2·distinct-pairs records) and
+ * `scr` (one node's merge: up to cap + its chunk-degree records) are
+ * uint64-PAIR record scratch arenas. */
+srmech_status_t srmech_text_cooccurrence_topk(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t cap,
+    uint32_t n_vocab, uint32_t *store_nbr, uint64_t *store_w,
+    uint32_t *store_len, uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap,
+    uint64_t *dir, size_t dir_cap_recs, uint64_t *scr, size_t scr_cap_recs);
+
+/* The §52 final read-out of the bounded store: per node u (ascending),
+ * rank its row by (-weight, neighbour) and keep the top k into
+ * topk_nbr/topk_w (n_vocab × k row-major; topk_len[u] live, in ranked
+ * order — the per-token `topk` view), and union those entries into the
+ * deduplicated sparse edge list with the FIRST-SEEN weight, sorted by
+ * (min, max) key. edge_recs needs Σ_u min(store_len[u], k) 3-uint64
+ * records of scratch and returns *out_n_edges 2-uint64 (key, weight)
+ * records compacted at its front; node_scr holds `cap` 2-uint64 records. */
+srmech_status_t srmech_text_cooccurrence_topk_extract(
+    const uint32_t *store_nbr, const uint64_t *store_w,
+    const uint32_t *store_len, uint32_t n_vocab, uint32_t cap, uint32_t k,
+    uint32_t *topk_nbr, uint64_t *topk_w, uint32_t *topk_len,
+    uint64_t *edge_recs, size_t edge_cap_recs, size_t *out_n_edges,
+    uint64_t *node_scr, size_t node_scr_cap_recs);
 
 #ifdef __cplusplus
 }
