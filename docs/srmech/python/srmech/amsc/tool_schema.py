@@ -871,7 +871,10 @@ def _register_primitive_class_tools() -> None:
         # authorable end-to-end; retires the hand-rolled Counter() idiom. The
         # rc43 versions FAILED the §40 acceptance bar 3/3 (ASCII tokenize /
         # silent vocab cap / no doc-boundary reset) — rc50 fixes all three.
-        # Both pure-Python.
+        # rc217 (gh #1360): all three dispatch to BYTE-IDENTICAL C peers
+        # (srmech_text_tokenize / _cooccurrence_edges / _cooccurrence_topk +
+        # _topk_extract) — the corpus-linear hot loops run in C; the pure
+        # bodies remain the complete alternative + parity oracle.
         ToolEntry(
             name="srmech.amsc.text.tokenize", owner="srmech",
             category="text",

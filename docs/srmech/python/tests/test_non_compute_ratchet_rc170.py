@@ -186,14 +186,22 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # (canonical JSON byte-identical to the pure path, sha256 hash-ratcheted); the
 # pure derivation is the complete fallback. NOT owed_orchestration (CEIL stays 0).
 # composes_c 117 -> 118; sum 176 -> 177.
+# rc217 (gh #1360): the 3 srmech.amsc.text ops (tokenize / cooccurrence_edges /
+# cooccurrence_topk) were MIS-CLASSIFIED non_compute/composes_c — they are
+# genuine pure-Python COMPUTE kernels (the enwiki-encode hot loop) that reach
+# no ledger op, so the composes_c transitive walk could not see them (the
+# self-contained-kernel hiding spot; closed by the new zero-reach pin in
+# test_rosetta_completeness.py). They earned BYTE-IDENTICAL C peers
+# (srmech_text_*) and moved non_compute -> c_dispatched: composes_c 118 -> 115;
+# non_compute total 177 -> 174.
 _EXPECTED_SPLIT = {
     # rc202 discharged the FINAL owed row (run_class_method -> C); owed_orchestration
     # is now EMPTY (a live Counter has no zero key), so it is absent from the split.
-    "composes_c": 118,
+    "composes_c": 115,
     "host_glue": 15,
     "dev_tooling": 44,
 }
-_TOTAL_NON_COMPUTE = 177
+_TOTAL_NON_COMPUTE = 174
 
 
 def _rows():
