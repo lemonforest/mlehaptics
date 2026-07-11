@@ -419,7 +419,11 @@ _ROOTS = (
 #     scaling, Class-K round-quantise, zigzag/block indexing and dequantise
 #     multiply are exact integer/float glue (the rc144 deferral was only because
 #     the DCT was not yet C-backed; rc148 closed that). Encode→decode round-trip
-#     ≈ input within quantisation error.
+#     ≈ input within quantisation error. (rc213: jpeg.op moved composition_of_c
+#     -> c_dispatched over its dedicated blocked-pipeline C peer
+#     srmech_jpeg_{encode,decode}_f64 — ONE ctypes crossing for the whole image
+#     instead of 4 dispatches per block; NUMERIC within-tol, the B4 contract;
+#     see test_jpeg_dct_c_rc213.py.)
 #   • ica_jade.op -> c_dispatched: THE last real compute gap. Whitening (PCA eig)
 #     already composes the C mat_hermitian_eigendecompose and the cumulant assembly
 #     is a plain Class-M accumulate, but the JADE Givens JOINT-DIAGONALISATION is a

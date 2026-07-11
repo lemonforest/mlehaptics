@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc213"
-#define SRMECH_VERSION       "0.9.0rc213"
+#define SRMECH_VERSION_PRE   "rc214"
+#define SRMECH_VERSION       "0.9.0rc214"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -834,6 +834,55 @@ srmech_status_t srmech_iir_lfilter_f64(
     const double *a, size_t na,
     const double *x, size_t n,
     double *out);
+
+/* ------------------------------------------------------------------ *
+ * NUMERIC JPEG-like block-DCT compression pipeline (0.9.0rc214, #753) —
+ * the float-DCT numeric op deferred out of the rc144/B6b exact coder
+ * batch, now `closed_form_ops.jpeg`'s dedicated C peer.
+ *
+ * encode: per bs×bs block of the h×w row-major image —
+ *   Z = (2·B₂·X)·(2·B₂ᵀ)           separable 2-D DCT-II (cols then rows)
+ *   out = round_half_even(Z ⊘ QT)  Class-K quantise (banker's rounding,
+ *                                  the exact C twin of Python round();
+ *                                  no libm rint(), no fabs()/abs())
+ * decode: per block — D = Q ⊙ QT; DCT-III (with the weight-1 j==0
+ * correction) cols then rows; scale by 1/(2·bs)² into the (bh·bs)×(bw·bs)
+ * row-major image.
+ *
+ * The cosine bases basis2/basis3 (bs×bs row-major DCT-II / DCT-III
+ * matrices, B₂[k][j] = cos(π·k·(2j+1)/(2bs)), B₃[k][j] =
+ * cos(π·(2k+1)·j/(2bs))) and the bs×bs quant table qt are CALLER inputs
+ * (the Python side builds them once through the byte-exact Class-N
+ * rational.cos cascade — the SAME basis the pure path uses; a bare-C host
+ * builds them from the libm-free srmech_cos) — the rc149 iir precedent
+ * (taps are caller data; the kernel is the loop). WHY A NEW SYMBOL: the
+ * pipeline is BLOCKED + FUSED (strided block extract → two basis
+ * multiplies → quantise, per block); routed through the generic dense
+ * matmul it costs 4 dispatches per block and rebuilds the basis per call
+ * — this kernel is ONE crossing for the whole image. NUMERIC (FPU-tol),
+ * NOT byte-exact: within-tol (reldiff ≤ 1e-9) vs the pure-Python cascade,
+ * the F1-FFT / F2-SVD / B4 contract. All scratch is bump-carved from the
+ * CALLER arena ws (>= srmech_jpeg_ws_bound(bs) bytes = 2·bs² doubles; no
+ * malloc; under-sized -> SRMECH_ERR_OVERFLOW). `out` MUST NOT alias the
+ * input. Encode truncates to whole blocks (bh = h/bs, bw = w/bs; zero
+ * blocks writes nothing); out is bh·bw·bs² doubles in block order, each
+ * an exact integer value. qt entries must be nonzero (else
+ * SRMECH_ERR_BAD_INPUT); a quantise quotient at or past 2^62 returns
+ * SRMECH_ERR_OVERFLOW (OVERFLOW-not-wrap). The pure-Python cascade is the
+ * COMPLETE alternative for no-C hosts. ABI-additive — SRMECH_ABI_VERSION
+ * stays 4 (the Python ctypes shim hasattr-guards the symbols).
+ * ------------------------------------------------------------------ */
+size_t srmech_jpeg_ws_bound(size_t bs);
+
+srmech_status_t srmech_jpeg_encode_f64(
+    const double *image, size_t h, size_t w,
+    const double *basis2, const double *qt, size_t bs,
+    double *out, double *ws, size_t ws_len);
+
+srmech_status_t srmech_jpeg_decode_f64(
+    const double *qblocks, size_t bh, size_t bw,
+    const double *basis3, const double *qt, size_t bs,
+    double *out, double *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)
