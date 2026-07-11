@@ -42,6 +42,24 @@ on the SAME substrate a bare-C host uses; CPython ``int`` is the demoted
 below-threshold / no-native alternative — byte-identical either way. The
 dispatch touches only the two scalar components; no carrier structure above
 ``Q`` is affected (the sparse-tower guardrail).
+
+**Cross-gcd-first multiply (0.9.0rc211, #786 — Knuth TAOCP Vol 2, §4.5.1).**
+``Q.__mul__``/``__rmul__`` divide the two CROSS gcds out of the operands
+BEFORE multiplying (``g1 = gcd(|a|, d)``, ``g2 = gcd(|c|, b)``, result
+``= (a/g1 · c/g2) / (b/g2 · d/g1)``) instead of multiplying-then-reducing —
+the same discipline CPython's ``fractions.Fraction._mul`` applies, INCLUDING
+its second half: for two REDUCED operands the cross-reduced product is
+already in lowest terms (Knuth's theorem — every prime of ``a/g1`` is
+excluded from ``b·d/(g1·g2)`` by ``a⊥b`` and by ``a/g1 ⊥ d/g1``; likewise for
+``c/g2``), so the product pair is constructed directly with NO product-scale
+gcd at all (the ``Fraction._from_coprime_ints`` fast constructor). The result
+is byte-identical (the same fully-reduced pair either way); only the
+INTERMEDIATE products shrink (for a cross-cancelling ``a/b × b/a`` the
+multiply collapses to ``1·1/1·1`` instead of two double-width products fed to
+a double-width gcd). u64-fit operands skip the cross-reduce and keep riding
+the fused scalar C op unchanged (see :data:`_CROSS_REDUCE_MIN_BITS`); a raw
+house-form ``(num, den)`` tuple operand may be UNREDUCED, so it takes the
+general validating path (cross-reduce + full ``rational_mul`` reduce).
 """
 
 from __future__ import annotations
@@ -49,6 +67,7 @@ from __future__ import annotations
 import numbers
 from typing import Tuple
 
+from . import cyclic as _cyclic
 from . import rational as _rational
 
 __all__ = ["Q"]
@@ -102,6 +121,71 @@ def _as_pair(value):
     return None
 
 
+# 0.9.0rc211 (#786) — the cross-gcd-first multiply threshold. 64 is
+# attested-to-structure (Class A): it is the u64 native scalar domain boundary
+# — operands whose magnitudes all fit below 64 bits ride `srmech_rational_mul`
+# as ONE fused C call (multiply + gcd-reduce together), so two extra Python-
+# side cross-gcd calls there are pure dispatch/FFI overhead on inputs whose
+# intermediates cannot blow up anyway. At/above 64 bits the operands miss the
+# fused scalar C path, and Knuth's cross-reduction (TAOCP Vol 2, §4.5.1) keeps
+# the intermediate products near OPERAND scale instead of PRODUCT scale.
+_CROSS_REDUCE_MIN_BITS: int = 64
+
+
+def _cross_reduce(a_num: int, a_den: int, b_num: int, b_den: int):
+    """Divide the two CROSS gcds out of the multiply operands (Knuth TAOCP
+    Vol 2, §4.5.1): ``g1 = gcd(|a_num|, b_den)`` off the main diagonal,
+    ``g2 = gcd(|b_num|, a_den)`` off the anti-diagonal. Requires positive
+    denominators. Returns the four cross-reduced parts (signs stay on the
+    numerators; dividing by a positive gcd of the magnitude is exact). The
+    gcds ride the Class-I :func:`srmech.amsc.cyclic.gcd` on Class-K
+    sign-branch magnitudes (never an ALU ``abs()``)."""
+    # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
+    a_mag = a_num if a_num >= 0 else -a_num
+    b_mag = b_num if b_num >= 0 else -b_num
+    g1 = _cyclic.gcd(a_mag, b_den)
+    if g1 > 1:
+        a_num //= g1
+        b_den //= g1
+    g2 = _cyclic.gcd(b_mag, a_den)
+    if g2 > 1:
+        b_num //= g2
+        a_den //= g2
+    return a_num, a_den, b_num, b_den
+
+
+def _mul_cross_reduced(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+    """Cross-gcd-first rational multiply over ARBITRARY house-form pairs
+    (possibly unreduced, e.g. a raw ``(6, 4)`` tuple operand): cross-reduce,
+    then the full :func:`~srmech.amsc.rational.rational_mul` reduce — for an
+    unreduced input the cross gcds alone do not reach lowest terms, so the
+    final reduce stays. BYTE-IDENTICAL to ``rational_mul(a, b)`` (dividing
+    shared factors out early never changes the value; the final reduce
+    canonicalises) — purely an intermediate-size optimisation. Below
+    :data:`_CROSS_REDUCE_MIN_BITS` (and for the non-positive-denominator
+    error path) it delegates to ``rational_mul`` unchanged, preserving the
+    fused u64 scalar C fast path and the exact validation contract."""
+    a_num, a_den = a[0], a[1]
+    b_num, b_den = b[0], b[1]
+    if a_den <= 0 or b_den <= 0:
+        # Bad denominators: rational_mul raises the canonical ValueError —
+        # the contract is unchanged.
+        return _rational.rational_mul(a, b)
+    # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
+    a_mag = a_num if a_num >= 0 else -a_num
+    b_mag = b_num if b_num >= 0 else -b_num
+    if (a_mag.bit_length() < _CROSS_REDUCE_MIN_BITS
+            and a_den.bit_length() < _CROSS_REDUCE_MIN_BITS
+            and b_mag.bit_length() < _CROSS_REDUCE_MIN_BITS
+            and b_den.bit_length() < _CROSS_REDUCE_MIN_BITS):
+        # Small operands: the fused scalar C op (mul + reduce in ONE call)
+        # owns this tier — delegate with ZERO re-marshalling (the gate above
+        # is four bit_length probes on already-int pairs).
+        return _rational.rational_mul(a, b)
+    a_num, a_den, b_num, b_den = _cross_reduce(a_num, a_den, b_num, b_den)
+    return _rational.rational_mul((a_num, a_den), (b_num, b_den))
+
+
 class Q:
     """An exact rational scalar — a reduced ``(num, den)`` integer pair that
     behaves like a float in comparisons and collapses to one only via
@@ -125,6 +209,20 @@ class Q:
         return), the inverse of unpacking ``num, den = q``."""
         num, den = pair
         return cls(num, den)
+
+    @classmethod
+    def _from_coprime(cls, num: int, den: int) -> "Q":
+        """PRIVATE trusted constructor (0.9.0rc211, #786 — the
+        ``fractions.Fraction._from_coprime_ints`` pattern): build a ``Q``
+        from a pair the CALLER has proven already reduced (coprime, positive
+        denominator), skipping ``__init__``'s ``_reduce_rational``. Only the
+        cross-gcd multiply fast path may call this — its coprimality is
+        Knuth's TAOCP 4.5.1 theorem over two reduced operands, never an
+        assumption about raw input."""
+        obj = object.__new__(cls)
+        obj._n = num
+        obj._d = den
+        return obj
 
     @classmethod
     def from_float(cls, x: float) -> "Q":
@@ -255,11 +353,49 @@ class Q:
         return Q.from_pair(_rational.rational_add(pair,
                                                   (-self._n, self._d)))
 
+    def _mul(self, other):
+        """0.9.0rc211 (#786): cross-gcd-first multiply (Knuth TAOCP 4.5.1,
+        the full ``fractions.Fraction._mul`` discipline) — byte-identical
+        result, operand-scale intermediates. Three tiers:
+
+        - raw house-form tuple/list operand (possibly UNREDUCED) → the
+          general validating path (cross-reduce + full ``rational_mul``
+          reduce) via :func:`_mul_cross_reduced`;
+        - u64-fit operands → delegate to ``rational_mul`` unchanged (the
+          fused mul+reduce scalar C op owns that tier);
+        - big REDUCED operands (self is reduced by invariant; an
+          ``int``/``bool`` pair ``(n, 1)`` and a ``float``'s
+          ``as_integer_ratio()`` are reduced by construction) → cross-reduce
+          and build the product DIRECTLY via :meth:`_from_coprime` — by
+          Knuth's theorem the cross-reduced product of two reduced fractions
+          is already in lowest terms, so NO product-scale gcd runs at all.
+        """
+        pair = _as_pair(other)
+        if pair is None:
+            return NotImplemented
+        if isinstance(other, (tuple, list)):
+            # may be unreduced / negative-den — full validate + reduce
+            return Q.from_pair(_mul_cross_reduced((self._n, self._d), pair))
+        a_num, a_den = self._n, self._d
+        b_num, b_den = pair
+        # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
+        a_mag = a_num if a_num >= 0 else -a_num
+        b_mag = b_num if b_num >= 0 else -b_num
+        if (a_mag.bit_length() < _CROSS_REDUCE_MIN_BITS
+                and a_den.bit_length() < _CROSS_REDUCE_MIN_BITS
+                and b_mag.bit_length() < _CROSS_REDUCE_MIN_BITS
+                and b_den.bit_length() < _CROSS_REDUCE_MIN_BITS):
+            return Q.from_pair(
+                _rational.rational_mul((a_num, a_den), pair))
+        a_num, a_den, b_num, b_den = _cross_reduce(
+            a_num, a_den, b_num, b_den)
+        return Q._from_coprime(a_num * b_num, a_den * b_den)
+
     def __mul__(self, other):
-        return self._combine(other, _rational.rational_mul)
+        return self._mul(other)
 
     def __rmul__(self, other):
-        return self._combine(other, _rational.rational_mul)
+        return self._mul(other)
 
     def __truediv__(self, other):
         return self._combine(other, _rational.rational_div)
