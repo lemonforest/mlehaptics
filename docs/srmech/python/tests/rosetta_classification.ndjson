@@ -594,8 +594,8 @@
 {"exposed_as": "srmech.llm.anthropic_agent._to_anthropic_name", "defined_at": "srmech.llm.anthropic_agent._to_anthropic_name", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.llm.anthropic_agent_cli.build_parser", "defined_at": "srmech.llm.anthropic_agent_cli.build_parser", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.llm.anthropic_agent_cli.main", "defined_at": "srmech.llm.anthropic_agent_cli.main", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
-{"exposed_as": "srmech.spectral.decompose", "defined_at": "srmech.spectral.decompose", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.spectral.recompose", "defined_at": "srmech.spectral.recompose", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.spectral.decompose", "defined_at": "srmech.spectral.decompose", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.spectral.recompose", "defined_at": "srmech.spectral.recompose", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.spectral.predict", "defined_at": "srmech.spectral.predict", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.spectral.delta", "defined_at": "srmech.spectral.delta", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.spectral.similarity", "defined_at": "srmech.spectral.similarity", "bucket": "composition_of_c"}
@@ -603,8 +603,8 @@
 {"exposed_as": "srmech.spectral.truncate_sparse", "defined_at": "srmech.spectral.truncate_sparse", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.spectral.clear_eigenbasis_cache", "defined_at": "srmech.spectral.clear_eigenbasis_cache", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.rbs_lm.token_seed", "defined_at": "srmech.rbs_lm.substrate.token_seed", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.rbs_lm.encode_word_k4", "defined_at": "srmech.rbs_lm.substrate.encode_word_k4", "bucket": "composition_of_c"}
-{"exposed_as": "srmech.rbs_lm.substrate.encode_word_byteglyph", "defined_at": "srmech.rbs_lm.substrate.encode_word_byteglyph", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.encode_word_k4", "defined_at": "srmech.rbs_lm.substrate.encode_word_k4", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.rbs_lm.substrate.encode_word_byteglyph", "defined_at": "srmech.rbs_lm.substrate.encode_word_byteglyph", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.rbs_lm.encode_bigram_l1", "defined_at": "srmech.rbs_lm.substrate.encode_bigram_l1", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.rbs_lm.encode_skeleton_l2", "defined_at": "srmech.rbs_lm.substrate.encode_skeleton_l2", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.rbs_lm.encode_sentence_l3", "defined_at": "srmech.rbs_lm.substrate.encode_sentence_l3", "bucket": "composition_of_c"}

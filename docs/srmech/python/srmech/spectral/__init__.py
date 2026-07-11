@@ -58,12 +58,13 @@ primitive class is introduced.
 
 from __future__ import annotations
 
+import ctypes
 import struct
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import List, Optional
 
-from srmech.amsc import rational
+from srmech.amsc import _native, rational
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.laplacian import mat_hermitian_eigendecompose, mat_matvec
 from srmech.amsc.mat import Mat
@@ -202,13 +203,97 @@ def _descriptor_hash(laplacian, encoder_tag: str = "default") -> str:
     rc218: hashed as ONE ``format.sha256_bytes`` call over the concatenated
     canonical bytes — the same total byte sequence the prior incremental
     ``hashlib`` ``h.update()`` chain hashed, so the hex output is unchanged.
+
+    rc219 (gh #827; the profiled per-state waste): (a) MEMOIZED by carrier
+    identity — the hex is cached on the ``Mat`` instance keyed by
+    ``encoder_tag``, so an encode stream re-using ONE substrate Laplacian pays
+    the O(n²) byte-build once, mirroring the eigenbasis LRU (which this hash
+    keys). The memo shares the carrier's documented ``Mat.buffer`` caveat:
+    mutating the buffer in place invalidates neither this memo nor the
+    eigenbasis cache — pass a fresh ``Mat`` for a changed substrate. (b) A
+    complex ``Mat``'s flat buffer already IS the row-major interleaved
+    complex128 canonical bytes, so the per-element Python pack loop collapses
+    to ``L.tobytes()`` (byte-identical output; pinned by the rc218
+    hash-stability gate).
     """
     L = _to_complex_mat(laplacian)
-    nr, nc = L.shape
-    flat = (L[i, j] for i in range(nr) for j in range(nc))
-    return _sha256_bytes(
-        _complex128_bytes(flat) + b"|" + encoder_tag.encode("utf-8")
-    )
+    memo = getattr(L, "_srmech_desc_hash_memo", None)
+    if memo is not None:
+        h = memo.get(encoder_tag)
+        if h is not None:
+            return h
+    if isinstance(L, Mat) and L.is_complex:
+        canonical = L.tobytes()   # the buffer IS the canonical complex128 bytes
+    else:
+        nr, nc = L.shape
+        canonical = _complex128_bytes(
+            L[i, j] for i in range(nr) for j in range(nc)
+        )
+    h = _sha256_bytes(canonical + b"|" + encoder_tag.encode("utf-8"))
+    try:
+        if memo is None:
+            memo = {}
+            setattr(L, "_srmech_desc_hash_memo", memo)
+        memo[encoder_tag] = h
+    except (AttributeError, TypeError):
+        pass                       # a carrier that refuses attributes: no memo
+    return h
+
+
+def _spectral_decompose_native(V, state_vec, n):
+    """ONE-crossing native projection via ``srmech_spectral_decompose`` (rc219;
+    gh #827): coeffs = Vᴴ·state + the complex128 pack + the content sha over
+    the CACHED eigenbasis, with the eigenvector ``Mat`` buffer fed zero-copy.
+    Returns ``(coefficients_bytes, content_sha)`` or ``None`` when the symbol
+    is absent / the carrier doesn't fit the C contract / the call fails (the
+    ``mat_matvec`` composition below is the COMPLETE alternative). Same-machine
+    byte-identity with that composition holds by construction — the C stages
+    the exact conjugate-transpose bytes and runs the SAME
+    ``srmech_dense_matmul_complex`` kernel; cross-platform/arm the value is
+    float-eig-derived and only within-tol (the rc218 lesson — never pin a
+    cross-platform SHA to it)."""
+    if not _native.has_native_spectral_decompose():
+        return None
+    if not (isinstance(V, Mat) and V.is_complex and V.shape == (n, n)
+            and n >= 1):
+        return None
+    v_c = (ctypes.c_double * (2 * n * n)).from_buffer(V.buffer)  # zero-copy
+    state_il = (ctypes.c_double * (2 * n))()
+    for i, z in enumerate(state_vec):
+        state_il[2 * i] = z.real
+        state_il[2 * i + 1] = z.imag
+    scratch = (ctypes.c_double * (2 * n * n))()
+    out = (ctypes.c_double * (2 * n))()
+    sha = ctypes.create_string_buffer(65)
+    rc = _native.LIB.srmech_spectral_decompose(
+        ctypes.c_uint32(n), v_c, state_il, scratch, out, sha)
+    if rc != _native.SRMECH_OK:
+        return None
+    return ctypes.string_at(out, 2 * n * 8), sha.value.decode("ascii")
+
+
+def _spectral_recompose_native(V, coeffs_bytes, n):
+    """ONE-crossing native inverse projection via ``srmech_spectral_recompose``
+    (rc219; gh #827): state = V·coeffs with the eigenvector ``Mat`` buffer fed
+    zero-copy and the handle's ``coefficients_bytes`` viewed directly as the
+    interleaved complex128 operand. Returns the reconstructed state as a list
+    of ``complex`` or ``None`` (the ``mat_matvec`` composition below is the
+    COMPLETE alternative). Same parity kind as the decompose peer."""
+    if not _native.has_native_spectral_recompose():
+        return None
+    if not (isinstance(V, Mat) and V.is_complex and V.shape == (n, n)
+            and n >= 1):
+        return None
+    if len(coeffs_bytes) != 16 * n:
+        return None
+    v_c = (ctypes.c_double * (2 * n * n)).from_buffer(V.buffer)  # zero-copy
+    coeffs_il = (ctypes.c_double * (2 * n)).from_buffer_copy(coeffs_bytes)
+    out = (ctypes.c_double * (2 * n))()
+    rc = _native.LIB.srmech_spectral_recompose(
+        ctypes.c_uint32(n), v_c, coeffs_il, out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
 
 
 def _eigenbasis(laplacian_mat: "Mat", desc_hash: str):
@@ -277,10 +362,24 @@ def decompose(
     desc_hash = _descriptor_hash(L, encoder_tag=encoder_tag)
     eigvals, V = _eigenbasis(L, desc_hash)
     # coeffs = Vᴴ·state — Class-L projection onto the eigenbasis (V columns are
-    # eigenvectors), routed through the C-backed carrier matvec (rc218, the
-    # rc148 dct precedent): Vᴴ = V.conj().T, then ``laplacian.mat_matvec``.
-    # Handle-hash byte-stability vs the prior explicit sesquilinear sum is
-    # pinned by tests/test_spectral_hash_stability_rc218.py.
+    # eigenvectors). rc219 (gh #827): ONE C crossing via
+    # ``srmech_spectral_decompose`` (matvec + complex128 pack + content sha
+    # over the zero-copy carrier buffer — the profiled per-state marshalling
+    # collapse); same-machine byte-identical to the rc218 mat_matvec route by
+    # construction (same srmech_dense_matmul_complex kernel).
+    native = _spectral_decompose_native(V, state_vec, n)
+    if native is not None:
+        nat_bytes, nat_sha = native
+        return SpectralHandle(
+            substrate_descriptor_hash=desc_hash,
+            coefficients_bytes=nat_bytes,
+            content_sha=nat_sha,
+            n_modes=int(n),
+        )
+    # COMPLETE alternative (no-C hosts / non-carrier V): the rc218 route —
+    # Vᴴ = V.conj().T, then ``laplacian.mat_matvec``. Handle-hash
+    # byte-stability vs the prior explicit sesquilinear sum is pinned by
+    # tests/test_spectral_hash_stability_rc218.py.
     coeffs_vec = mat_matvec(V.conj().T, state_vec)
     coeffs = [complex(coeffs_vec[k]) for k in range(n)]
     coeffs_bytes = _complex128_bytes(coeffs)
@@ -381,10 +480,17 @@ def recompose(
         )
     eigvals, V = _eigenbasis(L, desc_hash)
     n = handle.n_modes
+    # state = V·coeffs — inverse projection (Class-L). rc219 (gh #827): ONE C
+    # crossing via ``srmech_spectral_recompose`` over the zero-copy carrier
+    # buffer + the handle bytes viewed directly as the complex128 operand;
+    # same-machine value-identical to the rc218 mat_matvec route by
+    # construction (same srmech_dense_matmul_complex kernel).
+    native = _spectral_recompose_native(V, handle.coefficients_bytes, n)
+    if native is not None:
+        return native
+    # COMPLETE alternative (no-C hosts / non-carrier V): the rc218 route,
+    # value-stability pinned by tests/test_spectral_hash_stability_rc218.py.
     coeffs = _unpack_complex128(handle.coefficients_bytes, n)
-    # state = V·coeffs — inverse projection (Class-L), routed through the
-    # C-backed carrier matvec (rc218; value-stability pinned by
-    # tests/test_spectral_hash_stability_rc218.py).
     state_out = mat_matvec(V, coeffs)
     return [complex(state_out[i]) for i in range(n)]
 
