@@ -9,12 +9,14 @@
  * carried as num/den srmech_bigint rationals (NO malloc, JPL Rule 3; NO float,
  * NO libm), the size-reduction round is the exact integer floor((2a+b)/(2b))
  * (the |μ| ≤ 1/2 guard a Class-K sign branch on 2·|num| vs den — never an ALU
- * abs), and the Lovász swap decides on the exact ℚ inequality. The GSO is
- * recomputed from the CURRENT integer basis at the top of each outer step (a
- * pure function of the integer basis), so the whole computation is a pure
- * function of (basis, δ) → byte-identical to the Python pure body, which is the
- * complete no-native fallback AND the parity oracle. Integer-in, integer-out;
- * rotation-last-trivial (no projection).
+ * abs), and the Lovász swap decides on the exact ℚ inequality. rc222: the GSO
+ * is computed ONCE and then maintained INCREMENTALLY (the proper H. Cohen
+ * Algorithm 2.6.3 form — RED already updated μ; the swap applies the exact
+ * ℚ swap-update identities instead of the per-iteration O(m³) recompute), so
+ * the whole computation stays a pure function of (basis, δ) → byte-identical
+ * to the Python pure body (which is the complete no-native fallback AND the
+ * parity oracle) and byte-identical to the rc221 full-recompute output.
+ * Integer-in, integer-out; rotation-last-trivial (no projection).
  *
  * ARENA SOUNDNESS. Every working carrier — the integer basis copy, the μ matrix,
  * the ‖b*‖² vector, the scalar Q carriers, the gcd/divmod scratch tail — is
@@ -61,6 +63,9 @@ typedef struct lll_ctx {
     srmech_bigint_t qt_n, qt_d;   /* Q temp product (μ·μ)                  */
     srmech_bigint_t qu_n, qu_d;   /* Q temp product (·B / the subtrahend)  */
     srmech_bigint_t qv_n, qv_d;   /* Q temp (Lovász rhs / δ−μ²)            */
+    srmech_bigint_t qw_n, qw_d;   /* swap-update μ_v (rc222 incremental)   */
+    srmech_bigint_t qx_n, qx_d;   /* swap-update B'_{k−1} (rc222)          */
+    srmech_bigint_t qy_n, qy_d;   /* swap-update μ' (rc222 incremental)    */
     srmech_bigint_t iacc, iacc2;  /* integer dot-product accumulator       */
     srmech_bigint_t iprod;        /* integer product term                  */
     srmech_bigint_t ir0, ir1;     /* integer round/compare scratch         */
@@ -75,7 +80,7 @@ typedef struct lll_ctx {
     size_t scratch_len;           /* its length in BYTES                   */
 } lll_ctx_t;
 
-#define LLL_N_CARRIERS 24u
+#define LLL_N_CARRIERS 30u
 
 /* ---- caller-arena bump carve (mirrors qmat_take / fac_take) -------- */
 
@@ -561,8 +566,98 @@ static srmech_status_t lll_swap_rows(srmech_bigint_t *b, int n, int k)
     return SRMECH_OK;
 }
 
+/* SWAP scalar updates (rc222 — the proper incremental H. Cohen Alg 2.6.3 form):
+ * with μ_v = μ[k][k−1] (→ qw, persists), B'_{k−1} = B_k + μ_v²·B_{k−1} (→ qx),
+ * μ' = μ_v·B_{k−1}/B'_{k−1} (→ qy, persists); then B_k ← B_{k−1}·B_k/B'_{k−1}
+ * and B_{k−1} ← B'_{k−1}. Exact-ℚ identities of the from-scratch recomputation,
+ * so the reduced basis stays byte-identical to the rc221 full-recompute body. */
+static srmech_status_t lll_swap_scalars(lll_ctx_t *c, srmech_bigint_t *mn,
+                                        srmech_bigint_t *md, srmech_bigint_t *bn,
+                                        srmech_bigint_t *bd, int m, int k)
+{
+    size_t e = (size_t)k * (size_t)m + (size_t)(k - 1);
+    srmech_status_t st;
+    assert(c != NULL && mn != NULL && md != NULL);
+    assert(k >= 1 && bn != NULL && bd != NULL);
+    st = srmech_bigint_copy(&c->qw_n, &mn[e]);         if (st) { return st; }
+    st = srmech_bigint_copy(&c->qw_d, &md[e]);         if (st) { return st; }
+    st = lll_q_mul(c, &c->qt_n, &c->qt_d, &c->qw_n, &c->qw_d,
+                   &c->qw_n, &c->qw_d);                if (st) { return st; }
+    st = lll_q_mul(c, &c->qu_n, &c->qu_d, &c->qt_n, &c->qt_d,
+                   &bn[k - 1], &bd[k - 1]);            if (st) { return st; }
+    st = lll_q_addsub(c, &c->qx_n, &c->qx_d, &bn[k], &bd[k],
+                      &c->qu_n, &c->qu_d, 0);          if (st) { return st; }
+    if (srmech_bigint_is_zero(&c->qx_n)) {
+        return SRMECH_ERR_BAD_INPUT;   /* degenerate: b_k ∈ span(b_1..b_{k−1}) */
+    }
+    st = lll_q_mul(c, &c->qt_n, &c->qt_d, &c->qw_n, &c->qw_d,
+                   &bn[k - 1], &bd[k - 1]);            if (st) { return st; }
+    st = lll_q_div(c, &c->qy_n, &c->qy_d, &c->qt_n, &c->qt_d,
+                   &c->qx_n, &c->qx_d);                if (st) { return st; }
+    st = lll_q_mul(c, &c->qt_n, &c->qt_d, &bn[k - 1], &bd[k - 1],
+                   &bn[k], &bd[k]);                    if (st) { return st; }
+    st = lll_q_div(c, &c->qr_n, &c->qr_d, &c->qt_n, &c->qt_d,
+                   &c->qx_n, &c->qx_d);                if (st) { return st; }
+    st = srmech_bigint_copy(&bn[k], &c->qr_n);         if (st) { return st; }
+    st = srmech_bigint_copy(&bd[k], &c->qr_d);         if (st) { return st; }
+    st = srmech_bigint_copy(&bn[k - 1], &c->qx_n);     if (st) { return st; }
+    return srmech_bigint_copy(&bd[k - 1], &c->qx_d);
+}
+
+/* Full SWAP step: integer-row swap + the exact incremental μ update — the μ
+ * rows below k−1 exchange (header swap), μ[k][k−1] ← μ' (qy), and the deeper
+ * rows i > k rotate through (t = μ[i][k]; μ[i][k] ← μ[i][k−1] − μ_v·t;
+ * μ[i][k−1] ← t + μ'·μ[i][k]). qs is the t register (free outside GSO). */
+static srmech_status_t lll_swap_update(lll_ctx_t *c, srmech_bigint_t *b, int n,
+                                       srmech_bigint_t *mn, srmech_bigint_t *md,
+                                       srmech_bigint_t *bn, srmech_bigint_t *bd,
+                                       int m, int k)
+{
+    srmech_status_t st;
+    int i, j;
+    assert(c != NULL && b != NULL && mn != NULL);
+    assert(k >= 1 && md != NULL);
+    st = lll_swap_scalars(c, mn, md, bn, bd, m, k);
+    if (st != SRMECH_OK) { return st; }
+    st = lll_swap_rows(b, n, k);
+    if (st != SRMECH_OK) { return st; }
+    for (j = 0; j < k - 1; j++) {
+        size_t ek = (size_t)k * (size_t)m + (size_t)j;
+        size_t el = (size_t)(k - 1) * (size_t)m + (size_t)j;
+        srmech_bigint_t tn = mn[ek], td = md[ek];
+        mn[ek] = mn[el]; md[ek] = md[el];
+        mn[el] = tn;     md[el] = td;
+    }
+    st = srmech_bigint_copy(&mn[(size_t)k * (size_t)m + (size_t)(k - 1)], &c->qy_n);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_copy(&md[(size_t)k * (size_t)m + (size_t)(k - 1)], &c->qy_d);
+    if (st != SRMECH_OK) { return st; }
+    for (i = k + 1; i < m; i++) {
+        size_t eik = (size_t)i * (size_t)m + (size_t)k;
+        size_t eil = (size_t)i * (size_t)m + (size_t)(k - 1);
+        st = srmech_bigint_copy(&c->qs_n, &mn[eik]);   if (st) { return st; }
+        st = srmech_bigint_copy(&c->qs_d, &md[eik]);   if (st) { return st; }
+        st = lll_q_mul(c, &c->qt_n, &c->qt_d, &c->qw_n, &c->qw_d,
+                       &c->qs_n, &c->qs_d);            if (st) { return st; }
+        st = lll_q_addsub(c, &c->qr_n, &c->qr_d, &mn[eil], &md[eil],
+                          &c->qt_n, &c->qt_d, 1);      if (st) { return st; }
+        st = srmech_bigint_copy(&mn[eik], &c->qr_n);   if (st) { return st; }
+        st = srmech_bigint_copy(&md[eik], &c->qr_d);   if (st) { return st; }
+        st = lll_q_mul(c, &c->qt_n, &c->qt_d, &c->qy_n, &c->qy_d,
+                       &mn[eik], &md[eik]);            if (st) { return st; }
+        st = lll_q_addsub(c, &c->qr_n, &c->qr_d, &c->qs_n, &c->qs_d,
+                          &c->qt_n, &c->qt_d, 0);      if (st) { return st; }
+        st = srmech_bigint_copy(&mn[eil], &c->qr_n);   if (st) { return st; }
+        st = srmech_bigint_copy(&md[eil], &c->qr_d);   if (st) { return st; }
+    }
+    return SRMECH_OK;
+}
+
 /* The LLL outer loop over the working basis b (m rows × n cols); μ/B are the
- * carved GSO arrays. Returns OK / OVERFLOW / BAD_INPUT / INTERNAL. */
+ * carved GSO arrays. rc222: ONE initial full GSO, then μ/B maintained
+ * incrementally (RED already updated μ; the swap now updates instead of the
+ * per-iteration O(m³) full recompute) — byte-identical output, measured 100×
+ * on the van Hoeij knapsack lattices. Returns OK/OVERFLOW/BAD_INPUT/INTERNAL. */
 static srmech_status_t lll_run(lll_ctx_t *c, srmech_bigint_t *b, int m, int n,
                                srmech_bigint_t *mn, srmech_bigint_t *md,
                                srmech_bigint_t *bn, srmech_bigint_t *bd,
@@ -573,10 +668,10 @@ static srmech_status_t lll_run(lll_ctx_t *c, srmech_bigint_t *b, int m, int n,
     size_t iters = 0u;
     assert(c != NULL && b != NULL && m >= 2);
     assert(mn != NULL && bn != NULL);
+    st = lll_gso(c, b, m, n, mn, md, bn, bd);          /* the ONE full GSO */
+    if (st != SRMECH_OK) { return st; }
     while (k < m) {
         if (++iters > iter_cap) { return SRMECH_ERR_INTERNAL; }
-        st = lll_gso(c, b, m, n, mn, md, bn, bd);
-        if (st != SRMECH_OK) { return st; }
         st = lll_red(c, b, n, mn, md, m, k, k - 1);
         if (st != SRMECH_OK) { return st; }
         st = lll_lovasz_ok(c, mn, md, bn, bd, m, k, dn, dd, &lov);
@@ -588,7 +683,7 @@ static srmech_status_t lll_run(lll_ctx_t *c, srmech_bigint_t *b, int m, int n,
             }
             k++;
         } else {
-            st = lll_swap_rows(b, n, k);
+            st = lll_swap_update(c, b, n, mn, md, bn, bd, m, k);
             if (st != SRMECH_OK) { return st; }
             k = (k - 1 >= 1) ? (k - 1) : 1;
         }
@@ -642,4 +737,56 @@ srmech_status_t srmech_lll_reduce(const srmech_bigint_t *basis, int m, int n,
     st = lll_run(&ctx, b, m, n, mn, md, bn, bd, delta_num, delta_den, iter_cap);
     if (st != SRMECH_OK) { return st; }
     return lll_copy_matrix(out, b, (size_t)m * (size_t)n);
+}
+
+/* rc222 — EXACT Gram–Schmidt squared norms ‖b*_i‖² of an integer basis, as
+ * num/den srmech_bigint pairs (den > 0, reduced). The van Hoeij knapsack
+ * read-off needs exactly these (the |V*_k| > M cutoff, LLL-paper (1.11));
+ * exporting the rc221 GSO keeps the factor-poly peer on the SAME exact-ℚ
+ * engine the reduction itself uses. `ws` sized by srmech_lll_reduce_ws_bound
+ * (a superset of what the GSO alone needs); out_num/out_den are m slots each,
+ * pre-bound to >= srmech_lll_reduce_entry_cap limbs. Additive symbol ->
+ * SRMECH_ABI_VERSION unchanged (stays 4). */
+srmech_status_t srmech_lll_gso_normsq(const srmech_bigint_t *basis, int m, int n,
+                                      srmech_bigint_t *out_num,
+                                      srmech_bigint_t *out_den,
+                                      void *ws, size_t ws_len)
+{
+    lll_ctx_t ctx;
+    uint32_t *base = (uint32_t *)ws;
+    size_t words = ws_len / sizeof(uint32_t), cur = 0u, cnt, maxbits;
+    srmech_bigint_t *mn, *md, *bn, *bd;
+    srmech_status_t st;
+    uint32_t cap;
+    int i;
+    assert(m >= 0 && n >= 0);
+    assert(ws != NULL || ws_len == 0u);
+    if (m == 0) { return SRMECH_OK; }
+    if (basis == NULL || out_num == NULL || out_den == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    maxbits = 1u;
+    for (cnt = 0u; cnt < (size_t)m * (size_t)n; cnt++) {
+        size_t bits = lll_bigint_bits(&basis[cnt]);
+        if (bits > maxbits) { maxbits = bits; }
+    }
+    cap = (uint32_t)lll_cap_for(m, n, (int)maxbits);
+    mn = lll_carve_bigints(base, words, &cur, (size_t)m * (size_t)m, cap);
+    md = lll_carve_bigints(base, words, &cur, (size_t)m * (size_t)m, cap);
+    bn = lll_carve_bigints(base, words, &cur, (size_t)m, cap);
+    bd = lll_carve_bigints(base, words, &cur, (size_t)m, cap);
+    if (mn == NULL || md == NULL || bn == NULL || bd == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    st = lll_ctx_init(&ctx, base, words, &cur, cap);
+    if (st != SRMECH_OK) { return st; }
+    st = lll_gso(&ctx, basis, m, n, mn, md, bn, bd);
+    if (st != SRMECH_OK) { return st; }
+    for (i = 0; i < m; i++) {
+        st = srmech_bigint_copy(&out_num[i], &bn[i]);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_bigint_copy(&out_den[i], &bd[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
 }

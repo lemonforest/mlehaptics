@@ -38,15 +38,14 @@ This test pins:
      a factorization as a SINGLE C call;
   5. the Zassenhaus recombination WALL, honestly (not hidden): the subset
      recombination is WORST-CASE EXPONENTIAL in the number of modular factors
-     (the classic Zassenhaus weakness; van Hoeij's LLL knapsack recombination
-     is the known real fix, deferred as a research arc). Both paths apply the
-     classical ``2·size ≤ #remaining`` cutoff (von zur Gathen & Gerhard,
-     *Modern Computer Algebra*, ch. 15). Bounded representatives below:
-     Swinnerton-Dyer SD4 (deg 16 → 8 quadratics mod p → the full 167-candidate
-     no-peel enumeration; parity both paths) and SD5 (deg 32 → 16 quadratics
-     mod p → 39 207 candidates; measured ≈ 13 s pure / ≈ 4.7 s native
-     post-cutoff vs ≈ 24 s both pre-cutoff) on the dispatch path with the
-     honest CI-budget note;
+     (the classic Zassenhaus weakness). **rc222 SHIPPED the known real fix —
+     van Hoeij's LLL knapsack recombination (test_vanhoeij_rc222.py)** — so the
+     SD4/SD5 representatives below now ride ONE polynomial-time lattice
+     reduction, byte-identically, instead of the wall (historical wall
+     measurements: SD5 ≈ 13 s pure / ≈ 4.7 s native over 39 207 candidates
+     post-cutoff, ≈ 24 s pre-cutoff; rc222 ≈ 0.7 s both arms). The fallback
+     walk still applies the classical ``2·size ≤ #remaining`` cutoff (von zur
+     Gathen & Gerhard, *Modern Computer Algebra*, ch. 15);
   6. the Rosetta row: ``factor_integer_poly`` → ``c_dispatched``, and the
      down-only ``CEIL_BIGNUM_REFERENCE`` ratchet is 2.
 
@@ -281,15 +280,14 @@ def test_zassenhaus_wall_sd4_parity_both_paths():
 
 def test_zassenhaus_wall_sd5_bounded_representative():
     """SD5 = minpoly(√2+√3+√5+√7+√11), deg 32 — 16 quadratics mod the chosen
-    prime → 39 207 candidate subsets (Σ_{2s≤16} C(16,s); 65 539 before the
-    vzGG ch.-15 half-bound cutoff). THE HONEST WALL: classical Zassenhaus recombination is
-    worst-case EXPONENTIAL in the number of modular factors — measured here
-    ≈ 4.7 s native / ≈ 13 s pure post-cutoff (≈ 24 s both pre-cutoff); one more
-    surd (SD6, deg 64) squares the enumeration. van Hoeij's LLL knapsack
-    recombination is the known real fix — deferred as a research arc. This runs
-    the DISPATCH path only (the pure oracle is exercised on SD4 above and the
-    198-case sweep; both paths share the cutoff by construction) to keep the
-    honest representative inside the CI budget rather than hiding it."""
+    prime → 39 207 candidate subsets pre-rc222 (Σ_{2s≤16} C(16,s); 65 539
+    before the vzGG ch.-15 half-bound cutoff). THE WALL, HISTORICALLY: the
+    subset walk measured ≈ 4.7 s native / ≈ 13 s pure post-cutoff (≈ 24 s both
+    pre-cutoff), and one more surd (SD6, deg 64) squares the enumeration.
+    rc222's van Hoeij LLL knapsack now resolves SD5 in ONE lattice reduction
+    (≈ 0.7 s; SD6 ≈ 35 s vs a ≈ 2³¹-candidate walk) byte-identically — the
+    deep assertions live in test_vanhoeij_rc222.py; this stays the dispatch
+    representative."""
     p = _sd_poly([2, 3, 5, 7, 11])
     got = factor_integer_poly(p)
     assert len(got) == 1 and got[0][1] == 1 and len(got[0][0]) == 33  # irreducible

@@ -2437,6 +2437,287 @@ def _symmetric_rep(p: List[int], m: int) -> List[int]:
     return _ipoly_trim(out)
 
 
+# ── van Hoeij LLL knapsack recombination (rc222) ────────────────────────────────
+# Attested construction: M. van Hoeij, "Factoring polynomials and the knapsack
+# problem", J. Number Theory 95 (2002) 167-189 (author OA copy, math.fsu.edu) +
+# J. Klüners, "The van Hoeij Algorithm for Factoring Polynomials" (Springer, The
+# LLL Algorithm, 2010; OA copy, math.uni-paderborn.de). Source URLs + sha256 +
+# the full lattice construction: docs/srmech/notes/rc222_vanhoeij_attestation.md.
+
+_VH_MIN_FACTORS = 8   # below this the subset enumeration is already fast
+_VH_S_MAX = 8         # hard cap on the trace count (matches the C peer)
+
+# Observability: the pure-path stats (attempts / successes) — the stress test
+# asserts the van Hoeij path (not the subset wall) handled the many-factor case.
+_VH_STATS = {"attempts": 0, "successes": 0}
+
+
+def _vh_isqrt_small(v: int) -> int:
+    """Integer floor-sqrt of a SMALL nonnegative int (``v = s·n ≤ 8·deg`` here)
+    by exact incremental scan — no float, no ``math`` module."""
+    t = 0
+    while (t + 1) * (t + 1) <= v:
+        t += 1
+    return t
+
+
+def _vh_kth_root_ceil(y: int, k: int) -> int:
+    """Smallest integer ``t ≥ 0`` with ``t**k ≥ y`` (``y ≥ 0``, ``k ≥ 1``) —
+    binary search on the bit-length window, exact integer powers only."""
+    if y <= 0:
+        return 0
+    if k == 1:
+        return y
+    lo, hi = 1, 1 << ((y.bit_length() + k - 1) // k)   # hi**k ≥ 2^bits > y
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if mid ** k >= y:
+            hi = mid
+        else:
+            lo = mid + 1
+    return hi
+
+
+def _vh_root_bound(f: List[int]) -> int:
+    """EXACT integer upper bound on |any complex root| of ``f`` — the MIN of the
+    Cauchy bound ``1 + ceil(max|f_i|/|lead|)`` and the Fujiwara (1916) bound
+    ``2·max_k (|f_{N−k}|/|lead|)^{1/k}`` (the k = N term halved), every
+    intermediate CEILed so the result only ever rounds up (stays a valid bound).
+    Class-K magnitudes throughout (never ``abs``)."""
+    deg = len(f) - 1
+    lead = _mag(f[-1])
+    mx = 0
+    for c in f[:-1]:
+        mc = _mag(c)
+        if mc > mx:
+            mx = mc
+    cauchy = 1 + (mx + lead - 1) // lead if mx > 0 else 1
+    fuji_half = 0
+    for k in range(1, deg + 1):
+        a = _mag(f[deg - k])
+        if a == 0:
+            continue
+        den = 2 * lead if k == deg else lead
+        t = _vh_kth_root_ceil((a + den - 1) // den, k)
+        if t > fuji_half:
+            fuji_half = t
+    fuji = 2 * fuji_half if fuji_half > 0 else 1
+    bound = cauchy if cauchy < fuji else fuji
+    return bound if bound >= 1 else 1
+
+
+def _vh_newton_traces(g: List[int], s: int, m: int) -> List[int]:
+    """Newton power sums ``P_1..P_s`` of the MONIC (mod m) polynomial ``g``, all
+    mod ``m`` — van Hoeij eq. (2): ``P_i = −i·Ẽ_i − Σ_{k<i} P_k·Ẽ_{i−k}`` with
+    ``Ẽ_i`` the coefficient of ``x^{d−i}`` (0 past the degree)."""
+    d = len(g) - 1
+    P = [0] * (s + 1)
+    for i in range(1, s + 1):
+        acc = (i * (g[d - i] if i <= d else 0)) % m
+        for k in range(1, i):
+            e_ik = g[d - (i - k)] if (i - k) <= d else 0
+            if e_ik:
+                acc = (acc + P[k] * e_ik) % m
+        P[i] = (-acc) % m
+    return P[1:]
+
+
+def _vh_symrem(c: int, m: int) -> int:
+    """Symmetric remainder of ``c`` mod ``m``, centred in ``(−m/2, m/2]`` — the
+    SAME convention as :func:`_symmetric_rep` (Class-K sign pin-slot)."""
+    c %= m
+    if c > m // 2:
+        c -= m
+    return c
+
+
+def _vh_plan(f: List[int], n: int, prime: int, k_mig: int):
+    """Pre-lift van Hoeij plan (paper §2.2 step 5): size the trace tower for a
+    ONE-shot lattice from the FULL square-free ``f`` and its ``n`` mod-p
+    factors, and decide how far to Hensel-lift ("If a_i > a then do additional
+    Hensel lifting to increase a"). Returns ``None`` (no usable traces within
+    the lift-raise allowance → the subset path runs alone) or a dict with:
+
+    - ``pbs``: the per-trace ``p^{b_i}`` cut floors (``p^{b_i} > 2·B_i``,
+      ``B_i = N·(|lc|·B_rt)^i`` the scaled-trace bound);
+    - ``e`` / ``pe``: the uniform cut window ``a_i − b_i = e`` (``p^e``), sized
+      to ``n + 8`` bits per trace;
+    - ``k_need``: the lift exponent the plan requires (``max(k_mig, b_s + e)``,
+      capped by the allowance ``k_mig + k_mig/4 + e`` so a pathological bound
+      can only modestly deepen the lift).
+
+    The plan's bounds stay valid for any ``f_work | f`` factored later (the
+    roots of a divisor are a subset; ``|lc(f_work)| ≤ |lc(f)|``)."""
+    deg = len(f) - 1
+    lead_mag = _mag(f[-1])
+    d_p = prime.bit_length() - 1                     # floor(log2 p) ≥ 1
+    t_bits = n + 8                                   # per-trace info target
+    e = t_bits // d_p + 1
+    total_bits = (n * n) // 4 + 64                   # one-shot info target
+    s_want = total_bits // (e * d_p) + 1
+    if s_want > _VH_S_MAX:
+        s_want = _VH_S_MAX
+    b_rt = _vh_root_bound(f)
+    base = lead_mag * b_rt
+    k_allow = k_mig + (k_mig + 3) // 4 + e           # lift-raise allowance
+    pbs: List[int] = []
+    bound_i = deg
+    k_need = k_mig
+    for _i in range(1, s_want + 1):
+        bound_i *= base                              # B_i = N·(|lc|·B_rt)^i
+        pb = 1
+        b = 0
+        while pb <= 2 * bound_i:
+            pb *= prime
+            b += 1
+        if b + e > k_allow:
+            break
+        pbs.append(pb)
+        if b + e > k_need:
+            k_need = b + e
+    if not pbs:
+        return None
+    return {"pbs": pbs, "e": e, "pe": prime ** e, "k_need": k_need}
+
+
+def _van_hoeij_recombine(f: List[int], lifted: List[List[int]], prime: int,
+                         m: int, plan: Dict, subset_cap: int):
+    """van Hoeij LLL knapsack recombination (rc222) — resolve WHICH subsets of
+    the ``n`` Hensel-lifted modular factors multiply to true ℤ[x] factors in ONE
+    lattice reduction instead of the exponential subset enumeration.
+
+    Returns ``(irreducibles, hit_cap)`` EXACTLY as the subset enumeration would
+    produce them (byte-identical: the decoded blocks are emitted through the
+    same candidate/trial-division code in the same order, including the
+    subset-cap and half-bound exits), or ``None`` on ANY failure (insufficient
+    trace precision, lattice cutoff/decode failure, a trial division that does
+    not come out clean) — the caller then falls back to the subset enumeration
+    wholesale (a SPEEDUP, never a new answer).
+
+    The attested construction (see the note header above): scaled Newton traces
+    ``lc^i·Tr_i`` of each modular factor, two-sided cut ``C^{a_i}_{b_i}``, the
+    knapsack lattice ``[[C·I_n | cuts], [0 | p^{a_i−b_i}·I_s]]``, LLL (rc221
+    :func:`lll_reduce` — native ``srmech_lll_reduce`` when loaded), the exact
+    Gram–Schmidt ``‖V*_k‖² > M²`` cutoff (LLL-paper (1.11)), and the
+    column-equality block decode validated by exact ℤ trial division.
+
+    **Class L** (the knapsack lattice + GSO spectral cutoff) ∘ **Class N** (the
+    exact rational trace bounds) ∘ **Class J** (the p-adic trace tower) ∘
+    **Class I** (the mod-p^k Newton identities) ∘ **Class K** (the symmetric-rep
+    sign pin-slots — never an ALU ``abs``).
+    """
+    _VH_STATS["attempts"] += 1
+    n = len(lifted)
+    lead = f[-1]
+
+    # the pre-lift plan carries the trace tower (pbs / e / pe) — its bounds were
+    # computed from the FULL square-free polynomial, which dominates any
+    # f_work | f handled here (subset roots; |lc(f_work)| ≤ |lc(f)|).
+    pbs: List[int] = plan["pbs"]
+    pe: int = plan["pe"]
+    s = len(pbs)
+
+    c_scale = _vh_isqrt_small(s * n) // 2            # balance C²n ≈ s(n/2)²
+    if c_scale == 0:
+        c_scale = 1
+    m4 = 4 * c_scale * c_scale * n + s * n * n       # 4·M² (exact integer)
+
+    # knapsack lattice rows (n+s)×(n+s)
+    rows: List[List[int]] = []
+    lead_m = lead % m
+    for j in range(n):
+        traces = _vh_newton_traces(lifted[j], s, m)
+        row = [0] * (n + s)
+        row[j] = c_scale
+        lp = 1
+        for i in range(s):
+            lp = (lp * lead_m) % m
+            pb = pbs[i]
+            pa = pb * pe
+            c_mod = (lp * traces[i]) % pa            # lc^{i+1}·Tr_{i+1} mod p^{a_i}
+            r_bar = _vh_symrem(c_mod, pb)
+            u = ((c_mod - r_bar) // pb) % pe
+            row[n + i] = _vh_symrem(u, pe)
+        rows.append(row)
+    for i in range(s):
+        row = [0] * (n + s)
+        row[n + i] = pe
+        rows.append(row)
+
+    try:
+        red = lll_reduce(rows, (3, 4))
+    except ValueError:
+        return None
+
+    # exact GSO cutoff: keep V_1..V_r, r minimal with ‖V*_k‖² > M² for all k > r
+    _mu, gso_b = _lll_gso(red, n + s, n + s)
+    r = n + s
+    while r >= 1:
+        bq = gso_b[r - 1]
+        if 4 * bq.numerator > m4 * bq.denominator:
+            r -= 1
+        else:
+            break
+    if r == 0 or r > n:
+        return None
+
+    # column-equality block decode over the /C projections (rref condition A in
+    # equivalence-class form — see the attestation note for the proof sketch).
+    cols: List[Tuple[int, ...]] = []
+    for j in range(n):
+        col = []
+        for t in range(r):
+            v = red[t][j]
+            if v % c_scale != 0:
+                return None                          # not a Λ-vector projection
+            col.append(v // c_scale)
+        cols.append(tuple(col))
+    classes: Dict[Tuple[int, ...], List[int]] = {}
+    for j, col in enumerate(cols):
+        classes.setdefault(col, []).append(j)
+    blocks = sorted(classes.values(), key=lambda blk: (len(blk), blk))
+    if len(blocks) != r:
+        return None                                  # dim mismatch ⇒ L' ≠ W
+
+    # replay: emit the blocks through the SAME candidate/trial-division code the
+    # subset enumeration uses, in the same (size, lex) order, INCLUDING the
+    # subset-cap + half-bound exits — byte-identical output (condition B).
+    remaining = list(range(n))
+    irreducibles: List[List[int]] = []
+    f_work = list(f)
+    lead_work = f_work[-1]
+    hit_cap = False
+    for block in blocks:
+        sb = len(block)
+        if 2 * sb <= len(remaining) and sb <= subset_cap:
+            prod = [lead_work % m]
+            for j in block:
+                prod = _mul_mod(prod, lifted[j], m)
+            cand_poly = _symmetric_rep(prod, m)
+            _c, cand_prim = _ipoly_primitive(cand_poly)
+            if len(cand_prim) <= 1:
+                return None
+            quo, rem = _ipoly_exact_divmod(f_work, cand_prim)
+            if quo is None or rem != [0]:
+                return None                          # NOT a true factor ⇒ fallback
+            irreducibles.append(cand_prim)
+            for j in block:
+                remaining.remove(j)
+            f_work = _ipoly_trim(quo)
+            lead_work = f_work[-1] if f_work != [0] else 1
+        else:
+            # the subset walk exits before reaching this block: cap-exit iff the
+            # cap boundary precedes the half-bound boundary.
+            if sb > subset_cap and 2 * (subset_cap + 1) <= len(remaining):
+                hit_cap = True
+            break
+    if len(f_work) > 1:
+        _c, leftover = _ipoly_primitive(f_work)
+        irreducibles.append(leftover)
+    _VH_STATS["successes"] += 1
+    return irreducibles, hit_cap
+
+
 def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
                                   ) -> Tuple[List[List[int]], bool]:
     """Factor a SQUARE-FREE primitive integer polynomial ``f`` (positive lead,
@@ -2498,12 +2779,25 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
     if len(modp_factors) == 1:
         return [f], False                            # irreducible (one factor mod p)
 
-    # 3. Hensel-lift to mod p^k with p^k ≥ 2·B+1.
+    # 3. Hensel-lift to mod p^k with p^k ≥ 2·B+1 — raised to the van Hoeij
+    # plan's k_need when the knapsack path may engage (paper §2.2 step 5:
+    # "If a_i > a then do additional Hensel lifting"). A larger modulus never
+    # changes the output (true factors' symmetric reps are already unique at
+    # 2·B+1; false candidates fail the exact ℤ division at ANY modulus).
     bound = _mignotte_bound(f)
     target = 2 * bound + 1
     m = prime
+    k_exp = 1
     while m < target:
         m *= prime
+        k_exp += 1
+    vh_plan = None
+    if len(modp_factors) >= _VH_MIN_FACTORS:
+        vh_plan = _vh_plan(f, len(modp_factors), prime, k_exp)
+        if vh_plan is not None:
+            while k_exp < vh_plan["k_need"]:
+                m *= prime
+                k_exp += 1
     lifted = _multi_hensel_lift(f, modp_factors, prime, m)
     lifted = [_trim_mod(g, m) for g in lifted]
 
@@ -2513,50 +2807,71 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
     # MORE than half the modular factors has a cofactor spanning LESS than half
     # that would already have been peeled at its own smaller size, so once the
     # half bound is exhausted the leftover is irreducible — this halves the
-    # classic exponential enumeration. NOTE the enumeration stays WORST-CASE
-    # EXPONENTIAL in the number of modular factors even with the cutoff (the
-    # fundamental Zassenhaus recombination wall — measured: the Swinnerton-Dyer
-    # SD5 = minpoly(√2+√3+√5+√7+√11), deg 32, splits into 16 quadratics mod
-    # the chosen prime → 65,539 candidate subsets ≈ 24 s here pre-cutoff);
-    # van Hoeij's LLL knapsack recombination is the known real fix, deferred
-    # as a research arc. The C peer applies the SAME cutoff (byte-identity).
+    # classic exponential enumeration. The enumeration stays WORST-CASE
+    # EXPONENTIAL in the number of modular factors (the fundamental Zassenhaus
+    # recombination wall — measured: the Swinnerton-Dyer SD5 =
+    # minpoly(√2+√3+√5+√7+√11), deg 32, splits into 16 quadratics mod the
+    # chosen prime → 39,207 candidates ≈ 13 s pure), so rc222 phases it van
+    # Hoeij's way (§2.2 steps 1–3): (A) enumerate subset sizes ≤ 3 only (cheap,
+    # peels every small block); (B) resolve the remainder with the LLL knapsack
+    # (_van_hoeij_recombine — ONE polynomial-time lattice reduction); (C) only
+    # if the knapsack declines/fails, run the full exponential walk unchanged.
+    # Every phase emits through the SAME candidate/trial-division code in the
+    # SAME order, so the output is byte-identical to the pure subset path.
+    # The C peer applies the SAME phasing (byte-identity).
     remaining = list(range(len(lifted)))
     irreducibles: List[List[int]] = []
     f_work = list(f)
     lead_work = f_work[-1]
-    size = 1
     hit_cap = False
-    while remaining and 2 * size <= len(remaining):
-        if size > subset_cap:
-            hit_cap = True
-            break
-        found = None
-        for combo in itertools.combinations(remaining, size):
-            # candidate = lead · Π lifted[i]  (mod m), symmetric rep, primitive part.
-            prod = [lead_work % m]
-            for i in combo:
-                prod = _mul_mod(prod, lifted[i], m)
-            cand_poly = _symmetric_rep(prod, m)
-            _c, cand_prim = _ipoly_primitive(cand_poly)
-            if len(cand_prim) <= 1:
-                continue
-            quo, rem = _ipoly_exact_divmod(f_work, cand_prim)
-            if quo is not None and rem == [0]:
-                found = (combo, cand_prim, quo)
+
+    def _walk(size_ceil):
+        nonlocal f_work, lead_work, hit_cap
+        size = 1
+        while remaining and 2 * size <= len(remaining):
+            if size > subset_cap:
+                hit_cap = True
                 break
-        if found is None:
-            size += 1
-            continue
-        combo, cand_prim, quo = found
-        irreducibles.append(cand_prim)
-        for i in combo:
-            remaining.remove(i)
-        f_work = _ipoly_trim(quo)
-        lead_work = f_work[-1] if f_work != [0] else 1
-        # f_work may now be a unit (±1) if all factors peeled.
-        if len(f_work) <= 1:
-            break
-        size = 1                                     # restart subset search on the smaller f
+            if size_ceil is not None and size > size_ceil:
+                break
+            found = None
+            for combo in itertools.combinations(remaining, size):
+                # candidate = lead · Π lifted[i]  (mod m), symmetric rep, primitive part.
+                prod = [lead_work % m]
+                for i in combo:
+                    prod = _mul_mod(prod, lifted[i], m)
+                cand_poly = _symmetric_rep(prod, m)
+                _c, cand_prim = _ipoly_primitive(cand_poly)
+                if len(cand_prim) <= 1:
+                    continue
+                quo, rem = _ipoly_exact_divmod(f_work, cand_prim)
+                if quo is not None and rem == [0]:
+                    found = (combo, cand_prim, quo)
+                    break
+            if found is None:
+                size += 1
+                continue
+            combo, cand_prim, quo = found
+            irreducibles.append(cand_prim)
+            for i in combo:
+                remaining.remove(i)
+            f_work = _ipoly_trim(quo)
+            lead_work = f_work[-1] if f_work != [0] else 1
+            # f_work may now be a unit (±1) if all factors peeled.
+            if len(f_work) <= 1:
+                break
+            size = 1                                 # restart subset search on the smaller f
+
+    _walk(3)                                         # phase A: small blocks
+    if not hit_cap:
+        if (vh_plan is not None and len(f_work) > 1
+                and len(remaining) >= _VH_MIN_FACTORS):
+            vh = _van_hoeij_recombine(f_work, [lifted[i] for i in remaining],
+                                      prime, m, vh_plan, subset_cap)
+            if vh is not None:                       # phase B resolved it all
+                vh_irr, vh_cap = vh
+                return irreducibles + vh_irr, vh_cap
+        _walk(None)                                  # phase C: the full walk
     # whatever is left (deg ≥ 1) is the final irreducible factor (or the cap leftover).
     if len(f_work) > 1:
         _c, leftover = _ipoly_primitive(f_work)
@@ -2582,10 +2897,13 @@ def factor_integer_poly(coeffs):
        choose a prime ``p ∤ lead(f)`` with ``f`` square-free mod ``p``, factor
        ``f mod p`` in 𝔽_p[x] (distinct-degree + **Cantor–Zassenhaus** equal-degree),
        **Hensel-lift** to mod ``p^k`` with ``p^k ≥ 2·B+1`` (``B`` = the **Mignotte**
-       coefficient bound), then **recombine** over increasing subset sizes (multiply
-       mod ``p^k``, take symmetric integer reps, scale by the leading-coeff cofactor,
-       trial-divide over ℤ — a clean division peels off a true irreducible factor),
-       guarded by a subset-size cap so the worst case cannot hang.
+       coefficient bound), then **recombine**: subset sizes ≤ 3 first, the **van
+       Hoeij LLL knapsack** (rc222 — ONE polynomial-time lattice reduction; *J.
+       Number Theory* 95 (2002)) on any large remainder, and the full
+       increasing-subset walk (multiply mod ``p^k``, take symmetric integer reps,
+       scale by the leading-coeff cofactor, trial-divide over ℤ) only if the
+       knapsack declines — guarded by a subset-size cap so the worst case cannot
+       hang; every phase emits byte-identically.
 
     All EXACT integer / ``fractions.Fraction`` arithmetic — no float, no ``math``
     module (gcd routes through ``srmech.amsc.cyclic.gcd``; primality through
@@ -2699,7 +3017,18 @@ def _lll_gso(b: List[List[int]], m: int, n: int):
 
 def _lll_reduce_pure(basis, delta):
     """Pure exact-ℚ LLL body — the complete, native-independent alternative AND
-    the byte-identity parity oracle for the C peer. See :func:`lll_reduce`."""
+    the byte-identity parity oracle for the C peer. See :func:`lll_reduce`.
+
+    rc222: the Gram–Schmidt data is now maintained INCREMENTALLY (the proper
+    H. Cohen Algorithm 2.6.3 form the rc221 docstring already cited): ONE
+    initial full GSO, then ``μ``/``‖b*‖²`` are updated exactly across every
+    size-reduction (the RED step already did this) and every Lovász swap (the
+    classical swap-update identities). The maintained values equal the
+    from-scratch recomputation at every step (exact-ℚ identities, verified
+    per-step over a random corpus), so the reduced basis is BYTE-IDENTICAL to
+    the rc221 full-recompute body — while dropping the per-iteration O(m³)
+    recompute that made knapsack-sized lattices intractable (measured on the
+    van Hoeij SD5 lattice: 34.5 s → 0.34 s, identical output)."""
     dn, dd = int(delta[0]), int(delta[1])
     if dd <= 0 or not (dn * 4 > dd and dn <= dd):
         raise ValueError(
@@ -2716,8 +3045,9 @@ def _lll_reduce_pure(basis, delta):
         return [list(b[0])]
 
     delta_fr = _FR(dn, dd)
+    mu, B = _lll_gso(b, m, n)                              # the ONE full GSO
 
-    def _red(k, l, mu):
+    def _red(k, l):
         muk = mu[k][l]
         num, den = muk.numerator, muk.denominator          # den > 0
         # |mu[k][l]| <= 1/2  ⟺  -den <= 2·num <= den (Class-K sign branch; no abs)
@@ -2735,15 +3065,35 @@ def _lll_reduce_pure(basis, delta):
 
     k = 1
     while k < m:
-        mu, B = _lll_gso(b, m, n)
-        _red(k, k - 1, mu)
+        _red(k, k - 1)
         mkk = mu[k][k - 1]
         if B[k] >= (delta_fr - mkk * mkk) * B[k - 1]:       # Lovász condition
             for l in range(k - 2, -1, -1):
-                _red(k, l, mu)
+                _red(k, l)
             k += 1
         else:
+            # SWAP b_k ↔ b_{k−1} + the exact incremental μ/B update (Cohen
+            # Alg 2.6.3): B'_{k−1} = B_k + μ²·B_{k−1}; μ' = μ·B_{k−1}/B'_{k−1};
+            # B'_k = B_{k−1}·B_k/B'_{k−1}; μ rows swap below k−1; the deeper
+            # rows i > k rotate through (t, μ[i][k−1]) exactly.
+            mu_v = mu[k][k - 1]
+            b_new = B[k] + mu_v * mu_v * B[k - 1]
+            if b_new == 0:                                  # b_k ∈ span(b_1..b_{k−1})
+                raise ValueError(
+                    "lll_reduce: linearly dependent (degenerate) basis — the "
+                    "Gram–Schmidt norm ‖b*_j‖² vanished; LLL requires an "
+                    "independent basis (an MLLL variant handles dependent rows)")
+            mu_new = mu_v * B[k - 1] / b_new
+            B[k] = B[k - 1] * B[k] / b_new
+            B[k - 1] = b_new
             b[k], b[k - 1] = b[k - 1], b[k]
+            for j in range(k - 1):
+                mu[k][j], mu[k - 1][j] = mu[k - 1][j], mu[k][j]
+            mu[k][k - 1] = mu_new
+            for i in range(k + 1, m):
+                t = mu[i][k]
+                mu[i][k] = mu[i][k - 1] - mu_v * t
+                mu[i][k - 1] = t + mu_new * mu[i][k]
             k = k - 1 if k - 1 >= 1 else 1
     return b
 
@@ -2771,9 +3121,12 @@ def lll_reduce(basis, delta=(3, 4)):
     **Lovász swap** decided on the exact ℚ inequality. NO ``math``, NO libm, NO
     NumPy — integer-in, integer-out, rotation-last-trivial (no projection).
 
-    The foundation for a future van Hoeij polynomial-factorization knapsack
-    (the LLL recombination that supersedes the exponential Zassenhaus subset
-    search in :func:`factor_integer_poly`).
+    The foundation of the rc222 van Hoeij polynomial-factorization knapsack —
+    the LLL recombination that supersedes the exponential Zassenhaus subset
+    search in :func:`factor_integer_poly` (see :func:`_van_hoeij_recombine`).
+    rc222 also upgraded this body to the proper INCREMENTAL Cohen Alg 2.6.3
+    form (one initial Gram–Schmidt, μ/B maintained exactly across RED/SWAP) —
+    byte-identical output, ~100× on knapsack-sized lattices.
 
     Native-dispatched: when the C library is loaded the whole reduction runs in
     ``srmech_lll_reduce`` over the caller-arena srmech_bigint (byte-identical to

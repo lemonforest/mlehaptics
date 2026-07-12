@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc221"
-#define SRMECH_VERSION       "0.9.0rc221"
+#define SRMECH_VERSION_PRE   "rc222"
+#define SRMECH_VERSION       "0.9.0rc222"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6610,6 +6610,19 @@ srmech_status_t srmech_lll_reduce(
     const srmech_bigint_t *basis, int m, int n,
     int32_t delta_num, int32_t delta_den,
     srmech_bigint_t *out, void *ws, size_t ws_len);
+
+/* rc222 — EXACT Gram–Schmidt squared norms ‖b*_i‖² of the integer basis
+ * `basis` (m rows × n cols, row-major), written as reduced num/den pairs into
+ * out_num/out_den (m slots each, pre-bound to >= srmech_lll_reduce_entry_cap
+ * limbs; den > 0). The van Hoeij knapsack recombination's |V*_k| > M cutoff
+ * (LLL-paper (1.11)) reads these. `ws` sized by srmech_lll_reduce_ws_bound
+ * (a superset of the GSO-only need). Errors: SRMECH_ERR_NULL_ARG /
+ * SRMECH_ERR_BAD_INPUT (linearly dependent basis) / SRMECH_ERR_OVERFLOW.
+ * Additive symbol -> SRMECH_ABI_VERSION unchanged (stays 4). */
+srmech_status_t srmech_lll_gso_normsq(
+    const srmech_bigint_t *basis, int m, int n,
+    srmech_bigint_t *out_num, srmech_bigint_t *out_den,
+    void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_unary_theta — the EXACT-INTEGER q-series of a UNARY THETA SERIES (the
