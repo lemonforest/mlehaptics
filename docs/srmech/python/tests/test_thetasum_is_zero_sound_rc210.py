@@ -397,17 +397,21 @@ def test_perturbed_three_term_not_zero():
 
 # ── the DOCUMENTED honest declines (decline parity with the shipped decision) ────
 
-def test_all_constant_three_term_honest_decline():
-    """The all-rational-constants Weierstrass identity is a TRUE zero the current
-    certificate vocabulary cannot prove (a 0-variable sum of theta-constants has no
-    interpolation variable and its terms carry different theta multisets, so exact
-    combination cannot cancel them). The sound contract: ``is_zero`` is False =
-    "not proven" — an HONEST decline, pinned here as documented behavior (the
-    pre-rc210 code could not prove it either; on some shapes it FALSELY did)."""
+def test_all_constant_three_term_z5_certified_rc228():
+    """The all-rational-constants Weierstrass identity is a TRUE zero — a 0-variable
+    sum of theta-constants with NO interpolation variable, the leaf shape the
+    pre-rc228 certificate vocabulary could not prove (Z1 needs carrier cancellation,
+    Z2/Z4 a live variable, N-detect only NONZERO), so it was an honest decline.
+    rc228's Z5 PRIME-LIFT certificate closes it: lifting a constant prime (here the
+    ``c = 5`` or ``x = 7`` value) back to an elliptic variable recovers a
+    Weierstrass ±-pair object the exact three-term reduction proves ``≡ 0``, and
+    that specializes back to the constant leaf ``≡ 0`` (Rosengren Eq. 1.12). SOUND —
+    ``three_term(a,b,c)`` IS identically zero, so a ZERO verdict is a theorem, not a
+    band. This is the feasible-leaf proof that Z5 FIRES."""
     w = ThetaSum.three_term(M.scalar(Q(2, 1)), M.scalar(Q(3, 1)), M.scalar(Q(5, 1)),
                             x=M.scalar(Q(7, 1)))
-    assert _decide_thetasum(w, use_fastpath=False) == _UNKNOWN
-    assert w.is_zero is False
+    assert _decide_thetasum(w, use_fastpath=False) == _ZERO
+    assert w.is_zero is True
 
 
 def test_constant_core_times_theta_honest_decline():

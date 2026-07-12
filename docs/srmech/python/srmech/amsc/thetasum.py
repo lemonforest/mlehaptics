@@ -396,6 +396,108 @@ _ZERO, _NONZERO, _UNKNOWN = "ZERO", "NONZERO", "UNKNOWN"
 # nonzero functional no deeper than ~((T−1)·emax)²/4.
 _STRUCT_DETECT_CAP = 80
 
+# ── the Z5 theta-constant-leaf ZERO certificate (rc228) ──────────────────────────────
+# The 0-VARIABLE theta-CONSTANT leaf ``Σ c_i ∏ θ(rational; p)`` (all summation variables
+# consumed by the Z4 interpolation path) had NO ZERO certificate before rc228: Z1 needs
+# exact carrier cancellation (a surviving multi-term sum is not empty), Z2/Z4 need a LIVE
+# variable, and N2 only ever proves NONZERO — so a GENUINELY-zero constant leaf declined
+# to _UNKNOWN → is_zero false-negatived (the #695 completeness wall, root-caused to this
+# leaf on the rc227 Aₙ (3,3) residual, diagnosed 2026-07-12).
+#
+# Z5 is the SOUND PRIME-LIFT certificate. A theta-constant argument is a rational
+# ``ρ = ∏ ρ_ℓ^{v_ℓ}`` (a monomial in the DISTINCT PRIMES the Z4 interpolation substituted
+# — unique factorization). Lifting ONE such prime ρ* back to a fresh symbol ``v`` yields a
+# LIFTED single-variable ThetaSum ``L(v)`` with the EXACT specialization property
+# ``L(v = ρ*) = leaf`` (substituting the integer ρ* back reproduces every argument and
+# coefficient identically). Therefore, if the EXACT Weierstrass ±-pair reduction (Z2,
+# Rosengren Eq. 1.12 — a value-faithful rewrite proving ``L ≡ 0`` as a function of v)
+# closes ``L`` to the empty normal form, then ``leaf = L(ρ*) ≡ 0`` by specialization. This
+# is a THEOREM (a specialization of an identically-zero elliptic function is zero), NOT a
+# numeric band: Z5 produces ONLY ZERO verdicts, NEVER a NONZERO claim (the reduction never
+# certifies nonzero — a False from _pair_reduce_component is "not proven here"). Soundness:
+# a genuinely-NONZERO leaf has ``L(ρ*) ≠ 0`` so ``L ≢ 0`` in v, and the SOUND ±-pair
+# reduction then never reaches the empty form (never a false ZERO). Fast + terminating:
+# every attempt is a bounded three-term reduction (_REDUCE_MAX_PASSES) with NO
+# interpolation, NO re-lift, NO _decide_struct recursion — so Z5 cannot loop and adds only
+# a bounded constant-factor cost. It CLOSES the class of theta-constant identities that are
+# specializations of the addition (three-term) theorem; it does NOT reach a genuinely
+# high-kernel-rank leaf (e.g. the Aₙ (3,3) residual, 3 terms × 29 thetas over the four
+# primes 2/5/29/71, whose exponent matrices map ℤ²⁹→ℤ⁴ with 25-dim kernels and whose
+# non-torsion prime arguments carry no modular/Sturm structure) — that residue stays an
+# honest ``is_zero = False`` (the #695 residue, now sharpened to "kernel-rank ≥ 2, no
+# ±-pair lift closes it").
+_Z5_MAX_PRIMES = 16          # bound the single-prime lift attempts (each is one Z2 pass)
+_Z5_SYM = "\x1fz5lift"       # the lift variable — a control-char name that CANNOT collide
+                             # with a real elliptic symbol (x/y/p/q/params are identifiers)
+
+
+def _leaf_prime_set(terms: "List") -> "List[int]":
+    """The DISTINCT primes dividing any numerator/denominator of a prefactor coeff OR a
+    theta-argument coeff across the 0-variable leaf's terms, sorted ascending. Class-J
+    trial-division factoring on the EXACT integers (no float); the ``|x|`` magnitude is a
+    Class-K sign branch, never ``abs()``. Bounded by the integers' size (the leaf's
+    constants are products of the small interpolation primes)."""
+    ps: "set" = set()
+    for pref, args in terms:
+        for m in [pref] + list(args):
+            for x in (m.coeff.numerator, m.coeff.denominator):
+                xa = x if x >= 0 else -x                  # Class-K magnitude (no abs())
+                d = 2
+                while d * d <= xa:
+                    while xa % d == 0:
+                        ps.add(d)
+                        xa //= d
+                    d += 1
+                if xa > 1:
+                    ps.add(xa)
+    return sorted(ps)
+
+
+def _lift_prime_terms(terms: "List", prime_syms: "List[Tuple[int, str]]") -> "List":
+    """Lift each ``(prime, sym)`` in ``prime_syms`` to its symbol in EVERY ``EllMonomial``
+    coeff (prefactor AND theta args): factor the prime out of the coeff and move its net
+    integer valuation onto ``sym``'s exponent. The lift is EXACT — substituting each
+    ``sym := prime`` reproduces the input coeff (hence the whole leaf) identically — so a
+    proof that the lifted object ``≡ 0`` SPECIALIZES to the leaf ``≡ 0``. No float; the
+    prime-adic valuation is exact integer division (a negative numerator divides cleanly:
+    ``-p·k`` mod ``p`` is 0, so the sign rides through unchanged, Class-K)."""
+    def lift_mono(m: EllMonomial) -> EllMonomial:
+        num, den = m.coeff.numerator, m.coeff.denominator
+        exps: "Dict[str, int]" = dict(m.exps)
+        for prime, sym in prime_syms:
+            e = 0
+            while num % prime == 0:
+                num //= prime
+                e += 1
+            while den % prime == 0:
+                den //= prime
+                e -= 1
+            if e:
+                exps[sym] = exps.get(sym, 0) + e
+        return EllMonomial(Q(num, den), exps)
+    return [(lift_mono(pref), [lift_mono(a) for a in args]) for pref, args in terms]
+
+
+def _z5_theta_constant_zero(terms: "List") -> bool:
+    """Z5: the SOUND prime-lift ZERO certificate for a 0-VARIABLE theta-CONSTANT leaf.
+    Lift each present prime ``ρ`` (bounded) back to the fresh single variable
+    :data:`_Z5_SYM`; a lifted object closed to the EMPTY Weierstrass ±-pair normal form
+    (:func:`_pair_reduce_component`, Rosengren Eq. 1.12 — a value-faithful rewrite proving
+    ``L ≡ 0`` as a function of the lift variable) proves the leaf ``= L(ρ) ≡ 0`` by
+    specialization (see the block comment above). Returns ``True`` ONLY on such a proof (a
+    genuine ZERO certificate); ``False`` = "not proven by a ±-pair lift" (NEVER a NONZERO
+    claim). Terminating: only bounded ±-pair reductions, no interpolation, no recursion.
+    The C peer :func:`_is_zero_interpolation_c` mirrors this EXACT single-prime-lift loop
+    (reusing a leaf-unused symbol slot as the lift variable)."""
+    primes = _leaf_prime_set(terms)
+    if not primes:
+        return False
+    for pr in primes[:_Z5_MAX_PRIMES]:
+        lifted = _lift_prime_terms(terms, [(pr, _Z5_SYM)])
+        if _pair_reduce_component(lifted, [_Z5_SYM]):
+            return True
+    return False
+
 
 def _term_char_v(pref: EllMonomial, args: "List[EllMonomial]", v: str) -> "Tuple[int, Tuple]":
     """The EXACT v-character of one term: ``(D_v, μ_v-key)``.
@@ -576,8 +678,13 @@ def _decide_struct(terms: "List", offset: int = 0, depth: int = 0) -> str:
 
     if not live:
         # 0-variable: a sum of θ(rational-constant) products. Combine already merged
-        # carrier-equal terms; a surviving multi-term theta-constant sum is decided
-        # NONZERO only by exact finite detection, else HONESTLY declined.
+        # carrier-equal terms. Z5 (rc228): the SOUND prime-lift ZERO certificate — lift a
+        # constant prime back to an elliptic variable and close the lift by the exact
+        # Weierstrass ±-pair reduction; a proof there SPECIALIZES to the leaf ≡ 0.
+        if _z5_theta_constant_zero(terms):
+            return _ZERO                                       # Z5
+        # else a surviving multi-term theta-constant sum is decided NONZERO only by exact
+        # finite detection, else HONESTLY declined.
         if _lattice_nonzero_upto(terms, "__none__", min(_STRUCT_DETECT_CAP, 24)):
             return _NONZERO                                    # N2
         return _UNKNOWN                                        # honest decline

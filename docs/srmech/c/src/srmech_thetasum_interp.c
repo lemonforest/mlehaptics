@@ -877,6 +877,211 @@ static srmech_status_t ti_expand_split(ti_ctx_t *c, ti_frame_t *fr, size_t max_t
     return SRMECH_OK;
 }
 
+/* ---- Z5: the theta-constant-leaf PRIME-LIFT ZERO certificate (rc228) --------- *
+ *
+ * The 0-VARIABLE theta-CONSTANT leaf Sum c_i prod theta(rational; p) had no ZERO
+ * certificate before rc228 (Z1 needs carrier cancellation, Z2/Z4 a LIVE variable,
+ * the N-detect only NONZERO), so a genuinely-zero constant leaf declined and
+ * is_zero false-negatived (the #695 wall, root-caused to this leaf). Z5 lifts a
+ * constant PRIME rho back into an UNUSED symbol slot: the lifted single-variable
+ * object L(v) satisfies L(v = rho) = leaf EXACTLY (substituting the integer prime
+ * back reproduces every coeff), so if the EXACT Weierstrass +/- pair reduction
+ * (ti_pair_reduce, the Z2 kernel -- a value-faithful rewrite proving L == 0 in v)
+ * closes L to the empty normal form, then leaf = L(rho) == 0 by specialization.
+ * Only ever proves ZERO; never a nonzero claim. The 1:1 mirror of
+ * thetasum._z5_theta_constant_zero. Coeffs read as int64 (the leaf constants are
+ * products of the small interpolation primes); a coeff beyond int64 makes Z5 N/A
+ * at that leaf (not-proved -- SOUND, Z5 only ever ADDS zero proofs), and the
+ * arbitrary-precision pure oracle covers any such leaf's lift. */
+
+#define TI_Z5_MAX_PRIMES 16
+#define TI_Z5_PRIME_CAP  32
+
+/* Read bigint b as an int64 into *out; return 1 iff it fits [INT64_MIN, INT64_MAX]. */
+static int ti_bi_to_i64(const srmech_bigint_t *b, int64_t *out)
+{
+    uint64_t mag;
+    assert(b != NULL && out != NULL);
+    assert(b->limbs != NULL || b->n == 0u);
+    if (b->n == 0u) { *out = 0; return 1; }
+    if (b->n == 1u) { mag = (uint64_t)b->limbs[0]; }
+    else if (b->n == 2u) { mag = (uint64_t)b->limbs[0] | ((uint64_t)b->limbs[1] << 32); }
+    else { return 0; }
+    if (mag > (uint64_t)INT64_MAX) { return 0; }
+    *out = (b->sign < 0) ? -(int64_t)mag : (int64_t)mag;
+    return 1;
+}
+
+/* Insert prime p ASCENDING + deduplicated into prm[0..*n) (keeps the smallest
+ * TI_Z5_PRIME_CAP; a duplicate or an over-cap larger prime is ignored). */
+static void ti_prime_insert(int64_t *prm, size_t *n, int64_t p)
+{
+    size_t i = 0;
+    size_t j;
+    assert(prm != NULL && n != NULL);
+    assert(p >= 2);
+    while (i < *n && prm[i] < p) { i++; }
+    if (i < *n && prm[i] == p) { return; }             /* already present              */
+    if (i >= TI_Z5_PRIME_CAP) { return; }              /* larger than the kept smallest */
+    if (*n < TI_Z5_PRIME_CAP) { (*n)++; }
+    for (j = (*n > 0u) ? (*n - 1u) : 0u; j > i; j--) { prm[j] = prm[j - 1]; }
+    prm[i] = p;
+}
+
+/* Trial-divide the magnitude of int64 v (v != 0) collecting its distinct prime
+ * factors into prm (mirrors _leaf_prime_set: d = 2,3,... while d*d <= mag). */
+static void ti_collect_i64_primes(int64_t v, int64_t *prm, size_t *n)
+{
+    int64_t mag = (v < 0) ? -v : v;                    /* Class-K magnitude, no abs()  */
+    int64_t d = 2;
+    assert(prm != NULL && n != NULL);
+    assert(v != 0);
+    while (d <= mag / d) {                              /* d*d <= mag, overflow-safe    */
+        if (mag % d == 0) {
+            ti_prime_insert(prm, n, d);
+            while (mag % d == 0) { mag /= d; }
+        }
+        d++;
+    }
+    if (mag > 1) { ti_prime_insert(prm, n, mag); }
+}
+
+/* Collect one monomial's num + den prime factors; *decline = 1 iff a coeff > int64. */
+static void ti_collect_mono_primes(const ti_mono_t *m, int64_t *prm, size_t *n,
+                                   int *decline)
+{
+    int64_t v;
+    assert(m != NULL && prm != NULL && n != NULL && decline != NULL);
+    assert(m->coeff.num.limbs != NULL || m->coeff.num.n == 0u);
+    if (!ti_bi_to_i64(&m->coeff.num, &v)) { *decline = 1; return; }
+    if (v != 0) { ti_collect_i64_primes(v, prm, n); }
+    if (!ti_bi_to_i64(&m->coeff.den, &v)) { *decline = 1; return; }
+    if (v != 0) { ti_collect_i64_primes(v, prm, n); }
+}
+
+/* Collect the distinct primes across every coeff (pref + theta args) of the leaf
+ * terms into prm; *decline = 1 iff any coeff exceeds int64 (-> the pure oracle). */
+static void ti_leaf_collect_primes(const ti_term_t *terms,
+                                   size_t n_terms, int64_t *prm, size_t *n_prm,
+                                   int *decline)
+{
+    size_t ti;
+    size_t a;
+    assert(terms != NULL && prm != NULL);
+    assert(n_prm != NULL && decline != NULL);
+    *n_prm = 0;
+    *decline = 0;
+    for (ti = 0; ti < n_terms; ti++) {
+        ti_collect_mono_primes(&terms[ti].pref, prm, n_prm, decline);
+        if (*decline) { return; }
+        for (a = 0; a < terms[ti].n_thetas; a++) {
+            ti_collect_mono_primes(&terms[ti].targs[a], prm, n_prm, decline);
+            if (*decline) { return; }
+        }
+    }
+}
+
+/* dst := src with `prime` factored out of the int64 coeff (num/den) and its net
+ * valuation added to exps[lv] (mirrors _lift_prime_terms's lift_mono). *ok = 0
+ * (decline) iff a coeff exceeds int64. */
+static srmech_status_t ti_lift_mono(ti_ctx_t *c, ti_mono_t *dst, const ti_mono_t *src,
+                                    int64_t prime, int lv, int *ok)
+{
+    int64_t num;
+    int64_t den;
+    int32_t e = 0;
+    srmech_status_t st;
+    assert(c != NULL && dst != NULL && src != NULL && ok != NULL);
+    assert(prime >= 2 && lv >= 0);
+    *ok = 1;
+    st = ti_mono_copy(c, dst, src);                    /* copies coeff + exps          */
+    if (st != SRMECH_OK) { return st; }
+    if (!ti_bi_to_i64(&src->coeff.num, &num) || !ti_bi_to_i64(&src->coeff.den, &den)) {
+        *ok = 0; return SRMECH_OK;
+    }
+    while (num != 0 && num % prime == 0) { num /= prime; e++; }   /* + from numerator  */
+    while (den != 0 && den % prime == 0) { den /= prime; e--; }   /* - from denominator */
+    st = srmech_bigint_set_i64(&dst->coeff.num, num);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_bigint_set_i64(&dst->coeff.den, den);
+    if (st != SRMECH_OK) { return st; }
+    dst->exps[lv] += e;
+    return SRMECH_OK;
+}
+
+/* Build the prime-`prime` lift of `in`[0..n_terms) into `out` (caller-bound),
+ * lifting every coeff into slot lv. *ok = 0 (decline) iff a coeff exceeds int64. */
+static srmech_status_t ti_lift_terms(ti_ctx_t *c, ti_term_t *out, const ti_term_t *in,
+                                     size_t n_terms, int64_t prime, int lv, int *ok)
+{
+    size_t i;
+    size_t a;
+    srmech_status_t st;
+    assert(c != NULL && out != NULL && in != NULL && ok != NULL);
+    assert(prime >= 2 && lv >= 0);
+    *ok = 1;
+    for (i = 0; i < n_terms; i++) {
+        st = ti_lift_mono(c, &out[i].pref, &in[i].pref, prime, lv, ok);
+        if (st != SRMECH_OK || !*ok) { return st; }
+        for (a = 0; a < in[i].n_thetas; a++) {
+            st = ti_lift_mono(c, &out[i].targs[a], &in[i].targs[a], prime, lv, ok);
+            if (st != SRMECH_OK || !*ok) { return st; }
+        }
+        out[i].n_thetas = in[i].n_thetas;
+    }
+    return SRMECH_OK;
+}
+
+/* The Z5 driver: try each present prime lift into a free slot; *proved = 1 on the
+ * first lift the exact +/- pair reduction closes to empty (a genuine ZERO cert).
+ * A coeff beyond int64 makes Z5 not-applicable at this leaf (*proved stays 0 --
+ * SOUND, never a false zero; the pure oracle covers it). Transient: each attempt
+ * above an arena mark, released before the next. */
+static srmech_status_t ti_z5_leaf(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
+                                  ti_rt_t *rt, int *proved)
+{
+    int64_t prm[TI_Z5_PRIME_CAP];
+    size_t n_prm = 0;
+    size_t k;
+    size_t j;
+    int lv = -1;
+    int decline = 0;
+    srmech_status_t st;
+    assert(c != NULL && fr != NULL && rt != NULL && proved != NULL);
+    assert(fr->terms != NULL && fr->n_terms >= 1u);
+    *proved = 0;
+    if (fr->n_terms < 2u) { return SRMECH_OK; }        /* Z5 needs cancellation        */
+    for (j = 0; j < c->n_syms; j++) {                  /* first unused non-p lift slot */
+        if ((int)j != rt->s.psym && !rt->s.present[j]) { lv = (int)j; break; }
+    }
+    if (lv < 0) { return SRMECH_OK; }                  /* no free slot -> cannot lift  */
+    ti_leaf_collect_primes(fr->terms, fr->n_terms, prm, &n_prm, &decline);
+    if (decline) { return SRMECH_OK; }                 /* coeff > int64 -> Z5 N/A here */
+    for (k = 0; k < n_prm && k < (size_t)TI_Z5_MAX_PRIMES; k++) {
+        size_t mark = c->pool_cur;
+        ti_frame_t lf;
+        ti_term_t *lifted = NULL;
+        int ok = 1;
+        int pv = 0;
+        st = ti_bind_term_arr(c, &lifted, fr->n_terms, max_thetas);
+        if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
+        st = ti_lift_terms(c, lifted, fr->terms, fr->n_terms, prm[k], lv, &ok);
+        if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
+        if (ok) {
+            memset(&lf, 0, sizeof(lf));
+            lf.terms = lifted;
+            lf.n_terms = fr->n_terms;
+            rt->s.present[lv] = 1;
+            st = ti_pair_reduce(c, &lf, max_thetas, rt, &pv);
+            rt->s.present[lv] = 0;
+            if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
+        }
+        c->pool_cur = mark;
+        if (pv) { *proved = 1; return SRMECH_OK; }
+    }
+    return SRMECH_OK;
+}
+
 /* Expansion stage 2 (single joint character): strip degree-0 symbols, the N1 /
  * 0-variable leaves, the Z2 pair reduction, then the Z4 node branch. */
 static srmech_status_t ti_expand_single(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
@@ -901,7 +1106,13 @@ static srmech_status_t ti_expand_single(ti_ctx_t *c, ti_frame_t *fr, size_t max_
     }
     for (j = 0; j < c->n_syms; j++) { n_live += (size_t)rt->s.present[j]; }
     if (fr->n_terms == 1u) { *verdict = 0; return SRMECH_OK; }    /* N1: not proven */
-    if (n_live == 0u) { *verdict = 0; return SRMECH_OK; }         /* 0-var residue  */
+    if (n_live == 0u) {                                           /* 0-var residue  */
+        int z5 = 0;
+        st = ti_z5_leaf(c, fr, max_thetas, rt, &z5);             /* Z5 prime-lift  */
+        if (st != SRMECH_OK) { return st; }                      /* decline -> pure */
+        *verdict = z5 ? 1 : 0;                                    /* 1 = proven zero */
+        return SRMECH_OK;
+    }
     st = ti_pair_reduce(c, fr, max_thetas, rt, &proved);          /* Z2             */
     if (st != SRMECH_OK) { return st; }
     if (proved) { return SRMECH_OK; }                             /* proven zero    */
@@ -1231,8 +1442,9 @@ size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_t
     size_t rt_words = (TI_SCR_MONOS + 8u) * mono_words + ns
                       + depth * (sizeof(ti_frame_t) / 4u + 8u) + 512u;
     size_t scratch_words = cap * 16u + 512u;
+    size_t z5_words = nt * term_words + 128u;          /* rc228: the Z5 lift copy      */
     size_t total = depth * level_words + char_words + z2_words + rt_words
-                   + scratch_words + max_abs_exp + 4096u;
+                   + scratch_words + z5_words + max_abs_exp + 4096u;
     assert(cap >= 4u);
     assert(total >= scratch_words);
     return total * sizeof(uint32_t);
