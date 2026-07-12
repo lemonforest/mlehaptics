@@ -26,13 +26,36 @@
  *                  srmech_gosper; VERIFY = a hypergeometric antidifference
  *                  exists (has == 1) — a (non-None) certificate IS the proof.
  *
- * rc103 inform-don't-limit: ANY other row (the definite-sum wz / spectral /
- * multivariate / q / elliptic sub-rows, whose live carriers need their own
- * bridge — deferred to rc177+), any malformed operand, or any arena overflow ->
- * non-OK, and the Python caller runs the COMPLETE pure infer (never a wrong
- * answer; NEVER a false reducible). The honest OPEN residue IS the
- * no-hallucination discipline: the C path returns "not reducible" identically,
- * never a fabricated reduction.
+ * rc192 added the sigma-definite wz row; rc223 the sigma_multivar / sigma_q /
+ * sigma_elliptic exact-Q rows; rc224 the SPECTRAL row — the LAST #796 row:
+ *   * spectral     — operand = a coupling-Laplacian payload (edges(+weights,n)
+ *                  / an explicit matrix / an adjacency grid) whose f64 leaves
+ *                  ride the wire as IEEE-754 BIT PATTERNS (signed int64 — the
+ *                  bit-EXACT float wire; no decimal float parse in the
+ *                  decision path). Build L in C (edges -> the Class-L
+ *                  srmech_graph_dense_laplacian kernel, the SAME builder the
+ *                  pure path dispatches to; matrix -> the raw grid;
+ *                  adjacency -> the in-place D-A transform in the pure
+ *                  _build_laplacian's exact float-op order) and decide the
+ *                  STRUCTURAL verdict: reducible iff L is bit-exact
+ *                  real-symmetric (L[i][j] == L[j][i] IEEE equality over all
+ *                  pairs — the spectral theorem's own hypothesis). NO
+ *                  eigensolve, NO resonant_spectrum call, NO float tolerance
+ *                  in the C decision path: the eigenvalue payload is
+ *                  re-derived pure-side by _finish_native. Because the
+ *                  verdict is a symmetry PREDICATE over bit-identical
+ *                  operands, the native decision equals the pure decision on
+ *                  EVERY platform by construction (the Python marshal
+ *                  declines non-finite leaves to pure, so no NaN can arise
+ *                  from finite accumulation and break self-equality
+ *                  asymmetrically).
+ *
+ * rc103 inform-don't-limit: ANY other row (the elliptic-multivar Cn Jackson,
+ * whose per-call proof is carrier-symbolic), any malformed operand, or any
+ * arena overflow -> non-OK, and the Python caller runs the COMPLETE pure infer
+ * (never a wrong answer; NEVER a false reducible). The honest OPEN residue IS
+ * the no-hallucination discipline: the C path returns "not reducible"
+ * identically, never a fabricated reduction.
  *
  * ARENA: ONE caller arena `ws`, bump-allocated forward (size with
  * srmech_infer_arena_bytes). All bignum limbs alias into `ws`. JPL Power-of-Ten:
@@ -1054,6 +1077,249 @@ static srmech_status_t inf_sigma_elliptic(const srmech_json_value_t *root,
 }
 
 /* ------------------------------------------------------------------
+ * SPECTRAL row (rc224 — the LAST #796 row). The verdict is the EXACT
+ * operator-level structural fact "L is real-symmetric" (the spectral
+ * theorem's own hypothesis), decided by bit-exact IEEE equality over the
+ * mirrored entries — NO eigensolve, NO resonant_spectrum, NO float
+ * tolerance anywhere in the C decision path. The f64 leaves ride the wire
+ * as IEEE-754 bit patterns (signed int64), so no decimal float parse sits
+ * between the pure and native builds; the eigenvalue payload is re-derived
+ * pure-side by _finish_native on a reducible verdict.
+ * ------------------------------------------------------------------ */
+
+/* Read a f64 from its marshalled IEEE-754 bit pattern (a signed-int64 JSON
+ * node — the bit-EXACT float wire; never a JSON decimal double, never
+ * strtod, in the decision path). BAD_INPUT on a NULL / non-int node. */
+static srmech_status_t inf_f64_bits(const srmech_json_value_t *j, double *out)
+{
+    int64_t bits;
+    assert(out != NULL);
+    assert(sizeof(double) == sizeof(int64_t));
+    if (j == NULL || j->type != SRMECH_JSON_INT) { return SRMECH_ERR_BAD_INPUT; }
+    bits = j->u.i;
+    memcpy(out, &bits, sizeof bits);
+    return SRMECH_OK;
+}
+
+/* Read the {"n": N, "bits": [i64 x N*N]} grid object under `key` into a fresh
+ * row-major n*n double buffer carved off `b`. BAD_INPUT on a malformed node
+ * (n < 1, n over uint32, a bits-count mismatch, a non-int leaf); OVERFLOW on
+ * arena exhaustion (-> the pure path). */
+static srmech_status_t inf_read_f64_grid(const srmech_json_value_t *root,
+        inf_bump_t *b, const char *key, double **out_grid, size_t *out_n)
+{
+    const srmech_json_value_t *node, *jn, *jb;
+    double *g;
+    size_t n, cells, i;
+    assert(root != NULL && b != NULL);
+    assert(key != NULL && out_grid != NULL && out_n != NULL);
+    node = srmech_json_object_get(root, key);
+    if (node == NULL || node->type != SRMECH_JSON_OBJECT) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    jn = srmech_json_object_get(node, "n");
+    jb = srmech_json_object_get(node, "bits");
+    if (jn == NULL || jn->type != SRMECH_JSON_INT || jn->u.i < 1 ||
+        jn->u.i > (int64_t)0xFFFFFFFF ||
+        jb == NULL || jb->type != SRMECH_JSON_ARRAY) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    n = (size_t)jn->u.i;
+    cells = n * n;
+    if (cells / n != n || (size_t)jb->u.arr.n != cells) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    g = (double *)inf_carve(b, cells * sizeof(double));
+    if (g == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < cells; i++) {
+        if (inf_f64_bits(jb->u.arr.items[i], &g[i]) != SRMECH_OK) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+    }
+    *out_grid = g;
+    *out_n = n;
+    return SRMECH_OK;
+}
+
+/* adjacency -> L = D - A IN PLACE, mirroring the pure _build_laplacian's
+ * exact float-op ORDER (deg accumulates ALL columns of the row INCLUDING the
+ * diagonal, every entry is negated, then diag = deg + (-A[i][i])) so the
+ * built L is entry-for-entry the pure path's build. Pure IEEE add/negate
+ * only — deterministic, platform-stable. */
+static void inf_adjacency_to_laplacian(double *g, size_t n)
+{
+    size_t i, j;
+    assert(g != NULL);
+    assert(n > 0u);
+    for (i = 0u; i < n; i++) {
+        double deg = 0.0;
+        for (j = 0u; j < n; j++) {
+            double a = g[i * n + j];
+            deg = deg + a;
+            g[i * n + j] = -a;
+        }
+        g[i * n + i] = deg + g[i * n + i];
+    }
+}
+
+/* Read one [u, v] edge pair (ints in [0, n)) into eu/ev slot `i`. */
+static srmech_status_t inf_read_edge_pair(const srmech_json_value_t *p,
+        int64_t n, uint32_t *eu, uint32_t *ev, size_t i)
+{
+    const srmech_json_value_t *ju, *jv;
+    assert(eu != NULL && ev != NULL);
+    assert(n > 0);
+    if (p == NULL || p->type != SRMECH_JSON_ARRAY || p->u.arr.n != 2u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    ju = p->u.arr.items[0];
+    jv = p->u.arr.items[1];
+    if (ju == NULL || jv == NULL || ju->type != SRMECH_JSON_INT ||
+        jv->type != SRMECH_JSON_INT || ju->u.i < 0 || jv->u.i < 0 ||
+        ju->u.i >= n || jv->u.i >= n) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    eu[i] = (uint32_t)ju->u.i;
+    ev[i] = (uint32_t)jv->u.i;
+    return SRMECH_OK;
+}
+
+/* The spectral EDGES sub-case: read "n" (int >= 1), "edges" [[u,v]...] and
+ * the optional "weights" (i64 f64-bit patterns, one per edge), then build L
+ * via the Class-L srmech_graph_dense_laplacian kernel — the SAME builder the
+ * pure path dispatches to (identical accumulation order; symmetric by
+ * construction for finite weights). */
+static srmech_status_t inf_spectral_edges(const srmech_json_value_t *root,
+        inf_bump_t *b, double **out_grid, size_t *out_n)
+{
+    const srmech_json_value_t *je, *jn, *jw;
+    uint32_t *eu, *ev;
+    double *w = NULL, *g;
+    size_t n, ne, i, cells;
+    assert(root != NULL && b != NULL);
+    assert(out_grid != NULL && out_n != NULL);
+    je = srmech_json_object_get(root, "edges");
+    jn = srmech_json_object_get(root, "n");
+    jw = srmech_json_object_get(root, "weights");
+    if (je == NULL || je->type != SRMECH_JSON_ARRAY || jn == NULL ||
+        jn->type != SRMECH_JSON_INT || jn->u.i < 1 ||
+        jn->u.i > (int64_t)0xFFFFFFFF) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    n = (size_t)jn->u.i;
+    ne = (size_t)je->u.arr.n;
+    cells = n * n;
+    if (cells / n != n) { return SRMECH_ERR_BAD_INPUT; }
+    eu = (uint32_t *)inf_carve(b, (ne + 1u) * sizeof(uint32_t));
+    ev = (uint32_t *)inf_carve(b, (ne + 1u) * sizeof(uint32_t));
+    g = (double *)inf_carve(b, cells * sizeof(double));
+    if (eu == NULL || ev == NULL || g == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < ne; i++) {
+        if (inf_read_edge_pair(je->u.arr.items[i], jn->u.i, eu, ev, i)
+                != SRMECH_OK) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+    }
+    if (jw != NULL) {
+        if (jw->type != SRMECH_JSON_ARRAY || (size_t)jw->u.arr.n != ne) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        w = (double *)inf_carve(b, (ne + 1u) * sizeof(double));
+        if (w == NULL) { return SRMECH_ERR_OVERFLOW; }
+        for (i = 0u; i < ne; i++) {
+            if (inf_f64_bits(jw->u.arr.items[i], &w[i]) != SRMECH_OK) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+        }
+    }
+    if (srmech_graph_dense_laplacian((uint32_t)n, (uint32_t)ne, eu, ev, w, g)
+            != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *out_grid = g;
+    *out_n = n;
+    return SRMECH_OK;
+}
+
+/* The bit-exact real-symmetry PREDICATE — the rc224 spectral VERDICT: the
+ * reduction EXISTS iff L is real-symmetric (pure IEEE == on the mirrored
+ * entries, including the diagonal self-compare, which is false only for a
+ * NaN). NO eigensolve, NO tolerance — the same predicate, over the same
+ * doubles, the upgraded pure _try_spectral runs. */
+static int inf_spectral_symmetric(const double *g, size_t n)
+{
+    size_t i, j;
+    assert(g != NULL);
+    assert(n > 0u);
+    for (i = 0u; i < n; i++) {
+        for (j = i; j < n; j++) {
+            if (!(g[i * n + j] == g[j * n + i])) { return 0; }
+        }
+    }
+    return 1;
+}
+
+/* The SPECTRAL dispatch: build L per the payload shape (matrix -> the raw
+ * bit-exact grid; adjacency -> grid + in-place D-A; edges -> the Class-L
+ * kernel) and decide the structural verdict. A valid-but-asymmetric L sets
+ * *out_reducible = 0 and returns OK (the DEFINITIVE false — the C-built L is
+ * entry-for-entry the pure build, so the pure predicate reads the same);
+ * non-OK ONLY on a malformed / unbuildable payload or arena overflow
+ * (-> the pure path decides). */
+static srmech_status_t inf_spectral(const srmech_json_value_t *root,
+                                    inf_bump_t *b, int *out_reducible)
+{
+    const srmech_json_value_t *mx, *ad;
+    double *g = NULL;
+    size_t n = 0u;
+    srmech_status_t st;
+    assert(root != NULL && b != NULL);
+    assert(out_reducible != NULL);
+    *out_reducible = 0;
+    mx = srmech_json_object_get(root, "matrix");
+    ad = srmech_json_object_get(root, "adjacency");
+    if (mx != NULL) {
+        st = inf_read_f64_grid(root, b, "matrix", &g, &n);
+    } else if (ad != NULL) {
+        st = inf_read_f64_grid(root, b, "adjacency", &g, &n);
+        if (st == SRMECH_OK) { inf_adjacency_to_laplacian(g, n); }
+    } else {
+        st = inf_spectral_edges(root, b, &g, &n);
+    }
+    if (st != SRMECH_OK) { return st; }
+    *out_reducible = inf_spectral_symmetric(g, n);
+    return SRMECH_OK;
+}
+
+/* rc224 route — detect + dispatch the SPECTRAL row wire (matrix / adjacency /
+ * edges present). Sets *out_handled = 1 when the relationship is spectral
+ * (the caller emits *out_lit). BOTH verdict literals are emittable here: the
+ * reducible:false is DEFINITIVE (the C-built L is entry-for-entry the pure
+ * path's build, so the pure symmetry predicate reads identically). */
+static srmech_status_t inf_route_spectral(const srmech_json_value_t *root,
+        inf_bump_t *b, const char **out_lit, int *out_handled)
+{
+    int red = 0;
+    srmech_status_t st;
+    assert(root != NULL && b != NULL);
+    assert(out_lit != NULL && out_handled != NULL);
+    *out_handled = 0;
+    if (srmech_json_object_get(root, "matrix") == NULL &&
+        srmech_json_object_get(root, "adjacency") == NULL &&
+        srmech_json_object_get(root, "edges") == NULL) {
+        return SRMECH_OK;                            /* not the spectral row    */
+    }
+    *out_handled = 1;
+    st = inf_spectral(root, b, &red);
+    if (st != SRMECH_OK) { return st; }
+    *out_lit = red
+        ? "{\"reducer\":\"resonant_spectrum\",\"reducible\":true,"
+          "\"row\":\"spectral\",\"verified\":true}"
+        : "{\"reducible\":false,\"row\":\"spectral\"}";
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
  * rc223 route — detect + dispatch the four new-row shapes. Sets *out_handled
  * = 1 when the relationship is one of them (the caller emits *out_lit).
  * ------------------------------------------------------------------ */
@@ -1270,22 +1536,78 @@ size_t srmech_infer_sigma_elliptic_arena_bytes(size_t rel_len, size_t max_terms,
     return parse + e_ws + inputs + exps + 262144u;
 }
 
+/* Minimum caller-arena BYTES for the SPECTRAL row (rc224) over a `rel_len`-byte
+ * JSON whose Laplacian dimension is `n` (the marshalled "n"). The row's
+ * decision path holds ONE n*n double grid plus the parallel edge arrays
+ * (bounded by the wire bytes) and runs NO eigensolve — the verdict is the
+ * bit-exact real-symmetry predicate, so the arena is parse + grid + edges.
+ * An over-large n returns SIZE_MAX-shaped bytes so the Python ceiling check
+ * declines to the pure path (never a wrapped size). */
+size_t srmech_infer_spectral_arena_bytes(size_t rel_len, size_t n)
+{
+    size_t dim = n < 1u ? 1u : n;
+    size_t parse = 160u * rel_len + 65536u;
+    size_t edges = (rel_len / 4u + 8u)
+                 * (2u * sizeof(uint32_t) + sizeof(double));
+    assert(sizeof(double) == 8u);
+    assert(dim >= 1u);
+    if (dim > 1000000u) { return (size_t)-1; }         /* decline, never wrap */
+    return parse + dim * dim * sizeof(double) + edges + 65536u;
+}
+
 /* Route a stored relationship: parse JSON, detect the row from the marshalled
- * operand structure (rj_/qrn_/q_term_ratio_/elliptic_term_ratio -> the rc223
- * rows; rn_num -> sigma-wz; term_ratio_* -> gosper; sigma -> cyclic), dispatch
- * + verify the C reducer, and emit the DECISION literal. Any other structure /
- * malformed operand / overflow -> non-OK (-> the Python pure infer). */
+ * operand structure (matrix/adjacency/edges -> the rc224 spectral row;
+ * rj_/qrn_/q_term_ratio_/elliptic_term_ratio -> the rc223 rows; rn_num ->
+ * sigma-wz; term_ratio_* -> gosper; sigma -> cyclic), dispatch + verify the C
+ * reducer, and emit the DECISION literal. Any other structure / malformed
+ * operand / overflow -> non-OK (-> the Python pure infer). */
+/* The rc176/rc192 CLASSIC rows (sigma-wz / sigma-gosper / cyclic), detected
+ * from the marshalled keys. Sets *out_lit + returns OK; BAD_INPUT when no
+ * classic row matches (-> the Python pure infer). */
+static srmech_status_t inf_route_classic(const srmech_json_value_t *root,
+        inf_bump_t *b, size_t rel_len, const char **out_lit)
+{
+    const srmech_json_value_t *g, *cyc, *rn;
+    int red = 0;
+    srmech_status_t st;
+    assert(root != NULL && b != NULL);
+    assert(out_lit != NULL);
+    rn = srmech_json_object_get(root, "rn_num");
+    g = srmech_json_object_get(root, "term_ratio_num");
+    cyc = srmech_json_object_get(root, "sigma");
+    if (rn != NULL) {                       /* SIGMA-DEFINITE (wz) row — rc192   */
+        srmech_marshal_arena_t ma;
+        srmech_marshal_arena_init(&ma, b->cur, (size_t)(b->end - b->cur));
+        st = inf_sigma_wz(root, &ma, rel_len, &red);
+        *out_lit = red
+            ? "{\"reducer\":\"wz_certificate\",\"reducible\":true,\"row\":\"sigma\",\"verified\":true}"
+            : "{\"reducible\":false,\"row\":\"sigma\"}";
+    } else if (g != NULL) {
+        st = inf_gosper(root, b, &red);
+        *out_lit = red
+            ? "{\"reducer\":\"gosper\",\"reducible\":true,\"row\":\"sigma\",\"verified\":true}"
+            : "{\"reducible\":false,\"row\":\"sigma\"}";
+    } else if (cyc != NULL) {
+        st = inf_cyclic(root, b, &red);
+        *out_lit = red
+            ? "{\"reducer\":\"the_one\",\"reducible\":true,\"row\":\"cyclic\",\"verified\":true}"
+            : "{\"reducible\":false,\"row\":\"cyclic\"}";
+    } else {
+        return SRMECH_ERR_BAD_INPUT;   /* not a clean C row -> pure infer */
+    }
+    return st;
+}
+
 srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
                              void *ws, size_t ws_len,
                              char *out, size_t out_cap, size_t *out_len)
 {
     inf_bump_t b;
     srmech_json_value_t *root = NULL;
-    const srmech_json_value_t *g, *cyc, *rn;
     unsigned char *pa;
     size_t pj;
     const char *lit = NULL;
-    int red = 0, handled = 0;
+    int handled = 0;
     srmech_status_t st;
     assert(out_len != NULL);
     assert(rel_json != NULL || rel_len == 0u);
@@ -1301,33 +1623,12 @@ srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
     if (root == NULL || root->type != SRMECH_JSON_OBJECT) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    st = inf_route_rc223(root, &b, rel_len, &lit, &handled);   /* rc223 rows   */
-    if (handled) {
-        if (st != SRMECH_OK) { return st; }
-        return inf_emit(out, out_cap, out_len, lit);
+    st = inf_route_spectral(root, &b, &lit, &handled);         /* rc224 row    */
+    if (!handled) {
+        st = inf_route_rc223(root, &b, rel_len, &lit, &handled); /* rc223 rows */
     }
-    rn = srmech_json_object_get(root, "rn_num");
-    g = srmech_json_object_get(root, "term_ratio_num");
-    cyc = srmech_json_object_get(root, "sigma");
-    if (rn != NULL) {                       /* SIGMA-DEFINITE (wz) row — rc192   */
-        srmech_marshal_arena_t ma;
-        srmech_marshal_arena_init(&ma, b.cur, (size_t)(b.end - b.cur));
-        st = inf_sigma_wz(root, &ma, rel_len, &red);
-        lit = red
-            ? "{\"reducer\":\"wz_certificate\",\"reducible\":true,\"row\":\"sigma\",\"verified\":true}"
-            : "{\"reducible\":false,\"row\":\"sigma\"}";
-    } else if (g != NULL) {
-        st = inf_gosper(root, &b, &red);
-        lit = red
-            ? "{\"reducer\":\"gosper\",\"reducible\":true,\"row\":\"sigma\",\"verified\":true}"
-            : "{\"reducible\":false,\"row\":\"sigma\"}";
-    } else if (cyc != NULL) {
-        st = inf_cyclic(root, &b, &red);
-        lit = red
-            ? "{\"reducer\":\"the_one\",\"reducible\":true,\"row\":\"cyclic\",\"verified\":true}"
-            : "{\"reducible\":false,\"row\":\"cyclic\"}";
-    } else {
-        return SRMECH_ERR_BAD_INPUT;   /* not a clean C row -> pure infer */
+    if (!handled) {
+        st = inf_route_classic(root, &b, rel_len, &lit);       /* rc176/rc192  */
     }
     if (st != SRMECH_OK) { return st; }
     return inf_emit(out, out_cap, out_len, lit);

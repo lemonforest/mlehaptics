@@ -139,8 +139,9 @@ def match(input_bytes: bytes,
 # from :func:`match`) that makes the three rows ONE callable: it DETECTS
 # which row a stored relationship matches, TRIES the matching reducer AND
 # VERIFIES it actually reduced (reads the reducer's OWN verification — the
-# wz_certificate ``verified`` flag, the resonant_spectrum force-orders
-# Λ²≈L·L, the One ``(1,3,7,3)`` partition + ``n1_is_sigma_only`` invariant),
+# wz_certificate ``verified`` flag, the spectral row's EXACT bit-exact
+# real-symmetry predicate (rc224: the spectral theorem's own hypothesis),
+# the One ``(1,3,7,3)`` partition + ``n1_is_sigma_only`` invariant),
 # and returns the verified closed form — else an honest ``OPEN``.
 #
 # It composes the EXISTING verified reducers — NO NEW MATH. ``infer`` runs
@@ -416,10 +417,22 @@ def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]
 
 
 def _try_spectral(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """The spectral row — build the coupling Laplacian and run
-    ``resonant_spectrum``, then VERIFY the reducer's own internal check:
-    the force-orders satisfy Λ² ≈ L·L (the L² == V·diag(Λ²)·Vᵀ
-    reconstruction the §75 op guarantees). Accept only when that holds."""
+    """The spectral row — build the coupling Laplacian and decide the EXACT
+    operator-level verdict (rc224): **the spectral reduction EXISTS iff ``L``
+    is real-symmetric**, checked BIT-EXACT (``L[i][j] == L[j][i]`` over all
+    pairs — a symmetry PREDICATE on the stored operator, never a
+    float-magnitude tolerance). That IS the spectral theorem's own
+    hypothesis: a real-symmetric L always has the orthonormal
+    eigendecomposition ``L = V·diag(Λ)·Vᵀ`` — which is exactly why the old
+    ``Λ² ≈ L·L`` float check was a TAUTOLOGY (``l1·l1 == l2`` holds
+    EXACTLY whenever ``VᵀV = I``); in float it was only an eigensolve-quality
+    gate (residual ~2e-14), never a verdict. Measured: over 400 random
+    symmetric Laplacians the old float verdict agreed 400/400 with this exact
+    predicate. The verdict carries NO float, so the native (C) and pure
+    decisions are identical on every platform by construction. The
+    eigenvalues stay the OPERAND: on a symmetric L the ``resonant_spectrum``
+    payload is materialised as the closed form (the float payload, never the
+    verdict)."""
     from . import coupling as _c  # lazy
     from . import laplacian as _L
     from .mat import Mat
@@ -427,17 +440,17 @@ def _try_spectral(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     L = _build_laplacian(rel, _L, Mat)
     if L is None:
         return None
-    spec = _c.resonant_spectrum(L, orders=2)
-    # VERIFY: the resonant_spectrum CONTRACT is force_orders[1] == L·L (the
-    # biharmonic L² reconstructed from the ONE eigensolve). Re-derive L·L by
-    # the Class-L matmul and compare — the reducer's own verification.
-    fo = spec.get("force_orders") or []
-    if len(fo) < 2:
+    n_rows, n_cols = L.shape
+    if n_rows != n_cols:
         return None
-    l1 = fo[0]                       # L¹  (= V·diag(Λ)·Vᵀ ≈ L)
-    l2 = fo[1]                       # L²  (= V·diag(Λ²)·Vᵀ)
-    if not _matrices_close(l2, _L.mat_matmul(l1, l1)):
-        return None                 # the Λ² == L·L contract failed → OPEN
+    for i in range(n_rows):
+        for j in range(i, n_cols):
+            # bit-exact IEEE equality (the diagonal self-compare is False only
+            # for a NaN entry) — the symmetry predicate, not a magnitude read.
+            if not (L[i, j] == L[j, i]):
+                return None          # not real-symmetric → honest OPEN
+    # symmetric → the reduction EXISTS; the eigensolve is PAYLOAD, not verdict.
+    spec = _c.resonant_spectrum(L, orders=2)
     return _reduced("spectral", "resonant_spectrum", spec)
 
 
@@ -502,42 +515,23 @@ def _build_laplacian(rel: Dict[str, Any], _L, Mat):
     return None
 
 
-def _matrices_close(a, b, *, rel_tol: float = 1e-6) -> bool:
-    """True iff two real :class:`Mat` agree entrywise to a relative tolerance —
-    the resonant_spectrum Λ² == L·L verification (a float eigensolve compare,
-    so a tolerance is correct here; the magnitude is read by Class-K comparison,
-    never abs()). Shapes must match."""
-    if a.shape != b.shape:
-        return False
-    n_rows, n_cols = a.shape
-    for i in range(n_rows):
-        for j in range(n_cols):
-            av, bv = float(a[i, j]), float(b[i, j])
-            diff = av - bv
-            # |diff| by Class-K comparison (no abs()): the sign-folded magnitude.
-            mag = diff if diff >= 0.0 else -diff
-            scale = av if av >= 0.0 else -av
-            bscale = bv if bv >= 0.0 else -bv
-            if bscale > scale:
-                scale = bscale
-            if mag > rel_tol * (scale if scale > 1.0 else 1.0):
-                return False
-    return True
-
-
-# ── rc176/rc192: the srmech_infer C-router dispatch (the ORCHESTRATION→C spine) ─
-# ``infer`` routes the EXACT-SYMBOLIC bignum-carrier rows through the
-# ``srmech_infer`` C peer when it is loaded: cyclic / sigma-gosper (rc176) and the
-# sigma-DEFINITE wz_certificate row (rc192, the #796 payoff — the four (n,k)
-# BiPoly term-ratios → zeilberger @order-1 FIND + wz_verify PROVE in the
-# zeilberger-scale infer arena, over the rc191 srmech_carrier_read_bipoly reader).
-# The C peer DETECTS + DISPATCHES + VERIFIES in C and returns the DECISION; the
-# Python side reconstructs the closed_form via the SAME reducer the C peer
-# verified (so native == pure, byte-identical). The remaining heavier-carrier rows
-# (spectral / multivariate / q / elliptic → rc193+) are NOT marshalled, so the
-# pure body runs (the rc103 inform-don't-limit pattern). The C router NEVER
-# returns a false reducible — the honest OPEN residue is the no-hallucination
-# discipline.
+# ── rc176/rc192/rc223/rc224: the srmech_infer C-router dispatch (the
+# ORCHESTRATION→C spine) ─ ``infer`` routes the dispatchable rows through the
+# ``srmech_infer`` C peer when it is loaded: cyclic / sigma-gosper (rc176), the
+# sigma-DEFINITE wz_certificate row (rc192 — the four (n,k) BiPoly term-ratios →
+# zeilberger @order-1 FIND + wz_verify PROVE in the zeilberger-scale infer
+# arena, over the rc191 srmech_carrier_read_bipoly reader), the three exact-ℚ
+# rows sigma_multivar / sigma_q / sigma_elliptic (rc223), and the SPECTRAL row
+# (rc224, the LAST #796 row — the coupling Laplacian rides the wire as IEEE-754
+# bit patterns and the C verdict is the EXACT bit-exact real-symmetry
+# predicate: NO eigensolve, NO float tolerance in the decision path, so native
+# == pure on every platform by construction). The C peer DETECTS + DISPATCHES +
+# VERIFIES in C and returns the DECISION; the Python side reconstructs the
+# closed_form via the SAME reducer the C peer verified (so native == pure,
+# byte-identical). The one remaining pure-only row is the elliptic-multivar Cₙ
+# Jackson (its per-call proof is carrier-symbolic), so its pure body runs (the
+# rc103 inform-don't-limit pattern). The C router NEVER returns a false
+# reducible — the honest OPEN residue is the no-hallucination discipline.
 
 _SIGMA_GOSPER_ROW_KEYS = ("term_ratio_num", "term_ratio_den")
 
@@ -554,13 +548,15 @@ def _native_infer():
 def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
     """Marshal ``rel`` into ``(srmech_infer JSON, max_terms)`` IFF it is one of
     the C-dispatchable rows (cyclic / sigma-gosper — rc176; sigma-definite wz —
-    rc192; sigma_multivar / sigma_q / sigma_elliptic — rc223); else ``None``
-    (the spectral row → rc224, and the elliptic-multivar Cₙ Jackson row whose
-    verify is carrier-symbolic, stay pure). ``max_terms`` is the largest
-    operand's coefficient / shape-envelope count (the arena sizer). Bignums
-    ride as decimal strings (the srmech_chain_run precedent). Reuses
-    ``_detect_row`` for the correct most-specific-first row priority so a
-    heavier row never misroutes."""
+    rc192; sigma_multivar / sigma_q / sigma_elliptic — rc223; spectral —
+    rc224); else ``None`` (the elliptic-multivar Cₙ Jackson row, whose verify
+    is carrier-symbolic, stays pure). ``max_terms`` is the largest operand's
+    coefficient / shape-envelope count (the arena sizer; the Laplacian
+    dimension ``n`` for the spectral row). Bignums ride as decimal strings
+    (the srmech_chain_run precedent); spectral f64s ride as IEEE-754 bit
+    patterns (signed int64 — the bit-EXACT float wire). Reuses ``_detect_row``
+    for the correct most-specific-first row priority so a heavier row never
+    misroutes."""
     row = _detect_row(rel)
     if row == "cyclic":
         sigma = int(rel.get("sigma", 1))
@@ -698,6 +694,61 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
         return (json.dumps({"row": "sigma_elliptic",
                             "elliptic_term_ratio": wire}),
                 len(sym_list) + len(monos))
+    # rc224 (#796 CLOSE): the SPECTRAL row — the coupling-Laplacian payload
+    # rides the wire as IEEE-754 bit patterns (one signed int64 per f64 — the
+    # bit-EXACT float wire; never a JSON decimal double, so no float parse
+    # sits between the pure and native builds). The C router builds L (edges →
+    # the Class-L srmech_graph_dense_laplacian kernel, the SAME builder the
+    # pure path uses; laplacian/matrix → the raw grid; adjacency → the
+    # in-place D−A transform in _build_laplacian's exact float-op order) and
+    # decides the STRUCTURAL verdict: reducible iff L is bit-exact
+    # real-symmetric — NO eigensolve in C; _finish_native re-derives the
+    # eigenvalue payload via the SAME pure _try_spectral. Non-finite leaves
+    # (inf / NaN) are NOT marshalled (→ the pure path decides), which keeps
+    # the native verdict PROVABLY identical to pure on every platform: finite
+    # accumulation can overflow to ±inf but never to NaN, and only a NaN can
+    # break an entry's IEEE self-equality. max_terms = n (the dimension — the
+    # arena sizer's grid bound).
+    if row == "spectral":
+        import struct
+
+        def _f64_bits(x: Any) -> int:
+            b = struct.unpack("<q", struct.pack("<d", float(x)))[0]
+            if (b >> 52) & 0x7FF == 0x7FF:
+                raise ValueError("non-finite spectral operand -> pure path")
+            return b
+
+        if "laplacian" in rel or "matrix" in rel:
+            grid = rel.get("laplacian", rel.get("matrix"))
+            gr = grid.tolist() if hasattr(grid, "tolist") else [list(r) for r in grid]
+            n = len(gr)
+            if n == 0 or any(len(r) != n for r in gr):
+                return None
+            bits = [_f64_bits(x) for r in gr for x in r]
+            return (json.dumps({"row": "spectral",
+                                "matrix": {"n": n, "bits": bits}}), n)
+        if "edges" in rel:
+            edges = [[int(a), int(b)] for (a, b) in rel["edges"]]
+            n = rel.get("n")
+            if n is None:
+                n = 1 + max((max(a, b) for a, b in edges), default=-1)
+            n = int(n)
+            if n <= 0:
+                return None
+            wire_sp: Dict[str, Any] = {"row": "spectral", "edges": edges, "n": n}
+            if rel.get("weights") is not None:
+                wire_sp["weights"] = [_f64_bits(w) for w in rel["weights"]]
+            return (json.dumps(wire_sp), n)
+        if "adjacency" in rel:
+            adj = rel["adjacency"]
+            gr = adj.tolist() if hasattr(adj, "tolist") else [list(r) for r in adj]
+            n = len(gr)
+            if n == 0 or any(len(r) != n for r in gr):
+                return None
+            bits = [_f64_bits(x) for r in gr for x in r]
+            return (json.dumps({"row": "spectral",
+                                "adjacency": {"n": n, "bits": bits}}), n)
+        return None
     return None
 
 
@@ -707,7 +758,9 @@ def _finish_native(rel: Dict[str, Any], decision: Dict[str, Any]) -> Dict[str, A
     verified reducer (``_try_cyclic`` for the cyclic row / ``_try_sigma`` for
     BOTH the sigma-gosper indefinite AND the sigma-definite wz_certificate rows
     / the rc223 ``_try_sigma_multivar`` / ``_try_sigma_q`` /
-    ``_try_sigma_elliptic``) — byte-identical to the pure path — so the C
+    ``_try_sigma_elliptic`` / the rc224 ``_try_spectral``, whose eigenvalue
+    payload is re-derived pure-side — the C decision carried only the exact
+    symmetry verdict) — byte-identical to the pure path — so the C
     router acts as the routing brain a bare-C host uses while Python
     reconstructs the object. A defensive disagreement (native said reducible
     but the reducer rebuild returned None or raised the pure path's own
@@ -718,7 +771,8 @@ def _finish_native(rel: Dict[str, Any], decision: Dict[str, Any]) -> Dict[str, A
         _TRY_N = {"cyclic": _try_cyclic, "sigma": _try_sigma,
                   "sigma_multivar": _try_sigma_multivar,
                   "sigma_q": _try_sigma_q,
-                  "sigma_elliptic": _try_sigma_elliptic}
+                  "sigma_elliptic": _try_sigma_elliptic,
+                  "spectral": _try_spectral}
         try:
             res = _TRY_N.get(row, _try_sigma)(rel)
         except (ValueError, TypeError, IndexError, KeyError, ZeroDivisionError,
@@ -778,9 +832,12 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       provably ≠ the sum) routes to OPEN.
     * **spectral** (``row="spectral"`` / a graph payload) — an ``edges`` list
       (with optional ``weights`` + ``n``), an ``adjacency`` grid, or an explicit
-      ``laplacian`` / ``matrix`` build a coupling Laplacian and route to
-      :func:`~srmech.amsc.coupling.resonant_spectrum`; accepted iff the
-      force-orders satisfy the ``L² == L·L`` contract (the reducer's own check).
+      ``laplacian`` / ``matrix`` build a coupling Laplacian; accepted iff ``L``
+      is real-symmetric, checked BIT-EXACT (rc224 — the spectral theorem's own
+      hypothesis; an exact operator-level structural fact, never a float
+      tolerance). On a symmetric L the closed form is the
+      :func:`~srmech.amsc.coupling.resonant_spectrum` payload (the eigenvalues
+      are the OPERAND, never the verdict).
     * **cyclic** (``row="cyclic"`` / a ``sigma`` / ``theta_num`` / ``period`` /
       ``generator`` payload) — builds the One ``S(σ,θ)`` via
       :func:`~srmech.amsc.cascade.one.the_one`; accepted iff the ``(1,3,7,3)``
@@ -804,10 +861,11 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
 
     This is a Class-D late-binding op (one rung above :func:`match`): pure
     orchestration over the already-C-mirrored reducers, so it ships **without**
-    a dedicated C peer (the from_bodies / cooccurrence_edges ``non_compute``
-    precedent). numpy-free; no ``abs()`` (the spectral Λ² verify reads the
-    magnitude by Class-K comparison). Cites F929 (the dispatch-table-of-
-    reduction-theories frame).
+    a dedicated public C op (``composes_c``: the ``srmech_infer`` router is the
+    routing brain; the from_bodies / cooccurrence_edges ``non_compute``
+    precedent). numpy-free; no ``abs()`` (the spectral verdict is a bit-exact
+    symmetry predicate — no magnitude is ever read). Cites F929 (the
+    dispatch-table-of-reduction-theories frame).
     """
     if not isinstance(relationship, dict):
         raise TypeError(

@@ -65,12 +65,20 @@ _BUILT_CASES = {
     "wz_definite": _ratios_binomial(),                       # → sigma-wz (rc192)
 }
 
+# rc224: the spectral row now MARSHALS to C (the exact symmetry-verdict wire —
+# tests/test_infer_spectral_rc224.py), so only the genuinely-unmarshalable
+# inputs remain fall-to-pure here.
 _FALL_TO_PURE_CASES = {
+    "unrecognizable_open": {"flavor": "strawberry", "count": 7},
+    "unknown_tag_open": {"row": "topological_field_theory", "edges": [(0, 1)]},
+}
+
+# The spectral cases stay in the PARITY sweep (native == pure) below; their
+# C-engagement assertions live in tests/test_infer_spectral_rc224.py.
+_PARITY_ONLY_CASES = {
     "spectral_edges": {"edges": [(0, 1), (1, 2), (2, 3)], "n": 4},
     "spectral_tag": {"row": "spectral",
                      "adjacency": [[0, 1, 1], [1, 0, 1], [1, 1, 0]]},
-    "unrecognizable_open": {"flavor": "strawberry", "count": 7},
-    "unknown_tag_open": {"row": "topological_field_theory", "edges": [(0, 1)]},
 }
 
 
@@ -93,9 +101,10 @@ def _infer_with(relationship, native_on):
 
 
 # ── (1) PARITY: native == pure over every row class ──────────────────────────
-@pytest.mark.parametrize("name", list(_BUILT_CASES) + list(_FALL_TO_PURE_CASES))
+@pytest.mark.parametrize("name", list(_BUILT_CASES) + list(_FALL_TO_PURE_CASES)
+                         + list(_PARITY_ONLY_CASES))
 def test_native_equals_pure(name):
-    rel = {**_BUILT_CASES, **_FALL_TO_PURE_CASES}[name]
+    rel = {**_BUILT_CASES, **_FALL_TO_PURE_CASES, **_PARITY_ONLY_CASES}[name]
     nat = _infer_with(rel, native_on=True)
     pur = _infer_with(rel, native_on=False)
     assert _shape(nat) == _shape(pur), (
@@ -131,9 +140,10 @@ def test_c_path_genuinely_engaged(name, want):
 # ── (3) INFORM-DON'T-LIMIT: the deferred rows are NOT marshalled to C ─────────
 @pytest.mark.parametrize("name", list(_FALL_TO_PURE_CASES))
 def test_deferred_rows_fall_to_pure(name):
-    """A heavier-carrier row (wz / spectral / …) or an unrecognisable input is NOT
-    marshalled to srmech_infer (the Python marshaller returns None) → the pure
-    infer runs it. rc177+ brings these carriers into C."""
+    """An unrecognisable input is NOT marshalled to srmech_infer (the Python
+    marshaller returns None) → the pure infer runs it. (The heavier-carrier
+    rows this test originally listed have since landed in C: wz — rc192;
+    multivar/q/elliptic — rc223; spectral — rc224.)"""
     assert _marshal_relationship(_FALL_TO_PURE_CASES[name]) is None
 
 

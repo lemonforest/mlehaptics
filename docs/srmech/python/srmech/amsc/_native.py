@@ -3837,6 +3837,14 @@ def _bind(lib: ctypes.CDLL) -> None:
             getattr(lib, _sizer).argtypes = [
                 ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
             getattr(lib, _sizer).restype = ctypes.c_size_t
+    # rc224 (#796 CLOSE): the SPECTRAL row sizer — (rel_len, n) where n is the
+    # Laplacian dimension (parse + ONE n×n double grid + the edge arrays; the
+    # verdict is the bit-exact symmetry predicate, so there is NO eigensolve
+    # scratch). hasattr-guarded (a stale lib keeps the rest).
+    if hasattr(lib, "srmech_infer_spectral_arena_bytes"):
+        lib.srmech_infer_spectral_arena_bytes.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_infer_spectral_arena_bytes.restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
@@ -11717,6 +11725,24 @@ def has_native_exact_rows() -> bool:
     return all(hasattr(LIB, s) for s in _EXACT_ROW_SYMS)
 
 
+_SPECTRAL_ROW_SYMS = (
+    "srmech_infer_spectral_arena_bytes",
+    "srmech_graph_dense_laplacian",
+)
+
+
+def has_native_spectral_row() -> bool:
+    """True iff the rc224 SPECTRAL infer row is available: ``srmech_infer`` +
+    its dedicated arena sizer + the Class-L dense-Laplacian builder it composes
+    are loaded + bound. False on a pre-rc224 lib — the pure spectral row is the
+    complete alternative (and the parity oracle). The row's C decision is the
+    bit-exact real-symmetry predicate (the spectral theorem's own hypothesis) —
+    NO eigensolve, NO float tolerance, so native == pure on every platform."""
+    if not has_native_infer():
+        return False
+    return all(hasattr(LIB, s) for s in _SPECTRAL_ROW_SYMS)
+
+
 def _max_coeff_limbs(obj) -> int:
     """Max significant 32-bit limb count over every scalar leaf (int / decimal
     string) of a marshalled relationship payload — the tight row ``cl`` the C
@@ -11788,14 +11814,17 @@ def infer_c(rel_json: str, max_terms: int = 4):
     handle / a malformed operand / an arena overflow → the caller runs the pure
     infer). ``rel_json`` is the ascii JSON the Python caller marshalled for one
     of the C rows (cyclic / sigma-gosper — rc176; sigma-definite wz — rc192;
-    sigma_multivar / sigma_q / sigma_elliptic — rc223);
+    sigma_multivar / sigma_q / sigma_elliptic — rc223; spectral — rc224);
     ``max_terms`` is the largest operand's coefficient / shape-envelope count
     (the arena grows super-linearly in it, so it is sized on the ACTUAL count,
-    not on bytes). The SIGMA-DEFINITE (wz) row (``rn_num`` present) uses its own
+    not on bytes; for the spectral row it is the Laplacian dimension ``n``).
+    The SIGMA-DEFINITE (wz) row (``rn_num`` present) uses its own
     zeilberger-scale sizer (``srmech_infer_sigma_definite_arena_bytes``); the
-    rc223 rows each use their own sizer and DECLINE past the
-    SRMECH_INFER_WS_CEILING_MB ceiling (default 256) so a call never allocates
-    a multi-hundred-MB arena silently — the pure path is the decider there."""
+    rc223 rows and the rc224 spectral row each use their own sizer and DECLINE
+    past the SRMECH_INFER_WS_CEILING_MB ceiling (default 256) so a call never
+    allocates a multi-hundred-MB arena silently — the pure path is the decider
+    there. The spectral decision is the bit-exact real-symmetry predicate (NO
+    eigensolve, NO float tolerance in C — native == pure by construction)."""
     if not has_native_infer():
         return None
     payload = rel_json.encode("utf-8")
@@ -11807,7 +11836,20 @@ def infer_c(rel_json: str, max_terms: int = 4):
     _rc223 = isinstance(_rel, dict) and (
         "rj_num" in _rel or "qrn_num" in _rel
         or "q_term_ratio_num" in _rel or "elliptic_term_ratio" in _rel)
-    if _rc223:
+    _spectral = isinstance(_rel, dict) and (
+        "matrix" in _rel or "adjacency" in _rel or "edges" in _rel)
+    if _spectral:
+        # rc224 (#796 CLOSE): the SPECTRAL row — its decision is the bit-exact
+        # real-symmetry predicate (NO eigensolve in C), sized on parse + ONE
+        # n×n double grid; a monstrous n declines past the ceiling to the pure
+        # path (which then owns the same allocation question in Python).
+        if not has_native_spectral_row():
+            return None
+        ws_bytes = int(LIB.srmech_infer_spectral_arena_bytes(
+            ctypes.c_size_t(len(payload)), ctypes.c_size_t(int(max_terms))))
+        if ws_bytes > _infer_ws_ceiling_bytes():
+            return None                       # decline to the pure path
+    elif _rc223:
         # rc223 exact-ℚ rows: each has its OWN shape-sized arena; past the
         # ceiling the native path declines to the pure path (never a
         # multi-hundred-MB allocation per call — the apagodu honor).
