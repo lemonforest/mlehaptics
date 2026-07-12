@@ -204,14 +204,20 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # +4 dev_tooling (3 profile_loader + spectral.clear_eigenbasis_cache).
 # composes_c 115 → 120, host_glue 15 → 21, dev_tooling 44 → 48; sum 174 → 189.
 # CEIL_NON_COMPUTE_OWED stays 0 (no new owed control logic).
+# rc225 (user design 2026-07-12): +1 composes_c —
+# srmech.amsc.responsion_schema.responsion_schema (the RESPONSION / stored-
+# relationship introspection surface, the k=3 edge face binding tool_schema +
+# carrier_schema; dispatches to its C peer srmech_responsion_schema over the
+# compiled-in const registry — composes_c FROM BIRTH, the rc205 carrier_schema
+# precedent). composes_c 120 -> 121; total 189 -> 190.
 _EXPECTED_SPLIT = {
     # rc202 discharged the FINAL owed row (run_class_method -> C); owed_orchestration
     # is now EMPTY (a live Counter has no zero key), so it is absent from the split.
-    "composes_c": 120,
+    "composes_c": 121,
     "host_glue": 21,
     "dev_tooling": 48,
 }
-_TOTAL_NON_COMPUTE = 189
+_TOTAL_NON_COMPUTE = 190
 
 
 def _rows():
