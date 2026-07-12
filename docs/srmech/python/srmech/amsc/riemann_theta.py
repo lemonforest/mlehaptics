@@ -704,6 +704,54 @@ def _spec_null_square_omega(g: int, c: "Tuple[int, ...]") -> "tuple":
     return (fc, fc)
 
 
+# ── rc226 closed-form polynomial helpers (the Fay re-indexing certificate) ────
+#
+# The certificate's every-order claim rests on TWO closed-form facts, both
+# verified here as EXACT polynomial identities in CANONICAL FORM (a polynomial
+# over ℤ is zero iff its canonical monomial dict is empty — a complete decision,
+# NEVER a sample): (a) the PARALLELOGRAM quadratic-form identity (degree 2, four
+# variables), (b) the linear re-indexing bijection round-trip (degree 1). Exact
+# integer only; no float, no ``abs()``.
+
+def _fay_expand_quadratic(terms, nvars: int) -> "Dict[Tuple[int, ...], int]":
+    """EXACT closed-form expansion of ``Σ c·(v·x)(w·x)`` into the canonical
+    monomial dict ``{exponent-tuple: int}`` over ``ℤ[x₀ … x_{nvars−1}]`` — the
+    polynomial-identity verifier of the rc226 certificate (two quadratic forms
+    are identical iff their canonical dicts are equal; index-INDEPENDENT, so the
+    verdict covers EVERY lattice index at EVERY order — not a region check).
+    ``terms`` is a list of ``(c, v, w)`` with ``v, w`` integer linear-form
+    coefficient vectors. Bounded loops (JPL Rule 2 shape); exact integer."""
+    out: "Dict[Tuple[int, ...], int]" = {}
+    for (c, v, w) in terms:
+        for i in range(nvars):
+            vi = v[i]
+            if not vi:
+                continue
+            for j in range(nvars):
+                wj = w[j]
+                if not wj:
+                    continue
+                exps = [0] * nvars
+                exps[i] += 1
+                exps[j] += 1
+                key = tuple(exps)
+                out[key] = out.get(key, 0) + c * vi * wj
+    return {k: v for k, v in out.items() if v != 0}
+
+
+def _fay_linear_zero(terms, nvars: int) -> bool:
+    """True iff the LINEAR integer form ``Σ c·(vec·x)`` is IDENTICALLY zero —
+    the canonical-form decision for the degree-1 re-indexing round-trip
+    identities (a linear form over ℤ is zero iff every accumulated coefficient
+    is zero). ``terms`` is a list of ``(c, vec)``. Exact integer; closed-form,
+    never sampled."""
+    acc = [0] * nvars
+    for (c, vec) in terms:
+        for i in range(nvars):
+            acc[i] += c * vec[i]
+    return all(x == 0 for x in acc)
+
+
 class RiemannTheta:
     """A numpy-free EXACT genus-2 Riemann theta-CONSTANT
 
@@ -1680,6 +1728,463 @@ class RiemannTheta:
             "Schottky problem, the operand-side OPEN, genuinely open for genus ≥ 5). "
             "REPRESENTABLE: the abstract bilinear identity. OPEN (not built): the "
             "is-Jacobian / Fay-trisecant decision.")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # rc226: the genus-2 Fay/KP RE-INDEXING CERTIFICATE — the rc73 addition_holds
+    # / rc88 addition_holds_at SAFE-REGION booleans upgraded to an EXPLICIT,
+    # EVERY-ORDER, INSPECTABLE witness object (the parallelogram re-indexing made
+    # first-class). A CARRIER METHOD — tools.total is UNCHANGED.
+    # ══════════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _fay_parallelogram_exact() -> bool:
+        """The PARALLELOGRAM quadratic-form identity, verified as an EXACT
+        closed-form polynomial identity over ``ℤ[u₁, u₂, u₁', u₂']`` (canonical
+        monomial form — see :func:`_fay_expand_quadratic`; NEVER sampled):
+
+            2u_d² + 2u'_d²   = (u_d + u'_d)² + (u_d − u'_d)²      (d = 1, 2)
+            2u₁u₂ + 2u₁'u₂'  = (u₁+u₁')(u₂+u₂') + (u₁−u₁')(u₂−u₂')
+
+        — i.e. the eighth-nome exponent key of an LHS addition monomial (built
+        from ``u = 2n + a``, ``u' = 2n' + b``; :meth:`_theta_omega_eighth`)
+        EQUALS the key of its φ-image (``U = u + u'``, ``U' = u − u'``;
+        :meth:`_theta_two_omega_eighth`) — for EVERY index, at EVERY order.
+        Because the identity is verified in the polynomial ring (the variables
+        are FREE), the verdict is index-independent: no truncation, no safe
+        region. Exact integer, no float, no ``abs()``."""
+        e0, e1, e2, e3 = ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1))
+        s1, d1 = (1, 0, 1, 0), (1, 0, -1, 0)          # u₁+u₁', u₁−u₁'
+        s2, d2 = (0, 1, 0, 1), (0, 1, 0, -1)          # u₂+u₂', u₂−u₂'
+        checks = [
+            ([(2, e0, e0), (2, e2, e2)], [(1, s1, s1), (1, d1, d1)]),   # diag 1
+            ([(2, e1, e1), (2, e3, e3)], [(1, s2, s2), (1, d2, d2)]),   # diag 2
+            ([(2, e0, e1), (2, e2, e3)], [(1, s1, s2), (1, d1, d2)]),   # cross
+        ]
+        return all(_fay_expand_quadratic(lhs, 4) == _fay_expand_quadratic(rhs, 4)
+                   for (lhs, rhs) in checks)
+
+    @staticmethod
+    def _fay_bijection_exact() -> bool:
+        """The RE-INDEXING BIJECTION ``φ: (m, m') ↦ (M, M') = (m+m', m−m')``,
+        verified CLOSED-FORM (exact linear polynomial identities in canonical
+        form — :func:`_fay_linear_zero`; never sampled). On the n-level
+        (``u = 2n + a``, ``u' = 2n' + b``) φ reads: ``r ≔ (n+n') mod 2``,
+        ``2N = (n+n') − r``, ``2N' = (n−n') − r``. Verified identically in
+        ``ℤ[n, n', r]``:
+
+          * INTEGRALITY / parity-coherence: ``(n+n') − (n−n') = 2n'`` — the sum
+            and difference ALWAYS share parity, so the same ``r`` makes both
+            ``N`` and ``N'`` integers (the inverse exists iff ``M ≡ M' mod 2``);
+          * ROUND-TRIP: ``2N + 2N' + 2r = 2n`` and ``2N − 2N' = 2n'`` — φ⁻¹∘φ
+            is the identity on ALL of ℤ²×ℤ², so φ is a BIJECTION onto the
+            parity-consistent set, partitioned by ``r ∈ (ℤ/2)²``;
+          * SECTOR CHARACTERISTICS (in ``ℤ[r, a, b]``): with ``s⁺ = 2r+a+b``,
+            ``s⁻ = 2r+a−b``: ``s⁺ + s⁻ = 4r + 2a`` and ``s⁺ − s⁻ = 2b`` — so a
+            re-indexed pair lands at ``U ≡ s⁺``, ``U' ≡ s⁻ (mod 4)`` and,
+            conversely, ``(U+U')/2 ≡ a``, ``(U−U')/2 ≡ b (mod 2)``: the four
+            ``r``-sectors are exactly the RHS ``r``-sum, disjointly and
+            exhaustively.
+
+        Exact integer; closed-form on the full lattice ℤ²×ℤ²."""
+        # variables (n, n', r)
+        two_n_sum = (1, 1, -1)                          # 2N  = n + n' − r
+        two_n_diff = (1, -1, -1)                        # 2N' = n − n' − r
+        ok = _fay_linear_zero(
+            [(1, (1, 1, 0)), (-1, (1, -1, 0)), (-2, (0, 1, 0))], 3)  # parity
+        ok = ok and _fay_linear_zero(
+            [(1, two_n_sum), (1, two_n_diff), (2, (0, 0, 1)),
+             (-2, (1, 0, 0))], 3)                       # 2N + 2N' + 2r = 2n
+        ok = ok and _fay_linear_zero(
+            [(1, two_n_sum), (-1, two_n_diff), (-2, (0, 1, 0))], 3)  # = 2n'
+        # variables (r, a, b): the sector characteristics
+        sp, sm = (2, 1, 1), (2, 1, -1)                  # s⁺ = 2r+a+b, s⁻ = 2r+a−b
+        ok = ok and _fay_linear_zero(
+            [(1, sp), (1, sm), (-4, (1, 0, 0)), (-2, (0, 1, 0))], 3)
+        ok = ok and _fay_linear_zero(
+            [(1, sp), (-1, sm), (-2, (0, 0, 1))], 3)
+        return ok
+
+    @staticmethod
+    def _fay_coeff_preserved_spec(a: "Tuple[int, int]",
+                                  b: "Tuple[int, int]") -> bool:
+        """COEFFICIENT PRESERVATION, verified against the SHIPPED gate spec
+        (:func:`_spec_addition` — the very comparison :meth:`addition_holds`
+        decides, one SSOT): every factor on BOTH sides carries the ZERO lower
+        characteristic (``evec = (0,0)``) and every product carries sign ``+1``,
+        so every lattice index on either side contributes EXACTLY ``+1`` —
+        index-INDEPENDENTLY. Combined with the key-preserving bijection φ this
+        is the closed-form coefficient identity: each LHS monomial's coefficient
+        equals its φ-image's, at every order. Also pins the RHS sector data to
+        the expected ``(2r+a+b, 2r+a−b)`` enumeration and the LHS to
+        ``θ[a]·θ[b]`` — a drifted spec fails loudly here."""
+        lhs, rhs = _spec_addition(2, a, b)
+        for (sign, factors) in list(lhs) + list(rhs):
+            if sign != 1:
+                return False
+            for (_dc, _step, _avec, evec) in factors:
+                if tuple(evec) != (0, 0):
+                    return False
+        if len(lhs) != 1 or len(lhs[0][1]) != 2:
+            return False
+        (dc_a, st_a, av_a, _), (dc_b, st_b, av_b, _) = lhs[0][1]
+        if (dc_a, st_a, dc_b, st_b) != (2, 2, 2, 2):
+            return False
+        if tuple(av_a) != tuple(a) or tuple(av_b) != tuple(b):
+            return False
+        expect = set()
+        for r1 in (0, 1):
+            for r2 in (0, 1):
+                expect.add(((2 * r1 + a[0] + b[0], 2 * r2 + a[1] + b[1]),
+                            (2 * r1 + a[0] - b[0], 2 * r2 + a[1] - b[1])))
+        got = set()
+        for (_sign, factors) in rhs:
+            if len(factors) != 2:
+                return False
+            (dc1, st1, av1, _), (dc2, st2, av2, _) = factors
+            if (dc1, st1, dc2, st2) != (1, 4, 1, 4):
+                return False
+            got.add((tuple(av1), tuple(av2)))
+        return got == expect
+
+    @staticmethod
+    def _fay_window_check_py(a: "Tuple[int, int]", b: "Tuple[int, int]",
+                             box: int) -> "Tuple[bool, int]":
+        """The BOUNDED-WINDOW ILLUSTRATION of the re-indexing (the pure-Python
+        peer of the C certificate kernel; NOT the every-order proof — that is
+        the closed-form :meth:`_fay_parallelogram_exact` +
+        :meth:`_fay_bijection_exact`): for every index tuple ``(n, n')`` with
+        ``|nᵢ|, |n'ᵢ| ≤ box`` verify (key-equality under φ) + (the mod-4 sector
+        congruences) + (the φ⁻¹ round-trip). Returns ``(ok, tuples_checked)``.
+        Exact integer; bounded loops (JPL Rule 2 shape, mirrored by the C
+        peer); no float, no ``abs()``."""
+        a1, a2 = a
+        b1, b2 = b
+        count = 0
+        for n1 in range(-box, box + 1):
+            for m1 in range(-box, box + 1):
+                for n2 in range(-box, box + 1):
+                    for m2 in range(-box, box + 1):
+                        u1, u2 = 2 * n1 + a1, 2 * n2 + a2
+                        v1, v2 = 2 * m1 + b1, 2 * m2 + b2
+                        key = (2 * u1 * u1 + 2 * v1 * v1,
+                               2 * u2 * u2 + 2 * v2 * v2,
+                               2 * u1 * u2 + 2 * v1 * v2)
+                        cu1, cu2 = u1 + v1, u2 + v2          # U = u + u'
+                        cv1, cv2 = u1 - v1, u2 - v2          # U' = u − u'
+                        if (cu1 * cu1 + cv1 * cv1, cu2 * cu2 + cv2 * cv2,
+                                cu1 * cu2 + cv1 * cv2) != key:
+                            return (False, count)
+                        r1, r2 = (n1 + m1) % 2, (n2 + m2) % 2
+                        if ((cu1 - (2 * r1 + a1 + b1)) % 4 != 0
+                                or (cu2 - (2 * r2 + a2 + b2)) % 4 != 0):
+                            return (False, count)
+                        if ((cv1 - (2 * r1 + a1 - b1)) % 4 != 0
+                                or (cv2 - (2 * r2 + a2 - b2)) % 4 != 0):
+                            return (False, count)
+                        cn1 = (n1 + m1 - r1) // 2            # N
+                        cn2 = (n2 + m2 - r2) // 2
+                        cm1 = (n1 - m1 - r1) // 2            # N'
+                        cm2 = (n2 - m2 - r2) // 2
+                        if (cn1 + cm1 + r1, cn2 + cm2 + r2) != (n1, n2):
+                            return (False, count)
+                        if (cn1 - cm1, cn2 - cm2) != (m1, m2):
+                            return (False, count)
+                        count += 1
+        return (True, count)
+
+    @staticmethod
+    def _fay_witness_key(a: "Tuple[int, int]", b: "Tuple[int, int]",
+                         box: int) -> "_Triple":
+        """The BEYOND-SAFE-REGION witness monomial: the eighth-nome key of the
+        LHS index ``(n, n') = ((box, 0), (box, 0))`` — its diagonal exponent
+        ``A = 2(2·box+a₁)² + 2(2·box+b₁)² ≥ 16·box²`` sits STRICTLY beyond the
+        :meth:`addition_holds` safe region ``2·box²`` (for ``box ≥ 1``), so the
+        old region-compare gate can say NOTHING about it while the certificate
+        resolves its full exact coefficient (see
+        :meth:`_fay_witness_lhs_py` / :meth:`_fay_witness_rhs_py`)."""
+        u1, v1 = 2 * box + a[0], 2 * box + b[0]
+        u2, v2 = a[1], b[1]
+        return (2 * u1 * u1 + 2 * v1 * v1,
+                2 * u2 * u2 + 2 * v2 * v2,
+                2 * u1 * u2 + 2 * v1 * v2)
+
+    @staticmethod
+    def _fay_witness_lhs_py(a: "Tuple[int, int]", b: "Tuple[int, int]",
+                            key: "_Triple") -> int:
+        """The FULL EXACT coefficient of the witness monomial ``key = (A,B,C)``
+        in the LHS ``θ[a;0](Ω)·θ[b;0](Ω)`` (eighth-nome) — NOT truncated: the
+        non-negative diagonal exponents bound EVERY contributing index
+        (``2u₁² ≤ A`` etc.), so the bounded enumeration is the complete infinite
+        double sum's coefficient at that monomial. Every contribution is ``+1``
+        (zero lower characteristics). Exact integer; no float, no ``abs()``."""
+        A, B, C = key
+        rad1 = _sparse_isqrt(A // 2)
+        rad2 = _sparse_isqrt(B // 2)
+        coeff = 0
+        for u1 in range(-rad1, rad1 + 1):
+            if (u1 - a[0]) % 2 != 0:
+                continue
+            for v1 in range(-rad1, rad1 + 1):
+                if (v1 - b[0]) % 2 != 0 or 2 * u1 * u1 + 2 * v1 * v1 != A:
+                    continue
+                for u2 in range(-rad2, rad2 + 1):
+                    if (u2 - a[1]) % 2 != 0:
+                        continue
+                    for v2 in range(-rad2, rad2 + 1):
+                        if (v2 - b[1]) % 2 != 0 or 2 * u2 * u2 + 2 * v2 * v2 != B:
+                            continue
+                        if 2 * u1 * u2 + 2 * v1 * v2 == C:
+                            coeff += 1
+        return coeff
+
+    @staticmethod
+    def _fay_witness_rhs_py(a: "Tuple[int, int]", b: "Tuple[int, int]",
+                            key: "_Triple") -> int:
+        """The FULL EXACT coefficient of the witness monomial ``key = (A,B,C)``
+        in the RHS ``Σ_r θ[(2r+a+b)/2;0](2Ω)·θ[(2r+a−b)/2;0](2Ω)`` (eighth-nome;
+        the ``2Ω`` factor indices are ``U ≡ 2r+a+b``, ``U' ≡ 2r+a−b (mod 4)`` —
+        see :meth:`_theta_two_omega_eighth`) — complete for the same
+        diagonal-bound reason as :meth:`_fay_witness_lhs_py`. Exact integer."""
+        A, B, C = key
+        rad1 = _sparse_isqrt(A)
+        rad2 = _sparse_isqrt(B)
+        coeff = 0
+        for r1 in (0, 1):
+            for r2 in (0, 1):
+                sp1, sp2 = 2 * r1 + a[0] + b[0], 2 * r2 + a[1] + b[1]
+                sm1, sm2 = 2 * r1 + a[0] - b[0], 2 * r2 + a[1] - b[1]
+                for cu1 in range(-rad1, rad1 + 1):
+                    if (cu1 - sp1) % 4 != 0:
+                        continue
+                    for cv1 in range(-rad1, rad1 + 1):
+                        if ((cv1 - sm1) % 4 != 0
+                                or cu1 * cu1 + cv1 * cv1 != A):
+                            continue
+                        for cu2 in range(-rad2, rad2 + 1):
+                            if (cu2 - sp2) % 4 != 0:
+                                continue
+                            for cv2 in range(-rad2, rad2 + 1):
+                                if ((cv2 - sm2) % 4 != 0
+                                        or cu2 * cu2 + cv2 * cv2 != B):
+                                    continue
+                                if cu1 * cu2 + cv1 * cv2 == C:
+                                    coeff += 1
+        return coeff
+
+    @classmethod
+    def fay_reindexing_certificate(cls, a: "Tuple[int, int]",
+                                   b: "Tuple[int, int]",
+                                   box: int = 8) -> dict:
+        """The genus-2 Fay/KP RE-INDEXING CERTIFICATE — the rc73
+        :meth:`addition_holds` SAFE-REGION boolean upgraded to an EXPLICIT,
+        EVERY-ORDER, INSPECTABLE witness object for the genus-2 theta ADDITION /
+        Fay-Hirota-shadow bilinear identity (DLMF §21.6.8, the ``z = 0``
+        two-characteristic specialization :func:`_spec_addition` encodes):
+
+            θ[a; 0](0|Ω)·θ[b; 0](0|Ω)
+              = Σ_{r∈(ℤ/2)²} θ[(2r+a+b)/2; 0](0|2Ω)·θ[(2r+a−b)/2; 0](0|2Ω)
+
+        THE EVERY-ORDER PROOF (closed-form; what the returned dict witnesses):
+        the LHS double sum runs over ``(m, m') ∈ ℤ²×ℤ²`` (``m = n + a/2``,
+        ``m' = n' + b/2``; eighth-nome indices ``u = 2m = 2n + a``,
+        ``u' = 2m' = 2n' + b``). The re-indexing bijection
+
+            φ: (m, m') ↦ (M, M') = (m + m', m − m') ,
+            φ⁻¹: (M, M') ↦ ((M+M')/2, (M−M')/2)   valid iff M ≡ M' (mod 2) ,
+
+        (a) preserves the monomial key EXACTLY by the PARALLELOGRAM law
+            ``Q(m + a/2) + Q(m' + b/2) = ½[Q(M + (a+b)/2) + Q(M' + (a−b)/2)]``
+            — verified as an exact closed-form polynomial identity in the FREE
+            variables ``(u₁, u₂, u₁', u₂')`` (:meth:`_fay_parallelogram_exact`;
+            canonical monomial form, NEVER sampled — so it holds at EVERY
+            lattice index, i.e. EVERY order, with no truncation and no safe
+            region);
+        (b) is a BIJECTION from ℤ²×ℤ² onto the parity-consistent pairs,
+            PARTITIONED by the parity class ``r = M mod 2 = M' mod 2 ∈ (ℤ/2)²``
+            — exactly the RHS ``r``-sum (the sector's ``2Ω`` indices land at
+            ``U ≡ 2r+a+b``, ``U' ≡ 2r+a−b (mod 4)``); the round-trip + sector
+            identities are verified closed-form in
+            :meth:`_fay_bijection_exact`;
+        (c) preserves the coefficient (every index contributes ``+1`` on both
+            sides — zero lower characteristics, ``+1`` product signs), pinned
+            against the SHIPPED gate spec in :meth:`_fay_coeff_preserved_spec`.
+
+        (a) + (b) + (c) ⇒ the identity holds TERM-BY-TERM at EVERY ORDER: each
+        LHS monomial maps to a unique RHS monomial with equal coefficient and
+        back. THAT is the strengthening over :meth:`addition_holds`, which only
+        compares the conservative safe inner region ``A, B, |C| ≤ 2·box²`` — the
+        certificate additionally ships a CONCRETE ``beyond_safe_region_witness``
+        monomial (diagonal exponent ``≥ 16·box²``, strictly beyond the old
+        gate) whose FULL exact coefficient it resolves on both sides.
+
+        Returns the inspectable certificate dict — keys: ``identity``, ``a``,
+        ``b``, ``box``, ``reindex_map``, ``parity_sectors`` (the four ``r``
+        classes with their shifted characteristics + mod-4 index classes),
+        ``quadratic_form_identity`` / ``quadratic_form_identity_exact`` (the
+        closed-form parallelogram verdict), ``bijection_exact``,
+        ``coeff_preserved``, ``every_order`` (True ONLY when the closed-form
+        proofs (a)+(b)+(c) hold AND every computational cross-check agrees —
+        never a region check wearing a certificate's name),
+        ``window_bijection_ok`` / ``window_tuples_checked`` (the bounded
+        ILLUSTRATION — explicitly NOT the proof),
+        ``consistent_with_safe_region_gate`` (byte-exact agreement with the
+        dense :meth:`addition_lhs` == :meth:`addition_rhs` compare AND the
+        sparse :func:`_sparse_decide` gate on the region they DO resolve),
+        ``beyond_safe_region_witness``, ``native``, ``scope`` (the honest
+        boundary — :meth:`fay_trisecant_scope_note`: this certificate witnesses
+        the REPRESENTABLE abstract bilinear; it does NOT decide is-Jacobian /
+        the curve-specific Fay trisecant — the Schottky problem, genuinely open
+        for genus ≥ 5).
+
+        DISPATCHES the computational verification (parallelogram re-check +
+        window illustration + witness coefficients) to the native
+        ``srmech_riemann_theta_fay_certificate`` C peer when loaded (a 1:1
+        exact-integer mirror, trusted only on a native hit); else the pure
+        bodies above (the COMPLETE alternative + the parity oracle). The
+        closed-form proofs (a)+(b)+(c) always run in Python (they ARE the
+        certificate's logic). A CARRIER METHOD (the :meth:`addition_holds`
+        precedent) — ``tools.total`` is UNCHANGED. Exact integer; no float, no
+        ``abs()`` (Class-K sign branches only)."""
+        if not isinstance(box, int) or box < 2:
+            raise ValueError(
+                f"box must be an int ≥ 2 for the Fay re-indexing certificate; "
+                f"got {box!r}")
+        a = (_bit("a₁", a[0]), _bit("a₂", a[1]))
+        b = (_bit("b₁", b[0]), _bit("b₂", b[1]))
+        safe = 2 * box * box                      # the addition_holds region
+        # ── the closed-form every-order proofs (always run; the logic itself) ──
+        quad_exact = cls._fay_parallelogram_exact()
+        bij_exact = cls._fay_bijection_exact()
+        coeff_pres = cls._fay_coeff_preserved_spec(a, b)
+        # ── the computational verification: native dispatch, pure fallback ────
+        wkey = cls._fay_witness_key(a, b, box)
+        native_hit = False
+        got = None
+        nat = _native()
+        if nat is not None:
+            fn = getattr(nat, "riemann_theta_fay_certificate_c", None)
+            if fn is not None:
+                try:
+                    got = fn(a[0], a[1], b[0], b[1], box,
+                             wkey[0], wkey[1], wkey[2])
+                except (RuntimeError, OverflowError, ValueError):
+                    got = None
+        if got is not None:
+            (c_par_ok, window_ok, tuples, w_lhs, w_rhs) = got
+            native_hit = True
+            quad_exact = quad_exact and bool(c_par_ok)
+        else:
+            window_ok, tuples = cls._fay_window_check_py(a, b, box)
+            w_lhs = cls._fay_witness_lhs_py(a, b, wkey)
+            w_rhs = cls._fay_witness_rhs_py(a, b, wkey)
+        # ── consistency with the existing safe-region machinery (byte-exact) ──
+        def _cut(lat: "Dict[_Triple, int]") -> "Dict[_Triple, int]":
+            out = {}
+            for k, v in lat.items():
+                mag_c = k[2] if k[2] >= 0 else -k[2]  # Class-K magnitude, no abs()
+                if k[0] <= safe and k[1] <= safe and mag_c <= safe:
+                    out[k] = v
+            return out
+        dense_ok = (_cut(cls.addition_lhs(a, b, box))
+                    == _cut(cls.addition_rhs(a, b, box)))
+        (sparse_ok, _cross), = _sparse_decide(2, safe,
+                                              [_spec_addition(2, a, b)])
+        consistent = dense_ok and sparse_ok
+        witness_resolved = (w_lhs == w_rhs and wkey[0] > safe)
+        every_order = (quad_exact and bij_exact and coeff_pres
+                       and window_ok and witness_resolved and consistent)
+        sectors = []
+        for r1 in (0, 1):
+            for r2 in (0, 1):
+                sp = (2 * r1 + a[0] + b[0], 2 * r2 + a[1] + b[1])
+                sm = (2 * r1 + a[0] - b[0], 2 * r2 + a[1] - b[1])
+                sectors.append({
+                    "r": (r1, r2),
+                    "char_plus": sp,               # (2r+a+b) — θ[(2r+a+b)/2;0](2Ω)
+                    "char_minus": sm,              # (2r+a−b) — θ[(2r+a−b)/2;0](2Ω)
+                    "sum_index_class_mod4": sp,    # U  ≡ 2r+a+b (mod 4)
+                    "diff_index_class_mod4": sm,   # U' ≡ 2r+a−b (mod 4)
+                })
+        return {
+            "identity": ("genus-2 theta addition (DLMF 21.6.8, z=0) / "
+                         "Fay-Hirota bilinear shadow"),
+            "a": a,
+            "b": b,
+            "box": box,
+            "reindex_map": ("(m,m') -> (M,M')=(m+m', m-m'); "
+                            "inverse ((M+M')/2, (M-M')/2) valid iff "
+                            "M = M' (mod 2)"),
+            "parity_sectors": sectors,
+            "quadratic_form_identity": (
+                "2u_d^2 + 2u'_d^2 = (u_d+u'_d)^2 + (u_d-u'_d)^2 (d=1,2); "
+                "2u_1u_2 + 2u'_1u'_2 = (u_1+u'_1)(u_2+u'_2) + "
+                "(u_1-u'_1)(u_2-u'_2) — the parallelogram law, verified in "
+                "canonical polynomial form over Z[u_1,u_2,u'_1,u'_2] "
+                "(index-independent: every order)"),
+            "quadratic_form_identity_exact": quad_exact,
+            "bijection_exact": bij_exact,
+            "coeff_preserved": coeff_pres,
+            "every_order": every_order,
+            "window_bijection_ok": bool(window_ok),
+            "window_tuples_checked": int(tuples),
+            "consistent_with_safe_region_gate": consistent,
+            "safe_region_bound": safe,
+            "beyond_safe_region_witness": {
+                "monomial": wkey,
+                "diag_exponent": wkey[0],
+                "safe_region_bound": safe,
+                "strictly_beyond": wkey[0] > safe,
+                "lhs_coeff": int(w_lhs),
+                "rhs_coeff": int(w_rhs),
+                "resolved": witness_resolved,
+                "note": ("the FULL exact coefficient on both sides (the "
+                         "non-negative diagonal exponents bound every "
+                         "contributing index, so the bounded enumeration is "
+                         "complete); addition_holds's safe-region compare "
+                         "cannot see this monomial"),
+            },
+            "native": native_hit,
+            "scope": cls.fay_trisecant_scope_note(),
+        }
+
+    @staticmethod
+    def fay_trisecant_scope_note() -> str:
+        """The HONEST SCOPE of :meth:`fay_reindexing_certificate` (and the
+        certificate dict's ``scope`` field; the :meth:`kp_bilinear_scope_note`
+        pattern, sharpened to the trisecant boundary). REPRESENTABLE (built):
+        the every-order re-indexing certificate for the ABSTRACT genus-2 theta
+        addition / KP-Hirota-shadow bilinear identity. OPEN (NOT built, never
+        fabricated): the CURVE-SPECIFIC Fay TRISECANT identity
+
+            E(x,v)E(u,y)θ(z+∫ᵤˣ)θ(z+∫ᵥʸ) − E(x,u)E(v,y)θ(z+∫ᵥˣ)θ(z+∫ᵤʸ)
+              = E(x,y)E(u,v)θ(z)θ(z+∫_{u+v}^{x+y})
+
+        (Fay 1973, *Theta Functions on Riemann Surfaces*; Mumford, *Tata
+        Lectures on Theta* I/II) uses the PRIME FORM ``E(·,·)`` and FOUR points
+        on a CURVE and holds ONLY for theta of JACOBIANS, not general abelian
+        varieties — its holding IS the is-Jacobian / Schottky condition
+        (equivalently: "the Kummer variety has a trisecant" — Krichever 2006;
+        "θ solves KP" — Shiota 1986; anchor: Grushevsky–Xie,
+        arXiv:2504.20243), the operand-side OPEN, genuinely open for genus ≥ 5.
+        The carrier's rational Ω is generically NON-Jacobian and a genuine
+        Jacobian Ω is transcendental, so the trisecant proper CANNOT be
+        witnessed as an exact identity on this carrier — that is the
+        mathematical content, not a limitation to route around. NO code path
+        here claims is-Jacobian / trisecant-decided."""
+        return (
+            "fay_reindexing_certificate witnesses the REPRESENTABLE abstract "
+            "genus-2 theta addition / KP-Hirota-shadow bilinear identity at "
+            "EVERY order (the parallelogram re-indexing bijection, closed-form)"
+            ". It does NOT decide is-Jacobian and does NOT verify the "
+            "curve-specific Fay TRISECANT identity: the trisecant uses the "
+            "prime form E(.,.) and four curve points and holds only for theta "
+            "of Jacobians — its holding IS the is-Jacobian / Schottky "
+            "condition (Krichever 2006, the trisecant characterization; "
+            "Shiota 1986, theta-solves-KP; anchor Grushevsky-Xie "
+            "arXiv:2504.20243), the operand-side OPEN, genuinely open for "
+            "genus >= 5. REPRESENTABLE: the every-order re-indexing "
+            "certificate. OPEN (not built): the is-Jacobian / Fay-trisecant "
+            "decision.")
 
     # ══════════════════════════════════════════════════════════════════════════
     # rc74: the GENUS-AXIS CAPSTONE — the Thomae / Rosenhain bridge
