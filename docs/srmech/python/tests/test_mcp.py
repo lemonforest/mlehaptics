@@ -48,6 +48,22 @@ from srmech.mcp._tools import (
     tool_entry_to_mcp_def,
 )
 
+# rc231 (#810) — make this tests/ directory importable when test_mcp is
+# collected ALONE (`pytest tests/test_mcp.py`). ``tests/`` is a package
+# (``__init__.py`` present), so pytest's prepend import-mode puts the package
+# PARENT (``python/``) on sys.path, not ``tests/`` itself — a bare
+# ``from conftest import ...`` then raises ``ModuleNotFoundError`` in isolation.
+# In the full suite an earlier-collected sibling (test_immolation) happens to
+# insert it first; standalone there is no such side-effect. Insert it here so
+# the ``from conftest import return_type_agrees`` below resolves in BOTH modes
+# (the same guard test_immolation.py already carries — the project's proven
+# shared-helper path).
+import os as _os
+import sys as _sys
+_TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+if _TESTS_DIR not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR)
+
 
 # ──────────────────────────────────────────────────────────────────────
 # Tool conversion: every ToolEntry yields a valid MCP tool def
@@ -1741,6 +1757,12 @@ def _synth_value_for_type(type_string: str) -> Any:
         # cleanly, and as a term ratio yields a DOMAIN-valid certificate R = 2 (the
         # elliptic-geometric closed form 1/(z−1) = z_den/(z_num−z_den)).
         "EllRatio": [3, 2],
+        # rc231 (#810) elliptic_jackson_an z / a variable vectors: a list of
+        # symbol-NAME strings — the natural minimal operand for the Aₙ variables
+        # (each lifts to EllMonomial.symbol via _to_ellmonomial). Both z and a get
+        # this same value, so len(a) != len(z)+1 is a TOLERATED domain ValueError
+        # (the op was CALLED with bindable + coercible args — the property tested).
+        "list[EllMonomial]": ["z0", "z1"],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
