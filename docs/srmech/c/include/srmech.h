@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc222"
-#define SRMECH_VERSION       "0.9.0rc222"
+#define SRMECH_VERSION_PRE   "rc223"
+#define SRMECH_VERSION       "0.9.0rc223"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2409,24 +2409,67 @@ srmech_status_t srmech_dsl_toml_chain_to_json(
  *                  the FIND alone). The reducer name is "wz_certificate".
  *
  * Output JSON (Python json.loads-able):
- *   reducible: {"reducer":"the_one"|"gosper"|"wz_certificate","reducible":true,
+ *   reducible: {"reducer":"the_one"|"gosper"|"wz_certificate"|
+ *               "apagodu_zeilberger"|"q_wz_certificate"|"q_gosper"|
+ *               "elliptic_wz_certificate","reducible":true,
  *               "row":..,"verified":true}
- *   open     : {"reducible":false,"row":"cyclic"|"sigma"}   (Python builds the
- *               candidate-next-theory hint from the row)
+ *   open     : {"reducible":false,"row":"cyclic"|"sigma"|"sigma_q"}   (Python
+ *               builds the candidate-next-theory hint from the row; the rows
+ *               whose C reducer declines non-definitively NEVER emit false —
+ *               they return non-OK so the pure infer decides)
  *
- * rc103 inform-don't-limit: any OTHER row (spectral / multivariate / q /
- * elliptic — whose live carriers need their own bridge, rc193+), any malformed
- * operand, or any arena overflow -> non-OK, and the Python caller runs the
- * COMPLETE pure infer (NEVER a false reducible; the honest OPEN residue is the
- * no-hallucination discipline in C). ONE caller arena `ws`. The cyclic / gosper
- * rows size with srmech_infer_arena_bytes(rel_len, max_terms) (max_terms = the
- * largest operand's coefficient count — the gosper degree, 1 for cyclic — since
- * the gosper ws grows super-linearly in the degree, not in rel_len). The
- * sigma-wz row sizes with srmech_infer_sigma_definite_arena_bytes (its own,
- * zeilberger-scale sizer, so the cheap rows never pay the MB floor). Both are
- * ABI-additive -> SRMECH_ABI_VERSION stays 4. */
+ * rc223 (#796) ADDS the three remaining EXACT-Q rows over the rc223 public
+ * carrier readers (srmech_carrier_read_{tripoly,qbipoly,ellratio}):
+ *   * sigma_multivar (rn_* / rj_* / rk_* as the six (n,j,k) TriPoly term-
+ *                  ratios) -> srmech_apagodu_zeilberger @max_order=1; a has=1
+ *                  minimal-order recurrence IS the verification (the same
+ *                  non-None-is-the-proof contract as gosper). A has=0 is NOT
+ *                  definitive (the C peer declines above order 1) -> non-OK ->
+ *                  the pure path decides. Reducer name "apagodu_zeilberger".
+ *   * sigma_q      DEFINITE (qrn_* / qrk_* as the four (X,Y)=(q^n,q^k) QBiPoly
+ *                  q-term-ratios) -> FIND srmech_q_zeilberger @order-1 (accept
+ *                  only the q-WZ shape a0+a1=0, nonzero rational scalars) +
+ *                  PROVE srmech_q_wz_verify on the 1/a1-rescaled certificate
+ *                  (the COMPLETE degree-bounded q-WZ-equation check). Reducer
+ *                  name "q_wz_certificate". A FIND decline (the C q-Zeilberger
+ *                  completes only the k-free q-geometric class) -> non-OK ->
+ *                  pure; a FIND success whose shape/verify fails -> reducible:
+ *                  false (definitive: the k-free class is byte-identical to
+ *                  the pure FIND, and the verify is a complete mirror).
+ *                  INDEFINITE (q_term_ratio_* as a single-Y-cell QBiPoly wire
+ *                  of the QPoly q-term-ratio) -> srmech_q_gosper; has == 1 is
+ *                  the verification. Reducer name "q_gosper". A has=0 is NOT
+ *                  definitive (constant-ratio native scope) -> non-OK -> pure.
+ *   * sigma_elliptic (elliptic_term_ratio as the PRE-INTERNED EllRatio wire
+ *                  object) -> srmech_elliptic_wz_certificate; has == 1 (the
+ *                  8w7 recognized AND the connection-coefficient certificate
+ *                  decides exactly zero) is the verification. Reducer name
+ *                  "elliptic_wz_certificate". A has=0 -> non-OK -> pure (the
+ *                  conservative fall; never a possibly-divergent false).
+ *
+ * rc103 inform-don't-limit: any OTHER row (spectral -> rc224 / the elliptic
+ * multivariate Cn Jackson row — whose verify is carrier-symbolic), any
+ * malformed operand, or any arena overflow -> non-OK, and the Python caller
+ * runs the COMPLETE pure infer (NEVER a false reducible; the honest OPEN
+ * residue is the no-hallucination discipline in C). ONE caller arena `ws`. The
+ * cyclic / gosper rows size with srmech_infer_arena_bytes(rel_len, max_terms)
+ * (max_terms = the largest operand's coefficient count — the gosper degree, 1
+ * for cyclic — since the gosper ws grows super-linearly in the degree, not in
+ * rel_len). The sigma-wz row sizes with
+ * srmech_infer_sigma_definite_arena_bytes; the rc223 rows each size with their
+ * OWN sizer below (max_terms = the row's shape envelope: the TriPoly
+ * jdeg/kdeg/nlen max; the QBiPoly ycells/xcells/qlen max; the EllRatio
+ * n_syms + monomial count. coeff_limbs = the max significant 32-bit limbs per
+ * coefficient) so the cheap rows never pay the MB floor. All are ABI-additive
+ * -> SRMECH_ABI_VERSION stays 4. */
 size_t srmech_infer_arena_bytes(size_t rel_len, size_t max_terms);
 size_t srmech_infer_sigma_definite_arena_bytes(size_t rel_len, size_t max_terms,
+                                               size_t coeff_limbs);
+size_t srmech_infer_sigma_multivar_arena_bytes(size_t rel_len, size_t max_terms,
+                                               size_t coeff_limbs);
+size_t srmech_infer_sigma_q_arena_bytes(size_t rel_len, size_t max_terms,
+                                        size_t coeff_limbs);
+size_t srmech_infer_sigma_elliptic_arena_bytes(size_t rel_len, size_t max_terms,
                                                size_t coeff_limbs);
 srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
                              void *ws, size_t ws_len,
@@ -5995,9 +6038,12 @@ srmech_status_t srmech_bigint_to_dec(const srmech_bigint_t *a, char *buf,
  * Additive symbols -> SRMECH_ABI_VERSION stays 4. ------- */
 
 /* Carrier kinds for srmech_carrier_marshal_roundtrip. */
-#define SRMECH_CARRIER_POLY    0   /* ascending-degree coefficient list        */
-#define SRMECH_CARRIER_BIPOLY  1   /* k-ascending list of Poly-in-n (flat+klen) */
-#define SRMECH_CARRIER_SCALAR  2   /* a single coefficient (EllRatio scalar)   */
+#define SRMECH_CARRIER_POLY     0  /* ascending-degree coefficient list        */
+#define SRMECH_CARRIER_BIPOLY   1  /* k-ascending list of Poly-in-n (flat+klen) */
+#define SRMECH_CARRIER_SCALAR   2  /* a single coefficient (EllRatio scalar)   */
+#define SRMECH_CARRIER_TRIPOLY  3  /* j-list of k-lists of n-coeff lists (rc223) */
+#define SRMECH_CARRIER_QBIPOLY  4  /* Y-list of [x_low, [q-run, ...]] (rc223)   */
+#define SRMECH_CARRIER_ELLRATIO 5  /* the pre-interned EllRatio wire (rc223)    */
 
 /* Minimum caller-arena BYTES for a `json_len`-byte carrier relationship. No
  * malloc; the caller owns the arena. Too small -> SRMECH_ERR_OVERFLOW. */
@@ -6024,6 +6070,64 @@ srmech_status_t srmech_carrier_read_bipoly(const srmech_json_value_t *node,
                                            srmech_bigint_t **out_num,
                                            srmech_bigint_t **out_den,
                                            size_t **out_klen, size_t *out_kdeg);
+
+/* Read a TriPoly wire node (a j-ascending ARRAY of k-ascending ARRAYs of
+ * ascending-n coefficient arrays — the apagodu_zeilberger._tri_pairs bridge
+ * form, rc223) into FLAT (j-major, then k, then n) numerator / denominator
+ * bigint arrays + the per-(j,k)-cell length array *out_nlen (length
+ * (*out_jdeg) * (*out_kdeg); a ragged j-block is padded with empty runs to the
+ * max k-count, mirroring the Python _az_tri_flatten rectangularisation). The
+ * exact encoding srmech_apagodu_zeilberger consumes. Same error contract as
+ * srmech_carrier_read_poly. (Public: rc223 srmech_infer.c reuse.) */
+srmech_status_t srmech_carrier_read_tripoly(const srmech_json_value_t *node,
+                                            srmech_marshal_arena_t *a, uint32_t cap,
+                                            srmech_bigint_t **out_num,
+                                            srmech_bigint_t **out_den,
+                                            size_t **out_nlen, size_t *out_jdeg,
+                                            size_t *out_kdeg);
+
+/* Read a QBiPoly wire node (a Y-ascending ARRAY of [x_low, rows] pairs — the
+ * qbipoly._qb_pairs bridge form lowered to JSON, rc223: x_low a JSON int, rows
+ * an x-ascending ARRAY of ascending-q coefficient arrays) into the flat
+ * (Y-major then X-major) q-run bigint arrays + the per-(Y,X)-cell *out_qlen +
+ * the per-Y-cell *out_xlow / *out_xcells + the Y-cell count *out_ycells — the
+ * exact bridge encoding srmech_q_zeilberger / srmech_q_wz_verify /
+ * srmech_q_gosper consume (a QPoly rides as ONE Y-cell). Same error contract
+ * as srmech_carrier_read_poly. (Public: rc223 srmech_infer.c reuse.) */
+srmech_status_t srmech_carrier_read_qbipoly(const srmech_json_value_t *node,
+                                            srmech_marshal_arena_t *a, uint32_t cap,
+                                            srmech_bigint_t **out_num,
+                                            srmech_bigint_t **out_den,
+                                            size_t **out_qlen, int64_t **out_xlow,
+                                            size_t **out_xcells,
+                                            size_t *out_ycells);
+
+/* The PRE-INTERNED EllRatio wire (rc223) — the srmech_elliptic_* wire form
+ * lifted to a struct: the interned symbol-table dimension n_syms; the
+ * x/p/q/y/N/K interned indices (-1 if absent); the num / den theta counts; the
+ * flat exact-Q monomial coefficient arrays (1 + n_num + n_den entries, in the
+ * order prefactor, num0.., den0..); the flat int32 exponent rows (int32[n_syms]
+ * per monomial, same order). */
+typedef struct srmech_ellratio_wire {
+    size_t n_syms;
+    int xsym; int psym; int qsym; int ysym; int nsym; int ksym;
+    size_t n_num; size_t n_den;
+    srmech_bigint_t *coeff_num;      /* 1 + n_num + n_den                      */
+    srmech_bigint_t *coeff_den;
+    int32_t *exps_flat;              /* (1 + n_num + n_den) * n_syms           */
+} srmech_ellratio_wire_t;
+
+/* Read an EllRatio wire node (a JSON OBJECT with n_syms / xsym / psym / qsym /
+ * ysym / nsym / ksym / n_num / n_den int fields + coeff_num / coeff_den scalar
+ * arrays (int64 or decimal string — the bignum transport) + exps int rows —
+ * the interning done Python-side, sorted-symbol order, so the reader is a pure
+ * array lowering) into arena-backed bigint coefficient arrays + the flat int32
+ * exponent rows. Same error contract as srmech_carrier_read_poly. (Public:
+ * rc223 srmech_infer.c reuse.) */
+srmech_status_t srmech_carrier_read_ellratio(const srmech_json_value_t *node,
+                                             srmech_marshal_arena_t *a,
+                                             uint32_t cap,
+                                             srmech_ellratio_wire_t *out);
 
 /* The round-trip PROVER: parse `json`, marshal the `kind` carrier, and
  * re-serialise it to CANONICAL nested-ℚ JSON (each coefficient as [num,den]

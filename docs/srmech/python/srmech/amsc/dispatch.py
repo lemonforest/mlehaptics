@@ -553,11 +553,14 @@ def _native_infer():
 
 def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
     """Marshal ``rel`` into ``(srmech_infer JSON, max_terms)`` IFF it is one of
-    the two rc176 clean carrier-FFI rows (cyclic / sigma-gosper); else ``None`` (a
-    heavier carrier deferred to rc177+ → the pure path). ``max_terms`` is the
-    largest operand's coefficient count (the arena sizer). Bignums ride as decimal
-    strings (the srmech_chain_run precedent). Reuses ``_detect_row`` for the
-    correct most-specific-first row priority so a heavier row never misroutes."""
+    the C-dispatchable rows (cyclic / sigma-gosper — rc176; sigma-definite wz —
+    rc192; sigma_multivar / sigma_q / sigma_elliptic — rc223); else ``None``
+    (the spectral row → rc224, and the elliptic-multivar Cₙ Jackson row whose
+    verify is carrier-symbolic, stay pure). ``max_terms`` is the largest
+    operand's coefficient / shape-envelope count (the arena sizer). Bignums
+    ride as decimal strings (the srmech_chain_run precedent). Reuses
+    ``_detect_row`` for the correct most-specific-first row priority so a
+    heavier row never misroutes."""
     row = _detect_row(rel)
     if row == "cyclic":
         sigma = int(rel.get("sigma", 1))
@@ -595,21 +598,132 @@ def _marshal_relationship(rel: Dict[str, Any]) -> Optional[Tuple[str, int]]:
         deg = max(len(rn_num), len(rn_den), len(rk_num), len(rk_den), 1)
         return (json.dumps({"row": "sigma", "rn_num": rn_num, "rn_den": rn_den,
                             "rk_num": rk_num, "rk_den": rk_den}), deg)
+    # rc223 (#796): the SIGMA-MULTIVAR row — the six (n,j,k) TriPoly
+    # term-ratios as nested j/k/n coefficient lists (bignum-safe decimal
+    # strings, the _tri_pairs bridge form as JSON). max_terms is the shape
+    # envelope (jdeg / kdeg / nlen max). The C router runs
+    # srmech_apagodu_zeilberger @max_order=1 in its own apagodu-scale arena
+    # (declined past the infer ceiling → the pure CRT path decides);
+    # _finish_native rebuilds via _try_sigma_multivar.
+    if row == "sigma_multivar":
+        from .apagodu_zeilberger import _coerce_tri, _tri_pairs
+
+        def _tri(v: Any) -> "list":
+            return [[[[str(n), str(d)] for (n, d) in run] for run in kgrid]
+                    for kgrid in _tri_pairs(_coerce_tri(v))]
+
+        payload = {k: _tri(rel[k]) for k in _SIGMA_MULTIVAR_KEYS}
+        deg = 1
+        for v in payload.values():
+            deg = max(deg, len(v))
+            for kgrid in v:
+                deg = max(deg, len(kgrid))
+                for run in kgrid:
+                    deg = max(deg, len(run))
+        return (json.dumps({"row": "sigma_multivar", **payload}), deg)
+    # rc223 (#796): the SIGMA-Q rows. DEFINITE — the four (X,Y)=(qⁿ,qᵏ)
+    # QBiPoly q-term-ratios as Y-lists of [x_low, [q-run, …]] pairs (the
+    # _qb_pairs bridge form as JSON); the C router FINDs via srmech_q_zeilberger
+    # @order-1 + PROVEs via srmech_q_wz_verify. INDEFINITE — the QPoly
+    # q-term-ratio as a ONE-Y-cell QBiPoly wire; the C router runs
+    # srmech_q_gosper. max_terms is the ycells/xcells/qlen envelope;
+    # _finish_native rebuilds via _try_sigma_q.
+    if row == "sigma_q":
+        def _qb_deg(forms: "list") -> int:
+            deg = 1
+            for cells in forms:
+                deg = max(deg, len(cells))
+                for _lo, xrow in cells:
+                    deg = max(deg, len(xrow))
+                    for run in xrow:
+                        deg = max(deg, len(run))
+            return deg
+
+        if all(k in rel for k in _SIGMA_Q_KEYS):
+            from .qbipoly import QBiPoly, _qb_pairs
+
+            def _qb(v: Any) -> "list":
+                y_xlow, rows = _qb_pairs(QBiPoly.coerce(v))
+                return [[int(lo),
+                         [[[str(n), str(d)] for (n, d) in run] for run in xrow]]
+                        for lo, xrow in zip(y_xlow, rows)]
+
+            payload = {k: _qb(rel[k]) for k in _SIGMA_Q_KEYS}
+            return (json.dumps({"row": "sigma_q", **payload}),
+                    _qb_deg(list(payload.values())))
+        if all(k in rel for k in _SIGMA_Q_GOSPER_KEYS):
+            from .q_gosper import _coerce_qpoly
+            from .qpoly import _qp_pairs
+
+            def _qp(v: Any) -> "list":
+                lo, rows = _qp_pairs(_coerce_qpoly(v))
+                return [[int(lo),
+                         [[[str(n), str(d)] for (n, d) in run]
+                          for run in rows]]]
+
+            payload = {k: _qp(rel[k]) for k in _SIGMA_Q_GOSPER_KEYS}
+            return (json.dumps({"row": "sigma_q", **payload}),
+                    _qb_deg(list(payload.values())))
+        return None
+    # rc223 (#796): the SIGMA-ELLIPTIC row — the ₈ω₇ term-ratio EllRatio,
+    # PRE-INTERNED Python-side (the sorted-symbol convention the
+    # elliptic_wz_certificate_c wrapper uses, forced syms K/N/p/q/x/y) so the
+    # C reader is a pure array lowering. The C router runs
+    # srmech_elliptic_wz_certificate; _finish_native rebuilds via
+    # _try_sigma_elliptic.
+    if row == "sigma_elliptic":
+        from .elliptic_recurrence import _coerce_ratio, _ratio_to_form
+
+        form = _ratio_to_form(_coerce_ratio(rel["elliptic_term_ratio"]))
+        monos = ([form["prefactor"]] + list(form["num"]) + list(form["den"]))
+        syms = {"K", "N", "p", "q", "x", "y"}       # _EWZ_FORCE_SYMS
+        for _cn, _cd, exps in monos:
+            syms.update(s for s, _e in exps)
+        sym_list = sorted(syms)
+        idx = {s: i for i, s in enumerate(sym_list)}
+        cnum, cden, rows = [], [], []
+        for cn, cd, exps in monos:
+            r_ = [0] * len(sym_list)
+            for s, e in exps:
+                r_[idx[s]] = int(e)
+            rows.append(r_)
+            cnum.append(str(int(cn)))
+            cden.append(str(int(cd)))
+        wire = {"n_syms": len(sym_list),
+                "xsym": idx.get("x", -1), "psym": idx.get("p", -1),
+                "qsym": idx.get("q", -1), "ysym": idx.get("y", -1),
+                "nsym": idx.get("N", -1), "ksym": idx.get("K", -1),
+                "n_num": len(form["num"]), "n_den": len(form["den"]),
+                "coeff_num": cnum, "coeff_den": cden, "exps": rows}
+        return (json.dumps({"row": "sigma_elliptic",
+                            "elliptic_term_ratio": wire}),
+                len(sym_list) + len(monos))
     return None
 
 
 def _finish_native(rel: Dict[str, Any], decision: Dict[str, Any]) -> Dict[str, Any]:
     """Build the ``infer`` return dict from the C router's DECISION. On
     ``reducible`` the closed_form OBJECT is materialised by re-running the SAME
-    verified reducer (``_try_cyclic`` for the cyclic row / ``_try_sigma`` for BOTH
-    the sigma-gosper indefinite AND the sigma-definite wz_certificate rows) —
-    byte-identical to the pure path — so the C router acts as the routing brain a
-    bare-C host uses while Python reconstructs the object. A defensive
-    disagreement (native said reducible but the reducer rebuild returned None)
-    routes to the honest OPEN."""
+    verified reducer (``_try_cyclic`` for the cyclic row / ``_try_sigma`` for
+    BOTH the sigma-gosper indefinite AND the sigma-definite wz_certificate rows
+    / the rc223 ``_try_sigma_multivar`` / ``_try_sigma_q`` /
+    ``_try_sigma_elliptic``) — byte-identical to the pure path — so the C
+    router acts as the routing brain a bare-C host uses while Python
+    reconstructs the object. A defensive disagreement (native said reducible
+    but the reducer rebuild returned None or raised the pure path's own
+    contract error) routes to the honest OPEN — exactly as the pure body
+    would."""
     row = decision.get("row")
     if decision.get("reducible") is True:
-        res = _try_cyclic(rel) if row == "cyclic" else _try_sigma(rel)
+        _TRY_N = {"cyclic": _try_cyclic, "sigma": _try_sigma,
+                  "sigma_multivar": _try_sigma_multivar,
+                  "sigma_q": _try_sigma_q,
+                  "sigma_elliptic": _try_sigma_elliptic}
+        try:
+            res = _TRY_N.get(row, _try_sigma)(rel)
+        except (ValueError, TypeError, IndexError, KeyError, ZeroDivisionError,
+                OverflowError, RuntimeError):
+            res = None                     # the pure body's own except → OPEN
         if res is not None:
             return res
     return _open(row, "not reducible in current vocabulary")

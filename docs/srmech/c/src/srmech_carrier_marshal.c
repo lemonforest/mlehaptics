@@ -229,6 +229,282 @@ srmech_status_t srmech_carrier_read_bipoly(const srmech_json_value_t *node,
 }
 
 /* ------------------------------------------------------------------
+ * TriPoly (3-level) reader — PUBLIC (rc223 srmech_infer.c reuse). The
+ * j-ascending ARRAY of k-ascending ARRAYs of ascending-n coefficient arrays
+ * (the apagodu_zeilberger._tri_pairs bridge form), lowered to the FLAT
+ * (j-major, k, n) num/den arrays + nlen[dj*kdeg + dk] the srmech_
+ * apagodu_zeilberger encoding. A ragged j-block pads to the max k-count with
+ * empty runs (the Python _az_tri_flatten rectangularisation).
+ * ------------------------------------------------------------------ */
+
+/* Shape pass: *out_total = the flat coefficient count over the RECTANGULAR
+ * (jdeg x kdeg) grid; *out_kdeg = the max k-count over j-blocks. BAD_INPUT on
+ * a non-array j-block / k-run. Split off so the reader stays <= 60 lines. */
+static srmech_status_t cm_tripoly_shape(const srmech_json_value_t *node,
+                                        uint32_t *out_total, uint32_t *out_kdeg)
+{
+    uint32_t dj, dk, kdeg = 0u, total = 0u;
+    assert(node != NULL && out_total != NULL);
+    assert(node->type == SRMECH_JSON_ARRAY);
+    for (dj = 0u; dj < node->u.arr.n; dj++) {
+        const srmech_json_value_t *kgrid = node->u.arr.items[dj];
+        if (kgrid == NULL || kgrid->type != SRMECH_JSON_ARRAY) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (kgrid->u.arr.n > kdeg) { kdeg = kgrid->u.arr.n; }
+        for (dk = 0u; dk < kgrid->u.arr.n; dk++) {
+            const srmech_json_value_t *run = kgrid->u.arr.items[dk];
+            if (run == NULL || run->type != SRMECH_JSON_ARRAY) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            total += run->u.arr.n;
+        }
+    }
+    *out_total = total;
+    *out_kdeg = kdeg;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_carrier_read_tripoly(const srmech_json_value_t *node,
+                                            srmech_marshal_arena_t *a, uint32_t cap,
+                                            srmech_bigint_t **out_num,
+                                            srmech_bigint_t **out_den,
+                                            size_t **out_nlen, size_t *out_jdeg,
+                                            size_t *out_kdeg)
+{
+    srmech_bigint_t *fn, *fd; size_t *nl;
+    uint32_t dj, dk, jdeg, kdeg = 0u, total = 0u, idx = 0u, cells;
+    srmech_status_t st;
+    if (node == NULL || a == NULL || out_num == NULL || out_den == NULL ||
+        out_nlen == NULL || out_jdeg == NULL || out_kdeg == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(cap > 0u);
+    assert(a->cur <= a->end);
+    if (node->type != SRMECH_JSON_ARRAY) { return SRMECH_ERR_BAD_INPUT; }
+    jdeg = node->u.arr.n;
+    st = cm_tripoly_shape(node, &total, &kdeg);
+    if (st != SRMECH_OK) { return st; }
+    cells = jdeg * kdeg;
+    fn = cm_bigint_array(a, (total == 0u) ? 1u : total, cap);
+    fd = cm_bigint_array(a, (total == 0u) ? 1u : total, cap);
+    nl = (size_t *)cm_carve(a, (size_t)((cells == 0u) ? 1u : cells) * sizeof(size_t));
+    if (fn == NULL || fd == NULL || nl == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (dj = 0u; dj < jdeg; dj++) {
+        const srmech_json_value_t *kgrid = node->u.arr.items[dj];
+        for (dk = 0u; dk < kdeg; dk++) {
+            const srmech_json_value_t *run =
+                (dk < kgrid->u.arr.n) ? kgrid->u.arr.items[dk] : NULL;
+            uint32_t i, rn = (run == NULL) ? 0u : run->u.arr.n;
+            nl[dj * kdeg + dk] = (size_t)rn;      /* the pad run is EMPTY      */
+            for (i = 0u; i < rn; i++) {
+                st = cm_read_coeff(run->u.arr.items[i], &fn[idx], &fd[idx]);
+                if (st != SRMECH_OK) { return st; }
+                idx++;
+            }
+        }
+    }
+    *out_num = fn; *out_den = fd; *out_nlen = nl;
+    *out_jdeg = (size_t)jdeg; *out_kdeg = (size_t)kdeg;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * QBiPoly (Laurent bivariate-q) reader — PUBLIC (rc223 srmech_infer.c reuse).
+ * The Y-ascending ARRAY of [x_low, rows] pairs (the qbipoly._qb_pairs bridge
+ * form as JSON: x_low a JSON int; rows an x-ascending ARRAY of ascending-q
+ * coefficient arrays), lowered to flat (Y-major, X-major) q-run num/den
+ * arrays + qlen[] per (Y,X) cell + xlow[]/xcells[] per Y cell + ycells — the
+ * bridge srmech_q_zeilberger / srmech_q_wz_verify / srmech_q_gosper consume.
+ * ------------------------------------------------------------------ */
+
+/* Shape pass: *out_total = the flat q-coefficient count; *out_cells = the
+ * total (Y,X) cell count. Validates every Y entry is a [int, array] pair
+ * whose rows are arrays. Split off so the reader stays <= 60 lines. */
+static srmech_status_t cm_qbipoly_shape(const srmech_json_value_t *node,
+                                        uint32_t *out_total, uint32_t *out_cells)
+{
+    uint32_t dy, dx, total = 0u, cells = 0u;
+    assert(node != NULL && out_total != NULL);
+    assert(node->type == SRMECH_JSON_ARRAY);
+    for (dy = 0u; dy < node->u.arr.n; dy++) {
+        const srmech_json_value_t *pair = node->u.arr.items[dy];
+        const srmech_json_value_t *rows;
+        if (pair == NULL || pair->type != SRMECH_JSON_ARRAY ||
+            pair->u.arr.n != 2u || pair->u.arr.items[0] == NULL ||
+            pair->u.arr.items[0]->type != SRMECH_JSON_INT) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        rows = pair->u.arr.items[1];
+        if (rows == NULL || rows->type != SRMECH_JSON_ARRAY) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        cells += rows->u.arr.n;
+        for (dx = 0u; dx < rows->u.arr.n; dx++) {
+            const srmech_json_value_t *run = rows->u.arr.items[dx];
+            if (run == NULL || run->type != SRMECH_JSON_ARRAY) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            total += run->u.arr.n;
+        }
+    }
+    *out_total = total;
+    *out_cells = cells;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_carrier_read_qbipoly(const srmech_json_value_t *node,
+                                            srmech_marshal_arena_t *a, uint32_t cap,
+                                            srmech_bigint_t **out_num,
+                                            srmech_bigint_t **out_den,
+                                            size_t **out_qlen, int64_t **out_xlow,
+                                            size_t **out_xcells,
+                                            size_t *out_ycells)
+{
+    srmech_bigint_t *fn, *fd; size_t *ql, *xc; int64_t *xl;
+    uint32_t dy, dx, ycells, total = 0u, cells = 0u, cell = 0u, idx = 0u;
+    srmech_status_t st;
+    if (node == NULL || a == NULL || out_num == NULL || out_den == NULL ||
+        out_qlen == NULL || out_xlow == NULL || out_xcells == NULL ||
+        out_ycells == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(cap > 0u);
+    assert(a->cur <= a->end);
+    if (node->type != SRMECH_JSON_ARRAY) { return SRMECH_ERR_BAD_INPUT; }
+    ycells = node->u.arr.n;
+    st = cm_qbipoly_shape(node, &total, &cells);
+    if (st != SRMECH_OK) { return st; }
+    fn = cm_bigint_array(a, (total == 0u) ? 1u : total, cap);
+    fd = cm_bigint_array(a, (total == 0u) ? 1u : total, cap);
+    ql = (size_t *)cm_carve(a, (size_t)((cells == 0u) ? 1u : cells) * sizeof(size_t));
+    xl = (int64_t *)cm_carve(a, (size_t)((ycells == 0u) ? 1u : ycells) * sizeof(int64_t));
+    xc = (size_t *)cm_carve(a, (size_t)((ycells == 0u) ? 1u : ycells) * sizeof(size_t));
+    if (fn == NULL || fd == NULL || ql == NULL || xl == NULL || xc == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    for (dy = 0u; dy < ycells; dy++) {
+        const srmech_json_value_t *pair = node->u.arr.items[dy];
+        const srmech_json_value_t *rows = pair->u.arr.items[1];
+        xl[dy] = pair->u.arr.items[0]->u.i;
+        xc[dy] = (size_t)rows->u.arr.n;
+        for (dx = 0u; dx < rows->u.arr.n; dx++) {
+            const srmech_json_value_t *run = rows->u.arr.items[dx];
+            uint32_t i;
+            ql[cell] = (size_t)run->u.arr.n;
+            cell++;
+            for (i = 0u; i < run->u.arr.n; i++) {
+                st = cm_read_coeff(run->u.arr.items[i], &fn[idx], &fd[idx]);
+                if (st != SRMECH_OK) { return st; }
+                idx++;
+            }
+        }
+    }
+    *out_num = fn; *out_den = fd; *out_qlen = ql; *out_xlow = xl;
+    *out_xcells = xc; *out_ycells = (size_t)ycells;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * EllRatio (pre-interned wire) reader — PUBLIC (rc223 srmech_infer.c reuse).
+ * The JSON OBJECT with n_syms / xsym / psym / qsym / ysym / nsym / ksym /
+ * n_num / n_den int fields + coeff_num / coeff_den scalar arrays + exps int
+ * rows (the interning done Python-side in the sorted-symbol order), lowered
+ * to the srmech_elliptic_* wire form struct.
+ * ------------------------------------------------------------------ */
+
+/* Read a required int field into *out (int64). BAD_INPUT if missing or not
+ * a JSON int. */
+static srmech_status_t cm_int_field(const srmech_json_value_t *node,
+                                    const char *key, int64_t *out)
+{
+    const srmech_json_value_t *v;
+    assert(node != NULL && key != NULL);
+    assert(out != NULL);
+    v = srmech_json_object_get(node, key);
+    if (v == NULL || v->type != SRMECH_JSON_INT) { return SRMECH_ERR_BAD_INPUT; }
+    *out = v->u.i;
+    return SRMECH_OK;
+}
+
+/* Validate + read the seven interned-index / shape int fields. A symbol index
+ * must sit in [-1, n_syms); n_syms >= 1. Split off for the <= 60-line rule. */
+static srmech_status_t cm_ellratio_ints(const srmech_json_value_t *node,
+                                        srmech_ellratio_wire_t *w)
+{
+    static const char *const keys[6] = {"xsym", "psym", "qsym", "ysym",
+                                        "nsym", "ksym"};
+    int *slots[6]; int64_t v; size_t i; srmech_status_t st;
+    assert(node != NULL && w != NULL);
+    assert(node->type == SRMECH_JSON_OBJECT);
+    slots[0] = &w->xsym; slots[1] = &w->psym; slots[2] = &w->qsym;
+    slots[3] = &w->ysym; slots[4] = &w->nsym; slots[5] = &w->ksym;
+    st = cm_int_field(node, "n_syms", &v);
+    if (st != SRMECH_OK || v < 1 || v > 4096) { return SRMECH_ERR_BAD_INPUT; }
+    w->n_syms = (size_t)v;
+    for (i = 0u; i < 6u; i++) {
+        st = cm_int_field(node, keys[i], &v);
+        if (st != SRMECH_OK || v < -1 || v >= (int64_t)w->n_syms) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        *slots[i] = (int)v;
+    }
+    st = cm_int_field(node, "n_num", &v);
+    if (st != SRMECH_OK || v < 0 || v > 4096) { return SRMECH_ERR_BAD_INPUT; }
+    w->n_num = (size_t)v;
+    st = cm_int_field(node, "n_den", &v);
+    if (st != SRMECH_OK || v < 0 || v > 4096) { return SRMECH_ERR_BAD_INPUT; }
+    w->n_den = (size_t)v;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_carrier_read_ellratio(const srmech_json_value_t *node,
+                                             srmech_marshal_arena_t *a,
+                                             uint32_t cap,
+                                             srmech_ellratio_wire_t *out)
+{
+    const srmech_json_value_t *jcn, *jcd, *jex;
+    size_t n_mono, i, s;
+    srmech_status_t st;
+    if (node == NULL || a == NULL || out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(cap > 0u);
+    assert(a->cur <= a->end);
+    if (node->type != SRMECH_JSON_OBJECT) { return SRMECH_ERR_BAD_INPUT; }
+    st = cm_ellratio_ints(node, out);
+    if (st != SRMECH_OK) { return st; }
+    n_mono = 1u + out->n_num + out->n_den;
+    jcn = srmech_json_object_get(node, "coeff_num");
+    jcd = srmech_json_object_get(node, "coeff_den");
+    jex = srmech_json_object_get(node, "exps");
+    if (jcn == NULL || jcn->type != SRMECH_JSON_ARRAY || jcn->u.arr.n != n_mono ||
+        jcd == NULL || jcd->type != SRMECH_JSON_ARRAY || jcd->u.arr.n != n_mono ||
+        jex == NULL || jex->type != SRMECH_JSON_ARRAY || jex->u.arr.n != n_mono) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    out->coeff_num = cm_bigint_array(a, n_mono, cap);
+    out->coeff_den = cm_bigint_array(a, n_mono, cap);
+    out->exps_flat = (int32_t *)cm_carve(a, n_mono * out->n_syms * sizeof(int32_t));
+    if (out->coeff_num == NULL || out->coeff_den == NULL ||
+        out->exps_flat == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < n_mono; i++) {
+        const srmech_json_value_t *row = jex->u.arr.items[i];
+        st = cm_fill_scalar(jcn->u.arr.items[i], &out->coeff_num[i]);
+        if (st != SRMECH_OK) { return st; }
+        st = cm_fill_scalar(jcd->u.arr.items[i], &out->coeff_den[i]);
+        if (st != SRMECH_OK) { return st; }
+        if (row == NULL || row->type != SRMECH_JSON_ARRAY ||
+            row->u.arr.n != out->n_syms) { return SRMECH_ERR_BAD_INPUT; }
+        for (s = 0u; s < out->n_syms; s++) {
+            const srmech_json_value_t *e = row->u.arr.items[s];
+            if (e == NULL || e->type != SRMECH_JSON_INT ||
+                e->u.i < INT32_MIN || e->u.i > INT32_MAX) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            out->exps_flat[i * out->n_syms + s] = (int32_t)e->u.i;
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
  * Round-trip PROVER — marshal a carrier from JSON + re-serialise it to a
  * CANONICAL nested-ℚ JSON (each coefficient as [num,den] decimal, compact
  * separators). Proves the reader landed every (bignum) coefficient value +
@@ -289,6 +565,146 @@ static void cm_emit_poly(cm_emit_t *e, const srmech_bigint_t *num,
     cm_raw(e, "]", 1u);
 }
 
+/* Emit an int64 as a decimal JSON literal (bounded digit loop, Class-K sign
+ * branch — never abs()). */
+static void cm_emit_i64(cm_emit_t *e, int64_t v)
+{
+    char rev[24]; char fwd[24]; size_t n = 0u, i;
+    uint64_t m;
+    assert(e != NULL);
+    assert(sizeof(v) == 8u);
+    m = (v < 0) ? ((uint64_t)(-(v + 1)) + 1u) : (uint64_t)v;
+    do {
+        rev[n] = (char)('0' + (char)(m % 10u));
+        n++;
+        m /= 10u;
+    } while (m != 0u && n < 21u);
+    i = 0u;
+    if (v < 0) { fwd[0] = '-'; i = 1u; }
+    while (n > 0u) { n--; fwd[i] = rev[n]; i++; }
+    cm_raw(e, fwd, i);
+}
+
+/* Emit a TriPoly's rectangular (jdeg x kdeg) grid as the canonical nested
+ * [[[..run..], ..]_k, ..]_j (a padded cell emits []). */
+static void cm_emit_tripoly(cm_emit_t *e, const srmech_bigint_t *num,
+                            const srmech_bigint_t *den, const size_t *nlen,
+                            size_t jdeg, size_t kdeg, srmech_marshal_arena_t *a)
+{
+    size_t dj, dk, idx = 0u;
+    assert(e != NULL && a != NULL);
+    assert(nlen != NULL || jdeg * kdeg == 0u);
+    cm_raw(e, "[", 1u);
+    for (dj = 0u; dj < jdeg; dj++) {
+        if (dj > 0u) { cm_raw(e, ",", 1u); }
+        cm_raw(e, "[", 1u);
+        for (dk = 0u; dk < kdeg; dk++) {
+            size_t ln = nlen[dj * kdeg + dk];
+            if (dk > 0u) { cm_raw(e, ",", 1u); }
+            cm_emit_poly(e, &num[idx], &den[idx], ln, a);
+            idx += ln;
+        }
+        cm_raw(e, "]", 1u);
+    }
+    cm_raw(e, "]", 1u);
+}
+
+/* Emit a QBiPoly as the canonical Y-list of [x_low, [[..run..], ..]] pairs. */
+static void cm_emit_qbipoly(cm_emit_t *e, const srmech_bigint_t *num,
+                            const srmech_bigint_t *den, const size_t *qlen,
+                            const int64_t *xlow, const size_t *xcells,
+                            size_t ycells, srmech_marshal_arena_t *a)
+{
+    size_t dy, dx, cell = 0u, idx = 0u;
+    assert(e != NULL && a != NULL);
+    assert(ycells == 0u || (xlow != NULL && xcells != NULL));
+    cm_raw(e, "[", 1u);
+    for (dy = 0u; dy < ycells; dy++) {
+        if (dy > 0u) { cm_raw(e, ",", 1u); }
+        cm_raw(e, "[", 1u);
+        cm_emit_i64(e, xlow[dy]);
+        cm_raw(e, ",[", 2u);
+        for (dx = 0u; dx < xcells[dy]; dx++) {
+            if (dx > 0u) { cm_raw(e, ",", 1u); }
+            cm_emit_poly(e, &num[idx], &den[idx], qlen[cell], a);
+            idx += qlen[cell];
+            cell++;
+        }
+        cm_raw(e, "]]", 2u);
+    }
+    cm_raw(e, "]", 1u);
+}
+
+/* Emit an EllRatio wire as the canonical flat array
+ * [n_syms,xsym,psym,qsym,ysym,nsym,ksym,n_num,n_den,[[cn,cd],..],[[e,..],..]]. */
+static void cm_emit_ellratio(cm_emit_t *e, const srmech_ellratio_wire_t *w,
+                             srmech_marshal_arena_t *a)
+{
+    size_t n_mono, i, s;
+    int64_t hdr[9];
+    assert(e != NULL && w != NULL);
+    assert(a != NULL);
+    n_mono = 1u + w->n_num + w->n_den;
+    hdr[0] = (int64_t)w->n_syms; hdr[1] = w->xsym; hdr[2] = w->psym;
+    hdr[3] = w->qsym; hdr[4] = w->ysym; hdr[5] = w->nsym; hdr[6] = w->ksym;
+    hdr[7] = (int64_t)w->n_num; hdr[8] = (int64_t)w->n_den;
+    cm_raw(e, "[", 1u);
+    for (i = 0u; i < 9u; i++) {
+        if (i > 0u) { cm_raw(e, ",", 1u); }
+        cm_emit_i64(e, hdr[i]);
+    }
+    cm_raw(e, ",", 1u);
+    cm_emit_poly(e, w->coeff_num, w->coeff_den, n_mono, a);
+    cm_raw(e, ",[", 2u);
+    for (i = 0u; i < n_mono; i++) {
+        if (i > 0u) { cm_raw(e, ",", 1u); }
+        cm_raw(e, "[", 1u);
+        for (s = 0u; s < w->n_syms; s++) {
+            if (s > 0u) { cm_raw(e, ",", 1u); }
+            cm_emit_i64(e, (int64_t)w->exps_flat[i * w->n_syms + s]);
+        }
+        cm_raw(e, "]", 1u);
+    }
+    cm_raw(e, "]]", 2u);
+}
+
+/* Route the rc223 kinds (TRIPOLY / QBIPOLY / ELLRATIO): read via the public
+ * reader, then emit the canonical form. Split from cm_roundtrip_emit so both
+ * stay <= 60 lines. */
+static srmech_status_t cm_roundtrip_emit_rc223(int kind,
+                                               const srmech_json_value_t *root,
+                                               srmech_marshal_arena_t *a,
+                                               uint32_t cap, cm_emit_t *e)
+{
+    srmech_bigint_t *num, *den;
+    srmech_status_t st;
+    assert(root != NULL && a != NULL && e != NULL);
+    assert(kind >= SRMECH_CARRIER_TRIPOLY && kind <= SRMECH_CARRIER_ELLRATIO);
+    if (kind == SRMECH_CARRIER_TRIPOLY) {
+        size_t *nlen, jdeg, kdeg;
+        st = srmech_carrier_read_tripoly(root, a, cap, &num, &den, &nlen,
+                                         &jdeg, &kdeg);
+        if (st != SRMECH_OK) { return st; }
+        cm_emit_tripoly(e, num, den, nlen, jdeg, kdeg, a);
+        return e->overflow ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+    if (kind == SRMECH_CARRIER_QBIPOLY) {
+        size_t *qlen, *xcells, ycells; int64_t *xlow;
+        st = srmech_carrier_read_qbipoly(root, a, cap, &num, &den, &qlen,
+                                         &xlow, &xcells, &ycells);
+        if (st != SRMECH_OK) { return st; }
+        cm_emit_qbipoly(e, num, den, qlen, xlow, xcells, ycells, a);
+        return e->overflow ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+    }
+    {
+        srmech_ellratio_wire_t w;
+        st = srmech_carrier_read_ellratio(root, a, cap, &w);
+        if (st != SRMECH_OK) { return st; }
+        cm_emit_ellratio(e, &w, a);
+    }
+    return e->overflow ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
 /* Route the round-trip by kind + emit the canonical JSON. `cap` is the
  * per-coefficient limb cap (sized from the JSON length so any bignum
  * coefficient fits). Split from the public entry so that stays <= 60 lines. */
@@ -299,7 +715,10 @@ static srmech_status_t cm_roundtrip_emit(int kind, const srmech_json_value_t *ro
     srmech_bigint_t *num, *den; size_t len, kdeg, dk, idx = 0u; size_t *klen;
     srmech_status_t st;
     assert(root != NULL && a != NULL && e != NULL);
-    assert(kind >= SRMECH_CARRIER_POLY && kind <= SRMECH_CARRIER_SCALAR);
+    assert(kind >= SRMECH_CARRIER_POLY && kind <= SRMECH_CARRIER_ELLRATIO);
+    if (kind >= SRMECH_CARRIER_TRIPOLY) {
+        return cm_roundtrip_emit_rc223(kind, root, a, cap, e);
+    }
     if (kind == SRMECH_CARRIER_SCALAR) {
         srmech_bigint_t *n1 = cm_bigint_array(a, 1u, cap);
         srmech_bigint_t *d1 = cm_bigint_array(a, 1u, cap);
@@ -346,7 +765,7 @@ srmech_status_t srmech_carrier_marshal_roundtrip(int kind, const char *json,
     if (json == NULL || ws == NULL || out == NULL || out_len == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (kind < SRMECH_CARRIER_POLY || kind > SRMECH_CARRIER_SCALAR) {
+    if (kind < SRMECH_CARRIER_POLY || kind > SRMECH_CARRIER_ELLRATIO) {
         return SRMECH_ERR_BAD_INPUT;
     }
     assert(ws_len > 0u);

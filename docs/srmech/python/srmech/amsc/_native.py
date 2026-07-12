@@ -3827,6 +3827,16 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_infer_sigma_definite_arena_bytes.argtypes = [
             ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
         lib.srmech_infer_sigma_definite_arena_bytes.restype = ctypes.c_size_t
+    # rc223 (#796): the three remaining exact-ℚ row sizers — each its own
+    # (rel_len, shape envelope, max coeff limbs) arena so the cheap rows never
+    # pay another row's floor. hasattr-guarded (a stale lib keeps the rest).
+    for _sizer in ("srmech_infer_sigma_multivar_arena_bytes",
+                   "srmech_infer_sigma_q_arena_bytes",
+                   "srmech_infer_sigma_elliptic_arena_bytes"):
+        if hasattr(lib, _sizer):
+            getattr(lib, _sizer).argtypes = [
+                ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _sizer).restype = ctypes.c_size_t
 
     # ------------------------------------------------------------------
     # Class N — ROTATION-LAST Chudnovsky π on srmech_bigint (0.9.0rc19).
@@ -6320,6 +6330,9 @@ def mcp_marshal_roundtrip_c(
 CARRIER_POLY: int = 0
 CARRIER_BIPOLY: int = 1
 CARRIER_SCALAR: int = 2
+CARRIER_TRIPOLY: int = 3     # rc223: j-list of k-lists of n-coeff lists
+CARRIER_QBIPOLY: int = 4     # rc223: Y-list of [x_low, [q-run, ...]] pairs
+CARRIER_ELLRATIO: int = 5    # rc223: the pre-interned EllRatio wire object
 
 
 def has_native_carrier_marshal() -> bool:
@@ -11681,6 +11694,63 @@ def has_native_sigma_definite() -> bool:
             and hasattr(LIB, "srmech_wz_verify"))
 
 
+_EXACT_ROW_SYMS = (
+    "srmech_infer_sigma_multivar_arena_bytes",
+    "srmech_infer_sigma_q_arena_bytes",
+    "srmech_infer_sigma_elliptic_arena_bytes",
+    "srmech_apagodu_zeilberger",
+    "srmech_q_zeilberger",
+    "srmech_q_wz_verify",
+    "srmech_q_gosper",
+    "srmech_elliptic_wz_certificate",
+)
+
+
+def has_native_exact_rows() -> bool:
+    """True iff the rc223 exact-ℚ infer rows (sigma_multivar / sigma_q /
+    sigma_elliptic) are available: ``srmech_infer`` + the three dedicated arena
+    sizers + the reducers they compose are loaded + bound. False on a pre-rc223
+    lib — the pure row bodies are the complete alternative (and the parity
+    oracle)."""
+    if not has_native_infer():
+        return False
+    return all(hasattr(LIB, s) for s in _EXACT_ROW_SYMS)
+
+
+def _max_coeff_limbs(obj) -> int:
+    """Max significant 32-bit limb count over every scalar leaf (int / decimal
+    string) of a marshalled relationship payload — the tight row ``cl`` the C
+    path computes from the read operands (sizes the ws on the ACTUAL
+    coefficients, never rel_len). Non-numeric leaves (row tags) and malformed
+    nodes floor at 1 (the C reader then declines a genuinely bad node)."""
+    if isinstance(obj, bool):
+        return 1
+    if isinstance(obj, (int, str)):
+        try:
+            return _coeff_limbs_of(obj)
+        except (TypeError, ValueError):
+            return 1
+    if isinstance(obj, dict):
+        return max((_max_coeff_limbs(v) for v in obj.values()), default=1)
+    if isinstance(obj, (list, tuple)):
+        return max((_max_coeff_limbs(v) for v in obj), default=1)
+    return 1
+
+
+def _infer_ws_ceiling_bytes() -> int:
+    """The rc223 native-infer arena ceiling (bytes). The apagodu dense exact-ℚ
+    RREF (and a deep q_wz_verify) can demand hundreds of MB even for small
+    genuine systems; past the ceiling the native path DECLINES to the
+    bounded-memory pure path (the apagodu_zeilberger_c SRMECH_AZ_WS_CEILING_MB
+    honor, one level up). Raisable via SRMECH_INFER_WS_CEILING_MB."""
+    mb = 256
+    try:
+        mb = max(1, int(os.environ.get("SRMECH_INFER_WS_CEILING_MB", "256")))
+    except (TypeError, ValueError):
+        mb = 256
+    return mb * 1024 * 1024
+
+
 def _coeff_limbs_of(v) -> int:
     """Significant 32-bit limb count of an exact-ℚ scalar (int OR decimal string) —
     the C srmech_bigint ``.n`` for the same value. >= 1 (a zero has .n == 0, but the
@@ -11717,12 +11787,15 @@ def infer_c(rel_json: str, max_terms: int = 4):
     native symbols are absent OR the C router returns non-OK (a row it does not
     handle / a malformed operand / an arena overflow → the caller runs the pure
     infer). ``rel_json`` is the ascii JSON the Python caller marshalled for one
-    of the C rows (cyclic / sigma-gosper — rc176; sigma-definite wz — rc192);
-    ``max_terms`` is the largest operand's coefficient / k-degree count (the arena
-    grows super-linearly in it, so it is sized on the ACTUAL count, not on bytes).
-    The SIGMA-DEFINITE (wz) row (``rn_num`` present) uses its own
-    zeilberger-scale sizer (``srmech_infer_sigma_definite_arena_bytes``) so the
-    cheap cyclic / gosper rows never pay the MB floor."""
+    of the C rows (cyclic / sigma-gosper — rc176; sigma-definite wz — rc192;
+    sigma_multivar / sigma_q / sigma_elliptic — rc223);
+    ``max_terms`` is the largest operand's coefficient / shape-envelope count
+    (the arena grows super-linearly in it, so it is sized on the ACTUAL count,
+    not on bytes). The SIGMA-DEFINITE (wz) row (``rn_num`` present) uses its own
+    zeilberger-scale sizer (``srmech_infer_sigma_definite_arena_bytes``); the
+    rc223 rows each use their own sizer and DECLINE past the
+    SRMECH_INFER_WS_CEILING_MB ceiling (default 256) so a call never allocates
+    a multi-hundred-MB arena silently — the pure path is the decider there."""
     if not has_native_infer():
         return None
     payload = rel_json.encode("utf-8")
@@ -11731,7 +11804,27 @@ def infer_c(rel_json: str, max_terms: int = 4):
         _rel = _json.loads(rel_json)
     except (ValueError, TypeError):
         _rel = None
-    if (isinstance(_rel, dict) and "rn_num" in _rel
+    _rc223 = isinstance(_rel, dict) and (
+        "rj_num" in _rel or "qrn_num" in _rel
+        or "q_term_ratio_num" in _rel or "elliptic_term_ratio" in _rel)
+    if _rc223:
+        # rc223 exact-ℚ rows: each has its OWN shape-sized arena; past the
+        # ceiling the native path declines to the pure path (never a
+        # multi-hundred-MB allocation per call — the apagodu honor).
+        if not has_native_exact_rows():
+            return None
+        if "rj_num" in _rel:
+            _sizer = LIB.srmech_infer_sigma_multivar_arena_bytes
+        elif "qrn_num" in _rel or "q_term_ratio_num" in _rel:
+            _sizer = LIB.srmech_infer_sigma_q_arena_bytes
+        else:
+            _sizer = LIB.srmech_infer_sigma_elliptic_arena_bytes
+        ws_bytes = int(_sizer(
+            ctypes.c_size_t(len(payload)), ctypes.c_size_t(int(max_terms)),
+            ctypes.c_size_t(_max_coeff_limbs(_rel))))
+        if ws_bytes > _infer_ws_ceiling_bytes():
+            return None                       # decline to the pure path
+    elif (isinstance(_rel, dict) and "rn_num" in _rel
             and has_native_sigma_definite()):
         ws_bytes = int(LIB.srmech_infer_sigma_definite_arena_bytes(
             ctypes.c_size_t(len(payload)), ctypes.c_size_t(int(max_terms)),
@@ -11739,7 +11832,10 @@ def infer_c(rel_json: str, max_terms: int = 4):
     else:
         ws_bytes = int(LIB.srmech_infer_arena_bytes(
             ctypes.c_size_t(len(payload)), ctypes.c_size_t(int(max_terms))))
-    ws = (ctypes.c_uint8 * max(ws_bytes, 8))()
+    try:
+        ws = (ctypes.c_uint8 * max(ws_bytes, 8))()
+    except (MemoryError, OverflowError):
+        return None                           # decline to the pure path
     out_cap = 256
     out = (ctypes.c_char * out_cap)()
     out_len = ctypes.c_size_t(0)
