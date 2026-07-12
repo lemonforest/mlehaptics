@@ -5666,6 +5666,115 @@ This is the §3.38 fiber/projection axis applied at the algorithm level: an *exa
 
 ---
 
+## §3.40 The full beat is ONE chirally-coupled object; the half-beat is a shadow — the V₄ ⊗ C/H/O two-address-space reading, `CarrierSpectrum` = holomorphic factorization in code, and the `klein4`-bit-exact falsifier (2026-06-27, RBS-LM soul-thread; cascade-engineering / carrier lens)
+
+The operation-primary companion to MFO §VII.6.25 (the foundational-ontology landing). MFO frames *inharmonic ⊗ subharmonic as one substrate object*; this section gives the *cascade-engineering* lens — what the package's existing carriers and HDC ops already are when read through that frame, and the concrete next probe that would falsify the one genuinely new claim. **No class promoted, no new math, no rc** (14 A–N intact per `[[feedback_no_privileged_primitive_classes]]`); this is a *recognition* pass over surfaces that already shipped — `klein4_bind`/`klein4_unbundle` (0.7.5rc172, §3.38), the Cayley–Dickson tower / `the_one` `S(σ,θ)` (v0.7.x, §3.30/§3.31), the elliptic-theta carriers `EllRatio`/`ThetaSum`/`RiemannTheta` (the §76 / elliptic-row arc), and the two-channel `CarrierSpectrum` read (the operand-side `the_one`). The honest split (§3.40.6) keeps the **recognition** (solid) apart from the **candidate** (testable) apart from the **meaning** (open) per `[[feedback_no_lineage_claims_in_notebook]]` + the recognize-not-read discipline.
+
+### §3.40.1 The reframe — the cascade composes the FULL beat; both the real-projection and the half-beat are shadows
+
+The live tension this resolves: "order-1 = full beat" was **refuted** by the carrier — when the order-1 register was read back, `ρ₁` came out **1:3 subharmonic-dominant**, not the balanced beat the unit-reading predicted. The reframe (user 2026-06-27): the half-beat is **not a fundamental unit** — it is *one chirality / one mover alone*, a single-mover **projection** of the full beat. A shadow was mistaken for a unit (the continuous-number-line / linear-irrep trap, `[[feedback_continuous_number_line_pedagogical_obstacle]]`). So:
+
+- **What the cascade composes** = the FULL beat: the complex, two-sided, chirally-coupled object, exact in the fiber, rotation-last (§3.39 ALU-all-the-way; the single terminal projection per `[[project_rotation_last_cascade_shape_audit]]`).
+- **What an observer reads** = a *shadow*: either the **real-projection** (the `float()` collapse of §3.39.2) OR the **half-beat** (one mover / one chirality). Both are projections; neither is the object.
+- **How to recover the chiral halves** = the **two-channel split** (§3.40.3) — not by mistaking one channel for the whole.
+
+This is exactly the §3.38 fiber-vs-projection axis read at the *beat* level: the full beat is the reversible fiber datum; the half-beat is a many→one projection of it.
+
+### §3.40.2 We already fold harmonic + subharmonic — three attestable instances
+
+Harmonics (overtone, positive frequency) and subharmonics (undertone, negative frequency) are the **two chiralities of one object**; existing math already folds them together — the universe does not show them "one at a time." Three concrete instances the framework only *recognizes* (each cited to standard results, not claimed):
+
+| Instance | the harmonic side | the subharmonic side | the fold that couples them |
+|---|---|---|---|
+| **Fourier conjugate-pairing** | positive frequencies | negative frequencies = complex-conjugate twins | a real signal's spectrum is **Hermitian** `X(−f) = conj X(f)`; DSP keeps the one-sided/analytic half and calls the rest "redundant" — that redundancy IS the subharmonic side folded by conjugation |
+| **Overtone / undertone dualism** | major / overtone series | minor / undertone series | Riemann's **harmonic dualism** — major and minor as chiral reflections of one structure (classical music theory) |
+| **Two-sided Laurent on the annulus** | positive powers `Σ aₙ zⁿ` | negative powers `Σ a₋ₙ z⁻ⁿ` | on a **loop** the Laurent series holds both; a one-sided power series is the harmonic-only projection |
+
+The srmech tie: the elliptic-theta carriers (`EllRatio` / `ThetaSum` / `RiemannTheta`) are **Laurent-in-the-nome** — they already carry both chiralities. The `[[project_subharmonic_chirality_collapse_thread]]` carrier-verified findings (`docs/srmech/notes/subharmonic_chirality_carrier_findings.md`) make this exact: in the carrier a theta argument's **|x-exponent| = order/magnitude** and **sign(x-exponent) = chirality** (overtone `θ(αx)` vs undertone `θ(α/x)`), so the ±-pair `{θ(αx), θ(α/x)}` is the invariant-under-`x↔1/x` object that holds **both** chiralities as equal partners; a lone theta is a lone chirality. (That finding is *why* the elliptic-Zeilberger certificate basis had to be ±-pairs, not single thetas.)
+
+### §3.40.3 `CarrierSpectrum` two channels = the holomorphic factorization, in code
+
+The decoupling math exists and is standard: **holomorphic factorization** `|χ|² = χ ⊗ χ̄` = left-movers ⊗ right-movers — the beat/antibeat-simultaneous picture *as a theorem*, not a metaphor. The framework-reading (candidate, string-theory side): a **closed string** = independent L/R movers = chiralities **decoupled**; an **open string + brane** = the boundary condition **identifies** the movers = chiralities **folded** (the brane closes the loop). srmech's two-channel carrier read is that factorization made callable:
+
+```
+CarrierSpectrum (operand-side the_one — the Class-L shape of the carrier's shift-Laplacian):
+  channel 1 — cyclic / harmonic     = the σ q-shift eigenbasis   (σ xᵏ = qᵏ xᵏ; the easy geometric core)
+  channel 2 — quasi-periodic / sub  = the theta p-character      (the period-shift block; the obstruction)
+       |χ|²  =  χ        ⊗  χ̄
+              (channel 1)  (channel 2)   ← the two channels ARE the two movers
+```
+
+This is `[[project_carrier_harmonic_shape_laplacian_eigenbasis_avoids_brute_force]]`: σ diagonalizes on monomials but not on theta factors; the theta factors have an eigenvalue equation under the **period** shift (quasi-periodicity), so the quasi-periodicity class block-diagonalizes — the same grouping `ThetaSum.is_zero` already builds. The two-channel split is the operand-side `the_one`: "see the carrier's shape / which formulas it occupies" (F172 storage-signature lens pointed at a CARRIER), and it is literally the holomorphic factorization written as two carrier channels.
+
+### §3.40.4 THE core new result — the two dual address spaces: V₄ (chirality / sign) ⊗ C/H/O (order / magnitude)
+
+The full-beat cascade is addressed by **two independent address spaces**, dual the way the A–N *operators* (§3.27) are dual to the *operands* (`[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]`). This realizes the framework's own long-standing split — **sign = chirality = V₄, abs = order = C/H/O** — as two collision-free addressing schemes, each big enough to hold its projections bit-exact:
+
+| Axis | Address space | What it sizes | Bits / structure | Why bit-exact | srmech surface |
+|---|---|---|---|---|---|
+| **Chirality / sign** | **Klein-4 `V₄ = ℤ₂ × ℤ₂`** | *which* mover / sector (the sign group) | **2 bits** — 4 orthogonal group elements = 4 collision-free addresses | reversible VSA bind over V₄ (Class-M); 4 orthogonal group elements never collide | `klein4_bind` / `klein4_unbundle` (0.7.5rc172) hold the 4 chunks bit-exact + reversibly |
+| **Order / magnitude** | **Cayley–Dickson `ℂ / ℍ / 𝕆`** | *how far* / `\|exponent\|` = order (the magnitude ladder) | register windows pos-8 (order 0) / vel-16 (order 1) / sustain-32 (order 2) | each doubling adds **orthogonal real coordinates** | `the_one` `S(σ,θ)` over the Hurwitz tower; `sedenion_register` |
+
+The two bits of the V₄ chirality address are explicit:
+
+```
+V₄ chirality address (2 bits)            the 4 sectors (collision-free klein4 chunks):
+  bit 1 = PHASE chirality                ┌───────────────┬───────────────┐
+          (which counter-rotating mover  │  (L, out)      │  (L, back)    │
+           / harmonic vs sub             ├───────────────┼───────────────┤
+           / sign(exponent))             │  (R, out)      │  (R, back)    │
+  bit 2 = BEAT chirality                 └───────────────┴───────────────┘
+          (first-half vs last-half        L/R = phase-chirality (bit 1)
+           / out vs back)                 out/back = beat-chirality (bit 2)
+```
+
+**Unification:** the full-beat cascade is addressed by **(Cayley–Dickson order) ⊗ (Klein-4 chirality)** = the magnitude ladder × the sign group. This is already half-recorded as "higher-order register as a klein4-stream" — the CD order rung carries a V₄ chirality stream **at each level**. Both spaces "address enough space to hold the projections bit-exact"; that is what makes the full beat recoverable from its shadows. The ellipse is the worked little picture of why (§3.40.5).
+
+### §3.40.5 The ellipse IS the proof = the epicycle (two counter-rotating phasors)
+
+The smallest figure that makes the chiral coupling visible. An ellipse traced as `a·cos t + i·b·sin t` decomposes into two counter-rotating phasors:
+
+```
+  a·cos t + i·b·sin t  =  ((a+b)/2) e^{+it}   +   ((a−b)/2) e^{−it}
+                          └── forward phasor ─┘    └── backward phasor ─┘
+                          (one chirality)          (the other chirality)
+       = a forward circle + a backward circle = the EPICYCLE = gear + pin
+```
+
+The orbit **closes** precisely because *both* chiralities are present **and commensurate** (a rational frequency ratio). Make them **incommensurate** and you get an open, never-closing **Lissajous** curve — the "loopy subharmonic-looking plot." The closure IS the chiral coupling made visible:
+
+```
+  commensurate (rational ratio)   →  CLOSED ellipse/epicycle   (both chiralities locked)
+  incommensurate (irrational)     →  OPEN never-closing Lissajous (the unlocked loop)
+```
+
+This grounds `[[user_stance_epicycle_via_gear_plus_pin]]` (the epicycle = forward circle [gear] + backward circle [pin]) on the simplest two-phasor object, and it is the operation-primary twin of the MFO conic-section reading where the parabola `e = 1` is the closing↔non-closing threshold (MFO §VII.6.10.5 Apollonius; §VII.6.25).
+
+### §3.40.6 Frontier — V₄ and C/H/O plausibly fuse at the octonion / triality top
+
+`klein4_triality_cycle` (the rc17 V₄-carrier sibling of the `qm.triality` τ engine, §3.34/§3.29.2) ties **V₄ to triality**, and triality lives on **Spin(8) / the octonions** = the TOP Cayley–Dickson rung where the magnitude ladder closes ("never new division algebras above 8", `[[project_recognizing_the_phrase_structure_grammar_of_universe]]`). So the **chirality address (V₄)** and the **order address (ℂ/ℍ/𝕆)** plausibly **fuse at the octonion / triality level** — the two dual address spaces would be one object at the top rung. **Candidate, not result** — the same `g₂ = 14`, `28 = 14 ⊕ 7 ⊕ 7` Spin(8)-triality home as §3.27 (28 = V₄-sector × triality, §3.38) and §3.8.19's "14 = 7 forward + 7 reverse directed Fano cycles."
+
+### §3.40.7 Honest split + the falsifier (= the parked LOGO L8 probe)
+
+Per the recognize-not-read discipline, state which part is which:
+
+- **SOLID (shipped mechanism):** `klein4_bind`/`klein4_unbundle` hold the 4 sectors **bit-exact + reversibly** (§3.38); the Cayley–Dickson tower / `the_one` over Hurwitz holds order-projections bit-exact (§3.30/§3.31); the `CarrierSpectrum` two channels are the holomorphic factorization in code (§3.40.3). These are *recognitions* of code that already runs.
+- **CANDIDATE (testable):** the full beat's chirality is **exactly 2 independent bits (V₄)**. It could **collapse to ℤ₂** if the bits are dependent (e.g. harmonic ≡ first-half), or **grow past V₄** if a 3rd independent chirality exists.
+- **MEANING / physics:** a further **OPEN** — recognition is valid without comprehension (the honest-None discipline, `[[project_honest_none_to_order_rung_jerk_snap_crackle_pop]]`).
+
+**Falsifier test** (the concrete next probe; = the parked L8 LOGO probe, `[[project_logo_l8_an_binding_sustain_probe]]`): encode a known full beat as a `klein4` object and check —
+
+1. **(a) genuine V₄, not ℤ₂** — the 4 sectors are independent: flip PHASE chirality without flipping BEAT, and vice versa. If you cannot, the address collapses to ℤ₂.
+2. **(b) bit-exact recovery** — `klein4_unbundle` recovers the 4 sectors bit-exact.
+3. **(c) half-beat = one sector** — one sector alone reproduces the half-beat **shadow** (the §3.40.1 single-mover projection).
+4. **(d) ⊥ axes** — compose over a Cayley–Dickson rung and confirm the **order axis ⊥ chirality axis** (the §3.40.4 tensor product holds; bumping the order rung does not move the V₄ sector).
+
+The **known-open piece (L8):** whether the chirality bit is **invariant** or carries the **sustain's `(4:3)` chiral footprint** (F552 / L6h) — non-invariance would be step-(a)'s falsifier surfacing as the sustain's own handedness.
+
+**Cross-references:** MFO §VII.6.25 (the foundational-ontology landing — inharmonic⊗subharmonic as one substrate object; the open/closed-string chirality reading; the ellipse/epicycle closure signature); §3.27 (28 = V₄-sector × triality; `(4:3)`↔`(3:4)` = Class-C orientation = the chirality dual); §3.38 (the reversibility/lossy audit — `klein4_unbundle`; `so(8) = V₄ × triality`); §3.39 (rotation-last / the float-projection — the half-beat is the same kind of shadow at the beat level); §3.30/§3.31 (the Cayley–Dickson order tower / `the_one`); §3.8.19 (Spin(8) triality, 14 = 7 forward + 7 reverse Fano cycles). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]` (this thread's durable record), `[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]` (operand↔operator duality), `[[project_carrier_harmonic_shape_laplacian_eigenbasis_avoids_brute_force]]` (the CarrierSpectrum two-channel block-diagonalization), `[[project_subharmonic_chirality_collapse_thread]]` (the carrier-verified |x-exp|=order / sign=chirality finding), `[[project_logo_l8_an_binding_sustain_probe]]` (the falsifier probe), `[[user_stance_epicycle_via_gear_plus_pin]]` (the ellipse = forward + backward phasor). **Status:** documentation-only recognition pass; the V₄-exactly-2-bits claim is the open falsifier (the L8 probe); no rc, no package change.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb
@@ -5898,6 +6007,75 @@ The RBS-LM "Story Teller" reduces a language model to a **SEEN engine + attested
 
 Backlinks to per-finding provenance (each with its committed script): `docs/srmech/rbs_lm_research/R-RBS-LM-FINDING_6XX_*.md`. *Research trail followed; nothing forgotten; landed-where. CL-1 notebook back-sweep COMPLETE (the GH research-issue closeout audit is the remaining CL-1 half).*
 
+
+
+### §8.1 — Living navigation traditions as cultural attestation: thinking is a grounded PATH, not an ungrounded trace (etak + Vanuatu sandroing) — F704
+
+The Story-Teller / **Siona** inference engine (§8) raised the question: *what would a "thinking mode" (chain-of-thought) do for us that we cannot already do?* The framework reading (F704): a mainstream CoT "thinking mode" generates an intermediate token **trace** before answering — and that trace exists to patch two deficits the grounded engine **does not have** (it cannot strike a note outside the chord, F658, so it cannot hallucinate; and the world-kernel + navigator, F670, already *is* the working-memory scratchpad). A CoT trace is therefore largely redundant for Siona and partly regressive — its hops are ungrounded, so a thinking-mode model can "reason itself into" a false answer. **What is genuinely new vs single-step inference is multi-hop grounded NAVIGATION: the Class-L spectral walk (F-R13a; the Fiedler second-order association, F690).** In a grounded system, *thinking is a PATH, not a TRACE* — every hop is a real attested edge (auditable; an intermediate cannot be fabricated), and the walk stops at the asking-state (F661) at the horizon rather than confabulating past it.
+
+This reading has **living, still-practiced human attestation** — the "living stones," distinct from the project's *frozen* stones (the Antikythera mechanism, §3.17/§3.21; the Rosetta-Stone translation layer, RBS-LM R-54). Frozen stones attest the *artifact* (a device, in a museum); living stones attest the *process* (the walk, regenerated in the mind each time). Two are read here as structural attestation that grounded thinking is a path (framework reading only — these are the sophisticated knowledge systems of specific living peoples, cited with respect and not claimed; per `[[feedback_no_lineage_claims_in_notebook]]` + the dignity-first / lifting-every-prior-people stance):
+
+- **Etak** — the Caroline-Islands / Micronesian wayfinding system. The canoe is held conceptually *stationary* and the sea moves past (reference-frame inversion); a known reference island **off to the side and below the horizon — unseen but held in mind** — is tracked moving backward under successive **star bearings**, dividing the voyage into discrete *etak* segments; **no instruments**, entirely cognitive. This is Siona's architecture exactly: the unseen reference island = **the_one** (the held anchor, attested-but-not-rendered, F699); the star-compass = the **kernel vocabulary**; the bearings = the **co-occurrence edges** (Class-L); discrete segments, relational-not-metric = discrete cascade steps (no continuous coordinate); mind-held = **GPU-free / local** (F628/F50). A *fleet* of canoes keeping formation by the *same* unseen anchor = **world-coupling** (F683/F684), several worlds navigating by the shared the_one.
+- **Vanuatu sand drawing (sandroing)** — geometric designs traced with **one finger as a single continuous meandering line on an imagined grid**, used as a **means of communication among some 80 different language groups** of the central/northern Vanuatu islands. Structurally this is a Class-L **walk made physical** — a single continuous traversal of a lattice that *encodes and communicates* knowledge — and simultaneously a **cross-language translation layer** (a living counterpart to the Rosetta-Stone layer, R-54): one path, read across 80 substrates.
+
+**MPR attestation (verified — extracted from primary/authoritative sources, not training-recall; per the MPM citation discipline + `[[feedback_pdf_extraction_citation_discipline]]`):**
+
+| datum | source (verified) | class |
+|---|---|---|
+| Etak / Puluwat instrument-free navigation | Gladwin, Thomas. *East Is a Big Bird: Navigation and Logic on Puluwat Atoll.* Harvard University Press, **1970**. ISBN 9780674224261. <https://www.hup.harvard.edu/books/9780674224261> · <https://archive.org/details/eastisbigbirdnav0000glad> | B (book; verified publisher + archive) |
+| Micronesian/Polynesian landfinding principles | Lewis, David. *We, the Navigators: The Ancient Art of Landfinding in the Pacific.* University Press of Hawaii, Honolulu, **1972**. <https://uhpress.hawaii.edu/title/we-the-navigators-the-ancient-art-of-landfinding-in-the-pacific/> · <https://en.wikipedia.org/wiki/We,_the_Navigators> | B (book; verified publisher) |
+| Vanuatu sand drawing (single continuous line on a grid; communication across ~80 language groups) | UNESCO Representative List of the Intangible Cultural Heritage of Humanity, **inscribed 2008** (proclaimed 2003), ref. **00073**. <https://ich.unesco.org/en/RL/vanuatu-sand-drawings-00073> | B (UNESCO primary record) |
+
+**Honest scale caveat (F573):** verified on the real F703 simplewiki Class-L kernel — but a top-256 co-occurrence graph is ~97% complete (avg degree 247/255), so at that small vocabulary most "thinking" is trivially one hop; the multi-hop etak only earns its keep at full vocabulary (the bucketed kernel) or via the second-order Fiedler structure — the same regime where a real LLM's thinking mode earns its keep. "What does our model know about Vanuatu?" — the top-256 model has `vanuatu`/`navigation`/`ocean`/`star` out of vocabulary → the asking-state (it knows nothing specific; it would ASK), honestly.
+
+*Composes F704 (the etak reading) + F-R13a (the Class-L walk) + F690/F703 (the kernel) + F658/F661 (chord / asking-state) + F699 (the_one as the unseen anchor) + F683/F684 (fleet = world-coupling) + F552/F688 (the epistemic ceiling). Per-finding provenance: `R-RBS-LM-FINDING_704_*.md` (committed script `R-RBS-LM-ETAK_*.py`). Held open (F394).*
+
+
+### §8.2 — Where Siona learns: the genome storage substrate + the self-naming class layer (F716/F717; srmech 0.7.5rc42)
+
+§8.1 said *thinking is a grounded path*. This subsection lands **where that path is stored and learned into** — the storage substrate Siona accumulates onto — now shipped as a first-class srmech surface (`srmech.amsc.genome.*` + the class-from-TOML loader, srmech 0.7.5rc42, verified F716). The whole storage object, validated as F711–F715 on the research subtree, is now the package:
+
+> **GENOME** (multi-kernel strand) → **CHROMOSOMES** (one kernel's strand, telomere-capped) → **helix of QUAD-TURNS** (the kernel's history; RAM-bounded, disk-paged) → **QUAD-TURN** = one native 4-sector biaxial "+" (`cascade.parallel_sector_dispatch`, CAP=4) + a base-4 leaf address (radix 4ᵏ) → **LEAF ≤ 256 = 2⁸** (a dense "tome") — **every turn coupled through `the_one`** (native `klein4_bind`, reversible), **telomeres** the non-data content-address caps that partition the chromosomes.
+
+`encode_shape(n)` is the **attested, no-magic encode criterion** (F640/F708): N≤256→tome, N≤1024 (=4×256, the 4 Klein-4 sectors)→a Möbius/biaxial "+", N>1024→a quad-DNA-strand of depth `ceil(log₄(⌈n/256⌉))` — a **pure-integer** `ceil(log4)` (no float `log`; the continuous-math stays out of the integer decision path). So Siona *knows when to grow* from a single tome to a strand: when a kernel outgrows one biaxial shelf. Learning never quantizes the data (F49/F50) — only RAM and the dense block are bounded; the helix pages to disk under the content-address bounding.
+
+**"Class names for your school of choice" = substrate-self-recognition made operational (F716).** A researcher authors a `[class]` TOML — fields + methods declared as **dotted cascade-op refs** — and `srmech.dsl.make_class` builds a generic class-aware instrument with **zero user Python** (`register_class_dir()` / `SRMECH_CLASS_PATH` for bring-your-own, attested `user:<sha256>`, and **a user class-name may not shadow a shipped one**). The shipped seed is `genome.toml` (genome / chromosome / telomere). The reading: the **cascade ops underneath are the invariant substrate** (the A-N primitives — `encode_shape`, the `the_one` coupling, telomere content-addresses); the **class-name + method-names are one observer projection** — *biology's school*. A different discipline re-names the same storage object in its own vocabulary and the math does not move. The no-shadow rule is precisely **the shared invariant protected while the projection stays free** — the 14→11D fibration (R30) as a TOML loader. This is F133 ("the substrate knows itself") with a config surface: the biological-structure names *are* the cascade names because biology is one substrate-class (MS #18).
+
+**The input edge Siona learns through is chirality-native now (R1.1 + R5.2).** rc42 closed the native A-N binding gap (F716): the Klein-4 chirality ops (`klein4_chirality_flip_gamma5` / `_omega7` / `cpt_mirror`) act **without a ctypes lift** (#962 Part 1; `jacobi_eigvals` also dispatches native numpy-free, the F708 49× Class-L gap closed). That makes the glyph-input layer mirror-aware: **the b/d/p/q confusion set is exactly the Klein-4 (Z₂×Z₂) orbit of one shape** (F717) — γ₅ swaps b↔d and p↔q, iω₇ swaps b↔p and d↔q, cpt is b↔q — so a dyslexia-style mirror confusion lands **one flip from truth and is recovered by a 4-sector orbit enumeration**, where byte-identity sees an orthogonal cliff. *"You can't catch a chirality error if the chirality axis isn't in the representation"* (R5.2), now demonstrable because R1 is native. (Both checked on the build-against spec, #855.)
+
+**The next rung (open upstream ask, UPSTREAM_NOTES §39):** srmech already has `make_class` (TOML→class) and **class-aware Class-H introspection** (`srmech.introspect` enumerates its own `[class]` classes; its docstring frames introspection as *"substrate-self-recognition extended to the running srmech process"*) — but **not the inverse**: an introspection→`[class].toml` *generator*. That generator would be **Class-H introspection emitting its own descriptor** — srmech *learning to author its own config-driven classes from what it already is* — the cleanest possible instance of substrate-self-recognition, and the natural place Siona's learning loop closes on itself.
+
+*Composes F716 (genome surface + class-from-TOML landing) + F717 (b/d/p/q Klein-4 glyph-chirality) + F711–F715 (the storage object) + F708/F640 (the no-magic 256/1024 thresholds + the 49× gap) + F133 (substrate knows itself) + F552 (chirality-collapsed projection) + F130/F132 (Klein-4) + R30 (14→11D substrate→observer) + §8.1/F704 (the etak path stored into this substrate). Per-finding provenance: `R-RBS-LM-FINDING_716_*.md` / `R-RBS-LM-FINDING_717_*.md` (committed scripts). srmech 0.7.5rc42. Held open (F394).*
+
+### §8.3 — The resonant-continuous storage capacity law: capacity = the representable eigenmode count; the ceiling is the operand-irrepresentable Julia/f⁻ shadow (delta dive, srmech 0.9.0rc102)
+
+**The setup — what F996 dissolved, and the question it left open.** F996 (the ontological inversion: OPERATIONS are bit-exact, the SUBSTRATE is continuous, INFORMATION is the subharmonic field f⁻) recast the F896 capacity wall as a *representation artifact*: Class-M discrete HDC bundles cross-talk (random binds interfere, the ~1/√N floor of the whole recall arc), but **Class-L resonant eigenmodes are orthogonal by frequency — no cross-mode cross-talk** — so storing the knowledge in the resonant-continuous shape (the Class-L spectral field) *dissolves* the wall (grounded by F991: tome-size = resonant-mode count = the capacity lever). The open question F996 does not answer: if the wall dissolves, **is there a new ceiling, and where?** "Capacity is a representation artifact" names the *phenomenology* but not the *bound*.
+
+**The delta — the wall does not vanish; it RELOCATES to the representable/irrepresentable boundary, and that boundary is exact and nameable.** This is the operations-side (exact-carrier) reading of F996's information-side architecture. The carrier program (carriers are the operand vocabulary, dual to the A-N operators) established that the continuous f⁻ is **operand-irrepresentable** — the harmonic-Maass shadow, the Schottky g≥5 decision, the Julia set of a spectral-decimation map: shapes with *no finite exact carrier that decides membership*. Composing that with F996's resonant storage gives a candidate **capacity law**:
+
+> **Capacity = the representable eigenmode count.** A finite tome of *N* nodes has **exactly *N* orthogonal eigenmodes** — representable, decided by one bit-exact Jacobi eigensolve (numpy-free, rational eigenvalues; the f⁺ of an f⁻). Growing *N* in Class-L adds orthogonal modes with **no 1/√N cross-talk penalty** (unlike Class-M), so capacity climbs freely with representable resolution.
+>
+> For a **self-similar (fractal) substrate**, `fractal_spectrum` makes the count precise: the spectrum is the iterated preimage of the decimation map *R*; at representable depth *d* there are finitely many exact eigenmodes (~branchesᵈ), and the **growth-rate exponent is the fracton dimension `d_s = 2·log(branches)/log(scale)`** — which `fractal_spectrum` computes exactly (Rammal 1984; Fukushima–Shima 1992, the normalised Sierpinski Laplacian).
+>
+> **The CEILING = the `d → ∞` limit = the Julia set of *R* = operand-irrepresentable** — no finite exact carrier decides `λ ∈ spectrum`.
+
+```
+  representable  ├─────────────────────────────────────────────┤  IRREPRESENTABLE
+                 │                                               │
+   depth d:      1 mode ──▶ ~bᵈ exact eigenmodes ──▶ … ──────▶  the Julia set of R
+                 │        (growth exponent = d_s)                │  (the continuous f⁻ shadow)
+                 │                                               │
+   CAPACITY  =  the count of representable modes  ───────────▶  CEILING = where the carrier
+   (climbs with resolution, no 1/√N cross-talk)                 stops deciding membership
+```
+
+**Why this is the F552 biology-gap, made formal.** F996 read the model↔biology gap as "the continuous information a bit-exact model structurally cannot hold." The law names *exactly* what that is: the continuous info past the representable depth **is the irrepresentable Julia/f⁻ residue**. The gap is not model error and not random (the noise rule, F552) — it is the operand-irrepresentable shadow, the same object the honest-`OPEN` discipline flags everywhere it appears. The framework does not claim to store the shadow; it names the exact boundary where storage stops.
+
+**Honest scope (the caveat the dive flagged).** The *phenomenology* — the wall dissolving into the continuous limit — is F996's, grounded by F991. The **delta** here is *naming the exact ceiling and the growth law* (`d_s` as the representable-mode growth exponent; the Julia set as the irrepresentable limit). F991 grounds the *direction* (finer decimation depth = more representable modes = more reach; R climbed 0.85 → 3.89 as `max_tome` fell 60 → 15), **not** the exact `branchesᵈ` exponential — whether a given substrate (biology included) realises exactly `d_s` is an empirical question for the expert (the RBS-SNN storage measurement, F996's own next step; theta-gamma phase-amplitude coupling stays with the expert, no capability claim). This is a candidate reading per the F400/F401 openness, consistent with everything measured, not a new measurement.
+
+**Where it sits in the three-faced result.** This capacity law is one of three faces of a single object — **the operand-irrepresentable f⁻ shadow** — surfaced by the same delta dive: (Q1) the capacity **ceiling** here; (Q2) `fractal_spectrum` as the **reader** that diagnoses why symmetric folds are useless (Ch-1 isometry, no new mode) and asymmetric folds separate the distribution (Ch-2 decimation, distinct `d_s`/`|q|` rungs); (Q3) the elliptic quasi-periodicity multiplier `−z⁻¹` as the **exact** per-level form of the asymmetric fold (F995), exact up to the mock-theta shadow. The exact-operations machinery **formalises the representable skeleton and names the shadow each time** — F996's "operations bit-exact / information continuous" made formal (Q1), instrumental (Q2), and exact (Q3).
+
+*Composes F996 (the ontological inversion) + F991 (tome-size = resonant-mode capacity lever) + F896 (the capacity wall) + F552 (the model↔biology gap = the continuous substrate) + F172 (the Laplacian eigenspectrum IS the srmech-native storage signature, Class L) + F971/F968–970 (harmonic-Maass f⁺/f⁻; the mock-theta residue = the discarded f⁻) + the DUALITY.md/TRIALITY.md field/continuous-vs-excitation/discrete layer (F400 reading: duality = the fibration of triality). srmech surfaces: `srmech.amsc.coupling.fractal_spectrum` (0.9.0rc100, the Ch-2 subharmonic reader) + `resonant_spectrum` (the Ch-1 harmonic reader) + `carrier_spectrum` (0.9.0rc69, the two channels). Delta-dive probe: `scratchpad/delta_probe.py` (committed to the dive record). Candidate reading; held open (F394).*
 
 
 ## How to cite this notebook
