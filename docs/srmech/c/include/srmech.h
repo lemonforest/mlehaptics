@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc224"
-#define SRMECH_VERSION       "0.9.0rc224"
+#define SRMECH_VERSION_PRE   "rc225"
+#define SRMECH_VERSION       "0.9.0rc225"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -9883,6 +9883,81 @@ const srmech_carrier_entry_t *srmech_carrier_registry_find(const char *name);
  * returns SRMECH_ERR_NULL_ARG. */
 srmech_status_t srmech_carrier_schema(char *buf, size_t buf_len,
                                       size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * RESPONSION (stored-relationship) introspection registry (0.9.0rc225)
+ *
+ * The k=3 completion of the introspection triad (user design
+ * 2026-07-12): the rc184 tool registry exposes the OPS (the A-N
+ * operator verbs) and the rc205 carrier registry exposes the OPERANDS
+ * (the carrier nouns) — the k=2 pair of NODES. This table exposes the
+ * RESPONSIONS: the EDGES binding them — "this op, on this operand,
+ * answers THIS way" (op (x) operand (x) responsion; srmech =
+ * Stored-RELATIONSHIP Mechanism). Each entry is keyed by the
+ * "<operator>|<carrier>" edge (operator = a tool-registry name,
+ * carrier = a carrier-registry name — never a bare-name flat list) and
+ * carries one-or-more responsions: the kind (propagator / resolvent /
+ * closed_form / open_sustain / trace / response_curve), the regime
+ * (continuous_spectral / discrete_algebraic — the two faces of ONE
+ * responsion), the response form, and the honest verified-or-OPEN
+ * status (the OPEN rows are the F929 dispatch _OPEN_HINTS residues,
+ * verbatim).
+ *
+ * The table lives in the GENERATED translation unit
+ * `srmech_responsion_registry.c` (regenerate with
+ * c/tools/gen_responsion_registry.py); the accessors + the
+ * whole-schema assembler live in srmech_responsion_schema.c.
+ *
+ * srmech_responsion_schema emits bytes BYTE-IDENTICAL to CPython
+ *   json.dumps(srmech.amsc.responsion_schema._pure_responsion_schema(),
+ *              sort_keys=True, separators=(",", ":"))
+ * (each per-edge payload is baked pre-canonical; rows are in
+ * byte-sorted key order == the sort_keys key order, so the assembler is
+ * plain concatenation). This byte-identity IS the hash-ratchet contract
+ * locking the C table to the Python SSoT.
+ *
+ * ABI-additive: new symbols + one struct, so SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* One responsion EDGE in the registry. All string pointers are
+ * NUL-terminated ASCII (edge keys are dotted identifiers); `entry_json`
+ * is the per-edge payload — a JSON ARRAY of responsion objects
+ * {"answers_with","carrier","kind","operator","regime","status"} — as
+ * its pre-canonical compact-ASCII fragment (`entry_len` bytes,
+ * excluding the NUL). */
+typedef struct {
+    const char *key;           /* "<operator>|<carrier>" (the edge key) */
+    const char *op_name;       /* the operator ref (a tool-registry name) */
+    const char *carrier;       /* the carrier ref (a carrier-registry name) */
+    size_t      n_responsions; /* responsions riding this edge           */
+    const char *entry_json;    /* pre-canonical compact JSON array       */
+    size_t      entry_len;     /* bytes in entry_json (excluding the NUL) */
+} srmech_responsion_entry_t;
+
+/* The compiled-in registry table + count (defined in the generated
+ * srmech_responsion_registry.c). */
+extern const srmech_responsion_entry_t srmech_responsion_registry_table[];
+extern const size_t srmech_responsion_registry_len;
+
+/* Number of registered responsion edges in the const table. */
+size_t srmech_responsion_registry_count(void);
+
+/* The entry at `index`, or NULL if `index` is out of range. */
+const srmech_responsion_entry_t *srmech_responsion_registry_get(size_t index);
+
+/* The entry whose edge `key` equals `key` (bounded linear scan), or
+ * NULL for an unknown key / a NULL `key`. `key` must be NUL-terminated. */
+const srmech_responsion_entry_t *srmech_responsion_registry_find(
+    const char *key);
+
+/* Assemble the whole responsion schema as canonical JSON (see
+ * byte-identity contract above) into `buf` (capacity `buf_len`; NO
+ * trailing NUL) and set *out_len to the byte count. If `buf` is NULL
+ * this is a SIZE-QUERY (nothing written; *out_len receives the exact
+ * full length). A too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW;
+ * `out_len == NULL` returns SRMECH_ERR_NULL_ARG. */
+srmech_status_t srmech_responsion_schema(char *buf, size_t buf_len,
+                                         size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * qm CONSTANT-matrix builders (0.9.0rc213, #755)

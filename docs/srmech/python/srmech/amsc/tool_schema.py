@@ -4274,6 +4274,55 @@ def _register_primitive_class_tools() -> None:
                       "names], 'produces': [tool names]}}}"),
         ),
         # ────────────────────────────────────────────────────────────
+        # rc225 (user design 2026-07-12): the RESPONSION (stored-
+        # relationship) introspection surface — the k=3 completion of
+        # the introspection triad. tool_schema exposes the OPS (verbs),
+        # carrier_schema the OPERANDS (nouns) — the k=2 pair of NODES;
+        # responsion_schema exposes the EDGES binding them: "this op,
+        # on this operand, answers THIS way" (op⊗operand⊗responsion,
+        # F1131/F1186 — the relationships the Stored-RELATIONSHIP
+        # Mechanism is named for, previously un-introspectable).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.responsion_schema.responsion_schema",
+            owner="srmech", category="responsion_schema",
+            summary="The RESPONSION (stored-relationship) introspection "
+                    "registry (rc225; user design 2026-07-12) — the k=3 "
+                    "completion of the introspection triad: ops (tool_"
+                    "schema) + operands (carrier_schema) are the k=2 pair "
+                    "of NODES; the responsion is the EDGE that binds them "
+                    "— this op, on this operand, answers THIS way. Keyed "
+                    "by the '<operator>|<carrier>' EDGE (operator = a real "
+                    "tool_schema key, carrier = a real carrier_schema key "
+                    "— never a bare-name flat registry), each edge carries "
+                    "one-or-more responsions {'operator', 'carrier', "
+                    "'kind', 'regime', 'answers_with', 'status'}. TWO "
+                    "REGIMES OF ONE RESPONSION held in unity: "
+                    "discrete_algebraic = the F929 reduce-back rows "
+                    "(gosper/zeilberger/wz_certificate, apagodu_"
+                    "zeilberger, q_*, elliptic_wz_certificate, "
+                    "multivariate_elliptic_jackson, resonant_spectrum, "
+                    "the_one — operand → verified closed form; the OPEN "
+                    "residues ride the infer router with answers_with "
+                    "VERBATIM from dispatch._OPEN_HINTS, the honest F934 "
+                    "sustain); continuous_spectral = the response-function "
+                    "family of a generator L on an excitation u0 "
+                    "(laplacian.responsion's propagator e^{-zL}·u0 ⊗ "
+                    "resolvent (zI-L)^{-1}·u0 LAPLACE-DUAL PAIR on one "
+                    "edge, propagate, heat_trace, ground_state_flux_"
+                    "response). The genome tie-back: storage = carrier, "
+                    "query = op excite, response = responsion. Native-"
+                    "dispatched to the C peer srmech_responsion_schema "
+                    "over the compiled-in srmech_responsion_registry "
+                    "const table (canonical JSON byte-identical to the "
+                    "pure path — the sha256 hash-ratchet); pure fallback "
+                    "complete → composes_c. numpy-free; no float math.",
+            parameters=(),
+            returns=R("dict",
+                      "{'<operator>|<carrier>': [{'operator', 'carrier', "
+                      "'kind', 'regime', 'answers_with', 'status'}, ...]}"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # rc117 (dives #718/#719): OPERATORS⊗OPERANDS as ONE addressable
         # object — the op-carrying carrier (srmech.amsc.op_provenance).
         # The value of an inexact-frontier op is a PROJECTION; the exact

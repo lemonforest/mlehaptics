@@ -26,7 +26,7 @@ Covers:
       max_degree → ValueError, never a silently degraded tolerance);
   (g) contracts (bad edges / u0 mismatch / tol / max_degree / n = 0 /
       L = 0), read-only inputs, and registration (ToolEntry;
-      tools.total == 412; LAPLACIAN_OPS).
+      tools.total == 413; LAPLACIAN_OPS).
 
 numpy-free; the op under test uses no ``abs()`` (Class-K sign-branch /
 magnitude-squares).
@@ -395,7 +395,7 @@ def test_registration_and_count():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.laplacian.propagate_sparse" in names
-    assert len(get_tool_schema().tools) == 412
-    assert srmech.describe()["tools"]["total"] == 412
+    assert len(get_tool_schema().tools) == 413
+    assert srmech.describe()["tools"]["total"] == 413
     assert "propagate_sparse" in L.LAPLACIAN_OPS
     assert "propagate_sparse" in L.__all__
