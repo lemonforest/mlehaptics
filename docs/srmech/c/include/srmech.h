@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc220"
-#define SRMECH_VERSION       "0.9.0rc220"
+#define SRMECH_VERSION_PRE   "rc221"
+#define SRMECH_VERSION       "0.9.0rc221"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6562,6 +6562,54 @@ srmech_status_t srmech_factor_integer_poly(
     const srmech_bigint_t *coeffs, int ncoeff, srmech_bigint_t *out_coeffs,
     int *out_degs, int *out_mults, int *out_nfac, int *out_capped,
     void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_lll_reduce — EXACT-ℚ LLL lattice-basis reduction (the C peer of
+ * srmech.amsc.cascade.matrix_cascades.lll_reduce; the foundation for a future
+ * van Hoeij polynomial-factorization knapsack). Classic Lenstra–Lenstra–Lovász
+ * (1982): Gram–Schmidt orthogonalization in EXACT ℚ over srmech_bigint (μ_{i,j},
+ * ‖b*_i‖² as num/den pairs), size reduction by exact nearest-integer rounding of
+ * μ (round(a/b) = floor((2a+b)/(2b)); the |μ| ≤ 1/2 guard a Class-K sign branch
+ * on 2·|num| vs den — never an ALU abs), and the Lovász swap on the exact ℚ
+ * condition ‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖². Integer-in, integer-out;
+ * NO float, NO libm. The GSO is recomputed from the current integer basis each
+ * outer step (a pure function of the basis → byte-identical to the Python pure
+ * body, which is the parity oracle + the no-native fallback).
+ *
+ * `basis`  : m*n input row-major integer matrix (m rows × n cols; the lattice
+ *            basis — an INDEPENDENT basis). Each srmech_bigint an exact integer.
+ * m, n     : rows / cols (m >= 0, n >= 0). m <= 1 copies the input to `out`.
+ * delta_*  : the Lovász parameter δ = delta_num/delta_den, an exact rational in
+ *            (1/4, 1] (delta_num*4 > delta_den && delta_num <= delta_den &&
+ *            delta_den > 0), else SRMECH_ERR_BAD_INPUT.
+ * out      : m*n row-major integer matrix (caller-owned; each srmech_bigint
+ *            pre-bound to >= srmech_lll_reduce_entry_cap limbs) — the reduced
+ *            basis, same lattice (unimodular; det = ±1).
+ * ws,ws_len: caller arena (>= srmech_lll_reduce_ws_bound BYTES; 8-byte-aligned).
+ *
+ * Errors: SRMECH_ERR_NULL_ARG (a required pointer NULL with m*n > 0);
+ * SRMECH_ERR_BAD_INPUT (δ out of range, or a linearly dependent / degenerate
+ * basis — a vanishing ‖b*_j‖²); SRMECH_ERR_OVERFLOW (arena / out slot too small
+ * → the Python falls back to its byte-identical pure body). Additive symbols ->
+ * SRMECH_ABI_VERSION unchanged (stays 4).
+ * ------------------------------------------------------------------ */
+
+/* Per-entry limb cap the caller must give each srmech_bigint in the `out`
+ * matrix (and internally each working carrier). `maxbits` = the max bit length
+ * of any input entry. Generous determinant-Hadamard envelope; overflow is a
+ * clean SRMECH_ERR_OVERFLOW, never a silent wrap. */
+size_t srmech_lll_reduce_entry_cap(int m, int n, int maxbits);
+
+/* Minimum `ws_len` BYTES: the working integer basis (m*n) + the μ matrix (m*m,
+ * num+den) + the ‖b*‖² vector (m, num+den) + the scalar Q carriers + the
+ * gcd/divmod scratch tail, each at the entry cap. 8-byte-aligned uint32 arena. */
+size_t srmech_lll_reduce_ws_bound(int m, int n, int maxbits);
+
+/* The reduction. See the block comment above. */
+srmech_status_t srmech_lll_reduce(
+    const srmech_bigint_t *basis, int m, int n,
+    int32_t delta_num, int32_t delta_den,
+    srmech_bigint_t *out, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_unary_theta — the EXACT-INTEGER q-series of a UNARY THETA SERIES (the

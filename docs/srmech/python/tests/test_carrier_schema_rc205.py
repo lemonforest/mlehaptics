@@ -24,7 +24,7 @@ Pins:
   5. **Codegen idempotence + purity.** Re-running gen_carrier_registry.py
      reproduces the checked-in .c exactly (drift catcher); the generated
      file is pure ASCII (MSVC-safe).
-  6. **Registration.** The ToolEntry exists; tools.total == 411; the Rosetta
+  6. **Registration.** The ToolEntry exists; tools.total == 412; the Rosetta
      row is composes_c (CEIL_NON_COMPUTE_OWED untouched at 0).
   7. **The carrier-coverage drift ratchet.** Every srmech carrier-class token
      appearing in a ToolEntry type string is either IN the registry or on the
@@ -285,13 +285,13 @@ def test_generated_table_holds_every_carrier() -> None:
 
 # ── 6. registration ───────────────────────────────────────────────────────────
 
-def test_tool_entry_registered_and_total_is_411() -> None:
+def test_tool_entry_registered_and_total_is_412() -> None:
     schema = get_tool_schema()
     entry = schema.lookup("srmech.amsc.carrier_schema.carrier_schema")
     assert entry is not None
     assert entry.category == "carrier_schema"
     assert "DUAL of tool_schema" in entry.summary
-    assert len(schema.tools) == 411
+    assert len(schema.tools) == 412
 
 
 def test_rosetta_row_is_composes_c() -> None:

@@ -1461,6 +1461,28 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_faddeev_leverrier.restype = ctypes.c_int
 
+    # LLL lattice-basis reduction (v0.9.0rc221) — exact-ℚ Lenstra–Lenstra–Lovász
+    # over caller-arena srmech_bigint; the van Hoeij knapsack foundation. Backs
+    # matrix_cascades.lll_reduce; hasattr-guarded (pre-rc221 lib).
+    #   size_t srmech_lll_reduce_entry_cap(int m, int n, int maxbits)
+    #   size_t srmech_lll_reduce_ws_bound(int m, int n, int maxbits)
+    #   int srmech_lll_reduce(const bigint *basis, int m, int n,
+    #       int32 delta_num, int32 delta_den, bigint *out, void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_lll_reduce"):
+        lib.srmech_lll_reduce_entry_cap.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        lib.srmech_lll_reduce_entry_cap.restype = ctypes.c_size_t
+        lib.srmech_lll_reduce_ws_bound.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_int]
+        lib.srmech_lll_reduce_ws_bound.restype = ctypes.c_size_t
+        lib.srmech_lll_reduce.argtypes = [
+            ctypes.POINTER(_SrmechBigint), ctypes.c_int, ctypes.c_int,
+            ctypes.c_int32, ctypes.c_int32,
+            ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_lll_reduce.restype = ctypes.c_int
+
     # Sturm real-eigenvalue ISOLATION (v0.9.0rc162; Qalg TAIL Batch 6) — the exact
     # ROOTS of the char-poly: char_poly -> Yun square-free -> Sturm sign-sequence
     # isolation -> rational bisection, returning the real eigenvalues as exact
@@ -7608,6 +7630,66 @@ def _intvec_blank_array(n, cap):
         arr[_i] = bi
         keep.append(kb)
     return arr, keep
+
+
+def has_native_lll() -> bool:
+    """True iff the rc221 exact-ℚ LLL lattice-reduction kernel is loaded + bound.
+    False on a no-C / pre-rc221 lib — the pure-Python ``_lll_reduce_pure`` in
+    ``srmech.amsc.cascade.matrix_cascades`` is the complete, byte-identical
+    alternative (and the parity oracle): both run the SAME classical LLL over
+    EXACT rationals, so the reduced integer basis is identical."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_lll_reduce")
+            and hasattr(LIB, "srmech_lll_reduce_ws_bound")
+            and hasattr(LIB, "srmech_lll_reduce_entry_cap"))
+
+
+def lll_reduce_c(basis, delta):
+    """Native exact-ℚ LLL reduction of the integer lattice basis ``basis`` (a list
+    of ``m`` equal-length int row-vectors) with Lovász parameter ``delta`` = the
+    exact rational pair ``(num, den)`` via ``srmech_lll_reduce`` over a caller
+    arena. Returns the reduced basis as a ``list[list[int]]`` — BYTE-IDENTICAL to
+    the pure ``_lll_reduce_pure`` (same algorithm, exact arithmetic) — or ``None``
+    on a no-C / pre-rc221 lib, a delta out of range, an arena OVERFLOW, or a
+    degenerate (linearly dependent) basis → the caller's pure oracle handles it."""
+    if not has_native_lll():
+        return None
+    rows = [[int(x) for x in r] for r in basis]
+    m = len(rows)
+    if m == 0:
+        return []
+    n = len(rows[0])
+    for r in rows:
+        if len(r) != n:
+            return None
+    dn, dd = int(delta[0]), int(delta[1])
+    if dd <= 0 or dn > dd or dn * 4 <= dd:
+        return None
+    flat = [v for r in rows for v in r]
+    maxbits = 1
+    for v in flat:
+        bl = v.bit_length()
+        if bl > maxbits:
+            maxbits = bl
+    ecap = int(LIB.srmech_lll_reduce_entry_cap(
+        ctypes.c_int(m), ctypes.c_int(n), ctypes.c_int(maxbits)))
+    ws_len = int(LIB.srmech_lll_reduce_ws_bound(
+        ctypes.c_int(m), ctypes.c_int(n), ctypes.c_int(maxbits)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    in_arr, ka = _intvec_make_array(flat if flat else [0], ecap)
+    out_arr, kb = _intvec_blank_array(max(m * n, 1), ecap)
+    rc = LIB.srmech_lll_reduce(
+        in_arr, ctypes.c_int(m), ctypes.c_int(n),
+        ctypes.c_int32(dn), ctypes.c_int32(dd), out_arr,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (ka, kb)
+    if rc != SRMECH_OK:
+        return None
+    result = []
+    for i in range(m):
+        result.append([_bigint_to_int(out_arr[i * n + j]) for j in range(n)])
+    return result
 
 
 # ----------------------------------------------------------------------
