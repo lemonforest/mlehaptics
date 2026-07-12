@@ -12,10 +12,14 @@
  *      square-free mod p; factor f mod p in 𝔽_p[x] (distinct-degree then
  *      Cantor–Zassenhaus equal-degree, over a DETERMINISTIC xorshift64 rng that
  *      reproduces the Python rng stream byte-for-byte); Hensel-lift the mod-p
- *      factors to mod p^k with p^k >= 2·B+1 (B = the Mignotte coefficient bound);
- *      recombine over increasing subset sizes (product mod p^k, symmetric
- *      integer reps, leading-coeff cofactor, exact ℤ trial-division) guarded by a
- *      subset-size cap;
+ *      factors to mod p^k with p^k >= 2·B+1 (B = the Mignotte coefficient
+ *      bound; raised to the rc222 van Hoeij plan's k_need when the knapsack
+ *      may engage); recombine PHASED (rc222): subset sizes <= 3 first, then
+ *      the van Hoeij LLL knapsack on any large remainder (vh_recombine — ONE
+ *      polynomial-time srmech_lll_reduce), then the full increasing-subset
+ *      walk (product mod p^k, symmetric integer reps, leading-coeff cofactor,
+ *      exact ℤ trial-division) ONLY if the knapsack declines — guarded by a
+ *      subset-size cap; every phase emits byte-identically;
  *   3. merge identical factors + sort by (len, coeffs).
  *
  * The mod-p arithmetic is plain u64 (p < 100000, so every product < 2^34); the
@@ -63,6 +67,29 @@
 
 /* The recombination subset-size cap (mirrors the pure subset_cap=18). */
 #define FAC_SUBSET_CAP 18
+
+/* rc222 — van Hoeij LLL knapsack recombination (M. van Hoeij, "Factoring
+ * polynomials and the knapsack problem", J. Number Theory 95 (2002) 167-189;
+ * attested construction: docs/srmech/notes/rc222_vanhoeij_attestation.md).
+ * VH_MIN_N mirrors the pure _VH_MIN_FACTORS; VH_MAX_N is the NATIVE lattice
+ * cap (the pure Python path has no cap — above it the native path honestly
+ * runs the subset walk); VH_S_MAX mirrors the pure _VH_S_MAX trace cap. */
+#define VH_MIN_N 8
+#define VH_MAX_N 32
+#define VH_S_MAX 8
+
+/* van Hoeij scalar-carrier slots (each c->cap limbs, carved with the ctx). */
+#define VH_SC_PE    0             /* p^e (the uniform cut window)          */
+#define VH_SC_PB(i) (1 + (i))     /* p^{b_i} cut floors (VH_S_MAX slots)   */
+#define VH_SC_P(i)  (9 + (i))     /* Newton power sums P_{i+1}             */
+#define VH_SC_LP    17            /* lead^i mod m running power            */
+#define VH_SC_W0    18            /* work registers                        */
+#define VH_SC_W1    19
+#define VH_SC_W2    20
+#define VH_SC_W3    21
+#define VH_SC_W4    22
+#define VH_SC_W5    23
+#define VH_SC_N     24
 
 /* The Python xorshift64 rng seed constant (byte-identity: same stream). */
 #define FAC_RNG_SEED UINT64_C(0x2545F4914F6CDD1D)
@@ -343,6 +370,20 @@ typedef struct fac_ctx {
     int *irr_len; int irr_n;
     int *rem_idx; int rem_n;  /* recombination remaining indices           */
     int *combo;               /* recombination position combo (size slots) */
+    /* ---- rc222 van Hoeij state ---- */
+    int k_exp;                /* Hensel exponent: mod = q^k_exp            */
+    int vh_avail;             /* the vh arena block was carved             */
+    int vh_plan_ok;           /* a usable pre-lift trace plan exists       */
+    int vh_s, vh_e;           /* plan: trace count s + cut window e        */
+    int vh_rows_cap, vh_mb;   /* carve caps: max lattice rows / max bits   */
+    uint32_t vh_ecap;         /* lattice per-entry limb cap (lll entry cap)*/
+    srmech_bigint_t *vh_lat;  /* knapsack lattice in  (rows_cap²)          */
+    srmech_bigint_t *vh_red;  /* LLL-reduced basis out (rows_cap²)         */
+    srmech_bigint_t *vh_gn;   /* GSO ‖V*‖² numerators (rows_cap)           */
+    srmech_bigint_t *vh_gd;   /* GSO ‖V*‖² denominators (rows_cap)         */
+    srmech_bigint_t *vh_sc;   /* vh scalars (VH_SC_N, each c->cap limbs)   */
+    void  *vh_ws;             /* srmech_lll_reduce / _gso_normsq arena     */
+    size_t vh_ws_len;
 } fac_ctx_t;
 
 #define FAC_BP_N 30   /* bignum poly working buffers */
@@ -933,9 +974,11 @@ static srmech_status_t fac_build_modulus(fac_ctx_t *c, const srmech_bigint_t *f,
     st = fbi_add(pw, t1, t0);   if (st != SRMECH_OK) { return st; }  /* target=2B+1*/
     st = fbi_seti(c->mod, (int64_t)c->q); if (st != SRMECH_OK) { return st; }
     st = fbi_seti(t0, (int64_t)c->q);     if (st != SRMECH_OK) { return st; }
+    c->k_exp = 1;
     while (srmech_bigint_cmp(c->mod, pw) < 0) {
         st = fbi_mul(t1, c->mod, t0); if (st != SRMECH_OK) { return st; }
         st = fbi_copy(c->mod, t1);    if (st != SRMECH_OK) { return st; }
+        c->k_exp++;
     }
     return srmech_bigint_shr_bits(c->modhalf, c->mod, 1u);
 }
@@ -1297,6 +1340,551 @@ static srmech_status_t fac_peel(fac_ctx_t *c, int size,
     return SRMECH_OK;
 }
 
+/* ================================================================== *
+ *  rc222 — van Hoeij LLL knapsack recombination (the attested construction:
+ *  docs/srmech/notes/rc222_vanhoeij_attestation.md). Scaled Newton traces
+ *  lc^i·Tr_i of the lifted factors, two-sided cut C^{a_i}_{b_i}, the lattice
+ *  [[C·I | cuts], [0 | p^e·I]], srmech_lll_reduce, the exact GSO ‖V*‖² > M²
+ *  cutoff, column-equality block decode, and a replay through fac_candidate/
+ *  fac_peel in the subset walk's own order — so a successful pass is
+ *  byte-identical to the exponential walk, and ANY failure falls back to it.
+ * ================================================================== */
+
+/* Exact magnitude bit length (matches Python int.bit_length; 0 -> 0). */
+static size_t vh_bits(const srmech_bigint_t *a)
+{
+    uint32_t top;
+    size_t bits;
+    assert(a != NULL);
+    assert(a->n == 0u || a->limbs != NULL);
+    if (a->n == 0u) { return 0u; }
+    top = a->limbs[a->n - 1u];
+    bits = (size_t)(a->n - 1u) * 32u;
+    while (top != 0u) { bits++; top >>= 1; }
+    return bits;
+}
+
+/* out = |a| (Class-K pin-slot magnitude — never an ALU abs). */
+static srmech_status_t vh_mag(srmech_bigint_t *out, const srmech_bigint_t *a)
+{
+    srmech_status_t st;
+    assert(out != NULL);
+    assert(a != NULL);
+    st = srmech_bigint_copy(out, a);
+    if (st != SRMECH_OK) { return st; }
+    if (out->sign < 0) { out->sign = 1; }
+    return SRMECH_OK;
+}
+
+/* out = ceil(a / den) for a >= 0, den > 0 (exact: (a + den − 1) / den). */
+static srmech_status_t vh_ceil_div(fac_ctx_t *c, srmech_bigint_t *out,
+                                   const srmech_bigint_t *a,
+                                   const srmech_bigint_t *den)
+{
+    srmech_status_t st;
+    assert(c != NULL && out != NULL);
+    assert(a != NULL && den != NULL && den->sign > 0);
+    st = fbi_add(&c->bt[4], a, den);              if (st) { return st; }
+    st = fbi_seti(&c->bt[5], 1);                  if (st) { return st; }
+    st = fbi_sub(&c->bt[6], &c->bt[4], &c->bt[5]); if (st) { return st; }
+    return srmech_bigint_divmod(out, NULL, &c->bt[6], den, c->bws, c->bws_len);
+}
+
+/* 1 iff t^k >= y (t >= 1, k >= 1; exact integer powers over bt[0..1]). */
+static srmech_status_t vh_pow_ge(fac_ctx_t *c, const srmech_bigint_t *t, int k,
+                                 const srmech_bigint_t *y, int *ge)
+{
+    srmech_status_t st;
+    int j;
+    assert(c != NULL && t != NULL);
+    assert(y != NULL && ge != NULL && k >= 1);
+    st = fbi_seti(&c->bt[0], 1);
+    if (st != SRMECH_OK) { return st; }
+    for (j = 0; j < k; j++) {
+        st = fbi_mul(&c->bt[1], &c->bt[0], t);    if (st) { return st; }
+        st = fbi_copy(&c->bt[0], &c->bt[1]);      if (st) { return st; }
+        if (srmech_bigint_cmp(&c->bt[0], y) >= 0) { *ge = 1; return SRMECH_OK; }
+    }
+    *ge = (srmech_bigint_cmp(&c->bt[0], y) >= 0) ? 1 : 0;
+    return SRMECH_OK;
+}
+
+/* out = smallest integer t >= 0 with t^k >= y (binary search on the bit-length
+ * window; bt[2]=lo, bt[3]=mid, bt[7]=hi; vh_pow_ge burns bt[0..1]). */
+static srmech_status_t vh_kth_root_ceil(fac_ctx_t *c, srmech_bigint_t *out,
+                                        const srmech_bigint_t *y, int k)
+{
+    srmech_status_t st;
+    size_t iters = 0u, iter_cap;
+    int ge = 0;
+    assert(c != NULL && out != NULL);
+    assert(y != NULL && k >= 1);
+    if (srmech_bigint_is_zero(y) || y->sign < 0) { return fbi_seti(out, 0); }
+    if (k == 1) { return fbi_copy(out, y); }
+    st = fbi_seti(&c->bt[2], 1);                  if (st) { return st; }
+    st = fbi_seti(&c->bt[0], 1);                  if (st) { return st; }
+    st = srmech_bigint_shl_bits(&c->bt[7], &c->bt[0],
+                                (uint32_t)((vh_bits(y) + (size_t)k - 1u)
+                                           / (size_t)k)); /* hi^k >= y */
+    if (st != SRMECH_OK) { return st; }
+    iter_cap = vh_bits(y) / (size_t)k + 8u;
+    while (srmech_bigint_cmp(&c->bt[2], &c->bt[7]) < 0) {
+        if (++iters > iter_cap) { return SRMECH_ERR_INTERNAL; }
+        st = fbi_add(&c->bt[3], &c->bt[2], &c->bt[7]);       if (st) { return st; }
+        st = srmech_bigint_shr_bits(&c->bt[3], &c->bt[3], 1u); if (st) { return st; }
+        st = vh_pow_ge(c, &c->bt[3], k, y, &ge);             if (st) { return st; }
+        if (ge) {
+            st = fbi_copy(&c->bt[7], &c->bt[3]);             if (st) { return st; }
+        } else {
+            st = fbi_seti(&c->bt[0], 1);                     if (st) { return st; }
+            st = fbi_add(&c->bt[2], &c->bt[3], &c->bt[0]);   if (st) { return st; }
+        }
+    }
+    return fbi_copy(out, &c->bt[7]);
+}
+
+/* Root bound part 1 — Cauchy: out = 1 + ceil(max_{i<deg}|ip_i| / |lead|)
+ * (1 when every low coefficient is zero). W0 = |lead| on exit. */
+static srmech_status_t vh_root_bound_cauchy(fac_ctx_t *c, srmech_bigint_t *out)
+{
+    srmech_bigint_t *lm = &c->vh_sc[VH_SC_W0], *mx = &c->vh_sc[VH_SC_W1];
+    srmech_status_t st;
+    int i;
+    assert(c != NULL && out != NULL);
+    assert(c->ip != NULL && c->deg >= 1);
+    st = vh_mag(lm, &c->ip[c->deg]);              if (st) { return st; }
+    st = fbi_seti(mx, 0);                         if (st) { return st; }
+    for (i = 0; i < c->deg; i++) {
+        st = vh_mag(&c->bt[4], &c->ip[i]);        if (st) { return st; }
+        if (srmech_bigint_cmp(&c->bt[4], mx) > 0) {
+            st = fbi_copy(mx, &c->bt[4]);         if (st) { return st; }
+        }
+    }
+    if (srmech_bigint_is_zero(mx)) { return fbi_seti(out, 1); }
+    st = vh_ceil_div(c, &c->bt[7], mx, lm);       if (st) { return st; }
+    st = fbi_seti(&c->bt[4], 1);                  if (st) { return st; }
+    return fbi_add(out, &c->bt[7], &c->bt[4]);
+}
+
+/* Root bound part 2 — Fujiwara (1916): out = 2·max_k ceil((|ip_{deg−k}| /
+ * den_k))^{1/k} with den_k = |lead| (2·|lead| for k = deg); 1 when zero.
+ * Every intermediate CEILs, so the result stays a valid upper bound. */
+static srmech_status_t vh_root_bound_fuji(fac_ctx_t *c, srmech_bigint_t *out)
+{
+    srmech_bigint_t *lm = &c->vh_sc[VH_SC_W0], *mx = &c->vh_sc[VH_SC_W1];
+    srmech_bigint_t *y = &c->vh_sc[VH_SC_W2], *t = &c->vh_sc[VH_SC_W3];
+    srmech_status_t st;
+    int k;
+    assert(c != NULL && out != NULL);
+    assert(c->ip != NULL && c->deg >= 1);
+    st = fbi_seti(mx, 0);                         if (st) { return st; }
+    for (k = 1; k <= c->deg; k++) {
+        st = vh_mag(&c->bt[4], &c->ip[c->deg - k]);  if (st) { return st; }
+        if (srmech_bigint_is_zero(&c->bt[4])) { continue; }
+        if (k == c->deg) {
+            st = fbi_add(&c->bt[5], lm, lm);      if (st) { return st; }
+        } else {
+            st = fbi_copy(&c->bt[5], lm);         if (st) { return st; }
+        }
+        st = vh_ceil_div(c, y, &c->bt[4], &c->bt[5]); if (st) { return st; }
+        st = vh_kth_root_ceil(c, t, y, k);        if (st) { return st; }
+        if (srmech_bigint_cmp(t, mx) > 0) {
+            st = fbi_copy(mx, t);                 if (st) { return st; }
+        }
+    }
+    if (srmech_bigint_is_zero(mx)) { return fbi_seti(out, 1); }
+    return fbi_add(out, mx, mx);
+}
+
+/* B_rt = max(1, min(Cauchy, Fujiwara)) — both are valid upper bounds on every
+ * complex root of ip, so their MIN is too (mirrors _vh_root_bound). */
+static srmech_status_t vh_root_bound(fac_ctx_t *c, srmech_bigint_t *out)
+{
+    srmech_bigint_t *ca = &c->vh_sc[VH_SC_W4], *fu = &c->vh_sc[VH_SC_W5];
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(out != NULL);
+    st = vh_root_bound_cauchy(c, ca);             if (st) { return st; }
+    st = vh_root_bound_fuji(c, fu);               if (st) { return st; }
+    st = fbi_copy(out, (srmech_bigint_cmp(ca, fu) < 0) ? ca : fu);
+    if (st != SRMECH_OK) { return st; }
+    if (srmech_bigint_is_zero(out) || out->sign < 0) { return fbi_seti(out, 1); }
+    return SRMECH_OK;
+}
+
+/* The pre-lift trace tower (mirrors _vh_plan's loop): fill vh_sc[VH_SC_PB(i)]
+ * with p^{b_i} for each usable trace (b_i + e <= k_allow), track k_need.
+ * base = |lead|·B_rt in W3; bound_i walks W4/W5. */
+static srmech_status_t vh_plan_tower(fac_ctx_t *c, int s_want, int e,
+                                     int k_allow, int *s_out, int *k_need)
+{
+    srmech_bigint_t *base = &c->vh_sc[VH_SC_W3], *bi = &c->vh_sc[VH_SC_W4];
+    srmech_status_t st;
+    int i, b, s = 0;
+    assert(c != NULL && s_out != NULL);
+    assert(k_need != NULL && s_want >= 1);
+    st = fbi_seti(bi, (int64_t)c->deg);           if (st) { return st; }
+    for (i = 1; i <= s_want; i++) {
+        st = fbi_mul(&c->vh_sc[VH_SC_W5], bi, base);        if (st) { return st; }
+        st = fbi_copy(bi, &c->vh_sc[VH_SC_W5]);             if (st) { return st; }
+        st = fbi_add(&c->bt[4], bi, bi);                    if (st) { return st; }
+        st = fbi_seti(&c->bt[5], 1);                        if (st) { return st; }
+        st = fbi_seti(&c->bt[6], (int64_t)c->q);            if (st) { return st; }
+        b = 0;
+        while (srmech_bigint_cmp(&c->bt[5], &c->bt[4]) <= 0 && b <= k_allow) {
+            st = fbi_mul(&c->bt[7], &c->bt[5], &c->bt[6]);  if (st) { return st; }
+            st = fbi_copy(&c->bt[5], &c->bt[7]);            if (st) { return st; }
+            b++;
+        }
+        if (b + e > k_allow) { break; }
+        st = fbi_copy(&c->vh_sc[VH_SC_PB(s)], &c->bt[5]);   if (st) { return st; }
+        s++;
+        if (b + e > *k_need) { *k_need = b + e; }
+    }
+    *s_out = s;
+    return SRMECH_OK;
+}
+
+/* The pre-lift van Hoeij plan (mirrors _vh_plan; paper §2.2 step 5): size the
+ * trace tower from the FULL square-free ip + its n = mp_n mod-p factors, and
+ * RAISE the Hensel modulus to k_need ("additional Hensel lifting") — a larger
+ * modulus never changes the output. Sets vh_plan_ok/vh_s/vh_e/vh_sc powers. */
+static srmech_status_t vh_plan(fac_ctx_t *c)
+{
+    int n = c->mp_n, d_p = 0, e, s_want, s = 0, k_allow, k_need, i;
+    uint64_t qv;
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(c->mp_n >= VH_MIN_N && c->q >= 3u);
+    c->vh_plan_ok = 0;
+    for (qv = c->q; (qv >> 1) != 0u; qv >>= 1) { d_p++; }   /* floor log2 p */
+    e = (n + 8) / d_p + 1;
+    s_want = ((n * n) / 4 + 64) / (e * d_p) + 1;
+    if (s_want > VH_S_MAX) { s_want = VH_S_MAX; }
+    k_allow = c->k_exp + (c->k_exp + 3) / 4 + e;
+    k_need = c->k_exp;
+    st = vh_root_bound(c, &c->vh_sc[VH_SC_W2]);             if (st) { return st; }
+    st = vh_mag(&c->vh_sc[VH_SC_W0], &c->ip[c->deg]);       if (st) { return st; }
+    st = fbi_mul(&c->vh_sc[VH_SC_W3], &c->vh_sc[VH_SC_W0],
+                 &c->vh_sc[VH_SC_W2]);                      if (st) { return st; }
+    st = vh_plan_tower(c, s_want, e, k_allow, &s, &k_need); if (st) { return st; }
+    if (s == 0) { return SRMECH_OK; }                       /* no usable traces */
+    st = fbi_seti(&c->vh_sc[VH_SC_PE], 1);                  if (st) { return st; }
+    st = fbi_seti(&c->bt[6], (int64_t)c->q);                if (st) { return st; }
+    for (i = 0; i < e; i++) {
+        st = fbi_mul(&c->bt[7], &c->vh_sc[VH_SC_PE], &c->bt[6]);
+        if (st != SRMECH_OK) { return st; }
+        st = fbi_copy(&c->vh_sc[VH_SC_PE], &c->bt[7]);      if (st) { return st; }
+    }
+    while (c->k_exp < k_need) {                             /* raise the lift */
+        st = fbi_mul(&c->bt[7], c->mod, &c->bt[6]);         if (st) { return st; }
+        st = fbi_copy(c->mod, &c->bt[7]);                   if (st) { return st; }
+        st = srmech_bigint_shr_bits(c->modhalf, c->mod, 1u); if (st) { return st; }
+        c->k_exp++;
+    }
+    c->vh_s = s;
+    c->vh_e = e;
+    c->vh_plan_ok = 1;
+    return SRMECH_OK;
+}
+
+/* Newton power sums P_1..P_s of the monic lifted factor `idx` mod c->mod, into
+ * vh_sc[VH_SC_P(0..s−1)] — van Hoeij eq. (2): P_i = −i·Ẽ_i − Σ P_k·Ẽ_{i−k}
+ * (Ẽ_i the coefficient of x^{d−i}; 0 past the degree). */
+static srmech_status_t vh_newton(fac_ctx_t *c, int idx)
+{
+    const srmech_bigint_t *g = c->lifted + (size_t)idx * (size_t)c->cw;
+    int d, i, k2, ii;
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(idx >= 0 && idx < c->mp_n);
+    d = c->lif_len[idx] - 1;
+    for (i = 1; i <= c->vh_s; i++) {
+        st = fbi_seti(&c->bt[0], 0);                        if (st) { return st; }
+        if (i <= d) {
+            st = fbi_seti(&c->bt[1], (int64_t)i);           if (st) { return st; }
+            st = fbi_mul(&c->bt[2], &c->bt[1], &g[d - i]);  if (st) { return st; }
+            st = fbi_copy(&c->bt[0], &c->bt[2]);            if (st) { return st; }
+        }
+        for (k2 = 1; k2 < i; k2++) {
+            ii = i - k2;
+            if (ii > d) { continue; }
+            st = fbi_mul(&c->bt[2], &c->vh_sc[VH_SC_P(k2 - 1)], &g[d - ii]);
+            if (st != SRMECH_OK) { return st; }
+            st = fbi_add(&c->bt[1], &c->bt[0], &c->bt[2]);  if (st) { return st; }
+            st = fbi_copy(&c->bt[0], &c->bt[1]);            if (st) { return st; }
+        }
+        st = fbi_mod(c, &c->bt[1], &c->bt[0], c->mod);      if (st) { return st; }
+        st = fbi_sub(&c->bt[2], c->mod, &c->bt[1]);         if (st) { return st; }
+        st = fbi_mod(c, &c->vh_sc[VH_SC_P(i - 1)], &c->bt[2], c->mod);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* The two-sided cut row (mirrors the pure loop): for trace i, with the running
+ * lead power LP ← LP·lead_m mod m, pa = p^{b_i}·p^e:
+ *   c_mod = LP·P_i mod pa; r̄ = symrem(c_mod, p^{b_i});
+ *   u = ((c_mod − r̄)/p^{b_i}) mod p^e; entry = symrem(u, p^e).
+ * Writes lattice row `jrow` trace entries [nprime..nprime+s). */
+static srmech_status_t vh_cut_row(fac_ctx_t *c, int rows, int jrow, int nprime,
+                                  const srmech_bigint_t *lead_m)
+{
+    srmech_bigint_t *pe = &c->vh_sc[VH_SC_PE], *lp = &c->vh_sc[VH_SC_LP];
+    srmech_status_t st;
+    int i;
+    assert(c != NULL && lead_m != NULL);
+    assert(rows >= nprime + c->vh_s && jrow >= 0 && jrow < nprime);
+    for (i = 0; i < c->vh_s; i++) {
+        srmech_bigint_t *pb = &c->vh_sc[VH_SC_PB(i)];
+        srmech_bigint_t *dst = &c->vh_lat[(size_t)jrow * (size_t)rows
+                                          + (size_t)(nprime + i)];
+        st = fbi_mul(&c->bt[0], lp, lead_m);                if (st) { return st; }
+        st = fbi_mod(c, &c->bt[1], &c->bt[0], c->mod);      if (st) { return st; }
+        st = fbi_copy(lp, &c->bt[1]);                       if (st) { return st; }
+        st = fbi_mul(&c->bt[0], pb, pe);                    if (st) { return st; }
+        st = fbi_mul(&c->bt[1], lp, &c->vh_sc[VH_SC_P(i)]); if (st) { return st; }
+        st = fbi_mod(c, &c->bt[2], &c->bt[1], &c->bt[0]);   if (st) { return st; }
+        st = fbi_mod(c, &c->bt[3], &c->bt[2], pb);          if (st) { return st; }
+        st = srmech_bigint_shr_bits(&c->bt[4], pb, 1u);     if (st) { return st; }
+        if (srmech_bigint_cmp(&c->bt[3], &c->bt[4]) > 0) {
+            st = fbi_sub(&c->bt[5], &c->bt[3], pb);         if (st) { return st; }
+            st = fbi_copy(&c->bt[3], &c->bt[5]);            if (st) { return st; }
+        }
+        st = fbi_sub(&c->bt[5], &c->bt[2], &c->bt[3]);      if (st) { return st; }
+        st = srmech_bigint_divmod(&c->bt[6], &c->bt[7], &c->bt[5], pb,
+                                  c->bws, c->bws_len);      if (st) { return st; }
+        assert(srmech_bigint_is_zero(&c->bt[7]));           /* exact by symrem */
+        st = fbi_mod(c, &c->bt[1], &c->bt[6], pe);          if (st) { return st; }
+        st = srmech_bigint_shr_bits(&c->bt[4], pe, 1u);     if (st) { return st; }
+        if (srmech_bigint_cmp(&c->bt[1], &c->bt[4]) > 0) {
+            st = fbi_sub(&c->bt[2], &c->bt[1], pe);         if (st) { return st; }
+            st = fbi_copy(&c->bt[1], &c->bt[2]);            if (st) { return st; }
+        }
+        st = fbi_copy(dst, &c->bt[1]);                      if (st) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* Build the knapsack lattice over the CURRENT remaining factors: rows =
+ * nprime + s; row j<nprime = C·e_j ⧺ cuts(lifted[rem_idx[j]]); row nprime+i =
+ * p^e·e_{n+i}. cs = ⌊isqrt(s·n')/2⌋ (≥1) balances C²n ≈ s(n/2)². */
+static srmech_status_t vh_build(fac_ctx_t *c, int nprime, int lfw, int rows,
+                                int cs)
+{
+    srmech_bigint_t *fwork = bp_buf(c, 19), *lead_m = &c->vh_sc[VH_SC_W0];
+    srmech_status_t st;
+    int i, j;
+    assert(c != NULL);
+    assert(nprime >= 1 && rows == nprime + c->vh_s && lfw >= 2);
+    for (i = 0; i < rows * rows; i++) {
+        st = fbi_seti(&c->vh_lat[i], 0);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = fbi_mod(c, lead_m, &fwork[lfw - 1], c->mod);
+    if (st != SRMECH_OK) { return st; }
+    for (j = 0; j < nprime; j++) {
+        st = fbi_seti(&c->vh_lat[(size_t)j * (size_t)rows + (size_t)j],
+                      (int64_t)cs);                         if (st) { return st; }
+        st = vh_newton(c, c->rem_idx[j]);                   if (st) { return st; }
+        st = fbi_seti(&c->vh_sc[VH_SC_LP], 1);              if (st) { return st; }
+        st = vh_cut_row(c, rows, j, nprime, lead_m);        if (st) { return st; }
+    }
+    for (i = 0; i < c->vh_s; i++) {
+        size_t at = (size_t)(nprime + i) * (size_t)rows + (size_t)(nprime + i);
+        st = fbi_copy(&c->vh_lat[at], &c->vh_sc[VH_SC_PE]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* LLL + the exact GSO cutoff: r = min{r : ‖V*_k‖² > M² ∀k>r} via the integer
+ * compare 4·num > M4·den (M4 = 4C²n' + s·n'² fits int64: n' ≤ 32, s ≤ 8). */
+static srmech_status_t vh_lll_cutoff(fac_ctx_t *c, int rows, int64_t m4,
+                                     int *r_out)
+{
+    srmech_status_t st;
+    int r = rows;
+    assert(c != NULL && r_out != NULL);
+    assert(rows >= 2 && m4 > 0);
+    st = srmech_lll_reduce(c->vh_lat, rows, rows, 3, 4, c->vh_red,
+                           c->vh_ws, c->vh_ws_len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_lll_gso_normsq(c->vh_red, rows, rows, c->vh_gn, c->vh_gd,
+                               c->vh_ws, c->vh_ws_len);
+    if (st != SRMECH_OK) { return st; }
+    while (r >= 1) {
+        st = srmech_bigint_shl_bits(&c->bt[0], &c->vh_gn[r - 1], 2u);
+        if (st != SRMECH_OK) { return st; }
+        st = fbi_seti(&c->bt[1], m4);                       if (st) { return st; }
+        st = fbi_mul(&c->bt[2], &c->bt[1], &c->vh_gd[r - 1]); if (st) { return st; }
+        if (srmech_bigint_cmp(&c->bt[0], &c->bt[2]) > 0) { r--; } else { break; }
+    }
+    *r_out = r;
+    return SRMECH_OK;
+}
+
+/* Column-equality block decode (rref condition A in equivalence-class form —
+ * see the attestation note): columns j,j' of the kept rows are equal iff same
+ * factor block, PROVIDED L' = W; #classes == r rejects L' ≠ W. Also checks
+ * every kept entry is divisible by C (a Λ-vector projection). cid[j] gets the
+ * class id in first-appearance order; *ok = 0 on any structural failure. */
+static srmech_status_t vh_classes(fac_ctx_t *c, int rows, int r, int nprime,
+                                  int cs, int *cid, int *nb_out, int *ok)
+{
+    srmech_status_t st;
+    int j, j2, t, nb = 0, eq;
+    assert(c != NULL && cid != NULL && ok != NULL);
+    assert(r >= 1 && r <= nprime && nb_out != NULL);
+    *ok = 0;
+    st = fbi_seti(&c->bt[0], (int64_t)cs);
+    if (st != SRMECH_OK) { return st; }
+    for (t = 0; t < r; t++) {
+        for (j = 0; j < nprime; j++) {
+            st = srmech_bigint_divmod(&c->bt[1], &c->bt[2],
+                                      &c->vh_red[(size_t)t * (size_t)rows + j],
+                                      &c->bt[0], c->bws, c->bws_len);
+            if (st != SRMECH_OK) { return st; }
+            if (!srmech_bigint_is_zero(&c->bt[2])) { return SRMECH_OK; }
+        }
+    }
+    for (j = 0; j < nprime; j++) {
+        cid[j] = -1;
+        for (j2 = 0; j2 < j && cid[j] < 0; j2++) {
+            eq = 1;
+            for (t = 0; t < r && eq; t++) {
+                if (srmech_bigint_cmp(&c->vh_red[(size_t)t * (size_t)rows + j],
+                                      &c->vh_red[(size_t)t * (size_t)rows + j2])
+                    != 0) { eq = 0; }
+            }
+            if (eq) { cid[j] = cid[j2]; }
+        }
+        if (cid[j] < 0) { cid[j] = nb; nb++; }
+    }
+    *nb_out = nb;
+    *ok = (nb == r) ? 1 : 0;
+    return SRMECH_OK;
+}
+
+/* Order the nb blocks ascending by (size, lexicographic member list) — the
+ * subset walk's own discovery order. ord[] = block ids sorted; members of a
+ * block are its columns ascending (cid was assigned in column order). */
+static void vh_sort_blocks(const int *cid, int nprime, int nb, const int *blen,
+                           int *ord)
+{
+    int a, b2, i, j, tmp, better;
+    assert(cid != NULL && blen != NULL);
+    assert(ord != NULL && nb >= 1);
+    for (i = 0; i < nb; i++) { ord[i] = i; }
+    for (i = 1; i < nb; i++) {
+        for (j = i; j > 0; j--) {
+            a = ord[j - 1]; b2 = ord[j];
+            better = 0;
+            if (blen[b2] < blen[a]) {
+                better = 1;
+            } else if (blen[b2] == blen[a]) {
+                int fa = -1, fb = -1, col;
+                for (col = 0; col < nprime && (fa < 0 || fb < 0); col++) {
+                    if (fa < 0 && cid[col] == a) { fa = col; }
+                    if (fb < 0 && cid[col] == b2) { fb = col; }
+                }
+                /* equal sizes: first member decides (blocks are disjoint, so
+                 * the earlier first column IS lexicographically smaller). */
+                better = (fb < fa) ? 1 : 0;
+            }
+            if (!better) { break; }
+            tmp = ord[j - 1]; ord[j - 1] = ord[j]; ord[j] = tmp;
+        }
+    }
+}
+
+/* Replay the decoded blocks through fac_candidate/fac_peel in the subset
+ * walk's own order, INCLUDING the subset-cap + half-bound exits — byte-
+ * identical emission. Any failed trial division → *done = 0 (the caller
+ * resets and runs the honest full walk). */
+static srmech_status_t vh_replay(fac_ctx_t *c, const int *cid, int nprime,
+                                 int nb, const int *blen, const int *ord,
+                                 int *lfw, int *hit_cap, int *done)
+{
+    int orig[VH_MAX_N];
+    int b2, j, t, sb, pos, lquo, lprim, divides;
+    srmech_status_t st;
+    assert(c != NULL && cid != NULL && done != NULL);
+    assert(nprime >= 1 && nprime <= VH_MAX_N && nb >= 1);
+    *done = 0;
+    for (j = 0; j < nprime; j++) { orig[j] = c->rem_idx[j]; }
+    for (b2 = 0; b2 < nb; b2++) {
+        int blk = ord[b2];
+        sb = blen[blk];
+        if (2 * sb <= c->rem_n && sb <= FAC_SUBSET_CAP) {
+            t = 0;
+            for (j = 0; j < nprime; j++) {
+                if (cid[j] != blk) { continue; }
+                for (pos = 0; pos < c->rem_n; pos++) {
+                    if (c->rem_idx[pos] == orig[j]) { c->combo[t] = pos; break; }
+                }
+                t++;
+            }
+            st = fac_candidate(c, sb, *lfw, bp_buf(c, 20), &lquo,
+                               bp_buf(c, 24), &lprim, &divides);
+            if (st != SRMECH_OK) { return st; }
+            if (!divides) { return SRMECH_OK; }     /* NOT a true factor */
+            st = fac_peel(c, sb, bp_buf(c, 24), lprim, bp_buf(c, 20), lquo, lfw);
+            if (st != SRMECH_OK) { return st; }
+        } else {
+            /* the subset walk exits before reaching this block: cap-exit iff
+             * the cap boundary precedes the half-bound boundary. */
+            if (sb > FAC_SUBSET_CAP && 2 * (FAC_SUBSET_CAP + 1) <= c->rem_n) {
+                *hit_cap = 1;
+            }
+            break;
+        }
+    }
+    *done = 1;
+    return SRMECH_OK;
+}
+
+/* The van Hoeij phase-B driver: soft-declines (*done = 0) on any structural
+ * failure — insufficient plan, native caps, lattice cutoff/decode failure, a
+ * failed trial division — the caller then falls back to the subset walk
+ * wholesale (a SPEEDUP, never a new answer). */
+static srmech_status_t vh_recombine(fac_ctx_t *c, int *lfw, int *hit_cap,
+                                    int *done)
+{
+    int cid[VH_MAX_N], blen[VH_MAX_N], ord[VH_MAX_N];
+    int nprime, rows, cs, r = 0, nb = 0, ok = 0, j;
+    uint64_t v, t;
+    int64_t m4;
+    srmech_status_t st;
+    assert(c != NULL && lfw != NULL);
+    assert(hit_cap != NULL && done != NULL);
+    *done = 0;
+    nprime = c->rem_n;
+    if (!c->vh_avail || !c->vh_plan_ok || nprime < VH_MIN_N
+        || nprime > VH_MAX_N) { return SRMECH_OK; }
+    rows = nprime + c->vh_s;
+    if (rows > c->vh_rows_cap) { return SRMECH_OK; }
+    if (vh_bits(&c->vh_sc[VH_SC_PE]) + 1u > (size_t)c->vh_mb) {
+        return SRMECH_OK;                       /* plan window above the carve */
+    }
+    v = (uint64_t)c->vh_s * (uint64_t)nprime;
+    t = 0u;
+    while ((t + 1u) * (t + 1u) <= v) { t++; }   /* exact integer isqrt */
+    cs = (int)(t / 2u);
+    if (cs == 0) { cs = 1; }
+    m4 = 4 * (int64_t)cs * (int64_t)cs * (int64_t)nprime
+       + (int64_t)c->vh_s * (int64_t)nprime * (int64_t)nprime;
+    st = vh_build(c, nprime, *lfw, rows, cs);               if (st) { return st; }
+    st = vh_lll_cutoff(c, rows, m4, &r);                    if (st) { return st; }
+    if (r == 0 || r > nprime) { return SRMECH_OK; }
+    st = vh_classes(c, rows, r, nprime, cs, cid, &nb, &ok); if (st) { return st; }
+    if (!ok) { return SRMECH_OK; }
+    for (j = 0; j < nb; j++) { blen[j] = 0; }
+    for (j = 0; j < nprime; j++) { blen[cid[j]]++; }
+    vh_sort_blocks(cid, nprime, nb, blen, ord);
+    return vh_replay(c, cid, nprime, nb, blen, ord, lfw, hit_cap, done);
+}
+
 /* The recombination driver: increasing subset sizes, exact ℤ trial-division,
  * subset-cap guard. Fills c->irr / c->irr_len / c->irr_n + *hit_cap.
  * Only subsets with 2*size <= #remaining are enumerated (von zur Gathen &
@@ -1306,37 +1894,84 @@ static srmech_status_t fac_peel(fac_ctx_t *c, int size,
  * own smaller size, so once the half bound is exhausted the leftover is
  * irreducible — this halves the classic exponential enumeration (the pure
  * Python path applies the same cutoff, so both paths stay byte-identical).
- * HONEST LIMIT: the enumeration stays WORST-CASE EXPONENTIAL in the number of
- * modular factors even with the cutoff (Swinnerton-Dyer inputs split into
- * deg <= 2 factors mod every prime yet are irreducible over ℤ — measured SD5,
- * deg 32: 39207 candidates post-cutoff vs 65539 pre). van Hoeij's LLL
- * knapsack recombination (J. Number Theory 95(2), 2002) is the known real
- * fix, deferred as a research arc. */
-static srmech_status_t fac_recombine(fac_ctx_t *c, int *hit_cap)
+ * rc222: the walk is PHASED van Hoeij's way (§2.2 steps 1–3): (A) subset sizes
+ * <= 3 only (cheap; peels every small block); (B) the LLL knapsack
+ * (vh_recombine — ONE polynomial-time lattice reduction); (C) only if the
+ * knapsack declines, the full exponential walk from a clean reset (identical
+ * output — phase A finds the same small blocks in the same order). The
+ * enumeration itself stays WORST-CASE EXPONENTIAL (Swinnerton-Dyer inputs
+ * split into deg <= 2 factors mod every prime — measured SD5, deg 32: 39207
+ * candidates ≈ 4.7 s native pre-rc222; the knapsack resolves it in ONE
+ * reduction), and remains the honest fallback. */
+
+/* Initialise the recombination state: f_work = ip, all indices remaining. */
+static srmech_status_t fac_recombine_init(fac_ctx_t *c, int *lfw)
 {
-    int lfw = c->deg + 1, size = 1, i, j, found, lquo, lprim, divides, lp;
+    int i;
     srmech_status_t st;
     assert(c != NULL);
-    assert(hit_cap != NULL);
+    assert(lfw != NULL);
     st = bp_copy(bp_buf(c, 19), c->ip, c->deg + 1); if (st) { return st; }
     for (i = 0; i < c->mp_n; i++) { c->rem_idx[i] = i; }
-    c->rem_n = c->mp_n; c->irr_n = 0; *hit_cap = 0;
+    c->rem_n = c->mp_n; c->irr_n = 0;
+    *lfw = c->deg + 1;
+    return SRMECH_OK;
+}
+
+/* The subset walk with a size ceiling (phase A: 3; full: deg+1 = no ceiling).
+ * The body is the rc165 loop verbatim; the ceiling check sits AFTER the cap
+ * check (mirroring the pure phase order). */
+static srmech_status_t fac_walk(fac_ctx_t *c, int *hit_cap, int *lfw,
+                                int size_ceil)
+{
+    int size = 1, j, found, lquo, lprim, divides;
+    srmech_status_t st;
+    assert(c != NULL && hit_cap != NULL);
+    assert(lfw != NULL && size_ceil >= 1);
     while (c->rem_n > 0 && 2 * size <= c->rem_n) {
         if (size > FAC_SUBSET_CAP) { *hit_cap = 1; break; }
+        if (size > size_ceil) { break; }
         for (j = 0; j < size; j++) { c->combo[j] = j; }
         found = 0;
         while (1) {
-            st = fac_candidate(c, size, lfw, bp_buf(c, 20), &lquo,
+            st = fac_candidate(c, size, *lfw, bp_buf(c, 20), &lquo,
                                bp_buf(c, 24), &lprim, &divides);
             if (st) { return st; }
             if (divides) { found = 1; break; }
             if (!next_combo(c->combo, size, c->rem_n)) { break; }
         }
         if (!found) { size++; continue; }
-        st = fac_peel(c, size, bp_buf(c, 24), lprim, bp_buf(c, 20), lquo, &lfw);
+        st = fac_peel(c, size, bp_buf(c, 24), lprim, bp_buf(c, 20), lquo, lfw);
         if (st) { return st; }
-        if (lfw <= 1) { break; }
+        if (*lfw <= 1) { break; }
         size = 1;
+    }
+    return SRMECH_OK;
+}
+
+static srmech_status_t fac_recombine(fac_ctx_t *c, int *hit_cap)
+{
+    int lfw = 0, lp, done = 0;
+    srmech_status_t st;
+    assert(c != NULL);
+    assert(hit_cap != NULL);
+    st = fac_recombine_init(c, &lfw); if (st) { return st; }
+    *hit_cap = 0;
+    st = fac_walk(c, hit_cap, &lfw, 3);                    /* phase A */
+    if (st) { return st; }
+    if (*hit_cap == 0 && lfw > 1 && c->rem_n >= VH_MIN_N) {
+        st = vh_recombine(c, &lfw, hit_cap, &done);        /* phase B */
+        if (st != SRMECH_OK) { done = 0; }                 /* soft fallback */
+        if (!done) {
+            st = fac_recombine_init(c, &lfw);              /* clean reset */
+            if (st) { return st; }
+            *hit_cap = 0;
+            st = fac_walk(c, hit_cap, &lfw, c->deg + 1);   /* phase C */
+            if (st) { return st; }
+        }
+    } else if (*hit_cap == 0 && lfw > 1) {
+        st = fac_walk(c, hit_cap, &lfw, c->deg + 1);       /* small-n full walk */
+        if (st) { return st; }
     }
     if (lfw > 1) {
         st = fac_primitive(c, bp_buf(c, 19), lfw,
@@ -1407,6 +2042,13 @@ static srmech_status_t fac_squarefree_primitive(fac_ctx_t *c, int *hit_cap)
     if (c->mp_n == 1) { return fac_irr_is_input(c, hit_cap); }
     st = fac_build_modulus(c, c->ip, c->deg + 1);
     if (st) { return st; }
+    /* rc222: the pre-lift van Hoeij plan (mirrors the pure _vh_plan gate) —
+     * may RAISE mod/k_exp (extra Hensel lifting; never changes the output). */
+    c->vh_plan_ok = 0;
+    if (c->mp_n >= VH_MIN_N && c->vh_avail) {
+        st = vh_plan(c);
+        if (st != SRMECH_OK) { c->vh_plan_ok = 0; }  /* soft: plan is optional */
+    }
     st = multi_lift(c);
     if (st) { return st; }
     st = fac_recombine(c, hit_cap);
@@ -1483,6 +2125,40 @@ static int fac_carve_big(fac_ctx_t *c)
     return (c->irr != NULL && c->pool != NULL && c->bt != NULL);
 }
 
+/* Carve the rc222 van Hoeij block (deg >= VH_MIN_N only): the lattice in/out
+ * matrices + GSO norm pairs at the LLL entry cap, the vh scalars at the ctx
+ * cap, and the srmech_lll_reduce/_gso_normsq callee arena. vh is OPTIONAL —
+ * a failed carve just leaves vh_avail = 0 (the subset walk runs alone). */
+static int fac_carve_vh(fac_ctx_t *c)
+{
+    int nmax, rows;
+    size_t wsb;
+    assert(c != NULL);
+    assert(c->deg >= 0);
+    c->vh_avail = 0; c->vh_plan_ok = 0; c->vh_s = 0; c->vh_e = 0;
+    if (c->deg < VH_MIN_N) { return 1; }
+    nmax = (c->deg < VH_MAX_N) ? c->deg : VH_MAX_N;
+    rows = nmax + VH_S_MAX;
+    c->vh_rows_cap = rows;
+    c->vh_mb = 2 * (nmax + 8) + 18;
+    c->vh_ecap = (uint32_t)srmech_lll_reduce_entry_cap(rows, rows, c->vh_mb);
+    c->vh_lat = fac_carve_bigints(&c->ar, (size_t)rows * (size_t)rows,
+                                  c->vh_ecap);
+    c->vh_red = fac_carve_bigints(&c->ar, (size_t)rows * (size_t)rows,
+                                  c->vh_ecap);
+    c->vh_gn = fac_carve_bigints(&c->ar, (size_t)rows, c->vh_ecap);
+    c->vh_gd = fac_carve_bigints(&c->ar, (size_t)rows, c->vh_ecap);
+    c->vh_sc = fac_carve_bigints(&c->ar, (size_t)VH_SC_N, c->cap);
+    wsb = srmech_lll_reduce_ws_bound(rows, rows, c->vh_mb);
+    c->vh_ws = fac_take(&c->ar, wsb, 8u);
+    c->vh_ws_len = wsb;
+    if (c->vh_lat != NULL && c->vh_red != NULL && c->vh_gn != NULL
+        && c->vh_gd != NULL && c->vh_sc != NULL && c->vh_ws != NULL) {
+        c->vh_avail = 1;
+    }
+    return 1;
+}
+
 /* Initialise the context + carve every buffer from ws. Returns 0 on OOM. */
 static int fac_carve(fac_ctx_t *c, void *ws, size_t ws_len, size_t coeff_limbs,
                      int deg)
@@ -1496,6 +2172,7 @@ static int fac_carve(fac_ctx_t *c, void *ws, size_t ws_len, size_t coeff_limbs,
     if (!fac_carve_big(c)) { return 0; }
     if (!fac_carve_fp(c)) { return 0; }
     if (!fac_carve_lists(c)) { return 0; }
+    if (!fac_carve_vh(c)) { return 0; }
     c->ar.off = (c->ar.off + 7u) & ~(size_t)7u;
     if (c->ar.off >= ws_len) { return 0; }
     rem = ws_len - c->ar.off;
@@ -1527,6 +2204,18 @@ size_t srmech_factor_squarefree_primitive_ws_bound(size_t coeff_limbs, int deg)
     size_t int_words = 12u * nl + 16u;
     size_t bws_words = 96u * cap + 8192u;
     size_t total = big_words + fp_words + int_words + bws_words + 8192u;
+    if (deg >= VH_MIN_N) {                    /* the rc222 van Hoeij block */
+        size_t nmax = (deg < VH_MAX_N) ? (size_t)deg : (size_t)VH_MAX_N;
+        size_t rows = nmax + (size_t)VH_S_MAX;
+        int mb = 2 * ((int)nmax + 8) + 18;
+        size_t ecap = srmech_lll_reduce_entry_cap((int)rows, (int)rows, mb);
+        size_t vh_cells = 2u * rows * rows + 2u * rows;
+        size_t vh_words = vh_cells * (hdrw + ecap + 2u)
+                        + (size_t)VH_SC_N * (hdrw + cap + 2u);
+        total += vh_words
+               + srmech_lll_reduce_ws_bound((int)rows, (int)rows, mb) / 4u
+               + 64u;
+    }
     return total * 4u;
 }
 
