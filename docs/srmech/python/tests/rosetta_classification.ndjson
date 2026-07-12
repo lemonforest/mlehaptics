@@ -310,6 +310,7 @@
 {"exposed_as": "srmech.amsc.compose.greedy_bipartite_alignment", "defined_at": "srmech.amsc.compose.greedy_bipartite_alignment", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.coupling.signed_sum_squared", "defined_at": "srmech.amsc.coupling.signed_sum_squared", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.coupling.resonant_spectrum", "defined_at": "srmech.amsc.coupling.resonant_spectrum", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.coupling.resonant_spectrum_sparse", "defined_at": "srmech.amsc.coupling.resonant_spectrum_sparse", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.coupling.from_bodies", "defined_at": "srmech.amsc.coupling.from_bodies", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.coupling.fractal_spectrum", "defined_at": "srmech.amsc.coupling.fractal_spectrum", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.coupling.fold_encode", "defined_at": "srmech.amsc.coupling.fold_encode", "bucket": "non_compute", "non_compute_kind": "composes_c"}

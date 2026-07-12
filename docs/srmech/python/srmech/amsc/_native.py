@@ -2530,6 +2530,34 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_laplacian_fiedler_sparse_file.restype = ctypes.c_int
 
+        # size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n) +
+        # srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n,
+        #     const char *path, uint32_t k, uint32_t max_iters,
+        #     double *out_tensions, double *out_modes, uint32_t *out_count,
+        #     double *ws, size_t ws_len)  — issue #698 / §75-sparse (rc230): the
+        #     STREAMING k-extreme resonant read (bottom-k + top-k combinatorial-
+        #     Laplacian modes via power iteration + deflation on the packed edge
+        #     stream; the C twin of coupling.resonant_spectrum_sparse). Caller-
+        #     arena ws (bytes; from arena_bytes) → no compiled-in node cap. NEW —
+        #     own hasattr so a pre-rc230 lib doesn't AttributeError here.
+        if hasattr(lib, "srmech_laplacian_k_extreme_modes_arena_bytes"):
+            lib.srmech_laplacian_k_extreme_modes_arena_bytes.argtypes = [
+                ctypes.c_uint32]
+            lib.srmech_laplacian_k_extreme_modes_arena_bytes.restype = ctypes.c_size_t
+        if hasattr(lib, "srmech_laplacian_k_extreme_modes_file"):
+            lib.srmech_laplacian_k_extreme_modes_file.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # path (packed edge file)
+                ctypes.c_uint32,                   # k (modes per extreme side)
+                ctypes.c_uint32,                   # max_iters
+                ctypes.POINTER(ctypes.c_double),  # out_tensions (2k)
+                ctypes.POINTER(ctypes.c_double),  # out_modes (2k*n, row = mode)
+                ctypes.POINTER(ctypes.c_uint32),  # out_count
+                ctypes.POINTER(ctypes.c_double),  # ws (caller arena)
+                ctypes.c_size_t,                   # ws_len (BYTES)
+            ]
+            lib.srmech_laplacian_k_extreme_modes_file.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # BATCH B6a (rc143): EXACT signal-processing coder / quantizer C peers.
     # Each NEW symbol its own hasattr so a pre-rc143 lib doesn't AttributeError
@@ -15522,6 +15550,19 @@ def has_native_fiedler_sparse_file() -> bool:
     run the in-RAM cascade) is the complete alternative (correct, not bounded)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_laplacian_fiedler_sparse_file"))
+
+
+def has_native_k_extreme_modes() -> bool:
+    """True iff the §75-sparse native streaming k-extreme resonant read is loaded
+    + bound (rc230+ lib): the bottom-k + top-k combinatorial-Laplacian modes run
+    in C via power iteration + deflation streaming the packed edge file through
+    the PAL (caller-arena, no node cap), so
+    :func:`srmech.amsc.coupling.resonant_spectrum_sparse` dispatches to the C
+    twin. False on a no-C or pre-rc230 lib — the pure-Python streaming read is
+    the complete alternative (issue #698)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_laplacian_k_extreme_modes_file")
+                and hasattr(LIB, "srmech_laplacian_k_extreme_modes_arena_bytes"))
 
 
 # ---------------------------------------------------------------------------
