@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc223"
-#define SRMECH_VERSION       "0.9.0rc223"
+#define SRMECH_VERSION_PRE   "rc224"
+#define SRMECH_VERSION       "0.9.0rc224"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2447,8 +2447,29 @@ srmech_status_t srmech_dsl_toml_chain_to_json(
  *                  "elliptic_wz_certificate". A has=0 -> non-OK -> pure (the
  *                  conservative fall; never a possibly-divergent false).
  *
- * rc103 inform-don't-limit: any OTHER row (spectral -> rc224 / the elliptic
- * multivariate Cn Jackson row — whose verify is carrier-symbolic), any
+ * rc224 (#796 CLOSE — the LAST row) ADDS the SPECTRAL row with the EXACT
+ * operator-level verdict:
+ *   * spectral     (matrix {"n","bits"} / adjacency {"n","bits"} / edges
+ *                  [[u,v]...] + n + optional weights) — every f64 leaf rides
+ *                  the wire as its IEEE-754 BIT PATTERN (a signed int64; the
+ *                  bit-EXACT float wire — no decimal float parse in the
+ *                  decision path). Build L in C (edges -> the Class-L
+ *                  srmech_graph_dense_laplacian kernel, the SAME builder the
+ *                  pure path dispatches to; matrix -> the raw grid;
+ *                  adjacency -> the in-place D-A transform in the pure
+ *                  _build_laplacian's exact float-op order) and decide:
+ *                  reducible iff L is BIT-EXACT real-symmetric (IEEE == over
+ *                  all mirrored pairs — the spectral theorem's own
+ *                  hypothesis). NO eigensolve, NO resonant_spectrum, NO float
+ *                  tolerance in the C decision path; the eigenvalue payload
+ *                  is the OPERAND, re-derived pure-side on a reducible
+ *                  verdict. Reducer name "resonant_spectrum". BOTH verdicts
+ *                  are definitive here (the C-built L is entry-for-entry the
+ *                  pure build), so the native and pure decisions are
+ *                  identical on EVERY platform by construction.
+ *
+ * rc103 inform-don't-limit: any OTHER row (the elliptic multivariate Cn
+ * Jackson row — whose verify is carrier-symbolic), any
  * malformed operand, or any arena overflow -> non-OK, and the Python caller
  * runs the COMPLETE pure infer (NEVER a false reducible; the honest OPEN
  * residue is the no-hallucination discipline in C). ONE caller arena `ws`. The
@@ -2460,8 +2481,10 @@ srmech_status_t srmech_dsl_toml_chain_to_json(
  * OWN sizer below (max_terms = the row's shape envelope: the TriPoly
  * jdeg/kdeg/nlen max; the QBiPoly ycells/xcells/qlen max; the EllRatio
  * n_syms + monomial count. coeff_limbs = the max significant 32-bit limbs per
- * coefficient) so the cheap rows never pay the MB floor. All are ABI-additive
- * -> SRMECH_ABI_VERSION stays 4. */
+ * coefficient) so the cheap rows never pay the MB floor. The rc224 spectral
+ * row sizes with srmech_infer_spectral_arena_bytes(rel_len, n) (n = the
+ * Laplacian dimension; parse + ONE n*n double grid + the edge arrays — no
+ * eigensolve scratch). All are ABI-additive -> SRMECH_ABI_VERSION stays 4. */
 size_t srmech_infer_arena_bytes(size_t rel_len, size_t max_terms);
 size_t srmech_infer_sigma_definite_arena_bytes(size_t rel_len, size_t max_terms,
                                                size_t coeff_limbs);
@@ -2471,6 +2494,7 @@ size_t srmech_infer_sigma_q_arena_bytes(size_t rel_len, size_t max_terms,
                                         size_t coeff_limbs);
 size_t srmech_infer_sigma_elliptic_arena_bytes(size_t rel_len, size_t max_terms,
                                                size_t coeff_limbs);
+size_t srmech_infer_spectral_arena_bytes(size_t rel_len, size_t n);
 srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
                              void *ws, size_t ws_len,
                              char *out, size_t out_cap, size_t *out_len);
