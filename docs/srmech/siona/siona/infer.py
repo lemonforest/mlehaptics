@@ -111,7 +111,11 @@ class Grounding:
         if pool:
             n0 = max(pool, key=lambda n: sum(len(t) for t in self._nm[n]))
             top = [(self.sim(q, self._byname[n0]), n0)] + [(s, n) for s, n in top if n != n0]
-        return top[:k]
+        top = top[:k]
+        hits = getattr(self, "_hits", None)                 # opt-in excitation trail (F1206): OFF unless a
+        if hits is not None:                                # Session points ``_hits`` here for a traced turn
+            hits.append({"owner": owner, "hits": [[round(float(s), 4), n] for s, n in top]})
+        return top
 
 
 def _register_self_tools():
@@ -157,6 +161,9 @@ class Session:
         self.last_result = None   # the RESULT REGISTER: the actual object a [srmech] turn returned (F1024)
         self.instrument = None    # loaded knowledge instrument (path, index) -- mechanism-not-knowledge:
         self.attestations = []    # knowledge loads by PATH; every acquired fact carries Class-A attestation
+        self.trace = None         # opt-in EXCITATION TRAIL (F1206 melange signature): None=off, else list of per-turn records
+        self.trace_path = None    # optional NDJSON sink for the trail (one record per turn)
+        self._excited = None      # per-turn ground-hit scratch; points self.g._hits while a turn is traced
         _register_self_tools()
         self.g = Grounding(D=D)
         self.ctx = _ContextShape()                # op(x)operand response-shape context (F1091)
@@ -171,6 +178,47 @@ class Session:
             "siona.knowledge.load": self._k_load, "siona.knowledge.acquire": self._k_acquire,
             "siona.knowledge.study": self._k_study, "siona.knowledge.pack": self._k_pack,
         }
+
+    # ---- opt-in excitation trail (F1206 melange signature; OFF by default -> zero overhead) ----
+    def enable_trace(self, path=None):
+        """Turn ON the per-turn EXCITATION TRAIL (opt-in). Records, for each turn, which genome pieces
+        lit up -- the ``intent`` route, the reply ``mode`` expressed from the context genome, the per-owner
+        ``excited`` ground-hits (which anchors/tools the query excited + their similarity), and the
+        attestation ``sources`` the reply points at. This makes the F1206 MELANGE SIGNATURE observable:
+        a merged model cannot point at the source; Siona can *because* she keeps the genomes partitioned.
+        ``path`` (optional) also streams one NDJSON record per turn to a file. Returns self (chainable);
+        :meth:`disable_trace` stops it. The trail lives in ``self.trace`` (a list of records)."""
+        self.trace = []
+        self.trace_path = path
+        return self
+
+    def disable_trace(self):
+        """Turn the excitation trail back OFF and detach the grounder hook."""
+        self.trace, self.trace_path, self._excited = None, None, None
+        if self.g is not None:
+            self.g._hits = None
+        return self
+
+    def _emit_trace(self, u, r, tag, out, n_att):
+        """Finalize one turn's excitation record (F1206): append to ``self.trace`` and, if configured,
+        stream an NDJSON line to ``self.trace_path``. Only the attestations ACQUIRED this turn are cited."""
+        import json as _json
+        sources = []
+        for a in self.attestations[n_att:]:
+            if not isinstance(a, dict):
+                continue
+            att = a.get("attestation", a)
+            src = att.get("source_url") or att.get("source_path") or a.get("source_url") or a.get("path")
+            if src:
+                sources.append(src)
+        rec = {"utterance": u, "intent": r, "tag": tag, "mode": list(self.active_mode),
+               "excited": list(self._excited or []), "sources": sources,
+               "reply": out if isinstance(out, str) else str(out)}
+        self.trace.append(rec)
+        if self.trace_path:
+            with open(self.trace_path, "a", encoding="utf-8") as fh:
+                fh.write(_json.dumps(rec, ensure_ascii=False) + "\n")
+        return rec
 
     # ---- router (F1010: declared operators + operand shape; continue = the default) ----
     def _operands(self, u):
@@ -355,25 +403,40 @@ class Session:
 
     def turn(self, u):
         """Route + dispatch one utterance; returns (intent, tag, output). The reply MODE is expressed LIVE from
-        the context genome per the turn's ``cell_state`` (F1097 — ``express()`` in ``s.turn``)."""
+        the context genome per the turn's ``cell_state`` (F1097 — ``express()`` in ``s.turn``). When tracing is
+        ON (:meth:`enable_trace`) the turn also records its EXCITATION TRAIL (F1206) with zero overhead off."""
+        tracing = self.trace is not None
+        if tracing:
+            self._excited = []
+            self.g._hits = self._excited          # point the grounder's hit-capture at this turn's scratch
+            _n_att = len(self.attestations)
         self._express_mode(u)                     # LIVE context genome: op(x)operand cell_state -> reply mode
         r = self.route(u)
+        tag, out = self._dispatch(r, u)
+        if tracing:
+            self.g._hits = None                   # detach before finalize (no capture during emit)
+            self._emit_trace(u, r, tag, out, _n_att)
+        return r, tag, out
+
+    def _dispatch(self, r, u):
+        """Route label -> (tag, output). Kept separate from :meth:`turn` so the turn has ONE finalize point
+        for the excitation trail (the per-branch surface selection is unchanged)."""
         if r == "self-command":
             tool, out = self._drive_self(u)
-            return r, "siona.%s" % tool, out
+            return "siona.%s" % tool, out
         if r == "compose":
-            return r, "siona.compose", self._compose(u)
+            return "siona.compose", self._compose(u)
         if r == "asl":
-            return r, "siona.asl", self._asl_reply(u)
+            return "siona.asl", self._asl_reply(u)
         if r == "relate":
-            return r, "siona.sense", self._relate_reply(u)
+            return "siona.sense", self._relate_reply(u)
         if r == "gloss":
-            return r, "siona.anchor", self._gloss_reply(u)
+            return "siona.anchor", self._gloss_reply(u)
         if r == "tool-call":
-            return r, "srmech", self._drive_tool(u)
+            return "srmech", self._drive_tool(u)
         if r == "define":
-            return r, "define", self._define(self._rem(u))
-        return r, "substrate", self._continue(u)
+            return "define", self._define(self._rem(u))
+        return "substrate", self._continue(u)
 
     # ---- the self surface (F1011: declared verb = deterministic dispatch; grounding for verb-less) ----
     def _rem(self, u):

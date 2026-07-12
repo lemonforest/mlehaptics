@@ -14,6 +14,13 @@ artifacts** (CC-BY-SA-compliant by the MPR attestation each acquired fact carrie
 `PKG1_DECISION.md`).
 
 ### Added
+- **Opt-in excitation trail** (`Session.enable_trace(path=None)` / `disable_trace()`) — records, per turn,
+  which genome pieces lit up: the intent route, the reply mode expressed from the context genome, the
+  per-owner **ground-hits** (which anchors/tools the query excited + similarity), and the attestation
+  **sources** the reply points at. Lives in `Session.trace`; streams NDJSON when a path is given. **Off by
+  default → identical behavior + zero overhead.** Makes the **F1206 melange signature** observable — a merged
+  model cannot point at the source; Siona can because she keeps the genomes partitioned. (`turn()` routes
+  through `_dispatch()` for a single finalize point; `siona/tests/test_excitation_trace.py`, 5 tests.)
 - **`[profile.native]` C tier — Siona's own `libsiona_native.so`** (`c/siona_native.{c,h}` + `c/Makefile`,
   JPL Power-of-Ten clean). srmech's profile loader loads it as `srmech.profile("siona").native` after an ABI
   handshake; `siona._native` dispatches to it with a **bit-for-bit pure-Python fallback** (the has_native
