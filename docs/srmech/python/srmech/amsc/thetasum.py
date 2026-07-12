@@ -364,6 +364,29 @@ def _struct_theta_p(coeff: Q, e: int, k: int) -> "Dict":
 # multiplier monomial μ_v (ℚ*-coefficient included, the v-part dropped — it IS D_v).
 # Terms of different (D_v, μ_v) for ANY v lie in different section spaces and are
 # linearly independent over ℚ(q,p), so the split is exact in both directions.
+#
+# COMPLETENESS WALL (diagnosed 2026-07-12 on the rc227 Aₙ (n=3, N=3) residual —
+# the genuinely-zero 10-composition frontier the rc227 verify cap sits below):
+# the recursion is SOUND but INCOMPLETE at multivariate scale, and the
+# incompleteness is NOT a provisioning bug. On that residual (11 terms, ONE joint
+# character) every Z4 frame receives its full D+1 pairwise-distinct nodes (the
+# substitution path a1→a2→a3→a4→z2→z3→z1→q with D = 9/6/6/6/13/19/22/70; the
+# node-shortage branch never fires) — the recursion bottoms out where ALL
+# variables are consumed: a nonempty 0-VARIABLE theta-CONSTANT sum (3 terms × 29
+# rational-argument thetas) that is GENUINELY ZERO (exact p-expansion identically
+# 0 through order 80) by a nontrivial theta-constant identity, and the
+# certificate system has NO ZERO certificate for that shape: Z1 needs exact
+# carrier cancellation (3 terms survive combine), Z2/Z4 need a live variable,
+# N2 only ever proves NONZERO. The honest UNKNOWN → False is the #695
+# interpolation wall, sharpened to its root: the wall is the 0-variable LEAF
+# certificate gap, not the interpolation step. NO widening (more nodes / deeper
+# detection / larger arena) can close it — closing it needs a NEW zero
+# certificate for theta-constant sums (a different algorithm). Note the C peer's
+# fast False vs the pure path's non-finish at this scale is the SAME verdict at
+# different cost: ti_decide short-circuits at the first unproven leaf (~0.7 s);
+# the pure three-valued recursion exhaustively evaluates every child of every
+# Z4 frame (~10⁹ frames at (3,3)); an early-exit pure mirror of this body
+# returns the same verdict in ~14 s.
 
 _ZERO, _NONZERO, _UNKNOWN = "ZERO", "NONZERO", "UNKNOWN"
 

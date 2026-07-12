@@ -83,8 +83,15 @@ __all__ = ["multivariate_elliptic_jackson_an", "an_vwp_multisum_lhs"]
 # ``verified=None`` (an honest "sum too large to decide in-budget" — NOT a
 # failure and NOT a claim the identity is false) alongside the constructive
 # (MPM-verified at build) closed form, exactly the Cₙ row's contract. The next
-# frontier size (10 terms, e.g. (3, 3)) is where the measured is_zero behaviour
-# was NOT a clean proof at build time, so the cap honestly stops at 6.
+# frontier size (10 terms, e.g. (3, 3)) is where ``is_zero`` returns a fast
+# ``False`` on a residual that is genuinely ``≡ 0`` (the p = 0 exact-ℚ oracle) —
+# DIAGNOSED 2026-07-12: NOT a provisioning bug (every Z4 interpolation frame gets
+# its full D+1 pairwise-distinct nodes); the certificate recursion bottoms out at
+# genuinely-zero 0-VARIABLE theta-CONSTANT leaves it has no ZERO certificate for
+# — the #695 multivariate-interpolation COMPLETENESS WALL (see the
+# ``_decide_struct`` block comment in ``thetasum.py``). ``is_zero`` stays SOUND
+# (``False`` = "not proven", the safe direction); it is INCOMPLETE past this
+# frontier, so the cap honestly stops at 6.
 _VERIFY_MAX_COMPOSITIONS: int = 6
 
 
