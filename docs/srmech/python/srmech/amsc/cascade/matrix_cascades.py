@@ -65,8 +65,8 @@ from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
 
 __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact",
-           "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "eig_exact",
-           "jordan_chains_exact", "jordan_form_exact"]
+           "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "lll_reduce",
+           "eig_exact", "jordan_chains_exact", "jordan_form_exact"]
 
 
 def _modulus(z: complex) -> float:
@@ -2660,6 +2660,144 @@ def factor_integer_poly(coeffs):
             f"factor_integer_poly self-check FAILED: Π factor**mult = {recon_prim} "
             f"!= primitive input {prim} — internal Zassenhaus bug")
     return [(fac, mult) for fac, mult in result]
+
+
+# ── LLL lattice-basis reduction (exact-ℚ Lenstra–Lenstra–Lovász) ─────────────────
+def _lll_round_q(num: int, den: int) -> int:
+    """Nearest integer of the exact rational ``num/den`` (``den > 0``), as an
+    EXACT integer — ``round(num/den) = floor((2·num + den) / (2·den))`` (round
+    half toward +∞). NO float, NO ``math`` — Python ``//`` is floor division
+    (Class-N rational anchor at a Class-K sign boundary)."""
+    return (2 * num + den) // (2 * den)
+
+
+def _lll_gso(b: List[List[int]], m: int, n: int):
+    """Exact-ℚ Gram–Schmidt of the integer basis ``b`` (``m`` rows × ``n`` cols)
+    via the Gram-matrix recurrence: returns ``(mu, B)`` with ``mu[i][j]`` the
+    exact ``Fraction`` GSO coefficient (``j < i``) and ``B[i]`` the exact squared
+    norm ``‖b*_i‖²`` (``Fraction``). Raises ``ValueError`` on a linearly dependent
+    (degenerate) basis (``B[j] == 0`` → the GSO coefficient is undefined)."""
+    mu = [[_FR(0)] * m for _ in range(m)]
+    B = [_FR(0)] * m
+    for i in range(m):
+        for j in range(i):
+            s = _FR(sum(b[i][t] * b[j][t] for t in range(n)))
+            for k in range(j):
+                s -= mu[j][k] * mu[i][k] * B[k]
+            if B[j] == 0:
+                raise ValueError(
+                    "lll_reduce: linearly dependent (degenerate) basis — the "
+                    "Gram–Schmidt norm ‖b*_j‖² vanished; LLL requires an "
+                    "independent basis (an MLLL variant handles dependent rows)")
+            mu[i][j] = s / B[j]
+        s = _FR(sum(b[i][t] * b[i][t] for t in range(n)))
+        for k in range(i):
+            s -= mu[i][k] * mu[i][k] * B[k]
+        B[i] = s
+    return mu, B
+
+
+def _lll_reduce_pure(basis, delta):
+    """Pure exact-ℚ LLL body — the complete, native-independent alternative AND
+    the byte-identity parity oracle for the C peer. See :func:`lll_reduce`."""
+    dn, dd = int(delta[0]), int(delta[1])
+    if dd <= 0 or not (dn * 4 > dd and dn <= dd):
+        raise ValueError(
+            f"lll_reduce: delta {dn}/{dd} must lie in (1/4, 1]")
+    b = [[int(x) for x in row] for row in basis]
+    m = len(b)
+    if m == 0:
+        return []
+    n = len(b[0])
+    for r in b:
+        if len(r) != n:
+            raise ValueError("lll_reduce: all basis rows must have equal length")
+    if m == 1:
+        return [list(b[0])]
+
+    delta_fr = _FR(dn, dd)
+
+    def _red(k, l, mu):
+        muk = mu[k][l]
+        num, den = muk.numerator, muk.denominator          # den > 0
+        # |mu[k][l]| <= 1/2  ⟺  -den <= 2·num <= den (Class-K sign branch; no abs)
+        if -den <= 2 * num <= den:
+            return
+        q = _lll_round_q(num, den)
+        bk, bl = b[k], b[l]
+        for t in range(n):
+            bk[t] -= q * bl[t]
+        mu[k][l] = mu[k][l] - q
+        mul = mu[l]
+        muk_row = mu[k]
+        for i in range(l):
+            muk_row[i] = muk_row[i] - q * mul[i]
+
+    k = 1
+    while k < m:
+        mu, B = _lll_gso(b, m, n)
+        _red(k, k - 1, mu)
+        mkk = mu[k][k - 1]
+        if B[k] >= (delta_fr - mkk * mkk) * B[k - 1]:       # Lovász condition
+            for l in range(k - 2, -1, -1):
+                _red(k, l, mu)
+            k += 1
+        else:
+            b[k], b[k - 1] = b[k - 1], b[k]
+            k = k - 1 if k - 1 >= 1 else 1
+    return b
+
+
+def lll_reduce(basis, delta=(3, 4)):
+    """LLL-reduce an integer lattice basis — the exact Lenstra–Lenstra–Lovász
+    (1982) reduction, in EXACT rational arithmetic (no float anywhere).
+
+    ``basis`` is a list of ``m`` integer row-vectors (each length ``n``,
+    arbitrary-precision Python ints) spanning a lattice ``L ⊂ ℤⁿ`` of rank ``m``
+    (an **independent** basis). ``delta`` is the Lovász parameter as an exact
+    rational pair ``(num, den)`` (default ``3/4``, the classical choice); it must
+    lie in ``(1/4, 1]``. Returns the **LLL-reduced basis** as a list of ``m``
+    integer row-vectors: same lattice ``L`` (the reduction is a unimodular change
+    of basis, ``det = ±1``), size-reduced (``|μ_{k,j}| ≤ 1/2`` for ``j < k``), and
+    satisfying the Lovász condition ``‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖²`` — so
+    the first vector is provably short (``‖b_1‖ ≤ 2^{(m−1)/2}·λ_1``).
+
+    The engine is the classical stack, EXACT throughout: a Gram-matrix
+    Gram–Schmidt orthogonalization over ℚ (``μ_{k,j}``, ``‖b*_k‖²`` as exact
+    ``fractions.Fraction`` / arbitrary-precision srmech_bigint ℚ in the C peer),
+    **size reduction** by exact nearest-integer rounding of ``μ``
+    (``round(a/b) = floor((2a+b)/(2b))`` — never a float rint, never ``abs``: the
+    ``|μ| ≤ 1/2`` guard is a Class-K sign branch on ``2·num`` vs ``den``), and the
+    **Lovász swap** decided on the exact ℚ inequality. NO ``math``, NO libm, NO
+    NumPy — integer-in, integer-out, rotation-last-trivial (no projection).
+
+    The foundation for a future van Hoeij polynomial-factorization knapsack
+    (the LLL recombination that supersedes the exponential Zassenhaus subset
+    search in :func:`factor_integer_poly`).
+
+    Native-dispatched: when the C library is loaded the whole reduction runs in
+    ``srmech_lll_reduce`` over the caller-arena srmech_bigint (byte-identical to
+    this pure body — both are exact, same algorithm, same rounding); the pure
+    body is the complete fallback (Pyodide / no-native / above the native
+    dimension·magnitude cap) AND the parity oracle.
+
+    **Class L** (the lattice / Gram-Schmidt spectral content) ∘ **Class K** (the
+    size-reduction sign pin-slots + the swap-sign boundary — never an ALU
+    ``abs``) ∘ **Class N** (the exact nearest-integer rational rounding) ∘
+    **Class I** (the ordered/sequential integer vector row operations).
+
+    Ref: A. K. Lenstra, H. W. Lenstra Jr., L. Lovász, "Factoring polynomials
+    with rational coefficients", *Math. Ann.* 261 (1982), 515–534; algorithm as
+    in H. Cohen, *A Course in Computational Algebraic Number Theory* (1993),
+    Algorithm 2.6.3.
+
+    :raises ValueError: if ``delta ∉ (1/4, 1]``, rows are ragged, or the basis is
+        linearly dependent (degenerate — ``‖b*_j‖²`` vanished).
+    """
+    native = _native.lll_reduce_c(basis, delta) if _native.HAS_NATIVE else None
+    if native is not None:
+        return native
+    return _lll_reduce_pure(basis, delta)
 
 
 # ── Part 2 — turnkey exact eigensolver: matrix → all exact eigenpairs ────────────

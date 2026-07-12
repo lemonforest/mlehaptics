@@ -426,6 +426,7 @@
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvec_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvec_exact", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvec_exact_float", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.factor_integer_poly", "defined_at": "srmech.amsc.cascade.matrix_cascades.factor_integer_poly", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.lll_reduce", "defined_at": "srmech.amsc.cascade.matrix_cascades.lll_reduce", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eig_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.eig_exact", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "defined_at": "srmech.amsc.cascade.matrix_cascades.jordan_form_exact", "bucket": "composition_of_c"}
