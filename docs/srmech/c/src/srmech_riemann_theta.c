@@ -3178,3 +3178,365 @@ srmech_status_t srmech_riemann_theta_gate_decide(
     }
     return SRMECH_OK;
 }
+
+/* ================================================================== *
+ *  rc226: srmech_riemann_theta_fay_certificate — the C peer of the
+ *  genus-2 Fay/KP RE-INDEXING CERTIFICATE
+ *  (srmech.amsc.riemann_theta.RiemannTheta.fay_reindexing_certificate).
+ * ================================================================== *
+ *
+ * The certificate upgrades the rc73 addition_holds SAFE-REGION boolean into an
+ * explicit, EVERY-ORDER witness for the genus-2 theta addition / Fay-Hirota-
+ * shadow bilinear identity (DLMF 21.6.8, z=0):
+ *
+ *   theta[a;0](0|Om) theta[b;0](0|Om)
+ *     = SUM_{r in (Z/2)^2} theta[(2r+a+b)/2;0](0|2Om) theta[(2r+a-b)/2;0](0|2Om)
+ *
+ * via the re-indexing bijection phi: (m,m') -> (M,M') = (m+m', m-m') on the
+ * full index lattice Z^2 x Z^2 (inverse ((M+M')/2, (M-M')/2), valid iff
+ * M == M' mod 2 — the mod-2 parity class r IS the RHS r-sum). This peer
+ * verifies the certificate's exact structural facts:
+ *
+ *   (1) the PARALLELOGRAM quadratic-form identity  2u^2 + 2u'^2 =
+ *       (u+u')^2 + (u-u')^2  (per coordinate, and the polarized cross-term
+ *       form) as an exact CLOSED-FORM polynomial identity in canonical
+ *       monomial form over Z[u1,u2,u1',u2'] (10-slot degree-2 coefficient
+ *       vector; index-INDEPENDENT — the every-order content, never sampled);
+ *   (2) the bijection's key-equality + mod-4 sector congruences + round-trip
+ *       over the bounded ILLUSTRATION window |n_i|,|n'_i| <= box (the
+ *       illustration, explicitly NOT the proof — the proof is (1) + the
+ *       linear round-trip identities, which the Python side also verifies
+ *       closed-form);
+ *   (3) the BEYOND-SAFE-REGION witness: the FULL exact coefficient of a
+ *       caller-supplied monomial (A,B,C) on BOTH sides — complete (not
+ *       truncated) because the non-negative diagonal exponents bound every
+ *       contributing index (2u^2 <= A). The witness monomial sits strictly
+ *       beyond the addition_holds region 2*box^2, which is the certificate's
+ *       concrete strengthening evidence.
+ *
+ * The pure-Python bodies (_fay_parallelogram_exact / _fay_window_check_py /
+ * _fay_witness_{lhs,rhs}_py) are the COMPLETE alternative + the parity oracle.
+ * Exact int64 throughout; the Class-K sign discipline holds (an explicit
+ * sign branch for the |C| magnitude bound, never an ALU abs()). Additive
+ * symbol -> ABI unchanged (stays 4). JPL-clean: bounded loops, no malloc,
+ * <=60-line functions, >=2 asserts per function, no multi-line macros.
+ */
+
+/* the canonical degree-2 monomial slots of Z[u1,u2,u1',u2']: pairs (i<=j) of
+ * 4 variables -> 10 slots */
+#define FAYC_QSLOTS 10
+
+/* box ceiling: box <= 2047 keeps the window tuple count (2*box+1)^4 < 2^48
+ * and every witness intermediate (keys <= 4*(2*box+1)^2 ~ 6.8e7, products of
+ * two such <= 2^54) inside int64 — a derived bound, not a magic number. */
+#define FAYC_BOX_MAX 2047u
+
+/* the upper-triangular slot index of the monomial x_i x_j (i <= j, 4 vars) */
+static int fayc_slot(int i, int j)
+{
+    static const int base[4] = {0, 4, 7, 9};
+    assert(i >= 0 && i < 4);
+    assert(j >= i && j < 4);
+    return base[i] + (j - i);
+}
+
+/* zero a canonical quadratic-form coefficient vector */
+static void fayc_qzero(int64_t *q)
+{
+    int k;
+    assert(q != NULL);
+    assert(FAYC_QSLOTS == 10);
+    for (k = 0; k < FAYC_QSLOTS; ++k) {
+        q[k] = 0;
+    }
+}
+
+/* accumulate c * (v.x)(w.x) into the canonical form q — the exact closed-form
+ * EXPANSION of a product of two integer linear forms (the polynomial-identity
+ * verifier's only operation; bounded 4x4 loop). */
+static void fayc_addq(int64_t *q, const int *v, const int *w, int64_t c)
+{
+    int i, j, lo, hi;
+    assert(q != NULL);
+    assert(v != NULL && w != NULL);
+    for (i = 0; i < 4; ++i) {
+        if (v[i] == 0) {
+            continue;
+        }
+        for (j = 0; j < 4; ++j) {
+            if (w[j] == 0) {
+                continue;
+            }
+            lo = (i <= j) ? i : j;
+            hi = (i <= j) ? j : i;
+            q[fayc_slot(lo, hi)] += c * (int64_t)v[i] * (int64_t)w[j];
+        }
+    }
+}
+
+/* canonical-form equality: two degree-2 forms are the SAME polynomial iff
+ * every canonical coefficient agrees (the complete decision — never sampled) */
+static int fayc_quad_equal(const int64_t *p, const int64_t *q)
+{
+    int k, eq = 1;
+    assert(p != NULL);
+    assert(q != NULL);
+    for (k = 0; k < FAYC_QSLOTS; ++k) {
+        if (p[k] != q[k]) {
+            eq = 0;
+        }
+    }
+    return eq;
+}
+
+/* (1) the PARALLELOGRAM law as an exact closed-form polynomial identity in
+ * canonical monomial form (index-independent => every order):
+ *   2 u_d^2 + 2 u'_d^2  = (u_d+u'_d)^2 + (u_d-u'_d)^2       (d = 1, 2)
+ *   2 u1 u2 + 2 u1' u2' = (u1+u1')(u2+u2') + (u1-u1')(u2-u2')
+ * Variables indexed (u1, u2, u1', u2') = (0, 1, 2, 3). */
+static int fayc_parallelogram_ok(void)
+{
+    static const int e_u1[4] = {1, 0, 0, 0};
+    static const int e_u2[4] = {0, 1, 0, 0};
+    static const int e_v1[4] = {0, 0, 1, 0};
+    static const int e_v2[4] = {0, 0, 0, 1};
+    static const int sum1[4] = {1, 0, 1, 0};
+    static const int dif1[4] = {1, 0, -1, 0};
+    static const int sum2[4] = {0, 1, 0, 1};
+    static const int dif2[4] = {0, 1, 0, -1};
+    int64_t ql[FAYC_QSLOTS], qr[FAYC_QSLOTS];
+    int ok;
+    fayc_qzero(ql);
+    fayc_qzero(qr);
+    fayc_addq(ql, e_u1, e_u1, 2);
+    fayc_addq(ql, e_v1, e_v1, 2);
+    fayc_addq(qr, sum1, sum1, 1);
+    fayc_addq(qr, dif1, dif1, 1);
+    ok = fayc_quad_equal(ql, qr);                 /* diagonal, coordinate 1 */
+    fayc_qzero(ql);
+    fayc_qzero(qr);
+    fayc_addq(ql, e_u2, e_u2, 2);
+    fayc_addq(ql, e_v2, e_v2, 2);
+    fayc_addq(qr, sum2, sum2, 1);
+    fayc_addq(qr, dif2, dif2, 1);
+    ok = ok && fayc_quad_equal(ql, qr);           /* diagonal, coordinate 2 */
+    fayc_qzero(ql);
+    fayc_qzero(qr);
+    fayc_addq(ql, e_u1, e_u2, 2);
+    fayc_addq(ql, e_v1, e_v2, 2);
+    fayc_addq(qr, sum1, sum2, 1);
+    fayc_addq(qr, dif1, dif2, 1);
+    ok = ok && fayc_quad_equal(ql, qr);           /* the polarized cross-term */
+    assert(ok == 0 || ok == 1);
+    assert(FAYC_QSLOTS == 10);
+    return ok;
+}
+
+/* (2) one window tuple: key-equality under phi + the mod-4 sector congruences
+ * + the phi-inverse round-trip. u = 2n + a, u' = 2m + b; U = u + u',
+ * U' = u - u'; r_i = (n_i + m_i) mod 2. Truncated C % is a valid divisibility
+ * test; the even differences divide exactly. */
+static int fayc_tuple_ok(int64_t a1, int64_t a2, int64_t b1, int64_t b2,
+                         int64_t n1, int64_t n2, int64_t m1, int64_t m2)
+{
+    int64_t u1 = 2 * n1 + a1, u2 = 2 * n2 + a2;
+    int64_t v1 = 2 * m1 + b1, v2 = 2 * m2 + b2;
+    int64_t cu1 = u1 + v1, cu2 = u2 + v2, cv1 = u1 - v1, cv2 = u2 - v2;
+    int64_t r1 = ((n1 + m1) % 2 + 2) % 2, r2 = ((n2 + m2) % 2 + 2) % 2;
+    int64_t bn1, bn2, bm1, bm2;
+    assert(a1 == 0 || a1 == 1);
+    assert(b1 == 0 || b1 == 1);
+    if (cu1 * cu1 + cv1 * cv1 != 2 * u1 * u1 + 2 * v1 * v1) {
+        return 0;                                 /* key: diagonal 1 */
+    }
+    if (cu2 * cu2 + cv2 * cv2 != 2 * u2 * u2 + 2 * v2 * v2) {
+        return 0;                                 /* key: diagonal 2 */
+    }
+    if (cu1 * cu2 + cv1 * cv2 != 2 * u1 * u2 + 2 * v1 * v2) {
+        return 0;                                 /* key: cross-term */
+    }
+    if ((cu1 - (2 * r1 + a1 + b1)) % 4 != 0
+            || (cu2 - (2 * r2 + a2 + b2)) % 4 != 0) {
+        return 0;                                 /* U in the s+ sector mod 4 */
+    }
+    if ((cv1 - (2 * r1 + a1 - b1)) % 4 != 0
+            || (cv2 - (2 * r2 + a2 - b2)) % 4 != 0) {
+        return 0;                                 /* U' in the s- sector mod 4 */
+    }
+    bn1 = (n1 + m1 - r1) / 2;                     /* N  (exact: even / 2) */
+    bn2 = (n2 + m2 - r2) / 2;
+    bm1 = (n1 - m1 - r1) / 2;                     /* N' (exact: even / 2) */
+    bm2 = (n2 - m2 - r2) / 2;
+    if (bn1 + bm1 + r1 != n1 || bn2 + bm2 + r2 != n2) {
+        return 0;                                 /* phi-inverse: n */
+    }
+    if (bn1 - bm1 != m1 || bn2 - bm2 != m2) {
+        return 0;                                 /* phi-inverse: m */
+    }
+    return 1;
+}
+
+/* (2) the bounded window illustration: every |n_i|, |m_i| <= box tuple passes
+ * fayc_tuple_ok. *out_tuples <- the number checked. */
+static int fayc_window_ok(int64_t a1, int64_t a2, int64_t b1, int64_t b2,
+                          int64_t box, int64_t *out_tuples)
+{
+    int64_t n1, n2, m1, m2, count = 0;
+    assert(out_tuples != NULL);
+    assert(box >= 0);
+    for (n1 = -box; n1 <= box; ++n1) {
+        for (m1 = -box; m1 <= box; ++m1) {
+            for (n2 = -box; n2 <= box; ++n2) {
+                for (m2 = -box; m2 <= box; ++m2) {
+                    if (!fayc_tuple_ok(a1, a2, b1, b2, n1, n2, m1, m2)) {
+                        *out_tuples = count;
+                        return 0;
+                    }
+                    count += 1;
+                }
+            }
+        }
+    }
+    *out_tuples = count;
+    return 1;
+}
+
+/* (3) the FULL exact LHS coefficient of the witness monomial (wa, wb, wc) in
+ * theta[a;0](Om) theta[b;0](Om), eighth-nome: indices u == a, u' == b (mod 2)
+ * with 2u1^2+2u1'^2 == wa, 2u2^2+2u2'^2 == wb, 2u1u2+2u1'u2' == wc. COMPLETE
+ * (not truncated): the non-negative diagonals bound every contributing index.
+ * Every contribution is +1 (zero lower characteristics). */
+static int64_t fayc_lhs_coeff(int64_t a1, int64_t a2, int64_t b1, int64_t b2,
+                              int64_t wa, int64_t wb, int64_t wc)
+{
+    int64_t rad1 = rtgate_isqrt(wa / 2), rad2 = rtgate_isqrt(wb / 2);
+    int64_t u1, v1, u2, v2, coeff = 0;
+    assert(wa >= 0);
+    assert(wb >= 0);
+    for (u1 = -rad1; u1 <= rad1; ++u1) {
+        if ((u1 - a1) % 2 != 0) {
+            continue;
+        }
+        for (v1 = -rad1; v1 <= rad1; ++v1) {
+            if ((v1 - b1) % 2 != 0 || 2 * u1 * u1 + 2 * v1 * v1 != wa) {
+                continue;
+            }
+            for (u2 = -rad2; u2 <= rad2; ++u2) {
+                if ((u2 - a2) % 2 != 0) {
+                    continue;
+                }
+                for (v2 = -rad2; v2 <= rad2; ++v2) {
+                    if ((v2 - b2) % 2 != 0
+                            || 2 * u2 * u2 + 2 * v2 * v2 != wb) {
+                        continue;
+                    }
+                    if (2 * u1 * u2 + 2 * v1 * v2 == wc) {
+                        coeff += 1;
+                    }
+                }
+            }
+        }
+    }
+    return coeff;
+}
+
+/* (3) one RHS r-sector's contribution: 2-Omega indices U == sp, U' == sm
+ * (mod 4) with U1^2+U1'^2 == wa, U2^2+U2'^2 == wb, U1U2+U1'U2' == wc. */
+static int64_t fayc_rhs_sector_coeff(int64_t sp1, int64_t sp2, int64_t sm1,
+                                     int64_t sm2, int64_t wa, int64_t wb,
+                                     int64_t wc)
+{
+    int64_t rad_a = rtgate_isqrt(wa), rad_b = rtgate_isqrt(wb);
+    int64_t cu1, cv1, cu2, cv2, coeff = 0;
+    assert(wa >= 0);
+    assert(wb >= 0);
+    for (cu1 = -rad_a; cu1 <= rad_a; ++cu1) {
+        if ((cu1 - sp1) % 4 != 0) {
+            continue;
+        }
+        for (cv1 = -rad_a; cv1 <= rad_a; ++cv1) {
+            if ((cv1 - sm1) % 4 != 0 || cu1 * cu1 + cv1 * cv1 != wa) {
+                continue;
+            }
+            for (cu2 = -rad_b; cu2 <= rad_b; ++cu2) {
+                if ((cu2 - sp2) % 4 != 0) {
+                    continue;
+                }
+                for (cv2 = -rad_b; cv2 <= rad_b; ++cv2) {
+                    if ((cv2 - sm2) % 4 != 0
+                            || cu2 * cu2 + cv2 * cv2 != wb) {
+                        continue;
+                    }
+                    if (cu1 * cu2 + cv1 * cv2 == wc) {
+                        coeff += 1;
+                    }
+                }
+            }
+        }
+    }
+    return coeff;
+}
+
+/* (3) the FULL exact RHS coefficient: the four r-sectors summed (characters
+ * sp = 2r+a+b, sm = 2r+a-b — exactly the certificate's parity sectors). */
+static int64_t fayc_rhs_coeff(int64_t a1, int64_t a2, int64_t b1, int64_t b2,
+                              int64_t wa, int64_t wb, int64_t wc)
+{
+    int64_t r1, r2, coeff = 0;
+    assert(a1 == 0 || a1 == 1);
+    assert(b1 == 0 || b1 == 1);
+    for (r1 = 0; r1 <= 1; ++r1) {
+        for (r2 = 0; r2 <= 1; ++r2) {
+            coeff += fayc_rhs_sector_coeff(
+                2 * r1 + a1 + b1, 2 * r2 + a2 + b2,
+                2 * r1 + a1 - b1, 2 * r2 + a2 - b2, wa, wb, wc);
+        }
+    }
+    return coeff;
+}
+
+/* The rc226 certificate kernel: verify (1) the closed-form parallelogram
+ * identity, (2) the bounded window bijection illustration, (3) the FULL exact
+ * witness-monomial coefficients on both sides. See the block comment above.
+ * SRMECH_ERR_BAD_INPUT on a non-bit characteristic, box > FAYC_BOX_MAX, or a
+ * witness key outside the box-derived bounds (diagonals in [0, 4*(2box+1)^2],
+ * 2|C| <= A + B — the AM-GM cross bound; Class-K sign branch, no abs()). */
+srmech_status_t srmech_riemann_theta_fay_certificate(
+    int a1, int a2, int b1, int b2, uint32_t box,
+    int64_t witness_a, int64_t witness_b, int64_t witness_c,
+    int *out_par_ok, int *out_window_ok, int64_t *out_tuples,
+    int64_t *out_witness_lhs, int64_t *out_witness_rhs)
+{
+    int64_t bx = (int64_t)box, diag_cap, wc_mag;
+    assert(out_par_ok != NULL);
+    assert(out_window_ok != NULL);
+    if (out_tuples == NULL || out_witness_lhs == NULL
+            || out_witness_rhs == NULL) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (!rt_bit_ok(a1) || !rt_bit_ok(a2) || !rt_bit_ok(b1) || !rt_bit_ok(b2)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (box > FAYC_BOX_MAX) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    diag_cap = 4 * (2 * bx + 1) * (2 * bx + 1);
+    if (witness_a < 0 || witness_b < 0
+            || witness_a > diag_cap || witness_b > diag_cap) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    wc_mag = (witness_c >= 0) ? witness_c : -witness_c;  /* Class-K, no abs() */
+    if (2 * wc_mag > witness_a + witness_b) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *out_par_ok = fayc_parallelogram_ok();
+    *out_window_ok = fayc_window_ok((int64_t)a1, (int64_t)a2,
+                                    (int64_t)b1, (int64_t)b2, bx, out_tuples);
+    *out_witness_lhs = fayc_lhs_coeff((int64_t)a1, (int64_t)a2,
+                                      (int64_t)b1, (int64_t)b2,
+                                      witness_a, witness_b, witness_c);
+    *out_witness_rhs = fayc_rhs_coeff((int64_t)a1, (int64_t)a2,
+                                      (int64_t)b1, (int64_t)b2,
+                                      witness_a, witness_b, witness_c);
+    return SRMECH_OK;
+}

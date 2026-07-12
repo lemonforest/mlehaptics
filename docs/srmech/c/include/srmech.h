@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc225"
-#define SRMECH_VERSION       "0.9.0rc225"
+#define SRMECH_VERSION_PRE   "rc226"
+#define SRMECH_VERSION       "0.9.0rc226"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -7499,6 +7499,37 @@ srmech_status_t srmech_riemann_theta_gate_decide(
     const int32_t *spec, size_t spec_len, uint32_t n_comparisons,
     int64_t *work, size_t work_cap,
     int32_t *out_equal, int32_t *out_cross);
+
+/* ------------------------------------------------------------------ *
+ * rc226: srmech_riemann_theta_fay_certificate — the C peer of the genus-2
+ * Fay/KP RE-INDEXING CERTIFICATE
+ * (srmech.amsc.riemann_theta.RiemannTheta.fay_reindexing_certificate), which
+ * upgrades the rc73 addition_holds SAFE-REGION boolean into an explicit,
+ * EVERY-ORDER witness for the genus-2 theta addition / Fay-Hirota-shadow
+ * bilinear identity (DLMF 21.6.8, z=0) via the re-indexing bijection
+ * phi: (m,m') -> (m+m', m-m') on Z^2 x Z^2 (the mod-2 parity class IS the
+ * RHS r-sum). Verifies the certificate's exact structural facts: (1) the
+ * PARALLELOGRAM quadratic-form identity 2u^2+2u'^2 = (u+u')^2+(u-u')^2 (per
+ * coordinate + the polarized cross form) as an exact CLOSED-FORM polynomial
+ * identity in canonical monomial form over Z[u1,u2,u1',u2'] (index-independent
+ * = the every-order content; never sampled) -> *out_par_ok; (2) the bijection
+ * key-equality + mod-4 sector congruences + phi-inverse round-trip over the
+ * bounded ILLUSTRATION window |n_i|,|n'_i| <= box -> *out_window_ok /
+ * *out_tuples (the illustration, NOT the proof); (3) the BEYOND-SAFE-REGION
+ * witness monomial (witness_a, witness_b, witness_c): its FULL exact
+ * coefficient on both sides (complete — the non-negative diagonal exponents
+ * bound every contributing index) -> *out_witness_lhs / *out_witness_rhs.
+ * The pure-Python bodies are the complete alternative + the parity oracle.
+ * SRMECH_ERR_BAD_INPUT on a non-bit characteristic, box > 2047 (the derived
+ * int64 window bound), or a witness key outside the box-derived bounds
+ * (diagonals in [0, 4*(2*box+1)^2], 2|C| <= A+B). Additive symbol -> ABI
+ * unchanged (stays 4). It does NOT decide is-Jacobian / the curve-specific
+ * Fay trisecant (the Schottky problem, genuinely open for genus >= 5). */
+srmech_status_t srmech_riemann_theta_fay_certificate(
+    int a1, int a2, int b1, int b2, uint32_t box,
+    int64_t witness_a, int64_t witness_b, int64_t witness_c,
+    int *out_par_ok, int *out_window_ok, int64_t *out_tuples,
+    int64_t *out_witness_lhs, int64_t *out_witness_rhs);
 
 /* ------------------------------------------------------------------ *
  * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the

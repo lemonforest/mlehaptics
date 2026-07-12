@@ -4722,6 +4722,30 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_int32),   # out_cross[]
         ]
         lib.srmech_riemann_theta_gate_decide.restype = ctypes.c_int
+    # rc226: the genus-2 Fay/KP RE-INDEXING CERTIFICATE kernel — the C peer of
+    # RiemannTheta.fay_reindexing_certificate (the closed-form parallelogram
+    # identity + the bounded window bijection illustration + the FULL exact
+    # beyond-safe-region witness coefficients). NEW symbol → hasattr-guarded;
+    # additive → EXPECTED_ABI_VERSION stays 4.
+    #   srmech_riemann_theta_fay_certificate(a1, a2, b1, b2, box, wa, wb, wc,
+    #       out_par_ok, out_window_ok, out_tuples, out_wit_lhs, out_wit_rhs)
+    if hasattr(lib, "srmech_riemann_theta_fay_certificate"):
+        lib.srmech_riemann_theta_fay_certificate.argtypes = [
+            ctypes.c_int,                     # a1
+            ctypes.c_int,                     # a2
+            ctypes.c_int,                     # b1
+            ctypes.c_int,                     # b2
+            ctypes.c_uint32,                  # box
+            ctypes.c_int64,                   # witness_a
+            ctypes.c_int64,                   # witness_b
+            ctypes.c_int64,                   # witness_c
+            ctypes.POINTER(ctypes.c_int),     # out_par_ok
+            ctypes.POINTER(ctypes.c_int),     # out_window_ok
+            ctypes.POINTER(ctypes.c_int64),   # out_tuples
+            ctypes.POINTER(ctypes.c_int64),   # out_witness_lhs
+            ctypes.POINTER(ctypes.c_int64),   # out_witness_rhs
+        ]
+        lib.srmech_riemann_theta_fay_certificate.restype = ctypes.c_int
     # rc54: the EXACT q-shift CARRIER C peer (srmech_qpoly_*) — the q-analog of
     # the poly carrier, the q-hypergeometric F929 reduction-row foundation. A
     # QPoly is a ROW of q-Poly cells over an x-window; the bridge flattens the
@@ -10898,6 +10922,53 @@ def riemann_theta_gate_decide_c(g, safe, restrict_crosses, comparisons):
         raise RuntimeError(
             f"srmech_riemann_theta_gate_decide returned non-OK status {rc}")
     return [(bool(out_equal[i]), bool(out_cross[i])) for i in range(n_comp)]
+
+
+def has_native_riemann_theta_fay() -> bool:
+    """True iff the rc226 ``srmech_riemann_theta_fay_certificate`` peer (the
+    genus-2 Fay/KP re-indexing certificate kernel: the closed-form
+    parallelogram identity + the bounded window bijection illustration + the
+    FULL exact beyond-safe-region witness coefficients) is loaded + bound.
+    False on a no-C / pre-rc226 lib — the pure-Python certificate bodies in
+    ``srmech.amsc.riemann_theta.RiemannTheta`` are the complete alternative
+    (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_riemann_theta_fay_certificate")
+
+
+def riemann_theta_fay_certificate_c(a1, a2, b1, b2, box, wa, wb, wc):
+    """Native genus-2 Fay/KP re-indexing certificate verification → the tuple
+    ``(par_ok, window_ok, tuples_checked, witness_lhs, witness_rhs)``, or
+    ``None`` if the native symbol is absent. ``(a1, a2)`` / ``(b1, b2)`` are
+    the two upper characteristics (bits), ``box`` the illustration-window
+    bound, ``(wa, wb, wc)`` the beyond-safe-region witness monomial key.
+    Byte-identical to the pure-Python ``RiemannTheta._fay_parallelogram_exact``
+    / ``_fay_window_check_py`` / ``_fay_witness_{lhs,rhs}_py`` bodies (the
+    parity oracle). Raises on a non-OK status (the caller falls to the pure
+    path)."""
+    if not has_native_riemann_theta_fay():
+        return None
+    if not isinstance(box, int) or box < 0:
+        raise ValueError(f"riemann_theta_fay_certificate_c: bad box {box!r}")
+    par_ok = ctypes.c_int(0)
+    window_ok = ctypes.c_int(0)
+    tuples = ctypes.c_int64(0)
+    wit_lhs = ctypes.c_int64(0)
+    wit_rhs = ctypes.c_int64(0)
+    rc = LIB.srmech_riemann_theta_fay_certificate(
+        ctypes.c_int(int(a1)), ctypes.c_int(int(a2)),
+        ctypes.c_int(int(b1)), ctypes.c_int(int(b2)),
+        ctypes.c_uint32(int(box)),
+        ctypes.c_int64(int(wa)), ctypes.c_int64(int(wb)),
+        ctypes.c_int64(int(wc)),
+        ctypes.byref(par_ok), ctypes.byref(window_ok), ctypes.byref(tuples),
+        ctypes.byref(wit_lhs), ctypes.byref(wit_rhs))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_fay_certificate returned non-OK status {rc}")
+    return (bool(par_ok.value), bool(window_ok.value), int(tuples.value),
+            int(wit_lhs.value), int(wit_rhs.value))
 
 
 def has_native_poly_gcd() -> bool:
