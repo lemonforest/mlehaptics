@@ -47,7 +47,14 @@ class Mat:
     C99 ``double _Complex`` order).
     """
 
-    __slots__ = ("_buf", "n_rows", "n_cols", "_complex")
+    # ``_srmech_desc_hash_memo`` (rc219; gh #827): the lazily-attached
+    # per-carrier memo dict ``srmech.spectral._descriptor_hash`` keys its
+    # substrate-descriptor hex on (carrier identity × encoder_tag) — the
+    # profiled O(n²) per-state descriptor re-hash collapse. Never touched by
+    # the carrier itself; shares the documented ``buffer`` caveat (an in-place
+    # buffer mutation invalidates no cache — pass a fresh ``Mat``).
+    __slots__ = ("_buf", "n_rows", "n_cols", "_complex",
+                 "_srmech_desc_hash_memo")
 
     def __init__(
         self, buf: "array", n_rows: int, n_cols: int, *, is_complex: bool = False
@@ -117,10 +124,6 @@ class Mat:
     def __len__(self) -> int:
         return self.n_rows  # number of rows, like numpy's 2-D len
 
-    def _flat_index(self, i: int, j: int) -> int:
-        assert 0 <= i < self.n_rows and 0 <= j < self.n_cols, "Mat index out of range"
-        return i * self.n_cols + j
-
     def _norm_row(self, i: int) -> int:
         if i < 0:
             i += self.n_rows
@@ -189,8 +192,25 @@ class Mat:
     def __iter__(self):
         return (self.row(i) for i in range(self.n_rows))
 
+    # ── native carrier dispatch (rc141 Foundation F0) ─────────────────────
+    # The whole-buffer compute methods (conj/neg/transpose + elementwise) route
+    # to the byte-identical C carrier ops (srmech_mat_*) when HAS_NATIVE, over
+    # the SAME array('d') buffer zero-copy; the pure-Python bodies below are the
+    # COMPLETE alternative (numpy-absent / no-C hosts) and the byte-exact oracle.
+    def _native_unary(self, kind: str):
+        from . import _native  # lazy: _native has no Mat dependency
+        res = _native.mat_unary_c(self._buf, self.n_rows, self.n_cols,
+                                  self._complex, kind)
+        if res is None:
+            return None
+        out, orows, ocols = res
+        return Mat(out, orows, ocols, is_complex=self._complex)
+
     def transpose(self) -> "Mat":
         """The transpose as a new ``Mat`` (numpy-free; no conjugation)."""
+        r = self._native_unary("transpose")
+        if r is not None:
+            return r
         out = [[self[i, j] for i in range(self.n_rows)] for j in range(self.n_cols)]
         return Mat.from_rows(out, is_complex=self._complex)
 
@@ -200,6 +220,9 @@ class Mat:
 
     def conj(self) -> "Mat":
         """Element-wise complex conjugate as a new ``Mat`` (real → copy)."""
+        r = self._native_unary("conj")
+        if r is not None:
+            return r
         if not self._complex:
             return Mat(array("d", self._buf), self.n_rows, self.n_cols)
         out = array("d", self._buf)
@@ -266,23 +289,51 @@ class Mat:
                  for j in range(self.n_cols)] for i in range(self.n_rows)]
         return Mat.from_rows(rows, is_complex=cplx)
 
+    def _native_elementwise(self, other, kind: str):
+        """The rc141 native fast path for the two unambiguous elementwise
+        shapes: a same-shape :class:`Mat` (direct C op) or a scalar (C scalar
+        broadcast). Returns a :class:`Mat` or ``None`` (all other operands —
+        reflected sub/div, 2-D-sequence coercion, cross-rank — fall to the pure
+        :meth:`_elementwise`). ``kind`` in {"add","sub","mul"}."""
+        from . import _native  # lazy
+        if isinstance(other, Mat) and other.shape == self.shape:
+            res = _native.mat_binary_c(self._buf, self._complex, other._buf,
+                                       other._complex, self.n_rows,
+                                       self.n_cols, kind)
+        elif isinstance(other, (int, float, complex)) and kind != "sub":
+            z = complex(other)
+            skind = "scale" if kind == "mul" else "add"
+            res = _native.mat_scalar_c(self._buf, self._complex, self.n_rows,
+                                       self.n_cols, z.real, z.imag, skind)
+        else:
+            return None
+        if res is None:
+            return None
+        out, cplx = res
+        return Mat(out, self.n_rows, self.n_cols, is_complex=bool(cplx))
+
     def __add__(self, other):
-        return self._elementwise(other, lambda a, b: a + b)
+        r = self._native_elementwise(other, "add")
+        return r if r is not None else self._elementwise(other, lambda a, b: a + b)
 
     def __radd__(self, other):
-        return self._elementwise(other, lambda a, b: a + b)
+        r = self._native_elementwise(other, "add")  # scalar + Mat is commutative
+        return r if r is not None else self._elementwise(other, lambda a, b: a + b)
 
     def __sub__(self, other):
-        return self._elementwise(other, lambda a, b: a - b)
+        r = self._native_elementwise(other, "sub")
+        return r if r is not None else self._elementwise(other, lambda a, b: a - b)
 
     def __rsub__(self, other):
         return self._elementwise(other, lambda a, b: a - b, reflected=True)
 
     def __mul__(self, other):
-        return self._elementwise(other, lambda a, b: a * b)
+        r = self._native_elementwise(other, "mul")
+        return r if r is not None else self._elementwise(other, lambda a, b: a * b)
 
     def __rmul__(self, other):
-        return self._elementwise(other, lambda a, b: a * b)
+        r = self._native_elementwise(other, "mul")  # scalar * Mat is commutative
+        return r if r is not None else self._elementwise(other, lambda a, b: a * b)
 
     def __truediv__(self, other):
         return self._elementwise(other, lambda a, b: a / b)
@@ -291,6 +342,9 @@ class Mat:
         return self._elementwise(other, lambda a, b: a / b, reflected=True)
 
     def __neg__(self):  # the Class-K sign-flip over every element
+        r = self._native_unary("neg")
+        if r is not None:
+            return r
         rows = [[-self._scalar_at(i, j) for j in range(self.n_cols)]
                 for i in range(self.n_rows)]
         return Mat.from_rows(rows, is_complex=self._complex)

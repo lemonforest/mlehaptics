@@ -34,6 +34,7 @@
 #define SRMECH_PLATFORM_H
 
 #include <stddef.h>   /* size_t (stream read/write) */
+#include <stdint.h>   /* uint16_t (TCP port, rc194) */
 #include "srmech.h"   /* srmech_status_t */
 
 /* The agnostic thread-entry signature — a plain void(void*) job. The PAL
@@ -67,6 +68,43 @@ srmech_status_t srmech_plat_thread_spawn(srmech_plat_thread_fn fn, void *arg,
 
 /* Join a thread previously spawned (releases its platform handle). */
 srmech_status_t srmech_plat_thread_join(srmech_plat_thread_t *handle);
+
+/* ================================================================== *
+ * MUTEX (rc180) — a lock so the bus pub/sub (srmech_bus.c) can guard its
+ * concurrent subscriber registry with NO `#ifdef _WIN32` in the caller.
+ * pthread_mutex on POSIX / CRITICAL_SECTION on Windows / a no-op on a
+ * thread-less target (the serial path needs no lock — the capability is
+ * preserved, like the thread surface above). The OS lock lives in the
+ * caller's storage (no heap), like the thread handle.
+ * ================================================================== */
+
+/* Max-aligned opaque storage for one OS mutex (POSIX pthread_mutex_t /
+ * Windows CRITICAL_SECTION). Sized for macOS's 64-byte pthread_mutex_t
+ * (glibc's is 40, Win CRITICAL_SECTION is 40); a _Static_assert in the .c
+ * checks the fit per platform. */
+#define SRMECH_PLAT_MUTEX_STORAGE 64
+typedef struct srmech_plat_mutex {
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_MUTEX_STORAGE];
+    } handle;
+    int initialized;   /* 1 between init and destroy; 0 otherwise */
+} srmech_plat_mutex_t;
+
+/* Initialise `m` for use. SRMECH_OK on success; SRMECH_ERR_INTERNAL if the
+ * OS lock cannot be created. On a thread-less target every op is a no-op
+ * success (the serial caller has no concurrency to guard). */
+srmech_status_t srmech_plat_mutex_init(srmech_plat_mutex_t *m);
+
+/* Acquire / release the lock. The caller inits the mutex once at setup;
+ * lock/unlock on a non-initialised mutex is a programming error (asserted). */
+srmech_status_t srmech_plat_mutex_lock(srmech_plat_mutex_t *m);
+srmech_status_t srmech_plat_mutex_unlock(srmech_plat_mutex_t *m);
+
+/* Destroy `m` (releases the OS lock). Safe on a zero-initialised handle
+ * (initialized == 0 → no-op), so teardown of a never-used mutex is clean. */
+srmech_status_t srmech_plat_mutex_destroy(srmech_plat_mutex_t *m);
 
 /* ================================================================== *
  * STREAM IPC (rc5) — the AF_UNIX-socket / named-pipe duality.
@@ -260,5 +298,131 @@ srmech_status_t srmech_plat_rstream_read(srmech_plat_rstream_t *rs, void *buf,
 
 /* Close the handle (POSIX/Win fclose). Safe on a zero-initialised handle. */
 srmech_status_t srmech_plat_rstream_close(srmech_plat_rstream_t *rs);
+
+/* ================================================================== *
+ * WALL CLOCK (rc179) — nanoseconds since the Unix epoch, so the bus
+ * Bio-TOTP encrypted transport (srmech_bus.c) can roll its key window
+ * autonomously on a bare-C host (no Python time.time_ns()). Uses ISO
+ * C11 timespec_get(TIME_UTC), so ONE implementation serves POSIX +
+ * Windows with no #ifdef; a clock-less target returns SRMECH_ERR_IO.
+ * ================================================================== */
+
+/* Current wall-clock time in nanoseconds since 1970-01-01T00:00:00Z into
+ * *out_ns (matches Python time.time_ns() to the platform clock's resolution).
+ * SRMECH_ERR_NULL_ARG if out_ns is NULL; SRMECH_ERR_IO if no clock backend. */
+srmech_status_t srmech_plat_now_ns(int64_t *out_ns);
+
+/* ================================================================== *
+ * STANDARD I/O (rc186) — blocking stdin read + stdout write, so the MCP
+ * JSON-RPC stdio loop (srmech_mcp.c) can serve a bare-C host with NO
+ * `#ifdef _WIN32` of its own. POSIX read(0,…)/write(1,…) / Windows
+ * ReadFile/WriteFile on GetStdHandle(STD_{INPUT,OUTPUT}_HANDLE). Here the
+ * peer is an anonymous pipe (parent → child stdin), NOT a socket — EOF (a
+ * closed pipe / 0-byte read) is the deterministic loop terminator, and a
+ * signal-interrupted read is retried (POSIX EINTR), so the loop MUST NOT
+ * hang. A bare-metal target with no stdio reports has_stdio() == 0 and the
+ * MCP loop returns SRMECH_ERR_IO (it feeds requests another way).
+ * ================================================================== */
+
+/* 1 iff a stdin/stdout backend is compiled in (POSIX / Windows); 0 on a
+ * bare-metal target with no standard streams. */
+int srmech_plat_has_stdio(void);
+
+/* Blocking read of up to `cap` bytes of stdin into `buf`; *out_n receives the
+ * count actually read. *out_n == 0 is END-OF-STREAM (a closed stdin pipe) —
+ * the deterministic terminator, NOT an error. A read error → SRMECH_ERR_IO;
+ * EINTR is retried internally. */
+srmech_status_t srmech_plat_stdin_read(unsigned char *buf, size_t cap,
+                                       size_t *out_n);
+
+/* Write exactly `n` bytes of `buf` to stdout, looping until complete (EINTR
+ * retried). A write error → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_stdout_write(const unsigned char *buf, size_t n);
+
+/* ================================================================== *
+ * TCP STREAM (rc194) — a localhost TCP listener/accept/read/write, so the
+ * MCP HTTP+SSE server (srmech_mcp_sse.c) can serve a cross-terminal HTTP
+ * transport with NO `#ifdef _WIN32` of its own. Distinct from the STREAM
+ * IPC surface above (that is AF_UNIX / named-pipe, addressed by a short
+ * name); TCP is addressed by host:port and carries an HTTP byte stream.
+ *
+ * POSIX-FIRST (the rc180 socket-teardown discipline). The POSIX backend is
+ * complete (BSD sockets); Windows Winsock is a tracked FOLLOW-UP, so on
+ * Windows `srmech_plat_has_tcp()` reports 0 and the listen/accept calls
+ * return SRMECH_ERR_BAD_INPUT (the MCP HTTP+SSE C server then declines and a
+ * Python host runs the pure http.server). A bare-metal target with no TCP
+ * stack likewise reports 0.
+ *
+ * NO-HANG teardown: `srmech_plat_tcp_accept` takes a `timeout_ms` and a
+ * `*got` flag (0 == timed out, no connection) so the accept loop polls the
+ * listener and re-checks a stop flag each tick (Python's serve_forever
+ * poll_interval=0.1 analogue); teardown sets the flag + closes the listener,
+ * and the loop terminates within one poll tick — it MUST NOT block forever.
+ * ================================================================== */
+
+/* Max-aligned opaque storage for one OS TCP listener handle (POSIX int fd /
+ * Windows SOCKET). A TCP *connection* reuses srmech_plat_stream_conn_t (a
+ * socket fd fits its 16-byte storage) but is read/written via the tcp_* fns
+ * below (recv/send, not the named-pipe ReadFile/WriteFile path). */
+#define SRMECH_PLAT_TCP_STORAGE 16
+typedef struct srmech_plat_tcp_server {
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_TCP_STORAGE];
+    } handle;
+} srmech_plat_tcp_server_t;
+
+/* 1 iff a TCP backend is compiled in (POSIX today); 0 on Windows (Winsock
+ * follow-up) / bare-metal — the MCP HTTP+SSE C server declines there. */
+int srmech_plat_has_tcp(void);
+
+/* Bind + listen on `host`:`port` (host is a dotted-quad, e.g. "127.0.0.1").
+ * `port` == 0 asks the kernel to assign one; the bound port lands in
+ * *out_port (read it back for the caller). SO_REUSEADDR is set. */
+srmech_status_t srmech_plat_tcp_listen(const char *host, uint16_t port,
+                                       srmech_plat_tcp_server_t *out,
+                                       uint16_t *out_port);
+
+/* Accept up to one client, polling the listener for `timeout_ms` ms (0 blocks
+ * forever). *got := 1 and *conn_out written when a connection arrives, or
+ * *got := 0 at timeout (no connection — the caller re-checks its stop flag).
+ * SRMECH_ERR_IO on a listener error (e.g. the listener was closed at
+ * teardown). The accepted connection carries a modest recv timeout so a
+ * half-open client cannot stall the accept thread. */
+srmech_status_t srmech_plat_tcp_accept(srmech_plat_tcp_server_t *server,
+                                       srmech_plat_stream_conn_t *conn_out,
+                                       unsigned timeout_ms, int *got);
+
+/* Close the listener (POSIX shutdown+close(listen_fd)). Safe on a
+ * zero-initialised server. Unblocks a concurrent poll-based accept (which
+ * re-checks the caller's stop flag and returns). */
+srmech_status_t srmech_plat_tcp_server_close(srmech_plat_tcp_server_t *server);
+
+/* Read up to `cap` bytes from a TCP connection into `buf`; *out_n gets the
+ * count (0 == EOF / peer closed). SRMECH_ERR_IO on a read error / recv
+ * timeout (a stalled peer). Unlike stream_read_exact this is a SINGLE recv
+ * (HTTP needs "read what's available" — the length is parsed from headers). */
+srmech_status_t srmech_plat_tcp_read_some(srmech_plat_stream_conn_t *conn,
+                                          unsigned char *buf, size_t cap,
+                                          size_t *out_n);
+
+/* Write exactly `n` bytes over a TCP connection, looping until complete
+ * (EINTR retried). A write error / closed peer → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_tcp_write_all(srmech_plat_stream_conn_t *conn,
+                                          const unsigned char *buf, size_t n);
+
+/* Close one TCP connection (POSIX shutdown(SHUT_RDWR)+close). Safe on a
+ * zero-initialised handle. */
+srmech_status_t srmech_plat_tcp_conn_close(srmech_plat_stream_conn_t *conn);
+
+/* ================================================================== *
+ * SLEEP (rc194) — a bounded blocking sleep so the MCP HTTP+SSE keepalive
+ * scanner (srmech_mcp_sse.c) can idle between ticks with no #ifdef. POSIX
+ * nanosleep / Windows Sleep. A sleepless target returns SRMECH_ERR_IO.
+ * ================================================================== */
+
+/* Sleep for `ms` milliseconds (best-effort; may return early on a signal). */
+srmech_status_t srmech_plat_sleep_ms(unsigned ms);
 
 #endif /* SRMECH_PLATFORM_H */

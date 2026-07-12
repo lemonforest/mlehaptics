@@ -92,7 +92,20 @@ import time
 from dataclasses import dataclass, field
 from typing import Optional, Tuple
 
+from ..amsc import _native
 from ..amsc.format import sha256_bytes
+
+#: int64 range guard — the native Bio-TOTP C peer takes ``int64_t`` time /
+#: window arguments, so a Python int outside this range routes to the pure
+#: path (which handles arbitrary precision). Realistic ``time.time_ns()`` +
+#: window values sit comfortably inside int64.
+_I64_MIN: int = -(1 << 63)
+_I64_MAX: int = (1 << 63) - 1
+
+
+def _fits_i64(*vals: int) -> bool:
+    """True iff every value fits the C ``int64_t`` the native peer expects."""
+    return all(_I64_MIN <= int(v) <= _I64_MAX for v in vals)
 
 # ──────────────────────────────────────────────────────────────────────
 # Wire-format constants
@@ -237,6 +250,13 @@ def derive_key(dna: bytes, time_ns: int, window_ns: int) -> bytes:
     assert isinstance(window_ns, int) and window_ns > 0, (
         f"window_ns must be positive int; got {window_ns!r}"
     )
+    # rc178: dispatch to the byte-exact C peer when present (hasattr-guarded;
+    # a stale / no-C host keeps the pure path below). Falls through on OVERFLOW
+    # (dna longer than the native cap) or an out-of-int64 time/window.
+    if _native.has_native_bio_totp() and _fits_i64(time_ns, window_ns):
+        native = _native.bio_totp_derive_key_c(bytes(dna), time_ns, window_ns)
+        if native is not None:
+            return native
     quantized = time_ns // window_ns
     digest_hex = sha256_bytes(bytes(dna) + quantized.to_bytes(8, "big",
                                                               signed=True))
@@ -308,6 +328,13 @@ def _stream_cipher(key: bytes, nonce: bytes, data: bytes) -> bytes:
         )
         encryptor = cipher.encryptor()
         return encryptor.update(data) + encryptor.finalize()
+    # rc178: the DEFAULT stdlib HMAC-CTR path dispatches to the byte-exact C
+    # peer when present (hasattr-guarded; the AES branch above is the opt-in
+    # `[crypto]` extra and stays Python — out of the bare-C-host default).
+    if _native.has_native_bio_totp():
+        native = _native.bio_totp_keystream_xor_c(key, nonce, data)
+        if native is not None:
+            return native
     # Stdlib fallback: HMAC-SHA-256 counter-mode keystream.
     out = bytearray()
     counter = 0
@@ -673,6 +700,23 @@ def decode_splice(
     sender_id, channel_id, _packet_seq = parse_nonce(nonce)
     resolved_window = _resolved_window_ns(window_ns)
     now_ns = time.time_ns() if time_ns is None else int(time_ns)
+    # rc178: dispatch the WHOLE decode to the byte-exact C peer (derive_key +
+    # HMAC-CTR keystream + srmech_json permissive binding check) when present;
+    # native-authoritative, with the COMPLETE pure loop below as the stale /
+    # no-C-host / out-of-int64 fallback. The C peer mirrors ONLY the DEFAULT
+    # stdlib HMAC-CTR cipher, so it is bypassed when the optional AES-128-CTR
+    # backend (`[crypto]` extra) is active — that path stays Python.
+    if (not _HAVE_AES_CTR and _native.has_native_bio_totp()
+            and _fits_i64(resolved_window, now_ns)):
+        native = _native.bio_totp_decode_splice_c(
+            body, dna, resolved_window, now_ns)
+        if native is False:
+            raise BioTotpDecryptError(
+                "decryption failed across current + ±1 time windows "
+                "(dna mismatch / clock skew > 1 window / tamper)"
+            )
+        if native is not None:
+            return native
     for delta in (0, -1, 1):
         candidate_time = now_ns + delta * resolved_window
         key = derive_key(dna, candidate_time, resolved_window)

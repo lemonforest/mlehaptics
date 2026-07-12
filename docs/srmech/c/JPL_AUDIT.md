@@ -138,6 +138,17 @@ keeping the large (~1 MiB) buffers OFF the stack — `_Thread_local` /
 `__declspec(thread)` static storage is both Rule-3-clean and
 reentrant-across-threads. No malloc was introduced.
 
+**Generated pure-DATA translation units** (`GENERATED_DATA_FILES` in
+`tests/test_jpl_audit.py`; rc184: `srmech_tool_registry.c`) are excluded
+from the Rule 3 (and Rule 1) *string-content* regex scans. They contain
+ZERO executable code — only a `const srmech_tool_entry_t[]` table — but
+their string VALUES are the (English) ToolEntry summaries, which contain
+prose tokens like `free(` inside a data string. The regex cannot tell a
+data string from code, so it would mis-flag the prose. These files remain
+in-scope for the *function-scan* rules (Rule 4 / Rule 5), where they find
+ZERO functions — a guard that the file stays data-only. Regenerate with
+`c/tools/gen_tool_registry.py`.
+
 ✅ **Pass.**
 
 ---
@@ -221,8 +232,15 @@ Per-function assertion counts:
 | `srmech_plat_has_threads`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc4) trivial accessor: returns a compile-time `1`/`0` (is a threading backend present?). No state/preconditions to assert. The other PAL fns (`srmech_plat_thread_spawn`/`join`) carry ≥2 asserts. |
 | `srmech_plat_has_streams`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc5) trivial accessor: compile-time `1`/`0` (is a stream-IPC backend present?). No state to assert; the stream listen/accept/connect/read/write fns carry ≥2 asserts. |
 | `srmech_plat_has_filesystem`    |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc161) trivial accessor: compile-time `1`/`0` (is a filesystem backend present?). No state to assert; the file read/write/size fns carry ≥2 asserts. |
+| `srmech_plat_has_stdio`         |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc186) trivial accessor: compile-time `1`/`0` (is a stdin/stdout backend present?). No state to assert; the `srmech_plat_stdin_read` / `srmech_plat_stdout_write` fns carry ≥2 asserts (the MCP stdio loop's consumer). |
 | `srmech_plat_has_dirlist`       |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc163) trivial accessor: compile-time `1`/`0` (is a directory-iteration backend present?). No state to assert; the dir open/next/close fns carry ≥2 asserts. |
+| `srmech_plat_has_tcp`           |    0    | **EXEMPT** — PAL (`srmech_platform.c`, rc194) trivial accessor: compile-time `1`/`0` (is a TCP backend present? POSIX-first). No state to assert; the `srmech_plat_tcp_listen`/`accept`/`read_some`/`write_all`/`server_close` fns carry ≥2 asserts (the MCP HTTP+SSE server's consumer). |
+| `srmech_plat_sleep_ms`          |    1    | **EXEMPT** — PAL (`srmech_platform.c`, rc194) trivial OS-timer wrapper: the POSIX (`nanosleep`) / Windows (`Sleep`) bodies carry ≥2 asserts; the bare-metal stub is a 1-assert no-op with no pointer/bounds invariant, a second would be a tautology. Consumer: the MCP HTTP+SSE keepalive scanner. |
+| `srmech_mcp_sse_port`           |    1    | **EXEMPT** — rc194 (`srmech_mcp_sse.c`): a trivial `const` accessor returning the running server's bound TCP port (NULL-graceful → `0`); already asserts `h != NULL`; no state to assert beyond the guard, like the exempt `srmech_version` / PAL `has_*` accessors. |
 | sha256 inline helpers           |    0    | **EXEMPT** — `static inline` arithmetic primitives (ror32, ch, maj, big/small sigma). Per the rule's spirit (anomalous conditions in real-life), 4-line bit-rotation helpers have no real-world failure mode worth asserting; the FIPS 180-4 algorithm is the only caller, and its preconditions on these helpers are validated at the `srmech_sha256_compress` entry. |
+| `rtsch_class_of`                 |    1    | **EXEMPT** — rc81 (`srmech_riemann_theta.c`, the Schottky-form counter): a pure value classifier mapping a doubled inner product to its class index 0..4 (or −1 off-shell) over a single scalar argument; no pointer/bounds invariant to assert (same kind as the exempt sha256 ror / `toml_is_ws` char classifiers). Already asserts `RTSCH_NCLASS == 5`. |
+| `rtsch_ctz`                     |    1    | **EXEMPT** — rc81: counts the trailing zeros (lowest set-bit index) of a nonzero `uint64`; a pure value op over a single scalar, like the exempt sha256 `__ror`. Already asserts `x != 0u`. |
+| `fac_is_prime`                  |    1    | **EXEMPT** — rc165 (`srmech_factor_poly.c`, the Zassenhaus prime selection): a pure value predicate (trial-division primality of `n < 2^32`) over a single scalar; already asserts the domain bound `n < 2^32` (the loop-safety invariant so `d*d` cannot overflow); no pointer/bounds invariant for a second, a tautology would be cargo-cult. Same kind as the exempt sha256 ror / `toml_is_ws` char classifiers. |
 | `srmech_sha256_compress`        |    2    | ✅                                                  |
 | `srmech_sha256_state_to_hex`    |    2    | ✅                                                  |
 | `srmech_sha256_hex`             |    3    | ✅                                                  |

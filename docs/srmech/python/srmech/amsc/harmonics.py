@@ -133,6 +133,15 @@ def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
     provenance — the spectral generalisation of the surface-form token-name
     classifier (R-RBS-NN-14a).
     """
+    # rc154 (BATCH B10, ``composition_of_c``): the classifier is a pure
+    # composition of primitive-class ops over the vector — **Class-L** inner
+    # products (⟨x,x⟩, ⟨x,rev(x)⟩, ⟨x,roll(x)⟩), **Class-K** magnitude pin-slots
+    # (the explicit ``x if x >= 0 else -x`` L1 / DC branches — no ``abs()``, no
+    # ``sqrt(·²)`` stealth-abs), and **Class-N** exact ratios; the verdict is a
+    # discrete 1/2/3 label. libm-free float arithmetic reaching no non-standalone
+    # leaf → trivially C-portable / standalone-ready (the SAME status as the
+    # ``mat_dot`` pure-reduction). Value-verified by known-vector → known-sector
+    # oracles; no new C symbol.
     x = [float(v) for v in hv]
     if len(x) == 0:
         raise ValueError("classify_chirality_harmonic: empty vector")
@@ -142,20 +151,31 @@ def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
     return 3 if three > mirror else 2
 
 
-#: F150 chirality-harmonic ladder coverage. rc12 ships the harmonic-2 mirror
+#: F150 chirality-harmonic ladder coverage. rc12 shipped the harmonic-2 mirror
 #: variants for Classes D/E/G and the harmonic-3 three-cycle variants for I/L
-#: (+ classify_harmonic + the spectral classifier). The ladder is NOT yet
-#: complete — these rungs remain OPEN so it finishes rather than silently
-#: capping at the rc12 subset (no-silent-caps discipline):
-#:   - Harmonic 2 (C, K): explicit chiral-mirror variants for Class C
-#:     (cascade-orientation IS chirality) + Class K (pin-slot) — TBD. Class M's
-#:     harmonic-2 ALREADY ships as ``srmech.amsc.hdc.klein4_*`` (F132).
-#:   - Harmonic 3 (J): ``primes.three_cycle_factor`` is SPECULATIVE — an open
-#:     framework question (F150 §6.3), not yet a concrete op.
+#: (+ classify_harmonic + the spectral classifier). The ladder is now FULLY
+#: CLOSED — NO class remains open (the §74 / F923 capstone; no encode blind
+#: spots left). The closure record:
+#:   - Harmonic 2 (C, K): CLOSED at 0.9.0rc31 (F924 / UPSTREAM §74). The exact
+#:     POLAR accessors on the ``Qi`` carrier ship both: ``Qi.arg()`` is the
+#:     Class-C orientation (which-way; ``atan2`` quadrant logic) and
+#:     ``Qi.modulus()`` the Class-K magnitude (``√(re²+im²)``, never ``abs()``).
+#:     The magnetic-Laplacian read (θ_fwd+θ_rev=0, direction-blind modulus) is
+#:     the closure demonstration. Class M's harmonic-2 had already shipped as
+#:     ``srmech.amsc.hdc.klein4_*`` (F132).
+#:   - Harmonic 3 (J): CLOSED at 0.9.0rc32 (F923 / UPSTREAM §74, the CAPSTONE).
+#:     The exact prime-coordinate carrier ``srmech.amsc.qprime.Qprime`` ships the
+#:     Class-J multiplicative-period structure: multiply=add-exponents
+#:     (==``factor(a·b)``), gcd=min, lcm=max, exact cosine² similarity, and the
+#:     multiplicative-order ``Qprime.period(m)`` (the 1/m repeating-period lens,
+#:     ``ord₇(10)==6``) over ``primes.factor`` + ``primes.cyclic_period``.
+#: ALL ENCODE RUNGS CLOSED: C/K via Qi (rc31), J via Qprime (rc32). The ladder
+#: is empty — every A–N class is reachable, no harmonic blind spot remains.
 HARMONIC_LADDER_OPEN_RUNGS = {
-    2: ("C", "K"),   # Class M's harmonic-2 already shipped via hdc.klein4_*
-    3: ("J",),       # primes.three_cycle_factor — speculative, F150 §6.3
+    2: (),           # CLOSED rc31 — Qi.arg() (Class C) + Qi.modulus() (Class K), F924
+    3: (),           # CLOSED rc32 — Qprime (Class J multiplicative-period), F923 §74 CAPSTONE
 }
+
 
 __all__ = [
     "HARMONIC_1",

@@ -23,6 +23,10 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Van Veen
 
 from __future__ import annotations
 
+from srmech.amsc.laplacian import mat_matvec as _mat_matvec
+from srmech.amsc.mat import Mat as _Mat
+from srmech.amsc.vec import Vec as _Vec
+
 OPERATION_NAME = "beamforming_fixed"
 CLASS_COMPOSITION = ("L", "N")
 PERFORMANCE_HINT = "small-D-one-shot"
@@ -79,12 +83,14 @@ def op(array_signals, *, delays_samples, weights=None, D: int = 8192):
     out_len = n_samples - max_delay
     if out_len <= 0:
         return []
-    out = [complex(0)] * out_len
-    for m in range(n_mics):
-        delay = d[m]
-        wm = w[m]
-        row = sig[m]
-        # Class-M scale-and-accumulate of the delay-aligned window onto t=0.
-        for i in range(out_len):
-            out[i] += wm * row[delay + i]
-    return out
+    # rc155 (BATCH B-residue): the delay-and-sum output ``out[i] = Σ_m w[m]·
+    # sig[m][delay[m]+i]`` IS the matrix-vector product ``out = D·w`` where
+    # ``D[i][m] = sig[m][delay[m]+i]`` is the delay-aligned window matrix (the
+    # per-mic time-shift is exact integer indexing glue). So the Class-M
+    # scale-and-accumulate bundle rides the c_dispatched
+    # ``srmech.amsc.laplacian.mat_matvec`` (over ``mat_matmul`` /
+    # ``srmech_dense_matmul_complex``) — a ``composition_of_c`` op, within-tol.
+    D = [[sig[m][d[m] + i] for m in range(n_mics)] for i in range(out_len)]
+    out_vec = _mat_matvec(_Mat.from_rows(D, is_complex=True),
+                          _Vec.from_sequence(w, is_complex=True))
+    return [complex(out_vec[i]) for i in range(out_len)]

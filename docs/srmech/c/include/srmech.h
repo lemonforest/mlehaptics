@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc28"
-#define SRMECH_VERSION       "0.9.0rc28"
+#define SRMECH_VERSION_PRE   "rc229"
+#define SRMECH_VERSION       "0.9.0rc229"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -84,8 +84,16 @@ extern "C" {
  *      wire-format implication for the Python ctypes shim
  *      (CFUNCTYPE construction), so ABI bumps even though no
  *      existing function signature changed.
+ * v4 — v0.9.0rc180: the srmech.bus pub/sub C peer (ANNEX Batch A pt2b —
+ *      BUS FULLY C). Adds the new function-pointer typedef
+ *      srmech_bus_subscriber_callback_t (the pub/sub client's
+ *      broadcast-delivery callback) alongside the broadcast /
+ *      subscribe / pubsub_accept / subscriber_count / pipe symbols.
+ *      Per the v2→v3 precedent, adding a callback typedef carries a
+ *      CFUNCTYPE wire-format implication, so ABI bumps (the plain
+ *      additive functions alone would not).
  */
-#define SRMECH_ABI_VERSION 3
+#define SRMECH_ABI_VERSION 4
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -178,6 +186,39 @@ srmech_status_t srmech_sha256_shani(const uint8_t *data,
                                     size_t         len,
                                     uint8_t       *out_digest);
 
+/* rc178 (ANNEX Batch A): standard RFC 2104 HMAC-SHA-256 over the srmech
+ * SHA-256 compression. Writes the RAW 32-byte MAC of `msg[0..msg_len)` under
+ * `key[0..key_len)` into `out32` (must be 32 bytes, must NOT alias inputs).
+ * Byte-exact with Python hmac.new(key, msg, "sha256").digest() and the RFC
+ * 4231 vectors; block size 64, ipad/opad 0x36/0x5c, over-length key reduced
+ * with SHA-256 per the spec. A general primitive — the bus Bio-TOTP keystream
+ * composes it. Bounded stack only (no malloc); arbitrary key_len / msg_len. A
+ * NULL key/msg is allowed only with the matching length 0. New symbol only —
+ * SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_hmac_sha256(const uint8_t *key, size_t key_len,
+                                   const uint8_t *msg, size_t msg_len,
+                                   uint8_t       *out32);
+
+/* rc200 (make_class -> C, leaf-batch 6/8; #887): the deterministic RBS-HDC
+ * VECTOR MINTER — the Class-A content-addressed hypervector the sedenion
+ * HDC-storage leaves (sed_write / materialize / read / clean) compose in C.
+ * Mirror of Python srmech.signal_processing.mint_vector, byte-for-byte: writes
+ * `n_bytes` of the SHA-256 chain
+ *     out = ( SHA256(name || u64_be(0)) || SHA256(name || u64_be(1)) || ... )
+ *           [0 : n_bytes]
+ * where each counter is an 8-byte BIG-ENDIAN unsigned integer concatenated AFTER
+ * the raw UTF-8 `name` bytes, chained (counter 0,1,2,...) until n_bytes are
+ * filled and truncated to n_bytes. `name` may be NULL iff name_len == 0. `out`
+ * is a caller buffer of at least n_bytes; the mint uses bounded stack only (no
+ * malloc). n_bytes >= 1. Errors: SRMECH_ERR_NULL_ARG (out NULL, or name NULL
+ * with name_len != 0); SRMECH_ERR_BAD_INPUT (n_bytes == 0). Routes through the
+ * srmech SHA-256 core (Merkle-Damgard midstate over the name's full 64-byte
+ * blocks, re-finalised per counter). Byte-identical to the pure chain, attested
+ * by tests/test_sed_storage_c_rc200.py. ABI-additive: a new symbol, no callback
+ * typedef, so SRMECH_ABI_VERSION stays 4. See srmech_sha256.c. */
+srmech_status_t srmech_mint_vector(const uint8_t *name, size_t name_len,
+                                   uint32_t n_bytes, uint8_t *out);
+
 /* B4: NDJSON streaming line iterator. Caller provides a file path
  *     and a per-line callback; srmech_ndjson_iter walks the file
  *     line by line and invokes the callback for every non-empty
@@ -216,13 +257,6 @@ typedef srmech_status_t (*srmech_ndjson_line_cb)(const char *line,
 srmech_status_t srmech_ndjson_iter(const char            *path,
                                    srmech_ndjson_line_cb  cb,
                                    void                  *user);
-
-/* B5 (planned): Canonical-serialised TOML hash. Re-emits the parsed
- *     TOML with sorted keys + normalised whitespace, then SHA-256s
- *     the result. Output is 64 lowercase hex chars + NUL into
- *     `out_hex`. */
-srmech_status_t srmech_toml_canonical_hash(const char *toml_path,
-                                           char       *out_hex);
 
 /* ------------------------------------------------------------------ *
  * Cascade catalog — cross-domain named cascades
@@ -408,17 +442,25 @@ srmech_status_t srmech_cascade_cyclic_gcd_u64(uint64_t  a,
  * (0, 1). NaN maps to (0, 1) via the Class K dead-band (both `x > 0`
  * and `x < 0` evaluate false for NaN under IEEE-754).
  *
- * Rounding: the magnitude * fine_scale product is rounded to int64 via
- * llrint() under the default IEEE-754 FE_TONEAREST mode (round-half-to-
- * even / banker's rounding) — this matches Python's built-in round() at
- * the .5 boundary bit-exactly. C99 round() is round-half-AWAY-from-zero
- * and would diverge from Python at the boundary; llrint() with default
- * fenv is the canonical match.
+ * Rounding: the magnitude * fine_scale product is rounded to int64 by
+ * a LIBM-FREE round-half-to-even (banker's rounding) Class-K/N branch
+ * (v0.9.0rc211; formerly llrint(), the last libm import in libsrmech —
+ * a bare-C-host executable needed -lm for it). The branch is byte-
+ * identical to llrint() under the default IEEE-754 FE_TONEAREST mode
+ * across the full 0 <= v < 2^63 range this cascade feeds it, and so
+ * matches Python's built-in round() at the .5 boundary bit-exactly.
+ * C99 round() is round-half-AWAY-from-zero and would diverge from
+ * Python at the boundary.
  *
  * Error returns:
  *   SRMECH_OK              — success
  *   SRMECH_ERR_NULL_ARG    — out_num or out_den is NULL
- *   SRMECH_ERR_BAD_INPUT   — max_denominator < 1 or fine_scale < 1
+ *   SRMECH_ERR_BAD_INPUT   — max_denominator < 1 or fine_scale < 1, or
+ *                            magnitude * fine_scale >= 2^63 (int64 ABI
+ *                            overflow; previously an unspecified
+ *                            llrint() domain-error result — the Python
+ *                            dispatch falls back to its Python
+ *                            reference path on this status)
  *   (any other status propagated from the underlying srmech_best_rational)
  */
 srmech_status_t srmech_cascade_best_rational_signed_f64(
@@ -767,6 +809,82 @@ srmech_status_t srmech_autocorrelation_f64(
     const double *x, size_t n, double *out);
 
 /* ------------------------------------------------------------------ *
+ * NUMERIC IIR / recursive filter (BATCH B4b, 0.9.0rc149) — the sp_transform
+ * filter family's one genuinely-new numeric kernel.
+ *
+ * The direct-form-I difference equation
+ *   y[i] = ( Σ_{j} b[j]·x[i-j] − Σ_{k>=1} a[k]·y[i-k] ) / a[0]
+ * (x[i-j] / y[i-k] = 0 for negative index; zero initial rest). This is
+ * y = lfilter(b, a, x): the recursive IIR filter that backs both
+ * `closed_form_ops.iir` (biquad cascade = per-section) and
+ * `closed_form_ops.allpass` (mirrored (b,a)). An FIR filter is the a=[1] case.
+ *
+ * WHY A NEW SYMBOL: the feedback term reads y[i-k] — the output still being
+ * produced — so the recursion is inherently SEQUENTIAL and does NOT decompose
+ * into a matmul/FFT (contrast a feed-forward-only convolution, which the filter
+ * family routes through mat_matmul). NUMERIC (FPU-tol), NOT byte-exact — the
+ * Python parity contract is within-tol (reldiff ≤ 1e-9), matching the F1-FFT /
+ * F2-SVD numeric foundations. No libm, no abs. `out` (n doubles) MUST NOT alias
+ * `x`. Empty b/a -> SRMECH_ERR_NULL_ARG; a[0]==0 -> SRMECH_ERR_BAD_INPUT; n==0
+ * writes nothing. The pure-Python difference-equation reference is the COMPLETE
+ * alternative for no-C hosts. ABI-additive — SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_iir_lfilter_f64(
+    const double *b, size_t nb,
+    const double *a, size_t na,
+    const double *x, size_t n,
+    double *out);
+
+/* ------------------------------------------------------------------ *
+ * NUMERIC JPEG-like block-DCT compression pipeline (0.9.0rc214, #753) —
+ * the float-DCT numeric op deferred out of the rc144/B6b exact coder
+ * batch, now `closed_form_ops.jpeg`'s dedicated C peer.
+ *
+ * encode: per bs×bs block of the h×w row-major image —
+ *   Z = (2·B₂·X)·(2·B₂ᵀ)           separable 2-D DCT-II (cols then rows)
+ *   out = round_half_even(Z ⊘ QT)  Class-K quantise (banker's rounding,
+ *                                  the exact C twin of Python round();
+ *                                  no libm rint(), no fabs()/abs())
+ * decode: per block — D = Q ⊙ QT; DCT-III (with the weight-1 j==0
+ * correction) cols then rows; scale by 1/(2·bs)² into the (bh·bs)×(bw·bs)
+ * row-major image.
+ *
+ * The cosine bases basis2/basis3 (bs×bs row-major DCT-II / DCT-III
+ * matrices, B₂[k][j] = cos(π·k·(2j+1)/(2bs)), B₃[k][j] =
+ * cos(π·(2k+1)·j/(2bs))) and the bs×bs quant table qt are CALLER inputs
+ * (the Python side builds them once through the byte-exact Class-N
+ * rational.cos cascade — the SAME basis the pure path uses; a bare-C host
+ * builds them from the libm-free srmech_cos) — the rc149 iir precedent
+ * (taps are caller data; the kernel is the loop). WHY A NEW SYMBOL: the
+ * pipeline is BLOCKED + FUSED (strided block extract → two basis
+ * multiplies → quantise, per block); routed through the generic dense
+ * matmul it costs 4 dispatches per block and rebuilds the basis per call
+ * — this kernel is ONE crossing for the whole image. NUMERIC (FPU-tol),
+ * NOT byte-exact: within-tol (reldiff ≤ 1e-9) vs the pure-Python cascade,
+ * the F1-FFT / F2-SVD / B4 contract. All scratch is bump-carved from the
+ * CALLER arena ws (>= srmech_jpeg_ws_bound(bs) bytes = 2·bs² doubles; no
+ * malloc; under-sized -> SRMECH_ERR_OVERFLOW). `out` MUST NOT alias the
+ * input. Encode truncates to whole blocks (bh = h/bs, bw = w/bs; zero
+ * blocks writes nothing); out is bh·bw·bs² doubles in block order, each
+ * an exact integer value. qt entries must be nonzero (else
+ * SRMECH_ERR_BAD_INPUT); a quantise quotient at or past 2^62 returns
+ * SRMECH_ERR_OVERFLOW (OVERFLOW-not-wrap). The pure-Python cascade is the
+ * COMPLETE alternative for no-C hosts. ABI-additive — SRMECH_ABI_VERSION
+ * stays 4 (the Python ctypes shim hasattr-guards the symbols).
+ * ------------------------------------------------------------------ */
+size_t srmech_jpeg_ws_bound(size_t bs);
+
+srmech_status_t srmech_jpeg_encode_f64(
+    const double *image, size_t h, size_t w,
+    const double *basis2, const double *qt, size_t bs,
+    double *out, double *ws, size_t ws_len);
+
+srmech_status_t srmech_jpeg_decode_f64(
+    const double *qblocks, size_t bh, size_t bw,
+    const double *basis3, const double *qt, size_t bs,
+    double *out, double *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
  * Class I — cyclic-group / modular arithmetic (Task #217 Phase C1)
  *
  * Six load-bearing modular-arithmetic primitives on uint64_t. These
@@ -821,6 +939,61 @@ srmech_status_t srmech_mod_inv(uint64_t a, uint64_t n, uint64_t *out);
 srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
 
 /* ------------------------------------------------------------------ *
+ * The One's WINDING surface (siona gh#1276; rc137) — exact INTEGER
+ * readouts of the winding triad the SO->Spin double cover carries.
+ * Independent of the S(sigma,theta) adjoint generator; every op is
+ * exact-integer -> BYTE-IDENTICAL to the Python (no float). ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The divmod-recursive binary TOWER of a WHOLE winding w — the (Z/2)^d
+ * hypercube / Cayley-Dickson doubling coordinate. Fills bits_out with the
+ * LSB-first bits of |w| (the Class-K magnitude; a retrograde winding negates,
+ * never abs()) and writes the count to *n_bits_out. This KEEPS the Z/2 grading
+ * (the anti-collapse of `w mod 2`: winding_tower(5)={1,0,1} is DISTINGUISHED
+ * from winding_tower(7)={1,1,1}). w == 0 -> empty tower (*n_bits_out = 0).
+ * Returns SRMECH_ERR_NULL_ARG (bits_out / n_bits_out NULL), SRMECH_ERR_BAD_INPUT
+ * (bits_cap < 0), SRMECH_ERR_OVERFLOW (bits_cap too small; |w| needs up to 64). */
+srmech_status_t srmech_winding_tower(int64_t w, uint8_t *bits_out,
+                                     int32_t bits_cap, int32_t *n_bits_out);
+
+/* The chirality READOUT via the winding's binary tower — sigma modulated by the
+ * parity of the FULL popcount over the triad's towers (every graded bit counts;
+ * NOT the bare low bit `w mod 2`). *out = sigma if the total popcount is even,
+ * -sigma if odd (so w=5/popcount-2 and w=7/popcount-3 are DISTINGUISHED). No
+ * abs(); *out in {+1,-1}. Returns SRMECH_ERR_NULL_ARG (out NULL),
+ * SRMECH_ERR_BAD_INPUT (sigma not in {+1,-1}). */
+srmech_status_t srmech_sigma_effective(int32_t sigma, int64_t w0, int64_t w1,
+                                       int64_t w2, int32_t *out);
+
+/* The double-cover sign (-1)^(w0+w1+w2) — the genuine Spin->SO 2:1 lift (ONE
+ * winding flips, TWO restore). *out in {+1,-1} = the parity of the winding sum.
+ * Returns SRMECH_ERR_NULL_ARG for out NULL. */
+srmech_status_t srmech_spinor_sign(int64_t w0, int64_t w1, int64_t w2,
+                                   int32_t *out);
+
+/* The per-metacycle-scale unwrapped-phase TURNS (2*pi*w_k + theta): the full
+ * integer turns a theta-only object folds away. Writes the winding triad to
+ * turns_out[0..2] (theta is a caller-carried pass-through rational).
+ * Returns SRMECH_ERR_NULL_ARG for turns_out NULL. */
+srmech_status_t srmech_unwrapped_phase(int64_t w0, int64_t w1, int64_t w2,
+                                       int64_t *turns_out);
+
+/* The 2π seam-fold DIVMOD with the quotient KEPT (0.9.0rc207; gh#1276 —
+ * the #741 mod-should-be-divmod audit's first concrete instance):
+ * theta = 2π·(*w_out) + (*theta_out), *w_out = round(theta/2π)
+ * (round-half-toward-+inf, the Python _eph_round_div convention),
+ * |*theta_out| <= π. Computed on the SAME integer 2/π quarter-turn
+ * machinery srmech_cos / srmech_sin already fold with (no forked 2π
+ * constant), so the (w, theta) pair IS the fold's own divmod — the
+ * quotient (the METACYCLE winding) retained instead of discarded, the
+ * remainder the EPICYCLE residue. Same domain as srmech_cos: returns
+ * SRMECH_ERR_BAD_INPUT for Inf / |theta| >= 2^55 (*theta_out NaN); a
+ * quiet-NaN input propagates as NaN with SRMECH_OK (the srmech_cos
+ * convention); SRMECH_ERR_NULL_ARG for a NULL out pointer. */
+srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
+                                    double *theta_out);
+
+/* ------------------------------------------------------------------ *
  * Class L — graph Laplacian (Task #217 Phase C1)
  *
  * Four load-bearing graph-Laplacian primitives on row-major dense
@@ -839,13 +1012,10 @@ srmech_status_t srmech_three_cycle(uint64_t value, uint64_t *out);
  *     jacobi_eigvals / dense_matmul_complex write only into the caller's
  *     matrix (degree per-row, d^(−1/2) stashed in the diagonal, Jacobi
  *     rotates in place), so the bound is the caller's RAM, not a compiled
- *     limit (standalone-complete honor). SRMECH_LAPLACIAN_MAX_NODES below
- *     now sizes only the legacy non-_ws Hermitian static workspace.
+ *     limit (standalone-complete honor).
  *
  * No ABI bump: pure additions to ABI v2 per the Phase B4 convention.
  * ------------------------------------------------------------------ */
-
-#define SRMECH_LAPLACIAN_MAX_NODES 256
 
 /* A from edge list. A[u,v] = A[v,u] = sum of weights of edges between u
  * and v. Self-loops add 2*w to the diagonal (standard convention).
@@ -875,6 +1045,126 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
                                                   const uint32_t *edges_v,
                                                   const double   *weights,
                                                   double         *out_matrix);
+
+/* 0.9.0rc105 (issue #1234 Item 3 / F1006 / F1007): magnetic (Hermitian)
+ * Laplacian of a DIRECTED graph — the standalone-C builder peer of the
+ * Python `laplacian.magnetic_laplacian` (the "tracked next voxel" of the
+ * rc26 directed/signed leg). Direction is encoded as a complex phase so
+ * the matrix stays Hermitian; the phase comes from the srmech Q61 trig
+ * cascade (srmech_cos_q61 / srmech_sin_q61 — NOT libm), byte-exact with
+ * the pure-Python Class-N cascade, and pi enters as 4*atan_q61(1) (the
+ * same derivation the Python module uses; no libm M_PI).
+ *
+ * out_matrix is 2*n*n doubles, row-major INTERLEAVED complex (re, im)
+ * pairs — the module's complex wire convention.
+ *
+ * TWO modes, selected by `charges`:
+ *   charges == NULL — scalar-q mode (the rc26 construction):
+ *       W[u,v] += w (directed);  A_s = (W + W^T)/2;
+ *       L[r,c] = -A_s[r,c] * exp(i * 2*pi*q * (W[r,c] - W[c,r])), r != c;
+ *       L[r,r] = sum_c A_s[r,c].
+ *     `q` is the flux in TURNS per unit net flow (q = 0.25 = quarter
+ *     turn per unit imbalance).
+ *   charges != NULL — per-edge CHIRAL mode (length n_edges, TURNS): the
+ *     dual-sense knowledge-graph encoding (F1007) — a real signed edge
+ *     pair (+w, -w) ANNIHILATES in the signed Laplacian, while the two
+ *     phase senses e^{+i 2*pi*c} / e^{-i 2*pi*c} are conjugate partners
+ *     that SURVIVE. Each edge k = (u, v, w, c) accumulates
+ *       L[u,v] += -(w/2) * exp(+i * 2*pi*c)
+ *       L[v,u] += -(w/2) * exp(-i * 2*pi*c)      (Hermitian by construction)
+ *       deg[u] += w/2;  deg[v] += w/2;  L[r,r] = deg[r]  (real diagonal).
+ *     The w/2 matches the scalar mode's (W + W^T)/2 magnitude scale;
+ *     (u, v, c) is equivalent to (v, u, -c). `q` is IGNORED in this mode
+ *     (the Python surface rejects passing both).
+ *
+ * No node cap and NO scratch: scalar mode stages W in the imaginary
+ * slots of the caller's own out_matrix (the imag half is rewritten by
+ * the final pass), so the bound is the caller's RAM (standalone-
+ * complete honor). An out-of-range edge endpoint -> SRMECH_ERR_BAD_INPUT;
+ * a phase angle with no Q61 form (non-finite / |ang| >= 2^55) ->
+ * SRMECH_ERR_BAD_INPUT (the Python peer raises identically).
+ *
+ * Attested SSoT (the flux/magnetic-Laplacian construction): E. H. Lieb &
+ * M. Loss, "Fluxes, Laplacians, and Kasteleyn's Theorem", Duke Math. J.
+ * 71 (1993) 337-363; OA preprint arXiv:cond-mat/9209031. (The complex-
+ * unit-gain-graph spectral framing: N. Reff, "Spectral Properties of
+ * Complex Unit Gain Graphs", Linear Algebra Appl. 436 (2012) 3165-3176;
+ * arXiv:1110.4554.)
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_graph_magnetic_laplacian(uint32_t        n,
+                                                uint32_t        n_edges,
+                                                const uint32_t *edges_u,
+                                                const uint32_t *edges_v,
+                                                const double   *weights,
+                                                double          q,
+                                                const double   *charges,
+                                                double         *out_matrix);
+
+/* 0.9.0rc229 (#687): the V4-gain (Klein-4-sector) Laplacian — the EVEN-
+ * channel fuller partner of srmech_graph_magnetic_laplacian. Each edge
+ * carries a V4 = Z2 x Z2 gain g = (g0, g1) as TWO sign bits packed low..
+ * high in a uint8 `gains[e]` in {0,1,2,3} (NULL -> all identity 0). V4
+ * has FOUR real characters chi_ab(g) = (-1)^(a*g0 + b*g1), so the object
+ * decomposes into FOUR real signed Laplacians L_chi = D_bar - chi(g_e)*A
+ * (the two-bit generalization of the one-bit signed Laplacian). The two
+ * gain bits are SYMMETRIC — neither is privileged. `out_matrix` is
+ * 4*n*n doubles, SECTOR-major: sector k in {0,1,2,3} = (a = k>>1, b = k&1)
+ * fills out[k*n*n ...], so k=0 -> chi00 (trivial; == dense_laplacian for
+ * unit gains), 1 -> chi01, 2 -> chi10, 3 -> chi11 (each real row-major
+ * n*n). The signed degree D_bar_ii = sum|A_ij| is the Class-K magnitude
+ * (no abs()) and is character-independent. The four-sector Laplacian
+ * spectrum equals the ordinary Laplacian spectrum of the V4 abelian COVER
+ * (4n nodes) — the abelian-cover character decomposition (Bilu & Linial,
+ * "Lifts, Discrepancy and Nearly Optimal Spectral Gap", Combinatorica 26
+ * (2006) 495-519; arXiv:math/0312022; generalized from the Z2 2-lift to
+ * V4). No node cap, NO scratch (staged in-place in `out_matrix`); an
+ * out-of-range endpoint or gain > 3 -> SRMECH_ERR_BAD_INPUT. ABI-additive:
+ * a new symbol, so SRMECH_ABI_VERSION stays 4. */
+srmech_status_t srmech_graph_klein4_gain_laplacian(uint32_t        n,
+                                                   uint32_t        n_edges,
+                                                   const uint32_t *edges_u,
+                                                   const uint32_t *edges_v,
+                                                   const double   *weights,
+                                                   const uint8_t  *gains,
+                                                   double         *out_matrix);
+
+/* 0.9.0rc229 (#687): cycle_holonomy — the ODD channel the (Hermitian /
+ * signed) spectrum provably cannot carry (a conjugated Hermitian matrix
+ * has the same eigenvalues, so no eigenvalue read carries the which-way
+ * sign). A gain graph is determined up to switching by its cycle gains
+ * (Zaslavsky, "Signed graphs", Discrete Appl. Math. 4 (1982) 47-74). This
+ * builds a spanning forest (union-find; first-encountered edge = tree
+ * edge), then for each co-tree edge computes the fundamental cycle's NET
+ * charge: per-edge charges in TURNS as reduced rationals
+ * charge_num[e]/charge_den[e] (NULL -> 0), summed exactly around the cycle
+ * and reduced mod 1 (Class I mod-1 cyclic o Class L graph; NO eigensolve).
+ * The holonomy is invariant under node re-gauging (a coboundary
+ * telescopes) and is 0 for every cycle IFF the gain graph is balanced
+ * (Zaslavsky); it distinguishes +c from -c (1/4 vs 3/4 mod 1) — the
+ * chirality the sector spectra cannot. Denominators must be > 0 and both
+ * |num| and den <= 1e9 so the exact int64 arithmetic cannot overflow; a
+ * larger magnitude / a reduced intermediate past the limit / an
+ * undersized arena -> SRMECH_ERR_OVERFLOW (the pure-Python Fraction path
+ * is the exact complete alternative). Outputs (each length >= n_edges):
+ * out_num/out_den = reduced holonomy in [0,1) per cycle; out_cycle_u/v =
+ * the co-tree edge per cycle; *out_n_cycles = the cyclomatic number.
+ * `ws` is a caller arena of >= srmech_graph_cycle_holonomy_arena_bytes
+ * bytes (no malloc). ABI-additive: new symbols, SRMECH_ABI_VERSION stays
+ * 4. */
+size_t srmech_graph_cycle_holonomy_arena_bytes(uint32_t n, uint32_t n_edges);
+srmech_status_t srmech_graph_cycle_holonomy(uint32_t        n,
+                                            uint32_t        n_edges,
+                                            const uint32_t *edges_u,
+                                            const uint32_t *edges_v,
+                                            const int64_t  *charge_num,
+                                            const int64_t  *charge_den,
+                                            int64_t        *out_num,
+                                            int64_t        *out_den,
+                                            uint32_t       *out_cycle_u,
+                                            uint32_t       *out_cycle_v,
+                                            uint32_t       *out_n_cycles,
+                                            void           *ws,
+                                            size_t          ws_len);
 
 /* §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler — the
  * n-unbounded peer of the dense eigensolver path. Power iteration on the
@@ -1142,6 +1432,567 @@ srmech_status_t srmech_exact_dft_i64(
     int64_t        *out_re,
     int64_t        *out_im);
 
+/* Numeric complex128 FFT / IFFT (0.9.0rc139, #743/#747 Foundation F1) — the
+ * numeric twin of srmech.amsc.cascade.spectral_cascades.fft/ifft that the
+ * whole signal_processing fft-family dispatches to. In/out are INTERLEAVED
+ * (re, im) length-2n double buffers (the Complex128 / Vec carrier layout, so
+ * the dispatch is zero-copy). inverse != 0 applies the single 1/N scale
+ * (matching NumPy ifft + the pure-Python cascade addend-for-addend). n is
+ * arbitrary: a power-of-two n runs the iterative radix-2 Cooley-Tukey
+ * butterfly; any other (incl. PRIME) n runs Bluestein's chirp-z, so this is
+ * NOT power-of-2-only. NUMERIC (FPU-tol), not byte-exact — contrast the
+ * exact-integer srmech_exact_dft_i64. No libm: twiddle / chirp trig is the
+ * libm-free srmech_cos / srmech_sin. No abs (the FFT reads no magnitude).
+ * `out` MUST NOT alias `in` (else SRMECH_ERR_BAD_INPUT). All scratch is
+ * bump-carved from the CALLER arena `ws` (ws_len bytes; no malloc) — size it
+ * from srmech_fft_c128_ws_bound(n); an under-sized arena returns
+ * SRMECH_ERR_OVERFLOW. n == 0 writes nothing. The pure-Python cascade is the
+ * COMPLETE alternative for no-C hosts. ABI-additive: new symbols, so
+ * SRMECH_ABI_VERSION stays 3 (the Python ctypes shim hasattr-guards them). */
+size_t srmech_fft_c128_ws_bound(size_t n);
+
+srmech_status_t srmech_fft_c128(
+    const double  *in_interleaved,
+    size_t         n,
+    int            inverse,
+    double        *out_interleaved,
+    double        *ws,
+    size_t         ws_len);
+
+/* Numeric f64 QR + SVD (0.9.0rc140, Foundation F2) — the numeric-LA twins the
+ * subspace / MIMO / LA family (matrix_cascades.{qr,svd,lstsq} + the
+ * signal_processing subspace ops) dispatches its REAL path to (the complex
+ * path keeps its Gram-eigen / list-Householder pure route). NUMERIC (FPU-tol),
+ * NOT byte-exact. No libm (the only root is the Class-N srmech_rational_sqrt);
+ * no abs()/fabs() (every magnitude is a Class-K sign-branch). ABI-additive:
+ * new symbols, so SRMECH_ABI_VERSION stays 3 (the Python ctypes shim
+ * hasattr-guards them).
+ *
+ * srmech_qr_f64 — Householder QR A = Q*R, A m*n row-major, Q m*m orthogonal,
+ * R m*n upper-trapezoidal (both caller-allocated). DIRECT (no iteration): the
+ * product of min(m,n) reflectors H = I - beta*v*v^T; the phase
+ * alpha = -sign(x0)*||x|| is a Class-K pin-slot (a sign-BRANCH). The reflector
+ * vector v is bump-carved from the CALLER arena `ws` (>= srmech_qr_f64_ws_bound
+ * BYTES = m doubles); an under-sized arena returns SRMECH_ERR_OVERFLOW. m==0 or
+ * n==0 writes nothing. The pure-Python list-Householder is the COMPLETE
+ * alternative for no-C hosts. */
+size_t srmech_qr_f64_ws_bound(uint32_t m, uint32_t n);
+
+srmech_status_t srmech_qr_f64(uint32_t       m,
+                              uint32_t       n,
+                              const double  *A_rowmajor,
+                              double        *Q_out,
+                              double        *R_out,
+                              double        *ws,
+                              size_t         ws_len);
+
+/* srmech_svd_f64 — A = U*diag(S)*V^T (A m*n row-major, m>=n), via ONE-SIDED
+ * JACOBI (Hestenes): orthogonalise the columns of a working copy by column
+ * Jacobi rotations accumulated into V; the converged column norms are the
+ * singular values, U = W*diag(1/S). Outputs (all caller-allocated): U_out m*n
+ * (thin left singular vectors; a zero-singular-value column is left zero for
+ * the caller's orthonormal completion), S_out n (DESCENDING, >= 0), V_out n*n
+ * (right singular vectors as COLUMNS, descending). m<n returns
+ * SRMECH_ERR_BAD_INPUT — the Python peer transposes and swaps U/V.
+ *
+ * ITERATIVE -> the CONVERGENCE CONTRACT: an EXPLICIT sweep cap (JPL Rule 2
+ * bounded loop). A sweep that rotates NO pair (every off-diagonal below tol) is
+ * converged -> SRMECH_OK; hitting the cap with a rotation still pending returns
+ * SRMECH_ERR_OVERFLOW (a NOT-CONVERGED status, NEVER a silent wrong answer), so
+ * the Python dispatch falls back to the pure Gram-eigen SVD. The working copy
+ * W (m*n) + rotation accumulator V (n*n) are bump-carved from the CALLER arena
+ * `ws` (>= srmech_svd_f64_ws_bound BYTES); an under-sized arena returns
+ * SRMECH_ERR_OVERFLOW. The pure-Python Gram-eigen SVD is the COMPLETE
+ * alternative for no-C hosts. */
+size_t srmech_svd_f64_ws_bound(uint32_t m, uint32_t n);
+
+srmech_status_t srmech_svd_f64(uint32_t       m,
+                               uint32_t       n,
+                               const double  *A_rowmajor,
+                               double        *U_out,
+                               double        *S_out,
+                               double        *V_out,
+                               double        *ws,
+                               size_t         ws_len);
+
+/* srmech_jade_jointdiag — the JADE (Cardoso-Souloumiac 1993) Givens joint-
+ * diagonalisation sweep, the iterative kernel at the heart of ICA-JADE
+ * (0.9.0rc155, BATCH B-residue: the FINAL compute op -> python_only_debt=0).
+ * Given the fourth-order cumulant tensor `cum` (k*k*k*k row-major, MUTATED as
+ * the working buffer), drive its (i,j) slices toward joint diagonality by a
+ * data-dependent sequence of Givens rotations, accumulating them into the
+ * un-mixing rotation `v_out` (k*k row-major, initialised to I here). The
+ * per-(i,j) angle is theta = 0.25*atan2(2*C[i][j][i][j],
+ * C[i][i][i][i]-C[j][j][j][j]) (the simplified-JADE update), applied when
+ * |theta| >= tol; the first-axis tensor rotation is applied TWICE per Givens
+ * step (a preserved quirk of the reference). ITERATIVE -> an EXPLICIT sweep
+ * cap `max_iter` (JPL Rule 2 bounded loop); a sweep whose Σ|theta| < tol is
+ * converged and stops early (matching the Python reference, which never
+ * errors on non-convergence — it returns the current rotation).
+ *
+ * NUMERIC (FPU-tol), NOT byte-exact: the angle/twiddle are the libm-free
+ * Class-N cascades srmech_atan2 / srmech_cos / srmech_sin (the same the
+ * Python rational.{atan2,cos,sin} dispatch to); JADE's basis is
+ * permutation/sign/scale-ambiguous, so native and pure recover the same
+ * sources WITHIN-TOL, not byte-for-byte. No abs()/fabs() (Class-K sign
+ * branch). Scratch (G + V·G accumulator + rotated-cumulant ping-pong) is
+ * bump-carved from the CALLER arena `ws` (>= srmech_jade_jointdiag_ws_bound
+ * BYTES = (2*k² + k⁴) doubles); an under-sized arena returns
+ * SRMECH_ERR_OVERFLOW. The pure-Python sweep is the COMPLETE alternative for
+ * no-C hosts (and the parity oracle). Additive -> ABI stays 3. */
+size_t srmech_jade_jointdiag_ws_bound(uint32_t k);
+
+srmech_status_t srmech_jade_jointdiag(double   *cum,
+                                      uint32_t  k,
+                                      uint32_t  max_iter,
+                                      double    tol,
+                                      double   *v_out,
+                                      double   *ws,
+                                      size_t    ws_len);
+
+/* ------------------------------------------------------------------ *
+ * The resonant-spectrum closure (§75 / F928) — a Class-L coupling
+ * COMPOSITE over the existing kernels (srmech_hermitian_eigendecompose_ws
+ * + srmech_best_rational + srmech_factor), the C twin of
+ * srmech.amsc.coupling.resonant_spectrum. Reads a real-symmetric coupling
+ * Laplacian L as a stored (excitation-free) object: the eigenvalue
+ * "tensions" (ascending), the eigenvector "modes" (columns), the force-
+ * orders L^k = V·diag(Λ^k)·Vᵀ from the ONE eigensolve, and the adjacent-
+ * tension resonance ratios + lock (smooth-den) vs libration (large-prime-
+ * den) verdicts. Standalone-complete: all scratch is bump-carved from the
+ * CALLER arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_resonant_spectrum needs for an
+ * n×n Laplacian (the interleaved-H input + eigensolve workspace + the
+ * complex/real eigenvector copies). Size `ws_len` ≥ this. */
+size_t srmech_resonant_spectrum_arena_bytes(uint32_t n);
+
+/* Read the real-symmetric coupling Laplacian L (n×n row-major real,
+ * `L_rowmajor`) as a resonant object. `orders` ≥ 1 force-orders, `max_den`
+ * ≥ 1 the best_rational ceiling. Caller pre-sizes every output:
+ *   out_tensions[n]              — eigenvalues ASCENDING (real)
+ *   out_modes[n*n]               — eigenvectors, row-major, columns = modes
+ *                                  (real; sign-pinned like the Python op)
+ *   out_force_orders[orders*n*n] — [L, L^2, …, L^orders] row-major real,
+ *                                  contiguous per order
+ *   out_res_pairs[(n-1)*2]       — (i, j) adjacent-tension pair indices
+ *   out_res_ratio[(n-1)*2]       — (num, den) of each tension ratio
+ *   out_res_locked[n-1]          — 1 = LOCK (smooth/2-adic den), 0 = libration
+ *   *out_res_count               — number of resonance rows actually written
+ * `ws` (ws_len bytes) sized from srmech_resonant_spectrum_arena_bytes.
+ * Returns SRMECH_ERR_BAD_INPUT for orders<1 / max_den<1, SRMECH_ERR_NULL_ARG
+ * for a NULL pointer (n>0), SRMECH_ERR_OVERFLOW for a too-small arena or a
+ * non-convergent eigensolve. n==0 writes nothing + *out_res_count=0. */
+srmech_status_t srmech_resonant_spectrum(
+    uint32_t       n,
+    const double  *L_rowmajor,
+    uint32_t       orders,
+    uint64_t       max_den,
+    double        *out_tensions,
+    double        *out_modes,
+    double        *out_force_orders,
+    int32_t       *out_res_pairs,
+    uint64_t      *out_res_ratio,
+    int32_t       *out_res_locked,
+    uint32_t      *out_res_count,
+    double        *ws,
+    size_t         ws_len);
+
+/* ------------------------------------------------------------------ *
+ * The spectral theta / heat trace (0.9.0rc108; issue #1234 Item 2 /
+ * F1007) — a Class-L COMPOSITE over the existing kernels
+ * (srmech_jacobi_eigvals / srmech_hermitian_eigendecompose_ws +
+ * srmech_exp + srmech_graph_magnetic_laplacian), the C twin of
+ * srmech.amsc.laplacian.heat_trace / .ground_state_flux_response.
+ * Theta(t) = Tr(e^{-tL}) = sum_k exp(-t*lambda_k) IS a theta function of
+ * the Laplacian (on a cycle, the Jacobi-theta family) — the
+ * read-independent spectral summary. F1007: under magnetic flux the FULL
+ * trace is flux-invariant (Poisson -> the modular/holomorphic part) while
+ * the flux shadow lives only in the ground state lambda_min(flux) — the
+ * companion srmech_ground_state_flux_response is that shadow reader. The
+ * exp is srmech_exp (the Q61 libm-free Class-N cascade) at the
+ * spectral-summary boundary — Theta is a float summary, never an exact
+ * decision. Standalone-complete: all scratch is bump-carved from the
+ * CALLER arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_heat_trace needs for an n*n L —
+ * real (is_complex == 0): the in-place Jacobi work copy + eigvals;
+ * complex (is_complex != 0): the Hermitian eigensolve staging + eigvals.
+ * Size `ws_len` >= this. */
+size_t srmech_heat_trace_arena_bytes(uint32_t n, int is_complex);
+
+/* Theta(t_i) = sum_k exp(-t_i * lambda_k) for each of the n_t t-values,
+ * from ONE eigensolve of L. is_complex == 0: `L` is n*n row-major REAL
+ * symmetric (spectrum via srmech_jacobi_eigvals, sorted ascending);
+ * is_complex != 0: `L` is n*n row-major INTERLEAVED-complex (re, im)
+ * Hermitian (spectrum via srmech_hermitian_eigendecompose_ws, ascending;
+ * subject to the config-driven Hermitian node ceiling). Symmetry /
+ * Hermiticity is the caller's responsibility (the eigensolve ops'
+ * contract). out_theta receives n_t values. n == 0 writes Theta = 0 (the
+ * empty spectrum); n_t == 0 writes nothing. `ws` (ws_len bytes) sized
+ * from srmech_heat_trace_arena_bytes. Returns SRMECH_ERR_NULL_ARG for a
+ * NULL required pointer, SRMECH_ERR_OVERFLOW for a too-small arena / a
+ * non-convergent eigensolve. */
+srmech_status_t srmech_heat_trace(
+    uint32_t       n,
+    int            is_complex,
+    const double  *L,
+    uint32_t       n_t,
+    const double  *t_values,
+    double        *out_theta,
+    double        *ws,
+    size_t         ws_len);
+
+/* The caller arena size IN BYTES srmech_ground_state_flux_response needs
+ * for an n-node / n_edges-edge graph. Size `ws_len` >= this. */
+size_t srmech_ground_state_flux_response_arena_bytes(uint32_t n,
+                                                     uint32_t n_edges);
+
+/* lambda_min(flux_i) — the magnetic ground state as a function of flux
+ * (the F1007 shadow reader). For each of the n_flux flux values (in
+ * TURNS, the rc105 charge unit): every edge k gets charge
+ * flux * charge_pattern[k] (charge_pattern NULL -> the uniform 1/n_edges
+ * default, so a single cycle's total holonomy is `flux` turns), the
+ * magnetic Laplacian is built via srmech_graph_magnetic_laplacian
+ * (per-edge chiral mode; weights NULL -> 1.0 each), and
+ * out_lambda_min[i] receives its smallest eigenvalue. Integer flux is
+ * gauge-equivalent to flux = 0 (holonomy e^{i*2*pi*flux} = 1), so
+ * lambda_min is periodic in integer flux. n >= 1 (an empty graph has no
+ * ground state -> SRMECH_ERR_BAD_INPUT); n_flux == 0 writes nothing.
+ * `ws` (ws_len bytes) sized from
+ * srmech_ground_state_flux_response_arena_bytes. Returns
+ * SRMECH_ERR_NULL_ARG for a NULL required pointer, SRMECH_ERR_BAD_INPUT
+ * for an out-of-range edge endpoint / a phase with no Q61 form,
+ * SRMECH_ERR_OVERFLOW for a too-small arena / a non-convergent
+ * eigensolve. */
+srmech_status_t srmech_ground_state_flux_response(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *weights,
+    const double   *charge_pattern,
+    uint32_t        n_flux,
+    const double   *fluxes,
+    double         *out_lambda_min,
+    double         *ws,
+    size_t          ws_len);
+
+/* ------------------------------------------------------------------ *
+ * The spectral SPINE (0.9.0rc204; gh#1324 / F1167–F1169) — a Class-L
+ * COMPOSITE over the existing kernels (srmech_graph_dense_adjacency +
+ * srmech_hermitian_eigendecompose_ws), the C twin of
+ * srmech.amsc.laplacian.spectral_spine. It completes the community/spine
+ * PAIR srmech already ships: srmech_laplacian_fiedler_sparse /
+ * srmech_three_fold_bands read the LOW modes (2-/3-way community split),
+ * this reads the DOMINANT mode. The largest-eigenvalue eigenvector of a
+ * (signed) graph Laplacian concentrates on the structurally CENTRAL
+ * items; its top-|component| nodes ARE the spine. Domain-free (edges =
+ * any relational graph).
+ *
+ * Build → decompose → select: the signed Laplacian L = D̄ − A (signed
+ * degree D̄_ii = Σ|A_ij|, the Class-K magnitude — a sign branch, NOT
+ * fabs) is built from the edge list (srmech_graph_dense_adjacency then
+ * the in-arena D̄ − A pass), embedded real → interleaved-complex, and
+ * ONE srmech_hermitian_eigendecompose_ws gives the ascending spectrum +
+ * unitary eigenvectors. The DOMINANT eigenvector is the LAST column
+ * (largest λ); the top-k nodes by |component|² (re²+im², a Class-K
+ * magnitude-square — NO fabs, NO sqrt) are the spine, ordered by
+ * descending magnitude, ties broken by ascending index (bit-matching the
+ * Python op's sort key). NUMERIC (FPU-tol): the eigenvector basis is
+ * non-unique, so native == pure agrees WITHIN-TOL (the selected index
+ * SET / order is stable for a non-degenerate dominant eigenvalue), NOT
+ * byte-for-byte — contrast the exact-integer ops. Standalone-complete:
+ * all scratch is bump-carved from the CALLER arena `ws` (no malloc). The
+ * Python op is the COMPLETE alternative for a no-C host. ABI-additive:
+ * new symbols, so SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_spectral_spine needs for an n×n
+ * signed Laplacian (the real adjacency + the interleaved-H copy + the
+ * eigenvector staging + the eigensolve workspace + eigvals + the
+ * magnitude-square scratch). Size `ws_len` ≥ this. */
+size_t srmech_spectral_spine_arena_bytes(uint32_t n);
+
+/* The spectral spine of the relational graph on `n` nodes with `n_edges`
+ * undirected edges (edges_u/edges_v parallel uint32 arrays; `weights`
+ * NULL → unit weights, may be negative for a signed graph). Writes the
+ * top-min(k, n) central node indices (descending |component| of the
+ * dominant eigenvector, ties by ascending index) into `out_spine` (caller
+ * sizes it ≥ min(k, n)) and their count into `*out_count`. n == 0 (empty
+ * graph) writes *out_count = 0 and nothing else. `ws` (ws_len bytes) sized
+ * from srmech_spectral_spine_arena_bytes. Returns SRMECH_ERR_NULL_ARG for
+ * a NULL required pointer, SRMECH_ERR_BAD_INPUT for an out-of-range edge
+ * endpoint, SRMECH_ERR_OVERFLOW for a too-small arena or a non-convergent
+ * eigensolve. */
+srmech_status_t srmech_spectral_spine(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *weights,
+    uint32_t        k,
+    uint32_t       *out_spine,
+    uint32_t       *out_count,
+    double         *ws,
+    size_t          ws_len);
+
+/* ------------------------------------------------------------------ *
+ * EPH — the complex-time Wick-rotation propagator (0.9.0rc136; siona
+ * gh#1274) — a Class-L COMPOSITE over the existing kernels
+ * (srmech_hermitian_eigendecompose_ws + srmech_exp + srmech_cos +
+ * srmech_sin), the C twin of srmech.amsc.laplacian.propagate.
+ *
+ * EPH = harvest = Propagate · excite: a propagator P = e^{-zL}
+ * (operator) applied to an excitation u0 (operand) → the harvest H.
+ * The thermal e^{-tL} and the coherent e^{-itL} are NOT two ops — they
+ * are the ONE complex-time propagator e^{-zL} with z COMPLEX, the `i`
+ * being the WICK-ROTATION PHASE. arg(z) is the coherence dial:
+ * z REAL → thermal diffusion (decoherent, damping), z IMAGINARY →
+ * coherent unitary quantum walk (norm-preserving), arg(z) BETWEEN →
+ * partial coherence (the regime only the unified form can name). The
+ * neuron is one propagator choice (RBS-SNN = EPH-with-a-synaptic-
+ * propagator P = connectome/weight matrix); no privileged instance.
+ * Composes the framework's Class-L Wick rotation (the signed-metric /
+ * Wick op = a Class-L signed-Laplacian variant).
+ *
+ * harvest = e^{-zL}·u0 = V·diag(e^{-z·λ_k})·V^H·u0 from ONE
+ * eigensolve: the per-mode scalar e^{-zλ_k} = e^{-Re(z)·λ_k}·
+ * (cos(Im(z)·λ_k) − i·sin(Im(z)·λ_k)) uses srmech_exp (real damping,
+ * the Q61 libm-free Class-N cascade) + srmech_cos / srmech_sin
+ * (oscillation; their internal octant reduction IS the 2π argument
+ * fold in the Q61 basis — the algebraic twin of the Python op's
+ * explicit Machin-2π Class-N-series seam-fold, so both are correct at
+ * any t·λ). The harvest is basis-invariant (each eigenvector appears
+ * in both V and V^H), so it agrees with the Python op to the
+ * eigensolve tolerance regardless of the eigenvector sign / degenerate-
+ * subspace basis convention. Standalone-complete: all scratch is
+ * bump-carved from the CALLER arena `ws` (no malloc). ABI-additive:
+ * new symbols, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_eph_propagate needs for an n*n
+ * L (the interleaved Hermitian input + eigensolve workspace + the
+ * complex eigenvectors + the projected mode vector). Same arena for
+ * real and complex input (real L is lifted to interleaved (re, 0)).
+ * Size `ws_len` >= this. */
+size_t srmech_eph_propagate_arena_bytes(uint32_t n, int is_complex);
+
+/* harvest = e^{-zL}·u0 via the eigenbasis, from ONE eigensolve of L.
+ * is_complex == 0: `L` is n*n row-major REAL symmetric; is_complex != 0:
+ * `L` is n*n row-major INTERLEAVED-complex (re, im) Hermitian (subject
+ * to the config-driven Hermitian node ceiling). `u0` and `out_harvest`
+ * are each n INTERLEAVED-complex (re, im) pairs (a real excitation
+ * rides as (re, 0)). z = z_re + i·z_im is the complex time. n == 0
+ * writes nothing. `ws` (ws_len bytes) sized from
+ * srmech_eph_propagate_arena_bytes. Returns SRMECH_ERR_NULL_ARG for a
+ * NULL required pointer, SRMECH_ERR_OVERFLOW for a too-small arena / a
+ * non-convergent eigensolve, SRMECH_ERR_BAD_INPUT if an oscillation
+ * argument |Im(z)·λ_k| exceeds the srmech_cos/sin reduction bound
+ * (~2^55, far beyond any physical t·λ). */
+srmech_status_t srmech_eph_propagate(
+    uint32_t       n,
+    int            is_complex,
+    const double  *L,
+    const double  *u0_interleaved,
+    double         z_re,
+    double         z_im,
+    double        *out_harvest_interleaved,
+    double        *ws,
+    size_t         ws_len);
+
+/* ------------------------------------------------------------------ *
+ * EPH SPARSE — the sparse-scaled propagator (0.9.0rc206; siona
+ * gh#1274 item 1c, the corpus-scale residual) — the SAME harvest
+ * e^{-zL}·u0 as srmech_eph_propagate (same complex-z convention, same
+ * arg(z) coherence dial, same seam-folded Wick factor) computed by a
+ * CHEBYSHEV polynomial of the operator applied with MATRIX-VECTOR
+ * PRODUCTS ONLY — no eigendecomposition, no dense e^{-zL} — so it runs
+ * on a corpus-scale L past the n<=256 dense-eigensolve cap.
+ *
+ * The operator is the SIGNED graph Laplacian read off the edge list
+ * (the signed_laplacian convention): (L v)[i] = deg[i]·v[i] −
+ * Σ_{(i,j)} w_ij·v[j], deg[i] = Σ_incident |w| (Class-K sign branch,
+ * never fabs; self-loops skipped; duplicate edges read PER-EDGE).
+ * Spectral interval by Gershgorin ([0, 2·max deg] — deterministic, an
+ * overestimate only widens the interval), affine-mapped to [-1, 1];
+ * Chebyshev interpolation coefficients of e^{-z·lambda(s)} from the
+ * Chebyshev nodes (srmech_exp + srmech_cos / srmech_sin per node — the
+ * Q61 octant reduction IS the 2π seam-fold), node count adaptively
+ * DOUBLED from 64 up to the HARD CAP max_degree+1, accepted when the
+ * coefficient tail (top eighth) falls below tol·max|e^{-z·lambda}|;
+ * then the forward T_{k+1} = 2·L~·T_k − T_{k-1} vector recurrence
+ * (m matvecs, O(m·n_edges) time, O(n) memory). Not converged at the
+ * cap → honest SRMECH_ERR_OVERFLOW (raise max_degree or shrink |z|).
+ * Standalone-complete: all scratch is bump-carved from the CALLER
+ * arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 4.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_eph_propagate_sparse needs for
+ * n nodes / n_edges edges / a max_degree cap: the signed degrees + three
+ * interleaved-complex recurrence vectors (the harvest accumulates into
+ * the caller's output buffer) + the Chebyshev node/coefficient staging
+ * (5·(max_degree+1) doubles). Size `ws_len` >= this. */
+size_t srmech_eph_propagate_sparse_arena_bytes(uint32_t n, uint32_t n_edges,
+                                               uint32_t max_degree);
+
+/* harvest = e^{-zL}·u0 on the SPARSE signed Laplacian of the edge list
+ * (edges_u/edges_v parallel uint32 arrays; `weights` NULL → unit, may
+ * be negative for a signed graph). `u0_interleaved` / `out_harvest_
+ * interleaved` are each n INTERLEAVED-complex (re, im) pairs (a real
+ * excitation rides as (re, 0)). z = z_re + i·z_im is the complex time
+ * (the arg(z) coherence dial, as srmech_eph_propagate). `tol` (> 0) is
+ * the RELATIVE coefficient-tail tolerance (relative to the max
+ * propagator magnitude over the spectral interval); `max_degree`
+ * (1..2^28) is the HARD Chebyshev degree cap. Writes the Chebyshev
+ * degree actually used to *out_degree_used when non-NULL. n == 0
+ * writes nothing. `ws` (ws_len bytes) sized from
+ * srmech_eph_propagate_sparse_arena_bytes. Returns SRMECH_ERR_NULL_ARG
+ * for a NULL required pointer, SRMECH_ERR_BAD_INPUT for an out-of-range
+ * edge endpoint / non-finite weight / tol <= 0 / max_degree out of
+ * range / a non-finite propagator value (exp overflow on a backward
+ * z), SRMECH_ERR_OVERFLOW for a too-small arena or a coefficient tail
+ * not below tol within the max_degree cap. */
+srmech_status_t srmech_eph_propagate_sparse(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *weights,
+    const double   *u0_interleaved,
+    double          z_re,
+    double          z_im,
+    double          tol,
+    uint32_t        max_degree,
+    double         *out_harvest_interleaved,
+    uint32_t       *out_degree_used,
+    double         *ws,
+    size_t          ws_len);
+
+/* ------------------------------------------------------------------ *
+ * EPH WOUND — the wound propagator (0.9.0rc207; siona gh#1276) — the
+ * SAME harvest e^{-zL}·u0 as srmech_eph_propagate with the 2π
+ * seam-fold's DIVMOD QUOTIENT KEPT (the #741 mod-should-be-divmod
+ * audit's first concrete instance). srmech_eph_propagate's per-mode
+ * fold discards the whole-turn winding w_k of the oscillation
+ * argument Im(z)·λ_k (the mod-collapse); this peer keeps the grading —
+ * BOTH harvests at the seam: the EPICYCLE harvest (byte-identical to
+ * srmech_eph_propagate — same statics, same order; carrying w does
+ * not perturb it) PLUS the per-mode METACYCLE readout, wired in the
+ * One's (σ, θ, w) crank vocabulary:
+ *   w_k     = round(Im(z)·λ_k / 2π)  — the metacycle winding, the
+ *             quotient of the SAME divmod the fold performs
+ *             (srmech_winding_fold — no forked 2π constant);
+ *   θ_k     = the folded epicycle residue, |θ| <= π,
+ *             2π·w_k + θ_k == Im(z)·λ_k on the fold's grid (lossless —
+ *             the One.unwrapped_phase reconstruction per mode);
+ *   σ_eff_k = the tower-graded chirality dial via the winding's
+ *             binary tower on the mode triad (w_k, 0, 0) — the
+ *             EXISTING srmech_sigma_effective readout (NOT the
+ *             melding bare `w mod 2`);
+ *   spin_k  = the double-cover sign (-1)^{w_k} — the EXISTING
+ *             srmech_spinor_sign readout.
+ * Standalone-complete: all scratch is bump-carved from the CALLER
+ * arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 4.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_eph_propagate_wound needs for
+ * an n*n L — the srmech_eph_propagate carve minus the eigvals row
+ * (λ writes straight to the caller's out_eigvals). Size ws_len >= this. */
+size_t srmech_eph_propagate_wound_arena_bytes(uint32_t n, int is_complex);
+
+/* harvest = e^{-zL}·u0 with the per-mode winding KEPT. The first seven
+ * parameters follow srmech_eph_propagate exactly (same conventions,
+ * byte-identical harvest). The five readout arrays are each length n,
+ * in the eigensolve's mode order: out_eigvals (λ_k), out_winding
+ * (w_k, int64), out_theta (θ_k, |θ| <= π), out_sigma_effective /
+ * out_spinor_sign (±1 each, int32). n == 0 writes nothing. `ws`
+ * (ws_len bytes) sized from srmech_eph_propagate_wound_arena_bytes.
+ * Returns SRMECH_ERR_NULL_ARG for a NULL required pointer,
+ * SRMECH_ERR_OVERFLOW for a too-small arena / a non-convergent
+ * eigensolve, SRMECH_ERR_BAD_INPUT if an oscillation argument
+ * |Im(z)·λ_k| exceeds the fold's reduction bound (~2^55, the
+ * srmech_cos domain). */
+srmech_status_t srmech_eph_propagate_wound(
+    uint32_t       n,
+    int            is_complex,
+    const double  *L,
+    const double  *u0_interleaved,
+    double         z_re,
+    double         z_im,
+    double        *out_harvest_interleaved,
+    double        *out_eigvals,
+    int64_t       *out_winding,
+    double        *out_theta,
+    int32_t       *out_sigma_effective,
+    int32_t       *out_spinor_sign,
+    double        *ws,
+    size_t         ws_len);
+
+/* ------------------------------------------------------------------ *
+ * RESPONSION — the response-function family of a generator L acting
+ * on an excitation u0 (0.9.0rc208; F1186 — the op(x)operand(x)responsion
+ * k=3 completion: the stored relationship itself, the answering-
+ * correspondence between successive op-on-operand applications). The
+ * family has TWO canonical continuous-form members that are LAPLACE-
+ * TRANSFORM DUALS of one another:
+ *
+ *   kind == 0 (PROPAGATOR, time domain):   e^{-zL}·u0
+ *     — delegates to the shipped srmech_eph_propagate cascade (rc136;
+ *       same complex-z convention, same arg(z) coherence dial, same
+ *       mandatory 2-pi seam-fold).
+ *   kind == 1 (RESOLVENT, frequency/energy domain, the Green's
+ *              function): (zI - L)^{-1}·u0
+ *     — the Laplace transform of the (semigroup) propagator:
+ *       (zI - L)^{-1} = integral_0^inf e^{-zt}·e^{tL} dt for
+ *       Re(z) > max Re(lambda(L)); per eigenmode the pair is
+ *       e^{-z·lambda}  <->  1/(z - lambda). Realised as the REAL
+ *       2n x 2n block embedding [[Ar, -Ai], [Ai, Ar]]·[u; v] =
+ *       [br; bi] of the complex system A = zI - L over the shipped
+ *       srmech_dense_solve_f64_ws Gauss-Jordan kernel (the SAME
+ *       embedding the Python mat_solve complex path rides) — a
+ *       composition of existing C, no forked solve.
+ *
+ * A singular A (z EXACTLY in the spectrum of L — a resolvent POLE)
+ * returns SRMECH_ERR_BAD_INPUT (the honest pole signal, not a number).
+ * Standalone-complete: all scratch is bump-carved from the CALLER
+ * arena `ws` (no malloc). ABI-additive: new symbols, ABI stays 4.
+ * ------------------------------------------------------------------ */
+
+/* The caller arena size IN BYTES srmech_responsion needs for an n*n L
+ * and the given kind: kind == 0 -> the srmech_eph_propagate carve
+ * (identical, pass-through); kind == 1 -> the 2n x 2n real block
+ * embedding + the stacked RHS/solution columns + the inner
+ * srmech_dense_solve_arena_bytes(2n, 1) solve arena. Size ws_len >=
+ * this. An unknown kind returns 0. */
+size_t srmech_responsion_arena_bytes(uint32_t n, int is_complex, int kind);
+
+/* response = R(z)·u0 for the selected kind (0 = propagator e^{-zL}·u0,
+ * 1 = resolvent (zI - L)^{-1}·u0). is_complex == 0: `L` is n*n
+ * row-major REAL symmetric; is_complex != 0: `L` is n*n row-major
+ * INTERLEAVED-complex (re, im) Hermitian. `u0_interleaved` and
+ * `out_response_interleaved` are each n INTERLEAVED-complex (re, im)
+ * pairs (a real excitation rides as (re, 0)). z = z_re + i·z_im.
+ * n == 0 writes nothing. `ws` (ws_len bytes) sized from
+ * srmech_responsion_arena_bytes for the SAME kind. Returns
+ * SRMECH_ERR_NULL_ARG for a NULL required pointer, SRMECH_ERR_BAD_INPUT
+ * for an unknown kind or a resolvent pole (z in spec(L)) or a
+ * propagator fold-domain overflow, SRMECH_ERR_OVERFLOW for a too-small
+ * arena / a non-convergent eigensolve (propagator kind). */
+srmech_status_t srmech_responsion(
+    uint32_t       n,
+    int            is_complex,
+    int            kind,
+    const double  *L,
+    const double  *u0_interleaved,
+    double         z_re,
+    double         z_im,
+    double        *out_response_interleaved,
+    double        *ws,
+    size_t         ws_len);
+
 /* ------------------------------------------------------------------ *
  * Class J — prime-factorisation / period (Task #217 Phase C1 rc3)
  *
@@ -1180,6 +2031,40 @@ srmech_status_t srmech_cyclic_period(uint64_t  a,
                                      uint64_t  n,
                                      uint64_t  max_k,
                                      uint64_t *out_period);
+
+/* Smallest prime strictly greater than n (the prime successor). Composes the
+ * trial-division srmech_is_prime over the odd candidates above n. 0 and 1 step
+ * to 2; 2 steps to 3. Returns SRMECH_ERR_OVERFLOW only if no prime exists below
+ * the uint64 wrap (unreachable for any real n -- the largest prime gap under
+ * 2^64 is ~1500). srmech 0.9.0rc44, additive symbol (no ABI bump). */
+srmech_status_t srmech_next_prime(uint64_t n, uint64_t *out);
+
+/* ------------------------------------------------------------------ *
+ * Class I -- modular linear algebra: GF(p) RREF (srmech 0.9.0rc44).
+ *
+ * Rung 1 of the CRT-QMat re-fibration arc: the swell-free GF(p) Gauss-
+ * Jordan that the later CRT solve composes (solve mod several machine-
+ * int primes -> CRT-combine -> rational-reconstruct once). Bounded
+ * machine-int arithmetic only -- NO fraction growth, NO bignum. The
+ * matrix + pivot buffers are caller-owned (no malloc).
+ *
+ * Additive symbol -- no ABI bump.
+ * ------------------------------------------------------------------ */
+
+/* Reduce `matrix` (an n_rows x n_cols int64 matrix, ROW-MAJOR, caller-owned)
+ * to reduced row-echelon form over the field GF(p), IN PLACE. Entries may be
+ * negative on input; they are canonicalised into [0, p) first and every output
+ * entry lies in [0, p). Requires p an odd prime with 2 < p < 2**31 (so a*b fits
+ * uint64); returns SRMECH_ERR_BAD_INPUT otherwise. Writes the pivot column of
+ * each pivot row into `out_pivots` (caller buffer of >= min(n_rows, n_cols)
+ * uint32) and the rank into `*out_rank`. Primality of p is the caller's
+ * contract (the arithmetic domain bound is the only thing guarded here). */
+srmech_status_t srmech_gf_rref(int64_t  *matrix,
+                               uint32_t  n_rows,
+                               uint32_t  n_cols,
+                               uint64_t  p,
+                               uint32_t *out_pivots,
+                               uint32_t *out_rank);
 
 /* ------------------------------------------------------------------ *
  * Class B — tagged-tuple TLV byte-canonical form (Task #217 Phase
@@ -1305,6 +2190,387 @@ srmech_status_t srmech_catalog_lookup(const uint8_t  *key,
  * caller-owned with room for n uint32 entries; empty n writes nothing.
  * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
 srmech_status_t srmech_reverse_order(uint32_t n, uint32_t *out_order);
+
+/* ------------------------------------------------------------------ *
+ * Catalog REGISTRY / KERNEL-STATE / AUDIT logic (0.9.0rc172; the
+ * ORCHESTRATION→C spine, batch 2). A bare-C host (no Python) runs the
+ * catalog registry/kernel/audit surface with these peers, each COMPOSING
+ * the existing kernels — the srmech_json parser / canonical writer /
+ * builder + srmech_sha256_hex (Class A) — and NO new parser, NO new hash.
+ * They back the Python ops
+ *   srmech.amsc.catalog.list_registered_roots  -> srmech_catalog_registered_roots
+ *   srmech.amsc.catalog.get_local_kernel_state  -> srmech_catalog_local_kernel_state
+ *   srmech.amsc.catalog.use_local_kernel        -> srmech_catalog_use_local_kernel
+ *     (clear_local_kernel dispatches through use_local_kernel(None))
+ *   srmech.amsc.catalog.attestation_audit       -> srmech_catalog_attestation_audit
+ *
+ * STATE MODEL (option a — caller-owned): the registry / kernel state is
+ * OWNED BY THE HOST and passed in per call (Python passes its module
+ * globals; a bare-C host passes its own struct's contents). No global
+ * mutable C state, no long-lived handle. All scratch is bump-carved from
+ * the caller arena `ws` (size it with the matching *_arena_bytes). Each
+ * peer writes canonical JSON (byte-identical to CPython json.dumps(obj,
+ * sort_keys=True, ensure_ascii=False)) into `out` (NO trailing NUL) and
+ * sets *out_len. Output is float-free by construction; a per-line NDJSON
+ * parse failure returns non-OK so the Python caller runs the COMPLETE
+ * pure path (value-parity, never a rescue). ABI-additive: new symbols,
+ * so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* list_registered_roots: [{"path":<root>,"source":<root_source>}, ...] with
+ * the host's own attested root FIRST, then every external (path, source)
+ * pair from `ext_json` (a JSON array of two-string [path, source] arrays). */
+size_t srmech_catalog_registered_roots_arena_bytes(size_t root_len,
+                                                   size_t source_len,
+                                                   size_t ext_len);
+srmech_status_t srmech_catalog_registered_roots(
+    const char *root_path, size_t root_len,
+    const char *root_source, size_t root_source_len,
+    const char *ext_json, size_t ext_len,
+    void *ws, size_t ws_len,
+    char *out, size_t out_cap, size_t *out_len);
+
+/* get_local_kernel_state: {ok, active, path, adapter_class, n_overlay_sources,
+ * per_source, cache_hash} where cache_hash = sha256( "\n".join(
+ * f"{source_key}\t{overlay_sha256}") ) over the caller-provided per_source
+ * array (each entry an object with source_key/table/overlay_path/
+ * overlay_sha256 string fields — the FS-derived overlay set). `path` /
+ * `adapter_class` NULL -> JSON null. */
+size_t srmech_catalog_local_kernel_state_arena_bytes(size_t path_len,
+                                                     size_t ac_len,
+                                                     size_t per_source_len);
+srmech_status_t srmech_catalog_local_kernel_state(
+    int active, const char *path, size_t path_len,
+    const char *adapter_class, size_t ac_len,
+    const char *per_source_json, size_t per_source_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* use_local_kernel / clear_local_kernel HAPPY-PATH response. `clear != 0`
+ * -> the T2-cleared response; else the success response for a validated,
+ * existing overlay dir (the caller does adapter_class validation + FS
+ * existence/dir checks + the Python-repr error responses). `path` is the
+ * resolved overlay path (success only); `adapter_class` NULL -> no scope. */
+size_t srmech_catalog_use_local_kernel_arena_bytes(size_t path_len,
+                                                   size_t ac_len);
+srmech_status_t srmech_catalog_use_local_kernel(
+    int clear, const char *path, size_t path_len,
+    const char *adapter_class, size_t ac_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* attestation_audit: {ok, source_key, n_rows, rows:[...]}. Iterates the
+ * NDJSON file bytes (lstrip each line; skip empty / '#' comment lines),
+ * parses each row as JSON, and projects data_schema_id + attestation.
+ * {response_sha256, retrieved_at, parser_version, parser_rule_hash,
+ * collector_descriptor_hash} (each "" when absent). A per-line parse
+ * failure returns non-OK -> the caller runs the pure path. */
+size_t srmech_catalog_attestation_audit_arena_bytes(size_t ndjson_len,
+                                                    size_t source_key_len);
+srmech_status_t srmech_catalog_attestation_audit(
+    const char *source_key, size_t source_key_len,
+    const char *ndjson, size_t ndjson_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * amsc.compose LINEAR CHAIN-RUNNER — PARSE + VALIDATE (0.9.0rc173; the
+ * ORCHESTRATION→C spine, batch 3). A bare-C host parses + validates an
+ * operator-chain descriptor's `[[catalog.operator_chain]]` blocks with
+ * these peers, each COMPOSING the srmech_json parser / builder / canonical
+ * writer — NO new parser, NO new math. They back the Python ops
+ *   srmech.amsc.compose.parse_chain_spec     -> srmech_chain_spec_parse
+ *   srmech.amsc.compose.parse_catalog_chains -> srmech_chain_catalog_parse
+ *
+ * SCOPE (honest split): PARSE + VALIDATE only. The RUN loop (resolve_chain /
+ * run_chain) is NOT here — it dispatches ARBITRARY srmech ops (heterogeneous
+ * kwargs signatures) over the LIVE Python object graph (importlib + getattr +
+ * reference resolution against runtime step outputs) → it needs a bounded-op
+ * FFI + a uniform value carrier, scoped rc174. (Confirmed rc173: run_chain
+ * invokes ANY of the 14 class modules by name — sha256_bytes / mod_add /
+ * pi_cascade_digits / *_series_truncate — NOT the bounded cascade atoms.)
+ *
+ * CONTRACT: input is JSON (the Python dict, json.dumps'd). On success each
+ * peer writes the normalized spec(s) as canonical JSON (byte-identical to
+ * json.dumps(obj, sort_keys=True, ensure_ascii=False); NO trailing NUL) into
+ * `out` and sets *out_len. `args` are OMITTED — the Python caller re-attaches
+ * them from the ORIGINAL dict so arg object identity/type is preserved. On
+ * ANY validation failure or non-JSON input the peer returns non-OK so the
+ * caller runs the COMPLETE pure path (the ChainSpecError message is raised
+ * there). All scratch is caller-arena `ws` (size it with *_arena_bytes).
+ * ABI-additive: new symbols, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* parse_chain_spec: validate one chain block (JSON object with name / summary
+ * / returns / steps[{class,op,args,on_error?}] / on_error?) and emit the
+ * normalized {name, on_error, returns, steps:[{class_id, on_error, op}],
+ * summary}. Class ids A..N; on_error in {raise, warn_return_none, skip};
+ * every @<row|input|step|catalog>.<path> reference is grammar-checked and
+ * @step[N] is bounded to N < the step index. */
+size_t srmech_chain_spec_parse_arena_bytes(size_t chain_len);
+srmech_status_t srmech_chain_spec_parse(
+    const char *chain_json, size_t chain_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* parse_catalog_chains: validate {chain_schema_version:1, operator_chain:[
+ * chain, ...]} and emit [spec, ...]. chain_schema_version MUST be int 1;
+ * each chain is validated as in srmech_chain_spec_parse. */
+size_t srmech_chain_catalog_parse_arena_bytes(size_t cat_len);
+srmech_status_t srmech_chain_catalog_parse(
+    const char *cat_json, size_t cat_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * amsc.compose LINEAR CHAIN-RUNNER — the RUN LOOP (0.9.0rc174; the
+ * ORCHESTRATION→C spine, batch 4; srmech_compose_run.c).
+ *
+ * srmech_chain_run RUNS a validated `[[catalog.operator_chain]]` end-to-end in
+ * C to BYTE-IDENTICAL OUTPUT, backing srmech.amsc.compose.run_chain /
+ * resolve_chain (whose Python closure over the live object graph is NOT
+ * mirrored — parity is on the final VALUE, not the closure).
+ *
+ *   chain_json : the FULL chain object {name,summary,returns,on_error?,steps:
+ *                [{class,op,args,on_error?}]} (json.dumps of the ChainSpec).
+ *   ctx_json   : {"row": <obj|null>, "inputs": <obj>} — the @row / @input
+ *                binding tables (may be NULL / "" if the chain refs neither).
+ *
+ * Each step's args are resolved (@row.<path> / @input.<path> /
+ * @step[N].output; @catalog is NOT supported here) and dispatched to a BOUNDED
+ * Class-N op set — pi_cascade_digits, {exp,sin,cos,log1p,atan}_series_truncate,
+ * rational_{add,mul,div,pow_uint} — over the EXISTING C kernels
+ * (srmech_pi_archimedes / srmech_*_series_truncate_big / srmech_rational_pow_
+ * uint_big + a bignum-ℚ add/mul/div composed from srmech_bigint). The final
+ * value is marshaled back as a canonical-JSON VALUE DESCRIPTOR
+ * ({"k":"s","v":"3.14"} | {"k":"q","n":"..","d":".."} | {"k":"i","v":".."} |
+ * {"k":"n"}; bignums as decimal strings) which the Python caller reconstructs.
+ *
+ * rc103 inform-don't-limit: ANY op outside the table, any @catalog ref, any
+ * non-"raise" error policy, any float / unsupported arg, or any domain error /
+ * overflow → non-OK, and the Python caller runs the COMPLETE pure path (never a
+ * wrong answer; the pure path raises the exact ChainSpecError / ValueError).
+ * ONE caller arena `ws`, bump-allocated forward (size it with
+ * srmech_chain_run_arena_bytes); ABI-additive → SRMECH_ABI_VERSION stays 3. */
+size_t srmech_chain_run_arena_bytes(size_t chain_len, size_t ctx_len);
+srmech_status_t srmech_chain_run(
+    const char *chain_json, size_t chain_len,
+    const char *ctx_json, size_t ctx_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * amsc.catalog CHAIN ORCHESTRATION — list + run a catalog's named chains
+ * (0.9.0rc175; the ORCHESTRATION→C spine, batch 5). These COMPOSE the rc173
+ * chain parse (srmech_compose.c) + the rc174 chain-runner (srmech_compose_run.c)
+ * — NO new parser, NO new math. They back the Python ops
+ *   srmech.amsc.catalog.list_catalog_chains -> srmech_catalog_list_chains
+ *   srmech.amsc.catalog.run_catalog_chain   -> srmech_catalog_run_chain
+ *
+ * CONTRACT: input is JSON (the Python descriptor's [catalog] table, json.dumps'd
+ * as {chain_schema_version:1, operator_chain:[chain, ...]}). Any validation
+ * failure / unknown chain name / non-JSON input / out-of-table op → non-OK so
+ * the Python caller runs the COMPLETE pure path. Caller-arena `ws` (size with
+ * the matching *_arena_bytes). ABI-additive → SRMECH_ABI_VERSION stays 3.
+ *
+ * srmech_catalog_list_chains: emit the chain-summary array
+ *   [{classes:[class_id,...], n_steps, name, on_error, returns, summary}, ...]
+ * (canonical JSON, byte-identical to json.dumps(obj, sort_keys=True)); each
+ * chain is validated as in srmech_chain_spec_parse. */
+size_t srmech_catalog_list_chains_arena_bytes(size_t cat_len);
+srmech_status_t srmech_catalog_list_chains(
+    const char *cat_json, size_t cat_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* srmech_catalog_run_chain: find the chain named [chain_name, name_len) in
+ * operator_chain and RUN it end-to-end (same bounded Class-N op set + value-
+ * descriptor OUTPUT contract as srmech_chain_run). ctx_json = {"row":.., "inputs"
+ * :..}. A chain not found / a non-table op / a non-i64 input / overflow → non-OK
+ * → the Python pure path (the not-found KeyError / the live-object-graph run). */
+size_t srmech_catalog_run_chain_arena_bytes(size_t cat_len, size_t ctx_len);
+srmech_status_t srmech_catalog_run_chain(
+    const char *cat_json, size_t cat_len,
+    const char *chain_name, size_t name_len,
+    const char *ctx_json, size_t ctx_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech.dsl Chain LINEAR RUN-LOOP — the F1 carrier-FFI FOUNDATION (0.9.0rc181;
+ * ANNEX Batch B pt1; srmech_dsl_chain_run.c). The C peer of srmech.dsl.Chain.run
+ * — a SIBLING interpreter to srmech_chain_run: it VALUE-THREADS (each stage's
+ * output feeds the next stage's input, NO @row/@input/@step refs) over the LEAN
+ * cascade ATOMS on f64/i64 carriers. Backs the DSL rows lookup_cascade_op (the
+ * leaf-dispatch table) + build_chain_from_dict (the stage-IR discriminator parse).
+ *
+ *   chain_json  : {"chain":{"name":..},"stage":[{"op":..,<kwargs>..},...]} — the
+ *                 build_chain_from_dict grammar. Only `op` (LINEAR) stages run
+ *                 here; a loop/fold/reduce/parallel discriminator → non-OK → the
+ *                 pure path (rc182 adds the combinators + the TOML front-ends).
+ *   input_json  : an F1 VALUE DESCRIPTOR for the seed value.
+ *   out         : the F1 VALUE DESCRIPTOR for the final value.
+ *
+ * THE F1 CARRIER (the shared carrier-FFI bedrock #796's F2/F3/F4 extend). Tagged
+ * union {NONE, INT (i64), FLOAT (f64), STR, LIST}; LIST carries an is_tuple bit
+ * (Python list vs tuple) + BOUNDED-depth children (JPL Rule 1 — the nesting
+ * recursion is depth-guarded + asserted, never unbounded). Marshalled as:
+ *   {"k":"n"} | {"k":"i","v":<int>} | {"k":"f","v":<num>} | {"k":"s","v":<str>} |
+ *   {"k":"l","v":[..]} (list) | {"k":"t","v":[..]} (tuple). FLOAT round-trips at
+ *   %.17g → the numeric atoms' parity is WITHIN-TOL, not byte-identical.
+ *
+ * THE LEAF-DISPATCH TABLE: magnitude / reorient / pin_slot_at_zero /
+ * best_rational_signed / chiral_flip / net_chirality / autocorrelation — the
+ * C-backed unary value→value atoms. Any other unary op (chiral_dual;
+ * kuramoto_step / quaternion_dft / octonion_dft — heavier multi-array carriers)
+ * → non-OK → the COMPLETE pure path (rc103 inform-don't-limit; never a wrong
+ * answer). ONE caller arena `ws` (size with srmech_dsl_chain_run_arena_bytes).
+ *
+ * THE COMBINATORS (0.9.0rc182; ANNEX Batch B pt2 — completes the interpreter).
+ * The build_chain_from_dict discriminator grammar now RUNS in C:
+ *   * loop   {"loop_n":N,"sub_chain":[stage,..]} — value-thread the sub-chain
+ *            N times (recurse into the stage-runner; N + nesting depth BOUNDED
+ *            + asserted, JPL Rule 1/2 — a too-large N or too-deep nesting → pure).
+ *   * fold   {"fold_init":<scalar>,"fold_op":<op>} — acc = fold_init; for each
+ *            element of the input LIST, acc = fold_op(acc, elem) (a C-backed
+ *            BINARY op: cyclic_gcd). Empty list → acc = fold_init.
+ *   * reduce {"reduce_op":<op>} — acc = list[0]; fold the BINARY op over the
+ *            remaining elements. Empty list → non-OK (pure raises ValueError).
+ * `parallel_body` (the Klein-4 fan-out over host threads) still DEFERS to pure.
+ * A combinator whose body op is not a C leaf / binary kernel → non-OK → pure.
+ * ABI-additive → SRMECH_ABI_VERSION stays 4. */
+size_t srmech_dsl_chain_run_arena_bytes(size_t chain_len, size_t input_len);
+srmech_status_t srmech_dsl_chain_run(
+    const char *chain_json, size_t chain_len,
+    const char *input_json, size_t input_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* srmech_dsl_toml_chain_to_json — the TOML front-end bridge (0.9.0rc182). Parse
+ * a TOML chain-spec document via srmech_toml_parse, then serialise the parsed
+ * table tree as canonical JSON (byte-identical to json.dumps(sort_keys=True) for
+ * null/bool/int/string/object/array; DOUBLE best-effort %.17g — WITHIN-TOL, the
+ * chain-spec grammar is float-rare). The output is the build_chain_from_dict IR
+ * the Python `build_chain_from_toml_str` feeds straight into the chain builder —
+ * so a C-only / MCU host reads a `[chain]` + `[[stage]]` TOML descriptor with no
+ * Python TOML hop. A syntax error / unsupported construct / arena overflow →
+ * non-OK, and the Python caller falls back to the stdlib tomllib parse (rc103
+ * inform-don't-limit — same value, same error). ONE caller arena `ws` (size with
+ * srmech_dsl_toml_chain_to_json_arena_bytes). ABI-additive → stays 4. */
+size_t srmech_dsl_toml_chain_to_json_arena_bytes(size_t toml_len);
+srmech_status_t srmech_dsl_toml_chain_to_json(
+    const char *toml_src, size_t toml_len,
+    void *ws, size_t ws_len, char *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_infer — the F929 OPEN/infer ROUTER (0.9.0rc176; the ORCHESTRATION->C
+ * spine, batch 6; the CARRIER-FFI foundation). The C peer of
+ * srmech.amsc.dispatch.infer — the META-dispatcher over srmech's shipped
+ * closed-form reduction-theory rows. Given a STORED RELATIONSHIP marshalled as
+ * JSON, DETECT which row its operand structure matches, DISPATCH the matching C
+ * reducer, VERIFY the reducer's OWN contract, and emit the DECISION as a small
+ * JSON descriptor the Python caller reconstructs (the closed_form OBJECT is
+ * rebuilt from the SAME reducer this op verified, so native == the pure infer).
+ *
+ * rc176 handles the two EXACT-SYMBOLIC bignum-carrier rows that share ONE
+ * carrier-FFI marshal (JSON with bignum-decimal-string coefficients):
+ *   * cyclic       (sigma / theta_num / theta_den)      -> srmech_the_one; the
+ *                  n1_is_sigma_only invariant (flat[1] == (sigma, 1)) is the
+ *                  reducer's own verification.
+ *   * sigma-gosper (term_ratio_num / term_ratio_den as ascending [num, den]
+ *                  rational coefficient lists) -> srmech_gosper; has == 1 is the
+ *                  verification (a hypergeometric antidifference exists).
+ *
+ * rc192 (#796 payoff) ADDS the SIGMA-DEFINITE (wz_certificate) exact-Q row over
+ * the rc191 srmech_carrier_read_bipoly reader:
+ *   * sigma-wz      (rn_num / rn_den / rk_num / rk_den as the four (n,k) BiPoly
+ *                  term-ratios) -> FIND srmech_zeilberger @order-1 (accept only
+ *                  the WZ shape a0(n)+a1(n)=0, nonzero constants) + PROVE
+ *                  srmech_wz_verify on the 1/a1-rescaled certificate; reducible
+ *                  iff the WZ equation VERIFIES (the genuine identity proof — not
+ *                  the FIND alone). The reducer name is "wz_certificate".
+ *
+ * Output JSON (Python json.loads-able):
+ *   reducible: {"reducer":"the_one"|"gosper"|"wz_certificate"|
+ *               "apagodu_zeilberger"|"q_wz_certificate"|"q_gosper"|
+ *               "elliptic_wz_certificate","reducible":true,
+ *               "row":..,"verified":true}
+ *   open     : {"reducible":false,"row":"cyclic"|"sigma"|"sigma_q"}   (Python
+ *               builds the candidate-next-theory hint from the row; the rows
+ *               whose C reducer declines non-definitively NEVER emit false —
+ *               they return non-OK so the pure infer decides)
+ *
+ * rc223 (#796) ADDS the three remaining EXACT-Q rows over the rc223 public
+ * carrier readers (srmech_carrier_read_{tripoly,qbipoly,ellratio}):
+ *   * sigma_multivar (rn_* / rj_* / rk_* as the six (n,j,k) TriPoly term-
+ *                  ratios) -> srmech_apagodu_zeilberger @max_order=1; a has=1
+ *                  minimal-order recurrence IS the verification (the same
+ *                  non-None-is-the-proof contract as gosper). A has=0 is NOT
+ *                  definitive (the C peer declines above order 1) -> non-OK ->
+ *                  the pure path decides. Reducer name "apagodu_zeilberger".
+ *   * sigma_q      DEFINITE (qrn_* / qrk_* as the four (X,Y)=(q^n,q^k) QBiPoly
+ *                  q-term-ratios) -> FIND srmech_q_zeilberger @order-1 (accept
+ *                  only the q-WZ shape a0+a1=0, nonzero rational scalars) +
+ *                  PROVE srmech_q_wz_verify on the 1/a1-rescaled certificate
+ *                  (the COMPLETE degree-bounded q-WZ-equation check). Reducer
+ *                  name "q_wz_certificate". A FIND decline (the C q-Zeilberger
+ *                  completes only the k-free q-geometric class) -> non-OK ->
+ *                  pure; a FIND success whose shape/verify fails -> reducible:
+ *                  false (definitive: the k-free class is byte-identical to
+ *                  the pure FIND, and the verify is a complete mirror).
+ *                  INDEFINITE (q_term_ratio_* as a single-Y-cell QBiPoly wire
+ *                  of the QPoly q-term-ratio) -> srmech_q_gosper; has == 1 is
+ *                  the verification. Reducer name "q_gosper". A has=0 is NOT
+ *                  definitive (constant-ratio native scope) -> non-OK -> pure.
+ *   * sigma_elliptic (elliptic_term_ratio as the PRE-INTERNED EllRatio wire
+ *                  object) -> srmech_elliptic_wz_certificate; has == 1 (the
+ *                  8w7 recognized AND the connection-coefficient certificate
+ *                  decides exactly zero) is the verification. Reducer name
+ *                  "elliptic_wz_certificate". A has=0 -> non-OK -> pure (the
+ *                  conservative fall; never a possibly-divergent false).
+ *
+ * rc224 (#796 CLOSE — the LAST row) ADDS the SPECTRAL row with the EXACT
+ * operator-level verdict:
+ *   * spectral     (matrix {"n","bits"} / adjacency {"n","bits"} / edges
+ *                  [[u,v]...] + n + optional weights) — every f64 leaf rides
+ *                  the wire as its IEEE-754 BIT PATTERN (a signed int64; the
+ *                  bit-EXACT float wire — no decimal float parse in the
+ *                  decision path). Build L in C (edges -> the Class-L
+ *                  srmech_graph_dense_laplacian kernel, the SAME builder the
+ *                  pure path dispatches to; matrix -> the raw grid;
+ *                  adjacency -> the in-place D-A transform in the pure
+ *                  _build_laplacian's exact float-op order) and decide:
+ *                  reducible iff L is BIT-EXACT real-symmetric (IEEE == over
+ *                  all mirrored pairs — the spectral theorem's own
+ *                  hypothesis). NO eigensolve, NO resonant_spectrum, NO float
+ *                  tolerance in the C decision path; the eigenvalue payload
+ *                  is the OPERAND, re-derived pure-side on a reducible
+ *                  verdict. Reducer name "resonant_spectrum". BOTH verdicts
+ *                  are definitive here (the C-built L is entry-for-entry the
+ *                  pure build), so the native and pure decisions are
+ *                  identical on EVERY platform by construction.
+ *
+ * rc103 inform-don't-limit: any OTHER row (the elliptic multivariate Cn
+ * Jackson row — whose verify is carrier-symbolic), any
+ * malformed operand, or any arena overflow -> non-OK, and the Python caller
+ * runs the COMPLETE pure infer (NEVER a false reducible; the honest OPEN
+ * residue is the no-hallucination discipline in C). ONE caller arena `ws`. The
+ * cyclic / gosper rows size with srmech_infer_arena_bytes(rel_len, max_terms)
+ * (max_terms = the largest operand's coefficient count — the gosper degree, 1
+ * for cyclic — since the gosper ws grows super-linearly in the degree, not in
+ * rel_len). The sigma-wz row sizes with
+ * srmech_infer_sigma_definite_arena_bytes; the rc223 rows each size with their
+ * OWN sizer below (max_terms = the row's shape envelope: the TriPoly
+ * jdeg/kdeg/nlen max; the QBiPoly ycells/xcells/qlen max; the EllRatio
+ * n_syms + monomial count. coeff_limbs = the max significant 32-bit limbs per
+ * coefficient) so the cheap rows never pay the MB floor. The rc224 spectral
+ * row sizes with srmech_infer_spectral_arena_bytes(rel_len, n) (n = the
+ * Laplacian dimension; parse + ONE n*n double grid + the edge arrays — no
+ * eigensolve scratch). All are ABI-additive -> SRMECH_ABI_VERSION stays 4. */
+size_t srmech_infer_arena_bytes(size_t rel_len, size_t max_terms);
+size_t srmech_infer_sigma_definite_arena_bytes(size_t rel_len, size_t max_terms,
+                                               size_t coeff_limbs);
+size_t srmech_infer_sigma_multivar_arena_bytes(size_t rel_len, size_t max_terms,
+                                               size_t coeff_limbs);
+size_t srmech_infer_sigma_q_arena_bytes(size_t rel_len, size_t max_terms,
+                                        size_t coeff_limbs);
+size_t srmech_infer_sigma_elliptic_arena_bytes(size_t rel_len, size_t max_terms,
+                                               size_t coeff_limbs);
+size_t srmech_infer_spectral_arena_bytes(size_t rel_len, size_t n);
+srmech_status_t srmech_infer(const char *rel_json, size_t rel_len,
+                             void *ws, size_t ws_len,
+                             char *out, size_t out_cap, size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * Class F — substitution / templating (Task #217 Phase C1 rc5)
@@ -1703,6 +2969,19 @@ srmech_status_t srmech_hdc_similarity(const uint8_t *a,
                                       uint32_t       n_bytes,
                                       double        *out);
 
+/* bundle_with_ties(vectors, n_vectors, n_bytes): bitwise majority across ANY
+ * number of BSC vectors, with the tie state surfaced. Unlike srmech_hdc_bundle
+ * (odd-count only), accepts any n_vectors: out_majority bit = 1 where strictly
+ * more than half the inputs are set (a tie -> 0; odd n_vectors == srmech_hdc_bundle
+ * exactly); out_ties bit = 1 where set / unset counts are exactly equal (even
+ * n_vectors only). A tie is a Class-K event; counts only, no abs. No n_vectors
+ * cap. Additive symbol — no ABI bump. */
+srmech_status_t srmech_hdc_bundle_with_ties(const uint8_t * const *vectors,
+                                            uint32_t                n_vectors,
+                                            uint32_t                n_bytes,
+                                            uint8_t                *out_majority,
+                                            uint8_t                *out_ties);
+
 /* ------------------------------------------------------------------ *
  * Class M — polar {-1, 0, +1} variant (v0.4.3rc1)
  *
@@ -1733,6 +3012,19 @@ srmech_status_t srmech_polar_bundle(const int8_t * const *vectors,
                                     uint32_t              n_vectors,
                                     uint32_t              n,
                                     int8_t               *out);
+
+/* polar_random(key, key_length, D): D draws of CPython random.Random(seed)
+ * .randrange(-1, 2), BYTE-IDENTICAL. `key` is the seed's little-endian uint32
+ * words (the Python wrapper splits the seed int; a C-only / MCU host passes its
+ * own entropy words). Fills `out` (int8) with D values in {-1, 0, +1} via
+ * MT19937 + getrandbits(2) rejection (_randbelow(3) — a DIFFERENT stream from
+ * klein4_random's _randbelow(4)). Standalone-complete: the 624-word state is
+ * stack-resident — no malloc, no compiled-in cap (bound is the caller's `out`).
+ * Additive symbol — no ABI bump. */
+srmech_status_t srmech_polar_random(const uint32_t *key,
+                                    size_t          key_length,
+                                    uint32_t        D,
+                                    int8_t         *out);
 
 /* polar_similarity(a, b, skip_zero): match-fraction in [0, 1].
  * skip_zero != 0 → fraction over positions where both a[i] != 0 and
@@ -1891,6 +3183,202 @@ srmech_status_t srmech_klein4_cooccurrence_fold(const uint8_t  *codes,
                                                 uint32_t       *out_accs);
 
 /* ------------------------------------------------------------------ *
+ * Class M — Klein-4 EXACT sector ops (v0.9.0rc142; BATCH B1)
+ *
+ * Six byte-exact ops over the (F2)^2 Klein-4 carrier that compose / extend the
+ * srmech_klein4 foundation above. Integer / sector only — no float, no abs.
+ * Byte-identical to the pure-Python hdc.klein4_* ops. Additive symbols, so
+ * SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* klein4_sector_flip(in, n, mask): XOR every element with a constant sector mask
+ * in {0,1,2,3} — the chirality flips (gamma5 = mask 2, iomega7 = mask 1, CPT =
+ * mask 3). out[i] = in[i] ^ mask. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_sector_flip(const uint8_t *in,
+                                          uint32_t       n,
+                                          uint8_t        mask,
+                                          uint8_t       *out);
+
+/* klein4_sector_count(in, n): per-sector occupancy [n0,n1,n2,n3] into the
+ * caller-owned 4-uint32 out_counts. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_sector_count(const uint8_t *in,
+                                           uint32_t       n,
+                                           uint32_t      *out_counts);
+
+/* klein4_holographic_encode(in, n, replicas): replica-major replication — out is
+ * n*replicas bytes = the input repeated `replicas` times (#797 op (a2); F353).
+ * replicas >= 2. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_holographic_encode(const uint8_t *in,
+                                                 uint32_t       n,
+                                                 uint32_t       replicas,
+                                                 uint8_t       *out);
+
+/* klein4_holographic_decode(store, n, replicas, erased): D = n/replicas. erased
+ * == NULL -> blind per-position majority (ties -> lowest sector); erased != NULL
+ * (length-n mask, nonzero = erased) -> first surviving replica per position
+ * (all-erased -> SRMECH_ERR_BAD_INPUT). out is D bytes. n % replicas == 0. */
+srmech_status_t srmech_klein4_holographic_decode(const uint8_t *store,
+                                                 uint32_t       n,
+                                                 uint32_t       replicas,
+                                                 const uint8_t *erased,
+                                                 uint8_t       *out);
+
+/* klein4_triality_encode(in, n): the order-3 triality orbit [v, T(v), T^2(v)]
+ * (orbit-major) — out is 3*n bytes (#797 op (a1); F359). Composes
+ * srmech_klein4_triality_cycle. Out of {0,1,2,3} -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_klein4_triality_encode(const uint8_t *in,
+                                              uint32_t       n,
+                                              uint8_t       *out);
+
+/* klein4_triality_correct(store, n, scratch): D = n/3; the 2-of-3 triality
+ * majority over [b0, T^-1(b1), T(b2)] (ties -> lowest sector), correcting one
+ * error (#797 op (a1)). Composes srmech_klein4_triality_cycle; `scratch` is 2*D
+ * caller-owned bytes. out is D bytes. n % 3 == 0. */
+srmech_status_t srmech_klein4_triality_correct(const uint8_t *store,
+                                               uint32_t       n,
+                                               uint8_t       *scratch,
+                                               uint8_t       *out);
+
+/* ------------------------------------------------------------------ *
+ * EXACT signal-processing coder / quantizer ops (v0.9.0rc143; BATCH B6a)
+ *
+ * Four byte-exact C twins for the five simpler sp_coder_dp ops (the two
+ * sign_quantise paths share srmech_sign_quantise). Integer / exact coders —
+ * no float tolerance, no libm, no abs (Class-K sign is a pin-slot boundary).
+ * Byte-identical to the pure-Python signal_processing kernels. Additive
+ * symbols, so SRMECH_ABI_VERSION stays 3. See c/src/srmech_coder.c.
+ * ------------------------------------------------------------------ */
+
+/* sign_quantise(in, n, threshold, dead_band): Class-K {-1,0,+1} threshold
+ * projection. dead_band <= 0 -> two-level (in >= threshold ? +1 : -1); dead_band
+ * > 0 -> three-level (+1 above threshold+dead_band, -1 below threshold-dead_band,
+ * 0 in the acceptance band). out is n int8 entries. No abs. */
+srmech_status_t srmech_sign_quantise(const double *in,
+                                     uint32_t      n,
+                                     double        threshold,
+                                     double        dead_band,
+                                     int8_t       *out);
+
+/* vector_quantise_encode(vectors[n_vec*dim], codebook[n_codes*dim], dim): for
+ * each input row, the index of the nearest codebook entry by SQUARED Euclidean
+ * distance (accumulated left-to-right -> bit-identical to the pure fold; ties
+ * -> lowest index via strict `<`). out_idx receives n_vec indices. No abs. */
+srmech_status_t srmech_vector_quantise_encode(const double *vectors,
+                                              uint32_t      n_vec,
+                                              const double *codebook,
+                                              uint32_t      n_codes,
+                                              uint32_t      dim,
+                                              uint32_t     *out_idx);
+
+/* rle_encode(data, n, max_run): run-length encode to (symbol, count) records;
+ * a run stops at a symbol change or at max_run. out_sym / out_count are caller
+ * arenas of >= n entries; out_npairs receives the record count. */
+srmech_status_t srmech_rle_encode(const uint8_t *data,
+                                  uint32_t       n,
+                                  uint32_t       max_run,
+                                  uint8_t       *out_sym,
+                                  uint32_t      *out_count,
+                                  uint32_t      *out_npairs);
+
+/* huffman_build_codes(data, n): build the canonical Huffman code table via the
+ * SAME deterministic (freq, counter) node ordering as the Python heapq tree.
+ * out_code_len[256] = per-symbol code length (0 = absent); out_code_str[256*256]
+ * holds each present symbol's '0'/'1' code at [sym*256 ..]; out_order[256] lists
+ * present symbols in the Python code-dict order (out_order_count of them). */
+srmech_status_t srmech_huffman_build_codes(const uint8_t *data,
+                                           uint32_t       n,
+                                           uint32_t      *out_code_len,
+                                           char          *out_code_str,
+                                           uint8_t       *out_order,
+                                           uint32_t      *out_order_count);
+
+/* ------------------------------------------------------------------ *
+ * sp_coder_dp part 2 — LZ77 / Viterbi / MLSE / arithmetic coder
+ * (v0.9.0rc144; BATCH B6b)
+ *
+ * The four harder sp_coder_dp ops. LZ77 + arithmetic-encode are exact integer /
+ * exact-rational (byte-identical); Viterbi + MLSE are float trellis DP made
+ * byte-identical by reproducing the EXACT float accumulation order + first-
+ * maximal argmax tie-break (deterministic double, no libm). jpeg is DEFERRED
+ * (its DCT basis is a float rational.cos cascade -> a numeric batch). Additive
+ * symbols, so SRMECH_ABI_VERSION stays 3. See c/src/srmech_coder.c.
+ * ------------------------------------------------------------------ */
+
+/* lz77_encode(data, n, window_size, lookahead_size): emit (offset, length,
+ * literal) tokens; longest match, ties keep the first ws (largest offset).
+ * out_literal[t] == -1 marks the Python `None` literal (match to end-of-input).
+ * out_* are caller arenas of >= n entries; *out_ntokens receives the count. */
+srmech_status_t srmech_lz77_encode(const uint8_t *data,
+                                   uint32_t       n,
+                                   uint32_t       window_size,
+                                   uint32_t       lookahead_size,
+                                   uint32_t      *out_offset,
+                                   uint32_t      *out_length,
+                                   int32_t       *out_literal,
+                                   uint32_t      *out_ntokens);
+
+/* viterbi(obs[T], A[n_states*n_states] row-major, B[n_states*n_obs], pi[
+ * n_states]): the log-domain trellis DP; ws_delta / ws_psi are caller scratch
+ * of T*n_states each; out_path receives the T-state Viterbi path (first-maximal
+ * argmax tie-break). Deterministic double, no libm, no abs. */
+srmech_status_t srmech_viterbi(const int32_t *obs,
+                               uint32_t       T,
+                               const double  *A,
+                               const double  *B,
+                               const double  *pi,
+                               uint32_t       n_states,
+                               uint32_t       n_obs,
+                               double        *ws_delta,
+                               int32_t       *ws_psi,
+                               int32_t       *out_path);
+
+/* mlse(obs(re,im)[T], taps(re,im)[L], alpha(re,im)[A]): MLSE over an ISI
+ * channel. L = memory+1 (tap count); n_states = A^memory (caller-computed);
+ * log_a / log_nstates are the Class-N rational-log constants (computed in
+ * Python, passed exact). dscratch carves A_log(n^2) | B_log(n*T) | pi(n) |
+ * delta(T*n); iscratch carves psi(T*n) | obs_idx(T); uscratch carves
+ * tup(memory) | ntup(memory). out_path receives the T input-symbol indices. */
+srmech_status_t srmech_mlse(const double  *obs_re,
+                            const double  *obs_im,
+                            uint32_t       T,
+                            const double  *taps_re,
+                            const double  *taps_im,
+                            uint32_t       L,
+                            const double  *alpha_re,
+                            const double  *alpha_im,
+                            uint32_t       A,
+                            uint32_t       n_states,
+                            double         log_a,
+                            double         log_nstates,
+                            double        *dscratch,
+                            int32_t       *iscratch,
+                            uint32_t      *uscratch,
+                            int32_t       *out_path);
+
+/* arithmetic_encode(clo[k], chi[k], n, total): exact-rational range-coder
+ * encode. clo[k] and chi[k] are the k-th symbol's cumulative bounds; total is
+ * the frequency sum. Carries a common denominator (total^k) so the whole loop
+ * is exact srmech_bigint integer + a single terminal gcd; the lo and hi num/den
+ * buffers receive the reduced-fraction decimals (NUL-terminated, each buffer
+ * of >= str_cap); ws is the caller uint32 arena. n >= 1. Byte-identical to the
+ * Python fractions.Fraction encode. */
+srmech_status_t srmech_arithmetic_encode(const uint32_t *clo,
+                                         const uint32_t *chi,
+                                         uint32_t        n,
+                                         uint64_t        total,
+                                         char           *lo_num,
+                                         char           *lo_den,
+                                         char           *hi_num,
+                                         char           *hi_den,
+                                         size_t          str_cap,
+                                         size_t         *lo_num_len,
+                                         size_t         *lo_den_len,
+                                         size_t         *hi_num_len,
+                                         size_t         *hi_den_len,
+                                         void           *ws,
+                                         size_t          ws_len);
+
+/* ------------------------------------------------------------------ *
  * srmech.bus — cross-process IPC C peer (v0.5.0rc2)
  *
  * Five public symbols + one function-pointer typedef. POSIX uses
@@ -1961,6 +3449,33 @@ srmech_status_t srmech_bus_serve(
     void                             *user_data,
     srmech_bus_server_handle_t      **out_handle);
 
+/* Bio-TOTP ENCRYPTED server (rc179; ANNEX Batch A part 2). Same as
+ * srmech_bus_serve but every request/response payload is wrapped in the
+ * rc178 UTLP Bio-TOTP wire cipher (DEFAULT stdlib HMAC-SHA-256 counter-mode
+ * path — the AES-128-CTR `[crypto]` extra stays Python). So a bare-C host
+ * speaks the ENCRYPTED wire, not plaintext. Wire body = [nonce:16][ciphertext],
+ * TLV-framed; key rolls on the PAL wall clock over `window_ns` (a large
+ * window pins one key). `dna` (dna_len bytes, capped at 256; NULL iff
+ * dna_len == 0) is the shared secret; `sender_id`/`channel_id` seed the
+ * server's response nonces (each accepted connection gets a fresh packet_seq).
+ * ENCRYPT composes srmech_bio_totp_derive_key + _keystream_xor; DECRYPT
+ * composes srmech_bio_totp_decode_splice (permissive binding over the OPAQUE
+ * payload). Additive symbol → SRMECH_ABI_VERSION stays 3.
+ *
+ * Error returns: as srmech_bus_serve, plus SRMECH_ERR_BAD_INPUT (window_ns
+ * <= 0) / SRMECH_ERR_OVERFLOW (dna_len > 256) / SRMECH_ERR_IO (no wall
+ * clock). */
+srmech_status_t srmech_bus_serve_encrypted(
+    const char                       *name,
+    srmech_bus_handler_callback_t     handler,
+    void                             *user_data,
+    const uint8_t                    *dna,
+    size_t                            dna_len,
+    uint64_t                          sender_id,
+    uint32_t                          channel_id,
+    int64_t                           window_ns,
+    srmech_bus_server_handle_t      **out_handle);
+
 /* Accept one client + service its requests until peer-close.
  * BLOCKING. Caller-spinnable in a thread loop. Returns SRMECH_OK
  * after the client disconnects cleanly; SRMECH_ERR_IO on accept
@@ -1984,6 +3499,24 @@ srmech_status_t srmech_bus_connect(
     const char                       *name,
     srmech_bus_client_handle_t      **out_handle);
 
+/* Bio-TOTP ENCRYPTED client (rc179). Same as srmech_bus_connect but the
+ * returned handle encrypts on srmech_bus_send_recv and decrypts the reply
+ * (see srmech_bus_serve_encrypted). `dna` + `window_ns` must match the
+ * server's; `sender_id`/`channel_id` seed this client's request nonces.
+ * srmech_bus_send_recv / srmech_bus_client_close are shared (they read the
+ * cipher state from the handle). Additive symbol → SRMECH_ABI_VERSION stays 3.
+ *
+ * Error returns: as srmech_bus_connect, plus SRMECH_ERR_BAD_INPUT (window_ns
+ * <= 0) / SRMECH_ERR_OVERFLOW (dna_len > 256). */
+srmech_status_t srmech_bus_connect_encrypted(
+    const char                       *name,
+    const uint8_t                    *dna,
+    size_t                            dna_len,
+    uint64_t                          sender_id,
+    uint32_t                          channel_id,
+    int64_t                           window_ns,
+    srmech_bus_client_handle_t      **out_handle);
+
 /* Send one request + read its reply.
  *   request: caller-owned bytes (length request_len).
  *   response: caller-allocated buffer; *response_len_inout is the
@@ -2003,6 +3536,188 @@ srmech_status_t srmech_bus_send_recv(
 
 /* Close the client + free its handle. After return, h is invalid. */
 srmech_status_t srmech_bus_client_close(srmech_bus_client_handle_t *h);
+
+/* ------------------------------------------------------------------ *
+ * srmech.bus — pub/sub broadcast fan-out C peer (0.9.0rc180; ANNEX
+ * Batch A part 2b — BUS FULLY C). The last owed bus row (`pipe`) → C.
+ *
+ * Model (mirrors srmech.bus._server.Endpoint.broadcast + _client.Channel.
+ * subscribe + _pipe.pipe): a server handle (from srmech_bus_serve /
+ * _serve_encrypted — the SAME handle; every server now carries a ready PAL
+ * mutex + an empty subscriber registry) can act as a publisher. Every
+ * connection accepted via srmech_bus_pubsub_accept is REGISTERED as a
+ * subscriber in a BOUNDED registry (≤ SRMECH_BUS_MAX_SUBSCRIBERS), guarded
+ * by the PAL mutex. srmech_bus_broadcast fans one frame out to every active
+ * subscriber under the lock (serialised → per-subscriber frame order is
+ * preserved). On the encrypted path each subscriber has its OWN send cipher
+ * (independent packet_seq — mirrors the Python per-subscriber send_bio). A
+ * failed write DROPS that subscriber (peer closed = unsubscribe). The OS
+ * socket send buffer IS the bounded per-subscriber queue (no heap growth).
+ *
+ * Concurrency: srmech_bus_pubsub_accept (spin one per thread, JOIN before
+ * srmech_bus_server_stop — the rc179 accept model) + srmech_bus_broadcast +
+ * srmech_bus_subscriber_count all take the mutex; the registry is race-free.
+ * Teardown (srmech_bus_server_stop) closes every subscriber conn + destroys
+ * the mutex under the lock. On POSIX the fan-out + teardown are ASAN/UBSAN +
+ * ThreadSanitizer clean; closing a subscriber's server-side fd wakes its
+ * blocking read deterministically.
+ *
+ * PLATFORM SCOPE — POSIX-first (Windows is a follow-up). The Windows PAL
+ * transport is a NAMED PIPE whose instance is created lazily inside accept
+ * (POSIX listen pre-binds), and a synchronous ConnectNamedPipe is not reliably
+ * woken by CloseHandle from another thread — so a Windows pubsub_accept with no
+ * connected client can block indefinitely and teardown cannot deterministically
+ * wake it. The symbols BUILD on Windows, but a correct Windows pub/sub server
+ * (overlapped ConnectNamedPipe + a stop-event, or pre-created instances +
+ * a self-connect wake) needs Windows-CI verification and is a follow-up rc.
+ * The req/rep + encrypted transport (rc2 / rc179) are unaffected.
+ *
+ * ABI v4 (this rc): the new srmech_bus_subscriber_callback_t typedef carries
+ * a CFUNCTYPE wire-format implication (the v2→v3 handler-callback precedent),
+ * so ABI bumps; the broadcast / accept / count / pipe functions are additive.
+ * ------------------------------------------------------------------ */
+
+/* Pub/sub subscriber-delivery callback. srmech_bus_subscribe reads each
+ * broadcast frame (decrypting on the encrypted path) into the caller buffer,
+ * then invokes this callback with the plaintext event bytes. Returning
+ * SRMECH_OK keeps streaming; any non-OK return UNSUBSCRIBES (srmech_bus_
+ * subscribe returns cleanly). `user_data` is the opaque context pointer. */
+typedef srmech_status_t (*srmech_bus_subscriber_callback_t)(
+    const uint8_t *event,
+    size_t         event_len,
+    void          *user_data);
+
+/* Max concurrently-registered subscribers per server (bounded registry). */
+#define SRMECH_BUS_MAX_SUBSCRIBERS 64u
+
+/* Accept ONE client and register it as a subscriber (BLOCKING). Caller
+ * spins this in a thread loop (join before srmech_bus_server_stop). The
+ * accepted connection is retained in the registry (NOT closed on return);
+ * srmech_bus_broadcast writes to it; srmech_bus_server_stop closes it.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG — h is NULL.
+ *   SRMECH_ERR_OVERFLOW — the registry is full (SRMECH_BUS_MAX_SUBSCRIBERS).
+ *   SRMECH_ERR_IO       — accept failed (server stopped). */
+srmech_status_t srmech_bus_pubsub_accept(srmech_bus_server_handle_t *h);
+
+/* Broadcast `body` (length `body_len`) to every currently-registered
+ * subscriber, under the registry mutex. Per-subscriber write failure drops
+ * that subscriber (best-effort fan-out); returns SRMECH_OK after the pass.
+ * On an encrypted server the body is encrypted per-subscriber.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG — h is NULL (or body NULL with body_len != 0).
+ *   SRMECH_ERR_OVERFLOW — body_len > UINT32_MAX. */
+srmech_status_t srmech_bus_broadcast(
+    srmech_bus_server_handle_t *h,
+    const uint8_t              *body,
+    size_t                      body_len);
+
+/* Current registered-subscriber count into *out_count (mutex-guarded read —
+ * a subscribe/broadcast sync point for callers). */
+srmech_status_t srmech_bus_subscriber_count(
+    srmech_bus_server_handle_t *h,
+    size_t                     *out_count);
+
+/* Subscribe: stream broadcasts from a connected client handle (from
+ * srmech_bus_connect / _connect_encrypted). Loops reading frames (decrypting
+ * on the encrypted path) into the caller-owned `buf` (capacity `buf_cap`) and
+ * invoking `cb(event, event_len, user_data)` per frame. Returns SRMECH_OK on
+ * clean end (server closed the stream, or `cb` returned non-OK to unsubscribe).
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG — h, buf, or cb is NULL. */
+srmech_status_t srmech_bus_subscribe(
+    srmech_bus_client_handle_t       *h,
+    uint8_t                          *buf,
+    size_t                            buf_cap,
+    srmech_bus_subscriber_callback_t  cb,
+    void                             *user_data);
+
+/* Pipe: subscribe to `source` and forward every broadcast (fire-and-forget)
+ * to `sink` — the C composition mirroring srmech.bus._pipe.pipe (identity
+ * forward; the Python transform= / asyncio wrappers are Python-side
+ * affordances). Composes srmech_bus_connect (×2) + srmech_bus_subscribe +
+ * the frame writer. `buf` (capacity `buf_cap`) is the caller-owned per-event
+ * staging buffer. Blocks until `source` closes; returns SRMECH_OK on clean
+ * end.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG — source, sink, or buf is NULL.
+ *   plus any srmech_bus_connect error (source / sink not reachable). */
+srmech_status_t srmech_bus_pipe(
+    const char *source,
+    const char *sink,
+    uint8_t    *buf,
+    size_t      buf_cap);
+
+/* ------------------------------------------------------------------ *
+ * srmech.bus — UTLP Bio-TOTP wire cipher C peer (0.9.0rc178; ANNEX
+ * Batch A part 1). A FAITHFUL BYTE-EXACT mirror of the already-shipped
+ * Python cipher `srmech/bus/_bio_totp.py` — the DEFAULT stdlib
+ * HMAC-SHA-256 counter-mode path only (the optional AES-128-CTR
+ * `[crypto]` extra stays Python, out of the bare-C-host default).
+ *
+ * Each op COMPOSES existing kernels (no new hash, no new parser):
+ * srmech_sha256_hex (key derive), srmech_hmac_sha256 (keystream),
+ * srmech_json_parse / srmech_json_object_get (binding check). The Python
+ * ops dispatch to these under HAS_NATIVE (ctypes, hasattr-guarded) and
+ * keep the COMPLETE pure path for a stale / no-C host (value-parity).
+ * Caller-arena / bounded-stack only (JPL Rule 3). New symbols only, so
+ * SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Derive the 16-byte Bio-TOTP key for one time window:
+ *   out16 = sha256(dna || quantized_time_be8_signed)[0:16]
+ * where quantized_time = floor(time_ns / window_ns) (Python //, so a
+ * negative time_ns floors toward -inf) serialised as 8 big-endian
+ * two's-complement bytes. window_ns must be > 0. `dna` (dna_len bytes;
+ * NULL iff dna_len == 0) is capped at 256 bytes on the bounded stack —
+ * a longer dna returns SRMECH_ERR_OVERFLOW (the Python wrapper's pure
+ * path handles any length). Byte-exact with _bio_totp.derive_key. */
+srmech_status_t srmech_bio_totp_derive_key(const uint8_t *dna, size_t dna_len,
+                                           int64_t time_ns, int64_t window_ns,
+                                           uint8_t *out16);
+
+/* XOR `data[0..data_len)` with the HMAC-SHA-256 counter-mode keystream
+ * derived from (key16, nonce16), writing `data_len` bytes to `out`
+ * (encrypt and decrypt are the same operation). Keystream block i =
+ * HMAC(key16, nonce16 || i_be4), i = 0, 1, ...; the 32-byte blocks are
+ * concatenated and truncated to data_len. data_len == 0 is a no-op
+ * (`out` / `data` may be NULL then). Byte-exact with the stdlib
+ * HMAC-CTR branch of _bio_totp._stream_cipher. */
+srmech_status_t srmech_bio_totp_keystream_xor(const uint8_t *key16,
+                                              const uint8_t *nonce16,
+                                              const uint8_t *data,
+                                              size_t         data_len,
+                                              uint8_t       *out);
+
+/* Bytes of caller workspace srmech_bio_totp_decode_splice needs for the
+ * binding-check srmech_json parse of the recovered plaintext (bounded by
+ * the ciphertext length; a proven over-approximation). */
+size_t srmech_bio_totp_decode_splice_arena_bytes(size_t framed_len);
+
+/* Pure-function decode (mirrors _bio_totp.decode_splice): given a wire
+ * body `framed` = [nonce:16][ciphertext] and the `dna` secret, try the
+ * current time window then ±1 (deltas 0, -1, 1 in that order) for
+ * clock-skew tolerance; on the FIRST window whose decryption binds to the
+ * nonce under PERMISSIVE mode, write the plaintext to `out_plaintext`
+ * (capacity `out_cap` >= ciphertext length), set *out_len, *out_used_time
+ * = the candidate time that decoded, and *out_found = 1. If no window
+ * binds, *out_found = 0 (the Python caller raises BioTotpDecryptError).
+ * `now_ns` is the resolved current time (the Python side calls
+ * time.time_ns()); `window_ns` must be > 0. A frame shorter than 16 bytes
+ * returns SRMECH_ERR_BAD_INPUT (the format error). `ws` (size it with
+ * srmech_bio_totp_decode_splice_arena_bytes) backs the binding parse.
+ * Byte-exact plaintext + verdict with the pure decode_splice. */
+srmech_status_t srmech_bio_totp_decode_splice(
+    const uint8_t *framed, size_t framed_len,
+    const uint8_t *dna, size_t dna_len,
+    int64_t window_ns, int64_t now_ns,
+    void *ws, size_t ws_len,
+    uint8_t *out_plaintext, size_t out_cap, size_t *out_len,
+    int64_t *out_used_time, int *out_found);
 
 /* --------------------------------------------------------------------
  * Hamming / GF(2) linear block-code family (#910 / §30; F442/F449).
@@ -2081,6 +3796,73 @@ srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
 
 /* ------------------------------------------------------------------
+ * Cayley-Dickson loop NAVIGATION (v0.9.0rc158; Qalg TAIL Batch 2) — the
+ * combinatorial layer over the srmech_cd_basis_product cocycle, INTEGER-only
+ * (signed basis units +-e_i; no float, no bignum, no libm, no malloc). A
+ * "signed unit" is (sign, index) with sign in {+1,-1}, index in [0, dim); the
+ * full Moufang loop has 2*dim of them. These give a C-only host the loop
+ * analogues of the cyclic-group orbit machinery: the sub-loop a generator set
+ * spans, one left-multiplication cycle, the minimum spanning cardinality, and
+ * the sedenion zero-divisor witness. Each COMPOSES srmech_cd_basis_product (it
+ * does NOT re-implement the cocycle). Rosetta peers of
+ * srmech.amsc.cascade.cayley_dickson.{closure,left_orbit,min_generating_set,
+ * sedenion_zero_divisor_witness}, attested BYTE-IDENTICAL by
+ * tests/test_qalg_cdnav_c_rc158.py.
+ *
+ * ABI-additive: new symbols + two macros, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* min_generating_set search bounds (JPL Rule 2 explicit caps). A unit set
+ * larger than MAX_UNITS, or a combinatorial search exceeding MAX_SUBSETS,
+ * returns SRMECH_ERR_OVERFLOW so the caller falls to the complete pure oracle
+ * (never a wrong answer). The realistic domain (<= sedenion, 15 units) is far
+ * under both. */
+#define SRMECH_CD_MGS_MAX_UNITS   20
+#define SRMECH_CD_MGS_MAX_SUBSETS 1000000L
+
+/* The sub-loop generated by {e_g : g in gen_idxs}: the fixpoint over signed
+ * basis units seeded with the identity (+1, e0) and each generator (+1, e_g),
+ * closed under all pairwise products. out_signs[m]/out_indices[m] receive the
+ * m-th spanned signed unit; *out_count its cardinality (<= 2*dim). out_cap is
+ * the length of the caller arrays (>= 2*dim to hold the full loop). dim a power
+ * of two in [1, SRMECH_CD_MAX_DIM]; each gen index in [0, dim). Errors:
+ * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (bad dim / gen index);
+ * SRMECH_ERR_OVERFLOW (out_cap too small). */
+srmech_status_t srmech_cd_closure(int dim, const int *gen_idxs, size_t n_gens,
+                                  int *out_signs, int *out_indices,
+                                  size_t out_cap, size_t *out_count);
+
+/* The left-multiplication orbit of e_{start_idx} under repeated left-multiply
+ * by e_{gen_idx}: [e_s, e_g*e_s, e_g*(e_g*e_s), ...] in cycle order, closing
+ * repeat excluded. out_signs[m]/out_indices[m] receive the m-th signed unit;
+ * *out_count the cycle length (<= 2*dim). out_cap the caller-array length.
+ * Same dim / index domain + errors as srmech_cd_closure. */
+srmech_status_t srmech_cd_left_orbit(int dim, int start_idx, int gen_idx,
+                                     int *out_signs, int *out_indices,
+                                     size_t out_cap, size_t *out_count);
+
+/* The smallest k such that some k-subset of {e_u : u in unit_idxs} has a
+ * srmech_cd_closure equal to the FULL loop (2*dim signed units). *out_k = k on
+ * success, or 0 when NO subset spans (the caller raises the ValueError). Units
+ * are de-duplicated preserving order; each in [0, dim). Composes
+ * srmech_cd_closure over each combination. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (bad dim / unit index); SRMECH_ERR_OVERFLOW (unit count
+ * or subset search past the caps -> caller uses the pure oracle). */
+srmech_status_t srmech_cd_min_generating_set(int dim, const int *unit_idxs,
+                                             size_t n_units, int *out_k);
+
+/* The first sedenion (dim 16) basis-pair zero divisor: (e_i + e_j)(e_k + s*e_l)
+ * = 0 with both factors nonzero, found by searching basis-unit pairs in the
+ * SAME nested order (i<j, k<l, s in {+1,-1}) as the Python oracle so the witness
+ * is identical. *out_i/j/k/l receive the imaginary-unit indices (1..15);
+ * *out_s the second-factor sign (+1/-1). Errors: SRMECH_ERR_NULL_ARG. (The
+ * sedenions always have such a witness; a not-found return would be a broken
+ * convention -> SRMECH_ERR_BAD_INPUT.) */
+srmech_status_t srmech_cd_zero_divisor_witness(int *out_i, int *out_j,
+                                               int *out_k, int *out_l,
+                                               int *out_s);
+
+/* ------------------------------------------------------------------
  * Qi — the EXACT-complex (Gaussian-rational) carrier C-host peer (0.9.0rc15;
  * Python srmech.amsc.qi.Qi). A Qi value is FOUR int64 limbs
  * {re_num, re_den, im_num, im_den} (denominators positive, fit int64). Lets a
@@ -2154,6 +3936,19 @@ srmech_status_t srmech_sedenion_navigate(int j, const int *in_slots,
  * the certainty prime table). */
 srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
                                              size_t n, int *out_invertible);
+
+/* rc199 (make_class → C, leaf-batch 5/8; #887): the `slots` accessor's
+ * canonical numeric reshape. Validate + copy the register's occupied
+ * (slot, sign) skeleton — slot in [0,16), sign in {+1,-1} — into
+ * out_slots / out_signs (the make_class `slots` leaf's numeric core; the
+ * key strings pass through in the Python caller, and the slot int-keys
+ * ride the srmech_mval_t DICT as STR "0".."15" one layer up). count == 0
+ * is a no-op. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (slot out
+ * of range or sign not +-1 -> the Python caller runs the un-validated pure
+ * reshape; inform-don't-limit). ABI-additive: a new symbol, no callback
+ * typedef, so SRMECH_ABI_VERSION stays 4. See srmech_sedenion.c. */
+srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
+                                 size_t count, int *out_slots, int *out_signs);
 
 /* ------------------------------------------------------------------
  * JSON value-tree — parser + canonical writer (§41 genome-persistence
@@ -2303,6 +4098,790 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
                                             uint32_t n);
 
 /* ------------------------------------------------------------------
+ * Tool-schema registry (0.9.0rc184; the C MCP-server FOUNDATION GATE).
+ *
+ * The ~403-entry srmech.amsc.tool_schema `_REGISTRY` (every public
+ * callable surface: name / owner / category / summary / typed params /
+ * returns / mcp_callable) crystallised as a `const` data table so a
+ * bare-C host (no Python) can produce the tool registry DATA + the
+ * canonical `tool_schema_sha256` attestation with no interpreter.
+ *
+ * The table itself lives in the GENERATED translation unit
+ * `srmech_tool_registry.c` (regenerate with c/tools/gen_tool_registry.py);
+ * the accessors + the canonical serialiser live in srmech_tool_schema.c.
+ *
+ * srmech_tool_schema_to_json emits bytes BYTE-IDENTICAL to CPython
+ *   json.dumps(get_tool_schema().to_jsonable(),
+ *              sort_keys=True, separators=(",", ":"))
+ * (the DEFAULT ensure_ascii=True form the `_mcpb` tool_schema hash is
+ * taken over — non-ASCII escaped \uXXXX, astral as a UTF-16 surrogate
+ * pair, keys emitted in sorted order, compact separators). The
+ * documentation-hint fields `example` / `smoke_test_hint` carry an
+ * arbitrary-schema payload; the generator bakes each as its already-
+ * canonical compact JSON fragment (spliced raw), while the structured
+ * core is rebuilt field-by-field here. This byte-identity IS the
+ * hash-ratchet's contract: sha256(this) == the Python tool_schema_sha256.
+ *
+ * ABI-additive: new symbols + two structs, so SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* One typed parameter of a tool entry's call signature. All string
+ * pointers are NUL-terminated decoded UTF-8 (never escaped). */
+typedef struct {
+    const char *name;       /* parameter name                         */
+    const char *type;       /* free-form srmech type-string           */
+    int         required;   /* 0/1                                    */
+    const char *summary;    /* human hint ("" allowed, never NULL)    */
+} srmech_tool_param_t;
+
+/* One callable surface in the tool schema. Optional fields are NULL
+ * when absent (mirroring ToolEntry.to_jsonable's key omission). */
+typedef struct {
+    const char               *name;      /* full dotted identifier     */
+    const char               *owner;     /* "srmech" or a profile name */
+    const char               *category;
+    const char               *summary;
+    const srmech_tool_param_t *params;   /* NULL iff param_count == 0  */
+    uint32_t                  param_count;
+    const char               *returns_type;   /* NULL iff no `returns` */
+    const char               *returns_shape;  /* "" allowed; unused when returns_type==NULL */
+    int                       mcp_callable;    /* 0/1                  */
+    const char               *mcp_unavailable_reason; /* NULL when callable */
+    const char               *example_json;    /* pre-canonical compact-ASCII JSON fragment, or NULL */
+    const char               *smoke_json;      /* pre-canonical compact-ASCII JSON fragment, or NULL */
+} srmech_tool_entry_t;
+
+/* Number of registered tool entries in the const table. */
+size_t srmech_tool_registry_count(void);
+
+/* The entry at `index`, or NULL if `index` is out of range. */
+const srmech_tool_entry_t *srmech_tool_registry_get(size_t index);
+
+/* The entry whose `name` equals `name` (bounded linear scan), or NULL
+ * if there is no such entry. `name` must be NUL-terminated. */
+const srmech_tool_entry_t *srmech_tool_registry_find(const char *name);
+
+/* Serialise the whole registry as canonical JSON (see byte-identity
+ * contract above) into `buf` (capacity `buf_len`; NO trailing NUL) and
+ * set *out_len to the byte count. If `buf` is NULL this is a SIZE-QUERY
+ * (nothing written; *out_len receives the exact full length). A
+ * too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW. The srmech
+ * version field is injected from srmech_version() at call time (so a
+ * pure version bump needs no table regeneration). */
+srmech_status_t srmech_tool_schema_to_json(char *buf, size_t buf_len,
+                                           size_t *out_len);
+
+/* ------------------------------------------------------------------
+ * Tool-schema PROJECTION ops (0.9.0rc185; the HOST-GLUE tier over the
+ * rc184 const registry table). The C peers of
+ *   srmech.amsc.tool_schema.get_tool_schema  / .tool_schema_view
+ *   srmech.mcp.tool_entries_to_mcp_defs
+ * so a bare-C host produces the SAME projections a Python host does.
+ *
+ * All three share the two-pass buffer contract of
+ * srmech_tool_schema_to_json: `buf == NULL` is a SIZE-QUERY (nothing
+ * written; *out_len ← the exact full byte count), a too-small non-NULL
+ * `buf` returns SRMECH_ERR_OVERFLOW (never writes past the buffer),
+ * NO trailing NUL is emitted, and `out_len == NULL` → SRMECH_ERR_NULL_ARG.
+ * JPL-clean (no malloc, no goto, no libm, no abs). ABI-additive
+ * (SRMECH_ABI_VERSION stays 4).
+ *
+ * srmech_get_tool_schema / srmech_tool_schema_view emit the WHOLE schema as
+ * the canonical (sorted-key) JSON — the SAME bytes as srmech_tool_schema_to_json
+ * (reused per the rc185 brief). Python get_tool_schema() takes no filter and
+ * tool_schema_view() IS get_tool_schema().to_jsonable(), so both project the
+ * whole schema; the output json-parses back EQUAL to
+ * get_tool_schema().to_jsonable() (STRUCTURAL identity — dict equality is
+ * order-insensitive). Byte-identity is to the SORTED canonical form (the rc184
+ * hash pre-image), which is the only byte-stable whole-schema JSON the const
+ * table can produce: the opaque example/smoke_test_hint payloads are baked as
+ * sorted-canonical fragments in the table, so the insertion-order to_jsonable
+ * bytes are not reconstructible from it. All three names are provided for the
+ * 1:1 host surface.
+ */
+srmech_status_t srmech_get_tool_schema(char *buf, size_t buf_len,
+                                       size_t *out_len);
+srmech_status_t srmech_tool_schema_view(char *buf, size_t buf_len,
+                                        size_t *out_len);
+
+/* Emit the ADVERTISED MCP tool-definitions as a JSON array
+ *   [ {"name":..,"description":..,"inputSchema":{"type":"object",
+ *      "properties":{<param>:{"type":<json-type>,"description":..}, ...},
+ *      "required":[..]}}, ... ]
+ * — one object per registry entry with mcp_callable != 0, in table order,
+ * byte-identical to
+ *   json.dumps(list(srmech.mcp.tool_entries_to_mcp_defs()),
+ *              separators=(",", ":"))
+ * (insertion-order keys, default ensure_ascii=True). The srmech param
+ * type-string → JSON-schema type mapping + the per-type wire-encoding
+ * hint (appended to each property description) are a bounded static
+ * lexicon mirroring srmech.mcp._tools._TYPE_LEXICON / _ENCODING_HINT;
+ * an unknown type degrades to "string" with no hint (the Python SSoT
+ * default). Property keys are sanitised to the Anthropic/MCP grammar
+ * ^[a-zA-Z0-9_.-]{1,64}$ (mirroring _sanitise_property_key). */
+srmech_status_t srmech_tool_entries_to_mcp_defs(char *buf, size_t buf_len,
+                                                size_t *out_len);
+
+/* ------------------------------------------------------------------
+ * MCP server CONTROL SPINE (0.9.0rc186; the HOST-GLUE JSON-RPC protocol +
+ * stdio read-loop). The C peers of srmech.mcp._server.MCPServer.handle +
+ * srmech.mcp._stdio.serve_stdio + srmech.mcp._server.build_attestation, so a
+ * bare-C host (no Python) serves the MCP lifecycle + discovery surfaces —
+ * initialize / notifications/initialized / tools/list / ping / shutdown —
+ * natively over stdin/stdout, with the MPR attestation preimage.
+ *
+ * The tools/call DISPATCH (invoke_tool: dotted-name resolution + the ~403-tool
+ * typed-argument marshalling) is the SEPARATE next arc (rc187+). srmech_mcp_handle
+ * routes tools/call to a "defer" signal (SRMECH_MCP_DEFER_CALL) when
+ * `defer_calls != 0` (the Python host then runs pure invoke_tool), OR — when
+ * `defer_calls == 0` (the bare-C serve_stdio loop, no Python) — emits an honest
+ * JSON-RPC error (inform-don't-limit). ABI-additive: SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* Advertised protocol version + default server name (mirror
+ * srmech.mcp._server.MCP_PROTOCOL_VERSION / MCP_SERVER_NAME). */
+#define SRMECH_MCP_PROTOCOL_VERSION "2024-11-05"
+#define SRMECH_MCP_SERVER_NAME      "srmech-mcp"
+
+/* srmech_mcp_handle out_kind: what the caller must do with the request. */
+#define SRMECH_MCP_RESPONSE     0   /* a JSON-RPC response was written to buf   */
+#define SRMECH_MCP_NO_RESPONSE  1   /* a notification — nothing to write        */
+#define SRMECH_MCP_DEFER_CALL   2   /* tools/call — caller runs invoke_tool     */
+#define SRMECH_MCP_CALL_RESULT  3   /* tools/call — the C invoke_tool spine RAN */
+                                    /*  the tool in C; buf holds the result     */
+                                    /*  TEXT (== serialise_result). The caller  */
+                                    /*  wraps it in the content + attestation   */
+                                    /*  envelope (its own clock). (rc188)        */
+
+/* Dispatch ONE JSON-RPC request (`req[0..req_len)`), writing the response into
+ * `buf` (capacity `buf_len`; NO trailing NUL) and setting *out_len + *out_kind.
+ * The request is parsed into the caller-supplied arena `ws` (length `ws_len`;
+ * the srmech_json bump-allocator convention). Two-pass: `buf == NULL` is a
+ * SIZE-QUERY (nothing written; *out_len ← the exact full byte count; *out_kind
+ * still set); a too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW.
+ *
+ * The response is BYTE-IDENTICAL to CPython
+ *   json.dumps(MCPServer(name="srmech-mcp").handle(req), separators=(",", ":"))
+ * for initialize / tools/list / ping / shutdown (insertion-order keys, default
+ * ensure_ascii=True escaping). tools/list embeds srmech_tool_entries_to_mcp_defs.
+ *
+ * out_kind:
+ *   SRMECH_MCP_RESPONSE    — *out_len bytes written (initialize / tools/list /
+ *                            ping / shutdown / a JSON-RPC error envelope).
+ *   SRMECH_MCP_NO_RESPONSE — a notification (notifications/initialized or an
+ *                            unknown notification); *out_len == 0, write nothing.
+ *   SRMECH_MCP_DEFER_CALL  — tools/call with `defer_calls != 0`; *out_len == 0,
+ *                            the caller runs invoke_tool + attaches attestation.
+ *
+ * `defer_calls == 0` makes tools/call an honest JSON-RPC error inline (the
+ * bare-C loop path, no Python fallback). Errors: SRMECH_ERR_NULL_ARG (out_len /
+ * out_kind NULL); SRMECH_ERR_OVERFLOW (buf too small / ws too small). A malformed
+ * request → a -32700 parse-error response with a null id (kind RESPONSE). */
+srmech_status_t srmech_mcp_handle(const char *req, size_t req_len,
+                                  void *ws, size_t ws_len,
+                                  char *buf, size_t buf_len,
+                                  size_t *out_len, int *out_kind,
+                                  int defer_calls);
+
+/* Build the MPR attestation object for one tools/call response into `buf`
+ * (two-pass: `buf == NULL` is a size-query). The `response_sha256` is
+ * srmech_sha256_hex over the exact preimage
+ *   tool_name "\x1f" "srmech <version>" "\x1f" result_text "\x1f" retrieved_at
+ * (byte-exact with srmech.mcp._server.build_attestation). The preimage is
+ * assembled in the caller arena `ws` (length `ws_len`; size it to
+ * len(tool_name)+len("srmech ")+len(version)+len(result_text)+len(retrieved_at)+3).
+ * On the size-query pass ws may be NULL (the digest is not needed to size the
+ * fixed-shape object). Emits, in insertion order,
+ *   {"mpr_version":"1.0","tool_name":..,"parser_version":"srmech <v>",
+ *    "retrieved_at":..,"response_sha256":"<64 hex>"}
+ * NUL-terminated arguments; NO trailing NUL on the output. */
+srmech_status_t srmech_mcp_build_attestation(const char *tool_name,
+        const char *result_text, const char *retrieved_at,
+        void *ws, size_t ws_len, char *buf, size_t buf_len, size_t *out_len);
+
+/* Run the stdio JSON-RPC read-frame → handle → write-frame loop (the bare-C
+ * host's `serve_stdio`): newline-delimited requests from stdin, newline-
+ * delimited responses to stdout, both via the PAL. Blocks until stdin EOF (a
+ * closed pipe), then returns SRMECH_OK — the deterministic terminator; it never
+ * hangs. tools/call is served with the honest bare-C error (defer_calls == 0,
+ * no Python invoke_tool). All three buffers are CALLER-supplied (no malloc):
+ * `line_buf` (capacity `line_cap`) assembles one request line, `ws` (`ws_len`)
+ * is srmech_mcp_handle's parse arena, `resp_buf` (`resp_cap`) holds one response
+ * (size it for the largest — tools/list is the whole advertised catalog). A
+ * response exceeding resp_cap is dropped (no partial write); an over-long
+ * request line is skipped. Returns SRMECH_ERR_IO on a stdio-less target. */
+srmech_status_t srmech_mcp_serve_stdio(char *line_buf, size_t line_cap,
+                                       void *ws, size_t ws_len,
+                                       char *resp_buf, size_t resp_cap);
+
+/* ------------------------------------------------------------------
+ * MCP HTTP+SSE TRANSPORT (0.9.0rc194; the HOST-GLUE cross-terminal server).
+ *
+ * The C peer of srmech.mcp._sse.serve_http_sse: a bare-C host serves MCP over
+ * HTTP+Server-Sent-Events on a localhost TCP port. Composes srmech_mcp_handle
+ * (JSON-RPC dispatch, defer_calls==0 — like serve_stdio) + the rc194 TCP PAL.
+ * A background accept thread routes GET /sse (emit an `endpoint` event, then
+ * push JSON-RPC responses as `message` events) + POST /message?session=<id>
+ * (202 + the response rides the matching SSE stream) + GET /healthz; a second
+ * thread emits a 15s keepalive on idle sessions. See c/src/srmech_mcp_sse.c.
+ *
+ * NO-HANG teardown (the rc180 socket-teardown discipline): srmech_mcp_sse_stop
+ * sets the stop flag + closes the poll-gated TCP listener; both threads return
+ * within one tick + join. POSIX-FIRST — on a host where srmech_plat_has_tcp()
+ * is 0 (Windows Winsock follow-up / bare-metal) serve returns
+ * SRMECH_ERR_BAD_INPUT and a Python host runs the pure http.server.
+ *
+ * ABI-additive: new symbols, and the server dispatches in C (NO Python
+ * callback typedef), so SRMECH_ABI_VERSION stays 4. */
+
+/* Opaque handle to a running MCP HTTP+SSE server. */
+typedef struct srmech_mcp_sse_server srmech_mcp_sse_server_t;
+
+/* Bind `host`:`port` (host a dotted-quad, e.g. "127.0.0.1"; port 0 = kernel-
+ * assigned) + serve MCP over HTTP+SSE on a background accept thread. Returns
+ * immediately with *out_handle; read the bound port with srmech_mcp_sse_port.
+ * SRMECH_ERR_BAD_INPUT on a no-TCP host (POSIX-first). */
+srmech_status_t srmech_mcp_sse_serve(const char *host, uint16_t port,
+                                     srmech_mcp_sse_server_t **out_handle);
+
+/* The bound TCP port of a running server (0 on a NULL handle). */
+uint16_t srmech_mcp_sse_port(const srmech_mcp_sse_server_t *h);
+
+/* Stop the server: set the stop flag, close the listener (unblocks the accept
+ * poll), join both threads, close all sessions, free the handle. No hang. */
+srmech_status_t srmech_mcp_sse_stop(srmech_mcp_sse_server_t *h);
+
+/* Blocking "serve forever" (a bare-C host main / the Python background=False
+ * path): serve + join the accept thread. Returns only when the listener stops
+ * (e.g. a signalled process). Sole owner of the handle → no concurrent stop. */
+srmech_status_t srmech_mcp_serve_http_sse(const char *host, uint16_t port);
+
+/* ------------------------------------------------------------------
+ * MCP tool-call MARSHALLING FOUNDATION (0.9.0rc187; the HOST-GLUE
+ * JSON-args↔typed-C-args value carrier). The shared bedrock the rc188+
+ * invoke_tool DISPATCH + the #796 nested-carrier marshal build on: it
+ * generalises the rc181 dsl_chain_run dv_value_t tagged union into a
+ * uniform marshalling carrier (`srmech_mval_t`) and mirrors the private
+ * Python srmech.mcp._coercion coerce_param / serialise_native for the
+ * bucket-(a) CLEAN families (scalar / str / list / bytes / complex).
+ *
+ * TWO-STAGE marshal (the MCP wire form is NOT self-describing — the param
+ * TYPE comes from the rc184 registry, not the value):
+ *   (1) srmech_mval_from_json : parse a JSON value tree -> a tagged carrier.
+ *   (2) srmech_mcp_marshal_arg : typed-lower keyed on the registry type
+ *       string (the INVERSE of rc185's MCP_TYPE_LEXICON) — base64 str ->
+ *       BYTES, [re,im] -> COMPLEX, list-of-those recursively, etc.
+ * srmech_mcp_serialise_result is the OUTBOUND inverse (typed carrier ->
+ * canonical JSON, BYTE-IDENTICAL to CPython json.dumps(x, separators=
+ * (",", ":")) — insertion-order keys, default ensure_ascii=True escaping,
+ * bytes -> base64, complex -> [re,im]).
+ *
+ * A type OUTSIDE bucket-(a) (Mat/Vec/HV/np.ndarray float carriers = rc190
+ * (c); the by-reference handle / operator_name = later; any unknown) ->
+ * srmech_mcp_marshal_arg returns SRMECH_ERR_NOT_IMPL and the caller DEFERS
+ * to the pure Python coerce_param (rc103 inform-don't-limit). A JSON null
+ * ALWAYS passes through (coerce_param's null-first rule) for any type.
+ *
+ * JPL-clean: caller-arena only (no malloc), depth-bounded recursion
+ * (SRMECH_MVAL_MAX_DEPTH), no goto/abs/libm. ABI-additive (new symbols +
+ * types, no wire change to an existing function) -> SRMECH_ABI_VERSION
+ * stays 4. NO Python dispatch is wired THIS rc (foundation only — the
+ * rc188 invoke_tool spine wires srmech_mcp.c tools/call to it).
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_MVAL_MAX_DEPTH 6   /* bounded nesting (mirrors rc181 DV_MAX_DEPTH) */
+
+/* Discriminant of the uniform marshalling value carrier. NONE/INT/FLOAT/
+ * STR/LIST mirror the rc181 dv_value_t; BYTES (decoded byte buffer, base64
+ * on the wire) + COMPLEX (re,im f64 pair, [re,im] on the wire) are the new
+ * typed leaves; BOOL + DICT complete faithful JSON coverage (a bool arg, a
+ * dict/object result, the Mapping[bytes,bytes] object family). */
+typedef enum {
+    SRMECH_MVAL_NONE = 0,   /* JSON null                                 */
+    SRMECH_MVAL_BOOL,       /* JSON true / false  (i = 0/1)              */
+    SRMECH_MVAL_INT,        /* int64  (i)                                */
+    SRMECH_MVAL_FLOAT,      /* f64  (re)                                 */
+    SRMECH_MVAL_STR,        /* UTF-8 string  (s, slen) — length-delimited */
+    SRMECH_MVAL_BYTES,      /* decoded bytes  (b, blen) — base64 on wire */
+    SRMECH_MVAL_COMPLEX,    /* (re, im) f64 pair — [re,im] on wire       */
+    SRMECH_MVAL_LIST,       /* ordered children (items, n; is_tuple bit) */
+    SRMECH_MVAL_DICT,       /* ordered key/value pairs (keys, items, n)  */
+    SRMECH_MVAL_MAT         /* rc190 real f64 Mat carrier — n=n_rows,     */
+                            /* i=n_cols, b=row-major double buffer, blen= */
+                            /* n_rows*n_cols doubles (is_tuple=0, real).  */
+                            /* Matches coerce_param("Mat")=Mat.from_rows( */
+                            /* is_complex=False); a genuine-complex Mat    */
+                            /* rides the by-reference handle path.        */
+} srmech_mval_kind_t;
+
+/* The uniform JSON-args<->typed-C-args value carrier. All pointer members
+ * alias a caller arena (see srmech_marshal_arena_t). LIST/DICT hold up to
+ * SRMECH_MVAL_MAX_DEPTH nesting. A DICT key node is a STR (an ordinary
+ * object key) or a BYTES (a Mapping[bytes,bytes] base64 key). */
+typedef struct srmech_mval srmech_mval_t;
+struct srmech_mval {
+    srmech_mval_kind_t   kind;
+    int64_t              i;         /* INT value; BOOL 0/1                */
+    double               re;        /* FLOAT value; COMPLEX real part     */
+    double               im;        /* COMPLEX imaginary part             */
+    const char          *s;         /* STR bytes (NOT NUL-guaranteed)     */
+    uint32_t             slen;      /* STR length                         */
+    const unsigned char *b;         /* BYTES buffer                       */
+    uint32_t             blen;      /* BYTES length                       */
+    srmech_mval_t      **items;     /* LIST children / DICT values        */
+    srmech_mval_t      **keys;      /* DICT keys (n of them)              */
+    uint32_t             n;         /* LIST / DICT length                 */
+    int                  is_tuple;  /* LIST: 1 => tuple, 0 => list        */
+};
+
+/* Forward-only bump arena backing every carrier node + decoded byte buffer.
+ * Caller stack-allocates it over a workspace, then hands it to the marshal
+ * ops; a request that does not fit yields SRMECH_ERR_OVERFLOW. */
+typedef struct { unsigned char *cur; unsigned char *end; } srmech_marshal_arena_t;
+
+/* Initialise `a` over the workspace `ws` (length `ws_len`). */
+void srmech_marshal_arena_init(srmech_marshal_arena_t *a,
+                               void *ws, size_t ws_len);
+
+/* STAGE 1 — mirror a parsed srmech_json value tree into a carrier tree
+ * (null->NONE, bool->BOOL, int->INT, double->FLOAT, string->STR,
+ * array->LIST(list), object->DICT with STR keys). Depth-bounded. NULL args
+ * -> SRMECH_ERR_NULL_ARG; over-deep / arena-exhausted -> the matching
+ * error; else *out is the root carrier. */
+srmech_status_t srmech_mval_from_json(const srmech_json_value_t *j,
+                                      srmech_marshal_arena_t *a,
+                                      srmech_mval_t **out);
+
+/* STAGE 2 — typed-lower one argument carrier `v` per the registry
+ * `type_string`. Bucket-(a) CLEAN: identity (int/float/bool/str/number/
+ * dict/list + Optional/nested/ChainSpec/callable/array-acc), bytes (base64
+ * str -> BYTES), complex (number|[re,im] -> COMPLEX), tuple[int,int],
+ * Sequence[bytes]/list[bytes], list[complex], list[list[complex]],
+ * Mapping[bytes,bytes], list[tuple[bytes,int]], list[tuple[bytes,bytes]].
+ * A JSON null passes through for ANY type. A type outside bucket-(a) ->
+ * SRMECH_ERR_NOT_IMPL (the caller defers to the pure coerce_param) — this
+ * INCLUDES pathlib.Path, whose str(Path) round-trip is OS-dependent ('/'
+ * vs Windows '\\') and so NOT a portable data marshal; a malformed wire
+ * value for the type (bad base64, a non-[re,im] complex) ->
+ * SRMECH_ERR_BAD_INPUT. On SRMECH_OK *out is the typed carrier (it MAY
+ * alias `v` for the identity families). */
+srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
+                                       const srmech_mval_t *v,
+                                       srmech_marshal_arena_t *a,
+                                       srmech_mval_t **out);
+
+/* OUTBOUND — serialise a (typed) carrier as canonical JSON into `buf`
+ * (capacity `buf_len`; NO trailing NUL) and set *out_len. Two-pass:
+ * `buf == NULL` is a SIZE-QUERY (nothing written; *out_len <- exact byte
+ * count); a too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW (never
+ * writes past the buffer). BYTE-IDENTICAL to CPython json.dumps(x,
+ * separators=(",", ":")) (insertion-order keys, default ensure_ascii=True):
+ * bytes -> base64 string, complex -> [re,im], NONE -> null, BOOL ->
+ * true/false, tuple -> array. rc190: FLOAT/COMPLEX + the MAT carrier serialise
+ * each double via srmech_double_repr (the SHORTEST round-trip decimal, byte-
+ * identical to CPython repr(float)/json.dumps); a MAT -> a nested [[...]] float
+ * array (compact). A non-finite double is the pure path's job (defers). */
+srmech_status_t srmech_mcp_serialise_result(const srmech_mval_t *v,
+                                            char *buf, size_t buf_len,
+                                            size_t *out_len);
+
+/* rc190 — format a FINITE double as CPython repr(float)/json.dumps(float) does:
+ * the SHORTEST decimal that round-trips (David Gay 'r' mode), rendered fixed OR
+ * scientific per CPython's rule (scientific iff decpt<=-4 or decpt>16), with the
+ * integer-valued fixed form carrying a trailing ".0" (repr(5.0)=="5.0"). Writes
+ * a NUL-terminated string into `out` (cap >= 32) and sets *out_len (length
+ * excluding the NUL). Returns SRMECH_OK; SRMECH_ERR_NULL_ARG for a NULL/too-
+ * small buffer; SRMECH_ERR_BAD_INPUT for a non-finite v (NaN/Inf — the caller
+ * defers; these do not arise in the exact tools). libm-FREE: the only libc
+ * calls are snprintf("%.*e") + strtod (both stdio/stdlib, NOT libm). */
+srmech_status_t srmech_double_repr(double v, char *out, size_t cap,
+                                   size_t *out_len);
+
+/* Workspace bytes srmech_mcp_marshal_roundtrip needs for a `value_len`-byte
+ * argument JSON (parse tree + carrier tree + decoded buffers). */
+size_t srmech_mcp_marshal_roundtrip_arena_bytes(size_t value_len);
+
+/* FOUNDATION ROUND-TRIP PROVER (the rc187 DoD surface, JSON in / JSON out —
+ * ctypes-drivable). Parse `value_json` (a single argument value, `value_len`
+ * bytes) into the caller arena `ws` (length `ws_len`; size with
+ * srmech_mcp_marshal_roundtrip_arena_bytes), STAGE-1 mirror it, STAGE-2
+ * marshal_arg it per `type_string`, then serialise the typed carrier into
+ * `out` (capacity `out_cap`; NO trailing NUL) and set *out_len. `out == NULL`
+ * is NOT a size-query here (pass a real buffer). A non-bucket-(a) type ->
+ * SRMECH_ERR_NOT_IMPL; a malformed value -> SRMECH_ERR_BAD_INPUT. This proves
+ * marshal_arg -> serialise_result round-trips to the SAME canonical JSON as
+ * the Python coerce_param -> serialise_native path. */
+srmech_status_t srmech_mcp_marshal_roundtrip(const char *type_string,
+                                             const char *value_json,
+                                             size_t value_len,
+                                             void *ws, size_t ws_len,
+                                             char *out, size_t out_cap,
+                                             size_t *out_len);
+
+/* ------------------------------------------------------------------
+ * MCP tools/call DISPATCH SPINE (0.9.0rc188; the HOST-GLUE invoke_tool that
+ * makes MCP `tools/call` genuinely RUN in C). The C peer of the compute half
+ * of srmech.mcp._tools.invoke_tool: registry_find (rc184) -> per-arg
+ * srmech_mcp_marshal_arg (rc187) -> a SIGNATURE-SHAPE-batched thunk table
+ * (tool name -> the bespoke C kernel) -> srmech_mcp_serialise_result (rc187).
+ *
+ * srmech_invoke_tool takes a dotted tool `name` + the tools/call `arguments`
+ * OBJECT as JSON (`params_json[0..params_len)`) and, for a CLEAN BATCH of
+ * c_dispatched tools, computes the result IN C and writes the result TEXT
+ * (byte-identical to the pure `serialise_result(invoke_tool(name, args))` —
+ * json.dumps(serialise_native(result)) with the json.dumps DEFAULT separators)
+ * into `buf`, setting *out_kind = SRMECH_INVOKE_DISPATCHED. The still-wide
+ * surface (383 tools with no single C kernel — nested / float-carrier / Mat /
+ * handle / any tool NOT in the thunk table, an unregistered name, an extra
+ * or malformed argument) sets *out_kind = SRMECH_INVOKE_DEFER (with *out_len
+ * = 0) and the caller runs the pure Python invoke_tool + attests (rc103
+ * inform-don't-limit — never a wrong answer).
+ *
+ * `ws` (length `ws_len`; size with srmech_invoke_tool_arena_bytes) is the
+ * caller arena for the argument PARSE tree + the marshalled carrier tree +
+ * decoded byte buffers + the result carrier. `buf` (capacity `buf_len`; NO
+ * trailing NUL) receives the result text; a too-small `buf` returns
+ * SRMECH_ERR_OVERFLOW (the caller then defers to pure). NULL `name` /
+ * `params_json` / `ws` / `buf` / `out_len` / `out_kind` -> SRMECH_ERR_NULL_ARG.
+ * JPL-clean (caller-arena, no malloc/goto/abs/libm, bounded). ABI-additive
+ * (SRMECH_ABI_VERSION stays 4). */
+
+/* srmech_invoke_tool out_kind: whether the C spine ran the tool. */
+#define SRMECH_INVOKE_DISPATCHED 0  /* buf holds the result text (native==pure) */
+#define SRMECH_INVOKE_DEFER      1  /* caller runs the pure invoke_tool + attest */
+
+srmech_status_t srmech_invoke_tool(const char *name,
+                                   const char *params_json, size_t params_len,
+                                   void *ws, size_t ws_len,
+                                   char *buf, size_t buf_len,
+                                   size_t *out_len, int *out_kind);
+
+/* The PARSED-args sibling — dispatch over an ALREADY-parsed `arguments` value
+ * node (the in-process srmech_mcp.c tools/call path: no re-serialise / double
+ * parse). `arguments` NULL or non-object -> SRMECH_INVOKE_DEFER. `ws` (length
+ * `ws_len`) backs the marshalled carriers + result; same out_kind / buf / error
+ * contract as srmech_invoke_tool. */
+srmech_status_t srmech_invoke_tool_json(const char *name,
+                                        const srmech_json_value_t *arguments,
+                                        void *ws, size_t ws_len,
+                                        char *buf, size_t buf_len,
+                                        size_t *out_len, int *out_kind);
+
+/* Workspace bytes srmech_invoke_tool needs for a `params_len`-byte argument
+ * object (the parse tree + carrier tree + decoded byte buffers + result). */
+size_t srmech_invoke_tool_arena_bytes(size_t params_len);
+
+/* ------------------------------------------------------------------
+ * make_class OBJECT-MODEL ENGINE (0.9.0rc201; the make_class -> C arc, #887).
+ * The C peer of the compute half of srmech.dsl._class_catalog.CatalogClass: a
+ * bare-C host constructs a DSL [class] instance from its packaged TOML descriptor
+ * + a field-state map and RUNS its declared methods natively (rc194-200 made all
+ * 31 leaf ops C-realizable; this builds the descriptor->field-state->dispatch->
+ * route ENGINE on top, with a leaf VTABLE that returns LIVE srmech_mval_t carriers
+ * so the routes compose — distinct from the rc188 invoke_tool text vtable).
+ *
+ * srmech_make_class_run takes the [class] descriptor TOML (`class_toml`[0..
+ * `toml_len`)), a `method` name, the instance FIELD-STATE as a JSON object
+ * (`fields_json`[0..`fields_len`)), and the call ARGS as a JSON object
+ * (`args_json`[0..`args_len`)); for a method in the rc201 PROVEN BATCH it runs
+ * the method IN C and writes {"result": <value>, "fields": <post-self-state>} as
+ * canonical JSON (byte-identical to json.dumps(serialise_native(...))) into `out`
+ * (cap `out_cap`; NO trailing NUL), setting *out_len + *out_kind =
+ * SRMECH_MAKE_CLASS_DISPATCHED. For a returns="self" method "result" is the NEW
+ * instance's field-state DICT (self untouched).
+ *
+ * rc201 BATCH: One's 5 inline-constant accessors (dim/imag_dims/partition/
+ * plane_counts/grammar_slots) + the sedenion ADDRESS-ALGEBRA methods
+ * navmap/slots/is_navigable (plain) + navigate (returns="self"). Any OTHER method
+ * — a chain, an appends/sets/mutates route, an op outside the batch (the One
+ * bignum + genome byte/disk + sed HDC leaves = rc201b), an unknown method/class,
+ * or an unparseable descriptor — sets *out_kind = SRMECH_MAKE_CLASS_DEFER and the
+ * caller runs the COMPLETE pure CatalogClass (rc103 inform-don't-limit; never a
+ * wrong answer). A user register_class_dir class DEFERS the same way (no host
+ * op-resolver callback -> SRMECH_ABI_VERSION stays 4).
+ *
+ * JPL-clean: caller-arena only (no malloc), <=60-line functions, >=2 asserts, no
+ * goto/abs/libm. Additive symbols -> SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* srmech_make_class_run out_kind: whether the C engine ran the method. */
+#define SRMECH_MAKE_CLASS_DISPATCHED 0  /* out holds {"result",...} (native==pure) */
+#define SRMECH_MAKE_CLASS_DEFER      1  /* caller runs the pure CatalogClass       */
+
+/* Workspace bytes srmech_make_class_run needs for the given input sizes (the
+ * TOML tree + two JSON trees + two mval trees + the result carriers). */
+size_t srmech_make_class_run_arena_bytes(size_t toml_len, size_t fields_len,
+                                         size_t args_len);
+
+srmech_status_t srmech_make_class_run(const char *class_toml, size_t toml_len,
+                                      const char *method,
+                                      const char *fields_json, size_t fields_len,
+                                      const char *args_json, size_t args_len,
+                                      void *ws, size_t ws_len,
+                                      char *out, size_t out_cap, size_t *out_len,
+                                      int *out_kind);
+
+/* ------------------------------------------------------------------
+ * run_class_method — the STATELESS one-shot class-method run (0.9.0rc203; the
+ * make_class -> C arc, #887; the FINAL owed_orchestration row). The C peer of
+ * srmech.dsl._class_surface.run_class_method: it RESOLVES a class NAME to its
+ * packaged [class] descriptor (the compiled-in srmech_class_registry_table — a
+ * bare-C host needs NO Python + NO filesystem), runs one method through the
+ * rc201 srmech_make_class_run engine, and WRAPS the result as
+ * {"class": name, "method": method, "result": <value>, "fields": <post-state>}
+ * (byte-identical to the pure run_class_method). Any name the registry does not
+ * hold (a register_class_dir USER class) or any method the engine defers sets
+ * *out_kind = SRMECH_MAKE_CLASS_DEFER and the caller runs the pure
+ * run_class_method (rc103 inform-don't-limit; never a wrong answer).
+ *
+ * The NAME->DESCRIPTOR registry: the four shipped descriptors as a const DATA
+ * table (GENERATED by c/tools/gen_class_registry.py into srmech_class_registry.c
+ * — the rc184 tool-registry codegen model), resolved by srmech_class_descriptor_
+ * lookup. Additive symbols -> SRMECH_ABI_VERSION stays 4. JPL-clean.
+ * ------------------------------------------------------------------ */
+
+/* A packaged DSL [class] descriptor: its NAME (the resolve key) + the UTF-8
+ * descriptor bytes (LF, NUL-terminated; `toml_len` EXCLUDES the NUL). */
+typedef struct {
+    const char *name;
+    const char *toml;
+    size_t      toml_len;
+} srmech_class_descriptor_t;
+
+/* The compiled-in registry table + count (defined in the generated
+ * srmech_class_registry.c). */
+extern const srmech_class_descriptor_t srmech_class_registry_table[];
+extern const size_t srmech_class_registry_len;
+
+/* Resolve a class NAME to its packaged descriptor bytes; returns the UTF-8 TOML
+ * (writing its length EXCLUDING the NUL to *out_len) or NULL for an unknown /
+ * user class. `out_len` may be NULL. */
+const char *srmech_class_descriptor_lookup(const char *name, size_t *out_len);
+
+/* Workspace bytes srmech_run_class_method needs for a given class + input sizes
+ * (resolves `class_name`'s descriptor length internally; a safe over-bound for
+ * an unknown name). */
+size_t srmech_run_class_method_arena_bytes(const char *class_name,
+                                           size_t fields_len, size_t args_len);
+
+srmech_status_t srmech_run_class_method(const char *class_name,
+                                        const char *method,
+                                        const char *fields_json, size_t fields_len,
+                                        const char *args_json, size_t args_len,
+                                        void *ws, size_t ws_len,
+                                        char *out, size_t out_cap, size_t *out_len,
+                                        int *out_kind);
+
+/* ------------------------------------------------------------------
+ * CLI arg-grammar + dispatch (0.9.0rc193; the HOST-GLUE console-script
+ * parser). The C peer of srmech.cli.main.{build_parser, main} + the five
+ * subcommand srmech.cli.{status,bus,dsl,mcp,klass}.add_arguments — a bare-C
+ * host (no Python) parses the `srmech` console-script grammar + routes each
+ * subcommand to its (C) run body (bus → srmech_bus_*, dsl → srmech_dsl_chain_run,
+ * mcp → srmech_mcp_*, class → the DSL class surface, status → host FS).
+ *
+ * GRAMMAR (mirrors build_parser + the five add_arguments EXACTLY):
+ *   status                       [--pid INT] [-f/--follow] [--json] [--poll-interval FLOAT]
+ *   bus {list,tap,pipe,send,serve}
+ *     list                       [--json] [--all]
+ *     tap NAME                    [--seed HEX] [--format {json,pretty}] [--filter TYPE] [--limit N]
+ *     pipe SRC DST                [--seed-src HEX] [--seed-dst HEX] [--transform PY]
+ *     send NAME [EVENT_JSON]      [--seed HEX] [--timeout FLOAT] [--stdin]
+ *     serve NAME                  [--echo] [--seed HEX] [--seed-mint] [--handler-module M:f]
+ *   dsl {run,ops,visualize}
+ *     run CHAIN.toml              [--input J] [--input-file P] [--output-file P]
+ *                                 [--ndjson-input] [--json]
+ *     ops                         [--json]
+ *     visualize CHAIN.toml        [--json]
+ *   mcp {emit-mcpb}
+ *     emit-mcpb                   [--out DIR] [--type {uv,python}] [--name N]
+ *                                 [--manifest-only] [--filter GLOB]
+ *   class {list,describe}
+ *     list
+ *     describe NAME
+ *
+ * BEHAVIOR-PARITY (NOT byte-identical help text — the documented split). For a
+ * VALID subcommand invocation srmech_cli_parse emits the parsed argparse
+ * namespace as canonical JSON (dest keys, defaults filled) into `out` and sets
+ * *out_action = SRMECH_CLI_ACTION_RUN; the caller reconstructs the Namespace +
+ * routes via srmech_cli_dispatch. -h/--help → SRMECH_CLI_ACTION_HELP (*out_exit
+ * 0); --version → SRMECH_CLI_ACTION_VERSION (0); a structural error (unknown
+ * subcommand, bad --choice, missing/extra positional, missing option value) →
+ * SRMECH_CLI_ACTION_ERROR (*out_exit 2). A grammar the bounded parser will not
+ * risk mis-handling (an option abbreviation, an inline `--`, an unusual numeric
+ * token, a value that itself looks like an option) → SRMECH_ERR_NOT_IMPL so a
+ * Python host DEFERS to pure argparse (inform-don't-limit; help/version/error
+ * text stays byte-identical because pure argparse emits it). numeric option
+ * tokens are validated: --pid/--limit lex as int64 (emitted as a JSON number);
+ * --poll-interval/--timeout lex as a float token (emitted as a JSON string the
+ * consumer float()s). Bounded: fixed subcommand table + fixed per-subcommand
+ * option table (JPL Rule 2). No workspace arena needed (argv is parsed in place;
+ * the canonical JSON is written straight to `out`).
+ *
+ * Returns:
+ *   SRMECH_OK            — *out_action set (RUN/HELP/VERSION/ERROR); on RUN the
+ *                          canonical JSON is `out[0..*out_len)`.
+ *   SRMECH_ERR_NULL_ARG  — out / out_action / out_exit / out_len NULL, or argv
+ *                          NULL with argc > 0.
+ *   SRMECH_ERR_OVERFLOW  — the canonical JSON exceeds out_cap (*out_len holds the
+ *                          needed length).
+ *   SRMECH_ERR_NOT_IMPL  — the bounded parser defers this grammar to pure argparse.
+ * ABI-additive: new symbols only, so SRMECH_ABI_VERSION stays 4. */
+#define SRMECH_CLI_ACTION_RUN     0  /* valid invocation; `out` = namespace JSON  */
+#define SRMECH_CLI_ACTION_HELP    1  /* -h/--help; defer to pure help (exit 0)     */
+#define SRMECH_CLI_ACTION_VERSION 2  /* --version; defer to pure version (exit 0)  */
+#define SRMECH_CLI_ACTION_ERROR   3  /* an argparse arg error (exit 2)             */
+
+srmech_status_t srmech_cli_parse(int argc, const char *const *argv,
+                                 char *out, size_t out_cap, size_t *out_len,
+                                 int *out_action, int *out_exit);
+
+/* Route a parsed CLI namespace (the canonical JSON srmech_cli_parse emitted on
+ * ACTION_RUN) to its run-body target: read the top-level "command" and set
+ * *out_route to the run body a bare-C main() invokes. A null / absent command
+ * (a bare `srmech`) → SRMECH_CLI_ROUTE_HELP (print top help). The subcommand run
+ * bodies are the composes_c cli.*.run over the already-C bus / dsl / mcp — this
+ * is the ROUTING, not a re-run of them. Returns SRMECH_ERR_NULL_ARG on a NULL
+ * arg, SRMECH_ERR_BAD_INPUT on JSON with no recognizable "command". */
+#define SRMECH_CLI_ROUTE_STATUS 0
+#define SRMECH_CLI_ROUTE_BUS    1
+#define SRMECH_CLI_ROUTE_DSL    2
+#define SRMECH_CLI_ROUTE_MCP    3
+#define SRMECH_CLI_ROUTE_CLASS  4
+#define SRMECH_CLI_ROUTE_HELP   5  /* command == null → print top help          */
+
+srmech_status_t srmech_cli_dispatch(const char *parsed_json, size_t len,
+                                    int *out_route);
+
+/* ------------------------------------------------------------------
+ * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying
+ * carrier, dives #718/#719) — the C peer of
+ * srmech.amsc.op_provenance.op_provenance_hash.
+ *
+ * digest = sha256( canonical_json( record MINUS "chain_sha256" ) )
+ *
+ * A Class-A composite over the JSON module above + srmech_sha256_hex:
+ * parse `record_len` JSON bytes at `record_json` (ANY formatting / key
+ * order), drop the top-level "chain_sha256" member (the record's cached
+ * self-hash — the pre-image never contains it), re-emit CANONICALLY
+ * (byte-identical to CPython json.dumps(obj, sort_keys=True,
+ * ensure_ascii=False)), and write the 64-hex SHA-256 (+ NUL) of those
+ * canonical bytes into `out_hex` (>= 65 bytes).
+ *
+ * FLOAT-FREE BY CONSTRUCTION: the op-provenance canonical image carries
+ * floats only as {"__float64__": "<float.hex>"} string tags. A raw JSON
+ * float (any number token containing '.', 'e', or 'E') is REJECTED with
+ * SRMECH_ERR_BAD_INPUT — C's %.17g double rendering is not byte-identical
+ * to Python repr(float), and a silent fork of the hash is exactly what
+ * this op exists to prevent. (The Python wrapper enforces the same
+ * rejection; the mirror agrees on the domain, not just the values.)
+ *
+ * `ws` is the caller arena for ALL scratch (parse tree + writer key-sort
+ * scratch + the canonical byte buffer) — bound by the caller's RAM, no
+ * compiled-in cap; size it with srmech_op_provenance_hash_arena_bytes.
+ * ABI-additive: new symbols only, SRMECH_ABI_VERSION stays 3.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — record_json / ws / out_hex is NULL.
+ *   SRMECH_ERR_BAD_INPUT — empty / malformed JSON, a raw float token,
+ *                          or a ws too small to seat the writer scratch.
+ *   SRMECH_ERR_OVERFLOW  — the arena cannot hold this record's tree /
+ *                          canonical bytes (size ws up and retry).
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_op_provenance_hash(const char *record_json,
+                                          size_t record_len,
+                                          void *ws, size_t ws_len,
+                                          char *out_hex);
+
+/* The arena byte count srmech_op_provenance_hash needs for a record of
+ * `record_len` JSON bytes — a static over-approximation of the parse
+ * tree + writer scratch + canonical output (each term traces to a real
+ * allocation; see srmech_op_provenance.c). Pure arithmetic (no I/O).
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
+size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
+
+/* ------------------------------------------------------------------
+ * Op-provenance VERDICT / RECORD / RE-VERIFY logic (0.9.0rc171; the
+ * ORCHESTRATION→C spine, batch 1) — the C peers of the five
+ * srmech.amsc.op_provenance verdict/carry ops, so a bare-C host (no
+ * Python) builds + compares op-provenance records with no json.dumps.
+ * Each COMPOSES the existing kernels: the srmech_json parser / canonical
+ * writer / builder, srmech_sha256_hex (Class A), and
+ * srmech_op_provenance_hash (the rc117 canonical chain hasher) — no new
+ * parser, no new hash. The Python ops dispatch to these under HAS_NATIVE
+ * (hasattr-guarded; a stale lib falls back to the COMPLETE pure path).
+ *
+ * All records are FLOAT-FREE canonical JSON (floats ride as
+ * {"__float64__": "<hex>"} tags); a raw JSON float in any input is
+ * REJECTED with SRMECH_ERR_BAD_INPUT (same rejection as
+ * srmech_op_provenance_hash — the mirror agrees on the domain).
+ *
+ * ABI-additive: new symbols only, so SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* op_verdict: *out_equal = 1 ("EQUAL") iff the two records' rc117 canonical
+ * chain hashes agree (recomputed, never the cached field), else 0 ("UNKNOWN")
+ * — the honest one-sided verdict (never a false UNEQUAL). `ws` is scratch for
+ * hashing each record (reused); size it with srmech_op_verdict_arena_bytes.
+ * SRMECH_ERR_BAD_INPUT on a malformed record / a raw float. */
+srmech_status_t srmech_op_verdict(const char *r1_json, size_t r1_len,
+                                  const char *r2_json, size_t r2_len,
+                                  void *ws, size_t ws_len, int *out_equal);
+size_t srmech_op_verdict_arena_bytes(size_t r1_len, size_t r2_len);
+
+/* family_verdict: *out_same = 1 ("SAME_TARGET") iff BOTH records carry a
+ * "family" object with equal NON-EMPTY "target_id" AND equal "tower_kind"
+ * (both-absent tower_kind counts as equal), else 0 ("UNKNOWN"). Composes the
+ * srmech_json parser. Size `ws` with srmech_family_verdict_arena_bytes. */
+srmech_status_t srmech_family_verdict(const char *r1_json, size_t r1_len,
+                                      const char *r2_json, size_t r2_len,
+                                      void *ws, size_t ws_len, int *out_same);
+size_t srmech_family_verdict_arena_bytes(size_t r1_len, size_t r2_len);
+
+/* op_carry: build the CARRIED-op provenance RECORD (the provenance face of
+ * carry(); the numeric value is the runner's job) from the canonical inputs /
+ * params / family / rung JSON. Hashes the inputs into input_sha256 (sorted-key
+ * order), derives leaves_exact (no __float64__/__complex128__ tag), and
+ * appends chain_sha256 (== srmech_op_provenance_hash of the chain-less image).
+ * `family_json` is "null" or the family object JSON; `params_json` / `rung_json`
+ * are canonical objects. Writes canonical record JSON into out_json (out_cap
+ * bytes; *out_len set); a too-small out_json returns SRMECH_ERR_OVERFLOW.
+ * Size `ws` (and out_cap) with srmech_op_carry_arena_bytes. */
+srmech_status_t srmech_op_carry(const char *op, size_t op_len,
+                                const char *inputs_json, size_t inputs_len,
+                                const char *params_json, size_t params_len,
+                                const char *family_json, size_t family_len,
+                                const char *rung_json, size_t rung_len,
+                                void *ws, size_t ws_len,
+                                char *out_json, size_t out_cap,
+                                size_t *out_len);
+size_t srmech_op_carry_arena_bytes(size_t inputs_len, size_t params_len,
+                                   size_t family_len, size_t rung_len);
+
+/* lossy_projection_record: build the exact-in/exact-out LOSSY-PROJECTION
+ * record (rc125) from the canonical inputs — family=null, params={}, rung={},
+ * the given projection_kind string, the derived leaves_exact + chain hash.
+ * Writes canonical record JSON into out_json. Size `ws` (and out_cap) with
+ * srmech_lossy_projection_record_arena_bytes. */
+srmech_status_t srmech_lossy_projection_record(
+    const char *op, size_t op_len,
+    const char *inputs_json, size_t inputs_len,
+    const char *projection_kind, size_t pk_len,
+    void *ws, size_t ws_len,
+    char *out_json, size_t out_cap, size_t *out_len);
+size_t srmech_lossy_projection_record_arena_bytes(size_t inputs_len);
+
+/* op_reproject: the MPM re-verification — *out_ok = 1 iff the supplied
+ * canonical inputs re-hash (sorted-key order) to the record's input_sha256
+ * array element-for-element (and the counts match), else 0 (a provenance that
+ * can't be re-verified, or different inputs). Composes the srmech_json parser
+ * + srmech_sha256_hex. Size `ws` with srmech_op_reproject_arena_bytes. */
+srmech_status_t srmech_op_reproject(const char *record_json, size_t record_len,
+                                    const char *inputs_json, size_t inputs_len,
+                                    void *ws, size_t ws_len, int *out_ok);
+size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
+
+/* ------------------------------------------------------------------
  * §41 genome persistence — the C mirror of srmech.amsc.genome's
  * disk save / load / catalog / append / window. A genome directory is
  *
@@ -2312,7 +4891,11 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  *                         byte_len, body_sha256, the_one hash+hex).
  *   <dir>/turns.bin       the append-only flat body: every strand
  *                         element (a telomere cap or a coupled turn)
- *                         is a FIXED-WIDTH leaf_dim-byte block. No
+ *                         is one SELF-DESCRIBING block whose FIRST byte
+ *                         keys its kind + width — a leaf_dim-byte cap,
+ *                         a §55/v3 BIT-PACKED data turn (1 +
+ *                         ceil(leaf_dim/4) bytes, 4 Klein-4 symbols per
+ *                         byte), or a legacy v2 leaf_dim-byte turn. No
  *                         length prefixes — chromosome boundaries live
  *                         in the manifest as byte_offset / byte_len.
  *
@@ -2322,7 +4905,7 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * the body bytes verbatim (no transformation). All hashing routes through
  * srmech_sha256_hex (Class A); bounding == integrity (every read re-hashes
  * the bytes it touched and compares the hex against the manifest — no abs,
- * no float). The §41 format version is 1.
+ * no float). The on-disk format version is SRMECH_GENOME_FORMAT_VERSION.
  *
  * File I/O is stdio (fopen / fread / fwrite / fseek); JPL Rule 3 bans
  * malloc, not file I/O. The caller arena `ws` backs ALL scratch (the body
@@ -2339,8 +4922,74 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * manifest-described boundaries; 2 (§44) == SELF-DESCRIBING fixed-width
  * strand: chromosome + gene boundaries are INLINE packed caps scanned-for in
  * the body (the strand is the SSoT; the manifest is a derived cache, every
- * field rebuildable by scanning the body). Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 2
+ * field rebuildable by scanning the body); 3 (§55/rc114, issue #1245) ==
+ * BIT-PACKED data turns: a data turn is [SRMECH_GENOME_PACKED_TURN_MARKER] +
+ * ceil(leaf_dim/4) payload bytes (4 Klein-4 symbols per byte — the measured
+ * 4.03x byte-per-symbol bloat removed), while cap blocks keep their v2
+ * leaf_dim-byte inline layout. A block's FIRST byte keys its kind AND its
+ * width, so v2 / v3 / MIXED bodies read in the SAME walk (back-compat is
+ * structural, not a converter). n_turns counts strand BLOCKS.
+ *
+ * v4 (rc115, #1245 ask (b)): the manifest carries a `regions` array — one
+ * {byte_offset, byte_len, sha256} entry per chromosome (the full-region digest,
+ * == the chromosome's .chr / AMSC provenance unit) — and body_sha256 becomes the
+ * REGION CHAIN Hn = sha256(Hn-1 || region_n_sha256) seeded by H0 = sha256("").
+ * The chain is O(1)-maintainable on append (extend the head) yet re-verifiable
+ * from the file (re-hash each region, re-fold) and body-derivable by a §44 scan
+ * (so a rebuild reproduces it byte-identically). v2/v3 manifests (no `regions`,
+ * whole-body body_sha256) stay READ-compatible. Mirrors GENOME_FORMAT_VERSION. */
+/* v5 (§60/rc121, issue #1245 REOPENED): a kernel chromosome may carry a
+ * SRMECH_GENOME_KERNEL_HEADER_MARKER (0x4B) block SELF-RECORDING an
+ * arbitrary-dimension Klein-4 kernel's TRUE length + element_type + leaf_dim, so
+ * kernel_unpack reconstructs it EXACTLY with no caller length. The header is one
+ * more self-describing block kind in the SAME walk (first byte keys it), so v2 /
+ * v3 / v4 bodies — and any v5 body with NO header — read UNCHANGED (a header-less
+ * body defaults to element_type=klein4, D = leaf_count * leaf_dim): back-compat
+ * is STRUCTURAL, not a converter. */
+/* v6 (§89/rc126, issue #1261): the UNIFORMLY-KLEIN-4 kernel header. A kernel
+ * chromosome now opens with a SRMECH_GENOME_KERNEL_TELOMERE_MARKER (0x6B) cap and
+ * carries its header as a 100%-Klein-4 coupled LEAF (base-4-encoded D +
+ * element_type + leaf_dim) — the 0x4B byte-TLV residue is GONE, so the store is
+ * uniformly Klein-4 and the O(1) genome_append_kernel rides the plain coupled-turn
+ * append. The 0x6B cap is one more self-describing kind in the SAME walk (first byte
+ * keys it), so v2 / v3 / v4 bodies — AND any v5 0x4B byte-TLV header — read
+ * UNCHANGED (dual-read): back-compat is STRUCTURAL, never a converter. Mirrors
+ * GENOME_FORMAT_VERSION in srmech.amsc.genome. */
+/* v7 (§127/rc127, #726): the ACTIVE TELOMERE. A chromosome MAY open with a
+ * SRMECH_GENOME_ACTIVE_TELOMERE_MARKER (0x74) cap carrying an exact non-negative
+ * Hayflick COUNT inline (a descending replicative counter that srmech_genome_telomere_tick
+ * reads to gate a divide — the op-carries-operand cap making the chromosome a genuine
+ * op(x)operand). The 0x74 cap is one more self-describing kind in the SAME walk (first
+ * byte keys it, label read UNIFORMLY up to the first NUL, count in the 8 bytes after
+ * that NUL), so v2..v6 bodies read UNCHANGED (dual-read): back-compat is STRUCTURAL,
+ * never a converter. A plain-telomere (no 0x74) genome saved by the v7 writer is
+ * byte-identical to v6 EXCEPT the format_version field. Mirrors GENOME_FORMAT_VERSION
+ * in srmech.amsc.genome. */
+/* v8 (§128/rc128, #728): the REGULATORY GENE. An intra-chromosome gene MAY be opened by a
+ * SRMECH_GENOME_REGULATORY_GENE_MARKER (0x67) cap carrying an exact regulatory MASK inline
+ * (the gene's "regulatory region / promoter" that srmech_genome_gene_express reads to gate
+ * which genes express under an applied cell_state — the op-carries-operand theorem one scale
+ * up from the v7 active telomere: the cell-state operand modulates the expression operator
+ * over MANY genes, #728). Unlike the v6/v7 chromosome-boundary caps, the 0x67 cap is an
+ * INTRA-chromosome gene delimiter (a gene-analog of the plain GENE cap 0x47); it is one more
+ * self-describing kind in the SAME walk (first byte keys it, label read UNIFORMLY, mask in
+ * the 8 bytes after the label NUL), so v2..v7 bodies read UNCHANGED (dual-read): back-compat
+ * is STRUCTURAL, never a converter. A plain-gene (no 0x67) genome saved by the v8 writer is
+ * byte-identical to v7 EXCEPT the format_version field, and every plain gene ALWAYS EXPRESSES
+ * (an unregulated gene == a regulatory gene with mask 0). §130/v9 (#730): the BOOLEAN GENE
+ * (marker 0x62) carrying arbitrary boolean logic (a DNF) is a NEW block KIND, so it bumps v8 ->
+ * v9 (the walker gains ONE branch; v2..v8 bodies read UNCHANGED; a plain/klein4-mask genome
+ * saved by the v9 writer is byte-identical to v8 EXCEPT the format_version field). §131/v10
+ * (#731): the THRESHOLD GENE (marker 0x77) carrying a linear-threshold / perceptron gate (a
+ * SIGNED integer weight vector + a threshold) is a NEW block KIND, so it bumps v9 -> v10 (the
+ * walker gains ONE branch; v2..v9 bodies read UNCHANGED; a plain/klein4-mask/boolean genome saved
+ * by the v10 writer is byte-identical to v9 EXCEPT the format_version field). §132/v11 (#732):
+ * the GRADED (dose-response) GENE (marker 0x64) carrying an ANALOG expression LEVEL (a SIGNED
+ * integer level-weight vector + a POSITIVE denominator) is a NEW block KIND, so it bumps v10 ->
+ * v11 (the walker gains ONE branch; v2..v10 bodies read UNCHANGED; a plain/klein4-mask/boolean/
+ * threshold genome saved by the v11 writer is byte-identical to v10 EXCEPT the format_version
+ * field). Mirrors GENOME_FORMAT_VERSION in srmech.amsc.genome. */
+#define SRMECH_GENOME_FORMAT_VERSION 11
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -2349,10 +4998,338 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
 #define SRMECH_GENOME_CHROM_CAP_MARKER 0x43u   /* 'C' — opens a chromosome */
 #define SRMECH_GENOME_GENE_CAP_MARKER  0x47u   /* 'G' — opens a gene */
 
+/* §55/v3 bit-packed data-turn marker — the FIRST byte of a packed turn block
+ * ([marker] + ceil(leaf_dim/4) payload bytes; symbol i lives in payload byte
+ * i/4 at bit shift 6 - 2*(i%4), first symbol in the HIGH lanes; a partial
+ * final byte's unused low lanes are zero). > 3 and distinct from both cap
+ * markers, so the strand stays self-describing. Mirrors PACKED_TURN_MARKER
+ * in srmech.amsc.genome. */
+#define SRMECH_GENOME_PACKED_TURN_MARKER 0x51u /* 'Q' — a quad-packed turn */
+
+/* §60/v5 SIZE-AGNOSTIC KERNEL HEADER marker — the FIRST byte of a fixed-width
+ * leaf_dim-byte inline block written by kernel_pack right after a kernel
+ * chromosome's telomere. It self-records the kernel's TRUE length D (bytes [1:9],
+ * uint64 big-endian), leaf_dim (bytes [9:13], uint32 big-endian) and element_type
+ * (byte [13], uint8 enum; 0 = klein4). > 3 and distinct from every other marker,
+ * so the strand stays self-describing; stored VERBATIM (never bit-packed) and NOT
+ * counted as a data turn. Mirrors KERNEL_HEADER_MARKER in srmech.amsc.genome.
+ * §89/v6: READ-ONLY back-compat — kernel_pack no longer WRITES it. */
+#define SRMECH_GENOME_KERNEL_HEADER_MARKER 0x4Bu /* 'K' — a v5 kernel header */
+
+/* §89/v6 KERNEL TELOMERE marker (rc126, issue #1261) — the FIRST byte of a
+ * fixed-width leaf_dim-byte cap leaf that opens a KERNEL chromosome (like the CHROM
+ * cap, but flags the chromosome as a kernel: the coupled turn IMMEDIATELY after it
+ * is the uniformly-Klein-4 §89 header LEAF — base-4 D + element_type + leaf_dim). A
+ * reader recovers the true D by scanning for 0x6B and reading the next turn (the
+ * collision-FREE distinguisher — a framing marker, not in-band magic). > 3 and
+ * distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B / PACKED
+ * 0x51), so the strand stays self-describing and v2..v5 bodies read UNCHANGED — the
+ * walker gains ONE branch. Mirrors KERNEL_TELOMERE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_KERNEL_TELOMERE_MARKER 0x6Bu /* 'k' — a §89 kernel telomere */
+
+/* §127/v7 ACTIVE TELOMERE marker (rc127, #726) — the FIRST byte of a fixed-width
+ * leaf_dim-byte cap leaf that opens a chromosome (like the CHROM cap) AND carries an
+ * exact non-negative COUNT inline. Layout: [0x74] + utf-8 label + NUL + count (uint64
+ * big-endian) + NUL-pad to leaf_dim. The label decode is UNIFORM (bytes [1:] up to the
+ * first NUL — the same as every cap); the count is read at the 8 bytes RIGHT AFTER that
+ * NUL. > 3 and distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B
+ * / PACKED 0x51 / KERNEL-telomere 0x6B), so v2..v6 bodies read UNCHANGED — the walker
+ * gains ONE branch. Mirrors ACTIVE_TELOMERE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_ACTIVE_TELOMERE_MARKER 0x74u /* 't' — a §127 active telomere */
+
+/* §127/v7 active-telomere COUNT field width — a uint64 (8 bytes, big-endian), read at
+ * the byte right after the inline label's NUL terminator. Mirrors
+ * _ACTIVE_TELOMERE_COUNT_BYTES in srmech.amsc.genome. */
+#define SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES 8u
+
+/* §128/v8 REGULATORY GENE marker (rc128, #728) — the FIRST byte of a fixed-width
+ * leaf_dim-byte cap leaf that opens an INTRA-chromosome gene (like the plain GENE cap) AND
+ * carries an exact non-negative regulatory MASK inline. Layout: [0x67] + utf-8 label + NUL +
+ * mask (uint64 big-endian) + NUL-pad to leaf_dim (the SAME field shape as the §127 active
+ * telomere, mask replacing count). The label decode is UNIFORM (bytes [1:] up to the first
+ * NUL — the same as every cap); the mask is read at the 8 bytes RIGHT AFTER that NUL. > 3 and
+ * distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B / PACKED 0x51 /
+ * KERNEL-telomere 0x6B / ACTIVE-telomere 0x74), so v2..v7 bodies read UNCHANGED — the walker
+ * gains ONE branch. srmech_genome_gene_express reads the mask to gate expression under a
+ * cell_state. Mirrors REGULATORY_GENE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_REGULATORY_GENE_MARKER 0x67u /* 'g' — a §128 regulatory gene */
+
+/* §128/v8 regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
+ * right after the inline label's NUL terminator (the SAME field shape as the §127 active
+ * telomere's count). §129 (#729): a regulatory gene carries TWO consecutive such fields — the
+ * KLEIN-4 bit-planes (activator then repressor); rc128's single-mask cap is dual-read as
+ * activator=mask, repressor=0 (the repressor plane occupies what was NUL padding). Mirrors
+ * _REGULATORY_GENE_MASK_BYTES in srmech.amsc.genome. */
+#define SRMECH_GENOME_REGULATORY_MASK_BYTES 8u
+
+/* §130/v9 BOOLEAN GENE marker (rc130, #730) — the FIRST byte of a fixed-width leaf_dim-byte cap
+ * leaf that opens an INTRA-chromosome gene (like the plain GENE cap / the §128 regulatory gene)
+ * AND carries ARBITRARY boolean regulatory logic inline as a DNF (disjunctive normal form). The
+ * GENERAL gate-type in the rc129 dispatch family: the §128/§129 klein4-mask gene (0x67) stays
+ * the fast common case; this 0x62 gene is the general escape hatch (E1 subset E2 — the
+ * klein4-mask (activator, repressor) two-mask IS a 1-term DNF). Layout: [0x62] + utf-8 label +
+ * NUL + gate_type(uint8) + n_terms(uint16 big-endian) + n_terms x (activator(uint64 BE) +
+ * repressor(uint64 BE)) + NUL-pad to leaf_dim. The label decode is UNIFORM (bytes [1:] up to the
+ * first NUL — the same as every cap); the gate_type + DNF are read at the bytes RIGHT AFTER that
+ * NUL. > 3 and distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B /
+ * PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE-telomere 0x74 / REGULATORY-gene 0x67), so v2..v8
+ * bodies read UNCHANGED — the walker gains ONE branch. A NEW marker byte = a new block KIND, so
+ * it bumps the genome format v8 -> v9 (like the 0x74 v6->v7 and 0x67 v7->v8 bumps; the read path
+ * is version-independent, so every pre-rc130 genome still reads identically).
+ * srmech_genome_gene_express evaluates the DNF (express iff ANY term matches) to gate expression
+ * under a cell_state. Mirrors BOOLEAN_GENE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_BOOLEAN_GENE_MARKER 0x62u /* 'b' — a §130 boolean gene */
+
+/* §130/v9 REGULATORY GATE-TYPE enum (rc130, #730). A regulatory gene declares a gate_type;
+ * srmech_genome_gene_express dispatches on it. KLEIN4_MASK (0) = the §129 activator/repressor
+ * two-mask (the fast common case, carried by a 0x47/0x67 cap); BOOLEAN_DNF (1) = the §130 DNF
+ * (the general case, carried by a 0x62 cap). The gate_type is IMPLIED by the cap marker AND —
+ * for a 0x62 gene — stored EXPLICITLY as a uint8 in the cap so the bare strand self-describes it
+ * and the family stays extensible. Mirrors GATE_TYPE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_GATE_TYPE_KLEIN4_MASK 0u
+#define SRMECH_GENOME_GATE_TYPE_BOOLEAN_DNF 1u
+
+/* §130/v9 BOOLEAN GENE DNF wire widths (rc130, #730). The DNF term COUNT is a uint16 big-endian
+ * (2 bytes). Each DNF TERM is TWO consecutive uint64 big-endian masks — the (activator,
+ * repressor) AND-clause (16 bytes), the SAME (require-present, require-absent) pair the §129
+ * klein4-mask carries as its ONE clause. Mirror _BOOLEAN_GENE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_BOOLEAN_NTERMS_BYTES 2u
+#define SRMECH_GENOME_BOOLEAN_TERM_BYTES (2u * SRMECH_GENOME_REGULATORY_MASK_BYTES)
+
+/* §131/v10 THRESHOLD GENE marker (rc131, #731) — the FIRST byte of a fixed-width leaf_dim-byte cap
+ * leaf that opens an INTRA-chromosome gene (like the plain GENE cap / the §128 regulatory gene /
+ * the §130 boolean gene) AND carries a LINEAR-THRESHOLD (perceptron) gate inline: a per-condition
+ * SIGNED integer WEIGHT vector + an integer THRESHOLD. The THIRD gate-type in the rc129 dispatch
+ * family (E1 klein4_mask 0x67 / E2 boolean_dnf 0x62 / E4 threshold 0x77). GENUINELY DISTINCT from
+ * E2: a linear-threshold function (MAJORITY-of-n, a weighted dose-sum) needs an EXPONENTIALLY-large
+ * DNF, so E4 captures COMPACTLY what E2 cannot (linear-threshold subset-not small-DNF). Layout:
+ * [0x77] + utf-8 label + NUL + gate_type(uint8) + n_weights(uint16 big-endian) +
+ * threshold(int64 BE SIGNED two's-complement) + n_weights x (weight(int64 BE SIGNED)) + NUL-pad to
+ * leaf_dim. The label decode is UNIFORM (bytes [1:] up to the first NUL); the gate_type + weights +
+ * threshold are read at the bytes RIGHT AFTER that NUL. > 3 and distinct from every other marker
+ * (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B / PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE-telomere
+ * 0x74 / REGULATORY-gene 0x67 / BOOLEAN-gene 0x62), so v2..v9 bodies read UNCHANGED — the walker
+ * gains ONE branch. A NEW marker byte = a new block KIND, so it bumps the genome format v9 -> v10.
+ * srmech_genome_gene_express evaluates the perceptron (express iff Sum weight_i * bit_i(cell_state)
+ * >= threshold; the decision is the SIGN of the sum minus threshold — Class-K, never abs). Mirrors
+ * THRESHOLD_GENE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_THRESHOLD_GENE_MARKER 0x77u /* 'w' — a §131 threshold gene */
+
+/* §131/v10 REGULATORY GATE-TYPE enum extension (rc131, #731). THRESHOLD (2) = the §131 linear-
+ * threshold / perceptron gate (a SIGNED integer weight vector + a threshold, carried by a 0x77
+ * cap); srmech_genome_gene_express dispatches on the cap marker. Mirrors GATE_TYPE_THRESHOLD in
+ * srmech.amsc.genome. */
+#define SRMECH_GENOME_GATE_TYPE_THRESHOLD 2u
+
+/* §131/v10 THRESHOLD GENE wire widths (rc131, #731). The weight-vector LENGTH is a uint16
+ * big-endian (2 bytes; weight i gates condition bit i of the cell_state). The THRESHOLD and each
+ * WEIGHT are int64 big-endian SIGNED two's-complement (8 bytes each; SIGNED so an inhibitory /
+ * repressive input is a NEGATIVE weight). Mirror _THRESHOLD_GENE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_THRESHOLD_NWEIGHTS_BYTES 2u
+#define SRMECH_GENOME_THRESHOLD_VALUE_BYTES 8u
+
+/* §132/v11 GRADED (dose-response) GENE marker (rc132, #732) — the FIRST byte of a fixed-width
+ * leaf_dim-byte cap leaf that opens an INTRA-chromosome gene (like the plain GENE cap / the §128
+ * regulatory / §130 boolean / §131 threshold gene) AND carries an ANALOG (dose-response)
+ * EXPRESSION LEVEL inline: a per-condition SIGNED integer LEVEL-WEIGHT vector + a POSITIVE integer
+ * DENOMINATOR. It is the E3 GRADED LEVEL rung — an ORTHOGONAL AXIS on top of the E1/E2/E4 gate-type
+ * family: the gate-types decide IF a gene expresses (binary); E3 decides HOW MUCH (analog output,
+ * real biology). srmech_genome_gene_express_levels reports the LEVEL as the reduced exact rational
+ * Sum_i (level_weight_i * bit_i(cell_state)) / denom clamped to [0, 1] (a Class-K sign-branch,
+ * never abs; the fraction reduced by the Class-I gcd). Layout: [0x64] + utf-8 label + NUL +
+ * gate_type(uint8=3) + n_weights(uint16 big-endian) + denom(uint64 BE POSITIVE) + n_weights x
+ * (level_weight(int64 BE SIGNED)) + NUL-pad to leaf_dim. The label decode is UNIFORM (bytes [1:]
+ * up to the first NUL); the gate_type + n_weights + denom + weights are read at the bytes RIGHT
+ * AFTER that NUL. > 3 and distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL
+ * 0x4B / PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE-telomere 0x74 / REGULATORY-gene 0x67 /
+ * BOOLEAN-gene 0x62 / THRESHOLD-gene 0x77), so v2..v10 bodies read UNCHANGED — the walker gains ONE
+ * branch. A NEW marker byte = a new block KIND, so it bumps the genome format v10 -> v11. Mirrors
+ * GRADED_GENE_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_GRADED_GENE_MARKER 0x64u /* 'd' — a §132 graded (dose) gene */
+
+/* §132/v11 GRADED GATE-TYPE (rc132, #732). GRADED (3) = the §132 analog dose-response LEVEL axis
+ * (a SIGNED integer level-weight vector + a POSITIVE denominator, carried by a 0x64 cap). NOT a
+ * binary gate-type in the E1/E2/E4 IF-family — the ORTHOGONAL HOW-MUCH axis; the gate_type is
+ * stored in the cap for self-description / extensibility. Mirrors GATE_TYPE_GRADED in
+ * srmech.amsc.genome. */
+#define SRMECH_GENOME_GATE_TYPE_GRADED 3u
+
+/* §132/v11 GRADED GENE wire widths (rc132, #732). The level-weight-vector LENGTH is a uint16
+ * big-endian (2 bytes; weight i doses condition bit i). The DENOMINATOR is a uint64 big-endian
+ * POSITIVE integer (8 bytes; the full-expression dose — a divisor is never negative, so UNSIGNED,
+ * never abs). Each LEVEL-WEIGHT is int64 big-endian SIGNED two's-complement (8 bytes; SIGNED so an
+ * inhibitory input REDUCES the dose). Mirror _GRADED_GENE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_GRADED_NWEIGHTS_BYTES 2u
+#define SRMECH_GENOME_GRADED_DENOM_BYTES 8u
+#define SRMECH_GENOME_GRADED_WEIGHT_BYTES 8u
+
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
  * a count cap — the number of chromosomes is bounded only by the caller arena. */
 #define SRMECH_GENOME_MAX_LABEL 256
+
+/* §44/F708 one dense block ("tome") = 256 = 2**8 (one byte of address). The
+ * encode-shape leaf capacity; mirrors LEAF_CAP in srmech.amsc.genome. */
+#define SRMECH_GENOME_LEAF_CAP 256u
+
+/* rc196 (#887) make_class → C leaf-batch 2 (the genome CAP FOUNDATION). The two
+ * smallest in-memory leaf ops of the genome [class] descriptor get their C peers
+ * so a bare-C host (and the rc201 object-model engine) runs them natively; the
+ * shared cap byte-TLV pack / kind / unpack helpers they rest on are the reusable
+ * foundation rc197 (chromosome/recall) + rc198 (genome/partition) build on.
+ * Additive symbols only → SRMECH_ABI_VERSION stays 4. */
+
+/* ENCODE_SHAPE — the pure-INTEGER genome shape planner (Class-I/N, no float). For
+ * a kernel of `n` elements it computes:
+ *   leaves = ceil(n / SRMECH_GENOME_LEAF_CAP)        (dense blocks; overflow-safe)
+ *   depth  = ceil(log4(leaves))                      (base-4 quad levels)
+ * BYTE-IDENTICAL to srmech.amsc.genome.encode_shape (which maps depth → shape
+ * "tome"/"mobius"/"quad_strand" and assembles the dict — that trivial labeling
+ * stays in the caller; the arithmetic is here). No arena, malloc-free, no abs.
+ *   n          : the kernel size (> 0). Fits a uint64; the Python wrapper routes
+ *                n == 0 / n >= 2**64 to the pure path (byte-identical).
+ *   leaves_out : out — ceil(n / 256) dense blocks (>= 1).
+ *   depth_out  : out — ceil(log4(leaves)) (0 → tome, 1 → mobius, >= 2 → strand).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — leaves_out or depth_out is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — n == 0 (a size is a positive int). */
+srmech_status_t srmech_genome_encode_shape(
+    uint64_t n, uint64_t *leaves_out, uint32_t *depth_out);
+
+/* TELOMERE — the chromosome boundary cap WRITER: a fixed-width `dim`-byte §44
+ * cap leaf `[SRMECH_GENOME_CHROM_CAP_MARKER] + label, NUL-padded to dim`. This is
+ * the first C cap-WRITER (the genome C surface until now only READ/scanned caps),
+ * so it also exposes the shared cap-pack framing rc197/rc198 reuse to build every
+ * chromosome / gene / kernel cap. BYTE-IDENTICAL to the bytes behind
+ * srmech.amsc.genome.telomere (which wraps them in an HV(sectors=256)). The label
+ * is raw bytes (the caller passes the already-UTF-8-encoded label); it must fit
+ * dim - 1 bytes (§44 inline: one marker byte + label + NUL padding). Caller-arena
+ * output (no malloc), no abs.
+ *   label / label_len : the cap label bytes (label may be NULL iff label_len 0).
+ *   dim               : the leaf width in bytes (> 0); the cap is exactly dim bytes.
+ *   out / out_cap     : caller buffer (out_cap >= dim) — receives the dim cap bytes.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out is NULL, or label is NULL with label_len > 0.
+ *   SRMECH_ERR_BAD_INPUT  — dim == 0, out_cap < dim, or label_len > dim - 1. */
+srmech_status_t srmech_genome_telomere(
+    const unsigned char *label, size_t label_len, uint32_t dim,
+    unsigned char *out, size_t out_cap);
+
+/* rc197 (#887) make_class → C leaf-batch 3 — the genome [class]'s CHROMOSOME +
+ * RECALL in-memory leaf ops (the plain single-kernel path the `add_chromosome` /
+ * `recall` methods bind). Both COMPOSE the rc196 cap foundation (genome_pack_cap /
+ * genome_cap_kind) + the Class-M srmech_klein4_bind (the reversible Klein-4 XOR
+ * `quad_turn`) — so a bare-C host (and the rc201 object-model engine) builds /
+ * reverses a chromosome strand natively, BYTE-IDENTICAL to the Python. The
+ * gene / kernel / active-telomere chromosome forms stay in the pure Python (they
+ * open their own boundary caps); rc197 covers exactly the plain path.
+ * Additive symbols only → SRMECH_ABI_VERSION stays 4. */
+
+/* CHROMOSOME — the plain single-kernel strand builder: a leading CHROM telomere
+ * cap over `label`, then each of the `n_leaves` leaves coupled through `the_one`.
+ * Every block is leaf_dim bytes; the output strand is (1 + n_leaves) * leaf_dim
+ * bytes. BYTE-IDENTICAL to srmech.amsc.genome.chromosome(leaves, the_one,
+ * label=…) for the plain path (recovered by srmech_genome_recall).
+ *   label / label_len : the CHROM cap label bytes (label may be NULL iff len 0);
+ *                       must fit leaf_dim - 1 bytes (§44 inline cap encoding).
+ *   the_one           : the shared Klein-4 invariant (leaf_dim bytes, {0,1,2,3}).
+ *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   leaves / n_leaves : the n_leaves leaves, each leaf_dim bytes, contiguous
+ *                       (leaves may be NULL iff n_leaves 0).
+ *   out / out_cap     : caller buffer; out_cap >= (1 + n_leaves) * leaf_dim.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out or the_one NULL, or a NULL buffer with a nonzero len.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, over-long label, or a leaf byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the strand. */
+srmech_status_t srmech_genome_chromosome(
+    const unsigned char *label, size_t label_len,
+    const unsigned char *the_one, uint32_t leaf_dim,
+    const unsigned char *leaves, size_t n_leaves,
+    unsigned char *out, size_t out_cap);
+
+/* RECALL — recover a plain chromosome's leaves: walk the strand's `n_blocks`
+ * fixed-width leaf_dim-byte blocks, SKIP every cap (genome_cap_kind >= 0), and
+ * re-bind each data turn through `the_one` (the reversible Klein-4 bind is its
+ * own inverse) to recover the original leaf. BYTE-IDENTICAL to
+ * srmech.amsc.genome.recall (gate-agnostic — it flattens across any cap marker).
+ *   strand / n_blocks : the strand's n_blocks blocks, each leaf_dim bytes, contiguous.
+ *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   the_one           : the shared Klein-4 invariant (leaf_dim bytes, {0,1,2,3}).
+ *   out / out_cap     : caller buffer for the recovered leaves; out_cap >=
+ *                       (data-turn count) * leaf_dim (n_blocks * leaf_dim always fits).
+ *   n_leaves_out      : out — the recovered data-turn (leaf) count.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — strand / the_one / out / n_leaves_out NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, or a data-turn byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the recovered leaves. */
+srmech_status_t srmech_genome_recall(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one,
+    unsigned char *out, size_t out_cap, size_t *n_leaves_out);
+
+/* rc198 (#887) make_class → C leaf-batch 4 — the genome [class]'s MULTI-KERNEL +
+ * PARTITION in-memory leaf ops, COMPLETING the genome leaf-family in C (all 10
+ * leaves C-realizable for the rc201 object-model engine). Both LOOP the rc197
+ * in-memory leaves (srmech_genome_chromosome to assemble, the recall re-bind to
+ * recover) and reuse the rc196 cap foundation (genome_pack_cap / genome_cap_kind /
+ * genome_decode_label) verbatim, so a bare-C host builds / splits a multi-kernel
+ * genome strand natively, BYTE-IDENTICAL to the Python. The §44 chromosomes=
+ * multi-gene assembly form opens its own gene caps and stays pure.
+ * Additive symbols only → SRMECH_ABI_VERSION stays 4. */
+
+/* GENOME — assemble `n_kernels` labelled kernels into ONE strand: each kernel
+ * becomes a CHROM-capped chromosome (srmech_genome_chromosome), concatenated in
+ * kernel order. BYTE-IDENTICAL to srmech.amsc.genome.genome(kernels, the_one) for
+ * the plain single-gene-per-chromosome path.
+ *   labels / label_lens : the n_kernels raw UTF-8 labels CONCATENATED, label_lens[k]
+ *                         the k-th label's byte length (its slice into `labels`).
+ *   the_one             : the shared Klein-4 invariant (leaf_dim bytes, {0,1,2,3}).
+ *   leaf_dim            : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   leaves / leaf_counts: the kernels' leaves CONCATENATED (each leaf_dim bytes),
+ *                         leaf_counts[k] the k-th kernel's leaf count.
+ *   n_kernels           : the kernel count (labels/label_lens/leaf_counts may be
+ *                         NULL iff n_kernels 0).
+ *   out / out_cap       : caller buffer; out_cap >= (n_kernels + Σ leaf_counts)*leaf_dim.
+ *   n_blocks_out        : out — the total strand block count written.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out / the_one / n_blocks_out NULL, or a NULL kernel array
+ *                          with n_kernels > 0, or a kernel with a NULL leaf run.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, an over-long label, or a leaf byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the strand. */
+srmech_status_t srmech_genome_genome(
+    const unsigned char *labels, const size_t *label_lens,
+    const unsigned char *the_one, uint32_t leaf_dim,
+    const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out);
+
+/* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
+ * srmech_genome_genome): a CHROM / kernel-telomere / active-telomere cap opens a
+ * partition (label read INLINE); a gene / header cap is SKIPPED (the partition
+ * flattens across genes); each data turn until the next opening cap is re-bound
+ * through `the_one` as that partition's leaf. BYTE-IDENTICAL to
+ * srmech.amsc.genome.partition; the caller applies the dict overwrite-on-duplicate-
+ * label + `labels=` filter semantics over these ORDERED partitions.
+ *   strand / n_blocks : the strand's n_blocks blocks, each leaf_dim bytes, contiguous.
+ *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(the_one).
+ *   the_one           : the shared Klein-4 invariant (leaf_dim bytes).
+ *   out_leaves        : caller buffer for the recovered leaves (leaf_dim bytes each,
+ *                       partition order); out_leaves_cap >= (data-turn count)*leaf_dim.
+ *   out_labels        : caller buffer for the partition labels, one leaf_dim-byte
+ *                       NUL-terminated slot each; out_labels_cap >= n_parts*leaf_dim.
+ *   part_leaf_counts  : caller buffer [counts_cap] — the per-partition leaf count.
+ *   n_parts_out       : out — the partition (opening-cap) count.
+ *   n_leaves_out      : out — the total recovered-leaf count.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — any pointer arg is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, an over-long label, or a data byte > 3.
+ *   SRMECH_ERR_OVERFLOW   — out_leaves / out_labels / part_leaf_counts too small. */
+srmech_status_t srmech_genome_partition(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one,
+    unsigned char *out_leaves, size_t out_leaves_cap,
+    unsigned char *out_labels, size_t out_labels_cap,
+    uint32_t *part_leaf_counts, size_t counts_cap,
+    size_t *n_parts_out, size_t *n_leaves_out);
 
 /* SAVE: write <dir>/turns.bin (= `body` verbatim, body_len bytes) and
  * <dir>/manifest.json (byte-identical to the Python genome_save manifest).
@@ -2364,9 +5341,10 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * CHROM/GENE cap), and whose byte_offset/byte_len span up to the next CHROM cap
  * (or EOF). The derived manifest is byte-identical to the Python genome_save's
  * (the strand is the SSoT; the manifest is a derived cache).
- *   body / body_len : the self-describing fixed-width body (CHROM/GENE caps +
- *                     coupled turns; n_turns = body_len / leaf_dim).
- *   leaf_dim        : the fixed block width in bytes (> 0, <= 256).
+ *   body / body_len : the self-describing body (CHROM/GENE caps + coupled
+ *                     turns — §55/v3: blocks are variable-width, keyed by
+ *                     their first byte; n_turns = the scanned BLOCK count).
+ *   leaf_dim        : the cap / in-memory leaf width in bytes (> 0, <= 256).
  *   the_one / the_one_len : the_one's single leaf_dim-byte block
  *                     (the_one_len MUST equal leaf_dim).
  *   ws / ws_len     : the caller arena for ALL scratch (the per-chromosome
@@ -2378,8 +5356,8 @@ srmech_json_value_t *srmech_json_new_object(srmech_json_builder_t *b,
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / body(when body_len>0) / the_one / ws NULL.
  *   SRMECH_ERR_BAD_INPUT   — leaf_dim == 0 / > 256, the_one_len != leaf_dim,
- *                           body_len not a whole multiple of leaf_dim, a turn
- *                           before the first CHROM cap, or a label too long.
+ *                           a truncated / unrecognised block, a turn before
+ *                           the first CHROM cap, or a label too long.
  *   SRMECH_ERR_IO          — fopen / fwrite failed.
  *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this genome.
  */
@@ -2464,6 +5442,36 @@ srmech_status_t srmech_genome_window(
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
 
+/* §134/rc135 (#1273) GENE-EXPRESSION PLAN: the DEMAND-LOAD, offset-only load
+ * plan. For each chromosome in <dir>'s manifest, seek to its byte_offset and
+ * read ONLY the head GATE cap (the second block, at byte_offset + leaf_dim),
+ * evaluate its inline gate (E1 0x67 / E2 0x62 / E4 0x77 / E3 0x64) under
+ * cell_state, and emit the EXPRESSED regions into `out` (capacity out_cap
+ * bytes). NEVER reads a region body — bounded I/O (one leaf_dim-byte gate cap
+ * per chromosome). *out_len receives the emitted byte count. Emit format
+ * (big-endian): [u32 n] then per record [u32 label_len][label bytes]
+ * [u64 byte_offset][u64 byte_len]. Byte-identical to the pure-Python
+ * gene_express_plan PATH variant (the siona community=chromosome layout — the
+ * per-chromosome head gate IS the community gate). A READ (never mutates);
+ * malloc-free (the manifest parses in the caller arena `ws`; the gate cap is a
+ * fixed stack buffer). §44: when manifest.json is absent the offsets are
+ * rebuilt by scanning turns.bin, which needs `the_one` (the_one_len IS the leaf
+ * width); pass the_one=NULL,0 when a manifest is present. ABI-additive: a new
+ * symbol, so SRMECH_ABI_VERSION stays 3.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / out / out_len / ws is NULL.
+ *   SRMECH_ERR_IO          — turns.bin I/O failed.
+ *   SRMECH_ERR_OVERFLOW    — ws too small for the manifest parse.
+ *   SRMECH_ERR_BAD_INPUT   — out too small for the plan, a malformed manifest,
+ *                           OR no manifest and no the_one.
+ */
+srmech_status_t srmech_genome_gene_express_plan(
+    const char *dir, uint64_t cell_state,
+    const unsigned char *the_one, size_t the_one_len,
+    unsigned char *out, size_t out_cap, size_t *out_len,
+    void *ws, size_t ws_len);
+
 /* APPEND: append one chromosome's region (`region`, region_len bytes = the
  * cap block + its data turns, all leaf_dim-byte blocks) to the END of
  * <dir>/turns.bin (append-only; prior body bytes are never rewritten), then
@@ -2479,8 +5487,9 @@ srmech_status_t srmech_genome_window(
  *                           the_one / ws is NULL.
  *   SRMECH_ERR_IO          — turns.bin / manifest.json I/O failed.
  *   SRMECH_ERR_OVERFLOW    — ws too small, or too many chromosomes.
- *   SRMECH_ERR_BAD_INPUT   — leaf_dim mismatch, label already present,
- *                           region_len not a whole multiple of leaf_dim,
+ *   SRMECH_ERR_BAD_INPUT   — leaf_dim mismatch, label already present, a
+ *                           truncated / unrecognised region block (§55/v3:
+ *                           blocks are variable-width, validated by the scan),
  *                           prior body bound failed, or malformed manifest.
  */
 srmech_status_t srmech_genome_append(
@@ -2647,6 +5656,212 @@ srmech_status_t srmech_genome_pack(
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
 
+/* §127/v7 (#726) ACTIVE-TELOMERE TICK — the divide/gate op whose OPERATOR behaviour
+ * is SELECTED by its OPERAND (the count). Read the exact non-negative COUNT carried
+ * inline in an active-telomere cap (`cap`, the first leaf_dim bytes; marker 0x74) and
+ * decide:
+ *   count == 0 -> SENESCENCE: *senescent = 1, *count_after = 0, out_cap = cap verbatim
+ *                 (the honest refuse — no divide).
+ *   count  > 0 -> DIVIDE:     *senescent = 0, *count_after = count - 1, out_cap = cap
+ *                 with the count field decremented by exactly 1 (the daughter cap; the
+ *                 telomere shortens). Byte-identical to the Python telomere_tick.
+ * The count lives at the SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES (8) bytes right
+ * after the label's NUL terminator, big-endian. No arena (out_cap is caller-provided,
+ * leaf_dim bytes); malloc-free; no abs (a count is never negated).
+ *   cap / leaf_dim : the active-telomere cap leaf (leaf_dim bytes; cap[0] == 0x74).
+ *   out_cap        : caller buffer >= leaf_dim bytes — the daughter (or verbatim) cap.
+ *   senescent      : out — 1 iff count was 0 (refuse), else 0.
+ *   count_after    : out — the decremented count (0 on senescence).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — cap / out_cap / senescent / count_after is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] != 0x74, no label NUL, or a truncated
+ *                          count field. */
+srmech_status_t srmech_genome_telomere_tick(
+    const unsigned char *cap, size_t leaf_dim,
+    unsigned char *out_cap, int *senescent, uint64_t *count_after);
+
+/* §128/v8 (#728) + §129 (#729) GENE EXPRESSION — the per-gene read-time FILTER whose OPERATOR
+ * behaviour (express or not) is SELECTED by its OPERAND (the cell_state). Read the regulatory
+ * MASK(s) carried inline in a gene cap (`cap`, the first leaf_dim bytes) and decide:
+ *   plain GENE cap (cap[0] == 0x47, no masks) -> masks 0, *expressed = 1 (ALWAYS expresses;
+ *                    an unregulated gene == masks 0 — back-compat).
+ *   REGULATORY GENE cap (cap[0] == 0x67) -> read the TWO KLEIN-4 bit-planes (activator then
+ *                    repressor), *expressed = 1 iff (cell_state & activator) == activator (ALL
+ *                    activators PRESENT) AND (cell_state & repressor) == 0 (NO repressor
+ *                    PRESENT), else 0. Per condition (act_bit, rep_bit) is a Klein-4 role:
+ *                    (0,0) don't-care / (1,0) activator / (0,1) repressor / (1,1) never (a bit
+ *                    set in BOTH masks = present AND absent = contradiction -> auto-silenced).
+ * Byte-identical to the pure Python decision in srmech.amsc.genome._gene_expresses. The
+ * activator lives at the SRMECH_GENOME_REGULATORY_MASK_BYTES (8) bytes right after the label's
+ * NUL terminator (big-endian, always present); the repressor at the NEXT 8 bytes IF the leaf
+ * has room, else 0. §129 DUAL-READ: the repressor plane sits in what was NUL padding, so a
+ * rc128 single-mask cap / a short leaf carries NO repressor field -> repressor 0 (identical
+ * rc128 behaviour). §130/v9 (#730): a BOOLEAN GENE cap (cap[0] == 0x62) carries the GENERAL
+ * gate-type — an arbitrary boolean function over the conditions in DNF (an OR of (activator,
+ * repressor) AND-clauses); *expressed = 1 iff ANY clause matches (E1 subset E2 — the klein4-mask
+ * two-mask is a 1-clause DNF; the empty DNF is FALSE = never). mask_out is 0 for a boolean gene
+ * (no single activator plane). §131/v10 (#731): a THRESHOLD GENE cap (cap[0] == 0x77) carries a
+ * LINEAR-THRESHOLD / perceptron gate — a per-condition SIGNED int64 WEIGHT vector + an int64
+ * THRESHOLD; *expressed = 1 iff Sum_i (weight_i * bit_i(cell_state)) >= threshold (the decision is
+ * the SIGN of the exact signed sum minus threshold — Class-K, never abs; SIGNED weights allow an
+ * inhibitory input). mask_out is 0 for a threshold gene. If the exact int64 accumulate would
+ * OVERFLOW, this returns SRMECH_ERR_OVERFLOW so the caller falls to the pure (arbitrary-precision)
+ * Python path — the native result, when produced, is byte-identical to Python. No arena (a per-cap
+ * decision); malloc-free; no abs. NEVER MUTATES cap (a READ — biology does not rewrite DNA).
+ *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] == 0x47, 0x67, 0x62 or 0x77).
+ *   cell_state     : the exact non-negative cell-state bitmask (each set bit a condition).
+ *   expressed      : out — 1 iff the gene expresses under cell_state, else 0.
+ *   mask_out       : out — the gene's ACTIVATOR mask (0 for a plain / boolean / threshold gene);
+ *                    may be NULL.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — cap / expressed is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] is not 0x47 / 0x67 / 0x62 / 0x77, no label NUL, a
+ *                          truncated activator field (regulatory gene), a truncated /
+ *                          unsupported-gate_type DNF header / term list (boolean gene), or a
+ *                          truncated / unsupported-gate_type threshold header / weight vector.
+ *   SRMECH_ERR_OVERFLOW  — the int64 weighted-sum accumulate would overflow (threshold gene) ->
+ *                          the caller uses the exact pure Python path. */
+srmech_status_t srmech_genome_gene_express(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
+    int *expressed, uint64_t *mask_out);
+
+/* §132/v11 (#732) GRADED / ANALOG gene expression LEVEL — the ORTHOGONAL companion to
+ * srmech_genome_gene_express. Where gene_express decides IF each gene expresses (binary), this
+ * reports the exact-rational LEVEL — HOW MUCH — of the gene opened by `cap` under `cell_state`,
+ * as a reduced (num_out, den_out) pair (den_out >= 1). Dispatches on the cap marker:
+ *   GRADED GENE cap (cap[0] == 0x64) -> the ANALOG dose-response: read the SIGNED int64
+ *       LEVEL-WEIGHT vector + the POSITIVE uint64 DENOMINATOR after the label NUL; the level is
+ *       Sum_i (level_weight_i * bit_i(cell_state)) / denom CLAMPED to [0, 1] (Class-K sign-branch,
+ *       never abs) and reduced by the Class-I gcd (srmech_gcd). raw dose <= 0 -> (0, 1) (off);
+ *       raw dose >= denom -> (1, 1) (fully on); else the reduced in-range fraction.
+ *   a BINARY gene cap (cap[0] == 0x47 / 0x67 / 0x62 / 0x77) is the DEGENERATE {0, 1} case:
+ *       (1, 1) if its E1/E2/E4 gate PASSES (the SAME decision as srmech_genome_gene_express) else
+ *       (0, 1). So the level axis composes with EVERY gate-type.
+ * A gene is "expressed" iff num_out > 0 (the caller filters). Byte-identical to the pure Python
+ * decision in srmech.amsc.genome._gene_level. If the exact int64 dose accumulate would OVERFLOW,
+ * this returns SRMECH_ERR_OVERFLOW so the caller falls to the pure (arbitrary-precision) Python
+ * path. No arena (a per-cap decision); malloc-free; no abs. NEVER MUTATES cap (a READ).
+ *   cap / leaf_dim : the gene cap leaf (leaf_dim bytes; cap[0] in {0x47,0x67,0x62,0x77,0x64}).
+ *   cell_state     : the exact non-negative cell-state bitmask (each set bit a present condition).
+ *   num_out        : out — the reduced level numerator (>= 0).
+ *   den_out        : out — the reduced level denominator (>= 1).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — cap / num_out / den_out is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0, cap[0] not a gene marker, no label NUL, a truncated /
+ *                          unsupported-gate_type / zero-denom graded header or weight vector, or a
+ *                          malformed binary gene (propagated from srmech_genome_gene_express).
+ *   SRMECH_ERR_OVERFLOW  — the int64 graded-dose accumulate would overflow -> the caller uses the
+ *                          exact pure Python path. */
+srmech_status_t srmech_genome_gene_express_levels(
+    const unsigned char *cap, size_t leaf_dim, uint64_t cell_state,
+    uint64_t *num_out, uint64_t *den_out);
+
+/* §133/v11 (#733) MODULATOR-RECOVERY verdict codes — the *verdict out of
+ * srmech_genome_modulator_recover. Mirrors the one-sided op_verdict (rc117)
+ * EQUAL/UNKNOWN contract: UNKNOWN (none pinned) / PARTIAL (some pinned) / EXACT
+ * (the floor pins every referenced condition bit). */
+#define SRMECH_GENOME_MODULATOR_UNKNOWN 0
+#define SRMECH_GENOME_MODULATOR_PARTIAL 1
+#define SRMECH_GENOME_MODULATOR_EXACT   2
+
+/* §133/v11 (#733) M1 — the INVERSE of gene_express: recover the TWO-SIDED cell-
+ * state FLOOR from an OBSERVED expressed-label set. `body` is the GENE-CAP subset
+ * of the strand (each block leaf_dim bytes, first byte a gene marker
+ * 0x47/0x67/0x62/0x77/0x64 — the data turns do NOT gate expression, so the caller
+ * strips them). `expressed` is the observed labels as NUL-delimited UTF-8 tokens
+ * (label\0label\0...; expressed_len bytes; NULL,0 = the empty set). Outputs:
+ *   *certain_on  — bits every consistent cell_state MUST have SET (OR of each
+ *                  EXPRESSED E1 gene's activator mask + each EXPRESSED E2 gene's
+ *                  intersection-over-clauses activator).
+ *   *certain_off — bits every consistent state MUST have CLEAR (the repressor duals).
+ *   *undetermined— the referenced condition bits (union of bits ANY gene reads)
+ *                  minus (certain_on | certain_off).
+ *   *verdict     — SRMECH_GENOME_MODULATOR_{EXACT,PARTIAL,UNKNOWN}.
+ * E4 threshold / E3 graded / un-expressed genes give NO clean single-bit certainty
+ * -> they contribute to *undetermined, NEVER to the floor (SOUND, not over-claiming).
+ * A gene's floor is applied only when its label is expressed AND UNIQUE among the
+ * body's gene caps (a duplicated label cannot be attributed). SOUND: for every
+ * candidate the companion op reports CONSISTENT, (state & *certain_on) == *certain_on
+ * AND (state & *certain_off) == 0. Byte-identical to the pure Python
+ * srmech.amsc.genome._modulator_recover_pure. No arena; malloc-free; no abs; a READ.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — body(when body_len>0) / expressed(when expressed_len>0) /
+ *                          any out pointer is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, body_len not a multiple of leaf_dim,
+ *                          or a malformed / truncated gene cap. */
+srmech_status_t srmech_genome_modulator_recover(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expressed, size_t expressed_len,
+    uint64_t *certain_on, uint64_t *certain_off,
+    uint64_t *undetermined, int *verdict);
+
+/* §133/v11 (#733) M2 — forward-CHECK one candidate cell_state: is
+ * set(gene_express(candidate) labels) == set(expected)? `body` is the GENE-CAP
+ * subset (as for srmech_genome_modulator_recover); `expected` is the observed
+ * labels as NUL-delimited UTF-8 tokens. *consistent = 1 iff the two label sets are
+ * EQUAL (both-subset: every EXPRESSING gene's label is expected AND every expected
+ * token is produced by some EXPRESSING gene). ONE-SIDED: CONSISTENT means "could be
+ * the state" (many candidates may be), NEVER "it IS the state". Reuses the forward
+ * per-gene srmech_genome_gene_express (no new gate logic). Byte-identical to the
+ * pure Python set comparison. No arena; malloc-free; no abs; a READ.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — body(when body_len>0) / expected(when expected_len>0) /
+ *                          consistent is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, body_len not a multiple of leaf_dim,
+ *                          or a malformed gene cap.
+ *   SRMECH_ERR_OVERFLOW  — an int64 threshold / graded accumulate would overflow ->
+ *                          the caller uses the exact pure Python path. */
+srmech_status_t srmech_genome_modulator_consistent(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expected, size_t expected_len,
+    uint64_t candidate_cell_state, int *consistent);
+
+/* §133/v11 (#733) M3 — the COMPLETE inverse of gene_express: emit the BOOLEAN
+ * part (the M1 floor + the disjunctive CLAUSES) of the EXACT constraint
+ * characterizing the WHOLE set of cell-states consistent with an observed
+ * expression. `body` is the GENE-CAP subset (as for srmech_genome_modulator_
+ * recover); `expressed` is the observed labels as NUL-delimited UTF-8 tokens.
+ * The emitted `out` buffer (caller-arena; `out_cap` bytes; *out_len set to the
+ * used length) is the canonical big-endian serialization:
+ *   certain_on(u64) certain_off(u64)
+ *   n_nand(u32) [any_absent(u64) any_present(u64)]*n_nand
+ *   n_or(u32)   [n_terms(u32) [present(u64) absent(u64)]*n_terms]*n_or
+ * where certain_on/off is the M1 floor; each nand pair is one boolean AND-term
+ * of an UN-expressed E1/E2 gene (in body order, term order — "some activator
+ * absent OR some repressor present" = the gene NOT expressing, all ANDed); each
+ * or-clause is one EXPRESSED pure-boolean label with >= 2 boolean terms (in
+ * first-occurrence label order; a label that ALSO opens a threshold/graded cap is
+ * a CROSS-TYPE OR and emits NO or-clause). This is the BOOLEAN scope only — the
+ * E4 inequality / E3 level constraints + satisfiability are computed by the
+ * Python caller (the owed-C). Byte-identical to the pure Python
+ * srmech.amsc.genome._serialize_bool_constraint(_modulator_constraint_bool_pure).
+ * Caller-arena; malloc-free; no abs; a READ (never mutates the body).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — body(when body_len>0) / expressed(when expressed_len>0)
+ *                          / out / out_len is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, body_len not a multiple of
+ *                          leaf_dim, a malformed gene cap, or out_cap too small. */
+srmech_status_t srmech_genome_modulator_constraint(
+    const unsigned char *body, size_t body_len, size_t leaf_dim,
+    const unsigned char *expressed, size_t expressed_len,
+    unsigned char *out, size_t out_cap, size_t *out_len);
+
+/* §133/v11 (#733) M3 — does `candidate` satisfy the BOOLEAN part of an emitted M3
+ * constraint? `buf` (buf_len bytes) is the canonical serialization
+ * srmech_genome_modulator_constraint emits. *satisfied = 1 iff
+ * (candidate & certain_on) == certain_on AND (candidate & certain_off) == 0 AND
+ * every nand pair holds ((candidate & any_absent) != any_absent OR
+ * (candidate & any_present) != 0) AND every or-clause has >= 1 term fully matching
+ * ((candidate & present) == present AND (candidate & absent) == 0). The BOOLEAN
+ * scope only — the caller ANDs the exact E4/E3 checks (the owed-C). Byte-identical
+ * to the pure Python srmech.amsc.genome._satisfies_bool. Malloc-free; no abs; READ.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — buf(when buf_len>0) / satisfied is NULL.
+ *   SRMECH_ERR_BAD_INPUT  — a truncated / malformed buffer. */
+srmech_status_t srmech_genome_modulator_constraint_satisfies(
+    const unsigned char *buf, size_t buf_len,
+    uint64_t candidate_cell_state, int *satisfied);
+
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)
  *
@@ -2778,8 +5993,10 @@ typedef struct srmech_bigint {
  * each operation's `out`. Each clamps/guards size_t overflow. */
 size_t srmech_bigint_add_bound(size_t a_n, size_t b_n);     /* max(a,b)+1     */
 size_t srmech_bigint_mul_bound(size_t a_n, size_t b_n);     /* a_n + b_n      */
+size_t srmech_bigint_mul_ws_bound(size_t a_n, size_t b_n);  /* Karatsuba BYTES*/
 size_t srmech_bigint_shl_bound(size_t a_n, uint32_t bits);  /* a + bits/32 +1 */
 size_t srmech_bigint_pow_bound(size_t base_n, uint32_t exp);/* base_n*exp + 1 */
+size_t srmech_bigint_pow_ws_bound(size_t base_n, uint32_t exp);/* pow ws BYTES */
 size_t srmech_bigint_from_dec_bound(size_t n_digits);       /* n_digits/9 + 2 */
 size_t srmech_bigint_to_dec_bound(size_t a_n);              /* a_n*10 + 2     */
 
@@ -2803,9 +6020,31 @@ srmech_status_t srmech_bigint_add(srmech_bigint_t *out, const srmech_bigint_t *a
 srmech_status_t srmech_bigint_sub(srmech_bigint_t *out, const srmech_bigint_t *a,
                                   const srmech_bigint_t *b);
 
-/* out = a * b (schoolbook). OVERFLOW if out->cap < mul_bound(a->n, b->n). */
+/* out = a * b. OVERFLOW if out->cap < mul_bound(a->n, b->n). Since
+ * 0.9.0rc168 the multiply is KARATSUBA above a measured limb crossover
+ * (schoolbook below): this no-arena entry runs the split over a bounded
+ * internal scratch region, degrading gracefully (fewer split levels →
+ * ultimately schoolbook) for very large operands. The product is
+ * byte-identical to schoolbook for every input — only the speed changes.
+ * out must NOT alias a or b (the multiply zeros/rebuilds out's limbs). */
 srmech_status_t srmech_bigint_mul(srmech_bigint_t *out, const srmech_bigint_t *a,
                                   const srmech_bigint_t *b);
+
+/* out = a * b over a CALLER scratch arena (the unbounded Karatsuba entry).
+ * Size ws via srmech_bigint_mul_ws_bound(a->n, b->n) — BYTES — for the
+ * full O(n^log2(3)) split at any operand size (the explicit split-frame
+ * stack + every level's sum/middle-term scratch live in ws; JPL Rule 1:
+ * no recursion — the schedule is an iterative frame machine; Rule 3: no
+ * malloc). A smaller/NULL ws is VALID and still returns the identical
+ * product (each split level that does not fit falls back to schoolbook,
+ * so ws only tunes speed, never the result). ws should be 8-byte aligned
+ * (the shared arena contract); a misaligned ws routes to schoolbook.
+ * OVERFLOW iff out->cap < mul_bound(a->n, b->n). out must NOT alias
+ * a, b, or ws. */
+srmech_status_t srmech_bigint_mul_ws(srmech_bigint_t *out,
+                                     const srmech_bigint_t *a,
+                                     const srmech_bigint_t *b,
+                                     void *ws, size_t ws_len);
 
 /* out = a << bits. OVERFLOW if out->cap < shl_bound(a->n, bits). */
 srmech_status_t srmech_bigint_shl_bits(srmech_bigint_t *out,
@@ -2819,7 +6058,11 @@ srmech_status_t srmech_bigint_shr_bits(srmech_bigint_t *out,
 
 /* q = floor(a / b), r = a - q*b (Python FLOOR semantics: 0 <= r < |b|
  * when b > 0). b != 0 else SRMECH_ERR_BAD_INPUT. q or r may be NULL to
- * skip that output. Uses Knuth Algorithm D in the caller arena `ws`. */
+ * skip that output — the skipped output's throwaway storage is carved off
+ * the front of `ws` (a->n + 2 limbs for q; max(a->n, b->n) + 2 for r), so
+ * the NULL contract holds for EVERY input including the negative-dividend
+ * floor fixup (pre-fix a cap-0 sink spuriously returned OVERFLOW there).
+ * Uses Knuth Algorithm D in the caller arena `ws`. */
 srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
                                      const srmech_bigint_t *a,
                                      const srmech_bigint_t *b,
@@ -2830,13 +6073,26 @@ srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
 srmech_status_t srmech_bigint_isqrt(srmech_bigint_t *out, const srmech_bigint_t *a,
                                     void *ws, size_t ws_len);
 
-/* out = gcd(|a|, |b|) >= 0 (Euclid). Caller arena `ws`. */
+/* out = gcd(|a|, |b|) >= 0. Caller arena `ws`. 0.9.0rc169: LEHMER'S
+ * algorithm (Knuth TAOCP Vol 2 §4.5.2 Algorithm L) when `ws` meets
+ * srmech_bigint_gcd_ws_bound — the leading-30-bit-digit cofactor matrix
+ * batches ~30 bits of Euclid steps into 4 single-limb multiply-adds, a
+ * large constant-factor win over the per-step full-precision divmod; a
+ * tighter arena transparently falls back to lean Euclid. The gcd VALUE
+ * is unique, so byte-identical either way. */
 srmech_status_t srmech_bigint_gcd(srmech_bigint_t *out, const srmech_bigint_t *a,
                                   const srmech_bigint_t *b,
                                   void *ws, size_t ws_len);
 
+/* Workspace BYTES that engage the Lehmer fast path of srmech_bigint_gcd
+ * for `a_n`/`b_n`-limb inputs (a smaller arena still returns the identical
+ * gcd via the lean-Euclid fallback). 8-byte-aligned uint32 bump arena. */
+size_t srmech_bigint_gcd_ws_bound(size_t a_n, size_t b_n);
+
 /* out = base^exp (exp >= 0; exp == 0 -> 1). Binary exponentiation over
- * the caller arena `ws`. OVERFLOW if out->cap < pow_bound(base->n, exp). */
+ * the caller arena `ws` (>= pow_ws_bound(base->n, exp) BYTES). OVERFLOW if
+ * out->cap < pow_bound(base->n, exp) or ws is too small for the running
+ * square + raw mul-temp (both sized from base^exp, not a fixed cap). */
 srmech_status_t srmech_bigint_pow_u32(srmech_bigint_t *out,
                                       const srmech_bigint_t *base, uint32_t exp,
                                       void *ws, size_t ws_len);
@@ -2852,6 +6108,136 @@ srmech_status_t srmech_bigint_from_dec(srmech_bigint_t *out, const char *s,
 srmech_status_t srmech_bigint_to_dec(const srmech_bigint_t *a, char *buf,
                                      size_t cap, size_t *out_len,
                                      void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_carrier_marshal — the NESTED exact-ℚ carrier OPERAND marshal
+ * (0.9.0rc191; the #796 LINCHPIN foundation). The bignum-safe reader that
+ * lowers the MCP nested-ℚ wire form of the §76 "telescope" reducer operands
+ * (the exact-ℚ carriers Poly / BiPoly) into arena-backed srmech_bigint
+ * coefficient arrays — extending the rc176 srmech_infer.c `inf_read_poly`
+ * pattern ONE nesting level per carrier, in a REUSABLE form the rc192
+ * srmech_infer.c wiring calls to dispatch the deferred exact #796 infer rows
+ * (sigma-definite / q / elliptic) for a bare-C host.
+ *
+ * NOT the rc188 invoke_tool VTABLE: the §76 reducer kernels need MB–GB caller
+ * workspaces (srmech_gosper ~9 MB, srmech_wz_verify ~32 MB, srmech_zeilberger
+ * ~470 MB), sized by srmech_infer_arena_bytes (~41 MB); the vtable arena
+ * (256*params_len + 65536 ~ 114 KB, JPL Rule 3 no-malloc) cannot host them, so
+ * a reducer's home is the srmech_infer.c DECISION path, not the vtable.
+ *
+ * WIRE FORM: a COEFFICIENT is a bare integer c (den 1) OR a [num,den] 2-list;
+ * each scalar is a JSON int64 OR a decimal STRING (the bignum transport, since
+ * srmech_json's strtoll clamps a >int64 literal). A Poly is an ascending-degree
+ * LIST of coefficients; a BiPoly is a k-ascending LIST of Poly-in-n, lowered to
+ * FLAT (k-then-n) num/den arrays + klen[] + the k-degree slot count kdeg. The
+ * reader lands the operand VERBATIM (no reduce/normalise); a malformed node ->
+ * SRMECH_ERR_BAD_INPUT (the Python caller runs the COMPLETE pure path).
+ * Additive symbols -> SRMECH_ABI_VERSION stays 4. ------- */
+
+/* Carrier kinds for srmech_carrier_marshal_roundtrip. */
+#define SRMECH_CARRIER_POLY     0  /* ascending-degree coefficient list        */
+#define SRMECH_CARRIER_BIPOLY   1  /* k-ascending list of Poly-in-n (flat+klen) */
+#define SRMECH_CARRIER_SCALAR   2  /* a single coefficient (EllRatio scalar)   */
+#define SRMECH_CARRIER_TRIPOLY  3  /* j-list of k-lists of n-coeff lists (rc223) */
+#define SRMECH_CARRIER_QBIPOLY  4  /* Y-list of [x_low, [q-run, ...]] (rc223)   */
+#define SRMECH_CARRIER_ELLRATIO 5  /* the pre-interned EllRatio wire (rc223)    */
+
+/* Minimum caller-arena BYTES for a `json_len`-byte carrier relationship. No
+ * malloc; the caller owns the arena. Too small -> SRMECH_ERR_OVERFLOW. */
+size_t srmech_carrier_marshal_arena_bytes(size_t json_len);
+
+/* Read a Poly wire node (an ascending-degree coefficient ARRAY) into parallel
+ * numerator / denominator bigint arrays of `cap` limbs each (carved off `a`).
+ * *out_len is the coefficient count. A non-array node / malformed coefficient
+ * -> SRMECH_ERR_BAD_INPUT; arena exhaustion -> SRMECH_ERR_OVERFLOW; a NULL
+ * param -> SRMECH_ERR_NULL_ARG. (Public: rc192 srmech_infer.c reuse.) */
+srmech_status_t srmech_carrier_read_poly(const srmech_json_value_t *node,
+                                         srmech_marshal_arena_t *a, uint32_t cap,
+                                         srmech_bigint_t **out_num,
+                                         srmech_bigint_t **out_den,
+                                         size_t *out_len);
+
+/* Read a BiPoly wire node (a k-ascending ARRAY of Poly-in-n coefficient
+ * arrays) into FLAT (k-then-n) numerator / denominator bigint arrays + the
+ * per-k length array *out_klen (length *out_kdeg). The flat length is the sum
+ * of the klen entries. Same error contract as srmech_carrier_read_poly. The
+ * exact encoding srmech_zeilberger / srmech_wz_verify consume. (Public.) */
+srmech_status_t srmech_carrier_read_bipoly(const srmech_json_value_t *node,
+                                           srmech_marshal_arena_t *a, uint32_t cap,
+                                           srmech_bigint_t **out_num,
+                                           srmech_bigint_t **out_den,
+                                           size_t **out_klen, size_t *out_kdeg);
+
+/* Read a TriPoly wire node (a j-ascending ARRAY of k-ascending ARRAYs of
+ * ascending-n coefficient arrays — the apagodu_zeilberger._tri_pairs bridge
+ * form, rc223) into FLAT (j-major, then k, then n) numerator / denominator
+ * bigint arrays + the per-(j,k)-cell length array *out_nlen (length
+ * (*out_jdeg) * (*out_kdeg); a ragged j-block is padded with empty runs to the
+ * max k-count, mirroring the Python _az_tri_flatten rectangularisation). The
+ * exact encoding srmech_apagodu_zeilberger consumes. Same error contract as
+ * srmech_carrier_read_poly. (Public: rc223 srmech_infer.c reuse.) */
+srmech_status_t srmech_carrier_read_tripoly(const srmech_json_value_t *node,
+                                            srmech_marshal_arena_t *a, uint32_t cap,
+                                            srmech_bigint_t **out_num,
+                                            srmech_bigint_t **out_den,
+                                            size_t **out_nlen, size_t *out_jdeg,
+                                            size_t *out_kdeg);
+
+/* Read a QBiPoly wire node (a Y-ascending ARRAY of [x_low, rows] pairs — the
+ * qbipoly._qb_pairs bridge form lowered to JSON, rc223: x_low a JSON int, rows
+ * an x-ascending ARRAY of ascending-q coefficient arrays) into the flat
+ * (Y-major then X-major) q-run bigint arrays + the per-(Y,X)-cell *out_qlen +
+ * the per-Y-cell *out_xlow / *out_xcells + the Y-cell count *out_ycells — the
+ * exact bridge encoding srmech_q_zeilberger / srmech_q_wz_verify /
+ * srmech_q_gosper consume (a QPoly rides as ONE Y-cell). Same error contract
+ * as srmech_carrier_read_poly. (Public: rc223 srmech_infer.c reuse.) */
+srmech_status_t srmech_carrier_read_qbipoly(const srmech_json_value_t *node,
+                                            srmech_marshal_arena_t *a, uint32_t cap,
+                                            srmech_bigint_t **out_num,
+                                            srmech_bigint_t **out_den,
+                                            size_t **out_qlen, int64_t **out_xlow,
+                                            size_t **out_xcells,
+                                            size_t *out_ycells);
+
+/* The PRE-INTERNED EllRatio wire (rc223) — the srmech_elliptic_* wire form
+ * lifted to a struct: the interned symbol-table dimension n_syms; the
+ * x/p/q/y/N/K interned indices (-1 if absent); the num / den theta counts; the
+ * flat exact-Q monomial coefficient arrays (1 + n_num + n_den entries, in the
+ * order prefactor, num0.., den0..); the flat int32 exponent rows (int32[n_syms]
+ * per monomial, same order). */
+typedef struct srmech_ellratio_wire {
+    size_t n_syms;
+    int xsym; int psym; int qsym; int ysym; int nsym; int ksym;
+    size_t n_num; size_t n_den;
+    srmech_bigint_t *coeff_num;      /* 1 + n_num + n_den                      */
+    srmech_bigint_t *coeff_den;
+    int32_t *exps_flat;              /* (1 + n_num + n_den) * n_syms           */
+} srmech_ellratio_wire_t;
+
+/* Read an EllRatio wire node (a JSON OBJECT with n_syms / xsym / psym / qsym /
+ * ysym / nsym / ksym / n_num / n_den int fields + coeff_num / coeff_den scalar
+ * arrays (int64 or decimal string — the bignum transport) + exps int rows —
+ * the interning done Python-side, sorted-symbol order, so the reader is a pure
+ * array lowering) into arena-backed bigint coefficient arrays + the flat int32
+ * exponent rows. Same error contract as srmech_carrier_read_poly. (Public:
+ * rc223 srmech_infer.c reuse.) */
+srmech_status_t srmech_carrier_read_ellratio(const srmech_json_value_t *node,
+                                             srmech_marshal_arena_t *a,
+                                             uint32_t cap,
+                                             srmech_ellratio_wire_t *out);
+
+/* The round-trip PROVER: parse `json`, marshal the `kind` carrier, and
+ * re-serialise it to CANONICAL nested-ℚ JSON (each coefficient as [num,den]
+ * decimal, compact separators) into `out` (capacity `out_cap`; NO trailing
+ * NUL) with *out_len set. Proves the reader landed every (bignum) coefficient
+ * value + the nesting, byte-identical to the Python carrier's coefficient
+ * view, with a SMALL arena (srmech_carrier_marshal_arena_bytes). A malformed
+ * node / too-small out -> the matching error (the caller defers to pure). */
+srmech_status_t srmech_carrier_marshal_roundtrip(int kind, const char *json,
+                                                 size_t json_len,
+                                                 void *ws, size_t ws_len,
+                                                 char *out, size_t out_cap,
+                                                 size_t *out_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_pi — ROTATION-LAST Chudnovsky π (built on srmech_bigint)
@@ -2883,6 +6269,4170 @@ size_t srmech_pi_chudnovsky_ws_bound(uint32_t num_digits);
 srmech_status_t srmech_pi_chudnovsky(uint32_t num_digits, char *out,
                                      size_t out_cap, size_t *out_len,
                                      void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_pi_archimedes — the projects-EVERY-step Pfaff-Archimedes pi
+ *
+ * The COMPLEMENT of srmech_pi_chudnovsky (rotation-last): Pfaff's 1800
+ * reformulation of Archimedes' polygon method as a two-mean chiral pair that
+ * brackets pi over a fixed-point unit M = 1 << precision_bits, projecting at
+ * EVERY step (one integer isqrt per iteration = the geometric mean):
+ *
+ *   b0 = 3*M ; a0 = isqrt(12*M*M) ;
+ *   a' = (2*a*b)//(a+b) [harmonic, dn] ; b' = isqrt(a'*b) [geometric, up] ;
+ *   pi ~ (a+b)//2 -> pi_int = (pi_scaled*10^D)//M -> "3." + D digits.
+ *
+ * The WHOLE loop runs in C (NO per-step decimal round-trip), so a bare C host
+ * computes pi with no Python. Byte-identical to the pure-Python
+ * pi_cascade_digits oracle (same fixed-point integers, same Python-FLOOR
+ * divmod/shr, same depth/precision). Early-exits at the exact a==b fixed point
+ * (a pure speedup, not a result change). All limb buffers + the divmod/isqrt
+ * scratch are carved from the caller arena `ws` (no malloc). num_digits == 0
+ * -> "3."; out_cap must be >= num_digits + 4. Too-small out_cap or ws, or a
+ * zero depth/precision, -> SRMECH_ERR_OVERFLOW / SRMECH_ERR_BAD_INPUT.
+ *
+ * Carrier-internal (like srmech_pi_chudnovsky): NOT a Rosetta ledger op.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
+srmech_status_t srmech_pi_archimedes(uint32_t num_digits,
+                                     uint32_t max_cascade_depth,
+                                     uint32_t precision_bits,
+                                     char *out, size_t out_cap, size_t *out_len,
+                                     void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_bigexp — BIGNUM-EXACT Class-N transcendental Taylor truncations
+ * (built on srmech_bigint; the standalone-honor closure for the exact-
+ * rational series).
+ *
+ * The int64/Q61 peers in srmech_rational.c (srmech_exp_series_truncate,
+ * srmech_rational_pow_uint) cap at int64 and return SRMECH_ERR_OVERFLOW past
+ * it, so a C-only host hit a magnitude ceiling the Python bignum path does
+ * not. These *_big variants compute the SAME exact rational the Python
+ * srmech.amsc.rational.{exp,sin,cos,log1p,atan}_series_truncate /
+ * rational_pow_uint compute, over caller-arena srmech_bigint (NO malloc), and
+ * return it REDUCED to lowest terms with positive denominator — byte-identical
+ * to Python's (num, den) at ANY magnitude.
+ *
+ * The operand and result rationals are passed as srmech_bigint pairs
+ * (x_num / x_den in, out_num / out_den out). out_den is always > 0 and
+ * gcd(|out_num|, out_den) == 1. den (x_den / base_den) must be > 0. Each op
+ * carves all working carriers + divmod/gcd scratch from the caller arena
+ * `ws` (>= srmech_bigexp_ws_bound(num_limbs, den_limbs, num_terms)); too-small
+ * `ws` or an `out` whose cap is too small → SRMECH_ERR_OVERFLOW. Out-of-domain
+ * arguments (x_den <= 0, num_terms past the per-op cap, |x| > 1 for atan, or
+ * x outside (-1, 1] for log1p) → SRMECH_ERR_BAD_INPUT, matching the Python
+ * ValueError-domain so C and Python accept the SAME inputs.
+ *
+ * Carrier-internal (like srmech_pi): NOT a Rosetta ledger op. Additive
+ * symbols → SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller must hand any *_big op below, for input
+ * rationals of `num_limbs` / `den_limbs` significant limbs and the given
+ * `num_terms`. Covers every working carrier + the deepest divmod/gcd scratch.
+ * 8-byte-aligned uint32 bump arena. */
+size_t srmech_bigexp_ws_bound(size_t num_limbs, size_t den_limbs,
+                              uint32_t num_terms);
+
+/* exp partial sum S_N(p/q) = Σ_{k=0..N} (p/q)^k / k!. num_terms <= 512. */
+srmech_status_t srmech_exp_series_truncate_big(const srmech_bigint_t *x_num,
+                                               const srmech_bigint_t *x_den,
+                                               uint32_t num_terms,
+                                               srmech_bigint_t *out_num,
+                                               srmech_bigint_t *out_den,
+                                               void *ws, size_t ws_len);
+
+/* sin partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k+1) / (2k+1)!. num_terms <= 50. */
+srmech_status_t srmech_sin_series_truncate_big(const srmech_bigint_t *x_num,
+                                               const srmech_bigint_t *x_den,
+                                               uint32_t num_terms,
+                                               srmech_bigint_t *out_num,
+                                               srmech_bigint_t *out_den,
+                                               void *ws, size_t ws_len);
+
+/* cos partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k) / (2k)!. num_terms <= 50. */
+srmech_status_t srmech_cos_series_truncate_big(const srmech_bigint_t *x_num,
+                                               const srmech_bigint_t *x_den,
+                                               uint32_t num_terms,
+                                               srmech_bigint_t *out_num,
+                                               srmech_bigint_t *out_den,
+                                               void *ws, size_t ws_len);
+
+/* log1p partial sum Σ_{k=1..N} (-1)^(k+1) (p/q)^k / k. Domain -1 < p/q <= 1.
+ * num_terms <= 64. */
+srmech_status_t srmech_log1p_series_truncate_big(const srmech_bigint_t *x_num,
+                                                 const srmech_bigint_t *x_den,
+                                                 uint32_t num_terms,
+                                                 srmech_bigint_t *out_num,
+                                                 srmech_bigint_t *out_den,
+                                                 void *ws, size_t ws_len);
+
+/* atan partial sum Σ_{k=0..N} (-1)^k (p/q)^(2k+1) / (2k+1). Domain |p/q| <= 1.
+ * num_terms <= 64. */
+srmech_status_t srmech_atan_series_truncate_big(const srmech_bigint_t *x_num,
+                                                const srmech_bigint_t *x_den,
+                                                uint32_t num_terms,
+                                                srmech_bigint_t *out_num,
+                                                srmech_bigint_t *out_den,
+                                                void *ws, size_t ws_len);
+
+/* (p/q)^n = p^n / q^n, reduced. exp_val <= 65535. */
+srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
+                                             const srmech_bigint_t *base_den,
+                                             uint32_t exp_val,
+                                             srmech_bigint_t *out_num,
+                                             srmech_bigint_t *out_den,
+                                             void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_the_one — the S(sigma, theta) ADJOINT generator (rc138; #743).
+ *
+ * The C peer for srmech.amsc.cascade.one.the_one's exact-rational ADJOINT
+ * (One.to_flat_rational — the w-INVARIANT 2pi-periodic base). COMPOSES the
+ * exact-rational bignum series srmech_cos/sin_series_truncate_big with the fixed
+ * Fano-plane block-tiling of the 1+3+7+3 = 14 Hurwitz ladder, producing the SAME
+ * 14 exact adjoint rationals (num, den) the Python builds — BYTE-IDENTICAL at ANY
+ * magnitude, over caller-arena srmech_bigint (NO float, NO libm, NO malloc). It
+ * is w-BLIND (the winding folds away in the adjoint base), the same as Python.
+ *
+ * sigma in {+1, -1} (the Class-K/C chirality; a sign is applied by negating the
+ * sign-magnitude numerator, never abs()). theta_den->sign must be > 0. num_terms
+ * <= 50 (the trig-series cap; matches the Python ValueError domain). out_num /
+ * out_den are caller-provided arrays of EXACTLY 14 srmech_bigint (order: [R.1, Im]
+ * per block, C then H then O). Each out is reduced with positive denominator.
+ * Bad sigma / theta_den <= 0 / num_terms > 50 -> SRMECH_ERR_BAD_INPUT; too-small
+ * out cap or arena ws (>= srmech_the_one_ws_bound) -> SRMECH_ERR_OVERFLOW.
+ *
+ * Carrier-internal (like srmech_bigexp): NOT a Rosetta ledger op of its own —
+ * it BACKS the existing the_one / one_matrix / to_scalar Python ops. Additive
+ * symbol -> SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for theta rationals of the given limb sizes + N.
+ * 8-byte-aligned uint32 bump arena (4 cos/sin carriers + the series scratch). */
+size_t srmech_the_one_ws_bound(size_t num_limbs, size_t den_limbs,
+                               uint32_t num_terms);
+
+/* The 14 exact adjoint rationals of S(sigma, theta_num/theta_den) to N terms. */
+srmech_status_t srmech_the_one(int32_t sigma,
+                               const srmech_bigint_t *theta_num,
+                               const srmech_bigint_t *theta_den,
+                               uint32_t num_terms,
+                               srmech_bigint_t *out_num,
+                               srmech_bigint_t *out_den,
+                               void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_one_scalar / srmech_one_matrix — the One-family COMPUTE leaf ops
+ * (0.9.0rc195; the make_class -> C arc, #887). C peers of the one.toml [class]
+ * One accessor ops srmech.amsc.cascade.to_scalar / one_matrix: they COMPOSE
+ * srmech_the_one (regenerate the 14 exact adjoint rationals) then assemble
+ * exactly like One.to_scalar / One.to_matrix, so a bare-C host runs the object
+ * model's scalar / matrix methods with no per-method Python shell-out.
+ *
+ * sigma in {+1,-1} (Class-K/C chirality; a sign is applied by negating the
+ * sign-magnitude numerator, never abs()). theta_den->sign must be > 0. num_terms
+ * <= 50. Additive symbols -> SRMECH_ABI_VERSION stays 4. See c/src/srmech_one.c.
+ * ------------------------------------------------------------------ */
+
+/* Minimum ws_len BYTES for srmech_one_scalar with theta rationals of the given
+ * limb sizes + N terms (8-byte-aligned uint32 bump arena: the 14 flat carriers +
+ * the scalar-accumulation scratch + the srmech_the_one series scratch). */
+size_t srmech_one_scalar_ws_bound(size_t num_limbs, size_t den_limbs,
+                                  uint32_t num_terms);
+
+/* The scalar projection of S(sigma, theta_num/theta_den) to N terms:
+ *   mode 0 (trace)     Tr G = 3 + 3*sigma + 8*sigma*cos(theta), EXACT (num,den)
+ *   mode 1 (sqnorm)    Sum (num/den)^2 over the 14 state rationals, EXACT
+ *   mode 2 (component) the `index`-th (0..13) of the 14 exact rationals
+ * out_num/out_den receive the reduced exact rational (positive denominator) —
+ * BYTE-IDENTICAL to the pure Python One.to_scalar (the as_float terminal cast
+ * stays in the caller). Bad sigma / theta_den <= 0 / num_terms > 50 / mode / index
+ * -> SRMECH_ERR_BAD_INPUT; too-small out cap or ws -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_one_scalar(int32_t sigma,
+                                  const srmech_bigint_t *theta_num,
+                                  const srmech_bigint_t *theta_den,
+                                  uint32_t num_terms, int32_t mode, int32_t index,
+                                  srmech_bigint_t *out_num,
+                                  srmech_bigint_t *out_den,
+                                  void *ws, size_t ws_len);
+
+/* Minimum ws_len BYTES for srmech_one_matrix (the 14 flat carriers + the
+ * bignum-rational->double scratch + the srmech_the_one series scratch). */
+size_t srmech_one_matrix_ws_bound(size_t num_limbs, size_t den_limbs,
+                                  uint32_t num_terms);
+
+/* The 14x14 block-diagonal float operator G(sigma,theta) = (+)_n (1 (+) sigma
+ * R_n(theta)) written into `out` as ONE_DIM*ONE_DIM = 196 row-major doubles
+ * (out_count must be >= 196). cos/sin are read from the exact flat rationals +
+ * rounded to double, then the +-1 / +-cos / +-sin tile is placed with NO float
+ * accumulation (FMA-safe) — NUMERIC (the opt-in lossy [scientific] realisation),
+ * WITHIN-TOL (<= 1e-12) to the pure Python One.to_matrix, NOT byte-identical.
+ * Bad sigma / theta_den <= 0 / num_terms > 50 -> SRMECH_ERR_BAD_INPUT; out_count
+ * < 196 or too-small ws -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_one_matrix(int32_t sigma,
+                                  const srmech_bigint_t *theta_num,
+                                  const srmech_bigint_t *theta_den,
+                                  uint32_t num_terms, double *out, size_t out_count,
+                                  void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_jacobi — BIGNUM-EXACT Jacobi elliptic sn/cn/dn Maclaurin truncation
+ * (the C peer of srmech.amsc.rational.jacobi_sncndn_series_truncate).
+ *
+ * The "rotation-last" exact-ℚ sibling of srmech_sin/cos_series_truncate_big:
+ * builds the Maclaurin coefficient sequences of the three Jacobi elliptic
+ * functions sn/cn/dn from the coupled power-series ODE
+ *   sn' = cn·dn, cn' = -sn·dn, dn' = -m·sn·cn ; sn(0)=0, cn(0)=dn(0)=1
+ * (Abramowitz & Stegun §16.4), evaluates each at u = u_num/u_den with modulus
+ * parameter m = m_num/m_den, and returns the three reduced exact rationals
+ * (sn, cn, dn) — byte-identical to the Python triple at ANY magnitude, over
+ * caller-arena srmech_bigint (NO malloc). u_den / m_den must be > 0;
+ * num_terms <= 50 (else SRMECH_ERR_BAD_INPUT, matching the Python domain).
+ * Every out carrier's cap and the arena `ws` (>= srmech_jacobi_sncndn_ws_bound)
+ * too small → SRMECH_ERR_OVERFLOW. Additive symbol → ABI unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for an op with input rationals of the given limb
+ * sizes + num_terms. 8-byte-aligned uint32 bump arena. */
+size_t srmech_jacobi_sncndn_ws_bound(size_t num_limbs, size_t den_limbs,
+                                     size_t m_num_limbs, size_t m_den_limbs,
+                                     uint32_t num_terms);
+
+/* sn/cn/dn N-term Maclaurin truncation at u = u_num/u_den, m = m_num/m_den.
+ * Each (out_num, out_den) is reduced, gcd == 1, out_den > 0. num_terms <= 50. */
+srmech_status_t srmech_jacobi_sncndn(const srmech_bigint_t *u_num,
+                                     const srmech_bigint_t *u_den,
+                                     const srmech_bigint_t *m_num,
+                                     const srmech_bigint_t *m_den,
+                                     uint32_t num_terms,
+                                     srmech_bigint_t *sn_num,
+                                     srmech_bigint_t *sn_den,
+                                     srmech_bigint_t *cn_num,
+                                     srmech_bigint_t *cn_den,
+                                     srmech_bigint_t *dn_num,
+                                     srmech_bigint_t *dn_den,
+                                     void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_crt_combine / srmech_rational_reconstruct — the CRT closers
+ * (srmech 0.9.0rc45, rung 2 of the CRT-QMat re-fibration arc).
+ *
+ * After the swell-free GF(p) elimination (srmech_gf_rref, rung 1) has produced
+ * one residue per reduction prime, these two turn the per-prime residues back
+ * into the EXACT rational answer: CRT-combine the residues into one residue
+ * modulo the product of the primes, then rational-reconstruct that residue back
+ * to a bounded p/q. Both run over the caller-arena srmech_bigint — the combined
+ * modulus + the reconstructed numerator/denominator are bignum.
+ *
+ * Additive symbols — ABI unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_crt_combine over `k` congruences. The Garner
+ * fold's scratch is a few partial-product bigints sized from the running
+ * modulus; this is a generous envelope (the actual modulus limb count is data-
+ * dependent, so the marshaller pads further). */
+size_t srmech_crt_combine_ws_bound(size_t k);
+
+/* CRT-combine `k` congruences r_i (mod m_i) into one residue mod ∏ m_i.
+ * `residues` / `moduli` are caller-owned uint64 arrays of length `k` (each
+ * residue + modulus fits uint64 — the ~31-bit reduction primes). The moduli
+ * must be pairwise coprime (distinct primes; the caller's contract). Writes the
+ * combined residue (in [0, modulus)) into *out_residue and ∏ m_i into
+ * *out_modulus, both bignum (size their limb cap from the total bit-width).
+ * Iterative Garner CRT; the per-step inverse is taken modulo a single uint64
+ * prime. SRMECH_ERR_BAD_INPUT if k == 0 or any modulus < 2; SRMECH_ERR_OVERFLOW
+ * if an out cap or `ws` is too small. */
+srmech_status_t srmech_crt_combine(const uint64_t *residues,
+                                   const uint64_t *moduli,
+                                   uint32_t k,
+                                   srmech_bigint_t *out_residue,
+                                   srmech_bigint_t *out_modulus,
+                                   void *ws, size_t ws_len);
+
+/* Minimum `ws_len` BYTES for srmech_rational_reconstruct on a modulus of
+ * `modulus_limbs` 32-bit limbs. Covers the half-GCD recurrence carriers + the
+ * divmod/gcd arena tail. */
+size_t srmech_rational_reconstruct_ws_bound(size_t modulus_limbs);
+
+/* Reconstruct the rational p/q congruent to `residue` modulo `modulus`, with
+ * |p| <= num_bound, 0 < q <= den_bound, gcd(q, modulus) == 1 and gcd(|p|, q)
+ * == 1. residue/modulus/num_bound/den_bound are caller-owned bigints (modulus
+ * >= 2; bounds >= 0/1). On success *out_found = 1 and out_num/out_den carry the
+ * reduced SIGNED p/q (out_den > 0; the sign is Class-K, an explicit sign-branch,
+ * never abs()). If no rational exists in the bounds, *out_found = 0 (out_num/
+ * out_den unspecified). Half-GCD / Wang reconstruction over the caller arena
+ * `ws`. SRMECH_ERR_BAD_INPUT if modulus < 2; SRMECH_ERR_OVERFLOW on a too-small
+ * out cap or `ws`. */
+srmech_status_t srmech_rational_reconstruct(const srmech_bigint_t *residue,
+                                            const srmech_bigint_t *modulus,
+                                            const srmech_bigint_t *num_bound,
+                                            const srmech_bigint_t *den_bound,
+                                            srmech_bigint_t *out_num,
+                                            srmech_bigint_t *out_den,
+                                            int32_t *out_found,
+                                            void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_poly — EXACT-RATIONAL univariate polynomial over srmech_bigint
+ * (the C peer of srmech.amsc.poly.Poly; the §76 telescope Sigma-row prover's
+ * foundation carrier).
+ *
+ * A polynomial is two parallel caller-owned srmech_bigint arrays in ASCENDING
+ * degree: nums[i] / dens[i] is the exact-rational coefficient of x^i (dens[i] >
+ * 0, gcd(|nums[i]|, dens[i]) == 1; zero coefficient = 0/1). `n` is the
+ * coefficient count; the CANONICAL form trims trailing-zero (high-degree)
+ * coefficients, so the zero polynomial has n == 0. Each op computes the SAME
+ * exact rational coefficients srmech.amsc.poly.Poly computes (Class-N rational
+ * arithmetic over Class-J reduction), over caller-arena srmech_bigint (NO
+ * malloc), reduced to lowest terms — byte-identical to Python at ANY magnitude
+ * (full bignum; no int64/Q61 ceiling).
+ *
+ * STANDALONE-COMPLETE: every working carrier + the divmod/reduce scratch is
+ * carved from the caller arena `ws` (>= the matching srmech_poly_ws_bound), so
+ * the bound is the caller's RAM. Out coefficient arrays are caller-owned + must
+ * be pre-sized (add/sub: max(na,nb); mul: na+nb-1; divmod: q -> na-nb+1, r ->
+ * na; shift: n); each srmech_bigint in those arrays must carry enough limb
+ * capacity for the result coefficient (size with srmech_bigint cap >= the
+ * per-coeff product bound). Out-of-domain (nb == 0 for divmod) ->
+ * SRMECH_ERR_BAD_INPUT; too-small ws or an out coefficient cap ->
+ * SRMECH_ERR_OVERFLOW (matching Python's ZeroDivisionError / unbounded-int
+ * domains).
+ *
+ * The single-call polynomial GCD (srmech_poly_gcd, rc39) takes a SEPARATE
+ * ws-bound (srmech_poly_gcd_ws_bound) because the Euclidean GCD over Q has the
+ * classic intermediate-coefficient growth, so its caller-arena bound scales with
+ * the Euclidean-chain length. The soundness lever is MONIC NORMALIZATION after
+ * every chain step: the GCD is defined up to a unit, so scaling each remainder
+ * to a leading 1 leaves the final monic GCD identical (verified over 4000 random
+ * integer+rational trials) while taming the coefficient growth from ~92x input
+ * bits (no-norm) to ~23x (monic-norm); poly_gcd_cap_for then sizes each carrier
+ * with degree-squared headroom, provably past that linear-in-degree growth. Any
+ * residual overflow still returns SRMECH_ERR_OVERFLOW (never a silent wrap), and
+ * the Python Poly.gcd falls back to its ceiling-free pure-bigint path.
+ *
+ * Carrier-internal (like srmech_bigexp): NOT a Rosetta ledger op. Additive
+ * symbols -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller hands any srmech_poly_* op below, for input
+ * coefficients of `coeff_limbs` significant limbs and a polynomial of `n_terms`
+ * coefficients. Covers every working carrier + the deepest divmod scratch.
+ * 8-byte-aligned uint32 bump arena. */
+size_t srmech_poly_ws_bound(size_t coeff_limbs, size_t n_terms);
+
+/* out = a + b, coefficientwise exact-Q, trimmed. out arrays hold max(na, nb)
+ * coefficients; *out_len <- the trimmed length. */
+srmech_status_t srmech_poly_add(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t na,
+                                const srmech_bigint_t *b_n,
+                                const srmech_bigint_t *b_d, size_t nb,
+                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                size_t *out_len, void *ws, size_t ws_len);
+
+/* out = a - b, coefficientwise exact-Q, trimmed. Same shapes as add. */
+srmech_status_t srmech_poly_sub(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t na,
+                                const srmech_bigint_t *b_n,
+                                const srmech_bigint_t *b_d, size_t nb,
+                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                size_t *out_len, void *ws, size_t ws_len);
+
+/* out = a * b (coefficient convolution), exact-Q, trimmed. out arrays hold
+ * na + nb - 1 coefficients (0 when either is the zero polynomial). */
+srmech_status_t srmech_poly_mul(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t na,
+                                const srmech_bigint_t *b_n,
+                                const srmech_bigint_t *b_d, size_t nb,
+                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                size_t *out_len, void *ws, size_t ws_len);
+
+/* (quotient, remainder) of a / b over Q: a == q*b + r, deg r < deg b (or r ==
+ * 0). nb == 0 -> SRMECH_ERR_BAD_INPUT. out_q arrays hold na-nb+1 coefficients
+ * (0 when na < nb); out_r arrays hold na (the working remainder width).
+ * *out_qn / *out_rn <- the trimmed lengths. */
+srmech_status_t srmech_poly_divmod(const srmech_bigint_t *a_n,
+                                   const srmech_bigint_t *a_d, size_t na,
+                                   const srmech_bigint_t *b_n,
+                                   const srmech_bigint_t *b_d, size_t nb,
+                                   srmech_bigint_t *out_q_n,
+                                   srmech_bigint_t *out_q_d, size_t *out_qn,
+                                   srmech_bigint_t *out_r_n,
+                                   srmech_bigint_t *out_r_d, size_t *out_rn,
+                                   void *ws, size_t ws_len);
+
+/* Minimum `ws_len` BYTES for srmech_poly_gcd (a SEPARATE, larger bound than
+ * srmech_poly_ws_bound — covers the chain-scaled carriers + three working poly
+ * buffers + the divmod scratch). 8-byte-aligned uint32 bump arena. */
+size_t srmech_poly_gcd_ws_bound(size_t coeff_limbs, size_t n_terms);
+
+/* gcd = the MONIC Euclidean GCD of a and b over Q (leading coefficient 1, so
+ * canonical). out arrays hold max(na, nb) coefficients (the GCD degree never
+ * exceeds min(deg a, deg b)); *out_len <- the trimmed monic-GCD length.
+ * gcd(0, 0) -> the zero polynomial (out_len 0); gcd(p, 0) -> monic(p). Exact
+ * over Q, bignum; OVERFLOW if ws or an out coefficient cap is too small. */
+srmech_status_t srmech_poly_gcd(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t na,
+                                const srmech_bigint_t *b_n,
+                                const srmech_bigint_t *b_d, size_t nb,
+                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                size_t *out_len, void *ws, size_t ws_len);
+
+/* p(x) at x = x_n/x_d by exact Horner -> one reduced rational out_num/out_den. */
+srmech_status_t srmech_poly_eval(const srmech_bigint_t *p_n,
+                                 const srmech_bigint_t *p_d, size_t n,
+                                 const srmech_bigint_t *x_n,
+                                 const srmech_bigint_t *x_d,
+                                 srmech_bigint_t *out_num,
+                                 srmech_bigint_t *out_den,
+                                 void *ws, size_t ws_len);
+
+/* p(x + h) (the dispersion shift) by exact synthetic Horner on (x + h). acc
+ * arrays hold n coefficients; *acc_len <- the trimmed length. */
+srmech_status_t srmech_poly_shift(const srmech_bigint_t *p_n,
+                                  const srmech_bigint_t *p_d, size_t n,
+                                  const srmech_bigint_t *h_n,
+                                  const srmech_bigint_t *h_d,
+                                  srmech_bigint_t *acc_n,
+                                  srmech_bigint_t *acc_d, size_t *acc_len,
+                                  void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_factor_squarefree_primitive — EXACT integer-polynomial factorization
+ * (Zassenhaus): the C peer of the Zassenhaus core of
+ * srmech.amsc.cascade.matrix_cascades.factor_integer_poly (Qalg TAIL Batch 8).
+ *
+ * Factors a SQUARE-FREE PRIMITIVE integer polynomial (coeffs low->high, content
+ * 1, POSITIVE leading coefficient, deg >= 1) into its irreducible ℤ factors:
+ * choose a prime p ∤ lead with the input square-free mod p; factor mod p in
+ * 𝔽_p[x] (distinct-degree then Cantor–Zassenhaus equal-degree, over a
+ * DETERMINISTIC xorshift64 rng that reproduces the Python rng stream
+ * byte-for-byte); Hensel-lift to mod p^k >= 2·B+1 (B the Mignotte bound); then
+ * recombine over increasing subset sizes (exact ℤ trial-division), guarded by a
+ * subset-size cap. Byte/structurally-identical to the pure
+ * _factor_square_free_primitive (the factorization is unique).
+ *
+ * coeffs / ncoeff : the input integer coefficients low->high (denominator 1).
+ * out_coeffs      : the irreducible factors' coefficients CONCATENATED low->high
+ *                   (>= 2*deg srmech_bigint slots, each cap >= the out_cap).
+ * out_degs        : out_degs[j] = degree of factor j (>= deg int slots).
+ * out_nfac        : *out_nfac <- the factor count.
+ * out_hit_cap     : *out_hit_cap <- 1 if the recombination subset cap was hit.
+ * ws, ws_len      : caller arena (>= srmech_factor_squarefree_primitive_ws_bound).
+ *
+ * Returns SRMECH_OK; SRMECH_ERR_OVERFLOW on arena/degree overflow (caller falls
+ * back to the pure path); SRMECH_ERR_BAD_INPUT on the zero polynomial or no good
+ * reduction prime below 100000.
+ *
+ * All exact srmech_bigint (NO malloc, JPL Rule 3). Additive symbols -> ABI 3. */
+size_t srmech_factor_squarefree_primitive_out_cap(size_t coeff_limbs, int deg);
+size_t srmech_factor_squarefree_primitive_ws_bound(size_t coeff_limbs, int deg);
+srmech_status_t srmech_factor_squarefree_primitive(
+    const srmech_bigint_t *coeffs, int ncoeff, srmech_bigint_t *out_coeffs,
+    int *out_degs, int *out_nfac, int *out_hit_cap, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_factor_integer_poly — the FULL factor_integer_poly composite (the
+ * everything-mirrors completion of the rc165 Zassenhaus core): content +
+ * primitive part, Yun square-free decomposition over exact ℚ (composed from
+ * srmech_poly_gcd / srmech_poly_divmod / srmech_poly_sub + an exact-ℚ
+ * derivative), per square-free part the Zassenhaus core
+ * srmech_factor_squarefree_primitive, merge-identical factors, and the
+ * (len, coeffs) sort — so a bare-C host factors an integer polynomial into
+ * its irreducible (factor, multiplicity) list with ONE call, byte-identical
+ * to the Python factor_integer_poly (same factors, multiplicities, ORDER).
+ *
+ * coeffs / ncoeff : the input integer coefficients low->high (denominator 1).
+ * out_coeffs      : the sorted factors' coefficients CONCATENATED low->high
+ *                   (>= 2*deg + 2 srmech_bigint slots, each cap >= the out_cap).
+ * out_degs        : out_degs[j] = degree of factor j (>= deg int slots).
+ * out_mults       : out_mults[j] = multiplicity of factor j (>= deg int slots).
+ * out_nfac        : *out_nfac <- the factor count (0 for a nonzero constant).
+ * out_capped      : *out_capped <- 1 if any part hit the recombination cap.
+ * ws, ws_len      : caller arena (>= srmech_factor_integer_poly_ws_bound).
+ *
+ * Returns SRMECH_OK; SRMECH_ERR_BAD_INPUT on the zero polynomial;
+ * SRMECH_ERR_OVERFLOW on arena/degree overflow OR an internal multiply-back
+ * self-check mismatch (the Python wrapper then falls back to the
+ * byte-identical pure path — never a silently wrong answer).
+ *
+ * All exact srmech_bigint (NO malloc, JPL Rule 3). Additive symbols -> ABI 3. */
+size_t srmech_factor_integer_poly_out_cap(size_t coeff_limbs, int deg);
+size_t srmech_factor_integer_poly_ws_bound(size_t coeff_limbs, int deg);
+srmech_status_t srmech_factor_integer_poly(
+    const srmech_bigint_t *coeffs, int ncoeff, srmech_bigint_t *out_coeffs,
+    int *out_degs, int *out_mults, int *out_nfac, int *out_capped,
+    void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_lll_reduce — EXACT-ℚ LLL lattice-basis reduction (the C peer of
+ * srmech.amsc.cascade.matrix_cascades.lll_reduce; the foundation for a future
+ * van Hoeij polynomial-factorization knapsack). Classic Lenstra–Lenstra–Lovász
+ * (1982): Gram–Schmidt orthogonalization in EXACT ℚ over srmech_bigint (μ_{i,j},
+ * ‖b*_i‖² as num/den pairs), size reduction by exact nearest-integer rounding of
+ * μ (round(a/b) = floor((2a+b)/(2b)); the |μ| ≤ 1/2 guard a Class-K sign branch
+ * on 2·|num| vs den — never an ALU abs), and the Lovász swap on the exact ℚ
+ * condition ‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖². Integer-in, integer-out;
+ * NO float, NO libm. The GSO is recomputed from the current integer basis each
+ * outer step (a pure function of the basis → byte-identical to the Python pure
+ * body, which is the parity oracle + the no-native fallback).
+ *
+ * `basis`  : m*n input row-major integer matrix (m rows × n cols; the lattice
+ *            basis — an INDEPENDENT basis). Each srmech_bigint an exact integer.
+ * m, n     : rows / cols (m >= 0, n >= 0). m <= 1 copies the input to `out`.
+ * delta_*  : the Lovász parameter δ = delta_num/delta_den, an exact rational in
+ *            (1/4, 1] (delta_num*4 > delta_den && delta_num <= delta_den &&
+ *            delta_den > 0), else SRMECH_ERR_BAD_INPUT.
+ * out      : m*n row-major integer matrix (caller-owned; each srmech_bigint
+ *            pre-bound to >= srmech_lll_reduce_entry_cap limbs) — the reduced
+ *            basis, same lattice (unimodular; det = ±1).
+ * ws,ws_len: caller arena (>= srmech_lll_reduce_ws_bound BYTES; 8-byte-aligned).
+ *
+ * Errors: SRMECH_ERR_NULL_ARG (a required pointer NULL with m*n > 0);
+ * SRMECH_ERR_BAD_INPUT (δ out of range, or a linearly dependent / degenerate
+ * basis — a vanishing ‖b*_j‖²); SRMECH_ERR_OVERFLOW (arena / out slot too small
+ * → the Python falls back to its byte-identical pure body). Additive symbols ->
+ * SRMECH_ABI_VERSION unchanged (stays 4).
+ * ------------------------------------------------------------------ */
+
+/* Per-entry limb cap the caller must give each srmech_bigint in the `out`
+ * matrix (and internally each working carrier). `maxbits` = the max bit length
+ * of any input entry. Generous determinant-Hadamard envelope; overflow is a
+ * clean SRMECH_ERR_OVERFLOW, never a silent wrap. */
+size_t srmech_lll_reduce_entry_cap(int m, int n, int maxbits);
+
+/* Minimum `ws_len` BYTES: the working integer basis (m*n) + the μ matrix (m*m,
+ * num+den) + the ‖b*‖² vector (m, num+den) + the scalar Q carriers + the
+ * gcd/divmod scratch tail, each at the entry cap. 8-byte-aligned uint32 arena. */
+size_t srmech_lll_reduce_ws_bound(int m, int n, int maxbits);
+
+/* The reduction. See the block comment above. */
+srmech_status_t srmech_lll_reduce(
+    const srmech_bigint_t *basis, int m, int n,
+    int32_t delta_num, int32_t delta_den,
+    srmech_bigint_t *out, void *ws, size_t ws_len);
+
+/* rc222 — EXACT Gram–Schmidt squared norms ‖b*_i‖² of the integer basis
+ * `basis` (m rows × n cols, row-major), written as reduced num/den pairs into
+ * out_num/out_den (m slots each, pre-bound to >= srmech_lll_reduce_entry_cap
+ * limbs; den > 0). The van Hoeij knapsack recombination's |V*_k| > M cutoff
+ * (LLL-paper (1.11)) reads these. `ws` sized by srmech_lll_reduce_ws_bound
+ * (a superset of the GSO-only need). Errors: SRMECH_ERR_NULL_ARG /
+ * SRMECH_ERR_BAD_INPUT (linearly dependent basis) / SRMECH_ERR_OVERFLOW.
+ * Additive symbol -> SRMECH_ABI_VERSION unchanged (stays 4). */
+srmech_status_t srmech_lll_gso_normsq(
+    const srmech_bigint_t *basis, int m, int n,
+    srmech_bigint_t *out_num, srmech_bigint_t *out_den,
+    void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_unary_theta — the EXACT-INTEGER q-series of a UNARY THETA SERIES (the
+ * C peer of srmech.amsc.unary_theta.UnaryTheta; the first WEIGHT-GRADED operand
+ * carrier). A unary theta is g(tau) = SUM_{n in support} chi(n)*n^j*q^{(a*n^2+
+ * b*n)/D}; its WEIGHT is 1/2 + j (that rational lives in the Python Q carrier —
+ * the C computes only the integer q-series). This op returns the EXACT INTEGER
+ * coefficients out[e] = SUM_{n:E(n)=e} chi(n)*n^j (e = 0..N) after factoring out
+ * the leading (minimal) q-power over the support — byte-identical to the Python
+ * carrier (n^j is full srmech_bigint, no int64 ceiling). chi(n) in {-1,0,1} via
+ * the length-`modulus` chi_table (Class-K sign, never abs). support: 0=all
+ * (n in Z), 1=positive (n>=1), 2=nonneg (n>=0).
+ *
+ * Carrier-internal (like srmech_poly): NOT a Rosetta ledger op; additive symbols
+ * -> ABI unchanged (stays 3). The working n^j carriers + pow scratch are carved
+ * from the caller arena `ws` (>= srmech_unary_theta_ws_bound). The out[] array
+ * is caller-owned (N+1 srmech_bigint, each pre-bound to >= coeff_limbs limbs).
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_unary_theta_q_series (the nj/nbase carriers
+ * at `coeff_limbs` width + the bigint pow scratch for |n|^j). */
+size_t srmech_unary_theta_ws_bound(uint32_t j, size_t coeff_limbs);
+
+/* The exact integer q-series: out[e] (e=0..N) <- SUM_{n:E(n)=e} chi(n)*n^j,
+ * *out_len <- N+1. SRMECH_ERR_BAD_INPUT on modulus<1 / a<=0 / D<1 / empty
+ * support; SRMECH_ERR_OVERFLOW if a coefficient or the arena is too small. */
+srmech_status_t srmech_unary_theta_q_series(
+    uint32_t modulus, const int32_t *chi_table, uint32_t j,
+    int64_t a, int64_t b, uint32_t D, int support, size_t N,
+    srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_eta_quotient — the EXACT-INTEGER q-series of a DEDEKIND-ETA QUOTIENT
+ * (the C peer of srmech.amsc.eta_quotient.EtaQuotient; a WEIGHT-axis operand
+ * carrier). Q(tau) = PROD_{d|N} eta(d tau)^{r_d} = q^{(SUM_d d r_d)/24} *
+ * PROD_d PROD_{m>=1}(1 - q^{dm})^{r_d}. This op returns the EXACT INTEGER
+ * coefficients out[e] (e = 0..n_terms-1) of the power series AFTER the leading
+ * fractional q-power factor-out — byte-identical to the Python carrier (the
+ * coefficients GROW, e.g. the Ramanujan tau, so out[e] is full srmech_bigint,
+ * no int64 ceiling). The product is built factor by factor: r_d>0 multiplies by
+ * (1-q^{dm}) (a backward subtract-shift), r_d<0 divides (a forward add-shift, the
+ * geometric expansion) — the Class-K sign branch chooses, never an ALU abs().
+ *
+ * Carrier-internal (like srmech_poly / srmech_unary_theta): NOT a Rosetta ledger
+ * op; additive symbols -> ABI unchanged (stays 3). The ONE scratch bigint is
+ * carved from the caller arena `ws` (>= srmech_eta_quotient_ws_bound); the out[]
+ * array is caller-owned (n_terms srmech_bigint, each pre-bound to >= coeff_limbs
+ * limbs). The Ligozat / order-at-cusp DECISION logic stays Python-only.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_eta_quotient_qseries (ONE scratch bigint at
+ * `coeff_limbs` width + slack; every step is a bigint add/sub on a copy). */
+size_t srmech_eta_quotient_ws_bound(size_t coeff_limbs);
+
+/* The exact integer q-series of PROD_d PROD_{m>=1}(1 - q^{dm})^{r_d}: out[e]
+ * (e = 0..n_terms-1) <- the coefficient of q^e, *out_len <- n_terms. ds[i]>=1 /
+ * rs[i]!=0 are the n_factors factors. SRMECH_ERR_BAD_INPUT on n_terms<1 /
+ * n_factors<1 / a bad d or r; SRMECH_ERR_OVERFLOW if a coefficient or the arena
+ * is too small. */
+srmech_status_t srmech_eta_quotient_qseries(
+    const int64_t *ds, const int64_t *rs, size_t n_factors, size_t n_terms,
+    srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_eisenstein — the EXACT-RATIONAL q-series of a normalized EISENSTEIN
+ * SERIES E_k (the C peer of srmech.amsc.eisenstein.Eisenstein; the SECOND rung
+ * of the WEIGHT axis, after the rc82 eta-quotient). For even weight k >= 4,
+ *     E_k(tau) = 1 - (2k / B_k) * SUM_{n>=1} sigma_{k-1}(n) q^n,
+ * with B_k the k-th Bernoulli number (an EXACT RATIONAL: B_4=-1/30, B_6=1/42,
+ * B_12=-691/2730) and sigma_{k-1}(n) = SUM_{d|n} d^{k-1}. This op returns each
+ * coefficient as a REDUCED (num, den) pair of full srmech_bigint — byte-identical
+ * to the Python carrier (NO int64 ceiling; the genuine rational case k=12 ->
+ * 65520/691 IS covered, not just integer-coeff k). B_k is computed exact-Q by the
+ * standard recurrence over a caller-arena Bernoulli rational roster; sigma is
+ * exact-integer; the coefficient is pref*sigma reduced to lowest terms (the
+ * Class-N rational arithmetic of srmech_poly / srmech_rational). Only bigint
+ * add/sub/mul/divmod/gcd/pow — the sign is the Class-K pin-slot, never ALU abs().
+ *
+ * Carrier-internal (like srmech_poly / srmech_eta_quotient): NOT a Rosetta ledger
+ * op; additive symbols -> ABI unchanged (stays 3). The working carriers + the
+ * Bernoulli roster + the divmod/gcd/pow scratch are carved from the caller arena
+ * `ws` (>= srmech_eisenstein_ws_bound); the out_num[]/out_den[] arrays are
+ * caller-owned (n_terms srmech_bigint each, >= coeff_limbs limbs). The
+ * is_modular / quasimodular-boundary DECISION logic stays Python-only.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_eisenstein_qseries (the working carriers + the
+ * (k+1) Bernoulli rational roster headers+limbs + a divmod/gcd/pow scratch tail,
+ * all at `coeff_limbs` width). */
+size_t srmech_eisenstein_ws_bound(size_t coeff_limbs, size_t k);
+
+/* The exact-rational q-series of E_k = 1 - (2k/B_k) SUM sigma_{k-1}(n) q^n:
+ * out_num[e]/out_den[e] (e = 0..n_terms-1) <- the REDUCED coefficient of q^e
+ * (out_num[0]/out_den[0] = 1/1), *out_len <- n_terms. k must be EVEN >= 2: k>=4 is
+ * the modular E_k; k=2 is the QUASIMODULAR E_2 branch (E_2 = 1 - 24 SUM sigma_1(n)
+ * q^n; same formula at k=2, pref -4/B_2 = -24 — the modularity DECISION stays
+ * Python-side: the Eisenstein(k) carrier still rejects k=2, E_2 enters only via
+ * srmech.amsc.quasimodular_forms_ring). SRMECH_ERR_BAD_INPUT on n_terms<1 / k<2 /
+ * k odd / a NULL pointer; SRMECH_ERR_OVERFLOW if a coefficient or the arena is too
+ * small. */
+srmech_status_t srmech_eisenstein_qseries(
+    size_t k, size_t n_terms, srmech_bigint_t *out_num, srmech_bigint_t *out_den,
+    size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_modular_forms_ring_represent — the EXACT-rational level-1 C[E4,E6]
+ * MODULAR-FORMS-RING MEMBERSHIP DECISION (the C peer of
+ * srmech.amsc.modular_forms_ring.ModularFormsRing.represent; the THIRD rung of the
+ * WEIGHT axis, after the rc82 eta-quotient + rc83 Eisenstein). The structure
+ * theorem M_*(SL2(Z)) = C[E4,E6] made executable: every level-1 weight-k modular
+ * form is a UNIQUE exact-Q polynomial in E4,E6. Given a claimed weight-k q-series
+ * f, this op enumerates the weight-k monomial basis {(a,b): 4a+6b=k}, builds each
+ * column E4^a E6^b (the rc83 srmech_eisenstein_qseries for E4/E6 + an exact-Q
+ * truncated convolution), solves the square leading-d-rows subsystem A x = b by
+ * dispatching to the PUBLIC srmech_qmat_solve (exact Gauss-Jordan over bignum-Q —
+ * reuse, not reimplement), VERIFIES the candidate reproduces EVERY provided term,
+ * and returns the reduced (num, den) rep coefficients with *out_has = 1, or
+ * *out_has = 0 (a non-modular series, or the honest LEVEL-axis OPEN of a
+ * higher-level form). REDUCER (unlike the carrier q-series peers): a Rosetta ledger
+ * op (c_dispatched). Additive symbols -> ABI unchanged (stays 3). The working
+ * carriers + the E4/E6 q-series + the monomial columns + the qmat marshalling are
+ * carved from the caller arena `ws` (>= srmech_modular_forms_ring_represent_ws_
+ * bound); out_num[]/out_den[] are caller-owned (>= mfr_dim(k) srmech_bigint each,
+ * >= srmech_modular_forms_ring_entry_cap limbs). Sign is the Class-K pin-slot,
+ * never ALU abs().
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_modular_forms_ring_represent (the working
+ * carriers + the E4/E6 q-series rosters + the d monomial columns + the qmat
+ * marshalling + the qmat working arena, at `coeff_limbs` width over n_terms terms
+ * and a weight-k basis). */
+size_t srmech_modular_forms_ring_represent_ws_bound(size_t coeff_limbs,
+                                                    size_t n_terms, size_t k);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT rep
+ * arrays (so a reduced result entry never overflows its slot before the op's guard
+ * fires). */
+size_t srmech_modular_forms_ring_entry_cap(size_t coeff_limbs, size_t n_terms,
+                                           size_t k);
+
+/* The level-1 modular-forms-ring membership decision. k is the (even >= 0) claimed
+ * weight; f_n[i]/f_d[i] (i = 0..n_terms-1) the reduced claimed q-series. On a
+ * representable form: *out_has = 1 and out_num[j]/out_den[j] (j = 0..mfr_dim(k)-1)
+ * are the reduced rep coefficients of E4^a E6^b (monomial order, ascending a). On a
+ * non-form / higher-level form: *out_has = 0 (out_* unspecified).
+ * SRMECH_ERR_BAD_INPUT on n_terms < mfr_dim(k)+2 / a NULL pointer / mfr_dim(k) >
+ * the internal MFR_MAX_DIM; SRMECH_ERR_OVERFLOW on an arena shortfall. */
+srmech_status_t srmech_modular_forms_ring_represent(
+    size_t k, const srmech_bigint_t *f_n, const srmech_bigint_t *f_d,
+    size_t n_terms, srmech_bigint_t *out_num, srmech_bigint_t *out_den,
+    size_t *out_has, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_quasimodular_forms_ring_represent — the EXACT-rational level-1 C[E2,E4,E6]
+ * QUASIMODULAR-forms-ring MEMBERSHIP DECISION (the C peer of
+ * srmech.amsc.quasimodular_forms_ring.QuasiModularFormsRing.represent; the FOURTH
+ * rung of the WEIGHT axis, after the rc82 eta-quotient + rc83 Eisenstein + rc84
+ * ModularFormsRing). Kaneko-Zagier M~_*(SL2(Z)) = C[E2,E4,E6] made executable:
+ * every level-1 weight-k quasimodular form is a UNIQUE exact-Q polynomial in
+ * E2,E4,E6. Given a claimed weight-k q-series f, this op enumerates the weight-k
+ * monomial basis {(a,b,c): 2a+4b+6c=k}, builds each column E2^a E4^b E6^c (the rc83
+ * srmech_eisenstein_qseries — k=2 for E2 via its quasimodular branch, k=4/6 for
+ * E4/E6 — + an exact-Q truncated convolution), solves the square leading-d-rows
+ * subsystem A x = b by dispatching to the PUBLIC srmech_qmat_solve (exact
+ * Gauss-Jordan over bignum-Q — reuse, not reimplement), VERIFIES the candidate
+ * reproduces EVERY provided term, and returns the reduced (num, den) rep
+ * coefficients with *out_has = 1, or *out_has = 0 (a non-quasimodular series). The
+ * rc84 modular ring C[E4,E6] is the a=0 subring; this ring genuinely EXTENDS it
+ * (E2^2 @4 -> {(2,0,0):1}, NOT in C[E4,E6]). REDUCER (like
+ * srmech_modular_forms_ring_represent): a Rosetta ledger op (c_dispatched).
+ * Additive symbols -> ABI unchanged (stays 3). The working carriers + the E2/E4/E6
+ * q-series + the monomial columns + the qmat marshalling are carved from the caller
+ * arena `ws` (>= srmech_quasimodular_forms_ring_represent_ws_bound); out_num[]/
+ * out_den[] are caller-owned (>= qmfr_dim(k) srmech_bigint each, >=
+ * srmech_quasimodular_forms_ring_entry_cap limbs). Sign is the Class-K pin-slot,
+ * never ALU abs().
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_quasimodular_forms_ring_represent (the working
+ * carriers + the E2/E4/E6 q-series rosters + the d monomial columns + the qmat
+ * marshalling + the qmat working arena, at `coeff_limbs` width over n_terms terms
+ * and a weight-k basis). */
+size_t srmech_quasimodular_forms_ring_represent_ws_bound(size_t coeff_limbs,
+                                                         size_t n_terms, size_t k);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT rep
+ * arrays (so a reduced result entry never overflows its slot before the op's guard
+ * fires). */
+size_t srmech_quasimodular_forms_ring_entry_cap(size_t coeff_limbs, size_t n_terms,
+                                                size_t k);
+
+/* The level-1 quasimodular-forms-ring membership decision. k is the (even >= 0)
+ * claimed weight; f_n[i]/f_d[i] (i = 0..n_terms-1) the reduced claimed q-series. On
+ * a representable form: *out_has = 1 and out_num[j]/out_den[j] (j = 0..qmfr_dim(k)-1)
+ * are the reduced rep coefficients of E2^a E4^b E6^c (monomial order, ascending a
+ * then b). On a non-form: *out_has = 0 (out_* unspecified). SRMECH_ERR_BAD_INPUT on
+ * n_terms < qmfr_dim(k)+2 / a NULL pointer / qmfr_dim(k) > the internal
+ * QMFR_MAX_DIM; SRMECH_ERR_OVERFLOW on an arena shortfall. */
+srmech_status_t srmech_quasimodular_forms_ring_represent(
+    size_t k, const srmech_bigint_t *f_n, const srmech_bigint_t *f_d,
+    size_t n_terms, srmech_bigint_t *out_num, srmech_bigint_t *out_den,
+    size_t *out_has, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_harmonic_maass — the EXACT-INTEGER q-series of the HOLOMORPHIC mock part
+ * of a HARMONIC (weak) MAASS form (the C peer of
+ * srmech.amsc.harmonic_maass.HarmonicMaass / MockQSeries; the PAIR carrier that
+ * makes research item #9 a finite exact object). A harmonic Maass form f of
+ * weight k is determined by the pair (f+ holomorphic mock part, g = xi_k(f)
+ * shadow); the non-holomorphic completion f- is the Eichler integral of the
+ * shadow, recoverable not stored (Bruinier-Funke, arXiv:math/0212286v4, Prop.
+ * 3.2). The shadow q-series rides the EXISTING srmech_unary_theta peer; this op
+ * mirrors the genuinely-new HOLOMORPHIC computation — Ramanujan's order-3 mock
+ * theta (Zagier, Asterisque 326 (2009), p. 145, Eulerian series)
+ *     f(q) = SUM_{n>=0} q^{n^2} / PROD_{j=1}^n (1+q^j)^2 .
+ * Returns the EXACT INTEGER coefficients out[e] (e=0..N) of f(q) to depth N
+ * (leading power 0), byte-identical to the Python carrier (each out[e] a full
+ * srmech_bigint, no int64 ceiling). Built over exact integer power-series algebra
+ * (truncated product + integer-series reciprocal + q^{n^2} shift); the sign is
+ * the Class-K pin-slot (the reciprocal recurrence's subtraction), never abs().
+ *
+ * Carrier-internal (like srmech_poly / srmech_unary_theta): NOT a Rosetta ledger
+ * op; additive symbols -> ABI unchanged (stays 3). The working power-series cell
+ * banks + temps are carved from the caller arena `ws` (>=
+ * srmech_harmonic_maass_ws_bound). The out[] array is caller-owned (N+1
+ * srmech_bigint, each pre-bound to >= coeff_limbs limbs).
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_harmonic_maass_hol_q_series (the prod/invp/
+ * factor power-series cell banks at `coeff_limbs` width + the mul/accumulate
+ * temps). */
+size_t srmech_harmonic_maass_ws_bound(size_t N, size_t coeff_limbs);
+
+/* The exact integer q-series of f(q) (the order-3 mock theta holomorphic part):
+ * out[e] (e=0..N) <- the coefficient of q^e, *out_len <- N+1.
+ * SRMECH_ERR_OVERFLOW if a coefficient or the arena is too small. */
+srmech_status_t srmech_harmonic_maass_hol_q_series(
+    size_t N, srmech_bigint_t *out, size_t *out_len, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_riemann_theta — the EXACT-INTEGER (A, B, C) EXPONENT LATTICE of a
+ * GENUS-2 RIEMANN THETA-CONSTANT (the C peer of
+ * srmech.amsc.riemann_theta.RiemannTheta; the FIRST RUNG of the GENUS axis). The
+ * genus-2 theta-constant theta[ep'; e](0|Omega) (Grushevsky arXiv:1009.0369 eq.1;
+ * Eilers arXiv:1707.08855 eq.1.2; binary characteristic [ep1,ep2; e1,e2], bits in
+ * {0,1}) is a lattice sum over n in Z^2 of (-1)^{e.n} q1^{m1^2} q2^{m2^2}
+ * q12^{m1 m2}, m_i = n_i + ep'_i/2. Cleared to the quarter-nome base
+ * (Q1,Q2,Q12)=(q1,q2,q12)^{1/4} a term is Q1^A Q2^B Q12^C * (-1)^{e.n} with EXACT
+ * INTEGER exponents A=(2n1+ep1)^2, B=(2n2+ep2)^2, C=(2n1+ep1)(2n2+ep2) (C = the
+ * cross-term, the genus-2 denominator-4 clearing the genus-1 unary-theta never
+ * saw). The lower characteristic e gives the per-term sign (-1)^{e.n} (Class-K
+ * pin-slot, never abs). This op emits the lattice as a flat caller-owned int64
+ * array of [A,B,C,sign] QUADRUPLES (one per lattice point |n_i| <= box, row-major
+ * (n1,n2)); the genus-2 theta-CONSTANT coefficients are small +-1 lattice counts
+ * (int64-exact, no bignum), and the caller accumulates the quadruples into the
+ * canonical {(A,B,C):coeff} lattice (byte-identical to the Python carrier).
+ *
+ * Caller-owned out[] (like srmech_poly / srmech_unary_theta); no malloc. Additive
+ * symbols -> ABI unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs: (2*box+1)^2 lattice points * 4 (A,B,C,sign). */
+size_t srmech_riemann_theta_count(uint32_t box);
+
+/* Emit the [A,B,C,sign] quadruple lattice for characteristic [ep1,ep2; e1,e2]
+ * (bits in {0,1}) over |n_i| <= box, into the caller out[] (out_cap int64);
+ * *out_len <- the number of int64 written (= srmech_riemann_theta_count).
+ * SRMECH_ERR_BAD_INPUT if any bit is not in {0,1}; SRMECH_ERR_OVERFLOW if out[]
+ * is too small. */
+srmech_status_t srmech_riemann_theta_lattice(
+    int ep1, int ep2, int e1, int e2, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc87: EXACT theta evaluation at a RATIONAL argument (the genus-axis
+ * Fay-trisecant / KP-Hirota verifier FOUNDATION). C peers of
+ * RiemannTheta.theta_at (g2) + RiemannThetaG3.theta_at (g3).
+ *
+ * theta at a RATIONAL argument z = z_num/z_den (z_den even = 2N) is exactly
+ * representable: the extra Fourier factor exp(2 pi i (n+ep'/2).z) of each lattice
+ * point is a ROOT OF UNITY zeta_m^{e}, m = 2*z_den, e = SUM_i (2n_i+ep'_i) z_num_i --
+ * an exact element of the cyclotomic ring Z[zeta_m] (NO transcendental eval). These
+ * peers emit, per lattice point |n_i| <= box, the SAME (A,B,C[...]) quarter-nome
+ * exponents as the lattice peer PLUS the phase exponent e_mod = e mod m (in [0,m), a
+ * Class-I cyclic reduction) PLUS the Class-K sign (-1)^{e.n}: a [A,B,C,e_mod,sign]
+ * QUINTUPLE (g2) / [A1,A2,A3,C12,C13,C23,e_mod,sign] OCTUPLE (g3). The Python
+ * marshaller accumulates sign*zeta_m^{e_mod} into the canonical cyclotomic lattice by
+ * reusing the rc29 exact-DFT cyclotomic power basis (srmech.amsc.cascade.exact_dft) --
+ * byte-identical to the pure-Python theta_at. Caller-owned out[] (no malloc), like the
+ * lattice peer; all exact integer, no float, no abs(). Additive symbols -> ABI
+ * unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs for the genus-2 theta_at lattice: (2*box+1)^2
+ * points * 5 [A,B,C,e_mod,sign]. */
+size_t srmech_riemann_theta_at_count(uint32_t box);
+
+/* Emit the genus-2 theta_at [A,B,C,e_mod,sign] quintuple lattice for characteristic
+ * [ep1,ep2; e1,e2] (bits in {0,1}) at rational z=(z1,z2)/z_den, m = 2*z_den (>= 2),
+ * over |n_i| <= box, into the caller out[] (out_cap int64); *out_len <- the number of
+ * int64 written (= srmech_riemann_theta_at_count). SRMECH_ERR_BAD_INPUT if a bit is
+ * not in {0,1} or m < 2; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_at(
+    int ep1, int ep2, int e1, int e2,
+    int64_t z1, int64_t z2, int64_t m, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* The number of int64 a box needs for the genus-3 theta_at lattice: (2*box+1)^3
+ * points * 8 [A1,A2,A3,C12,C13,C23,e_mod,sign]. */
+size_t srmech_riemann_theta_g3_at_count(uint32_t box);
+
+/* Emit the genus-3 theta_at [A1,A2,A3,C12,C13,C23,e_mod,sign] octuple lattice for
+ * characteristic [ep1,ep2,ep3; e1,e2,e3] (bits in {0,1}) at rational
+ * z=(z1,z2,z3)/z_den, m = 2*z_den (>= 2), over |n_i| <= box. SRMECH_ERR_BAD_INPUT if a
+ * bit is not in {0,1} or m < 2; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g3_at(
+    int ep1, int ep2, int ep3, int e1, int e2, int e3,
+    int64_t z1, int64_t z2, int64_t z3, int64_t m, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc88: srmech_riemann_theta_cyc_mul -- the EXACT Z[zeta_m] power-basis MULTIPLY, the
+ * genuinely-new exact-integer kernel behind the genus-axis Fay / Hirota bilinear
+ * VERIFIER (RiemannTheta.addition_holds_at / RiemannThetaG3.addition_holds_at: Riemann's
+ * theta ADDITION FORMULA in second-order theta functions -- Igusa, Theta Functions
+ * (1972) Ch. IV; Mumford, Tata Lectures on Theta I (1983) Ch. II). The rc87 theta_at
+ * gives theta at a rational argument as a {key: Z[zeta_m] coeff} lattice; the verifier's
+ * bilinear product multiplies the cyclotomic COEFFICIENTS (this kernel) and convolves the
+ * integer exponent keys (caller bookkeeping -- the rc73 addition / rc74 Goepel gate
+ * precedent). out[deg] <- a[deg]*b[deg] in Z[zeta_m]: (sum_i a_i z^i)(sum_j b_j z^j) =
+ * sum_ij a_i b_j z^{i+j}, each z^{i+j} reduced to the power basis via the REUSED rc29
+ * exact-DFT reduction table (table[j*deg + k] = coeff k of zeta_m^j, j in [0,m),
+ * deg = phi(m)); byte-identical to the pure-Python _cyc_mul_py. Pure integer (no float,
+ * no abs, no malloc, no goto); int64 fast path GUARDS per-coefficient magnitude (a
+ * Class-K sign-branch range read) -> SRMECH_ERR_OVERFLOW makes the caller run the pure
+ * bignum path. out[] MUST NOT alias a or b. SRMECH_ERR_BAD_INPUT on NULL / deg == 0 /
+ * deg > 16 / m < 2. Additive symbol -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_riemann_theta_cyc_mul(
+    const int64_t *a, const int64_t *b, uint32_t deg,
+    const int64_t *table, uint32_t m, int64_t *out);
+
+/* ------------------------------------------------------------------ *
+ * rc73 (SECOND GENUS RUNG): the Sp(4,Z) characteristic TRANSFORMATION + the
+ * EIGHTH-nome lattice (the addition gate). C peers of
+ * RiemannTheta.transform / .addition_holds.
+ *
+ * The genus-2 modular group Sp(2g,Z)=Sp(4,Z) acts on the binary characteristic
+ * m=[ep'; ep] by the EXACT affine-linear map (Igusa, Theta Functions (1972) V.1;
+ * DLMF 21.5.9): ep' |-> D ep' - C ep + diag(C D^T); ep |-> -B ep' + A ep +
+ * diag(A B^T) (mod 2 for the bit; parity even<->even/odd<->odd preserved). The
+ * theta-constant gains an 8th-root multiplier zeta_8^k carried as the EXACT integer
+ * exponent k in Z/8 from the Igusa phase phi_m (8*phi_m integer). The TRANSCENDENTAL
+ * det(C Omega+D)^{1/2} is NOT computed (off the decision path). All exact
+ * integer / mod-2; no float, no abs(). Additive symbols -> ABI unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* Transform characteristic [ep1,ep2; e1,e2] (bits in {0,1}) under gamma[16] (the
+ * A,B,C,D 2x2 blocks, row-major). out_char[4] <- (ep1',ep2',e1',e2') bits;
+ * *kexp <- the multiplier exponent k in {0..7} (multiplier = zeta_8^k).
+ * SRMECH_ERR_BAD_INPUT if a bit is invalid or gamma is not symplectic. */
+srmech_status_t srmech_riemann_theta_sp4_char(
+    const int64_t *gamma, int ep1, int ep2, int e1, int e2,
+    int *out_char, int *kexp);
+
+/* The number of int64 a box needs for the eighth-nome lattice (same shape as the
+ * quarter-nome count: (2*box+1)^2 points * 4 [A,B,C,sign]). */
+size_t srmech_riemann_theta_eighth_count(uint32_t box);
+
+/* Emit the eighth-nome [A,B,C,sign] quadruple lattice over |n_i| <= box: the
+ * common base Q8=q^{1/8} so theta at Omega (at_two_omega=0: A=2(2n+s)^2 ...) and
+ * at 2*Omega (at_two_omega=1: A=(4n+s)^2 ...) share ONE integer lattice (the
+ * addition identity is a lattice equality). s1,s2 = DOUBLED upper characteristic
+ * (any int); e1,e2 in {0,1} the lower sign characteristic. SRMECH_ERR_BAD_INPUT if
+ * e-bit invalid; SRMECH_ERR_OVERFLOW if out[] too small. */
+srmech_status_t srmech_riemann_theta_eighth_lattice(
+    int s1, int s2, int e1, int e2, int at_two_omega, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* rc74: the GENUS-AXIS CAPSTONE — the Thomae / Rosenhain bridge. The genuinely-new
+ * exact-integer content is the Eilers genus-2 ETA-MAP (arXiv:1707.08855, eq 4.4):
+ * the (mod-2) characteristic [eps(I)] = SUM_{k in I} [A_k] - [K_inf] of a
+ * branch-point index set I (subset of {1..6}, e6 = inf), where [A_k] are the Eilers
+ * eq.(4.2) Abelian-image characteristics and [K_inf] = [A_2]+[A_4]+[A_6] (eq 4.3,
+ * the vector of Riemann constants). This is the characteristic ASSIGNMENT behind
+ * BOTH the symbolic Rosenhain lambda-map (the moduli as theta-null ratios, Cor 2.4)
+ * AND the Frobenius/Goepel even-null syzygy. Pure GF(2) linear algebra: exact
+ * integer / mod-2, no float, no abs() (subtraction == addition in (Z/2)^4). The
+ * Goepel relation gate itself convolves srmech_riemann_theta_lattice outputs
+ * (caller bookkeeping, already C-backed), so the eta-map is rc74's new C kernel.
+ * Additive symbol -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The Eilers genus-2 eta-map: branch-point index set -> characteristic. indices[]
+ * holds n_idx branch-point indices (each in {1..6}); out_char[4] <- (ep1,ep2,e1,e2)
+ * the (mod-2) characteristic bits of [eps(I)]. SRMECH_ERR_BAD_INPUT if any index is
+ * out of {1..6} or out_char/indices is NULL. */
+srmech_status_t srmech_riemann_theta_eta_char(
+    const int *indices, size_t n_idx, int *out_char);
+
+/* ------------------------------------------------------------------ *
+ * rc75 (NEXT GENUS RUNG): the GENUS-3 EXACT-INTEGER EXPONENT LATTICE — the C peer
+ * of srmech.amsc.riemann_theta.RiemannThetaG3, the genus-3 analog of the rc72
+ * genus-2 peer. The genus-3 theta-constant theta[ep'; e](0|Omega) (Grushevsky
+ * arXiv:1009.0369 eq.1, the g=3 specialization; binary characteristic
+ * [ep1,ep2,ep3; e1,e2,e3], six bits in {0,1}) is a lattice sum over n in Z^3 of
+ * (-1)^{e.n} q1^{m1^2} q2^{m2^2} q3^{m3^2} q12^{m1 m2} q13^{m1 m3} q23^{m2 m3},
+ * m_i = n_i + ep'_i/2. Cleared to the quarter-nome base (Q_i,Q_ij)=(q_i,q_ij)^{1/4}
+ * a term is Q1^A1 Q2^A2 Q3^A3 Q12^C12 Q13^C13 Q23^C23 * (-1)^{e.n} with EXACT INTEGER
+ * exponents A_i=(2n_i+ep_i)^2 and the THREE cross-terms C_ij=(2n_i+ep_i)(2n_j+ep_j)
+ * (genus 2 had ONE cross-term; genus 3 has THREE -- the hardest part). The lower
+ * characteristic e gives the per-term sign (-1)^{e.n} (Class-K pin-slot, never abs).
+ * This op emits the lattice as a flat caller-owned int64 array of
+ * [A1,A2,A3,C12,C13,C23,sign] SEPTUPLES (one per lattice point |n_i| <= box, row-major
+ * (n1,n2,n3)); the genus-3 theta-CONSTANT coefficients are small +-1 lattice counts
+ * (int64-exact, no bignum), and the caller accumulates the septuples into the
+ * canonical {(A1,A2,A3,C12,C13,C23):coeff} lattice (byte-identical to the Python
+ * carrier). Caller-owned out[]; no malloc. Additive symbol -> ABI unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs: (2*box+1)^3 lattice points * 7
+ * (A1,A2,A3,C12,C13,C23,sign). */
+size_t srmech_riemann_theta_g3_count(uint32_t box);
+
+/* Emit the genus-3 [A1,A2,A3,C12,C13,C23,sign] septuple lattice for characteristic
+ * [ep1,ep2,ep3; e1,e2,e3] (bits in {0,1}) over |n_i| <= box, into the caller out[]
+ * (out_cap int64); *out_len <- the number of int64 written (= the g3 count).
+ * SRMECH_ERR_BAD_INPUT if any bit is not in {0,1}; SRMECH_ERR_OVERFLOW if out[] is
+ * too small. */
+srmech_status_t srmech_riemann_theta_g3_lattice(
+    int ep1, int ep2, int ep3, int e1, int e2, int e3, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc80 (NEXT GENUS RUNG, the SCHOTTKY FRONTIER): the GENUS-4 EXACT-INTEGER EXPONENT
+ * LATTICE — the C peer of srmech.amsc.riemann_theta.RiemannThetaG4, the genus-4 analog
+ * of the rc75 genus-3 peer. The genus-4 theta-constant theta[ep'; e](0|Omega)
+ * (Grushevsky arXiv:1009.0369 eq.1, the g=4 specialization; binary characteristic
+ * [ep1,ep2,ep3,ep4; e1,e2,e3,e4], eight bits in {0,1}) is a lattice sum over n in Z^4 of
+ * (-1)^{e.n} prod_i q_i^{m_i^2} prod_{i<j} q_ij^{m_i m_j}, m_i = n_i + ep'_i/2. Cleared
+ * to the quarter-nome base (Q_i,Q_ij)=(q_i,q_ij)^{1/4} a term is
+ *  Q1^A1 Q2^A2 Q3^A3 Q4^A4 Q12^C12 Q13^C13 Q14^C14 Q23^C23 Q24^C24 Q34^C34 *(-1)^{e.n}
+ * with EXACT INTEGER exponents A_i=(2n_i+ep_i)^2 and the SIX cross-terms
+ * C_ij=(2n_i+ep_i)(2n_j+ep_j) for the 6 pairs {12,13,14,23,24,34} (genus 2 had ONE,
+ * genus 3 THREE, genus 4 SIX -- the scaling difficulty). The lower characteristic e
+ * gives the per-term sign (-1)^{e.n} (Class-K pin-slot, never abs). This op emits the
+ * lattice as a flat caller-owned int64 array of
+ * [A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign] 11-TUPLES (one per lattice point
+ * |n_i| <= box, row-major (n1,n2,n3,n4)); the genus-4 theta-CONSTANT coefficients are
+ * small +-1 lattice counts (int64-exact, no bignum), and the caller accumulates the
+ * 11-tuples into the canonical {(A1..A4,C12,C13,C14,C23,C24,C34):coeff} lattice
+ * (byte-identical to the Python carrier). Caller-owned out[]; no malloc. Additive symbol
+ * -> ABI unchanged (stays 3). NOTE: (2*box+1)^4 grows fast -- keep box small (2 or 3);
+ * the formal relations are box-stable. The Schottky-frontier OPEN (the numerical
+ * Jacobian decision) is DOCUMENTED in the Python carrier, NOT built here.
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs: (2*box+1)^4 lattice points * 11
+ * (A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign). */
+size_t srmech_riemann_theta_g4_count(uint32_t box);
+
+/* Emit the genus-4 [A1,A2,A3,A4,C12,C13,C14,C23,C24,C34,sign] 11-tuple lattice for
+ * characteristic [ep1,ep2,ep3,ep4; e1,e2,e3,e4] (bits in {0,1}) over |n_i| <= box, into
+ * the caller out[] (out_cap int64); *out_len <- the number of int64 written (= the g4
+ * count). SRMECH_ERR_BAD_INPUT if any bit is not in {0,1}; SRMECH_ERR_OVERFLOW if out[]
+ * is too small. */
+srmech_status_t srmech_riemann_theta_g4_lattice(
+    int ep1, int ep2, int ep3, int ep4, int e1, int e2, int e3, int e4, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc86 (NEXT GENUS RUNG, PAST the SCHOTTKY FRONTIER): the GENUS-5 EXACT-INTEGER EXPONENT
+ * LATTICE -- the C peer of srmech.amsc.riemann_theta.RiemannThetaG5, the genus-5 analog
+ * of the rc80 genus-4 peer. The genus-5 theta-constant theta[ep'; e](0|Omega) (binary
+ * characteristic [ep1..ep5; e1..e5], ten bits in {0,1}) is a lattice sum over n in Z^5;
+ * cleared to the quarter-nome base a term is prod_i Q_i^{A_i} prod_{i<j} Q_ij^{C_ij}
+ * *(-1)^{e.n} with A_i=(2n_i+ep_i)^2 and the TEN cross-terms C_ij=(2n_i+ep_i)(2n_j+ep_j)
+ * over the 10 pairs {12,13,14,15,23,24,25,34,35,45} (genus 4 had SIX -- the scaling
+ * difficulty). Emits the lattice as a flat caller-owned int64 array of
+ * [A1..A5,C12,C13,C14,C15,C23,C24,C25,C34,C35,C45,sign] 16-TUPLES (one per lattice point
+ * |n_i| <= box, row-major (n1,n2,n3,n4,n5)); the genus-5 theta-CONSTANT coefficients are
+ * small +-1 lattice counts (int64-exact, no bignum), and the caller accumulates the
+ * 16-tuples into the canonical {(A1..A5,C12..C45):coeff} lattice (byte-identical to the
+ * Python carrier). Caller-owned out[]; no malloc. Additive symbol -> ABI unchanged
+ * (stays 3). NOTE: (2*box+1)^5 grows FAST -- keep box small (1 or 2; box >= 3 is
+ * catastrophic); the formal relations are box-stable. The genuinely-OPEN genus-5 Schottky
+ * decision (NO single modular form cuts J_5: dim A_5 = 15, dim J_5 = 12, codim 3 -- NOT a
+ * hypersurface) is DOCUMENTED in the Python carrier, NOT built here.
+ * ------------------------------------------------------------------ */
+
+/* The number of int64 a box needs: (2*box+1)^5 lattice points * 16
+ * (A1..A5,C12,C13,C14,C15,C23,C24,C25,C34,C35,C45,sign). */
+size_t srmech_riemann_theta_g5_count(uint32_t box);
+
+/* Emit the genus-5 [A1..A5,C12,C13,C14,C15,C23,C24,C25,C34,C35,C45,sign] 16-tuple lattice
+ * for characteristic [ep1..ep5; e1..e5] (bits in {0,1}) over |n_i| <= box, into the caller
+ * out[] (out_cap int64); *out_len <- the number of int64 written (= the g5 count).
+ * SRMECH_ERR_BAD_INPUT if any bit is not in {0,1}; SRMECH_ERR_OVERFLOW if out[] is too
+ * small. */
+srmech_status_t srmech_riemann_theta_g5_lattice(
+    int ep1, int ep2, int ep3, int ep4, int ep5,
+    int e1, int e2, int e3, int e4, int e5, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc81 (the GENUS-4 CAPSTONE): the SCHOTTKY FORM J = theta^4(E8+E8) - theta^4(E16)
+ * representation-number COUNTER -- the C peer of
+ * srmech.amsc.riemann_theta.SchottkyFormG4._count_gram_py.
+ *
+ * The Schottky form J (weight-8 degree-4 level-1 Siegel CUSP form whose vanishing cuts
+ * the genus-4 Jacobian locus = the Schottky problem's g=4 solution; Schottky 1888, Igusa
+ * 1981, Poor-Yuen 1996) is the difference of the genus-4 theta-SERIES of the two rank-16
+ * even-unimodular lattices E8+E8 and E16=D16+. Organized by the Gram matrix T of a g-tuple
+ * of lattice vectors, J's coefficient at T is the EXACT INTEGER representation-number
+ * difference r_{E8+E8}(T) - r_{E16}(T) (by Witt 1941 these EQUAL for g<=3 and FIRST DIFFER
+ * at g=4, so the difference is the nonzero Schottky cusp form). This op COUNTS r_L(T) over
+ * the MINIMAL shell (norm-2 vectors; the leading part of J) for one lattice. The vectors
+ * are passed DOUBLED (real coords *2 -> half-integer coords are exact odd ints, no float),
+ * so the doubled inner <2u,2v> = 4<u,v> IS the q_ij quarter-nome exponent (diagonal 8 =
+ * norm 2; off-diagonal in {-8,-4,0,4,8}). The count is a pure NON-NEGATIVE integer tally
+ * (no sign, NO abs()), walking the inner-value BITSET table (Class-L adjacency-by-inner-
+ * value). Caller arena (no malloc): srmech_riemann_theta_g4_schottky_arena(n) uint64.
+ * Additive symbols -> ABI stays 3.
+ * ------------------------------------------------------------------ */
+
+/* The uint64 the count op's caller arena needs: bitset table (n*5*ceil(n/64)) + one
+ * scratch bitset (ceil(n/64)). The Python marshaller sizes the arena from this. */
+size_t srmech_riemann_theta_g4_schottky_arena(size_t n);
+
+/* Count ordered g-tuples of minimal (doubled) vectors vecs[n*dim] whose OFF-DIAGONAL
+ * doubled Gram is gram_off[k], k = genus*(genus-1)/2 (genus in {1,2,3,4}; the diagonal is
+ * 8 = norm 2). *out_count <- the exact non-negative count. arena (arena_cap uint64) >=
+ * srmech_riemann_theta_g4_schottky_arena(n). SRMECH_ERR_BAD_INPUT: unsupported genus,
+ * n=0/dim=0, n > 1024, or an off-Gram value outside {-8,-4,0,4,8}; SRMECH_ERR_OVERFLOW:
+ * arena too small; SRMECH_ERR_NULL_ARG: NULL pointers. */
+srmech_status_t srmech_riemann_theta_g4_schottky_count(
+    const int64_t *vecs, size_t n, size_t dim, int genus,
+    const int64_t *gram_off, uint64_t *arena, size_t arena_cap,
+    int64_t *out_count);
+
+/* The int64 the shell op's out[] needs: at most 5^(genus*(genus-1)/2) rows, each
+ * (genus*(genus-1)/2 off-values + 1 count). genus in {1,2,3,4}. */
+size_t srmech_riemann_theta_g4_schottky_shell_count(int genus);
+
+/* The FULL minimal-shell off-Gram HISTOGRAM for one lattice: for every off-Gram pattern
+ * with a NONZERO count, emit the row [off_1..off_noff, count] (noff = genus*(genus-1)/2;
+ * off values the doubled inners in {-8,-4,0,4,8}) into out[] (out_cap int64); *out_len <-
+ * the number of int64 written. The bitset table is built ONCE; the patterns are walked
+ * mixed-radix over the 5 classes. arena per srmech_riemann_theta_g4_schottky_arena(n).
+ * Mirrors SchottkyFormG4._full_shell_grams_py. SRMECH_ERR_OVERFLOW if out[] (size via
+ * srmech_riemann_theta_g4_schottky_shell_count) is too small. */
+srmech_status_t srmech_riemann_theta_g4_schottky_shell(
+    const int64_t *vecs, size_t n, size_t dim, int genus,
+    uint64_t *arena, size_t arena_cap, int64_t *out, size_t out_cap,
+    size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc76: IGUSA'S chi_18 — the EXACT product of the 36 even genus-3 theta-nulls (the
+ * genus-3 hyperelliptic / vanishing-theta-null structure as an exact formal q-series).
+ * The C peer of srmech.amsc.riemann_theta.RiemannThetaG3.chi18_leading_part.
+ *
+ * chi_18 in S_18(Gamma_3) is the weight-18 degree-3 Siegel cusp form DEFINED AS THE
+ * PRODUCT OF ALL 36 EVEN THETA-CONSTANTS (each theta-null weight 1/2 -> 36*1/2 = 18;
+ * Bernatska-Kopeliovich arXiv:2306.14889 p.1; van der Geer SMF Degree 2&3 + Invariant
+ * Theory). Divisor = H_3 + 2D -> vanishes exactly on the genus-3 hyperelliptic locus.
+ * This op emits the EXACT LEADING-ORDER HOMOGENEOUS PART (the cusp-vanishing structure)
+ * as a flat int64 array of [A1,A2,A3,C12,C13,C23,coeff] septuples — NONZERO, at
+ * diagonal quarter-order 48 (= 12 in q_i). Caller-arena (one int64 work[] sized via
+ * the count helper) ping-ponged; no malloc. Additive symbols -> ABI stays 3. */
+
+/* The number of int64 the work arena needs (THREE buffers, box-independent). */
+size_t srmech_riemann_theta_g3_chi18_count(uint32_t box);
+
+/* Emit Igusa's chi_18 leading-part [A1,A2,A3,C12,C13,C23,coeff] septuples into out[]
+ * (out_cap int64); work[] is the caller arena (work_cap int64, >= the count helper);
+ * *out_len <- int64 written. box is for signature parity (must be >= 1).
+ * SRMECH_ERR_BAD_INPUT on box==0 / undersized work; SRMECH_ERR_OVERFLOW on undersized
+ * out[] or an over-cap accumulator. */
+srmech_status_t srmech_riemann_theta_g3_chi18(
+    uint32_t box, int64_t *work, size_t work_cap,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc77: the genus-3 Sp(6,Z) modular TRANSFORMATION on the characteristics + the
+ * genus-3 two-argument ADDITION theorem (the g=2->g=3 parametric extension of the
+ * rc73 Sp(4,Z) transform + addition). The C peers of
+ * srmech.amsc.riemann_theta.RiemannThetaG3.{transform,addition_*}.
+ *
+ * (A) srmech_riemann_theta_g3_sp6_char -- the EXACT integer Sp(6,Z) characteristic
+ *     action ep' |-> D ep' - C ep + diag(C D^T), ep |-> -B ep' + A ep + diag(A B^T)
+ *     (DLMF 21.5.9, general genus g; here 3x3 blocks, gamma is 36 int64 A,B,C,D
+ *     row-major) + the EXACT 8th-root multiplier exponent k in Z/8 (the Igusa phase
+ *     8*phi_m; the transcendental det(C Om + D)^{1/2} is OFF the decision path).
+ * (B) srmech_riemann_theta_g3_eighth_lattice -- the COMMON eighth-nome genus-3
+ *     lattice at Omega / 2Omega that the addition gate (DLMF 21.6.8, g=3, sum over
+ *     nu in (Z/2)^3) convolves; [A1,A2,A3,C12,C13,C23,sign] septuples.
+ * Caller-owned out[]; no malloc. Additive symbols -> ABI unchanged (stays 3). */
+
+/* Emit the genus-3 Sp(6,Z) transformed characteristic + kappa exponent. gamma[36] =
+ * A,B,C,D 3x3 blocks (row-major); out_char[6] <- (ep1',ep2',ep3',e1',e2',e3') bits;
+ * *kexp <- k in {0..7} (multiplier = zeta_8^k). SRMECH_ERR_BAD_INPUT if a bit is
+ * invalid or gamma is not symplectic. */
+srmech_status_t srmech_riemann_theta_g3_sp6_char(
+    const int64_t *gamma, int ep1, int ep2, int ep3, int e1, int e2, int e3,
+    int *out_char, int *kexp);
+
+/* The number of int64 a box needs for the genus-3 eighth-nome lattice: (2*box+1)^3
+ * lattice points * 7 (A1,A2,A3,C12,C13,C23,sign). */
+size_t srmech_riemann_theta_g3_eighth_count(uint32_t box);
+
+/* Emit the genus-3 eighth-nome [A1,A2,A3,C12,C13,C23,sign] septuple lattice for the
+ * DOUBLED upper characteristic s=(s1,s2,s3) + lower char (e1,e2,e3), at Omega
+ * (at_two_omega=0: A=2(2n+s)^2 ...) or 2Omega (at_two_omega=1: A=(4n+s)^2 ...) over
+ * |n_i|<=box, row-major; *out_len <- int64 written. SRMECH_ERR_BAD_INPUT if a
+ * lower-char bit is invalid; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g3_eighth_lattice(
+    int s1, int s2, int s3, int e1, int e2, int e3, int at_two_omega, uint32_t box,
+    int64_t *out, size_t out_cap, size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * rc78: the genus-3 GÖPEL / FROBENIUS quadratic theta-null SYZYGY gate — the C peer of
+ * srmech.amsc.riemann_theta.RiemannThetaG3.goepel_holds.
+ *
+ * The genus-3 GÖPEL/FROBENIUS quadratic relation among the even theta-NULLS (the
+ * genus-3 analog of the genus-2 rc74 Göpel syzygy) — a 4-PAIR / 8-NULL same-Omega
+ * relation `theta^2[a]theta^2[b] = theta^2[c]theta^2[d] + theta^2[e]theta^2[f]
+ * - theta^2[g]theta^2[h]` among the eight even nulls a=[000;001] b=[111;110]
+ * c=[000;010] d=[111;101] e=[001;000] f=[110;111] g=[010;000] h=[101;111], all summing
+ * to [1,1,1;1,1,1] (a genus-3 Goepel/azygetic system). The genus-2-style 6-null lift
+ * does NOT hold for g=3 (exhaustively checked) — the 4-term form is the genuine minimal
+ * genus-3 syzygy. Glass, Compositio Math 40 (1980) §3 (products-of-squares, coeffs +-1);
+ * Fiorentino-Salvati Manni SIGMA 16 (2020) 057; Igusa Theta Functions (1972) §IV/V; van
+ * der Geer SMF Degree 2&3. Holds for ALL Omega; decided EXACTLY on the box-stable safe
+ * inner region (each A_i, |C_ij| <= box^2). Caller-arena (one int64 work[] sized via the
+ * count helper); no malloc. Additive symbols -> ABI stays 3. */
+
+/* The number of int64 the caller work arena needs (THREE buffers, box-independent). */
+size_t srmech_riemann_theta_g3_goepel_count(uint32_t box);
+
+/* Decide the genus-3 Goepel syzygy gate over the box-stable safe region. work[] is the
+ * caller arena (work_cap int64, >= the count helper); *out_holds <- 1 iff LHS == RHS
+ * (residual empty), *out_has_cross <- 1 iff a genuine genus-3 cross-term (C13 or C23
+ * != 0) populates the LHS safe region. SRMECH_ERR_BAD_INPUT on box<3 / undersized work;
+ * SRMECH_ERR_OVERFLOW on an over-cap accumulator. */
+srmech_status_t srmech_riemann_theta_g3_goepel(
+    uint32_t box, int64_t *work, size_t work_cap,
+    int *out_holds, int *out_has_cross);
+
+/* ------------------------------------------------------------------ *
+ * rc85: the genus-4 Sp(8,Z) modular TRANSFORMATION on the characteristics + the
+ * genus-4 two-argument ADDITION theorem + the genus-4 universal GOEPEL relation gate
+ * (the g=3->g=4 parametric extension of the rc77/rc78 genus-3 peers — closes the
+ * genus-ladder modular-action gap so the g1->g4 ladder is uniform). The C peers of
+ * srmech.amsc.riemann_theta.RiemannThetaG4.{transform, addition_*, goepel_holds}.
+ * DLMF 21.5.9 / 21.6.8 hold for general genus g; here 4x4 blocks / 4-vectors over an
+ * 8x8 symplectic gamma (64 int64 A,B,C,D row-major). Caller-owned out[] / caller arena;
+ * no malloc. Additive symbols -> ABI unchanged (stays 3). */
+
+/* Emit the genus-4 Sp(8,Z) transformed characteristic + kappa exponent. gamma[64] =
+ * A,B,C,D 4x4 blocks (row-major); out_char[8] <- (ep1'..ep4',e1'..e4') bits; *kexp <- k
+ * in {0..7} (multiplier = zeta_8^k). SRMECH_ERR_BAD_INPUT if a bit is invalid or gamma
+ * is not symplectic. */
+srmech_status_t srmech_riemann_theta_g4_sp8_char(
+    const int64_t *gamma, int ep1, int ep2, int ep3, int ep4,
+    int e1, int e2, int e3, int e4, int *out_char, int *kexp);
+
+/* The number of int64 a box needs for the genus-4 eighth-nome lattice: (2*box+1)^4
+ * lattice points * 11 (A1..A4,C12,C13,C14,C23,C24,C34,sign). */
+size_t srmech_riemann_theta_g4_eighth_count(uint32_t box);
+
+/* Emit the genus-4 eighth-nome [A1..A4,C12,C13,C14,C23,C24,C34,sign] 11-tuple lattice
+ * for the DOUBLED upper characteristic s=(s1..s4) + lower char (e1..e4), at Omega
+ * (at_two_omega=0: A=2(2n+s)^2 ...) or 2Omega (at_two_omega=1: A=(4n+s)^2 ...) over
+ * |n_i|<=box, row-major; *out_len <- int64 written. SRMECH_ERR_BAD_INPUT if a
+ * lower-char bit is invalid; SRMECH_ERR_OVERFLOW if out[] is too small. */
+srmech_status_t srmech_riemann_theta_g4_eighth_lattice(
+    int s1, int s2, int s3, int s4, int e1, int e2, int e3, int e4,
+    int at_two_omega, uint32_t box, int64_t *out, size_t out_cap, size_t *out_len);
+
+/* The number of int64 the caller work arena needs for the genus-4 Goepel gate (THREE
+ * buffers, box-independent / capped). */
+size_t srmech_riemann_theta_g4_goepel_count(uint32_t box);
+
+/* Decide the genus-4 universal Goepel relation gate over the box-stable safe region. An
+ * 8-PAIR / 16-NULL same-Omega relation Sum sign*theta^2[a]theta^2[b] == 0 among even
+ * theta-nulls all summing to [1,1,1,1;1,1,1,1] (the genus-4 instance of the goepel_holds
+ * surface g2/g3 expose; Glass Compositio Math 40 (1980); Fiorentino-Salvati Manni SIGMA
+ * 16 (2020) 057; Igusa Theta Functions (1972) SS IV/V). work[] is the caller arena
+ * (work_cap int64, >= the count helper); *out_holds <- 1 iff the relation holds (residual
+ * empty), *out_has_cross <- 1 iff a genuine genus-4 cross-term (C14, C24 or C34 != 0)
+ * populates the LHS safe region. SRMECH_ERR_BAD_INPUT on box<2 / undersized work;
+ * SRMECH_ERR_OVERFLOW on an over-cap accumulator. */
+srmech_status_t srmech_riemann_theta_g4_goepel(
+    uint32_t box, int64_t *work, size_t work_cap,
+    int *out_holds, int *out_has_cross);
+
+/* ------------------------------------------------------------------ *
+ * rc107: the generic SPARSE SAFE-SUPPORT GATE DECISION kernel — the ONE C peer of
+ * ALL the genus-axis theta identity/distinctness gates (g in {2..5}: the
+ * duplication / addition / Goepel *_holds gates and the *_is_distinct_* gates of
+ * srmech.amsc.riemann_theta.{RiemannTheta, RiemannThetaG3, RiemannThetaG4,
+ * RiemannThetaG5} — the #707 dive's SAFE-REGION PUSH-DOWN, Deliverable B1).
+ *
+ * Every gate compares two signed sums of theta-lattice PRODUCTS only on the safe
+ * inner region {A_i <= safe, |C_ij| <= safe}. The diagonal exponents A_i are
+ * non-negative and ADD under the lattice convolution, so a product monomial inside
+ * the safe region can only come from factor monomials each with A_i <= safe — each
+ * factor is therefore enumerated DIRECTLY on its safe support {u : dc*u^2 <= safe}
+ * (the exact safe region of the INFINITE theta series; box-parameter-free) and the
+ * convolutions carry a diagonal-additivity guard. Bit-identical to the dense
+ * box-enumerate-then-restrict path on the compared region (measured x48..x6900).
+ *
+ * The gate ships its comparison list as an int32 SPEC (built by the Python side —
+ * the single SSOT of the pair/syzygy data), parsed sequentially:
+ *   per comparison: [n_lhs, n_rhs] then (n_lhs + n_rhs) products;
+ *   per product:    [sign(+-1), n_factors(2 or 4)] then n_factors factor specs;
+ *   per factor:     [dc, step, a[0..g-1], e[0..g-1]]   (2 + 2g int32)
+ * where a factor's terms are u_i = step*n_i + a_i with diagonal dc*u_i^2, cross
+ * dc*u_i*u_j and Class-K sign (-1)^{e.n}. Per comparison the kernel accumulates
+ * the LHS products into a hash-table residual (out_cross[c] <- 1 iff a surviving
+ * LHS monomial carries a genus-g cross-term C_{i,g} != 0), then subtracts the RHS
+ * products; out_equal[c] <- 1 iff the residual vanishes (LHS == RHS on the safe
+ * region). restrict_crosses=1 applies the full safe cut (A_i AND |C_ij| <= safe);
+ * 0 is the diagonal-only mode of the _diag_restrict-shaped distinctness gates.
+ *
+ * ONE call decides a WHOLE gate (no per-lattice marshaling — the rc106 finding
+ * that round-tripping the eighth-nome lattices through ctypes was a net slowdown).
+ * Caller-arena (one int64 work[] sized via the count helper — a main hash table +
+ * four aux tables, per-genus compiled caps); no malloc. Overflowing a cap returns
+ * SRMECH_ERR_OVERFLOW and the Python side falls to the pure sparse body. Additive
+ * symbols -> ABI unchanged (stays 3). */
+
+/* The number of int64 the caller work arena needs for genus g (2..5) — the main
+ * accumulator hash table + 2 factor + 2 intermediate aux tables, each slot
+ * [used, key(g + g(g-1)/2), coeff]. Box/safe-independent (per-genus compiled
+ * caps). Returns 0 for an out-of-range genus. */
+size_t srmech_riemann_theta_gate_count(uint32_t g);
+
+/* Decide n_comparisons gate comparisons over the safe region (see the block
+ * comment above for the spec wire format). out_equal[] / out_cross[] are
+ * caller-owned int32[n_comparisons]. SRMECH_ERR_BAD_INPUT on a malformed spec /
+ * out-of-range genus / negative safe / undersized work; SRMECH_ERR_OVERFLOW when
+ * a table cap is exceeded (the caller falls to the pure path). */
+srmech_status_t srmech_riemann_theta_gate_decide(
+    uint32_t g, int64_t safe, uint32_t restrict_crosses,
+    const int32_t *spec, size_t spec_len, uint32_t n_comparisons,
+    int64_t *work, size_t work_cap,
+    int32_t *out_equal, int32_t *out_cross);
+
+/* ------------------------------------------------------------------ *
+ * rc226: srmech_riemann_theta_fay_certificate — the C peer of the genus-2
+ * Fay/KP RE-INDEXING CERTIFICATE
+ * (srmech.amsc.riemann_theta.RiemannTheta.fay_reindexing_certificate), which
+ * upgrades the rc73 addition_holds SAFE-REGION boolean into an explicit,
+ * EVERY-ORDER witness for the genus-2 theta addition / Fay-Hirota-shadow
+ * bilinear identity (DLMF 21.6.8, z=0) via the re-indexing bijection
+ * phi: (m,m') -> (m+m', m-m') on Z^2 x Z^2 (the mod-2 parity class IS the
+ * RHS r-sum). Verifies the certificate's exact structural facts: (1) the
+ * PARALLELOGRAM quadratic-form identity 2u^2+2u'^2 = (u+u')^2+(u-u')^2 (per
+ * coordinate + the polarized cross form) as an exact CLOSED-FORM polynomial
+ * identity in canonical monomial form over Z[u1,u2,u1',u2'] (index-independent
+ * = the every-order content; never sampled) -> *out_par_ok; (2) the bijection
+ * key-equality + mod-4 sector congruences + phi-inverse round-trip over the
+ * bounded ILLUSTRATION window |n_i|,|n'_i| <= box -> *out_window_ok /
+ * *out_tuples (the illustration, NOT the proof); (3) the BEYOND-SAFE-REGION
+ * witness monomial (witness_a, witness_b, witness_c): its FULL exact
+ * coefficient on both sides (complete — the non-negative diagonal exponents
+ * bound every contributing index) -> *out_witness_lhs / *out_witness_rhs.
+ * The pure-Python bodies are the complete alternative + the parity oracle.
+ * SRMECH_ERR_BAD_INPUT on a non-bit characteristic, box > 2047 (the derived
+ * int64 window bound), or a witness key outside the box-derived bounds
+ * (diagonals in [0, 4*(2*box+1)^2], 2|C| <= A+B). Additive symbol -> ABI
+ * unchanged (stays 4). It does NOT decide is-Jacobian / the curve-specific
+ * Fay trisecant (the Schottky problem, genuinely open for genus >= 5). */
+srmech_status_t srmech_riemann_theta_fay_certificate(
+    int a1, int a2, int b1, int b2, uint32_t box,
+    int64_t witness_a, int64_t witness_b, int64_t witness_c,
+    int *out_par_ok, int *out_window_ok, int64_t *out_tuples,
+    int64_t *out_witness_lhs, int64_t *out_witness_rhs);
+
+/* ------------------------------------------------------------------ *
+ * srmech_tripoly — EXACT-RATIONAL TRIVARIATE polynomial over srmech_bigint (the
+ * C peer of srmech.amsc.tripoly.TriPoly; the multivariate "sums of sums"
+ * creative-telescoping foundation, the 3-variable sibling of BiPoly).
+ *
+ * A TriPoly is an exact-Q polynomial in the free variable n and two summation
+ * variables j, k, carried as a ROW-MAJOR (j, k) GRID of n-polynomials: the grid
+ * has aj = (j-degree + 1) rows and ak = (k-degree + 1) columns; the cell
+ * (dj, dk) at flat index dj*ak + dk is an n-polynomial — a run of exact-rational
+ * coefficients in ASCENDING n-degree. The cell n-runs are CONCATENATED in a
+ * single pair of caller-owned srmech_bigint arrays (nums[] / dens[], ascending n
+ * within each cell, cells in row-major (j,k) order), with a parallel nlen[]
+ * array (length aj*ak) giving each cell's n-run length. A cell coefficient
+ * nums[..]/dens[..] is the exact rational of n^dn (dens > 0, gcd(|nums|, dens)
+ * == 1; zero coefficient = 0/1).
+ *
+ * Each op computes the SAME exact rational coefficients srmech.amsc.tripoly.
+ * TriPoly computes (Class-N rational arithmetic over Class-J reduction), over
+ * caller-arena srmech_bigint (NO malloc), reduced to lowest terms with positive
+ * denominator. Byte-identical to Python at ANY magnitude (full bignum; no
+ * int64/Q61 ceiling).
+ *
+ * add/sub require the two grids to share the SAME (aj, ak) shape: the caller
+ * pre-pads the smaller grid's missing cells to empty n-runs and the smaller j/k
+ * extent to the max (mirroring how Python TriPoly aligns block(d) over the max
+ * j-degree and each BiPoly over the max k-degree). mul is the 2-D (j,k)
+ * convolution: the product grid is (aj+bj-1) x (ak+bk-1); the caller passes the
+ * product column count `ocols`, a per-output-cell base offset array out_off[]
+ * (into the concatenated out arrays — the caller-sized cell stride), the
+ * worst-case n-run convolution depth `accum_terms`, and pre-zeros out_nlen[] to
+ * 0; the op multiply-accumulates each cell and writes the trimmed n-run length
+ * back into out_nlen[cell].
+ *
+ * STANDALONE-COMPLETE: every working carrier is carved from the caller arena `ws`
+ * (>= the matching srmech_tripoly_ws_bound), so the bound is the caller's RAM. A
+ * too-small ws or an out coefficient cap -> SRMECH_ERR_OVERFLOW (never a silent
+ * wrap), and the Python TriPoly falls back to its ceiling-free pure-Python path.
+ *
+ * Carrier-internal (like srmech_poly): NOT a Rosetta ledger op. Additive symbols
+ * -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller hands any srmech_tripoly_* op below, for
+ * input coefficients of `coeff_limbs` significant limbs and a worst-case output
+ * n-run of `n_terms` coefficients. 8-byte-aligned uint32 bump arena. */
+size_t srmech_tripoly_ws_bound(size_t coeff_limbs, size_t n_terms);
+
+/* out = a + b, cellwise (j,k)-aligned, coefficientwise exact-Q over each cell's
+ * n-run, trimmed. Both grids are `cells` cells (the SAME aj*ak shape); a_nlen /
+ * b_nlen give each cell's n-run length; out arrays hold, per cell,
+ * max(a_nlen[cell], b_nlen[cell]) coefficients (the pre-trim stride);
+ * out_nlen[cell] <- the trimmed length. */
+srmech_status_t srmech_tripoly_add(const srmech_bigint_t *a_n,
+                                   const srmech_bigint_t *a_d,
+                                   const size_t *a_nlen, size_t cells,
+                                   const srmech_bigint_t *b_n,
+                                   const srmech_bigint_t *b_d,
+                                   const size_t *b_nlen,
+                                   srmech_bigint_t *out_n,
+                                   srmech_bigint_t *out_d, size_t *out_nlen,
+                                   void *ws, size_t ws_len);
+
+/* out = a - b, cellwise exact-Q. Same shapes as add. */
+srmech_status_t srmech_tripoly_sub(const srmech_bigint_t *a_n,
+                                   const srmech_bigint_t *a_d,
+                                   const size_t *a_nlen, size_t cells,
+                                   const srmech_bigint_t *b_n,
+                                   const srmech_bigint_t *b_d,
+                                   const size_t *b_nlen,
+                                   srmech_bigint_t *out_n,
+                                   srmech_bigint_t *out_d, size_t *out_nlen,
+                                   void *ws, size_t ws_len);
+
+/* out = a * b (2-D (j,k) convolution; each cell an n-run convolution). A is
+ * (aj x ak), B is (bj x bk); the product grid is (aj+bj-1) x (ak+bk-1) with
+ * `ocols` = ak+bk-1 columns. out_off[] (length (aj+bj-1)*ocols) is each output
+ * cell's base offset into the concatenated out arrays; `accum_terms` is the
+ * worst-case output n-run length. The caller pre-zeros out_nlen[] to 0; the op
+ * multiply-accumulates + writes the trimmed n-run length per cell. */
+srmech_status_t srmech_tripoly_mul(const srmech_bigint_t *a_n,
+                                   const srmech_bigint_t *a_d,
+                                   const size_t *a_nlen, size_t aj, size_t ak,
+                                   const srmech_bigint_t *b_n,
+                                   const srmech_bigint_t *b_d,
+                                   const size_t *b_nlen, size_t bj, size_t bk,
+                                   srmech_bigint_t *out_n,
+                                   srmech_bigint_t *out_d, size_t *out_nlen,
+                                   const size_t *out_off, size_t ocols,
+                                   size_t accum_terms, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_qpoly — EXACT q-shift CARRIER over srmech_bigint (the C peer of
+ * srmech.amsc.qpoly.QPoly; the q-hypergeometric F929 reduction-row foundation,
+ * the q-analog of srmech_poly).
+ *
+ * A QPoly is a LAURENT polynomial in x = q^n whose coefficients are exact
+ * polynomials in q (the ground ring Q[q]). It is carried as a ROW of q-polynomial
+ * CELLS over an x-exponent window [x_low, x_low+cells): cell i is the Q[q]
+ * coefficient of x^(x_low+i), itself a run of exact-rational coefficients in
+ * ASCENDING q-degree. The cell q-runs are stored CONCATENATED in a single pair of
+ * caller-owned srmech_bigint arrays (nums[] / dens[], ascending q within each
+ * cell, cells in ascending-x order), with a parallel `qlen[]` array (length
+ * `cells`) giving each cell's q-run length. A cell coefficient is the exact
+ * rational of q^dq (dens > 0, gcd(|nums|, dens) == 1; zero = 0/1). The x_low
+ * offset is the caller's bookkeeping (these ops align by INDEX). (Mirrors
+ * srmech_tripoly's concatenated-cell + nlen[] layout, one dimension lighter — a
+ * single x-row, not a (j,k) grid.)
+ *
+ * Each op computes the SAME exact rational coefficients srmech.amsc.qpoly.QPoly
+ * computes (Class-N rational arithmetic over Class-J reduction), over caller-arena
+ * srmech_bigint (NO malloc), reduced to lowest terms — byte-identical to Python at
+ * ANY magnitude (full bignum; no int64/Q61 ceiling).
+ *
+ *   add/sub : cellwise (x-index-aligned) coefficientwise exact-Q add/sub of the
+ *             two cells' q-runs, then trim. The caller pre-aligns both inputs to
+ *             the SAME x-window (cells count), padding missing cells to empty
+ *             q-runs (mirroring the Python QPoly._addsub union span).
+ *   mul     : 1-D x-convolution; each output x-cell accumulates the exact-Q q-run
+ *             convolution (a Q[q] multiply) of the input cells.
+ *   qshift  : the q-shift sigma^s : x -> q^s * x. Cell i (x-exponent x_low+i)
+ *             becomes c_i(q) * q^(s*(x_low+i)) — each cell's q-run shifted up by
+ *             s*(x_low+i) q-degrees. The caller guarantees every s*(x_low+i) >= 0
+ *             (the Q[q] ground ring; q-Gosper feeds only non-negative shifts) — a
+ *             negative shift -> SRMECH_ERR_BAD_INPUT (a Laurent-in-q result needs
+ *             the future Q(q) carrier, never asked of this op).
+ *
+ * STANDALONE-COMPLETE: every working carrier is carved from the caller arena `ws`
+ * (>= the matching srmech_qpoly_ws_bound), so the bound is the caller's RAM. Out
+ * coefficient arrays are caller-owned + must be pre-sized (add/sub: each cell
+ * max(na,nb); mul: each output cell na+nb-1; qshift: each cell in_qlen + s*e), and
+ * pre-zeroed for mul (the multiply-accumulate seed). A too-small ws or out cap ->
+ * SRMECH_ERR_OVERFLOW (never a silent wrap), and the Python QPoly falls back to
+ * its ceiling-free pure path.
+ *
+ * Carrier-internal (like srmech_poly / srmech_tripoly): NOT a Rosetta ledger op.
+ * Additive symbols -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller hands any srmech_qpoly_* op below, for input
+ * coefficients of `coeff_limbs` significant limbs and a worst-case output q-run of
+ * `n_terms` coefficients. 8-byte-aligned uint32 bump arena. */
+size_t srmech_qpoly_ws_bound(size_t coeff_limbs, size_t n_terms);
+
+/* out = a + b, cellwise (x-index-aligned) coefficientwise exact-Q, trimmed. Both
+ * inputs share `cells` x-cells (caller pre-aligns to the union x-window, padding
+ * missing cells to empty q-runs). out arrays hold, per cell, max(na, nb)
+ * coefficients (concatenated, ascending q); out_qlen[cell] <- the trimmed q-len. */
+srmech_status_t srmech_qpoly_add(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d,
+                                 const size_t *a_qlen, size_t cells,
+                                 const srmech_bigint_t *b_n,
+                                 const srmech_bigint_t *b_d,
+                                 const size_t *b_qlen,
+                                 srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                 size_t *out_qlen, void *ws, size_t ws_len);
+
+/* out = a - b, cellwise exact-Q, trimmed. Same shapes as srmech_qpoly_add. */
+srmech_status_t srmech_qpoly_sub(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d,
+                                 const size_t *a_qlen, size_t cells,
+                                 const srmech_bigint_t *b_n,
+                                 const srmech_bigint_t *b_d,
+                                 const size_t *b_qlen,
+                                 srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                 size_t *out_qlen, void *ws, size_t ws_len);
+
+/* out = a * b (1-D x-convolution; each output cell a q-run convolution), exact-Q.
+ * A is `acells` x-cells, B is `bcells`; the product is acells+bcells-1 cells. The
+ * caller pre-zeros the output (total slots) and passes each output cell's q-run
+ * CAPACITY in out_qlen[cell] on entry (the stride); the op fills + trims, writing
+ * the final trimmed q-len back. out_off[cell] is the flat output offset of cell
+ * `cell`. `accum_terms` is the worst-case output q-run length (sizes the arena). */
+srmech_status_t srmech_qpoly_mul(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d,
+                                 const size_t *a_qlen, size_t acells,
+                                 const srmech_bigint_t *b_n,
+                                 const srmech_bigint_t *b_d,
+                                 const size_t *b_qlen, size_t bcells,
+                                 srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                 size_t *out_qlen, const size_t *out_off,
+                                 size_t accum_terms, void *ws, size_t ws_len);
+
+/* The q-shift sigma^s : x -> q^s * x, i.e. f(q^n) -> f(q^(n+s)). Cell i
+ * (x-exponent x_low+i, coefficient c_i(q)) -> c_i(q) * q^(s*(x_low+i)): each
+ * cell's q-run is shifted up by s*(x_low+i) q-degrees. The x-window is UNCHANGED
+ * (`cells` cells). Every s*(x_low+i) must be >= 0 (the Q[q] ground ring); a
+ * negative shift -> SRMECH_ERR_BAD_INPUT. The caller pre-zeros the output + passes
+ * each cell's output q-run CAPACITY (>= in_qlen + s*e) via out_off[cell] strides;
+ * out_qlen[cell] <- the trimmed q-len. */
+srmech_status_t srmech_qpoly_qshift(const srmech_bigint_t *a_n,
+                                    const srmech_bigint_t *a_d,
+                                    const size_t *a_qlen, size_t cells,
+                                    int64_t s, int64_t x_low,
+                                    srmech_bigint_t *out_n,
+                                    srmech_bigint_t *out_d, size_t *out_qlen,
+                                    const size_t *out_off, void *ws,
+                                    size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_q_gosper — the q-analog of Gosper's indefinite hypergeometric
+ * summation (the FIRST public op of the q-hypergeometric F929 reduction row,
+ * the q-analog of the §76 srmech_gosper). The C peer of
+ * srmech.amsc.q_gosper.q_gosper.
+ *
+ * Input: a q-hypergeometric term given by its TERM RATIO t(k+1)/t(k) = r(x) =
+ * num(x)/den(x) as two Laurent polynomials in x = q^k over Q[q] (two QPoly),
+ * each in the bridge wire form (concatenated ascending-q (num, den) runs +
+ * a per-x-cell qlen[] array + the x_low offset). Output: when Sum t(k) HAS a
+ * q-hypergeometric antidifference T(k) = R(q^k)*t(k) (so T(k+1)-T(k)=t(k)), the
+ * rational CERTIFICATE R(x) = r_num(x)/r_den(x) (two QPoly, same bridge form);
+ * else *out_has = 0.
+ *
+ * The algorithm is exact over the FIELD Q(q) (Koornwinder 1993): the
+ * q-Gosper-Petkovsek normal form + the q-Gosper equation a(x)y(qx)-b(x/q)y(x)=
+ * c(x), the rational leaf solve riding the PUBLIC srmech_qmat_rref over
+ * caller-arena srmech_bigint (NO malloc, JPL Rule 3). Byte-identical to the
+ * Python certificate at ANY magnitude.
+ *
+ * STANDALONE-COMPLETE + BOUNDED native scope: this rc55 peer COMPLETES the
+ * canonical constant-ratio q-geometric case natively (r = num0(q)/den0(q),
+ * x-degree 0; R = den0 / (num0 - den0)); for every other input it DECLINES
+ * (*out_has = 0), and the Python op re-runs its COMPLETE pure-Q(q) path -- so a
+ * has=0 is NEVER a definitive "no certificate" (the dispatch trusts only has=1),
+ * mirroring the srmech_zeilberger / srmech_apagodu_zeilberger order-cap precedent.
+ * The full higher-x-degree Q(q)[x] RREF is the owed everything-mirrors backlog.
+ * Any residual overflow returns SRMECH_ERR_OVERFLOW (never a wrap).
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_q_gosper needs for inputs of `coeff_limbs`
+ * significant limbs per q-coefficient and a higher q-degree of `qdeg`. */
+size_t srmech_q_gosper_ws_bound(size_t coeff_limbs, size_t qdeg);
+
+/* The per-coefficient limb cap for each srmech_bigint in the rn / rd OUTPUT
+ * q-run arrays, so a reduced certificate q-coefficient never overflows its slot. */
+size_t srmech_q_gosper_out_cap(size_t coeff_limbs, size_t qdeg);
+
+/* Compute the q-Gosper certificate for r = num/den.
+ *   num_n/num_d (qlen num_qlen[], num_cells x-cells, x_low num_xlow): the term
+ *     ratio NUMERATOR num(x) -- a QPoly bridge form (concatenated ascending-q runs)
+ *   den_n/den_d ...: the term ratio DENOMINATOR den(x) (same form; den_cells > 0)
+ * On success *out_has is set: 1 when a q-hypergeometric antidifference exists (then
+ * rn and rd carry the reduced certificate R(x) = r_num(x) over r_den(x) as two
+ * QPoly, with rn_qlen[]/out_rn_cells/out_rn_xlow + the rd peers), 0 when the peer
+ * declines (the caller re-decides on the pure path). The caller sizes each output
+ * q-run array to srmech_q_gosper_out_cap limbs; rn and rd hold one x-cell each in
+ * the native (constant-ratio) scope. den_cells == 0 -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_q_gosper(const srmech_bigint_t *num_n,
+                                const srmech_bigint_t *num_d,
+                                const size_t *num_qlen, size_t num_cells,
+                                int64_t num_xlow,
+                                const srmech_bigint_t *den_n,
+                                const srmech_bigint_t *den_d,
+                                const size_t *den_qlen, size_t den_cells,
+                                int64_t den_xlow,
+                                int *out_has,
+                                srmech_bigint_t *rn_n, srmech_bigint_t *rn_d,
+                                size_t *rn_qlen, size_t *out_rn_cells,
+                                int64_t *out_rn_xlow,
+                                srmech_bigint_t *rd_n, srmech_bigint_t *rd_d,
+                                size_t *rd_qlen, size_t *out_rd_cells,
+                                int64_t *out_rd_xlow,
+                                void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_gosper — the ELLIPTIC analog of Gosper's indefinite
+ * hypergeometric summation (the FIRST engine op of the ELLIPTIC F929 reduction
+ * row, the top of the base-axis degeneration tower elliptic -> q -> ordinary). The
+ * C peer of srmech.amsc.elliptic_gosper.elliptic_gosper.
+ *
+ * Input: an elliptic-hypergeometric term given by its TERM RATIO t(n+1)/t(n) = r(x)
+ * (x = q^n) as a FULL EllRatio -- a theta-quotient prod theta(a x;p)/prod theta(b x;p)
+ * over an exact-Q monomial prefactor. The wire form mirrors srmech_ellratio_is_elliptic:
+ * the interned symbol-table dimension `n_syms` (distinct symbols in the Python sorted
+ * order so the dense exponent vector reproduces EllMonomial._sort_key); the x / p / q
+ * interned indices (`xsym` / `psym` / `qsym`, -1 if absent); the num / den theta counts
+ * (`n_num` / `n_den`); the flat exact-Q monomial coeff arrays `coeff_num` / `coeff_den`
+ * (in order prefactor, num0..K-1, den0..L-1) + the flat int32 exponent rows `exps_flat`
+ * (int32[n_syms] per monomial, same order). `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: when t(n) HAS an elliptic-hypergeometric antidifference T(n) = R(x)*t(n)
+ * (so T(n+1) - T(n) = t(n)), the CERTIFICATE R(x) (a full EllRatio) satisfying the
+ * elliptic Gosper equation R(qx)*r(x) - R(x) = 1, written out as `out_pref_num` /
+ * `out_pref_den` (the prefactor exact-Q coeff) + `out_exps_flat` (the prefactor row,
+ * then the *out_n_num num rows, then the *out_n_den den rows; each int32[n_syms]) +
+ * the counts `*out_n_num` / `*out_n_den`. Else *out_has = 0.
+ *
+ * Reference (MPM-verified at build): George Gasper & Michael Schlosser, "Summation,
+ * transformation, and expansion formulas for multibasic theta hypergeometric
+ * series," Adv. Stud. Contemp. Math. (Kyungshang) 11, no. 1 (2005), 67-84
+ * (arXiv:math/0505215) -- derived "using indefinite summation"; the key equation is
+ * the Weierstrass three-term relation, Rosengren arXiv:1608.06161 Sec.1.4 Eq.1.12.
+ *
+ * GENUINE structural pipeline (a 1:1 mirror of _elliptic_gosper_pure, NOT the rc61
+ * geometric-constant shell): (0) the elliptic-GEOMETRIC core (a constant scalar ratio
+ * r = z -> R = z_den/(z_num - z_den); z == 1 declines); (1) PEEL the q-shift coboundary
+ * to the theta-GP normal form r = (A/B)*(sigma C / C); (2) SOLVE the elliptic Gosper
+ * key equation via the Weierstrass three-term relation, the <=8 chiral endianness
+ * resolved against the EXACT residual ThetaSum is_zero verifier (srmech_thetasum_is_zero
+ * -- the same no-hallucination standard). For an input outside the structurally-
+ * decidable class it DECLINES (*out_has = 0), and the Python op re-runs its COMPLETE
+ * pure-Python path + re-verifies any has=1 result in exact Q -- a has=0 is NEVER a
+ * definitive "no certificate" (the dispatch trusts only has=1). Malloc-free (JPL Rule
+ * 3): caller arena `ws` only; byte-identical to the Python certificate at ANY
+ * magnitude. Any residual overflow / too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_gosper needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_gosper_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                       size_t coeff_limbs);
+
+/* The per-coefficient limb cap for each srmech_bigint in the OUTPUT (the cert prefactor
+ * coeff), so the reduced certificate coefficient never overflows its slot. */
+size_t srmech_elliptic_gosper_out_cap(size_t coeff_limbs);
+
+/* Compute the GENUINE elliptic-Gosper certificate for the term ratio r (the full
+ * EllRatio wire form). On success *out_has is set: 1 when t(n) has an antidifference
+ * (then out_pref_num/out_pref_den + out_exps_flat + out_n_num/out_n_den carry the
+ * certificate EllRatio), 0 when the peer declines (out of the structurally-decidable
+ * class -> the caller re-decides on the pure path). `out_exps_cap_rows` is the row
+ * capacity of the caller's out_exps_flat buffer (1 + max_num + max_den rows); too small
+ * -> SRMECH_ERR_OVERFLOW. A required NULL pointer -> SRMECH_ERR_NULL_ARG. */
+srmech_status_t srmech_elliptic_gosper(size_t n_syms, int xsym, int psym, int qsym,
+                                       size_t n_num, size_t n_den,
+                                       const srmech_bigint_t *coeff_num,
+                                       const srmech_bigint_t *coeff_den,
+                                       const int32_t *exps_flat, uint32_t coeff_cap,
+                                       int *out_has, srmech_bigint_t *out_pref_num,
+                                       srmech_bigint_t *out_pref_den,
+                                       int32_t *out_exps_flat, size_t out_exps_cap_rows,
+                                       size_t *out_n_num, size_t *out_n_den,
+                                       void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_thetasum_is_zero — the C peer of the ThetaSum ADDITIVE theta-function
+ * carrier's is_zero (srmech.amsc.thetasum.ThetaSum.is_zero), the load-bearing
+ * EXACT decision under GENUINE elliptic creative telescoping. A 1:1 STRUCTURAL
+ * MIRROR of the pure-Python Weierstrass three-term reduction partitioned by
+ * quasi-periodicity class (Rosengren arXiv:1608.06161v3 §1.4 Eq. 1.12 + §1.3
+ * Lemma 1.3.2) -- NOT a bounded shell: the C verdict equals the Python verdict
+ * byte-for-byte, including the honest NOT-zero on a shape outside the clean +/-
+ * -pair form the carrier reduces (sound, never false-accept; never a converging
+ * eval). The whole peer is malloc-free (JPL Rule 3): every working monomial /
+ * theta / term / rterm + bigint scratch is carved from the caller arena `ws`,
+ * sized to the input (n_terms, n_thetas, n_syms) -- no compiled-in math cap.
+ *
+ * The cleared numerator is the only input is_zero inspects (self == 0 <=>
+ * numerator == 0). The wire form: the interned symbol-table dimension `n_syms`
+ * (the distinct symbols, in the Python sorted order so the dense exponent vector
+ * reproduces the EllMonomial._sort_key tuple compare); the p / x / y interned
+ * indices (`psym` / `xsym` / `ysym`, -1 if absent); the per-term theta counts
+ * `term_nthetas[n_terms]`; the flat monomial coeff arrays `coeff_num` / `coeff_den`
+ * (each monomial an exact-Q num/den as a srmech_bigint, in the order term0.pref,
+ * term0.theta0..K, term1.pref, ...) + the flat exponent rows `exps_flat`
+ * (int32[n_syms] per monomial, same order). `coeff_cap` is the per-bigint limb cap.
+ * *out_is_zero = 1 iff the numerator is identically zero.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_thetasum_is_zero needs for the given shape
+ * (n_syms symbols, n_terms numerator terms, max_thetas the largest per-term theta
+ * count, coeff_limbs the per-coefficient significant-limb estimate). */
+size_t srmech_thetasum_ws_bound(size_t n_syms, size_t n_terms, size_t max_thetas,
+                                size_t coeff_limbs);
+
+/* Decide whether the cleared ThetaSum numerator (the `n_terms` terms) is
+ * identically zero. *out_is_zero = 1 iff == 0. Caller arena `ws`. n_terms == 0 ->
+ * == 0 (the empty numerator). A required NULL pointer -> SRMECH_ERR_NULL_ARG; a
+ * too-small arena -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_thetasum_is_zero(size_t n_syms, int xsym, int ysym, int psym,
+                                        size_t n_terms, const size_t *term_nthetas,
+                                        const srmech_bigint_t *coeff_num,
+                                        const srmech_bigint_t *coeff_den,
+                                        const int32_t *exps_flat,
+                                        uint32_t coeff_cap, int *out_is_zero,
+                                        void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_thetasum_is_zero_interpolation — the C peer of the ThetaSum SOUND
+ * structural CERTIFICATE recursion (REBUILT in rc210 — the is_zero soundness
+ * stop-the-line fix). A 1:1 mirror of the consumer BOOL of the pure-Python
+ * srmech.amsc.thetasum._decide_struct (ThetaSum._is_zero_interpolation):
+ * *out_is_zero = 1 IFF the cleared numerator is CERTIFICATE-PROVEN identically
+ * zero; 0 = "not proven" (a proven-nonzero object or an honest decline — the
+ * sound contract is True-only, so a 0 is never a nonzero CLAIM).
+ *
+ * The pre-rc210 decision here claimed COMPLETENESS via a single-variable
+ * p-order band + a mixed-character node count; both were UNSOUND (they
+ * certified provably-NONZERO objects as zero) and were REPLACED, not repaired.
+ * The certificates (Rosengren arXiv:1608.06161v3): Z1 exact combine-
+ * cancellation + theta(1)=0; Z3s the exact per-symbol joint-CHARACTER split
+ * (degree D_v = sum e^2 + the full Eq. 1.6 multiplier mu_v — different
+ * characters are linearly independent, so all components proven zero => zero);
+ * Z2 the Weierstrass three-term +/- -pair reduction (Eq. 1.12) to the EMPTY
+ * normal form, generalized over a component's ACTUAL live symbols; Z4
+ * per-character elliptic interpolation at D_v+1 nodes PAIRWISE DISTINCT mod
+ * p^Z (Cor. 1.3.5), the nodes = theta-factor zeros + DEDUPLICATED globally-
+ * distinct augment primes. NO numeric band anywhere on the proving side.
+ * Recursion -> an EXPLICIT arena-mark DFS (JPL Rule 1). A too-small caller
+ * arena / coefficient cap -> SRMECH_ERR_OVERFLOW and the caller falls to the
+ * sound pure oracle.
+ *
+ * Wire form + args are IDENTICAL to srmech_thetasum_is_zero. rc210 is an
+ * internal rebuild (same symbols, same wire) -> ABI unchanged (stays 4).
+ * License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_thetasum_is_zero_interpolation needs for the given
+ * shape (rc210 certificate-recursion sizer; signature unchanged from rc102).
+ * `max_theta_sq_sum` (the max per-term/per-variable sum of squared THETA-argument
+ * exponents) bounds the per-frame Z4 node count D+1; the old base-case series grid
+ * is GONE, so the arena is the DFS path + the transient character table + the
+ * transient Z2 pair-reduce work buffers. `max_abs_exp` rides only as slack. */
+size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_terms,
+                                                       size_t max_thetas,
+                                                       size_t coeff_limbs,
+                                                       size_t max_abs_exp,
+                                                       size_t max_theta_sq_sum);
+
+/* Legacy 5-arg entry (pre-rc102). Passes max_abs_exp^2 as the degree bound so a
+ * stale caller still links + gets a valid (conservative) sizing; new callers use
+ * srmech_thetasum_is_zero_interpolation_ws_bound2. */
+size_t srmech_thetasum_is_zero_interpolation_ws_bound(size_t n_syms, size_t n_terms,
+                                                      size_t max_thetas,
+                                                      size_t coeff_limbs,
+                                                      size_t max_abs_exp);
+
+/* Decide whether the cleared ThetaSum numerator is CERTIFICATE-PROVEN identically
+ * zero (the rc210 sound recursion — see the block comment above). *out_is_zero =
+ * 1 iff proven == 0; 0 = not proven. Caller arena `ws`. n_terms == 0 -> == 0. A
+ * required NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena ->
+ * SRMECH_ERR_OVERFLOW (the Python dispatch then falls to the pure oracle). */
+srmech_status_t srmech_thetasum_is_zero_interpolation(
+    size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
+    const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
+    const srmech_bigint_t *coeff_den, const int32_t *exps_flat,
+    uint32_t coeff_cap, int *out_is_zero, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_thetasum_is_zero_interpolation_parallel — the rc103 CHIRALITY-
+ * PRESERVING native PARALLEL fan-out, retargeted in rc210 onto the SOUND
+ * certificate tree (a branch's children are its joint-character components OR
+ * its interpolation nodes). Peels the top branching levels into independent
+ * sub-problems, runs the sequential certificate DFS on each over a PAL worker
+ * pool (deeper recursion stays serial), AND-folds with a best-effort cancel
+ * flag (first not-proven short-circuits, preserving the serial early-exit);
+ * bit-identical serial fallback when the PAL has no threads OR n_workers <= 1.
+ *
+ * TWO first-class CONTRACTS: (1) CARRIER — the verdict is BYTE-FOR-BYTE the
+ * srmech_thetasum_is_zero_interpolation verdict (exact-Q, no float); (2)
+ * CHIRALITY — the fan-out is ORDER-FREE: the verdict is invariant to the task
+ * enumeration/scheduling order, neither chirality privileged. `task_order`
+ * (0 forward / 1 reverse) exists to make the order-invariance contract
+ * testable. rc210 rebuild: same symbols, same wire -> ABI stays 4. ---- */
+
+/* Minimum `ws_len` BYTES the parallel entry needs for the given shape + width:
+ * a fixed control band (the task frontier) + a parse-sized shared-root region +
+ * n_workers disjoint arena slices (each the ws_bound2 sizing). See the
+ * ws_bound2 doc for the sizing args. */
+size_t srmech_thetasum_is_zero_interpolation_parallel_ws_bound(
+    size_t n_syms, size_t n_terms, size_t max_thetas, size_t coeff_limbs,
+    size_t max_abs_exp, size_t max_theta_sq_sum, size_t n_workers);
+
+/* Decide the cleared ThetaSum numerator's certificate-proven is_zero by the
+ * CHIRALITY-PRESERVING PARALLEL fan-out. Wire form + verdict IDENTICAL to
+ * srmech_thetasum_is_zero_interpolation. `n_workers` = the parallel width (clamped
+ * to [1, 32]); `task_order` = 0 (forward) / 1 (reverse) task enumeration — the
+ * verdict is invariant either way. *out_is_zero = 1 iff proven == 0. Caller arena
+ * `ws` (size via ..._parallel_ws_bound). A too-small arena -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
+    size_t n_syms, int xsym, int ysym, int psym, size_t n_terms,
+    const size_t *term_nthetas, const srmech_bigint_t *coeff_num,
+    const srmech_bigint_t *coeff_den, const int32_t *exps_flat,
+    uint32_t coeff_cap, uint32_t n_workers, uint32_t task_order,
+    int *out_is_zero, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_ellratio_is_elliptic — the C peer of the EllRatio carrier's is_elliptic
+ * (srmech.amsc.ellbase.EllRatio.is_elliptic), the load-bearing BALANCING / very-
+ * well-poised predicate the elliptic reducers consult before attempting a closed
+ * form. A 1:1 STRUCTURAL MIRROR of the pure-Python decision
+ *
+ *     is_elliptic() == (pshift() == self)
+ *
+ * — the term-ratio is a genuine elliptic function (a function on the elliptic curve
+ * C-star / <p>) IFF it is invariant under the period shift x -> p*x. The C reproduces
+ * the
+ * Python decision byte-for-byte: it period-shifts the prefactor + every theta
+ * argument (x -> p*x: a monomial gains p^{its x-exponent}), RE-CANONICALIZES (the
+ * Theta.canonicalize quasi-periodicity + inversion rewrites fold each prefactor),
+ * cancels matching canonical thetas between numerator and denominator, sorts the
+ * survivors, and compares the canonical (prefactor, num-multiset, den-multiset) to
+ * self's. NOT a bounded/numeric shell -- no convergence threshold on any decision
+ * path. The shared exact-Q monomial + theta-canon kernels are the same single copy
+ * srmech_thetasum_is_zero rides (promoted to srmech_ellbase.c). Malloc-free (JPL
+ * Rule 3): every working monomial + bigint scratch is carved from the caller arena
+ * `ws`, sized to the input (n_num, n_den, n_syms) -- no compiled-in math cap.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms` (the distinct symbols, in
+ * the Python sorted order so the dense exponent vector reproduces the
+ * EllMonomial._sort_key tuple compare); the x / p interned indices (`xsym` / `psym`,
+ * -1 if absent); the numerator / denominator theta-factor counts (`n_num` / `n_den`);
+ * the flat monomial coeff arrays `coeff_num` / `coeff_den` (each an exact-Q num/den
+ * as a srmech_bigint, in order prefactor, num0..K-1, den0..L-1) + the flat exponent
+ * rows `exps_flat` (int32[n_syms] per monomial, same order). `coeff_cap` is the
+ * per-bigint limb cap. *out_is_elliptic = 1 iff genuinely elliptic.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES srmech_ellratio_is_elliptic needs for the given shape
+ * (n_syms symbols, n_num numerator + n_den denominator theta factors, coeff_limbs
+ * the per-coefficient significant-limb estimate). */
+size_t srmech_ellratio_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                size_t coeff_limbs);
+
+/* Decide whether the EllRatio (prefactor + the `n_num` numerator + `n_den`
+ * denominator canonical theta arguments) is a genuine ELLIPTIC function (invariant
+ * under x -> p*x). *out_is_elliptic = 1 iff elliptic. Caller arena `ws`. A required
+ * NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW. */
+srmech_status_t srmech_ellratio_is_elliptic(size_t n_syms, int xsym, int psym,
+                                            size_t n_num, size_t n_den,
+                                            const srmech_bigint_t *coeff_num,
+                                            const srmech_bigint_t *coeff_den,
+                                            const int32_t *exps_flat,
+                                            uint32_t coeff_cap, int *out_is_elliptic,
+                                            void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_ellratio_half_shift_response — the C peer of the EllRatio-carrier op
+ * srmech.amsc.ellbase.half_shift_response (rc119; the #712 Dzhanibekov reader). A
+ * C-MIRROR PARITY build: the multiplier EQUALS the pure-Python EllMonomial byte-
+ * for-byte. Reads the EXACT monomial multiplier the carrier acquires under a HALF-
+ * period translation of the torque-free torus (the harmonic⊗subharmonic cascade,
+ * DLMF 22.4). Two axes: `axis` = 0 is the REAL 2K half-beat (the double-cover deck
+ * transformation var -> -var: each canonical monomial's Class-K coeff picks up
+ * (-1)^{var-exponent} -- a pure sign, bare iff every theta arg is EVEN in var);
+ * `axis` = 1 is the NOME 2iK' half-beat (the carrier period shift var -> p*var, the
+ * -x^-1-type Theta.canonicalize quasi-periodicity prefactor). The multiplier is
+ * (shift(self) * self.inv()).prefactor; it is a BARE monomial iff the shifted
+ * theta-parts equal self's (they cancel against self.inv()) -- *out_is_bare reports
+ * it (0 -> the ratio is not half-shift-covariant along this axis/var, the boundary-
+ * blind #712 finding for a chirality-EVEN reader is *out_is_bare=1 with a +1 sign).
+ *
+ * Wire form (mirrors srmech_ellratio_is_elliptic): the interned symbol-table
+ * dimension `n_syms`; `varsym` / `psym` the interned indices of the shift variable
+ * (the subharmonic half-var w for the real axis; the summation var x for the nome
+ * axis) and the nome p (-1 if absent); `axis` the half-beat selector; the num / den
+ * theta counts; the flat monomial coeff arrays `coeff_num` / `coeff_den` (exact-Q
+ * num/den srmech_bigint, order prefactor, num0..K-1, den0..L-1) + the flat int32
+ * exponent rows `exps_flat`. `coeff_cap` the per-bigint limb cap. Output: the
+ * multiplier monomial's exact-Q coeff into `out_coeff_num` / `out_coeff_den` + its
+ * dense int32[n_syms] exps row into `out_exps`; *out_is_bare the covariance flag.
+ * Caller arena `ws` (size via srmech_ellratio_ws_bound, same shape).
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+srmech_status_t srmech_ellratio_half_shift_response(
+    size_t n_syms, int varsym, int psym, int axis, size_t n_num, size_t n_den,
+    const srmech_bigint_t *coeff_num, const srmech_bigint_t *coeff_den,
+    const int32_t *exps_flat, uint32_t coeff_cap, int *out_is_bare,
+    srmech_bigint_t *out_coeff_num, srmech_bigint_t *out_coeff_den,
+    int32_t *out_exps, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_lagrange_basis — the C peer of the EllRatio-carrier op
+ * srmech.amsc.ellbase.elliptic_lagrange_basis (rc66, shipped Python-only; its C
+ * mirror is owed by the everything-mirrors same-rc discipline -> rc67). A
+ * C-MIRROR PARITY build (NOT a new algorithm): it reproduces the EXISTING,
+ * already-shipped pure-Python carrier byte-for-byte.
+ *
+ * Returns the k = `k` elliptic Lagrange interpolation basis EllRatios of the
+ * k-dimensional space V_t = { f analytic on C* : f(p*z) = t*z^{-k}*f(z) } at the
+ * k nodes (Rosengren arXiv:1608.06161v3 Sec.1.3 Corollary 1.3.5). For each i,
+ * with others = { points[j] : j != i } and prod = PROD others, the i-th element
+ * places its k theta zeros at { z/u_j : j != i } plus the BALANCING point
+ * v_i = (-1)^k * t / prod (so the product of the k zeros equals (-1)^k * t):
+ *   L_i = EllRatio( num = [ theta(z * u_j^{-1}) : j != i ] + [ theta(z * v_i^{-1}) ] )
+ * with the default unit prefactor; the EllRatio construction folds each theta's
+ * canonicalize prefactor, cancels matching thetas, and sorts the survivors. Pure
+ * composition of the shared srmech_ellbase_* monomial algebra + er_build.
+ *
+ * Wire form (mirrors srmech_ellratio_is_elliptic): the interned symbol-table
+ * dimension `n_syms` (distinct symbols in the Python sorted-symbol-NAME order so
+ * the dense exponent vector reproduces EllMonomial._sort_key); `varsym` / `psym`
+ * the interned indices of the interpolation variable `var` and the nome `p`
+ * (-1 if absent); the node count `k`; the flat point-monomial coeff arrays
+ * `pt_coeff_num` / `pt_coeff_den` (point0..k-1) + the flat int32 exponent rows
+ * `pt_exps_flat` (int32[n_syms] per point); the multiplier monomial `mult_num`
+ * / `mult_den` / `mult_exps`. `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the k basis EllRatios written flat as a single ROW stream. Each emitted
+ * monomial (a prefactor or a theta argument) contributes ONE row: its exact-Q coeff
+ * into `out_coeff_num` / `out_coeff_den`[row] AND its dense int32[n_syms] exponent
+ * row into `out_exps_flat`, in the order, per element i: its prefactor row, then
+ * out_n_num[i] num-theta rows, then out_n_den[i] den-theta rows. The per-element
+ * theta counts come back in `out_n_num[i]` / `out_n_den[i]`. (The coeff travels with
+ * EVERY row -- a theta ARGUMENT can carry a non-unit Class-K coeff, e.g. the
+ * balancing arg z*v_i^{-1} with v_i = (-1)^k*t/PROD others -- so the coeff is NOT
+ * assumed 1.) `out_exps_cap_rows` is the row capacity of the caller's out_exps_flat
+ * / out_coeff buffers; too small -> SRMECH_ERR_OVERFLOW. k == 0 -> SRMECH_ERR_NULL_ARG
+ * (Python raises ValueError). A required NULL pointer -> SRMECH_ERR_NULL_ARG; a
+ * too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * The (-1)^k sign is a Class-K parity branch (an int +/-1), never abs()/fabs().
+ * Malloc-free (JPL Rule 3): caller arena `ws` only, sized to (k, n_syms) -- no
+ * compiled-in cap. Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_lagrange_basis needs for the given shape
+ * (n_syms symbols, k interpolation nodes, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_lagrange_basis_ws_bound(size_t n_syms, size_t k,
+                                               size_t coeff_limbs);
+
+/* Build the k elliptic Lagrange basis EllRatios at the k nodes (see above). */
+srmech_status_t srmech_elliptic_lagrange_basis(size_t n_syms, int varsym, int psym,
+                                               size_t k,
+                                               const srmech_bigint_t *pt_coeff_num,
+                                               const srmech_bigint_t *pt_coeff_den,
+                                               const int32_t *pt_exps_flat,
+                                               const srmech_bigint_t *mult_num,
+                                               const srmech_bigint_t *mult_den,
+                                               const int32_t *mult_exps,
+                                               uint32_t coeff_cap,
+                                               srmech_bigint_t *out_coeff_num,
+                                               srmech_bigint_t *out_coeff_den,
+                                               int32_t *out_exps_flat,
+                                               size_t out_exps_cap_rows,
+                                               size_t *out_n_num, size_t *out_n_den,
+                                               void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_cauchy_determinant — the C peer of the EllRatio-carrier op
+ * srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant (rc94), the
+ * ELLIPTIC-DETERMINANT primitive (foundation of the multivariable Cn elliptic
+ * reduction row). A C-MIRROR PARITY build (NOT a new algorithm): it constructs
+ * the EXACT closed form the pure-Python op builds, byte-for-byte.
+ *
+ * For distinct x_1..x_n, y_1..y_n and a parameter t (Rosengren,
+ * arXiv:1608.06161v3, Exercise 1.6.6; classically Frobenius 1882):
+ *   det_{1<=i,j<=n}[theta(t*x_i*y_j;p)/theta(x_i*y_j;p)]
+ *     = theta(t;p)^{n-1} * theta(t*PRODx*PRODy;p)
+ *       * PROD_{i<j}[x_j*y_j*theta(x_i/x_j;p)*theta(y_i/y_j;p)]
+ *       / PROD_{i,j}theta(x_i*y_j;p).
+ * This op CONSTRUCTS the right-hand side as one EllRatio: the EllMonomial
+ * prefactor PROD_{i<j} x_j*y_j, the numerator thetas (theta(t) x (n-1),
+ * theta(t*PRODx*PRODy), theta(x_i/x_j) + theta(y_i/y_j) for i<j) and the
+ * denominator thetas theta(x_i*y_j) for all i,j; er_build (the EllRatio.__init__
+ * mirror) folds each theta's canonicalize prefactor, cancels matching thetas,
+ * sorts the survivors. Pure composition of the shared srmech_ellbase_* monomial
+ * algebra + er_build.
+ *
+ * Wire form (mirrors srmech_elliptic_lagrange_basis): the interned symbol-table
+ * dimension `n_syms`; `psym` the interned index of the nome p (-1 if absent);
+ * `n` the matrix dimension; the parameter monomial `t_num` / `t_den` / `t_exps`;
+ * the flat x-monomial coeff arrays `xs_num` / `xs_den` (x0..x_{n-1}) + the flat
+ * int32 exponent rows `xs_exps_flat` (int32[n_syms] per x); likewise the y's.
+ * `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the single closed-form EllRatio written flat as a ROW stream. Each
+ * emitted monomial (the prefactor or a theta argument) contributes ONE row: its
+ * exact-Q coeff into `out_coeff_num` / `out_coeff_den`[row] AND its dense
+ * int32[n_syms] exponent row into `out_exps_flat`, in the order: the prefactor
+ * row, then `*out_n_num` num-theta rows, then `*out_n_den` den-theta rows. The
+ * survivor theta counts come back in `*out_n_num` / `*out_n_den`. (The coeff
+ * travels with EVERY row -- a canonicalized theta argument can carry a non-unit
+ * Class-K coeff.) `out_exps_cap_rows` is the row capacity; too small ->
+ * SRMECH_ERR_OVERFLOW. n == 0 -> SRMECH_ERR_NULL_ARG (Python raises ValueError);
+ * a required NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena ->
+ * SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (n, n_syms) -- no compiled-in
+ * cap. Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_cauchy_determinant needs for the given
+ * shape (n_syms symbols, n the matrix dimension, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_cauchy_determinant_ws_bound(size_t n_syms, size_t n,
+                                                   size_t coeff_limbs);
+
+/* Build the single Frobenius elliptic Cauchy determinant EllRatio (see above). */
+srmech_status_t srmech_elliptic_cauchy_determinant(size_t n_syms, int psym, size_t n,
+                                                   const srmech_bigint_t *t_num,
+                                                   const srmech_bigint_t *t_den,
+                                                   const int32_t *t_exps,
+                                                   const srmech_bigint_t *xs_num,
+                                                   const srmech_bigint_t *xs_den,
+                                                   const int32_t *xs_exps_flat,
+                                                   const srmech_bigint_t *ys_num,
+                                                   const srmech_bigint_t *ys_den,
+                                                   const int32_t *ys_exps_flat,
+                                                   uint32_t coeff_cap,
+                                                   srmech_bigint_t *out_coeff_num,
+                                                   srmech_bigint_t *out_coeff_den,
+                                                   int32_t *out_exps_flat,
+                                                   size_t out_exps_cap_rows,
+                                                   size_t *out_n_num, size_t *out_n_den,
+                                                   void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_partial_fraction — the C peer of the ThetaSum-returning op
+ * srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction (rc95), the
+ * ELLIPTIC PARTIAL-FRACTION expansion (the reduction ENGINE of the multivariable
+ * Cn elliptic reduction row). A C-MIRROR PARITY build (NOT a new algorithm): it
+ * constructs the EXACT n theta-quotient TERMS the pure-Python op builds, byte-for-
+ * byte; the Python side SUMS them into the ThetaSum (there is NO ThetaSum-
+ * CONSTRUCTION C surface, so the peer returns the n EllRatio TERMS, exactly like
+ * srmech_elliptic_lagrange_basis returns its k basis EllRatios).
+ *
+ * For distinct z_1..z_n, y_1..y_n and the variable x (Rosengren,
+ * arXiv:1608.06161v3, Proposition 1.6.1 + Eq. 1.22):
+ *   PROD_{k=1}^n theta(x/z_k;p)/theta(x/y_k;p)
+ *     = 1/theta(Y/Z;p) * SUM_{j=1}^n
+ *         [PROD_k theta(y_j/z_k;p) / PROD_{k!=j} theta(y_j/y_k;p)]
+ *         * [theta(x*Y/(y_j*Z);p) / theta(x/y_j;p)],   Y=PROD y, Z=PROD z.
+ * Each summand j is an EllRatio (unit prefactor): num thetas theta(y_j/z_k) all k
+ * + theta(x*Y/(y_j*Z)) (n+1); den thetas theta(y_j/y_k) k!=j + theta(x/y_j) +
+ * theta(Y/Z) (n+1). er_build folds each theta's canonicalize prefactor, cancels
+ * matching thetas, sorts the survivors. Pure composition of the shared
+ * srmech_ellbase_* monomial algebra + er_build.
+ *
+ * Wire form (mirrors srmech_elliptic_lagrange_basis): the interned symbol-table
+ * dimension `n_syms`; `psym` the interned index of the nome p (-1 if absent);
+ * `n` the term count; the variable monomial `x_num` / `x_den` / `x_exps`; the
+ * flat z-monomial coeff arrays `zs_num` / `zs_den` (z0..z_{n-1}) + the flat int32
+ * exponent rows `zs_exps_flat` (int32[n_syms] per z); likewise the y's.
+ * `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the n TERM EllRatios written out flat -- per term j, `out_n_num[j]` /
+ * `out_n_den[j]` the survivor theta counts, and the canonical rows appended (per
+ * term: its prefactor row, then its out_n_num[j] num rows, then its out_n_den[j]
+ * den rows; each row carries its exact-Q coeff AND its dense int32[n_syms]
+ * exponent row). `out_exps_cap_rows` is the row capacity; too small ->
+ * SRMECH_ERR_OVERFLOW. n == 0 -> SRMECH_ERR_NULL_ARG (Python raises ValueError);
+ * a required NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena ->
+ * SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (n, n_syms) -- no compiled-in
+ * cap. Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_partial_fraction needs for the given
+ * shape (n_syms symbols, n the term count, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_partial_fraction_ws_bound(size_t n_syms, size_t n,
+                                                 size_t coeff_limbs);
+
+/* Build the n Frobenius/Rosengren elliptic partial-fraction TERM EllRatios
+ * (see above); the Python side sums them into the returned ThetaSum. */
+srmech_status_t srmech_elliptic_partial_fraction(size_t n_syms, int psym, size_t n,
+                                                 const srmech_bigint_t *x_num,
+                                                 const srmech_bigint_t *x_den,
+                                                 const int32_t *x_exps,
+                                                 const srmech_bigint_t *zs_num,
+                                                 const srmech_bigint_t *zs_den,
+                                                 const int32_t *zs_exps_flat,
+                                                 const srmech_bigint_t *ys_num,
+                                                 const srmech_bigint_t *ys_den,
+                                                 const int32_t *ys_exps_flat,
+                                                 uint32_t coeff_cap,
+                                                 srmech_bigint_t *out_coeff_num,
+                                                 srmech_bigint_t *out_coeff_den,
+                                                 int32_t *out_exps_flat,
+                                                 size_t out_exps_cap_rows,
+                                                 size_t *out_n_num, size_t *out_n_den,
+                                                 void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_multivariate_elliptic_jackson — the C peer of the EllRatio-carrier op
+ * srmech.amsc.multivariate_elliptic_jackson.multivariate_elliptic_jackson (rc96),
+ * the eq-5 Cn elliptic Jackson summation reducer (the CAPSTONE of the
+ * multivariable (root-system Cn) elliptic reduction row). A C-MIRROR PARITY
+ * build (NOT a new algorithm): it constructs the EXACT closed form the pure-
+ * Python op builds, byte-for-byte.
+ *
+ * For the parameters a, b, c, d and the base variables x, q (Rosengren, A
+ * multivariable elliptic summation formula, arXiv:math/0101073, Theorem 2.1,
+ * Eq. 5), the balanced Cn very-well-poised elliptic Jackson summation reduces
+ * to the theta-quotient product
+ *   (aq, aq/bc, aq/bd, aq/cd; q, x)_{N^n} / (aq/b, aq/c, aq/d, aq/bcd; q, x)_{N^n},
+ * with the vector elliptic Pochhammer
+ *   (u; q, x)_{N^n} = PROD_{j=1}^n PROD_{i=0}^{N-1} theta(u*x^{1-j}*q^i; p).
+ * This op CONSTRUCTS the right-hand side as one EllRatio: the unit prefactor,
+ * the numerator thetas (the vector Pochhammer of each of aq, aq/bc, aq/bd,
+ * aq/cd) and the denominator thetas (the vector Pochhammer of each of aq/b,
+ * aq/c, aq/d, aq/bcd); er_build (the EllRatio.__init__ mirror) folds each
+ * theta's canonicalize prefactor, cancels matching thetas, sorts the survivors.
+ * Pure composition of the shared srmech_ellbase_* monomial algebra + er_build.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms`; `psym` the interned
+ * index of the nome p (-1 if absent); the positive ints `N` (partition ceiling)
+ * + `n` (rank); each of the 6 parameter monomials a/b/c/d/x/q as a
+ * (num, den) srmech_bigint pair + its flat int32[n_syms] exponent row.
+ * `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the single closed-form EllRatio written flat as a ROW stream (the
+ * prefactor row, then `*out_n_num` num-theta rows, then `*out_n_den` den-theta
+ * rows), each row carrying its exact-Q coeff (out_coeff_num / out_coeff_den) AND
+ * its dense int32[n_syms] exponent row (out_exps_flat). `out_exps_cap_rows` is
+ * the row capacity; too small -> SRMECH_ERR_OVERFLOW. N == 0 or n == 0 ->
+ * SRMECH_ERR_NULL_ARG (Python raises ValueError); a required NULL pointer ->
+ * SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (N, n, n_syms) -- no compiled-in
+ * cap. Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_multivariate_elliptic_jackson needs for the given
+ * shape (n_syms symbols, N the partition ceiling, n the rank, coeff_limbs the
+ * per-coefficient significant-limb estimate). */
+size_t srmech_multivariate_elliptic_jackson_ws_bound(size_t n_syms, size_t N, size_t n,
+                                                     size_t coeff_limbs);
+
+/* Build the single balanced Cn elliptic Jackson summation EllRatio (see above). */
+srmech_status_t srmech_multivariate_elliptic_jackson(size_t n_syms, int psym, size_t N,
+                                                     size_t n,
+                                                     const srmech_bigint_t *a_num,
+                                                     const srmech_bigint_t *a_den,
+                                                     const int32_t *a_exps,
+                                                     const srmech_bigint_t *b_num,
+                                                     const srmech_bigint_t *b_den,
+                                                     const int32_t *b_exps,
+                                                     const srmech_bigint_t *c_num,
+                                                     const srmech_bigint_t *c_den,
+                                                     const int32_t *c_exps,
+                                                     const srmech_bigint_t *d_num,
+                                                     const srmech_bigint_t *d_den,
+                                                     const int32_t *d_exps,
+                                                     const srmech_bigint_t *x_num,
+                                                     const srmech_bigint_t *x_den,
+                                                     const int32_t *x_exps,
+                                                     const srmech_bigint_t *q_num,
+                                                     const srmech_bigint_t *q_den,
+                                                     const int32_t *q_exps,
+                                                     uint32_t coeff_cap,
+                                                     srmech_bigint_t *out_coeff_num,
+                                                     srmech_bigint_t *out_coeff_den,
+                                                     int32_t *out_exps_flat,
+                                                     size_t out_exps_cap_rows,
+                                                     size_t *out_n_num, size_t *out_n_den,
+                                                     void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_cn_vwp_multisum_lhs — the C peer of the ThetaSum-returning op
+ * srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs (rc216), the SYMBOLIC Cn
+ * very-well-poised (VWP) elliptic multisum LHS builder: the exact per-partition
+ * theta-quotient TERMS of the LEFT-hand side of the Cn elliptic Jackson
+ * summation (Hjalmar Rosengren, "A proof of a multivariable elliptic summation
+ * formula conjectured by Warnaar", arXiv:math/0101073v1 [math.CA] (9 Jan 2001),
+ * Theorem 2.1, Eq. 5), over the partitions
+ * Lambda_{nN} = {N >= lambda_1 >= ... >= lambda_n >= 0} with the balancing
+ * b*c*d*e*x^{n-1} = a^2*q^{N+1} (e fixed by construction). A C-MIRROR PARITY
+ * build (NOT a new algorithm): it constructs the EXACT per-partition EllRatio
+ * TERMS the pure-Python builder (the rc96 test oracle -> rc101 symbolic verify
+ * engine, promoted public at rc216) builds, byte-for-byte; the Python side SUMS
+ * them into the ThetaSum (there is NO ThetaSum-CONSTRUCTION C surface, so the
+ * peer returns the terms as a row stream, exactly like
+ * srmech_elliptic_partial_fraction).
+ *
+ * Each partition's summand is one EllRatio: the monomial prefactor
+ * PROD_i q^{li} x^{2(i-1)li}, the diagonal num/den theta args
+ * E(a x^{2(1-i)} q^{2li}) / E(a x^{2(1-i)}), the off-diagonal (i<j) coupling
+ * E(x^{j-i} q^{li-lj})/E(x^{j-i}) * E(a x^{2-i-j} q^{li+lj})/E(a x^{2-i-j})
+ * * (a x^{3-i-j};q)_{li+lj} (x^{j-i+1};q)_{li-lj}
+ *   / ((aq x^{1-i-j};q)_{li+lj} (q x^{j-i-1};q)_{li-lj}),
+ * and the six num / six den VECTOR theta-Pochhammer bases
+ * (a x^{1-n}, b, c, d, e, q^{-N}; q, x)_lambda /
+ * (q x^{n-1}, aq/b, aq/c, aq/d, aq/e, a q^{N+1}; q, x)_lambda. er_build folds
+ * each theta's canonicalize prefactor, cancels matching thetas, sorts the
+ * survivors. Pure composition of the shared srmech_ellbase_* monomial algebra
+ * + er_build.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms`; `psym` the interned
+ * index of the nome p (-1 if absent); the positive ints `N` (partition ceiling)
+ * + `n` (rank) + `n_terms` (the partition count C(N+n, n), computed by the
+ * caller); each of the 6 parameter monomials a/b/c/d/x/q as a (num, den)
+ * srmech_bigint pair + its flat int32[n_syms] exponent row. `coeff_cap` is the
+ * per-bigint limb cap.
+ *
+ * Output: the n_terms TERM EllRatios written out flat in the LEXICOGRAPHIC
+ * partition order (all-zeros first; the exact order the Python oracle's
+ * filtered itertools.product enumerates) -- per term t, `out_n_num[t]` /
+ * `out_n_den[t]` the survivor theta counts, and the canonical rows appended
+ * (per term: its prefactor row, then its num rows, then its den rows; each row
+ * carries its exact-Q coeff AND its dense int32[n_syms] exponent row).
+ * `out_exps_cap_rows` is the row capacity; too small -> SRMECH_ERR_OVERFLOW.
+ * N == 0, n == 0 or n_terms == 0 -> SRMECH_ERR_NULL_ARG (Python raises
+ * ValueError); a wrong n_terms (not C(N+n, n)) -> SRMECH_ERR_BAD_INPUT; a
+ * required NULL pointer -> SRMECH_ERR_NULL_ARG; a too-small arena ->
+ * SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (N, n, n_syms) -- no
+ * compiled-in cap. Additive symbol -> ABI unchanged (stays 4). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_cn_vwp_multisum_lhs needs for the given shape
+ * (n_syms symbols, N the partition ceiling, n the rank, coeff_limbs the
+ * per-coefficient significant-limb estimate). */
+size_t srmech_cn_vwp_multisum_lhs_ws_bound(size_t n_syms, size_t N, size_t n,
+                                           size_t coeff_limbs);
+
+/* Build the n_terms per-partition Cn VWP multisum LHS TERM EllRatios (see
+ * above); the Python side sums them into the returned ThetaSum. */
+srmech_status_t srmech_cn_vwp_multisum_lhs(size_t n_syms, int psym, size_t N,
+                                           size_t n, size_t n_terms,
+                                           const srmech_bigint_t *a_num,
+                                           const srmech_bigint_t *a_den,
+                                           const int32_t *a_exps,
+                                           const srmech_bigint_t *b_num,
+                                           const srmech_bigint_t *b_den,
+                                           const int32_t *b_exps,
+                                           const srmech_bigint_t *c_num,
+                                           const srmech_bigint_t *c_den,
+                                           const int32_t *c_exps,
+                                           const srmech_bigint_t *d_num,
+                                           const srmech_bigint_t *d_den,
+                                           const int32_t *d_exps,
+                                           const srmech_bigint_t *x_num,
+                                           const srmech_bigint_t *x_den,
+                                           const int32_t *x_exps,
+                                           const srmech_bigint_t *q_num,
+                                           const srmech_bigint_t *q_den,
+                                           const int32_t *q_exps,
+                                           uint32_t coeff_cap,
+                                           srmech_bigint_t *out_coeff_num,
+                                           srmech_bigint_t *out_coeff_den,
+                                           int32_t *out_exps_flat,
+                                           size_t out_exps_cap_rows,
+                                           size_t *out_n_num, size_t *out_n_den,
+                                           void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_multivariate_elliptic_jackson_an — the C peer of the EllRatio-carrier
+ * op srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an (rc227),
+ * the eq-6 An elliptic Jackson summation reducer: the type-A member of the
+ * multivariable (root-system) elliptic reduction row. A C-MIRROR PARITY build
+ * (NOT a new algorithm): it constructs the EXACT closed form the pure-Python op
+ * builds, byte-for-byte.
+ *
+ * For the variables z_1..z_n, the parameters a_1..a_{n+1}, the base q and the
+ * COMPUTED balancing w = z_1..z_n * a_1..a_{n+1} (Hjalmar Rosengren, "New
+ * transformations for elliptic hypergeometric series on the root system An",
+ * arXiv:math/0305379v1 [math.CA] (27 May 2003), Eq. 6 -- the elliptic analogue
+ * of Milne's An Jackson summation), the An elliptic Jackson summation over the
+ * SIMPLEX y_1+..+y_n = N reduces to the theta-quotient
+ *   PROD_{j=1}^{n+1} (w/a_j)_N / [ PROD_{j=1}^n (w*z_j)_N * (q)_N ],
+ * with (u)_k = PROD_{i=0}^{k-1} theta(u*q^i). This op CONSTRUCTS the right-hand
+ * side as an exact EllRatio: the unit prefactor, the (n+1)*N numerator thetas
+ * (w/a_j * q^i) and the (n+1)*N denominator thetas (w*z_j * q^i + the (q)_N
+ * block q*q^i); er_build folds each theta's canonicalize prefactor, cancels
+ * matching thetas, sorts the survivors. Pure composition of the shared
+ * srmech_ellbase_* monomial algebra + er_build.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms`; `psym` the interned
+ * index of the nome p (-1 if absent); the positive ints `N` (simplex ceiling) +
+ * `n` (rank); the VARIABLE-ARITY vectors as parallel arrays (the
+ * srmech_elliptic_cauchy_determinant convention): `zs_num`/`zs_den` n bigints +
+ * `zs_exps_flat` int32[n*n_syms]; `as_num`/`as_den` n+1 bigints +
+ * `as_exps_flat` int32[(n+1)*n_syms]; q as a (num, den) pair + its
+ * int32[n_syms] exponent row. `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the single closed-form EllRatio written flat as a ROW stream (the
+ * srmech_multivariate_elliptic_jackson wire form): the prefactor row, then
+ * *out_n_num num-theta rows, then *out_n_den den-theta rows (each row its
+ * exact-Q coeff + its dense int32[n_syms] exponent row). `out_exps_cap_rows` is
+ * the row capacity; too small -> SRMECH_ERR_OVERFLOW. N == 0 or n == 0 ->
+ * SRMECH_ERR_NULL_ARG (Python raises ValueError); a required NULL pointer ->
+ * SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (N, n, n_syms) -- no
+ * compiled-in cap. Additive symbol -> ABI unchanged (stays 4). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_multivariate_elliptic_jackson_an needs for the
+ * given shape (n_syms symbols, N the simplex ceiling, n the rank, coeff_limbs
+ * the per-coefficient significant-limb estimate). */
+size_t srmech_multivariate_elliptic_jackson_an_ws_bound(size_t n_syms, size_t N,
+                                                        size_t n, size_t coeff_limbs);
+
+/* Build the single An elliptic Jackson closed-form EllRatio (see above). */
+srmech_status_t srmech_multivariate_elliptic_jackson_an(
+    size_t n_syms, int psym, size_t N, size_t n,
+    const srmech_bigint_t *zs_num, const srmech_bigint_t *zs_den,
+    const int32_t *zs_exps_flat,
+    const srmech_bigint_t *as_num, const srmech_bigint_t *as_den,
+    const int32_t *as_exps_flat,
+    const srmech_bigint_t *q_num, const srmech_bigint_t *q_den,
+    const int32_t *q_exps, uint32_t coeff_cap,
+    srmech_bigint_t *out_coeff_num, srmech_bigint_t *out_coeff_den,
+    int32_t *out_exps_flat, size_t out_exps_cap_rows,
+    size_t *out_n_num, size_t *out_n_den, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_an_vwp_multisum_lhs — the C peer of the ThetaSum-returning op
+ * srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs (rc227), the SYMBOLIC An
+ * elliptic multisum LHS builder: the exact per-composition theta-quotient
+ * TERMS of the LEFT-hand side of the An (type-A / Milne) elliptic Jackson
+ * summation (Rosengren arXiv:math/0305379v1, Eq. 6), over the SIMPLEX
+ * y_1..y_n >= 0 with y_1+..+y_n = N, with the COMPUTED balancing
+ * w = z_1..z_n * a_1..a_{n+1}. A C-MIRROR PARITY build (NOT a new algorithm):
+ * it constructs the EXACT per-composition EllRatio TERMS the pure-Python
+ * builder builds, byte-for-byte; the Python side SUMS them into the ThetaSum
+ * (there is NO ThetaSum-CONSTRUCTION C surface -- the
+ * srmech_cn_vwp_multisum_lhs row-stream pattern).
+ *
+ * Each composition's summand is one EllRatio: the monomial prefactor
+ * PROD_{j<k} q^{y_j} (the type-A Vandermonde ratio's monomial part), the
+ * Vandermonde theta args E(z_k q^{y_k - y_j}/z_j) / E(z_k/z_j) for j < k, the
+ * (n+1) num theta-Pochhammers (a_j z_k)_{y_k} per k, and the den
+ * theta-Pochhammers (w z_k)_{y_k} * PROD_j (q z_k/z_j)_{y_k} per k. er_build
+ * folds each theta's canonicalize prefactor, cancels matching thetas, sorts
+ * the survivors. Pure composition of the shared srmech_ellbase_* monomial
+ * algebra + er_build.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms`; `psym` the interned
+ * index of the nome p (-1 if absent); the positive ints `N` (simplex ceiling)
+ * + `n` (rank) + `n_terms` (the composition count C(N+n-1, n-1), computed by
+ * the caller); the VARIABLE-ARITY vectors as parallel arrays: `zs_num`/`zs_den`
+ * n bigints + `zs_exps_flat` int32[n*n_syms]; `as_num`/`as_den` n+1 bigints +
+ * `as_exps_flat` int32[(n+1)*n_syms]; q as a (num, den) pair + its
+ * int32[n_syms] row. `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the n_terms TERM EllRatios written out flat in the ASCENDING
+ * LEXICOGRAPHIC composition order ((0,..,0,N) first, (N,0,..,0) last; the
+ * exact order the Python builder's filtered itertools.product enumerates) --
+ * per term t, `out_n_num[t]` / `out_n_den[t]` the survivor theta counts, and
+ * the canonical rows appended (per term: its prefactor row, then its num rows,
+ * then its den rows; each row carries its exact-Q coeff AND its dense
+ * int32[n_syms] exponent row). `out_exps_cap_rows` is the row capacity; too
+ * small -> SRMECH_ERR_OVERFLOW. N == 0, n == 0 or n_terms == 0 ->
+ * SRMECH_ERR_NULL_ARG (Python raises ValueError); a wrong n_terms (not
+ * C(N+n-1, n-1)) -> SRMECH_ERR_BAD_INPUT; a required NULL pointer ->
+ * SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (N, n, n_syms) -- no
+ * compiled-in cap. Additive symbol -> ABI unchanged (stays 4). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_an_vwp_multisum_lhs needs for the given shape
+ * (n_syms symbols, N the simplex ceiling, n the rank, coeff_limbs the
+ * per-coefficient significant-limb estimate). */
+size_t srmech_an_vwp_multisum_lhs_ws_bound(size_t n_syms, size_t N, size_t n,
+                                           size_t coeff_limbs);
+
+/* Build the n_terms per-composition An multisum LHS TERM EllRatios (see
+ * above); the Python side sums them into the returned ThetaSum. */
+srmech_status_t srmech_an_vwp_multisum_lhs(
+    size_t n_syms, int psym, size_t N, size_t n, size_t n_terms,
+    const srmech_bigint_t *zs_num, const srmech_bigint_t *zs_den,
+    const int32_t *zs_exps_flat,
+    const srmech_bigint_t *as_num, const srmech_bigint_t *as_den,
+    const int32_t *as_exps_flat,
+    const srmech_bigint_t *q_num, const srmech_bigint_t *q_den,
+    const int32_t *q_exps, uint32_t coeff_cap,
+    srmech_bigint_t *out_coeff_num, srmech_bigint_t *out_coeff_den,
+    int32_t *out_exps_flat, size_t out_exps_cap_rows,
+    size_t *out_n_num, size_t *out_n_den, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
+ * Frenkel–Turaev ₈ω₇ summation. The C peer of
+ * srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7 — a 1:1 STRUCTURAL MIRROR of
+ * the pure-Python recognize-decompose-construct pipeline (NOT a coefficient nullspace
+ * solve, which is provably dead for the elliptic case; the anti-brute-force discipline).
+ *
+ * Input: the ₈ω₇ summand's TERM RATIO t(n+1)/t(n) = r(x) (x = q^n) as a full EllRatio (a
+ * theta-quotient prod theta(a x;p)/prod theta(b x;p) over an exact-Q monomial prefactor).
+ * The wire form mirrors srmech_elliptic_gosper but ADDS the y interned index (the
+ * recurrence axis y = q^n): the interned symbol-table dimension `n_syms` + the x/p/q/y
+ * interned indices (-1 if absent) + the num/den theta counts + the flat exact-Q coeff
+ * arrays + the flat int32 exponent rows (in the order prefactor, num0..K-1, den0..L-1).
+ * `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: when r is a canonical ₈ω₇, the order-1 recurrence COEFFICIENT rho (a full
+ * EllRatio in y = q^n: its prefactor exact-Q coeff into out_pref_num/out_pref_den + its
+ * exponent row, then the num/den canonical theta-argument exponent rows into
+ * out_exps_flat, per-side counts in out_n_num/out_n_den) such that f(n+1) = rho(n)*f(n);
+ * else *out_has = 0.
+ *
+ * The GENUINE pipeline (mirrors _elliptic_recurrence_8w7_pure):
+ *   (1) RECOGNIZE + DECOMPOSE the very-well-poised ₈ω₇: the unique den factor
+ *       theta(a x^2) (x-exponent magnitude 2) gives the base a; the linear den factors
+ *       theta(a q x u^-1) (x-exponent magnitude 1) give aq*real_base^-1 = u; drop the
+ *       (q)-factor (u == a) + the y-carrying (n-dependent) params, leaving the three FREE
+ *       params [b, c, d]. Out of class (no unique quadratic core / != 3 free) -> *out_has=0.
+ *   (2) CONSTRUCT rho from the elementary symmetric functions s2 = {bc, bd, cd}, s3 = bcd
+ *       (Warnaar, Constr. Approx. 18 (2002) 479-502, Cor 2.2): num endpoints
+ *       {aq} U {aq/bc, aq/bd, aq/cd}; den {aq/b, aq/c, aq/d} U {aq/bcd}; rho =
+ *       prod theta(end*y;p) over num / prod theta(end*y;p) over den. The construction IS
+ *       the answer (decompose-and-compute, no undetermined-coefficient solve).
+ *
+ * The VERIFICATION GATE (rho(n) == f(n+1)/f(n) for the ₈ω₇ sum) is on the PYTHON side (it
+ * needs the truncated-theta eval oracle); the C peer constructs the EXACT rho and the
+ * Python trusts it ONLY after rebuilding it byte-for-byte AND re-running the gate in exact
+ * Q. A *out_has = 0 is NEVER a definitive "no recurrence" (the Python re-decides on its
+ * COMPLETE pure path); on any overflow / too-small arena the peer returns
+ * SRMECH_ERR_OVERFLOW and the Python re-runs the pure path. A required NULL pointer ->
+ * SRMECH_ERR_NULL_ARG.
+ *
+ * Reference (MPM-verified at build): S. Ole Warnaar, "Summation and transformation
+ * formulas for elliptic hypergeometric series," Constr. Approx. 18 (2002) 479-502
+ * (arXiv:math/0001006), Corollary 2.2.
+ *
+ * PURE COMPOSITION of the shared srmech_ellbase_* exact-Q monomial algebra + er_build
+ * (the same single copy srmech_elliptic_gosper / srmech_ellratio_is_elliptic ride).
+ * Malloc-free (JPL Rule 3): caller arena `ws` only. The "magnitude 2 / magnitude 1"
+ * x-power test is a Class-K parity branch (e == mag || e == -mag), never abs()/fabs().
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_recurrence_8w7 needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_limbs the per-coefficient
+ * significant-limb estimate). */
+size_t srmech_elliptic_recurrence_8w7_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                               size_t coeff_cap);
+
+/* The per-coefficient limb cap for each srmech_bigint in the OUTPUT (the rho prefactor). */
+size_t srmech_elliptic_recurrence_8w7_out_cap(size_t coeff_limbs);
+
+/* Find the order-1 ₈ω₇ recurrence coefficient rho (see above). */
+srmech_status_t srmech_elliptic_recurrence_8w7(size_t n_syms, int xsym, int psym,
+                                               int qsym, int ysym,
+                                               size_t n_num, size_t n_den,
+                                               const srmech_bigint_t *coeff_num,
+                                               const srmech_bigint_t *coeff_den,
+                                               const int32_t *exps_flat,
+                                               uint32_t coeff_cap, int *out_has,
+                                               srmech_bigint_t *out_pref_num,
+                                               srmech_bigint_t *out_pref_den,
+                                               int32_t *out_exps_flat,
+                                               size_t out_exps_cap_rows,
+                                               size_t *out_n_num, size_t *out_n_den,
+                                               void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_zeilberger — the ELLIPTIC Sigma-row CREATIVE-TELESCOPING op for the
+ * Frenkel-Turaev 8w7 summation (the C peer of
+ * srmech.amsc.elliptic_zeilberger.elliptic_zeilberger). The order-1 recurrence
+ * f(n+1) = rho(n)*f(n) PLUS an EXACT connection-coefficient certificate that PROVES it
+ * (the ThetaSum.is_zero decision, NOT rc68's 1e-9 numerical convergence gate).
+ *
+ * Input: the 8w7 term ratio r(x) = t(n+1)/t(n) (x = q^n) as the SAME full EllRatio wire
+ * form srmech_elliptic_recurrence_8w7 parses (n_syms + the x/p/q/y interned indices + the
+ * num/den theta counts + the flat exact-Q coeff arrays + the flat int32 exponent rows),
+ * PLUS the two extra interned indices nsym/ksym for the recurrence index symbols N = q^n,
+ * K = q^k the connection-coefficient certificate carries (force-interned by the caller;
+ * the input ratio's own monomials are zero in those two columns).
+ *
+ * Output: *out_has = 1 iff r is a canonical 8w7 (the SAME recognize-decompose pipeline
+ * srmech_elliptic_recurrence_8w7 runs) AND the connection-coefficient inductive-step
+ * certificate (Rosengren arXiv:1608.06161 Eq.(2.12)-(2.14) -> Eq.(1.12), the cleared
+ * +/- pair split) decides EXACTLY ZERO via the shared srmech_thetasum_is_zero kernel;
+ * else *out_has = 0 (out of class / cert did not close -> the Python re-decides on its
+ * complete pure path AND builds + re-verifies rho there). The C peer does NOT emit rho
+ * (the Python builds it; the peer's novelty is the EXACT certificate decision).
+ *
+ * PURE COMPOSITION of the shared srmech_ellbase_* exact-Q monomial algebra + er_build +
+ * srmech_thetasum_is_zero (the same single copies srmech_elliptic_recurrence /
+ * srmech_elliptic_gosper ride). Malloc-free (JPL Rule 3): caller arena `ws` only. The
+ * "magnitude 2 / magnitude 1" x-power test + the +/-1 prefactor sign are Class-K parity
+ * branches, never abs()/fabs(). Additive symbol -> ABI unchanged (stays 3). License: MIT. */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_zeilberger needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_cap the per-coefficient significant-
+ * limb estimate). */
+size_t srmech_elliptic_zeilberger_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                           size_t coeff_cap);
+
+/* Decide the order-1 ₈ω₇ recurrence + its EXACT connection-coefficient certificate (see
+ * above). *out_has = 1 iff recognized AND the certificate is exactly zero. */
+srmech_status_t srmech_elliptic_zeilberger(size_t n_syms, int xsym, int psym, int qsym,
+                                           int ysym, int nsym, int ksym,
+                                           size_t n_num, size_t n_den,
+                                           const srmech_bigint_t *coeff_num,
+                                           const srmech_bigint_t *coeff_den,
+                                           const int32_t *exps_flat, uint32_t coeff_cap,
+                                           int *out_has, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_elliptic_wz_certificate — the ELLIPTIC Sigma-row IDENTITY-PROOF op for the
+ * Frenkel-Turaev 8w7 SUMMATION (the C peer of
+ * srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate). Where
+ * srmech_elliptic_zeilberger proves the order-1 RECURRENCE f(n+1) = rho(n)*f(n), this op
+ * proves the full SUMMATION IDENTITY sum_{k=0}^n F(n,k) = cf(n) -- the elliptic analogue
+ * of srmech_wz_certificate (the Sec.76 ordinary/q identity-proof rung). The DISTINCT
+ * OUTPUT is the closed form cf(n) = (aq, aq/bc, aq/bd, aq/cd; q,p)_n /
+ * (aq/b, aq/c, aq/d, aq/bcd; q,p)_n (Warnaar Cor 2.2 / Rosengren Thm 2.3.1); the Python
+ * builds those Pochhammer endpoints on its side (the analogue of "the Python builds rho"),
+ * so this C peer -- exactly as srmech_elliptic_zeilberger -- returns ONLY the verdict.
+ *
+ * Input: identical to srmech_elliptic_zeilberger (the 8w7 term ratio r(x) = t(n+1)/t(n)
+ * as the full EllRatio wire form + the nsym/ksym certificate index symbols N = q^n,
+ * K = q^k).
+ *
+ * Output: *out_has = 1 iff r is a canonical 8w7 (the SAME recognize-decompose pipeline)
+ * AND the connection-coefficient inductive-step certificate (Rosengren arXiv:1608.06161
+ * Eq.(2.12)-(2.14) -> Eq.(1.12), the cleared +/- pair split) decides EXACTLY ZERO via the
+ * shared srmech_thetasum_is_zero kernel; else *out_has = 0 (out of class / cert did not
+ * close -> the Python re-decides on its complete pure path AND builds + re-verifies the
+ * closed form there). The inductive step (the certificate) + the terminating base case
+ * C^0_0 = 1 are the complete exact proof of the summation identity.
+ *
+ * PURE COMPOSITION of the shared srmech_ellbase_* exact-Q monomial algebra + er_build +
+ * srmech_thetasum_is_zero (the same single copies srmech_elliptic_zeilberger /
+ * srmech_elliptic_gosper ride). Malloc-free (JPL Rule 3): caller arena `ws` only. The
+ * "magnitude 2 / magnitude 1" x-power test + the +/-1 prefactor sign are Class-K parity
+ * branches, never abs()/fabs(). Additive symbol -> ABI unchanged (stays 3). License: MIT. */
+
+/* Minimum `ws_len` BYTES srmech_elliptic_wz_certificate needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_cap the per-coefficient significant-
+ * limb estimate). */
+size_t srmech_elliptic_wz_certificate_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                               size_t coeff_cap);
+
+/* Decide the 8w7 SUMMATION identity via its EXACT connection-coefficient certificate (see
+ * above). *out_has = 1 iff recognized AND the certificate is exactly zero. */
+srmech_status_t srmech_elliptic_wz_certificate(size_t n_syms, int xsym, int psym, int qsym,
+                                               int ysym, int nsym, int ksym,
+                                               size_t n_num, size_t n_den,
+                                               const srmech_bigint_t *coeff_num,
+                                               const srmech_bigint_t *coeff_den,
+                                               const int32_t *exps_flat, uint32_t coeff_cap,
+                                               int *out_has, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_carrier_spectrum — the OPERAND-side dual of the_one (the C peer of
+ * srmech.amsc.carrier_spectrum.carrier_spectrum). A 1:1 STRUCTURAL MIRROR of the
+ * pure-Python CHANNEL READ: the harmonic occupancy of a carrier element under the
+ * shift-Laplacian, in two orthogonal channels.
+ *
+ * Input: the carrier element as a full EllRatio wire form (the SAME wire form
+ * srmech_elliptic_recurrence_8w7 parses: the interned symbol-table dimension `n_syms`
+ * + the x/p/q/y interned indices (-1 if absent) + the num/den theta counts + the flat
+ * exact-Q coeff arrays + the flat int32 exponent rows, in the order prefactor,
+ * num0..K-1, den0..L-1). `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output:
+ *   - Channel 1 (Class-I) the cyclic sigma-EIGENSPECTRUM: the distinct x-exponents k
+ *     (sigma(x^k) = q^k x^k; k = 0 the shift-Laplacian L = sigma-1 kernel) into
+ *     out_cyclic[0..*out_n_cyclic-1] (cyclic_cap the slot cap);
+ *   - Channel 2 (Class-L) the quasi-periodic p-CHARACTER BLOCK of each theta-factor:
+ *     the net period-multiplier exponent row (under x -> p x AND y -> p y, Rosengren
+ *     Eq. 1.6 via the shared theta-canon), q-coordinate STRIPPED (sigma-invariant),
+ *     one length-n_syms int32 row per num-then-den theta into out_block_flat
+ *     (block_cap_rows the row cap); *out_n_thetas the live theta count.
+ * *out_has = 1 on a successful read; *out_has = 0 (p absent / over native scope) ->
+ * the Python re-decides on its COMPLETE pure path. On overflow / too-small arena the
+ * peer returns SRMECH_ERR_OVERFLOW; a required NULL pointer -> SRMECH_ERR_NULL_ARG.
+ *
+ * The Python side rebuilds the cyclic dict + groups the thetas by the block rows, and
+ * trusts the native result ONLY after the pure rebuild reproduces the same spectrum
+ * byte-for-byte (the channels are a pure exponent-lattice read). The block-DECOMPOSED
+ * key-equation SOLVE (CarrierSpectrum.solve_key_equation) is Python-side (it rides the
+ * additive ThetaSum carrier whose full-arithmetic C peer is OWED); the public op
+ * returns the channel READ, which this peer mirrors completely.
+ *
+ * Reference (the harmonic-shape framing; MPM-verified at build): Hjalmar Rosengren,
+ * "Elliptic Hypergeometric Functions" (arXiv:1608.06161v3 [math.CA]), Sec. 1.3
+ * Lemma 1.3.2 + Sec. 1.4 Eq. (1.12).
+ *
+ * PURE COMPOSITION of the shared srmech_ellbase_* exact-Q monomial algebra +
+ * theta_canon_full + er_build (the same single copy srmech_elliptic_gosper /
+ * srmech_elliptic_recurrence ride). Malloc-free (JPL Rule 3): caller arena `ws` only.
+ * No abs() (Class-K sign), no libm, no <complex.h>. Additive symbol -> ABI unchanged
+ * (stays 3). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_carrier_spectrum needs for the given shape (n_syms
+ * symbols, n_num + n_den input theta factors, coeff_cap the per-coefficient limb cap). */
+size_t srmech_carrier_spectrum_ws_bound(size_t n_syms, size_t n_num, size_t n_den,
+                                        size_t coeff_cap);
+
+/* Read both harmonic channels of a carrier element (see above). */
+srmech_status_t srmech_carrier_spectrum(size_t n_syms, int xsym, int psym,
+                                        int qsym, int ysym, size_t n_num, size_t n_den,
+                                        const srmech_bigint_t *coeff_num,
+                                        const srmech_bigint_t *coeff_den,
+                                        const int32_t *exps_flat, uint32_t coeff_cap,
+                                        int *out_has, int32_t *out_cyclic,
+                                        size_t cyclic_cap, size_t *out_n_cyclic,
+                                        int32_t *out_block_flat, size_t block_cap_rows,
+                                        size_t *out_n_thetas, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_q_zeilberger — the q-analog of Zeilberger's creative telescoping (the
+ * SECOND public op of the q-hypergeometric F929 reduction row, the q-analog of
+ * srmech_zeilberger). The C peer of srmech.amsc.q_zeilberger.q_zeilberger.
+ *
+ * Input: a proper q-hypergeometric term F(n,k) by its TWO bivariate-q term ratios
+ * over (X, Y) = (q^n, q^k):
+ *   r_n(X,Y) = F(n+1,k)/F(n,k) = rn_num/rn_den
+ *   r_k(X,Y) = F(n,k+1)/F(n,k) = rk_num/rk_den
+ * each a QBiPoly (a Y-ascending list of QPoly-in-X cells; each QPoly a Laurent-in-X
+ * run of Q[q] coefficients). The bridge wire form per QBiPoly: the concatenated
+ * q-runs (Y-major then X-major), a per-(Y,X)-cell qlen[], a per-Y-cell x_low[] and
+ * x_cells[], and the Y-cell count.
+ *
+ * Output: when f(n)=Sum_k F(n,k) satisfies a q-recurrence of order <= max_order,
+ * *out_has = 1, *out_order = L, and coeff_* (with coeff_qlen[]/coeff_xlow[]/
+ * coeff_xcells[] and *out_coeff_count = L+1) carry the recurrence coefficients
+ * a_j(X) (QPoly-in-X) so Sum_j a_j(q^n) f(n+j) = 0; cert_* (with *out_cert_ycells)
+ * carry the q-Gosper certificate numerator x(X,Y) (R = x/D_P) when emitted. Else
+ * *out_has = 0.
+ *
+ * STANDALONE-COMPLETE + BOUNDED native scope (the srmech_q_gosper precedent): this
+ * rc56 peer COMPLETES the canonical k-FREE q-GEOMETRIC class (r_n a single Y^0
+ * QPoly cell, r_k == 1) -- the order-1 recurrence rn_den f(n+1) - rn_num f(n) = 0
+ * (a_0 = -rn_num, a_1 = rn_den), exact + byte-identical. For every other input it
+ * DECLINES (*out_has = 0), and the Python op re-runs its COMPLETE pure-Q(q) path
+ * (a has=0 is NEVER a definitive "no recurrence" -- the dispatch trusts only has=1).
+ * The full higher-order Q(q)[X,Y] RREF is the owed everything-mirrors backlog. Any
+ * residual overflow returns SRMECH_ERR_OVERFLOW (never a wrap).
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for input ratios of `coeff_limbs` significant limbs per
+ * q-coefficient, a max ansatz `order`, and a max q-degree `qdeg`. 8-byte-aligned. */
+size_t srmech_q_zeilberger_ws_bound(size_t coeff_limbs, size_t order, size_t qdeg);
+
+/* The per-coefficient limb cap for each srmech_bigint in the coeff_* / cert_* OUTPUT
+ * arrays, so a result q-coefficient never overflows its slot. */
+size_t srmech_q_zeilberger_out_cap(size_t coeff_limbs, size_t order, size_t qdeg);
+
+/* Compute the q-Zeilberger recurrence for F(n,k) given by its two bivariate-q
+ * ratios. The caller sizes coeff_* to (max_order+1) output QPoly cells (each a q-run
+ * of srmech_q_zeilberger_out_cap limbs) and cert_* likewise. rn_den / rk_den must
+ * have ycells > 0. */
+srmech_status_t srmech_q_zeilberger(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_qlen, const int64_t *rn_num_xlow,
+        const size_t *rn_num_xcells, size_t rn_num_ycells,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_qlen, const int64_t *rn_den_xlow,
+        const size_t *rn_den_xcells, size_t rn_den_ycells,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_qlen, const int64_t *rk_num_xlow,
+        const size_t *rk_num_xcells, size_t rk_num_ycells,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_qlen, const int64_t *rk_den_xlow,
+        const size_t *rk_den_xcells, size_t rk_den_ycells,
+        size_t max_order,
+        int *out_has, size_t *out_order,
+        srmech_bigint_t *coeff_n, srmech_bigint_t *coeff_d,
+        size_t *coeff_qlen, int64_t *coeff_xlow, size_t *coeff_xcells,
+        size_t *out_coeff_count,
+        srmech_bigint_t *cert_n, srmech_bigint_t *cert_d,
+        size_t *cert_qlen, int64_t *cert_xlow, size_t *cert_xcells,
+        size_t *out_cert_ycells,
+        void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_q_wz_verify — the q-analog of the Wilf-Zeilberger VERIFY primitive (the
+ * THIRD and FINAL public op of the q-hypergeometric F929 reduction row, the q-row
+ * CLOSER). The C peer of the VERIFY half of srmech.amsc.q_wz_certificate.
+ *
+ * CHECKS that a candidate q-WZ certificate R(X,Y) = Xn/Xd satisfies the q-WZ equation
+ * for the proper q-hypergeometric term F(n,k) given by its two bivariate-q term
+ * ratios r_n = An/Ad, r_k = Bn/Bd (each an exact bivariate-Q[q] QBiPoly over
+ * (X,Y) = (q^n, q^k), the SAME bridge wire form srmech_q_zeilberger consumes -- the
+ * concatenated q-runs (Y-major then X-major), a per-(Y,X)-cell qlen[], a per-Y-cell
+ * xlow[]/xcells[], and the Y-cell count):
+ *
+ *   F(n+1,k) - F(n,k) = G(n,k+1) - G(n,k),   G(n,k) = R(X,Y) * F(n,k),
+ * with G(n,k+1) = (sigma_y R)*(sigma_y F) and sigma_y : Y -> q*Y the k-direction
+ * q-shift (a Q[q] monomial multiply per Y-cell: the Y^d cell picks up q^d).
+ *
+ * Dividing by F(n,k) gives the rational identity
+ *   r_n - 1 = R(X,qY) * r_k - R(X,Y),
+ * and clearing denominators turns it into the single bivariate POLYNOMIAL identity
+ *   (An - Ad) * (sigma_y(Xd) * Bd * Xd) ==
+ *       (sigma_y(Xn) * Bn * Xd - Xn * sigma_y(Xd) * Bd) * Ad.
+ * This is a COMPLETE verification -- bounded only by the input DEGREES, NOT by any
+ * order (unlike the rc56 srmech_q_zeilberger order-<=1 native cap). So
+ * srmech_q_wz_verify is a FULL C mirror of the Python verify.
+ *
+ * Method (exact over Q[q], no float): build both sides as exact bivariate-Q[q]
+ * QBiPoly (a Y-ascending list of Q[q] QPoly-in-X cells, over caller-arena
+ * srmech_bigint) and compare them coefficient-by-coefficient. NO solve, NO order loop,
+ * NO qmat. *out_equal = 1 iff the identity holds. No malloc (JPL Rule 3): every
+ * working carrier is carved from the caller arena `ws`. Any residual overflow returns
+ * SRMECH_ERR_OVERFLOW (never a wrap); the Python op then runs its ceiling-free pure-Q
+ * compare (standalone-honor). rn_den / rk_den / cert_den must have ycells > 0.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for inputs of `coeff_limbs` significant limbs per
+ * q-coefficient and a max bivariate `degree` (max over the X- + Y- + q-extents).
+ * 8-byte-aligned. */
+size_t srmech_q_wz_verify_ws_bound(size_t coeff_limbs, size_t degree);
+
+/* The per-coefficient limb cap each srmech_bigint working carrier needs so a cleared-
+ * identity q-coefficient never overflows its slot (a degree hint). */
+size_t srmech_q_wz_verify_out_cap(size_t coeff_limbs, size_t degree);
+
+/* Verify the q-WZ certificate for the term F(n,k). The six bivariate-q operands ride
+ * the SAME QBiPoly bridge as srmech_q_zeilberger (n/d flat q-runs + qlen[] + xlow[] +
+ * xcells[] + ycells). rn_den / rk_den / cert_den must have ycells > 0 (nonzero).
+ * Returns SRMECH_OK + *out_equal set on a clean check; SRMECH_ERR_OVERFLOW (arena too
+ * small for a huge input) routes the Python op to its pure-Q compare. */
+srmech_status_t srmech_q_wz_verify(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_qlen, const int64_t *rn_num_xlow,
+        const size_t *rn_num_xcells, size_t rn_num_ycells,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_qlen, const int64_t *rn_den_xlow,
+        const size_t *rn_den_xcells, size_t rn_den_ycells,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_qlen, const int64_t *rk_num_xlow,
+        const size_t *rk_num_xcells, size_t rk_num_ycells,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_qlen, const int64_t *rk_den_xlow,
+        const size_t *rk_den_xcells, size_t rk_den_ycells,
+        const srmech_bigint_t *cert_num_n, const srmech_bigint_t *cert_num_d,
+        const size_t *cert_num_qlen, const int64_t *cert_num_xlow,
+        const size_t *cert_num_xcells, size_t cert_num_ycells,
+        const srmech_bigint_t *cert_den_n, const srmech_bigint_t *cert_den_d,
+        const size_t *cert_den_qlen, const int64_t *cert_den_xlow,
+        const size_t *cert_den_xcells, size_t cert_den_ycells,
+        int *out_equal, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_qmat — EXACT-RATIONAL dense matrix over srmech_bigint (the C peer of
+ * srmech.amsc.qmat.QMat; the exact-ℚ linear-algebra carrier the §76 gosper
+ * undetermined-coefficient solve needs in C).
+ *
+ * A matrix is two parallel caller-owned srmech_bigint arrays, ROW-MAJOR:
+ * nums[r*ncols + c] / dens[r*ncols + c] is the exact-rational entry at (r, c)
+ * (dens > 0, gcd(|nums|, dens) == 1; zero entry = 0/1). Each op computes the
+ * SAME exact rational entries srmech.amsc.qmat.QMat computes — exact Gauss-Jordan
+ * over ℚ on the shared _rref_augmented kernel — over caller-arena srmech_bigint
+ * (NO malloc), reduced to lowest terms with positive denominator. Byte-identical
+ * to Python's (num, den) at ANY magnitude (full bignum; no int64/Q61 ceiling).
+ *
+ * STANDALONE-COMPLETE: the working matrix entry storage + every scalar carrier +
+ * the divmod/reduce scratch are carved from the caller arena `ws` (>= the matching
+ * srmech_qmat_ws_bound), so the bound is the caller's RAM. Out entry arrays are
+ * caller-owned + must be pre-sized: rref n_rows*n_cols, det a single rational,
+ * inverse/solve the answer block, nullspace n_cols*n_cols (column-major basis).
+ * Each srmech_bigint in those arrays must carry >= srmech_qmat_entry_cap limbs.
+ * A singular inverse/solve sets *out_singular = 1 (mirroring QMat's ValueError);
+ * a too-small ws or an out entry cap -> SRMECH_ERR_OVERFLOW (never a silent wrap),
+ * and the Python QMat falls back to its ceiling-free pure-Gauss-Jordan path.
+ *
+ * ARENA SOUNDNESS: every reduced RREF entry is a ratio of input MINORS (Cramer);
+ * a k x k minor Hadamard-bounds at k^(k/2) * M^k (k <= n_rows + total_cols).
+ * qmat_cap_for sizes each carrier with coeff_limbs * (n_rows + total_cols) + a
+ * log-headroom slack (dominating that minor bit-length) and x2 for the unreduced
+ * cross-product — so a benign input never spuriously overflows; a genuinely huge
+ * one reports OVERFLOW, never wraps.
+ *
+ * Carrier-internal (like srmech_poly): NOT a Rosetta ledger op. Additive symbols
+ * -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* The largest square dimension / column count the fixed-size pivot bookkeeping
+ * (the on-stack pivot_cols + col->pivot-row arrays) supports. Past this an op
+ * returns SRMECH_ERR_BAD_INPUT and the Python QMat keeps its pure path. */
+#define SRMECH_QMAT_MAX_DIM 256u
+
+/* Minimum `ws_len` BYTES the caller hands every srmech_qmat_* op below, for input
+ * entries of `coeff_limbs` significant limbs and a row-reduction spanning `n_rows`
+ * rows by `total_cols` columns (total_cols = the augmented width: n_cols for
+ * rref/rank/nullspace, 2*n for inverse, n+b_cols for solve). Covers the working
+ * matrix entry storage + every scalar carrier + the deepest gcd/divmod scratch.
+ * 8-byte-aligned uint32 bump arena. */
+size_t srmech_qmat_ws_bound(size_t coeff_limbs, size_t n_rows,
+                            size_t total_cols);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT
+ * nums/dens arrays (so a reduced result entry never overflows its slot before the
+ * op's guard fires). Use the SAME total_cols as the op's ws-bound. */
+size_t srmech_qmat_entry_cap(size_t coeff_limbs, size_t n_rows,
+                             size_t total_cols);
+
+/* Reduced row echelon form of A (n_rows x n_cols) over ℚ. out_n/out_d receive the
+ * n_rows*n_cols reduced matrix (row-major); *out_rank <- the pivot count;
+ * pivot_cols[0..*out_rank) <- the pivot columns (increasing; caller sizes it
+ * n_cols). n_cols > SRMECH_QMAT_MAX_DIM -> SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_qmat_rref(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d, size_t n_rows,
+                                 size_t n_cols, srmech_bigint_t *out_n,
+                                 srmech_bigint_t *out_d, size_t *out_rank,
+                                 size_t *pivot_cols, void *ws, size_t ws_len);
+
+/* The exact rank of A (the RREF pivot count). */
+srmech_status_t srmech_qmat_rank(const srmech_bigint_t *a_n,
+                                 const srmech_bigint_t *a_d, size_t n_rows,
+                                 size_t n_cols, size_t *out_rank,
+                                 void *ws, size_t ws_len);
+
+/* The exact determinant of A (n x n) as one reduced rational out_num/out_den.
+ * Forward Gauss elimination with explicit pivoting; the swap sign is a Class-K
+ * int ±1 pin-slot (never an ALU abs). A zero pivot column -> det 0/1. */
+srmech_status_t srmech_qmat_det(const srmech_bigint_t *a_n,
+                                const srmech_bigint_t *a_d, size_t n,
+                                srmech_bigint_t *out_num,
+                                srmech_bigint_t *out_den, void *ws,
+                                size_t ws_len);
+
+/* The exact inverse of A (n x n) via [A|I] Gauss-Jordan. out_n/out_d receive the
+ * n*n inverse (row-major) iff A is invertible; *out_singular set 1 (and out left
+ * unspecified) when A is singular — mirroring QMat.inverse's ValueError. */
+srmech_status_t srmech_qmat_inverse(const srmech_bigint_t *a_n,
+                                    const srmech_bigint_t *a_d, size_t n,
+                                    srmech_bigint_t *out_n,
+                                    srmech_bigint_t *out_d, int *out_singular,
+                                    void *ws, size_t ws_len);
+
+/* Solve A x = b EXACTLY (A is n x n, b is n x b_cols) via [A|b] Gauss-Jordan.
+ * out_n/out_d receive x (n x b_cols, row-major) iff A is full-rank-square;
+ * *out_singular set 1 when A is singular (no unique solution) — mirroring
+ * QMat.solve's ValueError. */
+srmech_status_t srmech_qmat_solve(const srmech_bigint_t *a_n,
+                                  const srmech_bigint_t *a_d, size_t n,
+                                  const srmech_bigint_t *b_n,
+                                  const srmech_bigint_t *b_d, size_t b_cols,
+                                  srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                                  int *out_singular, void *ws, size_t ws_len);
+
+/* An exact basis of ker(A) (A is n_rows x n_cols) — the classical free-variable
+ * construction (mirrors QMat.nullspace element-for-element). out_n/out_d receive
+ * an (n_cols x *out_nfree) COLUMN-MAJOR-by-store matrix: out[i*n_cols + j] is
+ * entry i of basis column j (caller sizes out n_cols*n_cols; *out_nfree <= n_cols
+ * is the free-column count). *out_nfree == 0 iff A has full column rank. */
+srmech_status_t srmech_qmat_nullspace(const srmech_bigint_t *a_n,
+                                      const srmech_bigint_t *a_d, size_t n_rows,
+                                      size_t n_cols, srmech_bigint_t *out_n,
+                                      srmech_bigint_t *out_d, size_t *out_nfree,
+                                      void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_qmat_rref_crt — the CRT re-fibration of the exact-Q RREF as ONE
+ * standalone C symbol (srmech 0.9.0rc48, the CLOSER of the CRT-QMat arc).
+ *
+ * Orchestrates the four already-C-backed rungs (srmech_gf_rref / srmech_crt_combine
+ * / srmech_rational_reconstruct / srmech_is_prime) into the full bounded-memory
+ * exact-Q solve a bare-C host can call with ONE call. BYTE-IDENTICAL to the
+ * pure-Python srmech.amsc.qmat.QMat.rref_crt: descending odd primes from 2**31-2,
+ * skip a prime dividing any denominator, gf_rref per prime over GF(p), unlucky-
+ * prime rank-consensus (max (rank, pivots) dominates; a strictly higher-rank prime
+ * RESTARTS the CRT), crt_combine per cell, rational_reconstruct with the default
+ * Wang bound isqrt(modulus // 2), stabilization early-termination (reconstructed
+ * matrix identical across two consecutive good primes).
+ *
+ * THE ARENA BOUND (the crux). Unlike the dense srmech_qmat_rref (whose malloc-free
+ * arena must reserve the Hadamard fraction ENVELOPE OF THE ELIMINATION, GB-scale),
+ * the CRT arena is bounded by the ANSWER size: each per-prime solve is int64
+ * (n_rows*n_cols*8 bytes), and the only bignum is the final per-cell crt_combine
+ * product + rational_reconstruct, whose size is bounded by the NUMBER OF GOOD
+ * PRIMES -- itself bounded a priori by the answer-Hadamard envelope (every reduced
+ * entry is a ratio of input MINORS; a span x span minor of magnitude-M entries
+ * bounds at span^(span/2)*M^span = H, and Wang succeeds once the good-prime product
+ * exceeds 2*H^2, so n_primes <= ceil((2*log2 H + 2)/30) + slack). That bound is
+ * derived from the input entries' magnitudes + the dimension, NOT the elimination
+ * swell -- so the working RAM is answer-sized (MB-scale on the Franel system),
+ * never the ~2.3 GB dense envelope. The caller sizes the arena from
+ * srmech_qmat_rref_crt_ws_bound.
+ *
+ * Returns the same wire shape as srmech_qmat_rref (the exact-Q RREF row-major in
+ * out_n/out_d, the pivot count in *out_rank, the pivot columns in pivot_cols).
+ * STANDALONE-COMPLETE: every working table + bignum carrier + sub-op scratch is
+ * carved from the caller arena `ws` (>= srmech_qmat_rref_crt_ws_bound). A too-small
+ * arena or an exhausted prime field -> SRMECH_ERR_OVERFLOW (never a silent wrap);
+ * the Python QMat.rref_crt then keeps its ceiling-free pure CRT path.
+ * n_rows / n_cols > SRMECH_QMAT_MAX_DIM -> SRMECH_ERR_BAD_INPUT.
+ *
+ * Carrier-internal (like srmech_qmat): NOT a Rosetta ledger op. Additive symbols
+ * -> SRMECH_ABI_VERSION unchanged (stays 3).
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_qmat_rref_crt on an n_rows x n_cols input of
+ * `coeff_limbs` significant limbs per entry. Sizes the roster from the ANSWER-
+ * Hadamard good-prime bound (NOT the dense elimination swell). 8-byte-aligned. */
+size_t srmech_qmat_rref_crt_ws_bound(size_t coeff_limbs, size_t n_rows,
+                                     size_t n_cols);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT
+ * nums/dens arrays -- sized from the ANSWER-Hadamard good-prime bound (NOT the
+ * dense Cramer-minor srmech_qmat_entry_cap, which would re-reserve the GB-scale
+ * output the CRT row escapes). */
+size_t srmech_qmat_rref_crt_entry_cap(size_t coeff_limbs, size_t n_rows,
+                                      size_t n_cols);
+
+/* The exact-Q RREF of A (n_rows x n_cols) via the bounded-memory CRT re-fibration.
+ * out_n/out_d receive the n_rows*n_cols reduced matrix (row-major); *out_rank <-
+ * the pivot count; pivot_cols[0..*out_rank) <- the pivot columns (increasing;
+ * caller sizes it n_cols). Byte-identical to srmech_qmat_rref's result at bounded
+ * memory. */
+srmech_status_t srmech_qmat_rref_crt(const srmech_bigint_t *a_n,
+                                     const srmech_bigint_t *a_d, size_t n_rows,
+                                     size_t n_cols, srmech_bigint_t *out_n,
+                                     srmech_bigint_t *out_d, size_t *out_rank,
+                                     size_t *pivot_cols, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_cd_qvec — the Cayley-Dickson EXACT-ℚ VECTOR carrier, the 1-D sibling
+ * of srmech_qmat (v0.9.0rc159; Qalg TAIL Batch 3). A dim-2^k Cayley-Dickson
+ * element is a ℚ-vector of `dim` components; each component is one exact
+ * rational num/den srmech_bigint pair (dens > 0, gcd(|num|, den) == 1; the
+ * zero component is 0/1) — the SAME reduced canonical form as Python's
+ * fractions.Fraction. A bare-C host CONSTRUCTS + HOLDS + MANIPULATES a CD
+ * ℚ-vector through these four kernels with no Python (the everything-mirrors
+ * discipline — the carrier is owed C too, not only the primitive kernels).
+ *
+ * They REUSE the qmat exact-ℚ scalar machinery (qmat_q_add / qmat_q_mul /
+ * qmat_q_reduce over srmech_bigint) in the SAME translation unit — the 1-D
+ * vector is a degenerate matrix, so the rational-limb arithmetic is not
+ * duplicated (the 1:1-mirror discipline forbids two copies of the same
+ * algebra). BYTE-IDENTICAL to Python's Fraction (num, den) at ANY magnitude
+ * (full bignum; no int64/Q61 ceiling). Rosetta peers of
+ * srmech.amsc.cascade.cayley_dickson.{cd_basis, cd_conjugate, cd_add,
+ * cd_norm_sq}, attested BYTE-IDENTICAL by tests/test_qalg_qvec_c_rc159.py.
+ *
+ *   cd_qbasis    : the unit vector e_i (1/1 at i, 0/1 elsewhere) — Class-A
+ *                  attested basis convention; no arithmetic.
+ *   cd_qconjugate: negate the IMAGINARY half (components 1..dim-1), keep
+ *                  component 0 — the Class-K sign-flip (never an ALU abs).
+ *   cd_qadd      : component-wise exact-ℚ sum (Class-M bilinear over ℚ).
+ *   cd_qnorm_sq  : Σ_i x_i² as one exact-ℚ scalar (Class-N rational anchor;
+ *                  x·x̄ = N(x)·1).
+ *
+ * STANDALONE-COMPLETE: the qadd / qnorm_sq working carriers + reduce scratch
+ * are carved from the caller arena `ws` (>= srmech_cd_qvec_ws_bound), so the
+ * bound is the caller's RAM; any residual overflow returns SRMECH_ERR_OVERFLOW
+ * (never a silent wrap), and the Python cd_* op falls back to its ceiling-free
+ * pure-Fraction oracle. qbasis / qconjugate need NO arena (bignum copy / set +
+ * a Class-K sign flip only). Out entry arrays are caller-owned + pre-sized:
+ * each srmech_bigint must carry >= srmech_cd_qvec_entry_cap limbs.
+ *
+ * Carrier-internal like srmech_qmat / srmech_poly (no ToolEntry of its own —
+ * the Python cd_* ops are the ledger surface). Additive symbols -> ABI
+ * unchanged (stays 3). See srmech_qmat.c. dim a power of two in
+ * [1, SRMECH_CD_MAX_DIM]; a bad dim / index -> SRMECH_ERR_BAD_INPUT.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES the caller hands srmech_cd_qadd / srmech_cd_qnorm_sq
+ * for `dim` components of `coeff_limbs` significant limbs each. Covers the
+ * exact-ℚ scalar accumulator + reduce scratch (the norm_sq accumulator's
+ * denominator can grow to ~dim*coeff_limbs limbs; this dominates it). */
+size_t srmech_cd_qvec_ws_bound(size_t coeff_limbs, size_t dim);
+
+/* The per-entry limb cap the caller must give each srmech_bigint in the OUTPUT
+ * nums/dens arrays so a reduced result never overflows its slot before the op's
+ * guard fires. Use the SAME dim as the op's ws-bound. */
+size_t srmech_cd_qvec_entry_cap(size_t coeff_limbs, size_t dim);
+
+/* The unit basis element e_i of the dim-D algebra: out_n[c]/out_d[c] receive
+ * 1/1 at c == i and 0/1 elsewhere (caller sizes out arrays `dim` long). No
+ * arena. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (bad dim / i). */
+srmech_status_t srmech_cd_qbasis(int dim, int i,
+                                 srmech_bigint_t *out_n, srmech_bigint_t *out_d);
+
+/* Cayley-Dickson conjugation: copy x, then negate the numerator sign of the
+ * imaginary components 1..dim-1 (Class-K; component 0 kept). out may not alias
+ * x. Reduced form is preserved (negation keeps gcd == 1). No arena. */
+srmech_status_t srmech_cd_qconjugate(const srmech_bigint_t *x_n,
+                                     const srmech_bigint_t *x_d, int dim,
+                                     srmech_bigint_t *out_n,
+                                     srmech_bigint_t *out_d);
+
+/* Component-wise exact-ℚ sum: out[c] = x[c] + y[c] (reduced). x, y, out are
+ * each `dim` components; out may not alias x or y. Uses the caller arena `ws`
+ * (>= srmech_cd_qvec_ws_bound). */
+srmech_status_t srmech_cd_qadd(const srmech_bigint_t *x_n,
+                               const srmech_bigint_t *x_d,
+                               const srmech_bigint_t *y_n,
+                               const srmech_bigint_t *y_d, int dim,
+                               srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                               void *ws, size_t ws_len);
+
+/* The squared norm N(x) = Σ_i x_i² as one reduced exact-ℚ scalar
+ * out_num/out_den. `dim` components; uses the caller arena `ws`
+ * (>= srmech_cd_qvec_ws_bound). */
+srmech_status_t srmech_cd_qnorm_sq(const srmech_bigint_t *x_n,
+                                   const srmech_bigint_t *x_d, int dim,
+                                   srmech_bigint_t *out_num,
+                                   srmech_bigint_t *out_den,
+                                   void *ws, size_t ws_len);
+
+/* The arbitrary-rational Cayley-Dickson PRODUCT x·y (v0.9.0rc160; Qalg TAIL
+ * Batch 4). Composes the integer cocycle srmech_cd_basis_product with the same
+ * qmat exact-ℚ scalar arithmetic the Qvec kernels use: out[i⊕j] += x_i·y_j·
+ * sign(i,j) over all i, j (the bilinear form of the recursive doubling). x, y,
+ * out are each `dim` components; out may not alias x or y. Uses the caller arena
+ * `ws` (>= srmech_cd_qvec_ws_bound; each slot sums `dim` products — the same
+ * accumulation profile as srmech_cd_qnorm_sq). BYTE-IDENTICAL reduced (num, den)
+ * to Python's recursive cd_mult at any magnitude. Rosetta peer of
+ * srmech.amsc.cascade.cayley_dickson.cd_mult; attested by
+ * tests/test_qalg_cdmult_c_rc160.py. Additive symbol -> ABI unchanged (3). */
+srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
+                               const srmech_bigint_t *x_d,
+                               const srmech_bigint_t *y_n,
+                               const srmech_bigint_t *y_d, int dim,
+                               srmech_bigint_t *out_n, srmech_bigint_t *out_d,
+                               void *ws, size_t ws_len);
+
+/* srmech_faddeev_leverrier — the exact-INTEGER characteristic polynomial of an
+ * n×n integer matrix via the Faddeev–LeVerrier recursion (v0.9.0rc161; Qalg TAIL
+ * Batch 5). It is the FOUNDATION of the exact-LA tail (eigvals_exact / eig_exact
+ * / jordan all reduce to the roots of this polynomial). Pure srmech_bigint
+ * INTEGER arithmetic (NOT ℚ — an integer matrix has integer char-poly coeffs):
+ *   M_1 = I ; c_1 = -tr(A) ;  for k in 1..n:  AM = A·M ;  c_k = -tr(AM)/k
+ *   (the /k is EXACT — tr(A·M_k) is divisible by k, the FL integer theorem) ;
+ *   M <- AM + c_k·I .
+ * Composes srmech_bigint mul/add (the A·M matmul + trace accumulate) with the
+ * exact srmech_bigint divmod (the /k step; floor == exact since k | tr). `a` is
+ * the row-major n×n input matrix (n·n integer bigints; dens implied 1). `coeffs`
+ * receives the n+1 monic coefficients HIGH→LOW: coeffs[0]=1, coeffs[k]=c_k, so
+ * det(xI−A)=Σ coeffs[k]·x^(n−k). Uses the caller arena `ws`
+ * (>= srmech_faddeev_leverrier_ws_bound); each `coeffs` entry must carry
+ * >= srmech_faddeev_leverrier_entry_cap limbs. A too-small arena / entry cap ->
+ * SRMECH_ERR_OVERFLOW (caller falls back to the byte-identical pure Python).
+ * n in [1, SRMECH_FL_MAX_DIM]; n<1 or n>max -> SRMECH_ERR_BAD_INPUT. Rosetta peer
+ * of srmech.amsc.cascade.matrix_cascades.char_poly (integer path); attested by
+ * tests/test_qalg_charpoly_c_rc161.py. Additive symbol -> ABI unchanged (3). */
+#define SRMECH_FL_MAX_DIM 256u
+size_t srmech_faddeev_leverrier_entry_cap(size_t coeff_limbs, size_t n);
+size_t srmech_faddeev_leverrier_ws_bound(size_t coeff_limbs, size_t n);
+srmech_status_t srmech_faddeev_leverrier(const srmech_bigint_t *a, int n,
+                                         srmech_bigint_t *coeffs,
+                                         void *ws, size_t ws_len);
+
+/* srmech_sturm_isolate — EXACT REAL-EIGENVALUE isolation (v0.9.0rc162; Qalg TAIL
+ * Batch 6). The exact ROOTS of the characteristic polynomial: eigenvalues are
+ * ALGEBRAIC numbers, so — kept in exact integer/rational arithmetic — they come
+ * out as exact isolating rational intervals with NO Wilkinson ill-conditioning.
+ * `cp` is the n+1 monic INTEGER char-poly coefficients HIGH->LOW (the
+ * srmech_faddeev_leverrier output; dens implied 1). The op composes the exact-Q
+ * srmech_poly_* kernels (gcd / divmod / eval) with scalar exact-Q srmech_bigint
+ * arithmetic:
+ *   char_poly -> Yun square-free factorisation (exact multiplicities) -> STURM
+ *   sign-sequence isolation (sign-variation count at rational boundaries) ->
+ *   rational BISECTION to width < 2^-bits.
+ * out_lo_n/out_lo_d, out_hi_n/out_hi_d receive the reduced-fraction (num, den)
+ * endpoints of the isolating intervals WITH multiplicity (each caller-owned,
+ * >= srmech_sturm_isolate_entry_cap limbs, >= n slots); *out_count <- the number
+ * of real eigenvalues (with multiplicity). The caller SORTS by lo+hi and projects
+ * to float (the single terminal rotation) exactly as the pure path does. Uses the
+ * caller arena `ws` (>= srmech_sturm_isolate_ws_bound); a too-small arena / entry
+ * cap / a subdivision beyond the bounded stack -> SRMECH_ERR_OVERFLOW (the caller
+ * falls back to the byte-identical pure Python — the parity oracle). n in
+ * [1, SRMECH_STURM_MAX_DIM]; n<1 or n>max -> SRMECH_ERR_BAD_INPUT. Rosetta peer of
+ * srmech.amsc.cascade.matrix_cascades.eigvals_exact (real-root path); attested by
+ * tests/test_qalg_eigvals_c_rc162.py. Additive symbol -> ABI unchanged (3). */
+#define SRMECH_STURM_MAX_DIM 256
+size_t srmech_sturm_isolate_entry_cap(size_t coeff_limbs, size_t n,
+                                      uint32_t bits);
+size_t srmech_sturm_isolate_ws_bound(size_t coeff_limbs, size_t n, uint32_t bits);
+srmech_status_t srmech_sturm_isolate(const srmech_bigint_t *cp, int n,
+                                     uint32_t bits,
+                                     srmech_bigint_t *out_lo_n,
+                                     srmech_bigint_t *out_lo_d,
+                                     srmech_bigint_t *out_hi_n,
+                                     srmech_bigint_t *out_hi_d,
+                                     size_t *out_count, void *ws, size_t ws_len);
+
+/* srmech_poly_root_box_certify — the exact ARGUMENT-PRINCIPLE root count of a
+ * polynomial `p` (np coefficients, low->high, over Q as num/den srmech_bigint
+ * pairs) STRICTLY inside the open rational box (x0,x1) x (y0,y1). The winding
+ * number of p around the box boundary (traversed CCW) = the enclosed root count,
+ * computed in EXACT Fraction arithmetic (Cauchy-index sum of the per-edge V/U
+ * sign-variation sequences — the same generalised-Sturm machinery as the real
+ * isolation). *out_count <- the count; *out_degenerate <- 1 when a corner/edge
+ * hits a root (winding half-integer / p vanishes on an edge — the caller nudges
+ * the corners), mirroring _count_roots_in_box's ValueError. Composes srmech_poly_*
+ * (edge substitution + generalised Sturm seq) + srmech_poly_eval over the caller
+ * arena `ws` (>= srmech_poly_root_box_certify_ws_bound). The certifier the complex
+ * eigenvalue isolation (eigvals_exact include_complex) composes. Additive symbol
+ * -> ABI unchanged (3). */
+size_t srmech_poly_root_box_certify_ws_bound(size_t coeff_limbs, size_t np);
+srmech_status_t srmech_poly_root_box_certify(
+        const srmech_bigint_t *p_num, const srmech_bigint_t *p_den, size_t np,
+        const srmech_bigint_t *x0n, const srmech_bigint_t *x0d,
+        const srmech_bigint_t *x1n, const srmech_bigint_t *x1d,
+        const srmech_bigint_t *y0n, const srmech_bigint_t *y0d,
+        const srmech_bigint_t *y1n, const srmech_bigint_t *y1d,
+        int *out_count, int *out_degenerate, void *ws, size_t ws_len);
+
+/* srmech_complex_isolate — the exact COMPLEX eigenvalues of the integer matrix
+ * whose monic INTEGER char-poly is `cp` (HIGH->LOW, n+1 coeffs). Composes the Yun
+ * square-free factorisation with PURE rational-box subdivision over the upper
+ * half-plane, each box CERTIFIED by srmech_poly_root_box_certify (the exact
+ * argument principle — no float in the count), refined to 2^-bits. out_re_n/out_re_d,
+ * out_im_n/out_im_d receive the reduced-fraction (re, im) box centers WITH
+ * multiplicity — each certified upper-half center AND its conjugate (im<0), in
+ * per-square-free-factor emit order (the caller sorts by (re, im) + projects to
+ * complex, exactly as the pure include_complex path does). *out_count <- the number
+ * of complex eigenvalues (= n - #real). Byte/structurally-identical to the pure
+ * _isolate_complex_roots_upper. Caller arena `ws` (>= srmech_complex_isolate_ws_bound);
+ * each output >= srmech_complex_isolate_entry_cap limbs, >= n slots. A too-small
+ * arena / a certifier degeneracy the jitter cannot escape -> SRMECH_ERR_OVERFLOW
+ * (the caller falls back to the byte-identical pure path). Additive symbol -> ABI 3. */
+size_t srmech_complex_isolate_entry_cap(size_t coeff_limbs, size_t n, uint32_t bits);
+size_t srmech_complex_isolate_ws_bound(size_t coeff_limbs, size_t n, uint32_t bits);
+srmech_status_t srmech_complex_isolate(const srmech_bigint_t *cp, int n,
+                                       uint32_t bits,
+                                       srmech_bigint_t *out_re_n,
+                                       srmech_bigint_t *out_re_d,
+                                       srmech_bigint_t *out_im_n,
+                                       srmech_bigint_t *out_im_d,
+                                       size_t *out_count, void *ws, size_t ws_len);
+
+/* srmech_eigvec_exact — EXACT EIGENVECTORS over the number field ℚ(λ) = ℚ[x]/(m)
+ * (v0.9.0rc163; Qalg TAIL Batch 7a). An algebraic eigenvalue λ is a root of a
+ * monic IRREDUCIBLE integer polynomial m of degree deg, so ℚ(λ) is a FIELD; the
+ * eigenvector is the null space of M = A − λI over that field, read off the exact
+ * REDUCED ROW ECHELON form. The Qalg field arithmetic composes the exact-ℚ
+ * srmech_poly_* kernels: add/sub coefficientwise, mul = convolution then REDUCE
+ * mod m (srmech_poly_divmod remainder — the monic relation αⁿ = −Σ m[i]αⁱ),
+ * inverse = the extended Euclidean algorithm on b(x), m(x) in ℚ[x] (b⁻¹ = u/g mod
+ * m). Byte/structurally-identical to the pure _eigvec_exact_qalg (the RREF is
+ * canonical). Rosetta peer of matrix_cascades.eigvec_exact / eigvec_exact_float;
+ * attested by tests/test_qalg_eigvec_c_rc163.py.
+ *
+ * `a_n`/`a_d` are the n·n rational matrix entries (row-major, num/den, dens > 0
+ * reduced); `m` is the deg+1 monic INTEGER coefficients low->high (denominators
+ * implied 1); `lam_n`/`lam_d` are λ's deg ℚ(α) coordinates. out_n/out_d receive
+ * *out_k null-space basis vectors, each n components of deg coordinates, at
+ * out[((v·n + comp)·deg + coeff)] (the caller sizes them n·n·deg slots, each >=
+ * srmech_eigvec_exact_entry_cap limbs); *out_k is the null-space dimension (0 iff
+ * λ is not an eigenvalue — the caller then raises the same ValueError). Uses the
+ * caller arena `ws` (>= srmech_eigvec_exact_ws_bound). n/deg in [1,
+ * SRMECH_EIGVEC_MAX_DIM]; a non-monic / out-of-range / REDUCIBLE m (a zero-divisor
+ * pivot with no inverse) -> SRMECH_ERR_BAD_INPUT; a too-small arena / coordinate
+ * cap -> SRMECH_ERR_OVERFLOW (the caller falls back to the byte-identical pure
+ * path — the parity oracle). Additive symbols -> ABI unchanged (3). */
+#define SRMECH_EIGVEC_MAX_DIM 256
+size_t srmech_eigvec_exact_entry_cap(size_t coeff_limbs, int n, int deg);
+size_t srmech_eigvec_exact_ws_bound(size_t coeff_limbs, int n, int deg);
+srmech_status_t srmech_eigvec_exact(
+        const srmech_bigint_t *a_n, const srmech_bigint_t *a_d, int n,
+        const srmech_bigint_t *m, int deg,
+        const srmech_bigint_t *lam_n, const srmech_bigint_t *lam_d,
+        srmech_bigint_t *out_n, srmech_bigint_t *out_d, int *out_k,
+        void *ws, size_t ws_len);
+
+/* srmech_jordan_chains — the exact JORDAN CHAINS (generalized eigenvectors) of
+ * an integer/rational matrix A for the algebraic eigenvalue λ over ℚ(λ) =
+ * ℚ[x]/(m) (v0.9.0rc164; Qalg TAIL Batch 7b). With N = A − λI (Qalg entries),
+ * the generalized eigenspace null(Nᵘ) has dim μ and N is nilpotent on it; the
+ * Jordan structure is read off the exact Qalg-RREF ranks r_k = rank(Nᵏ)
+ * (# blocks of size exactly k = r_{k-1} − 2·r_k + r_{k+1}) and the chains are
+ * built TOP-DOWN. COMPOSES the rc163 Qalg field (srmech_eigvec_exact's field
+ * arithmetic) plus the Qalg matrix MATMUL / RANK / nested NULLSPACE added here.
+ * Rosetta peer of matrix_cascades.jordan_chains_exact; attested by
+ * tests/test_qalg_jordan_c_rc164.py.
+ *
+ * `a_n`/`a_d` are the n·n rational matrix entries (row-major, num/den); `m` is
+ * the deg+1 monic INTEGER coefficients low->high; `lam_n`/`lam_d` are λ's deg
+ * ℚ(α) coordinates. out_n/out_d receive *out_total generalized eigenvectors
+ * (≤ n), each n components of deg coordinates, at out[((v·n + comp)·deg + coeff)]
+ * — the chains CONCATENATED in build order (block size p down to 1; each chain
+ * BOTTOM→TOP). out_block_sizes[0..*out_nchains) receive the chain lengths in the
+ * same order (Σ = *out_total). The caller sizes out_n/out_d n·n·deg slots (each
+ * >= srmech_jordan_chains_entry_cap limbs) and out_block_sizes n ints. Uses the
+ * caller arena `ws` (>= srmech_jordan_chains_ws_bound). n/deg in
+ * [1, SRMECH_JORDAN_MAX_DIM]; a non-monic / out-of-range / REDUCIBLE m ->
+ * SRMECH_ERR_BAD_INPUT; a too-small arena / cap -> SRMECH_ERR_OVERFLOW (the
+ * caller falls back to the byte-identical pure path). Additive symbols -> ABI
+ * unchanged (3). */
+#define SRMECH_JORDAN_MAX_DIM 64
+size_t srmech_jordan_chains_entry_cap(size_t coeff_limbs, int n, int deg);
+size_t srmech_jordan_chains_ws_bound(size_t coeff_limbs, int n, int deg);
+srmech_status_t srmech_jordan_chains(
+        const srmech_bigint_t *a_n, const srmech_bigint_t *a_d, int n,
+        const srmech_bigint_t *m, int deg,
+        const srmech_bigint_t *lam_n, const srmech_bigint_t *lam_d,
+        srmech_bigint_t *out_n, srmech_bigint_t *out_d, int *out_total,
+        int *out_block_sizes, int *out_nchains, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_gosper — Gosper's indefinite hypergeometric summation (the
+ * FIRST public op of the §76 "telescope" Σ-row closed-form prover,
+ * F929). Built on srmech_bigint + the exact-ℚ poly/qmat machinery.
+ *
+ * Input: a hypergeometric term given by its TERM RATIO
+ *   t(k+1)/t(k) = num(k)/den(k)
+ * as two exact-rational polynomials in ℚ[k], each a parallel pair of
+ * srmech_bigint coefficient arrays (ascending degree; nums[i]/dens[i] =
+ * coeff of k^i, dens > 0, reduced). Output: when Σ t(k) HAS a
+ * hypergeometric antidifference T(k) = R(k)·t(k) (so T(k+1)−T(k)=t(k)),
+ * the rational CERTIFICATE R(k) = r_num(k)/r_den(k); else "no solution".
+ *
+ * The algorithm composes the same exact-ℚ kernels the Python op uses —
+ * polynomial GCD / long division / dispersion shift (the srmech_poly_*
+ * family's algebra) + the exact Gauss-Jordan RREF over ℚ
+ * (srmech_qmat_rref) for the undetermined-coefficient Gosper equation —
+ * over caller-arena srmech_bigint (NO malloc, JPL Rule 3). Byte-identical
+ * to the Python certificate at ANY magnitude (full bignum; no ceiling).
+ *
+ * STANDALONE-COMPLETE: every working carrier + the poly/qmat/divmod
+ * scratch is carved from the caller arena `ws` (>= srmech_gosper_ws_bound),
+ * so the bound is the caller's RAM, not a compiled-in cap. Any residual
+ * overflow returns SRMECH_ERR_OVERFLOW (never a silent wrap), and the
+ * Python gosper falls back to its ceiling-free pure-ℚ path.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES the caller hands srmech_gosper for input term-ratio
+ * polynomials of `coeff_limbs` significant limbs per coefficient and a higher
+ * degree of `degree` (max(deg num, deg den)). Sized for the dispersion /
+ * GP-normal-form / degree-bounded linear-solve chain (the heaviest stage is the
+ * exact-ℚ RREF over an (deg²+1)×(deg+1) augmented matrix). 8-byte-aligned. */
+size_t srmech_gosper_ws_bound(size_t coeff_limbs, size_t degree);
+
+/* The per-coefficient limb cap a caller must give each srmech_bigint in the
+ * r_num / r_den output arrays, so a reduced certificate coefficient never
+ * overflows its slot before the op's own guard fires. */
+size_t srmech_gosper_out_cap(size_t coeff_limbs, size_t degree);
+
+/* Compute Gosper's certificate for the term ratio num/den.
+ *   num_n/num_d (length n_num) : the term-ratio numerator   num(k) over ℚ[k]
+ *   den_n/den_d (length n_den) : the term-ratio denominator den(k) over ℚ[k]
+ * On success *out_has_solution is set: 1 when a hypergeometric antidifference
+ * exists (then r_num_n/r_num_d (length *out_rnum) and r_den_n/r_den_d (length
+ * *out_rden) carry the reduced certificate R(k) = r_num(k)/r_den(k)), 0 when
+ * none exists (the r_* arrays are then unspecified). The caller sizes each r_*
+ * array to (degree + 2) coefficients of srmech_gosper_out_cap limbs. den must be
+ * a NONZERO polynomial (n_den > 0) else SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_gosper(const srmech_bigint_t *num_n,
+                              const srmech_bigint_t *num_d, size_t n_num,
+                              const srmech_bigint_t *den_n,
+                              const srmech_bigint_t *den_d, size_t n_den,
+                              int *out_has_solution,
+                              srmech_bigint_t *r_num_n, srmech_bigint_t *r_num_d,
+                              size_t *out_rnum,
+                              srmech_bigint_t *r_den_n, srmech_bigint_t *r_den_d,
+                              size_t *out_rden,
+                              void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_zeilberger -- Zeilberger's creative telescoping (the SECOND
+ * public op of the section 76 "telescope" Sigma-row closed-form prover,
+ * F929). The C peer of srmech.amsc.zeilberger.zeilberger.
+ *
+ * Input: a proper hypergeometric term F(n,k) given by its TWO term ratios
+ *   r_n(n,k) = F(n+1,k)/F(n,k) = rn_num(n,k)/rn_den(n,k)
+ *   r_k(n,k) = F(n,k+1)/F(n,k) = rk_num(n,k)/rk_den(n,k)
+ * each an exact-rational BIVARIATE polynomial over Q[n,k]. A bivariate
+ * polynomial is encoded FLAT as a k-ascending list of Poly-in-n coefficients:
+ * the (num_n, num_d) arrays carry every coefficient in order (k-degree dk's
+ * Poly-in-n occupies the next klen[dk] entries, ascending n-degree), and
+ * klen[dk] is that Poly-in-n's coefficient count; kdeg is the number of
+ * k-degree slots. Each srmech_bigint pair (num, den) is a reduced exact rational.
+ *
+ * Output: when a recurrence of order <= max_order exists, *out_has = 1, *out_order
+ * = L, and coeff_n/coeff_d (with coeff_nlen[j] the per-j length, j = 0..L) carry
+ * the recurrence coefficient polynomials a_j(n) so Sum_j a_j(n) f(n+j) = 0
+ * (f(n) = Sum_k F(n,k)); cert_n/cert_d (with cert_klen + *out_cert_kdeg) carry the
+ * rational certificate numerator x(n,k) (R = x / D_P). Else *out_has = 0.
+ *
+ * The algorithm composes the SAME exact-Q kernels the Python op uses -- the
+ * srmech_poly_* algebra (the bivariate handling rides Poly-in-n mul/add/shift) +
+ * the exact Gauss-Jordan RREF over Q (srmech_qmat_rref) for the parametrized
+ * creative-telescoping linear system -- over caller-arena srmech_bigint (NO
+ * malloc, JPL Rule 3). Byte-identical to the Python recurrence at ANY magnitude.
+ *
+ * STANDALONE-COMPLETE: every working carrier + the bipoly/qmat scratch is carved
+ * from the caller arena `ws` (>= srmech_zeilberger_ws_bound). Any residual
+ * overflow returns SRMECH_ERR_OVERFLOW (never a wrap), and the Python zeilberger
+ * falls back to its ceiling-free pure-Q path.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for input ratios of `coeff_limbs` significant limbs per
+ * coefficient, a max ansatz `order`, and a max bivariate `degree`. 8-byte-aligned. */
+size_t srmech_zeilberger_ws_bound(size_t coeff_limbs, size_t order, size_t degree);
+
+/* The per-coefficient limb cap for each srmech_bigint in the coeff_* / cert_*
+ * OUTPUT arrays, so a result coefficient never overflows its slot. */
+size_t srmech_zeilberger_out_cap(size_t coeff_limbs, size_t order, size_t degree);
+
+/* Compute Zeilberger's recurrence for the term F(n,k) given by its two ratios.
+ * n_stride is the largest n-shift in the inputs (a degree hint; 1 is safe). The
+ * caller sizes coeff_* to (max_order+1) * (out n-degree bound) entries and cert_*
+ * to (out k-degree bound) * (out n-degree bound) entries, each of
+ * srmech_zeilberger_out_cap limbs. rn_den / rk_den must have kdeg > 0. */
+srmech_status_t srmech_zeilberger(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_klen, size_t rn_num_kdeg,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_klen, size_t rn_den_kdeg,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_klen, size_t rk_num_kdeg,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_klen, size_t rk_den_kdeg,
+        size_t max_order, size_t n_stride,
+        int *out_has, size_t *out_order,
+        srmech_bigint_t *coeff_n, srmech_bigint_t *coeff_d, size_t *coeff_nlen,
+        srmech_bigint_t *cert_n, srmech_bigint_t *cert_d, size_t *cert_klen,
+        size_t *out_cert_kdeg,
+        void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_wz_verify -- the Wilf-Zeilberger VERIFY primitive (the THIRD
+ * and FINAL public op of the section 76 "telescope" Sigma-row closed-form
+ * prover, F929). The COMPLETE C mirror of the VERIFY half of
+ * srmech.amsc.wz_certificate.wz_certificate.
+ *
+ * Given a proper hypergeometric term F(n,k) by its two term ratios
+ *   r_n(n,k) = An/Ad = rn_num/rn_den
+ *   r_k(n,k) = Bn/Bd = rk_num/rk_den
+ * and a candidate WZ certificate R(n,k) = Xn/Xd = cert_num/cert_den (each an
+ * exact-rational BIVARIATE polynomial over Q[n,k], the same flat k-ascending
+ * Poly-in-n encoding the srmech_zeilberger peer uses), this CHECKS the WZ equation
+ *   F(n+1,k) - F(n,k) = G(n,k+1) - G(n,k),   G = R * F,
+ * as an EXACT bivariate rational-function identity. Dividing through by F(n,k) and
+ * clearing denominators it is the single bivariate POLYNOMIAL identity
+ *   (An - Ad) * (Xd1 * Bd * Xd)  ==  (Xn1 * Bn * Xd - Xn * Xd1 * Bd) * Ad,
+ * where Xn1/Xd1 are the k->k+1 shifts of Xn/Xd.
+ *
+ * *out_equal = 1 iff the identity holds (the WZ certificate is valid), else 0.
+ *
+ * This is a COMPLETE verification -- bounded only by the input DEGREES, NOT by any
+ * order (unlike the rc42 srmech_zeilberger peer's order<=1 cap). Method: build both
+ * sides as exact-Q bivariate polynomials (a 2-D grid of Q over caller-arena
+ * srmech_bigint) and compare them coefficient-by-coefficient. NO solve, NO order
+ * loop, NO qmat. No malloc (JPL Rule 3): every working bipoly is carved from the
+ * caller arena `ws` (>= srmech_wz_verify_ws_bound). Any residual overflow returns
+ * SRMECH_ERR_OVERFLOW (never a wrap), and the Python wz_certificate falls back to
+ * its ceiling-free pure-Q compare (the standalone-complete honor).
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for inputs of `coeff_limbs` significant limbs per
+ * coefficient and a max bivariate `degree`. 8-byte-aligned. */
+size_t srmech_wz_verify_ws_bound(size_t coeff_limbs, size_t degree);
+
+/* The per-coefficient limb cap each srmech_bigint working carrier needs so a
+ * cleared-identity coefficient never overflows its slot (a degree hint). */
+size_t srmech_wz_verify_out_cap(size_t coeff_limbs, size_t degree);
+
+/* Verify the WZ certificate for the term F(n,k). rn_den / rk_den / cert_den must
+ * have kdeg > 0 (nonzero). Returns SRMECH_OK + *out_equal set on a clean check;
+ * SRMECH_ERR_OVERFLOW (arena too small for a huge input) routes the Python op to
+ * its pure-Q compare. */
+srmech_status_t srmech_wz_verify(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_klen, size_t rn_num_kdeg,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_klen, size_t rn_den_kdeg,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_klen, size_t rk_num_kdeg,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_klen, size_t rk_den_kdeg,
+        const srmech_bigint_t *cert_num_n, const srmech_bigint_t *cert_num_d,
+        const size_t *cert_num_klen, size_t cert_num_kdeg,
+        const srmech_bigint_t *cert_den_n, const srmech_bigint_t *cert_den_d,
+        const size_t *cert_den_klen, size_t cert_den_kdeg,
+        int *out_equal, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_apagodu_zeilberger -- the Apagodu-Zeilberger multivariate "sums
+ * of sums" creative-telescoping recurrence-finder (the rc53 op that CLOSES
+ * the multivariate F929 reduction row). The C peer of
+ * srmech.amsc.apagodu_zeilberger.apagodu_zeilberger.
+ *
+ * Input: a proper hypergeometric term F(n,j,k) given by its THREE term ratios
+ *   r_n(n,j,k) = F(n+1,j,k)/F(n,j,k) = rn_num/rn_den
+ *   r_j(n,j,k) = F(n,j+1,k)/F(n,j,k) = rj_num/rj_den
+ *   r_k(n,j,k) = F(n,j,k+1)/F(n,j,k) = rk_num/rk_den
+ * each an exact-rational TRIVARIATE polynomial over Q[n,j,k]. A trivariate poly
+ * is encoded FLAT as a j-major then k-then-n stream of (num, den) bigint pairs:
+ * for the (jdeg x kdeg) (j,k) grid, *_nlen[dj*kdeg + dk] is the n-run length of
+ * cell (dj, dk) and those n-coefficients occupy the next *_nlen entries (ascending
+ * n-degree); *_jdeg / *_kdeg are the block shape. Each (num, den) is reduced.
+ *
+ * Output: when a recurrence of order <= max_order exists, *out_has = 1, *out_order
+ * = L, and coeff_n/coeff_d (coeff_nlen[i] the per-i length, i = 0..L) carry the
+ * recurrence coefficient polynomials a_i(n) so Sum_i a_i(n) f(n+i) = 0
+ * (f(n) = Sum_{j,k} F(n,j,k)); cert_j_* and cert_k_* carry the two rational
+ * certificate numerators x_j(n,j,k) / x_k(n,j,k) (R_j = x_j/D_P, R_k = x_k/D_P) as
+ * the SAME (j,k)-cell grid encoding (cert_*_nlen + *out_cert_*_jdeg/kdeg). Else
+ * *out_has = 0.
+ *
+ * The algorithm (Apagodu & Zeilberger 2006, Adv. Appl. Math. 37:139-152), exact
+ * over Q[n,j,k]: for L = 0..max_order, the two-certificate ansatz
+ *   Sum_i a_i(n) rho_i = [R_j(j+1) r_j - R_j] + [R_k(k+1) r_k - R_k]
+ * (rho_i = prod_{t<i} r_n(n+t), D_P = prod_i rho_den_i) cleared to one common
+ * denominator is a polynomial identity in (n,j,k) LINEAR in {a_i coeffs} U
+ * {x_j coeffs} U {x_k coeffs}; matching (n,j,k)-powers gives a HOMOGENEOUS exact-Q
+ * system. A kernel vector with a NONZERO a-block (read off srmech_qmat_rref) gives
+ * the recurrence + certificates; the first such L is the minimal order.
+ *
+ * The C peer ACCELERATES the common low-order case (order <= 1, the textbook
+ * double-sum identities, e.g. Sum_{j,k} C(n,j)C(j,k) -> 3^n); a genuinely-2D
+ * higher-order term (the Apery-like sums) falls to the COMPLETE pure-Python path
+ * -- the C never returns a false "no recurrence", it just declines (the Python
+ * dispatch trusts only a has=1 C result). Composes the srmech_qmat_rref kernel + a
+ * compact internal exact-Q TRIVARIATE poly toolkit over caller-arena srmech_bigint
+ * (NO malloc, JPL Rule 3). Byte-identical to the Python recurrence at ANY
+ * magnitude. Any residual overflow returns SRMECH_ERR_OVERFLOW (never a wrap), and
+ * the Python op then runs its ceiling-free pure-Q path.
+ *
+ * Additive symbol -> ABI unchanged (stays 3). License: MIT. ------- */
+
+/* Minimum `ws_len` BYTES for inputs of `coeff_limbs` significant limbs per
+ * coefficient, a max ansatz `order`, and a max trivariate `degree`. 8-byte-aligned. */
+size_t srmech_apagodu_zeilberger_ws_bound(size_t coeff_limbs, size_t order,
+                                          size_t degree);
+
+/* The per-coefficient limb cap for each srmech_bigint in the coeff_* / cert_*
+ * OUTPUT arrays, so a result coefficient never overflows its slot. */
+size_t srmech_apagodu_zeilberger_out_cap(size_t coeff_limbs, size_t order,
+                                         size_t degree);
+
+/* Compute the Apagodu-Zeilberger recurrence for the double sum f(n)=Sum_{j,k}
+ * F(n,j,k) given F's three term ratios. degree_hint is a degree hint (1 is safe).
+ * The caller sizes coeff_* to (max_order+1) * (out n-degree bound) entries and each
+ * cert_* to (out jdeg)*(out kdeg)*(out n-degree bound) entries, each of
+ * srmech_apagodu_zeilberger_out_cap limbs. rn_den / rj_den / rk_den must have
+ * jdeg > 0. */
+srmech_status_t srmech_apagodu_zeilberger(
+        const srmech_bigint_t *rn_num_n, const srmech_bigint_t *rn_num_d,
+        const size_t *rn_num_nlen, size_t rn_num_jdeg, size_t rn_num_kdeg,
+        const srmech_bigint_t *rn_den_n, const srmech_bigint_t *rn_den_d,
+        const size_t *rn_den_nlen, size_t rn_den_jdeg, size_t rn_den_kdeg,
+        const srmech_bigint_t *rj_num_n, const srmech_bigint_t *rj_num_d,
+        const size_t *rj_num_nlen, size_t rj_num_jdeg, size_t rj_num_kdeg,
+        const srmech_bigint_t *rj_den_n, const srmech_bigint_t *rj_den_d,
+        const size_t *rj_den_nlen, size_t rj_den_jdeg, size_t rj_den_kdeg,
+        const srmech_bigint_t *rk_num_n, const srmech_bigint_t *rk_num_d,
+        const size_t *rk_num_nlen, size_t rk_num_jdeg, size_t rk_num_kdeg,
+        const srmech_bigint_t *rk_den_n, const srmech_bigint_t *rk_den_d,
+        const size_t *rk_den_nlen, size_t rk_den_jdeg, size_t rk_den_kdeg,
+        size_t max_order, size_t degree_hint,
+        int *out_has, size_t *out_order,
+        srmech_bigint_t *coeff_n, srmech_bigint_t *coeff_d, size_t *coeff_nlen,
+        srmech_bigint_t *cert_j_n, srmech_bigint_t *cert_j_d, size_t *cert_j_nlen,
+        size_t *out_cert_j_jdeg, size_t *out_cert_j_kdeg,
+        srmech_bigint_t *cert_k_n, srmech_bigint_t *cert_k_d, size_t *cert_k_nlen,
+        size_t *out_cert_k_jdeg, size_t *out_cert_k_kdeg,
+        void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_quaternion — the 4x4 quaternion multiplication operators + the
+ * hypercomplex exp(mu*theta) twiddle (0.9.0rc109; issue #1234 Item 1a,
+ * re-raise of #863 BX-5/6/7). C peers of srmech.qm.quaternion — the
+ * QDFT/ODFT foundation. WHY: Q8/{+-1} ~= Z2xZ2 = Klein-4 (F380 / the
+ * in-repo R21 proof), so a quaternion FT's coefficient algebra (H)
+ * matches a Klein-4 object's value algebra; these peers let a C-only
+ * host build the 4x4 operator matrices + DFT twiddles without slicing
+ * the 8x8 octonion operators (srmech_loop_{left,right}_op_f64).
+ *
+ * Same fixed Cayley-Dickson convention as srmech_loopbind.c (H = the
+ * dim-4 rung of the same ladder, i.e. the octonion product restricted
+ * to the first 4 basis elements). No libm: the twiddle's cos/sin ride
+ * the Q61 cascade (srmech_{cos,sin}_q61) projected to double once, and
+ * pi enters as 4*atan_q61(1). No malloc; caller buffers; JPL-clean.
+ * Additive symbols -> SRMECH_ABI_VERSION stays 3. See srmech_quaternion.c.
+ * ------------------------------------------------------------------ */
+
+/* Left-multiplication operator matrix L_q: column k = q . e_k. `q` is 4
+ * doubles; `n` must be 4; `out` is 4*4 = 16 doubles, row-major,
+ * out[i*4 + k] = (q . e_k)_i. For a basis unit e_i (i >= 1) the matrix is
+ * antisymmetric. L is a homomorphism: L(pq) = L(p)L(q); it commutes with
+ * every right multiplication (the associativity witness H has, O lacks).
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 4). */
+srmech_status_t srmech_quaternion_left_mult(
+    const double *q, size_t n, double *out);
+
+/* Right-multiplication operator matrix R_q: column k = e_k . q (the mirror
+ * ordering; R(pq) = R(q)R(p), the anti-homomorphism — H is non-commutative
+ * so L_q != R_q for generic q). Same buffer contract as left_mult. */
+srmech_status_t srmech_quaternion_right_mult(
+    const double *q, size_t n, double *out);
+
+/* The quaternion Euler twiddle exp(mu*theta) = cos(theta)*1 + sin(theta)*mu.
+ * `mu` is a caller-provided UNIT pure-imaginary 4-vector (mu[0] == 0.0;
+ * the same caller-normalises-mu contract as srmech_hypercomplex_couple_q61;
+ * normalise via srmech_rational_sqrt / srmech_sqrt_q61 on a C-only host).
+ * `n` must be 4; `out` receives [cos t, sin t * mu1, sin t * mu2,
+ * sin t * mu3] — a UNIT quaternion in the commutative subalgebra R[mu].
+ * cos/sin are the exact Q61 cascade projected to double ONCE (byte-exact
+ * with the pure-Python mirror). Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (n != 4, mu[0] != 0, zero axis, or theta with no
+ * Q61 form — non-finite / |theta| >= 2^55). */
+srmech_status_t srmech_quaternion_exp(
+    double theta, const double *mu, size_t n, double *out);
+
+/* The QDFT twiddle factor exp(sigma * mu * 2*pi*j*k/N): theta =
+ * sigma * 2*pi * ((j*k) mod n_points) / n_points with the index reduced
+ * exactly in uint64 (Class I) and pi = 4*atan_q61(1) (Class N; no libm
+ * M_PI), then srmech_quaternion_exp. sigma = -1 is the forward-DFT
+ * orientation, +1 the inverse. Same unit-mu contract as
+ * srmech_quaternion_exp. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (n_points == 0, sigma not +-1, or exp errors). */
+srmech_status_t srmech_quaternion_twiddle(
+    uint32_t j, uint32_t k, uint32_t n_points, int32_t sigma,
+    const double *mu, size_t n, double *out);
+
+/* The QUATERNION DISCRETE FOURIER TRANSFORM (0.9.0rc110; issue #1234
+ * Item 1b, re-raise of #863) — the whole O(N^2) exact-reference transform
+ * over the rc109 foundation (srmech_quaternion_twiddle + the left/right
+ * mult operators). WHY: Q8/{+-1} ~= Z2xZ2 = Klein-4 (F380), so the H
+ * coefficient algebra preserves BOTH Z2 chirality axes a complex FFT's
+ * C-projection collapses. THE CONVENTION (forward sign sigma = -1):
+ *   left  form (left == 1): X[k] = sum_m W(sigma*2*pi*k*m/N) . x[m]
+ *   right form (left == 0): X[k] = sum_m x[m] . W(sigma*2*pi*k*m/N)
+ * with W(theta) = exp(mu*theta); the INVERSE (inverse == 1) flips sigma
+ * to +1 and scales by 1/N on the SAME side — each form round-trips
+ * exactly. `x` is n_points*4 doubles (row-major quaternion samples);
+ * `mu` is a caller-provided UNIT pure-imaginary 4-vector (`n` must be 4;
+ * the srmech_quaternion_exp contract); `out` is n_points*4 doubles and
+ * MUST NOT alias `x`. This is the SPREAD-SPECTRUM ENCODING / analysis
+ * transform (the read path is the separate lightweight phase-coherent
+ * peak op — a later voxel); an FFT factorisation is future work.
+ * Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 4,
+ * n_points == 0, left/inverse not 0/1, or twiddle errors). */
+srmech_status_t srmech_quaternion_dft(
+    const double *x, uint32_t n_points, int32_t left, int32_t inverse,
+    const double *mu, size_t n, double *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech_octonion — the ODFT twiddle family + the whole-transform
+ * OCTONION DFT (0.9.0rc111; issue #1234 Item 1c, re-raise of #863).
+ * C peers of srmech.qm.octonion's rc111 twiddle family and the
+ * graduated cascade.octonion_dft. WHY THE BRACKETING IS AN ARGUMENT
+ * (F378): octonion multiplication is NON-ASSOCIATIVE, so "the ODFT" is
+ * not unique until its bracketing convention is DECLARED — a different
+ * bracketing is a DIFFERENT (also-declarable) transform. Declared
+ * convention (attested in octonion_dft.toml [cascade.bracketing]):
+ * per-summand-single-product; the inverse applies the conjugate twiddle
+ * (sigma flip) on the SAME declared side; the two-sided 3-factor
+ * association order is the explicit `bracketing` argument. O is
+ * ALTERNATIVE (Artin: 2-generated subalgebras associate), so the
+ * one-sided same-axis round-trip is EXACT; non-associativity bites at
+ * >= 3 independent generators only (two_sided with distinct axes; a
+ * twiddle associated through a product of samples) — verified from
+ * Python over the fixed table. No libm (Q61 trig; pi = 4*atan_q61(1));
+ * no malloc; caller buffers; JPL-clean. Additive symbols ->
+ * SRMECH_ABI_VERSION stays 3. See srmech_octonion.c.
+ * ------------------------------------------------------------------ */
+
+/* The octonion Euler twiddle exp(mu*theta) = cos(theta)*1 + sin(theta)*mu.
+ * `mu` is a caller-provided UNIT pure-imaginary 8-vector (mu[0] == 0.0;
+ * the same caller-normalises-mu contract as srmech_quaternion_exp).
+ * `n` must be 8; `out` receives [cos t, sin t * mu1, ..., sin t * mu7] —
+ * a UNIT octonion in the commutative subalgebra R[mu] (which is WHY the
+ * one-sided ODFT inverts). cos/sin are the exact Q61 cascade projected to
+ * double ONCE (byte-exact with the pure-Python mirror). Errors:
+ * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 8, mu[0] != 0, zero
+ * axis, or theta with no Q61 form — non-finite / |theta| >= 2^55). */
+srmech_status_t srmech_octonion_exp(
+    double theta, const double *mu, size_t n, double *out);
+
+/* The ODFT twiddle factor exp(sigma * mu * 2*pi*j*k/N): theta =
+ * sigma * 2*pi * ((j*k) mod n_points) / n_points with the index reduced
+ * exactly in uint64 (Class I) and pi = 4*atan_q61(1) (Class N; no libm
+ * M_PI), then srmech_octonion_exp. sigma = -1 is the forward-DFT
+ * orientation, +1 the inverse. Same unit-mu contract as
+ * srmech_octonion_exp. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (n_points == 0, sigma not +-1, or exp errors). */
+srmech_status_t srmech_octonion_twiddle(
+    uint32_t j, uint32_t k, uint32_t n_points, int32_t sigma,
+    const double *mu, size_t n, double *out);
+
+/* The OCTONION DISCRETE FOURIER TRANSFORM (0.9.0rc111; issue #1234
+ * Item 1c, re-raise of #863) — the whole O(N^2) exact-reference ODFT
+ * over srmech_octonion_twiddle + the octonion loop operators
+ * (srmech_loop_{left,right}_op_f64), ALL THREE forms in one peer.
+ * THE DECLARED CONVENTION (forward sign sigma = -1; W = exp(mu*theta)):
+ *   form == 0 (left):      X[k] = sum_m W . x[m]        (ONE product)
+ *   form == 1 (right):     X[k] = sum_m x[m] . W        (ONE product)
+ *   form == 2 (two_sided): X[k] = sum_m bracket(W_l, x[m], W_r)
+ * with bracket keyed by `bracketing`: 0 = (W_l . x) . W_r
+ * (left_associated), 1 = W_l . (x . W_r) (right_associated) — the F378
+ * non-associativity made an explicit argument (the bracketings DIFFER
+ * for distinct axes; a different bracketing is a different transform).
+ * The INVERSE (inverse == 1; one-sided forms ONLY — two_sided is
+ * forward-only) flips sigma to +1 and scales by 1/N on the SAME side;
+ * the round-trip is EXACT by alternativity/Artin (see srmech_octonion.c).
+ * `x` is n_points*8 doubles (row-major octonion samples); `mu` (and
+ * `mu_r` for form == 2; ignored otherwise, may be NULL for one-sided)
+ * are caller-provided UNIT pure-imaginary 8-vectors (`n` must be 8);
+ * `out` is n_points*8 doubles and MUST NOT alias `x`. An FFT
+ * factorisation is future work. Errors: SRMECH_ERR_NULL_ARG (incl.
+ * mu_r == NULL with form == 2); SRMECH_ERR_BAD_INPUT (n != 8,
+ * n_points == 0, form/bracketing/inverse out of range, two_sided with
+ * inverse == 1, or twiddle errors). */
+srmech_status_t srmech_octonion_dft(
+    const double *x, uint32_t n_points, int32_t form, int32_t bracketing,
+    int32_t inverse, const double *mu, const double *mu_r, size_t n,
+    double *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech_phase_coherent — the LIGHTWEIGHT matched-filter PEAK READ over a
+ * rung/mode ladder (0.9.0rc112; issue #1234 Item 1d, the F1000->F1001->
+ * F1002 refinement). C peer of srmech.amsc.cascade.phase_coherent_peak.
+ * This is the READ counterpart to the full srmech_quaternion_dft /
+ * srmech_octonion_dft ENCODING transforms — kept API-DISTINCT from them.
+ *
+ * WHY A SEPARATE OP (F1001): for the RBS-LM single-rung fold the target's
+ * cross-rung response is a SPIKE, so the PEAK (max phase-coherent energy
+ * over the rung ladder) is the MATCHED FILTER (it rejects off-rung noise),
+ * whereas the full complex QDFT coherently combines ALL rungs — including
+ * the off-rung noise — and measured WORSE (a spike's spectrum is flat, so
+ * coherent combination gains nothing and forfeits the max's noise-
+ * rejection). F1002 settled it read-independently (the elliptic code's
+ * value is GENERATIVE encoding, not read-amplification). So the READ path
+ * wants ONLY this peak reduction, NOT the full transform. There is NO
+ * twiddle here — its absence IS what distinguishes the read from the
+ * transform. See srmech_phase_coherent.c.
+ * ------------------------------------------------------------------ */
+
+/* The matched-filter PEAK over a rung ladder. `ladder` is n_rungs*dim
+ * doubles (row-major: n_rungs per-rung samples, each a dim-component real
+ * vector — dim 1 for a scalar response, dim 2 for a complex (re,im) sample,
+ * dim 4/8 for a quaternion/octonion sample). Per-rung phase-coherent
+ * energy: with `keys` == NULL the identity filter E_r = sum_i ladder[r][i]^2
+ * (the sample's squared magnitude — the F1001 read); with `keys` != NULL
+ * (also n_rungs*dim) the explicit matched filter E_r = (sum_i keys[r][i]*
+ * ladder[r][i])^2. `*out_index` receives argmax_r E_r (ties -> lowest
+ * index), `*out_score` the peak energy E, and `out_scores` (if non-NULL,
+ * n_rungs doubles, MUST NOT alias the inputs) every E_r. A Class-K
+ * squared-magnitude / comparison cascade — no abs(), no libm, no malloc.
+ * Byte-exact with the pure-Python mirror (identical float-op order).
+ * Errors: SRMECH_ERR_NULL_ARG (ladder/out_index/out_score NULL);
+ * SRMECH_ERR_BAD_INPUT (n_rungs == 0 or dim == 0). */
+srmech_status_t srmech_phase_coherent_peak(
+    const double *ladder, const double *keys, uint32_t n_rungs, size_t dim,
+    uint32_t *out_index, double *out_score, double *out_scores);
+
+/* ------------------------------------------------------------------ *
+ * Carriers-C (0.9.0rc141; Foundation F0) — the Mat/Vec CARRIER struct +
+ * ctor / accessor / elementwise / lifecycle API so a BARE C HOST can
+ * CONSTRUCT + HOLD + MANIPULATE a carrier with NO Python and feed its
+ * buffer straight to the compute kernels (srmech_dense_matmul_complex /
+ * srmech_svd_f64 / srmech_fft_c128 …) ZERO-COPY. The LAST C:Python
+ * parity-backfill foundation (everything-mirrors capstone).
+ *
+ * The struct is a VIEW over a CALLER-OWNED buffer (JPL Rule 3: no malloc,
+ * the same caller-arena discipline as srmech_bigint_t's `limbs`). Layout
+ * mirrors the Python Mat/Vec exactly: row-major, one double per real
+ * element / interleaved (re,im) per complex element (= C99
+ * `double _Complex`), so `buf` is byte-identical to the Python carrier's
+ * `array('d')` and feeds the interleaved-complex kernels no-copy.
+ *
+ * BYTE-IDENTICAL value ops: complex multiply is the naive CPython
+ * `_Py_c_prod` (ac-bd, ad+bc); add/sub componentwise. (Complex `/` is NOT
+ * in the C surface — CPython's Smith-scaled algorithm stays the pure-
+ * Python path.) NO abs(): conj/neg are Class-K sign flips. ABI-additive:
+ * new symbols only, SRMECH_ABI_VERSION stays 3.
+ * ------------------------------------------------------------------ */
+
+typedef struct srmech_mat {
+    double  *buf;        /* caller-owned; row-major; interleaved (re,im) if
+                            is_complex (2*rows*cols doubles) else rows*cols */
+    uint32_t rows;
+    uint32_t cols;
+    int      is_complex; /* 0 = real, 1 = complex (any nonzero -> complex) */
+} srmech_mat_t;
+
+typedef struct srmech_vec {
+    double  *buf;        /* caller-owned; interleaved (re,im) if is_complex
+                            (2*n doubles) else n */
+    uint32_t n;
+    int      is_complex; /* 0 = real, 1 = complex (any nonzero -> complex) */
+} srmech_vec_t;
+
+/* Backing-buffer length (in doubles) a caller must provide for the given
+ * shape + dtype: rows*cols (real) / 2*rows*cols (complex); n / 2*n. */
+size_t srmech_mat_buf_len(uint32_t rows, uint32_t cols, int is_complex);
+size_t srmech_vec_buf_len(uint32_t n, int is_complex);
+
+/* Construction. init: point the struct at `buf` (a view; is_complex is
+ * normalised to 0/1). zeros: init + clear the whole buffer to 0.
+ * SRMECH_ERR_NULL_ARG if the struct or buf pointer is NULL. */
+srmech_status_t srmech_mat_init(srmech_mat_t *m, double *buf,
+                                uint32_t rows, uint32_t cols, int is_complex);
+srmech_status_t srmech_vec_init(srmech_vec_t *v, double *buf,
+                                uint32_t n, int is_complex);
+srmech_status_t srmech_mat_zeros(srmech_mat_t *m, double *buf,
+                                 uint32_t rows, uint32_t cols, int is_complex);
+srmech_status_t srmech_vec_zeros(srmech_vec_t *v, double *buf,
+                                 uint32_t n, int is_complex);
+
+/* Element accessors. get writes *re_out (+ *im_out if non-NULL; 0 for a
+ * real carrier). set stores (re[, im]); a real carrier stores only re (as
+ * the Python carrier stores float(x.real)). SRMECH_ERR_BAD_INPUT on an
+ * out-of-range index. */
+srmech_status_t srmech_mat_get(const srmech_mat_t *m, uint32_t i, uint32_t j,
+                               double *re_out, double *im_out);
+srmech_status_t srmech_mat_set(srmech_mat_t *m, uint32_t i, uint32_t j,
+                               double re, double im);
+srmech_status_t srmech_vec_get(const srmech_vec_t *v, uint32_t i,
+                               double *re_out, double *im_out);
+srmech_status_t srmech_vec_set(srmech_vec_t *v, uint32_t i, double re, double im);
+
+/* Row / column views: copy row i / column j of `m` into `out` (a caller-
+ * provided Vec of length cols / rows and matching dtype). Mirrors the
+ * Python m[i] / m[:, j] -> Vec. */
+srmech_status_t srmech_mat_row(const srmech_mat_t *m, uint32_t i,
+                               srmech_vec_t *out);
+srmech_status_t srmech_mat_col(const srmech_mat_t *m, uint32_t j,
+                               srmech_vec_t *out);
+
+/* Elementwise binary (carrier op carrier; * is Hadamard, like the Python
+ * carrier). Same shape required; out->is_complex MUST equal a|b (the
+ * format-preserving rule) or SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_mat_add(const srmech_mat_t *a, const srmech_mat_t *b,
+                               srmech_mat_t *out);
+srmech_status_t srmech_mat_sub(const srmech_mat_t *a, const srmech_mat_t *b,
+                               srmech_mat_t *out);
+srmech_status_t srmech_mat_mul(const srmech_mat_t *a, const srmech_mat_t *b,
+                               srmech_mat_t *out);
+srmech_status_t srmech_vec_add(const srmech_vec_t *a, const srmech_vec_t *b,
+                               srmech_vec_t *out);
+srmech_status_t srmech_vec_sub(const srmech_vec_t *a, const srmech_vec_t *b,
+                               srmech_vec_t *out);
+srmech_status_t srmech_vec_mul(const srmech_vec_t *a, const srmech_vec_t *b,
+                               srmech_vec_t *out);
+
+/* Scalar broadcast (scale = elementwise * scalar; add_scalar = + scalar).
+ * out->is_complex MUST equal a|(s_im != 0) — a scalar with a nonzero
+ * imaginary part promotes, matching the Python rule. */
+srmech_status_t srmech_mat_scale(const srmech_mat_t *a, double s_re,
+                                 double s_im, srmech_mat_t *out);
+srmech_status_t srmech_mat_add_scalar(const srmech_mat_t *a, double s_re,
+                                      double s_im, srmech_mat_t *out);
+srmech_status_t srmech_vec_scale(const srmech_vec_t *a, double s_re,
+                                 double s_im, srmech_vec_t *out);
+srmech_status_t srmech_vec_add_scalar(const srmech_vec_t *a, double s_re,
+                                      double s_im, srmech_vec_t *out);
+
+/* Unary (dtype preserved). conj = Class-K sign flip on the imaginary slot
+ * (real -> copy); neg = sign flip on every slot; transpose swaps axes
+ * (out shape = cols x rows). */
+srmech_status_t srmech_mat_conj(const srmech_mat_t *a, srmech_mat_t *out);
+srmech_status_t srmech_mat_neg(const srmech_mat_t *a, srmech_mat_t *out);
+srmech_status_t srmech_mat_transpose(const srmech_mat_t *a, srmech_mat_t *out);
+srmech_status_t srmech_vec_conj(const srmech_vec_t *a, srmech_vec_t *out);
+srmech_status_t srmech_vec_neg(const srmech_vec_t *a, srmech_vec_t *out);
+
+/* Zero-copy kernel BRIDGE: complex carrier matmul out = a @ b, feeding the
+ * three carrier buffers straight to srmech_dense_matmul_complex (no copy).
+ * All three must be complex; a->cols == b->rows; out is a->rows x b->cols.
+ * (Real / SVD / FFT need no wrapper — the carrier buf IS the argument those
+ * kernels already take.) */
+srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
+                                       const srmech_mat_t *b, srmech_mat_t *out);
+
+/* ------------------------------------------------------------------
+ * Carrier (operand) introspection registry (0.9.0rc205; gh #1293).
+ *
+ * The noun-side DUAL of the rc184 tool-schema registry: where the tool
+ * table exposes the OPS (the A-N operator verbs), this table exposes the
+ * CARRIER TYPES (the operand nouns — Poly/BiPoly/TriPoly/QPoly/QBiPoly,
+ * the Cayley-Dickson rungs float/complex/quaternion/octonion/sedenion,
+ * Mat/Vec/HV, the exact scalars int/Fraction/Q, the elliptic
+ * EllMonomial/EllRatio/ThetaSum, the weight-axis UnaryTheta/MockQSeries/
+ * HarmonicMaass, and the HDC objects One/SedenionRegister) with, per
+ * carrier: a one-line human-readable description, its promote/project
+ * ladder + rung (NULL/0 off-ladder), its shift variables, and the DERIVED
+ * ops back-index (which registered tools consume / produce it) — so a
+ * bare-C host (no Python) discovers BOTH the verbs and the nouns
+ * (the Siona / RBS-LM self-hosting ask).
+ *
+ * The table lives in the GENERATED translation unit
+ * `srmech_carrier_registry.c` (regenerate with
+ * c/tools/gen_carrier_registry.py); the accessors + the whole-schema
+ * assembler live in srmech_carrier_schema.c.
+ *
+ * srmech_carrier_schema emits bytes BYTE-IDENTICAL to CPython
+ *   json.dumps(srmech.amsc.carrier_schema._pure_carrier_schema(),
+ *              sort_keys=True, separators=(",", ":"))
+ * (each per-carrier entry payload is baked pre-canonical; rows are in
+ * byte-sorted name order == the sort_keys key order, so the assembler is
+ * plain concatenation). This byte-identity IS the hash-ratchet contract
+ * locking the C table to the Python SSoT.
+ *
+ * ABI-additive: new symbols + one struct, so SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* One carrier (operand) type in the registry. All string pointers are
+ * NUL-terminated decoded UTF-8; `entry_json` is the per-carrier payload
+ * {"description","ladder","name","ops","rung","variables"} as its
+ * pre-canonical compact-ASCII JSON fragment (`entry_len` bytes, excluding
+ * the NUL). */
+typedef struct {
+    const char *name;        /* carrier name (the registry key)          */
+    const char *description; /* one-line human-readable description      */
+    const char *ladder;      /* promote/project ladder, NULL off-ladder  */
+    int         rung;        /* rung on the ladder, 0 off-ladder         */
+    const char *entry_json;  /* pre-canonical compact JSON entry payload */
+    size_t      entry_len;   /* bytes in entry_json (excluding the NUL)  */
+} srmech_carrier_entry_t;
+
+/* The compiled-in registry table + count (defined in the generated
+ * srmech_carrier_registry.c). */
+extern const srmech_carrier_entry_t srmech_carrier_registry_table[];
+extern const size_t srmech_carrier_registry_len;
+
+/* Number of registered carrier entries in the const table. */
+size_t srmech_carrier_registry_count(void);
+
+/* The entry at `index`, or NULL if `index` is out of range. */
+const srmech_carrier_entry_t *srmech_carrier_registry_get(size_t index);
+
+/* The entry whose `name` equals `name` (bounded linear scan), or NULL
+ * for an unknown name / a NULL `name`. `name` must be NUL-terminated. */
+const srmech_carrier_entry_t *srmech_carrier_registry_find(const char *name);
+
+/* Assemble the whole carrier schema as canonical JSON (see byte-identity
+ * contract above) into `buf` (capacity `buf_len`; NO trailing NUL) and
+ * set *out_len to the byte count. If `buf` is NULL this is a SIZE-QUERY
+ * (nothing written; *out_len receives the exact full length). A
+ * too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW; `out_len == NULL`
+ * returns SRMECH_ERR_NULL_ARG. */
+srmech_status_t srmech_carrier_schema(char *buf, size_t buf_len,
+                                      size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * RESPONSION (stored-relationship) introspection registry (0.9.0rc225)
+ *
+ * The k=3 completion of the introspection triad (user design
+ * 2026-07-12): the rc184 tool registry exposes the OPS (the A-N
+ * operator verbs) and the rc205 carrier registry exposes the OPERANDS
+ * (the carrier nouns) — the k=2 pair of NODES. This table exposes the
+ * RESPONSIONS: the EDGES binding them — "this op, on this operand,
+ * answers THIS way" (op (x) operand (x) responsion; srmech =
+ * Stored-RELATIONSHIP Mechanism). Each entry is keyed by the
+ * "<operator>|<carrier>" edge (operator = a tool-registry name,
+ * carrier = a carrier-registry name — never a bare-name flat list) and
+ * carries one-or-more responsions: the kind (propagator / resolvent /
+ * closed_form / open_sustain / trace / response_curve), the regime
+ * (continuous_spectral / discrete_algebraic — the two faces of ONE
+ * responsion), the response form, and the honest verified-or-OPEN
+ * status (the OPEN rows are the F929 dispatch _OPEN_HINTS residues,
+ * verbatim).
+ *
+ * The table lives in the GENERATED translation unit
+ * `srmech_responsion_registry.c` (regenerate with
+ * c/tools/gen_responsion_registry.py); the accessors + the
+ * whole-schema assembler live in srmech_responsion_schema.c.
+ *
+ * srmech_responsion_schema emits bytes BYTE-IDENTICAL to CPython
+ *   json.dumps(srmech.amsc.responsion_schema._pure_responsion_schema(),
+ *              sort_keys=True, separators=(",", ":"))
+ * (each per-edge payload is baked pre-canonical; rows are in
+ * byte-sorted key order == the sort_keys key order, so the assembler is
+ * plain concatenation). This byte-identity IS the hash-ratchet contract
+ * locking the C table to the Python SSoT.
+ *
+ * ABI-additive: new symbols + one struct, so SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+/* One responsion EDGE in the registry. All string pointers are
+ * NUL-terminated ASCII (edge keys are dotted identifiers); `entry_json`
+ * is the per-edge payload — a JSON ARRAY of responsion objects
+ * {"answers_with","carrier","kind","operator","regime","status"} — as
+ * its pre-canonical compact-ASCII fragment (`entry_len` bytes,
+ * excluding the NUL). */
+typedef struct {
+    const char *key;           /* "<operator>|<carrier>" (the edge key) */
+    const char *op_name;       /* the operator ref (a tool-registry name) */
+    const char *carrier;       /* the carrier ref (a carrier-registry name) */
+    size_t      n_responsions; /* responsions riding this edge           */
+    const char *entry_json;    /* pre-canonical compact JSON array       */
+    size_t      entry_len;     /* bytes in entry_json (excluding the NUL) */
+} srmech_responsion_entry_t;
+
+/* The compiled-in registry table + count (defined in the generated
+ * srmech_responsion_registry.c). */
+extern const srmech_responsion_entry_t srmech_responsion_registry_table[];
+extern const size_t srmech_responsion_registry_len;
+
+/* Number of registered responsion edges in the const table. */
+size_t srmech_responsion_registry_count(void);
+
+/* The entry at `index`, or NULL if `index` is out of range. */
+const srmech_responsion_entry_t *srmech_responsion_registry_get(size_t index);
+
+/* The entry whose edge `key` equals `key` (bounded linear scan), or
+ * NULL for an unknown key / a NULL `key`. `key` must be NUL-terminated. */
+const srmech_responsion_entry_t *srmech_responsion_registry_find(
+    const char *key);
+
+/* Assemble the whole responsion schema as canonical JSON (see
+ * byte-identity contract above) into `buf` (capacity `buf_len`; NO
+ * trailing NUL) and set *out_len to the byte count. If `buf` is NULL
+ * this is a SIZE-QUERY (nothing written; *out_len receives the exact
+ * full length). A too-small non-NULL `buf` returns SRMECH_ERR_OVERFLOW;
+ * `out_len == NULL` returns SRMECH_ERR_NULL_ARG. */
+srmech_status_t srmech_responsion_schema(char *buf, size_t buf_len,
+                                         size_t *out_len);
+
+/* ------------------------------------------------------------------ *
+ * qm CONSTANT-matrix builders (0.9.0rc213, #755)
+ *
+ * The base qm constant matrices were Python LITERALS with no C source —
+ * classified `composition_of_c`, yet a bare-C host could not produce the
+ * constant DATA (a real python-free gap). These builders EMIT the
+ * canonical constant data BYTE-IDENTICAL to the (rc212-canonicalized)
+ * Python constants: every mathematically-zero slot is +0.0 (the Python
+ * literals' -0.0 slots from `-1j` / `-1.0 · Mat` were canonicalized in
+ * the same rc), integer entries are exact, and the two irrational
+ * values (the λ⁸ 1/√3 normaliser; the SU(3) f^{458} = f^{678} = √3/2)
+ * route through srmech's own libm-free srmech_rational_sqrt so the
+ * double projection matches Python's float(rational.sqrt(3.0)) path
+ * bit-for-bit.
+ *
+ * Layout: complex matrices are row-major interleaved (re,im) doubles
+ * (the Mat carrier layout); the Minkowski metric is row-major REAL
+ * doubles; structure constants are flat rank-3 row-major f[a][b][c].
+ *
+ * Errors: SRMECH_ERR_NULL_ARG (out NULL); SRMECH_ERR_BAD_INPUT
+ * (selector out of range).
+ *
+ * ABI-additive: new symbols, no callback typedef — SRMECH_ABI_VERSION
+ * stays 4. See srmech_qm_constants.c; parity attested by
+ * tests/test_qm_constants_c_rc212.py.
+ * ------------------------------------------------------------------ */
+
+/* Pauli 2×2: which = 0 (σ_x), 1 (σ_y), 2 (σ_z), 3 (I₂). out = 8 doubles. */
+srmech_status_t srmech_qm_pauli(int32_t which, double *out);
+
+/* Dirac γ^mu 4×4 (Dirac/standard basis, Peskin-Schroeder eq 3.25):
+ * mu in 0..3. out = 32 doubles. */
+srmech_status_t srmech_qm_dirac_gamma(int32_t mu, double *out);
+
+/* Mostly-minus Minkowski metric η = diag(+1,-1,-1,-1). out = 16 REAL
+ * doubles (row-major, no interleaving — the real-Mat layout). */
+srmech_status_t srmech_qm_minkowski_metric(double *out);
+
+/* Gell-Mann λ^a 3×3 (Gell-Mann 1962 eq 16): a in 1..8. out = 18 doubles.
+ * λ⁸ carries the 1/√3 normaliser via srmech_rational_sqrt. */
+srmech_status_t srmech_qm_gell_mann(int32_t a, double *out);
+
+/* SU(2) structure constants ε^{abc}. out = 27 doubles (f[a][b][c]). */
+srmech_status_t srmech_qm_su2_structure(double *out);
+
+/* SU(3) structure constants f^{abc} (Peskin-Schroeder eq 17.34), filled
+ * by total antisymmetry; f^{458} = f^{678} = √3/2 via
+ * srmech_rational_sqrt. out = 512 doubles (f[a][b][c]). */
+srmech_status_t srmech_qm_su3_structure(double *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech_text — text → tokens → co-occurrence ingestion peers
+ * (v0.9.0rc217; gh #1360)
+ *
+ * The C mirror of `srmech.amsc.text` — the §40/§52 text→graph leaves of
+ * the K1 presence-kernel chain `text → tokenize → cooccurrence_edges →
+ * dense_laplacian`, plus the §52 streaming bounded top-K peer. The
+ * corpus-linear hot loops (per-codepoint tokenize; windowed pair-count
+ * accumulation; bounded chunk merge) run fully in C; the vocab-scale
+ * string→id mapping stays host-side (the srmech_klein4_cooccurrence_fold
+ * split precedent).
+ *
+ * BYTE-IDENTICAL parity contract: each op reproduces the pure-Python
+ * `srmech.amsc.text` result EXACTLY (token stream, integer pair counts,
+ * (-weight, index) tie-breaks, first-seen edge weights, lexicographic
+ * edge order) — the correctness gate for the downstream Laplacian.
+ *
+ * Unicode tables are CALLER-PROVIDED data (caller-arena discipline): the
+ * kept-bitset (0x110000 bits — one per codepoint, set iff Unicode
+ * category major class is L or M) and the casefold exception table
+ * (sorted codepoints + offset-indexed folded-UTF-8 blob, non-identity
+ * rows only). The srmech Python wrapper builds both once per process
+ * from the RUNNING interpreter's unicodedata, so native == pure holds on
+ * any interpreter / Unicode version; a bare-C host supplies its own
+ * tables (inputs, like the stoplist).
+ *
+ * All workspaces are caller arenas (JPL Rule 3); a too-small hash /
+ * scratch arena returns SRMECH_ERR_OVERFLOW (grow + retry — the
+ * OVERFLOW-not-wrap discipline; results are identical at any sufficient
+ * capacity). ABI-additive: new symbols, no callback typedef —
+ * SRMECH_ABI_VERSION stays 4. See srmech_text.c; parity attested by
+ * tests/test_text_c_rc217.py.
+ * ------------------------------------------------------------------ */
+
+/* Tokenize NFC-normalized UTF-8 `text` into '\n'-separated casefolded
+ * content tokens in `out` (*out_len bytes; each kept token is followed
+ * by one '\n'). Runs of kept codepoints (kept_bits) accumulate,
+ * word-internal apostrophes (U+0027 / U+2019, stored as ASCII ') are
+ * kept, each run is per-codepoint casefolded (fold_cps/fold_off/
+ * fold_bytes; identity when absent), end-apostrophe-trimmed, and emitted
+ * iff its folded codepoint count >= 2 and it is not one of the n_stop
+ * sorted stoplist entries (stop_off/stop_bytes, casefolded UTF-8).
+ * out_cap >= 4*text_len + 1 always suffices. Malformed UTF-8 →
+ * SRMECH_ERR_BAD_INPUT. */
+srmech_status_t srmech_text_tokenize(
+    const uint8_t *text, size_t text_len, const uint8_t *kept_bits,
+    const uint32_t *fold_cps, const uint32_t *fold_off,
+    const uint8_t *fold_bytes, size_t n_folds,
+    const uint32_t *stop_off, const uint8_t *stop_bytes, size_t n_stop,
+    uint8_t *out, size_t out_cap, size_t *out_len);
+
+/* Windowed unordered co-occurrence pair counts over per-document vocab-id
+ * streams (doc d = tok_ids[doc_off[d] .. doc_off[d+1]); the window resets
+ * at every document boundary), aggregated in the caller hash arena
+ * (ht_keys/ht_vals; power-of-two ht_cap; load kept <= 1/2 else
+ * SRMECH_ERR_OVERFLOW). On success the *out_n_edges distinct pairs sit
+ * compacted + sorted at the FRONT of ht_keys (key = (u<<32)|v, u < v —
+ * lexicographic edge order) with parallel integer counts in ht_vals. */
+srmech_status_t srmech_text_cooccurrence_edges(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
+    uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, size_t *out_n_edges);
+
+/* One §52 bounded top-K chunk FLUSH: accumulate the chunk's windowed pair
+ * counts (same loop as cooccurrence_edges), then merge each touched
+ * node's directed neighbours into its bounded store row — full
+ * within-chunk weights sum BEFORE any truncation; a row exceeding `cap`
+ * truncates to the cap best by (-weight, neighbour). store_nbr/store_w
+ * are n_vocab × cap row-major (neighbour-ascending rows); store_len[u]
+ * counts row u's live entries. `dir` (2·distinct-pairs records) and
+ * `scr` (one node's merge: up to cap + its chunk-degree records) are
+ * uint64-PAIR record scratch arenas. */
+srmech_status_t srmech_text_cooccurrence_topk(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t cap,
+    uint32_t n_vocab, uint32_t *store_nbr, uint64_t *store_w,
+    uint32_t *store_len, uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap,
+    uint64_t *dir, size_t dir_cap_recs, uint64_t *scr, size_t scr_cap_recs);
+
+/* The §52 final read-out of the bounded store: per node u (ascending),
+ * rank its row by (-weight, neighbour) and keep the top k into
+ * topk_nbr/topk_w (n_vocab × k row-major; topk_len[u] live, in ranked
+ * order — the per-token `topk` view), and union those entries into the
+ * deduplicated sparse edge list with the FIRST-SEEN weight, sorted by
+ * (min, max) key. edge_recs needs Σ_u min(store_len[u], k) 3-uint64
+ * records of scratch and returns *out_n_edges 2-uint64 (key, weight)
+ * records compacted at its front; node_scr holds `cap` 2-uint64 records. */
+srmech_status_t srmech_text_cooccurrence_topk_extract(
+    const uint32_t *store_nbr, const uint64_t *store_w,
+    const uint32_t *store_len, uint32_t n_vocab, uint32_t cap, uint32_t k,
+    uint32_t *topk_nbr, uint64_t *topk_w, uint32_t *topk_len,
+    uint64_t *edge_recs, size_t edge_cap_recs, size_t *out_n_edges,
+    uint64_t *node_scr, size_t node_scr_cap_recs);
+
+/* ------------------------------------------------------------------ *
+ * rc219 (gh #827): the encode-pipeline's other half — batched C peers.
+ *
+ * srmech_rbs_lm_* mirrors the `srmech.rbs_lm.substrate` Klein-4 encode
+ * kernels (srmech_rbs_lm.c): the per-token word encode and the WHOLE
+ * last-k-token context-window encode in ONE call (profile: ~90%+ of the
+ * measured 127 ms/window at D=4096, k=16 was Python per-token
+ * orchestration + k FFI hops around a few ms of C work). EXACT
+ * byte-identical parity — every leaf is integer/byte (sha256 seeds,
+ * the CPython-replicating MT19937 mint, XOR bind, strict majority
+ * bundle).
+ *
+ * srmech_spectral_* mirrors the per-state half of `srmech.spectral`
+ * decompose/recompose over the CACHED eigenbasis
+ * (srmech_spectral_codec.c): marshal + matvec + complex128 pack + sha
+ * in one crossing, through the SAME srmech_dense_matmul_complex kernel
+ * the carrier route uses. NUMERIC float-eig-derived parity: same-machine
+ * byte-identity by construction; cross-platform/arm within-tol only
+ * (the rc218 macOS lesson — never a hardcoded cross-platform SHA).
+ *
+ * All workspaces are caller arenas (JPL Rule 3). ABI-additive: new
+ * symbols, no callback typedef — SRMECH_ABI_VERSION stays 4.
+ * Parity attested by tests/test_rbs_lm_encode_context_rc219.py +
+ * tests/test_spectral_c_peer_rc219.py.
+ * ------------------------------------------------------------------ */
+
+/* One token → its Klein-4 word vector, byte-identical to
+ * substrate.encode_word_byteglyph (enc_mode 0) / encode_word_k4 (enc_mode 1):
+ *   byteglyph — klein4_encode_bytes over the token's UTF-8 bytes (an empty
+ *               token routes to the seed-0 neutral atom), then the sector
+ *               XOR bind;
+ *   wordhash  — klein4_random seeded by token_seed(tok, hex_chars) (the
+ *               sha256 hex prefix as a CPython init_by_array key), then the
+ *               sector XOR bind.
+ * `acc` is a (1 + 2*D) uint32 caller accumulator; `scratch` is 3*D caller
+ * bytes; `out` is D bytes. sector <= 3; enc_mode wordhash needs hex_chars in
+ * 1..64 (byteglyph ignores it). tok may be NULL iff tok_len == 0. */
+srmech_status_t srmech_rbs_lm_encode_word(
+    const uint8_t *tok, size_t tok_len, uint32_t D, uint8_t sector,
+    uint32_t hex_chars, uint32_t enc_mode, uint32_t *acc, uint8_t *scratch,
+    uint8_t *out);
+
+/* The WHOLE last-k-token context window → ONE Klein-4 state, byte-identical
+ * to ContextSubstrate.encode_context: per token p, klein4_bind(pos_key(p),
+ * enc(token_p)) (pos_key = the wordhash atom of "__ctx_pos_{p}__", enc_mode-
+ * independent), majority-bundled with the even-count odd-pad (an even window
+ * — including the empty one — APPENDS the fixed neutral pad
+ * enc("__bundle_pad__"); never drops a real token). Tokens ride as
+ * concatenated UTF-8 `tok_bytes` + n_tokens+1 `tok_off` offsets. `pad` may be
+ * the caller's precomputed D-byte pad vector (the substrate caches it) or
+ * NULL to compute it here.
+ *
+ * mint_cache / mint_flags (BOTH non-NULL or both NULL) are an optional
+ * caller-owned WINDOW-INVARIANT mint cache — the dominant residual cost of
+ * the collapsed call is the MT19937 mints (~85 µs each at D=4096; ~260 per
+ * byteglyph window), and the byte vocab, byteglyph position keys and window
+ * position keys are the same on every call. Layout: (256 + n_bytepos +
+ * n_ctxpos) D-byte rows — [0,256) the byte vocab (seed = byte value),
+ * [256, 256+n_bytepos) the byteglyph position keys (seed 0x10000+i),
+ * [256+n_bytepos, ...) the RAW (pre-sector-bind) window position-key mints —
+ * with one occupancy flag byte per row (mint_flags, zero-initialised by the
+ * caller ONCE; rows fill lazily and persist across calls). A cached mint is
+ * byte-identical to a fresh one by construction; byte positions ≥ n_bytepos /
+ * window positions ≥ n_ctxpos simply mint uncached. The caller must never
+ * mutate the arenas and must pass the SAME pair while D / sector / hex_chars
+ * stay fixed (the Python ContextSubstrate owns one pair per instance, exactly
+ * like its pure-path _poskey dict).
+ *
+ * acc_outer / acc_inner are (1 + 2*D) uint32 caller accumulators; `scratch`
+ * is 4*D caller bytes; `out` is D bytes. */
+srmech_status_t srmech_rbs_lm_encode_context(
+    const uint8_t *tok_bytes, const uint32_t *tok_off, uint32_t n_tokens,
+    uint32_t D, uint8_t sector, uint32_t hex_chars, uint32_t enc_mode,
+    const uint8_t *pad, uint8_t *mint_cache, uint8_t *mint_flags,
+    uint32_t n_bytepos, uint32_t n_ctxpos, uint32_t *acc_outer,
+    uint32_t *acc_inner, uint8_t *scratch, uint8_t *out);
+
+/* coeffs = Vᴴ·state over the CACHED eigenbasis + the complex128 pack + the
+ * Class-A content sha, in one call. `v_interleaved` is the n×n eigenvector
+ * Mat buffer (row-major interleaved (re, im); columns = eigenvectors), read
+ * zero-copy; `state_interleaved` is n interleaved pairs; `scratch_vh` is a
+ * 2*n*n-double caller arena (the Vᴴ staging — exact transpose + imag
+ * sign-flip, then the SAME srmech_dense_matmul_complex kernel the carrier
+ * mat_matvec route dispatches to); `out_coeffs` is 2*n doubles whose raw
+ * bytes ARE the SpectralHandle coefficients_bytes; `out_sha_hex` is 65 bytes
+ * (their lowercase content sha). No aliasing between scratch/out and the
+ * inputs. NUMERIC parity: same-machine byte-identity by construction;
+ * cross-platform within-tol only. */
+srmech_status_t srmech_spectral_decompose(
+    uint32_t n, const double *v_interleaved, const double *state_interleaved,
+    double *scratch_vh, double *out_coeffs, char *out_sha_hex);
+
+/* state = V·coeffs — the inverse projection back to the node domain, through
+ * the same public matmul kernel (n×n · n×1). `coeffs_interleaved` is the
+ * handle's coefficients_bytes viewed as 2*n doubles; `out_state` is 2*n
+ * doubles (must not alias the inputs). */
+srmech_status_t srmech_spectral_recompose(
+    uint32_t n, const double *v_interleaved, const double *coeffs_interleaved,
+    double *out_state);
 
 #ifdef __cplusplus
 }

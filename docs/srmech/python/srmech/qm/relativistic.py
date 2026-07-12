@@ -39,8 +39,10 @@ Canonical SSoT:
 
 from __future__ import annotations
 
+import ctypes
 from typing import Sequence, Tuple
 
+from srmech.amsc import _native
 from srmech.amsc import rational as _srn
 from srmech.amsc.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
@@ -61,19 +63,28 @@ def _eye4() -> "Mat":
 
 
 def _scale(s, m: "Mat") -> "Mat":
-    """``s · M`` (scalar × ``Mat``) as a new complex ``Mat`` (numpy-free)."""
-    rows = [[s * m[i, j] for j in range(m.n_cols)] for i in range(m.n_rows)]
-    return Mat.from_rows(rows, is_complex=True)
+    """``s · M`` (scalar × ``Mat``) via the :class:`Mat` carrier ``*`` — routes to
+    the native ``srmech_mat_scale`` C twin when present (rc141 carrier surface),
+    else the byte-identical pure-Python elementwise (the complete alternative).
+
+    Every ``_scale`` operand in this module is a **complex** ``Mat`` (γ-matrices,
+    the 4×4 identity, product chains), so the format-preserving carrier keeps the
+    complex layout — byte-identical to the prior force-complex helper (the rc145
+    B8a C-dispatch: γ₅ / projectors / charge-conjugation now run the scale in C on
+    the native path). No ``abs()`` — sign lives in the value (Class K)."""
+    return s * m
 
 
 def _mat_add(a: "Mat", b: "Mat") -> "Mat":
-    rows = [[a[i, j] + b[i, j] for j in range(a.n_cols)] for i in range(a.n_rows)]
-    return Mat.from_rows(rows, is_complex=True)
+    """``A + B`` via the carrier ``+`` — native ``srmech_mat_add`` C twin when
+    present, else the byte-identical pure-Python elementwise (rc145 B8a)."""
+    return a + b
 
 
 def _mat_sub(a: "Mat", b: "Mat") -> "Mat":
-    rows = [[a[i, j] - b[i, j] for j in range(a.n_cols)] for i in range(a.n_rows)]
-    return Mat.from_rows(rows, is_complex=True)
+    """``A − B`` via the carrier ``−`` — native ``srmech_mat_sub`` C twin when
+    present, else the byte-identical pure-Python elementwise (rc145 B8a)."""
+    return a - b
 
 
 def _block4(tl, tr, bl, br) -> "Mat":
@@ -95,6 +106,58 @@ def _block4(tl, tr, bl, br) -> "Mat":
     return Mat.from_rows(rows, is_complex=True)
 
 
+def _canon_true_zeros(m: "Mat") -> "Mat":
+    """Canonicalize every TRUE-ZERO component of a constant ``Mat``:
+    ``−0.0 → +0.0`` (rc212, #755). ``x + 0.0`` flips ONLY ``−0.0`` and leaves
+    every other value bit-identical, so this touches nothing but the
+    construction-artifact signed zeros the ``_scale(-1.0, ·)`` block negation
+    leaves in the γ literals — a byte-identity hazard for the standalone-C
+    constant emitter, and never a signed zero the math depends on (each slot
+    is exactly 0, or the exactly-zero component of a ±1 / ±i entry)."""
+    return Mat.from_rows(
+        [[complex(m[i, j].real + 0.0, m[i, j].imag + 0.0)
+          for j in range(m.n_cols)] for i in range(m.n_rows)],
+        is_complex=True,
+    )
+
+
+def _qm_gamma_native(mu: int) -> "Mat | None":
+    """One Dirac γ^mu from the standalone-C constant emitter
+    ``srmech_qm_dirac_gamma`` (rc212) — ``None`` when the symbol is absent /
+    the call fails (the canonicalized pure block assembly is the complete,
+    byte-identical alternative, not a rescue)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_qm_dirac_gamma")):
+        return None
+    out = (ctypes.c_double * 32)()
+    rc = _native.LIB.srmech_qm_dirac_gamma(ctypes.c_int32(mu), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return Mat.from_rows(
+        [[complex(out[2 * (4 * i + j)], out[2 * (4 * i + j) + 1])
+          for j in range(4)] for i in range(4)],
+        is_complex=True,
+    )
+
+
+def _qm_minkowski_native() -> "Mat | None":
+    """The Minkowski metric from the standalone-C constant emitter
+    ``srmech_qm_minkowski_metric`` (rc212) — ``None`` when the symbol is
+    absent / the call fails (the pure literal is the complete, byte-identical
+    alternative)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_qm_minkowski_metric")):
+        return None
+    out = (ctypes.c_double * 16)()
+    rc = _native.LIB.srmech_qm_minkowski_metric(out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return Mat.from_rows(
+        [[out[4 * i + j] for j in range(4)] for i in range(4)],
+        is_complex=False,
+    )
+
+
 # ----------------------------------------------------------------------
 # operations
 # ----------------------------------------------------------------------
@@ -105,8 +168,15 @@ def minkowski_metric() -> "Mat":
 
     Returned as a 4×4 **real** ``Mat`` (numpy-free).
 
+    rc212 (#755): dispatches to the standalone-C constant emitter
+    ``srmech_qm_minkowski_metric`` when native is present (byte-identical to
+    the pure literal), so a bare-C host produces the same constant DATA.
+
     Canonical SSoT: Peskin-Schroeder §3.1 eq 3.4 (mostly-minus convention).
     """
+    native = _qm_minkowski_native()
+    if native is not None:
+        return native
     return Mat.from_rows(
         [[1.0, 0.0, 0.0, 0.0],
          [0.0, -1.0, 0.0, 0.0],
@@ -127,6 +197,12 @@ def gamma_matrices() -> Tuple["Mat", "Mat", "Mat", "Mat"]:
         γ^i = [[  0,   σ_i ],
                [ -σ_i, 0  ]]   for i = 1, 2, 3.
 
+    rc212 (#755): dispatches to the standalone-C constant emitter
+    ``srmech_qm_dirac_gamma`` when native is present — byte-identical to the
+    canonicalized pure block assembly below (``_canon_true_zeros`` flips the
+    ``−0.0`` construction artifacts the ``_scale(-1.0, ·)`` negation leaves
+    in the zero slots), so a bare-C host produces the same constant DATA.
+
     Canonical SSoT: Peskin-Schroeder §3.2 eq 3.25 + A.6;
     Bjorken-Drell §3.2 eq 3.8.
 
@@ -134,14 +210,17 @@ def gamma_matrices() -> Tuple["Mat", "Mat", "Mat", "Mat"]:
         ``(g0, g1, g2, g3)``: four 4×4 complex ``Mat`` satisfying the
         Clifford algebra ``{γ^μ, γ^ν} = 2 η^{μν} I_4``.
     """
+    native = tuple(_qm_gamma_native(mu) for mu in range(4))
+    if all(g is not None for g in native):
+        return native
     # spin.pauli_* return numpy-free `Mat` (rc115); consume them directly as the
     # 2×2 blocks — no numpy, no boundary coercion (this module flipped at rc118).
     I2 = pauli_identity()
     sx, sy, sz = pauli_matrices()
-    g0 = _block4(I2, None, None, _scale(-1.0, I2))
-    g1 = _block4(None, sx, _scale(-1.0, sx), None)
-    g2 = _block4(None, sy, _scale(-1.0, sy), None)
-    g3 = _block4(None, sz, _scale(-1.0, sz), None)
+    g0 = _canon_true_zeros(_block4(I2, None, None, _scale(-1.0, I2)))
+    g1 = _canon_true_zeros(_block4(None, sx, _scale(-1.0, sx), None))
+    g2 = _canon_true_zeros(_block4(None, sy, _scale(-1.0, sy), None))
+    g3 = _canon_true_zeros(_block4(None, sz, _scale(-1.0, sz), None))
     return g0, g1, g2, g3
 
 

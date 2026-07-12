@@ -66,7 +66,7 @@ static void check_status(srmech_status_t got, srmech_status_t want,
 static void check_dec(const srmech_bigint_t *v, const char *want,
                       const char *desc)
 {
-    char buf[256];
+    char buf[1024];   /* wide enough for the 508-digit pow(7,600) keystone */
     size_t olen = 0;
     srmech_status_t st = srmech_bigint_to_dec(v, buf, sizeof(buf), &olen,
                                               g_ws, sizeof(g_ws));
@@ -90,6 +90,45 @@ static int64_t bi_to_i64(const srmech_bigint_t *b)
     if (b->n >= 1u) { mag |= (uint64_t)b->limbs[0]; }
     if (b->n >= 2u) { mag |= ((uint64_t)b->limbs[1]) << 32; }
     return (b->sign < 0) ? -(int64_t)mag : (int64_t)mag;
+}
+
+/* rc169: gcd via the Lehmer fast path (large arena) AND the lean-Euclid
+ * fallback (a 6*m+20-word arena is < the Lehmer-engage threshold 6*(m+2)+16
+ * but >= the lean need 6*m+6 for m >= 3), then assert the two results are
+ * limb-for-limb identical. The gcd value is unique, so this pins byte-
+ * identity of the new algorithm against the pre-rc169 Euclid on a C host. */
+static void check_gcd_paths(const srmech_bigint_t *a, const srmech_bigint_t *b,
+                            srmech_bigint_t *o1, srmech_bigint_t *o2,
+                            uint32_t *arena, size_t arena_words,
+                            const char *desc)
+{
+    size_t m = (a->n > b->n) ? a->n : b->n;
+    size_t small = 6u * m + 20u;                    /* forces lean Euclid */
+    uint32_t i, same = 1u;
+    check_status(srmech_bigint_gcd(o1, a, b, arena, arena_words * 4u),
+                 SRMECH_OK, desc);
+    check_status(srmech_bigint_gcd(o2, a, b, arena, small * 4u),
+                 SRMECH_OK, desc);
+    if (o1->n != o2->n || o1->sign != o2->sign) { same = 0u; }
+    for (i = 0u; same && i < o1->n; i++) {
+        if (o1->limbs[i] != o2->limbs[i]) { same = 0u; }
+    }
+    check_i64((int64_t)same, 1, desc);
+}
+
+/* Fill (fa, fb) = (F(n), F(n-1)) by iterated add — the Euclid worst case
+ * (every partial quotient 1), where Lehmer batches the whole chain. n>=2. */
+static void build_fib(srmech_bigint_t *fa, srmech_bigint_t *fb,
+                      srmech_bigint_t *t, uint32_t n)
+{
+    uint32_t i;
+    srmech_bigint_set_i64(fb, 1);       /* F(1) */
+    srmech_bigint_set_i64(fa, 1);       /* F(2) */
+    for (i = 2u; i < n; i++) {
+        srmech_bigint_add(t, fa, fb);   /* F(i+1) = F(i) + F(i-1) */
+        srmech_bigint_copy(fb, fa);
+        srmech_bigint_copy(fa, t);
+    }
 }
 
 int main(void)
@@ -151,6 +190,36 @@ int main(void)
     check_status(srmech_bigint_divmod(&q, &r, &a, &b, g_ws, sizeof(g_ws)),
                  SRMECH_ERR_BAD_INPUT, "div0");
 
+    /* NULL-sink regression (the fixed cap-0 throwaway bug): q == NULL with a
+     * NEGATIVE dividend must return the correct FLOORED remainder — the old
+     * path spuriously returned SRMECH_ERR_OVERFLOW because the floor fixup
+     * q -= 1 had no limb to write. Also pin q==NULL positive, r==NULL, and a
+     * multi-limb (Knuth-path) q==NULL case. */
+    srmech_bigint_set_i64(&a, -7);
+    srmech_bigint_set_i64(&b, 2);
+    check_status(srmech_bigint_divmod(NULL, &r, &a, &b, g_ws, sizeof(g_ws)),
+                 SRMECH_OK, "divmod qNULL st (-7 mod 2)");
+    check_i64(bi_to_i64(&r), 1, "divmod qNULL r (-7 mod 2)");
+    srmech_bigint_set_i64(&a, 7);
+    srmech_bigint_set_i64(&b, 3);
+    check_status(srmech_bigint_divmod(NULL, &r, &a, &b, g_ws, sizeof(g_ws)),
+                 SRMECH_OK, "divmod qNULL st (7 mod 3)");
+    check_i64(bi_to_i64(&r), 1, "divmod qNULL r (7 mod 3)");
+    srmech_bigint_set_i64(&a, -7);
+    srmech_bigint_set_i64(&b, 2);
+    check_status(srmech_bigint_divmod(&q, NULL, &a, &b, g_ws, sizeof(g_ws)),
+                 SRMECH_OK, "divmod rNULL st (-7 / 2)");
+    check_i64(bi_to_i64(&q), -4, "divmod rNULL q (-7 / 2 floor)");
+    {   /* multi-limb Knuth path with q == NULL: -(10^40 + 11) mod 10^20. */
+        const char *p40 = "-10000000000000000000000000000000000000011";
+        const char *p20 = "100000000000000000000";
+        srmech_bigint_from_dec(&a, p40, strlen(p40));
+        srmech_bigint_from_dec(&b, p20, strlen(p20));
+        check_status(srmech_bigint_divmod(NULL, &r, &a, &b, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "divmod qNULL st (big neg)");
+        check_dec(&r, "99999999999999999989", "divmod qNULL r (big neg floor)");
+    }
+
     /* shl / shr (floor for negatives). */
     srmech_bigint_set_i64(&a, 1);
     check_status(srmech_bigint_shl_bits(&o, &a, 100), SRMECH_OK, "shl st");
@@ -205,6 +274,162 @@ int main(void)
         srmech_bigint_set_i64(&b, 0xFFFFFFFFLL);
         check_status(srmech_bigint_add(&small, &a, &b), SRMECH_ERR_OVERFLOW,
                      "add overflow guard");
+    }
+
+    /* ---- pow_u32 (binary exponentiation; rc36 scratch-bound fix) ---- */
+    {
+        uint32_t pbuf[CAP], bbuf[CAP];
+        srmech_bigint_t po = bi_make(pbuf, CAP);
+        srmech_bigint_t pbase = bi_make(bbuf, CAP);
+        const char *e7_600 =
+            "11450488332310252629233198149569278478623259821197339943425315"
+            "54985163223206633039966559241257609670429897350415891980768804"
+            "12794575473190385665994943189876297213016525337351380678465872"
+            "58862845654893027187626149138556374802011495367934064646250942"
+            "44515365050120716031569341385478652988610315682341203592396495"
+            "19684199242817038581483010718844282803408485904757788145768539"
+            "82063120666404156531022348503937987859541449436932669286370821"
+            "170080422597177518760544741277685436943552772412354198499053082"
+            "75568360001";
+        size_t pneed;
+        srmech_bigint_set_i64(&pbase, 3);
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 5, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "pow(3,5) st");
+        check_dec(&po, "243", "pow(3,5)");
+        srmech_bigint_set_i64(&pbase, 2);
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 64, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "pow(2,64) st");
+        check_dec(&po, "18446744073709551616", "pow(2,64)");
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 0, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "pow(2,0) st");
+        check_dec(&po, "1", "pow(2,0)");
+        /* KEYSTONE: 7^600 = 53 limbs > the pre-rc36 internal cap
+         * (base->n*32+4 = 36), which OVERFLOWED here; now byte-identical to
+         * Python's 7**600 (a C-only host has the full magnitude). */
+        srmech_bigint_set_i64(&pbase, 7);
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 600, g_ws, sizeof(g_ws)),
+                     SRMECH_OK, "pow(7,600) st");
+        check_dec(&po, e7_600, "pow(7,600) keystone");
+        check_i64((int64_t)(po.n > 36u), 1, "pow(7,600) exceeds old 36-limb cap");
+        /* the advertised ws bound is exactly sufficient (tight, no over-alloc) */
+        pneed = srmech_bigint_pow_ws_bound(pbase.n, 600);
+        check_status(srmech_bigint_pow_u32(&po, &pbase, 600, g_ws, pneed),
+                     SRMECH_OK, "pow(7,600) via pow_ws_bound");
+        check_dec(&po, e7_600, "pow(7,600) tight ws");
+    }
+
+    /* ---- rc168 Karatsuba multiply: arena == NULL-ws == plain, limb-
+     * identical (the byte-identity contract on a C-only host). ---- */
+    {
+        enum { KN = 96 };                 /* > BI_KARA_CUTOFF: real split */
+        static uint32_t ka[KN], kb[KN], ko1[2 * KN + 2], ko2[2 * KN + 2],
+            ko3[2 * KN + 2];
+        static unsigned char kws[16384];  /* >= mul_ws_bound(96, 96) */
+        srmech_bigint_t xa = bi_make(ka, KN), xb = bi_make(kb, KN);
+        srmech_bigint_t o1 = bi_make(ko1, 2 * KN + 2);
+        srmech_bigint_t o2 = bi_make(ko2, 2 * KN + 2);
+        srmech_bigint_t o3 = bi_make(ko3, 2 * KN + 2);
+        uint64_t seed = 0x9E3779B97F4A7C15ull;
+        size_t wb = srmech_bigint_mul_ws_bound(KN, KN);
+        uint32_t i, same12 = 1, same13 = 1;
+        for (i = 0; i < KN; i++) {        /* deterministic xorshift limbs */
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
+            ka[i] = (uint32_t)(seed >> 32);
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17;
+            kb[i] = (uint32_t)(seed >> 32);
+        }
+        ka[KN - 1] |= 0x80000000u; kb[KN - 1] |= 0x80000000u;
+        xa.n = KN; xa.sign = -1;          /* signed cross-check too */
+        xb.n = KN; xb.sign = 1;
+        check_i64((int64_t)(wb > 0u && wb <= sizeof(kws)), 1,
+                  "kara ws bound sane");
+        check_status(srmech_bigint_mul_ws(&o1, &xa, &xb, kws, wb),
+                     SRMECH_OK, "kara mul_ws(arena) st");
+        check_status(srmech_bigint_mul_ws(&o2, &xa, &xb, NULL, 0),
+                     SRMECH_OK, "kara mul_ws(NULL=schoolbook) st");
+        check_status(srmech_bigint_mul(&o3, &xa, &xb),
+                     SRMECH_OK, "kara mul(plain) st");
+        if (o1.n != o2.n || o1.sign != o2.sign) { same12 = 0; }
+        if (o1.n != o3.n || o1.sign != o3.sign) { same13 = 0; }
+        for (i = 0; same12 && i < o1.n; i++) {
+            if (ko1[i] != ko2[i]) { same12 = 0; }
+        }
+        for (i = 0; same13 && i < o1.n; i++) {
+            if (ko1[i] != ko3[i]) { same13 = 0; }
+        }
+        check_i64((int64_t)same12, 1, "kara arena == schoolbook (limbs)");
+        check_i64((int64_t)same13, 1, "kara plain == arena (limbs)");
+        check_i64((int64_t)(o1.sign == -1), 1, "kara sign (-,+) -> -");
+        /* all-ones x all-ones: (B^n-1)^2 = B^2n - 2B^n + 1 (worst carry) */
+        for (i = 0; i < KN; i++) { ka[i] = 0xFFFFFFFFu; kb[i] = 0xFFFFFFFFu; }
+        xa.sign = 1; xb.sign = 1;
+        check_status(srmech_bigint_mul_ws(&o1, &xa, &xb, kws, wb),
+                     SRMECH_OK, "kara ones arena st");
+        check_status(srmech_bigint_mul_ws(&o2, &xa, &xb, NULL, 0),
+                     SRMECH_OK, "kara ones school st");
+        same12 = (o1.n == o2.n && o1.sign == o2.sign) ? 1u : 0u;
+        for (i = 0; same12 && i < o1.n; i++) {
+            if (ko1[i] != ko2[i]) { same12 = 0; }
+        }
+        check_i64((int64_t)same12, 1, "kara ones arena == schoolbook");
+        /* (B^n-1)^2 = B^n*(B^n-2) + 1: limb[0]=1, limbs[1..n-1]=0,
+         * limb[n]=B-2, limbs[n+1..2n-1]=B-1. */
+        check_i64((int64_t)(ko1[0] == 1u && ko1[KN - 1] == 0u
+                            && ko1[KN] == 0xFFFFFFFEu
+                            && ko1[2 * KN - 1] == 0xFFFFFFFFu), 1,
+                  "kara (B^n-1)^2 closed form");
+    }
+
+    /* ---- rc169 Lehmer gcd: Lehmer path == lean-Euclid path, limb-for-
+     * limb, across structured + worst-case (Fibonacci-adjacent) shapes.
+     * gcd is unique, so limb-identity IS the byte-identity contract. ---- */
+    {
+        enum { GC = 96 };
+        static uint32_t xb_[GC], yb_[GC], tb_[GC], eb_[GC],
+            o1b_[GC], o2b_[GC], fab_[GC], fbb_[GC];
+        static uint32_t arena[4096];
+        srmech_bigint_t x = bi_make(xb_, GC), y = bi_make(yb_, GC);
+        srmech_bigint_t tt = bi_make(tb_, GC), ex = bi_make(eb_, GC);
+        srmech_bigint_t o1 = bi_make(o1b_, GC), o2 = bi_make(o2b_, GC);
+        srmech_bigint_t fa = bi_make(fab_, GC), fb = bi_make(fbb_, GC);
+        const char *bigx =
+            "31415926535897932384626433832795028841971693993751"
+            "05820974944592307816406286208998628034825342117067"
+            "98214808651328230664709384460955058223172535940812";
+        /* Fibonacci-adjacent: gcd(F(2000), F(1999)) = 1 (worst case). */
+        build_fib(&fa, &fb, &tt, 2000u);
+        check_gcd_paths(&fa, &fb, &o1, &o2, arena, 4096u,
+                        "gcd fib(2000,1999) paths");
+        check_i64((int64_t)(o1.n == 1u && o1.limbs[0] == 1u), 1, "gcd fib==1");
+        /* consecutive integers coprime: gcd(x, x+1) = 1. */
+        srmech_bigint_from_dec(&x, bigx, strlen(bigx));
+        srmech_bigint_set_i64(&tt, 1);
+        srmech_bigint_add(&y, &x, &tt);              /* y = x+1 */
+        check_gcd_paths(&x, &y, &o1, &o2, arena, 4096u, "gcd(x,x+1) paths");
+        check_i64((int64_t)(o1.n == 1u && o1.limbs[0] == 1u), 1, "gcd(x,x+1)==1");
+        /* one divides the other: gcd(x, 7x) = x. */
+        srmech_bigint_set_i64(&tt, 7);
+        srmech_bigint_mul(&y, &x, &tt);              /* y = 7x */
+        check_gcd_paths(&x, &y, &o1, &o2, arena, 4096u, "gcd(x,7x) paths");
+        check_i64((int64_t)(srmech_bigint_cmp(&o1, &x) == 0), 1, "gcd(x,7x)==x");
+        /* both even: gcd(2x, 2(x+1)) = 2 (no in-place mul: out distinct). */
+        srmech_bigint_set_i64(&tt, 2);
+        srmech_bigint_mul(&fa, &x, &tt);             /* fa = 2x */
+        srmech_bigint_set_i64(&ex, 1);
+        srmech_bigint_add(&fb, &x, &ex);             /* fb = x+1 */
+        srmech_bigint_mul(&y, &fb, &tt);             /* y = 2(x+1) */
+        check_gcd_paths(&fa, &y, &o1, &o2, arena, 4096u, "gcd(2x,2x+2) paths");
+        check_i64(bi_to_i64(&o1), 2, "gcd(2x,2x+2)==2");
+        /* powers of two: gcd(2^300, 2^180) = 2^180. */
+        srmech_bigint_set_i64(&x, 1);
+        srmech_bigint_shl_bits(&x, &x, 300);
+        srmech_bigint_set_i64(&y, 1);
+        srmech_bigint_shl_bits(&y, &y, 180);
+        srmech_bigint_set_i64(&ex, 1);
+        srmech_bigint_shl_bits(&ex, &ex, 180);       /* expected 2^180 */
+        check_gcd_paths(&x, &y, &o1, &o2, arena, 4096u, "gcd(2^300,2^180) paths");
+        check_i64((int64_t)(srmech_bigint_cmp(&o1, &ex) == 0), 1,
+                  "gcd(2^300,2^180)==2^180");
     }
 
     printf("test_srmech_bigint: %d passed, %d failed\n", g_passed, g_failed);

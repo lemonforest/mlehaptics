@@ -48,7 +48,8 @@ def _as_lists(xs):
 
 
 def _markers(body, leaf_dim=64):
-    return [body[k] for k in range(0, len(body), leaf_dim)]
+    # §55/v3: blocks are variable-width (packed turns) — walk, don't stride.
+    return [raw[0] for raw, _dec in genome._walk_region_blocks(body, leaf_dim)]
 
 
 # ── builder: ONE self-describing strand (no gene_index, no 2-tuple) ──────────

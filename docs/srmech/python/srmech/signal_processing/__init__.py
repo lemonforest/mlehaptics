@@ -155,13 +155,10 @@ from .profiling import (
     DEFAULT_INPUT_SIZES,
     ProfileCellKey,
     ProfileRecord,
-    ProfilingNotImplementedError,
     cell_grid,
     clear_records,
     iter_records,
-    profile_op,
     record_profile,
-    update_dispatch_table,
 )
 
 # Phase 3 (v0.4.2rc3) — Path B core: RBS-HDC instrument + form-function
@@ -256,11 +253,8 @@ __all__ = [
     "iter_records",
     "clear_records",
     "cell_grid",
-    "profile_op",
-    "update_dispatch_table",
     "ProfileRecord",
     "ProfileCellKey",
-    "ProfilingNotImplementedError",
     "DEFAULT_INPUT_SIZES",
     "DEFAULT_CASCADE_DEPTHS",
     # Phase 3 — Path B core: RBS-HDC instrument

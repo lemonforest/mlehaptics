@@ -1715,6 +1715,32 @@ def _synth_value_for_type(type_string: str) -> Any:
         # ndarray: a 2x2 identity (square — satisfies the most ops; the
         # vector ops accept it as a 2-row matrix or re-shape internally;
         # any shape complaint is a tolerated DOMAIN error).
+        # rc42 zeilberger BiPoly operand: a minimal valid nonzero bivariate ratio
+        # — k-slot 0 is the Poly-in-n [1, 1] (= 1 + n). Coerces + binds cleanly;
+        # any "no recurrence" is a tolerated DOMAIN result, not a binding error.
+        "BiPoly": [[1, 1]],
+        # rc53 apagodu_zeilberger TriPoly operand: a minimal valid nonzero
+        # trivariate ratio — j-slot 0 is the BiPoly [[1, 1]] (= 1 + n). Coerces
+        # + binds cleanly; any "no recurrence" is a tolerated DOMAIN result.
+        "TriPoly": [[[1, 1]]],
+        # rc55 q_gosper QPoly operand: a minimal valid nonzero Laurent-in-x ℚ[q]
+        # term ratio — a single x⁰ cell carrying the constant ℚ[q] coefficient 2
+        # (the q-geometric Σ 2ᵏ numerator). [[2]] avoids the 2-element-list
+        # (num, den) ambiguity of QPoly's own cell coercion; coerces + binds
+        # cleanly, and as a term-ratio numerator yields a DOMAIN-valid certificate.
+        "QPoly": [[2]],
+        # rc56 q_zeilberger QBiPoly operand: a minimal valid nonzero bivariate-q
+        # term ratio — a single Y⁰ cell carrying the QPoly [[2]] (one X⁰ cell, the
+        # constant ℚ[q] coefficient 2; the q-geometric numerator). The q-analog of
+        # the BiPoly [[1, 1]] sample; coerces + binds cleanly, and as a term-ratio
+        # numerator yields a DOMAIN-valid (k-free q-geometric) recurrence.
+        "QBiPoly": [[[2]]],
+        # rc61 elliptic_gosper EllRatio operand: a minimal valid term ratio — the
+        # exact-ℚ SCALAR (3, 2) (the elliptic-geometric constant ratio r = 3/2). The
+        # coercer builds EllRatio.monomial(EllMonomial.scalar(3/2)); coerces + binds
+        # cleanly, and as a term ratio yields a DOMAIN-valid certificate R = 2 (the
+        # elliptic-geometric closed form 1/(z−1) = z_den/(z_num−z_den)).
+        "EllRatio": [3, 2],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
@@ -1748,6 +1774,16 @@ def _synth_value_for_type(type_string: str) -> Any:
         "tuple[Mat, ...]": [mat2, mat2],
         # rank-3 nested list (gauge structure constants f^abc); a minimal 1x1x1.
         "list[list[list[float]]]": [[[0.0]]],
+        # rc113 qbipoly_from_coeffs `coeffs` (also modular_linalg.gf_rref
+        # `rows`): a minimal Y-ascending list of integer x-cell lists — Y⁰ cell
+        # 1 + 2X, Y¹ cell 3 (a valid nonzero QBiPoly; the same shape is a valid
+        # 2-row GF matrix for gf_rref, whose non-prime synth `p` stays a
+        # tolerated domain error).
+        "list[list[int]]": [[1, 2], [3]],
+        # rc113 theta_coefficients `theta`: the named g₃ shadow — the MCP
+        # coercer builds unary_theta('minus12', 1, 1, 0, 24) from the string
+        # (also drives harmonic_maass's `shadow` with a genuine UnaryTheta).
+        "UnaryTheta": "g3",
         # legacy numpy-free wire-form keys (no param advertises them now).
         "Sequence[np.ndarray]": [vec, vec],
         "tuple[np.ndarray, ...]": [mat2, mat2],

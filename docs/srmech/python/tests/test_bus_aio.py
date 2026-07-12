@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import os
 import secrets
+import socket
 import threading
 import time
 import uuid
@@ -527,6 +528,173 @@ def test_concurrent_sends_on_one_channel(unique_name):
                 # the sync layer); we just verify content here.
                 seen = sorted(r["payload"]["echo"]["i"] for r in results)
                 assert seen == list(range(N))
+    asyncio.run(main())
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Bounded connect-retry (0.9.0rc209 — issue #792 macOS CI flake)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_aio_connect_retries_after_transient_refusal(unique_name, monkeypatch):
+    """The rc209 bounded retry genuinely fires — not dead code.
+
+    Monkeypatch the sync connect the async wrapper defers to so the
+    first 3 attempts raise ``ConnectionRefusedError`` (the exact
+    exception the macOS flake surfaces), then delegate to the real
+    connect. The round-trip must succeed AND the attempt counter must
+    show retry attempts happened (fail_first + 1 calls).
+    """
+    from srmech.bus import _client as _client_mod
+
+    real_connect = _client_mod.connect
+    attempts = {"n": 0}
+    fail_first = 3
+
+    def flaky_connect(name, **kwargs):
+        attempts["n"] += 1
+        if attempts["n"] <= fail_first:
+            raise ConnectionRefusedError(
+                61, "Connection refused (synthetic rc209 retry probe)"
+            )
+        return real_connect(name, **kwargs)
+
+    monkeypatch.setattr(_client_mod, "connect", flaky_connect)
+
+    async def main():
+        async with aio_serve(unique_name, _echo_handler):
+            _wait_for_endpoint(unique_name)
+            async with aio_connect(unique_name) as ch:
+                reply = await ch.send(
+                    {"type": "ping", "payload": {"retry": True}},
+                    timeout=5.0,
+                )
+                assert reply["type"] == "pong"
+                assert reply["payload"]["echo"] == {"retry": True}
+
+    asyncio.run(main())
+    assert attempts["n"] == fail_first + 1, (
+        f"retry path not exercised: expected {fail_first + 1} connect "
+        f"attempts, saw {attempts['n']}"
+    )
+
+
+@pytest.mark.skipif(
+    not hasattr(socket, "AF_UNIX"), reason="POSIX AF_UNIX only"
+)
+def test_aio_connect_retries_real_econnrefused_until_listen(unique_name):
+    """Real-kernel retry proof: bound-but-not-listening UDS → success.
+
+    A UDS socket bound at the endpoint path but NOT yet listening
+    refuses connects with real kernel ``ECONNREFUSED`` — the exact
+    frame of the macOS flake (registration visible before the server
+    is accept-ready). The async connect must absorb the refusals and
+    succeed once ``listen()`` runs ~150 ms later.
+    """
+    path = sock_path(unique_name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        srv.bind(str(path))
+        # Precondition: a raw connect right now IS refused (so the
+        # retry path below is genuinely exercised, not skipped).
+        probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            with pytest.raises(ConnectionRefusedError):
+                probe.connect(str(path))
+        finally:
+            probe.close()
+
+        listen_delay_s = 0.15
+
+        async def main():
+            loop = asyncio.get_running_loop()
+
+            async def delayed_listen():
+                await asyncio.sleep(listen_delay_s)
+                srv.listen(4)
+
+            listener = asyncio.create_task(delayed_listen())
+            t0 = loop.time()
+            async with aio_connect(unique_name) as ch:
+                elapsed = loop.time() - t0
+                assert ch.closed is False
+            await listener
+            # Success is only possible AFTER listen() ran, so the
+            # retry loop must have absorbed refusals for roughly the
+            # listen delay (slack for clock granularity).
+            assert elapsed >= listen_delay_s * 0.5, (
+                f"connect returned in {elapsed:.3f}s — too fast to "
+                f"have waited out the {listen_delay_s}s pre-listen "
+                f"refusal window"
+            )
+
+        asyncio.run(main())
+    finally:
+        srv.close()
+
+
+@pytest.mark.skipif(
+    not hasattr(socket, "AF_UNIX"), reason="POSIX AF_UNIX only"
+)
+def test_aio_connect_refusal_window_is_bounded(unique_name):
+    """A never-listening endpoint exhausts the retry window and raises.
+
+    Proves the retry is BOUNDED: ``ConnectionRefusedError`` still
+    propagates (no infinite loop), and only after approximately the
+    full retry window (proving the retries actually ran first).
+    """
+    from srmech.bus import aio as aio_mod
+
+    path = sock_path(unique_name)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        srv.bind(str(path))  # bound, never listens
+
+        async def main():
+            loop = asyncio.get_running_loop()
+            t0 = loop.time()
+            with pytest.raises(ConnectionRefusedError):
+                async with aio_connect(unique_name):
+                    pass
+            elapsed = loop.time() - t0
+            window = aio_mod._CONNECT_RETRY_TOTAL_WAIT_S
+            assert elapsed >= window * 0.9, (
+                f"refused after only {elapsed:.3f}s — the bounded "
+                f"retry window ({window}s) was not used"
+            )
+            assert elapsed < window + 5.0, (
+                f"refusal took {elapsed:.3f}s — retry window "
+                f"({window}s) not honoured as a bound"
+            )
+
+        asyncio.run(main())
+    finally:
+        srv.close()
+
+
+def test_aio_connect_missing_endpoint_fails_fast(unique_name):
+    """``FileNotFoundError`` (no registration at all) is NOT retried.
+
+    "Server not running" must stay a fast, honest error — only
+    ``ConnectionRefusedError`` (transient server-side state) gets the
+    bounded retry.
+    """
+    from srmech.bus import aio as aio_mod
+
+    async def main():
+        loop = asyncio.get_running_loop()
+        t0 = loop.time()
+        with pytest.raises(FileNotFoundError):
+            async with aio_connect(unique_name):
+                pass
+        elapsed = loop.time() - t0
+        assert elapsed < aio_mod._CONNECT_RETRY_TOTAL_WAIT_S, (
+            f"FileNotFoundError took {elapsed:.3f}s — it must fail "
+            f"fast, not ride the retry window"
+        )
+
     asyncio.run(main())
 
 

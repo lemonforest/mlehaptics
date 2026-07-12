@@ -18,10 +18,40 @@ Canonical SSoT:
 
 from __future__ import annotations
 
+import ctypes
 from typing import Tuple
 
+from srmech.amsc import _native
 from srmech.amsc.laplacian import mat_matmul, mat_norm
 from srmech.amsc.mat import Mat
+
+
+# Canonical −i: a TRUE-ZERO real part (+0.0). The literal ``-1j`` carries
+# re = −0.0 (unary minus on complex(0.0, 1.0) negates BOTH components) — a
+# byte-identity hazard for the standalone-C constant emitter, canonicalized
+# at rc212 (the −0.0 was a construction artifact, not a signed zero the
+# math depends on: the entry is exactly −i, whose real part is zero).
+_MINUS_I = complex(0.0, -1.0)
+
+
+def _qm_pauli_native(which: int) -> "Mat | None":
+    """One Pauli-family constant from the standalone-C emitter
+    ``srmech_qm_pauli`` (rc212) — ``which`` = 0 (σ_x), 1 (σ_y), 2 (σ_z),
+    3 (I₂); ``None`` when the symbol is absent / the call fails (the
+    canonical pure literals below are the complete, byte-identical
+    alternative, not a rescue)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_qm_pauli")):
+        return None
+    out = (ctypes.c_double * 8)()
+    rc = _native.LIB.srmech_qm_pauli(ctypes.c_int32(which), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return Mat.from_rows(
+        [[complex(out[0], out[1]), complex(out[2], out[3])],
+         [complex(out[4], out[5]), complex(out[6], out[7])]],
+        is_complex=True,
+    )
 
 
 def pauli_matrices() -> Tuple["Mat", "Mat", "Mat"]:
@@ -31,6 +61,11 @@ def pauli_matrices() -> Tuple["Mat", "Mat", "Mat"]:
     Hermitian :class:`~srmech.amsc.mat.Mat` with entries in ``{0, ±1, ±i}``
     (no float approximation; entries are plain Python ``complex`` scalars).
 
+    rc212 (#755): dispatches to the standalone-C constant emitter
+    ``srmech_qm_pauli`` when native is present — byte-identical to the
+    canonical pure literals (every true-zero slot is +0.0; see
+    ``_MINUS_I``), so a bare-C host produces the same constant DATA.
+
     Canonical SSoT: Pauli (1927) *Zeitschrift für Physik* 43, 601;
     Sakurai *Modern QM* §3.2 eq 3.2.1.
 
@@ -38,14 +73,23 @@ def pauli_matrices() -> Tuple["Mat", "Mat", "Mat"]:
         ``(sigma_x, sigma_y, sigma_z)``: each a 2×2 complex Hermitian
         traceless ``Mat`` satisfying ``σ_i² = I`` and the Clifford algebra.
     """
+    native = tuple(_qm_pauli_native(which) for which in (0, 1, 2))
+    if all(m is not None for m in native):
+        return native
     sigma_x = Mat.from_rows([[0, 1], [1, 0]], is_complex=True)
-    sigma_y = Mat.from_rows([[0, -1j], [1j, 0]], is_complex=True)
+    sigma_y = Mat.from_rows([[0, _MINUS_I], [1j, 0]], is_complex=True)
     sigma_z = Mat.from_rows([[1, 0], [0, -1]], is_complex=True)
     return sigma_x, sigma_y, sigma_z
 
 
 def pauli_identity() -> "Mat":
-    """The 2×2 identity (Cl(0,3) scalar) as an exact complex ``Mat``."""
+    """The 2×2 identity (Cl(0,3) scalar) as an exact complex ``Mat``.
+
+    rc212 (#755): dispatches to ``srmech_qm_pauli(3, ·)`` when native is
+    present (byte-identical to the pure literal)."""
+    native = _qm_pauli_native(3)
+    if native is not None:
+        return native
     return Mat.from_rows([[1, 0], [0, 1]], is_complex=True)
 
 

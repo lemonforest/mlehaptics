@@ -65,8 +65,9 @@ binds = ["strand", "the_one", "labels"]
 doc = "Recover {label: leaves} from a multi-kernel genome strand by its telomere labels."
 
 # ── UPSTREAM §41 — genome persistence (disk save / load / catalog / append) ──
-# The helix grows ON DISK: a genome directory holds a fixed-width append-only
-# body (turns.bin) plus an MPR-attested manifest catalog. Reads are paged +
+# The helix grows ON DISK: a genome directory holds a self-describing
+# append-only body (turns.bin; §55/v3 bit-packs data turns 4 Klein-4
+# symbols/byte) plus an MPR-attested manifest catalog. Reads are paged +
 # bounded (every read re-hashes the bytes it touched vs the manifest).
 
 [class.method.save]

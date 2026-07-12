@@ -19,6 +19,10 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Viterbi
 
 from __future__ import annotations
 
+import ctypes
+
+from srmech.amsc import _native
+
 OPERATION_NAME = "viterbi"
 CLASS_COMPOSITION = ("L", "K")
 PERFORMANCE_HINT = "shallow-cascade-trellis-amortise"
@@ -29,6 +33,38 @@ SSOT_CITATION = (
     "(1973), 'The Viterbi algorithm', Proc. IEEE 61(3), 268-278. DOI "
     "10.1109/PROC.1973.9030."
 )
+
+
+def _viterbi_native(obs, A, B, pi, T, n_states):
+    """Native log-domain trellis DP → integer state list (byte-identical to the
+    pure DP — the float adds accumulate in the SAME order and the per-merge
+    argmax is the first-maximal Class-K pin-slot) or ``None`` (rc144 §B6b). The
+    ``obs`` are validated in-range so the C never reads B out of bounds (the
+    pure path would IndexError on the same input, so returning ``None`` keeps
+    the behaviour identical)."""
+    if not _native.has_native_viterbi() or T == 0 or n_states == 0:
+        return None
+    n_obs = len(B[0])
+    if n_obs == 0 or any(len(row) != n_obs for row in B):
+        return None
+    for x in obs:
+        if x < 0 or x >= n_obs:
+            return None
+    flat_a = [A[i][j] for i in range(n_states) for j in range(n_states)]
+    flat_b = [B[s][c] for s in range(n_states) for c in range(n_obs)]
+    c_a = (ctypes.c_double * (n_states * n_states))(*flat_a)
+    c_b = (ctypes.c_double * (n_states * n_obs))(*flat_b)
+    c_pi = (ctypes.c_double * n_states)(*pi)
+    c_obs = (ctypes.c_int32 * T)(*obs)
+    delta = (ctypes.c_double * (T * n_states))()
+    psi = (ctypes.c_int32 * (T * n_states))()
+    path = (ctypes.c_int32 * T)()
+    rc = _native.LIB.srmech_viterbi(
+        c_obs, ctypes.c_uint32(T), c_a, c_b, c_pi, ctypes.c_uint32(n_states),
+        ctypes.c_uint32(n_obs), delta, psi, path)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(path[t]) for t in range(T)]
 
 
 def op(
@@ -75,6 +111,10 @@ def op(
         raise ValueError(f"emission rows {len(B)} != n_states {n_states}")
     if len(pi) != n_states:
         raise ValueError(f"initial pi length {len(pi)} != n_states {n_states}")
+
+    native = _viterbi_native(obs, A, B, pi, T, n_states)   # rc144 §B6b
+    if native is not None:
+        return native
 
     neg_inf = float("-inf")
     # Class L: trellis DP forward sweep over (time, state).

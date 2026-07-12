@@ -128,8 +128,22 @@ class Vec:
         """Yields SCALARS (plain ``float`` / ``complex``), not rows."""
         return (self[i] for i in range(self._n))
 
+    # ── native carrier dispatch (rc141 Foundation F0) ─────────────────────
+    # conj/neg + elementwise route to the byte-identical C carrier ops
+    # (srmech_vec_*) when HAS_NATIVE, over the SAME array('d') buffer zero-copy;
+    # the pure-Python bodies are the COMPLETE alternative + the byte-exact oracle.
+    def _native_unary(self, kind: str):
+        from . import _native  # lazy: _native has no Vec dependency
+        out = _native.vec_unary_c(self._buf, self._n, self._complex, kind)
+        if out is None:
+            return None
+        return Vec(out, self._n, is_complex=self._complex)
+
     def conj(self) -> "Vec":
         """Element-wise complex conjugate as a new ``Vec`` (real → copy)."""
+        r = self._native_unary("conj")
+        if r is not None:
+            return r
         if not self._complex:
             return Vec(array("d", self._buf), self._n)
         out = array("d", self._buf)
@@ -192,23 +206,49 @@ class Vec:
                  for k in range(self._n)]
         return Vec.from_sequence(items, is_complex=cplx)
 
+    def _native_elementwise(self, other, kind: str):
+        """The rc141 native fast path: a same-length :class:`Vec` (direct C op)
+        or a scalar (C scalar broadcast). Returns a :class:`Vec` or ``None``
+        (reflected sub/div, sequence coercion, cross-rank fall to the pure
+        :meth:`_elementwise`). ``kind`` in {"add","sub","mul"}."""
+        from . import _native  # lazy
+        if isinstance(other, Vec) and other._n == self._n:
+            res = _native.vec_binary_c(self._buf, self._complex, other._buf,
+                                       other._complex, self._n, kind)
+        elif isinstance(other, (int, float, complex)) and kind != "sub":
+            z = complex(other)
+            skind = "scale" if kind == "mul" else "add"
+            res = _native.vec_scalar_c(self._buf, self._complex, self._n,
+                                       z.real, z.imag, skind)
+        else:
+            return None
+        if res is None:
+            return None
+        out, cplx = res
+        return Vec(out, self._n, is_complex=bool(cplx))
+
     def __add__(self, other):
-        return self._elementwise(other, lambda a, b: a + b)
+        r = self._native_elementwise(other, "add")
+        return r if r is not None else self._elementwise(other, lambda a, b: a + b)
 
     def __radd__(self, other):
-        return self._elementwise(other, lambda a, b: a + b)
+        r = self._native_elementwise(other, "add")  # scalar + Vec is commutative
+        return r if r is not None else self._elementwise(other, lambda a, b: a + b)
 
     def __sub__(self, other):
-        return self._elementwise(other, lambda a, b: a - b)
+        r = self._native_elementwise(other, "sub")
+        return r if r is not None else self._elementwise(other, lambda a, b: a - b)
 
     def __rsub__(self, other):
         return self._elementwise(other, lambda a, b: a - b, reflected=True)
 
     def __mul__(self, other):
-        return self._elementwise(other, lambda a, b: a * b)
+        r = self._native_elementwise(other, "mul")
+        return r if r is not None else self._elementwise(other, lambda a, b: a * b)
 
     def __rmul__(self, other):
-        return self._elementwise(other, lambda a, b: a * b)
+        r = self._native_elementwise(other, "mul")  # scalar * Vec is commutative
+        return r if r is not None else self._elementwise(other, lambda a, b: a * b)
 
     def __truediv__(self, other):
         return self._elementwise(other, lambda a, b: a / b)
@@ -217,6 +257,9 @@ class Vec:
         return self._elementwise(other, lambda a, b: a / b, reflected=True)
 
     def __neg__(self):  # the Class-K sign-flip over every element
+        r = self._native_unary("neg")
+        if r is not None:
+            return r
         return Vec.from_sequence([-self[k] for k in range(self._n)], is_complex=self._complex)
 
     def __eq__(self, other) -> bool:

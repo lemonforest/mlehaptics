@@ -73,6 +73,62 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # validate_mpr_record / write_ndjson helpers that wrap a registered entry.
     "srmech.amsc.format.sha256_hex",
     "srmech.amsc.format.sha256_raw",
+    # ellbase.elliptic_lagrange_basis (v0.9.0rc66) — the degree-d elliptic Lagrange
+    # interpolation basis, a CARRIER FOUNDATION peer of the EllMonomial / Theta /
+    # EllRatio carriers (which are classes, not walked here). Like those carriers it
+    # is exact-ℚ theta-product algebra, NOT a user-facing engine ToolEntry (the
+    # engine ops — elliptic_gosper etc. — ARE registered); exempt exactly like the
+    # other carrier-foundation surface. C peer owed (everything-mirrors); classified
+    # `bignum_reference` in rosetta_classification.ndjson.
+    "srmech.amsc.ellbase.elliptic_lagrange_basis",
+    # eta_quotient.eta_quotient (v0.9.0rc82) — the public constructor of the
+    # WEIGHT-axis EtaQuotient CARRIER (Q(τ) = ∏_d η(dτ)^{r_d}), a peer of the
+    # UnaryTheta / RiemannTheta / EllRatio / ThetaSum carriers (which are classes,
+    # NOT walked here). It CONSTRUCTS the carrier (q-series + weight + the exact
+    # Ligozat modularity decision) — it is NOT a user-facing engine ToolEntry, so
+    # the carrier adds NO tool (tools.total stays 340), exactly like the
+    # elliptic_lagrange_basis carrier-foundation surface above. C peer
+    # srmech_eta_quotient_qseries; classified `c_dispatched` in
+    # rosetta_classification.ndjson.
+    "srmech.amsc.eta_quotient.eta_quotient",
+    # eisenstein.eisenstein (v0.9.0rc83) — the public constructor of the SECOND
+    # WEIGHT-axis carrier Eisenstein (E_k(τ) = 1 − (2k/B_k)·Σ σ_{k−1}(n) qⁿ), a peer
+    # of the EtaQuotient / UnaryTheta / RiemannTheta / ThetaSum carriers (which are
+    # classes, NOT walked here). It CONSTRUCTS the carrier (exact-rational q-series +
+    # even integer weight, computed from Bernoulli + divisor power sum) — it is NOT a
+    # user-facing engine ToolEntry, so the carrier adds NO tool (tools.total stays
+    # 340), exactly like the eta_quotient / elliptic_lagrange_basis carrier surfaces
+    # above. C peer srmech_eisenstein_qseries; classified `c_dispatched` in
+    # rosetta_classification.ndjson.
+    "srmech.amsc.eisenstein.eisenstein",
+    # modular_forms_ring.modular_forms_ring (v0.9.0rc84) — the public CONSTRUCTOR of
+    # the stateless level-1 ℂ[E₄,E₆] ModularFormsRing CARRIER (the THIRD WEIGHT-axis
+    # rung). It returns the carrier (whose weight_monomials/dim are pure accessors,
+    # NOT walked here as they are class methods); it is NOT a user-facing engine
+    # ToolEntry, exactly like the eta_quotient / eisenstein carrier constructors
+    # above. classified `non_compute` in rosetta_classification.ndjson. NOTE: the
+    # carrier's REDUCER, modular_forms_ring_represent, IS a registered ToolEntry (the
+    # WEIGHT-axis analog of the Σ-row gosper/zeilberger/wz_certificate reducers) —
+    # only the bare constructor is exempt.
+    "srmech.amsc.modular_forms_ring.modular_forms_ring",
+    # quasimodular_forms_ring.quasimodular_forms_ring (v0.9.0rc89) — the public
+    # CONSTRUCTOR of the stateless level-1 ℂ[E₂,E₄,E₆] QuasiModularFormsRing CARRIER
+    # (the FOURTH WEIGHT-axis rung). It returns the carrier (whose weight_monomials/
+    # dim are pure accessors, NOT walked here as they are class methods); it is NOT a
+    # user-facing engine ToolEntry, exactly like the modular_forms_ring constructor
+    # above. classified `non_compute` in rosetta_classification.ndjson. NOTE: the
+    # carrier's REDUCER, quasimodular_represent, IS a registered ToolEntry
+    # (the WEIGHT-axis analog of the Σ-row reducers, one generator up from rc84) —
+    # only the bare constructor + the E₂ series fn are exempt.
+    "srmech.amsc.quasimodular_forms_ring.quasimodular_forms_ring",
+    # quasimodular_forms_ring.eisenstein_e2 (v0.9.0rc89) — the WEIGHT-2 QUASIMODULAR
+    # generator E₂ = 1 − 24·Σσ₁(n)qⁿ as an exact-ℚ q-series fn. A CARRIER-FOUNDATION
+    # surface (the E₂ series the quasimodular ring is built on; the rc83 Eisenstein
+    # carrier keeps its k≥4 contract and rejects k=2, so E₂ lives here) — NOT a
+    # user-facing engine ToolEntry, exempt exactly like the carrier q-series surfaces.
+    # C peer srmech_eisenstein_qseries (k=2 quasimodular branch); classified
+    # `c_dispatched` in rosetta_classification.ndjson.
+    "srmech.amsc.quasimodular_forms_ring.eisenstein_e2",
     # cascade.* — back-compat aliases of canonical names already registered
     # (the precursor's call-site names; see srmech.amsc.cascade).
     "srmech.amsc.cascade.class_k_pin_slot_at_zero",  # = pin_slot_at_zero
@@ -99,6 +155,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # submodule-dotted name is the same object re-exported flat, exempt
     # exactly like cyclic_gcd / kuramoto_step above.
     "srmech.amsc.cascade.compose.autocorrelation",
+    # cascade.cayley_dickson.{cd_promote,cd_project} (rc116; #1248) — the
+    # Hurwitz-ladder carrier conversions, registered under their flat public
+    # names ``srmech.amsc.cascade.cd_promote`` / ``cd_project`` (which ARE
+    # registered); the submodule-dotted names are the same objects re-exported
+    # flat, exempt exactly like the atoms/compose entries above.
+    "srmech.amsc.cascade.cayley_dickson.cd_promote",
+    "srmech.amsc.cascade.cayley_dickson.cd_project",
     # cascade.compose.{signed_sum_squared,top_k_by_score} (v0.7.4rc2; PR #687
     # §1.2/§1.3). Registered under their flat ``srmech.amsc.cascade.*`` names
     # (which ARE registered); the submodule-dotted names are the same objects
@@ -112,6 +175,13 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # flat, exempt exactly like autocorrelation above.
     "srmech.amsc.cascade.hypercomplex_dft.quaternion_dft",
     "srmech.amsc.cascade.hypercomplex_dft.octonion_dft",
+    # cascade.hypercomplex_dft.phase_coherent_peak (v0.9.0rc112 / #1234 Item 1d).
+    # The lightweight matched-filter PEAK READ (the READ counterpart to the full
+    # DFT transforms). Registered under its STABLE flat public name
+    # ``srmech.amsc.cascade.phase_coherent_peak`` (which IS registered); the
+    # submodule-dotted name is the same object re-exported flat, exempt exactly
+    # like the quaternion_dft / octonion_dft peers above.
+    "srmech.amsc.cascade.hypercomplex_dft.phase_coherent_peak",
     # cascade.hypercomplex_dft.hypercomplex_couple (v0.7.2rc1 / #908). Registered
     # under its STABLE flat public name ``srmech.amsc.cascade.hypercomplex_couple``
     # (which IS registered); the submodule-dotted name is the same object
@@ -148,6 +218,17 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # public, tested composition utility surfaced via srmech.amsc.compose, not
     # via MCP — exempt from tool-schema coverage on the callable-arg rationale.
     "srmech.amsc.compose.greedy_bipartite_alignment",
+    # coupling.fold_identity (0.9.0rc125 / task #723) — the RECOVERABLE-FOLD
+    # identity verdict (EQUAL / NOT_EQUAL / UNKNOWN). Both operands are
+    # in-process RecoverableFold pair CARRIERS (a lossy bundle dict + the exact
+    # seed Poly) that cannot be constructed from JSON, so it is NOT an MCP tool
+    # (no meaningful JSON grammar for a RecoverableFold param) — exempt on the
+    # SAME "cannot cross the JSON-RPC boundary" rationale as
+    # greedy_bipartite_alignment / one.to_scalar above. It is a public, tested
+    # verdict op reachable via Python (`non_compute` in the Rosetta ledger). The
+    # PAIR CONSTRUCTOR (fold_encode_recoverable) IS a registered ToolEntry;
+    # only the carrier-param verdict is exempt.
+    "srmech.amsc.coupling.fold_identity",
     # cascade.one.* — "the One" S(σ,θ) generator (#887). Registered under its
     # STABLE FLAT public name ``srmech.amsc.cascade.the_one`` (which IS
     # registered); ``one.the_one`` is the same object re-exported flat, and
@@ -159,9 +240,10 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # of the exact One: takes a structured ``One`` object (no MCP coercer for a
     # One param, so it cannot cross the JSON-RPC boundary) → NOT an MCP tool,
     # exempt on the callable/structured-arg rationale (like greedy_bipartite_
-    # alignment above). It is a public, tested ``bignum_reference``-tier exact-
-    # rational projection, reachable via Python AND dotted-path TOML-class
-    # binding (op = "srmech.amsc.cascade.to_scalar"), not via the MCP tool list.
+    # alignment above). It is a public, tested ``c_dispatched`` exact-rational
+    # projection (its cos comes from the rc138 srmech_the_one adjoint peer),
+    # reachable via Python AND dotted-path TOML-class binding
+    # (op = "srmech.amsc.cascade.to_scalar"), not via the MCP tool list.
     "srmech.amsc.cascade.one.to_scalar",
     # cascade.one.one_* (v0.7.5rc138, #564 / [[feedback_prefer_config_driven_toml_classes]])
     # — the flat cascade-op accessor layer that the packaged ``one.toml``
@@ -177,6 +259,33 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.one.one_grammar_slots",
     "srmech.amsc.cascade.one.one_flat_rational",
     "srmech.amsc.cascade.one.one_matrix",
+    # cascade.one.one_from_jsonable (v0.9.0rc195, #818 make_class→C arc) — the One
+    # carrier's canonical-DICT reconstruction CONSTRUCTOR (the deserialisation
+    # inverse of the private ``One._to_jsonable`` serialiser): takes the plain
+    # ``{sigma, theta, terms}`` JSON dict = the R1 One↔DICT contract the make_class
+    # object model marshals a One field/result through, and rebuilds the One
+    # (regenerating ``blocks`` via the rc138 ``srmech_the_one`` adjoint). A bare
+    # carrier constructor / marshalling plumbing, NOT a user-facing engine
+    # ToolEntry — exempt exactly like the modular_forms_ring / eisenstein carrier
+    # constructors and the ``one.one_*`` accessors above.
+    "srmech.amsc.cascade.one.one_from_jsonable",
+    # cascade.one.winding_tower (v0.9.0rc137, gh#1276) — the divmod-recursive
+    # binary-tower chirality grading of a WHOLE winding ``w`` (the (ℤ/2)^d
+    # Cayley–Dickson doubling coordinate; the anti-collapse of ``w mod 2``). A
+    # structural exact-ℤ readout of the One's winding surface, reachable via
+    # Python (and the One winding readouts), NOT via the MCP tool list — exempt
+    # exactly like the ``one.to_scalar`` / ``one.one_*`` accessors above.
+    # Dispatches to the same-rc BYTE-IDENTICAL C peer ``srmech_winding_tower``
+    # (classified ``c_dispatched`` in the Rosetta ledger).
+    "srmech.amsc.cascade.one.winding_tower",
+    # cascade.one.winding_fold (v0.9.0rc215, the #741 divmod audit F-2) — the
+    # public 2π seam-fold divmod theta → (w, theta_res). Registered under its
+    # STABLE FLAT public name ``srmech.amsc.cascade.winding_fold`` (the
+    # ToolEntry); ``one.winding_fold`` is the same object at its defining
+    # module — exempt exactly like ``one.the_one`` above. Dispatches to the
+    # rc207 C peer ``srmech_winding_fold`` (``c_dispatched`` in the Rosetta
+    # ledger).
+    "srmech.amsc.cascade.one.winding_fold",
     # cascade.sedenion_register.sed_* (v0.7.5rc140, #564 / PR #687 §31 /
     # [[feedback_prefer_config_driven_toml_classes]]) — the flat cascade-op
     # adapter layer that the packaged ``sedenion_register.toml`` ([class]

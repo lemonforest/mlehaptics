@@ -13,12 +13,18 @@
  * License: MIT.
  */
 
+/* Declare nanosleep (POSIX.1b, _POSIX_C_SOURCE >= 199309L) under the strict
+ * -std=c11 the build uses (CMAKE_C_EXTENSIONS OFF). MUST precede all includes.
+ * Additive — the socket/pthread PAL code compiles unchanged. */
+#define _POSIX_C_SOURCE 200809L
+
 #include "srmech_platform.h"
 
 #include <assert.h>
 #include <stdio.h>    /* snprintf (stream endpoint paths) */
 #include <stdlib.h>   /* getenv (POSIX socket path under $HOME) */
 #include <string.h>
+#include <time.h>     /* timespec_get / TIME_UTC (wall clock, rc179) */
 
 #if defined(_WIN32) || defined(_WIN64)
 #  define SRMECH_PLAT_THREADS_WIN 1
@@ -29,10 +35,14 @@
 #  define SRMECH_PLAT_STREAM_POSIX  1
 #  include <pthread.h>
 #  include <errno.h>        /* EINTR (read/write retry) */
-#  include <sys/socket.h>   /* AF_UNIX stream IPC */
+#  include <sys/socket.h>   /* AF_UNIX / AF_INET stream IPC */
 #  include <sys/stat.h>     /* mkdir / chmod */
 #  include <sys/types.h>
 #  include <sys/un.h>       /* sockaddr_un */
+#  include <netinet/in.h>   /* sockaddr_in (TCP, rc194) */
+#  include <arpa/inet.h>    /* inet_pton / htons / ntohs (TCP, rc194) */
+#  include <poll.h>         /* poll (TCP accept timeout, rc194) */
+#  include <sys/time.h>     /* struct timeval (SO_RCVTIMEO, rc194) */
 #  include <unistd.h>       /* read / write / close / unlink */
 #  include <dirent.h>       /* opendir / readdir / closedir (rc163 dir iter) */
 #endif
@@ -51,6 +61,13 @@ _Static_assert(sizeof(int) <= SRMECH_PLAT_STREAM_STORAGE,
 #elif defined(SRMECH_PLAT_STREAM_WIN)
 _Static_assert(sizeof(HANDLE) <= SRMECH_PLAT_STREAM_STORAGE,
                "HANDLE does not fit srmech_plat_stream handle storage");
+#endif
+
+/* TCP (rc194) — POSIX-first (BSD sockets). Windows Winsock is a follow-up. */
+#if defined(SRMECH_PLAT_STREAM_POSIX)
+#  define SRMECH_PLAT_TCP_POSIX 1
+_Static_assert(sizeof(int) <= SRMECH_PLAT_TCP_STORAGE,
+               "fd does not fit srmech_plat_tcp_server handle storage");
 #endif
 
 int srmech_plat_has_threads(void)
@@ -166,6 +183,155 @@ srmech_status_t srmech_plat_thread_join(srmech_plat_thread_t *handle)
     assert(srmech_plat_has_threads() == 0);   /* this stub only on thread-less */
     (void)handle;
     return SRMECH_OK;   /* nothing was spawned */
+}
+
+#endif
+
+/* ================================================================== *
+ * MUTEX (rc180) — pthread_mutex (POSIX) / CRITICAL_SECTION (Windows) /
+ * no-op (thread-less). The OS lock lives IN the caller's storage (cast in
+ * place — never memcpy'd after init, since a live lock has identity), so
+ * the same address is always passed to lock/unlock (ThreadSanitizer tracks
+ * the lock by that stable pointer). No heap; JPL-clean.
+ * ================================================================== */
+
+#if defined(SRMECH_PLAT_THREADS_POSIX)
+_Static_assert(sizeof(pthread_mutex_t) <= SRMECH_PLAT_MUTEX_STORAGE,
+               "pthread_mutex_t does not fit srmech_plat_mutex handle storage");
+
+srmech_status_t srmech_plat_mutex_init(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(sizeof(pthread_mutex_t) <= sizeof m->handle.bytes);
+    if (m == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    pthread_mutex_t *mtx = (pthread_mutex_t *)(void *)m->handle.bytes;
+    if (pthread_mutex_init(mtx, NULL) != 0) {
+        m->initialized = 0;
+        return SRMECH_ERR_INTERNAL;
+    }
+    m->initialized = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_lock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    pthread_mutex_t *mtx = (pthread_mutex_t *)(void *)m->handle.bytes;
+    if (pthread_mutex_lock(mtx) != 0) {
+        return SRMECH_ERR_INTERNAL;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_unlock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    pthread_mutex_t *mtx = (pthread_mutex_t *)(void *)m->handle.bytes;
+    if (pthread_mutex_unlock(mtx) != 0) {
+        return SRMECH_ERR_INTERNAL;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_destroy(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 0 || m->initialized == 1);
+    if (m == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (m->initialized) {
+        pthread_mutex_t *mtx = (pthread_mutex_t *)(void *)m->handle.bytes;
+        (void)pthread_mutex_destroy(mtx);
+        m->initialized = 0;
+    }
+    return SRMECH_OK;
+}
+
+#elif defined(SRMECH_PLAT_THREADS_WIN)
+_Static_assert(sizeof(CRITICAL_SECTION) <= SRMECH_PLAT_MUTEX_STORAGE,
+               "CRITICAL_SECTION does not fit srmech_plat_mutex handle storage");
+
+srmech_status_t srmech_plat_mutex_init(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(sizeof(CRITICAL_SECTION) <= sizeof m->handle.bytes);
+    if (m == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)(void *)m->handle.bytes;
+    InitializeCriticalSection(cs);
+    m->initialized = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_lock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)(void *)m->handle.bytes;
+    EnterCriticalSection(cs);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_unlock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    CRITICAL_SECTION *cs = (CRITICAL_SECTION *)(void *)m->handle.bytes;
+    LeaveCriticalSection(cs);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_destroy(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 0 || m->initialized == 1);
+    if (m == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (m->initialized) {
+        CRITICAL_SECTION *cs = (CRITICAL_SECTION *)(void *)m->handle.bytes;
+        DeleteCriticalSection(cs);
+        m->initialized = 0;
+    }
+    return SRMECH_OK;
+}
+
+#else  /* thread-less target: the lock is a no-op (serial caller, no races) */
+
+srmech_status_t srmech_plat_mutex_init(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(srmech_plat_has_threads() == 0);
+    m->initialized = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_lock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_unlock(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(m->initialized == 1);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_mutex_destroy(srmech_plat_mutex_t *m)
+{
+    assert(m != NULL);
+    assert(srmech_plat_has_threads() == 0);
+    m->initialized = 0;
+    return SRMECH_OK;
 }
 
 #endif
@@ -1030,3 +1196,452 @@ srmech_status_t srmech_plat_dir_close(srmech_plat_dir_t *dir)
 }
 
 #endif  /* SRMECH_PLAT_DIR_* */
+
+/* ================================================================== *
+ * WALL CLOCK (rc179) — ISO C11 timespec_get(TIME_UTC). One
+ * implementation for POSIX + Windows (no #ifdef); a clock-less libc
+ * (timespec_get returning 0) reports SRMECH_ERR_IO. Consumer: the bus
+ * Bio-TOTP encrypted transport, which rolls its key window on wall time.
+ * ================================================================== */
+
+srmech_status_t srmech_plat_now_ns(int64_t *out_ns)
+{
+    assert(out_ns != NULL);
+    if (out_ns == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    struct timespec ts;
+    if (timespec_get(&ts, TIME_UTC) != TIME_UTC) {
+        return SRMECH_ERR_IO;   /* no wall-clock backend on this target */
+    }
+    assert(ts.tv_nsec >= 0);
+    *out_ns = ((int64_t)ts.tv_sec * 1000000000LL) + (int64_t)ts.tv_nsec;
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
+ * STANDARD I/O (rc186) — POSIX read(0)/write(1) / Windows ReadFile/WriteFile
+ * on GetStdHandle. The MCP stdio loop (srmech_mcp.c) is the consumer; it
+ * carries no #ifdef. EOF (0-byte read / broken pipe) is a clean terminator.
+ * ================================================================== */
+
+#if defined(_WIN32) || defined(_WIN64) || defined(__unix__) \
+    || defined(__APPLE__) || defined(__linux__)
+#  define SRMECH_PLAT_STDIO 1
+#endif
+
+int srmech_plat_has_stdio(void)
+{
+#if defined(SRMECH_PLAT_STDIO)
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+#if defined(SRMECH_PLAT_STDIO) && (defined(_WIN32) || defined(_WIN64))
+
+srmech_status_t srmech_plat_stdin_read(unsigned char *buf, size_t cap,
+                                       size_t *out_n)
+{
+    HANDLE h;
+    DWORD got = 0;
+    BOOL ok;
+    assert(buf != NULL || cap == 0u);
+    assert(out_n != NULL);
+    *out_n = 0u;
+    if (cap == 0u) {
+        return SRMECH_OK;
+    }
+    h = GetStdHandle(STD_INPUT_HANDLE);
+    if (h == INVALID_HANDLE_VALUE || h == NULL) {
+        return SRMECH_ERR_IO;
+    }
+    ok = ReadFile(h, buf, (DWORD)cap, &got, NULL);
+    if (!ok) {
+        DWORD le = GetLastError();
+        if (le == ERROR_BROKEN_PIPE || le == ERROR_HANDLE_EOF) {
+            return SRMECH_OK;   /* peer closed stdin → clean EOF (*out_n == 0) */
+        }
+        return SRMECH_ERR_IO;
+    }
+    *out_n = (size_t)got;       /* got == 0 is also EOF */
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_stdout_write(const unsigned char *buf, size_t n)
+{
+    HANDLE h;
+    DWORD sent_total = 0;
+    assert(buf != NULL || n == 0u);
+    assert(n == 0u || buf != NULL);
+    if (n == 0u) {
+        return SRMECH_OK;
+    }
+    h = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (h == INVALID_HANDLE_VALUE || h == NULL) {
+        return SRMECH_ERR_IO;
+    }
+    while (sent_total < n) {
+        DWORD sent = 0;
+        BOOL ok = WriteFile(h, buf + sent_total,
+                            (DWORD)(n - sent_total), &sent, NULL);
+        if (!ok || sent == 0) {
+            return SRMECH_ERR_IO;
+        }
+        sent_total += sent;
+    }
+    return SRMECH_OK;
+}
+
+#elif defined(SRMECH_PLAT_STDIO)
+
+srmech_status_t srmech_plat_stdin_read(unsigned char *buf, size_t cap,
+                                       size_t *out_n)
+{
+    assert(buf != NULL || cap == 0u);
+    assert(out_n != NULL);
+    *out_n = 0u;
+    if (cap == 0u) {
+        return SRMECH_OK;
+    }
+    for (;;) {
+        ssize_t r = read(0, buf, cap);
+        if (r < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return SRMECH_ERR_IO;
+        }
+        *out_n = (size_t)r;   /* r == 0 is EOF (closed stdin) */
+        return SRMECH_OK;
+    }
+}
+
+srmech_status_t srmech_plat_stdout_write(const unsigned char *buf, size_t n)
+{
+    size_t sent = 0u;
+    assert(buf != NULL || n == 0u);
+    assert(n == 0u || buf != NULL);
+    while (sent < n) {
+        ssize_t w = write(1, buf + sent, n - sent);
+        if (w < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return SRMECH_ERR_IO;
+        }
+        sent += (size_t)w;
+    }
+    assert(sent == n);
+    return SRMECH_OK;
+}
+
+#else  /* bare-metal: no standard streams — the MCP loop feeds bytes another way */
+
+srmech_status_t srmech_plat_stdin_read(unsigned char *buf, size_t cap,
+                                       size_t *out_n)
+{
+    assert(srmech_plat_has_stdio() == 0);
+    assert(out_n != NULL);
+    (void)buf;
+    (void)cap;
+    *out_n = 0u;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_stdout_write(const unsigned char *buf, size_t n)
+{
+    assert(srmech_plat_has_stdio() == 0);
+    assert(buf != NULL || n == 0u);
+    (void)buf;
+    (void)n;
+    return SRMECH_ERR_IO;
+}
+
+#endif  /* SRMECH_PLAT_STDIO backends */
+
+/* ================================================================== *
+ * TCP STREAM (rc194) — localhost TCP for the MCP HTTP+SSE server.
+ * POSIX BSD sockets; Windows / bare-metal report has_tcp() == 0.
+ * The accept is poll()-gated so teardown never hangs (rc180 discipline).
+ * ================================================================== */
+
+int srmech_plat_has_tcp(void)
+{
+#if defined(SRMECH_PLAT_TCP_POSIX)
+    return 1;
+#else
+    return 0;   /* Windows Winsock is a follow-up; bare-metal has no TCP */
+#endif
+}
+
+#if defined(SRMECH_PLAT_TCP_POSIX)
+
+#define SRMECH_PLAT_TCP_BACKLOG      16
+#define SRMECH_PLAT_TCP_RECV_TIMEO_S 10   /* half-open client can't stall us */
+
+srmech_status_t srmech_plat_tcp_listen(const char *host, uint16_t port,
+                                       srmech_plat_tcp_server_t *out,
+                                       uint16_t *out_port)
+{
+    assert(out != NULL);
+    assert(out_port != NULL);
+    if (host == NULL || out == NULL || out_port == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    memset(out, 0, sizeof *out);
+    int init_fd = -1;   /* a failed listen leaves -1 so close() is a no-op */
+    memcpy(out->handle.bytes, &init_fd, sizeof init_fd);
+    int s = socket(AF_INET, SOCK_STREAM, 0);
+    if (s < 0) {
+        return SRMECH_ERR_IO;
+    }
+    int one = 1;
+    (void)setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one);
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof addr);
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    if (inet_pton(AF_INET, host, &addr.sin_addr) != 1) {
+        (void)close(s);
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (bind(s, (struct sockaddr *)&addr, sizeof addr) < 0
+        || listen(s, SRMECH_PLAT_TCP_BACKLOG) < 0) {
+        (void)close(s);
+        return SRMECH_ERR_IO;
+    }
+    struct sockaddr_in bound;
+    socklen_t blen = sizeof bound;
+    if (getsockname(s, (struct sockaddr *)&bound, &blen) < 0) {
+        (void)close(s);
+        return SRMECH_ERR_IO;
+    }
+    *out_port = ntohs(bound.sin_port);
+    memcpy(out->handle.bytes, &s, sizeof s);
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_tcp_accept(srmech_plat_tcp_server_t *server,
+                                       srmech_plat_stream_conn_t *conn_out,
+                                       unsigned timeout_ms, int *got)
+{
+    assert(server != NULL && conn_out != NULL);
+    assert(got != NULL);
+    if (server == NULL || conn_out == NULL || got == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    *got = 0;
+    int listen_fd;
+    memcpy(&listen_fd, server->handle.bytes, sizeof listen_fd);
+    if (listen_fd < 0) {
+        return SRMECH_ERR_IO;   /* closed at teardown */
+    }
+    struct pollfd pfd;
+    pfd.fd = listen_fd;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    int pr = poll(&pfd, 1, (timeout_ms == 0u) ? -1 : (int)timeout_ms);
+    if (pr < 0) {
+        return (errno == EINTR) ? SRMECH_OK : SRMECH_ERR_IO;
+    }
+    if (pr == 0) {
+        return SRMECH_OK;   /* timeout — *got stays 0, caller re-checks stop */
+    }
+    int conn = accept(listen_fd, NULL, NULL);
+    if (conn < 0) {
+        return (errno == EINTR || errno == ECONNABORTED)
+            ? SRMECH_OK : SRMECH_ERR_IO;
+    }
+    struct timeval tv;
+    tv.tv_sec = SRMECH_PLAT_TCP_RECV_TIMEO_S;
+    tv.tv_usec = 0;
+    (void)setsockopt(conn, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+    memset(conn_out, 0, sizeof *conn_out);
+    memcpy(conn_out->handle.bytes, &conn, sizeof conn);
+    *got = 1;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_tcp_server_close(srmech_plat_tcp_server_t *server)
+{
+    assert(server != NULL);
+    if (server == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    int listen_fd;
+    assert(sizeof listen_fd <= sizeof server->handle.bytes);
+    memcpy(&listen_fd, server->handle.bytes, sizeof listen_fd);
+    /* Do NOT write the handle back (a concurrent poll-gated accept thread reads
+     * these bytes with no lock — a write-back would data-race it). shutdown+
+     * close releases the socket; the accept loop's poll timeout + its stop flag
+     * terminate it. Call once (the SSE server calls it exactly once at stop). */
+    if (listen_fd >= 0) {
+        (void)shutdown(listen_fd, SHUT_RDWR);
+        (void)close(listen_fd);
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_tcp_read_some(srmech_plat_stream_conn_t *conn,
+                                          unsigned char *buf, size_t cap,
+                                          size_t *out_n)
+{
+    assert(conn != NULL && out_n != NULL);
+    assert(buf != NULL || cap == 0u);
+    *out_n = 0u;
+    if (cap == 0u) {
+        return SRMECH_OK;
+    }
+    int fd;
+    memcpy(&fd, conn->handle.bytes, sizeof fd);
+    for (;;) {
+        ssize_t r = recv(fd, buf, cap, 0);
+        if (r < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return SRMECH_ERR_IO;   /* recv timeout / peer error */
+        }
+        *out_n = (size_t)r;   /* r == 0 is EOF (peer closed) */
+        return SRMECH_OK;
+    }
+}
+
+srmech_status_t srmech_plat_tcp_write_all(srmech_plat_stream_conn_t *conn,
+                                          const unsigned char *buf, size_t n)
+{
+    assert(conn != NULL);
+    assert(buf != NULL || n == 0u);
+    int fd;
+    memcpy(&fd, conn->handle.bytes, sizeof fd);
+    size_t sent = 0u;
+    while (sent < n) {
+        ssize_t w = send(fd, buf + sent, n - sent, 0);
+        if (w < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return SRMECH_ERR_IO;
+        }
+        sent += (size_t)w;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_tcp_conn_close(srmech_plat_stream_conn_t *conn)
+{
+    assert(conn != NULL);
+    if (conn == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    int fd;
+    assert(sizeof fd <= sizeof conn->handle.bytes);
+    memcpy(&fd, conn->handle.bytes, sizeof fd);
+    if (fd >= 0) {
+        (void)shutdown(fd, SHUT_RDWR);
+        (void)close(fd);
+    }
+    return SRMECH_OK;
+}
+
+#else  /* Windows (Winsock follow-up) / bare-metal: no TCP backend */
+
+srmech_status_t srmech_plat_tcp_listen(const char *host, uint16_t port,
+                                       srmech_plat_tcp_server_t *out,
+                                       uint16_t *out_port)
+{
+    assert(srmech_plat_has_tcp() == 0);
+    assert(out != NULL);
+    (void)host; (void)port; (void)out; (void)out_port;
+    return SRMECH_ERR_BAD_INPUT;   /* MCP HTTP+SSE C server declines → pure */
+}
+
+srmech_status_t srmech_plat_tcp_accept(srmech_plat_tcp_server_t *server,
+                                       srmech_plat_stream_conn_t *conn_out,
+                                       unsigned timeout_ms, int *got)
+{
+    assert(srmech_plat_has_tcp() == 0);
+    assert(got != NULL);
+    (void)server; (void)conn_out; (void)timeout_ms;
+    *got = 0;
+    return SRMECH_ERR_BAD_INPUT;
+}
+
+srmech_status_t srmech_plat_tcp_server_close(srmech_plat_tcp_server_t *server)
+{
+    assert(srmech_plat_has_tcp() == 0);
+    assert(server != NULL);
+    (void)server;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_tcp_read_some(srmech_plat_stream_conn_t *conn,
+                                          unsigned char *buf, size_t cap,
+                                          size_t *out_n)
+{
+    assert(srmech_plat_has_tcp() == 0);
+    assert(out_n != NULL);
+    (void)conn; (void)buf; (void)cap;
+    *out_n = 0u;
+    return SRMECH_ERR_BAD_INPUT;
+}
+
+srmech_status_t srmech_plat_tcp_write_all(srmech_plat_stream_conn_t *conn,
+                                          const unsigned char *buf, size_t n)
+{
+    assert(srmech_plat_has_tcp() == 0);
+    assert(buf != NULL || n == 0u);
+    (void)conn; (void)buf; (void)n;
+    return SRMECH_ERR_BAD_INPUT;
+}
+
+srmech_status_t srmech_plat_tcp_conn_close(srmech_plat_stream_conn_t *conn)
+{
+    assert(srmech_plat_has_tcp() == 0);
+    assert(conn != NULL);
+    (void)conn;
+    return SRMECH_OK;
+}
+
+#endif  /* SRMECH_PLAT_TCP_POSIX */
+
+/* ================================================================== *
+ * SLEEP (rc194) — nanosleep (POSIX) / Sleep (Windows). One consumer:
+ * the MCP HTTP+SSE keepalive scanner. A sleepless target returns IO.
+ * ================================================================== */
+
+#if defined(SRMECH_PLAT_TCP_POSIX)
+
+srmech_status_t srmech_plat_sleep_ms(unsigned ms)
+{
+    struct timespec ts;
+    ts.tv_sec = (time_t)(ms / 1000u);
+    ts.tv_nsec = (long)(ms % 1000u) * 1000000L;
+    assert(ts.tv_nsec >= 0);
+    assert(ts.tv_nsec < 1000000000L);
+    (void)nanosleep(&ts, NULL);   /* early return on a signal is fine */
+    return SRMECH_OK;
+}
+
+#elif defined(SRMECH_PLAT_STREAM_WIN)
+
+srmech_status_t srmech_plat_sleep_ms(unsigned ms)
+{
+    assert(sizeof(DWORD) >= sizeof(unsigned));
+    assert(ms <= 0xFFFFFFFFu);
+    Sleep((DWORD)ms);
+    return SRMECH_OK;
+}
+
+#else  /* bare-metal: no sleep backend */
+
+srmech_status_t srmech_plat_sleep_ms(unsigned ms)
+{
+    assert(srmech_plat_has_tcp() == 0);
+    (void)ms;
+    return SRMECH_ERR_IO;
+}
+
+#endif  /* sleep backends */

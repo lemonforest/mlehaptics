@@ -69,6 +69,7 @@ References
 from __future__ import annotations
 
 import importlib
+import json
 import logging
 import re
 import warnings
@@ -197,6 +198,127 @@ def _walk_args(args: Any, fn: Callable[[str], None]) -> None:
     # Scalars + None: nothing to walk.
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Native PARSE + VALIDATE dispatch (0.9.0rc173; the ORCHESTRATION→C spine,
+# batch 3). ``srmech_chain_spec_parse`` / ``srmech_chain_catalog_parse``
+# validate a chain block (JSON) and return the normalized spec as canonical
+# JSON; the Python caller re-attaches each step's ``args`` from the ORIGINAL
+# dict so arg object identity/type is preserved. Any validation failure or
+# non-JSON input → the C peer returns non-OK → the COMPLETE pure path runs
+# (which raises the specific ``ChainSpecError``), never a rescue. Only the
+# PARSE half is in C: resolve_chain / run_chain invoke ARBITRARY srmech ops
+# over the live Python object graph — scoped rc174 (see srmech_compose.c).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _compose_lib(*symbols: str):
+    """Return the native LIB iff HAS_NATIVE and every named rc173 symbol is
+    bound (a stale ABI-3 lib missing them → ``None`` → the pure path)."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    lib = _native.LIB
+    for sym in symbols:
+        if not hasattr(lib, sym):
+            return None
+    return lib
+
+
+def _chain_spec_from_native(
+    chain_dict: Dict[str, Any], native: Dict[str, Any]
+) -> ChainSpec:
+    """Rebuild a :class:`ChainSpec` from the C-validated normalized dict,
+    taking each step's ``args`` from the ORIGINAL ``chain_dict`` (so the arg
+    object identity + type are byte-identical to the pure path's
+    ``dict(raw_step["args"])``)."""
+    raw_steps = chain_dict["steps"]
+    steps = [
+        StepSpec(
+            class_id=s["class_id"], op=s["op"],
+            args=dict(raw_steps[i]["args"]), on_error=s["on_error"],
+        )
+        for i, s in enumerate(native["steps"])
+    ]
+    return ChainSpec(
+        name=native["name"], summary=native["summary"],
+        returns=native["returns"], steps=tuple(steps),
+        on_error=native["on_error"],
+    )
+
+
+def _call_compose_native(lib, arena_sym: str, call_sym: str,
+                         payload: bytes) -> Optional[str]:
+    """Run one caller-arena compose peer (arena-size → call → canonical JSON
+    string) or ``None`` on any non-OK status. Shared by both parse ops."""
+    import ctypes
+    from . import _native
+    ws_bytes = int(getattr(lib, arena_sym)(len(payload)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = 2 * len(payload) + 8192
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = getattr(lib, call_sym)(
+        payload, len(payload), ws, ws_bytes, out, out_cap,
+        ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return out.raw[:out_len.value].decode("utf-8")
+
+
+def _parse_chain_spec_native(
+    chain_dict: Dict[str, Any]
+) -> Optional[ChainSpec]:
+    """Native ``parse_chain_spec``: validate one chain block in C + rebuild
+    the ChainSpec. ``None`` (→ pure path) on a non-dict input, a non-JSON
+    payload, or any C-side validation failure."""
+    if not isinstance(chain_dict, dict):
+        return None
+    lib = _compose_lib("srmech_chain_spec_parse",
+                       "srmech_chain_spec_parse_arena_bytes")
+    if lib is None:
+        return None
+    try:
+        payload = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+    text = _call_compose_native(
+        lib, "srmech_chain_spec_parse_arena_bytes",
+        "srmech_chain_spec_parse", payload)
+    if text is None:
+        return None
+    return _chain_spec_from_native(chain_dict, json.loads(text))
+
+
+def _parse_catalog_chains_native(
+    catalog: Dict[str, Any], chains_raw: List[Any]
+) -> Optional[List[ChainSpec]]:
+    """Native ``parse_catalog_chains``: validate the schema version + every
+    chain in C. ``None`` (→ pure path) on a non-JSON payload or any C-side
+    validation failure (the pure path raises the specific ChainSpecError)."""
+    lib = _compose_lib("srmech_chain_catalog_parse",
+                       "srmech_chain_catalog_parse_arena_bytes")
+    if lib is None:
+        return None
+    payload_obj = {
+        "chain_schema_version": catalog.get("chain_schema_version"),
+        "operator_chain": chains_raw,
+    }
+    try:
+        payload = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+    text = _call_compose_native(
+        lib, "srmech_chain_catalog_parse_arena_bytes",
+        "srmech_chain_catalog_parse", payload)
+    if text is None:
+        return None
+    native_list = json.loads(text)
+    if len(native_list) != len(chains_raw):
+        return None
+    return [_chain_spec_from_native(chains_raw[i], native_list[i])
+            for i in range(len(native_list))]
+
+
 def parse_chain_spec(chain_dict: Dict[str, Any]) -> ChainSpec:
     """Parse and validate one ``[[catalog.operator_chain]]`` entry.
 
@@ -216,6 +338,9 @@ def parse_chain_spec(chain_dict: Dict[str, Any]) -> ChainSpec:
         On missing keys, unknown class identifiers, malformed
         reference syntax, or out-of-bounds step references.
     """
+    native = _parse_chain_spec_native(chain_dict)
+    if native is not None:
+        return native
     if not isinstance(chain_dict, dict):
         raise ChainSpecError(
             f"chain entry must be a dict; got {type(chain_dict).__name__}"
@@ -432,6 +557,162 @@ def _resolve_args(
     return args
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Native RUN LOOP dispatch (0.9.0rc174; the ORCHESTRATION→C spine, batch 4).
+# ``srmech_chain_run`` runs a validated chain end-to-end in C to byte-identical
+# OUTPUT, for chains whose ops are ALL in the BOUNDED Class-N dispatch table —
+# the shipped apparatus: pi_cascade_digits / {exp,sin,cos,log1p,atan}_series_
+# truncate / rational_{add,mul,div,pow_uint}. The C peer does NOT mirror the
+# resolve_chain CLOSURE (a live-object-graph dispatch); parity is on the final
+# VALUE, marshaled back as a canonical value DESCRIPTOR ({"k":"s"/"q"/"i"/"n"/
+# "l", ...}; bignums as decimal strings). rc103 inform-don't-limit: any
+# out-of-table op, @catalog ref, non-"raise" policy, non-i64 input, or C-side
+# overflow → the sentinel _NATIVE_MISS so the COMPLETE pure path runs (never a
+# wrong answer; the pure path raises the exact ChainSpecError / ValueError).
+# ──────────────────────────────────────────────────────────────────────
+
+_NATIVE_MISS = object()   # sentinel: C did NOT run (distinct from a None result)
+
+# The op names the C dispatch table covers — ALL Class N (srmech.amsc.rational).
+_RUN_C_OPS = frozenset({
+    "pi_cascade_digits",
+    "exp_series_truncate", "sin_series_truncate", "cos_series_truncate",
+    "log1p_series_truncate", "atan_series_truncate",
+    "rational_pow_uint", "rational_add", "rational_mul", "rational_div",
+})
+
+_I64_MAX = (1 << 63) - 1
+_I64_MIN = -(1 << 63)
+
+
+def _i64(v: Any) -> bool:
+    """True iff ``v`` (if an int) fits the C JSON parser's int64 width."""
+    return (not isinstance(v, int)) or isinstance(v, bool) or (
+        _I64_MIN <= v <= _I64_MAX)
+
+
+def _run_ints_fit_i64(
+    spec: ChainSpec,
+    row: Optional[Dict[str, Any]],
+    inputs: Dict[str, Any],
+) -> bool:
+    """True iff every int the C run will read as int64 fits int64 — i.e. every
+    literal int in an arg AND every ``@row`` / ``@input`` reference that
+    resolves to an int. UNREFERENCED row fields (e.g. the bignum ``expected_*``
+    columns the chain never touches) are irrelevant. ``@step`` refs read prior
+    C-produced carriers (exact bignum, never an int64 JSON round-trip) and
+    ``@catalog`` already routes to pure, so neither is checked here."""
+    ok = True
+
+    def _walk(a: Any) -> None:
+        nonlocal ok
+        if isinstance(a, str) and a.startswith("@"):
+            m = _REFERENCE_PATTERN.match(a)
+            if m is not None and m.group(1) in ("row", "input"):
+                try:
+                    v = _resolve_reference(a, row=row, inputs=inputs,
+                                           step_outputs=[])
+                except Exception:  # noqa: BLE001 — unresolved → C defers to pure
+                    return
+                if not _i64(v):
+                    ok = False
+            return
+        if isinstance(a, bool):
+            return
+        if isinstance(a, int):
+            if not _i64(a):
+                ok = False
+        elif isinstance(a, dict):
+            for x in a.values():
+                _walk(x)
+        elif isinstance(a, (list, tuple)):
+            for x in a:
+                _walk(x)
+
+    for step in spec.steps:
+        _walk(step.args)
+    return ok
+
+
+def _chain_c_eligible(spec: ChainSpec) -> bool:
+    """True iff every step is a "raise"-policy, Class-N, in-table op — the
+    precondition for the C run loop (else the complete pure path runs)."""
+    if spec.on_error != "raise":
+        return False
+    for step in spec.steps:
+        if step.on_error not in (None, "raise"):
+            return False
+        if step.class_id != "N" or step.op not in _RUN_C_OPS:
+            return False
+    return True
+
+
+def _spec_to_chain_dict(spec: ChainSpec) -> Dict[str, Any]:
+    """Serialise a ChainSpec back to the chain-dict shape srmech_chain_run reads
+    (name / summary / returns / on_error / steps[{class, op, args}])."""
+    return {
+        "name": spec.name, "summary": spec.summary, "returns": spec.returns,
+        "on_error": spec.on_error,
+        "steps": [{"class": s.class_id, "op": s.op, "args": s.args}
+                  for s in spec.steps],
+    }
+
+
+def _reconstruct_value(desc: Dict[str, Any]) -> Any:
+    """Rebuild a Python value from the C value descriptor. Bignums arrive as
+    decimal strings (exact); a rational is a ``(num, den)`` tuple (matching the
+    Class-N ops' return type)."""
+    k = desc.get("k")
+    if k == "s":
+        return desc["v"]
+    if k == "q":
+        return (int(desc["n"]), int(desc["d"]))
+    if k == "i":
+        return int(desc["v"])
+    if k == "n":
+        return None
+    if k == "l":
+        return [_reconstruct_value(it) for it in desc["items"]]
+    raise ValueError(f"unknown chain-run value descriptor kind {k!r}")
+
+
+def _run_chain_native(
+    spec: ChainSpec,
+    row: Optional[Dict[str, Any]],
+    inputs: Dict[str, Any],
+) -> Any:
+    """Run the chain in C → the final value, or ``_NATIVE_MISS`` (→ pure)."""
+    if not _chain_c_eligible(spec):
+        return _NATIVE_MISS
+    lib = _compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
+    if lib is None:
+        return _NATIVE_MISS
+    from . import _native
+    import ctypes
+    if not _run_ints_fit_i64(spec, row, inputs or {}):
+        return _NATIVE_MISS
+    chain_dict = _spec_to_chain_dict(spec)
+    ctx = {"row": row, "inputs": inputs or {}}
+    try:
+        chain_json = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
+        ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return _NATIVE_MISS
+    ws_bytes = int(lib.srmech_chain_run_arena_bytes(
+        len(chain_json), len(ctx_json)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = max(ws_bytes // 2, 16384)
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_chain_run(
+        chain_json, len(chain_json), ctx_json, len(ctx_json),
+        ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return _NATIVE_MISS
+    desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _reconstruct_value(desc)
+
+
 def resolve_chain(
     spec: ChainSpec,
     registry: Optional[Dict[str, str]] = None,
@@ -484,7 +765,15 @@ def _execute_resolved(
     row: Optional[Dict[str, Any]],
     inputs: Dict[str, Any],
 ) -> Any:
-    """Execute a resolved chain. Output of the final step is returned."""
+    """Execute a resolved chain. Output of the final step is returned.
+
+    A chain whose ops are ALL in the bounded Class-N C dispatch table runs
+    end-to-end in C to byte-identical OUTPUT (0.9.0rc174); any out-of-table op /
+    non-raise policy / non-i64 input / C overflow falls through to the pure
+    loop below (rc103 inform-don't-limit — never a wrong answer)."""
+    native = _run_chain_native(spec, row, inputs)
+    if native is not _NATIVE_MISS:
+        return native
     step_outputs: List[Any] = []
     final_output: Any = None
     for idx, (step, op_callable) in enumerate(resolved_ops):
@@ -546,6 +835,9 @@ def parse_catalog_chains(
     chains_raw = catalog.get("operator_chain", [])
     if not chains_raw:
         return []
+    native = _parse_catalog_chains_native(catalog, chains_raw)
+    if native is not None:
+        return native
     schema_version = catalog.get("chain_schema_version")
     if schema_version is None:
         raise ChainSpecError(
@@ -574,6 +866,13 @@ def greedy_bipartite_alignment(table_a, table_b, similarity_fn):
     :func:`srmech.amsc.hdc.similarity`); lives in the compose layer rather than
     a class module for that reason.
     """
+    # rc154 (BATCH B10, ``composition_of_c``): greedy argmax + used-set is a pure
+    # **Class-K** selection (the ``s > best_s`` pin-slot decision) over a
+    # caller-supplied ``similarity_fn`` — NOT an irreducible numeric kernel and NOT
+    # an A–N primitive. It reaches no non-standalone-ready srmech leaf (the
+    # similarity is the caller's; the control flow is standalone-trivial), the
+    # SAME status as ``cascade.compose.top_k_by_score`` (Class-E ∘ Class-K
+    # selection). Value-verified by a known-table alignment oracle; no new C symbol.
     if not callable(similarity_fn):
         raise TypeError("similarity_fn must be callable")
     a_rows = list(table_a)

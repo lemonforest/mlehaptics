@@ -23,7 +23,10 @@ Quantization and Signal Compression*.
 
 from __future__ import annotations
 
+import ctypes
 from typing import List
+
+from srmech.amsc import _native
 
 OPERATION_NAME = "vector_quantisation"
 CLASS_COMPOSITION = ("E", "M", "B")
@@ -40,6 +43,29 @@ def _as_rows(a) -> List[List[float]]:
     """Coerce a 2-D array-like to a list-of-rows of float (numpy-free)."""
     raw = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
     return [[float(x) for x in r] for r in raw]
+
+
+def _vq_encode_native(rows, cb, d):
+    """Native Class-K squared-distance nearest-code argmin (ties → lowest index)
+    over list-of-rows inputs → ``list[int]`` (byte-identical to the pure fold) or
+    ``None`` (rc143 §B6a). Accumulated left-to-right in a double, no sqrt/abs."""
+    if not _native.has_native_vector_quantise_encode():
+        return None
+    n_vec = len(rows)
+    n_codes = len(cb)
+    if n_vec == 0:
+        return []
+    flat_v = [rows[i][j] for i in range(n_vec) for j in range(d)]
+    flat_c = [cb[k][j] for k in range(n_codes) for j in range(d)]
+    cvec = (ctypes.c_double * (n_vec * d))(*flat_v)
+    ccb = (ctypes.c_double * (n_codes * d))(*flat_c)
+    out_idx = (ctypes.c_uint32 * n_vec)()
+    rc = _native.LIB.srmech_vector_quantise_encode(
+        cvec, ctypes.c_uint32(n_vec), ccb, ctypes.c_uint32(n_codes),
+        ctypes.c_uint32(d), out_idx)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(out_idx[i]) for i in range(n_vec)]
 
 
 def op(
@@ -90,6 +116,10 @@ def op(
             raise ValueError(
                 f"vector dimension {len(r)} != codebook dimension {d}"
             )
+
+    native = _vq_encode_native(rows, cb, d)     # rc143 §B6a — byte-identical C
+    if native is not None:
+        return native
 
     # Class E codebook lookup via Class M nearest-neighbour: argmin of the
     # squared Euclidean distance (no sqrt needed; argmin is invariant under it).

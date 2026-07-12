@@ -140,6 +140,7 @@ from .coupled import (
 from .hypercomplex_dft import (
     quaternion_dft,
     octonion_dft,
+    phase_coherent_peak,
     hypercomplex_couple,
     hypercomplex_exp,
 )
@@ -165,6 +166,8 @@ from .one import (
     the_one,
     s_generator,
     to_scalar,
+    winding_tower,
+    winding_fold,
 )
 # Cayley–Dickson open-exterior boundary-demonstrator (v0.7.3rc1; #915 / MFO
 # §VII.6.23). The deliberately NON-reversible object on the far side of the
@@ -183,6 +186,8 @@ from .cayley_dickson import (
     cd_norm_sq,
     cd_basis,
     cd_basis_product,
+    cd_promote,
+    cd_project,
     is_division_algebra_dim,
     sedenion_zero_divisor_witness,
     left_mult_matrix,
@@ -267,6 +272,9 @@ __all__ = [
     # Quaternion/octonion DFT composites (v0.7.0rc31; #863)
     "quaternion_dft",
     "octonion_dft",
+    # The lightweight matched-filter PEAK READ (v0.9.0rc112; #1234 Item 1d,
+    # F1000→F1001→F1002) — the READ counterpart to the full transforms above
+    "phase_coherent_peak",
     # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437)
     "hypercomplex_couple",
     # Literal exp(μθ) unit hypercomplex twiddle (v0.9.0rc10; F882, srmech #205)
@@ -275,12 +283,14 @@ __all__ = [
     "hamming_encode",
     "hamming_syndrome",
     "hamming_decode_correct",
-    # The One — S(σ,θ), the 1+3+7+3 = 14 generator (#887)
+    # The One — S(σ,θ,w), the 1+3+7+3 = 14 generator (#887; winding rc137 / gh#1276)
     "Block",
     "One",
     "the_one",
     "s_generator",
     "to_scalar",
+    "winding_tower",
+    "winding_fold",
     # Cayley–Dickson open-exterior demonstrator (v0.7.3rc1; #915 / MFO §VII.6.23)
     "CD_MAX_DIM",
     "CD_DIMS",
@@ -292,6 +302,8 @@ __all__ = [
     "cd_norm_sq",
     "cd_basis",
     "cd_basis_product",
+    "cd_promote",
+    "cd_project",
     "is_division_algebra_dim",
     "sedenion_zero_divisor_witness",
     "left_mult_matrix",

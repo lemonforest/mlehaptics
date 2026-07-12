@@ -35,6 +35,7 @@ __all__ = [
     "continued_fraction",
     "continued_fraction_convergents",
     "best_rational",
+    "rational_reconstruct",
     "exp_series_truncate",
     "rational_add",
     "rational_mul",
@@ -44,6 +45,7 @@ __all__ = [
     "cos_series_truncate",
     "log1p_series_truncate",
     "atan_series_truncate",
+    "jacobi_sncndn_series_truncate",
     "pi_cascade_digits",
     "pi_chudnovsky_digits",
     "cos",
@@ -202,6 +204,116 @@ def best_rational(numerator: int,
     return best_p, best_q
 
 
+def _rational_reconstruct_pure(residue: int, modulus: int,
+                               num_bound: int, den_bound: int):
+    """Half-GCD rational reconstruction (Wang's algorithm). Returns the reduced
+    signed ``(p, q)`` with ``p/q ≡ residue (mod modulus)``, ``|p| <= num_bound``,
+    ``0 < q <= den_bound``, ``gcd(q, modulus) == 1`` — or ``None`` if no such
+    rational exists in the bounds. Mirrors the C kernel exactly (same extended-
+    Euclidean recurrence, same Class-K sign-branch at the end)."""
+    # Extended Euclidean on (modulus, residue): track only the t-coefficient
+    # (the running denominator). Stop the FIRST time the remainder drops to or
+    # below the numerator bound — that (r, t) row is the reconstruction.
+    r0, r1 = modulus, residue % modulus
+    t0, t1 = 0, 1
+    while r1 > num_bound:
+        quotient = r0 // r1
+        r0, r1 = r1, r0 - quotient * r1
+        t0, t1 = t1, t0 - quotient * t1
+    # Candidate numerator r1, denominator t1 (t1 may be negative — Class-K).
+    p_cand = r1
+    q_cand = t1
+    # Class-K magnitude via an explicit sign-branch (never an ALU abs()).
+    q_mag = q_cand if q_cand >= 0 else -q_cand
+    if q_mag == 0 or q_mag > den_bound:
+        return None
+    # Canonicalise the denominator positive: a negative q flips both signs.
+    if q_cand < 0:
+        p_cand = -p_cand
+        q_cand = -q_cand
+    # The reconstruction is valid only if it is in lowest terms relative to the
+    # modulus (gcd(q, modulus) == 1) AND already reduced (gcd(|p|, q) == 1) —
+    # otherwise no UNIQUE rational matches in these bounds.
+    p_mag = p_cand if p_cand >= 0 else -p_cand
+    if _cyclic.gcd(q_cand, modulus) != 1:
+        return None
+    g = _cyclic.gcd(p_mag, q_cand)
+    if g != 1:
+        return None
+    return (p_cand, q_cand)
+
+
+def rational_reconstruct(residue: int, modulus: int, *,
+                         num_bound: int = None,
+                         den_bound: int = None):
+    """Recover the rational ``p/q`` congruent to ``residue`` modulo ``modulus``.
+
+    Returns the reduced **signed** ``(p, q)`` (a 2-tuple of ``int``) with
+    ``p/q ≡ residue (mod modulus)``, ``|p| <= num_bound``, ``0 < q <= den_bound``,
+    ``gcd(q, modulus) == 1``, and ``gcd(|p|, q) == 1`` — or ``None`` if no such
+    rational exists within the bounds.
+
+    The default symmetric bound is ``num_bound = den_bound = isqrt(modulus // 2)``
+    — the standard Wang bound (Wang 1981, *An improved Monte Carlo algorithm for
+    computing exact rational solutions*; von zur Gathen & Gerhard, *Modern
+    Computer Algebra*, 3rd ed. 2013, §5.10) that **guarantees uniqueness**: at
+    most one rational with ``|p|·q < modulus / 2`` is congruent to ``residue``,
+    so the first extended-Euclidean row dropping to or below the bound IS that
+    rational.
+
+    Class N (the rational-reconstruction member of the ``best_rational`` /
+    ``continued_fraction`` extended-Euclidean family — but the *residue →
+    bounded-p/q* recovery, a distinct algorithm). Sign is Class-K (an explicit
+    sign-branch, never ``abs()``); arbitrary-precision integer / bignum (the
+    modulus and the recovered numerator/denominator can exceed ``2**64``); no
+    float, no numpy, no ``math``.
+
+    Dispatches to the native ``srmech_rational_reconstruct`` (over
+    ``srmech_bigint``) when present; the pure-Python body is the complete,
+    byte-identical alternative (and the parity oracle).
+    """
+    if not isinstance(residue, int) or isinstance(residue, bool):
+        raise TypeError(
+            f"rational_reconstruct: residue must be int; "
+            f"got {type(residue).__name__}"
+        )
+    if not isinstance(modulus, int) or isinstance(modulus, bool):
+        raise TypeError(
+            f"rational_reconstruct: modulus must be int; "
+            f"got {type(modulus).__name__}"
+        )
+    if modulus < 2:
+        raise ValueError(
+            f"rational_reconstruct: modulus must be >= 2; got {modulus}"
+        )
+    if num_bound is None or den_bound is None:
+        default = _py_isqrt(modulus // 2)
+        if num_bound is None:
+            num_bound = default
+        if den_bound is None:
+            den_bound = default
+    if not isinstance(num_bound, int) or isinstance(num_bound, bool):
+        raise TypeError("rational_reconstruct: num_bound must be int")
+    if not isinstance(den_bound, int) or isinstance(den_bound, bool):
+        raise TypeError("rational_reconstruct: den_bound must be int")
+    if num_bound < 0:
+        raise ValueError("rational_reconstruct: num_bound must be >= 0")
+    if den_bound < 1:
+        raise ValueError("rational_reconstruct: den_bound must be >= 1")
+
+    res = residue % modulus
+    # The exact-zero residue reconstructs to 0/1 (it is the only rational with a
+    # zero numerator in lowest terms); short-circuit before the Euclid loop.
+    if res == 0:
+        return (0, 1)
+
+    native = _native.rational_reconstruct(res, modulus, num_bound, den_bound)
+    if native is not None:
+        return native if native[0] is not None else None
+
+    return _rational_reconstruct_pure(res, modulus, num_bound, den_bound)
+
+
 # Upper bound on N to prevent runaway integer-size growth. At N=512 the
 # denominator is ~1170 decimal digits which is still tractable but past
 # any practical asymptotic-rate-of-convergence use case; standard
@@ -328,6 +440,16 @@ def exp_series_truncate(numerator: int,
                 f"srmech_exp_series_truncate returned non-OK status {rc}"
             )
 
+    # Exact bignum C path (rc156, Qalg B1a): srmech_exp_series_truncate_big over
+    # caller-arena srmech_bigint composes mul/pow_u32/gcd/divmod for the SAME
+    # exact rational the Python bignum body computes — reduced to lowest terms
+    # with positive denominator, BYTE-IDENTICAL at ANY magnitude (no int64
+    # ceiling). A bare-C host reaches the full exp series with no Python bignum.
+    _c = _native._bigexp_call(
+        "srmech_exp_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
+
     # Bignum / pure-Python path. Arbitrary-precision int via Python builtin.
     # S_N = sum_{k=0..N} (p^k) / (q^k * k!)
     # Common-denominator accumulation: S_N = A_N / (q^N * N!)
@@ -392,17 +514,59 @@ def exp_series_truncate(numerator: int,
 # ──────────────────────────────────────────────────────────────────────
 
 
+# 0.9.0rc167 (#765 foundation) — the size-adaptive big-ℚ dispatch threshold.
+# THREE-TIER dispatch for every exact-ℚ scalar op: (1) u64-fit operands ride
+# the scalar C ops (`srmech_rational_*`); (2) mid-size bignums stay on CPython
+# int (the FFI hop + marshal + C-vs-CPython gap costs more there); (3) at/
+# above this max-operand-bit-length threshold the WHOLE op (cross-muls +
+# gcd-reduce + exact divisions) runs on srmech's OWN C bignum via the
+# `_native.bigq_*_c` composites — the #765 self-hosting dispatch.
+#
+# Attested-to-measurement (Class B): WSL2 gcc -O2, Python 3.12, binary limb
+# marshal (#770) — BELOW 1024 bits the native composite LOSES (0.26–0.83× at
+# 256–512 bits: the C call + reduce overhead dominates); AT/ABOVE 1024 bits
+# it is measured COST-PARITY, not a speedup (1024: 1.02–1.26×; 2048–65536:
+# 0.59–1.24×, ~0.9× average — CPython int is itself a tuned C bignum with
+# Karatsuba multiply above ~2.5k bits, srmech_bigint multiplies schoolbook).
+# 1024 is the measured parity onset; the dispatch above it buys the #765
+# SELF-HOSTING architecture (Python's exact-ℚ big arithmetic on srmech's own
+# substrate — same discipline as the numpy removal) at ≈cost-neutral, NOT a
+# raw-speed win. Measured table: tests/test_q_native_dispatch_rc167.py +
+# CHANGELOG 0.9.0rc167. Known follow-up: a Karatsuba srmech_bigint_mul would
+# close the remaining huge-operand gap.
+_BIGQ_MIN_BITS: int = 1024
+
+
+def _bigq_max_bits(*values: int) -> int:
+    """The max magnitude bit-length across ``values`` — the size-adaptive
+    dispatch metric (Class-K sign via explicit branch, never ``abs()``)."""
+    m = 0
+    for v in values:
+        mag = v if v >= 0 else -v
+        b = mag.bit_length()
+        if b > m:
+            m = b
+    return m
+
+
 def _reduce_rational(num: int, den: int) -> Tuple[int, int]:
     """Reduce (num, den) to lowest terms with positive denominator.
 
     The GCD rides the Class-I :func:`srmech.amsc.cyclic.gcd` (srmech-native, no
     stdlib ``math.gcd``) — now uncapped, so the ~100-digit ``One``-scale
     numerators reduce exactly (native serves its uint64 domain, big-int Euclid
-    beyond)."""
+    beyond). 0.9.0rc167 (#765): at/above ``_BIGQ_MIN_BITS`` the whole reduce
+    (gcd + the two exact divisions) dispatches to srmech's own C bignum
+    (``_native.bigq_reduce_c``), byte-identical; CPython int remains the
+    complete below-threshold / no-native body."""
     if den == 0:
         raise ZeroDivisionError("rational denominator is zero")
     if num == 0:
         return (0, 1)
+    if _bigq_max_bits(num, den) >= _BIGQ_MIN_BITS:
+        out = _native.bigq_reduce_c(num, den)
+        if out is not None:
+            return out
     # Class-K magnitude via EXPLICIT sign-branches, never an ALU abs().
     num_mag = num if num >= 0 else -num
     den_mag = den if den >= 0 else -den
@@ -476,6 +640,11 @@ def rational_add(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     out = _try_c_two_rationals("srmech_rational_add", (a_num, a_den), (b_num, b_den))
     if out is not None:
         return out
+    # rc167 (#765): HUGE operands run the whole add on srmech's C bignum.
+    if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
+        out = _native.bigq_add_c(a_num, a_den, b_num, b_den)
+        if out is not None:
+            return out
     return _reduce_rational(a_num * b_den + b_num * a_den, a_den * b_den)
 
 
@@ -498,6 +667,11 @@ def rational_mul(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     out = _try_c_two_rationals("srmech_rational_mul", (a_num, a_den), (b_num, b_den))
     if out is not None:
         return out
+    # rc167 (#765): HUGE operands run the whole multiply on srmech's C bignum.
+    if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
+        out = _native.bigq_mul_c(a_num, a_den, b_num, b_den)
+        if out is not None:
+            return out
     return _reduce_rational(a_num * b_num, a_den * b_den)
 
 
@@ -522,6 +696,12 @@ def rational_div(a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
     out = _try_c_two_rationals("srmech_rational_div", (a_num, a_den), (b_num, b_den))
     if out is not None:
         return out
+    # rc167 (#765): HUGE operands run the whole divide on srmech's C bignum
+    # (bigq_div_c sign-normalises den > 0 internally, same as the body below).
+    if _bigq_max_bits(a_num, a_den, b_num, b_den) >= _BIGQ_MIN_BITS:
+        out = _native.bigq_div_c(a_num, a_den, b_num, b_den)
+        if out is not None:
+            return out
     # Python bignum path: a/b = (a_num * b_den) / (a_den * b_num)
     num = a_num * b_den
     den = a_den * b_num
@@ -624,6 +804,7 @@ def _check_series_inputs(numerator: int,
 
 _TRIG_SERIES_MAX_TERMS: int = 50
 _LOG_SERIES_MAX_TERMS: int = 64
+_JACOBI_SERIES_MAX_TERMS: int = 50
 
 
 def sin_series_truncate(numerator: int,
@@ -648,6 +829,12 @@ def sin_series_truncate(numerator: int,
                          _TRIG_SERIES_MAX_TERMS, "sin_series_truncate")
     if numerator == 0:
         return (0, 1)
+    # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
+    # srmech_sin_series_truncate_big over caller-arena srmech_bigint.
+    _c = _native._bigexp_call(
+        "srmech_sin_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
     # Bignum path: accumulate Σ_{k=0..N} (-1)^k * p^(2k+1) / (q^(2k+1) * (2k+1)!)
     num = 0
     den = 1
@@ -681,6 +868,12 @@ def cos_series_truncate(numerator: int,
                          _TRIG_SERIES_MAX_TERMS, "cos_series_truncate")
     if numerator == 0:
         return (1, 1)
+    # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
+    # srmech_cos_series_truncate_big over caller-arena srmech_bigint.
+    _c = _native._bigexp_call(
+        "srmech_cos_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -727,6 +920,13 @@ def log1p_series_truncate(numerator: int,
         )
     if numerator == 0 or num_terms == 0:
         return (0, 1)
+    # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
+    # srmech_log1p_series_truncate_big over caller-arena srmech_bigint (the C
+    # peer enforces the SAME -1 < p/q <= 1 domain, unreached here after the guard).
+    _c = _native._bigexp_call(
+        "srmech_log1p_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -771,6 +971,13 @@ def atan_series_truncate(numerator: int,
         )
     if numerator == 0:
         return (0, 1)
+    # Exact bignum C path (rc156, Qalg B1a): byte-identical (num, den) via
+    # srmech_atan_series_truncate_big over caller-arena srmech_bigint (the C peer
+    # enforces the SAME |p/q| <= 1 domain, unreached here after the guard).
+    _c = _native._bigexp_call(
+        "srmech_atan_series_truncate_big", numerator, denominator, num_terms)
+    if _c is not None:
+        return _c
     num = 0
     den = 1
     p, q = numerator, denominator
@@ -785,6 +992,156 @@ def atan_series_truncate(numerator: int,
         if k % 4 == 3:
             num, den = _reduce_rational(num, den)
     return _reduce_rational(num, den)
+
+
+def _native_jacobi_sncndn(
+    numerator: int, denominator: int,
+    m_numerator: int, m_denominator: int, num_terms: int,
+) -> "Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int]] | None":
+    """Dispatch Jacobi sn/cn/dn to the C peer ``srmech_jacobi_sncndn`` when the
+    native lib carries it; ``None`` otherwise (caller runs the pure body).
+
+    Byte-identical exact-ℚ over ``srmech_bigint`` (no magnitude ceiling) — the
+    pure-Python body is the complete fallback and the parity oracle.
+    """
+    fn = getattr(_native, "jacobi_sncndn_c", None)
+    if fn is None or not _native.has_native_jacobi_sncndn():
+        return None
+    return fn(numerator, denominator, m_numerator, m_denominator, num_terms)
+
+
+def jacobi_sncndn_series_truncate(
+    numerator: int,
+    denominator: int,
+    m_numerator: int,
+    m_denominator: int,
+    num_terms: int,
+) -> Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int]]:
+    """Jacobi elliptic sn/cn/dn Maclaurin partial sums as exact rationals.
+
+    Computes the ``num_terms``-term truncation of the three Jacobi elliptic
+    functions ``sn(u, m)``, ``cn(u, m)``, ``dn(u, m)`` at ``u = p/q`` and
+    modulus parameter ``m = m_p/m_q``, returned as a triple of exact rational
+    ``(num, den)`` pairs ``((sn_num, sn_den), (cn_num, cn_den),
+    (dn_num, dn_den))``.
+
+    This is the "rotation-last" exact-ℚ sibling of
+    :func:`sin_series_truncate` / :func:`cos_series_truncate`: the whole body
+    runs in the exact-rational fiber (Class N over Python bignum ints, reduced
+    by the Class-I :func:`srmech.amsc.cyclic.gcd`) with NO floating-point and
+    NO mid-body projection — ``float(sn_num/sn_den)`` etc. is the single
+    terminal observer-frame rotation the caller applies at the display edge.
+
+    The power-series coefficients come from the coupled ODE system (the same
+    recurrence A&S §16.4 / DLMF §22.10 give for the Maclaurin expansion)::
+
+        sn' =  cn·dn,  cn' = -sn·dn,  dn' = -m·sn·cn
+        sn(0) = 0,  cn(0) = 1,  dn(0) = 1
+
+    Let ``a``/``b``/``c`` be the Maclaurin coefficient sequences of sn/cn/dn.
+    With ``a0 = 0``, ``b0 = c0 = 1``, for ``k = 0 .. N-1`` (``⊛`` is the
+    discrete convolution ``Σ_{i+j=k}``)::
+
+        a[k+1] = ( b ⊛ c )[k] / (k+1)
+        b[k+1] = -( a ⊛ c )[k] / (k+1)
+        c[k+1] = -m·( a ⊛ b )[k] / (k+1)
+
+    Then ``sn(u) = Σ a[k]·u^k``, ``cn(u) = Σ b[k]·u^k``,
+    ``dn(u) = Σ c[k]·u^k`` — each an exact rational for rational ``u`` and
+    ``m``. Two exact-ℚ Pythagorean identities hold on the *coefficient*
+    sequences (all higher terms cancel): ``sn² + cn² = 1`` and
+    ``dn² + m·sn² = 1``.
+
+    The two limiting degeneracies recover the circular / hyperbolic series:
+
+    - ``m = 0`` → sn = sin, cn = cos, dn = 1.
+    - ``m = 1`` → sn = tanh, cn = dn = sech.
+
+    ``num_terms`` is the truncation order ``N`` (the highest power of ``u``
+    retained); ``0 <= N <= 50``. ``denominator`` and ``m_denominator`` must be
+    positive. Pure-integer / exact-rational at every step; Python
+    bignum-capable.
+
+    References
+    ----------
+    M. Abramowitz & I. A. Stegun, *Handbook of Mathematical Functions*,
+    §16.4 (Jacobi elliptic functions); the power-series ODE system.
+
+    Examples
+    --------
+    >>> # m = 0 recovers sin/cos Maclaurin coefficients
+    >>> sn, cn, dn = jacobi_sncndn_series_truncate(0, 1, 0, 1, 4)
+    >>> sn, cn, dn
+    ((0, 1), (1, 1), (1, 1))
+    """
+    _check_series_inputs(numerator, denominator, num_terms,
+                         _JACOBI_SERIES_MAX_TERMS,
+                         "jacobi_sncndn_series_truncate")
+    if not isinstance(m_numerator, int):
+        raise TypeError(
+            f"m_numerator must be int; got {type(m_numerator).__name__}")
+    if not isinstance(m_denominator, int):
+        raise TypeError(
+            f"m_denominator must be int; got {type(m_denominator).__name__}")
+    if m_denominator <= 0:
+        raise ValueError(
+            f"m_denominator must be positive; got {m_denominator}")
+
+    # Try the native C peer first (byte-identical exact-ℚ over srmech_bigint);
+    # the pure-Python body below is the complete fallback AND the parity oracle.
+    out = _native_jacobi_sncndn(
+        numerator, denominator, m_numerator, m_denominator, num_terms)
+    if out is not None:
+        return out
+
+    m = _reduce_rational(m_numerator, m_denominator)
+    # Coefficient sequences a (sn), b (cn), c (dn) as exact (num, den) pairs.
+    a: List[Tuple[int, int]] = [(0, 1)]
+    b: List[Tuple[int, int]] = [(1, 1)]
+    c: List[Tuple[int, int]] = [(1, 1)]
+    for k in range(num_terms):
+        # Discrete convolutions (b⊛c), (a⊛c), (a⊛b) at index k.
+        bc = (0, 1)
+        ac = (0, 1)
+        ab = (0, 1)
+        for i in range(k + 1):
+            j = k - i
+            bc = rational_add(bc, rational_mul(b[i], c[j]))
+            ac = rational_add(ac, rational_mul(a[i], c[j]))
+            ab = rational_add(ab, rational_mul(a[i], b[j]))
+        inv_kp1 = (1, k + 1)                       # 1/(k+1)
+        a_next = rational_mul(bc, inv_kp1)
+        # Class-K sign-flip (negate numerator) then Class-N divide by (k+1).
+        b_next = rational_mul((-ac[0], ac[1]), inv_kp1)
+        c_next = rational_mul(rational_mul((-ab[0], ab[1]), m), inv_kp1)
+        a.append(a_next)
+        b.append(b_next)
+        c.append(c_next)
+    # Horner-free Σ coeff[k]·u^k accumulation in the exact fiber.
+    p, q = numerator, denominator
+    sn = _eval_poly_rational(a, p, q)
+    cn = _eval_poly_rational(b, p, q)
+    dn = _eval_poly_rational(c, p, q)
+    return (sn, cn, dn)
+
+
+def _eval_poly_rational(coeffs: "List[Tuple[int, int]]",
+                        p: int, q: int) -> Tuple[int, int]:
+    """Evaluate Σ_k coeffs[k]·(p/q)^k as one reduced exact rational.
+
+    Accumulates u^k = p^k / q^k incrementally; all-integer / exact-ℚ, no
+    floating point. Used by :func:`jacobi_sncndn_series_truncate` to project
+    each coefficient sequence onto the argument u = p/q in the fiber.
+    """
+    total = (0, 1)
+    u_pow = (1, 1)                                 # (p/q)^0
+    u = _reduce_rational(p, q)
+    for k, ck in enumerate(coeffs):
+        if k > 0:
+            u_pow = rational_mul(u_pow, u)
+        if ck[0] != 0:
+            total = rational_add(total, rational_mul(ck, u_pow))
+    return _reduce_rational(total[0], total[1])
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -818,12 +1175,8 @@ def atan_series_truncate(numerator: int,
 _PI_RATIONAL_DIGITS: int = 50
 _PI_RATIONAL_CACHE: "Tuple[int, int] | None" = None
 
-# Class-N anchor denominator + Taylor term count for the float
-# projection. 10**15 anchors the reduced angle at the float64 precision
-# floor (≈1e-15) so the projection matches libm to machine scale while
-# keeping the reduced-angle bignums bounded; 24 cos/sin terms drive the
-# |x|<=π series residual below 1e-16.
-_TRIG_FLOAT_ANCHOR_DEN: int = 10 ** 15
+# Class-N Taylor term count for the float projection: 24 cos/sin terms drive
+# the |x|<=π series residual below 1e-16.
 _TRIG_FLOAT_TERMS: int = 24
 _ATAN_FLOAT_TERMS: int = 40
 
@@ -846,30 +1199,6 @@ def _pi_rational(digits: int = _PI_RATIONAL_DIGITS) -> Tuple[int, int]:
     if digits <= _PI_RATIONAL_DIGITS:
         _PI_RATIONAL_CACHE = result
     return result
-
-
-def _principal_angle_anchor(x: float,
-                            anchor_den: int = _TRIG_FLOAT_ANCHOR_DEN
-                            ) -> Tuple[int, int]:
-    """Range-reduce ``x`` (radians) into ≈[-π, π] and anchor it to a
-    fixed-denominator Class-N rational ``(num, anchor_den)``.
-
-    Exact float→rational (``float.as_integer_ratio``) minus an integer
-    multiple of the cascade-derived 2π; the integer-turn selection is the
-    only floating step and is exact for ``|x|`` well within float range.
-    """
-    assert anchor_den > 0, "anchor denominator must be positive"
-    x = float(x)
-    x_num, x_den = x.as_integer_ratio()
-    pi_num, pi_den = _pi_rational()
-    tau_num, tau_den = 2 * pi_num, pi_den         # 2π = tau_num / tau_den
-    turns = round(x / (tau_num / tau_den))        # nearest integer turn
-    # reduced = x - turns * 2π  (exact rational)
-    red_num = x_num * tau_den - turns * tau_num * x_den
-    red_den = x_den * tau_den
-    # Project the reduced angle to float (in ≈[-π, π]) and anchor it.
-    anchored_num = round((red_num / red_den) * anchor_den)
-    return anchored_num, anchor_den
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1248,22 +1577,6 @@ _EXPLOG_LOG_TERMS = 13                            # |t|<=√2-edge: t^27/27 < 2^
 _EXPLOG_OVERFLOW = 709.782712893384              # ln(DBL_MAX)
 _EXPLOG_UNDERFLOW = -745.2                        # ln(smallest subnormal)
 _SQRT_C_K = 27                                    # root precision bits (C peer)
-
-
-def _q_pow2(p: int) -> float:
-    """``2**p`` as a double, built directly from the IEEE-754 exponent field
-    (exact, no ``ldexp``). ``p`` must keep the biased exponent in [1, 2046]."""
-    assert -1023 < p < 1024, "pow2 exponent out of normal range"
-    bits = (((p + 1023) & 0x7FF) << 52) & _Q61_MASK64
-    return struct.unpack("<d", struct.pack("<Q", bits))[0]
-
-
-def _q_scale2(m: float, n: int) -> float:
-    """``m * 2**n``, splitting ``n`` so neither power-of-two leaves the normal
-    range (mirror ``explog_scale2``). ``n//2`` is C truncate-toward-zero."""
-    nh = n // 2 if n >= 0 else -((-n) // 2)        # C trunc-toward-zero
-    nl = n - nh
-    return m * _q_pow2(nh) * _q_pow2(nl)
 
 
 def _q_exp_core(r: int) -> int:
@@ -1721,43 +2034,14 @@ def _integer_sqrt(n: int) -> int:
     assert n >= 0, f"_integer_sqrt requires non-negative input; got {n}"
     if n < (1 << 128) and _native.has_native_isqrt():
         return _native.isqrt128_c(n)
+    # Bignum path (n >= 2**128): the caller-arena srmech_bigint integer-Newton
+    # floor-sqrt (rc156, Qalg B1a). floor(√n) is the UNIQUE r with r² <= n <
+    # (r+1)², so the C peer is byte-identical to _py_isqrt — a bare-C host reaches
+    # the precision rational.sqrt path (tsirelson 2√2, the π-cascade radicand)
+    # with no Python bignum.
+    if _native.has_native_bigint_isqrt():
+        return _native.bigint_isqrt_c(n)
     return _py_isqrt(n)
-
-
-def _rational_sqrt_midpoint(
-        num: int,
-        den: int,
-        precision_bits: int) -> Tuple[int, int]:
-    """Compute a rational mid-bound approximation of √(num/den) at given precision.
-
-    Returns (p, q) with q = den * 2^precision_bits, where p is the
-    rounded integer square root of the scaled bignum (truncated-floor
-    plus 1/2 correction), so |p/q - √(num/den)| ≤ 1/(2q) approximately.
-
-    Pure integer Newton-Raphson on scaled bignum; no floats; no math.pi.
-    Used by ``pi_cascade_digits`` to avoid the one-sided error
-    accumulation that lower-bound truncation produces over many
-    cascade steps.
-    """
-    assert isinstance(num, int) and isinstance(den, int), "rational sqrt needs int inputs"
-    assert num >= 0, f"rational_sqrt requires non-negative numerator; got {num}"
-    assert den > 0, f"rational_sqrt requires positive denominator; got {den}"
-    if num == 0:
-        return (0, 1)
-    M = 1 << precision_bits
-    # √(num/den) = √(num*den) / den. Scale by M for precision; round-
-    # to-nearest by computing both s = floor(√(scaled)) and adjusting
-    # if (s+1)^2 - scaled < scaled - s^2 (i.e. (s+1) is closer).
-    scaled = num * den * M * M
-    s_lo = _integer_sqrt(scaled)
-    s_hi = s_lo + 1
-    # Round to nearest: pick s_hi if its square is closer to `scaled`
-    # than s_lo's square. Pure integer comparison.
-    if (s_hi * s_hi - scaled) < (scaled - s_lo * s_lo):
-        s = s_hi
-    else:
-        s = s_lo
-    return (s, den * M)
 
 
 def pi_cascade_digits(num_digits: int,
@@ -1916,6 +2200,19 @@ def pi_cascade_digits(num_digits: int,
     # Special case: zero digits → "3." (the integer part of π).
     if num_digits == 0:
         return "3."
+
+    # Native dispatch (rc157, Qalg TAIL Batch 1b): the C srmech_pi_archimedes
+    # runs the WHOLE two-mean chiral-pair loop on the caller-arena srmech_bigint
+    # — the per-step harmonic-mean divmod + geometric-mean isqrt — byte-identical
+    # to the pure-Python fixed-point body below (same resolved max_cascade_depth
+    # / precision_bits, same Python-FLOOR divmod/shr semantics). It marshals ONE
+    # final result (no per-step decimal round-trip), so a bare-C host reaches the
+    # digit stream with no Python. The pure-Python body is the complete fallback
+    # (no-C / Pyodide) AND the parity oracle the C path is checked against.
+    if _native.HAS_NATIVE:
+        r = _native.pi_archimedes_c(num_digits, max_cascade_depth, precision_bits)
+        if r is not None:
+            return r
 
     # Fixed-precision-integer two-mean chiral-pair bracket. We carry one
     # canonical scale factor M = 2^precision_bits throughout: every

@@ -8,6 +8,14 @@ magnitude response with non-trivial phase.
 
 Path B dual in Phase 6 (Class N pairing in bound-vector substrate).
 
+rc149 (B4b) classification: ``c_dispatched``.  An allpass section is an IIR
+filter with mirrored numerator / denominator coefficients, so ``op`` builds the
+``(b_coef, a_coef)`` pair then dispatches the recursive difference equation to
+the c_dispatched ``srmech_iir_lfilter_f64`` (via ``_native.iir_lfilter_f64_c``)
+when the native lib is present, falling back to the complete numpy-free pure
+direct-form-I reference (``_lfilter_df1``) otherwise.  NUMERIC (within-tol, not
+byte-identical): reldiff ≤ 1e-9.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Regalia,
 Mitra & Vaidyanathan (1988) + Vaidyanathan (1993).
 """
@@ -23,6 +31,27 @@ SSOT_CITATION = (
     "DOI 10.1109/5.3286 (Crossref). Vaidyanathan (1993), 'Multirate Systems "
     "and Filter Banks', Prentice Hall."
 )
+
+
+def _lfilter_df1(b_coef, a_coef, sig):
+    """Pure numpy-free direct-form-I difference equation — the COMPLETE fallback
+    (and the within-tol parity oracle) for the C ``srmech_iir_lfilter_f64``.
+
+    ``y[i] = ( Σ_j b_coef[j]·sig[i-j] − Σ_{k>=1} a_coef[k]·out[i-k] ) / a_coef[0]``
+    (Class N rational filter; the loop bound is the signal length). No numpy.
+    """
+    n = len(sig)
+    out = [0.0] * n
+    for i in range(n):
+        acc = 0.0
+        for j, bj in enumerate(b_coef):
+            if i - j >= 0:
+                acc += bj * sig[i - j]
+        for k in range(1, len(a_coef)):
+            if i - k >= 0:
+                acc -= a_coef[k] * out[i - k]
+        out[i] = acc / a_coef[0]
+    return out
 
 
 def op(signal, a, *, b=None, order: int = 1, D: int = 8192):
@@ -64,24 +93,12 @@ def op(signal, a, *, b=None, order: int = 1, D: int = 8192):
     else:
         raise ValueError(f"order must be 1 or 2; got {order}")
 
-    try:
-        # Optional accelerator: scipy needs numpy, so a numpy-ABSENT install
-        # falls through to the pure-Python reference (consistent list return).
-        from scipy.signal import lfilter  # type: ignore[import-untyped]
+    # c_dispatched (rc149 / B4b): the recursive difference equation dispatches to
+    # srmech_iir_lfilter_f64; the pure direct-form-I reference is the complete
+    # numpy-free fallback.
+    from srmech.amsc import _native
 
-        return list(lfilter(b_coef, a_coef, sig))
-    except ImportError:
-        n = len(sig)
-        out = [0.0] * n
-        # Direct-form-I difference equation (Class N rational filter); the
-        # loop bound is the signal length. No numpy.
-        for i in range(n):
-            acc = 0.0
-            for j, bj in enumerate(b_coef):
-                if i - j >= 0:
-                    acc += bj * sig[i - j]
-            for k in range(1, len(a_coef)):
-                if i - k >= 0:
-                    acc -= a_coef[k] * out[i - k]
-            out[i] = acc / a_coef[0]
-        return out
+    native = _native.iir_lfilter_f64_c(b_coef, a_coef, sig)
+    if native is not None:
+        return native
+    return _lfilter_df1(b_coef, a_coef, sig)

@@ -23,9 +23,11 @@ flow in from the descriptor catalog (or an in-memory params dict).
 """
 from __future__ import annotations
 
+import ctypes
 import random
+from array import array
 
-from srmech.amsc import hdc, format as amsc_format
+from srmech.amsc import _native, hdc, format as amsc_format
 from srmech.amsc.hv import HV
 
 
@@ -45,7 +47,51 @@ def _sector_const(D: int, sector: int) -> bytes:
     return bytes([sector]) * D
 
 
+def _word_native_args_ok(word, D, sector, hex_chars) -> bool:
+    """True iff the rc219 native word-encode can take these args — a FALSE
+    routes to the pure body so validation errors surface pythonically (the
+    pure path is the complete alternative, not a rescue)."""
+    return (isinstance(word, str)
+            and isinstance(D, int) and not isinstance(D, bool) and D >= 1
+            and isinstance(sector, int) and not isinstance(sector, bool)
+            and 0 <= sector <= 3
+            and isinstance(hex_chars, int) and not isinstance(hex_chars, bool)
+            and hex_chars >= 1)
+
+
+def _encode_word_native(word: str, *, D: int, sector: int, hex_chars: int,
+                        enc_mode: str) -> "HV | None":
+    """ONE-crossing native word encode via ``srmech_rbs_lm_encode_word``
+    (rc219; gh #827) — byte-identical to the pure byteglyph/wordhash
+    composition — or ``None`` when the symbol is absent / the args don't fit
+    the C contract / the call fails (pure-Python is the COMPLETE alternative,
+    not a rescue). ``hex_chars`` beyond the 64-nibble sha256 digest clamps to
+    64, exactly like the pure ``digest[:hex_chars]`` slice."""
+    if not _native.has_native_rbs_lm_encode_word():
+        return None
+    if not _word_native_args_ok(word, D, sector, hex_chars):
+        return None
+    data = word.encode("utf-8")
+    tok = ((ctypes.c_uint8 * len(data)).from_buffer_copy(data)
+           if data else None)
+    acc = (ctypes.c_uint32 * (1 + 2 * D))()
+    scratch = (ctypes.c_uint8 * (3 * D))()
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_rbs_lm_encode_word(
+        tok, ctypes.c_size_t(len(data)), ctypes.c_uint32(D),
+        ctypes.c_uint8(sector), ctypes.c_uint32(min(hex_chars, 64)),
+        ctypes.c_uint32(0 if enc_mode == "byteglyph" else 1),
+        acc, scratch, out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return HV(array("B", bytes(out)), sectors=4)
+
+
 def encode_word_k4(word: str, *, D: int, sector: int, hex_chars: int) -> HV:
+    native = _encode_word_native(word, D=D, sector=sector,
+                                 hex_chars=hex_chars, enc_mode="wordhash")
+    if native is not None:
+        return native
     base = hdc.klein4_random(D, seed=token_seed(word, hex_chars))
     return hdc.klein4_bind(base, _sector_const(D, sector))
 
@@ -61,7 +107,13 @@ def encode_word_byteglyph(word: str, *, D: int, sector: int) -> HV:
     (it hashes raw UTF-8, the universal-script alphabet). An empty token routes
     to a fixed neutral atom (``klein4_encode_bytes`` requires non-empty).
     ``hex_chars`` is intentionally absent — the bytes ARE the seed, not a
-    sha256 prefix. numpy-free (Class M C1 ∘ Class C sector)."""
+    sha256 prefix. numpy-free (Class M C1 ∘ Class C sector). rc219: dispatches
+    the whole byte-compose to ``srmech_rbs_lm_encode_word`` in one C crossing
+    when native is present (byte-identical; gh #827)."""
+    native = _encode_word_native(word, D=D, sector=sector, hex_chars=1,
+                                 enc_mode="byteglyph")
+    if native is not None:
+        return native
     data = word.encode("utf-8")
     if len(data) == 0:
         base = hdc.klein4_random(D, seed=0)  # the empty/pad atom
@@ -123,9 +175,16 @@ def encode_sentence_l3(tokens, *, D: int, hex_chars: int,
 
 def sim_k4_batch(query, candidates):
     """Fractional-agreement similarity (F132 §3 standard) — one float per
-    candidate. numpy-free: the Class-M ``hdc.klein4_similarity`` over each HV
-    candidate (== the old ``(candidates == query).mean(axis=1)``)."""
-    return [hdc.klein4_similarity(query, c) for c in candidates]
+    candidate. numpy-free: the Class-M integer ``hdc.klein4_match_count`` over
+    each HV candidate, divided once by ``D`` (== the old
+    ``(candidates == query).mean(axis=1)``). Floats are correct + faster here:
+    the only caller is the vocab-ranking argmax/sort in ``rbs_lm/inference.py``,
+    where the per-candidate exact ``Q`` of ``hdc.klein4_similarity`` would
+    allocate a rational per vocab entry in the inference hot-path. The integer
+    match-count → one float division skips that allocation while preserving the
+    ranking order (``klein4_similarity = match_count / D`` exactly)."""
+    D = len(query)
+    return [hdc.klein4_match_count(query, c) / D for c in candidates]  # int/int -> float
 
 
 def scale_signature(parts):
@@ -223,8 +282,93 @@ class ContextSubstrate:
             vecs = list(vecs) + [self._pad]
         return hdc.klein4_bundle(*vecs)
 
+    #: Window-invariant mint-cache shape (rc219; gh #827): byteglyph position
+    #: keys cached for token byte-lengths up to 64 (longer tokens mint the
+    #: tail positions uncached — still correct), window position keys for
+    #: window sizes up to 128, plus the full 256-entry byte vocab. Rows fill
+    #: LAZILY in C and persist across calls on this instance — the C-side
+    #: mirror of the pure path's per-instance ``_poskey`` dict. A cached mint
+    #: is byte-identical to a fresh one by construction.
+    _MINT_CACHE_BYTEPOS = 64
+    _MINT_CACHE_CTXPOS = 128
+    _MINT_CACHE_MAX_BYTES = 64 * 1024 * 1024
+
+    def _mint_cache_pair(self):
+        """The lazily-allocated per-instance (mint_cache, mint_flags) ctypes
+        pair for the native window encode — or ``(None, None)`` when the cache
+        would exceed the size cap (the C then mints uncached; same bytes)."""
+        cached = getattr(self, "_c_mint_cache", None)
+        if cached is not None:
+            return cached
+        n_rows = 256 + self._MINT_CACHE_BYTEPOS + self._MINT_CACHE_CTXPOS
+        if n_rows * self.D > self._MINT_CACHE_MAX_BYTES:
+            self._c_mint_cache = (None, None)
+        else:
+            self._c_mint_cache = (
+                (ctypes.c_uint8 * (n_rows * self.D))(),   # rows (zeroed)
+                (ctypes.c_uint8 * n_rows)(),              # flags (zeroed once)
+            )
+        return self._c_mint_cache
+
+    def _encode_context_native(self, tokens) -> "HV | None":
+        """ONE-crossing native window encode via
+        ``srmech_rbs_lm_encode_context`` (rc219; gh #827) — the whole k-token
+        loop (per-token encode + pos-key bind + odd-padded bundle) in one C
+        call, byte-identical to the pure body — or ``None`` when the symbol is
+        absent / the args don't fit the C contract / the call fails
+        (pure-Python is the COMPLETE alternative, not a rescue). The cached
+        ``self._pad`` rides along so the C never re-mints it, and the
+        per-instance mint cache carries the window-invariant byte-vocab /
+        position-key mints across calls."""
+        if not _native.has_native_rbs_lm_encode_context():
+            return None
+        if not all(isinstance(t, str) for t in tokens):
+            return None
+        if not _word_native_args_ok("", self.D, self.sector, self.hex_chars):
+            return None
+        encoded = [t.encode("utf-8") for t in tokens]
+        offs = [0]
+        for e in encoded:
+            offs.append(offs[-1] + len(e))
+        if offs[-1] > 0xFFFFFFFF or len(tokens) > 0xFFFFFFFF:
+            return None                      # u32 offset contract — pure path
+        blob = b"".join(encoded)
+        D = self.D
+        tok_bytes = ((ctypes.c_uint8 * len(blob)).from_buffer_copy(blob)
+                     if blob else None)
+        tok_off = (ctypes.c_uint32 * len(offs))(*offs)
+        pad = (ctypes.c_uint8 * D).from_buffer_copy(self._pad.tobytes())
+        mint_cache, mint_flags = self._mint_cache_pair()
+        acc_outer = (ctypes.c_uint32 * (1 + 2 * D))()
+        acc_inner = (ctypes.c_uint32 * (1 + 2 * D))()
+        scratch = (ctypes.c_uint8 * (4 * D))()
+        out = (ctypes.c_uint8 * D)()
+        rc = _native.LIB.srmech_rbs_lm_encode_context(
+            tok_bytes, tok_off, ctypes.c_uint32(len(tokens)),
+            ctypes.c_uint32(D), ctypes.c_uint8(self.sector),
+            ctypes.c_uint32(min(self.hex_chars, 64)),
+            ctypes.c_uint32(0 if self.enc_mode == "byteglyph" else 1),
+            pad, mint_cache, mint_flags,
+            ctypes.c_uint32(self._MINT_CACHE_BYTEPOS if mint_cache else 0),
+            ctypes.c_uint32(self._MINT_CACHE_CTXPOS if mint_cache else 0),
+            acc_outer, acc_inner, scratch, out)
+        if rc != _native.SRMECH_OK:
+            return None
+        return HV(array("B", bytes(out)), sectors=4)
+
     def encode_context(self, window) -> HV:
-        """last-k tokens → ONE Klein-4 state (positional role-filler bind + bundle)."""
+        """last-k tokens → ONE Klein-4 state (positional role-filler bind + bundle).
+
+        rc219 (gh #827): dispatches the WHOLE window to
+        ``srmech_rbs_lm_encode_context`` in one C crossing when native is
+        present — profile showed ~90%+ of the per-window latency was Python
+        per-token orchestration + k FFI hops (127 ms → a few ms at D=4096,
+        k=16), the cost that compounds to the multi-day enwiki estimate. The
+        pure per-token body below is the COMPLETE, byte-identical alternative."""
+        tokens = list(window)
+        native = self._encode_context_native(tokens)
+        if native is not None:
+            return native
         bound = [hdc.klein4_bind(self.pos_key(p), self.enc(tok))
-                 for p, tok in enumerate(window)]
+                 for p, tok in enumerate(tokens)]
         return self.bundle_odd(bound)

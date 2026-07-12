@@ -127,6 +127,46 @@ srmech_status_t srmech_factor(uint64_t  n,
     return SRMECH_OK;
 }
 
+srmech_status_t srmech_next_prime(uint64_t n, uint64_t *out)
+{
+    assert(out != NULL);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* Smallest prime strictly greater than n. The only even prime is 2, so
+     * 0 and 1 step straight to 2; every other candidate is odd. The candidate
+     * walk is bounded by the prime gap above n, which for any uint64 n is far
+     * inside UINT64_MAX (the largest gap below 2^64 is ~1500); the loop also
+     * exits with SRMECH_ERR_OVERFLOW if a candidate would wrap past UINT64_MAX. */
+    if (n < 2u) {
+        *out = 2u;
+        return SRMECH_OK;
+    }
+    if (n == 2u) {
+        *out = 3u;
+        return SRMECH_OK;
+    }
+    /* Start at the next odd number above n. */
+    uint64_t cand = (n % 2u == 0u) ? (n + 1u) : (n + 2u);
+    while (cand >= n) {                     /* cand >= n guards the wrap below */
+        bool is_p = false;
+        srmech_status_t st = srmech_is_prime(cand, &is_p);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        if (is_p) {
+            assert(cand > n);               /* post-condition: strictly greater */
+            *out = cand;
+            return SRMECH_OK;
+        }
+        if (cand > UINT64_MAX - 2u) {
+            return SRMECH_ERR_OVERFLOW;     /* next odd candidate would wrap */
+        }
+        cand += 2u;
+    }
+    return SRMECH_ERR_OVERFLOW;
+}
+
 srmech_status_t srmech_cyclic_period(uint64_t  a,
                                      uint64_t  n,
                                      uint64_t  max_k,

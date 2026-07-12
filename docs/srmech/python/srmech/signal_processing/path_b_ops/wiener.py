@@ -29,6 +29,15 @@ group structure of the substrate.
 Trauma-informed defensive scope: methodology-research / educational
 framing only.
 
+rc150 (B4c) classification: ``composition_of_c``.  The Class-L transform to /
+from the cyclic-graph Laplacian eigenbasis IS the forward + inverse FFT, and
+both funnel through ``_sc.fft`` / ``_sc.ifft`` — which dispatch their FLOAT path
+to the c_dispatched numeric FFT foundation ``srmech_fft_c128`` (rc139) and fall
+back to the complete pure ``cexp`` cascade when the native lib is absent.  The
+Class-N rational MMSE gain per eigenmode is numpy-free elementwise glue (no
+``abs()``).  D1 algebra-identical to the Path A reference; NUMERIC (within-tol,
+not byte-identical): native == pure to reldiff ≤ 1e-9.
+
 Canonical SSoT
 --------------
 - Wiener (1949), *Extrapolation, Interpolation, and Smoothing of

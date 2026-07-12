@@ -191,6 +191,9 @@ def bundle_with_ties(vectors: Sequence[bytes]) -> "tuple[bytes, bytes]":
                 f"hdc.bundle_with_ties: vector {i} has length {len(v)}, "
                 f"expected {n_bytes}"
             )
+    native = _hdc_bundle_with_ties_native(vectors, n_bytes)   # rc142 §B1
+    if native is not None:
+        return native
     majority = bytearray(n_bytes)
     ties = bytearray(n_bytes)
     for byte_i in range(n_bytes):
@@ -372,6 +375,27 @@ def _check_polar_pair(a, b, op: str):
     return a, b
 
 
+def _polar_random_native(D: int, seed: int):
+    """Native MT19937 draw of ``D`` polar codes in {-1, 0, +1} for an integer
+    ``seed`` — byte-identical to ``random.Random(seed)``'s ``randrange(-1, 2)``
+    stream — or ``None`` when the C symbol is absent / the call fails
+    (pure-Python is the COMPLETE alternative, not a rescue). The C seeds via
+    ``init_by_array`` over the seed's little-endian uint32 words; ``out`` is
+    ``D`` int8 values, each ``= -1 + _randbelow(3)`` (getrandbits(2) rejection —
+    a DIFFERENT stream from klein4's ``_randbelow(4)``). rc154 (BATCH B10)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_polar_random")):
+        return None
+    words = _seed_to_le_words(seed)
+    key = (ctypes.c_uint32 * len(words))(*words)
+    out = (ctypes.c_int8 * D)()
+    rc = _native.LIB.srmech_polar_random(
+        key, len(words), ctypes.c_uint32(D), ctypes.cast(out, _I8P))
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("b", out)
+
+
 def polar_random(D: int, rng=None, seed: "int | None" = None):
     """Random polar hypervector of dimension ``D`` with elements in {-1, 0, +1}.
 
@@ -389,6 +413,15 @@ def polar_random(D: int, rng=None, seed: "int | None" = None):
     Returns:
         An ``array('b')`` of length ``D`` with elements drawn uniformly from
         ``{-1, 0, +1}`` (rc125: numpy-free stdlib ``random``).
+
+    rc154 (BATCH B10): the deterministic integer-``seed`` path dispatches to the
+    standalone-C MT19937 ``srmech_polar_random`` when native is present — a
+    byte-for-byte reproduction of CPython's ``random.Random(seed).randrange(-1,
+    2)`` (the polar sibling of the §60 ``srmech_klein4_random`` — a random op
+    with NO C RNG twin cannot be standalone-C, so it earns its own deterministic
+    kernel rather than a false composition-of-c). Pure-Python ``random.Random``
+    is the complete alternative for a no-C host / a caller-supplied ``rng`` /
+    the urandom ``seed=None`` path.
     """
     if D <= 0:
         raise ValueError("hdc.polar_random: D must be positive")
@@ -396,6 +429,10 @@ def polar_random(D: int, rng=None, seed: "int | None" = None):
         # Back-compat numpy ``Generator`` path: the caller already holds numpy,
         # so this branch may use it (coerced to a stdlib int8 buffer).
         return array("b", (int(x) for x in rng.integers(-1, 2, size=D)))
+    if rng is None and isinstance(seed, int) and not isinstance(seed, bool):
+        buf = _polar_random_native(D, seed)
+        if buf is not None:
+            return buf
     r = rng if rng is not None else _random.Random(seed)
     return array("b", (r.randrange(-1, 2) for _ in range(D)))
 
@@ -439,9 +476,14 @@ def polar_unbind(c, a):
     the original is **not** recoverable (0 is destructive) — matching the
     dead-band semantics: anything bound through an uncertain position is gone.
 
-    rc125 (numpy-free): pure-Python int8 product over ``array('b')``."""
-    c, a = _check_polar_pair(c, a, "polar_unbind")
-    return array("b", (c[i] * a[i] for i in range(len(c))))
+    rc125 (numpy-free): pure-Python int8 product over ``array('b')``.
+
+    rc154 (BATCH B10): unbind IS the same element-wise sign-product as
+    :func:`polar_bind` on the ±1 sub-alphabet (``c[i]*a[i]``), so it COMPOSES the
+    c_dispatched :func:`polar_bind` — routing byte-identically to
+    ``srmech_polar_bind`` when native is present, with the pure-Python product as
+    the complete fallback (``composition_of_c``, no new C symbol)."""
+    return polar_bind(c, a)
 
 
 def polar_bundle(*vectors):
@@ -506,7 +548,15 @@ def polar_similarity(a, b, skip_zero: bool = True) -> "Q":
     with ``float(s)`` (the stay-rational discipline, F868,
     `[[feedback_stay_rational_collapse_only_at_display]]`).
 
-    rc125 (numpy-free): pure-Python counting over ``array('b')`` buffers."""
+    rc125 (numpy-free): pure-Python counting over ``array('b')`` buffers.
+
+    rc154 (BATCH B10, ``composition_of_c``): the exact ``Q(matches, denom)`` is a
+    **Class-K** skip-zero pin-slot ∘ integer **match-count** composition —
+    standalone-C-ready (a C host gets the display-collapse float directly from the
+    ``srmech_polar_similarity`` C peer; the test cross-checks
+    ``float(Q) == srmech_polar_similarity``). The exact-``Q`` path stays Python
+    (stay-rational, F868) — reconstructing ``Q`` from the C float would lose
+    exactness, so no float dispatch replaces the integer counting."""
     a, b = _check_polar_pair(a, b, "polar_similarity")
     n = len(a)
     if skip_zero:
@@ -543,7 +593,13 @@ def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
     ``sign_quantise``).
 
     rc125 (numpy-free): ``sign_quantise.op`` returns a numpy-free list (the
-    rc94 flip); it is collected into an ``array('b')`` (was an int8 ndarray)."""
+    rc94 flip); it is collected into an ``array('b')`` (was an int8 ndarray).
+
+    rc154 (BATCH B10, ``composition_of_c``): the whole real→polar encode IS the
+    ``sign_quantise.op`` cascade, which is ``c_dispatched`` (routes to
+    ``srmech_sign_quantise``, rc143) — so ``polar_from_real`` composes a C-backed
+    Class-K threshold projection (byte-identical native == pure; the int8
+    collection is trivial integer glue), no new C symbol."""
     from ..signal_processing.path_b_ops import sign_quantise
 
     out = sign_quantise.op(arr, threshold=threshold, dead_band=dead_band)
@@ -566,15 +622,6 @@ def polar_from_real(arr, threshold: float = 0.0, dead_band: float = 0.0):
 # ---------------------------------------------------------------------------
 
 KLEIN4_STATES = (0, 1, 2, 3)
-
-
-def _as_klein4(v, op: str):
-    """Validate a Klein-4 value into an ``array('B')`` buffer (numpy-free).
-
-    rc125: the prior numpy ``asarray(..., uint8)`` path is the stdlib
-    :func:`_as_klein4_buf` — kept as a thin alias for the few legacy callers
-    of this name (elements in ``{0, 1, 2, 3}``)."""
-    return _as_klein4_buf(v, op)
 
 
 # ── numpy-free Klein-4 core (v0.7.0rc29; UPSTREAM §22/§22b) ───────────────
@@ -724,7 +771,7 @@ def klein4_random(D: int, rng=None, seed: "int | None" = None):
     rc6 (§60 / F864): the deterministic integer-``seed`` path dispatches to the
     standalone-C MT19937 ``srmech_klein4_random`` when native is present — a
     byte-for-byte reproduction of CPython's ``random.Random(seed).randrange(4)``
-    (the last ``python_only_irreducible`` klein4 op earns its C twin, so the §60
+    (the last ``python_only_debt`` klein4 op earns its C twin, so the §60
     byte/glyph encoder + the 256-byte vocab + position keys are now fully
     native). Pure-Python ``random.Random`` is the complete alternative for a
     no-C host / a caller-supplied ``rng`` / the urandom ``seed=None`` path.
@@ -812,15 +859,6 @@ def _klein4_sector_flip(s, buf: "array") -> "array":
     return _xor_const_buf(buf, _KLEIN4_SECTOR_MASKS[s])
 
 
-def _klein4_chirality_duals(body, buf: "array", n_sectors):
-    """The ≤4 sector duals ``T_s(body(T_s(v)))`` (F233). Serial — the pure-Python
-    bodies are GIL-bound, so threading would not overlap (UPSTREAM caveat)."""
-    return [
-        _klein4_sector_flip(s, body(_klein4_sector_flip(s, buf)))
-        for s in range(n_sectors)
-    ]
-
-
 def _klein4_bundle_core(arrs) -> "array":
     """Per-bit majority over equal-length klein4 buffers — the serial bundle
     kernel (the public :func:`klein4_bundle` wraps it in an :class:`HV`)."""
@@ -868,19 +906,6 @@ def _klein4_bundle_native(arrs) -> "array":
     return array("B", bytes(out))
 
 
-def _klein4_similarity_native(a: "array", b: "array"):
-    """Native match-fraction similarity over two array('B') buffers → float."""
-    n = len(a)
-    ca = (ctypes.c_uint8 * n).from_buffer_copy(a)
-    cb = (ctypes.c_uint8 * n).from_buffer_copy(b)
-    out = ctypes.c_double()
-    rc = _native.LIB.srmech_klein4_similarity(
-        ca, cb, ctypes.c_uint32(n), ctypes.byref(out))
-    if rc != _native.SRMECH_OK:
-        return None
-    return float(out.value)
-
-
 def _klein4_match_count_native(a: "array", b: "array"):
     """Native exact integer match count over two array('B') buffers → int (or
     ``None`` if the symbol is absent / the call fails). The count is what the C
@@ -906,6 +931,121 @@ def _klein4_triality_native(buf: "array", inverse: bool) -> "array":
     out = (ctypes.c_uint8 * n)()
     rc = _native.LIB.srmech_klein4_triality_cycle(
         cin, ctypes.c_uint32(n), ctypes.c_int(1 if inverse else 0), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+# ── BATCH B1 (rc142): native dispatch wrappers for the 9 EXACT klein4/hdc ops ──
+# Each returns the native result (byte-identical to the pure path) or ``None``
+# when the C symbol is absent / the call fails — the caller then runs the pure
+# kernel (the complete alternative, not a rescue). No abs(); integer/sector only.
+
+def _hdc_bundle_with_ties_native(vectors, n_bytes):
+    """Native BSC majority+ties over ≥1 equal-length byte vectors →
+    ``(majority_bytes, ties_bytes)`` or ``None``."""
+    if not _native.has_native_hdc_bundle_with_ties():
+        return None
+    n_vec = len(vectors)
+    cbufs = [(ctypes.c_uint8 * n_bytes).from_buffer_copy(bytes(v)) for v in vectors]
+    ptrs = (ctypes.POINTER(ctypes.c_uint8) * n_vec)(
+        *[ctypes.cast(c, ctypes.POINTER(ctypes.c_uint8)) for c in cbufs])
+    maj = (ctypes.c_uint8 * n_bytes)()
+    tie = (ctypes.c_uint8 * n_bytes)()
+    rc = _native.LIB.srmech_hdc_bundle_with_ties(
+        ptrs, ctypes.c_uint32(n_vec), ctypes.c_uint32(n_bytes), maj, tie)
+    if rc != _native.SRMECH_OK:
+        return None
+    return bytes(maj), bytes(tie)
+
+
+def _klein4_sector_flip_native(buf: "array", mask: int) -> "array":
+    """Native XOR-const sector flip over an array('B') buffer → array('B')."""
+    if not _native.has_native_klein4_sector_flip():
+        return None
+    n = len(buf)
+    cin = (ctypes.c_uint8 * n).from_buffer_copy(buf)
+    out = (ctypes.c_uint8 * n)()
+    rc = _native.LIB.srmech_klein4_sector_flip(
+        cin, ctypes.c_uint32(n), ctypes.c_uint8(mask), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def _klein4_sector_count_native(buf: "array"):
+    """Native per-sector occupancy over an array('B') buffer → list[int] (len 4)."""
+    if not _native.has_native_klein4_sector_count():
+        return None
+    n = len(buf)
+    cin = (ctypes.c_uint8 * n).from_buffer_copy(buf)
+    out = (ctypes.c_uint32 * 4)()
+    rc = _native.LIB.srmech_klein4_sector_count(cin, ctypes.c_uint32(n), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(out[0]), int(out[1]), int(out[2]), int(out[3])]
+
+
+def _klein4_holographic_encode_native(buf: "array", replicas: int) -> "array":
+    """Native replica-major replication over an array('B') buffer → array('B')."""
+    if not _native.has_native_klein4_holographic_encode():
+        return None
+    n = len(buf)
+    cin = (ctypes.c_uint8 * n).from_buffer_copy(buf)
+    out = (ctypes.c_uint8 * (n * replicas))()
+    rc = _native.LIB.srmech_klein4_holographic_encode(
+        cin, ctypes.c_uint32(n), ctypes.c_uint32(replicas), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def _klein4_holographic_decode_native(s: "array", replicas: int,
+                                      erased_mask, D: int) -> "array":
+    """Native holographic decode over an array('B') store → array('B') (len D).
+    ``erased_mask`` is None (blind majority) or an array('B') mask (nonzero =
+    erased) of the store length (known-location first-survivor)."""
+    if not _native.has_native_klein4_holographic_decode():
+        return None
+    n = len(s)
+    cstore = (ctypes.c_uint8 * n).from_buffer_copy(s)
+    out = (ctypes.c_uint8 * D)()
+    cerased = None if erased_mask is None else (
+        ctypes.c_uint8 * n).from_buffer_copy(erased_mask)
+    rc = _native.LIB.srmech_klein4_holographic_decode(
+        cstore, ctypes.c_uint32(n), ctypes.c_uint32(replicas), cerased, out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def _klein4_triality_encode_native(buf: "array") -> "array":
+    """Native order-3 orbit [v,Tv,T²v] over an array('B') buffer → array('B')
+    (len 3*len(buf)); composes srmech_klein4_triality_cycle in C."""
+    if not _native.has_native_klein4_triality_encode():
+        return None
+    n = len(buf)
+    cin = (ctypes.c_uint8 * n).from_buffer_copy(buf)
+    out = (ctypes.c_uint8 * (n * 3))()
+    rc = _native.LIB.srmech_klein4_triality_encode(cin, ctypes.c_uint32(n), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", bytes(out))
+
+
+def _klein4_triality_correct_native(s: "array") -> "array":
+    """Native 2-of-3 triality majority over an array('B') store → array('B')
+    (len len(store)//3); composes srmech_klein4_triality_cycle in C. Caller-arena
+    scratch (2*D bytes) is allocated here."""
+    if not _native.has_native_klein4_triality_correct():
+        return None
+    n = len(s)
+    D = n // 3
+    cstore = (ctypes.c_uint8 * n).from_buffer_copy(s)
+    scratch = (ctypes.c_uint8 * (2 * D))()
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_triality_correct(
+        cstore, ctypes.c_uint32(n), scratch, out)
     if rc != _native.SRMECH_OK:
         return None
     return array("B", bytes(out))
@@ -982,6 +1122,16 @@ def klein4_unbundle(bundle, key):
     return klein4_bind(bundle, key)
 
 
+def _klein4_is_vector_container(v) -> bool:
+    """True iff ``v`` is a Klein-4 **vector** container (an :class:`HV` /
+    ``bytes`` / ``bytearray`` / ``array`` / ``list`` / ``tuple``) rather than a
+    scalar element. Used to disambiguate the ``klein4_bundle([v1, v2, …])``
+    single-sequence call form from a bare one-vector-of-ints
+    ``klein4_bundle([0, 1, 2, 3])`` — the FIRST element decides (a vector
+    container ⇒ a sequence-of-vectors; a scalar ``int`` ⇒ one vector)."""
+    return isinstance(v, (HV, bytes, bytearray, array, list, tuple))
+
+
 def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     """Klein-4 bundle: per-bit majority vote on each of the 2 bits
     independently. Accepts ANY number of vectors ``n >= 1`` (even OR odd —
@@ -989,6 +1139,15 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     is strictly greater than ``n // 2``, so an exact tie (``count == n/2``,
     possible only for even ``n``) deterministically resolves to 0 for that
     bit.
+
+    Both call forms are accepted (issue #1234 Item 4 / F1005 / UPSTREAM §82):
+    the varargs ``klein4_bundle(v1, v2, …)`` AND the ``bundle(Sequence)``-style
+    single list ``klein4_bundle([v1, v2, …])`` — so the natural :class:`HV`
+    output of :func:`klein4_random` / :func:`klein4_bind` can be bundled
+    directly, at parity with :func:`klein4_bind` / :func:`klein4_similarity`
+    (which already take HV wrappers), without ``.tolist()``-ing each element.
+    Each vector — HV or a plain uint8 sequence, mixed freely — rides the SAME
+    :func:`_as_klein4_buf` HV-coercion the bind/similarity ops use.
 
     The rc13 ``sectors=`` / ``parallel=`` / ``mode=`` flag fans the reduction
     across ≤4 concurrent lanes (default-ON at ≥4 cores). ``mode="chunk"``
@@ -999,7 +1158,26 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     """
     if len(vectors) == 0:
         raise ValueError("hdc.klein4_bundle: requires at least one vector")
+    # Accept the ``bundle(Sequence)``-style single-list call form
+    # ``klein4_bundle([v1, v2, …])`` alongside the varargs form. A lone
+    # ``list`` / ``tuple`` whose FIRST element is itself a vector container is
+    # unwrapped to the vectors sequence; a lone one-vector-of-ints
+    # (``[0, 1, 2, 3]`` — first element a scalar ``int``) stays ONE vector, so
+    # every pre-existing form is byte-for-byte unchanged (purely additive).
+    if (len(vectors) == 1 and isinstance(vectors[0], (list, tuple))
+            and len(vectors[0]) > 0 and _klein4_is_vector_container(vectors[0][0])):
+        vectors = tuple(vectors[0])
     arrs = [_as_klein4_buf(v, "klein4_bundle") for v in vectors]
+    # Equal-length check BEFORE any dispatch: the pure core raises this, but the
+    # native fast path marshals ctypes buffers where an OVERSIZED vector would be
+    # silently truncated (ctypes only errors on "too small") — pure and native
+    # must agree, so the mismatch is rejected here for both paths.
+    _n0 = len(arrs[0])
+    for _i, _a in enumerate(arrs):
+        if len(_a) != _n0:
+            raise ValueError(
+                f"hdc.klein4_bundle: vector {_i} has length {len(_a)}, expected {_n0}"
+            )
     if mode not in ("chunk", "chirality"):
         raise ValueError(
             f"klein4_bundle: mode must be 'chunk' or 'chirality'; got {mode!r}"
@@ -1609,21 +1787,30 @@ def cooccurrence_fold(tokens, *, window, dim, seed=0):
     return {"bundles": bundles, "codes": codes, "vocab": vocab, "n_tokens": n}
 
 
+def _klein4_flip(v, mask: int, op: str):
+    """Klein-4 sector flip — XOR every element with a constant ``mask`` in
+    {0,1,2,3}. Dispatches to ``srmech_klein4_sector_flip`` (rc142 §B1) when
+    native, else the pure ``_xor_const_buf``; byte-identical. Class C axis flip."""
+    buf = _as_klein4_buf(v, op)
+    native = _klein4_sector_flip_native(buf, mask)
+    if native is not None:
+        return HV(native, sectors=4)
+    return HV(_xor_const_buf(buf, mask), sectors=4)
+
+
 def klein4_chirality_flip_gamma5(v):
     """Flip the γ₅ axis: XOR with the bit-1 sector mask (2)."""
-    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_chirality_flip_gamma5"), 2),
-              sectors=4)
+    return _klein4_flip(v, 2, "klein4_chirality_flip_gamma5")
 
 
 def klein4_chirality_flip_omega7(v):
     """Flip the iω₇ axis: XOR with the bit-0 sector mask (1)."""
-    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_chirality_flip_omega7"), 1),
-              sectors=4)
+    return _klein4_flip(v, 1, "klein4_chirality_flip_omega7")
 
 
 def klein4_cpt_mirror(v):
     """CPT mirror: flip BOTH chirality axes (XOR with 3)."""
-    return HV(_xor_const_buf(_as_klein4_buf(v, "klein4_cpt_mirror"), 3), sectors=4)
+    return _klein4_flip(v, 3, "klein4_cpt_mirror")
 
 
 # γ₅ = bit 1 (XOR mask 2), iω₇ = bit 0 (XOR mask 1) — the SAME bit layout the
@@ -1725,6 +1912,9 @@ def klein4_sector_count(v):
     """Per-sector occupancy ``[n0, n1, n2, n3]`` — substrate attestation of the
     chirality-sector distribution. Returns a stdlib ``list[int]`` (numpy-free)."""
     buf = _as_klein4_buf(v, "klein4_sector_count")
+    native = _klein4_sector_count_native(buf)   # rc142 §B1
+    if native is not None:
+        return native
     counts = [0, 0, 0, 0]
     for x in buf:
         counts[x] += 1
@@ -1769,6 +1959,9 @@ def klein4_holographic_encode(v, *, replicas=4):
     buf = _as_klein4_buf(v, "klein4_holographic_encode")
     if not isinstance(replicas, int) or isinstance(replicas, bool) or replicas < 2:
         raise ValueError(f"replicas must be int >= 2; got {replicas!r}")
+    native = _klein4_holographic_encode_native(buf, replicas)   # rc142 §B1
+    if native is not None:
+        return HV(native, sectors=4)
     out = array("B")
     for _ in range(replicas):
         out.extend(buf)
@@ -1809,6 +2002,9 @@ def klein4_holographic_decode(store, *, replicas=4, erased=None):
         )
     D = n // replicas  # block s[r*D : (r+1)*D] is replica r (replica-major)
     if erased is None:
+        native = _klein4_holographic_decode_native(s, replicas, None, D)  # rc142 §B1
+        if native is not None:
+            return HV(native, sectors=4)
         # Blind: per-position majority over the ``replicas`` copies (ties → lowest).
         out = array("B", bytes(D))
         for i in range(D):
@@ -1825,6 +2021,12 @@ def klein4_holographic_decode(store, *, replicas=4, erased=None):
     mask = list(erased)  # bool per store position (list / np bool array / etc.)
     if len(mask) != n:
         raise ValueError(f"erased mask length {len(mask)} != store length {n}")
+    # rc142 §B1: native first-survivor. An all-erased position makes the C return
+    # BAD_INPUT → native is None → the pure loop below raises the same ValueError.
+    native = _klein4_holographic_decode_native(
+        s, replicas, array("B", (1 if e else 0 for e in mask)), D)
+    if native is not None:
+        return HV(native, sectors=4)
     out = array("B", bytes(D))
     for i in range(D):
         chosen = None
@@ -1894,6 +2096,9 @@ def klein4_triality_encode(v):
         uint8 store of length ``len(v) * 3`` = ``[v | T(v) | T²(v)]``.
     """
     buf = _as_klein4_buf(v, "klein4_triality_encode")
+    native = _klein4_triality_encode_native(buf)   # rc142 §B1
+    if native is not None:
+        return HV(native, sectors=4)
     t1 = _table_buf(buf, _KLEIN4_TRIALITY_FORWARD)   # T(v)
     t2 = _table_buf(t1, _KLEIN4_TRIALITY_FORWARD)    # T²(v)
     out = array("B", buf)
@@ -1948,6 +2153,9 @@ def klein4_triality_correct(store, *, depth=1):
             "(the order-3 triality orbit)"
         )
     D = n // _KLEIN4_TRIALITY_ORBIT
+    native = _klein4_triality_correct_native(s)   # rc142 §B1
+    if native is not None:
+        return HV(native, sectors=4)
     b0 = s[0:D]
     b1 = s[D:2 * D]
     b2 = s[2 * D:3 * D]

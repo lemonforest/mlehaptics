@@ -1014,8 +1014,9 @@ def test_native_bus_symbols_present():
     from srmech.amsc import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    assert _native.NATIVE_ABI_VERSION == 3, (
-        f"ABI v3 expected; got {_native.NATIVE_ABI_VERSION}"
+    assert _native.NATIVE_ABI_VERSION == 4, (
+        f"ABI v4 expected (rc180 pub/sub callback typedef); "
+        f"got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in (
         "srmech_bus_serve",
@@ -1043,15 +1044,14 @@ def test_bus_handler_callback_typedef_constructible():
     assert trampoline is not None
 
 
-def test_abi_version_is_3():
-    """v0.5.0rc2 ABI bump: 2 → 3 (bus C peer + new typedef).
-
-    v0.5.0rc3: ABI unchanged at 3 (no new C symbols this rc; the
-    state-chained wire-format cipher is pure-Python this round).
+def test_abi_version_is_4():
+    """v0.5.0rc2 ABI bump: 2 → 3 (bus req/rep C peer + handler typedef).
+    v0.9.0rc180 ABI bump: 3 → 4 (bus pub/sub C peer + the new
+    srmech_bus_subscriber_callback_t delivery typedef).
     """
     from srmech.amsc import _native
-    assert _native.EXPECTED_ABI_VERSION == 3, (
-        f"EXPECTED_ABI_VERSION should be 3; got "
+    assert _native.EXPECTED_ABI_VERSION == 4, (
+        f"EXPECTED_ABI_VERSION should be 4; got "
         f"{_native.EXPECTED_ABI_VERSION}"
     )
 

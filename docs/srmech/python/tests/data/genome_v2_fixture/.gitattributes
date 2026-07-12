@@ -1,0 +1,5 @@
+# The v2 genome fixture is a BYTE-EXACT artifact of the pre-rc114 (rc113)
+# writer — the rc114 back-compat tests compare it byte-for-byte. No EOL
+# normalization, ever.
+turns.bin -text
+manifest.json -text

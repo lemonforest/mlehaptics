@@ -68,6 +68,18 @@
  * caller-allocated (JPL Rule 3 — no malloc inside libsrmech). CLOSES
  * the cascade-catalog C-parity arc at 8 of 8.
  *
+ * v0.9.0rc210: `best_rational_signed` drops its llrint() call — the
+ * LAST libm import anywhere in libsrmech — for a Class-K/N libm-free
+ * round-half-to-even (_cascade_brs_round_half_even below), byte-
+ * identical to llrint() under the default IEEE-754 FE_TONEAREST mode
+ * across the full 0 <= v < 2^63 range the cascade feeds it. Restores
+ * the "libsrmech carries no libm" claim for bare-C-host executables
+ * (a .so resolves llrint at load; a bare-C-host executable would have
+ * needed -lm). Products >= 2^63 (previously an UNSPECIFIED, platform-
+ * divergent llrint() domain-error result) now return an explicit
+ * SRMECH_ERR_BAD_INPUT, routing the Python dispatch to its Python
+ * reference fallback.
+ *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
  *   - Rule 2 (bounded loops)  : OK — single loop bounded by n/2
@@ -85,7 +97,6 @@
 #include "srmech.h"
 
 #include <assert.h>
-#include <math.h>
 #include <stdint.h>
 
 srmech_status_t srmech_cascade_chiral_flip_i64(const int64_t *in,
@@ -400,12 +411,14 @@ srmech_status_t srmech_cascade_cyclic_gcd_u64(uint64_t  a,
  *                      semantics: negate iff orientation < 0; positive
  *                      and zero orientation pass through unchanged.
  *
- * Rounding: magnitude * fine_scale rounds to int64 via llrint() under
- * the default IEEE-754 FE_TONEAREST mode (round-half-to-even, a.k.a.
- * banker's rounding). This is the bit-exact match for Python's
- * built-in round() at the .5 boundary. C99 round() would use round-
- * half-AWAY-from-zero and diverge from Python at the boundary; llrint()
- * with default fenv is the canonical match.
+ * Rounding: magnitude * fine_scale rounds to int64 via the libm-free
+ * Class-K/N round-half-to-even helper _cascade_brs_round_half_even
+ * (v0.9.0rc210; formerly llrint(), the last libm import in libsrmech).
+ * Round-half-to-even (banker's rounding) is the bit-exact match for
+ * Python's built-in round() at the .5 boundary. C99 round() would use
+ * round-half-AWAY-from-zero and diverge from Python at the boundary;
+ * the helper is byte-identical to llrint() under the default IEEE-754
+ * FE_TONEAREST mode across the 0 <= v < 2^63 range this cascade feeds.
  *
  * Dead-band: matches the Python reference's _ZERO_BAND = 1e-12. Origin,
  * NaN, and sub-dead-band magnitudes all map to (0, 1).
@@ -435,6 +448,48 @@ static void _cascade_brs_pin_slot(double x,
     }
 }
 
+/* Class K ∘ Class N (inlined) helper for
+ * srmech_cascade_best_rational_signed_f64: round-half-to-even
+ * (banker's rounding) of a non-negative double — LIBM-FREE
+ * (v0.9.0rc210; replaces llrint(), which was the last libm import
+ * anywhere in libsrmech: the .so resolved it at load, but a bare-C-
+ * host EXECUTABLE then needed -lm, wrinkling the "libsrmech carries
+ * no libm" claim).
+ *
+ * Byte-identical to llrint() under the default IEEE-754 FE_TONEAREST
+ * mode (= Python's built-in round()) across the full domain the
+ * cascade feeds it, 0.0 <= v < 2^63:
+ *   - t = (long long)v is the exact truncation (v < 2^63 fits);
+ *   - frac = v - (double)t is EXACT under IEEE-754: v = m·2^e with
+ *     integer mantissa m < 2^53, so the fractional part is a multiple
+ *     of 2^e below 1 and always representable; IEEE subtraction with
+ *     a representable exact result is exact;
+ *   - frac > 0.5 rounds up, frac < 0.5 rounds down, and the exact
+ *     frac == 0.5 tie goes to the EVEN neighbour via t + (t & 1) —
+ *     precisely the FE_TONEAREST tie-break. The Class-K half-boundary
+ *     branch replaces the tie-handling llrint() delegated to the FPU
+ *     rounding mode; no sign-branch is needed because the Class-K
+ *     pin-slot upstream already stripped the sign (v >= 0);
+ *   - v >= 2^52 is always integral (ulp >= 1), so frac == 0 and the
+ *     value passes through exactly, as llrint() does. t + 1 cannot
+ *     overflow: any v needing a round-up has frac > 0 hence v < 2^52.
+ */
+static long long _cascade_brs_round_half_even(double v)
+{
+    assert(v >= 0.0);
+    assert(v < 9223372036854775808.0); /* 2^63 — caller-guarded int64 bound */
+    const long long t    = (long long)v;   /* exact truncation, v < 2^63 */
+    const double    frac = v - (double)t;  /* exact under IEEE-754 */
+    long long r = t;
+    if (frac > 0.5) {
+        r = t + 1;
+    } else if (frac == 0.5) {
+        /* Class K half-boundary: the tie goes to the even neighbour. */
+        r = t + (t & 1LL);
+    }
+    return r;
+}
+
 srmech_status_t srmech_cascade_best_rational_signed_f64(
     double    x,
     int64_t   max_denominator,
@@ -460,10 +515,16 @@ srmech_status_t srmech_cascade_best_rational_signed_f64(
         *out_den = 1;
         return SRMECH_OK;
     }
-    /* Banker's rounding via llrint() under default IEEE-754
-     * FE_TONEAREST mode — bit-exact with Python's round() at .5
-     * boundary. C99 round() would diverge (half-away-from-zero). */
-    const long long num_pos_ll = llrint(magnitude * (double)fine_scale);
+    /* Libm-free round-half-to-even (banker's) — byte-identical to the
+     * former llrint() under default FE_TONEAREST on the guarded range
+     * (rationale on _cascade_brs_round_half_even). Products >= 2^63
+     * exceed the int64 ABI: explicit SRMECH_ERR_BAD_INPUT (previously
+     * an unspecified, platform-divergent llrint() domain error). */
+    const double scaled = magnitude * (double)fine_scale;
+    if (!(scaled < 9223372036854775808.0)) { /* 2^63; catches +inf too */
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    const long long num_pos_ll = _cascade_brs_round_half_even(scaled);
     if (num_pos_ll <= 0) {
         *out_num = 0;
         *out_den = 1;

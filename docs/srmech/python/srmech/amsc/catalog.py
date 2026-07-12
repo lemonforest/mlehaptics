@@ -65,6 +65,161 @@ from .format import MPRRecord, read_ndjson
 
 
 # ──────────────────────────────────────────────────────────────────────
+# rc172 — the catalog REGISTRY / KERNEL-STATE / AUDIT logic dispatches to C
+# (the ORCHESTRATION→C spine, batch 2). Each native peer COMPOSES the
+# existing kernels (the srmech_json parser+writer+builder + srmech_sha256_hex
+# for the kernel cache_hash); a bare-C host runs the catalog registry/kernel/
+# audit surface with no json.dumps. STATE is caller-owned — Python passes its
+# module globals (registered roots / kernel path+class / the FS-derived
+# overlay set + NDJSON bytes) in per call. Every dispatch is hasattr-guarded
+# (a stale ABI-3 lib keeps the COMPLETE pure path) and returns ``None`` on any
+# missing symbol / serialisation issue / non-OK status so the caller runs the
+# pure path (value-parity, never a rescue).
+# ──────────────────────────────────────────────────────────────────────
+
+
+def _catalog_lib(*symbols: str):
+    """Return the native LIB iff HAS_NATIVE and every named rc172 symbol is
+    bound (a stale ABI-3 lib missing them → ``None`` → pure path)."""
+    from . import _native
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    lib = _native.LIB
+    for sym in symbols:
+        if not hasattr(lib, sym):
+            return None
+    return lib
+
+
+def _opt_bytes(s: Optional[str]) -> Optional[bytes]:
+    """UTF-8 encode an optional string (``None`` → ``None`` → a C NULL)."""
+    return s.encode("utf-8") if s is not None else None
+
+
+def _registered_roots_native(
+    root_path: str, root_source: str, ext_pairs: List[List[str]]
+) -> Optional[List[Dict[str, str]]]:
+    """Native ``list_registered_roots``: build the [{path, source}, ...] array
+    (host root first, then the external pairs) in the C canonical writer."""
+    lib = _catalog_lib("srmech_catalog_registered_roots",
+                       "srmech_catalog_registered_roots_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    rp = root_path.encode("utf-8")
+    rs = root_source.encode("utf-8")
+    ext = json.dumps(ext_pairs, ensure_ascii=False).encode("utf-8")
+    ws_bytes = int(lib.srmech_catalog_registered_roots_arena_bytes(
+        len(rp), len(rs), len(ext)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = 2 * len(ext) + len(rp) + len(rs) + 4096
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_registered_roots(
+        rp, len(rp), rs, len(rs), ext, len(ext),
+        ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+def _local_kernel_state_native(
+    active: bool, path: Optional[str], adapter_class: Optional[str],
+    per_source: List[Dict[str, str]],
+) -> Optional[Dict[str, Any]]:
+    """Native ``get_local_kernel_state``: assemble the state envelope + the
+    Class-A cache_hash = sha256("\\n".join(f"{source_key}\\t{overlay_sha256}"))
+    over the caller-provided (FS-derived) per_source set."""
+    lib = _catalog_lib("srmech_catalog_local_kernel_state",
+                       "srmech_catalog_local_kernel_state_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    ps = json.dumps(per_source, ensure_ascii=False).encode("utf-8")
+    pb = _opt_bytes(path)
+    ab = _opt_bytes(adapter_class)
+    pl = len(pb) if pb is not None else 0
+    al = len(ab) if ab is not None else 0
+    ws_bytes = int(lib.srmech_catalog_local_kernel_state_arena_bytes(
+        pl, al, len(ps)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = len(ps) + pl + al + 4096
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_local_kernel_state(
+        1 if active else 0, pb, pl, ab, al, ps, len(ps),
+        ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+def _use_local_kernel_native(
+    *, clear: bool, resolved: Optional[str] = None,
+    adapter_class: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Native ``use_local_kernel`` / ``clear_local_kernel`` HAPPY-PATH response
+    (the clear response, or the success response for an already-validated
+    overlay). Error responses (invalid class / missing / not-a-dir) stay in
+    Python (their repr-formatted messages are host presentation)."""
+    lib = _catalog_lib("srmech_catalog_use_local_kernel",
+                       "srmech_catalog_use_local_kernel_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    pb = _opt_bytes(resolved)
+    ab = _opt_bytes(adapter_class)
+    pl = len(pb) if pb is not None else 0
+    al = len(ab) if ab is not None else 0
+    ws_bytes = int(lib.srmech_catalog_use_local_kernel_arena_bytes(pl, al))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = pl + al + 4096
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_use_local_kernel(
+        1 if clear else 0, pb, pl, ab, al,
+        ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+def _attestation_audit_native(
+    source_key: str, ndjson: Path
+) -> Optional[Dict[str, Any]]:
+    """Native ``attestation_audit``: iterate the NDJSON bytes + project the
+    per-row attestation metadata (composes the srmech_json parser). Returns
+    ``None`` on any read / parse issue so the caller runs the pure path
+    (which raises MPRValidationError on a genuinely malformed line)."""
+    lib = _catalog_lib("srmech_catalog_attestation_audit",
+                       "srmech_catalog_attestation_audit_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    try:
+        nd = ndjson.read_bytes()
+    except OSError:
+        return None
+    sk = source_key.encode("utf-8")
+    ws_bytes = int(lib.srmech_catalog_attestation_audit_arena_bytes(
+        len(nd), len(sk)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = 2 * len(nd) + 4096
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_attestation_audit(
+        sk, len(sk), nd, len(nd), ws, ws_bytes, out, out_cap,
+        ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return json.loads(out.raw[:out_len.value].decode("utf-8"))
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Discovery — cached at module load
 # ──────────────────────────────────────────────────────────────────────
 #
@@ -173,6 +328,11 @@ def list_registered_roots() -> List[Dict[str, str]]:
     registration order. Used by downstream consumers for diagnostic
     output and by tests for registration-order verification.
     """
+    ext_pairs = [[str(path), src] for path, src in _REGISTERED_ROOTS]
+    native = _registered_roots_native(
+        str(_attested_root()), "srmech.amsc", ext_pairs)
+    if native is not None:
+        return native
     rows: List[Dict[str, str]] = [
         {"path": str(_attested_root()), "source": "srmech.amsc"},
     ]
@@ -346,6 +506,9 @@ def use_local_kernel(
     if path is None:
         _LOCAL_KERNEL_PATH = None
         _LOCAL_KERNEL_ADAPTER_CLASS = None
+        native = _use_local_kernel_native(clear=True)
+        if native is not None:
+            return native
         return {
             "ok": True,
             "active": False,
@@ -373,6 +536,10 @@ def use_local_kernel(
         }
     _LOCAL_KERNEL_PATH = resolved
     _LOCAL_KERNEL_ADAPTER_CLASS = adapter_class
+    native = _use_local_kernel_native(
+        clear=False, resolved=str(resolved), adapter_class=adapter_class)
+    if native is not None:
+        return native
     scope_msg = (
         f" (scope: adapter_class={adapter_class!r})"
         if adapter_class else ""
@@ -415,6 +582,13 @@ def get_local_kernel_state() -> Dict[str, Any]:
             "overlay_sha256": _file_sha256(overlay),
         })
 
+    active = _LOCAL_KERNEL_PATH is not None
+    path_str = str(_LOCAL_KERNEL_PATH) if _LOCAL_KERNEL_PATH else None
+    native = _local_kernel_state_native(
+        active, path_str, _LOCAL_KERNEL_ADAPTER_CLASS, per_source)
+    if native is not None:
+        return native
+
     canonical = "\n".join(
         f"{e['source_key']}\t{e['overlay_sha256']}" for e in per_source
     )
@@ -423,8 +597,8 @@ def get_local_kernel_state() -> Dict[str, Any]:
 
     return {
         "ok": True,
-        "active": _LOCAL_KERNEL_PATH is not None,
-        "path": str(_LOCAL_KERNEL_PATH) if _LOCAL_KERNEL_PATH else None,
+        "active": active,
+        "path": path_str,
         "adapter_class": _LOCAL_KERNEL_ADAPTER_CLASS,
         "n_overlay_sources": len(per_source),
         "per_source": per_source,
@@ -970,6 +1144,10 @@ def attestation_audit(source_key: str) -> Dict[str, Any]:
             "note": "no committed NDJSON; first T1 collection pending",
         }
 
+    native = _attestation_audit_native(source_key, ndjson)
+    if native is not None:
+        return native
+
     rows: List[Dict[str, str]] = []
     for record in read_ndjson(ndjson):
         attestation = dict(record.attestation)
@@ -1019,12 +1197,13 @@ def iter_attested_dataset(source_key: str) -> Iterator[MPRRecord]:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _load_catalog_chains(source_key: str) -> List[Any]:
-    """Parse all ``[[catalog.operator_chain]]`` entries from a descriptor.
+def _catalog_toml_dict(source_key: str) -> tuple[Descriptor, Dict[str, Any]]:
+    """Resolve a source's descriptor + read its parsed-TOML dict.
 
-    Returns a list of :class:`srmech.amsc.compose.ChainSpec`. Empty
-    list when the descriptor declares no chains. Raises
-    ``ChainSpecError`` on a malformed declaration.
+    Raises ``KeyError`` for an unknown ``source_key`` (before any read).
+    The descriptor discovery + FS read stay host-side (a bare-C host reads
+    the descriptor with the srmech_toml parser); the chain PARSE/RUN logic
+    dispatches to C from the callers below.
     """
     descriptors = _descriptors()
     if source_key not in descriptors:
@@ -1036,10 +1215,126 @@ def _load_catalog_chains(source_key: str) -> List[Any]:
     else:  # pragma: no cover
         import tomli as tomllib  # type: ignore
     raw = descriptor.path.read_bytes()
-    toml_dict = tomllib.loads(raw.decode("utf-8"))
+    return descriptor, tomllib.loads(raw.decode("utf-8"))
+
+
+def _load_catalog_chains(source_key: str) -> List[Any]:
+    """Parse all ``[[catalog.operator_chain]]`` entries from a descriptor.
+
+    Returns a list of :class:`srmech.amsc.compose.ChainSpec`. Empty
+    list when the descriptor declares no chains. Raises
+    ``ChainSpecError`` on a malformed declaration.
+    """
+    _descriptor, toml_dict = _catalog_toml_dict(source_key)
     # Lazy import to avoid circular bootstrap.
     from . import compose as _compose
     return _compose.parse_catalog_chains(toml_dict)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc175 — the catalog CHAIN ORCHESTRATION dispatches to C (the
+# ORCHESTRATION→C spine, batch 5). ``srmech_catalog_list_chains`` /
+# ``srmech_catalog_run_chain`` COMPOSE the rc173 chain PARSE + the rc174
+# chain-RUNNER over the catalog's ``operator_chain`` (json.dumps'd as
+# {chain_schema_version, operator_chain:[...]}). A bare-C host lists / runs a
+# catalog's declared chains with these peers + the srmech_toml parser. Every
+# dispatch is hasattr-guarded (a stale ABI-3 lib keeps the COMPLETE pure path)
+# and returns a MISS sentinel / ``None`` on any missing symbol / serialisation
+# issue / non-OK status so the caller runs the pure path (value-parity, never a
+# rescue). The chain-runner's rc103 inform-don't-limit contract is preserved:
+# any out-of-table op / non-i64 referenced input / @catalog ref → MISS → pure.
+# ──────────────────────────────────────────────────────────────────────
+
+_RUN_NATIVE_MISS = object()   # sentinel: C did NOT run the chain (distinct from a None result)
+
+
+def _list_catalog_chains_native(
+    source_key: str, toml_dict: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """Native ``list_catalog_chains``: validate + project the catalog's chains in
+    C. ``None`` (→ pure path) on a missing symbol / non-JSON payload / any C-side
+    validation failure (the pure path raises the specific ChainSpecError)."""
+    catalog = toml_dict.get("catalog", {})
+    chains_raw = catalog.get("operator_chain", [])
+    if not chains_raw:
+        # Empty operator_chain: matches the pure short-circuit (n_chains 0), no
+        # C call needed (parse_catalog_chains returns [] before dispatch too).
+        return {"ok": True, "source_key": source_key, "n_chains": 0, "chains": []}
+    lib = _catalog_lib("srmech_catalog_list_chains",
+                       "srmech_catalog_list_chains_arena_bytes")
+    if lib is None:
+        return None
+    import ctypes
+    from . import _native
+    payload_obj = {
+        "chain_schema_version": catalog.get("chain_schema_version"),
+        "operator_chain": chains_raw,
+    }
+    try:
+        payload = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+    except (TypeError, ValueError):
+        return None
+    ws_bytes = int(lib.srmech_catalog_list_chains_arena_bytes(len(payload)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = 2 * len(payload) + 8192
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_list_chains(
+        payload, len(payload), ws, ws_bytes, out, out_cap,
+        ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    chains = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return {"ok": True, "source_key": source_key,
+            "n_chains": len(chains), "chains": chains}
+
+
+def _run_catalog_chain_native(
+    chains: List[Any], chain_name: str, spec: Any,
+    row: Optional[Dict[str, Any]], inputs: Dict[str, Any],
+) -> Any:
+    """Native ``run_catalog_chain``: find the named chain in ``operator_chain``
+    (serialised from the loaded ChainSpecs) + RUN it in C → the final value, or
+    ``_RUN_NATIVE_MISS`` (→ pure). Mirrors the rc174 chain-run eligibility
+    (all-Class-N, "raise"-policy, referenced ints fit int64); anything else →
+    MISS so the pure path runs the chain over the live object graph."""
+    from . import compose as _compose
+    if not (_compose._chain_c_eligible(spec)
+            and _compose._run_ints_fit_i64(spec, row, inputs or {})):
+        return _RUN_NATIVE_MISS
+    lib = _catalog_lib("srmech_catalog_run_chain",
+                       "srmech_catalog_run_chain_arena_bytes")
+    if lib is None:
+        return _RUN_NATIVE_MISS
+    import ctypes
+    from . import _native
+    # Serialise the WHOLE catalog's chains so the C find-by-name genuinely
+    # resolves the named chain among its peers (asymptotic_calculus has 5).
+    payload_obj = {
+        "chain_schema_version": 1,
+        "operator_chain": [_compose._spec_to_chain_dict(c) for c in chains],
+    }
+    ctx = {"row": row, "inputs": inputs or {}}
+    try:
+        cat_json = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+        ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
+        name_b = chain_name.encode("utf-8")
+    except (TypeError, ValueError):
+        return _RUN_NATIVE_MISS
+    ws_bytes = int(lib.srmech_catalog_run_chain_arena_bytes(
+        len(cat_json), len(ctx_json)))
+    ws = (ctypes.c_char * ws_bytes)()
+    out_cap = max(ws_bytes // 2, 16384)
+    out = (ctypes.c_char * out_cap)()
+    out_len = ctypes.c_size_t()
+    rc = lib.srmech_catalog_run_chain(
+        cat_json, len(cat_json), name_b, len(name_b),
+        ctx_json, len(ctx_json), ws, ws_bytes, out, out_cap,
+        ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        return _RUN_NATIVE_MISS
+    desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+    return _compose._reconstruct_value(desc)
 
 
 def list_catalog_chains(source_key: str) -> Dict[str, Any]:
@@ -1063,13 +1358,18 @@ def list_catalog_chains(source_key: str) -> Dict[str, Any]:
         (``classes`` is the per-step class_id sequence).
     """
     try:
-        chains = _load_catalog_chains(source_key)
+        _descriptor, toml_dict = _catalog_toml_dict(source_key)
     except KeyError:
         return {
             "ok": False,
             "error": f"unknown source_key {source_key!r}",
             "available": sorted(_descriptors().keys()),
         }
+    native = _list_catalog_chains_native(source_key, toml_dict)
+    if native is not None:
+        return native
+    from . import compose as _compose
+    chains = _compose.parse_catalog_chains(toml_dict)
     return {
         "ok": True,
         "source_key": source_key,
@@ -1140,6 +1440,13 @@ def run_catalog_chain(
         # `row` binding exposes the row's MPR record's `data` block
         # plus the descriptor's rendering attestation for context.
         row = dict(rows[0].get("data", {}))
+    # rc175: dispatch the resolve-named-chain + run to the C orchestration peer
+    # (srmech_catalog_run_chain composes the rc173 parse + rc174 chain-runner).
+    # A MISS (out-of-table op / non-i64 input / stale lib) → the COMPLETE pure
+    # path, which runs the chain over the live object graph (value-parity).
+    native = _run_catalog_chain_native(chains, chain_name, spec, row, inputs or {})
+    if native is not _RUN_NATIVE_MISS:
+        return native
     from . import compose as _compose
     return _compose.run_chain(spec, row=row, inputs=inputs or {})
 

@@ -9,6 +9,28 @@ The closed-form reference ships the JPEG core algebra (block-wise DCT-II,
 uniform quantisation, zigzag/TLV packing) without entropy-coding (which is
 Huffman, the separate Phase 2 op). Decode reverses the chain.
 
+rc213 (#753) classification: ``c_dispatched``.  jpeg was deferred at rc144/B6b
+out of the exact coder batch as a float-DCT NUMERIC op, then reached C only as
+a rc155 ``composition_of_c`` (each block's DCT riding :func:`dct.op` →
+``mat_matmul`` — 4 Python-glue dispatches PER BLOCK, rebuilding the cosine
+basis per call).  It now has its dedicated numeric C peer: ``op`` dispatches
+the WHOLE blocked pipeline — strided block extract → separable 2-D DCT-II over
+the caller-built cosine basis → Class-K round-half-even quantise (encode), and
+dequantise → 2-D DCT-III → ``1/(2·bs)²`` normalise (decode) — to
+``srmech_jpeg_encode_f64`` / ``srmech_jpeg_decode_f64`` (via
+``_native.jpeg_{encode,decode}_f64_c``; ONE ctypes crossing for the whole
+image) when the native lib is present, and falls back to the complete
+numpy-free pure block-DCT cascade below otherwise.  The bases + quant table
+stay caller data built once through the byte-exact Class-N ``rational.cos``
+cascade (:func:`dct._dct_matrix` — the SAME basis the pure path uses), the
+rc149 ``iir`` taps precedent.  NUMERIC (within-tol, not byte-identical): the
+stage accumulations may FMA-fuse ~1 ULP on some platforms, so the parity
+contract is differential (reldiff ≤ 1e-9 on the reconstructed image; the
+quantised integers agree exactly away from rounding boundaries), the F1-FFT /
+F2-SVD / B4 numeric-foundation contract.  The sibling Huffman entropy coder
+stays the separate c_dispatched op (``srmech_huffman_build_codes``) for the
+callers that add it.
+
 Carrier-removal #564 (rc111): numpy-FREE — the last clean DSP carrier flip.
 The block transform already runs numpy-free through :func:`dct.op` (rc104,
 returns a list-of-lists); jpeg now carries the 2-D image as nested Python
@@ -67,6 +89,80 @@ def _as_rows(arr) -> List[list]:
     return arr.tolist() if hasattr(arr, "tolist") else [list(r) for r in arr]
 
 
+def _qt_flat_bs(qt, bs) -> Optional[List[float]]:
+    """Flatten the TOP-LEFT ``bs×bs`` submatrix of the quant table (the pure
+    per-block path indexes ``qt[r][c]`` for ``r, c < bs``, so a ``bs < 8``
+    block size uses the top-left corner of the 8×8 Wallace table). ``None``
+    when the table is smaller than ``bs`` — the native path declines and the
+    pure path raises its usual ``IndexError`` (behaviour parity)."""
+    if len(qt) < bs or any(len(row) < bs for row in qt):
+        return None
+    return [float(qt[r][c]) for r in range(bs) for c in range(bs)]
+
+
+def _native_encode(img, h, w, qt, bs):
+    """Dispatch the whole encode pipeline to the c_dispatched
+    ``srmech_jpeg_encode_f64`` (rc213) — returns the quantised-blocks list (of
+    ``bs×bs`` integer list-of-lists) or ``None`` (caller runs the pure path).
+    The DCT-II basis is built ONCE through the byte-exact Class-N
+    ``rational.cos`` cascade (the SAME basis the pure per-block path uses)."""
+    from srmech.amsc import _native
+
+    if not _native.has_native_jpeg_f64():
+        return None
+    from .dct import _dct_matrix
+
+    qt_flat = _qt_flat_bs(qt, bs)
+    if qt_flat is None:
+        return None
+    basis2 = [v for row in _dct_matrix(bs, 2) for v in row]
+    img_flat = [v for row in img for v in row]
+    flat = _native.jpeg_encode_f64_c(img_flat, h, w, basis2, qt_flat, bs)
+    if flat is None:
+        return None
+    bh = h // bs
+    bw = w // bs
+    blocks: List[List[List[int]]] = []
+    for t in range(bh * bw):
+        base = t * bs * bs
+        blocks.append(
+            [
+                [int(flat[base + r * bs + c]) for c in range(bs)]
+                for r in range(bs)
+            ]
+        )
+    return blocks
+
+
+def _native_decode(quant_blocks, bh, bw, qt, bs):
+    """Dispatch the whole decode pipeline to the c_dispatched
+    ``srmech_jpeg_decode_f64`` (rc213) — returns the reconstructed 2-D image
+    ``list`` or ``None`` (caller runs the pure path)."""
+    from srmech.amsc import _native
+
+    if not _native.has_native_jpeg_f64():
+        return None
+    from .dct import _dct_matrix
+
+    qt_flat = _qt_flat_bs(qt, bs)
+    if qt_flat is None:
+        return None
+    basis3 = [v for row in _dct_matrix(bs, 3) for v in row]
+    q_flat: List[float] = []
+    for t in range(bh * bw):
+        qb = _as_rows(quant_blocks[t])
+        for r in range(bs):
+            for c in range(bs):
+                q_flat.append(float(qb[r][c]))
+    flat = _native.jpeg_decode_f64_c(q_flat, bh, bw, basis3, qt_flat, bs)
+    if flat is None:
+        return None
+    width = bw * bs
+    return [
+        [flat[r * width + c] for c in range(width)] for r in range(bh * bs)
+    ]
+
+
 def _quant_table(quality: int, quant_table) -> List[List[float]]:
     """Build the 8x8 quantisation matrix (numpy-free)."""
     if quant_table is not None:
@@ -123,6 +219,11 @@ def op(
         h, w = shape
         bh = h // bs
         bw = w // bs
+        # c_dispatched: the whole blocked pipeline through
+        # srmech_jpeg_decode_f64 (rc213); pure block-DCT cascade otherwise.
+        native = _native_decode(quant_blocks, bh, bw, qt, bs)
+        if native is not None:
+            return native
         norm = 1.0 / (2.0 * bs) ** 2
         out = [[0.0] * (bw * bs) for _ in range(bh * bs)]
         for i in range(bh):
@@ -156,6 +257,11 @@ def op(
     # Truncate to a multiple of block_size.
     bh = h // bs
     bw = w // bs
+    # c_dispatched: the whole blocked pipeline through srmech_jpeg_encode_f64
+    # (rc213); pure block-DCT cascade otherwise.
+    native = _native_encode(img, h, w, qt, bs)
+    if native is not None:
+        return native, (bh * bs, bw * bs), qt
     quant_blocks: List[List[List[int]]] = []
     for i in range(bh):
         for j in range(bw):

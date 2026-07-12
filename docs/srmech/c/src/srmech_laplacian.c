@@ -203,6 +203,588 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
     return SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * 0.9.0rc105 (issue #1234 Item 3 / F1006 / F1007): magnetic (Hermitian)
+ * Laplacian of a directed graph — the standalone-C builder peer of
+ * `laplacian.magnetic_laplacian`. See srmech.h for the two-mode wire
+ * contract (scalar-q vs per-edge charges). The trig is the srmech Q61
+ * cascade (srmech_cos_q61 / srmech_sin_q61), byte-exact with the pure-
+ * Python Class-N cascade the Python path runs; the Q61 -> double
+ * projection `(double)v / (double)SRMECH_Q61_ONE` is an exact power-of-
+ * two scale of the rounded int64, bit-identical to Python's
+ * `float(Q(v, 2**61))`. pi = 4 * atan_q61(1) — the SAME derivation the
+ * Python module-level `_PI` uses (no libm, no M_PI).
+ * ------------------------------------------------------------------ */
+
+/* Zero the 2*n*n interleaved output and accumulate the DIRECTED
+ * adjacency W[u,v] += w into the IMAGINARY slots (odd indices). Unlike
+ * the undirected builder this does NOT mirror the transpose — direction
+ * is preserved (W is generally asymmetric). The imag slots serve as the
+ * W staging area so the scalar mode needs NO scratch arena (the final
+ * imaginary pass rewrites them). */
+static srmech_status_t lap_mag_build_w(uint32_t n, uint32_t n_edges,
+                                       const uint32_t *eu, const uint32_t *ev,
+                                       const double *w, double *out)
+{
+    assert(out != NULL);
+    assert(n_edges == 0 || (eu != NULL && ev != NULL));
+    size_t cells = 2u * (size_t)n * (size_t)n;
+    for (size_t i = 0; i < cells; i++) {
+        out[i] = 0.0;
+    }
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = eu[e];
+        uint32_t vv = ev[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        double we = (w != NULL) ? w[e] : 1.0;
+        out[2u * ((size_t)uu * n + vv) + 1u] += we;
+    }
+    return SRMECH_OK;
+}
+
+/* Scalar-q mode pass 1: REAL parts + the degree diagonal. Reads W from
+ * the intact imaginary slots; writes only real (even) slots. Mirrors the
+ * Python row-major accumulation order (deg_r sums A_s[r,c] for c
+ * ascending, INCLUDING c == r) so the float sums are bit-identical. */
+static srmech_status_t lap_mag_scalar_real(uint32_t n, double two_pi_q,
+                                           double *out)
+{
+    assert(out != NULL);
+    for (uint32_t r = 0; r < n; r++) {
+        double deg = 0.0;
+        for (uint32_t c = 0; c < n; c++) {
+            double wrc = out[2u * ((size_t)r * n + c) + 1u];
+            double wcr = out[2u * ((size_t)c * n + r) + 1u];
+            double a_s = 0.5 * (wrc + wcr);
+            deg += a_s;
+            if (c == r) {
+                continue;   /* no self-phase; degree carries the diagonal */
+            }
+            int64_t cv = 0;
+            srmech_status_t st = srmech_cos_q61(two_pi_q * (wrc - wcr), &cv);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+            assert(cv >= -SRMECH_Q61_ONE && cv <= SRMECH_Q61_ONE);
+            out[2u * ((size_t)r * n + c)] =
+                -(a_s * ((double)cv / (double)SRMECH_Q61_ONE));
+        }
+        out[2u * ((size_t)r * n + r)] = deg;
+    }
+    return SRMECH_OK;
+}
+
+/* Scalar-q mode pass 2: IMAGINARY parts, pairwise (r < c). Each pair
+ * reads BOTH W values from the still-intact imaginary slots before
+ * overwriting them (the mirror cell's sine is computed independently,
+ * exactly as the Python per-cell loop does — no evenness assumption on
+ * the Q61 reduction). Diagonal imaginary = 0 (real degree). */
+static srmech_status_t lap_mag_scalar_imag(uint32_t n, double two_pi_q,
+                                           double *out)
+{
+    assert(out != NULL);
+    for (uint32_t r = 0; r < n; r++) {
+        for (uint32_t c = r + 1u; c < n; c++) {
+            size_t irc = 2u * ((size_t)r * n + c) + 1u;
+            size_t icr = 2u * ((size_t)c * n + r) + 1u;
+            double wrc = out[irc];
+            double wcr = out[icr];
+            double a_s = 0.5 * (wrc + wcr);
+            int64_t s_rc = 0;
+            int64_t s_cr = 0;
+            srmech_status_t st = srmech_sin_q61(two_pi_q * (wrc - wcr), &s_rc);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+            st = srmech_sin_q61(two_pi_q * (wcr - wrc), &s_cr);
+            if (st != SRMECH_OK) {
+                return st;
+            }
+            assert(s_rc >= -SRMECH_Q61_ONE && s_rc <= SRMECH_Q61_ONE);
+            out[irc] = -(a_s * ((double)s_rc / (double)SRMECH_Q61_ONE));
+            out[icr] = -(a_s * ((double)s_cr / (double)SRMECH_Q61_ONE));
+        }
+        out[2u * ((size_t)r * n + r) + 1u] = 0.0;
+    }
+    return SRMECH_OK;
+}
+
+/* Per-edge CHIRAL mode (charges != NULL): each edge k = (u, v, w, c)
+ * accumulates the conjugate Hermitian pair -(w/2)*e^{+i 2*pi*c} at
+ * [u,v] and -(w/2)*e^{-i 2*pi*c} at [v,u]; the degree accumulates in
+ * the DIAGONAL REAL slot (never touched by the off-diagonal phases, so
+ * no scratch). Self-loops contribute w to the degree and no phase —
+ * matching the scalar mode's diagonal convention. */
+static srmech_status_t lap_mag_charges(uint32_t n, uint32_t n_edges,
+                                       const uint32_t *eu, const uint32_t *ev,
+                                       const double *w, const double *ch,
+                                       double two_pi, double *out)
+{
+    assert(out != NULL);
+    assert(n_edges == 0 || ch != NULL);
+    size_t cells = 2u * (size_t)n * (size_t)n;
+    for (size_t i = 0; i < cells; i++) {
+        out[i] = 0.0;
+    }
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = eu[e];
+        uint32_t vv = ev[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        double we = (w != NULL) ? w[e] : 1.0;
+        double hw = 0.5 * we;
+        out[2u * ((size_t)uu * n + uu)] += hw;   /* deg[u] (diagonal real) */
+        out[2u * ((size_t)vv * n + vv)] += hw;   /* deg[v] */
+        if (uu == vv) {
+            continue;   /* no self-phase; degree carries the diagonal */
+        }
+        int64_t cv = 0;
+        int64_t sv = 0;
+        srmech_status_t st = srmech_cos_q61(two_pi * ch[e], &cv);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        st = srmech_sin_q61(two_pi * ch[e], &sv);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        double re = (double)cv / (double)SRMECH_Q61_ONE;
+        double im = (double)sv / (double)SRMECH_Q61_ONE;
+        out[2u * ((size_t)uu * n + vv)] += -(hw * re);
+        out[2u * ((size_t)uu * n + vv) + 1u] += -(hw * im);
+        out[2u * ((size_t)vv * n + uu)] += -(hw * re);
+        out[2u * ((size_t)vv * n + uu) + 1u] += hw * im;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_graph_magnetic_laplacian(uint32_t        n,
+                                                uint32_t        n_edges,
+                                                const uint32_t *edges_u,
+                                                const uint32_t *edges_v,
+                                                const double   *weights,
+                                                double          q,
+                                                const double   *charges,
+                                                double         *out_matrix)
+{
+    assert(out_matrix != NULL);
+    if (out_matrix == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_edges > 0 && (edges_u == NULL || edges_v == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    /* pi = 4 * atan_q61(1) — the exact derivation the Python module-level
+     * _PI uses (4 * float(Q(atan_q61(1), 2^61))); no libm M_PI. */
+    int64_t atan1 = 0;
+    srmech_status_t st = srmech_atan_q61(1.0, &atan1);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    double pi = 4.0 * ((double)atan1 / (double)SRMECH_Q61_ONE);
+    assert(pi > 3.0 && pi < 3.3);
+    if (charges != NULL) {
+        return lap_mag_charges(n, n_edges, edges_u, edges_v, weights,
+                               charges, 2.0 * pi, out_matrix);
+    }
+    st = lap_mag_build_w(n, n_edges, edges_u, edges_v, weights, out_matrix);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    double two_pi_q = 2.0 * pi * q;
+    st = lap_mag_scalar_real(n, two_pi_q, out_matrix);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    return lap_mag_scalar_imag(n, two_pi_q, out_matrix);
+}
+
+/* ------------------------------------------------------------------
+ * 0.9.0rc229 (#687): the V4-gain (Klein-4-sector) Laplacian — the
+ * EVEN-channel fuller partner of srmech_graph_magnetic_laplacian. Each
+ * edge carries a V4 = Z2 x Z2 gain g = (g0, g1) — TWO sign bits, packed
+ * low..high in a uint8 in {0,1,2,3}. V4 has FOUR real characters
+ * chi_ab(g) = (-1)^(a*g0 + b*g1), (a,b) in {0,1}^2, so the object
+ * decomposes into FOUR real signed Laplacians L_chi = D_bar - chi(g_e)*A
+ * — the two-bit generalization of the one-bit signed Laplacian. `out` is
+ * 4*n*n doubles, SECTOR-major: sector k in {0,1,2,3} = (a = k>>1, b = k&1)
+ * occupies out[k*n*n ...], so k=0 -> chi00 (trivial), 1 -> chi01,
+ * 2 -> chi10, 3 -> chi11, each real row-major n*n. The two gain bits are
+ * treated SYMMETRICALLY (no bit is privileged). The signed degree
+ * D_bar_ii = sum_{j != i} |A_ij| uses the Class-K magnitude sign-branch
+ * (a >= 0 ? a : -a) — NOT an ALU abs(); |chi*w| = |w|, so the degree is
+ * character-INDEPENDENT (same across the four sectors).
+ *
+ * No node cap, NO scratch: the signed adjacency is staged in each sector
+ * block then converted to L = D - A in place per row (the caller's `out`
+ * is the only buffer). An out-of-range endpoint or a gain > 3 ->
+ * SRMECH_ERR_BAD_INPUT. ABI-additive: a new symbol, SRMECH_ABI_VERSION
+ * stays 4.
+ * ------------------------------------------------------------------ */
+
+/* Character sign chi_ab(g) in {+1,-1}: parity of (a & g0) ^ (b & g1). */
+static int klein4_char_sign(unsigned a, unsigned b, uint8_t g)
+{
+    assert(a <= 1u && b <= 1u);
+    assert(g <= 3u);
+    unsigned g0 = (unsigned)(g & 1u);
+    unsigned g1 = (unsigned)((g >> 1) & 1u);
+    unsigned p = (a & g0) ^ (b & g1);
+    return (p != 0u) ? -1 : 1;
+}
+
+/* Convert one sector's signed adjacency block A (row-major n*n) into the
+ * signed Laplacian L = D_bar - A in place. D_bar_ii = sum_{c != i} |A_ic|
+ * via the Class-K magnitude sign-branch (no abs()); off-diag L = -A. */
+static void klein4_laplacianize_block(uint32_t n, double *blk)
+{
+    assert(blk != NULL);
+    for (uint32_t r = 0; r < n; r++) {
+        double deg = 0.0;
+        for (uint32_t c = 0; c < n; c++) {
+            if (c == r) {
+                continue;
+            }
+            double a = blk[(size_t)r * n + c];
+            deg += (a >= 0.0) ? a : -a;   /* Class-K magnitude, not abs() */
+            blk[(size_t)r * n + c] = -a;  /* L off-diag = -A */
+        }
+        blk[(size_t)r * n + r] = deg;
+    }
+    assert(n == 0 || blk != NULL);
+}
+
+srmech_status_t srmech_graph_klein4_gain_laplacian(uint32_t        n,
+                                                   uint32_t        n_edges,
+                                                   const uint32_t *edges_u,
+                                                   const uint32_t *edges_v,
+                                                   const double   *weights,
+                                                   const uint8_t  *gains,
+                                                   double         *out_matrix)
+{
+    assert(out_matrix != NULL);
+    if (out_matrix == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_edges > 0 && (edges_u == NULL || edges_v == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    size_t block = (size_t)n * (size_t)n;
+    size_t cells = 4u * block;
+    for (size_t i = 0; i < cells; i++) {
+        out_matrix[i] = 0.0;
+    }
+    /* Accumulate the signed adjacency for all four sectors in one edge
+     * loop (undirected: A[u,v] += s*w and A[v,u] += s*w; a self-loop lands
+     * 2*s*w on the diagonal, which the degree pass drops). */
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = edges_u[e];
+        uint32_t vv = edges_v[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        uint8_t g = (gains != NULL) ? gains[e] : 0u;
+        if (g > 3u) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        double w = (weights != NULL) ? weights[e] : 1.0;
+        for (unsigned k = 0; k < 4u; k++) {
+            double sw = (double)klein4_char_sign(k >> 1, k & 1u, g) * w;
+            double *blk = out_matrix + (size_t)k * block;
+            blk[(size_t)uu * n + vv] += sw;
+            blk[(size_t)vv * n + uu] += sw;
+        }
+    }
+    for (unsigned k = 0; k < 4u; k++) {
+        klein4_laplacianize_block(n, out_matrix + (size_t)k * block);
+    }
+    assert(n == 0 || out_matrix != NULL);
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
+ * 0.9.0rc229 (#687): cycle_holonomy — the ODD channel the (Hermitian /
+ * signed) SPECTRUM provably cannot carry. A gain graph is determined up
+ * to switching (node re-gauging) by its cycle gains (Zaslavsky, signed
+ * graphs, DAM 4 (1982) 47-74). This computes exactly: a spanning forest
+ * (union-find, first-encountered edge = tree edge) -> the fundamental
+ * cycle for each co-tree edge -> that cycle's NET charge (per-edge
+ * charges in TURNS, rational, reduced mod 1). It is Class I (mod-1
+ * cyclic) o Class L (graph): exact int64-rational arithmetic, NO
+ * eigensolve. The per-cycle holonomy is invariant under node re-gauging
+ * (a coboundary telescopes around any cycle) and is 0 for every cycle
+ * IFF the gain graph is balanced (Zaslavsky's balance criterion); a
+ * genuine odd cycle-gain makes it nonzero, and it distinguishes +c from
+ * -c (1/4 vs 3/4 mod 1) — the chirality the sector spectra CANNOT (a
+ * conjugated Hermitian matrix has the same eigenvalues).
+ *
+ * Charges are per-edge reduced rationals (charge_num[e]/charge_den[e], in
+ * turns); NULL arrays -> 0. Denominators must be positive and both
+ * |charge_num| and charge_den <= SRMECH_HOLO_RAT_LIMIT (1e9) so the exact
+ * int64 add/reduce cannot overflow; a magnitude past that, or an
+ * intermediate whose reduced denominator would exceed the limit, returns
+ * SRMECH_ERR_OVERFLOW (the pure-Python Fraction path is the exact
+ * complete alternative). Outputs (each length >= n_edges): out_num/out_den
+ * = the reduced holonomy in [0,1) per fundamental cycle; out_cycle_u/v =
+ * the co-tree edge indexing each cycle; *out_n_cycles = the cyclomatic
+ * number (n_edges - tree_edges). `ws` is a caller arena of at least
+ * srmech_graph_cycle_holonomy_arena_bytes(n, n_edges) bytes (no malloc).
+ * ABI-additive: new symbols, SRMECH_ABI_VERSION stays 4.
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_HOLO_RAT_LIMIT ((int64_t)1000000000)
+
+size_t srmech_graph_cycle_holonomy_arena_bytes(uint32_t n, uint32_t n_edges)
+{
+    /* int64: pot_num[n] + pot_den[n] + tnum[ne] + tden[ne] = 8*(2n + 2ne)
+     * int32: parent[n] + rnk[n] + visited[n] + queue[n] + tu[ne] + tv[ne]
+     *        = 4*(4n + 2ne). +64 alignment/padding slop. */
+    size_t bn = (size_t)n;
+    size_t be = (size_t)n_edges;
+    size_t bytes = 8u * (2u * bn + 2u * be) + 4u * (4u * bn + 2u * be) + 64u;
+    assert(bytes >= 64u);            /* always includes the alignment/pad slop */
+    assert(bytes >= 16u * bn);       /* room for the int64 pot_num/pot_den[n] */
+    return bytes;
+}
+
+/* Euclid gcd on non-negative int64 (bounded by the bit-width). */
+static int64_t holo_gcd(int64_t a, int64_t b)
+{
+    assert(a >= 0);
+    assert(b >= 0);
+    while (b != 0) {
+        int64_t t = a % b;
+        a = b;
+        b = t;
+    }
+    return a;
+}
+
+/* Canonicalize num/den: den > 0, gcd(|num|, den) == 1. */
+static void holo_reduce(int64_t *num, int64_t *den)
+{
+    assert(num != NULL);
+    assert(den != NULL && *den != 0);
+    int64_t nu = *num;
+    int64_t d = *den;
+    if (d < 0) {              /* Class-K sign move to den > 0 */
+        d = -d;
+        nu = -nu;
+    }
+    int64_t an = (nu >= 0) ? nu : -nu;    /* |num| sign-branch, no abs() */
+    int64_t g = holo_gcd(an, d);
+    if (g > 1) {
+        nu /= g;
+        d /= g;
+    }
+    *num = nu;
+    *den = d;
+}
+
+/* r = a/ad + b/bd (exact), reduced. Overflow-guarded against the int64
+ * limit -> SRMECH_ERR_OVERFLOW. */
+static srmech_status_t holo_add(int64_t an, int64_t ad, int64_t bn, int64_t bd,
+                                int64_t *rn, int64_t *rd)
+{
+    assert(ad != 0 && bd != 0);
+    assert(rn != NULL && rd != NULL);
+    int64_t aan = (an >= 0) ? an : -an;
+    int64_t abn = (bn >= 0) ? bn : -bn;
+    if (ad > SRMECH_HOLO_RAT_LIMIT || bd > SRMECH_HOLO_RAT_LIMIT ||
+        aan > SRMECH_HOLO_RAT_LIMIT || abn > SRMECH_HOLO_RAT_LIMIT) {
+        return SRMECH_ERR_OVERFLOW;   /* fall to the exact pure path */
+    }
+    int64_t d = ad * bd;              /* <= 1e18, fits int64 */
+    int64_t nu = an * bd + bn * ad;   /* |terms| <= 1e18 each, sum <= 2e18 */
+    holo_reduce(&nu, &d);
+    *rn = nu;
+    *rd = d;
+    return SRMECH_OK;
+}
+
+/* Reduce num/den into [0,1): num <- ((num mod den) + den) mod den. */
+static void holo_mod1(int64_t *num, int64_t *den)
+{
+    assert(num != NULL);
+    assert(den != NULL && *den > 0);
+    int64_t r = *num % *den;
+    if (r < 0) {
+        r += *den;
+    }
+    *num = r;
+    holo_reduce(num, den);
+}
+
+/* Union-find find with path halving (iterative, bounded by n). */
+static uint32_t holo_find(int32_t *parent, uint32_t x)
+{
+    assert(parent != NULL);
+    while ((uint32_t)parent[x] != x) {
+        parent[x] = parent[(uint32_t)parent[x]];   /* halve */
+        x = (uint32_t)parent[x];
+    }
+    assert((uint32_t)parent[x] == x);   /* the returned node is its own root */
+    return x;
+}
+
+/* Build pot[i] = tree-path charge (root -> i) by BFS over the tree edges.
+ * A tree edge (tu,tv) with charge tnum/tden means charge(tu -> tv) =
+ * +tnum/tden. Returns SRMECH_ERR_OVERFLOW if any accumulation exceeds the
+ * int64 rational limit. */
+static srmech_status_t holo_build_pot(uint32_t n, uint32_t n_tree,
+    const int32_t *tu, const int32_t *tv,
+    const int64_t *tnum, const int64_t *tden,
+    int64_t *pot_num, int64_t *pot_den, int32_t *visited, int32_t *queue)
+{
+    assert(pot_num != NULL && pot_den != NULL);
+    assert(visited != NULL && queue != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        visited[i] = 0;
+        pot_num[i] = 0;
+        pot_den[i] = 1;
+    }
+    for (uint32_t s = 0; s < n; s++) {
+        if (visited[s]) {
+            continue;
+        }
+        uint32_t head = 0, tail = 0;
+        visited[s] = 1;
+        queue[tail++] = (int32_t)s;
+        while (head < tail) {
+            uint32_t x = (uint32_t)queue[head++];
+            for (uint32_t e = 0; e < n_tree; e++) {
+                uint32_t a = (uint32_t)tu[e];
+                uint32_t b = (uint32_t)tv[e];
+                uint32_t nb;
+                int64_t cn;
+                if (a == x && !visited[b]) {
+                    nb = b; cn = tnum[e];        /* x -> nb: +charge */
+                } else if (b == x && !visited[a]) {
+                    nb = a; cn = -tnum[e];       /* x -> nb: -charge */
+                } else {
+                    continue;
+                }
+                srmech_status_t st = holo_add(pot_num[x], pot_den[x],
+                                              cn, tden[e],
+                                              &pot_num[nb], &pot_den[nb]);
+                if (st != SRMECH_OK) {
+                    return st;
+                }
+                visited[nb] = 1;
+                queue[tail++] = (int32_t)nb;
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_graph_cycle_holonomy(uint32_t        n,
+                                            uint32_t        n_edges,
+                                            const uint32_t *edges_u,
+                                            const uint32_t *edges_v,
+                                            const int64_t  *charge_num,
+                                            const int64_t  *charge_den,
+                                            int64_t        *out_num,
+                                            int64_t        *out_den,
+                                            uint32_t       *out_cycle_u,
+                                            uint32_t       *out_cycle_v,
+                                            uint32_t       *out_n_cycles,
+                                            void           *ws,
+                                            size_t          ws_len)
+{
+    assert(out_n_cycles != NULL);
+    if (out_n_cycles == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_edges > 0 && (edges_u == NULL || edges_v == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (ws_len < srmech_graph_cycle_holonomy_arena_bytes(n, n_edges)) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    /* Carve the arena: int64 arrays first (8-aligned base), then int32. */
+    int64_t *pot_num = (int64_t *)ws;
+    int64_t *pot_den = pot_num + n;
+    int64_t *tnum = pot_den + n;
+    int64_t *tden = tnum + n_edges;
+    int32_t *parent = (int32_t *)(tden + n_edges);
+    int32_t *rnk = parent + n;
+    int32_t *visited = rnk + n;
+    int32_t *queue = visited + n;
+    int32_t *tu = queue + n;
+    int32_t *tv = tu + n_edges;
+    for (uint32_t i = 0; i < n; i++) {
+        parent[i] = (int32_t)i;
+        rnk[i] = 0;
+    }
+    /* Union-find pass: first-encountered spanning edge = tree edge; a
+     * spanning cycle-closing edge = co-tree edge (a fundamental cycle). */
+    uint32_t n_tree = 0;
+    uint32_t n_cyc = 0;
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = edges_u[e];
+        uint32_t vv = edges_v[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        int64_t cn = (charge_num != NULL) ? charge_num[e] : 0;
+        int64_t cd = (charge_den != NULL) ? charge_den[e] : 1;
+        if (cd == 0) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        uint32_t ru = holo_find(parent, uu);
+        uint32_t rv = holo_find(parent, vv);
+        if (ru != rv) {
+            if (rnk[ru] < rnk[rv]) {
+                uint32_t tmp = ru; ru = rv; rv = tmp;
+            }
+            parent[rv] = (int32_t)ru;
+            if (rnk[ru] == rnk[rv]) {
+                rnk[ru]++;
+            }
+            tu[n_tree] = (int32_t)uu;
+            tv[n_tree] = (int32_t)vv;
+            tnum[n_tree] = cn;
+            tden[n_tree] = cd;
+            n_tree++;
+        } else {
+            out_cycle_u[n_cyc] = uu;
+            out_cycle_v[n_cyc] = vv;
+            out_num[n_cyc] = cn;   /* stash co-tree charge; folded in below */
+            out_den[n_cyc] = cd;
+            n_cyc++;
+        }
+    }
+    *out_n_cycles = n_cyc;
+    srmech_status_t st = holo_build_pot(n, n_tree, tu, tv, tnum, tden,
+                                        pot_num, pot_den, visited, queue);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    /* holonomy(u,v,c) = c + pot[u] - pot[v], reduced mod 1. */
+    for (uint32_t i = 0; i < n_cyc; i++) {
+        uint32_t uu = out_cycle_u[i];
+        uint32_t vv = out_cycle_v[i];
+        int64_t hn = out_num[i];
+        int64_t hd = out_den[i];
+        st = holo_add(hn, hd, pot_num[uu], pot_den[uu], &hn, &hd);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        st = holo_add(hn, hd, -pot_num[vv], pot_den[vv], &hn, &hd);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        holo_mod1(&hn, &hd);
+        out_num[i] = hn;
+        out_den[i] = hd;
+    }
+    return SRMECH_OK;
+}
+
 /* Helper: apply a single Givens rotation to symmetric `mat` at index
  * pair (p, q). Updates rows + columns p, q in place. Pi-free —
  * c, s computed algebraically from matrix entries (no trig). */
@@ -371,9 +953,21 @@ static void srmech_hermitian_jacobi_rotate(uint32_t n, double *H,
         return;
     }
     double g_mag = lap_sqrt(g_mag_sq);
-    /* Phase factor e^(iθ) = γ/|γ| — pure algebra, no atan2. */
+    /* Phase factor — pure algebra, no atan2. rc108 FIX (found by the
+     * srmech_heat_trace parity gate): the update below applies
+     * H -> M H M^H with M = [[c, -s*e^(-i*phi_enc)], [s*e^(+i*phi_enc), c]]
+     * (phi_enc = the angle encoded by cosphi/sinphi). Zeroing H[p][q] =
+     * gamma = |gamma|*e^(i*phi) under THAT transform needs the CONJUGATE
+     * phase, e^(i*phi_enc) = conj(gamma)/|gamma| (then H'[p][q] =
+     * e^(i*phi)*[c*s*(a_pp - a_qq) + |gamma|*(c^2 - s^2)] — one common
+     * phase, killed by the real-tau rotation). The old non-conjugate
+     * phase left mixed e^(i*phi)/e^(-3i*phi) terms, so a GENERIC complex
+     * off-diagonal never annihilated: the sweep stalled and the kernel
+     * returned OVERFLOW (silently masked by the pure-Python fallback).
+     * Real input (g_im = 0) and the zero-diagonal pure-imaginary case
+     * (sigma_y) were the two coincidences that worked. */
     double cosphi = g_re / g_mag;
-    double sinphi = g_im / g_mag;
+    double sinphi = -(g_im / g_mag);
     /* Real symmetric reduction: tau = (a_qq − a_pp) / (2|γ|). */
     double tau = (a_qq - a_pp) / (2.0 * g_mag);
     double t;
@@ -467,9 +1061,8 @@ static void srmech_hermitian_init_identity(uint32_t n, double *V_il)
 }
 
 /* Helper: sort eigenpairs in ascending eigenvalue order. Selection-
- * sort over n (bounded by SRMECH_LAPLACIAN_MAX_NODES, so O(n²) is
- * embedded-safe). Swaps eigvals[i] with eigvals[min_idx] AND column i
- * of V with column min_idx of V. */
+ * sort over n (O(n²) over the caller's n eigenpairs). Swaps eigvals[i]
+ * with eigvals[min_idx] AND column i of V with column min_idx of V. */
 static void srmech_hermitian_sort_eigenpairs(uint32_t n,
                                              double *eigvals,
                                              double *V_il)

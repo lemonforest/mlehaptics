@@ -52,19 +52,21 @@ from typing import Dict, List, Tuple
 # ``lstsq`` / ``eigvals`` delegate to ``mat_svd`` / ``mat_lstsq`` / ``mat_eigvals``;
 # ``qr`` is a list-based Householder; ``einsum`` is the nested-list
 # index-iteration definition. There is NO ``import numpy`` anywhere here.
+from srmech.amsc import _native as _native  # rc140: real QR/SVD C dispatch (F2)
 from srmech.amsc.mat import Mat as _Mat
 from srmech.amsc.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
 from srmech.amsc.laplacian import (
     mat_eigvals as _mat_eigvals,
     mat_lstsq as _mat_lstsq,
+    mat_matmul as _mat_matmul,  # rc155: route the 2-operand contraction through C
     mat_svd as _mat_svd,
 )
 from srmech.amsc.rational import hypot as _rhypot
 from srmech.amsc.rational import sqrt as _rsqrt
 
 __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact",
-           "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "eig_exact",
-           "jordan_chains_exact", "jordan_form_exact"]
+           "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "lll_reduce",
+           "eig_exact", "jordan_chains_exact", "jordan_form_exact"]
 
 
 def _modulus(z: complex) -> float:
@@ -160,8 +162,22 @@ def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:
     n = len(R[0]) if m else 0
     if any(len(r) != n for r in R):
         raise ValueError("qr: a must be a rectangular 2-D array-like")
-    Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     k = min(m, n)
+    # rc140 (Foundation F2): a REAL input dispatches to the native Householder
+    # ``srmech_qr_f64`` (direct, no iteration). ``qr_f64_c`` returns ``None`` on
+    # a no-C host → the pure list-Householder below runs (the complete
+    # alternative + parity oracle). Complex input stays on the list-Householder.
+    if not _input_is_complex(a) and m > 0 and n > 0:
+        native = _native.qr_f64_c([[R[i][j].real for j in range(n)]
+                                   for i in range(m)])
+        if native is not None:
+            Qf, Rf = native                       # Q (m,m) real, R (m,n) real
+            if mode == "reduced":
+                Qf = [[Qf[i][c] for c in range(k)] for i in range(m)]  # (m, k)
+                Rf = [Rf[i][:n] for i in range(k)]                     # (k, n)
+            return (_Mat.from_rows(Qf, is_complex=False),
+                    _Mat.from_rows(Rf, is_complex=False))
+    Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     for j in range(k):
         x = [R[i][j] for i in range(j, m)]            # column j, rows j..m-1
         normx = _norm2(x)
@@ -261,6 +277,44 @@ def svd(a, *, full_matrices: bool = False) -> Tuple["_Mat", "_Vec", "_Mat"]:
             _Mat.from_rows(Vh, is_complex=True))
 
 
+def _qr_lstsq_real(a_real, b_real):
+    """Real least-squares ``min‖A x − b‖`` via the native QR (Foundation F2).
+
+    ``a_real`` is ``(m, n)`` (``m ≥ n``), ``b_real`` is ``(m, w)`` — both nested
+    ``float`` lists. Returns the ``(n, w)`` solution as nested ``complex`` lists
+    (imag 0) so the caller's carrier-format assembly is unchanged, OR ``None``
+    when the native QR is absent OR ``R`` is rank-deficient (a zero diagonal
+    pivot) — the caller then falls back to the pure normal-equations solve.
+
+    Method (Golub & Van Loan §5.3.3): ``A = Q·R`` (reduced), then ``x`` solves
+    the upper-triangular ``R x = Qᵀ b`` by back-substitution — the **{QR}**
+    factorisation ∘ **Class M** (the ``Qᵀ b`` product) ∘ **Class I** (the
+    ordered triangular solve)."""
+    native = _native.qr_f64_c(a_real)
+    if native is None:
+        return None
+    Q, R = native                                      # Q (m, m), R (m, n) real
+    m = len(a_real)
+    n = len(a_real[0]) if m else 0
+    w = len(b_real[0]) if b_real else 0
+    # Reduced factors: thin Q (m, n) columns, R (n, n) upper-triangular block.
+    for i in range(n):
+        if R[i][i] == 0.0:
+            return None                                # rank-deficient → pure path
+    x_rows = [[0j] * w for _ in range(n)]
+    for c in range(w):
+        # y = Qᵀ b[:, c]  (length n) — Class M projection onto the thin Q columns.
+        y = [sum(Q[r][j] * b_real[r][c] for r in range(m)) for j in range(n)]
+        # Back-substitution R x = y (Class I: ordered triangular solve).
+        x = [0.0] * n
+        for i in range(n - 1, -1, -1):
+            acc = y[i] - sum(R[i][j] * x[j] for j in range(i + 1, n))
+            x[i] = acc / R[i][i]
+        for i in range(n):
+            x_rows[i][c] = complex(x[i])
+    return x_rows
+
+
 def lstsq(a, b):
     """Least-squares solution of ``A x = b`` (minimising ``‖A x − b‖``), numpy-free.
 
@@ -292,10 +346,24 @@ def lstsq(a, b):
     else:
         b_rows = [[complex(v) for v in r] for r in b_list]
     is_cx = _input_is_complex(a) or _input_is_complex(b)
-    A_mat = _Mat.from_rows(arows, is_complex=is_cx)
-    B_mat = _Mat.from_rows(b_rows, is_complex=is_cx)
-    X = _mat_lstsq(A_mat, B_mat)                        # Mat (n, w)
-    x_rows = [[complex(X[i, j]) for j in range(X.n_cols)] for i in range(X.n_rows)]
+    # rc140 (Foundation F2): the REAL overdetermined/square path routes through
+    # the native QR (``srmech_qr_f64``) — the numerically-preferred least-squares
+    # method (Golub & Van Loan §5.3.3: solve ``R x = Qᵀ b``, more stable than the
+    # normal equations, which square κ). A rank-deficient ``R`` (zero pivot) or a
+    # no-C host returns ``None`` from ``_qr_lstsq_real`` → the pure normal-
+    # equations ``mat_lstsq`` runs (the complete alternative + parity oracle).
+    x_rows = None
+    if not is_cx and m > 0 and n > 0:
+        x_rows = _qr_lstsq_real(
+            [[arows[i][j].real for j in range(n)] for i in range(m)],
+            [[b_rows[i][j].real for j in range(len(b_rows[0]))] for i in range(m)],
+        )
+    if x_rows is None:
+        A_mat = _Mat.from_rows(arows, is_complex=is_cx)
+        B_mat = _Mat.from_rows(b_rows, is_complex=is_cx)
+        X = _mat_lstsq(A_mat, B_mat)                    # Mat (n, w)
+        x_rows = [[complex(X[i, j]) for j in range(X.n_cols)]
+                  for i in range(X.n_rows)]
     real_out = (not _input_is_complex(a) and not _input_is_complex(b)
                 and _all_imag_zero(x_rows))
     # rc131 carrier-format law: 1-D solution → Vec, 2-D stack of solutions → Mat.
@@ -308,17 +376,95 @@ def lstsq(a, b):
     return _Mat.from_rows(rows_out, is_complex=not real_out)
 
 
+def _einsum_pair_via_matmul(labelsA, A, labelsB, B, outspec, sizes):
+    """rc155: the TWO-operand contraction ``einsum(labelsA,labelsB->outspec)``
+    re-expressed as a single dense matmul through the c_dispatched
+    :func:`srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``),
+    or ``None`` when the spec is not a clean pairwise contraction (a diagonal /
+    single-operand sum / batch index → the caller falls back to the general
+    index-iteration).
+
+    A clean contraction separates the labels into ``free_A`` (once, only in A),
+    ``free_B`` (once, only in B) and ``contracted`` (twice, in BOTH, absent from
+    the output). Gathering A → ``(∏free_A, ∏contracted)`` and B →
+    ``(∏contracted, ∏free_B)`` makes the **Class-M sum-of-products bundle** the
+    matmul ``M_A · M_B``; the gather + the output re-index are exact glue. This
+    covers matmul / matvec / dot / outer / rank-n contraction — the common
+    einsum patterns — so the heavy contraction rides C, not Python."""
+    if len(set(labelsA)) != len(labelsA) or len(set(labelsB)) != len(labelsB):
+        return None                                   # a diagonal (repeated label)
+    counts: Dict[str, int] = {}
+    for lab in labelsA + labelsB:
+        counts[lab] = counts.get(lab, 0) + 1
+    if any(c > 2 for c in counts.values()):
+        return None
+    setA, setB = set(labelsA), set(labelsB)
+    contracted = [lab for lab in labelsA if lab in setB]
+    for lab in contracted:
+        if lab in outspec:
+            return None                               # a shared label in output = batch
+    free_A = [lab for lab in labelsA if lab not in setB]
+    free_B = [lab for lab in labelsB if lab not in setA]
+    for lab in free_A + free_B:
+        if lab not in outspec:
+            return None                               # a single-operand axis sum
+    if sorted(free_A + free_B) != sorted(outspec):
+        return None
+    posA = {lab: i for i, lab in enumerate(labelsA)}
+    posB = {lab: i for i, lab in enumerate(labelsB)}
+    fa_list = list(itertools.product(*[range(sizes[l]) for l in free_A])) or [()]
+    ct_list = list(itertools.product(*[range(sizes[l]) for l in contracted])) or [()]
+    fb_list = list(itertools.product(*[range(sizes[l]) for l in free_B])) or [()]
+
+    def _gather(op, pos, group1, vals1, group2, vals2):
+        idx = [0] * len(pos)
+        for lab, v in zip(group1, vals1):
+            idx[pos[lab]] = v
+        for lab, v in zip(group2, vals2):
+            idx[pos[lab]] = v
+        return _nd_get(op, tuple(idx))
+
+    is_cx = _input_is_complex(A) or _input_is_complex(B)
+    M_A = [[_gather(A, posA, free_A, fa, contracted, ct) for ct in ct_list]
+           for fa in fa_list]
+    M_B = [[_gather(B, posB, contracted, ct, free_B, fb) for fb in fb_list]
+           for ct in ct_list]
+    Cm = _mat_matmul(_Mat.from_rows(M_A, is_complex=is_cx),
+                     _Mat.from_rows(M_B, is_complex=is_cx)).tolist()
+    fa_index = {combo: i for i, combo in enumerate(fa_list)}
+    fb_index = {combo: i for i, combo in enumerate(fb_list)}
+    out_shape = tuple(sizes[lab] for lab in outspec)
+    out = _nd_zeros(out_shape)
+    for out_idx in (itertools.product(*[range(sizes[l]) for l in outspec]) or [()]):
+        vmap = dict(zip(outspec, out_idx))
+        a = fa_index[tuple(vmap[l] for l in free_A)]
+        b = fb_index[tuple(vmap[l] for l in free_B)]
+        if out_idx:
+            _nd_set(out, out_idx, Cm[a][b])
+        else:
+            out = Cm[a][b]                            # rank-0 scalar
+    return out
+
+
 def einsum(subscripts: str, *operands):
-    """Einstein-summation tensor contraction via the index-iteration definition
-    (numpy-free, nested-list operands).
+    """Einstein-summation tensor contraction (numpy-free, nested-list operands).
 
     **Class B/D** (the subscript string is a typed index-pattern spec) ∘
     **Class I** (iterate over every free + summed index tuple) ∘ **Class M**
     (the sum-of-products bundle). Handles any subscript string (``'ij,jk->ik'``
     matmul, ``'ii->'`` trace, ``'ij->ji'`` transpose, ``'i,i->'`` dot,
-    ``'i,j->ij'`` outer, arbitrary contractions), unoptimised. Implicit output
-    (no ``->``) follows numpy's rule: free labels (appearing once) in sorted
-    order.
+    ``'i,j->ij'`` outer, arbitrary contractions). Implicit output (no ``->``)
+    follows numpy's rule: free labels (appearing once) in sorted order.
+
+    rc155 (BATCH B-residue): a clean TWO-operand contraction routes its Class-M
+    sum-of-products bundle through the c_dispatched
+    :func:`srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``,
+    via :func:`_einsum_pair_via_matmul`) — so matmul / matvec / dot / outer /
+    rank-n contraction ride the C matmul foundation (``composition_of_c``,
+    within-tol). Single-operand specs (trace / transpose) and diagonals /
+    batched / single-axis sums fall back to the general index-iteration
+    definition, whose Class-M multiply-accumulate is primitive glue (the
+    ``mat_dot`` reduction precedent) reaching no non-standalone leaf.
 
     Returns the numpy-free carrier matching the result rank (rc131): a 2-D result
     is a :class:`~srmech.amsc.mat.Mat`, a 1-D result is a
@@ -352,8 +498,24 @@ def einsum(subscripts: str, *operands):
         outspec = "".join(sorted(lab for lab in counts if counts[lab] == 1))
     summed = [lab for lab in sizes if lab not in outspec]
     out_shape = tuple(sizes[lab] for lab in outspec)
-    out = _nd_zeros(out_shape)
     any_cx = any(_input_is_complex(o) for o in operands)
+    # rc155: route a clean 2-operand contraction through the C matmul.
+    if len(ops) == 2:
+        fast = _einsum_pair_via_matmul(in_labels[0], ops[0], in_labels[1], ops[1],
+                                       outspec, sizes)
+        if fast is not None:
+            if not out_shape:                         # rank-0 scalar
+                sc = complex(fast)
+                return sc.real if (not any_cx and _all_imag_zero(sc)) else sc
+            real_fast = not any_cx and _all_imag_zero(fast)
+            res = _real_of(fast) if real_fast else fast
+            rank = len(out_shape)
+            if rank == 1:
+                return _Vec.from_sequence(res, is_complex=not real_fast)
+            if rank == 2:
+                return _Mat.from_rows(res, is_complex=not real_fast)
+            return res
+    out = _nd_zeros(out_shape)
     free_ranges = [range(sizes[lab]) for lab in outspec]
     sum_ranges = [range(sizes[lab]) for lab in summed]
 
@@ -527,6 +689,16 @@ def char_poly(a) -> List:
             break
     if real_integer:
         A = [[int(v.real) if hasattr(v, "real") else int(v) for v in r] for r in rows]
+        # rc161 (Qalg TAIL Batch 5): the integer char-poly dispatches to
+        # srmech_faddeev_leverrier — the C kernel that runs the exact-integer
+        # Faddeev–LeVerrier recursion (A·M matmul + trace + the exact /k divmod)
+        # over srmech_bigint. It is the SAME recursion as _char_poly_int below, so
+        # byte-identical integer coefficients; _char_poly_int stays the Pyodide /
+        # no-native fallback (and the parity oracle). This is the FOUNDATION of the
+        # exact-LA tail (eigvals_exact / eig_exact / jordan reduce to its roots).
+        native = _native.char_poly_int_c(A)
+        if native is not None:
+            return native
         return _char_poly_int(A, n)
     return _char_poly_float(rows, n)
 
@@ -670,8 +842,9 @@ def _isolate_real_roots(factor: List, bits: int) -> List[Tuple]:
 # ── exact COMPLEX-root isolation: the argument-principle box-count (rc24, rc-E) ──
 # The exact REAL eigenvalues come out of the Sturm cascade above; the COMPLEX ones
 # (conjugate pairs of an integer char-poly) are isolated by the SAME exact-substrate
-# discipline — find them numerically (float-QR ``mat_eigvals`` candidates), then
-# CERTIFY each with the argument principle: the number of roots of an integer
+# discipline — PURE rational-box subdivision over the upper half-plane
+# (``_isolate_complex_roots_upper``), with NO float-QR candidate seeding: each box
+# is CERTIFIED with the argument principle — the number of roots of an integer
 # polynomial strictly inside an open rational box equals the winding number of p
 # around the box boundary, computed in EXACT ``Fraction`` arithmetic (no float in
 # the count). Along each edge ``p`` restricts to ``U(t)+iV(t)`` with U,V ∈ ℚ[t];
@@ -805,53 +978,6 @@ def _count_roots_in_box(p: List, x0, x1, y0, y1) -> int:
     return count
 
 
-def _certify_complex_root(p: List, cand: complex, others: List[complex],
-                          bits: int) -> Tuple[_FR, _FR]:
-    """Isolate ONE simple complex root of the integer/ℚ polynomial ``p`` near the
-    numeric candidate ``cand`` and refine it to ``bits`` of precision. Grows /
-    shrinks a JITTERED rational box around ``cand`` until ``_count_roots_in_box
-    == 1``; then refines via :func:`_refine_box`. Returns the exact rational box
-    center ``(re, im)``. The candidate-SEEDED path (the float-QR accelerator); the
-    pure-subdivision :func:`_isolate_complex_roots_upper` is the always-works
-    fallback when the candidates are unreliable."""
-    cx = _FR(cand.real).limit_denominator(1 << 40)
-    cy = _FR(cand.imag).limit_denominator(1 << 40)
-    # Initial half-width: a fraction of the nearest-candidate gap (so the box can
-    # only ever hold ONE root), floored to something small but nonzero.
-    gap = None
-    for o in others:
-        d = _modulus(complex(o) - complex(cand))
-        if d > 0 and (gap is None or d < gap):
-            gap = d
-    h = _FR(1, 1 << 8)
-    if gap is not None and gap > 0:
-        hg = _FR(gap).limit_denominator(1 << 40) / 4
-        if hg > 0 and hg < h:
-            h = hg
-    hy = h * _FR(1021, 1024)                          # asymmetric → generic corners
-    tries = 0
-    while True:
-        tries += 1
-        if tries > 4000:
-            raise ValueError(
-                f"_certify_complex_root: failed to isolate a single root near "
-                f"{cand!r} after {tries} attempts")
-        hy = h * _FR(1021, 1024)
-        try:
-            c = _count_roots_in_box(p, cx - h, cx + h, cy - hy, cy + hy)
-        except ValueError:
-            h = h * _FR(9, 8)                          # boundary root → grow + re-jitter
-            cx = cx + _FR(1, 1 << 50)
-            continue
-        if c == 1:
-            break
-        if c == 0:
-            h = h * 2                                  # box too small → grow
-            continue
-        h = h / 2                                      # >1 root boxed → shrink
-    return _refine_box(p, cx - h, cx + h, cy - hy, cy + hy, bits)
-
-
 def _cauchy_root_bound(p: List) -> _FR:
     """A rational bound ``B`` with every root of ``p`` (low→high) satisfying
     ``|root| < B`` — the Cauchy bound ``1 + max|a_i / a_n|``. Exact ℚ, Class-K
@@ -865,8 +991,9 @@ def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]
     """Exactly isolate the ``want`` roots of the integer/ℚ polynomial ``p`` in the
     OPEN UPPER half-plane (im > 0) by recursive rational-box subdivision, certified
     by :func:`_count_roots_in_box` (exact argument principle — no float in the
-    count), each refined to ``bits`` of precision. The pure-subdivision fallback
-    when the float-QR candidates are unreliable (e.g. QR stalls on a cyclic
+    count), each refined to ``bits`` of precision. This is the ONLY complex-root
+    path (rc28): pure exact subdivision over a square-free factor, with NO float-QR
+    candidate seeding — so it is robust where a float QR would stall (e.g. a cyclic
     permutation matrix). Returns the box centers as ``complex`` (im > 0). The
     conjugates (im < 0) are the caller's mirror."""
     B = _cauchy_root_bound(p)
@@ -1017,16 +1144,18 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     the matrix order to detect that case.
 
     With ``include_complex=True`` the COMPLEX eigenvalues are ALSO returned,
-    **exactly isolated**: a float-QR candidate (:func:`~srmech.amsc.laplacian.mat_eigvals`)
-    is CERTIFIED as a unique root of the exact integer characteristic polynomial in
-    a rational box by the argument-principle count :func:`_count_roots_in_box`
-    (winding number in exact ``Fraction`` arithmetic — no float in the count), then
-    the box is refined to ``bits`` of precision; the emitted ``complex`` is the
-    single terminal projection of the certified box center (the exact-substrate
-    object is the integer char-poly + the certified isolating box). This is exact
-    isolation — qualitatively distinct from the unconditioned float-QR spectrum of
-    :func:`~srmech.amsc.laplacian.mat_eigvals`, whose candidates it merely seeds.
-    Conjugate symmetry holds (``a+bi`` with ``b>0`` pairs with ``a−bi``). Returns
+    **exactly isolated** by PURE rational-box subdivision over the upper half-plane
+    (:func:`_isolate_complex_roots_upper`), per square-free factor (rc28), with NO
+    float-QR candidate seeding. Each box is CERTIFIED as holding exactly one root of
+    the exact integer characteristic polynomial by the argument-principle count
+    :func:`_count_roots_in_box` (winding number in exact ``Fraction`` arithmetic —
+    no float in the count), then refined to ``bits`` of precision; the emitted
+    ``complex`` is the single terminal projection of the certified box center (the
+    exact-substrate object is the integer char-poly + the certified isolating box).
+    This is exact isolation — qualitatively distinct from the unconditioned float-QR
+    spectrum of :func:`~srmech.amsc.laplacian.mat_eigvals` (which is not consulted
+    here at all). Conjugate symmetry holds (``a+bi`` with ``b>0`` pairs with
+    ``a−bi``). Returns
     **all n** eigenvalues with multiplicity: the reals first (ascending, as
     ``float``), then the complex (sorted by ``(re, im)``, as ``complex``).
     ``return_intervals`` is honoured for the real part only and ignored for the
@@ -1038,11 +1167,23 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
     """
     cp = char_poly(a)                                # monic, high→low
     p = [_FR(c) for c in reversed(cp)]               # low→high over ℚ
-    eigs: List[Tuple] = []
-    for factor, mult in _square_free_factors(p):
-        for (lo, hi) in _isolate_real_roots(factor, bits):
-            for _ in range(mult):
-                eigs.append((lo, hi))
+    # rc162 (Qalg TAIL Batch 6): the real-eigenvalue isolation dispatches to
+    # srmech_sturm_isolate — the C kernel that runs the SAME cascade (char_poly ->
+    # Yun square-free -> Sturm sign-sequence isolation -> rational bisection) over
+    # srmech_bigint + the exact-Q srmech_poly_* kernels, returning byte-identical
+    # isolating (lo, hi) Fraction intervals with multiplicity (per-factor discovery
+    # order). The pure _square_free_factors + _isolate_real_roots below stay the
+    # Pyodide / no-native fallback (and the parity oracle). The shared sort by
+    # lo+hi below fixes the global order identically on both paths.
+    native = _native.sturm_isolate_c(cp, bits) if _native.HAS_NATIVE else None
+    if native is not None:
+        eigs: List[Tuple] = native
+    else:
+        eigs = []
+        for factor, mult in _square_free_factors(p):
+            for (lo, hi) in _isolate_real_roots(factor, bits):
+                for _ in range(mult):
+                    eigs.append((lo, hi))
     eigs.sort(key=lambda iv: iv[0] + iv[1])
     # ``return_intervals`` yields the exact real isolating intervals; it applies to
     # the real spectrum only (a complex root is a box, not an interval), so it is
@@ -1061,48 +1202,58 @@ def eigvals_exact(a, *, bits: int = 64, return_intervals: bool = False,
         return real_out
     n_complex = n - n_real                            # comes in conjugate pairs
     want_upper = n_complex // 2
-    # MIRROR THE REAL PATH: isolate the complex roots PER SQUARE-FREE FACTOR.
-    # ``_square_free_factors(p)`` returns ``[(factor, mult)]`` where each ``factor``
-    # is SQUARE-FREE — so ALL its roots are SIMPLE. Box-subdivision can only ever
-    # separate SIMPLE roots (a coincident pair has count ≥ 2 in EVERY enclosing box,
-    # so the isolators would spin to their guards — the rc28 hang). Isolating the
-    # upper-half (im > 0) roots of each square-free factor therefore ALWAYS
-    # terminates; each isolated root is emitted ``mult`` times (and its conjugate
-    # ``mult`` times), exactly as the real path appends each simple real root
-    # ``mult`` times. The float-QR candidate accelerator (``_certify_complex_root``)
-    # is dropped on this path: it must NEVER be called on a non-square-free polynomial
-    # (it would loop on a coincident pair), and routing the whole branch through the
-    # always-terminating per-factor ``_isolate_complex_roots_upper`` is correctness-
-    # and termination-first over the accelerator's speed.
-    certified: List[complex] = []
-    certified_upper = 0
-    for factor, mult in _square_free_factors(p):
-        deg = len(_poly_trim(factor)) - 1
-        if deg < 2:                                   # deg ≤ 1 → only a real root
-            continue
-        # this square-free factor's upper-half complex count =
-        # (deg − #real_roots) // 2 (real roots come in singles, complex in pairs).
-        n_real_factor = len(_isolate_real_roots(factor, bits))
-        want_upper_factor = (deg - n_real_factor) // 2
-        if want_upper_factor == 0:
-            continue
-        # factor is SQUARE-FREE → all roots simple → isolation ALWAYS terminates.
-        upper_roots = _isolate_complex_roots_upper(factor, want_upper_factor, bits)
-        if len(upper_roots) != want_upper_factor:
+    # rc162 (Qalg TAIL Batch 6): the complex isolation dispatches to
+    # srmech_complex_isolate — the C kernel that runs the SAME pure rational-box
+    # subdivision over the upper half-plane, each box CERTIFIED by the exact
+    # argument-principle count (srmech_poly_root_box_certify), refined to 2^-bits,
+    # returning the certified (re, im) box centers + conjugates with multiplicity.
+    # Structurally-identical to the pure loop below (the parity oracle + Pyodide /
+    # no-native fallback). The shared sort by (re, im) fixes the order on both paths.
+    native_c = _native.complex_isolate_c(cp, bits) if _native.HAS_NATIVE else None
+    if native_c is not None:
+        certified: List[complex] = [complex(float(re), float(im))
+                                    for (re, im) in native_c]
+    else:
+        # MIRROR THE REAL PATH: isolate the complex roots PER SQUARE-FREE FACTOR.
+        # ``_square_free_factors(p)`` returns ``[(factor, mult)]`` where each
+        # ``factor`` is SQUARE-FREE — so ALL its roots are SIMPLE. Box-subdivision
+        # can only ever separate SIMPLE roots (a coincident pair has count ≥ 2 in
+        # EVERY enclosing box, so the isolators would spin to their guards — the
+        # rc28 hang). Isolating the upper-half (im > 0) roots of each square-free
+        # factor therefore ALWAYS terminates; each isolated root is emitted
+        # ``mult`` times (and its conjugate ``mult`` times), exactly as the real
+        # path appends each simple real root ``mult`` times. NO float-QR seeding.
+        certified = []
+        certified_upper = 0
+        for factor, mult in _square_free_factors(p):
+            deg = len(_poly_trim(factor)) - 1
+            if deg < 2:                               # deg ≤ 1 → only a real root
+                continue
+            # this square-free factor's upper-half complex count =
+            # (deg − #real_roots) // 2 (real roots singles, complex in pairs).
+            n_real_factor = len(_isolate_real_roots(factor, bits))
+            want_upper_factor = (deg - n_real_factor) // 2
+            if want_upper_factor == 0:
+                continue
+            # factor SQUARE-FREE → all roots simple → isolation ALWAYS terminates.
+            upper_roots = _isolate_complex_roots_upper(factor, want_upper_factor,
+                                                       bits)
+            if len(upper_roots) != want_upper_factor:
+                raise ValueError(
+                    f"eigvals_exact: certified {len(upper_roots)} upper-half "
+                    f"complex roots of a square-free factor but expected "
+                    f"{want_upper_factor}")
+            for z in upper_roots:
+                for _ in range(mult):                 # mirror the real path's mult
+                    certified.append(complex(z.real, z.imag))
+                    certified.append(complex(z.real, -z.imag))   # conjugate
+                certified_upper += mult
+        # Reconcile the summed per-factor multiplicities with the char-poly count.
+        if certified_upper != want_upper:
             raise ValueError(
-                f"eigvals_exact: certified {len(upper_roots)} upper-half complex "
-                f"roots of a square-free factor but expected {want_upper_factor}")
-        for z in upper_roots:
-            for _ in range(mult):                     # mirror the real path's mult
-                certified.append(complex(z.real, z.imag))
-                certified.append(complex(z.real, -z.imag))   # conjugate (im < 0)
-            certified_upper += mult
-    # Reconcile the summed per-factor multiplicities with the char-poly count.
-    if certified_upper != want_upper:
-        raise ValueError(
-            f"eigvals_exact: certified {certified_upper} upper-half complex roots "
-            f"but the char-poly multiplicity expects {want_upper} "
-            f"(n={n}, real={n_real})")
+                f"eigvals_exact: certified {certified_upper} upper-half complex "
+                f"roots but the char-poly multiplicity expects {want_upper} "
+                f"(n={n}, real={n_real})")
     certified.sort(key=lambda z: (z.real, z.imag))
     return real_out + certified
 
@@ -1220,6 +1371,54 @@ def _eigvec_exact_qalg(a, lam):
     return null_vectors, one, free_cols
 
 
+def _entry_ratio(v):
+    """A real integer/rational matrix entry as an exact ``(num, den)`` int pair,
+    or ``None`` if the entry is COMPLEX (the C eigvec path is real-ℚ only — the
+    caller then routes to the pure ``_eigvec_exact_qalg``, which raises the same
+    ValueError). Mirrors ``_eigvec_exact_qalg._q_entry``'s coercion."""
+    vr = v.real if hasattr(v, "real") else v
+    vi = v.imag if hasattr(v, "imag") else 0
+    if vi != 0:
+        return None
+    if hasattr(vr, "numerator") and hasattr(vr, "denominator"):
+        return (int(vr.numerator), int(vr.denominator))
+    if int(vr) == vr:
+        return (int(vr), 1)
+    fr = _FR(vr)
+    return (fr.numerator, fr.denominator)
+
+
+def _eigvec_exact_native(rows, lam):
+    """The rc163 native fast-path for :func:`eigvec_exact`: the exact null space of
+    ``A − λI`` over ℚ(λ) via ``srmech_eigvec_exact`` (the Qalg-field RREF in C),
+    reconstructed as a ``list[list[Qalg]]`` (one basis vector per free column, each
+    a list of ``n`` ``Qalg`` components carrying ``lam``'s ``m`` + ``root``).
+    Returns ``None`` — routing to the byte-identical pure ``_eigvec_exact_qalg`` —
+    on a no-C / pre-rc163 lib, a COMPLEX matrix entry, an arena OVERFLOW, or a
+    reducible ``m`` (all of which the pure oracle handles); returns ``[]`` when
+    ``A − λI`` is non-singular (λ not an eigenvalue)."""
+    from srmech.amsc.qalg import Qalg
+    if not _native.has_native_eigvec_exact():
+        return None
+    rows_ratio = []
+    for r in rows:
+        row = []
+        for v in r:
+            pr = _entry_ratio(v)
+            if pr is None:
+                return None                          # complex entry → pure path
+            row.append(pr)
+        rows_ratio.append(row)
+    m_int = [int(c) for c in lam.m]
+    lam_coords = [(int(c.numerator), int(c.denominator)) for c in lam.coords]
+    raw = _native.eigvec_exact_c(rows_ratio, m_int, lam_coords)
+    if raw is None:
+        return None
+    m = lam.m
+    root = lam.root
+    return [[Qalg(m, tuple(comp), root=root) for comp in vec] for vec in raw]
+
+
 def eigvec_exact(a, lam):
     """Exact EIGENVECTOR(S) of an integer/rational matrix via the null space of
     ``A − λI`` over the number field ℚ(λ) = ``Qalg`` (rotation-last rc-D).
@@ -1256,17 +1455,34 @@ def eigvec_exact(a, lam):
     null space) ∘ **Class N** (the exact ``Q`` field arithmetic) ∘ **Class K**
     (the sign in subtraction / negation — never an ALU ``abs``).
     """
-    from srmech.amsc.qalg import Qalg  # noqa: F401  (kept for the verify below)
+    from srmech.amsc.qalg import Qalg
 
-    null_vectors, _one_unused, free_cols = _eigvec_exact_qalg(a, lam)
-    if not free_cols:
+    if not isinstance(lam, Qalg):
+        raise TypeError(
+            "eigvec_exact: lam must be a Qalg eigenvalue (carrying its "
+            f"irreducible m + embedding root); got {type(lam).__name__}")
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0:
+        raise ValueError("eigvec_exact: a must be a non-empty square matrix")
+    if any(len(r) != n for r in rows):
+        raise ValueError(
+            f"eigvec_exact: a must be square 2-D; got {n}x{len(rows[0])}")
+
+    # rc163 (Qalg TAIL Batch 7a): the exact Qalg-field null space dispatches to
+    # srmech_eigvec_exact — the same RREF over ℚ(λ)=ℚ[x]/(m) built on the exact-Q
+    # srmech_poly_* kernels, returning the byte/structurally-identical basis (the
+    # RREF is canonical). The pure _eigvec_exact_qalg below stays the Pyodide /
+    # no-native fallback (and the parity oracle); it is also the arbiter of the
+    # reducible-m / non-eigenvalue error semantics.
+    null_vectors = _eigvec_exact_native(rows, lam)
+    if null_vectors is None:
+        null_vectors, _one_unused, _free_cols = _eigvec_exact_qalg(a, lam)
+    if not null_vectors:
         raise ValueError(
             "eigvec_exact: A − λI is non-singular (null space is trivial) — "
             "lam is not an eigenvalue of a (or its m does not match a's "
             "spectrum). The eigenvector null space is empty.")
-
-    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
-    n = len(rows)
 
     def _verify(vec):
         """Assert ``A·vec == λ·vec`` exactly over Qalg, componentwise."""
@@ -1282,7 +1498,7 @@ def eigvec_exact(a, lam):
                 f"eigvec_exact: eigen-relation A·v == λ·v FAILED at component {i} "
                 f"({lhs!r} != {rhs!r}) — internal error")
 
-    if len(free_cols) == 1:
+    if len(null_vectors) == 1:
         v = null_vectors[0]
         _verify(v)
         return v
@@ -1570,6 +1786,24 @@ def jordan_chains_exact(a, lam):
     """
     N, _A_q, n, one, zero = _qalg_matrix_of(a, lam)
 
+    # rc164 (Qalg TAIL Batch 7b): the Jordan chains dispatch to srmech_jordan_chains
+    # (the Qalg-field matmul/rank/nested-nullspace in C over the rc163 field),
+    # returning the byte/structurally-identical chains (the RREF is canonical + the
+    # top-down selection deterministic). The pure _jordan_chains_build_pure below
+    # stays the Pyodide / no-native fallback AND the parity oracle (and the arbiter
+    # of the reducible-m / n-above-native-cap semantics — a native None routes here).
+    native = _jordan_chains_native(a, lam)
+    if native is not None:
+        _jordan_verify_chains(N, n, zero, native, lam)
+        return native, [len(ch) for ch in native]
+    return _jordan_chains_build_pure(N, n, one, zero, lam)
+
+
+def _jordan_chains_build_pure(N, n, one, zero, lam):
+    """The byte-identical pure-Python Jordan-chain build (the Pyodide / no-native
+    fallback AND the parity oracle). ``N = A − λI`` over ``Qalg``; returns
+    ``(chains, block_sizes)`` — the same contract as :func:`jordan_chains_exact`.
+    All arithmetic is exact ``Qalg`` (matmul / rank / nested nullspace)."""
     # ── ranks r_k = rank(Nᵏ) for k = 0,1,… until null space stops growing ─────────
     # N⁰ = I (rank n, nullity 0). Accumulate powers exactly; stop at the smallest p
     # with rank(N^p) == rank(N^{p+1}) (the generalized eigenspace has stabilised).
@@ -1684,6 +1918,72 @@ def jordan_chains_exact(a, lam):
         f"jordan_chains_exact: chain lengths sum {sum(len(ch) for ch in chains)} "
         f"!= algebraic multiplicity {mu} — internal error")
     return chains, [len(ch) for ch in chains]
+
+
+def _jordan_verify_chains(N, n, zero, chains, lam):
+    """Exact ``Qalg`` verification of the chain relations for the NATIVE path
+    (the pure build verifies inline): for each chain (bottom→top) ``N·chain[0]
+    == 0`` and ``N·chain[i] == chain[i-1]``. An assert, not a float check."""
+    for chain in chains:
+        bottom = chain[0]
+        Nb = _qalg_matvec(N, bottom, n, zero)
+        for comp in Nb:
+            assert not comp, (
+                "jordan_chains_exact: chain bottom is not a geometric eigenvector "
+                f"((A−λI)·bottom != 0) for min_poly {lam.m!r} — native/pure "
+                "parity error")
+        for i in range(1, len(chain)):
+            Nv = _qalg_matvec(N, chain[i], n, zero)
+            for j in range(n):
+                assert Nv[j] == chain[i - 1][j], (
+                    "jordan_chains_exact: chain relation (A−λI)·chain[i] == "
+                    f"chain[i-1] FAILED at level {i}, component {j} for min_poly "
+                    f"{lam.m!r} — native/pure parity error")
+
+
+def _jordan_chains_native(a, lam):
+    """The rc164 native fast-path for :func:`jordan_chains_exact`: the exact Jordan
+    chains via ``srmech_jordan_chains`` (the Qalg-field matmul/rank/nested-nullspace
+    in C), reconstructed as the ``list[list[list[Qalg]]]`` chain structure (chains,
+    each a list of generalized eigenvectors bottom→top, each an ``n``-vector of
+    ``Qalg`` over ``lam``'s ``m`` + ``root``). Returns ``None`` — routing to the
+    byte-identical pure ``_jordan_chains_build_pure`` — on a no-C / pre-rc164 lib, a
+    COMPLEX matrix entry, ``n`` above the native cap, an arena OVERFLOW, or a
+    reducible ``m`` (all of which the pure oracle handles)."""
+    from srmech.amsc.qalg import Qalg
+    if not _native.has_native_jordan_chains():
+        return None
+    rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
+    n = len(rows)
+    if n == 0 or any(len(r) != n for r in rows):
+        return None
+    rows_ratio = []
+    for r in rows:
+        row = []
+        for v in r:
+            pr = _entry_ratio(v)
+            if pr is None:
+                return None                          # complex entry → pure path
+            row.append(pr)
+        rows_ratio.append(row)
+    m_int = [int(c) for c in lam.m]
+    lam_coords = [(int(c.numerator), int(c.denominator)) for c in lam.coords]
+    raw = _native.jordan_chains_c(rows_ratio, m_int, lam_coords)
+    if raw is None:
+        return None
+    vectors, block_sizes = raw
+    m = lam.m
+    root = lam.root
+    chains = []
+    idx = 0
+    for bs in block_sizes:
+        chain = []
+        for _ in range(bs):
+            vec = vectors[idx]
+            chain.append([Qalg(m, tuple(comp), root=root) for comp in vec])
+            idx += 1
+        chains.append(chain)
+    return chains
 
 
 # ── Part 1 — factor an integer polynomial into irreducibles over ℚ (Zassenhaus) ──
@@ -2137,6 +2437,287 @@ def _symmetric_rep(p: List[int], m: int) -> List[int]:
     return _ipoly_trim(out)
 
 
+# ── van Hoeij LLL knapsack recombination (rc222) ────────────────────────────────
+# Attested construction: M. van Hoeij, "Factoring polynomials and the knapsack
+# problem", J. Number Theory 95 (2002) 167-189 (author OA copy, math.fsu.edu) +
+# J. Klüners, "The van Hoeij Algorithm for Factoring Polynomials" (Springer, The
+# LLL Algorithm, 2010; OA copy, math.uni-paderborn.de). Source URLs + sha256 +
+# the full lattice construction: docs/srmech/notes/rc222_vanhoeij_attestation.md.
+
+_VH_MIN_FACTORS = 8   # below this the subset enumeration is already fast
+_VH_S_MAX = 8         # hard cap on the trace count (matches the C peer)
+
+# Observability: the pure-path stats (attempts / successes) — the stress test
+# asserts the van Hoeij path (not the subset wall) handled the many-factor case.
+_VH_STATS = {"attempts": 0, "successes": 0}
+
+
+def _vh_isqrt_small(v: int) -> int:
+    """Integer floor-sqrt of a SMALL nonnegative int (``v = s·n ≤ 8·deg`` here)
+    by exact incremental scan — no float, no ``math`` module."""
+    t = 0
+    while (t + 1) * (t + 1) <= v:
+        t += 1
+    return t
+
+
+def _vh_kth_root_ceil(y: int, k: int) -> int:
+    """Smallest integer ``t ≥ 0`` with ``t**k ≥ y`` (``y ≥ 0``, ``k ≥ 1``) —
+    binary search on the bit-length window, exact integer powers only."""
+    if y <= 0:
+        return 0
+    if k == 1:
+        return y
+    lo, hi = 1, 1 << ((y.bit_length() + k - 1) // k)   # hi**k ≥ 2^bits > y
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if mid ** k >= y:
+            hi = mid
+        else:
+            lo = mid + 1
+    return hi
+
+
+def _vh_root_bound(f: List[int]) -> int:
+    """EXACT integer upper bound on |any complex root| of ``f`` — the MIN of the
+    Cauchy bound ``1 + ceil(max|f_i|/|lead|)`` and the Fujiwara (1916) bound
+    ``2·max_k (|f_{N−k}|/|lead|)^{1/k}`` (the k = N term halved), every
+    intermediate CEILed so the result only ever rounds up (stays a valid bound).
+    Class-K magnitudes throughout (never ``abs``)."""
+    deg = len(f) - 1
+    lead = _mag(f[-1])
+    mx = 0
+    for c in f[:-1]:
+        mc = _mag(c)
+        if mc > mx:
+            mx = mc
+    cauchy = 1 + (mx + lead - 1) // lead if mx > 0 else 1
+    fuji_half = 0
+    for k in range(1, deg + 1):
+        a = _mag(f[deg - k])
+        if a == 0:
+            continue
+        den = 2 * lead if k == deg else lead
+        t = _vh_kth_root_ceil((a + den - 1) // den, k)
+        if t > fuji_half:
+            fuji_half = t
+    fuji = 2 * fuji_half if fuji_half > 0 else 1
+    bound = cauchy if cauchy < fuji else fuji
+    return bound if bound >= 1 else 1
+
+
+def _vh_newton_traces(g: List[int], s: int, m: int) -> List[int]:
+    """Newton power sums ``P_1..P_s`` of the MONIC (mod m) polynomial ``g``, all
+    mod ``m`` — van Hoeij eq. (2): ``P_i = −i·Ẽ_i − Σ_{k<i} P_k·Ẽ_{i−k}`` with
+    ``Ẽ_i`` the coefficient of ``x^{d−i}`` (0 past the degree)."""
+    d = len(g) - 1
+    P = [0] * (s + 1)
+    for i in range(1, s + 1):
+        acc = (i * (g[d - i] if i <= d else 0)) % m
+        for k in range(1, i):
+            e_ik = g[d - (i - k)] if (i - k) <= d else 0
+            if e_ik:
+                acc = (acc + P[k] * e_ik) % m
+        P[i] = (-acc) % m
+    return P[1:]
+
+
+def _vh_symrem(c: int, m: int) -> int:
+    """Symmetric remainder of ``c`` mod ``m``, centred in ``(−m/2, m/2]`` — the
+    SAME convention as :func:`_symmetric_rep` (Class-K sign pin-slot)."""
+    c %= m
+    if c > m // 2:
+        c -= m
+    return c
+
+
+def _vh_plan(f: List[int], n: int, prime: int, k_mig: int):
+    """Pre-lift van Hoeij plan (paper §2.2 step 5): size the trace tower for a
+    ONE-shot lattice from the FULL square-free ``f`` and its ``n`` mod-p
+    factors, and decide how far to Hensel-lift ("If a_i > a then do additional
+    Hensel lifting to increase a"). Returns ``None`` (no usable traces within
+    the lift-raise allowance → the subset path runs alone) or a dict with:
+
+    - ``pbs``: the per-trace ``p^{b_i}`` cut floors (``p^{b_i} > 2·B_i``,
+      ``B_i = N·(|lc|·B_rt)^i`` the scaled-trace bound);
+    - ``e`` / ``pe``: the uniform cut window ``a_i − b_i = e`` (``p^e``), sized
+      to ``n + 8`` bits per trace;
+    - ``k_need``: the lift exponent the plan requires (``max(k_mig, b_s + e)``,
+      capped by the allowance ``k_mig + k_mig/4 + e`` so a pathological bound
+      can only modestly deepen the lift).
+
+    The plan's bounds stay valid for any ``f_work | f`` factored later (the
+    roots of a divisor are a subset; ``|lc(f_work)| ≤ |lc(f)|``)."""
+    deg = len(f) - 1
+    lead_mag = _mag(f[-1])
+    d_p = prime.bit_length() - 1                     # floor(log2 p) ≥ 1
+    t_bits = n + 8                                   # per-trace info target
+    e = t_bits // d_p + 1
+    total_bits = (n * n) // 4 + 64                   # one-shot info target
+    s_want = total_bits // (e * d_p) + 1
+    if s_want > _VH_S_MAX:
+        s_want = _VH_S_MAX
+    b_rt = _vh_root_bound(f)
+    base = lead_mag * b_rt
+    k_allow = k_mig + (k_mig + 3) // 4 + e           # lift-raise allowance
+    pbs: List[int] = []
+    bound_i = deg
+    k_need = k_mig
+    for _i in range(1, s_want + 1):
+        bound_i *= base                              # B_i = N·(|lc|·B_rt)^i
+        pb = 1
+        b = 0
+        while pb <= 2 * bound_i:
+            pb *= prime
+            b += 1
+        if b + e > k_allow:
+            break
+        pbs.append(pb)
+        if b + e > k_need:
+            k_need = b + e
+    if not pbs:
+        return None
+    return {"pbs": pbs, "e": e, "pe": prime ** e, "k_need": k_need}
+
+
+def _van_hoeij_recombine(f: List[int], lifted: List[List[int]], prime: int,
+                         m: int, plan: Dict, subset_cap: int):
+    """van Hoeij LLL knapsack recombination (rc222) — resolve WHICH subsets of
+    the ``n`` Hensel-lifted modular factors multiply to true ℤ[x] factors in ONE
+    lattice reduction instead of the exponential subset enumeration.
+
+    Returns ``(irreducibles, hit_cap)`` EXACTLY as the subset enumeration would
+    produce them (byte-identical: the decoded blocks are emitted through the
+    same candidate/trial-division code in the same order, including the
+    subset-cap and half-bound exits), or ``None`` on ANY failure (insufficient
+    trace precision, lattice cutoff/decode failure, a trial division that does
+    not come out clean) — the caller then falls back to the subset enumeration
+    wholesale (a SPEEDUP, never a new answer).
+
+    The attested construction (see the note header above): scaled Newton traces
+    ``lc^i·Tr_i`` of each modular factor, two-sided cut ``C^{a_i}_{b_i}``, the
+    knapsack lattice ``[[C·I_n | cuts], [0 | p^{a_i−b_i}·I_s]]``, LLL (rc221
+    :func:`lll_reduce` — native ``srmech_lll_reduce`` when loaded), the exact
+    Gram–Schmidt ``‖V*_k‖² > M²`` cutoff (LLL-paper (1.11)), and the
+    column-equality block decode validated by exact ℤ trial division.
+
+    **Class L** (the knapsack lattice + GSO spectral cutoff) ∘ **Class N** (the
+    exact rational trace bounds) ∘ **Class J** (the p-adic trace tower) ∘
+    **Class I** (the mod-p^k Newton identities) ∘ **Class K** (the symmetric-rep
+    sign pin-slots — never an ALU ``abs``).
+    """
+    _VH_STATS["attempts"] += 1
+    n = len(lifted)
+    lead = f[-1]
+
+    # the pre-lift plan carries the trace tower (pbs / e / pe) — its bounds were
+    # computed from the FULL square-free polynomial, which dominates any
+    # f_work | f handled here (subset roots; |lc(f_work)| ≤ |lc(f)|).
+    pbs: List[int] = plan["pbs"]
+    pe: int = plan["pe"]
+    s = len(pbs)
+
+    c_scale = _vh_isqrt_small(s * n) // 2            # balance C²n ≈ s(n/2)²
+    if c_scale == 0:
+        c_scale = 1
+    m4 = 4 * c_scale * c_scale * n + s * n * n       # 4·M² (exact integer)
+
+    # knapsack lattice rows (n+s)×(n+s)
+    rows: List[List[int]] = []
+    lead_m = lead % m
+    for j in range(n):
+        traces = _vh_newton_traces(lifted[j], s, m)
+        row = [0] * (n + s)
+        row[j] = c_scale
+        lp = 1
+        for i in range(s):
+            lp = (lp * lead_m) % m
+            pb = pbs[i]
+            pa = pb * pe
+            c_mod = (lp * traces[i]) % pa            # lc^{i+1}·Tr_{i+1} mod p^{a_i}
+            r_bar = _vh_symrem(c_mod, pb)
+            u = ((c_mod - r_bar) // pb) % pe
+            row[n + i] = _vh_symrem(u, pe)
+        rows.append(row)
+    for i in range(s):
+        row = [0] * (n + s)
+        row[n + i] = pe
+        rows.append(row)
+
+    try:
+        red = lll_reduce(rows, (3, 4))
+    except ValueError:
+        return None
+
+    # exact GSO cutoff: keep V_1..V_r, r minimal with ‖V*_k‖² > M² for all k > r
+    _mu, gso_b = _lll_gso(red, n + s, n + s)
+    r = n + s
+    while r >= 1:
+        bq = gso_b[r - 1]
+        if 4 * bq.numerator > m4 * bq.denominator:
+            r -= 1
+        else:
+            break
+    if r == 0 or r > n:
+        return None
+
+    # column-equality block decode over the /C projections (rref condition A in
+    # equivalence-class form — see the attestation note for the proof sketch).
+    cols: List[Tuple[int, ...]] = []
+    for j in range(n):
+        col = []
+        for t in range(r):
+            v = red[t][j]
+            if v % c_scale != 0:
+                return None                          # not a Λ-vector projection
+            col.append(v // c_scale)
+        cols.append(tuple(col))
+    classes: Dict[Tuple[int, ...], List[int]] = {}
+    for j, col in enumerate(cols):
+        classes.setdefault(col, []).append(j)
+    blocks = sorted(classes.values(), key=lambda blk: (len(blk), blk))
+    if len(blocks) != r:
+        return None                                  # dim mismatch ⇒ L' ≠ W
+
+    # replay: emit the blocks through the SAME candidate/trial-division code the
+    # subset enumeration uses, in the same (size, lex) order, INCLUDING the
+    # subset-cap + half-bound exits — byte-identical output (condition B).
+    remaining = list(range(n))
+    irreducibles: List[List[int]] = []
+    f_work = list(f)
+    lead_work = f_work[-1]
+    hit_cap = False
+    for block in blocks:
+        sb = len(block)
+        if 2 * sb <= len(remaining) and sb <= subset_cap:
+            prod = [lead_work % m]
+            for j in block:
+                prod = _mul_mod(prod, lifted[j], m)
+            cand_poly = _symmetric_rep(prod, m)
+            _c, cand_prim = _ipoly_primitive(cand_poly)
+            if len(cand_prim) <= 1:
+                return None
+            quo, rem = _ipoly_exact_divmod(f_work, cand_prim)
+            if quo is None or rem != [0]:
+                return None                          # NOT a true factor ⇒ fallback
+            irreducibles.append(cand_prim)
+            for j in block:
+                remaining.remove(j)
+            f_work = _ipoly_trim(quo)
+            lead_work = f_work[-1] if f_work != [0] else 1
+        else:
+            # the subset walk exits before reaching this block: cap-exit iff the
+            # cap boundary precedes the half-bound boundary.
+            if sb > subset_cap and 2 * (subset_cap + 1) <= len(remaining):
+                hit_cap = True
+            break
+    if len(f_work) > 1:
+        _c, leftover = _ipoly_primitive(f_work)
+        irreducibles.append(leftover)
+    _VH_STATS["successes"] += 1
+    return irreducibles, hit_cap
+
+
 def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
                                   ) -> Tuple[List[List[int]], bool]:
     """Factor a SQUARE-FREE primitive integer polynomial ``f`` (positive lead,
@@ -2148,6 +2729,20 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
     deg = len(f) - 1
     if deg <= 1:
         return [f], False
+
+    # rc165 (Qalg TAIL Batch 8): the Zassenhaus core dispatches to
+    # srmech_factor_squarefree_primitive — the C kernel that runs the SAME
+    # pipeline (𝔽_p Cantor–Zassenhaus over the byte-identical xorshift64 rng +
+    # quadratic Hensel lift to mod p^k >= 2·B+1 + subset recombination), returning
+    # the irreducible ℤ factors. The pure body below stays the Pyodide / no-native
+    # fallback AND the parity oracle (the factorization is unique, so both paths
+    # yield the same factors; factor_integer_poly sorts the merged result
+    # identically). subset_cap != 18 (non-default) always routes to the pure body,
+    # which honours the explicit cap.
+    if subset_cap == 18 and _native.HAS_NATIVE:
+        native = _native.factor_squarefree_primitive_c(f)
+        if native is not None:
+            return native
 
     # 1. choose a prime p ∤ lead with f square-free mod p.
     from srmech.amsc.primes import is_prime
@@ -2184,53 +2779,99 @@ def _factor_square_free_primitive(f: List[int], *, subset_cap: int = 18
     if len(modp_factors) == 1:
         return [f], False                            # irreducible (one factor mod p)
 
-    # 3. Hensel-lift to mod p^k with p^k ≥ 2·B+1.
+    # 3. Hensel-lift to mod p^k with p^k ≥ 2·B+1 — raised to the van Hoeij
+    # plan's k_need when the knapsack path may engage (paper §2.2 step 5:
+    # "If a_i > a then do additional Hensel lifting"). A larger modulus never
+    # changes the output (true factors' symmetric reps are already unique at
+    # 2·B+1; false candidates fail the exact ℤ division at ANY modulus).
     bound = _mignotte_bound(f)
     target = 2 * bound + 1
     m = prime
+    k_exp = 1
     while m < target:
         m *= prime
+        k_exp += 1
+    vh_plan = None
+    if len(modp_factors) >= _VH_MIN_FACTORS:
+        vh_plan = _vh_plan(f, len(modp_factors), prime, k_exp)
+        if vh_plan is not None:
+            while k_exp < vh_plan["k_need"]:
+                m *= prime
+                k_exp += 1
     lifted = _multi_hensel_lift(f, modp_factors, prime, m)
     lifted = [_trim_mod(g, m) for g in lifted]
 
     # 4. recombination: increasing subset sizes; trial-divide over ℤ.
+    # Only subsets with 2·size ≤ #remaining are enumerated (von zur Gathen &
+    # Gerhard, *Modern Computer Algebra*, ch. 15, the Zassenhaus factor-combination step): a true factor spanning
+    # MORE than half the modular factors has a cofactor spanning LESS than half
+    # that would already have been peeled at its own smaller size, so once the
+    # half bound is exhausted the leftover is irreducible — this halves the
+    # classic exponential enumeration. The enumeration stays WORST-CASE
+    # EXPONENTIAL in the number of modular factors (the fundamental Zassenhaus
+    # recombination wall — measured: the Swinnerton-Dyer SD5 =
+    # minpoly(√2+√3+√5+√7+√11), deg 32, splits into 16 quadratics mod the
+    # chosen prime → 39,207 candidates ≈ 13 s pure), so rc222 phases it van
+    # Hoeij's way (§2.2 steps 1–3): (A) enumerate subset sizes ≤ 3 only (cheap,
+    # peels every small block); (B) resolve the remainder with the LLL knapsack
+    # (_van_hoeij_recombine — ONE polynomial-time lattice reduction); (C) only
+    # if the knapsack declines/fails, run the full exponential walk unchanged.
+    # Every phase emits through the SAME candidate/trial-division code in the
+    # SAME order, so the output is byte-identical to the pure subset path.
+    # The C peer applies the SAME phasing (byte-identity).
     remaining = list(range(len(lifted)))
     irreducibles: List[List[int]] = []
     f_work = list(f)
     lead_work = f_work[-1]
-    size = 1
     hit_cap = False
-    while remaining and size <= len(remaining):
-        if size > subset_cap:
-            hit_cap = True
-            break
-        found = None
-        for combo in itertools.combinations(remaining, size):
-            # candidate = lead · Π lifted[i]  (mod m), symmetric rep, primitive part.
-            prod = [lead_work % m]
-            for i in combo:
-                prod = _mul_mod(prod, lifted[i], m)
-            cand_poly = _symmetric_rep(prod, m)
-            _c, cand_prim = _ipoly_primitive(cand_poly)
-            if len(cand_prim) <= 1:
-                continue
-            quo, rem = _ipoly_exact_divmod(f_work, cand_prim)
-            if quo is not None and rem == [0]:
-                found = (combo, cand_prim, quo)
+
+    def _walk(size_ceil):
+        nonlocal f_work, lead_work, hit_cap
+        size = 1
+        while remaining and 2 * size <= len(remaining):
+            if size > subset_cap:
+                hit_cap = True
                 break
-        if found is None:
-            size += 1
-            continue
-        combo, cand_prim, quo = found
-        irreducibles.append(cand_prim)
-        for i in combo:
-            remaining.remove(i)
-        f_work = _ipoly_trim(quo)
-        lead_work = f_work[-1] if f_work != [0] else 1
-        # f_work may now be a unit (±1) if all factors peeled.
-        if len(f_work) <= 1:
-            break
-        size = 1                                     # restart subset search on the smaller f
+            if size_ceil is not None and size > size_ceil:
+                break
+            found = None
+            for combo in itertools.combinations(remaining, size):
+                # candidate = lead · Π lifted[i]  (mod m), symmetric rep, primitive part.
+                prod = [lead_work % m]
+                for i in combo:
+                    prod = _mul_mod(prod, lifted[i], m)
+                cand_poly = _symmetric_rep(prod, m)
+                _c, cand_prim = _ipoly_primitive(cand_poly)
+                if len(cand_prim) <= 1:
+                    continue
+                quo, rem = _ipoly_exact_divmod(f_work, cand_prim)
+                if quo is not None and rem == [0]:
+                    found = (combo, cand_prim, quo)
+                    break
+            if found is None:
+                size += 1
+                continue
+            combo, cand_prim, quo = found
+            irreducibles.append(cand_prim)
+            for i in combo:
+                remaining.remove(i)
+            f_work = _ipoly_trim(quo)
+            lead_work = f_work[-1] if f_work != [0] else 1
+            # f_work may now be a unit (±1) if all factors peeled.
+            if len(f_work) <= 1:
+                break
+            size = 1                                 # restart subset search on the smaller f
+
+    _walk(3)                                         # phase A: small blocks
+    if not hit_cap:
+        if (vh_plan is not None and len(f_work) > 1
+                and len(remaining) >= _VH_MIN_FACTORS):
+            vh = _van_hoeij_recombine(f_work, [lifted[i] for i in remaining],
+                                      prime, m, vh_plan, subset_cap)
+            if vh is not None:                       # phase B resolved it all
+                vh_irr, vh_cap = vh
+                return irreducibles + vh_irr, vh_cap
+        _walk(None)                                  # phase C: the full walk
     # whatever is left (deg ≥ 1) is the final irreducible factor (or the cap leftover).
     if len(f_work) > 1:
         _c, leftover = _ipoly_primitive(f_work)
@@ -2256,10 +2897,13 @@ def factor_integer_poly(coeffs):
        choose a prime ``p ∤ lead(f)`` with ``f`` square-free mod ``p``, factor
        ``f mod p`` in 𝔽_p[x] (distinct-degree + **Cantor–Zassenhaus** equal-degree),
        **Hensel-lift** to mod ``p^k`` with ``p^k ≥ 2·B+1`` (``B`` = the **Mignotte**
-       coefficient bound), then **recombine** over increasing subset sizes (multiply
-       mod ``p^k``, take symmetric integer reps, scale by the leading-coeff cofactor,
-       trial-divide over ℤ — a clean division peels off a true irreducible factor),
-       guarded by a subset-size cap so the worst case cannot hang.
+       coefficient bound), then **recombine**: subset sizes ≤ 3 first, the **van
+       Hoeij LLL knapsack** (rc222 — ONE polynomial-time lattice reduction; *J.
+       Number Theory* 95 (2002)) on any large remainder, and the full
+       increasing-subset walk (multiply mod ``p^k``, take symmetric integer reps,
+       scale by the leading-coeff cofactor, trial-divide over ℤ) only if the
+       knapsack declines — guarded by a subset-size cap so the worst case cannot
+       hang; every phase emits byte-identically.
 
     All EXACT integer / ``fractions.Fraction`` arithmetic — no float, no ``math``
     module (gcd routes through ``srmech.amsc.cyclic.gcd``; primality through
@@ -2278,6 +2922,20 @@ def factor_integer_poly(coeffs):
         raise ValueError("factor_integer_poly: the zero polynomial has no factorisation")
     if len(p) == 1:                                  # a nonzero constant — no factors
         return []
+
+    # rc165 (deferral 2, everything-mirrors): the FULL composite dispatches as
+    # ONE C call — srmech_factor_integer_poly runs the content + Yun square-free
+    # (exact ℚ over the srmech_poly kernels) + per-part Zassenhaus core + merge +
+    # (len, coeffs) sort entirely in C, byte-identical to the pure body below
+    # (which stays the Pyodide / no-native fallback AND the parity oracle; on an
+    # older lib or past the native degree cap the body still dispatches the
+    # per-part CORE to srmech_factor_squarefree_primitive as in the rc165 core
+    # ship).
+    if _native.HAS_NATIVE:
+        native = _native.factor_integer_poly_c(p)
+        if native is not None:
+            return native
+
     cont, prim = _ipoly_primitive(p)                 # content (signed) · primitive part
 
     # square-free decomposition over ℚ (Yun) → [(square_free_part, multiplicity)].
@@ -2320,6 +2978,179 @@ def factor_integer_poly(coeffs):
             f"factor_integer_poly self-check FAILED: Π factor**mult = {recon_prim} "
             f"!= primitive input {prim} — internal Zassenhaus bug")
     return [(fac, mult) for fac, mult in result]
+
+
+# ── LLL lattice-basis reduction (exact-ℚ Lenstra–Lenstra–Lovász) ─────────────────
+def _lll_round_q(num: int, den: int) -> int:
+    """Nearest integer of the exact rational ``num/den`` (``den > 0``), as an
+    EXACT integer — ``round(num/den) = floor((2·num + den) / (2·den))`` (round
+    half toward +∞). NO float, NO ``math`` — Python ``//`` is floor division
+    (Class-N rational anchor at a Class-K sign boundary)."""
+    return (2 * num + den) // (2 * den)
+
+
+def _lll_gso(b: List[List[int]], m: int, n: int):
+    """Exact-ℚ Gram–Schmidt of the integer basis ``b`` (``m`` rows × ``n`` cols)
+    via the Gram-matrix recurrence: returns ``(mu, B)`` with ``mu[i][j]`` the
+    exact ``Fraction`` GSO coefficient (``j < i``) and ``B[i]`` the exact squared
+    norm ``‖b*_i‖²`` (``Fraction``). Raises ``ValueError`` on a linearly dependent
+    (degenerate) basis (``B[j] == 0`` → the GSO coefficient is undefined)."""
+    mu = [[_FR(0)] * m for _ in range(m)]
+    B = [_FR(0)] * m
+    for i in range(m):
+        for j in range(i):
+            s = _FR(sum(b[i][t] * b[j][t] for t in range(n)))
+            for k in range(j):
+                s -= mu[j][k] * mu[i][k] * B[k]
+            if B[j] == 0:
+                raise ValueError(
+                    "lll_reduce: linearly dependent (degenerate) basis — the "
+                    "Gram–Schmidt norm ‖b*_j‖² vanished; LLL requires an "
+                    "independent basis (an MLLL variant handles dependent rows)")
+            mu[i][j] = s / B[j]
+        s = _FR(sum(b[i][t] * b[i][t] for t in range(n)))
+        for k in range(i):
+            s -= mu[i][k] * mu[i][k] * B[k]
+        B[i] = s
+    return mu, B
+
+
+def _lll_reduce_pure(basis, delta):
+    """Pure exact-ℚ LLL body — the complete, native-independent alternative AND
+    the byte-identity parity oracle for the C peer. See :func:`lll_reduce`.
+
+    rc222: the Gram–Schmidt data is now maintained INCREMENTALLY (the proper
+    H. Cohen Algorithm 2.6.3 form the rc221 docstring already cited): ONE
+    initial full GSO, then ``μ``/``‖b*‖²`` are updated exactly across every
+    size-reduction (the RED step already did this) and every Lovász swap (the
+    classical swap-update identities). The maintained values equal the
+    from-scratch recomputation at every step (exact-ℚ identities, verified
+    per-step over a random corpus), so the reduced basis is BYTE-IDENTICAL to
+    the rc221 full-recompute body — while dropping the per-iteration O(m³)
+    recompute that made knapsack-sized lattices intractable (measured on the
+    van Hoeij SD5 lattice: 34.5 s → 0.34 s, identical output)."""
+    dn, dd = int(delta[0]), int(delta[1])
+    if dd <= 0 or not (dn * 4 > dd and dn <= dd):
+        raise ValueError(
+            f"lll_reduce: delta {dn}/{dd} must lie in (1/4, 1]")
+    b = [[int(x) for x in row] for row in basis]
+    m = len(b)
+    if m == 0:
+        return []
+    n = len(b[0])
+    for r in b:
+        if len(r) != n:
+            raise ValueError("lll_reduce: all basis rows must have equal length")
+    if m == 1:
+        return [list(b[0])]
+
+    delta_fr = _FR(dn, dd)
+    mu, B = _lll_gso(b, m, n)                              # the ONE full GSO
+
+    def _red(k, l):
+        muk = mu[k][l]
+        num, den = muk.numerator, muk.denominator          # den > 0
+        # |mu[k][l]| <= 1/2  ⟺  -den <= 2·num <= den (Class-K sign branch; no abs)
+        if -den <= 2 * num <= den:
+            return
+        q = _lll_round_q(num, den)
+        bk, bl = b[k], b[l]
+        for t in range(n):
+            bk[t] -= q * bl[t]
+        mu[k][l] = mu[k][l] - q
+        mul = mu[l]
+        muk_row = mu[k]
+        for i in range(l):
+            muk_row[i] = muk_row[i] - q * mul[i]
+
+    k = 1
+    while k < m:
+        _red(k, k - 1)
+        mkk = mu[k][k - 1]
+        if B[k] >= (delta_fr - mkk * mkk) * B[k - 1]:       # Lovász condition
+            for l in range(k - 2, -1, -1):
+                _red(k, l)
+            k += 1
+        else:
+            # SWAP b_k ↔ b_{k−1} + the exact incremental μ/B update (Cohen
+            # Alg 2.6.3): B'_{k−1} = B_k + μ²·B_{k−1}; μ' = μ·B_{k−1}/B'_{k−1};
+            # B'_k = B_{k−1}·B_k/B'_{k−1}; μ rows swap below k−1; the deeper
+            # rows i > k rotate through (t, μ[i][k−1]) exactly.
+            mu_v = mu[k][k - 1]
+            b_new = B[k] + mu_v * mu_v * B[k - 1]
+            if b_new == 0:                                  # b_k ∈ span(b_1..b_{k−1})
+                raise ValueError(
+                    "lll_reduce: linearly dependent (degenerate) basis — the "
+                    "Gram–Schmidt norm ‖b*_j‖² vanished; LLL requires an "
+                    "independent basis (an MLLL variant handles dependent rows)")
+            mu_new = mu_v * B[k - 1] / b_new
+            B[k] = B[k - 1] * B[k] / b_new
+            B[k - 1] = b_new
+            b[k], b[k - 1] = b[k - 1], b[k]
+            for j in range(k - 1):
+                mu[k][j], mu[k - 1][j] = mu[k - 1][j], mu[k][j]
+            mu[k][k - 1] = mu_new
+            for i in range(k + 1, m):
+                t = mu[i][k]
+                mu[i][k] = mu[i][k - 1] - mu_v * t
+                mu[i][k - 1] = t + mu_new * mu[i][k]
+            k = k - 1 if k - 1 >= 1 else 1
+    return b
+
+
+def lll_reduce(basis, delta=(3, 4)):
+    """LLL-reduce an integer lattice basis — the exact Lenstra–Lenstra–Lovász
+    (1982) reduction, in EXACT rational arithmetic (no float anywhere).
+
+    ``basis`` is a list of ``m`` integer row-vectors (each length ``n``,
+    arbitrary-precision Python ints) spanning a lattice ``L ⊂ ℤⁿ`` of rank ``m``
+    (an **independent** basis). ``delta`` is the Lovász parameter as an exact
+    rational pair ``(num, den)`` (default ``3/4``, the classical choice); it must
+    lie in ``(1/4, 1]``. Returns the **LLL-reduced basis** as a list of ``m``
+    integer row-vectors: same lattice ``L`` (the reduction is a unimodular change
+    of basis, ``det = ±1``), size-reduced (``|μ_{k,j}| ≤ 1/2`` for ``j < k``), and
+    satisfying the Lovász condition ``‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖²`` — so
+    the first vector is provably short (``‖b_1‖ ≤ 2^{(m−1)/2}·λ_1``).
+
+    The engine is the classical stack, EXACT throughout: a Gram-matrix
+    Gram–Schmidt orthogonalization over ℚ (``μ_{k,j}``, ``‖b*_k‖²`` as exact
+    ``fractions.Fraction`` / arbitrary-precision srmech_bigint ℚ in the C peer),
+    **size reduction** by exact nearest-integer rounding of ``μ``
+    (``round(a/b) = floor((2a+b)/(2b))`` — never a float rint, never ``abs``: the
+    ``|μ| ≤ 1/2`` guard is a Class-K sign branch on ``2·num`` vs ``den``), and the
+    **Lovász swap** decided on the exact ℚ inequality. NO ``math``, NO libm, NO
+    NumPy — integer-in, integer-out, rotation-last-trivial (no projection).
+
+    The foundation of the rc222 van Hoeij polynomial-factorization knapsack —
+    the LLL recombination that supersedes the exponential Zassenhaus subset
+    search in :func:`factor_integer_poly` (see :func:`_van_hoeij_recombine`).
+    rc222 also upgraded this body to the proper INCREMENTAL Cohen Alg 2.6.3
+    form (one initial Gram–Schmidt, μ/B maintained exactly across RED/SWAP) —
+    byte-identical output, ~100× on knapsack-sized lattices.
+
+    Native-dispatched: when the C library is loaded the whole reduction runs in
+    ``srmech_lll_reduce`` over the caller-arena srmech_bigint (byte-identical to
+    this pure body — both are exact, same algorithm, same rounding); the pure
+    body is the complete fallback (Pyodide / no-native / above the native
+    dimension·magnitude cap) AND the parity oracle.
+
+    **Class L** (the lattice / Gram-Schmidt spectral content) ∘ **Class K** (the
+    size-reduction sign pin-slots + the swap-sign boundary — never an ALU
+    ``abs``) ∘ **Class N** (the exact nearest-integer rational rounding) ∘
+    **Class I** (the ordered/sequential integer vector row operations).
+
+    Ref: A. K. Lenstra, H. W. Lenstra Jr., L. Lovász, "Factoring polynomials
+    with rational coefficients", *Math. Ann.* 261 (1982), 515–534; algorithm as
+    in H. Cohen, *A Course in Computational Algebraic Number Theory* (1993),
+    Algorithm 2.6.3.
+
+    :raises ValueError: if ``delta ∉ (1/4, 1]``, rows are ragged, or the basis is
+        linearly dependent (degenerate — ``‖b*_j‖²`` vanished).
+    """
+    native = _native.lll_reduce_c(basis, delta) if _native.HAS_NATIVE else None
+    if native is not None:
+        return native
+    return _lll_reduce_pure(basis, delta)
 
 
 # ── Part 2 — turnkey exact eigensolver: matrix → all exact eigenpairs ────────────
@@ -2387,6 +3218,16 @@ def eig_exact(a, *, bits: int = 64, project: bool = True):
     """
     from srmech.amsc.qalg import Qalg
 
+    # rc166 (Qalg TAIL Batch 9 — THE CAPSTONE): this turnkey eigensolver is a THIN
+    # orchestration of ops that are ALL c_dispatched now — char_poly
+    # (srmech_faddeev_leverrier) → factor_integer_poly (srmech_factor_integer_poly)
+    # → _roots_of_irreducible (eigvals_exact: srmech_sturm_isolate /
+    # srmech_complex_isolate) → eigvec_exact (srmech_eigvec_exact) →
+    # jordan_chains_exact (srmech_jordan_chains). The remaining glue (assemble the
+    # eigenpairs, sort, the ONE terminal Qalg→float/complex rotation-last projection,
+    # self-validate) reaches no non-standalone leaf, so eig_exact is composition_of_c
+    # — the exact-algebra tail runs on a bare C host with no Python (bignum_reference
+    # bucket EMPTY; CEIL_BIGNUM_REFERENCE 0).
     rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
     n = len(rows)
     if n == 0:
@@ -2657,6 +3498,14 @@ def jordan_form_exact(a, *, bits: int = 64, project: bool = True):
     """
     from srmech.amsc.qalg import Qalg
 
+    # rc166 (Qalg TAIL Batch 9 — THE CAPSTONE): the exact Jordan form chains the
+    # SAME c_dispatched pieces as eig_exact (char_poly → factor_integer_poly →
+    # _roots_of_irreducible → jordan_chains_exact — srmech_jordan_chains), then
+    # builds P (chain columns) + J (block-diagonal Jordan) by pure reindexing,
+    # projects rotation-last, and self-validates A·P == P·J exactly over Qalg (a
+    # mat_dot-style reduction). No irreducible compute kernel remains → this is
+    # composition_of_c (bignum_reference bucket EMPTY; CEIL_BIGNUM_REFERENCE 0 — the
+    # exact-algebra tail is python-free on a bare C host).
     rows = a.tolist() if hasattr(a, "tolist") else [list(r) for r in a]
     n = len(rows)
     if n == 0:

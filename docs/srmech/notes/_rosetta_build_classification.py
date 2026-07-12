@@ -186,7 +186,7 @@ srmech.amsc.cascade.parallel_sector_dispatch
 srmech.amsc.cascade.sectorize
 srmech.amsc.cascade.hamming_decode_correct
 
-### python_only_irreducible
+### python_only_debt
 srmech.qm.gauge.casimir_eigenvalue
 srmech.qm.gauge.casimir_operator
 srmech.qm.gauge.gauge_path_segment

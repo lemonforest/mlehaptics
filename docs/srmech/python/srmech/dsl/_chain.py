@@ -35,6 +35,92 @@ from ._control_flow import (
     make_reduce_stage,
 )
 
+# ── F1 carrier-FFI (the DSL Chain LINEAR run-loop → C; 0.9.0rc181) ──────────
+# ``Chain.run`` value-threads the F1 carrier through the C-backed cascade atoms
+# via ``srmech_dsl_chain_run`` (srmech_dsl_chain_run.c) — the leaf-dispatch table
+# (``lookup_cascade_op``) + the ``build_chain_from_dict`` stage-IR grammar, both
+# in C. Only LINEAR (``.then(...)``) chains over the C-backed unary atoms take the
+# native path; a combinator (loop/fold/reduce/parallel) stage, a non-C leaf, or an
+# unsupported carrier shape falls through to the pure loop below (rc103 inform-
+# don't-limit — never a wrong answer). The F1 value descriptor is shared with the
+# #796 F2/F3/F4 carrier extensions:
+#   None -> {"k":"n"} ; int -> {"k":"i","v":..} ; float -> {"k":"f","v":..} ;
+#   str -> {"k":"s","v":..} ; list -> {"k":"l","v":[..]} ; tuple -> {"k":"t",..}
+_NATIVE_MISS = object()
+_F1_MAX_DEPTH = 6
+_INT64_MIN = -(2 ** 63)
+_INT64_MAX = (2 ** 63) - 1
+
+
+def _value_to_desc(v: Any, depth: int = 0) -> Optional[dict]:
+    """Marshal a Python value to the F1 value descriptor; ``None`` → defer to pure.
+
+    Only the F1-representable shapes (None / int64 / float / str / bounded-depth
+    list|tuple of those) marshal; anything else (bool, out-of-int64 int, bytes,
+    dict, complex, a numpy scalar, over-deep nesting) returns ``None`` so
+    ``Chain.run`` keeps the pure path.
+    """
+    if depth > _F1_MAX_DEPTH:
+        return None
+    if v is None:
+        return {"k": "n"}
+    if type(v) is bool:
+        return None                      # bool not an F1 carrier kind → pure
+    if type(v) is int:
+        if _INT64_MIN <= v <= _INT64_MAX:
+            return {"k": "i", "v": v}
+        return None                      # out-of-int64 → pure
+    if type(v) is float:
+        return {"k": "f", "v": v}
+    if type(v) is str:
+        return {"k": "s", "v": v}
+    if type(v) is list or type(v) is tuple:
+        items: List[dict] = []
+        for e in v:
+            d = _value_to_desc(e, depth + 1)
+            if d is None:
+                return None
+            items.append(d)
+        return {"k": "t" if type(v) is tuple else "l", "v": items}
+    return None
+
+
+def _desc_to_value(desc: Any) -> Any:
+    """Rebuild a Python value from the F1 value descriptor (the C output)."""
+    k = desc.get("k")
+    if k == "n":
+        return None
+    if k == "i":
+        return int(desc["v"])
+    if k == "f":
+        return float(desc["v"])
+    if k == "s":
+        return desc["v"]
+    if k == "l":
+        return [_desc_to_value(e) for e in desc["v"]]
+    if k == "t":
+        return tuple(_desc_to_value(e) for e in desc["v"])
+    raise ValueError(f"unknown F1 value descriptor kind {k!r}")
+
+
+def _is_c_scalar(v: Any) -> bool:
+    """A JSON scalar the C chain engine accepts inline (int / float / str, no bool)."""
+    return type(v) in (int, float, str) and type(v) is not bool
+
+
+def _then_native_desc(op_name: str, kwargs: dict) -> Optional[dict]:
+    """Build the C build_chain_from_dict stage dict for a ``.then(op, **kwargs)``.
+
+    ``None`` if any kwarg is not a JSON scalar the C leaf-dispatch accepts (the
+    stage — and so the whole chain — then defers to the pure runner).
+    """
+    stage: dict = {"op": op_name}
+    for kk, vv in kwargs.items():
+        if not _is_c_scalar(vv):
+            return None
+        stage[kk] = vv
+    return stage
+
 # Introspection emit hook — same gating pattern as srmech.amsc.cascade.
 # The DSL emits ``dsl.<chain_name>.stage.<N>`` / ``dsl.<chain_name>
 # .complete`` events when a publish context is active; otherwise the
@@ -93,12 +179,19 @@ class Chain:
         not supplied.
     """
 
-    __slots__ = ("name", "_stages", "_terminal_reason")
+    __slots__ = ("name", "_stages", "_native_ir", "_terminal_reason")
 
     def __init__(self, name: Optional[str] = None) -> None:
         self.name: str = name or "chain"
         # Each stage: (op_name, callable, kwargs-dict).
         self._stages: List[Tuple[str, Callable, dict]] = []
+        # Parallel to ``_stages``: the C-side build_chain_from_dict stage dict for
+        # each stage (rc181 `then` atoms + rc182 loop/fold/reduce combinators), or
+        # ``None`` for a stage the C engine cannot run (a `parallel` fan-out, a
+        # non-scalar kwarg, a non-F1 fold seed, a non-nativizable sub-chain). If
+        # every entry is a dict, ``_run_native`` assembles the whole chain_json and
+        # runs it in ``srmech_dsl_chain_run``; a single ``None`` → the pure path.
+        self._native_ir: List[Optional[dict]] = []
         # Set when a TERMINAL stage is appended (a non-combining
         # ``parallel_sectors`` fan-out, whose output is a list-of-N, not a
         # single composable value). Chaining past it raises a guided error
@@ -151,6 +244,7 @@ class Chain:
             )
         op_fn = lookup_cascade_op(op_name)
         self._stages.append((op_name, op_fn, dict(kwargs)))
+        self._native_ir.append(_then_native_desc(op_name, kwargs))
         return self
 
     def loop(self, n_times: int, sub_chain: "Chain") -> "Chain":
@@ -173,6 +267,14 @@ class Chain:
             stage_fn,
             {},
         ))
+        # C combinator IR: {"loop_n": N, "sub_chain": [<sub-stage-dict>, ...]}.
+        # The sub-chain must itself be fully C-nativizable, else the loop (and so
+        # the parent chain) defers to pure (rc182 build_chain_from_dict grammar).
+        sub_ir = sub_chain._native_stage_list()
+        self._native_ir.append(
+            None if sub_ir is None
+            else {"loop_n": n_times, "sub_chain": sub_ir}
+        )
         return self
 
     def fold(
@@ -193,6 +295,13 @@ class Chain:
             stage_fn,
             {},
         ))
+        # C combinator IR: {"fold_init": <F1 scalar>, "fold_op": op}. Nativizable
+        # only for a scalar seed + no extra kwargs (the C binary body — cyclic_gcd —
+        # takes none); anything else defers to pure.
+        self._native_ir.append(
+            {"fold_init": init, "fold_op": op_name}
+            if (not kwargs and _is_c_scalar(init)) else None
+        )
         return self
 
     def reduce(self, op_name: str, **kwargs: Any) -> "Chain":
@@ -210,6 +319,11 @@ class Chain:
             stage_fn,
             {},
         ))
+        # C combinator IR: {"reduce_op": op}. Nativizable only with no extra kwargs
+        # (the C binary body — cyclic_gcd — takes none); else defers to pure.
+        self._native_ir.append(
+            {"reduce_op": op_name} if not kwargs else None
+        )
         return self
 
     def parallel_sectors(
@@ -271,6 +385,9 @@ class Chain:
             stage_fn,
             {},
         ))
+        # The Klein-4 fan-out runs on host threads (a runtime affordance) — it
+        # DEFERS to the pure runner; no C combinator IR (rc182).
+        self._native_ir.append(None)
         if combine is None:
             self._terminal_reason = (
                 f"cannot chain past a non-combining parallel_sectors "
@@ -283,6 +400,71 @@ class Chain:
         return self
 
     # ── execution ──────────────────────────────────────────────────
+
+    def _native_stage_list(self) -> Optional[List[dict]]:
+        """The C build_chain_from_dict stage list, or ``None`` if not nativizable.
+
+        Returns the per-stage ``_native_ir`` dicts (rc181 `then` atoms + rc182
+        loop/fold/reduce combinators) when EVERY stage nativizes; a single
+        non-nativizable stage (a `parallel` fan-out, a non-scalar kwarg, a
+        non-F1 fold seed, a non-nativizable loop sub-chain) → ``None``. An empty
+        chain (the identity) also returns ``None`` (the pure identity handles it).
+        Used both by :meth:`_run_native` and by an enclosing :meth:`loop` to embed
+        this chain as a nativized sub-chain.
+        """
+        if not self._stages:
+            return None
+        out: List[dict] = []
+        for nd in self._native_ir:
+            if nd is None:
+                return None
+            out.append(nd)
+        return out
+
+    def _run_native(self, input_value: Any) -> Any:
+        """Run this chain in C via ``srmech_dsl_chain_run``; ``_NATIVE_MISS`` → pure.
+
+        Eligible iff the chain is a non-empty pipeline whose every stage nativizes
+        to the C build_chain_from_dict grammar (a plain ``op`` atom, or a rc182
+        loop / fold / reduce combinator — a `parallel` fan-out always defers), and
+        the seed is an F1-representable value. The C peer decides per-leaf / per
+        -binary-body whether it is C-backed; a non-C leaf / non-C fold body /
+        unsupported carrier returns non-OK → pure (rc103 inform-don't-limit).
+        """
+        from srmech.amsc import _native
+        if not (_native.HAS_NATIVE and _native.LIB is not None):
+            return _NATIVE_MISS
+        lib = _native.LIB
+        if not (hasattr(lib, "srmech_dsl_chain_run")
+                and hasattr(lib, "srmech_dsl_chain_run_arena_bytes")):
+            return _NATIVE_MISS
+        stage_list = self._native_stage_list()
+        if stage_list is None:
+            return _NATIVE_MISS                      # combinator/parallel/empty → pure
+        input_desc = _value_to_desc(input_value)
+        if input_desc is None:
+            return _NATIVE_MISS
+        import ctypes
+        import json
+        chain_dict = {"chain": {"name": self.name}, "stage": stage_list}
+        try:
+            chain_json = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
+            input_json = json.dumps(input_desc, ensure_ascii=False).encode("utf-8")
+        except (TypeError, ValueError):
+            return _NATIVE_MISS
+        ws_bytes = int(lib.srmech_dsl_chain_run_arena_bytes(
+            len(chain_json), len(input_json)))
+        ws = (ctypes.c_char * ws_bytes)()
+        out_cap = max(ws_bytes // 2, 16384)
+        out = (ctypes.c_char * out_cap)()
+        out_len = ctypes.c_size_t()
+        rc = lib.srmech_dsl_chain_run(
+            chain_json, len(chain_json), input_json, len(input_json),
+            ws, ws_bytes, out, out_cap, ctypes.byref(out_len))
+        if rc != _native.SRMECH_OK:
+            return _NATIVE_MISS
+        desc = json.loads(out.raw[:out_len.value].decode("utf-8"))
+        return _desc_to_value(desc)
 
     def run(self, input_value: Any) -> Any:
         """Execute the chain with ``input_value`` as the seed.
@@ -302,6 +484,14 @@ class Chain:
             The output of the final stage. An empty chain returns
             ``input_value`` unchanged (the identity chain).
         """
+        # F1 carrier-FFI: a LINEAR chain over the C-backed atoms runs end-to-end
+        # in C (rc181). Skipped while a publish context is active so the per-stage
+        # events still fire on the pure path; a non-eligible chain / non-C leaf /
+        # unsupported carrier returns _NATIVE_MISS → the pure loop below runs.
+        if not _is_pub():
+            native = self._run_native(input_value)
+            if native is not _NATIVE_MISS:
+                return native
         value = input_value
         for stage_idx, (op_name, op_fn, kwargs) in enumerate(self._stages):
             if _is_pub():

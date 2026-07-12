@@ -17,6 +17,13 @@ Archimedes hexagon-doubling — the first sigproc carrier-flip to need π) fed t
 floor are explicit elementwise list comprehensions. ``_sc.fft`` returns
 ``List[complex]``; ``_fc.fftfreq`` returns a plain list numpy-absent.
 
+rc148 (B4a) classification: ``composition_of_c`` — each Welch segment's
+``_sc.fft`` dispatches to the c_dispatched numeric FFT foundation
+``srmech_fft_c128`` (rc139); the Hann window is the byte-exact Class-N
+``rational.cos`` cascade (C-backed) and the cross-product ``X·conj(Y)`` / power
+``|z|²=re²+im²`` / bundle average are numpy-free elementwise glue (no ``abs()``).
+NUMERIC (within-tol, not byte-identical): native == pure to reldiff ≤ 1e-9.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Welch
 (1967) + Carter (1987) for cross-spectral / coherence.
 """

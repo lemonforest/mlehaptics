@@ -323,6 +323,27 @@ def serve_http_sse(
         returns the handle immediately. If ``False``, blocks
         serving forever (used for the CLI mode).
     """
+    # rc194 — bare-C-host native serve-forever path. In blocking mode with the
+    # DEFAULT server (no custom server / filter / name), a bare-C host serves the
+    # WHOLE HTTP+SSE transport in C (``srmech_mcp_serve_http_sse`` composing the
+    # rc186 ``srmech_mcp_handle`` over the rc194 TCP PAL). hasattr-guarded (old
+    # libs / a no-TCP host fall through); a non-OK status (POSIX-first: no TCP
+    # backend / bind error) runs the pure http.server below. Like the rc186
+    # bare-C ``serve_stdio``, the C transport serves the lifecycle + discovery
+    # methods and DEFERS tools/call (the pure path here keeps the full
+    # invoke_tool, so the default background=True server is unchanged).
+    if not background and server is None and name == "srmech-mcp":
+        from ..amsc import _native
+
+        if _native.has_native_mcp_sse():
+            rc = _native.mcp_serve_http_sse_c(host, port)
+            if rc == 0:
+                # Served the whole transport in C, then stopped (a bare-C host
+                # runs until the process is signalled). No pure handle to hand
+                # back (background=False blocks; the return is never consumed).
+                return None  # type: ignore[return-value]
+            # non-OK → run the pure server below (POSIX-first fallback).
+
     srv = server if server is not None else MCPServer(name=name)
     registry = _SessionRegistry()
     handler_cls = _make_handler_class(srv, registry)

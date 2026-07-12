@@ -26,11 +26,17 @@ Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Forney
 
 from __future__ import annotations
 
+import ctypes
 from typing import List
 
+from srmech.amsc import _native
 from srmech.amsc import rational as _srn
 
 from .viterbi import op as viterbi_op
+
+# Guard: only dispatch the trellis to C when its dense scratch is a sane size
+# (n_states = A^memory can blow up); beyond this the pure trellis DP runs.
+_MLSE_NATIVE_STATE_CAP = 65536
 
 OPERATION_NAME = "mlse"
 CLASS_COMPOSITION = ("L", "K")
@@ -46,6 +52,47 @@ def _as_complex_list(v) -> List[complex]:
     """Coerce an array-like to a plain Python ``list[complex]`` (numpy-free)."""
     seq = v.tolist() if hasattr(v, "tolist") else list(v)
     return [complex(x) for x in seq]
+
+
+def _mlse_native(obs, taps, alpha, T, A, memory, n_states):
+    """Native MLSE → integer input-symbol index list (byte-identical to the
+    pure trellis DP) or ``None`` (rc144 §B6b). The Class-N rational-log trellis
+    CONSTANTS are computed here in Python (exactly as the pure kernel does) and
+    passed to C as doubles, so every float value in the trellis — and thus the
+    Viterbi path — is bit-identical. Complex arithmetic in C reproduces Python's
+    ``complex.__mul__``. Guards the dense-scratch size (falls back to pure)."""
+    if not _native.has_native_mlse() or T == 0 or A == 0:
+        return None
+    if n_states == 0 or n_states > _MLSE_NATIVE_STATE_CAP:
+        return None
+    # log CONSTANTS — only meaningful for the ISI trellis (memory > 0); the
+    # no-ISI path ignores them. Computed with the SAME rational.log cascade.
+    if memory > 0:
+        log_a = float(_srn.log(float(A)))
+        log_ns = float(_srn.log(float(n_states)))
+    else:
+        log_a = 0.0
+        log_ns = 0.0
+    obs_re = (ctypes.c_double * T)(*[x.real for x in obs])
+    obs_im = (ctypes.c_double * T)(*[x.imag for x in obs])
+    L = len(taps)
+    taps_re = (ctypes.c_double * L)(*[x.real for x in taps])
+    taps_im = (ctypes.c_double * L)(*[x.imag for x in taps])
+    alpha_re = (ctypes.c_double * A)(*[x.real for x in alpha])
+    alpha_im = (ctypes.c_double * A)(*[x.imag for x in alpha])
+    dn = n_states * n_states + 2 * n_states * T + n_states
+    dscratch = (ctypes.c_double * dn)()
+    iscratch = (ctypes.c_int32 * (T * n_states + T))()
+    uscratch = (ctypes.c_uint32 * max(1, 2 * memory))()
+    out_path = (ctypes.c_int32 * T)()
+    rc = _native.LIB.srmech_mlse(
+        obs_re, obs_im, ctypes.c_uint32(T), taps_re, taps_im,
+        ctypes.c_uint32(L), alpha_re, alpha_im, ctypes.c_uint32(A),
+        ctypes.c_uint32(n_states), ctypes.c_double(log_a), ctypes.c_double(log_ns),
+        dscratch, iscratch, uscratch, out_path)
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(out_path[t]) for t in range(T)]
 
 
 def op(
@@ -91,6 +138,10 @@ def op(
         raise ValueError("channel_taps must have length >= 1")
     n_states = A ** memory if memory > 0 else 1
     T = len(obs)
+
+    native = _mlse_native(obs, taps, alpha, T, A, memory, n_states)  # rc144 §B6b
+    if native is not None:
+        return native
 
     if memory == 0:
         # No ISI; just minimum-distance decoding. Class K pin-slot argmin over

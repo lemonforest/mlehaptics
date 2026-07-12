@@ -49,3 +49,73 @@ equivalents per the paywalled-DOI rule
 - `octonion_dft.toml` → cite anchors (2)+(3); the **bracketing/association convention**
   is an explicit declared field (octonion non-associativity is a mathematical fact,
   F378 — the citations anchor the OFT *definition*, not the bracketing claim).
+
+## rc110 re-verification (2026-07-03; #1234 Item 1b — the QDFT graduation)
+
+Anchor (1) **re-verified FIRST-HAND** at the rc110 build (the issue-mandated
+MPM gate: verify-PDF before lodging). Method: fetched the OA arXiv PDF
+(`arxiv.org/pdf/1001.4379`, v3, 4 Jul 2011) and extracted its text
+(pypdf, 14 pages / ~41k chars); checked against the lodged citation:
+
+- **Title** — "Complex and Hypercomplex Discrete Fourier Transforms Based on
+  Matrix Exponential Form of Euler's Formula" ✓ (page 1).
+- **Authors** — Stephen J. Sangwine (Univ. of Essex) + Todd A. Ell ✓
+  (page-1 footnotes).
+- **arXiv ID / version** — `arXiv:1001.4379v3 [math.RA] 4 Jul 2011` ✓;
+  journal ref Appl. Math. Comput. 219(2):644–655 (2012) ✓ (abs page).
+- **The cited convention actually appears**: the exponential-PLACEMENT
+  distinction is discussed in the body ("If the exponential were to be
+  placed on the right, f and F would have to be transposed, …"), the
+  one-sided quaternion DFT is referenced against the authors' own 2007
+  paper ([16] §VI), and **§7 "Extension to two-sided DFTs"** covers the
+  two-sided form — i.e. the one-sided/left-right/two-sided landscape the
+  rc110 `quaternion_dft` documents is genuinely present in the verified
+  OA source.
+
+**Scope of the attribution (unchanged):** the paper anchors the `exp(μθ)`
+matrix-exponential Euler-form hypercomplex-DFT *framework* and the
+form-distinction *landscape*. The precise operational convention srmech
+ships (forward σ=−1; left form `X[k]=Σ_n W(σ2πkn/N)·x[n]`, right form
+`X[k]=Σ_n x[n]·W(σ2πkn/N)`; inverse σ=+1 + 1/N on the same side) is the
+IN-REPO SSOT — rc109 `qm.quaternion` + the R21 proof — not an external
+attribution. No new external citation was lodged at rc110.
+
+## rc111 re-verification (2026-07-03; #1234 Item 1c — the ODFT graduation)
+
+Anchor (2) **re-verified FIRST-HAND** at the rc111 build (the issue-mandated
+MPM gate for the ODFT graduation). Method: fetched the OA arXiv PDF
+(`arxiv.org/pdf/1905.12631`, **v2, 20 Dec 2019**) and extracted its text
+(pypdf, 31 pages / ~71k chars); checked against the lodged citation:
+
+- **Title** — "A Generalization of the Octonion Fourier Transform to 3-D
+  Octonion-Valued Signals – Properties and Possible Applications to 3-D LTI
+  Partial Differential Systems" ✓ (page 1).
+- **Author** — Łukasz Błaszczyk (sole author; Faculty of Mathematics and
+  Information Science, Warsaw University of Technology) ✓ (page 1).
+- **arXiv ID / version** — `arXiv:1905.12631v2 [math.CA] 20 Dec 2019` ✓.
+- **The anchor-(3) origin attribution is in the body**: abstract first
+  sentence "…the octonion Fourier transform (OFT) theory initiated in 2011
+  in articles by Hahn and Snopek", and reference **[17]** reads "S. L. Hahn
+  and K. M. Snopek. The unified theory of n-dimensional complex and
+  hypercomplex analytic signals. Bull. Polish Ac. Sci., Tech. Sci.,
+  59(2):167–181, 2011." — vol/issue/pages **exactly** the lodged anchor (3) ✓.
+- **THE BRACKETING-CONVENTION POINT IS GENUINELY IN THE VERIFIED SOURCE**
+  (the rc111 load-bearing check): the paper's own OFT definition, Eq (2.8) —
+  `U_OFT(f) = ∫_{R³} u(x)·e^{−e₁2πf₁x₁}·e^{−e₂2πf₂x₂}·e^{−e₄2πf₃x₃} dx` —
+  is immediately followed by the verbatim declaration: **"Recall that the
+  octonion algebra is non-associative, so it is necessary to note that the
+  multiplication in the above integrals is done from left to right."** and
+  "…choice and order of imaginary units in the exponents is not
+  accidental." I.e. the literature's own ODFT must — and does — DECLARE its
+  association order; srmech's `bracketing`-as-attested-field is the same
+  honesty requirement made a machine-readable field.
+
+**Scope of the attribution (the rc110 split, applied to the ODFT):** the
+Błaszczyk/Hahn–Snopek anchors carry the OFT *definition landscape* (a
+3-D, multi-exponential, right-side transform with a declared left-to-right
+association). The precise operational convention srmech ships (1-D;
+one-sided left/right + the two-sided bracketing-keyed form; forward σ=−1;
+per-summand-single-product; inverse = σ flip + 1/N on the same declared
+side) and the ALTERNATIVITY/ARTIN round-trip finding are the IN-REPO SSOT —
+the attested `qm.octonion` table + the rc111 empirical verification — not
+an external attribution. No new external citation was lodged at rc111.

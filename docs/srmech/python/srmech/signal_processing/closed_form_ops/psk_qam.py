@@ -20,6 +20,14 @@ the QAM grid is built from pure-Python Gray-coded levels (``√M`` via the Class
 ``sqrt`` and no ``abs()``). Inputs are coerced numpy-free and the op returns
 plain Python ``list``s. No top-level ``import numpy``.
 
+rc153 (BATCH B7) classification: ``composition_of_c``. The genuine float math
+is the constellation build — the PSK phases ``e^{i·2π·k/M}`` ride the
+c_dispatched ``rational.cos`` / ``rational.sin`` cascade and the QAM grid rides
+the c_dispatched ``rational.sqrt`` (``√M``). Modulate is then an integer index
+lookup; demodulate is a nearest-neighbour Class-K decision-region search over
+the numpy-free ``|received − const|²`` squared-distance glue. NUMERIC within-tol
+(native == pure to reldiff ≤ 1e-9, NOT byte-identical).
+
 Path B dual in Phase 6 (Path B ℤ/M cyclic + threshold).
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Proakis &

@@ -26,14 +26,29 @@ A quaternion FT's coefficient algebra **matches** the Klein-4 object's value
 algebra, so both chirality axes survive — exactly what an RBS-SNN Klein-4
 object needs and what the complex FFT cannot give.
 
-**These are COMPOSITES, not a new primitive class** — they compose the
-existing ``srmech.qm.octonion`` left/right-multiply atoms (the
+**These compose existing atoms — no new primitive class** (the
 non-commutativity of ``ℍ`` / ``𝕆`` is load-bearing: there are genuinely
 **left- / right- / two-sided** forms; the twiddle cannot be factored out the
-way the complex FFT does) with the scalar twiddle ``exp(μθ)=cos θ + μ·sin θ``.
-The 14-class A–N vocabulary is intact (``[[feedback_no_privileged_primitive_classes]]``).
-No ``abs()`` — the octonion norm/conjugate route through Class K+C, never an
-ALU absolute value.
+way the complex FFT does). The 14-class A–N vocabulary is intact
+(``[[feedback_no_privileged_primitive_classes]]``). No ``abs()`` — the
+norm/conjugate route through Class K+C, never an ALU absolute value.
+
+**GRADUATION (0.9.0rc110 + rc111; #1234 Items 1b/1c, re-raise of #863):**
+
+- :func:`quaternion_dft` **GRADUATED at rc110** — a first-class op over the
+  rc109 ``srmech.qm.quaternion`` foundation (the 4×4 ``L_q``/``R_q``
+  operators + ``quaternion_twiddle``, no longer the sliced 8×8 octonion
+  embedding) with the whole-transform C peer ``srmech_quaternion_dft``
+  (byte-exact composed fallback).
+- :func:`octonion_dft` **GRADUATED at rc111** — first-class over the
+  ``srmech.qm.octonion`` foundation (the 8×8 ``L_a``/``R_a`` operators +
+  the rc111 ``octonion_twiddle``) with the whole-transform C peer
+  ``srmech_octonion_dft`` covering ALL THREE forms (left / right /
+  two_sided; byte-exact composed fallback). The 𝕆 non-associativity makes
+  the BRACKETING an EXPLICIT ATTESTED FIELD — see the op docstring + the
+  ``octonion_dft.toml`` ``[cascade.bracketing]`` attestation block.
+- :func:`hypercomplex_couple` remains the composite tier over the
+  exact-Q61 octonion couple.
 
 **Numpy-free (rc125, #564).** The whole module runs with **zero numpy** —
 the octonion samples / twiddles / accumulators are plain ``list[float]`` of
@@ -43,12 +58,11 @@ matvec rides a numpy-free :class:`Mat`-column ``mat_matmul`` (the pattern
 ``qm.single_particle`` used in rc117) — never numpy ``@`` / ``dense_matvec``.
 ``import srmech.amsc.cascade`` and every transform import + run numpy-absent.
 
-This is the **prototype tier** per #863: a composite over existing primitives.
-A graduation to a first-class C/Python primitive (a native ``srmech_*_dft``
-symbol like the existing ``fft``) is a separate, later voxel.
-
 Citations (verified PDFs —
-``docs/srmech/notes/qdft_odft_citation_verification_863.md``):
+``docs/srmech/notes/qdft_odft_citation_verification_863.md``; the QDFT anchor
+RE-verified first-hand at rc110 by PDF text extraction — title + authors +
+arXiv ID + the exponential-placement / one-sided-vs-two-sided convention
+discussion, §7):
 - QDFT: Sangwine, S. J. & Ell, T. A. (2012). *Complex and Hypercomplex
   Discrete Fourier Transforms Based on Matrix Exponential Form of Euler's
   Formula.* Appl. Math. Comput. 219(2):644–655. arXiv:1001.4379.
@@ -60,11 +74,13 @@ Citations (verified PDFs —
 """
 from __future__ import annotations
 
+import ctypes
 from typing import List, Sequence, Tuple
 
 # §22: scalar root + trig via the Class-N rational cascade, not libm; π from the
 # Archimedes pi_cascade (`[[feedback_continuous_number_line_pedagogical_obstacle]]`).
 from srmech.amsc import _native
+from srmech.amsc.mat import Mat as _Mat
 from srmech.amsc import rational as _rational
 from srmech.amsc.q import Q as _Q
 from srmech.amsc.rational import cos as _rcos
@@ -109,15 +125,10 @@ _OCTONION_FORMS = ("left", "right", "two_sided")
 _BRACKETINGS = ("left_associated", "right_associated")
 
 
-def _twiddle8(theta: float, mu: Sequence[float]) -> List[float]:
-    """``exp(μθ) = cos θ·1 + sin θ·μ`` as an 8-vector (μ a unit pure-imaginary
-    octonion). All seven imaginary components are carried — a quaternion axis
-    has ``e4..e7 == 0`` so the result is unchanged from the ℍ-only form, but a
-    general / diagonal octonion ``μ`` (e.g. ``(Σeₙ)/√7``) is now honoured.
-    rc125 (numpy-free): a plain ``list[float]``."""
-    c = _rcos(theta)
-    s = _rsin(theta)
-    return [c] + [s * mu[i] for i in range(1, 8)]
+# (rc111: the float `_twiddle8` helper GRADUATED into
+# ``srmech.qm.octonion.octonion_exp`` / ``octonion_twiddle`` — the ODFT
+# twiddle now rides the Q61-cascade qm.octonion foundation, not a local
+# float helper.)
 
 
 # 0.9.0rc16 — the EXACT-Q61 (σ,θ,μ) coupler core: the C-host-parity rewrite of
@@ -324,81 +335,275 @@ def _pack_streams(streams) -> "tuple":
     )
 
 
-def _matvec8(op, v: Sequence[float]) -> List[float]:
-    """The octonion-rep matvec ``op · v`` — ``op`` an ``8×8`` :class:`Mat`
-    (``octonion_left_mult`` / ``octonion_right_mult``), ``v`` an 8-vector list.
-    rc125 (numpy-free): a pure-Python matvec over the ``Mat`` rows (never numpy
-    ``@`` / ``dense_matvec_real``; the rc117 single_particle pattern)."""
-    rows = op.tolist()
-    return [sum(rows[i][j] * v[j] for j in range(8)) for i in range(8)]
+# ────────────────────────────────────────────────────────────────────────
+# The GRADUATED octonion DFT (0.9.0rc111; #1234 Item 1c, re-raise of
+# #863) — first-class over the qm.octonion foundation (the 8×8 L_a/R_a
+# operators + the rc111 ``octonion_twiddle``), with the whole-transform
+# C peer ``srmech_octonion_dft`` (ALL THREE forms) and a byte-exact
+# composed fallback. The rc31 composite ``_dft_core`` retired here.
+# ────────────────────────────────────────────────────────────────────────
+
+#: The octonion carrier dimension (𝕆).
+_ODIM = 8
+
+#: The native uint32 length bound (the srmech_octonion_twiddle contract).
+_ODFT_N_MAX = 2 ** 32
+
+#: The srmech_octonion_dft wire codes (form / bracketing enums).
+_ODFT_FORM_CODE = {"left": 0, "right": 1, "two_sided": 2}
+_ODFT_BRACKETING_CODE = {"left_associated": 0, "right_associated": 1}
 
 
-def _dft_core(x, *, form, mu_axis, inverse, two_sided_right, bracketing, octonion):
-    """Shared (Q/O)DFT engine. Composes the qm.octonion left/right-mult atoms.
+def _odft_matvec8(rows: List[List[float]], v: Sequence[float]) -> List[float]:
+    """The 8×8 operator matvec with the row-dot accumulated LEFT-TO-RIGHT in a
+    scalar ``t`` — the exact float-op order of the C peer's
+    ``srmech_oct__matvec8`` (the byte-exact parity contract, not a
+    tolerance)."""
+    out = [0.0] * _ODIM
+    for i in range(_ODIM):
+        t = 0.0
+        for c in range(_ODIM):
+            t += rows[i][c] * v[c]
+        out[i] = t
+    return out
 
-    X[k] = scale · Σ_n  T( W(σ·2πkn/N) ) · x[n]
 
-    where ``W`` is the twiddle, ``σ = +1`` for the inverse (else −1), ``scale``
-    = 1/N for the inverse (else 1), and ``T`` is left- or right-multiplication
-    by the twiddle (``octonion_left_mult`` / ``octonion_right_mult``) — the
-    non-commutative choice that distinguishes the left/right forms.
+def _odft_native_ready() -> bool:
+    """True iff the native lib is loaded AND exports ``srmech_octonion_dft``
+    (hasattr-guarded for stale ABI-3 libs; numpy-free)."""
+    return bool(
+        _native.HAS_NATIVE and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_octonion_dft")
+    )
 
-    rc125 (numpy-free): the operators are the :class:`Mat` ``octonion_*_mult``
-    now returns; the matvec is :func:`_matvec8` (pure Python); the accumulator
-    is a ``list[float]``.
-    """
-    from srmech.qm.octonion import octonion_left_mult, octonion_right_mult
 
-    mu = _resolve_mu(mu_axis, octonion=octonion)
-    # Resolve the two-sided right axis once (defaults to the left axis).
-    mu_r = _resolve_mu(two_sided_right or mu_axis, octonion=octonion)
-
-    xs = [_as8(v) for v in x]
+def _try_native_odft(xs: List[List[float]], form: str, bracketing: str,
+                     inverse: bool, mu_hat: List[float],
+                     mu_r_hat: List[float]):
+    """Dispatch the WHOLE transform to the C peer ``srmech_octonion_dft``
+    (one ctypes call; μ̂/μ̂_r already unit) — or ``None`` to signal the
+    composed fallback. Byte-exact with :func:`_odft_composed` (tested)."""
     n_pts = len(xs)
-    if n_pts == 0:
-        return []
-    if not octonion:
-        # ℍ-closure guard: a quaternion DFT requires quaternion samples
-        # (e4..e7 == 0); a non-zero octonion tail would silently leak.
-        for v in xs:
-            # presence test (any nonzero tail) — no magnitude / no abs() needed.
-            if any(v[i] != 0.0 for i in range(4, 8)):
-                raise ValueError(
-                    "quaternion_dft requires quaternion samples (components "
-                    "e4..e7 must be zero); use octonion_dft for full octonions"
-                )
+    if not _odft_native_ready() or n_pts >= _ODFT_N_MAX:
+        return None
+    In = ctypes.c_double * (n_pts * _ODIM)
+    Mu = ctypes.c_double * _ODIM
+    c_x = In(*(c for v in xs for c in v))
+    c_mu = Mu(*(float(c) for c in mu_hat))
+    c_mu_r = Mu(*(float(c) for c in mu_r_hat))
+    c_out = In()
+    rc = _native.LIB.srmech_octonion_dft(
+        ctypes.cast(c_x, _C_DBLP), ctypes.c_uint32(n_pts),
+        ctypes.c_int32(_ODFT_FORM_CODE[form]),
+        ctypes.c_int32(_ODFT_BRACKETING_CODE[bracketing]),
+        ctypes.c_int32(1 if inverse else 0),
+        ctypes.cast(c_mu, _C_DBLP), ctypes.cast(c_mu_r, _C_DBLP),
+        ctypes.c_size_t(_ODIM), ctypes.cast(c_out, _C_DBLP),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [[float(c_out[i * _ODIM + c]) for c in range(_ODIM)]
+            for i in range(n_pts)]
 
-    sigma = 1.0 if inverse else -1.0
-    scale = (1.0 / n_pts) if inverse else 1.0
-    two_pi = 2.0 * _PI
 
-    mult_left = form == "left"
-    out: List = []
+def _odft_composed(xs: List[List[float]], form: str, bracketing: str,
+                   inverse: bool, mu_hat: List[float],
+                   mu_r_hat: List[float]) -> List[List[float]]:
+    """The composed ODFT path over the qm.octonion foundation — the rc111
+    ``_twiddle_resolved`` core (via the resolved-μ̂ one-resolution parity
+    contract) + the 8×8 ``octonion_left_mult``/``octonion_right_mult``
+    operator matvec.
+
+    Float-op order MIRRORS the C peer exactly (twiddle → operator matrix →
+    row-dot left-to-right → per-summand term → accumulate over m → one final
+    scale; the two-sided form applies the DECLARED bracketing order), so the
+    two paths are byte-exact — the parity contract, not a tolerance."""
+    from srmech.qm.octonion import (
+        _twiddle_resolved,
+        octonion_left_mult,
+        octonion_right_mult,
+    )
+    n_pts = len(xs)
+    sigma = 1 if inverse else -1
+    scale = (1.0 / float(n_pts)) if inverse else 1.0
+    two_sided = form == "two_sided"
+    left = form == "left"
+    left_assoc = bracketing == "left_associated"
+    out: List[List[float]] = []
     for k in range(n_pts):
-        acc = [0.0] * 8
-        for n in range(n_pts):
-            theta = sigma * two_pi * k * n / n_pts
-            w = _twiddle8(theta, mu)
-            if form == "two_sided":
-                # Octonion two-sided: W_l · x · W_r — the bracketing of the
-                # 3-factor product is meaningful (𝕆 is NON-associative, F378).
-                wl = octonion_left_mult(w)
-                w_r = _twiddle8(theta, mu_r)
-                if bracketing == "left_associated":
-                    # (W_l · x) · W_r
-                    inner = _matvec8(wl, xs[n])
-                    term = _matvec8(octonion_right_mult(w_r), inner)
-                else:
-                    # W_l · (x · W_r)
-                    inner = _matvec8(octonion_right_mult(w_r), xs[n])
-                    term = _matvec8(wl, inner)
-            elif mult_left:
-                term = _matvec8(octonion_left_mult(w), xs[n])   # W·x (left)
-            else:
-                term = _matvec8(octonion_right_mult(w), xs[n])  # x·W (right)
-            acc = [acc[i] + term[i] for i in range(8)]
-        acc = [a * scale for a in acc]
-        out.append(list(acc) if octonion else acc[:4])
+        acc = [0.0] * _ODIM
+        for m in range(n_pts):
+            w = _twiddle_resolved(k, m, n_pts, sigma, mu_hat)
+            if two_sided:
+                # The DECLARED bracketing (the attested field, F378): the
+                # 3-factor product W_l · x · W_r needs an association order.
+                w_r = _twiddle_resolved(k, m, n_pts, sigma, mu_r_hat)
+                if left_assoc:                     # (W_l · x) · W_r
+                    inner = _odft_matvec8(octonion_left_mult(w).tolist(),
+                                          xs[m])
+                    term = _odft_matvec8(octonion_right_mult(w_r).tolist(),
+                                         inner)
+                else:                              # W_l · (x · W_r)
+                    inner = _odft_matvec8(octonion_right_mult(w_r).tolist(),
+                                          xs[m])
+                    term = _odft_matvec8(octonion_left_mult(w).tolist(),
+                                         inner)
+            elif left:                             # W · x  (one product)
+                term = _odft_matvec8(octonion_left_mult(w).tolist(), xs[m])
+            else:                                  # x · W  (one product)
+                term = _odft_matvec8(octonion_right_mult(w).tolist(), xs[m])
+            for i in range(_ODIM):
+                acc[i] += term[i]
+        out.append([acc[i] * scale for i in range(_ODIM)])
+    return out
+
+
+# ────────────────────────────────────────────────────────────────────────
+# The GRADUATED quaternion DFT (0.9.0rc110; #1234 Item 1b, re-raise of
+# #863) — first-class over the rc109 qm.quaternion foundation (the 4×4
+# L_q/R_q operators + the exp(μθ) twiddle), with the whole-transform C
+# peer ``srmech_quaternion_dft`` and a byte-exact composed fallback.
+# ────────────────────────────────────────────────────────────────────────
+
+#: The quaternion carrier dimension (ℍ).
+_QDIM = 4
+
+#: ctypes double-pointer alias for the native QDFT marshalling (numpy-free).
+_C_DBLP = ctypes.POINTER(ctypes.c_double)
+
+#: The native uint32 length bound (the srmech_quaternion_twiddle contract).
+_QDFT_N_MAX = 2 ** 32
+
+
+def _as_quat4(v) -> List[float]:
+    """Coerce one QDFT sample to a plain 4-list (numpy-free).
+
+    Accepts a 4-component quaternion or the rc31 octonion-embedded 8-vector
+    form with ``e4..e7 == 0`` (a nonzero tail would silently leak ℍ, so it
+    raises — the same guard the composite tier enforced)."""
+    a = [float(c) for c in v]
+    n = len(a)
+    if n == 4:
+        return a
+    if n == 8:
+        # presence test (any nonzero tail) — no magnitude / no abs() needed.
+        if any(a[i] != 0.0 for i in range(4, 8)):
+            raise ValueError(
+                "quaternion_dft requires quaternion samples (components "
+                "e4..e7 must be zero); use octonion_dft for full octonions"
+            )
+        return a[:4]
+    raise ValueError(
+        f"hypercomplex sample must have 4 (quaternion) or 8 (octonion) "
+        f"components; got {n}"
+    )
+
+
+def _resolve_mu4_qdft(mu_axis) -> List[float]:
+    """Resolve the QDFT axis to a UNIT pure-imaginary 4-list ``μ̂`` — ONCE per
+    public call, so the native and composed paths consume the identical floats
+    (the rc109 one-resolution parity contract).
+
+    Keeps the full rc31/rc1 axis contract: named ``'i'``/``'j'``/``'k'``/
+    ``'ijk'``/``'diagonal'`` (for ℍ, ``'diagonal'`` IS ``'ijk'`` — the
+    equal-weight ``(i+j+k)/√3`` coupling axis, F436), a 4-sequence
+    pure-imaginary vector (normalised via the Class-N sqrt cascade), or an
+    ℍ-valued 8-sequence (``e4..e7 == 0``)."""
+    from srmech.qm import quaternion as _quat
+    if isinstance(mu_axis, str):
+        name = "ijk" if mu_axis == "diagonal" else mu_axis
+        if name in _quat._MU_AXES:
+            return list(_quat._MU_AXES[name])
+        raise ValueError(
+            f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a "
+            f"unit pure-imaginary vector; got {mu_axis!r}"
+        )
+    v = [float(c) for c in mu_axis]
+    if len(v) == 8:
+        if any(v[i] != 0.0 for i in range(4, 8)):
+            raise ValueError(
+                "a quaternion mu_axis must lie in ℍ (components e4..e7 == 0); "
+                "use octonion_dft / a quaternion-scope coupler for an "
+                "octonion axis"
+            )
+        v = v[:4]
+    if len(v) != 4:
+        raise ValueError(
+            f"a general quaternion mu_axis must have 4 (or ℍ-valued 8) "
+            f"components; got {len(v)}"
+        )
+    if v[0] != 0.0:
+        raise ValueError("a general mu_axis must be pure-imaginary (e0 == 0)")
+    if v[1] == 0.0 and v[2] == 0.0 and v[3] == 0.0:
+        raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
+    return _quat._resolve_mu4(v, "quaternion_dft")
+
+
+def _qdft_native_ready() -> bool:
+    """True iff the native lib is loaded AND exports ``srmech_quaternion_dft``
+    (hasattr-guarded for stale ABI-3 libs; numpy-free)."""
+    return bool(
+        _native.HAS_NATIVE and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_quaternion_dft")
+    )
+
+
+def _try_native_qdft(xs: List[List[float]], left: bool, inverse: bool,
+                     mu_hat: List[float]):
+    """Dispatch the WHOLE transform to the C peer ``srmech_quaternion_dft``
+    (one ctypes call; μ̂ already unit) — or ``None`` to signal the composed
+    fallback. Byte-exact with :func:`_qdft_composed` (tested)."""
+    n_pts = len(xs)
+    if not _qdft_native_ready() or n_pts >= _QDFT_N_MAX:
+        return None
+    In = ctypes.c_double * (n_pts * _QDIM)
+    Mu = ctypes.c_double * _QDIM
+    c_x = In(*(c for v in xs for c in v))
+    c_mu = Mu(*(float(c) for c in mu_hat))
+    c_out = In()
+    rc = _native.LIB.srmech_quaternion_dft(
+        ctypes.cast(c_x, _C_DBLP), ctypes.c_uint32(n_pts),
+        ctypes.c_int32(1 if left else 0), ctypes.c_int32(1 if inverse else 0),
+        ctypes.cast(c_mu, _C_DBLP), ctypes.c_size_t(_QDIM),
+        ctypes.cast(c_out, _C_DBLP),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [[float(c_out[i * _QDIM + c]) for c in range(_QDIM)]
+            for i in range(n_pts)]
+
+
+def _qdft_composed(xs: List[List[float]], left: bool, inverse: bool,
+                   mu_hat: List[float]) -> List[List[float]]:
+    """The composed QDFT path over the rc109 qm.quaternion foundation —
+    ``quaternion_twiddle`` (via the resolved-μ̂ core) + the 4×4
+    ``quaternion_left_mult``/``quaternion_right_mult`` operator matvec.
+
+    Float-op order MIRRORS the C peer exactly (twiddle → operator matrix →
+    row-dot left-to-right → accumulate over n → one final scale), so the two
+    paths are byte-exact — the parity contract, not a tolerance."""
+    from srmech.qm.quaternion import (
+        _twiddle_resolved,
+        quaternion_left_mult,
+        quaternion_right_mult,
+    )
+    n_pts = len(xs)
+    sigma = 1 if inverse else -1
+    scale = (1.0 / float(n_pts)) if inverse else 1.0
+    out: List[List[float]] = []
+    for k in range(n_pts):
+        acc = [0.0, 0.0, 0.0, 0.0]
+        for m in range(n_pts):
+            w = _twiddle_resolved(k, m, n_pts, sigma, mu_hat)
+            op = quaternion_left_mult(w) if left else quaternion_right_mult(w)
+            rows = op.tolist()
+            xm = xs[m]
+            for i in range(_QDIM):
+                t = 0.0
+                for c in range(_QDIM):
+                    t += rows[i][c] * xm[c]
+                acc[i] += t
+        out.append([acc[i] * scale for i in range(_QDIM)])
     return out
 
 
@@ -409,29 +614,63 @@ def quaternion_dft(
     mu_axis: str = "i",
     inverse: bool = False,
 ) -> List[List[float]]:
-    """Quaternion discrete Fourier transform (QDFT) — composite over qm.octonion.
+    """Quaternion discrete Fourier transform (QDFT) — the native transform for
+    a Klein-4 object, GRADUATED first-class (0.9.0rc110; #1234 Item 1b / #863).
 
-    The native transform for a Klein-4 object: its ``ℍ`` coefficient algebra
-    resolves **both** ``Z₂`` chirality axes the complex FFT collapses (F380).
+    A Klein-4 object has TWO ``Z₂`` chirality axes (Klein-4 = ``Q₈/{±1} ≅
+    Z₂×Z₂``, F380 / the in-repo R21 proof); the complex FFT first projects it
+    to ``ℂ``, collapsing one axis (the flat shadow). The QDFT's ``ℍ``
+    coefficient algebra MATCHES the object's value algebra, so BOTH axes
+    survive the round-trip.
+
+    **THE CONVENTION (the in-repo SSOT — rc109 ``qm.quaternion`` + R21).**
+    With ``W(θ) = exp(μθ) = cos θ·1 + sin θ·μ̂`` (``μ̂`` a unit pure imaginary,
+    ``μ̂² = −1``) and the FORWARD sign ``σ = −1``:
+
+        left  form:  X[k] = Σ_{n=0}^{N−1}  W(σ·2πkn/N) · x[n]   (twiddle LEFT)
+        right form:  X[k] = Σ_{n=0}^{N−1}  x[n] · W(σ·2πkn/N)   (twiddle RIGHT)
+
+    The INVERSE flips the sign (``σ = +1``) and scales by ``1/N``, keeping the
+    twiddle on the SAME side — each form is the exact inverse of its own
+    inverse-transform (the twiddle lives in the commutative ``ℝ[μ̂] ≅ ℂ``
+    subalgebra, so ``Σ_k W(μ·2πk(n−n′)/N) = N·δ``). The two forms are
+    GENUINELY different transforms (``ℍ`` non-commutative); they coincide
+    exactly when every sample lies in ``ℝ[μ̂]`` (the classic degeneracy).
+    Parseval (this convention, forward unscaled): ``Σ_k ‖X[k]‖² =
+    N·Σ_n ‖x[n]‖²`` for both one-sided forms. The left form is a RIGHT
+    ℍ-module map (``QDFT_left(x·q) = QDFT_left(x)·q``) and ℝ-linear; the
+    right form is the mirror (a LEFT ℍ-module map).
+
+    **API SPLIT (F1000→F1001; #1234 Item 1).** This FULL transform is the
+    SPREAD-SPECTRUM ENCODING / analysis surface — it computes the whole
+    length-``N`` spectrum. The READ path is deliberately a SEPARATE
+    lightweight op (``phase_coherent_peak`` — the next rc, 1-d): do NOT run
+    the full QDFT just to read one phase-coherent peak back out.
+
+    Composes the rc109 foundation: ``qm.quaternion.quaternion_twiddle``
+    (Class I ∘ N ∘ C — exact ``kn mod N``, π as the ``4·atan(1)`` cascade,
+    Q61 trig) + ``quaternion_left_mult`` / ``quaternion_right_mult`` (Class M).
+    Dispatches the whole transform to the same-rc C peer
+    ``srmech_quaternion_dft`` (O(N²) exact reference; an FFT factorisation is
+    honestly future work) — byte-exact composed fallback otherwise.
 
     Parameters
     ----------
-    x : sequence of quaternions
+    x : sequence of quaternions, or a real ``(N, 4)`` ``Mat``
         Each sample is a 4-component ``[q0, q1, q2, q3]`` (or an 8-component
-        octonion with ``e4..e7 == 0``). ``N = len(x)``.
+        octonion with ``e4..e7 == 0``). ``N = len(x)`` (any N ≥ 0, power of
+        two NOT required).
     form : {"left", "right"}
-        Left (``W·x``) or right (``x·W``) twiddle multiplication — the two
-        differ because ``ℍ`` is non-commutative. Both are invertible and
-        round-trip (the twiddle lives in the commutative ``ℝ[μ]≅ℂ`` subalgebra).
+        Which side the twiddle multiplies on (see THE CONVENTION above).
     mu_axis : {"i", "j", "k", "ijk", "diagonal"} or unit pure-imaginary vector
         The transform axis ``μ`` (``μ²=−1``). ``'diagonal'`` (= ``(i+j+k)/√3``
         here) **couples** all three axes into the real/anchor channel (F436); a
         single named axis only **carries** them. A general unit pure-imaginary
-        quaternion vector is also accepted (#908). See :func:`_resolve_mu`.
+        quaternion vector is also accepted (#908).
     inverse : bool
-        Inverse QDFT (conjugate twiddle + ``1/N`` scale). ``inverse(forward(x))``
-        recovers ``x`` exactly (to float round-off), including **all four**
-        components — i.e. both ``Z₂`` axes.
+        Inverse QDFT (``σ = +1`` twiddle + ``1/N`` scale, same side).
+        ``inverse(forward(x))`` recovers ``x`` exactly (to float round-off),
+        including **all four** components — i.e. both ``Z₂`` axes.
 
     Returns
     -------
@@ -440,14 +679,29 @@ def quaternion_dft(
 
     Class home: **M** (Clifford/HDC quaternion multiply) ∘ **C** (the
     orientation of the twiddle's ``±μ`` phase) ∘ **N** (the rational twiddle
-    angle ``kn/N``). Sangwine & Ell (2012), arXiv:1001.4379.
+    angle ``kn/N``) ∘ **I** (the cyclic ``kn mod N`` reduction). Sangwine &
+    Ell (2012), arXiv:1001.4379 (PDF-verified: the matrix-exponential
+    ``exp(μθ)`` Euler-form hypercomplex DFT framework + the
+    exponential-placement / one-sided-vs-two-sided distinction).
     """
     if form not in _FORMS:
         raise ValueError(f"form must be one of {_FORMS}; got {form!r}")
-    return _dft_core(
-        x, form=form, mu_axis=mu_axis, inverse=inverse,
-        two_sided_right=None, bracketing="left_associated", octonion=False,
-    )
+    if isinstance(x, _Mat):
+        if x.is_complex:
+            raise ValueError(
+                "quaternion_dft takes REAL quaternion components; got a "
+                "complex Mat"
+            )
+        x = x.tolist()
+    xs = [_as_quat4(v) for v in x]
+    mu_hat = _resolve_mu4_qdft(mu_axis)
+    if not xs:
+        return []
+    left = form == "left"
+    native = _try_native_qdft(xs, left, bool(inverse), mu_hat)
+    if native is not None:
+        return native
+    return _qdft_composed(xs, left, bool(inverse), mu_hat)
 
 
 def octonion_dft(
@@ -459,45 +713,102 @@ def octonion_dft(
     two_sided_right_axis: str = "j",
     inverse: bool = False,
 ) -> List[List[float]]:
-    """Octonion discrete Fourier transform (ODFT) — composite over qm.octonion.
+    """Octonion discrete Fourier transform (ODFT) — the (8:7) rung above the
+    QDFT, GRADUATED first-class (0.9.0rc111; #1234 Item 1c / #863).
 
-    Carries the F378 **non-associativity** as an *explicit declared field*: the
-    ODFT is **not unique** for the two-sided form, so the bracketing/association
-    convention must be stated, not assumed.
+    Because ``𝕆`` is **NON-ASSOCIATIVE** (F378), "the ODFT" is NOT unique
+    until its **bracketing convention is DECLARED** — a different bracketing
+    is a different (also-declarable) transform. The convention here is an
+    explicit **ATTESTED field** (this docstring + the ``octonion_dft.toml``
+    ``[cascade.bracketing]`` attestation block), never a silent assumption.
+
+    **THE DECLARED CONVENTION (the attested field, verbatim in the TOML):**
+    *per-summand-single-product; the inverse applies the conjugate twiddle
+    (σ flip) on the SAME declared side; the two-sided form's 3-factor
+    association order is the explicit ``bracketing`` parameter.* With
+    ``W(θ) = exp(μθ)`` and the FORWARD sign ``σ = −1``:
+
+        left      form:  X[k] = Σ_m  W(σ·2πkm/N) · x[m]          (ONE product)
+        right     form:  X[k] = Σ_m  x[m] · W(σ·2πkm/N)          (ONE product)
+        two_sided form:  X[k] = Σ_m  bracket(W_l, x[m], W_r)     (THREE factors)
+
+    with ``bracket`` = ``(W_l·x)·W_r`` (``bracketing="left_associated"``) or
+    ``W_l·(x·W_r)`` (``"right_associated"``). The INVERSE (one-sided forms)
+    flips ``σ`` to +1 and scales by ``1/N``, twiddle on the SAME side.
+
+    **WHERE NON-ASSOCIATIVITY ACTUALLY BITES (the alternativity finding —
+    verified empirically, rc111 tests).** ``𝕆`` is ALTERNATIVE (``a(ax) =
+    (aa)x``, ``(xa)a = x(aa)``), and by **Artin's theorem** every subalgebra
+    generated by TWO elements is associative. Each one-sided summand is ONE
+    product ``W·x[m]`` (no association ambiguity), and the whole one-sided
+    round-trip composes twiddles on a SINGLE axis ``μ`` against one sample —
+    everything lives in the two-generator subalgebra ``⟨μ, x[m]⟩``, so
+    ``W̄·(W·x) = (W̄·W)·x = x`` holds EXACTLY and the round-trip is exact
+    (same guarantee ℍ gives the QDFT, despite 𝕆's non-associativity).
+    Non-associativity bites only at **≥ 3 independent generators**:
+
+    * the TWO-SIDED form with distinct axes (``⟨μ_l, μ_r, x⟩``): the two
+      bracketings measurably DIFFER — the ``bracketing`` field is
+      load-bearing, not decorative (tested: a deliberate re-bracketing
+      changes the spectrum);
+    * a twiddle associated through a PRODUCT of two samples
+      (``W·(x·y) ≠ (W·x)·y`` — ``⟨μ, x, y⟩``; tested);
+    * with ``μ_l = μ_r`` the two-sided bracketings COINCIDE (mathematically
+      — ``⟨μ, x⟩`` again; float round-off differs, tested at tolerance):
+      the Artin boundary demonstrated from both sides.
+
+    The two-sided form is FORWARD-ONLY (its inverse is open under
+    non-associativity → ``inverse=True`` raises).
+
+    Composes the qm.octonion foundation: ``octonion_twiddle`` (rc111 —
+    Class I ∘ N ∘ C: exact ``km mod N``, π as the ``4·atan(1)`` cascade,
+    Q61 trig) + ``octonion_left_mult`` / ``octonion_right_mult`` (Class M).
+    Dispatches the whole transform (ALL THREE forms) to the same-rc C peer
+    ``srmech_octonion_dft`` (O(N²) exact reference; an FFT factorisation is
+    honestly future work) — byte-exact composed fallback otherwise.
 
     Parameters
     ----------
-    x : sequence of octonions
-        Each sample is an 8-component ``[e0..e7]``. ``N = len(x)``.
+    x : sequence of octonions, or a real ``(N, 8)`` ``Mat``
+        Each sample is an 8-component ``[e0..e7]`` (a 4-component quaternion
+        is accepted and zero-extended into ``ℍ ⊂ 𝕆``). ``N = len(x)`` (any
+        N ≥ 0; power of two NOT required).
     form : {"left", "right", "two_sided"}
-        ``W·x`` / ``x·W`` / ``W_l·x·W_r``. The two-sided form is where octonion
-        non-associativity bites.
-    mu_axis : {"i", "j", "k", "ijk", "diagonal"} or unit pure-imaginary vector
-        The left (or single) transform axis ``μ`` (``μ²=−1``). ``'diagonal'``
-        (= ``(Σ_{n=1..7} eₙ)/√7`` for octonions) **couples** all seven imaginary
-        streams into the real/anchor coherence channel (F436); a single named
-        axis only carries them. A general unit pure-imaginary octonion vector is
-        also accepted (#908). See :func:`_resolve_mu`.
+        ``W·x`` / ``x·W`` / ``W_l·x·W_r``. The two-sided form is where
+        octonion non-associativity bites (see above).
+    mu_axis : named axis or unit pure-imaginary vector
+        The left (or single) transform axis ``μ`` (``μ²=−1``). Named:
+        ``'i'``/``'j'``/``'k'`` (= ``'e1'``/``'e2'``/``'e3'``),
+        ``'e4'``..``'e7'`` (the extra octonion axes), ``'ijk'``
+        (``(e1+e2+e3)/√3``), ``'diagonal'`` (``(Σ_{a=1..7} e_a)/√7`` —
+        **couples** all seven imaginary streams into the real/anchor
+        coherence channel, F436). A general unit pure-imaginary 4-/8-vector
+        is also accepted (#908).
     bracketing : {"left_associated", "right_associated"}
-        **Only meaningful for** ``form="two_sided"``: ``(W_l·x)·W_r`` vs
-        ``W_l·(x·W_r)``. These **differ** for octonions (F378) — the field is
-        the concrete crystallisation of "the ODFT must declare its association
-        order". Recorded (trivially) for the one-sided forms.
-    two_sided_right_axis : {"i", "j", "k", "ijk", "diagonal"} or unit vector
-        The right twiddle axis ``μ_r`` for the two-sided form (same resolution
-        as ``mu_axis``: named / ``'diagonal'`` / general unit pure-imaginary).
+        The DECLARED association order for ``form="two_sided"``:
+        ``(W_l·x)·W_r`` vs ``W_l·(x·W_r)`` — these DIFFER for octonions
+        (F378). Recorded (trivially) for the one-sided forms, whose
+        per-summand single product has no association ambiguity.
+    two_sided_right_axis : named axis or unit vector
+        The right twiddle axis ``μ_r`` for the two-sided form (same
+        resolution as ``mu_axis``).
     inverse : bool
-        Inverse ODFT (one-sided forms round-trip; the two-sided form is
-        forward-only here — its inverse is open under non-associativity).
+        Inverse ODFT (``σ = +1`` twiddle + ``1/N`` scale, same side).
+        One-sided forms round-trip exactly (the alternativity finding);
+        the two-sided form is forward-only (raises).
 
     Returns
     -------
     list[list[float]]
         ``N`` octonions (8-component lists).
 
-    Class home: **M** (octonion multiply) ∘ **C** (twiddle orientation) ∘ **N**
-    (rational angle). Błaszczyk (2019), arXiv:1905.12631; origin Hahn & Snopek
-    (2011), Bull. Polish Acad. Sci. 59(2):167–181.
+    Class home: **M** (octonion multiply) ∘ **C** (twiddle orientation) ∘
+    **N** (rational angle) ∘ **I** (the cyclic ``km mod N`` reduction).
+    Błaszczyk (2019), arXiv:1905.12631 (PDF re-verified at rc111); origin
+    Hahn & Snopek (2011), Bull. Polish Acad. Sci. 59(2):167–181. The
+    bracketing/alternativity statements are the IN-REPO SSOT (the
+    qm.octonion attested table + the rc111 empirical verification), not an
+    external attribution.
     """
     if form not in _OCTONION_FORMS:
         raise ValueError(f"form must be one of {_OCTONION_FORMS}; got {form!r}")
@@ -508,10 +819,250 @@ def octonion_dft(
             "two-sided octonion_dft inverse is open under non-associativity "
             "(F378); only the one-sided forms round-trip"
         )
-    return _dft_core(
-        x, form=form, mu_axis=mu_axis, inverse=inverse,
-        two_sided_right=two_sided_right_axis, bracketing=bracketing, octonion=True,
+    from srmech.qm import octonion as _oct
+    if isinstance(x, _Mat):
+        if x.is_complex:
+            raise ValueError(
+                "octonion_dft takes REAL octonion components; got a "
+                "complex Mat"
+            )
+        x = x.tolist()
+    xs = [_as8(v) for v in x]
+    # One-resolution parity contract: μ̂ (and μ̂_r for the two-sided form) are
+    # resolved exactly ONCE so the native and composed paths consume the
+    # identical floats. The one-sided forms pass μ̂ twice (μ_r ignored).
+    mu_hat = _oct._resolve_mu8(mu_axis, "octonion_dft")
+    if form == "two_sided":
+        mu_r_hat = _oct._resolve_mu8(two_sided_right_axis, "octonion_dft")
+    else:
+        mu_r_hat = mu_hat
+    if not xs:
+        return []
+    native = _try_native_odft(xs, form, bracketing, bool(inverse),
+                              mu_hat, mu_r_hat)
+    if native is not None:
+        return native
+    return _odft_composed(xs, form, bracketing, bool(inverse),
+                          mu_hat, mu_r_hat)
+
+
+# ────────────────────────────────────────────────────────────────────────
+# The LIGHTWEIGHT matched-filter PEAK READ (0.9.0rc112; #1234 Item 1d, the
+# F1000→F1001→F1002 refinement) — the READ counterpart to the full
+# quaternion_dft / octonion_dft ENCODING transforms, kept API-DISTINCT.
+# ────────────────────────────────────────────────────────────────────────
+
+#: The native uint32 rung-count bound (the srmech_phase_coherent_peak contract).
+_PCP_N_MAX = 2 ** 32
+
+
+def _pcp_components(sample) -> List[float]:
+    """Coerce ONE per-rung sample to a plain real component vector
+    (numpy-free): a real scalar → ``[x]``; a complex scalar → ``[re, im]``;
+    a sequence → its floats (a complex entry expands to its ``re, im`` pair,
+    so a length-``d`` complex sequence becomes a ``2d`` real vector)."""
+    if isinstance(sample, bool):
+        return [float(sample)]
+    if isinstance(sample, (int, float)):
+        return [float(sample)]
+    if isinstance(sample, complex):
+        return [sample.real, sample.imag]
+    comps: List[float] = []
+    for c in sample:
+        if isinstance(c, complex):
+            comps.append(c.real)
+            comps.append(c.imag)
+        else:
+            comps.append(float(c))
+    return comps
+
+
+def _pcp_native_ready() -> bool:
+    """True iff the native lib is loaded AND exports
+    ``srmech_phase_coherent_peak`` (hasattr-guarded for stale ABI-3 libs;
+    numpy-free)."""
+    return bool(
+        _native.HAS_NATIVE and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_phase_coherent_peak")
     )
+
+
+def _phase_coherent_peak_pure(vecs: List[List[float]],
+                              keyvecs) -> dict:
+    """The pure-Python matched-filter peak — the float-op order MIRRORS the C
+    peer exactly (per-rung energy accumulated i = 0..dim−1 left-to-right; the
+    argmax scanned r = 0..n−1 with a strict ``>`` so ties keep the lowest
+    index), so the two paths are byte-exact — the parity contract, not a
+    tolerance."""
+    n = len(vecs)
+    dim = len(vecs[0])
+    scores: List[float] = []
+    for r in range(n):
+        v = vecs[r]
+        if keyvecs is None:                       # identity matched filter
+            e = 0.0
+            for i in range(dim):
+                e += v[i] * v[i]                  # Class-K squared magnitude
+        else:                                     # explicit per-rung template
+            g = keyvecs[r]
+            c = 0.0
+            for i in range(dim):
+                c += g[i] * v[i]                  # matched-filter correlation
+            e = c * c
+        scores.append(e)
+    best_idx = 0
+    best_e = scores[0]
+    for r in range(1, n):
+        if scores[r] > best_e:                    # Class-K magnitude compare
+            best_e = scores[r]
+            best_idx = r
+    return {"rung_index": best_idx, "score": best_e, "scores": scores}
+
+
+def _try_native_phase_coherent_peak(vecs: List[List[float]], keyvecs,
+                                    dim: int):
+    """Dispatch the whole peak read to the C peer
+    ``srmech_phase_coherent_peak`` (one ctypes call) — or ``None`` to signal
+    the pure fallback. Byte-exact with :func:`_phase_coherent_peak_pure`."""
+    n = len(vecs)
+    if not _pcp_native_ready() or n >= _PCP_N_MAX:
+        return None
+    Buf = ctypes.c_double * (n * dim)
+    c_lad = Buf(*(c for v in vecs for c in v))
+    if keyvecs is None:
+        c_keys = ctypes.POINTER(ctypes.c_double)()          # NULL → identity
+    else:
+        c_keys_arr = Buf(*(c for g in keyvecs for c in g))  # kept alive below
+        c_keys = ctypes.cast(c_keys_arr, _C_DBLP)
+    c_scores = (ctypes.c_double * n)()
+    c_index = ctypes.c_uint32(0)
+    c_score = ctypes.c_double(0.0)
+    rc = _native.LIB.srmech_phase_coherent_peak(
+        ctypes.cast(c_lad, _C_DBLP), c_keys,
+        ctypes.c_uint32(n), ctypes.c_size_t(dim),
+        ctypes.byref(c_index), ctypes.byref(c_score),
+        ctypes.cast(c_scores, _C_DBLP),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return {"rung_index": int(c_index.value), "score": float(c_score.value),
+            "scores": [float(c_scores[r]) for r in range(n)]}
+
+
+def phase_coherent_peak(ladder: Sequence, *, keys: Sequence = None) -> dict:
+    """The LIGHTWEIGHT matched-filter PEAK READ over a rung/mode ladder — the
+    READ reduction for the RBS-LM fold, kept API-DISTINCT from the full
+    :func:`quaternion_dft` / :func:`octonion_dft` transforms (0.9.0rc112;
+    #1234 Item 1d, the F1000→F1001→F1002 refinement).
+
+    **THE READ-vs-ENCODE SPLIT (why this is its own op, NOT a kwarg on the
+    transforms — F1000 → F1001 → F1002).** The full :func:`quaternion_dft` /
+    :func:`octonion_dft` (rc110/rc111) are the SPREAD-SPECTRUM ENCODING /
+    analysis surface — they compute the whole length-``N`` spectrum. For the
+    RBS-LM READ, F1001 measured that the full complex QDFT is WORSE than the
+    peak read on the single-rung fold: the target's cross-rung response is a
+    SPIKE, so the PEAK (max phase-coherent energy over the rung ladder) is
+    the MATCHED FILTER — it *rejects* the off-rung noise — while the full
+    transform coherently combines ALL rungs *including* the off-rung noise (a
+    spike's spectrum is flat, so coherent combination gains nothing and
+    forfeits the max's noise-rejection). F1002 settled it read-
+    independently: the elliptic `−z⁻¹` code is circulant / generative but
+    recall-equivalent to independent keys — the transform's value is
+    GENERATIVE encoding, not read-amplification. So the READ path wants ONLY
+    this lightweight peak reduction. There is NO twiddle here — its absence
+    IS what distinguishes the read from the transform.
+
+    **THE COMPUTATION (matched filter over a rung ladder).** Given ``ladder``
+    = ``n_rungs`` per-rung samples along the rung/mode axis (each a real
+    scalar, a complex phase sample, or a quaternion / octonion / Klein-4
+    component vector — all the same dimension ``d``), the per-rung
+    **phase-coherent energy** is:
+
+    * ``keys is None`` (the identity matched filter — the F1001 read): ``E_r
+      = Σ_i ladder[r][i]²`` — the sample's own squared magnitude (Class-K).
+      The ladder already holds the per-rung responses; the peak is the
+      strongest-responding rung. For a real-similarity response ladder this
+      is exactly F1001's ``max``-over-rungs read (the spike's magnitude
+      dominates).
+    * ``keys`` given (an explicit expected per-rung pattern, e.g. the
+      ``−z⁻¹``/twiddle ladder): ``E_r = (Σ_i keys[r][i]·ladder[r][i])²`` —
+      the squared matched-filter correlation of the sample against its
+      per-rung template.
+
+    The PEAK is ``argmax_r E_r`` (ties → lowest index — a Class-K magnitude
+    comparison, never ``abs()``).
+
+    Parameters
+    ----------
+    ladder : sequence of per-rung samples, or a real ``(n_rungs, d)`` Mat
+        Each sample is a real scalar / complex scalar / real component vector
+        (the per-rung projection along the rung axis). All rungs must share
+        one dimension ``d``.
+    keys : sequence of per-rung templates (same shape as ``ladder``), optional
+        The matched-filter template — the expected per-rung phase pattern.
+        ``None`` (default) uses the identity filter (the ladder IS the
+        per-rung matched-filter output).
+
+    Returns
+    -------
+    dict
+        ``{"rung_index": r*, "score": E_{r*}, "scores": [E_0 … E_{n−1}]}`` —
+        the peak rung, its phase-coherent energy, and every rung's energy.
+        ``score`` is the squared magnitude (the comparison quantity — no
+        ``sqrt`` on the decision path, so the read is exact / libm-free).
+
+    Class home: **K** (the squared-magnitude phase-coherent energy + the
+    argmax magnitude comparison — the real pin-slot, never ``abs()``).
+    Dispatches the whole read to the same-rc C peer
+    ``srmech_phase_coherent_peak`` (byte-exact pure fallback otherwise).
+    #1234 Item 1d; the findings F999–F1002 are the in-repo SSOT (no external
+    citation)."""
+    if isinstance(ladder, _Mat):
+        if ladder.is_complex:
+            raise ValueError(
+                "phase_coherent_peak takes REAL ladder components; got a "
+                "complex Mat"
+            )
+        ladder = ladder.tolist()
+    vecs = [_pcp_components(s) for s in ladder]
+    if not vecs:
+        raise ValueError(
+            "phase_coherent_peak: ladder must have at least one rung sample"
+        )
+    dim = len(vecs[0])
+    if dim == 0:
+        raise ValueError("phase_coherent_peak: rung samples must be non-empty")
+    for v in vecs:
+        if len(v) != dim:
+            raise ValueError(
+                "phase_coherent_peak: every rung sample must have the same "
+                f"dimension ({dim})"
+            )
+    keyvecs = None
+    if keys is not None:
+        if isinstance(keys, _Mat):
+            if keys.is_complex:
+                raise ValueError(
+                    "phase_coherent_peak takes REAL key components; got a "
+                    "complex Mat"
+                )
+            keys = keys.tolist()
+        keyvecs = [_pcp_components(s) for s in keys]
+        if len(keyvecs) != len(vecs):
+            raise ValueError(
+                "phase_coherent_peak: keys must have one template per rung "
+                f"({len(vecs)}); got {len(keyvecs)}"
+            )
+        for g in keyvecs:
+            if len(g) != dim:
+                raise ValueError(
+                    "phase_coherent_peak: each key template must match the "
+                    f"sample dimension ({dim})"
+                )
+    native = _try_native_phase_coherent_peak(vecs, keyvecs, dim)
+    if native is not None:
+        return native
+    return _phase_coherent_peak_pure(vecs, keyvecs)
 
 
 def hypercomplex_couple(

@@ -5,18 +5,25 @@ Identity per the implementation plan §1: IIR IS a Class N (rational
 biquad sections) composition. Each biquad section is itself a Class N rational
 of order 2.
 
-The closed-form reference uses scipy.signal.lfilter when available, else a
-hand-rolled direct-form-II implementation. Biquad cascade is supported via the
-``biquad_sections`` argument.
+rc149 (B4b) classification: ``c_dispatched``.  The recursive difference
+equation ``y[n] = Σ b·x[n-k] − Σ a·y[n-k]`` reads the output the loop is still
+producing, so it is inherently SEQUENTIAL and does NOT decompose into a
+matmul / FFT — it is the ONE genuinely-new numeric kernel the filter family
+needs.  ``op`` dispatches to the c_dispatched ``srmech_iir_lfilter_f64`` (via
+``_native.iir_lfilter_f64_c``) when the native lib is present, and falls back to
+the complete numpy-free pure-Python direct-form-II-transposed reference
+(``_lfilter_direct``) otherwise (a biquad cascade dispatches per second-order
+section).  NUMERIC (within-tol, not byte-identical): the accumulation may
+FMA-fuse ~1 ULP on some platforms, so the parity contract is differential
+(reldiff ≤ 1e-9), NOT byte-equality.
 
 Path B dual in Phase 6 (IIR via Class N rational + Class C cascade in bound-
 vector substrate).
 
-Carrier note (#564): numpy-free. The optional scipy accelerator is a lazy
-import (scipy needs numpy, so a numpy-absent install falls through to the
-pure-Python direct-form-II difference-equation reference, which runs on plain
-``list``\\s — the Class-C recursive cascade of the Class-N ``b/a`` rational).
-The op returns a ``list``.
+Carrier note (#564): numpy-free. The C dispatch + the pure direct-form-II-
+transposed reference both run on plain ``list``\\s (the Class-C recursive
+cascade of the Class-N ``b/a`` rational); the op returns a ``list``. No scipy /
+numpy is imported.
 
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Oppenheim
 & Schafer (2010, 3rd ed.) §6 + Proakis & Manolakis (2007, 4th ed.) §10.
@@ -50,16 +57,23 @@ def _lfilter_direct(b: Sequence[float], a: Sequence[float], x: Sequence[float]):
     b = [bi / a0 for bi in b]
     a = [ai / a0 for ai in a]
     n = len(x)
+    # DF2T needs b and a to share the filter length: pad the shorter with zeros
+    # (a shorter b would otherwise drop the trailing feedback taps, since the
+    # a[j]·y[i] correction lives inside the b-indexed state loop). This matches
+    # scipy.lfilter's b/a padding to max(len(a), len(b)).
+    nfilt = max(len(a), len(b))
+    b = b + [0.0] * (nfilt - len(b))
+    a = a + [0.0] * (nfilt - len(a))
     y = [0.0] * n
-    nz = max(len(a), len(b)) - 1
+    nz = nfilt - 1
     z = [0.0] * nz
     for i in range(n):
         y[i] = b[0] * x[i] + (z[0] if nz > 0 else 0.0)
-        for j in range(1, len(b)):
+        for j in range(1, nfilt):
             if j - 1 < nz:
                 z[j - 1] = (
                     b[j] * x[i]
-                    - (a[j] * y[i] if j < len(a) else 0.0)
+                    - a[j] * y[i]
                     + (z[j] if j < nz else 0.0)
                 )
     return y
@@ -99,25 +113,27 @@ def op(
     except TypeError as exc:  # nested sequence -> not 1-D
         raise ValueError("iir expects a 1-D real signal") from exc
 
-    try:
-        from scipy.signal import lfilter, sosfilt  # type: ignore[import-untyped]
+    from srmech.amsc import _native
 
-        # scipy coerces the list inputs internally; wrap the ndarray result in a
-        # list so the return type matches the numpy-free fallback path.
-        if biquad_sections is not None:
-            return list(sosfilt(biquad_sections, sig))
-        return list(lfilter(b, a, sig))
-    except ImportError:
-        if biquad_sections is not None:
-            out = list(sig)
-            for section in biquad_sections:
-                if len(section) != 6:
-                    raise ValueError(
-                        f"biquad section requires 6 coefficients; got "
-                        f"{len(section)}"
-                    )
-                b_s = list(section[:3])
-                a_s = list(section[3:])
-                out = _lfilter_direct(b_s, a_s, out)
-            return out
-        return _lfilter_direct(list(b), list(a), sig)
+    if biquad_sections is not None:
+        # Cascade of second-order sections (sosfilt): apply each in turn, each
+        # dispatched to the c_dispatched srmech_iir_lfilter_f64 (else pure).
+        out = list(sig)
+        for section in biquad_sections:
+            if len(section) != 6:
+                raise ValueError(
+                    f"biquad section requires 6 coefficients; got "
+                    f"{len(section)}"
+                )
+            b_s = list(section[:3])
+            a_s = list(section[3:])
+            native = _native.iir_lfilter_f64_c(b_s, a_s, out)
+            out = native if native is not None else _lfilter_direct(b_s, a_s, out)
+        return out
+
+    # Direct (b, a) form: prefer the c_dispatched srmech_iir_lfilter_f64; the
+    # pure direct-form-II-transposed reference is the complete fallback.
+    native = _native.iir_lfilter_f64_c(b, a, sig)
+    if native is not None:
+        return native
+    return _lfilter_direct(list(b), list(a), sig)

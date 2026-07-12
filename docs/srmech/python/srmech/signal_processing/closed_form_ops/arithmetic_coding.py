@@ -16,7 +16,10 @@ Compression* CACM 30(6).
 
 from __future__ import annotations
 
+import ctypes
 from typing import Dict, List, Optional, Tuple
+
+from srmech.amsc import _native
 
 OPERATION_NAME = "arithmetic_coding"
 CLASS_COMPOSITION = ("N",)
@@ -38,6 +41,52 @@ def _cumulative(freq: Dict[int, int]) -> Tuple[Dict[int, Tuple[int, int]], int]:
         table[sym] = (total, total + f)
         total += f
     return table, total
+
+
+def _encode_native(data_bytes, cum, total):
+    """Native exact-rational encode → the narrowed ``(lo, hi)`` Fraction pair
+    (byte-identical to the pure ``fractions.Fraction`` encode) or ``None`` (rc144
+    §B6b). The C peer carries a COMMON DENOMINATOR ``total**k`` so the whole
+    interval-narrowing loop is exact ``srmech_bigint`` integer arithmetic + a
+    single terminal gcd reduction; a reduced fraction is canonical, so the
+    ``(num, den)`` pair equals the Python Fraction exactly. Returns ``None`` (→
+    pure) on an out-of-table symbol (the pure path raises the same ValueError),
+    an unbuildable total, or an arena overflow on a pathologically long input."""
+    from fractions import Fraction
+
+    if not _native.has_native_arithmetic_encode():
+        return None
+    n = len(data_bytes)
+    if n == 0 or total <= 0 or total >= (1 << 63):
+        return None
+    clo = (ctypes.c_uint32 * n)()
+    chi = (ctypes.c_uint32 * n)()
+    for i, b in enumerate(data_bytes):
+        cc = cum.get(b)
+        if cc is None:                        # out-of-table symbol → pure raises
+            return None
+        clo[i], chi[i] = cc[0], cc[1]
+    lt = max(1, (int(total).bit_length() + 31) // 32)
+    cap = lt * n + 16
+    words = 24 * cap + 1024
+    str_cap = cap * 10 + 32
+    ws = (ctypes.c_uint32 * words)()
+    lo_num = ctypes.create_string_buffer(str_cap)
+    lo_den = ctypes.create_string_buffer(str_cap)
+    hi_num = ctypes.create_string_buffer(str_cap)
+    hi_den = ctypes.create_string_buffer(str_cap)
+    lnl, lnd = ctypes.c_size_t(0), ctypes.c_size_t(0)
+    hnl, hnd = ctypes.c_size_t(0), ctypes.c_size_t(0)
+    rc = _native.LIB.srmech_arithmetic_encode(
+        clo, chi, ctypes.c_uint32(n), ctypes.c_uint64(total),
+        lo_num, lo_den, hi_num, hi_den, ctypes.c_size_t(str_cap),
+        ctypes.byref(lnl), ctypes.byref(lnd), ctypes.byref(hnl), ctypes.byref(hnd),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(words * 4))
+    if rc != _native.SRMECH_OK:
+        return None
+    lo = Fraction(int(lo_num.value.decode("ascii")), int(lo_den.value.decode("ascii")))
+    hi = Fraction(int(hi_num.value.decode("ascii")), int(hi_den.value.decode("ascii")))
+    return lo, hi
 
 
 def op(
@@ -121,6 +170,9 @@ def op(
             data = data.encode("utf-8")
         data_bytes = bytes(data)
     cum, total = _cumulative(freq)
+    native = _encode_native(data_bytes, cum, total)     # rc144 §B6b
+    if native is not None:
+        return native[0], native[1], dict(freq)
     lo = Fraction(0)
     hi = Fraction(1)
     for b in data_bytes:

@@ -332,6 +332,63 @@ class AsyncPipeHandle:
 # ─────────────────────────────────────────────────────────────────────
 
 
+# Bounded connect-retry (0.9.0rc209 — the macOS async-bus CI flake,
+# issue #792). A client racing a just-started server can see
+# ``ECONNREFUSED`` two ways: (a) the endpoint's socket file /
+# registry exists (created at ``bind()``) a beat before ``listen()``
+# has run; (b) a burst of simultaneous connects momentarily
+# overflows the server's listen backlog — BSD kernels (macOS) fail
+# an AF_UNIX connect on a full backlog IMMEDIATELY with
+# ``ECONNREFUSED`` where Linux blocks until a slot frees. Both are
+# transient server-side states, so the correct client behaviour is
+# a small bounded retry with backoff, not an instant failure.
+# ``FileNotFoundError`` (no registration at all) is NOT retried —
+# "server not running" stays a fast, honest error.
+_CONNECT_RETRY_FIRST_DELAY_S = 0.002   # first backoff step (2 ms)
+_CONNECT_RETRY_MAX_DELAY_S = 0.1       # per-step backoff cap (100 ms)
+_CONNECT_RETRY_TOTAL_WAIT_S = 1.5      # total bounded retry window
+
+
+async def _to_thread_connect_with_retry(
+    name: str,
+    *,
+    broadcast_queue_max: int,
+    dna: Optional[bytes],
+) -> _sync_client.Channel:
+    """Run the sync connect in a worker thread, retrying refused connects.
+
+    Retries ONLY :class:`ConnectionRefusedError` (exponential backoff
+    from :data:`_CONNECT_RETRY_FIRST_DELAY_S`, per-step cap
+    :data:`_CONNECT_RETRY_MAX_DELAY_S`, total window
+    :data:`_CONNECT_RETRY_TOTAL_WAIT_S`); on window exhaustion the
+    last ``ConnectionRefusedError`` propagates unchanged. Every other
+    exception (``FileNotFoundError``, ``BusError``, …) propagates
+    immediately. Each attempt constructs a fresh sync channel; a
+    failed attempt closes its own socket in the transport layer, so
+    retrying leaks nothing.
+
+    The backoff sleeps use :func:`asyncio.sleep` on the caller's
+    event loop — the loop is never blocked while waiting.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + _CONNECT_RETRY_TOTAL_WAIT_S
+    delay = _CONNECT_RETRY_FIRST_DELAY_S
+    while True:
+        try:
+            return await asyncio.to_thread(
+                _sync_client.connect,
+                name,
+                broadcast_queue_max=broadcast_queue_max,
+                dna=dna,
+            )
+        except ConnectionRefusedError:
+            remaining = deadline - loop.time()
+            if remaining <= 0.0:
+                raise
+            await asyncio.sleep(min(delay, remaining))
+            delay = min(delay * 2.0, _CONNECT_RETRY_MAX_DELAY_S)
+
+
 @asynccontextmanager
 async def connect(
     name: str,
@@ -346,9 +403,14 @@ async def connect(
     the close is cancellation-safe).
 
     Parameters mirror the sync :func:`srmech.bus.connect`.
+
+    Unlike the sync connect, a ``ConnectionRefusedError`` from a
+    just-started or momentarily-saturated server is retried with a
+    small bounded backoff (total window
+    :data:`_CONNECT_RETRY_TOTAL_WAIT_S`) before propagating — see
+    :func:`_to_thread_connect_with_retry` (0.9.0rc209, issue #792).
     """
-    sync_ch = await asyncio.to_thread(
-        _sync_client.connect,
+    sync_ch = await _to_thread_connect_with_retry(
         name,
         broadcast_queue_max=broadcast_queue_max,
         dna=dna,
@@ -366,7 +428,7 @@ async def serve(
     name: str,
     handler: Callable[[dict], Any],
     *,
-    accept_backlog: int = 8,
+    accept_backlog: int = 64,
     dna: Optional[bytes] = None,
 ) -> AsyncIterator[AsyncEndpoint]:
     """Async equivalent of :func:`srmech.bus.serve`.
@@ -381,7 +443,13 @@ async def serve(
       thread until the coroutine completes. The handler thus runs on
       the original event loop, not in the worker thread.
 
-    Parameters mirror the sync :func:`srmech.bus.serve`.
+    Parameters mirror the sync :func:`srmech.bus.serve`, EXCEPT the
+    ``accept_backlog`` default: async callers routinely fire bursts
+    of concurrent connects off one event loop (``asyncio.gather``
+    over N clients), and BSD kernels (macOS) refuse an AF_UNIX
+    connect the instant the backlog is full — so the async default
+    is 64 (vs the sync default 8, which stays matched to the C
+    peer's ``SRMECH_PLAT_STREAM_BACKLOG``). 0.9.0rc209, issue #792.
     """
     # Use inspect.iscoroutinefunction (asyncio.iscoroutinefunction
     # is deprecated for removal in Python 3.16).

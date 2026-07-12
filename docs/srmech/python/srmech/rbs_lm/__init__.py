@@ -56,11 +56,12 @@ from .substrate import (
     sim_k4_batch,
     token_seed,
 )
-from .inference import RBSLMInferenceSubstrate
+from .inference import CoherenceReadout, RBSLMInferenceSubstrate
 
 __all__ = [
     "ContextSubstrate",
     "RBSLMInferenceSubstrate",
+    "CoherenceReadout",
     "token_seed",
     "encode_word_k4",
     "encode_bigram_l1",

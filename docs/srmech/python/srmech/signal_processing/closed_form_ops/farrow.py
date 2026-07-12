@@ -17,6 +17,21 @@ to the prior ``dense_dot_real`` route, which fed numpy carriers into the native
 elementwise-bind kernel only to contract four reals). No top-level ``import
 numpy``; the op runs on a plain-``list`` carrier with no numpy present.
 
+rc151 (BATCH B4d) classification: ``composition_of_c``.  For a fixed ``mu`` the
+polynomial-in-``mu`` mixer collapses to ONE effective length-4 FIR
+``h_eff[j] = Σ_k mu^k · C[k][j]`` (the Class-N poly-in-mu evaluation), and the
+Farrow output is then the cross-correlation ``y[i] = Σ_j h_eff[j]·padded[i+j]``
+of the (one-before / two-after) zero-padded signal with ``h_eff`` — a
+(feed-forward-only) linear convolution.  So it re-expresses that correlation as a
+**Toeplitz matvec** ``M·b`` routed through ``_dsp.correlate_matmul`` →
+``laplacian.mat_matvec`` ∘ ``mat_matmul`` → the c_dispatched
+``srmech_dense_matmul_complex`` when the native lib is present, and falls back to
+the complete numpy-free pure ``_dsp.correlate`` cascade otherwise.  NUMERIC
+(within-tol, not byte-identical): the matmul float accumulation may FMA-fuse ~1
+ULP on some platforms, so the parity contract is differential (reldiff ≤ 1e-9),
+NOT byte-equality.  The ``mu=0`` mixer is ``h_eff = C[0] = (0,1,0,0)`` → exact
+integer-delay passthrough (the value oracle).
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Farrow
 (1988) + Erup, Gardner & Harris (1993).
 """
@@ -75,19 +90,30 @@ def op(signal, *, mu: float = 0.0, D: int = 8192):
     if not 0.0 <= mu < 1.0:
         raise ValueError(f"mu must be in [0, 1); got {mu}")
     n = len(sig)
-    # Each output sample takes 4 input samples centred around the integer index.
-    # For closed-form simplicity, pad with zeros: one before, two after.
+    if n == 0:
+        return []
+    # For closed-form simplicity, pad with zeros: one before, two after, so each
+    # output takes 4 taps at positions [i-1, i, i+1, i+2] in the original sig.
     padded = [0.0] + sig + [0.0, 0.0]
-    out = []
-    for i in range(n):
-        # 4 taps at positions [i-1, i, i+1, i+2] in original sig.
-        x = padded[i : i + 4]
-        # Mixer: y = sum_k mu^k * (C[k] dot x); each dot is an explicit length-4
-        # Class-M reduction (left-to-right, numpy-free).
-        y = 0.0
-        for k in range(4):
-            c = _FARROW_LAGRANGE_CUBIC[k]
-            dot = c[0] * x[0] + c[1] * x[1] + c[2] * x[2] + c[3] * x[3]
-            y += (mu ** k) * dot
-        out.append(y)
-    return out
+    # Class-N poly-in-mu mixer: the 4 sub-filters collapse to ONE length-4
+    # effective FIR h_eff[j] = Σ_k mu^k · C[k][j] (each mu^k an explicit
+    # left-to-right power). y[i] = Σ_j h_eff[j]·padded[i+j] is then the "valid"
+    # cross-correlation of padded with h_eff (length n).
+    h_eff = [
+        sum((mu ** k) * _FARROW_LAGRANGE_CUBIC[k][j] for k in range(4))
+        for j in range(4)
+    ]
+    # composition_of_c (rc151 / B4d): when the native dense-matmul is present the
+    # correlation is a Toeplitz matvec through the c_dispatched
+    # srmech_dense_matmul_complex; otherwise the complete numpy-free pure cascade.
+    # The matmul path is within-tol (reldiff ≤ 1e-9), not byte-identical.
+    from srmech.amsc import _native
+    from srmech.signal_processing import _dsp_cascades as _dsp
+
+    if (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_dense_matmul_complex")
+    ):
+        return list(_dsp.correlate_matmul(padded, h_eff, mode="valid"))
+    return list(_dsp.correlate(padded, h_eff, mode="valid"))

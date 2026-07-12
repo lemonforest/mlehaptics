@@ -18,6 +18,22 @@ called numpy-free). ``_sc.fft``/``_sc.ifft`` already return ``List[complex]``.
 Value-faithful to the pre-change output to machine eps (the rational cascades
 match libm ``atan2``/``cos``/``sin`` and ``sqrt`` to ≤1 ULP).
 
+rc151 (BATCH B4d) classification: ``composition_of_c``.  The two heavy numeric
+kernels are the forward + inverse transform, and both funnel through ``_sc.fft``
+/ ``_sc.ifft`` — which dispatch their FLOAT path to the c_dispatched numeric FFT
+foundation ``srmech_fft_c128`` (rc139) and fall back to the complete pure ``cexp``
+cascade when the native lib is absent (the SAME composition_of_c pattern as the
+rc150 wiener op + the B4a stft / cross_spectral windowed-transform ops).  The
+per-bin observed magnitude is the genuine **Class-K** ``|X[k]|² = re² + im²``
+(``rational.sqrt`` of the real PSD floor for the reconstructed magnitude) — a
+substrate-native pin-slot magnitude, **NOT** Python ``abs()`` on a complex bin;
+the ``max(·)`` floor is Class-N and the phase is preserved from ``X`` via
+``rational.atan2`` / ``cos`` / ``sin`` (numpy-free elementwise glue).  NUMERIC
+(within-tol, not byte-identical): native == pure to reldiff ≤ 1e-9 (the FFT
+butterflies may FMA-fuse ~1 ULP on some platforms).  With ``noise_psd ≈ 0`` the
+floor leaves every bin unchanged (``new_mag = |X|``) so a clean signal passes
+through — the value oracle.
+
 Canonical SSoT per ``[[feedback_science_is_ssot_not_project]]``: Boll (1979)
 + Berouti, Schwartz & Makhoul (1979).
 """

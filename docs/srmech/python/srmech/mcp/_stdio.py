@@ -14,6 +14,17 @@ line-delimited framing is unambiguous.
 stderr is reserved for log output (the MCP spec says servers MAY
 emit human-readable diagnostics to stderr; the parent typically
 routes that to its own log).
+
+v0.9.0rc186 — the C peer ``srmech_mcp_serve_stdio`` runs this whole
+read-frame → handle → write-frame loop natively for a bare-C host (no
+Python), serving initialize / notifications/initialized / tools/list /
+ping / shutdown; tools/call routes to the still-owed ``invoke_tool``
+(inform-don't-limit). This Python loop keeps the pure ``invoke_tool``
+tool-execution path, and its per-request dispatch flows through
+:meth:`MCPServer.handle`, which itself routes the lifecycle + discovery
+methods to the native ``srmech_mcp_handle`` (byte-identical) when running
+the default server. See :mod:`srmech.amsc._native` ``mcp_handle_c`` /
+``srmech.mcp._server.MCPServer._native_dispatch``.
 """
 
 from __future__ import annotations

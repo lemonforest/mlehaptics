@@ -361,7 +361,16 @@ def get_tool_schema() -> ToolSchema:
     """Return the full tool-schema view assembled from all registered
     entries. srmech's own tools are listed first (in registration
     order); profile-contributed tools follow, grouped by owner
-    (registration order within each profile)."""
+    (registration order within each profile).
+
+    Kept a PURE constructor over the live registry (v0.9.0rc185 dispatch
+    boundary, option (b)): this is the independent Python SSoT the rc184
+    hash-ratchet locks the C const table against, so it must NOT itself
+    route through the C table (that would make the ratchet circular). The
+    bare-C host peer ``srmech_get_tool_schema`` realises the SAME data —
+    proven equivalent by object reconstruction in
+    ``tests/test_tool_schema_ops_c_rc185.py``.
+    """
     from .. import __version__ as srmech_version
     srmech_tools = tuple(e for e in _REGISTRY.values() if e.owner == "srmech")
     profile_tools = tuple(e for e in _REGISTRY.values() if e.owner != "srmech")
@@ -375,8 +384,35 @@ def get_tool_schema() -> ToolSchema:
 def tool_schema_view() -> Dict[str, Any]:
     """Convenience: return :func:`get_tool_schema` rendered as a
     JSON-serialisable dict. Used by the eventual `srmech --tool-schema`
-    CLI invocation."""
+    CLI invocation.
+
+    v0.9.0rc185 — when no profile tools are registered (the C const table
+    IS the live srmech registry, locked by the rc184 hash-ratchet) and the
+    rc185 C peer is loaded, the view is produced by the bare-C host op
+    ``srmech_tool_schema_view`` and parsed back — VALUE-identical to the
+    pure ``get_tool_schema().to_jsonable()`` (dict equality is
+    order-insensitive; the native keys are in canonical/sorted order). Any
+    profile tool, a stale/absent lib, or a non-OK C status falls back to
+    the pure path.
+    """
+    if not any(e.owner != "srmech" for e in _REGISTRY.values()):
+        native = _native_tool_schema_view()
+        if native is not None:
+            return native
     return get_tool_schema().to_jsonable()
+
+
+def _native_tool_schema_view() -> Optional[Dict[str, Any]]:
+    """The rc185 C ``srmech_tool_schema_view`` output parsed to a dict, or
+    ``None`` when the native peer is unavailable / returns non-OK."""
+    try:
+        from . import _native
+    except Exception:  # pragma: no cover — defensive; _native always imports
+        return None
+    raw = _native.tool_schema_view_c()
+    if raw is None:
+        return None
+    return json.loads(raw.decode("utf-8"))
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -745,6 +781,75 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "int", True), P("n", "int", True)),
             returns=R("int", "in [1, n)"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # Class I — modular linear algebra: GF(p) reduced row-echelon form
+        # (rc44, rung 1 of the CRT-QMat re-fibration arc).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.modular_linalg.gf_rref", owner="srmech",
+            category="modular_linalg",
+            summary="Reduced row-echelon form of an integer matrix over the finite "
+                    "field GF(p) — Gaussian elimination over a prime field (cf. "
+                    "Cohen, *A Course in Computational Algebraic Number Theory*, "
+                    "1993, Algorithm 2.3.1; von zur Gathen & Gerhard, *Modern "
+                    "Computer Algebra*, 3rd ed. 2013, §5.4). The swell-free core of "
+                    "the rc44 CRT re-fibration: exact-ℚ Gauss-Jordan grows numerators "
+                    "and denominators at every pivot (a Hadamard-bounded arena, ~GB "
+                    "for the order-2 Franel system), whereas GF(p) elimination has "
+                    "ZERO coefficient swell — every residue stays in [0, p). Input: "
+                    "an integer matrix (list of equal-length int rows; entries may be "
+                    "negative, reduced into [0, p) first) and a prime p with "
+                    "2 < p < 2**31 (so a*b fits uint64; primality is the caller's "
+                    "contract). Class I (composes mod_inv / mod_mul / mod_add); "
+                    "Class-K sign/zero handling (compare-to-0, never abs()); bounded "
+                    "machine-int, no fraction growth, no bignum, no float, no numpy / "
+                    "math. 1:1 C peer srmech_gf_rref (in-place int64 caller-arena; "
+                    "native when present, pure-Python the complete alternative).",
+            parameters=(P("rows", "list[list[int]]", True,
+                          "the integer matrix as a list of equal-length int rows "
+                          "(entries may be negative)"),
+                        P("p", "int", True,
+                          "an odd prime with 2 < p < 2**31 (the field modulus)")),
+            returns=R("dict",
+                      "{'rref': [[int]] (every entry in [0, p)), 'rank': int, "
+                      "'pivots': [int] (the pivot column of each pivot row, "
+                      "ascending)}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Class I — CRT combine (rc45, rung 2 of the CRT-QMat re-fibration
+        # arc). The per-prime-residues → one-residue-mod-product closer.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.modular_linalg.crt_combine", owner="srmech",
+            category="modular_linalg",
+            summary="Chinese-Remainder-combine per-prime residues into one residue "
+                    "modulo the product of the primes — the CRT (cf. Knuth, *The "
+                    "Art of Computer Programming*, vol. 2, 3rd ed. 1997, §4.3.2; von "
+                    "zur Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, "
+                    "§5.4). The Class-I combine of the rc45 CRT re-fibration: after "
+                    "gf_rref solves modulo several machine-int primes (each a "
+                    "swell-free GF(p) elimination), this merges the per-prime "
+                    "residues back into one congruence. Input: residues [r_0..r_k-1] "
+                    "and pairwise-coprime moduli [m_0..m_k-1] (distinct primes from "
+                    "the CRT sequence). Returns {'residue': int, 'modulus': int} with "
+                    "residue ≡ r_i (mod m_i) for all i and modulus = ∏ m_i, residue "
+                    "in [0, modulus). Iterative Garner CRT composing mod_inv / "
+                    "mod_mul; the combined modulus exceeds 64 bits for k ≳ 3 of the "
+                    "~31-bit primes, so the accumulator is bignum (Python int, no "
+                    "ceiling) while the per-step inverse stays in uint64. Class-K "
+                    "sign/zero handling (non-negative %, never abs()); no float, no "
+                    "numpy / math. 1:1 C peer srmech_crt_combine (over srmech_bigint, "
+                    "caller-arena; native when present, pure-Python the complete "
+                    "alternative).",
+            parameters=(P("residues", "list[int]", True,
+                          "the per-prime residues [r_0..r_k-1]"),
+                        P("moduli", "list[int]", True,
+                          "the pairwise-coprime moduli [m_0..m_k-1] (distinct "
+                          "primes), same length as residues")),
+            returns=R("dict",
+                      "{'residue': int (≡ r_i mod m_i for all i, in [0, modulus)), "
+                      "'modulus': int (∏ m_i)}"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class L — graph Laplacian
@@ -766,7 +871,10 @@ def _register_primitive_class_tools() -> None:
         # authorable end-to-end; retires the hand-rolled Counter() idiom. The
         # rc43 versions FAILED the §40 acceptance bar 3/3 (ASCII tokenize /
         # silent vocab cap / no doc-boundary reset) — rc50 fixes all three.
-        # Both pure-Python.
+        # rc217 (gh #1360): all three dispatch to BYTE-IDENTICAL C peers
+        # (srmech_text_tokenize / _cooccurrence_edges / _cooccurrence_topk +
+        # _topk_extract) — the corpus-linear hot loops run in C; the pure
+        # bodies remain the complete alternative + parity oracle.
         ToolEntry(
             name="srmech.amsc.text.tokenize", owner="srmech",
             category="text",
@@ -897,14 +1005,451 @@ def _register_primitive_class_tools() -> None:
                     "exp(i·2π·q·(W−Wᵀ)) so the graph stays Hermitian and "
                     "hermitian_eigendecompose diagonalises it; the complex "
                     "eigenpair is the directed-navigation signature. q=0 → "
-                    "real symmetrised Laplacian (undirected control).",
+                    "real symmetrised Laplacian (undirected control). "
+                    "rc105 (#1234 Item 3 / F1006 / F1007): per-edge charges= "
+                    "is the CHIRAL Laplacian for dual-sense knowledge graphs "
+                    "— edge (u,v,w,c) contributes the conjugate pair "
+                    "−(w/2)e^{±i·2π·c}, so an is-a/is-not-a pair (a,+q)+(b,−q) "
+                    "SURVIVES as −[(a+b)/2·cos2πq + i(a−b)/2·sin2πq] (the "
+                    "imbalance in the imaginary residue) instead of "
+                    "annihilating as in signed_laplacian. q and charges are "
+                    "mutually exclusive. Native standalone-C "
+                    "srmech_graph_magnetic_laplacian (both modes; Q61 trig "
+                    "cascade → bit-identical to the pure path).",
             parameters=(P("n", "int", True),
                         P("edges", "list[tuple[int, int]]", True,
                           "directed u → v"),
                         P("weights", "Optional[list[float]]", False),
                         P("q", "float", False,
-                          "flux in turns per unit net flow; default 0.25")),
+                          "flux in turns per unit net flow; default 0.25; "
+                          "mutually exclusive with charges"),
+                        P("charges", "Optional[list[float]]", False,
+                          "per-edge charge in turns, parallel to edges "
+                          "(len(charges) == len(edges)); (u,v,c) ≡ (v,u,−c); "
+                          "mutually exclusive with q")),
             returns=R("Mat", "n × n complex Hermitian matrix (numpy-free Mat)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc229 (#687) — the fuller asymmetric-halves lattice handle: the
+        # V4-gain (Klein-4-sector) Laplacian (EVEN channel; C peer
+        # srmech_graph_klein4_gain_laplacian) + its joint read-out +
+        # cycle_holonomy (ODD channel; C peer srmech_graph_cycle_holonomy).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.klein4_gain_laplacian", owner="srmech",
+            category="laplacian",
+            summary="The V₄-gain (Klein-4-sector) Laplacian (#687): the "
+                    "EVEN-channel fuller partner of magnetic_laplacian. Each "
+                    "edge carries a V₄ = ℤ₂×ℤ₂ gain (TWO sign bits, int 0..3 "
+                    "or a 2-tuple), and V₄'s FOUR real characters "
+                    "χ_ab(g)=(−1)^(a·g0+b·g1) decompose the object into FOUR "
+                    "real signed Laplacians L_χ = D̄ − χ(g_e)·A — the two-bit "
+                    "generalization of the one-bit signed_laplacian. The two "
+                    "gain bits are SYMMETRIC (neither privileged). Signed "
+                    "degree D̄=Σ|A_ij| is the Class-K magnitude (no abs()) and "
+                    "is character-independent, so χ00 (trivial) == "
+                    "dense_laplacian for unit gains; the four sectors drop into "
+                    "spectral_block_dispatch, and their spectrum equals the "
+                    "ordinary Laplacian spectrum of the V₄ abelian COVER (4n "
+                    "nodes). Native standalone-C srmech_graph_klein4_gain_"
+                    "laplacian (all four sectors in one call; else four "
+                    "signed_laplacian builds — byte-identical). Reff LAA 436 "
+                    "(2012), arXiv:1110.4554. numpy-free.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False,
+                          "may be negative"),
+                        P("gains", "Optional[list[int | tuple[int, int]]]",
+                          False,
+                          "per-edge V₄ gain parallel to edges — int 0..3 "
+                          "(g1<<1|g0) or a 2-tuple (g0, g1); None → all "
+                          "identity (the four sectors coincide)")),
+            returns=R("dict[str, Mat]",
+                      "{'chi00','chi01','chi10','chi11'} → the four n×n "
+                      "real-symmetric PSD sector Laplacians"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.klein4_relational_structure",
+            owner="srmech", category="laplacian",
+            summary="The joint EVEN-channel read-out of a V₄-gain relational "
+                    "graph (#687): per-sector spectral tensions (λ_min = "
+                    "frustration, 0 iff balanced) + coherences (λ₂ = algebraic "
+                    "connectivity) + the Class-K sector-asymmetry meter between "
+                    "the two MIXED sectors χ10/χ01 — the (4:3)|(3:4) sector-"
+                    "occupancy diagnostic (F552: a chirality-collapse deviation "
+                    "lands here, random noise does not). Diagnostic, not "
+                    "predictive — the orientation LABEL needs the ODD-channel "
+                    "cycle_holonomy. Composes klein4_gain_laplacian + "
+                    "symmetric_eigendecompose (one eigensolve per sector); no "
+                    "dedicated C symbol. numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("gains", "Optional[list[int | tuple[int, int]]]",
+                          False, "per-edge V₄ gains (see klein4_gain_laplacian)"),
+                        P("n", "Optional[int]", False,
+                          "node count; inferred from edges when None")),
+            returns=R("dict",
+                      "{'sectors', 'tension': {sector: λ_min}, 'coherence': "
+                      "{sector: λ₂}, 'sector_asymmetry': |Δ tension χ10,χ01|}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.cycle_holonomy", owner="srmech",
+            category="laplacian",
+            summary="The cycle holonomies of a gain graph (#687): the ODD "
+                    "channel the (Hermitian/signed) SPECTRUM provably cannot "
+                    "carry (a conjugated Hermitian matrix has the same "
+                    "eigenvalues, so the which-way ± sign is invisible to any "
+                    "spectral read — F552). A gain graph is determined up to "
+                    "switching by its cycle gains (Zaslavsky). Builds a "
+                    "spanning forest (union-find; first-encountered edge = tree "
+                    "edge) → the fundamental cycle per co-tree edge → that "
+                    "cycle's NET charge (per-edge charges in TURNS, exact "
+                    "Fraction, reduced mod 1) — Class I (mod-1 cyclic) ∘ "
+                    "Class L (graph); NO eigensolve. Invariant under node "
+                    "re-gauging (a coboundary telescopes); 0 for every cycle "
+                    "IFF balanced (Zaslavsky's criterion); distinguishes +c "
+                    "from −c (1/4 vs 3/4 mod 1) — the chirality the sector "
+                    "spectra cannot. Pairs with klein4_gain_laplacian (even) "
+                    "to complete the read. Native standalone-C "
+                    "srmech_graph_cycle_holonomy (exact int64 rational, "
+                    "caller-arena); else the exact-Fraction cascade (handles "
+                    "any denominator). Zaslavsky, DAM 4 (1982) 47–74. "
+                    "numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "a self-loop is a 1-cycle; a parallel edge a digon"),
+                        P("charges", "Optional[list[int | Fraction | float]]",
+                          False,
+                          "per-edge charge in TURNS parallel to edges; None → "
+                          "all 0 (balanced); (u,v,c) ≡ (v,u,−c)"),
+                        P("n", "Optional[int]", False,
+                          "node count; inferred from edges when None")),
+            returns=R("dict",
+                      "{'n_cycles', 'holonomies': list[Fraction] in [0,1), "
+                      "'cycle_edges': list[(u,v)], 'balanced': bool}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
+        # + the ground-state flux reader, Class-L composites with the 1:1
+        # C peers srmech_heat_trace / srmech_ground_state_flux_response.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.heat_trace", owner="srmech",
+            category="laplacian",
+            summary="The spectral theta / heat trace Θ(t) = Tr(e^{−tL}) = "
+                    "Σₖ e^{−t·λₖ} of a Laplacian — a theta function of L (on "
+                    "a cycle, the Jacobi-θ family) and the READ-INDEPENDENT "
+                    "spectral summary (eigenvalue multiset only; no read "
+                    "basis). Dispatches real-symmetric → jacobi_eigvals, "
+                    "complex-Hermitian → hermitian_eigendecompose; ONE "
+                    "eigensolve serves every t (pass a sequence of t values "
+                    "for the cheap multi-t read). The exp is the Class-N Q61 "
+                    "cascade (rational.exp / srmech_exp — libm-free) at the "
+                    "spectral-summary boundary; Θ is a float summary, never "
+                    "an exact decision. F1007: under magnetic flux the full "
+                    "trace is flux-invariant (Poisson → the modular/"
+                    "holomorphic part); the flux shadow lives only in the "
+                    "ground state — see ground_state_flux_response. 1:1 C "
+                    "peer srmech_heat_trace (native when present, pure-"
+                    "Python the complete alternative). numpy-free; no abs().",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric or complex-Hermitian "
+                          "Laplacian"),
+                        P("t", "float | Sequence[float]", True,
+                          "diffusion time(s); scalar → float, sequence → "
+                          "Vec (one eigensolve, many t)")),
+            returns=R("float | Vec", "Θ(t) — a float for scalar t, a real "
+                                     "Vec (one Θ per t) for a sequence"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.ground_state_flux_response",
+            owner="srmech",
+            category="laplacian",
+            summary="λ_min(Φ) — the magnetic ground state as a function of "
+                    "flux: the F1007 SHADOW reader. The full heat trace of a "
+                    "magnetic Laplacian is flux-invariant (the modular/"
+                    "holomorphic part); the flux shadow lives ONLY in the "
+                    "ground state (on a flux-threaded cycle λ_min moves 0 → "
+                    "positive as Φ: 0 → 1/2 turn; periodic in integer flux — "
+                    "integer holonomy is gauge-equivalent to none). Per flux "
+                    "Φ each edge k gets charge Φ·charges[k] (the rc105 "
+                    "chiral charges= pattern, composable as-is; default = "
+                    "uniform 1/n_edges so a single cycle's total holonomy is "
+                    "Φ turns), then magnetic_laplacian + "
+                    "hermitian_eigendecompose → λ_min. 1:1 C peer "
+                    "srmech_ground_state_flux_response (native when present, "
+                    "pure-Python the complete alternative). numpy-free; no "
+                    "abs().",
+            parameters=(P("n", "int", True, "node count (>= 1)"),
+                        P("edges", "list[tuple[int, int]]", True,
+                          "directed u → v (the magnetic_laplacian "
+                          "convention)"),
+                        P("weights", "Optional[list[float]]", False,
+                          "per-edge magnitudes; default 1.0 each"),
+                        P("fluxes", "float | Sequence[float]", True,
+                          "total flux value(s) in turns; scalar → float, "
+                          "sequence → Vec"),
+                        P("charges", "Optional[list[float]]", False,
+                          "per-edge charge PATTERN (turns), parallel to "
+                          "edges — scaled by each flux; default uniform "
+                          "1/n_edges")),
+            returns=R("float | Vec", "λ_min(Φ) — a float for scalar fluxes, "
+                                     "a real Vec (one λ_min per Φ) for a "
+                                     "sequence"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc136 (siona gh#1274) — EPH, the complex-time Wick-rotation
+        # propagator harvest = e^{-zL}·u0 + the EPH cascade read, Class-L
+        # composites with the 1:1 C peer srmech_eph_propagate.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.propagate", owner="srmech",
+            category="laplacian",
+            summary="EPH — the complex-time Wick-rotation propagator "
+                    "harvest = e^{−zL}·u0 (siona gh#1274). The thermal "
+                    "e^{−tL} and coherent e^{−itL} are NOT two ops — they are "
+                    "the ONE complex-time propagator e^{−zL} with z COMPLEX, "
+                    "the `i` being the WICK-ROTATION PHASE. arg(z) is the "
+                    "coherence dial: z real → thermal diffusion (decoherent, "
+                    "real damping), z imaginary → coherent unitary quantum "
+                    "walk (‖harvest‖ = ‖u0‖ conserved), arg(z) BETWEEN → "
+                    "PARTIAL coherence (z = t·e^{iφ} — the regime only the "
+                    "unified form can name). RBS-SNN = EPH-with-a-synaptic-"
+                    "propagator (P = connectome/weight matrix); no privileged "
+                    "instance. ONE eigensolve → project c = V^H·u0 → per-mode "
+                    "scale c_k·e^{−z·λ_k} → recombine V·(scaled c). The "
+                    "per-mode scalar e^{−zλ_k} = e^{−Re(z)·λ_k}·(cos(Im(z)·"
+                    "λ_k) − i·sin(Im(z)·λ_k)) uses the Class-N exp/cos/sin "
+                    "series with the MANDATORY 2π SEAM-FOLD of the oscillation "
+                    "argument (Machin-2π = 32·atan(1/5) − 8·atan(1/239)) — "
+                    "the raw trig series blow up past a convergence radius; "
+                    "the fold keeps propagate EXACT at any t·λ. Composes the "
+                    "Class-L Wick rotation (signed-Laplacian variant). 1:1 C "
+                    "peer srmech_eph_propagate (native when present, pure-"
+                    "Python the complete alternative; harvest is basis-"
+                    "invariant → Python == C to the eigensolve tolerance). "
+                    "numpy-free; no abs() (Class-K magnitude / Class-C sign).",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric or complex-Hermitian "
+                          "Laplacian / operator"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or complex) "
+                          "— the seed the propagator acts on"),
+                        P("z", "complex", True,
+                          "the complex time z = Re(z) + i·Im(z); arg(z) is "
+                          "the coherence dial (real → thermal, imaginary → "
+                          "coherent, between → partial)")),
+            returns=R("Vec", "the harvest e^{−zL}·u0 — a length-n complex Vec "
+                             "(the coherent/partial part is genuinely "
+                             "complex)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.eph_harvest", owner="srmech",
+            category="laplacian",
+            summary="The EPH cascade read (siona gh#1274) — excite → "
+                    "propagate → Born-rule harvest-rank the reaction center. "
+                    "A composition op: excite (seed u0 — Class-M grounding, "
+                    "content-neutral) → propagate (harvest = e^{−zL}·u0 with "
+                    "the arg(z) coherence dial) → the Born-rule harvest "
+                    "|harvest_i|² per node (the reaction-center energy; energy "
+                    "= relevance) → rank the nodes by energy. Returns the "
+                    "ranked node indices + per-node energies + the reaction "
+                    "center + the total energy (= the coherence budget: "
+                    "conserved in the coherent limit, damped below it in the "
+                    "thermal limit — the monotonic Wick dial) + the raw "
+                    "complex harvest. The neuron is one propagator choice "
+                    "(RBS-SNN); this is the generic retrieval / inference "
+                    "cascade one layer up. Composes propagate (c_dispatched) "
+                    "+ the Born magnitude + rank — no new C symbol. numpy-"
+                    "free; no abs().",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric or complex-Hermitian "
+                          "Laplacian / operator"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or complex)"),
+                        P("z", "complex", True,
+                          "the complex time / coherence dial (as propagate)")),
+            returns=R("dict", "ranked_nodes / energies / reaction_center / "
+                              "total_energy / harvest_re / harvest_im "
+                              "(JSON-native)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc206 (siona gh#1274 item 1c) — the SPARSE-SCALED EPH
+        # propagator: the corpus-scale residual, Class-L with the 1:1 C
+        # peer srmech_eph_propagate_sparse.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.propagate_sparse", owner="srmech",
+            category="laplacian",
+            summary="EPH SPARSE — the sparse-scaled propagator harvest = "
+                    "e^{−zL}·u0 (siona gh#1274 item 1c, the corpus-scale "
+                    "residual). The SAME harvest as propagate (same complex-z "
+                    "convention, same arg(z) coherence dial: z real → thermal, "
+                    "z imaginary → coherent, between → partial; same "
+                    "seam-folded Wick factor) computed by a CHEBYSHEV "
+                    "polynomial of the operator applied with MATRIX-VECTOR "
+                    "PRODUCTS ONLY — no eigendecomposition, no dense e^{−zL} "
+                    "— so it runs on a corpus-scale L past the n ≤ 256 "
+                    "dense-eigensolve cap (O(m·n_edges) time, O(n) memory, m "
+                    "= the Chebyshev degree). The operator is the SIGNED "
+                    "graph Laplacian read off the edge list (the "
+                    "signed_laplacian / fiedler_sparse sparse-input "
+                    "convention; deg = Σ|w| by Class-K sign branch, never "
+                    "abs(); self-loops skipped; duplicate edges read "
+                    "per-edge). Spectral interval [0, 2·max deg] by "
+                    "Gershgorin (deterministic), affine-mapped to [−1, 1]; "
+                    "Chebyshev coefficients of e^{−z·λ(s)} from the Chebyshev "
+                    "nodes (the rc136 Wick machinery — Class-N exp + the "
+                    "MANDATORY Machin-2π seam-folded cos/sin), node count "
+                    "adaptively doubled 64 → the HARD CAP max_degree+1, "
+                    "accepted when the coefficient tail (top eighth) falls "
+                    "below tol·max|e^{−z·λ}|; then the forward T_{k+1} = "
+                    "2·L̃·T_k − T_{k−1} vector recurrence (‖T_k‖ ≤ 1 → "
+                    "stable). Not converged within max_degree → an HONEST "
+                    "ValueError (raise max_degree or shrink |z|), never a "
+                    "silently degraded tolerance. 1:1 C peer "
+                    "srmech_eph_propagate_sparse (native when present, "
+                    "pure-Python the complete alternative — same algorithm, "
+                    "same accumulation order, within-tol parity). numpy-free; "
+                    "no abs().",
+            parameters=(P("n", "int", True, "number of graph nodes"),
+                        P("edges", "list[tuple[int, int]]", True,
+                          "undirected edges (u, v), 0 ≤ u, v < n (the "
+                          "fiedler_sparse / signed_laplacian convention)"),
+                        P("weights", "Optional[list[float]]", False,
+                          "per-edge weights (default all 1.0); may be "
+                          "negative — the signed degree keeps L PSD"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or complex) "
+                          "— the seed the propagator acts on (keyword-only)"),
+                        P("z", "complex", True,
+                          "the complex time; arg(z) is the coherence dial "
+                          "(as propagate; keyword-only)"),
+                        P("tol", "float", False,
+                          "relative coefficient-tail tolerance (default "
+                          "1e-10)"),
+                        P("max_degree", "int", False,
+                          "the HARD Chebyshev degree cap, 1..2^28 (default "
+                          "2048 — covers |z|·λ_max up to ~4000)")),
+            returns=R("Vec", "the harvest e^{−zL}·u0 — a length-n complex Vec "
+                             "(the propagate return contract)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc207 (siona gh#1276) — the WOUND EPH propagator: the 2π
+        # seam-fold's divmod quotient KEPT (the #741 mod-should-be-
+        # divmod audit's first concrete instance), Class-L with the 1:1
+        # C peer srmech_eph_propagate_wound.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.propagate_wound", owner="srmech",
+            category="laplacian",
+            summary="EPH WOUND — propagate with the 2π seam-fold's DIVMOD "
+                    "quotient KEPT (siona gh#1276; the #741 mod-should-be-"
+                    "divmod audit's first concrete instance). propagate's "
+                    "mandatory seam-fold argument-reduces each per-mode "
+                    "oscillation argument Im(z)·λ_k modulo 2π; that fold IS "
+                    "a divmod — quotient w_k = round(Im(z)·λ_k / 2π) = the "
+                    "METACYCLE winding (the whole 2π turns propagate throws "
+                    "away, the mod-collapse), remainder θ_k = the EPICYCLE "
+                    "residue (|θ| ≤ π, what propagate keeps). "
+                    "propagate_wound keeps the GRADING: BOTH harvests at "
+                    "the seam, from the SAME fold (the exact Machin-2π "
+                    "divmod pure / the Q61 2/π quarter-turn machinery "
+                    "native — no forked 2π constant). Carrying w does NOT "
+                    "perturb the epicycle harvest — byte-identical to "
+                    "propagate at the same dispatch tier (same cascade, "
+                    "same order). The readout is the One's the_one(σ, θ, w) "
+                    "CRANK vocabulary per mode (the winding fills the fast "
+                    "metacycle dial as the triad (w_k, 0, 0)): winding = "
+                    "the whole-ℤ metacycle turns (never % 2); theta = the "
+                    "epicycle phase, with 2π·w_k + θ_k reconstructing "
+                    "Im(z)·λ_k LOSSLESSLY on the fold grid (the "
+                    "One.unwrapped_phase reconstruction); sigma_effective = "
+                    "the tower-graded chirality dial ±1 via the winding's "
+                    "divmod binary tower (the EXISTING One.sigma_effective "
+                    "readout — NOT the melding bare w mod 2; w=5 and w=7 "
+                    "are DISTINGUISHED); spinor_sign = the double-cover "
+                    "(−1)^{w_k} (the EXISTING One.spinor_sign readout). 1:1 "
+                    "C peer srmech_eph_propagate_wound (ONE native call: "
+                    "the srmech_eph_propagate cascade + srmech_winding_fold "
+                    "+ the existing srmech_sigma_effective / "
+                    "srmech_spinor_sign winding peers per mode); pure "
+                    "Python the complete alternative. numpy-free; no "
+                    "abs().",
+            parameters=(P("L", "Mat", True,
+                          "(n, n) real-symmetric or complex-Hermitian "
+                          "operator (as propagate)"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or "
+                          "complex) — the seed the propagator acts on"),
+                        P("z", "complex", True,
+                          "the complex time; arg(z) is the coherence dial "
+                          "(as propagate)")),
+            returns=R("dict", "JSON-native, per-mode arrays in eigensolve "
+                              "mode order: harvest_re / harvest_im (the "
+                              "epicycle harvest, byte-identical to "
+                              "propagate) / eigenvalues / winding (the "
+                              "metacycle turns, int) / theta (the folded "
+                              "epicycle residue, |θ| ≤ π) / sigma_effective "
+                              "(±1, tower-graded) / spinor_sign (±1, "
+                              "double-cover)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc208 (F1186) — RESPONSION, the response-function family of a
+        # generator L on an excitation u0: the op⊗operand⊗responsion
+        # k=3 completion (the stored relationship itself), Class-L with
+        # the 1:1 C peer srmech_responsion.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.responsion", owner="srmech",
+            category="laplacian",
+            summary="RESPONSION — the response-function family of a "
+                    "generator L acting on an excitation u0 (F1186: the "
+                    "op⊗operand⊗responsion k=3 completion — the "
+                    "answering-correspondence between successive "
+                    "op-on-operand applications, the stored relationship "
+                    "itself; srmech = Stored-RELATIONSHIP Mechanism). "
+                    "Generalizes EPH's e^{−zL} to the general response "
+                    "function; the two canonical continuous-form members "
+                    "are LAPLACE-TRANSFORM DUALS: kind='propagator' (time "
+                    "domain) = e^{−zL}·u0 — DELEGATES verbatim to the "
+                    "shipped propagate (rc136; same arg(z) coherence dial, "
+                    "same mandatory 2π seam-fold — responsion SUBSUMES "
+                    "propagate as its time-domain member, propagate stays "
+                    "the named EPH surface); kind='resolvent' (frequency/"
+                    "energy domain, the Green's function) = (zI−L)^{−1}·u0 "
+                    "— NEW: the Laplace transform of the semigroup "
+                    "propagator, (zI−L)^{−1} = ∫₀^∞ e^{−zt}·e^{tL} dt for "
+                    "Re z > max λ(L), per eigenmode the dual pair "
+                    "e^{−z·λ} ⟷ 1/(z−λ). Realised as a REAL complex "
+                    "linear solve via the real 2n×2n block embedding "
+                    "[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]] over the shipped Gauss–Jordan "
+                    "kernel. z exactly in spec(L) is a resolvent POLE and "
+                    "raises ZeroDivisionError honestly (the pole IS the "
+                    "physics). 1:1 C peer srmech_responsion (kind 0 "
+                    "delegates to srmech_eph_propagate; kind 1 composes "
+                    "srmech_dense_solve_f64_ws — a bare-C host runs BOTH "
+                    "members); pure Python the complete alternative (the "
+                    "SAME embedding via mat_solve). numpy-free; no abs() "
+                    "(z−L is Class-C signed arithmetic; the solve pivot "
+                    "is the composed kernel's Class-K sign branch).",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric or complex-Hermitian "
+                          "operator (as propagate)"),
+                        P("u0", "Vec", True,
+                          "the excitation vector (length n, real or "
+                          "complex) — the seed the response acts on"),
+                        P("z", "complex", True,
+                          "the complex argument: the complex time for the "
+                          "propagator (arg(z) = the coherence dial), the "
+                          "complex frequency/energy for the resolvent "
+                          "(poles at spec(L))"),
+                        P("kind", "str", False,
+                          "'propagator' (default; e^{−zL}·u0, delegates "
+                          "to propagate) or 'resolvent' ((zI−L)^{−1}·u0, "
+                          "the Laplace-dual Green's function; "
+                          "keyword-only)")),
+            returns=R("Vec", "the response — a length-n complex Vec (the "
+                             "propagate return contract)"),
         ),
         ToolEntry(
             name="srmech.amsc.laplacian.fiedler_vector", owner="srmech",
@@ -1358,6 +1903,19 @@ def _register_primitive_class_tools() -> None:
                         P("max_k", "int", False)),
             returns=R("int", "≥ 1"),
         ),
+        ToolEntry(
+            name="srmech.amsc.primes.next_prime", owner="srmech", category="primes",
+            summary="The prime successor (Class J): the smallest prime strictly "
+                    "greater than n. Trial-division primality (cf. Crandall & "
+                    "Pomerance, *Prime Numbers: A Computational Perspective*, 2nd "
+                    "ed. 2005, §1.3) walked over the odd candidates above n; 0/1 "
+                    "step to 2 and 2 steps to 3. Used by the rc44 CRT re-fibration "
+                    "arc to enumerate the GF(p) reduction primes. 1:1 C peer "
+                    "srmech_next_prime (native when present; pure-Python complete). "
+                    "Exact integer; no float, no abs(), no numpy / math.",
+            parameters=(P("n", "int", True, "non-negative integer"),),
+            returns=R("int", "the smallest prime > n"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class B — tagged-tuple TLV
@@ -1481,6 +2039,64 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("L", "Mat", True, "real-symmetric matrix"),),
             returns=R("dict", "low/mid/high eigenvector bands (each a real Mat)"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc204 (gh#1324 / F1167–F1169) — the spectral SPINE + the
+        # relational-structure sugar, the DOMINANT-mode read-out that
+        # completes the community/spine pair with the LOW-mode
+        # fiedler_sparse / three_fold_eigvec_groups. C peer
+        # srmech_spectral_spine.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.spectral_spine", owner="srmech",
+            category="laplacian",
+            summary="The spectral SPINE of a relational graph: the top-|component| "
+                    "nodes of the DOMINANT (largest-λ) eigenvector of the (signed) "
+                    "Laplacian L = D̄ − A. The largest-eigenvalue eigenvector "
+                    "concentrates on the structurally CENTRAL items, so its "
+                    "top-magnitude nodes ARE the spine — the dominant-mode "
+                    "read-out that completes the community/spine PAIR with the "
+                    "LOW-mode fiedler_vector / fiedler_sparse (2-way) + "
+                    "three_fold_eigvec_groups (3-way). Domain-free (edges = any "
+                    "relational graph: siona describe-spine, ephemerides central "
+                    "bodies). n is inferred as one past the largest endpoint. "
+                    "Ranking is Class-K |component|² (re²+im², no abs / no sqrt), "
+                    "descending, ties by ascending index. 1:1 C peer "
+                    "srmech_spectral_spine (native when present, pure-Python — "
+                    "signed_laplacian + symmetric_eigendecompose + top-k — the "
+                    "complete alternative). NUMERIC within-tol native==pure; "
+                    "numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "undirected relational edges; n inferred from endpoints"),
+                        P("weights", "Optional[list[float]]", False,
+                          "per-edge weights (default 1.0); may be negative"),
+                        P("k", "int", False,
+                          "spine cap (keyword-only; default 8); returns "
+                          "min(k, n) indices")),
+            returns=R("list[int]", "up to k central node indices, descending "
+                                   "|component| of the dominant eigenvector"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.relational_structure", owner="srmech",
+            category="laplacian",
+            summary="The full spectral structure of a relational graph in ONE "
+                    "call: {spine, communities, coherence} from a single "
+                    "eigendecomposition of the (signed) Laplacian. spine = the "
+                    "top-8 central nodes (the DOMINANT mode, spectral_spine); "
+                    "communities = [left, right] the Fiedler 2-way sign bisection "
+                    "(the LOW mode, the normalized_cut_bisect convention — a "
+                    "Class-K sign split); coherence = λ₂ the algebraic "
+                    "connectivity (small ⇒ near-disconnected). Ergonomic sugar "
+                    "that COMPOSES signed_laplacian + symmetric_eigendecompose + "
+                    "the spectral_spine top-k + the Fiedler sign split (no "
+                    "dedicated C symbol — a pure composition of the C-backed "
+                    "atoms). numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "undirected relational edges; n inferred from endpoints"),
+                        P("weights", "Optional[list[float]]", False,
+                          "per-edge weights (default 1.0); may be negative")),
+            returns=R("dict", "{spine: list[int], communities: [list[int], "
+                              "list[int]], coherence: float}"),
+        ),
         # NOTE: srmech.amsc.compose.greedy_bipartite_alignment (§2.2) is NOT
         # registered — it takes a Python `similarity_fn` callable that cannot
         # cross the JSON-RPC boundary, so it is not an MCP tool. It is exempt
@@ -1530,6 +2146,43 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("numerator", "int", True), P("denominator", "int", True),
                         P("max_denominator", "int", True, "> 0")),
             returns=R("tuple[int, int]", "(p', q')"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Class N — rational reconstruction (rc45, rung 2 of the
+        # CRT-QMat re-fibration arc). The residue→bounded-p/q closer.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.rational.rational_reconstruct", owner="srmech",
+            category="rational",
+            summary="Recover the rational p/q congruent to a residue modulo M — "
+                    "rational reconstruction (cf. Wang 1981, *An improved Monte "
+                    "Carlo algorithm for computing exact rational solutions*; von "
+                    "zur Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, "
+                    "§5.10). The Class-N closer of the rc45 CRT re-fibration: after "
+                    "crt_combine merges the per-prime residues into one residue mod "
+                    "M, this recovers the exact rational answer. Returns the reduced "
+                    "SIGNED (p, q) with p/q ≡ residue (mod M), |p| ≤ num_bound, "
+                    "0 < q ≤ den_bound, gcd(q, M) == 1, gcd(|p|, q) == 1 — or None "
+                    "if no such rational exists in the bounds. The default symmetric "
+                    "bound num_bound = den_bound = isqrt(M // 2) is the standard Wang "
+                    "bound guaranteeing uniqueness. Half-GCD / extended-Euclidean "
+                    "reconstruction (the best_rational / continued_fraction Class-N "
+                    "family, but the distinct residue→bounded-p/q algorithm); sign "
+                    "is Class-K (an explicit sign-branch, never abs()); arbitrary-"
+                    "precision / bignum (M and p/q may exceed 2**64); no float, no "
+                    "numpy / math. 1:1 C peer srmech_rational_reconstruct (over "
+                    "srmech_bigint, caller-arena; native when present, pure-Python "
+                    "the complete alternative).",
+            parameters=(P("residue", "int", True,
+                          "the residue r (reduced into [0, M) internally)"),
+                        P("modulus", "int", True, "the modulus M >= 2"),
+                        P("num_bound", "Optional[int]", False,
+                          "|p| ceiling; default isqrt(M // 2) (the Wang bound)"),
+                        P("den_bound", "Optional[int]", False,
+                          "q ceiling; default isqrt(M // 2) (the Wang bound)")),
+            returns=R("Optional[tuple[int, int]]",
+                      "the reduced signed (p, q), or None if no rational fits the "
+                      "bounds"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.exp_series_truncate", owner="srmech",
@@ -1618,6 +2271,18 @@ def _register_primitive_class_tools() -> None:
                         P("denominator", "int", True, "q of x = p/q (must be > 0)"),
                         P("num_terms", "int", True, "truncation N, 0 <= N <= 64")),
             returns=R("tuple[int, int]", "(out_num, out_den) reduced"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.rational.jacobi_sncndn_series_truncate",
+            owner="srmech", category="rational",
+            summary="Jacobi elliptic sn/cn/dn Maclaurin partial sums at u=p/q, modulus m=m_p/m_q, as a triple of exact rationals. Coeffs from the coupled ODE sn'=cn*dn, cn'=-sn*dn, dn'=-m*sn*cn (Abramowitz & Stegun §16.4). Rotation-last exact-Q sibling of sin/cos_series_truncate: sn^2+cn^2=1 and dn^2+m*sn^2=1 hold exactly; m=0 -> sin/cos, m=1 -> tanh/sech. Class N + Class J + Class I (sign) composition; native C peer srmech_jacobi_sncndn; Python bignum-capable.",
+            parameters=(P("numerator", "int", True, "p of u = p/q"),
+                        P("denominator", "int", True, "q of u = p/q (must be > 0)"),
+                        P("m_numerator", "int", True, "m_p of modulus m = m_p/m_q"),
+                        P("m_denominator", "int", True, "m_q of m (must be > 0)"),
+                        P("num_terms", "int", True, "truncation N, 0 <= N <= 50")),
+            returns=R("tuple[tuple[int, int], tuple[int, int], tuple[int, int]]",
+                      "((sn_num, sn_den), (cn_num, cn_den), (dn_num, dn_den)) reduced"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.cos", owner="srmech", category="rational",
@@ -1802,6 +2467,13 @@ def _register_primitive_class_tools() -> None:
             returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) Fraction intervals); with include_complex=True, all n eigenvalues (reals as float then certified complex)"),
         ),
         ToolEntry(
+            name="srmech.amsc.cascade.matrix_cascades.lll_reduce", owner="srmech", category="cascade",
+            summary="EXACT-ℚ LLL lattice-basis reduction — the classic Lenstra–Lenstra–Lovász (1982) reduction of an integer lattice basis, in exact rational arithmetic (no float anywhere), and the foundation for a future van Hoeij polynomial-factorization knapsack (the LLL recombination that supersedes the exponential Zassenhaus subset search in factor_integer_poly). Input basis is m integer row-vectors (length n) spanning a rank-m lattice; delta=(num, den) is the Lovász parameter in (1/4, 1] (default 3/4). Returns the LLL-reduced basis (m integer row-vectors): SAME lattice (a unimodular change of basis, det = ±1), size-reduced (|μ_{k,j}| ≤ 1/2 for j<k), Lovász-satisfying (‖b*_k‖² ≥ (δ − μ²_{k,k−1})·‖b*_{k−1}‖²), so the first vector is provably short. The engine is exact throughout: a Gram-matrix Gram–Schmidt orthogonalization over ℚ (μ, ‖b*‖² as exact Fraction / arbitrary-precision srmech_bigint rationals in the C peer), size reduction by exact nearest-integer rounding of μ (round(a/b) = floor((2a+b)/(2b)) — never a float rint, never abs: the |μ| ≤ 1/2 guard is a Class-K sign branch on 2·num vs den), and the Lovász swap decided on the exact ℚ inequality. Integer-in, integer-out; rotation-last-trivial (no projection). Class L (the lattice / Gram–Schmidt spectral content) ∘ Class K (the size-reduction sign pin-slots + the swap-sign boundary — never an ALU abs) ∘ Class N (the exact nearest-integer rational rounding) ∘ Class I (the ordered integer vector row operations). Native-dispatched (srmech_lll_reduce, byte-identical to the pure body — both exact). Raises on a degenerate (linearly dependent) basis or a delta outside (1/4, 1]. Canonical SSoT: A. K. Lenstra, H. W. Lenstra Jr., L. Lovász, 'Factoring polynomials with rational coefficients', Math. Ann. 261 (1982), 515–534; algorithm as in H. Cohen, A Course in Computational Algebraic Number Theory (1993), Algorithm 2.6.3.",
+            parameters=(P("basis", "list", True, "a list of m integer row-vectors (each length n, arbitrary-precision ints) — an independent lattice basis"),
+                        P("delta", "tuple[int, int]", False, "the Lovász parameter as an exact rational pair (num, den) in (1/4, 1]; default (3, 4)")),
+            returns=R("list", "the LLL-reduced basis: m integer row-vectors (same lattice, size-reduced, Lovász-satisfying)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.rational.continued_fraction_convergents",
             owner="srmech",
             category="rational",
@@ -1858,12 +2530,90 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "the telomere cap (a Klein-4 vector, deterministic per label)"),
         ),
         ToolEntry(
+            name="srmech.amsc.genome.active_telomere", owner="srmech", category="genome",
+            summary="The ACTIVE TELOMERE (UPSTREAM §127 / #726) — a chromosome cap made op(x)operand: it opens + governs a chromosome (the OPERATOR — a gating rule, like telomere) AND carries an exact non-negative Hayflick COUNT inline in the strand (the OPERAND — the descending replicative counter; Harley/Futcher/Greider 1990 Nature 345:458, Hayflick 1965 Exp Cell Res 37:614). The count MODULATES a downstream op (telomere_tick): count>0 -> a divide proceeds + decrements; count==0 -> honest senescence. That is what makes the chromosome GENUINELY op(x)operand (a plain telomere is a PASSIVE op-slot — #726). Same (operand, op) pattern as op_provenance.carry (value, operation) and coupling.RecoverableFold (lossy_bundle, exact_seed_R) but with an ACTIVE op. Marker byte 0x74; layout [0x74] + utf-8 label + NUL + count(uint64 big-endian) + NUL-pad; count is an exact Class-I/N integer (no float, never abs). Same label + count give the same cap.",
+            parameters=(P("label", "str", True, "the chromosome label — read back inline (bytes [1:] up to the first NUL), uniform with telomere"),
+                        P("count", "int", True, "the exact non-negative Hayflick count (allowed divides before senescence); Class-I/N, no float"),
+                        P("dim", "int", False, "Klein-4 vector length (default 64); match the turns the cap delimits — must fit label + 10 bytes")),
+            returns=R("HV", "the active-telomere cap (a fixed-width cap leaf carrying the count inline)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.telomere_tick", owner="srmech", category="genome",
+            summary="The DIVIDE/GATE op (UPSTREAM §127 / #726) — the ACTIVE TELOMERE's count MODULATES the operator. strand is a chromosome that opens with an active_telomere cap (0x74); this reads the count (the operand) and its behaviour (the operator) is SELECTED by it: count>0 -> DIVIDE (decrement the count by exactly 1 — the telomere SHORTENS — and return the DAUGHTER strand: the same coupled leaves led by an active telomere of count-1; the telomere governs the leaves WITHOUT decoding them, like biology shortening the cap not re-synthesising the genes), status 'divided'; count==0 -> SENESCENCE (refuse HONESTLY, no daughter, status 'senescent' — the Hayflick limit, Hayflick & Moorhead 1961 Exp Cell Res 25:585 / Hayflick 1965). An active telomere of count N allows EXACTLY N divides, then the N+1-th refuses. THE op(x)operand duality made testable — same call, operator behaviour set by the operand. Needs no the_one (the count lives in the cap; §44 bare-strand self-description). Returns {status, label, count_before, count_after, daughter}. Native-dispatched (byte-identical C peer srmech_genome_telomere_tick).",
+            parameters=(P("strand", "Sequence[HV]", True, "a chromosome strand opening with an active_telomere cap (from chromosome(leaves, the_one, active_count=N))"),),
+            returns=R("dict", "{status: 'divided'|'senescent', label, count_before, count_after, daughter: strand|None}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.gene_express", owner="srmech", category="genome",
+            summary="CELL-STATE-MODULATED GENE EXPRESSION (UPSTREAM §128 / #728; §129 / #729 KLEIN-4 REGULATORY ROLES; §130 / #730 BOOLEAN GATE-TYPE) — a READ-TIME FILTER over a multi-gene chromosome: the cell_state OPERAND modulates which genes the gene_express OPERATOR includes, dispatching on each gene's declared GATE-TYPE. §130 GATE-TYPE FAMILY: gate_type=klein4_mask (E1, the DEFAULT/FAST common case; a plain 0x47 gene or a Klein-4-mask 0x67 regulatory gene) OR gate_type=boolean (E2, the GENERAL escape hatch; a 0x62 boolean gene). klein4_mask rule: a gene EXPRESSES iff (cell_state & activator_mask) == activator_mask (ALL activator conditions PRESENT) AND (cell_state & repressor_mask) == 0 (NO repressor condition PRESENT). §129: each regulatory CONDITION (bit) is a KLEIN-4 sector — the genome's native alphabet — with role given by the (act_bit, rep_bit) pair: (0,0) don't-care / (1,0) activator (require-present) / (0,1) repressor (require-absent) / (1,1) never (present AND absent = contradiction -> auto-silenced). The lac operon is the exemplar (activator=lactose-bit, repressor=glucose-bit -> expresses iff lactose present AND glucose absent). §130 boolean rule: a 0x62 gene carries ARBITRARY boolean logic as a DNF (disjunctive normal form — an OR of (require-present, require-absent) AND-clauses) and EXPRESSES iff ANY clause matches; DNF is functionally complete, so AND / OR / NOT / XOR / any boolean function over the conditions is representable. E1 subset E2: the klein4_mask (activator, repressor) two-mask IS a 1-CLAUSE DNF, so E1 is the compact fast special case of E2's general disjunction (combinatorial cis-regulatory logic; Alberts et al., MBoC 4th ed., How Genetic Switches Work, NCBI NBK26872). ENCODING = two parallel bitmasks (activator_mask, repressor_mask), the two Klein-4 bit-planes, carried inline in a REGULATORY GENE cap (marker 0x67; [0x67] + label + NUL + activator(uint64 BE) [+ repressor(uint64 BE)] + NUL-pad); a boolean gene is carried in a BOOLEAN GENE cap (marker 0x62; [0x62] + label + NUL + gate_type(uint8) + n_terms(uint16 BE) + n_terms x (activator(uint64 BE) + repressor(uint64 BE)) + NUL-pad; a NEW block KIND -> genome format v8 -> v9). §131 GATE-TYPE 3 (E4 the LINEAR-THRESHOLD gate): a THRESHOLD gene (marker 0x77) carries a perceptron — a per-condition SIGNED integer weight vector + an integer threshold — and EXPRESSES iff Sum_i (weight_i * bit_i(cell_state)) >= threshold (the decision is the SIGN of Sum minus threshold — Class-K, never abs; SIGNED weights allow an inhibitory input). GENUINELY DISTINCT from E2: a linear-threshold function (MAJORITY-of-n = all-ones weights with threshold=ceil(n/2), or a weighted morphogen dose-sum) needs an EXPONENTIALLY-large DNF, so E4 captures COMPACTLY what E2's DNF cannot (linear-threshold functions subset-not small-DNF; the additive / morphogen-gradient threshold enhancer model, Alberts et al., MBoC 4th ed., Drosophila and the Molecular Genetics of Pattern Formation, NCBI NBK26906 — the Dorsal morphogen turns genes on/off depending on its concentration). Layout: [0x77] + label + NUL + gate_type(uint8) + n_weights(uint16 BE) + threshold(int64 BE signed) + n_weights x weight(int64 BE signed) + NUL-pad; a NEW block KIND -> genome format v9 -> v10. DUAL-READ / back-compat: the repressor lives in what was NUL padding, so a rc128 single-mask cap reads as activator=mask, repressor=0 (a pure all-activator AND-gate, IDENTICAL behaviour) and an activator-only gene is BYTE-IDENTICAL to rc128; a PLAIN gene (0x47, no masks) is UNREGULATED = (0,0) = ALWAYS EXPRESSED. SAME DNA, DIFFERENT cell_state -> DIFFERENT expressed subset — the op(x)operand theorem one scale up from the rc127 active telomere. Same (operand, op) pattern as op_provenance.carry / coupling.RecoverableFold, now with a CELL-STATE operand + an EXPRESSION operator. NEVER MUTATES THE STRAND (a READ — biology does not rewrite DNA to regulate it; the strand is byte-identical after). Returns the expressed subset [(gene_label, gene_leaves), ...] (the genes() shape, filtered), gene_leaves uncoupled through the_one. Class-I exact bitwise (no float, never abs). Native-dispatched (byte-identical C peer srmech_genome_gene_express). Attests differential gene expression as ONE facet — the CELL-TYPE-SELECTION facet (Alberts et al., Molecular Biology of the Cell 4th ed., How Genetic Switches Work, NCBI NBK26872: 'Different selections of gene regulatory proteins are present in different cell types and thereby direct the patterns of gene expression that give each cell type its unique characteristics'); the activator/repressor operon model — Jacob & Monod 1961, J Mol Biol 3:318-356.",
+            parameters=(P("strand", "Sequence[HV]", True, "a multi-gene chromosome strand (from chromosome(genes=[(label, leaves) | (label, leaves, activator_mask) | (label, leaves, activator_mask, repressor_mask), ...], the_one))"),
+                        P("the_one", "HV", True, "the held invariant the gene turns were coupled through (the expressed leaves are uncoupled through it)"),
+                        P("cell_state", "int", True, "the exact non-negative cell-state bitmask; each set bit a present regulatory condition (Class-I bitwise; no float)")),
+            returns=R("list", "the EXPRESSED subset [(gene_label:str, gene_leaves:list[HV]), ...] in strand order (plain genes always; regulatory genes iff (cell_state & activator) == activator AND (cell_state & repressor) == 0)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.gene_express_levels", owner="srmech", category="genome",
+            summary="GRADED / ANALOG gene expression LEVEL (UPSTREAM §132 / #732 — the E3 rung) — the ORTHOGONAL companion to gene_express, a READ-TIME FILTER over a multi-gene chromosome. Where gene_express decides IF each gene expresses (a BINARY set, dispatching on each gene's E1/E2/E4 gate-type) and returns [(gene_label, gene_leaves), ...], this op returns each EXPRESSED gene WITH its exact-rational expression LEVEL [(gene_label, gene_leaves, (num, den)), ...] — HOW MUCH it expresses (real biology is quantitative/analog, not just on/off). The LEVEL axis is ORTHOGONAL to the gate-type family — it composes with EVERY gene kind: a BINARY gene (plain 0x47 / klein4-mask 0x67 / boolean 0x62 / threshold 0x77) is the DEGENERATE {0,1} case, included at LEVEL exact-rational 1 = (1,1) iff its gate PASSES (the SAME §128/§130/§131 decision gene_express uses) and ABSENT otherwise; a GRADED gene (a NEW 0x64 cap, §132) carries a per-condition SIGNED integer LEVEL-WEIGHT vector + a POSITIVE integer DENOMINATOR, and its LEVEL is the reduced exact rational Sum_i (level_weight_i * bit_i(cell_state)) / denom CLAMPED to [0,1] (a Class-K sign-branch, never abs — raw dose <=0 -> 0, raw dose >= denom -> 1, else the reduced in-range fraction; the fraction reduced by the Class-I gcd), included iff its LEVEL > 0 (the dose-response IS the gate — a zero dose = off). So every gene gene_express returns appears here at level 1, and vice versa. NEW 0x64 cap layout: [0x64] + label + NUL + gate_type(uint8=3) + n_weights(uint16 BE) + denom(uint64 BE POSITIVE) + n_weights x level_weight(int64 BE signed) + NUL-pad; a NEW block KIND -> genome format v10 -> v11. THE THEOREM (op(x)operand, refined to a QUANTITY): the cell_state OPERAND modulates the LEVEL the gene_express_levels operator reports — SAME DNA, DIFFERENT cell_state -> DIFFERENT expression LEVELS (not just a different on/off subset); a morphogen at a graded concentration drives a graded transcriptional output. NEVER MUTATES THE STRAND (a READ — the strand is byte-identical after). Returns the expressed subset [(gene_label, gene_leaves, (num, den)), ...] in strand order — (num, den) is the reduced exact-rational level (a JSON-native 2-tuple of ints); gene_leaves uncoupled through the_one. Class-N exact rational (no float, never abs); Class-I gcd-reduce; Class-K clamp. Native-dispatched (byte-identical C peer srmech_genome_gene_express_levels). Attests graded / dose-response gene expression as ONE facet (Alberts et al., Molecular Biology of the Cell 4th ed., How Genetic Switches Work -> Gene Activator Proteins Work Synergistically, NCBI NBK26872 — the joint effect of several activators on the transcription RATE is not merely the sum but the product: a graded, analog modulation of the expression level, not a binary switch).",
+            parameters=(P("strand", "Sequence[HV]", True, "a multi-gene chromosome strand (from chromosome(genes=[...], the_one)); may mix plain / regulatory / boolean / threshold / graded genes"),
+                        P("the_one", "HV", True, "the held invariant the gene turns were coupled through (the expressed leaves are uncoupled through it)"),
+                        P("cell_state", "int", True, "the exact non-negative cell-state bitmask; each set bit a present condition (Class-I bitwise; no float)")),
+            returns=R("list", "the EXPRESSED subset [(gene_label:str, gene_leaves:list[HV], level:(num:int, den:int)), ...] in strand order — a BINARY gene at level (1,1) iff its gate passes; a GRADED gene at its reduced dose-response rational in (0,1] (absent when the level is 0)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.gene_express_plan", owner="srmech", category="genome",
+            summary="DEMAND-LOAD gene-expression PLAN (UPSTREAM §134 / #1273, siona green-light — the #736 probe made shippable) — the OFFSET-ONLY load plan that computes the EXPRESSED set + each expressed unit's ON-DISK byte-range WITHOUT reading content (never decodes a leaf), so a partial-load reader (genome_genes_expressed) can SEEK only the expressed byte-ranges. Returns [(label, byte_offset, byte_len), ...] for the EXPRESSED genes / regions. TWO variants, dispatched on the input: PATH variant (variant b — the PRIMARY demand-load case): strand_or_path is a genome DIRECTORY (with the rc115 v4 manifest). For each chromosome REGION the plan seeks to the manifest byte_offset and reads ONLY the region's head GATE cap (the SECOND block, one leaf_dim-byte cap right after the CHROM cap), evaluates its inline gate (E1 0x67 / E2 0x62 / E4 0x77 / E3 0x64 — the delivered gates) against cell_state, and includes the EXPRESSED regions' (chromosome_label, byte_offset, byte_len). It MUST NOT read the region body — bounded RAM AND bounded I/O (bytes-touched << full body). A region with no head gene cap (a single-kernel chromosome, byte_len < 2*leaf_dim) is not a gated community and is skipped. This is the siona community=chromosome layout: the per-chromosome head gate IS the community gate. Mixed E1/E2/E4/E3 gate-types across chromosomes are the delivered gates — the plan gates by the inline mask regardless of kind. STRAND variant (variant a — the in-memory fallback): strand_or_path is an in-memory strand. The plan SKELETON-SCANS it — walking blocks, computing each block's ON-DISK byte span (a cap is leaf_dim bytes; a data turn is the §55/v3 bit-packed 1 + ceil(leaf_dim/4) bytes — the payload is SEEKED PAST, never decoded), splitting on the inline GENE caps, and delimiting each EXPRESSED gene's byte-range (gene_label, byte_offset, byte_len) in the on-disk layout genome_save would write. The expressed-label set equals gene_express's on the same strand + cell_state. A READ — the strand / file is byte-identical after. cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). The PATH variant is native-dispatched (byte-identical C peer srmech_genome_gene_express_plan reads only the head gate caps + emits the same offset plan); pure Python is the complete alternative. NO format addition — the ops read the existing caps / manifest (genome format v11 stays). Attests demand-loaded differential gene expression — bounded RAM WITHOUT bounded availability, the epigenetic on-demand-transcription facet (Alberts et al., Molecular Biology of the Cell 4th ed., How Genetic Switches Work, NCBI NBK26872: different cell types express different gene selections; the demand-load reads only the promoter / regulatory cap to decide, not the gene body).",
+            parameters=(P("strand_or_path", "list|str", True, "PATH variant (b): a genome DIRECTORY (written by genome_save) — the demand-load case, reads only each region's head gate cap via the manifest offset. STRAND variant (a): an in-memory strand (list of Klein-4 vectors) — the skeleton-scan fallback."),
+                        P("the_one", "HV", True, "the held invariant (the leaf-width anchor; the plan reads only the gate caps, which are not coupled through it)"),
+                        P("cell_state", "int", True, "the exact non-negative cell-state bitmask; each set bit a present regulatory condition (Class-I bitwise; no float)")),
+            returns=R("list", "the offset-only load plan [(label:str, byte_offset:int, byte_len:int), ...] for the EXPRESSED genes / regions — PATH variant: per expressed chromosome REGION; STRAND variant: per expressed GENE. NEVER decodes / returns leaf content."),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_genes_expressed", owner="srmech", category="genome",
+            summary="DEMAND-LOAD partial-load READER (UPSTREAM §134 / #1273, siona green-light) — the companion to gene_express_plan. Uses the PATH (variant-b) plan to SEEK + load + decode ONLY the EXPRESSED chromosome regions, then filters each region's genes by gene_express — returning [(gene_label, gene_leaves), ...] BYTE-IDENTICAL to the expressed subset of a full genome_genes / gene_express over the WHOLE genome, WITHOUT loading the unexpressed regions (bounded RAM AND bounded I/O). In the siona community=chromosome layout the per-chromosome head gate IS the community gate, so an unexpressed community (head gate off) contributes no expressed gene — skipping its region is exact. A READ — the file is byte-identical after (biology reads the regulatory region, it does not rewrite the DNA). cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). The plan is native-dispatched (the C peer srmech_genome_gene_express_plan); the per-region load + gene_express decode are the exact pure path — the leaves are byte-identical whether the plan came from C or Python. NO format addition (reads the existing v4 manifest + caps; genome format v11 stays). Attests demand-loaded gene expression: the expressed subset is materialised on demand, the unexpressed genes never paged in (Alberts et al., MBoC 4th ed., NCBI NBK26872).",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save"),
+                        P("the_one", "HV", True, "the held invariant the gene turns were coupled through (the expressed leaves are uncoupled through it)"),
+                        P("cell_state", "int", True, "the exact non-negative cell-state bitmask; each set bit a present condition (Class-I bitwise; no float)")),
+            returns=R("list", "the EXPRESSED subset [(gene_label:str, gene_leaves:list[HV]), ...] across the whole genome in body order — BYTE-IDENTICAL to the expressed subset of a full gene_express, but with only the expressed regions paged in (the unexpressed communities never loaded)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.modulator_recover", owner="srmech", category="genome",
+            summary="MODULATOR-RECOVERY M1 (UPSTREAM §133 / #733) — the INVERSE of gene_express. gene_express is the FORWARD map (cell_state -> expressed genes); this recovers the TWO-SIDED cell-state FLOOR from an OBSERVED expressed-label set (+ the strand's gene regulatory specs). It is UNDER-DETERMINED (many cell_states -> the SAME expressed subset), so the exact cell_state is IRRECOVERABLE BY CONSTRUCTION and the only honest form is a ONE-SIDED floor — the SAME recoverability discipline / op_verdict EQUAL/UNKNOWN contract as op_provenance (rc117) / RecoverableFold / the #725 null: recover the EXACT complement we can PROVE, flag the rest UNKNOWN. THE FLOOR (sharpened by the rc129 activator/repressor two-mask): certain_on = the bits every consistent cell_state MUST have SET — each EXPRESSED E1 gene (klein4-mask 0x67 / plain 0x47) proves its activator bits are on (OR their activator masks); each EXPRESSED E2 gene (boolean DNF 0x62) proves >=1 clause matched, so the bits set in EVERY clause's activator (the INTERSECTION-over-clauses activator) are certain-on. certain_off = the bits every consistent state MUST have CLEAR: OR of expressed E1 repressor masks + the intersection-over-clauses repressor of expressed E2 genes. E4 threshold (0x77) / E3 graded (0x64) / UN-expressed genes give NO clean single-bit certainty (a failed threshold / an absent gene is a DISJUNCTION — that is M3's job) so they contribute NOTHING to the clean floor (SOUND, not over-claiming). undetermined = the referenced condition bits (the union of bits ANY gene reads) minus (certain_on | certain_off). verdict = EXACT if certain_on | certain_off covers ALL referenced bits (the floor fully determines the state), PARTIAL if some pinned, UNKNOWN if none — mirroring op_verdict's one-sidedness (NEVER claim a bit's value it can't prove). SOUNDNESS (the load-bearing contract): for EVERY cell_state modulator_consistent reports CONSISTENT, (state & certain_on) == certain_on AND (state & certain_off) == 0; a gene's floor is applied only when its label is expressed AND UNIQUE among the strand's gene caps (a duplicated label cannot be attributed). NEVER MUTATES the strand (a READ — byte-identical after). the_one is the leaf-width anchor (M1 reads only the gene CAPS, which are not coupled). Class-I exact bitwise (no float, never abs). Native-dispatched (byte-identical C peer srmech_genome_modulator_recover). Attests gene-regulatory-network (GRN) inference — reverse-engineering the regulatory state from an expression pattern — as ONE FACET of a real biological-computational problem (the inverse of expression; #728 discipline — NOT a claim srmech reproduces it): Marbach D, Costello JC, Kuffner R, et al., Wisdom of crowds for robust gene network inference, Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
+            parameters=(P("strand", "Sequence[HV]", True, "a multi-gene chromosome strand (from chromosome(genes=[...], the_one)); may mix plain / regulatory / boolean / threshold / graded genes"),
+                        P("the_one", "HV", True, "the held invariant (the leaf-width anchor; M1 reads only the gene caps, which are not coupled through it)"),
+                        P("expressed_labels", "Sequence[str]", True, "the OBSERVED expressed gene labels (a set / list of the gene names that expressed — the recovery input)")),
+            returns=R("dict", "{certain_on: int (bits every consistent state must have SET), certain_off: int (bits every consistent state must have CLEAR), undetermined: int (referenced-but-unpinned bits), verdict: str (EXACT / PARTIAL / UNKNOWN)} — all JSON-native; the floor is SOUND (never over-claims a bit)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.modulator_consistent", owner="srmech", category="genome",
+            summary="MODULATOR-RECOVERY M2 (UPSTREAM §133 / #733) — the candidate consistency verdict for the INVERSE of gene_express. Forward-CHECK one candidate cell_state: is set(labels of gene_express(strand, the_one, candidate)) == set(expressed_labels)? -> CONSISTENT else INCONSISTENT. ONE-SIDED (the op_verdict EQUAL/UNKNOWN reuse): CONSISTENT means 'could be the state' (MANY candidates may be — expression is under-determined), NEVER 'it IS the state'. Reuses the FORWARD gene_express (no new gate logic — it dispatches on each gene's E1/E2/E4 gate-type exactly as the forward map does). Pairs with modulator_recover: M1's floor is SOUND precisely because every state M2 calls CONSISTENT satisfies it (every consistent state has certain_on set and certain_off clear). NEVER MUTATES the strand (a READ). candidate_cell_state is a non-negative exact int (Class-I bitwise; each set bit a present condition; no float, never abs). Native-dispatched (byte-identical C peer srmech_genome_modulator_consistent). Attests GRN-inference / consistency-checking of a candidate regulatory state as ONE FACET (the inverse of expression; #728 discipline — NOT a claim srmech reproduces it): Marbach et al., Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
+            parameters=(P("strand", "Sequence[HV]", True, "a multi-gene chromosome strand (from chromosome(genes=[...], the_one))"),
+                        P("the_one", "HV", True, "the held invariant the gene turns were coupled through (gene_express uncouples the expressed leaves through it)"),
+                        P("expressed_labels", "Sequence[str]", True, "the OBSERVED expressed gene labels (the set to check the candidate against)"),
+                        P("candidate_cell_state", "int", True, "the candidate cell-state bitmask to forward-check (Class-I bitwise; non-negative; no float)")),
+            returns=R("str", "'CONSISTENT' iff gene_express(candidate) produces exactly expressed_labels (could be the state — many may be), else 'INCONSISTENT' (one-sided; never a false positive-identification)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.modulator_constraint", owner="srmech", category="genome",
+            summary="MODULATOR-CONSTRAINT M3 (UPSTREAM §133 / #733 — the LAST rung of the E-M ladder) — the COMPLETE inverse of gene_express. Where M1 (modulator_recover) gives the SOUND two-sided FLOOR from the EXPRESSED genes and M2 (modulator_consistent) forward-CHECKS one candidate, M3 returns the EXACT CONSTRAINT characterizing the WHOLE set of cell-states consistent with an observed expression — a COMPACT structured constraint, NEVER an enumeration (the consistent set can be exponential). It ADDS what M1 left out: (a) the DISJUNCTIVE clauses from UN-expressed genes — an un-expressed E1 gene (activator a, repressor r) PROVES (cs & a) != a OR (cs & r) != 0 (some activator absent OR some repressor present) = a nand-clause; an un-expressed E2 gene ANDs one nand-clause per DNF term (all clauses must fail); (b) the FULL expressed-E2 disjunction (M1 only took the SOUND intersection-over-clauses; M3 adds the exact or_terms disjunction — an expressed label with >= 2 boolean terms expresses iff >= 1 term fully matches); (c) the general-gate inverse — an EXPRESSED E4 threshold gene -> Sum w_i*bit_i(cs) >= theta (a linear inequality), UN-expressed -> Sum < theta; an E3 graded gene EXPRESSED -> Sum w_i*bit_i(cs) >= 1 (level > 0), UN-expressed -> Sum <= 0 (level 0). These are CONSTRAINT-SATISFACTION, not a mask-OR. Returns a JSON-native dict {certain_on:int, certain_off:int (M1's floor pins), clauses:[{kind:'nand', any_absent:int, any_present:int} | {kind:'or_terms', terms:[{present:int, absent:int}, ...]}, ...], inequalities:[{weights:[int,...], threshold:int, sense:'>='|'<'}, ...], levels:[{weights:[int,...], denom:int, positive:bool}, ...], satisfiable:bool, free_bits:int, solution_note:str, sound_complete:bool, sound_only_labels:[str, ...]}. ALL clauses / inequalities / levels are ANDed (a conjunction); check a candidate with modulator_constraint_satisfies. SOUND: every cell_state modulator_consistent reports CONSISTENT satisfies the constraint. COMPLETE (satisfies <=> M2-CONSISTENT) for the BOOLEAN gate-types E1/E2 at ANY label multiplicity AND for a UNIQUE single E4/E3 gene; SOUND-ONLY (an over-approximation, HONESTLY reported in sound_only_labels with sound_complete=False) for an EXPRESSED label that is a genuine CROSS-TYPE disjunction (a duplicated label spanning boolean AND threshold/graded, or >= 2 threshold/graded genes) — that OR has no exact flat-clause form, so its expressed requirement is DROPPED to stay sound. UN-expressed labels are COMPLETE for EVERY gate-type (a conjunction of exact silence constraints). satisfiable is True iff SOME cell-state satisfies (a real came-from-a-state expression is always satisfiable; a hand-supplied inconsistent set — e.g. two genes that can't co-express — is False): FALSE is always a PROOF, and within the free-bit bound it is decided EXACTLY (see solution_note). free_bits = the count of referenced-but-unpinned condition bits; solution_note characterizes the solution-set SIZE HONESTLY and NEVER enumerates it. NEVER MUTATES the strand (a READ — byte-identical after). Native-dispatched: the C peer srmech_genome_modulator_constraint emits the BOOLEAN part (floor + clauses) byte-identically; the inequalities / levels / satisfiability are the exact pure Class-N/I path (the owed-C = the E4/E3 emit). Class-I bitwise; Class-N integer sums; the inequality SENSE is a Class-K sign (never abs). Attests gene-regulatory-network (GRN) inference — inferring the COMPLETE regulatory-input constraint from an expression profile, a constraint-satisfaction view of the inverse problem — as ONE FACET (#728 discipline, NOT a claim srmech reproduces it): Marbach D, Costello JC, Kuffner R, et al., Wisdom of crowds for robust gene network inference, Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
+            parameters=(P("strand", "Sequence[HV]", True, "a multi-gene chromosome strand (from chromosome(genes=[...], the_one)); may mix plain / regulatory / boolean / threshold / graded genes"),
+                        P("the_one", "HV", True, "the held invariant (the leaf-width anchor; M3 reads only the gene caps, which are not coupled through it)"),
+                        P("expressed_labels", "Sequence[str]", True, "the OBSERVED expressed gene labels (a set / list of the gene names that expressed — the constraint input)")),
+            returns=R("dict", "{certain_on:int, certain_off:int (M1 floor), clauses:[nand / or_terms dicts], inequalities:[E4 linear inequalities], levels:[E3 level constraints], satisfiable:bool, free_bits:int, solution_note:str, sound_complete:bool, sound_only_labels:[str]} — all JSON-native; the EXACT constraint on the consistent-state set (SOUND everywhere; COMPLETE for E1/E2 + unique E4/E3), NEVER an enumeration"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.modulator_constraint_satisfies", owner="srmech", category="genome",
+            summary="MODULATOR-CONSTRAINT M3 checker (UPSTREAM §133 / #733) — does a candidate cell_state satisfy an M3 constraint? The runnable predicate that makes the SOUND-AND-COMPLETE claim TESTABLE. Evaluates the WHOLE constraint modulator_constraint returned: the floor pins ((cs & certain_on) == certain_on AND (cs & certain_off) == 0) AND every nand clause ((cs & any_absent) != any_absent OR (cs & any_present) != 0) AND every or_terms clause (>= 1 term fully matches: (cs & present) == present AND (cs & absent) == 0) AND every E4 inequality (Sum w_i*bit_i(cs) >= threshold for sense '>=', < threshold for sense '<') AND every E3 level (Sum >= 1 for positive, Sum <= 0 else), ALL ANDed. On the COMPLETE gate-types this EQUALS modulator_consistent(strand, the_one, expressed_labels, candidate) == 'CONSISTENT' exactly; for a SOUND-ONLY cross-type-OR label it is a sound over-approximation (True for every consistent state, possibly True for a few inconsistent ones — the dropped disjunct). NEVER MUTATES anything (a READ). candidate_cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). Native-dispatched (the C peer srmech_genome_modulator_constraint_satisfies checks the BOOLEAN part byte-identically; the inequality / level checks are the exact pure Class-N path). The inequality SENSE is a Class-K sign-branch, never abs. Returns bool. Attests GRN-inference consistency-checking of a regulatory state against the recovered constraint as ONE FACET (#728 discipline): Marbach et al., Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
+            parameters=(P("constraint", "dict", True, "the constraint dict modulator_constraint returned (certain_on / certain_off / clauses / inequalities / levels)"),
+                        P("candidate_cell_state", "int", True, "the candidate cell-state bitmask to check (Class-I bitwise; non-negative; no float)")),
+            returns=R("bool", "True iff candidate_cell_state satisfies EVERY floor pin + clause + inequality + level of the constraint (== M2-CONSISTENT on the complete gate-types; a sound over-approximation on a sound-only cross-type-OR label)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.genome.chromosome", owner="srmech", category="genome",
             summary="Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730). Single kernel (unchanged): pass leaves (Klein-4 vectors, one tome each); they become a helix of quad-turns coupled through the_one, led by a telomere cap from label; recover with recall. Several genes (F730/S43): pass genes=[(gene_label, gene_leaves), ...] instead — each gene's leaves are framed by a tlv gene-header (the cheaper internal delimiter, label recoverable via tlv_unpack) inside ONE telomere-capped chromosome; recover with genes(). Pass exactly one of leaves or genes; the_one is always required. Class A (cap) + Class B (gene frame) + Class M (bind) + Class C (the Klein-4 chirality).",
             parameters=(P("leaves", "Sequence[HV]", False, "single-kernel mode: the kernel's leaves — Klein-4 vectors, one tome (<=256) each (pass leaves OR genes)"),
                         P("the_one", "HV", True, "the held invariant every turn is coupled through"),
                         P("label", "str", False, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')"),
-                        P("genes", "Sequence[tuple]", False, "keyword-only; multi-gene mode (F730): [(gene_label, gene_leaves), ...] — each gene tlv-framed inside one telomere-capped chromosome (pass leaves OR genes)")),
+                        P("genes", "Sequence[tuple]", False, "keyword-only; multi-gene mode (F730): [(gene_label, gene_leaves), ...] inside one telomere-capped chromosome (pass leaves OR genes). §128/§129/§130 REGULATORY genes carry inline Class-I logic that gene_express filters on: a 4-tuple (gene_label, gene_leaves, activator_mask, repressor_mask) is the §129 two Klein-4 bit-planes / klein4_mask gate (require-present + require-absent conditions); a 3-tuple with an INT third element (gene_label, gene_leaves, activator_mask) is §128 activator-only (repressor 0, byte-identical to rc128); a 3-tuple with a DICT third element (gene_label, gene_leaves, {'gate':'boolean','dnf':[(act,rep),...]}) is a §130 BOOLEAN gene (arbitrary boolean logic as a DNF — an OR of (require-present, require-absent) AND-clauses; AND/OR/NOT/XOR; E1 klein4_mask subset E2 boolean); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'threshold','weights':[w0,w1,...],'threshold':theta}) is a §131 THRESHOLD gene (E4 — a linear-threshold / perceptron gate: SIGNED integer weight per condition + an integer threshold; expresses iff Sum weight_i*bit_i(cell_state) >= theta; SIGNED weights = inhibitory inputs; GENUINELY DISTINCT from E2 — a MAJORITY-of-n / weighted dose-sum needs an exponential DNF, so linear-threshold subset-not small-DNF); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'graded','weights':[w0,w1,...],'denom':D}) is a §132 GRADED gene (E3 — the ORTHOGONAL analog LEVEL axis / dose-response: a SIGNED integer level-weight per condition + a POSITIVE denominator; gene_express_levels reports the reduced exact-rational LEVEL Sum weight_i*bit_i(cell_state) / D clamped to [0,1]); a 2-tuple is UNREGULATED (always expressed)")),
             returns=R("list", "the strand: [telomere_cap, coupled turn, ...] (single-kernel) or [telomere_cap, gene_header, coupled turn, ..., gene_header, ...] (multi-gene)"),
         ),
         ToolEntry(
@@ -1899,18 +2649,19 @@ def _register_primitive_class_tools() -> None:
 
         # ────────────────────────────────────────────────────────────
         # Genome persistence — UPSTREAM §41. The helix grows ON DISK: a
-        # genome directory holds a fixed-width append-only body (turns.bin)
+        # genome directory holds a self-describing append-only body
+        # (turns.bin; §55/v3 bit-packs data turns 4 Klein-4 symbols/byte)
         # + an MPR-attested manifest catalog. Reads are paged + BOUNDED
         # (every read re-hashes the bytes it touched vs the manifest).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.genome.genome_save", owner="srmech", category="genome",
-            summary="Persist a genome strand to a directory (UPSTREAM §41 / §44). SCANS the strand for its inline CHROM caps (§44 — the strand self-describes; chromosome labels are recovered inline), writes a SELF-DESCRIBING fixed-width body to path/turns.bin (every strand element is a leaf_dim-byte block — a CHROM/GENE cap or a coupled data turn — no length prefixes), and writes a DERIVED MPR-attested catalog to path/manifest.json (format_version, leaf_dim, n_turns, the_one hash+hex, body_sha256, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). The strand is the SSoT; the manifest is an optional .fai-style cache, rebuildable by scanning the body. Multi-gene chromosomes carry their gene boundaries INLINE as GENE caps (no gene-index sidecar). the_one (the held invariant) is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
+            summary="Persist a genome strand to a directory (UPSTREAM §41 / §44 / §55 / §56). SCANS the strand for its inline CHROM caps (§44 — the strand self-describes; chromosome labels are recovered inline), writes a SELF-DESCRIBING body to path/turns.bin (§55/v3: each block's FIRST byte keys its kind + width — a leaf_dim-byte CHROM/GENE cap, or a BIT-PACKED data turn of 1+ceil(leaf_dim/4) bytes carrying 4 Klein-4 symbols per byte; legacy v2 byte-per-symbol turns stay readable in the same walk — no length prefixes), and writes a DERIVED MPR-attested catalog to path/manifest.json (§56/v4: format_version=4, leaf_dim, n_turns = strand block count, the_one hash+hex, a regions array {byte_offset, byte_len, sha256} one per chromosome — the full-region digest, == the chromosome's .chr/AMSC provenance unit — and body_sha256 = the REGION CHAIN Hn=sha256(Hn-1||region_n) that an append maintains in O(1); plus per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). The strand is the SSoT; the manifest is an optional .fai-style cache, rebuildable by scanning the body (the chain is body-derivable). v2/v3 manifests stay READ-compatible. Multi-gene chromosomes carry their gene boundaries INLINE as GENE caps (no gene-index sidecar). the_one is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
             parameters=(P("strand", "Sequence[HV]", True, "the flat genome strand to persist (from genome)"),
                         P("path", "str", True, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)"),
                         P("the_one", "HV", True, "the held invariant every turn is coupled through (content-addressed into the manifest)"),
                         P("labels", "list", False, "optional, back-compat; when given VALIDATES the scanned chromosome set (labels are discovered inline)")),
-            returns=R("dict", "the manifest data {format_version, leaf_dim, n_turns, the_one, body_sha256, chromosomes}"),
+            returns=R("dict", "the manifest data {format_version=4, leaf_dim, n_turns, the_one, body_sha256 (region chain), regions, chromosomes}"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_load", owner="srmech", category="genome",
@@ -1921,18 +2672,18 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_catalog", owner="srmech", category="genome",
-            summary="Read the catalog of a genome (UPSTREAM §41 / §44). When manifest.json is present this is the cheap, body-free read — it returns the manifest data dict (leaf_dim, n_turns, body_sha256, the_one hash+hex, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len) WITHOUT opening turns.bin. §44: when the manifest is ABSENT the catalog is REBUILT by scanning the self-describing body (the strand is the SSoT, the manifest an optional .fai cache); that rebuild needs the_one= (its length is the leaf width) and reads turns.bin once. The manifest is an MPRRecord (MPR v1) that passes validate_mpr_record (its response_sha256 IS the body hash). numpy-free.",
+            summary="Read the catalog of a genome (UPSTREAM §41 / §44 / §56). When manifest.json is present this is the cheap, body-free read — it returns the manifest data dict (§56/v4: leaf_dim, n_turns, body_sha256 = the region CHAIN, the_one hash+hex, a regions array {byte_offset, byte_len, sha256}, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len) WITHOUT opening turns.bin. §44: when the manifest is ABSENT the catalog is REBUILT by scanning the self-describing body (the strand is the SSoT, the manifest an optional .fai cache; the region chain is body-derivable, so the rebuild reproduces the manifest byte-identically); that rebuild needs the_one= (its length is the leaf width) and reads turns.bin once. The manifest is an MPRRecord (MPR v1) that passes validate_mpr_record (its response_sha256 IS the body_sha256 chain head). v2/v3 manifests read compatibly. numpy-free.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),),
             returns=R("dict", "the manifest data (chromosome index + integrity hashes), read from manifest.json or rebuilt by scanning turns.bin"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_append", owner="srmech", category="genome",
-            summary="Append ONE chromosome to an existing genome (UPSTREAM §41) — the helix grows. Packs leaves into a telomere-capped chromosome (coupled through the_one), appends its fixed-width blocks to the END of turns.bin (APPEND-ONLY — prior chromosomes' body bytes are never rewritten), and rewrites the manifest with the new chromosome entry plus a recomputed body_sha256 / n_turns. Every EXISTING chromosome's manifest entry (cap_sha256 / byte_offset / leaf_count / byte_len) stays byte-identical. Verifies the body it appends TO against body_sha256 first (never grows a corrupt body). Returns the updated manifest data dict. numpy-free.",
+            summary="Append ONE chromosome to an existing genome in O(1)-AMORTISED time (UPSTREAM §41 / §55 / §56 — #1245 ask (b)) — the helix grows. Packs leaves into a telomere-capped chromosome (coupled through the_one) and TAIL-EXTENDS turns.bin with its blocks in the §55/v3 packed form (caps verbatim, data turns bit-packed 4 symbols/byte; APPEND-ONLY — prior body bytes are NEVER read, rewritten, or re-hashed, so appending to a v2 genome yields a MIXED body the walk reads as-is). The manifest is updated by APPENDING one chromosome entry + one region entry and EXTENDING the body_sha256 region CHAIN from its prior head in O(1) — no whole-body re-hash, no whole-body re-scan; n_turns grows by the appended block count. Every EXISTING chromosome / region entry stays byte-identical. §56: the per-append cost is bounded by the NEW chromosome's encoding + the (small) manifest rewrite, NOT the genome's total size — so N appends are O(N) total, not O(N²) (the F833 super-linear wall closed). Appending to a legacy v2/v3 genome migrates it to v4 once. Returns the updated manifest data dict. numpy-free.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
                         P("label", "str", True, "the new chromosome's label (must not already exist in the genome)"),
                         P("leaves", "Sequence[HV]", True, "the new kernel's Klein-4 leaf vectors"),
                         P("the_one", "HV", True, "the held invariant the new turns are coupled through (dim must match leaf_dim)")),
-            returns=R("dict", "the updated manifest data (with the appended chromosome + recomputed body_sha256)"),
+            returns=R("dict", "the updated manifest data (with the appended chromosome + region entry + O(1)-extended body_sha256 chain)"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_window", owner="srmech", category="genome",
@@ -2005,6 +2756,33 @@ def _register_primitive_class_tools() -> None:
                         P("amsc_root", "str", True, "where the per-chromosome <label>/descriptor.toml + row.ndjson AMSC root is written"),
                         P("source", "str", True, "the AMSC source identifier recorded for the registration (e.g. 'srmech.genome.<name>')")),
             returns=R("dict", "{ok, amsc_root, source, chromosomes, register} — the per-chromosome AMSC sources registered"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.kernel_pack", owner="srmech", category="genome",
+            summary="Pack a flat Klein-4 kernel of ANY dimension D into a self-describing strand (UPSTREAM §60 / format v5 — issue #1245 REOPENED, the SIZE-AGNOSTIC KERNEL TRANSLATION LAYER). data is the flat kernel (a sequence of Klein-4 sector symbols {0,1,2,3} — an HV / list / bytes; siona's 8192-dim Klein-4 kernel is the driving case). It is chunked into leaf_dim-wide leaves (ceil(D/leaf_dim); the final leaf zero-padded — encode_shape's criterion generalised to leaf_dim), coupled through the_one into a telomere-capped chromosome, and a §60 KERNEL HEADER block (marker 0x4B, right after the telomere) SELF-RECORDS the kernel's TRUE length D, its element_type (declared enum; 'klein4' today), and its leaf_dim — so kernel_unpack recovers the EXACT kernel with NO caller-supplied length (D lives in the strand, the §44 SSoT — not only the rebuildable manifest cache). Symbols are validated {0,1,2,3} UP FRONT (HV accepts >3 in memory but only Klein-4 turns bit-pack). Returns the flat strand [telomere, kernel_header, turn0, ...]; persist with genome_save. leaf_dim defaults to 256 (>= 14 so the 14-byte header fits); the_one defaults to a deterministic all-ones invariant kernel_unpack reconstructs. numpy-free; no abs(); C peer via genome_save's srmech_genome_* walkers (the 0x4B block is one more self-describing kind).",
+            parameters=(P("data", "Sequence[int]", True, "the flat Klein-4 kernel — symbols {0,1,2,3} (HV / list / bytes) of any dimension D"),
+                        P("leaf_dim", "int", False, "keyword-only; the leaf (tome) width to chunk into (default 256; must be >= 14 so the §60 header fits)"),
+                        P("label", "str", False, "keyword-only; the chromosome label for the packed kernel (default 'kernel')"),
+                        P("the_one", "HV", False, "keyword-only; the coupling invariant (width leaf_dim; default the deterministic all-ones invariant kernel_unpack reconstructs)"),
+                        P("element_type", "str", False, "keyword-only; the declared element-type enum recorded in the header (default 'klein4' — the genome-native 2-bit symbol)")),
+            returns=R("list", "the flat self-describing strand [telomere, §60 kernel_header, coupled turns] — persist with genome_save, recover with kernel_unpack"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.kernel_unpack", owner="srmech", category="genome",
+            summary="Recover the EXACT flat Klein-4 kernel from a §60 strand or genome path (UPSTREAM §60 / format v5) — the inverse of kernel_pack. strand_or_path is either the in-memory strand kernel_pack returned, or a genome DIRECTORY a genome_save of one wrote. Reads the §60 KERNEL HEADER (marker 0x4B) for the TRUE length D, recalls the coupled leaves (skipping every cap AND the header), flattens them, and TRIMS to D — so the returned list[int] equals the exact packed kernel of ANY dimension, with NO caller-supplied length (W1 closed: a D=1000 kernel returns 1000 symbols, not the 1024 padded storage). the_one is optional: for a genome PATH with a present manifest it is resolved from the manifest cache; otherwise it defaults to the deterministic all-ones invariant reconstructed from the header's recorded leaf_dim (matching kernel_pack). BACK-COMPAT (the rc114 dual-read pattern): a strand / body with NO 0x4B header (any pre-rc121 genome) reads as element_type=klein4 with D = leaf_count * leaf_dim — no trim, no migration. numpy-free; no abs().",
+            parameters=(P("strand_or_path", "list|str", True, "the in-memory kernel_pack strand, OR a genome directory written by genome_save of one"),
+                        P("the_one", "HV", False, "the coupling invariant (optional; resolved from a present manifest, else reconstructed as the all-ones default from the header's leaf_dim)")),
+            returns=R("list", "the exact flat Klein-4 kernel (list[int] of the TRUE length D — trimmed of the final-leaf zero-padding)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_append_kernel", owner="srmech", category="genome",
+            summary="Append a newly-taught kernel — WITH its §89 header — to a genome in O(1) AMORTISED (UPSTREAM §89 / format v6 — issue #1261, F1045/F1046). The uniformly-Klein-4 payoff. hv is the flat kernel (Klein-4 sector symbols {0,1,2,3} — an HV / list / bytes) of ANY dimension D; it is chunked into the genome's leaf_dim-wide leaves (final leaf zero-padded) LED by the UNIFORMLY-KLEIN-4 §89 header LEAF (base-4-encoded D + element_type + leaf_dim — _pack_kernel_header_klein4). Because that header is a 100%-Klein-4 leaf, [header, *content] is just a list of Klein-4 leaves — so this FALLS OUT of genome_append (kernel=True, a KERNEL telomere 0x6B opens the chromosome): the chromosome tail-extends turns.bin and folds one region onto the body_sha256 chain in O(1), no whole-body re-hash / re-scan. This is the deliverable a downstream 'teach a kernel -> append it' loop was about to hand-roll: before v6 the §60 0x4B byte-TLV header could NOT ride genome_append (unbinding it via klein4_bind failed 'must be in {0,1,2,3}'); v6 makes the header a Klein-4 leaf so appending a kernel WITH its header is native. Recover the EXACT kernel (trimmed to D) with kernel_unpack. the_one is optional when path has a manifest (resolved from the cache), required for a manifest-less genome (its length is the leaf width). Raises ValueError on a duplicate label or a non-Klein-4 symbol. numpy-free; no abs(); the C peer is genome_append's srmech_genome_append (the 0x6B kernel telomere is one more self-describing cap).",
+            parameters=(P("path", "str", True, "the genome directory written by genome_save (grown in O(1))"),
+                        P("label", "str", True, "the new kernel chromosome's label (must not already exist in the genome)"),
+                        P("hv", "Sequence[int]", True, "the flat Klein-4 kernel to append — symbols {0,1,2,3} (HV / list / bytes) of any dimension D"),
+                        P("element_type", "str", False, "keyword-only; the declared element-type enum recorded in the §89 header (default 'klein4')"),
+                        P("the_one", "HV", False, "keyword-only; the coupling invariant (optional when a manifest is present; its length is the leaf width for a manifest-less genome)")),
+            returns=R("dict", "the updated manifest data (with the appended kernel chromosome + region entry + O(1)-extended body_sha256 chain)"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -2703,6 +3481,2277 @@ def _register_primitive_class_tools() -> None:
                              "carrier; integer scores exact as float64)"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The resonant-spectrum closure (§75 / F928) — a Class-L coupling
+        # composite over the eigensolve + best_rational + factor kernels,
+        # with the 1:1 C peer srmech_resonant_spectrum.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.resonant_spectrum", owner="srmech",
+            category="coupling",
+            summary="Read a real-symmetric coupling Laplacian L as a STORED "
+                    "(excitation-free) resonant object (§75 / F928). Returns the "
+                    "eigenvalue 'tensions' ASCENDING (the stored 'dark' tension "
+                    "spectrum = the MFO field, no pluck), the eigenvector 'modes' "
+                    "(columns = the excitation modes), the force-orders "
+                    "[L, L², …, Lᵒ] via Lᵏ = V·diag(Λᵏ)·Vᵀ reconstructed from the "
+                    "ONE eigensolve (L² = biharmonic/tidal forces-of-forces), and "
+                    "the 'resonances' — each adjacent nonzero-tension ratio as a "
+                    "Class-N best_rational (num, den) with a Class-J lock verdict "
+                    "(smooth/2-adic den = LOCK on the Laplace ladder; large-prime "
+                    "den = libration off-lock). Composes symmetric_eigendecompose "
+                    "(L) + mat_matmul (L) + best_rational (N) + primes.factor (J); "
+                    "1:1 C peer srmech_resonant_spectrum (native when present, "
+                    "pure-Python the complete alternative). numpy-free; no abs().",
+            parameters=(P("L", "Mat", True,
+                          "an n×n real-symmetric coupling Laplacian"),
+                        P("orders", "int", False,
+                          "how many force-orders [L¹…Lᵒ]; default 2 (≥1)"),
+                        P("max_den", "int", False,
+                          "best_rational denominator ceiling; default 64")),
+            returns=R("dict", "{'tensions': Vec (ascending), 'modes': Mat "
+                              "(columns = eigenvectors), 'force_orders': "
+                              "list[Mat] [L,…,Lᵒ], 'resonances': list of "
+                              "{pair, ratio (num,den), den_coords, locked}}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.coupling.from_bodies", owner="srmech",
+            category="coupling",
+            summary="Build the gravity coupling-graph (n, edges, weights) for a "
+                    "body set — the m_i·m_j/r² Newtonian-weight builder feeding "
+                    "resonant_spectrum (the F928 Jupiter+Galilean convention: a "
+                    "central body at index 0/position 0, a moon-pair gap "
+                    "otherwise). Feeds laplacian.dense_laplacian. numpy-free.",
+            parameters=(P("masses", "sequence", True, "body masses (flat list)"),
+                        P("positions", "sequence", True,
+                          "1-D body positions, flat list (central body at 0)")),
+            returns=R("tuple[int, list[tuple[int,int]], list[float]]",
+                      "(n, edges, weights) for dense_laplacian"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # fractal_spectrum — the Ch-2 (quasi-periodic / fractal) DUAL of
+        # resonant_spectrum. Pure orchestration over already-C-backed ops
+        # (Poly.derivative/.eval + Class-N log/best_rational + the F974
+        # |q|-meter) — NO new numerical kernel, so it ships non_compute (the
+        # from_bodies / cooccurrence_edges precedent; no dedicated C peer).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.fractal_spectrum", owner="srmech",
+            category="coupling",
+            summary="Read a self-similar lattice's SPECTRAL-DECIMATION structure "
+                    "— the Ch-2 (quasi-periodic / fractal) DUAL of "
+                    "resonant_spectrum (F686 / F974). Where resonant_spectrum(L) "
+                    "reads a symmetric Laplacian's FLAT eigenspectrum (one "
+                    "eigensolve), fractal_spectrum(R, branches) reads the ITERATED "
+                    "PREIMAGE of the renormalization Poly R (the decimation map, "
+                    "R(0)=0), NOT a flat list. Grounded on the Sierpinski gasket: "
+                    "on the NORMALIZED Laplacian the decimation is exactly "
+                    "R(z)=z(5−4z) (measured — Rammal 1984 / Fukushima–Shima 1992, "
+                    "Potential Analysis 1 (1992) 1–35, OA-attested via "
+                    "arXiv:1505.05855). Returns the exact scale R'(0), the fracton "
+                    "(spectral) dimension d_s = 2·log(branches)/log(scale) as a "
+                    "Class-N best_rational anchor (2·log3/log5 ≈ 1.36521 for the "
+                    "gasket), the F974 bit-exact |q|-meter q_octaves_per_level = "
+                    "ceil(log2(scale)) (3 for the gasket), rung_class 'constant' "
+                    "(one R iterated = self-similar), log_period_over_2pi = "
+                    "1/log(scale) (the discrete-scale-invariance complex-dimension "
+                    "period; 1/ln5 ≈ 0.6213 for the gasket), and the honest "
+                    "spectrum_open — the full spectrum is the JULIA SET of R "
+                    "(operand-IRREPRESENTABLE OPEN; no finite exact carrier decides "
+                    "λ∈spectrum). Composes Poly.derivative/.eval (L) + log (N) + "
+                    "best_rational (N); PURE orchestration over already-C-backed "
+                    "ops → non_compute (no dedicated C peer; the from_bodies / "
+                    "cooccurrence_edges precedent). Exact-ℚ; numpy-free; no abs().",
+            parameters=(P("R", "Poly", True,
+                          "the spectral-decimation map — a degree≥2 Poly with "
+                          "R(0)=0 and R'(0)>1 (or an ascending-degree coefficient "
+                          "sequence coerced with Poly.from_coeffs)"),
+                        P("branches", "int", True,
+                          "the number of self-similar copies (≥2)"),
+                        P("log_terms", "int", False,
+                          "the Class-N log series-truncation depth; default 25")),
+            returns=R("dict", "{'decimation_map': Poly, 'scale': Q (R'(0)), "
+                              "'branches': int, 'self_similarity_dim': (num,den) "
+                              "d_s anchor, 'q_octaves_per_level': int (F974 "
+                              "|q|-meter), 'rung_class': 'constant', "
+                              "'log_period_over_2pi': (num,den), 'spectrum_open': "
+                              "str (the Julia-set operand-IRREPRESENTABLE OPEN)}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # fold_encode / fold_spectrum — the BIDIRECTIONAL translation
+        # between a stored HDC fold and a self-similar lattice's spectral-
+        # decimation structure (#697; the "Q2 reader made LITERAL"). Pure
+        # orchestration over shipped Klein-4 HDC + Poly + fractal_spectrum
+        # ops — NO new numerical kernel, so BOTH ship non_compute (the
+        # cooccurrence_fold / from_bodies precedent; no dedicated C peer).
+        # The two directions are ASYMMETRIC: EXACT encode / SIMILARITY read.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.fold_encode", owner="srmech",
+            category="coupling",
+            summary="Encode a spectral-decimation structure INTO a stored HDC "
+                    "fold — the EXACT / total FORWARD half of the #697 "
+                    "bidirectional translation (the 'Q2 reader made LITERAL'). "
+                    "Where fractal_spectrum(R, branches) reads the decimation "
+                    "from an EXPLICIT Poly R, fold_encode folds R's coefficients "
+                    "+ the branch count into a single lossy Klein-4 bundle — a "
+                    "role-filler record in the cooccurrence_fold store shape "
+                    "(F584/F758). Each coefficient slot c{i} (and 'branches') "
+                    "gets a deterministic klein4_random ROLE code; each distinct "
+                    "coefficient VALUE gets a deterministic FILLER code (keyed by "
+                    "its 'num/den' token); the fold is the klein4_bundle "
+                    "superposition of the role⊗value binds. EXACT + total + "
+                    "deterministic (seed-keyed) — the LOSSINESS lives entirely in "
+                    "the READ (fold_spectrum), the HDC asymmetry. Composes "
+                    "klein4_random/bind/bundle (M) + Poly.from_coeffs (L); PURE "
+                    "orchestration over already-C-backed ops → non_compute (the "
+                    "cooccurrence_fold / from_bodies precedent; no dedicated C "
+                    "peer). numpy-free; no abs().",
+            parameters=(P("R", "Poly", True,
+                          "the spectral-decimation map — a degree>=2 Poly with "
+                          "R(0)=0 (or an ascending-degree coefficient sequence "
+                          "coerced with Poly.from_coeffs)"),
+                        P("branches", "int", True,
+                          "the number of self-similar copies (>=2)"),
+                        P("dim", "int", True,
+                          "the Klein-4 width D of the fold (>=1; pick well above "
+                          "4*(degree+2) for a confident round-trip)"),
+                        P("seed", "int", False,
+                          "base seed for the deterministic role/value codes "
+                          "(default 0)")),
+            returns=R("dict",
+                      "{'fold': HV (the lossy Klein-4 bundle), 'roles': "
+                      "{slot: HV}, 'codes': {value_token: HV} (the cleanup "
+                      "alphabet), 'coeff_slots': [c0,…], 'branch_slot': "
+                      "'branches', 'slots': [...], 'dim': int, 'seed': int, "
+                      "'n_pairs': int}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.coupling.fold_spectrum", owner="srmech",
+            category="coupling",
+            summary="Read a stored HDC fold BACK to its spectral-decimation "
+                    "params — the SIMILARITY / CLEANUP-MEMORY READ half of the "
+                    "#697 bidirectional translation. NOT the exact inverse of "
+                    "fold_encode (the fold is a LOSSY Klein-4 superposition, "
+                    "F584): each slot binds the role back against the fold "
+                    "(klein4_unbundle = self-inverse XOR) and cleans the "
+                    "value-plus-crosstalk estimate up against the value codebook "
+                    "(argmax_token similarity(unbundle, codes[token]) — the "
+                    "cooccurrence_fold cleanup pattern). The recovered tokens "
+                    "rebuild R + branches and feed the SAME fractal_spectrum "
+                    "orchestration → the IDENTICAL decimation dict. The honesty "
+                    "boundary is load-bearing — NEVER a silent wrong Poly: a "
+                    "recovery is accepted ONLY when (1) dim>=capacity_mult*n_pairs "
+                    "(default 4*n_pairs, the HDC bundle-capacity floor), (2) every "
+                    "slot's winner beats the runner-up by >=margin_floor (default "
+                    "1/10; chance is 1/4), AND (3) re-bundling the recovered binds "
+                    "reproduces the fold BIT-FOR-BIT (fold_consistency==1, the "
+                    "op_provenance EQUAL self-check). Any gate failing → the honest "
+                    "'unrecovered' verdict (op_provenance UNKNOWN, #717 "
+                    "honestly-inexact) with NO decimation Poly. Composes "
+                    "klein4_bind/bundle/match_count/similarity (M) + Poly + "
+                    "fractal_spectrum; PURE orchestration → non_compute. "
+                    "numpy-free; no abs() (exact-Q Class-K similarity reads).",
+            parameters=(P("fold", "dict", True,
+                          "a fold store from fold_encode (the Klein-4 values may "
+                          "be HV or JSON-serialised uint8 lists)"),
+                        P("log_terms", "int", False,
+                          "the Class-N log series-truncation depth forwarded to "
+                          "fractal_spectrum on a confident recovery (default 25)"),
+                        P("margin_floor", "number", False,
+                          "override the separation gate (Q / (num,den) / int; "
+                          "default 1/10)"),
+                        P("capacity_mult", "int", False,
+                          "override the capacity-floor multiple (default 4)")),
+            returns=R("dict",
+                      "on recovery: the fractal_spectrum dict PLUS {'verdict': "
+                      "'recovered', 'op_provenance': 'EQUAL', 'similarity': Q, "
+                      "'confidence': Q, 'fold_consistency': Q (==1), 'per_slot': "
+                      "{slot: {value, similarity, margin}}}; on failure: "
+                      "{'verdict': 'unrecovered', 'op_provenance': 'UNKNOWN', "
+                      "'similarity', 'confidence', 'fold_consistency', 'per_slot', "
+                      "'reason', 'spectrum_open'} with NO decimation Poly"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc125 (task #723): the RECOVERABLE FOLD as a HarmonicMaass-shaped
+        # PAIR carrier. rc124's fold_spectrum reads a LOSSY bundle by a
+        # similarity/cleanup pass (exact WHEN the fold has capacity, honest-
+        # unrecovered below the dim>=4·n_pairs floor). fold_encode_recoverable
+        # ATTACHES the exact complement (the generating decimation R) so a
+        # generated fold recovers EXACTLY at ANY dim — the field–excitation
+        # recoverability principle. The RecoverableFold pair MIRRORS
+        # HarmonicMaass(hol, shadow): lossy_bundle ↔ hol, exact_seed_R ↔ shadow
+        # ("storing R IS storing the recovery"). Pure orchestration + data over
+        # shipped ops → non_compute (no new C peer; the carrier is data).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.coupling.fold_encode_recoverable", owner="srmech",
+            category="coupling",
+            summary="Encode a spectral-decimation structure into a RECOVERABLE "
+                    "PAIR — the HarmonicMaass-shaped follow-on to fold_encode "
+                    "(rc125; task #723). Returns a RecoverableFold PAIR: the "
+                    "rc124 lossy Klein-4 fold store (.lossy_bundle ↔ "
+                    "HarmonicMaass.hol) AND the exact generating decimation R "
+                    "(.exact_seed_R ↔ HarmonicMaass.shadow). Because R is "
+                    "CARRIED, fold_spectrum on the pair recovers EXACTLY at ANY "
+                    "dim — INCLUDING dim < 4·n_pairs, where the rc124 bare read "
+                    "honestly fails (crosstalk overwhelms the lossy bundle). "
+                    "'Storing R IS storing the recovery' (the recoverability "
+                    "principle: a lossy projection is recoverable iff you attach "
+                    "the exact complement it dropped). rc124's bare fold_encode "
+                    "is UNCHANGED (still returns the bare fold-store dict); this "
+                    "is the additive recoverable path. Composes fold_encode + "
+                    "Poly; PURE orchestration + data → non_compute (no dedicated "
+                    "C peer; the carrier is data). numpy-free; no abs().",
+            parameters=(P("R", "Poly", True,
+                          "the spectral-decimation map — a degree>=2 Poly with "
+                          "R(0)=0 (or an ascending-degree coefficient sequence "
+                          "coerced with Poly.from_coeffs)"),
+                        P("branches", "int", True,
+                          "the number of self-similar copies (>=2)"),
+                        P("dim", "int", True,
+                          "the Klein-4 width D of the lossy bundle (>=1); "
+                          "recovery is exact at ANY dim (the seed is carried)"),
+                        P("seed", "int", False,
+                          "base seed for the deterministic role/value codes "
+                          "(default 0)")),
+            returns=R("RecoverableFold",
+                      "the pair carrier (.lossy_bundle ↔ hol / .exact_seed_R ↔ "
+                      "shadow / .has_seed / .branches / .dim / .complement() / "
+                      ".recover() / .identity()); read via fold_spectrum(pair)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The §76 "telescope" Σ-row closed-form prover (F929) — Gosper's
+        # indefinite hypergeometric summation, the FIRST public op of the row.
+        # Class-N rational arithmetic over the Class-J prime-field on the
+        # exact-ℚ[k] Poly substrate; 1:1 C peer srmech_gosper.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.gosper.gosper", owner="srmech",
+            category="gosper",
+            summary="Gosper's indefinite hypergeometric summation (Gosper 1978, "
+                    "PNAS 75(1):40–42; Petkovšek–Wilf–Zeilberger *A=B* 1996, "
+                    "ch. 5) — the FIRST public op of the §76 'telescope' Σ-row "
+                    "closed-form prover (F929). Input: a hypergeometric term given "
+                    "by its TERM RATIO t(k+1)/t(k) = num(k)/den(k) (two exact-ℚ[k] "
+                    "Poly). Decides whether Σ t(k) has a hypergeometric "
+                    "antidifference T(k)=R(k)·t(k) (so T(k+1)−T(k)=t(k), and the "
+                    "sum telescopes: Σ_{a}^{b} t = T(b+1)−T(a)); if so returns the "
+                    "rational certificate R={'num':Poly,'den':Poly}, else None (no "
+                    "closed form — e.g. the harmonic t(k)=1/k). Exact over ℚ via "
+                    "the Gosper–Petkovšek normal form (Poly dispersion/gcd/divmod) "
+                    "+ the bounded-degree undetermined-coefficient solve (exact "
+                    "Gauss-Jordan over ℚ, QMat). 1:1 C peer srmech_gosper "
+                    "(orchestrates srmech_poly_*/srmech_qmat_rref; native when "
+                    "present, pure-Python the complete alternative). Exact bigint; "
+                    "no float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("num", "Poly", True,
+                          "the term-ratio NUMERATOR num(k) — an exact-ℚ[k] Poly "
+                          "(or an ascending-degree coefficient list)"),
+                        P("den", "Poly", True,
+                          "the term-ratio DENOMINATOR den(k) — a NONZERO exact-ℚ[k] "
+                          "Poly (or coefficient list)")),
+            returns=R("dict | None",
+                      "{'num': Poly, 'den': Poly} (the rational certificate R(k) "
+                      "with antidifference T(k)=R(k)·t(k)), or None when no "
+                      "hypergeometric closed form exists"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The §76 "telescope" Σ-row closed-form prover (F929) — Zeilberger's
+        # creative telescoping, the SECOND public op of the row. Builds on gosper
+        # (Gosper-in-k) + Poly + QMat (the exact-ℚ parametrized solve); 1:1 C peer
+        # srmech_zeilberger.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.zeilberger.zeilberger", owner="srmech",
+            category="zeilberger",
+            summary="Zeilberger's creative telescoping (Zeilberger 1990, Discrete "
+                    "Math. 80(2):207–211; 1991, J. Symbolic Computation 11(3):195–"
+                    "204; Petkovšek–Wilf–Zeilberger *A=B* 1996, ch. 6) — the SECOND "
+                    "public op of the §76 'telescope' Σ-row closed-form prover "
+                    "(F929). For a DEFINITE hypergeometric sum f(n)=Σ_k F(n,k) of a "
+                    "proper term F(n,k), produces the minimal-order LINEAR "
+                    "RECURRENCE with polynomial coefficients Σ_{j=0}^{L} a_j(n)·"
+                    "f(n+j)=0. Input: F's two term ratios r_n(n,k)=F(n+1,k)/F(n,k) "
+                    "and r_k(n,k)=F(n,k+1)/F(n,k), each a rational function of (n,k) "
+                    "given as two bivariate exact-ℚ[n,k] BiPoly (a Poly-in-k whose "
+                    "coeffs are Poly-in-n; a plain Poly is read as a k-polynomial). "
+                    "Method: creative telescoping — for L=0,1,…,max_order run "
+                    "Gosper-in-k on T=Σ_j a_j(n)F(n+j,k) with the a_j(n) carried as "
+                    "unknowns; the first nonzero exact-ℚ kernel (via QMat RREF) is "
+                    "the recurrence + the rational certificate R(n,k). Returns "
+                    "{'order':L,'coeffs':[Poly_in_n,…],'certificate':BiPoly}, or "
+                    "None when none ≤ max_order. 1:1 C peer srmech_zeilberger "
+                    "(orchestrates srmech_poly_*/srmech_qmat_rref; native "
+                    "accelerates the common low-order case, pure-Python the "
+                    "complete alternative). Exact bigint; no float, no abs() "
+                    "(Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "BiPoly", True,
+                          "r_n NUMERATOR — F(n+1,k)/F(n,k) numerator, a bivariate "
+                          "exact-ℚ[n,k] BiPoly (or a Poly / coefficient list)"),
+                        P("rn_den", "BiPoly", True,
+                          "r_n DENOMINATOR — a NONZERO bivariate BiPoly"),
+                        P("rk_num", "BiPoly", True,
+                          "r_k NUMERATOR — F(n,k+1)/F(n,k) numerator BiPoly"),
+                        P("rk_den", "BiPoly", True,
+                          "r_k DENOMINATOR — a NONZERO bivariate BiPoly"),
+                        P("max_order", "int", False,
+                          "the largest ansatz recurrence order to try (default 6)")),
+            returns=R("dict | None",
+                      "{'order': int, 'coeffs': [Poly, ...], 'certificate': BiPoly} "
+                      "— the minimal-order recurrence Σ_j coeffs[j](n)·f(n+j)=0 plus "
+                      "the WZ certificate, or None when none of order ≤ max_order"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The §76 "telescope" Σ-row closed-form prover (F929) — the
+        # Wilf–Zeilberger pair method, the THIRD and FINAL public op of the row
+        # (the Σ-row CLOSER: gosper → zeilberger → wz_certificate). FINDs via
+        # zeilberger at the forced recurrence + VERIFIES the WZ equation as an
+        # exact bivariate rational identity; 1:1 C peer srmech_wz_verify is the
+        # COMPLETE verify mirror (degree-bounded, no order cap).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.wz_certificate.wz_certificate", owner="srmech",
+            category="wz_certificate",
+            summary="The Wilf–Zeilberger pair method (Wilf & Zeilberger 1990, "
+                    "*Rational functions certify combinatorial identities*, J. Amer. "
+                    "Math. Soc. 3(1):147–158; Petkovšek–Wilf–Zeilberger *A=B* 1996, "
+                    "ch. 7) — the THIRD and FINAL public op of the §76 'telescope' "
+                    "Σ-row closed-form prover (F929), the row CLOSER. PROVES a "
+                    "terminating hypergeometric identity Σ_k F(n,k)=const by producing "
+                    "AND verifying its WZ certificate. Input: F's two term ratios "
+                    "r_n(n,k)=F(n+1,k)/F(n,k) and r_k(n,k)=F(n,k+1)/F(n,k), each a "
+                    "bivariate exact-ℚ[n,k] BiPoly num/den pair (a plain Poly is read "
+                    "as a k-polynomial). The WZ method is Zeilberger at the FORCED "
+                    "n-recurrence f(n+1)−f(n)=0: it FINDs the certificate R(n,k) "
+                    "(=zeilberger at max_order=1, the order-1 recurrence of a "
+                    "constant sum) such that G=R·F makes the WZ equation F(n+1,k)−"
+                    "F(n,k)=G(n,k+1)−G(n,k) telescope, then VERIFIES that equation as "
+                    "an EXACT bivariate rational-function identity (clearing "
+                    "denominators to a polynomial identity — no solve, no order "
+                    "bound). Returns {'certificate':{'num':BiPoly,'den':BiPoly}, "
+                    "'verified':True}, or None when the term is not WZ-summable. 1:1 "
+                    "C peer srmech_wz_verify is the COMPLETE verify mirror (the "
+                    "degree-bounded exact bivariate-ℚ identity check; native when "
+                    "present, pure-Python the complete alternative). Exact bigint; no "
+                    "float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "BiPoly", True,
+                          "r_n NUMERATOR — F(n+1,k)/F(n,k) numerator, a bivariate "
+                          "exact-ℚ[n,k] BiPoly (or a Poly / coefficient list)"),
+                        P("rn_den", "BiPoly", True,
+                          "r_n DENOMINATOR — a NONZERO bivariate BiPoly"),
+                        P("rk_num", "BiPoly", True,
+                          "r_k NUMERATOR — F(n,k+1)/F(n,k) numerator BiPoly"),
+                        P("rk_den", "BiPoly", True,
+                          "r_k DENOMINATOR — a NONZERO bivariate BiPoly")),
+            returns=R("dict | None",
+                      "{'certificate': {'num': BiPoly, 'den': BiPoly}, 'verified': "
+                      "True} — the WZ certificate R(n,k)=num/den (verified to satisfy "
+                      "the WZ equation), or None when the term is not WZ-summable"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The WEIGHT-axis modular-forms-ring reducer (rc84) — the level-1
+        # ℂ[E₄,E₆] MEMBERSHIP DECISION. The structure-theorem analog of the Σ-row
+        # gosper/zeilberger/wz_certificate reducers: a q-series → its UNIQUE exact-ℚ
+        # polynomial-in-(E₄,E₆) rep, or honest OPEN (None). Built on the rc83
+        # Eisenstein carrier + the rc40 QMat exact-ℚ Gauss-Jordan; 1:1 C peer
+        # srmech_modular_forms_ring_represent (dispatches to srmech_qmat_solve).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.modular_forms_ring.modular_forms_ring_represent",
+            owner="srmech", category="modular_forms_ring",
+            summary="The level-1 modular-forms-ring MEMBERSHIP DECISION — the "
+                    "structure theorem M_*(SL₂(ℤ)) = ℂ[E₄,E₆] made executable "
+                    "(Serre, *A Course in Arithmetic*, GTM 7 (1973), Ch. VII §3; "
+                    "Zagier, *Elliptic Modular Forms and Their Applications*, in "
+                    "*The 1-2-3 of Modular Forms*, Springer (2008), §2.2). The "
+                    "WEIGHT-axis REDUCER, the analog of the §76 Σ-row "
+                    "gosper/zeilberger/wz_certificate reducers (and the THIRD weight "
+                    "rung after the rc82 eta-quotient + rc83 Eisenstein carriers). "
+                    "Given an exact q-series (a list of exact-ℚ / int / (num,den) "
+                    "coefficients) claimed to be a weight-k level-1 modular form, "
+                    "SOLVES the exact-ℚ linear system Σ_{a,b} c_{a,b}·(E₄^a E₆^b)[n] "
+                    "= f[n] over the weight-k monomial basis {(a,b): 4a+6b=k} "
+                    "(built from the rc83 Eisenstein E₄/E₆ q-series + exact-ℚ "
+                    "truncated q-series multiply), VERIFIES the solution reproduces "
+                    "EVERY provided term, and returns the UNIQUE exact-ℚ polynomial "
+                    "rep {(a,b): Q} — or None when no representation exists (a "
+                    "non-modular series, or the honest LEVEL-axis OPEN of a "
+                    "genuinely higher-level Γ₀(N) form, N>1, which needs more "
+                    "generators). The construction/solve IS the decision "
+                    "(decompose-and-compute over the monomial basis via exact "
+                    "Gauss-Jordan, QMat — NOT a search). Level 1 is a "
+                    "representability CLOSURE (every in-ring form is representable); "
+                    "the OPEN is only the level axis. Keystones: Δ=(E₄³−E₆²)/1728 at "
+                    "weight 12 → {(3,0):1/1728,(0,2):−1/1728}; E₈ → {(2,0):1}; E₁₀ → "
+                    "{(1,1):1}; E₁₄ → {(2,1):1}. ≥ dim(k)+2 terms required. 1:1 C "
+                    "peer srmech_modular_forms_ring_represent (dispatches the square "
+                    "subsystem to srmech_qmat_solve; native when present, "
+                    "pure-Python the complete alternative + parity oracle). Exact "
+                    "bigint; no float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("q_series", "list", True,
+                          "the q-series claimed to be a weight-k level-1 modular "
+                          "form — a list of exact-ℚ Q / int / (num, den) pairs "
+                          "(no float), ascending q-power; needs ≥ dim(k)+2 terms"),
+                        P("k", "int", True,
+                          "the (even) claimed weight — the grading of ℂ[E₄,E₆]"),
+                        P("n_terms", "int", False,
+                          "optional cap on the number of provided terms USED "
+                          "(default: all provided)")),
+            returns=R("dict | None",
+                      "{(a, b): Q} — the unique exact-ℚ polynomial-in-(E₄,E₆) "
+                      "representation (c_{a,b} = coefficient of E₄^a E₆^b), or None "
+                      "when the q-series is not a level-1 weight-k modular form "
+                      "(the honest membership/level OPEN)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The WEIGHT-axis QUASIMODULAR-forms-ring reducer (rc89) — the level-1
+        # ℂ[E₂,E₄,E₆] MEMBERSHIP DECISION, the rc84 ModularFormsRing pattern ONE
+        # generator up (adds E₂, the weight-2 quasimodular generator). The structure-
+        # theorem analog of the Σ-row gosper/zeilberger/wz_certificate reducers: a
+        # q-series → its UNIQUE exact-ℚ polynomial-in-(E₂,E₄,E₆) rep, or honest OPEN
+        # (None). Built on the rc83 Eisenstein E₄/E₆ + the new E₂ (eisenstein_e2) +
+        # the rc40 QMat exact-ℚ Gauss-Jordan; 1:1 C peer
+        # srmech_quasimodular_forms_ring_represent (dispatches to srmech_qmat_solve).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.quasimodular_forms_ring."
+                 "quasimodular_represent",
+            owner="srmech", category="quasimodular_forms_ring",
+            summary="The level-1 QUASIMODULAR-forms-ring MEMBERSHIP DECISION — the "
+                    "Kaneko–Zagier ring M̃_*(SL₂(ℤ)) = ℂ[E₂,E₄,E₆] made executable "
+                    "(Kaneko & Zagier, *The Moduli Space of Curves*, Progr. Math. "
+                    "129 (1995), pp. 165–172; Zagier, *Elliptic Modular Forms and "
+                    "Their Applications*, in *The 1-2-3 of Modular Forms*, Springer "
+                    "(2008), §5.3). The WEIGHT-axis REDUCER one generator up from the "
+                    "rc84 modular_forms_ring_represent (it ADDS E₂, the weight-2 "
+                    "quasimodular generator E₂ = 1 − 24·Σσ₁(n)qⁿ); the analog of the "
+                    "§76 Σ-row gosper/zeilberger/wz_certificate reducers. Given an "
+                    "exact q-series (a list of exact-ℚ / int / (num,den) "
+                    "coefficients) claimed to be a weight-k quasimodular form, SOLVES "
+                    "the exact-ℚ linear system Σ_{a,b,c} c_{a,b,c}·(E₂^a E₄^b E₆^c)[n] "
+                    "= f[n] over the weight-k monomial basis {(a,b,c): 2a+4b+6c=k} "
+                    "(built from the E₂/E₄/E₆ q-series + exact-ℚ truncated q-series "
+                    "multiply), VERIFIES the solution reproduces EVERY provided term, "
+                    "and returns the UNIQUE exact-ℚ polynomial rep {(a,b,c): Q} — or "
+                    "None when no representation exists. The construction/solve IS the "
+                    "decision (decompose-and-compute over the monomial basis via "
+                    "exact Gauss-Jordan, QMat — NOT a search). This ring genuinely "
+                    "EXTENDS the modular ℂ[E₄,E₆] (the a=0 subring): e.g. E₂² at "
+                    "weight 4 → {(2,0,0):1} here, but rc84 represent → None. "
+                    "KEYSTONES (Ramanujan's Serre-derivative identities, D=q·d/dq): "
+                    "DE₂=(E₂²−E₄)/12 @4 → {(2,0,0):1/12,(0,1,0):−1/12}; "
+                    "DE₄=(E₂E₄−E₆)/3 @6 → {(1,1,0):1/3,(0,0,1):−1/3}; "
+                    "DE₆=(E₂E₆−E₄²)/2 @8 → {(1,0,1):1/2,(0,2,0):−1/2}. The honest "
+                    "OPENs are the Jacobi-form (τ–z two-variable) + level (N>1) "
+                    "boundaries. ≥ dim(k)+2 terms required. 1:1 C peer "
+                    "srmech_quasimodular_forms_ring_represent (dispatches the square "
+                    "subsystem to srmech_qmat_solve; native when present, pure-Python "
+                    "the complete alternative + parity oracle). Exact bigint; no "
+                    "float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("q_series", "list", True,
+                          "the q-series claimed to be a weight-k quasimodular form — "
+                          "a list of exact-ℚ Q / int / (num, den) pairs (no float), "
+                          "ascending q-power; needs ≥ dim(k)+2 terms"),
+                        P("k", "int", True,
+                          "the (even) claimed weight — the grading of ℂ[E₂,E₄,E₆]"),
+                        P("n_terms", "int", False,
+                          "optional cap on the number of provided terms USED "
+                          "(default: all provided)")),
+            returns=R("dict | None",
+                      "{(a, b, c): Q} — the unique exact-ℚ polynomial-in-(E₂,E₄,E₆) "
+                      "representation (c_{a,b,c} = coefficient of E₂^a E₄^b E₆^c, "
+                      "nonzero monomials only), or None when the q-series is not a "
+                      "level-1 weight-k quasimodular form (the honest membership OPEN)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The MULTIVARIATE "sums of sums" row of the §76 telescope Σ-row prover —
+        # the Apagodu–Zeilberger double-sum creative-telescoping recurrence-finder
+        # (CLOSES the multivariate F929 reduction row). Generalizes zeilberger to a
+        # DOUBLE sum over the rc52 TriPoly ℚ[n,j,k] carrier; 1:1 C peer
+        # srmech_apagodu_zeilberger (accelerates the order ≤ 1 textbook case).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.apagodu_zeilberger.apagodu_zeilberger",
+            owner="srmech", category="apagodu_zeilberger",
+            summary="The Apagodu–Zeilberger multivariate 'sums of sums' creative "
+                    "telescoping (M. Apagodu & D. Zeilberger, 'Multi-variable "
+                    "Zeilberger and Almkvist–Zeilberger algorithms and the "
+                    "sharpening of Wilf–Zeilberger theory', Adv. Appl. Math. "
+                    "37(2):139–152, 2006; H. Wilf & D. Zeilberger, 'An algorithmic "
+                    "proof theory for hypergeometric (ordinary and q) multisum/"
+                    "integral identities', Invent. Math. 108(1):575–633, 1992) — the "
+                    "op that CLOSES the multivariate F929 reduction row, the double-"
+                    "sum generalization of zeilberger. For a DEFINITE DOUBLE "
+                    "hypergeometric sum f(n)=Σ_{j,k} F(n,j,k) of a proper term "
+                    "F(n,j,k), produces the minimal-order LINEAR RECURRENCE with "
+                    "polynomial coefficients Σ_{i=0}^{L} a_i(n)·f(n+i)=0. Input: F's "
+                    "THREE term ratios r_n(n,j,k)=F(n+1,j,k)/F(n,j,k), "
+                    "r_j=F(n,j+1,k)/F(n,j,k), r_k=F(n,j,k+1)/F(n,j,k), each a "
+                    "rational function of (n,j,k) given as two trivariate exact-"
+                    "ℚ[n,j,k] TriPoly (the rc52 carrier this op consumes; a BiPoly / "
+                    "Poly / scalar coerces). Method: the two-certificate creative-"
+                    "telescoping ansatz Σ_i a_i(n)·ρ_i = Δ_j(R_j·F)/F + Δ_k(R_k·F)/F "
+                    "with rational certificates R_j=x_j/D_P, R_k=x_k/D_P over the "
+                    "shared LHS denominator D_P=Π_i ρ_den_i; clearing denominators "
+                    "gives a homogeneous exact-ℚ linear system (QMat RREF), and the "
+                    "first nonzero a-block kernel is the recurrence + the two "
+                    "certificates; summing over j,k collapses the telescoping RHS. "
+                    "Returns {'order':L,'coeffs':[Poly_in_n,…],'certificate_j':"
+                    "TriPoly,'certificate_k':TriPoly}, or None when none ≤ max_order. "
+                    "1:1 C peer srmech_apagodu_zeilberger (orchestrates the "
+                    "trivariate poly algebra + srmech_qmat_rref; native accelerates "
+                    "the order ≤ 1 textbook double-sum case, e.g. Σ_{j,k} "
+                    "C(n,j)C(j,k)→3ⁿ, pure-Python the complete alternative — a "
+                    "genuinely-2D higher-order term like Σ C(n,j)C(n,k)C(j+k,j) is "
+                    "proved on the pure path). Exact bigint; no float, no abs() "
+                    "(Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "TriPoly", True,
+                          "r_n NUMERATOR — F(n+1,j,k)/F(n,j,k) numerator, a "
+                          "trivariate exact-ℚ[n,j,k] TriPoly (or a coercible value)"),
+                        P("rn_den", "TriPoly", True,
+                          "r_n DENOMINATOR — a NONZERO trivariate TriPoly"),
+                        P("rj_num", "TriPoly", True,
+                          "r_j NUMERATOR — F(n,j+1,k)/F(n,j,k) numerator TriPoly"),
+                        P("rj_den", "TriPoly", True,
+                          "r_j DENOMINATOR — a NONZERO trivariate TriPoly"),
+                        P("rk_num", "TriPoly", True,
+                          "r_k NUMERATOR — F(n,j,k+1)/F(n,j,k) numerator TriPoly"),
+                        P("rk_den", "TriPoly", True,
+                          "r_k DENOMINATOR — a NONZERO trivariate TriPoly"),
+                        P("max_order", "int", False,
+                          "the largest ansatz recurrence order to try (default 4)")),
+            returns=R("dict | None",
+                      "{'order': int, 'coeffs': [Poly, ...], 'certificate_j': "
+                      "TriPoly, 'certificate_k': TriPoly} — the minimal-order "
+                      "recurrence Σ_i coeffs[i](n)·f(n+i)=0 plus the two rational "
+                      "certificates, or None when none of order ≤ max_order"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc113 (#1239 / F1027 / UPSTREAM §85): the PROSE-SIDE carrier
+        # constructors. The conversational grounded-inference loop (siona)
+        # binds utterance-expressible operands (ints / floats / strs / bytes /
+        # edge-pairs) and chains RETURNED carriers via its result register —
+        # but nothing in the registry RETURNED a Poly / QPoly / QBiPoly, so
+        # the Σ-row + q-row engines were unreachable by prose. These three
+        # non_compute BUILDERS (the from_bodies / cooccurrence_edges
+        # precedent) close that gap: integer coefficient lists in → the exact
+        # carrier out, register-chainable into gosper / zeilberger /
+        # wz_certificate / q_gosper / q_zeilberger / q_wz_certificate.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.poly.poly_from_coeffs", owner="srmech",
+            category="poly",
+            summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
+                    "§85): build the exact-ℚ polynomial carrier Poly from an "
+                    "ascending-degree list of INTEGER coefficients — coeffs[i] "
+                    "is the coefficient of k**i ([0, 1] is k; [1, 1] is 1+k). "
+                    "The utterance-expressible builder that makes the Σ-row "
+                    "engines' Poly term-ratio operands (gosper / zeilberger / "
+                    "wz_certificate) REGISTER-CHAINABLE from a conversational "
+                    "loop: before rc113 no registered tool RETURNED a Poly a "
+                    "result register could chain. Ints only — the exact-ℚ "
+                    "prose discipline (integers ARE exact; a float / bool / "
+                    "str coefficient is an honest TypeError; exact rationals "
+                    "enter via the in-process Poly.from_coeffs). A non_compute "
+                    "BUILDER (the coupling.from_bodies / text."
+                    "cooccurrence_edges precedent — it constructs an operand; "
+                    "every computation lives in the ops that consume it). "
+                    "numpy-free; no float; no abs().",
+            parameters=(P("coeffs", "list[int]", True,
+                          "ascending-degree integer coefficients "
+                          "(coeffs[i] is the coefficient of k**i)"),),
+            returns=R("Poly",
+                      "the exact-ℚ polynomial carrier (chainable into the "
+                      "gosper / zeilberger / wz_certificate Poly params)"),
+            smoke_test_hint={"coeffs": "[0, 1]"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.qpoly.qpoly_from_coeffs", owner="srmech",
+            category="qpoly",
+            summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
+                    "§85): build the exact ℚ[q] q-shift carrier QPoly (Laurent "
+                    "in x=qᵏ) from an ascending-x list of INTEGER-LEAF cells — "
+                    "coeffs[i] is the ℚ[q] coefficient of x**(x_low+i), each "
+                    "cell an int (a constant-in-q coefficient) OR a list of "
+                    "ints (the ASCENDING-q-DEGREE coefficient: [0, 1] is q, "
+                    "[0, 2] is 2q, [0, 0, 1] is q²). Worked forms: the "
+                    "q-geometric ratio x = [0, 1]; the order-3 MOCK-THETA term "
+                    "ratio q·x²/(1+q·x)² = numerator [0, 0, [0, 1]] over "
+                    "denominator [1, [0, 2], [0, 0, 1]] — the operands that "
+                    "make 'find the sparse form of a mock theta equation' a "
+                    "register-chained pipeline into q_gosper. NOTE the prose "
+                    "grammar is deliberately UNAMBIGUOUS: a list cell is "
+                    "ALWAYS ascending-q ints (never the in-process carrier's "
+                    "(num, den) rational-pair reading); a float / bool / str "
+                    "leaf is an honest TypeError (integers ARE exact ℚ). "
+                    "x_low (optional, default 0) is the lowest x-exponent (a "
+                    "negative value = a genuine Laurent tail). A non_compute "
+                    "BUILDER (the from_bodies / cooccurrence_edges precedent). "
+                    "numpy-free; no float; no abs().",
+            parameters=(P("coeffs", "list", True,
+                          "ascending-x cells: each an int (constant in q) or "
+                          "an ascending-q-degree list of ints ([0, 1] = q)"),
+                        P("x_low", "int", False,
+                          "the lowest x-exponent (default 0; negative = "
+                          "Laurent tail)")),
+            returns=R("QPoly",
+                      "the exact ℚ[q] q-shift carrier (chainable into the "
+                      "q_gosper rn_num / rn_den params)"),
+            smoke_test_hint={"coeffs": "[0, 1]"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.qbipoly.qbipoly_from_coeffs", owner="srmech",
+            category="qbipoly",
+            summary="PROSE-SIDE carrier constructor (#1239 / F1027 / UPSTREAM "
+                    "§85): build the exact bivariate-q carrier QBiPoly (a "
+                    "polynomial in Y=qᵏ whose coefficients are QPoly in X=qⁿ) "
+                    "from a Y-ascending list of INTEGER-LEAF x-cell lists — "
+                    "coeffs[d] is the Y**d coefficient, itself an ascending-X "
+                    "list whose entries follow the qpoly_from_coeffs cell "
+                    "grammar (int = constant in q; list of ints = ascending-q "
+                    "degree, so [0, 1] is q — never a rational pair). Worked "
+                    "forms — the q-binomial-theorem term F(n,k)=[n,k]_q·"
+                    "q^{C(k,2)} (the rc56 keystone) written entirely with "
+                    "integer leaves: r_k num X−Y = [[0, 1], [-1]]; r_k den "
+                    "qY−1 = [[-1], [[0, 1]]]; r_n num (qX−1)·Y = [[0], [-1, "
+                    "[0, 1]]]; r_n den qX−Y = [[0, [0, 1]], [-1]] → "
+                    "q_zeilberger certifies the ORDER-1 recurrence (1+qⁿ)f(n)"
+                    "−f(n+1)=0. THE PIPELINE OPENER: before rc113 no "
+                    "registered tool RETURNED a QBiPoly, so the definite-q-sum "
+                    "engine (q_zeilberger / q_wz_certificate) was unreachable "
+                    "by prose. A non_compute BUILDER (the from_bodies / "
+                    "cooccurrence_edges precedent); a float / bool / str leaf "
+                    "is an honest TypeError (integers ARE exact ℚ). numpy-"
+                    "free; no float; no abs().",
+            parameters=(P("coeffs", "list[list[int]]", True,
+                          "Y-ascending list of x-cell lists; each x-entry an "
+                          "int (constant in q) or an ascending-q-degree list "
+                          "of ints ([0, 1] = q)"),),
+            returns=R("QBiPoly",
+                      "the exact bivariate-q carrier (chainable into the "
+                      "q_zeilberger / q_wz_certificate rn/rk params)"),
+            smoke_test_hint={"coeffs": "[[0, 1], [-1]]"},
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc116 (#1248 / F1038): the CARRIER CONVERSION LADDER — the ORPHAN
+        # FIX + the promote/project rungs. The tool_schema producer/consumer
+        # census found BiPoly (consumed by zeilberger + wz_certificate) and
+        # TriPoly (consumed by apagodu_zeilberger) ORPHANS — consumed, never
+        # PRODUCED from the registry (rc113 shipped only the q-side). These
+        # two non_compute BUILDERS close that gap so the classic non-q
+        # Zeilberger / WZ / Apagodu row is buildable by prose. Then the
+        # promote/project ops (variable ladder Poly↔BiPoly↔TriPoly +
+        # QPoly↔QBiPoly, plus the Hurwitz cd_promote/cd_project) let a driver
+        # auto-route a lower-rung carrier UP to a higher-rung consumer (a
+        # univariate IS trivially bivariate), and the ladder descriptor is the
+        # declarative coherency map that routing reads. All non_compute (pure
+        # carrier restructuring — trivial embed / drop; no numerical kernel;
+        # the from_bodies / cooccurrence_edges precedent).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.zeilberger.bipoly_from_coeffs", owner="srmech",
+            category="zeilberger",
+            summary="PROSE-SIDE carrier constructor (#1248 / F1038; the ORPHAN "
+                    "FIX): build the exact-ℚ[n,k] bivariate carrier BiPoly "
+                    "from a k-ascending list of INTEGER-LEAF n-coefficient "
+                    "lists — coeffs[d] is the k**d coefficient, itself an "
+                    "ascending-n integer list (a Poly in n). "
+                    "bipoly_from_coeffs([[1, 1], [-1]]) is (1+n)−k. Worked "
+                    "forms — the F(n,k)=C(n,k) term ratios (the rc42 keystone): "
+                    "r_n num n+1 = [[1, 1]]; r_n den (n+1)−k = [[1, 1], [-1]]; "
+                    "r_k num n−k = [[0, 1], [-1]]; r_k den k+1 = [[1], [1]] → "
+                    "zeilberger certifies f(n+1)−2f(n)=0 for ΣC(n,k)=2ⁿ. THE "
+                    "ORPHAN FIX: BiPoly was CONSUMED by zeilberger / "
+                    "wz_certificate but nothing in the registry RETURNED one "
+                    "(rc113 shipped only the q-side qbipoly_from_coeffs), so "
+                    "the classic non-q Zeilberger/WZ row was unreachable by "
+                    "prose. A non_compute BUILDER (the from_bodies / "
+                    "cooccurrence_edges precedent); ints only (a float / bool / "
+                    "str leaf is an honest TypeError). numpy-free; no float; no "
+                    "abs().",
+            parameters=(P("coeffs", "list[list[int]]", True,
+                          "k-ascending list of n-coefficient lists (coeffs[d] "
+                          "is the ascending-n Poly coefficient of k**d)"),),
+            returns=R("BiPoly",
+                      "the exact-ℚ[n,k] bivariate carrier (chainable into the "
+                      "zeilberger / wz_certificate rn/rk params)"),
+            smoke_test_hint={"coeffs": "[[1, 1], [-1]]"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.tripoly.tripoly_from_coeffs", owner="srmech",
+            category="tripoly",
+            summary="PROSE-SIDE carrier constructor (#1248 / F1038; the ORPHAN "
+                    "FIX): build the exact-ℚ[n,j,k] trivariate carrier TriPoly "
+                    "from a j-ascending list of k-ascending lists of "
+                    "INTEGER-LEAF n-coefficient lists — coeffs[dj] is the j**dj "
+                    "block (a BiPoly in (n,k)), coeffs[dj][dk] its k**dk "
+                    "coefficient (an ascending-n Poly-in-n int list). "
+                    "tripoly_from_coeffs([[[0, 1]], [[1]]]) is n+j. The "
+                    "bipoly_from_coeffs grammar recursed one level. THE ORPHAN "
+                    "FIX: TriPoly was CONSUMED by apagodu_zeilberger but never "
+                    "PRODUCED from the registry, so the multivariate "
+                    "sums-of-sums row was unreachable by prose. A non_compute "
+                    "BUILDER (the from_bodies / cooccurrence_edges precedent); "
+                    "ints only (a float / bool / str leaf is an honest "
+                    "TypeError). numpy-free; no float; no abs().",
+            parameters=(P("coeffs", "list[list[list[int]]]", True,
+                          "j-ascending list of j-blocks; each a k-ascending "
+                          "list of ascending-n integer lists (coeffs[dj][dk] is "
+                          "the Poly-in-n coefficient of j**dj·k**dk)"),),
+            returns=R("TriPoly",
+                      "the exact-ℚ[n,j,k] trivariate carrier (chainable into "
+                      "the apagodu_zeilberger rn/rj/rk params)"),
+            smoke_test_hint={"coeffs": "[[[0, 1]], [[1]]]"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.poly_promote", owner="srmech",
+            category="carrier_ladder",
+            summary="Promote an ordinary-ladder carrier UP the variable ladder "
+                    "Poly(k) → BiPoly(n,k) → TriPoly(n,j,k) by the TRIVIAL "
+                    "EMBEDDING (#1248 / F1038): add a degree-0 variable so the "
+                    "polynomial is unchanged as a function but gains a formal "
+                    "variable it does not depend on. n_vars is the target rung "
+                    "(1/2/3; default one rung up); must be ≥ the current rung. "
+                    "This is the 'a univariate IS trivially bivariate' fact "
+                    "that lets a Poly feed zeilberger — a driver auto-routes a "
+                    "lower-rung carrier UP to a higher-rung consumer. TOTAL "
+                    "(a no-op when n_vars equals the current rung); the inverse "
+                    "of poly_project (poly_project(poly_promote(x))==x EXACT). "
+                    "Pure carrier restructuring (re-wrap embed; no numerical "
+                    "kernel) → non_compute (the from_bodies / cooccurrence_edges "
+                    "precedent). Exact-ℚ; numpy-free; no float; no abs().",
+            parameters=(P("p", "Poly | BiPoly", True,
+                          "the carrier to promote (Poly rung 1 / BiPoly rung 2 "
+                          "/ TriPoly rung 3)"),
+                        P("n_vars", "int", False,
+                          "target rung 1/2/3 (default one rung up); must be ≥ "
+                          "the current rung")),
+            returns=R("BiPoly | TriPoly",
+                      "the promoted carrier one-or-more rungs up (or the input "
+                      "unchanged when n_vars == the current rung)"),
+            smoke_test_hint={"p": "srmech.amsc.poly.Poly.from_coeffs([1, 1])"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.poly_project", owner="srmech",
+            category="carrier_ladder",
+            summary="Project an ordinary-ladder carrier DOWN one rung TriPoly → "
+                    "BiPoly → Poly — the inverse of poly_promote (#1248 / "
+                    "F1038). Drops the highest-rung variable IFF the carrier is "
+                    "genuinely trivial in it (TriPoly drops j iff j_degree ≤ 0; "
+                    "BiPoly drops n iff every k-coefficient is constant in n). "
+                    "When the variable is genuinely PRESENT, raises a coherency "
+                    "error that NAMES it (the beat-relation diagnostic style; "
+                    "NEVER a silent truncation — the rc104 lesson). A rung-1 "
+                    "Poly has no higher variable to drop → error. "
+                    "poly_project(poly_promote(x))==x EXACT at every rung. Pure "
+                    "carrier restructuring (trivial-check + drop; no numerical "
+                    "kernel) → non_compute. Exact-ℚ; numpy-free; no float; no "
+                    "abs().",
+            parameters=(P("p", "BiPoly | TriPoly", True,
+                          "the carrier to project down one rung (BiPoly → Poly, "
+                          "or TriPoly → BiPoly)"),),
+            returns=R("Poly | BiPoly",
+                      "the projected carrier one rung down (raises a NAMING "
+                      "coherency error if the dropped variable is non-trivial)"),
+            smoke_test_hint={
+                "p": "srmech.amsc.zeilberger.BiPoly.from_k_poly("
+                     "srmech.amsc.poly.Poly.from_coeffs([1, 1]))"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.qpoly_promote", owner="srmech",
+            category="carrier_ladder",
+            summary="Promote a q-ladder carrier UP the variable ladder "
+                    "QPoly(x=qⁿ) → QBiPoly(X=qⁿ, Y=qᵏ) by the trivial embedding "
+                    "(#1248 / F1038) — the q-analog of poly_promote. Adds the "
+                    "degree-0 variable Y=qᵏ (a single Y**0 cell). n_vars is the "
+                    "target rung (1/2; default one rung up). TOTAL; the inverse "
+                    "of qpoly_project (qpoly_project(qpoly_promote(x))==x "
+                    "EXACT). Pure carrier restructuring → non_compute. Exact "
+                    "over ℚ[q]; numpy-free; no float; no abs().",
+            parameters=(P("p", "QPoly", True,
+                          "the QPoly (rung 1) to promote to QBiPoly (rung 2)"),
+                        P("n_vars", "int", False,
+                          "target rung 1/2 (default one rung up)")),
+            returns=R("QBiPoly",
+                      "the promoted q-carrier one rung up (or the input "
+                      "unchanged when n_vars == the current rung)"),
+            smoke_test_hint={"p": "srmech.amsc.qpoly.QPoly.from_coeffs([0, 1])"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.qpoly_project", owner="srmech",
+            category="carrier_ladder",
+            summary="Project a q-ladder carrier DOWN one rung QBiPoly → QPoly — "
+                    "the inverse of qpoly_promote (#1248 / F1038). Drops the "
+                    "variable Y=qᵏ IFF the QBiPoly is genuinely trivial in it "
+                    "(y_degree ≤ 0); returns that Y**0 cell (a QPoly in X=qⁿ). "
+                    "When Y is genuinely present, raises a coherency error that "
+                    "NAMES it (never a silent truncation). A rung-1 QPoly has no "
+                    "higher variable to drop → error. "
+                    "qpoly_project(qpoly_promote(x))==x EXACT. Pure carrier "
+                    "restructuring → non_compute. Exact over ℚ[q]; numpy-free; "
+                    "no float; no abs().",
+            parameters=(P("p", "QBiPoly", True,
+                          "the QBiPoly (rung 2) to project to QPoly (rung 1)"),),
+            returns=R("QPoly",
+                      "the projected q-carrier one rung down (raises a NAMING "
+                      "coherency error if the dropped variable Y is non-trivial)"),
+            smoke_test_hint={
+                "p": "srmech.amsc.qbipoly.QBiPoly.from_x_qpoly("
+                     "srmech.amsc.qpoly.QPoly.from_coeffs([0, 1]))"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
+            owner="srmech", category="carrier_ladder",
+            summary="The declarative CARRIER-LADDER coherency map (#1248 / "
+                    "F1038; rc120 #1254 / F1041 adds the per-op contract) — a "
+                    "small static descriptor a driver (siona's result register, "
+                    "F1024) reads to auto-route a lower-rung carrier UP to any "
+                    "consumer accepting a higher rung, AND to read the exact "
+                    "rung each op consumes/produces. Returns {'carriers': "
+                    "{<carrier>: {'ladder', 'rung'}}, 'ladders': {<ladder>: "
+                    "{'rungs', 'adds_variable', 'promote', 'project'}}, 'ops': "
+                    "{<op-leaf>: {'tool', 'consumes', 'produces'}}}. Three "
+                    "ladders: 'variable' (Poly/BiPoly/TriPoly), 'variable_q' "
+                    "(QPoly/QBiPoly), and 'cayley_dickson' (ℝ/ℂ/ℍ/𝕆/𝕊, keyed by "
+                    "dimension — the dim cd_promote takes). The 'ops' map makes "
+                    "the per-op carrier RUNG machine-readable so a driver routes "
+                    "WITHOUT a name-map: ops['octonion_conjugate'] consumes "
+                    "cayley_dickson rung 8; ops['cd_promote'] consumes 'any' "
+                    "(variadic) and produces 'arg:dim' (rung-from-argument). Each "
+                    "int rung agrees with the ladders rungs table. No compute (a "
+                    "fixed table) → non_compute. numpy-free; no float.",
+            parameters=(),
+            returns=R("dict",
+                      "{'carriers': {name: {'ladder', 'rung'}}, 'ladders': "
+                      "{name: {'rungs', 'adds_variable', 'promote', "
+                      "'project'}}, 'ops': {op-leaf: {'tool', 'consumes', "
+                      "'produces'}}}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc205 (gh #1293): the CARRIER (operand) introspection surface
+        # — the noun-side DUAL of tool_schema (Siona / RBS-LM finding
+        # 1110; UPSTREAM_NOTES §91): tool_schema exposes the ops (verbs)
+        # richly, but the carrier TYPES (the operand nouns) were not
+        # first-class introspectable — a consumer had to scrape
+        # carrier_ladder_descriptor's ladder/rung INTS with no
+        # human-readable description, so introspection could not say
+        # what a TriPoly IS beyond "rung 3".
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.carrier_schema.carrier_schema",
+            owner="srmech", category="carrier_schema",
+            summary="The CARRIER (operand) introspection registry (gh "
+                    "#1293) — the noun-side DUAL of tool_schema: per "
+                    "carrier TYPE (the operand nouns Poly/BiPoly/TriPoly/"
+                    "QPoly/QBiPoly, the Cayley–Dickson rungs float/complex/"
+                    "quaternion/octonion/sedenion, Mat/Vec/HV, the exact "
+                    "scalars int/Fraction/Q, the elliptic EllMonomial/"
+                    "EllRatio/ThetaSum, the weight-axis UnaryTheta/"
+                    "MockQSeries/HarmonicMaass, and the HDC objects One/"
+                    "SedenionRegister) returns {'name', a one-line "
+                    "human-readable 'description' (what it is, its variable "
+                    "semantics, when to use it), 'ladder', 'rung', "
+                    "'variables', 'ops': {'consumes', 'produces'}} keyed by "
+                    "carrier name. The ops back-index is DERIVED (never "
+                    "hand-maintained) from the ToolEntry param/return type "
+                    "strings + the rc120 per-op carrier contract; ladder/"
+                    "rung agree with carrier_ladder_descriptor. With "
+                    "tool_schema this lets ANY consumer (Siona's "
+                    "introspect_carriers; a human reader) discover BOTH the "
+                    "verbs and the nouns and distinguish carriers that "
+                    "differ only by a rung number. Native-dispatched to the "
+                    "C peer srmech_carrier_schema over the compiled-in "
+                    "srmech_carrier_registry const table (canonical JSON "
+                    "byte-identical to the pure path — the sha256 "
+                    "hash-ratchet); pure fallback complete → composes_c. "
+                    "numpy-free; no float math.",
+            parameters=(),
+            returns=R("dict",
+                      "{<carrier>: {'name', 'description', 'ladder', "
+                      "'rung', 'variables', 'ops': {'consumes': [tool "
+                      "names], 'produces': [tool names]}}}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc225 (user design 2026-07-12): the RESPONSION (stored-
+        # relationship) introspection surface — the k=3 completion of
+        # the introspection triad. tool_schema exposes the OPS (verbs),
+        # carrier_schema the OPERANDS (nouns) — the k=2 pair of NODES;
+        # responsion_schema exposes the EDGES binding them: "this op,
+        # on this operand, answers THIS way" (op⊗operand⊗responsion,
+        # F1131/F1186 — the relationships the Stored-RELATIONSHIP
+        # Mechanism is named for, previously un-introspectable).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.responsion_schema.responsion_schema",
+            owner="srmech", category="responsion_schema",
+            summary="The RESPONSION (stored-relationship) introspection "
+                    "registry (rc225; user design 2026-07-12) — the k=3 "
+                    "completion of the introspection triad: ops (tool_"
+                    "schema) + operands (carrier_schema) are the k=2 pair "
+                    "of NODES; the responsion is the EDGE that binds them "
+                    "— this op, on this operand, answers THIS way. Keyed "
+                    "by the '<operator>|<carrier>' EDGE (operator = a real "
+                    "tool_schema key, carrier = a real carrier_schema key "
+                    "— never a bare-name flat registry), each edge carries "
+                    "one-or-more responsions {'operator', 'carrier', "
+                    "'kind', 'regime', 'answers_with', 'status'}. TWO "
+                    "REGIMES OF ONE RESPONSION held in unity: "
+                    "discrete_algebraic = the F929 reduce-back rows "
+                    "(gosper/zeilberger/wz_certificate, apagodu_"
+                    "zeilberger, q_*, elliptic_wz_certificate, "
+                    "multivariate_elliptic_jackson, resonant_spectrum, "
+                    "the_one — operand → verified closed form; the OPEN "
+                    "residues ride the infer router with answers_with "
+                    "VERBATIM from dispatch._OPEN_HINTS, the honest F934 "
+                    "sustain); continuous_spectral = the response-function "
+                    "family of a generator L on an excitation u0 "
+                    "(laplacian.responsion's propagator e^{-zL}·u0 ⊗ "
+                    "resolvent (zI-L)^{-1}·u0 LAPLACE-DUAL PAIR on one "
+                    "edge, propagate, heat_trace, ground_state_flux_"
+                    "response). The genome tie-back: storage = carrier, "
+                    "query = op excite, response = responsion. Native-"
+                    "dispatched to the C peer srmech_responsion_schema "
+                    "over the compiled-in srmech_responsion_registry "
+                    "const table (canonical JSON byte-identical to the "
+                    "pure path — the sha256 hash-ratchet); pure fallback "
+                    "complete → composes_c. numpy-free; no float math.",
+            parameters=(),
+            returns=R("dict",
+                      "{'<operator>|<carrier>': [{'operator', 'carrier', "
+                      "'kind', 'regime', 'answers_with', 'status'}, ...]}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc117 (dives #718/#719): OPERATORS⊗OPERANDS as ONE addressable
+        # object — the op-carrying carrier (srmech.amsc.op_provenance).
+        # The value of an inexact-frontier op is a PROJECTION; the exact
+        # generating operation is the SSOT. carry() attaches the operation
+        # to the result over a name-keyed registry (the genome op-log /
+        # DSL run_toml_chain re-run-by-name model; existing signatures
+        # untouched); op_provenance_hash is the Class-A canonical hasher
+        # (C peer srmech_op_provenance_hash); op_verdict/family_verdict
+        # are the honest ONE-SIDED verdict pair (EQUAL/SAME_TARGET or
+        # UNKNOWN — never a false UNEQUAL: equality of programs is
+        # undecidable); reproject re-runs the carried operation at a
+        # different rung (the operation-as-SSOT win).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.op_provenance.carry", owner="srmech",
+            category="op_provenance",
+            summary="Run a registered value-inexact-frontier op AND attach "
+                    "its exact generating operation — the op-carrying "
+                    "carrier (rc117; dives #718/#719: the value is a "
+                    "PROJECTION, the operation is the SSOT). Returns "
+                    "{'value': the op's normal result, 'inputs': the "
+                    "canonicalised pinned inputs, 'provenance': the record "
+                    "{op, params, input_sha256, family, rung, leaves_exact, "
+                    "chain_sha256}}. The registry covers the rc117 frontier: "
+                    "the Class-N series_truncate family (sin/cos/exp/log1p/"
+                    "atan; INTERIOR Taylor towers, rung=num_terms) + "
+                    "best_rational (EDGE continued-fraction tower, rung="
+                    "max_denominator) + the Class-L float64 producers "
+                    "(jacobi_eigvals / symmetric_eigendecompose / "
+                    "hermitian_eigendecompose / heat_trace / "
+                    "resonant_spectrum; EDGE rotation-composition towers). "
+                    "family = (NAMED target_id, tower_kind) — the "
+                    "attestation-registry namespace: derived from exact "
+                    "inputs (e.g. 'sin(1/1)', 'eigvals(sha256:<hash>)') or "
+                    "caller-attested via family=; unnamed/float-leaf targets "
+                    "get family None (instance-only) with leaves_exact False "
+                    "recorded honestly. Param defaults are MATERIALISED so a "
+                    "default and an explicit-default call carry ONE address. "
+                    "Existing op signatures untouched (opt-in wrapper over a "
+                    "name-keyed registry — the genome op-log / DSL "
+                    "run_toml_chain model). numpy-free; no abs().",
+            parameters=(P("op", "str", True,
+                          "registered dotted op name (e.g. 'srmech.amsc."
+                          "rational.sin_series_truncate')"),
+                        P("inputs", "dict", True,
+                          "pinned operand inputs keyed by name (series ops: "
+                          "numerator/denominator; Class-L: matrix / L (+t))"),
+                        P("params", "dict", False,
+                          "op params (num_terms, tolerance, …); defaults "
+                          "materialised into the record"),
+                        P("family", "dict", False,
+                          "optional caller-attested family naming "
+                          "{'target_id': <named target>}; tower_kind is "
+                          "op-intrinsic and not overridable")),
+            returns=R("dict",
+                      "{'value': op result, 'inputs': canonicalised inputs, "
+                      "'provenance': {op, params, input_sha256, family, "
+                      "rung, leaves_exact, chain_sha256}}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.op_provenance_hash",
+            owner="srmech", category="op_provenance",
+            summary="The canonical op-provenance record hasher (Class A; "
+                    "rc117): SHA-256 of the record's MPRRecord-style "
+                    "canonical byte image json.dumps(record, sort_keys=True, "
+                    "ensure_ascii=False), EXCLUDING the record's own cached "
+                    "chain_sha256 field. This hash IS the operation address "
+                    "op_verdict compares: two records hash equal IFF their "
+                    "canonical images are byte-identical. The record must be "
+                    "float-free canonical JSON — floats ride as "
+                    "{'__float64__': float.hex(x)} exact-bit-pattern tags, "
+                    "ints beyond int64 as {'__bigint__': '<decimal>'} "
+                    "(carry() builds records in this form); raw floats are "
+                    "REJECTED, never silently forked (C %.17g doubles are "
+                    "not byte-identical to Python repr). 1:1 C peer "
+                    "srmech_op_provenance_hash (srmech_json_parse → "
+                    "canonical rewrite → srmech_sha256_hex; the IDENTICAL "
+                    "digest from ANY JSON formatting of the same record; "
+                    "native-authoritative when present, pure Python the "
+                    "complete alternative). No raw hashlib (routes "
+                    "sha256_bytes); numpy-free; no abs().",
+            parameters=(P("record", "dict", True,
+                          "the provenance record (float-free canonical "
+                          "JSON-shaped dict; a chain_sha256 field is "
+                          "ignored)"),),
+            returns=R("str", "the 64-hex SHA-256 of the canonical record "
+                             "image"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.op_verdict", owner="srmech",
+            category="op_provenance",
+            summary="The honest ONE-SIDED op-equality verdict (rc117; dive "
+                    "#718 — the load-bearing contract): 'EQUAL' when the two "
+                    "provenances' canonical chain hashes agree (recomputed, "
+                    "never trusting the cached field) — identical generating "
+                    "program + identical pinned inputs ⟹ the same ideal "
+                    "object BY CONSTRUCTION, sound even where the float "
+                    "readouts diverge in the last ulp (platform divergence "
+                    "is a projection artifact, not a different object; when "
+                    "leaves_exact is False the EQUAL means same-op-on-same-"
+                    "bit-pattern, stated in the records). 'UNKNOWN' "
+                    "otherwise — equality of programs is UNDECIDABLE, so a "
+                    "different chain proves nothing: an algebraically-equal "
+                    "but syntactically-different cascade, a different rung, "
+                    "or a coincidentally-equal value from a different op all "
+                    "stay UNKNOWN. NEVER a false 'UNEQUAL' and never a false "
+                    "EQUAL — this asymmetry IS the contract. Accepts bare "
+                    "records or full carry() results. numpy-free; no abs().",
+            parameters=(P("p1", "dict", True,
+                          "a provenance record or carry() result"),
+                        P("p2", "dict", True,
+                          "a provenance record or carry() result")),
+            returns=R("str", "'EQUAL' | 'UNKNOWN' (one-sided; never a "
+                             "false UNEQUAL)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.family_verdict", owner="srmech",
+            category="op_provenance",
+            summary="The honest ONE-SIDED family verdict (rc117; dive #719): "
+                    "'SAME_TARGET' when BOTH provenances carry a family (a "
+                    "NAMED/ATTESTED target — the attestation-registry "
+                    "namespace) and the full family addresses agree (same "
+                    "target_id AND same tower_kind) — every truncation rung "
+                    "of one target in one tower shares this address (the "
+                    "asymptote addressed by its generator: N truncations = "
+                    "1 family address + N instance addresses). 'UNKNOWN' "
+                    "otherwise — NEVER a false 'DIFFERENT'. The tower "
+                    "distinction is part of the address: the SAME named "
+                    "target approached by the interior (Taylor additive) and "
+                    "the edge (continued-fraction/rotation multiplicative) "
+                    "towers is two DIFFERENT families (the shared target "
+                    "stays visible by comparing target_id directly). Unnamed "
+                    "targets (family None — float-leaf inputs) are "
+                    "instance-only and always UNKNOWN here: family-equality "
+                    "is decidable exactly when targets are named. Accepts "
+                    "bare records or full carry() results. numpy-free; no "
+                    "abs().",
+            parameters=(P("p1", "dict", True,
+                          "a provenance record or carry() result"),
+                        P("p2", "dict", True,
+                          "a provenance record or carry() result")),
+            returns=R("str", "'SAME_TARGET' | 'UNKNOWN' (one-sided; never "
+                             "a false DIFFERENT)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.reproject", owner="srmech",
+            category="op_provenance",
+            summary="Re-run the carried operation at a (possibly different) "
+                    "rung — the value RE-COMPUTED from the operation-as-SSOT "
+                    "(rc117; dive #718: recompute the projection from the "
+                    "carried exact operation, e.g. a series_truncate carrier "
+                    "from N=3 to N=12 sharpening toward its named target). "
+                    "Takes a carry() result (which carries the pinned "
+                    "inputs) or a bare record + explicit inputs=; the "
+                    "supplied inputs are RE-VERIFIED against the record's "
+                    "input_sha256 before anything runs (the MPM "
+                    "re-verification: a provenance that can't be re-verified "
+                    "is broken). ONLY the op's declared rung (precision) "
+                    "params may be overridden — overriding a non-rung param "
+                    "would change the target (a different operation, not a "
+                    "re-projection); an empty override re-derives the "
+                    "carried value verbatim. The family address is "
+                    "PRESERVED (rung-independent by construction): "
+                    "family_verdict(carried, reprojected) == 'SAME_TARGET'. "
+                    "Returns a fresh {'value','inputs','provenance'} "
+                    "carry-result. Registry dispatch (the genome op-log / "
+                    "DSL run_toml_chain re-run-by-name model). numpy-free; "
+                    "no abs().",
+            parameters=(P("provenance", "dict", True,
+                          "a carry() result (carries inputs) or a bare "
+                          "provenance record"),
+                        P("overrides", "dict", False,
+                          "rung (precision) param overrides, e.g. "
+                          "{'num_terms': 12}"),
+                        P("inputs", "dict", False,
+                          "explicit pinned inputs when passing a bare "
+                          "record (re-verified against input_sha256)")),
+            returns=R("dict",
+                      "a fresh {'value', 'inputs', 'provenance'} "
+                      "carry-result at the new rung (same family)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.op_provenance.lossy_projection_record",
+            owner="srmech", category="op_provenance",
+            summary="Build the exact op-address RECORD for a LOSSY-PROJECTION op "
+                    "whose recovery is EXACT from its CARRIED complement (rc125; "
+                    "task #723) — the DUAL face of the float/asymptotic-tower "
+                    "projections carry() addresses. Where carry() addresses a "
+                    "VALUE-INEXACT op (a float readout / a series truncation) "
+                    "whose exactness lives in the ASYMPTOTIC generator, a "
+                    "lossy-PROJECTION op is exact-in/exact-out: its projection "
+                    "(the Klein-4 superposition collapse of a fold_encode) drops "
+                    "information recoverable ONLY when the exact complement is "
+                    "CARRIED alongside (the field–excitation recoverability "
+                    "principle). So this record has family=None (NO asymptotic "
+                    "target — not a tower converging to a limit), rung={} (NO "
+                    "precision rung — recovery is EXACT at ANY dim because the "
+                    "complement is carried, not decoded), and "
+                    "projection_kind='hdc' (the genuine NON-ASYMPTOTIC kind, "
+                    "recorded honestly rather than faking an interior/edge "
+                    "tower_kind). It hashes via the SAME rc117 op_provenance_hash "
+                    "canonical machinery to the projection's IDENTITY: two lossy "
+                    "projections with byte-identical EXACT inputs share the "
+                    "address (EQUAL), different exact inputs give a different "
+                    "address — and because the inputs are EXACT a different "
+                    "address is a genuinely different object, so NOT-EQUAL is "
+                    "DECIDABLE here (unlike op_verdict's undecidable "
+                    "program-equality, EQUAL/UNKNOWN only). The presence-of-"
+                    "complement decidability IS the point. Widens the "
+                    "op_provenance scope from 'value-inexact frontier' to "
+                    "'lossy-projection'. numpy-free; no abs(); no raw hashlib "
+                    "(routes sha256_bytes).",
+            parameters=(P("op", "str", True,
+                          "the dotted op name being addressed (e.g. "
+                          "'srmech.amsc.coupling.fold_encode')"),
+                        P("inputs", "dict", True,
+                          "the EXACT operand inputs keyed by name (canonicalised "
+                          "with the rc117 float-free canon; Q / int / rational "
+                          "leaves ride as exact tags)")),
+            returns=R("dict",
+                      "the record {op, params: {}, input_sha256, family: None, "
+                      "rung: {}, projection_kind: 'hdc', leaves_exact, "
+                      "chain_sha256}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
+        # q-Gosper, the FIRST public op of the q-row (the q-analog of gosper).
+        # Decides q-Gosper-summability of a q-hypergeometric term over the rc54
+        # QPoly ℚ[q]-carrier (Laurent in x=qᵏ); 1:1 C peer srmech_q_gosper.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.q_gosper.q_gosper", owner="srmech",
+            category="q_gosper",
+            summary="The q-analog of Gosper's indefinite hypergeometric summation "
+                    "(T.H. Koornwinder, 'On Zeilberger's algorithm and its "
+                    "q-analogue', J. Comput. Appl. Math. 48:91–111, 1993; textbook "
+                    "anchor Gasper & Rahman, *Basic Hypergeometric Series*) — the "
+                    "FIRST public op of the q-hypergeometric F929 reduction row, the "
+                    "q-analog of the §76 gosper. Input: a q-hypergeometric term given "
+                    "by its TERM RATIO t(k+1)/t(k)=r(x)=num(x)/den(x), x=qᵏ, σ:x↦q·x "
+                    "(the q-shift) — two Laurent polynomials in x over ℚ[q], each a "
+                    "QPoly (the rc54 carrier this op consumes; a Poly-in-q / the "
+                    "nested-list form coerces). Decides whether Σ t(k) has a "
+                    "q-hypergeometric antidifference T(k)=R(qᵏ)·t(k) (so T(k+1)−T(k)="
+                    "t(k), and the sum telescopes: Σ_{a}^{b} t = T(b+1)−T(a), with "
+                    "R(qx)·r(x)−R(x)=1); if so returns the rational certificate "
+                    "R={'num':QPoly,'den':QPoly}, else None (no q-hypergeometric "
+                    "closed form). Exact over the FIELD ℚ(q) via the q-Gosper–"
+                    "Petkovšek normal form (q-gcd/q-dispersion over ℚ(q)[x]) + the "
+                    "bounded-degree undetermined-coefficient q-Gosper equation a(x)·"
+                    "y(qx)−b(x/q)·y(x)=c(x) solved by exact Gauss-Jordan (QMat). 1:1 "
+                    "C peer srmech_q_gosper (orchestrates srmech_qpoly_*/srmech_qmat_"
+                    "rref; native completes the canonical constant-ratio q-geometric "
+                    "case, pure-Python the complete alternative + the byte-identical "
+                    "parity oracle — a has=0 is never a definitive 'no certificate'). "
+                    "Exact bigint; no float, no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "QPoly", True,
+                          "the term-ratio NUMERATOR num(x) — a Laurent-in-x exact-ℚ[q] "
+                          "QPoly (or a Poly-in-q / nested-list ℚ[q] cell sequence)"),
+                        P("rn_den", "QPoly", True,
+                          "the term-ratio DENOMINATOR den(x) — a NONZERO QPoly")),
+            returns=R("dict | None",
+                      "{'num': QPoly, 'den': QPoly} (the rational certificate R(x) "
+                      "with antidifference T(k)=R(qᵏ)·t(k)), or None when no "
+                      "q-hypergeometric closed form exists"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
+        # q-Zeilberger, the SECOND public op of the q-row (the q-analog of
+        # zeilberger). Finds the linear q-recurrence of a DEFINITE q-sum over the
+        # new bivariate-q QBiPoly carrier (Laurent in X=qⁿ, ascending in Y=qᵏ);
+        # parametrizes the rc55 q-Gosper ℚ(q) solve. 1:1 C peer srmech_q_zeilberger.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.q_zeilberger.q_zeilberger", owner="srmech",
+            category="q_zeilberger",
+            summary="The q-analog of Zeilberger's creative telescoping (T.H. "
+                    "Koornwinder, 'On Zeilberger's algorithm and its q-analogue', J. "
+                    "Comput. Appl. Math. 48:91–111, 1993; textbook anchor Gasper & "
+                    "Rahman, *Basic Hypergeometric Series*) — the SECOND public op of "
+                    "the q-hypergeometric F929 reduction row, the q-analog of the §76 "
+                    "zeilberger (and the recurrence-finder the q-WZ proof op rc57 "
+                    "builds on). Input: a proper q-hypergeometric term F(n,k) given by "
+                    "its TWO bivariate-q term ratios over (X,Y)=(qⁿ,qᵏ): r_n(X,Y)="
+                    "F(n+1,k)/F(n,k) and r_k(X,Y)=F(n,k+1)/F(n,k), each a QBiPoly (a "
+                    "polynomial in Y=qᵏ whose coefficients are QPoly in X=qⁿ; a QPoly "
+                    "in Y / a Poly-in-q / a nested-list form coerces). Produces the "
+                    "minimal-order linear q-recurrence Σ_{j=0}^{L} a_j(qⁿ)·f(n+j)=0 "
+                    "(f(n)=Σ_k F(n,k)), the a_j exact QPoly in X=qⁿ over ℚ(q), plus the "
+                    "q-Gosper certificate x(X,Y) (R=x/D_P; the q-WZ relation Σ_j a_j "
+                    "F(n+j,k)=Δ_q(R·F) holds exactly), or None when no recurrence of "
+                    "order ≤ max_order exists. Exact over the FIELD ℚ(q) via the "
+                    "PARAMETRIZED rc55 q-Gosper undetermined-coefficient solve (reuses "
+                    "the q-Gosper _Cq ℚ(q) field + Gauss-Jordan with the a_j(qⁿ) as "
+                    "extra unknowns; a homogeneous ℚ(q) kernel with a nonzero a-block "
+                    "is the recurrence). 1:1 C peer srmech_q_zeilberger (orchestrates "
+                    "the srmech_qpoly q-algebra + srmech_qmat_rref; native completes "
+                    "the canonical k-free q-geometric order-1 case, pure-Python the "
+                    "complete alternative + the byte-identical parity oracle — a has=0 "
+                    "is never a definitive 'no recurrence'). Exact bigint; no float, no "
+                    "abs() (Class-K sign), no numpy / math.",
+            parameters=(P("rn_num", "QBiPoly", True,
+                          "r_n NUMERATOR — the F(n+1,k)/F(n,k) numerator, a bivariate-q "
+                          "QBiPoly (or a QPoly-in-Y / Poly-in-q / nested-list form)"),
+                        P("rn_den", "QBiPoly", True,
+                          "r_n DENOMINATOR — a NONZERO bivariate-q QBiPoly"),
+                        P("rk_num", "QBiPoly", True,
+                          "r_k NUMERATOR — the F(n,k+1)/F(n,k) numerator, a QBiPoly"),
+                        P("rk_den", "QBiPoly", True,
+                          "r_k DENOMINATOR — a NONZERO bivariate-q QBiPoly"),
+                        P("max_order", "int", False,
+                          "the largest ansatz recurrence order to try (default 6)")),
+            returns=R("dict | None",
+                      "{'order': int, 'coeffs': [QPoly, ...], 'certificate': QBiPoly} "
+                      "— the minimal-order q-recurrence Σ_j coeffs[j](qⁿ)·f(n+j)=0 plus "
+                      "the q-Gosper rational certificate x(X,Y), or None when none of "
+                      "order ≤ max_order"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The q-HYPERGEOMETRIC row of the §76 telescope Σ-row prover (F929) —
+        # q-WZ, the THIRD and FINAL public op of the q-row (the q-analog of
+        # wz_certificate; the q-row CLOSER, and the closer of the WHOLE
+        # multivariate + q-hypergeometric reduction-theory arc). FINDs via
+        # q_zeilberger at the forced recurrence + VERIFIES the q-WZ equation as
+        # an exact bivariate-ℚ[q] rational identity; 1:1 C peer srmech_q_wz_verify
+        # is the COMPLETE verify mirror (degree-bounded, no order cap).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.q_wz_certificate.q_wz_certificate", owner="srmech",
+            category="q_wz_certificate",
+            summary="The q-analog of the Wilf–Zeilberger pair method (T.H. "
+                    "Koornwinder, 'On Zeilberger's algorithm and its q-analogue', J. "
+                    "Comput. Appl. Math. 48:91–111, 1993; the q-WZ pair anchor is H. "
+                    "Wilf & D. Zeilberger, 'An algorithmic proof theory for "
+                    "hypergeometric (ordinary and q) multisum/integral identities', "
+                    "Invent. Math. 108:575–633, 1992; textbook anchor Gasper & Rahman, "
+                    "*Basic Hypergeometric Series*) — the THIRD and FINAL public op of "
+                    "the q-hypergeometric F929 reduction row, the q-row CLOSER (and the "
+                    "closer of the whole multivariate + q-hypergeometric reduction-"
+                    "theory arc): q_gosper (indefinite) → q_zeilberger (recurrence) → "
+                    "q_wz_certificate (proof). PROVES a terminating q-hypergeometric "
+                    "identity Σ_k F(n,k)=const by producing AND verifying its q-WZ "
+                    "certificate. Input: F's two bivariate-q term ratios over "
+                    "(X,Y)=(qⁿ,qᵏ): r_n(X,Y)=F(n+1,k)/F(n,k) and r_k(X,Y)=F(n,k+1)/"
+                    "F(n,k), each a QBiPoly num/den pair (the SAME operands "
+                    "q_zeilberger takes; a QPoly in Y / a Poly-in-q / a nested-list "
+                    "coerces). The q-WZ method is q-Zeilberger at the FORCED "
+                    "n-recurrence f(n+1)−f(n)=0: it FINDs the certificate R(X,Y) "
+                    "(=q_zeilberger at max_order=1, the order-1 recurrence of a constant "
+                    "q-sum, scaled to the [−1,+1] WZ recurrence) such that G=R·F makes "
+                    "the q-WZ equation F(n+1,k)−F(n,k)=G(n,k+1)−G(n,k) q-telescope "
+                    "(G(n,k+1)=(σ_y R)·(σ_y F), σ_y:Y↦qY), then VERIFIES that equation "
+                    "as an EXACT bivariate-ℚ[q] rational-function identity (clearing "
+                    "denominators to a polynomial identity — no solve, no order bound). "
+                    "Returns {'certificate':{'num':QBiPoly,'den':QBiPoly},'verified':"
+                    "True}, or None when the term is not q-WZ-summable (incl. a term "
+                    "q_zeilberger cannot reduce on its supported path). 1:1 C peer "
+                    "srmech_q_wz_verify is the COMPLETE verify mirror (the degree-"
+                    "bounded exact bivariate-ℚ[q] identity check, NOT order-bounded — "
+                    "unlike the rc56 q_zeilberger order-≤1 peer; native when present, "
+                    "pure-Python the complete alternative + the byte-identical parity "
+                    "oracle). Exact bigint; no float, no abs() (Class-K sign), no "
+                    "numpy / math.",
+            parameters=(P("rn_num", "QBiPoly", True,
+                          "r_n NUMERATOR — F(n+1,k)/F(n,k) numerator, a bivariate-q "
+                          "QBiPoly (or a QPoly-in-Y / Poly-in-q / nested-list form)"),
+                        P("rn_den", "QBiPoly", True,
+                          "r_n DENOMINATOR — a NONZERO bivariate-q QBiPoly"),
+                        P("rk_num", "QBiPoly", True,
+                          "r_k NUMERATOR — F(n,k+1)/F(n,k) numerator QBiPoly"),
+                        P("rk_den", "QBiPoly", True,
+                          "r_k DENOMINATOR — a NONZERO bivariate-q QBiPoly")),
+            returns=R("dict | None",
+                      "{'certificate': {'num': QBiPoly, 'den': QBiPoly}, 'verified': "
+                      "True} — the q-WZ certificate R(X,Y)=num/den (verified to satisfy "
+                      "the q-WZ equation), or None when the term is not q-WZ-summable"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC row of the F929 Σ-row prover — elliptic-Gosper, the FIRST
+        # ENGINE op of the ELLIPTIC row (the top of the base-axis degeneration tower
+        # elliptic → q → ordinary). Indefinite elliptic-hypergeometric summation over
+        # the modified-theta EllRatio carrier (rc59 ellbase + rc60 EllRatio); the
+        # elliptic analogue of gosper / q_gosper, ONE algebra up. 1:1 C peer
+        # srmech_elliptic_gosper.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_gosper.elliptic_gosper", owner="srmech",
+            category="elliptic_gosper",
+            summary="The ELLIPTIC analog of Gosper's indefinite hypergeometric "
+                    "summation (George Gasper & Michael Schlosser, 'Summation, "
+                    "transformation, and expansion formulas for multibasic theta "
+                    "hypergeometric series', Adv. Stud. Contemp. Math. (Kyungshang) "
+                    "11, no. 1 (2005), 67–84, arXiv:math/0505215 — derived 'using "
+                    "indefinite summation', the theta/elliptic analogue of Gosper's "
+                    "telescoping; secondary anchor S.O. Warnaar, Constr. Approx. 18 "
+                    "(2002) 479–502; keystone the Frenkel–Turaev ₁₀E₉ sum) — the "
+                    "FIRST engine op of the ELLIPTIC F929 reduction row, the top of "
+                    "the base-axis degeneration tower elliptic→q→ordinary, the "
+                    "elliptic analogue of gosper / q_gosper ONE algebra up. Input: an "
+                    "elliptic-hypergeometric term given by its TERM RATIO t(n+1)/t(n)="
+                    "r(x), x=qⁿ, σ:x↦q·x (the summation shift) — an EllRatio (the rc60 "
+                    "theta-quotient carrier ∏θ(αx;p)/∏θ(βx;p) over an exact-ℚ monomial "
+                    "prefactor; an EllMonomial / Theta lifts). Gates on the balancing / "
+                    "very-well-poised predicate (r.is_elliptic(), Gasper–Schlosser Eq. "
+                    "(2.4)); an unbalanced ratio is out of the row → None. Decides "
+                    "whether Σ t(n) has an elliptic-hypergeometric antidifference T(n)="
+                    "R(x)·t(n) (so T(n+1)−T(n)=t(n), the sum telescopes, and the "
+                    "elliptic Gosper equation R(qx)·r(x)−R(x)=1 holds); if so returns "
+                    "the certificate R (an EllRatio), else None. The GENUINE structural "
+                    "finder (decompose-and-compute): PEEL the q-shift coboundary to the "
+                    "theta-Gosper–Petkovšek normal form r=(A/B)·(σC/C), then SOLVE the "
+                    "Weierstrass three-term key equation (Rosengren arXiv:1608.06161 §1.4 "
+                    "Eq.(1.12)) for the certificate R=(B(x/q)/C)·y with the ≤8 chiral "
+                    "endianness combos resolved against the exact verifier. Exact over the "
+                    "modified-theta algebra (no float); the additive Gosper equation is "
+                    "decided structurally via the additive ThetaSum.is_zero (the theta-"
+                    "quotient carrier is multiplicatively but not additively closed — never "
+                    "a converging-eval witness). 1:1 C peer srmech_elliptic_gosper mirrors "
+                    "the peel-solve structure (peel the coboundary over the integer theta-"
+                    "exponent lattice, build the ≤8 endianness candidates, verify via the "
+                    "native srmech_thetasum is_zero); pure-Python is the complete "
+                    "alternative + the byte-identical parity oracle — a has=0 is never a "
+                    "definitive 'no certificate'. Exact bigint; no float, no abs() (Class-K "
+                    "sign), no numpy / math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the elliptic-hypergeometric TERM RATIO t(n+1)/t(n)=r(x), "
+                          "x=qⁿ — an EllRatio (a theta-quotient over an exact-ℚ monomial "
+                          "prefactor; an EllMonomial / Theta is lifted)"),),
+            returns=R("dict | None",
+                      "{'prefactor': {'coeff': (num, den), 'exps': {sym: exp}}, 'num': "
+                      "[{sym: exp}, …], 'den': [{sym: exp}, …], 'certificate': EllRatio} "
+                      "— the certificate R(x) satisfying R(qx)·r(x)−R(x)=1 (so T(n)="
+                      "R(qⁿ)·t(n) is the antidifference), or None when no elliptic-"
+                      "hypergeometric antidifference exists / r is unbalanced"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The #712 Dzhanibekov harmonic⊗subharmonic HALF-PERIOD readers on the
+        # EllRatio carrier (rc119): the torque-free (tennis-racket) rotation's
+        # Jacobi sn/cn/dn map to theta quotients (DLMF 22.2/22.4; bridge
+        # w=e^{iζ}, x=w², carrier-p=q_c²); its two-torus has TWO half-beats.
+        # half_shift_response is a C-dispatched compute op (srmech_ellratio_
+        # half_shift_response); chirality_parity + beat_relation_residue are
+        # thin structural readers (non_compute). In-repo SSoT: the #712 probes.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.ellbase.half_shift_response", owner="srmech",
+            category="ellbase",
+            summary="The exact monomial MULTIPLIER an EllRatio theta-quotient carrier "
+                    "acquires under a HALF-period translation of the torque-free "
+                    "(Dzhanibekov / tennis-racket) rotation torus (#712; DLMF 22.4). "
+                    "The Jacobi sn/cn/dn map to EllRatio theta quotients under the "
+                    "bridge w=e^{iζ}, x=w², carrier-p=q_c² (DLMF 22.2/20.5); the "
+                    "solution two-torus has TWO independent half-beats. axis 'real'/"
+                    "'2K' → the double-cover deck transformation var↦−var (z↦z+2K ⇔ "
+                    "w↦−w): the multiplier is the pure Class-K sign (−1)^{var-parity "
+                    "of the prefactor} (default var 'w', the subharmonic half-var); "
+                    "bare iff every theta arg is EVEN in var. axis 'nome'/\"2iK'\" → "
+                    "the carrier PERIOD shift var↦p·var (z↦z+2iK' ⇔ x↦p·x): the "
+                    "multiplier is the −x⁻¹-type Theta.canonicalize quasi-periodicity "
+                    "prefactor (default var 'x'). The EDGE-relationship read — exact "
+                    "even where the theta value is transcendental (the full pshift "
+                    "already exists; this is the HALF + reads only the multiplier). "
+                    "Reproduces the #712 probe dzhan_q2 (sn/cn/dn real-2K −1/−1/+1; "
+                    "nome pshift theta-parts q/−q/−1). 1:1 C peer srmech_ellratio_"
+                    "half_shift_response (the multiplier EQUALS the pure-Python "
+                    "EllMonomial byte-for-byte). Exact-ℚ theta algebra; no float, no "
+                    "abs() (sign is Class-K), no numpy / math.",
+            parameters=(
+                P("ratio", "EllRatio", True,
+                  "the theta-quotient carrier ∏θ(αx;p)/∏θ(βx;p) over an exact-ℚ "
+                  "monomial prefactor (an EllMonomial / Theta is lifted)"),
+                P("axis", "str", True,
+                  "the half-beat axis: 'real'/'2K' (the real 2K half-beat) or "
+                  "'nome'/\"2iK'\" (the nome 2iK′ half-beat); case-/apostrophe-"
+                  "insensitive"),
+                P("var", "str", False,
+                  "the shift variable (default 'w' for the real axis — the "
+                  "subharmonic half-variable; 'x' for the nome axis — the summation "
+                  "variable)"),
+            ),
+            returns=R("EllMonomial",
+                      "the exact edge multiplier as an EllMonomial (Class-K ±1 "
+                      "coefficient; p/x/q-power exponents); ValueError when the ratio "
+                      "is not half-shift-covariant along axis/var (the multiplier is "
+                      "not a bare monomial)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.ellbase.chirality_parity", owner="srmech",
+            category="ellbase",
+            summary="The CHIRALITY parity of an EllRatio theta-quotient carrier under "
+                    "the #712 harmonic⊗subharmonic reading: 'even' (a HARMONIC reader "
+                    "— closes under a SINGLE 2K half-beat, like dn: real period 2K) "
+                    "vs 'odd' (a SUBHARMONIC reader — needs 4K / the PAIR, like sn/cn: "
+                    "real period 4K, half the harmonic frequency). Read as the parity "
+                    "of the var-exponent of the prefactor (default var 'w'): EVEN ⇔ "
+                    "the real-2K half_shift_response is +1 (boundary-blind — cannot "
+                    "see the Dzhanibekov flip); ODD ⇔ it is −1 (holds the flip). A "
+                    "thin structural read (Class-K parity; non_compute). Reproduces "
+                    "the #712 probes dzhan_q3/q4 (sn/cn odd, dn even; every quadratic/"
+                    "intensity observable sn²/cn²/sn·cn/… even — boundary-blind).",
+            parameters=(
+                P("ratio", "EllRatio", True,
+                  "the theta-quotient carrier to classify"),
+                P("var", "str", False,
+                  "the subharmonic half-variable whose prefactor-exponent parity is "
+                  "the chirality (default 'w')"),
+            ),
+            returns=R("str",
+                      "'even' (harmonic; closes under one 2K half-beat) or 'odd' "
+                      "(subharmonic; needs 4K / the pair)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.ellbase.beat_relation_residue", owner="srmech",
+            category="ellbase",
+            summary="The exact BEAT-RELATION residue of an EllRatio written on the "
+                    "HARMONIC (x) frame: the nome-axis (period-shift var↦p·var) "
+                    "mismatch monomial that RECOVERS the #712 beat relation p=q_c² "
+                    "(the harmonic torus nome is the SQUARE of the subharmonic half-"
+                    "step). For the harmonic sn² object x⁻¹·θ(x)²/θ(q·x)² the residue "
+                    "is exactly q²·p⁻¹ — the coherence residue the carrier surfaces "
+                    "unprompted (is_elliptic honestly declines it; the residue is "
+                    "unity ⇔ p=q²). Equivalent to half_shift_response(ratio,'nome') "
+                    "read as the beat-relation constraint; a thin structural read "
+                    "(composes the carrier period-shift; non_compute). Reproduces the "
+                    "#712 probe dzhan_q4 (residue q²·p⁻¹; closes at q=3/7, p=9/49).",
+            parameters=(
+                P("ratio", "EllRatio", True,
+                  "the theta-quotient carrier (the harmonic-frame square, e.g. sn²)"),
+                P("var", "str", False,
+                  "the summation variable of the harmonic frame (default 'x')"),
+            ),
+            returns=R("EllMonomial",
+                      "the exact beat-relation residue as an EllMonomial (q²·p⁻¹ for "
+                      "the harmonic sn²; evaluates to 1 exactly at p=q_c²)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC Σ-row ORDER-1 RECURRENCE op for the Frenkel–Turaev ₈ω₇
+        # summation — a STRUCTURAL (beat-decomposition) finder that builds the
+        # order-1 recurrence coefficient ρ(n) from the elementary symmetric
+        # functions of the free params (NOT a coefficient nullspace solve —
+        # provably dead for the elliptic case; the anti-brute-force discipline).
+        # 1:1 C peer srmech_elliptic_recurrence_8w7.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7",
+            owner="srmech", category="elliptic_recurrence",
+            summary="The ELLIPTIC Σ-row ORDER-1 RECURRENCE op for the Frenkel–"
+                    "Turaev ₈ω₇ summation (S. Ole Warnaar, 'Summation and "
+                    "transformation formulas for elliptic hypergeometric series', "
+                    "Constr. Approx. 18 (2002) 479–502, arXiv:math/0001006, "
+                    "Corollary 2.2 — the ₈ω₇ closed product form "
+                    "(aq, aq/bc, aq/bd, aq/cd; q,p)_n / (aq/b, aq/c, aq/d, aq/bcd; "
+                    "q,p)_n; balancing bcde=a²q^{n+1}). A STRUCTURAL (beat-"
+                    "decomposition) finder: it RECOGNIZES a canonical ₈ω₇ term "
+                    "ratio t(n+1)/t(n)=r(x) (x=qⁿ — the very-well-poised core "
+                    "θ(aq²x²)θ(ax)/[θ(ax²)θ(qx)] over five Pochhammer pairs θ(ux)/"
+                    "θ(aqx/u) with the balancing) as an EllRatio, DECOMPOSES it "
+                    "into the base a + the three FREE params [b,c,d], and "
+                    "CONSTRUCTS the order-1 recurrence coefficient ρ(n) (an "
+                    "EllRatio in y=qⁿ, 4 num + 4 den thetas) from the elementary "
+                    "symmetric functions s2={bc,bd,cd}, s3=bcd: num endpoints "
+                    "{aq}∪{aq/bc,aq/bd,aq/cd}, den {aq/b,aq/c,aq/d}∪{aq/bcd}. The "
+                    "construction IS the answer (decompose-and-compute, NOT a "
+                    "coefficient nullspace solve — provably dead for the elliptic "
+                    "case; the anti-brute-force discipline). Returns {'order':1, "
+                    "'coeffs':[-ρ,1], 'rho':ρ, …} (f(n+1)=ρ(n)·f(n)) only after "
+                    "VERIFYING ρ(n)==f(n+1)/f(n) for the ₈ω₇ sum to <1e-9 (the "
+                    "closed product form the independent oracle, via the carrier's "
+                    "exact-ℚ truncated-theta eval — NOT a standalone numeric "
+                    "theta); a non-₈ω₇ (unbalanced / wrong very-well-poised shape / "
+                    "≠3 free params) or a ρ that fails the gate → None (the honest "
+                    "out-of-class residue). 1:1 C peer srmech_elliptic_recurrence_"
+                    "8w7 mirrors the recognize-decompose-construct over the integer "
+                    "theta-exponent lattice (the shared srmech_ellbase_* monomial "
+                    "algebra + er_build); the Python trusts a native ρ ONLY after a "
+                    "byte-for-byte rebuild + the gate (a has=0 → Python pure path). "
+                    "Exact bigint; no float, no abs() (Class-K sign), no numpy / "
+                    "math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
+                          "EllRatio (the very-well-poised theta-quotient over an "
+                          "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
+                          "lifted)"),),
+            returns=R("dict | None",
+                      "{'order': 1, 'coeffs': [-ρ, 1], 'rho': EllRatio, "
+                      "'prefactor': {'coeff': (num, den), 'exps': {sym: exp}}, "
+                      "'num': [{sym: exp}, …], 'den': [{sym: exp}, …]} — the order-1 "
+                      "recurrence f(n+1)=ρ(n)·f(n) (ρ an EllRatio in y=qⁿ, 4 num + 4 "
+                      "den thetas, verified ρ(n)==f(n+1)/f(n)), or None when r is not "
+                      "a canonical ₈ω₇ / the recurrence fails the gate"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC Σ-row CREATIVE-TELESCOPING op for the Frenkel–Turaev
+        # ₈ω₇ summation — the order-1 recurrence ρ(n) PLUS an EXACT connection-
+        # coefficient certificate that PROVES it (the ThetaSum.is_zero decision,
+        # NOT rc68's 1e-9 numerical convergence gate). The third elliptic Σ-row
+        # rung after elliptic_gosper (indefinite) + elliptic_recurrence_8w7
+        # (the order-1 finder). 1:1 C peer srmech_elliptic_zeilberger.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_zeilberger.elliptic_zeilberger",
+            owner="srmech", category="elliptic_zeilberger",
+            summary="The ELLIPTIC Σ-row CREATIVE-TELESCOPING op for the Frenkel–"
+                    "Turaev ₈ω₇ summation — the order-1 recurrence f(n+1)=ρ(n)·"
+                    "f(n) PLUS an EXACT connection-coefficient certificate that "
+                    "PROVES it (Hjalmar Rosengren, 'Elliptic Hypergeometric "
+                    "Functions', arXiv:1608.06161v3 [math.CA] (2017), §2.3 Eqs. "
+                    "(2.12)–(2.14) — the connection-coefficient expansion + the "
+                    "elliptic binomial coefficient + the elliptic Pascal "
+                    "recurrence, which reduce to §1.4 Eq. (1.12), the Weierstrass "
+                    "three-term theta relation; the closed product form + ρ are "
+                    "Warnaar, Constr. Approx. 18 (2002) 479–502, Cor 2.2). The "
+                    "GENUINE elliptic analogue of zeilberger / q_zeilberger, the "
+                    "THIRD rung of the elliptic Σ-row after elliptic_gosper "
+                    "(indefinite) + elliptic_recurrence_8w7 (the order-1 finder, "
+                    "whose verification gate was a 1e-9 numerical convergence "
+                    "check). Where elliptic_recurrence_8w7 only checked ρ(n) "
+                    "numerically, this op REPLACES that gate with an EXACT proof: "
+                    "it RECOGNIZES the ₈ω₇ term ratio r(x)=t(n+1)/t(n) (x=qⁿ — an "
+                    "EllRatio), DECOMPOSES it into a + [b,c,d], CONSTRUCTS ρ "
+                    "(Warnaar Cor 2.2), and CERTIFIES the recurrence by deciding "
+                    "the connection-coefficient inductive-step identity ≡ 0 in the "
+                    "exact additive ThetaSum carrier (the cleared ±-pair split "
+                    "θ(bcN,(b/c)K²/N)·θ(aN·x^±) − θ(acN²/K,(a/c)K)·θ(bK·x^±) + "
+                    "(b/c)(K²/N)·θ(abNK,(a/b)N/K)·θ(cN/K·x^±) ≡ 0, N=qⁿ, K=qᵏ — "
+                    "every term two clean ±-pairs the ThetaSum.is_zero reduces). "
+                    "Returns {'order':1, 'coeffs':[-ρ,1], 'rho':ρ, 'certificate':"
+                    "{'kind':'connection_coefficient_split', 'exact':True, …}, "
+                    "'verified':True, …} (f(n+1)=ρ(n)·f(n) with the EXACT "
+                    "certificate) ONLY when r is a canonical ₈ω₇ AND the "
+                    "certificate decides ≡ 0; else None (the honest out-of-class "
+                    "residue / certificate-did-not-close). 1:1 C peer "
+                    "srmech_elliptic_zeilberger orchestrates the same recognize-"
+                    "decompose pipeline + builds the connection-coefficient split "
+                    "terms and decides them via the shared srmech_thetasum_is_zero "
+                    "kernel; the Python trusts a native has=1 ONLY after the pure "
+                    "path agrees AND the certificate re-decides ≡ 0 in exact ℚ. "
+                    "Exact over the modified-theta algebra (no float on the "
+                    "decision path), no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
+                          "EllRatio (the very-well-poised theta-quotient over an "
+                          "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
+                          "lifted)"),),
+            returns=R("dict | None",
+                      "{'order': 1, 'coeffs': [-ρ, 1], 'rho': EllRatio, "
+                      "'certificate': {'kind': 'connection_coefficient_split', "
+                      "'exact': True, …}, 'verified': True, 'prefactor': …, "
+                      "'num': [{sym: exp}, …], 'den': […]} — the order-1 recurrence "
+                      "f(n+1)=ρ(n)·f(n) PLUS the EXACT connection-coefficient "
+                      "certificate (decided ≡ 0 in the additive ThetaSum carrier), "
+                      "or None when r is not a canonical ₈ω₇ / the certificate fails "
+                      "to close"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC Σ-row IDENTITY-PROOF op for the Frenkel–Turaev ₈ω₇
+        # SUMMATION — proves Σ_k F(n,k) = cf(n) EXACTLY and returns the closed
+        # form cf(n). The CAPSTONE elliptic Σ-row rung after elliptic_gosper
+        # (indefinite), elliptic_recurrence_8w7 (the order-1 finder) +
+        # elliptic_zeilberger (the recurrence + EXACT certificate). Where
+        # elliptic_zeilberger proves the RECURRENCE, this proves the full
+        # SUMMATION (the elliptic analogue of wz_certificate). 1:1 C peer
+        # srmech_elliptic_wz_certificate (same certificate decision).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate",
+            owner="srmech", category="elliptic_wz_certificate",
+            summary="The ELLIPTIC Σ-row IDENTITY-PROOF op for the Frenkel–Turaev "
+                    "₈ω₇ SUMMATION — proves Σ_{k=0}^n F(n,k)=cf(n) EXACTLY and "
+                    "returns the closed form cf(n)=(aq, aq/bc, aq/bd, aq/cd; q,p)_n "
+                    "/ (aq/b, aq/c, aq/d, aq/bcd; q,p)_n (Hjalmar Rosengren, "
+                    "'Elliptic Hypergeometric Functions', arXiv:1608.06161v3 "
+                    "[math.CA] (2017), Thm 2.3.1; §2.3 Eqs. (2.12)–(2.15) reduce "
+                    "to §1.4 Eq. (1.12), the Weierstrass three-term theta relation; "
+                    "the closed product form is Warnaar, Constr. Approx. 18 (2002) "
+                    "479–502, Cor 2.2). The CAPSTONE rung of the elliptic Σ-row "
+                    "after elliptic_gosper (indefinite), elliptic_recurrence_8w7 "
+                    "(the order-1 finder) and elliptic_zeilberger (the recurrence + "
+                    "EXACT certificate) — the GENUINE elliptic analogue of "
+                    "wz_certificate (the §76 ordinary/q identity-proof rung). Where "
+                    "elliptic_zeilberger proves the RECURRENCE f(n+1)=ρ(n)·f(n), "
+                    "this op proves the full SUMMATION IDENTITY by connection-"
+                    "coefficient INDUCTION: the BASE CASE (the terminating "
+                    "(q^{-n})_k factor leaves only k=0, so Σ_{k=0}^0 F(0,k)=cf(0)=1) "
+                    "+ the EXACT inductive-step certificate (the SAME cleared "
+                    "connection-coefficient ±-pair split elliptic_zeilberger builds, "
+                    "decided ≡ 0 in the exact additive ThetaSum carrier via "
+                    "ThetaSum.is_zero — never a 1e-9 numerical witness). A literal "
+                    "Wilf–Zeilberger pair is provably dead for the elliptic case "
+                    "(the squared-lattice Gosper–Petkovšek certificate); the proof "
+                    "is the literature's connection-coefficient induction. Returns "
+                    "{'identity': '…', 'closed_form': {'num': [4 bases], 'den': "
+                    "[4 bases]}, 'certificate': {'method': "
+                    "'connection_coefficient_induction', 'exact': True, …}, "
+                    "'verified': True} ONLY when r is a canonical ₈ω₇ AND the "
+                    "certificate decides ≡ 0; else None (the honest out-of-class "
+                    "residue). 1:1 C peer srmech_elliptic_wz_certificate runs the "
+                    "same recognize-decompose pipeline + decides the certificate via "
+                    "the shared srmech_thetasum_is_zero kernel; the Python builds the "
+                    "closed-form endpoints on its side and trusts a native has=1 ONLY "
+                    "after the pure path agrees AND the certificate re-decides ≡ 0 in "
+                    "exact ℚ. Exact over the modified-theta algebra (no float on the "
+                    "decision path), no abs() (Class-K sign), no numpy / math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
+                          "EllRatio (the very-well-poised theta-quotient over an "
+                          "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
+                          "lifted)"),),
+            returns=R("dict | None",
+                      "{'identity': str, 'closed_form': {'num': [{sym: exp}, …4], "
+                      "'den': [{sym: exp}, …4]}, 'certificate': {'method': "
+                      "'connection_coefficient_induction', 'base_case': '…', "
+                      "'inductive_step': '…', 'exact': True}, 'verified': True} — the "
+                      "closed form cf(n) = (aq, aq/bc, aq/bd, aq/cd; q,p)_n / "
+                      "(aq/b, aq/c, aq/d, aq/bcd; q,p)_n PLUS the EXACT connection-"
+                      "coefficient-induction proof of the summation identity, or None "
+                      "when r is not a canonical ₈ω₇ / the certificate fails to close"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC-DETERMINANT primitive — Frobenius's elliptic Cauchy
+        # determinant evaluation, the FOUNDATION of the multivariable (root-
+        # system Cₙ) elliptic reduction row. A CONSTRUCTIVE elliptic identity
+        # op (the peer of ThetaSum.three_term): it builds the exact closed
+        # form of det[θ(t·x_i·y_j)/θ(x_i·y_j)] as a single EllRatio. 1:1 C
+        # peer srmech_elliptic_cauchy_determinant.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant",
+            owner="srmech", category="elliptic_determinant",
+            summary="The ELLIPTIC-DETERMINANT primitive — Frobenius's elliptic Cauchy "
+                    "DETERMINANT evaluation, the exact closed form of "
+                    "det_{1≤i,j≤n}[θ(t·x_i·y_j; p)/θ(x_i·y_j; p)] as a single theta-"
+                    "quotient (Hjalmar Rosengren, 'Elliptic Hypergeometric Functions', "
+                    "arXiv:1608.06161v3 [math.CA] (2017), Exercise 1.6.6 — Frobenius's "
+                    "determinant evaluation, classically Frobenius 1882, proved via the "
+                    "elliptic partial-fraction expansion Eq. (1.22)). The FOUNDATION of "
+                    "the multivariable (root-system Cₙ) elliptic reduction row: where the "
+                    "single-variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation "
+                    "(ThetaSum.three_term), the multivariable Cₙ objects reduce to the "
+                    "elliptic PARTIAL-FRACTION expansion + this DETERMINANT (a genuinely "
+                    "larger primitive; Warnaar's Cₙ elliptic Jackson summation rests on "
+                    "the same determinant family). For distinct x₁…xₙ, y₁…yₙ and a "
+                    "parameter t it CONSTRUCTS the exact closed form "
+                    "θ(t)^{n-1}·θ(t·∏x·∏y)·∏_{i<j}[x_j·y_j·θ(x_i/x_j)·θ(y_i/y_j)] / "
+                    "∏_{i,j}θ(x_i·y_j) as an EllRatio: the exact EllMonomial prefactor "
+                    "∏_{i<j} x_j·y_j, the numerator thetas (θ(t)×(n-1), θ(t·∏x·∏y), and "
+                    "θ(x_i/x_j), θ(y_i/y_j) for i<j) and the denominator thetas θ(x_i·y_j) "
+                    "for all i,j; the EllRatio constructor folds each theta's "
+                    "canonicalize prefactor, cancels matching thetas, sorts the "
+                    "survivors. A CONSTRUCTIVE elliptic identity op (the peer of "
+                    "ThetaSum.three_term). Verified at build: the constructed closed form "
+                    "equals the theta-matrix determinant at n=1..4 (exact-ℚ truncated-"
+                    "theta eval vs a Leibniz determinant of the same matrix). 1:1 C peer "
+                    "srmech_elliptic_cauchy_determinant constructs the SAME EllRatio over "
+                    "the shared srmech_ellbase_* monomial algebra + er_build (byte-exact "
+                    "to the Python carrier, trusted when loaded); the pure-Python body is "
+                    "the complete alternative + the parity oracle. Exact over the "
+                    "modified-theta algebra (no float), no abs() (Class-K sign), no numpy "
+                    "/ math.",
+            parameters=(
+                P("t", "EllMonomial", True,
+                  "the parameter t of the elliptic Cauchy determinant (an EllMonomial "
+                  "over the exact-ℚ argument-lattice)"),
+                P("xs", "Sequence[EllMonomial]", True,
+                  "the n distinct row variables x₁…xₙ (each an EllMonomial)"),
+                P("ys", "Sequence[EllMonomial]", True,
+                  "the n distinct column variables y₁…yₙ (each an EllMonomial); "
+                  "len(ys) must equal len(xs)"),
+            ),
+            returns=R("EllRatio",
+                      "the exact closed form θ(t)^{n-1}·θ(t·∏x·∏y)·∏_{i<j}[x_j·y_j·"
+                      "θ(x_i/x_j)·θ(y_i/y_j)] / ∏_{i,j}θ(x_i·y_j) as a single canonical "
+                      "EllRatio (the Frobenius elliptic Cauchy determinant). Raises "
+                      "ValueError if xs / ys are empty or unequal length"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The ELLIPTIC PARTIAL-FRACTION expansion — the reduction ENGINE of
+        # the multivariable (root-system Cₙ) elliptic reduction row (Rosengren
+        # Prop. 1.6.1 + Eq. 1.22). Where the single-variable ₈ω₇ reduces to the
+        # Weierstrass THREE-TERM relation, the Cₙ objects (the elliptic Cauchy
+        # determinant, Warnaar's Lemma 2.2, the Cₙ elliptic Jackson summation)
+        # all reduce to THIS. It CONSTRUCTS the partial-fraction SUM of the
+        # product ∏_k θ(x/z_k)/θ(x/y_k) as an exact ThetaSum (a SUM of n theta-
+        # quotient terms). 1:1 C peer srmech_elliptic_partial_fraction.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction",
+            owner="srmech", category="elliptic_partial_fraction",
+            summary="The ELLIPTIC PARTIAL-FRACTION expansion — the reduction ENGINE of "
+                    "the multivariable (root-system Cₙ) elliptic reduction row (Hjalmar "
+                    "Rosengren, 'Elliptic Hypergeometric Functions', arXiv:1608.06161v3 "
+                    "[math.CA] (2017), Proposition 1.6.1 + Eq. (1.22)). Where the single-"
+                    "variable ₈ω₇ reduces to the Weierstrass THREE-TERM relation "
+                    "(ThetaSum.three_term), the multivariable Cₙ objects — the elliptic "
+                    "Cauchy / Frobenius determinant (elliptic_cauchy_determinant), "
+                    "Warnaar's Lemma 2.2, the Cₙ elliptic Jackson summation — all reduce "
+                    "to THIS. For the variable x and distinct z₁…zₙ, y₁…yₙ it CONSTRUCTS "
+                    "the partial-fraction expansion of the product ∏_k θ(x/z_k)/θ(x/y_k) "
+                    "as an exact ThetaSum (a SUM of n theta-quotient terms): "
+                    "1/θ(Y/Z)·Σ_j [∏_k θ(y_j/z_k) / ∏_{k≠j}θ(y_j/y_k)]·[θ(x·Y/(y_j·Z)) / "
+                    "θ(x/y_j)], with Y = ∏y and Z = ∏z (the 1/θ(Y/Z) factor is load-"
+                    "bearing — the 1/θ(t) of the Prop. 1.6.1 interpolation with t = Y/Z). "
+                    "Each summand j is an EllRatio; the returned ThetaSum is their exact "
+                    "carrier sum. Verified at build: the constructed sum equals the left-"
+                    "hand product at n=1..4 (exact-ℚ truncated-theta eval). 1:1 C peer "
+                    "srmech_elliptic_partial_fraction constructs the SAME n EllRatio terms "
+                    "over the shared srmech_ellbase_* monomial algebra + er_build (byte-"
+                    "exact to the Python carrier; the native ThetaSum is trusted only "
+                    "after it == the pure ThetaSum, which is the complete alternative + "
+                    "the parity oracle). Exact over the modified-theta algebra (no float), "
+                    "no abs() (Class-K sign), no numpy / math.",
+            parameters=(
+                P("x", "EllMonomial", True,
+                  "the variable x of the elliptic partial-fraction expansion (an "
+                  "EllMonomial over the exact-ℚ argument-lattice)"),
+                P("zs", "Sequence[EllMonomial]", True,
+                  "the n distinct numerator parameters z₁…zₙ (each an EllMonomial)"),
+                P("ys", "Sequence[EllMonomial]", True,
+                  "the n distinct denominator parameters y₁…yₙ (each an EllMonomial); "
+                  "len(ys) must equal len(zs)"),
+            ),
+            returns=R("ThetaSum",
+                      "the exact partial-fraction expansion 1/θ(Y/Z)·Σ_j [∏_k θ(y_j/z_k) "
+                      "/ ∏_{k≠j}θ(y_j/y_k)]·[θ(x·Y/(y_j·Z)) / θ(x/y_j)] as a ThetaSum (a "
+                      "sum of n theta-quotient terms), equal to ∏_k θ(x/z_k)/θ(x/y_k). "
+                      "Raises ValueError if zs / ys are empty or unequal length"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The MULTIVARIABLE ELLIPTIC JACKSON summation — the CAPSTONE of
+        # the multivariable (root-system Cₙ) elliptic reduction row. The
+        # eq-5 Cₙ REDUCER: it CONSTRUCTS the closed-form theta-quotient
+        # PRODUCT the balanced Cₙ elliptic Jackson summation reduces to
+        # (Rosengren Thm 2.1, Eq 5) as a single EllRatio. Peer of rc94's
+        # single-EllRatio elliptic_cauchy_determinant. 1:1 C peer
+        # srmech_multivariate_elliptic_jackson.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson",
+            owner="srmech", category="elliptic_jackson",
+            summary="The MULTIVARIABLE ELLIPTIC JACKSON summation — the eq-5 Cₙ REDUCER, "
+                    "the CAPSTONE of the multivariable (root-system Cₙ) elliptic reduction "
+                    "row (Hjalmar Rosengren, 'A multivariable elliptic summation formula', "
+                    "arXiv:math/0101073 [math.CA], Theorem 2.1, Eq. 5). Where the single-"
+                    "variable ₈ω₇ elliptic Jackson summation reduces to a scalar theta-"
+                    "quotient (the Frenkel–Turaev sum), the balanced Cₙ very-well-poised "
+                    "elliptic Jackson summation reduces an n-FOLD sum over the partitions "
+                    "N ≥ λ₁ ≥ … ≥ λₙ ≥ 0 to a theta-quotient PRODUCT. For the parameters "
+                    "a, b, c, d and the base variables x, q it CONSTRUCTS the closed-form "
+                    "right-hand side (aq, aq/bc, aq/bd, aq/cd; q, x)_{Nⁿ} / "
+                    "(aq/b, aq/c, aq/d, aq/bcd; q, x)_{Nⁿ} — the vector elliptic Pochhammer "
+                    "(u; q, x)_{Nⁿ} = ∏_{j=1}^n ∏_{i=0}^{N-1} θ(u·x^{1-j}·qⁱ; p) — as a "
+                    "single EllRatio (the remaining parameter e is fixed by the balancing "
+                    "e = a²q^{N+1}/(bcd·x^{n-1}), so the sum is balanced by construction). "
+                    "The n=1 case is the Frenkel–Turaev ₈ω₇ sum; the induction on N runs "
+                    "through Warnaar's Lemma 2.2 + the elliptic partial-fraction expansion "
+                    "(elliptic_partial_fraction). Verified at build: the closed form equals "
+                    "the actual n-fold Cₙ sum at n=2 (N=1,2) + n=3 (N=1) via an independent "
+                    "exact-ℚ theta oracle. 1:1 C peer srmech_multivariate_elliptic_jackson "
+                    "constructs the SAME EllRatio over the shared srmech_ellbase_* monomial "
+                    "algebra + er_build (byte-exact to the Python carrier; the native "
+                    "EllRatio is trusted only after it == the pure EllRatio, which is the "
+                    "complete alternative + the parity oracle). Exact over the modified-"
+                    "theta algebra (no float), no abs() (Class-K sign), no numpy / math.",
+            parameters=(
+                P("a", "EllMonomial", True,
+                  "the parameter a of the balanced Cₙ elliptic Jackson summation (an "
+                  "EllMonomial over the exact-ℚ argument-lattice)"),
+                P("b", "EllMonomial", True, "the parameter b (an EllMonomial)"),
+                P("c", "EllMonomial", True, "the parameter c (an EllMonomial)"),
+                P("d", "EllMonomial", True, "the parameter d (an EllMonomial)"),
+                P("x", "EllMonomial", True,
+                  "the base variable x of the vector elliptic Pochhammer (an EllMonomial)"),
+                P("q", "EllMonomial", True,
+                  "the base q of the vector elliptic Pochhammer (an EllMonomial)"),
+                P("N", "int", True,
+                  "the partition ceiling N (a positive int; N ≥ λ₁ ≥ … ≥ λₙ ≥ 0)"),
+                P("n", "int", True,
+                  "the rank / number of variables n (a positive int)"),
+            ),
+            returns=R("EllRatio",
+                      "the exact closed-form theta-quotient product "
+                      "(aq, aq/bc, aq/bd, aq/cd; q, x)_{Nⁿ} / "
+                      "(aq/b, aq/c, aq/d, aq/bcd; q, x)_{Nⁿ} as a single canonical EllRatio "
+                      "(the balanced Cₙ elliptic Jackson summation, Rosengren Thm 2.1 Eq 5). "
+                      "Raises ValueError if N < 1 or n < 1"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The SYMBOLIC Cₙ VWP MULTISUM LHS builder — the LEFT-hand side of
+        # the Cₙ elliptic Jackson summation as an exact ThetaSum (the rc96
+        # test oracle → rc101 symbolic-verify engine promoted public,
+        # rc216). The other side of the Thm 2.1 identity from
+        # multivariate_elliptic_jackson (the RHS reducer): LHS − RHS
+        # |> is_zero IS the rc101 per-call proof. 1:1 C peer
+        # srmech_cn_vwp_multisum_lhs (the rc95 multi-term wire form).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs",
+            owner="srmech", category="elliptic_jackson",
+            summary="The SYMBOLIC Cₙ VERY-WELL-POISED (VWP) elliptic multisum LHS "
+                    "builder — the LEFT-hand side of the Cₙ elliptic Jackson summation "
+                    "(Hjalmar Rosengren, 'A proof of a multivariable elliptic summation "
+                    "formula conjectured by Warnaar', arXiv:math/0101073v1 [math.CA] "
+                    "(9 Jan 2001), Theorem 2.1, Eq. 5) built SYMBOLICALLY as an exact "
+                    "ThetaSum over the modified-theta algebra. For the parameters "
+                    "a, b, c, d and the base variables x, q it constructs the n-fold Cₙ "
+                    "VWP sum over the partitions Λ_{nN} = {N ≥ λ₁ ≥ … ≥ λₙ ≥ 0}: per "
+                    "partition, the diagonal θ(a·x^{2(1-i)}q^{2λᵢ})/θ(a·x^{2(1-i)}) "
+                    "quotients with the monomial prefactor ∏ᵢ q^{λᵢ}x^{2(i-1)λᵢ}, the "
+                    "off-diagonal (i<j) root-system coupling quartet, and the six num / "
+                    "six den vector theta-Pochhammer bases (a·x^{1-n}, b, c, d, e, "
+                    "q^{-N}; q, x)_λ / (q·x^{n-1}, aq/b, aq/c, aq/d, aq/e, a·q^{N+1}; "
+                    "q, x)_λ, with e fixed by the balancing bcde·x^{n-1} = a²q^{N+1}. "
+                    "Each summand is an EllRatio; the returned ThetaSum is their exact "
+                    "carrier sum (C(N+n, n) terms). This is the rc96 test-oracle / "
+                    "rc101 symbolic-verify LHS builder (_cn_lhs_thetasum) promoted to a "
+                    "first-class public op: by Thm 2.1 it EQUALS the closed form "
+                    "multivariate_elliptic_jackson constructs, so (LHS − RHS).is_zero "
+                    "is the rc101 per-call proof with both sides now first-class. 1:1 C "
+                    "peer srmech_cn_vwp_multisum_lhs builds the SAME per-partition "
+                    "EllRatio terms over the shared srmech_ellbase_* monomial algebra + "
+                    "er_build in the same lexicographic partition order (byte-exact to "
+                    "the Python carrier; the native ThetaSum is trusted only after it "
+                    "== the pure ThetaSum, which is the complete alternative + the "
+                    "parity oracle). Exact over the modified-theta algebra (no float), "
+                    "no abs() (Class-K sign), no numpy / math.",
+            parameters=(
+                P("a", "EllMonomial", True,
+                  "the parameter a of the balanced Cₙ elliptic Jackson summation (an "
+                  "EllMonomial over the exact-ℚ argument-lattice)"),
+                P("b", "EllMonomial", True, "the parameter b (an EllMonomial)"),
+                P("c", "EllMonomial", True, "the parameter c (an EllMonomial)"),
+                P("d", "EllMonomial", True, "the parameter d (an EllMonomial)"),
+                P("x", "EllMonomial", True,
+                  "the base variable x of the vector elliptic Pochhammer (an "
+                  "EllMonomial)"),
+                P("q", "EllMonomial", True,
+                  "the base q of the vector elliptic Pochhammer (an EllMonomial)"),
+                P("N", "int", True,
+                  "the partition ceiling N (a positive int; N ≥ λ₁ ≥ … ≥ λₙ ≥ 0)"),
+                P("n", "int", True,
+                  "the rank / number of variables n (a positive int)"),
+            ),
+            returns=R("ThetaSum",
+                      "the exact n-fold Cₙ VWP elliptic sum over the partitions Λ_{nN} "
+                      "as a ThetaSum of C(N+n, n) theta-quotient terms (the Rosengren "
+                      "Thm 2.1 Eq 5 LEFT-hand side; equal, by the theorem, to the "
+                      "multivariate_elliptic_jackson closed form). Raises ValueError "
+                      "if N < 1 or n < 1"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The Aₙ (type-A / Milne) elliptic Jackson REDUCER — the sibling
+        # root-system member beside the Cₙ capstone (rc227): the closed-form
+        # theta-quotient the Aₙ elliptic Jackson summation over the SIMPLEX
+        # reduces to (Rosengren math/0305379 Eq. 6), with the per-call
+        # verify=True proof. 1:1 C peer
+        # srmech_multivariate_elliptic_jackson_an.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+            owner="srmech", category="elliptic_jackson",
+            summary="The Aₙ (type-A) MULTIVARIABLE ELLIPTIC JACKSON summation reducer — "
+                    "the elliptic analogue of Milne's Aₙ Jackson summation (Hjalmar "
+                    "Rosengren, 'New transformations for elliptic hypergeometric series "
+                    "on the root system Aₙ', arXiv:math/0305379v1 [math.CA] (27 May "
+                    "2003), Eq. 6; extracted-PDF sha256 299d2738c4539a390a437c795a0b0084"
+                    "a5c82d403566c4f549db39482e3076ce). Where the Cₙ row sums over the "
+                    "partitions Λ_{nN}, the Aₙ summation sums over the SIMPLEX (the "
+                    "compositions y₁+…+yₙ = N, C(N+n−1, n−1) terms) with the type-A "
+                    "Weyl-denominator factor Δ(z·q^y)/Δ(z). For the variables z₁..zₙ, "
+                    "the parameters a₁..a_{n+1}, the base q and the COMPUTED balancing "
+                    "w = z₁⋯zₙ·a₁⋯a_{n+1} it CONSTRUCTS the closed-form right-hand side "
+                    "∏_{j=1}^{n+1}(w/aⱼ)_N / [∏_{j=1}^{n}(w·zⱼ)_N·(q)_N] — the elliptic "
+                    "shifted factorial (u)_k = ∏_{i=0}^{k-1} θ(u·qⁱ; p) — as a single "
+                    "EllRatio. With verify=True it also PROVES the reduction per call "
+                    "(builds the symbolic LHS simplex sum via an_vwp_multisum_lhs, "
+                    "subtracts, and decides the exact multi-variable elliptic "
+                    "ThetaSum.is_zero) and returns {closed_form, verified} — True = "
+                    "per-call proof (measured feasible through 6 compositions, incl. "
+                    "genuine n = 2, 3, 4 cross-variable instances), False = a "
+                    "wrong/perturbed closed form is caught, None = honest "
+                    "too-large-to-decide-in-budget (the constructive closed form is "
+                    "returned in every case). NOTE the n = 1 case is a trivial "
+                    "single-term degeneration (NOT the ₈ω₇); the genuine proof burden "
+                    "is n ≥ 2. 1:1 C peer srmech_multivariate_elliptic_jackson_an "
+                    "constructs the SAME EllRatio over the shared srmech_ellbase_* "
+                    "monomial algebra + er_build (byte-exact; trusted only after == "
+                    "the pure EllRatio, the complete alternative + parity oracle). "
+                    "Exact over the modified-theta algebra (no float), no abs() "
+                    "(Class-K sign), no numpy / math.",
+            parameters=(
+                P("z", "list[EllMonomial]", True,
+                  "the length-n vector of variables (z₁, …, zₙ) — the rank n is "
+                  "len(z)"),
+                P("a", "list[EllMonomial]", True,
+                  "the length-(n+1) vector of parameters (a₁, …, a_{n+1})"),
+                P("q", "EllMonomial", True,
+                  "the base q of the elliptic shifted factorial (an EllMonomial)"),
+                P("N", "int", True,
+                  "the simplex ceiling N (a positive int; the sum runs over "
+                  "y₁+…+yₙ = N)"),
+                P("verify", "bool", False,
+                  "False (default): return the bare closed-form EllRatio. True: "
+                  "also PROVE the reduction per call and return "
+                  "{'closed_form': EllRatio, 'verified': True|False|None}"),
+            ),
+            returns=R("EllRatio | dict",
+                      "the exact closed-form theta-quotient "
+                      "∏(w/aⱼ)_N / [∏(w·zⱼ)_N·(q)_N] as a single canonical EllRatio "
+                      "(the Aₙ elliptic Jackson summation, Rosengren math/0305379 "
+                      "Eq. 6); with verify=True a dict {'closed_form', 'verified'}. "
+                      "Raises TypeError/ValueError on a malformed operand (len(a) "
+                      "must be len(z)+1; N ≥ 1)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The SYMBOLIC Aₙ MULTISUM LHS builder — the LEFT-hand side of the
+        # Aₙ elliptic Jackson summation as an exact ThetaSum over the
+        # simplex (rc227; the rc216 Cₙ precedent with both sides
+        # first-class). LHS − RHS |> is_zero IS the per-call proof. 1:1 C
+        # peer srmech_an_vwp_multisum_lhs (the rc216 multi-term wire form).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs",
+            owner="srmech", category="elliptic_jackson",
+            summary="The SYMBOLIC Aₙ elliptic multisum LHS builder — the LEFT-hand "
+                    "side of the Aₙ (type-A / Milne) elliptic Jackson summation "
+                    "(Hjalmar Rosengren, 'New transformations for elliptic "
+                    "hypergeometric series on the root system Aₙ', "
+                    "arXiv:math/0305379v1 [math.CA] (27 May 2003), Eq. 6) built "
+                    "SYMBOLICALLY as an exact ThetaSum over the modified-theta "
+                    "algebra. For the variables z₁..zₙ, the parameters a₁..a_{n+1}, "
+                    "the base q and the COMPUTED balancing w = z₁⋯zₙ·a₁⋯a_{n+1} it "
+                    "constructs the sum over the SIMPLEX (the compositions "
+                    "y₁, …, yₙ ≥ 0 with y₁+…+yₙ = N, in ascending lexicographic "
+                    "order): per composition, the type-A Vandermonde ratio "
+                    "Δ(z·q^y)/Δ(z) = ∏_{j<k} q^{yⱼ}·θ(zₖq^{yₖ}/zⱼq^{yⱼ})/θ(zₖ/zⱼ) "
+                    "(its monomial part in the Class-K EllRatio prefactor) times "
+                    "∏ₖ ∏ⱼ(aⱼ·zₖ)_{yₖ} / [(w·zₖ)_{yₖ}·∏ⱼ(q·zₖ/zⱼ)_{yₖ}]. Each "
+                    "summand is an EllRatio; the returned ThetaSum is their exact "
+                    "carrier sum (C(N+n−1, n−1) terms). By Eq. 6 it EQUALS the "
+                    "closed form multivariate_elliptic_jackson_an constructs, so "
+                    "(LHS − RHS).is_zero is the per-call proof with both sides "
+                    "first-class (the rc216 Cₙ precedent). 1:1 C peer "
+                    "srmech_an_vwp_multisum_lhs builds the SAME per-composition "
+                    "EllRatio terms over the shared srmech_ellbase_* monomial "
+                    "algebra + er_build in the same ascending lexicographic "
+                    "composition order (byte-exact; the native ThetaSum is trusted "
+                    "only after it == the pure ThetaSum, the complete alternative + "
+                    "parity oracle). Exact over the modified-theta algebra (no "
+                    "float), no abs() (Class-K sign), no numpy / math.",
+            parameters=(
+                P("z", "list[EllMonomial]", True,
+                  "the length-n vector of variables (z₁, …, zₙ) — the rank n is "
+                  "len(z)"),
+                P("a", "list[EllMonomial]", True,
+                  "the length-(n+1) vector of parameters (a₁, …, a_{n+1})"),
+                P("q", "EllMonomial", True,
+                  "the base q of the elliptic shifted factorial (an EllMonomial)"),
+                P("N", "int", True,
+                  "the simplex ceiling N (a positive int; the sum runs over "
+                  "y₁+…+yₙ = N)"),
+            ),
+            returns=R("ThetaSum",
+                      "the exact Aₙ elliptic sum over the simplex y₁+…+yₙ = N as a "
+                      "ThetaSum of C(N+n−1, n−1) theta-quotient terms (the Rosengren "
+                      "math/0305379 Eq. 6 LEFT-hand side; equal, by the identity, to "
+                      "the multivariate_elliptic_jackson_an closed form). Raises "
+                      "TypeError/ValueError on a malformed operand (len(a) must be "
+                      "len(z)+1; N ≥ 1)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
+        # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
+        # callable. Pure orchestration over the already-C-mirrored reducers
+        # (the_one / resonant_spectrum / telescope) — NO new math, so it is
+        # non_compute (the from_bodies / cooccurrence_edges precedent; no
+        # srmech_infer C symbol). The capstone of the dispatch table (F929).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.dispatch.infer", owner="srmech",
+            category="dispatch",
+            summary="The F929 OPEN/infer ROUTER — the meta-dispatcher over "
+                    "srmech's three shipped closed-form reduction-theory rows "
+                    "(cyclic / spectral / Σ), the capstone that makes the F929 "
+                    "dispatch table (14 A–N classes as a table of closed-form "
+                    "reduction theories) ONE callable. Given an arbitrary STORED "
+                    "RELATIONSHIP (a descriptor dict), DETECTS which row its "
+                    "structure matches (an explicit row=/kind= tag wins; else "
+                    "structural sniff: the four (n,k) term-ratios rn_num/rn_den/"
+                    "rk_num/rk_den or a term_ratio_num/term_ratio_den → Σ; an "
+                    "edges/adjacency/laplacian/matrix payload → spectral; a sigma/"
+                    "theta_num/period/generator payload → cyclic), TRIES the "
+                    "matching shipped reducer AND VERIFIES it actually reduced — "
+                    "reads the reducer's OWN verification: wz_certificate's "
+                    "verified flag (Σ), the force-orders L²==L·L contract "
+                    "(spectral, resonant_spectrum), the (1,3,7,3) partition + "
+                    "n1_is_sigma_only invariant (cyclic, the_one) — and returns the "
+                    "verified closed form, else an honest OPEN. Composes the "
+                    "EXISTING verified reducers — NO new math; NEVER returns "
+                    "reducible:True for a reduction it did not verify (the "
+                    "executable no-magic-numbers / no-hallucination discipline). "
+                    "On success: {reducible:True, row, reducer, closed_form, "
+                    "verified:True}; on no verified match: {reducible:False, "
+                    "row:None, reason, candidate_next_theory:<honest hint>}. A "
+                    "Class-D late-binding op one rung above dispatch.match; "
+                    "non_compute orchestration (no srmech_infer C peer — every "
+                    "computation rides an already-C-mirrored reducer). numpy-free; "
+                    "no abs() (the Λ² verify reads the magnitude by Class-K "
+                    "comparison). Cites F929.",
+            parameters=(P("relationship", "dict", True,
+                          "the stored-relationship descriptor — an optional row=/"
+                          "kind= tag ('sigma'/'spectral'/'cyclic') plus the "
+                          "row-specific payload: Σ → rn_num/rn_den/rk_num/rk_den "
+                          "(definite sum) or term_ratio_num/term_ratio_den "
+                          "(indefinite); spectral → edges (+weights,+n) / adjacency "
+                          "/ laplacian / matrix; cyclic → sigma + theta_num "
+                          "(+theta_den) or period / generator"),),
+            returns=R("dict",
+                      "{'reducible': True, 'row': str, 'reducer': str, "
+                      "'closed_form': <reducer output>, 'verified': True} on a "
+                      "VERIFIED reduction, else {'reducible': False, 'row': None, "
+                      "'reason': str, 'candidate_next_theory': str} (the honest "
+                      "OPEN residue)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # carrier_spectrum — the OPERAND-side dual of the_one. Reads a
+        # carrier element's harmonic occupancy under the shift-Laplacian
+        # (the Class-L eigenbasis of the carrier's shape) and exposes the
+        # block structure that makes the elliptic key-equation solve
+        # genuinely block-decomposed. 1:1 C peer srmech_carrier_spectrum.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.carrier_spectrum.carrier_spectrum",
+            owner="srmech", category="carrier_spectrum",
+            summary="The OPERAND-side dual of the_one (S(σ,θ) is the OPERATOR "
+                    "generator — its shape IS the A–N verbs; carrier_spectrum is "
+                    "the OPERAND object — its shape is the carrier's Class-L "
+                    "shift-Laplacian eigenbasis; operator↔operand = algebra↔module "
+                    "= field↔excitation). READS a carrier element (an EllRatio "
+                    "theta-quotient) in TWO orthogonal channels: Channel 1 (Class-"
+                    "I) cyclic σ-EIGENSPECTRUM — σ=qshift (x↦q·x) is DIAGONAL on "
+                    "monomials, σ(x^k)=q^k·x^k, so the x-exponents present are the "
+                    "σ-eigen-occupancy with eigenvalue q^k (k=0 the shift-Laplacian "
+                    "L=σ−1 kernel / DC mode; the x² very-well-poised DOUBLED-BEAT "
+                    "shows as the k=±2 entries); Channel 2 (Class-L) quasi-periodic "
+                    "p-CHARACTER BLOCKS — the σ-invariant net-period quasi-"
+                    "periodicity class (Rosengren Eq. 1.6, q-stripped) partitioning "
+                    "the theta-factors; σ PRESERVES the block (the channels are "
+                    "orthogonal). The block partition is the lever that makes the "
+                    "elliptic KEY EQUATION A·σ(Y)−B(x/q)·Y=RHS (Gasper–Schlosser, "
+                    "arXiv:math/0505215) solve genuinely BLOCK-DECOMPOSED — "
+                    "CarrierSpectrum.solve_key_equation groups the certificate "
+                    "basis by p-character block and solves each block as an "
+                    "INDEPENDENT small QMat system (block(A)==block(B(x/q)) → block-"
+                    "DIAGONAL), reproducing the dense QMat solve EXACTLY but as "
+                    "Σ_b(n_b×n_b) instead of one dense n×n — NOT brute force. Refs: "
+                    "Rosengren arXiv:1608.06161v3 §1.3 Lemma 1.3.2 (period-annulus "
+                    "degree bound) + §1.4 Eq. 1.12 (Weierstrass three-term). Returns "
+                    "{'cyclic': {x-exp k: 'q**k'}, 'blocks': {block: [theta-arg "
+                    "maps]}, 'n_blocks': …, 'spectrum': CarrierSpectrum}. 1:1 C peer "
+                    "srmech_carrier_spectrum mirrors the channel read + the block-"
+                    "grouped solve over the integer theta-exponent lattice (shared "
+                    "srmech_ellbase_* + srmech_qmat_rref); the Python trusts a "
+                    "native result ONLY after the pure rebuild reproduces the same "
+                    "spectrum (a miss → pure path). Exact bigint; no float, no abs() "
+                    "(Class-K sign), no numpy / math.",
+            parameters=(P("r", "EllRatio", True,
+                          "the carrier element to read — an EllRatio (a theta-"
+                          "quotient over an exact-ℚ monomial prefactor; an "
+                          "EllMonomial / Theta is lifted)"),),
+            returns=R("dict",
+                      "{'cyclic': {x-exponent k: 'q**k'} (the σ-eigenspectrum, "
+                      "Channel 1), 'blocks': {block label: [[theta-arg exponent "
+                      "map], …]} (the σ-invariant p-character partition, Channel 2), "
+                      "'n_blocks': int, 'spectrum': CarrierSpectrum (the live carrier "
+                      "for inspect / solve_key_equation)}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc70: the FIRST WEIGHT-GRADED carrier (srmech.amsc.unary_theta). The
+        # operand ladder (Q / Poly / QPoly / EllRatio / ThetaSum) was entirely
+        # WEIGHT-0; unary_theta augments it with a WEIGHT axis (= 1/2 + poly-
+        # degree j), making the harmonic-Maass / mock-theta SHADOW representable
+        # in-carrier (research item #9). 1:1 C peer srmech_unary_theta.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.unary_theta.unary_theta",
+            owner="srmech", category="unary_theta",
+            summary="Construct a UNARY THETA SERIES g(τ) = Σ_{n∈support} χ(n)·"
+                    "n^j·q^{(a·n²+b·n)/D} — the FIRST WEIGHT-GRADED operand "
+                    "carrier (the ladder Q/Poly/QPoly/EllRatio/ThetaSum was all "
+                    "WEIGHT-0). Its WEIGHT = 1/2 + j (exact Q): j=0 ⇒ weight 1/2 "
+                    "(a Jacobi theta), j=1 ⇒ weight 3/2 (a mock-theta SHADOW), "
+                    "j=2 ⇒ weight 5/2 — THE WEIGHT AXIS. This makes the "
+                    "harmonic-Maass / mock-theta program (research item #9) "
+                    "representable in-carrier: the order-3 mock theta f(q) has "
+                    "SHADOW g₃ = Σ_{n≥1} (−12/n)·n·q^{n²/24} (Zagier, Astérisque "
+                    "326 (2009), Exp. 986, p. 150), a weight-3/2 unary theta a "
+                    "weight-0 carrier cannot hold. .q_series(N) returns the EXACT "
+                    "INTEGER coefficients after factoring the leading q-power: θ₃ "
+                    "(triv χ, j=0, a=1,b=0,D=1, support='all') → [1,2,0,0,2,…] "
+                    "(Σ_{n∈ℤ}q^{n²}); g₃ ('minus12', j=1, a=1,b=0,D=24, "
+                    "support='positive') → [1,−5,−7,0,0,11,0,13,…] (the Zagier "
+                    "coeffs at q^{1/24}). χ is a Character (period M, values in "
+                    "{−1,0,1}); 'trivial' / 'minus12' are the named anchors. 1:1 "
+                    "C peer srmech_unary_theta computes the integer q-series over "
+                    "caller-arena srmech_bigint (n^j full bignum, no int64 "
+                    "ceiling; byte-identical to Python). Exact integers + exact-Q "
+                    "weight; no float, no abs() (the χ sign is the Class-K pin-"
+                    "slot), no numpy / math.",
+            parameters=(P("char", "str", True,
+                          "the character χ: 'trivial' (χ≡1) or 'minus12' (the "
+                          "(−12/·) Kronecker character of g₃); an in-process "
+                          "caller may also pass a Character or a residue table"),
+                        P("j", "int", True,
+                          "the polynomial degree of the n^j factor (j ≥ 0); the "
+                          "weight is 1/2 + j"),
+                        P("a", "int", True,
+                          "the quadratic coefficient of the q-exponent (a > 0)"),
+                        P("b", "int", True,
+                          "the linear coefficient of the q-exponent"),
+                        P("D", "int", True,
+                          "the q-exponent denominator (D > 0); the exponent is "
+                          "(a·n²+b·n)/D"),
+                        P("support", "str", False,
+                          "the summation support: 'all' (n∈ℤ), 'positive' (n≥1, "
+                          "the default), or 'nonneg' (n≥0)")),
+            returns=R("UnaryTheta",
+                      "the weight-graded carrier (.weight = Q(1,2)+j; "
+                      ".q_series(N) → exact integer coefficients; "
+                      ".leading_power() → the factored-out q-power)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc113 (#1239 / F1027 / UPSTREAM §85): theta_coefficients — the FIRST
+        # registered CONSUMER of the UnaryTheta carrier (a conversationally-
+        # built shadow was a dead end after display). COMPUTE, dispatched
+        # through the EXISTING rc70 1:1 C peer srmech_unary_theta (q_series
+        # routes to it) — no new C symbol; the mirror already ships.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.unary_theta.theta_coefficients",
+            owner="srmech", category="unary_theta",
+            summary="READ a UnaryTheta's exact integer q-expansion — the FIRST "
+                    "registered CONSUMER of the UnaryTheta carrier (#1239 / "
+                    "F1027 / UPSTREAM §85: before rc113 no tool ACCEPTED a "
+                    "UnaryTheta, so a conversationally-built shadow was a dead "
+                    "end after display). Returns [c_0, …, c_n_max] — the exact "
+                    "INTEGER coefficients after factoring out the leading "
+                    "q-power (exactly UnaryTheta.q_series): θ₃ → [1, 2, 0, 0, "
+                    "2, …]; the g₃ order-3 mock-theta shadow → the Zagier "
+                    "coefficients [1, −5, −7, 0, 0, 11, 0, 13, …] (Astérisque "
+                    "326 (2009), Exp. 986, p. 150 — the rc70 anchors, the SSOT "
+                    "citation). The q-SIDE coefficient read dual to the "
+                    "Laplacian-side theta trace (laplacian.heat_trace reads "
+                    "Tr e^{−tL}, the spectral theta; this reads the carrier's "
+                    "own q-series). COMPUTE, C-DISPATCHED through the EXISTING "
+                    "rc70 1:1 peer srmech_unary_theta (byte-identical exact-"
+                    "integer mirror over caller-arena srmech_bigint; a bare C "
+                    "host calls srmech_unary_theta directly) — no new C symbol "
+                    "needed, the mirror already ships. A JSON caller may pass "
+                    "theta='g3' (the named shadow — the MCP coercer builds "
+                    "it); an in-process / result-register caller chains the "
+                    "UnaryTheta returned by unary_theta. Exact bignum ints; "
+                    "no float, no abs() (the χ sign is the Class-K pin-slot), "
+                    "no numpy / math.",
+            parameters=(P("theta", "UnaryTheta", True,
+                          "the unary theta to read — a UnaryTheta chained "
+                          "from unary_theta's return, or the named shadow "
+                          "string 'g3'"),
+                        P("n_max", "int", True,
+                          "the highest q-power to read (inclusive, ≥ 0) — "
+                          "returns n_max+1 coefficients")),
+            returns=R("list[int]",
+                      "[c_0, …, c_n_max] exact integer coefficients after the "
+                      "leading-power factor-out"),
+            smoke_test_hint={"theta": "'g3'", "n_max": "7"},
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc71: the HARMONIC (weak) MAASS form PAIR carrier
+        # (srmech.amsc.harmonic_maass). A harmonic Maass form f of weight k is
+        # determined by the pair (f⁺ holomorphic mock part, g = ξ_k(f) shadow);
+        # the non-holomorphic completion f⁻ is the Eichler integral of the shadow,
+        # recoverable not stored (Bruinier–Funke Prop. 3.2). Closes research item
+        # #9: the harmonic-Maass non-holomorphic completion (the operand-side
+        # "irrepresentable" target) is now a finite exact PAIR. 1:1 C peer
+        # srmech_harmonic_maass (the holomorphic Eulerian f(q) q-series).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.harmonic_maass.harmonic_maass",
+            owner="srmech", category="harmonic_maass",
+            summary="Construct a HARMONIC (weak) MAASS form as the FINITE EXACT "
+                    "PAIR (hol holomorphic mock part, shadow g = ξ_k(f)) it is "
+                    "determined by — closing research item #9 (the harmonic-Maass "
+                    "non-holomorphic completion, the operand-side 'irrepresentable' "
+                    "target, becomes a finite exact PAIR). A harmonic Maass form "
+                    "f of weight k decomposes uniquely f = f⁺ + f⁻ (Bruinier–Funke, "
+                    "arXiv:math/0212286v4, p.9 eqs 3.2a/3.2b); the completion f⁻ is "
+                    "the EICHLER (period) integral of the shadow g = ξ_k(f) "
+                    "(Prop. 3.2 p.10: ξ_k : H_{k,L}→M^!_{2−k}, kernel = holomorphic "
+                    "forms), recoverable NOT stored — storing the shadow IS storing "
+                    "the completion (the honest treatment of a transcendental: no "
+                    "float, never numerically evaluated). The #9 KEYSTONE: "
+                    "Ramanujan's order-3 mock theta f(q) = Σ q^{n²}/∏(1+qʲ)² "
+                    "(Zagier, Astérisque 326 (2009) p.145) has shadow g₃ = "
+                    "Σ_{n≥1}(−12/n)·n·q^{n²/24} (weight 3/2, a rc70 UnaryTheta, "
+                    "p.150), so it is the pair (eulerian_f, g₃), weight 2−3/2 = 1/2 "
+                    "— ONE finite exact carrier. hol is a MockQSeries (a thin "
+                    "q-series carrier: leading q-power + a finite GENERATING RULE — "
+                    "'eulerian_f' for the keystone, or a closed-form 'qpoly') or the "
+                    "string 'eulerian_f'; shadow is the weight-(2−k) UnaryTheta. "
+                    ".weight = 2 − shadow.weight, .xi() returns the shadow (the hol "
+                    "part is in ξ's kernel), .hol_q_series(N) / .shadow_q_series(N) "
+                    "the exact coefficients. A mock part with NO finite rule is an "
+                    "honest OPEN (the carrier's named boundary). 1:1 C peer "
+                    "srmech_harmonic_maass computes the Eulerian f(q) integer "
+                    "q-series over caller-arena srmech_bigint (byte-identical to "
+                    "Python). Exact integers / exact-ℚ + exact-Q weight; no float, "
+                    "no abs() (the Class-K pin-slot carries any sign), no numpy / "
+                    "math.",
+            parameters=(P("hol", "MockQSeries", True,
+                          "the holomorphic mock part f⁺: a MockQSeries (leading "
+                          "q-power + a finite generating rule) or the string "
+                          "'eulerian_f' (Ramanujan's order-3 f(q), the #9 keystone)"),
+                        P("shadow", "UnaryTheta", True,
+                          "the shadow g = ξ_k(f): a weight-(2−k) UnaryTheta (e.g. "
+                          "unary_theta('minus12',1,1,0,24,support='positive') for "
+                          "g₃ at weight 3/2)")),
+            returns=R("HarmonicMaass",
+                      "the pair carrier (.weight = 2 − shadow.weight; .hol / "
+                      ".shadow; .xi() → the shadow; .hol_q_series(N) / "
+                      ".shadow_q_series(N) → exact coefficients)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Foundational cross-domain cascade catalog (v0.4.3rc6).
         # The cascades recurring across every/most domains, promoted so a
         # named cascade is the default and a math-library call the exception.
@@ -2834,32 +5883,44 @@ def _register_primitive_class_tools() -> None:
             returns=R("list[float]",
                       "length-n circular autocorrelation r; r[0] = Σ x² = energy"),
         ),
-        # Quaternion / octonion DFT composites (v0.7.0rc31; #863, F380) — the
-        # native transform for a Klein-4 object. COMPOSITES over qm.octonion
-        # left/right-mult atoms; scientific tier (§22: numpy on call).
+        # Quaternion / octonion DFTs (#863, F380) — the native transform for a
+        # Klein-4 object. quaternion_dft GRADUATED first-class at 0.9.0rc110
+        # (#1234 Item 1b): rc109 qm.quaternion foundation + the whole-transform
+        # C peer srmech_quaternion_dft. octonion_dft remains the composite tier
+        # over qm.octonion. Both numpy-free (rc125 #564).
         ToolEntry(
             name="srmech.amsc.cascade.quaternion_dft", owner="srmech",
             category="cascade",
             summary="QUATERNION discrete Fourier transform (QDFT) — the native "
-                    "transform for a Klein-4 object. A Klein-4 object has TWO Z₂ "
-                    "chirality axes (Klein-4 = Q₈/{±1} ≅ Z₂×Z₂, F380); a COMPLEX "
+                    "transform for a Klein-4 object, GRADUATED first-class "
+                    "(0.9.0rc110; #1234 Item 1b / #863). A Klein-4 object has TWO "
+                    "Z₂ chirality axes (Klein-4 = Q₈/{±1} ≅ Z₂×Z₂, F380); a COMPLEX "
                     "FFT first projects it to ℂ and collapses one axis (the flat "
                     "shadow). The QDFT's ℍ coefficient algebra MATCHES the object's "
-                    "value algebra, so BOTH axes survive. Composite over the "
-                    "qm.octonion left/right-mult atoms (the ℍ non-commutativity is "
-                    "load-bearing → genuine left/right forms; the twiddle "
-                    "exp(μθ)=cos θ+μ·sin θ cannot be factored out as in the complex "
-                    "FFT). X[k]=Σ_n exp(σ·μ·2πkn/N)·x[n]; inverse(forward(x))=x to "
-                    "float round-off, recovering ALL FOUR components. Class M (Clifford/"
-                    "HDC multiply) ∘ C (twiddle ±μ orientation) ∘ N (rational angle "
-                    "kn/N); no new primitive class, no abs(). Scientific tier "
-                    "(UPSTREAM §22): requires numpy on call. Sangwine & Ell (2012), "
-                    "arXiv:1001.4379." + PUBLISH_OPT_IN_NOTE,
+                    "value algebra, so BOTH axes survive. THE CONVENTION (forward "
+                    "σ=−1): left form X[k]=Σ_n exp(σ·μ·2πkn/N)·x[n] (twiddle LEFT); "
+                    "right form X[k]=Σ_n x[n]·exp(σ·μ·2πkn/N) (twiddle RIGHT) — "
+                    "genuinely different transforms (ℍ non-commutative; equal iff "
+                    "the signal lies in ℝ[μ]); inverse = σ=+1 + 1/N, same side; "
+                    "each form round-trips exactly, recovering ALL FOUR components. "
+                    "Parseval: Σ‖X‖²=N·Σ‖x‖². API SPLIT (F1000→F1001): this FULL "
+                    "transform is the SPREAD-SPECTRUM ENCODING/analysis surface; "
+                    "the READ path is the separate lightweight phase_coherent_peak "
+                    "op (later rc). Composes the rc109 qm.quaternion foundation "
+                    "(quaternion_twiddle + 4×4 L_q/R_q); dispatches the whole "
+                    "O(N²) exact-reference transform to the same-rc C peer "
+                    "srmech_quaternion_dft (byte-exact composed fallback; FFT "
+                    "factorisation is future work). Class M ∘ C ∘ N ∘ I; no new "
+                    "primitive class, no abs(); numpy-free. Sangwine & Ell (2012), "
+                    "arXiv:1001.4379 (PDF-verified)." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True,
-                  "N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion with e4..e7=0)"),
+                  "N quaternion samples, each [q0,q1,q2,q3] (or 8-vec octonion "
+                  "with e4..e7=0), or a real (N,4) Mat"),
                 P("form", "str", False, "'left' (W·x) or 'right' (x·W); default 'left'"),
-                P("mu_axis", "str", False, "transform axis μ: 'i'|'j'|'k'|'ijk'; default 'i'"),
+                P("mu_axis", "str", False,
+                  "transform axis μ: 'i'|'j'|'k'|'ijk'|'diagonal' or a unit "
+                  "pure-imaginary 4-vector; default 'i'"),
                 P("inverse", "bool", False, "inverse QDFT (conjugate twiddle + 1/N); default False"),
             ),
             returns=R("list[list[float]]", "N quaternions (4-component lists)"),
@@ -2868,29 +5929,93 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.cascade.octonion_dft", owner="srmech",
             category="cascade",
             summary="OCTONION discrete Fourier transform (ODFT) — the (8:7) rung "
-                    "above the QDFT. Composite over the qm.octonion left/right-mult "
-                    "atoms. Carries the F378 NON-ASSOCIATIVITY as an EXPLICIT declared "
-                    "field: the two-sided ODFT (W_l·x·W_r) is not unique, so "
-                    "`bracketing` ∈ {'left_associated','right_associated'} "
-                    "((W_l·x)·W_r vs W_l·(x·W_r)) MUST be stated — these differ for "
-                    "octonions. The one-sided forms ('left'/'right') round-trip "
-                    "(inverse(forward(x))=x); the two-sided form is forward-only "
-                    "(its inverse is open under non-associativity → raises). Class M "
-                    "(octonion multiply) ∘ C (twiddle orientation) ∘ N (rational "
-                    "angle); no new primitive class, no abs(). Scientific tier "
-                    "(UPSTREAM §22): requires numpy on call. Błaszczyk (2019), "
-                    "arXiv:1905.12631; origin Hahn & Snopek (2011), Bull. Polish "
+                    "above the QDFT, GRADUATED first-class (0.9.0rc111; #1234 "
+                    "Item 1c / #863) over the qm.octonion foundation "
+                    "(octonion_twiddle + 8×8 L_a/R_a atoms) with the "
+                    "whole-transform C peer srmech_octonion_dft (ALL THREE forms; "
+                    "byte-exact composed fallback). 𝕆 is NON-ASSOCIATIVE (F378) → "
+                    "the ODFT is NOT unique until its bracketing is DECLARED — an "
+                    "explicit ATTESTED field (octonion_dft.toml "
+                    "[cascade.bracketing]): per-summand-single-product; inverse = "
+                    "conjugate twiddle on the SAME declared side; two-sided "
+                    "association `bracketing` ∈ {'left_associated' (W_l·x)·W_r, "
+                    "'right_associated' W_l·(x·W_r)} — these DIFFER for distinct "
+                    "axes (load-bearing, tested). ALTERNATIVITY finding (Artin, "
+                    "verified): the one-sided round-trip lives in the 2-generator "
+                    "⟨μ, x⟩ and is EXACT; non-associativity bites only at ≥3 "
+                    "generators. One-sided forms round-trip; two-sided is "
+                    "forward-only (inverse raises). Class M∘C∘N∘I; numpy-free; "
+                    "no abs(). Błaszczyk (2019), arXiv:1905.12631 (PDF re-verified "
+                    "rc111 — its own Eq (2.8) declares 'multiplication … done from "
+                    "left to right'); origin Hahn & Snopek (2011), Bull. Polish "
                     "Acad. Sci. 59(2):167–181." + PUBLISH_OPT_IN_NOTE,
             parameters=(
-                P("x", "sequence", True, "N octonion samples, each 8-component [e0..e7]"),
+                P("x", "sequence", True,
+                  "N octonion samples, each 8-component [e0..e7] (4-component "
+                  "quaternions zero-extended), or a real (N, 8) Mat"),
                 P("form", "str", False, "'left'|'right'|'two_sided'; default 'left'"),
-                P("mu_axis", "str", False, "left/single axis μ: 'i'|'j'|'k'|'ijk'; default 'i'"),
+                P("mu_axis", "str", False,
+                  "left/single axis μ: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' "
+                  "| 'ijk' | 'diagonal', or a unit pure-imaginary 4-/8-vector; "
+                  "default 'i'"),
                 P("bracketing", "str", False,
-                  "two-sided association: 'left_associated'|'right_associated' (F378); default 'left_associated'"),
+                  "the DECLARED two-sided association: 'left_associated'|"
+                  "'right_associated' (F378; the attested field); default "
+                  "'left_associated'"),
                 P("two_sided_right_axis", "str", False, "right twiddle axis μ_r; default 'j'"),
                 P("inverse", "bool", False, "inverse ODFT (one-sided only); default False"),
             ),
             returns=R("list[list[float]]", "N octonions (8-component lists)"),
+        ),
+        # The lightweight matched-filter PEAK READ (v0.9.0rc112; #1234 Item 1d,
+        # the F1000→F1001→F1002 refinement) — the READ counterpart to the full
+        # quaternion_dft / octonion_dft ENCODING transforms above, deliberately
+        # its OWN op (NOT a kwarg on the transforms). c_dispatched C peer.
+        ToolEntry(
+            name="srmech.amsc.cascade.phase_coherent_peak", owner="srmech",
+            category="cascade",
+            summary="The LIGHTWEIGHT matched-filter PEAK READ over a rung/mode "
+                    "ladder — the RBS-LM READ reduction, kept API-DISTINCT from "
+                    "the full quaternion_dft / octonion_dft ENCODING transforms "
+                    "(0.9.0rc112; #1234 Item 1d, the F1000→F1001→F1002 "
+                    "refinement). THE READ-vs-ENCODE SPLIT: the full transforms "
+                    "(rc110/rc111) are the spread-spectrum ENCODING surface (the "
+                    "whole length-N spectrum); for the RBS-LM single-rung fold "
+                    "F1001 measured the full complex QDFT WORSE than the peak — "
+                    "the target's cross-rung response is a SPIKE, so the PEAK "
+                    "(max phase-coherent energy over the rung ladder) IS the "
+                    "matched filter (rejects off-rung noise), while the full "
+                    "transform coherently combines ALL rungs incl. the off-rung "
+                    "noise (a spike's spectrum is flat → coherent combination "
+                    "gains nothing, forfeits the max's noise-rejection). F1002 "
+                    "settled it read-independently (elliptic −z⁻¹ is circulant/"
+                    "GENERATIVE but recall-equivalent to independent keys — the "
+                    "transform's value is encoding, not read-amplification). So "
+                    "the read wants ONLY this peak reduction; there is NO twiddle "
+                    "here — its absence IS what distinguishes the read from the "
+                    "transform. COMPUTATION: per-rung phase-coherent energy E_r = "
+                    "Σ_i ladder[r][i]² (keys=None, identity filter = the F1001 "
+                    "read) or (Σ_i keys[r][i]·ladder[r][i])² (explicit per-rung "
+                    "template); peak = argmax_r E_r (ties→lowest index). Class K "
+                    "(squared-magnitude energy + argmax magnitude comparison; no "
+                    "abs(), no libm); numpy-free; same-rc byte-exact C peer "
+                    "srmech_phase_coherent_peak. The findings F999–F1002 are the "
+                    "in-repo SSOT (no external citation)." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("ladder", "sequence", True,
+                  "n_rungs per-rung samples along the rung/mode axis (each a "
+                  "real scalar, complex scalar, or a quaternion/octonion/Klein-4 "
+                  "component vector — all the same dimension d), or a real "
+                  "(n_rungs, d) Mat"),
+                P("keys", "sequence", False,
+                  "optional matched-filter template — the expected per-rung "
+                  "phase pattern, one per rung (same shape as ladder); default "
+                  "None = the identity filter (the ladder IS the per-rung "
+                  "matched-filter output, the F1001 read)"),
+            ),
+            returns=R("dict",
+                      "{rung_index: peak rung, score: its phase-coherent energy "
+                      "(squared magnitude), scores: every rung's energy}"),
         ),
         # Bidirectional (σ,θ,μ) hypercomplex coupler (v0.7.2rc1; #908, F436/F437).
         # Registered under its STABLE FLAT public name
@@ -3086,6 +6211,59 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("tuple", "(index, sign) with index in [0, dim), sign in {+1,-1}"),
         ),
+        # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
+        # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
+        # analog of the srmech.amsc.carrier_ladder variable ladder. Pure
+        # carrier restructuring (zero-pad up / trivial-check + drop down; no
+        # numerical kernel) → non_compute.
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_promote", owner="srmech",
+            category="cascade",
+            summary="Promote a Cayley–Dickson element UP one-or-more rungs "
+                    "ℝ↪ℂ↪ℍ↪𝕆↪𝕊 by the trivial SUBALGEBRA EMBEDDING (#1248 / "
+                    "F1038): zero-pad the higher imaginary half, x ↦ (x, 0). "
+                    "dim is the target power-of-two dimension (≥ the element's "
+                    "dim). TOTAL (a no-op when dim == the element's dim). This "
+                    "is the SAME embedding the qm.octonion/quaternion "
+                    "restriction tests exercise (a quaternion q₄ sits in 𝕆 as "
+                    "q₄⊕0₄ under the shared cd_basis_product cocycle — ℍ is the "
+                    "top-4 of 𝕆). The inverse of cd_project: "
+                    "cd_project(cd_promote(x, 2·dim))==x EXACT. Pure carrier "
+                    "restructuring → non_compute. Exact-rational; no float; no "
+                    "abs()." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True, "a power-of-two-length element"),
+                P("dim", "int", True,
+                  "target power-of-two dimension (≥ the element's dim, ≤ 64)"),
+            ),
+            returns=R("tuple",
+                      "the element zero-padded up to dim, a tuple of exact "
+                      "Fractions"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_project", owner="srmech",
+            category="cascade",
+            summary="Project a Cayley–Dickson element DOWN one doubling "
+                    "(dim → dim/2) by REALIFYING IFF the higher "
+                    "(imaginary-doubling) half all vanish (#1248 / F1038) — the "
+                    "inverse of cd_promote. If the top half is zero, returns the "
+                    "bottom half (a complex (a,0) IS the real a); if a higher "
+                    "component is genuinely present, raises a coherency error "
+                    "NAMING that component (never a silent truncation — the "
+                    "rc104 lesson). A real (dim 1) element has no higher half → "
+                    "error. cd_project(cd_promote(x, 2·d))==x EXACT. Pure "
+                    "carrier restructuring → non_compute. Exact-rational (the "
+                    "vanishing test is a Fraction!=0 Class-K comparison); no "
+                    "float; no abs()." + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "a power-of-two-length element (dim ≥ 2)"),
+            ),
+            returns=R("tuple",
+                      "the bottom half (the realified element), a tuple of "
+                      "exact Fractions; raises a NAMING coherency error if the "
+                      "higher half is non-zero"),
+        ),
         ToolEntry(
             name="srmech.amsc.cascade.sedenion_zero_divisor_witness", owner="srmech",
             category="cascade",
@@ -3260,6 +6438,52 @@ def _register_primitive_class_tools() -> None:
                 P("terms", "int", False, "Class-N Taylor depth for cos/sin; default 24"),
             ),
             returns=R("One", "structured generator: three Blocks tiling 1+3+7+3 = 14"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc215 (the #741 divmod audit, finding F-2) — the 2π seam-fold
+        # DIVMOD as a first-class public op: the exact fold existed
+        # natively (srmech_winding_fold, rc207/gh#1276) and pure (the
+        # laplacian _eph_seam_fold) but was reachable only through
+        # propagate_wound; an external consumer with an accumulated
+        # angle had to hand-roll a float `theta % 2π` — BOTH the
+        # grading-collapse the audit hunts AND a precision hazard.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.cascade.winding_fold", owner="srmech",
+            category="cascade",
+            summary="The 2π seam-fold as the DIVMOD it is: theta → (w, "
+                    "theta_res) with theta = 2π·w + theta_res, the quotient "
+                    "KEPT (the #741 mod-should-be-divmod audit, finding F-2). "
+                    "w = round(theta/2π) (round-half-toward-+∞) is the "
+                    "METACYCLE winding — the whole 2π turns a bare float "
+                    "`theta % (2*pi)` throws away (the grading-collapse the "
+                    "audit hunts, and a precision hazard vs the exact fold); "
+                    "theta_res is the EPICYCLE residue (|theta_res| ≤ π). The "
+                    "op an external consumer folds an accumulated angle with "
+                    "(a Kuramoto phase, an Im(z)·λ from its own solve) — the "
+                    "SAME fold propagate/propagate_wound run at the seam (no "
+                    "forked 2π constant), exposed first-class. The winding "
+                    "feeds the One's metacycle dial directly (the_one(σ, "
+                    "θ_num, θ_den, w=(w,0,0)) → sigma_effective / spinor_sign "
+                    "/ unwrapped_phase). Cascade: Class-I divmod (quotient "
+                    "retained) over the exact Class-N 2π (Machin-2π rational "
+                    "pure / Q61 2/π native); residue sign Class K/C, never "
+                    "abs(). Dispatches to the native srmech_winding_fold "
+                    "(rc207) inside its |theta| < 2^55 domain; the pure "
+                    "exact-rational Machin-2π divmod is the COMPLETE "
+                    "alternative at any finite float. Native == pure: w "
+                    "exact-integer equal; theta_res to the fold grids' "
+                    "common resolution. Complex input rejected (real-axis "
+                    "fold); non-finite rejected (finite-angle domain).",
+            parameters=(
+                P("theta", "float", True,
+                  "the accumulated angle in radians — any finite real"),
+            ),
+            returns=R("tuple", "(w, theta_res) — w the whole-ℤ metacycle "
+                               "winding (int), theta_res the folded epicycle "
+                               "residue (float, |theta_res| ≤ π); 2π·w + "
+                               "theta_res reconstructs theta on the fold "
+                               "grid"),
         ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
@@ -4231,6 +7455,218 @@ def _register_qm_tools() -> None:
                     "Class K∘C. Baez (2002) §2.1.",
             parameters=(P("x", "HV", True, "8-vector"),),
             returns=R("float", "≥ 0; Class K+C, never abs()"),
+        ),
+        # The rc111 ODFT twiddle family (#1234 Item 1c, re-raise of #863) —
+        # the dim-8 mirror of the rc109 qm.quaternion foundation. Same-rc C
+        # peers srmech_octonion_{exp,twiddle}.
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_exp", owner="srmech",
+            category="qm.octonion",
+            summary="The octonion Euler formula exp(μθ) = cos θ·1 + sin θ·μ̂ "
+                    "for a UNIT pure imaginary μ̂ (μ̂²=−1) — the ODFT twiddle at "
+                    "the float64 boundary (the dim-8 quaternion_exp mirror). "
+                    "Lives in the commutative ℝ[μ̂] ≅ ℂ; by Artin's theorem the "
+                    "2-generator ⟨μ̂, x⟩ associates, so the one-sided ODFT "
+                    "round-trip is exact despite 𝕆 non-associativity. "
+                    "‖exp(μθ)‖=1; exp(μθ₁)exp(μθ₂)=exp(μ(θ₁+θ₂)); "
+                    "exp(μ2π/N)^N=1. Trig = the Q61 Class-N cascade projected "
+                    "once (no libm, no math.pi); exact tiers: "
+                    "octonion_exp_series_truncate (rational) / "
+                    "cascade.hypercomplex_exp k_axes=7 (Q61). Class N∘C∘M. "
+                    "Same-rc C peer srmech_octonion_exp (byte-exact).",
+            parameters=(
+                P("theta", "float", True, "rotation angle θ (radians), finite"),
+                P("mu", "str", False,
+                  "axis μ̂: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' | 'ijk' "
+                  "| 'diagonal' (named, exact) or a pure-imaginary 4-/8-vector "
+                  "(normalised via the Class-N sqrt cascade); default 'i'"),
+            ),
+            returns=R("list[float]",
+                      "unit octonion [cos θ, sin θ·μ̂₁, …, sin θ·μ̂₇]"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_exp_series_truncate",
+            owner="srmech", category="qm.octonion",
+            summary="EXACT-rational exp(e_axis·θ) for a RATIONAL angle θ=p/q — "
+                    "the series-truncate tier of the ODFT twiddle (the dim-8 "
+                    "quaternion_exp_series_truncate mirror). Composes the "
+                    "Class-N calculus series cos/sin_series_truncate (exact "
+                    "bignum (num,den) pairs) with an exactly-representable "
+                    "basis axis e_axis (axis ∈ {1..7}). π is NOT rational: a "
+                    "2πjk/N angle enters only as a caller-chosen rational "
+                    "approximant (e.g. best_rational over the π cascade); the "
+                    "float64 projection is octonion_twiddle. Class N "
+                    "(bignum_reference oracle of the Q61/float paths).",
+            parameters=(
+                P("theta_num", "int", True, "angle numerator p (radians p/q)"),
+                P("theta_den", "int", True, "angle denominator q (nonzero)"),
+                P("num_terms", "int", True, "Taylor terms N"),
+                P("axis", "int", False, "basis axis e_axis, 1..7; default 1"),
+            ),
+            returns=R("tuple",
+                      "8 exact (num, den) pairs: cos at slot 0, sin at slot "
+                      "axis, (0,1) elsewhere"),
+        ),
+        ToolEntry(
+            name="srmech.qm.octonion.octonion_twiddle", owner="srmech",
+            category="qm.octonion",
+            summary="The ODFT twiddle factor exp(σ·μ·2πjk/N) — the DFT-facing "
+                    "octonion_exp (the dim-8 quaternion_twiddle mirror). The "
+                    "index product is reduced in Z_N FIRST (Class I, exact), "
+                    "then π enters ONCE as the Class-N 4·atan(1) cascade at the "
+                    "float64 boundary (never math.pi). σ=−1 (default) = forward "
+                    "DFT (matches cascade.octonion_dft); σ=+1 = inverse. "
+                    "Twiddle closure: exp(μ2π/N)^N = 1. Class I∘N∘C∘M. Same-rc "
+                    "C peer srmech_octonion_twiddle (byte-exact).",
+            parameters=(
+                P("j", "int", True, "frequency index (non-negative)"),
+                P("k", "int", True, "sample index (non-negative)"),
+                P("n_points", "int", True, "DFT length N, 1 ≤ N < 2³²"),
+                P("mu", "str", False,
+                  "axis μ̂: 'i'|'j'|'k' (= 'e1'|'e2'|'e3') | 'e4'..'e7' | 'ijk' "
+                  "| 'diagonal', or a pure-imaginary 4-/8-vector; default 'i'"),
+                P("sigma", "int", False, "−1 forward (default) | +1 inverse"),
+            ),
+            returns=R("list[float]", "the unit-octonion twiddle (8 components)"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.quaternion — the QDFT/ODFT foundation (0.9.0rc109;
+        # #1234 Item 1a, re-raise of #863 BX-5/6/7; F380 / the R21 proof:
+        # Q₈/{±1} ≅ Z₂×Z₂ = Klein-4, so ℍ is a Klein-4 object's native
+        # coefficient algebra). ℍ = the dim-4 rung of the SAME Cayley-
+        # Dickson ladder as qm.octonion (the table IS the octonion table
+        # restricted to e0..e3 — tested). Same-rc C peers
+        # srmech_quaternion_{left_mult,right_mult,exp,twiddle}.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_mult_table", owner="srmech",
+            category="qm.quaternion",
+            summary="The (4,4,4) int8 structure-constant tensor C of ℍ with "
+                    "e_i·e_j = Σ_k C[i,j,k] e_k (the SAME fixed Cayley-Dickson "
+                    "convention as qm.octonion, restricted to e0..e3; the "
+                    "signed units close into Q₈ and Q₈/{±1} is the Klein-4 XOR "
+                    "table — F380/R21). Class A. Baez (2002) §1.",
+            parameters=(),
+            returns=R("list[list[list[int]]]", "(4,4,4) int8 structure constants"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_table_attestation",
+            owner="srmech", category="qm.quaternion",
+            summary="MPR v1 self-attestation dict for the ℍ structure-constant "
+                    "table; response_sha256 content-addresses the 64 int8 table "
+                    "bytes via sha256_bytes (Class A). Baez (2002), "
+                    "arXiv:math/0105155 §1.",
+            parameters=(),
+            returns=R("dict", "MPR v1 attestation block"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_left_mult", owner="srmech",
+            category="qm.quaternion",
+            summary="Left-multiplication matrix L_q (x → q·x) as 4×4 real; "
+                    "L_{e_i} (i≥1) is antisymmetric; L(pq)=L(p)L(q) and "
+                    "L(p)R(q)=R(q)L(p) (the ℍ associativity witness). The "
+                    "basis-column sign structure IS the Klein-4 bridge (row "
+                    "index = i⊕j; Q₈/{±1}, F380). Class M (binding). Same-rc "
+                    "C peer srmech_quaternion_left_mult.",
+            parameters=(P("q", "HV", True, "4-vector quaternion"),),
+            returns=R("Mat", "4×4 L_q"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_right_mult", owner="srmech",
+            category="qm.quaternion",
+            summary="Right-multiplication matrix R_q (x → x·q) as 4×4 real; "
+                    "the ANTI-homomorphism R(pq)=R(q)R(p) (ℍ non-commutative "
+                    "⟹ L_q ≠ R_q — the genuinely distinct left/right QDFT "
+                    "forms stand on this). Class M (binding). Same-rc C peer "
+                    "srmech_quaternion_right_mult.",
+            parameters=(P("q", "HV", True, "4-vector quaternion"),),
+            returns=R("Mat", "4×4 R_q"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_conjugate", owner="srmech",
+            category="qm.quaternion",
+            summary="Quaternion conjugate conj(x) = (x_0, -x_1, -x_2, -x_3); "
+                    "for a unit twiddle it is the inverse (conj(exp(μθ)) = "
+                    "exp(−μθ) — the inverse-QDFT twiddle). Class C "
+                    "(orientation).",
+            parameters=(P("x", "HV", True, "4-vector"),),
+            returns=R("list[float]", "4-vector"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_norm", owner="srmech",
+            category="qm.quaternion",
+            summary="Quaternion norm √(Σ x_i²) via the scalar Class K pin-slot "
+                    "magnitude (cascade.magnitude) then sqrt — never abs(). "
+                    "Class K∘C.",
+            parameters=(P("x", "HV", True, "4-vector"),),
+            returns=R("float", "≥ 0; Class K+C, never abs()"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_exp", owner="srmech",
+            category="qm.quaternion",
+            summary="The quaternion Euler formula exp(μθ) = cos θ·1 + sin θ·μ̂ "
+                    "for a UNIT pure imaginary μ̂ (μ̂²=−1) — the QDFT twiddle at "
+                    "the float64 boundary. Lives in the commutative ℝ[μ̂] ≅ ℂ "
+                    "(why the one-sided QDFT inverts); ‖exp(μθ)‖=1; "
+                    "exp(μθ₁)exp(μθ₂)=exp(μ(θ₁+θ₂)); exp(μ2π/N)^N=1. Trig = "
+                    "the Q61 Class-N cascade projected once (no libm, no "
+                    "math.pi); exact tiers: quaternion_exp_series_truncate "
+                    "(rational) / cascade.hypercomplex_exp (Q61). Class N∘C∘M. "
+                    "Same-rc C peer srmech_quaternion_exp (byte-exact).",
+            parameters=(
+                P("theta", "float", True, "rotation angle θ (radians), finite"),
+                P("mu", "str", False,
+                  "axis μ̂: 'i'|'j'|'k'|'ijk' (named, exact) or a pure-imaginary "
+                  "4-vector (normalised via the Class-N sqrt cascade); default 'i'"),
+            ),
+            returns=R("list[float]",
+                      "unit quaternion [cos θ, sin θ·μ̂₁, sin θ·μ̂₂, sin θ·μ̂₃]"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_exp_series_truncate",
+            owner="srmech", category="qm.quaternion",
+            summary="EXACT-rational exp(e_axis·θ) for a RATIONAL angle θ=p/q — "
+                    "the series-truncate tier of the twiddle (the exactness "
+                    "convention's exact form). Composes the Class-N calculus "
+                    "series cos/sin_series_truncate (exact bignum (num,den) "
+                    "pairs) with an exactly-representable basis axis e_axis "
+                    "(axis ∈ {1,2,3} = i/j/k). π is NOT rational: a 2πjk/N "
+                    "angle enters only as a caller-chosen rational approximant "
+                    "(e.g. best_rational over the π cascade); the float64 "
+                    "projection is quaternion_twiddle. Class N "
+                    "(bignum_reference oracle of the Q61/float paths).",
+            parameters=(
+                P("theta_num", "int", True, "angle numerator p (radians p/q)"),
+                P("theta_den", "int", True, "angle denominator q (nonzero)"),
+                P("num_terms", "int", True, "Taylor terms N"),
+                P("axis", "int", False, "basis axis: 1 (i) | 2 (j) | 3 (k); default 1"),
+            ),
+            returns=R("tuple",
+                      "4 exact (num, den) pairs: cos at slot 0, sin at slot "
+                      "axis, (0,1) elsewhere"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_twiddle", owner="srmech",
+            category="qm.quaternion",
+            summary="The QDFT twiddle factor exp(σ·μ·2πjk/N) — the DFT-facing "
+                    "quaternion_exp. The index product is reduced in Z_N FIRST "
+                    "(Class I, exact), then π enters ONCE as the Class-N "
+                    "4·atan(1) cascade at the float64 boundary (never math.pi). "
+                    "σ=−1 (default) = forward DFT (matches cascade."
+                    "quaternion_dft); σ=+1 = inverse. Twiddle closure: "
+                    "exp(μ2π/N)^N = 1. Class I∘N∘C∘M. Same-rc C peer "
+                    "srmech_quaternion_twiddle (byte-exact).",
+            parameters=(
+                P("j", "int", True, "frequency index (non-negative)"),
+                P("k", "int", True, "sample index (non-negative)"),
+                P("n_points", "int", True, "DFT length N, 1 ≤ N < 2³²"),
+                P("mu", "str", False,
+                  "axis μ̂: 'i'|'j'|'k'|'ijk' or a pure-imaginary 4-vector; "
+                  "default 'i'"),
+                P("sigma", "int", False, "−1 forward (default) | +1 inverse"),
+            ),
+            returns=R("list[float]", "the unit-quaternion twiddle (4 components)"),
         ),
 
         # ────────────────────────────────────────────────────────────

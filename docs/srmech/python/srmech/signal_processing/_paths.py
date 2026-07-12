@@ -114,12 +114,12 @@ VALID_PATHS: Final[Tuple[str, ...]] = (PATH_A, PATH_B, PATH_VERIFY)
 DISPATCH_TABLE_LOCK_POLICY: Final[str] = "lock-at-release"
 """Lock policy for the learned dispatch table.
 
-Per conductor decision #7 (2026-05-19): the Phase 8 learned dispatch
+Per conductor decision #7 (2026-05-19): the learned dispatch
 table is locked at each release tag (v0.4.2rc{N} and v0.4.2 ship a
 specific ``_learned_dispatch_table.ndjson``). Users wanting different
-thresholds set the override flag or rerun ``update_dispatch_table()``
-on their own machine (local override; doesn't pollute package's locked
-table). Choice prioritises reproducibility over per-environment tuning.
+thresholds set the override flag or regenerate the table on their own
+machine (local override; doesn't pollute package's locked table).
+Choice prioritises reproducibility over per-environment tuning.
 """
 
 

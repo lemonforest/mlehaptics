@@ -111,6 +111,10 @@ from srmech.amsc.rational import sin as _rsin  # Class-N sin cascade, not libm
 from srmech.amsc.rational import log as _rlog  # Class-N log cascade, not libm
 from srmech.amsc.rational import atan2 as _ratan2  # Class-N atan2 cascade, not libm
 from srmech.amsc.rational import complex_exp as _rcomplex_exp  # Class-N e^z, not libm
+from srmech.amsc.rational import exp_series_truncate as _exp_series  # rc136 EPH: Class-N exp
+from srmech.amsc.rational import cos_series_truncate as _cos_series  # rc136 EPH: Class-N cos
+from srmech.amsc.rational import sin_series_truncate as _sin_series  # rc136 EPH: Class-N sin
+from srmech.amsc.rational import atan_series_truncate as _atan_series  # rc136 EPH: Machin-2π
 
 
 # 0.9.0rc7 (stay-rational, F868): ``rational.sqrt`` / ``rational.hypot`` now
@@ -174,6 +178,9 @@ __all__ = [
     "dense_adjacency",
     "dense_laplacian",
     "normalized_laplacian",
+    "klein4_gain_laplacian",
+    "klein4_relational_structure",
+    "cycle_holonomy",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -200,10 +207,19 @@ __all__ = [
     "elementwise_transcendental",
     "elementwise_hypot",
     "elementwise_sqrt",
+    "heat_trace",
+    "ground_state_flux_response",
+    "propagate",
+    "eph_harvest",
+    "propagate_sparse",
+    "propagate_wound",
+    "responsion",
     "LAPLACIAN_OPS",
     "MAX_NATIVE_NODES",
     "MAX_NATIVE_HERMITIAN_NODES",
     "three_fold_eigvec_groups",
+    "spectral_spine",
+    "relational_structure",
 ]
 
 MAX_NATIVE_NODES: int = 256
@@ -233,6 +249,15 @@ def three_fold_eigvec_groups(L) -> dict:
     ``(n, k)`` real :class:`~srmech.amsc.mat.Mat` of the eigenvector COLUMNS in
     that band (rc129; ``.shape`` + ``m[i, j]``, NOT a bare nested list); the
     chirality-aware companion to :func:`symmetric_eigendecompose`.
+
+    rc154 (BATCH B10, ``composition_of_c``): the op COMPOSES the
+    ``composition_of_c`` :func:`symmetric_eigendecompose` (which dispatches to the
+    C-backed Hermitian eigendecomposition) for the spectrum + the c_dispatched
+    ``srmech_three_fold_bands`` for the integer band split; the column-slice into
+    three ``Mat`` bands is exact integer glue. Parity is **eig-INVARIANT** (the
+    Jacobi eigenbasis is non-unique): native == pure agree on the band SIZES
+    (exact) and the per-band SPAN, not element-wise — the rc146 so7 / rc152
+    ``casimir_eigenvalue`` invariant precedent. No new C symbol.
     """
     _eigvals, V = symmetric_eigendecompose(L)  # V real Mat, columns = eigenvectors
     n_rows = V.n_rows
@@ -1303,37 +1328,6 @@ def _mat_from_interleaved_cbuf(cbuf, n_rows: int, n_cols: int, *, want_complex: 
     return Mat(array("d", (cbuf[2 * i] for i in range(n))), n_rows, n_cols)
 
 
-def _vec_to_interleaved_cbuf(v: "Vec", n_elems: int):
-    """The 1-D twin of :func:`_mat_to_interleaved_cbuf`: a
-    ``(c_double * 2*n_elems)`` ctypes buffer of ``v``'s elements as interleaved
-    ``(re, im)`` doubles — numpy-free. A `Vec` IS something in C — a contiguous
-    ``double _Complex`` buffer — so this marshals it to the native layer exactly
-    like a `Mat`.
-
-    When ``v`` is complex its ``array('d')`` buffer IS already the interleaved
-    ``(re, im)`` layout, so this is a **zero-copy** ``from_buffer`` view (the C
-    kernel reads it ``const``). When ``v`` is real the buffer is one double per
-    element, so a fresh interleaved buffer is filled ``(re, 0.0)`` once."""
-    buf = v.buffer  # array('d')
-    if v.is_complex:
-        return (ctypes.c_double * (2 * n_elems)).from_buffer(buf)  # zero-copy
-    cbuf = (ctypes.c_double * (2 * n_elems))()
-    for idx in range(n_elems):
-        cbuf[2 * idx] = buf[idx]  # imag slot stays 0.0
-    return cbuf
-
-
-def _vec_from_interleaved_cbuf(cbuf, n: int, *, want_complex: bool):
-    """The 1-D twin of :func:`_mat_from_interleaved_cbuf`: wrap an interleaved
-    ``(re, im)`` ctypes buffer back into a ``Vec`` (numpy-free). ``want_complex``
-    keeps the interleaved layout; otherwise the real parts (every even slot)
-    form a real ``Vec``."""
-    from .vec import Vec  # numpy-free carrier; local import keeps load-order clean
-    if want_complex:
-        return Vec(array("d", cbuf), n, is_complex=True)
-    return Vec(array("d", (cbuf[2 * i] for i in range(n))), n)
-
-
 def mat_matmul(a: "Mat", b: "Mat") -> "Mat":
     """Numpy-free dense matrix multiply ``A·B`` over the
     :class:`~srmech.amsc.mat.Mat` carrier — the 2-D ``@`` replacement for the
@@ -1843,6 +1837,73 @@ def _qr_complex_list(
     return Q, R
 
 
+def _balance_radix2(H: List[List[complex]]) -> List[List[complex]]:
+    """Parlett–Reinsch balancing of a square ``complex`` matrix ``H`` in place,
+    using **RADIX-2** scaling so the diagonal similarity ``D⁻¹·H·D`` is **EXACT**.
+
+    Each index ``i`` is scaled by a power of two ``f = 2^k`` — row ``i`` divided by
+    ``f`` and column ``i`` multiplied by ``f`` (the similarity ``D⁻¹HD`` with
+    ``D = diag(2^{k_i})``). Because ``f`` is a power of two, every multiply/divide
+    is an EXACT binary shift of the mantissa (no floating rounding), so the
+    eigenvalue multiset is **invariant** — unchanged for well-scaled input, more
+    accurate for badly-scaled input (the QR sweep no longer amplifies a lopsided
+    row-norm/col-norm split). The iteration equalises each index's row-norm ``r``
+    against its column-norm ``c`` by the standard Parlett–Reinsch test, accepting a
+    step only when it REDUCES ``r + c``; sweeps repeat until no index changes.
+
+    The norms use the Class-K :func:`_modulus_c` magnitude (no bare ``abs()`` per
+    the cascade-honesty rule). This is a pure pre-conditioning step on ``H`` — the
+    exceptional-shift QR that follows is unchanged.
+
+    Canonical SSoT: Parlett & Reinsch, "Balancing a matrix for calculation of
+    eigenvalues and eigenvectors", *Numer. Math.* **13** (1969) 293–304; Golub &
+    Van Loan, *Matrix Computations* (4th ed., 2013) §7.5.1.
+    """
+    n = len(H)
+    radix = 2.0
+    radix2 = radix * radix                            # β² (exact: 4.0)
+    converged = False
+    while not converged:
+        converged = True
+        for i in range(n):
+            r = 0.0                                    # row-norm  Σ_{j≠i} |H[i][j]|
+            c = 0.0                                    # col-norm  Σ_{j≠i} |H[j][i]|
+            for j in range(n):
+                if j == i:
+                    continue
+                r += _modulus_c(H[i][j])               # Class-K magnitude (no abs())
+                c += _modulus_c(H[j][i])               # Class-K magnitude (no abs())
+            if c == 0.0 or r == 0.0:
+                continue                               # an isolated index — skip
+            # The EISPACK ``balanc`` (Parlett–Reinsch) inner test, radix-2: choose
+            # the power of two ``f`` that drives the SCALED col-norm ``c`` toward the
+            # row-norm ``r`` — bring c UP while it is below ``r/β`` (each step c·β²,
+            # f·β), then DOWN while it is at/above ``r·β`` (each step c/β², f/β).
+            f = 1.0                                    # the radix-2 scale 2^k
+            s = c + r                                  # the quantity to reduce
+            g = r / radix
+            while c < g:
+                f *= radix
+                c *= radix2
+            g = r * radix
+            while c >= g:
+                f /= radix
+                c /= radix2
+            # Accept only if the SCALED sum (c + r)/f genuinely drops below 0.95·s.
+            # Dividing by f is what makes ``s`` strictly DECREASE on every accepted
+            # step (the row-norm becomes r/f, the col-norm becomes c·f → their sum
+            # is (c·f + r/f); NR tracks the post-scale col-norm in ``c`` already, so
+            # the comparison quantity is (c + r)/f). This monotone decrease is the
+            # Parlett–Reinsch termination guarantee — without the ``/f`` the sweeps
+            # can OSCILLATE and never converge.
+            if (c + r) < 0.95 * s * f and f != 1.0:
+                converged = False                      # a change → another sweep
+                for j in range(n):                     # row i ÷ f, col i × f (exact)
+                    H[i][j] = H[i][j] / f
+                    H[j][i] = H[j][i] * f
+    return H
+
+
 def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     """Eigenvalue MULTISET of a general (non-Hermitian) square matrix over the
     :class:`~srmech.amsc.mat.Mat` carrier — foundation op #4 of the numpy-CARRIER
@@ -1863,8 +1924,19 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     For a Hermitian ``A`` prefer :func:`mat_hermitian_eigendecompose` (exact
     Jacobi — pure Class L). Raises ``ValueError`` on a non-square ``A``.
 
+    * **Balancing (Parlett–Reinsch, radix-2).** Before the QR sweep ``H`` is
+      pre-conditioned by :func:`_balance_radix2` — an EXACT diagonal similarity
+      ``D⁻¹·H·D`` with ``D`` a diagonal of powers of two, chosen to equalise each
+      index's row-norm against its column-norm. Powers of two make every scale a
+      binary shift of the mantissa (no floating rounding), so the eigenvalue
+      multiset is **invariant**: unchanged for well-scaled input, MORE ACCURATE
+      for badly-scaled input (a lopsided row/col-norm split otherwise loses digits
+      in the QR iteration). The shifted-QR step below is unchanged.
+
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
-    Hopkins, 2013) §7.5 (the practical QR algorithm with Wilkinson shifts).
+    Hopkins, 2013) §7.5 (the practical QR algorithm with Wilkinson shifts) +
+    §7.5.1 (balancing); Parlett & Reinsch, "Balancing a matrix for calculation of
+    eigenvalues and eigenvectors", *Numer. Math.* **13** (1969) 293–304.
     """
     from .mat import Mat
     assert isinstance(a, Mat), (
@@ -1878,6 +1950,12 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     H = [[complex(a[i, j]) for j in range(n)] for i in range(n)]
     if n == 1:
         return [H[0][0]]
+    # Parlett–Reinsch RADIX-2 balancing pre-step: an EXACT diagonal similarity
+    # D⁻¹·H·D (powers of two only → no floating rounding) that equalises each
+    # index's row-norm against its column-norm. Eigenvalues are invariant under a
+    # similarity, so the multiset is UNCHANGED for well-scaled input and MORE
+    # ACCURATE for badly-scaled input. (Parlett & Reinsch 1969; G&VL §7.5.1.)
+    H = _balance_radix2(H)
     eigs: List[complex] = []
     m = n
     sweeps = 0
@@ -1995,15 +2073,33 @@ def mat_svd(a: "Mat") -> Tuple["Mat", List[float], "Mat"]:
     if m == 0 or n == 0:
         raise ValueError(f"mat_svd: A must be a non-empty 2-D matrix; got {a.shape}")
 
-    # Right singular vectors = eigenvectors of the Hermitian PSD Gram AᴴA (n×n).
-    ah = a.conj().T                                   # Aᴴ (n, m) — Class-K conj ∘ T
-    aha = mat_matmul(ah, a)                           # (n, n) Hermitian PSD
-    evals, V = mat_hermitian_eigendecompose(aha)      # λ (n,1) ascending; V (n,n) unitary
-    lam = [float(evals[i, 0]) for i in range(n)]
-    order = sorted(range(n), key=lambda i: lam[i], reverse=True)   # descending λ → σ
-    # V columns reordered descending; vcols[j] is the j-th right singular vector.
-    vcols = [[V[i, order[j]] for i in range(n)] for j in range(n)]
-    sigma = [_fsqrt(lam[order[j]] if lam[order[j]] > 0.0 else 0.0) for j in range(n)]
+    # Descending singular values ``sigma`` (len n) + right singular vectors
+    # ``vcols[j]``. rc140 (Foundation F2): a REAL, tall/square (m>=n) input
+    # dispatches to the native one-sided-Jacobi ``srmech_svd_f64`` — a directly-
+    # computed SVD that does NOT square the condition number (contrast the Gram
+    # AᴴA eigen-route below). The native kernel returns a NOT-converged status
+    # on a (rare) sweep-cap miss, in which case ``svd_f64_c`` returns ``None``
+    # and we fall through to the pure Gram route (never a silent wrong answer).
+    sigma = None
+    vcols = None
+    if (not a.is_complex) and m >= n:
+        native = _native.svd_f64_c(
+            [[float(a[i, j]) for j in range(n)] for i in range(m)]
+        )
+        if native is not None:
+            sigma, vcols = native                     # sigma desc (n); vcols[j] (n)
+    if sigma is None:
+        # Gram-eigen route: right singular vectors = eigenvectors of the
+        # Hermitian PSD Gram AᴴA (n×n) — the COMPLETE alternative (complex input,
+        # m<n, no-C host, or a non-converged native sweep).
+        ah = a.conj().T                               # Aᴴ (n, m) — Class-K conj ∘ T
+        aha = mat_matmul(ah, a)                       # (n, n) Hermitian PSD
+        evals, V = mat_hermitian_eigendecompose(aha)  # λ (n,1) asc; V (n,n) unitary
+        lam = [float(evals[i, 0]) for i in range(n)]
+        order = sorted(range(n), key=lambda i: lam[i], reverse=True)  # desc λ → σ
+        vcols = [[V[i, order[j]] for i in range(n)] for j in range(n)]
+        sigma = [_fsqrt(lam[order[j]] if lam[order[j]] > 0.0 else 0.0)
+                 for j in range(n)]
     k = min(m, n)
     S = [sigma[j] for j in range(k)]
 
@@ -2627,12 +2723,151 @@ def signed_laplacian(
     return Mat.from_rows(L, is_complex=False)
 
 
+# rc105 (#1234 Item 3): sentinel distinguishing "q not passed" from every
+# real value, so the q ⊕ charges mutual-exclusion contract can reject ANY
+# explicit q alongside charges while `q` unset stays byte-for-byte the
+# rc28 default (0.25).
+_MAGNETIC_Q_DEFAULT = 0.25
+_MAGNETIC_Q_UNSET = object()
+
+
+def _magnetic_laplacian_scalar_py(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    q: float,
+) -> List[List[complex]]:
+    """The rc28 scalar-q construction (pure Python) — UNCHANGED math.
+
+    ``A_s = (W + Wᵀ)/2``; ``L[r,c] = −A_s[r,c]·exp(i·2π·q·(W[r,c]−W[c,r]))``;
+    diagonal = symmetrised degree. Split out of :func:`magnetic_laplacian`
+    verbatim (rc105) so the native dispatch has a pure twin to parity-test
+    against; every float op and accumulation order is byte-identical to rc104.
+    """
+    W = _directed_adjacency(n, [u for u, _ in el], [v for _, v in el], wl)
+    A_s = [[0.5 * (W[r][c] + W[c][r]) for c in range(n)] for r in range(n)]
+    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via the Class-N atan
+    # cascade (_PI = 4·atan(1); no stdlib math.pi).
+    two_pi_q = 2.0 * _PI * float(q)
+    L = [[0j] * n for _ in range(n)]
+    deg = [0.0] * n
+    for r in range(n):
+        for c in range(n):
+            deg[r] += A_s[r][c]
+            if c == r:
+                continue  # no self-phase; degree carries the diagonal
+            ang = two_pi_q * (W[r][c] - W[c][r])
+            phase = complex(_rcos(ang), _rsin(ang))
+            L[r][c] = -(A_s[r][c] * phase)
+    for r in range(n):
+        L[r][r] = complex(deg[r])
+    return L
+
+
+def _magnetic_laplacian_charges_py(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    cl: List[float],
+) -> List[List[complex]]:
+    """Per-edge CHIRAL construction (pure Python) — rc105, F1006/F1007.
+
+    Each edge ``k = (u, v)`` with weight ``w`` and charge ``c`` (in TURNS,
+    the same unit as the scalar ``q``) accumulates the conjugate Hermitian
+    pair::
+
+        L[u, v] += −(w/2)·exp(+i·2π·c)
+        L[v, u] += −(w/2)·exp(−i·2π·c)
+        deg[u] += w/2;  deg[v] += w/2;   L[r, r] = deg[r]
+
+    Hermitian BY CONSTRUCTION (the two writes are exact conjugates); the
+    ``w/2`` matches the scalar mode's ``(W + Wᵀ)/2`` magnitude scale, and
+    ``(u, v, c)`` is equivalent to ``(v, u, −c)``. A dual-sense pair
+    ``(is-a: weight a, charge +q)`` + ``(is-not-a: weight b, charge −q)``
+    on the same ``(u, v)`` yields the off-diagonal
+    ``−[(a+b)/2·cos(2πq) + i·(a−b)/2·sin(2πq)]`` — the conjugate partners
+    SURVIVE (contrast :func:`signed_laplacian`, where ``+a`` and ``−b``
+    with ``a == b`` sum to zero and the relationship vanishes).
+    """
+    two_pi = 2.0 * _PI
+    L = [[0j] * n for _ in range(n)]
+    deg = [0.0] * n
+    for (u, v), w, ch in zip(el, wl, cl):
+        u = int(u)  # same endpoint coercion as _directed_adjacency /
+        v = int(v)  # the native uint32 marshal (float endpoints accepted)
+        hw = 0.5 * w
+        deg[u] += hw
+        deg[v] += hw
+        if u == v:
+            continue  # no self-phase; degree carries the diagonal
+        ang = two_pi * ch
+        re = float(_rcos(ang))
+        im = float(_rsin(ang))
+        L[u][v] += complex(-(hw * re), -(hw * im))
+        L[v][u] += complex(-(hw * re), hw * im)
+    for r in range(n):
+        L[r][r] = complex(deg[r])
+    return L
+
+
+def _magnetic_laplacian_native(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    q: float,
+    cl: Optional[List[float]],
+) -> Optional[List[List[complex]]]:
+    """numpy-free native dispatch for :func:`magnetic_laplacian` (rc105).
+
+    Marshals the edge endpoints into ``(c_uint32 * n_edges)`` buffers +
+    weights (and per-edge charges, when given) into ``(c_double * n_edges)``
+    buffers and calls the standalone-C ``srmech_graph_magnetic_laplacian``
+    with a caller-allocated ``2*n*n``-double interleaved-complex output (no
+    scratch arena — the C peer stages W in the output's imaginary slots).
+    The C peer runs the SAME Q61 trig cascade the pure path runs, so the
+    result is bit-identical. Returns the nested ``list[list[complex]]``, or
+    ``None`` on any non-OK status / missing symbol (caller then uses the
+    pure-Python cascade)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_graph_magnetic_laplacian")
+    ):
+        return None
+    n_edges = len(el)
+    out = (ctypes.c_double * (2 * n * n))()
+    null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+    null_d = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in el))
+        ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in el))
+        wbuf = (ctypes.c_double * n_edges)(*(float(w) for w in wl))
+    else:
+        eu = ev = null_u
+        wbuf = null_d
+    cbuf = null_d
+    if cl is not None and n_edges:
+        cbuf = (ctypes.c_double * n_edges)(*(float(c) for c in cl))
+    rc = _native.LIB.srmech_graph_magnetic_laplacian(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wbuf,
+        ctypes.c_double(float(q)), cbuf, out,
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [
+        [complex(out[2 * (r * n + c)], out[2 * (r * n + c) + 1])
+         for c in range(n)]
+        for r in range(n)
+    ]
+
+
 def magnetic_laplacian(
     n: int,
     edges: Iterable[Tuple[int, int]],
     weights: Optional[Iterable[float]] = None,
     *,
-    q: float = 0.25,
+    q: float = _MAGNETIC_Q_UNSET,  # type: ignore[assignment]  # sentinel; 0.25 when unset
+    charges: Optional[Iterable[float]] = None,
 ) -> "Mat":
     """Magnetic (Hermitian) Laplacian of a **directed** graph.
 
@@ -2652,39 +2887,1964 @@ def magnetic_laplacian(
     ``q = 0`` collapses to the real symmetrised Laplacian (the F348
     undirected control); ``q = 1/4`` is a quarter-turn per unit
     imbalance. The construction is the magnetic / Hermitian Laplacian
-    for directed graphs (Lieb & Loss, fluxes on graphs); a precise
-    attested citation belongs in the research notebook under the MPM
-    discipline.
+    for directed graphs. Attested SSoT: E. H. Lieb & M. Loss, "Fluxes,
+    Laplacians, and Kasteleyn's Theorem", Duke Math. J. 71 (1993)
+    337–363 (OA preprint arXiv:cond-mat/9209031); the complex-unit-
+    gain-graph spectral framing is N. Reff, "Spectral Properties of
+    Complex Unit Gain Graphs", Linear Algebra Appl. 436 (2012)
+    3165–3176 (arXiv:1110.4554).
 
-    Numpy-free (rc129): the ``2π`` is stdlib ``math.pi`` (not ``np.pi``); the
-    per-element phase ``exp(i·2π·q·Θ)`` is the libm-free Class-N
-    ``cos``/``sin`` cascade. Returns an ``n×n`` Hermitian complex
+    **Per-edge charges (rc105; issue #1234 Item 3 / F1006 / F1007) — the
+    CHIRAL Laplacian for dual-sense knowledge graphs.** ``charges`` is an
+    optional iterable parallel to ``edges`` (validated
+    ``len(charges) == len(edges)``), each entry a per-edge charge in
+    **turns** (the same unit as ``q``). When given, each edge
+    ``k = (u, v, w, c)`` accumulates the conjugate Hermitian pair
+    ``L[u,v] += −(w/2)·e^{+i·2π·c}`` / ``L[v,u] += −(w/2)·e^{−i·2π·c}``
+    (``(u, v, c) ≡ (v, u, −c)``; the ``w/2`` matches the scalar mode's
+    ``(W + Wᵀ)/2`` magnitude scale), and the real diagonal carries the
+    magnitude degree ``Σ w/2``. WHY (F1006/F1007): the real
+    :func:`signed_laplacian` ANNIHILATES a dual-sense edge — "is-a" (+1)
+    and "is-not-a" (−1) sum to 0 and the relationship vanishes — while
+    the two phase senses ``e^{±i·2π·q}`` are conjugate partners that
+    SURVIVE: a dual-sense pair ``(a, +q)`` + ``(b, −q)`` reads
+    ``−[(a+b)/2·cos(2πq) + i·(a−b)/2·sin(2πq)]`` — the symmetric part in
+    the real cosine, the is-a/is-not-a IMBALANCE in the imaginary sine
+    residue (chiral flux, not cancellation).
+
+    **Contract: ``q`` and ``charges`` are mutually exclusive.** Passing
+    ``charges`` moves every edge's phase onto the edge itself, so a scalar
+    ``q`` has no role there — passing BOTH raises ``ValueError`` (silent
+    ignore would hide a modelling error). ``charges=None`` (default) is the
+    scalar-``q`` construction, byte-for-byte the rc28 behaviour
+    (``q`` unset → 0.25).
+
+    Numpy-free (rc129): the ``2π`` is the Class-N ``4·atan(1)`` cascade π
+    (no stdlib ``math.pi``, no ``np.pi``); the per-element phase is the
+    libm-free Class-N ``cos``/``sin`` cascade. Native (rc105): both modes
+    dispatch to the standalone-C ``srmech_graph_magnetic_laplacian`` (the
+    same Q61 trig cascade → bit-identical; pure Python is the complete
+    no-native alternative). Returns an ``n×n`` Hermitian complex
     :class:`~srmech.amsc.mat.Mat` (``.shape`` + ``m[i, j]``, NOT a bare
     ``list[list[complex]]``).
     """
-    if not isinstance(q, (int, float)):
-        raise TypeError(f"q must be a real number; got {type(q).__name__}")
+    if charges is not None:
+        if q is not _MAGNETIC_Q_UNSET:
+            raise ValueError(
+                "q and charges are mutually exclusive: per-edge charges carry "
+                "the phase themselves, so a scalar q has no role — pass one "
+                "or the other"
+            )
+        el, wl = _validate_edges_weights_py(n, edges, weights)
+        cl = [float(c) for c in charges]
+        if len(cl) != len(el):
+            raise ValueError(
+                f"charges length {len(cl)} != n_edges {len(el)}"
+            )
+        rows = _magnetic_laplacian_native(n, el, wl, 0.0, cl)
+        if rows is None:
+            rows = _magnetic_laplacian_charges_py(n, el, wl, cl)
+        return Mat.from_rows(rows, is_complex=True)
+    qv = _MAGNETIC_Q_DEFAULT if q is _MAGNETIC_Q_UNSET else q
+    if not isinstance(qv, (int, float)):
+        raise TypeError(f"q must be a real number; got {type(qv).__name__}")
     el, wl = _validate_edges_weights_py(n, edges, weights)
-    W = _directed_adjacency(n, [u for u, _ in el], [v for _, v in el], wl)
-    A_s = [[0.5 * (W[r][c] + W[c][r]) for c in range(n)] for r in range(n)]
-    # phase[r][c] = exp(i·2π·q·(W[r][c] − W[c][r])); 2π via the Class-N atan
-    # cascade (_PI = 4·atan(1); no stdlib math.pi).
-    two_pi_q = 2.0 * _PI * float(q)
-    L = [[0j] * n for _ in range(n)]
-    deg = [0.0] * n
-    for r in range(n):
-        for c in range(n):
-            deg[r] += A_s[r][c]
-            if c == r:
-                continue  # no self-phase; degree carries the diagonal
-            ang = two_pi_q * (W[r][c] - W[c][r])
-            phase = complex(_rcos(ang), _rsin(ang))
-            L[r][c] = -(A_s[r][c] * phase)
-    for r in range(n):
-        L[r][r] = complex(deg[r])
+    rows = _magnetic_laplacian_native(n, el, wl, float(qv), None)
+    if rows is None:
+        rows = _magnetic_laplacian_scalar_py(n, el, wl, float(qv))
     # Always complex layout (a Hermitian Laplacian is genuinely complex even
     # when q=0 collapses the imaginary part — pin the carrier dtype explicitly).
-    return Mat.from_rows(L, is_complex=True)
+    return Mat.from_rows(rows, is_complex=True)
+
+
+# =====================================================================
+# rc229 (#687) — the fuller asymmetric-halves lattice handle: the V4-gain
+# (Klein-4-sector) Laplacian (EVEN channel) + cycle_holonomy (ODD channel).
+# =====================================================================
+#
+# magnetic_laplacian is a ONE-axis, chirality-EVEN U(1) projection: flipping
+# ALL chirality conjugates the matrix entrywise, and Hermitian spectra are
+# conjugation-invariant, so NO eigenvalue read can carry the which-way sign
+# (F552 "diagnostic, not predictive"). The fuller object has FOUR real
+# character sectors (the EVEN channel, klein4_gain_laplacian) + the cycle
+# holonomies (the ODD channel, cycle_holonomy that the spectrum provably
+# cannot carry). Together they make the relational read complete.
+
+# The four V4 = Z2 x Z2 characters, keyed χ_ab(g0,g1) = (−1)^(a·g0 + b·g1).
+# Sector index k = 2·a + b (matches the C sector-major layout): k=0 → chi00
+# (trivial), 1 → chi01, 2 → chi10, 3 → chi11. The two gain bits are treated
+# SYMMETRICALLY — neither is privileged (the phase-vs-beat semantic binding is
+# a framework decision reserved for the user; the math is bit-symmetric).
+_KLEIN4_SECTORS: Tuple[str, ...] = ("chi00", "chi01", "chi10", "chi11")
+
+
+def _klein4_char_sign(a: int, b: int, g: int) -> int:
+    """χ_ab(g) ∈ {+1, −1}: the parity of (a & g0) ^ (b & g1), g = (g1<<1)|g0.
+    A Class-K sign (pin-slot), never an ALU magnitude."""
+    g0 = g & 1
+    g1 = (g >> 1) & 1
+    return -1 if ((a & g0) ^ (b & g1)) else 1
+
+
+def _normalize_gains_py(gains, n_edges: int) -> List[int]:
+    """Validate a per-edge V4 gain list parallel to the edges: each entry an
+    int in {0,1,2,3} (two sign bits, low..high) or a 2-tuple/2-list ``(g0, g1)``
+    of bits. ``gains=None`` → all identity (0). Raises ``ValueError`` on a bad
+    length or an out-of-range gain."""
+    if gains is None:
+        return [0] * n_edges
+    out: List[int] = []
+    for k, g in enumerate(gains):
+        if isinstance(g, (tuple, list)):
+            if len(g) != 2:
+                raise ValueError(
+                    f"gain {k} = {g!r} must be a 2-tuple (g0, g1) of bits"
+                )
+            g0, g1 = int(g[0]) & 1, int(g[1]) & 1
+            gi = (g1 << 1) | g0
+        else:
+            gi = int(g)
+        if gi < 0 or gi > 3:
+            raise ValueError(
+                f"gain {k} = {g!r} out of range: a V4 gain is an int in "
+                f"{{0,1,2,3}} (two sign bits) or a 2-tuple of bits"
+            )
+        out.append(gi)
+    return out
+
+
+def _klein4_gain_laplacian_native(n, el, wl, gl):
+    """numpy-free native dispatch for :func:`klein4_gain_laplacian` — marshals
+    the edge endpoints (uint32), weights (double) and per-edge gains (uint8)
+    into ctypes buffers and calls ``srmech_graph_klein4_gain_laplacian`` with a
+    caller-allocated ``4*n*n``-double sector-major output. Returns a list of
+    four nested ``list[list[float]]`` sector Laplacians, or ``None`` on a
+    missing symbol / non-OK status (caller runs the pure-Python cascade)."""
+    if not _native.has_native_klein4_gain_laplacian():
+        return None
+    n_edges = len(el)
+    block = n * n
+    out = (ctypes.c_double * (4 * block))()
+    null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+    null_d = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    null_b = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8))
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in el))
+        ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in el))
+        wb = (ctypes.c_double * n_edges)(*(float(w) for w in wl))
+        gb = (ctypes.c_uint8 * n_edges)(*(int(g) for g in gl))
+    else:
+        eu = ev = null_u
+        wb = null_d
+        gb = null_b
+    rc = _native.LIB.srmech_graph_klein4_gain_laplacian(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wb, gb, out
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [
+        [[out[k * block + r * n + c] for c in range(n)] for r in range(n)]
+        for k in range(4)
+    ]
+
+
+def _klein4_gain_laplacian_py(n, el, wl, gl):
+    """Pure-Python complete alternative for :func:`klein4_gain_laplacian`:
+    build the four sector Laplacians as :func:`signed_laplacian` on the
+    χ-transformed weights ``χ_ab(g_e)·w_e``. Since ``|χ·w| = |w|``, each
+    sector's signed degree is identical — the four differ only by the
+    off-diagonal signs. Returns four nested ``list[list[float]]``."""
+    sectors = []
+    for k in range(4):
+        a, b = k >> 1, k & 1
+        w_sec = [_klein4_char_sign(a, b, g) * float(w) for g, w in zip(gl, wl)]
+        L = signed_laplacian(n, el, w_sec)  # Mat
+        sectors.append([[L[i, j] for j in range(n)] for i in range(n)])
+    return sectors
+
+
+def klein4_gain_laplacian(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    gains: Optional[Iterable] = None,
+) -> Dict[str, "Mat"]:
+    """The V₄-gain (Klein-4-sector) Laplacian — the EVEN-channel fuller partner
+    of :func:`magnetic_laplacian` (gh#687).
+
+    Each edge carries a **V₄ = ℤ₂×ℤ₂ gain** = TWO sign bits (``gains`` parallel
+    to ``edges``, each an int in ``{0,1,2,3}`` = ``(g1<<1)|g0`` or a 2-tuple
+    ``(g0, g1)``; ``gains=None`` → all identity). V₄ has FOUR real characters
+    ``χ_ab(g) = (−1)^(a·g0 + b·g1)``, so the object decomposes into FOUR real
+    signed Laplacians ``L_χ = D̄ − χ(g_e)·A`` — the two-bit generalization of
+    exactly how :func:`signed_laplacian` is the ℤ₂ (one-bit) instance. The two
+    gain bits are handled **symmetrically** — no bit is privileged (the
+    phase-vs-beat semantic binding is a framework decision reserved for the
+    user; the math is bit-symmetric).
+
+    The signed degree ``D̄_ii = Σ_j |A_ij|`` is the **Class-K magnitude**
+    (a sign-branch, never ``abs()``); since ``|χ·w| = |w|`` the degree is
+    **character-independent**, so the four sectors differ only in their
+    off-diagonal signs — ``L_χ00`` (the trivial character) equals
+    :func:`dense_laplacian` for unit gains.
+
+    The four sector Laplacians drop directly into
+    :func:`spectral_block_dispatch` (its Klein-4 4-cap IS this shape); the
+    joint read-out (per-sector tensions + the Class-K sector-asymmetry meter)
+    is :func:`klein4_relational_structure`. **Honest boundary (F552):** a
+    Laplacian whose *eigenvalues* carry the which-way sign is provably
+    impossible (conjugation-invariance of Hermitian/real-symmetric spectra);
+    this composite reads the ASYMMETRY (sectors differ), the ORIENTATION LABEL
+    needs the ODD-channel :func:`cycle_holonomy` (diagnostic, not predictive).
+
+    Attested SSoT: N. Reff, "Spectral Properties of Complex Unit Gain Graphs",
+    Linear Algebra Appl. 436 (2012) 3165–3176 (arXiv:1110.4554); the abelian-
+    cover character decomposition (the V₄-cover generalization of the Bilu–
+    Linial ℤ₂ 2-lift, Combinatorica 26 (2006) 495–519, arXiv:math/0312022).
+
+    Parameters
+    ----------
+    n : int
+        Node count.
+    edges : Iterable[Tuple[int, int]]
+        Undirected relational edges ``(u, v)``.
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); may be negative.
+    gains : Optional[Iterable]
+        Per-edge V₄ gains parallel to ``edges`` (int ``{0,1,2,3}`` or 2-tuple
+        of bits); ``None`` → all identity (all four sectors coincide).
+
+    Returns
+    -------
+    dict[str, Mat]
+        ``{"chi00", "chi01", "chi10", "chi11"}`` → the four ``n×n`` real-
+        symmetric PSD sector Laplacians (numpy-free :class:`~srmech.amsc.mat.Mat`).
+
+    Dispatches to the standalone-C ``srmech_graph_klein4_gain_laplacian`` (all
+    four sectors in one call) when ``HAS_NATIVE``; else four
+    :func:`signed_laplacian` builds on the χ-transformed weights (byte-identical
+    — integer sign × the same weights). numpy-free; no ``abs()``.
+    """
+    el, wl = _validate_edges_weights_py(n, edges, weights)
+    gl = _normalize_gains_py(gains, len(el))
+    rows = _klein4_gain_laplacian_native(n, el, wl, gl)
+    if rows is None:
+        rows = _klein4_gain_laplacian_py(n, el, wl, gl)
+    return {
+        _KLEIN4_SECTORS[k]: Mat.from_rows(rows[k], is_complex=False)
+        for k in range(4)
+    }
+
+
+def klein4_relational_structure(
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    gains: Optional[Iterable] = None,
+    *,
+    n: Optional[int] = None,
+) -> dict:
+    """The joint EVEN-channel read-out of a V₄-gain relational graph (gh#687) —
+    per-sector spectral tensions + the Class-K sector-asymmetry meter.
+
+    Builds the four sector Laplacians (:func:`klein4_gain_laplacian`) and reads
+    each with ONE :func:`symmetric_eigendecompose`::
+
+        {"sectors": ("chi00","chi01","chi10","chi11"),
+         "tension":   {sector: λ_min},   # spectral frustration (0 = balanced)
+         "coherence": {sector: λ₂},      # algebraic connectivity (Fiedler value)
+         "sector_asymmetry": |tension[chi10] − tension[chi01]|}
+
+    ``tension`` is the smallest eigenvalue λ_min of each sector's signed
+    Laplacian — 0 exactly when that sector is balanced (Kunegis et al. 2010),
+    positive under frustration; ``coherence`` is the second-smallest eigenvalue
+    λ₂. ``sector_asymmetry`` is the **Class-K magnitude** (a sign-branch, never
+    ``abs()``) of the difference between the two MIXED sectors χ10/χ01 — the
+    ``(4:3)|(3:4)`` sector-occupancy diagnostic (F552): a chirality-collapse
+    deviation lands here, random noise does not. Diagnostic, not predictive —
+    the orientation LABEL needs the ODD-channel :func:`cycle_holonomy`.
+
+    Composes :func:`klein4_gain_laplacian` + :func:`symmetric_eigendecompose`
+    (one eigensolve per sector) — a pure composition of the C-backed atoms, no
+    dedicated C symbol. numpy-free.
+
+    Parameters
+    ----------
+    edges, weights, gains
+        As :func:`klein4_gain_laplacian`.
+    n : Optional[int]
+        Node count (keyword-only); inferred as one past the largest endpoint
+        when ``None`` (isolated high-index nodes carry no relationship).
+
+    Returns
+    -------
+    dict
+        The per-sector tensions / coherences + the mixed-sector asymmetry.
+    """
+    edge_list = [tuple(e) for e in edges]
+    nn = _infer_n_from_edges(edge_list) if n is None else int(n)
+    if nn == 0:
+        zero = {s: 0.0 for s in _KLEIN4_SECTORS}
+        return {"sectors": _KLEIN4_SECTORS, "tension": dict(zero),
+                "coherence": dict(zero), "sector_asymmetry": 0.0}
+    _el, w_list = _validate_edges_weights_py(nn, edge_list, weights)
+    sectors = klein4_gain_laplacian(nn, edge_list, w_list, gains)
+    tension: Dict[str, float] = {}
+    coherence: Dict[str, float] = {}
+    for s in _KLEIN4_SECTORS:
+        eigvals, _V = symmetric_eigendecompose(sectors[s])
+        tension[s] = float(eigvals[0])                       # λ_min (frustration)
+        coherence[s] = float(eigvals[1]) if nn >= 2 else 0.0  # λ₂ (connectivity)
+    # Class-K magnitude of the mixed-sector (χ10 vs χ01) tension gap — the
+    # (4:3)|(3:4) sector-occupancy diagnostic (a sign-branch, NOT abs()).
+    d = tension["chi10"] - tension["chi01"]
+    asym = d if d >= 0.0 else -d
+    return {
+        "sectors": _KLEIN4_SECTORS,
+        "tension": tension,
+        "coherence": coherence,
+        "sector_asymmetry": asym,
+    }
+
+
+def _to_fraction(c) -> Fraction:
+    """Coerce a charge (turns) to an exact :class:`~fractions.Fraction`. Accepts
+    an ``int`` / ``Fraction`` / a ``numbers.Rational`` carrier (e.g. srmech
+    ``Q``) exactly; a ``float`` is projected via ``Fraction(x).limit_denominator``
+    (dyadic floats like 0.25 stay exact — ``Fraction(0.25) == 1/4``)."""
+    import numbers
+    if isinstance(c, Fraction):
+        return c
+    if isinstance(c, int) and not isinstance(c, bool):
+        return Fraction(c)
+    if isinstance(c, numbers.Rational):
+        return Fraction(int(c.numerator), int(c.denominator))
+    return Fraction(float(c)).limit_denominator(10 ** 12)
+
+
+def _cycle_holonomy_py(n, edge_list, charges):
+    """Pure-Python complete alternative for :func:`cycle_holonomy` — exact
+    :class:`~fractions.Fraction` arithmetic (the odd channel). Spanning forest
+    by union-find (first-encountered edge = tree edge), pot[i] = tree-path
+    charge (root → i), holonomy(u,v,c) = c + pot[u] − pot[v] mod 1. Returns
+    ``(holonomies, cycle_edges)`` — the SAME spanning-tree choice as the C peer
+    (identical edge order → identical fundamental-cycle basis)."""
+    parent = list(range(n))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    tree: List[Tuple[int, int, Fraction]] = []
+    cotree: List[Tuple[int, int, Fraction]] = []
+    for (u, v), c in zip(edge_list, charges):
+        ru, rv = find(u), find(v)
+        if ru != rv:
+            parent[rv] = ru
+            tree.append((u, v, c))
+        else:
+            cotree.append((u, v, c))
+    # pot[i] = signed tree-path charge from the component root to i.
+    pot: List[Optional[Fraction]] = [None] * n
+    adj: List[List[Tuple[int, Fraction]]] = [[] for _ in range(n)]
+    for (u, v, c) in tree:
+        adj[u].append((v, c))     # u -> v : +c
+        adj[v].append((u, -c))    # v -> u : -c
+    for s in range(n):
+        if pot[s] is not None:
+            continue
+        pot[s] = Fraction(0)
+        stack = [s]
+        while stack:
+            x = stack.pop()
+            for (y, c) in adj[x]:
+                if pot[y] is None:
+                    pot[y] = pot[x] + c
+                    stack.append(y)
+    holonomies: List[Fraction] = []
+    cycle_edges: List[Tuple[int, int]] = []
+    for (u, v, c) in cotree:
+        h = c + pot[u] - pot[v]
+        h = h - (h.numerator // h.denominator)   # mod 1 → [0, 1); Class-I cyclic
+        holonomies.append(h)
+        cycle_edges.append((u, v))
+    return holonomies, cycle_edges
+
+
+_HOLO_RAT_LIMIT = 10 ** 9  # matches SRMECH_HOLO_RAT_LIMIT in the C peer
+
+
+def _cycle_holonomy_native(n, edge_list, charges):
+    """numpy-free native dispatch for :func:`cycle_holonomy` — marshals the edge
+    endpoints (uint32) + per-edge charge num/den (int64) into ctypes buffers and
+    calls ``srmech_graph_cycle_holonomy`` with a caller arena sized from
+    ``srmech_graph_cycle_holonomy_arena_bytes``. Returns
+    ``(holonomies, cycle_edges)`` as exact ``Fraction`` + ``(u, v)`` pairs, or
+    ``None`` on a missing symbol / non-OK status / an out-of-int64-range charge
+    (caller then runs the exact pure-Python Fraction cascade)."""
+    if not _native.has_native_cycle_holonomy():
+        return None
+    num: List[int] = []
+    den: List[int] = []
+    for c in charges:
+        f = _to_fraction(c)
+        an = f.numerator if f.numerator >= 0 else -f.numerator  # Class-K, no abs()
+        if an > _HOLO_RAT_LIMIT or f.denominator > _HOLO_RAT_LIMIT:
+            return None                       # out of int64 range → exact pure path
+        num.append(f.numerator)
+        den.append(f.denominator)
+    n_edges = len(edge_list)
+    eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in edge_list))
+    ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in edge_list))
+    cn = (ctypes.c_int64 * n_edges)(*num) if n_edges else \
+        ctypes.cast(None, ctypes.POINTER(ctypes.c_int64))
+    cd = (ctypes.c_int64 * n_edges)(*den) if n_edges else \
+        ctypes.cast(None, ctypes.POINTER(ctypes.c_int64))
+    onum = (ctypes.c_int64 * max(n_edges, 1))()
+    oden = (ctypes.c_int64 * max(n_edges, 1))()
+    ocu = (ctypes.c_uint32 * max(n_edges, 1))()
+    ocv = (ctypes.c_uint32 * max(n_edges, 1))()
+    ncyc = ctypes.c_uint32(0)
+    ws_bytes = int(_native.LIB.srmech_graph_cycle_holonomy_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges)))
+    ws = (ctypes.c_char * ws_bytes)()
+    rc = _native.LIB.srmech_graph_cycle_holonomy(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, cn, cd,
+        onum, oden, ocu, ocv, ctypes.byref(ncyc),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    m = ncyc.value
+    holonomies = [Fraction(int(onum[i]), int(oden[i])) for i in range(m)]
+    cycle_edges = [(int(ocu[i]), int(ocv[i])) for i in range(m)]
+    return holonomies, cycle_edges
+
+
+def cycle_holonomy(
+    edges: Iterable[Tuple[int, int]],
+    charges: Optional[Iterable] = None,
+    *,
+    n: Optional[int] = None,
+) -> dict:
+    """The cycle holonomies of a gain graph — the ODD channel the (Hermitian /
+    signed) SPECTRUM provably cannot carry (gh#687).
+
+    A gain graph is determined up to switching (node re-gauging) by its cycle
+    gains (Zaslavsky's switching theory). This computes them exactly: a
+    **spanning forest** (union-find; first-encountered edge = tree edge) → the
+    **fundamental cycle** for each co-tree edge → that cycle's **net charge**
+    (per-edge ``charges`` in TURNS, exact :class:`~fractions.Fraction`, reduced
+    **mod 1**). It is **Class I** (mod-1 cyclic) ∘ **Class L** (graph): exact
+    integer/rational arithmetic, **NO eigensolve**.
+
+    Why it is the odd channel: :func:`magnetic_laplacian`'s Hermitian spectrum
+    is conjugation-invariant, so flipping all chirality leaves the eigenvalues
+    fixed — the which-way ± sign is invisible to any spectral read (F552). The
+    cycle holonomy is the gauge-invariant ODD datum: it is **invariant under
+    node re-gauging** (a coboundary telescopes around any cycle), is **0 for
+    every cycle IFF the gain graph is balanced** (Zaslavsky's balance
+    criterion), and **distinguishes +c from −c** (``1/4`` vs ``3/4`` mod 1) —
+    the chirality the sector spectra cannot. Honest boundary: it detects
+    which-way *relative to a chosen base gauge*, not absolutely (the absolute
+    orientation label still needs an external frame anchor — F552's diagnostic-
+    not-predictive ceiling).
+
+    Pairs with :func:`klein4_gain_laplacian` to make the relational read
+    complete: the sector spectra are the EVEN channel, the holonomies the ODD.
+    Attested SSoT: T. Zaslavsky, "Signed graphs", Discrete Appl. Math. 4 (1982)
+    47–74.
+
+    Parameters
+    ----------
+    edges : Iterable[Tuple[int, int]]
+        The graph edges ``(u, v)``. A parallel edge closes a digon cycle; a
+        self-loop is a 1-cycle carrying its own charge.
+    charges : Optional[Iterable]
+        Per-edge charge in TURNS parallel to ``edges`` (int / ``Fraction`` /
+        rational carrier exact; a ``float`` projected via ``limit_denominator``).
+        ``None`` → all 0 (a trivially balanced graph). ``(u, v, c) ≡ (v, u, −c)``.
+    n : Optional[int]
+        Node count (keyword-only); inferred as one past the largest endpoint
+        when ``None``.
+
+    Returns
+    -------
+    dict
+        ``{"n_cycles": int, "holonomies": list[Fraction], "cycle_edges":
+        list[(u, v)], "balanced": bool}`` — one holonomy in ``[0, 1)`` per
+        fundamental cycle (indexed by its co-tree edge), and ``balanced`` iff
+        every holonomy is 0.
+
+    Dispatches to the standalone-C ``srmech_graph_cycle_holonomy`` (exact int64
+    rational, caller-arena) when ``HAS_NATIVE`` and every charge is within the
+    int64 range; else srmech's own exact-``Fraction`` cascade (the complete
+    alternative — never a wrong answer, and it handles any denominator). The
+    two paths use the SAME spanning-tree choice, so the fundamental-cycle basis
+    is identical. numpy-free; no ``abs()``.
+    """
+    edge_list = [tuple(e) for e in edges]
+    nn = _infer_n_from_edges(edge_list) if n is None else int(n)
+    if charges is None:
+        ch = [Fraction(0)] * len(edge_list)
+    else:
+        ch = [_to_fraction(c) for c in charges]
+        if len(ch) != len(edge_list):
+            raise ValueError(
+                f"charges length {len(ch)} != n_edges {len(edge_list)}"
+            )
+    for k, (u, v) in enumerate(edge_list):
+        if not (0 <= u < nn and 0 <= v < nn):
+            raise ValueError(
+                f"edge {k} = ({u}, {v}) outside node range [0, {nn})"
+            )
+    if nn == 0:
+        return {"n_cycles": 0, "holonomies": [], "cycle_edges": [],
+                "balanced": True}
+    res = _cycle_holonomy_native(nn, edge_list, ch)
+    if res is None:
+        res = _cycle_holonomy_py(nn, edge_list, ch)
+    holonomies, cycle_edges = res
+    balanced = all(h == 0 for h in holonomies)
+    return {
+        "n_cycles": len(holonomies),
+        "holonomies": holonomies,
+        "cycle_edges": cycle_edges,
+        "balanced": balanced,
+    }
+
+
+# =====================================================================
+# rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
+# Θ(t) = Tr(e^{−tL}) = Σₖ e^{−t·λₖ} + the ground-state flux reader.
+# =====================================================================
+
+
+def _finite_real(x: float) -> bool:
+    """True iff ``x`` is a finite float — ``x − x == 0`` (NaN fails ``x == x``;
+    ±Inf fails ``Inf − Inf == 0``). No ``math.isfinite`` import
+    (``[[feedback_missing_math_is_added_to_srmech_as_cascade_never_imported]]``)."""
+    return x == x and x - x == 0.0
+
+
+def _heat_trace_native(flat, n: int, is_complex: bool, t_list):
+    """numpy-free native dispatch for :func:`heat_trace` — marshals the flat
+    matrix buffer (real row-major, or interleaved-complex) + the t-values into
+    ctypes ``double`` buffers and calls the composite C peer
+    ``srmech_heat_trace`` with a caller arena sized from
+    ``srmech_heat_trace_arena_bytes``. Returns the ``list[float]`` Θ values, or
+    ``None`` on any missing symbol / non-OK status (caller then runs the
+    pure-Python complete alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_heat_trace")
+        and hasattr(_native.LIB, "srmech_heat_trace_arena_bytes")
+    ):
+        return None
+    L_c = (ctypes.c_double * len(flat))(*flat)
+    n_t = len(t_list)
+    tb = (ctypes.c_double * n_t)(*t_list)
+    out = (ctypes.c_double * n_t)()
+    ws_bytes = _native.LIB.srmech_heat_trace_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0)
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_heat_trace(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0), L_c,
+        ctypes.c_uint32(n_t), tb, out, ws, ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [out[i] for i in range(n_t)]
+
+
+def _heat_trace_py(rows, is_complex: bool, t_list):
+    """The pure-Python complete alternative for :func:`heat_trace` — the ONE
+    eigensolve (:func:`jacobi_eigvals` real / :func:`hermitian_eigendecompose`
+    Hermitian, both srmech's own Class-L cascades) then
+    ``Θ(t) = Σₖ float(rational.exp(−t·λₖ))`` summed in ascending-λ order (the
+    Class-N Q61 exp cascade — the same cascade the C peer's ``srmech_exp``
+    runs, so the exp step matches value-for-value given the same spectrum)."""
+    if is_complex:
+        eigvals, _V = hermitian_eigendecompose(rows)
+        lam = [float(eigvals[i]) for i in range(eigvals.shape[0])]
+    else:
+        # A real-VALUED matrix may still carry complex-typed entries (a
+        # complex-layout Mat with imag == 0) — coerce to the real part
+        # before the real Jacobi (which floats every entry).
+        real_rows = [[float(x.real if isinstance(x, complex) else x)
+                      for x in r] for r in rows]
+        ev = jacobi_eigvals(real_rows)
+        lam = [float(ev[i]) for i in range(ev.shape[0])]
+    return [sum(float(_rexp(-(tv * lk))) for lk in lam) for tv in t_list]
+
+
+def heat_trace(L, t):
+    """The spectral theta / heat trace ``Θ(t) = Tr(e^{−tL}) = Σₖ e^{−t·λₖ}``
+    of a Laplacian (rc108; issue #1234 Item 2 / F1007).
+
+    The heat trace IS a theta function of the Laplacian — on a cycle graph it
+    is the Jacobi-θ family sum over the closed-form cyclic spectrum
+    ``λ_k = c·(1 − cos(2πk/n))`` — and it is the natural READ-INDEPENDENT
+    spectral summary (a function of the eigenvalue multiset only; no
+    eigenvector, no read basis). F1007: under magnetic flux the FULL trace is
+    flux-invariant (Poisson → the modular / holomorphic part) while the flux
+    shadow lives only in the ground state ``λ_min(Φ)`` — read that with the
+    companion :func:`ground_state_flux_response`.
+
+    Args:
+        L: an ``(n, n)`` Laplacian — real-symmetric OR complex-Hermitian
+            (:class:`~srmech.amsc.mat.Mat` / list-of-rows / ndarray-like).
+            Dispatches real → :func:`jacobi_eigvals`, complex →
+            :func:`hermitian_eigendecompose` (the same forms the eigensolve
+            ops accept; symmetry/Hermiticity is the caller's responsibility,
+            their contract).
+        t: a single diffusion time (a real scalar → returns a ``float``) OR a
+            sequence of times (→ returns a real
+            :class:`~srmech.amsc.vec.Vec`, one Θ per t). Multi-t is the cheap
+            generalization: ONE eigensolve serves every t. Each t must be a
+            finite real (the usual heat-trace domain is ``t ≥ 0``; a negative
+            t is accepted — Θ is a finite sum either way).
+
+    Returns:
+        ``Θ(t)`` — a ``float`` for scalar ``t``, a real ``Vec`` for a
+        sequence of t values. An empty ``L`` (n = 0) gives the empty-spectrum
+        trace ``Θ = 0.0``.
+
+    Exp convention (stated per the transcendental discipline): ``heat_trace``
+    is a float64-carrier Class-L composite like the existing eigensolve ops —
+    the eigensolve is the FPU float algorithm, and the exp is the Class-N Q61
+    cascade (:func:`srmech.amsc.rational.exp` pure / ``srmech_exp`` native —
+    libm-free) applied at the spectral-summary boundary. Θ is a spectral
+    SUMMARY, not an exact decision — no float transcendental sits on any
+    exact decision path.
+
+    Native (rc108): dispatches to the composite C peer ``srmech_heat_trace``
+    (ONE eigensolve — ``srmech_jacobi_eigvals`` real /
+    ``srmech_hermitian_eigendecompose_ws`` Hermitian — then ``srmech_exp``
+    per term, summed ascending); pure Python is the complete alternative.
+    numpy-free; no ``abs()``.
+
+    Raises:
+        ValueError: non-square ``L``, an empty / non-finite ``t``.
+    """
+    rows = _as_rows(L)
+    n = len(rows)
+    scalar_t = isinstance(t, (int, float)) and not isinstance(t, bool)
+    t_list = [float(t)] if scalar_t else [float(x) for x in t]
+    if not t_list:
+        raise ValueError("heat_trace: t must be a scalar or a NON-EMPTY sequence")
+    for tv in t_list:
+        if not _finite_real(tv):
+            raise ValueError(f"heat_trace: every t must be a finite real; got {tv!r}")
+    if n == 0:
+        # The empty spectrum: Θ(t) = Σ over nothing = 0.
+        return 0.0 if scalar_t else Vec.from_sequence([0.0] * len(t_list),
+                                                      is_complex=False)
+    is_complex = _has_complex(rows)
+    if is_complex:
+        flat = []
+        for r in rows:
+            for x in r:
+                z = complex(x)
+                flat.append(z.real)
+                flat.append(z.imag)
+    else:
+        flat = [float(x.real if isinstance(x, complex) else x)
+                for r in rows for x in r]
+    out = _heat_trace_native(flat, n, is_complex, t_list)
+    if out is None:
+        out = _heat_trace_py(rows, is_complex, t_list)
+    return out[0] if scalar_t else Vec.from_sequence(out, is_complex=False)
+
+
+def _ground_state_flux_response_native(n, el, wl, pattern, flux_list):
+    """numpy-free native dispatch for :func:`ground_state_flux_response` —
+    marshals the edge endpoints / weights / per-edge charge pattern / flux
+    values into ctypes buffers and calls the composite C peer
+    ``srmech_ground_state_flux_response`` (per flux: the rc105 chiral
+    magnetic build + the ONE Hermitian eigensolve → λ_min) with a caller
+    arena sized from ``srmech_ground_state_flux_response_arena_bytes``.
+    Returns the ``list[float]`` λ_min values, or ``None`` on any missing
+    symbol / non-OK status (caller then runs the pure-Python complete
+    alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_ground_state_flux_response")
+        and hasattr(_native.LIB, "srmech_ground_state_flux_response_arena_bytes")
+    ):
+        return None
+    n_edges = len(el)
+    null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+    null_d = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in el))
+        evb = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in el))
+        wbuf = (ctypes.c_double * n_edges)(*(float(x) for x in wl))
+        pbuf = (ctypes.c_double * n_edges)(*(float(p) for p in pattern))
+    else:
+        eu = evb = null_u
+        wbuf = pbuf = null_d
+    n_flux = len(flux_list)
+    fbuf = (ctypes.c_double * n_flux)(*flux_list)
+    out = (ctypes.c_double * n_flux)()
+    ws_bytes = _native.LIB.srmech_ground_state_flux_response_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges)
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_ground_state_flux_response(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, evb, wbuf, pbuf,
+        ctypes.c_uint32(n_flux), fbuf, out, ws, ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [out[i] for i in range(n_flux)]
+
+
+def ground_state_flux_response(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    fluxes,
+    charges: Optional[Iterable[float]] = None,
+):
+    """``λ_min(Φ)`` — the magnetic ground state as a function of flux: the
+    F1007 SHADOW reader (rc108; issue #1234 Item 2).
+
+    F1007's mock-theta split: the FULL heat trace ``Θ(t)`` of a magnetic
+    Laplacian is flux-invariant (Poisson → the modular / holomorphic part),
+    while the flux SHADOW lives only in the ground state — on a flux-threaded
+    cycle ``λ_min`` moves 0 → positive as Φ: 0 → 1/2 turn and is periodic in
+    integer flux (integer holonomy ``e^{i2πΦ} = 1`` is gauge-equivalent to
+    no flux). Overtone (trace) / undertone (ground state) = the holomorphic +
+    shadow split — the same asymmetric-beat family as the elliptic ``−z⁻¹``
+    arc (F999–F1002).
+
+    Args:
+        n: node count (``≥ 1`` — an empty graph has no ground state).
+        edges: the directed edge list ``(u, v)`` (the
+            :func:`magnetic_laplacian` convention).
+        weights: optional per-edge magnitudes (default 1.0 each).
+        fluxes: a single total flux Φ in TURNS (a real scalar → returns a
+            ``float``) OR a sequence of fluxes (→ returns a real
+            :class:`~srmech.amsc.vec.Vec`, one λ_min per Φ).
+        charges: optional per-edge charge PATTERN, parallel to ``edges``
+            (validated ``len(charges) == len(edges)``) — the rc105 chiral
+            surface, composable as-is: each edge ``k`` gets charge
+            ``Φ · charges[k]`` (turns). Default ``None`` = the UNIFORM
+            pattern ``1/n_edges`` per edge, so a single cycle's total
+            holonomy is exactly Φ turns (the F1007 convention).
+
+    Returns:
+        ``λ_min(Φ)`` — a ``float`` for scalar ``fluxes``, a real ``Vec`` for
+        a sequence.
+
+    The op composes SHIPPED ops only — :func:`magnetic_laplacian` with the
+    rc105 ``charges=`` (per flux: the scaled pattern) +
+    :func:`hermitian_eigendecompose` (ascending → ``eigvals[0]`` IS λ_min).
+    Native (rc108): the composite C peer
+    ``srmech_ground_state_flux_response`` runs the same
+    ``srmech_graph_magnetic_laplacian`` + ``srmech_hermitian_eigendecompose_ws``
+    kernels per flux; pure Python is the complete alternative. numpy-free;
+    no ``abs()``.
+
+    Raises:
+        ValueError: ``n < 1``, a bad edge/weight/charge (the
+            :func:`magnetic_laplacian` contracts), a charges-length mismatch,
+            or an empty / non-finite ``fluxes``.
+    """
+    if not isinstance(n, int) or n < 1:
+        raise ValueError(
+            f"ground_state_flux_response: n must be an int >= 1 (an empty "
+            f"graph has no ground state); got {n!r}")
+    el, wl = _validate_edges_weights_py(n, edges, weights)
+    n_edges = len(el)
+    if charges is not None:
+        pattern = [float(c) for c in charges]
+        if len(pattern) != n_edges:
+            raise ValueError(
+                f"ground_state_flux_response: charges length {len(pattern)} "
+                f"!= n_edges {n_edges}")
+    else:
+        # The uniform default: total holonomy around a single cycle = Φ turns.
+        pattern = [1.0 / n_edges] * n_edges if n_edges else []
+    scalar_f = isinstance(fluxes, (int, float)) and not isinstance(fluxes, bool)
+    flux_list = [float(fluxes)] if scalar_f else [float(x) for x in fluxes]
+    if not flux_list:
+        raise ValueError(
+            "ground_state_flux_response: fluxes must be a scalar or a "
+            "NON-EMPTY sequence")
+    for fv in flux_list:
+        if not _finite_real(fv):
+            raise ValueError(
+                f"ground_state_flux_response: every flux must be a finite "
+                f"real; got {fv!r}")
+    out = _ground_state_flux_response_native(n, el, wl, pattern, flux_list)
+    if out is None:
+        out = []
+        for phi in flux_list:
+            scaled = [phi * p for p in pattern]
+            Lm = magnetic_laplacian(n, el, wl, charges=scaled)
+            eigvals, _V = hermitian_eigendecompose(Lm)
+            out.append(float(eigvals[0]))
+    return out[0] if scalar_f else Vec.from_sequence(out, is_complex=False)
+
+
+# =====================================================================
+# EPH — the complex-time Wick-rotation propagator (0.9.0rc136; siona
+# gh#1274). harvest = e^{-zL}·u0, the ONE propagator with the arg(z)
+# coherence dial + the MANDATORY 2π seam-fold + the Born-rule harvest.
+# =====================================================================
+#
+# EPH = harvest = Propagate·excite generalises the op⊗operand pattern to a
+# full retrieval / inference cascade — a propagator P = e^{-zL} (operator)
+# applied to an excitation u0 (operand) → the harvest H. The thermal e^{-tL}
+# and the coherent e^{-itL} are NOT two ops: they are the ONE complex-time
+# propagator e^{-zL} with z COMPLEX, the ``i`` being the WICK-ROTATION PHASE.
+# arg(z) is the coherence dial (z real → thermal/decoherent, z imaginary →
+# coherent/unitary, arg(z) between → partial coherence — the regime only the
+# unified form can name). RBS-SNN = EPH-with-a-synaptic-propagator (the
+# neuron is one propagator choice P = connectome/weight matrix); no
+# privileged instance.
+
+# The seam-fold's series depths. The oscillation (cos/sin) is folded to
+# |arg| ≤ π then evaluated — a Class-N Taylor of ≤ π converges to < 1e-16 by
+# ~15 terms; the exp damping is halved to |arg| ≤ 1/2 then squared back.
+_EPH_EXP_TERMS: int = 24
+_EPH_TRIG_TERMS: int = 18
+_EPH_ATAN_TERMS: int = 45          # 2π-via-Machin depth (≤ 1e-40 residual)
+_EPH_TWO_PI_DEN: int = 1 << 80     # 2π fixed-point denominator (~1e-24 grid)
+_EPH_FOLD_DEN: int = 1 << 44       # folded-angle series denominator (~6e-14)
+
+
+def _eph_round_div(num: int, den: int) -> int:
+    """Nearest integer to ``num/den`` (den > 0) — round-half-up, exact
+    integer arithmetic (the winding number of the 2π seam-fold)."""
+    q, r = divmod(num, den)            # den > 0 → r in [0, den)
+    if 2 * r >= den:
+        q += 1
+    return q
+
+
+def _eph_two_pi_rational() -> Tuple[int, int]:
+    """2π as a Class-N rational via the Machin identity
+    ``2π = 32·atan(1/5) − 8·atan(1/239)`` (each atan by the exact Class-N
+    :func:`atan_series_truncate`), quantised to the fixed denominator
+    :data:`_EPH_TWO_PI_DEN` (exact-integer rounding, no float). The residual
+    vs true 2π is ≤ the atan truncation (~1e-40) then the fixed-grid round
+    (~1e-24) — far below float64, so the winding fold is exact at any t·λ."""
+    a5 = _atan_series(1, 5, _EPH_ATAN_TERMS)       # ≈ atan(1/5)
+    a239 = _atan_series(1, 239, _EPH_ATAN_TERMS)   # ≈ atan(1/239)
+    # 32·a5 − 8·a239 over the common denominator a5.den·a239.den
+    num = 32 * a5[0] * a239[1] - 8 * a239[0] * a5[1]
+    den = a5[1] * a239[1]
+    return (_eph_round_div(num * _EPH_TWO_PI_DEN, den), _EPH_TWO_PI_DEN)
+
+
+#: 2π as a fixed-denominator exact-Machin rational — computed once (the seam
+#: anchor). Denominator :data:`_EPH_TWO_PI_DEN`; value ≈ 2π to ~1e-24.
+_EPH_TWO_PI: Tuple[int, int] = _eph_two_pi_rational()
+
+
+def _eph_exp_real(g: float) -> float:
+    """``exp(g)`` for any real ``g`` via the Class-N
+    :func:`exp_series_truncate` on a power-of-two-reduced argument
+    (``|g|/2^s ≤ 1/2``), squared back ``s`` times. The reduced argument is
+    the EXACT dyadic rational of the reduced float (``as_integer_ratio``);
+    the series is exact; only the final projection + squaring is float64
+    (the FPU last-mile). Robust for a strongly-damped mode (``exp(−44) →
+    ~7.6e-20``) without the raw series blowing up."""
+    if g == 0.0:
+        return 1.0
+    mag = g if g >= 0.0 else -g        # Class-K magnitude, never abs()
+    s = 0
+    r = mag
+    while r > 0.5:
+        r *= 0.5
+        s += 1
+    red = g / float(1 << s)            # signed reduced argument, |red| ≤ 1/2
+    rn, rd = float(red).as_integer_ratio()
+    en, ed = _exp_series(rn, rd, _EPH_EXP_TERMS)
+    e = en / ed                        # project to float (FPU last-mile)
+    for _ in range(s):
+        e = e * e
+    return e
+
+
+def _eph_seam_fold(theta: float) -> Tuple[int, int]:
+    """The 2π seam-fold as the DIVMOD it is — ``(w, qn)`` with the quotient
+    KEPT (0.9.0rc207; gh#1276 — the #741 mod-should-be-divmod audit's first
+    concrete instance).
+
+    ``w = round(θ/2π)`` (exact rational arithmetic on the dyadic θ over the
+    Machin-2π :data:`_EPH_TWO_PI` — round-half-toward-+∞ via
+    :func:`_eph_round_div`) is the **metacycle winding** — the whole 2π
+    turns. ``qn`` is the **epicycle residue** ``θ − w·2π`` quantised to the
+    fixed grid ``qn / _EPH_FOLD_DEN`` (``|θ_fold| ≤ π``). Lossless:
+    ``2π·w + qn/_EPH_FOLD_DEN`` reconstructs θ to the fold grid (the
+    ``One.unwrapped_phase`` reconstruction). :func:`_eph_cos_sin` calls this
+    and discards ``w`` (the trig readout is 2π-periodic);
+    :func:`propagate_wound` calls the SAME fold and KEEPS it — one divmod,
+    both harvests."""
+    if theta == 0.0:
+        return (0, 0)
+    tn, td = float(theta).as_integer_ratio()   # EXACT dyadic rational of θ
+    pn, pd = _EPH_TWO_PI
+    # winding w = round(θ / 2π) = round((tn·pd) / (td·pn)); td > 0, pn > 0.
+    w = _eph_round_div(tn * pd, td * pn)
+    # folded = θ − w·2π = (tn·pd − w·pn·td) / (td·pd), exact; |folded| ≤ π.
+    fn = tn * pd - w * pn * td
+    fd = td * pd
+    # re-quantise the small folded angle to the fixed-grid denominator
+    # _EPH_FOLD_DEN (exact-integer rounding) so the bounded series stays fast.
+    qn = _eph_round_div(fn * _EPH_FOLD_DEN, fd)
+    return (w, qn)
+
+
+def _eph_cos_sin(theta: float) -> Tuple[float, float]:
+    """``(cos θ, sin θ)`` via the MANDATORY 2π seam-fold + the Class-N
+    :func:`cos_series_truncate` / :func:`sin_series_truncate`.
+
+    THE CORRECTNESS CRUX: the raw trig series BLOW UP past a convergence
+    radius (``cos_series_truncate(44, 1, N)`` is ~2.3e17, not ~1.0). Before
+    the series, argument-reduce (seam-fold) ``θ`` modulo 2π — the BEAT SEAM —
+    via :func:`_eph_seam_fold` (the exact Machin-2π divmod): the winding
+    ``w = round(θ/2π)`` is stripped in exact rational arithmetic, leaving
+    ``|θ − w·2π| ≤ π`` where the bounded series is exact. This restores
+    exactness at ANY t·λ. (This 2π-periodic readout discards ``w`` — the
+    epicycle side of the seam; :func:`propagate_wound` (rc207, gh#1276)
+    keeps the SAME fold's quotient to expose the metacycle harvest.)"""
+    if theta == 0.0:
+        return (1.0, 0.0)
+    _w, qn = _eph_seam_fold(theta)         # the SAME divmod; w folds away here
+    c_n, c_d = _cos_series(qn, _EPH_FOLD_DEN, _EPH_TRIG_TERMS)
+    s_n, s_d = _sin_series(qn, _EPH_FOLD_DEN, _EPH_TRIG_TERMS)
+    return (c_n / c_d, s_n / s_d)
+
+
+def _eph_wick_factor(zr: float, zi: float, lam: float) -> complex:
+    """The per-mode complex scalar ``e^{-z·λ} = e^{-Re(z)·λ}·(cos(Im(z)·λ) −
+    i·sin(Im(z)·λ))`` — damping via :func:`_eph_exp_real` (Class-N exp),
+    oscillation via :func:`_eph_cos_sin` (Class-N trig + the 2π seam-fold)."""
+    e = _eph_exp_real(-(zr * lam))            # real damping
+    c, s = _eph_cos_sin(zi * lam)             # seam-folded oscillation
+    return complex(e * c, -(e * s))           # Class-C sign, never abs()
+
+
+def _eph_propagate_native(rows, u, zr: float, zi: float, is_complex: bool):
+    """numpy-free native dispatch for :func:`propagate` — marshals the flat
+    matrix + the interleaved u0 into ctypes buffers and calls the composite C
+    peer ``srmech_eph_propagate`` with a caller arena sized from
+    ``srmech_eph_propagate_arena_bytes``. Returns the ``list[complex]``
+    harvest, or ``None`` on any missing symbol / non-OK status (caller then
+    runs the pure-Python complete alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_eph_propagate")
+        and hasattr(_native.LIB, "srmech_eph_propagate_arena_bytes")
+    ):
+        return None
+    n = len(rows)
+    if is_complex:
+        flat = []
+        for r in rows:
+            for x in r:
+                z = complex(x)
+                flat.append(z.real)
+                flat.append(z.imag)
+    else:
+        flat = [float(x.real if isinstance(x, complex) else x)
+                for r in rows for x in r]
+    L_c = (ctypes.c_double * len(flat))(*flat)
+    u_il = []
+    for x in u:
+        z = complex(x)
+        u_il.append(z.real)
+        u_il.append(z.imag)
+    u_c = (ctypes.c_double * (2 * n))(*u_il)
+    out = (ctypes.c_double * (2 * n))()
+    ws_bytes = _native.LIB.srmech_eph_propagate_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0)
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_eph_propagate(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0), L_c, u_c,
+        ctypes.c_double(zr), ctypes.c_double(zi), out, ws,
+        ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
+
+
+def _eph_propagate_eig_py(rows, u, zr: float, zi: float, is_complex: bool):
+    """The pure-Python EPH eigenbasis cascade — returns ``(harvest, lam)``:
+    the ONE eigensolve (:func:`symmetric_eigendecompose` real /
+    :func:`hermitian_eigendecompose` complex, srmech's own Class-L cascades),
+    then per-mode scale by the seam-folded Class-N Wick factor and recombine.
+    harvest = V·diag(e^{-z·λ_k})·V^H·u0 (basis-invariant, so it matches the C
+    peer regardless of the eigenvector sign / degenerate basis). ``lam`` is
+    returned alongside so :func:`propagate_wound` (rc207) can fold the SAME
+    per-mode oscillation arguments the harvest used — one eigensolve, both
+    harvests."""
+    n = len(rows)
+    if is_complex:
+        eigvals, V = hermitian_eigendecompose(rows)
+    else:
+        eigvals, V = symmetric_eigendecompose(rows)
+    Vl = V.tolist()                              # nested list, numpy-free
+    lam = [float(eigvals[k]) for k in range(n)]
+    factors = [_eph_wick_factor(zr, zi, lam[k]) for k in range(n)]
+    uc = [complex(x) for x in u]
+    # project + scale: c_k = (Σ_i conj(V[i,k])·u0[i]) · e^{-z·λ_k}
+    c = [0j] * n
+    for k in range(n):
+        acc = 0j
+        for i in range(n):
+            vik = Vl[i][k]
+            vik_c = vik.conjugate() if isinstance(vik, complex) else vik
+            acc += vik_c * uc[i]
+        c[k] = acc * factors[k]
+    # recombine: harvest_i = Σ_k V[i,k]·c_k
+    harvest = [0j] * n
+    for i in range(n):
+        acc = 0j
+        for k in range(n):
+            acc += Vl[i][k] * c[k]
+        harvest[i] = acc
+    return harvest, lam
+
+
+def _eph_propagate_py(rows, u, zr: float, zi: float, is_complex: bool):
+    """The pure-Python complete alternative for :func:`propagate` — the
+    harvest half of :func:`_eph_propagate_eig_py` (byte-identical; the
+    eigenvalues are simply not read here)."""
+    harvest, _lam = _eph_propagate_eig_py(rows, u, zr, zi, is_complex)
+    return harvest
+
+
+def propagate(L, u0, z) -> "Vec":
+    """EPH — the complex-time Wick-rotation propagator ``harvest = e^{-zL}·u0``
+    (0.9.0rc136; siona gh#1274). The ONE propagator with the arg(z) coherence
+    dial + the mandatory 2π seam-fold.
+
+    EPH = harvest = Propagate·excite: a propagator ``P = e^{-zL}`` (operator)
+    applied to an excitation ``u0`` (operand) → the harvest ``H``. The thermal
+    ``e^{-tL}`` and the coherent ``e^{-itL}`` are NOT two ops — they are the
+    ONE complex-time propagator ``e^{-zL}`` with ``z`` COMPLEX, the ``i``
+    being the WICK-ROTATION PHASE. **arg(z) is the coherence dial:**
+
+    * ``z`` REAL → thermal diffusion (decoherent — real damping ``e^{-tλ}``);
+    * ``z`` IMAGINARY → coherent unitary quantum walk (‖harvest‖ = ‖u0‖
+      conserved, a phase rotation per mode);
+    * ``arg(z)`` BETWEEN → PARTIAL coherence (``z = t·e^{iφ}``, ``φ`` = the
+      dial ∈ ``[0, π/2]``) — the real chloroplast regime ONLY the unified
+      form can name (two separate thermal / coherent ops cannot express the
+      middle). RBS-SNN = EPH-with-a-synaptic-propagator (``P`` = connectome /
+      weight matrix); no privileged instance. Composes the framework's
+      Class-L Wick rotation (the signed-metric / Wick op = a Class-L
+      signed-Laplacian variant).
+
+    IMPL (eigenbasis, ``n ≤ 256`` native): ONE eigensolve
+    (:func:`symmetric_eigendecompose` real / :func:`hermitian_eigendecompose`
+    complex) → project ``c = V^H·u0`` → per-mode scale ``c_k·e^{-z·λ_k}`` →
+    recombine ``V·(scaled c)``. The per-mode scalar
+    ``e^{-zλ_k} = e^{-Re(z)·λ_k}·(cos(Im(z)·λ_k) − i·sin(Im(z)·λ_k))`` uses
+    the Class-N :func:`exp_series_truncate` (real damping) +
+    :func:`cos_series_truncate` / :func:`sin_series_truncate` (oscillation).
+
+    THE MANDATORY 2π SEAM-FOLD (the correctness crux): the raw trig series
+    BLOW UP past a convergence radius (``cos_series_truncate(44, 1, N)`` is
+    ~2.3e17, not ~1.0). ``propagate`` argument-reduces (seam-folds) the
+    oscillation argument ``Im(z)·λ_k`` modulo 2π — the beat seam — using the
+    exact Machin-2π (``2π = 32·atan(1/5) − 8·atan(1/239)``), so it is EXACT at
+    ANY t·λ. (This 2π-periodic readout discards the winding ``w``;
+    :func:`propagate_wound` (rc207, gh#1276) keeps the SAME fold's quotient
+    to expose the metacycle harvest alongside the identical epicycle one.)
+
+    Args:
+        L: an ``(n, n)`` real-symmetric OR complex-Hermitian Laplacian /
+            operator (:class:`~srmech.amsc.mat.Mat` / list-of-rows /
+            ndarray-like). Symmetry / Hermiticity is the caller's
+            responsibility (the eigensolve ops' contract).
+        u0: the excitation vector (length ``n``, real or complex;
+            :class:`~srmech.amsc.vec.Vec` / list). Content-neutral (Class-M
+            grounding) — the seed the propagator acts on.
+        z: the complex time ``z = Re(z) + i·Im(z)`` (a Python ``complex`` or a
+            ``[re, im]`` pair). ``arg(z)`` is the coherence dial; build the
+            partial regime as ``z = t·(cos φ + i·sin φ)``, ``φ ∈ [0, π/2]``.
+
+    Returns:
+        the harvest ``e^{-zL}·u0`` — a length-``n`` complex
+        :class:`~srmech.amsc.vec.Vec` (the coherent / partial part is
+        genuinely complex). An empty ``L`` (n = 0) gives the empty harvest.
+
+    Native (rc136): dispatches to the composite C peer ``srmech_eph_propagate``
+    (ONE ``srmech_hermitian_eigendecompose_ws`` + ``srmech_exp`` /
+    ``srmech_cos`` / ``srmech_sin`` per mode — the Q61 octant reduction is the
+    2π fold in the fixed-point basis); pure Python is the complete
+    alternative. The harvest is basis-invariant, so Python == C to the
+    eigensolve tolerance regardless of the eigenvector convention. numpy-free;
+    no ``abs()`` (Class-K magnitude / Class-C sign).
+
+    → extended by :func:`responsion` (rc208, F1186): ``propagate`` IS the
+    time-domain member of the RESPONSION response-function family —
+    ``responsion(L, u0, z, kind="propagator")`` delegates here verbatim,
+    and ``kind="resolvent"`` is its Laplace-transform dual
+    ``(zI − L)^{−1}·u0`` (the Green's function).
+
+    Raises:
+        ValueError: non-square ``L``, or ``len(u0) != n``.
+    """
+    rows = _as_rows(L)
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(f"propagate: L must be square; got {n} rows")
+    z = complex(z)
+    u = _vec(u0)
+    if len(u) != n:
+        raise ValueError(
+            f"propagate: len(u0) ({len(u)}) must equal n ({n})"
+        )
+    if n == 0:
+        return Vec(array("d"), 0, is_complex=True)
+    is_complex = _has_complex(rows)
+    harvest = _eph_propagate_native(rows, u, z.real, z.imag, is_complex)
+    if harvest is None:
+        harvest = _eph_propagate_py(rows, u, z.real, z.imag, is_complex)
+    return Vec.from_sequence(harvest, is_complex=True)
+
+
+def eph_harvest(L, u0, z) -> dict:
+    """The EPH cascade read (0.9.0rc136; siona gh#1274) — excite → propagate →
+    Born-rule harvest-rank the reaction center.
+
+    A composition op: excite (seed ``u0`` — Class-M grounding, content-neutral)
+    → :func:`propagate` (``harvest = e^{-zL}·u0`` with the arg(z) coherence
+    dial) → the **Born-rule harvest** ``|harvest_i|²`` per node (the reaction-
+    center energy; energy = relevance) → rank the nodes by energy. The neuron
+    is one propagator choice (RBS-SNN); this is the generic retrieval /
+    inference cascade one layer up from :func:`propagate`.
+
+    Args:
+        L, u0, z: as :func:`propagate` (the operator, the excitation, the
+            complex time / coherence dial).
+
+    Returns:
+        a JSON-native dict:
+
+        * ``ranked_nodes`` — node indices sorted by Born energy DESCENDING
+          (the reaction-center ranking; energy = relevance);
+        * ``energies`` — ``|harvest_i|²`` per node in NODE order (the Born-rule
+          reaction-center energy; Class-K ``re² + im²``, no ``abs()``);
+        * ``reaction_center`` — the top-ranked node (highest energy), or
+          ``None`` for an empty ``L``;
+        * ``total_energy`` — ``Σ_i |harvest_i|²`` = the coherence budget
+          (conserved = ‖u0‖² in the coherent limit ``z`` imaginary; damped
+          below it in the thermal limit ``z`` real — the monotonic Wick dial);
+        * ``harvest_re`` / ``harvest_im`` — the raw complex harvest components.
+
+    Composes :func:`propagate` (c_dispatched) + the Born magnitude + rank — no
+    new C symbol. numpy-free; no ``abs()``.
+    """
+    harvest = propagate(L, u0, z)
+    n = harvest.shape[0]
+    energies = []
+    hre = []
+    him = []
+    total = 0.0
+    for i in range(n):
+        h = complex(harvest[i])
+        e = h.real * h.real + h.imag * h.imag     # Born |·|², Class-K squares
+        energies.append(e)
+        hre.append(h.real)
+        him.append(h.imag)
+        total += e
+    ranked = sorted(range(n), key=lambda i: energies[i], reverse=True)
+    return {
+        "ranked_nodes": ranked,
+        "energies": energies,
+        "reaction_center": ranked[0] if ranked else None,
+        "total_energy": total,
+        "harvest_re": hre,
+        "harvest_im": him,
+    }
+
+
+# =====================================================================
+# EPH WOUND — the wound propagator (0.9.0rc207; siona gh#1276). The SAME
+# harvest e^{-zL}·u0 as :func:`propagate` with the 2π seam-fold's DIVMOD
+# QUOTIENT KEPT: the fold is a divmod (quotient = the metacycle winding
+# w, remainder = the epicycle residue θ); propagate discards w (the
+# mod-collapse); propagate_wound keeps the GRADING — both harvests at
+# the seam. The #741 mod-should-be-divmod audit's first concrete
+# instance; the_one(σ, θ, w) is the crank vocabulary of the readout.
+# =====================================================================
+
+
+def _eph_propagate_wound_native(rows, u, zr: float, zi: float,
+                                is_complex: bool):
+    """numpy-free native dispatch for :func:`propagate_wound` — ONE call to
+    the composite C peer ``srmech_eph_propagate_wound`` (the
+    ``srmech_eph_propagate`` cascade + the per-mode winding readout composed
+    from the EXISTING gh#1276 winding C peers). Returns ``(harvest, lam, w,
+    theta, sigma_eff, spinor)`` lists, or ``None`` on any missing symbol /
+    non-OK status (caller then runs the pure-Python complete
+    alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_eph_propagate_wound")
+        and hasattr(_native.LIB, "srmech_eph_propagate_wound_arena_bytes")
+    ):
+        return None
+    n = len(rows)
+    if is_complex:
+        flat = []
+        for r in rows:
+            for x in r:
+                z = complex(x)
+                flat.append(z.real)
+                flat.append(z.imag)
+    else:
+        flat = [float(x.real if isinstance(x, complex) else x)
+                for r in rows for x in r]
+    L_c = (ctypes.c_double * len(flat))(*flat)
+    u_il = []
+    for x in u:
+        z = complex(x)
+        u_il.append(z.real)
+        u_il.append(z.imag)
+    u_c = (ctypes.c_double * (2 * n))(*u_il)
+    out = (ctypes.c_double * (2 * n))()
+    out_lam = (ctypes.c_double * n)()
+    out_w = (ctypes.c_int64 * n)()
+    out_theta = (ctypes.c_double * n)()
+    out_sig = (ctypes.c_int32 * n)()
+    out_spin = (ctypes.c_int32 * n)()
+    ws_bytes = _native.LIB.srmech_eph_propagate_wound_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0)
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_eph_propagate_wound(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0), L_c, u_c,
+        ctypes.c_double(zr), ctypes.c_double(zi), out, out_lam, out_w,
+        out_theta, out_sig, out_spin, ws, ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    harvest = [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
+    return (harvest,
+            [float(out_lam[k]) for k in range(n)],
+            [int(out_w[k]) for k in range(n)],
+            [float(out_theta[k]) for k in range(n)],
+            [int(out_sig[k]) for k in range(n)],
+            [int(out_spin[k]) for k in range(n)])
+
+
+def _eph_propagate_wound_py(rows, u, zr: float, zi: float, is_complex: bool):
+    """The pure-Python complete alternative for :func:`propagate_wound` —
+    the SAME :func:`_eph_propagate_eig_py` cascade :func:`propagate`'s pure
+    path runs (byte-identical harvest), then the SAME :func:`_eph_seam_fold`
+    divmod the harvest's Wick factors folded with, per mode — quotient KEPT
+    this time. The chirality readouts reuse the One's EXISTING gh#1276
+    winding surface (never re-derived)."""
+    from srmech.amsc.cascade.one import (      # lazy: no import cycle
+        _sigma_effective_from_triad, _spinor_sign_from_triad)
+    n = len(rows)
+    harvest, lam = _eph_propagate_eig_py(rows, u, zr, zi, is_complex)
+    w_list = []
+    theta_list = []
+    sig_list = []
+    spin_list = []
+    for k in range(n):
+        w, qn = _eph_seam_fold(zi * lam[k])    # the SAME divmod, KEPT
+        w_list.append(w)
+        theta_list.append(qn / _EPH_FOLD_DEN)  # the epicycle residue, |θ| ≤ π
+        triad = (w, 0, 0)                      # the mode's metacycle triad
+        sig_list.append(_sigma_effective_from_triad(1, triad))
+        spin_list.append(_spinor_sign_from_triad(triad))
+    return harvest, lam, w_list, theta_list, sig_list, spin_list
+
+
+def propagate_wound(L, u0, z) -> dict:
+    """EPH WOUND — :func:`propagate` with the 2π seam-fold's DIVMOD quotient
+    KEPT (0.9.0rc207; siona gh#1276 — the #741 mod-should-be-divmod audit's
+    first concrete instance).
+
+    :func:`propagate`'s mandatory 2π seam-fold argument-reduces each
+    per-mode oscillation argument ``Im(z)·λ_k`` modulo 2π. That fold IS a
+    divmod: **quotient** ``w_k = round(Im(z)·λ_k / 2π)`` = the METACYCLE
+    winding (the whole 2π turns — what ``propagate`` throws away, the
+    mod-collapse), **remainder** ``θ_k`` = the EPICYCLE residue (``|θ| ≤ π``
+    — what ``propagate`` keeps). ``propagate_wound`` keeps the GRADING:
+    BOTH harvests at the seam, from the SAME fold (:func:`_eph_seam_fold`
+    pure / ``srmech_winding_fold`` native — the exact Machin-2π / Q61 2/π
+    constants ``propagate`` already folds with; no forked path). Carrying
+    ``w`` does NOT perturb the epicycle harvest: it is byte-identical to
+    ``propagate``'s at the same dispatch tier (same cascade, same order).
+
+    THE CRANK — ``the_one(σ, θ, w)`` is the readout vocabulary (per mode,
+    the winding fills the One's fast metacycle dial as the triad
+    ``(w_k, 0, 0)``):
+
+    * ``winding`` — ``w_k`` (whole ℤ, never ``% 2``): the metacycle turns;
+    * ``theta`` — ``θ_k``: the epicycle phase; ``2π·w_k + θ_k`` reconstructs
+      ``Im(z)·λ_k`` LOSSLESSLY on the fold grid (the
+      :meth:`~srmech.amsc.cascade.one.One.unwrapped_phase` reconstruction);
+    * ``sigma_effective`` — the tower-graded chirality dial ``±1`` via the
+      winding's divmod binary tower (the EXISTING
+      :meth:`~srmech.amsc.cascade.one.One.sigma_effective` readout — NOT the
+      melding bare ``w mod 2``: ``w=5`` (popcount 2) and ``w=7`` (popcount
+      3) are DISTINGUISHED);
+    * ``spinor_sign`` — the double-cover sign ``(−1)^{w_k}`` (the EXISTING
+      :meth:`~srmech.amsc.cascade.one.One.spinor_sign` readout — one full
+      winding flips the spinor, two restore it).
+
+    Lift a mode into a full One with
+    ``the_one(+1, theta_num, theta_den, w=(w_k, 0, 0))``.
+
+    Args:
+        L, u0, z: exactly as :func:`propagate` (the operator, the
+            excitation, the complex time / coherence dial).
+
+    Returns:
+        a JSON-native dict, per-mode arrays in the eigensolve's mode order:
+
+        * ``harvest_re`` / ``harvest_im`` — the epicycle harvest
+          ``e^{-zL}·u0`` per NODE (byte-identical to :func:`propagate` at
+          the same dispatch tier);
+        * ``eigenvalues`` — ``λ_k`` per mode;
+        * ``winding`` — ``w_k`` (int) per mode: the metacycle turns the
+          seam-fold used to discard;
+        * ``theta`` — ``θ_k`` (float, ``|θ| ≤ π``) per mode: the folded
+          epicycle residue;
+        * ``sigma_effective`` — ``±1`` per mode (tower-graded);
+        * ``spinor_sign`` — ``±1`` per mode (double-cover).
+
+    Native (rc207): ONE call to the composite C peer
+    ``srmech_eph_propagate_wound`` (the ``srmech_eph_propagate`` cascade +
+    ``srmech_winding_fold`` + the EXISTING ``srmech_sigma_effective`` /
+    ``srmech_spinor_sign`` winding peers per mode); pure Python is the
+    complete alternative (the same :func:`_eph_propagate_eig_py` +
+    :func:`_eph_seam_fold` cascade). numpy-free; no ``abs()`` (the winding
+    sign is the Class-K pin, retrograde is the Class-C negate — carried by
+    the reused readouts).
+
+    Raises:
+        ValueError: non-square ``L``, or ``len(u0) != n``.
+    """
+    rows = _as_rows(L)
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(
+                f"propagate_wound: L must be square; got {n} rows")
+    z = complex(z)
+    u = _vec(u0)
+    if len(u) != n:
+        raise ValueError(
+            f"propagate_wound: len(u0) ({len(u)}) must equal n ({n})"
+        )
+    if n == 0:
+        return {
+            "harvest_re": [], "harvest_im": [], "eigenvalues": [],
+            "winding": [], "theta": [], "sigma_effective": [],
+            "spinor_sign": [],
+        }
+    is_complex = _has_complex(rows)
+    got = _eph_propagate_wound_native(rows, u, z.real, z.imag, is_complex)
+    if got is None:
+        got = _eph_propagate_wound_py(rows, u, z.real, z.imag, is_complex)
+    harvest, lam, w_list, theta_list, sig_list, spin_list = got
+    return {
+        "harvest_re": [h.real for h in harvest],
+        "harvest_im": [h.imag for h in harvest],
+        "eigenvalues": lam,
+        "winding": w_list,
+        "theta": theta_list,
+        "sigma_effective": sig_list,
+        "spinor_sign": spin_list,
+    }
+
+
+# =====================================================================
+# RESPONSION — the response-function family (0.9.0rc208; F1186). The
+# op⊗operand DUALITY (A-N operator verbs ⊗ carrier operand nouns =
+# field⊗excitation) has a k=3 completion: the RESPONSION — the
+# answering-correspondence between successive op-on-operand
+# applications, the stored relationship itself (srmech = Stored-
+# RELATIONSHIP Mechanism — the responsion is the package's reason for
+# being). The exact/discrete regime sees one op(operand)=result; the
+# continuous/asymptotic regime (the beat, the resolvent, the
+# propagator) is where the responsion lives. Two canonical members,
+# LAPLACE-TRANSFORM DUALS: the propagator e^{-zL} (time domain — the
+# shipped EPH) and the resolvent (zI−L)^{-1} (frequency/energy domain —
+# the Green's function, NEW here).
+# =====================================================================
+
+
+def _responsion_resolvent_native(rows, u, zr: float, zi: float,
+                                 is_complex: bool):
+    """numpy-free native dispatch for :func:`responsion` kind="resolvent" —
+    marshals the flat matrix + the interleaved u0 into ctypes buffers and
+    calls the composite C peer ``srmech_responsion`` (kind=1) with a caller
+    arena sized from ``srmech_responsion_arena_bytes``. Returns the
+    ``list[complex]`` response, raises :class:`ZeroDivisionError` on the
+    C peer's honest pole signal (``SRMECH_ERR_BAD_INPUT`` — ``z`` exactly
+    in the spectrum of ``L``), or returns ``None`` on any missing symbol /
+    other non-OK status (caller then runs the pure-Python complete
+    alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_responsion")
+        and hasattr(_native.LIB, "srmech_responsion_arena_bytes")
+    ):
+        return None
+    n = len(rows)
+    if is_complex:
+        flat = []
+        for r in rows:
+            for x in r:
+                zc = complex(x)
+                flat.append(zc.real)
+                flat.append(zc.imag)
+    else:
+        flat = [float(x.real if isinstance(x, complex) else x)
+                for r in rows for x in r]
+    L_c = (ctypes.c_double * len(flat))(*flat)
+    u_il = []
+    for x in u:
+        zc = complex(x)
+        u_il.append(zc.real)
+        u_il.append(zc.imag)
+    u_c = (ctypes.c_double * (2 * n))(*u_il)
+    out = (ctypes.c_double * (2 * n))()
+    ws_bytes = _native.LIB.srmech_responsion_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0),
+        ctypes.c_int(1),
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_responsion(
+        ctypes.c_uint32(n), ctypes.c_int(1 if is_complex else 0),
+        ctypes.c_int(1), L_c, u_c,
+        ctypes.c_double(zr), ctypes.c_double(zi), out, ws,
+        ctypes.c_size_t(wsd * 8),
+    )
+    if rc == _native.SRMECH_ERR_BAD_INPUT:
+        # The C peer's honest resolvent-pole signal: z ∈ spec(L) ⇒ the
+        # block embedding of (zI − L) is singular. Same exception the
+        # pure path's solve raises — two complete implementations, one
+        # documented pole contract.
+        raise ZeroDivisionError(
+            "responsion: z is a pole of the resolvent (z is in the "
+            "spectrum of L — (zI − L) is singular)"
+        )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
+
+
+def _responsion_resolvent_py(rows, u, zr: float, zi: float):
+    """The pure-Python complete alternative for :func:`responsion`
+    kind="resolvent" — build ``A = zI − L`` (complex leaves; the ``z − L``
+    subtraction is Class-C signed arithmetic) and solve ``A·x = u0`` via
+    :func:`_dense_solve_complex` (the SAME real 2n×2n block embedding the
+    C peer runs, over :func:`mat_solve`). A singular ``A`` (``z`` exactly
+    in the spectrum of ``L`` — the resolvent pole) raises
+    :class:`ZeroDivisionError` from the solve — the same honest pole
+    contract as the native path."""
+    n = len(rows)
+    z = complex(zr, zi)
+    A = [[(z if i == j else 0j) - complex(rows[i][j]) for j in range(n)]
+         for i in range(n)]
+    x = _dense_solve_complex(A, [complex(v) for v in u])
+    return [complex(v) for v in x]
+
+
+def responsion(L, u0, z, *, kind: str = "propagator") -> "Vec":
+    """RESPONSION — the response-function family of a generator ``L``
+    acting on an excitation ``u0`` (0.9.0rc208; F1186 — the
+    op⊗operand⊗responsion k=3 completion).
+
+    The op⊗operand DUALITY (A-N operator verbs ⊗ carrier operand nouns =
+    field⊗excitation) completes at k=3 with the RESPONSION: the
+    answering-correspondence between successive op-on-operand
+    applications — **the stored relationship itself** (srmech =
+    Stored-RELATIONSHIP Mechanism). The exact/discrete regime sees one
+    ``op(operand) = result``; the continuous/asymptotic regime (the beat,
+    the resolvent, the propagator) is where the responsion lives. The
+    family generalizes EPH's ``e^{−zL}`` to the general response function
+    of ``L``, and its two canonical continuous-form members are
+    **Laplace-transform duals** — a tight, framework-honest pair, not a
+    grab-bag:
+
+    * ``kind="propagator"`` (time domain): ``e^{−zL}·u0`` — this IS the
+      shipped EPH :func:`propagate` (rc136), and the call DELEGATES to it
+      verbatim (same arg(z) coherence dial: z real → thermal, imaginary →
+      coherent, between → partial; same mandatory 2π seam-fold; same
+      native/pure dispatch). ``responsion`` SUBSUMES ``propagate`` as its
+      time-domain member; ``propagate`` remains the named EPH surface
+      (back-compat + the :func:`propagate_wound` / :func:`propagate_sparse`
+      / :func:`eph_harvest` sibling family hangs off it).
+    * ``kind="resolvent"`` (frequency/energy domain — the Green's
+      function): ``(zI − L)^{−1}·u0`` — **NEW**. The Laplace transform of
+      the (semigroup) propagator::
+
+          (zI − L)^{−1} = ∫₀^∞ e^{−zt}·e^{tL} dt      (Re z > max λ(L))
+
+      with ``e^{tL}·u0 = propagate(L, u0, −t)`` (the shipped propagator at
+      negative time), so per eigenmode the dual pair is ``e^{−z·λ}`` ⟷
+      ``1/(z − λ)``. Realised as a REAL complex linear solve
+      ``(zI − L)·x = u0`` — the real 2n×2n block embedding
+      ``[[Aᵣ,−Aᵢ],[Aᵢ,Aᵣ]]·[u;v] = [bᵣ;bᵢ]`` over the shipped
+      Gauss–Jordan kernel (native: the composite C peer
+      ``srmech_responsion`` composing ``srmech_dense_solve_f64_ws``;
+      pure: :func:`_dense_solve_complex` — the SAME embedding, the
+      complete alternative). ``z`` exactly in the spectrum of ``L`` is a
+      **resolvent pole** and raises :class:`ZeroDivisionError` honestly
+      (the pole IS the physics — never a garbage number).
+
+    Args:
+        L: an ``(n, n)`` real-symmetric OR complex-Hermitian operator
+            (:class:`~srmech.amsc.mat.Mat` / list-of-rows / ndarray-like),
+            exactly as :func:`propagate`.
+        u0: the excitation vector (length ``n``, real or complex) — the
+            seed the response acts on.
+        z: the complex argument. For the propagator: the complex time
+            (arg(z) = the coherence dial). For the resolvent: the complex
+            frequency/energy (the Green's-function argument; poles at the
+            spectrum of ``L``).
+        kind: ``"propagator"`` (default — delegates to :func:`propagate`)
+            or ``"resolvent"`` (the new Laplace-dual member).
+
+    Returns:
+        the response — a length-``n`` complex :class:`~srmech.amsc.vec.Vec`
+        (the :func:`propagate` return contract). An empty ``L`` (n = 0)
+        gives the empty response.
+
+    Raises:
+        ValueError: unknown ``kind``, non-square ``L``, or
+            ``len(u0) != n``.
+        ZeroDivisionError: kind="resolvent" with ``z`` in the spectrum of
+            ``L`` (the resolvent pole).
+
+    Native (rc208): the composite C peer ``srmech_responsion`` — kind 0
+    delegates to ``srmech_eph_propagate``, kind 1 composes
+    ``srmech_dense_solve_f64_ws`` via the block embedding — so a bare-C
+    host runs BOTH members. numpy-free; no ``abs()`` (the ``z − L``
+    subtraction is Class-C signed arithmetic; the solve pivot is the
+    composed kernel's Class-K sign branch).
+    """
+    if kind not in ("propagator", "resolvent"):
+        raise ValueError(
+            f"responsion: unknown kind {kind!r} — the family members are "
+            f"'propagator' (e^{{-zL}}·u0, the time-domain EPH) and "
+            f"'resolvent' ((zI-L)^{{-1}}·u0, the Laplace-dual Green's "
+            f"function)"
+        )
+    if kind == "propagator":
+        # The time-domain member IS the shipped EPH propagator — pure
+        # delegation (same dispatch, same seam-fold, same coherence dial).
+        return propagate(L, u0, z)
+    rows = _as_rows(L)
+    n = len(rows)
+    for r in rows:
+        if len(r) != n:
+            raise ValueError(f"responsion: L must be square; got {n} rows")
+    z = complex(z)
+    u = _vec(u0)
+    if len(u) != n:
+        raise ValueError(
+            f"responsion: len(u0) ({len(u)}) must equal n ({n})"
+        )
+    if n == 0:
+        return Vec(array("d"), 0, is_complex=True)
+    is_complex = _has_complex(rows)
+    resp = _responsion_resolvent_native(rows, u, z.real, z.imag, is_complex)
+    if resp is None:
+        resp = _responsion_resolvent_py(rows, u, z.real, z.imag)
+    return Vec.from_sequence(resp, is_complex=True)
+
+
+# =====================================================================
+# EPH SPARSE — the sparse-scaled propagator (0.9.0rc206; siona gh#1274
+# item 1c, the corpus-scale residual). The SAME harvest e^{-zL}·u0 as
+# :func:`propagate` (same complex-z convention, same arg(z) coherence
+# dial, same seam-folded Wick factor) computed by a CHEBYSHEV polynomial
+# of the operator applied with MATRIX-VECTOR PRODUCTS ONLY — no
+# eigendecomposition, no dense e^{-zL} — so it runs on a corpus-scale L
+# past the n <= 256 dense-eigensolve cap.
+# =====================================================================
+
+#: Initial Chebyshev node count of the adaptive expansion (doubled up to
+#: max_degree+1). 64 covers |z|·λ_max up to ~40 at tol 1e-10.
+_EPH_SPARSE_M0: int = 64
+
+#: Sanity cap on the caller's max_degree (matches the C peer's bound —
+#: keeps the uint32 node count from wrapping and the arena finite).
+_EPH_SPARSE_DEGREE_CAP: int = 1 << 28
+
+
+def _eph_sparse_degrees(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+) -> Tuple[List[float], float]:
+    """Signed degrees ``deg[i] = Σ_incident |w|`` (a Class-K sign BRANCH,
+    never ``abs()``; self-loops skipped — the :func:`signed_laplacian`
+    convention; duplicate edges read PER-EDGE) + the Gershgorin bound
+    ``λ_max = 2·max_i deg[i]`` (the signed Laplacian is PSD, so the
+    spectral interval is ``[0, λ_max]`` — deterministic, an overestimate
+    only widens the interval). A non-finite weight raises ``ValueError``
+    (the C peer's ``SRMECH_ERR_BAD_INPUT``)."""
+    deg = [0.0] * n
+    for (a, b), w in zip(edge_list, w_list):
+        if a == b:
+            continue                       # self-loop cancels in D̄ − A
+        if not _finite_real(w):
+            raise ValueError(
+                f"propagate_sparse: edge weight must be finite; got {w!r}")
+        m = w if w >= 0.0 else -w          # Class-K magnitude, never abs()
+        deg[a] += m
+        deg[b] += m
+    lam_max = 0.0
+    for d in deg:
+        if 2.0 * d > lam_max:
+            lam_max = 2.0 * d
+    return deg, lam_max
+
+
+def _eph_sparse_coeffs(
+    zr: float,
+    zi: float,
+    cc: float,
+    h: float,
+    tol: float,
+    max_degree: int,
+) -> List[complex]:
+    """Adaptive Chebyshev interpolation coefficients of the propagator
+    scalar ``g(s) = e^{-z·(cc + h·s)}`` on ``s ∈ [-1, 1]`` — the SAME
+    schedule as the C peer's ``ephs_expand``: evaluate ``g`` at the M
+    Chebyshev nodes ``s_j = cos(π(2j+1)/(2M))`` (the rc136 Wick-factor
+    machinery — Class-N exp + the Machin-2π seam-folded cos/sin), form
+    ``c_k = (2−δ_k0)/M · Σ_j g(s_j)·cos(k·θ_j)`` with ``cos(k·θ_j)`` by
+    the 3-term recurrence (j-outer / k-inner, NO per-(k,j) trig), accept
+    when the coefficient tail (the top eighth — the aliasing guard) falls
+    below ``tol·max_j|g(s_j)|`` (compared in SQUARES — no ``abs()``, no
+    sqrt), else DOUBLE M up to the hard cap ``max_degree+1``. Returns the
+    truncated coefficient list ``c_0..c_m``; not converged at the cap →
+    honest ``ValueError`` (raise max_degree or shrink |z|)."""
+    mcap = max_degree + 1
+    M = _EPH_SPARSE_M0 if _EPH_SPARSE_M0 < mcap else mcap
+    while True:
+        cosn = [0.0] * M
+        f = [0j] * M
+        scale2 = 0.0
+        for j in range(M):
+            theta = _PI * (2 * j + 1) / (2.0 * M)
+            cth, _sth = _eph_cos_sin(theta)
+            lam = cc + h * cth
+            fj = _eph_wick_factor(zr, zi, lam)
+            if not (_finite_real(fj.real) and _finite_real(fj.imag)):
+                raise ValueError(
+                    f"propagate_sparse: propagator magnitude e^{{-Re(z)·λ}} "
+                    f"overflowed at λ={lam!r} (backward z too large)")
+            cosn[j] = cth
+            f[j] = fj
+            m2 = fj.real * fj.real + fj.imag * fj.imag
+            if m2 > scale2:
+                scale2 = m2
+        coeff = [0j] * M
+        for j in range(M):                 # j-outer / k-inner (the C order)
+            fj = f[j]
+            t_prev = 1.0                   # T_0(s_j)
+            t_cur = cosn[j]                # T_1(s_j)
+            coeff[0] += fj
+            if M > 1:
+                coeff[1] += fj * t_cur
+            for k in range(2, M):
+                t_next = 2.0 * cosn[j] * t_cur - t_prev
+                coeff[k] += fj * t_next
+                t_prev, t_cur = t_cur, t_next
+        inv = 1.0 / M
+        coeff[0] *= inv
+        for k in range(1, M):
+            coeff[k] *= 2.0 * inv
+        thresh2 = (tol * tol) * scale2
+        m_eff = 0
+        for k in range(M - 1, -1, -1):
+            ck = coeff[k]
+            if ck.real * ck.real + ck.imag * ck.imag > thresh2:
+                m_eff = k
+                break
+        guard = M // 8 if M // 8 > 1 else 1
+        if m_eff + guard <= M - 1:
+            return coeff[: m_eff + 1]
+        if M >= mcap:
+            raise ValueError(
+                f"propagate_sparse: Chebyshev tail not below tol={tol} within "
+                f"max_degree={max_degree} (|z|·λ_max needs a higher degree — "
+                f"raise max_degree or shrink |z|)")
+        M = 2 * M if M <= mcap // 2 else mcap
+
+
+def _eph_sparse_matvec(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+    deg: List[float],
+    cc: float,
+    hinv: float,
+    v: List[complex],
+) -> List[complex]:
+    """One scaled matvec ``L̃·v = ((L·v) − cc·v)/h`` on the sparse signed
+    Laplacian: ``(L v)[i] = deg[i]·v[i] − Σ_{(a,b) edge} w·v[other]`` by
+    edge-scatter — the SAME accumulation order as the C peer's
+    ``ephs_matvec``. O(n + n_edges) per call; matvec-only is the whole
+    point (no dense matrix is ever formed)."""
+    out = [deg[i] * v[i] for i in range(n)]
+    for (a, b), w in zip(edge_list, w_list):
+        if a == b:
+            continue                       # self-loop cancels in D̄ − A
+        out[a] -= w * v[b]
+        out[b] -= w * v[a]
+    return [(out[i] - cc * v[i]) * hinv for i in range(n)]
+
+
+def _eph_propagate_sparse_py(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+    u,
+    zr: float,
+    zi: float,
+    tol: float,
+    max_degree: int,
+) -> List[complex]:
+    """The pure-Python complete alternative for :func:`propagate_sparse` —
+    the Chebyshev cascade (degrees → adaptive coefficients → forward
+    ``T_{k+1} = 2·L̃·T_k − T_{k−1}`` vector recurrence), the SAME
+    algorithm and accumulation order as the C peer (value-parity within
+    tol, not a rescue)."""
+    deg, lam_max = _eph_sparse_degrees(n, edge_list, w_list)
+    uc = [complex(x) for x in u]
+    if lam_max <= 0.0:
+        return uc                          # L = 0 → e^{-z·0} = I
+    cc = 0.5 * lam_max
+    hinv = 2.0 / lam_max
+    coeff = _eph_sparse_coeffs(zr, zi, cc, 0.5 * lam_max, tol, max_degree)
+    y = [coeff[0] * x for x in uc]
+    if len(coeff) > 1:
+        v_prev = uc
+        v_cur = _eph_sparse_matvec(n, edge_list, w_list, deg, cc, hinv, uc)
+        for k in range(1, len(coeff)):
+            ck = coeff[k]
+            for i in range(n):
+                y[i] += ck * v_cur[i]
+            if k == len(coeff) - 1:
+                break                      # last term: no further matvec
+            mv = _eph_sparse_matvec(n, edge_list, w_list, deg, cc, hinv,
+                                    v_cur)
+            v_next = [2.0 * mv[i] - v_prev[i] for i in range(n)]
+            v_prev, v_cur = v_cur, v_next
+    return y
+
+
+def _eph_propagate_sparse_native(
+    n: int,
+    edge_list: List[Tuple[int, int]],
+    w_list: List[float],
+    u,
+    zr: float,
+    zi: float,
+    tol: float,
+    max_degree: int,
+):
+    """numpy-free native dispatch for :func:`propagate_sparse` — marshals
+    the edge endpoints / weights / interleaved u0 into ctypes buffers and
+    calls the standalone-C ``srmech_eph_propagate_sparse`` with a caller
+    arena sized from ``srmech_eph_propagate_sparse_arena_bytes``. Returns
+    the ``list[complex]`` harvest, or ``None`` on any missing symbol /
+    non-OK status (caller then runs the pure-Python complete
+    alternative)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_eph_propagate_sparse")
+        and hasattr(_native.LIB, "srmech_eph_propagate_sparse_arena_bytes")
+    ):
+        return None
+    n_edges = len(edge_list)
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(a) for a, _ in edge_list))
+        ev = (ctypes.c_uint32 * n_edges)(*(int(b) for _, b in edge_list))
+        wbuf = (ctypes.c_double * n_edges)(*(float(w) for w in w_list))
+    else:
+        eu = ev = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+        wbuf = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    u_il = []
+    for x in u:
+        z = complex(x)
+        u_il.append(z.real)
+        u_il.append(z.imag)
+    u_c = (ctypes.c_double * (2 * n))(*u_il)
+    out = (ctypes.c_double * (2 * n))()
+    deg_used = ctypes.c_uint32(0)
+    ws_bytes = _native.LIB.srmech_eph_propagate_sparse_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges),
+        ctypes.c_uint32(int(max_degree)),
+    )
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_eph_propagate_sparse(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wbuf, u_c,
+        ctypes.c_double(zr), ctypes.c_double(zi), ctypes.c_double(tol),
+        ctypes.c_uint32(int(max_degree)), out, ctypes.byref(deg_used), ws,
+        ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [complex(out[2 * i], out[2 * i + 1]) for i in range(n)]
+
+
+def propagate_sparse(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    u0,
+    z,
+    tol: float = 1e-10,
+    max_degree: int = 2048,
+) -> "Vec":
+    """EPH SPARSE — the sparse-scaled propagator ``harvest = e^{-zL}·u0``
+    (0.9.0rc206; siona gh#1274 item 1c — the corpus-scale residual).
+
+    The SAME harvest as :func:`propagate` (same complex-z convention, same
+    ``arg(z)`` coherence dial — z real → thermal, z imaginary → coherent,
+    between → partial — same seam-folded Wick factor) computed by a
+    **Chebyshev polynomial of the operator applied with matrix-vector
+    products ONLY**: no eigendecomposition, no dense ``e^{-zL}``, so it
+    runs on a corpus-scale ``L`` past the ``n ≤ 256`` dense-eigensolve cap
+    (``O(m·n_edges)`` time, ``O(n)`` memory, ``m`` = the Chebyshev degree).
+    Compose with the Born-rule read exactly as :func:`eph_harvest` does
+    over :func:`propagate`.
+
+    The operator is the SIGNED graph Laplacian read straight off the edge
+    list (the :func:`signed_laplacian` convention, matching the sparse-
+    graph input of :func:`fiedler_sparse` / :func:`spectral_spine`):
+    ``(L v)[i] = deg[i]·v[i] − Σ_{(i,j)} w_ij·v[j]`` with the signed degree
+    ``deg[i] = Σ_incident |w|`` (Class-K magnitude — a sign branch, never
+    ``abs()``), self-loops skipped. Duplicate edges are read PER-EDGE (each
+    contributes ``|w|`` to the degree) — pre-merge duplicates that may
+    carry opposite signs if exact :func:`signed_laplacian` parity is
+    needed for such a list.
+
+    Method (deterministic Chebyshev — no Lanczos, no orthogonalisation, no
+    randomness): the spectral interval ``[0, 2·max_i deg[i]]`` by
+    Gershgorin (cheap + deterministic; the signed Laplacian is PSD; an
+    overestimate only widens the interval), affine-mapped to ``[-1, 1]``;
+    Chebyshev interpolation coefficients of ``e^{-z·λ(s)}`` from the
+    Chebyshev nodes (the rc136 Wick-factor machinery — Class-N exp + the
+    MANDATORY Machin-2π seam-folded cos/sin, so it stays exact at any
+    ``t·λ``); the node count adaptively DOUBLES from 64 up to the HARD CAP
+    ``max_degree+1``, accepting when the coefficient tail (the top eighth
+    — the aliasing guard) falls below ``tol·max|e^{-z·λ}|``; then the
+    forward ``T_{k+1} = 2·L̃·T_k − T_{k−1}`` vector recurrence (``T_k`` of
+    an operator with spectrum in ``[-1, 1]`` has norm ≤ 1 → stable).
+
+    Convergence regime (honest): the needed degree grows like
+    ``|z|·λ_max/2 + O(log 1/tol)`` — super-geometric once past the wave
+    zone (the Bessel-tail decay of the exp expansion). Thermal ``z``
+    (real, ≥ 0) truncates earliest; coherent ``z`` (imaginary) needs the
+    full ``~|z|·λ_max/2`` terms before the tail drops; backward
+    propagation (``Re z < 0``) converges but its error is relative to the
+    max propagator magnitude over the WHOLE interval
+    (``~tol·e^{|Re z|·λ_max}`` absolute — inherent to any polynomial
+    approximation of exp on an interval). Not converged within
+    ``max_degree`` → an honest ``ValueError`` (raise ``max_degree`` or
+    shrink ``|z|``); the tolerance is never silently degraded.
+
+    Parameters
+    ----------
+    n : int
+        Number of graph nodes.
+    edges : Iterable[Tuple[int, int]]
+        Undirected edges ``(u, v)`` with ``0 ≤ u, v < n`` (the
+        :func:`fiedler_sparse` / :func:`signed_laplacian` convention).
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); same length as ``edges``.
+        May be negative — the signed degree keeps ``L`` PSD.
+    u0 : Vec | list (keyword-only)
+        The excitation vector (length ``n``, real or complex) — the seed
+        the propagator acts on (as :func:`propagate`).
+    z : complex (keyword-only)
+        The complex time; ``arg(z)`` is the coherence dial (as
+        :func:`propagate`; a ``[re, im]`` pair is accepted).
+    tol : float
+        Relative coefficient-tail tolerance (relative to the max
+        propagator magnitude over the spectral interval). Default 1e-10.
+    max_degree : int
+        The HARD Chebyshev degree cap (1 .. 2^28). Default 2048 — covers
+        ``|z|·λ_max`` up to ~4000 at the default tol.
+
+    Returns
+    -------
+    Vec
+        The harvest ``e^{-zL}·u0`` — a length-``n`` complex
+        :class:`~srmech.amsc.vec.Vec` (the :func:`propagate` return
+        contract). ``n = 0`` gives the empty harvest.
+
+    Native (rc206): dispatches to the standalone-C
+    ``srmech_eph_propagate_sparse`` (degrees + node evaluation +
+    coefficients + the vector recurrence all in C, caller-arena, no
+    caps beyond the caller's ``max_degree``); pure Python is the complete
+    alternative — same algorithm, same accumulation order, NUMERIC
+    (FPU-tol) within-tol parity (differential-tested), not byte-for-byte.
+    numpy-free; no ``abs()`` (Class-K sign branch / magnitude-squares).
+
+    Raises:
+        ValueError: bad ``n`` / edge / weight (the
+            :func:`fiedler_sparse` contracts), ``len(u0) != n``, a
+            non-finite weight, ``tol <= 0``, ``max_degree`` out of range,
+            or a coefficient tail not below ``tol`` within ``max_degree``
+            (the honest non-convergence).
+    """
+    edge_list, w_list = _validate_edges_weights_py(n, edges, weights)
+    z = complex(z[0], z[1]) if isinstance(z, (list, tuple)) else complex(z)
+    u = _vec(u0)
+    if len(u) != n:
+        raise ValueError(
+            f"propagate_sparse: len(u0) ({len(u)}) must equal n ({n})")
+    tol = float(tol)
+    if not (tol > 0.0):
+        raise ValueError(f"propagate_sparse: tol must be > 0; got {tol!r}")
+    max_degree = int(max_degree)
+    if max_degree < 1 or max_degree > _EPH_SPARSE_DEGREE_CAP:
+        raise ValueError(
+            f"propagate_sparse: max_degree must be in 1..2^28; got "
+            f"{max_degree}")
+    if n == 0:
+        return Vec(array("d"), 0, is_complex=True)
+    harvest = _eph_propagate_sparse_native(
+        n, edge_list, w_list, u, z.real, z.imag, tol, max_degree)
+    if harvest is None:
+        harvest = _eph_propagate_sparse_py(
+            n, edge_list, w_list, u, z.real, z.imag, tol, max_degree)
+    return Vec.from_sequence(harvest, is_complex=True)
 
 
 def fiedler_vector(matrix) -> "Vec":
@@ -2719,6 +4879,214 @@ def fiedler_vector(matrix) -> "Vec":
     return Vec.from_sequence(
         [V[i, 1] for i in range(V.n_rows)], is_complex=is_cx
     )
+
+
+# =====================================================================
+# rc204 (gh#1324; F1167–F1169) — the spectral SPINE: the DOMINANT-mode
+# read-out that completes the community/spine pair with the LOW-mode
+# fiedler_vector / fiedler_sparse (2-way) + three_fold_eigvec_groups (3-way).
+# =====================================================================
+#
+# The community side reads the LOW modes of a graph Laplacian (λ₂ = the Fiedler
+# navigation / bisection; the three low/mid/high bands). The SPINE is the dual
+# read: the DOMINANT eigenvector (largest λ) of the (signed) Laplacian
+# concentrates on the structurally CENTRAL items of the relational graph, so its
+# top-|component| nodes ARE the spine (F1167–F1169). Domain-free — the edge list
+# is any relational graph (siona describe-spine; ephemerides central bodies).
+
+
+def _infer_n_from_edges(edge_list: List[Tuple[int, int]]) -> int:
+    """The node count of a relational graph given only its edges: one past the
+    largest endpoint (isolated high-index nodes carry no relationship, so they
+    are never central and their omission never changes the spine). No ``abs()``
+    — endpoints are non-negative node indices."""
+    n = 0
+    for (u, v) in edge_list:
+        iu, iv = int(u), int(v)
+        if iu + 1 > n:
+            n = iu + 1
+        if iv + 1 > n:
+            n = iv + 1
+    return n
+
+
+def _spine_from_V(V, k: int) -> List[int]:
+    """Top-``min(k, n)`` node indices by |component|² of the DOMINANT eigenvector
+    (the LAST column of an ascending-eigenvalue ``V`` — the largest λ), ordered by
+    descending magnitude, ties broken by ascending index. Class-K magnitude-square
+    (``re²+im²``; sign-invariant, so no eigenvector sign-canon is needed) — NO
+    ``abs()`` and NO float square root. Mirrors the C ``spine_select_topk`` sort
+    key exactly."""
+    n_rows = V.n_rows
+    if n_rows == 0 or k <= 0:
+        return []
+    col = V.n_cols - 1  # dominant = largest eigenvalue (ascending spectrum)
+    magsq: List[float] = []
+    for i in range(n_rows):
+        x = V[i, col]
+        if isinstance(x, complex):
+            magsq.append(x.real * x.real + x.imag * x.imag)
+        else:
+            magsq.append(x * x)
+    order = sorted(range(n_rows), key=lambda i: (-magsq[i], i))
+    return order[: min(int(k), n_rows)]
+
+
+def _spectral_spine_native(n, edge_list, w_list, k) -> Optional[List[int]]:
+    """numpy-free native dispatch for :func:`spectral_spine` — marshals the edge
+    endpoints (uint32) + weights (double) into ctypes buffers and calls the
+    composite C peer ``srmech_spectral_spine`` with a caller arena sized from
+    ``srmech_spectral_spine_arena_bytes``. Returns the ``list[int]`` spine, or
+    ``None`` on any missing symbol / non-OK status (caller then runs the
+    pure-Python complete alternative)."""
+    if not _native.has_native_spectral_spine():
+        return None
+    n_edges = len(edge_list)
+    want = min(int(k), n)
+    if want <= 0:
+        return []
+    eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in edge_list))
+    ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in edge_list))
+    wb = (ctypes.c_double * n_edges)(*(float(w) for w in w_list))
+    out = (ctypes.c_uint32 * want)()
+    cnt = ctypes.c_uint32(0)
+    ws_bytes = _native.LIB.srmech_spectral_spine_arena_bytes(ctypes.c_uint32(n))
+    wsd = int(ws_bytes) // 8 + 16
+    ws = (ctypes.c_double * wsd)()
+    rc = _native.LIB.srmech_spectral_spine(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wb,
+        ctypes.c_uint32(int(k)), out, ctypes.byref(cnt), ws,
+        ctypes.c_size_t(wsd * 8),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [int(out[i]) for i in range(cnt.value)]
+
+
+def spectral_spine(
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    k: int = 8,
+) -> List[int]:
+    """The spectral SPINE of a relational graph — the structurally CENTRAL nodes
+    (gh#1324; F1167–F1169).
+
+    Build the (signed) Laplacian ``L = D̄ − A`` from the edge list, take the
+    DOMINANT eigenvector (the largest-eigenvalue eigenvector via
+    :func:`symmetric_eigendecompose`), and return the top-``k`` nodes by
+    |component| (Class-K magnitude). The largest-eigenvalue eigenvector of a
+    graph Laplacian concentrates on the structurally central items, so its
+    top-magnitude nodes ARE the spine — the DOMINANT-mode read-out that completes
+    the community/spine PAIR with the LOW-mode :func:`fiedler_vector` /
+    :func:`fiedler_sparse` (2-way community) + :func:`three_fold_eigvec_groups`
+    (3-way). Domain-free: ``edges`` is any relational graph (siona describe-spine;
+    ephemerides central bodies).
+
+    Parameters
+    ----------
+    edges : Iterable[Tuple[int, int]]
+        Undirected relational edges ``(u, v)`` with non-negative node indices.
+        The node count ``n`` is inferred as one past the largest endpoint
+        (isolated high-index nodes are never central, so their omission never
+        changes the spine); mirror the ``(edges, weights)`` convention of the
+        other edge-taking Class-L ops (:func:`signed_laplacian` /
+        :func:`fiedler_sparse`).
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); same length as ``edges``. May be
+        negative — the signed Laplacian's signed degree ``Σ|A_ij|`` keeps ``L``
+        PSD (the dissolved Class-O signed-metric leg).
+    k : int
+        Spine cap (keyword-only; default 8). At most ``min(k, n)`` node indices
+        are returned. ``k <= 0`` → ``[]``.
+
+    Returns
+    -------
+    list[int]
+        Up to ``k`` central node indices, ordered by descending |component| of
+        the dominant eigenvector (ties broken by ascending index). ``[]`` for an
+        empty graph (no edges → no relational structure).
+
+    Dispatches to the standalone-C composite ``srmech_spectral_spine`` when
+    ``HAS_NATIVE`` (the build + eigensolve + top-k selection run in C, caller-
+    arena, no caps); else srmech's own pure-Python cascade
+    (:func:`signed_laplacian` + :func:`symmetric_eigendecompose` + top-k). NUMERIC
+    (FPU-tol): the eigenvector basis is non-unique, so native == pure agrees
+    WITHIN-TOL — the selected index set / order is stable for a non-degenerate
+    dominant eigenvalue, NOT byte-for-byte. numpy-free; no ``abs()``.
+    """
+    edge_list = [tuple(e) for e in edges]
+    n = _infer_n_from_edges(edge_list)
+    if n == 0:
+        return []
+    _el, w_list = _validate_edges_weights_py(n, edge_list, weights)
+    kk = min(int(k), n)
+    if kk <= 0:
+        return []
+    idxs = _spectral_spine_native(n, edge_list, w_list, k)
+    if idxs is not None:
+        return idxs
+    # Pure-Python complete alternative: signed Laplacian → eigendecompose → top-k.
+    L = signed_laplacian(n, edge_list, w_list)
+    _eigvals, V = symmetric_eigendecompose(L)
+    return _spine_from_V(V, kk)
+
+
+def relational_structure(
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+) -> dict:
+    """The full spectral structure of a relational graph in ONE call (gh#1324) —
+    the ergonomic sugar that composes the Class-L atoms.
+
+    Reads a graph as BOTH its central spine AND its community split from a single
+    eigendecomposition of the (signed) Laplacian::
+
+        {"spine": [...],          # top-8 central nodes (the DOMINANT mode)
+         "communities": [L, R],   # the Fiedler 2-way sign bisection (the LOW mode)
+         "coherence": λ₂}         # algebraic connectivity (the Fiedler value)
+
+    Composes :func:`signed_laplacian` + :func:`symmetric_eigendecompose` (ONE
+    eigensolve) + the :func:`spectral_spine` top-k selection (dominant column) +
+    the Fiedler sign split (λ₂ column) — no dedicated C symbol, a pure composition
+    of the C-backed atoms. ``"communities"`` is ``[left, right]`` where ``left``
+    are the negative-Fiedler-sign nodes and ``right`` the non-negative (the
+    :func:`normalized_cut_bisect` convention; a Class-K sign split, no ``abs()``).
+    ``"coherence"`` is the second-smallest eigenvalue λ₂ (the algebraic
+    connectivity — small ⇒ a near-disconnected graph). numpy-free.
+
+    Parameters
+    ----------
+    edges : Iterable[Tuple[int, int]]
+        Undirected relational edges (``n`` inferred as in :func:`spectral_spine`).
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); may be negative.
+
+    Returns
+    -------
+    dict
+        ``{"spine": list[int], "communities": [list[int], list[int]],
+        "coherence": float}``. An empty graph → empty spine, empty communities,
+        ``coherence = 0.0``; a single node → spine ``[0]``, communities
+        ``[[0], []]``, ``coherence = 0.0`` (no λ₂).
+    """
+    edge_list = [tuple(e) for e in edges]
+    n = _infer_n_from_edges(edge_list)
+    if n == 0:
+        return {"spine": [], "communities": [[], []], "coherence": 0.0}
+    _el, w_list = _validate_edges_weights_py(n, edge_list, weights)
+    L = signed_laplacian(n, edge_list, w_list)
+    eigvals, V = symmetric_eigendecompose(L)  # ascending eigvals, columns = eigvecs
+    spine = _spine_from_V(V, min(8, n))
+    if n >= 2:
+        # λ₂ Fiedler vector = column 1; the sign split is the normalized cut.
+        left = [i for i in range(n) if V[i, 1] < 0.0]
+        right = [i for i in range(n) if V[i, 1] >= 0.0]
+        coherence = float(eigvals[1])
+    else:
+        left, right = [0], []          # a single node: no bisection
+        coherence = 0.0
+    return {"spine": spine, "communities": [left, right], "coherence": coherence}
 
 
 # --- §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler ---------
@@ -3392,6 +5760,9 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "normalized_laplacian",
     "signed_laplacian",
     "magnetic_laplacian",
+    "klein4_gain_laplacian",
+    "klein4_relational_structure",
+    "cycle_holonomy",
     "fiedler_vector",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -3416,6 +5787,13 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "elementwise_transcendental",
     "elementwise_hypot",
     "elementwise_sqrt",
+    "heat_trace",
+    "ground_state_flux_response",
+    "propagate",
+    "eph_harvest",
+    "propagate_sparse",
+    "propagate_wound",
+    "responsion",
     "dense_solve",
     "schur_complement",
     "dirichlet_to_neumann",

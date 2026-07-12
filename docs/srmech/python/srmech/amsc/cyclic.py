@@ -92,6 +92,12 @@ def _ensure_uint64(name: str, value: int) -> int:
 
 _UINT64_MAX = 0xFFFF_FFFF_FFFF_FFFF
 
+# 0.9.0rc167 (#765): the size-adaptive threshold (max operand bit-length) at
+# which the beyond-u64 gcd dispatches to srmech's own C bignum Euclid
+# (`_native.bigint_gcd_c`) instead of the pure-Python loop. Attested-to-
+# measurement — see the comment at the dispatch site in `gcd` below.
+_GCD_NATIVE_MIN_BITS: int = 1024
+
 
 def gcd(a: int, b: int) -> int:
     """Class-I Euclidean GCD. ``gcd(0, 0)`` is ``0``; ``gcd(a, 0)`` is ``a``.
@@ -120,6 +126,22 @@ def gcd(a: int, b: int) -> int:
         if rc != _native.SRMECH_OK:
             raise RuntimeError(f"srmech_gcd returned non-OK status {rc}")
         return int(out.value)
+    # 0.9.0rc167 (#765): at/above the measured threshold the whole Euclid loop
+    # runs on srmech's own caller-arena C bignum (`srmech_bigint_gcd`),
+    # byte-identical (gcd is unique). Attested-to-measurement (Class B): WSL2
+    # gcc -O2, Python 3.12, binary limb marshal — BELOW 1024 bits the native
+    # loop LOSES (0.36–0.73× at 128–512 bits: call + marshal overhead); from
+    # 1024 bits up it is measured COST-PARITY (0.85–1.22× across 1k–65k bits —
+    # the per-iteration `a % b` in the pure loop is already CPython's C
+    # divmod, so there is no interpreter-loop win to harvest). 1024 is the
+    # parity onset; dispatching above it buys the #765 self-hosting substrate
+    # at ≈cost-neutral. Measured table: tests/test_q_native_dispatch_rc167.py
+    # + CHANGELOG 0.9.0rc167. The pure loop below stays the complete
+    # below-threshold / no-native alternative.
+    if _GCD_NATIVE_MIN_BITS <= max(a.bit_length(), b.bit_length()):
+        g = _native.bigint_gcd_c(a, b)
+        if g is not None:
+            return g
     while b != 0:
         a, b = b, a % b
     return a

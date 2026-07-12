@@ -246,6 +246,253 @@ def _to_hv(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_poly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the **natural ascending-degree coefficient form** for
+    a ``Poly``-typed param (rc41 ``gosper`` term-ratio operands).
+
+    The op's ``Poly`` acceptance (:meth:`srmech.amsc.poly.Poly.from_coeffs`) is
+    AGNOSTIC about input: it iterates a coefficient sequence where each entry is
+    an exact-rational coefficient — an ``int``, or a ``[num, den]`` integer pair
+    (a 2-list JSON carries naturally). So the honest, minimal coercer produces the
+    flat Python list and lets ``Poly.from_coeffs`` build the carrier — never a
+    float (a Poly coefficient must be exact). A value already a ``Poly`` (an
+    in-process caller) passes through unchanged."""
+    from srmech.amsc.poly import Poly  # exact-ℚ polynomial carrier; lazy
+    if isinstance(value, Poly):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_bipoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for a ``BiPoly``-typed param (rc42
+    ``zeilberger`` bivariate term-ratio operands).
+
+    A ``BiPoly`` is a polynomial in ``k`` whose coefficients are
+    :class:`~srmech.amsc.poly.Poly` in ``n``. The op's coercion
+    (:meth:`srmech.amsc.zeilberger.BiPoly.coerce`) accepts: a ``BiPoly`` (passes
+    through); a ``Poly`` (read as a polynomial in ``k`` alone); or a
+    ``k``-ascending list whose entries are each a Poly-in-n (an ``n``-coefficient
+    list). So the honest, minimal coercer hands the natural nested list through —
+    a JSON ``[[a, b], [c]]`` rides as k-slot 0 = Poly-in-n ``[a, b]``, k-slot 1 =
+    ``[c]`` — and lets ``BiPoly.coerce`` build the carrier (never a float; a
+    coefficient must be exact). A ``BiPoly`` / ``Poly`` / tuple passes naturally."""
+    from srmech.amsc.zeilberger import BiPoly  # exact-ℚ bivariate carrier; lazy
+    from srmech.amsc.poly import Poly
+    if isinstance(value, (BiPoly, Poly)):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_tripoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for a ``TriPoly``-typed param (rc53
+    ``apagodu_zeilberger`` trivariate term-ratio operands).
+
+    A ``TriPoly`` is a polynomial in ``ℚ[n,j,k]`` — a ``j``-ascending tuple of
+    :class:`~srmech.amsc.zeilberger.BiPoly` in ``(n,k)``. The op's coercion
+    (:meth:`srmech.amsc.tripoly.TriPoly._as_tripoly`) accepts a ``TriPoly`` (passes
+    through), a lower carrier (``BiPoly`` in ``(n,k)`` / ``Poly`` in ``k``), or the
+    natural nested list. So the honest, minimal coercer hands the value through
+    (tuple→list) and lets the op build the carrier (never a float; a coefficient
+    must be exact). A ``TriPoly`` / ``BiPoly`` / ``Poly`` / tuple passes naturally."""
+    from srmech.amsc.tripoly import TriPoly  # exact-ℚ trivariate carrier; lazy
+    from srmech.amsc.zeilberger import BiPoly
+    from srmech.amsc.poly import Poly
+    if isinstance(value, (TriPoly, BiPoly, Poly)):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_qpoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for a ``QPoly``-typed param (rc55
+    ``q_gosper`` q-hypergeometric term-ratio operands).
+
+    A ``QPoly`` is a Laurent polynomial in ``x = qⁿ`` over ``ℚ[q]`` — an
+    ascending-x sequence of :class:`~srmech.amsc.poly.Poly`-in-``q`` cells. The op's
+    coercion (:func:`srmech.amsc.q_gosper._coerce_qpoly`) accepts a ``QPoly`` (passes
+    through), a lower carrier (a ``Poly`` in ``q`` → an ``x**0`` cell), or the
+    natural nested-list form (an ascending-x list of ``ℚ[q]`` coefficient cells). So
+    the honest, minimal coercer hands the value through (tuple→list) and lets the op
+    build the carrier (never a float; a coefficient must be exact). A ``QPoly`` /
+    ``Poly`` / tuple passes naturally."""
+    from srmech.amsc.qpoly import QPoly  # exact-ℚ[q] q-shift carrier; lazy
+    from srmech.amsc.poly import Poly
+    if isinstance(value, (QPoly, Poly)):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_qbipoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for a ``QBiPoly``-typed param (rc56
+    ``q_zeilberger`` bivariate-q term-ratio operands).
+
+    A ``QBiPoly`` is the q-analog of ``BiPoly`` — a polynomial in ``Y = qᵏ`` whose
+    coefficients are :class:`~srmech.amsc.qpoly.QPoly` in ``X = qⁿ`` (over ``ℚ[q]``).
+    The op's coercion (:meth:`srmech.amsc.qbipoly.QBiPoly.coerce`) accepts a
+    ``QBiPoly`` (passes through), a ``QPoly`` (read as a polynomial in ``Y`` alone), a
+    ``Poly`` in ``q`` (a scalar), or the natural nested-``Y``-degree list whose entries
+    are each a ``QPoly``-in-``X`` (or QPoly-coercible cell). So the honest, minimal
+    coercer hands the value through (tuple→list) and lets the op build the carrier
+    (never a float; a coefficient must be exact). A ``QBiPoly`` / ``QPoly`` / ``Poly``
+    / tuple passes naturally."""
+    from srmech.amsc.qbipoly import QBiPoly  # exact bivariate-ℚ[q] carrier; lazy
+    from srmech.amsc.qpoly import QPoly
+    from srmech.amsc.poly import Poly
+    if isinstance(value, (QBiPoly, QPoly, Poly)):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return value
+
+
+def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value for a poly-ladder PROMOTE param (``Poly | BiPoly``;
+    rc116 ``carrier_ladder.poly_promote``). The op restructures an
+    ALREADY-BUILT ordinary-ladder carrier, so a ``Poly`` / ``BiPoly`` /
+    ``TriPoly`` passes straight through; a bare list is built into the lowest
+    rung (a ``Poly``) so a from-scratch caller can promote a coefficient list.
+    Never a float (a coefficient must be exact)."""
+    from srmech.amsc.poly import Poly
+    from srmech.amsc.zeilberger import BiPoly
+    from srmech.amsc.tripoly import TriPoly
+    if isinstance(value, (Poly, BiPoly, TriPoly)):
+        return value
+    return _to_poly(value, param=param)
+
+
+def _to_bipoly_or_tripoly(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value for a poly-ladder PROJECT param (``BiPoly |
+    TriPoly``; rc116 ``carrier_ladder.poly_project``). An already-built
+    ordinary-ladder carrier passes straight through; a bare nested list is
+    built into a ``BiPoly``. Never a float (a coefficient must be exact)."""
+    from srmech.amsc.poly import Poly
+    from srmech.amsc.zeilberger import BiPoly
+    from srmech.amsc.tripoly import TriPoly
+    if isinstance(value, (Poly, BiPoly, TriPoly)):
+        return value
+    return _to_bipoly(value, param=param)
+
+
+def _to_ellratio(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to the natural form for an ``EllRatio``-typed param (rc61
+    ``elliptic_gosper`` elliptic-hypergeometric term-ratio operand).
+
+    An ``EllRatio`` is a theta-quotient ``∏θ(αx;p)/∏θ(βx;p)`` over an exact-``ℚ``
+    monomial prefactor. The op's coercion
+    (:func:`srmech.amsc.elliptic_gosper._coerce_ratio`) accepts an ``EllRatio``
+    (passes through) or a lower carrier (an ``EllMonomial`` → a pure-monomial ratio;
+    a ``Theta`` → a single numerator theta). For a JSON caller the natural minimal
+    operand is a single exact-``ℚ`` SCALAR (the elliptic-geometric constant ratio
+    ``r = z``, the engine's canonical certifiable case): an int / ``(num, den)`` pair
+    builds the scalar ``EllRatio.monomial(EllMonomial.scalar(z))``. An ``EllRatio`` /
+    ``EllMonomial`` / ``Theta`` passes through (never a float; a coefficient must be
+    exact)."""
+    from srmech.amsc.ellbase import EllMonomial, EllRatio, Theta  # exact carrier; lazy
+    from srmech.amsc.q import Q
+    if isinstance(value, (EllRatio, EllMonomial, Theta)):
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return EllRatio.monomial(EllMonomial.scalar(Q(value, 1)))
+    if (isinstance(value, (list, tuple)) and len(value) == 2
+            and isinstance(value[0], int) and isinstance(value[1], int)
+            and value[1] != 0):
+        return EllRatio.monomial(EllMonomial.scalar(Q(value[0], value[1])))
+    return value
+
+
+def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to an ``EllMonomial``-typed param (rc94
+    ``elliptic_cauchy_determinant`` variable / parameter).
+
+    An ``EllMonomial`` is a signed exact-``ℚ`` Laurent monomial ``c·∏ sym^e`` over the
+    modified-theta algebra. The op's variables (``t`` and the ``x_i`` / ``y_j``) are
+    SYMBOLS, so for a JSON caller the natural minimal operand is a **symbol NAME string**
+    (``"x0"``, ``"t"``, …) → :meth:`EllMonomial.symbol`. An ``EllMonomial`` passes through;
+    an int / ``(num, den)`` pair → the constant :meth:`EllMonomial.scalar` (never a float;
+    a coefficient must be exact)."""
+    from srmech.amsc.ellbase import EllMonomial  # exact carrier; lazy
+    from srmech.amsc.q import Q
+    if isinstance(value, EllMonomial):
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return EllMonomial.symbol(value)
+    if isinstance(value, int):
+        return EllMonomial.scalar(Q(value, 1))
+    if (isinstance(value, (list, tuple)) and len(value) == 2
+            and isinstance(value[0], int) and isinstance(value[1], int)
+            and value[1] != 0):
+        return EllMonomial.scalar(Q(value[0], value[1]))
+    return value
+
+
+def _seq_ellmonomial(value: Any, *, param: str = "") -> Any:
+    """``Sequence[EllMonomial]`` -> list of ``EllMonomial`` (rc94
+    ``elliptic_cauchy_determinant`` ``xs`` / ``ys`` variable lists; each element via
+    :func:`_to_ellmonomial`, so a JSON list of symbol-name strings lifts elementwise)."""
+    if isinstance(value, (list, tuple)):
+        return [_to_ellmonomial(v, param=param) for v in value]
+    return value
+
+
+def _to_mock_q_series(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to a ``MockQSeries``-typed param (0.9.0rc71
+    ``harmonic_maass`` holomorphic mock part).
+
+    A ``MockQSeries`` is the holomorphic part ``f⁺`` of a harmonic Maass form (a
+    leading ``q``-power + a finite generating rule). The op
+    (:func:`srmech.amsc.harmonic_maass.harmonic_maass`) accepts the STRING
+    ``'eulerian_f'`` (Ramanujan's order-3 ``f(q)``, the #9 keystone) directly, so
+    for a JSON caller the natural minimal operand is that string — passed through.
+    A coefficient list (a JSON array of ``[num, den]`` pairs, or ints) builds a
+    closed-form ``qpoly`` mock part; a ``MockQSeries`` passes through (never a
+    float; a coefficient must be exact)."""
+    from srmech.amsc.harmonic_maass import MockQSeries  # exact carrier; lazy
+    if isinstance(value, MockQSeries):
+        return value
+    if isinstance(value, str):
+        return value                       # the op resolves 'eulerian_f' itself
+    if isinstance(value, (list, tuple)) and value:
+        coeffs = []
+        for c in value:
+            if isinstance(c, (list, tuple)) and len(c) == 2:
+                coeffs.append((int(c[0]), int(c[1])))
+            elif isinstance(c, int) and not isinstance(c, bool):
+                coeffs.append((c, 1))
+            else:
+                return value               # not a recognised coeff shape; pass on
+        return MockQSeries.from_qpoly(coeffs)
+    return value
+
+
+def _to_unary_theta(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to a ``UnaryTheta``-typed param (0.9.0rc71
+    ``harmonic_maass`` shadow).
+
+    A ``UnaryTheta`` is the weight-``(2−k)`` shadow ``g = ξ_k(f)`` (rc70). The op
+    accepts a ``UnaryTheta`` (passes through). For a JSON caller the natural minimal
+    operand is the named shadow ``g₃`` — the string ``'g3'`` (or its character name
+    ``'minus12'``) builds ``unary_theta('minus12', 1, 1, 0, 24, support='positive')``
+    (Zagier, Astérisque 326, p. 150, the #9 mock-theta shadow). A
+    ``UnaryTheta`` passes through unchanged."""
+    from srmech.amsc.unary_theta import UnaryTheta, unary_theta  # exact carrier; lazy
+    if isinstance(value, UnaryTheta):
+        return value
+    if isinstance(value, str) and value in ("g3", "g_3", "minus12", "(-12/.)"):
+        return unary_theta("minus12", 1, 1, 0, 24, support="positive")
+    return value
+
+
 def _to_mat_or_vec(value: Any, *, param: str = "") -> Any:
     """Coerce a ``Mat | Vec`` (shape-polymorphic) param: a nested list rides as
     a 2-D matrix, a flat list as a 1-D vector — both pass through as the natural
@@ -579,6 +826,22 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Mat": _to_mat,            # v0.7.5rc72: numpy-free 2-D carrier (mat_matmul bridge)
     "Vec": _to_vec,            # v0.7.5rc132: numpy-free 1-D carrier
     "HV": _to_hv,              # v0.7.5rc132: numpy-free hypervector byte carrier
+    "Poly": _to_poly,          # 0.9.0rc41: exact-ℚ polynomial carrier (gosper term ratio)
+    "BiPoly": _to_bipoly,      # 0.9.0rc42: exact-ℚ[n,k] bivariate carrier (zeilberger ratios)
+    "TriPoly": _to_tripoly,    # 0.9.0rc53: exact-ℚ[n,j,k] trivariate carrier (apagodu_zeilberger ratios)
+    "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
+    "QBiPoly": _to_qbipoly,    # 0.9.0rc56: exact bivariate-ℚ[q] carrier (q_zeilberger ratios)
+    # 0.9.0rc116 (#1248 / F1038): the carrier-ladder promote/project inputs —
+    # a poly-ladder carrier passes through; a bare (nested) list builds the
+    # lowest rung. Return-side union types (Poly | BiPoly / QPoly …) need no
+    # coercer (only PARAM types are coerced).
+    "Poly | BiPoly": _to_poly_or_bipoly,
+    "BiPoly | TriPoly": _to_bipoly_or_tripoly,
+    "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
+    "EllMonomial": _to_ellmonomial,  # 0.9.0rc94: exact-ℚ Laurent monomial carrier (elliptic_cauchy_determinant variable / parameter)
+    "Sequence[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc94: elliptic_cauchy_determinant xs / ys variable lists
+    "MockQSeries": _to_mock_q_series,  # 0.9.0rc71: harmonic_maass holomorphic mock part ('eulerian_f' / qpoly)
+    "UnaryTheta": _to_unary_theta,     # 0.9.0rc71: harmonic_maass shadow ('g3' → the weight-3/2 g₃)
     "Optional[Vec]": _to_vec,
     "Optional[HV]": _to_hv,
     "Mat | Vec": _to_mat_or_vec,   # shape-polymorphic 2-D-or-1-D operand
@@ -600,6 +863,8 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "tuple[Mat, ...]": _tuple_mat,  # v0.7.5rc132: gauge generators / einsum operands
     "Sequence[tuple]": _seq_tuple,  # v0.7.5rc134: genome.chromosome(genes=[(label, leaves), ...])
     "list[list[list[float]]]": _identity,  # rank-3 nested list, JSON-native (gauge f^abc)
+    "list[list[list[int]]]": _identity,  # v0.9.0rc116: tripoly_from_coeffs `coeffs`, JSON-native
+    "list[list[int]]": _identity,  # v0.9.0rc44: modular_linalg.gf_rref `rows` matrix, JSON-native
     # ── legacy numpy-free Sequence/tuple keys kept for wire-form tests ──
     "Sequence[np.ndarray]": _seq_ndarray,
     "tuple[np.ndarray, ...]": _tuple_ndarray,
@@ -631,7 +896,13 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Optional[list[float]]": _identity,
     "iterable[int]": _identity,
     "sequence": _identity,
+    "Sequence[int]": _identity,   # v0.9.0rc121: genome.kernel_pack `data` (flat Klein-4 kernel; JSON-native)
+    "list|str": _identity,        # v0.9.0rc121: genome.kernel_unpack `strand_or_path` (strand list OR path str; both JSON-native)
     "int | float | str | list | dict": _identity,
+    # 0.9.0rc108: laplacian.heat_trace `t` / laplacian.ground_state_flux_response
+    # `fluxes` — a scalar diffusion-time/flux OR a list of them; both forms are
+    # JSON-native (the op itself dispatches scalar → float, sequence → Vec).
+    "float | Sequence[float]": _identity,
     # ── opaque in-process handle types (cannot ride JSON; the schema
     #    renders them as objects and an in-process caller passes the real
     #    object through). Listed so the ratchet stays exhaustive. ──

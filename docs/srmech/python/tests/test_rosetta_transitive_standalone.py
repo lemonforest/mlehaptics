@@ -4,7 +4,7 @@ The existing ``test_rosetta_completeness.py`` checks that every op is *classifie
 and that the two debt-bucket *counts* don't rise — but it NEVER walks the call
 graph. So a ``composition_of_c`` op (which claims "standalone-C-ready: I only
 compose ops that each reach C") could silently reach a ``bignum_reference`` /
-``python_only_irreducible`` leaf and the ratchet wouldn't notice. That blind spot
+``python_only_debt`` leaf and the ratchet wouldn't notice. That blind spot
 is exactly how ``sed_is_navigable`` shipped mislabeled (it reached the
 pure-Python ``left_mult_is_invertible``); see the rc12 SedenionRegister fix.
 
@@ -31,12 +31,28 @@ from pathlib import Path
 import pytest
 
 _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
-_ROOTS = ("srmech.amsc", "srmech.qm", "srmech.signal_processing")
+# rc177 annex: mirror the ledger-walk extension to bus/dsl (this ratchet only
+# iterates composition_of_c rows — all 39 bus/dsl rows are non_compute, so the
+# extension is a no-op for its assertion; kept for cross-walk consistency).
+# rc183 HOST-GLUE annex: mirror the extension to mcp/cli/llm too (all +24 rows are
+# non_compute, so likewise a no-op for the composition_of_c assertion; kept for
+# cross-walk consistency).
+# rc218 PARITY-COMPLETENESS annex: mirror the extension to spectral/rbs_lm/
+# introspect/profile_loader (the spectral + rbs_lm compute rows ARE
+# composition_of_c, so this ratchet now walks them for hidden non-ready leaves;
+# kept identical across all four walk sites).
+_ROOTS = (
+    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
+    "srmech.bus", "srmech.dsl",
+    "srmech.mcp", "srmech.cli", "srmech.llm",
+    "srmech.spectral", "srmech.rbs_lm",
+    "srmech.introspect", "srmech.profile_loader",
+)
 
 # Buckets that are NOT standalone-C-ready (a composition_of_c op must not reach
 # one transitively).
 _NOT_READY = frozenset(
-    ("bignum_reference", "python_only_irreducible", "c_exists_unbound")
+    ("bignum_reference", "python_only_debt", "c_exists_unbound")
 )
 
 # ── DOWN-ONLY allowlist of acknowledged composition→non-ready debt ──────────
@@ -49,7 +65,7 @@ _ACKNOWLEDGED = {
     # `hypercomplex_couple` edges: the coupler was rewritten to the exact-Q61
     # octonion couple `_couple_q61` that dispatches to `srmech_hypercomplex_couple_q61`
     # and composes only c_dispatched primitives — so it is now `c_dispatched`,
-    # not `python_only_irreducible`, and the edges are no longer non-ready.)
+    # not `python_only_debt`, and the edges are no longer non-ready.)
     # (rc13 closed the exact_dft.lift → pi_cascade_digits edge by rerouting the
     # FPU-lift 2π to the c_dispatched `rational.atan`: 2π = 8·atan(1).)
 }
@@ -65,6 +81,8 @@ def _iter_submodules(root_name):
         tail = name.rsplit(".", 1)[-1]
         if tail.startswith("_") and tail != "__init__":
             continue
+        # .adapters = the net/file-IO collector surface (requests + optional
+        # netCDF4/rasterio) — the documented IO-exclusion, see ROSETTA_LEDGER.md.
         if any(p in name for p in ("._research", ".adapters", ".attested", "._native")):
             continue
         try:

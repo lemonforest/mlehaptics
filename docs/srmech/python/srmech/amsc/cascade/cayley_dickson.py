@@ -46,9 +46,16 @@ the construction needs only ``+``, ``−``, ``×`` and the Class-K sign-flip (ne
 **structural core** — the basis-unit cocycle ``e_i·e_j = ±e_{i⊕j}`` — is
 :func:`cd_basis_product`, attested bit-exact against the JPL-clean C peer
 ``srmech_cd_basis_product`` by ``tests/test_cascade_cayley_dickson_parity.py``
-(the Rosetta pair; the arbitrary-rational product stays Python by the same
-vendoring-scope decision that keeps TOML parsing in Python — there is no bignum
-rational in libsrmech).
+(the Rosetta pair). The exact-ℚ VECTOR ops :func:`cd_basis` / :func:`cd_conjugate`
+/ :func:`cd_add` / :func:`cd_norm_sq` also dispatch to JPL-clean C peers
+(``srmech_cd_q{basis,conjugate,add,norm_sq}`` — the ``srmech_cd_qvec`` exact-ℚ
+vector carrier, the 1-D sibling of ``srmech_qmat`` over the caller-arena
+``srmech_bigint``; rc159/Qalg Batch 3), byte-identical reduced ``(num, den)`` at
+any magnitude — so a bare-C host CONSTRUCTS + HOLDS + MANIPULATES a CD ℚ-vector
+with no Python (there IS a bignum rational in libsrmech now). The arbitrary-
+rational PRODUCT :func:`cd_mult` (the recursive doubling) is the remaining
+Python-only rung (its C peer is the next Qalg batch); the pure-Python bodies stay
+the Pyodide / no-native fallback + the byte-identical parity oracle throughout.
 
 **No new primitive class** — a composition of A–N: the doubling product is
 **Class M** (the bilinear bind) ∘ **Class C** (the conjugation-ordered cross
@@ -179,7 +186,14 @@ def cd_conjugate(a: Sequence[Any]) -> Tuple[Fraction, ...]:
     Defined at **every** rung (the chirality persists, §VII.6.23.3); ``x·x̄`` is
     always the real scalar ``N(x)·1``, even where the product loses its inverse.
     """
-    return _conj(_as_elem(a))
+    el = _as_elem(a)
+    # rc159: the imaginary-half sign-flip dispatches to srmech_cd_qconjugate
+    # (the exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
+    # _conj below, which stays the Pyodide / no-native fallback.
+    native = _native.cd_qconjugate_c([(f.numerator, f.denominator) for f in el])
+    if native is not None:
+        return tuple(Fraction(n, d) for n, d in native)
+    return _conj(el)
 
 
 def cd_mult(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
@@ -190,6 +204,16 @@ def cd_mult(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
         raise ValueError(
             f"cd_mult: operands must share dimension; got {len(a)} and {len(b)}"
         )
+    # rc160 (Qalg TAIL Batch 4): the arbitrary-rational CD product dispatches to
+    # srmech_cd_mult — the C kernel that composes the srmech_cd_basis_product
+    # cocycle with the qmat exact-ℚ arithmetic ((x·y)_{i⊕j} += x_i·y_j·sign). It
+    # is the BILINEAR form of the recursive _mult below, so byte-identical reduced
+    # (num, den) at any magnitude; _mult stays the Pyodide / no-native fallback.
+    native = _native.cd_mult_c(
+        [(f.numerator, f.denominator) for f in a],
+        [(f.numerator, f.denominator) for f in b])
+    if native is not None:
+        return tuple(Fraction(n, d) for n, d in native)
     return _mult(a, b)
 
 
@@ -199,6 +223,14 @@ def cd_add(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
     b = _as_elem(b)
     if len(a) != len(b):
         raise ValueError(f"cd_add: dimension mismatch {len(a)} vs {len(b)}")
+    # rc159: component-wise exact-ℚ addition dispatches to srmech_cd_qadd (the
+    # exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
+    # Fraction sum below, which stays the Pyodide / no-native fallback.
+    native = _native.cd_qadd_c(
+        [(f.numerator, f.denominator) for f in a],
+        [(f.numerator, f.denominator) for f in b])
+    if native is not None:
+        return tuple(Fraction(n, d) for n, d in native)
     return tuple(p + q for p, q in zip(a, b))
 
 
@@ -209,6 +241,13 @@ def cd_norm_sq(a: Sequence[Any]) -> Fraction:
     identity ``N(x·y) = N(x)·N(y)`` holds for dims ≤ 8 and **fails** at 16.
     """
     a = _as_elem(a)
+    # rc159: the sum-of-squares Σ x_i² dispatches to srmech_cd_qnorm_sq (the
+    # exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
+    # Fraction accumulate below, which stays the Pyodide / no-native fallback.
+    native = _native.cd_qnorm_sq_c([(f.numerator, f.denominator) for f in a])
+    if native is not None:
+        n, d = native
+        return Fraction(n, d)
     s = Fraction(0)
     for x in a:
         s += x * x
@@ -221,6 +260,12 @@ def cd_basis(dim: int, i: int) -> Tuple[Fraction, ...]:
         raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
     if not (0 <= i < dim):
         raise ValueError(f"basis index {i} out of range [0, {dim})")
+    # rc159: the unit basis vector dispatches to srmech_cd_qbasis (the exact-ℚ
+    # vector C peer). Byte-identical [(0,1), …, (1,1) at i, …] to the pure
+    # construction below, which stays the Pyodide / no-native fallback.
+    native = _native.cd_qbasis_c(dim, i)
+    if native is not None:
+        return tuple(Fraction(n, d) for n, d in native)
     e = [Fraction(0)] * dim
     e[i] = Fraction(1)
     return tuple(e)
@@ -230,6 +275,90 @@ def is_division_algebra_dim(dim: int) -> bool:
     """``True`` iff the dim-``D`` algebra is a normed division algebra (Hurwitz):
     the reversible interior is exactly dims 1, 2, 4, 8."""
     return dim in DIVISION_ALGEBRA_DIMS
+
+
+# ──────────────────────────────────────────────────────────────────────
+# The Hurwitz (Cayley–Dickson) conversion LADDER (rc116; #1248 / F1038):
+# promote / project between adjacent rungs ℝ ↪ ℂ ↪ ℍ ↪ 𝕆 ↪ 𝕊 …, the algebra-
+# one-level-up analog of the srmech.amsc.carrier_ladder variable ladder.
+#
+# PROMOTE is the SUBALGEBRA EMBEDDING — zero-pad the higher (imaginary-doubling)
+# half, so ``x ↦ (x, 0)``; the element is unchanged, it merely gains higher
+# components it does not use. This is exactly the embedding the qm.octonion /
+# qm.quaternion restriction tests exercise (a quaternion q₄ sits in 𝕆 as
+# ``q₄ ⊕ 0₄``, and octonion left/right-mult on it matches quaternion left/right-
+# mult on the top-left 4×4 block — ℍ IS the top-4 of 𝕆 under this SAME
+# cd_basis_product cocycle). PROJECT is its inverse — realify DOWN one doubling
+# IFF the higher half vanishes, else a coherency error NAMING the genuinely-
+# present higher component (never a silent truncation). ROUND-TRIP:
+# ``cd_project(cd_promote(x, 2·dim)) == x`` EXACT at every rung.
+# ──────────────────────────────────────────────────────────────────────
+
+def cd_promote(x: Sequence[Any], dim: int) -> Tuple[Fraction, ...]:
+    """Promote a Cayley–Dickson element UP to a higher rung by the trivial
+    SUBALGEBRA EMBEDDING (zero-pad the higher imaginary half) — TOTAL.
+
+    ``x`` is a power-of-two-length element (dim ``d``); ``dim`` is the TARGET
+    power-of-two dimension (``dim ≥ d``, ``dim ≤ CD_MAX_DIM``). Returns ``x``
+    with ``dim − d`` trailing zeros appended (the higher components all zero):
+    ``ℝ ↪ ℂ ↪ ℍ ↪ 𝕆 ↪ 𝕊``. When ``dim == d`` the element is returned
+    unchanged (promote is defined for every input). The element is unchanged as
+    a number — it merely gains higher components it does not use. Its inverse is
+    :func:`cd_project` (one doubling at a time), so
+    ``cd_project(cd_promote(x, 2·d)) == x`` EXACT.
+
+    Exact-rational; the padding is the exact ``Fraction(0)``. No float, no
+    ``abs()``, no numpy / ``math``."""
+    el = _as_elem(x)
+    d = len(el)
+    if not _is_pow2(dim) or dim > CD_MAX_DIM:
+        raise ValueError(
+            f"cd_promote: dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
+    if dim < d:
+        raise ValueError(
+            f"cd_promote: target dim {dim} is below the element's dim {d}; "
+            f"promote only zero-pads UP the Cayley–Dickson ladder — use "
+            f"cd_project to descend")
+    if dim == d:
+        return el
+    return el + (Fraction(0),) * (dim - d)
+
+
+def cd_project(x: Sequence[Any]) -> Tuple[Fraction, ...]:
+    """Project a Cayley–Dickson element DOWN one doubling (dim ``d`` → ``d/2``)
+    by REALIFYING IFF the higher (imaginary-doubling) half all vanish — the
+    inverse of :func:`cd_promote`.
+
+    ``x`` is a power-of-two-length element (dim ``d ≥ 2``). If the top half
+    ``x[d/2:]`` is all zero, returns the bottom half ``x[:d/2]`` (the element
+    genuinely lives in the ``d/2`` subalgebra: e.g. a complex ``(a, 0)`` IS the
+    real ``a``). If any higher component is genuinely present, raises a
+    coherency ``ValueError`` NAMING the first such component (never a silent
+    truncation — the rc104 lesson; dropping a present component would change the
+    number). A real (dim 1) element has no higher half → ``ValueError``.
+
+    ``cd_project(cd_promote(x, 2·d)) == x`` EXACT (promote zero-pads exactly the
+    half this drops). Exact-rational; the vanishing test is a ``Fraction != 0``
+    Class-K comparison. No float, no ``abs()``, no numpy / ``math``."""
+    el = _as_elem(x)
+    d = len(el)
+    if d == 1:
+        raise ValueError(
+            "cd_project: a real (dim 1) element is already at the base rung ℝ; "
+            "there is no higher (imaginary-doubling) half to drop")
+    half = d >> 1
+    for i in range(half, d):
+        if el[i] != 0:                        # Class-K nonzero test; no abs()
+            lo_name = ALGEBRA_NAMES.get(half, f"(dim {half})")
+            hi_name = ALGEBRA_NAMES.get(d, f"(dim {d})")
+            raise ValueError(
+                f"cd_project: cannot realify {hi_name} → {lo_name} — the higher "
+                f"(imaginary-doubling) component e{i} = {el[i]} is genuinely "
+                f"present; dropping it would TRUNCATE the element, not project a "
+                f"trivial embedding. Component e{i} is the genuinely non-trivial "
+                f"coordinate. (Promote only zero-pads, so a promoted element's "
+                f"higher half is all zero.)")
+    return el[:half]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -333,6 +462,12 @@ def left_orbit(dim: int,
     if not (0 <= start_idx < dim and 0 <= gen_idx < dim):
         raise ValueError(
             f"indices {start_idx}, {gen_idx} out of range [0, {dim})")
+    # rc158: the integer cycle dispatches to srmech_cd_left_orbit (composes the
+    # cocycle C peer). Byte-identical cycle order to the pure walk below, which
+    # remains the Pyodide / no-native fallback.
+    native = _native.cd_left_orbit_c(dim, start_idx, gen_idx)
+    if native is not None:
+        return native
     gen = (1, gen_idx)
     cur: Tuple[int, int] = (1, start_idx)
     orbit: List[Tuple[int, int]] = []
@@ -357,11 +492,19 @@ def closure(dim: int,
     """
     if not _is_pow2(dim) or dim > CD_MAX_DIM:
         raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
-    for g in generator_idxs:
+    gens = list(generator_idxs)
+    for g in gens:
         if not (0 <= g < dim):
             raise ValueError(f"generator index {g} out of range [0, {dim})")
+    # rc158: the integer sub-loop fixpoint dispatches to srmech_cd_closure
+    # (composes the cocycle C peer). The C set is element-identical to the pure
+    # fixpoint below (a set — order-independent), which stays the no-native
+    # fallback.
+    native = _native.cd_closure_c(dim, gens)
+    if native is not None:
+        return native
     elems: Set[Tuple[int, int]] = {(1, 0)}
-    elems.update((1, g) for g in generator_idxs)
+    elems.update((1, g) for g in gens)
     changed = True
     while changed:
         changed = False
@@ -392,6 +535,18 @@ def min_generating_set(dim: int,
         if not (0 <= u < dim):
             raise ValueError(f"unit index {u} out of range [0, {dim})")
     full = 2 * dim
+    # rc158: dispatch the subset search to srmech_cd_min_generating_set (which
+    # composes srmech_cd_closure). Returns k>0 (found), 0 (no spanning subset →
+    # the ValueError below), or None (no-native / bounded-search overflow → the
+    # complete pure oracle). Same minimal k as the pure loop (order-independent).
+    native = _native.cd_min_generating_set_c(dim, units)
+    if native is not None:
+        if native > 0:
+            return native
+        raise ValueError(
+            f"no subset of {units} generates the full loop of {full} signed "
+            f"units in dim {dim}"
+        )
     for k in range(1, len(units) + 1):
         for subset in combinations(units, k):
             if len(closure(dim, subset)) == full:
@@ -424,6 +579,30 @@ def _terms_to_elem(dim: int, terms) -> Tuple[Fraction, ...]:
     return tuple(e)
 
 
+def _build_zero_divisor_dict(i: int, j: int, k: int, l: int, s: int
+                             ) -> Dict[str, Any]:
+    """Assemble the witness dict from the found basis indices (shared by the
+    native + pure paths so both emit a byte-identical result)."""
+    dim = 16
+    terms_x = [(i, 1), (j, 1)]
+    terms_y = [(k, 1), (l, s)]
+    is_zero, prod = _basis_sum_terms_zero(dim, terms_x, terms_y)
+    assert is_zero, "witness (i,j,k,l,s) does not annihilate — broken convention"
+    x = _terms_to_elem(dim, terms_x)
+    y = _terms_to_elem(dim, terms_y)
+    return {
+        "dim": dim,
+        "x": x,
+        "y": y,
+        "x_form": f"e{i} + e{j}",
+        "y_form": f"e{k} {'+' if s > 0 else '-'} e{l}",
+        "x_norm_sq": cd_norm_sq(x),
+        "y_norm_sq": cd_norm_sq(y),
+        "product": tuple(Fraction(v) for v in prod),
+        "product_is_zero": True,
+    }
+
+
 def sedenion_zero_divisor_witness() -> Dict[str, Any]:
     """Exhibit a concrete sedenion (dim 16) zero divisor: ``x, y`` both nonzero
     with ``x·y = 0``. Found by searching basis-unit pairs with **our own**
@@ -434,6 +613,12 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
     product — the executable form of "zero divisors first appear at 16."
     """
     dim = 16
+    # rc158: dispatch the integer basis-pair search to srmech_cd_zero_divisor_
+    # witness (composes the cocycle C peer). It returns the SAME first witness
+    # (same nested search order) as the pure loop below — byte-identical dict.
+    native = _native.cd_zero_divisor_witness_c()
+    if native is not None:
+        return _build_zero_divisor_dict(*native)
     units = range(1, dim)                       # imaginary units e_1 … e_15
     for i in units:
         for j in range(i + 1, dim):
@@ -442,21 +627,10 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
                 for l in range(k + 1, dim):
                     for s in (1, -1):
                         terms_y = [(k, 1), (l, s)]
-                        is_zero, prod = _basis_sum_terms_zero(dim, terms_x, terms_y)
+                        is_zero, _prod = _basis_sum_terms_zero(
+                            dim, terms_x, terms_y)
                         if is_zero:
-                            x = _terms_to_elem(dim, terms_x)
-                            y = _terms_to_elem(dim, terms_y)
-                            return {
-                                "dim": dim,
-                                "x": x,
-                                "y": y,
-                                "x_form": f"e{i} + e{j}",
-                                "y_form": f"e{k} {'+' if s > 0 else '-'} e{l}",
-                                "x_norm_sq": cd_norm_sq(x),
-                                "y_norm_sq": cd_norm_sq(y),
-                                "product": tuple(Fraction(v) for v in prod),
-                                "product_is_zero": True,
-                            }
+                            return _build_zero_divisor_dict(i, j, k, l, s)
     raise RuntimeError(                         # unreachable: 𝕊 has zero divisors
         "no basis-pair zero divisor found in the sedenions — the convention is "
         "inconsistent with Cayley–Dickson (this should be impossible)"
@@ -465,10 +639,17 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
 
 def left_mult_matrix(x: Sequence[Any]) -> List[List[Fraction]]:
     """The ``n×n`` rational matrix of the linear map ``u ↦ x·u`` (column ``c`` is
-    ``x·e_c``), row-major."""
+    ``x·e_c``), row-major.
+
+    rc160 (Qalg TAIL Batch 4): each column ``x·e_c`` is a :func:`cd_mult` (the
+    C-dispatched CD product) over the C-dispatched :func:`cd_basis` unit vector —
+    so this is a ``composition_of_c`` (a Python loop over the C multiplication
+    building the matrix, the ``mat_dot`` precedent). Byte-identical to the pure
+    recursive doubling either way.
+    """
     x = _as_elem(x)
     n = len(x)
-    cols = [_mult(x, cd_basis(n, c)) for c in range(n)]
+    cols = [cd_mult(x, cd_basis(n, c)) for c in range(n)]
     return [[cols[c][r] for c in range(n)] for r in range(n)]
 
 
@@ -511,8 +692,24 @@ def _rational_nullspace(matrix: List[List[Fraction]]) -> List[Tuple[Fraction, ..
 def left_mult_kernel(x: Sequence[Any]) -> List[Tuple[Fraction, ...]]:
     """Kernel basis of ``u ↦ x·u``. **Nonempty ⟺ ``x`` is a left zero divisor ⟺
     multiply-by-``x`` has no inverse map** — the "no backward direction to point"
-    of §VII.6.23.4. Empty for every nonzero element of a division algebra (≤𝕆)."""
-    return _rational_nullspace(left_mult_matrix(x))
+    of §VII.6.23.4. Empty for every nonzero element of a division algebra (≤𝕆).
+
+    rc160 (Qalg TAIL Batch 4): the exact-ℚ nullspace of ``L(x)`` dispatches to
+    the C peer ``srmech_qmat_nullspace`` (the classical free-variable basis over
+    plain ℚ) — so this is a ``composition_of_c`` (``srmech_qmat_nullspace`` over
+    the C-composed :func:`left_mult_matrix`). The pure :func:`_rational_nullspace`
+    is the byte-identical fallback: both build the SAME classical free-variable
+    basis (leading-1 RREF, free variables set to a unit column), so the basis is
+    element-for-element identical.
+    """
+    mat = left_mult_matrix(x)
+    n = len(mat)
+    native = _native.qmat_nullspace_c(
+        [(mat[r][c].numerator, mat[r][c].denominator)
+         for r in range(n) for c in range(n)], n, n)
+    if native is not None:
+        return [tuple(Fraction(p[0], p[1]) for p in vec) for vec in native]
+    return _rational_nullspace(mat)
 
 
 def _native_is_invertible(el: Tuple[Fraction, ...]):

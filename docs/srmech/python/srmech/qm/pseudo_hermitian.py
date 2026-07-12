@@ -52,7 +52,13 @@ from __future__ import annotations
 from typing import List, Sequence
 
 from srmech.amsc.mat import Mat
-from srmech.amsc.laplacian import mat_eigvals, mat_matmul, mat_norm, mat_solve
+from srmech.amsc.laplacian import (
+    mat_eigvals,
+    mat_hermitian_eigendecompose,
+    mat_matmul,
+    mat_norm,
+    mat_solve,
+)
 
 
 def _as_mat(m) -> "Mat":
@@ -60,13 +66,6 @@ def _as_mat(m) -> "Mat":
     if isinstance(m, Mat):
         return m
     return Mat.from_rows([[complex(x) for x in row] for row in m], is_complex=True)
-
-
-def _sqmod(z: complex) -> float:
-    """Squared modulus |z|² = re²+im² — a Class-K magnitude with no ``abs()``."""
-    re = z.real
-    im = z.imag
-    return re * re + im * im
 
 
 def _matvec(m: "Mat", v: Sequence[complex]) -> List[complex]:
@@ -189,49 +188,32 @@ def is_pseudo_hermitian(O, eta, atol: float = 1e-10) -> bool:
 
 
 def _null_vector(rows: List[List[complex]], n: int) -> List[complex]:
-    """A null vector of the (rank-(n−1)) matrix ``rows`` via Gaussian elimination.
+    """A null vector of the (rank-(n−1)) matrix ``rows`` via the C-backed Gram
+    Hermitian eigendecomposition (the standalone-ready null-space route).
 
-    For an operator with a simple eigenvalue λ, ``O − λI`` has a one-dimensional
-    null space spanned by the eigenvector. Reduced row echelon form over ℂ with
-    squared-modulus pivot selection (Class-K magnitude, no ``abs()``) identifies
-    the single free column; back-substitution yields the eigenvector. Avoids the
-    ill-conditioned shifted-inverse solve entirely (the matrix is reduced, not
-    inverted).
+    For an operator with a simple eigenvalue λ, ``M = O − λI`` has a
+    one-dimensional null space spanned by the eigenvector. The null direction is
+    the right-singular vector of ``M`` with the smallest singular value —
+    equivalently the eigenvector of the Hermitian PSD Gram matrix ``G = Mᴴ M`` for
+    its smallest eigenvalue. Both the Gram product and the Hermitian
+    eigendecomposition route through the ``c_dispatched`` Class-L carriers
+    (:func:`mat_matmul` = ``srmech_dense_matmul_complex`` +
+    :func:`mat_hermitian_eigendecompose` = ``srmech_hermitian_eigendecompose_ws``),
+    so a bare-C host reproduces this null-space with **no extra kernel** — the
+    same SVD/Gram-eig null-space pattern the so(8) subalgebra builders
+    (:func:`srmech.qm.so8._svd_nullspace`) use, per
+    ``[[feedback_cascade_svd_nullspace_accuracy_not_route_matrix_rank]]``. This
+    replaces the former hand-rolled float Gaussian-elimination RREF (a Python-only
+    kernel with no C twin). Ascending eigenvalues ⇒ column 0 of the eigenvector
+    matrix is the smallest-eigenvalue (null) direction.
     """
-    a = [list(r) for r in rows]
-    # Pivot-acceptance threshold relative to the matrix scale.
-    scale = max((_sqmod(a[i][j]) for i in range(n) for j in range(n)), default=1.0)
-    tol = scale * (1e-9 ** 2)
-    pivot_cols: List[int] = []
-    row = 0
-    for col in range(n):
-        if row >= n:
-            break
-        best = row
-        best_mag = _sqmod(a[row][col])
-        for r in range(row + 1, n):
-            mag = _sqmod(a[r][col])
-            if mag > best_mag:
-                best_mag = mag
-                best = r
-        if best_mag <= tol:
-            continue  # no usable pivot in this column → free variable
-        a[row], a[best] = a[best], a[row]
-        piv = a[row][col]
-        a[row] = [x / piv for x in a[row]]
-        for r in range(n):
-            if r != row and _sqmod(a[r][col]) > 0.0:
-                f = a[r][col]
-                a[r] = [a[r][j] - f * a[row][j] for j in range(n)]
-        pivot_cols.append(col)
-        row += 1
-    free = [c for c in range(n) if c not in pivot_cols]
-    fc = free[0] if free else n - 1
-    v: List[complex] = [0j] * n
-    v[fc] = 1.0 + 0j
-    for i, col in enumerate(pivot_cols):
-        v[col] = -a[i][fc]
-    return v
+    m = Mat.from_rows(
+        [[complex(rows[i][j]) for j in range(n)] for i in range(n)],
+        is_complex=True,
+    )
+    gram = mat_matmul(m.conj().T, m)                 # Mᴴ M — Hermitian PSD (c_dispatched)
+    _evals, v_cols = mat_hermitian_eigendecompose(gram)   # ascending λ; c_dispatched
+    return [v_cols[i, 0] for i in range(n)]          # smallest-λ eigenvector = null dir
 
 
 def construct_eta_from_eigendecomposition(O, atol: float = 1e-10):

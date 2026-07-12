@@ -112,6 +112,39 @@ if(SRMECH_SRCS)
     if(SRMECH_PEDANTIC)
         add_executable(test_srmech_trans_q61 c/test/test_srmech_trans_q61.c)
         target_link_libraries(test_srmech_trans_q61 PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc44 CRT-GF-RREF rung 1: the swell-free GF(p) RREF + prime-successor
+        # smoke. Joins the warnings-as-errors gate (Release/NDEBUG strips assert,
+        # so an assert-only param would warn -Werror=unused-parameter). Run it:
+        #   ./build/test_srmech_modular_linalg     (exit 0 = all pass)
+        add_executable(test_srmech_modular_linalg c/test/test_srmech_modular_linalg.c)
+        target_link_libraries(test_srmech_modular_linalg PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc45 CRT closers rung 2: crt_combine + rational_reconstruct over
+        # srmech_bigint. Cross-checked against an independent CRT oracle + a
+        # reconstruction round-trip (incl. >2**64 moduli). Run it:
+        #   ./build/test_srmech_crt_reconstruct    (exit 0 = all pass)
+        add_executable(test_srmech_crt_reconstruct c/test/test_srmech_crt_reconstruct.c)
+        target_link_libraries(test_srmech_crt_reconstruct PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc48 CRT-QMat CLOSER: srmech_qmat_rref_crt -- the single-symbol C
+        # orchestration of the whole bounded-memory exact-Q CRT solve (gf_rref +
+        # crt_combine + rational_reconstruct + the descending prime walk). Proves a
+        # C-only host gets the exact-Q RREF (incl. a >2**64 bigint answer, the
+        # fractional floor-residue path, and the first-prime-unlucky restart). Run:
+        #   ./build/test_srmech_qmat_crt           (exit 0 = all pass)
+        add_executable(test_srmech_qmat_crt c/test/test_srmech_qmat_crt.c)
+        target_link_libraries(test_srmech_qmat_crt PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc141 Foundation F0 (carriers-C): the bare-C-HOST carrier smoke.
+        # Proves a C host with no Python builds + holds + manipulates a
+        # srmech_mat_t/srmech_vec_t (ctor/get-set/row-col/elementwise/scalar/
+        # conj/transpose) + feeds the buffer to srmech_dense_matmul_complex
+        # ZERO-COPY. Joins the warnings-as-errors gate (Release/NDEBUG strips
+        # assert). Run it:
+        #   ./build/test_srmech_carrier            (exit 0 = all pass)
+        add_executable(test_srmech_carrier c/test/test_srmech_carrier.c)
+        target_link_libraries(test_srmech_carrier PRIVATE srmech ${SRMECH_MATH_LIB})
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

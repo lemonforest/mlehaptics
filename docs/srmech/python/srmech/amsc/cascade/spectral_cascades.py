@@ -26,6 +26,8 @@ from __future__ import annotations
 from typing import List, Sequence
 
 from srmech.amsc.rational import cexp, pi_cascade_digits
+from srmech.amsc.mat import Mat as _Mat
+from srmech.amsc.laplacian import mat_matmul as _mat_matmul
 
 from .exact_dft import _exact_transform
 
@@ -43,6 +45,21 @@ def _pi() -> float:
         int_part, _, frac_part = decimal.partition(".")
         _PI_FLOAT = int(int_part + frac_part) / (10 ** len(frac_part))
     return _PI_FLOAT
+
+
+def _native_fft(samples: List[complex], inverse: bool) -> "List[complex] | None":
+    """The rc139 native numeric FFT fast path (srmech_fft_c128) for the FLOAT
+    branch of :func:`dft` / :func:`fft`, or ``None`` when the native lib is
+    absent (caller runs the pure ``cexp`` cascade). NOT taken for the
+    integer / Gaussian-integer power-of-two signals that :func:`_exact_transform`
+    already handled bit-exactly upstream — this is only the continuous (float)
+    substrate, where an FPU-tol numeric transform IS the value (radix-2 for a
+    power-of-two length, Bluestein chirp-z for arbitrary / prime length)."""
+    try:
+        from srmech.amsc import _native
+    except Exception:
+        return None
+    return _native.fft_c128_c(samples, inverse)
 
 
 def dft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
@@ -64,6 +81,9 @@ def dft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
     if exact is not None:
         return exact
     samples = [complex(v) for v in x]
+    native = _native_fft(samples, inverse)     # rc139 C fast path (float)
+    if native is not None:
+        return native
     n = len(samples)
     sign = 1.0 if inverse else -1.0
     two_pi = 2.0 * _pi()
@@ -136,6 +156,9 @@ def fft(x: Sequence[complex], *, inverse: bool = False) -> List[complex]:
     if exact is not None:
         return exact
     samples = [complex(v) for v in x]
+    native = _native_fft(samples, inverse)     # rc139 C fast path (float)
+    if native is not None:
+        return native
     if not _is_power_of_two(n):
         return dft(samples, inverse=inverse)  # full-coverage fallback (all N)
     sign = 1.0 if inverse else -1.0
@@ -155,17 +178,40 @@ def kron(a: Sequence[Sequence[complex]],
     """Kronecker product ``A ⊗ B`` of two 2-D matrices (lists of rows).
 
     ``(A⊗B)[i·p+k, j·q+l] = A[i,j]·B[k,l]`` — **Class I** (the mixed-radix row/
-    column index) ∘ **Class M** (the element products). Pure-Python.
+    column index) ∘ **Class M** (the element products).
+
+    rc155 (BATCH B-residue): the Kronecker product is an OUTER PRODUCT followed
+    by a pure integer RE-INDEX — ``(A⊗B)`` entries are exactly the entries of the
+    rank-1 matrix ``vec(A) · vec(B)ᵀ`` re-laid into the block layout. So the
+    Class-M element products ride the c_dispatched
+    :func:`srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``) —
+    a single-term (inner-dim-1) complex multiply per entry, order-independent, so
+    an integer / Gaussian-integer input is BYTE-IDENTICAL to the pure element
+    loop (the parity oracle below). The block re-index ``out[i·mb+k][j·nb+l] =
+    outer[i·na+j][k·nb+l]`` is exact integer glue. This makes ``kron`` a
+    ``composition_of_c`` op (standalone-C-ready through the matmul foundation).
     """
     A = [list(row) for row in a]
     B = [list(row) for row in b]
     ma, na = len(A), (len(A[0]) if A else 0)
     mb, nb = len(B), (len(B[0]) if B else 0)
+    if ma * na == 0 or mb * nb == 0:
+        return [[0 for _ in range(na * nb)] for _ in range(ma * mb)]
+    is_cx = any(isinstance(v, complex) for row in A for v in row) or \
+        any(isinstance(v, complex) for row in B for v in row)
+    # Class-M outer product vec(A)·vec(B)ᵀ through the C matmul (rank-1: a column
+    # times a row → one complex multiply per entry, so integer input is exact).
+    a_col = _Mat.from_rows([[row[j]] for row in A for j in range(na)], is_complex=is_cx)
+    b_row = _Mat.from_rows([[B[k][ell] for k in range(mb) for ell in range(nb)]],
+                           is_complex=is_cx)
+    outer = _mat_matmul(a_col, b_row).tolist()        # (ma·na) × (mb·nb) nested
+    # Class-I mixed-radix RE-INDEX into the (ma·mb) × (na·nb) block layout.
     out: List[List[complex]] = [[0 for _ in range(na * nb)] for _ in range(ma * mb)]
     for i in range(ma):
-        for j in range(na):
-            aij = A[i][j]
-            for k in range(mb):
+        for k in range(mb):
+            orow = out[i * mb + k]
+            for j in range(na):
+                oval = outer[i * na + j]
                 for ell in range(nb):
-                    out[i * mb + k][j * nb + ell] = aij * B[k][ell]  # Class M
+                    orow[j * nb + ell] = oval[k * nb + ell]
     return out
