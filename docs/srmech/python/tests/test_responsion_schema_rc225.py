@@ -30,7 +30,7 @@ srmech = Stored-RELATIONSHIP Mechanism). Pins:
   6. **Codegen idempotence + purity.** Re-running gen_responsion_registry.py
      reproduces the checked-in .c exactly; the generated file is pure ASCII
      (MSVC-safe).
-  7. **Registration.** The ToolEntry exists; tools.total == 413; the Rosetta
+  7. **Registration.** The ToolEntry exists; tools.total == 415; the Rosetta
      row is composes_c.
 
 The native-requiring assertions ``skipif`` cleanly when the rc225 C peer is
@@ -357,7 +357,7 @@ def test_tool_entry_registered_and_total_is_413() -> None:
     assert entry.category == "responsion_schema"
     assert "k=3" in entry.summary
     assert "EDGE" in entry.summary
-    assert len(schema.tools) == 413
+    assert len(schema.tools) == 415
 
 
 def test_rosetta_row_is_composes_c() -> None:
@@ -375,7 +375,7 @@ def test_rosetta_row_is_composes_c() -> None:
 def test_describe_total_is_413() -> None:
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 413
+    assert introspect.describe()["tools"]["total"] == 415
 
 
 def test_within_edge_order_is_deterministic() -> None:

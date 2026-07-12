@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc226"
-#define SRMECH_VERSION       "0.9.0rc226"
+#define SRMECH_VERSION_PRE   "rc227"
+#define SRMECH_VERSION       "0.9.0rc227"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -8462,6 +8462,133 @@ srmech_status_t srmech_cn_vwp_multisum_lhs(size_t n_syms, int psym, size_t N,
                                            size_t out_exps_cap_rows,
                                            size_t *out_n_num, size_t *out_n_den,
                                            void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_multivariate_elliptic_jackson_an — the C peer of the EllRatio-carrier
+ * op srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an (rc227),
+ * the eq-6 An elliptic Jackson summation reducer: the type-A member of the
+ * multivariable (root-system) elliptic reduction row. A C-MIRROR PARITY build
+ * (NOT a new algorithm): it constructs the EXACT closed form the pure-Python op
+ * builds, byte-for-byte.
+ *
+ * For the variables z_1..z_n, the parameters a_1..a_{n+1}, the base q and the
+ * COMPUTED balancing w = z_1..z_n * a_1..a_{n+1} (Hjalmar Rosengren, "New
+ * transformations for elliptic hypergeometric series on the root system An",
+ * arXiv:math/0305379v1 [math.CA] (27 May 2003), Eq. 6 -- the elliptic analogue
+ * of Milne's An Jackson summation), the An elliptic Jackson summation over the
+ * SIMPLEX y_1+..+y_n = N reduces to the theta-quotient
+ *   PROD_{j=1}^{n+1} (w/a_j)_N / [ PROD_{j=1}^n (w*z_j)_N * (q)_N ],
+ * with (u)_k = PROD_{i=0}^{k-1} theta(u*q^i). This op CONSTRUCTS the right-hand
+ * side as an exact EllRatio: the unit prefactor, the (n+1)*N numerator thetas
+ * (w/a_j * q^i) and the (n+1)*N denominator thetas (w*z_j * q^i + the (q)_N
+ * block q*q^i); er_build folds each theta's canonicalize prefactor, cancels
+ * matching thetas, sorts the survivors. Pure composition of the shared
+ * srmech_ellbase_* monomial algebra + er_build.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms`; `psym` the interned
+ * index of the nome p (-1 if absent); the positive ints `N` (simplex ceiling) +
+ * `n` (rank); the VARIABLE-ARITY vectors as parallel arrays (the
+ * srmech_elliptic_cauchy_determinant convention): `zs_num`/`zs_den` n bigints +
+ * `zs_exps_flat` int32[n*n_syms]; `as_num`/`as_den` n+1 bigints +
+ * `as_exps_flat` int32[(n+1)*n_syms]; q as a (num, den) pair + its
+ * int32[n_syms] exponent row. `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the single closed-form EllRatio written flat as a ROW stream (the
+ * srmech_multivariate_elliptic_jackson wire form): the prefactor row, then
+ * *out_n_num num-theta rows, then *out_n_den den-theta rows (each row its
+ * exact-Q coeff + its dense int32[n_syms] exponent row). `out_exps_cap_rows` is
+ * the row capacity; too small -> SRMECH_ERR_OVERFLOW. N == 0 or n == 0 ->
+ * SRMECH_ERR_NULL_ARG (Python raises ValueError); a required NULL pointer ->
+ * SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (N, n, n_syms) -- no
+ * compiled-in cap. Additive symbol -> ABI unchanged (stays 4). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_multivariate_elliptic_jackson_an needs for the
+ * given shape (n_syms symbols, N the simplex ceiling, n the rank, coeff_limbs
+ * the per-coefficient significant-limb estimate). */
+size_t srmech_multivariate_elliptic_jackson_an_ws_bound(size_t n_syms, size_t N,
+                                                        size_t n, size_t coeff_limbs);
+
+/* Build the single An elliptic Jackson closed-form EllRatio (see above). */
+srmech_status_t srmech_multivariate_elliptic_jackson_an(
+    size_t n_syms, int psym, size_t N, size_t n,
+    const srmech_bigint_t *zs_num, const srmech_bigint_t *zs_den,
+    const int32_t *zs_exps_flat,
+    const srmech_bigint_t *as_num, const srmech_bigint_t *as_den,
+    const int32_t *as_exps_flat,
+    const srmech_bigint_t *q_num, const srmech_bigint_t *q_den,
+    const int32_t *q_exps, uint32_t coeff_cap,
+    srmech_bigint_t *out_coeff_num, srmech_bigint_t *out_coeff_den,
+    int32_t *out_exps_flat, size_t out_exps_cap_rows,
+    size_t *out_n_num, size_t *out_n_den, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_an_vwp_multisum_lhs — the C peer of the ThetaSum-returning op
+ * srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs (rc227), the SYMBOLIC An
+ * elliptic multisum LHS builder: the exact per-composition theta-quotient
+ * TERMS of the LEFT-hand side of the An (type-A / Milne) elliptic Jackson
+ * summation (Rosengren arXiv:math/0305379v1, Eq. 6), over the SIMPLEX
+ * y_1..y_n >= 0 with y_1+..+y_n = N, with the COMPUTED balancing
+ * w = z_1..z_n * a_1..a_{n+1}. A C-MIRROR PARITY build (NOT a new algorithm):
+ * it constructs the EXACT per-composition EllRatio TERMS the pure-Python
+ * builder builds, byte-for-byte; the Python side SUMS them into the ThetaSum
+ * (there is NO ThetaSum-CONSTRUCTION C surface -- the
+ * srmech_cn_vwp_multisum_lhs row-stream pattern).
+ *
+ * Each composition's summand is one EllRatio: the monomial prefactor
+ * PROD_{j<k} q^{y_j} (the type-A Vandermonde ratio's monomial part), the
+ * Vandermonde theta args E(z_k q^{y_k - y_j}/z_j) / E(z_k/z_j) for j < k, the
+ * (n+1) num theta-Pochhammers (a_j z_k)_{y_k} per k, and the den
+ * theta-Pochhammers (w z_k)_{y_k} * PROD_j (q z_k/z_j)_{y_k} per k. er_build
+ * folds each theta's canonicalize prefactor, cancels matching thetas, sorts
+ * the survivors. Pure composition of the shared srmech_ellbase_* monomial
+ * algebra + er_build.
+ *
+ * Wire form: the interned symbol-table dimension `n_syms`; `psym` the interned
+ * index of the nome p (-1 if absent); the positive ints `N` (simplex ceiling)
+ * + `n` (rank) + `n_terms` (the composition count C(N+n-1, n-1), computed by
+ * the caller); the VARIABLE-ARITY vectors as parallel arrays: `zs_num`/`zs_den`
+ * n bigints + `zs_exps_flat` int32[n*n_syms]; `as_num`/`as_den` n+1 bigints +
+ * `as_exps_flat` int32[(n+1)*n_syms]; q as a (num, den) pair + its
+ * int32[n_syms] row. `coeff_cap` is the per-bigint limb cap.
+ *
+ * Output: the n_terms TERM EllRatios written out flat in the ASCENDING
+ * LEXICOGRAPHIC composition order ((0,..,0,N) first, (N,0,..,0) last; the
+ * exact order the Python builder's filtered itertools.product enumerates) --
+ * per term t, `out_n_num[t]` / `out_n_den[t]` the survivor theta counts, and
+ * the canonical rows appended (per term: its prefactor row, then its num rows,
+ * then its den rows; each row carries its exact-Q coeff AND its dense
+ * int32[n_syms] exponent row). `out_exps_cap_rows` is the row capacity; too
+ * small -> SRMECH_ERR_OVERFLOW. N == 0, n == 0 or n_terms == 0 ->
+ * SRMECH_ERR_NULL_ARG (Python raises ValueError); a wrong n_terms (not
+ * C(N+n-1, n-1)) -> SRMECH_ERR_BAD_INPUT; a required NULL pointer ->
+ * SRMECH_ERR_NULL_ARG; a too-small arena -> SRMECH_ERR_OVERFLOW.
+ *
+ * Sign travels in the Class-K coeff branch, never abs()/fabs(). Malloc-free
+ * (JPL Rule 3): caller arena `ws` only, sized to (N, n, n_syms) -- no
+ * compiled-in cap. Additive symbol -> ABI unchanged (stays 4). License: MIT. ---- */
+
+/* Minimum `ws_len` BYTES srmech_an_vwp_multisum_lhs needs for the given shape
+ * (n_syms symbols, N the simplex ceiling, n the rank, coeff_limbs the
+ * per-coefficient significant-limb estimate). */
+size_t srmech_an_vwp_multisum_lhs_ws_bound(size_t n_syms, size_t N, size_t n,
+                                           size_t coeff_limbs);
+
+/* Build the n_terms per-composition An multisum LHS TERM EllRatios (see
+ * above); the Python side sums them into the returned ThetaSum. */
+srmech_status_t srmech_an_vwp_multisum_lhs(
+    size_t n_syms, int psym, size_t N, size_t n, size_t n_terms,
+    const srmech_bigint_t *zs_num, const srmech_bigint_t *zs_den,
+    const int32_t *zs_exps_flat,
+    const srmech_bigint_t *as_num, const srmech_bigint_t *as_den,
+    const int32_t *as_exps_flat,
+    const srmech_bigint_t *q_num, const srmech_bigint_t *q_den,
+    const int32_t *q_exps, uint32_t coeff_cap,
+    srmech_bigint_t *out_coeff_num, srmech_bigint_t *out_coeff_den,
+    int32_t *out_exps_flat, size_t out_exps_cap_rows,
+    size_t *out_n_num, size_t *out_n_den, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
