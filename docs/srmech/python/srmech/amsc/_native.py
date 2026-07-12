@@ -5353,6 +5353,75 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cn_vwp_multisum_lhs.restype = ctypes.c_int
 
+    # rc227: srmech_multivariate_elliptic_jackson_an — the C peer of the
+    # EllRatio-carrier op
+    # srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an (the eq-6
+    # Aₙ elliptic Jackson summation reducer — the type-A member of the
+    # multivariable elliptic reduction row; Rosengren arXiv:math/0305379 Eq. 6).
+    # The VARIABLE-ARITY parameter vectors ride as parallel bigint arrays + flat
+    # int32 exponent rows (the srmech_elliptic_cauchy_determinant convention):
+    # zs (n entries), as (n+1 entries), q a single monomial. The single
+    # closed-form EllRatio comes back as the rc96 Jackson single-ratio ROW
+    # stream. Shares the srmech_bigint decimal-marshal helpers (in
+    # _ELLRATIO_SYMS) with the ellratio / jackson peers.
+    #   size_t srmech_multivariate_elliptic_jackson_an_ws_bound(n_syms, N, n, coeff_limbs)
+    if hasattr(lib, "srmech_multivariate_elliptic_jackson_an_ws_bound"):
+        lib.srmech_multivariate_elliptic_jackson_an_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_multivariate_elliptic_jackson_an_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_multivariate_elliptic_jackson_an"):
+        _mjabi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_multivariate_elliptic_jackson_an.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int,                        # psym
+            ctypes.c_size_t,                     # N (simplex ceiling)
+            ctypes.c_size_t,                     # n (rank)
+            _mjabi, _mjabi, ctypes.POINTER(ctypes.c_int32),   # zs_num[n], zs_den[n], zs_exps_flat
+            _mjabi, _mjabi, ctypes.POINTER(ctypes.c_int32),   # as_num[n+1], as_den[n+1], as_exps_flat
+            _mjabi, _mjabi, ctypes.POINTER(ctypes.c_int32),   # q_num, q_den, q_exps
+            ctypes.c_uint32,                     # coeff_cap
+            _mjabi, _mjabi,                      # out_coeff_num, out_coeff_den (per row)
+            ctypes.POINTER(ctypes.c_int32),      # out_exps_flat
+            ctypes.c_size_t,                     # out_exps_cap_rows
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_num (1)
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_den (1)
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_multivariate_elliptic_jackson_an.restype = ctypes.c_int
+
+    # rc227: srmech_an_vwp_multisum_lhs — the C peer of the ThetaSum-returning
+    # op srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs (the symbolic Aₙ
+    # elliptic multisum LHS builder over the SIMPLEX y₁+…+yₙ = N). The
+    # C(N+n−1, n−1) TERM EllRatios come back as the rc216 multi-term ROW stream
+    # in the ascending lexicographic composition order (the Python side sums
+    # the forms into the ThetaSum). Variable-arity z/a vectors as parallel
+    # bigint arrays + flat int32 exponent rows.
+    #   size_t srmech_an_vwp_multisum_lhs_ws_bound(n_syms, N, n, coeff_limbs)
+    if hasattr(lib, "srmech_an_vwp_multisum_lhs_ws_bound"):
+        lib.srmech_an_vwp_multisum_lhs_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t, ctypes.c_size_t]
+        lib.srmech_an_vwp_multisum_lhs_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_an_vwp_multisum_lhs"):
+        _avlbi = ctypes.POINTER(_SrmechBigint)
+        lib.srmech_an_vwp_multisum_lhs.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_int,                        # psym
+            ctypes.c_size_t,                     # N (simplex ceiling)
+            ctypes.c_size_t,                     # n (rank)
+            ctypes.c_size_t,                     # n_terms (= C(N+n-1, n-1))
+            _avlbi, _avlbi, ctypes.POINTER(ctypes.c_int32),   # zs_num[n], zs_den[n], zs_exps_flat
+            _avlbi, _avlbi, ctypes.POINTER(ctypes.c_int32),   # as_num[n+1], as_den[n+1], as_exps_flat
+            _avlbi, _avlbi, ctypes.POINTER(ctypes.c_int32),   # q_num, q_den, q_exps
+            ctypes.c_uint32,                     # coeff_cap
+            _avlbi, _avlbi,                      # out_coeff_num, out_coeff_den (per row)
+            ctypes.POINTER(ctypes.c_int32),      # out_exps_flat
+            ctypes.c_size_t,                     # out_exps_cap_rows
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_num (n_terms)
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_den (n_terms)
+            ctypes.c_void_p, ctypes.c_size_t,    # ws, ws_len
+        ]
+        lib.srmech_an_vwp_multisum_lhs.restype = ctypes.c_int
+
     # rc217: srmech_text_* — the C peers of the srmech.amsc.text §40/§52
     # text→graph ingestion ops (gh #1360; the enwiki-encode hot loop). All four
     # are BYTE-IDENTICAL kernels over caller-arena buffers: the tokenizer takes
@@ -14137,6 +14206,275 @@ def cn_vwp_multisum_lhs_c(n_syms, psym, N, n, a_mono, b_mono, c_mono, d_mono,
             f"srmech_cn_vwp_multisum_lhs returned non-OK status {rc}")
 
     # rebuild the n_terms EllRatio TERM bridge forms from the flat output ROW stream.
+    def _read_row(r):
+        return (_bigint_to_int(out_cn_arr[r]), _bigint_to_int(out_cd_arr[r]),
+                [int(out_exps[r * n_syms + j]) for j in range(n_syms)])
+
+    forms = []
+    row = 0
+    for i in range(n_terms):
+        nn = out_nn[i]
+        nd = out_nd[i]
+        pref = _read_row(row)
+        row += 1
+        num_rows = []
+        for _ in range(nn):
+            num_rows.append(_read_row(row))
+            row += 1
+        den_rows = []
+        for _ in range(nd):
+            den_rows.append(_read_row(row))
+            row += 1
+        forms.append({"prefactor": pref, "num": num_rows, "den": den_rows})
+    return forms
+
+
+# ----------------------------------------------------------------------
+# rc227: srmech_multivariate_elliptic_jackson_an + srmech_an_vwp_multisum_lhs —
+# the C peers of the Aₙ (type-A / Milne) elliptic Jackson reduction row
+# (srmech.amsc.elliptic_jackson_an; Rosengren arXiv:math/0305379 Eq. 6). A
+# C-MIRROR PARITY build: the RHS peer returns the single closed-form EllRatio
+# byte-exact equal to the pure-Python op; the LHS peer returns the
+# C(N+n−1, n−1) per-composition TERM EllRatios byte-exact equal to the pure
+# builder's terms in the same ascending lexicographic composition order, and
+# the Python side sums them into the ThetaSum. Both dispatch through here when
+# loaded (trusted only after == the pure result); the pure-Python bodies are
+# the complete alternatives + the parity oracles. The variable-arity z/a
+# vectors ride as parallel bigint arrays + flat int32 exponent rows (the
+# elliptic_cauchy_determinant convention). Shares the srmech_bigint
+# decimal-marshal helpers (in _ELLRATIO_SYMS) with the ellratio / jackson peers.
+# ----------------------------------------------------------------------
+
+
+def has_native_multivariate_elliptic_jackson_an() -> bool:
+    """True iff the rc227 srmech_multivariate_elliptic_jackson_an op + its ws
+    sizer + the srmech_bigint decimal-marshal helpers are loaded + bound. False
+    on a no-C or pre-rc227 lib — the pure-Python
+    ``srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an`` body is
+    the complete alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLRATIO_SYMS) and all(
+        hasattr(LIB, s) for s in (
+            "srmech_multivariate_elliptic_jackson_an",
+            "srmech_multivariate_elliptic_jackson_an_ws_bound",
+        )
+    )
+
+
+def has_native_an_vwp_multisum_lhs() -> bool:
+    """True iff the rc227 srmech_an_vwp_multisum_lhs op + its ws sizer + the
+    srmech_bigint decimal-marshal helpers are loaded + bound. False on a no-C or
+    pre-rc227 lib — the pure-Python
+    ``srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs`` body is the complete
+    alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return all(hasattr(LIB, s) for s in _ELLRATIO_SYMS) and all(
+        hasattr(LIB, s) for s in (
+            "srmech_an_vwp_multisum_lhs",
+            "srmech_an_vwp_multisum_lhs_ws_bound",
+        )
+    )
+
+
+def _an_jackson_marshal(z_monos, a_monos, q_mono, n_syms, work_cap):
+    """Marshal the Aₙ operand (the n z-monomials + the n+1 a-monomials + q) into
+    the parallel bigint arrays + flat int32 exponent rows the rc227 C peers
+    take. Returns ``(zs_num_arr, zs_den_arr, zs_exps_c, as_num_arr, as_den_arr,
+    as_exps_c, q_pair, q_exps_c, keep)`` (``keep`` holds the backing buffers
+    alive for the call)."""
+    n = len(z_monos)
+    keep = []
+
+    def _arr(monos, count, what):
+        num_arr = (_SrmechBigint * count)()
+        den_arr = (_SrmechBigint * count)()
+        exps_flat = []
+        for i, (num, den, exps_row) in enumerate(monos):
+            if len(exps_row) != n_syms:
+                raise ValueError(
+                    f"an_jackson_c: {what} exps row length != n_syms")
+            bn, kbn = _bigint_from_int(int(num), work_cap)
+            bd, kbd = _bigint_from_int(int(den), work_cap)
+            num_arr[i] = bn
+            den_arr[i] = bd
+            keep.append(kbn)
+            keep.append(kbd)
+            exps_flat.extend(int(e) for e in exps_row)
+        exps_c = (ctypes.c_int32 * max(len(exps_flat), 1))(*exps_flat)
+        return num_arr, den_arr, exps_c
+
+    zs_num_arr, zs_den_arr, zs_exps_c = _arr(z_monos, n, "z")
+    as_num_arr, as_den_arr, as_exps_c = _arr(a_monos, n + 1, "a")
+    q_num, q_den, q_exps = q_mono
+    if len(q_exps) != n_syms:
+        raise ValueError("an_jackson_c: q exps row length != n_syms")
+    qbn, kqbn = _bigint_from_int(int(q_num), work_cap)
+    qbd, kqbd = _bigint_from_int(int(q_den), work_cap)
+    keep.append(kqbn)
+    keep.append(kqbd)
+    q_exps_c = (ctypes.c_int32 * max(n_syms, 1))(*[int(e) for e in q_exps])
+    return (zs_num_arr, zs_den_arr, zs_exps_c, as_num_arr, as_den_arr,
+            as_exps_c, (qbn, qbd), q_exps_c, keep)
+
+
+def _an_jackson_coeff_cap(z_monos, a_monos, q_mono):
+    """The per-coefficient limb estimate for the Aₙ peers (9 decimal digits ~
+    1 limb; pad — the theta canonicalization + the balancing product multiply
+    coefficients, so size generously)."""
+    cl = 2
+    for num, den, _exps in list(z_monos) + list(a_monos) + [q_mono]:
+        cl = max(cl, len(str(num).lstrip("-")) // 9 + 2, len(str(den)) // 9 + 2)
+    return cl + 8
+
+
+def multivariate_elliptic_jackson_an_c(n_syms, psym, N, n, z_monos, a_monos,
+                                       q_mono):
+    """Native ``multivariate_elliptic_jackson_an`` for the ``n`` z-monomials +
+    the ``n+1`` a-monomials + the base ``q`` + the positive ints ``N`` (simplex
+    ceiling) / ``n`` (rank) → the single closed-form EllRatio bridge form (a
+    dict ``{"prefactor": (coeff_num, coeff_den, exps), "num": [...],
+    "den": [...]}``), or ``None`` if the native symbols are absent. Each mono is
+    a ``(num, den, exps_row)`` triple over the interned ``n_syms``-symbol table;
+    ``psym`` is the interned index of the nome ``p`` (-1 if absent). A non-OK C
+    status raises ``RuntimeError``."""
+    if not has_native_multivariate_elliptic_jackson_an():
+        return None
+    if N < 1 or n < 1:
+        raise ValueError("multivariate_elliptic_jackson_an_c: N and n must be >= 1")
+    if len(z_monos) != n or len(a_monos) != n + 1:
+        raise ValueError(
+            "multivariate_elliptic_jackson_an_c: need n z-monomials + n+1 a-monomials")
+    if n_syms == 0:
+        n_syms = 1
+        z_monos = [(m[0], m[1], [0]) for m in z_monos]
+        a_monos = [(m[0], m[1], [0]) for m in a_monos]
+        q_mono = (q_mono[0], q_mono[1], [0])
+    work_cap = _an_jackson_coeff_cap(z_monos, a_monos, q_mono)
+    out_cap = work_cap
+    ws_len = int(LIB.srmech_multivariate_elliptic_jackson_an_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(N), ctypes.c_size_t(n),
+        ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    (zs_num_arr, zs_den_arr, zs_exps_c, as_num_arr, as_den_arr, as_exps_c,
+     (qbn, qbd), q_exps_c, keep) = _an_jackson_marshal(
+        z_monos, a_monos, q_mono, n_syms, work_cap)
+    # the output ROW stream: a prefactor row + up to (n+1)*N num rows + up to
+    # (n+1)*N den rows (the theta counts shrink under cancellation) + slack.
+    ntheta = (n + 1) * N
+    out_cap_rows = 1 + 2 * ntheta + 8
+    out_cn_arr = (_SrmechBigint * out_cap_rows)()
+    out_cd_arr = (_SrmechBigint * out_cap_rows)()
+    for r in range(out_cap_rows):
+        ocn, kocn = _bigint_from_int(0, out_cap)
+        ocd, kocd = _bigint_from_int(0, out_cap)
+        out_cn_arr[r] = ocn
+        out_cd_arr[r] = ocd
+        keep.append(kocn)
+        keep.append(kocd)
+    out_exps = (ctypes.c_int32 * max(out_cap_rows * n_syms, 1))()
+    out_nn = (ctypes.c_size_t * 1)()
+    out_nd = (ctypes.c_size_t * 1)()
+    rc = LIB.srmech_multivariate_elliptic_jackson_an(
+        ctypes.c_size_t(n_syms), ctypes.c_int(psym),
+        ctypes.c_size_t(N), ctypes.c_size_t(n),
+        zs_num_arr, zs_den_arr, zs_exps_c,
+        as_num_arr, as_den_arr, as_exps_c,
+        ctypes.byref(qbn), ctypes.byref(qbd), q_exps_c,
+        ctypes.c_uint32(work_cap),
+        out_cn_arr, out_cd_arr, out_exps, ctypes.c_size_t(out_cap_rows),
+        out_nn, out_nd,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_multivariate_elliptic_jackson_an returned non-OK status {rc}")
+
+    def _read_row(r):
+        return (_bigint_to_int(out_cn_arr[r]), _bigint_to_int(out_cd_arr[r]),
+                [int(out_exps[r * n_syms + j]) for j in range(n_syms)])
+
+    n_num = out_nn[0]
+    n_den = out_nd[0]
+    row = 0
+    pref = _read_row(row)
+    row += 1
+    num_rows = []
+    for _ in range(n_num):
+        num_rows.append(_read_row(row))
+        row += 1
+    den_rows = []
+    for _ in range(n_den):
+        den_rows.append(_read_row(row))
+        row += 1
+    return {"prefactor": pref, "num": num_rows, "den": den_rows}
+
+
+def an_vwp_multisum_lhs_c(n_syms, psym, N, n, z_monos, a_monos, q_mono,
+                          n_terms, nt_max):
+    """Native ``an_vwp_multisum_lhs`` for the ``n`` z-monomials + the ``n+1``
+    a-monomials + the base ``q`` + the positive ints ``N`` (simplex ceiling) /
+    ``n`` (rank) → a list of ``n_terms`` EllRatio TERM bridge forms (each a dict
+    ``{"prefactor": (coeff_num, coeff_den, exps), "num": [...], "den": [...]}``,
+    one per composition in ascending lexicographic order), or ``None`` if the
+    native symbols are absent (the caller sums the forms into a ThetaSum).
+    ``n_terms`` is the composition count ``C(N+n−1, n−1)`` and ``nt_max`` the
+    per-side max theta count of one summand (both computed by the caller; they
+    size the output row buffers). A non-OK C status raises ``RuntimeError``."""
+    if not has_native_an_vwp_multisum_lhs():
+        return None
+    if N < 1 or n < 1 or n_terms < 1 or nt_max < 1:
+        raise ValueError(
+            "an_vwp_multisum_lhs_c: N, n, n_terms and nt_max must be >= 1")
+    if len(z_monos) != n or len(a_monos) != n + 1:
+        raise ValueError(
+            "an_vwp_multisum_lhs_c: need n z-monomials + n+1 a-monomials")
+    if n_syms == 0:
+        n_syms = 1
+        z_monos = [(m[0], m[1], [0]) for m in z_monos]
+        a_monos = [(m[0], m[1], [0]) for m in a_monos]
+        q_mono = (q_mono[0], q_mono[1], [0])
+    work_cap = _an_jackson_coeff_cap(z_monos, a_monos, q_mono)
+    out_cap = work_cap
+    ws_len = int(LIB.srmech_an_vwp_multisum_lhs_ws_bound(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(N), ctypes.c_size_t(n),
+        ctypes.c_size_t(work_cap)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    (zs_num_arr, zs_den_arr, zs_exps_c, as_num_arr, as_den_arr, as_exps_c,
+     (qbn, qbd), q_exps_c, keep) = _an_jackson_marshal(
+        z_monos, a_monos, q_mono, n_syms, work_cap)
+    # the output ROW stream: per term a prefactor row + up to nt_max num rows +
+    # up to nt_max den rows (the theta counts shrink under cancellation);
+    # budget n_terms*(1 + 2*nt_max) rows + slack.
+    out_cap_rows = n_terms * (1 + 2 * nt_max) + 8
+    out_cn_arr = (_SrmechBigint * out_cap_rows)()
+    out_cd_arr = (_SrmechBigint * out_cap_rows)()
+    for r in range(out_cap_rows):
+        ocn, kocn = _bigint_from_int(0, out_cap)
+        ocd, kocd = _bigint_from_int(0, out_cap)
+        out_cn_arr[r] = ocn
+        out_cd_arr[r] = ocd
+        keep.append(kocn)
+        keep.append(kocd)
+    out_exps = (ctypes.c_int32 * max(out_cap_rows * n_syms, 1))()
+    out_nn = (ctypes.c_size_t * n_terms)()
+    out_nd = (ctypes.c_size_t * n_terms)()
+    rc = LIB.srmech_an_vwp_multisum_lhs(
+        ctypes.c_size_t(n_syms), ctypes.c_int(psym),
+        ctypes.c_size_t(N), ctypes.c_size_t(n), ctypes.c_size_t(n_terms),
+        zs_num_arr, zs_den_arr, zs_exps_c,
+        as_num_arr, as_den_arr, as_exps_c,
+        ctypes.byref(qbn), ctypes.byref(qbd), q_exps_c,
+        ctypes.c_uint32(work_cap),
+        out_cn_arr, out_cd_arr, out_exps, ctypes.c_size_t(out_cap_rows),
+        out_nn, out_nd,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_an_vwp_multisum_lhs returned non-OK status {rc}")
+
     def _read_row(r):
         return (_bigint_to_int(out_cn_arr[r]), _bigint_to_int(out_cd_arr[r]),
                 [int(out_exps[r * n_syms + j]) for j in range(n_syms)])

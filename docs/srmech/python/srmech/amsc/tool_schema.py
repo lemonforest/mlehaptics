@@ -5273,6 +5273,126 @@ def _register_primitive_class_tools() -> None:
                       "if N < 1 or n < 1"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The Aₙ (type-A / Milne) elliptic Jackson REDUCER — the sibling
+        # root-system member beside the Cₙ capstone (rc227): the closed-form
+        # theta-quotient the Aₙ elliptic Jackson summation over the SIMPLEX
+        # reduces to (Rosengren math/0305379 Eq. 6), with the per-call
+        # verify=True proof. 1:1 C peer
+        # srmech_multivariate_elliptic_jackson_an.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+            owner="srmech", category="elliptic_jackson",
+            summary="The Aₙ (type-A) MULTIVARIABLE ELLIPTIC JACKSON summation reducer — "
+                    "the elliptic analogue of Milne's Aₙ Jackson summation (Hjalmar "
+                    "Rosengren, 'New transformations for elliptic hypergeometric series "
+                    "on the root system Aₙ', arXiv:math/0305379v1 [math.CA] (27 May "
+                    "2003), Eq. 6; extracted-PDF sha256 299d2738c4539a390a437c795a0b0084"
+                    "a5c82d403566c4f549db39482e3076ce). Where the Cₙ row sums over the "
+                    "partitions Λ_{nN}, the Aₙ summation sums over the SIMPLEX (the "
+                    "compositions y₁+…+yₙ = N, C(N+n−1, n−1) terms) with the type-A "
+                    "Weyl-denominator factor Δ(z·q^y)/Δ(z). For the variables z₁..zₙ, "
+                    "the parameters a₁..a_{n+1}, the base q and the COMPUTED balancing "
+                    "w = z₁⋯zₙ·a₁⋯a_{n+1} it CONSTRUCTS the closed-form right-hand side "
+                    "∏_{j=1}^{n+1}(w/aⱼ)_N / [∏_{j=1}^{n}(w·zⱼ)_N·(q)_N] — the elliptic "
+                    "shifted factorial (u)_k = ∏_{i=0}^{k-1} θ(u·qⁱ; p) — as a single "
+                    "EllRatio. With verify=True it also PROVES the reduction per call "
+                    "(builds the symbolic LHS simplex sum via an_vwp_multisum_lhs, "
+                    "subtracts, and decides the exact multi-variable elliptic "
+                    "ThetaSum.is_zero) and returns {closed_form, verified} — True = "
+                    "per-call proof (measured feasible through 6 compositions, incl. "
+                    "genuine n = 2, 3, 4 cross-variable instances), False = a "
+                    "wrong/perturbed closed form is caught, None = honest "
+                    "too-large-to-decide-in-budget (the constructive closed form is "
+                    "returned in every case). NOTE the n = 1 case is a trivial "
+                    "single-term degeneration (NOT the ₈ω₇); the genuine proof burden "
+                    "is n ≥ 2. 1:1 C peer srmech_multivariate_elliptic_jackson_an "
+                    "constructs the SAME EllRatio over the shared srmech_ellbase_* "
+                    "monomial algebra + er_build (byte-exact; trusted only after == "
+                    "the pure EllRatio, the complete alternative + parity oracle). "
+                    "Exact over the modified-theta algebra (no float), no abs() "
+                    "(Class-K sign), no numpy / math.",
+            parameters=(
+                P("z", "list[EllMonomial]", True,
+                  "the length-n vector of variables (z₁, …, zₙ) — the rank n is "
+                  "len(z)"),
+                P("a", "list[EllMonomial]", True,
+                  "the length-(n+1) vector of parameters (a₁, …, a_{n+1})"),
+                P("q", "EllMonomial", True,
+                  "the base q of the elliptic shifted factorial (an EllMonomial)"),
+                P("N", "int", True,
+                  "the simplex ceiling N (a positive int; the sum runs over "
+                  "y₁+…+yₙ = N)"),
+                P("verify", "bool", False,
+                  "False (default): return the bare closed-form EllRatio. True: "
+                  "also PROVE the reduction per call and return "
+                  "{'closed_form': EllRatio, 'verified': True|False|None}"),
+            ),
+            returns=R("EllRatio | dict",
+                      "the exact closed-form theta-quotient "
+                      "∏(w/aⱼ)_N / [∏(w·zⱼ)_N·(q)_N] as a single canonical EllRatio "
+                      "(the Aₙ elliptic Jackson summation, Rosengren math/0305379 "
+                      "Eq. 6); with verify=True a dict {'closed_form', 'verified'}. "
+                      "Raises TypeError/ValueError on a malformed operand (len(a) "
+                      "must be len(z)+1; N ≥ 1)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The SYMBOLIC Aₙ MULTISUM LHS builder — the LEFT-hand side of the
+        # Aₙ elliptic Jackson summation as an exact ThetaSum over the
+        # simplex (rc227; the rc216 Cₙ precedent with both sides
+        # first-class). LHS − RHS |> is_zero IS the per-call proof. 1:1 C
+        # peer srmech_an_vwp_multisum_lhs (the rc216 multi-term wire form).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs",
+            owner="srmech", category="elliptic_jackson",
+            summary="The SYMBOLIC Aₙ elliptic multisum LHS builder — the LEFT-hand "
+                    "side of the Aₙ (type-A / Milne) elliptic Jackson summation "
+                    "(Hjalmar Rosengren, 'New transformations for elliptic "
+                    "hypergeometric series on the root system Aₙ', "
+                    "arXiv:math/0305379v1 [math.CA] (27 May 2003), Eq. 6) built "
+                    "SYMBOLICALLY as an exact ThetaSum over the modified-theta "
+                    "algebra. For the variables z₁..zₙ, the parameters a₁..a_{n+1}, "
+                    "the base q and the COMPUTED balancing w = z₁⋯zₙ·a₁⋯a_{n+1} it "
+                    "constructs the sum over the SIMPLEX (the compositions "
+                    "y₁, …, yₙ ≥ 0 with y₁+…+yₙ = N, in ascending lexicographic "
+                    "order): per composition, the type-A Vandermonde ratio "
+                    "Δ(z·q^y)/Δ(z) = ∏_{j<k} q^{yⱼ}·θ(zₖq^{yₖ}/zⱼq^{yⱼ})/θ(zₖ/zⱼ) "
+                    "(its monomial part in the Class-K EllRatio prefactor) times "
+                    "∏ₖ ∏ⱼ(aⱼ·zₖ)_{yₖ} / [(w·zₖ)_{yₖ}·∏ⱼ(q·zₖ/zⱼ)_{yₖ}]. Each "
+                    "summand is an EllRatio; the returned ThetaSum is their exact "
+                    "carrier sum (C(N+n−1, n−1) terms). By Eq. 6 it EQUALS the "
+                    "closed form multivariate_elliptic_jackson_an constructs, so "
+                    "(LHS − RHS).is_zero is the per-call proof with both sides "
+                    "first-class (the rc216 Cₙ precedent). 1:1 C peer "
+                    "srmech_an_vwp_multisum_lhs builds the SAME per-composition "
+                    "EllRatio terms over the shared srmech_ellbase_* monomial "
+                    "algebra + er_build in the same ascending lexicographic "
+                    "composition order (byte-exact; the native ThetaSum is trusted "
+                    "only after it == the pure ThetaSum, the complete alternative + "
+                    "parity oracle). Exact over the modified-theta algebra (no "
+                    "float), no abs() (Class-K sign), no numpy / math.",
+            parameters=(
+                P("z", "list[EllMonomial]", True,
+                  "the length-n vector of variables (z₁, …, zₙ) — the rank n is "
+                  "len(z)"),
+                P("a", "list[EllMonomial]", True,
+                  "the length-(n+1) vector of parameters (a₁, …, a_{n+1})"),
+                P("q", "EllMonomial", True,
+                  "the base q of the elliptic shifted factorial (an EllMonomial)"),
+                P("N", "int", True,
+                  "the simplex ceiling N (a positive int; the sum runs over "
+                  "y₁+…+yₙ = N)"),
+            ),
+            returns=R("ThetaSum",
+                      "the exact Aₙ elliptic sum over the simplex y₁+…+yₙ = N as a "
+                      "ThetaSum of C(N+n−1, n−1) theta-quotient terms (the Rosengren "
+                      "math/0305379 Eq. 6 LEFT-hand side; equal, by the identity, to "
+                      "the multivariate_elliptic_jackson_an closed form). Raises "
+                      "TypeError/ValueError on a malformed operand (len(a) must be "
+                      "len(z)+1; N ≥ 1)"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

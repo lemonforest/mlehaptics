@@ -15,7 +15,7 @@
  * against; each entry_json fragment is baked pre-canonical (compact,
  * sorted keys, ensure_ascii -> pure ASCII).
  *
- * Edges: 22; responsions: 23.
+ * Edges: 23; responsions: 25.
  */
 
 #include "srmech.h"
@@ -69,9 +69,9 @@ const srmech_responsion_entry_t srmech_responsion_registry_table[] = {
         "srmech.amsc.dispatch.infer|EllMonomial",
         "srmech.amsc.dispatch.infer",
         "EllMonomial",
-        1u,
-        "[{\"answers_with\":\"a root-system elliptic multisum beyond the C\\u2099 elliptic Jackson reach \\u2014 an A\\u2099 (or other root-system) elliptic multisum or a higher-genus theta multisum. (The exact per-call PROOF of the C\\u2099 reduction now ships, rc101: the constructive closed form is verified via the rc98/rc99 complete multi-variable elliptic is_zero, up to a term-count feasibility cap; larger sums return the build-verified constructive form with verified=None.)\",\"carrier\":\"EllMonomial\",\"kind\":\"open_sustain\",\"operator\":\"srmech.amsc.dispatch.infer\",\"regime\":\"discrete_algebraic\",\"status\":\"open\"}]",
-        602u,
+        2u,
+        "[{\"answers_with\":\"a root-system elliptic multisum beyond the A\\u2099 (Milne) elliptic Jackson reach \\u2014 a D\\u2099/BC\\u2099 (other root-system) elliptic multisum, a higher-genus theta multisum, or the m \\u2265 2 elliptic Kajihara TRANSFORMATION (Rosengren math/0305379 Thm 3.1, of which the shipped Eq-6 summation is the m = 1 case). (The A\\u2099 per-call PROOF ships with the row: the constructive closed form is verified via the complete multi-variable elliptic is_zero over the C(N+n\\u22121, n\\u22121)-composition simplex, up to the measured feasibility cap; larger sums return the build-verified constructive form with verified=None.)\",\"carrier\":\"EllMonomial\",\"kind\":\"open_sustain\",\"operator\":\"srmech.amsc.dispatch.infer\",\"regime\":\"discrete_algebraic\",\"status\":\"open\"},{\"answers_with\":\"a root-system elliptic multisum beyond the C\\u2099 elliptic Jackson reach \\u2014 the A\\u2099 (type-A / Milne) elliptic multisum row now ships (rc227 \\u2014 tag row='sigma_elliptic_an'); the remaining frontier is a D\\u2099/BC\\u2099 (other root-system) elliptic multisum or a higher-genus theta multisum. (The exact per-call PROOF of the C\\u2099 reduction ships at rc101: the constructive closed form is verified via the rc98/rc99 complete multi-variable elliptic is_zero, up to a term-count feasibility cap; larger sums return the build-verified constructive form with verified=None.)\",\"carrier\":\"EllMonomial\",\"kind\":\"open_sustain\",\"operator\":\"srmech.amsc.dispatch.infer\",\"regime\":\"discrete_algebraic\",\"status\":\"open\"}]",
+        1510u,
     },
     {
         "srmech.amsc.dispatch.infer|EllRatio",
@@ -120,6 +120,14 @@ const srmech_responsion_entry_t srmech_responsion_registry_table[] = {
         1u,
         "[{\"answers_with\":\"the closed-form theta-quotient product of the balanced C\\u2099 elliptic Jackson n-fold sum (Rosengren Thm 2.1; per-call proof when in-budget, build-verified constructive form beyond the feasibility cap)\",\"carrier\":\"EllMonomial\",\"kind\":\"closed_form\",\"operator\":\"srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson\",\"regime\":\"discrete_algebraic\",\"status\":\"verified\"}]",
         390u,
+    },
+    {
+        "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an|EllMonomial",
+        "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+        "EllMonomial",
+        1u,
+        "[{\"answers_with\":\"the closed-form theta-quotient of the A\\u2099 (type-A / Milne) elliptic Jackson simplex sum (Rosengren math/0305379 Eq. 6; per-call proof when in-budget, build-verified constructive form beyond the feasibility cap)\",\"carrier\":\"EllMonomial\",\"kind\":\"closed_form\",\"operator\":\"srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an\",\"regime\":\"discrete_algebraic\",\"status\":\"verified\"}]",
+        408u,
     },
     {
         "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate|EllRatio",

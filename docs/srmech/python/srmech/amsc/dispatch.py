@@ -177,12 +177,23 @@ _OPEN_HINTS: Dict[str, str] = {
                       "Jackson row (now shipped — tag row='sigma_elliptic_multivar') or "
                       "a higher-genus theta reduction row",
     "sigma_elliptic_multivar": "a root-system elliptic multisum beyond the Cₙ elliptic "
-                      "Jackson reach — an Aₙ (or other root-system) elliptic multisum or a "
-                      "higher-genus theta multisum. (The exact per-call PROOF of the Cₙ "
-                      "reduction now ships, rc101: the constructive closed form is verified "
-                      "via the rc98/rc99 complete multi-variable elliptic is_zero, up to a "
-                      "term-count feasibility cap; larger sums return the build-verified "
-                      "constructive form with verified=None.)",
+                      "Jackson reach — the Aₙ (type-A / Milne) elliptic multisum row now "
+                      "ships (rc227 — tag row='sigma_elliptic_an'); the remaining frontier "
+                      "is a Dₙ/BCₙ (other root-system) elliptic multisum or a higher-genus "
+                      "theta multisum. (The exact per-call PROOF of the Cₙ reduction ships "
+                      "at rc101: the constructive closed form is verified via the rc98/rc99 "
+                      "complete multi-variable elliptic is_zero, up to a term-count "
+                      "feasibility cap; larger sums return the build-verified constructive "
+                      "form with verified=None.)",
+    "sigma_elliptic_an": "a root-system elliptic multisum beyond the Aₙ (Milne) elliptic "
+                      "Jackson reach — a Dₙ/BCₙ (other root-system) elliptic multisum, a "
+                      "higher-genus theta multisum, or the m ≥ 2 elliptic Kajihara "
+                      "TRANSFORMATION (Rosengren math/0305379 Thm 3.1, of which the shipped "
+                      "Eq-6 summation is the m = 1 case). (The Aₙ per-call PROOF ships with "
+                      "the row: the constructive closed form is verified via the complete "
+                      "multi-variable elliptic is_zero over the C(N+n−1, n−1)-composition "
+                      "simplex, up to the measured feasibility cap; larger sums return the "
+                      "build-verified constructive form with verified=None.)",
     "spectral": "directed / signed (magnetic) Laplacian spectral row, or a "
                 "non-self-adjoint pencil generalized-eigenproblem reducer",
     "cyclic": "a higher Cayley–Dickson rung (sedenion S(σ,θ)) or a "
@@ -212,6 +223,12 @@ _SIGMA_ELLIPTIC_KEYS = ("elliptic_term_ratio",)
 # ceiling N + the rank n) — e is fixed by the balancing bcde·x^{n-1}=a²q^{N+1}. The full
 # 8-key set is distinctive (no other row carries all of a,b,c,d,x,q,N,n).
 _SIGMA_ELLIPTIC_MULTIVAR_KEYS = ("a", "b", "c", "d", "x", "q", "N", "n")
+# the Aₙ (type-A / Milne) elliptic Jackson Σ sub-row (rc227). Its operand is the
+# VARIABLE-ARITY vector pair: the z-vector (z₁..zₙ, rank n = len(z)) + the a-vector
+# (a₁..a_{n+1} under `a_vec` — a DISTINCT key from the Cₙ scalar `a`) + q + the simplex
+# ceiling N — the balancing w = ∏zⱼ·∏aⱼ is COMPUTED, never a payload key. The 4-key set
+# never collides with the Cₙ 8-key set (no b/c/d/x) nor any other row's keys.
+_SIGMA_ELLIPTIC_AN_KEYS = ("z", "a_vec", "q", "N")
 _SPECTRAL_KEYS = ("laplacian", "adjacency", "edges", "matrix")
 _CYCLIC_KEYS = ("sigma", "theta_num", "generator", "period")
 
@@ -233,6 +250,9 @@ def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
         if t in ("sigma_elliptic_multivar", "elliptic_multivar", "cn_jackson",
                  "cn_elliptic_jackson", "multivariate_elliptic", "an_cn"):
             return "sigma_elliptic_multivar"
+        if t in ("sigma_elliptic_an", "an", "an_jackson", "an_elliptic_jackson",
+                 "milne_an", "milne"):
+            return "sigma_elliptic_an"
         if t in ("sigma_elliptic", "elliptic", "8w7", "10e9",
                  "elliptic_hypergeometric", "frenkel_turaev"):
             return "sigma_elliptic"
@@ -254,6 +274,8 @@ def _detect_row(rel: Dict[str, Any]) -> Optional[str]:
         return "sigma_q"
     if all(k in rel for k in _SIGMA_ELLIPTIC_MULTIVAR_KEYS):
         return "sigma_elliptic_multivar"
+    if all(k in rel for k in _SIGMA_ELLIPTIC_AN_KEYS):
+        return "sigma_elliptic_an"
     if all(k in rel for k in _SIGMA_ELLIPTIC_KEYS):
         return "sigma_elliptic"
     if all(k in rel for k in _SIGMA_KEYS) or all(k in rel for k in _SIGMA_GOSPER_KEYS):
@@ -412,6 +434,51 @@ def _try_sigma_elliptic_multivar(rel: Dict[str, Any]) -> Optional[Dict[str, Any]
     if verified is False:
         return None                         # provably NOT the sum → honest OPEN
     reduced = _reduced("sigma_elliptic_multivar", "multivariate_elliptic_jackson", cf)
+    reduced["verified"] = verified          # surface the REAL status (True per-call proof,
+    return reduced                          # or None = build-verified constructive, unproven)
+
+
+def _try_sigma_elliptic_an(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The Aₙ (type-A / Milne) elliptic Jackson Σ sub-row (rc227) — the sibling
+    root-system member beside the Cₙ capstone. The variable-arity operand — the
+    z-vector (``z``, length ``n``), the a-vector (``a_vec``, length ``n + 1``;
+    entries :class:`EllMonomial` / symbol-name strings / ints), the base ``q`` and
+    the simplex ceiling ``N`` — routes to
+    :func:`~srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an` with
+    ``verify=True``, which CONSTRUCTS the closed-form theta-quotient (Rosengren
+    math/0305379 Eq. 6, the elliptic analogue of Milne's Aₙ Jackson summation) AND
+    PROVES it per call — building the symbolic LHS simplex sum and deciding
+    ``(LHS − closed).is_zero`` via the complete multi-variable elliptic decision.
+    The balancing ``w = ∏zⱼ·∏aⱼ`` is computed inside the op (never a payload key).
+
+    The reduced dict SURFACES ``verified`` (``True`` = per-call proof, ``None`` =
+    build-verified constructive form beyond the feasibility cap); a ``False``
+    (the closed form provably does NOT equal the sum) is NOT a reduction — it
+    routes to OPEN. Malformed params (``N < 1`` / a length mismatch /
+    non-coercible entries) raise, and the caller routes to OPEN — the same F929
+    anti-hallucination gate as the Cₙ multivar row."""
+    from . import elliptic_jackson_an as _eja  # lazy: avoids import cycle
+    from .ellbase import EllMonomial as _M
+
+    def _mono(v: Any) -> "Any":
+        if isinstance(v, _M):
+            return v
+        if isinstance(v, str):
+            return _M.symbol(v)             # the natural symbol-name operand
+        if isinstance(v, int):
+            from .q import Q
+            return _M.scalar(Q(v, 1))       # a constant parameter
+        raise TypeError("Aₙ Jackson parameter must be an EllMonomial / symbol name / int")
+
+    z_vec = [_mono(v) for v in rel["z"]]
+    a_vec = [_mono(v) for v in rel["a_vec"]]
+    result = _eja.multivariate_elliptic_jackson_an(
+        z_vec, a_vec, _mono(rel["q"]), int(rel["N"]), verify=True)
+    cf = result["closed_form"]
+    verified = result["verified"]
+    if verified is False:
+        return None                         # provably NOT the sum → honest OPEN
+    reduced = _reduced("sigma_elliptic_an", "multivariate_elliptic_jackson_an", cf)
     reduced["verified"] = verified          # surface the REAL status (True per-call proof,
     return reduced                          # or None = build-verified constructive, unproven)
 
@@ -830,6 +897,13 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       decision. The reduced dict SURFACES ``verified`` (``True`` = per-call proof, ``None`` =
       build-verified constructive form beyond the feasibility cap); a ``False`` (closed form
       provably ≠ the sum) routes to OPEN.
+    * **Σ Aₙ elliptic** (``row="sigma_elliptic_an"`` / the variable-arity ``z`` /
+      ``a_vec`` / ``q`` / ``N`` keys) — the type-A sibling of the Cₙ capstone: the Aₙ
+      (Milne) elliptic Jackson summation over the simplex ``y₁+…+yₙ = N`` (Rosengren
+      math/0305379 Eq. 6) routes to
+      :func:`~srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an` with
+      ``verify=True`` (the balancing ``w = ∏zⱼ·∏aⱼ`` is computed inside the op). The
+      same surfaced-``verified`` / False-routes-to-OPEN contract as the Cₙ row.
     * **spectral** (``row="spectral"`` / a graph payload) — an ``edges`` list
       (with optional ``weights`` + ``n``), an ``adjacency`` grid, or an explicit
       ``laplacian`` / ``matrix`` build a coupling Laplacian; accepted iff ``L``
@@ -903,6 +977,7 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
     _TRY = {"sigma": _try_sigma, "sigma_multivar": _try_sigma_multivar,
             "sigma_q": _try_sigma_q, "sigma_elliptic": _try_sigma_elliptic,
             "sigma_elliptic_multivar": _try_sigma_elliptic_multivar,
+            "sigma_elliptic_an": _try_sigma_elliptic_an,
             "spectral": _try_spectral, "cyclic": _try_cyclic}
     try:
         result = _TRY[row](relationship)

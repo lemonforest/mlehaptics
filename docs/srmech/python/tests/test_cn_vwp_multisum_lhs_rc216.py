@@ -23,7 +23,7 @@ What this suite pins:
      EllRatio term forms) equals the pure builder's, exactly; clean decline (None)
      when the native symbols are absent.
   4. Contracts — TypeError / ValueError validation; registration (ToolEntry;
-     tools.total == 413; the Rosetta ledger row; ``__all__``).
+     tools.total == 415; the Rosetta ledger row; ``__all__``).
 
 numpy-free (exact modified-theta algebra); no ``abs()`` (Class-K sign via the
 EllMonomial sign-branch). Run from ``docs/srmech/python`` with ``PYTHONPATH=$(pwd)``.
@@ -144,12 +144,12 @@ def test_sizing_helpers():
     assert _max_thetas_per_side(1, 3) == 3 + 3 * 4 + 18
 
 
-# ── (5) registration: ToolEntry + tools.total == 413 + Rosetta row + __all__ ───────────
+# ── (5) registration: ToolEntry + tools.total == 415 + Rosetta row + __all__ ───────────
 def test_registration():
     import srmech.amsc.elliptic_jackson as ej
     assert "cn_vwp_multisum_lhs" in ej.__all__
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 413
+    assert schema["tools"]["total"] == 415
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs" in names

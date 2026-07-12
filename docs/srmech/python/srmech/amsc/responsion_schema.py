@@ -53,7 +53,8 @@ response-function are the discrete and continuous faces of ONE responsion:
   reducer to its operand carrier (gosper⊗Poly, zeilberger/wz_certificate⊗
   BiPoly, apagodu_zeilberger⊗TriPoly, q_gosper⊗QPoly, q_zeilberger/
   q_wz_certificate⊗QBiPoly, elliptic_wz_certificate⊗EllRatio,
-  multivariate_elliptic_jackson⊗EllMonomial, resonant_spectrum⊗Mat,
+  multivariate_elliptic_jackson⊗EllMonomial,
+  multivariate_elliptic_jackson_an⊗EllMonomial (rc227), resonant_spectrum⊗Mat,
   the_one⊗One). The OPEN edges are the rows' honest residues: the ``infer``
   router on each row's operand carrier, ``answers_with`` taken VERBATIM from
   :data:`srmech.amsc.dispatch._OPEN_HINTS` (the router's own
@@ -154,6 +155,12 @@ _DISCRETE_VERIFIED: Tuple[Tuple[str, str, str, str], ...] = (
      "the closed-form theta-quotient product of the balanced Cₙ elliptic "
      "Jackson n-fold sum (Rosengren Thm 2.1; per-call proof when in-budget, "
      "build-verified constructive form beyond the feasibility cap)"),
+    ("sigma_elliptic_an",
+     "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
+     "EllMonomial",
+     "the closed-form theta-quotient of the Aₙ (type-A / Milne) elliptic "
+     "Jackson simplex sum (Rosengren math/0305379 Eq. 6; per-call proof when "
+     "in-budget, build-verified constructive form beyond the feasibility cap)"),
 )
 
 # ── the row → operand-carrier map for the honest-OPEN edges ──────────────────
@@ -176,6 +183,7 @@ _ROW_OPEN_CARRIER: Tuple[Tuple[str, str], ...] = (
     ("sigma_q", "QBiPoly"),
     ("sigma_elliptic", "EllRatio"),
     ("sigma_elliptic_multivar", "EllMonomial"),
+    ("sigma_elliptic_an", "EllMonomial"),
 )
 
 # ── the authored CONTINUOUS response-function edges ──────────────────────────
