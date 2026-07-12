@@ -632,6 +632,49 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_graph_magnetic_laplacian.restype = ctypes.c_int
 
+    # 0.9.0rc229 (#687): the V4-gain (Klein-4-sector) Laplacian builder —
+    # four real signed Laplacians in one call. gains is uint8 (0..3 per
+    # edge; NULL -> identity); out is 4*n*n doubles, sector-major.
+    # hasattr-guarded (additive; ABI stays 4).
+    if hasattr(lib, "srmech_graph_klein4_gain_laplacian"):
+        lib.srmech_graph_klein4_gain_laplacian.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v
+            ctypes.POINTER(ctypes.c_double),    # weights (or NULL)
+            ctypes.POINTER(ctypes.c_uint8),     # gains (0..3; or NULL)
+            ctypes.POINTER(ctypes.c_double),    # out (4*n*n doubles)
+        ]
+        lib.srmech_graph_klein4_gain_laplacian.restype = ctypes.c_int
+
+    # 0.9.0rc229 (#687): cycle_holonomy — exact int64-rational fundamental-
+    # cycle net charges (the odd channel). Charges + outputs are int64
+    # num/den; ws is a caller arena sized from *_arena_bytes. hasattr-
+    # guarded (additive; ABI stays 4).
+    if hasattr(lib, "srmech_graph_cycle_holonomy_arena_bytes"):
+        lib.srmech_graph_cycle_holonomy_arena_bytes.argtypes = [
+            ctypes.c_uint32, ctypes.c_uint32,
+        ]
+        lib.srmech_graph_cycle_holonomy_arena_bytes.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_graph_cycle_holonomy"):
+        lib.srmech_graph_cycle_holonomy.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v
+            ctypes.POINTER(ctypes.c_int64),     # charge_num (or NULL)
+            ctypes.POINTER(ctypes.c_int64),     # charge_den (or NULL)
+            ctypes.POINTER(ctypes.c_int64),     # out_num (>= n_edges)
+            ctypes.POINTER(ctypes.c_int64),     # out_den
+            ctypes.POINTER(ctypes.c_uint32),    # out_cycle_u
+            ctypes.POINTER(ctypes.c_uint32),    # out_cycle_v
+            ctypes.POINTER(ctypes.c_uint32),    # out_n_cycles
+            ctypes.c_void_p,                    # ws arena
+            ctypes.c_size_t,                    # ws_len
+        ]
+        lib.srmech_graph_cycle_holonomy.restype = ctypes.c_int
+
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
     #                           double *out_eigvals)
@@ -15443,6 +15486,30 @@ def has_native_spectral_spine() -> bool:
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_spectral_spine")
                 and hasattr(LIB, "srmech_spectral_spine_arena_bytes"))
+
+
+def has_native_klein4_gain_laplacian() -> bool:
+    """True iff the rc229 V4-gain (Klein-4-sector) Laplacian builder C peer is
+    loaded + bound (#687): the four real signed sector Laplacians
+    L_chi = D̄ − χ(g_e)·A build in one C call, so
+    :func:`srmech.amsc.laplacian.klein4_gain_laplacian` dispatches to the C
+    twin. False on a no-C or pre-rc229 lib — the pure-Python cascade (four
+    signed_laplacian builds on the χ-transformed weights) is the complete
+    alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_graph_klein4_gain_laplacian"))
+
+
+def has_native_cycle_holonomy() -> bool:
+    """True iff the rc229 cycle_holonomy C peer is loaded + bound (#687): the
+    exact int64-rational fundamental-cycle net charges (spanning forest → mod-1
+    cycle sums) run in C, so :func:`srmech.amsc.laplacian.cycle_holonomy`
+    dispatches to the C twin. False on a no-C / pre-rc229 lib, or when a charge
+    magnitude exceeds the int64 limit (the pure-Python exact Fraction path is
+    the complete alternative)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_graph_cycle_holonomy")
+                and hasattr(LIB, "srmech_graph_cycle_holonomy_arena_bytes"))
 
 
 def has_native_fiedler_sparse_file() -> bool:

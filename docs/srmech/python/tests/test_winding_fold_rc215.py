@@ -30,7 +30,7 @@ Covers:
       spinor_sign;
   (g) contracts — complex → TypeError, NaN/±Inf → ValueError, int accepted,
       (int, float) return types (never bool);
-  (h) registration — ToolEntry; tools.total == 415; cascade.__all__.
+  (h) registration — ToolEntry; tools.total == 418; cascade.__all__.
 
 numpy-free. The 2π used by every oracle is the module's own Machin-2π
 (``laplacian._EPH_TWO_PI``) — no forked constant in the test either.
@@ -326,8 +326,8 @@ def test_registration_and_count():
     schema = get_tool_schema()
     names = {t.name for t in schema.tools}
     assert "srmech.amsc.cascade.winding_fold" in names
-    assert len(schema.tools) == 415
-    assert srmech.describe()["tools"]["total"] == 415
+    assert len(schema.tools) == 418
+    assert srmech.describe()["tools"]["total"] == 418
     assert "winding_fold" in cascade.__all__
     entry = schema.lookup("srmech.amsc.cascade.winding_fold")
     assert entry.category == "cascade"

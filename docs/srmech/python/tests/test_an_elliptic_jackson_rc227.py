@@ -30,7 +30,7 @@ What this suite pins:
   6. The ``sigma_elliptic_an`` dispatch row: tag + 4-key structural sniff routes
      to the verified reducer; ``verified`` surfaced; malformed → OPEN; the Cₙ
      row is uncollided; ``_OPEN_HINTS`` updated on both rows.
-  7. Registration: ToolEntry ×2 (tools.total == 415), Rosetta ledger rows
+  7. Registration: ToolEntry ×2 (tools.total == 418), Rosetta ledger rows
      (c_dispatched), the rc225 responsion edges (verified + open).
 
 numpy-free (exact modified-theta algebra); no ``abs()`` (Class-K sign via the
@@ -312,13 +312,13 @@ def test_open_hints_updated_on_both_rows():
     assert "sigma_elliptic_an" in hint_cn
 
 
-# ── (8) registration: ToolEntry ×2 + tools.total == 415 + Rosetta rows + __all__ ────────
+# ── (8) registration: ToolEntry ×2 + tools.total == 418 + Rosetta rows + __all__ ────────
 def test_registration():
     import srmech.amsc.elliptic_jackson_an as eja
     assert "multivariate_elliptic_jackson_an" in eja.__all__
     assert "an_vwp_multisum_lhs" in eja.__all__
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 415
+    assert schema["tools"]["total"] == 418
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an"
