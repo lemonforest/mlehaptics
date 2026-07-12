@@ -3514,6 +3514,54 @@ def _register_primitive_class_tools() -> None:
                               "{pair, ratio (num,den), den_coords, locked}}"),
         ),
         ToolEntry(
+            name="srmech.amsc.coupling.resonant_spectrum_sparse", owner="srmech",
+            category="coupling",
+            summary="Read the resonant storage signature at UNBOUNDED n — the "
+                    "streaming / out-of-core k-extreme-mode peer of "
+                    "resonant_spectrum (issue #698). resonant_spectrum reads the "
+                    "signature only through the DENSE Class-L eigensolve "
+                    "(native-capped at MAX_NATIVE_NODES=256; O(n²) RAM, O(n³) "
+                    "eig). This reads the SAME signature restricted to the k "
+                    "EXTREME modes — the k lowest-tension + k highest-tension "
+                    "eigenpairs of the COMBINATORIAL Laplacian L = D − W — via "
+                    "streaming power iteration + Gram-Schmidt deflation on the "
+                    "packed edge stream (bottom-k ride the shift σI − L, top-k "
+                    "ride L; each mode deflates against all found). RAM O(k·n), "
+                    "time O(k·|E|·iters), n UNBOUNDED — breaks the n≤256 dense "
+                    "wall the way fiedler_sparse breaks it for the 2-way cut. The "
+                    "k tensions feed the SAME _resonances_from_tensions lock/"
+                    "libration read resonant_spectrum uses (Class-N best_rational "
+                    "+ Class-J prime-coordinate factor; smooth-den LOCK vs large-"
+                    "prime-den libration) — reused, so the verdicts are IDENTICAL "
+                    "to the dense read on the same tensions. Composes "
+                    "write_packed_graph + the fiedler_sparse streaming matvec, "
+                    "extended from one mode to bottom-k + top-k. 1:1 C peer "
+                    "srmech_laplacian_k_extreme_modes_file (streams the packed "
+                    "file via the PAL; caller-arena, no node cap). numpy-free; no "
+                    "abs(). (Accurate for extremes SEPARATED from the bulk; near-"
+                    "degenerate boundary clusters converge slowly — an iterative-"
+                    "method property. No force_orders — dense Lᵏ is not "
+                    "materialisable at unbounded n.)",
+            parameters=(P("edges_or_path", "list|str", True,
+                          "an undirected edge list [(u,v),…] OR a str path to a "
+                          "packed edge file (write_packed_graph; streamed)"),
+                        P("weights", "sequence", False,
+                          "per-edge weights (default 1.0); ignored for a path"),
+                        P("k", "int", False,
+                          "modes per extreme side; default 8 (up to 2k tensions)"),
+                        P("n", "int", False,
+                          "node count; None → inferred (max endpoint+1 / from file)"),
+                        P("max_iters", "int", False,
+                          "per-mode power-iteration cap; default 1000"),
+                        P("max_den", "int", False,
+                          "best_rational denominator ceiling; default 64")),
+            returns=R("dict", "{'tensions': Vec (ascending, the k extreme "
+                              "eigenvalues), 'modes': Mat (columns = the extreme "
+                              "eigenvectors), 'resonances': list of {pair, ratio "
+                              "(num,den), den_coords, locked}, 'k', 'n', "
+                              "'n_modes'}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.coupling.from_bodies", owner="srmech",
             category="coupling",
             summary="Build the gravity coupling-graph (n, edges, weights) for a "
@@ -5380,7 +5428,7 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
-            owner="srmech", category="elliptic_jackson",
+            owner="srmech", category="elliptic_jackson_an",
             summary="The Aₙ (type-A) MULTIVARIABLE ELLIPTIC JACKSON summation reducer — "
                     "the elliptic analogue of Milne's Aₙ Jackson summation (Hjalmar "
                     "Rosengren, 'New transformations for elliptic hypergeometric series "
@@ -5443,7 +5491,7 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs",
-            owner="srmech", category="elliptic_jackson",
+            owner="srmech", category="elliptic_jackson_an",
             summary="The SYMBOLIC Aₙ elliptic multisum LHS builder — the LEFT-hand "
                     "side of the Aₙ (type-A / Milne) elliptic Jackson summation "
                     "(Hjalmar Rosengren, 'New transformations for elliptic "

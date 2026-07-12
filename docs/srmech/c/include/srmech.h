@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc229"
-#define SRMECH_VERSION       "0.9.0rc229"
+#define SRMECH_VERSION_PRE   "rc230"
+#define SRMECH_VERSION       "0.9.0rc230"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1206,6 +1206,36 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t      n,
                                                      double       *out_vec,
                                                      double       *ws,
                                                      size_t        ws_len);
+
+/* §75-sparse (issue #698): the STREAMING k-extreme resonant read — the
+ * n-unbounded C twin of srmech.amsc.coupling.resonant_spectrum_sparse. Reads the
+ * bottom-k + top-k modes of the COMBINATORIAL Laplacian L = D - W by power
+ * iteration + Gram-Schmidt deflation, STREAMING the packed edge file (the same
+ * 16-byte-record format srmech_laplacian_fiedler_sparse_file reads) via the PAL
+ * — only the O(n) `ws` arena + the caller `out_modes` (O(k*n)) are resident, so a
+ * low-RAM target reads the F172 storage signature at unbounded n (past the n<=256
+ * dense-eigensolver wall). Bottom modes ride the shift sigma*I - L (sigma =
+ * 2*max_deg + 1, a Gershgorin lambda_max bound); top modes ride L. Each new mode
+ * deflates against every found mode, so bottom/top never collide and 2k >= n
+ * yields the full spectrum. `k` modes per extreme SIDE; the caller pre-sizes
+ * out_tensions[2k] + out_modes[2k*n] (row m = mode m, row-major); *out_count
+ * receives the number of DISTINCT modes written (<= min(2k, n)), in found order
+ * (bottom ascending, then top descending — the caller sorts). `ws` (ws_len BYTES)
+ * sized from srmech_laplacian_k_extreme_modes_arena_bytes. n == 0 writes nothing
+ * + *out_count = 0. Returns SRMECH_ERR_NULL_ARG for a NULL pointer,
+ * SRMECH_ERR_BAD_INPUT for a too-small arena / a truncated or out-of-range edge
+ * file. ABI-additive (new symbols) -> SRMECH_ABI_VERSION stays 4. */
+size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n);
+
+srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t   n,
+                                                      const char *path,
+                                                      uint32_t    k,
+                                                      uint32_t    max_iters,
+                                                      double     *out_tensions,
+                                                      double     *out_modes,
+                                                      uint32_t   *out_count,
+                                                      double     *ws,
+                                                      size_t      ws_len);
 
 /* Symmetric Jacobi eigendecomposition. In-place: `matrix` becomes
  * approximately diagonal at exit (caller-owned working buffer). The

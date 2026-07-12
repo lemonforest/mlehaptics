@@ -1708,3 +1708,312 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t n, const char *pat
     }
     return SRMECH_OK;
 }
+
+/* --- §75-sparse (issue #698): the STREAMING k-extreme resonant read ---------
+ * The bottom-k + top-k modes of the COMBINATORIAL Laplacian L = D - W, read by
+ * power iteration + Gram-Schmidt deflation streaming the packed edge file — the
+ * n-unbounded C twin of coupling.resonant_spectrum_sparse. Bottom modes ride the
+ * shift sigma*I - L (sigma = 2*max_deg + 1, a Gershgorin upper bound on
+ * lambda_max), top modes ride L; each new mode deflates against every found mode
+ * (the out_modes rows), so bottom/top never collide and, when 2k >= n, the union
+ * is the full spectrum. RAM O(k*n) (the caller out_modes) + O(n) (the ws arena);
+ * time O(k*|E|*iters), n unbounded. Reuses the fiedler_file_scan streaming-matvec
+ * machinery (fiedler_y_cb accumulates W*v). The Rayleigh convergence floor +
+ * stable-run mirror the Python op verbatim, so native == pure within float tol. */
+
+#define KEXT_TOL 1e-13
+#define KEXT_STABLE_RUN 3u
+
+/* One streamed adjacency matvec y = W*v (reuses fiedler_y_cb; y zeroed first). */
+static srmech_status_t kext_wv(const char *path, uint32_t n, const double *v, double *y)
+{
+    assert(path != NULL && v != NULL);
+    assert(y != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        y[i] = 0.0;
+    }
+    fiedler_y_ctx ctx = { n, v, y };
+    return fiedler_file_scan(path, fiedler_y_cb, &ctx);
+}
+
+/* Gram-Schmidt-deflate v against the first `count` mode ROWS of modes (row m at
+ * modes + m*n, length n) — keep the new iterate orthogonal to every found mode. */
+static void kext_deflate(uint32_t n, uint32_t count, const double *modes, double *v)
+{
+    assert(v != NULL);
+    assert(count == 0u || modes != NULL);
+    for (uint32_t m = 0; m < count; m++) {
+        const double *bm = modes + (size_t)m * n;
+        double dot = 0.0;
+        for (uint32_t i = 0; i < n; i++) {
+            dot += v[i] * bm[i];
+        }
+        for (uint32_t i = 0; i < n; i++) {
+            v[i] -= dot * bm[i];
+        }
+    }
+}
+
+/* Unit-normalise v (Class-N root of the Class-K magnitude-square sum). Returns 0
+ * if v is the zero vector (caller stops that mode), else 1. */
+static int kext_normalize(uint32_t n, double *v)
+{
+    assert(v != NULL);
+    assert(n > 0u);
+    double n2 = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        n2 += v[i] * v[i];
+    }
+    if (n2 <= 0.0) {
+        return 0;
+    }
+    double nrm = lap_sqrt(n2);
+    for (uint32_t i = 0; i < n; i++) {
+        v[i] /= nrm;
+    }
+    return 1;
+}
+
+/* The L-Rayleigh quotient v^T L v = sum deg_i v_i^2 - v^T W v on a unit v (the
+ * tension read; accurate even when v converged on the shifted operator). */
+static srmech_status_t kext_rayleigh_l(const char *path, uint32_t n, const double *deg,
+                                       const double *v, double *y, double *out)
+{
+    assert(deg != NULL && v != NULL);
+    assert(y != NULL && out != NULL);
+    srmech_status_t st = kext_wv(path, n, v, y);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    double r = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        r += deg[i] * v[i] * v[i] - v[i] * y[i];
+    }
+    *out = r;
+    return SRMECH_OK;
+}
+
+/* Deterministic Class-I scramble init (bit-identical to Python _kext_scramble_
+ * init): Knuth 2654435761 uint32-wrap hash mapped to [-1, 1). */
+static void kext_init(uint32_t n, double *v)
+{
+    assert(v != NULL);
+    assert(n > 0u);
+    for (uint32_t i = 0; i < n; i++) {
+        uint32_t h = i * 2654435761u + 1013904223u;   /* mod 2^32 */
+        v[i] = ((double)h / 4294967296.0) * 2.0 - 1.0;
+    }
+}
+
+/* Power-iterate one extreme eigenvector into v, deflated against modes[0..count).
+ * top != 0 -> operator L (largest tension); top == 0 -> sigma*I - L (smallest).
+ * Stops on Rayleigh convergence (KEXT_STABLE_RUN settled steps past warmup). */
+static srmech_status_t kext_iterate(const char *path, uint32_t n, const double *deg,
+    double sigma, int top, uint32_t count, const double *modes, uint32_t max_iters,
+    double *v, double *av, double *y)
+{
+    assert(deg != NULL && v != NULL);
+    assert(av != NULL && y != NULL);
+    double lam_prev = 0.0;
+    int have_prev = 0;
+    uint32_t stable = 0u;
+    for (uint32_t it = 0; it < max_iters; it++) {
+        srmech_status_t st = kext_wv(path, n, v, y);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        for (uint32_t i = 0; i < n; i++) {
+            double lv = deg[i] * v[i] - y[i];                 /* L*v */
+            av[i] = (top != 0) ? lv : (sigma * v[i] - lv);    /* L or sigma*I-L */
+        }
+        kext_deflate(n, count, modes, av);
+        double lam = 0.0;
+        for (uint32_t i = 0; i < n; i++) {
+            lam += v[i] * av[i];              /* Rayleigh of the iterated operator */
+        }
+        if (kext_normalize(n, av) == 0) {
+            break;
+        }
+        for (uint32_t i = 0; i < n; i++) {
+            v[i] = av[i];
+        }
+        if (have_prev != 0) {
+            double d = lam - lam_prev;
+            double mag = (d >= 0.0) ? d : -d;                 /* Class-K sign branch */
+            double ref = 1.0 + ((lam >= 0.0) ? lam : -lam);
+            if (mag <= KEXT_TOL * ref) {
+                stable++;
+                if (stable >= KEXT_STABLE_RUN && it >= 5u) {
+                    break;
+                }
+            } else {
+                stable = 0u;
+            }
+        }
+        lam_prev = lam;
+        have_prev = 1;
+    }
+    return SRMECH_OK;
+}
+
+/* Find ONE extreme eigenpair: init -> deflate -> iterate -> write the mode row
+ * to modes[count*n] + its L-tension to *tension. *found = 0 when the deflated
+ * subspace is exhausted (a zero init after deflation). */
+static srmech_status_t kext_one_mode(const char *path, uint32_t n, const double *deg,
+    double sigma, int top, uint32_t count, double *modes, uint32_t max_iters,
+    double *v, double *av, double *y, double *tension, int *found)
+{
+    assert(modes != NULL && tension != NULL && found != NULL);
+    assert(v != NULL && av != NULL && y != NULL);
+    *found = 0;
+    kext_init(n, v);
+    kext_deflate(n, count, modes, v);
+    if (kext_normalize(n, v) == 0) {
+        return SRMECH_OK;                    /* exhausted subspace -> not found */
+    }
+    srmech_status_t st = kext_iterate(path, n, deg, sigma, top, count, modes,
+                                      max_iters, v, av, y);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    double *dst = modes + (size_t)count * n;
+    for (uint32_t i = 0; i < n; i++) {
+        dst[i] = v[i];
+    }
+    st = kext_rayleigh_l(path, n, deg, v, y, tension);
+    if (st == SRMECH_OK) {
+        *found = 1;
+    }
+    return st;
+}
+
+/* Collect up to k extreme modes of one side into out_tensions/out_modes from
+ * index *count. top != 0 -> L largest; else the shift -> L smallest. Stops at
+ * min(k, n), a not-found (degenerate) mode, or *count == n total modes. */
+static srmech_status_t kext_collect_side(const char *path, uint32_t n,
+    const double *deg, double sigma, int top, uint32_t k, uint32_t max_iters,
+    double *out_tensions, double *out_modes, uint32_t *count,
+    double *v, double *av, double *y)
+{
+    assert(out_tensions != NULL && out_modes != NULL && count != NULL);
+    assert(deg != NULL && v != NULL);
+    uint32_t kk = (k < n) ? k : n;
+    for (uint32_t m = 0; m < kk; m++) {
+        if (*count >= n) {
+            break;
+        }
+        double tension = 0.0;
+        int found = 0;
+        srmech_status_t st = kext_one_mode(path, n, deg, sigma, top, *count,
+            out_modes, max_iters, v, av, y, &tension, &found);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        if (found == 0) {
+            break;
+        }
+        out_tensions[*count] = tension;
+        (*count)++;
+    }
+    return SRMECH_OK;
+}
+
+size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n)
+{
+    /* Carved doubles: deg, v, av, y — four length-n vectors. Returned in BYTES.
+     * n is a uint32 node count; 4*n*8 <= 2^37 never overflows size_t (64-bit). */
+    size_t doubles = (size_t)4u * (size_t)n;
+    assert(sizeof(double) == 8u);
+    assert(doubles / 4u == (size_t)n);            /* the *4 did not overflow size_t */
+    return doubles * sizeof(double);
+}
+
+/* Stream the degree pass into `deg` and return sigma = 2*max_deg + 1 (the
+ * Gershgorin upper bound on lambda_max used for the bottom-mode shift). */
+static srmech_status_t kext_setup(const char *path, uint32_t n, double *deg,
+                                  double *sigma)
+{
+    assert(deg != NULL && sigma != NULL);
+    assert(path != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        deg[i] = 0.0;
+    }
+    fiedler_deg_ctx dctx = { n, deg };
+    srmech_status_t st = fiedler_file_scan(path, fiedler_deg_cb, &dctx);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    double max_deg = 0.0;
+    for (uint32_t i = 0; i < n; i++) {
+        if (deg[i] > max_deg) {
+            max_deg = deg[i];
+        }
+    }
+    *sigma = 2.0 * max_deg + 1.0;
+    return SRMECH_OK;
+}
+
+/* Pin the EXACT trivial mode (constant eigenvector, L*1 = 0; always the smallest
+ * tension) as bottom mode 0 — row 0 of out_modes, tension 0. It converges slowly
+ * by power iteration on a near-degenerate low-frequency spectrum, so inject it
+ * exactly (== the Python op; analytic-deflation of the known trivial mode).
+ * Sets *count = 1 and returns the number of bottom modes STILL to find (kb-1). */
+static uint32_t kext_inject_trivial(uint32_t n, uint32_t kb, double *out_tensions,
+                                    double *out_modes, uint32_t *count)
+{
+    assert(out_tensions != NULL && out_modes != NULL);
+    assert(count != NULL && kb >= 1u);
+    double c = 1.0 / lap_sqrt((double)n);
+    for (uint32_t i = 0; i < n; i++) {
+        out_modes[i] = c;                               /* row 0 = the constant mode */
+    }
+    out_tensions[0] = 0.0;
+    *count = 1u;
+    return kb - 1u;
+}
+
+srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n, const char *path,
+    uint32_t k, uint32_t max_iters, double *out_tensions, double *out_modes,
+    uint32_t *out_count, double *ws, size_t ws_len)
+{
+    assert(out_tensions != NULL && out_modes != NULL);
+    assert(out_count != NULL && ws != NULL);
+    if (out_tensions == NULL || out_modes == NULL || out_count == NULL
+        || ws == NULL || path == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    *out_count = 0u;
+    if (ws_len < srmech_laplacian_k_extreme_modes_arena_bytes(n)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (n == 0u) {
+        return SRMECH_OK;
+    }
+    double *deg = ws;
+    double *v = ws + (size_t)1u * n;
+    double *av = ws + (size_t)2u * n;
+    double *y = ws + (size_t)3u * n;
+    double sigma = 0.0;
+    srmech_status_t st = kext_setup(path, n, deg, &sigma);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    uint32_t kb = (k < n) ? k : n;
+    uint32_t count = 0u;
+    uint32_t bottom_more = 0u;
+    if (kb >= 1u) {
+        bottom_more = kext_inject_trivial(n, kb, out_tensions, out_modes, &count);
+    }
+    st = kext_collect_side(path, n, deg, sigma, 0, bottom_more, max_iters,   /* bottom */
+                           out_tensions, out_modes, &count, v, av, y);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    st = kext_collect_side(path, n, deg, sigma, 1, k, max_iters,                /* top */
+                           out_tensions, out_modes, &count, v, av, y);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    *out_count = count;
+    return SRMECH_OK;
+}
