@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc228"
-#define SRMECH_VERSION       "0.9.0rc228"
+#define SRMECH_VERSION_PRE   "rc229"
+#define SRMECH_VERSION       "0.9.0rc229"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1083,6 +1083,13 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
  * complete honor). An out-of-range edge endpoint -> SRMECH_ERR_BAD_INPUT;
  * a phase angle with no Q61 form (non-finite / |ang| >= 2^55) ->
  * SRMECH_ERR_BAD_INPUT (the Python peer raises identically).
+ *
+ * Attested SSoT (the flux/magnetic-Laplacian construction): E. H. Lieb &
+ * M. Loss, "Fluxes, Laplacians, and Kasteleyn's Theorem", Duke Math. J.
+ * 71 (1993) 337-363; OA preprint arXiv:cond-mat/9209031. (The complex-
+ * unit-gain-graph spectral framing: N. Reff, "Spectral Properties of
+ * Complex Unit Gain Graphs", Linear Algebra Appl. 436 (2012) 3165-3176;
+ * arXiv:1110.4554.)
  * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 3. */
 srmech_status_t srmech_graph_magnetic_laplacian(uint32_t        n,
                                                 uint32_t        n_edges,
@@ -1092,6 +1099,72 @@ srmech_status_t srmech_graph_magnetic_laplacian(uint32_t        n,
                                                 double          q,
                                                 const double   *charges,
                                                 double         *out_matrix);
+
+/* 0.9.0rc229 (#687): the V4-gain (Klein-4-sector) Laplacian — the EVEN-
+ * channel fuller partner of srmech_graph_magnetic_laplacian. Each edge
+ * carries a V4 = Z2 x Z2 gain g = (g0, g1) as TWO sign bits packed low..
+ * high in a uint8 `gains[e]` in {0,1,2,3} (NULL -> all identity 0). V4
+ * has FOUR real characters chi_ab(g) = (-1)^(a*g0 + b*g1), so the object
+ * decomposes into FOUR real signed Laplacians L_chi = D_bar - chi(g_e)*A
+ * (the two-bit generalization of the one-bit signed Laplacian). The two
+ * gain bits are SYMMETRIC — neither is privileged. `out_matrix` is
+ * 4*n*n doubles, SECTOR-major: sector k in {0,1,2,3} = (a = k>>1, b = k&1)
+ * fills out[k*n*n ...], so k=0 -> chi00 (trivial; == dense_laplacian for
+ * unit gains), 1 -> chi01, 2 -> chi10, 3 -> chi11 (each real row-major
+ * n*n). The signed degree D_bar_ii = sum|A_ij| is the Class-K magnitude
+ * (no abs()) and is character-independent. The four-sector Laplacian
+ * spectrum equals the ordinary Laplacian spectrum of the V4 abelian COVER
+ * (4n nodes) — the abelian-cover character decomposition (Bilu & Linial,
+ * "Lifts, Discrepancy and Nearly Optimal Spectral Gap", Combinatorica 26
+ * (2006) 495-519; arXiv:math/0312022; generalized from the Z2 2-lift to
+ * V4). No node cap, NO scratch (staged in-place in `out_matrix`); an
+ * out-of-range endpoint or gain > 3 -> SRMECH_ERR_BAD_INPUT. ABI-additive:
+ * a new symbol, so SRMECH_ABI_VERSION stays 4. */
+srmech_status_t srmech_graph_klein4_gain_laplacian(uint32_t        n,
+                                                   uint32_t        n_edges,
+                                                   const uint32_t *edges_u,
+                                                   const uint32_t *edges_v,
+                                                   const double   *weights,
+                                                   const uint8_t  *gains,
+                                                   double         *out_matrix);
+
+/* 0.9.0rc229 (#687): cycle_holonomy — the ODD channel the (Hermitian /
+ * signed) spectrum provably cannot carry (a conjugated Hermitian matrix
+ * has the same eigenvalues, so no eigenvalue read carries the which-way
+ * sign). A gain graph is determined up to switching by its cycle gains
+ * (Zaslavsky, "Signed graphs", Discrete Appl. Math. 4 (1982) 47-74). This
+ * builds a spanning forest (union-find; first-encountered edge = tree
+ * edge), then for each co-tree edge computes the fundamental cycle's NET
+ * charge: per-edge charges in TURNS as reduced rationals
+ * charge_num[e]/charge_den[e] (NULL -> 0), summed exactly around the cycle
+ * and reduced mod 1 (Class I mod-1 cyclic o Class L graph; NO eigensolve).
+ * The holonomy is invariant under node re-gauging (a coboundary
+ * telescopes) and is 0 for every cycle IFF the gain graph is balanced
+ * (Zaslavsky); it distinguishes +c from -c (1/4 vs 3/4 mod 1) — the
+ * chirality the sector spectra cannot. Denominators must be > 0 and both
+ * |num| and den <= 1e9 so the exact int64 arithmetic cannot overflow; a
+ * larger magnitude / a reduced intermediate past the limit / an
+ * undersized arena -> SRMECH_ERR_OVERFLOW (the pure-Python Fraction path
+ * is the exact complete alternative). Outputs (each length >= n_edges):
+ * out_num/out_den = reduced holonomy in [0,1) per cycle; out_cycle_u/v =
+ * the co-tree edge per cycle; *out_n_cycles = the cyclomatic number.
+ * `ws` is a caller arena of >= srmech_graph_cycle_holonomy_arena_bytes
+ * bytes (no malloc). ABI-additive: new symbols, SRMECH_ABI_VERSION stays
+ * 4. */
+size_t srmech_graph_cycle_holonomy_arena_bytes(uint32_t n, uint32_t n_edges);
+srmech_status_t srmech_graph_cycle_holonomy(uint32_t        n,
+                                            uint32_t        n_edges,
+                                            const uint32_t *edges_u,
+                                            const uint32_t *edges_v,
+                                            const int64_t  *charge_num,
+                                            const int64_t  *charge_den,
+                                            int64_t        *out_num,
+                                            int64_t        *out_den,
+                                            uint32_t       *out_cycle_u,
+                                            uint32_t       *out_cycle_v,
+                                            uint32_t       *out_n_cycles,
+                                            void           *ws,
+                                            size_t          ws_len);
 
 /* §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler — the
  * n-unbounded peer of the dense eigensolver path. Power iteration on the

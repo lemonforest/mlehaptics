@@ -178,6 +178,9 @@ __all__ = [
     "dense_adjacency",
     "dense_laplacian",
     "normalized_laplacian",
+    "klein4_gain_laplacian",
+    "klein4_relational_structure",
+    "cycle_holonomy",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -2884,9 +2887,12 @@ def magnetic_laplacian(
     ``q = 0`` collapses to the real symmetrised Laplacian (the F348
     undirected control); ``q = 1/4`` is a quarter-turn per unit
     imbalance. The construction is the magnetic / Hermitian Laplacian
-    for directed graphs (Lieb & Loss, fluxes on graphs); a precise
-    attested citation belongs in the research notebook under the MPM
-    discipline.
+    for directed graphs. Attested SSoT: E. H. Lieb & M. Loss, "Fluxes,
+    Laplacians, and Kasteleyn's Theorem", Duke Math. J. 71 (1993)
+    337–363 (OA preprint arXiv:cond-mat/9209031); the complex-unit-
+    gain-graph spectral framing is N. Reff, "Spectral Properties of
+    Complex Unit Gain Graphs", Linear Algebra Appl. 436 (2012)
+    3165–3176 (arXiv:1110.4554).
 
     **Per-edge charges (rc105; issue #1234 Item 3 / F1006 / F1007) — the
     CHIRAL Laplacian for dual-sense knowledge graphs.** ``charges`` is an
@@ -2949,6 +2955,464 @@ def magnetic_laplacian(
     # Always complex layout (a Hermitian Laplacian is genuinely complex even
     # when q=0 collapses the imaginary part — pin the carrier dtype explicitly).
     return Mat.from_rows(rows, is_complex=True)
+
+
+# =====================================================================
+# rc229 (#687) — the fuller asymmetric-halves lattice handle: the V4-gain
+# (Klein-4-sector) Laplacian (EVEN channel) + cycle_holonomy (ODD channel).
+# =====================================================================
+#
+# magnetic_laplacian is a ONE-axis, chirality-EVEN U(1) projection: flipping
+# ALL chirality conjugates the matrix entrywise, and Hermitian spectra are
+# conjugation-invariant, so NO eigenvalue read can carry the which-way sign
+# (F552 "diagnostic, not predictive"). The fuller object has FOUR real
+# character sectors (the EVEN channel, klein4_gain_laplacian) + the cycle
+# holonomies (the ODD channel, cycle_holonomy that the spectrum provably
+# cannot carry). Together they make the relational read complete.
+
+# The four V4 = Z2 x Z2 characters, keyed χ_ab(g0,g1) = (−1)^(a·g0 + b·g1).
+# Sector index k = 2·a + b (matches the C sector-major layout): k=0 → chi00
+# (trivial), 1 → chi01, 2 → chi10, 3 → chi11. The two gain bits are treated
+# SYMMETRICALLY — neither is privileged (the phase-vs-beat semantic binding is
+# a framework decision reserved for the user; the math is bit-symmetric).
+_KLEIN4_SECTORS: Tuple[str, ...] = ("chi00", "chi01", "chi10", "chi11")
+
+
+def _klein4_char_sign(a: int, b: int, g: int) -> int:
+    """χ_ab(g) ∈ {+1, −1}: the parity of (a & g0) ^ (b & g1), g = (g1<<1)|g0.
+    A Class-K sign (pin-slot), never an ALU magnitude."""
+    g0 = g & 1
+    g1 = (g >> 1) & 1
+    return -1 if ((a & g0) ^ (b & g1)) else 1
+
+
+def _normalize_gains_py(gains, n_edges: int) -> List[int]:
+    """Validate a per-edge V4 gain list parallel to the edges: each entry an
+    int in {0,1,2,3} (two sign bits, low..high) or a 2-tuple/2-list ``(g0, g1)``
+    of bits. ``gains=None`` → all identity (0). Raises ``ValueError`` on a bad
+    length or an out-of-range gain."""
+    if gains is None:
+        return [0] * n_edges
+    out: List[int] = []
+    for k, g in enumerate(gains):
+        if isinstance(g, (tuple, list)):
+            if len(g) != 2:
+                raise ValueError(
+                    f"gain {k} = {g!r} must be a 2-tuple (g0, g1) of bits"
+                )
+            g0, g1 = int(g[0]) & 1, int(g[1]) & 1
+            gi = (g1 << 1) | g0
+        else:
+            gi = int(g)
+        if gi < 0 or gi > 3:
+            raise ValueError(
+                f"gain {k} = {g!r} out of range: a V4 gain is an int in "
+                f"{{0,1,2,3}} (two sign bits) or a 2-tuple of bits"
+            )
+        out.append(gi)
+    return out
+
+
+def _klein4_gain_laplacian_native(n, el, wl, gl):
+    """numpy-free native dispatch for :func:`klein4_gain_laplacian` — marshals
+    the edge endpoints (uint32), weights (double) and per-edge gains (uint8)
+    into ctypes buffers and calls ``srmech_graph_klein4_gain_laplacian`` with a
+    caller-allocated ``4*n*n``-double sector-major output. Returns a list of
+    four nested ``list[list[float]]`` sector Laplacians, or ``None`` on a
+    missing symbol / non-OK status (caller runs the pure-Python cascade)."""
+    if not _native.has_native_klein4_gain_laplacian():
+        return None
+    n_edges = len(el)
+    block = n * n
+    out = (ctypes.c_double * (4 * block))()
+    null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+    null_d = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    null_b = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8))
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in el))
+        ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in el))
+        wb = (ctypes.c_double * n_edges)(*(float(w) for w in wl))
+        gb = (ctypes.c_uint8 * n_edges)(*(int(g) for g in gl))
+    else:
+        eu = ev = null_u
+        wb = null_d
+        gb = null_b
+    rc = _native.LIB.srmech_graph_klein4_gain_laplacian(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wb, gb, out
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [
+        [[out[k * block + r * n + c] for c in range(n)] for r in range(n)]
+        for k in range(4)
+    ]
+
+
+def _klein4_gain_laplacian_py(n, el, wl, gl):
+    """Pure-Python complete alternative for :func:`klein4_gain_laplacian`:
+    build the four sector Laplacians as :func:`signed_laplacian` on the
+    χ-transformed weights ``χ_ab(g_e)·w_e``. Since ``|χ·w| = |w|``, each
+    sector's signed degree is identical — the four differ only by the
+    off-diagonal signs. Returns four nested ``list[list[float]]``."""
+    sectors = []
+    for k in range(4):
+        a, b = k >> 1, k & 1
+        w_sec = [_klein4_char_sign(a, b, g) * float(w) for g, w in zip(gl, wl)]
+        L = signed_laplacian(n, el, w_sec)  # Mat
+        sectors.append([[L[i, j] for j in range(n)] for i in range(n)])
+    return sectors
+
+
+def klein4_gain_laplacian(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    gains: Optional[Iterable] = None,
+) -> Dict[str, "Mat"]:
+    """The V₄-gain (Klein-4-sector) Laplacian — the EVEN-channel fuller partner
+    of :func:`magnetic_laplacian` (gh#687).
+
+    Each edge carries a **V₄ = ℤ₂×ℤ₂ gain** = TWO sign bits (``gains`` parallel
+    to ``edges``, each an int in ``{0,1,2,3}`` = ``(g1<<1)|g0`` or a 2-tuple
+    ``(g0, g1)``; ``gains=None`` → all identity). V₄ has FOUR real characters
+    ``χ_ab(g) = (−1)^(a·g0 + b·g1)``, so the object decomposes into FOUR real
+    signed Laplacians ``L_χ = D̄ − χ(g_e)·A`` — the two-bit generalization of
+    exactly how :func:`signed_laplacian` is the ℤ₂ (one-bit) instance. The two
+    gain bits are handled **symmetrically** — no bit is privileged (the
+    phase-vs-beat semantic binding is a framework decision reserved for the
+    user; the math is bit-symmetric).
+
+    The signed degree ``D̄_ii = Σ_j |A_ij|`` is the **Class-K magnitude**
+    (a sign-branch, never ``abs()``); since ``|χ·w| = |w|`` the degree is
+    **character-independent**, so the four sectors differ only in their
+    off-diagonal signs — ``L_χ00`` (the trivial character) equals
+    :func:`dense_laplacian` for unit gains.
+
+    The four sector Laplacians drop directly into
+    :func:`spectral_block_dispatch` (its Klein-4 4-cap IS this shape); the
+    joint read-out (per-sector tensions + the Class-K sector-asymmetry meter)
+    is :func:`klein4_relational_structure`. **Honest boundary (F552):** a
+    Laplacian whose *eigenvalues* carry the which-way sign is provably
+    impossible (conjugation-invariance of Hermitian/real-symmetric spectra);
+    this composite reads the ASYMMETRY (sectors differ), the ORIENTATION LABEL
+    needs the ODD-channel :func:`cycle_holonomy` (diagnostic, not predictive).
+
+    Attested SSoT: N. Reff, "Spectral Properties of Complex Unit Gain Graphs",
+    Linear Algebra Appl. 436 (2012) 3165–3176 (arXiv:1110.4554); the abelian-
+    cover character decomposition (the V₄-cover generalization of the Bilu–
+    Linial ℤ₂ 2-lift, Combinatorica 26 (2006) 495–519, arXiv:math/0312022).
+
+    Parameters
+    ----------
+    n : int
+        Node count.
+    edges : Iterable[Tuple[int, int]]
+        Undirected relational edges ``(u, v)``.
+    weights : Optional[Iterable[float]]
+        Per-edge weights (default all ``1.0``); may be negative.
+    gains : Optional[Iterable]
+        Per-edge V₄ gains parallel to ``edges`` (int ``{0,1,2,3}`` or 2-tuple
+        of bits); ``None`` → all identity (all four sectors coincide).
+
+    Returns
+    -------
+    dict[str, Mat]
+        ``{"chi00", "chi01", "chi10", "chi11"}`` → the four ``n×n`` real-
+        symmetric PSD sector Laplacians (numpy-free :class:`~srmech.amsc.mat.Mat`).
+
+    Dispatches to the standalone-C ``srmech_graph_klein4_gain_laplacian`` (all
+    four sectors in one call) when ``HAS_NATIVE``; else four
+    :func:`signed_laplacian` builds on the χ-transformed weights (byte-identical
+    — integer sign × the same weights). numpy-free; no ``abs()``.
+    """
+    el, wl = _validate_edges_weights_py(n, edges, weights)
+    gl = _normalize_gains_py(gains, len(el))
+    rows = _klein4_gain_laplacian_native(n, el, wl, gl)
+    if rows is None:
+        rows = _klein4_gain_laplacian_py(n, el, wl, gl)
+    return {
+        _KLEIN4_SECTORS[k]: Mat.from_rows(rows[k], is_complex=False)
+        for k in range(4)
+    }
+
+
+def klein4_relational_structure(
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    gains: Optional[Iterable] = None,
+    *,
+    n: Optional[int] = None,
+) -> dict:
+    """The joint EVEN-channel read-out of a V₄-gain relational graph (gh#687) —
+    per-sector spectral tensions + the Class-K sector-asymmetry meter.
+
+    Builds the four sector Laplacians (:func:`klein4_gain_laplacian`) and reads
+    each with ONE :func:`symmetric_eigendecompose`::
+
+        {"sectors": ("chi00","chi01","chi10","chi11"),
+         "tension":   {sector: λ_min},   # spectral frustration (0 = balanced)
+         "coherence": {sector: λ₂},      # algebraic connectivity (Fiedler value)
+         "sector_asymmetry": |tension[chi10] − tension[chi01]|}
+
+    ``tension`` is the smallest eigenvalue λ_min of each sector's signed
+    Laplacian — 0 exactly when that sector is balanced (Kunegis et al. 2010),
+    positive under frustration; ``coherence`` is the second-smallest eigenvalue
+    λ₂. ``sector_asymmetry`` is the **Class-K magnitude** (a sign-branch, never
+    ``abs()``) of the difference between the two MIXED sectors χ10/χ01 — the
+    ``(4:3)|(3:4)`` sector-occupancy diagnostic (F552): a chirality-collapse
+    deviation lands here, random noise does not. Diagnostic, not predictive —
+    the orientation LABEL needs the ODD-channel :func:`cycle_holonomy`.
+
+    Composes :func:`klein4_gain_laplacian` + :func:`symmetric_eigendecompose`
+    (one eigensolve per sector) — a pure composition of the C-backed atoms, no
+    dedicated C symbol. numpy-free.
+
+    Parameters
+    ----------
+    edges, weights, gains
+        As :func:`klein4_gain_laplacian`.
+    n : Optional[int]
+        Node count (keyword-only); inferred as one past the largest endpoint
+        when ``None`` (isolated high-index nodes carry no relationship).
+
+    Returns
+    -------
+    dict
+        The per-sector tensions / coherences + the mixed-sector asymmetry.
+    """
+    edge_list = [tuple(e) for e in edges]
+    nn = _infer_n_from_edges(edge_list) if n is None else int(n)
+    if nn == 0:
+        zero = {s: 0.0 for s in _KLEIN4_SECTORS}
+        return {"sectors": _KLEIN4_SECTORS, "tension": dict(zero),
+                "coherence": dict(zero), "sector_asymmetry": 0.0}
+    _el, w_list = _validate_edges_weights_py(nn, edge_list, weights)
+    sectors = klein4_gain_laplacian(nn, edge_list, w_list, gains)
+    tension: Dict[str, float] = {}
+    coherence: Dict[str, float] = {}
+    for s in _KLEIN4_SECTORS:
+        eigvals, _V = symmetric_eigendecompose(sectors[s])
+        tension[s] = float(eigvals[0])                       # λ_min (frustration)
+        coherence[s] = float(eigvals[1]) if nn >= 2 else 0.0  # λ₂ (connectivity)
+    # Class-K magnitude of the mixed-sector (χ10 vs χ01) tension gap — the
+    # (4:3)|(3:4) sector-occupancy diagnostic (a sign-branch, NOT abs()).
+    d = tension["chi10"] - tension["chi01"]
+    asym = d if d >= 0.0 else -d
+    return {
+        "sectors": _KLEIN4_SECTORS,
+        "tension": tension,
+        "coherence": coherence,
+        "sector_asymmetry": asym,
+    }
+
+
+def _to_fraction(c) -> Fraction:
+    """Coerce a charge (turns) to an exact :class:`~fractions.Fraction`. Accepts
+    an ``int`` / ``Fraction`` / a ``numbers.Rational`` carrier (e.g. srmech
+    ``Q``) exactly; a ``float`` is projected via ``Fraction(x).limit_denominator``
+    (dyadic floats like 0.25 stay exact — ``Fraction(0.25) == 1/4``)."""
+    import numbers
+    if isinstance(c, Fraction):
+        return c
+    if isinstance(c, int) and not isinstance(c, bool):
+        return Fraction(c)
+    if isinstance(c, numbers.Rational):
+        return Fraction(int(c.numerator), int(c.denominator))
+    return Fraction(float(c)).limit_denominator(10 ** 12)
+
+
+def _cycle_holonomy_py(n, edge_list, charges):
+    """Pure-Python complete alternative for :func:`cycle_holonomy` — exact
+    :class:`~fractions.Fraction` arithmetic (the odd channel). Spanning forest
+    by union-find (first-encountered edge = tree edge), pot[i] = tree-path
+    charge (root → i), holonomy(u,v,c) = c + pot[u] − pot[v] mod 1. Returns
+    ``(holonomies, cycle_edges)`` — the SAME spanning-tree choice as the C peer
+    (identical edge order → identical fundamental-cycle basis)."""
+    parent = list(range(n))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    tree: List[Tuple[int, int, Fraction]] = []
+    cotree: List[Tuple[int, int, Fraction]] = []
+    for (u, v), c in zip(edge_list, charges):
+        ru, rv = find(u), find(v)
+        if ru != rv:
+            parent[rv] = ru
+            tree.append((u, v, c))
+        else:
+            cotree.append((u, v, c))
+    # pot[i] = signed tree-path charge from the component root to i.
+    pot: List[Optional[Fraction]] = [None] * n
+    adj: List[List[Tuple[int, Fraction]]] = [[] for _ in range(n)]
+    for (u, v, c) in tree:
+        adj[u].append((v, c))     # u -> v : +c
+        adj[v].append((u, -c))    # v -> u : -c
+    for s in range(n):
+        if pot[s] is not None:
+            continue
+        pot[s] = Fraction(0)
+        stack = [s]
+        while stack:
+            x = stack.pop()
+            for (y, c) in adj[x]:
+                if pot[y] is None:
+                    pot[y] = pot[x] + c
+                    stack.append(y)
+    holonomies: List[Fraction] = []
+    cycle_edges: List[Tuple[int, int]] = []
+    for (u, v, c) in cotree:
+        h = c + pot[u] - pot[v]
+        h = h - (h.numerator // h.denominator)   # mod 1 → [0, 1); Class-I cyclic
+        holonomies.append(h)
+        cycle_edges.append((u, v))
+    return holonomies, cycle_edges
+
+
+_HOLO_RAT_LIMIT = 10 ** 9  # matches SRMECH_HOLO_RAT_LIMIT in the C peer
+
+
+def _cycle_holonomy_native(n, edge_list, charges):
+    """numpy-free native dispatch for :func:`cycle_holonomy` — marshals the edge
+    endpoints (uint32) + per-edge charge num/den (int64) into ctypes buffers and
+    calls ``srmech_graph_cycle_holonomy`` with a caller arena sized from
+    ``srmech_graph_cycle_holonomy_arena_bytes``. Returns
+    ``(holonomies, cycle_edges)`` as exact ``Fraction`` + ``(u, v)`` pairs, or
+    ``None`` on a missing symbol / non-OK status / an out-of-int64-range charge
+    (caller then runs the exact pure-Python Fraction cascade)."""
+    if not _native.has_native_cycle_holonomy():
+        return None
+    num: List[int] = []
+    den: List[int] = []
+    for c in charges:
+        f = _to_fraction(c)
+        an = f.numerator if f.numerator >= 0 else -f.numerator  # Class-K, no abs()
+        if an > _HOLO_RAT_LIMIT or f.denominator > _HOLO_RAT_LIMIT:
+            return None                       # out of int64 range → exact pure path
+        num.append(f.numerator)
+        den.append(f.denominator)
+    n_edges = len(edge_list)
+    eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in edge_list))
+    ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in edge_list))
+    cn = (ctypes.c_int64 * n_edges)(*num) if n_edges else \
+        ctypes.cast(None, ctypes.POINTER(ctypes.c_int64))
+    cd = (ctypes.c_int64 * n_edges)(*den) if n_edges else \
+        ctypes.cast(None, ctypes.POINTER(ctypes.c_int64))
+    onum = (ctypes.c_int64 * max(n_edges, 1))()
+    oden = (ctypes.c_int64 * max(n_edges, 1))()
+    ocu = (ctypes.c_uint32 * max(n_edges, 1))()
+    ocv = (ctypes.c_uint32 * max(n_edges, 1))()
+    ncyc = ctypes.c_uint32(0)
+    ws_bytes = int(_native.LIB.srmech_graph_cycle_holonomy_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges)))
+    ws = (ctypes.c_char * ws_bytes)()
+    rc = _native.LIB.srmech_graph_cycle_holonomy(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, cn, cd,
+        onum, oden, ocu, ocv, ctypes.byref(ncyc),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    m = ncyc.value
+    holonomies = [Fraction(int(onum[i]), int(oden[i])) for i in range(m)]
+    cycle_edges = [(int(ocu[i]), int(ocv[i])) for i in range(m)]
+    return holonomies, cycle_edges
+
+
+def cycle_holonomy(
+    edges: Iterable[Tuple[int, int]],
+    charges: Optional[Iterable] = None,
+    *,
+    n: Optional[int] = None,
+) -> dict:
+    """The cycle holonomies of a gain graph — the ODD channel the (Hermitian /
+    signed) SPECTRUM provably cannot carry (gh#687).
+
+    A gain graph is determined up to switching (node re-gauging) by its cycle
+    gains (Zaslavsky's switching theory). This computes them exactly: a
+    **spanning forest** (union-find; first-encountered edge = tree edge) → the
+    **fundamental cycle** for each co-tree edge → that cycle's **net charge**
+    (per-edge ``charges`` in TURNS, exact :class:`~fractions.Fraction`, reduced
+    **mod 1**). It is **Class I** (mod-1 cyclic) ∘ **Class L** (graph): exact
+    integer/rational arithmetic, **NO eigensolve**.
+
+    Why it is the odd channel: :func:`magnetic_laplacian`'s Hermitian spectrum
+    is conjugation-invariant, so flipping all chirality leaves the eigenvalues
+    fixed — the which-way ± sign is invisible to any spectral read (F552). The
+    cycle holonomy is the gauge-invariant ODD datum: it is **invariant under
+    node re-gauging** (a coboundary telescopes around any cycle), is **0 for
+    every cycle IFF the gain graph is balanced** (Zaslavsky's balance
+    criterion), and **distinguishes +c from −c** (``1/4`` vs ``3/4`` mod 1) —
+    the chirality the sector spectra cannot. Honest boundary: it detects
+    which-way *relative to a chosen base gauge*, not absolutely (the absolute
+    orientation label still needs an external frame anchor — F552's diagnostic-
+    not-predictive ceiling).
+
+    Pairs with :func:`klein4_gain_laplacian` to make the relational read
+    complete: the sector spectra are the EVEN channel, the holonomies the ODD.
+    Attested SSoT: T. Zaslavsky, "Signed graphs", Discrete Appl. Math. 4 (1982)
+    47–74.
+
+    Parameters
+    ----------
+    edges : Iterable[Tuple[int, int]]
+        The graph edges ``(u, v)``. A parallel edge closes a digon cycle; a
+        self-loop is a 1-cycle carrying its own charge.
+    charges : Optional[Iterable]
+        Per-edge charge in TURNS parallel to ``edges`` (int / ``Fraction`` /
+        rational carrier exact; a ``float`` projected via ``limit_denominator``).
+        ``None`` → all 0 (a trivially balanced graph). ``(u, v, c) ≡ (v, u, −c)``.
+    n : Optional[int]
+        Node count (keyword-only); inferred as one past the largest endpoint
+        when ``None``.
+
+    Returns
+    -------
+    dict
+        ``{"n_cycles": int, "holonomies": list[Fraction], "cycle_edges":
+        list[(u, v)], "balanced": bool}`` — one holonomy in ``[0, 1)`` per
+        fundamental cycle (indexed by its co-tree edge), and ``balanced`` iff
+        every holonomy is 0.
+
+    Dispatches to the standalone-C ``srmech_graph_cycle_holonomy`` (exact int64
+    rational, caller-arena) when ``HAS_NATIVE`` and every charge is within the
+    int64 range; else srmech's own exact-``Fraction`` cascade (the complete
+    alternative — never a wrong answer, and it handles any denominator). The
+    two paths use the SAME spanning-tree choice, so the fundamental-cycle basis
+    is identical. numpy-free; no ``abs()``.
+    """
+    edge_list = [tuple(e) for e in edges]
+    nn = _infer_n_from_edges(edge_list) if n is None else int(n)
+    if charges is None:
+        ch = [Fraction(0)] * len(edge_list)
+    else:
+        ch = [_to_fraction(c) for c in charges]
+        if len(ch) != len(edge_list):
+            raise ValueError(
+                f"charges length {len(ch)} != n_edges {len(edge_list)}"
+            )
+    for k, (u, v) in enumerate(edge_list):
+        if not (0 <= u < nn and 0 <= v < nn):
+            raise ValueError(
+                f"edge {k} = ({u}, {v}) outside node range [0, {nn})"
+            )
+    if nn == 0:
+        return {"n_cycles": 0, "holonomies": [], "cycle_edges": [],
+                "balanced": True}
+    res = _cycle_holonomy_native(nn, edge_list, ch)
+    if res is None:
+        res = _cycle_holonomy_py(nn, edge_list, ch)
+    holonomies, cycle_edges = res
+    balanced = all(h == 0 for h in holonomies)
+    return {
+        "n_cycles": len(holonomies),
+        "holonomies": holonomies,
+        "cycle_edges": cycle_edges,
+        "balanced": balanced,
+    }
 
 
 # =====================================================================
@@ -5296,6 +5760,9 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "normalized_laplacian",
     "signed_laplacian",
     "magnetic_laplacian",
+    "klein4_gain_laplacian",
+    "klein4_relational_structure",
+    "cycle_holonomy",
     "fiedler_vector",
     "fiedler_sparse",
     "normalized_cut_bisect",

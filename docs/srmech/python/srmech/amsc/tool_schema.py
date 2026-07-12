@@ -1030,6 +1030,104 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × n complex Hermitian matrix (numpy-free Mat)"),
         ),
         # ────────────────────────────────────────────────────────────
+        # rc229 (#687) — the fuller asymmetric-halves lattice handle: the
+        # V4-gain (Klein-4-sector) Laplacian (EVEN channel; C peer
+        # srmech_graph_klein4_gain_laplacian) + its joint read-out +
+        # cycle_holonomy (ODD channel; C peer srmech_graph_cycle_holonomy).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.laplacian.klein4_gain_laplacian", owner="srmech",
+            category="laplacian",
+            summary="The V₄-gain (Klein-4-sector) Laplacian (#687): the "
+                    "EVEN-channel fuller partner of magnetic_laplacian. Each "
+                    "edge carries a V₄ = ℤ₂×ℤ₂ gain (TWO sign bits, int 0..3 "
+                    "or a 2-tuple), and V₄'s FOUR real characters "
+                    "χ_ab(g)=(−1)^(a·g0+b·g1) decompose the object into FOUR "
+                    "real signed Laplacians L_χ = D̄ − χ(g_e)·A — the two-bit "
+                    "generalization of the one-bit signed_laplacian. The two "
+                    "gain bits are SYMMETRIC (neither privileged). Signed "
+                    "degree D̄=Σ|A_ij| is the Class-K magnitude (no abs()) and "
+                    "is character-independent, so χ00 (trivial) == "
+                    "dense_laplacian for unit gains; the four sectors drop into "
+                    "spectral_block_dispatch, and their spectrum equals the "
+                    "ordinary Laplacian spectrum of the V₄ abelian COVER (4n "
+                    "nodes). Native standalone-C srmech_graph_klein4_gain_"
+                    "laplacian (all four sectors in one call; else four "
+                    "signed_laplacian builds — byte-identical). Reff LAA 436 "
+                    "(2012), arXiv:1110.4554. numpy-free.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False,
+                          "may be negative"),
+                        P("gains", "Optional[list[int | tuple[int, int]]]",
+                          False,
+                          "per-edge V₄ gain parallel to edges — int 0..3 "
+                          "(g1<<1|g0) or a 2-tuple (g0, g1); None → all "
+                          "identity (the four sectors coincide)")),
+            returns=R("dict[str, Mat]",
+                      "{'chi00','chi01','chi10','chi11'} → the four n×n "
+                      "real-symmetric PSD sector Laplacians"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.klein4_relational_structure",
+            owner="srmech", category="laplacian",
+            summary="The joint EVEN-channel read-out of a V₄-gain relational "
+                    "graph (#687): per-sector spectral tensions (λ_min = "
+                    "frustration, 0 iff balanced) + coherences (λ₂ = algebraic "
+                    "connectivity) + the Class-K sector-asymmetry meter between "
+                    "the two MIXED sectors χ10/χ01 — the (4:3)|(3:4) sector-"
+                    "occupancy diagnostic (F552: a chirality-collapse deviation "
+                    "lands here, random noise does not). Diagnostic, not "
+                    "predictive — the orientation LABEL needs the ODD-channel "
+                    "cycle_holonomy. Composes klein4_gain_laplacian + "
+                    "symmetric_eigendecompose (one eigensolve per sector); no "
+                    "dedicated C symbol. numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("gains", "Optional[list[int | tuple[int, int]]]",
+                          False, "per-edge V₄ gains (see klein4_gain_laplacian)"),
+                        P("n", "Optional[int]", False,
+                          "node count; inferred from edges when None")),
+            returns=R("dict",
+                      "{'sectors', 'tension': {sector: λ_min}, 'coherence': "
+                      "{sector: λ₂}, 'sector_asymmetry': |Δ tension χ10,χ01|}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.cycle_holonomy", owner="srmech",
+            category="laplacian",
+            summary="The cycle holonomies of a gain graph (#687): the ODD "
+                    "channel the (Hermitian/signed) SPECTRUM provably cannot "
+                    "carry (a conjugated Hermitian matrix has the same "
+                    "eigenvalues, so the which-way ± sign is invisible to any "
+                    "spectral read — F552). A gain graph is determined up to "
+                    "switching by its cycle gains (Zaslavsky). Builds a "
+                    "spanning forest (union-find; first-encountered edge = tree "
+                    "edge) → the fundamental cycle per co-tree edge → that "
+                    "cycle's NET charge (per-edge charges in TURNS, exact "
+                    "Fraction, reduced mod 1) — Class I (mod-1 cyclic) ∘ "
+                    "Class L (graph); NO eigensolve. Invariant under node "
+                    "re-gauging (a coboundary telescopes); 0 for every cycle "
+                    "IFF balanced (Zaslavsky's criterion); distinguishes +c "
+                    "from −c (1/4 vs 3/4 mod 1) — the chirality the sector "
+                    "spectra cannot. Pairs with klein4_gain_laplacian (even) "
+                    "to complete the read. Native standalone-C "
+                    "srmech_graph_cycle_holonomy (exact int64 rational, "
+                    "caller-arena); else the exact-Fraction cascade (handles "
+                    "any denominator). Zaslavsky, DAM 4 (1982) 47–74. "
+                    "numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "a self-loop is a 1-cycle; a parallel edge a digon"),
+                        P("charges", "Optional[list[int | Fraction | float]]",
+                          False,
+                          "per-edge charge in TURNS parallel to edges; None → "
+                          "all 0 (balanced); (u,v,c) ≡ (v,u,−c)"),
+                        P("n", "Optional[int]", False,
+                          "node count; inferred from edges when None")),
+            returns=R("dict",
+                      "{'n_cycles', 'holonomies': list[Fraction] in [0,1), "
+                      "'cycle_edges': list[(u,v)], 'balanced': bool}"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
         # + the ground-state flux reader, Class-L composites with the 1:1
         # C peers srmech_heat_trace / srmech_ground_state_flux_response.

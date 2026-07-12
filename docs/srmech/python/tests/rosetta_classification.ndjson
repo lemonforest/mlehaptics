@@ -509,6 +509,9 @@
 {"exposed_as": "srmech.amsc.laplacian.responsion", "defined_at": "srmech.amsc.laplacian.responsion", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.spectral_spine", "defined_at": "srmech.amsc.laplacian.spectral_spine", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.relational_structure", "defined_at": "srmech.amsc.laplacian.relational_structure", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.laplacian.klein4_gain_laplacian", "defined_at": "srmech.amsc.laplacian.klein4_gain_laplacian", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.klein4_relational_structure", "defined_at": "srmech.amsc.laplacian.klein4_relational_structure", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.laplacian.cycle_holonomy", "defined_at": "srmech.amsc.laplacian.cycle_holonomy", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_mult_table", "defined_at": "srmech.qm.quaternion.quaternion_mult_table", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_table_attestation", "defined_at": "srmech.qm.quaternion.quaternion_table_attestation", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_left_mult", "defined_at": "srmech.qm.quaternion.quaternion_left_mult", "bucket": "c_dispatched"}
