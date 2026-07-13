@@ -131,6 +131,7 @@ pins native == pure).
 
 from __future__ import annotations
 
+from itertools import combinations
 from typing import Dict, Iterable, List, Mapping, Tuple
 
 from . import _native as _nat
@@ -499,6 +500,101 @@ def _z5_theta_constant_zero(terms: "List") -> bool:
     return False
 
 
+# ── the Z6 theta-constant-leaf COLLAPSE / re-arrangement ZERO certificate (rc235) ─────
+# The rank-≥2 theta-constant leaf ``Σ c_i ∏ θ(rational; p)`` is NOT "generally
+# undecidable" — it is SOMETIMES open: its VALUE is genuinely zero, but the certificate
+# FRAME cannot SEE the collapse until the right RE-ARRANGEMENT / GRADING aligns the
+# "seam." (The same shape as ``the_one`` ``S(σ,θ)``, which computed the right value but
+# was not correct across the metacycle seams until the winding grading ``w`` was added in
+# rc137.) Z5 lifts ONE prime back to an elliptic variable and closes the leaf iff a SINGLE
+# summation seam suffices (a specialization of the Weierstrass three-term addition
+# theorem). But a leaf can carry TWO OR MORE INDEPENDENT seams — a genuine
+# high-kernel-rank sum whose kernel is spanned by ≥2 independent theta-relation vectors
+# (e.g. the SUM of two three-term identities over disjoint prime alphabets): freeing ONE
+# variable exposes only one seam, leaving the OTHER seam's terms as surviving constants,
+# so Z5 (and every single-variable certificate) DECLINES it.
+#
+# Z6 is the SOUND multi-prime RE-GRADING certificate. It searches a BOUNDED family of
+# re-arrangements — lift a SUBSET S (|S| = 2 .. _Z6_MAX_SUBSET) of the leaf's DISTINCT
+# primes SIMULTANEOUSLY, each to its own fresh elliptic variable, LEAVING the un-lifted
+# primes as constants (their theta factors stay the CONSTANT partner pairs the three-term
+# rewrite needs). The lift is EXACT — substituting each variable := its prime reproduces
+# every argument + coefficient identically — so the lifted object ``L`` satisfies
+# ``L(S := primes) = leaf``. If the EXACT Weierstrass ±-pair reduction over the whole
+# lifted variable set (:func:`_pair_reduce_component`, Rosengren arXiv:1608.06161 Eq. 1.12
+# — a value-faithful rewrite proving ``L ≡ 0`` as a function of the lift variables) closes
+# ``L`` to the empty normal form, then ``leaf = L(S := primes) ≡ 0`` by SPECIALIZATION.
+# This is a THEOREM (a specialization of an identically-zero elliptic function is zero),
+# NOT a numeric band — Z6 produces ONLY ZERO verdicts, NEVER a NONZERO claim. Soundness:
+# a genuinely-NONZERO leaf has ``L(S := primes) ≠ 0`` so ``L ≢ 0``, and the SOUND ±-pair
+# reduction then never reaches the empty form (never a false ZERO). The subset re-grading
+# IS the "winding" seam-alignment the guiding insight names: freeing exactly the primes
+# that carry the independent seams (one per seam) collapses each seam's ±-pair three-term
+# structure simultaneously, where any single-variable slice (Z5) sees at most one.
+#
+# BOUNDED (JPL-style, cannot loop / cannot hang): only ``_Z6_MAX_ATTEMPTS`` bounded
+# ±-pair reductions over the first ``_Z6_MAX_PRIMES`` primes, subset size ≤ ``_Z6_MAX_
+# SUBSET``; NO interpolation, NO re-lift, NO _decide_struct recursion. It CLOSES the
+# INDEPENDENT-seam rank-≥2 family (a leaf whose kernel splits into ≤ _Z6_MAX_SUBSET
+# three-term seams over separable primes). It does NOT reach a leaf that needs a
+# genuinely-HIGHER relation than the three-term addition theorem — in particular the
+# rc227 Aₙ (3,3) residual (3 terms × 29 thetas over primes 2/5/29/71, exponent lattice
+# ℤ²⁹→ℤ⁴ with 25-dim kernels) is NOT an independent-seam sum: no bounded subset re-grading
+# exposes a ±-pair collapse (empirically Z6 DECLINES it, fast), so it stays the honest
+# ``is_zero = False``. Closing it needs the NEXT rung of the theta-relation generating
+# hierarchy — Riemann's QUARTIC (4-term) relations (Chai, "Riemann's theta formula", 2014;
+# theta-relations_v2.pdf sha256 2bc44f47169c6f9f8828a534d0a3555797db09397089121d61f69e07f0744396)
+# and the systematic n-fold generalization (Sogo, "Theory of general theta relations,
+# addition formulas, and theta constants identities", arXiv:2412.06076v1, 2024; the n = 3
+# case worked in detail; PDF sha256 91fc5cc6b2c8d74d51d9bba3935e626c89287f4de7fdd9190e1b6a31a9c47186)
+# — a future Z7 rung, NOT a widening of Z6. (rc232's ThetaBracket carrier does NOT fit as
+# the rewrite substrate here: it carries the ODD genus-g Riemann theta of the Fay/
+# telescoping row, not the multiplicative genus-1 ``Theta`` the ±-pair reduction acts on.)
+_Z6_MAX_PRIMES = 12          # distinct primes considered for the subset re-grading search
+_Z6_MAX_SUBSET = 3           # max simultaneously-lifted primes (one per independent seam)
+_Z6_MAX_ATTEMPTS = 512       # JPL-style compiled cap on the bounded re-arrangement search
+_Z6_SYM_PREFIX = "\x1fz6lift"   # the lift-variable name stem — control-char names that
+                                # CANNOT collide with a real elliptic symbol (x/y/p/q/params)
+
+
+def _z6_theta_constant_zero(terms: "List") -> bool:
+    """Z6: the SOUND multi-prime COLLAPSE / re-arrangement ZERO certificate for a
+    0-VARIABLE theta-CONSTANT leaf that carries TWO OR MORE INDEPENDENT three-term seams
+    (the high-kernel-rank leaf Z5's single-prime lift DECLINES). Searches a BOUNDED family
+    of value-preserving re-gradings: lift each SUBSET ``S`` (size 2 .. :data:`_Z6_MAX_SUBSET`)
+    of the leaf's distinct primes SIMULTANEOUSLY to fresh elliptic variables (the un-lifted
+    primes stay as the constant partner pairs), then close the lifted object by the EXACT
+    Weierstrass ±-pair reduction (:func:`_pair_reduce_component`, Rosengren Eq. 1.12 — a
+    value-faithful rewrite proving ``L ≡ 0`` in the lift variables). ANY subset that closes
+    to the empty normal form proves the leaf ``= L(S := primes) ≡ 0`` by specialization (see
+    the block comment above). Returns ``True`` ONLY on such a proof (a genuine ZERO
+    certificate); ``False`` = "no bounded re-grading exposes a ±-pair collapse" (NEVER a
+    NONZERO claim). Terminating: ≤ :data:`_Z6_MAX_ATTEMPTS` bounded ±-pair reductions, no
+    interpolation, no recursion — Z6 cannot loop and adds only a bounded constant-factor
+    cost past Z5. Pure-Python over the existing exact-ℚ carriers (prime-lift + ±-pair
+    reduction); the C ``ti_z5_leaf`` peer's single-prime lift is the sound subset of this,
+    and a top-level constant leaf (n_syms = 0) routes to this pure oracle (the native peer
+    has no lift slot), so the native == pure parity holds."""
+    primes = _leaf_prime_set(terms)
+    if len(primes) < 2:                      # a >=2 subset re-grading needs >=2 primes
+        return False
+    primes = primes[:_Z6_MAX_PRIMES]
+    upper = _Z6_MAX_SUBSET if _Z6_MAX_SUBSET < len(primes) else len(primes)
+    attempts = 0
+    for r in range(2, upper + 1):
+        for combo in combinations(range(len(primes)), r):
+            if attempts >= _Z6_MAX_ATTEMPTS:
+                return False                 # JPL compiled cap: bounded, cannot loop
+            attempts += 1
+            prime_syms = [(primes[i], _Z6_SYM_PREFIX + str(k))
+                          for k, i in enumerate(combo)]
+            lifted = _lift_prime_terms(terms, prime_syms)
+            svars = [s for _pr, s in prime_syms]
+            if _pair_reduce_component(lifted, svars):
+                return True                  # Z6: a re-grading collapsed every seam -> zero
+    return False
+
+
 def _term_char_v(pref: EllMonomial, args: "List[EllMonomial]", v: str) -> "Tuple[int, Tuple]":
     """The EXACT v-character of one term: ``(D_v, μ_v-key)``.
 
@@ -683,6 +779,12 @@ def _decide_struct(terms: "List", offset: int = 0, depth: int = 0) -> str:
         # Weierstrass ±-pair reduction; a proof there SPECIALIZES to the leaf ≡ 0.
         if _z5_theta_constant_zero(terms):
             return _ZERO                                       # Z5
+        # Z6 (rc235): the SOUND multi-prime COLLAPSE / re-arrangement certificate — a
+        # bounded subset RE-GRADING (lift 2..k primes simultaneously, leaving the rest as
+        # constant partner pairs) that aligns the INDEPENDENT seams of a high-kernel-rank
+        # leaf so the ±-pair reduction collapses each; a proof SPECIALIZES to the leaf ≡ 0.
+        if _z6_theta_constant_zero(terms):
+            return _ZERO                                       # Z6
         # else a surviving multi-term theta-constant sum is decided NONZERO only by exact
         # finite detection, else HONESTLY declined.
         if _lattice_nonzero_upto(terms, "__none__", min(_STRUCT_DETECT_CAP, 24)):
@@ -1204,9 +1306,10 @@ class ThetaSum:
         "the fast path did not prove it". (COMPLETION) the three-valued CERTIFICATE
         RECURSION (:meth:`_is_zero_interpolation` → :func:`_decide_struct`): the exact
         per-symbol character split + the generalized ±-pair reduction + per-character
-        elliptic interpolation, ``True`` only on a proof [Z1/Z2/Z3s/Z4], honest
-        ``False`` otherwise. See :meth:`is_zero` for the theorems + the rc210
-        soundness rebuild."""
+        elliptic interpolation, plus the theta-constant-leaf certificates (Z5 rc228
+        single-prime lift, Z6 rc235 multi-prime collapse re-grading), ``True`` only on a
+        proof [Z1/Z2/Z3s/Z4/Z5/Z6], honest ``False`` otherwise. See :meth:`is_zero` for
+        the theorems + the rc210 soundness rebuild."""
         if not self._terms:
             return True
         # FAST PATH — the ±-pair three-term reduction (a proved ≡0 is SOUND). Partition
@@ -1219,7 +1322,7 @@ class ThetaSum:
         if all(_class_is_zero(members) for members in classes.values()):
             return True
         # COMPLETION — the sound certificate recursion decides the whole numerator
-        # (True only on a Z1/Z2/Z3s/Z4 certificate; honest False otherwise).
+        # (True only on a Z1/Z2/Z3s/Z4/Z5/Z6 certificate; honest False otherwise).
         return self._is_zero_interpolation()
 
     def _is_zero_interpolation(self) -> bool:
