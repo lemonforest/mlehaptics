@@ -36,11 +36,26 @@ propagator AND its Laplace-dual resolvent), so the value is a LIST::
           "regime":       "continuous_spectral" | "discrete_algebraic",
           "answers_with": "<the response form>",
           "status":       "verified" | "open",
+          "curvature":    "flat" | "curved",
         },
         ...
       ],
       ...
     }
+
+The CURVATURE property (rc237, F3 — the schema lift of rc236's ``is_flat``)
+----------------------------------------------------------------------------
+``tool_schema : carrier_schema : responsion_schema :: connection : sections :
+CURVATURE``. Per responsion, ``curvature`` records whether the op reads
+frame-INDEPENDENTLY on that carrier (``"flat"`` — the curvature ``½[A,B]``
+PROVABLY vanishes) or CAN carry a frame-dependent holonomy (``"curved"``). It
+is DERIVED (never authored) via :func:`_curvature_class` and is SOUND: it says
+``"flat"`` ONLY on the two airtight certificates — a COMMUTATIVE carrier
+(``[A,B] ≡ 0`` by the ring axiom) or a ``kind == "trace"`` read (``Tr[A,B] ≡
+0`` by cyclicity) — and defaults to the conservative ``"curved"`` everywhere
+else (never a FALSE flat). The single ``Mat`` FLAT edge is ``heat_trace`` (the
+trace invariant); ``the_one|One`` is CURVED — the winding holonomy F2
+decomposes.
 
 Two regimes of ONE responsion (hold the unity)
 ----------------------------------------------
@@ -228,9 +243,56 @@ def _edge_key(operator: str, carrier: str) -> str:
     return operator + "|" + carrier
 
 
+# ── the CURVATURE classification (rc237, F3) — the schema lift of rc236's
+#    separate_frame_curvature `is_flat` (`tool_schema : carrier_schema :
+#    responsion_schema :: connection : sections : CURVATURE`). Per (op, carrier)
+#    edge, is the responsion FLAT (curvature PROVABLY vanishes → the op reads
+#    frame-INDEPENDENTLY) or CURVED (it CAN carry a frame-dependent holonomy)? ─
+
+#: Carriers whose algebra is COMMUTATIVE — every element commutes, so
+#: ``[A, B] ≡ 0`` by the ring axiom → the rc236 curvature ``½[A,B]`` vanishes
+#: IDENTICALLY → any responsion computed within them is FLAT. Poly / BiPoly /
+#: TriPoly / QPoly / QBiPoly are commutative (q-)polynomial rings; EllRatio /
+#: EllMonomial are commutative theta-quotient / monomial rings. (Mat is the
+#: NON-commutative operator algebra; One carries the winding holonomy — neither
+#: is here, so their non-trace responsions default to CURVED.)
+_COMMUTATIVE_CARRIERS = frozenset({
+    "Poly", "BiPoly", "TriPoly", "QPoly", "QBiPoly", "EllRatio", "EllMonomial",
+})
+
+
+def _curvature_class(carrier: str, kind: str) -> str:
+    """FLAT vs CURVED for one (carrier, kind) responsion — SOUND (``"flat"``
+    ONLY when the curvature PROVABLY always vanishes; ``"curved"`` is the
+    conservative default, never a FALSE flat on a genuinely-curved pairing).
+
+    Two airtight flat certificates (the schema lift of rc236's ``is_flat``):
+
+    * **commutative carrier** — ``[A, B] ≡ 0`` by the ring axiom, so the rc236
+      curvature ``½[A,B]`` vanishes IDENTICALLY: the responsion reads
+      frame-INDEPENDENTLY → ``"flat"``.
+    * **``kind == "trace"``** — the trace annihilates every commutator
+      (``Tr[A,B] ≡ 0`` by cyclicity), so a trace responsion cannot EXPOSE
+      curvature even on the non-commutative ``Mat`` operator carrier (the
+      ``heat_trace`` Θ(t)=Tr e^{−tL} "read-independent" invariant) → ``"flat"``.
+
+    Otherwise — a non-commutative operator carrier (``Mat`` / ``One``) read
+    non-tracewise CAN carry a frame-dependent holonomy (the propagator's
+    coherence-dial phase, the flux gauge, the ``One`` winding grading that F2
+    decomposes) → ``"curved"`` (conservative; we do not certify frame-
+    independence we cannot prove).
+    """
+    if carrier in _COMMUTATIVE_CARRIERS or kind == "trace":
+        return "flat"
+    return "curved"
+
+
 def _entry(operator: str, carrier: str, kind: str, regime: str,
            answers_with: str, status: str) -> Dict[str, Any]:
-    """One responsion dict (the edge payload's element shape)."""
+    """One responsion dict (the edge payload's element shape). ``curvature``
+    (rc237, F3) is the SOUND FLAT-vs-CURVED classification of this responsion —
+    the schema lift of rc236's ``separate_frame_curvature`` ``is_flat`` — derived
+    (never authored) from ``(carrier, kind)`` via :func:`_curvature_class`."""
     return {
         "operator": operator,
         "carrier": carrier,
@@ -238,6 +300,7 @@ def _entry(operator: str, carrier: str, kind: str, regime: str,
         "regime": regime,
         "answers_with": answers_with,
         "status": status,
+        "curvature": _curvature_class(carrier, kind),
     }
 
 

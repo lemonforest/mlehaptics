@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc236"
-#define SRMECH_VERSION       "0.9.0rc236"
+#define SRMECH_VERSION_PRE   "rc237"
+#define SRMECH_VERSION       "0.9.0rc237"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -10221,9 +10221,10 @@ srmech_status_t srmech_carrier_schema(char *buf, size_t buf_len,
 /* One responsion EDGE in the registry. All string pointers are
  * NUL-terminated ASCII (edge keys are dotted identifiers); `entry_json`
  * is the per-edge payload — a JSON ARRAY of responsion objects
- * {"answers_with","carrier","kind","operator","regime","status"} — as
- * its pre-canonical compact-ASCII fragment (`entry_len` bytes,
- * excluding the NUL). */
+ * {"answers_with","carrier","curvature","kind","operator","regime",
+ * "status"} — as its pre-canonical compact-ASCII fragment (`entry_len`
+ * bytes, excluding the NUL). ("curvature" = the rc237 F3 flat/curved
+ * frame-independence class, sorted between "carrier" and "kind".) */
 typedef struct {
     const char *key;           /* "<operator>|<carrier>" (the edge key) */
     const char *op_name;       /* the operator ref (a tool-registry name) */
