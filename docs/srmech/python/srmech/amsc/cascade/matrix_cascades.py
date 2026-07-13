@@ -66,7 +66,8 @@ from srmech.amsc.rational import sqrt as _rsqrt
 
 __all__ = ["qr", "svd", "lstsq", "einsum", "eigvals", "char_poly", "eigvals_exact",
            "eigvec_exact", "eigvec_exact_float", "factor_integer_poly", "lll_reduce",
-           "eig_exact", "jordan_chains_exact", "jordan_form_exact"]
+           "eig_exact", "jordan_chains_exact", "jordan_form_exact",
+           "separate_frame_curvature"]
 
 
 def _modulus(z: complex) -> float:
@@ -701,6 +702,106 @@ def char_poly(a) -> List:
             return native
         return _char_poly_int(A, n)
     return _char_poly_float(rows, n)
+
+
+def separate_frame_curvature(a, b):
+    """Separate a two-operator product ``A·B`` into its FIXED-FRAME (metric) part
+    and its CURVATURE / RESPONSION (holonomy) residue — the connection/curvature
+    decomposition applied as an op (#834; user directive "rearrange those
+    equations to separate the curvature from the FIXED FRAME").
+
+    The framework thread ``op / operand / responsion ≅ field / excitation /
+    CURVATURE``: a product of two operators splits, exactly, into
+
+    * **fixed_frame** = ``½(A·B + B·A)`` — the SYMMETRIC part (the ANTICOMMUTATOR
+      ``{A,B}`` halved) = the METRIC / frame-aligned piece. It is the part that
+      transports frame-INDEPENDENTLY (it is what both orderings AGREE on).
+    * **curvature**   = ``½(A·B − B·A)`` — the ANTISYMMETRIC part (the COMMUTATOR
+      ``[A,B]`` halved) = the HOLONOMY / responsion residue = the geometric-phase
+      wedge the frame picks up per beat. This is the ``srmech.qm.single_particle.
+      commutator`` scaled by ½ — but the NEW object is the *decomposition* plus
+      the exact vanishing flag, not the bare commutator.
+
+    ``fixed_frame + curvature == A·B`` reconstructs the full product, and the
+    curvature is EXACTLY the zero carrier iff ``[A,B] = 0`` (the operators commute
+    = the pairing is FLAT = frame-independent = always bit-exact) — the same
+    collapse ⊕ residue shape ``Z6`` (rc235) instantiates on the theta leaf and the
+    ``the_one`` winding grading instantiates on the metacycle seam. This IS the
+    Clifford / geometric-algebra product split (a product = its symmetric metric
+    part ⊕ its antisymmetric wedge/curvature part).
+
+    Return contract (a small record, the DECOMPOSITION is the new object)::
+
+        {"fixed_frame": Mat,   # ½(A·B + B·A) — the metric / fixed frame
+         "curvature":   Mat,   # ½(A·B − B·A) — the holonomy / responsion residue
+         "is_flat":     bool}  # curvature is EXACTLY the zero carrier ⇔ [A,B]=0
+
+    ``is_flat`` is the EXACT (byte-sound) flatness certificate: every stored double
+    of the curvature carrier has **Class-K magnitude** (:func:`srmech.amsc.cascade.
+    atoms.magnitude`, real ``|x|`` — never an ALU ``abs()``, and — unlike a squared
+    Frobenius norm — with no underflow-to-zero hazard) exactly ``0.0``. So
+    ``is_flat is True`` is a THEOREM about the computed curvature carrier: it is
+    LITERALLY the zero matrix. On the exactly-float-representable entry regime —
+    integer / half-integer / dyadic-rational / Gaussian-integer matrices, i.e. the
+    quantum-operator regime this decomposition is FOR (Pauli σ, Dirac γ, integer
+    Hamiltonians, the Klein-4 sector operators) — the c_dispatched
+    :func:`mat_matmul` is bit-exact, so the computed curvature IS the true
+    ``½[A,B]``, ``is_flat`` is the true flatness, and ``fixed_frame + curvature``
+    reconstructs ``A·B`` byte-for-byte. (This is exactly the regime where
+    ``single_particle.commutator`` is itself byte-exact native==pure; a
+    genuinely-irrational-valued float pairing is already in a rounded frame — its
+    exact "do these commute" question is only well-posed on the exact carrier.)
+
+    Args:
+        a, b: two square operators of the SAME shape — a :class:`~srmech.amsc.mat.
+            Mat` or a nested sequence (anything with ``.tolist()`` or a
+            row-of-rows), coerced to ``Mat`` (auto-detecting complex entries).
+
+    Returns:
+        The ``{"fixed_frame", "curvature", "is_flat"}`` record described above.
+
+    Raises:
+        ValueError: if ``a`` / ``b`` are not square or not the same shape.
+
+    Cascade decomposition (**composition_of_c**, no new C symbol — the SAME
+    standalone-C shape as ``single_particle.commutator``): the two products ride
+    the c_dispatched :func:`mat_matmul` (``srmech_dense_matmul_complex``); the
+    symmetric/antisymmetric assembly + the ``½`` scale ride the c_dispatched
+    ``Mat`` ``+`` / ``−`` / ``*`` carrier ops (``srmech_mat_{add,sub,scale}``);
+    the flatness certificate rides the c_dispatched Class-K ``cascade.magnitude``.
+    The ``½`` is the Class-N symmetric/antisymmetric-projector normalization (the
+    attested Clifford split), never a magic number.
+
+    SSoT: Sakurai *Modern QM* §1.4 (the commutator); Lounesto *Clifford Algebras
+    and Spinors* §2 (the geometric product = metric ⊕ wedge); the framework
+    ``[[user_stance_bit_exact_is_local_flatness_of_connection_seams_are_holonomy]]``.
+    """
+    from srmech.amsc.cascade.atoms import magnitude as _magnitude
+
+    A = a if isinstance(a, _Mat) else _Mat.from_rows(
+        a.tolist() if hasattr(a, "tolist") else a)
+    B = b if isinstance(b, _Mat) else _Mat.from_rows(
+        b.tolist() if hasattr(b, "tolist") else b)
+    if A.shape != B.shape or A.n_rows != A.n_cols:
+        raise ValueError(
+            "separate_frame_curvature: A and B must be square and the same "
+            f"shape; got {A.shape} vs {B.shape}")
+
+    ab = _mat_matmul(A, B)
+    ba = _mat_matmul(B, A)
+    # fixed frame = ½(A·B + B·A) — the symmetric anticommutator (metric part);
+    # curvature = ½(A·B − B·A) — the antisymmetric commutator (holonomy residue).
+    # Mat +,-,* dispatch to the C carrier ops (srmech_mat_add/sub/scale); ½ is the
+    # exact Class-N projector normalization.
+    fixed_frame = (ab + ba) * 0.5
+    curvature = (ab - ba) * 0.5
+    # EXACT flatness certificate: the curvature is the zero carrier iff EVERY
+    # stored double is exactly 0 by its Class-K magnitude (real |x|, no abs(), no
+    # underflow-to-zero of a squared norm). all() short-circuits on the first
+    # non-vanishing entry (a curved pairing); scans all for a flat one.
+    is_flat = all(_magnitude(x) == 0.0 for x in curvature.buffer)
+    return {"fixed_frame": fixed_frame, "curvature": curvature,
+            "is_flat": is_flat}
 
 
 # ── exact real-eigenvalue cascade: char-poly → Sturm isolation → bisection ──────

@@ -293,6 +293,7 @@
 {"exposed_as": "srmech.amsc.cascade.hypercomplex_exp", "defined_at": "srmech.amsc.cascade.hypercomplex_dft.hypercomplex_exp", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.eigvals", "defined_at": "srmech.amsc.cascade.matrix_cascades.eigvals", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.einsum", "defined_at": "srmech.amsc.cascade.matrix_cascades.einsum", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.matrix_cascades.separate_frame_curvature", "defined_at": "srmech.amsc.cascade.matrix_cascades.separate_frame_curvature", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.lstsq", "defined_at": "srmech.amsc.cascade.matrix_cascades.lstsq", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.qr", "defined_at": "srmech.amsc.cascade.matrix_cascades.qr", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.matrix_cascades.svd", "defined_at": "srmech.amsc.cascade.matrix_cascades.svd", "bucket": "composition_of_c"}

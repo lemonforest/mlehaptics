@@ -372,6 +372,14 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # Python, not the MCP tool list, exactly like the ``Qalg`` carrier itself.
     "srmech.amsc.cascade.matrix_cascades.jordan_chains_exact",
     "srmech.amsc.cascade.matrix_cascades.jordan_form_exact",
+    # matrix_cascades.separate_frame_curvature (v0.9.0rc236 — #834, the connection/
+    # curvature decomposition of a product A·B into its fixed-frame (½{A,B} metric)
+    # ⊕ curvature (½[A,B] holonomy) parts + the exact is_flat vanishing flag).
+    # Returns a dict carrying two ``Mat`` carriers (fixed_frame / curvature) + a
+    # bool — a STRUCTURED / carrier return that cannot cross the JSON-RPC boundary,
+    # exactly like ``eig_exact`` / ``jordan_form_exact`` return dicts carrying
+    # ``Qalg`` / ``complex``. Reachable via Python, not the MCP tool list.
+    "srmech.amsc.cascade.matrix_cascades.separate_frame_curvature",
 })
 
 
