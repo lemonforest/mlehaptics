@@ -136,7 +136,14 @@ typedef struct srmech_plat_stream_conn {
 /* A bound, listening endpoint. Carries the derived OS path (POSIX: to
  * unlink the socket at close; Windows: to re-create pipe instances) plus
  * one OS handle slot (POSIX: listen_fd; Windows: the pre-created pending
- * pipe instance that the next accept() will connect). No heap. */
+ * pipe instance that the next accept() will connect). No heap.
+ *
+ * `stop_handle` is a Windows-only manual-reset stop-event: server_close()
+ * SetEvent()s it so a blocked overlapped ConnectNamedPipe in accept() wakes
+ * (POSIX wakes its blocking accept() via close(listen_fd), so the field is
+ * unused there). This mirrors the POSIX "close the listener unblocks accept"
+ * contract on named pipes, where CloseHandle from another thread does NOT
+ * cancel a pending ConnectNamedPipe. */
 typedef struct srmech_plat_stream_server {
     char endpoint_path[SRMECH_PLAT_STREAM_PATH_MAX];
     union {
@@ -144,6 +151,11 @@ typedef struct srmech_plat_stream_server {
         long double   align_ld;
         unsigned char bytes[SRMECH_PLAT_STREAM_STORAGE];
     } handle;
+    union {
+        void         *align_ptr;
+        long double   align_ld;
+        unsigned char bytes[SRMECH_PLAT_STREAM_STORAGE];
+    } stop_handle;
 } srmech_plat_stream_server_t;
 
 /* 1 iff a real stream-IPC backend is compiled in; 0 on a stream-less

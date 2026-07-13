@@ -68,6 +68,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .q import Q  # rc100: the exact-ℚ scalar carrier (fractal_spectrum scale / |q|-meter)
+from .rational import sqrt as _rsqrt  # Class-N∘K integer-isqrt root (no libm / no float_pow)
 from .vec import Vec  # rc129: the numpy-free 1-D carrier (restores .shape)
 
 
@@ -498,7 +499,7 @@ def _kext_normalize(v: List[float]) -> Optional[List[float]]:
         n2 += x * x                 # Class-K magnitude-square (no abs())
     if n2 <= 0.0:
         return None
-    nrm = n2 ** 0.5                 # Class-N root
+    nrm = float(_rsqrt(n2))         # Class-N∘K root (rational-isqrt cascade, no float_pow)
     return [x / nrm for x in v]
 
 
@@ -578,7 +579,7 @@ def _kext_modes_py(n, edges, weights, k, max_iters):
     # mode identical native-vs-pure — the analytic-deflation of the known trivial
     # mode, mirroring how fiedler_sparse deflates its √deg mode.
     if kb >= 1 and n >= 1:
-        c = 1.0 / (float(n) ** 0.5)
+        c = 1.0 / float(_rsqrt(float(n)))    # 1/√n — Class-N∘K root, no float_pow
         const = [c] * n
         pairs.append((0.0, const))
         basis.append(const)

@@ -609,11 +609,41 @@ static HANDLE srmech_plat__create_pipe_instance(const char *path)
 {
     assert(path != NULL);
     assert(path[0] != '\0');
+    /* FILE_FLAG_OVERLAPPED: accept() waits on the ConnectNamedPipe overlapped
+     * event alongside the server stop-event, so a blocked accept is woken at
+     * teardown (a synchronous ConnectNamedPipe cannot be cancelled by a
+     * CloseHandle from another thread). Read/write on the connected instance
+     * then go through srmech_plat__pipe_io (overlapped-aware). */
     HANDLE h = CreateNamedPipeA(
-        path, PIPE_ACCESS_DUPLEX,
+        path, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
         PIPE_UNLIMITED_INSTANCES, 65536, 65536, 0, NULL);
     return h;
+}
+
+/* One overlapped-capable read OR write over a pipe HANDLE. Uniform across an
+ * OVERLAPPED server instance (created above) AND a synchronous client handle
+ * (CreateFile without the flag): a synchronous handle completes inline (never
+ * ERROR_IO_PENDING) and ignores hEvent, so the same path serves both. Blocks
+ * until the transfer completes or fails; *moved gets the byte count. */
+static srmech_status_t srmech_plat__pipe_io(HANDLE h, void *buf, DWORD n,
+                                            BOOL is_read, DWORD *moved)
+{
+    assert(h != INVALID_HANDLE_VALUE);
+    assert(moved != NULL);
+    OVERLAPPED ov;
+    memset(&ov, 0, sizeof ov);
+    ov.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
+    if (ov.hEvent == NULL) {
+        return SRMECH_ERR_IO;
+    }
+    BOOL ok = is_read ? ReadFile(h, buf, n, moved, &ov)
+                      : WriteFile(h, buf, n, moved, &ov);
+    if (!ok && GetLastError() == ERROR_IO_PENDING) {
+        ok = GetOverlappedResult(h, &ov, moved, TRUE);   /* block till done */
+    }
+    (void)CloseHandle(ov.hEvent);
+    return ok ? SRMECH_OK : SRMECH_ERR_IO;
 }
 
 srmech_status_t srmech_plat_stream_listen(const char *name,
@@ -625,14 +655,68 @@ srmech_status_t srmech_plat_stream_listen(const char *name,
         return SRMECH_ERR_NULL_ARG;
     }
     memset(out, 0, sizeof *out);
+    HANDLE invalid = INVALID_HANDLE_VALUE;
+    memcpy(out->handle.bytes, &invalid, sizeof invalid);
+    memcpy(out->stop_handle.bytes, &invalid, sizeof invalid);
     srmech_status_t rc = srmech_plat__derive_path(
         name, out->endpoint_path, sizeof out->endpoint_path);
     if (rc != SRMECH_OK) {
         return rc;
     }
-    HANDLE pending = INVALID_HANDLE_VALUE;
-    memcpy(out->handle.bytes, &pending, sizeof pending);
+    /* Manual-reset stop-event: server_close SetEvent()s it to wake a blocked
+     * overlapped ConnectNamedPipe in accept(). */
+    HANDLE stop_ev = CreateEventA(NULL, TRUE, FALSE, NULL);
+    if (stop_ev == NULL) {
+        return SRMECH_ERR_IO;
+    }
+    /* Pre-create the FIRST instance so the endpoint EXISTS before any client
+     * connects (mirrors POSIX listen() pre-binding): a racing client's
+     * CreateFile then sees the pipe (ERROR_PIPE_BUSY, retryable) instead of
+     * ERROR_FILE_NOT_FOUND against a not-yet-created lazy instance. */
+    HANDLE pipe_h = srmech_plat__create_pipe_instance(out->endpoint_path);
+    if (pipe_h == INVALID_HANDLE_VALUE) {
+        (void)CloseHandle(stop_ev);
+        return SRMECH_ERR_IO;
+    }
+    memcpy(out->handle.bytes, &pipe_h, sizeof pipe_h);
+    memcpy(out->stop_handle.bytes, &stop_ev, sizeof stop_ev);
     return SRMECH_OK;
+}
+
+/* Overlapped ConnectNamedPipe on `pipe_h`, waiting on EITHER the connect
+ * completion OR the server stop-event. Returns SRMECH_OK once a client is
+ * connected; SRMECH_ERR_IO if stopped (the pending connect is CancelIoEx'd +
+ * reaped) or a real connect error. Ownership of pipe_h stays with the caller
+ * in every case. */
+static srmech_status_t srmech_plat__wait_connect(HANDLE pipe_h, HANDLE stop_ev)
+{
+    assert(pipe_h != INVALID_HANDLE_VALUE);
+    assert(stop_ev != INVALID_HANDLE_VALUE);
+    OVERLAPPED ov;
+    memset(&ov, 0, sizeof ov);
+    ov.hEvent = CreateEventA(NULL, TRUE, FALSE, NULL);
+    if (ov.hEvent == NULL) {
+        return SRMECH_ERR_IO;
+    }
+    BOOL ok = ConnectNamedPipe(pipe_h, &ov);
+    DWORD le = ok ? 0u : GetLastError();
+    srmech_status_t rc = SRMECH_OK;
+    if (!ok && le == ERROR_IO_PENDING) {
+        HANDLE waits[2];
+        waits[0] = ov.hEvent;
+        waits[1] = stop_ev;
+        DWORD w = WaitForMultipleObjects(2, waits, FALSE, INFINITE);
+        if (w != WAIT_OBJECT_0) {   /* stop-event fired or wait failed */
+            DWORD reaped = 0;
+            (void)CancelIoEx(pipe_h, &ov);
+            (void)GetOverlappedResult(pipe_h, &ov, &reaped, TRUE);
+            rc = SRMECH_ERR_IO;
+        }
+    } else if (!ok && le != ERROR_PIPE_CONNECTED) {
+        rc = SRMECH_ERR_IO;   /* client already connected is NOT an error */
+    }
+    (void)CloseHandle(ov.hEvent);
+    return rc;
 }
 
 srmech_status_t srmech_plat_stream_accept(srmech_plat_stream_server_t *server,
@@ -643,20 +727,21 @@ srmech_status_t srmech_plat_stream_accept(srmech_plat_stream_server_t *server,
     if (server == NULL || conn_out == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    HANDLE pipe_h = srmech_plat__create_pipe_instance(server->endpoint_path);
-    if (pipe_h == INVALID_HANDLE_VALUE) {
-        return SRMECH_ERR_IO;
+    HANDLE pipe_h, stop_ev;
+    memcpy(&pipe_h, server->handle.bytes, sizeof pipe_h);
+    memcpy(&stop_ev, server->stop_handle.bytes, sizeof stop_ev);
+    if (pipe_h == INVALID_HANDLE_VALUE || stop_ev == INVALID_HANDLE_VALUE) {
+        return SRMECH_ERR_IO;   /* not armed (listen failed / already closed) */
     }
-    memcpy(server->handle.bytes, &pipe_h, sizeof pipe_h);   /* pending */
-    BOOL ok = ConnectNamedPipe(pipe_h, NULL);
-    DWORD le = ok ? 0u : GetLastError();
-    HANDLE invalid = INVALID_HANDLE_VALUE;
-    if (!ok && le != ERROR_PIPE_CONNECTED) {
-        (void)CloseHandle(pipe_h);
-        memcpy(server->handle.bytes, &invalid, sizeof invalid);
-        return SRMECH_ERR_IO;
+    srmech_status_t rc = srmech_plat__wait_connect(pipe_h, stop_ev);
+    if (rc != SRMECH_OK) {
+        return rc;   /* stopped / connect error; pipe_h stays for close */
     }
-    memcpy(server->handle.bytes, &invalid, sizeof invalid);   /* cleared */
+    /* Connected. Pre-arm the NEXT instance so the endpoint name never
+     * vanishes (a client between accepts sees ERROR_PIPE_BUSY, retryable,
+     * not ERROR_FILE_NOT_FOUND), then hand the connected instance out. */
+    HANDLE next = srmech_plat__create_pipe_instance(server->endpoint_path);
+    memcpy(server->handle.bytes, &next, sizeof next);   /* may be INVALID */
     memset(conn_out, 0, sizeof *conn_out);
     memcpy(conn_out->handle.bytes, &pipe_h, sizeof pipe_h);
     return SRMECH_OK;
@@ -669,15 +754,25 @@ srmech_status_t srmech_plat_stream_server_close(
     if (server == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    HANDLE pending;
+    HANDLE stop_ev, pending;
     assert(sizeof pending <= sizeof server->handle.bytes);
+    memcpy(&stop_ev, server->stop_handle.bytes, sizeof stop_ev);
+    /* Wake a thread blocked in accept()'s overlapped ConnectNamedPipe FIRST
+     * (it returns SRMECH_ERR_IO), then drop the instance + the stop-event. */
+    if (stop_ev != INVALID_HANDLE_VALUE && stop_ev != NULL) {
+        (void)SetEvent(stop_ev);
+    }
     memcpy(&pending, server->handle.bytes, sizeof pending);
     if (pending != INVALID_HANDLE_VALUE) {
         (void)DisconnectNamedPipe(pending);
         (void)CloseHandle(pending);
-        HANDLE invalid = INVALID_HANDLE_VALUE;
-        memcpy(server->handle.bytes, &invalid, sizeof invalid);
     }
+    if (stop_ev != INVALID_HANDLE_VALUE && stop_ev != NULL) {
+        (void)CloseHandle(stop_ev);
+    }
+    HANDLE invalid = INVALID_HANDLE_VALUE;
+    memcpy(server->handle.bytes, &invalid, sizeof invalid);
+    memcpy(server->stop_handle.bytes, &invalid, sizeof invalid);
     return SRMECH_OK;
 }
 
@@ -694,12 +789,25 @@ srmech_status_t srmech_plat_stream_connect(const char *name,
     if (rc != SRMECH_OK) {
         return rc;
     }
-    HANDLE h = CreateFileA(path, GENERIC_READ | GENERIC_WRITE,
-                           0, NULL, OPEN_EXISTING, 0, NULL);
-    if (h == INVALID_HANDLE_VALUE && GetLastError() == ERROR_PIPE_BUSY) {
-        (void)WaitNamedPipeA(path, 2000);
+    /* Bounded connect retry: ERROR_PIPE_BUSY (all instances in use) waits for a
+     * free one; ERROR_FILE_NOT_FOUND (a client that raced the server's listen()
+     * before the endpoint was created) briefly re-polls. Any other error is
+     * terminal. Bounded iteration count keeps JPL Rule 2. */
+    HANDLE h = INVALID_HANDLE_VALUE;
+    for (int tries = 0; tries < 50; tries++) {
         h = CreateFileA(path, GENERIC_READ | GENERIC_WRITE,
                         0, NULL, OPEN_EXISTING, 0, NULL);
+        if (h != INVALID_HANDLE_VALUE) {
+            break;
+        }
+        DWORD le = GetLastError();
+        if (le == ERROR_PIPE_BUSY) {
+            (void)WaitNamedPipeA(path, 2000);
+        } else if (le == ERROR_FILE_NOT_FOUND) {
+            Sleep(20);
+        } else {
+            break;   /* terminal error */
+        }
     }
     if (h == INVALID_HANDLE_VALUE) {
         return SRMECH_ERR_IO;
@@ -716,12 +824,12 @@ srmech_status_t srmech_plat_stream_read_exact(srmech_plat_stream_conn_t *conn,
     assert(buf != NULL || n == 0);
     HANDLE h;
     memcpy(&h, conn->handle.bytes, sizeof h);
-    DWORD got_total = 0;
+    size_t got_total = 0;
     while (got_total < n) {
         DWORD got = 0;
-        BOOL ok = ReadFile(h, buf + got_total,
-                           (DWORD)(n - got_total), &got, NULL);
-        if (!ok || got == 0) {
+        srmech_status_t rc = srmech_plat__pipe_io(
+            h, buf + got_total, (DWORD)(n - got_total), TRUE, &got);
+        if (rc != SRMECH_OK || got == 0) {
             return SRMECH_ERR_IO;
         }
         got_total += got;
@@ -736,12 +844,13 @@ srmech_status_t srmech_plat_stream_write_all(srmech_plat_stream_conn_t *conn,
     assert(buf != NULL || n == 0);
     HANDLE h;
     memcpy(&h, conn->handle.bytes, sizeof h);
-    DWORD sent_total = 0;
+    size_t sent_total = 0;
     while (sent_total < n) {
         DWORD sent = 0;
-        BOOL ok = WriteFile(h, buf + sent_total,
-                            (DWORD)(n - sent_total), &sent, NULL);
-        if (!ok || sent == 0) {
+        srmech_status_t rc = srmech_plat__pipe_io(
+            h, (void *)(buf + sent_total), (DWORD)(n - sent_total),
+            FALSE, &sent);
+        if (rc != SRMECH_OK || sent == 0) {
             return SRMECH_ERR_IO;
         }
         sent_total += sent;
