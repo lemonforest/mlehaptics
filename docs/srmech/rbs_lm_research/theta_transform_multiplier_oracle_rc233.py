@@ -22,7 +22,8 @@ Verifies BOTH parts of the rc233 fix, g1..g4, across all standard generators and
       b = ⌊new_eps/2⌋) matches θ[REDUCED γ·m]/θ[m] — the value transform actually returns.
 
 Run:  python3 theta_transform_multiplier_oracle_rc233.py
-Literature anchor: arXiv:0801.2543 (D'Hoker–Phong) sha256
+Literature anchor: arXiv:0801.2543 (Cacciatori–Dalla Piazza–van Geemen 2008,
+  verifying a genus-3 D'Hoker–Phong chiral-measure proposal) sha256
   e6edd3b217d138c20ff9e126e9801bb020042000736b0415d98297b164311797
 """
 import cmath

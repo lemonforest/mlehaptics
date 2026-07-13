@@ -19,7 +19,8 @@ Attestation of the expected k-table:
   * OWN re-runnable high-precision numeric theta oracle (primary computational
     attestation), verified g1..g4 across all generators/characteristics:
     ``docs/srmech/rbs_lm_research/theta_transform_multiplier_oracle_rc233.py``;
-  * literature anchor arXiv:0801.2543 (D'Hoker–Phong) sha256
+  * literature anchor arXiv:0801.2543 (Cacciatori–Dalla Piazza–van Geemen 2008,
+    verifying a genus-3 D'Hoker–Phong chiral-measure proposal) sha256
     e6edd3b217d138c20ff9e126e9801bb020042000736b0415d98297b164311797.
 
 This test FAILS on the pre-rc233 code (which returns {0,4}) and PASSES on the fix.

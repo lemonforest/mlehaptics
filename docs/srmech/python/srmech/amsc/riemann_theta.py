@@ -1278,7 +1278,7 @@ class RiemannTheta:
         generators and characteristics (verified g1..g4 vs a high-precision numeric
         theta oracle:
         ``docs/srmech/rbs_lm_research/theta_transform_multiplier_oracle_rc233.py``;
-        literature anchor arXiv:0801.2543 sha256
+        literature anchor arXiv:0801.2543 (Cacciatori–Dalla Piazza–van Geemen 2008) sha256
         e6edd3b217d138c20ff9e126e9801bb020042000736b0415d98297b164311797).
         """
         a, b, c, d = cls._validate_gamma(gamma)
