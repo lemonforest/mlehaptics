@@ -18,6 +18,7 @@ Run:  KERNEL=~/corpora/wikipedia/simplewiki_full_sparse_kernel.json /tmp/srmech_
 import json
 import os
 import sys
+from fractions import Fraction
 from pathlib import Path
 
 from srmech.amsc import laplacian as L
@@ -91,7 +92,46 @@ def main():
         fail("responsion reach=0 — the stored object is not excitable.")
     print("  ✓ (e) responsion excitable: propagator reach=%.4f" % reach)
 
-    print("=== PASS: %s recovers op + operand + responsion (all 3 read-outs) ===" % KERNEL.name)
+    # (f) CURVATURE / holonomy read — the DIRECTIONAL faculty (F1210). A symmetric BAG has EXACTLY zero curvature
+    #     (its cycle_holonomy is 0 on every loop); a DIRECTED kernel carries edge_charge = w_fwd - w_bwd and must
+    #     recover a nonzero loop holonomy. Symmetric kernels PASS the metric faculties above but are flagged here.
+    charge = k.get("edge_charge")
+    if not charge:
+        print("  ○ (f) metric-only BAG: no edge_charge -> curvature/holonomy read is EXACTLY zero (F1210). The "
+              "op/operand/responsion(metric) faculties PASS, but the DIRECTIONAL responsion needs a directed "
+              "re-encode (R-RBS-LM-WIKIWEIGHTED_DIRECTED).")
+    else:
+        topset = set(order)
+        gch, gadj = {}, {}
+        for (a, b), w, c in zip(el, ew, charge):
+            if a in topset and b in topset and float(w) >= 3:
+                gadj.setdefault(a, set()).add(b); gadj.setdefault(b, set()).add(a)
+                gch[(a, b)] = Fraction(int(c), int(w))   # a<b canonical; (w_fwd-w_bwd)/tot = exact turns, lo-before-hi
+        found = None
+        for u in sorted(gadj):
+            ns = sorted(x for x in gadj[u] if x > u)
+            for i2 in range(len(ns)):
+                for j2 in range(i2 + 1, len(ns)):
+                    v, wn = ns[i2], ns[j2]               # u<v, u<wn
+                    if wn in gadj.get(v, ()):
+                        chg = [gch.get((u, v), Fraction(0)),
+                               gch.get((min(v, wn), max(v, wn)), Fraction(0)),
+                               gch.get((min(u, wn), max(u, wn)), Fraction(0))]
+                        hol = L.cycle_holonomy([(0, 1), (1, 2), (2, 0)], charges=chg, n=3)
+                        if not hol["balanced"]:
+                            found = hol; break
+                if found:
+                    break
+            if found:
+                break
+        if not found:
+            fail("directed kernel (edge_charge present) but NO triangle recovered a nonzero holonomy — the curvature "
+                 "was lost (a silent re-fold to symmetric?). A directed store MUST carry the holonomy read.")
+        print("  ✓ (f) curvature recovers: directed kernel, triangle holonomy=%s (nonzero -> genuine order-curvature)"
+              % found["holonomies"])
+
+    print("=== PASS: %s recovers op + operand + responsion%s ===" % (
+        KERNEL.name, " + curvature" if charge else " (metric-only; directed re-encode pending for curvature)"))
 
 
 if __name__ == "__main__":
