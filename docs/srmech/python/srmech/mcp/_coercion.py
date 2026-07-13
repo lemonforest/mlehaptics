@@ -478,6 +478,20 @@ def _seq_ellmonomial(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _seq_tuple4_ellmonomial(value: Any, *, param: str = "") -> Any:
+    """``list[tuple[EllMonomial×4]]`` (rc232; ``riemann_theta_multisum`` ``points``)
+    -> list of 4-tuples ``(a, b, c, d)`` of ``EllMonomial``. JSON has no tuple, so
+    each point-tuple rides as a 4-list of ``EllMonomial`` JSON forms (a symbol-name
+    string or the general ``{"coeff", "exponents"}`` dict, via :func:`_to_ellmonomial`)
+    and is re-tupled so the op sees a genuine 4-tuple of distinct Riemann-surface
+    points."""
+    if isinstance(value, (list, tuple)):
+        return [tuple(_to_ellmonomial(v, param=param) for v in tup)
+                if isinstance(tup, (list, tuple)) else tup
+                for tup in value]
+    return value
+
+
 def _seq_int_or_pair(value: Any, *, param: str = "") -> List[Any]:
     """``list[int | tuple[int, int]]`` (rc231; ``klein4_gain_laplacian`` /
     ``klein4_relational_structure`` per-edge V₄ ``gains``) -> list of int / (int, int).
@@ -926,6 +940,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "EllMonomial": _to_ellmonomial,  # 0.9.0rc94: exact-ℚ Laurent monomial carrier (elliptic_cauchy_determinant variable / parameter)
     "Sequence[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc94: elliptic_cauchy_determinant xs / ys variable lists
     "list[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc231: elliptic_jackson_an z / a variable vectors (multivariate_elliptic_jackson_an / an_vwp_multisum_lhs)
+    "list[tuple[EllMonomial×4]]": _seq_tuple4_ellmonomial,  # 0.9.0rc232: riemann_theta_multisum points (a,b,c,d) tuples (multivariate_riemann_theta_sum / riemann_theta_multisum_lhs)
     "MockQSeries": _to_mock_q_series,  # 0.9.0rc71: harmonic_maass holomorphic mock part ('eulerian_f' / qpoly)
     "UnaryTheta": _to_unary_theta,     # 0.9.0rc71: harmonic_maass shadow ('g3' → the weight-3/2 g₃)
     "Optional[Vec]": _to_vec,

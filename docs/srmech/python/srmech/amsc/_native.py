@@ -5493,6 +5493,28 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_an_vwp_multisum_lhs.restype = ctypes.c_int
 
+    # rc232: srmech_riemann_theta_multisum — the C peer of the ThetaBracketSum-
+    # returning ops srmech.amsc.riemann_theta_multisum.{riemann_theta_multisum_lhs,
+    # multivariate_riemann_theta_sum} (the HIGHER-GENUS Spiridonov theta multisum
+    # LHS / RHS builders). Self-contained int32/int64 wire (the coeffs are ±1 and
+    # the genus-g odd-theta arguments are small integer exponent rows) — no bigint
+    # / ellbase dependency. Returns the per-monomial bracket-product rows; the
+    # Python side folds them into the ThetaBracketSum. Additive symbol → ABI 4.
+    if hasattr(lib, "srmech_riemann_theta_multisum"):
+        lib.srmech_riemann_theta_multisum.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_size_t,                     # n (summation ceiling)
+            ctypes.c_int,                        # side (0 = LHS, 1 = RHS)
+            ctypes.POINTER(ctypes.c_int32),      # z_exps_flat[(n+1)*n_syms]
+            ctypes.POINTER(ctypes.c_int32),      # pt_exps_flat[(n+1)*4*n_syms]
+            ctypes.POINTER(ctypes.c_int64),      # out_coeff[max_monos]
+            ctypes.POINTER(ctypes.c_int32),      # out_args_flat[max_monos*nb*n_syms]
+            ctypes.c_size_t,                     # max_monos
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_monos
+            ctypes.POINTER(ctypes.c_size_t),     # out_nb
+        ]
+        lib.srmech_riemann_theta_multisum.restype = ctypes.c_int
+
     # rc217: srmech_text_* — the C peers of the srmech.amsc.text §40/§52
     # text→graph ingestion ops (gh #1360; the enwiki-encode hot loop). All four
     # are BYTE-IDENTICAL kernels over caller-arena buffers: the tokenizer takes
@@ -14567,6 +14589,77 @@ def an_vwp_multisum_lhs_c(n_syms, psym, N, n, z_monos, a_monos, q_mono,
             row += 1
         forms.append({"prefactor": pref, "num": num_rows, "den": den_rows})
     return forms
+
+
+# ----------------------------------------------------------------------
+# rc232: srmech_riemann_theta_multisum — the C peer of the ThetaBracketSum-
+# returning higher-genus (Spiridonov math/0408366) theta-multisum builders. A
+# self-contained int32/int64 wire (no bigint / ellbase): the coeffs are ±1 and
+# the genus-g odd-theta arguments are small integer exponent rows.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_multisum() -> bool:
+    """True iff the rc232 srmech_riemann_theta_multisum symbol is loaded + bound.
+    False on a no-C or pre-rc232 lib — the pure-Python
+    ``srmech.amsc.riemann_theta_multisum`` bodies are the complete alternative (and
+    the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_riemann_theta_multisum")
+
+
+def riemann_theta_multisum_c(n_syms, n, side, z_rows, pt_rows):
+    """Native ``riemann_theta_multisum`` for the ``n+1`` z-vector rows + the ``n+1``
+    point-tuple rows (each a 4-list ``[a, b, c, d]`` of dense int32 exponent rows)
+    + ``side`` (0 = LHS multisum, 1 = RHS closed form) → a list of the emitted
+    bracket-product MONOMIALS ``(coeff_num, coeff_den, [arg_exps_row, ...])`` (one
+    per non-zero monomial; ``coeff_den`` is always 1), or ``None`` if the native
+    symbol is absent (the caller folds the monomials into the ThetaBracketSum). A
+    non-OK C status raises ``RuntimeError``."""
+    if not has_native_riemann_theta_multisum():
+        return None
+    if side not in (0, 1) or n < 0:
+        raise ValueError("riemann_theta_multisum_c: side must be 0/1 and n >= 0")
+    if len(z_rows) != n + 1 or len(pt_rows) != n + 1:
+        raise ValueError("riemann_theta_multisum_c: need n+1 z-rows + n+1 point-tuples")
+    if n_syms == 0:
+        n_syms = 1
+        z_rows = [[0] for _ in z_rows]
+        pt_rows = [[[0], [0], [0], [0]] for _ in pt_rows]
+    nb = 4 * (n + 1)
+    max_monos = (n + 1) if side == 0 else 2
+    # flatten z rows + point rows (per k: a, b, c, d).
+    z_flat = (ctypes.c_int32 * (max((n + 1) * n_syms, 1)))()
+    for k in range(n + 1):
+        for j in range(n_syms):
+            z_flat[k * n_syms + j] = int(z_rows[k][j])
+    pt_flat = (ctypes.c_int32 * (max((n + 1) * 4 * n_syms, 1)))()
+    for k in range(n + 1):
+        for t in range(4):
+            for j in range(n_syms):
+                pt_flat[(k * 4 + t) * n_syms + j] = int(pt_rows[k][t][j])
+    out_coeff = (ctypes.c_int64 * max(max_monos, 1))()
+    out_args = (ctypes.c_int32 * max(max_monos * nb * n_syms, 1))()
+    out_n_monos = ctypes.c_size_t(0)
+    out_nb = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_multisum(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n), ctypes.c_int(side),
+        z_flat, pt_flat, out_coeff, out_args, ctypes.c_size_t(max_monos),
+        ctypes.byref(out_n_monos), ctypes.byref(out_nb),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_multisum returned non-OK status {rc}")
+    nb_c = int(out_nb.value)
+    monos = []
+    for m in range(int(out_n_monos.value)):
+        args = []
+        for br in range(nb_c):
+            base = (m * nb_c + br) * n_syms
+            args.append([int(out_args[base + j]) for j in range(n_syms)])
+        monos.append((int(out_coeff[m]), 1, args))
+    return monos
 
 
 # ----------------------------------------------------------------------

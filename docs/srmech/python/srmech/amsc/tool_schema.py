@@ -5539,6 +5539,108 @@ def _register_primitive_class_tools() -> None:
                       "len(z)+1; N ≥ 1)"),
         ),
         # ────────────────────────────────────────────────────────────
+        # The HIGHER-GENUS (genus-g Riemann theta) theta-multisum reduction
+        # row (rc232) — the GENUS-AXIS lift of the elliptic (genus-1) Aₙ / Cₙ
+        # Jackson rows. Spiridonov math/0408366 the Theorem (Eq. sum): a
+        # multiparameter summation formula for genus-g odd Riemann theta
+        # functions, proved by Fay-identity telescoping. Both sides first-class
+        # (the rc216/rc227 precedent). 1:1 C peer srmech_riemann_theta_multisum.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum",
+            owner="srmech", category="riemann_theta_multisum",
+            summary="The HIGHER-GENUS (genus-g Riemann theta) THETA MULTISUM reducer "
+                    "— the genus-axis lift of the elliptic (genus-1) Aₙ/Cₙ Jackson "
+                    "rows (V. P. Spiridonov, 'A multiparameter summation formula for "
+                    "Riemann theta functions', arXiv:math/0408366v2 [math.CA] (2004); "
+                    "Contemp. Math. 417 (2006), 345–353, the Theorem, Eq. sum; "
+                    "extracted-source PDF sha256 8478af7407d26d0b0504d381cbe3c32a00f9"
+                    "50c3b0c6ab8001a023b7e0c4c319). For n+1 free vectors z_k and 4n+4 "
+                    "distinct points a_k,b_k,c_k,d_k on a Riemann surface of arbitrary "
+                    "genus g, with the odd theta [u] ([-u]=-[u]) and the abelian "
+                    "integral v(a,b), it CONSTRUCTS the closed-form right-hand side "
+                    "∏_k [z_k, z_k+v(a_k,c_k)+v(b_k,d_k), v(c_k,d_k), v(a_k,b_k)] − "
+                    "∏_k [z_k+v(a_k,c_k), z_k+v(b_k,d_k), v(c_k,b_k), v(a_k,d_k)] "
+                    "(= ∏ g_k − ∏ h_k) as a ThetaBracketSum. With verify=True it also "
+                    "PROVES the reduction per call: it builds the symbolic LHS multisum "
+                    "(riemann_theta_multisum_lhs), rewrites each summand's leading "
+                    "factor L_k → g_k − h_k by the genus-g Fay trisecant identity (the "
+                    "ONE attested input, Spiridonov Eq. Fay; J. Fay, LNM 353, 1973), "
+                    "subtracts, and decides .is_zero — after Fay the residual "
+                    "telescopes to EXACTLY zero (a ring identity; free-monomial "
+                    "cancellation), returning {closed_form, verified}: True = proven, "
+                    "False = a wrong/perturbed closed form is caught. For g=1 the "
+                    "identity is Warnaar's elliptic formula. 1:1 C peer "
+                    "srmech_riemann_theta_multisum builds the SAME bracket-product "
+                    "monomials (byte-exact; trusted only after == the pure "
+                    "ThetaBracketSum, the complete alternative + parity oracle). Exact "
+                    "over the theta-bracket algebra (no float), no abs() (Class-K "
+                    "odd-theta sign), no numpy / math.",
+            parameters=(
+                P("z", "list[EllMonomial]", True,
+                  "the length-(n+1) list of free vectors (z_0,…,z_n) — the summation "
+                  "ceiling n is len(z) − 1"),
+                P("points", "list[tuple[EllMonomial×4]]", True,
+                  "the length-(n+1) list of 4-tuples (a_k, b_k, c_k, d_k) of distinct "
+                  "points on the Riemann surface (each an EllMonomial)"),
+                P("verify", "bool", False,
+                  "False (default): return the bare closed-form ThetaBracketSum. True: "
+                  "also PROVE the reduction per call (Fay + telescoping) and return "
+                  "{'closed_form': ThetaBracketSum, 'verified': True|False|None}"),
+            ),
+            returns=R("ThetaBracketSum | dict",
+                      "the exact closed-form difference of products ∏ g_k − ∏ h_k as a "
+                      "ThetaBracketSum (the Spiridonov math/0408366 Eq. sum right-hand "
+                      "side); with verify=True a dict {'closed_form', 'verified'}. "
+                      "Raises TypeError/ValueError on a malformed operand (len(points) "
+                      "must be len(z); each points[k] a 4-tuple)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The SYMBOLIC higher-genus MULTISUM LHS builder — the LEFT-hand
+        # side of the Spiridonov theta multisum as an exact ThetaBracketSum
+        # (rc232; both sides first-class). LHS − RHS |> Fay-reduce |> is_zero
+        # IS the per-call proof. 1:1 C peer srmech_riemann_theta_multisum.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs",
+            owner="srmech", category="riemann_theta_multisum",
+            summary="The SYMBOLIC higher-genus theta-multisum LHS builder — the "
+                    "LEFT-hand side of Spiridonov's multiparameter summation formula "
+                    "for genus-g Riemann theta functions (arXiv:math/0408366v2 "
+                    "[math.CA] (2004); Contemp. Math. 417 (2006), 345–353, the "
+                    "Theorem, Eq. sum) built SYMBOLICALLY as an exact ThetaBracketSum "
+                    "over the genus-g odd-theta algebra. For n+1 free vectors z_k and "
+                    "the distinct points a_k,b_k,c_k,d_k it constructs the n+1-term sum "
+                    "Σ_{k=0}^n L_k · ∏_{j<k} g_j · ∏_{j>k} h_j, with the summand "
+                    "leading factor L_k = [z_k+v(b_k,c_k), z_k+v(a_k,d_k), v(a_k,c_k), "
+                    "v(b_k,d_k)], g_j = [z_j, z_j+v(a_j,c_j)+v(b_j,d_j), v(c_j,d_j), "
+                    "v(a_j,b_j)] and h_j = [z_j+v(a_j,c_j), z_j+v(b_j,d_j), v(c_j,b_j), "
+                    "v(a_j,d_j)] (the odd theta [u], [-u]=-[u]; v the abelian "
+                    "integral). By Eq. sum it EQUALS the closed form "
+                    "multivariate_riemann_theta_sum constructs, so its Fay-reduction "
+                    "minus that closed form telescopes to zero — the per-call proof, "
+                    "with both sides first-class (the rc216/rc227 precedent). 1:1 C "
+                    "peer srmech_riemann_theta_multisum builds the SAME bracket-product "
+                    "monomials (byte-exact; the native ThetaBracketSum is trusted only "
+                    "after it == the pure one, the complete alternative + parity "
+                    "oracle). Exact over the theta-bracket algebra (no float), no abs() "
+                    "(Class-K odd-theta sign), no numpy / math.",
+            parameters=(
+                P("z", "list[EllMonomial]", True,
+                  "the length-(n+1) list of free vectors (z_0,…,z_n) — the summation "
+                  "ceiling n is len(z) − 1"),
+                P("points", "list[tuple[EllMonomial×4]]", True,
+                  "the length-(n+1) list of 4-tuples (a_k, b_k, c_k, d_k) of distinct "
+                  "points on the Riemann surface (each an EllMonomial)"),
+            ),
+            returns=R("ThetaBracketSum",
+                      "the exact higher-genus multisum Σ_{k=0}^n L_k·∏_{j<k}g_j·"
+                      "∏_{j>k}h_j as a ThetaBracketSum of n+1 bracket-product terms "
+                      "(the Spiridonov math/0408366 Eq. sum LEFT-hand side; equal, by "
+                      "the identity, to the multivariate_riemann_theta_sum closed "
+                      "form). Raises TypeError/ValueError on a malformed operand"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
         # three shipped reduction-theory rows (cyclic / spectral / Σ) ONE
         # callable. Pure orchestration over the already-C-mirrored reducers

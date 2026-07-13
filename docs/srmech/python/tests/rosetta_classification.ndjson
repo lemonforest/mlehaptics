@@ -501,6 +501,8 @@
 {"exposed_as": "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs", "defined_at": "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an", "defined_at": "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs", "defined_at": "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum", "defined_at": "srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs", "defined_at": "srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.heat_trace", "defined_at": "srmech.amsc.laplacian.heat_trace", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.ground_state_flux_response", "defined_at": "srmech.amsc.laplacian.ground_state_flux_response", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.propagate", "defined_at": "srmech.amsc.laplacian.propagate", "bucket": "c_dispatched"}

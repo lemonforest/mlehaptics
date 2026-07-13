@@ -239,6 +239,15 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "closed)."),
         "ladder": None, "rung": None, "variables": [],
     },
+    "ThetaBracketSum": {
+        "description": (
+            "Exact free commutative ℤ-algebra of genus-g odd Riemann-theta "
+            "BRACKET products coeff·∏[u_i] ([-u]=-[u], the pure Class-K "
+            "antisymmetry) — the GENUS-AXIS additive carrier the higher-genus "
+            "(Spiridonov math/0408366) theta-multisum reduction row lives in; "
+            "the genus-g peer of ThetaSum."),
+        "ladder": None, "rung": None, "variables": [],
+    },
     # ── the weight-axis / harmonic-Maass carriers ─────────────────────────────
     "UnaryTheta": {
         "description": (
