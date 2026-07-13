@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc231"
-#define SRMECH_VERSION       "0.9.0rc231"
+#define SRMECH_VERSION_PRE   "rc232"
+#define SRMECH_VERSION       "0.9.0rc232"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -8692,6 +8692,44 @@ srmech_status_t srmech_an_vwp_multisum_lhs(
     srmech_bigint_t *out_coeff_num, srmech_bigint_t *out_coeff_den,
     int32_t *out_exps_flat, size_t out_exps_cap_rows,
     size_t *out_n_num, size_t *out_n_den, void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * srmech_riemann_theta_multisum — the C peer of the ThetaBracketSum-returning
+ * ops srmech.amsc.riemann_theta_multisum.{riemann_theta_multisum_lhs,
+ * multivariate_riemann_theta_sum} (rc232): the HIGHER-GENUS (genus-g Riemann
+ * theta) multisum reduction-row builders. It constructs, byte-for-byte, the
+ * bracket-product MONOMIALS of the LEFT-hand side (the n+1-term multisum, side 0)
+ * and the closed-form RIGHT-hand side (PROD g_k - PROD h_k, side 1) of
+ * Spiridonov's multiparameter summation formula (arXiv:math/0408366, the Theorem,
+ * Eq. sum; extracted-source PDF sha256
+ * 8478af7407d26d0b0504d381cbe3c32a00f950c3b0c6ab8001a023b7e0c4c319). The Python
+ * side folds the emitted monomials into the ThetaBracketSum.
+ *
+ * A self-contained int32/int64 wire (no srmech_bigint / ellbase dependency): the
+ * coeffs are +-1 and the genus-g odd-theta arguments are small integer exponent
+ * rows over the interned symbol table (Python sorted-symbol-NAME order). Additive
+ * '+' of arguments is row addition, v(a,b) = -P_a + P_b is row axpy, and the odd
+ * antisymmetry [-u] = -[u] is canonicalized by orienting each argument row so its
+ * FIRST NONZERO entry is NEGATIVE, folding a Class-K +-1 sign into the monomial
+ * coeff (never abs()); an all-zero argument is the zero bracket [0]=0 and drops
+ * the whole monomial.
+ *
+ * Inputs: `n_syms` the interned symbol dimension (>= 1); `n` the summation ceiling
+ * (n+1 point-tuples); `side` 0 = LHS / 1 = RHS; `z_exps_flat` = int32[(n+1)*n_syms]
+ * (the z-vector rows); `pt_exps_flat` = int32[(n+1)*4*n_syms] (per k the four rows
+ * a,b,c,d). Outputs: `out_coeff[m]` the m-th monomial coeff (+-1 before the Python
+ * combine); `out_args_flat` its nb = 4*(n+1) canonical argument rows appended flat
+ * (nb*n_syms int32 per monomial, build order); `*out_n_monos` the monomials
+ * emitted (a zero-bracket monomial is skipped: LHS <= n+1, RHS <= 2); `*out_nb` =
+ * nb. `max_monos` the caller's monomial capacity; too small -> SRMECH_ERR_OVERFLOW.
+ * n_syms == 0 or a NULL required pointer -> SRMECH_ERR_NULL_ARG; side not in {0,1}
+ * -> SRMECH_ERR_BAD_INPUT. Malloc-free (builds in the output buffer in place, no
+ * scratch arena). Additive symbol -> SRMECH_ABI_VERSION stays 4. */
+srmech_status_t srmech_riemann_theta_multisum(
+    size_t n_syms, size_t n, int side,
+    const int32_t *z_exps_flat, const int32_t *pt_exps_flat,
+    int64_t *out_coeff, int32_t *out_args_flat, size_t max_monos,
+    size_t *out_n_monos, size_t *out_nb);
 
 /* ------------------------------------------------------------------ *
  * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the

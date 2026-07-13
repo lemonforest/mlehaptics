@@ -12,7 +12,7 @@
  * against; each entry_json fragment is baked pre-canonical (compact,
  * sorted keys, ensure_ascii -> pure ASCII).
  *
- * Carriers: 24 (BiPoly, EllMonomial, EllRatio, Fraction, HV, HarmonicMaass, Mat, MockQSeries, One, Poly, Q, QBiPoly, QPoly, SedenionRegister, ThetaSum, TriPoly, UnaryTheta, Vec, complex, float, int, octonion, quaternion, sedenion).
+ * Carriers: 25 (BiPoly, EllMonomial, EllRatio, Fraction, HV, HarmonicMaass, Mat, MockQSeries, One, Poly, Q, QBiPoly, QPoly, SedenionRegister, ThetaBracketSum, ThetaSum, TriPoly, UnaryTheta, Vec, complex, float, int, octonion, quaternion, sedenion).
  */
 
 #include "srmech.h"
@@ -1051,8 +1051,8 @@ const srmech_carrier_entry_t srmech_carrier_registry_table[] = {
         "Exact signed Laurent monomial coeff\302\267\342\210\217sym\341\265\211 over the elliptic argument lattice (symbols q / p / parameters), immutable \342\200\224 the argument-carrier of the elliptic row: the thing a theta factor is taken of.",
         NULL,
         0,
-        "{\"description\":\"Exact signed Laurent monomial coeff\\u00b7\\u220fsym\\u1d49 over the elliptic argument lattice (symbols q / p / parameters), immutable \\u2014 the argument-carrier of the elliptic row: the thing a theta factor is taken of.\",\"ladder\":null,\"name\":\"EllMonomial\",\"ops\":{\"consumes\":[\"srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant\",\"srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs\",\"srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson\",\"srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs\",\"srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an\",\"srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction\"],\"produces\":[\"srmech.amsc.ellbase.beat_relation_residue\",\"srmech.amsc.ellbase.half_shift_response\"]},\"rung\":null,\"variables\":[]}",
-        780u,
+        "{\"description\":\"Exact signed Laurent monomial coeff\\u00b7\\u220fsym\\u1d49 over the elliptic argument lattice (symbols q / p / parameters), immutable \\u2014 the argument-carrier of the elliptic row: the thing a theta factor is taken of.\",\"ladder\":null,\"name\":\"EllMonomial\",\"ops\":{\"consumes\":[\"srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant\",\"srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs\",\"srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson\",\"srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs\",\"srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an\",\"srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction\",\"srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum\",\"srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs\"],\"produces\":[\"srmech.amsc.ellbase.beat_relation_residue\",\"srmech.amsc.ellbase.half_shift_response\"]},\"rung\":null,\"variables\":[]}",
+        912u,
     },
     {
         "EllRatio",
@@ -1149,6 +1149,14 @@ const srmech_carrier_entry_t srmech_carrier_registry_table[] = {
         0,
         "{\"description\":\"Sedenion (dim-16) addressable RBS-HDC register: 16 named slots, an octonion reversible working word, a Hamming EC/carry block, and a CD-respecting navigate \\u2014 produced by cascade.sedenion_register, driven via the sed_* class surface.\",\"ladder\":null,\"name\":\"SedenionRegister\",\"ops\":{\"consumes\":[],\"produces\":[\"srmech.amsc.cascade.sedenion_register\"]},\"rung\":null,\"variables\":[]}",
         397u,
+    },
+    {
+        "ThetaBracketSum",
+        "Exact free commutative \342\204\244-algebra of genus-g odd Riemann-theta BRACKET products coeff\302\267\342\210\217[u_i] ([-u]=-[u], the pure Class-K antisymmetry) \342\200\224 the GENUS-AXIS additive carrier the higher-genus (Spiridonov math/0408366) theta-multisum reduction row lives in; the genus-g peer of ThetaSum.",
+        NULL,
+        0,
+        "{\"description\":\"Exact free commutative \\u2124-algebra of genus-g odd Riemann-theta BRACKET products coeff\\u00b7\\u220f[u_i] ([-u]=-[u], the pure Class-K antisymmetry) \\u2014 the GENUS-AXIS additive carrier the higher-genus (Spiridonov math/0408366) theta-multisum reduction row lives in; the genus-g peer of ThetaSum.\",\"ladder\":null,\"name\":\"ThetaBracketSum\",\"ops\":{\"consumes\":[],\"produces\":[\"srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum\",\"srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs\"]},\"rung\":null,\"variables\":[]}",
+        551u,
     },
     {
         "ThetaSum",
