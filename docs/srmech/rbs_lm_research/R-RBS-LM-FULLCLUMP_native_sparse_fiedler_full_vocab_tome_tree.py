@@ -27,8 +27,12 @@ from srmech.amsc import laplacian as L
 SRC = Path(os.environ.get("KERNEL") or os.environ.get("ASSOC")
            or str(Path.home() / "corpora" / "wikipedia" / "simplewiki_full_sparse_kernel.json"))
 OUT = Path(os.environ.get("OUT", str(Path.home() / "corpora" / "wikipedia" / "simplewiki_tome_tree.json")))
-H_DROP = int(os.environ.get("H_DROP", "300"))               # drop top-df hubs (scale H_DROP with the graph, e.g. enwiki)
-MIN_INDEG = int(os.environ.get("MIN_INDEG", "3"))
+# H_DROP=0 by default (F1208): the hard top-N hub-drop was a MAGIC NUMBER — the degree distribution has no break at
+# 500/300 (smooth decay, slope -0.3->-1.0), and IDF (1/(1+deg)) already de-lenses CONTINUOUSLY, controlled by the
+# degree itself. The hard drop only amputated content (star/music/france) for no gain (within-fraction 63.1% vs 63.5%).
+# The residual metadata hubs (born/name/websites/months) are UPSTREAM markup leakage, cleaned at encode, not dropped here.
+H_DROP = int(os.environ.get("H_DROP", "0"))                 # 0 = de-lens continuously (IDF), drop nothing; >0 = legacy hard drop
+MIN_INDEG = int(os.environ.get("MIN_INDEG", "2"))           # signal floor (a word needs >=2 edges to place); not a memory cap
 MAXTOME = int(os.environ.get("MAXTOME", "12"))
 MAX_ITERS = 250
 MAX_NODES = int(os.environ.get("MAX_NODES", "0"))
