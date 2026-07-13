@@ -6635,6 +6635,99 @@ def _register_primitive_class_tools() -> None:
                                "theta_res reconstructs theta on the fold "
                                "grid"),
         ),
+        # ────────────────────────────────────────────────────────────
+        # rc238 (#1385 F-thread) — the FRAME-CARRYING CARRIER: augment a
+        # 2π-periodic truncated-Taylor value with its local beat-frame
+        # (σ, w) so a cross-seam compare PARALLEL-TRANSPORTS the frame
+        # first → bit-exact where the un-framed compare only sometimes
+        # matched. NOT a re-wrap of winding_fold (float residue) / the_one
+        # (folds w away): the transport is an EXACT-rational 2π divmod over
+        # the Machin-2π anchor _EPH_TWO_PI, feeding the exact series.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.cascade.frame_carrier.frame_carrier",
+            owner="srmech", category="cascade",
+            summary="The FRAME-CARRYING CARRIER: augment a 2π-periodic "
+                    "truncated Taylor series (sin/cos_series_truncate) with "
+                    "its local beat-frame (sigma, winding) so cross-seam "
+                    "compares can parallel-transport it (rc238). The raw "
+                    "series truncates the argument p/q DIRECTLY (it does NOT "
+                    "fold), so sin at theta vs theta+2π drifts — exact WITHIN "
+                    "a beat (|x|≤π, w=0) but NOT bit-exact across the 2π seam. "
+                    "This returns the (value, frame) pair — the rc125 "
+                    "recoverable-fold (lossy, exact_seed) analogue with the "
+                    "FRAME as the exact second leg: value = the raw local "
+                    "series (drifts across the seam); winding/residue/sigma = "
+                    "the exact frame (connection element) a compare transports. "
+                    "residue is the canonical in-beat representative (|r|≤π, "
+                    "theta folded to w=0); transported = the seam-invariant "
+                    "value the compare aligns on. Cascade (composition_of_c, "
+                    "no new C symbol): the c_dispatched Class-N sin/cos "
+                    "series; the transport is the EXACT-rational 2π divmod "
+                    "over the Machin-2π anchor _EPH_TWO_PI (Class-I quotient- "
+                    "retained divmod over the exact Class-N 2π; residue sign "
+                    "Class K/C, never abs()) — NOT winding_fold's float "
+                    "residue; reduction rides the c_dispatched Class-I "
+                    "rational reduce.",
+            parameters=(
+                P("func", "str", True,
+                  "'sin' or 'cos' — the 2π-periodic series to frame"),
+                P("numerator", "int", True,
+                  "the argument angle numerator (radians, exact rational p/q)"),
+                P("denominator", "int", True,
+                  "the argument angle denominator (non-zero)"),
+                P("num_terms", "int", True, "Taylor truncation depth N (0..50)"),
+                P("sigma", "int", False,
+                  "chirality frame component: +1 or -1 (default +1)"),
+            ),
+            returns=R("dict", "{func, arg, sigma, winding, residue, "
+                              "num_terms, value, transported} — value the "
+                              "raw (drifting) leg, winding/residue/sigma the "
+                              "exact frame, transported the seam-invariant "
+                              "in-beat value; rationals are reduced (num, den) "
+                              "pairs"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.frame_carrier.frame_carrier_compare",
+            owner="srmech", category="cascade",
+            summary="Cross-seam compare of two frame-carrying carriers: "
+                    "PARALLEL-TRANSPORT the frame, THEN compare, with the "
+                    "exact is_aligned certificate (rc238). Reports raw_equal "
+                    "(the UN-framed compare A.value==B.value — the 'sometimes "
+                    "not bit-exact across the seam' drift symptom) AND "
+                    "transported_equal (the FRAMED compare "
+                    "A.transported==B.transported — each argument "
+                    "exact-rational-folded to its canonical residue first: "
+                    "bit-exact across the seam where the raw compare only "
+                    "sometimes matched). aligned = True iff the transport "
+                    "lands in the value's winding-stabilizer (canonical "
+                    "residues EQUAL — a whole number of 2π turns apart, a zero "
+                    "residue_delta by its Class-K magnitude — AND chiralities "
+                    "match); aligned then PROVES the transported values are "
+                    "byte-identical (the rc236 is_flat / Stab shape one level "
+                    "up). When not aligned it carries the real residual "
+                    "(non-zero residue_delta holonomy or chirality mismatch) "
+                    "— so a genuinely different value is never falsely aligned "
+                    "(soundness). Cascade: composition_of_c over the "
+                    "c_dispatched series + the Class-K magnitude (real |x|, "
+                    "never abs()) + the exact-rational Machin-2π fold.",
+            parameters=(
+                P("func", "str", True, "'sin' or 'cos' (same series for both)"),
+                P("num_a", "int", True, "carrier A argument numerator"),
+                P("den_a", "int", True, "carrier A argument denominator"),
+                P("num_b", "int", True, "carrier B argument numerator"),
+                P("den_b", "int", True, "carrier B argument denominator"),
+                P("num_terms", "int", True, "shared Taylor truncation depth N"),
+                P("sigma_a", "int", False, "carrier A chirality (+1/-1, default +1)"),
+                P("sigma_b", "int", False, "carrier B chirality (+1/-1, default +1)"),
+            ),
+            returns=R("dict", "{func, raw_equal, transported_equal, aligned, "
+                              "transport_turns, transport_magnitude, "
+                              "residue_delta, chirality_match} — the drift "
+                              "(raw_equal), the fix (transported_equal), the "
+                              "exact cert (aligned) + its residual "
+                              "(residue_delta)"),
+        ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions
         # of Class C orientation + Class K sign; no new class, no C symbol.
