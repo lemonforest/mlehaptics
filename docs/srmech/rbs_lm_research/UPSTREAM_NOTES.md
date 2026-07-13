@@ -2876,3 +2876,34 @@ C-parity mandate** (a C-only/MCU host should run the plumbing/glue with no Pytho
 put `srmech_json`+`srmech_toml` in C). Additive symbols → no ABI bump. **Secondary:** these rc50 ops seem to have
 entered the Python surface without tripping the **#928 down-only Rosetta C/Python parity ratchet** — confirm whether
 `text` is exempt or slipped, and sweep for other shipped-Python-without-C-peer ops to close the general guarantee.
+
+---
+
+## `text.cooccurrence_edges` folds direction away (u<v) — no `directed=` option; the responsion/curvature read is impossible (F1210, 2026-07-13)
+
+**Ask:** add an optional `directed=False` to `srmech.amsc.text.cooccurrence_edges(docs, *, window, vocab, directed=False)`.
+When `directed=True`, return the **ordered** (earlier-token → later-token) pairs and their counts (so `edges[(i,j)]`
+= count of `i` appearing before `j` within the window, distinct from `(j,i)`), instead of the current unordered
+`u<v` fold. Default stays undirected (byte-identical to today).
+
+**Why it's load-bearing (F1210, measured):** the docstring states it "counts each **unordered** co-occurring
+vocabulary pair `(u, v)` with `u < v`" — verified empirically: `cooccurrence_edges([['a','b']])` and
+`([['b','a']])` return the **same** edge. So the direction (which word precedes which) is folded away **inside the
+shipped op**, one layer below our `build_edges_topk`'s own `a,b=sorted((i,j))`. This makes every genome kernel built
+through this path a **symmetric BAG**: on the real simplewiki kernel (831k vocab, 39M edges) B0 confirmed 0
+non-canonical edges, 0 reverse-duplicates. A symmetric graph's `cycle_holonomy` is **identically 0** on every loop
+(the only antisymmetric edge-charge synthesizable from node quantities is a gradient, which is curl-free — measured
+max loop-sum over 1500 triangles = 0.000). Yet a **directed** re-encode of the same corpus (our own forward-window
+count, interim) recovers substantial **rotational holonomy**: mean |loop| 0.526 > mean per-edge |asym| 0.323
+(non-gradient signature), rotational-ratio 0.543. So ~54% of word-order information is genuine curvature the shipped
+op discards. This is the **op/operand/RESPONSION** third read (field/excitation/**curvature**, F1209) — and srmech,
+the *Stored-**Relationship** Mechanism*, currently cannot store the **directional relationship** through its own
+co-occurrence op. It composes directly with the rc236/rc237 curvature surface it already ships
+(`separate_frame_curvature`, `separate_winding_curvature`, `magnetic_laplacian(charges=…)`, `cycle_holonomy`): the
+directed edges are exactly the per-edge `charges` those ops consume.
+
+**Interim (no package edit):** we count the directed forward-window pairs ourselves in the encoder (proved in
+`R-RBS-LM-CURVATURE_PROBE_…py`), documented as a gap-workaround until `directed=` lands. Storage is a superset —
+persist two weight columns `(w_fwd, w_bwd)`; the metric weight = `w_fwd+w_bwd` (today's symmetric weight, exact,
+free), the curvature charge = `w_fwd−w_bwd`. Additive; no ABI implication (Python op). **Create-don't-close**
+discipline: file the ask on the tracker; leave state to the maintainer.
