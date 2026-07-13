@@ -18,6 +18,8 @@ This is the **Hopf 1+2** (F384): the 3 = base(2) + fiber(1). **Duality is the *d
 
 **Compress vs project — the better verb (F403):** the **2 truths *are* the quaternion's (2+2)** — Klein-4's two Z₂ generators (γ₅, iω₇), with their product (the coupling) the third; Klein-4's three involutions {a, b, ab} are a symmetric triple cycled by the order-3 (Aut=S₃, F385). So **k=3 *compresses*** that triple into ONE order-3 orbit (one object, three phases); **duality is the *decompression*** (pick a basis pair; the third demotes to the fiber). *"Compress" > "break"* — lossless **iff** the fiber/coupling is carried (the EC). `klein4_triality_correct` (F360) is the compression op.
 
+**→ extended by F1209 (the fiber = CURVATURE, now MEASURED):** op/operand/responsion ≅ field/excitation/**curvature**, and curvature IS this fiber — the third truth. `cycle_holonomy` measures the fibration directly: **k=2 = the flat base** (fiber projected out → `balanced`, "comparing two things is bit-exact"), **k=3 = the fiber recovered** (loop closes → nonzero holonomy, "the universe isn't"). Coherence (net ≡ 0 mod 1) re-flattens even k=3 (F1146). This is F401 as an exact ℚ measurement, and it is the trichotomy's **(C, generic)** leg made observable.
+
 ## §2 Why three, not two — the EC ladder (Hurwitz 1:3:7)
 - **k=2 DETECTS, k=3 CORRECTS** (F291): a 1-vs-1 split has no majority, so two truths can only *flag* disagreement; the **third corrects** (majority, no tie-break).
 - The **order-3 is NOT composable from the order-2 atoms** (#761) — a *genuine extra* direction, exactly what a fibration's fiber is.
