@@ -32,3 +32,13 @@ The current symmetric kernels are a **derivable subset** of the directed one (su
 **Storage:** ~2× the `edge_weights` array (two columns per pair; `edge_list` pairs unchanged), well within the disk↔RAM external-merge architecture (F1208). This is the F1207 sparse-and-complete discipline applied to the *directional* axis: the symmetric fold was a truncation of the odd/curvature half, exactly as top-16 was a truncation of the weight half.
 
 Composes **F1209** (curvature = the responsion = the F401 fiber; k=2 flat / k≥3 curved), **F1207** (one Class-L object → many read-outs; never truncate at storage), **F1208** (hold it all disk↔RAM), **F552** (the odd channel the Hermitian spectrum can't carry), **F1146** (coherence flattens; the aaron→actor→actress net-1-turn loop), the **never-bag-of-words** discipline (order = the octonion coupling-walk, not a symmetric bundle — now *measured*: 54% of order is irreducibly rotational). Bears on TRIALITY.md §1 / F400/F401 (the fiber, measured on a real corpus).
+
+## Full-scale result — the directed simplewiki genome is BUILT + VALIDATED (2026-07-13)
+The directed encoder (`R-RBS-LM-WIKIWEIGHTED_DIRECTED_streaming_encoder.py`) ran on all of simplewiki and self-validated; the extended recover-ratchet (tier **(f)** curvature) confirmed it. `simplewiki_directed_sparse_kernel.json`:
+- **555,038 articles → 831,139 words, 39,048,148 edges** (identical graph to the symmetric kernel); 24.0M forward + 23.3M backward directed counts.
+- **metric == subset, EXACT at scale:** `w_fwd+w_bwd == symmetric count` with **0 mismatches / 0 orphans** over all 39M edges — the metric read is byte-identical to `simplewiki_full_sparse_kernel.json`; nothing lost.
+- **curvature recovers:** triangle `(abbrev,man,work)` → `cycle_holonomy` 6196/7945; ratchet triangle 359/2132 — nonzero holonomy, the responsion the bag has zero of.
+- **storage: 960 MB vs 903 MB symmetric = +6%** (not the ~2× budgeted — `edge_charge` = one compact int column sharing `edge_list`; the vocab+freq+edge_list bulk dominates). The whole directional/curvature channel costs ~6%.
+- ratchet: **PASS all six** faculties (op + operand + responsion + curvature). ~36 min wall, 18 GB peak.
+
+The symmetric enwiki encode was stopped (17 shards persist as a resumable metric subset); enwiki's directed re-encode is the natural next step on this proven encoder. **The re-encode is confirmed a one-time, ~6%-overhead, lossless superset — exactly as predicted.**
