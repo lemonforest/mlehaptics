@@ -380,6 +380,14 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # exactly like ``eig_exact`` / ``jordan_form_exact`` return dicts carrying
     # ``Qalg`` / ``complex``. Reachable via Python, not the MCP tool list.
     "srmech.amsc.cascade.matrix_cascades.separate_frame_curvature",
+    # cascade.one.separate_winding_curvature (v0.9.0rc237 — F2, the ``the_one``
+    # WINDING instance of rc236's separate_frame_curvature). Takes a structured
+    # ``One`` object (no MCP coercer for a One param) AND returns a dict carrying
+    # the 14 adjoint rationals + a nested winding-holonomy record + a bool — a
+    # STRUCTURED / carrier return that cannot cross the JSON-RPC boundary,
+    # exactly like ``one.to_scalar`` / ``matrix_cascades.separate_frame_curvature``
+    # above. Reachable via Python (and the One method), not the MCP tool list.
+    "srmech.amsc.cascade.one.separate_winding_curvature",
 })
 
 
