@@ -30,11 +30,21 @@ def stream_descriptions(modules=None):
     ``carrier.cayley_dickson_8``)."""
     out = dict(_I.introspect_srmech(modules))
     out.update({"carrier." + k.replace(":", "_"): v for k, v in _I.introspect_carriers().items()})
+    out.update(_I.introspect_patterns())                        # F1207 fix #2: the patterns/discipline tier
     return out
 
 
 def _version_path(path):
     return str(path).rstrip("/") + ".srmech_version"
+
+
+def _stream_version(modules=None):
+    """Cache key = srmech version + a SIGNATURE of the stream's labels — so adding a tier (patterns) or a module
+    rebuilds the genome, not only an srmech version bump. (introspect_srmech already keeps it current per srmech
+    version; this extends 'never lags' to the siona-side stream too.)"""
+    from srmech.amsc.format import sha256_bytes
+    sig = sha256_bytes("\n".join(sorted(stream_descriptions(modules))).encode())[:16]
+    return srmech.__version__ + ":" + sig
 
 
 def build(grounder, path, *, modules=None):
@@ -43,7 +53,7 @@ def build(grounder, path, *, modules=None):
     kernels = [(lbl, list(grounder.enc_query(desc))) for lbl, desc in stream_descriptions(modules).items()]
     _GS.pack_instrument(kernels, str(path))
     with open(_version_path(path), "w", encoding="utf-8") as fh:
-        fh.write(srmech.__version__)
+        fh.write(_stream_version(modules))
     return len(kernels)
 
 
@@ -52,7 +62,7 @@ def load_or_build(grounder, path, *, modules=None):
     (first-run / on-demand). Returns ``{label: flat Klein-4 kernel}`` — Siona's encoded self-knowledge, fast.
     A srmech version change (the surface moved) INVALIDATES the cache and rebuilds — so the genome never lags."""
     vp = _version_path(path)
-    fresh = os.path.exists(vp) and open(vp, encoding="utf-8").read().strip() == srmech.__version__
+    fresh = os.path.exists(vp) and open(vp, encoding="utf-8").read().strip() == _stream_version(modules)
     if not fresh:
         build(grounder, path, modules=modules)                 # first run / stale → build + cache
     return _GS.load_instrument(str(path))
@@ -65,7 +75,7 @@ import re as _re
 
 import srmech.amsc.genome as _G
 
-_MODULE_ORDER = [m.split(".")[-1] for m in _I.SRMECH_MODULES] + ["carrier"]
+_MODULE_ORDER = [m.split(".")[-1] for m in _I.SRMECH_MODULES] + ["carrier", "pattern"]
 MODULE_BITS = {m: (1 << i) for i, m in enumerate(_MODULE_ORDER)}
 
 MODULE_CUES = {
@@ -93,6 +103,11 @@ MODULE_CUES = {
            "weinberg", "vev", "vacuum", "fermion"),
     "so8": ("adjoint", "root", "embedding", "octonionic"),
     "triality": ("triality", "automorphism", "companion", "outer"),
+    # F1207 fix #2: the PATTERNS/DISCIPLINE tier — an encode/store/architecture question routes HERE (the correct
+    # pattern), not just to a bare op. Distinctive cues (encode/store/truncate/uncapped/weighted/corpus) so a
+    # "how do I encode a corpus as a class-l genome" query self-routes to the anti-truncation pattern.
+    "pattern": ("encode", "encoding", "store", "storage", "corpus", "truncate", "truncated", "cap", "capped",
+                "uncapped", "weighted", "unweighted", "distributional", "relational", "responsion", "readout"),
 }
 
 
@@ -114,7 +129,7 @@ def build_regulatory(grounder, path, *, modules=None):
     strand = _G.chromosome(genes=genes, the_one=one, label="knowledge")
     _G.genome_save(strand, str(path), one, ["knowledge"])
     with open(_version_path(path), "w", encoding="utf-8") as fh:
-        fh.write(srmech.__version__)
+        fh.write(_stream_version(modules))
     return len(genes)
 
 
@@ -123,7 +138,7 @@ def express_relevant(grounder, path, query, *, k_modules=2, modules=None):
     only their genes → ``({label: flat kernel}, modules)``. RAM touches the SUBSET, not all 256 — the demand-load
     (F1094/F1095). Builds the regulatory genome on first run (version-cached)."""
     vp = _version_path(path)
-    fresh = os.path.exists(vp) and open(vp, encoding="utf-8").read().strip() == srmech.__version__
+    fresh = os.path.exists(vp) and open(vp, encoding="utf-8").read().strip() == _stream_version(modules)
     if not fresh:
         build_regulatory(grounder, path, modules=modules)
     strand, one, _labels = _G.genome_load(str(path))

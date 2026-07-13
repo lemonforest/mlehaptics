@@ -15,7 +15,7 @@ import importlib
 import inspect
 from srmech.amsc import hdc as _hdc
 
-__all__ = ["introspect_srmech", "introspect_carriers", "Tooling", "SRMECH_MODULES", "TIERS"]
+__all__ = ["introspect_srmech", "introspect_carriers", "introspect_patterns", "PATTERNS", "Tooling", "SRMECH_MODULES", "TIERS"]
 
 # The self-knowledge tiers, named in BOTH tongues — ancient AND modern, NEITHER privileged (F1089/F1090).
 # The dual name IS a two-word Rosetta / interlinear gloss: reading the pair cross-reads ancient↔modern without
@@ -89,6 +89,38 @@ def introspect_carriers():
     out.setdefault("float", "float: a scalar number — a magnitude, norm, or single value")
     out.setdefault("Mat", "Mat: a matrix")
     return out
+
+
+# The PATTERNS / DISCIPLINE tier (F1207 fix #2) — architecture rules that are NOT srmech ops, so
+# introspect_srmech (which mines op signatures + docstrings) is STRUCTURALLY BLIND to them. Adding this tier is
+# why "how do I encode a corpus as a class-l genome" can now surface the correct PATTERN (uncapped-weighted, no
+# storage truncation) instead of just the pieces (dense_laplacian). Each value is a full how-to so grounding AND
+# display both work. Prevents recurrence #3 of the top-K-truncation trash-fallback (F708/F748/F1207).
+PATTERNS = {
+    "encode_corpus_class_l_genome": (
+        "encode a corpus as a Class-L genome: STREAM the source and build the FULL UNCAPPED WEIGHTED "
+        "co-occurrence graph (build_edges_topk vocab_cap=None), then persist the full_sparse_kernel "
+        "{vocab, freq, edge_list, edge_weights}. NEVER top-K or drop weights at STORAGE time — that is the "
+        "trash-fallback (F708/F748/F1207); top-N is a LOAD-time knob. Reference encoder: R-RBS-LM-WIKIWEIGHTED. "
+        "The stored object recovers op (L=D-A), operand (edges), responsion (excite L); the recover-ratchet guards it."),
+    "store_sparse_complete_never_truncate": (
+        "store SPARSE-and-COMPLETE: keep EVERY real weighted edge as an int edge-list (no dense float matrix). "
+        "'sparse' means sparse vs gen-1 dense-float-in-GPU-RAM, NOT fewer edges. top-K is a query READ, never a "
+        "storage cut. A top-16 unweighted store keeps a lossy relational read-out and DESTROYS the distributional "
+        "(eigenvectors) and the responsion (eigenvalues) — it amputates two of the object's three faculties."),
+    "one_class_l_object_three_readouts": (
+        "ONE sparse weighted Class-L object L=D-A (spectrum lambda,v) gives THREE read-outs: edges -> RELATIONAL "
+        "(direct 'what is X seen with' lookup, no eig); eigenvectors -> DISTRIBUTIONAL (the dense embedding, "
+        "DERIVED not stored — what gen-1 stores as its whole massive object); eigenvalues -> RESPONSION / EPH "
+        "(propagator e^{-zL}, resolvent (zI-L)^-1). F1067/F1132/F1186/F172."),
+}
+
+
+def introspect_patterns():
+    """PATTERNS/DISCIPLINE self-knowledge (F1207 fix #2) — ``{pattern.<key>: how-to}``. NOT srmech ops, so
+    ``introspect_srmech`` misses them; this is the tier that lets an encode/architecture query self-route to the
+    correct PATTERN rather than the bare pieces. Genome-safe ``pattern.`` prefix (like ``carrier.``)."""
+    return {"pattern." + k: v for k, v in PATTERNS.items()}
 
 
 def _default_source_dirs():
@@ -205,6 +237,7 @@ class Tooling:
     def __init__(self, grounder, modules=None, *, mine=True, source_dirs=None, cache=True, cache_path=None):
         self._g = grounder
         self.kb = introspect_srmech(modules)                        # TOLD descriptions (fast; for display + fallback)
+        self.kb.update(introspect_patterns())                       # F1207 fix #2: the patterns/discipline tier joins the grounded self-knowledge
         self.labels = list(self.kb)
         self.carriers = introspect_carriers()                       # NOUNS: carrier TYPES (F1110)
         self._clabels = list(self.carriers)
@@ -236,6 +269,10 @@ class Tooling:
                 idxs = hit                                           # ...and ground WITHIN it
         scored = sorted(((_hdc.klein4_similarity(qv, self._vecs[i]).as_float(), self.labels[i]) for i in idxs),
                         reverse=True)
+        if route and "pattern" in mods:                             # F1207 fix #2: the router judged this an
+            # architecture question (the PATTERN tier routed) -> LEAD with the pattern; a bare op must not outrank
+            # the discipline (klein4 surface-grounding otherwise ties a pattern below a same-topic op, F1100).
+            scored.sort(key=lambda sl: (not sl[1].startswith("pattern."), -sl[0]))
         return [(l, self.kb[l], round(s, 3)) for s, l in scored[:k]]
 
     def carrier(self, query, k=2):
