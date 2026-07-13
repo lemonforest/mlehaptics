@@ -81,7 +81,6 @@ static int64_t rt3_g(const int64_t *gamma, int blk, int r, int c);
 static int64_t rt3_matvec(const int64_t *gamma, int blk, const int64_t *v, int row);
 static int64_t rt3_diag_pqt(const int64_t *gamma, int pblk, int qblk, int row);
 static int64_t rt3_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j);
-static int64_t rt3_pqt(const int64_t *gamma, int pblk, int qblk, int i, int j);
 static int rt3_is_symplectic(const int64_t *gamma);
 static int64_t rt3_eight_phi(const int64_t *gamma,
                              const int64_t *epp, const int64_t *eps);
@@ -95,7 +94,6 @@ static int64_t rt4_g(const int64_t *gamma, int blk, int r, int c);
 static int64_t rt4_matvec(const int64_t *gamma, int blk, const int64_t *v, int row);
 static int64_t rt4_diag_pqt(const int64_t *gamma, int pblk, int qblk, int row);
 static int64_t rt4_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j);
-static int64_t rt4_pqt(const int64_t *gamma, int pblk, int qblk, int i, int j);
 static int rt4_is_symplectic(const int64_t *gamma);
 static int64_t rt4_eight_phi(const int64_t *gamma,
                              const int64_t *epp, const int64_t *eps);
@@ -387,9 +385,14 @@ srmech_status_t srmech_riemann_theta_cyc_mul(
  * reduced mod 2 for the bit. The theta-constant picks up an 8th-root-of-unity
  * multiplier; this peer returns the CHARACTERISTIC-DEPENDENT Igusa phase part
  * exp(2 pi i phi_m) as the EXACT integer exponent k in Z/8 (rational phi_m, denom |
- * 8, so 8*phi_m is an integer):
- *   8*phi_m = -4 ep'^T (B D^T) ep' + 8 ep^T (A^T C) ep - 16 ep'^T (B^T C) ep
- *             - 8 diag(A B^T)^T (D ep' - C ep)
+ * 8, so 8*phi_m is an integer). With ep'=2m', ep=2m'' the DOUBLED integer characteristic:
+ *   8*phi_m = - ep'^T (D^T B) ep' + 2 ep'^T (B^T C) ep - ep^T (A^T C) ep
+ *             + 2 diag(A B^T)^T (D ep' - C ep)
+ * rc233 (#824) FIX of a LATENT zeta_8^4 sign defect: the pre-rc233 (-4,+8,-16,-8).(B D^T)
+ * form used the REAL-m coefficients while feeding the doubled ep -> terms 2/3/4 vanished
+ * mod 8 and term 1 collapsed to {0,4}, pinning the multiplier to {zeta_8^0,zeta_8^4}={+/-1}
+ * for every gamma. The corrected (-1,+2,-1,+2).(D^T B) form is exact for all g and gamma
+ * (verified g1..g4 vs a numeric theta oracle).
  * The remaining gamma-only factor kappa_0(gamma) (the Maslov/Weil cocycle 8th root,
  * e.g. the -i on the genus-1 inversion) is BOUND to the TRANSCENDENTAL automorphy
  * factor det(C Omega + D)^{1/2} (the sqrt branch) and is NOT computed here -- off
@@ -461,50 +464,27 @@ static int rt_is_symplectic(const int64_t *gamma)
 static int64_t rt_eight_phi(const int64_t *gamma,
                             int64_t ep1, int64_t ep2, int64_t e1, int64_t e2)
 {
-    int64_t bdt0, bdt1, t1, atc0, atc1, t2, btc0, btc1, t3;
-    int64_t dab0, dab1, dep0, dep1, cep0, cep1, t4;
+    int64_t t1, t2, t3, t4;
+    int64_t dab0, dab1, dep0, dep1, cep0, cep1;
     assert(gamma != NULL);
     assert((ep1 == 0 || ep1 == 1) && (ep2 == 0 || ep2 == 1));   /* upper char bits */
     assert((e1 == 0 || e1 == 1) && (e2 == 0 || e2 == 1));       /* lower char bits */
-    /* t1 = -4 ep'^T (B D^T) ep' ; (B D^T)_row = diag-style row dot of B,D rows */
-    bdt0 = rt_g(gamma, 1, 0, 0) * rt_g(gamma, 3, 0, 0)
-         + rt_g(gamma, 1, 0, 1) * rt_g(gamma, 3, 0, 1);  /* (BD^T)[0][0] */
-    /* full quadratic ep'^T (B D^T) ep' = sum_{i,j} ep'_i (BD^T)[i][j] ep'_j */
-    bdt1 = rt_g(gamma, 1, 0, 0) * rt_g(gamma, 3, 1, 0)
-         + rt_g(gamma, 1, 0, 1) * rt_g(gamma, 3, 1, 1);  /* (BD^T)[0][1] */
-    {
-        int64_t bdt10 = rt_g(gamma, 1, 1, 0) * rt_g(gamma, 3, 0, 0)
-                      + rt_g(gamma, 1, 1, 1) * rt_g(gamma, 3, 0, 1);
-        int64_t bdt11 = rt_g(gamma, 1, 1, 0) * rt_g(gamma, 3, 1, 0)
-                      + rt_g(gamma, 1, 1, 1) * rt_g(gamma, 3, 1, 1);
-        int64_t quad = ep1 * bdt0 * ep1 + ep1 * bdt1 * ep2
-                     + ep2 * bdt10 * ep1 + ep2 * bdt11 * ep2;
-        t1 = -4 * quad;
-    }
-    /* t2 = +8 ep^T (A^T C) ep */
-    atc0 = rt_ptq(gamma, 0, 2, 0, 0); atc1 = rt_ptq(gamma, 0, 2, 0, 1);
-    {
-        int64_t atc10 = rt_ptq(gamma, 0, 2, 1, 0);
-        int64_t atc11 = rt_ptq(gamma, 0, 2, 1, 1);
-        int64_t quad = e1 * atc0 * e1 + e1 * atc1 * e2
-                     + e2 * atc10 * e1 + e2 * atc11 * e2;
-        t2 = 8 * quad;
-    }
-    /* t3 = -16 ep'^T (B^T C) ep */
-    btc0 = rt_ptq(gamma, 1, 2, 0, 0); btc1 = rt_ptq(gamma, 1, 2, 0, 1);
-    {
-        int64_t btc10 = rt_ptq(gamma, 1, 2, 1, 0);
-        int64_t btc11 = rt_ptq(gamma, 1, 2, 1, 1);
-        int64_t bil = ep1 * btc0 * e1 + ep1 * btc1 * e2
-                    + ep2 * btc10 * e1 + ep2 * btc11 * e2;
-        t3 = -16 * bil;
-    }
-    /* t4 = -8 diag(A B^T)^T (D ep' - C ep) */
+    /* t1 = ep'^T (D^T B) ep'  (D^T B, the symmetric symplectic combo) */
+    t1 = ep1 * rt_ptq(gamma, 3, 1, 0, 0) * ep1 + ep1 * rt_ptq(gamma, 3, 1, 0, 1) * ep2
+       + ep2 * rt_ptq(gamma, 3, 1, 1, 0) * ep1 + ep2 * rt_ptq(gamma, 3, 1, 1, 1) * ep2;
+    /* t2 = ep^T (A^T C) ep */
+    t2 = e1 * rt_ptq(gamma, 0, 2, 0, 0) * e1 + e1 * rt_ptq(gamma, 0, 2, 0, 1) * e2
+       + e2 * rt_ptq(gamma, 0, 2, 1, 0) * e1 + e2 * rt_ptq(gamma, 0, 2, 1, 1) * e2;
+    /* t3 = ep'^T (B^T C) ep */
+    t3 = ep1 * rt_ptq(gamma, 1, 2, 0, 0) * e1 + ep1 * rt_ptq(gamma, 1, 2, 0, 1) * e2
+       + ep2 * rt_ptq(gamma, 1, 2, 1, 0) * e1 + ep2 * rt_ptq(gamma, 1, 2, 1, 1) * e2;
+    /* t4 = diag(A B^T)^T (D ep' - C ep) */
     dab0 = rt_diag_pqt(gamma, 0, 1, 0); dab1 = rt_diag_pqt(gamma, 0, 1, 1);
     dep0 = rt_matvec(gamma, 3, ep1, ep2, 0); dep1 = rt_matvec(gamma, 3, ep1, ep2, 1);
     cep0 = rt_matvec(gamma, 2, e1, e2, 0);   cep1 = rt_matvec(gamma, 2, e1, e2, 1);
-    t4 = -8 * (dab0 * (dep0 - cep0) + dab1 * (dep1 - cep1));
-    return t1 + t2 + t3 + t4;
+    t4 = dab0 * (dep0 - cep0) + dab1 * (dep1 - cep1);
+    /* rc233 (#824): corrected coefficients (-1,+2,-1,+2); see the block comment above */
+    return -t1 + 2 * t3 - t2 + 2 * t4;
 }
 
 /* The exact Sp(4,Z) characteristic transformation + the kappa 8th-root exponent.
@@ -516,6 +496,7 @@ srmech_status_t srmech_riemann_theta_sp4_char(
     int *out_char, int *kexp)
 {
     int64_t E1, E2, e_1, e_2, npp0, npp1, nep0, nep1, dCD0, dCD1, dAB0, dAB1, k8;
+    int64_t b0, b1, fold;
     assert(gamma != NULL);
     assert(out_char != NULL && kexp != NULL);
     if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(e1) || !rt_bit_ok(e2)) {
@@ -538,7 +519,14 @@ srmech_status_t srmech_riemann_theta_sp4_char(
     out_char[2] = (int)(((nep0 % 2) + 2) % 2);
     out_char[3] = (int)(((nep1 % 2) + 2) % 2);
     k8 = rt_eight_phi(gamma, E1, E2, e_1, e_2);
-    *kexp = (int)(((k8 % 8) + 8) % 8);             /* floor-mod into {0..7} */
+    /* rc233 (#824) part 2: fold the mod-2 OUTPUT-reduction sign (-1)^{p.b}=zeta_8^4 so
+     * the returned (reduced characteristic, kexp) COMPOSES. p=out_char[0,1] (reduced
+     * upper); b=(nep - reduced)/2 = floor(nep/2) via EXACT even division (avoids C's
+     * trunc-toward-zero, matching Python's floor //). */
+    b0 = (nep0 - out_char[2]) / 2;
+    b1 = (nep1 - out_char[3]) / 2;
+    fold = (int64_t)out_char[0] * b0 + (int64_t)out_char[1] * b1;
+    *kexp = (int)((((k8 + 4 * fold) % 8) + 8) % 8);   /* floor-mod into {0..7} */
     return SRMECH_OK;
 }
 
@@ -1096,11 +1084,14 @@ srmech_status_t srmech_riemann_theta_g3_chi18(
  * multiplier; this peer returns the CHARACTERISTIC-DEPENDENT Igusa phase part
  * exp(2 pi i phi_m) as the EXACT integer exponent k in Z/8 (rational phi_m, denom |
  * 8, so 8*phi_m is an integer). The genus-g phi_m (a sum over k,l = 1..g; the same
- * expression at every g) is
- *   phi_m = -1/2 ep'^T (B D^T) ep' + ep^T (A^T C) ep - 2 ep'^T (B^T C) ep
- *           - diag(A B^T)^T (D ep' - C ep)
- * -> 8*phi_m = -4 ep'^T (B D^T) ep' + 8 ep^T (A^T C) ep - 16 ep'^T (B^T C) ep
- *              - 8 diag(A B^T)^T (D ep' - C ep)
+ * expression at every g), in the REAL half-integer characteristic m=(ep'/2, ep/2):
+ *   phi_m = -1/2 m'^T (D^T B) m' + 2 m'^T (B^T C) m'' - m''^T (A^T C) m''
+ *           + 1/2 diag(A B^T)^T (D m' - C m'')
+ * -> 8*phi_m = - ep'^T (D^T B) ep' + 2 ep'^T (B^T C) ep - ep^T (A^T C) ep
+ *              + 2 diag(A B^T)^T (D ep' - C ep)
+ * rc233 (#824) FIX of a LATENT zeta_8^4 sign defect -- see srmech_riemann_theta_sp4_char
+ * for the full account (the pre-rc233 (-4,+8,-16,-8).(B D^T) form collapsed the
+ * multiplier to {+/-1}; the (-1,+2,-1,+2).(D^T B) form is exact).
  * (the g=2 expression of srmech_riemann_theta_sp4_char, parametrically extended to
  * 3-vectors / 3x3 blocks). The remaining gamma-only kappa_0(gamma) (the Maslov/Weil
  * cocycle 8th root) is BOUND to the TRANSCENDENTAL automorphy factor
@@ -1153,19 +1144,6 @@ static int64_t rt3_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j)
     return acc;
 }
 
-/* (P Q^T)[i][j] = sum_k P[i][k] Q[j][k]  -- one entry of a block-times-transposed. */
-static int64_t rt3_pqt(const int64_t *gamma, int pblk, int qblk, int i, int j)
-{
-    int k;
-    int64_t acc = 0;
-    assert(gamma != NULL);
-    assert(i >= 0 && i < 3 && j >= 0 && j < 3);
-    for (k = 0; k < 3; ++k) {
-        acc += rt3_g(gamma, pblk, i, k) * rt3_g(gamma, qblk, j, k);
-    }
-    return acc;
-}
-
 /* The symplectic check gamma J gamma^T = J via the exact block conditions
  * A^T C = C^T A (symmetric), B^T D = D^T B (symmetric), A^T D - C^T B = I (3x3).
  * Returns 1 if symplectic, else 0. (blk 0=A,1=B,2=C,3=D.) */
@@ -1198,8 +1176,8 @@ static int64_t rt3_eight_phi(const int64_t *gamma,
     assert(epp != NULL && eps != NULL);
     for (i = 0; i < 3; ++i) {
         for (j = 0; j < 3; ++j) {
-            /* t1: -4 ep'^T (B D^T) ep'   ((BD^T)[i][j] = row-row dot of B,D) */
-            t1 += epp[i] * rt3_pqt(gamma, 1, 3, i, j) * epp[j];
+            /* t1: ep'^T (D^T B) ep'   ((D^TB)[i][j] via rt3_ptq(D,B)) */
+            t1 += epp[i] * rt3_ptq(gamma, 3, 1, i, j) * epp[j];
             t2 += eps[i] * rt3_ptq(gamma, 0, 2, i, j) * eps[j];   /* ep^T(A^TC)ep */
             t3 += epp[i] * rt3_ptq(gamma, 1, 2, i, j) * eps[j];   /* ep'^T(B^TC)ep */
         }
@@ -1212,7 +1190,8 @@ static int64_t rt3_eight_phi(const int64_t *gamma,
         dab = rt3_diag_pqt(gamma, 0, 1, i);          /* diag(A B^T)_i */
         t4 += dab * (depp[i] - ceps[i]);
     }
-    return -4 * t1 + 8 * t2 - 16 * t3 - 8 * t4;
+    /* rc233 (#824): corrected coefficients (-1,+2,-1,+2); see the block comment above */
+    return -t1 + 2 * t3 - t2 + 2 * t4;
 }
 
 /* The exact genus-3 Sp(6,Z) characteristic transformation + the kappa 8th-root
@@ -1225,7 +1204,7 @@ srmech_status_t srmech_riemann_theta_g3_sp6_char(
     int *out_char, int *kexp)
 {
     int i;
-    int64_t epp[3], eps[3], npp, nep, k8;
+    int64_t epp[3], eps[3], npp, nep, k8, fold = 0;
     assert(gamma != NULL);
     assert(out_char != NULL && kexp != NULL);
     if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(ep3)
@@ -1246,9 +1225,14 @@ srmech_status_t srmech_riemann_theta_g3_sp6_char(
             + rt3_diag_pqt(gamma, 0, 1, i);
         out_char[i] = (int)(((npp % 2) + 2) % 2);
         out_char[i + 3] = (int)(((nep % 2) + 2) % 2);
+        /* rc233 (#824) part 2: accumulate the mod-2 output-reduction fold p_i*b_i,
+         * p=reduced upper (out_char[i]), b=(nep-reduced)/2 = floor(nep/2) exactly. */
+        fold += (int64_t)out_char[i] * ((nep - out_char[i + 3]) / 2);
     }
     k8 = rt3_eight_phi(gamma, epp, eps);
-    *kexp = (int)(((k8 % 8) + 8) % 8);              /* floor-mod into {0..7} */
+    /* fold the (-1)^{p.b}=zeta_8^4 output-reduction sign so (reduced char, kexp)
+     * COMPOSES -- see srmech_riemann_theta_sp4_char. */
+    *kexp = (int)((((k8 + 4 * fold) % 8) + 8) % 8);  /* floor-mod into {0..7} */
     return SRMECH_OK;
 }
 
@@ -1864,19 +1848,6 @@ static int64_t rt4_ptq(const int64_t *gamma, int pblk, int qblk, int i, int j)
     return acc;
 }
 
-/* (P Q^T)[i][j] = sum_k P[i][k] Q[j][k]  -- one entry of a block-times-transposed. */
-static int64_t rt4_pqt(const int64_t *gamma, int pblk, int qblk, int i, int j)
-{
-    int k;
-    int64_t acc = 0;
-    assert(gamma != NULL);
-    assert(i >= 0 && i < 4 && j >= 0 && j < 4);
-    for (k = 0; k < 4; ++k) {
-        acc += rt4_g(gamma, pblk, i, k) * rt4_g(gamma, qblk, j, k);
-    }
-    return acc;
-}
-
 /* The symplectic check gamma J gamma^T = J via the exact block conditions
  * A^T C = C^T A (symmetric), B^T D = D^T B (symmetric), A^T D - C^T B = I (4x4).
  * Returns 1 if symplectic, else 0. (blk 0=A,1=B,2=C,3=D.) */
@@ -1900,9 +1871,12 @@ static int rt4_is_symplectic(const int64_t *gamma)
 
 /* The exact 8*phi_m Igusa phase at genus 4 (an integer; the multiplier exponent is
  * (8*phi_m) mod 8). epp = ep' (4), eps = ep (4). The SAME expression as g2/g3 one
- * genus up:
- *   8*phi_m = -4 ep'^T(B D^T)ep' + 8 ep^T(A^TC)ep - 16 ep'^T(B^TC)ep
- *             - 8 diag(A B^T)^T (D ep' - C ep). */
+ * genus up (ep'=2m', ep=2m'' the DOUBLED integer characteristic):
+ *   8*phi_m = - ep'^T(D^T B)ep' + 2 ep'^T(B^TC)ep - ep^T(A^TC)ep
+ *             + 2 diag(A B^T)^T (D ep' - C ep).
+ * rc233 (#824) FIX of a LATENT zeta_8^4 sign defect -- see srmech_riemann_theta_sp4_char
+ * for the full account (pre-rc233 (-4,+8,-16,-8).(B D^T) collapsed to {+/-1}; the
+ * (-1,+2,-1,+2).(D^T B) form is exact). */
 static int64_t rt4_eight_phi(const int64_t *gamma,
                              const int64_t *epp, const int64_t *eps)
 {
@@ -1912,7 +1886,7 @@ static int64_t rt4_eight_phi(const int64_t *gamma,
     assert(epp != NULL && eps != NULL);
     for (i = 0; i < 4; ++i) {
         for (j = 0; j < 4; ++j) {
-            t1 += epp[i] * rt4_pqt(gamma, 1, 3, i, j) * epp[j];  /* ep'^T(B D^T)ep' */
+            t1 += epp[i] * rt4_ptq(gamma, 3, 1, i, j) * epp[j];  /* ep'^T(D^T B)ep' */
             t2 += eps[i] * rt4_ptq(gamma, 0, 2, i, j) * eps[j];  /* ep^T(A^TC)ep */
             t3 += epp[i] * rt4_ptq(gamma, 1, 2, i, j) * eps[j];  /* ep'^T(B^TC)ep */
         }
@@ -1925,7 +1899,8 @@ static int64_t rt4_eight_phi(const int64_t *gamma,
         dab = rt4_diag_pqt(gamma, 0, 1, i);          /* diag(A B^T)_i */
         t4 += dab * (depp[i] - ceps[i]);
     }
-    return -4 * t1 + 8 * t2 - 16 * t3 - 8 * t4;
+    /* rc233 (#824): corrected coefficients (-1,+2,-1,+2); see the block comment above */
+    return -t1 + 2 * t3 - t2 + 2 * t4;
 }
 
 /* The exact genus-4 Sp(8,Z) characteristic transformation + the kappa 8th-root
@@ -1938,7 +1913,7 @@ srmech_status_t srmech_riemann_theta_g4_sp8_char(
     int e1, int e2, int e3, int e4, int *out_char, int *kexp)
 {
     int i;
-    int64_t epp[4], eps[4], npp, nep, k8;
+    int64_t epp[4], eps[4], npp, nep, k8, fold = 0;
     assert(gamma != NULL);
     assert(out_char != NULL && kexp != NULL);
     if (!rt_bit_ok(ep1) || !rt_bit_ok(ep2) || !rt_bit_ok(ep3) || !rt_bit_ok(ep4)
@@ -1960,9 +1935,14 @@ srmech_status_t srmech_riemann_theta_g4_sp8_char(
             + rt4_diag_pqt(gamma, 0, 1, i);
         out_char[i] = (int)(((npp % 2) + 2) % 2);
         out_char[i + 4] = (int)(((nep % 2) + 2) % 2);
+        /* rc233 (#824) part 2: accumulate the mod-2 output-reduction fold p_i*b_i,
+         * p=reduced upper (out_char[i]), b=(nep-reduced)/2 = floor(nep/2) exactly. */
+        fold += (int64_t)out_char[i] * ((nep - out_char[i + 4]) / 2);
     }
     k8 = rt4_eight_phi(gamma, epp, eps);
-    *kexp = (int)(((k8 % 8) + 8) % 8);              /* floor-mod into {0..7} */
+    /* fold the (-1)^{p.b}=zeta_8^4 output-reduction sign so (reduced char, kexp)
+     * COMPOSES -- see srmech_riemann_theta_sp4_char. */
+    *kexp = (int)((((k8 + 4 * fold) % 8) + 8) % 8);  /* floor-mod into {0..7} */
     return SRMECH_OK;
 }
 

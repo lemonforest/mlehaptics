@@ -182,12 +182,14 @@ def test_kappa_is_eighth_root_exponent():
 
 def test_kappa_translation_values():
     """The translation T11 = [[I,B],[0,I]], B = diag(1,0,0) gives the κ exponent
-    k ∈ {0,4} (the ±1 = ζ₈⁰/ζ₈⁴ phase) across the characteristics — the classical
-    lattice-shift sign of the genus-3 theta-constant."""
+    k ∈ {0,1} across the characteristics — the classical lattice-shift PHASE of the
+    genus-3 theta-constant: on ε'=(1,·,·) the shift Ω↦Ω+diag(1,0,0) multiplies θ by
+    exactly ζ₈¹=e^{iπ/4}. rc233 (#824) corrected this from the pre-fix {0,4} that the
+    ζ₈⁴ sign defect wrongly produced."""
     g = RiemannThetaG3.sp6_translation(((1, 0, 0), (0, 0, 0), (0, 0, 0)))
     ks = {rt.transform(g)[1] for rt in ALL64}
-    assert ks <= {0, 4}
-    assert 4 in ks            # the shift genuinely flips a sign on some char
+    assert ks == {0, 1}
+    assert 1 in ks            # the genuine ζ₈¹ phase — NOT collapsed to ±1
 
 
 def test_automorphy_factor_is_symbolic_not_evaluated():

@@ -1240,12 +1240,14 @@ class RiemannTheta:
                     eps: "Tuple[int, int]") -> int:
         """The EXACT 8th-root multiplier exponent ``k ∈ ℤ/8`` (the multiplier is
         ``ζ₈^k = e^{2πik/8}``) — the CHARACTERISTIC-DEPENDENT Igusa phase ``φ_m(γ)``
-        of the theta-constant transformation
+        of the theta-constant transformation, in terms of the REAL half-integer
+        characteristic ``m = (m', m'') = (ε'/2, ε/2)``
 
-            φ_m(γ) = −½·ε'ᵀ·B·Dᵀ·ε' + εᵀ·Aᵀ·C·ε − 2·ε'ᵀ·Bᵀ·C·ε
-                     − diag(A·Bᵀ)ᵀ·(D·ε' − C·ε)
+            φ_m(γ) = −½·m'ᵀ(DᵀB)m' + 2·m'ᵀ(BᵀC)m'' − m''ᵀ(AᵀC)m''
+                     + ½·diag(A·Bᵀ)ᵀ·(D·m' − C·m'')
 
-        (Igusa, *Theta Functions* (1972), §V.1; the full transformation multiplier is
+        (Igusa, *Theta Functions* (Springer, Grundlehren 194, 1972), §V.1; the
+        characteristic map is DLMF §21.5.9; the full transformation multiplier is
         ``κ₀(γ)·exp(2πi·φ_m(γ))``, an 8th root of unity for theta-constants). This
         method returns the ``exp(2πi·φ_m)`` part — the piece that is EXACTLY
         computable on the decision path: the phase is rational with denominator
@@ -1257,32 +1259,56 @@ class RiemannTheta:
         carried SYMBOLICALLY with that factor (:meth:`automorphy_factor`; the rc72
         review lesson). What this exponent IS exactly is the characteristic-phase
         ``φ_m`` — bit-exact, and the genuinely-new genus-2 content (the lattice-shift
-        sign of the theta-constant under ``γ``). The doubled-half characteristic
-        absorbs the ½'s; we carry ``8·φ_m`` as an integer throughout:
+        sign of the theta-constant under ``γ``). Substituting ``m' = ε'/2``,
+        ``m'' = ε/2`` (ε', ε the DOUBLED integer characteristic, bits in {0,1}) and
+        carrying ``8·φ_m`` as an EXACT integer:
 
-            8·φ_m = −4·ε'ᵀ(B·Dᵀ)ε' + 8·εᵀ(AᵀC)ε − 16·ε'ᵀ(BᵀC)ε
-                    − 8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+            8·φ_m = −ε'ᵀ(DᵀB)ε' + 2·ε'ᵀ(BᵀC)ε − εᵀ(AᵀC)ε
+                    + 2·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+
+        rc233 (#824) FIX of a LATENT ζ₈⁴ sign defect: the pre-rc233 body used the
+        REAL-characteristic coefficients (−4, +8, −16, −8) while feeding the DOUBLED
+        integers ε'=2m', ε=2m'' — an unabsorbed extra factor of 2 that made terms 2/3/4
+        ≡ 0 (mod 8) and collapsed term 1 to {0, 4}. That pinned the multiplier to
+        ``{ζ₈⁰, ζ₈⁴} = {+1, −1}`` for EVERY γ — it could never emit ζ₈^{1,2,3,5,6,7}.
+        Concretely: the translation ``Ω ↦ Ω + diag(1,0)`` on characteristic ε'=(1,0)
+        multiplies θ by exactly ``ζ₈¹ = e^{iπ/4}``, but the old code returned k=4 (−1).
+        The corrected integer coefficients (−1, +2, −1, +2) with ``DᵀB`` (not the wrong
+        ``B·Dᵀ``) reproduce the exact theta-constant transformation across all
+        generators and characteristics (verified g1..g4 vs a high-precision numeric
+        theta oracle:
+        ``docs/srmech/rbs_lm_research/theta_transform_multiplier_oracle_rc233.py``;
+        literature anchor arXiv:0801.2543 sha256
+        e6edd3b217d138c20ff9e126e9801bb020042000736b0415d98297b164311797).
         """
         a, b, c, d = cls._validate_gamma(gamma)
         epp = (int(ep_prime[0]), int(ep_prime[1]))
         eps = (int(eps[0]), int(eps[1]))
-        # term 1: −4·ε'ᵀ(B·Dᵀ)ε'   (the −½ becomes −4 after ×8)
-        bdt = cls._m_matmul(b, cls._m_transpose(d))
-        t1 = -4 * cls._dot2(epp, cls._m_matvec(bdt, epp))
-        # term 2: +8·εᵀ(AᵀC)ε
-        atc = cls._m_matmul(cls._m_transpose(a), c)
-        t2 = 8 * cls._dot2(eps, cls._m_matvec(atc, eps))
-        # term 3: −16·ε'ᵀ(BᵀC)ε
+        # term 1: −ε'ᵀ(DᵀB)ε'   (DᵀB, the symmetric symplectic combo; −½ ×2² ×½ → −1)
+        dtb = cls._m_matmul(cls._m_transpose(d), b)
+        t1 = -cls._dot2(epp, cls._m_matvec(dtb, epp))
+        # term 2: +2·ε'ᵀ(BᵀC)ε
         btc = cls._m_matmul(cls._m_transpose(b), c)
-        t3 = -16 * cls._dot2(epp, cls._m_matvec(btc, eps))
-        # term 4: −8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+        t2 = 2 * cls._dot2(epp, cls._m_matvec(btc, eps))
+        # term 3: −εᵀ(AᵀC)ε
+        atc = cls._m_matmul(cls._m_transpose(a), c)
+        t3 = -cls._dot2(eps, cls._m_matvec(atc, eps))
+        # term 4: +2·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
         diag_ab = cls._m_diag_of_prod(a, b)
         d_epp = cls._m_matvec(d, epp)
         c_eps = cls._m_matvec(c, eps)
         arg = [d_epp[i] - c_eps[i] for i in range(2)]
-        t4 = -8 * cls._dot2(diag_ab, arg)
+        t4 = 2 * cls._dot2(diag_ab, arg)
         eight_phi = t1 + t2 + t3 + t4
-        return eight_phi % 8                       # exact k ∈ {0,…,7}
+        # rc233 (#824), part 2: fold the mod-2 OUTPUT-reduction sign into the exponent
+        # so the RETURNED (reduced characteristic, kexp) COMPOSES.  transform returns the
+        # reduced target [γ·m mod 2]; the shift θ[ε'+2a; ε+2b] = (−1)^{p·b}·θ[p; q] (a
+        # ζ₈⁴ = Class-K ±1) relates it to the unreduced Igusa target — p = reduced upper
+        # char, b = ⌊new_eps/2⌋ the lower-char reduction amount.
+        new_epp, new_eps = cls._char_transform_int(gamma, epp, eps)
+        fold = ((new_epp[0] % 2) * (new_eps[0] // 2)
+                + (new_epp[1] % 2) * (new_eps[1] // 2))
+        return (eight_phi + 4 * fold) % 8          # exact k ∈ {0,…,7}
 
     @staticmethod
     def _dot2(u: "Tuple[int, int]", v: "Tuple[int, int]") -> int:
@@ -3407,8 +3433,8 @@ class RiemannThetaG3:
         GENERAL genus g (a sum over ``k,l = 1..g``; the SAME expression at every g —
         verified MPM):
 
-            φ_m(γ) = −½·ε'ᵀ·(B·Dᵀ)·ε' + εᵀ·(AᵀC)·ε − 2·ε'ᵀ·(BᵀC)·ε
-                     − diag(A·Bᵀ)ᵀ·(D·ε' − C·ε)
+            φ_m(γ) = −½·m'ᵀ(DᵀB)m' + 2·m'ᵀ(BᵀC)m'' − m''ᵀ(AᵀC)m''
+                     + ½·diag(A·Bᵀ)ᵀ·(D·m' − C·m'')    (m = (ε'/2, ε/2))
 
         This returns the ``exp(2πi·φ_m)`` part — the piece EXACTLY computable on the
         decision path: the phase is rational with denominator dividing 8, so ``8·φ_m``
@@ -3416,35 +3442,47 @@ class RiemannThetaG3:
         ``γ``-only factor ``κ₀(γ)`` (the Maslov / Weil cocycle 8th root) is BOUND to
         the TRANSCENDENTAL automorphy factor ``det(C·Ω+D)^{1/2}`` (the branch of the
         square root), so it is NOT placed on the decision path — carried SYMBOLICALLY
-        (:meth:`automorphy_factor`; the rc72 review lesson). The doubled-half
-        characteristic absorbs the ½'s; we carry ``8·φ_m`` as an integer throughout
-        (the g=2 ``RiemannTheta._kappa_exp8`` expression, parametrically extended to
-        3-vectors / 3×3 blocks):
+        (:meth:`automorphy_factor`; the rc72 review lesson). Substituting the DOUBLED
+        integer characteristic ``ε' = 2m'``, ``ε = 2m''`` and carrying ``8·φ_m`` as an
+        EXACT integer (the g=2 ``RiemannTheta._kappa_exp8`` expression, parametrically
+        extended to 3-vectors / 3×3 blocks):
 
-            8·φ_m = −4·ε'ᵀ(B·Dᵀ)ε' + 8·εᵀ(AᵀC)ε − 16·ε'ᵀ(BᵀC)ε
-                    − 8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+            8·φ_m = −ε'ᵀ(DᵀB)ε' + 2·ε'ᵀ(BᵀC)ε − εᵀ(AᵀC)ε
+                    + 2·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+
+        rc233 (#824) FIX of a LATENT ζ₈⁴ sign defect — see ``RiemannTheta._kappa_exp8``
+        for the full account: the pre-rc233 (−4, +8, −16, −8)·``B·Dᵀ`` form fed the
+        doubled ε into the real-m formula, collapsing the multiplier to
+        ``{ζ₈⁰, ζ₈⁴} = {±1}`` for every γ. The corrected (−1, +2, −1, +2)·``DᵀB``
+        coefficients reproduce the exact genus-3 theta-constant transformation (verified
+        vs the numeric theta oracle).
         """
         a, b, c, d = cls._validate_gamma6(gamma)
         epp = (int(ep_prime[0]), int(ep_prime[1]), int(ep_prime[2]))
         eps = (int(eps[0]), int(eps[1]), int(eps[2]))
         tr, mm = cls._m3_transpose, cls._m3_matmul
-        # term 1: −4·ε'ᵀ(B·Dᵀ)ε'   (the −½ becomes −4 after ×8)
-        bdt = mm(b, tr(d))
-        t1 = -4 * cls._dot3(epp, cls._m3_matvec(bdt, epp))
-        # term 2: +8·εᵀ(AᵀC)ε
-        atc = mm(tr(a), c)
-        t2 = 8 * cls._dot3(eps, cls._m3_matvec(atc, eps))
-        # term 3: −16·ε'ᵀ(BᵀC)ε
+        # term 1: −ε'ᵀ(DᵀB)ε'   (DᵀB, the symmetric symplectic combo)
+        dtb = mm(tr(d), b)
+        t1 = -cls._dot3(epp, cls._m3_matvec(dtb, epp))
+        # term 2: +2·ε'ᵀ(BᵀC)ε
         btc = mm(tr(b), c)
-        t3 = -16 * cls._dot3(epp, cls._m3_matvec(btc, eps))
-        # term 4: −8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+        t2 = 2 * cls._dot3(epp, cls._m3_matvec(btc, eps))
+        # term 3: −εᵀ(AᵀC)ε
+        atc = mm(tr(a), c)
+        t3 = -cls._dot3(eps, cls._m3_matvec(atc, eps))
+        # term 4: +2·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
         diag_ab = cls._m3_diag_of_prod(a, b)
         d_epp = cls._m3_matvec(d, epp)
         c_eps = cls._m3_matvec(c, eps)
         arg = [d_epp[i] - c_eps[i] for i in range(3)]
-        t4 = -8 * cls._dot3(tuple(diag_ab), tuple(arg))
+        t4 = 2 * cls._dot3(tuple(diag_ab), tuple(arg))
         eight_phi = t1 + t2 + t3 + t4
-        return eight_phi % 8                       # exact k ∈ {0,…,7}
+        # rc233 (#824), part 2: fold the mod-2 OUTPUT-reduction sign (−1)^{p·b}=ζ₈⁴ into
+        # the exponent so the RETURNED (reduced characteristic, kexp) COMPOSES — see
+        # ``RiemannTheta._kappa_exp8``. p = reduced upper char, b = ⌊new_eps/2⌋.
+        new_epp, new_eps = cls._char_transform_int(gamma, epp, eps)
+        fold = sum((new_epp[i] % 2) * (new_eps[i] // 2) for i in range(3))
+        return (eight_phi + 4 * fold) % 8          # exact k ∈ {0,…,7}
 
     def transform(self, gamma: "_Sp6") -> "Tuple[RiemannThetaG3, int]":
         """The EXACT genus-3 Sp(6, ℤ) modular action on THIS theta-characteristic:
@@ -5065,37 +5103,51 @@ class RiemannThetaG4:
         verified MPM, the g=2/g=3 ``_kappa_exp8`` parametrically extended to 4-vectors /
         4×4 blocks):
 
-            8·φ_m = −4·ε'ᵀ(B·Dᵀ)ε' + 8·εᵀ(AᵀC)ε − 16·ε'ᵀ(BᵀC)ε
-                    − 8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+            8·φ_m = −ε'ᵀ(DᵀB)ε' + 2·ε'ᵀ(BᵀC)ε − εᵀ(AᵀC)ε
+                    + 2·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
 
-        This returns ``k = (8·φ_m) mod 8`` — the piece EXACTLY computable on the decision
-        path (the phase is rational with denominator dividing 8, so ``8·φ_m`` is an EXACT
-        integer; no float). The remaining ``γ``-only factor ``κ₀(γ)`` (the Maslov / Weil
-        cocycle 8th root) is BOUND to the TRANSCENDENTAL automorphy factor
-        ``det(C·Ω+D)^{1/2}`` (the branch of the square root), so it is NOT placed on the
-        decision path — carried SYMBOLICALLY (:meth:`automorphy_factor`)."""
+        (with the DOUBLED integer characteristic ``ε' = 2m'``, ``ε = 2m''``, m = the real
+        half-integer characteristic). This returns ``k = (8·φ_m) mod 8`` — the piece
+        EXACTLY computable on the decision path (the phase is rational with denominator
+        dividing 8, so ``8·φ_m`` is an EXACT integer; no float). The remaining ``γ``-only
+        factor ``κ₀(γ)`` (the Maslov / Weil cocycle 8th root) is BOUND to the
+        TRANSCENDENTAL automorphy factor ``det(C·Ω+D)^{1/2}`` (the branch of the square
+        root), so it is NOT placed on the decision path — carried SYMBOLICALLY
+        (:meth:`automorphy_factor`).
+
+        rc233 (#824) FIX of a LATENT ζ₈⁴ sign defect — see ``RiemannTheta._kappa_exp8``
+        for the full account: the pre-rc233 (−4, +8, −16, −8)·``B·Dᵀ`` form fed the
+        doubled ε into the real-m formula, collapsing the multiplier to
+        ``{ζ₈⁰, ζ₈⁴} = {±1}`` for every γ. The corrected (−1, +2, −1, +2)·``DᵀB``
+        coefficients reproduce the exact genus-4 theta-constant transformation (verified
+        vs the numeric theta oracle)."""
         a, b, c, d = cls._validate_gamma8(gamma)
         epp = (int(ep_prime[0]), int(ep_prime[1]),
                int(ep_prime[2]), int(ep_prime[3]))
         eps = (int(eps[0]), int(eps[1]), int(eps[2]), int(eps[3]))
         tr, mm = cls._m4_transpose, cls._m4_matmul
-        # term 1: −4·ε'ᵀ(B·Dᵀ)ε'   (the −½ becomes −4 after ×8)
-        bdt = mm(b, tr(d))
-        t1 = -4 * cls._dot4(epp, cls._m4_matvec(bdt, epp))
-        # term 2: +8·εᵀ(AᵀC)ε
-        atc = mm(tr(a), c)
-        t2 = 8 * cls._dot4(eps, cls._m4_matvec(atc, eps))
-        # term 3: −16·ε'ᵀ(BᵀC)ε
+        # term 1: −ε'ᵀ(DᵀB)ε'   (DᵀB, the symmetric symplectic combo)
+        dtb = mm(tr(d), b)
+        t1 = -cls._dot4(epp, cls._m4_matvec(dtb, epp))
+        # term 2: +2·ε'ᵀ(BᵀC)ε
         btc = mm(tr(b), c)
-        t3 = -16 * cls._dot4(epp, cls._m4_matvec(btc, eps))
-        # term 4: −8·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
+        t2 = 2 * cls._dot4(epp, cls._m4_matvec(btc, eps))
+        # term 3: −εᵀ(AᵀC)ε
+        atc = mm(tr(a), c)
+        t3 = -cls._dot4(eps, cls._m4_matvec(atc, eps))
+        # term 4: +2·diag(A·Bᵀ)ᵀ(D·ε' − C·ε)
         diag_ab = cls._m4_diag_of_prod(a, b)
         d_epp = cls._m4_matvec(d, epp)
         c_eps = cls._m4_matvec(c, eps)
         arg = [d_epp[i] - c_eps[i] for i in range(4)]
-        t4 = -8 * cls._dot4(tuple(diag_ab), tuple(arg))
+        t4 = 2 * cls._dot4(tuple(diag_ab), tuple(arg))
         eight_phi = t1 + t2 + t3 + t4
-        return eight_phi % 8                       # exact k ∈ {0,…,7}
+        # rc233 (#824), part 2: fold the mod-2 OUTPUT-reduction sign (−1)^{p·b}=ζ₈⁴ into
+        # the exponent so the RETURNED (reduced characteristic, kexp) COMPOSES — see
+        # ``RiemannTheta._kappa_exp8``. p = reduced upper char, b = ⌊new_eps/2⌋.
+        new_epp, new_eps = cls._char_transform_int(gamma, epp, eps)
+        fold = sum((new_epp[i] % 2) * (new_eps[i] // 2) for i in range(4))
+        return (eight_phi + 4 * fold) % 8          # exact k ∈ {0,…,7}
 
     def transform(self, gamma: "_Sp8") -> "Tuple[RiemannThetaG4, int]":
         """The EXACT genus-4 Sp(8, ℤ) modular action on THIS theta-characteristic:
