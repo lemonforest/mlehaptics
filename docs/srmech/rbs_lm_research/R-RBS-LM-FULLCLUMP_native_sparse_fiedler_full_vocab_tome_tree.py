@@ -22,14 +22,21 @@ from pathlib import Path
 import srmech
 from srmech.amsc import laplacian as L
 
-ASSOC = Path(os.environ.get("ASSOC", str(Path.home() / "corpora" / "wikipedia" / "simplewiki_assoc.json")))
+# F1207 REPOINT: the source is now the WEIGHTED full_sparse_kernel (edge_list + edge_weights = TRUE co-occurrence
+# weights) — the correct object. Falls back to a legacy top-K assoc (word->names, IDF-of-degree proxy) if given one.
+SRC = Path(os.environ.get("KERNEL") or os.environ.get("ASSOC")
+           or str(Path.home() / "corpora" / "wikipedia" / "simplewiki_full_sparse_kernel.json"))
 OUT = Path(os.environ.get("OUT", str(Path.home() / "corpora" / "wikipedia" / "simplewiki_tome_tree.json")))
 H_DROP = int(os.environ.get("H_DROP", "300"))               # drop top-df hubs (scale H_DROP with the graph, e.g. enwiki)
 MIN_INDEG = int(os.environ.get("MIN_INDEG", "3"))
 MAXTOME = int(os.environ.get("MAXTOME", "12"))
 MAX_ITERS = 250
 MAX_NODES = int(os.environ.get("MAX_NODES", "0"))
-SRC_LABEL = ASSOC.stem                                       # e.g. 'simplewiki_assoc' / 'enwiki_assoc' (attestation)
+# true_idf = the TRUE co-occurrence weight DE-LENSED by IDF (hub suppression, F784/F786) — the right default:
+# raw 'true' weights let frequency lens the partition (small-kernel within-fraction 4.5% -> 63.5% with true_idf,
+# coherent domain tomes: volcano~pinatubo~kilauea, planet~ixion~varda). 'true' | 'idf' (legacy proxy) also selectable.
+WEIGHT_MODE = os.environ.get("WEIGHT_MODE", "true_idf")
+SRC_LABEL = SRC.stem                                        # e.g. 'simplewiki_full_sparse_kernel' (attestation)
 PROBES = "ketchup tomato planet star music guitar france dog volcano computer".split()
 _MONTH = re.compile(r".+(january|february|march|april|may|june|july|august|september|october|november|december)$")
 
@@ -39,17 +46,24 @@ def is_artifact(w):
     return len(w) > 18 or bool(_MONTH.match(w))
 
 
-def main():
-    sys.setrecursionlimit(1_000_000)
-    print(f"=== R-RBS-LM-FULLCLUMP — full-vocab native tome-tree + web (srmech {srmech.__version__}) ===")
-    t0 = time.time()
-    assoc = json.loads(ASSOC.read_text()).get("assoc", {})
+def load_graph():
+    """Load the graph source and build the de-lensed weighted adjacency. The WEIGHTED full_sparse_kernel path uses
+    the TRUE co-occurrence weights (F1207 repoint); the legacy top-K assoc path uses the IDF-of-degree proxy (the
+    substitute for the weights it lacked). De-lensing is structural + weight-agnostic: drop top-H in-degree hubs +
+    rare floor (in-degree < MIN_INDEG) + artifact tokens. Returns (words, idx, adj, indeg, n_edges, weighted)."""
+    k = json.loads(SRC.read_text())
+    weighted = bool(k.get("edge_list")) and bool(k.get("edge_weights"))
     indeg = {}
-    for w, nbrs in assoc.items():
-        for nb in nbrs:
-            indeg[nb] = indeg.get(nb, 0) + 1
+    if weighted:                                            # in-degree from the real edges (for hub-drop + rare floor)
+        vocab = k["vocab"]
+        for a, b in k["edge_list"]:
+            indeg[vocab[a]] = indeg.get(vocab[a], 0) + 1
+            indeg[vocab[b]] = indeg.get(vocab[b], 0) + 1
+    else:
+        for w, nbrs in k.get("assoc", {}).items():
+            for nb in nbrs:
+                indeg[nb] = indeg.get(nb, 0) + 1
     ranked = sorted(indeg, key=indeg.get, reverse=True)
-    hubs = set(ranked[:H_DROP])
     words = [w for w in ranked[H_DROP:] if indeg[w] >= MIN_INDEG and 3 <= len(w) <= 18 and not is_artifact(w)]
     if MAX_NODES:
         words = words[:MAX_NODES]
@@ -60,17 +74,42 @@ def main():
         return 1.0 / (1.0 + indeg.get(w, 0))
 
     adj = [dict() for _ in range(nv)]
-    for w in words:
-        i = idx[w]
-        for nb in assoc.get(w, ()):
-            j = idx.get(nb)
-            if j is None or j == i:
+    if weighted:
+        vocab, ew = k["vocab"], k["edge_weights"]
+        for (a, b), wraw in zip(k["edge_list"], ew):
+            i, j = idx.get(vocab[a]), idx.get(vocab[b])
+            if i is None or j is None or i == j:
                 continue
-            wt = idf(w) * idf(nb)
+            wt = float(wraw)                                # TRUE co-occurrence weight (the repoint)
+            if WEIGHT_MODE == "idf":
+                wt = idf(vocab[a]) * idf(vocab[b])
+            elif WEIGHT_MODE == "true_idf":                 # true weight, de-lensed by IDF (hub suppression, F784/F786)
+                wt = float(wraw) * idf(vocab[a]) * idf(vocab[b])
             if wt > adj[i].get(j, 0.0):
                 adj[i][j] = wt; adj[j][i] = wt
-    n_edges = sum(len(d) for d in adj) // 2
-    print(f"  graph: {nv} content words (dropped top-{H_DROP} hubs + rare/artifact), {n_edges} edges ({time.time()-t0:.1f}s)")
+    else:
+        assoc = k.get("assoc", {})
+        for w in words:
+            i = idx[w]
+            for nb in assoc.get(w, ()):
+                j = idx.get(nb)
+                if j is None or j == i:
+                    continue
+                wt = idf(w) * idf(nb)
+                if wt > adj[i].get(j, 0.0):
+                    adj[i][j] = wt; adj[j][i] = wt
+    return words, idx, adj, indeg, sum(len(d) for d in adj) // 2, weighted
+
+
+def main():
+    sys.setrecursionlimit(1_000_000)
+    print(f"=== R-RBS-LM-FULLCLUMP — full-vocab native tome-tree + web (srmech {srmech.__version__}) ===")
+    t0 = time.time()
+    words, idx, adj, indeg, n_edges, weighted = load_graph()
+    nv = len(words)
+    print(f"  graph: {nv} content words (dropped top-{H_DROP} hubs + rare/artifact), {n_edges} edges, "
+          f"weights={'TRUE co-occurrence (%s)' % WEIGHT_MODE if weighted else 'IDF proxy (legacy assoc)'} "
+          f"({time.time()-t0:.1f}s)")
 
     leaves = []                       # (members, path) — path is the L/R tree address (F780 clumps-of-clumps)
     calls = [0]
@@ -135,6 +174,7 @@ def main():
 
     OUT.write_text(json.dumps({
         "source": SRC_LABEL, "srmech": srmech.__version__, "n_nodes": nv, "n_edges": n_edges,
+        "weighted": weighted, "weight_mode": WEIGHT_MODE if weighted else "idf_proxy_legacy",
         "h_drop": H_DROP, "min_indeg": MIN_INDEG, "maxtome": MAXTOME, "n_tomes": len(leaves),
         "tomes": [[words[g] for g in mem] for mem, _ in leaves],
         "paths": [p for _, p in leaves],
