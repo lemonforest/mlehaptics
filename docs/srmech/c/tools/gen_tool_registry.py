@@ -198,6 +198,7 @@ def generate() -> str:
         b(f"        {hoist.opt_expr(t.mcp_unavailable_reason)},")
         b(f"        {hoist.opt_expr(_fragment(t.example))},")
         b(f"        {hoist.opt_expr(_fragment(t.smoke_test_hint))},")
+        b(f"        {hoist.opt_expr(t.explanation)},")
         b("    },")
     b("};")
     b("")
