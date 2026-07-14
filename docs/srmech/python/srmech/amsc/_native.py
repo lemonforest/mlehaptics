@@ -3292,6 +3292,24 @@ def _bind(lib: ctypes.CDLL) -> None:
         # pack(loose_dir, dest, the_one, the_one_len, ws, ws_len)
         lib.srmech_genome_pack.argtypes = [_CP, _CP, _U8, _SZ, _VP, _SZ]
         lib.srmech_genome_pack.restype = ctypes.c_int
+        # rc244 (gh #1390 item 2): the sparse signed-graph <-> Klein-4 kernel
+        # codec (srmech_graph_kernel_encode / _decode). ADDITIVE symbols —
+        # EXPECTED_ABI_VERSION stays 5. hasattr-guarded (a pre-rc244 lib uses
+        # the pure-Python codec).
+        _PU32 = ctypes.POINTER(ctypes.c_uint32)
+        _PI64 = ctypes.POINTER(ctypes.c_int64)
+        if hasattr(lib, "srmech_graph_kernel_encode"):
+            #   encode(vocab, nv, edges, weights, charges, ne,
+            #          out_syms, out_cap, out_n)
+            lib.srmech_graph_kernel_encode.argtypes = [
+                _PU32, _SZ, _PU32, _PU32, _PI64, _SZ, _U8, _SZ, _PSZ]
+            lib.srmech_graph_kernel_encode.restype = ctypes.c_int
+        if hasattr(lib, "srmech_graph_kernel_decode"):
+            #   decode(syms, n_syms, out_vocab, vocab_cap, out_nv,
+            #          out_edges, out_weights, out_charges, edge_cap, out_ne)
+            lib.srmech_graph_kernel_decode.argtypes = [
+                _U8, _SZ, _PU32, _SZ, _PSZ, _PU32, _PU32, _PI64, _SZ, _PSZ]
+            lib.srmech_graph_kernel_decode.restype = ctypes.c_int
         # §127/rc127 (#726) — the active-telomere TICK (divide/gate): the operand
         # (count) selects the operator. cap in, out_cap + senescent + count_after out.
         # No arena (out_cap is caller-provided). NEW symbol → hasattr-guarded (a stale
@@ -16673,6 +16691,71 @@ def has_native_genome() -> bool:
                 and hasattr(LIB, "srmech_genome_save")
                 and hasattr(LIB, "srmech_json_write_ws")
                 and hasattr(LIB, "srmech_genome_arena_bytes"))
+
+
+def has_native_graph_kernel_codec() -> bool:
+    """True iff the rc244 sparse signed-graph <-> Klein-4 kernel codec C peer
+    (``srmech_graph_kernel_encode`` / ``_decode``, gh #1390 item 2) is loaded +
+    bound: the flatten / zig-zag / base-4-varint runs in C. False on a no-C or
+    pre-rc244 lib — the pure-Python ``genome._graph_ints_to_syms`` /
+    ``_graph_syms_to_ints`` body is the complete alternative (and the
+    byte-identical parity oracle). ADDITIVE symbols (EXPECTED_ABI stays 5)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_graph_kernel_encode")
+                and hasattr(LIB, "srmech_graph_kernel_decode"))
+
+
+def graph_kernel_encode_c(vocab, edges, weights, charges):
+    """Native ``srmech_graph_kernel_encode``: an integer graph's flat fields ->
+    the Klein-4 symbol list (byte-identical to the pure
+    ``_graph_ints_to_syms(_graph_to_ints(...))``). Only call when
+    :func:`has_native_graph_kernel_codec`. Raises on a >2**30 value (the codec
+    ceiling; the C returns SRMECH_ERR_BAD_INPUT)."""
+    nv = len(vocab)
+    ne = len(edges)
+    voc = (ctypes.c_uint32 * max(nv, 1))(*[int(v) for v in vocab])
+    ed = (ctypes.c_uint32 * max(2 * ne, 1))(
+        *[int(x) for e in edges for x in e])
+    wt = (ctypes.c_uint32 * max(ne, 1))(*[int(w) for w in weights])
+    ch = (ctypes.c_int64 * max(ne, 1))(*[int(c) for c in charges])
+    cap = 17 * (2 + nv + 4 * ne) + 8          # 17 = 2 header + 15 max digits
+    out = (ctypes.c_uint8 * cap)()
+    n = ctypes.c_size_t(0)
+    rc = LIB.srmech_graph_kernel_encode(
+        voc, nv, ed, wt, ch, ne, out, cap, ctypes.byref(n))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_graph_kernel_encode returned status {rc}")
+    return [int(out[i]) for i in range(n.value)]
+
+
+def graph_kernel_decode_c(syms):
+    """Native ``srmech_graph_kernel_decode``: a Klein-4 symbol sequence ->
+    ``(vocab, edges, weights, charges)`` (byte-identical to the pure
+    ``_ints_to_graph(_graph_syms_to_ints(...))``). Only call when
+    :func:`has_native_graph_kernel_codec`."""
+    n_syms = len(syms)
+    sy = (ctypes.c_uint8 * max(n_syms, 1))(*[int(s) & 3 for s in syms])
+    cap = n_syms + 1                          # each value costs >= 3 syms
+    ov = (ctypes.c_uint32 * cap)()
+    oe = (ctypes.c_uint32 * (2 * cap))()
+    ow = (ctypes.c_uint32 * cap)()
+    oc = (ctypes.c_int64 * cap)()
+    onv = ctypes.c_size_t(0)
+    one = ctypes.c_size_t(0)
+    rc = LIB.srmech_graph_kernel_decode(
+        sy, n_syms, ov, cap, ctypes.byref(onv),
+        oe, ow, oc, cap, ctypes.byref(one))
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_graph_kernel_decode returned status {rc}")
+    nv = onv.value
+    ne = one.value
+    vocab = [int(ov[i]) for i in range(nv)]
+    edges = [(int(oe[2 * i]), int(oe[2 * i + 1])) for i in range(ne)]
+    weights = [int(ow[i]) for i in range(ne)]
+    charges = [int(oc[i]) for i in range(ne)]
+    return vocab, edges, weights, charges
 
 
 def _genome_file_size(path: str) -> int:
