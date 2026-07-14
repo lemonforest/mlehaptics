@@ -2,6 +2,8 @@
 
 **User (2026-07-14):** *"find out why Siona is using NDJSON as an instrument instead of srmech tooling, like a genome."* Traced to the code + the decision record + a live re-measurement. **It is deliberate and upstream-gated, not an oversight.**
 
+> **CORRECTION (rc241, F1221 — self-refute; this is a curvature/refute edge in our own record, F1217):** my "§55 still live at rc238" claim below was a **measurement artifact**, not real. I measured the bloat at N=4096, where the fixed ~2 KB `manifest.json` dominated (0.81 B/sym was mostly manifest). Re-measured on **rc241 at N=200,000**: `turns.bin` packs at **0.265 B/sym** (ideal 2-bit = 0.25) — **the 4× lane bloat is FIXED** (as the user recalled, "fixed several rcN ago"). And `genome_pack`/kernel_pack is now **linear** (0.47 ms/chromosome flat, 20→320). **So §55 is RESOLVED and genome-native is UNBLOCKED.** The remaining "why NDJSON" reasons below still hold as of rc1 (it's the *shipped* decision + the raw-text-source role), but the *technical* blocker is gone — see F1221 for the corrected go-forward (store the **Laplacian**, not Klein-4, on disk).
+
 ## The answer (grounded)
 1. **The native genome is already built and byte-exact.** `siona.genome_store` packs Siona's Klein-4 instrument into a native srmech genome (`_G.genome`/`genome_save`/`genome_load`/`kernel_unpack`, PKG-3/#249); `siona/bridge.py` states the single-file genome "was prototyped and **recalls exactly**." Genome-native is not missing.
 2. **rc1 ships the loose NDJSON store because the genome format is blocked at CORPUS SCALE on two upstream srmech bugs** (bridge.py, UPSTREAM_NOTES §55 / F832/F833):
