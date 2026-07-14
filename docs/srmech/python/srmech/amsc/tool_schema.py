@@ -171,6 +171,14 @@ class ToolEntry:
     returns: Optional[ToolReturn] = None
     smoke_test_hint: Optional[Dict[str, Any]] = None
     example: Optional[Dict[str, Any]] = None
+    #: v0.9.0rc240 (#838) — a human-readable EXPLANATION of what the tool
+    #: does / when to use it, beyond the one-line `summary`. ``None`` when
+    #: no explanation is registered (introspection consumers fall back to
+    #: `summary`). Auto-seeded from each op's docstring + hand-curated for
+    #: the central ops; grows toward full coverage under a monotone floor
+    #: ratchet. C-mirrored (srmech_tool_entry_t.explanation) → flows through
+    #: the tool_schema_sha256 attestation like `summary`/`example`.
+    explanation: Optional[str] = None
     #: v0.5.0rc15 — whether this tool is actually invocable across the
     #: JSON-RPC / Anthropic boundary. Default ``True`` (back-compat: every
     #: pre-rc15 ToolEntry stays callable). Set ``False`` for tools whose
@@ -204,6 +212,8 @@ class ToolEntry:
             out["smoke_test_hint"] = dict(self.smoke_test_hint)
         if self.example is not None:
             out["example"] = dict(self.example)
+        if self.explanation is not None:
+            out["explanation"] = self.explanation
         if self.mcp_unavailable_reason is not None:
             out["mcp_unavailable_reason"] = self.mcp_unavailable_reason
         return out
@@ -295,6 +305,32 @@ class ToolSchema:
 
 _REGISTRY: Dict[str, ToolEntry] = {}
 
+# v0.9.0rc240 (#838) — the generated introspection docs floor: per-tool
+# EXPLANATION (docstring-seeded) + EXAMPLE (executed I/O where safe, else an
+# honest signature snippet), hand-curation merged in at generation time. A
+# guarded import so a stripped/missing _tool_docs never breaks package import.
+try:  # pragma: no cover - trivial import guard
+    from ._tool_docs import TOOL_DOCS as _TOOL_DOCS
+except Exception:  # noqa: BLE001
+    _TOOL_DOCS: Dict[str, Dict[str, Any]] = {}
+
+
+def _apply_docs(entry: ToolEntry) -> ToolEntry:
+    """Merge the generated `_TOOL_DOCS` floor into a ToolEntry: fill
+    ``explanation`` / ``example`` only when the entry does not already carry
+    its own (a hand-written literal on the registration always wins). No-op
+    when the tool has no docs entry."""
+    doc = _TOOL_DOCS.get(entry.name)
+    if not doc:
+        return entry
+    from dataclasses import replace
+    expl = entry.explanation if entry.explanation is not None \
+        else doc.get("explanation")
+    ex = entry.example if entry.example is not None else doc.get("example")
+    if expl is entry.explanation and ex is entry.example:
+        return entry
+    return replace(entry, explanation=expl, example=ex)
+
 
 def register_tool(entry: ToolEntry) -> None:
     """Register one tool entry. Idempotent on identical re-registration;
@@ -303,6 +339,7 @@ def register_tool(entry: ToolEntry) -> None:
     assert isinstance(entry, ToolEntry), \
         f"register_tool: expected ToolEntry, got {type(entry).__name__}"
     assert entry.name, "register_tool: entry.name must be non-empty"
+    entry = _apply_docs(entry)
     existing = _REGISTRY.get(entry.name)
     if existing is None:
         _REGISTRY[entry.name] = entry

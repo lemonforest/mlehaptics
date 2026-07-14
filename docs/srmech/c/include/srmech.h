@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc239"
-#define SRMECH_VERSION       "0.9.0rc239"
+#define SRMECH_VERSION_PRE   "rc240"
+#define SRMECH_VERSION       "0.9.0rc240"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4179,6 +4179,7 @@ typedef struct {
     const char               *mcp_unavailable_reason; /* NULL when callable */
     const char               *example_json;    /* pre-canonical compact-ASCII JSON fragment, or NULL */
     const char               *smoke_json;      /* pre-canonical compact-ASCII JSON fragment, or NULL */
+    const char               *explanation;     /* NUL-terminated decoded UTF-8 hint, or NULL (rc240 #838) */
 } srmech_tool_entry_t;
 
 /* Number of registered tool entries in the const table. */
