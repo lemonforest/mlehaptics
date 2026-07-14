@@ -39,8 +39,9 @@ def word_to_kernel(w, window=1):
     for a in range(len(ch)):
         for b in range(a + 1, min(a + window + 1, len(ch))):
             u, v = loc[ch[a]], loc[ch[b]]
-            if u == v:
-                continue
+            if u == v:                                              # SELF-LOOP: a consecutive repeated glyph (ss/pp/tt/ee)
+                fwd[(u, v)] = fwd.get((u, v), 0) + 1                # forward-in-time, direction-neutral; KEEP it so double
+                continue                                           # letters round-trip (charge==weight -> f=w,r=0 in the split)
             lo, hi = (u, v) if u < v else (v, u)
             (fwd if u < v else bwd)[(lo, hi)] = (fwd if u < v else bwd).get((lo, hi), 0) + 1
     edges = sorted(set(fwd) | set(bwd))
