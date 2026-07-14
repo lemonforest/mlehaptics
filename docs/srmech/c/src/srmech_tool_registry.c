@@ -2326,7 +2326,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"input\":{\"edges\":\"[(0, 1), (1, 2), (2, 0), (2, 3)]\",\"n\":\"4\",\"weights\":\"[1.0, 1.0, 1.0, 1.0]\"},\"output\":\"Mat(4x4, real)\"}",
         NULL,
-        "Combinatorial graph Laplacian L = D \342\210\222 A of a weighted undirected graph (n nodes, edges + per-edge weights) as a dense Mat \342\200\224 the foundation the Class-L spectral readers (fiedler / spine / eigvals) run on.",
+        "Combinatorial graph Laplacian L = D \342\210\222 A of a weighted undirected graph (n nodes, edges + per-edge weights) as a dense Mat \342\200\224 the foundation the Class-L spectral readers (fiedler / spine / eigvals) run on. F1216: the Class-L Laplacian IS the LONG-TERM relational STORE (exact, addressed, directional, GROWS with knowledge \342\200\224 the genome / disk); the Class-M Klein-4/HDC bundle is the transient working-memory read, bridged by the reversible spectral basis-change (eigen / Walsh-Hadamard).",
     },
     { /* 26 */
         "srmech.amsc.laplacian.normalized_laplacian",
@@ -4286,7 +4286,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"input\":{\"a\":\"b'abc'\",\"b\":\"b'abc'\"},\"output\":\"b'\\\\x00\\\\x00\\\\x00'\"}",
         NULL,
-        "Component-wise XOR of two binary-spatter-code (BSC) hypervectors \342\200\224 the Class-M bind that ties a role to a filler; self-inverse (bind(x,x)=0).",
+        "Component-wise XOR of two binary-spatter-code (BSC) hypervectors \342\200\224 the Class-M bind that ties a role to a filler; self-inverse (bind(x,x)=0). F1216: Class-M / HDC = WORKING MEMORY / active context (fuzzy, composable, BOUNDED ~24-bind span, gracefully decays) \342\200\224 a transient read of the Class-L Laplacian long-term store, never the store itself.",
     },
     { /* 166 */
         "srmech.amsc.hdc.bundle",

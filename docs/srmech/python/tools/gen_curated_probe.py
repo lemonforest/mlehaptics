@@ -34,7 +34,11 @@ CENTRAL = [
     ("srmech.amsc.laplacian.dense_laplacian", ((), dict(n=4, edges=_EDGES, weights=_W)),
      "Combinatorial graph Laplacian L = D − A of a weighted undirected graph "
      "(n nodes, edges + per-edge weights) as a dense Mat — the foundation the "
-     "Class-L spectral readers (fiedler / spine / eigvals) run on."),
+     "Class-L spectral readers (fiedler / spine / eigvals) run on. F1216: the "
+     "Class-L Laplacian IS the LONG-TERM relational STORE (exact, addressed, "
+     "directional, GROWS with knowledge — the genome / disk); the Class-M "
+     "Klein-4/HDC bundle is the transient working-memory read, bridged by the "
+     "reversible spectral basis-change (eigen / Walsh-Hadamard)."),
     ("srmech.amsc.laplacian.jacobi_eigvals", ((_DL,), {}),
      "Ascending eigenvalues of a symmetric Mat via cyclic Jacobi rotations "
      "(no numpy). On a graph Laplacian: λ0 = 0 for a connected graph; λ1 (the "
@@ -67,7 +71,10 @@ CENTRAL = [
     ("srmech.amsc.format.sha256_bytes", ((), dict(data=b"abc")), None),
     ("srmech.amsc.hdc.bind", ((), dict(a=b"abc", b=b"abc")),
      "Component-wise XOR of two binary-spatter-code (BSC) hypervectors — the "
-     "Class-M bind that ties a role to a filler; self-inverse (bind(x,x)=0)."),
+     "Class-M bind that ties a role to a filler; self-inverse (bind(x,x)=0). "
+     "F1216: Class-M / HDC = WORKING MEMORY / active context (fuzzy, composable, "
+     "BOUNDED ~24-bind span, gracefully decays) — a transient read of the "
+     "Class-L Laplacian long-term store, never the store itself."),
     ("srmech.amsc.hdc.bundle", ((), dict(vectors=[b"abc", b"abd", b"abe"])),
      "Majority-rule superposition of several BSC hypervectors into one that is "
      "similar to each input — the Class-M bundle (the set/record former)."),

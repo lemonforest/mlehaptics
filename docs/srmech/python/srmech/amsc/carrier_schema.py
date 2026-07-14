@@ -69,6 +69,13 @@ from typing import Any, Dict, List, Optional
 
 from .carrier_ladder import _OP_CONTRACTS
 
+# rc241 (#839) — the generated per-carrier CONSTRUCTION example (the operand-side
+# peer of _tool_docs.py). Guarded so a stripped/missing module never breaks import.
+try:  # pragma: no cover - trivial import guard
+    from ._carrier_examples import CARRIER_EXAMPLES as _CARRIER_EXAMPLES
+except Exception:  # noqa: BLE001
+    _CARRIER_EXAMPLES: Dict[str, Dict[str, Any]] = {}
+
 __all__ = ["carrier_schema"]
 
 
@@ -195,7 +202,10 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "complex entries stored interleaved (re, im). THE float linear-"
             "algebra carrier — fed zero-copy to the native dense kernels "
             "(mat_matmul / mat_solve / mat_eigvals / mat_svd / "
-            "hermitian_eigendecompose)."),
+            "hermitian_eigendecompose). As the graph Laplacian L "
+            "(dense_laplacian / magnetic_laplacian) it is the F1216 Class-L "
+            "LONG-TERM relational STORE: exact, addressed, directional, "
+            "reconstructible, GROWS with knowledge (the genome / disk)."),
         "ladder": None, "rung": None, "variables": [],
     },
     "Vec": {
@@ -209,7 +219,12 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
         "description": (
             "Numpy-free Klein-4 hypervector: an array('B') sector buffer + "
             "a sectors count. The Class-M HDC carrier (bind / bundle / "
-            "permute / similarity and the klein4_* sector ops)."),
+            "permute / similarity and the klein4_* sector ops). F1216: "
+            "Class-M = WORKING MEMORY / active context — fuzzy, composable, "
+            "BOUNDED (the ~24-bind span), gracefully decays; a transient "
+            "holographic READ of the relational store (bundle is a lossy "
+            "sketch), never the store itself. Bridge L↔M = the reversible "
+            "spectral basis-change (eigen / Walsh-Hadamard)."),
         "ladder": None, "rung": None, "variables": [],
     },
     # ── the elliptic row carriers ─────────────────────────────────────────────
@@ -394,6 +409,10 @@ def _pure_carrier_schema() -> Dict[str, Dict[str, Any]]:
             "variables": list(meta["variables"]),
             "ops": ops_index[name],
         }
+        # rc241 (#839) — the per-carrier construction example, when present.
+        ex = _CARRIER_EXAMPLES.get(name)
+        if ex:
+            out[name]["example"] = dict(ex)
     return out
 
 
