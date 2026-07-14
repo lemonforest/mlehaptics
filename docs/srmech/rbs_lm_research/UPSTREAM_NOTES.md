@@ -2342,6 +2342,8 @@ Before sending the ask, stress-tested the prototype (`R-RBS-LM-ETAKNAV_…py`) o
 
 **What does NOT move off the loose store:** the NDJSON also serves the *byte-offset-seekable attested RAW-TEXT source* role (`acquire`/`study` seek a title's offset + quote source text with per-record sha256, F1208) — a different payload from the relational genome. That role can stay NDJSON; the *relational* corpus structure is what migrates to the genome.
 
+**Go-forward ops filed → [#1390] (F1222).** The abstract genome-storage primitives that make #231's "store the directed Laplacian as a genome" a library call — directed cooccurrence (item 1) · `graph_to_kernel`/`kernel_to_graph` codec (item 2) · Eulerian/Hierholzer walk (item 3) · `recover_check` (item 4) · `klein4_permute` (item 5) — are consolidated into one cross-package [srmech] issue (#1390), also benefiting ephemerides-spectral's `SolarSystemLaplacian` (currently Hermitian + recomputed). Each lands a C mirror.
+
 *(Original ask preserved below for the record.)*
 
 ## §55 ASK [REFRESHED → #1245 with rc107 numbers] — genome at CORPUS SCALE: (a) bit-packed leaf storage (the 2-bit Klein-4 lane is stored as a full byte → flat 4× bloat) and (b) a non-quadratic high-chromosome-count pack/append (2026-06-17; F833) — BLOCKS PKG-3 (siona's full-body instrument as ONE native genome)
@@ -2891,7 +2893,7 @@ entered the Python surface without tripping the **#928 down-only Rosetta C/Pytho
 
 ---
 
-## `text.cooccurrence_edges` folds direction away (u<v) — no `directed=` option; the responsion/curvature read is impossible (F1210, 2026-07-13)
+## `text.cooccurrence_edges` folds direction away (u<v) — no `directed=` option; the responsion/curvature read is impossible (F1210, 2026-07-13) — **[FILED → #1390 item 1, 2026-07-14; F1222]**
 
 **Ask:** add an optional `directed=False` to `srmech.amsc.text.cooccurrence_edges(docs, *, window, vocab, directed=False)`.
 When `directed=True`, return the **ordered** (earlier-token → later-token) pairs and their counts (so `edges[(i,j)]`
