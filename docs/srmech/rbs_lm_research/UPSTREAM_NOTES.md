@@ -2893,7 +2893,7 @@ entered the Python surface without tripping the **#928 down-only Rosetta C/Pytho
 
 ---
 
-## `text.cooccurrence_edges` folds direction away (u<v) — no `directed=` option; the responsion/curvature read is impossible (F1210, 2026-07-13) — **[FILED → #1390 item 1, 2026-07-14; F1222]**
+## `text.cooccurrence_edges` folds direction away (u<v) — no `directed=` option; the responsion/curvature read is impossible (F1210, 2026-07-13) — **[FILED → #1390 item 1, 2026-07-14; F1222] · [ESCALATED → reference impl `R-RBS-LM-DIRCOOCCUR` — drop-in `directed=False` + superset `directed=True`, end-to-end through the whole #1390 pipeline; F1226]**
 
 **Ask:** add an optional `directed=False` to `srmech.amsc.text.cooccurrence_edges(docs, *, window, vocab, directed=False)`.
 When `directed=True`, return the **ordered** (earlier-token → later-token) pairs and their counts (so `edges[(i,j)]`
