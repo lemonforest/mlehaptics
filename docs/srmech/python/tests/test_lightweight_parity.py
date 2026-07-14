@@ -118,8 +118,10 @@ def test_introspection_version_native_matches():
     assert _native.NATIVE_VERSION == srmech.__version__
     # v0.5.0rc2 bumped ABI 2 → 3 (bus req/rep C peer + handler typedef);
     # v0.9.0rc180 bumped ABI 3 → 4 (bus pub/sub C peer + the new
-    # srmech_bus_subscriber_callback_t delivery typedef).
-    assert _native.NATIVE_ABI_VERSION == 4
+    # srmech_bus_subscriber_callback_t delivery typedef);
+    # v0.9.0rc242 bumped ABI 4 → 5 (the C progress / introspection callback +
+    # the new srmech_progress_cb_t dispatch-observer typedef, #840).
+    assert _native.NATIVE_ABI_VERSION == 5
 
 
 # ---------------------------------------------------------------------

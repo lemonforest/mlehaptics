@@ -60,7 +60,13 @@ from typing import Optional
 #        typedef srmech_bus_subscriber_callback_t (the pub/sub delivery
 #        callback). Same CFUNCTYPE wire-format convention as v2→v3, so
 #        ABI bumps (the plain additive functions alone would not).
-EXPECTED_ABI_VERSION: int = 4
+#   v5 — v0.9.0rc242: the C progress / introspection callback (#840 —
+#        Class-H self-introspection projected to a bare-C host); new
+#        function-pointer typedef srmech_progress_cb_t (the dispatch
+#        observer) + the srmech_set_progress_cb registration. Same
+#        CFUNCTYPE wire-format convention as v2→v3, so ABI bumps (the
+#        plain srmech_set_progress_cb function alone would not).
+EXPECTED_ABI_VERSION: int = 5
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -288,6 +294,25 @@ BUS_SUBSCRIBER_CALLBACK = ctypes.CFUNCTYPE(
     ctypes.c_int,                            # srmech_status_t return
     ctypes.c_void_p,                          # const uint8_t *event
     ctypes.c_size_t,                          # size_t event_len
+    ctypes.c_void_p,                          # void *user_data
+)
+
+
+# v0.9.0rc242: the C progress / introspection callback ABI (v5). Mirror of the
+# C typedef in srmech.h:
+#
+#   typedef void (*srmech_progress_cb_t)(const char *event_json,
+#                                        void *user_data);
+#
+# The central invoke spine fires it once per dispatched tool with a compact
+# canonical-JSON event (Class-H self-introspection projected to a bare-C host).
+# Adding this typedef is what bumps ABI 4 → 5 (same CFUNCTYPE wire-format
+# convention as the v2→v3 handler-callback bump). A Python host keeps a
+# reference to any registered trampoline alive for as long as it is installed
+# (ctypes does not, so a dropped reference would dangle inside the C library).
+PROGRESS_CALLBACK = ctypes.CFUNCTYPE(
+    None,                                    # void return
+    ctypes.c_char_p,                          # const char *event_json
     ctypes.c_void_p,                          # void *user_data
 )
 
@@ -3565,6 +3590,16 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_invoke_tool.restype = ctypes.c_int
             lib.srmech_invoke_tool_arena_bytes.argtypes = [_SZ]
             lib.srmech_invoke_tool_arena_bytes.restype = ctypes.c_size_t
+
+        # rc242 — the C progress / introspection callback (#840). New symbol +
+        # the srmech_progress_cb_t typedef → ABI 4 → 5. hasattr-guarded (a stale
+        # ABI-4 lib lacks the symbol and simply never emits — Python-only
+        # introspection, unchanged).
+        #   srmech_progress_cb_t srmech_set_progress_cb(
+        #       srmech_progress_cb_t cb, void *user_data)
+        if hasattr(lib, "srmech_set_progress_cb"):
+            lib.srmech_set_progress_cb.argtypes = [PROGRESS_CALLBACK, _VP]
+            lib.srmech_set_progress_cb.restype = PROGRESS_CALLBACK
 
     # ------------------------------------------------------------------
     # Class A — op-provenance canonical record hasher (0.9.0rc117; the

@@ -124,8 +124,8 @@ To check the backend state, call `srmech.native_status()` (top-level; equivalent
 ```python
 import srmech
 srmech.native_status()
-# {'has_native': True, 'dispatching': True, 'abi_version': 4,
-#  'expected_abi': 4, 'native_version': '0.9.0', 'load_error': None}
+# {'has_native': True, 'dispatching': True, 'abi_version': 5,
+#  'expected_abi': 5, 'native_version': '0.9.0', 'load_error': None}
 ```
 
 | Module | Class | Primitive operation |

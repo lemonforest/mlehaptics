@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc241"
-#define SRMECH_VERSION       "0.9.0rc241"
+#define SRMECH_VERSION_PRE   "rc242"
+#define SRMECH_VERSION       "0.9.0rc242"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -92,8 +92,16 @@ extern "C" {
  *      Per the v2→v3 precedent, adding a callback typedef carries a
  *      CFUNCTYPE wire-format implication, so ABI bumps (the plain
  *      additive functions alone would not).
+ * v5 — v0.9.0rc242: the C progress / introspection callback (#840 —
+ *      Class-H self-introspection projected to a bare-C host, completing
+ *      the everything-to-C surface). Adds the new function-pointer typedef
+ *      srmech_progress_cb_t (the dispatch-observer callback) alongside the
+ *      srmech_set_progress_cb registration symbol. Per the v2→v3 / v3→v4
+ *      precedent, adding a callback typedef carries a CFUNCTYPE wire-format
+ *      implication for the Python ctypes shim, so ABI bumps (the plain
+ *      srmech_set_progress_cb function alone would not).
  */
-#define SRMECH_ABI_VERSION 4
+#define SRMECH_ABI_VERSION 5
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -4601,6 +4609,55 @@ srmech_status_t srmech_invoke_tool_json(const char *name,
 /* Workspace bytes srmech_invoke_tool needs for a `params_len`-byte argument
  * object (the parse tree + carrier tree + decoded byte buffers + result). */
 size_t srmech_invoke_tool_arena_bytes(size_t params_len);
+
+/* ------------------------------------------------------------------
+ * PROGRESS / INTROSPECTION CALLBACK (0.9.0rc242, #840) — Class-H (self-
+ * introspection) projected across the BARE-C HOST boundary.
+ *
+ * srmech's introspection stream (~/.srmech/run-*.ndjson) is otherwise written
+ * ONLY by the Python srmech.introspect.Writer at Python op boundaries — the C
+ * library itself emits nothing, so a no-Python host cannot observe which op ran.
+ * This callback completes the everything-to-C surface: a host registers a
+ * callback with srmech_set_progress_cb, and the central invoke spine
+ * (srmech_invoke_tool / _json -> iv_dispatch) fires it ONCE per successfully-
+ * dispatched tool (on the real materialisation pass; a NULL-buf size-query does
+ * not emit) with a compact canonical-JSON event describing the op:
+ *
+ *   {"category": <category>, "mpr_version": "1.0", "op_name": <dotted name>}
+ *
+ * The event is built through srmech_json_write_ws (the keystone), so it is
+ * BYTE-IDENTICAL to CPython
+ *   json.dumps({"category": ..., "mpr_version": "1.0", "op_name": ...},
+ *              sort_keys=True, ensure_ascii=False)
+ * — the SAME shape (and ", " / ": " separators) the Python
+ * srmech.introspect._event.serialize emits. A host may append the line straight
+ * to its own NDJSON stream, enriching it with a timestamp / pid the way the
+ * Python Writer does: the C library reports WHAT ran, not WHEN (the clock is the
+ * host's), keeping the emit a pure function of the dispatch — deterministic,
+ * byte-exact-testable, and libm/time-free.
+ *
+ * OFF BY DEFAULT: with no callback registered the emit path returns after a
+ * single NULL-pointer test, so the hot dispatch path pays nothing.
+ *
+ * ABI v5 (this rc): the new srmech_progress_cb_t typedef carries a CFUNCTYPE
+ * wire-format implication (the v2→v3 / v3→v4 callback-typedef precedent), so
+ * ABI bumps; srmech_set_progress_cb itself is an additive symbol.
+ * ------------------------------------------------------------------ */
+
+/* Progress / introspection callback. The C library invokes it once per
+ * successfully-dispatched tool with `event_json` (a NUL-terminated compact
+ * canonical-JSON object, valid for the lifetime of the call only — copy it to
+ * retain) and the opaque `user_data` registered alongside the callback. The
+ * callback MUST be cheap and MUST NOT re-enter srmech_invoke_* (it fires inside
+ * dispatch). */
+typedef void (*srmech_progress_cb_t)(const char *event_json, void *user_data);
+
+/* Register (or clear, `cb` == NULL) the PROCESS-GLOBAL progress callback and its
+ * opaque `user_data`. Returns the PREVIOUS callback (NULL if none) so a host can
+ * chain or restore. The observer is process-wide (mirroring the Python single-
+ * global srmech.introspect writer); set it before spinning worker threads. */
+srmech_progress_cb_t srmech_set_progress_cb(srmech_progress_cb_t cb,
+                                            void *user_data);
 
 /* ------------------------------------------------------------------
  * make_class OBJECT-MODEL ENGINE (0.9.0rc201; the make_class -> C arc, #887).

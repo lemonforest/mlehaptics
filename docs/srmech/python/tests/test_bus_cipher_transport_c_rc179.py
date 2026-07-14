@@ -60,8 +60,8 @@ def test_encrypted_bus_symbols_present():
     """rc179 adds serve_encrypted + connect_encrypted. (rc180 bumped ABI 3 → 4
     with the pub/sub subscriber-delivery callback typedef; these transport
     symbols are unchanged.)"""
-    assert _native.NATIVE_ABI_VERSION == 4, (
-        f"ABI must be 4 after rc180; got {_native.NATIVE_ABI_VERSION}"
+    assert _native.NATIVE_ABI_VERSION == 5, (
+        f"ABI must be 5 after rc242; got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in ("srmech_bus_serve_encrypted", "srmech_bus_connect_encrypted"):
         assert hasattr(_native.LIB, sym), f"native lib missing C symbol {sym}"
