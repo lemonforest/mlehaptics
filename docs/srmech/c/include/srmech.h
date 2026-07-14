@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc242"
-#define SRMECH_VERSION       "0.9.0rc242"
+#define SRMECH_VERSION_PRE   "rc243"
+#define SRMECH_VERSION       "0.9.0rc243"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -10426,6 +10426,22 @@ srmech_status_t srmech_text_tokenize(
  * compacted + sorted at the FRONT of ht_keys (key = (u<<32)|v, u < v —
  * lexicographic edge order) with parallel integer counts in ht_vals. */
 srmech_status_t srmech_text_cooccurrence_edges(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
+    uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, size_t *out_n_edges);
+
+/* DIRECTED (ordered-pair) variant of srmech_text_cooccurrence_edges (rc243;
+ * gh #1390 item 1). Same params + caller-arena discipline, but counts ORDERED
+ * earlier→later window pairs: the co-occurrence of an earlier-position token
+ * id `i` with a later-position token id `j` increments the ordered edge
+ * (i, j), so (i,j) and (j,i) are DISTINCT entries. On success the
+ * *out_n_edges distinct ordered pairs sit compacted + sorted at the FRONT of
+ * ht_keys (key = (i<<32)|j — lexicographic (i, j) order) with parallel
+ * integer counts in ht_vals. Feeds the directed magnetic/signed Laplacian
+ * (metric = w[(i,j)]+w[(j,i)], charge = w[(i,j)]−w[(j,i)]); the metric-subset
+ * invariant w[(a,b)]+w[(b,a)] == the undirected count for {a,b} holds
+ * exactly. ADDITIVE symbol — SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_text_cooccurrence_edges_directed(
     const uint32_t *tok_ids, size_t n_tok,
     const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
     uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, size_t *out_n_edges);

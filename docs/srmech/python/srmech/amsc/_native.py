@@ -5582,6 +5582,18 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),                    # out_n_edges
         ]
         lib.srmech_text_cooccurrence_edges.restype = ctypes.c_int
+    # rc243 (gh #1390 item 1): the DIRECTED (ordered earlier→later pair)
+    # variant — ADDITIVE symbol, identical params, same arena/OVERFLOW retry.
+    if hasattr(lib, "srmech_text_cooccurrence_edges_directed"):
+        lib.srmech_text_cooccurrence_edges_directed.argtypes = [
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,   # doc_off, n_docs
+            ctypes.c_uint32, ctypes.c_uint32,                   # window, n_vocab
+            ctypes.POINTER(ctypes.c_uint64),                    # ht_keys
+            ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,   # ht_vals, ht_cap
+            ctypes.POINTER(ctypes.c_size_t),                    # out_n_edges
+        ]
+        lib.srmech_text_cooccurrence_edges_directed.restype = ctypes.c_int
     if hasattr(lib, "srmech_text_cooccurrence_topk"):
         lib.srmech_text_cooccurrence_topk.argtypes = [
             ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
@@ -15363,6 +15375,17 @@ def has_native_text_cooccurrence_edges() -> bool:
     alternative (and the byte-identical parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_text_cooccurrence_edges"))
+
+
+def has_native_text_cooccurrence_edges_directed() -> bool:
+    """True iff the rc243 srmech_text_cooccurrence_edges_directed C peer is
+    loaded + bound: the §40 windowed ORDERED (earlier→later) pair-count
+    accumulation + deterministic (i, j) edge sort run in C. False on a no-C or
+    pre-rc243 lib — the pure-Python :func:`srmech.amsc.text.cooccurrence_edges`
+    ``directed=True`` body is the complete alternative (and the byte-identical
+    parity oracle). ADDITIVE symbol (EXPECTED_ABI_VERSION stays 5)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_text_cooccurrence_edges_directed"))
 
 
 def has_native_text_cooccurrence_topk() -> bool:
