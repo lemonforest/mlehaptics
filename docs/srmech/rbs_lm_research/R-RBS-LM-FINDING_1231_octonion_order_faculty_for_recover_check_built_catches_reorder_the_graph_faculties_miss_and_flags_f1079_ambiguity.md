@@ -1,0 +1,19 @@
+# F1231 — the octonion ORDER faculty for recover_check is built: a generic-octonion order fingerprint that CATCHES a graph-preserving reorder the op/operand/responsion/ℂ-curvature faculties are all blind to, and operationally FLAGS the F1079-ambiguous cases where the fiber must be stored. The item-4 upgrade from F1230's srmech feedback, prototyped.
+
+**User (2026-07-14):** *"build the octonion recover_check faculty."* Built (`R-RBS-LM-OCTRECOVER_…py`), PASS.
+
+## The 5th faculty — `recover_check_order`
+On top of op / operand / responsion / ℂ-curvature (F1225), an **order-sensitive** check: `order_fingerprint(fiber)` = the path-ordered product of a **generic octonion per node** along the walk (8 ints, length-independent — the ℍ/𝕆 grade of the walk, F1229). Store it beside the genome; on recall recompute from the recovered fiber and compare. `recover_check_order(true_fingerprint, recovered_fiber) -> bool`.
+
+## Measured
+- **(A) It catches what the graph faculties are blind to.** Figure-eight: two walks (`0→1→0→2→0`, `0→2→0→1→0`) share the **identical** directed graph (charge 0 → even the **ℂ magnetic Laplacian is blind**, curvature = "symmetric-bag flat"). The four graph-level faculties **PASS both**. The octonion order faculty: true-order recall **PASS**, the graph-preserving reorder **FAIL** → it **CATCHES** the order corruption the metric/charge/ℂ-holonomy all miss. This is the whole point — a genuinely stronger curvature tier.
+- **(B) It operationally flags F1079.** Recover the graph, Eulerian-walk it, compare fingerprints: `cat`/`level`/`committee`/`banana` → **match** (the graph uniquely determined the order); `mississippi`/`vanuatu` → **mismatch** → "AMBIGUOUS → store the fiber." So the faculty tells you *exactly when* the directed graph under-determines the order and the fiber must be stored explicitly (F1230's rule made a measurement).
+- **(C) Verifier, not store.** The fingerprint is 8 ints regardless of walk length — lossy by pigeonhole (F1230), so it verifies order, it does not store it. The fiber stays the store; this is the order-integrity guard on top.
+
+## A second, independent confirmation of the "generic octonion" rule (F1230)
+The first generator I wrote (`1 + node_id % m`) was **degenerate for small ids** — `node_octonion(1)=[1,2,2,2,2,2,2,2]`, `node_octonion(2)=[1,3,3,3,3,3,3,3]` (uniform imaginary components, as bad as a basis unit) — and it **MISSED** the (A) reorder (collision). Making the seven axes **distinct** (`1 + (id·(2k+3)+5k+1) mod (11+2k)`) fixed it → the faculty catches. So F1230's "use generic octonions" sharpens: **not just non-basis, but non-uniform-component** — a load-bearing implementation note for the srmech op.
+
+## srmech feedback (the concrete item-4 upgrade)
+This is the reference impl for the F1230 recommendation: add **`recover_check_order(true_fingerprint, recovered_fiber)`** + **`order_fingerprint(fiber, node_octonion=…)`** as an additive 5th faculty to `recover_check` — a VERIFIER (catches order errors the ℂ curvature is blind to; flags F1079 ambiguity), never a store. Load-bearing note for the op: the per-node octonion must be **generic (non-basis AND non-uniform-component)** — measured, basis units and uniform-component octonions both collide. srmech ships the multiply (`qm.so8.octonion_mult_table`). Additive to items 1–4; the storage codec (items 1–2) is unaffected.
+
+Composes **F1230** (the octonion Laplacian = verifier-not-store; generic-coupling rule — reconfirmed here), **F1229** (the 𝕆 grade = the order layer), **F1225** (the four graph faculties this extends), **F1079** (the ambiguity it operationally flags), **F1227/F1221** (the fiber stays the explicit store; this guards its order), **F1210** (ℂ curvature = the faculty this surpasses on order), #1390 (the item-4 upgrade), [[feedback_read_independent_structure_check_first]] (measured; the degenerate-generator miss caught before shipping).
