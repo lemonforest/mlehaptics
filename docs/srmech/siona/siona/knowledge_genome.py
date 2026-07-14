@@ -31,6 +31,7 @@ def stream_descriptions(modules=None):
     out = dict(_I.introspect_srmech(modules))
     out.update({"carrier." + k.replace(":", "_"): v for k, v in _I.introspect_carriers().items()})
     out.update(_I.introspect_patterns())                        # F1207 fix #2: the patterns/discipline tier
+    out.update(_I.introspect_carrier_examples())                # rc241 #839/F1221: carrier construction-example tier (how to BUILD a carrier)
     return out
 
 

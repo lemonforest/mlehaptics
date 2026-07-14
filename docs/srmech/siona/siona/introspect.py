@@ -15,7 +15,8 @@ import importlib
 import inspect
 from srmech.amsc import hdc as _hdc
 
-__all__ = ["introspect_srmech", "introspect_carriers", "introspect_patterns", "PATTERNS", "Tooling", "SRMECH_MODULES", "TIERS"]
+__all__ = ["introspect_srmech", "introspect_carriers", "introspect_patterns", "introspect_carrier_examples",
+           "PATTERNS", "Tooling", "SRMECH_MODULES", "TIERS"]
 
 # The self-knowledge tiers, named in BOTH tongues — ancient AND modern, NEITHER privileged (F1089/F1090).
 # The dual name IS a two-word Rosetta / interlinear gloss: reading the pair cross-reads ancient↔modern without
@@ -121,6 +122,27 @@ def introspect_patterns():
     ``introspect_srmech`` misses them; this is the tier that lets an encode/architecture query self-route to the
     correct PATTERN rather than the bare pieces. Genome-safe ``pattern.`` prefix (like ``carrier.``)."""
     return {"pattern." + k: v for k, v in PATTERNS.items()}
+
+
+def introspect_carrier_examples():
+    """CARRIER CONSTRUCTION-example self-knowledge (rc241 #839 / F1221) — ``{carrier_example.<name>: how-to-build}``
+    mined from srmech's attested ``_carrier_examples.CARRIER_EXAMPLES`` (the carrier-side peer of the op
+    docstrings). ``introspect_carriers`` gives the carrier NOUN (what a Mat / BiPoly IS, the type); THIS gives the
+    CONSTRUCTOR (how to BUILD one) — the knowing-HOW for the types, the peer of ``mine_usage``'s knowing-HOW for
+    the ops (F1086/F1110). Attested (sha256) upstream, so it composes with the AMSC/MPM discipline. Import-guarded:
+    no-ops on an srmech without the layer (pre-rc241), like ``introspect_carriers`` guards its own import."""
+    try:
+        from srmech.amsc._carrier_examples import CARRIER_EXAMPLES
+    except Exception:
+        return {}                                                   # pre-rc241 srmech: the layer isn't there yet
+    out = {}
+    for nm, ex in CARRIER_EXAMPLES.items():
+        if isinstance(ex, dict):
+            desc = "construct a %s: %s  ->  yields %s" % (nm, ex.get("construct", ""), ex.get("yields", ""))
+        else:
+            desc = "construct a %s: %s" % (nm, ex)
+        out["carrier_example." + nm.replace(":", "_")] = desc       # genome-safe prefix, ``:``-sanitised
+    return out
 
 
 def _default_source_dirs():
@@ -238,6 +260,7 @@ class Tooling:
         self._g = grounder
         self.kb = introspect_srmech(modules)                        # TOLD descriptions (fast; for display + fallback)
         self.kb.update(introspect_patterns())                       # F1207 fix #2: the patterns/discipline tier joins the grounded self-knowledge
+        self.kb.update(introspect_carrier_examples())               # rc241 #839/F1221: carrier CONSTRUCTION examples (how to BUILD a carrier, not just what it IS)
         self.labels = list(self.kb)
         self.carriers = introspect_carriers()                       # NOUNS: carrier TYPES (F1110)
         self._clabels = list(self.carriers)
