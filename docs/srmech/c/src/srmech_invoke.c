@@ -69,6 +69,7 @@
 #include <string.h>
 
 #include "srmech.h"
+#include "srmech_progress_internal.h"   /* Class-H progress emit (rc242 #840) */
 
 /* The batch-1 tools all have <= 3 parameters; 8 is comfortable headroom. */
 #define IV_MAX_PARAMS 8
@@ -1589,6 +1590,11 @@ static srmech_status_t iv_dispatch(const char *name,
         || result == NULL) { return SRMECH_OK; }        /* defer on any thunk miss */
     st = iv_serialise(result, buf, buf_len, out_len);
     if (st != SRMECH_OK) { *out_len = 0u; return st; }  /* OVERFLOW -> caller sizes/defers */
+    /* Class-H introspection (rc242 #840): fire the registered progress callback
+     * once per REAL materialisation. A NULL-buf SIZE-QUERY does NOT emit, so a
+     * two-pass (size-then-write) caller observes EXACTLY one event per dispatch.
+     * A no-op when no callback is registered. */
+    if (buf != NULL) { srmech_progress_emit_dispatch(entry->name, entry->category); }
     *out_kind = SRMECH_INVOKE_DISPATCHED;
     return SRMECH_OK;
 }

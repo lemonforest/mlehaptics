@@ -63,13 +63,14 @@ requires_native = pytest.mark.skipif(
 # ──────────────────────────────────────────────────────────────────────
 
 @requires_native
-def test_abi_is_4():
-    """The pub/sub subscriber-delivery callback typedef bumped ABI 3 → 4."""
-    assert _native.NATIVE_ABI_VERSION == 4, (
-        f"ABI must be 4 (rc180 pub/sub callback typedef); "
+def test_abi_is_5():
+    """The pub/sub subscriber-delivery callback typedef bumped ABI 3 → 4;
+    the rc242 progress-callback typedef bumped it 4 → 5 (#840)."""
+    assert _native.NATIVE_ABI_VERSION == 5, (
+        f"ABI must be 5 (rc242 progress-callback typedef); "
         f"got {_native.NATIVE_ABI_VERSION}"
     )
-    assert _native.EXPECTED_ABI_VERSION == 4
+    assert _native.EXPECTED_ABI_VERSION == 5
 
 
 @requires_native
