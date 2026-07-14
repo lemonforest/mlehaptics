@@ -937,8 +937,12 @@ def _register_primitive_class_tools() -> None:
                     "at every document boundary — never crosses one), count "
                     "unordered co-occurring vocab pairs. vocab is the FULL ranked "
                     "vocabulary by default (no silent cap — F708 fix); a top-K "
-                    "vocab_size cap is an explicit, logged opt-in. Returns "
-                    "(n, edges, weights) for dense_laplacian; retires Counter().",
+                    "vocab_size cap is an explicit, logged opt-in. directed=True "
+                    "instead counts ORDERED earlier→later pairs ((i,j) and (j,i) "
+                    "distinct — the directed adjacency for the magnetic/signed "
+                    "Laplacian; w[(a,b)]+w[(b,a)] equals the undirected count). "
+                    "Returns (n, edges, weights) for dense_laplacian; retires "
+                    "Counter().",
             parameters=(P("docs", "list", True,
                           "Sequence[Sequence[str]] (one per document; window "
                           "resets per doc) or a flat token Sequence[str]"),
@@ -947,7 +951,10 @@ def _register_primitive_class_tools() -> None:
                           "explicit ranked vocab (index=position); None builds "
                           "the full vocab from frequency"),
                         P("vocab_size", "int", False,
-                          "explicit top-K cap (logged); None = no cap (all)")),
+                          "explicit top-K cap (logged); None = no cap (all)"),
+                        P("directed", "bool", False,
+                          "False (default) = unordered pairs (u<v); True = "
+                          "ordered earlier→later pairs ((i,j) & (j,i) distinct)")),
             returns=R("tuple[int, list[tuple[int, int]], list[int]]",
                       "(n nodes, edge list, integer co-occurrence counts)"),
         ),

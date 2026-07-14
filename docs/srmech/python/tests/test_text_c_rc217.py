@@ -45,6 +45,14 @@ def _pure_edges(monkeypatch, *a, **kw):
         return T.cooccurrence_edges(*a, **kw)
 
 
+def _pure_edges_directed(monkeypatch, *a, **kw):
+    # force the rc243 directed C peer off — the pure directed body is the oracle
+    with monkeypatch.context() as m:
+        m.setattr(_native, "has_native_text_cooccurrence_edges_directed",
+                  lambda: False)
+        return T.cooccurrence_edges(*a, directed=True, **kw)
+
+
 def _pure_topk(monkeypatch, *a, **kw):
     with monkeypatch.context() as m:
         m.setattr(_native, "has_native_text_cooccurrence_topk", lambda: False)
@@ -164,6 +172,76 @@ def test_cooccurrence_edges_triple_matches_dense_laplacian_contract():
 
 
 # ──────────────────────────────────────────────────────────────────────
+# cooccurrence_edges — DIRECTED (ordered earlier→later) mode (rc243 #1390)
+# ──────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("docs_i", range(len(_EDGE_DOCS)))
+def test_cooccurrence_edges_directed_native_equals_pure(monkeypatch, docs_i):
+    """The rc243 directed C peer is byte-identical to the pure directed body
+    (edges + weights) over the whole window/vocab battery."""
+    docs = _EDGE_DOCS[docs_i]
+    for kw in ({}, {"window": 1}, {"window": 5}, {"window": 1000},
+               {"vocab": ["a", "b", "c", "w1", "w2"]}, {"vocab_size": 3}):
+        mk = lambda: [list(d) if not isinstance(d, str) else d for d in docs]
+        a = T.cooccurrence_edges(mk(), directed=True, **kw)
+        b = _pure_edges_directed(monkeypatch, mk(), **kw)
+        assert a == b
+
+
+@pytest.mark.parametrize("docs_i", range(len(_EDGE_DOCS)))
+def test_cooccurrence_edges_directed_is_symmetric_superset(docs_i):
+    """LOAD-BEARING invariant: for every unordered pair {a,b},
+    w[(a,b)] + w[(b,a)] == the directed=False symmetric count for {a,b}.
+    The directed store is an exact SUPERSET of the symmetric kernel."""
+    docs = _EDGE_DOCS[docs_i]
+    for kw in ({}, {"window": 1}, {"window": 5}, {"window": 1000},
+               {"vocab": ["a", "b", "c", "w1", "w2"]}):
+        und = [list(d) if not isinstance(d, str) else d for d in docs]
+        drc = [list(d) if not isinstance(d, str) else d for d in docs]
+        n_u, e_u, w_u = T.cooccurrence_edges(und, **kw)
+        n_d, e_d, w_d = T.cooccurrence_edges(drc, directed=True, **kw)
+        assert n_u == n_d
+        # no self-loops in either store
+        assert all(i != j for i, j in e_d)
+        folded: dict = {}
+        for (i, j), wv in zip(e_d, w_d):
+            key = (i, j) if i < j else (j, i)
+            folded[key] = folded.get(key, 0) + wv
+        assert folded == dict(zip(e_u, w_u))
+
+
+def test_cooccurrence_edges_directed_known_values():
+    """Hand-checkable: a→b→a→b at window=1 (ids a=0, b=1). The ordered pairs
+    are a→b twice and b→a once; folding both orientations recovers the
+    undirected count 3."""
+    n, edges, weights = T.cooccurrence_edges(
+        [["a", "b", "a", "b"]], window=1, vocab=["a", "b"], directed=True)
+    assert n == 2
+    assert edges == [(0, 1), (1, 0)]                     # both directions distinct
+    assert weights == [2, 1]                             # a→b ×2, b→a ×1
+    _, ue, uw = T.cooccurrence_edges(
+        [["a", "b", "a", "b"]], window=1, vocab=["a", "b"])
+    assert dict(zip(ue, uw)) == {(0, 1): 3}              # 2 + 1 == 3 (subset)
+
+
+def test_cooccurrence_edges_directed_default_false_is_unchanged():
+    """directed defaults to False — the historical unordered behaviour, byte
+    for byte (backward compatibility)."""
+    docs = [["a", "b", "c", "a", "b"], ["b", "c", "d"]]
+    base = T.cooccurrence_edges([list(d) for d in docs], window=3)
+    assert base == T.cooccurrence_edges([list(d) for d in docs], window=3,
+                                        directed=False)
+    # every directed=False edge is canonically ordered u < v
+    _, e, _w = base
+    assert all(u < v for u, v in e)
+
+
+def test_cooccurrence_edges_directed_rejects_non_bool():
+    with pytest.raises(ValueError):
+        T.cooccurrence_edges([["a", "b"]], directed=1)   # int is not bool
+
+
+# ──────────────────────────────────────────────────────────────────────
 # cooccurrence_topk — streaming / truncation / tie-break battery
 # ──────────────────────────────────────────────────────────────────────
 
@@ -250,11 +328,34 @@ def test_native_gates_bound_on_a_native_host():
         pytest.skip("no native lib — pure-only host")
     assert _native.has_native_text_tokenize()
     assert _native.has_native_text_cooccurrence_edges()
+    assert _native.has_native_text_cooccurrence_edges_directed()   # rc243
     assert _native.has_native_text_cooccurrence_topk()
     for sym in ("srmech_text_tokenize", "srmech_text_cooccurrence_edges",
+                "srmech_text_cooccurrence_edges_directed",
                 "srmech_text_cooccurrence_topk",
                 "srmech_text_cooccurrence_topk_extract"):
         assert hasattr(_native.LIB, sym), sym
+
+
+def test_native_directed_path_actually_dispatches(monkeypatch):
+    """On a native host directed=True genuinely reaches the rc243 C kernel
+    (not a silent pure fallback): a sentinel on the ctypes symbol must fire."""
+    if not (_native.HAS_NATIVE
+            and _native.has_native_text_cooccurrence_edges_directed()):
+        pytest.skip("no native lib — pure-only host")
+    hits = []
+    real = _native.LIB.srmech_text_cooccurrence_edges_directed
+
+    def spy(*args):
+        hits.append(1)
+        return real(*args)
+
+    docs = [["a", "b", "a", "b"], ["b", "c", "d"]]
+    with monkeypatch.context() as m:
+        m.setattr(_native.LIB, "srmech_text_cooccurrence_edges_directed", spy)
+        out = T.cooccurrence_edges([list(d) for d in docs], directed=True)
+    assert hits, "native directed gate was on but the C symbol never fired"
+    assert out == _pure_edges_directed(monkeypatch, [list(d) for d in docs])
 
 
 def test_native_path_actually_dispatches(monkeypatch):

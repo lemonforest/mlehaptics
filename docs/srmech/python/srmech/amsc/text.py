@@ -298,14 +298,17 @@ def _pair_events(m: int, window: int) -> int:
 
 def _cooc_edges_native(
     doc_list: List[List[str]], idx: Dict[str, int], keep: set, n: int,
-    window: int, covers_all: bool,
+    window: int, covers_all: bool, directed: bool = False,
 ) -> Optional[Tuple[int, List[Tuple[int, int]], List[int]]]:
     """Native :func:`cooccurrence_edges` counting stage. The vocab build /
     ranking stays in the (shared) caller; this maps tokens→ids (the same
     ``idx``/``keep`` expressions as the pure loop — when ``covers_all`` the
     vocab covers every token, so the ``in keep`` filter is skipped as an
     identity) and runs the windowed pair-count + deterministic edge sort in
-    C. Returns ``None`` to decline (uint32 domain exceeded)."""
+    C. When ``directed`` it dispatches to the rc243 ordered-pair peer
+    ``srmech_text_cooccurrence_edges_directed`` (both directions distinct);
+    otherwise the unordered ``srmech_text_cooccurrence_edges``. Returns
+    ``None`` to decline (uint32 domain exceeded)."""
     if n > _U32_MAX or window > _U32_MAX:
         return None
     ids = array("I")
@@ -326,12 +329,15 @@ def _cooc_edges_native(
              else (ctypes.c_uint32 * 1)())
     off_c = (ctypes.c_size_t * len(doc_off))(*doc_off)
     n_edges = ctypes.c_size_t(0)
+    sym_name = ("srmech_text_cooccurrence_edges_directed" if directed
+                else "srmech_text_cooccurrence_edges")
+    csym = getattr(_native.LIB, sym_name)
     while True:
         keys = array("Q", bytes(8 * cap))
         vals = array("Q", bytes(8 * cap))
         keys_c = (ctypes.c_uint64 * cap).from_buffer(keys)
         vals_c = (ctypes.c_uint64 * cap).from_buffer(vals)
-        rc = _native.LIB.srmech_text_cooccurrence_edges(
+        rc = csym(
             ids_c, len(ids), off_c, n_docs, window, n, keys_c, vals_c, cap,
             ctypes.byref(n_edges))
         del keys_c, vals_c            # release the buffer exports
@@ -340,7 +346,7 @@ def _cooc_edges_native(
         if rc == _native.SRMECH_ERR_OVERFLOW and cap < max_cap:
             cap <<= 1                 # grow + retry — identical result
             continue
-        raise RuntimeError(f"srmech_text_cooccurrence_edges returned status {rc}")
+        raise RuntimeError(f"{sym_name} returned status {rc}")
     ne = n_edges.value
     edges = [(int(kk) >> 32, int(kk) & _U32_MAX) for kk in keys[:ne]]
     weights = [int(v) for v in vals[:ne]]
@@ -353,6 +359,7 @@ def cooccurrence_edges(
     window: int = 2,
     vocab: Optional[Sequence[str]] = None,
     vocab_size: Optional[int] = None,
+    directed: bool = False,
 ) -> Tuple[int, List[Tuple[int, int]], List[int]]:
     """Build the weighted co-occurrence graph — the Class-L precursor (§40).
 
@@ -360,6 +367,17 @@ def cooccurrence_edges(
     Within a sliding ``window`` over each document (the window **resets at every
     document boundary** — co-occurrence never crosses one), counts each unordered
     co-occurring vocabulary pair ``(u, v)`` with ``u < v``.
+
+    With ``directed=True`` it instead counts ORDERED (earlier→later) window
+    pairs: a co-occurrence whose earlier-position token has id ``i`` and later
+    token has id ``j`` increments the ordered edge ``(i, j)``, so ``(i, j)`` and
+    ``(j, i)`` appear as DISTINCT entries (directional counts, sorted by
+    ``(i, j)``). This is the ordered adjacency the directed
+    :func:`srmech.amsc.laplacian.magnetic_laplacian` /
+    :func:`~srmech.amsc.laplacian.signed_laplacian` consume (metric
+    ``w[(i,j)] + w[(j,i)]``, charge ``w[(i,j)] − w[(j,i)]``). The directed store
+    is an exact SUPERSET of the symmetric kernel: for every unordered pair
+    ``{a, b}``, ``w[(a,b)] + w[(b,a)]`` equals the ``directed=False`` count.
 
     Parameters
     ----------
@@ -382,12 +400,19 @@ def cooccurrence_edges(
         most-frequent and **logs** the dropped count. Ignored when ``vocab`` is
         passed. (The 256 native bound applies to the dense-eig *block* only, never
         the vocabulary or the sparse adjacency.)
+    directed
+        When ``False`` (default) count UNORDERED pairs (``u < v``; the historical
+        behaviour, unchanged). When ``True`` count ORDERED earlier→later pairs
+        (``(i, j)`` and ``(j, i)`` distinct) — the directed adjacency for the
+        magnetic / signed Laplacian.
 
     Returns
     -------
     (n, edges, weights)
-        ``n`` = node count = ``len(vocab)``; ``edges`` = list of ``(u, v)`` int
-        2-tuples (``u < v``); ``weights`` = parallel list of **integer**
+        ``n`` = node count = ``len(vocab)``; ``edges`` = list of int 2-tuples —
+        ``(u, v)`` with ``u < v`` when ``directed=False``, ORDERED ``(i, j)``
+        (both directions may appear) when ``directed=True`` — sorted
+        lexicographically; ``weights`` = parallel list of **integer**
         co-occurrence counts — exactly the triple ``dense_laplacian(n, edges,
         weights)`` consumes. Raw counts only (IDF / hub down-weighting are
         downstream walk-time re-weights, F714 — not stored here).
@@ -401,6 +426,10 @@ def cooccurrence_edges(
     if not isinstance(window, int) or isinstance(window, bool) or window < 1:
         raise ValueError(
             f"cooccurrence_edges: window must be a positive int; got {window!r}"
+        )
+    if not isinstance(directed, bool):
+        raise ValueError(
+            f"cooccurrence_edges: directed must be a bool; got {directed!r}"
         )
     if vocab_size is not None and (
         not isinstance(vocab_size, int)
@@ -436,13 +465,16 @@ def cooccurrence_edges(
     idx: Dict[str, int] = {w: i for i, w in enumerate(vocab_list)}
     n = len(vocab_list)
     keep = set(vocab_list)
-    if _native.has_native_text_cooccurrence_edges():
+    native_gate = (_native.has_native_text_cooccurrence_edges_directed()
+                   if directed else _native.has_native_text_cooccurrence_edges())
+    if native_gate:
         # covers_all: the uncapped default vocab contains EVERY token, so the
         # native mapping may skip the `in keep` filter (an identity there).
         # NOTE a capped build has n == vocab_size, so only the fully-uncapped
         # (vocab=None, vocab_size=None) case is statically safe to skip.
         covers_all = vocab is None and vocab_size is None
-        native = _cooc_edges_native(doc_list, idx, keep, n, window, covers_all)
+        native = _cooc_edges_native(doc_list, idx, keep, n, window, covers_all,
+                                    directed=directed)
         if native is not None:
             return native
     counts: Dict[Tuple[int, int], int] = {}
@@ -455,7 +487,10 @@ def cooccurrence_edges(
                 ib = toks[b]
                 if ia == ib:
                     continue
-                key = (ia, ib) if ia < ib else (ib, ia)
+                if directed:
+                    key = (ia, ib)                          # ordered earlier→later
+                else:
+                    key = (ia, ib) if ia < ib else (ib, ia)
                 counts[key] = counts.get(key, 0) + 1
     edges = sorted(counts)
     weights = [counts[e] for e in edges]

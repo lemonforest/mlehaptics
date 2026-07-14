@@ -456,16 +456,21 @@ static srmech_status_t txt_ht_add(uint64_t *keys, uint64_t *vals, size_t cap,
     return SRMECH_ERR_INTERNAL;        /* unreachable at load ≤ 1/2 */
 }
 
-/* Accumulate the windowed unordered pair counts of every document into the
- * (zeroed here) hash arena — the EXACT pure loop: within each document, for
- * every position a and every b in (a, min(a+window+1, m)), count the pair
- * (min(ia,ib), max(ia,ib)) once, skipping ia == ib. The window NEVER crosses
- * a document boundary (doc_off has n_docs+1 entries; doc d spans
- * tok_ids[doc_off[d] .. doc_off[d+1])). */
+/* Accumulate the windowed pair counts of every document into the (zeroed
+ * here) hash arena — the EXACT pure loop: within each document, for every
+ * position a and every b in (a, min(a+window+1, m)), count one pair, skipping
+ * ia == ib. When `directed` is 0 the pair is the UNORDERED
+ * (min(ia,ib), max(ia,ib)) canonical key (u < v); when `directed` is nonzero
+ * it is the ORDERED earlier→later key (ia << 32) | ib, so (i,j) and (j,i) are
+ * distinct entries. The window NEVER crosses a document boundary (doc_off has
+ * n_docs+1 entries; doc d spans tok_ids[doc_off[d] .. doc_off[d+1])). The key
+ * 0 sentinel stays valid in BOTH modes: key == 0 requires ia == ib == 0, a
+ * self-pair the loop skips. */
 static srmech_status_t txt_pairs_accumulate(
     const uint32_t *tok_ids, size_t n_tok,
     const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
-    uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, size_t *out_occ)
+    uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, int directed,
+    size_t *out_occ)
 {
     size_t occ = 0;
     assert(doc_off != NULL && ht_keys != NULL && ht_vals != NULL);
@@ -491,9 +496,13 @@ static srmech_status_t txt_pairs_accumulate(
                 srmech_status_t st;
                 if (ib >= n_vocab) { return SRMECH_ERR_BAD_INPUT; }
                 if (ia == ib) { continue; }
-                key = (ia < ib)
-                          ? (((uint64_t)ia << 32) | (uint64_t)ib)
-                          : (((uint64_t)ib << 32) | (uint64_t)ia);
+                if (directed) {
+                    key = ((uint64_t)ia << 32) | (uint64_t)ib;
+                } else {
+                    key = (ia < ib)
+                              ? (((uint64_t)ia << 32) | (uint64_t)ib)
+                              : (((uint64_t)ib << 32) | (uint64_t)ia);
+                }
                 st = txt_ht_add(ht_keys, ht_vals, ht_cap, key, 1u, &occ);
                 if (st != SRMECH_OK) { return st; }
             }
@@ -525,7 +534,7 @@ srmech_status_t srmech_text_cooccurrence_edges(
         return SRMECH_ERR_BAD_INPUT;
     }
     st = txt_pairs_accumulate(tok_ids, n_tok, doc_off, n_docs, window,
-                              n_vocab, ht_keys, ht_vals, ht_cap, &occ);
+                              n_vocab, ht_keys, ht_vals, ht_cap, 0, &occ);
     if (st != SRMECH_OK) { return st; }
     for (size_t r = 0; r < ht_cap; r++) {      /* compact to the front */
         if (ht_keys[r] != 0u) {
@@ -537,6 +546,53 @@ srmech_status_t srmech_text_cooccurrence_edges(
     }
     assert(w == occ);
     txt_heapsort_kv(ht_keys, ht_vals, w);      /* lexicographic (u, v) */
+    *out_n_edges = w;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * srmech_text_cooccurrence_edges_directed — the DIRECTED (ordered pair)
+ * variant (rc243; gh #1390 item 1). Same params + arena discipline as
+ * srmech_text_cooccurrence_edges, but counts ORDERED earlier→later window
+ * pairs: each co-occurrence with the earlier-position token id `i` and the
+ * later-position token id `j` increments the ordered edge (i, j), so (i,j)
+ * and (j,i) are DISTINCT entries. On success the *out_n_edges distinct
+ * ordered pairs sit compacted + sorted at the FRONT of ht_keys
+ * (key = (i<<32)|j — lexicographic (i, j) order) with parallel integer
+ * counts in ht_vals. The metric-subset invariant holds: for every unordered
+ * pair {a,b}, w[(a,b)] + w[(b,a)] equals the undirected count for {a,b}.
+ * ADDITIVE symbol — SRMECH_ABI_VERSION stays 5. ------------------------ */
+
+srmech_status_t srmech_text_cooccurrence_edges_directed(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
+    uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, size_t *out_n_edges)
+{
+    size_t occ = 0;
+    size_t w = 0;
+    srmech_status_t st;
+    assert(doc_off != NULL && out_n_edges != NULL);
+    assert(ht_keys != NULL && ht_vals != NULL);
+    if (doc_off == NULL || ht_keys == NULL || ht_vals == NULL ||
+        out_n_edges == NULL || (tok_ids == NULL && n_tok > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (window < 1u || ht_cap < 2u || (ht_cap & (ht_cap - 1u)) != 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    st = txt_pairs_accumulate(tok_ids, n_tok, doc_off, n_docs, window,
+                              n_vocab, ht_keys, ht_vals, ht_cap, 1, &occ);
+    if (st != SRMECH_OK) { return st; }
+    for (size_t r = 0; r < ht_cap; r++) {      /* compact to the front */
+        if (ht_keys[r] != 0u) {
+            ht_keys[w] = ht_keys[r];
+            ht_vals[w] = ht_vals[r];
+            if (w < r) { ht_keys[r] = 0u; }    /* keep tail scannable */
+            w += 1u;
+        }
+    }
+    assert(w == occ);
+    txt_heapsort_kv(ht_keys, ht_vals, w);      /* lexicographic (i, j) */
     *out_n_edges = w;
     return SRMECH_OK;
 }
@@ -633,7 +689,7 @@ srmech_status_t srmech_text_cooccurrence_topk(
         return SRMECH_ERR_BAD_INPUT;
     }
     st = txt_pairs_accumulate(tok_ids, n_tok, doc_off, n_docs, window,
-                              n_vocab, ht_keys, ht_vals, ht_cap, &occ);
+                              n_vocab, ht_keys, ht_vals, ht_cap, 0, &occ);
     if (st != SRMECH_OK) { return st; }
     if (2u * occ > dir_cap_recs) { return SRMECH_ERR_OVERFLOW; }
     for (size_t r = 0; r < ht_cap; r++) {
