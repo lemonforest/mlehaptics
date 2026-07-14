@@ -87,3 +87,17 @@ def test_curated_keys_are_all_registered() -> None:
     assert not orphans, (
         f"CURATED keys not in the registry (silently dropped): {orphans}"
     )
+
+
+def test_every_carrier_has_construction_example() -> None:
+    """rc241 (#839): every registered CARRIER exposes a construction example
+    (how to build/obtain it) — the operand-side peer of the tool floor. A new
+    carrier that ships without one fails here."""
+    from srmech.amsc.carrier_schema import carrier_schema
+
+    sch = carrier_schema()
+    missing = [name for name, c in sch.items() if not c.get("example")]
+    assert not missing, (
+        f"{len(missing)} carriers have no construction example (rc241 floor is "
+        f"100%); regenerate srmech/amsc/_carrier_examples.py: {missing[:5]}"
+    )
