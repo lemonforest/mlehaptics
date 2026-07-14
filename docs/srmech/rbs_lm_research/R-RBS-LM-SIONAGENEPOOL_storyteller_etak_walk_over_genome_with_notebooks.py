@@ -77,9 +77,12 @@ def _glyph(ch):                                                                 
     return v
 def _posrole(i): return hdc.klein4_random(DIM, seed=_seed(f"niv/pos/{i}"))       # position role (order-preserving bind)
 def _word_hv(w):
-    """A surface word built FROM the ni-Vanuatu glyph base: bundle of character-BIGRAM binds (Class M ∘ glyphs).
-    Bigrams (adjacent-glyph binds) make the projection EDIT-ROBUST — a misspelling/inflection shares most bigrams, so
-    it resolves to the same abstract content (F762). Words sharing substrings share substrate; not a fresh random leaf."""
+    """A surface word built FROM the ni-Vanuatu glyph base: bundle of character-BIGRAM binds (Class M ∘ glyphs) — the
+    edit-robust METRIC channel (F762). NOTE (F1214/F1215): this HV is the METRIC/similarity read ONLY; it does NOT carry
+    DIRECTION and a src/dst-role variant does not fix that, because the bag is in the klein4_similarity READ (coarse
+    sector-occupancy: word==reverse stays ~1.0, F1211), not just the encode. The base's directional read is the DIGRAPH
+    KERNEL (R-RBS-LM-NIVDIRECTED / F1213 — exact-charge, round-trippable); wiring it in as the word representation is the
+    genepool matching-layer change tracked under #231 (F1215), not a drop-in HV swap."""
     chars = [c for c in w.lower() if c in GLYPH_SET] or ["x"]
     if len(chars) == 1:
         return _glyph(chars[0])
