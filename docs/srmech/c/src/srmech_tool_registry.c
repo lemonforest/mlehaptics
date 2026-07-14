@@ -4242,9 +4242,9 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "the flat self-describing Klein-4 strand \342\200\224 persist with genome_save, recover the exact graph with kernel_to_graph",
         1,
         NULL,
+        "{\"call\":\"graph_to_kernel(vocab=<Sequence[int]>, edges=<list[tuple[int, int]]>, weights=<Sequence[int]>, charges=<Sequence[int]>, leaf_dim=<int>, label=<str>, the_one=<HV>) -> list\"}",
         NULL,
-        NULL,
-        NULL,
+        "Serialize a sparse signed INTEGER graph (vocab, edges, weights, signed charges) into a genome-native Klein-4 strand (gh #1390 item 2) \342\200\224 store the directed Class-L Laplacian (metric = edge weight, curvature = signed edge charge) as a native genome in ONE call, byte-exact round-trip via kernel_to_graph.",
     },
     { /* 162 */
         "srmech.amsc.genome.kernel_to_graph",
@@ -4256,9 +4256,9 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "(vocab, edges, weights, charges) \342\200\224 the exact integer graph: int node-labels, (i, j) index tuples, non-negative int weights, SIGNED int charges",
         1,
         NULL,
+        "{\"call\":\"kernel_to_graph(strand_or_path=<list|str>, the_one=<HV>) -> tuple\"}",
         NULL,
-        NULL,
-        NULL,
+        "Recover the EXACT integer graph (vocab, edges, weights, charges) from a graph_to_kernel strand (or a genome directory a genome_save of one wrote) \342\200\224 the inverse of graph_to_kernel (gh #1390 item 2).",
     },
     { /* 163 */
         "srmech.amsc.genome.genome_append_kernel",
