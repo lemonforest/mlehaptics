@@ -2838,7 +2838,7 @@ def _register_primitive_class_tools() -> None:
                         P("weights", "list", True, "parallel int metric (co-occurrence counts)"),
                         P("charges", "list", False, "parallel signed-int direction (w_fwd - w_bwd); None = undirected (all 0)"),
                         P("node_ids", "list", False, "keyword-only; a label table (e.g. glyph ids); None = none"),
-                        P("extras", "tuple", False, "keyword-only; caller metadata ints (e.g. a start anchor); default ()"),
+                        P("extras", "list", False, "keyword-only; caller metadata ints (e.g. a start anchor); default ()"),
                         P("leaf_dim", "int", True, "keyword-only; the leaf (tome) width to chunk into"),
                         P("label", "str", True, "keyword-only; the chromosome label"),
                         P("the_one", "HV", True, "keyword-only; the coupling invariant (width leaf_dim)")),

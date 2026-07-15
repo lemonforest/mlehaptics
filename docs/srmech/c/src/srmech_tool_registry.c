@@ -993,7 +993,7 @@ static const srmech_tool_param_t ts_params_162[] = {
     { "weights", "list", 1, "parallel int metric (co-occurrence counts)" },
     { "charges", "list", 0, "parallel signed-int direction (w_fwd - w_bwd); None = undirected (all 0)" },
     { "node_ids", "list", 0, "keyword-only; a label table (e.g. glyph ids); None = none" },
-    { "extras", "tuple", 0, "keyword-only; caller metadata ints (e.g. a start anchor); default ()" },
+    { "extras", "list", 0, "keyword-only; caller metadata ints (e.g. a start anchor); default ()" },
     { "leaf_dim", "int", 1, "keyword-only; the leaf (tome) width to chunk into" },
     { "label", "str", 1, "keyword-only; the chromosome label" },
     { "the_one", "HV", 1, "keyword-only; the coupling invariant (width leaf_dim)" },
