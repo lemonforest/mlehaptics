@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc242"
-#define SRMECH_VERSION       "0.9.0rc242"
+#define SRMECH_VERSION_PRE   "rc248"
+#define SRMECH_VERSION       "0.9.0rc248"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -10429,6 +10429,19 @@ srmech_status_t srmech_text_cooccurrence_edges(
     const uint32_t *tok_ids, size_t n_tok,
     const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
     uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, size_t *out_n_edges);
+
+/* srmech_text_cooccurrence_edges_directed — the directed=True SUPERSET
+ * (#1390 item 1). Same arena discipline, but on the canonical unordered
+ * key it fills two output columns: ht_metric (== the undirected weight,
+ * fwd+bwd) and ht_charge (signed, fwd-bwd — +1 when the earlier-position
+ * token has the smaller id, else -1). On success out_n_edges canonical
+ * edges sit at the front of ht_keys with parallel ht_metric / ht_charge.
+ * ADDITIVE symbol — SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_text_cooccurrence_edges_directed(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
+    uint64_t *ht_keys, uint64_t *ht_metric, int64_t *ht_charge, size_t ht_cap,
+    size_t *out_n_edges);
 
 /* One §52 bounded top-K chunk FLUSH: accumulate the chunk's windowed pair
  * counts (same loop as cooccurrence_edges), then merge each touched

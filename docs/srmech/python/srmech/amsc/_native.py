@@ -5582,6 +5582,17 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),                    # out_n_edges
         ]
         lib.srmech_text_cooccurrence_edges.restype = ctypes.c_int
+    if hasattr(lib, "srmech_text_cooccurrence_edges_directed"):
+        lib.srmech_text_cooccurrence_edges_directed.argtypes = [
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,   # doc_off, n_docs
+            ctypes.c_uint32, ctypes.c_uint32,                   # window, n_vocab
+            ctypes.POINTER(ctypes.c_uint64),                    # ht_keys
+            ctypes.POINTER(ctypes.c_uint64),                    # ht_metric
+            ctypes.POINTER(ctypes.c_int64), ctypes.c_size_t,    # ht_charge, ht_cap
+            ctypes.POINTER(ctypes.c_size_t),                    # out_n_edges
+        ]
+        lib.srmech_text_cooccurrence_edges_directed.restype = ctypes.c_int
     if hasattr(lib, "srmech_text_cooccurrence_topk"):
         lib.srmech_text_cooccurrence_topk.argtypes = [
             ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
@@ -15363,6 +15374,16 @@ def has_native_text_cooccurrence_edges() -> bool:
     alternative (and the byte-identical parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_text_cooccurrence_edges"))
+
+
+def has_native_text_cooccurrence_edges_directed() -> bool:
+    """True iff the rc248 srmech_text_cooccurrence_edges_directed C peer is
+    loaded + bound: the directed=True (metric + charge) SUPERSET of the §40
+    accumulation runs in C. False on a no-C or pre-rc248 lib — the pure-Python
+    :func:`srmech.amsc.text.cooccurrence_edges` directed branch is the complete
+    byte-identical alternative (#1390 item 1)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_text_cooccurrence_edges_directed"))
 
 
 def has_native_text_cooccurrence_topk() -> bool:
