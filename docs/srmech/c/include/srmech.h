@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc249"
-#define SRMECH_VERSION       "0.9.0rc249"
+#define SRMECH_VERSION_PRE   "rc250"
+#define SRMECH_VERSION       "0.9.0rc250"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5974,6 +5974,23 @@ srmech_status_t srmech_graph_kernel_decode(
     size_t *out_n_edges,
     uint64_t *out_node_ids, size_t nid_cap, size_t *out_n_nid,
     uint64_t *out_extras, size_t ex_cap, size_t *out_n_ex);
+
+/* srmech_eulerian_walk — #1390 item 3: the Hierholzer Eulerian trail /
+ * circuit over a DIRECTED integer-node edge multiset [0, n_nodes). start < 0
+ * = auto (min out-bearing node for a circuit; the unique out=in+1 node for a
+ * path); circuit_only rejects a non-circuit. On out_feasible == 1, out_walk
+ * holds *out_walk_len == n_edges+1 nodes; out_feasible == 0 is the pure `None`
+ * (degree-infeasible / disconnected). Caller arenas: outdeg/indeg/cur are
+ * n_nodes, adj_start is n_nodes+1, adj is n_edges, stack/out_walk are
+ * n_edges+1. Byte-identical to the pure eulerian_path/eulerian_circuit (same
+ * order: adjacency filled in edge order, consumed from the END). ADDITIVE —
+ * SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_eulerian_walk(
+    const uint64_t *edge_u, const uint64_t *edge_v, size_t n_edges,
+    uint64_t n_nodes, int64_t start, int circuit_only,
+    uint64_t *outdeg, uint64_t *indeg, size_t *adj_start, size_t *cur,
+    uint64_t *adj, uint64_t *stack, uint64_t *out_walk, size_t *out_walk_len,
+    int *out_feasible);
 
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)

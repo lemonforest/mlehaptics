@@ -1173,6 +1173,53 @@ def _register_primitive_class_tools() -> None:
                       "{'n_cycles', 'holonomies': list[Fraction] in [0,1), "
                       "'cycle_edges': list[(u,v)], 'balanced': bool}"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.eulerian_path", owner="srmech",
+            category="laplacian",
+            summary="The Eulerian TRAIL of a DIRECTED edge multiset (#1390 item "
+                    "3): the ordered node walk that consumes every edge exactly "
+                    "once, or None if no single Eulerian trail exists. The "
+                    "Hierholzer walk-reconstruction the directed Class-L genome "
+                    "store recovers a sequence with (the sandroing/word round-"
+                    "trip). Feasibility is CHECKED (degree balance + full-edge-"
+                    "consumption connectivity) — an infeasible / disconnected "
+                    "graph returns None, never a partial walk. Deterministic "
+                    "start: the unique out=in+1 node (a path) or the min out-"
+                    "bearing node (a circuit; start overrides). Nodes any "
+                    "hashable; repeats / self-loops ok. O(|E|). Native "
+                    "srmech_eulerian_walk (byte-identical for integer nodes); "
+                    "else the pure Hierholzer. numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "the directed edge multiset [(u,v),...] (repeats / "
+                          "self-loops ok; nodes any hashable)"),
+                        P("start", "Optional[int]", False,
+                          "the start node (honoured for a circuit; a path forces "
+                          "the +1 node); None = derived")),
+            returns=R("list | None",
+                      "the Eulerian trail (node list, len |edges|+1), or None if "
+                      "no single Eulerian trail exists"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.eulerian_circuit", owner="srmech",
+            category="laplacian",
+            summary="The Eulerian CIRCUIT of a DIRECTED edge multiset (#1390 "
+                    "item 3): as eulerian_path but REQUIRES a closed circuit "
+                    "(every node balanced) — returns a walk with start == end, "
+                    "or None if the graph is not balanced + connected. Same "
+                    "Hierholzer, node-agnostic; the directed Class-L genome "
+                    "recovers a cyclic sequence with it. Native "
+                    "srmech_eulerian_walk (circuit_only; byte-identical for "
+                    "integer nodes). numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "the directed edge multiset [(u,v),...] (repeats / "
+                          "self-loops ok; nodes any hashable)"),
+                        P("start", "Optional[int]", False,
+                          "the start (== end) node; None = the min out-bearing "
+                          "node")),
+            returns=R("list | None",
+                      "the Eulerian circuit (node list, start == end), or None if "
+                      "not balanced + connected"),
+        ),
         # ────────────────────────────────────────────────────────────
         # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
         # + the ground-state flux reader, Class-L composites with the 1:1
