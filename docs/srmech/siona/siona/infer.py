@@ -236,8 +236,11 @@ class Session:
 
     def route(self, u):
         b, ws = self.board, _toks(u)
-        while ws and ws[0] in b.politeness and not (ws[0] == b.address or ws[0] in b.self_verbs):
-            ws = ws[1:]   # paraphrase frames: politeness prefixes are declared operators, consumed here
+        framing = b.politeness | self._VERBOSITY_OPS      # leading framing = politeness + verbosity operators
+        while ws and ws[0] in framing and not (ws[0] == b.address or ws[0] in b.self_verbs):
+            ws = ws[1:]   # 'in detail, what is water' / 'briefly, ...' — the verbosity operator is consumed BEFORE
+                          # the define frame is matched (it is a declared operator, not part of the operand), so the
+                          # 'what is X' frame still routes to define instead of falling through to WH-in-situ (F1240)
         if ws and (ws[0] == b.address or ws[0] in b.self_verbs):
             return "self-command"
         if self._is_compose(u):                # F1115/#255: 'I have X … want Y' → compose an op-chain
