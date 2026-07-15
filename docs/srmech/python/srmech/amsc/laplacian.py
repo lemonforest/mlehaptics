@@ -181,6 +181,8 @@ __all__ = [
     "klein4_gain_laplacian",
     "klein4_relational_structure",
     "cycle_holonomy",
+    "eulerian_path",
+    "eulerian_circuit",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -3480,6 +3482,111 @@ def _heat_trace_py(rows, is_complex: bool, t_list):
         ev = jacobi_eigvals(real_rows)
         lam = [float(ev[i]) for i in range(ev.shape[0])]
     return [sum(float(_rexp(-(tv * lk))) for lk in lam) for tv in t_list]
+
+
+# ── #1390 item 3: eulerian_path / eulerian_circuit ──────────────────────────
+# The Hierholzer walk-reconstruction the directed Class-L genome store recovers
+# an ordered sequence with (the sandroing/word round-trip). Faithful port of
+# R-RBS-LM-EULERWALK: a node-agnostic Eulerian trail / circuit over a DIRECTED
+# edge multiset. Feasibility is CHECKED (degree balance + full-edge-consumption
+# connectivity) — an infeasible graph returns None, never a partial walk.
+# Deterministic (adjacency consumed from the END — the pop() order). The C peer
+# srmech_eulerian_walk mirrors it byte-for-byte for integer nodes [0, n).
+
+_NO_NATIVE_EULER = object()
+
+
+def _eulerian_degrees(edges):
+    """(outs, outdeg, indeg, nodes) — the per-node out-lists (edge order) +
+    out/in degrees + the node set. Nodes may be any hashable."""
+    outs, outdeg, indeg, nodes = {}, {}, {}, set()
+    for u, v in edges:
+        outs.setdefault(u, []).append(v)
+        outdeg[u] = outdeg.get(u, 0) + 1
+        indeg[v] = indeg.get(v, 0) + 1
+        nodes.add(u)
+        nodes.add(v)
+    return outs, outdeg, indeg, nodes
+
+
+def _eulerian_native(edges, start, circuit_only):
+    """Dispatch to the C peer when nodes are non-negative ints. Returns the walk
+    (list), ``None`` (infeasible), or the ``_NO_NATIVE_EULER`` sentinel (native
+    absent / non-int nodes → the pure body runs)."""
+    if not _native.has_native_eulerian():
+        return _NO_NATIVE_EULER
+    try:
+        n_nodes = 0
+        for u, v in edges:
+            if (not isinstance(u, int) or not isinstance(v, int)
+                    or isinstance(u, bool) or isinstance(v, bool)
+                    or u < 0 or v < 0):
+                return _NO_NATIVE_EULER
+            n_nodes = max(n_nodes, u + 1, v + 1)
+        s = -1
+        if start is not None:
+            if (not isinstance(start, int) or isinstance(start, bool)
+                    or start < 0 or start >= n_nodes):
+                return _NO_NATIVE_EULER            # pure handles the odd start
+            s = start
+        return _native.eulerian_walk_c(edges, n_nodes, s, bool(circuit_only))
+    except Exception:
+        return _NO_NATIVE_EULER
+
+
+def eulerian_path(edges, start=None):
+    """The Eulerian trail of a DIRECTED edge multiset ``[(u, v), ...]`` (repeats
+    / self-loops ok; nodes any hashable) as a node list of length
+    ``len(edges)+1``, or ``None`` if no single Eulerian trail exists (#1390
+    item 3). Feasibility is CHECKED (degree balance + full-consumption
+    connectivity). Deterministic start: the +1 out-degree node (path) or the min
+    out-bearing node (circuit; ``start`` overrides). O(|E|) Hierholzer; the C
+    peer ``srmech_eulerian_walk`` is byte-identical for integer nodes."""
+    edges = [tuple(e) for e in edges]
+    if not edges:
+        return [start] if start is not None else []
+    native = _eulerian_native(edges, start, circuit_only=False)
+    if native is not _NO_NATIVE_EULER:
+        return native
+    outs, outdeg, indeg, nodes = _eulerian_degrees(edges)
+    plus = [n for n in nodes if outdeg.get(n, 0) - indeg.get(n, 0) == 1]
+    minus = [n for n in nodes if indeg.get(n, 0) - outdeg.get(n, 0) == 1]
+    imbalanced = [n for n in nodes if outdeg.get(n, 0) != indeg.get(n, 0)]
+    if not imbalanced:                                  # EULERIAN CIRCUIT
+        s = start if start is not None else min(
+            n for n in nodes if outdeg.get(n, 0) > 0)
+    elif len(plus) == 1 and len(minus) == 1 and len(imbalanced) == 2:
+        s = plus[0]                                     # EULERIAN PATH: forced start
+    else:
+        return None                                     # no Eulerian trail
+    avail = {n: list(v) for n, v in outs.items()}       # consume EVERY edge once
+    stack, walk = [s], []
+    while stack:
+        v = stack[-1]
+        if avail.get(v):
+            stack.append(avail[v].pop())                # pop the END (determinism)
+        else:
+            walk.append(stack.pop())
+    walk.reverse()
+    if len(walk) != len(edges) + 1:                     # not all edges consumed
+        return None                                     # -> DISCONNECTED
+    return walk
+
+
+def eulerian_circuit(edges, start=None):
+    """As :func:`eulerian_path` but REQUIRES a closed circuit (every node
+    balanced): returns a walk with ``start == end``, or ``None`` if the graph is
+    not balanced + connected (#1390 item 3)."""
+    edges = [tuple(e) for e in edges]
+    if not edges:
+        return [start] if start is not None else []
+    native = _eulerian_native(edges, start, circuit_only=True)
+    if native is not _NO_NATIVE_EULER:
+        return native
+    _outs, outdeg, indeg, nodes = _eulerian_degrees(edges)
+    if any(outdeg.get(n, 0) != indeg.get(n, 0) for n in nodes):
+        return None                                     # not balanced -> no circuit
+    return eulerian_path(edges, start=start)
 
 
 def heat_trace(L, t):

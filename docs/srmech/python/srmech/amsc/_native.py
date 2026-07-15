@@ -3470,6 +3470,23 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_size_t),                   # out_n_ex
             ]
             lib.srmech_graph_kernel_decode.restype = ctypes.c_int
+        # #1390 item 3 — the Hierholzer Eulerian walk (integer nodes).
+        if hasattr(lib, "srmech_eulerian_walk"):
+            lib.srmech_eulerian_walk.argtypes = [
+                ctypes.POINTER(ctypes.c_uint64),                   # edge_u
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # edge_v, n_edges
+                ctypes.c_uint64, ctypes.c_int64, ctypes.c_int,     # n_nodes, start, circuit_only
+                ctypes.POINTER(ctypes.c_uint64),                   # outdeg
+                ctypes.POINTER(ctypes.c_uint64),                   # indeg
+                ctypes.POINTER(ctypes.c_size_t),                   # adj_start
+                ctypes.POINTER(ctypes.c_size_t),                   # cur
+                ctypes.POINTER(ctypes.c_uint64),                   # adj
+                ctypes.POINTER(ctypes.c_uint64),                   # stack
+                ctypes.POINTER(ctypes.c_uint64),                   # out_walk
+                ctypes.POINTER(ctypes.c_size_t),                   # out_walk_len
+                ctypes.POINTER(ctypes.c_int),                      # out_feasible
+            ]
+            lib.srmech_eulerian_walk.restype = ctypes.c_int
         # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
         # the catalog's tree; the writer's key-sort scratch is carved from the
         # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
@@ -16876,6 +16893,44 @@ def graph_kernel_decode_c(syms):
         }
     except Exception:
         return None
+
+
+def has_native_eulerian() -> bool:
+    """True iff the rc250 srmech_eulerian_walk C peer is loaded + bound: the
+    #1390 item-3 Hierholzer Eulerian trail / circuit runs in C (integer nodes).
+    False on a no-C or pre-rc250 lib — the pure
+    srmech.amsc.laplacian.eulerian_path / eulerian_circuit bodies are the
+    complete byte-identical alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_eulerian_walk"))
+
+
+def eulerian_walk_c(edges, n_nodes, start, circuit_only):
+    """Native #1390 item-3 Eulerian walk (integer nodes [0, n_nodes)). Returns
+    the walk (list[int]) on success, ``None`` if infeasible (the pure ``None``).
+    Raises on a C error so the caller falls back to the pure body."""
+    n_edges = len(edges)
+    eu = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[0]) for e in edges])
+    ev = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[1]) for e in edges])
+    outdeg = (ctypes.c_uint64 * max(n_nodes, 1))()
+    indeg = (ctypes.c_uint64 * max(n_nodes, 1))()
+    cur = (ctypes.c_size_t * max(n_nodes, 1))()
+    adj_start = (ctypes.c_size_t * (n_nodes + 1))()
+    adj = (ctypes.c_uint64 * max(n_edges, 1))()
+    stack = (ctypes.c_uint64 * (n_edges + 1))()
+    out_walk = (ctypes.c_uint64 * (n_edges + 1))()
+    wl = ctypes.c_size_t(0)
+    feasible = ctypes.c_int(0)
+    rc = LIB.srmech_eulerian_walk(
+        eu, ev, ctypes.c_size_t(n_edges), ctypes.c_uint64(n_nodes),
+        ctypes.c_int64(start), ctypes.c_int(1 if circuit_only else 0),
+        outdeg, indeg, adj_start, cur, adj, stack, out_walk,
+        ctypes.byref(wl), ctypes.byref(feasible))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_eulerian_walk returned status {rc}")
+    if not feasible.value:
+        return None
+    return [int(out_walk[k]) for k in range(wl.value)]
 
 
 def genome_telomere_tick_c(cap: bytes, leaf_dim: int):
