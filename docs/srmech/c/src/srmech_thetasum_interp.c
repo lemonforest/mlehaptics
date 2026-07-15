@@ -1407,6 +1407,18 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
     if (term_nthetas == NULL || coeff_num == NULL || coeff_den == NULL || exps_flat == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
+    if (n_syms == 0u) {
+        /* An ALL-CONSTANT (0-variable) numerator has NO genuine lift slot for the
+         * Z5/Z6 constant-leaf certificates (the c->n_syms clamp to 1 below is an
+         * allocation-safety artifact, NOT a real variable — lifting a prime into
+         * that phantom slot mis-decides the leaf). DECLINE to the complete + sound
+         * pure Z6 oracle (the documented "native declines all-constant" contract:
+         * the caller falls to _is_zero_py). Pre-fix this path declined only by
+         * ACCIDENT (a stale-exps OOB read -> false OVERFLOW), which occasionally
+         * yielded a wrong verdict on macOS instead — the intermittent is_zero
+         * flake. Now it is a clean, deterministic decline. */
+        return SRMECH_ERR_OVERFLOW;
+    }
     memset(&rt, 0, sizeof(rt));
     c.n_syms = (n_syms == 0u) ? 1u : n_syms;
     c.cap = (coeff_cap < 4u) ? 4u : coeff_cap;
@@ -1997,6 +2009,11 @@ srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
     if (term_nthetas == NULL || coeff_num == NULL || coeff_den == NULL
             || exps_flat == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_syms == 0u) {
+        /* All-constant: no genuine lift slot -> decline to the sound pure Z6
+         * oracle (same contract as the sequential peer above). */
+        return SRMECH_ERR_OVERFLOW;
     }
     w.n_syms = n_syms;   w.xsym = xsym;   w.ysym = ysym;   w.psym = psym;
     w.n_terms = n_terms; w.term_nthetas = term_nthetas;
