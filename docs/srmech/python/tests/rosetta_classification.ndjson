@@ -456,6 +456,8 @@
 {"exposed_as": "srmech.amsc.genome.genome_register_attested", "defined_at": "srmech.amsc.genome.genome_register_attested", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.kernel_pack", "defined_at": "srmech.amsc.genome.kernel_pack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.kernel_unpack", "defined_at": "srmech.amsc.genome.kernel_unpack", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.graph_to_kernel", "defined_at": "srmech.amsc.genome.graph_to_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.kernel_to_graph", "defined_at": "srmech.amsc.genome.kernel_to_graph", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_append_kernel", "defined_at": "srmech.amsc.genome.genome_append_kernel", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.active_telomere", "defined_at": "srmech.amsc.genome.active_telomere", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.telomere_tick", "defined_at": "srmech.amsc.genome.telomere_tick", "bucket": "c_dispatched"}

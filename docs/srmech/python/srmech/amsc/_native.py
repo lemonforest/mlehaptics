@@ -3441,6 +3441,35 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_modulator_constraint_satisfies.argtypes = [
                 _U8, _SZ, ctypes.c_uint64, ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_modulator_constraint_satisfies.restype = ctypes.c_int
+        # #1390 item 2 — the graph<->Klein-4-symbol codec (byte-exact).
+        if hasattr(lib, "srmech_graph_kernel_encode"):
+            lib.srmech_graph_kernel_encode.argtypes = [
+                ctypes.c_uint64,                                   # vocab_size
+                ctypes.POINTER(ctypes.c_uint64),                   # edge_i
+                ctypes.POINTER(ctypes.c_uint64),                   # edge_j
+                ctypes.POINTER(ctypes.c_uint64),                   # weights
+                ctypes.POINTER(ctypes.c_int64), ctypes.c_size_t,   # charges, n_edges
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # node_ids, n_nid
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # extras, n_ex
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # out_syms, syms_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_syms
+            ]
+            lib.srmech_graph_kernel_encode.restype = ctypes.c_int
+        if hasattr(lib, "srmech_graph_kernel_decode"):
+            lib.srmech_graph_kernel_decode.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # syms, n_syms
+                ctypes.POINTER(ctypes.c_uint64),                   # out_vocab_size
+                ctypes.POINTER(ctypes.c_uint64),                   # out_edge_i
+                ctypes.POINTER(ctypes.c_uint64),                   # out_edge_j
+                ctypes.POINTER(ctypes.c_uint64),                   # out_weights
+                ctypes.POINTER(ctypes.c_int64), ctypes.c_size_t,   # out_charges, edge_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_edges
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # out_node_ids, nid_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_nid
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # out_extras, ex_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_ex
+            ]
+            lib.srmech_graph_kernel_decode.restype = ctypes.c_int
         # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
         # the catalog's tree; the writer's key-sort scratch is carved from the
         # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
@@ -16766,6 +16795,87 @@ def genome_save_c(dir_: str, body: bytes, leaf_dim: int, the_one: bytes) -> None
         ws, ctypes.c_size_t(ws_len))
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_save", rc)
+
+
+def has_native_graph_kernel_codec() -> bool:
+    """True iff the rc249 srmech_graph_kernel_encode + _decode C peers are
+    loaded + bound: the #1390 item-2 graph<->Klein-4-symbol codec runs in C.
+    False on a no-C or pre-rc249 lib — the pure genome._graph_kernel_encode /
+    _decode bodies are the complete byte-identical alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_graph_kernel_encode")
+                and hasattr(LIB, "srmech_graph_kernel_decode"))
+
+
+def graph_kernel_encode_c(vocab_size, edges, weights, ch, nid, ex):
+    """Native #1390 item-2 encode: graph arrays -> Klein-4 symbol list (ints
+    {0,1,2,3}). Returns ``None`` to decline (native absent, overflow, or the
+    30-bit int cap) so the pure ``genome._graph_kernel_encode`` runs."""
+    if not has_native_graph_kernel_codec():
+        return None
+    try:
+        n_edges = len(edges)
+        edge_i = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[0]) for e in edges])
+        edge_j = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[1]) for e in edges])
+        w_arr = (ctypes.c_uint64 * max(n_edges, 1))(*[int(x) for x in weights])
+        c_arr = (ctypes.c_int64 * max(n_edges, 1))(*[int(x) for x in ch])
+        nid_arr = (ctypes.c_uint64 * max(len(nid), 1))(*[int(x) for x in nid])
+        ex_arr = (ctypes.c_uint64 * max(len(ex), 1))(*[int(x) for x in ex])
+        n_ints = 5 + len(nid) + len(ex) + 4 * n_edges     # each int <= 17 syms
+        cap = 17 * n_ints + 8
+        out = (ctypes.c_uint8 * cap)()
+        n_out = ctypes.c_size_t(0)
+        rc = LIB.srmech_graph_kernel_encode(
+            ctypes.c_uint64(int(vocab_size)),
+            edge_i, edge_j, w_arr, c_arr, ctypes.c_size_t(n_edges),
+            nid_arr, ctypes.c_size_t(len(nid)),
+            ex_arr, ctypes.c_size_t(len(ex)),
+            out, ctypes.c_size_t(cap), ctypes.byref(n_out))
+        if rc != SRMECH_OK:
+            return None
+        return [int(out[k]) for k in range(n_out.value)]
+    except Exception:
+        return None
+
+
+def graph_kernel_decode_c(syms):
+    """Native #1390 item-2 decode: Klein-4 symbol list -> the graph dict
+    ``{vocab_size, edges, weights, charges, node_ids, extras}``. Returns
+    ``None`` to decline so the pure ``genome._graph_kernel_decode`` runs."""
+    if not has_native_graph_kernel_codec():
+        return None
+    try:
+        n = len(syms)
+        s_arr = (ctypes.c_uint8 * max(n, 1))(*[int(x) & 3 for x in syms])
+        cap = n + 1                                       # each item >= 3 syms
+        vs = ctypes.c_uint64(0)
+        ei = (ctypes.c_uint64 * cap)()
+        ej = (ctypes.c_uint64 * cap)()
+        wt = (ctypes.c_uint64 * cap)()
+        cg = (ctypes.c_int64 * cap)()
+        ne = ctypes.c_size_t(0)
+        ni = (ctypes.c_uint64 * cap)()
+        nnid = ctypes.c_size_t(0)
+        ex = (ctypes.c_uint64 * cap)()
+        nex = ctypes.c_size_t(0)
+        rc = LIB.srmech_graph_kernel_decode(
+            s_arr, ctypes.c_size_t(n), ctypes.byref(vs),
+            ei, ej, wt, cg, ctypes.c_size_t(cap), ctypes.byref(ne),
+            ni, ctypes.c_size_t(cap), ctypes.byref(nnid),
+            ex, ctypes.c_size_t(cap), ctypes.byref(nex))
+        if rc != SRMECH_OK:
+            return None
+        m = ne.value
+        return {
+            "vocab_size": int(vs.value),
+            "edges": [(int(ei[k]), int(ej[k])) for k in range(m)],
+            "weights": [int(wt[k]) for k in range(m)],
+            "charges": [int(cg[k]) for k in range(m)],
+            "node_ids": [int(ni[k]) for k in range(nnid.value)],
+            "extras": [int(ex[k]) for k in range(nex.value)],
+        }
+    except Exception:
+        return None
 
 
 def genome_telomere_tick_c(cap: bytes, leaf_dim: int):

@@ -75,6 +75,7 @@ __all__ = [
     "genome_explode", "genome_pack",
     "genome_register_attested",
     "kernel_pack", "kernel_unpack",
+    "graph_to_kernel", "kernel_to_graph",
     "active_telomere", "telomere_tick",
     "gene_express",
     "gene_express_levels",
@@ -3082,6 +3083,157 @@ def _gene_level_native(cap, cell_state):
         return _native.genome_gene_express_levels_c(cap.tobytes(), len(cap), cell_state)
     except _native.NativeGenomeError:
         return None
+
+
+# ── #1390 item 2: graph_to_kernel / kernel_to_graph ─────────────────────────
+# A domain-free codec that serialises a sparse SIGNED INTEGER graph (the
+# directed Class-L Laplacian — vocab_size + edge list + int weights[metric] +
+# signed charges[direction], with an optional node_ids label table + extras
+# metadata) into a Klein-4 symbol stream for kernel_pack, and inverts it
+# BYTE-EXACT. Faithful port of R-RBS-LM-GRAPH2KERNEL: each int is base-4 digits
+# behind a 2-symbol length header (Class-K zig-zag sign on the charge). The
+# format is SELF-DESCRIBING (count headers) so undirected (charges=None),
+# unlabeled (node_ids=None) and metadata-free (extras=()) all round-trip.
+# Klein-4 is ONLY the 2-bit on-disk alphabet (F1221 disk rule — no bind/bundle
+# HV object is stored). Byte-identical C peer: srmech_graph_kernel_encode /
+# srmech_graph_kernel_decode.
+
+#: The 2-symbol base-4 length header caps each serialised int at 15 base-4
+#: digits = 30 bits (#1390 item 2 / F1227 note): a co-occurrence weight or
+#: vocab id >= 2**30 overflows it and raises. Document the cap; a wide-int
+#: header mode is a future extension.
+_GRAPH_KERNEL_MAX_DIGITS = 15
+
+
+def _graph_zig(n):
+    """Class-K pin-slot: signed int -> non-negative (zig-zag; NOT the builtin)."""
+    return (n << 1) if n >= 0 else ((-n) << 1) - 1
+
+
+def _graph_unzig(z):
+    """Inverse zig-zag: non-negative -> signed int (Class-K)."""
+    return (z >> 1) if (z & 1) == 0 else -((z + 1) >> 1)
+
+
+def _graph_ints_to_syms(ints):
+    """Flat non-negative int list -> Klein-4 symbols {0,1,2,3}: each int as
+    base-4 digits behind a 2-symbol length header (<=15 digits/int)."""
+    syms = []
+    for n in ints:
+        digs = []
+        x = n
+        while True:
+            digs.append(x & 3)
+            x >>= 2
+            if x == 0:
+                break
+        if len(digs) > _GRAPH_KERNEL_MAX_DIGITS:
+            raise ValueError(
+                f"graph_to_kernel: value {n} needs {len(digs)} base-4 digits > "
+                f"the {_GRAPH_KERNEL_MAX_DIGITS}-digit (30-bit) cap of the "
+                f"2-symbol length header"
+            )
+        syms.append(len(digs) & 3)
+        syms.append((len(digs) >> 2) & 3)
+        syms += digs
+    return syms
+
+
+def _graph_syms_to_ints(syms):
+    """Inverse of :func:`_graph_ints_to_syms` (2-symbol header + base-4 digits)."""
+    ints, i = [], 0
+    while i + 2 <= len(syms):
+        ln = syms[i] + (syms[i + 1] << 2)
+        i += 2
+        if ln == 0 or i + ln > len(syms):
+            break
+        v = 0
+        for k in range(ln):
+            v |= syms[i + k] << (2 * k)
+        ints.append(v)
+        i += ln
+    return ints
+
+
+def _graph_kernel_encode(vocab_size, edges, weights, ch, nid, ex):
+    """Assemble the payload int stream + encode to Klein-4 syms (the C-peer
+    boundary). Native ``srmech_graph_kernel_encode`` when loaded, else pure."""
+    from . import _native
+    if _native.has_native_graph_kernel_codec():
+        native = _native.graph_kernel_encode_c(vocab_size, edges, weights, ch, nid, ex)
+        if native is not None:
+            return native
+    payload = [vocab_size, len(nid)] + nid + [len(ex)] + ex + [len(edges)]
+    for (i, j), w, c in zip(edges, weights, ch):
+        payload += [i, j, w, _graph_zig(c)]
+    return _graph_ints_to_syms(payload)
+
+
+def _graph_kernel_decode(syms):
+    """Decode Klein-4 syms -> the graph dict (the C-peer boundary). Native
+    ``srmech_graph_kernel_decode`` when loaded, else pure."""
+    from . import _native
+    if _native.has_native_graph_kernel_codec():
+        native = _native.graph_kernel_decode_c(syms)
+        if native is not None:
+            return native
+    it = _graph_syms_to_ints(syms)
+    p = 0
+    vocab_size = it[p]; p += 1
+    n_nid = it[p]; p += 1
+    node_ids = it[p:p + n_nid]; p += n_nid
+    n_ex = it[p]; p += 1
+    extras = it[p:p + n_ex]; p += n_ex
+    ne = it[p]; p += 1
+    edges, weights, charges = [], [], []
+    for _ in range(ne):
+        i, j, w, zc = it[p], it[p + 1], it[p + 2], it[p + 3]; p += 4
+        edges.append((i, j))
+        weights.append(w)
+        charges.append(_graph_unzig(zc))
+    return {"vocab_size": vocab_size, "edges": edges, "weights": weights,
+            "charges": charges, "node_ids": list(node_ids), "extras": list(extras)}
+
+
+def graph_to_kernel(vocab_size, edges, weights, charges=None, *,
+                    node_ids=None, extras=(), leaf_dim, label, the_one):
+    """Serialise a directed SIGNED integer graph -> a packed genome chromosome
+    (Klein-4 leaves) + its true symbol count (#1390 item 2).
+
+    ``edges``: ``[(i, j), ...]``; ``weights``: ``[int, ...]`` (metric);
+    ``charges``: ``[signed int, ...]`` or ``None`` (direction); ``node_ids``:
+    ``[int, ...]`` or ``None`` (a label table, e.g. glyph ids); ``extras``:
+    ``(int, ...)`` caller metadata (e.g. a start anchor). Returns
+    ``(strand, n_syms)`` — persist the strand with ``genome_save`` and pass
+    ``n_syms`` to :func:`kernel_to_graph`. The payload<->symbol codec dispatches
+    to the byte-identical C peer ``srmech_graph_kernel_encode`` when loaded; the
+    pure body is the complete alternative + parity oracle. Faithful port of
+    R-RBS-LM-GRAPH2KERNEL."""
+    if len(edges) != len(weights):
+        raise ValueError(
+            f"graph_to_kernel: edges/weights length mismatch "
+            f"({len(edges)} != {len(weights)})"
+        )
+    ch = list(charges) if charges is not None else [0] * len(edges)
+    if len(ch) != len(edges):
+        raise ValueError(
+            f"graph_to_kernel: charges length {len(ch)} != edges {len(edges)}"
+        )
+    nid = list(node_ids) if node_ids is not None else []
+    ex = list(extras)
+    syms = _graph_kernel_encode(vocab_size, [tuple(e) for e in edges],
+                                list(weights), ch, nid, ex)
+    strand = kernel_pack(syms, leaf_dim=leaf_dim, label=label, the_one=the_one)
+    return strand, len(syms)
+
+
+def kernel_to_graph(chroms, the_one, n_syms):
+    """Inverse of :func:`graph_to_kernel`: a packed chromosome (or genome path)
+    + its ``n_syms`` -> the directed signed graph dict
+    ``{vocab_size, edges, weights, charges, node_ids, extras}`` (#1390 item 2).
+    ``n_syms`` trims the leaf-dim padding :func:`kernel_unpack` restores."""
+    syms = list(kernel_unpack(chroms, the_one))[:n_syms]
+    return _graph_kernel_decode(syms)
 
 
 def telomere_tick(strand):
