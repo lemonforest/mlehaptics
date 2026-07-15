@@ -423,6 +423,9 @@ class Session:
     def _dispatch(self, r, u):
         """Route label -> (tag, output). Kept separate from :meth:`turn` so the turn has ONE finalize point
         for the excitation trail (the per-branch surface selection is unchanged)."""
+        ph = self._pattern_hit(u)                 # #234/F1234: an architecture/how-to PATTERN (tooling self-knowledge)
+        if ph:                                    # surfaces FIRST -- 'how do I build a wiki corpus genome' -> the recipe
+            return "siona.pattern", ph
         if r == "self-command":
             tool, out = self._drive_self(u)
             return "siona.%s" % tool, out
@@ -443,6 +446,24 @@ class Session:
     # ---- the self surface (F1011: declared verb = deterministic dispatch; grounding for verb-less) ----
     def _rem(self, u):
         return " ".join(w for w in _toks(u) if w not in self.board.strip)
+
+    def _pattern_hit(self, u):
+        """#234/F1234: surface an architecture/how-to PATTERN (Siona's tooling self-knowledge — e.g. 'how do I build
+        a wiki corpus genome' -> the native pipeline), the F1207 tier that lived in the knowledge kb but s.turn never
+        routed to. TIGHT gate so it never hijacks a content read ('what is water' -> the corpus, not a pattern): a
+        build/how word AND a genome/corpus/class-l word, then the best PATTERN by key-word overlap (>=2)."""
+        toks = set(_toks(u))
+        if not (toks & {"how", "build", "make", "create", "encode", "write"}):
+            return None
+        if not (toks & {"genome", "corpus"} or ("class" in toks and "l" in toks)):
+            return None
+        from .introspect import introspect_patterns
+        best, bestn = None, 0
+        for k, v in introspect_patterns().items():
+            overlap = len(set(k.split(".", 1)[-1].split("_")) & toks)
+            if overlap > bestn:
+                bestn, best = overlap, v
+        return best if bestn >= 2 else None
 
     def _drive_self(self, u):
         b, ws = self.board, _toks(u)

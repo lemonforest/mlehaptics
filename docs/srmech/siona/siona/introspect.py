@@ -98,12 +98,24 @@ def introspect_carriers():
 # storage truncation) instead of just the pieces (dense_laplacian). Each value is a full how-to so grounding AND
 # display both work. Prevents recurrence #3 of the top-K-truncation trash-fallback (F708/F748/F1207).
 PATTERNS = {
+    "build_wiki_corpus_genome": (
+        "build a wiki/corpus DIRECTED Class-L genome (the #231 store) — the NATIVE srmech rc253 pipeline, the way "
+        "the simplewiki body instrument was made (F1232/F1233): (1) tokenize each doc with srmech.amsc.text.tokenize; "
+        "(2) n,edges,metric,charge = srmech.amsc.text.cooccurrence_edges(docs, window=4, vocab=V, directed=True) — "
+        "metric=w_fwd+w_bwd, charge=w_fwd-w_bwd (the direction); (3) strand,n_syms = srmech.amsc.genome.graph_to_kernel"
+        "(n, edges, metric, charge, leaf_dim=64, label='graph', the_one=COUPLE); genome_save(strand,dir,COUPLE,"
+        "labels=['graph']) then genome_append_kernel(dir,'vocab', vocab-as-klein4-syms) = ONE content-addressed genome "
+        "(graph + vocab chromosomes), NOT loose JSON; (4) verify with srmech.amsc.laplacian.recover_check_structural "
+        "(sparse, any vocab) + recover_check_spectral(max_dim=256). Store the directed Laplacian + fiber, NEVER Klein-4 "
+        "HVs (F1221). Load for reads via siona.corpus_store.prepare(dir) -> neighbors('X') = 'what is X seen-with'. "
+        "Reference: R-RBS-LM-SIONA231 (the store) + R-RBS-LM-SIMPLEWIKIGENOME (831k vocab/39M edges -> 313MB, 3x < loose). "
+        "To build ANOTHER wiki (enwiki, other lang): run the SAME pipeline on that wiki's directed cooccurrence."),
     "encode_corpus_class_l_genome": (
-        "encode a corpus as a Class-L genome: STREAM the source and build the FULL UNCAPPED WEIGHTED "
-        "co-occurrence graph (build_edges_topk vocab_cap=None), then persist the full_sparse_kernel "
-        "{vocab, freq, edge_list, edge_weights}. NEVER top-K or drop weights at STORAGE time — that is the "
-        "trash-fallback (F708/F748/F1207); top-N is a LOAD-time knob. Reference encoder: R-RBS-LM-WIKIWEIGHTED. "
-        "The stored object recovers op (L=D-A), operand (edges), responsion (excite L); the recover-ratchet guards it."),
+        "encode a corpus as a Class-L genome. PREFER 'build_wiki_corpus_genome' — the native rc253 directed genome "
+        "(graph_to_kernel + a vocab chromosome; F1232). The older loose form (build_edges_topk vocab_cap=None -> a "
+        "full_sparse_kernel {vocab,freq,edge_list,edge_weights} JSON; R-RBS-LM-WIKIWEIGHTED) is SUPERSEDED but the "
+        "DISCIPLINE stands: NEVER top-K or drop weights at STORAGE time (the trash-fallback F708/F748/F1207); top-N is "
+        "a LOAD-time knob. The stored object recovers op (L=D-A), operand (edges), responsion (excite L) — recover_check guards it."),
     "store_sparse_complete_never_truncate": (
         "store SPARSE-and-COMPLETE: keep EVERY real weighted edge as an int edge-list (no dense float matrix). "
         "'sparse' means sparse vs gen-1 dense-float-in-GPU-RAM, NOT fewer edges. top-K is a query READ, never a "
