@@ -3310,6 +3310,16 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_graph_kernel_decode.argtypes = [
                 _U8, _SZ, _PU32, _SZ, _PSZ, _PU32, _PU32, _PI64, _SZ, _PSZ]
             lib.srmech_graph_kernel_decode.restype = ctypes.c_int
+        # rc245 (gh #1390 item 3): the Eulerian walk (Hierholzer) over a directed
+        # edge multiset. ADDITIVE symbol — EXPECTED_ABI stays 5. hasattr-guarded.
+        if hasattr(lib, "srmech_eulerian_walk"):
+            #   eulerian_walk(edges, ne, circuit, has_start, start,
+            #                 out_walk, walk_cap, out_len, ws, ws_len)
+            _PINT = ctypes.POINTER(ctypes.c_int)
+            lib.srmech_eulerian_walk.argtypes = [
+                _PU32, _SZ, ctypes.c_int, ctypes.c_int, _U32,
+                _PU32, _SZ, _PSZ, _VP, _SZ]
+            lib.srmech_eulerian_walk.restype = ctypes.c_int
         # §127/rc127 (#726) — the active-telomere TICK (divide/gate): the operand
         # (count) selects the operator. cap in, out_cap + senescent + count_after out.
         # No arena (out_cap is caller-provided). NEW symbol → hasattr-guarded (a stale
@@ -16756,6 +16766,49 @@ def graph_kernel_decode_c(syms):
     weights = [int(ow[i]) for i in range(ne)]
     charges = [int(oc[i]) for i in range(ne)]
     return vocab, edges, weights, charges
+
+
+def has_native_eulerian() -> bool:
+    """True iff the rc245 Eulerian-walk C peer (``srmech_eulerian_walk``, gh
+    #1390 item 3) is loaded + bound: the directed Hierholzer walk runs in C.
+    False on a no-C or pre-rc245 lib — the pure-Python
+    ``laplacian._hierholzer_walk`` body is the complete alternative (and the
+    byte-identical parity oracle). ADDITIVE symbol (EXPECTED_ABI stays 5)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_eulerian_walk"))
+
+
+def eulerian_walk_c(edges, circuit, start):
+    """Native ``srmech_eulerian_walk``: reconstruct the node walk of a directed
+    Eulerian path (``circuit=False``) or circuit (``circuit=True``) from a
+    directed edge multiset — byte-identical to the pure Hierholzer. ``start`` is
+    ``None`` (auto) or an int node id (circuit only). Only call when
+    :func:`has_native_eulerian`. Raises ``ValueError`` when no Eulerian walk
+    exists (degree imbalance / not connected) — matching the pure path's type."""
+    ne = len(edges)
+    ed = (ctypes.c_uint32 * max(2 * ne, 1))(
+        *[int(x) for e in edges for x in e])
+    has_start = 0 if start is None else 1
+    start_v = 0 if start is None else int(start)
+    n_max = 0
+    for (i, j) in edges:
+        if i > n_max:
+            n_max = i
+        if j > n_max:
+            n_max = j
+    n_nodes = n_max + 1
+    walk_cap = ne + 1
+    out = (ctypes.c_uint32 * walk_cap)()
+    olen = ctypes.c_size_t(0)
+    ws_len = (4 * n_nodes + 2 * ne + 8) * 4 + 64        # deg/in/off/ptr + adj/stack
+    ws = (ctypes.c_uint8 * ws_len)()
+    rc = LIB.srmech_eulerian_walk(
+        ed, ne, 1 if circuit else 0, has_start, start_v,
+        out, walk_cap, ctypes.byref(olen), ws, ws_len)
+    if rc != SRMECH_OK:
+        raise ValueError(
+            "no directed Eulerian walk (degree imbalance or not connected)")
+    return [int(out[i]) for i in range(olen.value)]
 
 
 def _genome_file_size(path: str) -> int:
