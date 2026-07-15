@@ -159,6 +159,8 @@ class Session:
         self.learned_verbs = {}   # ACCRETED word->tool (F1018: roles fixed, words evolve by usage)
         self._verb_obs = {}       # accretion tallies: lead-word -> {tool: count}
         self.last_result = None   # the RESULT REGISTER: the actual object a [srmech] turn returned (F1024)
+        self.corpus = None        # #231/F1233: an OPT-IN directed Class-L corpus store (vocab, graph, vindex, adj) for
+                                  # the RELATIONAL read in `define` -- None = the shipped baseline (unchanged) until load_corpus()
         self.instrument = None    # loaded knowledge instrument (path, index) -- mechanism-not-knowledge:
         self.attestations = []    # knowledge loads by PATH; every acquired fact carries Class-A attestation
         self.trace = None         # opt-in EXCITATION TRAIL (F1206 melange signature): None=off, else list of per-turn records
@@ -1013,8 +1015,25 @@ class Session:
     def _show(self, text=""):
         return "memory (%d): %s" % (len(self.mem), " | ".join(self.mem))
 
+    def load_corpus(self, genome_dir):
+        """#231/F1233: load a directed Class-L corpus genome as the RELATIONAL read for `define` (the F1219 fix —
+        `define` grounded to srmech TOOLS, never a corpus). OPT-IN + additive: a token not in the corpus falls
+        back to the shipped tool-grounding, so the baseline is unchanged until this is called. Returns |vocab|."""
+        from . import corpus_store as _cs
+        vocab, graph, vindex, adj = _cs.prepare(genome_dir)
+        self.corpus = (vocab, graph, vindex, adj)
+        return len(vocab)
+
     def _define(self, text):
-        s, n = self.g.ground(text, 1, owner="srmech")[0]
+        if self.corpus is not None:                       # #231/F1233: the directed corpus store's relational read FIRST
+            from . import corpus_store as _cs
+            vocab, graph, vindex, adj = self.corpus
+            for w in _toks(text):                         # the first content token that IS in the corpus wins
+                nb = _cs.neighbors(vocab, vindex, adj, w, 6)
+                if nb:
+                    seen = ", ".join("%s %s" % (sense, word) for (_wt, sense, word) in nb)
+                    return "%s -- seen with: %s" % (w, seen)   # relational read-out (metric-ranked; -> / <- = direction)
+        s, n = self.g.ground(text, 1, owner="srmech")[0]  # fallback: the shipped srmech-tool grounding (unchanged)
         return "%s: %s" % (n.split(".")[-1], (self.g.tools[n].summary or "")[:95])
 
     def _continue(self, text):
