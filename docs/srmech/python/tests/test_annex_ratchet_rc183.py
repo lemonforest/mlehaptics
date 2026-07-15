@@ -144,8 +144,8 @@ _ANNEX_DELTA = {"composes_c": 20, "host_glue": 1, "dev_tooling": 3}
 # carrier_schema; dispatches to its C peer srmech_responsion_schema over the
 # compiled-in const registry — composes_c FROM BIRTH, the rc205 carrier_schema
 # precedent). composes_c 120 -> 121; total 189 -> 190.
-_FULL_SPLIT = {"composes_c": 121, "host_glue": 21, "dev_tooling": 48}
-_TOTAL_NON_COMPUTE = 190
+_FULL_SPLIT = {"composes_c": 122, "host_glue": 21, "dev_tooling": 48}
+_TOTAL_NON_COMPUTE = 191
 _HOSTGLUE_ROOTS = ("srmech.mcp", "srmech.cli", "srmech.llm")
 
 

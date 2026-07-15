@@ -1217,6 +1217,37 @@ def _register_primitive_class_tools() -> None:
                               "len(edges)+1) of the directed Eulerian circuit, "
                               "closed (first == last)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check", owner="srmech",
+            category="laplacian",
+            summary="Round-trip integrity verdict for a recovered Class-L graph "
+                    "(gh #1390 item 4): does the stored genome recover its four "
+                    "faculties? Parameters mirror dense_laplacian / "
+                    "graph_to_kernel (n nodes, (i, j) edges, per-edge weights, "
+                    "optional signed charges for a directed store). The packaged "
+                    "verify F1225 asked for — composes dense_laplacian + "
+                    "symmetric_eigendecompose + responsion + cycle_holonomy (each "
+                    "C-mirrored, so recover_check is composes_c). Returns a dict: "
+                    "'operand' (weighted edges present), 'op' (L=D−A "
+                    "eigendecomposes to n eigenvalues), 'responsion' (the "
+                    "propagator e^{−zL} is excitable — mass reaches off the "
+                    "seed), 'curvature' (a DIRECTED store recovers a NONZERO "
+                    "cycle holonomy of the normalised charge/weight gain — the "
+                    "F552 which-way the spectrum can't carry; None for a "
+                    "symmetric store), 'recovered' (every applicable faculty "
+                    "passes). A verify, not a raise. numpy-free; no abs().",
+            parameters=(P("n", "int", True, "the node count"),
+                        P("edges", "list[tuple[int, int]]", True,
+                          "the (i, j) edges"),
+                        P("weights", "Sequence[int]", True,
+                          "parallel per-edge weights (the metric)"),
+                        P("charges", "Sequence[int]", False,
+                          "parallel SIGNED per-edge charges (a directed store; "
+                          "None → symmetric, the curvature faculty is skipped)")),
+            returns=R("dict", "{'operand': bool, 'op': bool, 'responsion': "
+                              "bool, 'curvature': bool | None, 'recovered': "
+                              "bool} — the per-faculty round-trip verdict"),
+        ),
         # ────────────────────────────────────────────────────────────
         # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
         # + the ground-state flux reader, Class-L composites with the 1:1

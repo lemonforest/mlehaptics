@@ -183,6 +183,7 @@ __all__ = [
     "cycle_holonomy",
     "eulerian_path",
     "eulerian_circuit",
+    "recover_check",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -5897,6 +5898,85 @@ def _eulerian_circuit_pure(edges, start):
     return walk
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# gh #1390 item 4 (rc246) — the Class-L genome RECOVER-CHECK: does a recovered
+# graph recover its op / operand / responsion / (directed) ℂ-curvature? The
+# packaged verify F1225 asked for — composes dense_laplacian +
+# symmetric_eigendecompose + responsion + cycle_holonomy (each C-mirrored, so
+# recover_check is composes_c). The order-sensitive 5th (octonion) faculty
+# (F1231) lands on top in a follow-up.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def recover_check(n, edges, weights, charges=None):
+    """Round-trip integrity verdict for a recovered Class-L graph (gh #1390
+    item 4). Does the stored genome recover its four faculties? Parameters
+    mirror :func:`dense_laplacian` / :func:`graph_to_kernel`: ``n`` nodes,
+    ``(i, j)`` edges, per-edge ``weights``, optional signed ``charges`` (a
+    directed store).
+
+    Returns a dict of faculty verdicts:
+
+    * ``"operand"`` — weighted edges are present (``len(edges) > 0`` and
+      ``weights`` aligned): the operand read-out #1 survives.
+    * ``"op"`` — ``L = D − A`` eigendecomposes to ``n`` real eigenvalues (the
+      op recovers; a truncated / lossy store fails here).
+    * ``"responsion"`` — the propagator ``e^{−zL}`` is excitable (mass reaches
+      off the seed node): the responsion / EPH read-out #3 survives.
+    * ``"curvature"`` — for a DIRECTED store (``charges`` given) a NONZERO
+      cycle holonomy recovers (the F552 which-way the Hermitian/signed spectrum
+      provably cannot carry); ``None`` for a symmetric store (faculty N/A).
+    * ``"recovered"`` — every applicable faculty passes.
+
+    A verify, not a raise: a graph that fails to eigendecompose reports
+    ``"op": False`` rather than propagating. numpy-free; composes the C-mirrored
+    Class-L ops (composes_c).
+    """
+    edges = [tuple(e) for e in edges]
+    weights = list(weights)
+    operand = len(edges) > 0 and len(weights) == len(edges)
+    op = False
+    responsion_ok = False
+    if operand and n > 0:
+        try:
+            lap = dense_laplacian(n, edges, weights)
+            evals, _v = symmetric_eigendecompose(lap)
+            ev = [float(x) for x in evals]
+            op = len(ev) == n
+            # L = D − A is PSD, so eigenvalues are ≥ 0 — max IS the spectral
+            # radius (no abs() — the Class-K no-ALU-abs rule); the fallback
+            # z = 1 covers a degenerate all-zero spectrum.
+            mx = max(ev, default=0.0)
+            z = (5.0 / mx) if mx > 0.0 else 1.0
+            u0 = [1.0] + [0.0] * (n - 1)
+            resp = responsion(lap, u0, z, kind="propagator")
+            # excitable iff any off-seed mass is non-zero. The reach is the
+            # magnitude-SQUARED energy (re·re + im·im — a Class-K real-imag
+            # composition, NOT abs()); > 0 iff the propagator spread off node 0.
+            reach = sum(x.real * x.real + x.imag * x.imag
+                        for x in list(resp)[1:])
+            responsion_ok = reach > 0.0
+        except (ValueError, ZeroDivisionError, ArithmeticError):
+            op = False
+            responsion_ok = False
+    curvature = None
+    if charges is not None:
+        # The per-edge magnetic phase gain is the NORMALISED charge
+        # (f − b)/(f + b) = charge/weight ∈ (−1, 1) — NOT the raw integer charge
+        # (an integer sums to an integer holonomy ≡ 0 mod 1). Feed the exact
+        # rational so a directed store's holonomy is exactly non-zero (F1231's
+        # curvature_recovers precedent). (Fraction here mirrors cycle_holonomy's
+        # own Fraction interface; the #845 Q-migration sweeps both.)
+        from fractions import Fraction as _Fr
+        charges = list(charges)
+        gains = [(_Fr(int(c), int(w)) if int(w) != 0 else _Fr(0))
+                 for c, w in zip(charges, weights)]
+        holo = cycle_holonomy(edges, charges=gains, n=n)
+        curvature = any(h != 0 for h in holo.get("holonomies", []))
+    recovered = bool(operand and op and responsion_ok and curvature is not False)
+    return {"operand": operand, "op": op, "responsion": responsion_ok,
+            "curvature": curvature, "recovered": recovered}
+
+
 # Registry of available Class L op names for the composition engine.
 # Order is documentary; consumers iterate by name not position.
 LAPLACIAN_OPS: Tuple[str, ...] = (
@@ -5910,6 +5990,7 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "cycle_holonomy",
     "eulerian_path",
     "eulerian_circuit",
+    "recover_check",
     "fiedler_vector",
     "fiedler_sparse",
     "normalized_cut_bisect",
