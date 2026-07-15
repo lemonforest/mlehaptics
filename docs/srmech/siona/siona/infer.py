@@ -1037,20 +1037,19 @@ class Session:
         return "memory (%d): %s" % (len(self.mem), " | ".join(self.mem))
 
     def load_corpus(self, genome_dir):
-        """#231/F1233: load a directed Class-L corpus genome as the RELATIONAL read for `define` (the F1219 fix —
-        `define` grounded to srmech TOOLS, never a corpus). OPT-IN + additive: a token not in the corpus falls
-        back to the shipped tool-grounding, so the baseline is unchanged until this is called. Returns |vocab|."""
+        """#231/F1233/F1235: attach a directed Class-L corpus genome as the RELATIONAL read for `define` (the F1219
+        fix — `define` grounded to srmech TOOLS, never a corpus). DEMAND-LOADED (gene_express, F1235): if the genome
+        has a reads/ layer the open is INSTANT (mmap; each query pages in only its token). OPT-IN + additive — a token
+        not in the corpus falls back to the shipped tool-grounding, so the baseline is unchanged. Returns |vocab|."""
         from . import corpus_store as _cs
-        vocab, graph, vindex, adj = _cs.prepare(genome_dir)
-        self.corpus = (vocab, graph, vindex, adj)
-        return len(vocab)
+        self.corpus = _cs.prepare(genome_dir)             # a demand (mmap) or in-RAM handle; read() is the same API
+        return len(self.corpus["vocab"])
 
     def _define(self, text):
         if self.corpus is not None:                       # #231/F1233: the directed corpus store's relational read FIRST
             from . import corpus_store as _cs
-            vocab, graph, vindex, adj = self.corpus
             for w in _toks(text):                         # the first content token that IS in the corpus wins
-                nb = _cs.neighbors(vocab, vindex, adj, w, 6)
+                nb = _cs.read(self.corpus, w, 6)          # gene_express: pages in only this token's neighbourhood
                 if nb:
                     seen = ", ".join("%s %s" % (sense, word) for (_wt, sense, word) in nb)
                     return "%s -- seen with: %s" % (w, seen)   # relational read-out (metric-ranked; -> / <- = direction)

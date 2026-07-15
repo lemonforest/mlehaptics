@@ -1,57 +1,106 @@
-"""siona.corpus_store — the directed Class-L corpus genome as Siona's RELATIONAL read (#231/PKG-3, F1233).
+"""siona.corpus_store — the directed Class-L corpus genome as Siona's RELATIONAL read, DEMAND-LOADED (#231, F1233/F1235).
 
-The STORE side of F1216 (relational, on disk) that F1219 showed Siona's read path was missing: `define`/`answer`
-grounded to srmech TOOLS (water -> z_boson_mass), never to a corpus. This loads a directed corpus genome — built by
-`srmech.amsc.genome.graph_to_kernel` (the directed Laplacian: metric + charge) + a vocab string chromosome
-(#231) — and answers "what is X seen-with" as the relational read-out (co-occurrence metric + the charge/direction).
+The genome is the DNA (the store — the directed Laplacian: metric + charge, F1216/F1221). Reading it is GENE-EXPRESSION
+(EPH / F1095/F1112): a query EXPRESSES only the queried token's neighbourhood on demand, it does NOT inflate all 39M
+edges into RAM at startup. So we build ONCE a mmap-able per-token expression layer under <genome_dir>/reads/ —
+  adj.bin : per-token neighbour records (int32 neighbour_id, metric, charge), sorted by metric desc, mmap'd
+  adj.idx : token_id -> (byte_offset, count)          vocab.txt : the token strings
+— then open() is INSTANT (mmap, no decode) and read(token) pages in only that token's bytes. The store stays the
+genome; reads/ is a derived, recomputable READ accelerator (top-K is a query read, never a storage cut — F708/F748).
 
-Loads WITHOUT any external metadata: the graph format is self-describing (stops at n_edges), and the vocab tail
-padding is trimmed to `vocab_size`. Native srmech rc253; no numpy; store = the Laplacian + fiber, not Klein-4 HVs.
+Native srmech rc253; no numpy; store = the Laplacian + fiber, not Klein-4 HVs.
 """
+import mmap
+import struct
+from pathlib import Path
+
 from srmech.amsc import genome as _G
 from srmech.amsc import hdc as _H
 
 LEAF = 64
 COUPLE = _H.klein4_random(LEAF, seed=1080)          # the store's canonical coupling (the sandroing/UNESCO 00073 seed)
+_REC = struct.Struct("<iii")                         # a neighbour record: (neighbour_id, metric, charge-from-this-view)
+_IDX = struct.Struct("<QI")                          # an index record: (byte_offset uint64, count uint32)
 
 
 def load(genome_dir, the_one=None):
-    """Load a directed corpus genome -> (vocab, graph). No stored n_syms/n_vsyms needed (self-describing format)."""
+    """Decode the whole genome -> (vocab, graph). The CANONICAL read (no external metadata; self-describing format
+    stops at n_edges; vocab tail trimmed to vocab_size). Heavy at corpus scale — used to BUILD reads/, then not again."""
     the_one = COUPLE if the_one is None else the_one
     chg, _c, _l = _G.genome_load(str(genome_dir), labels=["graph"], the_one=the_one)
-    n = len(list(_G.kernel_unpack(chg, the_one)))                 # unpack all; the decode stops at n_edges
+    n = len(list(_G.kernel_unpack(chg, the_one)))
     graph = _G.kernel_to_graph(chg, the_one, n)
     chv, _c2, _l2 = _G.genome_load(str(genome_dir), labels=["vocab"], the_one=the_one)
     vs = list(_G.kernel_unpack(chv, the_one))
     b = bytearray()
     for i in range(0, len(vs) - 3, 4):
         b.append(vs[i] + (vs[i + 1] << 2) + (vs[i + 2] << 4) + (vs[i + 3] << 6))
-    vocab = b.decode("utf-8", errors="ignore").split("\n")[:graph["vocab_size"]]   # trim the padding tail
+    vocab = b.decode("utf-8", errors="ignore").split("\n")[:graph["vocab_size"]]
     return vocab, graph
 
 
-def index(graph):
-    """token id -> [(neighbor_id, metric, charge_from_this_node's_view), ...]. O(degree) lookup, not O(edges) scan.
-    Charge flips for the mirror endpoint: on edge (i<j) charge c means i precedes j (c>0); from j's view it is -c."""
+def _adjacency(edges, weights, charges):
     adj = {}
-    for (i, j), w, c in zip(graph["edges"], graph["weights"], graph["charges"]):
+    for (i, j), w, c in zip(edges, weights, charges):
         adj.setdefault(i, []).append((j, w, c))
-        adj.setdefault(j, []).append((i, w, -c))
+        adj.setdefault(j, []).append((i, w, -c))     # from j's view the direction (charge) flips
     return adj
 
 
-def prepare(genome_dir, the_one=None):
-    """Load + build the vocab index + adjacency index -> (vocab, graph, vindex, adj), ready for `neighbors`."""
-    vocab, graph = load(genome_dir, the_one)
-    vindex = {t: n for n, t in enumerate(vocab)}
-    return vocab, graph, vindex, index(graph)
+def build_reads(genome_dir, *, vocab=None, edges=None, weights=None, charges=None, the_one=None):
+    """Build the demand-load expression layer <genome_dir>/reads/ ONCE. Pass the (vocab, edges, weights, charges)
+    arrays for speed (e.g. straight from the source), or omit them to decode the genome (canonical). Returns |vocab|."""
+    if edges is None:
+        vocab, graph = load(genome_dir, the_one)
+        edges, weights, charges = graph["edges"], graph["weights"], graph["charges"]
+    adj = _adjacency(edges, weights, charges)
+    rd = Path(genome_dir) / "reads"
+    rd.mkdir(parents=True, exist_ok=True)
+    with open(rd / "adj.bin", "wb") as fb, open(rd / "adj.idx", "wb") as fi:
+        off = 0
+        for t in range(len(vocab)):
+            recs = sorted(adj.get(t, ()), key=lambda x: -x[1])       # metric desc so the top-of-read is the file prefix
+            fi.write(_IDX.pack(off, len(recs)))
+            for (j, w, c) in recs:
+                fb.write(_REC.pack(j, w, c))
+                off += _REC.size
+    (rd / "vocab.txt").write_text("\n".join(vocab), encoding="utf-8")
+    return len(vocab)
 
 
-def neighbors(vocab, vindex, adj, token, k=6):
-    """The RELATIONAL read: what co-occurs with `token`, ranked by metric, with the direction (charge sign).
-    Returns [(metric, sense, word), ...] where sense '->' = token precedes word, '<-' = word precedes token."""
-    ti = vindex.get(token)
+def open_demand(genome_dir):
+    """Open the reads/ layer INSTANTLY: load the small idx + vocab, mmap adj.bin (no decode; pages in per query)."""
+    rd = Path(genome_dir) / "reads"
+    vocab = (rd / "vocab.txt").read_text(encoding="utf-8").split("\n")
+    idx = (rd / "adj.idx").read_bytes()
+    fb = open(rd / "adj.bin", "rb")
+    mm = mmap.mmap(fb.fileno(), 0, access=mmap.ACCESS_READ)
+    return {"mode": "demand", "vocab": vocab, "vindex": {t: n for n, t in enumerate(vocab)},
+            "idx": idx, "mm": mm, "_fb": fb}
+
+
+def prepare(genome_dir):
+    """Return a read handle. reads/ present -> DEMAND-LOAD (instant open, gene_express per query). Else (a small
+    corpus) -> full in-RAM (cheap). Same read() API either way."""
+    if (Path(genome_dir) / "reads" / "adj.idx").exists():
+        return open_demand(genome_dir)
+    vocab, graph = load(genome_dir)
+    return {"mode": "ram", "vocab": vocab, "vindex": {t: n for n, t in enumerate(vocab)},
+            "adj": _adjacency(graph["edges"], graph["weights"], graph["charges"])}
+
+
+def read(h, token, k=6):
+    """The RELATIONAL read, gene-expressed: what co-occurs with `token`, top-k by metric, with direction (-> / <-).
+    DEMAND mode pages in only this token's bytes from the mmap (records are metric-sorted, so the first k ARE the top)."""
+    ti = h["vindex"].get(token)
     if ti is None:
         return []
-    top = sorted(adj.get(ti, []), key=lambda t: -t[1])[:k]
-    return [(w, "->" if c >= 0 else "<-", vocab[j]) for (j, w, c) in top]
+    if h["mode"] == "demand":
+        off, cnt = _IDX.unpack_from(h["idx"], ti * _IDX.size)
+        out = []
+        for m in range(min(cnt, k)):
+            j, w, c = _REC.unpack_from(h["mm"], off + m * _REC.size)
+            out.append((w, "->" if c >= 0 else "<-", h["vocab"][j]))
+        return out
+    top = sorted(h["adj"].get(ti, []), key=lambda t: -t[1])[:k]
+    return [(w, "->" if c >= 0 else "<-", h["vocab"][j]) for (j, w, c) in top]
