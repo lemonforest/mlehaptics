@@ -1,21 +1,20 @@
-r"""R-RBS-LM-SIONA231 (#231/PKG-3) — the genome-native DIRECTED Class-L corpus store, built on the #1390 prototype
-spine (items 1-4). Replaces the loose NDJSON *relational* store with ONE content-addressed genome carrying the
-directed Laplacian (edges + metric + charge) + the vocab string table — NOT Klein-4 HVs (F1221 disk rule).
+r"""R-RBS-LM-SIONA231 (#231/PKG-3) — the genome-native DIRECTED Class-L corpus store, on NATIVE srmech ops
+(#1390 delivered in rc253, F1232). Replaces the loose NDJSON *relational* store with ONE content-addressed genome
+carrying the directed Laplacian (edges + metric + charge) + the vocab string table — NOT Klein-4 HVs (F1221 disk rule).
 
-Spine (all from the #1390 prototypes):
-  item 1  cooccurrence_edges(directed=True)  -> (n, edges, metric, charge)          [DIRCOOCCUR]
-  item 2  graph_to_kernel / kernel_to_graph  -> the genome chromosome, byte-exact   [GRAPH2KERNEL]
-  item 4  recover_check                      -> the four-faculty integrity check     [RECOVERCHECK]
-  (item 3 eulerian_path is the reconstruction read-out on the same object)
+Spine — now the native srmech surface (was the #1390 prototypes; re-pointed F1232):
+  item 1  srmech.amsc.text.cooccurrence_edges(directed=True) -> (n, edges, metric, charge)
+  item 2  srmech.amsc.genome.graph_to_kernel / kernel_to_graph -> the genome chromosome, byte-exact
+  item 4  srmech.amsc.laplacian.recover_check + recover_check_structural + recover_check_spectral(max_dim=)
+  (item 3 laplacian.eulerian_path is the reconstruction read-out on the same object)
 
-This turn STARTS #231: builds the store module, proves it end-to-end on the tier0 FINDINGS corpus (fresh, real),
-measures the size win vs loose JSON, and PROJECTS to the real simplewiki body instrument (831k vocab / 39M edges) —
-surfacing what the #1390 ops need AT CORPUS SCALE (flagged for the maintainer).
+Proves the store end-to-end on the tier0 FINDINGS corpus (fresh, real), measures the size win vs loose JSON, and
+PROJECTS to the real simplewiki body instrument (831k vocab / 39M edges). The recover_check SPLIT (structural /
+bounded-spectral) that #231's scale pass surfaced (F1227) is now native — so the dense-eigendecompose wall is gone.
 
-srmech 0.9.0rc241; exact ints; no numpy; no abs-builtin. Run:
+srmech 0.9.0rc253 (native); exact ints; no numpy; no abs-builtin. Run:
   /tmp/srmech_v/venv/bin/python3 docs/srmech/rbs_lm_research/R-RBS-LM-SIONA231_...py
 """
-import importlib.util
 import json
 import shutil
 import sys
@@ -23,26 +22,14 @@ import time
 from pathlib import Path
 
 from srmech.amsc import genome as G
+from srmech.amsc import hdc
 from srmech.amsc import laplacian as L
 from srmech.amsc import text as T
 
 HERE = Path(__file__).parent
 LEAF = 64
 OUT = Path("/tmp/siona231")
-
-
-def _load(stem):
-    p = HERE / stem
-    spec = importlib.util.spec_from_file_location(stem.split("_")[0].replace("-", ""), str(p))
-    m = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(m)
-    return m
-
-
-GK = _load("R-RBS-LM-GRAPH2KERNEL_prototype_general_directed_signed_graph_genome_codec.py")
-RC = _load("R-RBS-LM-RECOVERCHECK_prototype_general_class_l_genome_recover_check_four_faculties.py")
-DC = _load("R-RBS-LM-DIRCOOCCUR_prototype_directed_cooccurrence_edges_metric_plus_charge.py")
-COUPLE = GK.COUPLE
+COUPLE = hdc.klein4_random(LEAF, seed=1080)          # the sandroing/UNESCO 00073 coupling seed
 
 
 # ---------- the vocab string-table codec (a SECOND chromosome so the genome is self-contained, not loose) ----------
@@ -64,8 +51,8 @@ def _syms_to_vocab(syms):
 
 # ---------- the store: build / load (2 chromosomes: directed graph + vocab table) ----------
 def build_corpus_genome(vocab, edges, metric, charge, out_dir):
-    strand_g, n_syms = GK.graph_to_kernel(len(vocab), [tuple(e) for e in edges], metric, charge,
-                                          leaf_dim=LEAF, label="graph", the_one=COUPLE)
+    strand_g, n_syms = G.graph_to_kernel(len(vocab), [tuple(e) for e in edges], metric, charge,
+                                         leaf_dim=LEAF, label="graph", the_one=COUPLE)
     vsyms = _vocab_to_syms(vocab)
     d = Path(out_dir)
     if d.exists():
@@ -80,7 +67,7 @@ def build_corpus_genome(vocab, edges, metric, charge, out_dir):
 def load_corpus_genome(out_dir, n_syms, n_vsyms):
     d = str(out_dir)
     chg, _c, _l = G.genome_load(d, labels=["graph"], the_one=COUPLE)
-    graph = GK.kernel_to_graph(chg, COUPLE, n_syms)
+    graph = G.kernel_to_graph(chg, COUPLE, n_syms)
     chv, _c2, _l2 = G.genome_load(d, labels=["vocab"], the_one=COUPLE)
     vsyms = list(G.kernel_unpack(chv, COUPLE))[:n_vsyms]
     vocab = _syms_to_vocab(vsyms)
@@ -101,39 +88,6 @@ def neighbors(graph, vocab, token, k=6):
             out.append((w, sense, vocab[other]))
     out.sort(reverse=True)
     return out[:k]
-
-
-# ---------- a SCALABLE integrity check (proposed #1390 item-4 refinement — the corpus-scale finding) ----------
-def recover_check_structural(vocab_size, edges, weights, charges, *, cycle_sample=48):
-    """The O(edges) faculties only — operand (edges present/valid) + a SAMPLED curvature read — so integrity is
-    checkable at ANY vocab size. The dense op/responsion faculties (full n×n eigendecompose) do NOT scale past the
-    native n<=256 / O(n^3) wall (measured below), so recover_check must SPLIT: structural (this, sparse, scales) vs
-    spectral (op+responsion, bounded submatrix / top-k Lanczos). This is the #1390 item-4 corpus-scale learning."""
-    operand = (len(edges) > 0 and len(edges) == len(weights) and all(w >= 1 for w in weights))
-    directed = charges is not None and any(c != 0 for c in charges)
-    # curvature sample: take the first `cycle_sample` edges that close a triangle with earlier ones (cheap probe)
-    seen = {}
-    holo = False
-    from fractions import Fraction
-    for idx, ((i, j), c) in enumerate(zip(edges, charges or [0] * len(edges))):
-        seen[(i, j)] = c
-        # look for a 2-path i->k and k->j already seen -> a triangle
-        for k in range(min(vocab_size, 64)):
-            a = seen.get((min(i, k), max(i, k)))
-            b = seen.get((min(k, j), max(k, j)))
-            if a is not None and b is not None and k not in (i, j):
-                mc = c if c >= 0 else -c                          # Class-K magnitude (not the builtin)
-                q = Fraction(1, 2 * max(1, mc) + 1)
-                hh = L.cycle_holonomy([(i, k), (k, j), (i, j)],
-                                      charges=[Fraction(int(a)) * q, Fraction(int(b)) * q, Fraction(int(c)) * q],
-                                      n=vocab_size)
-                if any(h != 0 for h in hh["holonomies"]):
-                    holo = True
-                    break
-        if holo or idx > cycle_sample * 200:
-            break
-    return {"operand": operand, "directed": directed, "curvature_sampled_nonzero": holo,
-            "ok_structural": operand}
 
 
 def _findings_docs(cap_files=None):
@@ -162,12 +116,12 @@ def main():
     # (A) BOUNDED (n<=256) — the WHOLE spine end-to-end, full recover_check PASSES, relational read-out
     print("\n(A) bounded store (top-200 vocab, n<=256 so the full 4-faculty check runs):")
     vocab = _bounded_vocab(docs, 200)
-    n, edges, metric, charge = DC.cooccurrence_edges(docs, window=2, vocab=vocab, directed=True)
+    n, edges, metric, charge = T.cooccurrence_edges(docs, window=2, vocab=vocab, directed=True)
     info = build_corpus_genome(vocab, edges, metric, charge, OUT / "findings200.genome")
     v2, graph = load_corpus_genome(OUT / "findings200.genome", info["n_syms"], info["n_vsyms"])
     rt = (v2 == vocab and graph["edges"] == [tuple(e) for e in edges]
           and graph["weights"] == metric and graph["charges"] == charge)
-    v = RC.recover_check(n, edges, metric, charge)
+    v = L.recover_check(n, edges, metric, charge)
     loose = len(json.dumps({"vocab": vocab, "edges": edges, "weights": metric, "charge": charge}).encode())
     print("     %d vocab, %d edges -> genome %d B (loose JSON %d B; %.2fx)"
           % (n, len(edges), info["size"], loose, loose / max(info["size"], 1)))
@@ -176,10 +130,10 @@ def main():
     tok = "curvature" if "curvature" in vocab else vocab[10]
     print("     relational read-out  neighbors(%r) = %s" % (tok, neighbors(graph, v2, tok)))
 
-    # (B) FULL vocab — sparse faculties scale; the DENSE op/responsion faculties hit the wall (the #1390 learning)
-    print("\n(B) full-vocab store (the corpus-scale reality — sparse scales, dense does not):")
+    # (B) FULL vocab — both native faculties run: structural (sparse, any vocab) + bounded-spectral (the rc253 split)
+    print("\n(B) full-vocab store (the corpus-scale reality — the rc253 recover_check SPLIT now runs BOTH faculties):")
     fvocab = _bounded_vocab(docs, 10 ** 9)
-    fn, fedges, fmetric, fcharge = DC.cooccurrence_edges(docs, window=2, vocab=fvocab, directed=True)
+    fn, fedges, fmetric, fcharge = T.cooccurrence_edges(docs, window=2, vocab=fvocab, directed=True)
     t0 = time.time()
     finfo = build_corpus_genome(fvocab, fedges, fmetric, fcharge, OUT / "findingsfull.genome")
     t_build = time.time() - t0
@@ -188,16 +142,14 @@ def main():
     print("     %d vocab, %d edges -> genome %d B (loose JSON %d B; %.2fx) built in %.1fs"
           % (fn, len(fedges), finfo["size"], floose, floose / max(finfo["size"], 1), t_build))
     t0 = time.time()
-    st = recover_check_structural(fn, fedges, fmetric, fcharge)
-    print("     recover_check_STRUCTURAL (sparse, O(edges)): %s  in %.2fs  <- SCALES"
+    st = L.recover_check_structural(fn, fedges, fmetric, fcharge)
+    print("     recover_check_STRUCTURAL (native, sparse, O(edges)): %s  in %.2fs  <- scales to any vocab"
           % ({k: st[k] for k in ("operand", "directed", "curvature_sampled_nonzero")}, time.time() - t0))
-    try:
-        t0 = time.time()
-        _ = L.dense_laplacian(fn, [tuple(e) for e in fedges], [float(w) for w in fmetric])
-        print("     dense_laplacian(n=%d) built in %.2fs (unexpected at this n)" % (fn, time.time() - t0))
-    except Exception as e:
-        print("     recover_check SPECTRAL (dense op/responsion) at n=%d: %s: %s  <- DOES NOT SCALE (native n<=256 / O(n^3)/O(n^2) mem)"
-              % (fn, type(e).__name__, str(e)[:70]))
+    t0 = time.time()
+    sp = L.recover_check_spectral(fn, fedges, fmetric, fcharge, max_dim=256)
+    print("     recover_check_SPECTRAL (native, bounded max_dim=256): op=%s responsion=%s dim=%s  in %.2fs"
+          % (sp.get("op"), sp.get("responsion"), sp.get("dim"), time.time() - t0))
+    print("     -> the rc253 SPLIT RUNS at full-vocab where the full dense n×n eigendecompose (178s last pass) could not.")
 
     # (C) the real #231 target: simplewiki body instrument — PROJECT from its header (no 916MB load)
     print("\n(C) simplewiki body instrument projection (the real #231 target, from its header):")
@@ -220,18 +172,15 @@ def main():
     else:
         print("     (simplewiki kernel not present — projection skipped)")
 
-    print("\n=== #231 SPINE WORKS: directed Class-L + vocab -> ONE content-addressed genome, byte-exact round-trip, ===")
-    print("=== integrity-checkable, with the relational read-out. Built entirely on the #1390 prototypes.       ===")
-    print("\nLEARNINGS FOR #1390 (flag to the maintainer):")
-    print("  * item 4 recover_check: op+responsion do a DENSE n×n eigendecompose (native n<=256, O(n^3), O(n^2) mem)")
-    print("    -> at corpus vocab it CANNOT run. SPLIT into recover_check_structural (operand+sampled-curvature,")
-    print("    O(edges), scales — prototyped here) vs recover_check_spectral (bounded submatrix / top-k Lanczos).")
-    print("  * item 2 graph_to_kernel: linear + tiny (measured %.2f B/edge), but the codec's 2-symbol length header"
+    print("\n=== #231 SPINE WORKS on NATIVE srmech rc253: directed Class-L + vocab -> ONE content-addressed genome, ===")
+    print("=== byte-exact round-trip, integrity-checkable (structural + bounded-spectral), relational read-out.   ===")
+    print("\n#1390 DELIVERED (rc253, F1232) — the prototype-pass learnings are now the native surface:")
+    print("  * recover_check SPLIT is native: recover_check_structural (sparse, any vocab) + recover_check_spectral")
+    print("    (bounded max_dim=) — both run at full-vocab scale above; the dense-eigendecompose wall is gone.")
+    print("  * graph_to_kernel/kernel_to_graph native + byte-exact (%.2f B/edge); the 30-bit int cap is the doc'd bound."
           % (finfo["size"] / max(len(fedges), 1)))
-    print("    caps ints at 15 base-4 digits (30 bits) — fine for simplewiki (831k vocab, weights< that), but a")
-    print("    huge corpus (enwiki, or a weight>2^30) needs a wider header; worth documenting the cap.")
-    print("  * a self-contained genome needs the VOCAB STRING TABLE too — here a 2nd chromosome via")
-    print("    genome_append_kernel worked; graph_to_kernel could optionally accept/emit the string table.")
+    print("  * vocab string table = 2nd chromosome via genome_append_kernel. Store = the Laplacian + fiber, not Klein-4.")
+    print("  NEXT: the real simplewiki genome (stream the 916MB kernel -> genome) + wire the store into Siona's read path (F1219).")
     return 0
 
 
