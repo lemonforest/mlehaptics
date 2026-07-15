@@ -24,7 +24,7 @@ article-length coherency targets). Sparse, numpy-free, srmech-native (signed Cla
 """
 from siona import relate, chirality
 
-__all__ = ["residue", "describe", "have_corpus"]
+__all__ = ["residue", "describe", "describe_from", "have_corpus"]
 
 # aboutness stop-set (F768): function + generic-co-incidence words that flood an analytic-language graph but carry
 # no topic (in an analytic language these ARE the grammar — order-glue — so they must be filtered from the residue).
@@ -96,17 +96,36 @@ def _oxford(words):
     return "%s, and %s" % (", ".join(ws[:-1]), ws[-1])
 
 
+def describe_from(topic, spine, aspects, *, ride=None, source=None):
+    """The SHARED analytic SENTENCE render (F1166/F1168), decoupled from the relate-graph SELECTION so ANY selection
+    source renders the SAME prose — the relate residue, OR the #231 directed-corpus tome-tree (F1239). The SPINE
+    becomes the topic sentence; each ASPECT community a clause (Oxford-comma lists + varied predicates); an optional
+    `ride` (a directed etak PATH) becomes a "leads on to" sentence; an optional `source` cite (an ATTESTED genome,
+    MPM) is appended. Returns the joined sentences, or ``None`` if there is nothing to say."""
+    spine = [w for w in (spine or []) if w and w != topic]
+    if not spine and not aspects:
+        return None
+    out = []
+    if spine:
+        out.append("%s is closely related to %s." % (topic.capitalize(), _oxford(spine[:5])))
+    predicates = ("centres on", "also involves", "connects to")
+    for i, a in enumerate([g for g in (aspects or []) if g][:3]):
+        out.append("It %s %s." % (predicates[i % len(predicates)], _oxford(list(a)[:4])))
+    tail = [w for w in (ride or []) if w and w != topic]
+    if tail:
+        out.append("Following its strongest links, %s leads on to %s." % (topic, _oxford(tail[:5])))
+    if not out:
+        return None
+    text = " ".join(out)
+    return "%s (%s)" % (text, source) if source else text
+
+
 def describe(topic, **kw):
     """A structured description of ``topic`` from its relational residue (F1166; render improved F1168): the SPINE
     becomes the topic sentence, each ASPECT community a clause, joined with analytic function-word grammar
-    (Oxford-comma lists + varied predicates). The SELECTION is done (couple()'s residue on analytic-language data);
-    this render is INCREMENTAL — real fluent syntax (agreement, clause embedding) is still the arc's open gap.
-    ``None`` if the topic has no usable neighbourhood."""
+    (Oxford-comma lists + varied predicates). The SELECTION is `couple()`'s residue on analytic-language data; the
+    RENDER is the shared :func:`describe_from`. ``None`` if the topic has no usable neighbourhood."""
     r = residue(topic, **kw)
     if not r:
         return None
-    out = ["%s is closely related to %s." % (topic.capitalize(), _oxford(r["spine"]))]
-    predicates = ("centres on", "also involves", "connects to")
-    for i, a in enumerate(r["aspects"][:3]):
-        out.append("It %s %s." % (predicates[i % len(predicates)], _oxford(a[:4])))
-    return " ".join(out)
+    return describe_from(topic, r["spine"], r["aspects"])

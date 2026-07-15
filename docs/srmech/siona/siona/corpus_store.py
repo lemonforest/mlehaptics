@@ -80,13 +80,42 @@ def build_reads(genome_dir, *, vocab=None, edges=None, weights=None, charges=Non
     return len(vocab)
 
 
+def _load_attest(genome_dir):
+    """The genome's ATTESTATION + rendering, read from its manifest.json (the AMSC provenance sidecar). Returns
+    ``{"attestation": {...}, "rendering": {...}}`` or None. Siona CITES this on a corpus read — an attested genome
+    (MPM): the read points at its source, exactly like an attested knowledge kernel does."""
+    mp = Path(genome_dir) / "manifest.json"
+    if not mp.exists():
+        return None
+    try:
+        m = json.loads(mp.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None
+    return {"attestation": m.get("attestation", {}), "rendering": m.get("rendering", {})}
+
+
+def cite(h):
+    """The one-line CITATION for the corpus genome (its manifest attestation), or None: the rendering's ``cite_as``
+    if present, else the source_url (+ license). Appended to a corpus read so the answer is attested to its source."""
+    a = h.get("attest")
+    if not a:
+        return None
+    r, at = a.get("rendering", {}), a.get("attestation", {})
+    if r.get("cite_as"):
+        return r["cite_as"]
+    src, lic = at.get("source_url"), at.get("license")
+    return ("%s%s" % (src, ", %s" % lic if lic else "")) if src else None
+
+
 def _attach_tree(h, genome_dir):
     """Attach the tome-tree (if built) to a handle: h['tree'] for find/ride/web-hop, h['hub_ids'] for the ride
-    de-lens. Additive — no tree means plain rides (no de-lens), navigation returns None."""
+    de-lens; h['attest'] = the genome's MPR provenance (manifest.json) for citing reads. Additive — no tree means
+    plain rides (no de-lens), no navigation; no manifest means no citation."""
     tr = _open_tree(genome_dir, h["vindex"])
     if tr is not None:
         h["tree"] = tr
         h["hub_ids"] = tr["hub_ids"]
+    h["attest"] = _load_attest(genome_dir)
     return h
 
 

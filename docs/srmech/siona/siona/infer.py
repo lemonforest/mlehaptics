@@ -1079,37 +1079,34 @@ class Session:
         return None
 
     def _corpus_reply(self, w, shape):
-        """Render the corpus read for topic `w` at the requested SHAPE (F1097 consumed). concise = the de-lensed
-        forward ride; balanced = ride + the local star; teaching = the FULL tome-tree navigation FIND -> RIDE ->
-        WEB-HOP + the chiral-dual undertone (F990) + the local star. Returns None if `w` yields no ride."""
+        """Render the corpus read for topic `w` as SENTENCES (F1239) — Siona output is prose, never raw arrows. The
+        RENDER is the shared analytic sentence composer (analytic.describe_from, F1166/F1168); the SELECTION is the
+        #231 directed-corpus TOME-TREE (spine = the tome's key concepts; aspects = the rest of the tome + the
+        web-hop group; the etak forward ride = the "leads on to" clause). The reply is CITED to the attested genome
+        (MPM). Shape (F1097): concise = topic sentence; balanced = + one aspect; teaching = full residue + the ride.
+        None if `w` yields nothing."""
         from . import corpus_store as _cs
-        fwd = _cs.etak_walk(self.corpus, w, steps=(4 if shape == "concise" else 7), sense="fwd")
-        if len(fwd) <= 1:
-            return None
-        ride = " -> ".join(fwd)
-        if shape == "concise":
-            return "%s: %s" % (w, ride)                    # terse: just the de-lensed ride
-        star = ", ".join("%s %s" % (s, wd) for (_wt, s, wd) in _cs.read(self.corpus, w, 6))
-        if shape == "balanced":
-            return "%s -- etak ride -> %s\n   near: %s" % (w, ride, star)
-        # teaching: the full move-the-reference-frame navigation over the directed store + the tome-tree
-        lines = ["%s -- etak ride -> %s" % (w, ride)]
-        bwd = _cs.etak_walk(self.corpus, w, steps=4, sense="bwd")
-        if len(bwd) > 1:
-            lines.append("   leads here (chiral-dual): %s" % " -> ".join(reversed(bwd)))
-        f = _cs.find(self.corpus, w)                       # FIND: descend the tome-tree to w's tome
+        from siona import analytic
+        f = _cs.find(self.corpus, w)                       # FIND: w's tome — the de-lensed community IS the residue
+        star = [wd for (_wt, _s, wd) in _cs.read(self.corpus, w, 8) if wd != w]
+        cite = _cs.cite(self.corpus)                       # the attested genome's citation (manifest MPR)
         if f:
-            lines.append("   FIND: in the {%s} tome (%d words%s)" % (", ".join(f["label"][:6]), f["size"],
-                         (" via '%s'" % f["via"]) if f.get("via") else ""))
-            ride_t = _cs.ride_tome(self.corpus, f["tome"], 8)
-            if ride_t:
-                lines.append("   RIDE: that tome's neighbourhood -> %s" % ", ".join(ride_t))
-            hop = _cs.web_hop(self.corpus, f["tome"])       # WEB-HOP: strongest bridge to an adjacent tome
+            label = [x for x in f["label"] if x != w]
+            spine = label[:4] or star[:4]
+            aspects = [label[4:8]] if len(label) > 4 else []
+            hop = _cs.web_hop(self.corpus, f["tome"])       # the web-hop group = a related aspect
             if hop:
-                lines.append("   WEB-HOP: -> {%s} via bridge '%s'~'%s'"
-                             % (", ".join(hop["label"][:5]), hop["bridge"][0], hop["bridge"][1]))
-        lines.append("   near: %s" % star)
-        return "\n".join(lines)
+                aspects.append([x for x in hop["label"] if x != w][:4])
+        else:
+            spine, aspects = star[:4], ([star[4:8]] if len(star) > 4 else [])
+        if not spine:
+            return None
+        if shape == "concise":
+            return analytic.describe_from(w, spine, [], source=cite)
+        if shape == "balanced":
+            return analytic.describe_from(w, spine, aspects[:1], source=cite)
+        fwd = _cs.etak_walk(self.corpus, w, steps=6, sense="fwd")   # teaching: + the etak ride as one sentence
+        return analytic.describe_from(w, spine, aspects, ride=fwd[1:], source=cite)
 
     def _define(self, text):
         # TIER 1 (notebook): an acquired attested note beats the broad wiki read (mfo/srmech notebook then wiki).
@@ -1126,10 +1123,11 @@ class Session:
                 out = self._corpus_reply(w, shape)
                 if out is not None:
                     return out
-            for w in topic:                               # no ride -> the 1-hop relational read
-                nb = _cs.read(self.corpus, w, 6)
+            for w in topic:                               # no tome/ride -> a 1-hop relational SENTENCE (still prose)
+                nb = [wd for (_wt, _s, wd) in _cs.read(self.corpus, w, 6) if wd != w]
                 if nb:
-                    return "%s -- seen with: %s" % (w, ", ".join("%s %s" % (s, wd) for (_wt, s, wd) in nb))
+                    from siona import analytic
+                    return analytic.describe_from(w, nb, [], source=_cs.cite(self.corpus))
         # TIER 3 (last resort): the shipped srmech-tool grounding (unchanged).
         s, n = self.g.ground(text, 1, owner="srmech")[0]
         return "%s: %s" % (n.split(".")[-1], (self.g.tools[n].summary or "")[:95])
