@@ -186,6 +186,8 @@ __all__ = [
     "recover_check",
     "recover_check_structural",
     "recover_check_spectral",
+    "order_fingerprint",
+    "recover_check_order",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -3773,6 +3775,73 @@ def recover_check_spectral(vocab_size, edges, weights, charges=None, *,
         dim, sub_e, sub_w, sub_c if ch is not None else None)
     diag.update(r_diag)
     return {"op": op, "responsion": responsion, "dim": dim, "diagnostics": diag}
+
+
+# ── #1390 item 4b: the octonion ORDER faculty (recover_check upgrade) ────────
+# An additive 5th recover_check faculty (F1231): an ORDER-sensitive fingerprint
+# that catches a walk-order corruption the graph-level faculties are BLIND to
+# (F1079 / F1230 — two orders can share the IDENTICAL directed graph, so even
+# the ℂ magnetic Laplacian passes them both). The path-ordered product of a
+# GENERIC octonion per node along the walk = 8 ints, length-independent. A
+# faithful port of R-RBS-LM-OCTRECOVER: EXACT integer products via the C-routed
+# qm.so8.octonion_mult_table (composition_of_c) — no mod (a VERIFIER, lossy by
+# pigeonhole F1230, NOT a store). numpy-free; no abs().
+
+
+def _order_node_octonion(node_id):
+    """A deterministic GENERIC octonion per node — real part 1 + seven
+    DISTINCT-per-axis id-derived imaginary parts (each axis has its own
+    multiplier + offset + modulus so the components do NOT collapse to a uniform
+    value; a plain ``1 + id % m`` generator degenerates to ``[1,2,2,2,2,2,2,2]``
+    for small ids — as bad as a basis unit, F1230)."""
+    out = [1]
+    for k in range(7):
+        out.append(1 + ((node_id * (2 * k + 3) + (5 * k + 1)) % (11 + 2 * k)))
+    return out
+
+
+def _order_omul(a, b, table):
+    """One octonion product ``a * b`` via the C-routed Cayley-Dickson structure
+    constants (``qm.so8.octonion_mult_table``) — EXACT integer arithmetic (never
+    a float Mat, never a mod)."""
+    out = [0] * 8
+    for i in range(8):
+        if a[i] == 0:
+            continue
+        for j in range(8):
+            if b[j] == 0:
+                continue
+            for k in range(8):
+                c = table[i][j][k]
+                if c:
+                    out[k] += c * a[i] * b[j]
+    return out
+
+
+def order_fingerprint(fiber_ids):
+    """The path-ORDERED octonion product along a walk — an order-sensitive
+    fingerprint of the fiber, 8 ints, independent of walk length (#1390 item 4b;
+    F1229 / F1231; the ℍ/𝕆 grade of the walk). It CATCHES a graph-preserving
+    reorder the op / operand / responsion / ℂ-curvature faculties are blind to
+    (F1079 / F1230). A VERIFIER (lossy by pigeonhole), NEVER a store. Composes
+    the C-routed ``srmech.qm.so8.octonion_mult_table`` with a generic (non-basis,
+    non-uniform-component) per-node octonion."""
+    from srmech.qm.so8 import octonion_mult_table
+    table = octonion_mult_table()
+    acc = [1, 0, 0, 0, 0, 0, 0, 0]
+    for nid in fiber_ids:
+        acc = _order_omul(acc, _order_node_octonion(int(nid)), table)
+    return acc
+
+
+def recover_check_order(true_fingerprint, recovered_fiber_ids):
+    """PASS (True) iff a recovered fiber reproduces the stored order fingerprint
+    (#1390 item 4b) — the order-integrity guard on top of the graph faculties.
+    Store :func:`order_fingerprint` of the true walk beside the genome; on recall
+    recompute it from the :func:`eulerian_path` reconstruction and compare. A
+    mismatch flags an order corruption / F1079 graph-ambiguity (the fiber must be
+    stored explicitly) that op / operand / responsion / ℂ-curvature all pass."""
+    return order_fingerprint(recovered_fiber_ids) == list(true_fingerprint)
 
 
 def heat_trace(L, t):

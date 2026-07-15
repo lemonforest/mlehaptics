@@ -1290,6 +1290,43 @@ def _register_primitive_class_tools() -> None:
                           "keyword-only; the principal-submatrix bound (default 256)")),
             returns=R("dict", "{op, responsion, dim, diagnostics}"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.order_fingerprint", owner="srmech",
+            category="laplacian",
+            summary="The path-ORDERED octonion product along a walk — an "
+                    "order-sensitive fingerprint of the fiber, 8 ints, "
+                    "INDEPENDENT of walk length (#1390 item 4b; F1229/F1231; the "
+                    "ℍ/𝕆 grade of the walk). It CATCHES a graph-preserving "
+                    "reorder the op/operand/responsion/ℂ-curvature faculties are "
+                    "BLIND to (two orders can share the identical directed graph, "
+                    "F1079/F1230 — even the ℂ magnetic Laplacian passes both). A "
+                    "VERIFIER (lossy by pigeonhole), NEVER a store. Composes the "
+                    "C-routed qm.so8.octonion_mult_table (Cayley-Dickson "
+                    "structure constants) with a GENERIC per-node octonion "
+                    "(non-basis, non-uniform-component — basis units are "
+                    "degenerate, F1230); EXACT integer products (no mod). "
+                    "numpy-free; no abs().",
+            parameters=(P("fiber_ids", "list", True,
+                          "the walk = the ordered node-id sequence (the fiber)"),),
+            returns=R("list", "the 8-int order fingerprint (length-independent)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check_order", owner="srmech",
+            category="laplacian",
+            summary="PASS (True) iff a recovered fiber reproduces the stored "
+                    "order fingerprint (#1390 item 4b) — the order-integrity "
+                    "guard on top of the graph faculties. Store order_fingerprint "
+                    "of the true walk beside the genome; on recall recompute it "
+                    "from the eulerian_path reconstruction and compare. A "
+                    "mismatch flags an order corruption / F1079 graph-ambiguity "
+                    "(the fiber must be stored explicitly) that op / operand / "
+                    "responsion / ℂ-curvature all pass. numpy-free; no abs().",
+            parameters=(P("true_fingerprint", "list", True,
+                          "the stored order_fingerprint of the true walk"),
+                        P("recovered_fiber_ids", "list", True,
+                          "the recovered walk (node-id sequence) to verify")),
+            returns=R("bool", "True iff the recovered order matches the stored fingerprint"),
+        ),
         # ────────────────────────────────────────────────────────────
         # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
         # + the ground-state flux reader, Class-L composites with the 1:1

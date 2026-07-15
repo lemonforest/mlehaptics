@@ -192,13 +192,13 @@ def test_frame_carrier_rejects_bad_input(bad):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# 5. Registration: ToolEntry ×2, tools.total == 430, Rosetta rows, __all__.
+# 5. Registration: ToolEntry ×2, tools.total == 432, Rosetta rows, __all__.
 # ──────────────────────────────────────────────────────────────────────
 
 def test_registration_and_coverage():
     from srmech import introspect
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 430
+    assert schema["tools"]["total"] == 432
 
     from srmech.amsc.tool_schema import get_tool_schema
     reg = {t.name for t in get_tool_schema().tools}
