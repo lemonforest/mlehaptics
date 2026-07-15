@@ -108,8 +108,12 @@ PATTERNS = {
         "(graph + vocab chromosomes), NOT loose JSON; (4) verify with srmech.amsc.laplacian.recover_check_structural "
         "(sparse, any vocab) + recover_check_spectral(max_dim=256). Store the directed Laplacian + fiber, NEVER Klein-4 "
         "HVs (F1221). Load for reads via siona.corpus_store.prepare(dir) -> neighbors('X') = 'what is X seen-with'. "
-        "Reference: R-RBS-LM-SIONA231 (the store) + R-RBS-LM-SIMPLEWIKIGENOME (831k vocab/39M edges -> 313MB, 3x < loose). "
-        "To build ANOTHER wiki (enwiki, other lang): run the SAME pipeline on that wiki's directed cooccurrence."),
+        "(5) for FAST serving, build the DEMAND-LOAD read layer once: siona.corpus_store.build_reads(dir) writes "
+        "reads/ (a mmap'd per-token index) so the server opens INSTANTLY and each query gene-EXPRESSES only its token's "
+        "neighbourhood (EPH / F1095/F1112/F1235) instead of inflating all edges into RAM. Read via corpus_store."
+        "prepare(dir) -> read(handle,'X'). Reference: R-RBS-LM-SIONA231 (store) + R-RBS-LM-SIMPLEWIKIGENOME (831k vocab/"
+        "39M edges -> 313MB, 3x < loose) + R-RBS-LM-BUILDREADS (the reads/ layer). To build ANOTHER wiki (enwiki, other "
+        "lang): run the SAME pipeline on that wiki's directed cooccurrence."),
     "encode_corpus_class_l_genome": (
         "encode a corpus as a Class-L genome. PREFER 'build_wiki_corpus_genome' — the native rc253 directed genome "
         "(graph_to_kernel + a vocab chromosome; F1232). The older loose form (build_edges_topk vocab_cap=None -> a "
