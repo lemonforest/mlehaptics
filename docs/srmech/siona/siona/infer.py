@@ -1045,23 +1045,92 @@ class Session:
         self.corpus = _cs.prepare(genome_dir)             # a demand (mmap) or in-RAM handle; read() is the same API
         return len(self.corpus["vocab"])
 
+    # the verbosity operators (F1091) — request-shape words that must NOT be read as the topic ('explain WATER in
+    # detail' asks about water, not 'explain'/'detail'). ContextShape already consumed them for the reply MODE.
+    _VERBOSITY_OPS = frozenset(
+        "in detail briefly brief concise short quick elaborate more simply thoroughly depth expand overview "
+        "about it its a an the to some really actually".split())
+
+    def _topic_tokens(self, text):
+        """The TOPIC of a define query — content words with the define-frame / interrogative / politeness /
+        verbosity operators removed (F1010: operators declared, operands by meaning). Fixes 'explain water in
+        detail' / 'tell me about sandroing' riding on the FRAME verb instead of the topic."""
+        b = self.board
+        frame = {w for f in b.define_frames for w in f}
+        stop = frame | b.interrogatives | b.politeness | b.strip | self._VERBOSITY_OPS
+        return [w for w in _toks(text) if w not in stop]
+
+    def _reply_shape(self):
+        """The reply SHAPE expressed LIVE from the context genome (F1097) — teaching (verbose) / concise / balanced.
+        This is where active_mode becomes LOAD-BEARING (it was expressed but not consumed): the SAME navigation,
+        rendered terse or expansive per the op(x)operand verbosity (F1091/F1075)."""
+        m = set(self.active_mode)
+        return "teaching" if "teaching" in m else ("concise" if "concise" in m else "balanced")
+
+    def _note_for_topic(self, w):
+        """The NOTEBOOK tier (tiered load: mfo/srmech notebook BEFORE wiki): an acquired ATTESTED note whose topic
+        matches `w` (Class-A provenance beats the broad wiki read, MPM). Returns the note text or None."""
+        for a in self.attestations:
+            topic = a.get("data", {}).get("topic", "")
+            if topic and (topic == w or topic.startswith(w) or w.startswith(topic)) and min(len(topic), len(w)) >= 4:
+                i = a.get("note_index")
+                if isinstance(i, int) and 0 <= i < len(self.mem):
+                    return self.mem[i]
+        return None
+
+    def _corpus_reply(self, w, shape):
+        """Render the corpus read for topic `w` at the requested SHAPE (F1097 consumed). concise = the de-lensed
+        forward ride; balanced = ride + the local star; teaching = the FULL tome-tree navigation FIND -> RIDE ->
+        WEB-HOP + the chiral-dual undertone (F990) + the local star. Returns None if `w` yields no ride."""
+        from . import corpus_store as _cs
+        fwd = _cs.etak_walk(self.corpus, w, steps=(4 if shape == "concise" else 7), sense="fwd")
+        if len(fwd) <= 1:
+            return None
+        ride = " -> ".join(fwd)
+        if shape == "concise":
+            return "%s: %s" % (w, ride)                    # terse: just the de-lensed ride
+        star = ", ".join("%s %s" % (s, wd) for (_wt, s, wd) in _cs.read(self.corpus, w, 6))
+        if shape == "balanced":
+            return "%s -- etak ride -> %s\n   near: %s" % (w, ride, star)
+        # teaching: the full move-the-reference-frame navigation over the directed store + the tome-tree
+        lines = ["%s -- etak ride -> %s" % (w, ride)]
+        bwd = _cs.etak_walk(self.corpus, w, steps=4, sense="bwd")
+        if len(bwd) > 1:
+            lines.append("   leads here (chiral-dual): %s" % " -> ".join(reversed(bwd)))
+        f = _cs.find(self.corpus, w)                       # FIND: descend the tome-tree to w's tome
+        if f:
+            lines.append("   FIND: in the {%s} tome (zoom depth %d)" % (", ".join(f["label"][:6]), f["depth"]))
+            ride_t = _cs.ride_tome(self.corpus, f["tome"], 8)
+            if ride_t:
+                lines.append("   RIDE: that tome's neighbourhood -> %s" % ", ".join(ride_t))
+            hop = _cs.web_hop(self.corpus, f["tome"])       # WEB-HOP: strongest bridge to an adjacent tome
+            if hop:
+                lines.append("   WEB-HOP: -> {%s} via bridge '%s'~'%s'"
+                             % (", ".join(hop["label"][:5]), hop["bridge"][0], hop["bridge"][1]))
+        lines.append("   near: %s" % star)
+        return "\n".join(lines)
+
     def _define(self, text):
-        if self.corpus is not None:                       # #231/F1233: the directed corpus store's ETAK WALK FIRST
+        # TIER 1 (notebook): an acquired attested note beats the broad wiki read (mfo/srmech notebook then wiki).
+        shape = self._reply_shape()
+        topic = self._topic_tokens(text)
+        for w in topic:
+            note = self._note_for_topic(w)
+            if note:
+                return note if shape != "concise" else note.split(".")[0]
+        # TIER 2 (wiki): the directed Class-L corpus store — navigated (etak ride / tome-tree), shaped by mode.
+        if self.corpus is not None:                       # #231/F1233/F1236
             from . import corpus_store as _cs
-            for w in _toks(text):                         # the first content token that IS in the corpus wins
-                fwd = _cs.etak_walk(self.corpus, w, steps=6, sense="fwd")   # RIDE the directed coupling (charge=which-way)
-                if len(fwd) > 1:                          # a real navigation happened (not a dead 1-hop)
-                    bwd = _cs.etak_walk(self.corpus, w, steps=4, sense="bwd")
-                    star = ", ".join("%s %s" % (s, wd) for (_wt, s, wd) in _cs.read(self.corpus, w, 6))
-                    out = "%s -- etak ride -> %s" % (w, " -> ".join(fwd))
-                    if len(bwd) > 1:                       # the chiral-dual undertone: what LEADS HERE (F990)
-                        out += "   (leads here: %s)" % " -> ".join(reversed(bwd))
-                    return out + "\n   local star: %s" % star   # the 1-hop neighbourhood we ride out of
-                nb = _cs.read(self.corpus, w, 6)          # no forward ride -> fall back to the 1-hop relational read
+            for w in topic:
+                out = self._corpus_reply(w, shape)
+                if out is not None:
+                    return out
+            for w in topic:                               # no ride -> the 1-hop relational read
+                nb = _cs.read(self.corpus, w, 6)
                 if nb:
-                    seen = ", ".join("%s %s" % (sense, word) for (_wt, sense, word) in nb)
-                    return "%s -- seen with: %s" % (w, seen)   # relational read-out (metric-ranked; -> / <- = direction)
-        s, n = self.g.ground(text, 1, owner="srmech")[0]  # fallback: the shipped srmech-tool grounding (unchanged)
+                    return "%s -- seen with: %s" % (w, ", ".join("%s %s" % (s, wd) for (_wt, s, wd) in nb))
+        # TIER 3 (last resort): the shipped srmech-tool grounding (unchanged).
+        s, n = self.g.ground(text, 1, owner="srmech")[0]
         return "%s: %s" % (n.split(".")[-1], (self.g.tools[n].summary or "")[:95])
 
     def _continue(self, text):
