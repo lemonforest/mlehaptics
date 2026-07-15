@@ -11,6 +11,16 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc244]
+
+**`genome.graph_to_kernel` / `kernel_to_graph` — store a directed Class-L graph as a native genome in ONE call, gh #1390 item 2.** The keystone codec for #231: serialize a sparse signed INTEGER graph `(vocab, edges, weights, charges)` into a self-describing Klein-4 strand and recover it byte-exact. `graph_to_kernel` flattens `[nv, vocab.., ne, (i, j, w, zigzag(c)) × ne]`, zig-zags the **signed** per-edge charge onto a non-negative **base-4-varint** (a JSON-free, self-delimiting Klein-4 codec), and composes the existing `kernel_pack`; `kernel_to_graph` inverts it via `kernel_unpack`. This stores the directed magnetic-Laplacian read — **metric** = edge weight, **curvature** = signed edge charge (F1207/F1210) — that the symmetric bag throws away. It's an **abstract, domain-free integer-graph** primitive: `vocab` is int node-labels (string↔int stays caller-managed, as `text.cooccurrence_edges`), so `cooccurrence_edges(directed=True)` output feeds it directly.
+
+- **Byte-exact round-trip + full C parity.** `kernel_to_graph(graph_to_kernel(g)) == g` on both the pure and the native path. New C peer `srmech_graph_kernel_encode` / `srmech_graph_kernel_decode` (the byte-identical flatten / zig-zag / base-4-varint) composed with the `composes_c` `kernel_pack` / `kernel_unpack`, so a bare-C host stores + recovers the graph with no Python. ADDITIVE symbols — `SRMECH_ABI_VERSION` / `EXPECTED_ABI_VERSION` stay **5**.
+
+- **Overflow is a clean error, not corruption.** The 2-symbol digit-count header caps each encoded value at `< 2**30`; a larger vocab-label / index / weight / zig-zagged charge raises `ValueError` (the same on pure and native — never a silent length-alias-to-0 truncation), with a wider header noted as the follow-up if corpus weights ever need > 30 bits.
+
+- **Registered + discoverable.** Both ops are in the tool schema (`tools.total` 423 → 425, `composes_c`), so a consumer introspecting srmech finds the #231 storage keystone; `srmech_tool_registry.c` + `srmech_carrier_registry.c` regenerated so the C-JSON == Python SSoT hashes hold.
+
 ## [0.9.0rc243]
 
 **`text.cooccurrence_edges` gains a `directed=True` mode — the directed (curvature-carrying) co-occurrence graph, gh #1390 item 1.** The default (`directed=False`) counts UNORDERED window pairs `(u, v)` with `u < v` — unchanged. `directed=True` counts ORDERED earlier→later pairs: a co-occurrence whose earlier-position token has id `i` and later token `j` increments the ordered edge `(i, j)`, so `(i, j)` and `(j, i)` are DISTINCT entries (directional counts, sorted lexicographically). This is the ordered adjacency the directed `magnetic_laplacian` / `signed_laplacian` consume — metric `w[(i,j)] + w[(j,i)]`, charge `w[(i,j)] − w[(j,i)]` (the F1207 magnetic-Laplacian per-edge curvature the symmetric graph throws away).

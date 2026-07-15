@@ -3027,6 +3027,221 @@ def kernel_unpack(strand_or_path, the_one=None):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# gh #1390 item 2 (rc244) — the sparse signed-graph ⇄ Klein-4 kernel CODEC.
+# A JSON-free, genome-native codec: a sparse signed INTEGER graph
+# (vocab, edges, weights, charges) ⇄ a flat Klein-4 symbol stream for
+# kernel_pack. graph_to_kernel stores the DIRECTED Class-L Laplacian (metric =
+# edge weight, curvature = signed edge charge; F1207/F1210) as a native genome
+# in ONE call; kernel_to_graph inverts it, byte-exact.
+#
+# The zigzag(signed) → base-4-varint core (_graph_ints_to_syms /
+# _graph_syms_to_ints) is a pure integer transform, byte-exact and C-mirrored
+# (srmech_graph_kernel_encode / _decode, rc244); graph_to_kernel /
+# kernel_to_graph COMPOSE it with kernel_pack / kernel_unpack (composes_c).
+#
+# INTEGER-GRAPH contract: vocab is a Sequence of int node-labels; edges are
+# (i, j) node-INDEX pairs (0 ≤ i, j < len(vocab)); weights are non-negative
+# ints; charges are signed ints (None → all-zero). String labels stay the
+# caller's concern (map string↔int as text.cooccurrence_edges already does) —
+# so this is an abstract, domain-free graph/genome primitive.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The 2-symbol digit-count header encodes ≤ 15 base-4 digits, so each encoded
+# value must be < 4**15 == 2**30. A larger value RAISES (never silently
+# corrupts — a 16-digit count would alias to 0 and truncate the stream).
+_GRAPH_KERNEL_MAX_DIGITS = 15
+_GRAPH_KERNEL_VALUE_CEIL = 1 << (2 * _GRAPH_KERNEL_MAX_DIGITS)   # 2**30
+
+
+def _graph_zigzag(n):
+    """Signed int → non-negative: 0, -1, 1, -2, 2, … → 0, 1, 2, 3, 4, …. The
+    explicit branch form (correct for the full int domain) — the byte-exact
+    twin of the C srmech_graph_kernel_encode zig-zag over the codec's value
+    range."""
+    return (n << 1) if n >= 0 else (((-n) << 1) - 1)
+
+
+def _graph_unzigzag(z):
+    """Inverse of :func:`_graph_zigzag`."""
+    return (z >> 1) if (z & 1) == 0 else -((z + 1) >> 1)
+
+
+def _graph_to_ints(vocab, edges, weights, charges):
+    """Flatten an integer graph to a flat non-negative int list:
+    ``[nv, vocab₀…vocab_{nv-1}, ne, (i, j, w, zigzag(c)) × ne]``. The signed
+    per-edge charge is zig-zagged so the curvature rides the non-negative
+    varint."""
+    out = [len(vocab)]
+    out.extend(int(v) for v in vocab)
+    out.append(len(edges))
+    for (i, j), w, c in zip(edges, weights, charges):
+        out.append(int(i))
+        out.append(int(j))
+        out.append(int(w))
+        out.append(_graph_zigzag(int(c)))
+    return out
+
+
+def _ints_to_graph(it):
+    """Inverse of :func:`_graph_to_ints` → ``(vocab, edges, weights, charges)``."""
+    p = 0
+    nv = it[p]
+    p += 1
+    vocab = [it[p + t] for t in range(nv)]
+    p += nv
+    ne = it[p]
+    p += 1
+    edges, weights, charges = [], [], []
+    for _ in range(ne):
+        i, j, w, zc = it[p], it[p + 1], it[p + 2], it[p + 3]
+        p += 4
+        edges.append((i, j))
+        weights.append(w)
+        charges.append(_graph_unzigzag(zc))
+    return vocab, edges, weights, charges
+
+
+def _graph_ints_to_syms(ints):
+    """Flat non-negative int list → Klein-4 symbols ``{0,1,2,3}``. Each int is
+    LSB-first base-4 digits led by a 2-symbol (4-bit) digit-count header, so
+    the stream is self-delimiting (no JSON). Each value must be < 2**30 (the
+    15-base-4-digit header ceiling); a larger value raises ``ValueError``
+    rather than silently aliasing its length to 0 and truncating the stream."""
+    syms = []
+    for n in ints:
+        if n < 0 or n >= _GRAPH_KERNEL_VALUE_CEIL:
+            raise ValueError(
+                f"graph_to_kernel codec: value {n} outside [0, 2**30) — the "
+                f"15-base-4-digit header ceiling; this graph exceeds the "
+                f"codec's per-value capacity (a wider digit-count header is the "
+                f"follow-up if corpus weights need > 30 bits)"
+            )
+        digs = []
+        x = n
+        while True:
+            digs.append(x & 3)
+            x >>= 2
+            if x == 0:
+                break
+        syms.append(len(digs) & 3)
+        syms.append((len(digs) >> 2) & 3)
+        syms.extend(digs)
+    return syms
+
+
+def _graph_syms_to_ints(syms):
+    """Inverse of :func:`_graph_ints_to_syms`. kernel_unpack trims to the true
+    kernel length, so a clean stream decodes exactly; a malformed / zero tail
+    (a 0-length header or a run past the end) stops the walk cleanly."""
+    ints = []
+    i = 0
+    n = len(syms)
+    while i + 2 <= n:
+        ln = syms[i] + (syms[i + 1] << 2)
+        i += 2
+        if ln == 0 or i + ln > n:
+            break
+        v = 0
+        for k in range(ln):
+            v |= syms[i + k] << (2 * k)
+        ints.append(v)
+        i += ln
+    return ints
+
+
+def graph_to_kernel(vocab, edges, weights, charges=None, *,
+                    leaf_dim=LEAF_CAP, label="graph", the_one=None):
+    """Serialize a sparse signed INTEGER graph into a genome-native strand
+    (gh #1390 item 2) — store the directed Class-L Laplacian (metric = edge
+    weight, curvature = signed edge charge) as a native genome in ONE call.
+
+    Parameters
+    ----------
+    vocab
+        Sequence of **int** node-labels; ``n = len(vocab)``. String labels are
+        the caller's concern (map string↔int as ``text.cooccurrence_edges``
+        does) — this op is an abstract, domain-free graph primitive.
+    edges
+        List of ``(i, j)`` node-INDEX pairs (``0 ≤ i, j < n``). For a directed
+        store ``(i, j)`` and ``(j, i)`` are distinct (the ordered adjacency
+        from ``cooccurrence_edges(directed=True)``).
+    weights
+        Parallel non-negative int edge weights (the metric).
+    charges
+        Parallel **signed** int edge charges (the curvature, ``w_fwd − w_bwd``);
+        ``None`` → all-zero (a purely symmetric store).
+    leaf_dim, label, the_one
+        Passed through to :func:`kernel_pack`.
+
+    Returns
+    -------
+    strand
+        The self-describing Klein-4 strand :func:`kernel_pack` produces; feed it
+        to :func:`kernel_to_graph` (or persist via ``genome_save``). Byte-exact
+        round-trip: ``kernel_to_graph(graph_to_kernel(...)) == the input graph``.
+
+    Each per-value payload must be < ``2**30`` (the codec's digit-count header
+    ceiling); a larger vocab-label / index / weight / zig-zagged charge raises.
+    """
+    edges = [tuple(e) for e in edges]
+    weights = list(weights)
+    if len(weights) != len(edges):
+        raise ValueError(
+            f"graph_to_kernel: weights length {len(weights)} != edges length "
+            f"{len(edges)}")
+    if charges is None:
+        charges = [0] * len(edges)
+    else:
+        charges = list(charges)
+        if len(charges) != len(edges):
+            raise ValueError(
+                f"graph_to_kernel: charges length {len(charges)} != edges "
+                f"length {len(edges)}")
+    nv = len(vocab)
+    for (i, j) in edges:
+        if not (0 <= int(i) < nv and 0 <= int(j) < nv):
+            raise ValueError(
+                f"graph_to_kernel: edge ({i}, {j}) out of node range [0, {nv})")
+    # Value-ceiling pre-check IN PYTHON so both the pure and the native codec
+    # raise the SAME ValueError (never a native RuntimeError) — and the codec
+    # below is then guaranteed in-range. nv is < 2**30 ⇒ every edge index is too.
+    _ceil = _GRAPH_KERNEL_VALUE_CEIL
+    if nv >= _ceil or len(edges) >= _ceil:
+        raise ValueError(
+            "graph_to_kernel: node/edge count exceeds the codec ceiling 2**30")
+    for v in vocab:
+        if int(v) < 0 or int(v) >= _ceil:
+            raise ValueError(
+                f"graph_to_kernel: vocab label {v} outside [0, 2**30)")
+    for w in weights:
+        if int(w) < 0 or int(w) >= _ceil:
+            raise ValueError(
+                f"graph_to_kernel: weight {w} outside [0, 2**30)")
+    for c in charges:
+        if _graph_zigzag(int(c)) >= _ceil:
+            raise ValueError(
+                f"graph_to_kernel: charge {c} magnitude exceeds the codec "
+                f"ceiling (zigzag(c) must be < 2**30)")
+    if _native.has_native_graph_kernel_codec():
+        syms = _native.graph_kernel_encode_c(vocab, edges, weights, charges)
+    else:
+        syms = _graph_ints_to_syms(
+            _graph_to_ints(vocab, edges, weights, charges))
+    return kernel_pack(syms, leaf_dim=leaf_dim, label=label, the_one=the_one)
+
+
+def kernel_to_graph(strand_or_path, the_one=None):
+    """Recover the exact integer graph from a :func:`graph_to_kernel` strand (or
+    a genome directory a ``genome_save`` of one wrote) — the inverse of
+    :func:`graph_to_kernel`. Returns ``(vocab, edges, weights, charges)``
+    byte-exact (``edges`` as ``(i, j)`` int tuples, ``charges`` signed)."""
+    syms = list(kernel_unpack(strand_or_path, the_one))
+    if _native.has_native_graph_kernel_codec():
+        return _native.graph_kernel_decode_c(syms)
+    return _ints_to_graph(_graph_syms_to_ints(syms))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # §127 (rc127, #726) — the ACTIVE TELOMERE gate: operand(count) MODULATES operator.
 # telomere_tick reads the active telomere's count (operand) and its behaviour (the
 # operator) is SELECTED by that operand — count>0 proceeds + decrements (a divide),

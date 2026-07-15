@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc243"
-#define SRMECH_VERSION       "0.9.0rc243"
+#define SRMECH_VERSION_PRE   "rc244"
+#define SRMECH_VERSION       "0.9.0rc244"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5743,6 +5743,35 @@ srmech_status_t srmech_genome_pack(
     const char *loose_dir, const char *dest,
     const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len);
+
+/* ------------------------------------------------------------------ *
+ * SPARSE SIGNED-GRAPH <-> KLEIN-4 KERNEL CODEC (0.9.0rc244, gh #1390 item 2) —
+ * the byte-exact C twin of srmech.amsc.genome._graph_ints_to_syms /
+ * _graph_syms_to_ints (+ the flatten / zig-zag). graph_to_kernel /
+ * kernel_to_graph compose this with the composes_c kernel_pack / kernel_unpack,
+ * so a bare-C host stores + recovers a DIRECTED Class-L graph (metric = edge
+ * weight, curvature = signed edge charge) as a native genome.
+ *
+ * srmech_graph_kernel_encode flattens the integer graph to
+ *   [nv, vocab.., ne, (i, j, w, zigzag(c)) x ne]
+ * then base-4-varints it into out_syms (Klein-4 {0,1,2,3}); *out_n = the count.
+ * srmech_graph_kernel_decode is the exact inverse into the caller's arrays.
+ * Each encoded value must be < 2^30 (the 2-symbol, <=15-base-4-digit length
+ * header) -> SRMECH_ERR_BAD_INPUT otherwise (never a silent 0-length alias).
+ * Caller-arena only (no malloc); no abs. ADDITIVE symbols — SRMECH_ABI_VERSION
+ * stays 5. Sizing: encode needs out_cap >= 17 * (2 + nv + 4*ne) syms
+ * (17 = 2 header + 15 max digits); decode needs vocab_cap >= nv and
+ * edge_cap >= ne (out_edges holds 2*ne). ------------------------------------- */
+srmech_status_t srmech_graph_kernel_encode(
+    const uint32_t *vocab, size_t nv,
+    const uint32_t *edges, const uint32_t *weights, const int64_t *charges,
+    size_t ne, uint8_t *out_syms, size_t out_cap, size_t *out_n);
+
+srmech_status_t srmech_graph_kernel_decode(
+    const uint8_t *syms, size_t n_syms,
+    uint32_t *out_vocab, size_t vocab_cap, size_t *out_nv,
+    uint32_t *out_edges, uint32_t *out_weights, int64_t *out_charges,
+    size_t edge_cap, size_t *out_ne);
 
 /* §127/v7 (#726) ACTIVE-TELOMERE TICK — the divide/gate op whose OPERATOR behaviour
  * is SELECTED by its OPERAND (the count). Read the exact non-negative COUNT carried

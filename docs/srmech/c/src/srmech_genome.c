@@ -4025,3 +4025,152 @@ srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
     }
     return genome_pack_concat_save(loose_dir, dest, names, n, tw, tl);
 }
+
+/* ------------------------------------------------------------------ *
+ * gh #1390 item 2 (rc244) — the sparse signed-graph <-> Klein-4 kernel CODEC
+ * (the byte-exact C twin of srmech.amsc.genome._graph_ints_to_syms /
+ * _graph_syms_to_ints + the flatten/zigzag). graph_to_kernel / kernel_to_graph
+ * compose this with the composes_c kernel_pack / kernel_unpack, so a bare-C
+ * host stores + recovers a directed Class-L graph as a native genome.
+ *
+ * VALUE CEILING: each encoded value must be < 2^30 (the 2-symbol, <=15-base-4-
+ * digit length header). A larger value -> SRMECH_ERR_BAD_INPUT (never a silent
+ * length alias to 0). Caller-arena only (no malloc); no abs. ------------------ */
+
+#define GK_VALUE_CEIL (UINT64_C(1) << 30)   /* 4^15 = 2^30 */
+#define GK_MAX_DIGITS 15u
+
+/* Emit one non-negative value < 2^30 as LSB-first base-4 digits led by a
+ * 2-symbol (4-bit) digit-count header into out[*pos..out_cap). */
+static srmech_status_t gk_emit(uint64_t v, uint8_t *out, size_t out_cap,
+                               size_t *pos)
+{
+    uint8_t digs[GK_MAX_DIGITS];
+    size_t nd = 0u;
+    size_t k;
+    assert(out != NULL);
+    assert(pos != NULL);
+    if (v >= GK_VALUE_CEIL) { return SRMECH_ERR_BAD_INPUT; }
+    do {                                    /* nd in 1..15 (v < 4^15) */
+        digs[nd] = (uint8_t)(v & 3u);
+        nd += 1u;
+        v >>= 2;
+    } while (v != 0u);
+    if (*pos + 2u + nd > out_cap) { return SRMECH_ERR_OVERFLOW; }
+    out[*pos] = (uint8_t)(nd & 3u);
+    out[*pos + 1u] = (uint8_t)((nd >> 2) & 3u);
+    *pos += 2u;
+    for (k = 0u; k < nd; k++) { out[*pos + k] = digs[k]; }
+    *pos += nd;
+    return SRMECH_OK;
+}
+
+/* Read one value from syms[*pos..n_syms). Returns 1 + sets *out_v on success;
+ * 0 at a clean end or malformed tail (0-length header, or a run past the end). */
+static int gk_read(const uint8_t *syms, size_t n_syms, size_t *pos,
+                   uint64_t *out_v)
+{
+    size_t i, ln, k;
+    uint64_t v = 0u;
+    assert(pos != NULL);
+    assert(out_v != NULL);
+    i = *pos;
+    if (i + 2u > n_syms) { return 0; }
+    ln = (size_t)syms[i] + ((size_t)syms[i + 1u] << 2);
+    i += 2u;
+    if (ln == 0u || i + ln > n_syms) { return 0; }
+    for (k = 0u; k < ln; k++) { v |= (uint64_t)(syms[i + k] & 3u) << (2u * k); }
+    *pos = i + ln;
+    *out_v = v;
+    return 1;
+}
+
+/* zig-zag a signed int64 -> non-negative uint64 (0,-1,1,-2,2 -> 0,1,2,3,4). The
+ * -(c+1) form avoids the -INT64_MIN overflow; an out-of-range value is caught
+ * by the GK_VALUE_CEIL gate in gk_emit. Byte-exact with _graph_zigzag. */
+static uint64_t gk_zig(int64_t c)
+{
+    return (c >= 0)
+               ? ((uint64_t)c << 1)
+               : ((((uint64_t)(-(c + 1))) << 1) + 1u);
+}
+
+srmech_status_t srmech_graph_kernel_encode(
+    const uint32_t *vocab, size_t nv,
+    const uint32_t *edges, const uint32_t *weights, const int64_t *charges,
+    size_t ne, uint8_t *out_syms, size_t out_cap, size_t *out_n)
+{
+    size_t pos = 0u, t, e;
+    srmech_status_t st;
+    assert(out_syms != NULL);
+    assert(out_n != NULL);
+    if (out_syms == NULL || out_n == NULL || (nv > 0u && vocab == NULL) ||
+        (ne > 0u && (edges == NULL || weights == NULL || charges == NULL))) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    st = gk_emit((uint64_t)nv, out_syms, out_cap, &pos);
+    if (st != SRMECH_OK) { return st; }
+    for (t = 0u; t < nv; t++) {
+        st = gk_emit((uint64_t)vocab[t], out_syms, out_cap, &pos);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = gk_emit((uint64_t)ne, out_syms, out_cap, &pos);
+    if (st != SRMECH_OK) { return st; }
+    for (e = 0u; e < ne; e++) {
+        st = gk_emit((uint64_t)edges[2u * e], out_syms, out_cap, &pos);
+        if (st != SRMECH_OK) { return st; }
+        st = gk_emit((uint64_t)edges[2u * e + 1u], out_syms, out_cap, &pos);
+        if (st != SRMECH_OK) { return st; }
+        st = gk_emit((uint64_t)weights[e], out_syms, out_cap, &pos);
+        if (st != SRMECH_OK) { return st; }
+        st = gk_emit(gk_zig(charges[e]), out_syms, out_cap, &pos);
+        if (st != SRMECH_OK) { return st; }
+    }
+    *out_n = pos;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_graph_kernel_decode(
+    const uint8_t *syms, size_t n_syms,
+    uint32_t *out_vocab, size_t vocab_cap, size_t *out_nv,
+    uint32_t *out_edges, uint32_t *out_weights, int64_t *out_charges,
+    size_t edge_cap, size_t *out_ne)
+{
+    size_t pos = 0u, nv, ne, t, e;
+    uint64_t v, i, j, w, z;
+    assert(out_nv != NULL);
+    assert(out_ne != NULL);
+    if (out_nv == NULL || out_ne == NULL || (n_syms > 0u && syms == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (!gk_read(syms, n_syms, &pos, &v)) { return SRMECH_ERR_BAD_INPUT; }
+    nv = (size_t)v;
+    if (nv > vocab_cap) { return SRMECH_ERR_OVERFLOW; }
+    for (t = 0u; t < nv; t++) {
+        if (!gk_read(syms, n_syms, &pos, &v)) { return SRMECH_ERR_BAD_INPUT; }
+        if (out_vocab != NULL) { out_vocab[t] = (uint32_t)v; }
+    }
+    if (!gk_read(syms, n_syms, &pos, &v)) { return SRMECH_ERR_BAD_INPUT; }
+    ne = (size_t)v;
+    if (ne > edge_cap) { return SRMECH_ERR_OVERFLOW; }
+    for (e = 0u; e < ne; e++) {
+        if (!gk_read(syms, n_syms, &pos, &i) ||
+            !gk_read(syms, n_syms, &pos, &j) ||
+            !gk_read(syms, n_syms, &pos, &w) ||
+            !gk_read(syms, n_syms, &pos, &z)) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (out_edges != NULL) {
+            out_edges[2u * e] = (uint32_t)i;
+            out_edges[2u * e + 1u] = (uint32_t)j;
+        }
+        if (out_weights != NULL) { out_weights[e] = (uint32_t)w; }
+        if (out_charges != NULL) {
+            out_charges[e] = (z & 1u) ? -(int64_t)((z + 1u) >> 1)
+                                      : (int64_t)(z >> 1);
+        }
+    }
+    *out_nv = nv;
+    *out_ne = ne;
+    return SRMECH_OK;
+}
