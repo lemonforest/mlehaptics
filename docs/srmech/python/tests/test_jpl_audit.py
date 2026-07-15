@@ -246,6 +246,13 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     # non-trivial srmech_progress_emit_dispatch carries its >= 2 asserts. See
     # c/JPL_AUDIT.md.
     "srmech_set_progress_cb",
+    # rc249 srmech_genome.c (#1390 item 2): gk_zig / gk_unzig are the Class-K
+    # zig-zag sign transform — single-expression pure integer functions (signed
+    # <-> non-negative), no pointer/bounds invariant to assert; a tautology would
+    # be cargo-cult (same kind as the exempt sha256 ror). Their callers gk_emit /
+    # gk_read / the encode/decode carry the >= 2 asserts. See c/JPL_AUDIT.md.
+    "gk_zig",
+    "gk_unzig",
 }
 
 # Maximum allowed function length (JPL Rule 4).

@@ -2830,6 +2830,28 @@ def _register_primitive_class_tools() -> None:
                         P("the_one", "HV", False, "keyword-only; the coupling invariant (optional when a manifest is present; its length is the leaf width for a manifest-less genome)")),
             returns=R("dict", "the updated manifest data (with the appended kernel chromosome + region entry + O(1)-extended body_sha256 chain)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.graph_to_kernel", owner="srmech", category="genome",
+            summary="Serialise a sparse SIGNED INTEGER graph (the directed Class-L Laplacian) into a packed genome chromosome + its true symbol count (#1390 item 2). vocab_size + edges [(i,j),...] + int weights[metric] + optional signed charges[direction] + optional node_ids label table + optional extras metadata are folded into a SELF-DESCRIBING (count-headered) flat Klein-4 symbol stream — each int base-4 digits behind a 2-symbol length header (<=15 digits = 30 bits; Class-K zig-zag sign on the charge) — then kernel_pack'd into leaf_dim-wide leaves. Returns (strand, n_syms): persist the strand with genome_save, pass n_syms to kernel_to_graph. The domain-free 'store a directed graph as a genome' primitive #231 needs; undirected (charges=None) / unlabeled (node_ids=None) / metadata-free (extras=()) all round-trip. Klein-4 is ONLY the 2-bit on-disk alphabet (no bind/bundle HV stored — F1221 disk rule). numpy-free; no abs() (Class-K zig-zag); byte-identical C peer srmech_graph_kernel_encode.",
+            parameters=(P("vocab_size", "int", True, "node count of the graph"),
+                        P("edges", "list", True, "[(i, j), ...] directed edge list"),
+                        P("weights", "list", True, "parallel int metric (co-occurrence counts)"),
+                        P("charges", "list", False, "parallel signed-int direction (w_fwd - w_bwd); None = undirected (all 0)"),
+                        P("node_ids", "list", False, "keyword-only; a label table (e.g. glyph ids); None = none"),
+                        P("extras", "tuple", False, "keyword-only; caller metadata ints (e.g. a start anchor); default ()"),
+                        P("leaf_dim", "int", True, "keyword-only; the leaf (tome) width to chunk into"),
+                        P("label", "str", True, "keyword-only; the chromosome label"),
+                        P("the_one", "HV", True, "keyword-only; the coupling invariant (width leaf_dim)")),
+            returns=R("tuple", "(strand, n_syms) — the packed self-describing strand + its true symbol count (pass both to genome_save / kernel_to_graph)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.kernel_to_graph", owner="srmech", category="genome",
+            summary="Recover the directed signed graph from a packed chromosome (or genome path) + its n_syms (#1390 item 2) — the inverse of graph_to_kernel. kernel_unpack's the Klein-4 leaves, trims the leaf-dim padding to n_syms, and decodes the self-describing (count-headered) base-4 payload back into {vocab_size, edges, weights, charges, node_ids, extras} BYTE-EXACT (Class-K un-zig-zag on the charge). the_one is the coupling invariant graph_to_kernel packed with (resolved from a manifest for a genome path). numpy-free; no abs(); byte-identical C peer srmech_graph_kernel_decode.",
+            parameters=(P("chroms", "list|str", True, "the graph_to_kernel strand, OR a genome directory a genome_save of one wrote"),
+                        P("the_one", "HV", True, "the coupling invariant (as passed to graph_to_kernel; resolved from a manifest for a path)"),
+                        P("n_syms", "int", True, "the true symbol count graph_to_kernel returned (trims the leaf-dim padding)")),
+            returns=R("dict", "{vocab_size, edges, weights, charges, node_ids, extras} — the exact directed signed graph"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

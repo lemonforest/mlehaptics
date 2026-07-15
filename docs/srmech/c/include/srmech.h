@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc248"
-#define SRMECH_VERSION       "0.9.0rc248"
+#define SRMECH_VERSION_PRE   "rc249"
+#define SRMECH_VERSION       "0.9.0rc249"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5949,6 +5949,31 @@ srmech_status_t srmech_genome_modulator_constraint(
 srmech_status_t srmech_genome_modulator_constraint_satisfies(
     const unsigned char *buf, size_t buf_len,
     uint64_t candidate_cell_state, int *satisfied);
+
+/* srmech_graph_kernel_encode / _decode — the #1390 item 2 codec: a sparse
+ * SIGNED integer graph (vocab_size + edges + int weights[metric] + signed
+ * charges + optional node_ids label table + extras) <-> a flat Klein-4
+ * symbol stream {0,1,2,3}, base-4 digits behind a 2-symbol length header
+ * (<= 15 digits = 30 bits; Class-K zig-zag charge). Byte-identical to the
+ * pure genome._graph_ints_to_syms / _graph_syms_to_ints. On decode the
+ * caller sizes edge_cap / nid_cap / ex_cap (a count over-cap =>
+ * SRMECH_ERR_BAD_INPUT). ADDITIVE — SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_graph_kernel_encode(
+    uint64_t vocab_size,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    const uint64_t *node_ids, size_t n_nid,
+    const uint64_t *extras, size_t n_ex,
+    uint8_t *out_syms, size_t syms_cap, size_t *out_n_syms);
+
+srmech_status_t srmech_graph_kernel_decode(
+    const uint8_t *syms, size_t n_syms,
+    uint64_t *out_vocab_size,
+    uint64_t *out_edge_i, uint64_t *out_edge_j,
+    uint64_t *out_weights, int64_t *out_charges, size_t edge_cap,
+    size_t *out_n_edges,
+    uint64_t *out_node_ids, size_t nid_cap, size_t *out_n_nid,
+    uint64_t *out_extras, size_t ex_cap, size_t *out_n_ex);
 
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)
