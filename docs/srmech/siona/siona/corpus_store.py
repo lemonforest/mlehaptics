@@ -12,6 +12,7 @@ Native srmech rc253; no numpy; store = the Laplacian + fiber, not Klein-4 HVs.
 """
 import json
 import mmap
+import os
 import struct
 from pathlib import Path
 
@@ -107,16 +108,64 @@ def cite(h):
     return ("%s%s" % (src, ", %s" % lic if lic else "")) if src else None
 
 
+def _attach_bodies(h, genome_dir):
+    """Attach the FULL-BODY RBS-HDC instrument (#227, F805/F818) — the article TEXT (the DEFINITIONS: 'what it IS'),
+    a sibling of the co-occurrence genome — so `body_lead` can recall a topic's lead. The co-occurrence genome is
+    relational ('what it's LIKE'); the body instrument is the missing DEFINITION read (F1241). Env SIONA_BODIES
+    overrides; else the first ``*fullbody_instrument.ndjson`` next to the genome, with its ``*_index.json``."""
+    instr = os.environ.get("SIONA_BODIES")
+    if not instr:
+        sib = sorted(Path(genome_dir).parent.glob("*fullbody_instrument.ndjson"))
+        instr = str(sib[0]) if sib else None
+    if instr and Path(instr).exists():
+        idx = instr.replace("_instrument.ndjson", "_index.json")
+        if Path(idx).exists():
+            h["bodies"] = {"instrument": instr, "index": idx}
+    return h
+
+
+_COPULA = frozenset({"is", "are", "was", "were", "refers", "means", "describes", "denotes"})
+# the full-body encode stripped punctuation, so a fixed-length lead can end mid-clause; trim trailing dangling
+# connectors so the definition reads as a clean sentence (best effort — no sentence boundaries survive the encode).
+_DANGLE = frozenset(("and or of is are was to a an the in with made but that which for as by on at from it its this "
+                     "these those into over between about after before also such can may will would").split())
+
+
+def body_lead(h, token, n=30):
+    """The DEFINITION of `token` — its article's OPENING definition ('<token> is …'), recalled from the #227
+    full-body RBS-HDC instrument via the de Bruijn fiber walk (bridge.recall, F805/F818). This is 'what it IS' (the
+    read the co-occurrence store cannot give). Pivots to the first '<token> is/are/…' so the leading image-caption
+    markup is skipped and the definition comes through clean (a leading a/an/the is kept). Returns the lead tokens,
+    or None if there is no article body / no definitional pivot within the recalled span."""
+    bod = h.get("bodies")
+    if not bod:
+        return None
+    from . import bridge
+    rec = bridge.recall(token, bod["instrument"], bod["index"])
+    if not rec or not rec.get("tokens"):
+        return None
+    toks = rec["tokens"]
+    for i in range(len(toks) - 1):
+        if toks[i] == token and toks[i + 1] in _COPULA:               # the definitional pivot: '<token> is …'
+            start = i - 1 if (i > 0 and toks[i - 1] in ("a", "an", "the")) else i
+            span = toks[start:i + n]
+            while len(span) > 4 and span[-1] in _DANGLE:               # trim a trailing dangling connector
+                span = span[:-1]
+            return span
+    return None                                                        # no clean '<token> is …' -> no definition span
+
+
 def _attach_tree(h, genome_dir):
     """Attach the tome-tree (if built) to a handle: h['tree'] for find/ride/web-hop, h['hub_ids'] for the ride
-    de-lens; h['attest'] = the genome's MPR provenance (manifest.json) for citing reads. Additive — no tree means
-    plain rides (no de-lens), no navigation; no manifest means no citation."""
+    de-lens; h['attest'] = the genome's MPR provenance (manifest.json) for citing reads; h['bodies'] = the full-body
+    instrument for the DEFINITION read. Additive — no tree means plain rides; no manifest means no citation; no
+    body instrument means the relational read only (no definition)."""
     tr = _open_tree(genome_dir, h["vindex"])
     if tr is not None:
         h["tree"] = tr
         h["hub_ids"] = tr["hub_ids"]
     h["attest"] = _load_attest(genome_dir)
-    return h
+    return _attach_bodies(h, genome_dir)
 
 
 def open_demand(genome_dir):

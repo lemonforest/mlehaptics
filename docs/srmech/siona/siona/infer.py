@@ -1090,25 +1090,36 @@ class Session:
         None if `w` yields nothing."""
         from . import corpus_store as _cs
         from siona import analytic
-        f = _cs.find(self.corpus, w)                       # FIND: w's tome — the de-lensed community IS the residue
-        star = [wd for (_wt, _s, wd) in _cs.read(self.corpus, w, 8) if wd != w]
         cite = _cs.cite(self.corpus)                       # the attested genome's citation (manifest MPR)
+        lead = _cs.body_lead(self.corpus, w)               # TIER 0: the DEFINITION — the article lead = 'what it IS'
+        # the RELATIONS selection (the tome-tree residue = 'what it's like')
+        f = _cs.find(self.corpus, w)
+        star = [wd for (_wt, _s, wd) in _cs.read(self.corpus, w, 8) if wd != w]
         if f:
             label = [x for x in f["label"] if x != w]
             spine = label[:4] or star[:4]
             aspects = [label[4:8]] if len(label) > 4 else []
-            hop = _cs.web_hop(self.corpus, f["tome"])       # the web-hop group = a related aspect
+            hop = _cs.web_hop(self.corpus, f["tome"])
             if hop:
                 aspects.append([x for x in hop["label"] if x != w][:4])
         else:
             spine, aspects = star[:4], ([star[4:8]] if len(star) > 4 else [])
+        if lead:                                           # DEFINITION first ('what it IS'), then relations
+            defn = " ".join(lead).strip()
+            defn = (defn[0].upper() + defn[1:]).rstrip(" .") + "."
+            if shape == "concise" or not spine:
+                return "%s (%s)" % (defn, cite) if cite else defn
+            rel = "It is also related to %s." % analytic._oxford(spine[:5])
+            body = "%s %s" % (defn, rel)
+            return "%s (%s)" % (body, cite) if cite else body
         if not spine:
             return None
+        # no article body -> the relational description only (still sentences)
         if shape == "concise":
             return analytic.describe_from(w, spine, [], source=cite)
         if shape == "balanced":
             return analytic.describe_from(w, spine, aspects[:1], source=cite)
-        fwd = _cs.etak_walk(self.corpus, w, steps=6, sense="fwd")   # teaching: + the etak ride as one sentence
+        fwd = _cs.etak_walk(self.corpus, w, steps=6, sense="fwd")
         return analytic.describe_from(w, spine, aspects, ride=fwd[1:], source=cite)
 
     def _define(self, text):
