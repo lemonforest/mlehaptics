@@ -181,6 +181,8 @@ __all__ = [
     "klein4_gain_laplacian",
     "klein4_relational_structure",
     "cycle_holonomy",
+    "eulerian_path",
+    "eulerian_circuit",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -5752,6 +5754,149 @@ def spectral_block_dispatch(
     }
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# gh #1390 item 3 (rc245) — Eulerian walk reconstruction (Hierholzer).
+# Rebuild the ordered node sequence from a DIRECTED edge multiset — the
+# sandroing round-trip (F1080/F1213): a directed glyph-walk recovered from the
+# edges + directional weights kernel_to_graph returns. numpy-free; the LIFO
+# per-node adjacency (consume the last-inserted out-edge first) is the byte-exact
+# order the C peer srmech_eulerian_walk mirrors.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _eulerian_degrees(edges):
+    """Per-node (out, in) degrees + the sorted node set of a directed edge
+    multiset."""
+    outd: Dict[int, int] = {}
+    ind: Dict[int, int] = {}
+    nodes: set = set()
+    for (a, b) in edges:
+        outd[a] = outd.get(a, 0) + 1
+        ind[b] = ind.get(b, 0) + 1
+        nodes.add(a)
+        nodes.add(b)
+    return outd, ind, sorted(nodes)
+
+
+def _hierholzer_walk(edges, start):
+    """Iterative Hierholzer over a directed edge multiset. Consumes the
+    LAST-inserted available out-edge first (LIFO — the byte-exact order the C
+    peer mirrors). Returns the node walk (``list[int]``, length ``len(edges)+1``)
+    when EVERY edge is consumed, else ``None`` (the edges are not connected into
+    one walk reachable from ``start``)."""
+    outs: Dict[int, List[int]] = {}
+    for (a, b) in edges:
+        outs.setdefault(a, []).append(b)
+    avail = {a: list(v) for a, v in outs.items()}
+    stack = [start]
+    path: List[int] = []
+    while stack:
+        v = stack[-1]
+        nbrs = avail.get(v)
+        if nbrs:
+            stack.append(nbrs.pop())          # LIFO: last-inserted out-edge
+        else:
+            path.append(stack.pop())
+    path.reverse()
+    return path if len(path) == len(edges) + 1 else None
+
+
+def eulerian_path(edges):
+    """Reconstruct a directed Eulerian PATH's ordered node walk from a directed
+    edge multiset (gh #1390 item 3; Hierholzer). ``edges`` is a list of
+    ``(i, j)`` int pairs — an edge appearing k times is traversed k times.
+
+    Returns ``list[int]`` of length ``len(edges) + 1``, starting at the unique
+    node with out-degree − in-degree == +1 (or, when all nodes are balanced, the
+    smallest node with an out-edge — i.e. an Eulerian circuit). Raises
+    ``ValueError`` when NO directed Eulerian path exists (a degree imbalance, or
+    the edges are not connected into a single walk). An empty multiset → ``[]``.
+
+    The sandroing round-trip (F1080/F1213): a directed glyph-walk rebuilt from
+    the edge multiset ``kernel_to_graph`` returns. numpy-free; C peer
+    ``srmech_eulerian_walk``.
+    """
+    edges = [(int(i), int(j)) for (i, j) in edges]
+    if not edges:
+        return []
+    if _native.has_native_eulerian():
+        return _native.eulerian_walk_c(edges, circuit=False, start=None)
+    return _eulerian_path_pure(edges)
+
+
+def _eulerian_path_pure(edges):
+    outd, ind, nodes = _eulerian_degrees(edges)
+    start = None
+    n_plus = 0
+    n_minus = 0
+    for v in nodes:
+        d = outd.get(v, 0) - ind.get(v, 0)
+        if d == 1:
+            n_plus += 1
+            start = v
+        elif d == -1:
+            n_minus += 1
+        elif d != 0:
+            raise ValueError(
+                f"eulerian_path: node {v} has out−in = {d}; no directed "
+                f"Eulerian path (every node but two must be balanced)")
+    if n_plus > 1 or n_minus > 1 or n_plus != n_minus:
+        raise ValueError(
+            "eulerian_path: no directed Eulerian path (need at most one "
+            "out−in=+1 start and one −1 end, all other nodes balanced)")
+    if start is None:                          # all balanced → a circuit
+        start = min(v for v in nodes if outd.get(v, 0) > 0)
+    walk = _hierholzer_walk(edges, start)
+    if walk is None:
+        raise ValueError(
+            "eulerian_path: no directed Eulerian path (the edges are not "
+            "connected into a single walk)")
+    return walk
+
+
+def eulerian_circuit(edges, start=None):
+    """Reconstruct a directed Eulerian CIRCUIT (a closed walk, first == last)
+    from a directed edge multiset (gh #1390 item 3; Hierholzer). ``edges`` is a
+    list of ``(i, j)`` int pairs; every node must be balanced (out == in).
+    ``start`` (default: the smallest node with an out-edge) is the node the
+    circuit opens + closes on.
+
+    Returns ``list[int]`` of length ``len(edges) + 1`` with ``walk[0] ==
+    walk[-1] == start``. Raises ``ValueError`` when no directed Eulerian circuit
+    exists (an unbalanced node, ``start`` has no out-edge, or the edges are not
+    connected). An empty multiset → ``[]``. numpy-free; C peer
+    ``srmech_eulerian_walk``.
+    """
+    edges = [(int(i), int(j)) for (i, j) in edges]
+    if not edges:
+        return []
+    if _native.has_native_eulerian():
+        return _native.eulerian_walk_c(
+            edges, circuit=True, start=None if start is None else int(start))
+    return _eulerian_circuit_pure(edges, start)
+
+
+def _eulerian_circuit_pure(edges, start):
+    outd, ind, nodes = _eulerian_degrees(edges)
+    for v in nodes:
+        if outd.get(v, 0) != ind.get(v, 0):
+            raise ValueError(
+                f"eulerian_circuit: node {v} out={outd.get(v, 0)} != "
+                f"in={ind.get(v, 0)}; no directed Eulerian circuit")
+    if start is None:
+        start = min(v for v in nodes if outd.get(v, 0) > 0)
+    else:
+        start = int(start)
+        if outd.get(start, 0) == 0:
+            raise ValueError(
+                f"eulerian_circuit: start node {start} has no out-edge")
+    walk = _hierholzer_walk(edges, start)
+    if walk is None:
+        raise ValueError(
+            "eulerian_circuit: no directed Eulerian circuit (the edges are "
+            "not connected into a single closed walk)")
+    return walk
+
+
 # Registry of available Class L op names for the composition engine.
 # Order is documentary; consumers iterate by name not position.
 LAPLACIAN_OPS: Tuple[str, ...] = (
@@ -5763,6 +5908,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "klein4_gain_laplacian",
     "klein4_relational_structure",
     "cycle_holonomy",
+    "eulerian_path",
+    "eulerian_circuit",
     "fiedler_vector",
     "fiedler_sparse",
     "normalized_cut_bisect",

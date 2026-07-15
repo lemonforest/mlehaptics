@@ -11,6 +11,16 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc245]
+
+**`laplacian.eulerian_path` / `eulerian_circuit` — reconstruct the ordered node walk of a directed graph from its edge multiset (gh #1390 item 3; Hierholzer).** The sandroing round-trip (F1080/F1213): a directed glyph-walk rebuilt from the edges `kernel_to_graph` returns. `edges` is a list of `(i, j)` int pairs — an edge appearing k times is traversed k times.
+
+- **`eulerian_path(edges)`** returns the node sequence (length `len(edges)+1`), starting at the unique node with out-degree − in-degree = +1 (or, when all nodes are balanced, the smallest node with an out-edge — an Eulerian circuit). **`eulerian_circuit(edges, start=None)`** returns a closed walk (`walk[0] == walk[-1]`) over a balanced graph, opening on `start` (default: the smallest node with an out-edge).
+
+- **Robust, not assume-valid.** Both **raise `ValueError`** when no directed Eulerian walk exists — a degree imbalance, `start` with no out-edge, or edges that don't connect into a single walk (verified by the Hierholzer consuming *every* edge). An empty multiset returns `[]`.
+
+- **Full C parity, ABI-additive.** New C peer `srmech_eulerian_walk` — an iterative Hierholzer over a per-node CSR adjacency consumed top-down, so the **last-inserted out-edge is taken first**: the exact LIFO order the pure `avail[v].pop()` uses, making the recovered walk **byte-identical** on the pure and native paths. Caller-arena, no malloc, JPL-clean. New symbol → `SRMECH_ABI_VERSION` / `EXPECTED_ABI_VERSION` stay **5**. Registered in the tool schema (`tools.total` 425 → 427, `c_dispatched`); both registries regenerated.
+
 ## [0.9.0rc244]
 
 **`genome.graph_to_kernel` / `kernel_to_graph` — store a directed Class-L graph as a native genome in ONE call, gh #1390 item 2.** The keystone codec for #231: serialize a sparse signed INTEGER graph `(vocab, edges, weights, charges)` into a self-describing Klein-4 strand and recover it byte-exact. `graph_to_kernel` flattens `[nv, vocab.., ne, (i, j, w, zigzag(c)) × ne]`, zig-zags the **signed** per-edge charge onto a non-negative **base-4-varint** (a JSON-free, self-delimiting Klein-4 codec), and composes the existing `kernel_pack`; `kernel_to_graph` inverts it via `kernel_unpack`. This stores the directed magnetic-Laplacian read — **metric** = edge weight, **curvature** = signed edge charge (F1207/F1210) — that the symmetric bag throws away. It's an **abstract, domain-free integer-graph** primitive: `vocab` is int node-labels (string↔int stays caller-managed, as `text.cooccurrence_edges`), so `cooccurrence_edges(directed=True)` output feeds it directly.

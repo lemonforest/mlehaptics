@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc244"
-#define SRMECH_VERSION       "0.9.0rc244"
+#define SRMECH_VERSION_PRE   "rc245"
+#define SRMECH_VERSION       "0.9.0rc245"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5772,6 +5772,25 @@ srmech_status_t srmech_graph_kernel_decode(
     uint32_t *out_vocab, size_t vocab_cap, size_t *out_nv,
     uint32_t *out_edges, uint32_t *out_weights, int64_t *out_charges,
     size_t edge_cap, size_t *out_ne);
+
+/* ------------------------------------------------------------------ *
+ * EULERIAN WALK over a directed edge multiset (0.9.0rc245, gh #1390 item 3) —
+ * the byte-exact C twin of srmech.amsc.laplacian._hierholzer_walk (+ the degree
+ * validation / start selection). Rebuild the ordered node walk of a directed
+ * Eulerian path (circuit == 0) or circuit (circuit != 0) via iterative
+ * Hierholzer. `edges` is 2*ne node ids (i0, j0, i1, j1, …); an edge appearing k
+ * times is traversed k times. On success *out_len = ne + 1 node ids sit in
+ * out_walk (start-selected: the out−in=+1 node for a path, or has_start ? start
+ * : the smallest node with an out-edge). SRMECH_ERR_BAD_INPUT when no Eulerian
+ * walk exists (a degree imbalance, has_start with no out-edge, or the edges are
+ * not connected into one walk). `ws` (caller arena) needs
+ * >= (4*nn + 2 + 2*ne) * sizeof(uint32_t) bytes (nn = max node id + 1); too
+ * small -> SRMECH_ERR_OVERFLOW. out_walk capacity walk_cap must be >= ne + 1.
+ * Caller-arena only (no malloc); no abs. ADDITIVE symbol — SRMECH_ABI_VERSION
+ * stays 5. ------------------------------------------------------------------ */
+srmech_status_t srmech_eulerian_walk(
+    const uint32_t *edges, size_t ne, int circuit, int has_start, uint32_t start,
+    uint32_t *out_walk, size_t walk_cap, size_t *out_len, void *ws, size_t ws_len);
 
 /* §127/v7 (#726) ACTIVE-TELOMERE TICK — the divide/gate op whose OPERATOR behaviour
  * is SELECTED by its OPERAND (the count). Read the exact non-negative COUNT carried

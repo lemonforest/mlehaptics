@@ -1171,6 +1171,52 @@ def _register_primitive_class_tools() -> None:
                       "{'n_cycles', 'holonomies': list[Fraction] in [0,1), "
                       "'cycle_edges': list[(u,v)], 'balanced': bool}"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.eulerian_path", owner="srmech",
+            category="laplacian",
+            summary="Reconstruct a directed Eulerian PATH's ordered node walk "
+                    "from a directed edge MULTISET (gh #1390 item 3; Hierholzer) "
+                    "— the sandroing round-trip (F1080/F1213): a directed "
+                    "glyph-walk rebuilt from the edges kernel_to_graph returns. "
+                    "edges is a list of (i, j) int pairs; an edge appearing k "
+                    "times is traversed k times. Returns list[int] of length "
+                    "len(edges)+1, starting at the unique node with out−in = +1 "
+                    "(or, when all nodes are balanced, the smallest node with an "
+                    "out-edge — an Eulerian circuit). Raises ValueError when no "
+                    "directed Eulerian path exists (a degree imbalance, or the "
+                    "edges are not connected into one walk); an empty multiset "
+                    "returns []. numpy-free; no abs(); byte-exact C peer "
+                    "srmech_eulerian_walk (the LIFO Hierholzer).",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "the directed edge multiset — (i, j) int pairs, "
+                          "repetition = multiplicity"),),
+            returns=R("list", "the ordered node walk (list[int], length "
+                              "len(edges)+1) of the directed Eulerian path"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.eulerian_circuit", owner="srmech",
+            category="laplacian",
+            summary="Reconstruct a directed Eulerian CIRCUIT (a closed walk, "
+                    "first == last) from a directed edge MULTISET (gh #1390 "
+                    "item 3; Hierholzer). edges is a list of (i, j) int pairs; "
+                    "every node must be balanced (out-degree == in-degree). "
+                    "start (default: the smallest node with an out-edge) is the "
+                    "node the circuit opens + closes on. Returns list[int] of "
+                    "length len(edges)+1 with walk[0] == walk[-1] == start. "
+                    "Raises ValueError when no directed Eulerian circuit exists "
+                    "(an unbalanced node, start has no out-edge, or the edges "
+                    "are not connected); an empty multiset returns []. "
+                    "numpy-free; no abs(); byte-exact C peer srmech_eulerian_walk.",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "the directed edge multiset — (i, j) int pairs, "
+                          "repetition = multiplicity"),
+                        P("start", "int", False,
+                          "the node the circuit opens + closes on (default: "
+                          "the smallest node with an out-edge)")),
+            returns=R("list", "the ordered node walk (list[int], length "
+                              "len(edges)+1) of the directed Eulerian circuit, "
+                              "closed (first == last)"),
+        ),
         # ────────────────────────────────────────────────────────────
         # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
         # + the ground-state flux reader, Class-L composites with the 1:1
