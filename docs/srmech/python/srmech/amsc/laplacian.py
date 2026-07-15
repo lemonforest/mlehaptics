@@ -3644,7 +3644,9 @@ def _recover_responsion(dim, edges, weights, charges):
         r = responsion(lm, [1.0] + [0.0] * (dim - 1), 5.0 / (mx or 1.0),
                        kind="propagator")
         reach = sum((x.real * x.real + x.imag * x.imag) for x in r)  # Σ|·|², no abs
-        diag["propagator_reach"] = round(reach ** 0.5, 6)
+        # Σ|·|² directly — the responsion faculty is reach > 0; a bare float
+        # sqrt is banned by the A-N cascade ratchet (float = FPU-lift only).
+        diag["propagator_reach_sq"] = round(reach, 6)
         return reach > 0, diag
     except Exception as e:
         diag["responsion_error"] = "%s: %s" % (type(e).__name__, e)
