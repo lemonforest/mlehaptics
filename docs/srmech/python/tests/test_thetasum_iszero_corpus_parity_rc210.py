@@ -94,10 +94,24 @@ def test_corpus_native_equals_pure_on_every_object():
         cv = ts._is_zero_interpolation_c()
         pv = ts._is_zero_interpolation()
         if cv is None:
-            declines.append(r["test"])
+            # An ALL-CONSTANT (n_syms == 0) numerator is DECLINED by design: the
+            # native peer ships only the Z5 single-prime lift, not the pure Z6
+            # multi-prime collapse re-grading, so it cannot definitively decide a
+            # top-level theta-constant object -> it defers to the sound + complete
+            # pure oracle (validated by the `ts.is_zero == pure` assert below).
+            # Such a decline is NOT a soundness violation. Only a decline on an
+            # object WITH variables (which native must decide) is a coverage
+            # regression. (Pre-fix this path "declined" only by ACCIDENT — a
+            # stale-exps OOB read tripped a false OVERFLOW — which occasionally
+            # became a WRONG verdict instead; now the decline is deterministic.)
+            _m = ts._is_zero_c_marshal()
+            if _m is not None and _m[0] != 0:
+                declines.append(r["test"])
         elif cv != pv:
             mismatches.append((r["test"], {"c": cv, "py": pv}))
         # the full dispatched decision must agree with the pure oracle either way
         assert ts.is_zero == ts._is_zero_py()
     assert not mismatches, f"NATIVE≠PURE (BLOCKER): {mismatches[:10]}"
-    assert not declines, f"native peer declined on corpus objects: {declines[:10]}"
+    assert not declines, (
+        "native peer declined on an object WITH variables (a coverage regression, "
+        f"not just an all-constant deferral): {declines[:10]}")

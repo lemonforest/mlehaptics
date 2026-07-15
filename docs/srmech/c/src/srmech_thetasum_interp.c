@@ -1268,7 +1268,7 @@ static srmech_status_t ti_parse(ti_ctx_t *c, ti_term_t *terms, size_t n_terms,
                                 const size_t *term_nthetas,
                                 const srmech_bigint_t *coeff_num,
                                 const srmech_bigint_t *coeff_den,
-                                const int32_t *exps_flat)
+                                const int32_t *exps_flat, size_t in_n_syms)
 {
     size_t ti;
     size_t mi = 0;
@@ -1276,21 +1276,35 @@ static srmech_status_t ti_parse(ti_ctx_t *c, ti_term_t *terms, size_t n_terms,
     srmech_status_t st;
     assert(c != NULL && terms != NULL && term_nthetas != NULL);
     assert(coeff_num != NULL && coeff_den != NULL && exps_flat != NULL);
+    /* The caller's exps rows have IN_N_SYMS columns (0 for an all-constant input),
+     * while the exps arrays are allocated at the CLAMPED c->n_syms (>= 1, the
+     * entry's `(n_syms == 0) ? 1 : n_syms`). ZERO the full destination row, then
+     * copy only the in_n_syms supplied columns and stride exps_flat by in_n_syms —
+     * so an n_syms == 0 leaf leaves clean zero exps instead of memcpy'ing PAST the
+     * end of exps_flat (the stale-exps read that mis-read the all-constant leaf as
+     * carrying a phantom variable -> a false OVERFLOW decline / wrong verdict). */
+    assert(in_n_syms <= c->n_syms);
     for (ti = 0; ti < n_terms; ti++) {
         size_t k;
         st = srmech_bigint_copy(&terms[ti].pref.coeff.num, &coeff_num[mi]);
         if (st == SRMECH_OK) { st = srmech_bigint_copy(&terms[ti].pref.coeff.den, &coeff_den[mi]); }
         if (st != SRMECH_OK) { return st; }
-        memcpy(terms[ti].pref.exps, exps_flat + ej, c->n_syms * sizeof(int32_t));
+        memset(terms[ti].pref.exps, 0, c->n_syms * sizeof(int32_t));
+        if (in_n_syms > 0u) {
+            memcpy(terms[ti].pref.exps, exps_flat + ej, in_n_syms * sizeof(int32_t));
+        }
         mi++;
-        ej += c->n_syms;
+        ej += in_n_syms;
         for (k = 0; k < term_nthetas[ti]; k++) {
             st = srmech_bigint_copy(&terms[ti].targs[k].coeff.num, &coeff_num[mi]);
             if (st == SRMECH_OK) { st = srmech_bigint_copy(&terms[ti].targs[k].coeff.den, &coeff_den[mi]); }
             if (st != SRMECH_OK) { return st; }
-            memcpy(terms[ti].targs[k].exps, exps_flat + ej, c->n_syms * sizeof(int32_t));
+            memset(terms[ti].targs[k].exps, 0, c->n_syms * sizeof(int32_t));
+            if (in_n_syms > 0u) {
+                memcpy(terms[ti].targs[k].exps, exps_flat + ej, in_n_syms * sizeof(int32_t));
+            }
             mi++;
-            ej += c->n_syms;
+            ej += in_n_syms;
         }
         terms[ti].n_thetas = term_nthetas[ti];
     }
@@ -1393,6 +1407,20 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
     if (term_nthetas == NULL || coeff_num == NULL || coeff_den == NULL || exps_flat == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
+    if (n_syms == 0u) {
+        /* An ALL-CONSTANT (0-variable) numerator has NO genuine lift slot for a
+         * constant-leaf certificate (the c->n_syms clamp to 1 below is an
+         * allocation-safety artifact, NOT a real variable). Native ships only the
+         * Z5 single-prime lift, NOT the pure Z6 multi-prime collapse re-grading,
+         * so it cannot definitively decide a top-level theta-constant object
+         * (a Z6-zero would false-negative to NONZERO). DECLINE to the complete +
+         * sound pure oracle (the "native declines all-constant" contract; the
+         * caller falls to _is_zero_py). Pre-fix this path declined only by
+         * ACCIDENT (a stale-exps OOB read -> false OVERFLOW), which occasionally
+         * yielded a WRONG verdict on macOS instead — the intermittent is_zero
+         * flake. Now the decline is clean + deterministic. */
+        return SRMECH_ERR_OVERFLOW;
+    }
     memset(&rt, 0, sizeof(rt));
     c.n_syms = (n_syms == 0u) ? 1u : n_syms;
     c.cap = (coeff_cap < 4u) ? 4u : coeff_cap;
@@ -1402,7 +1430,8 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
     st = ti_bind_rt(&c, &rt, max_thetas, xsym, ysym, psym);
     if (st == SRMECH_OK) { st = ti_bind_term_arr(&c, &terms, n_terms, max_thetas); }
     if (st != SRMECH_OK) { return st; }
-    st = ti_parse(&c, terms, n_terms, term_nthetas, coeff_num, coeff_den, exps_flat);
+    st = ti_parse(&c, terms, n_terms, term_nthetas, coeff_num, coeff_den, exps_flat,
+                  n_syms);
     if (st != SRMECH_OK) { return st; }
     return ti_decide(&c, terms, n_terms, 0, max_thetas, &rt, out_is_zero);
 }
@@ -1545,7 +1574,7 @@ static srmech_status_t tip_parse_root(const tip_wire_t *w, void *region, size_t 
     st = ti_bind_term_arr(rc, root, w->n_terms, w->max_thetas);
     if (st != SRMECH_OK) { return st; }
     return ti_parse(rc, *root, w->n_terms, w->term_nthetas, w->coeff_num, w->coeff_den,
-                    w->exps_flat);
+                    w->exps_flat, w->n_syms);
 }
 
 /* Arena-init a WORKER `slice` + bind its runtime bundle (NO parse -- the worker
@@ -1766,7 +1795,7 @@ static srmech_status_t tip_serial(const tip_wire_t *w, void *ws, size_t ws_len,
     st = ti_bind_term_arr(&c, &root, w->n_terms, w->max_thetas);
     if (st != SRMECH_OK) { return st; }
     st = ti_parse(&c, root, w->n_terms, w->term_nthetas, w->coeff_num, w->coeff_den,
-                  w->exps_flat);
+                  w->exps_flat, w->n_syms);
     if (st != SRMECH_OK) { return st; }
     return ti_decide(&c, root, w->n_terms, 0, w->max_thetas, &rt, out_is_zero);
 }
@@ -1982,6 +2011,11 @@ srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
     if (term_nthetas == NULL || coeff_num == NULL || coeff_den == NULL
             || exps_flat == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_syms == 0u) {
+        /* All-constant: no genuine lift slot + no native Z6 -> decline to the
+         * sound + complete pure oracle (same contract as the sequential peer). */
+        return SRMECH_ERR_OVERFLOW;
     }
     w.n_syms = n_syms;   w.xsym = xsym;   w.ysym = ysym;   w.psym = psym;
     w.n_terms = n_terms; w.term_nthetas = term_nthetas;
