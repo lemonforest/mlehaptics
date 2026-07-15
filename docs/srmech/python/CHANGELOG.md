@@ -11,6 +11,14 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc246]
+
+**`laplacian.recover_check` — the packaged Class-L genome round-trip integrity verify (gh #1390 item 4).** Does a recovered graph recover its four faculties? `recover_check(n, edges, weights, charges=None)` returns a per-faculty verdict dict — **op** (`L = D−A` eigendecomposes to `n` eigenvalues), **operand** (weighted edges present), **responsion** (the propagator `e^{−zL}` is excitable — mass reaches off the seed node), and, for a DIRECTED store, **curvature** (a nonzero cycle holonomy of the normalised `charge/weight` gain — the F552 which-way the Hermitian/signed spectrum provably cannot carry; `None` for a symmetric store), plus **recovered** (every applicable faculty passes). It's the packaged verify F1225 asked for — a **verify, not a raise** (a graph that fails to eigendecompose reports `op: False`).
+
+- **Composition, not a new kernel.** `recover_check` composes `dense_laplacian` + `symmetric_eigendecompose` + `responsion` + `cycle_holonomy` — each already C-mirrored — so it is `composes_c` (a bare-C host reproduces it by composing those peers; no new C symbol, ABI stays **5**). Registered in the tool schema (`tools.total` 427 → 428).
+
+- **The whole #1390 chain, verified end-to-end.** `test_recover_check_rc246` drives `cooccurrence_edges(directed=True)` → `graph_to_kernel` → `kernel_to_graph` → `recover_check`: the directed graph round-trips byte-exact through the codec *and* recovers op/operand/responsion. The F1231 octonion ORDER faculty (the order-sensitive 5th) lands on top in rc247.
+
 ## [0.9.0rc245]
 
 **`laplacian.eulerian_path` / `eulerian_circuit` — reconstruct the ordered node walk of a directed graph from its edge multiset (gh #1390 item 3; Hierholzer).** The sandroing round-trip (F1080/F1213): a directed glyph-walk rebuilt from the edges `kernel_to_graph` returns. `edges` is a list of `(i, j)` int pairs — an edge appearing k times is traversed k times.

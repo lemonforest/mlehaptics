@@ -213,11 +213,14 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 _EXPECTED_SPLIT = {
     # rc202 discharged the FINAL owed row (run_class_method -> C); owed_orchestration
     # is now EMPTY (a live Counter has no zero key), so it is absent from the split.
-    "composes_c": 121,
+    # rc246 (#1390 item 4): laplacian.recover_check — the packaged round-trip
+    # verify — composes dense_laplacian / symmetric_eigendecompose / responsion /
+    # cycle_holonomy (all C-mirrored). composes_c 121 -> 122; total 190 -> 191.
+    "composes_c": 122,
     "host_glue": 21,
     "dev_tooling": 48,
 }
-_TOTAL_NON_COMPUTE = 190
+_TOTAL_NON_COMPUTE = 191
 
 
 def _rows():
