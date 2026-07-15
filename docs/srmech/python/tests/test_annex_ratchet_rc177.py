@@ -165,8 +165,8 @@ _ANNEX_DELTA = {"composes_c": 13, "host_glue": 12, "dev_tooling": 14}
 # compiled-in const registry — composes_c FROM BIRTH, the rc205 carrier_schema
 # precedent). composes_c 120 -> 121; total 189 -> 190. The bus/dsl _ANNEX_ROWS
 # / _ANNEX_DELTA are untouched (rc225 moves no bus/dsl row).
-_FULL_SPLIT = {"composes_c": 121, "host_glue": 21, "dev_tooling": 48}
-_TOTAL_NON_COMPUTE = 190
+_FULL_SPLIT = {"composes_c": 122, "host_glue": 21, "dev_tooling": 48}
+_TOTAL_NON_COMPUTE = 191
 
 
 def _rows():

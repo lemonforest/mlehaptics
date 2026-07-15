@@ -5942,11 +5942,18 @@ def recover_check(n, edges, weights, charges=None):
             evals, _v = symmetric_eigendecompose(lap)
             ev = [float(x) for x in evals]
             op = len(ev) == n
-            mx = max((abs(x) for x in ev), default=0.0)
+            # L = D − A is PSD, so eigenvalues are ≥ 0 — max IS the spectral
+            # radius (no abs() — the Class-K no-ALU-abs rule); the fallback
+            # z = 1 covers a degenerate all-zero spectrum.
+            mx = max(ev, default=0.0)
             z = (5.0 / mx) if mx > 0.0 else 1.0
             u0 = [1.0] + [0.0] * (n - 1)
             resp = responsion(lap, u0, z, kind="propagator")
-            reach = sum(abs(x) for x in list(resp)[1:])   # mass off seed (|·| ok for complex)
+            # excitable iff any off-seed mass is non-zero. The reach is the
+            # magnitude-SQUARED energy (re·re + im·im — a Class-K real-imag
+            # composition, NOT abs()); > 0 iff the propagator spread off node 0.
+            reach = sum(x.real * x.real + x.imag * x.imag
+                        for x in list(resp)[1:])
             responsion_ok = reach > 0.0
         except (ValueError, ZeroDivisionError, ArithmeticError):
             op = False
