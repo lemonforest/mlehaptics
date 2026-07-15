@@ -95,12 +95,46 @@ def read(h, token, k=6):
     ti = h["vindex"].get(token)
     if ti is None:
         return []
+    return [(w, "->" if c >= 0 else "<-", h["vocab"][j]) for (j, w, c) in _records(h, ti, k)]
+
+
+def _records(h, ti, limit):
+    """Up to `limit` STRONGEST neighbour records (neighbour_id, metric, charge) for token-id ti, metric-desc.
+    Bounded — the etak RIDE follows STRONG coupling, i.e. the top edges (a read, never the whole node degree, so a
+    hub token doesn't page its entire adjacency). DEMAND pages the slice from the mmap; RAM sorts the in-core list."""
     if h["mode"] == "demand":
         off, cnt = _IDX.unpack_from(h["idx"], ti * _IDX.size)
-        out = []
-        for m in range(min(cnt, k)):
-            j, w, c = _REC.unpack_from(h["mm"], off + m * _REC.size)
-            out.append((w, "->" if c >= 0 else "<-", h["vocab"][j]))
-        return out
-    top = sorted(h["adj"].get(ti, []), key=lambda t: -t[1])[:k]
-    return [(w, "->" if c >= 0 else "<-", h["vocab"][j]) for (j, w, c) in top]
+        return [_REC.unpack_from(h["mm"], off + m * _REC.size) for m in range(min(cnt, limit))]
+    return sorted(h["adj"].get(ti, []), key=lambda t: -t[1])[:limit]
+
+
+_SCAN = 48                                              # per-hop read window (the strongest coupling sits at the top)
+
+
+def etak_walk(h, token, steps=6, sense="fwd"):
+    """The ETAK RIDE (F786/F791 navigation, at demand-load scale) — NAVIGATE the directed store by MOVING THE
+    REFERENCE FRAME: from `token`, hop to the strongest chirality-consistent neighbour, `steps` times, riding the
+    directed coupling. This is the store's REASON FOR BEING (metric + directed CHARGE); a flat 1-hop read() throws
+    the charge axis away after one step. `sense='fwd'` follows the forward charge (c>=0 : what this token LEADS TO);
+    `'bwd'` follows the backward charge (c<0 : what LEADS HERE) — the two chiral fronts (F990, overtone/undertone).
+    Returns the path of DISTINCT tokens [token, w1, w2, ...]; a visited-set halts the co-occurrence loop. The charge
+    sign IS the Class-C which-way (never the ALU magnitude-builtin); metric-desc records mean the first admissible
+    hop is the strongest. Pure-Python, srmech-native store; the fuller tome-TREE find->ride->web-hop (Fiedler,
+    ETAKNAV) is the heavier OFFLINE extension over a clustered store."""
+    ti = h["vindex"].get(token)
+    if ti is None:
+        return [token]
+    want_fwd = (sense == "fwd")
+    path, seen, cur = [token], {ti}, ti
+    for _ in range(steps):
+        nxt = None
+        for (j, w, c) in _records(h, cur, _SCAN):       # metric-desc: first admissible IS the strongest coupling
+            if (c >= 0) == want_fwd and j not in seen:   # Class-C chirality sign = the which-way (no abs)
+                nxt = j
+                break
+        if nxt is None:
+            break
+        seen.add(nxt)
+        path.append(h["vocab"][nxt])
+        cur = nxt
+    return path

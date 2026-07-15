@@ -1046,10 +1046,18 @@ class Session:
         return len(self.corpus["vocab"])
 
     def _define(self, text):
-        if self.corpus is not None:                       # #231/F1233: the directed corpus store's relational read FIRST
+        if self.corpus is not None:                       # #231/F1233: the directed corpus store's ETAK WALK FIRST
             from . import corpus_store as _cs
             for w in _toks(text):                         # the first content token that IS in the corpus wins
-                nb = _cs.read(self.corpus, w, 6)          # gene_express: pages in only this token's neighbourhood
+                fwd = _cs.etak_walk(self.corpus, w, steps=6, sense="fwd")   # RIDE the directed coupling (charge=which-way)
+                if len(fwd) > 1:                          # a real navigation happened (not a dead 1-hop)
+                    bwd = _cs.etak_walk(self.corpus, w, steps=4, sense="bwd")
+                    star = ", ".join("%s %s" % (s, wd) for (_wt, s, wd) in _cs.read(self.corpus, w, 6))
+                    out = "%s -- etak ride -> %s" % (w, " -> ".join(fwd))
+                    if len(bwd) > 1:                       # the chiral-dual undertone: what LEADS HERE (F990)
+                        out += "   (leads here: %s)" % " -> ".join(reversed(bwd))
+                    return out + "\n   local star: %s" % star   # the 1-hop neighbourhood we ride out of
+                nb = _cs.read(self.corpus, w, 6)          # no forward ride -> fall back to the 1-hop relational read
                 if nb:
                     seen = ", ".join("%s %s" % (sense, word) for (_wt, sense, word) in nb)
                     return "%s -- seen with: %s" % (w, seen)   # relational read-out (metric-ranked; -> / <- = direction)
