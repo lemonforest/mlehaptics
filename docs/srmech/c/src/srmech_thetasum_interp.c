@@ -1408,15 +1408,17 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
         return SRMECH_ERR_NULL_ARG;
     }
     if (n_syms == 0u) {
-        /* An ALL-CONSTANT (0-variable) numerator has NO genuine lift slot for the
-         * Z5/Z6 constant-leaf certificates (the c->n_syms clamp to 1 below is an
-         * allocation-safety artifact, NOT a real variable — lifting a prime into
-         * that phantom slot mis-decides the leaf). DECLINE to the complete + sound
-         * pure Z6 oracle (the documented "native declines all-constant" contract:
-         * the caller falls to _is_zero_py). Pre-fix this path declined only by
+        /* An ALL-CONSTANT (0-variable) numerator has NO genuine lift slot for a
+         * constant-leaf certificate (the c->n_syms clamp to 1 below is an
+         * allocation-safety artifact, NOT a real variable). Native ships only the
+         * Z5 single-prime lift, NOT the pure Z6 multi-prime collapse re-grading,
+         * so it cannot definitively decide a top-level theta-constant object
+         * (a Z6-zero would false-negative to NONZERO). DECLINE to the complete +
+         * sound pure oracle (the "native declines all-constant" contract; the
+         * caller falls to _is_zero_py). Pre-fix this path declined only by
          * ACCIDENT (a stale-exps OOB read -> false OVERFLOW), which occasionally
-         * yielded a wrong verdict on macOS instead — the intermittent is_zero
-         * flake. Now it is a clean, deterministic decline. */
+         * yielded a WRONG verdict on macOS instead — the intermittent is_zero
+         * flake. Now the decline is clean + deterministic. */
         return SRMECH_ERR_OVERFLOW;
     }
     memset(&rt, 0, sizeof(rt));
@@ -2011,8 +2013,8 @@ srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
         return SRMECH_ERR_NULL_ARG;
     }
     if (n_syms == 0u) {
-        /* All-constant: no genuine lift slot -> decline to the sound pure Z6
-         * oracle (same contract as the sequential peer above). */
+        /* All-constant: no genuine lift slot + no native Z6 -> decline to the
+         * sound + complete pure oracle (same contract as the sequential peer). */
         return SRMECH_ERR_OVERFLOW;
     }
     w.n_syms = n_syms;   w.xsym = xsym;   w.ysym = ysym;   w.psym = psym;
