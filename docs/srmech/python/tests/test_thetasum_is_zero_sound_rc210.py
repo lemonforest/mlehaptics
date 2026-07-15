@@ -414,6 +414,29 @@ def test_all_constant_three_term_z5_certified_rc228():
     assert w.is_zero is True
 
 
+def test_all_constant_native_interp_no_stale_exps_rc254():
+    """Regression for the n_syms==0 native interpolation OOB exps read (the
+    intermittent macOS ``is_zero`` flake). ``srmech_thetasum_is_zero_interpolation``
+    must DETERMINISTICALLY prove the all-constant leaf (return True), never
+    spuriously decline (``None``) from a stale phantom variable. Root cause: C
+    ``ti_parse`` strided ``exps_flat`` by the CLAMPED ``c->n_syms == 1`` while the
+    marshalled rows carried the REAL ``n_syms == 0`` columns, memcpy'ing PAST the
+    end of the 1-element ``exps_flat`` -> a garbage exponent -> ``present[0]``
+    picked up a phantom variable -> a false OVERFLOW decline (Linux) / a wrong
+    verdict (macOS). Loop to catch the (pre-fix) intermittency; the native gate
+    keeps it a no-op assert on a pure build."""
+    from srmech.amsc import _native as _nat
+    native = _nat.has_native_thetasum_interpolation()
+    for _ in range(50):
+        w = ThetaSum.three_term(M.scalar(Q(2, 1)), M.scalar(Q(3, 1)),
+                                M.scalar(Q(5, 1)), x=M.scalar(Q(7, 1)))
+        if native:
+            # the interp peer must PROVE (True), NOT decline (None): pre-fix it
+            # spuriously declined ~99% of runs from the stale-exps phantom var.
+            assert w._is_zero_interpolation_c(parallel=False) is True
+        assert w.is_zero is True
+
+
 def test_constant_core_times_theta_honest_decline():
     """A true identity whose proof needs the 0-variable theta-constant case → the
     recursion reaches the same honest decline (and the y-part alone cannot prove
