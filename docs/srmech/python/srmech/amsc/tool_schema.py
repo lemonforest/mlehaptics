@@ -1220,6 +1220,76 @@ def _register_primitive_class_tools() -> None:
                       "the Eulerian circuit (node list, start == end), or None if "
                       "not balanced + connected"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check", owner="srmech",
+            category="laplacian",
+            summary="The packaged round-trip integrity check of a stored "
+                    "directed Class-L graph (#1390 item 4): the FOUR faculties a "
+                    "genome must recover — op (L=D−A eigendecomposes, PSD, a ~0 "
+                    "null mode), operand (weighted edges present, non-degenerate, "
+                    "uncapped — not a top-K amputation), responsion (the "
+                    "propagator e^{−zL} is excitable, reach>0), and curvature (a "
+                    "DIRECTED store keeps its charge; a symmetric bag has exactly "
+                    "zero curvature — PASSES the metric faculties, FLAGGED "
+                    "directionless, F1210). ok == op and operand and responsion — "
+                    "curvature is REPORTED honestly, NOT a hard gate, so a "
+                    "legitimately acyclic (F1218) / coherent net-zero (F1146) "
+                    "directed graph is never a false failure. Integer charge is "
+                    "phase-scaled (q=1/(2·max|c|+1)) so it does not alias to 0 "
+                    "mod 1. A domain-free composition of shipped C-routed ops "
+                    "(dense_laplacian / symmetric_eigendecompose / "
+                    "magnetic_laplacian / responsion / cycle_holonomy) — the "
+                    "dense op/responsion need vocab_size<=256; use "
+                    "recover_check_structural / _spectral at corpus scale "
+                    "(F1227). numpy-free; no abs().",
+            parameters=(P("vocab_size", "int", True, "node count"),
+                        P("edges", "list[tuple[int, int]]", True, "directed edge list"),
+                        P("weights", "list", True, "parallel int metric"),
+                        P("charges", "Optional[list[int | Fraction | float]]",
+                          False, "parallel signed direction; None = undirected")),
+            returns=R("dict",
+                      "{ok, op, operand, responsion, curvature:{directed, "
+                      "n_cycles, holonomy_nonzero, verdict}, diagnostics}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check_structural", owner="srmech",
+            category="laplacian",
+            summary="The O(edges) integrity faculties only — operand (edges "
+                    "present / valid) + a SAMPLED curvature read (a cheap "
+                    "triangle probe) — so a directed Class-L store is integrity-"
+                    "checkable at ANY vocab size (the dense op/responsion "
+                    "faculties do not scale past the native n<=256 / O(n^3) wall). "
+                    "The F1227 sparse peer of recover_check_spectral (#1390 item "
+                    "4). numpy-free; no abs() (Class-K magnitude).",
+            parameters=(P("vocab_size", "int", True, "node count"),
+                        P("edges", "list[tuple[int, int]]", True, "directed edge list"),
+                        P("weights", "list", True, "parallel int metric"),
+                        P("charges", "Optional[list[int | Fraction | float]]",
+                          False, "parallel signed direction; None = undirected"),
+                        P("cycle_sample", "int", False,
+                          "keyword-only; the triangle-probe budget (default 48)")),
+            returns=R("dict",
+                      "{operand, directed, curvature_sampled_nonzero, ok_structural}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check_spectral", owner="srmech",
+            category="laplacian",
+            summary="The op + responsion (spectral) integrity faculties on a "
+                    "BOUNDED principal submatrix — the first min(vocab_size, "
+                    "max_dim) nodes + the edges within that block — so the dense "
+                    "n×n eigendecompose stays within the native n<=256 wall at "
+                    "ANY corpus vocab. The F1227 bounded-spectral peer of "
+                    "recover_check_structural (#1390 item 4). numpy-free; no "
+                    "abs().",
+            parameters=(P("vocab_size", "int", True, "node count"),
+                        P("edges", "list[tuple[int, int]]", True, "directed edge list"),
+                        P("weights", "list", True, "parallel int metric"),
+                        P("charges", "Optional[list[int | Fraction | float]]",
+                          False, "parallel signed direction; None = undirected"),
+                        P("max_dim", "int", False,
+                          "keyword-only; the principal-submatrix bound (default 256)")),
+            returns=R("dict", "{op, responsion, dim, diagnostics}"),
+        ),
         # ────────────────────────────────────────────────────────────
         # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
         # + the ground-state flux reader, Class-L composites with the 1:1

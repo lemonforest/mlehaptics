@@ -183,6 +183,9 @@ __all__ = [
     "cycle_holonomy",
     "eulerian_path",
     "eulerian_circuit",
+    "recover_check",
+    "recover_check_structural",
+    "recover_check_spectral",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -3587,6 +3590,187 @@ def eulerian_circuit(edges, start=None):
     if any(outdeg.get(n, 0) != indeg.get(n, 0) for n in nodes):
         return None                                     # not balanced -> no circuit
     return eulerian_path(edges, start=start)
+
+
+# ── #1390 item 4: recover_check (+ the F1227 structural / spectral split) ────
+# The packaged round-trip integrity check for a stored directed Class-L graph.
+# Faithful port of R-RBS-LM-RECOVERCHECK (the four faculties) + the F1227
+# corpus-scale split (R-RBS-LM-SIONA231): the dense op / responsion faculties do
+# not scale past the native n<=256 wall, so the full recover_check (bounded) is
+# joined by recover_check_structural (sparse, O(edges), any scale) +
+# recover_check_spectral (op / responsion on a BOUNDED principal submatrix). A
+# domain-free composition of shipped C-routed ops (dense_laplacian /
+# symmetric_eigendecompose / magnetic_laplacian / responsion / cycle_holonomy):
+# composition_of_c, no new C symbol. numpy-free; no abs() (Class-K magnitude).
+
+_RECOVER_TOL = Fraction(1, 10 ** 9)
+
+
+def _recover_mag(x):
+    """Class-K real magnitude (NOT the abs builtin)."""
+    return x if x >= 0 else -x
+
+
+def _recover_op_spectral(dim, edges, weights):
+    """The ``op`` faculty on ``dim`` nodes: L = D − A eigendecomposes (PSD, a ~0
+    null mode, len == dim). Returns ``(op_bool, diag_updates)``."""
+    diag = {}
+    try:
+        lap = dense_laplacian(dim, edges, [float(w) for w in weights])
+        evals, _v = symmetric_eigendecompose(lap)
+        ev = sorted(float(x) for x in evals)
+        diag["n_modes"] = len(ev)
+        diag["eig_range"] = (round(ev[0], 6), round(ev[-1], 6))
+        psd = ev[0] > -1e-9
+        zero_mode = _recover_mag(
+            Fraction(ev[0]).limit_denominator(10 ** 6)) < _RECOVER_TOL
+        return (len(ev) == dim and psd and zero_mode), diag
+    except Exception as e:                          # a malformed op fails HONESTLY
+        diag["op_error"] = "%s: %s" % (type(e).__name__, e)
+        return False, diag
+
+
+def _recover_responsion(dim, edges, weights, charges):
+    """The ``responsion`` faculty on ``dim`` nodes: the propagator e^{−zL} is
+    excitable (reach > 0). Returns ``(responsion_bool, diag_updates)``."""
+    diag = {}
+    try:
+        mx = max((float(w) for w in weights), default=1.0) * max(dim, 1)
+        lm = magnetic_laplacian(dim, edges, [float(w) for w in weights],
+                                charges=[float(c) for c in charges]
+                                if charges is not None else None)
+        r = responsion(lm, [1.0] + [0.0] * (dim - 1), 5.0 / (mx or 1.0),
+                       kind="propagator")
+        reach = sum((x.real * x.real + x.imag * x.imag) for x in r)  # Σ|·|², no abs
+        diag["propagator_reach"] = round(reach ** 0.5, 6)
+        return reach > 0, diag
+    except Exception as e:
+        diag["responsion_error"] = "%s: %s" % (type(e).__name__, e)
+        return False, diag
+
+
+def _recover_curvature(vocab_size, edges, charges):
+    """The ``curvature`` faculty: a directed store keeps its charge. Phase-scale
+    the integer charge (q = 1/(2·max|c|+1)) so it does not alias to 0 mod 1."""
+    directed = charges is not None and any(c != 0 for c in charges)
+    n_cycles = 0
+    holonomy_nonzero = False
+    if directed:
+        mc = max((_recover_mag(c) for c in charges), default=0) or 1
+        q = Fraction(1, 2 * mc + 1)                 # phase unit that exposes holonomy
+        ph = [Fraction(int(c)) * q for c in charges]
+        hol = cycle_holonomy(edges, charges=ph, n=vocab_size)
+        n_cycles = hol["n_cycles"]
+        holonomy_nonzero = any(h != 0 for h in hol["holonomies"])
+    if not directed:
+        verdict = "symmetric-bag (flat, F1210 flag)"
+    elif n_cycles == 0:
+        verdict = "carries-direction (acyclic -> structurally flat, F1218)"
+    elif holonomy_nonzero:
+        verdict = "carries-direction + curvature (nonzero holonomy)"
+    else:
+        verdict = "carries-direction (coherent net-zero holonomy, F1146)"
+    return {"directed": directed, "n_cycles": n_cycles,
+            "holonomy_nonzero": holonomy_nonzero, "verdict": verdict}
+
+
+def recover_check(vocab_size, edges, weights, charges=None):
+    """The packaged round-trip integrity check of a stored directed Class-L
+    graph (#1390 item 4): the four faculties a genome must recover — ``op``
+    (L = D − A eigendecomposes, PSD, ~0 mode), ``operand`` (weighted edges
+    present, non-degenerate, uncapped), ``responsion`` (the propagator e^{−zL}
+    is excitable), and ``curvature`` (a directed store keeps its charge; a
+    symmetric bag is flagged flat, F1210). ``ok == op and operand and
+    responsion`` — curvature is REPORTED honestly, NOT a hard gate (a
+    legitimately acyclic / coherent directed graph is never a false failure).
+    A domain-free composition of shipped ops; the dense op / responsion
+    faculties need ``vocab_size <= 256`` — use :func:`recover_check_structural`
+    / :func:`recover_check_spectral` at corpus scale (F1227). Faithful port of
+    R-RBS-LM-RECOVERCHECK. Returns ``{ok, op, operand, responsion,
+    curvature:{directed, n_cycles, holonomy_nonzero, verdict}, diagnostics}``."""
+    edges = [tuple(e) for e in edges]
+    diag = {}
+    operand = (len(edges) > 0 and len(edges) == len(weights)
+               and all(w >= 1 for w in weights))
+    deg = {}
+    for (i, j) in edges:
+        deg[i] = deg.get(i, 0) + 1
+        deg[j] = deg.get(j, 0) + 1
+    diag["max_degree"] = max(deg.values()) if deg else 0
+    diag["n_edges"] = len(edges)
+    op, op_diag = _recover_op_spectral(vocab_size, edges, weights)
+    diag.update(op_diag)
+    responsion, r_diag = _recover_responsion(vocab_size, edges, weights, charges)
+    diag.update(r_diag)
+    curvature = _recover_curvature(vocab_size, edges, charges)
+    return {"ok": bool(op and operand and responsion), "op": op,
+            "operand": operand, "responsion": responsion,
+            "curvature": curvature, "diagnostics": diag}
+
+
+def recover_check_structural(vocab_size, edges, weights, charges=None, *,
+                             cycle_sample=48):
+    """The O(edges) faculties only — ``operand`` (edges present / valid) + a
+    SAMPLED curvature read — so integrity is checkable at ANY vocab size (the
+    dense op / responsion faculties do not scale past the native n<=256 wall).
+    The F1227 sparse peer of :func:`recover_check_spectral` (#1390 item 4).
+    Faithful port of R-RBS-LM-SIONA231. Returns ``{operand, directed,
+    curvature_sampled_nonzero, ok_structural}``."""
+    edges = [tuple(e) for e in edges]
+    operand = (len(edges) > 0 and len(edges) == len(weights)
+               and all(w >= 1 for w in weights))
+    directed = charges is not None and any(c != 0 for c in charges)
+    seen = {}
+    holo = False
+    ch = charges if charges is not None else [0] * len(edges)
+    for idx, ((i, j), c) in enumerate(zip(edges, ch)):
+        seen[(i, j)] = c
+        for k in range(min(vocab_size, 64)):        # cheap triangle probe
+            a = seen.get((min(i, k), max(i, k)))
+            b = seen.get((min(k, j), max(k, j)))
+            if a is not None and b is not None and k not in (i, j):
+                mc = _recover_mag(c)
+                q = Fraction(1, 2 * max(1, mc) + 1)
+                hh = cycle_holonomy(
+                    [(i, k), (k, j), (i, j)],
+                    charges=[Fraction(int(a)) * q, Fraction(int(b)) * q,
+                             Fraction(int(c)) * q], n=vocab_size)
+                if any(h != 0 for h in hh["holonomies"]):
+                    holo = True
+                    break
+        if holo or idx > cycle_sample * 200:
+            break
+    return {"operand": operand, "directed": directed,
+            "curvature_sampled_nonzero": holo, "ok_structural": operand}
+
+
+def recover_check_spectral(vocab_size, edges, weights, charges=None, *,
+                           max_dim=256):
+    """The ``op`` + ``responsion`` (spectral) faculties on a BOUNDED principal
+    submatrix — the first ``min(vocab_size, max_dim)`` nodes + the edges within
+    that block — so the dense n×n eigendecompose stays within the native n<=256
+    wall at ANY corpus vocab. The F1227 bounded-spectral peer of
+    :func:`recover_check_structural` (#1390 item 4). Returns ``{op, responsion,
+    dim, diagnostics}``."""
+    edges = [tuple(e) for e in edges]
+    dim = min(vocab_size, max_dim)
+    sub_e, sub_w, sub_c = [], [], []
+    ch = charges if charges is not None else None
+    for idx, (i, j) in enumerate(edges):
+        if i < dim and j < dim:
+            sub_e.append((i, j))
+            sub_w.append(weights[idx])
+            if ch is not None:
+                sub_c.append(ch[idx])
+    diag = {"dim": dim, "n_edges_in_block": len(sub_e)}
+    if dim < 1:
+        return {"op": False, "responsion": False, "dim": dim, "diagnostics": diag}
+    op, op_diag = _recover_op_spectral(dim, sub_e, sub_w)
+    diag.update(op_diag)
+    responsion, r_diag = _recover_responsion(
+        dim, sub_e, sub_w, sub_c if ch is not None else None)
+    diag.update(r_diag)
+    return {"op": op, "responsion": responsion, "dim": dim, "diagnostics": diag}
 
 
 def heat_trace(L, t):
