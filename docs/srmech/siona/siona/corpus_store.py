@@ -17,8 +17,7 @@ from pathlib import Path
 
 from srmech.amsc import genome as _G
 from srmech.amsc import hdc as _H
-from srmech.amsc import cascade as _K            # Class-K magnitude (never the ALU magnitude-builtin) for Fiedler
-from srmech.amsc import rational as _R           # rational.sqrt for the normalized-cut Fiedler (stay-rational)
+from srmech.amsc import laplacian as _L          # NATIVE Class-L recursion: recursive_cut / fiedler_sparse (srmech gh#1097 / §52)
 
 LEAF = 64
 COUPLE = _H.klein4_random(LEAF, seed=1080)          # the store's canonical coupling (the sandroing/UNESCO 00073 seed)
@@ -33,8 +32,7 @@ TREE_DROP = 40          # the TREE band drops only the EXTREME markup hubs, so f
                         #   function word (F983), so keep them in the tree; the ride still skips the full H_DROP set
 K_KEEP = 5000           # the content band the tome-tree is built over (wider -> rarer topics like vanuatu land in it)
 K_NBR = 20              # sparsify each content node to its top-K_NBR IDF-weighted edges (genuine sparsity)
-MAXTOME = 12            # a clump becomes a leaf tome at this size
-T_ITERS = 150           # Fiedler power-iteration cap
+MAXTOME = 12            # a clump becomes a leaf tome at this size (recursive_cut max_tome)
 
 
 def load(genome_dir, the_one=None):
@@ -173,115 +171,39 @@ def etak_walk(h, token, steps=6, sense="fwd"):
 # ONCE offline (build_tree), then FIND (descend the tree to a token's tome), RIDE (the tome's coherent members),
 # WEB-HOP (cross the strongest bridge to an adjacent tome) are cheap reads. Navigate by MOVING THE REFERENCE FRAME.
 # ============================================================================================================
-def fiedler_sparse(nodes, adj, t_iters=T_ITERS):
-    """Normalized-cut power-iteration Fiedler vector (ETAKNAV; verified 100% vs the dense normalized Fiedler,
-    F785). srmech-native: rational.sqrt for the degree-normalization, Class-K magnitude for the pin (never abs).
-    `adj`: {node: {nbr: weight}}. Returns the Fiedler component per node (its SIGN is the bisection)."""
-    n = len(nodes)
-    if n < 2:
-        return [0.0] * n
-    pos = {g: i for i, g in enumerate(nodes)}
-    nbr = [[] for _ in range(n)]
-    deg = [0.0] * n
-    for i, g in enumerate(nodes):
-        for h2, w in adj[g].items():
-            j = pos.get(h2)
-            if j is not None:
-                nbr[i].append((j, w))
-                deg[i] += w
-    # coerce the Class-N sqrt into the NUMERICAL spectral layer (float). The Fiedler vector is a real-valued
-    # eigenvector — the "continuous" projection of the discrete Laplacian, exactly what srmech's own
-    # symmetric_eigendecompose returns as float. Keeping rational.sqrt's exact Q through the 150-iteration power
-    # loop makes every op unbounded big-integer arithmetic (denominators explode -> the O(minutes) hang).
-    s = [(1.0 / float(_R.sqrt(deg[i]))) if deg[i] > 0 else 0.0 for i in range(n)]
-    p = [float(_R.sqrt(deg[i])) for i in range(n)]
-    pn2 = sum(x * x for x in p)
-    if pn2 <= 0:
-        return [0.0] * n
-    pnorm = float(_R.sqrt(pn2))
-    p = [x / pnorm for x in p]
-    v = [((k * 1103515245 + 12345) % 2147483648) / 2147483648.0 - 0.5 for k in range(n)]   # order-independent (F791.1)
-    dot = sum(v[i] * p[i] for i in range(n))
-    v = [v[i] - dot * p[i] for i in range(n)]
-    prev_sign, stable = None, 0
-    for it in range(t_iters):
-        tmp = [s[j] * v[j] for j in range(n)]
-        u = [v[i] + s[i] * sum(w * tmp[j] for j, w in nbr[i]) for i in range(n)]
-        dot = sum(u[i] * p[i] for i in range(n))
-        u = [u[i] - dot * p[i] for i in range(n)]
-        # L-inf magnitude = the Class-K pin-slot |·| via the SIGN-PARTITION (max of the +side and the negated
-        # -side) — ONCE per iteration, not a per-element cascade call (that was 7.6M calls -> the O(N) hot-loop
-        # bottleneck). No ALU magnitude-builtin; the sign split IS the pin-slot-at-zero + reorient composition, batched.
-        mx = max(max(u, default=0.0), -min(u, default=0.0))
-        if mx <= 0:
-            break
-        v = [x / mx for x in u]
-        sign = tuple(1 if x >= 0 else 0 for x in v)
-        if sign == prev_sign and it >= 20:
-            stable += 1
-            if stable >= 5:
-                break
-        else:
-            stable = 0
-        prev_sign = sign
-    return v
-
-
-def _cluster(nodes, adj, depth=0):
-    """Recursive sparse-Fiedler bisection -> the tome TREE (clumps-of-clumps, F780). BALANCED: if the Fiedler
-    sign-cut is very unbalanced (degenerate on a poorly-connected content graph), split at the MEDIAN of the
-    Fiedler value instead, so every split is >=~half -> O(N log N) recursion (guards the peel-one-node O(N^2)
-    pathology). A node dict is {members, children|None}; a leaf (<=MAXTOME or depth cap) has children=None."""
-    if len(nodes) <= MAXTOME or depth > 60:
-        return {"members": nodes, "children": None}
-    fv = fiedler_sparse(nodes, adj)
-    left = [nodes[i] for i in range(len(nodes)) if fv[i] < 0]
-    right = [nodes[i] for i in range(len(nodes)) if fv[i] >= 0]
-    if min(len(left), len(right)) < max(2, len(nodes) // 10):     # too unbalanced -> a ~50/50 median cut
-        order = sorted(range(len(nodes)), key=lambda i: fv[i])
-        mid = len(nodes) // 2
-        left = [nodes[order[i]] for i in range(mid)]
-        right = [nodes[order[i]] for i in range(mid, len(nodes))]
-    if not left or not right:
-        return {"members": nodes, "children": None}
-    return {"members": nodes, "children": [_cluster(left, adj, depth + 1), _cluster(right, adj, depth + 1)]}
-
-
 def _write_tree(genome_dir, vocab, content_ids, cand, hub_ids, degmap, k_nbr):
-    """Shared tail: sparsify the candidate content graph -> recursive Fiedler bisection (tree) -> leaves (tomes) +
-    word->tome map + inter-tome web, written under <genome_dir>/tree/. `degmap` (id -> importance) orders labels."""
+    """Shared tail: sparsify the candidate content graph -> the NATIVE srmech `laplacian.recursive_cut` (out-of-core
+    recursive normalized-cut spectral partition into community TOMES, gh#1097/§52 — the C-dispatched op, not a
+    hand-rolled Python Fiedler) -> the leaf tomes + word->tome map + inter-tome web, written under <genome_dir>/tree/.
+    `degmap` (id -> importance) orders the tome labels."""
     adj = {p: {} for p in range(len(content_ids))}
+    edges, weights = [], []
     for p in range(len(content_ids)):
         for q, ww in sorted(cand[p].items(), key=lambda kv: kv[1], reverse=True)[:k_nbr]:
             adj[p][q] = ww
             adj[q][p] = ww
-    import sys
-    sys.setrecursionlimit(100000)
-    tree = _cluster(list(range(len(content_ids))), adj)
-    leaves = []
-
-    def _collect(node, depth, path):
-        if node["children"] is None:
-            leaves.append({"members": node["members"], "depth": depth, "path": path})
-        else:
-            _collect(node["children"][0], depth + 1, path + "L")
-            _collect(node["children"][1], depth + 1, path + "R")
-    _collect(tree, 0, "")
-    tome_of = {}
-    for t, leaf in enumerate(leaves):
-        for p in leaf["members"]:
-            tome_of[p] = t
+    for p in range(len(content_ids)):
+        for q, ww in adj[p].items():
+            if p < q:
+                edges.append((p, q))
+                weights.append(ww)
+    part = _L.recursive_cut(len(content_ids), edges, weights, max_tome=MAXTOME)   # NATIVE recursion (srmech Class-L)
+    import shutil
+    shutil.rmtree(part.get("work_dir", "") or ".", ignore_errors=True)            # clean the out-of-core disk spill
+    leaves = part["tomes"]                                                        # list of content-position lists
+    tome_of = {p: t for t, mem in enumerate(leaves) for p in mem}
     tomes, word_tome = [], {}
-    for t, leaf in enumerate(leaves):
-        mem_words = sorted((content_ids[p] for p in leaf["members"]), key=lambda i: -degmap.get(i, 0))
-        tomes.append({"label": [vocab[i] for i in mem_words[:8]], "size": len(leaf["members"]), "path": leaf["path"]})
+    for t, mem in enumerate(leaves):
+        mem_words = sorted((content_ids[p] for p in mem), key=lambda i: -degmap.get(i, 0))
+        tomes.append({"label": [vocab[i] for i in mem_words[:8]], "size": len(mem)})
         for i in mem_words:
-            word_tome[vocab[i]] = [t, leaf["path"]]
+            word_tome[vocab[i]] = t
     web = {}
     for p in range(len(content_ids)):
         for q, ww in adj[p].items():
-            if p < q and tome_of[p] != tome_of[q]:
-                key = "%d-%d" % (min(tome_of[p], tome_of[q]), max(tome_of[p], tome_of[q]))
+            tp, tq = tome_of.get(p), tome_of.get(q)
+            if p < q and tp is not None and tq is not None and tp != tq:
+                key = "%d-%d" % (min(tp, tq), max(tp, tq))
                 e = web.setdefault(key, {"weight": 0.0, "bridge": None, "bw": -1.0})
                 e["weight"] += ww
                 if ww > e["bw"]:
@@ -373,20 +295,18 @@ def find(h, token):
     tr = h.get("tree")
     if not tr:
         return None
-    wt = tr["word_tome"].get(token)
-    if wt is None:                                          # not in the band -> its strongest in-band neighbour's tome
+    t = tr["word_tome"].get(token)
+    if t is None:                                          # not in the band -> its strongest in-band neighbour's tome
         ti = h["vindex"].get(token)
         if ti is None:
             return None
         for (j, w, c) in _records(h, ti, _SCAN):
             nb = tr["word_tome"].get(h["vocab"][j])
             if nb is not None:
-                t, path = nb
-                return {"tome": t, "path": path, "depth": len(path), "label": tr["tomes"][t]["label"],
+                return {"tome": nb, "label": tr["tomes"][nb]["label"], "size": tr["tomes"][nb]["size"],
                         "via": h["vocab"][j]}
         return None
-    t, path = wt
-    return {"tome": t, "path": path, "depth": len(path), "label": tr["tomes"][t]["label"]}
+    return {"tome": t, "label": tr["tomes"][t]["label"], "size": tr["tomes"][t]["size"]}
 
 
 def ride_tome(h, tome_id, k=8):

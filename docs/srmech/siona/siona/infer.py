@@ -1099,7 +1099,8 @@ class Session:
             lines.append("   leads here (chiral-dual): %s" % " -> ".join(reversed(bwd)))
         f = _cs.find(self.corpus, w)                       # FIND: descend the tome-tree to w's tome
         if f:
-            lines.append("   FIND: in the {%s} tome (zoom depth %d)" % (", ".join(f["label"][:6]), f["depth"]))
+            lines.append("   FIND: in the {%s} tome (%d words%s)" % (", ".join(f["label"][:6]), f["size"],
+                         (" via '%s'" % f["via"]) if f.get("via") else ""))
             ride_t = _cs.ride_tome(self.corpus, f["tome"], 8)
             if ride_t:
                 lines.append("   RIDE: that tome's neighbourhood -> %s" % ", ".join(ride_t))
