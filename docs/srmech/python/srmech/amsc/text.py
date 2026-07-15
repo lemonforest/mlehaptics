@@ -48,7 +48,7 @@ import logging
 import unicodedata
 from array import array
 from functools import lru_cache
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from . import _native
 
@@ -347,13 +347,70 @@ def _cooc_edges_native(
     return n, edges, weights
 
 
+def _cooc_edges_directed_native(
+    doc_list: List[List[str]], idx: Dict[str, int], keep: set, n: int,
+    window: int, covers_all: bool,
+) -> Optional[Tuple[int, List[Tuple[int, int]], List[int], List[int]]]:
+    """Native directed :func:`cooccurrence_edges` (#1390 item 1). Same
+    token→id mapping + arena-grow discipline as :func:`_cooc_edges_native`,
+    but the C peer fills the canonical-key ``metric`` (== the undirected
+    weight) and signed ``charge`` (``w_fwd − w_bwd``) columns in one pass.
+    Returns ``None`` to decline (uint32 domain exceeded)."""
+    if n > _U32_MAX or window > _U32_MAX:
+        return None
+    ids = array("I")
+    doc_off = [0]
+    events = 0
+    getid = idx.__getitem__
+    for doc in doc_list:
+        toks = (list(map(getid, doc)) if covers_all
+                else [idx[t] for t in doc if t in keep])
+        ids.extend(toks)
+        doc_off.append(len(ids))
+        events += _pair_events(len(toks), window)
+    n_docs = len(doc_list)
+    max_cap = 1 << max(10, (2 * max(events, 1)).bit_length())
+    cap = min(max_cap, 1 << max(10, (2 * min(max(events, 1), 1 << 21)).bit_length()))
+    ids_c = ((ctypes.c_uint32 * len(ids)).from_buffer(ids) if len(ids)
+             else (ctypes.c_uint32 * 1)())
+    off_c = (ctypes.c_size_t * len(doc_off))(*doc_off)
+    n_edges = ctypes.c_size_t(0)
+    while True:
+        keys = array("Q", bytes(8 * cap))
+        met = array("Q", bytes(8 * cap))
+        chg = array("q", bytes(8 * cap))               # signed int64 charge
+        keys_c = (ctypes.c_uint64 * cap).from_buffer(keys)
+        met_c = (ctypes.c_uint64 * cap).from_buffer(met)
+        chg_c = (ctypes.c_int64 * cap).from_buffer(chg)
+        rc = _native.LIB.srmech_text_cooccurrence_edges_directed(
+            ids_c, len(ids), off_c, n_docs, window, n,
+            keys_c, met_c, chg_c, cap, ctypes.byref(n_edges))
+        del keys_c, met_c, chg_c      # release the buffer exports
+        if rc == _native.SRMECH_OK:
+            break
+        if rc == _native.SRMECH_ERR_OVERFLOW and cap < max_cap:
+            cap <<= 1                 # grow + retry — identical result
+            continue
+        raise RuntimeError(
+            f"srmech_text_cooccurrence_edges_directed returned status {rc}")
+    ne = n_edges.value
+    edges = [(int(kk) >> 32, int(kk) & _U32_MAX) for kk in keys[:ne]]
+    metric = [int(v) for v in met[:ne]]
+    charge = [int(c) for c in chg[:ne]]
+    return n, edges, metric, charge
+
+
 def cooccurrence_edges(
     docs: Sequence[object],
     *,
     window: int = 2,
     vocab: Optional[Sequence[str]] = None,
     vocab_size: Optional[int] = None,
-) -> Tuple[int, List[Tuple[int, int]], List[int]]:
+    directed: bool = False,
+) -> Union[
+    Tuple[int, List[Tuple[int, int]], List[int]],
+    Tuple[int, List[Tuple[int, int]], List[int], List[int]],
+]:
     """Build the weighted co-occurrence graph — the Class-L precursor (§40).
 
     The tokens→edges step that feeds :func:`srmech.amsc.laplacian.dense_laplacian`.
@@ -382,15 +439,25 @@ def cooccurrence_edges(
         most-frequent and **logs** the dropped count. Ignored when ``vocab`` is
         passed. (The 256 native bound applies to the dense-eig *block* only, never
         the vocabulary or the sparse adjacency.)
+    directed
+        When ``False`` (default) the unordered ``(n, edges, weights)`` triple
+        above. When ``True`` a backward-compatible **superset** returning
+        ``(n, edges, metric, charge)`` on the SAME canonical edges: ``metric``
+        (== the ``directed=False`` weights, ``w_fwd + w_bwd``) and ``charge``
+        (``w_fwd − w_bwd``, the direction the unordered fold discards — reversing
+        the corpus flips ``charge`` exactly). ``metric`` + ``charge`` feed
+        :func:`srmech.amsc.laplacian.magnetic_laplacian` as ``weights`` +
+        ``charges`` (the directed Hermitian L; #1390 item 1).
 
     Returns
     -------
-    (n, edges, weights)
+    (n, edges, weights)  — or  (n, edges, metric, charge) when ``directed``
         ``n`` = node count = ``len(vocab)``; ``edges`` = list of ``(u, v)`` int
-        2-tuples (``u < v``); ``weights`` = parallel list of **integer**
+        2-tuples (``u < v``); ``weights``/``metric`` = parallel list of **integer**
         co-occurrence counts — exactly the triple ``dense_laplacian(n, edges,
         weights)`` consumes. Raw counts only (IDF / hub down-weighting are
-        downstream walk-time re-weights, F714 — not stored here).
+        downstream walk-time re-weights, F714 — not stored here). When
+        ``directed`` a fourth parallel **signed integer** ``charge`` list.
 
     Numpy-free, deterministic. Retires the hand-rolled ``Counter()``
     co-occurrence idiom (the output is edges → ``dense_laplacian``, not a
@@ -401,6 +468,10 @@ def cooccurrence_edges(
     if not isinstance(window, int) or isinstance(window, bool) or window < 1:
         raise ValueError(
             f"cooccurrence_edges: window must be a positive int; got {window!r}"
+        )
+    if not isinstance(directed, bool):
+        raise ValueError(
+            f"cooccurrence_edges: directed must be a bool; got {directed!r}"
         )
     if vocab_size is not None and (
         not isinstance(vocab_size, int)
@@ -436,12 +507,38 @@ def cooccurrence_edges(
     idx: Dict[str, int] = {w: i for i, w in enumerate(vocab_list)}
     n = len(vocab_list)
     keep = set(vocab_list)
+    # covers_all: the uncapped default vocab contains EVERY token, so the
+    # native mapping may skip the `in keep` filter (an identity there).
+    # NOTE a capped build has n == vocab_size, so only the fully-uncapped
+    # (vocab=None, vocab_size=None) case is statically safe to skip.
+    covers_all = vocab is None and vocab_size is None
+    if directed:
+        if _native.has_native_text_cooccurrence_edges_directed():
+            native = _cooc_edges_directed_native(
+                doc_list, idx, keep, n, window, covers_all)
+            if native is not None:
+                return native
+        fwd: Dict[Tuple[int, int], int] = {}
+        bwd: Dict[Tuple[int, int], int] = {}
+        for doc in doc_list:
+            toks = [idx[t] for t in doc if t in keep]       # one doc = one window reset
+            m = len(toks)
+            for a in range(m):
+                ia = toks[a]
+                for b in range(a + 1, min(a + window + 1, m)):
+                    ib = toks[b]
+                    if ia == ib:
+                        continue
+                    key = (ia, ib) if ia < ib else (ib, ia)
+                    if ia < ib:
+                        fwd[key] = fwd.get(key, 0) + 1      # earlier id smaller → forward
+                    else:
+                        bwd[key] = bwd.get(key, 0) + 1      # earlier id larger → backward
+        edges = sorted(set(fwd) | set(bwd))
+        metric = [fwd.get(e, 0) + bwd.get(e, 0) for e in edges]
+        charge = [fwd.get(e, 0) - bwd.get(e, 0) for e in edges]
+        return n, edges, metric, charge
     if _native.has_native_text_cooccurrence_edges():
-        # covers_all: the uncapped default vocab contains EVERY token, so the
-        # native mapping may skip the `in keep` filter (an identity there).
-        # NOTE a capped build has n == vocab_size, so only the fully-uncapped
-        # (vocab=None, vocab_size=None) case is statically safe to skip.
-        covers_all = vocab is None and vocab_size is None
         native = _cooc_edges_native(doc_list, idx, keep, n, window, covers_all)
         if native is not None:
             return native

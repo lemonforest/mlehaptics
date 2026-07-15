@@ -365,6 +365,7 @@ static const srmech_tool_param_t ts_params_23[] = {
     { "window", "int", 0, "co-occurrence window (default 2)" },
     { "vocab", "list", 0, "explicit ranked vocab (index=position); None builds the full vocab from frequency" },
     { "vocab_size", "int", 0, "explicit top-K cap (logged); None = no cap (all)" },
+    { "directed", "bool", 0, "False (default) returns (n, edges, weights); True returns the (n, edges, metric, charge) superset \342\200\224 metric == the undirected weights, charge = w_fwd \342\210\222 w_bwd (for magnetic_laplacian; #1390 item 1)" },
 };
 static const srmech_tool_param_t ts_params_24[] = {
     { "docs", "list", 1, "stream of token sequences (per-document) or a flat token Sequence[str]; consumed lazily, never all resident" },
@@ -2290,10 +2291,10 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.text.cooccurrence_edges",
         "srmech",
         "text",
-        "Weighted co-occurrence graph from documents (Class-L precursor; \302\24740): slide a window over EACH document (resets at every document boundary \342\200\224 never crosses one), count unordered co-occurring vocab pairs. vocab is the FULL ranked vocabulary by default (no silent cap \342\200\224 F708 fix); a top-K vocab_size cap is an explicit, logged opt-in. Returns (n, edges, weights) for dense_laplacian; retires Counter().",
-        ts_params_23, 4u,
+        "Weighted co-occurrence graph from documents (Class-L precursor; \302\24740): slide a window over EACH document (resets at every document boundary \342\200\224 never crosses one), count unordered co-occurring vocab pairs. vocab is the FULL ranked vocabulary by default (no silent cap \342\200\224 F708 fix); a top-K vocab_size cap is an explicit, logged opt-in. Returns (n, edges, weights) for dense_laplacian; directed=True adds a metric+charge SUPERSET for magnetic_laplacian; retires Counter().",
+        ts_params_23, 5u,
         "tuple[int, list[tuple[int, int]], list[int]]",
-        "(n nodes, edge list, integer co-occurrence counts)",
+        "(n nodes, edge list, integer co-occurrence counts); directed=True \342\206\222 (n, edges, metric, charge) with a fourth signed-integer charge list",
         1,
         NULL,
         "{\"call\":\"cooccurrence_edges(docs=<list>, window=<int>, vocab=<list>, vocab_size=<int>) -> tuple[int, list[tuple[int, int]], list[int]]\"}",

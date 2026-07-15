@@ -938,7 +938,9 @@ def _register_primitive_class_tools() -> None:
                     "unordered co-occurring vocab pairs. vocab is the FULL ranked "
                     "vocabulary by default (no silent cap — F708 fix); a top-K "
                     "vocab_size cap is an explicit, logged opt-in. Returns "
-                    "(n, edges, weights) for dense_laplacian; retires Counter().",
+                    "(n, edges, weights) for dense_laplacian; directed=True adds "
+                    "a metric+charge SUPERSET for magnetic_laplacian; retires "
+                    "Counter().",
             parameters=(P("docs", "list", True,
                           "Sequence[Sequence[str]] (one per document; window "
                           "resets per doc) or a flat token Sequence[str]"),
@@ -947,9 +949,16 @@ def _register_primitive_class_tools() -> None:
                           "explicit ranked vocab (index=position); None builds "
                           "the full vocab from frequency"),
                         P("vocab_size", "int", False,
-                          "explicit top-K cap (logged); None = no cap (all)")),
+                          "explicit top-K cap (logged); None = no cap (all)"),
+                        P("directed", "bool", False,
+                          "False (default) returns (n, edges, weights); True "
+                          "returns the (n, edges, metric, charge) superset — "
+                          "metric == the undirected weights, charge = w_fwd − "
+                          "w_bwd (for magnetic_laplacian; #1390 item 1)")),
             returns=R("tuple[int, list[tuple[int, int]], list[int]]",
-                      "(n nodes, edge list, integer co-occurrence counts)"),
+                      "(n nodes, edge list, integer co-occurrence counts); "
+                      "directed=True → (n, edges, metric, charge) with a fourth "
+                      "signed-integer charge list"),
         ),
         # §52 (F793): the streaming / bounded LOW-RAM ENCODE peer of
         # cooccurrence_edges — for building the spectral-clump graph on an edge

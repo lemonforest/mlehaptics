@@ -542,6 +542,170 @@ srmech_status_t srmech_text_cooccurrence_edges(
 }
 
 /* ------------------------------------------------------------------ *
+ * srmech_text_cooccurrence_edges_directed — the directed (metric +
+ * charge) SUPERSET of srmech_text_cooccurrence_edges (#1390 item 1).
+ *
+ * On the SAME canonical unordered key (min,max) it accumulates two
+ * columns in one pass: metric (+1 per co-occurrence == the undirected
+ * weight) and charge (+1 when the EARLIER-position token has the smaller
+ * id — forward on (lo,hi) — else -1). So charge = w_fwd - w_bwd, the
+ * direction the unordered fold discards; metric == the directed=False
+ * weight exactly. No second fold. ADDITIVE symbol — ABI stays 5.
+ * ------------------------------------------------------------------ */
+
+/* sift/heapsort over three parallel arrays (key asc; metric + signed
+ * charge ride along the key swaps). */
+static void txt_sift_kvc(uint64_t *keys, uint64_t *met, int64_t *chg,
+                         size_t n, size_t root)
+{
+    assert(keys != NULL && met != NULL && chg != NULL);
+    assert(root < n);
+    for (size_t guard = 0; guard < 64u; guard++) {
+        size_t child = 2u * root + 1u;
+        uint64_t tk, tv;
+        int64_t tc;
+        if (child >= n) { return; }
+        if (child + 1u < n && keys[child] < keys[child + 1u]) { child += 1u; }
+        if (keys[root] >= keys[child]) { return; }
+        tk = keys[root]; keys[root] = keys[child]; keys[child] = tk;
+        tv = met[root];  met[root]  = met[child];  met[child]  = tv;
+        tc = chg[root];  chg[root]  = chg[child];  chg[child]  = tc;
+        root = child;
+    }
+}
+
+static void txt_heapsort_kvc(uint64_t *keys, uint64_t *met, int64_t *chg,
+                             size_t n)
+{
+    assert(keys != NULL || n == 0u);
+    assert(met != NULL || n == 0u);
+    if (n < 2u) { return; }
+    for (size_t i = n / 2u; i > 0u; i--) {
+        txt_sift_kvc(keys, met, chg, n, i - 1u);
+    }
+    for (size_t end = n - 1u; end > 0u; end--) {
+        uint64_t tk = keys[0], tv = met[0];
+        int64_t tc = chg[0];
+        keys[0] = keys[end]; keys[end] = tk;
+        met[0]  = met[end];  met[end]  = tv;
+        chg[0]  = chg[end];  chg[end]  = tc;
+        txt_sift_kvc(keys, met, chg, end, 0u);
+    }
+}
+
+/* canonical-key hash add with two columns (metric +1, charge += sign). */
+static srmech_status_t txt_ht_add_directed(
+    uint64_t *keys, uint64_t *met, int64_t *chg, size_t cap,
+    uint64_t key, int sign, size_t *io_occ)
+{
+    uint64_t h = key;
+    size_t idx;
+    assert(keys != NULL && met != NULL && chg != NULL && io_occ != NULL);
+    assert(key != 0u && cap >= 2u && (cap & (cap - 1u)) == 0u);
+    h ^= h >> 30; h *= 0xBF58476D1CE4E5B9ULL;
+    h ^= h >> 27; h *= 0x94D049BB133111EBULL;
+    h ^= h >> 31;
+    idx = (size_t)(h & (uint64_t)(cap - 1u));
+    for (size_t probe = 0; probe < cap; probe++) {
+        if (keys[idx] == key) {
+            met[idx] += 1u;
+            chg[idx] += sign;
+            return SRMECH_OK;
+        }
+        if (keys[idx] == 0u) {
+            if ((*io_occ + 1u) * 2u > cap) { return SRMECH_ERR_OVERFLOW; }
+            keys[idx] = key;
+            met[idx] = 1u;
+            chg[idx] = sign;
+            *io_occ += 1u;
+            return SRMECH_OK;
+        }
+        idx = (idx + 1u) & (cap - 1u);
+    }
+    return SRMECH_ERR_INTERNAL;
+}
+
+static srmech_status_t txt_pairs_accumulate_directed(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
+    uint64_t *keys, uint64_t *met, int64_t *chg, size_t cap, size_t *out_occ)
+{
+    size_t occ = 0;
+    assert(doc_off != NULL && keys != NULL && met != NULL);
+    assert(chg != NULL && out_occ != NULL && window >= 1u);
+    if (doc_off[n_docs] != n_tok) { return SRMECH_ERR_BAD_INPUT; }
+    memset(keys, 0, cap * sizeof(uint64_t));
+    memset(met, 0, cap * sizeof(uint64_t));
+    memset(chg, 0, cap * sizeof(int64_t));
+    for (size_t d = 0; d < n_docs; d++) {
+        const uint32_t *toks = &tok_ids[doc_off[d]];
+        size_t m;
+        if (doc_off[d + 1u] < doc_off[d] || doc_off[d + 1u] > n_tok) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        m = doc_off[d + 1u] - doc_off[d];
+        for (size_t a = 0; a < m; a++) {
+            uint32_t ia = toks[a];
+            size_t   hi = ((size_t)window < m - a - 1u)
+                              ? a + (size_t)window + 1u : m;
+            if (ia >= n_vocab) { return SRMECH_ERR_BAD_INPUT; }
+            for (size_t b = a + 1u; b < hi; b++) {
+                uint32_t ib = toks[b];
+                uint64_t key;
+                srmech_status_t st;
+                if (ib >= n_vocab) { return SRMECH_ERR_BAD_INPUT; }
+                if (ia == ib) { continue; }
+                key = (ia < ib) ? (((uint64_t)ia << 32) | (uint64_t)ib)
+                                : (((uint64_t)ib << 32) | (uint64_t)ia);
+                st = txt_ht_add_directed(keys, met, chg, cap, key,
+                                         (ia < ib) ? 1 : -1, &occ);
+                if (st != SRMECH_OK) { return st; }
+            }
+        }
+    }
+    *out_occ = occ;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_text_cooccurrence_edges_directed(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
+    uint64_t *ht_keys, uint64_t *ht_metric, int64_t *ht_charge, size_t ht_cap,
+    size_t *out_n_edges)
+{
+    size_t occ = 0;
+    size_t w = 0;
+    srmech_status_t st;
+    assert(doc_off != NULL && out_n_edges != NULL);
+    assert(ht_keys != NULL && ht_metric != NULL && ht_charge != NULL);
+    if (doc_off == NULL || ht_keys == NULL || ht_metric == NULL ||
+        ht_charge == NULL || out_n_edges == NULL ||
+        (tok_ids == NULL && n_tok > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (window < 1u || ht_cap < 2u || (ht_cap & (ht_cap - 1u)) != 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    st = txt_pairs_accumulate_directed(tok_ids, n_tok, doc_off, n_docs, window,
+                                       n_vocab, ht_keys, ht_metric, ht_charge,
+                                       ht_cap, &occ);
+    if (st != SRMECH_OK) { return st; }
+    for (size_t r = 0; r < ht_cap; r++) {      /* compact 3 columns */
+        if (ht_keys[r] != 0u) {
+            ht_keys[w] = ht_keys[r];
+            ht_metric[w] = ht_metric[r];
+            ht_charge[w] = ht_charge[r];
+            if (w < r) { ht_keys[r] = 0u; }
+            w += 1u;
+        }
+    }
+    assert(w == occ);
+    txt_heapsort_kvc(ht_keys, ht_metric, ht_charge, w);
+    *out_n_edges = w;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
  * srmech_text_cooccurrence_topk — the §52 bounded chunk-flush kernel
  * ------------------------------------------------------------------ */
 
