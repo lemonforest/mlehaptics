@@ -178,9 +178,18 @@ class H(http.server.BaseHTTPRequestHandler):
         def ev():
             def e(o):
                 return "data: %s\n\n" % json.dumps(o)
+            # the FULL typed-event sequence CopilotKit 1.59.5 needs: the text part must be ADDED (output_item.added +
+            # content_part.added) BEFORE its delta, else the runtime errors "text part <id> not found" (the :3000 bug).
             yield e({"type": "response.created", "response": obj("in_progress", [])})
+            yield e({"type": "response.output_item.added", "output_index": 0,
+                     "item": {"id": mid, "type": "message", "status": "in_progress", "role": "assistant", "content": []}})
+            yield e({"type": "response.content_part.added", "item_id": mid, "output_index": 0, "content_index": 0,
+                     "part": {"type": "output_text", "text": "", "annotations": []}})
             yield e({"type": "response.output_text.delta", "item_id": mid, "output_index": 0, "content_index": 0, "delta": text})
             yield e({"type": "response.output_text.done", "item_id": mid, "output_index": 0, "content_index": 0, "text": text})
+            yield e({"type": "response.content_part.done", "item_id": mid, "output_index": 0, "content_index": 0,
+                     "part": {"type": "output_text", "text": text, "annotations": []}})
+            yield e({"type": "response.output_item.done", "output_index": 0, "item": item})
             yield e({"type": "response.completed", "response": obj("completed", [item])})
         self._stream(ev())
 
