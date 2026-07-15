@@ -1248,6 +1248,48 @@ def _register_primitive_class_tools() -> None:
                               "bool, 'curvature': bool | None, 'recovered': "
                               "bool} — the per-faculty round-trip verdict"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.order_fingerprint", owner="srmech",
+            category="laplacian",
+            summary="The path-ORDERED octonion product along a walk (gh #1390 "
+                    "item 4b / F1231/F1229): fiber_ids is the ordered node/glyph "
+                    "id sequence (e.g. an eulerian_path walk); returns an "
+                    "order-sensitive, length-INDEPENDENT fingerprint (8 ints, "
+                    "each in [0, 2^31-1)). Order-sensitive because octonion "
+                    "multiplication is non-commutative: a graph-preserving "
+                    "REORDER of fiber_ids gives a DIFFERENT fingerprint — the "
+                    "corruption op / operand / responsion / ℂ-curvature all miss. "
+                    "A generic octonion per node (real 1 + seven "
+                    "distinct-per-axis id-derived imaginary parts; F1230/F1231). "
+                    "Reduced mod 2^31-1 each multiply (bounded, C-parity). "
+                    "numpy-free; no abs(); the 8x8 cocycle rides the attested "
+                    "srmech_cd_basis_product (NOT hand-rolled octonion, F372). "
+                    "C peer srmech_octonion_order_fingerprint.",
+            parameters=(P("fiber_ids", "Sequence[int]", True,
+                          "the ordered node/glyph id sequence (the walk)"),),
+            returns=R("list", "the 8-int order fingerprint (each in "
+                              "[0, 2^31-1), length-independent)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check_order", owner="srmech",
+            category="laplacian",
+            summary="The 5th recover_check faculty (gh #1390 item 4b / F1231): "
+                    "PASS iff the recovered fiber reproduces the STORED order "
+                    "fingerprint. Catches an order corruption / F1079 "
+                    "graph-ambiguity that op / operand / responsion / "
+                    "ℂ-curvature all pass. A VERIFIER (the fingerprint is 8 ints "
+                    "regardless of walk length — lossy by pigeonhole, F1230; the "
+                    "fiber stays the store). Returns True iff "
+                    "order_fingerprint(recovered_fiber_ids) == "
+                    "list(true_fingerprint). numpy-free; no abs(); composes "
+                    "order_fingerprint (composes_c).",
+            parameters=(P("true_fingerprint", "Sequence[int]", True,
+                          "the stored 8-int order fingerprint"),
+                        P("recovered_fiber_ids", "Sequence[int]", True,
+                          "the recovered ordered id sequence to verify")),
+            returns=R("bool", "True iff the recovered order reproduces the "
+                              "stored fingerprint"),
+        ),
         # ────────────────────────────────────────────────────────────
         # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
         # + the ground-state flux reader, Class-L composites with the 1:1

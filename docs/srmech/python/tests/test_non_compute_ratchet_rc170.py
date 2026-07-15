@@ -216,11 +216,11 @@ _EXPECTED_SPLIT = {
     # rc246 (#1390 item 4): laplacian.recover_check — the packaged round-trip
     # verify — composes dense_laplacian / symmetric_eigendecompose / responsion /
     # cycle_holonomy (all C-mirrored). composes_c 121 -> 122; total 190 -> 191.
-    "composes_c": 122,
+    "composes_c": 123,
     "host_glue": 21,
     "dev_tooling": 48,
 }
-_TOTAL_NON_COMPUTE = 191
+_TOTAL_NON_COMPUTE = 192
 
 
 def _rows():

@@ -641,3 +641,5 @@
 {"exposed_as": "srmech.amsc.laplacian.eulerian_path", "defined_at": "srmech.amsc.laplacian.eulerian_path", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.eulerian_circuit", "defined_at": "srmech.amsc.laplacian.eulerian_circuit", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.recover_check", "defined_at": "srmech.amsc.laplacian.recover_check", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.laplacian.order_fingerprint", "defined_at": "srmech.amsc.laplacian.order_fingerprint", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.recover_check_order", "defined_at": "srmech.amsc.laplacian.recover_check_order", "bucket": "non_compute", "non_compute_kind": "composes_c"}

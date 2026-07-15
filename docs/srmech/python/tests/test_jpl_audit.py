@@ -254,6 +254,15 @@ RULE_5_EXEMPT_FUNCTIONS: set[str] = {
     # gk_emit / gk_read / srmech_graph_kernel_encode / _decode each carry their
     # >= 2 asserts. See c/JPL_AUDIT.md.
     "gk_zig",
+    # rc247 srmech_octonion_order.c (gh #1390 item 4b): oct_node is a
+    # deterministic per-node octonion generator over a single output pointer —
+    # it asserts its sole invariant (out != NULL); the seven-axis loop has
+    # compile-time positive moduli (11+2k), so there is no second runtime
+    # invariant and a tautology would be cargo-cult (the rtsch_ctz / gk_zig
+    # precedent — one real assert, exempt from the 2-floor). The non-trivial
+    # srmech_octonion_order_fingerprint carries its >= 2 asserts. See
+    # c/JPL_AUDIT.md.
+    "oct_node",
 }
 
 # Maximum allowed function length (JPL Rule 4).

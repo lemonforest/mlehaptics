@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc246"
-#define SRMECH_VERSION       "0.9.0rc246"
+#define SRMECH_VERSION_PRE   "rc247"
+#define SRMECH_VERSION       "0.9.0rc247"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3832,6 +3832,22 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * power of two in range, or i/j out of range). */
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
+
+/* ------------------------------------------------------------------ *
+ * OCTONION ORDER FINGERPRINT (0.9.0rc247, gh #1390 item 4b / F1231) — the
+ * byte-exact C twin of srmech.amsc.laplacian.order_fingerprint. The path-ORDERED
+ * product of a generic octonion per node (real 1 + seven distinct-per-axis
+ * id-derived imaginary parts) along the walk `fiber` (nf node ids), an
+ * order-sensitive, length-INDEPENDENT fingerprint written to out[8] — the
+ * recover_check ORDER faculty (catches a graph-preserving reorder the
+ * op/operand/responsion/ℂ-curvature faculties miss). The 8×8 octonion cocycle is
+ * read from the attested srmech_cd_basis_product (NOT hand-rolled — F372), and
+ * every multiply is reduced mod 2^31 − 1 (a node octonion's components are ≤ 24,
+ * so no int64 overflow before the reduction). Each out[k] is in [0, 2^31 − 1).
+ * No malloc; no abs. ADDITIVE symbol — SRMECH_ABI_VERSION stays 5.
+ * ------------------------------------------------------------------ */
+srmech_status_t srmech_octonion_order_fingerprint(
+    const uint32_t *fiber, size_t nf, int64_t out[8]);
 
 /* ------------------------------------------------------------------
  * Cayley-Dickson loop NAVIGATION (v0.9.0rc158; Qalg TAIL Batch 2) — the

@@ -3320,6 +3320,13 @@ def _bind(lib: ctypes.CDLL) -> None:
                 _PU32, _SZ, ctypes.c_int, ctypes.c_int, _U32,
                 _PU32, _SZ, _PSZ, _VP, _SZ]
             lib.srmech_eulerian_walk.restype = ctypes.c_int
+        # rc247 (gh #1390 item 4b / F1231): the octonion order fingerprint.
+        # ADDITIVE symbol — EXPECTED_ABI stays 5. hasattr-guarded.
+        if hasattr(lib, "srmech_octonion_order_fingerprint"):
+            #   octonion_order_fingerprint(fiber, nf, out[8])
+            lib.srmech_octonion_order_fingerprint.argtypes = [
+                _PU32, _SZ, ctypes.POINTER(ctypes.c_int64)]
+            lib.srmech_octonion_order_fingerprint.restype = ctypes.c_int
         # §127/rc127 (#726) — the active-telomere TICK (divide/gate): the operand
         # (count) selects the operator. cap in, out_cap + senescent + count_after out.
         # No arena (out_cap is caller-provided). NEW symbol → hasattr-guarded (a stale
@@ -16766,6 +16773,30 @@ def graph_kernel_decode_c(syms):
     weights = [int(ow[i]) for i in range(ne)]
     charges = [int(oc[i]) for i in range(ne)]
     return vocab, edges, weights, charges
+
+
+def has_native_octonion_order() -> bool:
+    """True iff the rc247 octonion order-fingerprint C peer
+    (``srmech_octonion_order_fingerprint``, gh #1390 item 4b / F1231) is loaded
+    + bound. False on a no-C or pre-rc247 lib — the pure-Python
+    ``laplacian.order_fingerprint`` body is the complete alternative (and the
+    byte-identical parity oracle). ADDITIVE symbol (EXPECTED_ABI stays 5)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_octonion_order_fingerprint"))
+
+
+def octonion_order_fingerprint_c(fiber_ids):
+    """Native ``srmech_octonion_order_fingerprint``: the path-ordered octonion
+    product along the walk (8 ints), byte-identical to the pure
+    ``order_fingerprint``. Only call when :func:`has_native_octonion_order`."""
+    nf = len(fiber_ids)
+    fib = (ctypes.c_uint32 * max(nf, 1))(*[int(x) for x in fiber_ids])
+    out = (ctypes.c_int64 * 8)()
+    rc = LIB.srmech_octonion_order_fingerprint(fib, nf, out)
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_octonion_order_fingerprint returned status {rc}")
+    return [int(out[i]) for i in range(8)]
 
 
 def has_native_eulerian() -> bool:

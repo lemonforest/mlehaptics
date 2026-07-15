@@ -184,6 +184,8 @@ __all__ = [
     "eulerian_path",
     "eulerian_circuit",
     "recover_check",
+    "order_fingerprint",
+    "recover_check_order",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -5977,6 +5979,98 @@ def recover_check(n, edges, weights, charges=None):
             "curvature": curvature, "recovered": recovered}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# gh #1390 item 4b (rc247) — the F1231 octonion ORDER faculty: the 5th
+# recover_check faculty. op / operand / responsion / ℂ-curvature all PASS a
+# graph-preserving REORDER (a figure-eight: two walks share the identical
+# directed graph + charge). The ORDER fingerprint — the path-ordered product of
+# a GENERIC octonion per node along the walk (8 ints, length-independent — the
+# 𝕆 grade, F1229) — CATCHES it. It also operationally FLAGS the F1079 ambiguity
+# (when the directed graph under-determines the order). A VERIFIER, not a store
+# (the 8-int fingerprint is lossy by pigeonhole, F1230). Rides the exact-integer
+# octonion multiply (srmech.qm.octonion.octonion_mult_table, itself built from
+# the C-mirrored srmech_cd_basis_product — NOT a hand-rolled octonion, F372).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# The order fingerprint is reduced mod this Mersenne prime after every octonion
+# multiply. WHY MODULAR: the raw path-ordered product's magnitude grows ~24ⁿ and
+# overflows int64 past ~13 nodes, so a bignum-free byte-exact C peer needs a
+# bounded field. P = 2³¹−1 keeps every acc component < 2³¹; a node octonion's
+# components are ≤ 24, so acc[i]·no[j] < 2³⁶ and the 8-term sum < 2³⁹ — no int64
+# overflow before the reduction. Order-sensitivity is intact (8×31 bits of state,
+# collision ≈ 2⁻²⁴⁸). (A deviation from F1231's unbounded research prototype,
+# taken for the C peer; the reorder-detection + F1079-flag properties are the
+# same.)
+_ORDER_FP_MODULUS = (1 << 31) - 1
+
+
+def _octonion_mul(a, b, table):
+    """Exact-integer octonion product ``a·b`` mod :data:`_ORDER_FP_MODULUS` via
+    the structure tensor ``table[i][j][k]`` (``e_i·e_j = Σ_k table[i][j][k] e_k``).
+    8 non-negative ints out (each < ``_ORDER_FP_MODULUS``)."""
+    out = [0] * 8
+    for i in range(8):
+        if a[i] == 0:
+            continue
+        for j in range(8):
+            if b[j] == 0:
+                continue
+            row = table[i][j]
+            aibj = a[i] * b[j]
+            for k in range(8):
+                c = row[k]
+                if c:
+                    out[k] += c * aibj
+    return [x % _ORDER_FP_MODULUS for x in out]
+
+
+def _node_octonion(node_id):
+    """A deterministic GENERIC octonion per node — real part 1 plus seven
+    DISTINCT-per-axis id-derived imaginary parts (each axis its own
+    multiplier/offset/modulus, so the components do NOT collapse to a uniform
+    value — the ``id % m`` form degenerates for small ids and collides, F1230).
+    Generic = non-basis AND non-uniform-component (the load-bearing F1231 rule).
+    """
+    out = [1]
+    for k in range(7):
+        out.append(1 + ((node_id * (2 * k + 3) + (5 * k + 1)) % (11 + 2 * k)))
+    return out
+
+
+def order_fingerprint(fiber_ids):
+    """The path-ORDERED octonion product along the walk (gh #1390 item 4b;
+    F1231/F1229): ``∏ node_octonion(id)`` in walk order — an order-sensitive,
+    length-INDEPENDENT fingerprint (8 ints, the 𝕆 grade of the walk). ``fiber_ids``
+    is the ordered node/glyph-id sequence (e.g. an ``eulerian_path`` walk).
+
+    Order-sensitive because octonion multiplication is non-commutative: a
+    graph-preserving reorder of ``fiber_ids`` gives a DIFFERENT fingerprint — the
+    corruption op / operand / responsion / ℂ-curvature all miss. numpy-free; no
+    abs(); rides the exact-integer ``octonion_mult_table`` (C-mirrored via
+    ``srmech_cd_basis_product``). C peer ``srmech_octonion_order_fingerprint``.
+    """
+    fiber_ids = [int(x) for x in fiber_ids]
+    if _native.has_native_octonion_order():
+        return _native.octonion_order_fingerprint_c(fiber_ids)
+    from srmech.qm.octonion import octonion_mult_table
+    table = octonion_mult_table()
+    acc = [1, 0, 0, 0, 0, 0, 0, 0]
+    for nid in fiber_ids:
+        acc = _octonion_mul(acc, _node_octonion(nid), table)
+    return acc
+
+
+def recover_check_order(true_fingerprint, recovered_fiber_ids):
+    """The 5th recover_check faculty (gh #1390 item 4b; F1231): PASS iff the
+    recovered fiber reproduces the STORED order fingerprint. Catches an order
+    corruption / F1079 graph-ambiguity that op / operand / responsion /
+    ℂ-curvature all pass. A VERIFIER (the fingerprint is 8 ints regardless of
+    walk length — lossy by pigeonhole, F1230); the fiber stays the store.
+    Returns ``True`` iff ``order_fingerprint(recovered_fiber_ids) ==
+    list(true_fingerprint)``."""
+    return order_fingerprint(recovered_fiber_ids) == list(true_fingerprint)
+
+
 # Registry of available Class L op names for the composition engine.
 # Order is documentary; consumers iterate by name not position.
 LAPLACIAN_OPS: Tuple[str, ...] = (
@@ -5991,6 +6085,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "eulerian_path",
     "eulerian_circuit",
     "recover_check",
+    "order_fingerprint",
+    "recover_check_order",
     "fiedler_vector",
     "fiedler_sparse",
     "normalized_cut_bisect",
