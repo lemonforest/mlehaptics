@@ -94,16 +94,15 @@ def test_corpus_native_equals_pure_on_every_object():
         cv = ts._is_zero_interpolation_c()
         pv = ts._is_zero_interpolation()
         if cv is None:
-            # An ALL-CONSTANT (n_syms == 0) numerator is DECLINED by design: the
-            # native peer ships only the Z5 single-prime lift, not the pure Z6
-            # multi-prime collapse re-grading, so it cannot definitively decide a
-            # top-level theta-constant object -> it defers to the sound + complete
-            # pure oracle (validated by the `ts.is_zero == pure` assert below).
-            # Such a decline is NOT a soundness violation. Only a decline on an
-            # object WITH variables (which native must decide) is a coverage
-            # regression. (Pre-fix this path "declined" only by ACCIDENT — a
-            # stale-exps OOB read tripped a false OVERFLOW — which occasionally
-            # became a WRONG verdict instead; now the decline is deterministic.)
+            # rc255: the native peer DECIDES an all-constant (n_syms == 0) leaf via the
+            # Z5/Z6 constant-leaf certificates (reserved synthetic lift + p slots), so a
+            # decline here is now only the int64-overflow guard (a leaf whose prime-lift
+            # coeff exceeds int64 defers to the arbitrary-precision pure oracle) — sound,
+            # validated by the `ts.is_zero == pure` assert below, and NOT a soundness
+            # violation. Only a decline on an object WITH variables (which native must
+            # decide) is a coverage regression. (Pre-rc254 this path "declined" only by
+            # ACCIDENT — a stale-exps OOB read tripped a false OVERFLOW — which
+            # occasionally became a WRONG verdict instead.)
             _m = ts._is_zero_c_marshal()
             if _m is not None and _m[0] != 0:
                 declines.append(r["test"])

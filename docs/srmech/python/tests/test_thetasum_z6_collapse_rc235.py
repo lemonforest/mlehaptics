@@ -27,8 +27,9 @@ This suite proves:
   3. the (3,3) RESIDUE — HONEST: Z6 does NOT close the rc227 Aₙ (3,3) leaf (it needs the
      Riemann-quartic rung, not the ±-pair three-term reduction); it declines FAST, staying
      the correct ``is_zero = False``.
-  4. native == pure on the Z6 corpus (the constant leaves route to the pure oracle — the
-     native peer has no lift slot at n_syms = 0).
+  4. native == pure on the Z6 corpus. rc255: the native peer now DECIDES the top-level
+     all-constant leaves directly (reserves synthetic lift + p slots for the Z5/Z6
+     certificates) — it PROVES the Z6 zeros True rather than deferring to pure.
 
 No result routes through the machinery under test; the oracle is stdlib ``Fraction``
 (deliberately NOT srmech's ``Q``), a definitive one-sided nonzero-detector.
@@ -347,20 +348,26 @@ def test_z6_declines_the_real_3_3_residue_leaf():
 def test_z6_native_equals_pure():
     """The dispatched (native) verdict EQUALS the pure certificate bool on every Z6 object —
     the rc235 extension of the rc210 corpus-parity contract. The Z6 leaves are TOP-LEVEL
-    all-constant objects (n_syms = 0), so the native peer declines (no lift slot) and the
-    pure Z6 oracle decides — native == pure holds in both directions."""
+    all-constant objects (n_syms = 0); rc255 the native peer DECIDES them directly (reserves
+    synthetic lift + p slots and runs the Z5/Z6 constant-leaf certificates) instead of
+    declining — so native == pure holds AND the Z6 zeros are PROVEN True by native, not
+    merely deferred (int64-overflow coeffs still decline → None, sound)."""
     corpus = [
-        _A + _B,                                          # Z6 True (rank-2)
-        _A + _B + _C,                                     # Z6 True (rank-3)
-        (_A + _B) + ThetaSum.one(),                       # perturbed → False
-        _scale_first_term(_A, Fraction(2, 1)) + _B,       # broken → False
-        _seam(2, 5, 7, 3),                                # Z5 True (single seam)
+        (_A + _B, True),                                  # Z6 True (rank-2)
+        (_A + _B + _C, True),                             # Z6 True (rank-3)
+        ((_A + _B) + ThetaSum.one(), False),              # perturbed → False
+        (_scale_first_term(_A, Fraction(2, 1)) + _B, False),   # broken → False
+        (_seam(2, 5, 7, 3), True),                        # Z5 True (single seam)
     ]
-    for ts in corpus:
+    for ts, expect in corpus:
         if not ts.terms:
             continue
         cv = ts._is_zero_interpolation_c()
         pv = ts._is_zero_interpolation()
         if cv is not None:
             assert cv == pv, f"NATIVE≠PURE (BLOCKER): c={cv} py={pv} terms={len(ts.terms)}"
+            # rc255: native now PROVES these constant leaves (a bool, not a decline).
+            assert cv is expect, f"native verdict {cv} != expected {expect}"
         assert ts.is_zero == ts._is_zero_py()
+        # rc255 completeness: native decides (never declines) these int64-fitting leaves.
+        assert cv is expect, f"native declined (None) where rc255 must decide {expect}"
