@@ -22,7 +22,20 @@ So Siona's conversational "what is X?" now reads the **directed Class-L relation
 - **genome = 313 MB (3.07× smaller** than the 916 MB loose kernel), sha `44e7d40895c8…`, built in 1516 s (~25 min). *(Actual 313 MB vs F1227's ~226 MB projection — the projection used the findings corpus's lighter weight distribution; simplewiki weights are larger, so more base-4 digits/edge. Honest: 3.07×, not 4.3×.)*
 - `recover_check_structural` PASS + `recover_check_spectral(max_dim=256)` op=True/responsion=True, and a **byte-exact round-trip on ALL 39,048,148 edges + metric + charge + vocab** (True). Relationally queryable: `neighbors('science')` → fiction, technology, computer, university; `neighbors('country')` → subdivision, united, music. The whole simplewiki body instrument is ONE integrity-checked native genome.
 
+## LIVE demo — `define` over the real simplewiki store (`R-RBS-LM-SIONALIVE`, PASS)
+`Session.load_corpus(simplewiki_directed.genome)` (831,139 vocab loaded in ~21 min = `kernel_to_graph` over 39M edges + the adjacency index; reads instant after) → `define` over the REAL body instrument:
+| query | baseline (srmech-tool ground) | with the real simplewiki store |
+|---|---|---|
+| what is water | z_boson_mass | `water — seen with: ← area, → sq, ← mi, ← land, ← km, → polo` |
+| what is science | z_boson_mass | `science — seen with: → fiction, → technology, ← computer, → university, → movie` |
+| what is country | expectation_eta | `country — seen with: → subdivision, → united, → music, → states` |
+| what is music | — | `music — seen with: → video, → awards, → song, → album, ← rock` |
+| what is language | — | `language — seen with: ← english, → spoken, → languages, ← sign` |
+| what is planet | — | `planet — seen with: ← minor, → earth, ← planets, → apes, ← dwarf` |
+| what is river | — | `river — seen with: → flows, → south, → north, → lake, ← tributary` |
+Genuinely meaningful corpus relationships (science *fiction*, *computer* science, *United* States, country *music*, sign *language*, *dwarf* planet, *Planet of the Apes*, rivers *flow* to *lakes* with *tributaries*), with direction (→/←), read straight off the directed Class-L store — not z_boson_mass. F1219's CAN'T-TELL closed at real scale.
+
 ## Where #231 stands
-The corpus store is now: **built native (rc253), proven at real scale (18k findings + the 831k/39M simplewiki), and WIRED into Siona's read path** so it changes her answers. The remaining polish: point `load_corpus` at the finished simplewiki genome for a live "what is X?" over the real body instrument, and extend the relational tier to `answer`/`acquire` (define is done). This is the F1219 "wiring that moves the needle" delivered.
+The corpus store is now **built native (rc253), proven at real scale (313 MB simplewiki genome, 39M edges, round-trip byte-exact), WIRED into Siona's read path, and demonstrated LIVE** over the real body instrument. That is the full #231/PKG-3 loop and the F1219 "wiring that moves the needle" — delivered end to end. Remaining polish (optional): extend the relational tier from `define` to `answer`/`acquire`; cache the loaded adjacency index so the ~21 min `load_corpus` is a one-time cost (or lazy-load per query token via `gene_express`).
 
 Composes **F1219** (the CAN'T-TELL diagnosis: store right, read not wired — now wired), **F1216** (L-store relational read = what `define` now uses), **F1232** (the native rc253 ops the store rides), **F1227** (the int-cap flag — confirmed safe for simplewiki), **F1221/F1222** (store the directed Laplacian + fiber, not Klein-4), #231/PKG-3, [[feedback_siona_working_memory_never_compacted]] (additive, no truncation), [[feedback_read_independent_structure_check_first]] (measured the wiring effect directly).
