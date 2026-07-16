@@ -217,11 +217,16 @@ _EXPECTED_SPLIT = {
     # kernel_to_graph (the directed-graph<->Klein-4 codec; dispatch to the
     # byte-identical C peer srmech_graph_kernel_encode / _decode, the kernel_pack
     # composes_c precedent). composes_c 121 -> 123; total 190 -> 192.
-    "composes_c": 123,
+    # rc261 (§95.2 / #1407): +2 composes_c — dsl.build_aliases_from_toml_str /
+    # load_aliases_toml (the [[alias]] TOML function-aliasing layer; parse via the C
+    # srmech_toml, the build_chain_from_toml_str composes_c precedent). composes_c
+    # 123 -> 125. +1 dev_tooling — dsl.alias (pure Python name-binding, a bare-C host
+    # never aliases Python fns). dev_tooling 48 -> 49; total 192 -> 195.
+    "composes_c": 125,
     "host_glue": 21,
-    "dev_tooling": 48,
+    "dev_tooling": 49,
 }
-_TOTAL_NON_COMPUTE = 192
+_TOTAL_NON_COMPUTE = 195
 
 
 def _rows():
