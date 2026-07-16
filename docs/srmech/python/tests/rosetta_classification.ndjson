@@ -437,6 +437,10 @@
 {"exposed_as": "srmech.amsc.genome.quad_turn", "defined_at": "srmech.amsc.genome.quad_turn", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.telomere", "defined_at": "srmech.amsc.genome.telomere", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.chromosome", "defined_at": "srmech.amsc.genome.chromosome", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.centromere", "defined_at": "srmech.amsc.genome.centromere", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.genome.centromere_of", "defined_at": "srmech.amsc.genome.centromere_of", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.mint", "defined_at": "srmech.amsc.genome.mint", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.mint_plan", "defined_at": "srmech.amsc.genome.mint_plan", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.recall", "defined_at": "srmech.amsc.genome.recall", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.genes", "defined_at": "srmech.amsc.genome.genes", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.genome", "defined_at": "srmech.amsc.genome.genome", "bucket": "composition_of_c"}

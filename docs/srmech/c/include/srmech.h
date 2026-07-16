@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc257"
-#define SRMECH_VERSION       "0.9.0rc257"
+#define SRMECH_VERSION_PRE   "rc258"
+#define SRMECH_VERSION       "0.9.0rc258"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5083,7 +5083,7 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * tiny head (O(1)) instead of the whole array (the O(N^2) wall). The BODY format is
  * UNCHANGED (v2..v11 bodies read identically); a v≤11 manifest with the arrays reads
  * verbatim, and the first v12 append migrates it head-only. Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 12
+#define SRMECH_GENOME_FORMAT_VERSION 13
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -5257,6 +5257,25 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
 #define SRMECH_GENOME_GRADED_DENOM_BYTES 8u
 #define SRMECH_GENOME_GRADED_WEIGHT_BYTES 8u
 
+/* §95a/v13 CENTROMERE marker (rc258, #1407 / F1243) — the FIRST byte of a fixed-width
+ * leaf_dim-byte cap leaf that sits INTERIOR to a MINTED chromosome (between its two arms),
+ * NOT a chromosome-boundary cap. It carries the chromosome's GLOBAL 4-way orientation as an
+ * α-satellite REPEAT-ARRAY. Layout: [0x58] + utf-8 handle + NUL + R (uint8) + R orientation
+ * votes (each a byte in {0,1,2,3}) + NUL-pad to leaf_dim. The handle decode is UNIFORM (bytes
+ * [1:] up to the first NUL — the same as every cap); R + votes are read AFTER that NUL. > 3
+ * and distinct from every other marker (CHROM 0x43 / GENE 0x47 / v5 KERNEL 0x4B / PACKED 0x51
+ * / KERNEL-telomere 0x6B / ACTIVE-telomere 0x74 / regulatory 0x67 / boolean 0x62 / threshold
+ * 0x77 / graded 0x64), so v2..v12 bodies read UNCHANGED — the walker gains ONE branch (it is
+ * an interior cap, so genome_cap_kind recognises it and every cap-skip walk flattens past it;
+ * it is NOT a chromosome-opening boundary). Mirrors CENTROMERE_CAP_MARKER in
+ * srmech.amsc.genome. 0x58 = 'X' — the centromere is the cross-point of the X-shaped
+ * chromosome. */
+#define SRMECH_GENOME_CENTROMERE_CAP_MARKER 0x58u /* 'X' — a §95a interior centromere */
+
+/* §95a/v13 default centromere α-satellite repeat-array size R (rc258). Mirrors
+ * CENTROMERE_DEFAULT_REPEATS in srmech.amsc.genome. */
+#define SRMECH_GENOME_CENTROMERE_DEFAULT_REPEATS 15u
+
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
  * a count cap — the number of chromosomes is bounded only by the caller arena. */
@@ -5395,6 +5414,45 @@ srmech_status_t srmech_genome_genome(
     const unsigned char *the_one, uint32_t leaf_dim,
     const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out);
+
+/* §95a/v13 CENTROMERE cap writer (rc258, #1407) — mirror srmech.amsc.genome._pack_centromere:
+ * `[0x58] + handle + NUL + R + R orientation votes, NUL-padded to dim`. `orientation` is a
+ * Klein-4 sector (0..3); `repeats` R in [1, 255]; the votes are R copies of `orientation` (the
+ * α-satellite array, majority-decoded on read). Byte-identical to the bytes behind the Python
+ * centromere cap. Caller-arena (no malloc), no abs, no float.
+ *   SRMECH_ERR_NULL_ARG  — out NULL, or handle NULL with handle_len > 0.
+ *   SRMECH_ERR_BAD_INPUT  — dim 0 / > out_cap, orientation > 3, repeats out of [1,255], or the
+ *                          [marker+handle+NUL+R+votes] payload does not fit dim. */
+srmech_status_t srmech_genome_centromere(
+    unsigned char orientation, uint32_t repeats, const unsigned char *handle,
+    size_t handle_len, uint32_t dim, unsigned char *out, size_t out_cap);
+
+/* §95a/v13 MINT — build a genome letting the tooling PICK each chromosome's shape by modeling
+ * biology (mirror srmech.amsc.genome.mint / #1407 / F1244). Same args + return as
+ * srmech_genome_genome, but per kernel the ATTESTED encode_shape criterion decides: tome/mobius
+ * (depth < 2, ≤ 4 leaves) → a Tier-1 STICK chromosome (no centromere, byte-identical to the
+ * genome() chromosome); quad_strand (depth >= 2, ≥ 5 leaves) → a Tier-2 MINTED chromosome with
+ * an INTERIOR centromere at the metacentric split carrying the kernel's global orientation
+ * (sha256(raw leaves)[0] & 3). BYTE-IDENTICAL to the Python mint(). Same error returns as
+ * srmech_genome_genome; out_cap >= (n_kernels + Σ leaf_counts + n_minted)*leaf_dim. */
+srmech_status_t srmech_genome_mint(
+    const unsigned char *labels, const size_t *label_lens,
+    const unsigned char *the_one, uint32_t leaf_dim,
+    const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out);
+
+/* §95a/v13 CENTROMERE READ (rc258) — recover a MINTED chromosome's global orientation +
+ * arm-ratio (mirror srmech.amsc.genome.centromere_of). Walks the strand's n_blocks leaf_dim-byte
+ * blocks, majority-decodes the orientation from the interior 0x58 cap's α-satellite votes
+ * (klein4_triality_correct's 2-of-3 generalised to R — a Class-K sector count + argmax, no abs),
+ * and reads the p:q arm-ratio from the cap's POSITION (data turns before : after). Sets
+ * *found_out = 1 and fills orientation/p/q iff a centromere is present, else *found_out = 0.
+ *   SRMECH_ERR_NULL_ARG  — strand / found_out NULL (orientation/p/q may be NULL to skip).
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, or a malformed centromere cap. */
+srmech_status_t srmech_genome_centromere_of(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    unsigned char *orientation_out, size_t *p_out, size_t *q_out,
+    int *found_out);
 
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome): a CHROM / kernel-telomere / active-telomere cap opens a

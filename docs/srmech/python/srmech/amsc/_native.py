@@ -3390,6 +3390,31 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_genome.argtypes = [
                 _U8, _PSZ, _U8, _U32, _U8, _PSZ, _SZ, _U8, _SZ, _PSZ]
             lib.srmech_genome_genome.restype = ctypes.c_int
+        # §95a/rc258 (#1407) — the MINT orchestrator (same signature as srmech_genome_genome,
+        # per-kernel stick-vs-centromere shape selection), the CENTROMERE cap writer, and the
+        # CENTROMERE READ. NEW symbols → hasattr-guarded; additive → EXPECTED_ABI_VERSION stays.
+        #   int srmech_genome_mint(const unsigned char *labels, const size_t *label_lens,
+        #       const unsigned char *the_one, uint32_t leaf_dim, const unsigned char *leaves,
+        #       const size_t *leaf_counts, size_t n_kernels, unsigned char *out, size_t out_cap,
+        #       size_t *n_blocks_out)
+        if hasattr(lib, "srmech_genome_mint"):
+            lib.srmech_genome_mint.argtypes = [
+                _U8, _PSZ, _U8, _U32, _U8, _PSZ, _SZ, _U8, _SZ, _PSZ]
+            lib.srmech_genome_mint.restype = ctypes.c_int
+        #   int srmech_genome_centromere(unsigned char orientation, uint32_t repeats,
+        #       const unsigned char *handle, size_t handle_len, uint32_t dim,
+        #       unsigned char *out, size_t out_cap)
+        if hasattr(lib, "srmech_genome_centromere"):
+            lib.srmech_genome_centromere.argtypes = [
+                ctypes.c_uint8, _U32, _U8, _SZ, _U32, _U8, _SZ]
+            lib.srmech_genome_centromere.restype = ctypes.c_int
+        #   int srmech_genome_centromere_of(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, unsigned char *orientation_out, size_t *p_out,
+        #       size_t *q_out, int *found_out)
+        if hasattr(lib, "srmech_genome_centromere_of"):
+            lib.srmech_genome_centromere_of.argtypes = [
+                _U8, _SZ, _U32, _U8, _PSZ, _PSZ, ctypes.POINTER(ctypes.c_int)]
+            lib.srmech_genome_centromere_of.restype = ctypes.c_int
         #   int srmech_genome_partition(const unsigned char *strand, size_t n_blocks,
         #       uint32_t leaf_dim, const unsigned char *the_one,
         #       unsigned char *out_leaves, size_t out_leaves_cap,
@@ -17124,6 +17149,111 @@ def genome_genome_c(labels, the_one: bytes, leaves: bytes, leaf_counts,
     if rc != SRMECH_OK:
         return None
     return bytes(out[:total])
+
+
+def has_native_genome_mint() -> bool:
+    """True iff the §95a/rc258 srmech_genome_mint C peer is loaded + bound. False on a
+    no-C or pre-rc258 lib — the pure ``srmech.amsc.genome.mint`` body is the complete
+    alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_mint"))
+
+
+def genome_mint_c(labels, the_one: bytes, leaves: bytes, leaf_counts,
+                  leaf_dim: int):
+    """Native §95a/rc258 MINT (parity peer ``srmech_genome_mint``): each labelled kernel
+    becomes a CHROM-capped chromosome whose SHAPE the tooling picks — a plasmid-scale
+    kernel (tome/mobius, depth < 2) stays a stick; a eukaryotic-chromosome-scale kernel
+    (quad_strand, depth >= 2) is minted with an INTERIOR centromere carrying its global
+    orientation (sha256(raw leaves)[0] & 3). Args as ``genome_genome_c``; returns the whole
+    strand bytes (``(n_kernels + Σ leaf_counts + n_minted) × leaf_dim``), or ``None`` when
+    the symbol is absent OR the inputs do not fit the fast path — the caller then runs the
+    exact pure Python. Byte-identical to the Python ``mint()`` strand."""
+    if not has_native_genome_mint():
+        return None
+    raw_labels = [(l.encode("utf-8") if isinstance(l, str) else bytes(l))
+                  for l in labels]
+    counts = [int(c) for c in leaf_counts]
+    n_kernels = len(raw_labels)
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(the_one) != leaf_dim
+            or n_kernels != len(counts)
+            or any(len(rl) > leaf_dim - 1 for rl in raw_labels)
+            or sum(counts) * leaf_dim != len(leaves)):
+        return None
+    labels_blob = b"".join(raw_labels)
+    lens_arr = (ctypes.c_size_t * max(n_kernels, 1))(*[len(rl) for rl in raw_labels])
+    counts_arr = (ctypes.c_size_t * max(n_kernels, 1))(*counts)
+    # worst case: every kernel minted → one extra centromere cap each (+ n_kernels blocks).
+    cap = (2 * n_kernels + sum(counts)) * leaf_dim
+    out = (ctypes.c_uint8 * max(cap, 1))()
+    n_blocks = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_mint(
+        _u8(labels_blob), lens_arr, _u8(the_one), ctypes.c_uint32(leaf_dim),
+        _u8(leaves), counts_arr, ctypes.c_size_t(n_kernels),
+        out, ctypes.c_size_t(cap), ctypes.byref(n_blocks))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:int(n_blocks.value) * leaf_dim])
+
+
+def has_native_genome_centromere() -> bool:
+    """True iff the §95a/rc258 srmech_genome_centromere C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_centromere"))
+
+
+def genome_centromere_c(orientation, repeats, handle, dim: int):
+    """Native §95a centromere cap writer (parity peer ``srmech_genome_centromere``):
+    ``[0x58] + handle + NUL + R + R orientation votes``, NUL-padded to ``dim`` — the
+    packed ``dim``-byte cap bytes, or ``None`` when the symbol is absent OR the inputs
+    are invalid (the caller runs the pure ``_pack_centromere``, which raises the exact
+    ValueError). Byte-identical to the bytes the pure path wraps in ``HV(sectors=256)``."""
+    if not has_native_genome_centromere():
+        return None
+    raw = handle.encode("utf-8") if isinstance(handle, str) else bytes(handle)
+    if (not isinstance(orientation, int) or isinstance(orientation, bool)
+            or not 0 <= orientation <= 3 or not isinstance(repeats, int)
+            or isinstance(repeats, bool) or not 1 <= repeats <= 255
+            or b"\x00" in raw or dim <= 0 or 3 + len(raw) + repeats > dim):
+        return None
+    out = (ctypes.c_uint8 * dim)()
+    rc = LIB.srmech_genome_centromere(
+        ctypes.c_uint8(orientation), ctypes.c_uint32(repeats),
+        _u8(raw), ctypes.c_size_t(len(raw)), ctypes.c_uint32(dim),
+        out, ctypes.c_size_t(dim))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:dim])
+
+
+def has_native_genome_centromere_of() -> bool:
+    """True iff the §95a/rc258 srmech_genome_centromere_of C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_centromere_of"))
+
+
+def genome_centromere_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
+    """Native §95a centromere READ (parity peer ``srmech_genome_centromere_of``): walk
+    the ``n_blocks`` ``leaf_dim``-byte blocks, majority-decode the interior 0x58 cap's
+    orientation + read the p:q arm-ratio from its position. Returns
+    ``(found, orientation, p, q)`` — ``found`` a bool, or ``None`` when the symbol is
+    absent OR the inputs do not fit the fast path."""
+    if not has_native_genome_centromere_of():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    o_out = ctypes.c_uint8(0)
+    p_out = ctypes.c_size_t(0)
+    q_out = ctypes.c_size_t(0)
+    found = ctypes.c_int(0)
+    rc = LIB.srmech_genome_centromere_of(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        ctypes.byref(o_out), ctypes.byref(p_out), ctypes.byref(q_out),
+        ctypes.byref(found))
+    if rc != SRMECH_OK:
+        return None
+    return (bool(found.value), int(o_out.value), int(p_out.value), int(q_out.value))
 
 
 def has_native_genome_partition() -> bool:

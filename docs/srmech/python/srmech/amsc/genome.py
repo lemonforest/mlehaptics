@@ -63,9 +63,11 @@ from srmech.version import __version__ as _SRMECH_VERSION
 
 __all__ = [
     "encode_shape", "quad_turn", "telomere", "chromosome",
+    "centromere", "centromere_of",
     "recall",
     "genes",
     "genome", "partition",
+    "mint", "mint_plan",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_append_kernel",
     "genome_window", "genome_genes",
@@ -203,6 +205,52 @@ ACTIVE_TELOMERE_MARKER = 0x74
 #: The active-telomere COUNT field width — a uint64 (8 bytes, big-endian). The count
 #: caps at 2**64-1, which dwarfs any Hayflick limit (human fibroblasts ~40-60 divides).
 _ACTIVE_TELOMERE_COUNT_BYTES = 8
+
+#: §95a/rc258 (format v12 → v13, #1407 / F1243) — the CENTROMERE marker. ``0x58`` =
+#: ASCII ``'X'`` — the centromere IS the cross-point of the classic X-shaped
+#: chromosome (the constriction where the two sister chromatids meet). Unlike the
+#: telomere/kernel/active caps (all chromosome-BOUNDARY caps, first block of a
+#: chromosome), the centromere is an **INTERIOR** anchor: it sits BETWEEN a
+#: chromosome's two arms, so its position in the strand IS the p:q **arm-ratio** —
+#: the per-chromosome GLOBAL positional chirality (the strand's handedness), distinct
+#: from Klein-4's LOCAL per-leaf sector chirality (ADR-0004). Structurally it behaves
+#: like a GENE cap (``0x47``): interior, ``leaf_dim``-wide, recall-skipped, stays WITH
+#: its chromosome, NEVER a chromosome boundary — so it joins every byte-cap set (width /
+#: write-verbatim / turn-count-exclusion / _cap_kind) but NO chromosome-boundary set.
+#:
+#: It carries the chromosome's GLOBAL 4-way orientation as biology's **α-satellite
+#: repeat-array** — ``R`` copies of the orientation sector ``o ∈ {0,1,2,3}`` — majority-
+#: decoded (:func:`_centromere_orientation`, ``klein4_triality_correct``'s 2-of-3
+#: generalised to ``R``). Measured (``R-RBS-LM-CENTROMERE-CHIRALITY``, F1243 §1): the
+#: repeat-array recovers the global which-way at **~15× fewer bits than per-leaf Klein-4**
+#: (R=15 → 39 bits vs 600) with near-identical random-noise robustness. This takes the
+#: GLOBAL which-way off Klein-4; G4/Klein-4 stays for LOCAL chirality that varies along
+#: the strand (a real "decrease use of G4," not a replacement).
+#:
+#: Layout (a fixed-width ``leaf_dim``-byte ``sectors=256`` cap leaf; §44 inline, the
+#: rc127 active-telomere pattern of an inline field AFTER the label NUL):
+#:   byte ``[0]``        marker ``0x58``
+#:   bytes ``[1:1+L]``   utf-8 epigenetic handle ``L`` bytes (the CENP-A-analog address —
+#:                       a per-chromosome handle SEPARATE from the content-address; decoded
+#:                       UNIFORMLY by :func:`_unpack_cap` bytes ``[1:]`` up to the first NUL)
+#:   byte ``[1+L]``      the handle terminator ``0x00``
+#:   byte ``[2+L]``      ``R`` — the repeat-array size (uint8; default 15)
+#:   bytes ``[3+L:3+L+R]`` the ``R`` orientation votes, each a byte in ``{0,1,2,3}`` (the
+#:                       α-satellite repeats; all equal to ``o`` at mint time — corruption +
+#:                       the majority read are the robustness the array buys)
+#:   bytes ``[3+L+R:]``  NUL padding to ``leaf_dim``
+#: ``> 3`` and distinct from every other marker (CHROM ``0x43`` / GENE ``0x47`` / v5
+#: KERNEL ``0x4B`` / PACKED ``0x51`` / KERNEL-telomere ``0x6B`` / active telomere
+#: ``0x74``), so the strand stays SELF-DESCRIBING (§44): v2..v12 bodies read UNCHANGED
+#: (dual-read — the walker gains ONE branch), NO migration.
+CENTROMERE_CAP_MARKER = 0x58
+
+#: The default centromere α-satellite repeat-array size ``R`` — 15 (F1243 §1's measured
+#: value, ~ sqrt(N)/1.15 at N=300; biology's α-satellite runs to thousands, this is the
+#: storage-scale analog). The majority over ``R`` is the EC read; ``R`` is stored inline
+#: in the cap (introspectable + tunable — drop to 1 for a single-index centromere, the
+#: cheapest-but-fragile mode F1243 §1 also measured).
+CENTROMERE_DEFAULT_REPEATS = 15
 
 #: §128/rc128 (format v7 → v8, #728) — the REGULATORY GENE marker. ``0x67`` = ASCII
 #: ``'g'`` (a lower-case gene carrying a live regulatory region, mnemonically paired
@@ -649,7 +697,8 @@ def _cap_kind(hv):
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else None
+        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
+        CENTROMERE_CAP_MARKER) else None       # §95a: the interior centromere anchor
 
 
 def _unpack_cap(hv):
@@ -1379,8 +1428,154 @@ def active_telomere(label, count, dim=64):
     return _pack_active_telomere(label, count, dim)
 
 
+def _pack_centromere(orientation, dim, *, repeats=CENTROMERE_DEFAULT_REPEATS,
+                     handle="cen"):
+    """A fixed-width ``dim``-byte CENTROMERE cap leaf (§95a) — the interior GLOBAL
+    orientation anchor. ``[CENTROMERE_CAP_MARKER] + utf-8 handle + NUL + R(uint8) +
+    R orientation votes``, NUL-padded to ``dim``. The handle (the CENP-A-analog
+    epigenetic address, a per-chromosome handle SEPARATE from the content-address)
+    decodes UNIFORMLY via :func:`_unpack_cap` (bytes ``[1:]`` up to the first NUL); the
+    ``R`` + votes sit AFTER that NUL (the rc127 active-telomere inline-field pattern, so
+    the handle decode needs no centromere special-case). Each vote is the global 4-way
+    orientation ``o ∈ {0,1,2,3}`` (Class-C chirality); the ``R`` copies ARE biology's
+    α-satellite repeat-array, majority-decoded on read (:func:`_centromere_orientation`).
+    ``orientation`` is one Klein-4 sector; ``repeats`` a uint8 ≥ 1 (exact Class-I; NO
+    float, NEVER ``abs()`` — an orientation index + a count are never negated)."""
+    if (not isinstance(orientation, int) or isinstance(orientation, bool)
+            or not 0 <= orientation <= 3):
+        raise ValueError(
+            f"centromere orientation must be a Klein-4 sector 0..3 (the global 4-way "
+            f"which-way); got {orientation!r}")
+    if (not isinstance(repeats, int) or isinstance(repeats, bool)
+            or not 1 <= repeats <= 255):
+        raise ValueError(
+            f"centromere repeats R must be a uint8 in [1, 255] (the α-satellite array "
+            f"size); got {repeats!r}")
+    raw_handle = handle.encode("utf-8") if isinstance(handle, str) else bytes(handle)
+    if b"\x00" in raw_handle:
+        raise ValueError("centromere handle must not contain a NUL byte")
+    payload = (bytes([CENTROMERE_CAP_MARKER]) + raw_handle + b"\x00"
+               + bytes([repeats]) + bytes([orientation]) * repeats)
+    if len(payload) > dim:
+        raise ValueError(
+            f"centromere handle {handle!r} + R={repeats} array is {len(payload)} bytes; "
+            f"max {dim} at leaf_dim={dim} (handle must fit dim - {2 + repeats} bytes)")
+    block = payload + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _centromere_votes(hv):
+    """The ``R`` orientation votes (the α-satellite repeat-array) carried inline in a
+    centromere cap (§95a) — read AFTER the handle's NUL terminator: byte ``[nul+1]`` is
+    ``R``, bytes ``[nul+2 : nul+2+R]`` the votes. Class-I exact bytes (no float)."""
+    raw = hv.tobytes()
+    nul = raw.find(b"\x00", 1)                        # end of the inline handle
+    if nul < 0 or nul + 2 > len(raw):
+        raise ValueError(
+            "centromere cap is malformed: no handle NUL / R field truncated")
+    r = raw[nul + 1]
+    if nul + 2 + r > len(raw):
+        raise ValueError("centromere cap is malformed: repeat-array truncated")
+    return list(raw[nul + 2:nul + 2 + r])
+
+
+def _centromere_orientation(votes):
+    """Majority-decode the GLOBAL 4-way orientation from the α-satellite repeat-array —
+    ``klein4_triality_correct``'s order-3 2-of-3 majority GENERALISED to ``R`` votes
+    (F1243 §1). Class-K sector-occupancy count over the 4 buckets + argmax (ties broken
+    toward the LOWEST sector index — the same tie-rule the k=3 corrector uses). NO float,
+    NO ``abs()``, NO numpy — a pure integer count-and-select (the cascade-honest EC read).
+    One corrupted vote is outvoted by the agreeing majority, so the array recovers the
+    which-way under the random noise F1243 measured (1.000 to f=0.2, 0.906 at f=0.49)."""
+    counts = [0, 0, 0, 0]                             # Class-K sector occupancy
+    for v in votes:
+        counts[int(v) & 3] += 1
+    best = 0
+    for s in range(1, 4):
+        if counts[s] > counts[best]:                  # strict > keeps ties at the lowest s
+            best = s
+    return best
+
+
+def centromere(orientation, *, repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen", dim=64):
+    """The CENTROMERE — a chromosome's INTERIOR global-orientation anchor (§95a / F1243).
+
+    A telomere (:func:`telomere`) caps a chromosome's ENDS; the centromere is the
+    interior constriction BETWEEN its two arms — the segregation / melange-coupling
+    split point, and the carrier of the per-chromosome GLOBAL orientation-chirality
+    (the strand's handedness), distinct from Klein-4's LOCAL per-leaf sector chirality
+    (ADR-0004). Where a centromere sits in the strand IS the p:q **arm-ratio** (biology:
+    the centromere position defines the arms); the ``orientation`` it carries is stored
+    as biology's **α-satellite repeat-array** (``repeats`` copies of the 4-way sector
+    ``orientation ∈ {0,1,2,3}``), majority-decoded on read. Measured (F1243 §1): this
+    recovers the global which-way at **~15× fewer bits than per-leaf Klein-4** (R=15 → 39
+    bits vs 600) with matching random-noise robustness — taking the GLOBAL which-way off
+    Klein-4 so G4 stays for the LOCAL chirality that varies along the strand.
+
+    ``handle`` is the inline no-sidecar epigenetic address (CENP-A analog — a
+    per-chromosome handle separate from the content-address). ``dim`` is the leaf width
+    (match the turns; :func:`chromosome` passes ``len(the_one)`` automatically). Place it
+    at mint time with ``chromosome(leaves, one, centromere=orientation)`` (or a lower-level
+    insert); recover it from a strand with :func:`centromere_of`. Same inputs → same cap."""
+    # rc258 (#1407): DISPATCH the cap byte-framing to the srmech_genome_centromere C peer
+    # when HAS_NATIVE (byte-identical bytes, then wrapped in the same HV(sectors=256)); the
+    # pure _pack_centromere below is the numpy-free fallback + parity oracle (it raises the
+    # exact ValueError for a bad orientation / R / over-long handle — the native wrapper
+    # returns None in those cases so the error surfaces here).
+    native = _native.genome_centromere_c(orientation, repeats, handle, dim)
+    if native is not None:
+        return _HV.from_sequence(native, sectors=256)
+    return _pack_centromere(orientation, dim, repeats=repeats, handle=handle)
+
+
+def centromere_of(strand):
+    """Recover a minted chromosome's GLOBAL orientation + arm-ratio from its centromere
+    (§95a) — or ``None`` if the strand has no centromere (a Tier-1 stick chromosome).
+
+    Scans for the interior ``0x58`` cap, majority-decodes the global 4-way orientation
+    from its α-satellite repeat-array (:func:`_centromere_orientation` — the EC read),
+    and reads the p:q **arm-ratio** from the cap's POSITION: ``p`` = data turns BEFORE it
+    (the short arm), ``q`` = data turns AFTER (the long arm). Position IS the arm-ratio
+    (biology: the centromere position defines the arms), so nothing double-encodes.
+
+    Returns ``{"orientation", "arm_ratio": (p, q), "handle", "repeats"}`` or ``None``."""
+    strand = list(strand)
+    # rc258 (#1407): DISPATCH the orientation-majority + arm-ratio scan to the
+    # srmech_genome_centromere_of C peer when HAS_NATIVE; the handle/repeats are read inline
+    # in Python (the composition). The pure walk below is the numpy-free fallback + oracle.
+    if strand:
+        dim = len(list(strand[0]))
+        native = _native.genome_centromere_of_c(
+            b"".join(hv.tobytes() for hv in strand), len(strand), dim)
+        if native is not None:
+            found, orientation, p, q = native
+            if not found:
+                return None
+            cen = next(hv for hv in strand if _cap_kind(hv) == CENTROMERE_CAP_MARKER)
+            return {"orientation": orientation, "arm_ratio": (p, q),
+                    "handle": _unpack_cap(cen)[1],
+                    "repeats": len(_centromere_votes(cen))}
+    p = 0
+    total_turns = 0
+    cen = None
+    for hv in strand:
+        kind = _cap_kind(hv)
+        if kind == CENTROMERE_CAP_MARKER:
+            cen = hv
+            p = total_turns                           # data turns so far = the short arm
+        elif kind is None:
+            total_turns += 1                          # a coupled data turn (not a cap)
+    if cen is None:
+        return None
+    votes = _centromere_votes(cen)
+    _marker, handle = _unpack_cap(cen)
+    return {"orientation": _centromere_orientation(votes),
+            "arm_ratio": (p, total_turns - p), "handle": handle,
+            "repeats": len(votes)}
+
+
 def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
-               kernel=False, active_count=None):
+               kernel=False, active_count=None, centromere=None, centromere_at=None):
     """Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730).
 
     **Single kernel (shipped F713/F715 behaviour, unchanged).** Pass ``leaves``
@@ -1458,6 +1653,17 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
             "chromosome: active_count= is a single-kernel telomere form — pass leaves=, "
             "not genes=/kernel= (a kernel/gene chromosome uses its own boundary cap)"
         )
+    if centromere is not None and (kernel or genes is not None):
+        raise ValueError(
+            "chromosome: centromere= is a single-kernel MINT form — pass leaves=, not "
+            "genes=/kernel= (§95a: the centromere is an interior anchor on a minted "
+            "single-kernel chromosome; a gene / kernel chromosome is a different shape)"
+        )
+    if centromere_at is not None and centromere is None:
+        raise ValueError(
+            "chromosome: centromere_at= sets the p:q arm-ratio split but needs a "
+            "centromere= orientation to place at that split"
+        )
     dim = len(list(the_one))
     # §89/v6: a kernel chromosome opens with a KERNEL telomere (0x6B); §127: an
     # active-telomere chromosome opens with an ACTIVE telomere (0x74) carrying its count.
@@ -1468,14 +1674,15 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     else:
         cap = telomere(label, dim=dim)
     if genes is None:
+        leaf_list = list(leaves)
         # rc197 (#887): DISPATCH the plain single-kernel path (no genes / kernel /
-        # active_count) to the srmech_genome_chromosome C peer when HAS_NATIVE —
-        # byte-identical (the CHROM cap via genome_pack_cap + each turn via the
-        # reversible srmech_klein4_bind). The pure list-comp below is the numpy-free
-        # fallback + parity oracle; the kernel / active-telomere / gene forms open
-        # their own boundary caps and stay pure (they are not this fast path).
-        if not kernel and active_count is None:
-            leaf_bytes = _leaf_blocks(list(leaves))
+        # active_count / centromere) to the srmech_genome_chromosome C peer when
+        # HAS_NATIVE — byte-identical (the CHROM cap via genome_pack_cap + each turn via
+        # the reversible srmech_klein4_bind). The pure list-comp below is the numpy-free
+        # fallback + parity oracle; the kernel / active-telomere / gene / MINT forms open
+        # their own boundary caps (or an interior centromere) and stay pure here.
+        if not kernel and active_count is None and centromere is None:
+            leaf_bytes = _leaf_blocks(leaf_list)
             if all(len(b) == dim for b in leaf_bytes):
                 native = _native.genome_chromosome_c(
                     label, _the_one_block_bytes(the_one), b"".join(leaf_bytes),
@@ -1483,7 +1690,21 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
                 if native is not None:
                     return [_hv_from_block(native[i * dim:(i + 1) * dim])
                             for i in range(len(native) // dim)]
-        return [cap] + [quad_turn(leaf, the_one) for leaf in leaves]
+        turns = [quad_turn(leaf, the_one) for leaf in leaf_list]
+        if centromere is None:
+            return [cap] + turns
+        # §95a MINT (F1243): a TIER-2 minted chromosome — insert the INTERIOR centromere
+        # cap at the p:q arm-split. The cap's POSITION in the strand IS the arm-ratio
+        # (biology: the centromere position defines the arms); default metacentric =
+        # the midpoint (p ≈ q). ``centromere`` is the global 4-way orientation ∈ {0,1,2,3};
+        # it rides as the α-satellite repeat-array in the cap (majority-decoded on read).
+        split = len(turns) // 2 if centromere_at is None else int(centromere_at)
+        if not 0 <= split <= len(turns):
+            raise ValueError(
+                f"chromosome: centromere_at={centromere_at} out of range "
+                f"[0, {len(turns)}] (the arm-split index between the short + long arm)")
+        cen_cap = _pack_centromere(centromere, dim)
+        return [cap] + turns[:split] + [cen_cap] + turns[split:]
     strand = [cap]
     # §128/§129: a gene MAY carry regulatory MASK(s) — open it with a REGULATORY GENE cap
     # (0x67) instead of a plain GENE cap (0x47):
@@ -2782,6 +3003,128 @@ def genome(kernels=None, the_one=None, *, chromosomes=None):
     return strand
 
 
+def _kernel_content_bytes(leaves):
+    """The content-address preimage of a kernel — its leaves serialised to the on-disk
+    fixed-width blocks (§95c mint). The SAME bytes ``genome_save`` writes for these turns,
+    so C + Python content-address a kernel identically (the mint orientation is derived
+    from this, so it must be byte-stable)."""
+    return b"".join(_leaf_blocks(list(leaves)))
+
+
+def _mint_orientation(leaves):
+    """The GLOBAL 4-way orientation the tooling assigns a MINTED chromosome (§95c) — the
+    kernel's content-address folded to a Klein-4 sector: ``sha256(content)[0] & 3``
+    (Class A content-address → Class C chirality). Deterministic + attested (it IS the
+    content-address — no magic number), and C-parity-trivial (the first digest byte & 3,
+    the same ``srmech_sha256_hex`` on the same bytes)."""
+    digest = _sha256_bytes(_kernel_content_bytes(leaves))     # 64-char hex (Class A)
+    return int(digest[0:2], 16) & 3                            # first digest byte & 3
+
+
+def _mint_shape(leaves):
+    """Which SHAPE the tooling PICKS for a kernel (§95c / F1244 / #1407), MODELING BIOLOGY
+    — the decision is the ATTESTED :func:`encode_shape` criterion (F715, keyed to 256=2**8
+    + the Klein-4 order 4), never a hand-picked threshold:
+
+    * ``tome`` / ``mobius`` (≤ 4 leaves) — PLASMID-scale → ``('stick', 1, False)``: a Tier-1
+      append-only stick chromosome, no centromere (biology's small appendable plasmid).
+    * ``quad_strand`` (≥ 5 leaves) — EUKARYOTIC-CHROMOSOME-scale → ``('minted', 2, True)``: a
+      Tier-2 minted chromosome with an interior centromere (biology mints a centromere when a
+      chromosome is big enough to need a segregation anchor).
+
+    Returns ``(shape_name, tier, mint_centromere)``. "We don't pick the shape; the kernel's
+    biology-analog scale does" — an empty kernel (0 leaves) reads as a tome (stick)."""
+    n_leaves = len(list(leaves))
+    shape = encode_shape(max(1, n_leaves) * LEAF_CAP)["shape"]   # n=leaves*256 → leaves exact
+    if shape == "quad_strand":
+        return "minted", 2, True
+    return "stick", 1, False
+
+
+def mint_plan(kernels):
+    """WATCH the tooling pick each kernel's chromosome SHAPE (§95c / F1244) — introspection
+    that BUILDS NOTHING (so we can see the choice before committing, F1244 "we watch it
+    happen so we know it does it"). The genome architecture "builds into chromosomes as they
+    fit": we don't pick the shape, the kernel's biology-analog scale (via the attested
+    :func:`encode_shape`, :func:`_mint_shape`) does.
+
+    ``kernels`` is a ``{label: leaves}`` mapping or ``(label, leaves)`` sequence (the
+    :func:`mint` input). Returns, in kernel order,
+    ``[{'label', 'n_leaves', 'shape', 'tier', 'centromere': bool, 'orientation', 'reason'}, …]``
+    — ``orientation`` is the assigned global which-way for minted kernels (``None`` for
+    sticks)."""
+    items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
+    plan = []
+    for label, leaves in items:
+        leaves_list = list(leaves)
+        _shape, tier, mint_cen = _mint_shape(leaves_list)
+        n_leaves = len(leaves_list)
+        plan.append({
+            "label": label, "n_leaves": n_leaves, "shape": _shape, "tier": tier,
+            "centromere": mint_cen,
+            "orientation": _mint_orientation(leaves_list) if mint_cen else None,
+            "reason": (f"quad_strand ({n_leaves} leaves) → eukaryotic-chromosome-scale "
+                       f"→ mint a Tier-2 centromere" if mint_cen else
+                       f"{encode_shape(max(1, n_leaves) * LEAF_CAP)['shape']} "
+                       f"({n_leaves} leaves) → plasmid-scale → Tier-1 stick (append-only)"),
+        })
+    return plan
+
+
+def mint(kernels=None, the_one=None, *, chromosomes=None):
+    """Build a genome, letting the TOOLING pick each chromosome's SHAPE by modeling biology
+    (§95c / F1244 / #1407) — the MINT-vs-APPEND two-tier genome.
+
+    Same signature + return as :func:`genome` (a flat telomere-partitioned strand,
+    recovered with :func:`partition`), but per kernel the tooling DECIDES stick-vs-minted
+    (we don't dictate): a PLASMID-scale kernel (tome/mobius, ≤ 4 leaves) stays a **Tier-1
+    STICK** chromosome (append-friendly, no centromere — the same shape :func:`genome`
+    builds); a EUKARYOTIC-CHROMOSOME-scale kernel (quad_strand, ≥ 5 leaves) is **MINTED** as
+    a **Tier-2** chromosome with an interior :func:`centromere` carrying its global
+    orientation (the content-address folded to a Klein-4 sector, :func:`_mint_orientation`).
+    The stick-vs-minted threshold IS :func:`encode_shape`'s attested criterion (F715) — no
+    magic number.
+
+    So :func:`genome` = all sticks (unchanged, back-compat); :func:`mint` = the tooling
+    picks the shape. See the picks first with :func:`mint_plan`. The ``chromosomes=``
+    multi-gene form is a different structure (genes, not a §95a mint shape) and defers to
+    :func:`genome` (all sticks)."""
+    if the_one is None:
+        raise ValueError("mint: the_one is required")
+    if (kernels is None) == (chromosomes is None):
+        raise ValueError("mint: pass exactly one of kernels= or chromosomes=")
+    if chromosomes is not None:
+        # the multi-gene form is not a §95a mint shape (genes are a different structure);
+        # build it as genome() does (all sticks) — no centromere selection applies.
+        return genome(the_one=the_one, chromosomes=chromosomes)
+    items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
+    dim = len(list(the_one))
+    # §95a/rc258 (#1407): DISPATCH the whole mint assemble to the srmech_genome_mint C peer
+    # when HAS_NATIVE — 1:1 C↔Python byte parity (user direction 2026-07-16). The per-kernel
+    # stick-vs-centromere selection (attested encode_shape), the content-address orientation
+    # (srmech_sha256_hex), and the interior centromere pack all mirror in C. The pure loop
+    # below is the numpy-free oracle + the non-uniform-width fallback.
+    per_kernel = [_leaf_blocks(list(leaves)) for _, leaves in items]
+    if dim > 0 and all(len(b) == dim for kb in per_kernel for b in kb):
+        native = _native.genome_mint_c(
+            [label for label, _ in items], _the_one_block_bytes(the_one),
+            b"".join(b"".join(kb) for kb in per_kernel),
+            [len(kb) for kb in per_kernel], dim)
+        if native is not None:
+            return [_hv_from_block(native[i * dim:(i + 1) * dim])
+                    for i in range(len(native) // dim)]
+    strand = []
+    for label, leaves in items:
+        leaves_list = list(leaves)
+        _shape, _tier, mint_cen = _mint_shape(leaves_list)
+        if mint_cen:
+            strand.extend(chromosome(leaves_list, the_one, label=label,
+                                     centromere=_mint_orientation(leaves_list)))
+        else:
+            strand.extend(chromosome(leaves_list, the_one, label=label))
+    return strand
+
+
 def partition(strand, the_one, labels=None):
     """Recover every kernel from a multi-kernel genome strand — the inverse of
     :func:`genome` (F715 / §44).
@@ -2838,11 +3181,13 @@ def partition(strand, the_one, labels=None):
             _marker, current = _unpack_cap(hv)
             out[current] = []
         elif kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                      THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER, KERNEL_HEADER_MARKER):
+                      THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER, KERNEL_HEADER_MARKER,
+                      CENTROMERE_CAP_MARKER):
             continue                            # a gene delimiter (§44 plain / §128
                                                 # regulatory / §130 boolean / §131 threshold /
-                                                # §132 graded) /
-                                                # §60 v5 header —
+                                                # §132 graded) / §60 v5 header / §95a the
+                                                # interior centromere anchor —
+                                                # skip, not a coupled data turn
                                                 # not data; flatten past it
         elif current is not None:
             out[current].append(quad_turn(hv, the_one))   # reversible uncouple
@@ -3442,7 +3787,14 @@ def telomere_tick(strand):
 #: O(N^2) wall). The BODY format is UNCHANGED (v2..v11 bodies read identically); a v≤11
 #: manifest that still carries the arrays is read verbatim (back-compat), and the first v12
 #: append rewrites it head-only. A v12 writer stamps 12.
-GENOME_FORMAT_VERSION = 12
+#: v13 (§95a/rc258 centromere, #1407 / F1243): a MINTED (Tier-2) chromosome carries an
+#: INTERIOR ``CENTROMERE_CAP_MARKER`` (0x58) cap between its two arms — the global
+#: orientation-chirality anchor (α-satellite repeat-array). It is one more self-describing
+#: cap kind in the SAME walk (a byte > 3, distinct from every prior marker), so v2..v12
+#: bodies read UNCHANGED (dual-read — the walker gains ONE branch): back-compat is
+#: STRUCTURAL, never a converter. A stick (append) genome with NO 0x58 cap is byte-identical
+#: to the v12 writer EXCEPT the ``format_version`` field. A v13 writer stamps 13.
+GENOME_FORMAT_VERSION = 13
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -3529,7 +3881,8 @@ def _hv_from_block(block: bytes) -> _HV:
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) else QUAD
+        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
+        CENTROMERE_CAP_MARKER) else QUAD       # §95a: the interior centromere anchor
     return _HV.from_sequence(block, sectors=sectors)
 
 
@@ -3555,7 +3908,8 @@ def _block_is_cap(block: bytes) -> bool:
         CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER)
+        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
+        CENTROMERE_CAP_MARKER)                 # §95a: the interior centromere anchor
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -3660,7 +4014,8 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
         if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
                     BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
                     KERNEL_HEADER_MARKER,
-                    KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) or kind <= 3:
+                    KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
+                    CENTROMERE_CAP_MARKER) or kind <= 3:   # §95a centromere = leaf-wide cap
             end = k + leaf_dim
             if end > n:
                 raise GenomeBoundingError(
@@ -4058,11 +4413,13 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
               and decoded[0] != BOOLEAN_GENE_MARKER
               and decoded[0] != THRESHOLD_GENE_MARKER
               and decoded[0] != GRADED_GENE_MARKER
-              and decoded[0] != KERNEL_HEADER_MARKER):
+              and decoded[0] != KERNEL_HEADER_MARKER
+              and decoded[0] != CENTROMERE_CAP_MARKER):
             cur[2] += 1                       # a data turn (packed or legacy); a GENE
                                               # cap (§44 plain / §128 regulatory / §130
-                                              # boolean / §131 threshold / §132 graded) or
-                                              # §60 v5 header is not a turn
+                                              # boolean / §131 threshold / §132 graded),
+                                              # §60 v5 header, or §95a interior centromere
+                                              # is not a turn
                                               # (the §89 v6 Klein-4 header IS a coupled turn)
         cur[4] += len(raw)
         offset += len(raw)
@@ -4298,7 +4655,8 @@ def genome_load(path, *, labels=None, the_one=None):
                 if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
                             BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
                             KERNEL_HEADER_MARKER,
-                            KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER) \
+                            KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
+                            CENTROMERE_CAP_MARKER) \
                         or kind <= 3:
                     rest = f.read(leaf_dim - 1)
                     if len(rest) != leaf_dim - 1:
@@ -4571,7 +4929,9 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 12      # a READ of existing caps/manifest; no bump
+    assert GENOME_FORMAT_VERSION == 13      # a READ of existing caps/manifest; no bump
+    #  (v13 centromere 0x58 is INTERIOR to a MINTED single-kernel chromosome, disjoint from
+    #   gene chromosomes — a gene plan never encounters one, so this read is unaffected)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
         return _gene_express_plan_path(Path(strand_or_path), the_one, cell_state)
     return _gene_express_plan_strand(strand_or_path, the_one, cell_state)
@@ -4672,7 +5032,9 @@ def genome_genes_expressed(path, the_one, cell_state):
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 12      # a READ of existing caps/manifest; no bump
+    assert GENOME_FORMAT_VERSION == 13      # a READ of existing caps/manifest; no bump
+    #  (v13 centromere 0x58 is INTERIOR to a MINTED single-kernel chromosome, disjoint from
+    #   gene chromosomes — a gene plan never encounters one, so this read is unaffected)
     path = Path(path)
     plan = _gene_express_plan_path(path, the_one, cell_state)   # the expressed communities
     data = _catalog_data(path, the_one)

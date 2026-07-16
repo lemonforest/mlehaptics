@@ -403,7 +403,7 @@ def test_python_equals_c_constraint_satisfies_boolean():
 def test_no_genome_format_bump():
     """rc134 adds NO new marker / block KIND — M3 is a READ over the existing gene caps, so the
     genome format stays v11 (the rc132 value)."""
-    assert G.GENOME_FORMAT_VERSION == 12
+    assert G.GENOME_FORMAT_VERSION == 13
 
 
 # ── (12) the return dict is JSON-serializable ──────────────────────────────────
