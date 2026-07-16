@@ -68,7 +68,7 @@ __all__ = [
     "recall",
     "genes",
     "genome", "plasmid", "partition",
-    "mint", "mint_plan",
+    "mint", "mint_plan", "integrate",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_append_kernel",
     "genome_window", "genome_genes",
@@ -3387,6 +3387,62 @@ def _kernel_v6_leaves(syms, leaf_dim, et_code):
         leaves.append(_HV.from_sequence(block, sectors=QUAD))
         i += leaf_dim
     return leaves
+
+
+#: The chromosome-BOUNDARY cap markers — a cap in this set OPENS a chromosome (carries a
+#: label inline), as opposed to the interior caps (gene / centromere) that sit inside one.
+#: CHROM (0x43) / kernel-telomere (0x6B) / active-telomere (0x74) / diploid (0x44).
+_CHROM_BOUNDARY_MARKERS = (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
+                           ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER)
+
+
+def integrate(host, provirus, *, at=None):
+    """Integrate a PROVIRUS (a chromosome strand) INTO a host genome-strand — the
+    viral-integration analog (§95.1d / F1244 / #1407), the coherency-translation-layer capstone.
+
+    Biology: a retrovirus (a Tier-1 STICK genome — telomere-capped, no centromere, §95c)
+    integrates into a eukaryote's DNA (Tier-2 — MINTED / DIPLOID) and is thereafter part of it.
+    We watch it happen, so there is ONE shared cascade spanning the levels. In srmech that
+    coherence is FREE: rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every
+    turn through the SAME ``the_one`` (one k=3 cascade at different rungs, ADR-0005), so a stick
+    provirus simply becomes another chromosome in the host genome and everything still recovers
+    — :func:`partition` recovers every chromosome, :func:`centromere_of` still reads the host's
+    minted chromosome, :func:`recover_diploid` still recovers its diploid, and the integrated
+    provirus recovers too. That is the translation between the Tier-1 and Tier-2 levels: it needs
+    no conversion because they are the same cascade.
+
+    ``host`` is a genome strand (any mix of stick / minted / diploid chromosomes, from
+    :func:`genome` / :func:`plasmid` / :func:`mint`); ``provirus`` is a chromosome strand opening
+    with a boundary cap (from :func:`chromosome` / :func:`plasmid` / :func:`mint` /
+    :func:`diploid`). ``at`` = the host CHROMOSOME INDEX to insert the provirus BEFORE (0-based;
+    default ``None`` = integrate after the last chromosome). **Both must have been coupled through
+    the SAME ``the_one``** — the coherence contract (the shared cascade). This is strand splicing:
+    the provirus's turns are ALREADY coupled, so integration is a composition of self-describing
+    blocks, no re-coupling. Returns the combined genome strand; recover with :func:`partition`.
+
+    Class-C (the integration/orientation) ∘ composition of the C-built chromosome strands. A
+    C-only host integrates identically by concatenating the two genomes' self-describing regions
+    (byte-identical blocks) at a chromosome boundary — the region byte-offsets are in the manifest.
+    """
+    host = list(host)
+    provirus = list(provirus)
+    if not provirus or _cap_kind(provirus[0]) not in _CHROM_BOUNDARY_MARKERS:
+        raise ValueError(
+            "integrate: provirus must be a chromosome strand opening with a boundary cap "
+            "(from chromosome / plasmid / mint / diploid)")
+    bounds = [i for i, hv in enumerate(host) if _cap_kind(hv) in _CHROM_BOUNDARY_MARKERS]
+    if host and _cap_kind(host[0]) not in _CHROM_BOUNDARY_MARKERS:
+        raise ValueError(
+            "integrate: host is not a well-formed genome strand (no leading chromosome cap)")
+    if at is None:
+        locus = len(host)                              # integrate after the last chromosome
+    else:
+        if not isinstance(at, int) or not 0 <= at <= len(bounds):
+            raise ValueError(
+                "integrate: at={!r} out of range [0, {}] (host chromosome index)".format(
+                    at, len(bounds)))
+        locus = bounds[at] if at < len(bounds) else len(host)
+    return host[:locus] + provirus + host[locus:]
 
 
 def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", the_one=None,

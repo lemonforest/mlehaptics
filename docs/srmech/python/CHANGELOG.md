@@ -11,6 +11,16 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc262]
+
+**The coherency-translation-layer capstone — `integrate()`: a stick provirus integrates into a minted/diploid genome on ONE shared k=3 coupling (§95.1d / #1407 / F1244). Completes the #1407 biology-native genome architecture arc.** A Tier-1 **stick** provirus (a retrovirus genome — telomere-capped, no centromere) integrates INTO a Tier-2 host genome (a eukaryote — **minted + diploid** chromosomes), and thereafter **every mode still recovers** — because rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every turn through the **same `the_one`** (one k=3 cascade at different rungs). The translation between the Tier-1 and Tier-2 levels is **free**: no conversion, because they are the same cascade.
+
+- **`integrate(host, provirus, *, at=None)`** — splices a provirus chromosome-strand into a host genome-strand at a chromosome boundary (`at` = the host chromosome index to insert before; default = after the last). Both must share `the_one` (the coherence contract). The coherence is demonstrated, not engineered: after integration, **`partition`** recovers every chromosome, **`centromere_of`** still reads the host's minted chromosome, **`recover_diploid`** still recovers its diploid, and the provirus recovers too. Strand splicing (no re-coupling — the provirus's turns are already coupled); a C-only host integrates identically by concatenating the two genomes' self-describing chromosome regions.
+
+**Verified:** `test_genome_integrate_rc262` (integration + the full coherence proof: partition / centromere_of / recover_diploid all survive integration, the `at=` locus, provirus validation, and a disk round-trip); the `integrate` new-public-callable ripple (rosetta / tool-schema / tool-docs / `tools.total` count / both C registries) green; JPL + pedantic clean. **Pure Python** — `integrate` composes existing self-describing chromosome blocks (no C / format / ABI change).
+
+**The #1407 arc is complete:** §95a centromere (rc258) · §95b diploid (rc259) · §95.2 rename (rc260) + config-aliasing (rc261) · §95.1d coherency-translation-layer (rc262). All three genome modes — stick, minted, diploid — are one k=3 cascade, and a stick integrates into a minted/diploid genome for free.
+
 ## [0.9.0rc261]
 
 **Config-driven FUNCTION ALIASING — bind your own name to any `srmech.*` function via TOML (§95.2 / #1407). The domain-agnostic naming layer.** srmech already lets a researcher declare CLASSES (`make_class`) and PIPELINES (the `[chain]` DSL) in TOML; rc261 adds the smallest missing rung — declaring a **name binding** — so the framework's own naming (e.g. the rc260 `genome`/`plasmid` rename) is a non-issue at the user layer: anyone re-aliases to their domain vocabulary in config, no code.
