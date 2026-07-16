@@ -443,6 +443,7 @@
 {"exposed_as": "srmech.amsc.genome.recover_diploid", "defined_at": "srmech.amsc.genome.recover_diploid", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.mint", "defined_at": "srmech.amsc.genome.mint", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.mint_plan", "defined_at": "srmech.amsc.genome.mint_plan", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.integrate", "defined_at": "srmech.amsc.genome.integrate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.recall", "defined_at": "srmech.amsc.genome.recall", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.genes", "defined_at": "srmech.amsc.genome.genes", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.genome", "defined_at": "srmech.amsc.genome.genome", "bucket": "composition_of_c"}
