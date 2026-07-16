@@ -2995,3 +2995,24 @@ Pulled the latest TestPyPI srmech (**rc258**, clean venv outside the source tree
 **FEEDBACK 2 — NAMING (the user's ask): make `genome()` the umbrella that understands ANY format; the stick-only builder wants its own name.** Today `genome()` = the *all-stick* builder and `mint()` = the *tooling-picks* builder — but "genome" is the umbrella noun (a genome is any genome, stick OR minted), so a reader of `genome(kernels)` reasonably expects "build a genome (any shape)", not "all sticks". The READ side already handles any format; only the BUILD-side name is inverted. **Ask (options):** (a) make `genome()` the biology-aware default (dispatch by shape — i.e. today's `mint` behaviour) and expose the pure-stick path explicitly as `stick()`/`plasmid()` or `genome(..., shape="stick")`, keeping `mint` as the explicit-structured alias; or (b) keep back-compat `genome()`=all-stick but rename it to say so (`sticks()`/`plasmids()`) and let `genome()`/`mint()` carry the umbrella + structured meanings. Either way: **`genome` should name "any genome", the stick-only builder should name itself.**
 
 **Verified:** clean-venv rc258 introspection + `mint_plan`/`mint`/`centromere_of` round-trip + the 4-bucket `genome_append` timing (`R-RBS-LM-GENOMEAPPEND-SCALING`). **Re-surface keywords:** `rc258` · `mint` · `mint_plan` · `centromere` · `centromere_of` · `genome_append O(1) disk but O(n) time` · `catalog= KeyError leaf_dim` · `genome vs mint naming` · `stick/plasmid` · `§95.2` · `#1407`.
+
+## §95.3 RESOLUTION of the O(1)-per-call question (2026-07-16; rc258) — the O(1) path EXISTS: THREAD the returned catalog. The ask narrows to ERGONOMICS (docs + the `{}` footgun + an O(1) default).
+
+**Found it (measured, rc258).** `genome_append` per-call time IS O(1) — you just have to **thread the catalog dict it returns** back in as `catalog=`. `genome_save` returns a `dict` with keys `{leaf_dim, n_turns, body_sha256, chromosomes, regions, format_version, the_one}`; feed it to each append and update in place:
+
+```python
+cat = genome_save(genome([("seed", seed_leaves)], one), path, one, labels=["seed"])
+for label, leaves in bodies:
+    cat = genome_append(path, label, leaves, one, catalog=cat)   # O(1): updates cat in place, no rebuild
+```
+
+Measured per-call ms in 4 buckets over 600 appends (fixed payload):
+- **`catalog=None` (default): 8.3 → 20.4 → 27.5 → 47.6** — rebuilds the full catalog by scanning each call → **O(n²) total** (the wall).
+- **`catalog=<threaded return>`: 0.65 → 0.72 → 0.80 → 0.87** — **flat, true O(1)** — the v12 incremental update works when you give it the running state.
+
+So the incremental-manifest / no-sidecar rewrite the user built **already delivers the O(1) stream** — the gap is purely that a naive caller can't discover/reach it. **The narrowed ask (three small ergonomics items):**
+1. **Document the thread-the-catalog idiom.** The docstring says "in O(1)" but the DEFAULT (`catalog=None`) is O(n²); nothing tells a caller to thread the return. Add the 3-line streaming idiom above to the docstring, and note the default rebuilds.
+2. **Fix the `catalog={}` footgun.** `catalog={}` → `KeyError: 'leaf_dim'`. A caller who is resuming an existing genome (no seed-return in hand) should be able to **initialize the catalog from the genome on disk** — e.g. `genome_append(..., catalog="load")` reads the v12 HEAD once (O(1)) and then streams, or accept `{}` and populate `leaf_dim`/`n_turns` from `path/`'s manifest.
+3. **(optional) Make the default O(1).** Have the default return only the O(1) HEAD (`n_turns`/`n_chromosomes`/`body_sha256`) and build the full `chromosomes`/`regions` TOC only when explicitly asked (a `with_catalog=True` flag or a separate `genome_catalog(path)`), so no caller silently footguns into O(n²).
+
+**Practical unblock:** PKG-3's corpus encoder can now **stream** one body at a time with catalog-threaded `genome_append` (O(1)) — dropping the batch/explode/pack workaround — as soon as (2) lets it resume/init cleanly (or by holding the catalog in RAM across the run, which already works today). **Verified:** the 4-bucket timing above (rc258, clean venv). **Re-surface keywords:** `thread the catalog` · `catalog=return` · `O(1) stream` · `genome_append 0.7ms flat` · `catalog={} KeyError leaf_dim` · `streaming idiom` · `§95.3` · `#1407`.
