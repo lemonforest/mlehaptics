@@ -53,14 +53,15 @@ def _as_lists(xs):
 # ── the v4 manifest shape + the region chain ────────────────────────────────
 
 def test_save_writes_v4_regions_and_chain(tmp_path):
-    """A fresh save writes the current format_version (rc127 §127 v7 writer) with a
+    """A fresh save RETURNS the current format_version (v12 writer) with the DERIVED
     regions array (one per chromosome, tiling the body) and body_sha256 = the region
-    chain (the §56/v4 regions machinery is unchanged under the v7 writer)."""
+    chain. v12: the arrays live in the returned/derived catalog, NOT on disk (the
+    manifest is head-only, ADR-0003); the §56/v4 region-chain machinery is unchanged."""
     one = _one()
     strand = G.genome({"a": _leaves(5), "b": _leaves(3, base=10)}, one)
     man = G.genome_save(strand, tmp_path / "g", the_one=one)
 
-    assert man["format_version"] == 11
+    assert man["format_version"] == 12
     assert [r["byte_offset"] for r in man["regions"]] == \
         [c["byte_offset"] for c in man["chromosomes"]]
     # regions tile the body contiguously from 0
@@ -170,7 +171,7 @@ def test_pack_single_pass_roundtrip_exact(tmp_path):
     G.genome_save(G.genome(kernels, one), tmp_path / "g", the_one=one)
     G.genome_explode(tmp_path / "g", tmp_path / "loose", the_one=one)
     man = G.genome_pack(tmp_path / "loose", tmp_path / "packed", the_one=one)
-    assert man["format_version"] == 11
+    assert man["format_version"] == 12
     assert len(man["regions"]) == len(kernels)
     for label, leaves in kernels.items():
         win = G.genome_window(tmp_path / "packed", label, the_one=one)
@@ -193,3 +194,41 @@ def test_many_appends_all_read_back(tmp_path):
     part = G.partition(strand, lo, labels)                  # decodes leaves inline
     for label, leaves in want.items():
         assert _as_lists(part[label]) == leaves
+
+
+# ── v12 O(1) append: the manifest is HEAD-ONLY and FIXED-SIZE (F833 wall stays shut) ──
+
+def test_append_is_o1_head_only_fixed_manifest_v12(tmp_path):
+    """The deterministic (non-timing) O(1)-append regression guard. v12 writes a
+    HEAD-ONLY manifest (no per-chromosome ``chromosomes`` / ``regions`` arrays on
+    disk — ADR-0003), so N appends do NOT rewrite an O(n_chromosomes) catalog and
+    the O(N^2) wall (F833) stays closed. Proxy for O(1): manifest.json stays
+    fixed-size as the chromosome count grows, and the arrays are absent on disk."""
+    import json
+    one = _one()
+    g = tmp_path / "g"
+    G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, the_one=one)
+
+    def on_disk():
+        raw = json.loads((g / "manifest.json").read_text("utf-8"))["data"]
+        return (g / "manifest.json").stat().st_size, raw
+
+    sz0, d0 = on_disk()
+    assert "chromosomes" not in d0 and "regions" not in d0   # head-only from the first save
+    assert d0["n_chromosomes"] == 1
+
+    data = G.genome_catalog(g, the_one=one)                  # full derived catalog to thread
+    for k in range(200):
+        data = G.genome_append(g, f"c{k:04d}", _leaves(2), one, catalog=data)  # O(1) threaded
+
+    sz1, d1 = on_disk()
+    assert "chromosomes" not in d1 and "regions" not in d1   # STILL head-only after 200 appends
+    assert d1["n_chromosomes"] == 201
+    # the head is FIXED WIDTH — it does NOT grow with n_chromosomes (only small ints
+    # change; the_one hex + body_sha256 are constant width). This is the O(1) disk write.
+    assert sz1 <= sz0 + 64, (sz0, sz1)
+    # the threaded in-memory catalog is complete, and equals the cold body-derived one.
+    assert len(data["chromosomes"]) == 201
+    cold = G.genome_catalog(g, the_one=one)
+    assert len(cold["chromosomes"]) == 201
+    assert cold["body_sha256"] == data["body_sha256"]        # threaded head == derived head
