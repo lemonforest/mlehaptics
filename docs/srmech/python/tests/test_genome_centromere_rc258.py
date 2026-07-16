@@ -151,13 +151,17 @@ def test_mint_round_trips_through_partition():
         assert len(parts[lbl]) == len(kernels[lbl])        # centromere excluded from leaves
 
 
-def test_genome_is_all_sticks_mint_adds_centromeres():
+def test_plasmid_is_all_sticks_genome_umbrella_picks():
+    # rc260 rename: plasmid() = pure all-sticks; genome() = biology-aware umbrella (picks);
+    # mint() = the explicit alias of genome().
     one = _one()
     kernels = {"note": _leaves(2), "big": _leaves(20)}
+    p = G.plasmid(kernels, one)
     g = G.genome(kernels, one)
     m = G.mint(kernels, one)
-    assert all(G._cap_kind(hv) != G.CENTROMERE_CAP_MARKER for hv in g)
-    assert any(G._cap_kind(hv) == G.CENTROMERE_CAP_MARKER for hv in m)
+    assert all(G._cap_kind(hv) != G.CENTROMERE_CAP_MARKER for hv in p)   # plasmid = all sticks
+    assert any(G._cap_kind(hv) == G.CENTROMERE_CAP_MARKER for hv in g)   # genome umbrella picks
+    assert [x.tobytes() for x in g] == [x.tobytes() for x in m]          # mint == genome (alias)
 
 
 # ── 4. persistence + catalog + format version ───────────────────────────────
