@@ -95,14 +95,16 @@ def test_corpus_native_equals_pure_on_every_object():
         pv = ts._is_zero_interpolation()
         if cv is None:
             # rc255: the native peer DECIDES an all-constant (n_syms == 0) leaf via the
-            # Z5/Z6 constant-leaf certificates (reserved synthetic lift + p slots), so a
-            # decline here is now only the int64-overflow guard (a leaf whose prime-lift
-            # coeff exceeds int64 defers to the arbitrary-precision pure oracle) — sound,
-            # validated by the `ts.is_zero == pure` assert below, and NOT a soundness
-            # violation. Only a decline on an object WITH variables (which native must
-            # decide) is a coverage regression. (Pre-rc254 this path "declined" only by
-            # ACCIDENT — a stale-exps OOB read tripped a false OVERFLOW — which
-            # occasionally became a WRONG verdict instead.)
+            # Z5/Z6 constant-leaf certificates. rc256 moved the prime factoring onto the
+            # bigint CARRIER (srmech_bigint_divmod_small), so the old int64-magnitude
+            # decline is GONE — a decline now needs a coefficient prime factor > 2^16 (an
+            # elliptic-identity coeff, a product of augment primes <= ~617, never reaches
+            # it) or a genuine arena OVERFLOW. Either way it defers to the arbitrary-
+            # precision pure oracle — sound, validated by the `ts.is_zero == pure` assert
+            # below, NOT a soundness violation. Only a decline on an object WITH variables
+            # (which native must decide) is a coverage regression. (Pre-rc254 this path
+            # "declined" only by ACCIDENT — a stale-exps OOB read tripped a false OVERFLOW
+            # — which occasionally became a WRONG verdict instead.)
             _m = ts._is_zero_c_marshal()
             if _m is not None and _m[0] != 0:
                 declines.append(r["test"])
