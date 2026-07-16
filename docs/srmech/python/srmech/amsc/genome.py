@@ -67,7 +67,7 @@ __all__ = [
     "diploid", "recover_diploid",
     "recall",
     "genes",
-    "genome", "partition",
+    "genome", "plasmid", "partition",
     "mint", "mint_plan",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_append_kernel",
@@ -3068,36 +3068,33 @@ def modulator_constraint_satisfies(constraint, candidate_cell_state):
     return _satisfies_full(constraint, candidate_cell_state)
 
 
-def genome(kernels=None, the_one=None, *, chromosomes=None):
-    """Pack many kernels into ONE telomere-partitioned strand — the genome (F715).
+def plasmid(kernels=None, the_one=None, *, chromosomes=None):
+    """Pack many kernels into ONE telomere-partitioned strand of pure STICK chromosomes —
+    biology's plasmid (F715; the rc260 rename of the old ``genome``, §95.2 / #1407).
 
-    The top-level storage object: each ``(label, leaves)`` kernel becomes a
-    telomere-capped :func:`chromosome` (coupled through ``the_one``), and all the
-    chromosomes are concatenated into a single strand — the **chromosome set**.
-    The per-kernel telomere caps delimit + protect the partitions, so one strand
-    holds many kernels (verified in F715: ``astronomy`` / ``geography`` /
-    ``music`` on one strand). Recover any kernel — or all of them — with
-    :func:`partition`.
+    The **all-stick** builder: each ``(label, leaves)`` kernel becomes a telomere-capped
+    Tier-1 stick :func:`chromosome` (append-friendly, NO centromere — biology's small,
+    appendable plasmid), all concatenated into one self-describing strand. This is the
+    explicit "I want plain sticks" constructor; :func:`genome` is the biology-aware umbrella
+    that PICKS stick-vs-minted per kernel (rc260), and :func:`mint` is its explicit alias.
+    Recover with :func:`partition`.
 
     **Single gene per chromosome (F715, unchanged).** Pass ``kernels`` — a mapping
     ``{label: leaves}`` or a sequence of ``(label, leaves)`` pairs (insertion order
-    is the strand order). Returns the flat strand (``list`` of Klein-4 vectors) — a
-    genome strand IS a strand, just with multiple caps.
+    is the strand order). Returns the flat strand (``list`` of Klein-4 vectors).
 
     **Several genes per chromosome that PERSIST (F732/S43.1 / §44).** Pass
     ``chromosomes=[(label, [(gene_label, gene_leaves), …]), …]`` instead of
     ``kernels``: each chromosome becomes a telomere-capped region whose genes are
     opened by fixed-width INLINE :func:`_gene_cap` boundaries (§44). Returns ONE
-    self-describing strand (NO ``gene_index`` sidecar, no 2-tuple — the gene
-    boundaries + labels live INLINE in the strand, recovered by scanning). Persist
-    with ``genome_save(strand, path, the_one)`` and page one chromosome's genes back
-    with :func:`genome_genes` (which scans the region for gene-caps). ``the_one`` is
-    always required.
+    self-describing strand (NO ``gene_index`` sidecar). Persist with
+    ``genome_save(strand, path, the_one)`` and page one chromosome's genes back with
+    :func:`genome_genes`. ``the_one`` is always required.
     """
     if the_one is None:
-        raise ValueError("genome: the_one is required")
+        raise ValueError("plasmid: the_one is required")
     if (kernels is None) == (chromosomes is None):
-        raise ValueError("genome: pass exactly one of kernels= or chromosomes=")
+        raise ValueError("plasmid: pass exactly one of kernels= or chromosomes=")
     if chromosomes is None:
         items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
         # rc198 (#887): DISPATCH the plain multi-kernel assemble to the
@@ -3198,32 +3195,34 @@ def mint_plan(kernels):
     return plan
 
 
-def mint(kernels=None, the_one=None, *, chromosomes=None):
-    """Build a genome, letting the TOOLING pick each chromosome's SHAPE by modeling biology
-    (§95c / F1244 / #1407) — the MINT-vs-APPEND two-tier genome.
+def genome(kernels=None, the_one=None, *, chromosomes=None):
+    """Build a genome — the BIOLOGY-AWARE UMBRELLA that lets the TOOLING pick each
+    chromosome's SHAPE by modeling biology (rc260 rename, §95.2 / §95c / F1244 / #1407).
 
-    Same signature + return as :func:`genome` (a flat telomere-partitioned strand,
-    recovered with :func:`partition`), but per kernel the tooling DECIDES stick-vs-minted
-    (we don't dictate): a PLASMID-scale kernel (tome/mobius, ≤ 4 leaves) stays a **Tier-1
-    STICK** chromosome (append-friendly, no centromere — the same shape :func:`genome`
-    builds); a EUKARYOTIC-CHROMOSOME-scale kernel (quad_strand, ≥ 5 leaves) is **MINTED** as
-    a **Tier-2** chromosome with an interior :func:`centromere` carrying its global
-    orientation (the content-address folded to a Klein-4 sector, :func:`_mint_orientation`).
-    The stick-vs-minted threshold IS :func:`encode_shape`'s attested criterion (F715) — no
-    magic number.
+    ``genome`` is the umbrella noun + the default smart constructor: per kernel the tooling
+    DECIDES stick-vs-minted (we don't dictate) by :func:`encode_shape`'s attested criterion
+    (F715 — no magic number). A PLASMID-scale kernel (tome/mobius, ≤ 4 leaves) stays a
+    **Tier-1 STICK** chromosome (append-friendly, no centromere); a EUKARYOTIC-CHROMOSOME-scale
+    kernel (quad_strand, ≥ 5 leaves) is **MINTED** as a **Tier-2** chromosome with an interior
+    :func:`centromere` carrying its global orientation (content-address folded to a Klein-4
+    sector). Same signature + return as before (a flat telomere-partitioned strand, recovered
+    with :func:`partition`); the READER is format-agnostic (:func:`partition` /
+    :func:`centromere_of` handle either shape).
 
-    So :func:`genome` = all sticks (unchanged, back-compat); :func:`mint` = the tooling
-    picks the shape. See the picks first with :func:`mint_plan`. The ``chromosomes=``
-    multi-gene form is a different structure (genes, not a §95a mint shape) and defers to
-    :func:`genome` (all sticks)."""
+    **rc260 rename (BREAKING — §95.2 feedback 2):** ``genome`` was the pure all-stick builder;
+    it is now the biology-aware umbrella (the old ``mint`` behaviour). For the explicit
+    all-stick build use :func:`plasmid` (biology's plasmid); :func:`mint` is the explicit alias
+    of this umbrella (the structured build). See the per-kernel picks with :func:`mint_plan`.
+    The ``chromosomes=`` multi-gene form is a different structure (genes) and defers to
+    :func:`plasmid`."""
     if the_one is None:
-        raise ValueError("mint: the_one is required")
+        raise ValueError("genome: the_one is required")
     if (kernels is None) == (chromosomes is None):
-        raise ValueError("mint: pass exactly one of kernels= or chromosomes=")
+        raise ValueError("genome: pass exactly one of kernels= or chromosomes=")
     if chromosomes is not None:
         # the multi-gene form is not a §95a mint shape (genes are a different structure);
-        # build it as genome() does (all sticks) — no centromere selection applies.
-        return genome(the_one=the_one, chromosomes=chromosomes)
+        # build it as pure sticks — no centromere selection applies.
+        return plasmid(the_one=the_one, chromosomes=chromosomes)
     items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
     dim = len(list(the_one))
     # §95a/rc258 (#1407): DISPATCH the whole mint assemble to the srmech_genome_mint C peer
@@ -3250,6 +3249,17 @@ def mint(kernels=None, the_one=None, *, chromosomes=None):
         else:
             strand.extend(chromosome(leaves_list, the_one, label=label))
     return strand
+
+
+def mint(kernels=None, the_one=None, *, chromosomes=None):
+    """Explicit alias for :func:`genome` — the biology-aware tooling-picks build (rc260 /
+    §95c / #1407).
+
+    :func:`genome` is the umbrella noun (the default smart constructor); ``mint`` is the
+    explicit "structured build" name for the SAME tooling-picks behaviour (kept for the
+    mint-vs-append vocabulary of F1243/§95c). :func:`plasmid` is the pure all-stick builder.
+    See the per-kernel picks with :func:`mint_plan`. Byte-identical to :func:`genome`."""
+    return genome(kernels, the_one, chromosomes=chromosomes)
 
 
 def partition(strand, the_one, labels=None):

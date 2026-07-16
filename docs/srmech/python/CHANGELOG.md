@@ -11,6 +11,20 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc260]
+
+**Genome API rename — `genome()` is now the biology-aware umbrella; `plasmid()` is the pure all-stick builder (§95.2 feedback 2, #1407). BREAKING for large kernels.** "genome" is the umbrella noun, but it was the *dumb* all-stick builder while `mint()` was the smart one. rc260 fixes that:
+
+- **`genome(kernels, the_one)`** is now the **biology-aware umbrella** — it PICKS each chromosome's shape per kernel (the old `mint()` behaviour): a plasmid-scale kernel (tome/mobius, ≤4 leaves) stays a Tier-1 stick, a eukaryotic-chromosome-scale kernel (quad_strand, ≥5 leaves) is minted with an interior centromere. The threshold is `encode_shape`'s attested criterion (F715, no magic number).
+- **`plasmid(kernels, the_one)`** — the pure all-stick builder (biology's plasmid: small, appendable, no centromere), the OLD `genome()` behaviour, renamed.
+- **`mint()`** — kept as the explicit alias of `genome()` (the "structured build" name; byte-identical).
+
+**Breaking scope is narrow:** `genome()` only *changes* for **≥5-leaf kernels** (they now get a centromere); kernels ≤4 leaves stay sticks exactly as before, so most existing `genome()` calls are byte-identical. Callers that specifically want the all-stick build should use `plasmid()`. **No on-disk-format, C-symbol, or ABI change** — `plasmid()` reuses the existing `srmech_genome_genome` C peer and `genome()`/`mint()` reuse `srmech_genome_mint` (a C host builds all-sticks via `srmech_genome_genome`); genome format stays v14.
+
+**Verified:** the full genome suite passes pure + native (the single behavioural test updated to the new `plasmid`/`genome`/`mint` roles); the new-public-callable ripple for `plasmid` (rosetta / tool-schema / tool-docs / `tools.total` count / both C registries) is green; JPL + pedantic `-Werror` clean.
+
+*(The config-TOML function-aliasing layer from the same review — a `[[alias]]` descriptor binding a user's name to any srmech function — lands next as rc261.)*
+
 ## [0.9.0rc259]
 
 **Genome on-disk format v14 — the §95b DIPLOID pairing primitive (#1407 / F1244): the erasure/break specialist, the second rung of the biology-native genome architecture.** A diploid chromosome (marker `0x44` `'D'`) stores **two homologous copies** of a kernel (maternal | paternal) split by an interior rc258 centromere whose orientation is the **which-template mark** — **2 copies + 1 mark = 3 = the k=3 triality** (F291). It composes the centromere directly: the centromere IS the diploid mark.
