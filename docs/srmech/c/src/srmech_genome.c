@@ -4025,3 +4025,169 @@ srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
     }
     return genome_pack_concat_save(loose_dir, dest, names, n, tw, tl);
 }
+
+/* ------------------------------------------------------------------ *
+ * srmech_graph_kernel_encode / _decode — #1390 item 2.
+ *
+ * The domain-free codec that serialises a sparse SIGNED integer graph
+ * (vocab_size + edge list + int weights[metric] + signed charges + an
+ * optional node_ids label table + extras metadata) into a flat Klein-4
+ * symbol stream {0,1,2,3}, and inverts it BYTE-EXACT. Each int is base-4
+ * digits behind a 2-symbol length header (<= 15 digits = 30 bits); the
+ * charge is Class-K zig-zag encoded. Byte-identical to the pure
+ * genome._graph_ints_to_syms / _graph_syms_to_ints codec. ADDITIVE
+ * symbols — SRMECH_ABI_VERSION stays 5.
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_GK_MAX_DIGITS 15u
+
+/* Class-K zig-zag: signed <-> non-negative (NOT the abs builtin). */
+static uint64_t gk_zig(int64_t n)
+{
+    return (n >= 0) ? ((uint64_t)n << 1)
+                    : (((uint64_t)(-n) << 1) - 1u);
+}
+
+static int64_t gk_unzig(uint64_t z)
+{
+    return ((z & 1u) == 0u) ? (int64_t)(z >> 1)
+                            : -(int64_t)((z + 1u) >> 1);
+}
+
+/* emit one non-negative int as base-4 digits behind a 2-symbol length
+ * header. OVERFLOW if it needs > 15 digits or overruns the buffer. */
+static srmech_status_t gk_emit(uint64_t v, uint8_t *syms, size_t cap,
+                               size_t *io_n)
+{
+    uint8_t digs[SRMECH_GK_MAX_DIGITS];
+    size_t nd = 0;
+    uint64_t x = v;
+    assert(syms != NULL && io_n != NULL);
+    assert(cap >= 2u);
+    for (;;) {
+        if (nd >= SRMECH_GK_MAX_DIGITS) { return SRMECH_ERR_OVERFLOW; }
+        digs[nd] = (uint8_t)(x & 3u);
+        nd += 1u;
+        x >>= 2;
+        if (x == 0u) { break; }
+    }
+    if (*io_n + 2u + nd > cap) { return SRMECH_ERR_OVERFLOW; }
+    syms[*io_n] = (uint8_t)(nd & 3u);
+    syms[*io_n + 1u] = (uint8_t)((nd >> 2) & 3u);
+    *io_n += 2u;
+    for (size_t k = 0; k < nd; k++) { syms[*io_n + k] = digs[k]; }
+    *io_n += nd;
+    return SRMECH_OK;
+}
+
+/* read one int from syms at *io_i (2-sym header + base-4 digits); sets
+ * *ok = 0 (returns 0) on exhausted / malformed / already-failed stream. */
+static uint64_t gk_read(const uint8_t *syms, size_t n, size_t *io_i, int *ok)
+{
+    size_t i = *io_i;
+    size_t ln;
+    uint64_t v = 0;
+    assert(syms != NULL || n == 0u);
+    assert(io_i != NULL && ok != NULL);
+    if (*ok == 0 || i + 2u > n) { *ok = 0; return 0; }
+    ln = (size_t)syms[i] + ((size_t)syms[i + 1u] << 2);
+    i += 2u;
+    if (ln == 0u || i + ln > n) { *ok = 0; return 0; }
+    for (size_t k = 0; k < ln; k++) { v |= (uint64_t)syms[i + k] << (2u * k); }
+    *io_i = i + ln;
+    return v;
+}
+
+srmech_status_t srmech_graph_kernel_encode(
+    uint64_t vocab_size,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    const uint64_t *node_ids, size_t n_nid,
+    const uint64_t *extras, size_t n_ex,
+    uint8_t *out_syms, size_t syms_cap, size_t *out_n_syms)
+{
+    srmech_status_t st;
+    size_t w = 0;
+    assert(out_syms != NULL && out_n_syms != NULL);
+    assert((edge_i != NULL && edge_j != NULL) || n_edges == 0u);
+    if (out_syms == NULL || out_n_syms == NULL ||
+        ((edge_i == NULL || edge_j == NULL || weights == NULL) && n_edges > 0u) ||
+        (node_ids == NULL && n_nid > 0u) || (extras == NULL && n_ex > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    st = gk_emit(vocab_size, out_syms, syms_cap, &w);
+    if (st != SRMECH_OK) { return st; }
+    st = gk_emit((uint64_t)n_nid, out_syms, syms_cap, &w);
+    if (st != SRMECH_OK) { return st; }
+    for (size_t k = 0; k < n_nid; k++) {
+        st = gk_emit(node_ids[k], out_syms, syms_cap, &w);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = gk_emit((uint64_t)n_ex, out_syms, syms_cap, &w);
+    if (st != SRMECH_OK) { return st; }
+    for (size_t k = 0; k < n_ex; k++) {
+        st = gk_emit(extras[k], out_syms, syms_cap, &w);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = gk_emit((uint64_t)n_edges, out_syms, syms_cap, &w);
+    if (st != SRMECH_OK) { return st; }
+    for (size_t k = 0; k < n_edges; k++) {
+        st = gk_emit(edge_i[k], out_syms, syms_cap, &w);
+        if (st != SRMECH_OK) { return st; }
+        st = gk_emit(edge_j[k], out_syms, syms_cap, &w);
+        if (st != SRMECH_OK) { return st; }
+        st = gk_emit(weights[k], out_syms, syms_cap, &w);
+        if (st != SRMECH_OK) { return st; }
+        st = gk_emit(gk_zig(charges != NULL ? charges[k] : 0), out_syms,
+                     syms_cap, &w);
+        if (st != SRMECH_OK) { return st; }
+    }
+    *out_n_syms = w;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_graph_kernel_decode(
+    const uint8_t *syms, size_t n_syms,
+    uint64_t *out_vocab_size,
+    uint64_t *out_edge_i, uint64_t *out_edge_j,
+    uint64_t *out_weights, int64_t *out_charges, size_t edge_cap,
+    size_t *out_n_edges,
+    uint64_t *out_node_ids, size_t nid_cap, size_t *out_n_nid,
+    uint64_t *out_extras, size_t ex_cap, size_t *out_n_ex)
+{
+    size_t i = 0;
+    int ok = 1;
+    uint64_t n_nid, n_ex, n_edges;
+    assert(syms != NULL || n_syms == 0u);
+    assert(out_vocab_size != NULL && out_n_edges != NULL);
+    if (out_vocab_size == NULL || out_edge_i == NULL || out_edge_j == NULL ||
+        out_weights == NULL || out_charges == NULL || out_n_edges == NULL ||
+        out_node_ids == NULL || out_n_nid == NULL || out_extras == NULL ||
+        out_n_ex == NULL || (syms == NULL && n_syms > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    *out_vocab_size = gk_read(syms, n_syms, &i, &ok);
+    n_nid = gk_read(syms, n_syms, &i, &ok);
+    if (!ok || n_nid > nid_cap) { return SRMECH_ERR_BAD_INPUT; }
+    for (size_t k = 0; k < n_nid; k++) {
+        out_node_ids[k] = gk_read(syms, n_syms, &i, &ok);
+    }
+    n_ex = gk_read(syms, n_syms, &i, &ok);
+    if (!ok || n_ex > ex_cap) { return SRMECH_ERR_BAD_INPUT; }
+    for (size_t k = 0; k < n_ex; k++) {
+        out_extras[k] = gk_read(syms, n_syms, &i, &ok);
+    }
+    n_edges = gk_read(syms, n_syms, &i, &ok);
+    if (!ok || n_edges > edge_cap) { return SRMECH_ERR_BAD_INPUT; }
+    for (size_t k = 0; k < n_edges; k++) {
+        out_edge_i[k] = gk_read(syms, n_syms, &i, &ok);
+        out_edge_j[k] = gk_read(syms, n_syms, &i, &ok);
+        out_weights[k] = gk_read(syms, n_syms, &i, &ok);
+        out_charges[k] = gk_unzig(gk_read(syms, n_syms, &i, &ok));
+    }
+    if (!ok) { return SRMECH_ERR_BAD_INPUT; }
+    *out_n_nid = (size_t)n_nid;
+    *out_n_ex = (size_t)n_ex;
+    *out_n_edges = (size_t)n_edges;
+    return SRMECH_OK;
+}

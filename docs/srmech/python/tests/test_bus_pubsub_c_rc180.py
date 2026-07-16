@@ -24,26 +24,26 @@ proving behavior parity with the Python ``broadcast`` / ``subscribe`` /
 ``pipe``. The full ASAN/UBSAN + ThreadSanitizer (NO DATA RACES) coverage is the
 ephemeral WSL /tmp C driver at build time (see the rc180 CHANGELOG).
 
-**Platform scope — pub/sub is POSIX-first (Windows is a follow-up).** The tests
-that DRIVE the C pub/sub server (``pubsub_accept`` / ``broadcast`` /
-``subscribe``) are POSIX-only. The Windows PAL transport is a NAMED PIPE whose
-instance is created lazily inside ``accept`` (POSIX ``listen`` pre-binds), and a
-synchronous ``ConnectNamedPipe`` is not reliably woken by ``CloseHandle`` from
-another thread — so on Windows a ``pubsub_accept`` with no connected client (or
-a client that raced ahead of the lazy instance) can block indefinitely, and
-teardown cannot deterministically wake it. A correct Windows pub/sub server
-(overlapped ``ConnectNamedPipe`` + a stop-event, or pre-created instances + a
-self-connect wake) needs Windows-CI verification and is a documented follow-up
-rc. Until then these tests SKIP on Windows (they never hang); the C symbols
-still build on Windows and ``pipe`` stays ``composes_c`` on the platforms where
-the server runs. The req/rep + encrypted transport (rc2 / rc179) are unaffected.
+**Platform scope — the pub/sub server now runs on Windows (rc239).** These
+tests DRIVE the C pub/sub server (``pubsub_accept`` / ``broadcast`` /
+``subscribe``) on EVERY platform. rc180 had skipped them on Windows because the
+named-pipe transport created its instance lazily inside ``accept`` (POSIX
+``listen`` pre-binds), so a client that raced ahead of the lazy instance got
+``ERROR_FILE_NOT_FOUND`` and gave up, leaving the server blocked forever in a
+synchronous ``ConnectNamedPipe`` that ``CloseHandle`` from another thread cannot
+cancel. rc239 (``c/src/srmech_platform.c``) fixes both: ``listen`` PRE-CREATES
+the pipe instance (mirrors POSIX pre-bind → closes the accept-race), ``accept``
+uses an OVERLAPPED ``ConnectNamedPipe`` waited alongside a per-server STOP-EVENT
+(so ``server_close`` wakes a blocked accept), and read/write go through a
+uniform overlapped-capable helper. Verified on native Windows (these 3 tests +
+a req/rep round-trip, ``test_bus_server_windows_rc239.py``). The req/rep +
+encrypted transport (rc2 / rc179) are unaffected.
 
 numpy-free (ctypes + threading only).
 """
 from __future__ import annotations
 
 import ctypes
-import sys
 import threading
 import time
 import uuid
@@ -57,28 +57,20 @@ _NATIVE = _native.HAS_NATIVE
 requires_native = pytest.mark.skipif(
     not _NATIVE, reason="native bus C peer not loaded")
 
-# The pub/sub SERVER (pubsub_accept / broadcast / subscribe round-trips) is
-# POSIX-first — see the module docstring. Windows named-pipe accept/teardown is
-# a verified follow-up; these tests SKIP there rather than risk the hang.
-posix_only = pytest.mark.skipif(
-    sys.platform.startswith("win"),
-    reason="pub/sub C server is POSIX-first; Windows named-pipe accept/teardown "
-           "is a follow-up rc (rc180 does not drive the C bus on Windows)",
-)
-
 
 # ──────────────────────────────────────────────────────────────────────
 # Surface: the new pub/sub symbols + the ABI 3 → 4 bump
 # ──────────────────────────────────────────────────────────────────────
 
 @requires_native
-def test_abi_is_4():
-    """The pub/sub subscriber-delivery callback typedef bumped ABI 3 → 4."""
-    assert _native.NATIVE_ABI_VERSION == 4, (
-        f"ABI must be 4 (rc180 pub/sub callback typedef); "
+def test_abi_is_5():
+    """The pub/sub subscriber-delivery callback typedef bumped ABI 3 → 4;
+    the rc242 progress-callback typedef bumped it 4 → 5 (#840)."""
+    assert _native.NATIVE_ABI_VERSION == 5, (
+        f"ABI must be 5 (rc242 progress-callback typedef); "
         f"got {_native.NATIVE_ABI_VERSION}"
     )
-    assert _native.EXPECTED_ABI_VERSION == 4
+    assert _native.EXPECTED_ABI_VERSION == 5
 
 
 @requires_native
@@ -150,7 +142,6 @@ def _wait_count(lib, srv, target, *, timeout_s=5.0):
 
 
 @requires_native
-@posix_only
 def test_pubsub_broadcast_roundtrip():
     """Two subscribers BOTH receive every broadcast in order; a late subscriber
     misses the pre-subscribe message. Mirrors Python Endpoint.broadcast +
@@ -213,7 +204,6 @@ def test_pubsub_broadcast_roundtrip():
 
 
 @requires_native
-@posix_only
 def test_pubsub_unsubscribe_drops_subscriber():
     """After a subscriber unsubscribes (cb non-OK → closes), the next broadcast
     fails to write to it and the server DROPS it from the registry."""
@@ -259,7 +249,6 @@ def test_pubsub_unsubscribe_drops_subscriber():
 
 
 @requires_native
-@posix_only
 def test_server_stop_terminates_midrecv_subscriber():
     """Teardown-terminates guard: a subscriber blocked MID-recv (no broadcast is
     ever sent, and its callback never unsubscribes) must be woken by

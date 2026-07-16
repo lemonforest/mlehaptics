@@ -86,6 +86,7 @@ def _schema_from_jsonable(d: dict) -> ToolSchema:
             name=t["name"], owner=t["owner"], category=t["category"],
             summary=t["summary"], parameters=params, returns=returns,
             smoke_test_hint=t.get("smoke_test_hint"), example=t.get("example"),
+            explanation=t.get("explanation"),
             mcp_callable=t.get("mcp_callable", True),
             mcp_unavailable_reason=t.get("mcp_unavailable_reason"),
         ))

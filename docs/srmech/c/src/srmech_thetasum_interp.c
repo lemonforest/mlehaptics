@@ -897,20 +897,18 @@ static srmech_status_t ti_expand_split(ti_ctx_t *c, ti_frame_t *fr, size_t max_t
 #define TI_Z5_MAX_PRIMES 16
 #define TI_Z5_PRIME_CAP  32
 
-/* Read bigint b as an int64 into *out; return 1 iff it fits [INT64_MIN, INT64_MAX]. */
-static int ti_bi_to_i64(const srmech_bigint_t *b, int64_t *out)
-{
-    uint64_t mag;
-    assert(b != NULL && out != NULL);
-    assert(b->limbs != NULL || b->n == 0u);
-    if (b->n == 0u) { *out = 0; return 1; }
-    if (b->n == 1u) { mag = (uint64_t)b->limbs[0]; }
-    else if (b->n == 2u) { mag = (uint64_t)b->limbs[0] | ((uint64_t)b->limbs[1] << 32); }
-    else { return 0; }
-    if (mag > (uint64_t)INT64_MAX) { return 0; }
-    *out = (b->sign < 0) ? -(int64_t)mag : (int64_t)mag;
-    return 1;
-}
+/* The theta-constant-leaf Z5/Z6 certificates factor the leaf coefficients to find the
+ * primes to lift. rc256 factors the srmech_bigint COEFF CARRIER directly (via
+ * srmech_bigint_divmod_small) -- NOT an int64 downcast -- so an arbitrarily large
+ * coefficient MAGNITUDE is handled and the peer is C-standalone-COMPLETE (no value-
+ * domain decline). A microbenchmark (rc256) confirmed the carrier path is speed-
+ * identical to the retired int64 downcast (the factor/lift cost is negligible next to
+ * the +/- pair reduction), so the single carrier path replaced both.
+ * `d` beyond this in the trial-division declines a coeff with a prime factor > 2^16 (a
+ * JPL-bounded loop; a u32-fitting leftover after this sweep is provably prime, since any
+ * composite < 2^32 has a factor <= 2^16). Elliptic-identity coeffs are products of the
+ * interpolation augment primes (<= ~617), two orders below this -- so no leaf declines. */
+#define TI_PRIME_TRIAL_CAP 65536u
 
 /* Insert prime p ASCENDING + deduplicated into prm[0..*n) (keeps the smallest
  * TI_Z5_PRIME_CAP; a duplicate or an over-cap larger prime is ignored). */
@@ -928,117 +926,180 @@ static void ti_prime_insert(int64_t *prm, size_t *n, int64_t p)
     prm[i] = p;
 }
 
-/* Trial-divide the magnitude of int64 v (v != 0) collecting its distinct prime
- * factors into prm (mirrors _leaf_prime_set: d = 2,3,... while d*d <= mag). */
-static void ti_collect_i64_primes(int64_t v, int64_t *prm, size_t *n)
+/* ---- rc256: the theta-constant-leaf prime path (carrier-native) -------------- *
+ * Factor the srmech_bigint COEFF CARRIER directly (srmech_bigint_divmod_small), so an
+ * arbitrarily large coefficient MAGNITUDE is handled with NO int64 downcast and NO
+ * value-domain decline -- the peer decides every leaf whose prime factors are <=
+ * TI_PRIME_TRIAL_CAP (elliptic coeffs are products of augment primes <= ~617). */
+
+/* True iff |a| >= q (a bignum magnitude vs a u64; sign-blind). */
+static int ti_bi_ge_u64(const srmech_bigint_t *a, uint64_t q)
 {
-    int64_t mag = (v < 0) ? -v : v;                    /* Class-K magnitude, no abs()  */
-    int64_t d = 2;
-    assert(prm != NULL && n != NULL);
-    assert(v != 0);
-    while (d <= mag / d) {                              /* d*d <= mag, overflow-safe    */
-        if (mag % d == 0) {
-            ti_prime_insert(prm, n, d);
-            while (mag % d == 0) { mag /= d; }
+    uint64_t mag;
+    assert(a != NULL);
+    assert(a->limbs != NULL || a->n == 0u);
+    if (a->n > 2u) { return 1; }                       /* >= 2^64 > any u64 q         */
+    mag = (a->n >= 1u) ? (uint64_t)a->limbs[0] : 0u;
+    if (a->n == 2u) { mag |= ((uint64_t)a->limbs[1]) << 32; }
+    return mag >= q;
+}
+
+/* Trial-divide |a| (bignum, a != 0) collecting distinct prime factors into prm via
+ * srmech_bigint_divmod_small. `mag`/`quo` are two caller-bound scratch bignums.
+ * *decline = 1 ONLY on a prime factor beyond TI_PRIME_TRIAL_CAP that does not fit u32
+ * (a case elliptic coeffs never reach) -> defer to pure. Mirrors _leaf_prime_set. */
+static srmech_status_t ti_collect_coeff_primes(const srmech_bigint_t *a, int64_t *prm,
+                                            size_t *n, int *decline, srmech_bigint_t *mag,
+                                            srmech_bigint_t *quo)
+{
+    uint32_t d = 2u;
+    srmech_status_t st;
+    assert(a != NULL && prm != NULL && n != NULL && decline != NULL);
+    assert(mag != NULL && quo != NULL);
+    st = srmech_bigint_copy(mag, a);
+    if (st != SRMECH_OK) { return st; }
+    if (mag->n > 0u) { mag->sign = 1; }                /* Class-K magnitude, no abs() */
+    while (d <= TI_PRIME_TRIAL_CAP && ti_bi_ge_u64(mag, (uint64_t)d * (uint64_t)d)) {
+        uint32_t rem = 0u;
+        st = srmech_bigint_divmod_small(quo, &rem, mag, d);
+        if (st != SRMECH_OK) { return st; }
+        if (rem == 0u) {
+            ti_prime_insert(prm, n, (int64_t)d);
+            do {                                       /* divide d out fully           */
+                srmech_bigint_t t = *mag; *mag = *quo; *quo = t;   /* mag <- mag / d    */
+                st = srmech_bigint_divmod_small(quo, &rem, mag, d);
+                if (st != SRMECH_OK) { return st; }
+            } while (rem == 0u);
         }
         d++;
     }
-    if (mag > 1) { ti_prime_insert(prm, n, mag); }
+    if (mag->n > 1u) { *decline = 1; return SRMECH_OK; }         /* prime factor > u32 */
+    if (mag->n == 1u && mag->limbs[0] > 1u) {                    /* prime leftover     */
+        ti_prime_insert(prm, n, (int64_t)mag->limbs[0]);
+    }
+    return SRMECH_OK;
 }
 
-/* Collect one monomial's num + den prime factors; *decline = 1 iff a coeff > int64. */
-static void ti_collect_mono_primes(const ti_mono_t *m, int64_t *prm, size_t *n,
-                                   int *decline)
+/* Collect one monomial's num + den prime factors (bignum). */
+static srmech_status_t ti_collect_mono_primes(const ti_mono_t *m, int64_t *prm,
+                                                 size_t *n, int *decline,
+                                                 srmech_bigint_t *mag, srmech_bigint_t *quo)
 {
-    int64_t v;
+    srmech_status_t st;
     assert(m != NULL && prm != NULL && n != NULL && decline != NULL);
-    assert(m->coeff.num.limbs != NULL || m->coeff.num.n == 0u);
-    if (!ti_bi_to_i64(&m->coeff.num, &v)) { *decline = 1; return; }
-    if (v != 0) { ti_collect_i64_primes(v, prm, n); }
-    if (!ti_bi_to_i64(&m->coeff.den, &v)) { *decline = 1; return; }
-    if (v != 0) { ti_collect_i64_primes(v, prm, n); }
+    assert(mag != NULL && quo != NULL);
+    if (!srmech_bigint_is_zero(&m->coeff.num)) {
+        st = ti_collect_coeff_primes(&m->coeff.num, prm, n, decline, mag, quo);
+        if (st != SRMECH_OK || *decline) { return st; }
+    }
+    if (!srmech_bigint_is_zero(&m->coeff.den)) {
+        st = ti_collect_coeff_primes(&m->coeff.den, prm, n, decline, mag, quo);
+        if (st != SRMECH_OK || *decline) { return st; }
+    }
+    return SRMECH_OK;
 }
 
-/* Collect the distinct primes across every coeff (pref + theta args) of the leaf
- * terms into prm; *decline = 1 iff any coeff exceeds int64 (-> the pure oracle). */
-static void ti_leaf_collect_primes(const ti_term_t *terms,
-                                   size_t n_terms, int64_t *prm, size_t *n_prm,
-                                   int *decline)
+/* Collect the distinct primes across every coeff of the leaf terms (bignum path). */
+static srmech_status_t ti_collect_leaf_primes(ti_ctx_t *c, const ti_term_t *terms,
+                                                 size_t n_terms, int64_t *prm,
+                                                 size_t *n_prm, int *decline)
 {
     size_t ti;
     size_t a;
-    assert(terms != NULL && prm != NULL);
+    size_t mark;
+    srmech_bigint_t mag;
+    srmech_bigint_t quo;
+    srmech_status_t st;
+    assert(c != NULL && terms != NULL && prm != NULL);
     assert(n_prm != NULL && decline != NULL);
     *n_prm = 0;
     *decline = 0;
+    mark = c->pool_cur;
+    st = ti_bind_bi(c, &mag);
+    if (st == SRMECH_OK) { st = ti_bind_bi(c, &quo); }
+    if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
     for (ti = 0; ti < n_terms; ti++) {
-        ti_collect_mono_primes(&terms[ti].pref, prm, n_prm, decline);
-        if (*decline) { return; }
+        st = ti_collect_mono_primes(&terms[ti].pref, prm, n_prm, decline, &mag, &quo);
+        if (st != SRMECH_OK || *decline) { c->pool_cur = mark; return st; }
         for (a = 0; a < terms[ti].n_thetas; a++) {
-            ti_collect_mono_primes(&terms[ti].targs[a], prm, n_prm, decline);
-            if (*decline) { return; }
+            st = ti_collect_mono_primes(&terms[ti].targs[a], prm, n_prm, decline,
+                                           &mag, &quo);
+            if (st != SRMECH_OK || *decline) { c->pool_cur = mark; return st; }
         }
     }
+    c->pool_cur = mark;
+    return SRMECH_OK;
 }
 
-/* dst := src with `prime` factored out of the int64 coeff (num/den) and its net
- * valuation added to exps[lv] (mirrors _lift_prime_terms's lift_mono). *ok = 0
- * (decline) iff a coeff exceeds int64. */
+/* dst := src with `prime` factored out of the bignum coeff (num/den) into exps[lv].
+ * `quo` is a caller-bound scratch bignum. No int64 downcast -> no decline. */
 static srmech_status_t ti_lift_mono(ti_ctx_t *c, ti_mono_t *dst, const ti_mono_t *src,
-                                    int64_t prime, int lv, int *ok)
+                                       uint32_t prime, int lv, srmech_bigint_t *quo)
 {
-    int64_t num;
-    int64_t den;
     int32_t e = 0;
+    uint32_t rem = 0u;
     srmech_status_t st;
-    assert(c != NULL && dst != NULL && src != NULL && ok != NULL);
-    assert(prime >= 2 && lv >= 0);
-    *ok = 1;
+    assert(c != NULL && dst != NULL && src != NULL && quo != NULL);
+    assert(prime >= 2u && lv >= 0);
     st = ti_mono_copy(c, dst, src);                    /* copies coeff + exps          */
     if (st != SRMECH_OK) { return st; }
-    if (!ti_bi_to_i64(&src->coeff.num, &num) || !ti_bi_to_i64(&src->coeff.den, &den)) {
-        *ok = 0; return SRMECH_OK;
+    for (;;) {                                          /* factor prime out of num      */
+        st = srmech_bigint_divmod_small(quo, &rem, &dst->coeff.num, prime);
+        if (st != SRMECH_OK) { return st; }
+        if (rem != 0u) { break; }
+        st = srmech_bigint_copy(&dst->coeff.num, quo);
+        if (st != SRMECH_OK) { return st; }
+        e++;
     }
-    while (num != 0 && num % prime == 0) { num /= prime; e++; }   /* + from numerator  */
-    while (den != 0 && den % prime == 0) { den /= prime; e--; }   /* - from denominator */
-    st = srmech_bigint_set_i64(&dst->coeff.num, num);
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_set_i64(&dst->coeff.den, den);
-    if (st != SRMECH_OK) { return st; }
+    for (;;) {                                          /* factor prime out of den      */
+        st = srmech_bigint_divmod_small(quo, &rem, &dst->coeff.den, prime);
+        if (st != SRMECH_OK) { return st; }
+        if (rem != 0u) { break; }
+        st = srmech_bigint_copy(&dst->coeff.den, quo);
+        if (st != SRMECH_OK) { return st; }
+        e--;
+    }
     dst->exps[lv] += e;
     return SRMECH_OK;
 }
 
-/* Build the prime-`prime` lift of `in`[0..n_terms) into `out` (caller-bound),
- * lifting every coeff into slot lv. *ok = 0 (decline) iff a coeff exceeds int64. */
+/* Build the prime-`prime` lift of `in`[0..n_terms) into `out` (bignum path). *ok = 1
+ * always (the carrier holds any magnitude); the signature matches the int64 peer so
+ * the driver call is uniform. */
 static srmech_status_t ti_lift_terms(ti_ctx_t *c, ti_term_t *out, const ti_term_t *in,
-                                     size_t n_terms, int64_t prime, int lv, int *ok)
+                                        size_t n_terms, int64_t prime, int lv, int *ok)
 {
     size_t i;
     size_t a;
+    size_t mark;
+    srmech_bigint_t quo;
     srmech_status_t st;
     assert(c != NULL && out != NULL && in != NULL && ok != NULL);
     assert(prime >= 2 && lv >= 0);
     *ok = 1;
+    mark = c->pool_cur;
+    st = ti_bind_bi(c, &quo);
+    if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
     for (i = 0; i < n_terms; i++) {
-        st = ti_lift_mono(c, &out[i].pref, &in[i].pref, prime, lv, ok);
-        if (st != SRMECH_OK || !*ok) { return st; }
+        st = ti_lift_mono(c, &out[i].pref, &in[i].pref, (uint32_t)prime, lv, &quo);
+        if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
         for (a = 0; a < in[i].n_thetas; a++) {
-            st = ti_lift_mono(c, &out[i].targs[a], &in[i].targs[a], prime, lv, ok);
-            if (st != SRMECH_OK || !*ok) { return st; }
+            st = ti_lift_mono(c, &out[i].targs[a], &in[i].targs[a], (uint32_t)prime,
+                                 lv, &quo);
+            if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
         }
         out[i].n_thetas = in[i].n_thetas;
     }
+    c->pool_cur = mark;
     return SRMECH_OK;
 }
-
 /* The Z5 driver: try each present prime lift into a free slot; *proved = 1 on the
  * first lift the exact +/- pair reduction closes to empty (a genuine ZERO cert).
- * A coeff beyond int64 makes Z5 not-applicable at this leaf (*proved stays 0 --
- * SOUND, never a false zero; the pure oracle covers it). Transient: each attempt
- * above an arena mark, released before the next. */
+ * A coeff beyond int64 makes Z5 not-applicable at this leaf (*decline_out = 1 -> the
+ * pure oracle; SOUND -- never a false zero). Transient: each attempt above an arena
+ * mark, released before the next. */
 static srmech_status_t ti_z5_leaf(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
-                                  ti_rt_t *rt, int *proved)
+                                  ti_rt_t *rt, int *proved, int *decline_out)
 {
     int64_t prm[TI_Z5_PRIME_CAP];
     size_t n_prm = 0;
@@ -1047,16 +1108,18 @@ static srmech_status_t ti_z5_leaf(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas
     int lv = -1;
     int decline = 0;
     srmech_status_t st;
-    assert(c != NULL && fr != NULL && rt != NULL && proved != NULL);
+    assert(c != NULL && fr != NULL && rt != NULL && proved != NULL && decline_out != NULL);
     assert(fr->terms != NULL && fr->n_terms >= 1u);
     *proved = 0;
+    *decline_out = 0;
     if (fr->n_terms < 2u) { return SRMECH_OK; }        /* Z5 needs cancellation        */
     for (j = 0; j < c->n_syms; j++) {                  /* first unused non-p lift slot */
         if ((int)j != rt->s.psym && !rt->s.present[j]) { lv = (int)j; break; }
     }
     if (lv < 0) { return SRMECH_OK; }                  /* no free slot -> cannot lift  */
-    ti_leaf_collect_primes(fr->terms, fr->n_terms, prm, &n_prm, &decline);
-    if (decline) { return SRMECH_OK; }                 /* coeff > int64 -> Z5 N/A here */
+    st = ti_collect_leaf_primes(c, fr->terms, fr->n_terms, prm, &n_prm, &decline);
+    if (st != SRMECH_OK) { return st; }
+    if (decline) { *decline_out = 1; return SRMECH_OK; }  /* coeff factor > u32 -> pure */
     for (k = 0; k < n_prm && k < (size_t)TI_Z5_MAX_PRIMES; k++) {
         size_t mark = c->pool_cur;
         ti_frame_t lf;
@@ -1078,6 +1141,145 @@ static srmech_status_t ti_z5_leaf(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas
         }
         c->pool_cur = mark;
         if (pv) { *proved = 1; return SRMECH_OK; }
+    }
+    return SRMECH_OK;
+}
+
+/* ---- Z6: the theta-constant-leaf multi-prime COLLAPSE / re-grading cert (rc255) - *
+ * The rank->=2 theta-constant leaf carries TWO OR MORE INDEPENDENT three-term seams
+ * (a sum of three-term identities over disjoint prime alphabets); Z5's single-prime
+ * lift frees only ONE seam and DECLINES. Z6 searches a BOUNDED family of value-
+ * preserving re-gradings: lift a SUBSET S (size 2..TI_Z6_MAX_SUBSET) of the leaf's
+ * distinct primes SIMULTANEOUSLY, each to its own free elliptic slot (the un-lifted
+ * primes stay the constant partner pairs), then close the joint lifted object by the
+ * EXACT Weierstrass +/- pair reduction (ti_pair_reduce). ANY subset that closes to
+ * the empty normal form proves leaf = L(S := primes) == 0 by SPECIALIZATION (a
+ * specialization of an identically-zero elliptic function is zero -- a THEOREM, never
+ * a numeric band): Z6 emits ONLY ZERO verdicts, never a nonzero claim. BOUNDED /
+ * JPL-safe: <= TI_Z6_MAX_ATTEMPTS bounded reductions, subset <= TI_Z6_MAX_SUBSET over
+ * the first TI_Z6_MAX_PRIMES primes, no interpolation, no recursion -> cannot loop.
+ * The 1:1 mirror of thetasum._z6_theta_constant_zero (SAME bounds + combination
+ * order); the pure oracle covers any leaf whose coeff exceeds int64 (*decline_out). */
+#define TI_Z6_MAX_PRIMES  12
+#define TI_Z6_MAX_SUBSET  3
+#define TI_Z6_MAX_ATTEMPTS 512
+
+/* Advance `combo` (an ascending r-subset of {0..n-1}) to the next combination in
+ * itertools.combinations lexicographic order. Returns 1 on advance, 0 when the last
+ * combination (n-r, .., n-1) is passed. Requires n >= r. */
+static int ti_next_combination(size_t *combo, size_t r, size_t n)
+{
+    size_t i = r;
+    assert(combo != NULL);
+    assert(n >= r);
+    while (i > 0u) {
+        i--;
+        if (combo[i] < n - r + i) {
+            size_t j;
+            combo[i]++;
+            for (j = i + 1u; j < r; j++) { combo[j] = combo[j - 1u] + 1u; }
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/* One Z6 attempt: chain-lift primes prm[combo[0..r)] into slots lift_slots[0..r)
+ * (distinct primes commute, so r sequential single-prime lifts == the simultaneous
+ * lift), then try the +/- pair reduction over the joint lifted variable set.
+ * *proved = 1 iff the reduction closes to empty; *decline = 1 iff a coeff exceeds
+ * int64 (-> the pure oracle). Transient: everything above `mark`, released here. */
+static srmech_status_t ti_z6_try(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
+                                 ti_rt_t *rt, const int64_t *prm, const size_t *combo,
+                                 const int *lift_slots, size_t r, int *proved,
+                                 int *decline)
+{
+    size_t mark = c->pool_cur;
+    ti_term_t *cur = fr->terms;
+    size_t n_terms = fr->n_terms;
+    size_t k;
+    int ok = 1;
+    int pv = 0;
+    ti_frame_t lf;
+    srmech_status_t st = SRMECH_OK;
+    assert(c != NULL && fr != NULL && rt != NULL);
+    assert(prm != NULL && combo != NULL && lift_slots != NULL);
+    assert(proved != NULL && decline != NULL);
+    assert(r >= 2u && r <= (size_t)TI_Z6_MAX_SUBSET);
+    *proved = 0;
+    *decline = 0;
+    for (k = 0; k < r; k++) {                           /* chained simultaneous lift    */
+        ti_term_t *nxt = NULL;
+        st = ti_bind_term_arr(c, &nxt, n_terms, max_thetas);
+        if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
+        st = ti_lift_terms(c, nxt, cur, n_terms, prm[combo[k]], lift_slots[k], &ok);
+        if (st != SRMECH_OK) { c->pool_cur = mark; return st; }
+        if (!ok) { *decline = 1; c->pool_cur = mark; return SRMECH_OK; }
+        cur = nxt;
+    }
+    memset(&lf, 0, sizeof(lf));
+    lf.terms = cur;
+    lf.n_terms = n_terms;
+    for (k = 0; k < r; k++) { rt->s.present[lift_slots[k]] = 1; }
+    st = ti_pair_reduce(c, &lf, max_thetas, rt, &pv);
+    for (k = 0; k < r; k++) { rt->s.present[lift_slots[k]] = 0; }
+    c->pool_cur = mark;
+    if (st != SRMECH_OK) { return st; }
+    *proved = pv;
+    return SRMECH_OK;
+}
+
+/* The Z6 driver: enumerate every subset S (size 2..min(TI_Z6_MAX_SUBSET, #free slots,
+ * #primes)) of the leaf's first TI_Z6_MAX_PRIMES distinct primes and try each as a
+ * re-grading (ti_z6_try). *proved = 1 on the first subset that closes to empty;
+ * *decline_out = 1 on an int64-overflow coeff (-> pure). Bounded by TI_Z6_MAX_ATTEMPTS
+ * (JPL cap). Mirror of thetasum._z6_theta_constant_zero. */
+static srmech_status_t ti_z6_leaf(ti_ctx_t *c, ti_frame_t *fr, size_t max_thetas,
+                                  ti_rt_t *rt, int *proved, int *decline_out)
+{
+    int64_t prm[TI_Z5_PRIME_CAP];
+    size_t n_prm = 0;
+    int lift_slots[TI_Z6_MAX_SUBSET];
+    size_t n_slots = 0;
+    size_t j;
+    size_t np;
+    size_t upper;
+    size_t r;
+    int decline = 0;
+    long attempts = 0;
+    srmech_status_t st;
+    assert(c != NULL && fr != NULL && rt != NULL && proved != NULL && decline_out != NULL);
+    assert(fr->terms != NULL && fr->n_terms >= 1u);
+    *proved = 0;
+    *decline_out = 0;
+    if (fr->n_terms < 2u) { return SRMECH_OK; }        /* Z6 needs cancellation        */
+    for (j = 0; j < c->n_syms && n_slots < (size_t)TI_Z6_MAX_SUBSET; j++) {
+        if ((int)j != rt->s.psym && !rt->s.present[j]) {
+            lift_slots[n_slots++] = (int)j;             /* free non-p lift slots         */
+        }
+    }
+    if (n_slots < 2u) { return SRMECH_OK; }            /* a >=2 subset needs >=2 slots  */
+    st = ti_collect_leaf_primes(c, fr->terms, fr->n_terms, prm, &n_prm, &decline);
+    if (st != SRMECH_OK) { return st; }
+    if (decline) { *decline_out = 1; return SRMECH_OK; }  /* coeff factor > u32 -> pure */
+    if (n_prm < 2u) { return SRMECH_OK; }              /* a >=2 subset needs >=2 primes */
+    np = (n_prm < (size_t)TI_Z6_MAX_PRIMES) ? n_prm : (size_t)TI_Z6_MAX_PRIMES;
+    upper = ((size_t)TI_Z6_MAX_SUBSET < np) ? (size_t)TI_Z6_MAX_SUBSET : np;
+    if (upper > n_slots) { upper = n_slots; }          /* bounded by available slots    */
+    for (r = 2; r <= upper; r++) {
+        size_t combo[TI_Z6_MAX_SUBSET];
+        size_t i;
+        for (i = 0; i < r; i++) { combo[i] = i; }      /* first combination {0..r-1}    */
+        for (;;) {
+            int pv = 0;
+            if (attempts >= (long)TI_Z6_MAX_ATTEMPTS) { return SRMECH_OK; }  /* JPL cap  */
+            attempts++;
+            st = ti_z6_try(c, fr, max_thetas, rt, prm, combo, lift_slots, r, &pv, &decline);
+            if (st != SRMECH_OK) { return st; }
+            if (decline) { *decline_out = 1; return SRMECH_OK; }
+            if (pv) { *proved = 1; return SRMECH_OK; }
+            if (!ti_next_combination(combo, r, np)) { break; }  /* exhausted this r     */
+        }
     }
     return SRMECH_OK;
 }
@@ -1107,10 +1309,16 @@ static srmech_status_t ti_expand_single(ti_ctx_t *c, ti_frame_t *fr, size_t max_
     for (j = 0; j < c->n_syms; j++) { n_live += (size_t)rt->s.present[j]; }
     if (fr->n_terms == 1u) { *verdict = 0; return SRMECH_OK; }    /* N1: not proven */
     if (n_live == 0u) {                                           /* 0-var residue  */
-        int z5 = 0;
-        st = ti_z5_leaf(c, fr, max_thetas, rt, &z5);             /* Z5 prime-lift  */
-        if (st != SRMECH_OK) { return st; }                      /* decline -> pure */
-        *verdict = z5 ? 1 : 0;                                    /* 1 = proven zero */
+        int z = 0;
+        int decline = 0;
+        st = ti_z5_leaf(c, fr, max_thetas, rt, &z, &decline);    /* Z5 prime-lift  */
+        if (st != SRMECH_OK) { return st; }
+        if (!z && !decline) {                                    /* Z6 multi-prime */
+            st = ti_z6_leaf(c, fr, max_thetas, rt, &z, &decline);
+            if (st != SRMECH_OK) { return st; }
+        }
+        if (decline) { return SRMECH_ERR_OVERFLOW; }             /* int64 -> pure  */
+        *verdict = z ? 1 : 0;                                    /* 1 = proven zero */
         return SRMECH_OK;
     }
     st = ti_pair_reduce(c, fr, max_thetas, rt, &proved);          /* Z2             */
@@ -1268,7 +1476,7 @@ static srmech_status_t ti_parse(ti_ctx_t *c, ti_term_t *terms, size_t n_terms,
                                 const size_t *term_nthetas,
                                 const srmech_bigint_t *coeff_num,
                                 const srmech_bigint_t *coeff_den,
-                                const int32_t *exps_flat)
+                                const int32_t *exps_flat, size_t in_n_syms)
 {
     size_t ti;
     size_t mi = 0;
@@ -1276,21 +1484,35 @@ static srmech_status_t ti_parse(ti_ctx_t *c, ti_term_t *terms, size_t n_terms,
     srmech_status_t st;
     assert(c != NULL && terms != NULL && term_nthetas != NULL);
     assert(coeff_num != NULL && coeff_den != NULL && exps_flat != NULL);
+    /* The caller's exps rows have IN_N_SYMS columns (0 for an all-constant input),
+     * while the exps arrays are allocated at the CLAMPED c->n_syms (>= 1, the
+     * entry's `(n_syms == 0) ? 1 : n_syms`). ZERO the full destination row, then
+     * copy only the in_n_syms supplied columns and stride exps_flat by in_n_syms —
+     * so an n_syms == 0 leaf leaves clean zero exps instead of memcpy'ing PAST the
+     * end of exps_flat (the stale-exps read that mis-read the all-constant leaf as
+     * carrying a phantom variable -> a false OVERFLOW decline / wrong verdict). */
+    assert(in_n_syms <= c->n_syms);
     for (ti = 0; ti < n_terms; ti++) {
         size_t k;
         st = srmech_bigint_copy(&terms[ti].pref.coeff.num, &coeff_num[mi]);
         if (st == SRMECH_OK) { st = srmech_bigint_copy(&terms[ti].pref.coeff.den, &coeff_den[mi]); }
         if (st != SRMECH_OK) { return st; }
-        memcpy(terms[ti].pref.exps, exps_flat + ej, c->n_syms * sizeof(int32_t));
+        memset(terms[ti].pref.exps, 0, c->n_syms * sizeof(int32_t));
+        if (in_n_syms > 0u) {
+            memcpy(terms[ti].pref.exps, exps_flat + ej, in_n_syms * sizeof(int32_t));
+        }
         mi++;
-        ej += c->n_syms;
+        ej += in_n_syms;
         for (k = 0; k < term_nthetas[ti]; k++) {
             st = srmech_bigint_copy(&terms[ti].targs[k].coeff.num, &coeff_num[mi]);
             if (st == SRMECH_OK) { st = srmech_bigint_copy(&terms[ti].targs[k].coeff.den, &coeff_den[mi]); }
             if (st != SRMECH_OK) { return st; }
-            memcpy(terms[ti].targs[k].exps, exps_flat + ej, c->n_syms * sizeof(int32_t));
+            memset(terms[ti].targs[k].exps, 0, c->n_syms * sizeof(int32_t));
+            if (in_n_syms > 0u) {
+                memcpy(terms[ti].targs[k].exps, exps_flat + ej, in_n_syms * sizeof(int32_t));
+            }
             mi++;
-            ej += c->n_syms;
+            ej += in_n_syms;
         }
         terms[ti].n_thetas = term_nthetas[ti];
     }
@@ -1393,18 +1615,36 @@ srmech_status_t srmech_thetasum_is_zero_interpolation(
     if (term_nthetas == NULL || coeff_num == NULL || coeff_den == NULL || exps_flat == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    memset(&rt, 0, sizeof(rt));
-    c.n_syms = (n_syms == 0u) ? 1u : n_syms;
-    c.cap = (coeff_cap < 4u) ? 4u : coeff_cap;
-    max_thetas = ti_max_thetas(term_nthetas, n_terms);
-    st = ti_arena_init(&c, ws, ws_len);
-    if (st != SRMECH_OK) { return st; }
-    st = ti_bind_rt(&c, &rt, max_thetas, xsym, ysym, psym);
-    if (st == SRMECH_OK) { st = ti_bind_term_arr(&c, &terms, n_terms, max_thetas); }
-    if (st != SRMECH_OK) { return st; }
-    st = ti_parse(&c, terms, n_terms, term_nthetas, coeff_num, coeff_den, exps_flat);
-    if (st != SRMECH_OK) { return st; }
-    return ti_decide(&c, terms, n_terms, 0, max_thetas, &rt, out_is_zero);
+    /* An ALL-CONSTANT (0-variable) numerator (n_syms == 0) has no REAL variable to
+     * lift, so it needs synthetic slots for the Z5/Z6 constant-leaf certificates: up
+     * to TI_Z6_MAX_SUBSET fresh lift slots + one reserved p-power slot (the +/- pair
+     * reduction tracks the Rosengren Eq. 1.6 p-multiplier -- the pure oracle's always-
+     * present `_P`). Reserve them (TI_Z6_MAX_SUBSET + 1 slots, eff_psym = the last),
+     * with xsym = ysym = -1 (a pure constant leaf has no canonical x/y). The parse
+     * (in_n_syms = 0) leaves every slot free, so ti_expand_single reaches the n_live
+     * == 0 leaf and runs Z5 then Z6. (Pre-rc255 this path DECLINED -- native had no Z6;
+     * before that, an OOB stale-exps read made it flake. Now it decides, mirror of the
+     * pure _decide_struct 0-var leaf, and still declines (-> pure) on an int64 coeff.)
+     * A non-constant numerator keeps its real symbol count + psym -- the elliptic DFS
+     * arena is byte-identical to pre-rc255. */
+    {
+        int eff_psym = (n_syms == 0u) ? (int)TI_Z6_MAX_SUBSET : psym;
+        int eff_xsym = (n_syms == 0u) ? -1 : xsym;
+        int eff_ysym = (n_syms == 0u) ? -1 : ysym;
+        memset(&rt, 0, sizeof(rt));
+        c.n_syms = (n_syms == 0u) ? ((size_t)TI_Z6_MAX_SUBSET + 1u) : n_syms;
+        c.cap = (coeff_cap < 4u) ? 4u : coeff_cap;
+        max_thetas = ti_max_thetas(term_nthetas, n_terms);
+        st = ti_arena_init(&c, ws, ws_len);
+        if (st != SRMECH_OK) { return st; }
+        st = ti_bind_rt(&c, &rt, max_thetas, eff_xsym, eff_ysym, eff_psym);
+        if (st == SRMECH_OK) { st = ti_bind_term_arr(&c, &terms, n_terms, max_thetas); }
+        if (st != SRMECH_OK) { return st; }
+        st = ti_parse(&c, terms, n_terms, term_nthetas, coeff_num, coeff_den, exps_flat,
+                      n_syms);
+        if (st != SRMECH_OK) { return st; }
+        return ti_decide(&c, terms, n_terms, 0, max_thetas, &rt, out_is_zero);
+    }
 }
 
 /* The minimum `ws_len` BYTES srmech_thetasum_is_zero_interpolation needs for the
@@ -1424,7 +1664,10 @@ size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_t
                                                        size_t max_theta_sq_sum)
 {
     size_t cap = (coeff_limbs < 4u) ? 4u : coeff_limbs;
-    size_t ns = (n_syms == 0u) ? 1u : n_syms;
+    /* rc255: an all-constant leaf (n_syms == 0) allocates TI_Z6_MAX_SUBSET + 1 synthetic
+     * slots (lift slots + a reserved p-slot) for the Z5/Z6 constant-leaf certificates --
+     * MUST match the entry's clamp so the caller's arena is sized correctly. */
+    size_t ns = (n_syms == 0u) ? ((size_t)TI_Z6_MAX_SUBSET + 1u) : n_syms;
     size_t nt = (n_terms == 0u) ? 1u : n_terms;
     size_t depth = 2u * (ns + 2u) + 4u;
     size_t mono_words = 2u * cap + ns + 8u;
@@ -1443,8 +1686,11 @@ size_t srmech_thetasum_is_zero_interpolation_ws_bound2(size_t n_syms, size_t n_t
                       + depth * (sizeof(ti_frame_t) / 4u + 8u) + 512u;
     size_t scratch_words = cap * 16u + 512u;
     size_t z5_words = nt * term_words + 128u;          /* rc228: the Z5 lift copy      */
+    /* rc255: the Z6 re-grading chain-lifts up to TI_Z6_MAX_SUBSET copies simultaneously
+     * (each transient above an arena mark, but co-resident during one attempt). */
+    size_t z6_words = (size_t)TI_Z6_MAX_SUBSET * (nt * term_words) + 256u;
     size_t total = depth * level_words + char_words + z2_words + rt_words
-                   + scratch_words + z5_words + max_abs_exp + 4096u;
+                   + scratch_words + z5_words + z6_words + max_abs_exp + 4096u;
     assert(cap >= 4u);
     assert(total >= scratch_words);
     return total * sizeof(uint32_t);
@@ -1545,7 +1791,7 @@ static srmech_status_t tip_parse_root(const tip_wire_t *w, void *region, size_t 
     st = ti_bind_term_arr(rc, root, w->n_terms, w->max_thetas);
     if (st != SRMECH_OK) { return st; }
     return ti_parse(rc, *root, w->n_terms, w->term_nthetas, w->coeff_num, w->coeff_den,
-                    w->exps_flat);
+                    w->exps_flat, w->n_syms);
 }
 
 /* Arena-init a WORKER `slice` + bind its runtime bundle (NO parse -- the worker
@@ -1766,7 +2012,7 @@ static srmech_status_t tip_serial(const tip_wire_t *w, void *ws, size_t ws_len,
     st = ti_bind_term_arr(&c, &root, w->n_terms, w->max_thetas);
     if (st != SRMECH_OK) { return st; }
     st = ti_parse(&c, root, w->n_terms, w->term_nthetas, w->coeff_num, w->coeff_den,
-                  w->exps_flat);
+                  w->exps_flat, w->n_syms);
     if (st != SRMECH_OK) { return st; }
     return ti_decide(&c, root, w->n_terms, 0, w->max_thetas, &rt, out_is_zero);
 }
@@ -1982,6 +2228,17 @@ srmech_status_t srmech_thetasum_is_zero_interpolation_parallel(
     if (term_nthetas == NULL || coeff_num == NULL || coeff_den == NULL
             || exps_flat == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_syms == 0u) {
+        /* An all-constant leaf has NO top-level branching to fan out -- the Z5/Z6
+         * constant-leaf certificates are a single sequential decision. Delegate to the
+         * sequential peer so the verdict is byte-identical (the parallel peer is an
+         * ACCELERATOR, never a different decider). The parallel ws bound reserves at
+         * least one ws_bound2 slice, which now sizes the constant clamp (>= the
+         * sequential arena), so this ws is sufficient. rc255: was a bare decline. */
+        return srmech_thetasum_is_zero_interpolation(
+            n_syms, xsym, ysym, psym, n_terms, term_nthetas, coeff_num, coeff_den,
+            exps_flat, coeff_cap, out_is_zero, ws, ws_len);
     }
     w.n_syms = n_syms;   w.xsym = xsym;   w.ysym = ysym;   w.psym = psym;
     w.n_terms = n_terms; w.term_nthetas = term_nthetas;

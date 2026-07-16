@@ -145,6 +145,24 @@ if(SRMECH_SRCS)
         #   ./build/test_srmech_carrier            (exit 0 = all pass)
         add_executable(test_srmech_carrier c/test/test_srmech_carrier.c)
         target_link_libraries(test_srmech_carrier PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc242 progress / introspection callback (#840): the bare-C-HOST smoke.
+        # Proves a C host with no Python registers a srmech_progress_cb_t and
+        # OBSERVES which op the invoke spine dispatched (Class-H), asserting the
+        # exact canonical-JSON event. Runtime if-guards (not assert), so it is a
+        # real value check even under Release/NDEBUG, and joins the -Werror/-WX
+        # gate. Run it:
+        #   ./build/test_srmech_progress           (exit 0 = all pass)
+        add_executable(test_srmech_progress c/test/test_srmech_progress.c)
+        target_link_libraries(test_srmech_progress PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc256 bignum carrier smoke: set_i64/from_dec/to_dec round-trips,
+        # add/sub/mul/divmod (Python FLOOR), divmod_small (the rc256 single-limb
+        # divisor peer), shl/shr, isqrt, gcd (Lehmer + lean-Euclid byte-identity),
+        # pow. Joins the -Werror/-WX gate (was previously an un-wired dev smoke).
+        # Run it for the value check: ./build/test_srmech_bigint (exit 0 = all pass)
+        add_executable(test_srmech_bigint c/test/test_srmech_bigint.c)
+        target_link_libraries(test_srmech_bigint PRIVATE srmech ${SRMECH_MATH_LIB})
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

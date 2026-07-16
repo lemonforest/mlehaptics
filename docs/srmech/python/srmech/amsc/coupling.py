@@ -68,6 +68,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .q import Q  # rc100: the exact-ℚ scalar carrier (fractal_spectrum scale / |q|-meter)
+from .rational import sqrt as _rsqrt  # Class-N∘K integer-isqrt root (no libm / no float_pow)
 from .vec import Vec  # rc129: the numpy-free 1-D carrier (restores .shape)
 
 
@@ -180,6 +181,43 @@ def _tension_is_locked(den_coords: Dict[int, int], *, max_den: int) -> bool:
         return True  # denominator 1 (the empty product) — an exact integer lock.
     largest_prime = max(den_coords.keys())
     return largest_prime <= cutoff
+
+
+def _resonances_from_tensions(lam: List[float], max_den: int) -> List[Dict[str, object]]:
+    """Adjacent-nonzero-tension resonance read — Class-N ``best_rational`` +
+    Class-J prime-coordinate factorisation + the lock/libration verdict.
+
+    ``lam`` is an ASCENDING float tension list; each adjacent nonzero-tension
+    ratio (smaller/larger ∈ (0, 1]) is read with :func:`best_rational` and its
+    denominator prime-factored, a smooth/2-adic denominator being a resonance
+    LOCK and a large-prime denominator a libration (:func:`_tension_is_locked`).
+    This is the EXACT logic :func:`resonant_spectrum` uses — factored out so
+    :func:`resonant_spectrum_sparse` REUSES the lock/libration read rather than
+    reinventing it (both call this one helper, so the verdicts are identical on
+    the same tension values). The zero-mode floor is read relative to
+    ``lam[-1]`` (the largest tension in the passed list), so a k-extreme list
+    that includes the global-max tension floors the same way the full spectrum
+    does. numpy-free; no ``abs()`` (signs are read by comparison, Class-K)."""
+    from . import primes as _primes
+    from . import rational as _rational
+
+    resonances: List[Dict[str, object]] = []
+    n = len(lam)
+    if n == 0:
+        return resonances
+    nz = [i for i in range(n) if lam[i] > lam[-1] * _ZERO_TENSION_REL]
+    for a, b in zip(nz, nz[1:]):
+        lo, hi = lam[a], lam[b]  # ascending ⇒ lo ≤ hi, both > 0
+        num_in = int(round((lo / hi) * _RATIO_SCALE))
+        num, den = _rational.best_rational(num_in, _RATIO_SCALE, max_den)
+        den_coords = {p: e for p, e in _primes.factor(den)} if den > 1 else {}
+        resonances.append({
+            "pair": (a, b),
+            "ratio": (num, den),
+            "den_coords": den_coords,
+            "locked": _tension_is_locked(den_coords, max_den=max_den),
+        })
+    return resonances
 
 
 def _resonant_spectrum_native(L, orders: int, max_den: int):
@@ -296,8 +334,6 @@ def resonant_spectrum(
         ValueError: ``orders < 1`` or a non-square / empty ``L``.
     """
     from . import laplacian as _L  # lazy: laplacian imports carriers (avoid cycle)
-    from . import primes as _primes
-    from . import rational as _rational
     from .mat import Mat
 
     if not isinstance(orders, int) or orders < 1:
@@ -341,22 +377,10 @@ def resonant_spectrum(
         force_orders.append(_L.mat_matmul(v_scaled, Vt))  # (V·diag) · Vᵀ = Lᵏ
 
     # ── (3) resonances — Class N best_rational + Class J prime-coords. ──
-    # Read every ADJACENT nonzero-tension pair (ascending). The smaller-over-
-    # larger ratio sits in (0, 1]; best_rational reads it; factor the denom.
-    nz = [i for i in range(n) if lam[i] > lam[-1] * _ZERO_TENSION_REL]
-    resonances: List[Dict[str, object]] = []
-    for a, b in zip(nz, nz[1:]):
-        lo, hi = lam[a], lam[b]  # ascending ⇒ lo ≤ hi, both > 0
-        # ratio = lo/hi ∈ (0, 1]; scale to an integer pair for the exact read.
-        num_in = int(round((lo / hi) * _RATIO_SCALE))
-        num, den = _rational.best_rational(num_in, _RATIO_SCALE, max_den)
-        den_coords = {p: e for p, e in _primes.factor(den)} if den > 1 else {}
-        resonances.append({
-            "pair": (a, b),
-            "ratio": (num, den),
-            "den_coords": den_coords,
-            "locked": _tension_is_locked(den_coords, max_den=max_den),
-        })
+    # Read every ADJACENT nonzero-tension pair (ascending) via the shared
+    # _resonances_from_tensions helper (the SAME logic resonant_spectrum_sparse
+    # reuses — one lock/libration source of truth).
+    resonances = _resonances_from_tensions(lam, max_den)
 
     return {
         "tensions": tensions,
@@ -401,6 +425,389 @@ def from_bodies(
                 edges.append((i, j))
                 weights.append(m[i] * m[j] / (r * r))
     return n, edges, weights
+
+
+# =====================================================================
+# §75-sparse — resonant_spectrum_sparse: the F172 storage signature at
+# UNBOUNDED n (issue #698). resonant_spectrum reads the storage signature
+# only through the DENSE Class-L eigensolve (native-capped at
+# MAX_NATIVE_NODES=256; O(n²) RAM, O(n³) eig). This reads the SAME signature
+# — the k EXTREME tensions (bottom-k + top-k of the COMBINATORIAL Laplacian
+# L = D − W) + their Class-N/J resonance lock/libration verdicts — via
+# streaming power iteration + deflation on the packed edge stream: RAM
+# O(k·n), time O(k·|E|·iters), n UNBOUNDED. It COMPOSES the §51/§52 out-of-
+# core machinery (write_packed_graph + the fiedler_sparse streaming matvec),
+# extended from ONE mode to bottom-k + top-k, then runs the SAME
+# _resonances_from_tensions lock/libration read on the k tensions. SAME-RC C
+# peer srmech_laplacian_k_extreme_modes_file (streams the packed file via the
+# PAL; caller-arena, no node cap) — c_dispatched. numpy-free; no abs().
+# =====================================================================
+
+# The Rayleigh-quotient convergence floor for one extreme mode (relative to
+# 1+|λ|; a Class-N float read of when the tension has settled) + the required
+# run of consecutive settled steps. Shared VERBATIM by the C peer so the
+# native + pure paths run the identical iteration count (within-tol parity).
+_KEXT_TOL: float = 1e-13
+_KEXT_STABLE_RUN: int = 3
+
+
+def _kext_scramble_init(n: int) -> List[float]:
+    """The same deterministic Class-I multiplicative scramble init
+    (Knuth 2654435761; uint32-wrap → [−1, 1)) fiedler_sparse uses — a generic
+    Fiedler component regardless of node ordering, bit-identical to the C twin.
+    NOT deflated here (the caller deflates against the found modes)."""
+    return [(((k * 2654435761 + 1013904223) & 0xFFFFFFFF) / 4294967296.0) * 2.0 - 1.0
+            for k in range(n)]
+
+
+def _kext_degrees(n: int, edges, weights) -> List[float]:
+    """Weighted degree of every node (both endpoints) — the diagonal of L."""
+    deg = [0.0] * n
+    for (a, b), w in zip(edges, weights):
+        deg[a] += w
+        deg[b] += w
+    return deg
+
+
+def _kext_wv(n: int, edges, weights, v: List[float]) -> List[float]:
+    """One streamed adjacency matvec ``y = W·v`` (undirected: both endpoints)
+    — the O(|E|) edge loop, the ONLY edge-touching step (n never squared)."""
+    y = [0.0] * n
+    for (a, b), w in zip(edges, weights):
+        y[a] += w * v[b]
+        y[b] += w * v[a]
+    return y
+
+
+def _kext_deflate(v: List[float], basis: List[List[float]]) -> None:
+    """Gram-Schmidt-deflate ``v`` against the found unit modes (keeps a new
+    iterate orthogonal to every already-converged extreme mode)."""
+    n = len(v)
+    for b in basis:
+        dot = 0.0
+        for i in range(n):
+            dot += v[i] * b[i]
+        for i in range(n):
+            v[i] -= dot * b[i]
+
+
+def _kext_normalize(v: List[float]) -> Optional[List[float]]:
+    """Unit-normalise ``v`` (Class-N root of the Class-K magnitude-square sum);
+    ``None`` if ``v`` is the zero vector (caller stops that mode)."""
+    n2 = 0.0
+    for x in v:
+        n2 += x * x                 # Class-K magnitude-square (no abs())
+    if n2 <= 0.0:
+        return None
+    nrm = float(_rsqrt(n2))         # Class-N∘K root (rational-isqrt cascade, no float_pow)
+    return [x / nrm for x in v]
+
+
+def _kext_rayleigh_l(n: int, edges, weights, deg: List[float], v: List[float]) -> float:
+    """The L-Rayleigh-quotient ``vᵀ L v = Σ deg_i v_i² − vᵀ W v`` on a unit ``v``
+    — the tension read (accurate even when the iterate converged on the SHIFTED
+    operator σI − L for a bottom mode)."""
+    y = _kext_wv(n, edges, weights, v)
+    r = 0.0
+    for i in range(n):
+        r += deg[i] * v[i] * v[i] - v[i] * y[i]
+    return r
+
+
+def _kext_one_mode(n, edges, weights, deg, sigma, top, basis, max_iters):
+    """Find ONE extreme eigenpair by deflated power iteration, then read its
+    L-tension. ``top`` → iterate on ``L`` (largest tension); else on the shift
+    ``σI − L`` (largest of the shift = smallest tension of ``L``). Deflates each
+    step against ``basis`` (the found unit modes). Returns ``(tension, unit
+    eigvec)`` or ``None`` (degenerate / exhausted subspace)."""
+    v = _kext_scramble_init(n)
+    _kext_deflate(v, basis)
+    v = _kext_normalize(v)
+    if v is None:
+        return None
+    lam_prev: Optional[float] = None
+    stable = 0
+    for it in range(max_iters):
+        y = _kext_wv(n, edges, weights, v)
+        if top:
+            av = [deg[i] * v[i] - y[i] for i in range(n)]           # L·v
+        else:
+            av = [sigma * v[i] - (deg[i] * v[i] - y[i]) for i in range(n)]  # (σI−L)·v
+        _kext_deflate(av, basis)
+        lam = 0.0
+        for i in range(n):
+            lam += v[i] * av[i]     # Rayleigh of the iterated operator on unit v
+        av = _kext_normalize(av)
+        if av is None:
+            break
+        v = av
+        if lam_prev is not None:
+            d = lam - lam_prev
+            mag = d if d >= 0.0 else -d          # Class-K sign branch (no abs())
+            ref = 1.0 + (lam if lam >= 0.0 else -lam)
+            if mag <= _KEXT_TOL * ref:
+                stable += 1
+                if stable >= _KEXT_STABLE_RUN and it >= 5:
+                    break
+            else:
+                stable = 0
+        lam_prev = lam
+    return _kext_rayleigh_l(n, edges, weights, deg, v), v
+
+
+def _kext_modes_py(n, edges, weights, k, max_iters):
+    """Pure-Python COMPLETE streaming k-extreme read (the no-native alternative,
+    and the value oracle). Bottom-k modes of L via the shift σI−L (σ = 2·max_deg
+    + 1, a Gershgorin upper bound on λ_max), then top-k modes of L, each deflated
+    against ALL modes found so far (so bottom/top never re-find each other and,
+    when 2k ≥ n, the union is the full spectrum). Returns a list of distinct
+    ``(tension, unit-eigvec)`` pairs in found order (unsorted)."""
+    deg = _kext_degrees(n, edges, weights)
+    max_deg = 0.0
+    for d in deg:
+        if d > max_deg:
+            max_deg = d
+    sigma = 2.0 * max_deg + 1.0
+    basis: List[List[float]] = []
+    pairs: List[Tuple[float, List[float]]] = []
+    kb = k if k < n else n
+    # Pin the EXACT trivial mode: the constant vector is always a 0-eigenvector
+    # of the combinatorial Laplacian (L·1 = deg − Σw = 0), and 0 is always the
+    # SMALLEST tension (L is PSD), so it is always in bottom-k. On a near-
+    # degenerate low-frequency spectrum it converges SLOWLY by power iteration
+    # (its M-gap is λ₁ ≈ 0), so pinning it exactly (tension 0.0) makes the zero
+    # mode identical native-vs-pure — the analytic-deflation of the known trivial
+    # mode, mirroring how fiedler_sparse deflates its √deg mode.
+    if kb >= 1 and n >= 1:
+        c = 1.0 / float(_rsqrt(float(n)))    # 1/√n — Class-N∘K root, no float_pow
+        const = [c] * n
+        pairs.append((0.0, const))
+        basis.append(const)
+    for _ in range(kb - 1):
+        res = _kext_one_mode(n, edges, weights, deg, sigma, False, basis, max_iters)
+        if res is None:
+            break
+        pairs.append(res)
+        basis.append(res[1])
+    kt = k if k < n else n
+    for _ in range(kt):
+        if len(basis) >= n:
+            break
+        res = _kext_one_mode(n, edges, weights, deg, sigma, True, basis, max_iters)
+        if res is None:
+            break
+        pairs.append(res)
+        basis.append(res[1])
+    return pairs
+
+
+def _kext_modes_file_native(n, path, k, max_iters):
+    """numpy-free native dispatch for the streaming k-extreme read — calls the
+    standalone-C ``srmech_laplacian_k_extreme_modes_file`` with a CALLER-arena
+    (the bound is the caller's RAM, no compiled-in node cap; the matvec power
+    iteration + deflation run in C reading the adjacency from ``path`` via the
+    PAL streaming-read). Returns the same distinct ``(tension, eigvec)`` pair
+    list the pure path returns, or ``None`` on any non-OK status."""
+    import ctypes
+    from . import _native
+
+    lib = _native.LIB
+    kk = int(k)
+    cap = 2 * kk
+    arena = lib.srmech_laplacian_k_extreme_modes_arena_bytes(ctypes.c_uint32(n))
+    ws_doubles = int(arena) // 8 + 8
+    tens = (ctypes.c_double * (cap if cap > 0 else 1))()
+    modes = (ctypes.c_double * ((cap if cap > 0 else 1) * (n if n > 0 else 1)))()
+    count = ctypes.c_uint32(0)
+    ws = (ctypes.c_double * ws_doubles)()
+    rc = lib.srmech_laplacian_k_extreme_modes_file(
+        ctypes.c_uint32(n), path.encode("utf-8"), ctypes.c_uint32(kk),
+        ctypes.c_uint32(int(max_iters)), tens, modes, ctypes.byref(count),
+        ws, ctypes.c_size_t(ws_doubles * 8))
+    if rc != _native.SRMECH_OK:
+        return None
+    m = count.value
+    return [(tens[r], [modes[r * n + c] for c in range(n)]) for r in range(m)]
+
+
+def _kext_from_edges(n, edges, weights, k, max_iters):
+    """k-extreme pairs from an in-RAM edge list — native (write a temp packed
+    file, stream it in C) else the pure-Python streaming read."""
+    from . import _native
+
+    if _native.has_native_k_extreme_modes() and n >= 1:
+        import os
+        import tempfile
+        from . import laplacian as _L
+        fd, tmp = tempfile.mkstemp(suffix=".bin", prefix="srmech_kext_")
+        os.close(fd)
+        try:
+            _L.write_packed_graph(tmp, edges, weights)
+            res = _kext_modes_file_native(n, tmp, k, max_iters)
+        finally:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        if res is not None:
+            return res
+    return _kext_modes_py(n, edges, weights, k, max_iters)
+
+
+def _kext_from_path(n, path, k, max_iters):
+    """k-extreme pairs from a packed edge FILE — native streams it directly
+    (edges never resident); the pure path reads it in (correct, not bounded —
+    the fiedler_sparse_file precedent)."""
+    from . import _native
+    from . import laplacian as _L
+
+    if _native.has_native_k_extreme_modes():
+        res = _kext_modes_file_native(n, path, k, max_iters)
+        if res is not None:
+            return res
+    edges, weights = _L._read_packed_graph(path)
+    return _kext_modes_py(n, edges, weights, k, max_iters)
+
+
+def resonant_spectrum_sparse(
+    edges_or_path,
+    weights=None,
+    *,
+    k: int = 8,
+    n: Optional[int] = None,
+    max_iters: int = 1000,
+    max_den: int = 64,
+) -> Dict[str, object]:
+    """Read the resonant storage signature at UNBOUNDED ``n`` — the streaming /
+    out-of-core k-extreme-mode peer of :func:`resonant_spectrum` (issue #698).
+
+    :func:`resonant_spectrum` reads the storage signature (eigen-tensions + the
+    Class-N/J resonance lock/libration verdict) only through the DENSE Class-L
+    eigensolve, which the native kernels cap at ``MAX_NATIVE_NODES = 256`` (dense
+    ``O(n²)`` RAM, ``O(n³)`` eig). This reads the SAME signature — restricted to
+    the ``k`` EXTREME modes (the ``k`` LOWEST-tension + ``k`` HIGHEST-tension
+    eigenpairs of the COMBINATORIAL Laplacian ``L = D − W``) — via streaming
+    power iteration + Gram-Schmidt deflation on the packed edge stream. Bottom-k
+    ride the shift ``σI − L`` (σ a Gershgorin upper bound on ``λ_max``), top-k
+    ride ``L`` directly; each new mode deflates against all found modes (so
+    bottom/top never collide, and when ``2k ≥ n`` the union is the FULL
+    spectrum). RAM ``O(k·n)``, time ``O(k·|E|·iters)``, ``n`` UNBOUNDED — it
+    breaks the ``n ≤ 256`` dense wall the same way :func:`fiedler_sparse` breaks
+    it for the 2-way cut.
+
+    The ``k`` extreme tensions then feed the SAME
+    :func:`_resonances_from_tensions` lock/libration read
+    :func:`resonant_spectrum` uses (Class-N :func:`best_rational` + Class-J
+    prime-coordinate factor + the smooth-den LOCK / large-prime-den libration
+    verdict) — reused, not reinvented, so the verdicts are IDENTICAL to the dense
+    read on the same tension values.
+
+    Composes the §51/§52 out-of-core machinery: :func:`write_packed_graph` (the
+    on-disk adjacency) + the ``fiedler_sparse`` streaming matvec, extended from
+    ONE mode to bottom-k + top-k. Dispatches to the standalone-C
+    ``srmech_laplacian_k_extreme_modes_file`` when ``HAS_NATIVE`` (the matvec /
+    power iteration / deflation run in C, streaming the packed file via the PAL,
+    caller-arena, no node cap); else the pure-Python streaming read is the
+    complete alternative. numpy-free; no ``abs()`` (magnitudes are the Class-K
+    square, signs read by comparison).
+
+    Accuracy envelope (honest): deflated power iteration resolves an extreme mode
+    accurately when it is SEPARATED from its neighbour — the well-separated
+    regime a k-extreme read is FOR (the F172 storage-signature extremes). On such
+    graphs the k extreme tensions match the dense :func:`resonant_spectrum`
+    eigensolve to ``~1e-9`` and the lock/libration verdicts are IDENTICAL. When
+    the spectrum is NEAR-DEGENERATE at the k-boundary (a dense low-frequency
+    cluster, e.g. a large ring/lattice bulk), those clustered modes converge
+    slowly — the genuine limitation of ANY iterative extreme-eigenvalue read
+    versus a full dense eigensolve; the dense op is the exact all-modes reference
+    at ``n ≤ 256``, and this op is the read past that wall for the SEPARATED
+    extremes. The native and pure paths agree within float tolerance regardless
+    (same iteration, same arithmetic order).
+
+    Args:
+        edges_or_path: an in-RAM undirected edge iterable ``[(u, v), …]`` OR a
+            ``str`` path to a packed edge file (written by
+            :func:`write_packed_graph`; streamed, edges never resident).
+        weights: per-edge weights (default all ``1.0``); ignored when
+            ``edges_or_path`` is a path (the weights live in the file).
+        k: modes per extreme side (default 8) — the read returns up to ``2k``
+            distinct extreme tensions (fewer when ``2k ≥ n``).
+        n: node count. ``None`` → inferred (max endpoint + 1 for an edge list;
+            read from the packed file for a path).
+        max_iters: per-mode power-iteration cap (default 1000; the Rayleigh
+            convergence floor usually stops earlier).
+        max_den: the ``best_rational`` denominator ceiling for the resonance read
+            (default 64, matching :func:`resonant_spectrum`).
+
+    Returns:
+        A dict of the SAME shape :func:`resonant_spectrum` returns, restricted to
+        the ``k`` extreme modes:
+
+        * ``"tensions"`` — a real :class:`~srmech.amsc.vec.Vec` of the extreme
+          eigenvalues ASCENDING (the k lowest ++ k highest, sorted, distinct).
+        * ``"modes"`` — an ``n × m`` real :class:`~srmech.amsc.mat.Mat` whose
+          COLUMNS are the corresponding extreme eigenvectors (``m`` = number of
+          tensions returned).
+        * ``"resonances"`` — the adjacent-tension lock/libration list (the SAME
+          ``{pair, ratio, den_coords, locked}`` dicts :func:`resonant_spectrum`
+          returns), read on the extreme tension list.
+        * ``"k"`` / ``"n"`` / ``"n_modes"`` — the request + the node count + the
+          number of extreme modes actually returned.
+
+        (No ``"force_orders"`` — a dense ``Lᵏ`` cannot be materialised at
+        unbounded ``n``; the extreme tensions carry the storage signature.)
+
+    Raises:
+        ValueError: ``k < 1``, or ``n`` cannot be inferred from an empty edge
+            list without an explicit ``n``.
+    """
+    if not isinstance(k, int) or k < 1:
+        raise ValueError(f"resonant_spectrum_sparse: k must be an int >= 1; got {k!r}")
+
+    from . import laplacian as _L
+    from .mat import Mat
+
+    if isinstance(edges_or_path, str):
+        path = edges_or_path
+        if n is None:
+            edges, _w = _L._read_packed_graph(path)
+            n = (1 + max(max(a, b) for a, b in edges)) if edges else 0
+        pairs = _kext_from_path(int(n), path, k, max_iters)
+    else:
+        edges = [(int(a), int(b)) for (a, b) in edges_or_path]
+        if weights is None:
+            w_list = [1.0] * len(edges)
+        else:
+            w_list = [float(x) for x in weights]
+            if len(w_list) != len(edges):
+                raise ValueError(
+                    f"resonant_spectrum_sparse: weights ({len(w_list)}) and edges "
+                    f"({len(edges)}) length mismatch")
+        if n is None:
+            n = (1 + max(max(a, b) for a, b in edges)) if edges else 0
+        pairs = _kext_from_edges(int(n), edges, w_list, k, max_iters)
+
+    n = int(n)
+    # Sort the distinct extreme pairs by tension ASCENDING → tensions + columns.
+    pairs = sorted(pairs, key=lambda p: p[0])
+    lam = [p[0] for p in pairs]
+    m = len(pairs)
+    tensions = Vec.from_sequence(lam, is_complex=False)
+    if m > 0 and n > 0:
+        mode_rows = [[pairs[c][1][r] for c in range(m)] for r in range(n)]
+        modes = Mat.from_rows(mode_rows, is_complex=False)
+    else:
+        # Degenerate (empty graph / no modes) — a 1×1 zero placeholder Mat.
+        modes = Mat.from_rows([[0.0]], is_complex=False)
+    resonances = _resonances_from_tensions(lam, max_den)
+    return {
+        "tensions": tensions,
+        "modes": modes,
+        "resonances": resonances,
+        "k": int(k),
+        "n": n,
+        "n_modes": m,
+    }
 
 
 # =====================================================================
@@ -1214,6 +1621,6 @@ def fold_identity(a, b) -> str:
     return "EQUAL" if ha == hb else "NOT_EQUAL"
 
 
-__all__ = ["signed_sum_squared", "resonant_spectrum", "from_bodies",
-           "fractal_spectrum", "fold_encode", "fold_spectrum",
+__all__ = ["signed_sum_squared", "resonant_spectrum", "resonant_spectrum_sparse",
+           "from_bodies", "fractal_spectrum", "fold_encode", "fold_spectrum",
            "RecoverableFold", "fold_encode_recoverable", "fold_identity"]

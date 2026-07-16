@@ -213,11 +213,15 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 _EXPECTED_SPLIT = {
     # rc202 discharged the FINAL owed row (run_class_method -> C); owed_orchestration
     # is now EMPTY (a live Counter has no zero key), so it is absent from the split.
-    "composes_c": 121,
+    # rc249 (#1390 item 2): +2 composes_c — genome.graph_to_kernel /
+    # kernel_to_graph (the directed-graph<->Klein-4 codec; dispatch to the
+    # byte-identical C peer srmech_graph_kernel_encode / _decode, the kernel_pack
+    # composes_c precedent). composes_c 121 -> 123; total 190 -> 192.
+    "composes_c": 123,
     "host_glue": 21,
     "dev_tooling": 48,
 }
-_TOTAL_NON_COMPUTE = 190
+_TOTAL_NON_COMPUTE = 192
 
 
 def _rows():

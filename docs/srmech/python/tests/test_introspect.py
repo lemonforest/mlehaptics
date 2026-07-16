@@ -658,9 +658,9 @@ def test_native_status():
     )
     assert status["load_error"] is None or isinstance(status["load_error"], str)
 
-    # expected_abi is the compiled-against ABI (rc180: 4 — the pub/sub callback
-    # typedef bumped it 3 → 4).
-    assert status["expected_abi"] == 4
+    # expected_abi is the compiled-against ABI (rc242: 5 — the progress /
+    # introspection callback typedef bumped it 4 → 5, #840).
+    assert status["expected_abi"] == 5
 
     # Agrees with describe()['native'] on the shared fields (single source
     # of truth: both read srmech.amsc._native).

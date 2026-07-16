@@ -94,10 +94,25 @@ def test_corpus_native_equals_pure_on_every_object():
         cv = ts._is_zero_interpolation_c()
         pv = ts._is_zero_interpolation()
         if cv is None:
-            declines.append(r["test"])
+            # rc255: the native peer DECIDES an all-constant (n_syms == 0) leaf via the
+            # Z5/Z6 constant-leaf certificates. rc256 moved the prime factoring onto the
+            # bigint CARRIER (srmech_bigint_divmod_small), so the old int64-magnitude
+            # decline is GONE — a decline now needs a coefficient prime factor > 2^16 (an
+            # elliptic-identity coeff, a product of augment primes <= ~617, never reaches
+            # it) or a genuine arena OVERFLOW. Either way it defers to the arbitrary-
+            # precision pure oracle — sound, validated by the `ts.is_zero == pure` assert
+            # below, NOT a soundness violation. Only a decline on an object WITH variables
+            # (which native must decide) is a coverage regression. (Pre-rc254 this path
+            # "declined" only by ACCIDENT — a stale-exps OOB read tripped a false OVERFLOW
+            # — which occasionally became a WRONG verdict instead.)
+            _m = ts._is_zero_c_marshal()
+            if _m is not None and _m[0] != 0:
+                declines.append(r["test"])
         elif cv != pv:
             mismatches.append((r["test"], {"c": cv, "py": pv}))
         # the full dispatched decision must agree with the pure oracle either way
         assert ts.is_zero == ts._is_zero_py()
     assert not mismatches, f"NATIVE≠PURE (BLOCKER): {mismatches[:10]}"
-    assert not declines, f"native peer declined on corpus objects: {declines[:10]}"
+    assert not declines, (
+        "native peer declined on an object WITH variables (a coverage regression, "
+        f"not just an all-constant deferral): {declines[:10]}")

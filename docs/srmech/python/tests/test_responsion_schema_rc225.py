@@ -69,9 +69,13 @@ _needs_native = pytest.mark.skipif(
     reason="rc225 responsion-registry C peer not loaded (pure / stale host)",
 )
 
-_FIELDS = ("operator", "carrier", "kind", "regime", "answers_with", "status")
+# rc237 (F3): the curvature FLAT/CURVED frame-independence class is now a
+# first-class per-responsion field (the schema lift of rc236's is_flat).
+_FIELDS = ("operator", "carrier", "kind", "regime", "answers_with", "status",
+           "curvature")
 _REGIMES = ("continuous_spectral", "discrete_algebraic")
 _STATUSES = ("verified", "open")
+_CURVATURES = ("flat", "curved")
 
 
 def _canonical_payload() -> bytes:
@@ -99,6 +103,7 @@ def test_every_entry_is_an_edge_keyed_by_operator_carrier() -> None:
             )
             assert r["regime"] in _REGIMES
             assert r["status"] in _STATUSES
+            assert r["curvature"] in _CURVATURES
             assert isinstance(r["answers_with"], str) and r["answers_with"]
         # Every responsion on one edge shares the SAME two refs.
         assert len({(r["operator"], r["carrier"]) for r in responsions}) == 1
@@ -357,7 +362,7 @@ def test_tool_entry_registered_and_total_is_413() -> None:
     assert entry.category == "responsion_schema"
     assert "k=3" in entry.summary
     assert "EDGE" in entry.summary
-    assert len(schema.tools) == 418
+    assert len(schema.tools) == 432
 
 
 def test_rosetta_row_is_composes_c() -> None:
@@ -375,7 +380,7 @@ def test_rosetta_row_is_composes_c() -> None:
 def test_describe_total_is_413() -> None:
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 418
+    assert introspect.describe()["tools"]["total"] == 432
 
 
 def test_within_edge_order_is_deterministic() -> None:

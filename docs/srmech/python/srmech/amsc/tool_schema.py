@@ -171,6 +171,14 @@ class ToolEntry:
     returns: Optional[ToolReturn] = None
     smoke_test_hint: Optional[Dict[str, Any]] = None
     example: Optional[Dict[str, Any]] = None
+    #: v0.9.0rc240 (#838) — a human-readable EXPLANATION of what the tool
+    #: does / when to use it, beyond the one-line `summary`. ``None`` when
+    #: no explanation is registered (introspection consumers fall back to
+    #: `summary`). Auto-seeded from each op's docstring + hand-curated for
+    #: the central ops; grows toward full coverage under a monotone floor
+    #: ratchet. C-mirrored (srmech_tool_entry_t.explanation) → flows through
+    #: the tool_schema_sha256 attestation like `summary`/`example`.
+    explanation: Optional[str] = None
     #: v0.5.0rc15 — whether this tool is actually invocable across the
     #: JSON-RPC / Anthropic boundary. Default ``True`` (back-compat: every
     #: pre-rc15 ToolEntry stays callable). Set ``False`` for tools whose
@@ -204,6 +212,8 @@ class ToolEntry:
             out["smoke_test_hint"] = dict(self.smoke_test_hint)
         if self.example is not None:
             out["example"] = dict(self.example)
+        if self.explanation is not None:
+            out["explanation"] = self.explanation
         if self.mcp_unavailable_reason is not None:
             out["mcp_unavailable_reason"] = self.mcp_unavailable_reason
         return out
@@ -295,6 +305,32 @@ class ToolSchema:
 
 _REGISTRY: Dict[str, ToolEntry] = {}
 
+# v0.9.0rc240 (#838) — the generated introspection docs floor: per-tool
+# EXPLANATION (docstring-seeded) + EXAMPLE (executed I/O where safe, else an
+# honest signature snippet), hand-curation merged in at generation time. A
+# guarded import so a stripped/missing _tool_docs never breaks package import.
+try:  # pragma: no cover - trivial import guard
+    from ._tool_docs import TOOL_DOCS as _TOOL_DOCS
+except Exception:  # noqa: BLE001
+    _TOOL_DOCS: Dict[str, Dict[str, Any]] = {}
+
+
+def _apply_docs(entry: ToolEntry) -> ToolEntry:
+    """Merge the generated `_TOOL_DOCS` floor into a ToolEntry: fill
+    ``explanation`` / ``example`` only when the entry does not already carry
+    its own (a hand-written literal on the registration always wins). No-op
+    when the tool has no docs entry."""
+    doc = _TOOL_DOCS.get(entry.name)
+    if not doc:
+        return entry
+    from dataclasses import replace
+    expl = entry.explanation if entry.explanation is not None \
+        else doc.get("explanation")
+    ex = entry.example if entry.example is not None else doc.get("example")
+    if expl is entry.explanation and ex is entry.example:
+        return entry
+    return replace(entry, explanation=expl, example=ex)
+
 
 def register_tool(entry: ToolEntry) -> None:
     """Register one tool entry. Idempotent on identical re-registration;
@@ -303,6 +339,7 @@ def register_tool(entry: ToolEntry) -> None:
     assert isinstance(entry, ToolEntry), \
         f"register_tool: expected ToolEntry, got {type(entry).__name__}"
     assert entry.name, "register_tool: entry.name must be non-empty"
+    entry = _apply_docs(entry)
     existing = _REGISTRY.get(entry.name)
     if existing is None:
         _REGISTRY[entry.name] = entry
@@ -901,7 +938,9 @@ def _register_primitive_class_tools() -> None:
                     "unordered co-occurring vocab pairs. vocab is the FULL ranked "
                     "vocabulary by default (no silent cap — F708 fix); a top-K "
                     "vocab_size cap is an explicit, logged opt-in. Returns "
-                    "(n, edges, weights) for dense_laplacian; retires Counter().",
+                    "(n, edges, weights) for dense_laplacian; directed=True adds "
+                    "a metric+charge SUPERSET for magnetic_laplacian; retires "
+                    "Counter().",
             parameters=(P("docs", "list", True,
                           "Sequence[Sequence[str]] (one per document; window "
                           "resets per doc) or a flat token Sequence[str]"),
@@ -910,9 +949,16 @@ def _register_primitive_class_tools() -> None:
                           "explicit ranked vocab (index=position); None builds "
                           "the full vocab from frequency"),
                         P("vocab_size", "int", False,
-                          "explicit top-K cap (logged); None = no cap (all)")),
+                          "explicit top-K cap (logged); None = no cap (all)"),
+                        P("directed", "bool", False,
+                          "False (default) returns (n, edges, weights); True "
+                          "returns the (n, edges, metric, charge) superset — "
+                          "metric == the undirected weights, charge = w_fwd − "
+                          "w_bwd (for magnetic_laplacian; #1390 item 1)")),
             returns=R("tuple[int, list[tuple[int, int]], list[int]]",
-                      "(n nodes, edge list, integer co-occurrence counts)"),
+                      "(n nodes, edge list, integer co-occurrence counts); "
+                      "directed=True → (n, edges, metric, charge) with a fourth "
+                      "signed-integer charge list"),
         ),
         # §52 (F793): the streaming / bounded LOW-RAM ENCODE peer of
         # cooccurrence_edges — for building the spectral-clump graph on an edge
@@ -1126,6 +1172,160 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict",
                       "{'n_cycles', 'holonomies': list[Fraction] in [0,1), "
                       "'cycle_edges': list[(u,v)], 'balanced': bool}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.eulerian_path", owner="srmech",
+            category="laplacian",
+            summary="The Eulerian TRAIL of a DIRECTED edge multiset (#1390 item "
+                    "3): the ordered node walk that consumes every edge exactly "
+                    "once, or None if no single Eulerian trail exists. The "
+                    "Hierholzer walk-reconstruction the directed Class-L genome "
+                    "store recovers a sequence with (the sandroing/word round-"
+                    "trip). Feasibility is CHECKED (degree balance + full-edge-"
+                    "consumption connectivity) — an infeasible / disconnected "
+                    "graph returns None, never a partial walk. Deterministic "
+                    "start: the unique out=in+1 node (a path) or the min out-"
+                    "bearing node (a circuit; start overrides). Nodes any "
+                    "hashable; repeats / self-loops ok. O(|E|). Native "
+                    "srmech_eulerian_walk (byte-identical for integer nodes); "
+                    "else the pure Hierholzer. numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "the directed edge multiset [(u,v),...] (repeats / "
+                          "self-loops ok; nodes any hashable)"),
+                        P("start", "Optional[int]", False,
+                          "the start node (honoured for a circuit; a path forces "
+                          "the +1 node); None = derived")),
+            returns=R("list | None",
+                      "the Eulerian trail (node list, len |edges|+1), or None if "
+                      "no single Eulerian trail exists"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.eulerian_circuit", owner="srmech",
+            category="laplacian",
+            summary="The Eulerian CIRCUIT of a DIRECTED edge multiset (#1390 "
+                    "item 3): as eulerian_path but REQUIRES a closed circuit "
+                    "(every node balanced) — returns a walk with start == end, "
+                    "or None if the graph is not balanced + connected. Same "
+                    "Hierholzer, node-agnostic; the directed Class-L genome "
+                    "recovers a cyclic sequence with it. Native "
+                    "srmech_eulerian_walk (circuit_only; byte-identical for "
+                    "integer nodes). numpy-free; no abs().",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "the directed edge multiset [(u,v),...] (repeats / "
+                          "self-loops ok; nodes any hashable)"),
+                        P("start", "Optional[int]", False,
+                          "the start (== end) node; None = the min out-bearing "
+                          "node")),
+            returns=R("list | None",
+                      "the Eulerian circuit (node list, start == end), or None if "
+                      "not balanced + connected"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check", owner="srmech",
+            category="laplacian",
+            summary="The packaged round-trip integrity check of a stored "
+                    "directed Class-L graph (#1390 item 4): the FOUR faculties a "
+                    "genome must recover — op (L=D−A eigendecomposes, PSD, a ~0 "
+                    "null mode), operand (weighted edges present, non-degenerate, "
+                    "uncapped — not a top-K amputation), responsion (the "
+                    "propagator e^{−zL} is excitable, reach>0), and curvature (a "
+                    "DIRECTED store keeps its charge; a symmetric bag has exactly "
+                    "zero curvature — PASSES the metric faculties, FLAGGED "
+                    "directionless, F1210). ok == op and operand and responsion — "
+                    "curvature is REPORTED honestly, NOT a hard gate, so a "
+                    "legitimately acyclic (F1218) / coherent net-zero (F1146) "
+                    "directed graph is never a false failure. Integer charge is "
+                    "phase-scaled (q=1/(2·max|c|+1)) so it does not alias to 0 "
+                    "mod 1. A domain-free composition of shipped C-routed ops "
+                    "(dense_laplacian / symmetric_eigendecompose / "
+                    "magnetic_laplacian / responsion / cycle_holonomy) — the "
+                    "dense op/responsion need vocab_size<=256; use "
+                    "recover_check_structural / _spectral at corpus scale "
+                    "(F1227). numpy-free; no abs().",
+            parameters=(P("vocab_size", "int", True, "node count"),
+                        P("edges", "list[tuple[int, int]]", True, "directed edge list"),
+                        P("weights", "list", True, "parallel int metric"),
+                        P("charges", "Optional[list[int | Fraction | float]]",
+                          False, "parallel signed direction; None = undirected")),
+            returns=R("dict",
+                      "{ok, op, operand, responsion, curvature:{directed, "
+                      "n_cycles, holonomy_nonzero, verdict}, diagnostics}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check_structural", owner="srmech",
+            category="laplacian",
+            summary="The O(edges) integrity faculties only — operand (edges "
+                    "present / valid) + a SAMPLED curvature read (a cheap "
+                    "triangle probe) — so a directed Class-L store is integrity-"
+                    "checkable at ANY vocab size (the dense op/responsion "
+                    "faculties do not scale past the native n<=256 / O(n^3) wall). "
+                    "The F1227 sparse peer of recover_check_spectral (#1390 item "
+                    "4). numpy-free; no abs() (Class-K magnitude).",
+            parameters=(P("vocab_size", "int", True, "node count"),
+                        P("edges", "list[tuple[int, int]]", True, "directed edge list"),
+                        P("weights", "list", True, "parallel int metric"),
+                        P("charges", "Optional[list[int | Fraction | float]]",
+                          False, "parallel signed direction; None = undirected"),
+                        P("cycle_sample", "int", False,
+                          "keyword-only; the triangle-probe budget (default 48)")),
+            returns=R("dict",
+                      "{operand, directed, curvature_sampled_nonzero, ok_structural}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check_spectral", owner="srmech",
+            category="laplacian",
+            summary="The op + responsion (spectral) integrity faculties on a "
+                    "BOUNDED principal submatrix — the first min(vocab_size, "
+                    "max_dim) nodes + the edges within that block — so the dense "
+                    "n×n eigendecompose stays within the native n<=256 wall at "
+                    "ANY corpus vocab. The F1227 bounded-spectral peer of "
+                    "recover_check_structural (#1390 item 4). numpy-free; no "
+                    "abs().",
+            parameters=(P("vocab_size", "int", True, "node count"),
+                        P("edges", "list[tuple[int, int]]", True, "directed edge list"),
+                        P("weights", "list", True, "parallel int metric"),
+                        P("charges", "Optional[list[int | Fraction | float]]",
+                          False, "parallel signed direction; None = undirected"),
+                        P("max_dim", "int", False,
+                          "keyword-only; the principal-submatrix bound (default 256)")),
+            returns=R("dict", "{op, responsion, dim, diagnostics}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.order_fingerprint", owner="srmech",
+            category="laplacian",
+            summary="The path-ORDERED octonion product along a walk — an "
+                    "order-sensitive fingerprint of the fiber, 8 ints, "
+                    "INDEPENDENT of walk length (#1390 item 4b; F1229/F1231; the "
+                    "ℍ/𝕆 grade of the walk). It CATCHES a graph-preserving "
+                    "reorder the op/operand/responsion/ℂ-curvature faculties are "
+                    "BLIND to (two orders can share the identical directed graph, "
+                    "F1079/F1230 — even the ℂ magnetic Laplacian passes both). A "
+                    "VERIFIER (lossy by pigeonhole), NEVER a store. Composes the "
+                    "C-routed qm.so8.octonion_mult_table (Cayley-Dickson "
+                    "structure constants) with a GENERIC per-node octonion "
+                    "(non-basis, non-uniform-component — basis units are "
+                    "degenerate, F1230); EXACT integer products (no mod). "
+                    "numpy-free; no abs().",
+            parameters=(P("fiber_ids", "list", True,
+                          "the walk = the ordered node-id sequence (the fiber)"),),
+            returns=R("list", "the 8-int order fingerprint (length-independent)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.recover_check_order", owner="srmech",
+            category="laplacian",
+            summary="PASS (True) iff a recovered fiber reproduces the stored "
+                    "order fingerprint (#1390 item 4b) — the order-integrity "
+                    "guard on top of the graph faculties. Store order_fingerprint "
+                    "of the true walk beside the genome; on recall recompute it "
+                    "from the eulerian_path reconstruction and compare. A "
+                    "mismatch flags an order corruption / F1079 graph-ambiguity "
+                    "(the fiber must be stored explicitly) that op / operand / "
+                    "responsion / ℂ-curvature all pass. numpy-free; no abs().",
+            parameters=(P("true_fingerprint", "list", True,
+                          "the stored order_fingerprint of the true walk"),
+                        P("recovered_fiber_ids", "list", True,
+                          "the recovered walk (node-id sequence) to verify")),
+            returns=R("bool", "True iff the recovered order matches the stored fingerprint"),
         ),
         # ────────────────────────────────────────────────────────────
         # rc108 (#1234 Item 2 / F1007) — the spectral theta / heat trace
@@ -2784,6 +2984,28 @@ def _register_primitive_class_tools() -> None:
                         P("the_one", "HV", False, "keyword-only; the coupling invariant (optional when a manifest is present; its length is the leaf width for a manifest-less genome)")),
             returns=R("dict", "the updated manifest data (with the appended kernel chromosome + region entry + O(1)-extended body_sha256 chain)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.graph_to_kernel", owner="srmech", category="genome",
+            summary="Serialise a sparse SIGNED INTEGER graph (the directed Class-L Laplacian) into a packed genome chromosome + its true symbol count (#1390 item 2). vocab_size + edges [(i,j),...] + int weights[metric] + optional signed charges[direction] + optional node_ids label table + optional extras metadata are folded into a SELF-DESCRIBING (count-headered) flat Klein-4 symbol stream — each int base-4 digits behind a 2-symbol length header (<=15 digits = 30 bits; Class-K zig-zag sign on the charge) — then kernel_pack'd into leaf_dim-wide leaves. Returns (strand, n_syms): persist the strand with genome_save, pass n_syms to kernel_to_graph. The domain-free 'store a directed graph as a genome' primitive #231 needs; undirected (charges=None) / unlabeled (node_ids=None) / metadata-free (extras=()) all round-trip. Klein-4 is ONLY the 2-bit on-disk alphabet (no bind/bundle HV stored — F1221 disk rule). numpy-free; no abs() (Class-K zig-zag); byte-identical C peer srmech_graph_kernel_encode.",
+            parameters=(P("vocab_size", "int", True, "node count of the graph"),
+                        P("edges", "list", True, "[(i, j), ...] directed edge list"),
+                        P("weights", "list", True, "parallel int metric (co-occurrence counts)"),
+                        P("charges", "list", False, "parallel signed-int direction (w_fwd - w_bwd); None = undirected (all 0)"),
+                        P("node_ids", "list", False, "keyword-only; a label table (e.g. glyph ids); None = none"),
+                        P("extras", "list", False, "keyword-only; caller metadata ints (e.g. a start anchor); default ()"),
+                        P("leaf_dim", "int", True, "keyword-only; the leaf (tome) width to chunk into"),
+                        P("label", "str", True, "keyword-only; the chromosome label"),
+                        P("the_one", "HV", True, "keyword-only; the coupling invariant (width leaf_dim)")),
+            returns=R("tuple", "(strand, n_syms) — the packed self-describing strand + its true symbol count (pass both to genome_save / kernel_to_graph)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.kernel_to_graph", owner="srmech", category="genome",
+            summary="Recover the directed signed graph from a packed chromosome (or genome path) + its n_syms (#1390 item 2) — the inverse of graph_to_kernel. kernel_unpack's the Klein-4 leaves, trims the leaf-dim padding to n_syms, and decodes the self-describing (count-headered) base-4 payload back into {vocab_size, edges, weights, charges, node_ids, extras} BYTE-EXACT (Class-K un-zig-zag on the charge). the_one is the coupling invariant graph_to_kernel packed with (resolved from a manifest for a genome path). numpy-free; no abs(); byte-identical C peer srmech_graph_kernel_decode.",
+            parameters=(P("chroms", "list|str", True, "the graph_to_kernel strand, OR a genome directory a genome_save of one wrote"),
+                        P("the_one", "HV", True, "the coupling invariant (as passed to graph_to_kernel; resolved from a manifest for a path)"),
+                        P("n_syms", "int", True, "the true symbol count graph_to_kernel returned (trims the leaf-dim padding)")),
+            returns=R("dict", "{vocab_size, edges, weights, charges, node_ids, extras} — the exact directed signed graph"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot
@@ -3512,6 +3734,54 @@ def _register_primitive_class_tools() -> None:
                               "(columns = eigenvectors), 'force_orders': "
                               "list[Mat] [L,…,Lᵒ], 'resonances': list of "
                               "{pair, ratio (num,den), den_coords, locked}}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.coupling.resonant_spectrum_sparse", owner="srmech",
+            category="coupling",
+            summary="Read the resonant storage signature at UNBOUNDED n — the "
+                    "streaming / out-of-core k-extreme-mode peer of "
+                    "resonant_spectrum (issue #698). resonant_spectrum reads the "
+                    "signature only through the DENSE Class-L eigensolve "
+                    "(native-capped at MAX_NATIVE_NODES=256; O(n²) RAM, O(n³) "
+                    "eig). This reads the SAME signature restricted to the k "
+                    "EXTREME modes — the k lowest-tension + k highest-tension "
+                    "eigenpairs of the COMBINATORIAL Laplacian L = D − W — via "
+                    "streaming power iteration + Gram-Schmidt deflation on the "
+                    "packed edge stream (bottom-k ride the shift σI − L, top-k "
+                    "ride L; each mode deflates against all found). RAM O(k·n), "
+                    "time O(k·|E|·iters), n UNBOUNDED — breaks the n≤256 dense "
+                    "wall the way fiedler_sparse breaks it for the 2-way cut. The "
+                    "k tensions feed the SAME _resonances_from_tensions lock/"
+                    "libration read resonant_spectrum uses (Class-N best_rational "
+                    "+ Class-J prime-coordinate factor; smooth-den LOCK vs large-"
+                    "prime-den libration) — reused, so the verdicts are IDENTICAL "
+                    "to the dense read on the same tensions. Composes "
+                    "write_packed_graph + the fiedler_sparse streaming matvec, "
+                    "extended from one mode to bottom-k + top-k. 1:1 C peer "
+                    "srmech_laplacian_k_extreme_modes_file (streams the packed "
+                    "file via the PAL; caller-arena, no node cap). numpy-free; no "
+                    "abs(). (Accurate for extremes SEPARATED from the bulk; near-"
+                    "degenerate boundary clusters converge slowly — an iterative-"
+                    "method property. No force_orders — dense Lᵏ is not "
+                    "materialisable at unbounded n.)",
+            parameters=(P("edges_or_path", "list|str", True,
+                          "an undirected edge list [(u,v),…] OR a str path to a "
+                          "packed edge file (write_packed_graph; streamed)"),
+                        P("weights", "sequence", False,
+                          "per-edge weights (default 1.0); ignored for a path"),
+                        P("k", "int", False,
+                          "modes per extreme side; default 8 (up to 2k tensions)"),
+                        P("n", "int", False,
+                          "node count; None → inferred (max endpoint+1 / from file)"),
+                        P("max_iters", "int", False,
+                          "per-mode power-iteration cap; default 1000"),
+                        P("max_den", "int", False,
+                          "best_rational denominator ceiling; default 64")),
+            returns=R("dict", "{'tensions': Vec (ascending, the k extreme "
+                              "eigenvalues), 'modes': Mat (columns = the extreme "
+                              "eigenvectors), 'resonances': list of {pair, ratio "
+                              "(num,den), den_coords, locked}, 'k', 'n', "
+                              "'n_modes'}"),
         ),
         ToolEntry(
             name="srmech.amsc.coupling.from_bodies", owner="srmech",
@@ -5380,7 +5650,7 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
-            owner="srmech", category="elliptic_jackson",
+            owner="srmech", category="elliptic_jackson_an",
             summary="The Aₙ (type-A) MULTIVARIABLE ELLIPTIC JACKSON summation reducer — "
                     "the elliptic analogue of Milne's Aₙ Jackson summation (Hjalmar "
                     "Rosengren, 'New transformations for elliptic hypergeometric series "
@@ -5443,7 +5713,7 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs",
-            owner="srmech", category="elliptic_jackson",
+            owner="srmech", category="elliptic_jackson_an",
             summary="The SYMBOLIC Aₙ elliptic multisum LHS builder — the LEFT-hand "
                     "side of the Aₙ (type-A / Milne) elliptic Jackson summation "
                     "(Hjalmar Rosengren, 'New transformations for elliptic "
@@ -5489,6 +5759,108 @@ def _register_primitive_class_tools() -> None:
                       "the multivariate_elliptic_jackson_an closed form). Raises "
                       "TypeError/ValueError on a malformed operand (len(a) must be "
                       "len(z)+1; N ≥ 1)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The HIGHER-GENUS (genus-g Riemann theta) theta-multisum reduction
+        # row (rc232) — the GENUS-AXIS lift of the elliptic (genus-1) Aₙ / Cₙ
+        # Jackson rows. Spiridonov math/0408366 the Theorem (Eq. sum): a
+        # multiparameter summation formula for genus-g odd Riemann theta
+        # functions, proved by Fay-identity telescoping. Both sides first-class
+        # (the rc216/rc227 precedent). 1:1 C peer srmech_riemann_theta_multisum.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum",
+            owner="srmech", category="riemann_theta_multisum",
+            summary="The HIGHER-GENUS (genus-g Riemann theta) THETA MULTISUM reducer "
+                    "— the genus-axis lift of the elliptic (genus-1) Aₙ/Cₙ Jackson "
+                    "rows (V. P. Spiridonov, 'A multiparameter summation formula for "
+                    "Riemann theta functions', arXiv:math/0408366v2 [math.CA] (2004); "
+                    "Contemp. Math. 417 (2006), 345–353, the Theorem, Eq. sum; "
+                    "extracted-source PDF sha256 8478af7407d26d0b0504d381cbe3c32a00f9"
+                    "50c3b0c6ab8001a023b7e0c4c319). For n+1 free vectors z_k and 4n+4 "
+                    "distinct points a_k,b_k,c_k,d_k on a Riemann surface of arbitrary "
+                    "genus g, with the odd theta [u] ([-u]=-[u]) and the abelian "
+                    "integral v(a,b), it CONSTRUCTS the closed-form right-hand side "
+                    "∏_k [z_k, z_k+v(a_k,c_k)+v(b_k,d_k), v(c_k,d_k), v(a_k,b_k)] − "
+                    "∏_k [z_k+v(a_k,c_k), z_k+v(b_k,d_k), v(c_k,b_k), v(a_k,d_k)] "
+                    "(= ∏ g_k − ∏ h_k) as a ThetaBracketSum. With verify=True it also "
+                    "PROVES the reduction per call: it builds the symbolic LHS multisum "
+                    "(riemann_theta_multisum_lhs), rewrites each summand's leading "
+                    "factor L_k → g_k − h_k by the genus-g Fay trisecant identity (the "
+                    "ONE attested input, Spiridonov Eq. Fay; J. Fay, LNM 353, 1973), "
+                    "subtracts, and decides .is_zero — after Fay the residual "
+                    "telescopes to EXACTLY zero (a ring identity; free-monomial "
+                    "cancellation), returning {closed_form, verified}: True = proven, "
+                    "False = a wrong/perturbed closed form is caught. For g=1 the "
+                    "identity is Warnaar's elliptic formula. 1:1 C peer "
+                    "srmech_riemann_theta_multisum builds the SAME bracket-product "
+                    "monomials (byte-exact; trusted only after == the pure "
+                    "ThetaBracketSum, the complete alternative + parity oracle). Exact "
+                    "over the theta-bracket algebra (no float), no abs() (Class-K "
+                    "odd-theta sign), no numpy / math.",
+            parameters=(
+                P("z", "list[EllMonomial]", True,
+                  "the length-(n+1) list of free vectors (z_0,…,z_n) — the summation "
+                  "ceiling n is len(z) − 1"),
+                P("points", "list[tuple[EllMonomial×4]]", True,
+                  "the length-(n+1) list of 4-tuples (a_k, b_k, c_k, d_k) of distinct "
+                  "points on the Riemann surface (each an EllMonomial)"),
+                P("verify", "bool", False,
+                  "False (default): return the bare closed-form ThetaBracketSum. True: "
+                  "also PROVE the reduction per call (Fay + telescoping) and return "
+                  "{'closed_form': ThetaBracketSum, 'verified': True|False|None}"),
+            ),
+            returns=R("ThetaBracketSum | dict",
+                      "the exact closed-form difference of products ∏ g_k − ∏ h_k as a "
+                      "ThetaBracketSum (the Spiridonov math/0408366 Eq. sum right-hand "
+                      "side); with verify=True a dict {'closed_form', 'verified'}. "
+                      "Raises TypeError/ValueError on a malformed operand (len(points) "
+                      "must be len(z); each points[k] a 4-tuple)"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The SYMBOLIC higher-genus MULTISUM LHS builder — the LEFT-hand
+        # side of the Spiridonov theta multisum as an exact ThetaBracketSum
+        # (rc232; both sides first-class). LHS − RHS |> Fay-reduce |> is_zero
+        # IS the per-call proof. 1:1 C peer srmech_riemann_theta_multisum.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs",
+            owner="srmech", category="riemann_theta_multisum",
+            summary="The SYMBOLIC higher-genus theta-multisum LHS builder — the "
+                    "LEFT-hand side of Spiridonov's multiparameter summation formula "
+                    "for genus-g Riemann theta functions (arXiv:math/0408366v2 "
+                    "[math.CA] (2004); Contemp. Math. 417 (2006), 345–353, the "
+                    "Theorem, Eq. sum) built SYMBOLICALLY as an exact ThetaBracketSum "
+                    "over the genus-g odd-theta algebra. For n+1 free vectors z_k and "
+                    "the distinct points a_k,b_k,c_k,d_k it constructs the n+1-term sum "
+                    "Σ_{k=0}^n L_k · ∏_{j<k} g_j · ∏_{j>k} h_j, with the summand "
+                    "leading factor L_k = [z_k+v(b_k,c_k), z_k+v(a_k,d_k), v(a_k,c_k), "
+                    "v(b_k,d_k)], g_j = [z_j, z_j+v(a_j,c_j)+v(b_j,d_j), v(c_j,d_j), "
+                    "v(a_j,b_j)] and h_j = [z_j+v(a_j,c_j), z_j+v(b_j,d_j), v(c_j,b_j), "
+                    "v(a_j,d_j)] (the odd theta [u], [-u]=-[u]; v the abelian "
+                    "integral). By Eq. sum it EQUALS the closed form "
+                    "multivariate_riemann_theta_sum constructs, so its Fay-reduction "
+                    "minus that closed form telescopes to zero — the per-call proof, "
+                    "with both sides first-class (the rc216/rc227 precedent). 1:1 C "
+                    "peer srmech_riemann_theta_multisum builds the SAME bracket-product "
+                    "monomials (byte-exact; the native ThetaBracketSum is trusted only "
+                    "after it == the pure one, the complete alternative + parity "
+                    "oracle). Exact over the theta-bracket algebra (no float), no abs() "
+                    "(Class-K odd-theta sign), no numpy / math.",
+            parameters=(
+                P("z", "list[EllMonomial]", True,
+                  "the length-(n+1) list of free vectors (z_0,…,z_n) — the summation "
+                  "ceiling n is len(z) − 1"),
+                P("points", "list[tuple[EllMonomial×4]]", True,
+                  "the length-(n+1) list of 4-tuples (a_k, b_k, c_k, d_k) of distinct "
+                  "points on the Riemann surface (each an EllMonomial)"),
+            ),
+            returns=R("ThetaBracketSum",
+                      "the exact higher-genus multisum Σ_{k=0}^n L_k·∏_{j<k}g_j·"
+                      "∏_{j>k}h_j as a ThetaBracketSum of n+1 bracket-product terms "
+                      "(the Spiridonov math/0408366 Eq. sum LEFT-hand side; equal, by "
+                      "the identity, to the multivariate_riemann_theta_sum closed "
+                      "form). Raises TypeError/ValueError on a malformed operand"),
         ),
         # ────────────────────────────────────────────────────────────
         # The F929 OPEN/infer ROUTER — the meta-dispatcher that makes the
@@ -6484,6 +6856,99 @@ def _register_primitive_class_tools() -> None:
                                "residue (float, |theta_res| ≤ π); 2π·w + "
                                "theta_res reconstructs theta on the fold "
                                "grid"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # rc238 (#1385 F-thread) — the FRAME-CARRYING CARRIER: augment a
+        # 2π-periodic truncated-Taylor value with its local beat-frame
+        # (σ, w) so a cross-seam compare PARALLEL-TRANSPORTS the frame
+        # first → bit-exact where the un-framed compare only sometimes
+        # matched. NOT a re-wrap of winding_fold (float residue) / the_one
+        # (folds w away): the transport is an EXACT-rational 2π divmod over
+        # the Machin-2π anchor _EPH_TWO_PI, feeding the exact series.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.cascade.frame_carrier.frame_carrier",
+            owner="srmech", category="cascade",
+            summary="The FRAME-CARRYING CARRIER: augment a 2π-periodic "
+                    "truncated Taylor series (sin/cos_series_truncate) with "
+                    "its local beat-frame (sigma, winding) so cross-seam "
+                    "compares can parallel-transport it (rc238). The raw "
+                    "series truncates the argument p/q DIRECTLY (it does NOT "
+                    "fold), so sin at theta vs theta+2π drifts — exact WITHIN "
+                    "a beat (|x|≤π, w=0) but NOT bit-exact across the 2π seam. "
+                    "This returns the (value, frame) pair — the rc125 "
+                    "recoverable-fold (lossy, exact_seed) analogue with the "
+                    "FRAME as the exact second leg: value = the raw local "
+                    "series (drifts across the seam); winding/residue/sigma = "
+                    "the exact frame (connection element) a compare transports. "
+                    "residue is the canonical in-beat representative (|r|≤π, "
+                    "theta folded to w=0); transported = the seam-invariant "
+                    "value the compare aligns on. Cascade (composition_of_c, "
+                    "no new C symbol): the c_dispatched Class-N sin/cos "
+                    "series; the transport is the EXACT-rational 2π divmod "
+                    "over the Machin-2π anchor _EPH_TWO_PI (Class-I quotient- "
+                    "retained divmod over the exact Class-N 2π; residue sign "
+                    "Class K/C, never abs()) — NOT winding_fold's float "
+                    "residue; reduction rides the c_dispatched Class-I "
+                    "rational reduce.",
+            parameters=(
+                P("func", "str", True,
+                  "'sin' or 'cos' — the 2π-periodic series to frame"),
+                P("numerator", "int", True,
+                  "the argument angle numerator (radians, exact rational p/q)"),
+                P("denominator", "int", True,
+                  "the argument angle denominator (non-zero)"),
+                P("num_terms", "int", True, "Taylor truncation depth N (0..50)"),
+                P("sigma", "int", False,
+                  "chirality frame component: +1 or -1 (default +1)"),
+            ),
+            returns=R("dict", "{func, arg, sigma, winding, residue, "
+                              "num_terms, value, transported} — value the "
+                              "raw (drifting) leg, winding/residue/sigma the "
+                              "exact frame, transported the seam-invariant "
+                              "in-beat value; rationals are reduced (num, den) "
+                              "pairs"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.frame_carrier.frame_carrier_compare",
+            owner="srmech", category="cascade",
+            summary="Cross-seam compare of two frame-carrying carriers: "
+                    "PARALLEL-TRANSPORT the frame, THEN compare, with the "
+                    "exact is_aligned certificate (rc238). Reports raw_equal "
+                    "(the UN-framed compare A.value==B.value — the 'sometimes "
+                    "not bit-exact across the seam' drift symptom) AND "
+                    "transported_equal (the FRAMED compare "
+                    "A.transported==B.transported — each argument "
+                    "exact-rational-folded to its canonical residue first: "
+                    "bit-exact across the seam where the raw compare only "
+                    "sometimes matched). aligned = True iff the transport "
+                    "lands in the value's winding-stabilizer (canonical "
+                    "residues EQUAL — a whole number of 2π turns apart, a zero "
+                    "residue_delta by its Class-K magnitude — AND chiralities "
+                    "match); aligned then PROVES the transported values are "
+                    "byte-identical (the rc236 is_flat / Stab shape one level "
+                    "up). When not aligned it carries the real residual "
+                    "(non-zero residue_delta holonomy or chirality mismatch) "
+                    "— so a genuinely different value is never falsely aligned "
+                    "(soundness). Cascade: composition_of_c over the "
+                    "c_dispatched series + the Class-K magnitude (real |x|, "
+                    "never abs()) + the exact-rational Machin-2π fold.",
+            parameters=(
+                P("func", "str", True, "'sin' or 'cos' (same series for both)"),
+                P("num_a", "int", True, "carrier A argument numerator"),
+                P("den_a", "int", True, "carrier A argument denominator"),
+                P("num_b", "int", True, "carrier B argument numerator"),
+                P("den_b", "int", True, "carrier B argument denominator"),
+                P("num_terms", "int", True, "shared Taylor truncation depth N"),
+                P("sigma_a", "int", False, "carrier A chirality (+1/-1, default +1)"),
+                P("sigma_b", "int", False, "carrier B chirality (+1/-1, default +1)"),
+            ),
+            returns=R("dict", "{func, raw_equal, transported_equal, aligned, "
+                              "transport_turns, transport_magnitude, "
+                              "residue_delta, chirality_match} — the drift "
+                              "(raw_equal), the fix (transported_equal), the "
+                              "exact cert (aligned) + its residual "
+                              "(residue_delta)"),
         ),
         # chirality mini-set (v0.4.4): the chiral dual of an A-N operator is
         # SAME SHAPE, INVERSE (MFO §VIII.31.11; spike-verified). Compositions

@@ -181,6 +181,13 @@ __all__ = [
     "klein4_gain_laplacian",
     "klein4_relational_structure",
     "cycle_holonomy",
+    "eulerian_path",
+    "eulerian_circuit",
+    "recover_check",
+    "recover_check_structural",
+    "recover_check_spectral",
+    "order_fingerprint",
+    "recover_check_order",
     "jacobi_eigvals",
     "fiedler_sparse",
     "normalized_cut_bisect",
@@ -3480,6 +3487,361 @@ def _heat_trace_py(rows, is_complex: bool, t_list):
         ev = jacobi_eigvals(real_rows)
         lam = [float(ev[i]) for i in range(ev.shape[0])]
     return [sum(float(_rexp(-(tv * lk))) for lk in lam) for tv in t_list]
+
+
+# ── #1390 item 3: eulerian_path / eulerian_circuit ──────────────────────────
+# The Hierholzer walk-reconstruction the directed Class-L genome store recovers
+# an ordered sequence with (the sandroing/word round-trip). Faithful port of
+# R-RBS-LM-EULERWALK: a node-agnostic Eulerian trail / circuit over a DIRECTED
+# edge multiset. Feasibility is CHECKED (degree balance + full-edge-consumption
+# connectivity) — an infeasible graph returns None, never a partial walk.
+# Deterministic (adjacency consumed from the END — the pop() order). The C peer
+# srmech_eulerian_walk mirrors it byte-for-byte for integer nodes [0, n).
+
+_NO_NATIVE_EULER = object()
+
+
+def _eulerian_degrees(edges):
+    """(outs, outdeg, indeg, nodes) — the per-node out-lists (edge order) +
+    out/in degrees + the node set. Nodes may be any hashable."""
+    outs, outdeg, indeg, nodes = {}, {}, {}, set()
+    for u, v in edges:
+        outs.setdefault(u, []).append(v)
+        outdeg[u] = outdeg.get(u, 0) + 1
+        indeg[v] = indeg.get(v, 0) + 1
+        nodes.add(u)
+        nodes.add(v)
+    return outs, outdeg, indeg, nodes
+
+
+def _eulerian_native(edges, start, circuit_only):
+    """Dispatch to the C peer when nodes are non-negative ints. Returns the walk
+    (list), ``None`` (infeasible), or the ``_NO_NATIVE_EULER`` sentinel (native
+    absent / non-int nodes → the pure body runs)."""
+    if not _native.has_native_eulerian():
+        return _NO_NATIVE_EULER
+    try:
+        n_nodes = 0
+        for u, v in edges:
+            if (not isinstance(u, int) or not isinstance(v, int)
+                    or isinstance(u, bool) or isinstance(v, bool)
+                    or u < 0 or v < 0):
+                return _NO_NATIVE_EULER
+            n_nodes = max(n_nodes, u + 1, v + 1)
+        s = -1
+        if start is not None:
+            if (not isinstance(start, int) or isinstance(start, bool)
+                    or start < 0 or start >= n_nodes):
+                return _NO_NATIVE_EULER            # pure handles the odd start
+            s = start
+        return _native.eulerian_walk_c(edges, n_nodes, s, bool(circuit_only))
+    except Exception:
+        return _NO_NATIVE_EULER
+
+
+def eulerian_path(edges, start=None):
+    """The Eulerian trail of a DIRECTED edge multiset ``[(u, v), ...]`` (repeats
+    / self-loops ok; nodes any hashable) as a node list of length
+    ``len(edges)+1``, or ``None`` if no single Eulerian trail exists (#1390
+    item 3). Feasibility is CHECKED (degree balance + full-consumption
+    connectivity). Deterministic start: the +1 out-degree node (path) or the min
+    out-bearing node (circuit; ``start`` overrides). O(|E|) Hierholzer; the C
+    peer ``srmech_eulerian_walk`` is byte-identical for integer nodes."""
+    edges = [tuple(e) for e in edges]
+    if not edges:
+        return [start] if start is not None else []
+    native = _eulerian_native(edges, start, circuit_only=False)
+    if native is not _NO_NATIVE_EULER:
+        return native
+    outs, outdeg, indeg, nodes = _eulerian_degrees(edges)
+    plus = [n for n in nodes if outdeg.get(n, 0) - indeg.get(n, 0) == 1]
+    minus = [n for n in nodes if indeg.get(n, 0) - outdeg.get(n, 0) == 1]
+    imbalanced = [n for n in nodes if outdeg.get(n, 0) != indeg.get(n, 0)]
+    if not imbalanced:                                  # EULERIAN CIRCUIT
+        s = start if start is not None else min(
+            n for n in nodes if outdeg.get(n, 0) > 0)
+    elif len(plus) == 1 and len(minus) == 1 and len(imbalanced) == 2:
+        s = plus[0]                                     # EULERIAN PATH: forced start
+    else:
+        return None                                     # no Eulerian trail
+    avail = {n: list(v) for n, v in outs.items()}       # consume EVERY edge once
+    stack, walk = [s], []
+    while stack:
+        v = stack[-1]
+        if avail.get(v):
+            stack.append(avail[v].pop())                # pop the END (determinism)
+        else:
+            walk.append(stack.pop())
+    walk.reverse()
+    if len(walk) != len(edges) + 1:                     # not all edges consumed
+        return None                                     # -> DISCONNECTED
+    return walk
+
+
+def eulerian_circuit(edges, start=None):
+    """As :func:`eulerian_path` but REQUIRES a closed circuit (every node
+    balanced): returns a walk with ``start == end``, or ``None`` if the graph is
+    not balanced + connected (#1390 item 3)."""
+    edges = [tuple(e) for e in edges]
+    if not edges:
+        return [start] if start is not None else []
+    native = _eulerian_native(edges, start, circuit_only=True)
+    if native is not _NO_NATIVE_EULER:
+        return native
+    _outs, outdeg, indeg, nodes = _eulerian_degrees(edges)
+    if any(outdeg.get(n, 0) != indeg.get(n, 0) for n in nodes):
+        return None                                     # not balanced -> no circuit
+    return eulerian_path(edges, start=start)
+
+
+# ── #1390 item 4: recover_check (+ the F1227 structural / spectral split) ────
+# The packaged round-trip integrity check for a stored directed Class-L graph.
+# Faithful port of R-RBS-LM-RECOVERCHECK (the four faculties) + the F1227
+# corpus-scale split (R-RBS-LM-SIONA231): the dense op / responsion faculties do
+# not scale past the native n<=256 wall, so the full recover_check (bounded) is
+# joined by recover_check_structural (sparse, O(edges), any scale) +
+# recover_check_spectral (op / responsion on a BOUNDED principal submatrix). A
+# domain-free composition of shipped C-routed ops (dense_laplacian /
+# symmetric_eigendecompose / magnetic_laplacian / responsion / cycle_holonomy):
+# composition_of_c, no new C symbol. numpy-free; no abs() (Class-K magnitude).
+
+_RECOVER_TOL = Fraction(1, 10 ** 9)
+
+
+def _recover_mag(x):
+    """Class-K real magnitude (NOT the abs builtin)."""
+    return x if x >= 0 else -x
+
+
+def _recover_op_spectral(dim, edges, weights):
+    """The ``op`` faculty on ``dim`` nodes: L = D − A eigendecomposes (PSD, a ~0
+    null mode, len == dim). Returns ``(op_bool, diag_updates)``."""
+    diag = {}
+    try:
+        lap = dense_laplacian(dim, edges, [float(w) for w in weights])
+        evals, _v = symmetric_eigendecompose(lap)
+        ev = sorted(float(x) for x in evals)
+        diag["n_modes"] = len(ev)
+        diag["eig_range"] = (round(ev[0], 6), round(ev[-1], 6))
+        psd = ev[0] > -1e-9
+        zero_mode = _recover_mag(
+            Fraction(ev[0]).limit_denominator(10 ** 6)) < _RECOVER_TOL
+        return (len(ev) == dim and psd and zero_mode), diag
+    except Exception as e:                          # a malformed op fails HONESTLY
+        diag["op_error"] = "%s: %s" % (type(e).__name__, e)
+        return False, diag
+
+
+def _recover_responsion(dim, edges, weights, charges):
+    """The ``responsion`` faculty on ``dim`` nodes: the propagator e^{−zL} is
+    excitable (reach > 0). Returns ``(responsion_bool, diag_updates)``."""
+    diag = {}
+    try:
+        mx = max((float(w) for w in weights), default=1.0) * max(dim, 1)
+        lm = magnetic_laplacian(dim, edges, [float(w) for w in weights],
+                                charges=[float(c) for c in charges]
+                                if charges is not None else None)
+        r = responsion(lm, [1.0] + [0.0] * (dim - 1), 5.0 / (mx or 1.0),
+                       kind="propagator")
+        reach = sum((x.real * x.real + x.imag * x.imag) for x in r)  # Σ|·|², no abs
+        # Σ|·|² directly — the responsion faculty is reach > 0; a bare float
+        # sqrt is banned by the A-N cascade ratchet (float = FPU-lift only).
+        diag["propagator_reach_sq"] = round(reach, 6)
+        return reach > 0, diag
+    except Exception as e:
+        diag["responsion_error"] = "%s: %s" % (type(e).__name__, e)
+        return False, diag
+
+
+def _recover_curvature(vocab_size, edges, charges):
+    """The ``curvature`` faculty: a directed store keeps its charge. Phase-scale
+    the integer charge (q = 1/(2·max|c|+1)) so it does not alias to 0 mod 1."""
+    directed = charges is not None and any(c != 0 for c in charges)
+    n_cycles = 0
+    holonomy_nonzero = False
+    if directed:
+        mc = max((_recover_mag(c) for c in charges), default=0) or 1
+        q = Fraction(1, 2 * mc + 1)                 # phase unit that exposes holonomy
+        ph = [Fraction(int(c)) * q for c in charges]
+        hol = cycle_holonomy(edges, charges=ph, n=vocab_size)
+        n_cycles = hol["n_cycles"]
+        holonomy_nonzero = any(h != 0 for h in hol["holonomies"])
+    if not directed:
+        verdict = "symmetric-bag (flat, F1210 flag)"
+    elif n_cycles == 0:
+        verdict = "carries-direction (acyclic -> structurally flat, F1218)"
+    elif holonomy_nonzero:
+        verdict = "carries-direction + curvature (nonzero holonomy)"
+    else:
+        verdict = "carries-direction (coherent net-zero holonomy, F1146)"
+    return {"directed": directed, "n_cycles": n_cycles,
+            "holonomy_nonzero": holonomy_nonzero, "verdict": verdict}
+
+
+def recover_check(vocab_size, edges, weights, charges=None):
+    """The packaged round-trip integrity check of a stored directed Class-L
+    graph (#1390 item 4): the four faculties a genome must recover — ``op``
+    (L = D − A eigendecomposes, PSD, ~0 mode), ``operand`` (weighted edges
+    present, non-degenerate, uncapped), ``responsion`` (the propagator e^{−zL}
+    is excitable), and ``curvature`` (a directed store keeps its charge; a
+    symmetric bag is flagged flat, F1210). ``ok == op and operand and
+    responsion`` — curvature is REPORTED honestly, NOT a hard gate (a
+    legitimately acyclic / coherent directed graph is never a false failure).
+    A domain-free composition of shipped ops; the dense op / responsion
+    faculties need ``vocab_size <= 256`` — use :func:`recover_check_structural`
+    / :func:`recover_check_spectral` at corpus scale (F1227). Faithful port of
+    R-RBS-LM-RECOVERCHECK. Returns ``{ok, op, operand, responsion,
+    curvature:{directed, n_cycles, holonomy_nonzero, verdict}, diagnostics}``."""
+    edges = [tuple(e) for e in edges]
+    diag = {}
+    operand = (len(edges) > 0 and len(edges) == len(weights)
+               and all(w >= 1 for w in weights))
+    deg = {}
+    for (i, j) in edges:
+        deg[i] = deg.get(i, 0) + 1
+        deg[j] = deg.get(j, 0) + 1
+    diag["max_degree"] = max(deg.values()) if deg else 0
+    diag["n_edges"] = len(edges)
+    op, op_diag = _recover_op_spectral(vocab_size, edges, weights)
+    diag.update(op_diag)
+    responsion, r_diag = _recover_responsion(vocab_size, edges, weights, charges)
+    diag.update(r_diag)
+    curvature = _recover_curvature(vocab_size, edges, charges)
+    return {"ok": bool(op and operand and responsion), "op": op,
+            "operand": operand, "responsion": responsion,
+            "curvature": curvature, "diagnostics": diag}
+
+
+def recover_check_structural(vocab_size, edges, weights, charges=None, *,
+                             cycle_sample=48):
+    """The O(edges) faculties only — ``operand`` (edges present / valid) + a
+    SAMPLED curvature read — so integrity is checkable at ANY vocab size (the
+    dense op / responsion faculties do not scale past the native n<=256 wall).
+    The F1227 sparse peer of :func:`recover_check_spectral` (#1390 item 4).
+    Faithful port of R-RBS-LM-SIONA231. Returns ``{operand, directed,
+    curvature_sampled_nonzero, ok_structural}``."""
+    edges = [tuple(e) for e in edges]
+    operand = (len(edges) > 0 and len(edges) == len(weights)
+               and all(w >= 1 for w in weights))
+    directed = charges is not None and any(c != 0 for c in charges)
+    seen = {}
+    holo = False
+    ch = charges if charges is not None else [0] * len(edges)
+    for idx, ((i, j), c) in enumerate(zip(edges, ch)):
+        seen[(i, j)] = c
+        for k in range(min(vocab_size, 64)):        # cheap triangle probe
+            a = seen.get((min(i, k), max(i, k)))
+            b = seen.get((min(k, j), max(k, j)))
+            if a is not None and b is not None and k not in (i, j):
+                mc = _recover_mag(c)
+                q = Fraction(1, 2 * max(1, mc) + 1)
+                hh = cycle_holonomy(
+                    [(i, k), (k, j), (i, j)],
+                    charges=[Fraction(int(a)) * q, Fraction(int(b)) * q,
+                             Fraction(int(c)) * q], n=vocab_size)
+                if any(h != 0 for h in hh["holonomies"]):
+                    holo = True
+                    break
+        if holo or idx > cycle_sample * 200:
+            break
+    return {"operand": operand, "directed": directed,
+            "curvature_sampled_nonzero": holo, "ok_structural": operand}
+
+
+def recover_check_spectral(vocab_size, edges, weights, charges=None, *,
+                           max_dim=256):
+    """The ``op`` + ``responsion`` (spectral) faculties on a BOUNDED principal
+    submatrix — the first ``min(vocab_size, max_dim)`` nodes + the edges within
+    that block — so the dense n×n eigendecompose stays within the native n<=256
+    wall at ANY corpus vocab. The F1227 bounded-spectral peer of
+    :func:`recover_check_structural` (#1390 item 4). Returns ``{op, responsion,
+    dim, diagnostics}``."""
+    edges = [tuple(e) for e in edges]
+    dim = min(vocab_size, max_dim)
+    sub_e, sub_w, sub_c = [], [], []
+    ch = charges if charges is not None else None
+    for idx, (i, j) in enumerate(edges):
+        if i < dim and j < dim:
+            sub_e.append((i, j))
+            sub_w.append(weights[idx])
+            if ch is not None:
+                sub_c.append(ch[idx])
+    diag = {"dim": dim, "n_edges_in_block": len(sub_e)}
+    if dim < 1:
+        return {"op": False, "responsion": False, "dim": dim, "diagnostics": diag}
+    op, op_diag = _recover_op_spectral(dim, sub_e, sub_w)
+    diag.update(op_diag)
+    responsion, r_diag = _recover_responsion(
+        dim, sub_e, sub_w, sub_c if ch is not None else None)
+    diag.update(r_diag)
+    return {"op": op, "responsion": responsion, "dim": dim, "diagnostics": diag}
+
+
+# ── #1390 item 4b: the octonion ORDER faculty (recover_check upgrade) ────────
+# An additive 5th recover_check faculty (F1231): an ORDER-sensitive fingerprint
+# that catches a walk-order corruption the graph-level faculties are BLIND to
+# (F1079 / F1230 — two orders can share the IDENTICAL directed graph, so even
+# the ℂ magnetic Laplacian passes them both). The path-ordered product of a
+# GENERIC octonion per node along the walk = 8 ints, length-independent. A
+# faithful port of R-RBS-LM-OCTRECOVER: EXACT integer products via the C-routed
+# qm.so8.octonion_mult_table (composition_of_c) — no mod (a VERIFIER, lossy by
+# pigeonhole F1230, NOT a store). numpy-free; no abs().
+
+
+def _order_node_octonion(node_id):
+    """A deterministic GENERIC octonion per node — real part 1 + seven
+    DISTINCT-per-axis id-derived imaginary parts (each axis has its own
+    multiplier + offset + modulus so the components do NOT collapse to a uniform
+    value; a plain ``1 + id % m`` generator degenerates to ``[1,2,2,2,2,2,2,2]``
+    for small ids — as bad as a basis unit, F1230)."""
+    out = [1]
+    for k in range(7):
+        out.append(1 + ((node_id * (2 * k + 3) + (5 * k + 1)) % (11 + 2 * k)))
+    return out
+
+
+def _order_omul(a, b, table):
+    """One octonion product ``a * b`` via the C-routed Cayley-Dickson structure
+    constants (``qm.so8.octonion_mult_table``) — EXACT integer arithmetic (never
+    a float Mat, never a mod)."""
+    out = [0] * 8
+    for i in range(8):
+        if a[i] == 0:
+            continue
+        for j in range(8):
+            if b[j] == 0:
+                continue
+            for k in range(8):
+                c = table[i][j][k]
+                if c:
+                    out[k] += c * a[i] * b[j]
+    return out
+
+
+def order_fingerprint(fiber_ids):
+    """The path-ORDERED octonion product along a walk — an order-sensitive
+    fingerprint of the fiber, 8 ints, independent of walk length (#1390 item 4b;
+    F1229 / F1231; the ℍ/𝕆 grade of the walk). It CATCHES a graph-preserving
+    reorder the op / operand / responsion / ℂ-curvature faculties are blind to
+    (F1079 / F1230). A VERIFIER (lossy by pigeonhole), NEVER a store. Composes
+    the C-routed ``srmech.qm.so8.octonion_mult_table`` with a generic (non-basis,
+    non-uniform-component) per-node octonion."""
+    from srmech.qm.so8 import octonion_mult_table
+    table = octonion_mult_table()
+    acc = [1, 0, 0, 0, 0, 0, 0, 0]
+    for nid in fiber_ids:
+        acc = _order_omul(acc, _order_node_octonion(int(nid)), table)
+    return acc
+
+
+def recover_check_order(true_fingerprint, recovered_fiber_ids):
+    """PASS (True) iff a recovered fiber reproduces the stored order fingerprint
+    (#1390 item 4b) — the order-integrity guard on top of the graph faculties.
+    Store :func:`order_fingerprint` of the true walk beside the genome; on recall
+    recompute it from the :func:`eulerian_path` reconstruction and compare. A
+    mismatch flags an order corruption / F1079 graph-ambiguity (the fiber must be
+    stored explicitly) that op / operand / responsion / ℂ-curvature all pass."""
+    return order_fingerprint(recovered_fiber_ids) == list(true_fingerprint)
 
 
 def heat_trace(L, t):

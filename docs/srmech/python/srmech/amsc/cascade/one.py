@@ -751,6 +751,18 @@ class One:
             })
         return out
 
+    def separate_winding_curvature(self) -> dict:
+        """The winding FRAME/CURVATURE split of this One (F2 — rc237) — the
+        ``the_one`` instance of rc236's ``separate_frame_curvature``.
+
+        See the module-level :func:`separate_winding_curvature` for the full
+        contract: fixed_frame = the w-INVARIANT adjoint (the unwound w=0 rep),
+        curvature = the winding-holonomy (the FULL ℤ³ grading beyond the ±1
+        :attr:`spinor_sign`), is_flat = the winding is full-period-trivial
+        (``w == (0,0,0)``, NOT merely even-parity).
+        """
+        return separate_winding_curvature(self)
+
     def __repr__(self) -> str:  # pragma: no cover - cosmetic
         return (
             f"One(sigma={self.sigma:+d}, theta={self.theta}, "
@@ -1073,6 +1085,108 @@ def to_scalar(one: "One",
     return Q(num, den)
 
 
+def separate_winding_curvature(one: "One") -> dict:
+    """Separate the One ``S(σ,θ,w)`` into its FIXED-FRAME (unwound, w-invariant)
+    part ⊕ its winding CURVATURE / holonomy residue — the ``the_one`` winding
+    instance of rc236's ``separate_frame_curvature`` (F2; the op / operand /
+    responsion ≅ field / excitation / CURVATURE thread, on the metacycle seam).
+
+    The adjoint base (:meth:`One.to_flat_rational` / :meth:`One.to_matrix`) is
+    2π-periodic → **w-BLIND**: it FOLDS the winding away, so it is byte-identical
+    for EVERY winding. That makes it the **FIXED FRAME** — the frame-INDEPENDENT
+    metric part, exactly the unwound w=0 representative ``S(σ,θ,0)``. The
+    **CURVATURE** is the winding-holonomy: what ``S(σ,θ,w)`` carries BEYOND
+    ``S(σ,θ,0)`` — the full ℤ³ winding grading the adjoint cannot see.
+
+    **Why this is NOT a shell (content beyond the ±1 spinor_sign).** The naive
+    winding readout is the Z/2 double-cover sign ``spinor_sign = (−1)^Σw`` — but
+    that CONFLATES ``w=2`` with ``w=4`` (both Σ even → +1). The curvature record
+    here carries the FULL integer grading: the winding triad AND its divmod
+    binary tower (:func:`winding_tower`), which DISTINGUISHES ``w=2`` (tower
+    ``(0,1)``) from ``w=4`` (tower ``(0,0,1)``) — content the ±1 sign throws
+    away. So ``is_flat`` is **full-period-trivial** (``w == (0,0,0)``), NOT merely
+    even-parity: a ``w=(2,0,0)`` (``spinor_sign`` +1) is NOT flat.
+
+    Return contract (a small record; the DECOMPOSITION is the object)::
+
+        {"fixed_frame": tuple[tuple[int,int], ...],  # 14 w-INVARIANT adjoint
+                                                       #   rationals (unwound rep)
+         "curvature": {                               # the winding-holonomy
+             "winding":     (w_s, w_m, w_c),          # the full ℤ³ grading
+             "towers":      ((...),(...),(...)),      # per-component divmod tower
+             "spinor_sign": +1 | -1,                  # the Z/2 parity (conflates
+                                                       #   w=2/w=4; for reference)
+             "holonomy":    int,                      # Σ Class-K |w_k| — the
+             },                                        #   exact holonomy magnitude
+         "is_flat": bool}                             # True ⇔ holonomy == 0
+                                                       #        ⇔ w == (0,0,0)
+
+    ``is_flat`` is the EXACT (byte-sound) flatness certificate: True iff EVERY
+    winding component vanishes by its **Class-K magnitude**
+    (:func:`srmech.amsc.cascade.atoms.magnitude`, real ``|x|`` — never an ALU
+    ``abs()``; ``int`` in → exact ``int`` out). A wound One (any ``w_k ≠ 0``) is
+    NOT flat: the winding contributes a genuine holonomy the unwound rep lacks —
+    and ``fixed_frame`` is provably identical to the unwound ``the_one(σ,θ,…,
+    w=(0,0,0)).to_flat_rational()`` (the winding folds away in the frame).
+
+    Cascade decomposition (**composition_of_c**, no new C symbol): the fixed
+    frame rides the c_dispatched ``srmech_the_one`` adjoint peer
+    (:meth:`One.to_flat_rational`); the tower grading rides the c_dispatched
+    ``srmech_winding_tower`` (:func:`winding_tower`); the spinor sign rides the
+    c_dispatched ``srmech_spinor_sign`` (:attr:`One.spinor_sign`); the holonomy
+    magnitude + the flatness certificate ride the c_dispatched Class-K
+    ``cascade.magnitude`` — so a bare-C host reproduces every field.
+
+    SSoT: rc236 ``separate_frame_curvature`` (the parent op on the Mat carrier);
+    ``[[user_stance_bit_exact_is_local_flatness_of_connection_seams_are_holonomy]]``
+    (the metacycle seam IS the holonomy).
+    """
+    from srmech.amsc.cascade.atoms import magnitude as _magnitude
+
+    if not isinstance(one, One):
+        raise TypeError(
+            f"separate_winding_curvature expects a One; got "
+            f"{type(one).__name__}")
+
+    # FIXED FRAME = the w-INVARIANT adjoint (the unwound w=0 representative). The
+    # adjoint is 2π-periodic, so this is byte-identical for every winding — the
+    # frame-independent metric part (the winding folds away here). It rides the
+    # rc138 srmech_the_one C peer exactly as :meth:`One.to_flat_rational` does.
+    fixed_frame = one.to_flat_rational()
+
+    # CURVATURE = the winding-holonomy: the FULL ℤ³ grading BEYOND the ±1 sign.
+    winding = one.winding
+    towers = one.winding_tower()      # divmod binary towers — distinguish w=2/w=4
+    spinor_sign = one.spinor_sign     # the Z/2 parity — CONFLATES w=2/w=4
+
+    # Holonomy magnitude — the total winding count Σ|w_k|, EXACT integer. Each
+    # tower IS the Class-K magnitude's binary grading (built over |w_k|, the
+    # orientation pinned off as Class-C), so ``sum(bit << i)`` reconstructs |w_k|
+    # LOSSLESSLY (:func:`winding_tower`) — no float, no abs(). Zero iff EVERY
+    # component is zero, i.e. iff w == (0,0,0).
+    holonomy = 0
+    for tower in towers:
+        holonomy += sum(bit << i for i, bit in enumerate(tower))
+
+    # EXACT flatness certificate: flat iff EVERY winding component vanishes by
+    # its Class-K magnitude (:func:`cascade.magnitude`, never abs()) — the same
+    # vanishing read rc236 does on the curvature carrier's stored doubles. This
+    # is full-period-trivial (w == (0,0,0)), NOT merely even-parity (a w=(2,0,0)
+    # has spinor_sign +1 but is NOT flat).
+    is_flat = all(_magnitude(wk) == 0 for wk in winding)
+
+    return {
+        "fixed_frame": fixed_frame,
+        "curvature": {
+            "winding": winding,
+            "towers": towers,
+            "spinor_sign": spinor_sign,
+            "holonomy": holonomy,
+        },
+        "is_flat": is_flat,
+    }
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Flat cascade-op accessors — the make_class two-layer binding surface.
 #
@@ -1140,6 +1254,7 @@ __all__ = [
     "the_one",
     "s_generator",
     "to_scalar",
+    "separate_winding_curvature",
     "winding_tower",
     "winding_fold",
     # flat cascade-op accessors — the one.toml ([class] One) binding surface

@@ -411,14 +411,24 @@ def _to_ellratio(value: Any, *, param: str = "") -> Any:
 
 def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value to an ``EllMonomial``-typed param (rc94
-    ``elliptic_cauchy_determinant`` variable / parameter).
+    ``elliptic_cauchy_determinant`` variable / parameter; rc227
+    ``elliptic_jackson_an`` z / a / q vectors).
 
     An ``EllMonomial`` is a signed exact-``ℚ`` Laurent monomial ``c·∏ sym^e`` over the
-    modified-theta algebra. The op's variables (``t`` and the ``x_i`` / ``y_j``) are
-    SYMBOLS, so for a JSON caller the natural minimal operand is a **symbol NAME string**
-    (``"x0"``, ``"t"``, …) → :meth:`EllMonomial.symbol`. An ``EllMonomial`` passes through;
-    an int / ``(num, den)`` pair → the constant :meth:`EllMonomial.scalar` (never a float;
-    a coefficient must be exact)."""
+    modified-theta algebra. Four exact JSON forms coerce (rc231):
+
+    * a **symbol NAME string** (``"x0"``, ``"t"``, ``"z1"``, …) → :meth:`EllMonomial.symbol`
+      (the natural minimal operand for a variable — the Aₙ z / a vectors, the
+      ``elliptic_cauchy_determinant`` xs / ys are all symbols);
+    * an **int** → the constant :meth:`EllMonomial.scalar` ``Q(n, 1)``;
+    * an **exact ``[num, den]`` pair** → the rational constant ``Q(num, den)``;
+    * the **GENERAL dict** ``{"coeff": <int | [num, den]>, "exponents": {sym: exp}}``
+      → ``c·∏ sym^e`` — so a bare host can round-trip an ARBITRARY monomial
+      (everything-mirrors), not only the symbol / scalar shorthands. ``coeff``
+      defaults to 1, ``exponents`` to ``{}``.
+
+    An ``EllMonomial`` passes through unchanged. Never a float — a coefficient must
+    be exact."""
     from srmech.amsc.ellbase import EllMonomial  # exact carrier; lazy
     from srmech.amsc.q import Q
     if isinstance(value, EllMonomial):
@@ -429,6 +439,27 @@ def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
         return EllMonomial.symbol(value)
     if isinstance(value, int):
         return EllMonomial.scalar(Q(value, 1))
+    if isinstance(value, dict):
+        coeff_json = value.get("coeff", 1)
+        if (isinstance(coeff_json, (list, tuple)) and len(coeff_json) == 2
+                and all(isinstance(x, int) and not isinstance(x, bool)
+                        for x in coeff_json) and coeff_json[1] != 0):
+            coeff = Q(int(coeff_json[0]), int(coeff_json[1]))
+        elif isinstance(coeff_json, int) and not isinstance(coeff_json, bool):
+            coeff = Q(int(coeff_json), 1)
+        else:
+            raise ValueError(
+                f"EllMonomial param {param or '<ell-monomial>'!r}: 'coeff' must "
+                f"be an int or an exact [num, den] pair; got {coeff_json!r}"
+            )
+        exps_json = value.get("exponents", {}) or {}
+        if not isinstance(exps_json, dict):
+            raise ValueError(
+                f"EllMonomial param {param or '<ell-monomial>'!r}: 'exponents' "
+                f"must be a {{symbol: integer-exponent}} object"
+            )
+        exps = {str(k): int(v) for k, v in exps_json.items()}
+        return EllMonomial(coeff, exps)
     if (isinstance(value, (list, tuple)) and len(value) == 2
             and isinstance(value[0], int) and isinstance(value[1], int)
             and value[1] != 0):
@@ -437,12 +468,80 @@ def _to_ellmonomial(value: Any, *, param: str = "") -> Any:
 
 
 def _seq_ellmonomial(value: Any, *, param: str = "") -> Any:
-    """``Sequence[EllMonomial]`` -> list of ``EllMonomial`` (rc94
-    ``elliptic_cauchy_determinant`` ``xs`` / ``ys`` variable lists; each element via
-    :func:`_to_ellmonomial`, so a JSON list of symbol-name strings lifts elementwise)."""
+    """``Sequence[EllMonomial]`` / ``list[EllMonomial]`` -> list of ``EllMonomial``
+    (rc94 ``elliptic_cauchy_determinant`` ``xs`` / ``ys`` variable lists; rc227
+    ``elliptic_jackson_an`` ``z`` / ``a`` vectors; each element via
+    :func:`_to_ellmonomial`, so a JSON list of symbol-name strings — or the general
+    ``{"coeff", "exponents"}`` dict form — lifts elementwise)."""
     if isinstance(value, (list, tuple)):
         return [_to_ellmonomial(v, param=param) for v in value]
     return value
+
+
+def _seq_tuple4_ellmonomial(value: Any, *, param: str = "") -> Any:
+    """``list[tuple[EllMonomial×4]]`` (rc232; ``riemann_theta_multisum`` ``points``)
+    -> list of 4-tuples ``(a, b, c, d)`` of ``EllMonomial``. JSON has no tuple, so
+    each point-tuple rides as a 4-list of ``EllMonomial`` JSON forms (a symbol-name
+    string or the general ``{"coeff", "exponents"}`` dict, via :func:`_to_ellmonomial`)
+    and is re-tupled so the op sees a genuine 4-tuple of distinct Riemann-surface
+    points."""
+    if isinstance(value, (list, tuple)):
+        return [tuple(_to_ellmonomial(v, param=param) for v in tup)
+                if isinstance(tup, (list, tuple)) else tup
+                for tup in value]
+    return value
+
+
+def _seq_int_or_pair(value: Any, *, param: str = "") -> List[Any]:
+    """``list[int | tuple[int, int]]`` (rc231; ``klein4_gain_laplacian`` /
+    ``klein4_relational_structure`` per-edge V₄ ``gains``) -> list of int / (int, int).
+
+    A V₄ gain is an int in ``{0,1,2,3}`` (two sign bits ``g1<<1|g0``) OR a
+    ``(g0, g1)`` pair of bits. JSON has no tuple, so a bare int rides as an int and
+    a pair rides as a ``[g0, g1]`` 2-list; each 2-list is re-tupled so the op's own
+    ``_normalize_gains`` sees a genuine tuple (it accepts both forms — the op is the
+    canonical range validator). ``None`` is handled by :func:`coerce_param`'s
+    null-passthrough (the all-identity default)."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of int / [g0, g1] gains for param "
+            f"{param or '<gains>'!r}; got {type(value).__name__}"
+        )
+    out: List[Any] = []
+    for g in value:
+        if isinstance(g, (list, tuple)):
+            out.append(tuple(g))
+        else:
+            out.append(g)
+    return out
+
+
+def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
+    """``list[int | Fraction | float]`` (rc231; ``cycle_holonomy`` per-edge
+    ``charges`` in turns) -> list of int / float / ``Fraction``.
+
+    A charge is an exact ``int`` / ``Fraction`` (turns) or a ``float`` (projected to
+    a rational by the op). JSON has no Fraction, so an exact rational charge rides as
+    a ``[num, den]`` 2-int-list — matched to :func:`serialise_native`'s outbound
+    ``Fraction -> [num, den]`` — and is rebuilt into a :class:`~fractions.Fraction`
+    here; a bare JSON int / float passes through (the op's ``_to_fraction`` accepts
+    both). ``None`` is handled by :func:`coerce_param`'s null-passthrough (the
+    all-zero / balanced default)."""
+    from fractions import Fraction
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of charges (int / float / [num, den]) for param "
+            f"{param or '<charges>'!r}; got {type(value).__name__}"
+        )
+    out: List[Any] = []
+    for c in value:
+        if (isinstance(c, (list, tuple)) and len(c) == 2
+                and all(isinstance(x, int) and not isinstance(x, bool)
+                        for x in c) and c[1] != 0):
+            out.append(Fraction(int(c[0]), int(c[1])))
+        else:
+            out.append(c)
+    return out
 
 
 def _to_mock_q_series(value: Any, *, param: str = "") -> Any:
@@ -840,6 +939,8 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
     "EllMonomial": _to_ellmonomial,  # 0.9.0rc94: exact-ℚ Laurent monomial carrier (elliptic_cauchy_determinant variable / parameter)
     "Sequence[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc94: elliptic_cauchy_determinant xs / ys variable lists
+    "list[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc231: elliptic_jackson_an z / a variable vectors (multivariate_elliptic_jackson_an / an_vwp_multisum_lhs)
+    "list[tuple[EllMonomial×4]]": _seq_tuple4_ellmonomial,  # 0.9.0rc232: riemann_theta_multisum points (a,b,c,d) tuples (multivariate_riemann_theta_sum / riemann_theta_multisum_lhs)
     "MockQSeries": _to_mock_q_series,  # 0.9.0rc71: harmonic_maass holomorphic mock part ('eulerian_f' / qpoly)
     "UnaryTheta": _to_unary_theta,     # 0.9.0rc71: harmonic_maass shadow ('g3' → the weight-3/2 g₃)
     "Optional[Vec]": _to_vec,
@@ -877,6 +978,13 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "pathlib.Path": _to_path,
     "tuple[int, int]": _to_int_tuple,
     "list[tuple[int, int]]": _identity,   # nested lists JSON-native
+    # 0.9.0rc231 (#810 / #687): the V₄-gain-graph odd/even-channel ops.
+    #   klein4_gain_laplacian / klein4_relational_structure `gains` — per-edge V₄
+    #   gain, an int 0..3 OR a [g0, g1] bit pair (each pair re-tupled).
+    #   cycle_holonomy `charges` — per-edge charge in turns, an int / float / an
+    #   exact [num, den] Fraction (rebuilt to Fraction; matches the outbound form).
+    "Optional[list[int | tuple[int, int]]]": _seq_int_or_pair,
+    "Optional[list[int | Fraction | float]]": _seq_charge,
     # v0.7.5rc29: exact_dft.lift `spectrum` — the exact Z[zeta_N] spectrum is a
     # list of (real_vec, imag_vec) integer pairs; nested lists are JSON-native.
     "list[tuple[list[int], list[int]]]": _identity,
@@ -996,6 +1104,15 @@ def serialise_native(value: Any) -> Any:
     # complex -> [re, im]
     if isinstance(value, complex):
         return [value.real, value.imag]
+    # Fraction -> [num, den] (rc231; cycle_holonomy returns list[Fraction] cycle
+    # holonomies in [0, 1)). An exact rational rides as an integer [num, den] pair
+    # — the inverse of the inbound _seq_charge [num, den] -> Fraction, so a charge
+    # graph's holonomies round-trip exactly (never a lossy float, never a bare
+    # repr string). Keyed by TYPE, unambiguous with complex's [re, im] (which is
+    # keyed by the declared `complex` param type on the inbound side).
+    from fractions import Fraction as _Fraction
+    if isinstance(value, _Fraction):
+        return [value.numerator, value.denominator]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
     # The core ops return HV; cross JSON-RPC by value as a plain integer list.
     from srmech.amsc.hv import HV as _HV

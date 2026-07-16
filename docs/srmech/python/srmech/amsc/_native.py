@@ -60,7 +60,13 @@ from typing import Optional
 #        typedef srmech_bus_subscriber_callback_t (the pub/sub delivery
 #        callback). Same CFUNCTYPE wire-format convention as v2→v3, so
 #        ABI bumps (the plain additive functions alone would not).
-EXPECTED_ABI_VERSION: int = 4
+#   v5 — v0.9.0rc242: the C progress / introspection callback (#840 —
+#        Class-H self-introspection projected to a bare-C host); new
+#        function-pointer typedef srmech_progress_cb_t (the dispatch
+#        observer) + the srmech_set_progress_cb registration. Same
+#        CFUNCTYPE wire-format convention as v2→v3, so ABI bumps (the
+#        plain srmech_set_progress_cb function alone would not).
+EXPECTED_ABI_VERSION: int = 5
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -288,6 +294,25 @@ BUS_SUBSCRIBER_CALLBACK = ctypes.CFUNCTYPE(
     ctypes.c_int,                            # srmech_status_t return
     ctypes.c_void_p,                          # const uint8_t *event
     ctypes.c_size_t,                          # size_t event_len
+    ctypes.c_void_p,                          # void *user_data
+)
+
+
+# v0.9.0rc242: the C progress / introspection callback ABI (v5). Mirror of the
+# C typedef in srmech.h:
+#
+#   typedef void (*srmech_progress_cb_t)(const char *event_json,
+#                                        void *user_data);
+#
+# The central invoke spine fires it once per dispatched tool with a compact
+# canonical-JSON event (Class-H self-introspection projected to a bare-C host).
+# Adding this typedef is what bumps ABI 4 → 5 (same CFUNCTYPE wire-format
+# convention as the v2→v3 handler-callback bump). A Python host keeps a
+# reference to any registered trampoline alive for as long as it is installed
+# (ctypes does not, so a dropped reference would dangle inside the C library).
+PROGRESS_CALLBACK = ctypes.CFUNCTYPE(
+    None,                                    # void return
+    ctypes.c_char_p,                          # const char *event_json
     ctypes.c_void_p,                          # void *user_data
 )
 
@@ -2530,6 +2555,34 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_laplacian_fiedler_sparse_file.restype = ctypes.c_int
 
+        # size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n) +
+        # srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n,
+        #     const char *path, uint32_t k, uint32_t max_iters,
+        #     double *out_tensions, double *out_modes, uint32_t *out_count,
+        #     double *ws, size_t ws_len)  — issue #698 / §75-sparse (rc230): the
+        #     STREAMING k-extreme resonant read (bottom-k + top-k combinatorial-
+        #     Laplacian modes via power iteration + deflation on the packed edge
+        #     stream; the C twin of coupling.resonant_spectrum_sparse). Caller-
+        #     arena ws (bytes; from arena_bytes) → no compiled-in node cap. NEW —
+        #     own hasattr so a pre-rc230 lib doesn't AttributeError here.
+        if hasattr(lib, "srmech_laplacian_k_extreme_modes_arena_bytes"):
+            lib.srmech_laplacian_k_extreme_modes_arena_bytes.argtypes = [
+                ctypes.c_uint32]
+            lib.srmech_laplacian_k_extreme_modes_arena_bytes.restype = ctypes.c_size_t
+        if hasattr(lib, "srmech_laplacian_k_extreme_modes_file"):
+            lib.srmech_laplacian_k_extreme_modes_file.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # path (packed edge file)
+                ctypes.c_uint32,                   # k (modes per extreme side)
+                ctypes.c_uint32,                   # max_iters
+                ctypes.POINTER(ctypes.c_double),  # out_tensions (2k)
+                ctypes.POINTER(ctypes.c_double),  # out_modes (2k*n, row = mode)
+                ctypes.POINTER(ctypes.c_uint32),  # out_count
+                ctypes.POINTER(ctypes.c_double),  # ws (caller arena)
+                ctypes.c_size_t,                   # ws_len (BYTES)
+            ]
+            lib.srmech_laplacian_k_extreme_modes_file.restype = ctypes.c_int
+
     # ------------------------------------------------------------------
     # BATCH B6a (rc143): EXACT signal-processing coder / quantizer C peers.
     # Each NEW symbol its own hasattr so a pre-rc143 lib doesn't AttributeError
@@ -3388,6 +3441,52 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_modulator_constraint_satisfies.argtypes = [
                 _U8, _SZ, ctypes.c_uint64, ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_modulator_constraint_satisfies.restype = ctypes.c_int
+        # #1390 item 2 — the graph<->Klein-4-symbol codec (byte-exact).
+        if hasattr(lib, "srmech_graph_kernel_encode"):
+            lib.srmech_graph_kernel_encode.argtypes = [
+                ctypes.c_uint64,                                   # vocab_size
+                ctypes.POINTER(ctypes.c_uint64),                   # edge_i
+                ctypes.POINTER(ctypes.c_uint64),                   # edge_j
+                ctypes.POINTER(ctypes.c_uint64),                   # weights
+                ctypes.POINTER(ctypes.c_int64), ctypes.c_size_t,   # charges, n_edges
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # node_ids, n_nid
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # extras, n_ex
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # out_syms, syms_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_syms
+            ]
+            lib.srmech_graph_kernel_encode.restype = ctypes.c_int
+        if hasattr(lib, "srmech_graph_kernel_decode"):
+            lib.srmech_graph_kernel_decode.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # syms, n_syms
+                ctypes.POINTER(ctypes.c_uint64),                   # out_vocab_size
+                ctypes.POINTER(ctypes.c_uint64),                   # out_edge_i
+                ctypes.POINTER(ctypes.c_uint64),                   # out_edge_j
+                ctypes.POINTER(ctypes.c_uint64),                   # out_weights
+                ctypes.POINTER(ctypes.c_int64), ctypes.c_size_t,   # out_charges, edge_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_edges
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # out_node_ids, nid_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_nid
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # out_extras, ex_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_ex
+            ]
+            lib.srmech_graph_kernel_decode.restype = ctypes.c_int
+        # #1390 item 3 — the Hierholzer Eulerian walk (integer nodes).
+        if hasattr(lib, "srmech_eulerian_walk"):
+            lib.srmech_eulerian_walk.argtypes = [
+                ctypes.POINTER(ctypes.c_uint64),                   # edge_u
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # edge_v, n_edges
+                ctypes.c_uint64, ctypes.c_int64, ctypes.c_int,     # n_nodes, start, circuit_only
+                ctypes.POINTER(ctypes.c_uint64),                   # outdeg
+                ctypes.POINTER(ctypes.c_uint64),                   # indeg
+                ctypes.POINTER(ctypes.c_size_t),                   # adj_start
+                ctypes.POINTER(ctypes.c_size_t),                   # cur
+                ctypes.POINTER(ctypes.c_uint64),                   # adj
+                ctypes.POINTER(ctypes.c_uint64),                   # stack
+                ctypes.POINTER(ctypes.c_uint64),                   # out_walk
+                ctypes.POINTER(ctypes.c_size_t),                   # out_walk_len
+                ctypes.POINTER(ctypes.c_int),                      # out_feasible
+            ]
+            lib.srmech_eulerian_walk.restype = ctypes.c_int
         # json_write_ws(value, buf, buf_len, &out_len, ws, ws_len) — serialise
         # the catalog's tree; the writer's key-sort scratch is carved from the
         # caller arena `ws` (rc160: no compiled-in object-width cap). Size `ws`
@@ -3537,6 +3636,16 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_invoke_tool.restype = ctypes.c_int
             lib.srmech_invoke_tool_arena_bytes.argtypes = [_SZ]
             lib.srmech_invoke_tool_arena_bytes.restype = ctypes.c_size_t
+
+        # rc242 — the C progress / introspection callback (#840). New symbol +
+        # the srmech_progress_cb_t typedef → ABI 4 → 5. hasattr-guarded (a stale
+        # ABI-4 lib lacks the symbol and simply never emits — Python-only
+        # introspection, unchanged).
+        #   srmech_progress_cb_t srmech_set_progress_cb(
+        #       srmech_progress_cb_t cb, void *user_data)
+        if hasattr(lib, "srmech_set_progress_cb"):
+            lib.srmech_set_progress_cb.argtypes = [PROGRESS_CALLBACK, _VP]
+            lib.srmech_set_progress_cb.restype = PROGRESS_CALLBACK
 
     # ------------------------------------------------------------------
     # Class A — op-provenance canonical record hasher (0.9.0rc117; the
@@ -5465,6 +5574,28 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_an_vwp_multisum_lhs.restype = ctypes.c_int
 
+    # rc232: srmech_riemann_theta_multisum — the C peer of the ThetaBracketSum-
+    # returning ops srmech.amsc.riemann_theta_multisum.{riemann_theta_multisum_lhs,
+    # multivariate_riemann_theta_sum} (the HIGHER-GENUS Spiridonov theta multisum
+    # LHS / RHS builders). Self-contained int32/int64 wire (the coeffs are ±1 and
+    # the genus-g odd-theta arguments are small integer exponent rows) — no bigint
+    # / ellbase dependency. Returns the per-monomial bracket-product rows; the
+    # Python side folds them into the ThetaBracketSum. Additive symbol → ABI 4.
+    if hasattr(lib, "srmech_riemann_theta_multisum"):
+        lib.srmech_riemann_theta_multisum.argtypes = [
+            ctypes.c_size_t,                     # n_syms
+            ctypes.c_size_t,                     # n (summation ceiling)
+            ctypes.c_int,                        # side (0 = LHS, 1 = RHS)
+            ctypes.POINTER(ctypes.c_int32),      # z_exps_flat[(n+1)*n_syms]
+            ctypes.POINTER(ctypes.c_int32),      # pt_exps_flat[(n+1)*4*n_syms]
+            ctypes.POINTER(ctypes.c_int64),      # out_coeff[max_monos]
+            ctypes.POINTER(ctypes.c_int32),      # out_args_flat[max_monos*nb*n_syms]
+            ctypes.c_size_t,                     # max_monos
+            ctypes.POINTER(ctypes.c_size_t),     # out_n_monos
+            ctypes.POINTER(ctypes.c_size_t),     # out_nb
+        ]
+        lib.srmech_riemann_theta_multisum.restype = ctypes.c_int
+
     # rc217: srmech_text_* — the C peers of the srmech.amsc.text §40/§52
     # text→graph ingestion ops (gh #1360; the enwiki-encode hot loop). All four
     # are BYTE-IDENTICAL kernels over caller-arena buffers: the tokenizer takes
@@ -5497,6 +5628,17 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),                    # out_n_edges
         ]
         lib.srmech_text_cooccurrence_edges.restype = ctypes.c_int
+    if hasattr(lib, "srmech_text_cooccurrence_edges_directed"):
+        lib.srmech_text_cooccurrence_edges_directed.argtypes = [
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
+            ctypes.POINTER(ctypes.c_size_t), ctypes.c_size_t,   # doc_off, n_docs
+            ctypes.c_uint32, ctypes.c_uint32,                   # window, n_vocab
+            ctypes.POINTER(ctypes.c_uint64),                    # ht_keys
+            ctypes.POINTER(ctypes.c_uint64),                    # ht_metric
+            ctypes.POINTER(ctypes.c_int64), ctypes.c_size_t,    # ht_charge, ht_cap
+            ctypes.POINTER(ctypes.c_size_t),                    # out_n_edges
+        ]
+        lib.srmech_text_cooccurrence_edges_directed.restype = ctypes.c_int
     if hasattr(lib, "srmech_text_cooccurrence_topk"):
         lib.srmech_text_cooccurrence_topk.argtypes = [
             ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
@@ -14542,6 +14684,77 @@ def an_vwp_multisum_lhs_c(n_syms, psym, N, n, z_monos, a_monos, q_mono,
 
 
 # ----------------------------------------------------------------------
+# rc232: srmech_riemann_theta_multisum — the C peer of the ThetaBracketSum-
+# returning higher-genus (Spiridonov math/0408366) theta-multisum builders. A
+# self-contained int32/int64 wire (no bigint / ellbase): the coeffs are ±1 and
+# the genus-g odd-theta arguments are small integer exponent rows.
+# ----------------------------------------------------------------------
+
+
+def has_native_riemann_theta_multisum() -> bool:
+    """True iff the rc232 srmech_riemann_theta_multisum symbol is loaded + bound.
+    False on a no-C or pre-rc232 lib — the pure-Python
+    ``srmech.amsc.riemann_theta_multisum`` bodies are the complete alternative (and
+    the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return hasattr(LIB, "srmech_riemann_theta_multisum")
+
+
+def riemann_theta_multisum_c(n_syms, n, side, z_rows, pt_rows):
+    """Native ``riemann_theta_multisum`` for the ``n+1`` z-vector rows + the ``n+1``
+    point-tuple rows (each a 4-list ``[a, b, c, d]`` of dense int32 exponent rows)
+    + ``side`` (0 = LHS multisum, 1 = RHS closed form) → a list of the emitted
+    bracket-product MONOMIALS ``(coeff_num, coeff_den, [arg_exps_row, ...])`` (one
+    per non-zero monomial; ``coeff_den`` is always 1), or ``None`` if the native
+    symbol is absent (the caller folds the monomials into the ThetaBracketSum). A
+    non-OK C status raises ``RuntimeError``."""
+    if not has_native_riemann_theta_multisum():
+        return None
+    if side not in (0, 1) or n < 0:
+        raise ValueError("riemann_theta_multisum_c: side must be 0/1 and n >= 0")
+    if len(z_rows) != n + 1 or len(pt_rows) != n + 1:
+        raise ValueError("riemann_theta_multisum_c: need n+1 z-rows + n+1 point-tuples")
+    if n_syms == 0:
+        n_syms = 1
+        z_rows = [[0] for _ in z_rows]
+        pt_rows = [[[0], [0], [0], [0]] for _ in pt_rows]
+    nb = 4 * (n + 1)
+    max_monos = (n + 1) if side == 0 else 2
+    # flatten z rows + point rows (per k: a, b, c, d).
+    z_flat = (ctypes.c_int32 * (max((n + 1) * n_syms, 1)))()
+    for k in range(n + 1):
+        for j in range(n_syms):
+            z_flat[k * n_syms + j] = int(z_rows[k][j])
+    pt_flat = (ctypes.c_int32 * (max((n + 1) * 4 * n_syms, 1)))()
+    for k in range(n + 1):
+        for t in range(4):
+            for j in range(n_syms):
+                pt_flat[(k * 4 + t) * n_syms + j] = int(pt_rows[k][t][j])
+    out_coeff = (ctypes.c_int64 * max(max_monos, 1))()
+    out_args = (ctypes.c_int32 * max(max_monos * nb * n_syms, 1))()
+    out_n_monos = ctypes.c_size_t(0)
+    out_nb = ctypes.c_size_t(0)
+    rc = LIB.srmech_riemann_theta_multisum(
+        ctypes.c_size_t(n_syms), ctypes.c_size_t(n), ctypes.c_int(side),
+        z_flat, pt_flat, out_coeff, out_args, ctypes.c_size_t(max_monos),
+        ctypes.byref(out_n_monos), ctypes.byref(out_nb),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_riemann_theta_multisum returned non-OK status {rc}")
+    nb_c = int(out_nb.value)
+    monos = []
+    for m in range(int(out_n_monos.value)):
+        args = []
+        for br in range(nb_c):
+            base = (m * nb_c + br) * n_syms
+            args.append([int(out_args[base + j]) for j in range(n_syms)])
+        monos.append((int(out_coeff[m]), 1, args))
+    return monos
+
+
+# ----------------------------------------------------------------------
 # rc42: srmech_zeilberger — Zeilberger's creative telescoping (the §76 telescope
 # Sigma-row's SECOND public op). The Python srmech.amsc.zeilberger.zeilberger
 # routes a POSITIVE (recurrence-found) C result through this; a has=0 / error
@@ -15209,6 +15422,16 @@ def has_native_text_cooccurrence_edges() -> bool:
                 and hasattr(LIB, "srmech_text_cooccurrence_edges"))
 
 
+def has_native_text_cooccurrence_edges_directed() -> bool:
+    """True iff the rc248 srmech_text_cooccurrence_edges_directed C peer is
+    loaded + bound: the directed=True (metric + charge) SUPERSET of the §40
+    accumulation runs in C. False on a no-C or pre-rc248 lib — the pure-Python
+    :func:`srmech.amsc.text.cooccurrence_edges` directed branch is the complete
+    byte-identical alternative (#1390 item 1)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_text_cooccurrence_edges_directed"))
+
+
 def has_native_text_cooccurrence_topk() -> bool:
     """True iff the rc217 srmech_text_cooccurrence_topk chunk-flush kernel AND
     its _extract read-out sibling are loaded + bound: the §52 bounded
@@ -15522,6 +15745,19 @@ def has_native_fiedler_sparse_file() -> bool:
     run the in-RAM cascade) is the complete alternative (correct, not bounded)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_laplacian_fiedler_sparse_file"))
+
+
+def has_native_k_extreme_modes() -> bool:
+    """True iff the §75-sparse native streaming k-extreme resonant read is loaded
+    + bound (rc230+ lib): the bottom-k + top-k combinatorial-Laplacian modes run
+    in C via power iteration + deflation streaming the packed edge file through
+    the PAL (caller-arena, no node cap), so
+    :func:`srmech.amsc.coupling.resonant_spectrum_sparse` dispatches to the C
+    twin. False on a no-C or pre-rc230 lib — the pure-Python streaming read is
+    the complete alternative (issue #698)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_laplacian_k_extreme_modes_file")
+                and hasattr(LIB, "srmech_laplacian_k_extreme_modes_arena_bytes"))
 
 
 # ---------------------------------------------------------------------------
@@ -16576,6 +16812,125 @@ def genome_save_c(dir_: str, body: bytes, leaf_dim: int, the_one: bytes) -> None
         ws, ctypes.c_size_t(ws_len))
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_save", rc)
+
+
+def has_native_graph_kernel_codec() -> bool:
+    """True iff the rc249 srmech_graph_kernel_encode + _decode C peers are
+    loaded + bound: the #1390 item-2 graph<->Klein-4-symbol codec runs in C.
+    False on a no-C or pre-rc249 lib — the pure genome._graph_kernel_encode /
+    _decode bodies are the complete byte-identical alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_graph_kernel_encode")
+                and hasattr(LIB, "srmech_graph_kernel_decode"))
+
+
+def graph_kernel_encode_c(vocab_size, edges, weights, ch, nid, ex):
+    """Native #1390 item-2 encode: graph arrays -> Klein-4 symbol list (ints
+    {0,1,2,3}). Returns ``None`` to decline (native absent, overflow, or the
+    30-bit int cap) so the pure ``genome._graph_kernel_encode`` runs."""
+    if not has_native_graph_kernel_codec():
+        return None
+    try:
+        n_edges = len(edges)
+        edge_i = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[0]) for e in edges])
+        edge_j = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[1]) for e in edges])
+        w_arr = (ctypes.c_uint64 * max(n_edges, 1))(*[int(x) for x in weights])
+        c_arr = (ctypes.c_int64 * max(n_edges, 1))(*[int(x) for x in ch])
+        nid_arr = (ctypes.c_uint64 * max(len(nid), 1))(*[int(x) for x in nid])
+        ex_arr = (ctypes.c_uint64 * max(len(ex), 1))(*[int(x) for x in ex])
+        n_ints = 5 + len(nid) + len(ex) + 4 * n_edges     # each int <= 17 syms
+        cap = 17 * n_ints + 8
+        out = (ctypes.c_uint8 * cap)()
+        n_out = ctypes.c_size_t(0)
+        rc = LIB.srmech_graph_kernel_encode(
+            ctypes.c_uint64(int(vocab_size)),
+            edge_i, edge_j, w_arr, c_arr, ctypes.c_size_t(n_edges),
+            nid_arr, ctypes.c_size_t(len(nid)),
+            ex_arr, ctypes.c_size_t(len(ex)),
+            out, ctypes.c_size_t(cap), ctypes.byref(n_out))
+        if rc != SRMECH_OK:
+            return None
+        return [int(out[k]) for k in range(n_out.value)]
+    except Exception:
+        return None
+
+
+def graph_kernel_decode_c(syms):
+    """Native #1390 item-2 decode: Klein-4 symbol list -> the graph dict
+    ``{vocab_size, edges, weights, charges, node_ids, extras}``. Returns
+    ``None`` to decline so the pure ``genome._graph_kernel_decode`` runs."""
+    if not has_native_graph_kernel_codec():
+        return None
+    try:
+        n = len(syms)
+        s_arr = (ctypes.c_uint8 * max(n, 1))(*[int(x) & 3 for x in syms])
+        cap = n + 1                                       # each item >= 3 syms
+        vs = ctypes.c_uint64(0)
+        ei = (ctypes.c_uint64 * cap)()
+        ej = (ctypes.c_uint64 * cap)()
+        wt = (ctypes.c_uint64 * cap)()
+        cg = (ctypes.c_int64 * cap)()
+        ne = ctypes.c_size_t(0)
+        ni = (ctypes.c_uint64 * cap)()
+        nnid = ctypes.c_size_t(0)
+        ex = (ctypes.c_uint64 * cap)()
+        nex = ctypes.c_size_t(0)
+        rc = LIB.srmech_graph_kernel_decode(
+            s_arr, ctypes.c_size_t(n), ctypes.byref(vs),
+            ei, ej, wt, cg, ctypes.c_size_t(cap), ctypes.byref(ne),
+            ni, ctypes.c_size_t(cap), ctypes.byref(nnid),
+            ex, ctypes.c_size_t(cap), ctypes.byref(nex))
+        if rc != SRMECH_OK:
+            return None
+        m = ne.value
+        return {
+            "vocab_size": int(vs.value),
+            "edges": [(int(ei[k]), int(ej[k])) for k in range(m)],
+            "weights": [int(wt[k]) for k in range(m)],
+            "charges": [int(cg[k]) for k in range(m)],
+            "node_ids": [int(ni[k]) for k in range(nnid.value)],
+            "extras": [int(ex[k]) for k in range(nex.value)],
+        }
+    except Exception:
+        return None
+
+
+def has_native_eulerian() -> bool:
+    """True iff the rc250 srmech_eulerian_walk C peer is loaded + bound: the
+    #1390 item-3 Hierholzer Eulerian trail / circuit runs in C (integer nodes).
+    False on a no-C or pre-rc250 lib — the pure
+    srmech.amsc.laplacian.eulerian_path / eulerian_circuit bodies are the
+    complete byte-identical alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_eulerian_walk"))
+
+
+def eulerian_walk_c(edges, n_nodes, start, circuit_only):
+    """Native #1390 item-3 Eulerian walk (integer nodes [0, n_nodes)). Returns
+    the walk (list[int]) on success, ``None`` if infeasible (the pure ``None``).
+    Raises on a C error so the caller falls back to the pure body."""
+    n_edges = len(edges)
+    eu = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[0]) for e in edges])
+    ev = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[1]) for e in edges])
+    outdeg = (ctypes.c_uint64 * max(n_nodes, 1))()
+    indeg = (ctypes.c_uint64 * max(n_nodes, 1))()
+    cur = (ctypes.c_size_t * max(n_nodes, 1))()
+    adj_start = (ctypes.c_size_t * (n_nodes + 1))()
+    adj = (ctypes.c_uint64 * max(n_edges, 1))()
+    stack = (ctypes.c_uint64 * (n_edges + 1))()
+    out_walk = (ctypes.c_uint64 * (n_edges + 1))()
+    wl = ctypes.c_size_t(0)
+    feasible = ctypes.c_int(0)
+    rc = LIB.srmech_eulerian_walk(
+        eu, ev, ctypes.c_size_t(n_edges), ctypes.c_uint64(n_nodes),
+        ctypes.c_int64(start), ctypes.c_int(1 if circuit_only else 0),
+        outdeg, indeg, adj_start, cur, adj, stack, out_walk,
+        ctypes.byref(wl), ctypes.byref(feasible))
+    if rc != SRMECH_OK:
+        raise RuntimeError(f"srmech_eulerian_walk returned status {rc}")
+    if not feasible.value:
+        return None
+    return [int(out_walk[k]) for k in range(wl.value)]
 
 
 def genome_telomere_tick_c(cap: bytes, leaf_dim: int):

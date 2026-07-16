@@ -69,6 +69,7 @@
 #include <string.h>
 
 #include "srmech.h"
+#include "srmech_progress_internal.h"   /* Class-H progress emit (rc242 #840) */
 
 /* The batch-1 tools all have <= 3 parameters; 8 is comfortable headroom. */
 #define IV_MAX_PARAMS 8
@@ -1244,6 +1245,100 @@ static srmech_status_t iv_shape_mat_outer(const srmech_tool_entry_t *e,
 }
 
 /* ------------------------------------------------------------------
+ * rc231 CASCADE-ATOM BATCH (#810) — scalar Class-K / Class-C atoms. Each
+ * thunk mirrors its op's OWN native-dispatch boundary EXACTLY (the Python op
+ * routes to the C symbol only for a float arg / an int8-range int list; the
+ * other input shapes take the pure path with a different result type/repr),
+ * so a dispatched result is byte-identical to the pure invoke_tool and any
+ * off-boundary shape latches NOT_IMPL -> the caller defers.
+ * ------------------------------------------------------------------ */
+
+/* magnitude(x: float) -> float. The Class-K |x| pin-slot magnitude. Dispatch
+ * ONLY a FLOAT arg (a JSON int marshals to an INT mval; the pure op then
+ * returns an INT magnitude with a different repr — defer to stay identical). */
+static srmech_status_t iv_shape_magnitude(const srmech_tool_entry_t *e,
+                                          srmech_mval_t **argv, uint32_t argc,
+                                          srmech_marshal_arena_t *a,
+                                          srmech_mval_t **out)
+{
+    double x, r; srmech_status_t st;
+    assert(e != NULL && argv != NULL && a != NULL && out != NULL);
+    assert(argc >= 1u);
+    if (argc != 1u || argv[0] == NULL
+        || strcmp(e->name, "srmech.amsc.cascade.magnitude") != 0) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (argv[0]->kind != SRMECH_MVAL_FLOAT) { return SRMECH_ERR_NOT_IMPL; }
+    x = argv[0]->re;
+    st = srmech_cascade_magnitude_f64(x, &r);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    *out = iv_float(a, r);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* pin_slot_at_zero(x: float) -> (orientation:int, magnitude:float). Serialises
+ * as a 2-list [int, float]. Same FLOAT-only dispatch boundary as magnitude. */
+static srmech_status_t iv_shape_pin_slot(const srmech_tool_entry_t *e,
+                                         srmech_mval_t **argv, uint32_t argc,
+                                         srmech_marshal_arena_t *a,
+                                         srmech_mval_t **out)
+{
+    double x, mag; int8_t orient; srmech_status_t st; srmech_mval_t *lst, *iv, *fv;
+    assert(e != NULL && argv != NULL && a != NULL && out != NULL);
+    assert(argc >= 1u);
+    if (argc != 1u || argv[0] == NULL
+        || strcmp(e->name, "srmech.amsc.cascade.pin_slot_at_zero") != 0) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (argv[0]->kind != SRMECH_MVAL_FLOAT) { return SRMECH_ERR_NOT_IMPL; }
+    x = argv[0]->re;
+    st = srmech_cascade_pin_slot_at_zero_f64(x, &orient, &mag);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    lst = iv_list(a, 2u, 1);                             /* a tuple -> a JSON list */
+    iv = iv_int(a, (int64_t)orient);
+    fv = iv_float(a, mag);
+    if (lst == NULL || iv == NULL || fv == NULL) { return SRMECH_ERR_OVERFLOW; }
+    lst->items[0] = iv; lst->items[1] = fv;
+    *out = lst;
+    return SRMECH_OK;
+}
+
+/* net_chirality(orientations: iterable[int]) -> int. Dispatch ONLY a LIST whose
+ * every element is a plain INT in int8 range (no BOOL) — the same boundary the
+ * op routes to srmech_cascade_net_chirality_i8; a bool / out-of-int8 / non-list
+ * element defers to the pure sign-normalising path. Empty list -> +1 (identity,
+ * both paths). Bounded arena scratch: IV_NETCHI_MAX int8 orientations. */
+#define IV_NETCHI_MAX 4096u
+static srmech_status_t iv_shape_net_chirality(const srmech_tool_entry_t *e,
+                                              srmech_mval_t **argv, uint32_t argc,
+                                              srmech_marshal_arena_t *a,
+                                              srmech_mval_t **out)
+{
+    const srmech_mval_t *v; int8_t *buf; uint32_t i, n; int8_t r; srmech_status_t st;
+    assert(e != NULL && argv != NULL && a != NULL && out != NULL);
+    assert(argc >= 1u);
+    if (argc != 1u || argv[0] == NULL
+        || strcmp(e->name, "srmech.amsc.cascade.net_chirality") != 0) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    v = argv[0];
+    if (v->kind != SRMECH_MVAL_LIST || v->n > IV_NETCHI_MAX) { return SRMECH_ERR_NOT_IMPL; }
+    n = v->n;
+    buf = (int8_t *)iv_carve(a, (size_t)(n ? n : 1u) * sizeof(int8_t));
+    if (buf == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (i = 0u; i < n; i++) {
+        const srmech_mval_t *el = v->items[i];
+        if (el == NULL || el->kind != SRMECH_MVAL_INT) { return SRMECH_ERR_NOT_IMPL; }
+        if (el->i < -128 || el->i > 127) { return SRMECH_ERR_NOT_IMPL; }
+        buf[i] = (int8_t)el->i;
+    }
+    st = srmech_cascade_net_chirality_i8(n ? buf : NULL, (size_t)n, &r);
+    if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
+    *out = iv_int(a, (int64_t)r);
+    return (*out == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
  * The thunk VTABLE — tool name -> the signature-shape thunk. A name NOT here
  * has no C kernel this rc -> the caller defers to pure (inform-don't-limit).
  * ------------------------------------------------------------------ */
@@ -1293,6 +1388,10 @@ static const iv_vtable_row_t IV_VTABLE[] = {
     { "srmech.amsc.laplacian.mat_matmul",    iv_shape_mat_matmul },
     { "srmech.amsc.laplacian.mat_matvec",    iv_shape_mat_matvec },
     { "srmech.amsc.laplacian.mat_outer",     iv_shape_mat_outer },
+    /* rc231 CASCADE-ATOM BATCH (#810) — scalar Class-K / Class-C atoms */
+    { "srmech.amsc.cascade.magnitude",       iv_shape_magnitude },
+    { "srmech.amsc.cascade.pin_slot_at_zero", iv_shape_pin_slot },
+    { "srmech.amsc.cascade.net_chirality",   iv_shape_net_chirality },
 };
 
 static iv_thunk_t iv_vtable_lookup(const char *name)
@@ -1491,6 +1590,11 @@ static srmech_status_t iv_dispatch(const char *name,
         || result == NULL) { return SRMECH_OK; }        /* defer on any thunk miss */
     st = iv_serialise(result, buf, buf_len, out_len);
     if (st != SRMECH_OK) { *out_len = 0u; return st; }  /* OVERFLOW -> caller sizes/defers */
+    /* Class-H introspection (rc242 #840): fire the registered progress callback
+     * once per REAL materialisation. A NULL-buf SIZE-QUERY does NOT emit, so a
+     * two-pass (size-then-write) caller observes EXACTLY one event per dispatch.
+     * A no-op when no callback is registered. */
+    if (buf != NULL) { srmech_progress_emit_dispatch(entry->name, entry->category); }
     *out_kind = SRMECH_INVOKE_DISPATCHED;
     return SRMECH_OK;
 }

@@ -234,6 +234,10 @@ static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
         ts_cstr(e, ",\"example\":");
         ts_cstr(e, t->example_json);
     }
+    if (t->explanation != NULL) {
+        ts_cstr(e, ",\"explanation\":");
+        ts_json_string(e, t->explanation);
+    }
     ts_cstr(e, ",\"mcp_callable\":");
     ts_cstr(e, t->mcp_callable ? "true" : "false");
     if (t->mcp_unavailable_reason != NULL) {

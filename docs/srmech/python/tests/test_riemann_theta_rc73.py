@@ -133,8 +133,9 @@ def test_group_law_composes_exactly():
 def test_kappa_is_eighth_root_exponent():
     """κ(γ) is the correct 8th root — the exponent k ∈ ℤ/8 (the multiplier ζ₈^k) is
     an exact integer in {0,…,7} for every generator and every characteristic. The
-    translation generators carry the ±1 (k ∈ {0,4}) characteristic phase; the
-    transcendental automorphy factor det(Cτ+D)^{1/2} is NOT part of this exponent."""
+    corrected (rc233 #824) multiplier reaches genuine ζ₈ phases beyond ±1 (e.g. the
+    diag(1,0) translation gives ζ₈¹=e^{iπ/4}); the transcendental automorphy factor
+    det(Cτ+D)^{1/2} is NOT part of this exponent."""
     seen_nonzero = False
     for name, g in _gens().items():
         for rt in ALL16:
@@ -146,13 +147,15 @@ def test_kappa_is_eighth_root_exponent():
 
 
 def test_kappa_translation_values():
-    """The translation T11=[[I,B],[0,I]], B=diag(1,0) gives the κ exponent k∈{0,4}
-    (the ±1 = ζ₈⁰ / ζ₈⁴ phase) across the characteristics — the classical lattice-
-    shift sign of the genus-2 theta-constant."""
+    """The translation T11=[[I,B],[0,I]], B=diag(1,0) gives the κ exponent k∈{0,1}
+    across the characteristics — the classical lattice-shift PHASE of the genus-2
+    theta-constant: on ε'=(1,·) the shift Ω↦Ω+diag(1,0) multiplies θ by exactly
+    ζ₈¹=e^{iπ/4} ((n+½)²·1 ≡ ¼ mod 2 on every lattice point). rc233 (#824) corrected
+    this from the pre-fix {0,4} that the ζ₈⁴ sign defect wrongly produced."""
     g = RiemannTheta.sp4_translation(((1, 0), (0, 0)))
     ks = {rt.transform(g)[1] for rt in ALL16}
-    assert ks <= {0, 4}
-    assert 4 in ks            # the shift genuinely flips a sign on some char
+    assert ks == {0, 1}
+    assert 1 in ks            # the genuine ζ₈¹ phase — NOT collapsed to ±1
 
 
 def test_automorphy_factor_is_symbolic_not_evaluated():
@@ -384,21 +387,15 @@ def _kexp_defect_is_char_dependent(gens, all_chars, compose) -> bool:
     return False
 
 
-@pytest.mark.xfail(
-    reason="riemann_theta.transform kexp composition bug — g2/g3/g4 "
-           "characteristic-dependent ζ₈⁴ sign defect; the mod-2 "
-           "characteristic-shift sign θ[ε+2δ]=±θ[ε] "
-           "is not folded into kexp; LATENT (no operational consumer composes "
-           "transforms); tracked as task #824",
-    strict=True,
-)
 def test_kexp_composes_consistently_all_genera():
-    """R-1 GATE (task #824): the transform multiplier exponent kexp must COMPOSE
-    — the composed-vs-direct defect is the γ-only κ₀ cocycle, so it is
-    CHARACTERISTIC-INDEPENDENT for every generator pair, at every genus. This
-    asserts the CORRECT behaviour; it currently fails (the bug) → strict-xfail.
-    When #824 folds the mod-2 characteristic-shift sign into kexp, this passes →
-    XPASS → strict failure → remove the marker (the close signal)."""
+    """R-1 GATE (task #824, CLOSED by rc233): the transform multiplier exponent kexp
+    COMPOSES — the composed-vs-direct defect is the γ-only κ₀ cocycle, so it is
+    CHARACTERISTIC-INDEPENDENT for every generator pair, at every genus. rc233 fixed
+    the ζ₈⁴ sign defect in TWO parts: (1) the corrected Igusa φ_m coefficients
+    (−1,+2,−1,+2)·DᵀB in ``_kappa_exp8`` (pre-rc233 it collapsed the multiplier to
+    {ζ₈⁰,ζ₈⁴}), and (2) folding the mod-2 characteristic-shift sign θ[ε+2δ]=(−1)^{p·b}θ[ε]
+    into kexp so the returned (reduced characteristic, kexp) COMPOSES. This test was a
+    strict-xfail recording the LATENT bug; the fix makes it PASS (marker removed)."""
     from srmech.amsc.riemann_theta import RiemannThetaG3, RiemannThetaG4
 
     # genus 2 — Sp(4,ℤ): the canonical Urot·T11 witness lives here

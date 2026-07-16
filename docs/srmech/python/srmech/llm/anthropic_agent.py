@@ -81,13 +81,26 @@ ANTHROPIC_TOOL_NAME_MAX_LEN: int = 64
 
 
 def _to_anthropic_name(srmech_name: str) -> str:
-    """Map a srmech dotted name -> an Anthropic-grammar-safe name."""
+    """Map a srmech dotted name -> an Anthropic-grammar-safe name
+    (``^[a-zA-Z0-9_-]{1,64}$``). The common case is the 1:1 ``.`` -> ``_``
+    swap. A name whose swapped form EXCEEDS Anthropic's 64-char ceiling
+    (e.g. the genus-g ``…riemann_theta_multisum.multivariate_riemann_theta_sum``,
+    65 chars) is DETERMINISTICALLY shortened to a readable prefix + ``_`` +
+    an 8-hex sha256 tag of the FULL srmech name. Round-trip is preserved
+    because the reverse map is rebuilt by applying THIS SAME function to every
+    live registry name (the synthesised string is the reverse-map key); two
+    distinct names collide only if their (prefix, 32-bit sha256 tag) coincide
+    — negligible across the ~400-tool surface."""
     assert srmech_name, "name must be non-empty"
     out = srmech_name.replace(".", "_")
+    if len(out) > ANTHROPIC_TOOL_NAME_MAX_LEN:
+        from srmech.amsc.format import sha256_bytes  # Class-A hash (no raw hashlib)
+        tag = sha256_bytes(srmech_name.encode("utf-8"))[:8]
+        keep = ANTHROPIC_TOOL_NAME_MAX_LEN - 1 - len(tag)   # prefix + "_" + tag
+        out = out[:keep] + "_" + tag
     assert len(out) <= ANTHROPIC_TOOL_NAME_MAX_LEN, (
         f"srmech tool name {srmech_name!r} maps to a string of length "
-        f"{len(out)} > Anthropic's 64-char ceiling; truncating would "
-        f"break round-trip"
+        f"{len(out)} > Anthropic's 64-char ceiling"
     )
     return out
 

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc229"
-#define SRMECH_VERSION       "0.9.0rc229"
+#define SRMECH_VERSION_PRE   "rc256"
+#define SRMECH_VERSION       "0.9.0rc256"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -92,8 +92,16 @@ extern "C" {
  *      Per the v2→v3 precedent, adding a callback typedef carries a
  *      CFUNCTYPE wire-format implication, so ABI bumps (the plain
  *      additive functions alone would not).
+ * v5 — v0.9.0rc242: the C progress / introspection callback (#840 —
+ *      Class-H self-introspection projected to a bare-C host, completing
+ *      the everything-to-C surface). Adds the new function-pointer typedef
+ *      srmech_progress_cb_t (the dispatch-observer callback) alongside the
+ *      srmech_set_progress_cb registration symbol. Per the v2→v3 / v3→v4
+ *      precedent, adding a callback typedef carries a CFUNCTYPE wire-format
+ *      implication for the Python ctypes shim, so ABI bumps (the plain
+ *      srmech_set_progress_cb function alone would not).
  */
-#define SRMECH_ABI_VERSION 4
+#define SRMECH_ABI_VERSION 5
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -1206,6 +1214,36 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t      n,
                                                      double       *out_vec,
                                                      double       *ws,
                                                      size_t        ws_len);
+
+/* §75-sparse (issue #698): the STREAMING k-extreme resonant read — the
+ * n-unbounded C twin of srmech.amsc.coupling.resonant_spectrum_sparse. Reads the
+ * bottom-k + top-k modes of the COMBINATORIAL Laplacian L = D - W by power
+ * iteration + Gram-Schmidt deflation, STREAMING the packed edge file (the same
+ * 16-byte-record format srmech_laplacian_fiedler_sparse_file reads) via the PAL
+ * — only the O(n) `ws` arena + the caller `out_modes` (O(k*n)) are resident, so a
+ * low-RAM target reads the F172 storage signature at unbounded n (past the n<=256
+ * dense-eigensolver wall). Bottom modes ride the shift sigma*I - L (sigma =
+ * 2*max_deg + 1, a Gershgorin lambda_max bound); top modes ride L. Each new mode
+ * deflates against every found mode, so bottom/top never collide and 2k >= n
+ * yields the full spectrum. `k` modes per extreme SIDE; the caller pre-sizes
+ * out_tensions[2k] + out_modes[2k*n] (row m = mode m, row-major); *out_count
+ * receives the number of DISTINCT modes written (<= min(2k, n)), in found order
+ * (bottom ascending, then top descending — the caller sorts). `ws` (ws_len BYTES)
+ * sized from srmech_laplacian_k_extreme_modes_arena_bytes. n == 0 writes nothing
+ * + *out_count = 0. Returns SRMECH_ERR_NULL_ARG for a NULL pointer,
+ * SRMECH_ERR_BAD_INPUT for a too-small arena / a truncated or out-of-range edge
+ * file. ABI-additive (new symbols) -> SRMECH_ABI_VERSION stays 4. */
+size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n);
+
+srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t   n,
+                                                      const char *path,
+                                                      uint32_t    k,
+                                                      uint32_t    max_iters,
+                                                      double     *out_tensions,
+                                                      double     *out_modes,
+                                                      uint32_t   *out_count,
+                                                      double     *ws,
+                                                      size_t      ws_len);
 
 /* Symmetric Jacobi eigendecomposition. In-place: `matrix` becomes
  * approximately diagonal at exit (caller-owned working buffer). The
@@ -4149,6 +4187,7 @@ typedef struct {
     const char               *mcp_unavailable_reason; /* NULL when callable */
     const char               *example_json;    /* pre-canonical compact-ASCII JSON fragment, or NULL */
     const char               *smoke_json;      /* pre-canonical compact-ASCII JSON fragment, or NULL */
+    const char               *explanation;     /* NUL-terminated decoded UTF-8 hint, or NULL (rc240 #838) */
 } srmech_tool_entry_t;
 
 /* Number of registered tool entries in the const table. */
@@ -4570,6 +4609,55 @@ srmech_status_t srmech_invoke_tool_json(const char *name,
 /* Workspace bytes srmech_invoke_tool needs for a `params_len`-byte argument
  * object (the parse tree + carrier tree + decoded byte buffers + result). */
 size_t srmech_invoke_tool_arena_bytes(size_t params_len);
+
+/* ------------------------------------------------------------------
+ * PROGRESS / INTROSPECTION CALLBACK (0.9.0rc242, #840) — Class-H (self-
+ * introspection) projected across the BARE-C HOST boundary.
+ *
+ * srmech's introspection stream (~/.srmech/run-*.ndjson) is otherwise written
+ * ONLY by the Python srmech.introspect.Writer at Python op boundaries — the C
+ * library itself emits nothing, so a no-Python host cannot observe which op ran.
+ * This callback completes the everything-to-C surface: a host registers a
+ * callback with srmech_set_progress_cb, and the central invoke spine
+ * (srmech_invoke_tool / _json -> iv_dispatch) fires it ONCE per successfully-
+ * dispatched tool (on the real materialisation pass; a NULL-buf size-query does
+ * not emit) with a compact canonical-JSON event describing the op:
+ *
+ *   {"category": <category>, "mpr_version": "1.0", "op_name": <dotted name>}
+ *
+ * The event is built through srmech_json_write_ws (the keystone), so it is
+ * BYTE-IDENTICAL to CPython
+ *   json.dumps({"category": ..., "mpr_version": "1.0", "op_name": ...},
+ *              sort_keys=True, ensure_ascii=False)
+ * — the SAME shape (and ", " / ": " separators) the Python
+ * srmech.introspect._event.serialize emits. A host may append the line straight
+ * to its own NDJSON stream, enriching it with a timestamp / pid the way the
+ * Python Writer does: the C library reports WHAT ran, not WHEN (the clock is the
+ * host's), keeping the emit a pure function of the dispatch — deterministic,
+ * byte-exact-testable, and libm/time-free.
+ *
+ * OFF BY DEFAULT: with no callback registered the emit path returns after a
+ * single NULL-pointer test, so the hot dispatch path pays nothing.
+ *
+ * ABI v5 (this rc): the new srmech_progress_cb_t typedef carries a CFUNCTYPE
+ * wire-format implication (the v2→v3 / v3→v4 callback-typedef precedent), so
+ * ABI bumps; srmech_set_progress_cb itself is an additive symbol.
+ * ------------------------------------------------------------------ */
+
+/* Progress / introspection callback. The C library invokes it once per
+ * successfully-dispatched tool with `event_json` (a NUL-terminated compact
+ * canonical-JSON object, valid for the lifetime of the call only — copy it to
+ * retain) and the opaque `user_data` registered alongside the callback. The
+ * callback MUST be cheap and MUST NOT re-enter srmech_invoke_* (it fires inside
+ * dispatch). */
+typedef void (*srmech_progress_cb_t)(const char *event_json, void *user_data);
+
+/* Register (or clear, `cb` == NULL) the PROCESS-GLOBAL progress callback and its
+ * opaque `user_data`. Returns the PREVIOUS callback (NULL if none) so a host can
+ * chain or restore. The observer is process-wide (mirroring the Python single-
+ * global srmech.introspect writer); set it before spinning worker threads. */
+srmech_progress_cb_t srmech_set_progress_cb(srmech_progress_cb_t cb,
+                                            void *user_data);
 
 /* ------------------------------------------------------------------
  * make_class OBJECT-MODEL ENGINE (0.9.0rc201; the make_class -> C arc, #887).
@@ -5862,6 +5950,48 @@ srmech_status_t srmech_genome_modulator_constraint_satisfies(
     const unsigned char *buf, size_t buf_len,
     uint64_t candidate_cell_state, int *satisfied);
 
+/* srmech_graph_kernel_encode / _decode — the #1390 item 2 codec: a sparse
+ * SIGNED integer graph (vocab_size + edges + int weights[metric] + signed
+ * charges + optional node_ids label table + extras) <-> a flat Klein-4
+ * symbol stream {0,1,2,3}, base-4 digits behind a 2-symbol length header
+ * (<= 15 digits = 30 bits; Class-K zig-zag charge). Byte-identical to the
+ * pure genome._graph_ints_to_syms / _graph_syms_to_ints. On decode the
+ * caller sizes edge_cap / nid_cap / ex_cap (a count over-cap =>
+ * SRMECH_ERR_BAD_INPUT). ADDITIVE — SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_graph_kernel_encode(
+    uint64_t vocab_size,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    const uint64_t *node_ids, size_t n_nid,
+    const uint64_t *extras, size_t n_ex,
+    uint8_t *out_syms, size_t syms_cap, size_t *out_n_syms);
+
+srmech_status_t srmech_graph_kernel_decode(
+    const uint8_t *syms, size_t n_syms,
+    uint64_t *out_vocab_size,
+    uint64_t *out_edge_i, uint64_t *out_edge_j,
+    uint64_t *out_weights, int64_t *out_charges, size_t edge_cap,
+    size_t *out_n_edges,
+    uint64_t *out_node_ids, size_t nid_cap, size_t *out_n_nid,
+    uint64_t *out_extras, size_t ex_cap, size_t *out_n_ex);
+
+/* srmech_eulerian_walk — #1390 item 3: the Hierholzer Eulerian trail /
+ * circuit over a DIRECTED integer-node edge multiset [0, n_nodes). start < 0
+ * = auto (min out-bearing node for a circuit; the unique out=in+1 node for a
+ * path); circuit_only rejects a non-circuit. On out_feasible == 1, out_walk
+ * holds *out_walk_len == n_edges+1 nodes; out_feasible == 0 is the pure `None`
+ * (degree-infeasible / disconnected). Caller arenas: outdeg/indeg/cur are
+ * n_nodes, adj_start is n_nodes+1, adj is n_edges, stack/out_walk are
+ * n_edges+1. Byte-identical to the pure eulerian_path/eulerian_circuit (same
+ * order: adjacency filled in edge order, consumed from the END). ADDITIVE —
+ * SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_eulerian_walk(
+    const uint64_t *edge_u, const uint64_t *edge_v, size_t n_edges,
+    uint64_t n_nodes, int64_t start, int circuit_only,
+    uint64_t *outdeg, uint64_t *indeg, size_t *adj_start, size_t *cur,
+    uint64_t *adj, uint64_t *stack, uint64_t *out_walk, size_t *out_walk_len,
+    int *out_feasible);
+
 /* ------------------------------------------------------------------ *
  * TOML parser (malloc-free; caller arena)
  *
@@ -6067,6 +6197,16 @@ srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
                                      const srmech_bigint_t *a,
                                      const srmech_bigint_t *b,
                                      void *ws, size_t ws_len);
+
+/* q = floor(a / d), *rem = a - q*d in [0, d) — the SINGLE-LIMB-DIVISOR peer of
+ * srmech_bigint_divmod (SAME Python-FLOOR convention), for a small (uint32_t)
+ * divisor. Computes the quotient one limb at a time, so it needs NO `ws` and no
+ * per-divisor bigint allocation — the fast path for trial-division / factor-out /
+ * radix conversion. d != 0 else SRMECH_ERR_BAD_INPUT; q->cap must hold a->n (+1
+ * for the negative-dividend floor carry) else OVERFLOW. ABI-additive: a new
+ * symbol, so SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_bigint_divmod_small(srmech_bigint_t *q, uint32_t *rem,
+                                           const srmech_bigint_t *a, uint32_t d);
 
 /* out = floor(sqrt(a)). a >= 0 else SRMECH_ERR_BAD_INPUT. Integer Newton
  * iteration over the caller arena `ws`. OVERFLOW if out->cap too small. */
@@ -8664,6 +8804,44 @@ srmech_status_t srmech_an_vwp_multisum_lhs(
     size_t *out_n_num, size_t *out_n_den, void *ws, size_t ws_len);
 
 /* ------------------------------------------------------------------ *
+ * srmech_riemann_theta_multisum — the C peer of the ThetaBracketSum-returning
+ * ops srmech.amsc.riemann_theta_multisum.{riemann_theta_multisum_lhs,
+ * multivariate_riemann_theta_sum} (rc232): the HIGHER-GENUS (genus-g Riemann
+ * theta) multisum reduction-row builders. It constructs, byte-for-byte, the
+ * bracket-product MONOMIALS of the LEFT-hand side (the n+1-term multisum, side 0)
+ * and the closed-form RIGHT-hand side (PROD g_k - PROD h_k, side 1) of
+ * Spiridonov's multiparameter summation formula (arXiv:math/0408366, the Theorem,
+ * Eq. sum; extracted-source PDF sha256
+ * 8478af7407d26d0b0504d381cbe3c32a00f950c3b0c6ab8001a023b7e0c4c319). The Python
+ * side folds the emitted monomials into the ThetaBracketSum.
+ *
+ * A self-contained int32/int64 wire (no srmech_bigint / ellbase dependency): the
+ * coeffs are +-1 and the genus-g odd-theta arguments are small integer exponent
+ * rows over the interned symbol table (Python sorted-symbol-NAME order). Additive
+ * '+' of arguments is row addition, v(a,b) = -P_a + P_b is row axpy, and the odd
+ * antisymmetry [-u] = -[u] is canonicalized by orienting each argument row so its
+ * FIRST NONZERO entry is NEGATIVE, folding a Class-K +-1 sign into the monomial
+ * coeff (never abs()); an all-zero argument is the zero bracket [0]=0 and drops
+ * the whole monomial.
+ *
+ * Inputs: `n_syms` the interned symbol dimension (>= 1); `n` the summation ceiling
+ * (n+1 point-tuples); `side` 0 = LHS / 1 = RHS; `z_exps_flat` = int32[(n+1)*n_syms]
+ * (the z-vector rows); `pt_exps_flat` = int32[(n+1)*4*n_syms] (per k the four rows
+ * a,b,c,d). Outputs: `out_coeff[m]` the m-th monomial coeff (+-1 before the Python
+ * combine); `out_args_flat` its nb = 4*(n+1) canonical argument rows appended flat
+ * (nb*n_syms int32 per monomial, build order); `*out_n_monos` the monomials
+ * emitted (a zero-bracket monomial is skipped: LHS <= n+1, RHS <= 2); `*out_nb` =
+ * nb. `max_monos` the caller's monomial capacity; too small -> SRMECH_ERR_OVERFLOW.
+ * n_syms == 0 or a NULL required pointer -> SRMECH_ERR_NULL_ARG; side not in {0,1}
+ * -> SRMECH_ERR_BAD_INPUT. Malloc-free (builds in the output buffer in place, no
+ * scratch arena). Additive symbol -> SRMECH_ABI_VERSION stays 4. */
+srmech_status_t srmech_riemann_theta_multisum(
+    size_t n_syms, size_t n, int side,
+    const int32_t *z_exps_flat, const int32_t *pt_exps_flat,
+    int64_t *out_coeff, int32_t *out_args_flat, size_t max_monos,
+    size_t *out_n_monos, size_t *out_nb);
+
+/* ------------------------------------------------------------------ *
  * srmech_elliptic_recurrence_8w7 — the ELLIPTIC Sigma-row ORDER-1 RECURRENCE op for the
  * Frenkel–Turaev ₈ω₇ summation. The C peer of
  * srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7 — a 1:1 STRUCTURAL MIRROR of
@@ -10153,9 +10331,10 @@ srmech_status_t srmech_carrier_schema(char *buf, size_t buf_len,
 /* One responsion EDGE in the registry. All string pointers are
  * NUL-terminated ASCII (edge keys are dotted identifiers); `entry_json`
  * is the per-edge payload — a JSON ARRAY of responsion objects
- * {"answers_with","carrier","kind","operator","regime","status"} — as
- * its pre-canonical compact-ASCII fragment (`entry_len` bytes,
- * excluding the NUL). */
+ * {"answers_with","carrier","curvature","kind","operator","regime",
+ * "status"} — as its pre-canonical compact-ASCII fragment (`entry_len`
+ * bytes, excluding the NUL). ("curvature" = the rc237 F3 flat/curved
+ * frame-independence class, sorted between "carrier" and "kind".) */
 typedef struct {
     const char *key;           /* "<operator>|<carrier>" (the edge key) */
     const char *op_name;       /* the operator ref (a tool-registry name) */
@@ -10302,6 +10481,19 @@ srmech_status_t srmech_text_cooccurrence_edges(
     const uint32_t *tok_ids, size_t n_tok,
     const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
     uint64_t *ht_keys, uint64_t *ht_vals, size_t ht_cap, size_t *out_n_edges);
+
+/* srmech_text_cooccurrence_edges_directed — the directed=True SUPERSET
+ * (#1390 item 1). Same arena discipline, but on the canonical unordered
+ * key it fills two output columns: ht_metric (== the undirected weight,
+ * fwd+bwd) and ht_charge (signed, fwd-bwd — +1 when the earlier-position
+ * token has the smaller id, else -1). On success out_n_edges canonical
+ * edges sit at the front of ht_keys with parallel ht_metric / ht_charge.
+ * ADDITIVE symbol — SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_text_cooccurrence_edges_directed(
+    const uint32_t *tok_ids, size_t n_tok,
+    const size_t *doc_off, size_t n_docs, uint32_t window, uint32_t n_vocab,
+    uint64_t *ht_keys, uint64_t *ht_metric, int64_t *ht_charge, size_t ht_cap,
+    size_t *out_n_edges);
 
 /* One §52 bounded top-K chunk FLUSH: accumulate the chunk's windowed pair
  * counts (same loop as cooccurrence_edges), then merge each touched
