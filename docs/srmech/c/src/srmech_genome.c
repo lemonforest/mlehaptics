@@ -70,7 +70,7 @@
 
 /* The §41 parser_rule_hash pre-image (== f"genome_persistence/v12" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; v11->v12 head-only). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v13"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v14"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -257,7 +257,8 @@ static int genome_cap_kind(const unsigned char *block, size_t len)
         m == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
         m == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
         m == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
-        m == SRMECH_GENOME_CENTROMERE_CAP_MARKER) {   /* §95a interior centromere */
+        m == SRMECH_GENOME_CENTROMERE_CAP_MARKER ||    /* §95a interior centromere */
+        m == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid boundary */
         return (int)m;
     }
     return -1;
@@ -1049,6 +1050,112 @@ srmech_status_t srmech_genome_centromere_of(const unsigned char *strand,
     return SRMECH_OK;
 }
 
+/* §95b/v14 (rc259, #1407) — the per-leaf DIPLOID EC read (mirror _diploid_ec_leaf): both
+ * homolog leaves agree -> use it; exactly one ERASED (all-zero leaf) -> the intact homolog
+ * (the erasure specialist); both present but DISAGREE -> the centromere which-template mark
+ * (which = 0 -> copyA, 1 -> copyB). Class-K sector compare; no float/abs. `a`/`b` are the two
+ * uncoupled homolog leaves (leaf_dim bytes each); writes the chosen leaf to `out`. */
+static void genome_diploid_ec_leaf(const unsigned char *a, const unsigned char *b,
+                                   uint32_t leaf_dim, unsigned int which,
+                                   unsigned char *out)
+{
+    assert(a != NULL && b != NULL && out != NULL);
+    assert(leaf_dim > 0u);
+    int a_erased = 1, b_erased = 1;
+    for (uint32_t k = 0; k < leaf_dim; k++) {
+        if (a[k] != 0u) { a_erased = 0; }
+        if (b[k] != 0u) { b_erased = 0; }
+    }
+    const unsigned char *pick;
+    if (memcmp(a, b, (size_t)leaf_dim) == 0) { pick = a; }        /* homologs agree */
+    else if (a_erased != 0 && b_erased == 0) { pick = b; }        /* erasure -> intact B */
+    else if (b_erased != 0 && a_erased == 0) { pick = a; }        /* erasure -> intact A */
+    else { pick = (which != 0u) ? b : a; }                        /* substitution -> mark */
+    memcpy(out, pick, (size_t)leaf_dim);
+}
+
+/* §95b/v14 DIPLOID builder — [diploid_telomere, copyA…, centromere(orientation), copyB…],
+ * copyA == copyB (homologs). BYTE-IDENTICAL to the Python diploid(). */
+srmech_status_t srmech_genome_diploid(const unsigned char *label, size_t label_len,
+                                      const unsigned char *the_one, uint32_t leaf_dim,
+                                      const unsigned char *leaves, size_t n_leaves,
+                                      unsigned char orientation, uint32_t repeats,
+                                      unsigned char *out, size_t out_cap,
+                                      size_t *n_blocks_out)
+{
+    if (out == NULL || the_one == NULL || n_blocks_out == NULL ||
+        (leaves == NULL && n_leaves != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && the_one != NULL && n_blocks_out != NULL);
+    assert(leaves != NULL || n_leaves == 0u);
+    if (leaf_dim == 0u || leaf_dim > 256u || orientation > 3u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t total = 2u * n_leaves + 2u;                   /* cap + n + centromere + n */
+    if (n_leaves + 1u < n_leaves || total > out_cap / (size_t)leaf_dim) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    srmech_status_t st = genome_pack_cap(SRMECH_GENOME_DIPLOID_TELOMERE_MARKER, label,
+                                         label_len, leaf_dim, out, leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    size_t oi = 1u;
+    st = genome_bind_turns(leaves, 0u, n_leaves, the_one, leaf_dim, out, &oi);  /* copyA */
+    if (st != SRMECH_OK) { return st; }
+    st = genome_pack_centromere(orientation, repeats, (const unsigned char *)"cen", 3u,
+                                leaf_dim, out + oi * (size_t)leaf_dim, leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    oi++;
+    st = genome_bind_turns(leaves, 0u, n_leaves, the_one, leaf_dim, out, &oi);  /* copyB */
+    if (st != SRMECH_OK) { return st; }
+    *n_blocks_out = total;
+    return SRMECH_OK;
+}
+
+/* §95b/v14 DIPLOID recover — split at the interior centromere into copyA | copyB and
+ * error-correct per leaf. BYTE-IDENTICAL to the Python recover_diploid. */
+srmech_status_t srmech_genome_recover_diploid(const unsigned char *strand, size_t n_blocks,
+                                              uint32_t leaf_dim, const unsigned char *the_one,
+                                              unsigned char *out, size_t out_cap,
+                                              size_t *n_out)
+{
+    if (strand == NULL || the_one == NULL || out == NULL || n_out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && the_one != NULL);
+    assert(out != NULL && n_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u || n_blocks == 0u ||
+        strand[0] != SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t cen_idx = 0u, n_before = 0u, n_turns = 0u;
+    int have_cen = 0;
+    for (size_t i = 0; i < n_blocks; i++) {
+        int kind = genome_cap_kind(strand + i * (size_t)leaf_dim, leaf_dim);
+        if (kind == (int)SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
+            cen_idx = i; have_cen = 1; n_before = n_turns;
+        } else if (kind < 0) { n_turns++; }
+    }
+    if (have_cen == 0 || 2u * n_before != n_turns) { return SRMECH_ERR_BAD_INPUT; }
+    unsigned char o = 0u;
+    srmech_status_t st = genome_centromere_orientation(
+        strand + cen_idx * (size_t)leaf_dim, leaf_dim, &o);
+    if (st != SRMECH_OK) { return st; }
+    unsigned int which = (unsigned int)(o & 1u);
+    if (n_before > out_cap / (size_t)leaf_dim) { return SRMECH_ERR_OVERFLOW; }
+    for (size_t j = 0; j < n_before; j++) {
+        unsigned char a[256], b[256];                    /* uncoupled homolog leaves */
+        st = srmech_klein4_bind(strand + (1u + j) * (size_t)leaf_dim, the_one, leaf_dim, a);
+        if (st != SRMECH_OK) { return st; }
+        st = srmech_klein4_bind(strand + (cen_idx + 1u + j) * (size_t)leaf_dim, the_one,
+                                leaf_dim, b);
+        if (st != SRMECH_OK) { return st; }
+        genome_diploid_ec_leaf(a, b, leaf_dim, which, out + j * (size_t)leaf_dim);
+    }
+    *n_out = n_before;
+    return SRMECH_OK;
+}
+
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome). Mirror srmech.amsc.genome.partition(strand, the_one): walk
  * the strand's `n_blocks` fixed-width leaf_dim-byte blocks; a CHROM / kernel-telomere
@@ -1100,7 +1207,8 @@ srmech_status_t srmech_genome_partition(const unsigned char *strand,
         int kind = genome_cap_kind(block, leaf_dim);
         if (kind == (int)SRMECH_GENOME_CHROM_CAP_MARKER ||
             kind == (int)SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
-            kind == (int)SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+            kind == (int)SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
+            kind == (int)SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid opens a chrom */
             size_t loff = n_parts * (size_t)leaf_dim;
             if (n_parts >= counts_cap || loff + (size_t)leaf_dim > out_labels_cap) {
                 return SRMECH_ERR_OVERFLOW;
@@ -1152,7 +1260,8 @@ static srmech_status_t genome_count_chroms(const unsigned char *body,
          * opens a chromosome. */
         if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER ||
             body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
-            body[off] == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+            body[off] == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
+            body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid opens a chrom */
             if (n == 0xFFFFFFFFu) { return SRMECH_ERR_OVERFLOW; }
             n++;
         }
@@ -1213,7 +1322,8 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
          * up to the first NUL) — the active telomere's count sits AFTER that NUL. */
         if (body[off] == SRMECH_GENOME_CHROM_CAP_MARKER ||
             body[off] == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
-            body[off] == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+            body[off] == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
+            body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid opens a chrom */
             if (s->n_chroms >= s->cap_chroms) { return SRMECH_ERR_OVERFLOW; }
             cur = (int32_t)s->n_chroms;
             s->n_chroms++;
@@ -3025,7 +3135,8 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
     if (region_len < (size_t)leaf_dim ||
         (region[0] != SRMECH_GENOME_CHROM_CAP_MARKER &&
          region[0] != SRMECH_GENOME_KERNEL_TELOMERE_MARKER &&
-         region[0] != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER)) {
+         region[0] != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER &&
+         region[0] != SRMECH_GENOME_DIPLOID_TELOMERE_MARKER)) {  /* §95b diploid region */
         return SRMECH_ERR_BAD_INPUT;
     }
     srmech_status_t st = srmech_sha256_hex(region, leaf_dim, cap_sha);
@@ -3040,7 +3151,8 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
         unsigned char kind = region[off];
         if (off != 0u && (kind == SRMECH_GENOME_CHROM_CAP_MARKER ||
                           kind == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
-                          kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER)) {
+                          kind == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
+                          kind == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER)) {  /* §95b diploid */
             return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
         }
         /* §60/§127/§128/§130/§131/§132: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
@@ -3055,6 +3167,8 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
             kind != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
             kind != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
             kind != SRMECH_GENOME_GRADED_GENE_MARKER &&
+            kind != SRMECH_GENOME_CENTROMERE_CAP_MARKER &&  /* §95a interior centromere */
+            kind != SRMECH_GENOME_DIPLOID_TELOMERE_MARKER &&  /* §95b diploid boundary */
             kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }
         nb++;
         off += blen;
@@ -3400,7 +3514,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
 /* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v12" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; v11->v12 head-only). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v13"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v14"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."
