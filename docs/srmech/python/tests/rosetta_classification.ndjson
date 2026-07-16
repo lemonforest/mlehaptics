@@ -598,6 +598,9 @@
 {"exposed_as": "srmech.dsl.list_catalog_ops", "defined_at": "srmech.dsl._tool_surface.list_catalog_ops", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.list_ops", "defined_at": "srmech.dsl._tool_surface.list_ops", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.run_toml_chain", "defined_at": "srmech.dsl._tool_surface.run_toml_chain", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.dsl.alias", "defined_at": "srmech.dsl._alias.alias", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
+{"exposed_as": "srmech.dsl.build_aliases_from_toml_str", "defined_at": "srmech.dsl._alias.build_aliases_from_toml_str", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.dsl.load_aliases_toml", "defined_at": "srmech.dsl._alias.load_aliases_toml", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.mcp.invoke_tool", "defined_at": "srmech.mcp._tools.invoke_tool", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.mcp.tool_entries_to_mcp_defs", "defined_at": "srmech.mcp._tools.tool_entries_to_mcp_defs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.mcp.serve_stdio", "defined_at": "srmech.mcp._stdio.serve_stdio", "bucket": "non_compute", "non_compute_kind": "composes_c"}

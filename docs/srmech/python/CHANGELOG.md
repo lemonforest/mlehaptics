@@ -11,6 +11,24 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc261]
+
+**Config-driven FUNCTION ALIASING — bind your own name to any `srmech.*` function via TOML (§95.2 / #1407). The domain-agnostic naming layer.** srmech already lets a researcher declare CLASSES (`make_class`) and PIPELINES (the `[chain]` DSL) in TOML; rc261 adds the smallest missing rung — declaring a **name binding** — so the framework's own naming (e.g. the rc260 `genome`/`plasmid` rename) is a non-issue at the user layer: anyone re-aliases to their domain vocabulary in config, no code.
+
+- **`srmech.dsl.alias(name, target)`** — binds `name` to the srmech function at the dotted `target` path (via `functools.wraps`, preserving its signature/docstring), carrying the user's `name`. **`build_aliases_from_toml_str(spec)`** / **`load_aliases_toml(path)`** parse a `[[alias]]` TOML array (`name` + `target`) into a `{name: callable}` mapping; parsing reuses the DSL's native (`srmech_toml`) + `tomllib` loader.
+- **Security (load-bearing):** a `target` MUST be a dotted `srmech.*` path — the naming layer binds names to srmech's OWN surface, never arbitrary imports (a config cannot be coaxed into `os.system` / `subprocess.run` / any non-srmech module — rejected with `ValueError`). Config gives *names*, not *capabilities*.
+
+```toml
+[[alias]]
+name = "build"
+target = "srmech.amsc.genome.genome"
+[[alias]]
+name = "stick"
+target = "srmech.amsc.genome.plasmid"
+```
+
+New governance: **`adr/0004-config-driven-domain-agnostic-surface.md`** codifies that srmech's user-facing surface is config-driven (classes, chains, catalogs, and now *names* in TOML) — the property that makes srmech domain-agnostic. Pure Python (no C / format / ABI change); `test_dsl_function_alias_rc261` covers the single + TOML-batch aliasing, byte-identical target behaviour, and the `srmech.*`-restriction; the rosetta + non_compute four-way-split ratchets green.
+
 ## [0.9.0rc260]
 
 **Genome API rename — `genome()` is now the biology-aware umbrella; `plasmid()` is the pure all-stick builder (§95.2 feedback 2, #1407). BREAKING for large kernels.** "genome" is the umbrella noun, but it was the *dumb* all-stick builder while `mint()` was the smart one. rc260 fixes that:

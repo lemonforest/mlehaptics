@@ -974,6 +974,10 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     "srmech.dsl._class_surface.list_class_surface",
     "srmech.dsl._tool_surface.list_catalog_ops",
     "srmech.dsl._tool_surface.list_ops",
+    # rc261 (§95.2 / #1407): the config-driven function-alias binder — pure Python
+    # name-binding (bind a user's name to a srmech.* fn); a bare-C host never aliases
+    # Python functions, so it is a justified dev/LLM affordance (ADR-0004).
+    "srmech.dsl._alias.alias",
     # rc183 HOST-GLUE annex (srmech.llm) — 3 LLM-agent affordances a bare-C host
     # never needs. HONEST-DEFAULT: classified dev_tooling pending a user decision
     # on whether to build a C Anthropic agent (a separate C-HTTPS/TLS Messages-API
