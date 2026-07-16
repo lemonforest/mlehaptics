@@ -70,7 +70,7 @@ def test_v6_roundtrip_on_disk(tmp_path, D):
     one = G._default_the_one(256)
     p = tmp_path / f"k{D}"
     man = G.genome_save(strand, p, the_one=one)
-    assert man["format_version"] == 11                # the v9 writer (rc130 §130 stamps 9)
+    assert man["format_version"] == 12                # the v9 writer (rc130 §130 stamps 9)
     assert G.kernel_unpack(p) == x                   # the_one from the manifest cache
 
 
@@ -304,13 +304,16 @@ def test_python_equals_c_append_kernel(tmp_path):
     assert G.kernel_unpack(by_label["taught"], one2) == x
 
 
-# ── extra guards: duplicate label + symbol range ──────────────────────────────
+# ── extra guards: duplicate label (v12 last-wins) + symbol range ──────────────
 
-def test_append_kernel_rejects_duplicate_and_non_klein4(tmp_path):
+def test_append_kernel_duplicate_last_wins_and_rejects_non_klein4(tmp_path):
     one = G._default_the_one(256)
     p = _seed(tmp_path, one)
     G.genome_append_kernel(p, "a", _kernel(100), the_one=one)
-    with pytest.raises(ValueError, match="already exists"):
-        G.genome_append_kernel(p, "a", _kernel(100), the_one=one)
+    # v12 (ADR-0003): chromosome labels are content-addresses, so there is NO O(n)
+    # duplicate-label scan (that scan was the O(N^2) append wall) — a duplicate label is
+    # APPENDED (last-wins on read), not rejected; the caller owns label uniqueness.
+    G.genome_append_kernel(p, "a", _kernel(50), the_one=one)          # no raise
+    # a non-Klein-4 symbol is still a genuine validation error (kept).
     with pytest.raises(ValueError, match=r"not a Klein-4 sector"):
         G.genome_append_kernel(p, "b", [0, 1, 2, 9], the_one=one)
