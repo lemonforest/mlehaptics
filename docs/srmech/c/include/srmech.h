@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc258"
-#define SRMECH_VERSION       "0.9.0rc258"
+#define SRMECH_VERSION_PRE   "rc259"
+#define SRMECH_VERSION       "0.9.0rc259"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5083,7 +5083,7 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * tiny head (O(1)) instead of the whole array (the O(N^2) wall). The BODY format is
  * UNCHANGED (v2..v11 bodies read identically); a v≤11 manifest with the arrays reads
  * verbatim, and the first v12 append migrates it head-only. Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 13
+#define SRMECH_GENOME_FORMAT_VERSION 14
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -5257,7 +5257,7 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
 #define SRMECH_GENOME_GRADED_DENOM_BYTES 8u
 #define SRMECH_GENOME_GRADED_WEIGHT_BYTES 8u
 
-/* §95a/v13 CENTROMERE marker (rc258, #1407 / F1243) — the FIRST byte of a fixed-width
+/* §95a/v13 CENTROMERE marker (rc259, #1407 / F1243) — the FIRST byte of a fixed-width
  * leaf_dim-byte cap leaf that sits INTERIOR to a MINTED chromosome (between its two arms),
  * NOT a chromosome-boundary cap. It carries the chromosome's GLOBAL 4-way orientation as an
  * α-satellite REPEAT-ARRAY. Layout: [0x58] + utf-8 handle + NUL + R (uint8) + R orientation
@@ -5272,9 +5272,20 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * chromosome. */
 #define SRMECH_GENOME_CENTROMERE_CAP_MARKER 0x58u /* 'X' — a §95a interior centromere */
 
-/* §95a/v13 default centromere α-satellite repeat-array size R (rc258). Mirrors
+/* §95a/v13 default centromere α-satellite repeat-array size R (rc259). Mirrors
  * CENTROMERE_DEFAULT_REPEATS in srmech.amsc.genome. */
 #define SRMECH_GENOME_CENTROMERE_DEFAULT_REPEATS 15u
+
+/* §95b/v14 DIPLOID chromosome-boundary marker (rc259, #1407 / F1244) — the FIRST byte of a
+ * fixed-width leaf_dim-byte cap that OPENS a chromosome (like the CHROM cap, but flags it as
+ * DIPLOID: its two arms, split by an interior SRMECH_GENOME_CENTROMERE_CAP_MARKER, are
+ * HOMOLOGOUS FULL COPIES of the content — [diploid_telomere, copyA…, centromere(mark), copyB…],
+ * copyA == copyB). The erasure/break specialist: srmech_genome_recover_diploid fills an erased
+ * leaf from the intact homolog (2× not 3×), the centromere orientation is the which-template
+ * mark (2 copies + 1 mark = 3 = k=3). > 3 and distinct from every prior marker, so v2..v13
+ * bodies read UNCHANGED — the walker gains ONE branch (it OPENS a chromosome everywhere CHROM
+ * does). Mirrors DIPLOID_TELOMERE_MARKER in srmech.amsc.genome. 0x44 = 'D' (Diploid). */
+#define SRMECH_GENOME_DIPLOID_TELOMERE_MARKER 0x44u /* 'D' — a §95b diploid chromosome */
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
@@ -5415,7 +5426,7 @@ srmech_status_t srmech_genome_genome(
     const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out);
 
-/* §95a/v13 CENTROMERE cap writer (rc258, #1407) — mirror srmech.amsc.genome._pack_centromere:
+/* §95a/v13 CENTROMERE cap writer (rc259, #1407) — mirror srmech.amsc.genome._pack_centromere:
  * `[0x58] + handle + NUL + R + R orientation votes, NUL-padded to dim`. `orientation` is a
  * Klein-4 sector (0..3); `repeats` R in [1, 255]; the votes are R copies of `orientation` (the
  * α-satellite array, majority-decoded on read). Byte-identical to the bytes behind the Python
@@ -5441,7 +5452,7 @@ srmech_status_t srmech_genome_mint(
     const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out);
 
-/* §95a/v13 CENTROMERE READ (rc258) — recover a MINTED chromosome's global orientation +
+/* §95a/v13 CENTROMERE READ (rc259) — recover a MINTED chromosome's global orientation +
  * arm-ratio (mirror srmech.amsc.genome.centromere_of). Walks the strand's n_blocks leaf_dim-byte
  * blocks, majority-decodes the orientation from the interior 0x58 cap's α-satellite votes
  * (klein4_triality_correct's 2-of-3 generalised to R — a Class-K sector count + argmax, no abs),
@@ -5453,6 +5464,36 @@ srmech_status_t srmech_genome_centromere_of(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     unsigned char *orientation_out, size_t *p_out, size_t *q_out,
     int *found_out);
+
+/* §95b/v14 DIPLOID builder (rc259, #1407 / F1244) — mirror srmech.amsc.genome.diploid: a
+ * chromosome storing TWO homologous copies of the kernel split by an interior centromere
+ * (the which-template mark): [diploid_telomere(label), copyA turns…, centromere(orientation),
+ * copyB turns…], copyA == copyB. `orientation` is the mark + global orientation (0..3);
+ * `repeats` the centromere α-satellite size. Writes (2*n_leaves + 2) leaf_dim-byte blocks.
+ * BYTE-IDENTICAL to the Python diploid(). Caller-arena; no malloc/goto/abs/float.
+ *   SRMECH_ERR_NULL_ARG  — out / the_one / n_blocks_out NULL, or NULL leaves with n_leaves>0.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, orientation > 3, an over-long label, a leaf
+ *                          byte > 3, or the centromere repeats out of [1,255].
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the strand. */
+srmech_status_t srmech_genome_diploid(
+    const unsigned char *label, size_t label_len, const unsigned char *the_one,
+    uint32_t leaf_dim, const unsigned char *leaves, size_t n_leaves,
+    unsigned char orientation, uint32_t repeats,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out);
+
+/* §95b/v14 DIPLOID recover (rc259) — mirror srmech.amsc.genome.recover_diploid: split the
+ * strand at its interior centromere into copyA | copyB (homologs) and error-correct per leaf
+ * (agree → use; one ERASED (all-zero leaf) → the intact homolog; disagree → the centromere
+ * which-template mark). Re-binds each surviving turn through `the_one`. Writes the recovered
+ * leaves (n_leaves of them). BYTE-IDENTICAL to the Python recover_diploid.
+ *   SRMECH_ERR_NULL_ARG  — any pointer arg NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, not a diploid strand (no leading 0x44), or a
+ *                          malformed diploid (missing centromere / unequal homolog arms).
+ *   SRMECH_ERR_OVERFLOW   — out too small for the recovered leaves. */
+srmech_status_t srmech_genome_recover_diploid(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one, unsigned char *out, size_t out_cap,
+    size_t *n_out);
 
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome): a CHROM / kernel-telomere / active-telomere cap opens a

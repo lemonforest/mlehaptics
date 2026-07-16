@@ -64,6 +64,7 @@ from srmech.version import __version__ as _SRMECH_VERSION
 __all__ = [
     "encode_shape", "quad_turn", "telomere", "chromosome",
     "centromere", "centromere_of",
+    "diploid", "recover_diploid",
     "recall",
     "genes",
     "genome", "partition",
@@ -251,6 +252,22 @@ CENTROMERE_CAP_MARKER = 0x58
 #: in the cap (introspectable + tunable — drop to 1 for a single-index centromere, the
 #: cheapest-but-fragile mode F1243 §1 also measured).
 CENTROMERE_DEFAULT_REPEATS = 15
+
+#: §95b/rc259 (format v13 → v14, #1407 / F1244) — the DIPLOID chromosome-boundary marker.
+#: ``0x44`` = ASCII ``'D'`` (Diploid; one letter up from the ``0x43`` ``'C'`` CHROM cap it
+#: extends). A diploid chromosome opens with a DIPLOID telomere (``[0x44] + label, NUL-padded``)
+#: instead of the plain CHROM cap, and is structurally a MINTED chromosome whose two arms are
+#: **homologous FULL copies** of the content (maternal | paternal), split by an interior
+#: :data:`CENTROMERE_CAP_MARKER` whose orientation is the **which-template mark**:
+#:   ``[diploid_telomere, copyA turns…, centromere(mark), copyB turns…]``   (copyA == copyB)
+#: This is biology's diploid pair — the **erasure/break specialist** (F1244 / `R-RBS-LM-DIPLOID-EC`):
+#: on a DETECTABLE loss (a double-strand break — an erased leaf) :func:`recover_diploid` fills
+#: from the intact homolog, reaching triality-level fidelity at **2× not 3×**; on a substitution
+#: disagreement the centromere mark is the tiebreak (**2 copies + 1 mark = 3 = the k=3 triality**,
+#: F291). A chromosome-BOUNDARY cap like CHROM (it OPENS a chromosome, carries a label inline),
+#: so it joins every place ``CHROM_CAP_MARKER`` opens/bounds a chromosome; ``> 3`` and distinct
+#: from every prior marker, so v2..v13 bodies read UNCHANGED — the walker gains ONE branch.
+DIPLOID_TELOMERE_MARKER = 0x44
 
 #: §128/rc128 (format v7 → v8, #728) — the REGULATORY GENE marker. ``0x67`` = ASCII
 #: ``'g'`` (a lower-case gene carrying a live regulatory region, mnemonically paired
@@ -698,7 +715,7 @@ def _cap_kind(hv):
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER) else None       # §95a: the interior centromere anchor
+        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER) else None   # §95a/§95b caps
 
 
 def _unpack_cap(hv):
@@ -1572,6 +1589,116 @@ def centromere_of(strand):
     return {"orientation": _centromere_orientation(votes),
             "arm_ratio": (p, total_turns - p), "handle": handle,
             "repeats": len(votes)}
+
+
+def _leaf_is_erased(leaf_syms):
+    """A leaf is ERASED (a DETECTABLE double-strand break — biology's cleared locus) iff all
+    its Klein-4 symbols are 0 (the zero leaf, the erasure sentinel). Class-I exact (no float)."""
+    return all(int(s) == 0 for s in leaf_syms)
+
+
+def _diploid_ec_leaf(a, b, which):
+    """The per-leaf diploid EC read (§95b / F1244): both agree → use it; exactly one ERASED
+    (a detectable break) → fill from the intact homolog (the diploid specialist — 2× not 3×);
+    both present but DISAGREE (a substitution) → trust the centromere which-template mark.
+    ``a``/``b`` are the two recovered homolog leaves (Klein-4 HVs); ``which`` the mark parity
+    (0 = trust copyA, 1 = trust copyB). Class-K sector compare, no float/abs."""
+    la, lb = list(a), list(b)
+    if la == lb:
+        return a                                       # homologs agree — the clean case
+    a_erased = _leaf_is_erased(la)
+    b_erased = _leaf_is_erased(lb)
+    if a_erased and not b_erased:
+        return b                                       # fill from the intact homolog (erasure)
+    if b_erased and not a_erased:
+        return a
+    return b if which else a                           # substitution → the marked template
+
+
+def diploid(leaves, the_one, *, label="diploid", orientation=None,
+            repeats=CENTROMERE_DEFAULT_REPEATS):
+    """A DIPLOID chromosome (§95b / F1244 / #1407) — biology's diploid pair, the erasure/break
+    specialist.
+
+    Stores TWO homologous copies of the kernel (maternal | paternal) split by an interior
+    :func:`centromere` whose orientation is the **which-template mark** — 2 copies + 1 mark =
+    3 = the k=3 triality (F291)::
+
+        [diploid_telomere(label), copyA turns…, centromere(orientation), copyB turns…]
+
+    ``copyA`` and ``copyB`` are the SAME content (a deterministic content-addressed store writes
+    identical homologs; the redundancy is READ-time EC). Recover with :func:`recover_diploid`:
+    on a DETECTABLE loss (an erased leaf — a double-strand break) it fills from the intact
+    homolog, reaching triality-level fidelity at **2× not 3×** (measured, `R-RBS-LM-DIPLOID-EC`);
+    on a substitution disagreement the centromere mark is the tiebreak. This is the erasure
+    specialist of the k=3 coherency tower (triality is the substitution specialist).
+
+    ``orientation`` is the which-template mark + the global orientation (default the kernel's
+    content-address folded to a Klein-4 sector); ``repeats`` the centromere α-satellite size."""
+    if the_one is None:
+        raise ValueError("diploid: the_one is required")
+    leaves = list(leaves)
+    dim = len(list(the_one))
+    o = _mint_orientation(leaves) if orientation is None else int(orientation)
+    if not 0 <= o <= 3:
+        raise ValueError(
+            f"diploid orientation must be a Klein-4 sector 0..3 (the which-template mark + "
+            f"global orientation); got {orientation!r}")
+    # rc259 (#1407): DISPATCH the whole diploid assemble to the srmech_genome_diploid C peer
+    # when HAS_NATIVE — 1:1 C↔Python byte parity. The pure build below is the numpy-free oracle.
+    leaf_bytes = _leaf_blocks(leaves)
+    if leaf_bytes and all(len(b) == dim for b in leaf_bytes):
+        native = _native.genome_diploid_c(
+            label, _the_one_block_bytes(the_one), b"".join(leaf_bytes), len(leaf_bytes),
+            o, repeats, dim)
+        if native is not None:
+            return [_hv_from_block(native[i * dim:(i + 1) * dim])
+                    for i in range(len(native) // dim)]
+    copy = [quad_turn(leaf, the_one) for leaf in leaves]   # copyA == copyB (homologs)
+    cap = _pack_cap(DIPLOID_TELOMERE_MARKER, label, dim)
+    cen = _pack_centromere(o, dim, repeats=repeats)
+    return [cap] + copy + [cen] + copy
+
+
+def recover_diploid(strand, the_one):
+    """Recover a diploid chromosome's content via the two-copy EC (§95b) — the inverse of
+    :func:`diploid`. Splits the strand at its interior centromere into ``copyA | copyB``
+    (homologs) and error-corrects per leaf (:func:`_diploid_ec_leaf`): agree → use; one erased
+    (a detectable break) → fill from the intact homolog; disagree → trust the centromere
+    which-template mark. Returns the recovered leaves. Raises ``ValueError`` if ``strand`` is
+    not a diploid chromosome (no ``0x44`` cap) or is malformed (missing centromere / unequal
+    arms)."""
+    strand = list(strand)
+    if not strand or _cap_kind(strand[0]) != DIPLOID_TELOMERE_MARKER:
+        raise ValueError(
+            "recover_diploid: strand is not a diploid chromosome (no leading 0x44 cap)")
+    # rc259 (#1407): DISPATCH the two-copy EC to srmech_genome_recover_diploid when HAS_NATIVE
+    # (byte-identical). The pure walk below is the numpy-free oracle.
+    dim = len(list(strand[0]))
+    native = _native.genome_recover_diploid_c(
+        b"".join(hv.tobytes() for hv in strand), len(strand), dim,
+        _the_one_block_bytes(the_one))
+    if native is not None:
+        return [_HV.from_sequence(native[i * dim:(i + 1) * dim], sectors=QUAD)
+                for i in range(len(native) // dim)]
+    copyA, copyB, cen = [], [], None
+    seen_cen = False
+    for hv in strand:
+        kind = _cap_kind(hv)
+        if kind == CENTROMERE_CAP_MARKER:
+            cen = hv
+            seen_cen = True
+        elif kind is None:
+            (copyB if seen_cen else copyA).append(hv)   # data turns split at the centromere
+    if cen is None or len(copyA) != len(copyB):
+        raise ValueError(
+            "recover_diploid: malformed diploid (missing centromere or unequal homolog arms)")
+    which = _centromere_orientation(_centromere_votes(cen)) & 1   # which-template mark parity
+    out = []
+    for a_turn, b_turn in zip(copyA, copyB):
+        out.append(_diploid_ec_leaf(quad_turn(a_turn, the_one),
+                                    quad_turn(b_turn, the_one), which))
+    return out
 
 
 def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
@@ -3174,10 +3301,10 @@ def partition(strand, the_one, labels=None):
     for hv in strand:
         kind = _cap_kind(hv)
         if kind in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
-                    ACTIVE_TELOMERE_MARKER):
-            # a telomere cap (plain / §89 kernel / §127 active) — start a partition.
-            # _unpack_cap reads the label (bytes [1:] up to the first NUL) UNIFORMLY —
-            # the active telomere's count sits AFTER that NUL, so the label is exact.
+                    ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER):
+            # a telomere cap (plain / §89 kernel / §127 active / §95b diploid) — start a
+            # partition. _unpack_cap reads the label (bytes [1:] up to the first NUL) UNIFORMLY
+            # — the active telomere's count sits AFTER that NUL, so the label is exact.
             _marker, current = _unpack_cap(hv)
             out[current] = []
         elif kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
@@ -3794,7 +3921,7 @@ def telomere_tick(strand):
 #: bodies read UNCHANGED (dual-read — the walker gains ONE branch): back-compat is
 #: STRUCTURAL, never a converter. A stick (append) genome with NO 0x58 cap is byte-identical
 #: to the v12 writer EXCEPT the ``format_version`` field. A v13 writer stamps 13.
-GENOME_FORMAT_VERSION = 13
+GENOME_FORMAT_VERSION = 14
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -3882,7 +4009,7 @@ def _hv_from_block(block: bytes) -> _HV:
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER) else QUAD       # §95a: the interior centromere anchor
+        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER) else QUAD   # §95a/§95b caps
     return _HV.from_sequence(block, sectors=sectors)
 
 
@@ -3909,7 +4036,7 @@ def _block_is_cap(block: bytes) -> bool:
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER)                 # §95a: the interior centromere anchor
+        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER)   # §95a/§95b caps
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -4015,7 +4142,8 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
                     BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
                     KERNEL_HEADER_MARKER,
                     KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-                    CENTROMERE_CAP_MARKER) or kind <= 3:   # §95a centromere = leaf-wide cap
+                    CENTROMERE_CAP_MARKER,
+                    DIPLOID_TELOMERE_MARKER) or kind <= 3:   # §95a/§95b caps = leaf-wide
             end = k + leaf_dim
             if end > n:
                 raise GenomeBoundingError(
@@ -4058,7 +4186,7 @@ def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
     current_blocks: Optional[list] = None
     for hv in strand:
         if _cap_kind(hv) in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
-                             ACTIVE_TELOMERE_MARKER):
+                             ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER):
             if current_label is not None:
                 chroms.append((current_label, current_blocks))
             _marker, current_label = _unpack_cap(hv)
@@ -4396,7 +4524,7 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
             bytes(body_bytes), leaf_dim, context="genome rebuild-by-scan"):
         n_turns += 1
         if decoded[0] in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
-                          ACTIVE_TELOMERE_MARKER):
+                          ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER):
             if cur is not None:
                 chrom_specs.append(tuple(cur))
             # the label is bytes [1:] up to the first NUL — UNIFORM across all telomere
@@ -4656,7 +4784,7 @@ def genome_load(path, *, labels=None, the_one=None):
                             BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
                             KERNEL_HEADER_MARKER,
                             KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-                            CENTROMERE_CAP_MARKER) \
+                            CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER) \
                         or kind <= 3:
                     rest = f.read(leaf_dim - 1)
                     if len(rest) != leaf_dim - 1:
@@ -4929,7 +5057,7 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 13      # a READ of existing caps/manifest; no bump
+    assert GENOME_FORMAT_VERSION == 14      # a READ of existing caps/manifest; no bump
     #  (v13 centromere 0x58 is INTERIOR to a MINTED single-kernel chromosome, disjoint from
     #   gene chromosomes — a gene plan never encounters one, so this read is unaffected)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
@@ -5032,7 +5160,7 @@ def genome_genes_expressed(path, the_one, cell_state):
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 13      # a READ of existing caps/manifest; no bump
+    assert GENOME_FORMAT_VERSION == 14      # a READ of existing caps/manifest; no bump
     #  (v13 centromere 0x58 is INTERIOR to a MINTED single-kernel chromosome, disjoint from
     #   gene chromosomes — a gene plan never encounters one, so this read is unaffected)
     path = Path(path)

@@ -3415,6 +3415,22 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_centromere_of.argtypes = [
                 _U8, _SZ, _U32, _U8, _PSZ, _PSZ, ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_centromere_of.restype = ctypes.c_int
+        # §95b/rc259 (#1407) — the DIPLOID builder + recover. NEW symbols → hasattr-guarded.
+        #   int srmech_genome_diploid(const unsigned char *label, size_t label_len,
+        #       const unsigned char *the_one, uint32_t leaf_dim, const unsigned char *leaves,
+        #       size_t n_leaves, unsigned char orientation, uint32_t repeats,
+        #       unsigned char *out, size_t out_cap, size_t *n_blocks_out)
+        if hasattr(lib, "srmech_genome_diploid"):
+            lib.srmech_genome_diploid.argtypes = [
+                _U8, _SZ, _U8, _U32, _U8, _SZ, ctypes.c_uint8, _U32, _U8, _SZ, _PSZ]
+            lib.srmech_genome_diploid.restype = ctypes.c_int
+        #   int srmech_genome_recover_diploid(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *the_one, unsigned char *out,
+        #       size_t out_cap, size_t *n_out)
+        if hasattr(lib, "srmech_genome_recover_diploid"):
+            lib.srmech_genome_recover_diploid.argtypes = [
+                _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
+            lib.srmech_genome_recover_diploid.restype = ctypes.c_int
         #   int srmech_genome_partition(const unsigned char *strand, size_t n_blocks,
         #       uint32_t leaf_dim, const unsigned char *the_one,
         #       unsigned char *out_leaves, size_t out_leaves_cap,
@@ -17254,6 +17270,66 @@ def genome_centromere_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
     if rc != SRMECH_OK:
         return None
     return (bool(found.value), int(o_out.value), int(p_out.value), int(q_out.value))
+
+
+def has_native_genome_diploid() -> bool:
+    """True iff the §95b/rc259 srmech_genome_diploid C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_diploid"))
+
+
+def genome_diploid_c(label, the_one: bytes, leaves: bytes, n_leaves: int,
+                     orientation: int, repeats: int, leaf_dim: int):
+    """Native §95b DIPLOID builder (parity peer ``srmech_genome_diploid``): the strand
+    ``[diploid_telomere, copyA…, centromere(orientation), copyB…]`` (copyA == copyB) — the
+    whole strand bytes ``((2*n_leaves + 2) * leaf_dim)``, or ``None`` when the symbol is
+    absent OR the inputs do not fit the fast path (over-long label, width mismatch, a leaf
+    byte > 3, bad orientation/repeats). Byte-identical to the Python diploid()."""
+    if not has_native_genome_diploid():
+        return None
+    raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(the_one) != leaf_dim
+            or len(raw) > leaf_dim - 1 or n_leaves * leaf_dim != len(leaves)
+            or not 0 <= orientation <= 3 or not 1 <= repeats <= 255):
+        return None
+    total = (2 * n_leaves + 2) * leaf_dim
+    out = (ctypes.c_uint8 * max(total, 1))()
+    n_blocks = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_diploid(
+        _u8(raw), ctypes.c_size_t(len(raw)), _u8(the_one), ctypes.c_uint32(leaf_dim),
+        _u8(leaves), ctypes.c_size_t(n_leaves), ctypes.c_uint8(orientation),
+        ctypes.c_uint32(repeats), out, ctypes.c_size_t(total), ctypes.byref(n_blocks))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:int(n_blocks.value) * leaf_dim])
+
+
+def has_native_genome_recover_diploid() -> bool:
+    """True iff the §95b/rc259 srmech_genome_recover_diploid C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_recover_diploid"))
+
+
+def genome_recover_diploid_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
+                             the_one: bytes):
+    """Native §95b DIPLOID recover (parity peer ``srmech_genome_recover_diploid``): split at
+    the interior centromere into copyA | copyB and error-correct per leaf. Returns the
+    recovered leaf bytes (``n_leaves * leaf_dim``), or ``None`` when the symbol is absent OR
+    the inputs do not fit the fast path (not a diploid strand, width mismatch)."""
+    if not has_native_genome_recover_diploid():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(the_one) != leaf_dim
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    cap = max(n_blocks * leaf_dim, 1)
+    out = (ctypes.c_uint8 * cap)()
+    n_out = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_recover_diploid(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(the_one), out, ctypes.c_size_t(cap), ctypes.byref(n_out))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:int(n_out.value) * leaf_dim])
 
 
 def has_native_genome_partition() -> bool:
