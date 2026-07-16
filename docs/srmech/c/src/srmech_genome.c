@@ -70,7 +70,7 @@
 
 /* The §41 parser_rule_hash pre-image (== f"genome_persistence/v12" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; v11->v12 head-only). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v12"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v13"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -256,7 +256,8 @@ static int genome_cap_kind(const unsigned char *block, size_t len)
         m == SRMECH_GENOME_GRADED_GENE_MARKER ||
         m == SRMECH_GENOME_KERNEL_HEADER_MARKER ||
         m == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
-        m == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+        m == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
+        m == SRMECH_GENOME_CENTROMERE_CAP_MARKER) {   /* §95a interior centromere */
         return (int)m;
     }
     return -1;
@@ -816,6 +817,238 @@ srmech_status_t srmech_genome_genome(const unsigned char *labels,
     return SRMECH_OK;
 }
 
+/* §95a/v13 (rc258, #1407) — the CENTROMERE cap writer (mirror
+ * srmech.amsc.genome._pack_centromere): [0x58] + handle + NUL + R + R orientation votes,
+ * NUL-padded to dim. Each vote is the Klein-4 sector `orientation` (0..3); the R copies are
+ * biology's α-satellite repeat-array. Byte-identical to the Python cap. No malloc/abs/float. */
+static srmech_status_t genome_pack_centromere(unsigned char orientation,
+                                              uint32_t repeats,
+                                              const unsigned char *handle,
+                                              size_t handle_len, uint32_t dim,
+                                              unsigned char *out, size_t out_cap)
+{
+    if (out == NULL || (handle == NULL && handle_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(handle != NULL || handle_len == 0u);
+    if (dim == 0u || (size_t)dim > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    if (orientation > 3u) { return SRMECH_ERR_BAD_INPUT; }
+    if (repeats < 1u || repeats > 255u) { return SRMECH_ERR_BAD_INPUT; }
+    /* [marker] + handle + NUL + R + R votes — the payload must fit one leaf. */
+    size_t payload = 3u + handle_len + (size_t)repeats;   /* marker + NUL + R + votes + handle */
+    if (payload > (size_t)dim) { return SRMECH_ERR_BAD_INPUT; }
+    out[0] = SRMECH_GENOME_CENTROMERE_CAP_MARKER;
+    if (handle_len != 0u) { memcpy(out + 1, handle, handle_len); }
+    out[1u + handle_len] = 0u;                            /* handle NUL terminator */
+    out[2u + handle_len] = (unsigned char)repeats;        /* R */
+    memset(out + 3u + handle_len, (int)orientation, (size_t)repeats);  /* R votes */
+    memset(out + payload, 0, (size_t)dim - payload);      /* NUL pad */
+    return SRMECH_OK;
+}
+
+/* §95a/v13 public CENTROMERE cap writer — the srmech_genome_centromere wrapper. */
+srmech_status_t srmech_genome_centromere(unsigned char orientation,
+                                         uint32_t repeats,
+                                         const unsigned char *handle,
+                                         size_t handle_len, uint32_t dim,
+                                         unsigned char *out, size_t out_cap)
+{
+    if (out == NULL || (handle == NULL && handle_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(handle != NULL || handle_len == 0u);
+    return genome_pack_centromere(orientation, repeats, handle, handle_len,
+                                  dim, out, out_cap);
+}
+
+/* §95a/v13 — majority-decode the GLOBAL orientation from a centromere cap's α-satellite votes
+ * (mirror srmech.amsc.genome._centromere_orientation): R at [nul+1], votes at [nul+2:nul+2+R];
+ * a Class-K sector-occupancy count + argmax (ties toward the lowest sector — strict >). This is
+ * klein4_triality_correct's 2-of-3 generalised to R. No abs, no float. */
+static srmech_status_t genome_centromere_orientation(const unsigned char *cap,
+                                                     uint32_t leaf_dim,
+                                                     unsigned char *o_out)
+{
+    assert(cap != NULL && o_out != NULL);
+    assert(leaf_dim > 0u);
+    size_t nul = 1u;                                      /* handle NUL scan (bytes [1:]) */
+    while (nul < (size_t)leaf_dim && cap[nul] != 0u) { nul++; }
+    if (nul + 2u > (size_t)leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    size_t r = cap[nul + 1u];
+    if (nul + 2u + r > (size_t)leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    unsigned int counts[4] = {0u, 0u, 0u, 0u};           /* Class-K sector occupancy */
+    for (size_t i = 0; i < r; i++) { counts[cap[nul + 2u + i] & 3u]++; }
+    unsigned char best = 0u;
+    for (unsigned char sctr = 1u; sctr < 4u; sctr++) {
+        if (counts[sctr] > counts[best]) { best = sctr; }  /* strict > keeps ties lowest */
+    }
+    *o_out = best;
+    return SRMECH_OK;
+}
+
+/* §95a/v13 — the mint orientation: sha256(raw leaves)[0] & 3 (Class A content-address → Class C
+ * sector), matching Python int(sha256_hex[0:2], 16) & 3. */
+static srmech_status_t genome_mint_orientation(const unsigned char *content,
+                                               size_t n, unsigned char *o_out)
+{
+    assert(content != NULL || n == 0u);
+    assert(o_out != NULL);
+    char hex[65];
+    srmech_status_t st = srmech_sha256_hex(content, n, hex);
+    if (st != SRMECH_OK) { return st; }
+    unsigned int hi = (hex[0] >= 'a') ? (unsigned int)(hex[0] - 'a' + 10)
+                                      : (unsigned int)(hex[0] - '0');
+    unsigned int lo = (hex[1] >= 'a') ? (unsigned int)(hex[1] - 'a' + 10)
+                                      : (unsigned int)(hex[1] - '0');
+    *o_out = (unsigned char)(((hi << 4) | lo) & 3u);      /* first digest byte & 3 */
+    return SRMECH_OK;
+}
+
+/* §95a/v13 — bind turns[from:to] through the_one into `out` starting at block *oi (advancing
+ * it). The reversible Klein-4 XOR that is quad_turn; shared by the minted-chromosome arms. */
+static srmech_status_t genome_bind_turns(const unsigned char *kleaves,
+                                         size_t from, size_t to,
+                                         const unsigned char *the_one,
+                                         uint32_t leaf_dim, unsigned char *out,
+                                         size_t *oi)
+{
+    assert(kleaves != NULL || from == to);
+    assert(the_one != NULL && out != NULL && oi != NULL);
+    for (size_t i = from; i < to; i++) {
+        srmech_status_t st = srmech_klein4_bind(kleaves + i * (size_t)leaf_dim,
+                                                the_one, leaf_dim,
+                                                out + (*oi) * (size_t)leaf_dim);
+        if (st != SRMECH_OK) { return st; }
+        (*oi)++;
+    }
+    return SRMECH_OK;
+}
+
+/* §95a/v13 — build ONE chromosome, the tooling PICKING its shape by the attested encode_shape
+ * (mirror the Python mint()'s per-kernel branch): depth < 2 (tome/mobius) → a Tier-1 STICK
+ * (byte-identical to srmech_genome_chromosome); depth >= 2 (quad_strand) → a Tier-2 MINTED
+ * chromosome [telomere] + short-arm + [centromere] + long-arm, metacentric split, orientation =
+ * content-address of the raw leaves. Writes *blocks_out blocks. No malloc/goto/abs/float. */
+static srmech_status_t genome_mint_chromosome(const unsigned char *label,
+                                              size_t label_len,
+                                              const unsigned char *the_one,
+                                              uint32_t leaf_dim,
+                                              const unsigned char *kleaves,
+                                              size_t kn, unsigned char *out,
+                                              size_t out_cap, size_t *blocks_out)
+{
+    assert(the_one != NULL && out != NULL && blocks_out != NULL);
+    assert(kleaves != NULL || kn == 0u);
+    uint64_t leaves_sh = 0u;
+    uint32_t depth = 0u;
+    uint64_t n = (kn == 0u ? 1u : (uint64_t)kn) * (uint64_t)SRMECH_GENOME_LEAF_CAP;
+    srmech_status_t st = srmech_genome_encode_shape(n, &leaves_sh, &depth);
+    if (st != SRMECH_OK) { return st; }
+    if (depth < 2u) {                                    /* tome/mobius → Tier-1 stick */
+        st = srmech_genome_chromosome(label, label_len, the_one, leaf_dim,
+                                      kleaves, kn, out, out_cap);
+        if (st != SRMECH_OK) { return st; }
+        *blocks_out = kn + 1u;
+        return SRMECH_OK;
+    }
+    /* quad_strand → Tier-2 minted: [telomere] + short-arm + [centromere] + long-arm. */
+    size_t total = kn + 2u;                              /* telomere + kn turns + centromere */
+    if (total > out_cap / (size_t)leaf_dim) { return SRMECH_ERR_OVERFLOW; }
+    unsigned char o = 0u;
+    st = genome_mint_orientation(kleaves, kn * (size_t)leaf_dim, &o);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_pack_cap(SRMECH_GENOME_CHROM_CAP_MARKER, label, label_len,
+                         leaf_dim, out, leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    size_t oi = 1u;
+    size_t split = kn / 2u;                              /* metacentric arm-split */
+    st = genome_bind_turns(kleaves, 0u, split, the_one, leaf_dim, out, &oi);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_pack_centromere(o, SRMECH_GENOME_CENTROMERE_DEFAULT_REPEATS,
+                                (const unsigned char *)"cen", 3u, leaf_dim,
+                                out + oi * (size_t)leaf_dim, leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    oi++;
+    st = genome_bind_turns(kleaves, split, kn, the_one, leaf_dim, out, &oi);
+    if (st != SRMECH_OK) { return st; }
+    *blocks_out = total;
+    return SRMECH_OK;
+}
+
+/* §95a/v13 MINT — build a genome, the tooling PICKING each chromosome's shape (mirror
+ * srmech.amsc.genome.mint / #1407). Same shape as srmech_genome_genome; genome_mint_chromosome
+ * does the per-kernel stick-vs-centromere selection. BYTE-IDENTICAL to the Python mint(). */
+srmech_status_t srmech_genome_mint(const unsigned char *labels,
+                                   const size_t *label_lens,
+                                   const unsigned char *the_one,
+                                   uint32_t leaf_dim, const unsigned char *leaves,
+                                   const size_t *leaf_counts, size_t n_kernels,
+                                   unsigned char *out, size_t out_cap,
+                                   size_t *n_blocks_out)
+{
+    if (out == NULL || the_one == NULL || n_blocks_out == NULL ||
+        (n_kernels != 0u &&
+         (labels == NULL || label_lens == NULL || leaf_counts == NULL))) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && the_one != NULL && n_blocks_out != NULL);
+    assert(n_kernels == 0u || (label_lens != NULL && leaf_counts != NULL));
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    size_t label_off = 0u, leaf_off = 0u, out_off = 0u, blocks = 0u;
+    for (size_t k = 0; k < n_kernels; k++) {
+        size_t kn = leaf_counts[k];
+        const unsigned char *kleaves = leaves + leaf_off * (size_t)leaf_dim;
+        size_t kblocks = 0u;
+        srmech_status_t st = genome_mint_chromosome(
+            labels + label_off, label_lens[k], the_one, leaf_dim, kleaves, kn,
+            out + out_off, out_cap - out_off, &kblocks);
+        if (st != SRMECH_OK) { return st; }
+        out_off += kblocks * (size_t)leaf_dim;
+        blocks += kblocks;
+        label_off += label_lens[k];
+        leaf_off += kn;
+    }
+    *n_blocks_out = blocks;
+    return SRMECH_OK;
+}
+
+/* §95a/v13 CENTROMERE READ — recover a minted chromosome's orientation + p:q arm-ratio (mirror
+ * srmech.amsc.genome.centromere_of). p = data turns before the 0x58 cap, q = after. */
+srmech_status_t srmech_genome_centromere_of(const unsigned char *strand,
+                                            size_t n_blocks, uint32_t leaf_dim,
+                                            unsigned char *orientation_out,
+                                            size_t *p_out, size_t *q_out,
+                                            int *found_out)
+{
+    if (strand == NULL || found_out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(strand != NULL && found_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);          /* the guard above holds here */
+    const unsigned char *cen = NULL;
+    size_t p = 0u, total = 0u;
+    for (size_t i = 0; i < n_blocks; i++) {
+        const unsigned char *block = strand + i * (size_t)leaf_dim;
+        int kind = genome_cap_kind(block, leaf_dim);
+        if (kind == (int)SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
+            cen = block;
+            p = total;                                   /* data turns so far = short arm */
+        } else if (kind < 0) {
+            total++;                                     /* a coupled data turn */
+        }
+    }
+    *found_out = (cen != NULL) ? 1 : 0;
+    if (cen == NULL) { return SRMECH_OK; }
+    unsigned char o = 0u;
+    srmech_status_t st = genome_centromere_orientation(cen, leaf_dim, &o);
+    if (st != SRMECH_OK) { return st; }
+    if (orientation_out != NULL) { *orientation_out = o; }
+    if (p_out != NULL) { *p_out = p; }
+    if (q_out != NULL) { *q_out = total - p; }
+    return SRMECH_OK;
+}
+
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome). Mirror srmech.amsc.genome.partition(strand, the_one): walk
  * the strand's `n_blocks` fixed-width leaf_dim-byte blocks; a CHROM / kernel-telomere
@@ -1001,8 +1234,9 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
                 body[off] != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_GRADED_GENE_MARKER &&
-                body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER) {
-                s->leaf_count[cur]++;
+                body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER &&
+                body[off] != SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
+                s->leaf_count[cur]++;                 /* §95a centromere is a cap, not a turn */
             }
         }
         s->byte_len[cur] += (uint32_t)blen;
@@ -3166,7 +3400,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
 /* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v12" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; v11->v12 head-only). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v12"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v13"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."
