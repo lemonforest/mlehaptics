@@ -220,6 +220,47 @@ int main(void)
         check_dec(&r, "99999999999999999989", "divmod qNULL r (big neg floor)");
     }
 
+    /* divmod_small: single-limb divisor, SAME Python-FLOOR convention, no ws. */
+    {
+        uint32_t sm = 0u;
+        srmech_bigint_set_i64(&a, 100);                /* 100 / 7 -> 14 r 2 */
+        check_status(srmech_bigint_divmod_small(&q, &sm, &a, 7u), SRMECH_OK,
+                     "divmod_small st (100/7)");
+        check_i64(bi_to_i64(&q), 14, "divmod_small q (100/7)");
+        check_i64((int64_t)sm, 2, "divmod_small rem (100/7)");
+        srmech_bigint_set_i64(&a, -7);                 /* -7 / 3 -> floor -3 r 2 */
+        srmech_bigint_divmod_small(&q, &sm, &a, 3u);
+        check_i64(bi_to_i64(&q), -3, "divmod_small q (-7/3 floor)");
+        check_i64((int64_t)sm, 2, "divmod_small rem (-7/3 floor)");
+        srmech_bigint_set_i64(&a, -6);                 /* -6 / 3 -> exact -2 r 0 */
+        srmech_bigint_divmod_small(&q, &sm, &a, 3u);
+        check_i64(bi_to_i64(&q), -2, "divmod_small q (-6/3)");
+        check_i64((int64_t)sm, 0, "divmod_small rem (-6/3)");
+        srmech_bigint_set_i64(&a, 0);                  /* 0 / 5 -> 0 r 0 */
+        srmech_bigint_divmod_small(&q, &sm, &a, 5u);
+        check_i64(bi_to_i64(&q), 0, "divmod_small q (0/5)");
+        check_i64((int64_t)sm, 0, "divmod_small rem (0/5)");
+        srmech_bigint_set_i64(&a, 10);                 /* d == 0 -> BAD_INPUT */
+        check_status(srmech_bigint_divmod_small(&q, &sm, &a, 0u),
+                     SRMECH_ERR_BAD_INPUT, "divmod_small d=0");
+        {   /* multi-limb positive: 1e20 / 7 -> 14285714285714285714 r 2 */
+            const char *p20 = "100000000000000000000";
+            srmech_bigint_from_dec(&a, p20, strlen(p20));
+            check_status(srmech_bigint_divmod_small(&q, &sm, &a, 7u), SRMECH_OK,
+                         "divmod_small st (1e20/7)");
+            check_dec(&q, "14285714285714285714", "divmod_small q (1e20/7)");
+            check_i64((int64_t)sm, 2, "divmod_small rem (1e20/7)");
+        }
+        {   /* multi-limb negative FLOOR: -(1e20) / 7 -> -14285714285714285715 r 5 */
+            const char *n20 = "-100000000000000000000";
+            srmech_bigint_from_dec(&a, n20, strlen(n20));
+            check_status(srmech_bigint_divmod_small(&q, &sm, &a, 7u), SRMECH_OK,
+                         "divmod_small st (-1e20/7)");
+            check_dec(&q, "-14285714285714285715", "divmod_small q (-1e20/7 floor)");
+            check_i64((int64_t)sm, 5, "divmod_small rem (-1e20/7 floor)");
+        }
+    }
+
     /* shl / shr (floor for negatives). */
     srmech_bigint_set_i64(&a, 1);
     check_status(srmech_bigint_shl_bits(&o, &a, 100), SRMECH_OK, "shl st");

@@ -155,6 +155,14 @@ if(SRMECH_SRCS)
         #   ./build/test_srmech_progress           (exit 0 = all pass)
         add_executable(test_srmech_progress c/test/test_srmech_progress.c)
         target_link_libraries(test_srmech_progress PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc256 bignum carrier smoke: set_i64/from_dec/to_dec round-trips,
+        # add/sub/mul/divmod (Python FLOOR), divmod_small (the rc256 single-limb
+        # divisor peer), shl/shr, isqrt, gcd (Lehmer + lean-Euclid byte-identity),
+        # pow. Joins the -Werror/-WX gate (was previously an un-wired dev smoke).
+        # Run it for the value check: ./build/test_srmech_bigint (exit 0 = all pass)
+        add_executable(test_srmech_bigint c/test/test_srmech_bigint.c)
+        target_link_libraries(test_srmech_bigint PRIVATE srmech ${SRMECH_MATH_LIB})
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

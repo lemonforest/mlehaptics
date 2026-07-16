@@ -1202,6 +1202,57 @@ srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
     }
 }
 
+/* |q| += 1 in place (carry propagation over the limbs). OVERFLOW iff a
+ * carry-out needs a limb beyond q->cap. Handles q == 0 -> 1. */
+static srmech_status_t bi_inc_abs(srmech_bigint_t *q)
+{
+    uint32_t i = 0u;
+    assert(q != NULL);
+    assert(q->limbs != NULL || q->cap == 0u);
+    while (i < q->n && q->limbs[i] == 0xFFFFFFFFu) {
+        q->limbs[i] = 0u;
+        i++;
+    }
+    if (i < q->n) {
+        q->limbs[i] += 1u;
+        return SRMECH_OK;
+    }
+    if (q->n >= q->cap) { return SRMECH_ERR_OVERFLOW; }   /* carry-out needs a limb */
+    q->limbs[q->n] = 1u;
+    q->n += 1u;
+    return SRMECH_OK;
+}
+
+/* q = floor(a / d), *rem = a - q*d in [0, d)  -- the single-limb-divisor peer
+ * of srmech_bigint_divmod, SAME Python-FLOOR convention. Needs NO ws (the
+ * quotient is computed one limb at a time). d != 0 else BAD_INPUT; q->cap must
+ * hold a->n (+1 for the negative-dividend floor carry) else OVERFLOW. For a
+ * non-negative dividend (the common radix / trial-division use) floor == trunc
+ * and the fixup path is never taken. ABI-additive: SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_bigint_divmod_small(srmech_bigint_t *q, uint32_t *rem,
+                                           const srmech_bigint_t *a, uint32_t d)
+{
+    uint32_t r_mag = 0u;
+    srmech_status_t st;
+    assert(a != NULL && q != NULL && rem != NULL);
+    assert(q->limbs != NULL || q->cap == 0u);
+    if (d == 0u) { return SRMECH_ERR_BAD_INPUT; }
+    st = bi_div_small(q, a, d, &r_mag);        /* q = |a|/d (>=0, normed), r=|a| mod d */
+    if (st != SRMECH_OK) { return st; }
+    if (a->sign >= 0) {                         /* a >= 0: floor == trunc             */
+        *rem = r_mag;
+    } else if (r_mag == 0u) {                   /* a < 0, exact: q = -(|a|/d), rem = 0 */
+        if (q->n > 0u) { q->sign = -1; }
+        *rem = 0u;
+    } else {                                    /* a < 0, inexact: round toward -inf   */
+        st = bi_inc_abs(q);                     /* |q| += 1                            */
+        if (st != SRMECH_OK) { return st; }
+        q->sign = -1;
+        *rem = d - r_mag;
+    }
+    return SRMECH_OK;
+}
+
 /* Python FLOOR sign-correction of a truncated (qp,rp). If signs of a,b
  * differ and r != 0: q -= 1, r += b (so 0 <= r < |b| for b>0). */
 static srmech_status_t bi_floor_fixup(srmech_bigint_t *q, srmech_bigint_t *r,

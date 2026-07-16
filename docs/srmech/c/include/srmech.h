@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc255"
-#define SRMECH_VERSION       "0.9.0rc255"
+#define SRMECH_VERSION_PRE   "rc256"
+#define SRMECH_VERSION       "0.9.0rc256"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6197,6 +6197,16 @@ srmech_status_t srmech_bigint_divmod(srmech_bigint_t *q, srmech_bigint_t *r,
                                      const srmech_bigint_t *a,
                                      const srmech_bigint_t *b,
                                      void *ws, size_t ws_len);
+
+/* q = floor(a / d), *rem = a - q*d in [0, d) — the SINGLE-LIMB-DIVISOR peer of
+ * srmech_bigint_divmod (SAME Python-FLOOR convention), for a small (uint32_t)
+ * divisor. Computes the quotient one limb at a time, so it needs NO `ws` and no
+ * per-divisor bigint allocation — the fast path for trial-division / factor-out /
+ * radix conversion. d != 0 else SRMECH_ERR_BAD_INPUT; q->cap must hold a->n (+1
+ * for the negative-dividend floor carry) else OVERFLOW. ABI-additive: a new
+ * symbol, so SRMECH_ABI_VERSION stays 5. */
+srmech_status_t srmech_bigint_divmod_small(srmech_bigint_t *q, uint32_t *rem,
+                                           const srmech_bigint_t *a, uint32_t d);
 
 /* out = floor(sqrt(a)). a >= 0 else SRMECH_ERR_BAD_INPUT. Integer Newton
  * iteration over the caller arena `ws`. OVERFLOW if out->cap too small. */
