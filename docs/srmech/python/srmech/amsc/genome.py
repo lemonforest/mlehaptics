@@ -4919,7 +4919,7 @@ def genome_remove(path, label, *, the_one=None) -> dict:
     if _native.has_native_genome():
         try:
             _native.genome_remove_c(str(path), label, bytes(_leaf_blocks([one])[0]))
-            return _read_manifest(path)
+            return _catalog_data(path, one)     # full derived catalog (v12 head-only on disk)
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     entry = by_label[label]
@@ -4973,7 +4973,7 @@ def genome_replace(path, label, leaves, the_one) -> dict:
             _native.genome_replace_c(
                 str(path), label, new_region, leaf_dim,
                 bytes(_leaf_blocks([the_one])[0]))
-            return _read_manifest(path)
+            return _catalog_data(path, the_one)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     entry = by_label[label]
@@ -5176,7 +5176,7 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
             dest.mkdir(parents=True, exist_ok=True)   # native SEED save needs the dir
             _native.genome_import_c(
                 str(chr_path), str(dest), _the_one_bytes_or_empty(the_one))
-            return _read_manifest(dest)
+            return _catalog_data(dest, the_one)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     # pure-Python alternative (no C present) — full integrity bounds on the already-read
@@ -5332,7 +5332,7 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
             (dest / _BODY_NAME).write_bytes((scratch / _BODY_NAME).read_bytes())
             (dest / _MANIFEST_NAME).write_bytes(
                 (scratch / _MANIFEST_NAME).read_bytes())
-            return _read_manifest(dest)
+            return _catalog_data(dest, the_one)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)                                       # real dest untouched
         finally:

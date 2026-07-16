@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc256"
-#define SRMECH_VERSION       "0.9.0rc256"
+#define SRMECH_VERSION_PRE   "rc257"
+#define SRMECH_VERSION       "0.9.0rc257"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5076,8 +5076,14 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * integer level-weight vector + a POSITIVE denominator) is a NEW block KIND, so it bumps v10 ->
  * v11 (the walker gains ONE branch; v2..v10 bodies read UNCHANGED; a plain/klein4-mask/boolean/
  * threshold genome saved by the v11 writer is byte-identical to v10 EXCEPT the format_version
- * field). Mirrors GENOME_FORMAT_VERSION in srmech.amsc.genome. */
-#define SRMECH_GENOME_FORMAT_VERSION 11
+ * field). Mirrors GENOME_FORMAT_VERSION in srmech.amsc.genome. §v12 (O(1) genome-native
+ * append): the on-disk manifest is HEAD-ONLY — the per-chromosome ``chromosomes`` /
+ * ``regions`` arrays (a plaintext table-of-contents) are DROPPED from disk and DERIVED by
+ * scanning the self-describing body on read, so ``srmech_genome_append`` rewrites only the
+ * tiny head (O(1)) instead of the whole array (the O(N^2) wall). The BODY format is
+ * UNCHANGED (v2..v11 bodies read identically); a v≤11 manifest with the arrays reads
+ * verbatim, and the first v12 append migrates it head-only. Mirrors GENOME_FORMAT_VERSION. */
+#define SRMECH_GENOME_FORMAT_VERSION 12
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
