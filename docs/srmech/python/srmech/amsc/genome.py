@@ -1517,6 +1517,14 @@ def centromere(orientation, *, repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen",
     (match the turns; :func:`chromosome` passes ``len(the_one)`` automatically). Place it
     at mint time with ``chromosome(leaves, one, centromere=orientation)`` (or a lower-level
     insert); recover it from a strand with :func:`centromere_of`. Same inputs → same cap."""
+    # rc258 (#1407): DISPATCH the cap byte-framing to the srmech_genome_centromere C peer
+    # when HAS_NATIVE (byte-identical bytes, then wrapped in the same HV(sectors=256)); the
+    # pure _pack_centromere below is the numpy-free fallback + parity oracle (it raises the
+    # exact ValueError for a bad orientation / R / over-long handle — the native wrapper
+    # returns None in those cases so the error surfaces here).
+    native = _native.genome_centromere_c(orientation, repeats, handle, dim)
+    if native is not None:
+        return _HV.from_sequence(native, sectors=256)
     return _pack_centromere(orientation, dim, repeats=repeats, handle=handle)
 
 
@@ -1531,6 +1539,22 @@ def centromere_of(strand):
     (biology: the centromere position defines the arms), so nothing double-encodes.
 
     Returns ``{"orientation", "arm_ratio": (p, q), "handle", "repeats"}`` or ``None``."""
+    strand = list(strand)
+    # rc258 (#1407): DISPATCH the orientation-majority + arm-ratio scan to the
+    # srmech_genome_centromere_of C peer when HAS_NATIVE; the handle/repeats are read inline
+    # in Python (the composition). The pure walk below is the numpy-free fallback + oracle.
+    if strand:
+        dim = len(list(strand[0]))
+        native = _native.genome_centromere_of_c(
+            b"".join(hv.tobytes() for hv in strand), len(strand), dim)
+        if native is not None:
+            found, orientation, p, q = native
+            if not found:
+                return None
+            cen = next(hv for hv in strand if _cap_kind(hv) == CENTROMERE_CAP_MARKER)
+            return {"orientation": orientation, "arm_ratio": (p, q),
+                    "handle": _unpack_cap(cen)[1],
+                    "repeats": len(_centromere_votes(cen))}
     p = 0
     total_turns = 0
     cen = None
