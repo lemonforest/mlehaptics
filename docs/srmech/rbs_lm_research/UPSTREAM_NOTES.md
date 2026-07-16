@@ -2344,6 +2344,36 @@ Before sending the ask, stress-tested the prototype (`R-RBS-LM-ETAKNAV_…py`) o
 
 **Go-forward ops filed → [#1390] (F1222).** The abstract genome-storage primitives that make #231's "store the directed Laplacian as a genome" a library call — directed cooccurrence (item 1) · `graph_to_kernel`/`kernel_to_graph` codec (item 2) · Eulerian/Hierholzer walk (item 3) · `recover_check` (item 4) · `klein4_permute` (item 5) — are consolidated into one cross-package [srmech] issue (#1390), also benefiting ephemerides-spectral's `SolarSystemLaplacian` (currently Hermitian + recomputed). Each lands a C mirror.
 
+## §55.1 RE-OPEN (2026-07-16; PKG-3 step 2 / siona ADR corpus encode) — §55 ask (b) was fixed for `genome_pack` but NOT for `genome_append`: append is STILL O(n)/call (O(n²) total) because each call REWRITES the whole `manifest.json`
+
+**One-line ask for srmech:** make `genome_append` update the manifest **incrementally** (append one chromosome/region entry) instead of **re-serializing the entire `manifest.json`** every call, so the "O(1) amortised" its docstring promises becomes true and a six-figure chromosome count can be **streamed** (not forced through the batch→explode→pack dance).
+
+**What rc241 fixed vs did not.** §55 ask (b) — "a non-quadratic high-chromosome-count pack/**append**" — was verified RESOLVED for **`genome_pack`** (flat ~0.47 ms/chromosome, above). But the SAME fix did **not** reach **`genome_append`**. Re-measured at **rc253** with an isolated, fixed-payload repro (`R-RBS-LM-GENOMEAPPEND-SCALING`, committed): append N chromosomes of a **constant 50-leaf Klein-4 payload** (so the ONLY variable is the existing chromosome count), time each call, bucket the mean:
+
+| appends # | ms/call | vs first bucket |
+|-----------|--------:|----------------:|
+| 0–150     |  5.22   | ×1.0 |
+| 300–450   | 11.04   | ×2.1 |
+| 600–750   | 17.83   | ×3.4 |
+| 900–1050  | 25.35   | ×4.9 |
+| 1350–1500 | 35.31   | ×6.8 |
+
+Per-call time rises **linearly** with n (O(1) would be flat ×1.0). Total: **30.2 s for 1500 appends** (clean O(n²)). Extrapolated to 240k bodies ≈ **~13 hours** — intractable, which is why PKG-3's corpus encode had to route around it.
+
+**Root cause (strongly evidenced — the manifest, not the body).** `manifest.json` grows in lockstep with the chromosome count and the per-call time:
+
+```
+150 chr → 46 KB   450 → 136 KB   750 → 226 KB   1050 → 316 KB   1350 → 407 KB   1500 → 452 KB
+```
+
+That is **~0.30 KB/chromosome, rewritten in full on every append** — the derived catalog is re-serialized each call, so "append one entry" is actually "re-write all n entries." The `genome_append` docstring's claim — *"append-only, prior body bytes are NEVER read, rewritten, or re-hashed … manifest updated by APPENDING one chromosome entry + one region entry … in O(1)"* — is true for **`turns.bin`** (the body IS append-only) but **false for the manifest**, and the manifest rewrite dominates the wall time.
+
+**The ask (concrete).** Update the manifest without re-serializing it whole per append — e.g. an **append-only catalog journal** (one NDJSON line per chromosome: label + region offset/length + region-chain hash) that `genome_load`/`genome_catalog` fold on read, with the monolithic `manifest.json` derived only at an explicit `genome_pack`/seal step. Then `genome_append` is genuinely O(1) amortised (matching the docstring) and callers can **stream** a corpus one body at a time (RAM-bounded, no loose-`.chr` explosion, no final full pack). This is the sibling fix to the rc241 `genome_pack` linearisation — same goal (non-quadratic high-chromosome-count), applied to the append path. A C mirror as with #1390.
+
+**Workaround in use (PKG-3 step 2, so no one is blocked).** The corpus encoder builds in **batches** (in-RAM `genome()` + `genome_save`), `genome_explode`s each batch into a shared loose dir, and does **one final `genome_pack`** (linear at rc241). Correct + linear, but it writes the data ~3× and takes ~60 min for 240k bodies; a linear `genome_append` would be the clean single-pass streaming path.
+
+**Verified evidence (rc253):** `R-RBS-LM-GENOMEAPPEND-SCALING_isolated_repro_genome_append_is_On_per_call_On2_total.py` (the bucket + manifest-size tables above) and `R-RBS-LM-CORPUSFIBER` (the batch/explode/pack corpus encoder that routes around it). **Re-surface keywords:** `genome_append` · `manifest.json` · `full rewrite per append` · `O(n) per call` · `O(n^2)` · `append-only catalog journal` · `streaming pack` · `chromosome count` · `corpus scale` · `PKG-3` · `§55` · `§55.1`.
+
 *(Original ask preserved below for the record.)*
 
 ## §55 ASK [REFRESHED → #1245 with rc107 numbers] — genome at CORPUS SCALE: (a) bit-packed leaf storage (the 2-bit Klein-4 lane is stored as a full byte → flat 4× bloat) and (b) a non-quadratic high-chromosome-count pack/append (2026-06-17; F833) — BLOCKS PKG-3 (siona's full-body instrument as ONE native genome)
