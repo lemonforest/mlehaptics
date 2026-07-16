@@ -3433,7 +3433,16 @@ def telomere_tick(strand):
 #: converter. A plain / klein4-mask / boolean / threshold genome saved by the v11 writer is
 #: byte-identical to the v10 writer's EXCEPT the ``format_version`` field (the same version-stamp
 #: discipline every prior new-block-kind bump used — a v11 writer stamps 11).
-GENOME_FORMAT_VERSION = 11
+#: v12 (O(1) genome-native append): the on-disk manifest is now HEAD-ONLY — it drops the
+#: per-chromosome ``chromosomes`` / ``regions`` arrays (a plaintext table-of-contents, the
+#: ADR-0003 regression) and keeps only the O(1) head (``format_version`` / ``leaf_dim`` /
+#: ``n_turns`` / ``n_chromosomes`` / ``the_one`` / ``body_sha256`` chain head). The catalog
+#: is DERIVED by scanning the self-describing body (``_catalog_data`` rebuilds it), so
+#: ``genome_append`` rewrites only the tiny head (O(1)) instead of the whole array (the
+#: O(N^2) wall). The BODY format is UNCHANGED (v2..v11 bodies read identically); a v≤11
+#: manifest that still carries the arrays is read verbatim (back-compat), and the first v12
+#: append rewrites it head-only. A v12 writer stamps 12.
+GENOME_FORMAT_VERSION = 12
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -3788,6 +3797,51 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
     }
 
 
+def _build_head_data(leaf_dim, the_one_block, n_turns, n_chromosomes, body_sha256):
+    """The v12 HEAD-ONLY manifest ``data`` — the O(1) head with NO per-chromosome
+    ``chromosomes`` / ``regions`` arrays. Those are a plaintext table-of-contents
+    (ADR-0003) and the O(N^2) append wall; they are DERIVED by scanning the
+    self-describing body (:func:`_scan_body_to_chrom_specs`) whenever the full catalog
+    is needed. ``body_sha256`` is the region-CHAIN head (:func:`_region_chain`), so an
+    append folds one region onto it in O(1) and it stays body-derivable +
+    re-verifiable. ``n_chromosomes`` is kept in the head so a threaded/cold append and
+    a catalog read know the count without the array."""
+    return {
+        "format_version": GENOME_FORMAT_VERSION,
+        "leaf_dim": int(leaf_dim),
+        "n_turns": int(n_turns),
+        "n_chromosomes": int(n_chromosomes),
+        "the_one": {
+            "sha256": _sha256_bytes(the_one_block),
+            "hex": the_one_block.hex(),
+        },
+        "body_sha256": body_sha256,
+    }
+
+
+def _read_head(path, the_one=None) -> dict:
+    """The cheap manifest HEAD (``leaf_dim`` / ``n_turns`` / ``n_chromosomes`` /
+    ``body_sha256`` chain head / ``the_one``) — what an O(1) append needs, WITHOUT
+    deriving the per-chromosome catalog. For a v12 head-only manifest this is an O(1)
+    file read; for a legacy v≤11 full manifest it reads the whole file once (the
+    one-time migration cost of the first v12 append) and back-fills ``n_chromosomes``
+    from the array. A manifest-less genome is scanned once (O(n), one-time)."""
+    path = Path(path)
+    if (path / _MANIFEST_NAME).exists():
+        head = dict(_read_manifest(path))
+    else:
+        if the_one is None:
+            raise GenomeBoundingError(
+                f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no the_one= was "
+                f"given: pass the genome's the_one= so the head can be scanned from "
+                f"{_BODY_NAME}"
+            )
+        head = dict(_rebuild_manifest_from_body(
+            (path / _BODY_NAME).read_bytes(), len(list(the_one)), the_one))
+    head.setdefault("n_chromosomes", len(head.get("chromosomes", [])))
+    return head
+
+
 def _manifest_record(data) -> _MPRRecord:
     """Wrap a genome manifest ``data`` block in an MPRRecord (MPR v1) — the
     on-disk catalog format. ``attestation.response_sha256`` IS the body hash
@@ -3920,23 +3974,26 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
 
     body_bytes = bytes(body)
     the_one_block = _leaf_blocks([the_one])[0]
+    # The full DERIVED catalog — the RETURN value (callers get chromosomes/regions);
+    # on disk only the v12 HEAD is written (the arrays are re-derivable, ADR-0003).
+    data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs, body_bytes,
+                                n_turns)
+    head = _build_head_data(leaf_dim, the_one_block, n_turns, len(chrom_specs),
+                            data["body_sha256"])
 
-    # §49/rc154: native C save writes turns.bin + manifest.json byte-identically
-    # for a genome of ANY size (the C carves its scratch from the caller arena —
-    # no compiled-in cap). Native is authoritative when present; the pure-Python
-    # path below is the complete alternative ONLY when there is no C (no fallback).
+    # §49/rc154: native C save writes turns.bin + the head-only manifest byte-
+    # identically for a genome of ANY size (the C carves its scratch from the caller
+    # arena — no compiled-in cap). Native is authoritative when present; the pure-
+    # Python path below is the complete alternative ONLY when there is no C.
     if _native.has_native_genome():
         try:
             _native.genome_save_c(str(path), body_bytes, leaf_dim, bytes(the_one_block))
-            return _read_manifest(path)
+            return data
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
 
     (path / _BODY_NAME).write_bytes(body_bytes)
-    data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs, body_bytes,
-                                n_turns)
-    record = _manifest_record(data)
-    _write_manifest(path, record)
+    _write_manifest(path, _manifest_record(head))     # v12: HEAD-ONLY on disk
     return data
 
 
@@ -3960,9 +4017,22 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
         )
     if not body_bytes:
         raise ValueError("genome persistence: empty strand has no chromosomes")
-    # §55/v3: walk the RAW on-disk bytes (v2 | v3 | mixed) — offsets, hashes and
-    # counts come from the stored blocks VERBATIM (a legacy byte-per-symbol turn
-    # is never re-encoded, so the rebuilt manifest matches the body as written).
+    chrom_specs, n_turns = _scan_body_to_chrom_specs(bytes(body_bytes), leaf_dim)
+    one = the_one if isinstance(the_one, _HV) else _HV.from_sequence(the_one)
+    the_one_block = _leaf_blocks([one])[0]
+    return _build_manifest_data(leaf_dim, the_one_block, chrom_specs,
+                                bytes(body_bytes), n_turns)
+
+
+def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
+    """Walk ``turns.bin`` → ``(chrom_specs, n_turns)`` — the §44 body-scan shared by
+    :func:`_rebuild_manifest_from_body` and the v12 head-only :func:`_catalog_data`
+    rebuild. ``chrom_specs`` is the ``(label, cap_sha256, leaf_count, byte_offset,
+    byte_len)`` list; ``n_turns`` the BLOCK count.
+
+    §55/v3: walk the RAW on-disk bytes (v2 | v3 | mixed) — offsets, hashes and counts
+    come from the stored blocks VERBATIM (a legacy byte-per-symbol turn is never
+    re-encoded, so the derived catalog matches the body as written)."""
     chrom_specs: List[Tuple[str, str, int, int, int]] = []
     cur: Optional[list] = None      # [label, cap_sha256, leaf_count, offset, length]
     n_turns = 0
@@ -3998,27 +4068,50 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
         offset += len(raw)
     if cur is not None:
         chrom_specs.append(tuple(cur))
-    one = the_one if isinstance(the_one, _HV) else _HV.from_sequence(the_one)
-    the_one_block = _leaf_blocks([one])[0]
-    return _build_manifest_data(leaf_dim, the_one_block, chrom_specs,
-                                bytes(body_bytes), n_turns)
+    return chrom_specs, n_turns
 
 
 def _catalog_data(path, the_one=None) -> dict:
     """The manifest ``data`` for a genome at ``path`` — §44's "manifest is an
     optional ``.fai`` cache; the strand is the SSoT".
 
-    Fast path: when ``manifest.json`` exists, read it (cheap — never opens
-    ``turns.bin``). Fallback: when it is ABSENT, REBUILD the catalog by scanning
-    ``turns.bin`` (:func:`_rebuild_manifest_from_body`) — which needs ``the_one``
-    (its length IS ``leaf_dim``, the block width the body does not carry inline), so
-    a missing-manifest load with no ``the_one=`` raises a helpful
-    :class:`GenomeBoundingError` rather than a bare ``FileNotFoundError``. So a
-    genome can be shipped as ``turns.bin`` ALONE (tar one file) and loaded with its
-    ``the_one`` — no sidecar required."""
+    Returns the FULL catalog (with the per-chromosome ``chromosomes`` / ``regions``
+    arrays) regardless of on-disk format:
+
+    - **v≤11 full manifest** — read the arrays verbatim (back-compat; never opens
+      ``turns.bin``).
+    - **v12 HEAD-ONLY manifest** — read the O(1) head, then DERIVE the arrays by
+      scanning the self-describing body (:func:`_scan_body_to_chrom_specs`), using the
+      head's ``leaf_dim`` + ``the_one`` (no ``the_one=`` needed). This is where the
+      ADR-0003 "catalog is derived, never a stored plaintext TOC" contract is paid.
+    - **no manifest** — REBUILD from the body (needs ``the_one=`` for the leaf width).
+
+    So a genome can be shipped as ``turns.bin`` alone (tar one file) + its ``the_one``;
+    the manifest is an optional ``.fai`` head, never the SSoT."""
     path = Path(path)
     if (path / _MANIFEST_NAME).exists():
-        return _read_manifest(path)
+        head = _read_manifest(path)
+        if "chromosomes" in head:
+            return head                        # v2..v11 full manifest — verbatim (back-compat)
+        # v12 head-only (no chromosomes array): derive the arrays from the body. leaf_dim +
+        # the_one come from the head, so this needs no the_one= argument.
+        leaf_dim = int(head["leaf_dim"])
+        the_one_block = bytes.fromhex(head["the_one"]["hex"])
+        body_bytes = (path / _BODY_NAME).read_bytes()
+        chrom_specs, n_turns = _scan_body_to_chrom_specs(body_bytes, leaf_dim)
+        data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs,
+                                    body_bytes, n_turns)
+        # INTEGRITY: the head stores the ``body_sha256`` region-CHAIN head (the Merkle
+        # root of the body). A body corruption re-derives a DIFFERENT chain → mismatch
+        # with the committed head → raise (whole-body granularity; the per-region
+        # digests are derived, not stored — ADR-0003).
+        if data["body_sha256"] != head.get("body_sha256"):
+            raise GenomeBoundingError(
+                f"genome at {str(path)!r}: {_BODY_NAME} body_sha256 chain "
+                f"{data['body_sha256']} != the manifest head's committed "
+                f"{head.get('body_sha256')} — the body was modified out of band"
+            )
+        return data
     if the_one is None:
         raise GenomeBoundingError(
             f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no the_one= was "
@@ -4478,7 +4571,7 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 11      # a READ of existing caps/manifest; no bump
+    assert GENOME_FORMAT_VERSION == 12      # a READ of existing caps/manifest; no bump
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
         return _gene_express_plan_path(Path(strand_or_path), the_one, cell_state)
     return _gene_express_plan_strand(strand_or_path, the_one, cell_state)
@@ -4579,7 +4672,7 @@ def genome_genes_expressed(path, the_one, cell_state):
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 11      # a READ of existing caps/manifest; no bump
+    assert GENOME_FORMAT_VERSION == 12      # a READ of existing caps/manifest; no bump
     path = Path(path)
     plan = _gene_express_plan_path(path, the_one, cell_state)   # the expressed communities
     data = _catalog_data(path, the_one)
@@ -4596,92 +4689,83 @@ def genome_genes_expressed(path, the_one, cell_state):
     return out
 
 
-def genome_append(path, label, leaves, the_one, *, kernel=False) -> dict:
-    """Append ONE chromosome to an existing genome at ``path/`` — UPSTREAM §41 /
-    §56 (rc115 #1245 ask (b)). The helix grows in O(1) amortised. Returns the
-    updated manifest ``data`` dict.
+def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -> dict:
+    """Append ONE chromosome to an existing genome at ``path/`` in O(1) — UPSTREAM
+    §41 / §56 (rc115 #1245(b)) + v12 (the O(1) genome-native rewrite). Returns the
+    full catalog ``data`` dict (unchanged shape: ``chromosomes`` / ``regions`` / … ).
 
-    Packs ``leaves`` (the new kernel's Klein-4 leaf vectors) into a
-    telomere-capped :func:`chromosome` (coupled through ``the_one``) and
-    TAIL-EXTENDS ``path/turns.bin`` with its fixed-width blocks — append-only,
-    prior body bytes are NEVER read, rewritten, or re-hashed. The manifest is
-    updated by APPENDING one chromosome entry + one region entry and extending the
-    ``body_sha256`` REGION CHAIN in O(1) from its prior head (rc115 #1245(b)) — no
-    whole-body re-hash, no whole-body re-scan. Every EXISTING chromosome / region
-    entry stays byte-identical; ``n_turns`` grows by the appended block count.
+    **What hits disk is O(1):** the new chromosome's blocks TAIL-EXTEND
+    ``path/turns.bin`` (append-only — prior body bytes are never read, rewritten, or
+    re-hashed) and the tiny v12 HEAD manifest is rewritten (``n_turns`` /
+    ``n_chromosomes`` / the O(1) ``body_sha256`` chain fold). The per-chromosome
+    ``chromosomes`` / ``regions`` arrays are **never written to disk** — they are a
+    plaintext table-of-contents (ADR-0003) and were the O(N²) append wall; they are
+    DERIVED by scanning the self-describing body when a catalog is read.
 
-    §56: the per-append cost is bounded by the NEW chromosome's own encoding +
-    the manifest rewrite (O(n_chromosomes) small JSON), NOT by the genome's total
-    size — so N appends are O(N) total, not O(N²) (F833 super-linear wall closed).
-    Appending to a legacy v2/v3 genome (no ``regions`` array) migrates it to v4 by
-    a one-time rebuild-by-scan of the grown body; subsequent appends are O(1).
+    **The full-dict return stays O(1) when you thread the catalog.** Pass the prior
+    dict back as ``catalog=`` (the natural build-loop shape:
+    ``data = genome_append(path, lbl, lv, one, catalog=data)``) and the returned
+    dict is mutate-appended one entry in memory — O(1), N appends → O(N) total. A
+    cold call (no ``catalog=``) DERIVES the full catalog from the body once (O(n))
+    for the return; only the disk write is O(1) there.
+
+    Labels are content-addresses (ADR-0003), so there is **no O(n) duplicate-label
+    scan** — the caller owns label uniqueness (a duplicate label is last-wins on
+    read, exactly as two identical content-addresses would be).
 
     §89/rc126: ``kernel=True`` opens the appended chromosome with a KERNEL telomere
-    (``0x6B``) instead of a plain CHROM cap — used by :func:`genome_append_kernel`,
-    where ``leaves[0]`` is the uniformly-Klein-4 §89 header. Because that header is a
-    100 %-Klein-4 leaf, it couples + bit-packs on the SAME O(1) append path as any
-    content turn (klein4_bind never sees a byte ``> 3``).
+    (``0x6B``) — used by :func:`genome_append_kernel`.
     """
     path = Path(path)
-    # §44: the_one (required here anyway) supplies the leaf width, so an append
-    # works against a manifest-less genome too — the catalog is rebuilt by scanning.
-    data = _catalog_data(path, the_one)
-    leaf_dim = int(data["leaf_dim"])
+    # The O(1) head — the threaded in-memory catalog, else a cheap head read (O(1) for
+    # a v12 head-only manifest; a one-time O(n) read/scan on the FIRST append to a
+    # legacy v≤11 / manifest-less genome, which then becomes v12 head-only).
+    head = catalog if catalog is not None else _read_head(path, the_one)
+    leaf_dim = int(head["leaf_dim"])
     if len(list(the_one)) != leaf_dim:
         raise ValueError(
             f"genome_append: the_one dim {len(list(the_one))} != genome leaf_dim "
             f"{leaf_dim}"
         )
-    existing_labels = [c["label"] for c in data["chromosomes"]]
-    if label in existing_labels:
-        raise ValueError(
-            f"genome_append: chromosome {label!r} already exists in the genome"
-        )
 
     new_strand = chromosome(leaves, the_one, label=label, kernel=kernel)
     new_blocks = _leaf_blocks(new_strand)
-    # §55/v3: the appended region is written in the packed on-disk form (caps
-    # verbatim, data turns bit-packed) — _disk_block validates each width. An
-    # append to a v2 genome yields a MIXED body, which the walker reads as-is.
+    # §55/v3: the appended region is the packed on-disk form (caps verbatim, data
+    # turns bit-packed) — _disk_block validates each width.
     appended = b"".join(_disk_block(blk, leaf_dim) for blk in new_blocks)
-
-    # §49/§56: native C append is AUTHORITATIVE when present — it tail-extends
-    # turns.bin + updates the manifest in O(1) (no whole-body rewrite / re-hash);
-    # native is authoritative when present (no fallback).
-    if _native.has_native_genome():
-        try:
-            _native.genome_append_c(
-                str(path), label, appended, leaf_dim,
-                bytes(_leaf_blocks([the_one])[0]))
-            return _read_manifest(path)
-        except _native.NativeGenomeError as exc:
-            _raise_native_genome(exc)
-
+    the_one_block = _leaf_blocks([the_one])[0]
     body_path = path / _BODY_NAME
-    # §56: byte_offset is the CURRENT body size (a cheap stat) — we never read the
-    # prior body. Tail-extend append-only so prior bytes are untouched.
-    byte_offset = body_path.stat().st_size
-    with body_path.open("ab") as f:
-        f.write(appended)
 
-    old_regions = data.get("regions")
-    if old_regions is None:
-        # Legacy v2/v3 genome (no region partition / whole-body body_sha256): a
-        # one-time migration to v4 by rebuilding-by-scan of the grown body (the
-        # only path that must touch the whole body — subsequent appends are O(1)).
-        grown = body_path.read_bytes()
-        new_data = _rebuild_manifest_from_body(grown, leaf_dim, the_one)
-        _write_manifest(path, _manifest_record(new_data))
-        return new_data
+    # Legacy v2/v3 (format_version < 4): the head's body_sha256 is a WHOLE-BODY digest,
+    # NOT the region chain, so it cannot be folded in O(1). The FIRST append MIGRATES —
+    # tail-extend, then rebuild the v12 head (chain) from the grown body (O(n), once);
+    # every subsequent append reads the v12 head and is O(1). (A threaded catalog is
+    # already v12-chain, so it never takes this branch.)
+    if catalog is None and int(head.get("format_version", GENOME_FORMAT_VERSION)) < 4:
+        if _native.has_native_genome():
+            try:
+                _native.genome_append_c(str(path), label, appended, leaf_dim,
+                                        bytes(the_one_block))
+            except _native.NativeGenomeError as exc:
+                _raise_native_genome(exc)
+        else:
+            with body_path.open("ab") as f:
+                f.write(appended)
+            grown = body_path.read_bytes()
+            data = _rebuild_manifest_from_body(grown, leaf_dim, the_one)
+            mig_head = _build_head_data(leaf_dim, the_one_block, data["n_turns"],
+                                        len(data["chromosomes"]), data["body_sha256"])
+            _write_manifest(path, _manifest_record(mig_head))
+        return _catalog_data(path, the_one)
 
-    # v4 O(1) append: extend the chromosome / region lists + the chain head only —
-    # the existing entries carry through by REFERENCE (byte-identical), and the new
-    # region's digest folds onto the prior body_sha256 chain in O(1).
-    cap_sha256 = _sha256_bytes(new_blocks[0])
+    byte_offset = body_path.stat().st_size          # O(1) stat = the PRIOR body size
     region_sha256 = _sha256_bytes(appended)
+    new_body_sha = _chain_step(head["body_sha256"], region_sha256)
+    new_n_turns = int(head["n_turns"]) + len(new_blocks)
+    new_n_chrom = int(head.get("n_chromosomes", len(head.get("chromosomes", [])))) + 1
     new_chrom = {
         "label": label,
-        "cap_sha256": cap_sha256,
+        "cap_sha256": _sha256_bytes(new_blocks[0]),
         "leaf_count": len(new_blocks) - 1,
         "byte_offset": byte_offset,
         "byte_len": len(appended),
@@ -4691,21 +4775,39 @@ def genome_append(path, label, leaves, the_one, *, kernel=False) -> dict:
         "byte_len": len(appended),
         "sha256": region_sha256,
     }
-    new_data = {
-        "format_version": GENOME_FORMAT_VERSION,
-        "leaf_dim": leaf_dim,
-        "n_turns": int(data["n_turns"]) + len(new_blocks),
-        "the_one": dict(data["the_one"]),
-        "body_sha256": _chain_step(data["body_sha256"], region_sha256),
-        "regions": list(old_regions) + [new_region],
-        "chromosomes": list(data["chromosomes"]) + [new_chrom],
-    }
-    _write_manifest(path, _manifest_record(new_data))
-    return new_data
+    head_data = _build_head_data(leaf_dim, the_one_block, new_n_turns, new_n_chrom,
+                                 new_body_sha)
+
+    # Write the DNA + the O(1) head. Native C append is AUTHORITATIVE when present —
+    # it tail-extends turns.bin + writes the head, no whole-body / whole-catalog
+    # rewrite. Otherwise the pure path does the same tail-extend + head write.
+    if _native.has_native_genome():
+        try:
+            _native.genome_append_c(str(path), label, appended, leaf_dim,
+                                    bytes(the_one_block))
+        except _native.NativeGenomeError as exc:
+            _raise_native_genome(exc)
+    else:
+        with body_path.open("ab") as f:
+            f.write(appended)                       # O(1) tail-extend
+        _write_manifest(path, _manifest_record(head_data))   # O(1) HEAD-ONLY
+
+    # Return the full catalog dict (unchanged shape).
+    if catalog is not None:
+        # O(1): mutate-append the in-memory catalog + advance the head fields.
+        catalog.setdefault("chromosomes", []).append(new_chrom)
+        catalog.setdefault("regions", []).append(new_region)
+        catalog["n_turns"] = new_n_turns
+        catalog["n_chromosomes"] = new_n_chrom
+        catalog["body_sha256"] = new_body_sha
+        catalog["format_version"] = GENOME_FORMAT_VERSION
+        return catalog
+    # Cold call: derive the full catalog from the body once (O(n)) — disk stayed O(1).
+    return _catalog_data(path, the_one)
 
 
 def genome_append_kernel(path, label, hv, *, element_type="klein4",
-                         the_one=None) -> dict:
+                         the_one=None, catalog=None) -> dict:
     """Append a newly-taught kernel — WITH its §89 header — to a genome in O(1)
     amortised (§89/rc126, issue #1261). The uniformly-Klein-4 payoff of format v6.
 
@@ -4738,18 +4840,18 @@ def genome_append_kernel(path, label, hv, *, element_type="klein4",
         )
     et_code = _ELEMENT_TYPE_CODES[element_type]
     path = Path(path)
-    data = _catalog_data(path, the_one)           # manifest cache, or §44 rebuild-by-scan
-    leaf_dim = int(data["leaf_dim"])
+    head = catalog if catalog is not None else _read_head(path, the_one)   # O(1) head
+    leaf_dim = int(head["leaf_dim"])
     if leaf_dim < _KERNEL_HEADER_KLEIN4_SYMS:
         raise ValueError(
             f"genome_append_kernel: genome leaf_dim {leaf_dim} < "
             f"{_KERNEL_HEADER_KLEIN4_SYMS} — the §89 kernel header does not fit one leaf"
         )
     if the_one is None:
-        the_one = _resolve_the_one(data, None)    # from the manifest cache
+        the_one = _resolve_the_one(head, None)    # from the head (the_one hash+hex)
     syms = _validate_kernel_symbols(hv)
     leaves = _kernel_v6_leaves(syms, leaf_dim, et_code)   # [klein4_header, *content]
-    return genome_append(path, label, leaves, the_one, kernel=True)
+    return genome_append(path, label, leaves, the_one, kernel=True, catalog=catalog)
 
 
 def _write_body_and_manifest(path, body_bytes, leaf_dim, the_one) -> dict:
@@ -4768,8 +4870,11 @@ def _write_body_and_manifest(path, body_bytes, leaf_dim, the_one) -> dict:
     # §44: rebuild-by-scan validates the splice (whole multiple of leaf_dim, cap-led
     # regions) BEFORE anything is written — a corrupt edit never lands on disk.
     data = _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one)
+    the_one_block = bytes.fromhex(data["the_one"]["hex"])
+    head = _build_head_data(leaf_dim, the_one_block, data["n_turns"],
+                            len(data["chromosomes"]), data["body_sha256"])
     (Path(path) / _BODY_NAME).write_bytes(body_bytes)
-    _write_manifest(path, _manifest_record(data))
+    _write_manifest(path, _manifest_record(head))     # v12: HEAD-ONLY on disk
     return data
 
 
@@ -4814,7 +4919,7 @@ def genome_remove(path, label, *, the_one=None) -> dict:
     if _native.has_native_genome():
         try:
             _native.genome_remove_c(str(path), label, bytes(_leaf_blocks([one])[0]))
-            return _read_manifest(path)
+            return _catalog_data(path, one)     # full derived catalog (v12 head-only on disk)
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     entry = by_label[label]
@@ -4868,7 +4973,7 @@ def genome_replace(path, label, leaves, the_one) -> dict:
             _native.genome_replace_c(
                 str(path), label, new_region, leaf_dim,
                 bytes(_leaf_blocks([the_one])[0]))
-            return _read_manifest(path)
+            return _catalog_data(path, the_one)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     entry = by_label[label]
@@ -5071,7 +5176,7 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
             dest.mkdir(parents=True, exist_ok=True)   # native SEED save needs the dir
             _native.genome_import_c(
                 str(chr_path), str(dest), _the_one_bytes_or_empty(the_one))
-            return _read_manifest(dest)
+            return _catalog_data(dest, the_one)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     # pure-Python alternative (no C present) — full integrity bounds on the already-read
@@ -5227,7 +5332,7 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
             (dest / _BODY_NAME).write_bytes((scratch / _BODY_NAME).read_bytes())
             (dest / _MANIFEST_NAME).write_bytes(
                 (scratch / _MANIFEST_NAME).read_bytes())
-            return _read_manifest(dest)
+            return _catalog_data(dest, the_one)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)                                       # real dest untouched
         finally:

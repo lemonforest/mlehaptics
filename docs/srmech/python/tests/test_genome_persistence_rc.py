@@ -121,8 +121,12 @@ def test_catalog_reads_manifest_without_opening_body(tmp_path, monkeypatch):
     cat = genome.genome_catalog(p)
     monkeypatch.undo()
 
-    # the catalog NEVER pages in the body
-    assert not any("turns.bin" in o for o in opened_paths), opened_paths
+    # v12 (ADR-0003): the per-chromosome catalog is DERIVED from the self-describing
+    # body — it is no longer a stored plaintext table-of-contents — so genome_catalog
+    # reads the HEAD (manifest.json) AND scans turns.bin to rebuild the arrays. (The
+    # cheap HEAD read is still body-free; the FULL catalog is not. rc-B's mmap
+    # catalog.idx restores an O(1) body-free catalog open.)
+    assert any("turns.bin" in o for o in opened_paths), opened_paths
     assert any("manifest.json" in o for o in opened_paths), opened_paths
 
     # the catalog carries the full chromosome index without the body bytes
@@ -220,10 +224,13 @@ def test_window_pages_one_chromosome(tmp_path, monkeypatch):
     monkeypatch.undo()
 
     geo = next(c for c in man["chromosomes"] if c["label"] == "geography")
-    total_body = (p / "turns.bin").stat().st_size
-    # the window read at most one chromosome's region, strictly less than the body
-    assert sum(read_byte_counts) == geo["byte_len"]
-    assert sum(read_byte_counts) < total_body
+    # v12 (ADR-0003): genome_window DERIVES the catalog (scans turns.bin) to find the
+    # chromosome's byte offset before paging it, so the read is no longer strictly
+    # region-bounded — the body is scanned for the catalog, then the region is read.
+    # Correctness (win == the stored region) is asserted above; region-bounded I/O is
+    # restored by rc-B's mmap catalog.idx (an O(1) offset lookup). So we assert the
+    # region's own bytes are (at least) read, not that NOTHING else is.
+    assert sum(read_byte_counts) >= geo["byte_len"]
 
     # a subset load is the same paged read for many chromosomes
     sub_strand, sub_one, sub_labels = genome.genome_load(p, labels=["music"])
