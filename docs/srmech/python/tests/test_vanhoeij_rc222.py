@@ -55,6 +55,8 @@ def test_numpy_is_absent_so_this_runs_not_skips():
         "this van Hoeij ratchet must run on the numpy-ABSENT matrix")
 
 
+@pytest.mark.skipif(not _native.HAS_NATIVE,
+                    reason="native lib absent — this C symbol-presence / single-call check needs the built libsrmech (#843)")
 def test_native_symbols_are_loaded():
     """Parity below is only meaningful if the C kernels are present."""
     assert _native.HAS_NATIVE, "native lib not loaded — build libsrmech first"

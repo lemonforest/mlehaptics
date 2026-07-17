@@ -54,8 +54,10 @@ in project memory, not here; this ADR is the mechanics.)
    matrix (Linux gcc / macOS clang / Windows MSVC, `-Werror`/`/WX`) + a pure-wheel
    build; the rc→TestPyPI step is what catches build-env errors the fast tests miss.
    A local WSL C smoke MUST build RELEASE (`-O2 -DNDEBUG`, pedantic) to reproduce
-   CI. In a native-absent dev env the "native-version" tests fail (not skip) — that
-   is a known env artifact, not a regression (issue #843).
+   CI. In a native-absent dev env, native-presence / single-C-call checks **skip**
+   (not fail) via `@pytest.mark.skipif(not _native.HAS_NATIVE)` (#843, fixed) — CI
+   always builds the native lib fresh, so those checks always run + assert there;
+   the skip only affects a native-off dev run.
 
 6. **Platform-agnostic by construction — machine-specific code routes ONLY through
    the HAL or the PAL; the core C is portable.** Target-specific optimizations (SIMD /
