@@ -1,4 +1,15 @@
-r"""R-RBS-LM-CORPUSFIBER (PKG-3 / #231 / Siona ADR step 2) — encode the ENTIRE simplewiki (all ~240,881 FULL article
+r"""[RETIRED 2026-07-17 — ANTI-PATTERN, kept as the attestation record. See F1247 + UPSTREAM §98.1.]
+
+This encoder stores each article's FULL packed token-ID stream as its own chromosome — a byte-serialization blob you
+must unpack_bytes + vocab-decode to read. That is the "encode our already-encoded genome so we can decode it later"
+mistake: (1) a re-encoding needing a decode round-trip, (2) a materialised cache (the opposite of on-demand render),
+(3) redundant with the shared directed Class-L graph — it re-stores the shared structure once per article, discarding
+F806–F809 (an article is a SEED+WALK into the shared graph, not its own full copy). The CORRECT shape (F1247): encode
+ONCE into the coupled turns as the shared directed Class-L object (done — simplewiki_directed.genome, F1233), then a
+streaming EPIGENETIC READER renders any article's fiber ON THE FLY by an Eulerian Class-M/L walk — no fiber blob, no
+decode-cache. This file is NOT the go-forward path; do not run it. Left in place only to document the wrong shape.
+
+R-RBS-LM-CORPUSFIBER (PKG-3 / #231 / Siona ADR step 2) — encode the ENTIRE simplewiki (all ~240,881 FULL article
 bodies) into ONE genome-native Klein-4 (G4) DNA fiber store: one content-addressed chromosome per body + one
 `__vocab__` codebook chromosome. This COLLAPSES the loose plaintext NDJSON instrument + its JSON index into a single
 attested native srmech genome (`srmech.amsc.genome`). It is the corpus-scale run of the proven R-RBS-LM-FIBERGENOME

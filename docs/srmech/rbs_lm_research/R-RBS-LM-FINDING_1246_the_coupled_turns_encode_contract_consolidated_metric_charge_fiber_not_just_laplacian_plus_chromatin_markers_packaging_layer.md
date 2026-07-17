@@ -1,3 +1,5 @@
+**→ sharpened by F1247** (encode ONCE / render ON THE FLY: the fiber is a *rendered* Eulerian walk over the Class-L object, NOT a stored packed id-stream; the epigenetic reader, no decode-cache).
+
 # F1246 — the coupled-turns encode contract, CONSOLIDATED: what we encode into coupled turns is the directed Class-L Laplacian (metric + charge) AND the fiber — NOT "just the Laplacian," and never the Klein-4 HV object. Plus chromatin markers = the new packaging layer above the content.
 
 **User (2026-07-17):** *"we're adding a coupled-turns ↔ graph-Laplacian machinery — not just encode but also decode, real-time, no cached files. Do our #687 findings say WHAT we're trying to encode into coupled turns — is it just the Laplacian, or our edge fiber too? I told srmech this knowledge should be there; make sure it can be found, and if not, define it somewhere as close to how biology does. Also we've added more biological machinery and are now working on chromatin etc markers."*
