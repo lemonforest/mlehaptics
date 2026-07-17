@@ -228,6 +228,10 @@ typedef struct {
     char (*region_sha)[65];                         /* [cap_chroms] full-region
                                                      * digest (v4 regions[] +
                                                      * the body_sha256 chain) */
+    unsigned char *cap_kind;                        /* [cap_chroms] §96 cap-kind CODE
+                                                     * (0 stick / 1 minted / 2 diploid),
+                                                     * mapped to a string in
+                                                     * genome_build_chrom */
     uint32_t cap_chroms;                            /* arena-allocated capacity */
     uint32_t n_chroms;                              /* chromosomes found by scan */
     uint32_t n_blocks;                              /* §55/v3: strand BLOCK count
@@ -374,17 +378,40 @@ static srmech_json_value_t *genome_build_the_one(srmech_json_builder_t *b,
     return srmech_json_new_object(b, keys, vals, 2u);
 }
 
-/* Build one chromosome entry object (5 keys) from the scanned strings (§44 —
- * label + leaf_count come from the inline-cap body scan, not a caller layout). */
+/* §96 cap-kind CODES — the per-chromosome classification the body scan derives
+ * (byte-identical to genome.py). A chromosome opening with the §95b diploid
+ * telomere is provisionally DIPLOID (else STICK); an interior §95a centromere
+ * OVERWRITES it to MINTED (minted > diploid > stick — the R-RBS-LM reference's
+ * centromere-first classify; a diploid PAIR carries a centromere, so it reads as
+ * minted). Single-line #defines (JPL Rule 8). */
+#define SRMECH_GENOME_CAP_KIND_STICK   0u
+#define SRMECH_GENOME_CAP_KIND_MINTED  1u
+#define SRMECH_GENOME_CAP_KIND_DIPLOID 2u
+
+/* Map a §96 cap-kind CODE to its canonical string (== the genome.py cap_kind
+ * literals). An unknown code degrades to "stick" (the safe default). */
+static const char *genome_cap_kind_str(unsigned char code)
+{
+    assert(code <= SRMECH_GENOME_CAP_KIND_DIPLOID);
+    assert(SRMECH_GENOME_CAP_KIND_STICK == 0u);
+    if (code == SRMECH_GENOME_CAP_KIND_MINTED) { return "minted"; }
+    if (code == SRMECH_GENOME_CAP_KIND_DIPLOID) { return "diploid"; }
+    return "stick";
+}
+
+/* Build one chromosome entry object (6 keys) from the scanned strings (§44 —
+ * label + leaf_count come from the inline-cap body scan, not a caller layout;
+ * §96 — cap_kind is the derived stick/minted/diploid classification). */
 static srmech_json_value_t *genome_build_chrom(srmech_json_builder_t *b,
                                                const genome_strings_t *s,
                                                uint32_t idx)
 {
     assert(b != NULL && s != NULL);
     assert(idx < s->cap_chroms);
-    const char *keys[5] = { "label", "cap_sha256", "leaf_count",
-                            "byte_offset", "byte_len" };
-    srmech_json_value_t *vals[5];
+    const char *keys[6] = { "label", "cap_sha256", "leaf_count",
+                            "byte_offset", "byte_len", "cap_kind" };
+    srmech_json_value_t *vals[6];
+    const char *ck = genome_cap_kind_str(s->cap_kind[idx]);
     vals[0] = srmech_json_new_string(b, s->label[idx],
                                      (uint32_t)strlen(s->label[idx]));
     vals[1] = srmech_json_new_string(b, s->cap_sha[idx],
@@ -392,7 +419,8 @@ static srmech_json_value_t *genome_build_chrom(srmech_json_builder_t *b,
     vals[2] = srmech_json_new_int(b, (int64_t)s->leaf_count[idx]);
     vals[3] = srmech_json_new_int(b, (int64_t)s->byte_offset[idx]);
     vals[4] = srmech_json_new_int(b, (int64_t)s->byte_len[idx]);
-    return srmech_json_new_object(b, keys, vals, 5u);
+    vals[5] = srmech_json_new_string(b, ck, (uint32_t)strlen(ck));
+    return srmech_json_new_object(b, keys, vals, 6u);
 }
 
 /* Build one region entry object (3 keys) from the scanned strings — v4
@@ -1302,8 +1330,10 @@ static srmech_status_t genome_strings_alloc(genome_strings_t *s,
     s->label = genome_arena_alloc(a, (size_t)n * SRMECH_GENOME_MAX_LABEL);
     s->leaf_count = genome_arena_alloc(a, (size_t)n * sizeof(uint32_t));
     s->region_sha = genome_arena_alloc(a, (size_t)n * 65u);   /* v4 region digest */
+    s->cap_kind = genome_arena_alloc(a, (size_t)n);           /* §96 cap-kind code */
     if (s->cap_sha == NULL || s->byte_offset == NULL || s->byte_len == NULL ||
-        s->label == NULL || s->leaf_count == NULL || s->region_sha == NULL) {
+        s->label == NULL || s->leaf_count == NULL || s->region_sha == NULL ||
+        s->cap_kind == NULL) {
         return SRMECH_ERR_OVERFLOW;
     }
     s->cap_chroms = n;
@@ -1348,8 +1378,15 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             s->byte_offset[cur] = (uint32_t)off;
             s->byte_len[cur] = 0u;                /* accumulated below */
             s->leaf_count[cur] = 0u;
+            /* §96: cap-kind PROVISIONAL on the opener (0x44 diploid else stick) —
+             * an interior centromere below overwrites it to minted. */
+            s->cap_kind[cur] = (body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER)
+                ? SRMECH_GENOME_CAP_KIND_DIPLOID : SRMECH_GENOME_CAP_KIND_STICK;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
+            if (body[off] == SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
+                s->cap_kind[cur] = SRMECH_GENOME_CAP_KIND_MINTED;  /* §96 minted wins */
+            }
             /* §60/§128/§130/§131/§132: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
              * threshold 0x77 / graded 0x64) or a v5 KERNEL HEADER (0x4B) is not a data turn. The
              * §89 v6 Klein-4 header IS a coupled turn (counted). */
@@ -2580,8 +2617,9 @@ size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
     assert(n_chroms != 0xFFFFFFFFu);
     assert(SRMECH_GENOME_MAX_LABEL > 0u);
     size_t per_chrom =
-        (size_t)(65u + 65u + 8u + 8u + SRMECH_GENOME_MAX_LABEL + 8u) /* strings arrays
-                                                    * (+65 = the v4 region_sha) */
+        (size_t)(65u + 65u + 8u + 8u + SRMECH_GENOME_MAX_LABEL + 8u + 1u) /* strings
+                                                    * arrays (+65 = the v4 region_sha,
+                                                    * +1 = the §96 cap_kind code) */
       + (size_t)(SRMECH_GENOME_MAX_LABEL + 800u)                /* manifest chrom + region entry */
       + 1152u                                                   /* json nodes+ptrs+decoded
                                                     * (chrom subtree + v4 region subtree) */
@@ -2738,6 +2776,379 @@ srmech_status_t srmech_genome_catalog(const char *dir,
     }
     return genome_obtain_manifest(dir, the_one, the_one_len, ws, ws_len,
                                   out_manifest);
+}
+
+/* ------------------------------------------------------------------ *
+ * §96 CENSUS + REGISTRY — the biology-native per-genome roll-up + the
+ * cell/melange census over a ROOT of genomes. srmech reads the SHAPE (the
+ * inline cap markers, classified once in the body scan); the caller assigns
+ * the ROLE. The census scans the body ONCE (no O(n) per-chromosome loads —
+ * cap_kind rides the §44 scan), the topology is an INTEGER read (no libm).
+ * ------------------------------------------------------------------ */
+
+/* Census arena size — a body scan + strings block + a (small) census subtree
+ * fit inside the catalog arena budget, so reuse srmech_genome_arena_bytes. */
+size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms)
+{
+    assert(n_chroms != 0xFFFFFFFFu);
+    assert(SRMECH_GENOME_MAX_LABEL > 0u);
+    return srmech_genome_arena_bytes(body_len, n_chroms, 0u);
+}
+
+/* Resolve the (leaf_dim, one_ptr) a body SCAN needs — from the manifest HEAD
+ * when present (a full OR head-only manifest both carry data.leaf_dim +
+ * data.the_one.hex), else from the caller `the_one` (its length IS leaf_dim).
+ * Bumps `a` past the manifest bytes (the parse TREE lives in a's tail and is
+ * reclaimed by the next alloc — leaf_dim + the_one are copied into one_buf). */
+static srmech_status_t genome_scan_params(
+    const char *dir, const unsigned char *the_one, size_t the_one_len,
+    genome_arena_t *a, unsigned char *one_buf, const unsigned char **one_ptr,
+    uint32_t *leaf_dim)
+{
+    assert(dir != NULL && a != NULL && one_buf != NULL);
+    assert(one_ptr != NULL && leaf_dim != NULL);
+    char man_path[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(dir, SRMECH_GENOME_MANIFEST,
+                                     man_path, sizeof(man_path));
+    if (st != SRMECH_OK) { return st; }
+    size_t msz = 0u;
+    if (genome_file_size(man_path, &msz) == SRMECH_OK) {   /* manifest present */
+        char *manbuf = genome_arena_alloc(a, msz + 1u);
+        if (manbuf == NULL) { return SRMECH_ERR_OVERFLOW; }
+        void *ptws = NULL;
+        size_t ptws_len = 0u;
+        genome_arena_tail(a, &ptws, &ptws_len);
+        size_t mlen = 0u;
+        srmech_json_value_t *man = NULL;
+        st = genome_parse_manifest(dir, manbuf, msz + 1u, &mlen, ptws, ptws_len, &man);
+        if (st != SRMECH_OK) { return st; }
+        st = genome_head_rebuild_params(man, one_buf, leaf_dim);  /* copies out */
+        if (st != SRMECH_OK) { return st; }
+        *one_ptr = one_buf;
+        return SRMECH_OK;
+    }
+    if (the_one == NULL || the_one_len == 0u || the_one_len > 256u) {
+        return SRMECH_ERR_BAD_INPUT;                       /* cannot scan w/o width */
+    }
+    *leaf_dim = (uint32_t)the_one_len;
+    *one_ptr = the_one;
+    return SRMECH_OK;
+}
+
+/* Read <dir>/turns.bin into the arena `a` and fill the §44 strings block
+ * (label / leaf_count / cap_kind / … per chromosome) — the census's ONE body
+ * scan. `a` already holds the resolved (leaf_dim, one_ptr). */
+static srmech_status_t genome_load_strings(
+    const char *dir, const unsigned char *one_ptr, uint32_t leaf_dim,
+    genome_arena_t *a, genome_strings_t *s)
+{
+    assert(dir != NULL && one_ptr != NULL);
+    assert(a != NULL && s != NULL && leaf_dim > 0u);
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(dir, SRMECH_GENOME_BODY,
+                                     body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    size_t bsz = 0u;
+    st = genome_file_size(body_path, &bsz);
+    if (st != SRMECH_OK) { return st; }
+    unsigned char *body = genome_arena_alloc(a, (bsz == 0u) ? 1u : bsz);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    size_t blen = 0u;
+    st = genome_read_file(body_path, body, bsz, &blen);
+    if (st != SRMECH_OK) { return st; }
+    return genome_fill_strings(s, a, body, blen, leaf_dim, one_ptr);
+}
+
+/* §96 topology — the structural nuclear/organelle/plasmid read, INTEGER-only
+ * (no libm), byte-identical to genome.py: any minted/diploid → nuclear-like;
+ * else small all-stick (total_leaves <= 8*n) → organelle-like; else n>0 →
+ * plasmid/prokaryote-like; else empty. */
+static const char *genome_census_topology(uint32_t minted, uint32_t diploid,
+                                          uint64_t total_leaves, uint32_t n_chrom)
+{
+    assert(n_chrom != 0xFFFFFFFFu);
+    assert(minted <= n_chrom && diploid <= n_chrom);
+    if (minted > 0u || diploid > 0u) { return "nuclear-like"; }
+    if (n_chrom > 0u && total_leaves <= (uint64_t)8u * (uint64_t)n_chrom) {
+        return "organelle-like";
+    }
+    if (n_chrom > 0u) { return "plasmid/prokaryote-like"; }
+    return "empty";
+}
+
+/* Build one census chromosome entry {label, type, leaf_count} (the caller
+ * assigns the ROLE; srmech reads the SHAPE cap_kind). */
+static srmech_json_value_t *genome_build_census_chrom(
+    srmech_json_builder_t *b, const genome_strings_t *s, uint32_t idx)
+{
+    assert(b != NULL && s != NULL);
+    assert(idx < s->n_chroms);
+    const char *keys[3] = { "label", "type", "leaf_count" };
+    srmech_json_value_t *vals[3];
+    const char *ck = genome_cap_kind_str(s->cap_kind[idx]);
+    vals[0] = srmech_json_new_string(b, s->label[idx],
+                                     (uint32_t)strlen(s->label[idx]));
+    vals[1] = srmech_json_new_string(b, ck, (uint32_t)strlen(ck));
+    vals[2] = srmech_json_new_int(b, (int64_t)s->leaf_count[idx]);
+    return srmech_json_new_object(b, keys, vals, 3u);
+}
+
+/* Build the types roll-up object {stick, minted, diploid} from the code counts
+ * (cnt indexed by the §96 cap-kind code: 0 stick / 1 minted / 2 diploid). */
+static srmech_json_value_t *genome_build_types(srmech_json_builder_t *b,
+                                               const uint32_t cnt[3])
+{
+    assert(b != NULL && cnt != NULL);
+    assert(SRMECH_GENOME_CAP_KIND_MINTED == 1u);
+    const char *keys[3] = { "stick", "minted", "diploid" };
+    srmech_json_value_t *vals[3];
+    vals[0] = srmech_json_new_int(b, (int64_t)cnt[0]);
+    vals[1] = srmech_json_new_int(b, (int64_t)cnt[1]);
+    vals[2] = srmech_json_new_int(b, (int64_t)cnt[2]);
+    return srmech_json_new_object(b, keys, vals, 3u);
+}
+
+/* Build the census ROOT {path, n_chromosomes, types, chromosomes, total_leaves,
+ * topology} from a filled strings block, using builder `b` (its arena persists;
+ * `path` + s->label[] are held BY REFERENCE, so both must outlive the tree).
+ * `items` is an n_chroms-sized pointer scratch carved from the persistent arena. */
+static srmech_json_value_t *genome_census_root(
+    srmech_json_builder_t *b, const genome_strings_t *s, const char *path,
+    srmech_json_value_t **items)
+{
+    assert(b != NULL && s != NULL);
+    assert(path != NULL && items != NULL);
+    uint32_t cnt[3] = { 0u, 0u, 0u };
+    uint64_t leaves = 0u;
+    for (uint32_t i = 0; i < s->n_chroms; i++) {
+        unsigned char code = s->cap_kind[i];
+        if (code <= SRMECH_GENOME_CAP_KIND_DIPLOID) { cnt[code]++; }
+        leaves += (uint64_t)s->leaf_count[i];
+        items[i] = genome_build_census_chrom(b, s, i);
+    }
+    srmech_json_value_t *chroms = srmech_json_new_array(b, items, s->n_chroms);
+    srmech_json_value_t *types = genome_build_types(b, cnt);
+    const char *topo = genome_census_topology(cnt[1], cnt[2], leaves, s->n_chroms);
+    const char *keys[6] = { "path", "n_chromosomes", "types", "chromosomes",
+                            "total_leaves", "topology" };
+    srmech_json_value_t *vals[6];
+    vals[0] = srmech_json_new_string(b, path, (uint32_t)strlen(path));
+    vals[1] = srmech_json_new_int(b, (int64_t)s->n_chroms);
+    vals[2] = types;
+    vals[3] = chroms;
+    vals[4] = srmech_json_new_int(b, (int64_t)leaves);
+    vals[5] = srmech_json_new_string(b, topo, (uint32_t)strlen(topo));
+    return srmech_json_new_object(b, keys, vals, 6u);
+}
+
+/* Build ONE genome's census tree into the bump arena `a` (PERSISTENT — the tree,
+ * its strings block, and the item scratch all survive so a REGISTRY caller can
+ * reference the subtree while it builds later genomes). Advances a->off past the
+ * subtree. `dir` is used BOTH as the FS path to read and the census "path" field
+ * (so it must outlive the tree — the caller keeps it alive). */
+static srmech_status_t genome_census_build(
+    const char *dir, const unsigned char *the_one, size_t the_one_len,
+    genome_arena_t *a, srmech_json_value_t **out)
+{
+    assert(dir != NULL && a != NULL && out != NULL);
+    assert(the_one != NULL || the_one_len == 0u);
+    unsigned char one_buf[256];
+    const unsigned char *one_ptr = NULL;
+    uint32_t leaf_dim = 0u;
+    srmech_status_t st = genome_scan_params(dir, the_one, the_one_len, a,
+                                            one_buf, &one_ptr, &leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    genome_strings_t s;
+    st = genome_load_strings(dir, one_ptr, leaf_dim, a, &s);
+    if (st != SRMECH_OK) { return st; }
+    /* Copy `dir` into the arena so the tree's "path" is SELF-CONTAINED (the census
+     * value tree is held by reference — the caller's `dir` string may not outlive
+     * the later json write). */
+    size_t dlen = strlen(dir);
+    char *path_copy = genome_arena_alloc(a, dlen + 1u);
+    if (path_copy == NULL) { return SRMECH_ERR_OVERFLOW; }
+    memcpy(path_copy, dir, dlen + 1u);
+    srmech_json_value_t **items = genome_arena_alloc(
+        a, (size_t)((s.n_chroms == 0u) ? 1u : s.n_chroms) * sizeof(*items));
+    if (items == NULL) { return SRMECH_ERR_OVERFLOW; }
+    void *jws = NULL;
+    size_t jws_len = 0u;
+    genome_arena_tail(a, &jws, &jws_len);
+    srmech_json_builder_t b;
+    st = srmech_json_builder_init(&b, jws, jws_len);
+    if (st != SRMECH_OK) { return st; }
+    *out = genome_census_root(&b, &s, path_copy, items);
+    if (b.failed || *out == NULL) { return SRMECH_ERR_OVERFLOW; }
+    a->off = (size_t)((unsigned char *)jws - a->base) + b.used;  /* subtree persists */
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_census(const char *dir, const unsigned char *the_one,
+                                     size_t the_one_len, void *ws, size_t ws_len,
+                                     srmech_json_value_t **out_census)
+{
+    assert(out_census != NULL);
+    assert(dir != NULL || ws == NULL);
+    if (dir == NULL || ws == NULL || out_census == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    return genome_census_build(dir, the_one, the_one_len, &a, out_census);
+}
+
+/* 1 iff <root>/<name> is a genome dir (holds BOTH turns.bin and manifest.json).
+ * `dirbuf` (>= SRMECH_GENOME_PATH_MAX) receives <root>/<name> on success. */
+static int genome_dir_is_genome(const char *root, const char *name, char *dirbuf)
+{
+    assert(root != NULL && name != NULL && dirbuf != NULL);
+    assert(name[0] != '\0');
+    if (genome_join(root, name, dirbuf, SRMECH_GENOME_PATH_MAX) != SRMECH_OK) {
+        return 0;
+    }
+    char fp[SRMECH_GENOME_PATH_MAX];
+    size_t sz = 0u;
+    if (genome_join(dirbuf, SRMECH_GENOME_BODY, fp, sizeof(fp)) != SRMECH_OK ||
+        genome_file_size(fp, &sz) != SRMECH_OK) {
+        return 0;
+    }
+    if (genome_join(dirbuf, SRMECH_GENOME_MANIFEST, fp, sizeof(fp)) != SRMECH_OK ||
+        genome_file_size(fp, &sz) != SRMECH_OK) {
+        return 0;
+    }
+    return 1;
+}
+
+/* List basenames of GENOME dirs under `root` into `names` (cap max_n) via the
+ * PAL dir surface (no #ifdef — the OS opendir/FindFirstFile is in the PAL). A
+ * missing root yields count 0 (not an error). Bounded (JPL Rule 2). names==NULL
+ * runs a count-only pass. */
+static srmech_status_t genome_list_genomes(const char *root,
+    char names[][SRMECH_PLAT_DIR_NAME_MAX], uint32_t max_n, uint32_t *count)
+{
+    assert(root != NULL && count != NULL);
+    assert(names == NULL || max_n > 0u);
+    uint32_t n = 0u;
+    srmech_plat_dir_t d;
+    srmech_status_t st = srmech_plat_dir_open(root, &d);
+    if (st != SRMECH_OK) { *count = 0u; return SRMECH_OK; }   /* no root -> none */
+    char nm[SRMECH_PLAT_DIR_NAME_MAX];
+    char dirbuf[SRMECH_GENOME_PATH_MAX];
+    int have = 0;
+    for (uint32_t guard = 0u; guard < 65536u; guard++) {
+        st = srmech_plat_dir_next(&d, nm, sizeof(nm), &have);
+        if (st != SRMECH_OK) { srmech_plat_dir_close(&d); return st; }
+        if (have == 0) { break; }
+        if (genome_dir_is_genome(root, nm, dirbuf)) {
+            if (names != NULL && n >= max_n) {
+                srmech_plat_dir_close(&d); return SRMECH_ERR_OVERFLOW;
+            }
+            if (names != NULL) { memcpy(names[n], nm, strlen(nm) + 1u); }
+            n++;
+        }
+    }
+    srmech_plat_dir_close(&d);
+    *count = n;
+    return SRMECH_OK;
+}
+
+/* Insertion-sort the genome-dir basenames ascending — the canonical registry
+ * order (Python sorts genomes by path; the shared root prefix makes that a
+ * basename sort). UTF-8 byte order == code-point order, so strcmp agrees. */
+static void genome_sort_names(char names[][SRMECH_PLAT_DIR_NAME_MAX], uint32_t n)
+{
+    assert(names != NULL || n == 0u);
+    assert(n != 0xFFFFFFFFu);
+    for (uint32_t i = 1u; i < n; i++) {
+        char nm[SRMECH_PLAT_DIR_NAME_MAX];
+        memcpy(nm, names[i], sizeof(nm));
+        uint32_t j = i;
+        while (j > 0u && strcmp(names[j - 1u], nm) > 0) {
+            memcpy(names[j], names[j - 1u], sizeof(nm));
+            j--;
+        }
+        memcpy(names[j], nm, sizeof(nm));
+    }
+}
+
+/* Build the registry ROOT {root, n_genomes, genomes} on a's tail; `groots`
+ * points at the n per-genome census subtrees already built in `a` (they persist,
+ * so referencing them is safe). `root` is held by reference (caller keeps it). */
+static srmech_status_t genome_registry_root(genome_arena_t *a, const char *root,
+    srmech_json_value_t **groots, uint32_t n, srmech_json_value_t **out)
+{
+    assert(a != NULL && root != NULL && out != NULL);
+    assert(groots != NULL || n == 0u);
+    void *jws = NULL;
+    size_t jws_len = 0u;
+    genome_arena_tail(a, &jws, &jws_len);
+    srmech_json_builder_t b;
+    srmech_status_t st = srmech_json_builder_init(&b, jws, jws_len);
+    if (st != SRMECH_OK) { return st; }
+    srmech_json_value_t *garr = srmech_json_new_array(&b, groots, n);
+    const char *keys[3] = { "root", "n_genomes", "genomes" };
+    srmech_json_value_t *vals[3];
+    vals[0] = srmech_json_new_string(&b, root, (uint32_t)strlen(root));
+    vals[1] = srmech_json_new_int(&b, (int64_t)n);
+    vals[2] = garr;
+    *out = srmech_json_new_object(&b, keys, vals, 3u);
+    if (b.failed || *out == NULL) { return SRMECH_ERR_OVERFLOW; }
+    return SRMECH_OK;
+}
+
+/* Census each genome dir under `root` into the bump arena `a` (each subtree
+ * persists), collecting the roots into `groots`. `paths`/`names` are the
+ * persistent per-genome path + basename scratch (both carved from `a`). */
+static srmech_status_t genome_registry_census_all(genome_arena_t *a,
+    const char *root, char (*names)[SRMECH_PLAT_DIR_NAME_MAX], uint32_t n,
+    const unsigned char *the_one, size_t the_one_len, srmech_json_value_t **groots)
+{
+    assert(a != NULL && root != NULL);
+    assert(groots != NULL || n == 0u);
+    for (uint32_t i = 0; i < n; i++) {
+        char *fullpath = genome_arena_alloc(a, SRMECH_GENOME_PATH_MAX);
+        if (fullpath == NULL) { return SRMECH_ERR_OVERFLOW; }
+        srmech_status_t st = genome_join(root, names[i], fullpath,
+                                         SRMECH_GENOME_PATH_MAX);
+        if (st != SRMECH_OK) { return st; }
+        st = genome_census_build(fullpath, the_one, the_one_len, a, &groots[i]);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_registry(const char *root, const unsigned char *the_one,
+                                       size_t the_one_len, void *ws, size_t ws_len,
+                                       srmech_json_value_t **out_registry)
+{
+    assert(out_registry != NULL);
+    assert(root != NULL || ws == NULL);
+    if (root == NULL || ws == NULL || out_registry == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    uint32_t n = 0u;
+    srmech_status_t st = genome_list_genomes(root, NULL, 0u, &n);  /* pass 1: count */
+    if (st != SRMECH_OK) { return st; }
+    char (*names)[SRMECH_PLAT_DIR_NAME_MAX] = genome_arena_alloc(
+        &a, (size_t)((n == 0u) ? 1u : n) * SRMECH_PLAT_DIR_NAME_MAX);
+    srmech_json_value_t **groots = genome_arena_alloc(
+        &a, (size_t)((n == 0u) ? 1u : n) * sizeof(*groots));
+    if (names == NULL || groots == NULL) { return SRMECH_ERR_OVERFLOW; }
+    uint32_t n2 = 0u;
+    st = genome_list_genomes(root, names, n, &n2);                 /* pass 2: fill */
+    if (st != SRMECH_OK) { return st; }
+    genome_sort_names(names, n2);
+    st = genome_registry_census_all(&a, root, names, n2, the_one, the_one_len, groots);
+    if (st != SRMECH_OK) { return st; }
+    /* Copy `root` into the arena so the tree's "root" is SELF-CONTAINED (held by
+     * reference; the caller's `root` string may not outlive the later json write). */
+    size_t rlen = strlen(root);
+    char *root_copy = genome_arena_alloc(&a, rlen + 1u);
+    if (root_copy == NULL) { return SRMECH_ERR_OVERFLOW; }
+    memcpy(root_copy, root, rlen + 1u);
+    return genome_registry_root(&a, root_copy, groots, n2, out_registry);
 }
 
 /* ------------------------------------------------------------------ *

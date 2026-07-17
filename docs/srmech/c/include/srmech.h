@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc266"
-#define SRMECH_VERSION       "0.9.0rc266"
+#define SRMECH_VERSION_PRE   "rc267"
+#define SRMECH_VERSION       "0.9.0rc267"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5612,6 +5612,47 @@ srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_
 srmech_status_t srmech_genome_catalog(
     const char *dir, const unsigned char *the_one, size_t the_one_len,
     void *ws, size_t ws_len, srmech_json_value_t **out_manifest);
+
+/* §96 CENSUS: the biology-native per-genome roll-up. Scans the body ONCE (the
+ * per-chromosome cap_kind rides the §44 scan — no O(n) per-chromosome loads)
+ * and returns a JSON value tree in the caller arena `ws`:
+ *   {path, n_chromosomes, types:{stick,minted,diploid},
+ *    chromosomes:[{label,type,leaf_count}], total_leaves, topology}
+ * `type`/`cap_kind` is stick / minted (an interior §95a centromere) / diploid (a
+ * §95b diploid-telomere opener with no centromere; minted > diploid > stick).
+ * `topology` is a STRUCTURAL integer read (no libm): "nuclear-like" (any minted /
+ * diploid), else "organelle-like" (n>0 and total_leaves <= 8*n), else
+ * "plasmid/prokaryote-like" (n>0, all stick), else "empty". Same manifest-present
+ * / manifest-less rules as srmech_genome_catalog (pass the_one when absent).
+ *
+ * Error returns: SRMECH_ERR_NULL_ARG (dir/ws/out NULL); SRMECH_ERR_IO
+ * (turns.bin unreadable); SRMECH_ERR_OVERFLOW (ws too small);
+ * SRMECH_ERR_BAD_INPUT (malformed manifest, or absent + no the_one).
+ */
+srmech_status_t srmech_genome_census(
+    const char *dir, const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len, srmech_json_value_t **out_census);
+
+/* Arena bytes srmech_genome_census needs for a body of `body_len` bytes /
+ * `n_chroms` chromosomes (== the catalog budget; a census subtree is smaller). */
+size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms);
+
+/* §96 REGISTRY: the cell/melange census over a ROOT of genomes. Scans `root`
+ * for genome dirs (a subdir holding BOTH turns.bin and manifest.json) via the
+ * PAL directory surface (no #ifdef), censuses each (sorted by basename), and
+ * returns a JSON value tree in `ws`:
+ *   {root, n_genomes, genomes:[<census per genome>]}
+ * `ws` must fit the SUM of the per-genome census arenas
+ * (srmech_genome_census_arena_bytes) plus a small registry-root reserve; a
+ * root with no genome dirs yields n_genomes 0 (not an error).
+ *
+ * Error returns: SRMECH_ERR_NULL_ARG (root/ws/out NULL); SRMECH_ERR_IO
+ * (a genome's turns.bin unreadable); SRMECH_ERR_OVERFLOW (ws too small);
+ * SRMECH_ERR_BAD_INPUT (a genome's manifest malformed, or absent + no the_one).
+ */
+srmech_status_t srmech_genome_registry(
+    const char *root, const unsigned char *the_one, size_t the_one_len,
+    void *ws, size_t ws_len, srmech_json_value_t **out_registry);
 
 /* LOAD: read <dir>/turns.bin into `out` (capacity out_cap bytes), re-hash
  * the whole body and compare its hex against the manifest's
