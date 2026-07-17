@@ -69,11 +69,12 @@ from __future__ import annotations
 import functools
 from typing import Dict, List, Sequence, Tuple
 
-from srmech.amsc.q import Q, to_q             # #845: exact-ℚ carrier (was Fraction)
+from srmech.amsc.q import Q                   # #845: exact-ℚ carrier (was Fraction)
 
 from srmech.amsc import rational as _srn
 
 from srmech.amsc.cascade import magnitude as _magnitude
+from srmech.amsc.cascade import best_rational_signed as _brs  # #845: signed float→ℚ snap
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.mat import Mat
 from srmech.amsc.laplacian import (
@@ -282,11 +283,14 @@ def _rank_exact(columns: Sequence[Sequence[Number]]) -> int:
     n_rows = len(columns[0])
     # Build the (n_rows, n_cols) rational matrix (columns → rows of Aᵀ form is
     # unnecessary; rank(A) == rank of the row-reduced (n_rows, n_cols) matrix).
-    # #845: the exact rational of each coord, snapped to denominator ≤ 10^12 —
-    # the old ``Fraction(x).limit_denominator(10**12)`` via the Class-N
-    # ``best_rational`` (the coords ARE small exact rationals, so this recovers
-    # the exact value; best_rational returns the pair unchanged when den ≤ max).
-    rows = [[Q.from_pair(_srn.best_rational(*to_q(columns[c][r]).as_pair(), 10 ** 12))
+    # #845: each coord snapped to denominator ≤ 10^12 — the old
+    # ``Fraction(x).limit_denominator(10**12)`` via the SIGNED Class-K∘N∘C cascade
+    # ``best_rational_signed`` (strips the sign at the Class-K pin-slot, best-
+    # rationals the non-negative magnitude, reapplies the sign). Handles the
+    # NEGATIVE octonion structure constants ({-1, 0, +1}) that the bare Class-N
+    # ``best_rational`` rejects; the coords ARE small exact rationals, so this
+    # recovers the exact value.
+    rows = [[Q.from_pair(_brs(float(columns[c][r]), max_denominator=10 ** 12))
              for c in range(n_cols)] for r in range(n_rows)]
     rank = 0
     pivot_col = 0
