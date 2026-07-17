@@ -5571,6 +5571,27 @@ srmech_status_t srmech_genome_save(
 size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
                                  size_t region_len);
 
+/* The exact working-arena size (bytes) srmech_genome_append needs for the genome at
+ * `dir` when it stages a `region_len`-byte region. Reads manifest.json into `ws`
+ * (needs manifest_size + 1 bytes; a few KB for a v12 head-only genome) and classifies
+ * EXACTLY as srmech_genome_append (same byte-substring probe): a v12 head
+ * ("n_chromosomes") or a v4..v11 full manifest ("regions") takes the O(1) tail-extend →
+ * a MANIFEST-scaled arena; a legacy v2/v3 (neither key) migrates once → a whole-body
+ * arena. The tail-extend fast path stages ONE region slot + a head-only (1-entry)
+ * manifest, so its arena is O(1) in the chromosome count (does NOT grow with the body).
+ * A bare-C host sizes its `ws` arena for an append from THIS — the v12/legacy
+ * classification lives ONCE, in C, not reimplemented per host. On success *out_bytes
+ * gets the size.
+ *
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG   — dir / out_bytes is NULL (or ws is NULL with ws_len != 0).
+ *   SRMECH_ERR_OVERFLOW   — ws is too small to hold manifest.json (needs msz + 1).
+ *   SRMECH_ERR_IO         — the body turns.bin is missing / unstattable.
+ * Adding this symbol does NOT bump SRMECH_ABI_VERSION. */
+srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_len,
+                                                 void *ws, size_t ws_len,
+                                                 size_t *out_bytes);
+
 /* CATALOG: obtain the manifest catalog as a JSON value tree from the caller
  * arena `ws`. When <dir>/manifest.json is PRESENT this parses it ONLY (never
  * opens turns.bin) — the cheap catalog read. §44: when it is ABSENT the catalog

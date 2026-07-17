@@ -197,6 +197,53 @@ int main(void)
                    "new 'C' entry at offset 24");
     }
 
+    /* §97 C-host parity: srmech_genome_append_arena_bytes sizes the v12 append arena
+     * from the MANIFEST (O(1) tail-extend), never the body — a bare-C host sizes right
+     * with no Python. The genome here is A+B+C (a v12 HEAD-ONLY manifest carrying the
+     * scalar n_chromosomes = 3). Prove: (1) it returns OK + a usable size; (2) that
+     * size EQUALS the manifest-scaled arithmetic, NOT the body-scaled one; (3) the
+     * size actually SUFFICES for a real append (run one bounded to exactly `sz`). */
+    {
+        size_t msz = 0u, body = 0u;
+        char mp[1200], bp[1200];
+        snprintf(mp, sizeof(mp), "%s/manifest.json", dir);
+        snprintf(bp, sizeof(bp), "%s/turns.bin", dir);
+        FILE *mf = fopen(mp, "rb");
+        check_true(mf != NULL, "open manifest.json for arena-size check");
+        if (mf != NULL) { fseek(mf, 0L, SEEK_END); msz = (size_t)ftell(mf); fclose(mf); }
+        FILE *bf = fopen(bp, "rb");
+        check_true(bf != NULL, "open turns.bin for arena-size check");
+        if (bf != NULL) { fseek(bf, 0L, SEEK_END); body = (size_t)ftell(bf); fclose(bf); }
+
+        size_t sz = 0u;
+        srmech_status_t as = srmech_genome_append_arena_bytes(dir, 8u, g_ws,
+                                                              sizeof(g_ws), &sz);
+        check_true(as == SRMECH_OK && sz > 0u, "append_arena_bytes(v12) OK");
+        /* MANIFEST-scaled with n_chroms = 1: the O(1) v4 head path stages ONE region
+         * slot + a head-only (1-entry) manifest, so the arena is INDEPENDENT of the
+         * chromosome count (the §97 O(1) guarantee) — never `n_chromosomes` * per_chrom. */
+        size_t manifest_scaled = srmech_genome_arena_bytes(msz * 6u + 300000u, 1u, 8u);
+        check_true(sz == manifest_scaled,
+                   "append arena is MANIFEST-scaled, n_chroms=1 (O(1) v4 path)");
+        /* NOT the whole-body migration size (guards against a v12 misroute). */
+        size_t body_scaled = srmech_genome_arena_bytes(body + 8u, 1u, 8u);
+        check_true(sz != body_scaled || body + 8u == msz * 6u + 300000u,
+                   "append arena is NOT body-scaled for v12");
+        /* The size actually SUFFICES: a real append bounded to EXACTLY `sz` bytes of
+         * the arena succeeds — a bare-C host would size its arena from this, no more.
+         * (This mutates the genome to A+B+C+D; the BOUNDING/§44 sections below re-save
+         * a fresh body, so the extra chromosome does not perturb them.) */
+        {
+            unsigned char dregion[8] = {
+                /* D CHROM cap */ CC, (unsigned char)'D', 0u, 0u,
+                /* D turn0     */ 1u, 1u, 0u, 3u,
+            };
+            srmech_status_t ds = srmech_genome_append(dir, "D", dregion,
+                sizeof(dregion), leaf_dim, the_one, sizeof(the_one), g_ws, sz);
+            check_true(ds == SRMECH_OK, "append fits in append_arena_bytes size");
+        }
+    }
+
     /* BOUNDING: corrupt one byte of turns.bin -> load returns the error. */
     {
         char body_path[1200];
