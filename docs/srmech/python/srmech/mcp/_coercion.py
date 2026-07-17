@@ -1007,6 +1007,10 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Sequence[int]": _identity,   # v0.9.0rc121: genome.kernel_pack `data` (flat Klein-4 kernel; JSON-native)
     "list|str": _identity,        # v0.9.0rc121: genome.kernel_unpack `strand_or_path` (strand list OR path str; both JSON-native)
     "int | float | str | list | dict": _identity,
+    # v0.9.0rc268 (§98 chromatin): genome.condense `state` (True/False OR a (num,den) level — a
+    # JSON list) + `region` (None / an int data-turn index / a gene-label str); all JSON-native.
+    "bool | tuple": _identity,
+    "int | str | None": _identity,
     # 0.9.0rc108: laplacian.heat_trace `t` / laplacian.ground_state_flux_response
     # `fluxes` — a scalar diffusion-time/flux OR a list of them; both forms are
     # JSON-native (the op itself dispatches scalar → float, sequence → Vec).

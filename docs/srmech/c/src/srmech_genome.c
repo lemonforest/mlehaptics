@@ -68,9 +68,9 @@
 /* The §41 manifest data_schema_id (== GENOME_MANIFEST_SCHEMA_ID). */
 #define SRMECH_GENOME_SCHEMA_ID "srmech://schema/genome_manifest/v1"
 
-/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v12" — tracks
- * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; v11->v12 head-only). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v14"
+/* The §41 parser_rule_hash pre-image (== f"genome_persistence/v{FORMAT_VERSION}" — tracks
+ * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; v14->v15 §98 chromatin). */
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v15"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -262,6 +262,7 @@ static int genome_cap_kind(const unsigned char *block, size_t len)
         m == SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
         m == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
         m == SRMECH_GENOME_CENTROMERE_CAP_MARKER ||    /* §95a interior centromere */
+        m == SRMECH_GENOME_CHROMATIN_MARKER ||         /* §98 interior chromatin cap */
         m == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid boundary */
         return (int)m;
     }
@@ -1198,6 +1199,116 @@ srmech_status_t srmech_genome_recover_diploid(const unsigned char *strand, size_
     return SRMECH_OK;
 }
 
+/* §98/v15 (rc268, #1422) — write a uint64 BIG-ENDIAN into out[0..8): the chromatin cap's
+ * num/den accessibility-level fields. No abs (a level numerator/denominator is never negated). */
+static void genome_put_u64_be(unsigned char *out, uint64_t v)
+{
+    assert(out != NULL);
+    assert(SRMECH_GENOME_CHROMATIN_LEVEL_BYTES == 8u);
+    for (size_t k = 0u; k < SRMECH_GENOME_CHROMATIN_LEVEL_BYTES; k++) {
+        unsigned shift = 8u * (unsigned)(SRMECH_GENOME_CHROMATIN_LEVEL_BYTES - 1u - k);
+        out[k] = (unsigned char)((v >> shift) & 0xFFu);
+    }
+}
+
+/* §98/v15 — read a uint64 BIG-ENDIAN from cap[base..base+8). Bounds are checked by the caller. */
+static uint64_t genome_get_u64_be(const unsigned char *cap, size_t base)
+{
+    assert(cap != NULL);
+    assert(base < base + SRMECH_GENOME_CHROMATIN_LEVEL_BYTES);    /* no wrap */
+    uint64_t v = 0u;
+    for (size_t k = 0u; k < SRMECH_GENOME_CHROMATIN_LEVEL_BYTES; k++) {
+        v = (v << 8) | (uint64_t)cap[base + k];
+    }
+    return v;
+}
+
+/* §98/v15 CHROMATIN cap writer (rc268, #1422) — mirror srmech.amsc.genome._pack_chromatin:
+ * [0x48] + handle + NUL + chromatin_type + num(u64 BE) + den(u64 BE), NUL-padded to dim. The
+ * accessibility level num/den is a reduced non-negative rational in [0,1] (den >= 1, num <= den).
+ * Byte-identical to the Python cap. No malloc/abs/float. */
+static srmech_status_t genome_pack_chromatin(unsigned char chromatin_type,
+                                             uint64_t num, uint64_t den,
+                                             const unsigned char *handle,
+                                             size_t handle_len, uint32_t dim,
+                                             unsigned char *out, size_t out_cap)
+{
+    if (out == NULL || (handle == NULL && handle_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(handle != NULL || handle_len == 0u);
+    if (dim == 0u || (size_t)dim > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    if (chromatin_type > SRMECH_GENOME_CHROMATIN_TYPE_GRADED) { return SRMECH_ERR_BAD_INPUT; }
+    if (den == 0u || num > den) { return SRMECH_ERR_BAD_INPUT; }   /* level in [0,1], den positive */
+    size_t lb = (size_t)SRMECH_GENOME_CHROMATIN_LEVEL_BYTES;
+    size_t payload = 3u + handle_len + 2u * lb;   /* marker + handle + NUL + type + num + den */
+    if (payload > (size_t)dim) { return SRMECH_ERR_BAD_INPUT; }
+    out[0] = SRMECH_GENOME_CHROMATIN_MARKER;
+    if (handle_len != 0u) { memcpy(out + 1, handle, handle_len); }
+    out[1u + handle_len] = 0u;                            /* handle NUL terminator */
+    out[2u + handle_len] = chromatin_type;                /* chromatin_type uint8 */
+    genome_put_u64_be(out + 3u + handle_len, num);        /* num (u64 BE) */
+    genome_put_u64_be(out + 3u + handle_len + lb, den);   /* den (u64 BE) */
+    memset(out + payload, 0, (size_t)dim - payload);      /* NUL pad */
+    return SRMECH_OK;
+}
+
+/* §98/v15 public CHROMATIN cap writer — the srmech_genome_chromatin wrapper. */
+srmech_status_t srmech_genome_chromatin(unsigned char chromatin_type, uint64_t num,
+                                        uint64_t den, const unsigned char *handle,
+                                        size_t handle_len, uint32_t dim,
+                                        unsigned char *out, size_t out_cap)
+{
+    if (out == NULL || (handle == NULL && handle_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(handle != NULL || handle_len == 0u);
+    return genome_pack_chromatin(chromatin_type, num, den, handle, handle_len,
+                                 dim, out, out_cap);
+}
+
+/* §98/v15 CHROMATIN READ (rc268) — the strand scan (mirror srmech.amsc.genome.chromatin_of).
+ * Walk n_blocks leaf_dim-byte blocks; on the FIRST interior 0x48 cap fill type/num/den + *at_out
+ * (data turns before it: 0 = whole-chromosome, >0 = a stretch). No abs, no float, no mutation. */
+srmech_status_t srmech_genome_chromatin_of(const unsigned char *strand, size_t n_blocks,
+                                           uint32_t leaf_dim, unsigned char *type_out,
+                                           uint64_t *num_out, uint64_t *den_out,
+                                           size_t *at_out, int *found_out)
+{
+    if (strand == NULL || found_out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(strand != NULL && found_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);          /* the guard above holds here */
+    *found_out = 0;
+    size_t lb = (size_t)SRMECH_GENOME_CHROMATIN_LEVEL_BYTES;
+    size_t turns = 0u;
+    for (size_t i = 0u; i < n_blocks; i++) {
+        const unsigned char *block = strand + i * (size_t)leaf_dim;
+        int kind = genome_cap_kind(block, leaf_dim);
+        if (kind == (int)SRMECH_GENOME_CHROMATIN_MARKER) {
+            size_t nul = 1u;                             /* handle NUL scan (bytes [1:]) */
+            while (nul < (size_t)leaf_dim && block[nul] != 0u) { nul++; }
+            if (nul + 2u + 2u * lb > (size_t)leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+            unsigned char ct = block[nul + 1u];
+            uint64_t num = genome_get_u64_be(block, nul + 2u);
+            uint64_t den = genome_get_u64_be(block, nul + 2u + lb);
+            if (ct > SRMECH_GENOME_CHROMATIN_TYPE_GRADED || den == 0u || num > den) {
+                return SRMECH_ERR_BAD_INPUT;
+            }
+            if (type_out != NULL) { *type_out = ct; }
+            if (num_out != NULL) { *num_out = num; }
+            if (den_out != NULL) { *den_out = den; }
+            if (at_out != NULL) { *at_out = turns; }
+            *found_out = 1;
+            return SRMECH_OK;
+        }
+        if (kind < 0) { turns++; }                       /* a coupled data turn */
+    }
+    return SRMECH_OK;
+}
+
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome). Mirror srmech.amsc.genome.partition(strand, the_one): walk
  * the strand's `n_blocks` fixed-width leaf_dim-byte blocks; a CHROM / kernel-telomere
@@ -1396,8 +1507,9 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
                 body[off] != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_GRADED_GENE_MARKER &&
                 body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER &&
+                body[off] != SRMECH_GENOME_CHROMATIN_MARKER &&
                 body[off] != SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
-                s->leaf_count[cur]++;                 /* §95a centromere is a cap, not a turn */
+                s->leaf_count[cur]++;                 /* §95a centromere / §98 chromatin: a cap, not a turn */
             }
         }
         s->byte_len[cur] += (uint32_t)blen;
@@ -3990,9 +4102,9 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 
 /* The §43 .chr data_schema_id (== GENOME_CHR_SCHEMA_ID). */
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
-/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v12" — tracks
- * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; v11->v12 head-only). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v14"
+/* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v{FORMAT_VERSION}" — tracks
+ * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; v14->v15 §98 chromatin). */
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v15"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."

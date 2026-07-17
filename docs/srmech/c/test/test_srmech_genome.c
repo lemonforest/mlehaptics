@@ -911,6 +911,68 @@ int main(void)
         }
     }
 
+    /* §98/rc268: the CHROMATIN access cap writer (srmech_genome_chromatin) + strand read
+     * (srmech_genome_chromatin_of). leaf_dim2 = 32 (a chromatin cap's [marker + handle + NUL +
+     * type + num(8) + den(8)] needs >= 19 bytes, so the leaf_dim=4 body above is too narrow). */
+    {
+        const uint32_t ld2 = 32u;
+        unsigned char strand[4u * 32u];
+        unsigned char tmp[32];
+        unsigned char ctype;
+        uint64_t num, den;
+        size_t at;
+        int found;
+
+        /* HEAD scope: [CHROM cap, CHROMATIN(binary condensed 0/1), turn, turn] -> at == 0. */
+        memset(strand, 0, sizeof(strand));
+        strand[0] = CC; strand[1] = (unsigned char)'c';           /* block 0: a CHROM boundary cap */
+        st = srmech_genome_chromatin(SRMECH_GENOME_CHROMATIN_TYPE_BINARY, 0u, 1u,
+                                     (const unsigned char *)"chr", 3u, ld2,
+                                     strand + ld2, ld2);          /* block 1: the chromatin cap */
+        check_true(st == SRMECH_OK, "chromatin cap writer OK (binary condensed)");
+        check_true(strand[ld2] == (unsigned char)SRMECH_GENOME_CHROMATIN_MARKER,
+                   "chromatin cap first byte == 0x48");
+        strand[2u * ld2] = 1u; strand[2u * ld2 + 1u] = 2u;        /* block 2: a Klein-4 data turn */
+        strand[3u * ld2] = 3u;                                    /* block 3: a Klein-4 data turn */
+        ctype = 9u; num = 9u; den = 9u; at = 99u; found = -1;
+        st = srmech_genome_chromatin_of(strand, 4u, ld2, &ctype, &num, &den, &at, &found);
+        check_true(st == SRMECH_OK && found == 1, "chromatin_of finds the head marker");
+        check_true(ctype == SRMECH_GENOME_CHROMATIN_TYPE_BINARY && num == 0u && den == 1u,
+                   "chromatin_of reads binary condensed (0/1)");
+        check_true(at == 0u, "chromatin_of at == 0 (head / whole-chromosome scope)");
+
+        /* INTERIOR STRETCH: [CHROM cap, turn, CHROMATIN(graded 1/3), turn] -> at == 1. */
+        memset(strand, 0, sizeof(strand));
+        strand[0] = CC; strand[1] = (unsigned char)'c';
+        strand[ld2] = 1u; strand[ld2 + 1u] = 2u;                 /* block 1: a data turn */
+        st = srmech_genome_chromatin(SRMECH_GENOME_CHROMATIN_TYPE_GRADED, 1u, 3u,
+                                     (const unsigned char *)"chr", 3u, ld2,
+                                     strand + 2u * ld2, ld2);     /* block 2: the chromatin cap */
+        check_true(st == SRMECH_OK, "chromatin cap writer OK (graded 1/3)");
+        strand[3u * ld2] = 3u;                                    /* block 3: a data turn */
+        ctype = 9u; num = 9u; den = 9u; at = 99u; found = -1;
+        st = srmech_genome_chromatin_of(strand, 4u, ld2, &ctype, &num, &den, &at, &found);
+        check_true(st == SRMECH_OK && found == 1 &&
+                   ctype == SRMECH_GENOME_CHROMATIN_TYPE_GRADED && num == 1u && den == 3u,
+                   "chromatin_of reads graded 1/3");
+        check_true(at == 1u, "chromatin_of at == 1 (interior stretch scope)");
+
+        /* a chromatin-FREE strand -> found == 0 (all-euchromatin default). */
+        memset(strand, 0, sizeof(strand));
+        strand[0] = CC; strand[ld2] = 1u;
+        found = -1;
+        st = srmech_genome_chromatin_of(strand, 2u, ld2, NULL, NULL, NULL, NULL, &found);
+        check_true(st == SRMECH_OK && found == 0, "chromatin_of: chromatin-free -> not found");
+
+        /* the writer rejects a bad level (num > den) and a too-small dim. */
+        st = srmech_genome_chromatin(SRMECH_GENOME_CHROMATIN_TYPE_BINARY, 5u, 1u,
+                                     NULL, 0u, ld2, tmp, ld2);
+        check_true(st == SRMECH_ERR_BAD_INPUT, "chromatin writer rejects num > den");
+        st = srmech_genome_chromatin(SRMECH_GENOME_CHROMATIN_TYPE_BINARY, 0u, 1u,
+                                     NULL, 0u, 4u, tmp, 4u);
+        check_true(st == SRMECH_ERR_BAD_INPUT, "chromatin writer rejects dim too small");
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }

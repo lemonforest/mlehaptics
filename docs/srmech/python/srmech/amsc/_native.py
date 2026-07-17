@@ -3453,6 +3453,24 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_recover_diploid.argtypes = [
                 _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
             lib.srmech_genome_recover_diploid.restype = ctypes.c_int
+        # §98/rc268 (#1422) — the CHROMATIN access cap writer + strand read. NEW symbols →
+        # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
+        #   int srmech_genome_chromatin(unsigned char chromatin_type, uint64_t num, uint64_t den,
+        #       const unsigned char *handle, size_t handle_len, uint32_t dim,
+        #       unsigned char *out, size_t out_cap)
+        if hasattr(lib, "srmech_genome_chromatin"):
+            lib.srmech_genome_chromatin.argtypes = [
+                ctypes.c_uint8, ctypes.c_uint64, ctypes.c_uint64, _U8, _SZ, _U32, _U8, _SZ]
+            lib.srmech_genome_chromatin.restype = ctypes.c_int
+        #   int srmech_genome_chromatin_of(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, unsigned char *type_out, uint64_t *num_out, uint64_t *den_out,
+        #       size_t *at_out, int *found_out)
+        if hasattr(lib, "srmech_genome_chromatin_of"):
+            lib.srmech_genome_chromatin_of.argtypes = [
+                _U8, _SZ, _U32, _U8,
+                ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64),
+                _PSZ, ctypes.POINTER(ctypes.c_int)]
+            lib.srmech_genome_chromatin_of.restype = ctypes.c_int
         #   int srmech_genome_partition(const unsigned char *strand, size_t n_blocks,
         #       uint32_t leaf_dim, const unsigned char *the_one,
         #       unsigned char *out_leaves, size_t out_leaves_cap,
@@ -17377,6 +17395,70 @@ def genome_recover_diploid_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
     if rc != SRMECH_OK:
         return None
     return bytes(out[:int(n_out.value) * leaf_dim])
+
+
+def has_native_genome_chromatin() -> bool:
+    """True iff the §98/rc268 srmech_genome_chromatin C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_chromatin"))
+
+
+def genome_chromatin_c(chromatin_type, num, den, handle, dim: int):
+    """Native §98 chromatin ACCESS cap writer (parity peer ``srmech_genome_chromatin``):
+    ``[0x48] + handle + NUL + chromatin_type + num(u64 BE) + den(u64 BE)``, NUL-padded to
+    ``dim`` — the packed ``dim``-byte cap bytes, or ``None`` when the symbol is absent OR the
+    inputs are invalid (the caller runs the pure ``_pack_chromatin``, which raises the exact
+    ValueError). Byte-identical to the bytes the pure path wraps in ``HV(sectors=256)``."""
+    if not has_native_genome_chromatin():
+        return None
+    raw = handle.encode("utf-8") if isinstance(handle, str) else bytes(handle)
+    if (not isinstance(chromatin_type, int) or isinstance(chromatin_type, bool)
+            or chromatin_type not in (0, 1)
+            or not isinstance(num, int) or isinstance(num, bool)
+            or not isinstance(den, int) or isinstance(den, bool)
+            or den < 1 or num < 0 or num > den or den >= (1 << 64)
+            or b"\x00" in raw or dim <= 0 or 3 + len(raw) + 16 > dim):
+        return None
+    out = (ctypes.c_uint8 * dim)()
+    rc = LIB.srmech_genome_chromatin(
+        ctypes.c_uint8(chromatin_type), ctypes.c_uint64(num), ctypes.c_uint64(den),
+        _u8(raw), ctypes.c_size_t(len(raw)), ctypes.c_uint32(dim),
+        out, ctypes.c_size_t(dim))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:dim])
+
+
+def has_native_genome_chromatin_of() -> bool:
+    """True iff the §98/rc268 srmech_genome_chromatin_of C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_chromatin_of"))
+
+
+def genome_chromatin_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
+    """Native §98 chromatin READ (parity peer ``srmech_genome_chromatin_of``): walk the
+    ``n_blocks`` ``leaf_dim``-byte blocks, read the FIRST interior 0x48 cap's
+    ``(chromatin_type, num, den)`` + the data-turn count before it. Returns
+    ``(found, chromatin_type, num, den, at)`` — ``found`` a bool — or ``None`` when the symbol
+    is absent OR the inputs do not fit the fast path."""
+    if not has_native_genome_chromatin_of():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    t_out = ctypes.c_uint8(0)
+    num_out = ctypes.c_uint64(0)
+    den_out = ctypes.c_uint64(0)
+    at_out = ctypes.c_size_t(0)
+    found = ctypes.c_int(0)
+    rc = LIB.srmech_genome_chromatin_of(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        ctypes.byref(t_out), ctypes.byref(num_out), ctypes.byref(den_out),
+        ctypes.byref(at_out), ctypes.byref(found))
+    if rc != SRMECH_OK:
+        return None
+    return (bool(found.value), int(t_out.value), int(num_out.value),
+            int(den_out.value), int(at_out.value))
 
 
 def has_native_genome_partition() -> bool:
