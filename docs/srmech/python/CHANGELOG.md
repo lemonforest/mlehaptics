@@ -11,6 +11,15 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc264]
+
+**Diploid erasure repair is now SYMMETRIC — a break on EITHER homolog heals from the intact one (§95.4 / #1407, found by a reviewer using rc262).** The rc259 changelog promised *"exactly one ERASED → fill from the intact homolog"* (direction-free), but a copyA erasure did **not** heal — the recovered leaf was the uncoupled garbage, not the truth. Root cause: `recover_diploid` tested the erasure sentinel on the **decoupled leaf**, but a break zeros the **stored turn**, and a zeroed turn decouples to a *non-zero* leaf — so the erasure was never actually detected. Healing only happened by substitution-tiebreak luck (which defaults to copyA), so a copyB break "worked" and a copyA break did not — asymmetric.
+
+- **Fix:** `_diploid_ec_leaf` (and its C peer `genome_diploid_ec_leaf`) now take the two **stored turns** and read the all-zero erasure sentinel **before** decoupling, then decouple the survivor. A break on either homolog now heals from the intact one, byte-exact. This also closes a latent *false*-erasure: a real leaf whose stored turn happened to equal `the_one` (decoupling to all-zero) was wrongly "healed" before — now only a genuinely zeroed turn is an erasure.
+- **No format / ABI change** — the on-disk diploid format is unchanged (v14); only the recover *logic* changed. A genome written by any prior rc reads identically (and now heals correctly). `genome_diploid_ec_leaf` is a static C function (no header/ABI touch).
+
+**Verified:** `test_genome_diploid_rc259` now asserts erasure recovery on **both** homologs (the §95.4 regression) with the correct all-zero-turn sentinel; C↔Python byte-parity on the clean + erased strands; `integrate` (rc262) + centromere (rc258) + JPL + version parity green.
+
 ## [0.9.0rc263]
 
 **The stdlib-`fractions` purge — srmech carries every exact rational in its OWN C-native `Q` carrier (#845). Self-hosting: a bare-C host with no Python stdlib runs the same exact-rational math.** srmech is its own maths library; it already borrows nothing from stdlib `math` (rc13) or `numpy` (rc75–rc133). rc263 closes the last stdlib-math dependency — `fractions.Fraction` — routing every exact rational through `srmech.amsc.q.Q` (a reduced `(num, den)` pair whose reduce/multiply ride the native `srmech_rational_*` / `srmech_bigint` symbols). **BREAKING (rc-stage, TestPyPI-first): ops that emitted a `Fraction` now emit a `Q`** — value-identical (`Q == Fraction`, same reduced pair) and full-numeric-protocol compatible, but `type(x) is Fraction` identity checks change to `Q`.

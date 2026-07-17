@@ -1050,28 +1050,44 @@ srmech_status_t srmech_genome_centromere_of(const unsigned char *strand,
     return SRMECH_OK;
 }
 
-/* §95b/v14 (rc259, #1407) — the per-leaf DIPLOID EC read (mirror _diploid_ec_leaf): both
- * homolog leaves agree -> use it; exactly one ERASED (all-zero leaf) -> the intact homolog
- * (the erasure specialist); both present but DISAGREE -> the centromere which-template mark
- * (which = 0 -> copyA, 1 -> copyB). Class-K sector compare; no float/abs. `a`/`b` are the two
- * uncoupled homolog leaves (leaf_dim bytes each); writes the chosen leaf to `out`. */
-static void genome_diploid_ec_leaf(const unsigned char *a, const unsigned char *b,
-                                   uint32_t leaf_dim, unsigned int which,
-                                   unsigned char *out)
+/* §95b/v14 (rc259, #1407; §95.4 rc264 erasure-symmetry fix) — the per-leaf DIPLOID EC read
+ * (mirror _diploid_ec_leaf): exactly one ERASED -> the intact homolog (the erasure
+ * specialist); both present + agree -> use it; both present but DISAGREE -> the centromere
+ * which-template mark (which = 0 -> copyA, 1 -> copyB). `a_turn`/`b_turn` are the two STORED
+ * homolog TURNS (leaf_dim bytes each, PRE-decouple): erasure is an all-zero stored TURN, read
+ * BEFORE decoupling — a zeroed turn decouples to a NON-zero leaf, so the sentinel MUST be
+ * tested on the turn (the §95.4 bug: testing the decoupled leaf detected no erasure, so a
+ * copyA break healed only by substitution-tiebreak luck — asymmetric). Decouples the
+ * survivor(s) via srmech_klein4_bind; writes the chosen leaf to `out`. Class-K compare; no
+ * float/abs. */
+static srmech_status_t genome_diploid_ec_leaf(const unsigned char *a_turn,
+                                              const unsigned char *b_turn,
+                                              const unsigned char *the_one,
+                                              uint32_t leaf_dim, unsigned int which,
+                                              unsigned char *out)
 {
-    assert(a != NULL && b != NULL && out != NULL);
-    assert(leaf_dim > 0u);
+    assert(a_turn != NULL && b_turn != NULL && the_one != NULL && out != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
     int a_erased = 1, b_erased = 1;
     for (uint32_t k = 0; k < leaf_dim; k++) {
-        if (a[k] != 0u) { a_erased = 0; }
-        if (b[k] != 0u) { b_erased = 0; }
+        if (a_turn[k] != 0u) { a_erased = 0; }
+        if (b_turn[k] != 0u) { b_erased = 0; }
     }
-    const unsigned char *pick;
-    if (memcmp(a, b, (size_t)leaf_dim) == 0) { pick = a; }        /* homologs agree */
-    else if (a_erased != 0 && b_erased == 0) { pick = b; }        /* erasure -> intact B */
-    else if (b_erased != 0 && a_erased == 0) { pick = a; }        /* erasure -> intact A */
-    else { pick = (which != 0u) ? b : a; }                        /* substitution -> mark */
+    if (a_erased != 0 && b_erased == 0) {                /* erasure -> heal from intact B */
+        return srmech_klein4_bind(b_turn, the_one, leaf_dim, out);
+    }
+    if (b_erased != 0 && a_erased == 0) {                /* erasure -> heal from intact A */
+        return srmech_klein4_bind(a_turn, the_one, leaf_dim, out);
+    }
+    unsigned char a[256], b[256];                        /* both present: decouple + compare */
+    srmech_status_t st = srmech_klein4_bind(a_turn, the_one, leaf_dim, a);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_klein4_bind(b_turn, the_one, leaf_dim, b);
+    if (st != SRMECH_OK) { return st; }
+    const unsigned char *pick = (memcmp(a, b, (size_t)leaf_dim) == 0)
+                                    ? a : ((which != 0u) ? b : a);
     memcpy(out, pick, (size_t)leaf_dim);
+    return SRMECH_OK;
 }
 
 /* §95b/v14 DIPLOID builder — [diploid_telomere, copyA…, centromere(orientation), copyB…],
@@ -1144,13 +1160,11 @@ srmech_status_t srmech_genome_recover_diploid(const unsigned char *strand, size_
     unsigned int which = (unsigned int)(o & 1u);
     if (n_before > out_cap / (size_t)leaf_dim) { return SRMECH_ERR_OVERFLOW; }
     for (size_t j = 0; j < n_before; j++) {
-        unsigned char a[256], b[256];                    /* uncoupled homolog leaves */
-        st = srmech_klein4_bind(strand + (1u + j) * (size_t)leaf_dim, the_one, leaf_dim, a);
+        /* pass the STORED turns (pre-decouple) — erasure is read on the turn (§95.4) */
+        st = genome_diploid_ec_leaf(strand + (1u + j) * (size_t)leaf_dim,
+                                    strand + (cen_idx + 1u + j) * (size_t)leaf_dim,
+                                    the_one, leaf_dim, which, out + j * (size_t)leaf_dim);
         if (st != SRMECH_OK) { return st; }
-        st = srmech_klein4_bind(strand + (cen_idx + 1u + j) * (size_t)leaf_dim, the_one,
-                                leaf_dim, b);
-        if (st != SRMECH_OK) { return st; }
-        genome_diploid_ec_leaf(a, b, leaf_dim, which, out + j * (size_t)leaf_dim);
     }
     *n_out = n_before;
     return SRMECH_OK;
