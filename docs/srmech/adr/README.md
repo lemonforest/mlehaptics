@@ -12,9 +12,13 @@ a decision is *superseded*, never edited away.
   policy" governs every rc, op, and review.
 - **Sources footer:** the discipline ADRs (0005–0007) link the project-memory topic
   files they consolidate, preserving the trail.
-- **Numbering note:** `0008` was renumbered from a duplicate `0002` on 2026-07-17;
-  older CHANGELOG / design-note references to `0002-phase-1-operator-chain-schema`
-  resolve to `0008`.
+- **Companion artifacts** share an ADR's number with a distinct extension — they are
+  NOT separate ADRs. `0001-profile-pattern.schema.json` is the machine-readable
+  `srmech_profile.toml` v1 schema that ADR-0001 defines (not a second ADR-0001).
+- **Numbering note:** the only genuine *number collision* (two different ADRs both
+  named `0002`) was resolved 2026-07-17 by renumbering the operator-chain schema to
+  `0008`; older CHANGELOG / design-note references to
+  `0002-phase-1-operator-chain-schema` resolve to `0008`.
 
 ## Index
 
