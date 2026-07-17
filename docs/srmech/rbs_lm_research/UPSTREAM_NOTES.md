@@ -3051,3 +3051,16 @@ Pulled rc265 (TestPyPI had lagged at rc262; pinning `srmech==0.9.0rc265` got it)
 2. **`genome_registry(root)`** (or `list_genomes(root)`) — the CELL/melange census: total genomes under a root + each one's `genome_census` + its nuclear-vs-organelle topology. This is the introspection layer over ADR-0006's set-of-genomes lichen.
 
 **How WE answer it today:** `R-RBS-LM-GENOME-CENSUS` (`census_one` / `census_root`) — the reference behaviour a native op would make O(1)-per-chromosome and C-mirrored. **Re-surface keywords:** `genome_census` · `chromosome type makeup` · `cap_kind in catalog` · `stick/minted/diploid count` · `nuclear vs organelle` · `plasmid` · `genome registry` · `the cell` · `melange census` · `§96`.
+
+## §97 BUG (2026-07-17; rc265, PKG-3 corpus encode) — `genome_append(catalog=cat)` LEAKS ~8 MB/call (O(n) RAM, internal to genome_append) → OOM at corpus scale
+
+The O(1)-**TIME** threaded-catalog append (§95.3/§95.5) has an O(n)-**MEMORY** growth: encoding the 240k-body simplewiki corpus was **OOM-killed at anon-rss 95 GB after only 3361 bodies** (dmesg: `Out of memory: Killed process … python3 … total-vm:98653232kB, anon-rss:95091044kB`). Characterised (`R-RBS-LM-GENOMEAPPEND-MEMLEAK`, fixed 413-leaf bodies = a full-corpus body):
+
+```
+appends   peak_RSS_GB   cat.chromosomes
+    400       1.64           401
+    800       5.88           801
+   2000      16.80          2001     -> ~8 MB retained PER APPEND
+```
+
+**The leak is INTERNAL to `genome_append`, not the caller's `cat`.** The returned catalog dict is **< 1 MB** (`chromosomes`/`regions` are pointer lists, `getsizeof ≈ 16 KB` each; the whole dict sums to a few KB) — yet peak RSS climbs ~8 MB per append. So `genome_append` retains the appended body's **coupled leaf HVs / staged turns** across calls (a cache or an unfreed working set), independent of what the caller threads. **Ask:** free the per-append working set (the coupled leaves / staged turns) after the O(1) tail-extend + head write — the append must be **O(1) in RAM as well as in TIME**. Then a six-figure-body corpus streams without OOM. **Workaround in use:** the memory-bounded **batch/explode/pack** path (build each `--batch` chunk in-RAM via `genome()`, `genome_explode` to a shared loose dir, one final linear `genome_pack`) — bounded RAM, O(n) time; PKG-3's corpus encode reverted to it. **Evidence:** `R-RBS-LM-GENOMEAPPEND-MEMLEAK` + the OOM dmesg. **Re-surface keywords:** `genome_append memory leak` · `O(n) RAM` · `8 MB per append` · `OOM 95 GB` · `internal not cat` · `free the coupled leaves` · `corpus scale` · `§97` · `#1407`.
