@@ -52,7 +52,7 @@ def _encode_native(data_bytes, cum, total):
     ``(num, den)`` pair equals the Python Fraction exactly. Returns ``None`` (→
     pure) on an out-of-table symbol (the pure path raises the same ValueError),
     an unbuildable total, or an arena overflow on a pathologically long input."""
-    from fractions import Fraction
+    from srmech.amsc.q import Q, to_q
 
     if not _native.has_native_arithmetic_encode():
         return None
@@ -84,8 +84,8 @@ def _encode_native(data_bytes, cum, total):
         ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(words * 4))
     if rc != _native.SRMECH_OK:
         return None
-    lo = Fraction(int(lo_num.value.decode("ascii")), int(lo_den.value.decode("ascii")))
-    hi = Fraction(int(hi_num.value.decode("ascii")), int(hi_den.value.decode("ascii")))
+    lo = Q(int(lo_num.value.decode("ascii")), int(lo_den.value.decode("ascii")))
+    hi = Q(int(hi_num.value.decode("ascii")), int(hi_den.value.decode("ascii")))
     return lo, hi
 
 
@@ -122,7 +122,7 @@ def op(
     Encode: ``(lo, hi, freq)`` — narrowed rational interval as Fraction pair.
     Decode: ``bytes`` of recovered symbols.
     """
-    from fractions import Fraction
+    from srmech.amsc.q import Q, to_q
 
     if decode:
         if freq is None or length is None:
@@ -132,19 +132,19 @@ def op(
         cum, total = _cumulative(freq)
         # data should be a Fraction representing a point in [lo, hi)
         if isinstance(data, tuple) and len(data) == 2:
-            point = (Fraction(data[0]) + Fraction(data[1])) / 2
+            point = (to_q(data[0]) + to_q(data[1])) / 2
         else:
-            point = Fraction(data)
+            point = to_q(data)
         out = bytearray()
-        lo = Fraction(0)
-        hi = Fraction(1)
+        lo = Q(0)
+        hi = Q(1)
         for _ in range(length):
             span = hi - lo
             # Find which symbol's cum range contains (point - lo) / span * total
             target = (point - lo) * total / span
             chosen_sym = None
             for sym, (c_lo, c_hi) in cum.items():
-                if Fraction(c_lo) <= target < Fraction(c_hi):
+                if to_q(c_lo) <= target < to_q(c_hi):
                     chosen_sym = sym
                     break
             if chosen_sym is None:
@@ -152,8 +152,8 @@ def op(
                 chosen_sym = max(cum.keys())
             out.append(chosen_sym & 0xFF)
             c_lo, c_hi = cum[chosen_sym]
-            new_lo = lo + span * Fraction(c_lo, total)
-            new_hi = lo + span * Fraction(c_hi, total)
+            new_lo = lo + span * Q(c_lo, total)
+            new_hi = lo + span * Q(c_hi, total)
             lo, hi = new_lo, new_hi
         return bytes(out)
 
@@ -173,14 +173,14 @@ def op(
     native = _encode_native(data_bytes, cum, total)     # rc144 §B6b
     if native is not None:
         return native[0], native[1], dict(freq)
-    lo = Fraction(0)
-    hi = Fraction(1)
+    lo = Q(0)
+    hi = Q(1)
     for b in data_bytes:
         if b not in cum:
             raise ValueError(f"symbol {b} not in frequency table")
         c_lo, c_hi = cum[b]
         span = hi - lo
-        new_lo = lo + span * Fraction(c_lo, total)
-        new_hi = lo + span * Fraction(c_hi, total)
+        new_lo = lo + span * Q(c_lo, total)
+        new_hi = lo + span * Q(c_hi, total)
         lo, hi = new_lo, new_hi
     return lo, hi, dict(freq)

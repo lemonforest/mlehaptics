@@ -83,7 +83,7 @@ from . import _native
 from . import cyclic as _cyclic
 from . import rational as _rational
 
-__all__ = ["Q"]
+__all__ = ["Q", "to_q"]
 
 
 def _integer_exponent(exp):
@@ -131,6 +131,13 @@ def _as_pair(value):
             and isinstance(value[0], int) and isinstance(value[1], int)
             and value[1] != 0):
         return (value[0], value[1])
+    # Any other exact-rational carrier — a stdlib ``fractions.Fraction`` or another
+    # ``numbers.Rational`` (#845: srmech ops now return ``Q``, so a caller's stray
+    # ``Fraction`` must still compare/combine with a ``Q`` — ``Q * Fraction`` and
+    # ``Fraction * Q`` both route here). ``Q`` / ``int`` are handled above; a
+    # ``float`` is not a ``Rational`` (it took its own exact-ratio branch).
+    if isinstance(value, numbers.Rational):
+        return (int(value.numerator), int(value.denominator))
     return None
 
 
@@ -624,3 +631,40 @@ class Q:
 # ``as_integer_ratio`` on Python ≥3.14; on 3.10–3.13 it requires a registered
 # ``Rational``). See `[[feedback_fraction_of_q_carrier_needs_as_integer_ratio_route_pre_314]]`.
 numbers.Rational.register(Q)
+
+
+def to_q(value) -> "Q":
+    """Coerce ``value`` to an exact :class:`Q` — the single-argument drop-in for
+    ``fractions.Fraction(value)`` inside srmech's OWN exact-rational math (#845
+    self-hosting: srmech carries its rationals in the C-native ``Q`` carrier, not
+    stdlib ``fractions``). Accepts exactly what a one-arg ``Fraction(...)`` accepts
+    and srmech speaks natively:
+
+    - a :class:`Q` (returned unchanged — no re-reduce);
+    - an ``int`` / ``bool`` → ``Q(value)`` (denominator 1);
+    - a ``float`` → the EXACT rational ``Q.from_float`` (Python's one-arg
+      ``Fraction(float)`` is exact — the same ``x.as_integer_ratio()``, no
+      precision lost; to *approximate* to a small denominator use Class-N
+      ``rational.best_rational`` instead);
+    - a ``(num, den)`` int pair (srmech's rational house form) → ``Q(num, den)``;
+    - any object exposing the numeric ``as_integer_ratio`` protocol (a
+      :class:`~fractions.Fraction`, another ``Q``, an ``int``) → its exact pair.
+
+    The two-int constructor call ``Fraction(num, den)`` maps to ``Q(num, den)``
+    directly (not through here — ``to_q`` is the one-argument coercion)."""
+    if isinstance(value, Q):
+        return value
+    if isinstance(value, int):                      # includes bool
+        return Q(value)
+    if isinstance(value, float):
+        return Q.from_float(value)
+    if (isinstance(value, (tuple, list)) and len(value) == 2
+            and isinstance(value[0], int) and isinstance(value[1], int)):
+        return Q(value[0], value[1])
+    ratio = getattr(value, "as_integer_ratio", None)
+    if ratio is not None:
+        num, den = ratio()
+        return Q(int(num), int(den))
+    raise TypeError(
+        f"to_q: cannot coerce {type(value).__name__} to an exact Q "
+        f"(expected Q / int / float / (num, den) pair / as_integer_ratio-able)")

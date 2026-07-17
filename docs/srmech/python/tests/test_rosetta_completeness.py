@@ -1301,8 +1301,10 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.amsc.carrier_ladder.poly_promote",
     "srmech.amsc.carrier_ladder.qpoly_project",
     "srmech.amsc.carrier_ladder.qpoly_promote",
-    "srmech.amsc.cascade.cayley_dickson.cd_project",
-    "srmech.amsc.cascade.cayley_dickson.cd_promote",
+    # cd_project / cd_promote LEFT the zero-reach set in 0.9.0rc263 (#845): they
+    # now build the CD element carrier ``Q`` (was a pure-Python ``Fraction(0)``
+    # pad), and ``Q``'s constructor reaches the c_dispatched rational-reduce
+    # symbol — so they are composes_c WITH C reach now, no longer zero-reach.
     "srmech.amsc.cascade.cayley_dickson.is_division_algebra_dim",
     "srmech.amsc.cascade.compose.top_k_by_score",
     "srmech.amsc.cascade.one.one_dim",

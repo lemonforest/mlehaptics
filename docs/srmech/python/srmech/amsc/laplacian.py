@@ -100,7 +100,8 @@ import os  # §52 Part 2: disk-backed work queue + tome files for the out-of-cor
 import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-of-core Fiedler
 import tempfile  # §52 Part 2: default scratch dir for recursive_cut
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
-from fractions import Fraction  # §26: exact-rational interior solve (Class-N), no float
+from srmech.amsc.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
+from srmech.amsc import rational as _srn  # #845: best_rational for the ex-limit_denominator
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
@@ -776,7 +777,7 @@ def jacobi_eigvals(
       an integer/rational SYMMETRIC matrix: a non-symmetric integer matrix
       can have complex eigenvalues that the real-root ``eigvals_exact``
       returns incompletely.) The spectrum then stays exact — char-poly
-      Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Fraction``
+      Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Q``
       bisection — until the single terminal float lift (the rotation-last
       "exact-substrate-achievable" case). The return is the same contract as
       the float path: a 1-D :class:`~srmech.amsc.vec.Vec` of ``n`` ascending
@@ -851,7 +852,7 @@ def _validate_boundary(n: int, boundary_idx: Sequence[int]) -> Tuple[List[int], 
     return b, i
 
 
-def _solve_exact(A: List[list], B: List[list]) -> List[List[Fraction]]:
+def _solve_exact(A: List[list], B: List[list]) -> List[List[Q]]:
     """Exact-rational solve of ``A · X = B`` over the rationals — Gauss–Jordan
     elimination in :class:`fractions.Fraction` (the Class-N exact-rational
     primitive; division here is exact, never a float reciprocal — F392). ``A``
@@ -862,7 +863,7 @@ def _solve_exact(A: List[list], B: List[list]) -> List[List[Fraction]]:
     m = len(A)
     w = len(B[0]) if B else 0
     # Augmented [A | B] in exact rationals.
-    M = [[Fraction(A[r][c]) for c in range(m)] + [Fraction(B[r][c]) for c in range(w)]
+    M = [[to_q(A[r][c]) for c in range(m)] + [to_q(B[r][c]) for c in range(w)]
          for r in range(m)]
     for col in range(m):
         pivot = None
@@ -921,12 +922,12 @@ def dense_solve(A, B, *, exact: bool = False):
 
     With ``exact=True`` the solve is **exact-rational** Gauss–Jordan in
     :class:`fractions.Fraction` (the Class-N core — division is exact, never a
-    float reciprocal, F392) and ``X`` is ``list[list[Fraction]]`` (or
-    ``list[Fraction]`` for a vector RHS) — the exact path keeps the rational
+    float reciprocal, F392) and ``X`` is ``list[list[Q]]`` (or
+    ``list[Q]`` for a vector RHS) — the exact path keeps the rational
     leaves. With ``exact=False`` (the default) the float realization rides the
     numpy-free Mat engine (:func:`mat_solve` — native ``srmech_dense_solve_f64_ws``
     Gauss–Jordan with partial pivoting, the Class-K magnitude pivot — a sign
-    branch, not ``abs()``; else srmech's own exact Fraction fallback coerced to
+    branch, not ``abs()``; else srmech's own exact Q fallback coerced to
     float). The float ``X`` is returned in the numpy-free **carrier** (rc131):
     a :class:`~srmech.amsc.mat.Mat` for a matrix RHS (``.shape`` + ``m[i, j]``)
     or a 1-D :class:`~srmech.amsc.vec.Vec` for a vector RHS (``.shape == (n,)``
@@ -954,7 +955,7 @@ def dense_solve(A, B, *, exact: bool = False):
     is_vec, B_rows = _as_solve_rhs(B, n)
 
     if exact:
-        X = _solve_exact(A_rows, B_rows)  # exact Fraction Gauss–Jordan (Class-N)
+        X = _solve_exact(A_rows, B_rows)  # exact Q Gauss–Jordan (Class-N)
         return [row[0] for row in X] if is_vec else X
 
     # Float realization — the numpy-FREE Mat engine (§564). A complex system is
@@ -1040,7 +1041,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     (conjugate) → Class K (``1/‖·‖²``); no ``abs()``. With ``exact=True`` the
     solve is **exact-rational** Gauss–Jordan elimination in
     :class:`fractions.Fraction` (the Class-N rational core — division is exact,
-    never a float reciprocal) and ``S`` is returned as ``list[list[Fraction]]``.
+    never a float reciprocal) and ``S`` is returned as ``list[list[Q]]``.
     With ``exact=False`` (the default) the float realization rides the numpy-free
     Mat engine (:func:`dense_solve` → :func:`mat_solve`) and ``S`` is returned in
     the numpy-free **carrier** — a ``|∂|×|∂|`` :class:`~srmech.amsc.mat.Mat`
@@ -1058,13 +1059,13 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
         The boundary node indices ``∂``; ``1 ≤ |∂| ≤ n``, no duplicates.
     exact : bool, default ``False``
         Force the exact-rational :class:`~fractions.Fraction` solve (returns
-        ``list[list[Fraction]]``).
+        ``list[list[Q]]``).
 
     Returns
     -------
     S : ``|∂|×|∂|`` boundary effective operator
         a real :class:`~srmech.amsc.mat.Mat` (float path) or
-        ``list[list[Fraction]]`` (exact path).
+        ``list[list[Q]]`` (exact path).
 
     Raises
     ------
@@ -1097,7 +1098,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     if not i:
         # No interior to integrate out — the boundary IS the whole space.
         if exact:
-            return [[Fraction(v) for v in r] for r in L_pp]
+            return [[to_q(v) for v in r] for r in L_pp]
         return Mat.from_rows([[float(v) for v in r] for r in L_pp], is_complex=False)
 
     L_pi = _block(b, i)  # L_∂i
@@ -1107,12 +1108,12 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     if exact:
         # Interior solve L_ii · X = L_i∂ (X is |i|×|∂|) via the Class-L
         # dense_solve primitive — exact-rational Gauss–Jordan (Class-N).
-        X = dense_solve(L_ii, L_ip, exact=True)  # list[list[Fraction]]
-        # S = L_∂∂ − L_∂i · X  (all exact Fraction).
+        X = dense_solve(L_ii, L_ip, exact=True)  # list[list[Q]]
+        # S = L_∂∂ − L_∂i · X  (all exact Q).
         S = [
             [
-                Fraction(L_pp[a][c])
-                - sum(Fraction(L_pi[a][k]) * X[k][c] for k in range(len(i)))
+                to_q(L_pp[a][c])
+                - sum(to_q(L_pi[a][k]) * X[k][c] for k in range(len(i)))
                 for c in range(len(b))
             ]
             for a in range(len(b))
@@ -1142,7 +1143,7 @@ def dirichlet_to_neumann(L, boundary_idx: Sequence[int], *, exact: bool = False)
     boundary values, ``S`` returns the boundary normal-derivative of their
     harmonic extension into the interior. Returns the same carrier as
     :func:`schur_complement`: a real :class:`~srmech.amsc.mat.Mat` (float path)
-    or ``list[list[Fraction]]`` (``exact=True``)."""
+    or ``list[list[Q]]`` (``exact=True``)."""
     return schur_complement(L, boundary_idx, exact=exact)
 
 
@@ -1418,7 +1419,7 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     bound is the caller's RAM. Native is authoritative when present (a singular
     ``A`` → ``SRMECH_ERR_BAD_INPUT`` → ``ZeroDivisionError``); with **no native
     lib** the complete alternative is srmech's own **exact-rational Gauss–Jordan**
-    (:func:`_solve_exact`, Class-N ``Fraction`` division, numpy-free) coerced to
+    (:func:`_solve_exact`, Class-N ``Q`` division, numpy-free) coerced to
     float64 — itself uncapped, so the op is unconditionally numpy-free either way.
 
     ``srmech_dense_solve_f64_ws`` is **real-f64 only**; a complex `Mat` (rc95)
@@ -1483,7 +1484,7 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     # No native lib (pure wheel / Pyodide): srmech's own exact-rational
     # Gauss–Jordan (Class-N) is the COMPLETE alternative implementation, not a
     # fallback rescue — it is the no-C host's only solve and is uncapped too.
-    X = _solve_exact(a.tolist(), b.tolist())  # list[list[Fraction]]; raises if singular
+    X = _solve_exact(a.tolist(), b.tolist())  # list[list[Q]]; raises if singular
     return Mat.from_rows([[float(x) for x in row] for row in X])
 
 
@@ -3213,19 +3214,18 @@ def klein4_relational_structure(
     }
 
 
-def _to_fraction(c) -> Fraction:
-    """Coerce a charge (turns) to an exact :class:`~fractions.Fraction`. Accepts
-    an ``int`` / ``Fraction`` / a ``numbers.Rational`` carrier (e.g. srmech
-    ``Q``) exactly; a ``float`` is projected via ``Fraction(x).limit_denominator``
-    (dyadic floats like 0.25 stay exact — ``Fraction(0.25) == 1/4``)."""
-    import numbers
-    if isinstance(c, Fraction):
-        return c
-    if isinstance(c, int) and not isinstance(c, bool):
-        return Fraction(c)
-    if isinstance(c, numbers.Rational):
-        return Fraction(int(c.numerator), int(c.denominator))
-    return Fraction(float(c)).limit_denominator(10 ** 12)
+def _to_fraction(c) -> Q:
+    """Coerce a charge (turns) to an exact :class:`~srmech.amsc.q.Q` (#845: the
+    exact-ℚ carrier, was ``fractions.Fraction``). Accepts an ``int`` / a
+    ``numbers.Rational`` carrier (a srmech ``Q``, a stdlib ``fractions.Fraction``)
+    exactly; a ``float`` is projected to denominator ≤ 10¹² via the Class-N
+    ``best_rational`` (the old ``Fraction(x).limit_denominator(10**12)`` — dyadic
+    floats like 0.25 stay exact, ``to_q(0.25) == 1/4`` needs no snap)."""
+    if isinstance(c, float):
+        q = to_q(c)                                     # the exact ℚ of the float
+        return Q.from_pair(
+            _srn.best_rational(q.numerator, q.denominator, 10 ** 12))
+    return to_q(c)                                      # int / Fraction / Q / Rational — exact
 
 
 def _cycle_holonomy_py(n, edge_list, charges):
@@ -3243,8 +3243,8 @@ def _cycle_holonomy_py(n, edge_list, charges):
             x = parent[x]
         return x
 
-    tree: List[Tuple[int, int, Fraction]] = []
-    cotree: List[Tuple[int, int, Fraction]] = []
+    tree: List[Tuple[int, int, Q]] = []
+    cotree: List[Tuple[int, int, Q]] = []
     for (u, v), c in zip(edge_list, charges):
         ru, rv = find(u), find(v)
         if ru != rv:
@@ -3253,15 +3253,15 @@ def _cycle_holonomy_py(n, edge_list, charges):
         else:
             cotree.append((u, v, c))
     # pot[i] = signed tree-path charge from the component root to i.
-    pot: List[Optional[Fraction]] = [None] * n
-    adj: List[List[Tuple[int, Fraction]]] = [[] for _ in range(n)]
+    pot: List[Optional[Q]] = [None] * n
+    adj: List[List[Tuple[int, Q]]] = [[] for _ in range(n)]
     for (u, v, c) in tree:
         adj[u].append((v, c))     # u -> v : +c
         adj[v].append((u, -c))    # v -> u : -c
     for s in range(n):
         if pot[s] is not None:
             continue
-        pot[s] = Fraction(0)
+        pot[s] = Q(0)
         stack = [s]
         while stack:
             x = stack.pop()
@@ -3269,7 +3269,7 @@ def _cycle_holonomy_py(n, edge_list, charges):
                 if pot[y] is None:
                     pot[y] = pot[x] + c
                     stack.append(y)
-    holonomies: List[Fraction] = []
+    holonomies: List[Q] = []
     cycle_edges: List[Tuple[int, int]] = []
     for (u, v, c) in cotree:
         h = c + pot[u] - pot[v]
@@ -3287,9 +3287,9 @@ def _cycle_holonomy_native(n, edge_list, charges):
     endpoints (uint32) + per-edge charge num/den (int64) into ctypes buffers and
     calls ``srmech_graph_cycle_holonomy`` with a caller arena sized from
     ``srmech_graph_cycle_holonomy_arena_bytes``. Returns
-    ``(holonomies, cycle_edges)`` as exact ``Fraction`` + ``(u, v)`` pairs, or
+    ``(holonomies, cycle_edges)`` as exact ``Q`` + ``(u, v)`` pairs, or
     ``None`` on a missing symbol / non-OK status / an out-of-int64-range charge
-    (caller then runs the exact pure-Python Fraction cascade)."""
+    (caller then runs the exact pure-Python Q cascade)."""
     if not _native.has_native_cycle_holonomy():
         return None
     num: List[int] = []
@@ -3324,7 +3324,7 @@ def _cycle_holonomy_native(n, edge_list, charges):
     if rc != _native.SRMECH_OK:
         return None
     m = ncyc.value
-    holonomies = [Fraction(int(onum[i]), int(oden[i])) for i in range(m)]
+    holonomies = [Q(int(onum[i]), int(oden[i])) for i in range(m)]
     cycle_edges = [(int(ocu[i]), int(ocv[i])) for i in range(m)]
     return holonomies, cycle_edges
 
@@ -3369,7 +3369,7 @@ def cycle_holonomy(
         The graph edges ``(u, v)``. A parallel edge closes a digon cycle; a
         self-loop is a 1-cycle carrying its own charge.
     charges : Optional[Iterable]
-        Per-edge charge in TURNS parallel to ``edges`` (int / ``Fraction`` /
+        Per-edge charge in TURNS parallel to ``edges`` (int / ``Q`` /
         rational carrier exact; a ``float`` projected via ``limit_denominator``).
         ``None`` → all 0 (a trivially balanced graph). ``(u, v, c) ≡ (v, u, −c)``.
     n : Optional[int]
@@ -3379,14 +3379,14 @@ def cycle_holonomy(
     Returns
     -------
     dict
-        ``{"n_cycles": int, "holonomies": list[Fraction], "cycle_edges":
+        ``{"n_cycles": int, "holonomies": list[Q], "cycle_edges":
         list[(u, v)], "balanced": bool}`` — one holonomy in ``[0, 1)`` per
         fundamental cycle (indexed by its co-tree edge), and ``balanced`` iff
         every holonomy is 0.
 
     Dispatches to the standalone-C ``srmech_graph_cycle_holonomy`` (exact int64
     rational, caller-arena) when ``HAS_NATIVE`` and every charge is within the
-    int64 range; else srmech's own exact-``Fraction`` cascade (the complete
+    int64 range; else srmech's own exact-``Q`` cascade (the complete
     alternative — never a wrong answer, and it handles any denominator). The
     two paths use the SAME spanning-tree choice, so the fundamental-cycle basis
     is identical. numpy-free; no ``abs()``.
@@ -3394,7 +3394,7 @@ def cycle_holonomy(
     edge_list = [tuple(e) for e in edges]
     nn = _infer_n_from_edges(edge_list) if n is None else int(n)
     if charges is None:
-        ch = [Fraction(0)] * len(edge_list)
+        ch = [Q(0)] * len(edge_list)
     else:
         ch = [_to_fraction(c) for c in charges]
         if len(ch) != len(edge_list):
@@ -3605,7 +3605,7 @@ def eulerian_circuit(edges, start=None):
 # symmetric_eigendecompose / magnetic_laplacian / responsion / cycle_holonomy):
 # composition_of_c, no new C symbol. numpy-free; no abs() (Class-K magnitude).
 
-_RECOVER_TOL = Fraction(1, 10 ** 9)
+_RECOVER_TOL = Q(1, 10 ** 9)
 
 
 def _recover_mag(x):
@@ -3624,8 +3624,9 @@ def _recover_op_spectral(dim, edges, weights):
         diag["n_modes"] = len(ev)
         diag["eig_range"] = (round(ev[0], 6), round(ev[-1], 6))
         psd = ev[0] > -1e-9
-        zero_mode = _recover_mag(
-            Fraction(ev[0]).limit_denominator(10 ** 6)) < _RECOVER_TOL
+        _ev0 = to_q(ev[0])                              # exact ℚ of the float eigenvalue
+        zero_mode = _recover_mag(Q.from_pair(
+            _srn.best_rational(_ev0.numerator, _ev0.denominator, 10 ** 6))) < _RECOVER_TOL
         return (len(ev) == dim and psd and zero_mode), diag
     except Exception as e:                          # a malformed op fails HONESTLY
         diag["op_error"] = "%s: %s" % (type(e).__name__, e)
@@ -3661,8 +3662,8 @@ def _recover_curvature(vocab_size, edges, charges):
     holonomy_nonzero = False
     if directed:
         mc = max((_recover_mag(c) for c in charges), default=0) or 1
-        q = Fraction(1, 2 * mc + 1)                 # phase unit that exposes holonomy
-        ph = [Fraction(int(c)) * q for c in charges]
+        q = Q(1, 2 * mc + 1)                 # phase unit that exposes holonomy
+        ph = [Q(int(c)) * q for c in charges]
         hol = cycle_holonomy(edges, charges=ph, n=vocab_size)
         n_cycles = hol["n_cycles"]
         holonomy_nonzero = any(h != 0 for h in hol["holonomies"])
@@ -3734,11 +3735,11 @@ def recover_check_structural(vocab_size, edges, weights, charges=None, *,
             b = seen.get((min(k, j), max(k, j)))
             if a is not None and b is not None and k not in (i, j):
                 mc = _recover_mag(c)
-                q = Fraction(1, 2 * max(1, mc) + 1)
+                q = Q(1, 2 * max(1, mc) + 1)
                 hh = cycle_holonomy(
                     [(i, k), (k, j), (i, j)],
-                    charges=[Fraction(int(a)) * q, Fraction(int(b)) * q,
-                             Fraction(int(c)) * q], n=vocab_size)
+                    charges=[Q(int(a)) * q, Q(int(b)) * q,
+                             Q(int(c)) * q], n=vocab_size)
                 if any(h != 0 for h in hh["holonomies"]):
                     holo = True
                     break

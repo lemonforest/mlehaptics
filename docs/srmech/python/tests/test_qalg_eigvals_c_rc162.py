@@ -36,6 +36,7 @@ from __future__ import annotations
 import json
 import random
 from fractions import Fraction
+from srmech.amsc.q import Q  # #845: outputs are now Q, not Fraction
 from pathlib import Path
 
 import pytest
@@ -116,7 +117,7 @@ def test_eigvals_real_intervals_native_equals_pure(mat):
     assert _native.sturm_isolate_c(mc.char_poly(mat), 64) is not None
     # the isolating intervals bracket the eigenvalues (rational sanity, no float).
     for lo, hi in nat:
-        assert isinstance(lo, Fraction) and isinstance(hi, Fraction)
+        assert isinstance(lo, Q) and isinstance(hi, Q)
         assert lo <= hi
 
 

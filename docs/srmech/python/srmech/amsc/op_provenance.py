@@ -97,8 +97,9 @@ registered Class-N / Class-L runners (re-projection). numpy-free; no
 from __future__ import annotations
 
 import json
-from fractions import Fraction
 from typing import Any, Callable, Dict, List, Optional, Tuple
+
+from srmech.amsc.q import Q  # #845: exact-ℚ carrier (was fractions.Fraction)
 
 from .format import sha256_bytes
 
@@ -183,12 +184,9 @@ def _canon(value: Any) -> Tuple[Any, bool]:
             {"__complex128__": [value.real.hex(), value.imag.hex()]},
             False,
         )
-    if isinstance(value, Fraction):
-        num, _ = _canon(value.numerator)
-        den, _ = _canon(value.denominator)
-        return {"__rational__": [num, den]}, True
-    # srmech Q (and any exact-rational scalar with int numerator/denominator
-    # accessors) — duck-typed AFTER int/float so builtins take their branch.
+    # srmech Q — and any exact-rational scalar with int numerator/denominator
+    # accessors (a stdlib fractions.Fraction rides this SAME duck-typed branch,
+    # #845) — duck-typed AFTER int/float so builtins take their branch.
     if (
         hasattr(value, "numerator") and hasattr(value, "denominator")
         and isinstance(getattr(value, "numerator"), int)
@@ -245,7 +243,7 @@ def _decanon(value: Any) -> Any:
         return float.fromhex(value["__float64__"])
     if tag == "__rational__":
         num, den = value["__rational__"]
-        return Fraction(_decanon(num), _decanon(den))
+        return Q(_decanon(num), _decanon(den))
     if tag == "__complex128__":
         re_hex, im_hex = value["__complex128__"]
         return complex(float.fromhex(re_hex), float.fromhex(im_hex))
@@ -648,9 +646,9 @@ class _OpSpec:
 def _reduced_point(inputs: Dict[str, Any]) -> str:
     """The reduced, sign-normalised exact rational point ``p/q`` a series /
     best_rational op is anchored at — the NAMED part of its family target.
-    ``Fraction`` reduces and normalises the sign (den > 0), so ``sin(2/2)``
-    and ``sin(1/1)`` name ONE target."""
-    fr = Fraction(int(inputs["numerator"]), int(inputs["denominator"]))
+    ``Q`` reduces and normalises the sign (den > 0), so ``sin(2/2)`` and
+    ``sin(1/1)`` name ONE target (#845: was ``fractions.Fraction``)."""
+    fr = Q(int(inputs["numerator"]), int(inputs["denominator"]))
     return f"{fr.numerator}/{fr.denominator}"
 
 
