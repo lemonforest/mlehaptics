@@ -1,6 +1,6 @@
 # ADR-0007: Release engineering — version SSOT, rc-first, the registry ripple, JPL
 
-**Status:** Accepted (standing architecture policy; consolidates discipline previously held only in project memory).
+**Status:** ✅ Accepted (standing architecture policy; consolidates discipline previously held only in project memory).
 **Date:** 2026-07-17.
 **Authors:** Steven Kirkland + Claude.
 **Supersedes:** none.
