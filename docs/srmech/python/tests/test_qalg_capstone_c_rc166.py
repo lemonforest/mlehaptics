@@ -54,6 +54,8 @@ def test_numpy_is_absent_so_this_runs_not_skips():
 
 
 # ── native symbol presence: the parity is only meaningful if C is loaded ─────
+@pytest.mark.skipif(not _native.HAS_NATIVE,
+                    reason="native lib absent — this C symbol-presence / single-call check needs the built libsrmech (#843)")
 def test_native_dependency_symbols_are_loaded():
     """Every COMPUTE leaf the two capstones orchestrate must be a loaded C symbol
     — otherwise the native side silently falls back to pure and parity proves
