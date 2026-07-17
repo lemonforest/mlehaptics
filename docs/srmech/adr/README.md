@@ -1,15 +1,36 @@
-# srmech Architecture Decision Records
+# srmech — Architecture Decision Records (ADR)
 
-Each ADR captures one durable architecture decision — the *context* that forced it,
-the *decision*, and its *consequences* — so the reasoning is versioned with the code
-and discoverable by anyone, not held only in a maintainer's head. ADRs are additive:
-a decision is *superseded*, never edited away.
+This directory holds the Architecture Decision Records for **srmech** (Stored-
+Relationship Mechanism). Format follows the srmech-family `ADR-NNNN` convention:
+**one file per decision, small and scoped, never monolithic**. Each ADR captures
+**one** decision as **Status / Context / Decision / Consequences**; the discipline
+ADRs forward-link the project-memory topic files they consolidate — the
+*breadcrumb-web* discipline, so a decision survives even when the notes are not in
+context.
+
+---
+
+## Index
+
+| ID | Title | Status | Date |
+|----|-------|--------|------|
+| [ADR-0001](0001-profile-pattern.md) | The srmech profile pattern — domain-specific extension as configuration | ⏳ Draft | 2026-05-14 |
+| [ADR-0002](0002-catalog-as-computation.md) | Catalog-as-computation — primitive-class closure, plugins as optimization backends | ⏳ Draft | 2026-05-16 |
+| [ADR-0003](0003-c-host-standalone-no-python-assumption.md) | C-host-standalone — never assume a Python environment (C↔Python parity) | ✅ Accepted | 2026-07-16 |
+| [ADR-0004](0004-config-driven-domain-agnostic-surface.md) | Config-driven, domain-agnostic surface — classes, chains, catalogs, and names in TOML | ✅ Accepted | 2026-07-16 |
+| [ADR-0005](0005-no-external-math-library.md) | No external mathematics library — srmech is its own math library | ✅ Accepted | 2026-07-17 |
+| [ADR-0006](0006-carrier-discipline.md) | Carrier discipline — exactness, sign, format, and bounded memory | ✅ Accepted | 2026-07-17 |
+| [ADR-0007](0007-release-engineering.md) | Release engineering — version SSOT, rc-first, the registry ripple, HAL/PAL, JPL | ✅ Accepted | 2026-07-17 |
+| [ADR-0008](0008-phase-1-operator-chain-schema.md) | Operator-chain DSL — Phase 1 schema specification | 🔄 Proposed | 2026-05-16 |
+
+**Status legend:** ✅ Accepted · 🔄 Proposed · ⏳ Draft · 🗑 Superseded.
 
 ## Conventions
 
 - **Filename:** `NNNN-kebab-title.md`; the number is permanent (append-only).
-- **Status:** `Draft` → `Accepted` → (`Superseded-by: NNNN`). "Accepted — standing
-  policy" governs every rc, op, and review.
+- **Status lifecycle:** ⏳ Draft / 🔄 Proposed → ✅ Accepted → 🗑 Superseded
+  (`Superseded-by: NNNN`). An "Accepted — standing policy" ADR governs every rc, op,
+  and review.
 - **Sources footer:** the discipline ADRs (0005–0007) link the project-memory topic
   files they consolidate, preserving the trail.
 - **Companion artifacts** share an ADR's number with a distinct extension — they are
@@ -20,25 +41,12 @@ a decision is *superseded*, never edited away.
   `0008`; older CHANGELOG / design-note references to
   `0002-phase-1-operator-chain-schema` resolve to `0008`.
 
-## Index
+## Scope note
 
-### Extension & computation model
-
-| ADR | Title | Status |
-|----|-------|--------|
-| [0001](0001-profile-pattern.md) | The srmech **profile pattern** — domain-specific extension as configuration (catalogs + bridge functions + an optional native lib via ctypes). | Draft |
-| [0002](0002-catalog-as-computation.md) | **Catalog-as-computation** — the 14 A–N primitive classes are closed; plugins are optimization backends, not new primitives. | Draft |
-| [0008](0008-phase-1-operator-chain-schema.md) | **Operator-chain DSL** — the Phase 1 descriptor-TOML chain schema (v1) + the 4-namespace reference grammar. | Phase 1 candidate |
-
-### Architecture — standing policy
-
-| ADR | Title | Status |
-|----|-------|--------|
-| [0003](0003-c-host-standalone-no-python-assumption.md) | **C-host-standalone & C↔Python parity** — srmech runs with no Python present; every composite mirrors in C, standalone-complete, same-rc, byte-parity, PAL-mirrored I/O. | Accepted |
-| [0004](0004-config-driven-domain-agnostic-surface.md) | **Config-driven, domain-agnostic surface** — a user declares classes, chains, catalogs, and names in TOML; framework naming is a re-aliasable default; config gives names, not capabilities. | Accepted |
-| [0005](0005-no-external-math-library.md) | **No external mathematics library** — srmech imports *no* math library (numpy / `math` / `fractions` / `decimal` / scipy / sympy / gmpy / any). A missing primitive is added natively; srmech owns `srmech_bigint` / `Q` / `Mat`, deliberately named so the external-lib reflex never fires. | Accepted |
-| [0006](0006-carrier-discipline.md) | **Carrier discipline** — stay rational (collapse to a decimal only at display); ALU all the way, FPU last mile; sign is Class-K, never `abs()`; preserve carrier format; bounded arena (a RAM blow-up is a missed fiber). | Accepted |
-| [0007](0007-release-engineering.md) | **Release engineering** — the 5-file version SSOT; rc-first to TestPyPI + autotag-clean-only; the new-public-callable registry ripple; platform-agnostic via the HAL (optimize) + PAL (I/O) + the pedantic 3-OS matrix; JPL Power-of-Ten. | Accepted |
+These are **algebra / eigenbasis / cyclic-group / spectral side** decisions (the
+framework-research + library-engineering discipline). They do **not** cover CAD /
+fabrication / mechanical geometry — out of scope per the CAD-grade ban carried from
+the parent monorepo.
 
 ## Related
 

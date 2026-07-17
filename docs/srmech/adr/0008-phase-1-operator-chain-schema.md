@@ -2,7 +2,7 @@
 
 > **Renumbered 2026-07-17** from ADR-0002 (filename collision with `0002-catalog-as-computation`). Older CHANGELOG / design-note references to `0002-phase-1-operator-chain-schema` point here.
 
-**Status:** Phase 1 candidate (schema v1). Schema is a candidate-not-endorsed under
+**Status:** 🔄 Proposed — Phase 1 candidate (schema v1). Schema is a candidate-not-endorsed under
 `[[feedback_no_lineage_claims_in_notebook]]`'s humility discipline; Phase 2 implementation
 validation will exercise the shape and surface revisions.
 **Date:** 2026-05-16.
