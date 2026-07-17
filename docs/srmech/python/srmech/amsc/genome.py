@@ -5265,12 +5265,31 @@ def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -
     plaintext table-of-contents (ADR-0003) and were the O(N²) append wall; they are
     DERIVED by scanning the self-describing body when a catalog is read.
 
-    **The full-dict return stays O(1) when you thread the catalog.** Pass the prior
-    dict back as ``catalog=`` (the natural build-loop shape:
-    ``data = genome_append(path, lbl, lv, one, catalog=data)``) and the returned
-    dict is mutate-appended one entry in memory — O(1), N appends → O(N) total. A
-    cold call (no ``catalog=``) DERIVES the full catalog from the body once (O(n))
-    for the return; only the disk write is O(1) there.
+    **The ``catalog=`` argument has three modes — thread it to keep the whole call
+    O(1) (the streaming shape); do NOT loop with the default or you rebuild the
+    catalog every call (the O(n²) wall):**
+
+    * ``catalog=None`` (default) — a **cold one-off** append. The disk write is O(1),
+      but the returned full catalog is DERIVED from the body once (O(n)). Fine for a
+      single append; looping this way is O(n²).
+    * ``catalog=<dict>`` — **thread a prior return** (the streaming loop). The returned
+      dict is mutate-appended one entry in memory — O(1), N appends → O(N) total::
+
+          data = genome_save(strand, path, one)          # or genome_append(..., catalog=None)
+          for lbl, lv in items:
+              data = genome_append(path, lbl, lv, one, catalog=data)   # each O(1)
+
+    * ``catalog="load"`` — **resume a streaming loop with no prior return in hand**
+      (§95.2 / #1407). Reads the full threadable catalog from disk ONCE (O(n)), does
+      the append, and returns a dict to thread for the rest of the loop (O(1)/append)::
+
+          data = "load"
+          for lbl, lv in items:                          # first call O(n), the rest O(1)
+              data = genome_append(path, lbl, lv, one, catalog=data)
+
+    An empty / partial ``catalog={}`` (a dict with no ``leaf_dim``) is NOT a genome
+    catalog — it raises a clear ``ValueError`` pointing at these modes, never a bare
+    ``KeyError`` (the §95.2 footgun fix).
 
     Labels are content-addresses (ADR-0003), so there is **no O(n) duplicate-label
     scan** — the caller owns label uniqueness (a duplicate label is last-wins on
@@ -5280,6 +5299,22 @@ def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -
     (``0x6B``) — used by :func:`genome_append_kernel`.
     """
     path = Path(path)
+    # §95.2 / #1407 ergonomics — three explicit catalog MODES (see the docstring):
+    #   catalog=None      cold one-off append (O(1) disk; O(n) catalog derived for the return)
+    #   catalog=<dict>    thread a prior return — O(1) mutate-append (the streaming loop)
+    #   catalog="load"    RESUME a streaming loop with no prior return in hand: read the full
+    #                     threadable catalog from disk ONCE (O(n)), then thread it (O(1)/append)
+    if catalog == "load":
+        catalog = _catalog_data(path, the_one)      # O(n) once → a threadable catalog dict
+    if catalog is not None and "leaf_dim" not in catalog:
+        # the catalog={} / partial-dict footgun — a clear message, not a bare KeyError.
+        raise ValueError(
+            "genome_append: the catalog dict has no 'leaf_dim', so it is not a genome "
+            "catalog. To resume a streaming append with no prior return in hand, pass "
+            "catalog=\"load\" (reads the catalog from disk once, then thread the return "
+            "for O(1) appends); pass catalog=None for a one-off cold append; or pass the "
+            "dict returned by a prior genome_save/genome_append call to thread it."
+        )
     # The O(1) head — the threaded in-memory catalog, else a cheap head read (O(1) for
     # a v12 head-only manifest; a one-time O(n) read/scan on the FIRST append to a
     # legacy v≤11 / manifest-less genome, which then becomes v12 head-only).
