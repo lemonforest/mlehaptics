@@ -72,12 +72,26 @@ orchestrator, I/O boundary, or DSL-declared class):
 
 5. **No host-math dependency.** No `numpy`, no stdlib `math`, no external math library — in
    *either* language. Missing math is added to srmech as a native cascade primitive, never
-   imported. (`[[feedback_missing_math_is_added_to_srmech_as_cascade_never_imported]]`)
+   imported. The full rule (all external math libraries, not just numpy/math) is **ADR-0005**.
+   (`[[feedback_missing_math_is_added_to_srmech_as_cascade_never_imported]]`)
 
 6. **Python is the oracle, not the fallback.** The pure-Python path exists to (a) be the
    numpy-free reference the C peer is checked against, and (b) run in a Python-only consumer.
    It is *never* the thing a C-host build silently falls through to — because in a C-only host
    it does not exist.
+
+7. **Mirror the contract, not the bug.** Before mirroring a Python op to C, check for known
+   bugs in the Python side — bit-exact mirroring of a buggy op enshrines the defect in two
+   places. Fix first, then mirror. (`[[feedback_check_known_bugs_before_mirroring_python_to_c]]`)
+
+8. **Every new ctypes binding declares `argtypes` + `restype`.** An undeclared binding is a
+   silent ubuntu-only defer (the FFI layer mis-marshals on other platforms); declare both at
+   registration. (`[[feedback_new_ctypes_binding_must_declare_argtypes_restype]]`)
+
+9. **The parity verdict lives at the operator, floats only at the operand seam.** A C↔Python
+   verdict that appears to need a float tolerance at the *operator* level is punting at the
+   wrong seam — hold it exact at the operator; float enters only at the operand/display
+   boundary. (`[[feedback_exact_verdict_at_operator_level_not_float_operand_seam]]`)
 
 ## 3. Consequences / enforcement (how we stop forgetting)
 
