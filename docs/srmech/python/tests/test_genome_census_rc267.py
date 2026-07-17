@@ -192,7 +192,7 @@ def test_registry_empty_root():
         assert reg == {"root": str(root), "n_genomes": 0, "genomes": []}
 
 
-def test_registry_native_equals_pure():
+def test_registry_native_equals_pure(monkeypatch):
     if not _native.has_native_genome_registry():
         pytest.skip("native genome_registry not loaded")
     one = _one()
@@ -200,14 +200,10 @@ def test_registry_native_equals_pure():
         root = _build_cell(tmp, one)
         native = json.loads(
             _native.genome_registry_c(str(root), G._the_one_block_bytes(one)))
-        gdirs = sorted((p for p in root.iterdir() if G._is_genome_dir(p)),
-                       key=lambda p: p.name)
-        pure = {
-            "root": str(root),
-            "n_genomes": len(gdirs),
-            "genomes": [
-                G._census_from_catalog(G._catalog_data(str(gd), the_one=one), str(gd))
-                for gd in gdirs
-            ],
-        }
+        # pure = the REAL fallback (native registry forced off) — the same os/pathlib
+        # roll-up a no-native host runs. It must equal the C tree byte-for-byte,
+        # INCLUDING the "root/name" child-path join (regression: on Windows pathlib's
+        # "\\" join diverged from the native "/" — §96 parity).
+        monkeypatch.setattr(_native, "has_native_genome_registry", lambda: False)
+        pure = G.genome_registry(str(root), the_one=one)
         assert native == pure

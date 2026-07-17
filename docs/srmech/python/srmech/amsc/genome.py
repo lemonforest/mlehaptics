@@ -4835,14 +4835,17 @@ def genome_registry(root, *, the_one=None) -> dict:
             return json.loads(text)
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
-    genomes = sorted(
-        (p for p in Path(root).iterdir() if _is_genome_dir(p)),
-        key=lambda p: p.name,
-    )
+    root_str = str(Path(root))          # normalise identically to the native call above
+    names = sorted(p.name for p in Path(root).iterdir() if _is_genome_dir(p))
+    # §96: build each child path as ``root + "/" + name`` to MIRROR the C
+    # ``genome_join`` (``srmech_genome_registry``) byte-for-byte. pathlib would join
+    # with the OS separator ("\\" on Windows), diverging from the native tree's "/"
+    # and breaking native==pure parity (the path field is an identifier, not reopened
+    # per-OS — Windows accepts "/" too). Sorting p.name matches C ``genome_sort_names``.
     return {
-        "root": str(root),
-        "n_genomes": len(genomes),
-        "genomes": [genome_census(p, the_one=the_one) for p in genomes],
+        "root": root_str,
+        "n_genomes": len(names),
+        "genomes": [genome_census(f"{root_str}/{n}", the_one=the_one) for n in names],
     }
 
 
