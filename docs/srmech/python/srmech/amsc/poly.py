@@ -64,7 +64,6 @@ No ``math`` module, no numpy; a future ``QiPoly`` would carry Gaussian-rational
 
 from __future__ import annotations
 
-from fractions import Fraction
 from typing import List, Sequence, Tuple
 
 from .q import Q
@@ -111,8 +110,6 @@ def _to_q(value):
         return Q(int(value), 1)
     if isinstance(value, int):
         return Q(value, 1)
-    if isinstance(value, Fraction):
-        return Q(value.numerator, value.denominator)
     if isinstance(value, float):
         return None
     if (isinstance(value, (tuple, list)) and len(value) == 2

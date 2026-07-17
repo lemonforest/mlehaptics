@@ -69,8 +69,9 @@ Canonical SSoT:
 from __future__ import annotations
 
 import functools
-from fractions import Fraction as _Fraction
 from typing import Dict, List, Sequence, Tuple
+
+from srmech.amsc.q import Q                    # #845: exact-ℚ solver carrier
 
 from srmech.amsc import rational as _srn
 
@@ -223,7 +224,7 @@ def _octonion_mul(x: Sequence[float], y: Sequence[float]) -> List[float]:
 
 
 def _exact_solve_normal_equations(g: List[List[int]], c: List[int],
-                                  n: int) -> List[_Fraction]:
+                                  n: int) -> List[Q]:
     """Exact-ℚ particular solution of the consistent, rank-deficient INTEGER
     normal equations ``G·x = c`` via :class:`~fractions.Fraction` Gauss-Jordan
     elimination; non-pivot (free) columns are pinned to 0.
@@ -245,7 +246,7 @@ def _exact_solve_normal_equations(g: List[List[int]], c: List[int],
     ``lean_isa_seventh_primitive``) composes ``srmech_qmat_rref`` (companion
     solve) ∘ ``mat_matmul`` ∘ ``mat_norm`` — no new C symbol, ABI unchanged.
     """
-    rows = [[_Fraction(g[r][col]) for col in range(n)] + [_Fraction(c[r])]
+    rows = [[Q(g[r][col]) for col in range(n)] + [Q(c[r])]
             for r in range(n)]
     pivot_cols: List[int] = []
     rank = 0
@@ -269,7 +270,7 @@ def _exact_solve_normal_equations(g: List[List[int]], c: List[int],
         rank += 1
         if rank == n:
             break
-    sol = [_Fraction(0)] * n
+    sol = [Q(0)] * n
     for idx, col in enumerate(pivot_cols):
         sol[col] = rows[idx][n]
     return sol

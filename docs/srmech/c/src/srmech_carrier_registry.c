@@ -12,7 +12,7 @@
  * against; each entry_json fragment is baked pre-canonical (compact,
  * sorted keys, ensure_ascii -> pure ASCII).
  *
- * Carriers: 25 (BiPoly, EllMonomial, EllRatio, Fraction, HV, HarmonicMaass, Mat, MockQSeries, One, Poly, Q, QBiPoly, QPoly, SedenionRegister, ThetaBracketSum, ThetaSum, TriPoly, UnaryTheta, Vec, complex, float, int, octonion, quaternion, sedenion).
+ * Carriers: 24 (BiPoly, EllMonomial, EllRatio, HV, HarmonicMaass, Mat, MockQSeries, One, Poly, Q, QBiPoly, QPoly, SedenionRegister, ThetaBracketSum, ThetaSum, TriPoly, UnaryTheta, Vec, complex, float, int, octonion, quaternion, sedenion).
  */
 
 #include "srmech.h"
@@ -1352,14 +1352,6 @@ const srmech_carrier_entry_t srmech_carrier_registry_table[] = {
         1139u,
     },
     {
-        "Fraction",
-        "stdlib exact rational (fractions.Fraction) \342\200\224 accepted/emitted at the exact-LA boundaries (dense_solve exact=True, schur_complement, cd_norm_sq): the interchange twin of the srmech Q scalar.",
-        NULL,
-        0,
-        "{\"description\":\"stdlib exact rational (fractions.Fraction) \\u2014 accepted/emitted at the exact-LA boundaries (dense_solve exact=True, schur_complement, cd_norm_sq): the interchange twin of the srmech Q scalar.\",\"example\":{\"construct\":\"Fraction(3, 4)\",\"yields\":\"Fraction(3, 4)\"},\"ladder\":null,\"name\":\"Fraction\",\"ops\":{\"consumes\":[\"srmech.amsc.laplacian.cycle_holonomy\",\"srmech.amsc.laplacian.recover_check\",\"srmech.amsc.laplacian.recover_check_spectral\",\"srmech.amsc.laplacian.recover_check_structural\"],\"produces\":[\"srmech.amsc.cascade.cd_norm_sq\",\"srmech.amsc.laplacian.dense_solve\",\"srmech.amsc.laplacian.dirichlet_to_neumann\",\"srmech.amsc.laplacian.schur_complement\"]},\"rung\":null,\"variables\":[]}",
-        700u,
-    },
-    {
         "HV",
         "Numpy-free Klein-4 hypervector: an array('B') sector buffer + a sectors count. The Class-M HDC carrier (bind / bundle / permute / similarity and the klein4_* sector ops). F1216: Class-M = WORKING MEMORY / active context \342\200\224 fuzzy, composable, BOUNDED (the ~24-bind span), gracefully decays; a transient holographic READ of the relational store (bundle is a lossy sketch), never the store itself. Bridge L\342\206\224M = the reversible spectral basis-change (eigen / Walsh-Hadamard).",
         NULL,
@@ -1409,11 +1401,11 @@ const srmech_carrier_entry_t srmech_carrier_registry_table[] = {
     },
     {
         "Q",
-        "srmech's exact rational scalar \342\200\224 a reduced (num, den) integer pair that compares like a float and collapses to one only via float(q): the return carrier of the Class-N series-truncate trig/exp/log surface and the HDC similarity scores.",
+        "srmech's exact rational scalar \342\200\224 a reduced (num, den) integer pair that compares like a float and collapses to one only via float(q): THE exact-rational carrier across srmech (#845 \342\200\224 it subsumed the former stdlib-Fraction interchange carrier). It is the return carrier of the exact-LA boundaries (dense_solve exact=True, schur_complement, cd_norm_sq), the Class-N series-truncate trig/exp/log surface, and the HDC similarity scores. A stdlib fractions.Fraction is still ACCEPTED on input (numeric protocol), it is simply never the emitted carrier.",
         NULL,
         0,
-        "{\"description\":\"srmech's exact rational scalar \\u2014 a reduced (num, den) integer pair that compares like a float and collapses to one only via float(q): the return carrier of the Class-N series-truncate trig/exp/log surface and the HDC similarity scores.\",\"example\":{\"construct\":\"Q(3, 4)\",\"yields\":\"Q(3, 4)\"},\"ladder\":null,\"name\":\"Q\",\"ops\":{\"consumes\":[],\"produces\":[\"srmech.amsc.cascade.hypercomplex_exp\",\"srmech.amsc.hdc.klein4_chunk_resolve\",\"srmech.amsc.hdc.klein4_similarity\",\"srmech.amsc.hdc.polar_density\",\"srmech.amsc.hdc.polar_similarity\",\"srmech.amsc.hdc.similarity\",\"srmech.amsc.rational.atan\",\"srmech.amsc.rational.atan2\",\"srmech.amsc.rational.cos\",\"srmech.amsc.rational.exp\",\"srmech.amsc.rational.hypot\",\"srmech.amsc.rational.log\",\"srmech.amsc.rational.sin\",\"srmech.amsc.rational.sqrt\",\"srmech.amsc.rational.tan\",\"srmech.spectral.similarity\"]},\"rung\":null,\"variables\":[]}",
-        886u,
+        "{\"description\":\"srmech's exact rational scalar \\u2014 a reduced (num, den) integer pair that compares like a float and collapses to one only via float(q): THE exact-rational carrier across srmech (#845 \\u2014 it subsumed the former stdlib-Fraction interchange carrier). It is the return carrier of the exact-LA boundaries (dense_solve exact=True, schur_complement, cd_norm_sq), the Class-N series-truncate trig/exp/log surface, and the HDC similarity scores. A stdlib fractions.Fraction is still ACCEPTED on input (numeric protocol), it is simply never the emitted carrier.\",\"example\":{\"construct\":\"Q(3, 4)\",\"yields\":\"Q(3, 4)\"},\"ladder\":null,\"name\":\"Q\",\"ops\":{\"consumes\":[\"srmech.amsc.laplacian.cycle_holonomy\",\"srmech.amsc.laplacian.recover_check\",\"srmech.amsc.laplacian.recover_check_spectral\",\"srmech.amsc.laplacian.recover_check_structural\"],\"produces\":[\"srmech.amsc.cascade.cd_norm_sq\",\"srmech.amsc.cascade.hypercomplex_exp\",\"srmech.amsc.hdc.klein4_chunk_resolve\",\"srmech.amsc.hdc.klein4_similarity\",\"srmech.amsc.hdc.polar_density\",\"srmech.amsc.hdc.polar_similarity\",\"srmech.amsc.hdc.similarity\",\"srmech.amsc.laplacian.dense_solve\",\"srmech.amsc.laplacian.dirichlet_to_neumann\",\"srmech.amsc.laplacian.schur_complement\",\"srmech.amsc.rational.atan\",\"srmech.amsc.rational.atan2\",\"srmech.amsc.rational.cos\",\"srmech.amsc.rational.exp\",\"srmech.amsc.rational.hypot\",\"srmech.amsc.rational.log\",\"srmech.amsc.rational.sin\",\"srmech.amsc.rational.sqrt\",\"srmech.amsc.rational.tan\",\"srmech.spectral.similarity\"]},\"rung\":null,\"variables\":[]}",
+        1530u,
     },
     {
         "QBiPoly",

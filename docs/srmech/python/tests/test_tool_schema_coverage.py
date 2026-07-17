@@ -73,6 +73,14 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # validate_mpr_record / write_ndjson helpers that wrap a registered entry.
     "srmech.amsc.format.sha256_hex",
     "srmech.amsc.format.sha256_raw",
+    # q.to_q (v0.9.0rc263; #845) — the single-argument coercion companion of the
+    # public ``Q`` carrier constructor (``Q(num, den)`` / ``Q.from_float`` /
+    # ``Q.from_pair``), the drop-in for one-arg ``fractions.Fraction(value)`` in
+    # srmech's own exact-rational math. Q itself is a class (not walked here); to_q
+    # is a thin composition over its constructor — exempt exactly like the
+    # sha256_hex / sha256_raw constructor-companion helpers above. Classified
+    # ``composition_of_c`` in rosetta_classification.ndjson.
+    "srmech.amsc.q.to_q",
     # ellbase.elliptic_lagrange_basis (v0.9.0rc66) — the degree-d elliptic Lagrange
     # interpolation basis, a CARRIER FOUNDATION peer of the EllMonomial / Theta /
     # EllRatio carriers (which are classes, not walked here). Like those carriers it

@@ -60,7 +60,7 @@ oracle); the native path falls cleanly back to it on any NativeError.
 
 from __future__ import annotations
 
-from fractions import Fraction
+import numbers
 from typing import Dict, List, Sequence, Tuple
 
 from .poly import Poly
@@ -97,7 +97,7 @@ def _as_qcoeff(value) -> "Poly | None":
         return value
     if isinstance(value, float):
         return None
-    if isinstance(value, (Q, int, Fraction, bool)):
+    if isinstance(value, numbers.Rational):     # Q (registered) / int / bool / Fraction
         try:
             return Poly.from_coeffs([value])
         except (TypeError, ValueError):
@@ -540,14 +540,23 @@ def _coerce_scalar(value) -> "Q | None":
         return Q(int(value), 1)
     if isinstance(value, int):
         return Q(value, 1)
-    if isinstance(value, Fraction):
-        return Q(value.numerator, value.denominator)
     if isinstance(value, float):
         return None
     if (isinstance(value, (tuple, list)) and len(value) == 2
             and isinstance(value[0], int) and isinstance(value[1], int)
             and value[1] != 0):
         return Q(value[0], value[1])
+    # Any other exact-rational carrier (a stdlib ``fractions.Fraction``, a
+    # ``decimal.Decimal``, another registered ``numbers.Rational``) via the
+    # numeric ``as_integer_ratio`` protocol — no ``fractions`` import needed
+    # (#845). ``float`` is already rejected above.
+    pair = getattr(value, "as_pair", None) or getattr(value, "as_integer_ratio", None)
+    if pair is not None:
+        try:
+            n, d = pair()
+            return Q(int(n), int(d))
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
     return None
 
 

@@ -813,7 +813,18 @@ def separate_frame_curvature(a, b):
 # rational bisection (Class N anchors → the algebraic asymptote) → one FPU lift —
 # the eigenvalues come out exact-to-arbitrary-precision and well-conditioned.
 
-from fractions import Fraction as _FR  # noqa: E402  (exact rational substrate)
+from srmech.amsc.q import Q, to_q  # noqa: E402  (#845: exact-ℚ carrier, was Fraction)
+
+
+def _FR(num, den=1):
+    """The exact-ℚ carrier factory (srmech :class:`~srmech.amsc.q.Q`; #845 — was
+    ``fractions.Fraction`` aliased ``_FR``). Kept as the module's rational factory
+    so the root-isolation ``_FR(...)`` call-sites are unchanged: one-arg coerces an
+    int / float / ``Fraction`` / ``Q`` via :func:`~srmech.amsc.q.to_q` (``_FR(coeff)``
+    / ``_FR(x0)`` — the integer char-poly coeffs and box coords); two-arg builds the
+    exact ``Q(num, den)`` (``_FR(1, 1 << bits)`` — the dyadic box widths). All root
+    isolation stays EXACT-ℚ, no float in the box boundary."""
+    return to_q(num) if den == 1 else Q(num, den)
 
 
 def _poly_trim(p: List) -> List:
@@ -1079,7 +1090,7 @@ def _count_roots_in_box(p: List, x0, x1, y0, y1) -> int:
     return count
 
 
-def _cauchy_root_bound(p: List) -> _FR:
+def _cauchy_root_bound(p: List) -> Q:
     """A rational bound ``B`` with every root of ``p`` (low→high) satisfying
     ``|root| < B`` — the Cauchy bound ``1 + max|a_i / a_n|``. Exact ℚ, Class-K
     magnitude (sign-branch, no ``abs()``)."""
@@ -1104,7 +1115,7 @@ def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]
     eta = _FR(1, 1 << 24)
     jx = _FR(1, 997)
     jy = _FR(1, 991)
-    found: List[Tuple[_FR, _FR]] = []
+    found: List[Tuple[Q, Q]] = []
     # work-stack of (x0, x1, y0, y1, expected_count); seed with the whole strip.
     x0, x1, y0, y1 = -B - jx, B + jx, eta, B + jy
     try:
@@ -1153,7 +1164,7 @@ def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]
     return [complex(float(cx), float(cy)) for (cx, cy) in found]
 
 
-def _root_free_split(p: List, x0, x1, y0, y1, axis: str) -> _FR:
+def _root_free_split(p: List, x0, x1, y0, y1, axis: str) -> Q:
     """A cut value near the midpoint of the chosen ``axis`` of the box such that
     BOTH resulting sub-boxes have a well-defined root count (no root on the cut).
     Jitters off the midpoint until :func:`_count_roots_in_box` does not raise."""
@@ -1177,7 +1188,7 @@ def _root_free_split(p: List, x0, x1, y0, y1, axis: str) -> _FR:
     raise ValueError("_root_free_split: no root-free cut found")
 
 
-def _refine_box(p: List, x0, x1, y0, y1, bits: int) -> Tuple[_FR, _FR]:
+def _refine_box(p: List, x0, x1, y0, y1, bits: int) -> Tuple[Q, Q]:
     """Refine an isolating box (guaranteed to hold exactly ONE root) to half-width
     ``< 2^-bits`` by root-free-cut bisection; return the box center ``(re, im)``.
 

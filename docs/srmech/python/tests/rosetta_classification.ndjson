@@ -131,6 +131,7 @@
 {"exposed_as": "srmech.amsc.sha256_bytes", "defined_at": "srmech.amsc.format.sha256_bytes", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.sha256_hex", "defined_at": "srmech.amsc.format.sha256_hex", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.sha256_raw", "defined_at": "srmech.amsc.format.sha256_raw", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.q.to_q", "defined_at": "srmech.amsc.q.to_q", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.template.render", "defined_at": "srmech.amsc.template.render", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.tlv.tlv_pack", "defined_at": "srmech.amsc.tlv.tlv_pack", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.tlv.tlv_unpack", "defined_at": "srmech.amsc.tlv.tlv_unpack", "bucket": "non_compute", "non_compute_kind": "composes_c"}

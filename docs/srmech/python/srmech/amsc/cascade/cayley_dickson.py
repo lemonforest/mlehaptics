@@ -39,7 +39,8 @@ What it attests (each a bit-exact, exact-rational witness):
   associativity-free statement of §VII.6.23.4 ("anything past and unobserved is
   lost") — exact-rational, no float, no ``abs()``.
 
-**Exact-rational, numpy-free.** Every component is a :class:`fractions.Fraction`;
+**Exact-rational, numpy-free.** Every component is a :class:`srmech.amsc.q.Q`
+(#845: srmech's C-native exact-rational carrier, not stdlib ``fractions``);
 the construction needs only ``+``, ``−``, ``×`` and the Class-K sign-flip (never
 ``abs()`` — sign is the Class-K pin-slot per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``). The integer
@@ -82,11 +83,11 @@ Canonical SSoT:
 from __future__ import annotations
 
 import ctypes
-from fractions import Fraction
 from itertools import combinations
 from typing import Any, Dict, List, Sequence, Set, Tuple
 
 from srmech.amsc.cyclic import gcd as _gcd   # Class-I gcd (native); NOT stdlib math
+from srmech.amsc.q import Q, to_q            # #845: the CD element carrier is Q
 
 from srmech.amsc import _native  # rc10: native srmech_cd_basis_product dispatch
 
@@ -121,26 +122,22 @@ def _is_pow2(n: int) -> bool:
     return n >= 1 and (n & (n - 1)) == 0
 
 
-def _coerce_frac(x: Any) -> Fraction:
-    """Coerce one scalar to an exact ``Fraction``. Accepts any rational carrier
-    that exposes ``as_integer_ratio`` — notably :class:`srmech.amsc.q.Q`, the
-    exact-rational scalar (so the ``hypercomplex_exp`` Q-twiddle feeds straight
-    into ``cd_mult``). The ``as_integer_ratio`` route is version-robust:
-    ``Fraction(q)`` only consults ``as_integer_ratio`` on Python ≥3.14, so a
-    Q would raise ``TypeError`` on 3.10–3.13 without this. ``int``/``float``
-    round-trip identically through ``as_integer_ratio``; ``str``/``Decimal``
-    fall back to the plain constructor."""
-    if type(x) is Fraction:
+def _coerce_frac(x: Any) -> Q:
+    """Coerce one scalar to an exact :class:`~srmech.amsc.q.Q` — the CD element
+    carrier (#845: srmech's C-native exact rational, not stdlib ``fractions``).
+    A ``Q`` passes through unchanged; every other exact-rational scalar (``int`` /
+    ``float`` / a stdlib ``fractions.Fraction`` / another ``as_integer_ratio``-able
+    carrier / a ``(num, den)`` pair) rides :func:`srmech.amsc.q.to_q`, so the
+    ``hypercomplex_exp`` Q-twiddle and a plain ``Fraction`` both feed straight into
+    ``cd_mult``. (``float`` becomes its EXACT ratio via ``to_q`` → ``Q.from_float``
+    — byte-identical to the old ``Fraction(float)``.)"""
+    if type(x) is Q:
         return x
-    air = getattr(x, "as_integer_ratio", None)
-    if air is not None:
-        n, d = air()
-        return Fraction(n, d)
-    return Fraction(x)
+    return to_q(x)
 
 
-def _as_elem(seq: Sequence[Any]) -> Tuple[Fraction, ...]:
-    """Coerce a sequence to a power-of-two-length tuple of exact Fractions."""
+def _as_elem(seq: Sequence[Any]) -> Tuple[Q, ...]:
+    """Coerce a sequence to a power-of-two-length tuple of exact Qs."""
     el = tuple(_coerce_frac(x) for x in seq)
     n = len(el)
     if not _is_pow2(n):
@@ -159,7 +156,7 @@ def _as_elem(seq: Sequence[Any]) -> Tuple[Fraction, ...]:
 # and conjugation  (a,b)* = (a*, −b),  base case  conj(real) = real.
 # ──────────────────────────────────────────────────────────────────────
 
-def _conj(a: Tuple[Fraction, ...]) -> Tuple[Fraction, ...]:
+def _conj(a: Tuple[Q, ...]) -> Tuple[Q, ...]:
     n = len(a)
     if n == 1:
         return a
@@ -167,7 +164,7 @@ def _conj(a: Tuple[Fraction, ...]) -> Tuple[Fraction, ...]:
     return _conj(a[:m]) + tuple(-x for x in a[m:])   # Class K sign-flip; no abs()
 
 
-def _mult(a: Tuple[Fraction, ...], b: Tuple[Fraction, ...]) -> Tuple[Fraction, ...]:
+def _mult(a: Tuple[Q, ...], b: Tuple[Q, ...]) -> Tuple[Q, ...]:
     n = len(a)
     if n == 1:
         return (a[0] * b[0],)
@@ -180,7 +177,7 @@ def _mult(a: Tuple[Fraction, ...], b: Tuple[Fraction, ...]) -> Tuple[Fraction, .
     return left + right
 
 
-def cd_conjugate(a: Sequence[Any]) -> Tuple[Fraction, ...]:
+def cd_conjugate(a: Sequence[Any]) -> Tuple[Q, ...]:
     """Cayley–Dickson conjugation — negate the imaginary part (Class K).
 
     Defined at **every** rung (the chirality persists, §VII.6.23.3); ``x·x̄`` is
@@ -192,11 +189,11 @@ def cd_conjugate(a: Sequence[Any]) -> Tuple[Fraction, ...]:
     # _conj below, which stays the Pyodide / no-native fallback.
     native = _native.cd_qconjugate_c([(f.numerator, f.denominator) for f in el])
     if native is not None:
-        return tuple(Fraction(n, d) for n, d in native)
+        return tuple(Q(n, d) for n, d in native)
     return _conj(el)
 
 
-def cd_mult(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
+def cd_mult(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Q, ...]:
     """Exact-rational Cayley–Dickson product of two equal-dimension elements."""
     a = _as_elem(a)
     b = _as_elem(b)
@@ -213,11 +210,11 @@ def cd_mult(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
         [(f.numerator, f.denominator) for f in a],
         [(f.numerator, f.denominator) for f in b])
     if native is not None:
-        return tuple(Fraction(n, d) for n, d in native)
+        return tuple(Q(n, d) for n, d in native)
     return _mult(a, b)
 
 
-def cd_add(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
+def cd_add(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Q, ...]:
     """Component-wise sum of two equal-dimension elements."""
     a = _as_elem(a)
     b = _as_elem(b)
@@ -225,16 +222,16 @@ def cd_add(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Fraction, ...]:
         raise ValueError(f"cd_add: dimension mismatch {len(a)} vs {len(b)}")
     # rc159: component-wise exact-ℚ addition dispatches to srmech_cd_qadd (the
     # exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
-    # Fraction sum below, which stays the Pyodide / no-native fallback.
+    # Q sum below, which stays the Pyodide / no-native fallback.
     native = _native.cd_qadd_c(
         [(f.numerator, f.denominator) for f in a],
         [(f.numerator, f.denominator) for f in b])
     if native is not None:
-        return tuple(Fraction(n, d) for n, d in native)
+        return tuple(Q(n, d) for n, d in native)
     return tuple(p + q for p, q in zip(a, b))
 
 
-def cd_norm_sq(a: Sequence[Any]) -> Fraction:
+def cd_norm_sq(a: Sequence[Any]) -> Q:
     """The squared norm ``N(x) = Σ x_i²`` (exact rational; ``x·x̄ = N(x)·1``).
 
     Positive-definite at every rung: ``N(x) = 0`` iff ``x = 0``. The composition
@@ -243,18 +240,18 @@ def cd_norm_sq(a: Sequence[Any]) -> Fraction:
     a = _as_elem(a)
     # rc159: the sum-of-squares Σ x_i² dispatches to srmech_cd_qnorm_sq (the
     # exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
-    # Fraction accumulate below, which stays the Pyodide / no-native fallback.
+    # Q accumulate below, which stays the Pyodide / no-native fallback.
     native = _native.cd_qnorm_sq_c([(f.numerator, f.denominator) for f in a])
     if native is not None:
         n, d = native
-        return Fraction(n, d)
-    s = Fraction(0)
+        return Q(n, d)
+    s = Q(0)
     for x in a:
         s += x * x
     return s
 
 
-def cd_basis(dim: int, i: int) -> Tuple[Fraction, ...]:
+def cd_basis(dim: int, i: int) -> Tuple[Q, ...]:
     """The ``i``-th unit basis element ``e_i`` of the dim-``D`` algebra."""
     if not _is_pow2(dim) or dim > CD_MAX_DIM:
         raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
@@ -265,9 +262,9 @@ def cd_basis(dim: int, i: int) -> Tuple[Fraction, ...]:
     # construction below, which stays the Pyodide / no-native fallback.
     native = _native.cd_qbasis_c(dim, i)
     if native is not None:
-        return tuple(Fraction(n, d) for n, d in native)
-    e = [Fraction(0)] * dim
-    e[i] = Fraction(1)
+        return tuple(Q(n, d) for n, d in native)
+    e = [Q(0)] * dim
+    e[i] = Q(1)
     return tuple(e)
 
 
@@ -294,7 +291,7 @@ def is_division_algebra_dim(dim: int) -> bool:
 # ``cd_project(cd_promote(x, 2·dim)) == x`` EXACT at every rung.
 # ──────────────────────────────────────────────────────────────────────
 
-def cd_promote(x: Sequence[Any], dim: int) -> Tuple[Fraction, ...]:
+def cd_promote(x: Sequence[Any], dim: int) -> Tuple[Q, ...]:
     """Promote a Cayley–Dickson element UP to a higher rung by the trivial
     SUBALGEBRA EMBEDDING (zero-pad the higher imaginary half) — TOTAL.
 
@@ -307,7 +304,7 @@ def cd_promote(x: Sequence[Any], dim: int) -> Tuple[Fraction, ...]:
     :func:`cd_project` (one doubling at a time), so
     ``cd_project(cd_promote(x, 2·d)) == x`` EXACT.
 
-    Exact-rational; the padding is the exact ``Fraction(0)``. No float, no
+    Exact-rational; the padding is the exact ``Q(0)``. No float, no
     ``abs()``, no numpy / ``math``."""
     el = _as_elem(x)
     d = len(el)
@@ -321,10 +318,10 @@ def cd_promote(x: Sequence[Any], dim: int) -> Tuple[Fraction, ...]:
             f"cd_project to descend")
     if dim == d:
         return el
-    return el + (Fraction(0),) * (dim - d)
+    return el + (Q(0),) * (dim - d)
 
 
-def cd_project(x: Sequence[Any]) -> Tuple[Fraction, ...]:
+def cd_project(x: Sequence[Any]) -> Tuple[Q, ...]:
     """Project a Cayley–Dickson element DOWN one doubling (dim ``d`` → ``d/2``)
     by REALIFYING IFF the higher (imaginary-doubling) half all vanish — the
     inverse of :func:`cd_promote`.
@@ -338,7 +335,7 @@ def cd_project(x: Sequence[Any]) -> Tuple[Fraction, ...]:
     number). A real (dim 1) element has no higher half → ``ValueError``.
 
     ``cd_project(cd_promote(x, 2·d)) == x`` EXACT (promote zero-pads exactly the
-    half this drops). Exact-rational; the vanishing test is a ``Fraction != 0``
+    half this drops). Exact-rational; the vanishing test is a ``Q != 0``
     Class-K comparison. No float, no ``abs()``, no numpy / ``math``."""
     el = _as_elem(x)
     d = len(el)
@@ -572,10 +569,10 @@ def _basis_sum_terms_zero(dim: int, terms_x, terms_y) -> Tuple[bool, List[int]]:
     return all(v == 0 for v in acc), acc
 
 
-def _terms_to_elem(dim: int, terms) -> Tuple[Fraction, ...]:
-    e = [Fraction(0)] * dim
+def _terms_to_elem(dim: int, terms) -> Tuple[Q, ...]:
+    e = [Q(0)] * dim
     for a, s in terms:
-        e[a] += Fraction(s)
+        e[a] += Q(s)
     return tuple(e)
 
 
@@ -598,7 +595,7 @@ def _build_zero_divisor_dict(i: int, j: int, k: int, l: int, s: int
         "y_form": f"e{k} {'+' if s > 0 else '-'} e{l}",
         "x_norm_sq": cd_norm_sq(x),
         "y_norm_sq": cd_norm_sq(y),
-        "product": tuple(Fraction(v) for v in prod),
+        "product": tuple(Q(v) for v in prod),
         "product_is_zero": True,
     }
 
@@ -608,7 +605,7 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
     with ``x·y = 0``. Found by searching basis-unit pairs with **our own**
     multiplication table (own-work-first, not a literature transcription).
 
-    Returns a dict with the two elements (as Fraction tuples), their human
+    Returns a dict with the two elements (as Q tuples), their human
     ``e_i ± e_j`` forms, their (nonzero) squared norms, and the (all-zero)
     product — the executable form of "zero divisors first appear at 16."
     """
@@ -637,7 +634,7 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
     )
 
 
-def left_mult_matrix(x: Sequence[Any]) -> List[List[Fraction]]:
+def left_mult_matrix(x: Sequence[Any]) -> List[List[Q]]:
     """The ``n×n`` rational matrix of the linear map ``u ↦ x·u`` (column ``c`` is
     ``x·e_c``), row-major.
 
@@ -653,7 +650,7 @@ def left_mult_matrix(x: Sequence[Any]) -> List[List[Fraction]]:
     return [[cols[c][r] for c in range(n)] for r in range(n)]
 
 
-def _rational_nullspace(matrix: List[List[Fraction]]) -> List[Tuple[Fraction, ...]]:
+def _rational_nullspace(matrix: List[List[Q]]) -> List[Tuple[Q, ...]]:
     """Exact-rational kernel basis of a square matrix via reduced row echelon."""
     n = len(matrix)
     a = [row[:] for row in matrix]
@@ -679,17 +676,17 @@ def _rational_nullspace(matrix: List[List[Fraction]]) -> List[Tuple[Fraction, ..
         if r == n:
             break
     free_cols = [c for c in range(n) if c not in pivot_cols]
-    basis: List[Tuple[Fraction, ...]] = []
+    basis: List[Tuple[Q, ...]] = []
     for fc in free_cols:
-        vec = [Fraction(0)] * n
-        vec[fc] = Fraction(1)
+        vec = [Q(0)] * n
+        vec[fc] = Q(1)
         for i, pc in enumerate(pivot_cols):
             vec[pc] = -a[i][fc]
         basis.append(tuple(vec))
     return basis
 
 
-def left_mult_kernel(x: Sequence[Any]) -> List[Tuple[Fraction, ...]]:
+def left_mult_kernel(x: Sequence[Any]) -> List[Tuple[Q, ...]]:
     """Kernel basis of ``u ↦ x·u``. **Nonempty ⟺ ``x`` is a left zero divisor ⟺
     multiply-by-``x`` has no inverse map** — the "no backward direction to point"
     of §VII.6.23.4. Empty for every nonzero element of a division algebra (≤𝕆).
@@ -708,11 +705,11 @@ def left_mult_kernel(x: Sequence[Any]) -> List[Tuple[Fraction, ...]]:
         [(mat[r][c].numerator, mat[r][c].denominator)
          for r in range(n) for c in range(n)], n, n)
     if native is not None:
-        return [tuple(Fraction(p[0], p[1]) for p in vec) for vec in native]
+        return [tuple(Q(p[0], p[1]) for p in vec) for vec in native]
     return _rational_nullspace(mat)
 
 
-def _native_is_invertible(el: Tuple[Fraction, ...]):
+def _native_is_invertible(el: Tuple[Q, ...]):
     """The invertibility decision via the native modular-rank gate
     ``srmech_sedenion_is_navigable`` (rc12; bignum-free, exact — see
     ``c/src/srmech_sedenion.c``). Returns the bool, or ``None`` when there is no

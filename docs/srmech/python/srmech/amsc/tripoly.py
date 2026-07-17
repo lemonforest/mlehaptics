@@ -547,9 +547,6 @@ def _to_q(value):
         return Q(int(value), 1)
     if isinstance(value, int):
         return Q(value, 1)
-    from fractions import Fraction
-    if isinstance(value, Fraction):
-        return Q(value.numerator, value.denominator)
     if isinstance(value, float):
         return None
     if (isinstance(value, (tuple, list)) and len(value) == 2

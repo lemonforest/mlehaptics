@@ -517,17 +517,17 @@ def _seq_int_or_pair(value: Any, *, param: str = "") -> List[Any]:
 
 
 def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
-    """``list[int | Fraction | float]`` (rc231; ``cycle_holonomy`` per-edge
-    ``charges`` in turns) -> list of int / float / ``Fraction``.
+    """``list[int | Q | float]`` (rc231; ``cycle_holonomy`` per-edge ``charges`` in
+    turns) -> list of int / float / srmech :class:`~srmech.amsc.q.Q`.
 
-    A charge is an exact ``int`` / ``Fraction`` (turns) or a ``float`` (projected to
-    a rational by the op). JSON has no Fraction, so an exact rational charge rides as
-    a ``[num, den]`` 2-int-list — matched to :func:`serialise_native`'s outbound
-    ``Fraction -> [num, den]`` — and is rebuilt into a :class:`~fractions.Fraction`
-    here; a bare JSON int / float passes through (the op's ``_to_fraction`` accepts
-    both). ``None`` is handled by :func:`coerce_param`'s null-passthrough (the
-    all-zero / balanced default)."""
-    from fractions import Fraction
+    A charge is an exact ``int`` / ``Q`` (turns) or a ``float`` (projected to a
+    rational by the op). JSON has no rational, so an exact rational charge rides as a
+    ``[num, den]`` 2-int-list — matched to :func:`serialise_native`'s outbound
+    ``Q -> [num, den]`` — and is rebuilt into a ``Q`` here (#845: srmech's exact-ℚ
+    carrier, was ``fractions.Fraction``); a bare JSON int / float passes through (the
+    op's ``_to_fraction`` accepts both). ``None`` is handled by
+    :func:`coerce_param`'s null-passthrough (the all-zero / balanced default)."""
+    from srmech.amsc.q import Q
     if not isinstance(value, (list, tuple)):
         raise ValueError(
             f"expected a list of charges (int / float / [num, den]) for param "
@@ -538,7 +538,7 @@ def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
         if (isinstance(c, (list, tuple)) and len(c) == 2
                 and all(isinstance(x, int) and not isinstance(x, bool)
                         for x in c) and c[1] != 0):
-            out.append(Fraction(int(c[0]), int(c[1])))
+            out.append(Q(int(c[0]), int(c[1])))
         else:
             out.append(c)
     return out
@@ -984,7 +984,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     #   cycle_holonomy `charges` — per-edge charge in turns, an int / float / an
     #   exact [num, den] Fraction (rebuilt to Fraction; matches the outbound form).
     "Optional[list[int | tuple[int, int]]]": _seq_int_or_pair,
-    "Optional[list[int | Fraction | float]]": _seq_charge,
+    "Optional[list[int | Q | float]]": _seq_charge,
     # v0.7.5rc29: exact_dft.lift `spectrum` — the exact Z[zeta_N] spectrum is a
     # list of (real_vec, imag_vec) integer pairs; nested lists are JSON-native.
     "list[tuple[list[int], list[int]]]": _identity,
@@ -1104,14 +1104,15 @@ def serialise_native(value: Any) -> Any:
     # complex -> [re, im]
     if isinstance(value, complex):
         return [value.real, value.imag]
-    # Fraction -> [num, den] (rc231; cycle_holonomy returns list[Fraction] cycle
-    # holonomies in [0, 1)). An exact rational rides as an integer [num, den] pair
-    # — the inverse of the inbound _seq_charge [num, den] -> Fraction, so a charge
-    # graph's holonomies round-trip exactly (never a lossy float, never a bare
-    # repr string). Keyed by TYPE, unambiguous with complex's [re, im] (which is
-    # keyed by the declared `complex` param type on the inbound side).
-    from fractions import Fraction as _Fraction
-    if isinstance(value, _Fraction):
+    # Q -> [num, den] (rc231; cycle_holonomy returns list[Q] cycle holonomies in
+    # [0, 1)). #845: srmech's exact-ℚ carrier (was fractions.Fraction). An exact
+    # rational rides as an integer [num, den] pair — the inverse of the inbound
+    # _seq_charge [num, den] -> Q, so a charge graph's holonomies round-trip exactly
+    # (never a lossy float, never a bare repr string). Keyed by TYPE, unambiguous
+    # with complex's [re, im] (which is keyed by the declared `complex` param type
+    # on the inbound side).
+    from srmech.amsc.q import Q as _Q
+    if isinstance(value, _Q):
         return [value.numerator, value.denominator]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
     # The core ops return HV; cross JSON-RPC by value as a plain integer list.

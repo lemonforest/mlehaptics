@@ -1163,14 +1163,14 @@ def _register_primitive_class_tools() -> None:
                     "numpy-free; no abs().",
             parameters=(P("edges", "list[tuple[int, int]]", True,
                           "a self-loop is a 1-cycle; a parallel edge a digon"),
-                        P("charges", "Optional[list[int | Fraction | float]]",
+                        P("charges", "Optional[list[int | Q | float]]",
                           False,
                           "per-edge charge in TURNS parallel to edges; None → "
                           "all 0 (balanced); (u,v,c) ≡ (v,u,−c)"),
                         P("n", "Optional[int]", False,
                           "node count; inferred from edges when None")),
             returns=R("dict",
-                      "{'n_cycles', 'holonomies': list[Fraction] in [0,1), "
+                      "{'n_cycles', 'holonomies': list[Q] in [0,1), "
                       "'cycle_edges': list[(u,v)], 'balanced': bool}"),
         ),
         ToolEntry(
@@ -1245,7 +1245,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("vocab_size", "int", True, "node count"),
                         P("edges", "list[tuple[int, int]]", True, "directed edge list"),
                         P("weights", "list", True, "parallel int metric"),
-                        P("charges", "Optional[list[int | Fraction | float]]",
+                        P("charges", "Optional[list[int | Q | float]]",
                           False, "parallel signed direction; None = undirected")),
             returns=R("dict",
                       "{ok, op, operand, responsion, curvature:{directed, "
@@ -1264,7 +1264,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("vocab_size", "int", True, "node count"),
                         P("edges", "list[tuple[int, int]]", True, "directed edge list"),
                         P("weights", "list", True, "parallel int metric"),
-                        P("charges", "Optional[list[int | Fraction | float]]",
+                        P("charges", "Optional[list[int | Q | float]]",
                           False, "parallel signed direction; None = undirected"),
                         P("cycle_sample", "int", False,
                           "keyword-only; the triangle-probe budget (default 48)")),
@@ -1284,7 +1284,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("vocab_size", "int", True, "node count"),
                         P("edges", "list[tuple[int, int]]", True, "directed edge list"),
                         P("weights", "list", True, "parallel int metric"),
-                        P("charges", "Optional[list[int | Fraction | float]]",
+                        P("charges", "Optional[list[int | Q | float]]",
                           False, "parallel signed direction; None = undirected"),
                         P("max_dim", "int", False,
                           "keyword-only; the principal-submatrix bound (default 256)")),
@@ -1823,7 +1823,7 @@ def _register_primitive_class_tools() -> None:
                           "right-hand side: n × w matrix or length-n vector"),
                         P("exact", "bool", False,
                           "force the exact Fraction solve (default False)")),
-            returns=R("Mat | Vec | list[list[Fraction]] | list[Fraction]",
+            returns=R("Mat | Vec | list[list[Q]] | list[Q]",
                       "X solving A·X = B (shape of B)"),
         ),
         # UPSTREAM §26 (#897): the Schur complement / Dirichlet-to-Neumann
@@ -1845,7 +1845,7 @@ def _register_primitive_class_tools() -> None:
                           "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
                         P("exact", "bool", False,
                           "force the exact Fraction solve (default False)")),
-            returns=R("Mat | list[list[Fraction]]",
+            returns=R("Mat | list[list[Q]]",
                       "|∂| × |∂| boundary effective operator (DtN map)"),
         ),
         ToolEntry(
@@ -1861,7 +1861,7 @@ def _register_primitive_class_tools() -> None:
                           "boundary node indices ∂ (1 ≤ |∂| ≤ n)"),
                         P("exact", "bool", False,
                           "force the exact Fraction solve (default False)")),
-            returns=R("Mat | list[list[Fraction]]",
+            returns=R("Mat | list[list[Q]]",
                       "|∂| × |∂| boundary effective operator (DtN map)"),
         ),
         # ADR-0002 Phase 2 broadening: complex Hermitian + matvec +
@@ -2664,7 +2664,7 @@ def _register_primitive_class_tools() -> None:
                         P("bits", "int", False, "keyword-only; bisection refinement precision in bits (default 64)"),
                         P("return_intervals", "bool", False, "keyword-only; return exact (lo, hi) rational intervals instead of floats (real-only path); default False"),
                         P("include_complex", "bool", False, "also isolate+return the complex eigenvalues (default: real only)")),
-            returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) Fraction intervals); with include_complex=True, all n eigenvalues (reals as float then certified complex)"),
+            returns=R("list", "real eigenvalues ascending with multiplicity (floats, or (lo, hi) exact-ℚ intervals); with include_complex=True, all n eigenvalues (reals as float then certified complex)"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.matrix_cascades.lll_reduce", owner="srmech", category="cascade",
@@ -6591,7 +6591,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Exact-rational Cayley–Dickson product of two equal-dimension "
                     "elements (#915 / MFO §VII.6.23). Generic ℝ→ℂ→ℍ→𝕆→𝕊(16)→… "
-                    "doubling, numpy-free, each component a Fraction. This is the "
+                    "doubling, numpy-free, each component a Q. This is the "
                     "OPEN-EXTERIOR demonstrator, NOT a substrate extension: the_one / "
                     "hypercomplex_couple live in the reversible interior (≤𝕆); this is "
                     "the non-division object past the Hurwitz wall where the product "
@@ -6602,7 +6602,7 @@ def _register_primitive_class_tools() -> None:
                 P("a", "sequence", True, "first element — a power-of-two-length sequence of ints/Fractions"),
                 P("b", "sequence", True, "second element — same dimension as a"),
             ),
-            returns=R("tuple", "the product, a tuple of exact Fractions"),
+            returns=R("tuple", "the product, a tuple of exact Q"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_conjugate", owner="srmech",
@@ -6614,7 +6614,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(
                 P("a", "sequence", True, "a power-of-two-length element"),
             ),
-            returns=R("tuple", "the conjugate, a tuple of exact Fractions"),
+            returns=R("tuple", "the conjugate, a tuple of exact Q"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_norm_sq", owner="srmech",
@@ -6627,7 +6627,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(
                 P("a", "sequence", True, "a power-of-two-length element"),
             ),
-            returns=R("Fraction", "the squared norm Σ xᵢ²"),
+            returns=R("Q", "the squared norm Σ xᵢ²"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_basis_product", owner="srmech",
@@ -6672,7 +6672,7 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("tuple",
                       "the element zero-padded up to dim, a tuple of exact "
-                      "Fractions"),
+                      "Q"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_project", owner="srmech",
@@ -6687,7 +6687,7 @@ def _register_primitive_class_tools() -> None:
                     "rc104 lesson). A real (dim 1) element has no higher half → "
                     "error. cd_project(cd_promote(x, 2·d))==x EXACT. Pure "
                     "carrier restructuring → non_compute. Exact-rational (the "
-                    "vanishing test is a Fraction!=0 Class-K comparison); no "
+                    "vanishing test is a Q!=0 Class-K comparison); no "
                     "float; no abs()." + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True,
@@ -6695,7 +6695,7 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("tuple",
                       "the bottom half (the realified element), a tuple of "
-                      "exact Fractions; raises a NAMING coherency error if the "
+                      "exact Q; raises a NAMING coherency error if the "
                       "higher half is non-zero"),
         ),
         ToolEntry(
@@ -6709,7 +6709,7 @@ def _register_primitive_class_tools() -> None:
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(),
             returns=R("dict",
-                      "{'dim':16, 'x','y': Fraction tuples, 'x_form','y_form': "
+                      "{'dim':16, 'x','y': Q tuples, 'x_form','y_form': "
                       "'e_i ± e_j' strings, 'x_norm_sq','y_norm_sq': nonzero, "
                       "'product': all-zero, 'product_is_zero': True}"),
         ),
@@ -6725,7 +6725,7 @@ def _register_primitive_class_tools() -> None:
             parameters=(
                 P("x", "sequence", True, "a power-of-two-length element"),
             ),
-            returns=R("list", "kernel-basis vectors (Fraction tuples); empty if invertible"),
+            returns=R("list", "kernel-basis vectors (Q tuples); empty if invertible"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.left_mult_is_invertible", owner="srmech",

@@ -179,20 +179,17 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "the terminal read-out)."),
         "ladder": None, "rung": None, "variables": [],
     },
-    "Fraction": {
-        "description": (
-            "stdlib exact rational (fractions.Fraction) — accepted/emitted "
-            "at the exact-LA boundaries (dense_solve exact=True, "
-            "schur_complement, cd_norm_sq): the interchange twin of the "
-            "srmech Q scalar."),
-        "ladder": None, "rung": None, "variables": [],
-    },
     "Q": {
         "description": (
             "srmech's exact rational scalar — a reduced (num, den) integer "
             "pair that compares like a float and collapses to one only via "
-            "float(q): the return carrier of the Class-N series-truncate "
-            "trig/exp/log surface and the HDC similarity scores."),
+            "float(q): THE exact-rational carrier across srmech (#845 — it "
+            "subsumed the former stdlib-Fraction interchange carrier). It is "
+            "the return carrier of the exact-LA boundaries (dense_solve "
+            "exact=True, schur_complement, cd_norm_sq), the Class-N series-"
+            "truncate trig/exp/log surface, and the HDC similarity scores. A "
+            "stdlib fractions.Fraction is still ACCEPTED on input (numeric "
+            "protocol), it is simply never the emitted carrier."),
         "ladder": None, "rung": None, "variables": [],
     },
     # ── the float-LA carriers (numpy-free array('d') family) ─────────────────

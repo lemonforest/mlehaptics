@@ -365,7 +365,7 @@ _OP_CONTRACTS: Dict[str, Dict[str, Any]] = {
         "consumes": _cd("any"), "produces": _cd("same")},
     "cd_norm_sq": {
         "tool": "srmech.amsc.cascade.cd_norm_sq",
-        "consumes": _cd("any"), "produces": {"ladder": None, "type": "Fraction"}},
+        "consumes": _cd("any"), "produces": {"ladder": None, "type": "Q"}},
     "left_mult_kernel": {
         "tool": "srmech.amsc.cascade.left_mult_kernel",
         "consumes": _cd("any"), "produces": {"ladder": None, "type": "list"}},
