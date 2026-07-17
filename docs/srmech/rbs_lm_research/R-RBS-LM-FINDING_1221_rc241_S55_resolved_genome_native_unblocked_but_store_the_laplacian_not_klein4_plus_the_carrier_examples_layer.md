@@ -1,3 +1,5 @@
+**→ extended by F1246** (the consolidated coupled-turns encode contract — metric+charge+fiber, not just Laplacian — lodged srmech-facing at UPSTREAM §98).
+
 # F1221 — rc241: §55 is RESOLVED (4× lane bloat + O(n²) pack both fixed) → genome-native is UNBLOCKED. But store the LAPLACIAN on disk, NOT Klein-4 (it flattens far more). Plus the new `_carrier_examples` construction layer
 
 **User (2026-07-14):** *"pull latest testpypi srmech — we thought the 4× bloat was fixed several rcN ago; introspect our new examples layer"* + mid-turn *"from earlier research we probably don't want Klein-4 on disk, because it flattens much more than Laplacian."* Pulled rc238→**rc241**; re-measured; introspected. All three land.

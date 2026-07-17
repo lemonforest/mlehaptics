@@ -1,3 +1,5 @@
+**→ extended by F1246** (this metric/charge/fiber decomposition is the core of the consolidated coupled-turns encode contract at UPSTREAM §98).
+
 # F1228 — the Class-L Laplacian OBJECT is Abelian; the FIBER (ordered walk) carries the non-commutativity and the CHARGE carries the chirality — two DIFFERENT "non-mirror" properties. And DNA/RNA carry BOTH, which is exactly why the substrate is a directed Class-L + fiber, not a symmetric bag
 
 **User (2026-07-14):** *"is our Class-L object non-Abelian inherently, or only our genome when we add the fiber (laplacian of eigenvalue/vector/state)? And is biological DNA/RNA non-Abelian if all it means is that order of operations matters and is not mirrored?"* — the intuition is right, with one precision worth teasing apart: **"order matters" and "not mirrored" are two DIFFERENT properties, carried by two different parts.**

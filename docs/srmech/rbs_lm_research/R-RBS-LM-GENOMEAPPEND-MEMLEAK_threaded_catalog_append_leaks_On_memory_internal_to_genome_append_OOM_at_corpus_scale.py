@@ -1,22 +1,20 @@
-r"""R-RBS-LM-GENOMEAPPEND-MEMLEAK — the O(1)-TIME threaded-catalog `genome_append` (§95.3/§95.5, rc257→rc265) has an
-O(n)-MEMORY leak: peak RSS climbs ~linearly with the number of appends even though the returned catalog dict stays
-tiny — so the retained memory is INTERNAL to `genome_append` (the coupled leaves / turns of every appended body), not
-the caller's threaded `cat`. At corpus scale this OOMs: the PKG-3 simplewiki encode (240k bodies, ~413 leaves/body)
-was OOM-killed at anon-rss 95 GB after only 3361 bodies.
+r"""R-RBS-LM-GENOMEAPPEND-MEMLEAK — regression guard for the §97 append-RAM leak, NOW FIXED at rc266.
 
-Measured (rc265, fixed 413-leaf bodies = a full-corpus body):
-    appends   peak_RSS_GB   cat.chromosomes   cat.regions
-        400      1.64            401              401
-        800      5.88            801              801
-       2000     16.80           2001             2001
-  -> ~8 MB retained PER APPEND, but `cat` is < 1 MB (chromosomes/regions are pointer lists) — the leak is in
-     genome_append, not in cat.
+HISTORY (§97, rc257→rc265): the O(1)-TIME threaded-catalog `genome_append` had an O(n)-MEMORY growth — peak RSS climbed
+~8 MB/append even though the returned catalog dict stayed < 1 MB, so the retained memory was INTERNAL to the append
+(the appended body's staged turns), not the caller's threaded `cat`. At corpus scale it OOMed: the PKG-3 simplewiki
+encode (240k bodies, ~413 leaves/body) was OOM-killed at anon-rss 95 GB after only 3361 bodies.
 
-Ask (srmech): free the per-append working set (the coupled leaf HVs / staged turns) after the O(1) tail-extend + head
-write, so `genome_append` is O(1) in RAM as well as in TIME. Until then, a large corpus must use the memory-bounded
-batch/explode/pack path (build each batch in-RAM, explode, one final linear `genome_pack`).
+    Measured then (rc265, fixed 413-leaf bodies):  400→1.64 GB · 800→5.88 GB · 2000→16.80 GB  (~8 MB/append)
 
-srmech 0.9.0rc265. No ALU magnitude-builtin. Composes §95.3/§95.5/§97, #1407, PKG-3.
+RESOLVED at rc266 (§97.1): the leak was in the PYTHON WRAPPER ONLY — it sized its append-arena by mis-detecting the
+v12 head-only manifest (read whole-body length instead of the head), ballooning the arena on every call. The C-native
+`srmech_genome_append` was ALREADY O(1); rc266 moved the sizing to one shared C source of truth
+(`srmech_genome_append_arena_bytes`) so the wrapper can't mis-size it. So a C-only / microcontroller host was never
+affected. Re-measured at rc266: FLAT (~0.0 MB/append). This script is now a REGRESSION GUARD — it PASSES iff the
+per-append RAM stays flat (O(1)); it FAILS if the O(n) leak ever returns.
+
+srmech 0.9.0rc267. No ALU magnitude-builtin. Composes §95.3/§95.5/§97/§97.1, #1407, PKG-3.
 Run:  /tmp/srmech_latest/venv/bin/python3 R-RBS-LM-GENOMEAPPEND-MEMLEAK_*.py [N]
 """
 import resource
@@ -44,10 +42,13 @@ def main():
     rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e6
     import sys as _s
     cat_bytes = sum(_s.getsizeof(v) for v in cat.values())
-    print(f"\nVERDICT: peak RSS grew to {rss:.1f} GB over {n} appends (~{1000*(rss-base)/n:.1f} MB/append), but the "
-          f"catalog dict is only ~{cat_bytes/1e3:.0f} KB — the leak is INTERNAL to genome_append (retains the "
-          f"appended turns), not in the caller's cat. O(1) in time, O(n) in RAM -> OOM at corpus scale (§97).")
-    return 0
+    mb_per = 1000 * (rss - base) / n
+    flat = mb_per < 1.0                                 # O(1) RAM: < 1 MB/append (rc266 measures ~0.0; the leak was ~8)
+    print(f"\nVERDICT: {'PASS (O(1) RAM — §97 leak stays fixed)' if flat else 'FAIL (O(n) RAM leak RETURNED — §97 regressed)'} — "
+          f"peak RSS {rss:.2f} GB over {n} appends = {mb_per:.2f} MB/append (catalog dict ~{cat_bytes/1e3:.0f} KB). "
+          f"rc266 fixed the python-wrapper arena mis-size (C native was already O(1), §97.1); "
+          f"flat here confirms the streaming corpus encode is RAM-bounded.")
+    return 0 if flat else 1
 
 
 if __name__ == "__main__":

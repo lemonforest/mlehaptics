@@ -1,3 +1,5 @@
+**→ extended by F1246** (both reads — this directed-Laplacian store + the fiber store — are the two halves of the consolidated coupled-turns encode contract at UPSTREAM §98).
+
 # F1233 — wired the directed Class-L store into Siona's READ path: `define` now returns the relational read ("water — seen with: ocean, steam, liquid…") instead of z_boson_mass. Moves Siona off F1219's CAN'T-TELL. + the REAL simplewiki body instrument built as ONE native genome.
 
 **User (2026-07-15):** *"build the real simplewiki genome and wire the store into Siona's read path."* Both done — the wiring tested + working, the genome building on the full 831k/39M at real scale.
