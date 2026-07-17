@@ -1597,21 +1597,28 @@ def _leaf_is_erased(leaf_syms):
     return all(int(s) == 0 for s in leaf_syms)
 
 
-def _diploid_ec_leaf(a, b, which):
-    """The per-leaf diploid EC read (§95b / F1244): both agree → use it; exactly one ERASED
-    (a detectable break) → fill from the intact homolog (the diploid specialist — 2× not 3×);
-    both present but DISAGREE (a substitution) → trust the centromere which-template mark.
-    ``a``/``b`` are the two recovered homolog leaves (Klein-4 HVs); ``which`` the mark parity
-    (0 = trust copyA, 1 = trust copyB). Class-K sector compare, no float/abs."""
-    la, lb = list(a), list(b)
-    if la == lb:
-        return a                                       # homologs agree — the clean case
-    a_erased = _leaf_is_erased(la)
-    b_erased = _leaf_is_erased(lb)
+def _diploid_ec_leaf(a_turn, b_turn, which, the_one):
+    """The per-leaf diploid EC read (§95b / F1244; §95.4 erasure-symmetry fix): exactly one
+    ERASED (a detectable break) → fill from the intact homolog (the diploid specialist — 2×
+    not 3×); both present + agree → use it; both present but DISAGREE (a substitution) → trust
+    the centromere which-template mark.
+
+    ``a_turn``/``b_turn`` are the two STORED homolog TURNS (the on-disk Klein-4 HVs, PRE-
+    decouple); ``the_one`` the shared invariant; ``which`` the mark parity (0 = trust copyA,
+    1 = trust copyB). **Erasure is read on the stored TURN, not the decoupled leaf** — a double-
+    strand break zeros the stored turn, and a zeroed turn decouples to a NON-zero leaf, so the
+    all-zero erasure sentinel MUST be tested before :func:`quad_turn` (the §95.4 bug: testing
+    the decoupled leaf detected NO erasure, so a copyA break healed only by substitution-
+    tiebreak luck — asymmetric). Class-K sector compare, no float/abs."""
+    a_erased = _leaf_is_erased(list(a_turn))
+    b_erased = _leaf_is_erased(list(b_turn))
     if a_erased and not b_erased:
-        return b                                       # fill from the intact homolog (erasure)
+        return quad_turn(b_turn, the_one)              # fill from the intact homolog (erasure)
     if b_erased and not a_erased:
-        return a
+        return quad_turn(a_turn, the_one)
+    a, b = quad_turn(a_turn, the_one), quad_turn(b_turn, the_one)
+    if list(a) == list(b):
+        return a                                       # homologs agree (incl. both-erased)
     return b if which else a                           # substitution → the marked template
 
 
@@ -1696,8 +1703,8 @@ def recover_diploid(strand, the_one):
     which = _centromere_orientation(_centromere_votes(cen)) & 1   # which-template mark parity
     out = []
     for a_turn, b_turn in zip(copyA, copyB):
-        out.append(_diploid_ec_leaf(quad_turn(a_turn, the_one),
-                                    quad_turn(b_turn, the_one), which))
+        # pass the STORED turns (pre-decouple) — erasure is read on the turn (§95.4)
+        out.append(_diploid_ec_leaf(a_turn, b_turn, which, the_one))
     return out
 
 

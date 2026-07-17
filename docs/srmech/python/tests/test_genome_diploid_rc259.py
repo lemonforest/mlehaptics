@@ -39,6 +39,13 @@ def _bl(hvs):
     return [list(x) for x in hvs]
 
 
+def _zero():
+    # the ERASURE sentinel: an all-zero STORED TURN (a zeroed locus / double-strand break;
+    # §95.4). NOT `one` — a real erasure zeros the on-disk bytes, and an all-zero turn
+    # decouples to a NON-zero leaf, so recovery must read the erasure on the turn.
+    return G._HV.from_sequence([0] * _DIM, sectors=4)
+
+
 # ── 1. build + clean round-trip ─────────────────────────────────────────────
 
 def test_format_version_is_14():
@@ -68,22 +75,33 @@ def test_recover_rejects_non_diploid():
 # ── 2. the per-leaf EC (agree / erasure / substitution-mark) ────────────────
 
 def test_ec_leaf_agree_erasure_disagree():
-    a = klein4_random(_DIM, seed=1)
-    b = klein4_random(_DIM, seed=2)
-    zero = G._HV.from_sequence([0] * _DIM, sectors=4)
-    assert list(G._diploid_ec_leaf(a, a, 0)) == list(a)          # agree
-    assert list(G._diploid_ec_leaf(zero, b, 0)) == list(b)       # erasure A -> intact B
-    assert list(G._diploid_ec_leaf(a, zero, 1)) == list(a)       # erasure B -> intact A
-    assert list(G._diploid_ec_leaf(a, b, 0)) == list(a)          # disagree, mark 0 -> A
-    assert list(G._diploid_ec_leaf(a, b, 1)) == list(b)          # disagree, mark 1 -> B
+    # §95.4: _diploid_ec_leaf takes the STORED TURNS (+ the_one) and reads erasure on the
+    # turn (all-zero) BEFORE decoupling; it returns the recovered (decoupled) leaf.
+    one = _one()
+    zero = _zero()
+    la = klein4_random(_DIM, seed=1)
+    lb = klein4_random(_DIM, seed=2)
+    ta, tb = G.quad_turn(la, one), G.quad_turn(lb, one)          # the on-disk turns of la/lb
+    assert list(G._diploid_ec_leaf(ta, ta, 0, one)) == list(la)  # agree -> the leaf
+    assert list(G._diploid_ec_leaf(zero, tb, 0, one)) == list(lb)  # erasure A -> intact B
+    assert list(G._diploid_ec_leaf(ta, zero, 1, one)) == list(la)  # erasure B -> intact A
+    assert list(G._diploid_ec_leaf(ta, tb, 0, one)) == list(la)  # disagree, mark 0 -> A
+    assert list(G._diploid_ec_leaf(ta, tb, 1, one)) == list(lb)  # disagree, mark 1 -> B
 
 
-def test_erasure_recovery_on_a_real_strand():
+def test_erasure_recovery_symmetric_both_homologs():
+    # §95.4 regression: an erased leaf (an all-zero stored TURN) on EITHER homolog heals from
+    # the intact one — break-repair is direction-free. Pre-fix, only one direction healed (the
+    # erasure was read on the DECOUPLED leaf, which a zeroed turn never zeroes, so a copyA break
+    # survived only by substitution-tiebreak luck — asymmetric).
     one = _one()
     leaves = _leaves(6)
     dip = list(G.diploid(leaves, one, label="x"))
-    dip[1 + 2] = one                       # erase copyA leaf 2 (uncouples to all-zero)
-    assert _bl(G.recover_diploid(dip, one)) == _bl(leaves)       # filled from intact copyB
+    cen_i = next(i for i, hv in enumerate(dip) if G._cap_kind(hv) == G.CENTROMERE_CAP_MARKER)
+    for tgt, name in [(1 + 2, "copyA"), (cen_i + 1 + 2, "copyB")]:
+        broken = list(dip)
+        broken[tgt] = _zero()                                   # zero the on-disk turn
+        assert _bl(G.recover_diploid(broken, one)) == _bl(leaves), f"{name} erasure did not heal"
 
 
 # ── 3. recall (raw 2n) vs recover (corrected n) + the erasure-specialist claim ──
@@ -101,7 +119,7 @@ def test_diploid_is_the_erasure_specialist():
     one = _one()
     leaves = _leaves(6)
     dip = list(G.diploid(leaves, one, label="x"))
-    dip[1 + 1] = one                                    # erase a leaf
+    dip[1 + 1] = _zero()                                # erase a leaf (zero the stored turn)
     assert _bl(G.recover_diploid(dip, one)) == _bl(leaves)   # recovered — the 2x erasure win
 
 
@@ -152,7 +170,7 @@ def test_parity_recover_diploid_clean_and_erasure(monkeypatch):
     leaves = _leaves(6)
     dip = G.diploid(leaves, one, label="astro")
     dip_erased = list(dip)
-    dip_erased[1 + 2] = one
+    dip_erased[1 + 2] = _zero()                         # §95.4: all-zero stored-turn erasure
     for strand in (dip, dip_erased):
         c = b"".join(hv.tobytes() for hv in G.recover_diploid(strand, one))
         monkeypatch.setattr(_native, "has_native_genome_recover_diploid", lambda: False)
