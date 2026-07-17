@@ -232,3 +232,38 @@ def test_append_is_o1_head_only_fixed_manifest_v12(tmp_path):
     cold = G.genome_catalog(g, the_one=one)
     assert len(cold["chromosomes"]) == 201
     assert cold["body_sha256"] == data["body_sha256"]        # threaded head == derived head
+
+
+# ── §95.2 / #1407 ergonomics: the three catalog modes + the {} footgun ───────
+
+def test_catalog_load_resumes_a_streaming_loop(tmp_path):
+    """``catalog="load"`` reads the threadable catalog from disk ONCE (the resume-with-
+    no-prior-return-in-hand path, §95.2), then threads it — byte-identical to threading a
+    catalog derived up front. The two loops append the same chromosomes to two genomes
+    and the bodies + region chains match."""
+    one = _one()
+    ga, gb = tmp_path / "ga", tmp_path / "gb"
+    for g in (ga, gb):
+        G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, the_one=one)
+    a = G.genome_catalog(ga, the_one=one)                    # thread a derived catalog
+    b = "load"                                               # resume with no dict in hand
+    for k in range(6):
+        a = G.genome_append(ga, f"c{k}", _leaves(2, base=k), one, catalog=a)
+        b = G.genome_append(gb, f"c{k}", _leaves(2, base=k), one, catalog=b)
+    assert (ga / "turns.bin").read_bytes() == (gb / "turns.bin").read_bytes()
+    assert a["body_sha256"] == b["body_sha256"]
+    assert a["n_chromosomes"] == b["n_chromosomes"] == 7
+    # "load"'s FIRST return is already a threadable dict (carries the per-chromosome arrays)
+    assert len(b["chromosomes"]) == 7 and len(b["regions"]) == 7
+
+
+def test_catalog_empty_dict_is_a_clear_error_not_keyerror(tmp_path):
+    """``catalog={}`` (or any dict with no ``leaf_dim``) is NOT a genome catalog — it
+    raises a clear ValueError naming the modes, never a bare KeyError (§95.2 footgun)."""
+    one = _one()
+    g = tmp_path / "g"
+    G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, the_one=one)
+    with pytest.raises(ValueError, match="leaf_dim"):
+        G.genome_append(g, "x", _leaves(2), one, catalog={})
+    with pytest.raises(ValueError, match="load"):
+        G.genome_append(g, "x", _leaves(2), one, catalog={"n_turns": 3})

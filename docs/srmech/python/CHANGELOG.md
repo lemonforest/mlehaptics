@@ -11,6 +11,16 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc265]
+
+**`genome_append` streaming ergonomics — a discoverable resume path + a clear error for the `catalog={}` footgun (§95.2 / #1407).** The O(1)-per-append machinery already existed (thread the returned catalog dict), but the resume-with-no-prior-return case was a trap: `catalog={}` raised a bare `KeyError: 'leaf_dim'`, and nothing told a caller how to start a streaming loop against an existing genome on disk.
+
+- **`catalog="load"`** (new) — resume a streaming append with no prior return in hand: reads the full threadable catalog from disk ONCE (O(n)), does the append, and returns a dict to thread for the rest of the loop (O(1)/append). Byte-identical to threading a catalog derived up front.
+- **`catalog={}` / a partial dict** now raises a clear `ValueError` naming the three modes (`None` cold / a threaded dict / `"load"`), never a bare `KeyError`.
+- **Docstring** now enumerates the three `catalog=` modes with streaming + resume examples, and flags that looping with the default rebuilds the catalog each call (the O(n²) wall) — thread it.
+
+Pure Python — the native disk-append path (`genome_append_c`, O(1) tail-extend + head write) is unchanged; no format / ABI change. Verified: `catalog="load"` resume is byte-identical to threaded (turns.bin + region chain), and `catalog={}` raises a clear ValueError (`test_genome_o1_append_rc115`).
+
 ## [0.9.0rc264]
 
 **Diploid erasure repair is now SYMMETRIC — a break on EITHER homolog heals from the intact one (§95.4 / #1407, found by a reviewer using rc262).** The rc259 changelog promised *"exactly one ERASED → fill from the intact homolog"* (direction-free), but a copyA erasure did **not** heal — the recovered leaf was the uncoupled garbage, not the truth. Root cause: `recover_diploid` tested the erasure sentinel on the **decoupled leaf**, but a break zeros the **stored turn**, and a zeroed turn decouples to a *non-zero* leaf — so the erasure was never actually detected. Healing only happened by substitution-tiebreak luck (which defaults to copyA), so a copyB break "worked" and a copyA break did not — asymmetric.
