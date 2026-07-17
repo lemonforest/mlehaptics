@@ -65,6 +65,7 @@ __all__ = [
     "encode_shape", "quad_turn", "telomere", "chromosome",
     "centromere", "centromere_of",
     "diploid", "recover_diploid",
+    "condense", "decondense", "chromatin_of",
     "recall",
     "genes",
     "genome", "plasmid", "partition",
@@ -94,6 +95,7 @@ __all__ = [
     "GATE_TYPE_GRADED",
     "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
+    "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "TELOMERE_DIVIDED", "TELOMERE_SENESCENT",
 ]
 
@@ -269,6 +271,37 @@ CENTROMERE_DEFAULT_REPEATS = 15
 #: so it joins every place ``CHROM_CAP_MARKER`` opens/bounds a chromosome; ``> 3`` and distinct
 #: from every prior marker, so v2..v13 bodies read UNCHANGED — the walker gains ONE branch.
 DIPLOID_TELOMERE_MARKER = 0x44
+
+#: §98/rc268 (format v14 → v15, #1422 / F1246-F1247) — the CHROMATIN access marker. ``0x48`` =
+#: ASCII ``'H'`` (histone / heterochromatin). The chromatin cap is biology's epigenetic PACKAGING
+#: GATE — the modify-WITHOUT-changing-the-DNA layer ABOVE the coupled-turn content: a per-region
+#: ACCESSIBILITY state (euchromatin = accessible / heterochromatin = silenced) that gates WHICH
+#: regions express per query. Like the §95a :data:`CENTROMERE_CAP_MARKER` it is an INTERIOR cap
+#: (it never OPENS a chromosome); its PLACEMENT is its scope — right after the opening telomere
+#: (0 data turns before it) → whole-chromosome (the X-inactivation / master case), deeper interior
+#: → a sub-region STRETCH. The op⊗operand cap carries an exact accessibility LEVEL inline:
+#:   ``[0x48] + utf-8 handle + NUL + chromatin_type(uint8) + num(uint64 BE) + den(uint64 BE)``
+#: NUL-padded to ``leaf_dim``. The level is the reduced non-negative rational ``num/den`` in
+#: ``[0, 1]`` (Class-N exact; NO float; NEVER ``abs()`` — a level is a non-negative fraction):
+#: :data:`CHROMATIN_TYPE_BINARY` carries ``(1, 1)`` OPEN (euchromatin) or ``(0, 1)`` CONDENSED
+#: (heterochromatin); :data:`CHROMATIN_TYPE_GRADED` an arbitrary reduced rational (partial
+#: accessibility). Set / cleared IN-PLACE by :func:`condense` / :func:`decondense` (a byte-splice
+#: that PRESERVES the centromere + body — no re-mint); read by :func:`chromatin_of`. ``> 3`` and
+#: distinct from every prior marker, so v2..v14 bodies read UNCHANGED — the walker gains ONE
+#: branch, and a chromatin-FREE genome reads all-euchromatin by default. Mirrors
+#: ``SRMECH_GENOME_CHROMATIN_MARKER`` in the C header.
+CHROMATIN_MARKER = 0x48
+
+#: §98/rc268 chromatin TYPE — BINARY (0) = open ``(1,1)`` / condensed ``(0,1)``; GRADED (1) = an
+#: arbitrary reduced-rational accessibility level in ``[0,1]``. Stored inline in the cap so the
+#: bare strand self-describes it. Mirrors ``SRMECH_GENOME_CHROMATIN_TYPE_*`` in the C header.
+CHROMATIN_TYPE_BINARY = 0
+CHROMATIN_TYPE_GRADED = 1
+_CHROMATIN_TYPE_NAMES = {CHROMATIN_TYPE_BINARY: "binary", CHROMATIN_TYPE_GRADED: "graded"}
+
+#: §98/rc268 chromatin LEVEL field width — the ``num`` + ``den`` are each a uint64 (8 bytes,
+#: big-endian). Mirrors ``SRMECH_GENOME_CHROMATIN_LEVEL_BYTES`` in the C header.
+_CHROMATIN_LEVEL_BYTES = 8
 
 #: §128/rc128 (format v7 → v8, #728) — the REGULATORY GENE marker. ``0x67`` = ASCII
 #: ``'g'`` (a lower-case gene carrying a live regulatory region, mnemonically paired
@@ -716,7 +749,8 @@ def _cap_kind(hv):
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER) else None   # §95a/§95b caps
+        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
+        CHROMATIN_MARKER) else None   # §95a/§95b/§98 caps
 
 
 def _unpack_cap(hv):
@@ -1709,6 +1743,253 @@ def recover_diploid(strand, the_one):
     return out
 
 
+# ── §98/v15 CHROMATIN — biology's epigenetic ACCESS gate (rc268, #1422 / F1246-F1247) ────────
+
+def _validate_chromatin_level(num, den):
+    """A chromatin accessibility LEVEL must be an exact reduced-or-not rational ``num/den`` in
+    ``[0, 1]`` — a NON-negative fraction (0 = fully silenced heterochromatin, 1 = fully accessible
+    euchromatin). Class-N exact integers; NO float; NEVER ``abs()`` (a level is never negated)."""
+    if (not isinstance(num, int) or isinstance(num, bool)
+            or not isinstance(den, int) or isinstance(den, bool)):
+        raise ValueError(
+            f"chromatin level must be an exact integer num/den (Class-N); got {num!r}/{den!r}")
+    if den < 1:
+        raise ValueError(
+            f"chromatin level denominator must be POSITIVE (>= 1; a level is a non-negative "
+            f"fraction, never abs()); got {den}")
+    if num < 0 or num > den:
+        raise ValueError(
+            f"chromatin accessibility level {num}/{den} is out of [0, 1] (0 = fully silenced "
+            f"heterochromatin, 1 = fully accessible euchromatin)")
+
+
+def _chromatin_state(state):
+    """Normalise a :func:`condense` ``state`` argument to ``(chromatin_type, num, den)`` (§98).
+
+    * ``True`` / ``"condensed"`` → BINARY, level ``(0, 1)`` (heterochromatin — silenced).
+    * ``False`` / ``"open"`` → BINARY, level ``(1, 1)`` (euchromatin — accessible).
+    * a ``(num, den)`` tuple → GRADED, the exact reduced rational level in ``[0, 1]`` (clamp +
+      Class-I gcd-reduce via :func:`_clamp_reduce_level` — a Class-K sign-branch, NEVER ``abs()``).
+    """
+    if state is True or state == "condensed":
+        return CHROMATIN_TYPE_BINARY, 0, 1
+    if state is False or state == "open":
+        return CHROMATIN_TYPE_BINARY, 1, 1
+    if isinstance(state, (tuple, list)) and len(state) == 2:   # a (num, den) — JSON delivers a list
+        num, den = state
+        _validate_chromatin_level(num, den)
+        rn, rd = _clamp_reduce_level(num, den)   # §132 clamp[0,1] + gcd-reduce (Class-K/I, no abs)
+        return CHROMATIN_TYPE_GRADED, rn, rd
+    raise ValueError(
+        f"condense state must be True/'condensed' (silenced), False/'open' (accessible), or a "
+        f"(num, den) graded level in [0, 1]; got {state!r}")
+
+
+def _pack_chromatin(chromatin_type, num, den, dim, *, handle="chr"):
+    """A fixed-width ``dim``-byte CHROMATIN cap leaf (§98) — the interior epigenetic ACCESS marker.
+
+    ``[CHROMATIN_MARKER] + utf-8 handle + NUL + chromatin_type(uint8) + num(uint64 BE) +
+    den(uint64 BE)``, NUL-padded to ``dim``. The **op** (a cap: it packages a region, like
+    :func:`_pack_centromere`) and the **operand** (the accessibility LEVEL ``num/den`` in
+    ``[0, 1]``) are FUSED in the ONE cap. Placing the type + num + den right AFTER the handle's NUL
+    keeps the handle decode UNIFORM (bytes ``[1:]`` up to the first NUL — :func:`_unpack_cap` reads
+    it with no chromatin special-case). The pure numpy-free parity oracle for the C peer
+    ``srmech_genome_chromatin``. Class-N exact (num/den POSITIVE fractions; NO float, NEVER
+    ``abs()``)."""
+    if chromatin_type not in (CHROMATIN_TYPE_BINARY, CHROMATIN_TYPE_GRADED):
+        raise ValueError(
+            f"chromatin_type {chromatin_type} is not supported (BINARY="
+            f"{CHROMATIN_TYPE_BINARY} / GRADED={CHROMATIN_TYPE_GRADED})")
+    _validate_chromatin_level(num, den)
+    raw_handle = handle.encode("utf-8") if isinstance(handle, str) else bytes(handle)
+    if b"\x00" in raw_handle:
+        raise ValueError("chromatin handle must not contain a NUL byte")
+    payload = (bytes([CHROMATIN_MARKER]) + raw_handle + b"\x00"
+               + bytes([chromatin_type & 0xFF])
+               + int(num).to_bytes(_CHROMATIN_LEVEL_BYTES, "big")
+               + int(den).to_bytes(_CHROMATIN_LEVEL_BYTES, "big"))
+    if len(payload) > dim:
+        raise ValueError(
+            f"chromatin handle {handle!r} + level fields is {len(payload)} bytes; max {dim} at "
+            f"leaf_dim={dim} (handle must fit dim - {2 + 1 + 2 * _CHROMATIN_LEVEL_BYTES} bytes)")
+    block = payload + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _chromatin_spec(hv):
+    """``(chromatin_type, num, den)`` carried inline in a CHROMATIN cap (§98) — the accessibility
+    operand of the op⊗operand cap. Reads the chromatin_type byte + the two uint64 BE level fields
+    right AFTER the handle's NUL. The chromosome SELF-DESCRIBES its access state by this bare-strand
+    read (no manifest). Class-N exact integers (never a float; a level is never ``abs()``). Raises
+    ``ValueError`` on a malformed / truncated cap."""
+    raw = hv.tobytes()
+    if raw[:1] != bytes([CHROMATIN_MARKER]):
+        raise ValueError("not a chromatin cap (first byte != CHROMATIN_MARKER)")
+    nul = raw.find(b"\x00", 1)                          # end of the inline handle
+    need = 2 + 2 * _CHROMATIN_LEVEL_BYTES
+    if nul < 0 or nul + need > len(raw):
+        raise ValueError(
+            "chromatin cap is malformed: no handle NUL / type+num+den header truncated")
+    chromatin_type = raw[nul + 1]
+    if chromatin_type not in (CHROMATIN_TYPE_BINARY, CHROMATIN_TYPE_GRADED):
+        raise ValueError(
+            f"chromatin cap has unsupported chromatin_type {chromatin_type}")
+    nb = nul + 2
+    num = int.from_bytes(raw[nb:nb + _CHROMATIN_LEVEL_BYTES], "big")
+    den = int.from_bytes(raw[nb + _CHROMATIN_LEVEL_BYTES:nb + 2 * _CHROMATIN_LEVEL_BYTES], "big")
+    if den < 1 or num > den:
+        raise ValueError("chromatin cap is malformed: accessibility level out of [0, 1]")
+    return chromatin_type, num, den
+
+
+def _chromatin_cap(chromatin_type, num, den, dim, handle="chr"):
+    """Build the fixed-width CHROMATIN cap leaf — DISPATCH the byte-framing to the
+    ``srmech_genome_chromatin`` C peer when HAS_NATIVE (byte-identical bytes, wrapped in the same
+    ``HV(sectors=256)``); the pure :func:`_pack_chromatin` is the numpy-free fallback + oracle."""
+    native = _native.genome_chromatin_c(chromatin_type, num, den, handle, dim)
+    if native is not None:
+        return _HV.from_sequence(native, sectors=256)
+    return _pack_chromatin(chromatin_type, num, den, dim, handle=handle)
+
+
+def _chromatin_info(chromatin_type, num, den, at, handle):
+    """The :func:`chromatin_of` result dict — the state + scope read shape."""
+    if chromatin_type == CHROMATIN_TYPE_BINARY:
+        state = "open" if num > 0 else "condensed"   # Class-K: the sign of the level numerator
+    else:
+        state = "graded"
+    return {"type": _CHROMATIN_TYPE_NAMES[chromatin_type], "state": state,
+            "level": (num, den), "handle": handle, "at": at,
+            "scope": "chromosome" if at == 0 else "stretch"}
+
+
+def _chrom_range(strand, label, *, op):
+    """``(start, end)`` block indices of the TARGET chromosome in ``strand`` (the §98 splice range).
+
+    A chromosome opens with a boundary cap (:data:`_CHROM_BOUNDARY_MARKERS`); ``label`` picks it by
+    its inline label. ``label=None`` requires a single-chromosome strand (else it is ambiguous —
+    pass ``label=``). ``end`` is the next boundary index (or ``len(strand)``)."""
+    bounds = [i for i, hv in enumerate(strand) if _cap_kind(hv) in _CHROM_BOUNDARY_MARKERS]
+    if not bounds or bounds[0] != 0:
+        raise ValueError(
+            f"{op}: strand does not open with a chromosome boundary cap (not a well-formed "
+            f"chromosome / genome strand)")
+    if label is None:
+        if len(bounds) != 1:
+            raise ValueError(
+                f"{op}: strand has {len(bounds)} chromosomes; pass label= to pick which one to "
+                f"condense/decondense")
+        start = bounds[0]
+    else:
+        start = next((b for b in bounds if _unpack_cap(strand[b])[1] == label), None)
+        if start is None:
+            raise ValueError(f"{op}: no chromosome labelled {label!r} in the strand")
+    nxt = [b for b in bounds if b > start]
+    return start, (nxt[0] if nxt else len(strand))
+
+
+def condense(strand, *, the_one=None, state=True, region=None, handle="chr", label=None):
+    """CONDENSE a region — SET the chromatin ACCESS marker on an EXISTING chromosome (§98 / #1422).
+
+    Biology's epigenetic packaging gate: the modify-WITHOUT-changing-the-DNA layer. ``condense``
+    SPLICES a :data:`CHROMATIN_MARKER` (``0x48``) cap into ``strand`` IN-PLACE (a byte-splice, like
+    :func:`genome_remove` / :func:`genome_replace`) — it PRESERVES the centromere + the body
+    sequence, so a MINTED chromosome comes out still minted (the ``0x58`` centromere byte-identical,
+    :func:`centromere_of` unchanged). NO re-mint. Reversible with :func:`decondense`.
+
+    ``state`` is the access state to set (:func:`_chromatin_state`): ``True`` / ``"condensed"`` →
+    binary heterochromatin (silenced, level ``0``); ``False`` / ``"open"`` → binary euchromatin
+    (accessible, level ``1``); a ``(num, den)`` tuple → a GRADED accessibility level in ``[0, 1]``
+    (partial access — composes multiplicatively with a graded gene, :func:`gene_express_levels`).
+
+    PLACEMENT is scope. ``region=None`` (default) → HEAD scope: the marker goes right after the
+    opening telomere and silences the WHOLE chromosome (the X-inactivation / master case).
+    ``region`` INTERIOR STRETCH — the marker starts a stretch that silences everything from it to
+    the next chromatin marker / chromosome boundary: ``region=k`` (a non-negative int) places it
+    before the ``k``-th DATA TURN (the kernel-content granularity, like the §95a centromere sits
+    between arms); ``region="<gene_label>"`` places it before that gene's cap (the gene-stretch
+    granularity — silences that gene onward). ``label`` picks the chromosome in a multi-chromosome
+    genome strand (required when there is more than one). ``the_one`` gives the leaf width (``dim``;
+    defaults to the strand's block width). Returns a NEW strand (the input is unchanged). Native-
+    dispatched cap bytes (``srmech_genome_chromatin``). Class A (cap) + Class C (the access
+    which-way) + Class N (the exact-rational level)."""
+    strand = list(strand)
+    if not strand:
+        raise ValueError("condense: empty strand (nothing to condense)")
+    dim = len(list(the_one)) if the_one is not None else len(list(strand[0]))
+    chromatin_type, num, den = _chromatin_state(state)
+    cap = _chromatin_cap(chromatin_type, num, den, dim, handle=handle)
+    start, end = _chrom_range(strand, label, op="condense")
+    if region is None:
+        insert = start + 1                          # HEAD scope: right after the opening telomere
+    elif isinstance(region, str):
+        insert = next(
+            (i for i in range(start + 1, end)
+             if _cap_kind(strand[i]) in _GENE_MARKERS and _unpack_cap(strand[i])[1] == region),
+            None)
+        if insert is None:
+            raise ValueError(f"condense: no gene labelled {region!r} in the chromosome")
+    elif isinstance(region, int) and not isinstance(region, bool) and region >= 0:
+        turn_idx = [i for i in range(start + 1, end) if _cap_kind(strand[i]) is None]
+        if region > len(turn_idx):
+            raise ValueError(
+                f"condense: region={region} exceeds the chromosome's {len(turn_idx)} data turns")
+        insert = turn_idx[region] if region < len(turn_idx) else end
+    else:
+        raise ValueError(
+            "condense: region must be None (whole chromosome), a non-negative data-turn index, or "
+            f"a gene label str; got {region!r}")
+    return strand[:insert] + [cap] + strand[insert:]
+
+
+def decondense(strand, *, the_one=None, label=None):
+    """DECONDENSE — CLEAR the chromatin ACCESS marker(s), the inverse of :func:`condense` (§98).
+
+    Splices out every :data:`CHROMATIN_MARKER` (``0x48``) cap (or only those inside the ``label``
+    chromosome), PRESERVING the centromere + body sequence — so a condensed-then-decondensed MINTED
+    chromosome is byte-identical to the original mint (NO re-mint). Returns a NEW strand (the input
+    is unchanged). ``the_one`` is accepted for signature symmetry (the clear is a pure splice)."""
+    strand = list(strand)
+    if label is None:
+        return [hv for hv in strand if _cap_kind(hv) != CHROMATIN_MARKER]
+    start, end = _chrom_range(strand, label, op="decondense")
+    return [hv for i, hv in enumerate(strand)
+            if not (start <= i < end and _cap_kind(hv) == CHROMATIN_MARKER)]
+
+
+def chromatin_of(strand, the_one=None):
+    """Recover a chromosome's FIRST chromatin ACCESS state (§98) — or ``None`` if it carries no
+    chromatin marker (an all-euchromatin, fully-accessible chromosome; the default).
+
+    Scans for the interior ``0x48`` cap, reads its ``(chromatin_type, num, den)`` accessibility
+    level + the number of DATA TURNS before it (the scope: ``0`` → whole-chromosome, ``>0`` → a
+    stretch). Returns ``{"type", "state", "level": (num, den), "handle", "at", "scope"}`` or
+    ``None``. NEVER MUTATES (a READ — biology reads the packaging, it does not rewrite the DNA).
+    Native-dispatched (the C peer ``srmech_genome_chromatin_of`` does the scan; the handle is read
+    inline in Python — the composition)."""
+    strand = list(strand)
+    if not strand:
+        return None
+    dim = len(list(strand[0]))
+    native = _native.genome_chromatin_of_c(
+        b"".join(hv.tobytes() for hv in strand), len(strand), dim)
+    if native is not None:
+        found, ctype, num, den, at = native
+        if not found:
+            return None
+        cap = next(hv for hv in strand if _cap_kind(hv) == CHROMATIN_MARKER)
+        return _chromatin_info(ctype, num, den, at, _unpack_cap(cap)[1])
+    turns = 0
+    for hv in strand:
+        kind = _cap_kind(hv)
+        if kind == CHROMATIN_MARKER:
+            ctype, num, den = _chromatin_spec(hv)
+            return _chromatin_info(ctype, num, den, turns, _unpack_cap(hv)[1])
+        if kind is None:
+            turns += 1                              # a coupled data turn (not a cap)
+    return None
+
+
 def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
                kernel=False, active_count=None, centromere=None, centromere_at=None):
     """Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730).
@@ -2121,6 +2402,7 @@ def gene_express(strand, the_one, cell_state):
     cur_leaves = []
     cur_express = False
     started = False
+    access_open = True                          # §98 chromatin OUTER gate: euchromatin by default
     for hv in strand:
         kind = _cap_kind(hv)
         if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
@@ -2129,10 +2411,16 @@ def gene_express(strand, the_one, cell_state):
                 out.append((cur_label, cur_leaves))
             _marker, cur_label = _unpack_cap(hv)
             cur_leaves = []
-            cur_express = _gene_expresses(hv, cell_state)   # §130 dispatch on gate_type
+            # §98 expressed = accessible(region) AND promoter(gene, cell_state): the chromatin
+            # access gate is the OUTER gate over the §128-132 promoter (Class-K, no abs).
+            cur_express = access_open and _gene_expresses(hv, cell_state)
             started = True
+        elif kind == CHROMATIN_MARKER:          # §98 access marker — gate the stretch that follows
+            _ct, _an, _ad = _chromatin_spec(hv)
+            access_open = _an > 0               # accessible iff the level numerator > 0 (Class-K)
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
                       KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
+            access_open = True                  # a chromosome boundary resets access (euchromatin)
             continue                            # the chromosome telomere / a header —
                                                 # skip (not gene data)
         elif not started:
@@ -2201,6 +2489,7 @@ def gene_express_levels(strand, the_one, cell_state):
     cur_leaves = []
     cur_level = (0, 1)
     started = False
+    access = (1, 1)                             # §98 chromatin OUTER gate level: euchromatin default
     for hv in strand:
         kind = _cap_kind(hv)
         if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
@@ -2209,10 +2498,16 @@ def gene_express_levels(strand, the_one, cell_state):
                 out.append((cur_label, cur_leaves, cur_level))
             _marker, cur_label = _unpack_cap(hv)
             cur_leaves = []
-            cur_level = _gene_level(hv, cell_state)     # §132 exact-rational (num, den)
+            # §98 accessibility × promoter-level — the exact-rational PRODUCT (Class-N; the
+            # chromatin access level composes MULTIPLICATIVELY over the §132 graded promoter level).
+            cur_level = _compose_levels(access, _gene_level(hv, cell_state))
             started = True
+        elif kind == CHROMATIN_MARKER:          # §98 access marker — the stretch level that follows
+            _ct, _an, _ad = _chromatin_spec(hv)
+            access = (_an, _ad)                 # the exact accessibility rational (already reduced)
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
                       KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
+            access = (1, 1)                     # a chromosome boundary resets access (euchromatin)
             continue                            # the chromosome telomere / a header —
                                                 # skip (not gene data)
         elif not started:
@@ -2222,6 +2517,19 @@ def gene_express_levels(strand, the_one, cell_state):
     if started and cur_level[0] > 0:
         out.append((cur_label, cur_leaves, cur_level))
     return out
+
+
+def _compose_levels(a, b):
+    """The exact-rational PRODUCT ``a × b`` of two reduced ``(num, den)`` levels in ``[0, 1]``,
+    reduced by the Class-I gcd (§98 chromatin accessibility × §132 promoter level). Both parts are
+    non-negative, so no ``abs()``; NO float. ``(0, 1)`` for a zero numerator (silenced × anything =
+    silenced)."""
+    num = a[0] * b[0]
+    den = a[1] * b[1]
+    if num == 0:
+        return (0, 1)
+    g = _gcd(num, den)                          # Class-I gcd (both positive; no abs)
+    return (num // g, den // g)
 
 
 def _gene_expresses(cap, cell_state):
@@ -3995,7 +4303,14 @@ def telomere_tick(strand):
 #: bodies read UNCHANGED (dual-read — the walker gains ONE branch): back-compat is
 #: STRUCTURAL, never a converter. A stick (append) genome with NO 0x58 cap is byte-identical
 #: to the v12 writer EXCEPT the ``format_version`` field. A v13 writer stamps 13.
-GENOME_FORMAT_VERSION = 14
+#: v15 (§98/rc268 chromatin, #1422 / F1246-F1247): a chromosome MAY carry an INTERIOR
+#: ``CHROMATIN_MARKER`` (0x48) cap — biology's epigenetic ACCESS gate above the coupled-turn
+#: content (euchromatin/heterochromatin), set/cleared IN-PLACE by :func:`condense` /
+#: :func:`decondense`. One more self-describing interior cap in the SAME walk (a byte > 3,
+#: distinct from every prior marker), so v2..v14 bodies read UNCHANGED (dual-read — the walker
+#: gains ONE branch): back-compat is STRUCTURAL. A chromatin-FREE genome saved by the v15 writer
+#: is byte-identical to the v14 writer EXCEPT the ``format_version`` field. A v15 writer stamps 15.
+GENOME_FORMAT_VERSION = 15
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -4083,7 +4398,8 @@ def _hv_from_block(block: bytes) -> _HV:
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER) else QUAD   # §95a/§95b caps
+        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
+        CHROMATIN_MARKER) else QUAD   # §95a/§95b/§98 caps
     return _HV.from_sequence(block, sectors=sectors)
 
 
@@ -4110,7 +4426,8 @@ def _block_is_cap(block: bytes) -> bool:
         BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER)   # §95a/§95b caps
+        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
+        CHROMATIN_MARKER)   # §95a/§95b/§98 caps (a chromatin cap is stored VERBATIM, not a turn)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -4216,8 +4533,8 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
                     BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
                     KERNEL_HEADER_MARKER,
                     KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-                    CENTROMERE_CAP_MARKER,
-                    DIPLOID_TELOMERE_MARKER) or kind <= 3:   # §95a/§95b caps = leaf-wide
+                    CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
+                    CHROMATIN_MARKER) or kind <= 3:   # §95a/§95b/§98 caps = leaf-wide
             end = k + leaf_dim
             if end > n:
                 raise GenomeBoundingError(
@@ -4637,6 +4954,7 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
               and decoded[0] != THRESHOLD_GENE_MARKER
               and decoded[0] != GRADED_GENE_MARKER
               and decoded[0] != KERNEL_HEADER_MARKER
+              and decoded[0] != CHROMATIN_MARKER
               and decoded[0] != CENTROMERE_CAP_MARKER):
             cur[2] += 1                       # a data turn (packed or legacy); a GENE
                                               # cap (§44 plain / §128 regulatory / §130
@@ -5005,7 +5323,8 @@ def genome_load(path, *, labels=None, the_one=None):
                             BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
                             KERNEL_HEADER_MARKER,
                             KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-                            CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER) \
+                            CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
+                            CHROMATIN_MARKER) \
                         or kind <= 3:
                     rest = f.read(leaf_dim - 1)
                     if len(rest) != leaf_dim - 1:
@@ -5231,11 +5550,13 @@ def _plan_validate_cell_state(op, cell_state):
 
 def _plan_close_gene(plan, pending, end_pos, cell_state):
     """Close the STRAND-variant skeleton-scan's pending gene at ``end_pos`` — append
-    ``(label, byte_offset, byte_len)`` to ``plan`` iff the gene's cap EXPRESSES under
-    ``cell_state`` (the SAME §128/§130/§131 decision :func:`gene_express` uses; the gate
-    reads only the cap, never a decoded leaf)."""
-    lbl, cap_hv, gstart = pending
-    if _gene_expresses(cap_hv, cell_state):
+    ``(label, byte_offset, byte_len)`` to ``plan`` iff the region was ACCESSIBLE at the gene's
+    OPEN (§98 chromatin outer gate — the access state captured in ``pending`` when the gene cap was
+    reached, so a marker AFTER the cap does not retro-silence it) AND the gene's cap EXPRESSES under
+    ``cell_state`` (the SAME §128/§130/§131 decision :func:`gene_express` uses; the gate reads only
+    the cap, never a decoded leaf)."""
+    lbl, cap_hv, gstart, access_open = pending
+    if access_open and _gene_expresses(cap_hv, cell_state):
         plan.append((lbl, gstart, end_pos - gstart))
 
 
@@ -5278,9 +5599,10 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 14      # a READ of existing caps/manifest; no bump
-    #  (v13 centromere 0x58 is INTERIOR to a MINTED single-kernel chromosome, disjoint from
-    #   gene chromosomes — a gene plan never encounters one, so this read is unaffected)
+    assert GENOME_FORMAT_VERSION == 15      # a READ of existing caps/manifest
+    #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; the STRAND plan reads the
+    #   chromatin outer-gate — §98 — while the PATH demand-load plan's single-seek chromatin skip
+    #   is deferred to rc269, so the path read stays the §134 gene-gate-only read for now)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
         return _gene_express_plan_path(Path(strand_or_path), the_one, cell_state)
     return _gene_express_plan_strand(strand_or_path, the_one, cell_state)
@@ -5322,19 +5644,25 @@ def _gene_express_plan_strand(strand, the_one, cell_state):
     plan = []
     pos = 0
     pending = None                              # (label, cap_hv, gene_byte_start)
+    access_open = True                          # §98 chromatin OUTER gate: euchromatin by default
     for hv in strand:
         kind = _cap_kind(hv)
         if kind in _GENE_MARKERS:
             if pending is not None:
                 _plan_close_gene(plan, pending, pos, cell_state)
             _marker, lbl = _unpack_cap(hv)
-            pending = (lbl, hv, pos)            # the gene starts at its cap's byte offset
+            pending = (lbl, hv, pos, access_open)   # capture the access state at the gene's OPEN
+            pos += leaf_dim
+        elif kind == CHROMATIN_MARKER:          # §98 access marker — a leaf_dim cap; gates the stretch
+            _ct, _an, _ad = _chromatin_spec(hv)
+            access_open = _an > 0               # accessible iff the level numerator > 0 (Class-K)
             pos += leaf_dim
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
                       KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
             if pending is not None:             # a chromosome boundary closes the gene
                 _plan_close_gene(plan, pending, pos, cell_state)
                 pending = None
+            access_open = True                  # a chromosome boundary resets access (euchromatin)
             pos += leaf_dim
         else:
             pos += turn_width                   # a data turn — SEEK PAST its packed payload
@@ -5381,9 +5709,9 @@ def genome_genes_expressed(path, the_one, cell_state):
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 14      # a READ of existing caps/manifest; no bump
-    #  (v13 centromere 0x58 is INTERIOR to a MINTED single-kernel chromosome, disjoint from
-    #   gene chromosomes — a gene plan never encounters one, so this read is unaffected)
+    assert GENOME_FORMAT_VERSION == 15      # a READ of existing caps/manifest
+    #  (the PATH demand-load reader's per-region chromatin single-seek skip (§98) is deferred to
+    #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected)
     path = Path(path)
     plan = _gene_express_plan_path(path, the_one, cell_state)   # the expressed communities
     data = _catalog_data(path, the_one)

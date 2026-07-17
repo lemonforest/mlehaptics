@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc267"
-#define SRMECH_VERSION       "0.9.0rc267"
+#define SRMECH_VERSION_PRE   "rc268"
+#define SRMECH_VERSION       "0.9.0rc268"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5043,6 +5043,17 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * keys it), so v2 / v3 / v4 bodies — AND any v5 0x4B byte-TLV header — read
  * UNCHANGED (dual-read): back-compat is STRUCTURAL, never a converter. Mirrors
  * GENOME_FORMAT_VERSION in srmech.amsc.genome. */
+/* v15 (§98/rc268, #1422 / F1246-F1247): the CHROMATIN ACCESS LAYER. An interior
+ * SRMECH_GENOME_CHROMATIN_MARKER (0x48) cap carries a per-region ACCESSIBILITY state
+ * inline — biology's epigenetic packaging gate ABOVE the coupled-turn content
+ * (euchromatin = accessible / heterochromatin = silenced), the modify-WITHOUT-changing-
+ * the-DNA layer. It is an INTERIOR cap (like the §95a centromere 0x58; it never OPENS a
+ * chromosome) whose PLACEMENT is its scope: right after the opening telomere → whole-
+ * chromosome (the X-inactivation / master case), deeper interior → a sub-region STRETCH.
+ * A NEW marker byte = a new block KIND, so it bumps v14 -> v15 (the walker gains ONE
+ * branch; v2..v14 bodies read UNCHANGED; a chromatin-FREE genome saved by the v15 writer
+ * is byte-identical to v14 EXCEPT the format_version field, and reads all-euchromatin by
+ * default). Mirrors GENOME_FORMAT_VERSION in srmech.amsc.genome. */
 /* v7 (§127/rc127, #726): the ACTIVE TELOMERE. A chromosome MAY open with a
  * SRMECH_GENOME_ACTIVE_TELOMERE_MARKER (0x74) cap carrying an exact non-negative
  * Hayflick COUNT inline (a descending replicative counter that srmech_genome_telomere_tick
@@ -5083,7 +5094,7 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * tiny head (O(1)) instead of the whole array (the O(N^2) wall). The BODY format is
  * UNCHANGED (v2..v11 bodies read identically); a v≤11 manifest with the arrays reads
  * verbatim, and the first v12 append migrates it head-only. Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 14
+#define SRMECH_GENOME_FORMAT_VERSION 15
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -5286,6 +5297,36 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * bodies read UNCHANGED — the walker gains ONE branch (it OPENS a chromosome everywhere CHROM
  * does). Mirrors DIPLOID_TELOMERE_MARKER in srmech.amsc.genome. 0x44 = 'D' (Diploid). */
 #define SRMECH_GENOME_DIPLOID_TELOMERE_MARKER 0x44u /* 'D' — a §95b diploid chromosome */
+
+/* §98/v15 CHROMATIN marker (rc268, #1422 / F1246-F1247) — the FIRST byte of a fixed-width
+ * leaf_dim-byte cap leaf that sits INTERIOR to a chromosome (like the §95a centromere 0x58;
+ * it NEVER opens a chromosome), carrying a per-region ACCESSIBILITY state inline: biology's
+ * epigenetic packaging gate ABOVE the coupled-turn content (euchromatin = accessible /
+ * heterochromatin = silenced). Layout: [0x48] + utf-8 handle + NUL + chromatin_type(uint8) +
+ * num(uint64 BE) + den(uint64 BE POSITIVE), NUL-padded to leaf_dim. The handle decode is
+ * UNIFORM (bytes [1:] up to the first NUL — the same as every cap); the type + num + den sit
+ * AFTER that NUL (the §127 active-telomere inline-field pattern). The accessibility LEVEL is
+ * the exact reduced rational num/den in [0, 1] (Class-N; NO float; NEVER abs — a level is a
+ * non-negative fraction): BINARY (type 0) carries (1,1) OPEN or (0,1) CONDENSED; GRADED
+ * (type 1) an arbitrary reduced rational. PLACEMENT is scope: at a region HEAD (right after
+ * the opening telomere, 0 data turns before it) → whole-chromosome; deeper INTERIOR → a
+ * sub-region STRETCH. > 3 and distinct from every prior marker (CHROM 0x43 / GENE 0x47 / v5
+ * KERNEL 0x4B / PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE-telomere 0x74 / regulatory 0x67 /
+ * boolean 0x62 / threshold 0x77 / graded 0x64 / centromere 0x58 / diploid 0x44), so v2..v14
+ * bodies read UNCHANGED — genome_cap_kind recognises it as an interior cap and every cap-skip
+ * walk flattens past it (it is NOT a data turn, NOT a chromosome-opener). Mirrors
+ * CHROMATIN_MARKER in srmech.amsc.genome. 0x48 = 'H' — histone / heterochromatin. */
+#define SRMECH_GENOME_CHROMATIN_MARKER 0x48u /* 'H' — a §98 interior chromatin cap */
+
+/* §98/v15 chromatin TYPE enum (rc268). BINARY (0) = open (1,1) / condensed (0,1); GRADED (1) =
+ * an arbitrary reduced-rational accessibility level in [0,1]. Single-line #defines (JPL Rule 8). */
+#define SRMECH_GENOME_CHROMATIN_TYPE_BINARY 0u
+#define SRMECH_GENOME_CHROMATIN_TYPE_GRADED 1u
+
+/* §98/v15 chromatin LEVEL field width — the num + den are each a uint64 (8 bytes, big-endian),
+ * read at the two 8-byte fields right after the chromatin_type byte. Mirrors
+ * _CHROMATIN_LEVEL_BYTES in srmech.amsc.genome. */
+#define SRMECH_GENOME_CHROMATIN_LEVEL_BYTES 8u
 
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
@@ -5494,6 +5535,31 @@ srmech_status_t srmech_genome_recover_diploid(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     const unsigned char *the_one, unsigned char *out, size_t out_cap,
     size_t *n_out);
+
+/* §98/v15 CHROMATIN cap writer (rc268, #1422) — mirror srmech.amsc.genome._pack_chromatin:
+ * `[0x48] + handle + NUL + chromatin_type + num(uint64 BE) + den(uint64 BE), NUL-padded to dim`.
+ * `chromatin_type` is 0 (binary) or 1 (graded); the accessibility level `num/den` is a reduced
+ * non-negative rational in [0, 1] (den >= 1, num <= den). Byte-identical to the bytes behind the
+ * Python chromatin cap. Caller-arena (no malloc), no abs, no float.
+ *   SRMECH_ERR_NULL_ARG  — out NULL, or handle NULL with handle_len > 0.
+ *   SRMECH_ERR_BAD_INPUT  — dim 0 / > out_cap, chromatin_type > 1, den 0, num > den, or the
+ *                          [marker+handle+NUL+type+num+den] payload does not fit dim. */
+srmech_status_t srmech_genome_chromatin(
+    unsigned char chromatin_type, uint64_t num, uint64_t den,
+    const unsigned char *handle, size_t handle_len, uint32_t dim,
+    unsigned char *out, size_t out_cap);
+
+/* §98/v15 CHROMATIN READ (rc268) — recover a chromosome's FIRST chromatin access state (mirror
+ * srmech.amsc.genome.chromatin_of). Walks the strand's n_blocks leaf_dim-byte blocks; on the
+ * FIRST interior 0x48 cap sets *found_out = 1 and fills chromatin_type / num / den, plus *at_out
+ * = the number of DATA TURNS before it (0 → whole-chromosome scope, >0 → a stretch). *found_out
+ * = 0 (a chromatin-free / all-euchromatin chromosome) leaves the outs untouched.
+ *   SRMECH_ERR_NULL_ARG  — strand / found_out NULL (type/num/den/at may be NULL to skip).
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, or a malformed chromatin cap. */
+srmech_status_t srmech_genome_chromatin_of(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    unsigned char *type_out, uint64_t *num_out, uint64_t *den_out,
+    size_t *at_out, int *found_out);
 
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome): a CHROM / kernel-telomere / active-telomere cap opens a
