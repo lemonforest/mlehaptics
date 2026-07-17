@@ -101,7 +101,6 @@ import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-o
 import tempfile  # §52 Part 2: default scratch dir for recursive_cut
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
 from srmech.amsc.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
-from srmech.amsc import rational as _srn  # #845: best_rational for the ex-limit_denominator
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
@@ -3222,9 +3221,13 @@ def _to_fraction(c) -> Q:
     ``best_rational`` (the old ``Fraction(x).limit_denominator(10**12)`` — dyadic
     floats like 0.25 stay exact, ``to_q(0.25) == 1/4`` needs no snap)."""
     if isinstance(c, float):
-        q = to_q(c)                                     # the exact ℚ of the float
-        return Q.from_pair(
-            _srn.best_rational(q.numerator, q.denominator, 10 ** 12))
+        # signed float→ℚ snap (the old Fraction(x).limit_denominator(10**12)):
+        # the SIGNED Class-K∘N∘C cascade handles a NEGATIVE charge (turns can be
+        # negative), which the bare Class-N best_rational rejects. Function-local
+        # import — cascade/__init__ imports this module, so a top-level import
+        # would cycle.
+        from srmech.amsc.cascade import best_rational_signed as _brs
+        return Q.from_pair(_brs(c, max_denominator=10 ** 12))
     return to_q(c)                                      # int / Fraction / Q / Rational — exact
 
 
@@ -3624,9 +3627,13 @@ def _recover_op_spectral(dim, edges, weights):
         diag["n_modes"] = len(ev)
         diag["eig_range"] = (round(ev[0], 6), round(ev[-1], 6))
         psd = ev[0] > -1e-9
-        _ev0 = to_q(ev[0])                              # exact ℚ of the float eigenvalue
+        # signed float→ℚ snap of the smallest eigenvalue (which can be slightly
+        # NEGATIVE for a near-zero mode — see the psd guard above): the SIGNED
+        # Class-K∘N∘C cascade, since the bare Class-N best_rational rejects a
+        # negative numerator. Function-local import to avoid the cascade cycle.
+        from srmech.amsc.cascade import best_rational_signed as _brs
         zero_mode = _recover_mag(Q.from_pair(
-            _srn.best_rational(_ev0.numerator, _ev0.denominator, 10 ** 6))) < _RECOVER_TOL
+            _brs(ev[0], max_denominator=10 ** 6))) < _RECOVER_TOL
         return (len(ev) == dim and psd and zero_mode), diag
     except Exception as e:                          # a malformed op fails HONESTLY
         diag["op_error"] = "%s: %s" % (type(e).__name__, e)

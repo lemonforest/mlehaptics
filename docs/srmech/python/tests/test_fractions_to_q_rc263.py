@@ -85,6 +85,21 @@ def test_cycle_holonomy_emits_q_accepts_fraction_charges():
     assert res["holonomies"] == [Q(1, 3)]
 
 
+def test_negative_float_snaps_via_signed_cascade():
+    # regression: the float→ℚ snap sites (cycle_holonomy charge, so8 rank, the
+    # eigenvalue recover) must handle a NEGATIVE input — the bare Class-N
+    # best_rational rejects a negative numerator (octonion structure constants
+    # are {-1,0,+1}; charges/eigenvalues can be negative), so they route the
+    # SIGNED Class-K∘N∘C best_rational_signed.
+    from srmech.amsc.laplacian import _to_fraction, cycle_holonomy
+    assert _to_fraction(-0.25) == Q(-1, 4)
+    res = cycle_holonomy([(0, 1), (1, 2), (2, 0)], charges=[-0.25, 0.0, 0.0], n=3)
+    assert all(isinstance(h, Q) for h in res["holonomies"])
+    from srmech.qm.so8 import _rank_exact, g2_subalgebra
+    assert _rank_exact([[-4, 2], [1, -1], [0, 3]]) == 2   # negative coords
+    assert len(g2_subalgebra()) == 14                     # the CI capstone path
+
+
 def test_op_provenance_rational_roundtrip_is_q():
     # a stdlib Fraction canonicalises via the duck-typed numerator/denominator
     # branch, and decanon rebuilds the exact rational as a srmech Q (#845).
