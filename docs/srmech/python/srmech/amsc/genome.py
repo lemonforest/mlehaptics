@@ -4837,15 +4837,20 @@ def genome_registry(root, *, the_one=None) -> dict:
             _raise_native_genome(exc)
     root_str = str(Path(root))          # normalise identically to the native call above
     names = sorted(p.name for p in Path(root).iterdir() if _is_genome_dir(p))
-    # §96: build each child path as ``root + "/" + name`` to MIRROR the C
-    # ``genome_join`` (``srmech_genome_registry``) byte-for-byte. pathlib would join
-    # with the OS separator ("\\" on Windows), diverging from the native tree's "/"
-    # and breaking native==pure parity (the path field is an identifier, not reopened
-    # per-OS — Windows accepts "/" too). Sorting p.name matches C ``genome_sort_names``.
+    # §96: build each child path as ``root + "/" + name`` — MIRROR the C ``genome_join``
+    # (``srmech_genome_registry``) byte-for-byte — and roll up via ``_census_from_catalog``
+    # DIRECTLY, NOT ``genome_census`` (whose ``str(Path())`` would re-normalise the "/"
+    # join back to "\\" on Windows and diverge from the native tree; ``_census_from_catalog``
+    # keeps the path string verbatim). The path field is an identifier, not reopened
+    # per-OS — Windows accepts "/" too. Sorting p.name matches C ``genome_sort_names``.
     return {
         "root": root_str,
         "n_genomes": len(names),
-        "genomes": [genome_census(f"{root_str}/{n}", the_one=the_one) for n in names],
+        "genomes": [
+            _census_from_catalog(
+                _catalog_data(f"{root_str}/{n}", the_one=the_one), f"{root_str}/{n}")
+            for n in names
+        ],
     }
 
 
