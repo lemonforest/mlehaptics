@@ -760,6 +760,157 @@ int main(void)
         }
     }
 
+    /* §96/rc267: per-chromosome cap_kind in the catalog + genome_census +
+     * genome_registry. A mixed genome: stick 'S' (cap + turn), minted 'M' (cap +
+     * turn + interior centromere + turn), diploid 'D' (diploid-telomere cap +
+     * turn). leaf_dim=4, so labels <= 3 bytes; 8 blocks * 4 = 32 bytes. */
+    {
+        const unsigned char XC = (unsigned char)SRMECH_GENOME_CENTROMERE_CAP_MARKER;
+        const unsigned char DC = (unsigned char)SRMECH_GENOME_DIPLOID_TELOMERE_MARKER;
+        unsigned char cbody[32] = {
+            CC, (unsigned char)'S', 0u, 0u,  0u, 1u, 2u, 3u,            /* S: 2 blocks */
+            CC, (unsigned char)'M', 0u, 0u,  1u, 1u, 1u, 1u,
+            XC, 0u, 0u, 0u,  2u, 2u, 2u, 2u,                            /* M: 4 blocks */
+            DC, (unsigned char)'D', 0u, 0u,  3u, 0u, 3u, 0u,            /* D: 2 blocks */
+        };
+        const char *tb = getenv("TMPDIR");
+        if (tb == NULL) { tb = getenv("TMP"); }
+        if (tb == NULL) { tb = "/tmp"; }
+        char cdir[1024];
+        snprintf(cdir, sizeof(cdir), "%s/srmech_genome_census", tb);
+        ensure_dir(cdir);
+        st = srmech_genome_save(cdir, cbody, sizeof(cbody), leaf_dim,
+                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "save mixed stick+minted+diploid genome");
+
+        /* CATALOG carries §96 cap_kind per chromosome (stick / minted / diploid). */
+        {
+            srmech_json_value_t *man = NULL;
+            st = srmech_genome_catalog(cdir, NULL, 0u, g_ws, sizeof(g_ws), &man);
+            const srmech_json_value_t *data =
+                (st == SRMECH_OK) ? srmech_json_object_get(man, "data") : NULL;
+            const srmech_json_value_t *chr =
+                (data != NULL) ? srmech_json_object_get(data, "chromosomes") : NULL;
+            check_true(chr != NULL && chr->type == SRMECH_JSON_ARRAY &&
+                       chr->u.arr.n == 3u, "cap_kind catalog has 3 chromosomes");
+            if (chr != NULL && chr->u.arr.n == 3u) {
+                const srmech_json_value_t *k0 =
+                    srmech_json_object_get(chr->u.arr.items[0], "cap_kind");
+                const srmech_json_value_t *k1 =
+                    srmech_json_object_get(chr->u.arr.items[1], "cap_kind");
+                const srmech_json_value_t *k2 =
+                    srmech_json_object_get(chr->u.arr.items[2], "cap_kind");
+                check_true(k0 != NULL && k0->type == SRMECH_JSON_STRING &&
+                           k0->u.str.len == 5u &&
+                           memcmp(k0->u.str.ptr, "stick", 5) == 0,
+                           "chrom S cap_kind == stick");
+                check_true(k1 != NULL && k1->u.str.len == 6u &&
+                           memcmp(k1->u.str.ptr, "minted", 6) == 0,
+                           "chrom M cap_kind == minted (interior centromere)");
+                check_true(k2 != NULL && k2->u.str.len == 7u &&
+                           memcmp(k2->u.str.ptr, "diploid", 7) == 0,
+                           "chrom D cap_kind == diploid (0x44 opener)");
+            }
+        }
+
+        /* CENSUS: types {1,1,1}, total_leaves 4, topology nuclear-like. */
+        {
+            srmech_json_value_t *cen = NULL;
+            st = srmech_genome_census(cdir, NULL, 0u, g_ws, sizeof(g_ws), &cen);
+            check_true(st == SRMECH_OK && cen != NULL, "genome_census OK");
+            const srmech_json_value_t *nc =
+                (cen != NULL) ? srmech_json_object_get(cen, "n_chromosomes") : NULL;
+            check_true(nc != NULL && nc->u.i == 3, "census n_chromosomes == 3");
+            const srmech_json_value_t *types =
+                (cen != NULL) ? srmech_json_object_get(cen, "types") : NULL;
+            const srmech_json_value_t *ts =
+                (types != NULL) ? srmech_json_object_get(types, "stick") : NULL;
+            const srmech_json_value_t *tm =
+                (types != NULL) ? srmech_json_object_get(types, "minted") : NULL;
+            const srmech_json_value_t *td =
+                (types != NULL) ? srmech_json_object_get(types, "diploid") : NULL;
+            check_true(ts != NULL && ts->u.i == 1 && tm != NULL && tm->u.i == 1 &&
+                       td != NULL && td->u.i == 1, "census types {stick,minted,diploid}=1,1,1");
+            const srmech_json_value_t *tl =
+                (cen != NULL) ? srmech_json_object_get(cen, "total_leaves") : NULL;
+            check_true(tl != NULL && tl->u.i == 4, "census total_leaves == 4");
+            const srmech_json_value_t *topo =
+                (cen != NULL) ? srmech_json_object_get(cen, "topology") : NULL;
+            check_true(topo != NULL && topo->type == SRMECH_JSON_STRING &&
+                       topo->u.str.len == 12u &&
+                       memcmp(topo->u.str.ptr, "nuclear-like", 12) == 0,
+                       "census topology == nuclear-like");
+        }
+
+        /* CENSUS of a small all-stick genome -> organelle-like. */
+        {
+            unsigned char pbody[16] = {
+                CC, (unsigned char)'a', 0u, 0u,  0u, 1u, 2u, 3u,
+                CC, (unsigned char)'b', 0u, 0u,  1u, 0u, 3u, 2u,
+            };
+            char pdir[1024];
+            snprintf(pdir, sizeof(pdir), "%s/srmech_genome_organelle", tb);
+            ensure_dir(pdir);
+            st = srmech_genome_save(pdir, pbody, sizeof(pbody), leaf_dim,
+                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "save small all-stick (organelle) genome");
+            srmech_json_value_t *cen = NULL;
+            st = srmech_genome_census(pdir, NULL, 0u, g_ws, sizeof(g_ws), &cen);
+            const srmech_json_value_t *topo =
+                (st == SRMECH_OK) ? srmech_json_object_get(cen, "topology") : NULL;
+            check_true(topo != NULL && topo->u.str.len == 14u &&
+                       memcmp(topo->u.str.ptr, "organelle-like", 14) == 0,
+                       "small all-stick census -> organelle-like");
+        }
+
+        /* REGISTRY: a root of 2 genome dirs (+ a non-genome dir, ignored). */
+        {
+            char rroot[1024], sub[1200];
+            snprintf(rroot, sizeof(rroot), "%s/srmech_genome_cell", tb);
+            ensure_dir(rroot);
+            snprintf(sub, sizeof(sub), "%s/aaa", rroot);
+            ensure_dir(sub);
+            st = srmech_genome_save(sub, cbody, sizeof(cbody), leaf_dim,
+                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "registry: save genome 'aaa' (nucleus)");
+            unsigned char pbody[16] = {
+                CC, (unsigned char)'a', 0u, 0u,  0u, 1u, 2u, 3u,
+                CC, (unsigned char)'b', 0u, 0u,  1u, 0u, 3u, 2u,
+            };
+            snprintf(sub, sizeof(sub), "%s/bbb", rroot);
+            ensure_dir(sub);
+            st = srmech_genome_save(sub, pbody, sizeof(pbody), leaf_dim,
+                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "registry: save genome 'bbb' (organelle)");
+            snprintf(sub, sizeof(sub), "%s/notgenome", rroot);
+            ensure_dir(sub);                        /* no turns.bin -> ignored */
+
+            srmech_json_value_t *reg = NULL;
+            st = srmech_genome_registry(rroot, NULL, 0u, g_ws, sizeof(g_ws), &reg);
+            check_true(st == SRMECH_OK && reg != NULL, "genome_registry OK");
+            const srmech_json_value_t *ng =
+                (reg != NULL) ? srmech_json_object_get(reg, "n_genomes") : NULL;
+            check_true(ng != NULL && ng->u.i == 2,
+                       "registry n_genomes == 2 (non-genome dir ignored)");
+            const srmech_json_value_t *gs =
+                (reg != NULL) ? srmech_json_object_get(reg, "genomes") : NULL;
+            check_true(gs != NULL && gs->type == SRMECH_JSON_ARRAY &&
+                       gs->u.arr.n == 2u, "registry genomes array has 2");
+            if (gs != NULL && gs->u.arr.n == 2u) {  /* sorted by name: aaa, bbb */
+                const srmech_json_value_t *t0 =
+                    srmech_json_object_get(gs->u.arr.items[0], "topology");
+                const srmech_json_value_t *t1 =
+                    srmech_json_object_get(gs->u.arr.items[1], "topology");
+                check_true(t0 != NULL && t0->u.str.len == 12u &&
+                           memcmp(t0->u.str.ptr, "nuclear-like", 12) == 0,
+                           "registry[0] 'aaa' -> nuclear-like");
+                check_true(t1 != NULL && t1->u.str.len == 14u &&
+                           memcmp(t1->u.str.ptr, "organelle-like", 14) == 0,
+                           "registry[1] 'bbb' -> organelle-like");
+            }
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }

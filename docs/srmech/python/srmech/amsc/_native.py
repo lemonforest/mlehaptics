@@ -3265,6 +3265,22 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_genome_catalog.argtypes = [_CP, _U8, _SZ, _VP, _SZ,
                                               ctypes.POINTER(_VP)]
         lib.srmech_genome_catalog.restype = ctypes.c_int
+        # §96/rc267: census(dir, the_one, the_one_len, ws, ws_len, &out_census_tree)
+        # + registry(root, ..., &out_registry_tree) — return a JSON value tree in the
+        # arena (like catalog); genome.py serialises it with srmech_json_write_ws.
+        # census_arena_bytes(body_len, n_chroms) is the C SSoT for the census arena.
+        # NEW symbols → hasattr-guarded (a pre-rc267 lib keeps the rest of the genome
+        # surface); additive → EXPECTED_ABI_VERSION stays 5.
+        if hasattr(lib, "srmech_genome_census"):
+            lib.srmech_genome_census.argtypes = [_CP, _U8, _SZ, _VP, _SZ,
+                                                 ctypes.POINTER(_VP)]
+            lib.srmech_genome_census.restype = ctypes.c_int
+            lib.srmech_genome_census_arena_bytes.argtypes = [_SZ, _U32]
+            lib.srmech_genome_census_arena_bytes.restype = ctypes.c_size_t
+        if hasattr(lib, "srmech_genome_registry"):
+            lib.srmech_genome_registry.argtypes = [_CP, _U8, _SZ, _VP, _SZ,
+                                                   ctypes.POINTER(_VP)]
+            lib.srmech_genome_registry.restype = ctypes.c_int
         # window(dir, label, out, out_cap, &out_len, the_one, the_one_len, ws, ws_len)
         lib.srmech_genome_window.argtypes = [_CP, _CP, _U8, _SZ, _PSZ, _U8, _SZ,
                                              _VP, _SZ]
@@ -16766,6 +16782,23 @@ def has_native_genome() -> bool:
                 and hasattr(LIB, "srmech_genome_arena_bytes"))
 
 
+def has_native_genome_census() -> bool:
+    """True iff the §96/rc267 native ``srmech_genome_census`` (+ its arena SSoT) is
+    loaded — a pre-rc267 lib lacks it, so ``genome.genome_census`` uses the pure
+    roll-up over ``genome_catalog``."""
+    return bool(has_native_genome()
+                and hasattr(LIB, "srmech_genome_census")
+                and hasattr(LIB, "srmech_genome_census_arena_bytes"))
+
+
+def has_native_genome_registry() -> bool:
+    """True iff the §96/rc267 native ``srmech_genome_registry`` is loaded — a
+    pre-rc267 lib lacks it, so ``genome.genome_registry`` uses the pure
+    os/pathlib scan + per-dir census roll-up."""
+    return bool(has_native_genome_census()
+                and hasattr(LIB, "srmech_genome_registry"))
+
+
 def _genome_file_size(path: str) -> int:
     """Byte size of ``path`` (0 if absent)."""
     try:
@@ -17652,6 +17685,90 @@ def genome_catalog_c(dir_: str, the_one: bytes) -> str:
     return buf.raw[:out_len.value].decode("utf-8")
 
 
+def _genome_tree_to_text(tree, write_cap: int) -> str:
+    """Serialise a genome JSON value tree (census / registry) to its canonical text
+    via ``srmech_json_write_ws`` — the writer carves its key-sort scratch from a
+    caller arena sized to the actual tree (no compiled-in object-width cap)."""
+    buf = ctypes.create_string_buffer(write_cap + 1)
+    out_len = ctypes.c_size_t(0)
+    jws_len = int(LIB.srmech_json_write_arena_bytes(tree))
+    jws = ctypes.create_string_buffer(max(jws_len, 1))
+    rc = LIB.srmech_json_write_ws(
+        tree, buf, ctypes.c_size_t(write_cap), ctypes.byref(out_len),
+        jws, ctypes.c_size_t(len(jws)))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_json_write_ws", rc)
+    return buf.raw[:out_len.value].decode("utf-8")
+
+
+def genome_census_c(dir_: str, the_one: bytes) -> str:
+    """Native §96 genome census — scan the body ONCE, classify each chromosome's
+    cap_kind on the §44 scan, and return the census JSON tree text ``{path,
+    n_chromosomes, types, chromosomes, total_leaves, topology}`` (``genome.py``
+    ``json.loads`` it). ``the_one`` may be empty when a manifest is present."""
+    if not has_native_genome_census():
+        raise NativeGenomeError("srmech_genome_census", SRMECH_ERR_NOT_IMPL)
+    man_sz = _genome_file_size(os.path.join(dir_, "manifest.json"))
+    body_sz = _genome_file_size(os.path.join(dir_, "turns.bin"))
+    ws, ws_len = _genome_arena(max(man_sz, body_sz),
+                               _genome_chrom_count(dir_, the_one))
+    tree = ctypes.c_void_p()
+    rc = LIB.srmech_genome_census(
+        dir_.encode("utf-8"), _u8(the_one), ctypes.c_size_t(len(the_one)),
+        ws, ctypes.c_size_t(ws_len), ctypes.byref(tree))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_census", rc)
+    return _genome_tree_to_text(tree, max(256 * 1024, 4 * max(man_sz, body_sz)))
+
+
+def _genome_registry_arena_bytes(root: str, the_one: bytes) -> int:
+    """The C ``srmech_genome_registry`` bump-arena need: the SUM over ``root``'s
+    genome dirs of their census arena (``srmech_genome_census_arena_bytes``) + the
+    per-genome names/fullpath scratch + a registry-root reserve — mirrors what the
+    C op bump-allocates (each per-genome census subtree persists so the root can
+    reference it)."""
+    total = 256 * 1024                          # registry root + names/groots reserve
+    try:
+        entries = sorted(os.listdir(root))
+    except OSError:
+        return total
+    fn = LIB.srmech_genome_census_arena_bytes
+    if fn.restype is not ctypes.c_size_t:
+        fn.restype = ctypes.c_size_t
+        fn.argtypes = [ctypes.c_size_t, ctypes.c_uint32]
+    for name in entries:
+        d = os.path.join(root, name)
+        if not (os.path.isdir(d)
+                and os.path.exists(os.path.join(d, "turns.bin"))
+                and os.path.exists(os.path.join(d, "manifest.json"))):
+            continue
+        body_sz = _genome_file_size(os.path.join(d, "turns.bin"))
+        man_sz = _genome_file_size(os.path.join(d, "manifest.json"))
+        n = _genome_chrom_count(d, the_one)
+        total += int(fn(ctypes.c_size_t(max(body_sz, man_sz)),
+                        ctypes.c_uint32(n))) + 8192   # + fullpath/name/groot slop
+    return total
+
+
+def genome_registry_c(root: str, the_one: bytes) -> str:
+    """Native §96 genome registry — scan ``root`` for genome dirs (turns.bin +
+    manifest.json) via the PAL dir surface, census each (sorted by basename), and
+    return the registry JSON tree text ``{root, n_genomes, genomes:[…]}``
+    (``genome.py`` ``json.loads`` it)."""
+    if not has_native_genome_registry():
+        raise NativeGenomeError("srmech_genome_registry", SRMECH_ERR_NOT_IMPL)
+    need = _genome_registry_arena_bytes(root, the_one)
+    ws_buf = (ctypes.c_char * need)()
+    ws = ctypes.cast(ws_buf, ctypes.c_void_p)
+    tree = ctypes.c_void_p()
+    rc = LIB.srmech_genome_registry(
+        root.encode("utf-8"), _u8(the_one), ctypes.c_size_t(len(the_one)),
+        ws, ctypes.c_size_t(need), ctypes.byref(tree))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_registry", rc)
+    return _genome_tree_to_text(tree, max(512 * 1024, 2 * need))
+
+
 def genome_append_c(dir_: str, label: str, region: bytes, leaf_dim: int,
                     the_one: bytes) -> None:
     """Native genome append — grow ``<dir>`` by one chromosome region.
@@ -17818,9 +17935,13 @@ __all__ = [
     "NativeNDJsonError",
     "NativeGenomeError",
     "has_native_genome",
+    "has_native_genome_census",
+    "has_native_genome_registry",
     "genome_save_c",
     "genome_load_c",
     "genome_catalog_c",
+    "genome_census_c",
+    "genome_registry_c",
     "genome_window_c",
     "genome_append_c",
     "genome_remove_c",

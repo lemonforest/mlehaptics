@@ -453,6 +453,8 @@
 {"exposed_as": "srmech.amsc.genome.genome_save", "defined_at": "srmech.amsc.genome.genome_save", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_load", "defined_at": "srmech.amsc.genome.genome_load", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_catalog", "defined_at": "srmech.amsc.genome.genome_catalog", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_census", "defined_at": "srmech.amsc.genome.genome_census", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_registry", "defined_at": "srmech.amsc.genome.genome_registry", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_append", "defined_at": "srmech.amsc.genome.genome_append", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_window", "defined_at": "srmech.amsc.genome.genome_window", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_genes", "defined_at": "srmech.amsc.genome.genome_genes", "bucket": "composition_of_c"}

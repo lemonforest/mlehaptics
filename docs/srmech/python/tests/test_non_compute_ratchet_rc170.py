@@ -222,11 +222,15 @@ _EXPECTED_SPLIT = {
     # srmech_toml, the build_chain_from_toml_str composes_c precedent). composes_c
     # 123 -> 125. +1 dev_tooling — dsl.alias (pure Python name-binding, a bare-C host
     # never aliases Python fns). dev_tooling 48 -> 49; total 192 -> 195.
-    "composes_c": 125,
+    # rc267 (§96 / PR#687 UPSTREAM_NOTES): +2 composes_c — genome.genome_census +
+    # genome.genome_registry (the per-genome roll-up + cell census; each composes
+    # over the C genome_catalog / srmech_genome_census / srmech_genome_registry).
+    # composes_c 125 -> 127; total 195 -> 197.
+    "composes_c": 127,
     "host_glue": 21,
     "dev_tooling": 49,
 }
-_TOTAL_NON_COMPUTE = 195
+_TOTAL_NON_COMPUTE = 197
 
 
 def _rows():

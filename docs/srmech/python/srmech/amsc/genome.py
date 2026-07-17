@@ -70,6 +70,7 @@ __all__ = [
     "genome", "plasmid", "partition",
     "mint", "mint_plan", "integrate",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
+    "genome_census", "genome_registry",
     "genome_append_kernel",
     "genome_window", "genome_genes",
     "gene_express_plan", "genome_genes_expressed",
@@ -4306,9 +4307,10 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
     """Assemble the manifest ``data`` block — §44's optional DERIVED catalog.
 
     ``chrom_specs`` is a list of ``(label, cap_sha256, leaf_count, byte_offset,
-    byte_len)`` tuples (byte_offset/byte_len index into ``turns.bin``;
+    byte_len, cap_kind)`` tuples (byte_offset/byte_len index into ``turns.bin``;
     ``leaf_count`` counts DATA turns only, excluding the chromosome's CHROM cap and
-    any intra-chromosome GENE caps). ``the_one_blocks`` is the single
+    any intra-chromosome GENE caps; ``cap_kind`` ∈ {"stick","minted","diploid"} is the
+    §96 derived classification). ``the_one_blocks`` is the single
     ``leaf_dim``-byte block of the_one. ``n_turns`` is the strand BLOCK count
     (caps + data turns — §55/v3: blocks are variable-width on disk, so the count
     is scanned, no longer ``body_len / leaf_dim``).
@@ -4325,7 +4327,7 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
     while it stays re-verifiable from the file and body-derivable (§44)."""
     regions = []
     region_hexes = []
-    for (_label, _cap, _lc, byte_offset, byte_len) in chrom_specs:
+    for (_label, _cap, _lc, byte_offset, byte_len, _ck) in chrom_specs:
         off, ln = int(byte_offset), int(byte_len)
         rh = _sha256_bytes(bytes(body_bytes[off:off + ln]))
         region_hexes.append(rh)
@@ -4347,8 +4349,10 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
                 "leaf_count": int(leaf_count),
                 "byte_offset": int(byte_offset),
                 "byte_len": int(byte_len),
+                "cap_kind": cap_kind,
             }
-            for (label, cap_sha256, leaf_count, byte_offset, byte_len) in chrom_specs
+            for (label, cap_sha256, leaf_count, byte_offset, byte_len, cap_kind)
+            in chrom_specs
         ],
     }
 
@@ -4508,7 +4512,7 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
     chroms = _split_into_chromosomes(strand, labels)
 
     body = bytearray()
-    chrom_specs: List[Tuple[str, str, int, int, int]] = []
+    chrom_specs: List[Tuple[str, str, int, int, int, str]] = []
     n_turns = 0
     for label, blocks in chroms:
         byte_offset = len(body)
@@ -4524,8 +4528,16 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
         # §44: leaf_count = DATA turns only — exclude the CHROM cap AND any inline
         # GENE caps (the gene structure lives inline, not as a turn count).
         leaf_count = sum(1 for blk in leaf_blocks if not _block_is_cap(blk))
+        # §96: cap_kind — provisional on the opener (0x44 diploid else stick),
+        # minted when an interior §95a centromere is present (byte-identical to the
+        # on-disk _scan_body_to_chrom_specs classification).
+        cap_kind = ("diploid"
+                    if _cap_kind(leaf_blocks[0]) == DIPLOID_TELOMERE_MARKER
+                    else "stick")
+        if any(_cap_kind(blk) == CENTROMERE_CAP_MARKER for blk in leaf_blocks):
+            cap_kind = "minted"
         chrom_specs.append(
-            (label, cap_sha256, leaf_count, byte_offset, byte_len)
+            (label, cap_sha256, leaf_count, byte_offset, byte_len, cap_kind)
         )
 
     body_bytes = bytes(body)
@@ -4588,9 +4600,16 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
 
     §55/v3: walk the RAW on-disk bytes (v2 | v3 | mixed) — offsets, hashes and counts
     come from the stored blocks VERBATIM (a legacy byte-per-symbol turn is never
-    re-encoded, so the derived catalog matches the body as written)."""
-    chrom_specs: List[Tuple[str, str, int, int, int]] = []
-    cur: Optional[list] = None      # [label, cap_sha256, leaf_count, offset, length]
+    re-encoded, so the derived catalog matches the body as written).
+
+    §96: each spec's 6th field is the derived ``cap_kind`` ∈ {"stick","minted",
+    "diploid"} — PROVISIONAL on the opening cap (a §95b diploid telomere ``0x44`` →
+    "diploid", else "stick"), OVERWRITTEN to "minted" by an interior §95a centromere
+    (``0x58``). minted > diploid > stick (a diploid PAIR carries a centromere, so it
+    reads "minted" — the R-RBS-LM reference's centromere-first classify). This rides
+    the EXISTING scan (no extra pass, byte-identical to the C genome_scan_chroms)."""
+    chrom_specs: List[Tuple[str, str, int, int, int, str]] = []
+    cur: Optional[list] = None      # [label, cap_sha256, leaf_count, offset, length, cap_kind]
     n_turns = 0
     offset = 0
     for raw, decoded in _walk_region_blocks(
@@ -4603,12 +4622,15 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
             # the label is bytes [1:] up to the first NUL — UNIFORM across all telomere
             # kinds (the §127 active telomere's count sits AFTER that NUL).
             label = decoded[1:].split(b"\x00", 1)[0].decode("utf-8")
-            cur = [label, _sha256_bytes(raw), 0, offset, 0]
+            cap_kind = "diploid" if decoded[0] == DIPLOID_TELOMERE_MARKER else "stick"
+            cur = [label, _sha256_bytes(raw), 0, offset, 0, cap_kind]
         elif cur is None:
             raise ValueError(
                 "genome persistence: strand has turns before its first CHROM "
                 "cap — not a well-formed §44 genome strand"
             )
+        elif decoded[0] == CENTROMERE_CAP_MARKER:
+            cur[5] = "minted"                 # §96: an interior centromere mints (wins)
         elif (decoded[0] != GENE_CAP_MARKER
               and decoded[0] != REGULATORY_GENE_MARKER
               and decoded[0] != BOOLEAN_GENE_MARKER
@@ -4704,6 +4726,124 @@ def genome_catalog(path, *, the_one=None) -> dict:
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     return _catalog_data(path, the_one)
+
+
+def _census_topology(types, total_leaves, n_chromosomes) -> str:
+    """The §96 STRUCTURAL topology read (biology-native; INTEGER compare, no float /
+    libm) — byte-identical to the C ``genome_census_topology``:
+
+    * any minted / diploid chromosome → ``"nuclear-like"`` (a eukaryotic nucleus).
+    * else ``n>0`` and ``total_leaves <= 8*n`` → ``"organelle-like"`` (a small
+      all-stick mitochondrion / chloroplast plasmid genome).
+    * else ``n>0`` → ``"plasmid/prokaryote-like"`` (all stick, no centromere).
+    * else → ``"empty"``.
+
+    srmech reads the SHAPE (the cap_kind counts); the caller assigns the ROLE."""
+    if types["minted"] or types["diploid"]:
+        return "nuclear-like"
+    if n_chromosomes and int(total_leaves) <= 8 * int(n_chromosomes):
+        return "organelle-like"
+    if n_chromosomes:
+        return "plasmid/prokaryote-like"
+    return "empty"
+
+
+def _census_from_catalog(cat, path) -> dict:
+    """Roll one genome's catalog (which now carries per-chromosome ``cap_kind``,
+    §96) UP into the census shape — cheap, NO extra body read (the pure-Python peer
+    of the C ``genome_census``). Returns ``{path, n_chromosomes, types, chromosomes,
+    total_leaves, topology}`` byte-identical to the native tree."""
+    entries = cat.get("chromosomes", [])
+    types = {"stick": 0, "minted": 0, "diploid": 0}
+    chromosomes = []
+    total_leaves = 0
+    for e in entries:
+        kind = e.get("cap_kind", "stick")
+        leaf_count = int(e.get("leaf_count", 0))
+        total_leaves += leaf_count
+        if kind in types:
+            types[kind] += 1
+        chromosomes.append(
+            {"label": e["label"], "type": kind, "leaf_count": leaf_count}
+        )
+    n_chromosomes = types["stick"] + types["minted"] + types["diploid"]
+    return {
+        "path": str(path),
+        "n_chromosomes": n_chromosomes,
+        "types": types,
+        "chromosomes": chromosomes,
+        "total_leaves": total_leaves,
+        "topology": _census_topology(types, total_leaves, n_chromosomes),
+    }
+
+
+def genome_census(path, *, the_one=None) -> dict:
+    """Census ONE genome — the biology-native per-genome roll-up (UPSTREAM §96).
+
+    Answers "what is IN this genome, and how does it partition?" the way biology
+    asks it: how many chromosomes, of which TYPE (``stick`` plasmid-scale /
+    ``minted`` eukaryotic-centromere / ``diploid`` pair), how many total leaves, and
+    a STRUCTURAL nuclear-vs-organelle ``topology`` read. Returns::
+
+        {"path", "n_chromosomes", "types": {"stick", "minted", "diploid"},
+         "chromosomes": [{"label", "type", "leaf_count"}, …],
+         "total_leaves", "topology"}
+
+    A thin roll-up over :func:`genome_catalog` (which carries the derived
+    ``cap_kind`` per chromosome, §96) — the TYPE rides the catalog's ONE body scan,
+    no O(n) per-chromosome loads. srmech reads the SHAPE (the inline cap markers);
+    the caller assigns the ROLE. ``the_one=`` is only needed for a manifest-less
+    genome (the catalog rebuild width). numpy-free."""
+    # §96: native C census (byte-identical tree) when present; else the pure roll-up
+    # over genome_catalog (itself native-accelerated). Native is authoritative.
+    if _native.has_native_genome() and _native.has_native_genome_census():
+        try:
+            text = _native.genome_census_c(
+                str(Path(path)), _the_one_bytes_or_empty(the_one))
+            return json.loads(text)
+        except _native.NativeGenomeError as exc:
+            _raise_native_genome(exc)
+    return _census_from_catalog(genome_catalog(path, the_one=the_one), path)
+
+
+def _is_genome_dir(p) -> bool:
+    """1 iff ``p`` is a genome directory — holds BOTH ``turns.bin`` and
+    ``manifest.json`` (the §96 registry's genome-dir filter)."""
+    p = Path(p)
+    return p.is_dir() and (p / _BODY_NAME).exists() and (p / _MANIFEST_NAME).exists()
+
+
+def genome_registry(root, *, the_one=None) -> dict:
+    """Census a ROOT of genomes — the cell / melange census (UPSTREAM §96, ADR-0006).
+
+    Scans ``root`` for genome directories (a dir holding BOTH ``turns.bin`` and
+    ``manifest.json``), censuses each (:func:`genome_census`), and returns them
+    sorted by name::
+
+        {"root", "n_genomes", "genomes": [<census per genome>, …]}
+
+    This is the "cell": which genome is the NUCLEUS (minted / diploid chromosomes)
+    vs an ORGANELLE (a small all-stick plasmid-like genome — a mitochondrion /
+    chloroplast). A dir with no genome subdirs yields ``n_genomes`` 0. ``the_one=``
+    is only needed for manifest-less genomes. numpy-free."""
+    # §96: native C registry (PAL dir scan + per-genome census, one byte-identical
+    # tree) when present; else the pure os/pathlib scan + per-dir census roll-up.
+    if _native.has_native_genome() and _native.has_native_genome_registry():
+        try:
+            text = _native.genome_registry_c(
+                str(Path(root)), _the_one_bytes_or_empty(the_one))
+            return json.loads(text)
+        except _native.NativeGenomeError as exc:
+            _raise_native_genome(exc)
+    genomes = sorted(
+        (p for p in Path(root).iterdir() if _is_genome_dir(p)),
+        key=lambda p: p.name,
+    )
+    return {
+        "root": str(root),
+        "n_genomes": len(genomes),
+        "genomes": [genome_census(p, the_one=the_one) for p in genomes],
+    }
 
 
 def _verify_body_integrity(body_bytes, data) -> None:
