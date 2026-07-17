@@ -3273,6 +3273,12 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_genome_append.argtypes = [_CP, _CP, _U8, _SZ, _U32, _U8, _SZ,
                                              _VP, _SZ]
         lib.srmech_genome_append.restype = ctypes.c_int
+        # append_arena_bytes(dir, region_len, ws, ws_len, &out_bytes) — the C SSoT for
+        # the append arena size (classifies v12/v4 vs legacy; §97 parity). hasattr-
+        # guarded so a stale DLL predating the symbol still loads.
+        if hasattr(lib, "srmech_genome_append_arena_bytes"):
+            lib.srmech_genome_append_arena_bytes.argtypes = [_CP, _SZ, _VP, _SZ, _PSZ]
+            lib.srmech_genome_append_arena_bytes.restype = ctypes.c_int
         # remove(dir, label, the_one, the_one_len, ws, ws_len)
         lib.srmech_genome_remove.argtypes = [_CP, _CP, _U8, _SZ, _VP, _SZ]
         lib.srmech_genome_remove.restype = ctypes.c_int
@@ -16793,7 +16799,15 @@ def _genome_chrom_count(dir_: str, the_one: bytes = b"") -> int:
     :func:`_genome_arena` — the architecture (the C layout) defines capacity."""
     try:
         with open(os.path.join(dir_, "manifest.json"), "rb") as fh:
-            return len(json.load(fh)["data"]["chromosomes"])
+            _d = json.load(fh).get("data", {})
+        # §97: a v12 head-only manifest carries the SCALAR ``n_chromosomes`` (O(1));
+        # the full ``chromosomes`` ARRAY is absent (ADR-0003 "no plaintext TOC"), so
+        # reading ``["chromosomes"]`` KeyError'd and fell through to an O(n) whole-body
+        # scan on EVERY append. Read the scalar first; the array is the legacy shape.
+        if isinstance(_d, dict) and "n_chromosomes" in _d:
+            return int(_d["n_chromosomes"])
+        if isinstance(_d, dict) and "chromosomes" in _d:
+            return len(_d["chromosomes"])
     except (OSError, KeyError, ValueError, TypeError):
         pass
     leaf_dim = len(the_one)
@@ -17642,25 +17656,64 @@ def genome_append_c(dir_: str, label: str, region: bytes, leaf_dim: int,
                     the_one: bytes) -> None:
     """Native genome append — grow ``<dir>`` by one chromosome region.
 
-    rc115 (#1245 ask (b)): a v4 genome (a ``regions`` array in the manifest) takes
-    the O(1) tail-extend path, so its arena is bounded by the MANIFEST + the new
-    region — NOT the whole body (the win). A legacy v2/v3 genome migrates once via a
-    full rebuild, which needs the whole body in the arena (a one-time cost)."""
-    man_path = os.path.join(dir_, "manifest.json")
-    man_sz = _genome_file_size(man_path)
-    try:
-        with open(man_path, "rb") as fh:
-            is_v4 = b'"regions":' in fh.read()
-    except OSError:
-        is_v4 = False
-    # O(1) fast path: manifest + parse-workspace + rebuilt manifest (all O(n_chroms));
-    # migration: + the whole body (once). Generous, manifest-scaled — not body-scaled.
-    body_hint = man_sz * 6 + 300000
-    if not is_v4:
-        body_hint += _turns_size(dir_)
+    §97: the append arena is sized by the C SSoT
+    :c:func:`srmech_genome_append_arena_bytes`, which classifies (v12/v4 head-only =>
+    O(1) tail-extend, MANIFEST-scaled arena; legacy v2/v3 => whole-body migration)
+    EXACTLY as the C op — so the classification lives ONCE, in C, not reimplemented
+    here (the pre-rc266 Python copy had drifted and mis-sized every v12 append to a
+    whole-body arena, OOM at corpus scale)."""
+    global _genome_ws
     _require_genome()
-    ws, ws_len = _genome_arena(
-        body_hint, _genome_chrom_count(dir_, the_one) + 1, len(region))
+    man_sz = _genome_file_size(os.path.join(dir_, "manifest.json"))
+    if hasattr(LIB, "srmech_genome_append_arena_bytes"):
+        scratch = (ctypes.c_char * (man_sz + 1))()
+        out = ctypes.c_size_t(0)
+        rc = LIB.srmech_genome_append_arena_bytes(
+            dir_.encode("utf-8"), ctypes.c_size_t(len(region)),
+            ctypes.cast(scratch, ctypes.c_void_p), ctypes.c_size_t(man_sz + 1),
+            ctypes.byref(out))
+        if rc != SRMECH_OK:
+            raise NativeGenomeError("srmech_genome_append_arena_bytes", rc)
+        need = int(out.value)
+        if _genome_ws is None or len(_genome_ws) < need:
+            _genome_ws = (ctypes.c_char * need)()
+        ws = ctypes.cast(_genome_ws, ctypes.c_void_p)
+        ws_len = len(_genome_ws)
+    else:
+        # Fallback for a native lib predating the symbol (stale DLL): the rc266-fixed
+        # Python sizing. The O(1) tail-extend applies to the region-CHAIN era
+        # (format_version >= 4), NOT only when a per-chromosome "regions" ARRAY is
+        # physically present. v12 is HEAD-ONLY (no arrays on disk — ADR-0003), so the
+        # original substring check mis-detected every v12 genome as legacy →
+        # `body_hint += the whole turns.bin` per append → the shared module arena
+        # ballooned to a whole-body-rebuild size and never shrank. Key on the version.
+        is_v4 = False
+        try:
+            with open(os.path.join(dir_, "manifest.json"), "rb") as fh:
+                man = fh.read()
+            if b'"regions":' in man:
+                is_v4 = True                    # legacy v4-v11 full manifest
+            else:
+                try:
+                    _m = json.loads(man)
+                    _d = _m.get("data") if isinstance(_m.get("data"), dict) else _m
+                    _fv = int(_d.get("format_version") or 0)
+                except (ValueError, TypeError, AttributeError, json.JSONDecodeError):
+                    _fv = 0
+                is_v4 = _fv >= 4                 # v12 head-only IS region-chain era
+        except OSError:
+            is_v4 = False
+        body_hint = man_sz * 6 + 300000
+        # §97: the v4/v12 tail-extend stages ONE region slot + a head-only (1-entry)
+        # manifest, so n_chroms = 1 keeps the arena O(1) in the chromosome count —
+        # mirrors srmech_genome_append_arena_bytes so the fallback is O(1) too (not
+        # just the primary C-helper path). Only the migrate path body-scales.
+        if is_v4:
+            ws, ws_len = _genome_arena(body_hint, 1, len(region))
+        else:
+            ws, ws_len = _genome_arena(
+                body_hint + _turns_size(dir_),
+                _genome_chrom_count(dir_, the_one) + 1, len(region))
     rc = LIB.srmech_genome_append(
         dir_.encode("utf-8"), label.encode("utf-8"), _u8(region),
         ctypes.c_size_t(len(region)), ctypes.c_uint32(leaf_dim),

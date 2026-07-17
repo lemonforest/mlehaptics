@@ -31,6 +31,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import genome as G
+from srmech.amsc import _native
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.hdc import klein4_random
 
@@ -267,3 +268,101 @@ def test_catalog_empty_dict_is_a_clear_error_not_keyerror(tmp_path):
         G.genome_append(g, "x", _leaves(2), one, catalog={})
     with pytest.raises(ValueError, match="load"):
         G.genome_append(g, "x", _leaves(2), one, catalog={"n_turns": 3})
+
+
+# ── §97 (#1407) — the native append arena must be O(1) RAM, not O(body) ───────
+
+@pytest.mark.skipif(not _native.has_native_genome(),
+                    reason="native genome append needed for the §97 arena-size regression")
+def test_native_append_arena_is_o1_not_o_body(tmp_path):
+    """§97 regression: the native append arena (`_native._genome_ws`) must stay
+    manifest-sized (O(1)), NOT grow with the body. A v12 genome's manifest is
+    HEAD-ONLY (no `regions` array — ADR-0003), and the rc115 detection mis-read that
+    absence as "legacy" → it sized the shared arena to the WHOLE growing `turns.bin`
+    per append, and the arena (grown-to-max, never shrunk) ballooned to a whole-body-
+    rebuild size → OOM at corpus scale (95 GB after 3361 bodies). The O(1) tail-extend
+    path is now keyed on `format_version >= 4`, so the arena stays O(1)."""
+    dim = 256
+    one = klein4_random(dim, seed=7)
+
+    def body(i, n=25):
+        return [klein4_random(dim, seed=10_000 + i * n + j) for j in range(n)]
+
+    g = tmp_path / "g"
+    G.genome_save(G.chromosome(body(0), one, label="seed"), g, the_one=one)
+    cat = G.genome_catalog(g, the_one=one)
+
+    def ws_len():
+        return 0 if _native._genome_ws is None else len(_native._genome_ws)
+
+    for k in range(20):
+        cat = G.genome_append(g, f"c{k:04d}", body(k + 1), one, catalog=cat)
+    ws_early = ws_len()
+    for k in range(20, 200):                 # 180 more appends — turns.bin grows ~300 KB
+        cat = G.genome_append(g, f"c{k:04d}", body(k + 1), one, catalog=cat)
+    ws_late = ws_len()
+    turns = (g / "turns.bin").stat().st_size
+
+    # the arena did NOT track the ~turns.bin growth — it is manifest-sized (O(1)).
+    # (pre-fix, ws_late grew by ~the turns growth ≫ this margin.)
+    assert ws_late <= ws_early + 65_536, (
+        f"append arena grew {ws_late - ws_early} B over 180 appends "
+        f"(early={ws_early}, late={ws_late}, turns.bin={turns}) — it is tracking the "
+        f"body (O(n) RAM), not manifest-sized (§97)")
+
+
+@pytest.mark.skipif(not _native.has_native_genome(),
+                    reason="native genome needed for the §97 C-helper arena-size check")
+def test_c_helper_sizes_append_arena(tmp_path):
+    """§97: the C SSoT ``srmech_genome_append_arena_bytes`` ITSELF (not just the Python
+    wrapper) sizes the v12 append arena O(MANIFEST), not O(body). A v12 manifest is
+    HEAD-ONLY (fixed-size — no ``regions`` array on disk, ADR-0003), so as turns.bin
+    grows by ~300 KB over 180 appends the C helper's returned arena size does NOT track
+    it. This proves the v12/legacy classification lives in C: a bare-C host sizes the
+    append arena right with no Python (the wrapper only relays this number)."""
+    import ctypes
+
+    lib = _native.LIB
+    if not hasattr(lib, "srmech_genome_append_arena_bytes"):
+        pytest.skip("native lib predates srmech_genome_append_arena_bytes (§97)")
+
+    dim = 256
+    one = klein4_random(dim, seed=7)
+
+    def body(i, n=25):
+        return [klein4_random(dim, seed=10_000 + i * n + j) for j in range(n)]
+
+    g = tmp_path / "g"
+    G.genome_save(G.chromosome(body(0), one, label="seed"), g, the_one=one)
+    cat = G.genome_catalog(g, the_one=one)
+
+    def helper_arena():
+        """The raw C helper's arena size for the current on-disk genome (bypass the
+        Python wrapper — this exercises the C classification directly)."""
+        man_sz = (g / "manifest.json").stat().st_size
+        scratch = (ctypes.c_char * (man_sz + 1))()
+        out = ctypes.c_size_t(0)
+        rc = lib.srmech_genome_append_arena_bytes(
+            str(g).encode("utf-8"), ctypes.c_size_t(4096),
+            ctypes.cast(scratch, ctypes.c_void_p), ctypes.c_size_t(man_sz + 1),
+            ctypes.byref(out))
+        assert rc == 0, f"srmech_genome_append_arena_bytes rc={rc}"
+        return int(out.value)
+
+    for k in range(20):
+        cat = G.genome_append(g, f"c{k:04d}", body(k + 1), one, catalog=cat)
+    need_early = helper_arena()
+    turns_early = (g / "turns.bin").stat().st_size
+    assert need_early > 0
+
+    for k in range(20, 200):                 # 180 more appends — turns.bin grows ~300 KB
+        cat = G.genome_append(g, f"c{k:04d}", body(k + 1), one, catalog=cat)
+    need_late = helper_arena()
+    turns_late = (g / "turns.bin").stat().st_size
+
+    assert turns_late - turns_early > 100_000    # the body genuinely grew
+    # the C helper's arena did NOT track that growth — it is O(manifest) (head-only,
+    # fixed-size), NOT O(body). (pre-§97 the arena tracked the whole body → OOM.)
+    assert need_late - need_early < 65_536, (
+        f"C helper append arena grew {need_late - need_early} B while turns.bin grew "
+        f"{turns_late - turns_early} B — it is body-scaled, not manifest-scaled (§97)")

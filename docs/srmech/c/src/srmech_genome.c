@@ -3394,6 +3394,59 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
                             manbuf, msz, mlen, old_len);
 }
 
+/* Public — the exact working-arena size (bytes) srmech_genome_append needs for the
+ * genome at `dir` when it stages a `region_len`-byte region. Reads manifest.json into
+ * `ws` (needs manifest_size + 1 bytes; a few KB for a v12 HEAD-ONLY genome) and
+ * classifies EXACTLY as srmech_genome_append does — by the SAME byte-substring probe
+ * (genome_bytes_contains): a v12 head ("n_chromosomes") or a v4..v11 full manifest
+ * ("regions") takes the O(1) tail-extend; a legacy v2/v3 (neither key) migrates once.
+ *
+ * §97 O(1): the tail-extend fast path (genome_append_v4/genome_append_head) stages ONE
+ * new region slot + a head-only, 1-ENTRY manifest — it NEVER materialises the
+ * per-chromosome array — so its arena is MANIFEST-scaled with n_chroms = 1 and does NOT
+ * grow with the chromosome count (the corpus-scale RAM fix). Only the migrate path
+ * scales with the body. A bare-C host — and the Python wrapper — sizes the append arena
+ * from THIS, so the v12/legacy classification lives ONCE (here), not reimplemented per
+ * host. *out_bytes gets the size. Additive symbol; does NOT bump SRMECH_ABI_VERSION. */
+srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_len,
+                                                 void *ws, size_t ws_len,
+                                                 size_t *out_bytes)
+{
+    assert(dir != NULL || out_bytes == NULL);
+    assert(SRMECH_GENOME_MAX_LABEL > 0u);
+    if (dir == NULL || out_bytes == NULL || (ws == NULL && ws_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    size_t old_len = 0u;
+    srmech_status_t st = genome_body_size(dir, &old_len);
+    if (st != SRMECH_OK) { return st; }
+    char man_path[SRMECH_GENOME_PATH_MAX];
+    st = genome_join(dir, SRMECH_GENOME_MANIFEST, man_path, sizeof(man_path));
+    if (st != SRMECH_OK) { return st; }
+    size_t msz = 0u;
+    if (genome_file_size(man_path, &msz) != SRMECH_OK) {   /* manifest-less => migrate */
+        *out_bytes = srmech_genome_arena_bytes(old_len + region_len,
+                                               (uint32_t)(old_len / 32u) + 1u, region_len);
+        return SRMECH_OK;
+    }
+    if (ws == NULL || msz + 1u > ws_len) { return SRMECH_ERR_OVERFLOW; }
+    size_t mlen = 0u;
+    st = genome_read_file(man_path, (unsigned char *)ws, msz + 1u, &mlen);
+    if (st != SRMECH_OK) { return st; }
+    const char *man = (const char *)ws;
+    /* Same probe the op uses (line ~3387): v12 head OR v4..v11 full => O(1) tail-extend
+     * (MANIFEST-scaled, n_chroms = 1 — the 1-slot head append); legacy => whole-body. */
+    int is_v4 = genome_bytes_contains(man, mlen, "\"n_chromosomes\":", 16u) ||
+                genome_bytes_contains(man, mlen, "\"regions\":", 10u);
+    if (is_v4) {
+        *out_bytes = srmech_genome_arena_bytes(msz * 6u + 300000u, 1u, region_len);
+    } else {
+        *out_bytes = srmech_genome_arena_bytes(old_len + region_len,
+                                               (uint32_t)(old_len / 32u) + 1u, region_len);
+    }
+    return SRMECH_OK;
+}
+
 /* ------------------------------------------------------------------ *
  * §45 IN-PLACE EDIT — remove / replace one chromosome by a BYTE splice.
  *
