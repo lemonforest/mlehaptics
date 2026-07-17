@@ -31,6 +31,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import genome as G
+from srmech.amsc import _native
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.hdc import klein4_random
 
@@ -267,3 +268,44 @@ def test_catalog_empty_dict_is_a_clear_error_not_keyerror(tmp_path):
         G.genome_append(g, "x", _leaves(2), one, catalog={})
     with pytest.raises(ValueError, match="load"):
         G.genome_append(g, "x", _leaves(2), one, catalog={"n_turns": 3})
+
+
+# ── §97 (#1407) — the native append arena must be O(1) RAM, not O(body) ───────
+
+@pytest.mark.skipif(not _native.has_native_genome(),
+                    reason="native genome append needed for the §97 arena-size regression")
+def test_native_append_arena_is_o1_not_o_body(tmp_path):
+    """§97 regression: the native append arena (`_native._genome_ws`) must stay
+    manifest-sized (O(1)), NOT grow with the body. A v12 genome's manifest is
+    HEAD-ONLY (no `regions` array — ADR-0003), and the rc115 detection mis-read that
+    absence as "legacy" → it sized the shared arena to the WHOLE growing `turns.bin`
+    per append, and the arena (grown-to-max, never shrunk) ballooned to a whole-body-
+    rebuild size → OOM at corpus scale (95 GB after 3361 bodies). The O(1) tail-extend
+    path is now keyed on `format_version >= 4`, so the arena stays O(1)."""
+    dim = 256
+    one = klein4_random(dim, seed=7)
+
+    def body(i, n=25):
+        return [klein4_random(dim, seed=10_000 + i * n + j) for j in range(n)]
+
+    g = tmp_path / "g"
+    G.genome_save(G.chromosome(body(0), one, label="seed"), g, the_one=one)
+    cat = G.genome_catalog(g, the_one=one)
+
+    def ws_len():
+        return 0 if _native._genome_ws is None else len(_native._genome_ws)
+
+    for k in range(20):
+        cat = G.genome_append(g, f"c{k:04d}", body(k + 1), one, catalog=cat)
+    ws_early = ws_len()
+    for k in range(20, 200):                 # 180 more appends — turns.bin grows ~300 KB
+        cat = G.genome_append(g, f"c{k:04d}", body(k + 1), one, catalog=cat)
+    ws_late = ws_len()
+    turns = (g / "turns.bin").stat().st_size
+
+    # the arena did NOT track the ~turns.bin growth — it is manifest-sized (O(1)).
+    # (pre-fix, ws_late grew by ~the turns growth ≫ this margin.)
+    assert ws_late <= ws_early + 65_536, (
+        f"append arena grew {ws_late - ws_early} B over 180 appends "
+        f"(early={ws_early}, late={ws_late}, turns.bin={turns}) — it is tracking the "
+        f"body (O(n) RAM), not manifest-sized (§97)")

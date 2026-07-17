@@ -16793,7 +16793,15 @@ def _genome_chrom_count(dir_: str, the_one: bytes = b"") -> int:
     :func:`_genome_arena` — the architecture (the C layout) defines capacity."""
     try:
         with open(os.path.join(dir_, "manifest.json"), "rb") as fh:
-            return len(json.load(fh)["data"]["chromosomes"])
+            _d = json.load(fh).get("data", {})
+        # §97: a v12 head-only manifest carries the SCALAR ``n_chromosomes`` (O(1));
+        # the full ``chromosomes`` ARRAY is absent (ADR-0003 "no plaintext TOC"), so
+        # reading ``["chromosomes"]`` KeyError'd and fell through to an O(n) whole-body
+        # scan on EVERY append. Read the scalar first; the array is the legacy shape.
+        if isinstance(_d, dict) and "n_chromosomes" in _d:
+            return int(_d["n_chromosomes"])
+        if isinstance(_d, dict) and "chromosomes" in _d:
+            return len(_d["chromosomes"])
     except (OSError, KeyError, ValueError, TypeError):
         pass
     leaf_dim = len(the_one)
@@ -17648,9 +17656,27 @@ def genome_append_c(dir_: str, label: str, region: bytes, leaf_dim: int,
     full rebuild, which needs the whole body in the arena (a one-time cost)."""
     man_path = os.path.join(dir_, "manifest.json")
     man_sz = _genome_file_size(man_path)
+    # §97 fix: the O(1) tail-extend applies to the region-CHAIN era (format_version
+    # >= 4), NOT only when a per-chromosome "regions" ARRAY is physically present in
+    # the manifest. v12 is HEAD-ONLY (no regions/chromosomes array on disk — ADR-0003
+    # "no plaintext TOC"), so the original substring check mis-detected EVERY v12
+    # genome as legacy → `body_hint += the whole turns.bin` per append → the shared
+    # module arena `_genome_ws` ballooned to a whole-body-rebuild size and was never
+    # shrunk (OOM at corpus scale). Key on the format version instead.
+    is_v4 = False
     try:
         with open(man_path, "rb") as fh:
-            is_v4 = b'"regions":' in fh.read()
+            man = fh.read()
+        if b'"regions":' in man:
+            is_v4 = True                        # legacy v4-v11 full manifest
+        else:
+            try:
+                _m = json.loads(man)
+                _d = _m.get("data") if isinstance(_m.get("data"), dict) else _m
+                _fv = int(_d.get("format_version") or 0)
+            except (ValueError, TypeError, AttributeError, json.JSONDecodeError):
+                _fv = 0
+            is_v4 = _fv >= 4                     # v12 head-only IS region-chain era
     except OSError:
         is_v4 = False
     # O(1) fast path: manifest + parse-workspace + rebuilt manifest (all O(n_chroms));

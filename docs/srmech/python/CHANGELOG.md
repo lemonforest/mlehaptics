@@ -11,6 +11,15 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc266]
+
+**`genome_append` is now O(1) in RAM as well as time — fixes a corpus-scale memory leak (§97 / #1407).** The native append path (`genome_append_c`) was O(1) on disk and in time, but its working arena grew O(body) per call and was never released — a 240k-body corpus encode was OOM-killed at 95 GB RSS after only 3361 bodies. Two mis-detections of the **v12 head-only manifest** (which, by ADR-0003, has no on-disk `chromosomes`/`regions` arrays) were the cause:
+
+- **The O(1) tail-extend was keyed on a `regions` array being physically present** in the manifest — absent in every v12 genome — so each append was mis-routed to the legacy whole-body-migration arena (`body_hint += the whole turns.bin`). The shared module arena (`_genome_ws`, grown-to-max and never shrunk) ballooned to a whole-body-rebuild size. Now keyed on **`format_version >= 4`** (the region-chain era), so v12 takes the O(1) path and the arena stays manifest-sized.
+- **`_genome_chrom_count` read the `chromosomes` array** (absent in v12) → `KeyError` → an O(n) whole-`turns.bin` scan on every append. Now it reads the scalar **`n_chromosomes`** from the head (O(1)); the array is only the legacy fallback.
+
+Pure Python (the `_native.py` ctypes wrapper) — no C source, format, or ABI change; a v12 genome written by any prior rc appends identically, now with bounded RAM. Verified: `test_native_append_arena_is_o1_not_o_body` — the native append arena does not grow with the body over 180 appends (pre-fix it tracked `turns.bin`); PKG-3's corpus encode can drop the batch/explode/pack workaround and stream.
+
 ## [0.9.0rc265]
 
 **`genome_append` streaming ergonomics — a discoverable resume path + a clear error for the `catalog={}` footgun (§95.2 / #1407).** The O(1)-per-append machinery already existed (thread the returned catalog dict), but the resume-with-no-prior-return case was a trap: `catalog={}` raised a bare `KeyError: 'leaf_dim'`, and nothing told a caller how to start a streaming loop against an existing genome on disk.
