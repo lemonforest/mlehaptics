@@ -82,6 +82,7 @@ __all__ = [
     "genome_register_attested",
     "kernel_pack", "kernel_unpack",
     "graph_to_kernel", "kernel_to_graph", "mint_strand",
+    "genome_partition", "genome_from_graph",
     "active_telomere", "telomere_tick",
     "gene_express",
     "gene_express_levels",
@@ -4173,6 +4174,461 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
     cen_cap = centromere(orientation, repeats=repeats, handle=handle, dim=dim)
     insert_at = data_positions[split] if split < n_turns else len(strand)
     return strand[:insert_at] + [cen_cap] + strand[insert_at:]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §100 GAP 2 (PR#687 F1250-F1251) — PARTITION A GRAPH BY ITS OWN STRUCTURE.
+#
+# The mint() umbrella decides each kernel's chromosome SHAPE by LEAF-COUNT (a
+# ≤4-leaf kernel → a plasmid, a ≥5-leaf kernel → a nuclear chromosome). §100 GAP 2:
+# for a directed relational GRAPH the builder must instead find the data's OWN
+# nuclear-core vs plasmid-periphery split FROM ITS RELATIONAL STRUCTURE — biology
+# does not size a chromosome by how many genes it has, it reads the community
+# topology (a stable clonal CORE + a mobile ACCESSORY genome; F1251, attested
+# bacterial genomics: a small stable core + a large mobile accessory).
+#
+# The criterion is triple-grounded + settled (§100.1 / F1250 / F1251):
+#
+#  * METRIC = degree-normalized PARTICIPATION, the fraction of a node's incident
+#    edge-mass that CROSSES a community boundary. (F1053 first used the clustering
+#    coefficient; §100.1/F1250 MEASURED that clustering is unimodal at the 831k
+#    word-graph scale and washes out — participation is the read-INDEPENDENT
+#    discriminator that survives.) HIGH participation = a community-bridging shared
+#    service = PLASMID / organelle (F1059's power source); LOW participation = a node
+#    embedded in ONE community = NUCLEAR (the stable topical core).
+#  * DECISION = MEASURE the antimode gap in the participation distribution. Genuinely
+#    BIMODAL → split into nuclear (low) + plasmid (high); UNIMODAL (no clean antimode)
+#    → ACCEPT ONE-DNA-TYPE, do NOT force a split (F1250: the word graph is "one
+#    bridged content mass" + a small peripheral part — one dominant DNA type).
+#  * SHAPE = an ASYMMETRIC minority nuclear core (~16/84 — F1251). Even when it splits,
+#    expect a SMALL nuclear core + a LARGE plasmid remainder, not 50/50.
+#  * SCOPE = a FULL-GRAPH community assignment (out-of-core recursive_cut: you need the
+#    periphery to see the nuclear cliques).
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: Default histogram resolution for the participation antimode (§100 GAP 2). 16 bins
+#: over [0, 1] is fine enough to resolve a clean nuclear/plasmid valley yet coarse
+#: enough that a single bridged mass reads as ONE contiguous mode (F1250).
+_PARTITION_DEFAULT_BINS = 16
+
+
+def _partition_validate_graph(n, edges, weights, charges):
+    """Validate + materialise ``(edge_list, weight_list, charge_list)`` for §100 GAP
+    2 (integer edge metric — no float in the participation math). ``weights`` default
+    to unit multiplicity; every weight must be a NON-NEGATIVE integer (the co-occurrence
+    metric graph_to_kernel stores), and ``charges`` (signed direction) ride through
+    unchanged for the builder round-trip. O(|E|) sparse — NEVER the dense n×n structure."""
+    if not isinstance(n, int) or isinstance(n, bool) or n < 0:
+        raise ValueError(f"genome_partition: n must be a non-negative int; got {n!r}")
+    edge_list = [(int(u), int(v)) for (u, v) in edges]
+    for i, (u, v) in enumerate(edge_list):
+        if not (0 <= u < n and 0 <= v < n):
+            raise ValueError(
+                f"genome_partition: edge {i} = ({u}, {v}) outside node range [0, {n})")
+    if weights is None:
+        weight_list = [1] * len(edge_list)
+    else:
+        weight_list = []
+        for w in weights:
+            iw = int(w)
+            if iw != w:
+                raise ValueError(
+                    "genome_partition: weights must be integers (the edge metric / "
+                    "co-occurrence count) — participation is an exact rational, no float")
+            if iw < 0:
+                raise ValueError("genome_partition: weights must be non-negative")
+            weight_list.append(iw)
+        if len(weight_list) != len(edge_list):
+            raise ValueError(
+                f"genome_partition: weights length {len(weight_list)} != n_edges "
+                f"{len(edge_list)}")
+    if charges is None:
+        charge_list = [0] * len(edge_list)
+    else:
+        charge_list = [int(c) for c in charges]
+        if len(charge_list) != len(edge_list):
+            raise ValueError(
+                f"genome_partition: charges length {len(charge_list)} != n_edges "
+                f"{len(edge_list)}")
+    return edge_list, weight_list, charge_list
+
+
+def _partition_participation(n, edge_list, weight_list, community):
+    """Per-node PARTICIPATION as an exact integer pair ``(cross, tot)`` (§100 GAP 2).
+
+    Streams the sparse edge list ONCE (O(|E|), never the dense structure): ``tot[v]`` =
+    the total incident edge-mass of ``v``; ``cross[v]`` = the incident edge-mass that
+    crosses to a node in a DIFFERENT community. participation(v) = ``cross[v]/tot[v]`` ∈
+    [0, 1] — an exact non-negative rational (Class-N), NEVER ``abs()``. Only the two
+    O(n) accumulators are resident. A self-loop is fully internal (same community); an
+    isolated node has ``tot == 0`` → participation ``(0, 1)`` (no bridging)."""
+    cross = [0] * n
+    tot = [0] * n
+    for (u, v), w in zip(edge_list, weight_list):
+        tot[u] += w
+        tot[v] += w
+        if community[u] != community[v]:
+            cross[u] += w
+            cross[v] += w
+    return cross, tot
+
+
+def _partition_bin(cross_v, tot_v, n_bins):
+    """The participation histogram bin of one node — pure INTEGER arithmetic (no float):
+    ``floor(participation · n_bins)`` clamped to ``[0, n_bins-1]``. ``tot == 0`` (isolated)
+    → bin 0 (participation 0). ``cross == tot`` (fully bridging) → the top bin."""
+    if tot_v <= 0:
+        return 0
+    b = (cross_v * n_bins) // tot_v
+    if b >= n_bins:
+        return n_bins - 1
+    return b
+
+
+def _side_argmax(counts, lo, hi):
+    """The bin of the maximum count in ``counts[lo:hi+1]`` (lowest index on a tie) — the
+    dominant mode of one side of an antimode gap. Pure integer; no float."""
+    best = lo
+    for b in range(lo, hi + 1):
+        if counts[b] > counts[best]:
+            best = b
+    return best
+
+
+def _partition_antimode(counts):
+    """MEASURE the antimode of the participation histogram — the settled §100 GAP 2
+    bimodal/unimodal DECISION (F1250), pure integer, deterministic, no float.
+
+    Walks the GAPS between consecutive OCCUPIED bins. A gap is a real antimode iff it is
+    at least one bin WIDE (a genuine empty separation, not adjacent bins), the DOMINANT
+    mode on EACH side is a real mode (≥ 2 nodes), and the in-gap valley is empty-relative
+    (``2·valley < min(peak_low, peak_high)``). The distribution is BIMODAL iff such a gap
+    exists; we split at the WIDEST qualifying gap (ties → the larger smaller-mode, then the
+    lower bin) so the split isolates the true high-participation PLASMID tail from the whole
+    low mass — even when a few near-core nodes form a spurious middle cluster (which stays
+    NUCLEAR). A single contiguous mass has no wide empty-relative gap → UNIMODAL (one bridged
+    content mass, F1250) — we do NOT force a split.
+
+    Returns ``{bimodal, threshold_bin, peak_low_bin, peak_high_bin, valley_count, gap,
+    mode_bin}``. ``threshold_bin`` is the low occupied bin at the split (plasmid iff a node's
+    bin is strictly ABOVE it). On unimodal, ``threshold_bin`` is ``None`` and ``mode_bin`` is
+    the single dominant mode (its half of [0,1] fixes the one-DNA-type)."""
+    n_bins = len(counts)
+    occupied = [b for b in range(n_bins) if counts[b] > 0]
+    # the single dominant mode (lowest index on a tie) — the one-DNA-type anchor.
+    mode_bin = 0
+    for b in range(n_bins):
+        if counts[b] > counts[mode_bin]:
+            mode_bin = b
+    unimodal = {"bimodal": False, "threshold_bin": None, "peak_low_bin": None,
+                "peak_high_bin": None, "valley_count": None, "gap": 0, "mode_bin": mode_bin}
+    if len(occupied) < 2:
+        return unimodal
+    best = None                                   # (width, smaller_mode, lo_occ, hi_occ)
+    for k in range(len(occupied) - 1):
+        lo_occ = occupied[k]
+        hi_occ = occupied[k + 1]
+        width = hi_occ - lo_occ
+        if width < 2:                             # adjacent occupied bins — no empty gap
+            continue
+        peak_low_bin = _side_argmax(counts, 0, lo_occ)
+        peak_high_bin = _side_argmax(counts, hi_occ, n_bins - 1)
+        peak_low = counts[peak_low_bin]
+        peak_high = counts[peak_high_bin]
+        smaller = peak_low if peak_low < peak_high else peak_high
+        if smaller < 2:                           # a side with no real mode
+            continue
+        valley = min(counts[lo_occ + 1:hi_occ])   # the in-gap antimode (empty here)
+        if 2 * valley < smaller:                  # a genuine empty-relative valley
+            cand = (width, smaller, lo_occ, hi_occ)
+            if best is None or cand[:2] > best[:2]:
+                best = cand
+    if best is None:
+        return unimodal
+    _width, smaller, lo_occ, hi_occ = best
+    peak_low_bin = _side_argmax(counts, 0, lo_occ)
+    peak_high_bin = _side_argmax(counts, hi_occ, n_bins - 1)
+    valley = min(counts[lo_occ + 1:hi_occ])
+    gap = smaller - valley                          # both non-negative; NEVER abs()
+    return {"bimodal": True, "threshold_bin": lo_occ, "peak_low_bin": peak_low_bin,
+            "peak_high_bin": peak_high_bin, "valley_count": valley, "gap": gap,
+            "mode_bin": mode_bin}
+
+
+def _reduce_pair(num, den):
+    """A non-negative ``(num, den)`` reduced by the Class-I gcd; ``den == 0`` → ``(0, 1)``
+    (an isolated node has no participation). Numpy-free; no ``abs()`` (both non-negative)."""
+    if den <= 0:
+        return (0, 1)
+    g = _gcd(num, den) or 1
+    return (num // g, den // g)
+
+
+def genome_partition(n, edges, weights=None, charges=None, *,
+                     work_dir=None, max_tome=256, n_bins=_PARTITION_DEFAULT_BINS,
+                     max_iters=250):
+    """PARTITION a directed relational GRAPH into nuclear-core vs plasmid-periphery BY
+    ITS OWN STRUCTURE — the §100 GAP 2 read (PR#687 / F1250 / F1251). Builds NOTHING (an
+    introspectable read, like :func:`mint_plan` — "we watch it happen"); :func:`genome_from_graph`
+    is the builder that consumes this to mint the genome.
+
+    Where :func:`mint_plan` decides a kernel's shape by LEAF-COUNT (≤4 → plasmid, ≥5 →
+    nuclear), THIS finds the split from the graph's relational TOPOLOGY: it runs the
+    out-of-core spectral community partition (:func:`~srmech.amsc.laplacian.recursive_cut` —
+    peak RAM = the largest sub-graph, never the dense n×n structure), measures each node's
+    degree-normalized **participation** (the fraction of its incident edge-mass that CROSSES
+    a community boundary — HIGH = a community-bridging PLASMID/mobile accessory; LOW = a
+    NUCLEAR node embedded in one community), then MEASURES the antimode of that distribution:
+
+    * **BIMODAL** (a clean antimode valley) → SPLIT. Each recursive_cut community contributes
+      its embedded-core NUCLEAR nodes (participation below the antimode) as a nuclear group and
+      its bridging PLASMID nodes (above the antimode) as a plasmid group. Expect an ASYMMETRIC
+      minority nuclear core + majority plasmid remainder (F1251 — NOT 50/50).
+    * **UNIMODAL** (no clean antimode) → ACCEPT ONE-DNA-TYPE. Do NOT force a split — every
+      community is one group of the single dominant type (F1250: "one bridged content mass").
+
+    The classification is per-NODE (participation is robust even when recursive_cut absorbs a
+    bridge node into a community — a bridge still crosses to the other community); a group is a
+    ``(community, type)`` slice, so the builder mints each nuclear community and keeps each
+    plasmid community as a stick/plasmid chromosome.
+
+    Parameters
+    ----------
+    n : int
+        Node count (nodes are ``0..n-1``).
+    edges : Iterable[Tuple[int, int]]
+        Directed edges ``(u, v)`` (treated as undirected for community detection +
+        boundary-crossing — a relation bridges regardless of its direction).
+    weights : Optional[Iterable[int]]
+        Per-edge INTEGER metric (co-occurrence count); default unit multiplicity. The
+        participation ratio is exact-rational (Class-N) — non-integer weights are rejected.
+    charges : Optional[Iterable[int]]
+        Per-edge signed direction; carried through for :func:`genome_from_graph` (unused by
+        the participation read — a relation bridges regardless of sign; sign stays Class-C).
+    work_dir : Optional[str]
+        Scratch dir for recursive_cut's on-disk tomes (caller owns it; not auto-deleted).
+    max_tome : int
+        recursive_cut leaf size — a sub-graph with ``≤ max_tome`` nodes is a community. Smaller
+        exposes finer communities (a natural community must stay WHOLE, else over-splitting a
+        clique inflates its participation).
+    n_bins : int
+        Participation-histogram resolution for the antimode (default 16).
+    max_iters : int
+        Per-bisection power-iteration cap (forwarded to recursive_cut).
+
+    Returns
+    -------
+    Dict[str, object]
+        An introspectable partition::
+
+            {"n", "n_communities", "bimodal": bool, "one_dna_type": None|"nuclear"|"plasmid",
+             "antimode": {bins, counts, threshold_bin, peak_low_bin, peak_high_bin,
+                          valley_count, gap, bimodal},
+             "participation": [(num, den), … per node 0..n-1],   # exact reduced rationals
+             "communities": [[node, …], …],                       # the recursive_cut tomes
+             "groups": [{"community", "type": "nuclear"|"plasmid", "nodes": [...],
+                         "size", "participation": (num, den)}, …],
+             "counts": {"nuclear": N, "plasmid": M},              # per-community-group
+             "node_counts": {"nuclear": x, "plasmid": y},
+             "work_dir"}
+
+    Composes the C-dispatched :func:`~srmech.amsc.laplacian.recursive_cut`
+    (fiedler_sparse_file) with a thin PURE participation + antimode read (O(|E|) + O(n),
+    exact integer, numpy-free, never ``abs()``) — native==pure holds because the whole read
+    is deterministic over the native community assignment. Class L (spectral community) ∘
+    Class N (the exact participation rational) ∘ Class K (the antimode boundary)."""
+    from srmech.amsc.laplacian import recursive_cut       # lazy — avoid import cycle
+
+    edge_list, weight_list, _charge_list = _partition_validate_graph(
+        n, edges, weights, charges)
+    if not isinstance(n_bins, int) or isinstance(n_bins, bool) or n_bins < 2:
+        raise ValueError(f"genome_partition: n_bins must be an int >= 2; got {n_bins!r}")
+
+    # SCOPE — the full-graph out-of-core community assignment (never the dense structure).
+    cut = recursive_cut(n, edge_list, weight_list, max_tome=max_tome,
+                        work_dir=work_dir, max_iters=max_iters)
+    communities = [sorted(t) for t in cut["tomes"]]
+    community = [0] * n
+    for cid, tome in enumerate(cut["tomes"]):
+        for nid in tome:
+            community[nid] = cid
+
+    # METRIC — per-node participation (the degree-normalized boundary-crossing fraction).
+    cross, tot = _partition_participation(n, edge_list, weight_list, community)
+    participation = [_reduce_pair(cross[v], tot[v]) for v in range(n)]
+
+    # DECISION — measure the antimode of the participation distribution.
+    counts = [0] * n_bins
+    node_bin = [0] * n
+    for v in range(n):
+        b = _partition_bin(cross[v], tot[v], n_bins)
+        node_bin[v] = b
+        counts[b] += 1
+    am = _partition_antimode(counts)
+
+    # CLASSIFY — per-node nuclear (low participation) vs plasmid (high participation).
+    if am["bimodal"]:
+        threshold_bin = am["threshold_bin"]
+        one_dna_type = None
+        node_type = ["plasmid" if node_bin[v] > threshold_bin else "nuclear"
+                     for v in range(n)]
+    else:
+        # ACCEPT ONE-DNA-TYPE — the whole assigned to the single dominant type (F1250):
+        # a mode in the LOW half of [0,1] reads nuclear (embedded), else plasmid (bridging).
+        one_dna_type = "nuclear" if am["mode_bin"] * 2 < n_bins else "plasmid"
+        node_type = [one_dna_type] * n
+
+    # GROUPS — each community sliced into its nuclear core + plasmid periphery (SHAPE:
+    # asymmetric — a small nuclear core, a large plasmid remainder, never forced 50/50).
+    groups = []
+    for cid, tome in enumerate(communities):
+        for gtype in ("nuclear", "plasmid"):
+            members = [v for v in tome if node_type[v] == gtype]
+            if not members:
+                continue
+            gc = sum(cross[v] for v in members)
+            gt = sum(tot[v] for v in members)
+            groups.append({
+                "community": cid, "type": gtype, "nodes": members,
+                "size": len(members), "participation": _reduce_pair(gc, gt),
+            })
+
+    counts_by_type = {"nuclear": 0, "plasmid": 0}
+    for g in groups:
+        counts_by_type[g["type"]] += 1
+    node_counts = {"nuclear": sum(1 for t in node_type if t == "nuclear"),
+                   "plasmid": sum(1 for t in node_type if t == "plasmid")}
+
+    return {
+        "n": n,
+        "n_communities": len(communities),
+        "bimodal": am["bimodal"],
+        "one_dna_type": one_dna_type,
+        "antimode": {
+            "bins": n_bins, "counts": counts, "threshold_bin": am["threshold_bin"],
+            "peak_low_bin": am["peak_low_bin"], "peak_high_bin": am["peak_high_bin"],
+            "valley_count": am["valley_count"], "gap": am["gap"], "bimodal": am["bimodal"],
+        },
+        "participation": participation,
+        "communities": communities,
+        "groups": groups,
+        "counts": counts_by_type,
+        "node_counts": node_counts,
+        "work_dir": cut["work_dir"],
+    }
+
+
+def _induced_subgraph(nodes, edge_list, weight_list, charge_list):
+    """The sub-graph INDUCED on ``nodes`` (a community), RELABELLED to local ids
+    ``0..k-1`` — the §100 GAP 2 builder's per-community store unit. Keeps every edge with
+    BOTH endpoints in ``nodes`` (a cross-community bridge edge is not in any single
+    induced sub-graph — it is represented by the bridge node's PLASMID classification),
+    carrying its weight + signed charge. Returns ``{vocab_size, edges, weights, charges,
+    node_ids}`` — ``node_ids`` is the original id table so :func:`kernel_to_graph` recovers
+    the mapping. O(|E|); numpy-free."""
+    local = {orig: i for i, orig in enumerate(nodes)}
+    edges = []
+    weights = []
+    charges = []
+    for (u, v), w, c in zip(edge_list, weight_list, charge_list):
+        lu = local.get(u)
+        lv = local.get(v)
+        if lu is not None and lv is not None:
+            edges.append((lu, lv))
+            weights.append(w)
+            charges.append(c)
+    return {"vocab_size": len(nodes), "edges": edges, "weights": weights,
+            "charges": charges, "node_ids": list(nodes)}
+
+
+def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
+                      path=None, leaf_dim=None, max_tome=256,
+                      n_bins=_PARTITION_DEFAULT_BINS, centromere_at=None):
+    """BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN
+    STRUCTURE — the §100 GAP 2 builder (PR#687 / F1250 / F1251). "Hand a graph, get
+    nuclear + plasmid from its structure."
+
+    Runs :func:`genome_partition`, then for EACH classified group packs its induced
+    sub-graph (:func:`_induced_subgraph` → :func:`graph_to_kernel`) into a chromosome:
+
+    * a **nuclear** community is MINTED (:func:`mint_strand` splices a ``0x58`` centromere →
+      a Tier-2 nuclear chromosome, the stable clonal core);
+    * a **plasmid** community is KEPT as a Tier-1 plasmid chromosome (append-only, no
+      centromere — the mobile accessory).
+
+    All chromosomes concatenate into one self-describing strand (each opens with its
+    kernel-telomere boundary cap). If ``path`` is given the strand is persisted with
+    :func:`genome_save` and censused — ``genome_census`` reports the MEASURED
+    ``{nuclear: N, plasmid: M}``. The genome is BYTE-EXACT per community:
+    :func:`kernel_to_graph` on any chromosome (with its ``n_syms``) recovers that community's
+    induced sub-graph exactly (the interior centromere is skipped on read, §44).
+
+    Parameters
+    ----------
+    n, edges, weights, charges
+        The directed signed graph (as :func:`genome_partition`).
+    the_one : HV
+        The coupling invariant (width ``leaf_dim``); required.
+    path : Optional[str|Path]
+        If given, ``genome_save`` the assembled strand there and include the census in the
+        return; else only the in-memory strand + metadata are returned.
+    leaf_dim : Optional[int]
+        The leaf (tome) width to chunk each chromosome into (default ``len(the_one)``; must
+        be ≥ 52 for the kernel header).
+    max_tome, n_bins
+        Forwarded to :func:`genome_partition`.
+    centromere_at : Optional[int]
+        The nuclear arm-split forwarded to :func:`mint_strand` (default the metacentric
+        midpoint of each minted community).
+
+    Returns
+    -------
+    Dict[str, object]
+        ``{"strand", "chromosomes": [{"label", "type", "community", "n_syms", "nodes"}, …],
+        "partition", "counts": {"nuclear", "plasmid"}, "path"(if saved), "census"(if saved)}``.
+
+    Composes :func:`genome_partition` (composition-of-C) + the C-dispatched
+    :func:`graph_to_kernel` + :func:`mint_strand` (composition-of-C) + :func:`genome_save` —
+    numpy-free; no ``abs()``. Class L (partition) ∘ Class A/C/K (the mint)."""
+    if the_one is None:
+        raise ValueError("genome_from_graph: the_one is required")
+    if leaf_dim is None:
+        leaf_dim = len(list(the_one))
+
+    edge_list, weight_list, charge_list = _partition_validate_graph(
+        n, edges, weights, charges)
+    part = genome_partition(n, edge_list, weight_list, charge_list,
+                            max_tome=max_tome, n_bins=n_bins)
+
+    strand = []
+    chromosomes = []
+    for gi, g in enumerate(part["groups"]):
+        nodes = g["nodes"]
+        sub = _induced_subgraph(nodes, edge_list, weight_list, charge_list)
+        # a UNIQUE, self-describing label per chromosome (type + community + slot).
+        label = f"{g['type']}_c{g['community']}_{gi}"
+        chrom, n_syms = graph_to_kernel(
+            sub["vocab_size"], sub["edges"], sub["weights"], sub["charges"],
+            node_ids=sub["node_ids"], leaf_dim=leaf_dim, label=label, the_one=the_one)
+        if g["type"] == "nuclear":
+            # MINT the nuclear community — a Tier-2 nuclear chromosome (0x58 centromere).
+            chrom = mint_strand(chrom, the_one, centromere_at=centromere_at)
+        strand.extend(chrom)
+        chromosomes.append({"label": label, "type": g["type"],
+                            "community": g["community"], "n_syms": n_syms,
+                            "nodes": nodes})
+
+    out = {
+        "strand": strand,
+        "chromosomes": chromosomes,
+        "partition": part,
+        "counts": dict(part["counts"]),
+    }
+    if path is not None and strand:
+        genome_save(strand, path, the_one)
+        out["path"] = str(path)
+        out["census"] = genome_census(str(path), the_one=the_one)
+    return out
 
 
 def telomere_tick(strand):
