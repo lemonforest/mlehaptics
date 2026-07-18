@@ -72,6 +72,7 @@ __all__ = [
     "mint", "mint_plan", "integrate",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_census", "genome_registry",
+    "set_type_aliases", "clear_type_aliases", "load_type_aliases_toml",
     "genome_append_kernel",
     "genome_window", "genome_genes",
     "gene_express_plan", "genome_genes_expressed",
@@ -259,7 +260,7 @@ CENTROMERE_DEFAULT_REPEATS = 15
 #: §95b/rc259 (format v13 → v14, #1407 / F1244) — the DIPLOID chromosome-boundary marker.
 #: ``0x44`` = ASCII ``'D'`` (Diploid; one letter up from the ``0x43`` ``'C'`` CHROM cap it
 #: extends). A diploid chromosome opens with a DIPLOID telomere (``[0x44] + label, NUL-padded``)
-#: instead of the plain CHROM cap, and is structurally a MINTED chromosome whose two arms are
+#: instead of the plain CHROM cap, and is structurally a NUCLEAR chromosome whose two arms are
 #: **homologous FULL copies** of the content (maternal | paternal), split by an interior
 #: :data:`CENTROMERE_CAP_MARKER` whose orientation is the **which-template mark**:
 #:   ``[diploid_telomere, copyA turns…, centromere(mark), copyB turns…]``   (copyA == copyB)
@@ -1581,8 +1582,8 @@ def centromere(orientation, *, repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen",
 
 
 def centromere_of(strand):
-    """Recover a minted chromosome's GLOBAL orientation + arm-ratio from its centromere
-    (§95a) — or ``None`` if the strand has no centromere (a Tier-1 stick chromosome).
+    """Recover a nuclear chromosome's GLOBAL orientation + arm-ratio from its centromere
+    (§95a) — or ``None`` if the strand has no centromere (a Tier-1 plasmid chromosome).
 
     Scans for the interior ``0x58`` cap, majority-decodes the global 4-way orientation
     from its α-satellite repeat-array (:func:`_centromere_orientation` — the EC read),
@@ -1894,7 +1895,7 @@ def condense(strand, *, the_one=None, state=True, region=None, handle="chr", lab
     Biology's epigenetic packaging gate: the modify-WITHOUT-changing-the-DNA layer. ``condense``
     SPLICES a :data:`CHROMATIN_MARKER` (``0x48``) cap into ``strand`` IN-PLACE (a byte-splice, like
     :func:`genome_remove` / :func:`genome_replace`) — it PRESERVES the centromere + the body
-    sequence, so a MINTED chromosome comes out still minted (the ``0x58`` centromere byte-identical,
+    sequence, so a NUCLEAR chromosome comes out still nuclear (the ``0x58`` centromere byte-identical,
     :func:`centromere_of` unchanged). NO re-mint. Reversible with :func:`decondense`.
 
     ``state`` is the access state to set (:func:`_chromatin_state`): ``True`` / ``"condensed"`` →
@@ -1946,7 +1947,7 @@ def decondense(strand, *, the_one=None, label=None):
     """DECONDENSE — CLEAR the chromatin ACCESS marker(s), the inverse of :func:`condense` (§98).
 
     Splices out every :data:`CHROMATIN_MARKER` (``0x48``) cap (or only those inside the ``label``
-    chromosome), PRESERVING the centromere + body sequence — so a condensed-then-decondensed MINTED
+    chromosome), PRESERVING the centromere + body sequence — so a condensed-then-decondensed NUCLEAR
     chromosome is byte-identical to the original mint (NO re-mint). Returns a NEW strand (the input
     is unchanged). ``the_one`` is accepted for signature symmetry (the clear is a pure splice)."""
     strand = list(strand)
@@ -2072,7 +2073,7 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     if centromere is not None and (kernel or genes is not None):
         raise ValueError(
             "chromosome: centromere= is a single-kernel MINT form — pass leaves=, not "
-            "genes=/kernel= (§95a: the centromere is an interior anchor on a minted "
+            "genes=/kernel= (§95a: the centromere is an interior anchor on a nuclear "
             "single-kernel chromosome; a gene / kernel chromosome is a different shape)"
         )
     if centromere_at is not None and centromere is None:
@@ -2109,7 +2110,7 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
         turns = [quad_turn(leaf, the_one) for leaf in leaf_list]
         if centromere is None:
             return [cap] + turns
-        # §95a MINT (F1243): a TIER-2 minted chromosome — insert the INTERIOR centromere
+        # §95a MINT (F1243): a TIER-2 nuclear chromosome — insert the INTERIOR centromere
         # cap at the p:q arm-split. The cap's POSITION in the strand IS the arm-ratio
         # (biology: the centromere position defines the arms); default metacentric =
         # the midpoint (p ≈ q). ``centromere`` is the global 4-way orientation ∈ {0,1,2,3};
@@ -3385,14 +3386,14 @@ def modulator_constraint_satisfies(constraint, candidate_cell_state):
 
 
 def plasmid(kernels=None, the_one=None, *, chromosomes=None):
-    """Pack many kernels into ONE telomere-partitioned strand of pure STICK chromosomes —
+    """Pack many kernels into ONE telomere-partitioned strand of pure PLASMID chromosomes —
     biology's plasmid (F715; the rc260 rename of the old ``genome``, §95.2 / #1407).
 
-    The **all-stick** builder: each ``(label, leaves)`` kernel becomes a telomere-capped
-    Tier-1 stick :func:`chromosome` (append-friendly, NO centromere — biology's small,
+    The **all-plasmid** builder: each ``(label, leaves)`` kernel becomes a telomere-capped
+    Tier-1 plasmid :func:`chromosome` (append-friendly, NO centromere — biology's small,
     appendable plasmid), all concatenated into one self-describing strand. This is the
-    explicit "I want plain sticks" constructor; :func:`genome` is the biology-aware umbrella
-    that PICKS stick-vs-minted per kernel (rc260), and :func:`mint` is its explicit alias.
+    explicit "I want plain plasmids" constructor; :func:`genome` is the biology-aware umbrella
+    that PICKS plasmid-vs-nuclear per kernel (rc260), and :func:`mint` is its explicit alias.
     Recover with :func:`partition`.
 
     **Single gene per chromosome (F715, unchanged).** Pass ``kernels`` — a mapping
@@ -3452,7 +3453,7 @@ def _kernel_content_bytes(leaves):
 
 
 def _mint_orientation(leaves):
-    """The GLOBAL 4-way orientation the tooling assigns a MINTED chromosome (§95c) — the
+    """The GLOBAL 4-way orientation the tooling assigns a NUCLEAR chromosome (§95c) — the
     kernel's content-address folded to a Klein-4 sector: ``sha256(content)[0] & 3``
     (Class A content-address → Class C chirality). Deterministic + attested (it IS the
     content-address — no magic number), and C-parity-trivial (the first digest byte & 3,
@@ -3466,19 +3467,20 @@ def _mint_shape(leaves):
     — the decision is the ATTESTED :func:`encode_shape` criterion (F715, keyed to 256=2**8
     + the Klein-4 order 4), never a hand-picked threshold:
 
-    * ``tome`` / ``mobius`` (≤ 4 leaves) — PLASMID-scale → ``('stick', 1, False)``: a Tier-1
-      append-only stick chromosome, no centromere (biology's small appendable plasmid).
-    * ``quad_strand`` (≥ 5 leaves) — EUKARYOTIC-CHROMOSOME-scale → ``('minted', 2, True)``: a
-      Tier-2 minted chromosome with an interior centromere (biology mints a centromere when a
+    * ``tome`` / ``mobius`` (≤ 4 leaves) — PLASMID-scale → ``('plasmid', 1, False)``: a Tier-1
+      append-only plasmid chromosome, no centromere (biology's small appendable plasmid).
+    * ``quad_strand`` (≥ 5 leaves) — EUKARYOTIC-CHROMOSOME-scale → ``('nuclear', 2, True)``: a
+      Tier-2 nuclear chromosome with an interior centromere (biology mints a centromere when a
       chromosome is big enough to need a segregation anchor).
 
-    Returns ``(shape_name, tier, mint_centromere)``. "We don't pick the shape; the kernel's
-    biology-analog scale does" — an empty kernel (0 leaves) reads as a tome (stick)."""
+    Returns ``(shape_name, tier, mint_centromere)`` — ``shape_name`` is the derived cap_kind
+    (rc271 (F1251): plasmid (was "stick") / nuclear (was "minted")). "We don't pick the shape;
+    the kernel's biology-analog scale does" — an empty kernel (0 leaves) reads as a tome (plasmid)."""
     n_leaves = len(list(leaves))
     shape = encode_shape(max(1, n_leaves) * LEAF_CAP)["shape"]   # n=leaves*256 → leaves exact
     if shape == "quad_strand":
-        return "minted", 2, True
-    return "stick", 1, False
+        return "nuclear", 2, True
+    return "plasmid", 1, False
 
 
 def mint_plan(kernels):
@@ -3491,8 +3493,8 @@ def mint_plan(kernels):
     ``kernels`` is a ``{label: leaves}`` mapping or ``(label, leaves)`` sequence (the
     :func:`mint` input). Returns, in kernel order,
     ``[{'label', 'n_leaves', 'shape', 'tier', 'centromere': bool, 'orientation', 'reason'}, …]``
-    — ``orientation`` is the assigned global which-way for minted kernels (``None`` for
-    sticks)."""
+    — ``orientation`` is the assigned global which-way for nuclear kernels (``None`` for
+    plasmids)."""
     items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
     plan = []
     for label, leaves in items:
@@ -3506,7 +3508,7 @@ def mint_plan(kernels):
             "reason": (f"quad_strand ({n_leaves} leaves) → eukaryotic-chromosome-scale "
                        f"→ mint a Tier-2 centromere" if mint_cen else
                        f"{encode_shape(max(1, n_leaves) * LEAF_CAP)['shape']} "
-                       f"({n_leaves} leaves) → plasmid-scale → Tier-1 stick (append-only)"),
+                       f"({n_leaves} leaves) → plasmid-scale → Tier-1 plasmid (append-only)"),
         })
     return plan
 
@@ -3516,18 +3518,18 @@ def genome(kernels=None, the_one=None, *, chromosomes=None):
     chromosome's SHAPE by modeling biology (rc260 rename, §95.2 / §95c / F1244 / #1407).
 
     ``genome`` is the umbrella noun + the default smart constructor: per kernel the tooling
-    DECIDES stick-vs-minted (we don't dictate) by :func:`encode_shape`'s attested criterion
+    DECIDES plasmid-vs-nuclear (we don't dictate) by :func:`encode_shape`'s attested criterion
     (F715 — no magic number). A PLASMID-scale kernel (tome/mobius, ≤ 4 leaves) stays a
-    **Tier-1 STICK** chromosome (append-friendly, no centromere); a EUKARYOTIC-CHROMOSOME-scale
-    kernel (quad_strand, ≥ 5 leaves) is **MINTED** as a **Tier-2** chromosome with an interior
-    :func:`centromere` carrying its global orientation (content-address folded to a Klein-4
-    sector). Same signature + return as before (a flat telomere-partitioned strand, recovered
-    with :func:`partition`); the READER is format-agnostic (:func:`partition` /
+    **Tier-1 PLASMID** chromosome (append-friendly, no centromere); a EUKARYOTIC-CHROMOSOME-scale
+    kernel (quad_strand, ≥ 5 leaves) is **MINTED** as a **Tier-2 NUCLEAR** chromosome with an
+    interior :func:`centromere` carrying its global orientation (content-address folded to a
+    Klein-4 sector). Same signature + return as before (a flat telomere-partitioned strand,
+    recovered with :func:`partition`); the READER is format-agnostic (:func:`partition` /
     :func:`centromere_of` handle either shape).
 
-    **rc260 rename (BREAKING — §95.2 feedback 2):** ``genome`` was the pure all-stick builder;
+    **rc260 rename (BREAKING — §95.2 feedback 2):** ``genome`` was the pure all-plasmid builder;
     it is now the biology-aware umbrella (the old ``mint`` behaviour). For the explicit
-    all-stick build use :func:`plasmid` (biology's plasmid); :func:`mint` is the explicit alias
+    all-plasmid build use :func:`plasmid` (biology's plasmid); :func:`mint` is the explicit alias
     of this umbrella (the structured build). See the per-kernel picks with :func:`mint_plan`.
     The ``chromosomes=`` multi-gene form is a different structure (genes) and defers to
     :func:`plasmid`."""
@@ -3537,13 +3539,13 @@ def genome(kernels=None, the_one=None, *, chromosomes=None):
         raise ValueError("genome: pass exactly one of kernels= or chromosomes=")
     if chromosomes is not None:
         # the multi-gene form is not a §95a mint shape (genes are a different structure);
-        # build it as pure sticks — no centromere selection applies.
+        # build it as pure plasmids — no centromere selection applies.
         return plasmid(the_one=the_one, chromosomes=chromosomes)
     items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
     dim = len(list(the_one))
     # §95a/rc258 (#1407): DISPATCH the whole mint assemble to the srmech_genome_mint C peer
     # when HAS_NATIVE — 1:1 C↔Python byte parity (user direction 2026-07-16). The per-kernel
-    # stick-vs-centromere selection (attested encode_shape), the content-address orientation
+    # plasmid-vs-centromere selection (attested encode_shape), the content-address orientation
     # (srmech_sha256_hex), and the interior centromere pack all mirror in C. The pure loop
     # below is the numpy-free oracle + the non-uniform-width fallback.
     per_kernel = [_leaf_blocks(list(leaves)) for _, leaves in items]
@@ -3573,7 +3575,7 @@ def mint(kernels=None, the_one=None, *, chromosomes=None):
 
     :func:`genome` is the umbrella noun (the default smart constructor); ``mint`` is the
     explicit "structured build" name for the SAME tooling-picks behaviour (kept for the
-    mint-vs-append vocabulary of F1243/§95c). :func:`plasmid` is the pure all-stick builder.
+    mint-vs-append vocabulary of F1243/§95c). :func:`plasmid` is the pure all-plasmid builder.
     See the per-kernel picks with :func:`mint_plan`. Byte-identical to :func:`genome`."""
     return genome(kernels, the_one, chromosomes=chromosomes)
 
@@ -3716,18 +3718,18 @@ def integrate(host, provirus, *, at=None):
     """Integrate a PROVIRUS (a chromosome strand) INTO a host genome-strand — the
     viral-integration analog (§95.1d / F1244 / #1407), the coherency-translation-layer capstone.
 
-    Biology: a retrovirus (a Tier-1 STICK genome — telomere-capped, no centromere, §95c)
-    integrates into a eukaryote's DNA (Tier-2 — MINTED / DIPLOID) and is thereafter part of it.
+    Biology: a retrovirus (a Tier-1 PLASMID genome — telomere-capped, no centromere, §95c)
+    integrates into a eukaryote's DNA (Tier-2 — NUCLEAR / DIPLOID) and is thereafter part of it.
     We watch it happen, so there is ONE shared cascade spanning the levels. In srmech that
     coherence is FREE: rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every
-    turn through the SAME ``the_one`` (one k=3 cascade at different rungs, ADR-0005), so a stick
+    turn through the SAME ``the_one`` (one k=3 cascade at different rungs, ADR-0005), so a plasmid
     provirus simply becomes another chromosome in the host genome and everything still recovers
     — :func:`partition` recovers every chromosome, :func:`centromere_of` still reads the host's
-    minted chromosome, :func:`recover_diploid` still recovers its diploid, and the integrated
+    nuclear chromosome, :func:`recover_diploid` still recovers its diploid, and the integrated
     provirus recovers too. That is the translation between the Tier-1 and Tier-2 levels: it needs
     no conversion because they are the same cascade.
 
-    ``host`` is a genome strand (any mix of stick / minted / diploid chromosomes, from
+    ``host`` is a genome strand (any mix of plasmid / nuclear / diploid chromosomes, from
     :func:`genome` / :func:`plasmid` / :func:`mint`); ``provirus`` is a chromosome strand opening
     with a boundary cap (from :func:`chromosome` / :func:`plasmid` / :func:`mint` /
     :func:`diploid`). ``at`` = the host CHROMOSOME INDEX to insert the provirus BEFORE (0-based;
@@ -4093,7 +4095,7 @@ def kernel_to_graph(chroms, the_one, n_syms):
 def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
                 repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen"):
     """MINT an ALREADY-PACKED strand — splice a §95a interior CENTROMERE (``0x58``) into it
-    at the p:q arm-split, turning a Tier-1 STICK into a Tier-2 MINTED chromosome (§100 GAP 1 /
+    at the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (§100 GAP 1 /
     PR#687 F1249).
 
     The :func:`mint` umbrella mints a chromosome AT BUILD TIME from raw leaves; ``mint_strand``
@@ -4104,9 +4106,9 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
     strand as raw leaves and :func:`quad_turn` binds the 256-sector telomere cap →
     ``"klein-4 elements must be in {0,1,2,3}"``), and there was no ``centromere=`` hook on
     :func:`graph_to_kernel` — so a directed-graph chromosome could not be given a p:q centromere
-    (``simplewiki_directed.genome`` censused ``{stick: 2, minted: 0}``). ``mint_strand`` is the
+    (``simplewiki_directed.genome`` censused ``{plasmid: 2, nuclear: 0}``). ``mint_strand`` is the
     missing splice; it is also the foundation for §100 GAP 2 (mint each NUCLEAR community) and the
-    streaming reader (a minted chromosome IS the eukaryotic/nuclear DNA).
+    streaming reader (a nuclear chromosome IS the eukaryotic/nuclear DNA).
 
     The centromere is an INTERIOR cap; :func:`recall` / :func:`kernel_unpack` /
     :func:`kernel_to_graph` ALL skip caps (§44), so minting is TRANSPARENT to the payload — the
@@ -4128,7 +4130,7 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
     ``srmech_genome_centromere``) + a PURE strand splice (like :func:`integrate` — self-describing
     blocks concatenated, no re-coupling), so the minted strand is byte-identical whether the cap
     came from C or pure Python (the parity contract). After minting, ``genome_save`` +
-    :func:`genome_census` report the chromosome as ``minted`` (the ``0x58`` is present). Raises if
+    :func:`genome_census` report the chromosome as ``nuclear`` (the ``0x58`` is present). Raises if
     the strand is empty, does not OPEN with a chromosome-boundary cap (pass a :func:`chromosome` /
     :func:`kernel_pack` / :func:`graph_to_kernel` strand, NOT raw leaves), or ALREADY carries a
     centromere (re-minting would double the anchor). Class A (the content-address orientation) ∘
@@ -4162,7 +4164,7 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
         )
     if orientation is None:
         # Class A content-address → Class C chirality: sha256(the strand's OWN recovered leaves)
-        # [0] & 3 — the SAME rule mint() assigns a minted chromosome (_mint_orientation), so the
+        # [0] & 3 — the SAME rule mint() assigns a nuclear chromosome (_mint_orientation), so the
         # which-way is deterministic + attested (no magic number). recall skips every cap, so this
         # is the content the payload decode also sees.
         orientation = _mint_orientation(recall(strand, the_one))
@@ -4379,12 +4381,12 @@ def telomere_tick(strand):
 #: O(N^2) wall). The BODY format is UNCHANGED (v2..v11 bodies read identically); a v≤11
 #: manifest that still carries the arrays is read verbatim (back-compat), and the first v12
 #: append rewrites it head-only. A v12 writer stamps 12.
-#: v13 (§95a/rc258 centromere, #1407 / F1243): a MINTED (Tier-2) chromosome carries an
+#: v13 (§95a/rc258 centromere, #1407 / F1243): a NUCLEAR (Tier-2) chromosome carries an
 #: INTERIOR ``CENTROMERE_CAP_MARKER`` (0x58) cap between its two arms — the global
 #: orientation-chirality anchor (α-satellite repeat-array). It is one more self-describing
 #: cap kind in the SAME walk (a byte > 3, distinct from every prior marker), so v2..v12
 #: bodies read UNCHANGED (dual-read — the walker gains ONE branch): back-compat is
-#: STRUCTURAL, never a converter. A stick (append) genome with NO 0x58 cap is byte-identical
+#: STRUCTURAL, never a converter. A plasmid (append) genome with NO 0x58 cap is byte-identical
 #: to the v12 writer EXCEPT the ``format_version`` field. A v13 writer stamps 13.
 #: v15 (§98/rc268 chromatin, #1422 / F1246-F1247): a chromosome MAY carry an INTERIOR
 #: ``CHROMATIN_MARKER`` (0x48) cap — biology's epigenetic ACCESS gate above the coupled-turn
@@ -4709,7 +4711,7 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
     ``chrom_specs`` is a list of ``(label, cap_sha256, leaf_count, byte_offset,
     byte_len, cap_kind)`` tuples (byte_offset/byte_len index into ``turns.bin``;
     ``leaf_count`` counts DATA turns only, excluding the chromosome's CHROM cap and
-    any intra-chromosome GENE caps; ``cap_kind`` ∈ {"stick","minted","diploid"} is the
+    any intra-chromosome GENE caps; ``cap_kind`` ∈ {"plasmid","nuclear","diploid"} is the
     §96 derived classification). ``the_one_blocks`` is the single
     ``leaf_dim``-byte block of the_one. ``n_turns`` is the strand BLOCK count
     (caps + data turns — §55/v3: blocks are variable-width on disk, so the count
@@ -4928,14 +4930,15 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
         # §44: leaf_count = DATA turns only — exclude the CHROM cap AND any inline
         # GENE caps (the gene structure lives inline, not as a turn count).
         leaf_count = sum(1 for blk in leaf_blocks if not _block_is_cap(blk))
-        # §96: cap_kind — provisional on the opener (0x44 diploid else stick),
-        # minted when an interior §95a centromere is present (byte-identical to the
-        # on-disk _scan_body_to_chrom_specs classification).
+        # §96: cap_kind — provisional on the opener (0x44 diploid else plasmid),
+        # nuclear when an interior §95a centromere is present (byte-identical to the
+        # on-disk _scan_body_to_chrom_specs classification). rc271 (F1251): the
+        # field's own names — plasmid (was "stick") / nuclear (was "minted").
         cap_kind = ("diploid"
                     if _cap_kind(leaf_blocks[0]) == DIPLOID_TELOMERE_MARKER
-                    else "stick")
+                    else "plasmid")
         if any(_cap_kind(blk) == CENTROMERE_CAP_MARKER for blk in leaf_blocks):
-            cap_kind = "minted"
+            cap_kind = "nuclear"
         chrom_specs.append(
             (label, cap_sha256, leaf_count, byte_offset, byte_len, cap_kind)
         )
@@ -5002,12 +5005,13 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
     come from the stored blocks VERBATIM (a legacy byte-per-symbol turn is never
     re-encoded, so the derived catalog matches the body as written).
 
-    §96: each spec's 6th field is the derived ``cap_kind`` ∈ {"stick","minted",
+    §96: each spec's 6th field is the derived ``cap_kind`` ∈ {"plasmid","nuclear",
     "diploid"} — PROVISIONAL on the opening cap (a §95b diploid telomere ``0x44`` →
-    "diploid", else "stick"), OVERWRITTEN to "minted" by an interior §95a centromere
-    (``0x58``). minted > diploid > stick (a diploid PAIR carries a centromere, so it
-    reads "minted" — the R-RBS-LM reference's centromere-first classify). This rides
-    the EXISTING scan (no extra pass, byte-identical to the C genome_scan_chroms)."""
+    "diploid", else "plasmid"), OVERWRITTEN to "nuclear" by an interior §95a centromere
+    (``0x58``). nuclear > diploid > plasmid (a diploid PAIR carries a centromere, so it
+    reads "nuclear" — the R-RBS-LM reference's centromere-first classify). rc271
+    (F1251): the field's own names — plasmid (was "stick") / nuclear (was "minted").
+    This rides the EXISTING scan (no extra pass, byte-identical to the C genome_scan_chroms)."""
     chrom_specs: List[Tuple[str, str, int, int, int, str]] = []
     cur: Optional[list] = None      # [label, cap_sha256, leaf_count, offset, length, cap_kind]
     n_turns = 0
@@ -5022,7 +5026,7 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
             # the label is bytes [1:] up to the first NUL — UNIFORM across all telomere
             # kinds (the §127 active telomere's count sits AFTER that NUL).
             label = decoded[1:].split(b"\x00", 1)[0].decode("utf-8")
-            cap_kind = "diploid" if decoded[0] == DIPLOID_TELOMERE_MARKER else "stick"
+            cap_kind = "diploid" if decoded[0] == DIPLOID_TELOMERE_MARKER else "plasmid"
             cur = [label, _sha256_bytes(raw), 0, offset, 0, cap_kind]
         elif cur is None:
             raise ValueError(
@@ -5030,7 +5034,7 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
                 "cap — not a well-formed §44 genome strand"
             )
         elif decoded[0] == CENTROMERE_CAP_MARKER:
-            cur[5] = "minted"                 # §96: an interior centromere mints (wins)
+            cur[5] = "nuclear"                # §96: an interior centromere mints (wins)
         elif (decoded[0] != GENE_CAP_MARKER
               and decoded[0] != REGULATORY_GENE_MARKER
               and decoded[0] != BOOLEAN_GENE_MARKER
@@ -5104,19 +5108,152 @@ def _catalog_data(path, the_one=None) -> dict:
     return _rebuild_manifest_from_body(body_bytes, len(list(the_one)), the_one)
 
 
-def genome_catalog(path, *, the_one=None) -> dict:
-    """Read the catalog of a genome at ``path`` — UPSTREAM §41 / §44.
+# ── rc271 (F1251) VALUE-ALIAS presentation layer ─────────────────────────────
+# PART A adopted the field's own names (plasmid / nuclear) as the CANONICAL §96
+# cap_kind / census type values. This layer lets a user whose domain prefers the
+# old srmech names (stick / minted) — or any other vocabulary — opt in with a
+# canonical→preferred mapping, applied as a PURE PYTHON PRESENTATION layer OVER the
+# canonical census/registry/catalog output. The C layer + on-disk format stay
+# canonical only (plasmid/nuclear); the alias is a uniform post-transform on BOTH
+# the native and the pure result, so native==pure holds at the canonical level and
+# the alias never touches storage/format/ABI. Analogous to rc261's dsl/_alias.py
+# (which aliases FUNCTION names → callables); this aliases the TYPE-VALUE strings.
 
-    Returns the manifest ``data`` dict (``leaf_dim`` / ``n_turns`` /
-    ``body_sha256`` / per-chromosome ``cap_sha256`` / ``leaf_count`` /
-    ``byte_offset`` / ``byte_len`` / ``the_one`` hash+hex). When ``manifest.json``
-    is present this is the cheap catalog read — it NEVER opens ``turns.bin`` (you can
-    enumerate a genome's chromosomes, sizes, and integrity hashes without paging in
-    any body bytes). §44: when the manifest is ABSENT, the catalog is REBUILT by
-    scanning the self-describing body (the strand is the SSoT, the manifest an
-    optional ``.fai`` cache); that rebuild needs ``the_one=`` (its length is the leaf
-    width) and reads ``turns.bin`` once.
-    """
+#: The canonical §96 cap_kind / census type values (rc271 field vocabulary, F1251).
+_CANONICAL_TYPE_VALUES = ("plasmid", "nuclear", "diploid")
+
+#: The ACTIVE canonical→preferred type-value mapping. Session-global presentation
+#: state; the default (empty) emits the canonical plasmid/nuclear/diploid names.
+_TYPE_ALIASES: Dict[str, str] = {}
+
+
+def _normalise_type_aliases(mapping) -> Dict[str, str]:
+    """Validate + copy a canonical→preferred type-value mapping. Keys MUST be
+    canonical §96 values ({plasmid, nuclear, diploid}); values MUST be non-empty
+    strings (the user's preferred display name). Returns a fresh dict."""
+    if not isinstance(mapping, dict):
+        raise TypeError(
+            "type aliases must be a dict mapping canonical_type -> preferred_name; "
+            "got " + type(mapping).__name__)
+    out: Dict[str, str] = {}
+    for canon, preferred in mapping.items():
+        if canon not in _CANONICAL_TYPE_VALUES:
+            raise ValueError(
+                "type-alias key {!r} is not a canonical cap_kind — must be one of "
+                "{}".format(canon, _CANONICAL_TYPE_VALUES))
+        if not isinstance(preferred, str) or not preferred:
+            raise ValueError(
+                "type-alias value for {!r} must be a non-empty string; got "
+                "{!r}".format(canon, preferred))
+        out[canon] = preferred
+    return out
+
+
+def set_type_aliases(mapping) -> Dict[str, str]:
+    """Install a canonical→preferred cap_kind / census TYPE-VALUE alias (rc271 / F1251).
+
+    ``mapping`` maps a canonical §96 type value ({plasmid, nuclear, diploid}) to the
+    display string you want in its place — e.g.
+    ``{"nuclear": "minted", "plasmid": "stick"}`` restores the pre-rc271 srmech names.
+    The alias is a PURE PYTHON PRESENTATION layer applied OVER the canonical output of
+    :func:`genome_census` / :func:`genome_registry` / :func:`genome_catalog` (the
+    per-chromosome ``cap_kind`` / ``type`` field VALUES and the census ``types`` dict
+    KEYS); the C layer + on-disk format stay canonical (plasmid/nuclear) — no storage /
+    format / ABI change, and native==pure still holds at the canonical level (the alias
+    is the SAME post-transform on both paths). REPLACES any prior mapping (not merged).
+    Returns the installed mapping. Clear with :func:`clear_type_aliases`; load from a
+    TOML file with :func:`load_type_aliases_toml`. Session-global; default is canonical."""
+    global _TYPE_ALIASES
+    _TYPE_ALIASES = _normalise_type_aliases(mapping)
+    return dict(_TYPE_ALIASES)
+
+
+def clear_type_aliases() -> None:
+    """Remove any active type-value alias — :func:`genome_census` /
+    :func:`genome_registry` / :func:`genome_catalog` emit the canonical
+    plasmid / nuclear / diploid names again (rc271 / F1251)."""
+    global _TYPE_ALIASES
+    _TYPE_ALIASES = {}
+
+
+def load_type_aliases_toml(path) -> Dict[str, str]:
+    """Read a ``[genome.type_aliases]`` TOML table, INSTALL it, and return the mapping
+    (rc271 / F1251) — the on-disk counterpart of :func:`set_type_aliases` (one load
+    call opts in). The section maps each canonical value to its preferred display name::
+
+        [genome.type_aliases]
+        nuclear = "minted"
+        plasmid = "stick"
+
+    A top-level ``[type_aliases]`` table is also accepted. Parsing routes through the C
+    ``srmech_toml`` parser when native (the DSL's :func:`_toml_loads_native`), falling
+    back to the stdlib ``tomllib`` / ``tomli`` (same dict, same decode error) — the
+    rc261 :func:`load_aliases_toml` shape. numpy-free; no external libs."""
+    from srmech.dsl._toml_chain import _toml, _toml_loads_native
+    spec = Path(path).read_text(encoding="utf-8")
+    data = _toml_loads_native(spec)
+    if data is None:
+        data = _toml.loads(spec)
+    section: Dict = {}
+    if isinstance(data, dict):
+        genome_tbl = data.get("genome")
+        if isinstance(genome_tbl, dict) and isinstance(
+                genome_tbl.get("type_aliases"), dict):
+            section = genome_tbl["type_aliases"]
+        elif isinstance(data.get("type_aliases"), dict):
+            section = data["type_aliases"]
+    return set_type_aliases(section)
+
+
+def _alias_type_value(v):
+    """Map one canonical cap_kind value to the active user alias (identity if no
+    alias is active or the value is unmapped)."""
+    return _TYPE_ALIASES.get(v, v) if _TYPE_ALIASES else v
+
+
+def _apply_type_aliases_to_catalog(cat: dict) -> dict:
+    """Rewrite the per-chromosome ``cap_kind`` VALUES of a CANONICAL catalog dict to
+    the active alias, IN PLACE (identity when no alias). The catalog dict is freshly
+    built per call (native ``json.loads`` or the pure derivation), so in-place rewrite
+    is safe — it never mutates shared/cached state."""
+    if not _TYPE_ALIASES:
+        return cat
+    for e in cat.get("chromosomes", []):
+        if "cap_kind" in e:
+            e["cap_kind"] = _alias_type_value(e["cap_kind"])
+    return cat
+
+
+def _apply_type_aliases_to_census(cen: dict) -> dict:
+    """Rewrite a CANONICAL census dict to the active alias, IN PLACE: the ``types``
+    dict KEYS and each chromosome's ``type`` VALUE (identity when no alias)."""
+    if not _TYPE_ALIASES:
+        return cen
+    types = cen.get("types")
+    if isinstance(types, dict):
+        cen["types"] = {_alias_type_value(k): v for k, v in types.items()}
+    for c in cen.get("chromosomes", []):
+        if "type" in c:
+            c["type"] = _alias_type_value(c["type"])
+    return cen
+
+
+def _apply_type_aliases_to_registry(reg: dict) -> dict:
+    """Rewrite every per-genome census in a CANONICAL registry dict to the active
+    alias, IN PLACE (identity when no alias)."""
+    if not _TYPE_ALIASES:
+        return reg
+    for cen in reg.get("genomes", []):
+        _apply_type_aliases_to_census(cen)
+    return reg
+
+
+def _canonical_catalog(path, the_one=None) -> dict:
+    """The native-or-pure catalog ``data`` at the CANONICAL cap_kind level (NO type
+    alias) — the internal peer of :func:`genome_catalog`. The public ``genome_catalog``
+    wraps this with the type-alias presentation; the census / registry roll-ups consume
+    the CANONICAL data so they count by the canonical key, and the alias is applied ONCE
+    at the public boundary (never double-applied through a re-aliased catalog)."""
     # §49: native C catalog (parse manifest.json, or §44 rebuild-by-scan) → the same
     # canonical JSON the pure path produces; native is authoritative when present (no fallback).
     if _native.has_native_genome():
@@ -5129,18 +5266,39 @@ def genome_catalog(path, *, the_one=None) -> dict:
     return _catalog_data(path, the_one)
 
 
+def genome_catalog(path, *, the_one=None) -> dict:
+    """Read the catalog of a genome at ``path`` — UPSTREAM §41 / §44.
+
+    Returns the manifest ``data`` dict (``leaf_dim`` / ``n_turns`` /
+    ``body_sha256`` / per-chromosome ``cap_sha256`` / ``leaf_count`` /
+    ``byte_offset`` / ``byte_len`` / ``cap_kind`` / ``the_one`` hash+hex). When
+    ``manifest.json`` is present this is the cheap catalog read — it NEVER opens
+    ``turns.bin`` (you can enumerate a genome's chromosomes, sizes, and integrity
+    hashes without paging in any body bytes). §44: when the manifest is ABSENT, the
+    catalog is REBUILT by scanning the self-describing body (the strand is the SSoT,
+    the manifest an optional ``.fai`` cache); that rebuild needs ``the_one=`` (its
+    length is the leaf width) and reads ``turns.bin`` once.
+
+    rc271 (F1251): the per-chromosome ``cap_kind`` is the field-canonical
+    ``plasmid`` / ``nuclear`` / ``diploid``; an active :func:`set_type_aliases` /
+    :func:`load_type_aliases_toml` mapping re-presents those values here (a pure
+    Python post-transform; the C layer stays canonical).
+    """
+    return _apply_type_aliases_to_catalog(_canonical_catalog(path, the_one))
+
+
 def _census_topology(types, total_leaves, n_chromosomes) -> str:
     """The §96 STRUCTURAL topology read (biology-native; INTEGER compare, no float /
     libm) — byte-identical to the C ``genome_census_topology``:
 
-    * any minted / diploid chromosome → ``"nuclear-like"`` (a eukaryotic nucleus).
+    * any nuclear / diploid chromosome → ``"nuclear-like"`` (a eukaryotic nucleus).
     * else ``n>0`` and ``total_leaves <= 8*n`` → ``"organelle-like"`` (a small
-      all-stick mitochondrion / chloroplast plasmid genome).
-    * else ``n>0`` → ``"plasmid/prokaryote-like"`` (all stick, no centromere).
+      all-plasmid mitochondrion / chloroplast plasmid genome).
+    * else ``n>0`` → ``"plasmid/prokaryote-like"`` (all plasmid, no centromere).
     * else → ``"empty"``.
 
     srmech reads the SHAPE (the cap_kind counts); the caller assigns the ROLE."""
-    if types["minted"] or types["diploid"]:
+    if types["nuclear"] or types["diploid"]:
         return "nuclear-like"
     if n_chromosomes and int(total_leaves) <= 8 * int(n_chromosomes):
         return "organelle-like"
@@ -5155,11 +5313,11 @@ def _census_from_catalog(cat, path) -> dict:
     of the C ``genome_census``). Returns ``{path, n_chromosomes, types, chromosomes,
     total_leaves, topology}`` byte-identical to the native tree."""
     entries = cat.get("chromosomes", [])
-    types = {"stick": 0, "minted": 0, "diploid": 0}
+    types = {"plasmid": 0, "nuclear": 0, "diploid": 0}
     chromosomes = []
     total_leaves = 0
     for e in entries:
-        kind = e.get("cap_kind", "stick")
+        kind = e.get("cap_kind", "plasmid")
         leaf_count = int(e.get("leaf_count", 0))
         total_leaves += leaf_count
         if kind in types:
@@ -5167,7 +5325,7 @@ def _census_from_catalog(cat, path) -> dict:
         chromosomes.append(
             {"label": e["label"], "type": kind, "leaf_count": leaf_count}
         )
-    n_chromosomes = types["stick"] + types["minted"] + types["diploid"]
+    n_chromosomes = types["plasmid"] + types["nuclear"] + types["diploid"]
     return {
         "path": str(path),
         "n_chromosomes": n_chromosomes,
@@ -5182,11 +5340,14 @@ def genome_census(path, *, the_one=None) -> dict:
     """Census ONE genome — the biology-native per-genome roll-up (UPSTREAM §96).
 
     Answers "what is IN this genome, and how does it partition?" the way biology
-    asks it: how many chromosomes, of which TYPE (``stick`` plasmid-scale /
-    ``minted`` eukaryotic-centromere / ``diploid`` pair), how many total leaves, and
-    a STRUCTURAL nuclear-vs-organelle ``topology`` read. Returns::
+    asks it: how many chromosomes, of which TYPE (``plasmid`` accessory/mobile
+    plasmid-scale / ``nuclear`` core eukaryotic-centromere / ``diploid`` pair), how
+    many total leaves, and a STRUCTURAL nuclear-vs-organelle ``topology`` read.
+    rc271 (F1251): the field's own names — ``plasmid`` (was ``stick``) / ``nuclear``
+    (was ``minted``); opt back into the old names with :func:`set_type_aliases` /
+    :func:`load_type_aliases_toml`. Returns::
 
-        {"path", "n_chromosomes", "types": {"stick", "minted", "diploid"},
+        {"path", "n_chromosomes", "types": {"plasmid", "nuclear", "diploid"},
          "chromosomes": [{"label", "type", "leaf_count"}, …],
          "total_leaves", "topology"}
 
@@ -5195,16 +5356,22 @@ def genome_census(path, *, the_one=None) -> dict:
     no O(n) per-chromosome loads. srmech reads the SHAPE (the inline cap markers);
     the caller assigns the ROLE. ``the_one=`` is only needed for a manifest-less
     genome (the catalog rebuild width). numpy-free."""
-    # §96: native C census (byte-identical tree) when present; else the pure roll-up
-    # over genome_catalog (itself native-accelerated). Native is authoritative.
+    # §96: native C census (byte-identical CANONICAL tree) when present; else the pure
+    # roll-up over the CANONICAL catalog (itself native-accelerated). Native is
+    # authoritative. rc271: the type-value alias is a uniform PRESENTATION post-transform
+    # applied to the CANONICAL result of EITHER path (so native==pure at the canonical
+    # level and the alias rides identically on both). The pure path reads
+    # _canonical_catalog (NOT the alias-applying public genome_catalog) so the roll-up
+    # counts by the canonical key before the alias is applied once here.
     if _native.has_native_genome() and _native.has_native_genome_census():
         try:
             text = _native.genome_census_c(
                 str(Path(path)), _the_one_bytes_or_empty(the_one))
-            return json.loads(text)
+            return _apply_type_aliases_to_census(json.loads(text))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
-    return _census_from_catalog(genome_catalog(path, the_one=the_one), path)
+    return _apply_type_aliases_to_census(
+        _census_from_catalog(_canonical_catalog(path, the_one=the_one), path))
 
 
 def _is_genome_dir(p) -> bool:
@@ -5223,28 +5390,31 @@ def genome_registry(root, *, the_one=None) -> dict:
 
         {"root", "n_genomes", "genomes": [<census per genome>, …]}
 
-    This is the "cell": which genome is the NUCLEUS (minted / diploid chromosomes)
-    vs an ORGANELLE (a small all-stick plasmid-like genome — a mitochondrion /
+    This is the "cell": which genome is the NUCLEUS (nuclear / diploid chromosomes)
+    vs an ORGANELLE (a small all-plasmid plasmid-like genome — a mitochondrion /
     chloroplast). A dir with no genome subdirs yields ``n_genomes`` 0. ``the_one=``
     is only needed for manifest-less genomes. numpy-free."""
     # §96: native C registry (PAL dir scan + per-genome census, one byte-identical
-    # tree) when present; else the pure os/pathlib scan + per-dir census roll-up.
+    # CANONICAL tree) when present; else the pure os/pathlib scan + per-dir census
+    # roll-up over the CANONICAL catalog. rc271: the type-value alias is applied ONCE
+    # to the CANONICAL registry tree of EITHER path (native==pure at the canonical level).
     if _native.has_native_genome() and _native.has_native_genome_registry():
         try:
             text = _native.genome_registry_c(
                 str(Path(root)), _the_one_bytes_or_empty(the_one))
-            return json.loads(text)
+            return _apply_type_aliases_to_registry(json.loads(text))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     root_str = str(Path(root))          # normalise identically to the native call above
     names = sorted(p.name for p in Path(root).iterdir() if _is_genome_dir(p))
     # §96: build each child path as ``root + "/" + name`` — MIRROR the C ``genome_join``
     # (``srmech_genome_registry``) byte-for-byte — and roll up via ``_census_from_catalog``
-    # DIRECTLY, NOT ``genome_census`` (whose ``str(Path())`` would re-normalise the "/"
-    # join back to "\\" on Windows and diverge from the native tree; ``_census_from_catalog``
-    # keeps the path string verbatim). The path field is an identifier, not reopened
-    # per-OS — Windows accepts "/" too. Sorting p.name matches C ``genome_sort_names``.
-    return {
+    # DIRECTLY over ``_catalog_data`` (the CANONICAL catalog, NOT ``genome_census`` whose
+    # ``str(Path())`` would re-normalise the "/" join back to "\\" on Windows and diverge
+    # from the native tree; ``_census_from_catalog`` keeps the path string verbatim). The
+    # path field is an identifier, not reopened per-OS — Windows accepts "/" too. Sorting
+    # p.name matches C ``genome_sort_names``. The alias is applied ONCE to the whole tree.
+    return _apply_type_aliases_to_registry({
         "root": root_str,
         "n_genomes": len(names),
         "genomes": [
@@ -5252,7 +5422,7 @@ def genome_registry(root, *, the_one=None) -> dict:
                 _catalog_data(f"{root_str}/{n}", the_one=the_one), f"{root_str}/{n}")
             for n in names
         ],
-    }
+    })
 
 
 def _verify_body_integrity(body_bytes, data) -> None:

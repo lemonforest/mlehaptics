@@ -237,12 +237,13 @@ def test_v2_fixture_manifestless_rebuild_reads(tmp_path):
     assert [c["label"] for c in cat["chromosomes"]] == ["alpha", "multi", "plain"]
     assert cat["n_turns"] == 13
     v2 = json.loads((_FIXTURE / "manifest.json").read_text(encoding="utf-8"))["data"]
-    # §96: the CURRENT derivation ADDS a cap_kind per chromosome (all "stick" — the
-    # v2 fixture has no centromere/diploid); the stored v2 manifest predates it, so
-    # the structural fields match MODULO the new additive cap_kind field.
+    # §96: the CURRENT derivation ADDS a cap_kind per chromosome (all "plasmid" — the
+    # v2 fixture has no centromere/diploid; rc271 F1251 renamed "stick" -> "plasmid");
+    # the stored v2 manifest predates it, so the structural fields match MODULO the new
+    # additive cap_kind field.
     assert [{k: v for k, v in c.items() if k != "cap_kind"}
             for c in cat["chromosomes"]] == v2["chromosomes"]
-    assert all(c["cap_kind"] == "stick" for c in cat["chromosomes"])
+    assert all(c["cap_kind"] == "plasmid" for c in cat["chromosomes"])
     # rc115 (#1245(b)): the rebuild derives the CURRENT (v4) manifest — the
     # structural chromosome fields are byte-identical to the stored v2 manifest's,
     # but body_sha256 is now the region CHAIN (not the v2 whole-body digest), and a
@@ -288,7 +289,7 @@ def test_v2_append_yields_mixed_body_reading_correctly(tmp_path):
     # chromosome entries are byte-identical modulo the new additive cap_kind field.
     assert [{k: v for k, v in c.items() if k != "cap_kind"}
             for c in man2["chromosomes"][:3]] == man_before["chromosomes"]
-    assert all(c["cap_kind"] == "stick" for c in man2["chromosomes"][:3])
+    assert all(c["cap_kind"] == "plasmid" for c in man2["chromosomes"][:3])
     assert man2["n_turns"] == man_before["n_turns"] + 1 + 3
 
     # every chromosome — legacy AND packed — reads correctly from the MIXED body

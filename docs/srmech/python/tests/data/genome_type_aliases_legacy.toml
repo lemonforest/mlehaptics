@@ -1,0 +1,24 @@
+# srmech genome VALUE-ALIAS example (rc271 / §96 / F1251)
+#
+# rc271 adopted the field's own biology names as the CANONICAL genome cap_kind /
+# census type values: the accessory / mobile genome is "plasmid" (was "stick"),
+# the core / clonal genome is "nuclear" (was "minted"); "diploid" is unchanged.
+#
+# This example restores the PRE-rc271 srmech names for anyone whose scripts /
+# habits expect them. Opt in with ONE call:
+#
+#     from srmech.amsc import genome
+#     genome.load_type_aliases_toml("genome_type_aliases_legacy.toml")
+#     # now genome_census / genome_registry / genome_catalog present the
+#     # cap_kind / type / types-keys as "stick" / "minted" again.
+#     genome.clear_type_aliases()   # back to canonical plasmid / nuclear
+#
+# The alias is a PURE PYTHON PRESENTATION layer OVER the canonical output; the C
+# layer and the on-disk format stay canonical (plasmid / nuclear), so there is no
+# storage / format / ABI change and native==pure still holds at the canonical
+# level. Each key MUST be a canonical value ({plasmid, nuclear, diploid}); each
+# value is the display name you want in its place.
+
+[genome.type_aliases]
+nuclear = "minted"
+plasmid = "stick"
