@@ -1,3 +1,5 @@
+**→ operationalized by F1248** (ground-truth layout + bytes-touched + the 2 srmech primitives — per-node cap-TOC + seek decode — that retire adj.bin; edges already sorted-by-source).
+
 # F1247 — the epigenetic-reader correction: ENCODE ONCE (dense knowledge → coupled turns), RENDER ON THE FLY (Class-M/L walk), NO decode-cache. The CORPUSFIBER packed-fiber-blob store was a "re-encode-so-we-can-decode-later" anti-pattern — and it's redundant with the directed Class-L store we already built.
 
 **User (2026-07-17), stopping the CORPUSFIBER encode:** *"we're working in srmech to make a streaming reader by following biology as bottom-up as we can — so we're actually encoding IN coupled turns and we perform Class-M/L things. This was the goal of the epigenetic reader: on-demand render without requiring extra cache of data. I should have realized we were doing something wrong if we had to encode our encoded genome so we could decode it later. Decode is supposed to happen on the fly; encode is supposed to happen ONCE. Dense knowledge into coupled turns is actually the goal."*
