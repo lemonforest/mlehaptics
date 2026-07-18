@@ -3460,12 +3460,48 @@ srmech_status_t srmech_genome_window(const char *dir, const char *label,
  * head gate IS the community gate.
  * ------------------------------------------------------------------ */
 
-/* Read one chromosome's head GATE cap (the block at byte_offset + leaf_dim)
- * into `gate` (>= leaf_dim), evaluate it under cell_state, and EMIT the record
- * (label + byte_offset + byte_len) into out[*pos..] iff it EXPRESSES. A region
- * with no full head gene cap (byte_len < 2*leaf_dim), or whose head block is
- * not a GENE marker, is skipped (not a gated community; SRMECH_OK, no emit).
- * *pos + *n advance on an emit. No abs; a READ. */
+/* §98/rc269 — read a region's HEAD slot at off+leaf_dim into `gate` (>= leaf_dim)
+ * and resolve the CHROMATIN OUTER gate. If the head block is a chromatin cap
+ * (0x48): SILENCED (accessibility numerator == 0) -> *skip = 1 (the gene gate cap
+ * is NEVER read — bounded I/O); OPEN -> the gene gate is the NEXT slot, read
+ * off+2*leaf_dim into `gate` (unless there is no room -> *skip = 1). A non-chromatin
+ * head block leaves `gate` holding it (*skip = 0). Byte-identical to the pure
+ * _plan_path_head_expresses head walk. No abs, no float; a READ. */
+static srmech_status_t genome_plan_read_head(
+    const char *body_path, size_t off, size_t len, uint32_t leaf_dim,
+    unsigned char *gate, int *skip)
+{
+    assert(body_path != NULL && gate != NULL && skip != NULL);
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);
+    *skip = 0;
+    srmech_status_t st = genome_read_region(body_path, off + leaf_dim,
+                                            leaf_dim, gate, leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    if (gate[0] != SRMECH_GENOME_CHROMATIN_MARKER) { return SRMECH_OK; }
+    size_t lb = (size_t)SRMECH_GENOME_CHROMATIN_LEVEL_BYTES;
+    size_t nul = 1u;                                        /* handle NUL scan (bytes [1:]) */
+    while (nul < (size_t)leaf_dim && gate[nul] != 0u) { nul++; }
+    if (nul + 2u + 2u * lb > (size_t)leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    unsigned char ct = gate[nul + 1u];
+    uint64_t num = genome_get_u64_be(gate, nul + 2u);
+    uint64_t den = genome_get_u64_be(gate, nul + 2u + lb);
+    if (ct > SRMECH_GENOME_CHROMATIN_TYPE_GRADED || den == 0u || num > den) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (num == 0u) { *skip = 1; return SRMECH_OK; }         /* heterochromatin -> SKIP (gate unread) */
+    if ((size_t)3u * leaf_dim > len) { *skip = 1; return SRMECH_OK; }   /* no gate slot after cap */
+    return genome_read_region(body_path, off + (size_t)2u * leaf_dim,
+                              leaf_dim, gate, leaf_dim);     /* euchromatin -> the gene gate is next */
+}
+
+/* Read one chromosome's head GATE cap (the block at byte_offset + leaf_dim, or —
+ * §98/rc269 — the block after an OPEN head chromatin cap) into `gate` (>= leaf_dim),
+ * evaluate it under cell_state, and EMIT the record (label + byte_offset + byte_len)
+ * into out[*pos..] iff it EXPRESSES. A region with no full head gene cap
+ * (byte_len < 2*leaf_dim), a CONDENSED head-chromatin region (skipped reading ONLY
+ * the chromatin cap), or one whose head block is not a GENE marker, is skipped (not a
+ * gated / accessible community; SRMECH_OK, no emit). *pos + *n advance on an emit.
+ * No abs; a READ. */
 static srmech_status_t genome_plan_emit_one(
     const char *body_path, const srmech_json_value_t *entry,
     uint32_t leaf_dim, uint64_t cell_state,
@@ -3484,9 +3520,11 @@ static srmech_status_t genome_plan_emit_one(
     }
     size_t off = (size_t)bo->u.i, len = (size_t)bl->u.i;
     if (len < (size_t)2u * leaf_dim) { return SRMECH_OK; }   /* no head gene cap */
-    srmech_status_t st = genome_read_region(body_path, off + leaf_dim,
-                                            leaf_dim, gate, leaf_dim);
+    int skip = 0;
+    srmech_status_t st = genome_plan_read_head(body_path, off, len, leaf_dim,
+                                               gate, &skip);
     if (st != SRMECH_OK) { return st; }
+    if (skip) { return SRMECH_OK; }             /* §98 heterochromatin / no gate slot after cap */
     unsigned char gm = gate[0];                             /* the head block kind */
     int expressed = 0;
     if (gm == SRMECH_GENOME_GRADED_GENE_MARKER) {
