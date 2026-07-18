@@ -1,3 +1,5 @@
+**→ grounded by F1251** (the attested bacterial-genomics ground truth this survey called for: core→minted, accessory/plasmid→stick, HGT/IS26→integrate).
+
 # F1245 — Biology's genome mechanisms across the whole tree of life — plasmid/HGT, CRISPR-Cas9, transposons, homologous recombination, ciliate macro/micronucleus, retroviral integration — are ALL compositions of ONE shared A–N primitive set. The "same" is the cascade; the "different" is only which primitives each situation emphasizes. This IS the coherency-translation-layer (ask (d)), prototyped across kingdoms.
 
 **User direction (2026-07-16):** *"the remaining prototype should also touch bacteria and protozoa/plasmids/etc, including biology's own CRISPR-cas9 et al. Another research probe to hit each of these things to see what is different and what is the same? … after we research and land this prototype, we should create all of these things into a new single gh issue for genome architecture enrichment."*
