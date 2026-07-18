@@ -5582,7 +5582,12 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
       cap (a single-kernel chromosome, ``byte_len < 2·leaf_dim``) is not a gated community
       and is skipped. This is the siona community=chromosome layout: the per-chromosome
       head gate IS the community gate. Mixed E1/E2/E4/E3 gate-types across chromosomes are
-      the delivered gates — the plan gates by the inline mask regardless of kind.
+      the delivered gates — the plan gates by the inline mask regardless of kind. **§98/rc269
+      chromatin OUTER gate:** if the head slot is a CHROMATIN cap (``0x48``), it gates the
+      whole region — a CONDENSED (silenced, accessibility numerator ``0``) region is SKIPPED
+      at plan time having touched ONLY the chromatin cap (its gene gate cap is NEVER read —
+      even fewer bytes than the §134 read); an OPEN (accessible) region advances one slot and
+      reads the gene gate as before. A chromatin-FREE region is byte-for-byte the rc135 read.
     * **STRAND variant (variant a — the in-memory fallback):** ``strand_or_path`` is an
       in-memory strand (a list of Klein-4 vectors). The plan SKELETON-SCANS it — walking
       blocks, computing each block's ON-DISK byte span (a cap is ``leaf_dim`` bytes; a data
@@ -5600,17 +5605,21 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
     assert GENOME_FORMAT_VERSION == 15      # a READ of existing caps/manifest
-    #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; the STRAND plan reads the
-    #   chromatin outer-gate — §98 — while the PATH demand-load plan's single-seek chromatin skip
-    #   is deferred to rc269, so the path read stays the §134 gene-gate-only read for now)
+    #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; BOTH the STRAND plan and —
+    #   as of §98/rc269 — the PATH demand-load plan read the chromatin OUTER gate: a condensed
+    #   region is skipped at plan time on a single head-slot seek, never touching its gene gate)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
         return _gene_express_plan_path(Path(strand_or_path), the_one, cell_state)
     return _gene_express_plan_strand(strand_or_path, the_one, cell_state)
 
 
 def _gene_express_plan_path(path, the_one, cell_state):
-    """PATH variant (b): the DEMAND-LOAD plan — read ONLY each region's head gate cap via
-    the manifest ``byte_offset`` (a seek); NEVER the region body (bounded I/O)."""
+    """PATH variant (b): the DEMAND-LOAD plan — read ONLY each region's head cap(s) via the
+    manifest ``byte_offset`` (a seek); NEVER the region body (bounded I/O). §98/rc269: a HEAD
+    CHROMATIN cap (``0x48``) is the OUTER access gate over the §134 gene gate — a CONDENSED
+    (silenced) region is SKIPPED at plan time having touched ONLY its chromatin cap (its gene
+    gate cap is NEVER read); an OPEN region advances one slot and reads the gene gate as before;
+    a chromatin-FREE region's read + plan are byte-for-byte the rc135 read."""
     if _native.has_native_genome():
         try:
             return _native.genome_gene_express_plan_c(
@@ -5623,16 +5632,42 @@ def _gene_express_plan_path(path, the_one, cell_state):
     with _open_body_ro(path / _BODY_NAME) as f:
         for c in data["chromosomes"]:
             off, ln = int(c["byte_offset"]), int(c["byte_len"])
-            if ln < 2 * leaf_dim:               # no head GENE cap → not a gated community
-                continue
-            f.seek(off + leaf_dim)              # skip the CHROM cap → read ONLY the gate cap
-            gate_block = f.read(leaf_dim)
-            if (len(gate_block) < leaf_dim
-                    or gate_block[0] not in _GENE_MARKERS):
-                continue                        # the head block is not a gene cap
-            if _gene_expresses(_hv_from_block(gate_block), cell_state):
+            if _plan_path_head_expresses(f, off, ln, leaf_dim, cell_state):
                 plan.append((c["label"], off, ln))
     return plan
+
+
+def _plan_path_head_expresses(f, off, ln, leaf_dim, cell_state):
+    """§134/§98 — seek the region head from the ALREADY-OPEN body ``f`` and decide inclusion
+    WITHOUT reading the body (bounded I/O). Reads the block at ``off + leaf_dim`` (the head slot
+    right after the CHROM cap). A HEAD CHROMATIN cap (``0x48``, rc269) is the OUTER gate: if it is
+    SILENCED (accessibility numerator ``== 0`` — the SAME Class-K predicate :func:`gene_express` /
+    the STRAND plan use, NEVER ``abs()``) the region is SKIPPED reading ONLY that cap; if it is
+    OPEN the gene gate is the NEXT slot (``off + 2·leaf_dim``). Then the unchanged §134 gene-gate
+    decision: True iff the gate block is a GENE marker AND :func:`_gene_expresses` under
+    ``cell_state``. A READ — never decodes a leaf, never touches the body."""
+    if ln < 2 * leaf_dim:                       # no head GENE cap → not a gated community
+        return False
+    gate_off = off + leaf_dim                   # skip the CHROM cap → the head slot
+    f.seek(gate_off)
+    head_block = f.read(leaf_dim)
+    if len(head_block) < leaf_dim:
+        return False
+    if head_block[0] == CHROMATIN_MARKER:       # §98 HEAD chromatin cap — the OUTER access gate
+        _ct, _an, _ad = _chromatin_spec(_hv_from_block(head_block))
+        access_open = _an > 0                   # accessible iff level numerator > 0 (Class-K, no abs)
+        if not access_open:
+            return False                        # heterochromatin → SKIP (gene gate NEVER read)
+        gate_off += leaf_dim                    # euchromatin → the gene gate is the NEXT slot
+        if gate_off + leaf_dim > off + ln:      # no room for a gene cap after the chromatin cap
+            return False
+        f.seek(gate_off)
+        head_block = f.read(leaf_dim)
+        if len(head_block) < leaf_dim:
+            return False
+    if head_block[0] not in _GENE_MARKERS:
+        return False                            # the head block is not a gene cap
+    return _gene_expresses(_hv_from_block(head_block), cell_state)
 
 
 def _gene_express_plan_strand(strand, the_one, cell_state):

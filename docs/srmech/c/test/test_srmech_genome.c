@@ -973,6 +973,80 @@ int main(void)
         check_true(st == SRMECH_ERR_BAD_INPUT, "chromatin writer rejects dim too small");
     }
 
+    /* §98/rc269: the DEMAND-LOAD PATH plan (srmech_genome_gene_express_plan) respects the HEAD
+     * chromatin cap — a CONDENSED region is SKIPPED reading ONLY its chromatin cap (its gene
+     * gate cap is NEVER touched). Layout (leaf_dim2 = 32); each community is a plain always-on
+     * GENE gate, so at cell_state 0 the HEAD chromatin cap alone decides inclusion:
+     *   "op": [CHROM, CHROMATIN open(1,1),      GENE, turn] -> INCLUDED (euchromatin)
+     *   "cn": [CHROM, CHROMATIN condensed(0,1), GENE, turn] -> SKIPPED  (heterochromatin)
+     *   "fr": [CHROM,                           GENE, turn] -> INCLUDED (chromatin-free) */
+    {
+        const uint32_t ld2 = 32u;
+        unsigned char one32[32];
+        for (size_t k = 0u; k < 32u; k++) { one32[k] = (unsigned char)(k & 3u); }
+        unsigned char pbody[11u * 32u];
+        memset(pbody, 0, sizeof(pbody));
+        pbody[0u * ld2] = CC; pbody[0u * ld2 + 1u] = (unsigned char)'o';
+        pbody[0u * ld2 + 2u] = (unsigned char)'p';
+        st = srmech_genome_chromatin(SRMECH_GENOME_CHROMATIN_TYPE_BINARY, 1u, 1u,
+                                     (const unsigned char *)"chr", 3u, ld2,
+                                     pbody + 1u * ld2, ld2);           /* OPEN (1,1) */
+        check_true(st == SRMECH_OK, "plan: op chromatin OPEN cap written");
+        pbody[2u * ld2] = GC; pbody[2u * ld2 + 1u] = (unsigned char)'o';
+        pbody[2u * ld2 + 2u] = (unsigned char)'p';
+        pbody[3u * ld2] = 1u;                                         /* a data turn */
+        pbody[4u * ld2] = CC; pbody[4u * ld2 + 1u] = (unsigned char)'c';
+        pbody[4u * ld2 + 2u] = (unsigned char)'n';
+        st = srmech_genome_chromatin(SRMECH_GENOME_CHROMATIN_TYPE_BINARY, 0u, 1u,
+                                     (const unsigned char *)"chr", 3u, ld2,
+                                     pbody + 5u * ld2, ld2);           /* CONDENSED (0,1) */
+        check_true(st == SRMECH_OK, "plan: cn chromatin CONDENSED cap written");
+        pbody[6u * ld2] = GC; pbody[6u * ld2 + 1u] = (unsigned char)'c';
+        pbody[6u * ld2 + 2u] = (unsigned char)'n';
+        pbody[7u * ld2] = 1u;
+        pbody[8u * ld2] = CC; pbody[8u * ld2 + 1u] = (unsigned char)'f';
+        pbody[8u * ld2 + 2u] = (unsigned char)'r';
+        pbody[9u * ld2] = GC; pbody[9u * ld2 + 1u] = (unsigned char)'f';
+        pbody[9u * ld2 + 2u] = (unsigned char)'r';
+        pbody[10u * ld2] = 1u;
+
+        char plan_dir[1200];
+        snprintf(plan_dir, sizeof(plan_dir), "%s_plan", dir);
+        ensure_dir(plan_dir);
+        st = srmech_genome_save(plan_dir, pbody, sizeof(pbody), ld2,
+                                one32, sizeof(one32), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "plan: genome_save OK (op/cn/fr)");
+
+        unsigned char pout[512];
+        size_t plen = 0u;
+        st = srmech_genome_gene_express_plan(plan_dir, 0u, one32, sizeof(one32),
+                                             pout, sizeof(pout), &plen,
+                                             g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "plan: gene_express_plan OK");
+        /* parse [u32 n]{ (u32 label_len)(label)(u64 off)(u64 len) }* (all big-endian). */
+        int saw_op = 0, saw_cn = 0, saw_fr = 0;
+        uint32_t n = ((uint32_t)pout[0] << 24) | ((uint32_t)pout[1] << 16) |
+                     ((uint32_t)pout[2] << 8) | (uint32_t)pout[3];
+        size_t p = 4u;
+        for (uint32_t r = 0u; r < n && p + 4u <= plen; r++) {
+            uint32_t ll = ((uint32_t)pout[p] << 24) | ((uint32_t)pout[p + 1u] << 16) |
+                          ((uint32_t)pout[p + 2u] << 8) | (uint32_t)pout[p + 3u];
+            p += 4u;
+            if (p + ll + 16u > plen) { break; }
+            if (ll == 2u && pout[p] == (unsigned char)'o' &&
+                pout[p + 1u] == (unsigned char)'p') { saw_op = 1; }
+            if (ll == 2u && pout[p] == (unsigned char)'c' &&
+                pout[p + 1u] == (unsigned char)'n') { saw_cn = 1; }
+            if (ll == 2u && pout[p] == (unsigned char)'f' &&
+                pout[p + 1u] == (unsigned char)'r') { saw_fr = 1; }
+            p += ll + 16u;                                   /* label + off(8) + len(8) */
+        }
+        check_true(n == 2u, "plan: exactly 2 communities expressed (op + fr)");
+        check_true(saw_op == 1, "plan: 'op' (euchromatin) INCLUDED");
+        check_true(saw_fr == 1, "plan: 'fr' (chromatin-free) INCLUDED");
+        check_true(saw_cn == 0, "plan: 'cn' (heterochromatin) SKIPPED");
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }
