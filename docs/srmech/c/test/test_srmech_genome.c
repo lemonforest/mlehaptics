@@ -1157,6 +1157,41 @@ int main(void)
                    "rc270: kernel_to_graph BYTE-EXACT after minting (cap transparent)");
     }
 
+    /* §135/rc273 (F1251) — GENE COPY-NUMBER forward-compat: a plain GENE cap (0x47)
+     * carrying a copy-number field (a non-zero uint64 BE RIGHT AFTER the label's NUL,
+     * in what was NUL padding) still reads as ALWAYS-EXPRESSED via srmech_genome_gene_
+     * express (the C wire-format back/forward-compat: the count is TRANSPARENT to the C
+     * reader, which returns on the 0x47 marker BEFORE reading any field — the same
+     * discipline the Python _gene_expresses uses). This is the C proof that amplify's
+     * additive field needs no format bump (v15 stays) and no C change. */
+    {
+        const uint32_t ld = 16u;
+        unsigned char cap[16];
+        memset(cap, 0, sizeof(cap));
+        cap[0] = (unsigned char)SRMECH_GENOME_GENE_CAP_MARKER;  /* 0x47 plain gene */
+        cap[1] = (unsigned char)'r';                            /* label "r" */
+        cap[2] = 0u;                                            /* label NUL terminator */
+        /* copy_number = 7 as uint64 big-endian in cap[3..10] (was NUL padding). */
+        cap[3] = 0u; cap[4] = 0u; cap[5] = 0u; cap[6] = 0u;
+        cap[7] = 0u; cap[8] = 0u; cap[9] = 0u; cap[10] = 7u;
+        int expressed = -1;
+        uint64_t mask = 0xDEADu;
+        srmech_status_t cst = srmech_genome_gene_express(cap, ld, 0u, &expressed, &mask);
+        check_true(cst == SRMECH_OK && expressed == 1 && mask == 0u,
+                   "rc273: plain gene w/ copy-number field reads always-express (count transparent)");
+        /* A gene with NO field (all-NUL padding, the pre-rc273 / copy-number-1 form)
+         * reads identically — same always-express verdict. */
+        unsigned char plain[16];
+        memset(plain, 0, sizeof(plain));
+        plain[0] = (unsigned char)SRMECH_GENOME_GENE_CAP_MARKER;
+        plain[1] = (unsigned char)'r';
+        int expressed2 = -1;
+        uint64_t mask2 = 0xBEEFu;
+        srmech_status_t cst2 = srmech_genome_gene_express(plain, ld, 0u, &expressed2, &mask2);
+        check_true(cst2 == SRMECH_OK && expressed2 == 1 && mask2 == 0u,
+                   "rc273: plain gene (no copy-number, copy_number 1) reads always-express");
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }
