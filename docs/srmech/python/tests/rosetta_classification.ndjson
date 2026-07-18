@@ -446,6 +446,7 @@
 {"exposed_as": "srmech.amsc.genome.decondense", "defined_at": "srmech.amsc.genome.decondense", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.chromatin_of", "defined_at": "srmech.amsc.genome.chromatin_of", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.mint", "defined_at": "srmech.amsc.genome.mint", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.genome.mint_strand", "defined_at": "srmech.amsc.genome.mint_strand", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.mint_plan", "defined_at": "srmech.amsc.genome.mint_plan", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.integrate", "defined_at": "srmech.amsc.genome.integrate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.recall", "defined_at": "srmech.amsc.genome.recall", "bucket": "composition_of_c"}
