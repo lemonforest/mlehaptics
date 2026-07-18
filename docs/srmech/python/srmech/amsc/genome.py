@@ -80,7 +80,7 @@ __all__ = [
     "genome_explode", "genome_pack",
     "genome_register_attested",
     "kernel_pack", "kernel_unpack",
-    "graph_to_kernel", "kernel_to_graph",
+    "graph_to_kernel", "kernel_to_graph", "mint_strand",
     "active_telomere", "telomere_tick",
     "gene_express",
     "gene_express_levels",
@@ -4088,6 +4088,89 @@ def kernel_to_graph(chroms, the_one, n_syms):
     ``n_syms`` trims the leaf-dim padding :func:`kernel_unpack` restores."""
     syms = list(kernel_unpack(chroms, the_one))[:n_syms]
     return _graph_kernel_decode(syms)
+
+
+def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
+                repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen"):
+    """MINT an ALREADY-PACKED strand — splice a §95a interior CENTROMERE (``0x58``) into it
+    at the p:q arm-split, turning a Tier-1 STICK into a Tier-2 MINTED chromosome (§100 GAP 1 /
+    PR#687 F1249).
+
+    The :func:`mint` umbrella mints a chromosome AT BUILD TIME from raw leaves; ``mint_strand``
+    mints a strand that is ALREADY PACKED — a :func:`kernel_pack` / :func:`graph_to_kernel`
+    strand (the corpus directed-graph store), any :func:`chromosome`, or one nuclear COMMUNITY —
+    WITHOUT re-minting it from leaves. This is the capability §100 GAP 1 named as missing:
+    ``chromosome(packed_strand, centromere=…)`` REJECTS an already-packed strand (it treats the
+    strand as raw leaves and :func:`quad_turn` binds the 256-sector telomere cap →
+    ``"klein-4 elements must be in {0,1,2,3}"``), and there was no ``centromere=`` hook on
+    :func:`graph_to_kernel` — so a directed-graph chromosome could not be given a p:q centromere
+    (``simplewiki_directed.genome`` censused ``{stick: 2, minted: 0}``). ``mint_strand`` is the
+    missing splice; it is also the foundation for §100 GAP 2 (mint each NUCLEAR community) and the
+    streaming reader (a minted chromosome IS the eukaryotic/nuclear DNA).
+
+    The centromere is an INTERIOR cap; :func:`recall` / :func:`kernel_unpack` /
+    :func:`kernel_to_graph` ALL skip caps (§44), so minting is TRANSPARENT to the payload — the
+    recovered kernel / graph is **BYTE-IDENTICAL** with or without the centromere.
+
+    * ``centromere_at`` — the arm-split measured in DATA TURNS (the cap goes AFTER that many data
+      turns; ``0 <= centromere_at <= n_turns``). Default the METACENTRIC midpoint ``n_turns // 2``,
+      matching :func:`chromosome`'s mint default — POSITION IS the p:q arm-ratio (biology: the
+      centromere position defines the arms), so a 30-turn strand mints ``(15, 15)`` and a 9-turn
+      strand ``(4, 5)``. Recover the p:q with :func:`centromere_of`.
+    * ``orientation`` — the GLOBAL 4-way which-way ∈ ``{0,1,2,3}`` (Class-C chirality). Default the
+      content-address fold ``sha256(recovered leaves)[0] & 3`` — the SAME Class-A→Class-C rule
+      :func:`mint` assigns (:func:`_mint_orientation`), applied to the strand's OWN recovered
+      leaves, so it is deterministic + attested (it IS the content-address, no magic number).
+    * ``repeats`` / ``handle`` — the α-satellite repeat-array size + the CENP-A inline epigenetic
+      address, passed through to :func:`centromere`.
+
+    Composes over the native-dispatched :func:`centromere` cap-writer (byte-identical C peer
+    ``srmech_genome_centromere``) + a PURE strand splice (like :func:`integrate` — self-describing
+    blocks concatenated, no re-coupling), so the minted strand is byte-identical whether the cap
+    came from C or pure Python (the parity contract). After minting, ``genome_save`` +
+    :func:`genome_census` report the chromosome as ``minted`` (the ``0x58`` is present). Raises if
+    the strand is empty, does not OPEN with a chromosome-boundary cap (pass a :func:`chromosome` /
+    :func:`kernel_pack` / :func:`graph_to_kernel` strand, NOT raw leaves), or ALREADY carries a
+    centromere (re-minting would double the anchor). Class A (the content-address orientation) ∘
+    Class C (the which-way) ∘ Class K (position = p:q). numpy-free; no ``abs()``."""
+    strand = list(strand)
+    if not strand:
+        raise ValueError("mint_strand: strand is empty — nothing to mint")
+    if _cap_kind(strand[0]) not in _CHROM_BOUNDARY_MARKERS:
+        raise ValueError(
+            "mint_strand: strand must OPEN with a chromosome-boundary cap (a CHROM / kernel / "
+            "active / diploid telomere) — pass an ALREADY-PACKED strand (chromosome / kernel_pack "
+            "/ graph_to_kernel), NOT raw leaves (raw leaves go through mint / chromosome(centromere=))"
+        )
+    if any(_cap_kind(hv) == CENTROMERE_CAP_MARKER for hv in strand):
+        raise ValueError(
+            "mint_strand: strand already carries an interior centromere (0x58) — it is already "
+            "minted; re-minting would double the arm-split anchor"
+        )
+    dim = len(list(the_one))
+    # §95a: POSITION is the p:q arm-ratio, measured in DATA TURNS (the non-cap leaves) — the SAME
+    # units centromere_of reads back (p = data turns BEFORE the cap, q = data turns AFTER). The
+    # opening telomere + any interior gene caps are skipped; the metacentric default splits the
+    # data turns in half (chromosome()'s mint default).
+    data_positions = [i for i, hv in enumerate(strand) if _cap_kind(hv) is None]
+    n_turns = len(data_positions)
+    split = n_turns // 2 if centromere_at is None else int(centromere_at)
+    if not 0 <= split <= n_turns:
+        raise ValueError(
+            f"mint_strand: centromere_at={centromere_at} out of range [0, {n_turns}] "
+            f"(the arm-split index in DATA turns between the short + long arm)"
+        )
+    if orientation is None:
+        # Class A content-address → Class C chirality: sha256(the strand's OWN recovered leaves)
+        # [0] & 3 — the SAME rule mint() assigns a minted chromosome (_mint_orientation), so the
+        # which-way is deterministic + attested (no magic number). recall skips every cap, so this
+        # is the content the payload decode also sees.
+        orientation = _mint_orientation(recall(strand, the_one))
+    # Native-dispatched cap-writer (byte-identical C peer srmech_genome_centromere); the splice is
+    # pure block concatenation, so the minted strand is byte-identical to a C-produced one.
+    cen_cap = centromere(orientation, repeats=repeats, handle=handle, dim=dim)
+    insert_at = data_positions[split] if split < n_turns else len(strand)
+    return strand[:insert_at] + [cen_cap] + strand[insert_at:]
 
 
 def telomere_tick(strand):

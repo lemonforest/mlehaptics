@@ -1047,6 +1047,116 @@ int main(void)
         check_true(saw_cn == 0, "plan: 'cn' (heterochromatin) SKIPPED");
     }
 
+    /* rc270 §100 GAP 1: MINT a GRAPH strand. mint_strand splices a §95a interior
+     * centromere (0x58) into an ALREADY-PACKED strand — a PURE composition over the
+     * srmech_genome_centromere cap-writer + a strand splice (NO new C symbol). The
+     * C-host story proven here: encode a directed graph, lay its Klein-4 syms across
+     * content leaves, SPLICE a real centromere cap between them, save -> census MINTED,
+     * and recover the graph BYTE-EXACT after the splice (recall skips the cap). */
+    {
+        const uint32_t ldg = 32u;                     /* the C genome the_one caps at 32 bytes */
+        uint64_t ei[6] = {0u, 1u, 2u, 3u, 4u, 0u};
+        uint64_t ej[6] = {1u, 2u, 0u, 4u, 3u, 2u};
+        uint64_t gw[6] = {5u, 7u, 2u, 9u, 3u, 8u};
+        int64_t  gc[6] = {1, -1, 1, -1, 0, 1};
+        uint64_t gnid[3] = {100u, 200u, 300u};
+        uint64_t gex[2] = {42u, 7u};
+        uint8_t syms[256];
+        size_t nsy = 0u;
+        srmech_status_t gs = srmech_graph_kernel_encode(
+            5u, ei, ej, gw, gc, 6u, gnid, 3u, gex, 2u, syms, sizeof(syms), &nsy);
+        check_true(gs == SRMECH_OK && nsy > 0u && nsy <= 256u,
+                   "rc270: graph_kernel_encode OK");
+
+        /* baseline: decode the raw syms (the un-minted graph). */
+        uint64_t bvs = 0u, bei[16], bej[16], bw[16], bnid[16], bex[16];
+        int64_t  bch[16];
+        size_t bne = 0u, bnn = 0u, bnx = 0u;
+        gs = srmech_graph_kernel_decode(syms, nsy, &bvs, bei, bej, bw, bch, 16u,
+                                        &bne, bnid, 16u, &bnn, bex, 16u, &bnx);
+        check_true(gs == SRMECH_OK && bvs == 5u && bne == 6u && bch[1] == -1 &&
+                   bnn == 3u && bnx == 2u, "rc270: graph_kernel_decode baseline OK");
+
+        /* lay the syms across content leaves (zero-padded); force >= 2 so the mint
+         * splits at a genuinely INTERIOR point (the metacentric midpoint). */
+        size_t n_leaves = (nsy + ldg - 1u) / ldg;
+        if (n_leaves < 2u) { n_leaves = 2u; }
+        size_t split = n_leaves / 2u;                 /* content turns before the cap */
+        unsigned char gbody[8u * 64u];
+        memset(gbody, 0, sizeof(gbody));
+        /* block 0: a CHROM boundary cap 'G'. */
+        gbody[0] = CC; gbody[1] = (unsigned char)'G';
+        /* content leaves, with a centromere cap spliced after `split` of them. */
+        size_t blk = 1u;
+        for (size_t L = 0u; L < n_leaves; L++) {
+            if (L == split) {
+                st = srmech_genome_centromere(
+                    2u, 15u, (const unsigned char *)"cen", 3u, ldg,
+                    gbody + blk * ldg, ldg);          /* the real cap mint_strand splices */
+                check_true(st == SRMECH_OK, "rc270: centromere cap writer OK");
+                check_true(gbody[blk * ldg] ==
+                           (unsigned char)SRMECH_GENOME_CENTROMERE_CAP_MARKER,
+                           "rc270: spliced cap first byte == 0x58");
+                blk++;
+            }
+            for (uint32_t k = 0u; k < ldg; k++) {
+                size_t si = L * (size_t)ldg + k;
+                gbody[blk * ldg + k] = (si < nsy) ? syms[si] : 0u;
+            }
+            blk++;
+        }
+        size_t n_blocks = blk;                        /* split = n_leaves/2 < n_leaves */
+
+        /* SAVE -> CENSUS: the graph chromosome now reads MINTED (interior 0x58). */
+        unsigned char one_g[32];
+        for (uint32_t i = 0u; i < 32u; i++) { one_g[i] = (unsigned char)(i & 3u); }
+        const char *tbg = getenv("TMPDIR");
+        if (tbg == NULL) { tbg = getenv("TMP"); }
+        if (tbg == NULL) { tbg = "/tmp"; }
+        char gdir[1024];
+        snprintf(gdir, sizeof(gdir), "%s/srmech_genome_mintgraph", tbg);
+        ensure_dir(gdir);
+        st = srmech_genome_save(gdir, gbody, n_blocks * (size_t)ldg, ldg,
+                                one_g, sizeof(one_g), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "rc270: save minted graph strand");
+        {
+            srmech_json_value_t *cen = NULL;
+            st = srmech_genome_census(gdir, NULL, 0u, g_ws, sizeof(g_ws), &cen);
+            const srmech_json_value_t *types =
+                (st == SRMECH_OK && cen != NULL)
+                    ? srmech_json_object_get(cen, "types") : NULL;
+            const srmech_json_value_t *tm =
+                (types != NULL) ? srmech_json_object_get(types, "minted") : NULL;
+            const srmech_json_value_t *ts =
+                (types != NULL) ? srmech_json_object_get(types, "stick") : NULL;
+            check_true(tm != NULL && tm->u.i == 1 && ts != NULL && ts->u.i == 0,
+                       "rc270: minted graph chromosome censuses as minted");
+        }
+
+        /* RECOVER: skip every cap (recall), concatenate the content leaves, take the
+         * first nsy syms, decode -> BYTE-EXACT vs the un-minted baseline. */
+        uint8_t rsyms[256];
+        size_t rn = 0u;
+        for (size_t b = 0u; b < n_blocks; b++) {
+            if (gbody[b * (size_t)ldg] > 3u) { continue; }   /* a cap — skip */
+            for (uint32_t k = 0u; k < ldg && rn < nsy; k++) {
+                rsyms[rn++] = gbody[b * (size_t)ldg + k];
+            }
+        }
+        check_true(rn == nsy, "rc270: recovered syms count == nsy (cap skipped)");
+        uint64_t mvs = 0u, mei[16], mej[16], mw[16], mnid[16], mex[16];
+        int64_t  mch[16];
+        size_t mne = 0u, mnn = 0u, mnx = 0u;
+        gs = srmech_graph_kernel_decode(rsyms, rn, &mvs, mei, mej, mw, mch, 16u,
+                                        &mne, mnid, 16u, &mnn, mex, 16u, &mnx);
+        check_true(gs == SRMECH_OK && mvs == bvs && mne == bne && mnn == bnn &&
+                   mnx == bnx, "rc270: minted graph decode dims match baseline");
+        int same = (mch[0] == bch[0]) && (mch[1] == bch[1]) && (mw[3] == bw[3]) &&
+                   (mnid[2] == bnid[2]) && (mex[0] == bex[0]) && (mei[5] == bei[5]);
+        check_true(same == 1,
+                   "rc270: kernel_to_graph BYTE-EXACT after minting (cap transparent)");
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }

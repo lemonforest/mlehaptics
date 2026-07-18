@@ -193,7 +193,7 @@ def test_tool_schema_registration():
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.laplacian.spectral_spine" in names
     assert "srmech.amsc.laplacian.relational_structure" in names
-    assert len(get_tool_schema().tools) == 445
+    assert len(get_tool_schema().tools) == 446
 
 
 def test_rosetta_ledger_rows():
