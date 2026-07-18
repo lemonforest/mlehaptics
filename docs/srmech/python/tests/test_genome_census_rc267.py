@@ -1,7 +1,8 @@
 """§96 / rc267 (PR#687 UPSTREAM_NOTES) — genome introspection, biology-native:
 
-  (A) per-chromosome ``cap_kind`` ∈ {"stick","minted","diploid"} in genome_catalog,
-      derived on the SAME §44 body scan (minted > diploid > stick).
+  (A) per-chromosome ``cap_kind`` ∈ {"plasmid","nuclear","diploid"} in genome_catalog,
+      derived on the SAME §44 body scan (nuclear > diploid > plasmid; rc271 F1251
+      renamed stick->plasmid, minted->nuclear).
   (B) genome_census(path) — the per-genome roll-up {path, n_chromosomes, types,
       chromosomes, total_leaves, topology} (nuclear/organelle/plasmid topology).
   (C) genome_registry(root) — the cell/melange census over a root of genomes.
@@ -38,11 +39,11 @@ def _leaves(n):
 
 
 def _mixed_genome_strand(one):
-    """A strand with one of EACH cap_kind: stick 'stk' (3 leaves, plasmid-scale),
-    minted 'min' (9 leaves → the umbrella mints an interior centromere), and a
+    """A strand with one of EACH cap_kind: plasmid 'stk' (3 leaves, plasmid-scale),
+    nuclear 'min' (9 leaves → the umbrella mints an interior centromere), and a
     hand-built diploid 'dip' (a §95b diploid-telomere opener, NO centromere — the
     only way to get a pure "diploid" cap_kind, since diploid() carries a centromere
-    and so reads "minted")."""
+    and so reads "nuclear")."""
     strand = list(G.genome([("stk", _leaves(3)), ("min", _leaves(9))], one))
     dip_cap = G._pack_cap(G.DIPLOID_TELOMERE_MARKER, "dip", _DIM)
     dip_turns = [G.quad_turn(_leaf(i), one) for i in range(2)]
@@ -56,7 +57,7 @@ def _save_mixed(tmp, one):
 
 
 def _save_organelle(tmp, one):
-    """A small all-stick genome (2 stick chromosomes, ≤4 leaves each) → the
+    """A small all-plasmid genome (2 plasmid chromosomes, ≤4 leaves each) → the
     mitochondrion/chloroplast plasmid analogue."""
     path = Path(tmp) / "mito.genome"
     G.genome_save(G.plasmid([("mt1", _leaves(2)), ("mt2", _leaves(3))], one),
@@ -66,13 +67,13 @@ def _save_organelle(tmp, one):
 
 # ── (A) cap_kind in the catalog ────────────────────────────────────────────
 
-def test_catalog_cap_kind_stick_minted_diploid():
+def test_catalog_cap_kind_plasmid_nuclear_diploid():
     one = _one()
     with tempfile.TemporaryDirectory() as tmp:
         path = _save_mixed(tmp, one)
         cat = G.genome_catalog(str(path))
         by_label = {c["label"]: c["cap_kind"] for c in cat["chromosomes"]}
-        assert by_label == {"stk": "stick", "min": "minted", "dip": "diploid"}, by_label
+        assert by_label == {"stk": "plasmid", "min": "nuclear", "dip": "diploid"}, by_label
 
 
 def test_catalog_cap_kind_native_equals_pure():
@@ -87,7 +88,7 @@ def test_catalog_cap_kind_native_equals_pure():
         pure = G._catalog_data(str(path), the_one=one)
         nk = {c["label"]: c["cap_kind"] for c in native["chromosomes"]}
         pk = {c["label"]: c["cap_kind"] for c in pure["chromosomes"]}
-        assert nk == pk == {"stk": "stick", "min": "minted", "dip": "diploid"}
+        assert nk == pk == {"stk": "plasmid", "min": "nuclear", "dip": "diploid"}
 
 
 def test_v12_head_only_manifest_has_no_cap_kind_on_disk():
@@ -111,35 +112,35 @@ def test_census_mixed_nucleus():
         path = _save_mixed(tmp, one)
         cen = G.genome_census(str(path))
         assert cen["n_chromosomes"] == 3
-        assert cen["types"] == {"stick": 1, "minted": 1, "diploid": 1}
+        assert cen["types"] == {"plasmid": 1, "nuclear": 1, "diploid": 1}
         assert cen["total_leaves"] == 3 + 9 + 2
         assert cen["topology"] == "nuclear-like"
         assert cen["path"] == str(path)
         kinds = {c["label"]: c["type"] for c in cen["chromosomes"]}
-        assert kinds == {"stk": "stick", "min": "minted", "dip": "diploid"}
+        assert kinds == {"stk": "plasmid", "min": "nuclear", "dip": "diploid"}
 
 
-def test_census_organelle_is_small_all_stick():
+def test_census_organelle_is_small_all_plasmid():
     one = _one()
     with tempfile.TemporaryDirectory() as tmp:
         path = _save_organelle(tmp, one)
         cen = G.genome_census(str(path))
-        assert cen["types"] == {"stick": 2, "minted": 0, "diploid": 0}
+        assert cen["types"] == {"plasmid": 2, "nuclear": 0, "diploid": 0}
         assert cen["topology"] == "organelle-like"       # total_leaves 5 <= 8*2
 
 
 def test_census_plasmid_prokaryote_like():
-    """A LARGE all-stick genome (many leaves per chromosome, > 8*n) is not
+    """A LARGE all-plasmid genome (many leaves per chromosome, > 8*n) is not
     organelle-scale → plasmid/prokaryote-like."""
     one = _one()
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "prok.genome"
-        # 1 stick chromosome with 20 leaves: 20 > 8*1 → not organelle-scale.
+        # 1 plasmid chromosome with 20 leaves: 20 > 8*1 → not organelle-scale.
         strand = [G._pack_cap(G.CHROM_CAP_MARKER, "big", _DIM)] + \
                  [G.quad_turn(_leaf(i), one) for i in range(20)]
         G.genome_save(strand, str(path), one)
         cen = G.genome_census(str(path))
-        assert cen["types"] == {"stick": 1, "minted": 0, "diploid": 0}
+        assert cen["types"] == {"plasmid": 1, "nuclear": 0, "diploid": 0}
         assert cen["topology"] == "plasmid/prokaryote-like"
 
 

@@ -49,6 +49,19 @@ _EXEMPT_MODULE_PREFIXES = (
 # Specific functions that exist for backwards compatibility, profile-loader
 # wiring, or as helpers that wrap a primary entry already registered.
 _EXEMPT_FUNCTION_NAMES = frozenset({
+    # genome.set_type_aliases / clear_type_aliases / load_type_aliases_toml
+    # (v0.9.0rc271 / §96 / F1251) — the VALUE-ALIAS presentation layer: install /
+    # clear / load-from-TOML a canonical->preferred cap_kind display mapping (e.g.
+    # restore the pre-rc271 stick/minted names over the canonical plasmid/nuclear
+    # output). Pure Python session-state config / presentation helpers, NOT
+    # user-facing engine ToolEntries — a bare-C host emits only the canonical output
+    # and never re-presents it. Exempt exactly like the descriptor.load_descriptor /
+    # format.validate_mpr_record loader/config helpers below; mirrors rc261's
+    # srmech.dsl function-alias binder (rosetta-classified, off the MCP tool surface).
+    # Classified dev_tooling / composes_c in rosetta_classification.ndjson.
+    "srmech.amsc.genome.set_type_aliases",
+    "srmech.amsc.genome.clear_type_aliases",
+    "srmech.amsc.genome.load_type_aliases_toml",
     # catalog.* — additional helpers that compose `list_attested_sources`,
     # `get_attested_dataset`, `register_attested_root` (already registered).
     "srmech.amsc.catalog.list_registered_roots",

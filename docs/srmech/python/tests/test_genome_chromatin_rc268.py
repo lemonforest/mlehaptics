@@ -218,9 +218,9 @@ def test_marks_survive_genome_save_and_reload(tmp_path):
     leaf_dim = len(list(one))
     reloaded = _reload_strand(tmp_path, leaf_dim)
     assert G.chromatin_of(reloaded, one) == G.chromatin_of(chrom, one)
-    # census is unaffected — a chromatin cap is orthogonal to stick/minted/diploid
+    # census is unaffected — a chromatin cap is orthogonal to plasmid/nuclear/diploid
     cen = G.genome_census(tmp_path, the_one=one)
-    assert cen["types"] == {"stick": 0, "minted": 1, "diploid": 0}
+    assert cen["types"] == {"plasmid": 0, "nuclear": 1, "diploid": 0}
     assert cen["total_leaves"] == 12                                     # leaf-count unbroken
 
 
@@ -260,7 +260,7 @@ def test_chromatin_free_genome_round_trips_unchanged(tmp_path):
     data = G.genome_save(chrom, tmp_path, one)
     assert data["format_version"] == 15                                  # v15 writer
     cat = G.genome_catalog(tmp_path, the_one=one)
-    assert cat["chromosomes"][0]["cap_kind"] == "minted"                 # census unbroken
+    assert cat["chromosomes"][0]["cap_kind"] == "nuclear"                # census unbroken
     assert cat["chromosomes"][0]["leaf_count"] == 12
     reloaded = _reload_strand(tmp_path, len(list(one)))
     assert G.chromatin_of(reloaded, one) is None

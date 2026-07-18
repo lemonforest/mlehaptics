@@ -229,7 +229,7 @@ typedef struct {
                                                      * digest (v4 regions[] +
                                                      * the body_sha256 chain) */
     unsigned char *cap_kind;                        /* [cap_chroms] §96 cap-kind CODE
-                                                     * (0 stick / 1 minted / 2 diploid),
+                                                     * (0 plasmid / 1 nuclear / 2 diploid),
                                                      * mapped to a string in
                                                      * genome_build_chrom */
     uint32_t cap_chroms;                            /* arena-allocated capacity */
@@ -381,28 +381,30 @@ static srmech_json_value_t *genome_build_the_one(srmech_json_builder_t *b,
 
 /* §96 cap-kind CODES — the per-chromosome classification the body scan derives
  * (byte-identical to genome.py). A chromosome opening with the §95b diploid
- * telomere is provisionally DIPLOID (else STICK); an interior §95a centromere
- * OVERWRITES it to MINTED (minted > diploid > stick — the R-RBS-LM reference's
- * centromere-first classify; a diploid PAIR carries a centromere, so it reads as
- * minted). Single-line #defines (JPL Rule 8). */
-#define SRMECH_GENOME_CAP_KIND_STICK   0u
-#define SRMECH_GENOME_CAP_KIND_MINTED  1u
-#define SRMECH_GENOME_CAP_KIND_DIPLOID 2u
+ * telomere is provisionally DIPLOID (else PLASMID); an interior §95a centromere
+ * OVERWRITES it to NUCLEAR (nuclear > diploid > plasmid — the R-RBS-LM
+ * reference's centromere-first classify; a diploid PAIR carries a centromere, so
+ * it reads as nuclear). rc271 (F1251): the field's own names — the ACCESSORY /
+ * plasmid genome is "plasmid" (was "stick"), the CORE / clonal genome is
+ * "nuclear" (was "minted"). Single-line #defines (JPL Rule 8). */
+#define SRMECH_GENOME_CAP_KIND_PLASMID  0u
+#define SRMECH_GENOME_CAP_KIND_NUCLEAR  1u
+#define SRMECH_GENOME_CAP_KIND_DIPLOID  2u
 
 /* Map a §96 cap-kind CODE to its canonical string (== the genome.py cap_kind
- * literals). An unknown code degrades to "stick" (the safe default). */
+ * literals). An unknown code degrades to "plasmid" (the safe default). */
 static const char *genome_cap_kind_str(unsigned char code)
 {
     assert(code <= SRMECH_GENOME_CAP_KIND_DIPLOID);
-    assert(SRMECH_GENOME_CAP_KIND_STICK == 0u);
-    if (code == SRMECH_GENOME_CAP_KIND_MINTED) { return "minted"; }
+    assert(SRMECH_GENOME_CAP_KIND_PLASMID == 0u);
+    if (code == SRMECH_GENOME_CAP_KIND_NUCLEAR) { return "nuclear"; }
     if (code == SRMECH_GENOME_CAP_KIND_DIPLOID) { return "diploid"; }
-    return "stick";
+    return "plasmid";
 }
 
 /* Build one chromosome entry object (6 keys) from the scanned strings (§44 —
  * label + leaf_count come from the inline-cap body scan, not a caller layout;
- * §96 — cap_kind is the derived stick/minted/diploid classification). */
+ * §96 — cap_kind is the derived plasmid/nuclear/diploid classification). */
 static srmech_json_value_t *genome_build_chrom(srmech_json_builder_t *b,
                                                const genome_strings_t *s,
                                                uint32_t idx)
@@ -937,7 +939,7 @@ static srmech_status_t genome_mint_orientation(const unsigned char *content,
 }
 
 /* §95a/v13 — bind turns[from:to] through the_one into `out` starting at block *oi (advancing
- * it). The reversible Klein-4 XOR that is quad_turn; shared by the minted-chromosome arms. */
+ * it). The reversible Klein-4 XOR that is quad_turn; shared by the nuclear-chromosome arms. */
 static srmech_status_t genome_bind_turns(const unsigned char *kleaves,
                                          size_t from, size_t to,
                                          const unsigned char *the_one,
@@ -957,8 +959,8 @@ static srmech_status_t genome_bind_turns(const unsigned char *kleaves,
 }
 
 /* §95a/v13 — build ONE chromosome, the tooling PICKING its shape by the attested encode_shape
- * (mirror the Python mint()'s per-kernel branch): depth < 2 (tome/mobius) → a Tier-1 STICK
- * (byte-identical to srmech_genome_chromosome); depth >= 2 (quad_strand) → a Tier-2 MINTED
+ * (mirror the Python mint()'s per-kernel branch): depth < 2 (tome/mobius) → a Tier-1 PLASMID
+ * (byte-identical to srmech_genome_chromosome); depth >= 2 (quad_strand) → a Tier-2 NUCLEAR
  * chromosome [telomere] + short-arm + [centromere] + long-arm, metacentric split, orientation =
  * content-address of the raw leaves. Writes *blocks_out blocks. No malloc/goto/abs/float. */
 static srmech_status_t genome_mint_chromosome(const unsigned char *label,
@@ -976,14 +978,14 @@ static srmech_status_t genome_mint_chromosome(const unsigned char *label,
     uint64_t n = (kn == 0u ? 1u : (uint64_t)kn) * (uint64_t)SRMECH_GENOME_LEAF_CAP;
     srmech_status_t st = srmech_genome_encode_shape(n, &leaves_sh, &depth);
     if (st != SRMECH_OK) { return st; }
-    if (depth < 2u) {                                    /* tome/mobius → Tier-1 stick */
+    if (depth < 2u) {                                    /* tome/mobius → Tier-1 plasmid */
         st = srmech_genome_chromosome(label, label_len, the_one, leaf_dim,
                                       kleaves, kn, out, out_cap);
         if (st != SRMECH_OK) { return st; }
         *blocks_out = kn + 1u;
         return SRMECH_OK;
     }
-    /* quad_strand → Tier-2 minted: [telomere] + short-arm + [centromere] + long-arm. */
+    /* quad_strand → Tier-2 nuclear: [telomere] + short-arm + [centromere] + long-arm. */
     size_t total = kn + 2u;                              /* telomere + kn turns + centromere */
     if (total > out_cap / (size_t)leaf_dim) { return SRMECH_ERR_OVERFLOW; }
     unsigned char o = 0u;
@@ -1009,7 +1011,7 @@ static srmech_status_t genome_mint_chromosome(const unsigned char *label,
 
 /* §95a/v13 MINT — build a genome, the tooling PICKING each chromosome's shape (mirror
  * srmech.amsc.genome.mint / #1407). Same shape as srmech_genome_genome; genome_mint_chromosome
- * does the per-kernel stick-vs-centromere selection. BYTE-IDENTICAL to the Python mint(). */
+ * does the per-kernel plasmid-vs-centromere selection. BYTE-IDENTICAL to the Python mint(). */
 srmech_status_t srmech_genome_mint(const unsigned char *labels,
                                    const size_t *label_lens,
                                    const unsigned char *the_one,
@@ -1044,7 +1046,7 @@ srmech_status_t srmech_genome_mint(const unsigned char *labels,
     return SRMECH_OK;
 }
 
-/* §95a/v13 CENTROMERE READ — recover a minted chromosome's orientation + p:q arm-ratio (mirror
+/* §95a/v13 CENTROMERE READ — recover a nuclear chromosome's orientation + p:q arm-ratio (mirror
  * srmech.amsc.genome.centromere_of). p = data turns before the 0x58 cap, q = after. */
 srmech_status_t srmech_genome_centromere_of(const unsigned char *strand,
                                             size_t n_blocks, uint32_t leaf_dim,
@@ -1489,14 +1491,14 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
             s->byte_offset[cur] = (uint32_t)off;
             s->byte_len[cur] = 0u;                /* accumulated below */
             s->leaf_count[cur] = 0u;
-            /* §96: cap-kind PROVISIONAL on the opener (0x44 diploid else stick) —
-             * an interior centromere below overwrites it to minted. */
+            /* §96: cap-kind PROVISIONAL on the opener (0x44 diploid else plasmid) —
+             * an interior centromere below overwrites it to nuclear. */
             s->cap_kind[cur] = (body[off] == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER)
-                ? SRMECH_GENOME_CAP_KIND_DIPLOID : SRMECH_GENOME_CAP_KIND_STICK;
+                ? SRMECH_GENOME_CAP_KIND_DIPLOID : SRMECH_GENOME_CAP_KIND_PLASMID;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
             if (body[off] == SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
-                s->cap_kind[cur] = SRMECH_GENOME_CAP_KIND_MINTED;  /* §96 minted wins */
+                s->cap_kind[cur] = SRMECH_GENOME_CAP_KIND_NUCLEAR;  /* §96 nuclear wins */
             }
             /* §60/§128/§130/§131/§132: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
              * threshold 0x77 / graded 0x64) or a v5 KERNEL HEADER (0x4B) is not a data turn. The
@@ -2972,15 +2974,15 @@ static srmech_status_t genome_load_strings(
 }
 
 /* §96 topology — the structural nuclear/organelle/plasmid read, INTEGER-only
- * (no libm), byte-identical to genome.py: any minted/diploid → nuclear-like;
- * else small all-stick (total_leaves <= 8*n) → organelle-like; else n>0 →
+ * (no libm), byte-identical to genome.py: any nuclear/diploid → nuclear-like;
+ * else small all-plasmid (total_leaves <= 8*n) → organelle-like; else n>0 →
  * plasmid/prokaryote-like; else empty. */
-static const char *genome_census_topology(uint32_t minted, uint32_t diploid,
+static const char *genome_census_topology(uint32_t nuclear, uint32_t diploid,
                                           uint64_t total_leaves, uint32_t n_chrom)
 {
     assert(n_chrom != 0xFFFFFFFFu);
-    assert(minted <= n_chrom && diploid <= n_chrom);
-    if (minted > 0u || diploid > 0u) { return "nuclear-like"; }
+    assert(nuclear <= n_chrom && diploid <= n_chrom);
+    if (nuclear > 0u || diploid > 0u) { return "nuclear-like"; }
     if (n_chrom > 0u && total_leaves <= (uint64_t)8u * (uint64_t)n_chrom) {
         return "organelle-like";
     }
@@ -3005,14 +3007,14 @@ static srmech_json_value_t *genome_build_census_chrom(
     return srmech_json_new_object(b, keys, vals, 3u);
 }
 
-/* Build the types roll-up object {stick, minted, diploid} from the code counts
- * (cnt indexed by the §96 cap-kind code: 0 stick / 1 minted / 2 diploid). */
+/* Build the types roll-up object {plasmid, nuclear, diploid} from the code counts
+ * (cnt indexed by the §96 cap-kind code: 0 plasmid / 1 nuclear / 2 diploid). */
 static srmech_json_value_t *genome_build_types(srmech_json_builder_t *b,
                                                const uint32_t cnt[3])
 {
     assert(b != NULL && cnt != NULL);
-    assert(SRMECH_GENOME_CAP_KIND_MINTED == 1u);
-    const char *keys[3] = { "stick", "minted", "diploid" };
+    assert(SRMECH_GENOME_CAP_KIND_NUCLEAR == 1u);
+    const char *keys[3] = { "plasmid", "nuclear", "diploid" };
     srmech_json_value_t *vals[3];
     vals[0] = srmech_json_new_int(b, (int64_t)cnt[0]);
     vals[1] = srmech_json_new_int(b, (int64_t)cnt[1]);

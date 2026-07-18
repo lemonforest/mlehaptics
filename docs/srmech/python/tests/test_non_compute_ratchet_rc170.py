@@ -226,11 +226,19 @@ _EXPECTED_SPLIT = {
     # genome.genome_registry (the per-genome roll-up + cell census; each composes
     # over the C genome_catalog / srmech_genome_census / srmech_genome_registry).
     # composes_c 125 -> 127; total 195 -> 197.
-    "composes_c": 127,
+    # rc271 (§96 / F1251): the VALUE-ALIAS presentation layer (the plasmid/nuclear
+    # field-vocabulary rename's opt-in-old-names companion). +1 composes_c —
+    # genome.load_type_aliases_toml (parses [genome.type_aliases] via the C
+    # srmech_toml, the rc261 load_aliases_toml precedent). composes_c 127 -> 128.
+    # +2 dev_tooling — genome.set_type_aliases / clear_type_aliases (pure Python
+    # session-state presentation setters; a bare-C host never re-presents the C's
+    # canonical plasmid/nuclear output, the rc261 dsl.alias precedent).
+    # dev_tooling 49 -> 51; total 197 -> 200.
+    "composes_c": 128,
     "host_glue": 21,
-    "dev_tooling": 49,
+    "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 197
+_TOTAL_NON_COMPUTE = 200
 
 
 def _rows():

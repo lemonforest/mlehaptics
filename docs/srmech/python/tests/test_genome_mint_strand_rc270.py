@@ -1,16 +1,16 @@
 """v0.9.0rc270 (§100 GAP 1 / PR#687 F1249) — genome.mint_strand.
 
 MINT an ALREADY-PACKED strand: splice a §95a interior CENTROMERE (0x58) at the p:q
-arm-split, turning a Tier-1 STICK into a Tier-2 MINTED chromosome — WITHOUT re-minting
+arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome — WITHOUT re-minting
 it from leaves. The capability §100 GAP 1 named as missing: the corpus directed-graph
 store (graph_to_kernel) returns an HV-strand, and chromosome(strand, centromere=…)
 REJECTS it (it treats the packed strand as raw leaves and quad_turn binds the 256-sector
 telomere cap -> "klein-4 elements must be in {0,1,2,3}"), and there was no centromere=
 hook on graph_to_kernel — so a directed-graph chromosome could not be given a p:q
-centromere (simplewiki_directed.genome censused {stick:2, minted:0}).
+centromere (simplewiki_directed.genome censused {plasmid:2, nuclear:0}).
 
 Proven here: the rejection cause mint_strand exists to fix; a minted graph strand carries
-a 0x58 centromere with a readable p:q orientation and censuses as 'minted'; kernel_to_graph
+a 0x58 centromere with a readable p:q orientation and censuses as 'nuclear'; kernel_to_graph
 stays BYTE-EXACT across minting (the centromere is an interior cap recall/kernel_unpack
 skip) on a mixed directed/signed/labeled/extras graph; the metacentric default arm-ratio
 ((4,5), (15,15)) + custom centromere_at/orientation; generality over kernel_pack + plain
@@ -83,16 +83,16 @@ def test_mint_graph_strand_carries_centromere():
         1 for hv in strand if G._cap_kind(hv) is None)     # position IS the arm-ratio
 
 
-def test_mint_graph_strand_censuses_minted(tmp_path):
+def test_mint_graph_strand_censuses_nuclear(tmp_path):
     one = _one()
     strand, _n = _graph_strand(one)
     minted = G.mint_strand(strand, one)
     d = tmp_path / "wiki.genome"
     G.genome_save(minted, d, one)
     census = G.genome_census(str(d), the_one=one)
-    assert census["types"]["minted"] == 1 and census["types"]["stick"] == 0
+    assert census["types"]["nuclear"] == 1 and census["types"]["plasmid"] == 0
     assert census["n_chromosomes"] == 1
-    assert census["topology"] == "nuclear-like"             # a minted genome is a nucleus
+    assert census["topology"] == "nuclear-like"             # a nuclear genome is a nucleus
 
 
 # ── 2. kernel_to_graph BYTE-EXACT across minting (the hard requirement) ──────

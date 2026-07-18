@@ -761,7 +761,7 @@ int main(void)
     }
 
     /* §96/rc267: per-chromosome cap_kind in the catalog + genome_census +
-     * genome_registry. A mixed genome: stick 'S' (cap + turn), minted 'M' (cap +
+     * genome_registry. A mixed genome: plasmid 'S' (cap + turn), nuclear 'M' (cap +
      * turn + interior centromere + turn), diploid 'D' (diploid-telomere cap +
      * turn). leaf_dim=4, so labels <= 3 bytes; 8 blocks * 4 = 32 bytes. */
     {
@@ -781,9 +781,9 @@ int main(void)
         ensure_dir(cdir);
         st = srmech_genome_save(cdir, cbody, sizeof(cbody), leaf_dim,
                                 the_one, sizeof(the_one), g_ws, sizeof(g_ws));
-        check_true(st == SRMECH_OK, "save mixed stick+minted+diploid genome");
+        check_true(st == SRMECH_OK, "save mixed plasmid+nuclear+diploid genome");
 
-        /* CATALOG carries §96 cap_kind per chromosome (stick / minted / diploid). */
+        /* CATALOG carries §96 cap_kind per chromosome (plasmid / nuclear / diploid). */
         {
             srmech_json_value_t *man = NULL;
             st = srmech_genome_catalog(cdir, NULL, 0u, g_ws, sizeof(g_ws), &man);
@@ -801,12 +801,12 @@ int main(void)
                 const srmech_json_value_t *k2 =
                     srmech_json_object_get(chr->u.arr.items[2], "cap_kind");
                 check_true(k0 != NULL && k0->type == SRMECH_JSON_STRING &&
-                           k0->u.str.len == 5u &&
-                           memcmp(k0->u.str.ptr, "stick", 5) == 0,
-                           "chrom S cap_kind == stick");
-                check_true(k1 != NULL && k1->u.str.len == 6u &&
-                           memcmp(k1->u.str.ptr, "minted", 6) == 0,
-                           "chrom M cap_kind == minted (interior centromere)");
+                           k0->u.str.len == 7u &&
+                           memcmp(k0->u.str.ptr, "plasmid", 7) == 0,
+                           "chrom S cap_kind == plasmid");
+                check_true(k1 != NULL && k1->u.str.len == 7u &&
+                           memcmp(k1->u.str.ptr, "nuclear", 7) == 0,
+                           "chrom M cap_kind == nuclear (interior centromere)");
                 check_true(k2 != NULL && k2->u.str.len == 7u &&
                            memcmp(k2->u.str.ptr, "diploid", 7) == 0,
                            "chrom D cap_kind == diploid (0x44 opener)");
@@ -824,13 +824,13 @@ int main(void)
             const srmech_json_value_t *types =
                 (cen != NULL) ? srmech_json_object_get(cen, "types") : NULL;
             const srmech_json_value_t *ts =
-                (types != NULL) ? srmech_json_object_get(types, "stick") : NULL;
+                (types != NULL) ? srmech_json_object_get(types, "plasmid") : NULL;
             const srmech_json_value_t *tm =
-                (types != NULL) ? srmech_json_object_get(types, "minted") : NULL;
+                (types != NULL) ? srmech_json_object_get(types, "nuclear") : NULL;
             const srmech_json_value_t *td =
                 (types != NULL) ? srmech_json_object_get(types, "diploid") : NULL;
             check_true(ts != NULL && ts->u.i == 1 && tm != NULL && tm->u.i == 1 &&
-                       td != NULL && td->u.i == 1, "census types {stick,minted,diploid}=1,1,1");
+                       td != NULL && td->u.i == 1, "census types {plasmid,nuclear,diploid}=1,1,1");
             const srmech_json_value_t *tl =
                 (cen != NULL) ? srmech_json_object_get(cen, "total_leaves") : NULL;
             check_true(tl != NULL && tl->u.i == 4, "census total_leaves == 4");
@@ -842,7 +842,7 @@ int main(void)
                        "census topology == nuclear-like");
         }
 
-        /* CENSUS of a small all-stick genome -> organelle-like. */
+        /* CENSUS of a small all-plasmid genome -> organelle-like. */
         {
             unsigned char pbody[16] = {
                 CC, (unsigned char)'a', 0u, 0u,  0u, 1u, 2u, 3u,
@@ -853,14 +853,14 @@ int main(void)
             ensure_dir(pdir);
             st = srmech_genome_save(pdir, pbody, sizeof(pbody), leaf_dim,
                                     the_one, sizeof(the_one), g_ws, sizeof(g_ws));
-            check_true(st == SRMECH_OK, "save small all-stick (organelle) genome");
+            check_true(st == SRMECH_OK, "save small all-plasmid (organelle) genome");
             srmech_json_value_t *cen = NULL;
             st = srmech_genome_census(pdir, NULL, 0u, g_ws, sizeof(g_ws), &cen);
             const srmech_json_value_t *topo =
                 (st == SRMECH_OK) ? srmech_json_object_get(cen, "topology") : NULL;
             check_true(topo != NULL && topo->u.str.len == 14u &&
                        memcmp(topo->u.str.ptr, "organelle-like", 14) == 0,
-                       "small all-stick census -> organelle-like");
+                       "small all-plasmid census -> organelle-like");
         }
 
         /* REGISTRY: a root of 2 genome dirs (+ a non-genome dir, ignored). */
@@ -1051,7 +1051,7 @@ int main(void)
      * centromere (0x58) into an ALREADY-PACKED strand — a PURE composition over the
      * srmech_genome_centromere cap-writer + a strand splice (NO new C symbol). The
      * C-host story proven here: encode a directed graph, lay its Klein-4 syms across
-     * content leaves, SPLICE a real centromere cap between them, save -> census MINTED,
+     * content leaves, SPLICE a real centromere cap between them, save -> census NUCLEAR,
      * and recover the graph BYTE-EXACT after the splice (recall skips the cap). */
     {
         const uint32_t ldg = 32u;                     /* the C genome the_one caps at 32 bytes */
@@ -1107,7 +1107,7 @@ int main(void)
         }
         size_t n_blocks = blk;                        /* split = n_leaves/2 < n_leaves */
 
-        /* SAVE -> CENSUS: the graph chromosome now reads MINTED (interior 0x58). */
+        /* SAVE -> CENSUS: the graph chromosome now reads NUCLEAR (interior 0x58). */
         unsigned char one_g[32];
         for (uint32_t i = 0u; i < 32u; i++) { one_g[i] = (unsigned char)(i & 3u); }
         const char *tbg = getenv("TMPDIR");
@@ -1126,11 +1126,11 @@ int main(void)
                 (st == SRMECH_OK && cen != NULL)
                     ? srmech_json_object_get(cen, "types") : NULL;
             const srmech_json_value_t *tm =
-                (types != NULL) ? srmech_json_object_get(types, "minted") : NULL;
+                (types != NULL) ? srmech_json_object_get(types, "nuclear") : NULL;
             const srmech_json_value_t *ts =
-                (types != NULL) ? srmech_json_object_get(types, "stick") : NULL;
+                (types != NULL) ? srmech_json_object_get(types, "plasmid") : NULL;
             check_true(tm != NULL && tm->u.i == 1 && ts != NULL && ts->u.i == 0,
-                       "rc270: minted graph chromosome censuses as minted");
+                       "rc270: minted graph chromosome censuses as nuclear");
         }
 
         /* RECOVER: skip every cap (recall), concatenate the content leaves, take the

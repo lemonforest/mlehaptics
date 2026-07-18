@@ -978,6 +978,14 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     # name-binding (bind a user's name to a srmech.* fn); a bare-C host never aliases
     # Python functions, so it is a justified dev/LLM affordance (ADR-0004).
     "srmech.dsl._alias.alias",
+    # rc271 (§96 / F1251): the value-alias PRESENTATION setters — install / clear a
+    # canonical→preferred cap_kind display mapping (e.g. restore the pre-rc271
+    # stick/minted names). Pure Python session-state; a bare-C host emits only the
+    # canonical plasmid/nuclear output and never re-presents it, so these are a
+    # justified dev affordance (the dsl.alias precedent). load_type_aliases_toml is
+    # composes_c (it parses the TOML via the C srmech_toml), not dev_tooling.
+    "srmech.amsc.genome.set_type_aliases",
+    "srmech.amsc.genome.clear_type_aliases",
     # rc183 HOST-GLUE annex (srmech.llm) — 3 LLM-agent affordances a bare-C host
     # never needs. HONEST-DEFAULT: classified dev_tooling pending a user decision
     # on whether to build a C Anthropic agent (a separate C-HTTPS/TLS Messages-API

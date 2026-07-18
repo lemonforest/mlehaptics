@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc270"
-#define SRMECH_VERSION       "0.9.0rc270"
+#define SRMECH_VERSION_PRE   "rc271"
+#define SRMECH_VERSION       "0.9.0rc271"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5269,7 +5269,7 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
 #define SRMECH_GENOME_GRADED_WEIGHT_BYTES 8u
 
 /* §95a/v13 CENTROMERE marker (rc262, #1407 / F1243) — the FIRST byte of a fixed-width
- * leaf_dim-byte cap leaf that sits INTERIOR to a MINTED chromosome (between its two arms),
+ * leaf_dim-byte cap leaf that sits INTERIOR to a NUCLEAR chromosome (between its two arms),
  * NOT a chromosome-boundary cap. It carries the chromosome's GLOBAL 4-way orientation as an
  * α-satellite REPEAT-ARRAY. Layout: [0x58] + utf-8 handle + NUL + R (uint8) + R orientation
  * votes (each a byte in {0,1,2,3}) + NUL-pad to leaf_dim. The handle decode is UNIFORM (bytes
@@ -5482,18 +5482,18 @@ srmech_status_t srmech_genome_centromere(
 /* §95a/v13 MINT — build a genome letting the tooling PICK each chromosome's shape by modeling
  * biology (mirror srmech.amsc.genome.mint / #1407 / F1244). Same args + return as
  * srmech_genome_genome, but per kernel the ATTESTED encode_shape criterion decides: tome/mobius
- * (depth < 2, ≤ 4 leaves) → a Tier-1 STICK chromosome (no centromere, byte-identical to the
- * genome() chromosome); quad_strand (depth >= 2, ≥ 5 leaves) → a Tier-2 MINTED chromosome with
+ * (depth < 2, ≤ 4 leaves) → a Tier-1 PLASMID chromosome (no centromere, byte-identical to the
+ * genome() chromosome); quad_strand (depth >= 2, ≥ 5 leaves) → a Tier-2 NUCLEAR chromosome with
  * an INTERIOR centromere at the metacentric split carrying the kernel's global orientation
  * (sha256(raw leaves)[0] & 3). BYTE-IDENTICAL to the Python mint(). Same error returns as
- * srmech_genome_genome; out_cap >= (n_kernels + Σ leaf_counts + n_minted)*leaf_dim. */
+ * srmech_genome_genome; out_cap >= (n_kernels + Σ leaf_counts + n_nuclear)*leaf_dim. */
 srmech_status_t srmech_genome_mint(
     const unsigned char *labels, const size_t *label_lens,
     const unsigned char *the_one, uint32_t leaf_dim,
     const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out);
 
-/* §95a/v13 CENTROMERE READ (rc262) — recover a MINTED chromosome's global orientation +
+/* §95a/v13 CENTROMERE READ (rc262) — recover a NUCLEAR chromosome's global orientation +
  * arm-ratio (mirror srmech.amsc.genome.centromere_of). Walks the strand's n_blocks leaf_dim-byte
  * blocks, majority-decodes the orientation from the interior 0x58 cap's α-satellite votes
  * (klein4_triality_correct's 2-of-3 generalised to R — a Class-K sector count + argmax, no abs),
@@ -5682,13 +5682,14 @@ srmech_status_t srmech_genome_catalog(
 /* §96 CENSUS: the biology-native per-genome roll-up. Scans the body ONCE (the
  * per-chromosome cap_kind rides the §44 scan — no O(n) per-chromosome loads)
  * and returns a JSON value tree in the caller arena `ws`:
- *   {path, n_chromosomes, types:{stick,minted,diploid},
+ *   {path, n_chromosomes, types:{plasmid,nuclear,diploid},
  *    chromosomes:[{label,type,leaf_count}], total_leaves, topology}
- * `type`/`cap_kind` is stick / minted (an interior §95a centromere) / diploid (a
- * §95b diploid-telomere opener with no centromere; minted > diploid > stick).
- * `topology` is a STRUCTURAL integer read (no libm): "nuclear-like" (any minted /
- * diploid), else "organelle-like" (n>0 and total_leaves <= 8*n), else
- * "plasmid/prokaryote-like" (n>0, all stick), else "empty". Same manifest-present
+ * `type`/`cap_kind` is plasmid / nuclear (an interior §95a centromere) / diploid (a
+ * §95b diploid-telomere opener with no centromere; nuclear > diploid > plasmid).
+ * rc271 (F1251): the field's own names — plasmid (was "stick") / nuclear (was
+ * "minted"). `topology` is a STRUCTURAL integer read (no libm): "nuclear-like"
+ * (any nuclear / diploid), else "organelle-like" (n>0 and total_leaves <= 8*n),
+ * else "plasmid/prokaryote-like" (n>0, all plasmid), else "empty". Same manifest-present
  * / manifest-less rules as srmech_genome_catalog (pass the_one when absent).
  *
  * Error returns: SRMECH_ERR_NULL_ARG (dir/ws/out NULL); SRMECH_ERR_IO
