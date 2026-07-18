@@ -15,7 +15,7 @@ stays BYTE-EXACT across minting (the centromere is an interior cap recall/kernel
 skip) on a mixed directed/signed/labeled/extras graph; the metacentric default arm-ratio
 ((4,5), (15,15)) + custom centromere_at/orientation; generality over kernel_pack + plain
 chromosome strands; the error contract; backward-compat (an un-minted strand is unchanged);
-registration (tools.total == 446); and the 1:1 C<->Python byte-parity of the spliced cap
+registration (tools.total == 448); and the 1:1 C<->Python byte-parity of the spliced cap
 (gated on the native peer). numpy-free; no abs().
 """
 from __future__ import annotations
@@ -247,7 +247,7 @@ def test_mint_strand_registered_and_total_is_446():
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.amsc.genome.mint_strand" in names
-    assert len(names) == 446
+    assert len(names) == 448
     assert "mint_strand" in G.__all__
 
 
