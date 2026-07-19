@@ -326,7 +326,7 @@ _CHROMATIN_TYPE_NAMES = {CHROMATIN_TYPE_BINARY: "binary", CHROMATIN_TYPE_GRADED:
 #: big-endian). Mirrors ``SRMECH_GENOME_CHROMATIN_LEVEL_BYTES`` in the C header.
 _CHROMATIN_LEVEL_BYTES = 8
 
-#: §102/rc274 (§102/G1) — the CHROMATIN cap's ACCESS-GATE type, an additive uint8 field in the
+#: §98.1/rc274 (§98.1/G1) — the CHROMATIN cap's ACCESS-GATE type, an additive uint8 field in the
 #: cap's existing NUL padding RIGHT AFTER ``den`` (the same DUAL-READ discipline as the §129
 #: repressor / §135 copy-number: the pre-rc274 NUL padding reads back as ``NONE``). It makes the
 #: ``0x48`` access layer CELL-STATE-CONDITIONAL (facultative heterochromatin — the Barr body /
@@ -642,6 +642,17 @@ _GRADED_U64_MAX = (1 << 64) - 1
 #: operator behaviour selected by the operand: THE op⊗operand duality made testable.
 TELOMERE_DIVIDED = "divided"
 TELOMERE_SENESCENT = "senescent"
+
+#: §101 (rc275) — the progress/abort status a dict-returning encode op reports.
+#: ``"ok"`` = ran to completion; ``"cancelled"`` = a ``progress`` tick returned
+#: truthy → a CLEAN partial + honest-decline (mirror telomere_tick one scale up).
+GENOME_STATUS_OK = "ok"
+GENOME_STATUS_CANCELLED = "cancelled"
+
+#: §101 progress-event mirrors — shared by the pure + native (trampoline) tick
+#: paths so the emitted dict is byte-identical across them (the parity contract).
+_PROGRESS_STRUCT_SIZE = _native.PROGRESS_STRUCT_SIZE
+_PHASE_MINTING = _native.SRMECH_PHASE_MINTING
 
 #: Declared ``element_type`` enum for the §60 kernel header. ``0 = klein4`` (the
 #: genome-native 2-bit ``{0,1,2,3}`` symbol — siona's 8192-dim Klein-4 kernel). New
@@ -1871,7 +1882,7 @@ def _validate_chromatin_level(num, den):
 
 def _chromatin_state(state):
     """Normalise a :func:`condense` ``state`` argument to ``(chromatin_type, num, den,
-    access_gate_type, gate_fields)`` (§98; §102/G1 adds the facultative gate tail).
+    access_gate_type, gate_fields)`` (§98; §98.1/G1 adds the facultative gate tail).
 
     * ``True`` / ``"condensed"`` → BINARY, level ``(0, 1)`` (heterochromatin — silenced), gate NONE.
     * ``False`` / ``"open"`` → BINARY, level ``(1, 1)`` (euchromatin — accessible), gate NONE.
@@ -1879,7 +1890,7 @@ def _chromatin_state(state):
       Class-I gcd-reduce via :func:`_clamp_reduce_level` — a Class-K sign-branch, NEVER ``abs()``),
       gate NONE. The first three are CONSTITUTIVE (``access_gate_type == CHROMATIN_GATE_NONE``,
       ``gate_fields is None``): accessibility is the STATIC level, constant in cell_state.
-    * a ``dict`` → a FACULTATIVE (§102/G1) cell-state-conditional gate on the ``0x48`` cap (see
+    * a ``dict`` → a FACULTATIVE (§98.1/G1) cell-state-conditional gate on the ``0x48`` cap (see
       :func:`_chromatin_state_facultative`): ``{"activator": m, "repressor": m0, "open_level": …}``
       (KLEIN4) / ``{"dnf": [(act, rep), …], "open_level": …}`` (BOOLEAN) /
       ``{"weights": [w, …], "threshold": t, "open_level": …}`` (THRESHOLD). ``open_level`` (the
@@ -1894,17 +1905,17 @@ def _chromatin_state(state):
         _validate_chromatin_level(num, den)
         rn, rd = _clamp_reduce_level(num, den)   # §132 clamp[0,1] + gcd-reduce (Class-K/I, no abs)
         return CHROMATIN_TYPE_GRADED, rn, rd, CHROMATIN_GATE_NONE, None
-    if isinstance(state, dict):                  # §102/G1 FACULTATIVE — a cell-state-conditional gate
+    if isinstance(state, dict):                  # §98.1/G1 FACULTATIVE — a cell-state-conditional gate
         return _chromatin_state_facultative(state)
     raise ValueError(
         f"condense state must be True/'condensed' (silenced), False/'open' (accessible), a "
-        f"(num, den) graded level in [0, 1], or a §102/G1 facultative dict "
+        f"(num, den) graded level in [0, 1], or a §98.1/G1 facultative dict "
         f"({{'activator'/'repressor', ...}} / {{'dnf', ...}} / {{'weights'/'threshold', ...}}); "
         f"got {state!r}")
 
 
 def _chromatin_state_facultative(state):
-    """Parse a §102/G1 FACULTATIVE ``condense`` dict → ``(chromatin_type, num, den,
+    """Parse a §98.1/G1 FACULTATIVE ``condense`` dict → ``(chromatin_type, num, den,
     access_gate_type, gate_fields)``. The gate makes the ``0x48`` access layer cell-state-
     conditional (facultative heterochromatin — the Barr body / X-inactivation), reusing the
     §129/§130/§131 gene-gate wire forms ON the chromatin cap. ``open_level`` (default ``(1, 1)`` —
@@ -1935,7 +1946,7 @@ def _chromatin_state_facultative(state):
 
 
 def _chromatin_gate_blob(access_gate_type, gate_fields):
-    """Serialize a §102/G1 FACULTATIVE chromatin gate → ``[access_gate_type(u8)] + payload`` (the
+    """Serialize a §98.1/G1 FACULTATIVE chromatin gate → ``[access_gate_type(u8)] + payload`` (the
     wire tail appended after ``den`` in a chromatin cap), or ``b""`` for a constitutive
     (:data:`CHROMATIN_GATE_NONE`) cap. The payload MIRRORS the gene-gate fields but carries NO inner
     ``gate_type`` byte (``access_gate_type`` is already the discriminator):
@@ -1993,11 +2004,11 @@ def _pack_chromatin(chromatin_type, num, den, dim, *, handle="chr", gate_blob=b"
     """A fixed-width ``dim``-byte CHROMATIN cap leaf (§98) — the interior epigenetic ACCESS marker.
 
     ``[CHROMATIN_MARKER] + utf-8 handle + NUL + chromatin_type(uint8) + num(uint64 BE) +
-    den(uint64 BE) [+ §102/G1 access-gate tail]``, NUL-padded to ``dim``. The **op** (a cap: it
+    den(uint64 BE) [+ §98.1/G1 access-gate tail]``, NUL-padded to ``dim``. The **op** (a cap: it
     packages a region, like :func:`_pack_centromere`) and the **operand** (the accessibility LEVEL
     ``num/den`` in ``[0, 1]``) are FUSED in the ONE cap. Placing the type + num + den right AFTER the
     handle's NUL keeps the handle decode UNIFORM (bytes ``[1:]`` up to the first NUL —
-    :func:`_unpack_cap` reads it with no chromatin special-case). §102/G1: ``gate_blob`` (from
+    :func:`_unpack_cap` reads it with no chromatin special-case). §98.1/G1: ``gate_blob`` (from
     :func:`_chromatin_gate_blob`) is the OPTIONAL facultative access-gate tail appended after
     ``den``; ``b""`` (constitutive) makes the cap BYTE-IDENTICAL to a pre-rc274 v15 cap. The pure
     numpy-free parity oracle for the C peer ``srmech_genome_chromatin`` /
@@ -2015,7 +2026,7 @@ def _pack_chromatin(chromatin_type, num, den, dim, *, handle="chr", gate_blob=b"
                + bytes([chromatin_type & 0xFF])
                + int(num).to_bytes(_CHROMATIN_LEVEL_BYTES, "big")
                + int(den).to_bytes(_CHROMATIN_LEVEL_BYTES, "big")
-               + bytes(gate_blob))               # §102/G1 facultative gate (b"" == constitutive)
+               + bytes(gate_blob))               # §98.1/G1 facultative gate (b"" == constitutive)
     if len(payload) > dim:
         raise ValueError(
             f"chromatin handle {handle!r} + level"
@@ -2053,7 +2064,7 @@ def _chromatin_spec(hv):
 
 
 def _chromatin_gate_spec(hv):
-    """Decode the §102/G1 FACULTATIVE access gate carried after ``den`` in a chromatin cap →
+    """Decode the §98.1/G1 FACULTATIVE access gate carried after ``den`` in a chromatin cap →
     ``(access_gate_type, gate_fields)``, or ``(CHROMATIN_GATE_NONE, None)`` for a constitutive /
     pre-rc274 cap. The ``access_gate_type`` byte sits at ``den_end`` (right after the two level
     fields); a TIGHT leaf with no room for it (``den_end >= len(raw)``, the pad-byte default) reads
@@ -2115,7 +2126,7 @@ def _chromatin_gate_spec(hv):
 
 
 def _chromatin_access(hv, cell_state):
-    """The COMPUTED accessibility ``(num, den)`` of ONE chromatin cap under ``cell_state`` (§102/G1).
+    """The COMPUTED accessibility ``(num, den)`` of ONE chromatin cap under ``cell_state`` (§98.1/G1).
 
     CONSTITUTIVE (``access_gate_type == CHROMATIN_GATE_NONE``) → the STATIC stored ``(num, den)``
     (constant in ``cell_state`` — EXACTLY the pre-rc274 read). FACULTATIVE → the WHEN-OPEN
@@ -2144,7 +2155,7 @@ def _chromatin_cap(chromatin_type, num, den, dim, handle="chr", *,
     HAS_NATIVE (byte-identical bytes, wrapped in the same ``HV(sectors=256)``); the pure
     :func:`_pack_chromatin` is the numpy-free fallback + oracle. A CONSTITUTIVE
     (:data:`CHROMATIN_GATE_NONE`) cap routes through ``srmech_genome_chromatin`` UNCHANGED
-    (byte-identical to a pre-rc274 cap); a §102/G1 FACULTATIVE cap serializes its
+    (byte-identical to a pre-rc274 cap); a §98.1/G1 FACULTATIVE cap serializes its
     :func:`_chromatin_gate_blob` and routes through ``srmech_genome_chromatin_gated`` (which appends
     the blob verbatim)."""
     gate_blob = _chromatin_gate_blob(access_gate_type, gate_fields)
@@ -2206,7 +2217,7 @@ def condense(strand, *, the_one=None, state=True, region=None, handle="chr", lab
     binary heterochromatin (silenced, level ``0``); ``False`` / ``"open"`` → binary euchromatin
     (accessible, level ``1``); a ``(num, den)`` tuple → a GRADED accessibility level in ``[0, 1]``
     (partial access — composes multiplicatively with a graded gene, :func:`gene_express_levels`).
-    §102/G1: a ``dict`` state → a FACULTATIVE (cell-state-conditional) access gate — the Barr body /
+    §98.1/G1: a ``dict`` state → a FACULTATIVE (cell-state-conditional) access gate — the Barr body /
     X-inactivation analog. ``{"activator": m, "repressor": m0}`` (klein4), ``{"dnf": [(act, rep),
     …]}`` (boolean), or ``{"weights": [w, …], "threshold": t}`` (threshold), each with an optional
     ``"open_level"`` (the WHEN-OPEN accessibility, default ``(1, 1)``). The region is then accessible
@@ -2303,7 +2314,7 @@ def chromatin_of(strand, the_one=None):
 
 
 def accessible(strand, cell_state, *, the_one=None):
-    """The COMPUTED accessibility LEVEL ``(num, den)`` of a chromosome under ``cell_state`` (§102/G1).
+    """The COMPUTED accessibility LEVEL ``(num, den)`` of a chromosome under ``cell_state`` (§98.1/G1).
 
     The op⊗operand THEOREM at the CHROMATIN scale — the parallel of :func:`gene_express` one gate
     OUTWARD: the SAME genome under a DIFFERENT ``cell_state`` reads a DIFFERENT accessible level. It
@@ -2861,8 +2872,8 @@ def gene_express(strand, the_one, cell_state):
             # access gate is the OUTER gate over the §128-132 promoter (Class-K, no abs).
             cur_express = access_open and _gene_expresses(hv, cell_state)
             started = True
-        elif kind == CHROMATIN_MARKER:          # §98/§102 access marker — gate the stretch that follows
-            _an, _ad = _chromatin_access(hv, cell_state)   # §102/G1 cell-state-conditional access
+        elif kind == CHROMATIN_MARKER:          # §98/§98.1 access marker — gate the stretch that follows
+            _an, _ad = _chromatin_access(hv, cell_state)   # §98.1/G1 cell-state-conditional access
             access_open = _an > 0               # accessible iff the level numerator > 0 (Class-K)
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
                       KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
@@ -2948,8 +2959,8 @@ def gene_express_levels(strand, the_one, cell_state):
             # chromatin access level composes MULTIPLICATIVELY over the §132 graded promoter level).
             cur_level = _compose_levels(access, _gene_level(hv, cell_state))
             started = True
-        elif kind == CHROMATIN_MARKER:          # §98/§102 access marker — the stretch level that follows
-            access = _chromatin_access(hv, cell_state)     # §102/G1 cell-state-conditional access level
+        elif kind == CHROMATIN_MARKER:          # §98/§98.1 access marker — the stretch level that follows
+            access = _chromatin_access(hv, cell_state)     # §98.1/G1 cell-state-conditional access level
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
                       KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
             access = (1, 1)                     # a chromosome boundary resets access (euchromatin)
@@ -3957,7 +3968,7 @@ def mint_plan(kernels):
     return plan
 
 
-def genome(kernels=None, the_one=None, *, chromosomes=None):
+def genome(kernels=None, the_one=None, *, chromosomes=None, progress=None):
     """Build a genome — the BIOLOGY-AWARE UMBRELLA that lets the TOOLING pick each
     chromosome's SHAPE by modeling biology (rc260 rename, §95.2 / §95c / F1244 / #1407).
 
@@ -3994,15 +4005,22 @@ def genome(kernels=None, the_one=None, *, chromosomes=None):
     # below is the numpy-free oracle + the non-uniform-width fallback.
     per_kernel = [_leaf_blocks(list(leaves)) for _, leaves in items]
     if dim > 0 and all(len(b) == dim for kb in per_kernel for b in kb):
+        # §101: progress= (Python-only kwarg) threads the per-kernel MINTING tick into
+        # the srmech_genome_mint_progress C loop via the ctypes trampoline. On cancel
+        # genome_mint_c returns the VALID PARTIAL bytes (whole chromosomes so far).
         native = _native.genome_mint_c(
             [label for label, _ in items], _the_one_block_bytes(the_one),
             b"".join(b"".join(kb) for kb in per_kernel),
-            [len(kb) for kb in per_kernel], dim)
+            [len(kb) for kb in per_kernel], dim, progress=progress)
         if native is not None:
             return [_hv_from_block(native[i * dim:(i + 1) * dim])
                     for i in range(len(native) // dim)]
     strand = []
-    for label, leaves in items:
+    for i, (label, leaves) in enumerate(items):
+        if progress is not None and progress(
+                {"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_MINTING,
+                 "done": i, "total": len(items)}):
+            return strand              # §101 valid partial: i complete chromosomes
         leaves_list = list(leaves)
         _shape, _tier, mint_cen = _mint_shape(leaves_list)
         if mint_cen:
@@ -4013,15 +4031,19 @@ def genome(kernels=None, the_one=None, *, chromosomes=None):
     return strand
 
 
-def mint(kernels=None, the_one=None, *, chromosomes=None):
+def mint(kernels=None, the_one=None, *, chromosomes=None, progress=None):
     """Explicit alias for :func:`genome` — the biology-aware tooling-picks build (rc260 /
     §95c / #1407).
 
     :func:`genome` is the umbrella noun (the default smart constructor); ``mint`` is the
     explicit "structured build" name for the SAME tooling-picks behaviour (kept for the
     mint-vs-append vocabulary of F1243/§95c). :func:`plasmid` is the pure all-plasmid builder.
-    See the per-kernel picks with :func:`mint_plan`. Byte-identical to :func:`genome`."""
-    return genome(kernels, the_one, chromosomes=chromosomes)
+    See the per-kernel picks with :func:`mint_plan`. Byte-identical to :func:`genome`.
+
+    §101 ``progress`` (Python-only kwarg; forwarded to :func:`genome`): a per-kernel
+    heartbeat + graceful-abort — a truthy return CANCELS and returns the VALID PARTIAL
+    strand (the whole chromosomes minted so far)."""
+    return genome(kernels, the_one, chromosomes=chromosomes, progress=progress)
 
 
 def partition(strand, the_one, labels=None):
@@ -4587,7 +4609,7 @@ def kernel_to_graph(chroms, the_one, n_syms):
 
 
 def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
-                repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen"):
+                repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen", progress=None):
     """MINT an ALREADY-PACKED strand — splice a §95a interior CENTROMERE (``0x58``) into it
     at the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (§100 GAP 1 /
     PR#687 F1249).
@@ -4643,6 +4665,13 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
             "mint_strand: strand already carries an interior centromere (0x58) — it is already "
             "minted; re-minting would double the arm-split anchor"
         )
+    # §101: a single pre-op gate — a splice has no meaningful partial, so a truthy
+    # progress return DECLINES cleanly, returning the valid UNMODIFIED pre-mint strand
+    # (the recall decode below is the op's cost; the honest-decline avoids it).
+    if progress is not None and progress(
+            {"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_MINTING,
+             "done": 0, "total": 1}):
+        return strand
     dim = len(list(the_one))
     # §95a: POSITION is the p:q arm-ratio, measured in DATA TURNS (the non-cap leaves) — the SAME
     # units centromere_of reads back (p = data turns BEFORE the cap, q = data turns AFTER). The
@@ -4859,7 +4888,7 @@ def _reduce_pair(num, den):
 
 def genome_partition(n, edges, weights=None, charges=None, *,
                      work_dir=None, max_tome=256, n_bins=_PARTITION_DEFAULT_BINS,
-                     max_iters=250):
+                     max_iters=250, progress=None):
     """PARTITION a directed relational GRAPH into nuclear-core vs plasmid-periphery BY
     ITS OWN STRUCTURE — the §100 GAP 2 read (PR#687 / F1250 / F1251). Builds NOTHING (an
     introspectable read, like :func:`mint_plan` — "we watch it happen"); :func:`genome_from_graph`
@@ -4938,8 +4967,20 @@ def genome_partition(n, edges, weights=None, charges=None, *,
         raise ValueError(f"genome_partition: n_bins must be an int >= 2; got {n_bins!r}")
 
     # SCOPE — the full-graph out-of-core community assignment (never the dense structure).
+    # §101: progress= threads the PARTITIONING heartbeat into recursive_cut (the dominant
+    # cost). On cancel the community assignment is still valid → return a CLEAN partial.
     cut = recursive_cut(n, edge_list, weight_list, max_tome=max_tome,
-                        work_dir=work_dir, max_iters=max_iters)
+                        work_dir=work_dir, max_iters=max_iters, progress=progress)
+    if cut.get("status") == GENOME_STATUS_CANCELLED:
+        communities = [sorted(t) for t in cut["tomes"]]
+        return {
+            "n": n, "n_communities": len(communities), "bimodal": False,
+            "one_dna_type": None, "antimode": None, "participation": [],
+            "communities": communities, "groups": [],
+            "counts": {"nuclear": 0, "plasmid": 0},
+            "node_counts": {"nuclear": 0, "plasmid": 0},
+            "work_dir": cut["work_dir"], "status": GENOME_STATUS_CANCELLED,
+        }
     communities = [sorted(t) for t in cut["tomes"]]
     community = [0] * n
     for cid, tome in enumerate(cut["tomes"]):
@@ -5008,6 +5049,7 @@ def genome_partition(n, edges, weights=None, charges=None, *,
         "counts": counts_by_type,
         "node_counts": node_counts,
         "work_dir": cut["work_dir"],
+        "status": GENOME_STATUS_OK,
     }
 
 
@@ -5036,7 +5078,8 @@ def _induced_subgraph(nodes, edge_list, weight_list, charge_list):
 
 def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
                       path=None, leaf_dim=None, max_tome=256,
-                      n_bins=_PARTITION_DEFAULT_BINS, centromere_at=None):
+                      n_bins=_PARTITION_DEFAULT_BINS, centromere_at=None,
+                      progress=None):
     """BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN
     STRUCTURE — the §100 GAP 2 builder (PR#687 / F1250 / F1251). "Hand a graph, get
     nuclear + plasmid from its structure."
@@ -5090,12 +5133,30 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
 
     edge_list, weight_list, charge_list = _partition_validate_graph(
         n, edges, weights, charges)
+    # §101: progress= threads the heartbeat into the partition (PARTITIONING) AND the
+    # per-group mint loop below (MINTING). A cancelled partition short-circuits here.
     part = genome_partition(n, edge_list, weight_list, charge_list,
-                            max_tome=max_tome, n_bins=n_bins)
+                            max_tome=max_tome, n_bins=n_bins, progress=progress)
+    if part.get("status") == GENOME_STATUS_CANCELLED:
+        return {"strand": [], "chromosomes": [], "partition": part,
+                "counts": {"nuclear": 0, "plasmid": 0},
+                "status": GENOME_STATUS_CANCELLED}
 
     strand = []
     chromosomes = []
-    for gi, g in enumerate(part["groups"]):
+    groups = part["groups"]
+    for gi, g in enumerate(groups):
+        if progress is not None and progress(
+                {"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_MINTING,
+                 "done": gi, "total": len(groups)}):
+            # §101 CLEAN partial: whole chromosomes minted so far == a valid (shorter)
+            # genome strand. Do NOT genome_save on cancel — no half-written body on disk.
+            return {"strand": strand, "chromosomes": chromosomes, "partition": part,
+                    "counts": {"nuclear": sum(1 for c in chromosomes
+                                              if c["type"] == "nuclear"),
+                               "plasmid": sum(1 for c in chromosomes
+                                              if c["type"] == "plasmid")},
+                    "status": GENOME_STATUS_CANCELLED}
         nodes = g["nodes"]
         sub = _induced_subgraph(nodes, edge_list, weight_list, charge_list)
         # a UNIQUE, self-describing label per chromosome (type + community + slot).
@@ -5116,6 +5177,7 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
         "chromosomes": chromosomes,
         "partition": part,
         "counts": dict(part["counts"]),
+        "status": GENOME_STATUS_OK,
     }
     if path is not None and strand:
         genome_save(strand, path, the_one)
@@ -6785,9 +6847,9 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
       and is skipped. This is the siona community=chromosome layout: the per-chromosome
       head gate IS the community gate. Mixed E1/E2/E4/E3 gate-types across chromosomes are
       the delivered gates — the plan gates by the inline mask regardless of kind. **§98/rc269
-      chromatin OUTER gate (§102/rc274 cell-state-conditional):** if the head slot is a CHROMATIN
+      chromatin OUTER gate (§98.1/rc274 cell-state-conditional):** if the head slot is a CHROMATIN
       cap (``0x48``), its COMPUTED accessibility under ``cell_state`` (:func:`_chromatin_access` —
-      a constitutive cap is constant; a §102/G1 FACULTATIVE cap fires per cell_state) gates the
+      a constitutive cap is constant; a §98.1/G1 FACULTATIVE cap fires per cell_state) gates the
       whole region — a SILENCED (accessibility numerator ``0`` under this cell_state) region is
       SKIPPED at plan time having touched ONLY the chromatin cap (its gene gate cap is NEVER read —
       even fewer bytes than the §134 read; the cell-state gate rides IN the already-paged cap, so
@@ -6859,8 +6921,8 @@ def _plan_path_head_expresses(f, off, ln, leaf_dim, cell_state):
     head_block = f.read(leaf_dim)
     if len(head_block) < leaf_dim:
         return False
-    if head_block[0] == CHROMATIN_MARKER:       # §98/§102 HEAD chromatin cap — the OUTER access gate
-        _an, _ad = _chromatin_access(_hv_from_block(head_block), cell_state)  # §102/G1 conditional
+    if head_block[0] == CHROMATIN_MARKER:       # §98/§98.1 HEAD chromatin cap — the OUTER access gate
+        _an, _ad = _chromatin_access(_hv_from_block(head_block), cell_state)  # §98.1/G1 conditional
         access_open = _an > 0                   # accessible iff level numerator > 0 (Class-K, no abs)
         if not access_open:
             return False                        # heterochromatin → SKIP (gene gate NEVER read)
@@ -6894,8 +6956,8 @@ def _gene_express_plan_strand(strand, the_one, cell_state):
             _marker, lbl = _unpack_cap(hv)
             pending = (lbl, hv, pos, access_open)   # capture the access state at the gene's OPEN
             pos += leaf_dim
-        elif kind == CHROMATIN_MARKER:          # §98/§102 access marker — a leaf_dim cap; gates the stretch
-            _an, _ad = _chromatin_access(hv, cell_state)   # §102/G1 cell-state-conditional access
+        elif kind == CHROMATIN_MARKER:          # §98/§98.1 access marker — a leaf_dim cap; gates the stretch
+            _an, _ad = _chromatin_access(hv, cell_state)   # §98.1/G1 cell-state-conditional access
             access_open = _an > 0               # accessible iff the level numerator > 0 (Class-K)
             pos += leaf_dim
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,

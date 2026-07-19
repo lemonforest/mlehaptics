@@ -174,6 +174,11 @@ from .vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues
 
 from . import _native
 
+# §101 (rc275) progress-event mirrors — shared by the pure + native tick paths so
+# the emitted dict is byte-identical across them (the C↔Python parity contract).
+_PROGRESS_STRUCT_SIZE = _native.PROGRESS_STRUCT_SIZE
+_PHASE_PARTITIONING = _native.SRMECH_PHASE_PARTITIONING
+
 __all__ = [
     "dense_adjacency",
     "dense_laplacian",
@@ -5471,6 +5476,7 @@ def _fiedler_sparse_py(
     edge_list: List[Tuple[int, int]],
     w_list: List[float],
     max_iters: int,
+    progress=None,
 ) -> List[float]:
     """Pure-Python sparse normalized-cut Fiedler (the complete no-native path).
 
@@ -5508,6 +5514,12 @@ def _fiedler_sparse_py(
     prev_sign: Optional[Tuple[int, ...]] = None
     stable = 0
     for it in range(max_iters):
+        if progress is not None and progress(
+                {"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_PARTITIONING,
+                 "done": it + 1, "total": int(max_iters)}):
+            # §101 CLEAN cancel — the zeroed "no cut" vector, byte-parity with the C
+            # overload (which returns out_vec left as the zeroed init on cancel).
+            return [0.0] * n
         tmp = [s[j] * v[j] for j in range(n)]
         u = [v[i] + s[i] * sum(w * tmp[j] for j, w in nbr[i]) for i in range(n)]  # u = B v
         dot = sum(u[i] * p[i] for i in range(n))
@@ -5770,6 +5782,7 @@ def fiedler_sparse_file(
     graph_path: str,
     *,
     max_iters: int = 250,
+    progress=None,
 ) -> "Vec":
     """Out-of-core sparse normalized-cut Fiedler — the streaming peer of
     :func:`fiedler_sparse` that reads its adjacency from a packed edge FILE
@@ -5806,13 +5819,28 @@ def fiedler_sparse_file(
     """
     if n < 2:
         return Vec.from_sequence([0.0] * max(int(n), 0), is_complex=False)
-    if _native.has_native_fiedler_sparse_file():
-        vals = _fiedler_sparse_file_native(int(n), graph_path, int(max_iters))
+    if progress is None:
+        if _native.has_native_fiedler_sparse_file():
+            vals = _fiedler_sparse_file_native(int(n), graph_path, int(max_iters))
+            if vals is not None:
+                return Vec.from_sequence(vals, is_complex=False)
+        edge_list, w_list = _read_packed_graph(graph_path)
+        return Vec.from_sequence(
+            _fiedler_sparse_py(int(n), edge_list, w_list, int(max_iters)),
+            is_complex=False,
+        )
+    # §101 progress path: the native ENCODE-PROGRESS overload first (same tick
+    # sequence + byte-parity), else the pure power loop threaded with the tick. A
+    # truthy progress return cancels -> the zeroed "no cut" Vec (bare-return op;
+    # the caller owns the callback, so it knows it cancelled — libcurl semantics).
+    if _native.has_native_fiedler_sparse_file_progress():
+        vals = _native.fiedler_sparse_file_native_progress(
+            int(n), graph_path, int(max_iters), progress)
         if vals is not None:
             return Vec.from_sequence(vals, is_complex=False)
     edge_list, w_list = _read_packed_graph(graph_path)
     return Vec.from_sequence(
-        _fiedler_sparse_py(int(n), edge_list, w_list, int(max_iters)),
+        _fiedler_sparse_py(int(n), edge_list, w_list, int(max_iters), progress=progress),
         is_complex=False,
     )
 
@@ -5912,6 +5940,7 @@ def recursive_cut(
     work_dir: Optional[str] = None,
     max_iters: int = 250,
     max_depth: int = 64,
+    progress=None,
 ) -> Dict[str, object]:
     """Out-of-core recursive spectral partition into community **tomes** (§52 Part 2,
     F793) — the same recursion as bisecting with :func:`normalized_cut_bisect` and
@@ -5975,13 +6004,36 @@ def recursive_cut(
     tome_paths: List[str] = []
     serial = 1
     sub_path = os.path.join(work_dir, "sub.bin")
+    resolved = 0                                       # §101: Σ finalized-tome sizes (exact,
+    #                                                    monotone; == n when pending empties)
     while pending:
+        if progress is not None and progress(
+                {"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_PARTITIONING,
+                 "done": resolved, "total": int(n)}):
+            # §101 CLEAN partial: promote every still-pending set to a (coarse, uncut)
+            # tome. Finalized tomes + promoted pending still partition ALL n nodes — a
+            # valid (coarser) partition + a status, never a torn strand. No genome hits
+            # disk half-written (recursive_cut only moves whole node-set files).
+            for sp, _d in pending:
+                dest = os.path.join(tomes_dir, "tome_%d.bin" % len(tome_paths))
+                os.replace(sp, dest)
+                tome_paths.append(dest)
+            if os.path.exists(sub_path):
+                os.remove(sub_path)
+            return {
+                "n_tomes": len(tome_paths),
+                "tome_paths": tome_paths,
+                "tomes": [_read_node_set(t) for t in tome_paths],
+                "work_dir": work_dir,
+                "status": "cancelled",
+            }
         set_path, depth = pending.pop()
         ids = _read_node_set(set_path)
         if len(ids) <= int(max_tome) or len(ids) < 2 or depth >= int(max_depth):
             dest = os.path.join(tomes_dir, "tome_%d.bin" % len(tome_paths))
             os.replace(set_path, dest)                 # MOVE the survivor, never copy
             tome_paths.append(dest)
+            resolved += len(ids)                       # §101 exact progress bookkeeping
             continue
         orig_to_local = {orig: i for i, orig in enumerate(ids)}
         _stream_induced_subgraph(graph_path, orig_to_local, sub_path)
@@ -5993,6 +6045,7 @@ def recursive_cut(
             dest = os.path.join(tomes_dir, "tome_%d.bin" % len(tome_paths))
             _write_node_set(dest, ids)
             tome_paths.append(dest)
+            resolved += len(ids)                       # §101 exact progress bookkeeping
             continue
         lp = os.path.join(queue_dir, "set_%d.bin" % serial); serial += 1
         rp = os.path.join(queue_dir, "set_%d.bin" % serial); serial += 1
@@ -6002,11 +6055,15 @@ def recursive_cut(
         pending.append((rp, depth + 1))
     if os.path.exists(sub_path):
         os.remove(sub_path)
+    if progress is not None:                           # §101 terminal 100% heartbeat
+        progress({"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_PARTITIONING,
+                  "done": resolved, "total": int(n)})  # done == n; return ignored (done)
     return {
         "n_tomes": len(tome_paths),
         "tome_paths": tome_paths,
         "tomes": [_read_node_set(t) for t in tome_paths],
         "work_dir": work_dir,
+        "status": "ok",
     }
 
 

@@ -563,19 +563,31 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **3** (`SRMECH_ABI_VERSION = 3` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 3` in
+C ABI version is currently **6** (`SRMECH_ABI_VERSION = 6` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 6` in
 `python/srmech/amsc/_native.py`). **Bump in lockstep** whenever
 the wire format of any existing exported function changes. Adding
 a new symbol does NOT bump ABI (the Python shim just doesn't bind
-unknown symbols). v1 was Phase B3 (sha256 only); v2 added the
-`lineno` param to the NDJSON callback typedef; **v3 (v0.5.0rc2)
-added the `srmech_bus_*` C peer for `srmech.bus` cross-process
-IPC, including the new `srmech_bus_handler_callback_t`
-function-pointer typedef** — adding a callback typedef carries a
-wire-format implication for the Python ctypes shim (CFUNCTYPE
-construction), so ABI bumped even though no existing function
-signature changed.
+unknown symbols) — EXCEPT that, by standing precedent, adding a new
+**callback typedef** carries a CFUNCTYPE wire-format implication for
+the Python ctypes shim, so each new callback typedef bumps. v1 was
+Phase B3 (sha256 only); v2 added the `lineno` param to the NDJSON
+callback typedef; **v3 (v0.5.0rc2)** added the `srmech_bus_*` C peer
+for `srmech.bus` cross-process IPC, including the new
+`srmech_bus_handler_callback_t` function-pointer typedef; **v4
+(v0.9.0rc180)** added the `srmech.bus` pub/sub C peer + the
+`srmech_bus_subscriber_callback_t` delivery-callback typedef; **v5
+(v0.9.0rc242)** added the `srmech_progress_cb_t` dispatch-observer
+callback (#840) + `srmech_set_progress_cb`; **v6 (v0.9.0rc275)**
+added the §101 encode-progress + graceful-abort primitive — the
+`srmech_progress_tick_cb_t` per-call/per-iteration heartbeat WITH a
+nonzero-return-to-CANCEL channel + the versioned `srmech_progress_ev_t`
+struct + the `SRMECH_CANCELLED` status + the two `*_progress` overload
+symbols. Each of v2–v6 bumped because a new callback typedef changed
+the CFUNCTYPE wire format, even though no existing function signature
+changed. (Later APPEND-only growth of `srmech_progress_ev_t` via its
+`struct_size` gate will NOT re-bump — that is the whole point of the
+versioned struct.)
 
 ### JPL Power-of-Ten audit
 
@@ -796,9 +808,11 @@ without the parent's persistent memory:
   Task #201 build-out and the metadata-drift sweep).
 - Task #201 (all 7 phases B1–B7) shipped. See
   `python/CHANGELOG.md` for the per-rc + per-release record.
-- The C library is at ABI v2 with two native symbols
-  (`srmech_sha256_hex`, `srmech_ndjson_iter`) plus version /
-  ABI accessors.
+- The C library is at **ABI v6** (current; this snapshot line
+  originally read "v2 with two native symbols" — long superseded).
+  The native surface now spans the full 14-class A–N vocabulary
+  plus the genome / laplacian / bus / progress peers; see the "ABI
+  compatibility" section above for the v1→v6 progression.
 - **ephemerides-spectral 0.26.1rc1** (sibling subtree) pins
   `srmech>=0.1.1rc9` for the parallel-session verification round.
   After srmech v0.2.0 lands on production PyPI, ephemerides-
