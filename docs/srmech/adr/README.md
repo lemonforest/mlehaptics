@@ -22,6 +22,7 @@ context.
 | [ADR-0006](0006-carrier-discipline.md) | Carrier discipline — exactness, sign, format, and bounded memory | ✅ Accepted | 2026-07-17 |
 | [ADR-0007](0007-release-engineering.md) | Release engineering — version SSOT, rc-first, the registry ripple, HAL/PAL, JPL | ✅ Accepted | 2026-07-17 |
 | [ADR-0008](0008-phase-1-operator-chain-schema.md) | Operator-chain DSL — Phase 1 schema specification | 🔄 Proposed | 2026-05-16 |
+| [ADR-0009](0009-multi-implementation-parity-capability-is-the-invariant.md) | Multi-implementation parity — the capability is the invariant, each implementation is a coherency projection (amends 0003) | ✅ Accepted | 2026-07-19 |
 
 **Status legend:** ✅ Accepted · 🔄 Proposed · ⏳ Draft · 🗑 Superseded.
 
@@ -31,6 +32,10 @@ context.
 - **Status lifecycle:** ⏳ Draft / 🔄 Proposed → ✅ Accepted → 🗑 Superseded
   (`Superseded-by: NNNN`). An "Accepted — standing policy" ADR governs every rc, op,
   and review.
+- **Amendment:** an ADR may **amend** another without superseding it (`Amends: NNNN` in
+  the header; the amended ADR carries an `Amended-by` note). Both stay Accepted and in
+  force; the amending ADR states in its body exactly which clause it revises and why.
+  ADR-0009 amends ADR-0003 §2.6 — the first use of this relation.
 - **Sources footer:** the discipline ADRs (0005–0007) link the project-memory topic
   files they consolidate, preserving the trail.
 - **Companion artifacts** share an ADR's number with a distinct extension — they are
