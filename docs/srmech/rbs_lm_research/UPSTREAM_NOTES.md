@@ -3243,3 +3243,43 @@ word co-occurrence graphs are hub-dominated by construction.**
    Either handle the phase or raise, but do not return a real answer for a complex matrix without saying so.
 3. **Add the cheap invariant as a test ratchet**: for any `dense_laplacian` output, `min(eigvals) == 0` to
    tolerance. It is a one-line property test that would have caught this at any size, on any solver.
+
+---
+
+## §105 — `text.tokenize` drops ALL single-character tokens, even in raw mode: `a` and `I` are unrepresentable
+
+**Found:** 2026-07-19, srmech **0.9.0rc281**, running the conservation read with the stoplist disabled (F1257).
+
+`tokenize(..., stoplist=None)` is documented as *"raw mode (keep all content words)"*, but a hard
+minimum-length-2 rule sits beneath the stoplist:
+
+```python
+from srmech.amsc import text as T
+T.tokenize("a", stoplist=None)             # -> []           expected ['a']
+T.tokenize("I", stoplist=None)             # -> []           expected ['i']
+T.tokenize("I am a cat", stoplist=None)    # -> ['am','cat'] expected ['i','am','a','cat']
+T.tokenize("ox by", stoplist=None)         # -> ['ox','by']  (2-char is fine)
+```
+
+Measured at corpus scale: **0 distinct single-character tokens** exist in the raw 1,100,333-type simplewiki
+vocabulary.
+
+### Why it matters
+English has exactly two single-letter words and **both are function words / OPERATORS** — the indefinite
+article `a` and the first-person pronoun `I`. They are currently **unrepresentable in any srmech-tokenized
+corpus**, with or without the stoplist. F1257 measured that the conserved core absorbs the operator spine
+exactly (94/94 added tokens are stoplist members) — but scores 21/22 rather than 22/22 on the probe set, and
+the single miss is `a`, purely because of this rule.
+
+This also reaches beyond English: CJK single-codepoint words, initials, and single-letter particles in other
+writing systems are all silently deleted. The docstring's `stoplist=None` → "keep all content words" contract
+is not met.
+
+### The ask
+1. **Do not drop single-character tokens** — or, if a minimum length is deliberate, expose it as a parameter
+   (`min_len=2` default) rather than hard-coding it, and **say so in the docstring** next to the raw-mode
+   promise.
+2. **Fix the raw-mode contract**: `stoplist=None` should mean *no filtering*, so `tokenize(s, stoplist=None)`
+   round-trips every orthographic word in `s`.
+
+Research-side: F1257 / `R-RBS-LM-NOSTOP_…py`. Related to §104 (also filed as issue #1440).
