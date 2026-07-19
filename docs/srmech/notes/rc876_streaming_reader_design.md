@@ -23,10 +23,18 @@ directory) into `rc876_streaming_reader_design.ndjson`.
    The landscape is a design **target** needing a write-side change, not a property to read. → **F2**.
 2. **The rc280 cost shape the brief asked us to hunt DOES recur, and the second instance is worse
    than a catalog re-derivation.** `_read_region_prefix` re-opens `turns.bin` on **every** call and
-   `_section_node_ids` calls it in a growth loop → measured **exactly 2.0 opens/section**. At
-   200 sections the rc280 targeted read is **1.8× SLOWER than a full sequential decode of the whole
-   body**. rc280 fixed the asymptotics and left a syscall constant that dominates at the field
-   store's section size. → **A2**, and the strongest argument *for* this reader.
+   `_section_node_ids` calls it in a growth loop → measured **exactly 2.0 opens/section**. rc280
+   fixed the asymptotics and left a syscall constant that dominates at the field store's section
+   size. → **A2**, and the strongest argument *for* this reader.
+
+   **⚠️ Wall-clock figures below SUPERSEDED by rc282 — read the syscall count, not the seconds.**
+   This note's 2-run timings put the targeted read at **1.8×** a full sequential decode at P=200.
+   rc282 re-measured with **5 repeats per point** and got **1.06×** at P=200 and **1.2–1.3×** at
+   P=50–100. The *direction* reproduces; the *multiple* does not — it is platform-dependent and
+   dominated by `open` cost on the filesystem under test, and single-shot noise is the same order
+   as the effect. This is exactly what §5's variance warning below predicted. **The syscall count
+   is the real invariant** (2.0/section → 2 after rc282), which is why rc282's ratchet asserts
+   syscalls and not seconds. Do not quote 1.8× anywhere.
 
 What survives: the caps genuinely are a distributed TOC; a **single-held-handle forward stream** is
 the right primitive; **no `.idx` side-car is needed for forward work**; and the design does **not**
@@ -327,10 +335,12 @@ as the reader"; and any `Lk − Tw − Wr = 0`-shaped restatement of a theorem.)
   `_section_labels`. **Next:** correct both; add a bytes-read pin.
 - **A2 — the targeted read re-opens the body per read.** `_read_region_prefix` opens `turns.bin`
   fresh on every call; `_section_node_ids` calls it in a growth loop. **Measured 2.0 opens/section**
-  (400 for 200 sections). The targeted pass is **1.8× slower than a full sequential decode of the
-  whole body**. **Verdict:** real; rc280 fixed the asymptotics and left a syscall constant that
-  dominates at the field store's ~1,462 B/section. **Next:** confirm on the real store before
-  claiming the reader wins (F2).
+  (400 for 200 sections). The targeted pass is slower than a full sequential decode of the whole
+  body — this note measured 1.8× at P=200 on 2 runs, but **rc282's 5-repeat re-measurement got
+  1.06× at P=200 / 1.2–1.3× at P=50–100; treat the multiple as platform-dependent and unquotable,
+  and the 2.0 opens/section as the invariant** (see §0.2). **Verdict:** real; rc280 fixed the
+  asymptotics and left a syscall constant that dominates at the field store's ~1,462 B/section.
+  **Next:** confirm on the real store before claiming the reader wins (F2).
 - **A3 — VOCAB is label-discriminated, not marker-discriminated.** `_section_node_ids` on
   `__vocab__` raises `GenomeBoundingError`. Same `0x6B` marker, different payload grammar. **Next:**
   fermata F3 — new marker byte vs. a reserved-label contract.
