@@ -60,15 +60,28 @@ def test_turkish_dotted_and_dotless_i_stay_distinct(projection):
 
 
 def test_greek_accented_and_final_sigma(projection):
-    """The design corrected the brief here: final sigma was never the failure —
-    `casefold` correctly unifies ς→σ. The real break was uppercase accent loss
-    (ΓΛΩΣΣΑ vs γλώσσα), which no casefold policy repairs. At glyph level the
-    question does not arise; both are just their own clusters.
+    """The design corrected the brief here, and TWO Greek non-issues are
+    pinned as non-issues so nobody "fixes" them later:
+
+    * **Final sigma was never the failure.** `casefold` correctly unified
+      ς→σ, which is the desirable behaviour. Do not add a ς→σ mapping.
+    * **U+02BB ʻokina was never mishandled either** (see the Hawaiian test) —
+      that one is a homoglyph bug, not a category bug.
+
+    The real Greek break is **uppercase accent loss** (ΓΛΩΣΣΑ vs γλώσσα),
+    which no casefold policy can repair. **rc287 does NOT fix it and does not
+    claim to** — it is a downstream case/accent-matching concern, filed
+    separately and out of scope here. What this test pins is only that
+    segmentation is correct in both cases: accented and unaccented, upper and
+    lower, are each their own clusters, and the two forms remain DISTINCT.
     """
     assert T.glyph_stream("γλώσσα") == ["γ", "λ", "ώ", "σ", "σ", "α"]
     assert T.glyph_stream("ΓΛΩΣΣΑ") == ["Γ", "Λ", "Ω", "Σ", "Σ", "Α"]
     # Final sigma is its own cluster, distinct from medial sigma.
     assert T.glyph_stream("λόγος")[-1] == "ς"
+    # The accent-loss pair stays DISTINCT at the front door — recording the
+    # open issue, not papering over it.
+    assert T.glyph_stream("ΓΛΩΣΣΑ") != T.glyph_stream("γλώσσα")
 
 
 def test_hawaiian_okina_survives_in_both_encodings(projection):

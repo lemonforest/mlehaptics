@@ -70,7 +70,19 @@ extern "C" {
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
  * function changes. Adding a NEW symbol does not bump ABI; changing
- * an existing signature does.
+ * an existing signature does; and — stated explicitly since rc287,
+ * because its absence here is what let a removal ship unbumped through
+ * a first review pass — REMOVING an exported symbol ALWAYS bumps.
+ *
+ * The reason is not that the removed op misbehaves. It is that a
+ * removal produces NO OTHER SYMPTOM. The ctypes shim binds optional
+ * peers by `hasattr`, so against a stale lib the absent symbol raises
+ * nothing and the wrapper simply runs its pure body — which is the
+ * CORRECT result for that one op. Meanwhile the ABI check has passed,
+ * HAS_NATIVE stays true, and EVERY OTHER op keeps dispatching into a
+ * library built from different source. The ABI version is the only
+ * mechanism that can catch that pairing, and a removal is precisely
+ * the change that leaves it nothing else to catch.
  *
  * v1 — Phase B3 baseline: srmech_sha256_hex.
  * v2 — Phase B4: srmech_ndjson_iter callback signature gained
@@ -112,8 +124,25 @@ extern "C" {
  *      wire-format implication for the Python ctypes shim, so ABI bumps (the
  *      additive *_progress functions alone would not). Later APPEND-only growth
  *      of srmech_progress_ev_t via its struct_size gate does NOT re-bump.
+ * v7 — v0.9.0rc287: the glyph-stream tokenizer (BREAKING). REMOVES the
+ *      exported srmech_text_tokenize and adds srmech_text_glyph_stream +
+ *      srmech_text_default_gb_table. The FIRST bump driven by a REMOVAL
+ *      rather than a callback typedef, and the removal alone is sufficient
+ *      per the policy note above. Verified rather than assumed: with the lib
+ *      loaded but srmech_text_glyph_stream absent, glyph_stream() returns a
+ *      CORRECT grapheme-cluster stream from its pure body (conformance still
+ *      1093/1093) — so the removal is not caught by wrong output, and it is
+ *      not caught by a load error either. Nothing catches it except this
+ *      version, while HAS_NATIVE stays true and the rest of the library
+ *      dispatches into a mismatched build. (The added symbols alone would
+ *      not have bumped.)
+ *
+ *      rc286 also claimed 7, but is NOT shipping: rc287 supersedes it
+ *      completely (it parameterised the `_MIN_LEN` machinery this rc
+ *      deletes outright), so 7 belongs to rc287. The rc286 branch and its
+ *      findings are retained; the numbering gap is deliberate.
  */
-#define SRMECH_ABI_VERSION 6
+#define SRMECH_ABI_VERSION 7
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)

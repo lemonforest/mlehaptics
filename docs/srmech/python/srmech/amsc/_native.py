@@ -75,7 +75,23 @@ from typing import Optional
 #        v5 dispatch-observer. Same CFUNCTYPE wire-format convention as
 #        v2→v3, so ABI bumps (the additive *_progress functions alone
 #        would not). Later APPEND-only struct growth does NOT re-bump.
-EXPECTED_ABI_VERSION: int = 6
+#   v7 — v0.9.0rc287: the glyph-stream tokenizer (BREAKING). REMOVES the
+#        exported srmech_text_tokenize; adds srmech_text_glyph_stream +
+#        srmech_text_default_gb_table. The FIRST bump driven by a REMOVAL
+#        rather than a callback typedef — and the removal alone is enough.
+#        THIS shim is why, though not in the way it first looks: because it
+#        binds optional peers by ``hasattr``, a removed symbol raises
+#        NOTHING against a stale lib. It was checked rather than assumed —
+#        with the peer absent, glyph_stream() returns a CORRECT cluster
+#        stream from the pure body (1093/1093 still). So the removal shows
+#        up as neither a bad result nor a load error; it shows up as
+#        nothing at all, while the ABI check passes, HAS_NATIVE stays True
+#        and every OTHER op keeps dispatching into a mismatched build.
+#        This version is the only thing that can catch that. (The added
+#        symbols alone would not have bumped.) rc286 also claimed 7 but is
+#        NOT shipping — rc287 supersedes it — so 7 belongs here; the gap
+#        is deliberate.
+EXPECTED_ABI_VERSION: int = 7
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
