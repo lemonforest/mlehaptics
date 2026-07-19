@@ -1015,6 +1015,37 @@ srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
     return (got == len) ? SRMECH_OK : SRMECH_ERR_IO;
 }
 
+srmech_status_t srmech_plat_file_open_ro(const char *path, srmech_file_ro_t *out)
+{
+    assert(path != NULL);
+    assert(out != NULL);
+    out->fp = (void *)fopen(path, "rb");
+    return (out->fp == NULL) ? SRMECH_ERR_IO : SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_file_read_at(srmech_file_ro_t *fh, size_t offset,
+                                         unsigned char *buf, size_t len)
+{
+    assert(fh != NULL);
+    assert(buf != NULL || len == 0);
+    if (fh->fp == NULL) { return SRMECH_ERR_IO; }
+    if (fseek((FILE *)fh->fp, (long)offset, SEEK_SET) != 0) {
+        return SRMECH_ERR_IO;
+    }
+    size_t got = (len == 0u) ? 0u : fread(buf, 1u, len, (FILE *)fh->fp);
+    return (got == len) ? SRMECH_OK : SRMECH_ERR_IO;
+}
+
+void srmech_plat_file_close_ro(srmech_file_ro_t *fh)
+{
+    assert(fh != NULL);
+    assert(srmech_plat_has_filesystem() != 0);
+    if (fh->fp != NULL) {
+        (void)fclose((FILE *)fh->fp);
+        fh->fp = NULL;
+    }
+}
+
 srmech_status_t srmech_plat_file_write(const char *path, int append,
                                        const unsigned char *data, size_t len)
 {
@@ -1102,6 +1133,31 @@ srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
     assert(path != NULL);
     (void)path; (void)offset; (void)buf; (void)len;
     return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_open_ro(const char *path, srmech_file_ro_t *out)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(path != NULL && out != NULL);
+    (void)path;
+    out->fp = NULL;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_read_at(srmech_file_ro_t *fh, size_t offset,
+                                         unsigned char *buf, size_t len)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(fh != NULL);
+    (void)fh; (void)offset; (void)buf; (void)len;
+    return SRMECH_ERR_IO;
+}
+
+void srmech_plat_file_close_ro(srmech_file_ro_t *fh)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(fh != NULL);
+    fh->fp = NULL;
 }
 
 srmech_status_t srmech_plat_file_write(const char *path, int append,

@@ -220,9 +220,35 @@ srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
                                       size_t buf_cap, size_t *out_len);
 
 /* Read exactly `len` bytes from `path` starting at byte `offset` into `buf`.
- * Short read (offset+len past EOF) → SRMECH_ERR_IO. */
+ * Short read (offset+len past EOF) → SRMECH_ERR_IO.
+ *
+ * NOTE (rc282): this OPENS AND CLOSES `path` on every call. That is right for a
+ * one-shot read and wrong inside a loop — a caller paging many regions of ONE
+ * file must hold a handle via the srmech_plat_file_ro_* trio below, or it pays
+ * an open per region (the genome section-counts scan did exactly that). */
 srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
                                              unsigned char *buf, size_t len);
+
+/* An OPEN read-only file handle (rc282) — the held-handle peer of
+ * srmech_plat_file_read_region, for callers that page MANY regions out of ONE
+ * file. Caller-owned storage (JPL Rule 3: no malloc); `fp` is opaque (a FILE*
+ * on a filesystem target) and is NULL exactly when the handle is closed. */
+typedef struct {
+    void *fp;
+} srmech_file_ro_t;
+
+/* Open `path` read-only into the caller's `out`. SRMECH_ERR_IO if it cannot be
+ * opened (and on a target with no filesystem). */
+srmech_status_t srmech_plat_file_open_ro(const char *path, srmech_file_ro_t *out);
+
+/* Read exactly `len` bytes at `offset` through an ALREADY-OPEN handle — no
+ * open, no close. Short read → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_read_at(srmech_file_ro_t *fh, size_t offset,
+                                         unsigned char *buf, size_t len);
+
+/* Close a handle opened by srmech_plat_file_open_ro. Idempotent: closing an
+ * already-closed handle is a no-op, so a caller's error path may always call it. */
+void srmech_plat_file_close_ro(srmech_file_ro_t *fh);
 
 /* Write `len` bytes of `data` to `path`. `append` != 0 opens in append mode
  * ("ab"); else truncate ("wb"). fopen/fwrite/fclose failure → SRMECH_ERR_IO. */

@@ -6224,18 +6224,25 @@ static uint64_t sc_header_true_len(const unsigned char *unc)
 
 /* Refill the sliding window at region offset `roff`; *wlen gets the bytes read.
  * The read is bounded by the region's own byte_len, so the window never pages a
- * neighbouring chromosome. */
-static srmech_status_t sc_refill(const char *body_path, uint64_t base,
+ * neighbouring chromosome.
+ *
+ * rc282: reads through an ALREADY-OPEN handle. This used genome_read_region,
+ * which fopen/fcloses per call — so a scan paid at least one open PER SECTION
+ * (more for a region wider than the window). The scripting projection had the
+ * same defect at 2.0 opens/section; both now hold ONE handle for the whole scan
+ * (ADR-0009: the capability is the invariant, so the two coherency projections
+ * must not differ in I/O shape either). */
+static srmech_status_t sc_refill(srmech_file_ro_t *fh, uint64_t base,
                                  uint64_t byte_len, uint64_t roff, size_t *wlen)
 {
     uint64_t left = byte_len - roff;
     size_t n = (left > (uint64_t)SRMECH_GENOME_SC_WINDOW_BYTES)
              ? (size_t)SRMECH_GENOME_SC_WINDOW_BYTES : (size_t)left;
-    assert(body_path != NULL && wlen != NULL);
+    assert(fh != NULL && wlen != NULL);
     assert(roff < byte_len);
+    if (n > sizeof(g_sc_win)) { return SRMECH_ERR_OVERFLOW; }
     *wlen = n;
-    return genome_read_region(body_path, (size_t)(base + roff), n, g_sc_win,
-                              sizeof(g_sc_win));
+    return srmech_plat_file_read_at(fh, (size_t)(base + roff), g_sc_win, n);
 }
 
 /* One block's on-disk width from its FIRST byte — the §55/v3 dual-format stride
@@ -6329,7 +6336,7 @@ static srmech_status_t sc_block_fold(const unsigned char *blk, uint32_t leaf_dim
  * SRMECH_ERR_BAD_INPUT if the whole region cannot satisfy its own declared
  * n_node_ids — a SHORT table would silently UNDER-count, which is the one
  * failure this op must never return quietly. */
-static srmech_status_t sc_section_scan(const char *body_path, uint64_t base,
+static srmech_status_t sc_section_scan(srmech_file_ro_t *fh, uint64_t base,
                                        uint64_t byte_len, uint32_t leaf_dim,
                                        const unsigned char *the_one,
                                        const srmech_json_value_t *csha,
@@ -6341,7 +6348,7 @@ static srmech_status_t sc_section_scan(const char *body_path, uint64_t base,
     size_t wlen = 0u;
     int done = 0;
     srmech_status_t st;
-    assert(body_path != NULL && the_one != NULL && csha != NULL);
+    assert(fh != NULL && the_one != NULL && csha != NULL);
     assert(leaf_dim >= 52u && leaf_dim <= 256u);
     memset(&d, 0, sizeof(d));
     memset(&w, 0, sizeof(w));
@@ -6349,7 +6356,7 @@ static srmech_status_t sc_section_scan(const char *body_path, uint64_t base,
     while (done == 0 && roff < byte_len) {
         size_t inw, blen;
         if (wlen == 0u || roff >= wbase + (uint64_t)wlen) {
-            st = sc_refill(body_path, base, byte_len, roff, &wlen);
+            st = sc_refill(fh, base, byte_len, roff, &wlen);
             if (st != SRMECH_OK) { return st; }
             wbase = roff;
             if (roff == 0u) {
@@ -6487,7 +6494,7 @@ static size_t sc_count_sections(const srmech_json_value_t *arr)
  * into the count table. The §101 tick fires BETWEEN whole SECTIONS with
  * done = sections scanned so far (never mid-section), so a cancel lands on a
  * section boundary; *cancelled goes 1 and *n_done holds the sections completed. */
-static srmech_status_t sc_scan_all(const char *body_path,
+static srmech_status_t sc_scan_all(srmech_file_ro_t *fh,
                                    const srmech_json_value_t *arr,
                                    uint32_t leaf_dim,
                                    const unsigned char *the_one,
@@ -6495,7 +6502,7 @@ static srmech_status_t sc_scan_all(const char *body_path,
                                    size_t total, size_t *n_done, int *cancelled)
 {
     size_t ord = 0u;
-    assert(body_path != NULL && arr != NULL && the_one != NULL);
+    assert(fh != NULL && arr != NULL && the_one != NULL);
     assert(n_done != NULL && cancelled != NULL);
     for (uint32_t i = 0u; i < arr->u.arr.n; i++) {
         const srmech_json_value_t *c = arr->u.arr.items[i], *csha;
@@ -6511,7 +6518,7 @@ static srmech_status_t sc_scan_all(const char *body_path,
         csha = sc_entry(c, &off, &len);
         if (csha == NULL) { return SRMECH_ERR_BAD_INPUT; }
         ord++;
-        st = sc_section_scan(body_path, off, len, leaf_dim, the_one, csha,
+        st = sc_section_scan(fh, off, len, leaf_dim, the_one, csha,
                              (uint32_t)ord);
         if (st != SRMECH_OK) { return st; }
     }
@@ -6555,6 +6562,7 @@ srmech_status_t srmech_genome_section_counts(
 {
     char body_path[SRMECH_GENOME_PATH_MAX];
     const srmech_json_value_t *arr = NULL;
+    srmech_file_ro_t fh;
     size_t total;
     int cancelled = 0;
     srmech_status_t st;
@@ -6572,8 +6580,12 @@ srmech_status_t srmech_genome_section_counts(
     st = sc_open_store(dir, the_one, leaf_dim, body_path, sizeof(body_path), &arr);
     if (st != SRMECH_OK) { return st; }
     total = sc_count_sections(arr);
-    st = sc_scan_all(body_path, arr, leaf_dim, the_one, tick, tick_ctx, total,
+    /* rc282: ONE open of turns.bin for the WHOLE scan, not one per section. */
+    st = srmech_plat_file_open_ro(body_path, &fh);
+    if (st != SRMECH_OK) { return st; }
+    st = sc_scan_all(&fh, arr, leaf_dim, the_one, tick, tick_ctx, total,
                      n_done, &cancelled);
+    srmech_plat_file_close_ro(&fh);
     if (st != SRMECH_OK) { return st; }
     st = sc_finalize(out_ids, out_counts, out_cap, n_out);
     if (st != SRMECH_OK) { return st; }      /* OVERFLOW carries the TRUE *n_out */
