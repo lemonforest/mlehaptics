@@ -3178,3 +3178,17 @@ The pipeline shape (F1252, biology-exact per F1251): today = **dense → one loo
 2. **ORGANIZE** — sectional plasmids → **organized nuclear genome**: the genome step **INTEGRATES** the plasmid sections (merge + promote conserved content to a minted nuclear core), NOT a from-scratch partition. The sections ARE the pre-clustering — biology accretes plasmids and integrates the conserved ones (F1244 integrate / HGT; ~16/84). **Ask 2: `genome_from_graph` (or `genome_integrate_plasmids`) that consumes the sectional store and organizes incrementally** (add a plasmid → re-integrate cheaply).
 
 Wins: encode-once/append (retires the loose sparse-kernel JSON — the loose-JSON anti-pattern at the graph-L layer; add a doc = append a plasmid, never re-extract); and the organizing becomes **incremental integrate vs monolithic recursive_cut** — structurally removing the blind 3.4 h partition. Not moot even once `genome_from_graph` is fast: it changes the input contract from "one dense graph to partition" to "a bag of plasmids to integrate" — the right SHAPE ([[feedback_encode_once_render_on_the_fly_epigenetic_reader]] one layer up). **Re-surface keywords:** `sectional plasmid graph-L` · `scattered graph-L IS plasmid DNA` · `extract once organize incrementally` · `integrate plasmids not partition monolithic` · `retire loose sparse-kernel JSON` · `C-native genome path` · `genome_integrate_plasmids` · `§102` · `F1252`.
+
+## §103 ASK (2026-07-19; F1254, measured on the completed two-stage genome) — `genome_load(labels=…)` does NOT SEEK: a targeted single-chromosome read costs ~90 s to deliver 0.04 % of the store. Make it seek via the catalog `byte_offset`.
+
+The §102 two-stage encode is COMPLETE and validated at full scale (240,881 docs → 1 minted nuclear core + 240,881 plasmid sections, 323.7 MB, **35.4 min total**, `recursive_cut` never called — vs the 8h+ monolith that never finished). With the correct shape in hand, the F1248 **B** question re-measures as:
+
+| read | bytes needed | time |
+|---|---|---|
+| `genome_catalog(store)` | manifest | 9.9 s (240,882 entries) |
+| `genome_load(labels=["core"])` | **0.14 MB = 0.04 %** of 323.7 MB | **91.0 s** |
+| `genome_load(labels=["sec0"])` | one document's 802 leaves | **88.4 s** |
+
+Cost is FLAT across the first chromosome (`core`) and a mid-store one (`sec0`) and scales with the store → `genome_load` is **walking the strand, not seeking**. But the catalog already carries per-chromosome `byte_offset` + `byte_len`. **Ask: make `genome_load(labels=…)` seek to the catalogued offset** (and expose a `genome_window`-style bounded read for one chromosome). At 240k chromosomes this is ~90 s → ~ms, and it is the precondition for the chromatin-gated demand-load (rc269 `gene_express_plan`) to be real at corpus scale — i.e. for the §876/F1247 streaming render reader to page only the walked subset.
+
+This is the SAME gap as §99, one level up: the flat store had no per-NODE seek (every neighbour read hit `adj.bin`); the organized store has no per-CHROMOSOME seek. **Secondary:** the organized genome carries **no vocab chromosome** (the karyotype index stayed in the sections store), so global node-ids cannot be resolved to tokens from the organized genome alone — stage 2 should carry the vocab through, or the two stores should be declared one unit. **Re-surface keywords:** `genome_load does not seek` · `catalog byte_offset` · `per-chromosome seek` · `90s for 0.04%` · `bounded single-chromosome read` · `vocab missing from organized genome` · `§103` · `F1254`.
