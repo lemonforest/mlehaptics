@@ -144,8 +144,8 @@ _ANNEX_DELTA = {"composes_c": 20, "host_glue": 1, "dev_tooling": 3}
 # carrier_schema; dispatches to its C peer srmech_responsion_schema over the
 # compiled-in const registry — composes_c FROM BIRTH, the rc205 carrier_schema
 # precedent). composes_c 120 -> 121; total 189 -> 190.
-_FULL_SPLIT = {"composes_c": 129, "host_glue": 21, "dev_tooling": 51}  # rc261: +2 composes_c (dsl alias TOML) + 1 dev_tooling (dsl.alias)  # rc249 #1390 item 2: +2 genome graph codec  # rc267 §96: +2 composes_c (genome_census + genome_registry)  # rc271 §96/F1251: +1 composes_c (genome.load_type_aliases_toml) + 2 dev_tooling (genome.set/clear_type_aliases)  # rc278 §102/F1252: +1 composes_c (plasmid.section_counts; plasmid_extract is composition_of_c)
-_TOTAL_NON_COMPUTE = 201
+_FULL_SPLIT = {"composes_c": 128, "host_glue": 21, "dev_tooling": 51}  # rc261: +2 composes_c (dsl alias TOML) + 1 dev_tooling (dsl.alias)  # rc249 #1390 item 2: +2 genome graph codec  # rc267 §96: +2 composes_c (genome_census + genome_registry)  # rc271 §96/F1251: +1 composes_c (genome.load_type_aliases_toml) + 2 dev_tooling (genome.set/clear_type_aliases)  # rc278 §102/F1252: +1 composes_c (plasmid.section_counts; plasmid_extract is composition_of_c)  # rc280 §102/F1253: -1 composes_c (plasmid.section_counts EARNED the srmech_genome_section_counts C peer -> c_dispatched)
+_TOTAL_NON_COMPUTE = 200
 _HOSTGLUE_ROOTS = ("srmech.mcp", "srmech.cli", "srmech.llm")
 
 

@@ -240,11 +240,18 @@ _EXPECTED_SPLIT = {
     # composes_c precedent). plasmid.plasmid_extract is a BUILDER with a whole-op C
     # orchestrator (srmech_genome_plasmid_extract) -> composition_of_c, NOT counted
     # here. composes_c 128 -> 129; total 200 -> 201.
-    "composes_c": 129,
+    # rc280 (§102 / F1253): -1 composes_c — plasmid.section_counts EARNED its own
+    # whole-op C peer (srmech_genome_section_counts: derive the catalog once, page
+    # only each section's node_ids prefix) and now DISPATCHES to it, so it is no
+    # longer a Python orchestration over other C ops -> it leaves non_compute for
+    # c_dispatched (the conserved_core precedent). composes_c 129 -> 128;
+    # total 201 -> 200. The debt moved DOWN: one fewer op a bare-C host must
+    # re-orchestrate itself.
+    "composes_c": 128,
     "host_glue": 21,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 201
+_TOTAL_NON_COMPUTE = 200
 
 
 def _rows():

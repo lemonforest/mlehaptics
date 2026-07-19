@@ -6014,3 +6014,568 @@ srmech_status_t srmech_genome_integrate_plasmids(
     *n_integrated_out = n_plasmids;
     return SRMECH_OK;
 }
+
+/* ------------------------------------------------------------------ *
+ * rc280 (§102 / F1253) — SECTION COUNTS: {global_id -> n_sections} over a
+ * PLASMID section store, derived END-TO-END in C (genome-must-exist-in-C).
+ *
+ * The two costs rc280 removes (see srmech.h for the full contract):
+ *   1. the store CATALOG is derived ONCE for the whole scan — a v12 head-only
+ *      manifest re-reads and re-Merkle-folds the WHOLE body to derive it, so
+ *      doing that per section is O(P * body), quadratic in corpus size;
+ *   2. per section only the node_ids PREFIX of the region is paged — never the
+ *      edge bytes, which are the bulk of a co-occurrence section.
+ *
+ * (2) needs NO format change. The §89 graph-kernel payload int stream is
+ *   [vocab_size, n_node_ids] + node_ids + [n_extras] + extras + [n_edges] + ...
+ * so node_ids is a strict PREFIX and the edges sit strictly AFTER it; quad_turn
+ * is a per-leaf REVERSIBLE Klein-4 XOR against the_one (leaf k uncouples from
+ * leaf k ALONE — no chaining), so a prefix of coupled leaves uncouples to
+ * exactly the prefix of the symbol stream; and the region's integrity bound is
+ * its LEADING cap, present in — and paid identically by — any prefix of >= 1
+ * block. The C reads the region through a sliding WINDOW and stops the moment
+ * the declared node_ids are in hand: strictly tighter than, and value-identical
+ * to, the pure reader's probe-then-grow (which sizes a re-read instead).
+ *
+ * NOT REENTRANT. The wire signature carries no `ws` arena and JPL Rule 3 bans
+ * malloc, so the scan's scratch is FILE-SCOPE static: one catalog arena, one
+ * open-addressed count table, one region window. Call from ONE thread at a
+ * time. All three are compile-time overridable (see srmech.h); the defaults are
+ * host-sized and a microcontroller build shrinks them.
+ * ------------------------------------------------------------------ */
+
+/* Catalog arena — genome_obtain_manifest carves the body copy, the per-chrom
+ * string arrays and the manifest tree from it (srmech_genome_arena_bytes is the
+ * exact sizing rule). This BOUNDS the store the peer scans natively; an over-
+ * capacity store returns SRMECH_ERR_OVERFLOW with *n_out = 0, which the Python
+ * binding reads as a DECLINE and runs the pure body (correct, just not native). */
+#ifndef SRMECH_GENOME_SC_ARENA_BYTES
+#define SRMECH_GENOME_SC_ARENA_BYTES (32u * 1024u * 1024u)
+#endif
+
+/* Count-table slots — MUST be a power of two; the distinct-id ceiling is
+ * 3/4 * slots (the open-addressing load bound). */
+#ifndef SRMECH_GENOME_SC_HASH_SLOTS
+#define SRMECH_GENOME_SC_HASH_SLOTS (1u << 18)
+#endif
+
+/* Region read window; must exceed one block (leaf_dim <= 256). */
+#ifndef SRMECH_GENOME_SC_WINDOW_BYTES
+#define SRMECH_GENOME_SC_WINDOW_BYTES (64u * 1024u)
+#endif
+
+/* Leading ints before the node_ids table: vocab_size, n_node_ids. */
+#define SRMECH_GENOME_SC_HEADER_INTS 2u
+
+/* The karyotype INDEX chromosome — excluded from the scan (mirror
+ * srmech.amsc.plasmid.VOCAB_LABEL). */
+#define SRMECH_GENOME_SC_VOCAB_LABEL "__vocab__"
+
+/* One count-table slot. `key` is global_id + 1 so 0 marks an EMPTY slot (id 0
+ * is a legitimate global id). `last` is the 1-based section ordinal that last
+ * bumped this id — that IS the within-section dedupe ("a node counts ONCE per
+ * section") with no per-section set, no sort, no extra storage. */
+typedef struct {
+    uint64_t key;
+    uint64_t count;
+    uint64_t last;
+} sc_slot_t;
+
+/* The incremental §89 int decoder. Symbols arrive one uncoupled LEAF at a time
+ * and a serialised int (2-symbol length header + <= 15 base-4 digits, so <= 17
+ * symbols) may straddle a leaf boundary — `pend` carries that remainder, which
+ * is provably < 17 symbols (any longer suffix already contains a complete int).
+ * Decoding incrementally is what lets the reader stop MID-region: there is never
+ * a materialised whole-region symbol buffer that has to be filled first. */
+typedef struct {
+    uint8_t  pend[32];
+    uint32_t n_pend;
+    uint64_t idx;        /* index of the NEXT int in the stream */
+    uint64_t n_nid;      /* declared node_ids count (valid once idx > 1) */
+    uint32_t ord;        /* 1-based section ordinal (the dedupe key) */
+    int      stopped;    /* a zero-length header ended the stream */
+} sc_dec_t;
+
+static unsigned char g_sc_arena[SRMECH_GENOME_SC_ARENA_BYTES];
+static sc_slot_t g_sc_slots[SRMECH_GENOME_SC_HASH_SLOTS];
+static unsigned char g_sc_win[SRMECH_GENOME_SC_WINDOW_BYTES];
+static size_t g_sc_n_ids;
+
+/* Bump `id`'s section count, ONCE per section (`ord`). Open addressing with
+ * linear probing over the power-of-two table; the id is mixed by the 64-bit
+ * golden-ratio odd constant. Integer only — no float, and no abs (a count and
+ * an id have no sign to strip; this is not a Class-K pin-slot site).
+ * SRMECH_ERR_OVERFLOW past the 3/4 load bound. */
+static srmech_status_t sc_bump(uint64_t id, uint32_t ord)
+{
+    uint64_t h = (id + 1u) * 0x9E3779B97F4A7C15u;
+    size_t mask = (size_t)SRMECH_GENOME_SC_HASH_SLOTS - 1u;
+    size_t i = (size_t)((h ^ (h >> 32)) & (uint64_t)mask);
+    size_t cap = ((size_t)SRMECH_GENOME_SC_HASH_SLOTS / 4u) * 3u;
+    assert(ord != 0u);
+    assert(((size_t)SRMECH_GENOME_SC_HASH_SLOTS & mask) == 0u);   /* power of two */
+    for (size_t probe = 0u; probe <= mask; probe++) {
+        sc_slot_t *s = &g_sc_slots[i];
+        if (s->key == 0u) {
+            if (g_sc_n_ids >= cap) { return SRMECH_ERR_OVERFLOW; }
+            s->key = id + 1u;
+            s->count = 1u;
+            s->last = (uint64_t)ord;
+            g_sc_n_ids++;
+            return SRMECH_OK;
+        }
+        if (s->key == id + 1u) {
+            if (s->last != (uint64_t)ord) {    /* a node counts ONCE per section */
+                s->count++;
+                s->last = (uint64_t)ord;
+            }
+            return SRMECH_OK;
+        }
+        i = (i + 1u) & mask;
+    }
+    return SRMECH_ERR_OVERFLOW;
+}
+
+/* Dispatch ONE decoded int by its stream position: [0] vocab_size (ignored),
+ * [1] n_node_ids, [2 .. 2 + n_nid) the GLOBAL node_ids. *done goes 1 once the
+ * declared table is fully in hand — the signal to stop reading the region, so
+ * the edge bytes after it are never touched. */
+static srmech_status_t sc_dec_int(sc_dec_t *d, uint64_t v, int *done)
+{
+    srmech_status_t st = SRMECH_OK;
+    assert(d != NULL && done != NULL);
+    assert(d->stopped == 0);
+    if (d->idx == 1u) {
+        d->n_nid = v;
+    } else if (d->idx >= (uint64_t)SRMECH_GENOME_SC_HEADER_INTS &&
+               d->idx < (uint64_t)SRMECH_GENOME_SC_HEADER_INTS + d->n_nid) {
+        st = sc_bump(v, d->ord);
+    }
+    d->idx++;
+    if (d->idx >= (uint64_t)SRMECH_GENOME_SC_HEADER_INTS &&
+        d->idx >= (uint64_t)SRMECH_GENOME_SC_HEADER_INTS + d->n_nid) {
+        *done = 1;
+    }
+    return st;
+}
+
+/* Feed ONE uncoupled leaf's `n` symbols (n <= 256) into the decoder, consuming
+ * every COMPLETE int the carry + this leaf now spell. Mirror of the pure
+ * _graph_prefix_ints: a zero-length header ENDS the stream (that is the Klein-4
+ * zero padding, and the pure reader breaks on it identically). */
+static srmech_status_t sc_dec_feed(sc_dec_t *d, const unsigned char *syms,
+                                   size_t n, int *done)
+{
+    unsigned char buf[320];
+    size_t m, i = 0u, rem;
+    assert(d != NULL && done != NULL);
+    assert(syms != NULL && n <= 256u && d->n_pend <= 16u);
+    memcpy(buf, d->pend, (size_t)d->n_pend);
+    memcpy(buf + d->n_pend, syms, n);
+    m = (size_t)d->n_pend + n;
+    while (d->stopped == 0 && *done == 0 && i + 2u <= m) {
+        size_t ln = (size_t)buf[i] + ((size_t)buf[i + 1u] << 2);
+        uint64_t v = 0u;
+        srmech_status_t st;
+        if (ln == 0u) { d->stopped = 1; break; }
+        if (i + 2u + ln > m) { break; }
+        for (size_t k = 0u; k < ln; k++) {
+            v |= (uint64_t)buf[i + 2u + k] << (2u * k);
+        }
+        i += 2u + ln;
+        st = sc_dec_int(d, v, done);
+        if (st != SRMECH_OK) { return st; }
+    }
+    rem = m - i;
+    if (d->stopped != 0 || *done != 0) { d->n_pend = 0u; return SRMECH_OK; }
+    if (rem > sizeof(d->pend)) { return SRMECH_ERR_BAD_INPUT; }
+    memcpy(d->pend, buf + i, rem);
+    d->n_pend = (uint32_t)rem;
+    return SRMECH_OK;
+}
+
+/* A v3 packed turn payload -> its byte-per-symbol Klein-4 leaf (exact inverse of
+ * genome_v3_pack_turn: 4 two-bit lanes per byte, the FIRST symbol in the HIGH
+ * lanes). Writes leaf_dim symbols. */
+static void sc_unpack_turn(const unsigned char *payload, uint32_t leaf_dim,
+                           unsigned char *out)
+{
+    assert(payload != NULL && out != NULL);
+    assert(leaf_dim != 0u && leaf_dim <= 256u);
+    for (uint32_t j = 0u; j < leaf_dim; j++) {
+        unsigned char byte = payload[j / 4u];
+        out[j] = (unsigned char)((byte >> (6u - 2u * (j % 4u))) & 3u);
+    }
+}
+
+/* The §89/v6 kernel HEADER leaf's TRUE symbol length D — symbols [0:32] read as
+ * base-4 BIG-ENDIAN (the exact inverse of genome_kernel_header_leaf's write and
+ * of the pure _unpack_kernel_header_klein4). 32 symbols * 2 bits == 64 bits. */
+static uint64_t sc_header_true_len(const unsigned char *unc)
+{
+    uint64_t v = 0u;
+    assert(unc != NULL);
+    assert(sizeof(v) == 8u);
+    for (uint32_t j = 0u; j < 32u; j++) {
+        v = (v << 2) | (uint64_t)(unc[j] & 3u);
+    }
+    return v;
+}
+
+/* Refill the sliding window at region offset `roff`; *wlen gets the bytes read.
+ * The read is bounded by the region's own byte_len, so the window never pages a
+ * neighbouring chromosome. */
+static srmech_status_t sc_refill(const char *body_path, uint64_t base,
+                                 uint64_t byte_len, uint64_t roff, size_t *wlen)
+{
+    uint64_t left = byte_len - roff;
+    size_t n = (left > (uint64_t)SRMECH_GENOME_SC_WINDOW_BYTES)
+             ? (size_t)SRMECH_GENOME_SC_WINDOW_BYTES : (size_t)left;
+    assert(body_path != NULL && wlen != NULL);
+    assert(roff < byte_len);
+    *wlen = n;
+    return genome_read_region(body_path, (size_t)(base + roff), n, g_sc_win,
+                              sizeof(g_sc_win));
+}
+
+/* One block's on-disk width from its FIRST byte — the §55/v3 dual-format stride
+ * (mirror genome_block_len, but over a WINDOW rather than a whole body, so the
+ * truncation test belongs to the caller's refill loop). 0 = unrecognised. */
+static size_t sc_block_len(unsigned char kind, uint32_t leaf_dim)
+{
+    assert(leaf_dim != 0u && leaf_dim <= 256u);
+    assert(SRMECH_GENOME_PACKED_TURN_MARKER > 3u);
+    if (genome_cap_kind(&kind, 1u) >= 0 || kind <= 3u) { return (size_t)leaf_dim; }
+    if (kind == SRMECH_GENOME_PACKED_TURN_MARKER) {
+        return 1u + ((size_t)leaf_dim + 3u) / 4u;
+    }
+    return 0u;
+}
+
+/* Uncouple ONE data block into `unc` (leaf_dim Klein-4 symbols): a v3 packed
+ * turn unpacks first, a legacy v2 turn is already byte-per-symbol; both then
+ * re-bind through the_one (quad_turn is its own inverse). */
+static srmech_status_t sc_uncouple(const unsigned char *blk, uint32_t leaf_dim,
+                                   const unsigned char *the_one,
+                                   unsigned char *unc)
+{
+    unsigned char mem[256];
+    assert(blk != NULL && the_one != NULL && unc != NULL);
+    assert(leaf_dim != 0u && leaf_dim <= 256u);
+    if (blk[0] == SRMECH_GENOME_PACKED_TURN_MARKER) {
+        sc_unpack_turn(blk + 1, leaf_dim, mem);
+    } else {
+        memcpy(mem, blk, (size_t)leaf_dim);
+    }
+    return srmech_klein4_bind(mem, the_one, leaf_dim, unc);
+}
+
+/* Verify a region prefix's LEADING cap against the catalog's cap_sha256 — the
+ * SAME integrity bound a whole-region read pays, over fewer bytes (the cap is
+ * the region's first leaf_dim bytes, so every prefix of >= 1 block carries it).
+ * Bounding IS integrity: a prefix read is not a weaker read. */
+static srmech_status_t sc_verify_cap(const unsigned char *win, uint32_t leaf_dim,
+                                     const srmech_json_value_t *csha)
+{
+    char got[65];
+    srmech_status_t st;
+    assert(win != NULL && csha != NULL);
+    assert(leaf_dim != 0u && leaf_dim <= 256u);
+    st = srmech_sha256_hex(win, (size_t)leaf_dim, got);
+    if (st != SRMECH_OK) { return st; }
+    return genome_str_eq(csha, got) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
+}
+
+/* The running per-section walk state — the §89 header leaf's TRUE length D and
+ * how many CONTENT symbols have been fed so far (the content is trimmed to D: a
+ * SHORT section's last leaf carries pad symbols that would otherwise decode as
+ * spurious trailing ints). */
+typedef struct {
+    int      have_header;
+    uint64_t true_len;
+    uint64_t fed;
+} sc_walk_t;
+
+/* Fold ONE on-disk block into the walk: caps are SKIPPED (they are not data
+ * turns), the FIRST data turn is the §89 header (it self-records D), every later
+ * data turn is content fed to the incremental decoder, trimmed to D. */
+static srmech_status_t sc_block_fold(const unsigned char *blk, uint32_t leaf_dim,
+                                     const unsigned char *the_one,
+                                     sc_walk_t *w, sc_dec_t *d, int *done)
+{
+    unsigned char unc[256];
+    size_t take;
+    srmech_status_t st;
+    assert(blk != NULL && w != NULL && d != NULL && done != NULL);
+    assert(the_one != NULL && leaf_dim >= 52u);
+    if (genome_cap_kind(blk, leaf_dim) >= 0) { return SRMECH_OK; }   /* skip caps */
+    st = sc_uncouple(blk, leaf_dim, the_one, unc);
+    if (st != SRMECH_OK) { return st; }
+    if (w->have_header == 0) {
+        w->true_len = sc_header_true_len(unc);
+        w->have_header = 1;
+        return SRMECH_OK;
+    }
+    if (w->fed >= w->true_len) { *done = 1; return SRMECH_OK; }   /* D exhausted */
+    take = (w->true_len - w->fed > (uint64_t)leaf_dim) ? (size_t)leaf_dim
+         : (size_t)(w->true_len - w->fed);
+    w->fed += (uint64_t)take;
+    return sc_dec_feed(d, unc, take, done);
+}
+
+/* Page ONE section's node_ids prefix and fold its ids into the count table.
+ * Walks the region through the sliding window and returns the moment the
+ * declared node_ids are in hand, so the edge bytes are never read.
+ * SRMECH_ERR_BAD_INPUT if the whole region cannot satisfy its own declared
+ * n_node_ids — a SHORT table would silently UNDER-count, which is the one
+ * failure this op must never return quietly. */
+static srmech_status_t sc_section_scan(const char *body_path, uint64_t base,
+                                       uint64_t byte_len, uint32_t leaf_dim,
+                                       const unsigned char *the_one,
+                                       const srmech_json_value_t *csha,
+                                       uint32_t ord)
+{
+    sc_dec_t d;
+    sc_walk_t w;
+    uint64_t roff = 0u, wbase = 0u;
+    size_t wlen = 0u;
+    int done = 0;
+    srmech_status_t st;
+    assert(body_path != NULL && the_one != NULL && csha != NULL);
+    assert(leaf_dim >= 52u && leaf_dim <= 256u);
+    memset(&d, 0, sizeof(d));
+    memset(&w, 0, sizeof(w));
+    d.ord = ord;
+    while (done == 0 && roff < byte_len) {
+        size_t inw, blen;
+        if (wlen == 0u || roff >= wbase + (uint64_t)wlen) {
+            st = sc_refill(body_path, base, byte_len, roff, &wlen);
+            if (st != SRMECH_OK) { return st; }
+            wbase = roff;
+            if (roff == 0u) {
+                st = sc_verify_cap(g_sc_win, leaf_dim, csha);
+                if (st != SRMECH_OK) { return st; }
+            }
+        }
+        inw = (size_t)(wbase + (uint64_t)wlen - roff);
+        blen = sc_block_len(g_sc_win[roff - wbase], leaf_dim);
+        if (blen == 0u) { return SRMECH_ERR_BAD_INPUT; }    /* unrecognised kind */
+        if (blen > inw) {
+            if (wbase == roff) { return SRMECH_ERR_BAD_INPUT; }   /* truncated */
+            wlen = 0u;                                      /* straddles — refill */
+            continue;
+        }
+        st = sc_block_fold(&g_sc_win[roff - wbase], leaf_dim, the_one, &w, &d,
+                           &done);
+        if (st != SRMECH_OK) { return st; }
+        roff += (uint64_t)blen;
+    }
+    if (done == 0 && d.idx < (uint64_t)SRMECH_GENOME_SC_HEADER_INTS) {
+        return SRMECH_OK;                  /* a section carrying no payload at all */
+    }
+    return (done == 0) ? SRMECH_ERR_BAD_INPUT : SRMECH_OK;
+}
+
+/* 1 iff a catalog chromosome entry is the VOCAB karyotype index (excluded from
+ * the scan, exactly as the pure _section_entries excludes it). */
+static int sc_is_vocab(const srmech_json_value_t *c)
+{
+    const srmech_json_value_t *lv;
+    size_t n = strlen(SRMECH_GENOME_SC_VOCAB_LABEL);
+    assert(c != NULL);
+    assert(n != 0u);
+    lv = srmech_json_object_get(c, "label");
+    if (lv == NULL || lv->type != SRMECH_JSON_STRING ||
+        lv->u.str.len != (uint32_t)n) {
+        return 0;
+    }
+    return (memcmp(lv->u.str.ptr, SRMECH_GENOME_SC_VOCAB_LABEL, n) == 0) ? 1 : 0;
+}
+
+/* Pull one catalog entry's (byte_offset, byte_len, cap_sha256). NULL cap digest
+ * = a malformed entry. */
+static const srmech_json_value_t *sc_entry(const srmech_json_value_t *c,
+                                           uint64_t *off, uint64_t *len)
+{
+    const srmech_json_value_t *bo, *bl, *cs;
+    assert(c != NULL);
+    assert(off != NULL && len != NULL);
+    bo = srmech_json_object_get(c, "byte_offset");
+    bl = srmech_json_object_get(c, "byte_len");
+    cs = srmech_json_object_get(c, "cap_sha256");
+    if (bo == NULL || bl == NULL || cs == NULL || bo->type != SRMECH_JSON_INT ||
+        bl->type != SRMECH_JSON_INT || cs->type != SRMECH_JSON_STRING ||
+        bo->u.i < 0 || bl->u.i <= 0) {
+        return NULL;
+    }
+    *off = (uint64_t)bo->u.i;
+    *len = (uint64_t)bl->u.i;
+    return cs;
+}
+
+/* Sift `a[i]` down a max-heap of `n` slots, ordered by id. Iterative — JPL Rule
+ * 1 bans recursion, and an O(n log n) in-place heapsort is what turns the
+ * unordered count table into the ASCENDING output the contract promises. */
+static void sc_sift(sc_slot_t *a, size_t n, size_t i)
+{
+    assert(a != NULL);
+    assert(i < n || n == 0u);
+    while (1) {
+        size_t l = 2u * i + 1u, r = l + 1u, big = i;
+        sc_slot_t t;
+        if (l < n && a[l].key > a[big].key) { big = l; }
+        if (r < n && a[r].key > a[big].key) { big = r; }
+        if (big == i) { return; }
+        t = a[i];
+        a[i] = a[big];
+        a[big] = t;
+        i = big;
+    }
+}
+
+/* In-place ascending heapsort of `n` slots by id. */
+static void sc_sort(sc_slot_t *a, size_t n)
+{
+    assert(a != NULL || n == 0u);
+    assert(n != (size_t)-1);
+    for (size_t k = n / 2u; k > 0u; k--) { sc_sift(a, n, k - 1u); }
+    for (size_t k = n; k > 1u; k--) {
+        sc_slot_t t = a[0];
+        a[0] = a[k - 1u];
+        a[k - 1u] = t;
+        sc_sift(a, k - 1u, 0u);
+    }
+}
+
+/* Compact the occupied slots to the FRONT of the table, sort them ascending by
+ * id, and copy out. *n_out is ALWAYS the TRUE distinct-id count — including on
+ * SRMECH_ERR_OVERFLOW, which is what lets the caller retry at exactly the size
+ * it needs (a short table would silently under-report the histogram). */
+static srmech_status_t sc_finalize(uint64_t *out_ids, uint64_t *out_counts,
+                                   size_t out_cap, size_t *n_out)
+{
+    size_t w = 0u;
+    assert(n_out != NULL);
+    assert(out_ids != NULL || out_cap == 0u);
+    for (size_t i = 0u; i < (size_t)SRMECH_GENOME_SC_HASH_SLOTS; i++) {
+        if (g_sc_slots[i].key != 0u) { g_sc_slots[w++] = g_sc_slots[i]; }
+    }
+    *n_out = w;
+    if (w > out_cap) { return SRMECH_ERR_OVERFLOW; }
+    sc_sort(g_sc_slots, w);
+    for (size_t i = 0u; i < w; i++) {
+        out_ids[i] = g_sc_slots[i].key - 1u;      /* key is id + 1 (0 == empty) */
+        out_counts[i] = g_sc_slots[i].count;
+    }
+    return SRMECH_OK;
+}
+
+/* Count the PLASMID sections in the catalog (the vocab index excluded) — the
+ * `total` every §101 tick reports. */
+static size_t sc_count_sections(const srmech_json_value_t *arr)
+{
+    size_t p = 0u;
+    assert(arr != NULL);
+    assert(arr->type == SRMECH_JSON_ARRAY);
+    for (uint32_t i = 0u; i < arr->u.arr.n; i++) {
+        if (sc_is_vocab(arr->u.arr.items[i]) == 0) { p++; }
+    }
+    return p;
+}
+
+/* The scan loop: page each PLASMID section's node_ids prefix, folding its ids
+ * into the count table. The §101 tick fires BETWEEN whole SECTIONS with
+ * done = sections scanned so far (never mid-section), so a cancel lands on a
+ * section boundary; *cancelled goes 1 and *n_done holds the sections completed. */
+static srmech_status_t sc_scan_all(const char *body_path,
+                                   const srmech_json_value_t *arr,
+                                   uint32_t leaf_dim,
+                                   const unsigned char *the_one,
+                                   srmech_progress_tick_cb_t tick, void *tick_ctx,
+                                   size_t total, size_t *n_done, int *cancelled)
+{
+    size_t ord = 0u;
+    assert(body_path != NULL && arr != NULL && the_one != NULL);
+    assert(n_done != NULL && cancelled != NULL);
+    for (uint32_t i = 0u; i < arr->u.arr.n; i++) {
+        const srmech_json_value_t *c = arr->u.arr.items[i], *csha;
+        uint64_t off = 0u, len = 0u;
+        srmech_status_t st;
+        if (sc_is_vocab(c) != 0) { continue; }
+        if (organize_tick(tick, tick_ctx, (uint32_t)SRMECH_PHASE_EXTRACTING,
+                          (uint64_t)ord, (uint64_t)total) != 0) {
+            *cancelled = 1;
+            *n_done = ord;
+            return SRMECH_OK;
+        }
+        csha = sc_entry(c, &off, &len);
+        if (csha == NULL) { return SRMECH_ERR_BAD_INPUT; }
+        ord++;
+        st = sc_section_scan(body_path, off, len, leaf_dim, the_one, csha,
+                             (uint32_t)ord);
+        if (st != SRMECH_OK) { return st; }
+    }
+    *n_done = ord;
+    return SRMECH_OK;
+}
+
+/* Derive the store catalog ONCE and resolve the body path — the O(P * body)
+ * quadratic this rc removes lives here, in that this runs exactly once per scan
+ * rather than once per section. */
+static srmech_status_t sc_open_store(const char *dir, const unsigned char *the_one,
+                                     uint32_t leaf_dim, char *body_path,
+                                     size_t path_cap,
+                                     const srmech_json_value_t **arr)
+{
+    srmech_json_value_t *manifest = NULL;
+    const srmech_json_value_t *ld, *a;
+    srmech_status_t st;
+    assert(dir != NULL && the_one != NULL && body_path != NULL);
+    assert(arr != NULL && leaf_dim >= 52u);
+    st = genome_obtain_manifest(dir, the_one, (size_t)leaf_dim, g_sc_arena,
+                                sizeof(g_sc_arena), &manifest);
+    if (st != SRMECH_OK) { return st; }
+    ld = genome_data_get(manifest, "leaf_dim");
+    if (ld == NULL || ld->type != SRMECH_JSON_INT ||
+        (uint32_t)ld->u.i != leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    a = genome_data_get(manifest, "chromosomes");
+    if (a == NULL || a->type != SRMECH_JSON_ARRAY) { return SRMECH_ERR_BAD_INPUT; }
+    *arr = a;
+    return genome_join(dir, SRMECH_GENOME_BODY, body_path, path_cap);
+}
+
+srmech_status_t srmech_genome_section_counts(
+    const char *dir,
+    const unsigned char *the_one, uint32_t leaf_dim,
+    srmech_progress_tick_cb_t tick, void *tick_ctx,
+    uint64_t *out_ids, uint64_t *out_counts, size_t out_cap,
+    size_t *n_out, size_t *n_done)
+{
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    const srmech_json_value_t *arr = NULL;
+    size_t total;
+    int cancelled = 0;
+    srmech_status_t st;
+    if (dir == NULL || the_one == NULL || n_out == NULL || n_done == NULL ||
+        ((out_ids == NULL || out_counts == NULL) && out_cap != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(dir != NULL && the_one != NULL);
+    assert(n_out != NULL && n_done != NULL);
+    if (leaf_dim < 52u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    *n_out = 0u;
+    *n_done = 0u;
+    g_sc_n_ids = 0u;
+    memset(g_sc_slots, 0, sizeof(g_sc_slots));
+    st = sc_open_store(dir, the_one, leaf_dim, body_path, sizeof(body_path), &arr);
+    if (st != SRMECH_OK) { return st; }
+    total = sc_count_sections(arr);
+    st = sc_scan_all(body_path, arr, leaf_dim, the_one, tick, tick_ctx, total,
+                     n_done, &cancelled);
+    if (st != SRMECH_OK) { return st; }
+    st = sc_finalize(out_ids, out_counts, out_cap, n_out);
+    if (st != SRMECH_OK) { return st; }      /* OVERFLOW carries the TRUE *n_out */
+    return (cancelled != 0) ? SRMECH_CANCELLED : SRMECH_OK;
+}

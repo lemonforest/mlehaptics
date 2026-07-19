@@ -3734,6 +3734,22 @@ def _bind(lib: ctypes.CDLL) -> None:
                 _U8, ctypes.c_size_t,                              # ws, ws_len
             ]
             lib.srmech_genome_integrate_plasmids.restype = ctypes.c_int
+        # §102/rc280 (F1253) — SECTION COUNTS: scan a plasmid section store and
+        # derive {global_id: n_sections}, deriving the catalog ONCE and paging only
+        # each section's node_ids prefix (never its edges). REUSES the existing
+        # srmech_progress_tick_cb_t typedef (no NEW typedef) ->
+        # EXPECTED_ABI_VERSION stays 6.
+        if hasattr(lib, "srmech_genome_section_counts"):
+            lib.srmech_genome_section_counts.argtypes = [
+                ctypes.c_char_p,                                   # dir
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_uint32,   # the_one, leaf_dim
+                _TICK_CFUNCTYPE, ctypes.c_void_p,                  # tick, tick_ctx
+                ctypes.POINTER(ctypes.c_uint64),                   # out_ids
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # out_counts, out_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # n_out
+                ctypes.POINTER(ctypes.c_size_t),                   # n_done
+            ]
+            lib.srmech_genome_section_counts.restype = ctypes.c_int
         if hasattr(lib, "srmech_graph_kernel_decode"):
             lib.srmech_graph_kernel_decode.argtypes = [
                 ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # syms, n_syms
@@ -17355,6 +17371,77 @@ def genome_conserved_core_c(node_ids, counts, k_in):
             return None
         return ([int(core_arr[i]) for i in range(n_core.value)],
                 int(k_out.value), bool(bimodal.value))
+    except Exception:
+        return None
+
+
+def has_native_genome_section_counts() -> bool:
+    """True iff the §102/rc280 srmech_genome_section_counts C peer is loaded + bound:
+    a bare-C host derives ``{global_id: n_sections}`` from a plasmid section store
+    end-to-end — deriving the catalog ONCE and paging only each section's node_ids
+    region (never its edges). False on a no-C or pre-rc280 lib — the pure
+    srmech.amsc.plasmid.section_counts body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_section_counts"))
+
+
+#: The rc280 section-counts first-call output capacity (distinct global ids). A store
+#: with more distinct ids reports its true need via ``n_out`` and the call is retried
+#: once at exactly that size — so the arena is never over-allocated for a small store
+#: nor short for a corpus-scale one.
+_SECTION_COUNTS_CAP0: int = 1 << 16
+
+
+def genome_section_counts_c(store, the_one, leaf_dim, progress=None):
+    """Native §102/rc280 section-count derivation (parity peer
+    ``srmech_genome_section_counts``): scan a plasmid section store and return
+    ``(ids, counts, n_done, cancelled)`` — ``ids`` ascending, ``counts[i]`` the number
+    of DISTINCT sections carrying ``ids[i]``, the VOCAB chromosome excluded.
+
+    The C peer derives the store catalog ONCE and, per section, pages only the
+    ``node_ids`` prefix of the region — never the edge bytes — which is what makes the
+    scan O(P × node_ids) instead of O(P² × body). ``progress`` is the Python-only §101
+    tick (a truthy return CANCELS at a section boundary; the partial counts still come
+    back, and the Python caller raises rather than returning them). Returns ``None`` to
+    DECLINE (symbol absent / bad shape / arena overflow) so the pure body runs.
+    Value-identical to the pure ``section_counts``."""
+    if not has_native_genome_section_counts():
+        return None
+    try:
+        dim = int(leaf_dim)
+        one = bytes(the_one)
+        if dim <= 0 or dim > 256 or len(one) != dim:
+            return None
+        path = str(store).encode("utf-8")
+        one_arr = (ctypes.c_uint8 * dim)(*one)
+        cap = _SECTION_COUNTS_CAP0
+        for _attempt in (0, 1):
+            ids = (ctypes.c_uint64 * cap)()
+            cnts = (ctypes.c_uint64 * cap)()
+            n_out = ctypes.c_size_t(0)
+            n_done = ctypes.c_size_t(0)
+            box: dict = {}
+            tick = _make_tick_trampoline(progress, box) if progress is not None else \
+                ctypes.cast(None, _TICK_CFUNCTYPE)
+            rc = LIB.srmech_genome_section_counts(
+                path,                       # bytes -> NUL-terminated const char *
+                one_arr, ctypes.c_uint32(dim),
+                tick, None,
+                ids, cnts, ctypes.c_size_t(cap),
+                ctypes.byref(n_out), ctypes.byref(n_done))
+            if box.get("exc") is not None:
+                raise box["exc"]
+            if rc == SRMECH_ERR_OVERFLOW and int(n_out.value) > cap:
+                cap = int(n_out.value)          # the peer reported its TRUE need
+                continue
+            if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+                return None
+            n = int(n_out.value)
+            return ([int(ids[i]) for i in range(n)],
+                    [int(cnts[i]) for i in range(n)],
+                    int(n_done.value), rc == SRMECH_CANCELLED)
+        return None
     except Exception:
         return None
 
