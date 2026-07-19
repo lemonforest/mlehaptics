@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc278"
-#define SRMECH_VERSION       "0.9.0rc278"
+#define SRMECH_VERSION_PRE   "rc279"
+#define SRMECH_VERSION       "0.9.0rc279"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6498,6 +6498,120 @@ srmech_status_t srmech_genome_plasmid_extract(
     const char *dir, const char *label,
     uint32_t leaf_dim, const unsigned char *the_one,
     void *ws, size_t ws_len, size_t *out_n_syms);
+
+/* rc279 (§102 / F1252 STAGE 2 — ORGANIZE, the CONSERVE step) — read the
+ * SECTION-COUNT distribution and return the CONSERVED CORE node set + the
+ * threshold k. `counts[i]` is how many distinct plasmid sections node
+ * `node_ids[i]` appears in (stage-1's O(1)-per-node integer accumulator). A node
+ * is CONSERVED iff `counts[i] >= k` -> it joins the NUCLEAR core; the rest stay
+ * accessory PLASMID (expect the ~16/84 asymmetric minority, F1251).
+ *
+ * `k` IS DERIVED FROM THE DATA, NOT TUNED. With `k_in < 0` this MEASURES the
+ * ANTIMODE of the section-count histogram — the same walk, qualifying predicate
+ * and widest-gap tie-break as the rc272 participation antimode
+ * (genome._partition_antimode), applied in the count domain: the widest gap
+ * between consecutive OCCUPIED count-bins whose two flanking modes are both real
+ * (>= 2 nodes) splits conserved from accessory, and k = lo + 1. Note the
+ * INVERSION vs participation: there HIGH = a bridging PLASMID, here HIGH
+ * section-count = shared across many plasmids = the conserved NUCLEAR core.
+ * UNIMODAL (no qualifying gap) -> ONE-DNA-TYPE: *out_bimodal = 0, *out_k = 0 and
+ * *out_n_core = 0 — the split is NOT forced (the F1250 discipline). `k_in >= 0`
+ * forces a caller-supplied k (a verification / replay affordance, NOT the derived
+ * path; *out_bimodal is then 1).
+ *   node_ids / counts / n_nodes : the parallel node-id + section-count arrays.
+ *   k_in              : < 0 = DERIVE k from the distribution; >= 0 = force k.
+ *   out_core_ids / core_cap / out_n_core : caller buffer + the conserved count;
+ *                       core_cap >= n_nodes is always sufficient.
+ *   out_k             : out — the threshold actually used (0 on one-DNA-type).
+ *   out_bimodal       : out — 1 iff a real antimode split was found (or forced).
+ *   hist / hist_cap   : caller arena for the count histogram AND the two
+ *                       flanking-mode tables the O(max_count) antimode walk
+ *                       needs; hist_cap must be >= 3 * (max_count + 1). (The
+ *                       real corpus histogram is HEAVY-TAILED — a max count in
+ *                       the hundreds of thousands over ~1.7k occupied bins,
+ *                       F1253 — so re-scanning a side per gap would be
+ *                       O(gaps * max_count); the prefix tables make it linear.)
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out_n_core / out_k / out_bimodal / hist NULL, out_core_ids
+ *                          NULL with core_cap > 0, or node_ids / counts NULL with
+ *                          n_nodes > 0.
+ *   SRMECH_ERR_OVERFLOW  — hist_cap < 3*(max_count+1), or core_cap too small.
+ * Pure integer CARDINALITIES (Class-N): no float, no division, and no abs (a count
+ * has no sign to strip — not a Class-K pin-slot site). ADDITIVE plain symbol
+ * reusing NO callback typedef -> SRMECH_ABI_VERSION stays 6, GENOME_FORMAT_VERSION
+ * stays 15. Caller-arena; no malloc/goto. */
+srmech_status_t srmech_genome_conserved_core(
+    const uint64_t *node_ids, const uint64_t *counts, size_t n_nodes,
+    long k_in, uint64_t *out_core_ids, size_t core_cap, size_t *out_n_core,
+    uint64_t *out_k, int *out_bimodal, uint64_t *hist, size_t hist_cap);
+
+/* rc279 (§102 / F1252 STAGE 2 — ORGANIZE) — the C-native ORGANIZE orchestrator:
+ * PROMOTE the conserved core then MERGE the retained plasmid sections into ONE
+ * organized genome (nuclear core + plasmids), so a bare-C host runs stage 2
+ * end-to-end (genome-must-exist-in-C). It composes the two stage-2 primitives:
+ *   PROMOTE -> srmech_genome_mint_strand (rc277 / G5): the already-packed
+ *              conserved-core strand gains a §95a interior CENTROMERE (0x58) at the
+ *              metacentric p:q split with a content-addressed orientation, becoming
+ *              a Tier-2 NUCLEAR chromosome. It is placed at the HEAD.
+ *   MERGE   -> srmech_genome_integrate (rc276 / G4): each retained plasmid section
+ *              is spliced in at the chromosome boundary, in order.
+ * Because `at < 0` makes integrate a pure TAIL-APPEND, folding it over the P
+ * sections is exactly their CONCATENATION (associativity) — so the orchestrator
+ * calls the peer at the running write offset and the whole fold is O(total), not
+ * the O(P * total) a literal re-splice of the growing host would cost. The
+ * width-coherence gate (Class-K equality, NEVER abs) is applied per section.
+ *
+ * THE INCREMENTAL PATH. This is the op that removes the monolithic from-scratch
+ * partition from the encode: stage 2 NEVER calls srmech_laplacian_recursive_cut and
+ * never re-extracts. Adding one document = a stage-1 append + an O(section) count
+ * bump + a re-mint of the small conserved core; every plasmid section stays
+ * byte-untouched.
+ *   core / core_blocks : the already-packed conserved-core strand (from
+ *                       srmech_graph_kernel_encode over the induced core subgraph +
+ *                       the §89 kernel region build). core_blocks == 0 = ONE-DNA-TYPE
+ *                       (no core promoted — the plasmids are folded as-is).
+ *   plasmids / plasmid_blocks / n_plasmids : the retained sections, CONCATENATED
+ *                       block-wise, with the per-section block counts.
+ *   leaf_dim / the_one : the coupling width + the shared Klein-4 invariant
+ *                       (the_one is leaf_dim bytes; required when core_blocks > 0).
+ *   centromere_at / repeats / handle / handle_len : passed through to mint_strand
+ *                       (centromere_at < 0 = the metacentric midpoint).
+ *   tick / tick_user  : the §101 heartbeat, fired BETWEEN whole chromosomes —
+ *                       phase SRMECH_PHASE_MINTING (done 0, total 1) for the core
+ *                       promote, then SRMECH_PHASE_INTEGRATING (done = sections
+ *                       merged so far, total = n_plasmids) per section. A nonzero
+ *                       return CANCELS: *n_blocks_out holds the COMPLETE blocks
+ *                       written (a valid, readable partial organized genome — never
+ *                       a half-written chromosome), *n_integrated_out the sections
+ *                       merged, and SRMECH_CANCELLED is returned. NULL = off.
+ *   out / out_cap     : caller buffer; out_cap >= (core_blocks + 1 + sum
+ *                       plasmid_blocks) * leaf_dim.
+ *   n_blocks_out      : out — the organized block count.
+ *   n_integrated_out  : out — the sections merged (== n_plasmids unless cancelled).
+ *   ws / ws_len       : the mint scratch; ws_len >= (core_blocks + 1) * leaf_dim
+ *                       (read only when core_blocks > 0).
+ * BYTE-IDENTICAL to the pure Python genome_integrate_plasmids (same derived core,
+ * same minted centromere bytes, same section order).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out / n_blocks_out / n_integrated_out NULL, plasmids or
+ *                          plasmid_blocks NULL with n_plasmids > 0, or core / ws /
+ *                          the_one NULL with core_blocks > 0.
+ *   SRMECH_ERR_BAD_INPUT — leaf_dim 0 / > 256, or a section not opening with a
+ *                          chromosome-boundary cap (from the integrate peer).
+ *   SRMECH_ERR_OVERFLOW  — out_cap or ws_len too small.
+ *   SRMECH_CANCELLED     — the tick asked to stop (a clean chromosome-boundary partial).
+ * ADDITIVE plain symbol REUSING the existing srmech_progress_tick_cb_t typedef (no
+ * NEW typedef) -> SRMECH_ABI_VERSION stays 6, GENOME_FORMAT_VERSION stays 15.
+ * Caller-arena; no malloc/goto/abs/float. */
+srmech_status_t srmech_genome_integrate_plasmids(
+    const unsigned char *core, size_t core_blocks,
+    const unsigned char *plasmids, const size_t *plasmid_blocks, size_t n_plasmids,
+    uint32_t leaf_dim, const unsigned char *the_one,
+    long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len,
+    srmech_progress_tick_cb_t tick, void *tick_user,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out,
+    size_t *n_integrated_out, unsigned char *ws, size_t ws_len);
 
 /* srmech_eulerian_walk — #1390 item 3: the Hierholzer Eulerian trail /
  * circuit over a DIRECTED integer-node edge multiset [0, n_nodes). start < 0

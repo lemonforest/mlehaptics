@@ -17,7 +17,7 @@ Proven here (the note's 8 shapes):
   T2  facultative TRACKS cell_state — klein4 / boolean / threshold facultative regions each read a
       DIFFERENT accessible() under two cell_states differing on a gated bit (the core G1 claim).
   T3  back-compat — a constitutive rc274 cap is BYTE-IDENTICAL to a v15 cap; GENOME_FORMAT_VERSION
-      stays 15; tools.total is 453 (the ONE new callable, accessible).
+      stays 15; tools.total is 456 (the ONE new callable, accessible).
   T4  C↔Python byte-parity — accessible native==pure ∀ cell_state; the facultative cap WRITER
       native==pure (raw bytes); the demand-load PATH plan native==pure on a MIXED genome ∀ cs.
   T5  demand-load skips the right regions per state — a facultative region is in / out of the plan
@@ -116,7 +116,7 @@ def test_t3_constitutive_cap_byte_identical_and_format_15():
             [hv for hv in s if G._cap_kind(hv) == G.CHROMATIN_MARKER][0]) == (G.CHROMATIN_GATE_NONE, None)
     assert G.GENOME_FORMAT_VERSION == 15
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 453
+    assert introspect.describe()["tools"]["total"] == 456
 
 
 # ── T4  C↔Python byte-parity — accessible + the writer + the demand-load plan ─────────

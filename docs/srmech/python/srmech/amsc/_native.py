@@ -3699,6 +3699,41 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_size_t),                   # out_n_syms
             ]
             lib.srmech_genome_plasmid_extract.restype = ctypes.c_int
+        # §102/rc279 (F1252 STAGE 2 — ORGANIZE) — CONSERVED CORE: the CONSERVE step
+        # (section-count distribution -> the DERIVED antimode threshold k + the core
+        # node set). NEW plain symbol reusing NO callback typedef ->
+        # EXPECTED_ABI_VERSION stays 6.
+        if hasattr(lib, "srmech_genome_conserved_core"):
+            lib.srmech_genome_conserved_core.argtypes = [
+                ctypes.POINTER(ctypes.c_uint64),                   # node_ids
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # counts, n_nodes
+                ctypes.c_long,                                     # k_in
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # out_core_ids, cap
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_core
+                ctypes.POINTER(ctypes.c_uint64),                   # out_k
+                ctypes.POINTER(ctypes.c_int),                      # out_bimodal
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # hist, hist_cap
+            ]
+            lib.srmech_genome_conserved_core.restype = ctypes.c_int
+        # §102/rc279 (F1252 STAGE 2 — ORGANIZE) — INTEGRATE PLASMIDS: the ORGANIZE
+        # orchestrator (mint_strand PROMOTE + integrate MERGE, §101 tick between whole
+        # chromosomes). REUSES the existing srmech_progress_tick_cb_t typedef (no NEW
+        # typedef) -> EXPECTED_ABI_VERSION stays 6.
+        if hasattr(lib, "srmech_genome_integrate_plasmids"):
+            lib.srmech_genome_integrate_plasmids.argtypes = [
+                _U8, ctypes.c_size_t,                              # core, core_blocks
+                _U8, ctypes.POINTER(ctypes.c_size_t),              # plasmids, blocks
+                ctypes.c_size_t,                                   # n_plasmids
+                ctypes.c_uint32, _U8,                              # leaf_dim, the_one
+                ctypes.c_long, ctypes.c_uint32,                    # centromere_at, reps
+                _U8, ctypes.c_size_t,                              # handle, handle_len
+                _TICK_CFUNCTYPE, ctypes.c_void_p,                  # tick, tick_user
+                _U8, ctypes.c_size_t,                              # out, out_cap
+                ctypes.POINTER(ctypes.c_size_t),                   # n_blocks_out
+                ctypes.POINTER(ctypes.c_size_t),                   # n_integrated_out
+                _U8, ctypes.c_size_t,                              # ws, ws_len
+            ]
+            lib.srmech_genome_integrate_plasmids.restype = ctypes.c_int
         if hasattr(lib, "srmech_graph_kernel_decode"):
             lib.srmech_graph_kernel_decode.argtypes = [
                 ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # syms, n_syms
@@ -17272,6 +17307,124 @@ def genome_plasmid_extract_c(vocab_size, edges, weights, charges, node_ids,
         if rc != SRMECH_OK:
             return None
         return int(n_out.value)
+    except Exception:
+        return None
+
+
+def has_native_genome_conserved_core() -> bool:
+    """True iff the §102/rc279 srmech_genome_conserved_core C peer is loaded + bound:
+    a bare-C host runs the stage-2 CONSERVE step (the section-count distribution ->
+    the DERIVED antimode threshold k + the conserved core node set) end-to-end. False
+    on a no-C or pre-rc279 lib — the pure srmech.amsc.plasmid.conserved_core body is
+    the complete byte-identical alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_conserved_core"))
+
+
+def genome_conserved_core_c(node_ids, counts, k_in):
+    """Native §102/rc279 CONSERVE (parity peer srmech_genome_conserved_core): read the
+    section-count distribution and return ``(core_ids, k, bimodal)``. ``k_in < 0``
+    DERIVES ``k`` from the histogram's ANTIMODE (the discipline — k is an output of
+    the data); ``k_in >= 0`` forces a caller-supplied threshold. Returns ``None`` to
+    DECLINE (symbol absent / arena overflow) so the pure body runs. Value-identical to
+    the pure ``conserved_core`` (the same gap walk, the same widest-gap tie-break)."""
+    if not has_native_genome_conserved_core():
+        return None
+    try:
+        n = len(node_ids)
+        ids = [int(x) for x in node_ids]
+        cnt = [int(x) for x in counts]
+        if len(cnt) != n:
+            return None
+        # THREE span-sized bands: the histogram + the two flanking-mode tables
+        # (the O(max_count) antimode walk — the heavy-tailed-corpus fix).
+        hist_cap = 3 * ((max(cnt) if cnt else 0) + 1)
+        id_arr = (ctypes.c_uint64 * max(n, 1))(*ids)
+        c_arr = (ctypes.c_uint64 * max(n, 1))(*cnt)
+        core_arr = (ctypes.c_uint64 * max(n, 1))()
+        hist = (ctypes.c_uint64 * hist_cap)()
+        n_core = ctypes.c_size_t(0)
+        k_out = ctypes.c_uint64(0)
+        bimodal = ctypes.c_int(0)
+        rc = LIB.srmech_genome_conserved_core(
+            id_arr, c_arr, ctypes.c_size_t(n), ctypes.c_long(int(k_in)),
+            core_arr, ctypes.c_size_t(max(n, 1)), ctypes.byref(n_core),
+            ctypes.byref(k_out), ctypes.byref(bimodal),
+            hist, ctypes.c_size_t(hist_cap))
+        if rc != SRMECH_OK:
+            return None
+        return ([int(core_arr[i]) for i in range(n_core.value)],
+                int(k_out.value), bool(bimodal.value))
+    except Exception:
+        return None
+
+
+def has_native_genome_integrate_plasmids() -> bool:
+    """True iff the §102/rc279 srmech_genome_integrate_plasmids C orchestrator is
+    loaded + bound: a bare-C host runs stage 2 (PROMOTE the conserved core via
+    mint_strand, MERGE the retained plasmids via integrate) end-to-end, with the §101
+    tick firing between whole chromosomes. False on a no-C or pre-rc279 lib — the pure
+    srmech.amsc.plasmid fold is the complete byte-identical alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_integrate_plasmids"))
+
+
+def genome_integrate_plasmids_c(core, core_blocks, plasmids, plasmid_blocks,
+                                leaf_dim, the_one, progress=None,
+                                centromere_at=-1, repeats=None, handle=b"cen"):
+    """Native §102/rc279 ORGANIZE (parity peer srmech_genome_integrate_plasmids): mint
+    the conserved core (0x58 centromere) and fold in the retained plasmid sections,
+    returning ``(strand_hvs, n_integrated, cancelled)``. ``core`` / ``plasmids`` are
+    concatenated leaf_dim-byte block bytes; ``plasmid_blocks`` the per-section block
+    counts. ``progress`` is the Python-only tick (a truthy return CANCELS at a
+    chromosome boundary -> a valid shorter organized genome). Returns ``None`` to
+    DECLINE so the pure fold runs. Byte-identical to the pure path."""
+    if not has_native_genome_integrate_plasmids():
+        return None
+    from .genome import _hv_from_block, CENTROMERE_DEFAULT_REPEATS
+    try:
+        dim = int(leaf_dim)
+        one = bytes(the_one)
+        if dim <= 0 or dim > 256 or len(one) != dim:
+            return None
+        hnd = bytes(handle) if handle else b""
+        n_p = len(plasmid_blocks)
+        total_blocks = int(core_blocks) + 1 + sum(int(b) for b in plasmid_blocks)
+        blk_arr = (ctypes.c_size_t * max(n_p, 1))(*[int(b) for b in plasmid_blocks])
+        one_arr = (ctypes.c_uint8 * dim)(*one)
+        out = (ctypes.c_uint8 * (total_blocks * dim))()
+        ws = (ctypes.c_uint8 * ((int(core_blocks) + 1) * dim))()
+        nb = ctypes.c_size_t(0)
+        n_int = ctypes.c_size_t(0)
+        box: dict = {}
+        tick = _make_tick_trampoline(progress, box) if progress is not None else \
+            ctypes.cast(None, _TICK_CFUNCTYPE)
+        rc = LIB.srmech_genome_integrate_plasmids(
+            (ctypes.c_uint8 * len(core)).from_buffer_copy(core) if core else None,
+            ctypes.c_size_t(int(core_blocks)),
+            (ctypes.c_uint8 * len(plasmids)).from_buffer_copy(plasmids)
+            if plasmids else None,
+            blk_arr, ctypes.c_size_t(n_p),
+            ctypes.c_uint32(dim), one_arr,
+            ctypes.c_long(int(centromere_at)),
+            ctypes.c_uint32(CENTROMERE_DEFAULT_REPEATS if repeats is None
+                            else int(repeats)),
+            # the CENP-A inline epigenetic address — MUST match the Python
+            # mint_strand default (handle="cen"), or the cap bytes diverge.
+            (ctypes.c_uint8 * len(hnd)).from_buffer_copy(hnd) if hnd else None,
+            ctypes.c_size_t(len(hnd)),
+            tick, None,
+            out, ctypes.c_size_t(total_blocks * dim),
+            ctypes.byref(nb), ctypes.byref(n_int),
+            ws, ctypes.c_size_t((int(core_blocks) + 1) * dim))
+        if box.get("exc") is not None:
+            raise box["exc"]
+        if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+            return None
+        raw = bytes(out)[:nb.value * dim]
+        strand = [_hv_from_block(raw[i * dim:(i + 1) * dim])
+                  for i in range(nb.value)]
+        return strand, int(n_int.value), rc == SRMECH_CANCELLED
     except Exception:
         return None
 

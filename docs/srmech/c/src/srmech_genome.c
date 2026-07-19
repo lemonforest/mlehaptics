@@ -5742,3 +5742,275 @@ srmech_status_t srmech_genome_plasmid_extract(
     *out_n_syms = n_syms;
     return SRMECH_OK;
 }
+
+/* rc279 (§102 / F1252 STAGE 2 — ORGANIZE) — build the SECTION-COUNT HISTOGRAM:
+ * hist[c] = how many nodes have section_count == c, over c in [0, max_count].
+ * Pure integer CARDINALITIES (Class-N): no float, and no abs (a count has no
+ * sign to strip — this is not a Class-K pin-slot site). */
+static srmech_status_t conserved_hist_build(const uint64_t *counts, size_t n_nodes,
+                                            uint64_t *hist, size_t hist_cap,
+                                            uint64_t *max_out)
+{
+    uint64_t mx = 0u;
+    assert(hist != NULL && max_out != NULL);
+    assert(counts != NULL || n_nodes == 0u);
+    for (size_t i = 0u; i < n_nodes; i++) {
+        if (counts[i] > mx) { mx = counts[i]; }
+    }
+    if ((uint64_t)hist_cap <= mx) { return SRMECH_ERR_OVERFLOW; }
+    for (uint64_t c = 0u; c <= mx; c++) { hist[c] = 0u; }
+    for (size_t i = 0u; i < n_nodes; i++) { hist[counts[i]]++; }
+    *max_out = mx;
+    return SRMECH_OK;
+}
+
+/* rc279 — PRECOMPUTE both flanking modes for every possible gap in ONE pass each:
+ * pre[b] = argmax over hist[0..b], suf[b] = argmax over hist[b..max_count], both
+ * LOWEST-INDEX-ON-TIE so they agree exactly with conserved_side_argmax.
+ *
+ * Why: the real corpus histogram is HEAVY-TAILED — a maximum count in the hundreds
+ * of thousands with only ~1.7k occupied bins (F1253). Re-scanning a side per gap
+ * would be O(gaps * max_count), hundreds of millions of reads for ONE derivation.
+ * These two prefix passes make the whole antimode walk O(max_count). No abs/float. */
+static void conserved_side_modes(const uint64_t *hist, uint64_t max_count,
+                                 uint64_t *pre, uint64_t *suf)
+{
+    uint64_t best = 0u, b;
+    assert(hist != NULL);
+    assert(pre != NULL && suf != NULL);
+    for (b = 0u; b <= max_count; b++) {
+        if (hist[b] > hist[best]) { best = b; }   /* strict > keeps the LOWEST index */
+        pre[b] = best;
+    }
+    best = max_count;
+    for (b = max_count + 1u; b-- > 0u; ) {
+        if (hist[b] >= hist[best]) { best = b; }  /* >= walking down keeps the LOWEST */
+        suf[b] = best;
+    }
+}
+
+/* rc279 — MEASURE the ANTIMODE of the section-count histogram: the conservation
+ * DECISION, and the reason `k` is DERIVED FROM THE DATA rather than tuned. This is
+ * the count-domain mirror of the rc272 participation antimode
+ * (genome._partition_antimode) — same walk, same qualifying predicate, same
+ * widest-gap tie-break — so the two reads share one discipline.
+ *
+ * Walks the GAPS between consecutive OCCUPIED count-bins. A gap qualifies iff it is
+ * at least one bin WIDE (a genuine empty separation, not adjacent bins) and the
+ * dominant mode on EACH side is a real mode (>= 2 nodes). BIMODAL -> split at the
+ * WIDEST qualifying gap (ties -> the larger smaller-mode, then the lower bin);
+ * *k_out = lo + 1, so a node is CONSERVED iff section_count >= k (the empty gap makes
+ * `>= lo+1` and `>= hi` the same set).
+ *
+ * NOTE THE INVERSION vs participation: there HIGH participation = a community-bridging
+ * PLASMID; here HIGH section-count = shared across many plasmid sections = the
+ * conserved NUCLEAR core. UNIMODAL (no qualifying gap) -> ONE-DNA-TYPE: *bimodal_out
+ * = 0 and *k_out = 0 — do NOT force a split (the F1250 discipline). */
+static void conserved_antimode(const uint64_t *hist, uint64_t max_count,
+                               const uint64_t *pre, const uint64_t *suf,
+                               uint64_t *k_out, int *bimodal_out)
+{
+    uint64_t best_lo = 0u, best_w = 0u, best_sm = 0u, prev = 0u;
+    int found = 0, have_prev = 0;
+    assert(hist != NULL && pre != NULL && suf != NULL);
+    assert(k_out != NULL && bimodal_out != NULL);
+    for (uint64_t b = 0u; b <= max_count; b++) {
+        if (hist[b] == 0u) { continue; }
+        if (have_prev != 0 && b - prev >= 2u) {
+            uint64_t plo = pre[prev];       /* == conserved_side_argmax(0, prev)   */
+            uint64_t phi = suf[b];          /* == conserved_side_argmax(b, max)    */
+            uint64_t sm = (hist[plo] < hist[phi]) ? hist[plo] : hist[phi];
+            uint64_t w = b - prev;
+            if (sm >= 2u && (found == 0 || w > best_w ||
+                             (w == best_w && sm > best_sm))) {
+                best_w = w; best_sm = sm; best_lo = prev; found = 1;
+            }
+        }
+        prev = b;
+        have_prev = 1;
+    }
+    *bimodal_out = found;
+    *k_out = (found != 0) ? (best_lo + 1u) : 0u;
+}
+
+/* rc279 (§102 / F1252 STAGE 2 — the CONSERVE step) — read the section-count
+ * distribution and return the CONSERVED CORE node set + the DERIVED threshold k.
+ * See srmech.h for the full contract. `k_in < 0` DERIVES k from the distribution's
+ * antimode (the discipline); `k_in >= 0` forces a caller-supplied k (a verification
+ * / replay affordance, NOT the derived path). Pure integer; no float, no abs. */
+srmech_status_t srmech_genome_conserved_core(
+    const uint64_t *node_ids, const uint64_t *counts, size_t n_nodes,
+    long k_in, uint64_t *out_core_ids, size_t core_cap, size_t *out_n_core,
+    uint64_t *out_k, int *out_bimodal, uint64_t *hist, size_t hist_cap)
+{
+    uint64_t max_count = 0u, k = 0u, span;
+    int bimodal = 0;
+    size_t n_core = 0u;
+    srmech_status_t st;
+    if (out_n_core == NULL || out_k == NULL || out_bimodal == NULL ||
+        hist == NULL || (core_cap > 0u && out_core_ids == NULL) ||
+        (n_nodes > 0u && (node_ids == NULL || counts == NULL))) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out_n_core != NULL && out_k != NULL && out_bimodal != NULL);
+    assert(hist != NULL);
+    st = conserved_hist_build(counts, n_nodes, hist, hist_cap, &max_count);
+    if (st != SRMECH_OK) { return st; }
+    span = max_count + 1u;
+    /* the arena holds THREE span-sized integer bands: the histogram, then the
+     * prefix-mode and suffix-mode tables the O(max_count) antimode walk needs. */
+    if ((uint64_t)hist_cap < 3u * span) { return SRMECH_ERR_OVERFLOW; }
+    if (k_in >= 0) {
+        k = (uint64_t)k_in;                   /* caller-forced split (not derived) */
+        bimodal = 1;
+    } else {
+        conserved_side_modes(hist, max_count, hist + span, hist + 2u * span);
+        conserved_antimode(hist, max_count, hist + span, hist + 2u * span,
+                           &k, &bimodal);
+    }
+    if (bimodal != 0 && k > 0u) {             /* CONSERVED iff section_count >= k */
+        for (size_t i = 0u; i < n_nodes; i++) {
+            if (counts[i] < k) { continue; }
+            if (n_core >= core_cap) { return SRMECH_ERR_OVERFLOW; }
+            out_core_ids[n_core] = node_ids[i];
+            n_core++;
+        }
+    }
+    *out_n_core = n_core;
+    *out_k = k;
+    *out_bimodal = bimodal;
+    return SRMECH_OK;
+}
+
+/* rc279 — fire ONE §101 heartbeat. Returns nonzero to CANCEL (the tick's own
+ * channel); a NULL tick is OFF (one pointer test — the hot path pays ~nothing).
+ * done / total are EXACT cardinalities; the library never divides. */
+static int organize_tick(srmech_progress_tick_cb_t tick, void *user,
+                         uint32_t phase, uint64_t done, uint64_t total)
+{
+    srmech_progress_ev_t ev;
+    assert(phase <= (uint32_t)SRMECH_PHASE_PARTITIONING);
+    assert(total == 0u || done <= total);
+    if (tick == NULL) { return 0; }
+    ev.struct_size = (uint32_t)sizeof(srmech_progress_ev_t);
+    ev.phase = phase;
+    ev.done = done;
+    ev.total = total;
+    return tick(&ev, user);
+}
+
+/* rc279 — PROMOTE: mint the conserved-core strand into a Tier-2 NUCLEAR chromosome
+ * via the rc277 srmech_genome_mint_strand peer (the 0x58 centromere at the
+ * metacentric p:q split, content-addressed orientation), then place it at the head
+ * of the organized genome. `ws` is the mint scratch (the peer writes the +1-block
+ * minted strand there; it is copied to `out` head). No abs, no float. */
+static srmech_status_t organize_promote_core(
+    const unsigned char *core, size_t core_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one, long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len,
+    unsigned char *out, size_t out_cap, unsigned char *ws, size_t ws_len,
+    size_t *n_out)
+{
+    size_t minted = 0u;
+    srmech_status_t st;
+    assert(out != NULL && n_out != NULL);
+    assert(core != NULL && ws != NULL);
+    st = srmech_genome_mint_strand(core, core_blocks, leaf_dim, the_one,
+                                   centromere_at, 0u, 1, repeats, handle,
+                                   handle_len, ws, ws_len, &minted);
+    if (st != SRMECH_OK) { return st; }
+    if (out_cap < minted * (size_t)leaf_dim) { return SRMECH_ERR_OVERFLOW; }
+    memcpy(out, ws, minted * (size_t)leaf_dim);
+    *n_out = minted;
+    return SRMECH_OK;
+}
+
+/* rc279 — MERGE one retained plasmid section onto the organized strand's running
+ * TAIL via the rc276 srmech_genome_integrate peer.
+ *
+ * `at < 0` (integrate AFTER the last chromosome) makes the splice a pure TAIL-APPEND,
+ * so folding integrate over the P sections is exactly their CONCATENATION
+ * (associativity). Calling the peer at the running write offset with an EMPTY host
+ * therefore yields the BYTE-IDENTICAL strand in O(section) per step — the whole fold
+ * stays O(total) instead of the O(P * total) a literal re-splice of the accumulated
+ * host would cost. The WIDTH-COHERENCE gate (a Class-K equality read, NEVER abs) is
+ * applied HERE per section, because the peer's own gate is vacuous against an empty
+ * host — so the F1251 compatibility contract is still enforced per plasmid. */
+static srmech_status_t organize_append_section(
+    const unsigned char *sec, size_t sec_blocks, uint32_t leaf_dim,
+    uint32_t sec_leaf_dim, unsigned char *out, size_t out_cap, size_t off,
+    size_t *nb_out)
+{
+    int integrated = 0;
+    srmech_status_t st;
+    assert(out != NULL && nb_out != NULL);
+    assert(sec != NULL || sec_blocks == 0u);
+    if (sec_leaf_dim != leaf_dim) { return SRMECH_ERR_BAD_INPUT; }   /* incoherent */
+    st = srmech_genome_integrate(NULL, 0u, leaf_dim, sec, sec_blocks, leaf_dim, -1,
+                                 out + off, (out_cap > off) ? (out_cap - off) : 0u,
+                                 nb_out, &integrated);
+    if (st != SRMECH_OK) { return st; }
+    if (integrated == 0) { return SRMECH_ERR_BAD_INPUT; }
+    return SRMECH_OK;
+}
+
+/* rc279 (§102 / F1252 STAGE 2 — ORGANIZE) — the incremental organize orchestrator:
+ * PROMOTE the conserved core (mint_strand / G5) then MERGE the retained plasmid
+ * sections (integrate / G4) into ONE organized genome. See srmech.h for the full
+ * contract. The §101 tick fires BETWEEN whole chromosomes, so a cancel truncates at
+ * a valid chromosome boundary and *n_blocks_out is a complete, readable partial
+ * genome. No malloc / goto / abs / float. */
+srmech_status_t srmech_genome_integrate_plasmids(
+    const unsigned char *core, size_t core_blocks,
+    const unsigned char *plasmids, const size_t *plasmid_blocks, size_t n_plasmids,
+    uint32_t leaf_dim, const unsigned char *the_one,
+    long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len,
+    srmech_progress_tick_cb_t tick, void *tick_user,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out,
+    size_t *n_integrated_out, unsigned char *ws, size_t ws_len)
+{
+    size_t dim = (size_t)leaf_dim, off = 0u, blocks = 0u, sec_off = 0u, p;
+    srmech_status_t st;
+    if (out == NULL || n_blocks_out == NULL || n_integrated_out == NULL ||
+        (n_plasmids > 0u && (plasmids == NULL || plasmid_blocks == NULL)) ||
+        (core_blocks > 0u && (core == NULL || ws == NULL || the_one == NULL))) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && n_blocks_out != NULL);
+    assert(n_integrated_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    *n_integrated_out = 0u;
+    if (core_blocks > 0u) {                  /* PROMOTE — the conserved nuclear core */
+        size_t minted = 0u;
+        if (organize_tick(tick, tick_user, (uint32_t)SRMECH_PHASE_MINTING, 0u, 1u)
+            != 0) {
+            *n_blocks_out = 0u;              /* cancelled before any chromosome */
+            return SRMECH_CANCELLED;
+        }
+        st = organize_promote_core(core, core_blocks, leaf_dim, the_one,
+                                   centromere_at, repeats, handle, handle_len,
+                                   out, out_cap, ws, ws_len, &minted);
+        if (st != SRMECH_OK) { return st; }
+        off = minted * dim;
+        blocks = minted;
+    }
+    for (p = 0u; p < n_plasmids; p++) {      /* MERGE — the retained plasmids */
+        size_t nb = 0u;
+        if (organize_tick(tick, tick_user, (uint32_t)SRMECH_PHASE_INTEGRATING,
+                          (uint64_t)p, (uint64_t)n_plasmids) != 0) {
+            *n_blocks_out = blocks;          /* valid partial: whole chromosomes only */
+            *n_integrated_out = p;
+            return SRMECH_CANCELLED;
+        }
+        st = organize_append_section(plasmids + sec_off, plasmid_blocks[p], leaf_dim,
+                                     leaf_dim, out, out_cap, off, &nb);
+        if (st != SRMECH_OK) { return st; }
+        sec_off += plasmid_blocks[p] * dim;
+        off += nb * dim;
+        blocks += nb;
+    }
+    *n_blocks_out = blocks;
+    *n_integrated_out = n_plasmids;
+    return SRMECH_OK;
+}
