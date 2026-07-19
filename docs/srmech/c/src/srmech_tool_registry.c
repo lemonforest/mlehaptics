@@ -357,7 +357,6 @@ static const srmech_tool_param_t ts_params_21[] = {
 };
 static const srmech_tool_param_t ts_params_22[] = {
     { "text", "str", 1, "" },
-    { "stoplist", "list", 0, "function words to drop (casefolded); default DEFAULT_STOPLIST. None/empty = raw mode" },
     { "unicode_normalize", "bool", 0, "NFC-normalise text first (default True)" },
 };
 static const srmech_tool_param_t ts_params_23[] = {
@@ -2470,18 +2469,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "Build the dense ``n\303\227n`` adjacency matrix from an undirected edge list.",
     },
     { /* 22 */
-        "srmech.amsc.text.tokenize",
+        "srmech.amsc.text.glyph_stream",
         "srmech",
         "text",
-        "Segment text into casefolded Unicode content tokens (Class B/G text-segmentation; \302\24740/F698): keep runs of Unicode letter|mark codepoints (so caf\303\251 / \320\234\320\276\321\201\320\272\320\262\320\260 / \346\227\245\346\234\254\350\252\236 survive, NOT an ASCII word pattern), casefold, drop length<2 or stoplist words. NFC-normalises by default. The text\342\206\222tokens front of the K1 text\342\206\222graph\342\206\222spectral chain.",
-        ts_params_22, 3u,
+        "Segment text into UAX #29 EXTENDED GRAPHEME CLUSTERS \342\200\224 the language-agnostic glyph stream (Class B/G text-segmentation; \302\24740/F698; rc287). A cluster is what a reader perceives as ONE character, and it is the only unit well-defined in every script, so there is no per-language word decision: no length floor, no casefold, no stoplist. It REPLACES the former `tokenize`, whose word decision carried four Latin-shaped assumptions \342\200\224 scriptio-continua scripts collapsed into single 45-96 character tokens with ~89% of types singletons, single-codepoint CJK content words and the Hawaiian okina were deleted outright, and every emoji sequence returned empty. Emoji ZWJ sequences (GB11), flag pairs (GB12/13) and Indic conjuncts (GB9c) each come back as ONE cluster. Lossless: ''.join(result) reconstructs the NFC-normalised input exactly. Scores 1093/1093 on the official UAX #29 GraphemeBreakTest in both coherency projections; the break table is vendored (UCD 16.0.0) because Extended_Pictographic and InCB are not derivable from unicodedata at any fidelity. The text\342\206\222glyphs front of the K1 text\342\206\222graph\342\206\222spectral chain.",
+        ts_params_22, 2u,
         "list[str]",
-        "casefolded Unicode content-token stream",
+        "the UAX #29 grapheme-cluster stream",
         1,
         NULL,
-        "{\"input\":{\"text\":\"'abc'\"},\"output\":\"['abc']\"}",
+        "{\"input\":{\"text\":\"'abc'\"},\"output\":\"['a', 'b', 'c']\"}",
         NULL,
-        "Segment ``text`` into casefolded, Unicode-aware content tokens (\302\24740 / F698).",
+        "Segment ``text`` into UAX #29 **extended grapheme clusters** \342\200\224 the language-agnostic glyph stream (rc287).",
     },
     { /* 23 */
         "srmech.amsc.text.cooccurrence_edges",
@@ -4315,7 +4314,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"condense(strand=<Sequence[HV]>, the_one=<HV>, state=<bool | tuple>, region=<int | str | None>, handle=<str>, label=<str>) -> list\"}",
         NULL,
-        "CONDENSE a region \342\200\224 SET the chromatin ACCESS marker (0x48) on an EXISTING chromosome IN-PLACE (\302\24798 / F1246-F1247); a byte-splice preserving the centromere + body (no re-mint). state True/'condensed' silences, False/'open' opens, a (num, den) is a graded level; region=None is whole-chromosome (head), an int / gene-label is an interior stretch.",
+        "CONDENSE a region \342\200\224 SET the chromatin ACCESS marker on an EXISTING chromosome (\302\24798 / #1422).",
     },
     { /* 154 */
         "srmech.amsc.genome.decondense",
@@ -4329,7 +4328,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"decondense(strand=<Sequence[HV]>, the_one=<HV>, label=<str>) -> list\"}",
         NULL,
-        "DECONDENSE \342\200\224 CLEAR the chromatin ACCESS marker(s), the inverse of condense (\302\24798); splices out every 0x48 cap, preserving the centromere + body (a condensed-then-decondensed nuclear chromosome is byte-identical to the original mint).",
+        "DECONDENSE \342\200\224 CLEAR the chromatin ACCESS marker(s), the inverse of :func:`condense` (\302\24798).",
     },
     { /* 155 */
         "srmech.amsc.genome.chromatin_of",
@@ -4343,7 +4342,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"chromatin_of(strand=<Sequence[HV]>) -> dict\"}",
         NULL,
-        "Recover a chromosome's FIRST chromatin ACCESS state (\302\24798) \342\200\224 {type, state, level (num, den), handle, at, scope} \342\200\224 or ``None`` if it carries no chromatin marker (an all-euchromatin, fully-accessible chromosome; the default). A READ; never mutates.",
+        "Recover a chromosome's FIRST chromatin ACCESS state (\302\24798) \342\200\224 or ``None`` if it carries no chromatin marker (an all-euchromatin, fully-accessible chromosome; the default).",
     },
     { /* 156 */
         "srmech.amsc.genome.accessible",
@@ -4357,7 +4356,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"accessible(strand=<Sequence[HV]>, cell_state=<int>, the_one=<HV>) -> tuple\"}",
         NULL,
-        "The COMPUTED accessibility level (num, den) of a chromosome under cell_state (\302\24798.1/G1) \342\200\224 the chromatin-scale op\342\212\227operand: the SAME genome under a DIFFERENT cell_state reads a DIFFERENT accessible level (facultative heterochromatin \342\200\224 the Barr body / X-inactivation). A CONSTITUTIVE cap is constant in cell_state; a FACULTATIVE cap (set via condense(state={'activator':..}/{'dnf':..}/{'weights':..})) reads its when-open level iff its gate FIRES, else (0, 1); a chromatin-free strand reads (1, 1). num > 0 is open (Class-K). A READ; never mutates. Native-dispatched (srmech_genome_chromatin_access).",
+        "The COMPUTED accessibility LEVEL ``(num, den)`` of a chromosome under ``cell_state`` (\302\24798.1/G1).",
     },
     { /* 157 */
         "srmech.amsc.genome.mint",
@@ -4399,7 +4398,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"integrate(host=<Sequence[HV]>, provirus=<Sequence[HV]>, at=<Optional[int]>) -> Optional[list]\"}",
         NULL,
-        "Integrate a PROVIRUS (a chromosome strand) INTO a host genome-strand \342\200\224 the viral-integration analog (\302\24795.1d / F1244 / #1407), the coherency-translation-layer capstone. \302\247135/rc273 (F1251): a COMPATIBILITY GATE checks host<->provirus coherence (default: equal coupling width == same the_one) BEFORE splicing and HONEST-DECLINES on incompatibility (returns None, host unchanged \342\200\224 the CG258 segregated-replicon analog); Python callers may also pass a compatible=(host, provirus)->bool hook for a domain lineage barrier (an in-process affordance, not an MCP wire param \342\200\224 a callable can't cross JSON-RPC). A compatible provirus integrates exactly as rc262. rc276 (#891 / G4): the SPLICE has a direct C peer srmech_genome_integrate (the stage-2 primitive) \342\200\224 a bare-C host integrates end-to-end, and when HAS_NATIVE this dispatches the splice to it (byte-identical native or pure); the compatible= hook stays Python-only.",
+        "Integrate a PROVIRUS (a chromosome strand) INTO a host genome-strand \342\200\224 the viral-integration analog (\302\24795.1d / F1244 / #1407), the coherency-translation-layer capstone.",
     },
     { /* 160 */
         "srmech.amsc.genome.amplify",
@@ -4413,7 +4412,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"amplify(chrom=<Sequence[HV]>, label=<str>, n=<int>) -> list\"}",
         NULL,
-        "Set a gene's COPY NUMBER (multiplicity) to ``n`` \342\200\224 the IS26-amplification analog (\302\247135/rc273 / F1251). Records the count on the named plain gene's 0x47 cap (in what was NUL padding, transparent to every reader); n==1 is byte-identical to a plain gene, n>=2 spends a uint64 field; format 15 stays. C-dispatched since rc281 (srmech_genome_amplify) \342\200\224 a bare-C host can WRITE the axis, not just ignore it. Read back with copy_number_of.",
+        "Set a gene's COPY NUMBER (multiplicity) to ``n`` \342\200\224 the IS26-amplification analog (\302\247135/rc273 / F1251).",
     },
     { /* 161 */
         "srmech.amsc.genome.copy_number_of",
@@ -4427,7 +4426,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"copy_number_of(chrom=<Sequence[HV]>, label=<str>) -> int\"}",
         NULL,
-        "Read a gene's COPY NUMBER (multiplicity) \342\200\224 the reader companion to amplify (\302\247135/rc273 / F1251). Returns the amplified count, or 1 (present-once) for a plain / un-amplified / pre-rc273 gene (back-compat). A READ; never mutates. C-dispatched since rc281 (srmech_genome_copy_number).",
+        "Read a gene's COPY NUMBER (multiplicity) \342\200\224 the reader companion to :func:`amplify` (\302\247135/rc273 / F1251).",
     },
     { /* 162 */
         "srmech.amsc.genome.recall",
@@ -4483,7 +4482,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"plasmid(kernels=<dict>, the_one=<HV>, chromosomes=<Sequence[tuple]>) -> list\"}",
         NULL,
-        "Pack many kernels into ONE telomere-partitioned strand of pure STICK chromosomes \342\200\224 biology's plasmid (F715; the rc260 rename of the old ``genome``, \302\24795.2 / #1407).",
+        "Pack many kernels into ONE telomere-partitioned strand of pure PLASMID chromosomes \342\200\224 biology's plasmid (F715; the rc260 rename of the old ``genome``, \302\24795.2 / #1407).",
     },
     { /* 166 */
         "srmech.amsc.genome.partition",
@@ -4539,7 +4538,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"genome_catalog(path=<str>) -> dict\"}",
         NULL,
-        "Read the catalog of a genome at ``path`` \342\200\224 UPSTREAM \302\24741 / \302\24744 (per-chromosome cap_kind since \302\24796).",
+        "Read the catalog of a genome at ``path`` \342\200\224 UPSTREAM \302\24741 / \302\24744.",
     },
     { /* 170 */
         "srmech.amsc.genome.genome_census",
@@ -4553,7 +4552,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"genome_census(path=<str>) -> dict\"}",
         NULL,
-        "Census ONE genome \342\200\224 the \302\24796 per-genome roll-up {path, n_chromosomes, types (plasmid/nuclear/diploid), chromosomes, total_leaves, topology}; a thin roll-up over genome_catalog's \302\24796 cap_kind (rc271 F1251: plasmid was 'stick', nuclear was 'minted').",
+        "Census ONE genome \342\200\224 the biology-native per-genome roll-up (UPSTREAM \302\24796).",
     },
     { /* 171 */
         "srmech.amsc.genome.genome_registry",
@@ -4567,7 +4566,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"genome_registry(root=<str>) -> dict\"}",
         NULL,
-        "Census a ROOT of genomes \342\200\224 the \302\24796 cell/melange census {root, n_genomes, genomes:[census, \342\200\246]}, sorted by name (the nucleus-vs-organelle read over a directory of genomes).",
+        "Census a ROOT of genomes \342\200\224 the cell / melange census (UPSTREAM \302\24796, ADR-0006).",
     },
     { /* 172 */
         "srmech.amsc.genome.genome_append",
@@ -4791,7 +4790,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"plasmid_extract(docs=<Iterable>, section_store=<str>, the_one=<HV>, vocab=<list>, window=<int>, k=<int>, cap_slack=<int>, label_prefix=<str>) -> dict\"}",
         NULL,
-        "STAGE 1 EXTRACT (F1252 / \302\247102) \342\200\224 stream documents into APPEND-ONLY plasmid sections (each doc -> ONE \302\24789 KERNEL chromosome of its LOCAL co-occurrence graph, GLOBAL node-ids), retiring the loose monolithic co-occurrence JSON at the graph-L layer. Native-dispatches the whole section to the srmech_genome_plasmid_extract C orchestrator (byte-identical to the pure path); progress= is a Python-only kwarg firing between whole SECTIONS (phase EXTRACTING, clean cancel at a chromosome boundary).",
+        "STAGE 1 EXTRACT \342\200\224 stream ``docs`` into APPEND-ONLY plasmid sections.",
     },
     { /* 188 */
         "srmech.amsc.plasmid.section_counts",
@@ -4805,7 +4804,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"section_counts(section_store=<str>, the_one=<HV>) -> dict\"}",
         NULL,
-        "Derive {global_id: n_sections} \342\200\224 how many distinct PLASMID sections each GLOBAL node appears in \342\200\224 by scanning a plasmid_extract store's sections (their GLOBAL node_ids). The genome-native SSoT read stage-2 (F1252 rc279) promotes on (a node is CONSERVED iff its section-occurrence count >= k). rc280 (F1253): the catalog is derived ONCE for the whole scan (it was re-derived per section, re-reading the entire body each time \342\200\224 O(P^2 x body)) and each section is read TARGETED, paging only the node_ids prefix the \302\24789 payload puts before the edges \342\200\224 O(P x node_ids), byte-identical counts, no format change. Prefer plasmid_extract's free streamed section_count; this is the resume/verify path.",
+        "Derive ``{global_id: n_sections}`` \342\200\224 how many distinct PLASMID sections each GLOBAL node appears in \342\200\224 by scanning the store's sections' GLOBAL ``node_ids`` tables. \342\200\246",
     },
     { /* 189 */
         "srmech.amsc.plasmid.conserved_core",
@@ -4819,7 +4818,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"conserved_core(section_count=<dict>, k=<int>) -> dict\"}",
         NULL,
-        "CONSERVE (F1252 / \302\247102 STAGE 2 step 1) \342\200\224 read the section-count distribution and return the CONSERVED CORE node set + the threshold k DERIVED FROM THE DATA (the ANTIMODE of the count histogram \342\200\224 the rc272 participation-antimode discipline in the count domain, with the metric INVERTED: high section-count = the conserved NUCLEAR core). k='auto' (default) derives OR HONESTLY DECLINES: when no qualifying antimode exists it returns k_source='declined' with k=0 and an empty core rather than inventing a threshold \342\200\224 and the REAL F1253 corpus curve (heavy-tailed / near-power-law: singleton 64.6%, >=5 14.5%, >=100 1.7%, ratios decaying smoothly) takes exactly that path, because a scale-free distribution has no characteristic scale and hence no natural antimode. An explicit int is k_source='policy', a stated choice the CALLER owns \342\200\224 never presented as measured, and never selected to reproduce F1251's ~16% core fraction (that would be post-hoc numerology). Dispatches to the srmech_genome_conserved_core C peer.",
+        "CONSERVE (STAGE 2 step 1) \342\200\224 read the section-count distribution and return the CONSERVED CORE node set + the threshold ``k`` **derived from the data**.",
     },
     { /* 190 */
         "srmech.amsc.plasmid.genome_integrate_plasmids",
@@ -4833,7 +4832,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"genome_integrate_plasmids(section_store=<str>, the_one=<HV>, section_count=<dict>, k=<int>, core_edges=<list>, out_path=<str>) -> dict\"}",
         NULL,
-        "STAGE 2 ORGANIZE (F1252 / \302\247102) \342\200\224 CONSERVE (derive-or-decline k; the returned k_source records which) -> PROMOTE (mint the core, 0x58 centromere) -> MERGE (fold the retained plasmids), removing the monolithic from-scratch partition from the encode path (recursive_cut is never called). PASS section_count \342\200\224 plasmid_extract returns it FREE as a streamed accumulator; omitting it triggers the deliberate O(P*section) section_counts re-derivation (the slow verification path). Dispatches to the srmech_genome_integrate_plasmids C peer; progress= is a Python-only kwarg ticking between whole chromosomes (MINTING then INTEGRATING).",
+        "STAGE 2 ORGANIZE \342\200\224 sections -> a minted NUCLEAR CORE + retained PLASMIDS.",
     },
     { /* 191 */
         "srmech.amsc.plasmid.add_plasmid",
@@ -4847,7 +4846,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"add_plasmid(section_store=<str>, the_one=<HV>, tokens=<list>, state=<dict>, k=<int>, window=<int>, top_k=<int>, cap_slack=<int>, label_prefix=<str>, cache_edges=<bool>) -> dict\"}",
         NULL,
-        "INCREMENTAL STAGE 1 + 2 (F1252 / \302\247102) \342\200\224 add ONE document: stage-1 append + an O(section) count bump + a re-mint of the small conserved core. No global recursive_cut, no re-extraction; untouched sections stay byte-identical. Threads a running organize state. Calling it D times is BYTE-IDENTICAL to one genome_integrate_plasmids over the same D sections (the exactness contract the rc279 test pins).",
+        "INCREMENTAL STAGE 1 + 2 \342\200\224 add ONE document to an organized genome.",
     },
     { /* 192 */
         "srmech.amsc.genome.mint_strand",
@@ -4861,7 +4860,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"mint_strand(strand=<Sequence[HV]>, the_one=<HV>, orientation=<Optional[int]>, centromere_at=<Optional[int]>, repeats=<int>, handle=<str>) -> list\"}",
         NULL,
-        "MINT an ALREADY-PACKED strand \342\200\224 splice a \302\24795a interior CENTROMERE (``0x58``) into it at the p:q arm-split, turning a Tier-1 STICK into a Tier-2 MINTED chromosome (\302\247100 GAP 1 / PR#687 F1249).",
+        "MINT an ALREADY-PACKED strand \342\200\224 splice a \302\24795a interior CENTROMERE (``0x58``) into it at the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (\302\247100 GAP 1 / PR#687 F1249).",
     },
     { /* 193 */
         "srmech.amsc.genome.genome_partition",
@@ -4875,7 +4874,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"genome_partition(n=<int>, edges=<list>, weights=<Optional[list]>, charges=<Optional[list]>, work_dir=<Optional[str]>, max_tome=<int>, n_bins=<int>, max_iters=<int>) -> dict\"}",
         NULL,
-        "PARTITION a directed relational GRAPH into nuclear-core vs plasmid-periphery BY ITS OWN STRUCTURE (\302\247100 GAP 2 / PR#687 / F1250 / F1251). An introspectable READ (builds nothing): runs the out-of-core spectral community partition (:func:`~srmech.amsc.laplacian.recursive_cut`), measures each node's degree-normalized PARTICIPATION (fraction of incident edge-mass that crosses a community boundary \342\200\224 HIGH = plasmid/mobile accessory, LOW = nuclear/embedded core), then MEASURES the antimode: BIMODAL -> split nuclear (low) + plasmid (high), asymmetric minority-nuclear (F1251); UNIMODAL -> ACCEPT ONE-DNA-TYPE, no forced split (F1250). Composes the C-dispatched recursive_cut with a pure exact-integer participation + antimode read (native==pure); numpy-free, no ``abs()``.",
+        "PARTITION a directed relational GRAPH into nuclear-core vs plasmid-periphery BY ITS OWN STRUCTURE \342\200\224 the \302\247100 GAP 2 read (PR#687 / F1250 / F1251). Builds NOTHING (an introspectable read, like :func:`mint_plan` \342\200\224 \"we watch it happen\"); :func:`genome_from_graph` is the builder that consumes this to mint the genome.",
     },
     { /* 194 */
         "srmech.amsc.genome.genome_from_graph",
@@ -4889,7 +4888,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"call\":\"genome_from_graph(n=<int>, edges=<list>, weights=<Optional[list]>, charges=<Optional[list]>, the_one=<HV>, path=<Optional[str]>, leaf_dim=<Optional[int]>, max_tome=<int>, n_bins=<int>, centromere_at=<Optional[int]>) -> dict\"}",
         NULL,
-        "BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN STRUCTURE (\302\247100 GAP 2 / PR#687 / F1250 / F1251) \342\200\224 'hand a graph, get nuclear + plasmid from its structure'. Runs :func:`genome_partition`, then MINTS each nuclear community (:func:`mint_strand` -> a 0x58 centromere) and KEEPS each plasmid community as a Tier-1 plasmid chromosome; if ``path`` is given, ``genome_save`` + ``genome_census`` report the measured ``{nuclear, plasmid}``. BYTE-EXACT per community (:func:`kernel_to_graph` recovers each induced sub-graph). numpy-free; no ``abs()``.",
+        "BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN STRUCTURE \342\200\224 the \302\247100 GAP 2 builder (PR#687 / F1250 / F1251). \"Hand a graph, get nuclear + plasmid from its structure.\"",
     },
     { /* 195 */
         "srmech.amsc.kepler.pin_slot",

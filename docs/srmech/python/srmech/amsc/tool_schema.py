@@ -903,31 +903,44 @@ def _register_primitive_class_tools() -> None:
             returns=R("Mat", "n × n dense matrix (numpy-free 2-D carrier)"),
         ),
         # §40 (rc50): the text→graph stage primitives — the K1 chain's missing
-        # front, now in srmech.amsc.text (ingestion module; laplacian stays
-        # purely spectral). `tokenize → cooccurrence_edges → dense_laplacian → …`
+        # front, in srmech.amsc.text (ingestion module; laplacian stays purely
+        # spectral). `glyph_stream → cooccurrence_edges → dense_laplacian → …`
         # authorable end-to-end; retires the hand-rolled Counter() idiom. The
         # rc43 versions FAILED the §40 acceptance bar 3/3 (ASCII tokenize /
-        # silent vocab cap / no doc-boundary reset) — rc50 fixes all three.
-        # rc217 (gh #1360): all three dispatch to BYTE-IDENTICAL C peers
-        # (srmech_text_tokenize / _cooccurrence_edges / _cooccurrence_topk +
-        # _topk_extract) — the corpus-linear hot loops run in C; the pure
+        # silent vocab cap / no doc-boundary reset) — rc50 fixed all three.
+        # rc287: the UNIT changed from the word to the UAX #29 grapheme
+        # cluster (BREAKING — `tokenize` and DEFAULT_STOPLIST are gone, with no
+        # shim). All three dispatch to BYTE-IDENTICAL C peers
+        # (srmech_text_glyph_stream / _cooccurrence_edges / _cooccurrence_topk
+        # + _topk_extract) — the corpus-linear hot loops run in C; the pure
         # bodies remain the complete alternative + parity oracle.
         ToolEntry(
-            name="srmech.amsc.text.tokenize", owner="srmech",
+            name="srmech.amsc.text.glyph_stream", owner="srmech",
             category="text",
-            summary="Segment text into casefolded Unicode content tokens (Class "
-                    "B/G text-segmentation; §40/F698): keep runs of Unicode "
-                    "letter|mark codepoints (so café / Москва / 日本語 survive, "
-                    "NOT an ASCII word pattern), casefold, drop length<2 or "
-                    "stoplist words. NFC-normalises by default. The text→tokens "
-                    "front of the K1 text→graph→spectral chain.",
+            summary="Segment text into UAX #29 EXTENDED GRAPHEME CLUSTERS — the "
+                    "language-agnostic glyph stream (Class B/G "
+                    "text-segmentation; §40/F698; rc287). A cluster is what a "
+                    "reader perceives as ONE character, and it is the only unit "
+                    "well-defined in every script, so there is no per-language "
+                    "word decision: no length floor, no casefold, no stoplist. "
+                    "It REPLACES the former `tokenize`, whose word decision "
+                    "carried four Latin-shaped assumptions — scriptio-continua "
+                    "scripts collapsed into single 45-96 character tokens with "
+                    "~89% of types singletons, single-codepoint CJK content "
+                    "words and the Hawaiian okina were deleted outright, and "
+                    "every emoji sequence returned empty. Emoji ZWJ sequences "
+                    "(GB11), flag pairs (GB12/13) and Indic conjuncts (GB9c) "
+                    "each come back as ONE cluster. Lossless: ''.join(result) "
+                    "reconstructs the NFC-normalised input exactly. Scores "
+                    "1093/1093 on the official UAX #29 GraphemeBreakTest in "
+                    "both coherency projections; the break table is vendored "
+                    "(UCD 16.0.0) because Extended_Pictographic and InCB are "
+                    "not derivable from unicodedata at any fidelity. The "
+                    "text→glyphs front of the K1 text→graph→spectral chain.",
             parameters=(P("text", "str", True),
-                        P("stoplist", "list", False,
-                          "function words to drop (casefolded); default "
-                          "DEFAULT_STOPLIST. None/empty = raw mode"),
                         P("unicode_normalize", "bool", False,
                           "NFC-normalise text first (default True)")),
-            returns=R("list[str]", "casefolded Unicode content-token stream"),
+            returns=R("list[str]", "the UAX #29 grapheme-cluster stream"),
         ),
         ToolEntry(
             name="srmech.amsc.text.cooccurrence_edges", owner="srmech",
