@@ -2717,10 +2717,13 @@ def amplify(chrom, label, n):
     field over). The on-disk format version STAYS 15 (an additive field in existing padding, no
     new marker). Read the count back with :func:`copy_number_of`.
 
-    Class-I/N exact integer (no float, never ``abs()``). Pure composition over the C-built strand
-    (a cap rewrite + byte-copy, like :func:`mint_strand`) — the result is byte-identical whether
-    ``chrom`` came from the native or the pure builders. Raises ``ValueError`` if ``n < 1`` or no
-    plain gene named ``label`` is found in ``chrom``."""
+    Class-I/N exact integer (no float, never ``abs()``). C-DISPATCHED since rc281: the whole op
+    has its own C entry point (``srmech_genome_amplify``), so a bare-C host can WRITE the
+    copy-number axis rather than merely ignore it. (rc273 shipped this Python-only, reasoning
+    that the field is TRANSPARENT to every existing C reader — true, but transparent-to-readers
+    is NOT C-host parity; see ``docs/srmech/notes/c_host_parity_audit_rc273.md`` G6.) The result
+    is byte-identical whether it came from the native or the pure path. Raises ``ValueError`` if
+    ``n < 1`` or no plain gene named ``label`` is found in ``chrom``."""
     strand = list(chrom)
     if not isinstance(n, int) or isinstance(n, bool):
         raise ValueError(
@@ -2729,6 +2732,22 @@ def amplify(chrom, label, n):
         raise ValueError(
             f"amplify: n (copy number) must be >= 1 (a gene is present at least once; a "
             f"multiplicity is never signed / never abs()); got {n}")
+    # rc281 (§135 / F1251): DISPATCH to the srmech_genome_amplify C peer when the strand
+    # is uniform fixed-width leaf_dim blocks. rc273 shipped this op Python-only on the
+    # (true) reasoning that the copy-number field is TRANSPARENT to every existing C
+    # reader — but transparent-to-readers is NOT C-host parity: without the peer a bare-C
+    # host could not WRITE the axis at all. The peer does the WHOLE op (find the first
+    # plain 0x47 cap by label, rewrite it, byte-copy the rest), so ADR-0003 holds. The
+    # pure walk below is the numpy-free fallback + the byte-parity oracle, and it also
+    # handles any non-uniform strand (e.g. a variable-width packed turn) and raises the
+    # ValueErrors when the peer DECLINES (returns None).
+    blocks = _leaf_blocks(strand)
+    dim0 = len(blocks[0]) if blocks else 0
+    if dim0 > 0 and all(len(b) == dim0 for b in blocks):
+        native = _native.genome_amplify_c(b"".join(blocks), len(blocks), dim0, label, n)
+        if native is not None:
+            return [_hv_from_block(native[i * dim0:(i + 1) * dim0])
+                    for i in range(len(blocks))]
     for i, hv in enumerate(strand):
         if _cap_kind(hv) != GENE_CAP_MARKER:
             continue                                    # only a PLAIN gene carries a copy-number
@@ -2755,7 +2774,22 @@ def copy_number_of(chrom, label):
     reads as copy-number 1 (back-compat), and a gene amplified to ``n`` reads back exactly ``n``.
 
     ⚠️ A READ — the strand is byte-identical after this call. Class-I/N exact integer (no float,
-    never ``abs()``). Raises ``ValueError`` if no plain gene named ``label`` is found."""
+    never ``abs()``). C-DISPATCHED since rc281 (``srmech_genome_copy_number``) — the reader half
+    of the G6 parity correction, so a bare-C host can GET the axis and not just skip past it.
+    Raises ``ValueError`` if no plain gene named ``label`` is found."""
+    # rc281 (§135 / F1251): DISPATCH to the srmech_genome_copy_number C peer — the READ
+    # half of the pair. Same rationale as amplify: before rc281 a bare-C host could not
+    # GET the copy-number axis at all, only ignore it. The peer does the WHOLE op (find
+    # the first plain 0x47 cap by label, read the uint64 BE field, absent -> 1). The pure
+    # walk below is the fallback + the value-parity oracle and raises when it DECLINES.
+    _strand = list(chrom)
+    _blocks = _leaf_blocks(_strand)
+    _dim0 = len(_blocks[0]) if _blocks else 0
+    if _dim0 > 0 and all(len(b) == _dim0 for b in _blocks):
+        _native_n = _native.genome_copy_number_c(
+            b"".join(_blocks), len(_blocks), _dim0, label)
+        if _native_n is not None:
+            return _native_n
     for hv in chrom:
         if _cap_kind(hv) != GENE_CAP_MARKER:
             continue

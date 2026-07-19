@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc280"
-#define SRMECH_VERSION       "0.9.0rc280"
+#define SRMECH_VERSION_PRE   "rc281"
+#define SRMECH_VERSION       "0.9.0rc281"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5232,6 +5232,17 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * _ACTIVE_TELOMERE_COUNT_BYTES in srmech.amsc.genome. */
 #define SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES 8u
 
+/* §135/rc273 gene COPY-NUMBER field width — a uint64 (8 bytes, big-endian) carried in what
+ * was a PLAIN GENE cap's (0x47) NUL padding, at the bytes RIGHT AFTER the inline label's NUL
+ * terminator (the SAME placement discipline as the §127 active-telomere count and the §129
+ * regulatory masks, so the label decode stays UNIFORM). A stored 0 — the all-NUL padding a
+ * plain / pre-rc273 gene carries — reads as copy-number 1 (present-once, the DEFAULT), and a
+ * copy-number of 1 is written as the plain cap, so an n == 1 amplify is BYTE-IDENTICAL to a
+ * plain gene and no wire change is spent. Additive field in EXISTING padding, not a new
+ * marker or block kind: SRMECH_GENOME_FORMAT_VERSION stays 15. Mirrors
+ * _GENE_COPY_NUMBER_BYTES in srmech.amsc.genome. */
+#define SRMECH_GENOME_GENE_COPY_NUMBER_BYTES 8u
+
 /* §128/v8 REGULATORY GENE marker (rc128, #728) — the FIRST byte of a fixed-width
  * leaf_dim-byte cap leaf that opens an INTRA-chromosome gene (like the plain GENE cap) AND
  * carries an exact non-negative regulatory MASK inline. Layout: [0x67] + utf-8 label + NUL +
@@ -6689,6 +6700,58 @@ srmech_status_t srmech_genome_integrate_plasmids(
     srmech_progress_tick_cb_t tick, void *tick_user,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out,
     size_t *n_integrated_out, unsigned char *ws, size_t ws_len);
+
+/* rc281 (§135 / F1251 — the GENE COPY-NUMBER pair) — WRITE a gene's copy number.
+ *
+ * rc273 shipped `amplify` / `copy_number_of` in Python only, on the reasoning that the
+ * copy-number field is TRANSPARENT to every existing C reader (srmech_genome_gene_express
+ * returns on the 0x47 marker before reading any field, so no C change was needed to keep
+ * reading an amplified genome). That is true and it is NOT parity: transparent-to-readers
+ * is not the same as C-host-standalone. Without these two symbols a bare-C host can neither
+ * SET nor GET the copy-number axis — it can only ignore it. This pair closes that gap
+ * (the c_host_parity_audit_rc273 G6 exhibit), so ADR-0003 holds for the whole §135 surface.
+ *
+ * Walk `strand` (`n_blocks` fixed-width `leaf_dim`-byte blocks), find the FIRST PLAIN GENE
+ * cap (0x47) whose inline label equals `label`, and write to `out` a strand of the SAME
+ * n_blocks in which ONLY that cap is rewritten to carry `n` — every other block, and the
+ * matched gene's own data turns, are byte-copied unchanged. The strand LENGTH is unchanged:
+ * `n` is a MULTIPLICITY (an annotation on the ONE gene), never N duplicated strands.
+ *
+ * `n == 1` (the default present-once) writes the PLAIN cap — byte-identical to a gene that
+ * was never amplified — so amplifying to 1 is an identity-shaped rewrite that spends no
+ * wire. Only `n >= 2` spends the 8-byte field. Byte-identical to the Python
+ * srmech.amsc.genome.amplify for every (label, n, leaf_dim).
+ *
+ * `out_cap` must be >= n_blocks * leaf_dim. Returns SRMECH_ERR_BAD_INPUT if `n` is 0 (a
+ * gene is present at least once — a multiplicity is never signed, so there is nothing to
+ * strip and this is NOT a Class-K pin-slot site: it is a domain gate), if no plain gene
+ * named `label` is in the strand, or if the label + field would not fit `leaf_dim`.
+ * ADDITIVE plain symbol (no new typedef) — SRMECH_ABI_VERSION stays 6,
+ * SRMECH_GENOME_FORMAT_VERSION stays 15 (rc273's field is already in the format).
+ * Integer/exact (Class-I/N); no float, no abs, no malloc, no goto, no recursion. */
+srmech_status_t srmech_genome_amplify(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, uint64_t n,
+    unsigned char *out, size_t out_cap);
+
+/* rc281 (§135 / F1251) — READ a gene's copy number: the inverse of srmech_genome_amplify
+ * and the C peer of srmech.amsc.genome.copy_number_of.
+ *
+ * Walk `strand`, find the FIRST PLAIN GENE cap (0x47) whose inline label equals `label`,
+ * and write its exact copy number to *count_out: the uint64 big-endian value carried right
+ * after the label's NUL, or 1 when the field is absent. ABSENT means any of: all-NUL
+ * padding (a plain, never-amplified gene), a pre-rc273 genome, no label NUL inside the
+ * leaf, or a leaf too narrow to hold the field — every one of those reads as 1
+ * (present-once, the DEFAULT), which is what makes the field back-compatible.
+ *
+ * A pure READ — `strand` is untouched. Returns SRMECH_ERR_BAD_INPUT if no plain gene named
+ * `label` is in the strand (a caller distinguishes "absent gene" from "gene present once",
+ * exactly as the Python raises rather than returning 0). ADDITIVE plain symbol —
+ * SRMECH_ABI_VERSION stays 6, SRMECH_GENOME_FORMAT_VERSION stays 15. Integer/exact
+ * (Class-I/N); no float, no abs, no malloc, no goto, no recursion. */
+srmech_status_t srmech_genome_copy_number(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, uint64_t *count_out);
 
 /* srmech_eulerian_walk — #1390 item 3: the Hierholzer Eulerian trail /
  * circuit over a DIRECTED integer-node edge multiset [0, n_nodes). start < 0

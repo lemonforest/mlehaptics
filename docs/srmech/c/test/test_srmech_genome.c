@@ -1180,7 +1180,13 @@ int main(void)
      * express (the C wire-format back/forward-compat: the count is TRANSPARENT to the C
      * reader, which returns on the 0x47 marker BEFORE reading any field — the same
      * discipline the Python _gene_expresses uses). This is the C proof that amplify's
-     * additive field needs no format bump (v15 stays) and no C change. */
+     * additive field needs no format bump (v15 stays).
+     *
+     * ⚠️ rc281 CORRECTION: this block used to conclude "and no C change" — it does NOT
+     * show that. Transparency proves an existing C READER is not BROKEN by the field; it
+     * says nothing about whether a C host can USE it. Until rc281 there was no C path to
+     * WRITE the count or READ its value, so a bare-C host could only ignore the axis. The
+     * rc281 block below covers the two peers that actually close that gap. */
     {
         const uint32_t ld = 16u;
         unsigned char cap[16];
@@ -1535,6 +1541,116 @@ int main(void)
             check_true(b2 == SRMECH_ERR_BAD_INPUT, "rc280: leaf_dim < 52 -> BAD_INPUT");
             check_true(b3 == SRMECH_ERR_NULL_ARG, "rc280: NULL n_out -> NULL_ARG");
         }
+    }
+
+    /* §135/rc281 (F1251 / G6) — the COPY-NUMBER pair: srmech_genome_amplify (WRITE) +
+     * srmech_genome_copy_number (READ). A bare-C host now SETS and GETS the axis, not
+     * merely tolerates it. Strand: [CHROM cap "c"][gene "resA"][turn][gene "resB"][turn]. */
+    {
+        const uint32_t ld = 16u;
+        unsigned char strand[5u * 16u];
+        unsigned char out[5u * 16u];
+        memset(strand, 0, sizeof(strand));
+        strand[0] = (unsigned char)SRMECH_GENOME_CHROM_CAP_MARKER;   /* chromosome cap */
+        strand[1] = (unsigned char)'c';
+        strand[16] = (unsigned char)SRMECH_GENOME_GENE_CAP_MARKER;   /* gene "resA" */
+        memcpy(strand + 17, "resA", 4u);
+        strand[32] = 2u;                                             /* a Klein-4 turn */
+        strand[48] = (unsigned char)SRMECH_GENOME_GENE_CAP_MARKER;   /* gene "resB" */
+        memcpy(strand + 49, "resB", 4u);
+        strand[64] = 1u;                                             /* a Klein-4 turn */
+
+        /* a never-amplified gene reads 1 (all-NUL padding == stored 0 == present-once) */
+        uint64_t got = 0u;
+        srmech_status_t r = srmech_genome_copy_number(
+            strand, 5u, ld, (const unsigned char *)"resA", 4u, &got);
+        check_true(r == SRMECH_OK && got == 1u,
+                   "rc281: a plain (never-amplified) gene reads copy-number 1");
+
+        /* WRITE 7 -> the field lands right after the label's NUL, uint64 big-endian */
+        srmech_status_t w = srmech_genome_amplify(
+            strand, 5u, ld, (const unsigned char *)"resA", 4u, 7u, out, sizeof(out));
+        check_true(w == SRMECH_OK, "rc281: amplify returns OK");
+        check_true(out[48 + 0] == (unsigned char)SRMECH_GENOME_GENE_CAP_MARKER &&
+                   memcmp(out + 49, "resB", 4u) == 0 &&
+                   out[32] == 2u && out[64] == 1u && out[0] == strand[0],
+                   "rc281: every other block is byte-copied unchanged");
+        check_true(out[16] == (unsigned char)SRMECH_GENOME_GENE_CAP_MARKER &&
+                   memcmp(out + 17, "resA", 4u) == 0 && out[21] == 0u &&
+                   out[22] == 0u && out[23] == 0u && out[24] == 0u && out[25] == 0u &&
+                   out[26] == 0u && out[27] == 0u && out[28] == 0u && out[29] == 7u,
+                   "rc281: the count is uint64 BE right after the label NUL");
+
+        /* READ it back, and confirm the sibling gene is untouched */
+        uint64_t back = 0u, sib = 0u;
+        srmech_status_t r2 = srmech_genome_copy_number(
+            out, 5u, ld, (const unsigned char *)"resA", 4u, &back);
+        srmech_status_t r3 = srmech_genome_copy_number(
+            out, 5u, ld, (const unsigned char *)"resB", 4u, &sib);
+        check_true(r2 == SRMECH_OK && back == 7u, "rc281: copy_number reads 7 back");
+        check_true(r3 == SRMECH_OK && sib == 1u, "rc281: the sibling gene still reads 1");
+
+        /* the amplified cap is STILL an always-expressed plain gene (transparency holds) */
+        int expressed = -1;
+        uint64_t m = 0xDEADu;
+        srmech_status_t e = srmech_genome_gene_express(out + 16, ld, 0u, &expressed, &m);
+        check_true(e == SRMECH_OK && expressed == 1 && m == 0u,
+                   "rc281: an amplified cap still reads always-express");
+
+        /* a large count round-trips exactly (no float, no truncation) */
+        unsigned char big[5u * 16u];
+        uint64_t bigv = 0u;
+        srmech_status_t wb = srmech_genome_amplify(
+            strand, 5u, ld, (const unsigned char *)"resB", 4u,
+            (uint64_t)1u << 40, big, sizeof(big));
+        srmech_status_t rb = srmech_genome_copy_number(
+            big, 5u, ld, (const unsigned char *)"resB", 4u, &bigv);
+        check_true(wb == SRMECH_OK && rb == SRMECH_OK && bigv == ((uint64_t)1u << 40),
+                   "rc281: a 2^40 count round-trips exactly");
+
+        /* n == 1 is the DEFAULT: byte-identical to the plain strand, no field spent */
+        unsigned char one_out[5u * 16u];
+        srmech_status_t w1 = srmech_genome_amplify(
+            strand, 5u, ld, (const unsigned char *)"resA", 4u, 1u,
+            one_out, sizeof(one_out));
+        check_true(w1 == SRMECH_OK && memcmp(one_out, strand, sizeof(strand)) == 0,
+                   "rc281: amplify to 1 is byte-identical to the plain strand");
+
+        /* error contract: n == 0, an absent gene, NULL args, a short out buffer */
+        srmech_status_t b1 = srmech_genome_amplify(
+            strand, 5u, ld, (const unsigned char *)"resA", 4u, 0u, out, sizeof(out));
+        srmech_status_t b2 = srmech_genome_amplify(
+            strand, 5u, ld, (const unsigned char *)"nope", 4u, 3u, out, sizeof(out));
+        srmech_status_t b3 = srmech_genome_amplify(
+            NULL, 5u, ld, (const unsigned char *)"resA", 4u, 3u, out, sizeof(out));
+        srmech_status_t b4 = srmech_genome_amplify(
+            strand, 5u, ld, (const unsigned char *)"resA", 4u, 3u, out, 8u);
+        srmech_status_t b5 = srmech_genome_copy_number(
+            strand, 5u, ld, (const unsigned char *)"nope", 4u, &got);
+        check_true(b1 == SRMECH_ERR_BAD_INPUT, "rc281: n == 0 -> BAD_INPUT");
+        check_true(b2 == SRMECH_ERR_BAD_INPUT, "rc281: absent gene -> BAD_INPUT");
+        check_true(b3 == SRMECH_ERR_NULL_ARG, "rc281: NULL strand -> NULL_ARG");
+        check_true(b4 == SRMECH_ERR_OVERFLOW, "rc281: short out buffer -> OVERFLOW");
+        check_true(b5 == SRMECH_ERR_BAD_INPUT,
+                   "rc281: copy_number of an absent gene -> BAD_INPUT");
+
+        /* a leaf too narrow for label + field is refused, not silently truncated */
+        unsigned char tiny[2u * 8u];
+        unsigned char tiny_out[2u * 8u];
+        memset(tiny, 0, sizeof(tiny));
+        tiny[0] = (unsigned char)SRMECH_GENOME_GENE_CAP_MARKER;
+        memcpy(tiny + 1, "resA", 4u);
+        srmech_status_t nt = srmech_genome_amplify(
+            tiny, 2u, 8u, (const unsigned char *)"resA", 4u, 5u,
+            tiny_out, sizeof(tiny_out));
+        check_true(nt == SRMECH_ERR_BAD_INPUT,
+                   "rc281: label + field wider than leaf_dim -> BAD_INPUT");
+        /* ...and READING such a leaf falls back to the present-once default, not a crash */
+        uint64_t tv = 0u;
+        srmech_status_t tr = srmech_genome_copy_number(
+            tiny, 2u, 8u, (const unsigned char *)"resA", 4u, &tv);
+        check_true(tr == SRMECH_OK && tv == 1u,
+                   "rc281: a leaf too narrow for the field reads 1 (absent == default)");
     }
 
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);

@@ -3750,6 +3750,28 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_size_t),                   # n_done
             ]
             lib.srmech_genome_section_counts.restype = ctypes.c_int
+        # §135/rc281 (F1251) — the GENE COPY-NUMBER pair. rc273 shipped amplify /
+        # copy_number_of Python-only because the field is TRANSPARENT to the existing C
+        # readers; that is not parity (a bare-C host could neither SET nor GET the axis).
+        # ADDITIVE plain symbols, no new typedef -> EXPECTED_ABI_VERSION stays 6 and
+        # GENOME_FORMAT_VERSION stays 15 (rc273's field is already in the format).
+        if hasattr(lib, "srmech_genome_amplify"):
+            lib.srmech_genome_amplify.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # strand, n_blocks
+                ctypes.c_uint32,                                   # leaf_dim
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # label, label_len
+                ctypes.c_uint64,                                   # n (copy number)
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # out, out_cap
+            ]
+            lib.srmech_genome_amplify.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_copy_number"):
+            lib.srmech_genome_copy_number.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # strand, n_blocks
+                ctypes.c_uint32,                                   # leaf_dim
+                ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # label, label_len
+                ctypes.POINTER(ctypes.c_uint64),                   # count_out
+            ]
+            lib.srmech_genome_copy_number.restype = ctypes.c_int
         if hasattr(lib, "srmech_graph_kernel_decode"):
             lib.srmech_graph_kernel_decode.argtypes = [
                 ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # syms, n_syms
@@ -17881,6 +17903,78 @@ def genome_centromere_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
     if rc != SRMECH_OK:
         return None
     return (bool(found.value), int(o_out.value), int(p_out.value), int(q_out.value))
+
+
+def has_native_genome_amplify() -> bool:
+    """True iff the §135/rc281 srmech_genome_amplify C peer is loaded + bound: a bare-C
+    host can WRITE a gene's copy number. False on a no-C or pre-rc281 lib — the pure
+    srmech.amsc.genome.amplify body is the complete byte-identical alternative + the
+    parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_amplify"))
+
+
+def genome_amplify_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
+                     label, n: int):
+    """Native §135/rc281 copy-number WRITE (parity peer ``srmech_genome_amplify``): find
+    the FIRST plain GENE cap (0x47) labelled ``label`` and return the whole strand bytes
+    with ONLY that cap rewritten to carry copy-number ``n`` (every other block, and the
+    gene's own data turns, byte-copied). ``n == 1`` writes the PLAIN cap — byte-identical
+    to a never-amplified gene, no field spent; only ``n >= 2`` spends the uint64 BE field.
+
+    Returns ``None`` to DECLINE (symbol absent / bad shape / label too wide / no such
+    plain gene) so the pure body runs and raises its own ValueError. Byte-identical to
+    the pure ``amplify``."""
+    if not has_native_genome_amplify():
+        return None
+    raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks <= 0
+            or len(strand_bytes) != n_blocks * leaf_dim
+            or not isinstance(n, int) or isinstance(n, bool) or n < 1
+            or n >= (1 << 64) or b"\x00" in raw):
+        return None
+    total = n_blocks * leaf_dim
+    out = (ctypes.c_uint8 * max(total, 1))()
+    rc = LIB.srmech_genome_amplify(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(raw), ctypes.c_size_t(len(raw)), ctypes.c_uint64(n),
+        out, ctypes.c_size_t(total))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:total])
+
+
+def has_native_genome_copy_number() -> bool:
+    """True iff the §135/rc281 srmech_genome_copy_number C peer is loaded + bound: a
+    bare-C host can READ a gene's copy number. False on a no-C or pre-rc281 lib — the
+    pure srmech.amsc.genome.copy_number_of body is the complete value-identical
+    alternative + the parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_copy_number"))
+
+
+def genome_copy_number_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label):
+    """Native §135/rc281 copy-number READ (parity peer ``srmech_genome_copy_number``):
+    the exact multiplicity of the FIRST plain GENE cap (0x47) labelled ``label`` — the
+    uint64 BE count right after the label's NUL, or ``1`` when the field is absent (a
+    plain / never-amplified gene, a pre-rc273 genome, or a leaf too narrow to hold it).
+
+    Returns ``None`` to DECLINE (symbol absent / bad shape / no such plain gene) so the
+    pure body runs and raises its own ValueError. A READ — the strand is untouched.
+    Value-identical to the pure ``copy_number_of``."""
+    if not has_native_genome_copy_number():
+        return None
+    raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks <= 0
+            or len(strand_bytes) != n_blocks * leaf_dim or b"\x00" in raw):
+        return None
+    count = ctypes.c_uint64(0)
+    rc = LIB.srmech_genome_copy_number(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(raw), ctypes.c_size_t(len(raw)), ctypes.byref(count))
+    if rc != SRMECH_OK:
+        return None
+    return int(count.value)
 
 
 def has_native_genome_diploid() -> bool:
