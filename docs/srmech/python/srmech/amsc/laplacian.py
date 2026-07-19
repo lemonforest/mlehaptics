@@ -5998,6 +5998,24 @@ def recursive_cut(
     graph_path = os.path.join(work_dir, "graph.bin")
     write_packed_graph(graph_path, edge_list, w_list)
 
+    # §100 G1 (rc284): the whole `while pending` recursion has a standalone-C peer
+    # — queue, induced sub-graphs, sign-split and tome retirement all run in C, so
+    # a bare-C host builds the partition with no Python present. The pure driver
+    # below is the complete alternative AND the byte-parity oracle: both
+    # projections write byte-identical tome files in byte-identical order.
+    _rc = _native.recursive_cut_c(
+        int(n), graph_path, work_dir, int(max_tome), int(max_iters),
+        int(max_depth), int(n) + 1, progress=progress)
+    if _rc is not None:
+        _paths, _sizes, _cancelled = _rc
+        return {
+            "n_tomes": len(_paths),
+            "tome_paths": _paths,
+            "tomes": [_read_node_set(t) for t in _paths],
+            "work_dir": work_dir,
+            "status": "cancelled" if _cancelled else "ok",
+        }
+
     root = os.path.join(queue_dir, "set_0.bin")
     _write_node_set(root, range(int(n)))
     pending: List[Tuple[str, int]] = [(root, 0)]

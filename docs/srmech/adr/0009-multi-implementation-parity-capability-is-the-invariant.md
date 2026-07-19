@@ -301,17 +301,34 @@ its index row and this ADR cross-reference each other.
   This ADR defines the standard the audit's open gaps are measured against.
 - **Current state as verified at v0.9.0rc280** (the audit was taken at rc273 and the tree has
   moved): audit gaps **G4 `integrate`** and **G5 `mint_strand`** are **closed** (rc276, rc277 —
-  both now `c_dispatched` with whole-op C entry points). **G1 `recursive_cut`**, **G2
-  `genome_from_graph`**, **G3 graph `genome_partition`**, **G6 `amplify` / `copy_number_of`**,
-  and the **G7** minors (`condense`, `decondense`, `active_telomere`, `genes`, `mint_plan`,
-  multi-gene `chromosome`) remain **open** — verified by absence from `c/include/srmech.h` at
-  rc280.
-  > **G1 caveat, worth stating because a grep alone gets it wrong.** `grep
-  > srmech_laplacian_recursive_cut c/include/srmech.h` returns a hit at rc280, but the hit is
+  both now `c_dispatched` with whole-op C entry points). **G6 `amplify` /
+  `copy_number_of`** closed at rc281; **G1 `recursive_cut`** closed at **rc284**. **G2
+  `genome_from_graph`**, **G3 graph `genome_partition`**, and the **G7** minors
+  (`condense`, `decondense`, `active_telomere`, `genes`, `mint_plan`, multi-gene
+  `chromosome`) remain **open**.
+  > **G1 caveat as written at rc280, and how it resolved.** At rc280, `grep
+  > srmech_laplacian_recursive_cut c/include/srmech.h` returned a hit — but the hit was
   > inside a **prose comment** on `srmech_genome_integrate_plasmids` recording that stage 2
-  > *"NEVER calls"* it. There is no declaration in the header, no definition in `c/src`, and no
-  > binding in `python/srmech/amsc/_native.py`. G1 is open; the symbol name exists only as a
-  > reference to its absence.
+  > *"NEVER calls"* it. The symbol name existed only as a reference to its absence. **rc284
+  > closed G1**: `srmech_laplacian_recursive_cut` (+ `_arena_bytes`) is now declared in the
+  > header, defined in `c/src/srmech_laplacian.c`, bound in `_native.py`, and genuinely
+  > dispatched by the op — all four checked mechanically by the rc281 wire-glue ratchet.
+  >
+  > **What G1 turned out to be is worth recording, because the obvious reading was wrong.**
+  > G1 was widely described as needing a Fiedler-vector computation built in C under
+  > ADR-0005. It did not: `srmech_laplacian_fiedler_sparse_file` has been native since
+  > **rc168**, with the §101 tick already threaded at phase `PARTITIONING`, and
+  > `srmech_rational_sqrt` has supplied its only square root since rc45. The missing piece
+  > was the **`while pending` recursion around the engine** — the disk-backed queue, the
+  > induced-subgraph relabel, the tome lifecycle — plus three absent **PAL** primitives
+  > (`mkdir` / `remove` / replacing-`rename`). The gap was I/O and control flow, not
+  > mathematics. This is a §1.3-shaped mechanism: the capability looked blocked on the
+  > hardest-sounding component, and was actually blocked on the most mundane one.
+  >
+  > **G1 was the shared dead-end of G2 and G3, so rc284 UNBLOCKS both — but unblocking is
+  > not closing.** G3 additionally needs exact-integer participation, the antimode
+  > histogram and per-node classify; G2 needs all of G3 plus its in-RAM `_induced_subgraph`
+  > relabel, the per-group `graph_to_kernel` → `mint_strand` loop and strand assembly.
 - **rc279 and rc280 shipped a new capability surface** (`plasmid_extract`, `section_counts`,
   `conserved_core`, `genome_integrate_plasmids`), taking the ledger from 677 to **680** rows.
   Two are `c_dispatched`, two `composition_of_c`. `section_counts` is the §1.2 instance.

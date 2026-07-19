@@ -23,6 +23,12 @@
  *     AF_UNIX-socket (POSIX) / named-pipe (Windows) duality, with the
  *     endpoint-name -> OS-path mapping absorbed into the PAL. Consumer:
  *     srmech_bus.c — the last raw-OS surface in the library, now #ifdef-free.
+ *   - MUTATING FS (rc284): mkdir / remove / replacing-rename — the three
+ *     surfaces an out-of-core WORK QUEUE needs and the read-only file
+ *     surface could not express. Their absence is what actually blocked
+ *     §100 G1 (the recursive_cut driver), not the spectral maths: the
+ *     Fiedler engine had been native since rc168. First consumer:
+ *     srmech_laplacian.c's srmech_laplacian_recursive_cut.
  *
  * NOT exported in the public ABI (srmech.h): these are internal cross-TU
  * symbols, exactly like the srmech_simd_* HAL functions.
@@ -257,6 +263,46 @@ srmech_status_t srmech_plat_file_write(const char *path, int append,
 
 /* Byte length of `path` into *out_size. Missing / unstattable → SRMECH_ERR_IO. */
 srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size);
+
+/* ------------------------------------------------------------------ *
+ * MUTATING FILESYSTEM OPS (rc284) — the three surfaces an out-of-core
+ * work QUEUE needs and the read-only file surface above cannot express:
+ * create a scratch directory, drop a consumed work file, and MOVE a
+ * finished one into place. srmech_laplacian_recursive_cut is the first
+ * consumer (its disk-backed queue / tomes lifecycle); before rc284 these
+ * were reachable only from Python (os.makedirs / os.remove / os.replace),
+ * which is exactly why the §100 G1 gap could not be closed in C.
+ *
+ * `remove()` and `rename()` are C89 <stdio.h>, so they need no OS split.
+ * `mkdir` and REPLACING-rename do: POSIX mkdir(path, mode) vs Windows
+ * _mkdir(path), and POSIX rename() replaces an existing destination
+ * atomically while Win32 rename() FAILS on one (MoveFileEx with
+ * MOVEFILE_REPLACE_EXISTING is the Win peer). The split lives here, in
+ * the PAL, so the functional cores stay #ifdef-free.
+ * ------------------------------------------------------------------ */
+
+/* Create directory `path`. ALREADY-EXISTS IS SUCCESS (idempotent, the
+ * os.makedirs(exist_ok=True) semantic) — a caller re-entering a reused
+ * work_dir must not fail. Creates ONE level only: the parent must exist
+ * (the recursive_cut driver creates work_dir, then work_dir/queue and
+ * work_dir/tomes under it, so one level per call is sufficient and keeps
+ * the primitive bounded + non-recursive per JPL Rule 1). No filesystem /
+ * unwritable parent → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_mkdir(const char *path);
+
+/* Delete file `path`. A MISSING file is SUCCESS (idempotent, the
+ * "os.remove under a pre-checked os.path.exists" semantic the callers
+ * want) — so a caller need not race a stat against the unlink. A path
+ * that exists but cannot be removed → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_remove(const char *path);
+
+/* MOVE `src` onto `dst`, REPLACING `dst` if it exists — the os.replace()
+ * semantic, not the C89 rename() one (which is unspecified / failing on an
+ * existing destination on Windows). This is the primitive that lets the
+ * out-of-core driver retire a work file into a finished tome WITHOUT ever
+ * copying its bytes (the queue's whole low-RAM point). Failure to move →
+ * SRMECH_ERR_IO; `src` is then left in place (no half-move). */
+srmech_status_t srmech_plat_file_replace(const char *src, const char *dst);
 
 /* ================================================================== *
  * DIRECTORY ITERATION (rc163) — the POSIX opendir / Win32 FindFirstFile

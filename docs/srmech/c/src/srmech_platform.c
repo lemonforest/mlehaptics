@@ -21,7 +21,9 @@
 #include "srmech_platform.h"
 
 #include <assert.h>
-#include <stdio.h>    /* snprintf (stream endpoint paths) */
+#include <errno.h>    /* ENOENT / EEXIST (rc284 mkdir/remove idempotence) — needed
+                       * on BOTH branches, so it is hoisted out of the POSIX block */
+#include <stdio.h>    /* snprintf (stream endpoint paths); remove/rename (rc284) */
 #include <stdlib.h>   /* getenv (POSIX socket path under $HOME) */
 #include <string.h>
 #include <time.h>     /* timespec_get / TIME_UTC (wall clock, rc179) */
@@ -34,7 +36,6 @@
 #  define SRMECH_PLAT_THREADS_POSIX 1
 #  define SRMECH_PLAT_STREAM_POSIX  1
 #  include <pthread.h>
-#  include <errno.h>        /* EINTR (read/write retry) */
 #  include <sys/socket.h>   /* AF_UNIX / AF_INET stream IPC */
 #  include <sys/stat.h>     /* mkdir / chmod */
 #  include <sys/types.h>
@@ -1073,6 +1074,51 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
     return SRMECH_OK;
 }
 
+/* Mutating filesystem ops (rc284) — mkdir / remove / replacing-rename, the
+ * three surfaces the out-of-core recursive_cut work QUEUE needs. remove() and
+ * rename() are C89 stdio; mkdir and replacing-rename carry the only OS split
+ * in this block, kept here so srmech_laplacian.c stays #ifdef-free. */
+
+srmech_status_t srmech_plat_mkdir(const char *path)
+{
+    assert(path != NULL);
+    assert(path[0] != '\0');
+    if (path == NULL || path[0] == '\0') { return SRMECH_ERR_BAD_INPUT; }
+#if defined(_WIN32) || defined(_WIN64)
+    if (CreateDirectoryA(path, NULL)) { return SRMECH_OK; }
+    /* already-there is SUCCESS: the os.makedirs(exist_ok=True) semantic. */
+    return (GetLastError() == ERROR_ALREADY_EXISTS) ? SRMECH_OK : SRMECH_ERR_IO;
+#else
+    if (mkdir(path, 0700) == 0) { return SRMECH_OK; }
+    return (errno == EEXIST) ? SRMECH_OK : SRMECH_ERR_IO;
+#endif
+}
+
+srmech_status_t srmech_plat_file_remove(const char *path)
+{
+    assert(path != NULL);
+    assert(path[0] != '\0');
+    if (path == NULL || path[0] == '\0') { return SRMECH_ERR_BAD_INPUT; }
+    if (remove(path) == 0) { return SRMECH_OK; }
+    /* MISSING is SUCCESS — the caller wanted it gone and it is gone. */
+    return (errno == ENOENT) ? SRMECH_OK : SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_replace(const char *src, const char *dst)
+{
+    assert(src != NULL && src[0] != '\0');
+    assert(dst != NULL && dst[0] != '\0');
+    if (src == NULL || dst == NULL) { return SRMECH_ERR_NULL_ARG; }
+#if defined(_WIN32) || defined(_WIN64)
+    /* Win32 rename() FAILS on an existing dst; MoveFileEx replaces it. */
+    if (MoveFileExA(src, dst, MOVEFILE_REPLACE_EXISTING)) { return SRMECH_OK; }
+    return SRMECH_ERR_IO;
+#else
+    /* POSIX rename() already replaces an existing dst atomically. */
+    return (rename(src, dst) == 0) ? SRMECH_OK : SRMECH_ERR_IO;
+#endif
+}
+
 /* Streaming read (rc164) — a persistent read handle so a caller can pull a
  * file in fixed chunks without loading it whole (the §B4 ndjson tokeniser).
  * Portable stdio like the whole-file helpers; no OS split, no new backend
@@ -1174,6 +1220,30 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
     assert(srmech_plat_has_filesystem() == 0);
     assert(out_size != NULL);
     (void)path; (void)out_size;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_mkdir(const char *path)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(path != NULL);
+    (void)path;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_remove(const char *path)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(path != NULL);
+    (void)path;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_replace(const char *src, const char *dst)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(src != NULL && dst != NULL);
+    (void)src; (void)dst;
     return SRMECH_ERR_IO;
 }
 
