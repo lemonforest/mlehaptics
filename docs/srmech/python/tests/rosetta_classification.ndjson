@@ -673,3 +673,5 @@
 {"exposed_as": "srmech.profile_loader.reset_for_testing", "defined_at": "srmech.profile_loader.reset_for_testing", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.amsc.cascade.frame_carrier.frame_carrier", "defined_at": "srmech.amsc.cascade.frame_carrier.frame_carrier", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.frame_carrier.frame_carrier_compare", "defined_at": "srmech.amsc.cascade.frame_carrier.frame_carrier_compare", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.plasmid.plasmid_extract", "defined_at": "srmech.amsc.plasmid.plasmid_extract", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.plasmid.section_counts", "defined_at": "srmech.amsc.plasmid.section_counts", "bucket": "non_compute", "non_compute_kind": "composes_c"}

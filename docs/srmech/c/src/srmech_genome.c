@@ -314,14 +314,16 @@ static srmech_status_t genome_hex(const unsigned char *data, size_t n,
 
 /* Decode `n` bytes from the 2*n lowercase-hex chars at `hex` into `out`. The v4
  * region-chain reverses genome_hex (the stored region/chain digests are hex; the
- * chain folds the RAW 32-byte values). SRMECH_ERR_BAD_INPUT on a non-hex char.
- * (A fixed-width digest decoder — distinct from the .chr's variable-length,
- * cap-checked genome_unhex.) */
+ * chain folds the RAW 32-byte values); the v12 head-rebuild ALSO reverses it for
+ * the_one.hex (n == leaf_dim, up to the §102/rc278 kernel-section leaf_dim >= 52
+ * — bound by SRMECH_GENOME_LEAF_CAP, the caller one_buf[256]). SRMECH_ERR_BAD_INPUT
+ * on a non-hex char. (A fixed-width decoder — distinct from the .chr's
+ * variable-length, cap-checked genome_unhex.) */
 static srmech_status_t genome_hex2bytes(const char *hex, size_t n,
                                         unsigned char *out)
 {
     assert(hex != NULL && out != NULL);
-    assert(n <= 32u);
+    assert(n <= (size_t)SRMECH_GENOME_LEAF_CAP);
     for (size_t i = 0; i < 2u * n; i++) {
         char c = hex[i];
         int nib = (c >= '0' && c <= '9') ? (c - '0')
@@ -5572,5 +5574,171 @@ srmech_status_t srmech_graph_kernel_decode(
     *out_n_nid = (size_t)n_nid;
     *out_n_ex = (size_t)n_ex;
     *out_n_edges = (size_t)n_edges;
+    return SRMECH_OK;
+}
+
+/* rc278 (§102 / F1252 STAGE 1) — the §89/v6 UNIFORMLY-KLEIN-4 kernel HEADER leaf
+ * (mirror srmech.amsc.genome._pack_kernel_header_klein4): base-4 BIG-ENDIAN
+ * (MSB-symbol first) `true_len` (uint64 -> 32 symbols) ++ `leaf_dim` (uint32 ->
+ * 16) ++ element_type (uint8 -> 4; ELEMENT_TYPE_KLEIN4 == 0), Klein-4-zero-padded
+ * to `dim`. Writes `dim` symbols {0,1,2,3}. No float, no abs, no goto/malloc. */
+static void genome_kernel_header_leaf(uint64_t true_len, uint32_t leaf_dim,
+                                      unsigned char *out, uint32_t dim)
+{
+    uint64_t v = true_len;
+    uint32_t d = leaf_dim;
+    assert(out != NULL);
+    assert(dim >= 52u && dim <= 256u);
+    for (uint32_t j = 0; j < dim; j++) { out[j] = 0u; }     /* Klein-4 zero pad */
+    /* true_len -> 32 base-4 symbols at [0:32], big-endian (out[31] the LSB). */
+    for (uint32_t j = 0; j < 32u; j++) {
+        out[31u - j] = (unsigned char)(v & 3u);
+        v >>= 2;
+    }
+    /* leaf_dim -> 16 base-4 symbols at [32:48], big-endian. */
+    for (uint32_t j = 0; j < 16u; j++) {
+        out[47u - j] = (unsigned char)(d & 3u);
+        d >>= 2;
+    }
+    /* element_type == ELEMENT_TYPE_KLEIN4 == 0 -> symbols [48:52] stay 0. */
+}
+
+/* rc278 — pack ONE coupled leaf_dim-symbol Klein-4 turn into its §55/v3 on-disk
+ * block [SRMECH_GENOME_PACKED_TURN_MARKER] + ceil(leaf_dim/4) payload bytes (4
+ * two-bit lanes/byte, the FIRST symbol in the HIGH lanes; the partial final
+ * byte's unused low lanes stay 0 — canonical). Mirror _pack_turn_block. Returns
+ * the bytes written (1 + ceil(leaf_dim/4)); the caller has bounded `out`. */
+static size_t genome_v3_pack_turn(const unsigned char *leaf, uint32_t leaf_dim,
+                                  unsigned char *out)
+{
+    size_t plen = ((size_t)leaf_dim + 3u) / 4u;
+    assert(leaf != NULL && out != NULL);
+    assert(leaf_dim != 0u && leaf_dim <= 256u);
+    out[0] = SRMECH_GENOME_PACKED_TURN_MARKER;
+    for (size_t b = 0; b < plen; b++) {
+        unsigned char byte = 0u;
+        for (size_t lane = 0; lane < 4u; lane++) {
+            size_t idx = b * 4u + lane;
+            unsigned char sym = (idx < (size_t)leaf_dim) ? (leaf[idx] & 3u) : 0u;
+            byte = (unsigned char)(byte | (sym << (6u - 2u * lane)));
+        }
+        out[1u + b] = byte;
+    }
+    return 1u + plen;
+}
+
+/* rc278 — build ONE §89/v6 KERNEL-chromosome on-disk region from a flat Klein-4
+ * symbol stream `syms` (`n_syms`): a KERNEL telomere (0x6B) cap over `label`
+ * (verbatim, leaf_dim bytes), then the coupled + v3-packed §89 header leaf, then
+ * each coupled + v3-packed content leaf (`syms` chunked leaf_dim-wide, final leaf
+ * Klein-4-zero-padded). BYTE-IDENTICAL to Python kernel_pack + _disk_block (the
+ * genome_append_kernel section). Caller-arena `out`; *out_len the bytes written.
+ * No malloc, no goto, no abs, no float. */
+static srmech_status_t genome_kernel_region(
+    const uint8_t *syms, size_t n_syms, uint32_t leaf_dim,
+    const unsigned char *the_one, const char *label,
+    unsigned char *out, size_t out_cap, size_t *out_len)
+{
+    unsigned char leaf[256];
+    unsigned char coupled[256];
+    size_t dim = (size_t)leaf_dim;
+    size_t pos = 0u;
+    size_t turn_len = 1u + ((size_t)leaf_dim + 3u) / 4u;
+    srmech_status_t st;
+    if (syms == NULL || the_one == NULL || out == NULL || out_len == NULL ||
+        label == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && out_len != NULL);
+    assert(the_one != NULL && label != NULL);
+    if (leaf_dim < 52u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    if (out_cap < dim) { return SRMECH_ERR_OVERFLOW; }
+    /* [0] KERNEL telomere cap (verbatim leaf_dim bytes). */
+    st = genome_pack_cap(SRMECH_GENOME_KERNEL_TELOMERE_MARKER,
+                         (const unsigned char *)label, strlen(label), leaf_dim,
+                         out, dim);
+    if (st != SRMECH_OK) { return st; }
+    pos = dim;
+    /* the §89 header leaf: build -> couple through the_one -> v3-pack. */
+    genome_kernel_header_leaf(n_syms, leaf_dim, leaf, leaf_dim);
+    st = srmech_klein4_bind(leaf, the_one, leaf_dim, coupled);
+    if (st != SRMECH_OK) { return st; }
+    if (pos + turn_len > out_cap) { return SRMECH_ERR_OVERFLOW; }
+    pos += genome_v3_pack_turn(coupled, leaf_dim, out + pos);
+    /* content leaves: chunk syms leaf_dim-wide, zero-pad final -> couple -> pack. */
+    for (size_t i = 0; i < n_syms; i += dim) {
+        size_t take = (n_syms - i < dim) ? (n_syms - i) : dim;
+        for (size_t j = 0; j < dim; j++) {
+            leaf[j] = (j < take) ? (unsigned char)(syms[i + j] & 3u) : 0u;
+        }
+        st = srmech_klein4_bind(leaf, the_one, leaf_dim, coupled);
+        if (st != SRMECH_OK) { return st; }
+        if (pos + turn_len > out_cap) { return SRMECH_ERR_OVERFLOW; }
+        pos += genome_v3_pack_turn(coupled, leaf_dim, out + pos);
+    }
+    *out_len = pos;
+    return SRMECH_OK;
+}
+
+/* rc278 (§102 / F1252 STAGE 1 — EXTRACT) — the C-native PLASMID EXTRACT
+ * orchestrator (doc: srmech.h). Chains srmech_graph_kernel_encode -> the §89
+ * KERNEL-region build (genome_kernel_region) -> srmech_genome_append, carving the
+ * syms buffer, the region buffer, AND the append arena from ONE `ws`. BYTE-
+ * IDENTICAL to the pure Python plasmid_extract section. No malloc, no goto, no
+ * abs, no float. */
+srmech_status_t srmech_genome_plasmid_extract(
+    uint64_t vocab_size,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    const uint64_t *node_ids, size_t n_nid,
+    const uint64_t *extras, size_t n_ex,
+    const char *dir, const char *label,
+    uint32_t leaf_dim, const unsigned char *the_one,
+    void *ws, size_t ws_len, size_t *out_n_syms)
+{
+    genome_arena_t a;
+    size_t n_ints, syms_cap, n_syms = 0u, n_leaves, turn_len, region_cap;
+    size_t region_len = 0u, aws_len = 0u;
+    uint8_t *syms;
+    unsigned char *region;
+    void *aws = NULL;
+    srmech_status_t st;
+    if (dir == NULL || label == NULL || the_one == NULL || ws == NULL ||
+        out_n_syms == NULL || (node_ids == NULL && n_nid != 0u) ||
+        (extras == NULL && n_ex != 0u) ||
+        ((edge_i == NULL || edge_j == NULL || weights == NULL) && n_edges != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(dir != NULL && label != NULL && the_one != NULL);
+    assert(ws != NULL && out_n_syms != NULL);
+    if (leaf_dim < 52u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    genome_arena_init(&a, ws, ws_len);
+    /* syms buffer: the encoder emits <= 17 symbols per int (2-sym count header +
+     * <= 15 base-4 digits); n_ints <= 8 + n_nid + n_ex + 4*n_edges. */
+    n_ints = 8u + n_nid + n_ex + 4u * n_edges;
+    syms_cap = 17u * n_ints + 64u;
+    syms = genome_arena_alloc(&a, syms_cap);
+    if (syms == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = srmech_graph_kernel_encode(vocab_size, edge_i, edge_j, weights, charges,
+                                    n_edges, node_ids, n_nid, extras, n_ex,
+                                    syms, syms_cap, &n_syms);
+    if (st != SRMECH_OK) { return st; }
+    /* region buffer: the leaf_dim cap + (1 header + ceil(D/leaf_dim) content) v3
+     * turns, each 1 + ceil(leaf_dim/4) bytes. */
+    n_leaves = 1u + (n_syms + (size_t)leaf_dim - 1u) / (size_t)leaf_dim;
+    turn_len = 1u + ((size_t)leaf_dim + 3u) / 4u;
+    region_cap = (size_t)leaf_dim + n_leaves * turn_len;
+    region = genome_arena_alloc(&a, region_cap);
+    if (region == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = genome_kernel_region(syms, n_syms, leaf_dim, the_one, label,
+                              region, region_cap, &region_len);
+    if (st != SRMECH_OK) { return st; }
+    /* append the section (O(1) tail-extend) — srmech_genome_append gets the arena
+     * TAIL (the syms + region buffers are already consumed above). */
+    genome_arena_tail(&a, &aws, &aws_len);
+    st = srmech_genome_append(dir, label, region, region_len, leaf_dim,
+                              the_one, (size_t)leaf_dim, aws, aws_len);
+    if (st != SRMECH_OK) { return st; }
+    *out_n_syms = n_syms;
     return SRMECH_OK;
 }

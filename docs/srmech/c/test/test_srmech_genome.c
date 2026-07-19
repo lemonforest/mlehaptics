@@ -1348,6 +1348,75 @@ int main(void)
         }
     }
 
+    /* §102 / rc278 (F1252 STAGE 1 — EXTRACT) — srmech_genome_plasmid_extract:
+     * compose graph_kernel_encode -> the §89 KERNEL-region build -> genome_append
+     * into a seeded store; the appended section round-trips (window -> recall ->
+     * graph_kernel_decode) to the ORIGINAL graph with its GLOBAL node_ids. */
+    {
+        const uint32_t ld = 64u;                 /* >= 52 for the §89 header leaf */
+        unsigned char one_p[64];
+        char pdir[1100];
+        unsigned char seed[64];
+        uint64_t ei[2] = { 0u, 1u }, ej[2] = { 1u, 2u }, ww[2] = { 2u, 1u };
+        uint64_t nid[3] = { 10u, 20u, 30u };
+        size_t nsy = 0u, nsy1 = 0u;
+        srmech_status_t ss, pe, pe1;
+        for (uint32_t i = 0; i < ld; i++) { one_p[i] = 1u; }
+        snprintf(pdir, sizeof(pdir), "%s_plasmid", temp_dir());
+        (void)ensure_dir(pdir);
+        /* seed the store with a CHROM cap-only chromosome (0 data turns) so the
+         * append hot path (which requires an existing genome) can run. */
+        memset(seed, 0, sizeof(seed));
+        seed[0] = SRMECH_GENOME_CHROM_CAP_MARKER;
+        memcpy(seed + 1, "seed", 4u);
+        ss = srmech_genome_save(pdir, seed, sizeof(seed), ld, one_p,
+                                sizeof(one_p), g_ws, sizeof(g_ws));
+        check_true(ss == SRMECH_OK, "rc278: seed store saved");
+        pe = srmech_genome_plasmid_extract(
+            3u, ei, ej, ww, NULL, 2u, nid, 3u, NULL, 0u, pdir, "sec0", ld,
+            one_p, g_ws, sizeof(g_ws), &nsy);
+        check_true(pe == SRMECH_OK && nsy > 0u,
+                   "rc278: plasmid_extract appends section 0");
+        pe1 = srmech_genome_plasmid_extract(
+            3u, ei, ej, ww, NULL, 2u, nid, 3u, NULL, 0u, pdir, "sec1", ld,
+            one_p, g_ws, sizeof(g_ws), &nsy1);
+        check_true(pe1 == SRMECH_OK && nsy1 == nsy,
+                   "rc278: plasmid_extract appends section 1 (streaming, same D)");
+        {
+            /* both appended sections are present + cap-verified (append-only
+             * accumulation). window returns the RAW §55/v3 region (cap +
+             * bit-packed turns); the FULL graph round-trip (kernel_unpack ->
+             * graph_kernel_decode) + the C<->Python byte-parity are proven in the
+             * Python rc278 test where kernel_unpack lives. Here: the section reads
+             * back with its cap intact + is longer than the lone telomere. */
+            unsigned char wbuf[8192];
+            size_t wlen0 = 0u, wlen1 = 0u;
+            srmech_status_t ws0 = srmech_genome_window(
+                pdir, "sec0", wbuf, sizeof(wbuf), &wlen0, one_p, sizeof(one_p),
+                g_ws, sizeof(g_ws));
+            check_true(ws0 == SRMECH_OK && wlen0 > (size_t)ld,
+                       "rc278: section 0 pages back (cap-verified, > 1 block)");
+            srmech_status_t ws1 = srmech_genome_window(
+                pdir, "sec1", wbuf, sizeof(wbuf), &wlen1, one_p, sizeof(one_p),
+                g_ws, sizeof(g_ws));
+            check_true(ws1 == SRMECH_OK && wlen1 == wlen0,
+                       "rc278: section 1 pages back, same region length");
+        }
+        {
+            size_t ne = 0u;
+            srmech_status_t en = srmech_genome_plasmid_extract(
+                3u, ei, ej, ww, NULL, 2u, nid, 3u, NULL, 0u, pdir, "e", ld,
+                one_p, g_ws, sizeof(g_ws), NULL);
+            srmech_status_t eb = srmech_genome_plasmid_extract(
+                3u, ei, ej, ww, NULL, 2u, nid, 3u, NULL, 0u, pdir, "e", 4u,
+                one_p, g_ws, sizeof(g_ws), &ne);
+            check_true(en == SRMECH_ERR_NULL_ARG,
+                       "rc278: NULL out_n_syms -> NULL_ARG");
+            check_true(eb == SRMECH_ERR_BAD_INPUT,
+                       "rc278: leaf_dim < 52 -> BAD_INPUT");
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }
