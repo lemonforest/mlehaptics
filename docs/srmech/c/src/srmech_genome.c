@@ -6579,3 +6579,163 @@ srmech_status_t srmech_genome_section_counts(
     if (st != SRMECH_OK) { return st; }      /* OVERFLOW carries the TRUE *n_out */
     return (cancelled != 0) ? SRMECH_CANCELLED : SRMECH_OK;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * rc281 (§135 / F1251) — the GENE COPY-NUMBER pair: amplify (write) + copy_number
+ * (read). rc273 shipped these Python-only because the field is TRANSPARENT to the
+ * existing C readers; transparent-to-readers is not C-host parity, so a bare-C host
+ * could neither set nor get the axis. These two symbols close the audit's G6 exhibit.
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* rc281 — the gene COPY-NUMBER field offset: the index of the inline label's NUL
+ * terminator inside a plain GENE cap. SRMECH_ERR_BAD_INPUT if there is no NUL within
+ * leaf_dim, or if the 8-byte field would run past the leaf — BOTH of which the caller
+ * reads as "field absent" => copy-number 1. The §135 mirror of
+ * genome_active_count_offset (§127): the SAME right-after-the-label placement, which
+ * is what keeps the label decode uniform across plain and amplified genes. */
+static srmech_status_t genome_copy_number_offset(const unsigned char *cap,
+                                                 size_t leaf_dim, size_t *nul_off)
+{
+    assert(cap != NULL && nul_off != NULL);
+    assert(leaf_dim > 0u);
+    size_t i = 1u;                                  /* skip the 0x47 marker byte */
+    while (i < leaf_dim && cap[i] != 0u) { i++; }   /* find the label terminator */
+    if (i >= leaf_dim) { return SRMECH_ERR_BAD_INPUT; }        /* no label NUL */
+    if (i + 1u + SRMECH_GENOME_GENE_COPY_NUMBER_BYTES > leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;                           /* field truncated */
+    }
+    *nul_off = i;
+    return SRMECH_OK;
+}
+
+/* rc281 — does this cap's inline label equal (label, label_len)? The label is
+ * cap[1 .. first NUL), decoded UNIFORMLY: a copy-number field sits AFTER that NUL, so
+ * an already-amplified gene matches its own label unchanged. 1 on match, else 0.
+ * A READ; no abs, no mutation. */
+static int genome_gene_label_eq(const unsigned char *block, size_t leaf_dim,
+                                const unsigned char *label, size_t label_len)
+{
+    assert(block != NULL);
+    assert(label != NULL || label_len == 0u);
+    size_t n = 1u;
+    while (n < leaf_dim && block[n] != 0u) { n++; }
+    if (n - 1u != label_len) { return 0; }          /* label byte count differs */
+    return (label_len == 0u || memcmp(block + 1, label, label_len) == 0) ? 1 : 0;
+}
+
+/* rc281 — index of the FIRST PLAIN GENE cap (0x47) in `strand` whose inline label
+ * equals (label, label_len); SRMECH_ERR_BAD_INPUT if there is none. ONLY a plain gene
+ * carries a copy-number axis, so a regulatory / boolean / threshold / graded gene is
+ * skipped even when its label matches (the Python `_cap_kind(hv) != GENE_CAP_MARKER`
+ * guard). The find shared by amplify + copy_number. */
+static srmech_status_t genome_find_plain_gene(const unsigned char *strand,
+                                              size_t n_blocks, uint32_t leaf_dim,
+                                              const unsigned char *label,
+                                              size_t label_len, size_t *idx_out)
+{
+    assert(strand != NULL && idx_out != NULL);
+    assert(leaf_dim > 0u);
+    for (size_t i = 0u; i < n_blocks; i++) {
+        const unsigned char *block = strand + i * (size_t)leaf_dim;
+        if (genome_cap_kind(block, leaf_dim) != (int)SRMECH_GENOME_GENE_CAP_MARKER) {
+            continue;
+        }
+        if (genome_gene_label_eq(block, (size_t)leaf_dim, label, label_len) != 0) {
+            *idx_out = i;
+            return SRMECH_OK;
+        }
+    }
+    return SRMECH_ERR_BAD_INPUT;                    /* no plain gene by that label */
+}
+
+/* rc281 — pack a PLAIN GENE cap carrying an exact copy number. `n == 1` is the DEFAULT
+ * (present-once) and writes the PLAIN cap — byte-identical to a never-amplified gene, no
+ * field spent; only `n >= 2` writes [0x47] + label + NUL + n(uint64 BE), NUL-padded to
+ * dim. The C mirror of srmech.amsc.genome._pack_gene_cap_copy_number. */
+static srmech_status_t genome_pack_gene_copy_number(const unsigned char *label,
+                                                    size_t label_len, uint64_t n,
+                                                    uint32_t dim,
+                                                    unsigned char *out, size_t out_cap)
+{
+    assert(out != NULL);
+    assert(label != NULL || label_len == 0u);
+    if (n == 0u) { return SRMECH_ERR_BAD_INPUT; }   /* a gene is present >= once */
+    if (n == 1u) {                                  /* DEFAULT — the plain cap */
+        return genome_pack_cap(SRMECH_GENOME_GENE_CAP_MARKER, label, label_len,
+                               dim, out, out_cap);
+    }
+    if (dim == 0u || (size_t)dim > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    size_t need = 2u + label_len + SRMECH_GENOME_GENE_COPY_NUMBER_BYTES;
+    if (need > (size_t)dim) { return SRMECH_ERR_BAD_INPUT; }   /* label + field too wide */
+    out[0] = SRMECH_GENOME_GENE_CAP_MARKER;
+    if (label_len != 0u) { memcpy(out + 1, label, label_len); }
+    out[1u + label_len] = 0u;                       /* the label terminator */
+    size_t base = 2u + label_len;
+    for (size_t k = 0u; k < SRMECH_GENOME_GENE_COPY_NUMBER_BYTES; k++) {
+        unsigned shift = (unsigned)(8u *
+            (SRMECH_GENOME_GENE_COPY_NUMBER_BYTES - 1u - k));
+        out[base + k] = (unsigned char)((n >> shift) & 0xFFu);
+    }
+    memset(out + need, 0, (size_t)dim - need);      /* NUL-pad the remainder */
+    return SRMECH_OK;
+}
+
+/* rc281 (§135 / F1251) — WRITE a gene's copy number. See srmech.h for the contract. */
+srmech_status_t srmech_genome_amplify(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, uint64_t n,
+    unsigned char *out, size_t out_cap)
+{
+    if (strand == NULL || out == NULL || (label == NULL && label_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && out != NULL);
+    assert(label != NULL || label_len == 0u);
+    if (leaf_dim == 0u || leaf_dim > 256u || n_blocks == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (n == 0u) { return SRMECH_ERR_BAD_INPUT; }   /* multiplicity is >= 1 */
+    size_t total = n_blocks * (size_t)leaf_dim;
+    if (total / (size_t)leaf_dim != n_blocks) { return SRMECH_ERR_BAD_INPUT; }  /* wrap */
+    if (out_cap < total) { return SRMECH_ERR_OVERFLOW; }
+    size_t idx = 0u;
+    srmech_status_t st = genome_find_plain_gene(strand, n_blocks, leaf_dim,
+                                                label, label_len, &idx);
+    if (st != SRMECH_OK) { return st; }
+    memcpy(out, strand, total);                     /* every block byte-copied ... */
+    return genome_pack_gene_copy_number(label, label_len, n, leaf_dim,
+                                        out + idx * (size_t)leaf_dim,
+                                        (size_t)leaf_dim);   /* ... one cap rewritten */
+}
+
+/* rc281 (§135 / F1251) — READ a gene's copy number. See srmech.h for the contract. */
+srmech_status_t srmech_genome_copy_number(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, uint64_t *count_out)
+{
+    if (strand == NULL || count_out == NULL || (label == NULL && label_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && count_out != NULL);
+    assert(label != NULL || label_len == 0u);
+    if (leaf_dim == 0u || leaf_dim > 256u || n_blocks == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t idx = 0u;
+    srmech_status_t st = genome_find_plain_gene(strand, n_blocks, leaf_dim,
+                                                label, label_len, &idx);
+    if (st != SRMECH_OK) { return st; }
+    const unsigned char *cap = strand + idx * (size_t)leaf_dim;
+    size_t nul = 0u;
+    if (genome_copy_number_offset(cap, (size_t)leaf_dim, &nul) != SRMECH_OK) {
+        *count_out = 1u;              /* no label NUL / no field room -> present-once */
+        return SRMECH_OK;
+    }
+    uint64_t stored = 0u;
+    size_t base = nul + 1u;
+    for (size_t k = 0u; k < SRMECH_GENOME_GENE_COPY_NUMBER_BYTES; k++) {
+        stored = (stored << 8) | (uint64_t)cap[base + k];
+    }
+    *count_out = (stored >= 1u) ? stored : 1u;   /* stored 0 (plain / pre-rc273) -> 1 */
+    return SRMECH_OK;
+}

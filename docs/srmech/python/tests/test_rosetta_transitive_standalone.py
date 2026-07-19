@@ -17,6 +17,47 @@ class of mislabel can never recur silently.
 
 Numpy-free (walks srmech.amsc / qm / signal_processing with stdlib importlib /
 inspect only).
+
+── rc281 EXTENSION: the WIRE-FORMAT GLUE ratchet ───────────────────────────────
+
+The walk above proves a composite *reaches* C-backed leaves. It does NOT prove a
+bare-C host can run the composite's own GLUE — because it treats every
+``composition_of_c`` op as a LEAF and stops there. That is strictly weaker than
+ADR-0003 §2/§3 ("every composite, including orchestrators, gets its own C entry
+point so a C-only caller can invoke the whole operation"), and it is exactly how
+``integrate`` / ``mint_strand`` / ``amplify`` / ``copy_number_of`` each shipped as a
+1:1-parity gap wearing an honest-looking label (see
+``docs/srmech/notes/c_host_parity_audit_rc273.md`` §0, "the systemic root cause").
+
+The second ratchet below closes that. Its SCOPE is the **wire-format surface**: the
+ops that produce or consume srmech's own on-disk / on-wire byte structures — caps,
+strands, manifests, section stores, tomes. That scope is not arbitrary. It is where
+"a bare-C host cannot run this op" is a load-bearing claim rather than a theoretical
+one, because the FORMAT is srmech's own: if the glue that lays out the bytes lives
+only in Python, a C-only host cannot produce or consume the genome at all. It is
+also the standing user directive (genome-must-exist-fully-in-C). Pure-math
+``composition_of_c`` ops (the ``qm`` / ``signal_processing`` / dense-carrier
+families) are deliberately OUT of scope: they compose C primitives over carriers with
+no format to get wrong, and the transitive walk above already covers them.
+
+In scope, an op must demonstrate its OWN GLUE is C-reachable, which means ONE of:
+
+  (a) it declares a WHOLE-OP C peer in ``_WHOLE_OP_C_PEER`` — a single C entry point
+      that performs the entire operation. The declaration is VERIFIED, not trusted:
+      the symbol must be declared in ``c/include/srmech.h`` AND must actually be
+      reachable through the op's dispatch glue.
+  (b) it is on the DOWN-ONLY ``_KNOWN_GLUE_GAPS`` allowlist — a real, named,
+      still-open parity gap with its audit reference.
+
+Anything else — in particular any NEW ``composition_of_c`` op added to the genome /
+plasmid surface without a C peer — FAILS. That is the whole point: this gap class
+cannot recur silently.
+
+Note what deliberately does NOT count as (a): a private helper that dispatches a C
+PRIMITIVE. ``condense`` reaching ``srmech_genome_chromatin`` for its cap bytes is
+"reaches a C leaf" — the weaker property this ratchet exists to reject — because the
+range-find, region resolution and splice around that cap are still Python-only. Only
+a whole-op entry point, or a pure delegation to one, satisfies ADR-0003.
 """
 from __future__ import annotations
 
@@ -25,6 +66,7 @@ import importlib
 import inspect
 import json
 import pkgutil
+import re
 import textwrap
 from pathlib import Path
 
@@ -256,3 +298,356 @@ def test_acknowledged_allowlist_is_still_live():
         "acknowledged-debt allowlist has stale entries (edge no longer reachable "
         "— DELETE the line, the debt is closed):\n  " + "\n  ".join(sorted(stale))
     )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# rc281 — the WIRE-FORMAT GLUE ratchet (see the module docstring for the why)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_HEADER = Path(__file__).resolve().parents[2] / "c" / "include" / "srmech.h"
+
+#: Modules whose ``composition_of_c`` ops lay out srmech's own on-disk / on-wire
+#: byte structures. Every op these modules expose is in scope.
+_WIRE_FORMAT_MODULES = ("srmech.amsc.genome", "srmech.amsc.plasmid")
+
+#: Individually-named in-scope ops that live OUTSIDE those modules. ``recursive_cut``
+#: is the out-of-core recursive spectral bisection driver: it manages on-disk TOMES,
+#: so it is a wire-format orchestrator even though it sits in ``laplacian``. Its
+#: in-memory siblings there (``mat_norm``, ``normalized_cut_bisect``, …) are pure
+#: carrier math and stay out of scope.
+_WIRE_FORMAT_EXTRA = frozenset({"srmech.amsc.laplacian.recursive_cut"})
+
+# ── (a) the VERIFIED whole-op C peers ────────────────────────────────────────
+#: ``defined_at`` -> the single C entry point that performs the WHOLE operation.
+#: Both halves of this claim are machine-checked below: the symbol must be declared
+#: in c/include/srmech.h, and it must actually be reachable through the op's dispatch
+#: glue. A declaration alone proves nothing — that was the rc273 failure mode.
+_WHOLE_OP_C_PEER = {
+    "srmech.amsc.genome.accessible":       "srmech_genome_chromatin_access",
+    "srmech.amsc.genome.amplify":          "srmech_genome_amplify",       # rc281 (G6)
+    "srmech.amsc.genome.centromere_of":    "srmech_genome_centromere_of",
+    "srmech.amsc.genome.chromatin_of":     "srmech_genome_chromatin_of",
+    "srmech.amsc.genome.chromosome":       "srmech_genome_chromosome",
+    "srmech.amsc.genome.copy_number_of":   "srmech_genome_copy_number",   # rc281 (G6)
+    "srmech.amsc.genome.genome":           "srmech_genome_mint",
+    # `mint` is a pure delegation to `genome` (its whole body is `return genome(...)`),
+    # so it inherits that op's entry point rather than owning a second one.
+    "srmech.amsc.genome.mint":             "srmech_genome_mint",
+    "srmech.amsc.genome.partition":        "srmech_genome_partition",
+    "srmech.amsc.genome.plasmid":          "srmech_genome_genome",
+    # `quad_turn` is a pure delegation to the reversible Klein-4 bind primitive — the
+    # whole op IS that one C call, so it is trivially C-runnable.
+    "srmech.amsc.genome.quad_turn":        "srmech_klein4_bind",
+    "srmech.amsc.genome.recall":           "srmech_genome_recall",
+    "srmech.amsc.plasmid.genome_integrate_plasmids":
+        "srmech_genome_integrate_plasmids",                               # rc279
+    "srmech.amsc.plasmid.plasmid_extract": "srmech_genome_plasmid_extract",
+}
+
+# ── (b) the DOWN-ONLY known-gap allowlist ────────────────────────────────────
+#: ``defined_at`` -> (why it is still a gap, the audit / tracking reference).
+#:
+#: These are REAL, still-open ADR-0003 parity gaps — a bare-C host cannot run these
+#: ops. They are acknowledged here so the ratchet can FAIL on anything NEW without
+#: turning CI red on known-but-unfixed work.
+#:
+#: ⚠️ DOWN-ONLY. ``CEIL_WIRE_GLUE_GAPS`` below pins the length and a test asserts it
+#: never grows. An entry leaves this list ONLY by landing its C peer (then move it to
+#: ``_WHOLE_OP_C_PEER``). NEVER add an entry to make a failing build pass — a new op
+#: without a C peer is the exact regression this ratchet exists to catch.
+#:
+#: Derived from the current tree (rosetta ledger × live C surface), not from a
+#: hand-written list: rc276 closed `integrate` and rc277 closed `mint_strand`, so the
+#: audit's G4/G5 are already gone; rc281 closes G6 (amplify + copy_number_of).
+_KNOWN_GLUE_GAPS = {
+    "srmech.amsc.genome.active_telomere": (
+        "a single cap PACKER with no exposed entry point; the pack logic exists inside "
+        "srmech_genome_telomere_tick (which mints daughter active caps) but is not "
+        "callable on its own",
+        "c_host_parity_audit_rc273 §2 G7",
+    ),
+    "srmech.amsc.genome.condense": (
+        "GAP-lite: the cap BYTES are native (srmech_genome_chromatin) but the "
+        "_chrom_range(label) lookup, region resolution and splice around them are "
+        "Python-only — reaching a C primitive is not a whole-op entry",
+        "c_host_parity_audit_rc273 §2 G7",
+    ),
+    "srmech.amsc.genome.decondense": (
+        "the whole-strand form is a near-trivial 0x48 cap-filter, but the label-scoped "
+        "form needs the same Python-only range-find as condense",
+        "c_host_parity_audit_rc273 §2 G7",
+    ),
+    "srmech.amsc.genome.genes": (
+        "an in-memory recall-variant that KEEPS per-gene boundaries; "
+        "srmech_genome_recall flattens them and srmech_genome_gene_express_plan returns "
+        "spans, so neither returns the (label, leaves) split this op does",
+        "c_host_parity_audit_rc273 §2 G7",
+    ),
+    "srmech.amsc.genome.genome_genes": (
+        "the on-disk sibling of `genes` — catalog read + region page, then the same "
+        "missing per-gene split",
+        "c_host_parity_audit_rc273 §2 G7 (genes family)",
+    ),
+    "srmech.amsc.genome.genome_genes_expressed": (
+        "on-disk gene-express ORCHESTRATION: the per-gene decision has a C peer "
+        "(srmech_genome_gene_express_plan) but the plan-walk / region-page / collect "
+        "loop around it does not",
+        "c_host_parity_audit_rc273 §2 G7 (genes family)",
+    ),
+    "srmech.amsc.genome.genome_from_graph": (
+        "the §100 GAP-2 compound flagship: needs recursive_cut + genome_partition plus "
+        "its own _induced_subgraph relabel, per-group graph_to_kernel -> mint_strand "
+        "loop and strand assembly",
+        "c_host_parity_audit_rc273 §2 G2",
+    ),
+    "srmech.amsc.genome.genome_partition": (
+        "the GRAPH partition (NOT the strand-recovery op that shares the C name "
+        "srmech_genome_partition): composes recursive_cut + an exact-integer "
+        "participation + antimode + per-node classify, all Python",
+        "c_host_parity_audit_rc273 §2 G3",
+    ),
+    "srmech.amsc.genome.mint_plan": (
+        "a pure encode_shape-loop READ (it builds nothing); the per-step primitive is "
+        "native but the loop that assembles the plan is not",
+        "c_host_parity_audit_rc273 §2 G7",
+    ),
+    "srmech.amsc.laplacian.recursive_cut": (
+        "THE deepest gap — the out-of-core recursive spectral bisection driver. "
+        "srmech_laplacian_fiedler_sparse_file is called PER bisection, but the "
+        "`while pending` recursion and the on-disk tome management have no C entry; "
+        "genome_partition and genome_from_graph both dead-end here",
+        "c_host_parity_audit_rc273 §2 G1",
+    ),
+    "srmech.amsc.plasmid.add_plasmid": (
+        "an ORCHESTRATOR over three C peers (plasmid_extract / conserved_core / "
+        "integrate_plasmids) with no whole-op entry of its own — ADR-0003 §3 names "
+        "orchestrators explicitly",
+        "c_host_parity_audit_rc273 §2 G2 (plasmid pipeline)",
+    ),
+}
+
+#: DOWN-ONLY ceiling on the known-gap allowlist. 13 -> 11 at rc281 (amplify +
+#: copy_number_of earned their C peers). This number may only DECREASE.
+CEIL_WIRE_GLUE_GAPS = 11
+
+
+def _wire_scope(cls):
+    """The in-scope ``composition_of_c`` ops: the wire-format surface."""
+    return {
+        da for da, bucket in cls.items()
+        if bucket == "composition_of_c"
+        and (any(da.startswith(m + ".") for m in _WIRE_FORMAT_MODULES)
+             or da in _WIRE_FORMAT_EXTRA)
+    }
+
+
+def _unaccounted(cls, peers, gaps):
+    """In-scope ops that declare NEITHER a whole-op C peer NOR a known gap.
+
+    Factored out so the positive test can drive it with a synthetic op.
+    """
+    return sorted(_wire_scope(cls) - set(peers) - set(gaps))
+
+
+def _dispatcher_names(fn):
+    """The ``_native`` dispatcher names referenced in a callable's source."""
+    try:
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+    except (OSError, TypeError, SyntaxError):
+        return set()
+    out = set()
+    for node in ast.walk(tree):
+        name = node.id if isinstance(node, ast.Name) else (
+            node.attr if isinstance(node, ast.Attribute) else None)
+        if name and (name.endswith("_c") or name.startswith("has_native_")):
+            out.add(name)
+    return out
+
+
+def _srmech_callables(fn):
+    try:
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fn)))
+    except (OSError, TypeError, SyntaxError):
+        return []
+    g = getattr(fn, "__globals__", {}) or {}
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Name):
+            continue
+        obj = g.get(node.id)
+        if (callable(obj) and not inspect.isclass(obj)
+                and (getattr(obj, "__module__", "") or "").startswith("srmech")):
+            out.append(obj)
+    return out
+
+
+def _glue_c_symbols(fn, hops=2):
+    """The ``srmech_*`` C symbols reachable through an op's DISPATCH glue.
+
+    Walks the op body plus the private helpers it calls (bounded hops — a dispatch
+    is never buried deeper than a thin wrapper), collects the ``_native`` dispatcher
+    names, and reads each dispatcher's own source for the C symbol it calls.
+    """
+    from srmech.amsc import _native
+    names, frontier, seen = set(_dispatcher_names(fn)), [fn], set()
+    for _ in range(hops):
+        nxt = []
+        for f in frontier:
+            for h in _srmech_callables(f):
+                code = getattr(h, "__code__", None)
+                if code is None or id(code) in seen:
+                    continue
+                seen.add(id(code))
+                names |= _dispatcher_names(h)
+                nxt.append(h)
+        frontier = nxt
+    syms = set()
+    for dispatcher in names:
+        target = getattr(_native, dispatcher, None)
+        if target is None:
+            continue
+        try:
+            tree = ast.parse(textwrap.dedent(inspect.getsource(target)))
+        except (OSError, TypeError, SyntaxError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr.startswith("srmech_"):
+                syms.add(node.attr)
+            elif (isinstance(node, ast.Constant) and isinstance(node.value, str)
+                    and node.value.startswith("srmech_")):
+                syms.add(node.value)
+    return syms
+
+
+def test_every_wire_format_op_is_c_reachable_or_an_acknowledged_gap():
+    """THE ratchet: a NEW composition_of_c op on the wire-format surface that has no
+    whole-op C peer FAILS here. It must either earn a C entry point (preferred) or be
+    added to _KNOWN_GLUE_GAPS — and that list is down-only, so adding to it is a
+    deliberate, reviewed act, not a quiet escape hatch."""
+    cls = _load_classification()
+    missing = _unaccounted(cls, _WHOLE_OP_C_PEER, _KNOWN_GLUE_GAPS)
+    assert not missing, (
+        "wire-format composition_of_c op(s) declare NEITHER a whole-op C peer NOR an "
+        "acknowledged gap — a bare-C host cannot run their glue (ADR-0003 §2/§3):\n  "
+        + "\n  ".join(missing)
+        + "\n\nGive the op a C entry point and add it to _WHOLE_OP_C_PEER, or (only "
+          "with an explicit reason + audit reference) add it to _KNOWN_GLUE_GAPS and "
+          "RAISE CEIL_WIRE_GLUE_GAPS — which is a regression, not a fix."
+    )
+
+
+def test_declared_whole_op_c_peers_exist_in_the_header():
+    """A declaration is not a proof: every peer named above must really be declared
+    in c/include/srmech.h. This is what stops a future rc from silencing the ratchet
+    by inventing a symbol name."""
+    assert _HEADER.exists(), f"missing C header {_HEADER}"
+    header = _HEADER.read_text(encoding="utf-8", errors="replace")
+    declared = set(re.findall(r"\bsrmech_[a-z0-9_]+\b", header))
+    absent = sorted(f"{op} -> {sym}" for op, sym in _WHOLE_OP_C_PEER.items()
+                    if sym not in declared)
+    assert not absent, (
+        "declared whole-op C peer(s) are NOT in c/include/srmech.h:\n  "
+        + "\n  ".join(absent))
+
+
+def test_declared_whole_op_c_peers_are_actually_dispatched():
+    """The other half of the proof: the op must really REACH its declared peer through
+    its dispatch glue. A C entry point nobody calls is `c_exists_unbound`, not parity."""
+    objs = _live_objects()
+    broken = []
+    for op, sym in sorted(_WHOLE_OP_C_PEER.items()):
+        fn = objs.get(op)
+        if fn is None:
+            continue                      # not importable in this env — skip, not fail
+        if sym not in _glue_c_symbols(fn):
+            broken.append(f"{op} declares {sym} but does not dispatch it")
+    assert not broken, (
+        "declared whole-op C peer(s) are not reachable through the op's glue:\n  "
+        + "\n  ".join(broken))
+
+
+def test_known_glue_gaps_ceiling_is_down_only():
+    """DOWN-ONLY, the same shape as the JPL Rule-5 exempt list and CEIL_NUMPY_CARRIER:
+    the acknowledged-gap list may only SHRINK. Closing a gap means deleting its entry
+    and LOWERING this ceiling."""
+    assert len(_KNOWN_GLUE_GAPS) == CEIL_WIRE_GLUE_GAPS, (
+        f"known-glue-gap count {len(_KNOWN_GLUE_GAPS)} != ceiling "
+        f"{CEIL_WIRE_GLUE_GAPS}.\nThis ratchet is DOWN-ONLY: a new acknowledged gap is "
+        f"a REGRESSION (the op should have earned a C peer instead). Landing a C peer "
+        f"should LOWER the ceiling.\nGaps:\n  "
+        + "\n  ".join(sorted(_KNOWN_GLUE_GAPS)))
+
+
+def test_known_glue_gaps_are_still_gaps():
+    """Keeps the allowlist honest in the other direction: an op that has QUIETLY
+    earned a whole-op C peer must be MOVED to _WHOLE_OP_C_PEER (and the ceiling
+    lowered), not left sitting here claiming to be broken."""
+    overlap = sorted(set(_KNOWN_GLUE_GAPS) & set(_WHOLE_OP_C_PEER))
+    assert not overlap, (
+        "op(s) are BOTH an acknowledged gap and a declared C peer — delete the gap "
+        "entry and lower CEIL_WIRE_GLUE_GAPS:\n  " + "\n  ".join(overlap))
+
+
+def test_every_acknowledged_gap_is_still_in_scope():
+    """A gap entry for an op that no longer exists (renamed / reclassified / removed)
+    is dead weight that hides the real count — delete it."""
+    cls = _load_classification()
+    scope = _wire_scope(cls)
+    stale = sorted(set(_KNOWN_GLUE_GAPS) - scope)
+    assert not stale, (
+        "acknowledged-gap entries are no longer live wire-format composition_of_c ops "
+        "(DELETE them and lower CEIL_WIRE_GLUE_GAPS):\n  " + "\n  ".join(stale))
+
+
+def test_every_acknowledged_gap_documents_a_reason_and_a_reference():
+    for op, entry in sorted(_KNOWN_GLUE_GAPS.items()):
+        assert isinstance(entry, tuple) and len(entry) == 2, op
+        why, ref = entry
+        assert why and len(why) > 40, f"{op}: give a real reason, not {why!r}"
+        assert ref and "audit" in ref.lower(), f"{op}: cite the audit, got {ref!r}"
+
+
+# ── the POSITIVE test: prove the ratchet actually catches a regression ───────
+
+def test_ratchet_catches_a_new_un_c_reachable_wire_op():
+    """A synthetic NEW composition_of_c genome op with Python-only glue, on neither
+    list, must be FLAGGED. Without this test the ratchet could silently degrade to a
+    no-op and nobody would know."""
+    cls = dict(_load_classification())
+    cls["srmech.amsc.genome.sneaky_new_op"] = "composition_of_c"
+    missing = _unaccounted(cls, _WHOLE_OP_C_PEER, _KNOWN_GLUE_GAPS)
+    assert "srmech.amsc.genome.sneaky_new_op" in missing, (
+        "the wire-format ratchet did NOT flag a new un-C-reachable genome op — the "
+        "check has degraded to a no-op")
+    # …and a NON-wire op (pure carrier math) is correctly left alone.
+    cls["srmech.amsc.laplacian.mat_norm"] = "composition_of_c"
+    assert "srmech.amsc.laplacian.mat_norm" not in _unaccounted(
+        cls, _WHOLE_OP_C_PEER, _KNOWN_GLUE_GAPS), (
+        "the ratchet over-reached into pure carrier math — scope creep")
+
+
+def test_ratchet_catches_a_peer_declared_with_a_nonexistent_symbol():
+    """The escape hatch a future rc would reach for first: declare a plausible-looking
+    C symbol that does not exist. The header check must catch it."""
+    header = _HEADER.read_text(encoding="utf-8", errors="replace")
+    declared = set(re.findall(r"\bsrmech_[a-z0-9_]+\b", header))
+    assert "srmech_genome_totally_invented_peer" not in declared
+    fake = dict(_WHOLE_OP_C_PEER)
+    fake["srmech.amsc.genome.sneaky_new_op"] = "srmech_genome_totally_invented_peer"
+    absent = [op for op, sym in fake.items() if sym not in declared]
+    assert absent == ["srmech.amsc.genome.sneaky_new_op"]
+
+
+def test_ratchet_catches_a_peer_that_is_declared_but_not_dispatched():
+    """The subtler escape hatch: point a Python-only op at a REAL C symbol it never
+    calls. The dispatch check must catch that too — this is precisely the rc273 error
+    (a real C surface nearby, no path from the op to it)."""
+    objs = _live_objects()
+    gap_op = "srmech.amsc.genome.mint_plan"        # a known Python-only-glue op
+    fn = objs.get(gap_op)
+    if fn is None:
+        pytest.skip("srmech.amsc.genome.mint_plan not importable in this env")
+    # srmech_genome_amplify is real (rc281) but mint_plan has no path to it.
+    assert "srmech_genome_amplify" not in _glue_c_symbols(fn), (
+        "expected mint_plan to have NO path to the amplify peer — if this changed, "
+        "the fixture op for this test needs updating")
