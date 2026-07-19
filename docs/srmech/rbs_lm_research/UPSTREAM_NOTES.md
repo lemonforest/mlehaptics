@@ -3192,3 +3192,54 @@ The §102 two-stage encode is COMPLETE and validated at full scale (240,881 docs
 Cost is FLAT across the first chromosome (`core`) and a mid-store one (`sec0`) and scales with the store → `genome_load` is **walking the strand, not seeking**. But the catalog already carries per-chromosome `byte_offset` + `byte_len`. **Ask: make `genome_load(labels=…)` seek to the catalogued offset** (and expose a `genome_window`-style bounded read for one chromosome). At 240k chromosomes this is ~90 s → ~ms, and it is the precondition for the chromatin-gated demand-load (rc269 `gene_express_plan`) to be real at corpus scale — i.e. for the §876/F1247 streaming render reader to page only the walked subset.
 
 This is the SAME gap as §99, one level up: the flat store had no per-NODE seek (every neighbour read hit `adj.bin`); the organized store has no per-CHROMOSOME seek. **Secondary:** the organized genome carries **no vocab chromosome** (the karyotype index stayed in the sections store), so global node-ids cannot be resolved to tokens from the organized genome alone — stage 2 should carry the vocab through, or the two stores should be declared one unit. **Re-surface keywords:** `genome_load does not seek` · `catalog byte_offset` · `per-chromosome seek` · `90s for 0.04%` · `bounded single-chromosome read` · `vocab missing from organized genome` · `§103` · `F1254`.
+
+---
+
+## §104 — `mat_eigvals` is WRONG on hub-dominated (star) matrices; every other eigensolver is correct
+
+**Found:** 2026-07-19, srmech **0.9.0rc281**, while cross-checking F1255's exact integer gauge decomposition
+against a `magnetic_laplacian` frustration read. Harness: `R-RBS-LM-GAUGE_…py`.
+
+### The invariant it violates
+**Every graph Laplacian has λ_min = exactly 0** — the constant vector spans its kernel. `mat_eigvals` returns a
+strictly positive λ_min for star graphs:
+
+| graph | `mat_eigvals` | truth |
+|---|---|---|
+| star K₁,₃ | `[0.267949, 1, 1, 3.732051]` | `[0, 1, 1, 4]` |
+| star K₁,₄ | `[0.438447, 1, 1, 1, 4.561553]` | `[0, 1, 1, 1, 5]` |
+| path P₃ / P₄ | correct | correct |
+| cycle C₃ / C₄ | correct | correct |
+| complete K₄ | correct | correct |
+
+Signature: **the extreme pair (λ_min, λ_max) is contracted toward the mean while the interior eigenvalues stay
+exact**, and the trace is preserved. That reads as a Jacobi sweep that never clears the dominant hub row —
+`max_sweeps=500` is the default, so 500 sweeps on a 4×4 is not a convergence-budget problem.
+
+### It is also phase-blind on complex Hermitian input
+For the same star with a per-edge charge on edge 0, edge 1, edge 2, or **no phase at all**, `mat_eigvals`
+returns **byte-identical** output. It never sees the imaginary part. `hermitian_eigendecompose` on the same
+matrices returns the correct, phase-aware answer.
+
+### Repro
+```python
+from srmech.amsc import laplacian as L
+A = L.dense_laplacian(4, [(0,1),(1,2),(1,3)])          # star K1,3
+sorted(e.real for e in L.mat_eigvals(A))                # [0.2679, 1.0, 1.0, 3.7321]   WRONG
+sorted(float(v) for v in L.hermitian_eigendecompose(A)[0])  # [0.0, 1.0, 1.0, 4.0]     correct
+```
+
+### Scope — the other eigensolvers are FINE
+`jacobi_eigvals`, `symmetric_eigendecompose`, `hermitian_eigendecompose` all return exactly `(0, k+1)` on
+K₁,₃ … K₁,₁₆. **Only `mat_eigvals` is affected.** In this research tree that is 2 call-sites (vs 375
+`jacobi_eigvals` / 275 `hermitian_eigendecompose` / 222 `symmetric_eigendecompose` / 72 `fiedler_vector`), so
+**no prior finding is contaminated** — but the failure mode is squarely aimed at our domain, since **Zipfian
+word co-occurrence graphs are hub-dominated by construction.**
+
+### The ask
+1. **Fix the sweep** so `mat_eigvals` clears high-degree-disparity rows (or route it onto the same kernel
+   `hermitian_eigendecompose`/`jacobi_eigvals` already use — they are correct).
+2. **Make it dtype-honest**: it currently discards the imaginary part of a complex Hermitian input silently.
+   Either handle the phase or raise, but do not return a real answer for a complex matrix without saying so.
+3. **Add the cheap invariant as a test ratchet**: for any `dense_laplacian` output, `min(eigvals) == 0` to
+   tolerance. It is a one-line property test that would have caught this at any size, on any solver.
