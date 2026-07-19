@@ -70,6 +70,7 @@ __all__ = [
     "genes",
     "genome", "plasmid", "partition",
     "mint", "mint_plan", "integrate",
+    "amplify", "copy_number_of",
     "genome_save", "genome_load", "genome_catalog", "genome_append",
     "genome_census", "genome_registry",
     "set_type_aliases", "clear_type_aliases", "load_type_aliases_toml",
@@ -211,6 +212,24 @@ ACTIVE_TELOMERE_MARKER = 0x74
 #: The active-telomere COUNT field width — a uint64 (8 bytes, big-endian). The count
 #: caps at 2**64-1, which dwarfs any Hayflick limit (human fibroblasts ~40-60 divides).
 _ACTIVE_TELOMERE_COUNT_BYTES = 8
+
+#: §135/rc273 (F1251) — the GENE COPY-NUMBER field width — a uint64 (8 bytes,
+#: big-endian), carried in what was a plain GENE cap's (``0x47``) NUL padding, RIGHT
+#: AFTER the label's NUL terminator (the SAME placement discipline as the active
+#: telomere's count / the §129 regulatory masks). F1251 read attested bacterial
+#: genomics (Shropshire et al.): IS26-mediated amplification raises a resistance
+#: gene's COPY NUMBER — the genome stores "how many copies", a MULTIPLICITY
+#: annotation (a count), not N physical duplicated strands. A stored ``0`` (the
+#: all-NUL padding a pre-rc273 / plain gene carries) reads as copy-number ``1``
+#: (present-once), so a plain gene is copy-number 1 with NO wire change (format 15
+#: stays); a gene amplified to ``n`` (``amplify``) spends the 8-byte field only for
+#: ``n >= 2`` — an ``n == 1`` gene is BYTE-IDENTICAL to a plain gene (the §129
+#: repressor-plane dual-read discipline, one field over). Every existing reader
+#: (gene_express / partition / recall / census, Python AND C) reads a plain ``0x47``
+#: cap as ALWAYS-EXPRESSED regardless of the trailing bytes, so the count is
+#: transparent to them (verified: srmech_genome_gene_express returns on the ``0x47``
+#: marker before reading any field). Class-I/N exact integer (no float, never abs).
+_GENE_COPY_NUMBER_BYTES = 8
 
 #: §95a/rc258 (format v12 → v13, #1407 / F1243) — the CENTROMERE marker. ``0x58`` =
 #: ASCII ``'X'`` — the centromere IS the cross-point of the classic X-shaped
@@ -906,6 +925,71 @@ def _gene_cap(gene_label, dim):
     the gene-cap caps the gene — nested fixed-width inline framing, no length prefix
     (so no offset sidecar; biology's own wire-format)."""
     return _pack_cap(GENE_CAP_MARKER, gene_label, dim)
+
+
+def _pack_gene_cap_copy_number(gene_label, copy_number, dim):
+    """A plain GENE cap (``0x47``) carrying an exact COPY-NUMBER (§135/rc273 / F1251) — the
+    inverse of :func:`_gene_copy_number`.
+
+    ``[GENE_CAP_MARKER] + utf-8 label + NUL + copy_number(uint64 big-endian)``, NUL-padded to
+    ``dim`` — the SAME placement discipline as the active-telomere count / the §129 regulatory
+    masks (the field sits RIGHT AFTER the label's NUL terminator, so :func:`_unpack_cap` reads
+    the label UNIFORMLY with no copy-number special-case). ``copy_number`` is the MULTIPLICITY
+    (how many copies IS26-mediated amplification produced), a Class-I/N exact integer >= 1 (no
+    float, never ``abs()``).
+
+    DUAL-READ / BYTE-COMPAT (mirrors §129): ``copy_number == 1`` is the DEFAULT (present-once),
+    encoded as the ABSENT field — the writer emits the plain :func:`_gene_cap` form (all-NUL
+    padding == stored 0 == copy-number 1), so an ``n == 1`` amplify is BYTE-IDENTICAL to a plain
+    gene and no wire change is spent. Only ``n >= 2`` writes the 8-byte field. So a plain gene
+    (:func:`_gene_cap`) and a pre-rc273 genome both read as copy-number 1 (back-compat), and the
+    on-disk format version STAYS 15 (an additive field in existing NUL padding, not a new
+    marker / block kind)."""
+    if not isinstance(copy_number, int) or isinstance(copy_number, bool):
+        raise ValueError(
+            f"gene copy_number must be an exact int (Class-I/N multiplicity); got {copy_number!r}")
+    if copy_number < 1:
+        raise ValueError(
+            f"gene copy_number must be >= 1 (a gene is present at least once; a multiplicity is "
+            f"never signed / never abs()); got {copy_number}")
+    if copy_number >= (1 << (8 * _GENE_COPY_NUMBER_BYTES)):
+        raise ValueError(
+            f"gene copy_number {copy_number} exceeds the uint64 field "
+            f"[1, 2**{8 * _GENE_COPY_NUMBER_BYTES})")
+    if copy_number == 1:
+        return _gene_cap(gene_label, dim)              # DEFAULT — byte-identical to a plain gene
+    raw_label = gene_label.encode("utf-8") if isinstance(gene_label, str) else bytes(gene_label)
+    if b"\x00" in raw_label:
+        raise ValueError("gene label must not contain a NUL byte")
+    payload = (bytes([GENE_CAP_MARKER]) + raw_label + b"\x00"
+               + int(copy_number).to_bytes(_GENE_COPY_NUMBER_BYTES, "big"))
+    if len(payload) > dim:
+        raise ValueError(
+            f"gene cap {gene_label!r} + copy-number field is {len(payload)} bytes; max {dim} at "
+            f"leaf_dim={dim} (a copy-number gene label must fit dim - "
+            f"{2 + _GENE_COPY_NUMBER_BYTES} bytes)")
+    block = payload + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _gene_copy_number(hv):
+    """The exact COPY-NUMBER (multiplicity) carried inline in a plain GENE cap (``0x47``,
+    §135/rc273 / F1251) — the inverse of :func:`_pack_gene_cap_copy_number`.
+
+    Reads the ``_GENE_COPY_NUMBER_BYTES`` bytes RIGHT AFTER the label's NUL terminator (uint64
+    big-endian). A stored ``0`` — the all-NUL padding a pre-rc273 / plain gene carries, or a
+    field that does not fit the leaf — reads as copy-number ``1`` (present-once, the DEFAULT), so
+    a plain gene and a back-compat genome both surface 1. Only defined for a plain GENE cap
+    (``0x47``); a non-gene / regulatory-gene / non-plain cap returns ``1`` (no copy-number axis).
+    Class-I/N exact integer (no float, never ``abs()``)."""
+    raw = hv.tobytes()
+    if raw[:1] != bytes([GENE_CAP_MARKER]):
+        return 1                                       # not a plain gene — no copy-number axis
+    nul = raw.find(b"\x00", 1)                          # end of the inline label
+    if nul < 0 or nul + 1 + _GENE_COPY_NUMBER_BYTES > len(raw):
+        return 1                                        # no field room / no NUL → default 1
+    stored = int.from_bytes(raw[nul + 1:nul + 1 + _GENE_COPY_NUMBER_BYTES], "big")
+    return stored if stored >= 1 else 1                 # stored 0 (plain / back-compat) → 1
 
 
 def _validate_regulatory_mask(mask, which):
@@ -2312,6 +2396,98 @@ def genes(strand, the_one):
     return out
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# §135 (rc273, F1251) — the GENE COPY-NUMBER (multiplicity) axis. F1251 read
+# attested bacterial genomics (Shropshire et al., MPM-verified): IS26-mediated
+# amplification raises a resistance gene's COPY NUMBER — the genome stores "how
+# many copies", a MULTIPLICITY annotation (a count), NOT N physical duplicated
+# strands. amplify(chrom, label, n) records the count on the named plain gene's
+# 0x47 cap (in what was NUL padding, RIGHT AFTER the label's NUL — the §129 mask /
+# §127 count placement); copy_number_of(chrom, label) reads it (default 1 = a
+# plain / pre-rc273 gene = present-once). Additive field, NO new marker, format 15
+# stays: a plain 0x47 cap reads as ALWAYS-EXPRESSED regardless of trailing bytes in
+# BOTH Python (_gene_expresses) and C (srmech_genome_gene_express returns on the
+# marker before reading any field), so the count is transparent to every existing
+# reader (gene_express / partition / recall / census) and survives genome_save /
+# reload / integrate byte-exact. Class-I/N exact integer; no float; never abs().
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def amplify(chrom, label, n):
+    """Set a gene's COPY NUMBER (multiplicity) to ``n`` — the IS26-amplification analog
+    (§135/rc273 / F1251).
+
+    F1251: attested bacterial genomics (Shropshire et al.) measured that IS26-mediated
+    amplification raises a resistance gene's COPY NUMBER — the genome stores HOW MANY COPIES.
+    ``amplify`` records that count on the named plain gene's cap: it walks ``chrom`` (a
+    chromosome strand — from ``chromosome(genes=…)`` — or any genome strand), finds the FIRST
+    plain GENE cap (``0x47``) whose inline label equals ``label``, and returns a NEW strand with
+    that cap rewritten to carry ``n`` inline (the gene's data turns + every other block are
+    byte-copied unchanged). ``n`` is the MULTIPLICITY — a Class-I/N exact integer ``>= 1`` — NOT
+    N physical duplicated strands: it is an annotation (a count) on the ONE gene, so the strand
+    length is UNCHANGED. This is a §44 self-describing edit — the count rides in what was the
+    cap's NUL padding, RIGHT AFTER the label's NUL (the §129 regulatory-mask / §127 active-count
+    placement), so ``partition`` / ``recall`` / ``gene_express`` / ``genome_census`` all still
+    read the cap as the SAME always-expressed plain gene (the copy-number is transparent to
+    them, Python AND C), and the count survives ``genome_save`` / reload / ``integrate``
+    byte-exact.
+
+    ``n == 1`` (the default present-once) rewrites to the BYTE-IDENTICAL plain :func:`_gene_cap`
+    (no field spent) — so amplifying to 1 is a clean no-op-shaped identity and a plain gene IS
+    copy-number 1; only ``n >= 2`` spends the 8-byte field (the §129 dual-read discipline, one
+    field over). The on-disk format version STAYS 15 (an additive field in existing padding, no
+    new marker). Read the count back with :func:`copy_number_of`.
+
+    Class-I/N exact integer (no float, never ``abs()``). Pure composition over the C-built strand
+    (a cap rewrite + byte-copy, like :func:`mint_strand`) — the result is byte-identical whether
+    ``chrom`` came from the native or the pure builders. Raises ``ValueError`` if ``n < 1`` or no
+    plain gene named ``label`` is found in ``chrom``."""
+    strand = list(chrom)
+    if not isinstance(n, int) or isinstance(n, bool):
+        raise ValueError(
+            f"amplify: n (copy number) must be an exact int (Class-I/N multiplicity); got {n!r}")
+    if n < 1:
+        raise ValueError(
+            f"amplify: n (copy number) must be >= 1 (a gene is present at least once; a "
+            f"multiplicity is never signed / never abs()); got {n}")
+    for i, hv in enumerate(strand):
+        if _cap_kind(hv) != GENE_CAP_MARKER:
+            continue                                    # only a PLAIN gene carries a copy-number
+        _marker, gene_label = _unpack_cap(hv)           # label reads UNIFORMLY past any count
+        if gene_label == label:
+            dim = len(hv)
+            strand[i] = _pack_gene_cap_copy_number(gene_label, n, dim)
+            return strand
+    raise ValueError(
+        f"amplify: no plain gene labeled {label!r} in the strand (amplify records the copy "
+        f"number on a plain GENE cap 0x47 — build one with chromosome(genes=[({label!r}, "
+        f"leaves), …], the_one))")
+
+
+def copy_number_of(chrom, label):
+    """Read a gene's COPY NUMBER (multiplicity) — the reader companion to :func:`amplify`
+    (§135/rc273 / F1251).
+
+    Walks ``chrom`` (a chromosome / genome strand), finds the FIRST plain GENE cap (``0x47``)
+    whose inline label equals ``label``, and returns its exact copy-number: the ``uint64``
+    big-endian count carried RIGHT AFTER the label's NUL, or ``1`` (present-once, the DEFAULT)
+    for a plain gene / a pre-rc273 genome (all-NUL padding == stored 0 == copy-number 1). So a
+    gene that was never :func:`amplify`-ed — and every gene in a genome written before rc273 —
+    reads as copy-number 1 (back-compat), and a gene amplified to ``n`` reads back exactly ``n``.
+
+    ⚠️ A READ — the strand is byte-identical after this call. Class-I/N exact integer (no float,
+    never ``abs()``). Raises ``ValueError`` if no plain gene named ``label`` is found."""
+    for hv in chrom:
+        if _cap_kind(hv) != GENE_CAP_MARKER:
+            continue
+        _marker, gene_label = _unpack_cap(hv)
+        if gene_label == label:
+            return _gene_copy_number(hv)
+    raise ValueError(
+        f"copy_number_of: no plain gene labeled {label!r} in the strand (the copy-number axis "
+        f"is carried on a plain GENE cap 0x47; a plain / un-amplified gene reads as 1)")
+
+
 def gene_express(strand, the_one, cell_state):
     """Cell-state-modulated gene expression — a READ-TIME FILTER (§128 / #728; §130 / #730).
 
@@ -3715,7 +3891,30 @@ _CHROM_BOUNDARY_MARKERS = (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
                            ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER)
 
 
-def integrate(host, provirus, *, at=None):
+def _integrate_coheres(host, provirus):
+    """The DEFAULT structural compatibility predicate for :func:`integrate` (§95.1d / F1244 /
+    F1251) — does the ``provirus`` COHERE with the ``host`` genome enough to integrate?
+
+    F1244's coherency-translation contract is that host + provirus were coupled through the SAME
+    ``the_one`` (the shared k=3 invariant): that is why integration is FREE (no re-coupling). The
+    ``the_one`` has width == the leaf_dim, and EVERY block (cap or coupled turn) in a strand is
+    that leaf_dim wide, so the strand-visible NECESSARY condition for "coupled through the same
+    invariant" is an EQUAL coupling WIDTH. Two genomes at DIFFERENT widths were coupled through
+    DIFFERENT invariants — they cannot cohere (an incompatible replicon: the F1251 CG258 case,
+    where the plasmid's replication architecture is segregated from the clonal lineage), so
+    integration is honest-declined. This is a Class-K/C coherency read — an EQUALITY of the two
+    coupling widths — NOT a magnitude (never ``abs(w_host - w_provirus)``; we compare, we do not
+    measure a distance). An EMPTY host coheres with any provirus (nothing to be incompatible
+    with — the empty-host integrate returns the bare provirus, as rc262 did). This is the
+    DEFAULT; a caller supplies a domain replicon-/lineage-compatibility predicate via
+    ``integrate``'s ``compatible`` hook (e.g. a same-width but different-lineage CG258 barrier).
+    Returns ``True`` (cohere → integrate) or ``False`` (incompatible → honest-decline)."""
+    if not host:
+        return True                                    # empty host — any provirus integrates
+    return len(host[0]) == len(provirus[0])            # equal coupling width == same-invariant
+
+
+def integrate(host, provirus, *, at=None, compatible=None):
     """Integrate a PROVIRUS (a chromosome strand) INTO a host genome-strand — the
     viral-integration analog (§95.1d / F1244 / #1407), the coherency-translation-layer capstone.
 
@@ -3730,6 +3929,21 @@ def integrate(host, provirus, *, at=None):
     provirus recovers too. That is the translation between the Tier-1 and Tier-2 levels: it needs
     no conversion because they are the same cascade.
 
+    **§135/rc273 (F1251) — the COMPATIBILITY GATE.** Horizontal transfer has EMPIRICAL BOUNDARIES:
+    F1251 read attested bacterial genomics (Shropshire et al.) — CG307 plasmids are shared with
+    other clonal groups EXCEPT CG258, which stays SEGREGATED. HGT is NOT universal; some hosts
+    exchange, some don't. So ``integrate`` now CHECKS host↔provirus compatibility BEFORE splicing
+    and HONEST-DECLINES on incompatibility — it returns ``None`` (a clean refuse, inform-don't-
+    crash, mirroring :func:`telomere_tick`'s senescence), leaving the host UNCHANGED, rather than
+    forcing every element into every host. The DEFAULT predicate (:func:`_integrate_coheres`) is
+    the F1244 coherence contract made checkable: host + provirus must share the COUPLING WIDTH
+    (== the ``the_one`` / leaf_dim), because two genomes at different widths were coupled through
+    different invariants and cannot cohere (an incompatible replicon — the CG258 analog). Pass an
+    explicit ``compatible=`` hook — a callable ``(host, provirus) -> bool`` — to supply a domain
+    replicon-/lineage-compatibility predicate (e.g. a same-width but different-lineage barrier);
+    it is checked IN ADDITION to the width coherence (both must pass). A COMPATIBLE provirus
+    integrates EXACTLY as rc262 did (the gate adds ONLY a refuse path — full back-compat).
+
     ``host`` is a genome strand (any mix of plasmid / nuclear / diploid chromosomes, from
     :func:`genome` / :func:`plasmid` / :func:`mint`); ``provirus`` is a chromosome strand opening
     with a boundary cap (from :func:`chromosome` / :func:`plasmid` / :func:`mint` /
@@ -3737,11 +3951,15 @@ def integrate(host, provirus, *, at=None):
     default ``None`` = integrate after the last chromosome). **Both must have been coupled through
     the SAME ``the_one``** — the coherence contract (the shared cascade). This is strand splicing:
     the provirus's turns are ALREADY coupled, so integration is a composition of self-describing
-    blocks, no re-coupling. Returns the combined genome strand; recover with :func:`partition`.
+    blocks, no re-coupling. Returns the combined genome strand on a COMPATIBLE integration (recover
+    with :func:`partition`), or ``None`` on an incompatible one (the honest-decline; host
+    unchanged).
 
-    Class-C (the integration/orientation) ∘ composition of the C-built chromosome strands. A
-    C-only host integrates identically by concatenating the two genomes' self-describing regions
-    (byte-identical blocks) at a chromosome boundary — the region byte-offsets are in the manifest.
+    Class-C (the integration/orientation) ∘ Class-K (the coherency-width equality gate) ∘
+    composition of the C-built chromosome strands. A C-only host integrates identically by
+    concatenating the two genomes' self-describing regions (byte-identical blocks) at a chromosome
+    boundary — the region byte-offsets are in the manifest. Never ``abs()`` (the gate is an
+    equality read, not a magnitude).
     """
     host = list(host)
     provirus = list(provirus)
@@ -3753,6 +3971,14 @@ def integrate(host, provirus, *, at=None):
     if host and _cap_kind(host[0]) not in _CHROM_BOUNDARY_MARKERS:
         raise ValueError(
             "integrate: host is not a well-formed genome strand (no leading chromosome cap)")
+    # §135/rc273 (F1251): the COMPATIBILITY GATE — check coherence BEFORE integrating and
+    # HONEST-DECLINE (return None, host unchanged) on incompatibility. The default width-coherence
+    # predicate + an optional caller-supplied replicon-/lineage-compatibility hook (both must
+    # pass). A compatible integration proceeds EXACTLY as rc262 (the gate adds only a refuse path).
+    if not _integrate_coheres(host, provirus):
+        return None                                    # incompatible replicon (CG258 analog) — refuse
+    if compatible is not None and not compatible(host, provirus):
+        return None                                    # caller lineage/replicon barrier — refuse
     if at is None:
         locus = len(host)                              # integrate after the last chromosome
     else:
