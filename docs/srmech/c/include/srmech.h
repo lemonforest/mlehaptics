@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc277"
-#define SRMECH_VERSION       "0.9.0rc277"
+#define SRMECH_VERSION_PRE   "rc278"
+#define SRMECH_VERSION       "0.9.0rc278"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6446,6 +6446,58 @@ srmech_status_t srmech_graph_kernel_decode(
     size_t *out_n_edges,
     uint64_t *out_node_ids, size_t nid_cap, size_t *out_n_nid,
     uint64_t *out_extras, size_t ex_cap, size_t *out_n_ex);
+
+/* rc278 (§102 / F1252 STAGE 1 — EXTRACT) — PLASMID EXTRACT: the C-native
+ * orchestrator that COMPOSES the stage-1 C peers so a bare-C host extracts ONE
+ * document into ONE appended PLASMID section end-to-end (genome-must-exist-in-C).
+ * It chains srmech_graph_kernel_encode (a doc's local co-occurrence graph -> a
+ * flat Klein-4 symbol stream) -> a §89/v6 KERNEL-chromosome region build (the
+ * missing syms->on-disk-region glue: a KERNEL telomere 0x6B cap + the coupled +
+ * §55/v3 bit-packed uniformly-Klein-4 header + content leaves, BYTE-IDENTICAL to
+ * kernel_pack + _disk_block) -> srmech_genome_append (§v12 O(1) HEAD-only tail-
+ * extend). The co-occurrence peer (srmech_text_cooccurrence_topk / _extract) is
+ * the other standalone stage-1 C peer a host composes upstream to produce the
+ * (edges, weights) — so `cooccurrence_topk` -> `plasmid_extract` is the whole
+ * stage-1 stack in C, zero Python. Append-only: prior sections stay byte-
+ * untouched. Store the node_ids GLOBAL-id label table so a word shared across
+ * sections carries the SAME id (the precondition stage-2 conservation reads).
+ *   vocab_size / edge_i / edge_j / weights / charges / n_edges / node_ids /
+ *   n_nid / extras / n_ex : EXACTLY srmech_graph_kernel_encode's inputs (the
+ *                       doc's LOCAL co-occurrence graph; node_ids = the local ->
+ *                       GLOBAL id table; charges may be NULL = all 0).
+ *   dir / label         : the sections store (a genome dir that MUST already
+ *                       exist — the append hot path) + this section's label.
+ *   leaf_dim / the_one  : the store's leaf width + the shared Klein-4 invariant
+ *                       (the_one is leaf_dim bytes); leaf_dim >= 52 (the §89
+ *                       uniformly-Klein-4 header fits one leaf).
+ *   ws / ws_len         : ONE caller working arena (the encode syms buffer, the
+ *                       region buffer, AND srmech_genome_append's own arena are
+ *                       carved from it; size generously — SRMECH_ERR_OVERFLOW if
+ *                       too small).
+ *   out_n_syms          : out — the section's true Klein-4 symbol count D (the
+ *                       §89 header self-records it; no external length needed to
+ *                       recover the graph via kernel_unpack / kernel_to_graph).
+ * BYTE-IDENTICAL to the pure Python plasmid_extract's genome_append_kernel
+ * section (same syms, same coupled + v3-packed region, same O(1) append).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — dir / label / the_one / ws / out_n_syms NULL (or an
+ *                          edge/nid/ex pointer NULL with a nonzero count).
+ *   SRMECH_ERR_BAD_INPUT — leaf_dim 0 / > 256 / < 52, or a bad graph (from the
+ *                          encoder: a 30-bit-overflowing datum, a bad charge).
+ *   SRMECH_ERR_OVERFLOW  — ws too small for the syms / region / append stages.
+ *   (plus srmech_genome_append's IO / bound returns unchanged.)
+ * ADDITIVE — a new plain symbol reusing NO callback typedef: SRMECH_ABI_VERSION
+ * stays 6. The on-disk GENOME_FORMAT_VERSION stays 15 (the sections store is a
+ * plain genome dir of KERNEL chromosomes over existing v15 caps + blocks). */
+srmech_status_t srmech_genome_plasmid_extract(
+    uint64_t vocab_size,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    const uint64_t *node_ids, size_t n_nid,
+    const uint64_t *extras, size_t n_ex,
+    const char *dir, const char *label,
+    uint32_t leaf_dim, const unsigned char *the_one,
+    void *ws, size_t ws_len, size_t *out_n_syms);
 
 /* srmech_eulerian_walk — #1390 item 3: the Hierholzer Eulerian trail /
  * circuit over a DIRECTED integer-node edge multiset [0, n_nodes). start < 0

@@ -3679,6 +3679,26 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_size_t),                   # out_n_syms
             ]
             lib.srmech_graph_kernel_encode.restype = ctypes.c_int
+        # §102/rc278 (F1252 STAGE 1) — PLASMID EXTRACT: the C-native orchestrator
+        # composing graph_kernel_encode -> the §89 KERNEL-region build ->
+        # genome_append so a bare-C host extracts ONE doc into ONE appended plasmid
+        # section end-to-end. NEW plain symbol reusing NO callback typedef ->
+        # EXPECTED_ABI_VERSION stays 6.
+        if hasattr(lib, "srmech_genome_plasmid_extract"):
+            lib.srmech_genome_plasmid_extract.argtypes = [
+                ctypes.c_uint64,                                   # vocab_size
+                ctypes.POINTER(ctypes.c_uint64),                   # edge_i
+                ctypes.POINTER(ctypes.c_uint64),                   # edge_j
+                ctypes.POINTER(ctypes.c_uint64),                   # weights
+                ctypes.POINTER(ctypes.c_int64), ctypes.c_size_t,   # charges, n_edges
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # node_ids, n_nid
+                ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # extras, n_ex
+                ctypes.c_char_p, ctypes.c_char_p,                  # dir, label
+                ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint8),   # leaf_dim, the_one
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len
+                ctypes.POINTER(ctypes.c_size_t),                   # out_n_syms
+            ]
+            lib.srmech_genome_plasmid_extract.restype = ctypes.c_int
         if hasattr(lib, "srmech_graph_kernel_decode"):
             lib.srmech_graph_kernel_decode.argtypes = [
                 ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,   # syms, n_syms
@@ -17184,6 +17204,74 @@ def graph_kernel_decode_c(syms):
             "node_ids": [int(ni[k]) for k in range(nnid.value)],
             "extras": [int(ex[k]) for k in range(nex.value)],
         }
+    except Exception:
+        return None
+
+
+def has_native_genome_plasmid_extract() -> bool:
+    """True iff the §102/rc278 srmech_genome_plasmid_extract C orchestrator is
+    loaded + bound: a bare-C host extracts ONE doc into ONE appended plasmid
+    section end-to-end (graph_kernel_encode -> §89 KERNEL-region -> genome_append).
+    False on a no-C or pre-rc278 lib — the pure srmech.amsc.plasmid path
+    (_graph_kernel_encode + genome_append_kernel) is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_plasmid_extract"))
+
+
+def genome_plasmid_extract_c(vocab_size, edges, weights, charges, node_ids,
+                             extras, dir_, label, leaf_dim, the_one):
+    """Native §102/rc278 PLASMID EXTRACT (parity peer srmech_genome_plasmid_extract):
+    compose graph_kernel_encode -> the §89 KERNEL-region build -> genome_append so
+    ONE section is extracted + appended to the existing store ``dir_`` end-to-end in
+    C. ``edges`` is ``[(u, v), …]`` LOCAL indices; ``node_ids`` the local -> GLOBAL
+    id label table; ``weights`` integer counts; ``charges`` ``None`` (all 0) or a
+    signed list; ``extras`` the caller metadata ints. Returns the section's true
+    Klein-4 symbol count D (int), or ``None`` to DECLINE (symbol absent, arena
+    overflow, or a bad datum) so the pure plasmid path runs. Byte-identical to the
+    pure ``genome_append_kernel`` section (same syms, same coupled + §55/v3-packed
+    region, same O(1) append)."""
+    if not has_native_genome_plasmid_extract():
+        return None
+    try:
+        n_edges = len(edges)
+        n_nid = len(node_ids)
+        n_ex = len(extras)
+        dim = int(leaf_dim)
+        one = bytes(the_one)
+        if dim < 52 or dim > 256 or len(one) != dim:
+            return None
+        edge_i = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[0]) for e in edges])
+        edge_j = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[1]) for e in edges])
+        w_arr = (ctypes.c_uint64 * max(n_edges, 1))(*[int(x) for x in weights])
+        ch_ptr = None
+        if charges is not None:
+            ch_ptr = (ctypes.c_int64 * max(n_edges, 1))(*[int(x) for x in charges])
+        nid_arr = (ctypes.c_uint64 * max(n_nid, 1))(*[int(x) for x in node_ids])
+        ex_arr = (ctypes.c_uint64 * max(n_ex, 1))(*[int(x) for x in extras])
+        one_arr = (ctypes.c_uint8 * dim)(*one)
+        # ONE arena carves the encode syms buffer + the region buffer + the append
+        # arena; size generously (the C returns OVERFLOW if short). The append arena
+        # is a v12 head-only manifest (a few KB) — 1 MiB is ample at any corpus size.
+        n_ints = 8 + n_nid + n_ex + 4 * n_edges          # each int <= 17 syms
+        syms_cap = 17 * n_ints + 64
+        n_leaves = 1 + (syms_cap + dim - 1) // dim
+        region_cap = dim + n_leaves * (1 + (dim + 3) // 4)
+        ws_len = syms_cap + region_cap + (1 << 20)
+        ws = (ctypes.c_uint8 * ws_len)()
+        n_out = ctypes.c_size_t(0)
+        rc = LIB.srmech_genome_plasmid_extract(
+            ctypes.c_uint64(int(vocab_size)),
+            edge_i, edge_j, w_arr, ch_ptr, ctypes.c_size_t(n_edges),
+            nid_arr, ctypes.c_size_t(n_nid),
+            ex_arr, ctypes.c_size_t(n_ex),
+            dir_.encode("utf-8"), label.encode("utf-8"),
+            ctypes.c_uint32(dim), one_arr,
+            ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+            ctypes.byref(n_out))
+        if rc != SRMECH_OK:
+            return None
+        return int(n_out.value)
     except Exception:
         return None
 
