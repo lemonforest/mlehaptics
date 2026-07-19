@@ -3471,6 +3471,25 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64),
                 _PSZ, ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_chromatin_of.restype = ctypes.c_int
+        # §102/G1 (rc274) — the CELL-STATE-CONDITIONAL (facultative) chromatin surface: the single-
+        # cap COMPUTED accessibility reader + the FACULTATIVE cap writer. NEW symbols →
+        # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
+        #   int srmech_genome_chromatin_access(const unsigned char *cap, uint32_t leaf_dim,
+        #       uint64_t cell_state, uint64_t *num_out, uint64_t *den_out)
+        if hasattr(lib, "srmech_genome_chromatin_access"):
+            lib.srmech_genome_chromatin_access.argtypes = [
+                _U8, _U32, ctypes.c_uint64,
+                ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64)]
+            lib.srmech_genome_chromatin_access.restype = ctypes.c_int
+        #   int srmech_genome_chromatin_gated(unsigned char chromatin_type, uint64_t num,
+        #       uint64_t den, const unsigned char *gate_blob, size_t gate_blob_len,
+        #       const unsigned char *handle, size_t handle_len, uint32_t dim,
+        #       unsigned char *out, size_t out_cap)
+        if hasattr(lib, "srmech_genome_chromatin_gated"):
+            lib.srmech_genome_chromatin_gated.argtypes = [
+                ctypes.c_uint8, ctypes.c_uint64, ctypes.c_uint64, _U8, _SZ, _U8, _SZ, _U32,
+                _U8, _SZ]
+            lib.srmech_genome_chromatin_gated.restype = ctypes.c_int
         #   int srmech_genome_partition(const unsigned char *strand, size_t n_blocks,
         #       uint32_t leaf_dim, const unsigned char *the_one,
         #       unsigned char *out_leaves, size_t out_leaves_cap,
@@ -17459,6 +17478,71 @@ def genome_chromatin_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
         return None
     return (bool(found.value), int(t_out.value), int(num_out.value),
             int(den_out.value), int(at_out.value))
+
+
+def has_native_genome_chromatin_access() -> bool:
+    """True iff the §102/G1/rc274 srmech_genome_chromatin_access C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_chromatin_access"))
+
+
+def genome_chromatin_access_c(cap: bytes, leaf_dim: int, cell_state: int):
+    """Native §102/G1 single-cap COMPUTED accessibility (parity peer
+    ``srmech_genome_chromatin_access``): the ``(num, den)`` accessibility level of ONE ``0x48``
+    chromatin cap under ``cell_state`` — CONSTITUTIVE (gate NONE) → the static level; FACULTATIVE →
+    the when-open level if the gate FIRES, else ``(0, 1)``. Returns ``(num, den)`` — or ``None`` when
+    the symbol is absent, the inputs do not fit the fast path, OR the native returns non-OK (e.g. an
+    int64 threshold-accumulate overflow → the caller runs the exact pure ``_chromatin_access``).
+    Byte-identical to the pure Python decision."""
+    if not has_native_genome_chromatin_access():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(cap) != leaf_dim
+            or cell_state < 0 or cell_state >= (1 << 64)):
+        return None
+    num_out = ctypes.c_uint64(0)
+    den_out = ctypes.c_uint64(0)
+    rc = LIB.srmech_genome_chromatin_access(
+        _u8(cap), ctypes.c_uint32(leaf_dim), ctypes.c_uint64(cell_state),
+        ctypes.byref(num_out), ctypes.byref(den_out))
+    if rc != SRMECH_OK:
+        return None
+    return (int(num_out.value), int(den_out.value))
+
+
+def has_native_genome_chromatin_gated() -> bool:
+    """True iff the §102/G1/rc274 srmech_genome_chromatin_gated C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_chromatin_gated"))
+
+
+def genome_chromatin_gated_c(chromatin_type, num, den, gate_blob, handle, dim: int):
+    """Native §102/G1 FACULTATIVE chromatin cap writer (parity peer
+    ``srmech_genome_chromatin_gated``): the constitutive ``[0x48] + handle + NUL + type + num + den``
+    with ``gate_blob = [access_gate_type] + payload`` appended VERBATIM after ``den``, NUL-padded to
+    ``dim`` — the packed ``dim``-byte cap bytes, or ``None`` when the symbol is absent OR the inputs
+    are invalid (the caller runs the pure ``_pack_chromatin``, the parity oracle). ``gate_blob`` is
+    the already-serialised bytes from ``genome._chromatin_gate_blob`` (non-empty — a NONE cap routes
+    through ``genome_chromatin_c``). Byte-identical to the pure path."""
+    if not has_native_genome_chromatin_gated():
+        return None
+    raw = handle.encode("utf-8") if isinstance(handle, str) else bytes(handle)
+    blob = bytes(gate_blob)
+    if (not isinstance(chromatin_type, int) or isinstance(chromatin_type, bool)
+            or chromatin_type not in (0, 1)
+            or not isinstance(num, int) or isinstance(num, bool)
+            or not isinstance(den, int) or isinstance(den, bool)
+            or den < 1 or num < 0 or num > den or den >= (1 << 64)
+            or b"\x00" in raw or dim <= 0 or 3 + len(raw) + 16 + len(blob) > dim):
+        return None
+    out = (ctypes.c_uint8 * dim)()
+    rc = LIB.srmech_genome_chromatin_gated(
+        ctypes.c_uint8(chromatin_type), ctypes.c_uint64(num), ctypes.c_uint64(den),
+        _u8(blob), ctypes.c_size_t(len(blob)),
+        _u8(raw), ctypes.c_size_t(len(raw)), ctypes.c_uint32(dim),
+        out, ctypes.c_size_t(dim))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:dim])
 
 
 def has_native_genome_partition() -> bool:

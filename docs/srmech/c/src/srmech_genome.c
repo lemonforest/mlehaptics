@@ -1271,6 +1271,34 @@ srmech_status_t srmech_genome_chromatin(unsigned char chromatin_type, uint64_t n
                                  dim, out, out_cap);
 }
 
+/* §102/v15 (§102/G1 / rc274) FACULTATIVE chromatin cap writer — the srmech_genome_chromatin_gated
+ * wrapper: build the constitutive cap, then append gate_blob = [access_gate_type] + payload VERBATIM
+ * after den (the Python _chromatin_gate_blob serialisation is the oracle). gate_blob_len 0 →
+ * byte-identical to srmech_genome_chromatin. See the header. Additive symbol → ABI stays 5. */
+srmech_status_t srmech_genome_chromatin_gated(
+    unsigned char chromatin_type, uint64_t num, uint64_t den,
+    const unsigned char *gate_blob, size_t gate_blob_len,
+    const unsigned char *handle, size_t handle_len, uint32_t dim,
+    unsigned char *out, size_t out_cap)
+{
+    if (out == NULL || (handle == NULL && handle_len != 0u) ||
+        (gate_blob == NULL && gate_blob_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(gate_blob != NULL || gate_blob_len == 0u);
+    srmech_status_t st = genome_pack_chromatin(chromatin_type, num, den, handle,
+                                               handle_len, dim, out, out_cap);
+    if (st != SRMECH_OK) { return st; }
+    if (gate_blob_len == 0u) { return SRMECH_OK; }        /* constitutive → bytes unchanged */
+    size_t lb = (size_t)SRMECH_GENOME_CHROMATIN_LEVEL_BYTES;
+    size_t den_end = 3u + handle_len + 2u * lb;           /* marker+handle+NUL+type+num+den */
+    if (den_end + gate_blob_len > (size_t)dim) { return SRMECH_ERR_BAD_INPUT; }
+    memcpy(out + den_end, gate_blob, gate_blob_len);
+    memset(out + den_end + gate_blob_len, 0, (size_t)dim - den_end - gate_blob_len);
+    return SRMECH_OK;
+}
+
 /* §98/v15 CHROMATIN READ (rc268) — the strand scan (mirror srmech.amsc.genome.chromatin_of).
  * Walk n_blocks leaf_dim-byte blocks; on the FIRST interior 0x48 cap fill type/num/den + *at_out
  * (data turns before it: 0 = whole-chromosome, >0 = a stretch). No abs, no float, no mutation. */
@@ -1859,6 +1887,133 @@ srmech_status_t srmech_genome_gene_express(
     *expressed = (((cell_state & activator) == activator)     /* ALL activators PRESENT */
                  && ((cell_state & repressor) == 0u)) ? 1 : 0; /* NO repressor PRESENT; no abs */
     return SRMECH_OK;
+}
+
+/* §102/G1 (rc274) — the THRESHOLD chromatin gate fold: *fires = 1 iff Sum_i (weight_i *
+ * bit_i(cell_state)) >= threshold, byte-identical to the pure Python _threshold_expresses. The
+ * payload begins at `off` (NO inner gate_type byte — access_gate_type already discriminated it):
+ * n_weights(u16 BE) + threshold(i64 BE signed) + n_weights x weight(i64 BE signed). On an int64
+ * accumulate OVERFLOW returns SRMECH_ERR_OVERFLOW (the caller falls to the exact pure/bignum Python
+ * path). Reuses genome_read_i64_be. Bounds checked; malloc-free; no abs (the SIGN is Class-K); a
+ * READ. */
+static srmech_status_t genome_chromatin_threshold_fires(
+    const unsigned char *cap, size_t leaf_dim, size_t off, uint64_t cell_state, int *fires)
+{
+    assert(cap != NULL && fires != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    size_t nw = (size_t)SRMECH_GENOME_THRESHOLD_NWEIGHTS_BYTES;
+    size_t vb = (size_t)SRMECH_GENOME_THRESHOLD_VALUE_BYTES;
+    if (off + nw + vb > leaf_dim) { return SRMECH_ERR_BAD_INPUT; }   /* n_weights + threshold header */
+    uint32_t n_weights = ((uint32_t)cap[off] << 8) | (uint32_t)cap[off + 1u];
+    int64_t threshold = genome_read_i64_be(cap, off + nw);
+    size_t w_off = off + nw + vb;
+    if (w_off + (size_t)n_weights * vb > leaf_dim) { return SRMECH_ERR_BAD_INPUT; }  /* vector trunc */
+    int64_t total = 0;
+    for (uint32_t t = 0u; t < n_weights && t < 64u; t++) {      /* bit_t == 0 for t >= 64 (uint64) */
+        if (((cell_state >> t) & 1u) == 0u) { continue; }      /* condition absent — weight skipped */
+        int64_t w = genome_read_i64_be(cap, w_off + (size_t)t * vb);
+        if ((w > 0 && total > INT64_MAX - w) ||                 /* defer to the exact pure path */
+            (w < 0 && total < INT64_MIN - w)) { return SRMECH_ERR_OVERFLOW; }
+        total += w;                                            /* exact int64 signed accumulate */
+    }
+    *fires = (total >= threshold) ? 1 : 0;                     /* Class-K sign-branch; never abs */
+    return SRMECH_OK;
+}
+
+/* §102/G1 (rc274) — evaluate the FACULTATIVE chromatin gate whose payload begins at `off` in `cap`
+ * (access_gate_type already discriminated the kind; NO inner gate_type byte). *fires = 1 iff the
+ * gate fires under cell_state. KLEIN4 = act(u64 BE) + rep(u64 BE); BOOLEAN = n_terms(u16 BE) +
+ * n_terms x (act(u64 BE) + rep(u64 BE)); THRESHOLD delegates to genome_chromatin_threshold_fires.
+ * Byte-identical to the pure Python _chromatin_access `fires` decision (klein4 rule / _dnf_expresses
+ * / _threshold_expresses). Reuses genome_read_u64_be. Bounds checked; malloc-free; no abs; a READ. */
+static srmech_status_t genome_chromatin_gate_fires(
+    const unsigned char *cap, size_t leaf_dim, size_t off,
+    unsigned char gate_type, uint64_t cell_state, int *fires)
+{
+    assert(cap != NULL && fires != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    size_t mb = (size_t)SRMECH_GENOME_REGULATORY_MASK_BYTES;
+    if (gate_type == (unsigned char)SRMECH_GENOME_CHROMATIN_GATE_KLEIN4) {
+        if (off + 2u * mb > leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+        uint64_t act = genome_read_u64_be(cap, off);
+        uint64_t rep = genome_read_u64_be(cap, off + mb);
+        *fires = (((cell_state & act) == act) && ((cell_state & rep) == 0u)) ? 1 : 0;  /* no abs */
+        return SRMECH_OK;
+    }
+    if (gate_type == (unsigned char)SRMECH_GENOME_CHROMATIN_GATE_BOOLEAN) {
+        size_t nt = (size_t)SRMECH_GENOME_BOOLEAN_NTERMS_BYTES;
+        if (off + nt > leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+        uint32_t n_terms = ((uint32_t)cap[off] << 8) | (uint32_t)cap[off + 1u];
+        size_t terms_off = off + nt;
+        if (terms_off + (size_t)n_terms * SRMECH_GENOME_BOOLEAN_TERM_BYTES > leaf_dim) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        int any = 0;
+        for (uint32_t t = 0u; t < n_terms && any == 0; t++) {  /* OR of AND-clauses; empty DNF -> 0 */
+            size_t o = terms_off + (size_t)t * SRMECH_GENOME_BOOLEAN_TERM_BYTES;
+            uint64_t act = genome_read_u64_be(cap, o);
+            uint64_t rep = genome_read_u64_be(cap, o + mb);
+            if (((cell_state & act) == act) && ((cell_state & rep) == 0u)) { any = 1; }
+        }
+        *fires = any;
+        return SRMECH_OK;
+    }
+    if (gate_type == (unsigned char)SRMECH_GENOME_CHROMATIN_GATE_THRESHOLD) {
+        return genome_chromatin_threshold_fires(cap, leaf_dim, off, cell_state, fires);
+    }
+    return SRMECH_ERR_BAD_INPUT;                                /* unsupported access_gate_type */
+}
+
+/* §102/G1 (rc274) — the COMPUTED accessibility (num, den) of ONE chromatin cap under cell_state
+ * (mirror srmech.amsc.genome._chromatin_access). Decode the static (chromatin_type, num, den); read
+ * access_gate_type at den_end (guard den_end < leaf_dim, else NONE — the tight-leaf pad default);
+ * NONE -> the static (num, den) (constitutive, constant in cell_state); a facultative gate ->
+ * (num, den) if it FIRES under cell_state, else (0, 1) (silenced). Byte-identical to Python.
+ * Malloc-free; no abs; no float; a READ. */
+static srmech_status_t genome_chromatin_access(
+    const unsigned char *cap, uint32_t leaf_dim, uint64_t cell_state,
+    uint64_t *num_out, uint64_t *den_out)
+{
+    assert(cap != NULL && num_out != NULL && den_out != NULL);
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);
+    if (cap[0] != SRMECH_GENOME_CHROMATIN_MARKER) { return SRMECH_ERR_BAD_INPUT; }
+    size_t lb = (size_t)SRMECH_GENOME_CHROMATIN_LEVEL_BYTES;
+    size_t nul = 1u;                                       /* handle NUL scan (bytes [1:]) */
+    while (nul < (size_t)leaf_dim && cap[nul] != 0u) { nul++; }
+    if (nul + 2u + 2u * lb > (size_t)leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
+    unsigned char ct = cap[nul + 1u];
+    uint64_t num = genome_get_u64_be(cap, nul + 2u);
+    uint64_t den = genome_get_u64_be(cap, nul + 2u + lb);
+    if (ct > SRMECH_GENOME_CHROMATIN_TYPE_GRADED || den == 0u || num > den) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t den_end = nul + 2u + 2u * lb;                  /* the access_gate_type byte offset */
+    unsigned char gt = (den_end < (size_t)leaf_dim)
+                       ? cap[den_end] : (unsigned char)SRMECH_GENOME_CHROMATIN_GATE_NONE;
+    if (gt == (unsigned char)SRMECH_GENOME_CHROMATIN_GATE_NONE) {
+        *num_out = num; *den_out = den;                   /* constitutive: the static level */
+        return SRMECH_OK;
+    }
+    int fires = 0;
+    srmech_status_t st = genome_chromatin_gate_fires(cap, (size_t)leaf_dim, den_end + 1u,
+                                                     gt, cell_state, &fires);
+    if (st != SRMECH_OK) { return st; }
+    if (fires != 0) { *num_out = num; *den_out = den; }   /* fired: the when-open level */
+    else { *num_out = 0u; *den_out = 1u; }                /* silenced */
+    return SRMECH_OK;
+}
+
+/* §102/G1 (rc274) public single-cap accessibility reader — the srmech_genome_chromatin_access
+ * wrapper (NULL/leaf_dim guards, then genome_chromatin_access). See the header. */
+srmech_status_t srmech_genome_chromatin_access(
+    const unsigned char *cap, uint32_t leaf_dim, uint64_t cell_state,
+    uint64_t *num_out, uint64_t *den_out)
+{
+    if (cap == NULL || num_out == NULL || den_out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(cap != NULL && num_out != NULL && den_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);
+    return genome_chromatin_access(cap, leaf_dim, cell_state, num_out, den_out);
 }
 
 /* §132/v11 (#732) — CLAMP the raw dose `raw_num / denom` to [0, 1] and REDUCE, returning the
@@ -3462,16 +3617,19 @@ srmech_status_t srmech_genome_window(const char *dir, const char *label,
  * head gate IS the community gate.
  * ------------------------------------------------------------------ */
 
-/* §98/rc269 — read a region's HEAD slot at off+leaf_dim into `gate` (>= leaf_dim)
- * and resolve the CHROMATIN OUTER gate. If the head block is a chromatin cap
- * (0x48): SILENCED (accessibility numerator == 0) -> *skip = 1 (the gene gate cap
- * is NEVER read — bounded I/O); OPEN -> the gene gate is the NEXT slot, read
- * off+2*leaf_dim into `gate` (unless there is no room -> *skip = 1). A non-chromatin
- * head block leaves `gate` holding it (*skip = 0). Byte-identical to the pure
- * _plan_path_head_expresses head walk. No abs, no float; a READ. */
+/* §98/rc269 (§102/G1/rc274 cell-state-conditional) — read a region's HEAD slot at off+leaf_dim into
+ * `gate` (>= leaf_dim) and resolve the CHROMATIN OUTER gate under cell_state. If the head block is a
+ * chromatin cap (0x48): its COMPUTED accessibility (genome_chromatin_access — constitutive caps are
+ * constant, §102/G1 FACULTATIVE caps fire per cell_state, evaluated IN PLACE over the already-paged
+ * `gate` buffer so the read stays a SINGLE seek — bounded I/O) decides: SILENCED (numerator == 0
+ * under this cell_state) -> *skip = 1 (the gene gate cap is NEVER read); OPEN -> the gene gate is the
+ * NEXT slot, read off+2*leaf_dim into `gate` (unless no room -> *skip = 1). A non-chromatin head
+ * block leaves `gate` holding it (*skip = 0). Byte-identical to the pure _plan_path_head_expresses
+ * head walk. No malloc (the variable-length DNF/threshold gate is decoded in place over `gate`); no
+ * abs, no float; a READ. */
 static srmech_status_t genome_plan_read_head(
     const char *body_path, size_t off, size_t len, uint32_t leaf_dim,
-    unsigned char *gate, int *skip)
+    uint64_t cell_state, unsigned char *gate, int *skip)
 {
     assert(body_path != NULL && gate != NULL && skip != NULL);
     assert(leaf_dim >= 1u && leaf_dim <= 256u);
@@ -3480,20 +3638,13 @@ static srmech_status_t genome_plan_read_head(
                                             leaf_dim, gate, leaf_dim);
     if (st != SRMECH_OK) { return st; }
     if (gate[0] != SRMECH_GENOME_CHROMATIN_MARKER) { return SRMECH_OK; }
-    size_t lb = (size_t)SRMECH_GENOME_CHROMATIN_LEVEL_BYTES;
-    size_t nul = 1u;                                        /* handle NUL scan (bytes [1:]) */
-    while (nul < (size_t)leaf_dim && gate[nul] != 0u) { nul++; }
-    if (nul + 2u + 2u * lb > (size_t)leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
-    unsigned char ct = gate[nul + 1u];
-    uint64_t num = genome_get_u64_be(gate, nul + 2u);
-    uint64_t den = genome_get_u64_be(gate, nul + 2u + lb);
-    if (ct > SRMECH_GENOME_CHROMATIN_TYPE_GRADED || den == 0u || num > den) {
-        return SRMECH_ERR_BAD_INPUT;
-    }
-    if (num == 0u) { *skip = 1; return SRMECH_OK; }         /* heterochromatin -> SKIP (gate unread) */
+    uint64_t num = 0u, den = 0u;                            /* §102/G1 cell-state-conditional access */
+    st = genome_chromatin_access(gate, leaf_dim, cell_state, &num, &den);
+    if (st != SRMECH_OK) { return st; }
+    if (num == 0u) { *skip = 1; return SRMECH_OK; }         /* silenced under cell_state -> SKIP */
     if ((size_t)3u * leaf_dim > len) { *skip = 1; return SRMECH_OK; }   /* no gate slot after cap */
     return genome_read_region(body_path, off + (size_t)2u * leaf_dim,
-                              leaf_dim, gate, leaf_dim);     /* euchromatin -> the gene gate is next */
+                              leaf_dim, gate, leaf_dim);     /* accessible -> the gene gate is next */
 }
 
 /* Read one chromosome's head GATE cap (the block at byte_offset + leaf_dim, or —
@@ -3524,7 +3675,7 @@ static srmech_status_t genome_plan_emit_one(
     if (len < (size_t)2u * leaf_dim) { return SRMECH_OK; }   /* no head gene cap */
     int skip = 0;
     srmech_status_t st = genome_plan_read_head(body_path, off, len, leaf_dim,
-                                               gate, &skip);
+                                               cell_state, gate, &skip);
     if (st != SRMECH_OK) { return st; }
     if (skip) { return SRMECH_OK; }             /* §98 heterochromatin / no gate slot after cap */
     unsigned char gm = gate[0];                             /* the head block kind */

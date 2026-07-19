@@ -65,7 +65,7 @@ __all__ = [
     "encode_shape", "quad_turn", "telomere", "chromosome",
     "centromere", "centromere_of",
     "diploid", "recover_diploid",
-    "condense", "decondense", "chromatin_of",
+    "condense", "decondense", "chromatin_of", "accessible",
     "recall",
     "genes",
     "genome", "plasmid", "partition",
@@ -99,6 +99,8 @@ __all__ = [
     "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
+    "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
+    "CHROMATIN_GATE_THRESHOLD",
     "TELOMERE_DIVIDED", "TELOMERE_SENESCENT",
 ]
 
@@ -323,6 +325,24 @@ _CHROMATIN_TYPE_NAMES = {CHROMATIN_TYPE_BINARY: "binary", CHROMATIN_TYPE_GRADED:
 #: §98/rc268 chromatin LEVEL field width — the ``num`` + ``den`` are each a uint64 (8 bytes,
 #: big-endian). Mirrors ``SRMECH_GENOME_CHROMATIN_LEVEL_BYTES`` in the C header.
 _CHROMATIN_LEVEL_BYTES = 8
+
+#: §102/rc274 (§102/G1) — the CHROMATIN cap's ACCESS-GATE type, an additive uint8 field in the
+#: cap's existing NUL padding RIGHT AFTER ``den`` (the same DUAL-READ discipline as the §129
+#: repressor / §135 copy-number: the pre-rc274 NUL padding reads back as ``NONE``). It makes the
+#: ``0x48`` access layer CELL-STATE-CONDITIONAL (facultative heterochromatin — the Barr body /
+#: X-inactivation): ``NONE`` (0) = CONSTITUTIVE (accessibility is the STATIC stored ``num/den``,
+#: constant in cell_state, EXACTLY the pre-rc274 read); ``KLEIN4`` / ``BOOLEAN`` / ``THRESHOLD``
+#: (1/2/3) = FACULTATIVE — the stored ``num/den`` is the WHEN-OPEN level, returned iff the gate
+#: FIRES under ``cell_state`` (the SAME §129/§130/§131 gene-gate evaluators, applied to the
+#: chromatin cap), else ``(0, 1)`` (silenced). Same ``0x48`` marker, no new marker/block kind, so
+#: ``GENOME_FORMAT_VERSION`` STAYS 15 and a constitutive cap is BYTE-IDENTICAL to a v15 cap. Mirrors
+#: ``SRMECH_GENOME_CHROMATIN_GATE_*`` in the C header.
+CHROMATIN_GATE_NONE = 0       # constitutive: accessibility is the STATIC stored (num, den)
+CHROMATIN_GATE_KLEIN4 = 1     # facultative: activator/repressor two-mask (§129 E1)
+CHROMATIN_GATE_BOOLEAN = 2    # facultative: DNF over condition bits (§130 E2)
+CHROMATIN_GATE_THRESHOLD = 3  # facultative: linear-threshold / perceptron (§131 E4)
+_CHROMATIN_GATE_NAMES = {CHROMATIN_GATE_NONE: "none", CHROMATIN_GATE_KLEIN4: "klein4",
+                         CHROMATIN_GATE_BOOLEAN: "boolean", CHROMATIN_GATE_THRESHOLD: "threshold"}
 
 #: §128/rc128 (format v7 → v8, #728) — the REGULATORY GENE marker. ``0x67`` = ASCII
 #: ``'g'`` (a lower-case gene carrying a live regulatory region, mnemonically paired
@@ -1850,37 +1870,138 @@ def _validate_chromatin_level(num, den):
 
 
 def _chromatin_state(state):
-    """Normalise a :func:`condense` ``state`` argument to ``(chromatin_type, num, den)`` (§98).
+    """Normalise a :func:`condense` ``state`` argument to ``(chromatin_type, num, den,
+    access_gate_type, gate_fields)`` (§98; §102/G1 adds the facultative gate tail).
 
-    * ``True`` / ``"condensed"`` → BINARY, level ``(0, 1)`` (heterochromatin — silenced).
-    * ``False`` / ``"open"`` → BINARY, level ``(1, 1)`` (euchromatin — accessible).
+    * ``True`` / ``"condensed"`` → BINARY, level ``(0, 1)`` (heterochromatin — silenced), gate NONE.
+    * ``False`` / ``"open"`` → BINARY, level ``(1, 1)`` (euchromatin — accessible), gate NONE.
     * a ``(num, den)`` tuple → GRADED, the exact reduced rational level in ``[0, 1]`` (clamp +
-      Class-I gcd-reduce via :func:`_clamp_reduce_level` — a Class-K sign-branch, NEVER ``abs()``).
+      Class-I gcd-reduce via :func:`_clamp_reduce_level` — a Class-K sign-branch, NEVER ``abs()``),
+      gate NONE. The first three are CONSTITUTIVE (``access_gate_type == CHROMATIN_GATE_NONE``,
+      ``gate_fields is None``): accessibility is the STATIC level, constant in cell_state.
+    * a ``dict`` → a FACULTATIVE (§102/G1) cell-state-conditional gate on the ``0x48`` cap (see
+      :func:`_chromatin_state_facultative`): ``{"activator": m, "repressor": m0, "open_level": …}``
+      (KLEIN4) / ``{"dnf": [(act, rep), …], "open_level": …}`` (BOOLEAN) /
+      ``{"weights": [w, …], "threshold": t, "open_level": …}`` (THRESHOLD). ``open_level`` (the
+      WHEN-OPEN accessibility level; default ``(1, 1)``) is any constitutive ``state`` form.
     """
     if state is True or state == "condensed":
-        return CHROMATIN_TYPE_BINARY, 0, 1
+        return CHROMATIN_TYPE_BINARY, 0, 1, CHROMATIN_GATE_NONE, None
     if state is False or state == "open":
-        return CHROMATIN_TYPE_BINARY, 1, 1
+        return CHROMATIN_TYPE_BINARY, 1, 1, CHROMATIN_GATE_NONE, None
     if isinstance(state, (tuple, list)) and len(state) == 2:   # a (num, den) — JSON delivers a list
         num, den = state
         _validate_chromatin_level(num, den)
         rn, rd = _clamp_reduce_level(num, den)   # §132 clamp[0,1] + gcd-reduce (Class-K/I, no abs)
-        return CHROMATIN_TYPE_GRADED, rn, rd
+        return CHROMATIN_TYPE_GRADED, rn, rd, CHROMATIN_GATE_NONE, None
+    if isinstance(state, dict):                  # §102/G1 FACULTATIVE — a cell-state-conditional gate
+        return _chromatin_state_facultative(state)
     raise ValueError(
-        f"condense state must be True/'condensed' (silenced), False/'open' (accessible), or a "
-        f"(num, den) graded level in [0, 1]; got {state!r}")
+        f"condense state must be True/'condensed' (silenced), False/'open' (accessible), a "
+        f"(num, den) graded level in [0, 1], or a §102/G1 facultative dict "
+        f"({{'activator'/'repressor', ...}} / {{'dnf', ...}} / {{'weights'/'threshold', ...}}); "
+        f"got {state!r}")
 
 
-def _pack_chromatin(chromatin_type, num, den, dim, *, handle="chr"):
+def _chromatin_state_facultative(state):
+    """Parse a §102/G1 FACULTATIVE ``condense`` dict → ``(chromatin_type, num, den,
+    access_gate_type, gate_fields)``. The gate makes the ``0x48`` access layer cell-state-
+    conditional (facultative heterochromatin — the Barr body / X-inactivation), reusing the
+    §129/§130/§131 gene-gate wire forms ON the chromatin cap. ``open_level`` (default ``(1, 1)`` —
+    fully accessible WHEN the gate fires; the biologically-correct default a gate-blind reader
+    degrades to) is any constitutive ``state`` form and gives the ``(chromatin_type, num, den)``
+    WHEN-OPEN level. The gate discriminator:
+
+    * ``"activator"`` and/or ``"repressor"`` → :data:`CHROMATIN_GATE_KLEIN4`, fields ``(act, rep)``.
+    * ``"dnf"`` (a list of ``(activator, repressor)`` AND-clauses) → :data:`CHROMATIN_GATE_BOOLEAN`.
+    * ``"weights"`` (+ optional ``"threshold"``, default 0) → :data:`CHROMATIN_GATE_THRESHOLD`.
+
+    Class-I/N exact integers throughout (no float; a mask/weight is never ``abs()``). The field
+    validation is deferred to :func:`_chromatin_gate_blob` (the SAME validators the gene caps use).
+    """
+    open_level = state.get("open_level", (1, 1))
+    ct, num, den, _gt, _f = _chromatin_state(open_level)   # the WHEN-OPEN (static) level
+    if "activator" in state or "repressor" in state:
+        fields = (int(state.get("activator", 0)), int(state.get("repressor", 0)))
+        return ct, num, den, CHROMATIN_GATE_KLEIN4, fields
+    if "dnf" in state:
+        return ct, num, den, CHROMATIN_GATE_BOOLEAN, state["dnf"]
+    if "weights" in state:
+        fields = (list(state["weights"]), int(state.get("threshold", 0)))
+        return ct, num, den, CHROMATIN_GATE_THRESHOLD, fields
+    raise ValueError(
+        f"condense facultative dict needs one of 'activator'/'repressor' (klein4), 'dnf' "
+        f"(boolean), or 'weights' (threshold); got keys {sorted(state)!r}")
+
+
+def _chromatin_gate_blob(access_gate_type, gate_fields):
+    """Serialize a §102/G1 FACULTATIVE chromatin gate → ``[access_gate_type(u8)] + payload`` (the
+    wire tail appended after ``den`` in a chromatin cap), or ``b""`` for a constitutive
+    (:data:`CHROMATIN_GATE_NONE`) cap. The payload MIRRORS the gene-gate fields but carries NO inner
+    ``gate_type`` byte (``access_gate_type`` is already the discriminator):
+
+    * KLEIN4    : ``activator(u64 BE) + repressor(u64 BE)``                    [16 B, fixed]
+    * BOOLEAN   : ``n_terms(u16 BE) + n_terms × (act(u64 BE) + rep(u64 BE))``  [2 + 16·n_terms]
+    * THRESHOLD : ``n_weights(u16 BE) + threshold(i64 BE) + n_weights × weight(i64 BE)``
+
+    Reuses the SAME field validators the gene caps use (:func:`_validate_regulatory_mask` /
+    :func:`_validate_dnf_terms` / :func:`_validate_threshold_i64`). Class-I/N exact integers; NO
+    float; a mask is never ``abs()``, a signed weight's sign is a Class-K pin-slot (never ``abs()``).
+    The parity oracle for the C peer ``srmech_genome_chromatin_gated``'s appended bytes."""
+    if access_gate_type == CHROMATIN_GATE_NONE:
+        return b""
+    blob = bytearray([access_gate_type & 0xFF])
+    if access_gate_type == CHROMATIN_GATE_KLEIN4:
+        act, rep = gate_fields
+        _validate_regulatory_mask(act, "chromatin klein4 activator")
+        _validate_regulatory_mask(rep, "chromatin klein4 repressor")
+        blob += int(act).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big")
+        blob += int(rep).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big")
+    elif access_gate_type == CHROMATIN_GATE_BOOLEAN:
+        terms = _validate_dnf_terms(gate_fields)
+        if len(terms) >= (1 << (8 * _BOOLEAN_GENE_NTERMS_BYTES)):
+            raise ValueError(
+                f"chromatin boolean gate has {len(terms)} DNF terms; max "
+                f"{(1 << (8 * _BOOLEAN_GENE_NTERMS_BYTES)) - 1} (the uint16 term count)")
+        blob += len(terms).to_bytes(_BOOLEAN_GENE_NTERMS_BYTES, "big")
+        for act, rep in terms:
+            blob += int(act).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big")
+            blob += int(rep).to_bytes(_REGULATORY_GENE_MASK_BYTES, "big")
+    elif access_gate_type == CHROMATIN_GATE_THRESHOLD:
+        weights, threshold = gate_fields
+        weights = list(weights)
+        if len(weights) >= (1 << (8 * _THRESHOLD_GENE_NWEIGHTS_BYTES)):
+            raise ValueError(
+                f"chromatin threshold gate has {len(weights)} weights; max "
+                f"{(1 << (8 * _THRESHOLD_GENE_NWEIGHTS_BYTES)) - 1} (the uint16 weight count)")
+        _validate_threshold_i64(threshold, "chromatin threshold")
+        for i, w in enumerate(weights):
+            _validate_threshold_i64(w, f"chromatin weight {i}")
+        blob += len(weights).to_bytes(_THRESHOLD_GENE_NWEIGHTS_BYTES, "big")
+        blob += int(threshold).to_bytes(_THRESHOLD_GENE_THRESHOLD_BYTES, "big", signed=True)
+        for w in weights:
+            blob += int(w).to_bytes(_THRESHOLD_GENE_WEIGHT_BYTES, "big", signed=True)
+    else:
+        raise ValueError(
+            f"chromatin access_gate_type {access_gate_type} is not supported (NONE="
+            f"{CHROMATIN_GATE_NONE} / KLEIN4={CHROMATIN_GATE_KLEIN4} / BOOLEAN="
+            f"{CHROMATIN_GATE_BOOLEAN} / THRESHOLD={CHROMATIN_GATE_THRESHOLD})")
+    return bytes(blob)
+
+
+def _pack_chromatin(chromatin_type, num, den, dim, *, handle="chr", gate_blob=b""):
     """A fixed-width ``dim``-byte CHROMATIN cap leaf (§98) — the interior epigenetic ACCESS marker.
 
     ``[CHROMATIN_MARKER] + utf-8 handle + NUL + chromatin_type(uint8) + num(uint64 BE) +
-    den(uint64 BE)``, NUL-padded to ``dim``. The **op** (a cap: it packages a region, like
-    :func:`_pack_centromere`) and the **operand** (the accessibility LEVEL ``num/den`` in
-    ``[0, 1]``) are FUSED in the ONE cap. Placing the type + num + den right AFTER the handle's NUL
-    keeps the handle decode UNIFORM (bytes ``[1:]`` up to the first NUL — :func:`_unpack_cap` reads
-    it with no chromatin special-case). The pure numpy-free parity oracle for the C peer
-    ``srmech_genome_chromatin``. Class-N exact (num/den POSITIVE fractions; NO float, NEVER
+    den(uint64 BE) [+ §102/G1 access-gate tail]``, NUL-padded to ``dim``. The **op** (a cap: it
+    packages a region, like :func:`_pack_centromere`) and the **operand** (the accessibility LEVEL
+    ``num/den`` in ``[0, 1]``) are FUSED in the ONE cap. Placing the type + num + den right AFTER the
+    handle's NUL keeps the handle decode UNIFORM (bytes ``[1:]`` up to the first NUL —
+    :func:`_unpack_cap` reads it with no chromatin special-case). §102/G1: ``gate_blob`` (from
+    :func:`_chromatin_gate_blob`) is the OPTIONAL facultative access-gate tail appended after
+    ``den``; ``b""`` (constitutive) makes the cap BYTE-IDENTICAL to a pre-rc274 v15 cap. The pure
+    numpy-free parity oracle for the C peer ``srmech_genome_chromatin`` /
+    ``srmech_genome_chromatin_gated``. Class-N exact (num/den POSITIVE fractions; NO float, NEVER
     ``abs()``)."""
     if chromatin_type not in (CHROMATIN_TYPE_BINARY, CHROMATIN_TYPE_GRADED):
         raise ValueError(
@@ -1893,11 +2014,14 @@ def _pack_chromatin(chromatin_type, num, den, dim, *, handle="chr"):
     payload = (bytes([CHROMATIN_MARKER]) + raw_handle + b"\x00"
                + bytes([chromatin_type & 0xFF])
                + int(num).to_bytes(_CHROMATIN_LEVEL_BYTES, "big")
-               + int(den).to_bytes(_CHROMATIN_LEVEL_BYTES, "big"))
+               + int(den).to_bytes(_CHROMATIN_LEVEL_BYTES, "big")
+               + bytes(gate_blob))               # §102/G1 facultative gate (b"" == constitutive)
     if len(payload) > dim:
         raise ValueError(
-            f"chromatin handle {handle!r} + level fields is {len(payload)} bytes; max {dim} at "
-            f"leaf_dim={dim} (handle must fit dim - {2 + 1 + 2 * _CHROMATIN_LEVEL_BYTES} bytes)")
+            f"chromatin handle {handle!r} + level"
+            f"{' + gate' if gate_blob else ''} fields is {len(payload)} bytes; max {dim} at "
+            f"leaf_dim={dim} (widen leaf_dim, or the handle must fit dim - "
+            f"{2 + 1 + 2 * _CHROMATIN_LEVEL_BYTES + len(gate_blob)} bytes)")
     block = payload + b"\x00" * (dim - len(payload))
     return _HV.from_sequence(block, sectors=256)
 
@@ -1928,14 +2052,109 @@ def _chromatin_spec(hv):
     return chromatin_type, num, den
 
 
-def _chromatin_cap(chromatin_type, num, den, dim, handle="chr"):
-    """Build the fixed-width CHROMATIN cap leaf — DISPATCH the byte-framing to the
-    ``srmech_genome_chromatin`` C peer when HAS_NATIVE (byte-identical bytes, wrapped in the same
-    ``HV(sectors=256)``); the pure :func:`_pack_chromatin` is the numpy-free fallback + oracle."""
-    native = _native.genome_chromatin_c(chromatin_type, num, den, handle, dim)
+def _chromatin_gate_spec(hv):
+    """Decode the §102/G1 FACULTATIVE access gate carried after ``den`` in a chromatin cap →
+    ``(access_gate_type, gate_fields)``, or ``(CHROMATIN_GATE_NONE, None)`` for a constitutive /
+    pre-rc274 cap. The ``access_gate_type`` byte sits at ``den_end`` (right after the two level
+    fields); a TIGHT leaf with no room for it (``den_end >= len(raw)``, the pad-byte default) reads
+    as NONE — the guard that keeps the read in-bounds. The EVALUATORS are the gene path's
+    (:func:`_dnf_expresses` / :func:`_threshold_expresses` / the klein4 rule) — only THIS decoder is
+    chromatin-specific. Class-I/N exact; NO float; NEVER ``abs()``. The parity oracle for the
+    matching fields the C peer ``srmech_genome_chromatin_access`` decodes."""
+    raw = hv.tobytes()
+    if raw[:1] != bytes([CHROMATIN_MARKER]):
+        raise ValueError("not a chromatin cap (first byte != CHROMATIN_MARKER)")
+    nul = raw.find(b"\x00", 1)                                  # end of the inline handle
+    den_end = nul + 2 + 2 * _CHROMATIN_LEVEL_BYTES              # the access_gate_type byte offset
+    if nul < 0 or den_end >= len(raw):                          # tight leaf / no sentinel room → NONE
+        return CHROMATIN_GATE_NONE, None
+    gt = raw[den_end]
+    if gt == CHROMATIN_GATE_NONE:
+        return CHROMATIN_GATE_NONE, None
+    b = den_end + 1                                             # the payload begins after the sentinel
+    if gt == CHROMATIN_GATE_KLEIN4:
+        if b + 2 * _REGULATORY_GENE_MASK_BYTES > len(raw):
+            raise ValueError("chromatin klein4 gate truncated")
+        act = int.from_bytes(raw[b:b + _REGULATORY_GENE_MASK_BYTES], "big")
+        rep = int.from_bytes(
+            raw[b + _REGULATORY_GENE_MASK_BYTES:b + 2 * _REGULATORY_GENE_MASK_BYTES], "big")
+        return gt, (act, rep)
+    if gt == CHROMATIN_GATE_BOOLEAN:
+        if b + _BOOLEAN_GENE_NTERMS_BYTES > len(raw):
+            raise ValueError("chromatin boolean gate header truncated")
+        n = int.from_bytes(raw[b:b + _BOOLEAN_GENE_NTERMS_BYTES], "big")
+        o = b + _BOOLEAN_GENE_NTERMS_BYTES
+        if o + n * _BOOLEAN_GENE_TERM_BYTES > len(raw):
+            raise ValueError("chromatin boolean gate DNF truncated")
+        terms = []
+        for _ in range(n):
+            act = int.from_bytes(raw[o:o + _REGULATORY_GENE_MASK_BYTES], "big")
+            rep = int.from_bytes(
+                raw[o + _REGULATORY_GENE_MASK_BYTES:o + _BOOLEAN_GENE_TERM_BYTES], "big")
+            terms.append((act, rep))
+            o += _BOOLEAN_GENE_TERM_BYTES
+        return gt, terms
+    if gt == CHROMATIN_GATE_THRESHOLD:
+        hdr = _THRESHOLD_GENE_NWEIGHTS_BYTES + _THRESHOLD_GENE_THRESHOLD_BYTES
+        if b + hdr > len(raw):
+            raise ValueError("chromatin threshold gate header truncated")
+        n = int.from_bytes(raw[b:b + _THRESHOLD_GENE_NWEIGHTS_BYTES], "big")
+        th_base = b + _THRESHOLD_GENE_NWEIGHTS_BYTES
+        threshold = int.from_bytes(
+            raw[th_base:th_base + _THRESHOLD_GENE_THRESHOLD_BYTES], "big", signed=True)
+        o = th_base + _THRESHOLD_GENE_THRESHOLD_BYTES
+        if o + n * _THRESHOLD_GENE_WEIGHT_BYTES > len(raw):
+            raise ValueError("chromatin threshold gate weight vector truncated")
+        weights = []
+        for _ in range(n):
+            weights.append(int.from_bytes(
+                raw[o:o + _THRESHOLD_GENE_WEIGHT_BYTES], "big", signed=True))
+            o += _THRESHOLD_GENE_WEIGHT_BYTES
+        return gt, (weights, threshold)
+    raise ValueError(f"chromatin cap has unsupported access_gate_type {gt}")
+
+
+def _chromatin_access(hv, cell_state):
+    """The COMPUTED accessibility ``(num, den)`` of ONE chromatin cap under ``cell_state`` (§102/G1).
+
+    CONSTITUTIVE (``access_gate_type == CHROMATIN_GATE_NONE``) → the STATIC stored ``(num, den)``
+    (constant in ``cell_state`` — EXACTLY the pre-rc274 read). FACULTATIVE → the WHEN-OPEN
+    ``(num, den)`` iff the gate FIRES under ``cell_state``, else ``(0, 1)`` (silenced). Reuses the
+    gene-gate EVALUATORS verbatim: the klein4 rule (Class-I), :func:`_dnf_expresses`,
+    :func:`_threshold_expresses` (Class-K sign). NEVER ``abs()``. The pure parity oracle for the C
+    peer ``srmech_genome_chromatin_access``."""
+    _ct, num, den = _chromatin_spec(hv)                         # the WHEN-OPEN (or static) level
+    gt, fields = _chromatin_gate_spec(hv)
+    if gt == CHROMATIN_GATE_NONE:
+        return (num, den)                                      # constitutive: constant in cell_state
+    if gt == CHROMATIN_GATE_KLEIN4:
+        act, rep = fields
+        fires = (cell_state & act) == act and (cell_state & rep) == 0   # Class-I, no abs
+    elif gt == CHROMATIN_GATE_BOOLEAN:
+        fires = _dnf_expresses(fields, cell_state)             # REUSED
+    else:                                                       # THRESHOLD
+        weights, threshold = fields
+        fires = _threshold_expresses(weights, threshold, cell_state)    # REUSED (Class-K sign)
+    return (num, den) if fires else (0, 1)
+
+
+def _chromatin_cap(chromatin_type, num, den, dim, handle="chr", *,
+                   access_gate_type=CHROMATIN_GATE_NONE, gate_fields=None):
+    """Build the fixed-width CHROMATIN cap leaf — DISPATCH the byte-framing to the C peer when
+    HAS_NATIVE (byte-identical bytes, wrapped in the same ``HV(sectors=256)``); the pure
+    :func:`_pack_chromatin` is the numpy-free fallback + oracle. A CONSTITUTIVE
+    (:data:`CHROMATIN_GATE_NONE`) cap routes through ``srmech_genome_chromatin`` UNCHANGED
+    (byte-identical to a pre-rc274 cap); a §102/G1 FACULTATIVE cap serializes its
+    :func:`_chromatin_gate_blob` and routes through ``srmech_genome_chromatin_gated`` (which appends
+    the blob verbatim)."""
+    gate_blob = _chromatin_gate_blob(access_gate_type, gate_fields)
+    if gate_blob:
+        native = _native.genome_chromatin_gated_c(chromatin_type, num, den, gate_blob, handle, dim)
+    else:
+        native = _native.genome_chromatin_c(chromatin_type, num, den, handle, dim)
     if native is not None:
         return _HV.from_sequence(native, sectors=256)
-    return _pack_chromatin(chromatin_type, num, den, dim, handle=handle)
+    return _pack_chromatin(chromatin_type, num, den, dim, handle=handle, gate_blob=gate_blob)
 
 
 def _chromatin_info(chromatin_type, num, den, at, handle):
@@ -1987,6 +2206,12 @@ def condense(strand, *, the_one=None, state=True, region=None, handle="chr", lab
     binary heterochromatin (silenced, level ``0``); ``False`` / ``"open"`` → binary euchromatin
     (accessible, level ``1``); a ``(num, den)`` tuple → a GRADED accessibility level in ``[0, 1]``
     (partial access — composes multiplicatively with a graded gene, :func:`gene_express_levels`).
+    §102/G1: a ``dict`` state → a FACULTATIVE (cell-state-conditional) access gate — the Barr body /
+    X-inactivation analog. ``{"activator": m, "repressor": m0}`` (klein4), ``{"dnf": [(act, rep),
+    …]}`` (boolean), or ``{"weights": [w, …], "threshold": t}`` (threshold), each with an optional
+    ``"open_level"`` (the WHEN-OPEN accessibility, default ``(1, 1)``). The region is then accessible
+    (its stored WHEN-OPEN level) iff the gate FIRES under a query ``cell_state`` (read with
+    :func:`accessible` / gated by :func:`gene_express`), else silenced ``(0, 1)``.
 
     PLACEMENT is scope. ``region=None`` (default) → HEAD scope: the marker goes right after the
     opening telomere and silences the WHOLE chromosome (the X-inactivation / master case).
@@ -2003,8 +2228,9 @@ def condense(strand, *, the_one=None, state=True, region=None, handle="chr", lab
     if not strand:
         raise ValueError("condense: empty strand (nothing to condense)")
     dim = len(list(the_one)) if the_one is not None else len(list(strand[0]))
-    chromatin_type, num, den = _chromatin_state(state)
-    cap = _chromatin_cap(chromatin_type, num, den, dim, handle=handle)
+    chromatin_type, num, den, access_gate_type, gate_fields = _chromatin_state(state)
+    cap = _chromatin_cap(chromatin_type, num, den, dim, handle=handle,
+                         access_gate_type=access_gate_type, gate_fields=gate_fields)
     start, end = _chrom_range(strand, label, op="condense")
     if region is None:
         insert = start + 1                          # HEAD scope: right after the opening telomere
@@ -2074,6 +2300,48 @@ def chromatin_of(strand, the_one=None):
         if kind is None:
             turns += 1                              # a coupled data turn (not a cap)
     return None
+
+
+def accessible(strand, cell_state, *, the_one=None):
+    """The COMPUTED accessibility LEVEL ``(num, den)`` of a chromosome under ``cell_state`` (§102/G1).
+
+    The op⊗operand THEOREM at the CHROMATIN scale — the parallel of :func:`gene_express` one gate
+    OUTWARD: the SAME genome under a DIFFERENT ``cell_state`` reads a DIFFERENT accessible level. It
+    scans for the FIRST interior chromatin cap (``0x48``, the region head gate) and returns its
+    computed :func:`_chromatin_access`:
+
+    * a CONSTITUTIVE cap (``access_gate_type == CHROMATIN_GATE_NONE`` — the pre-rc274 default;
+      centromeric / telomeric H3K9me3 heterochromatin) → its STATIC stored level, CONSTANT in
+      ``cell_state``;
+    * a FACULTATIVE cap (a klein4 / boolean / threshold gate, from ``condense(state={…})`` — the
+      Barr body / H3K27me3-Polycomb X-inactivation analog) → its WHEN-OPEN level iff the gate FIRES
+      under ``cell_state``, else ``(0, 1)`` (silenced);
+    * a chromatin-FREE strand → ``(1, 1)`` (default euchromatin — fully accessible).
+
+    ``num > 0`` is "open" (Class-K: the sign of the level numerator). ``cell_state`` is a
+    non-negative exact int (Class-I bitwise; each set bit a present cell-state condition; NO float,
+    NEVER ``abs()``). ``the_one`` is accepted for signature symmetry / leaf width (optional). ⚠️ A
+    READ — the strand is byte-identical after this call (biology reads the packaging, it does not
+    rewrite the DNA). Native-dispatched per-cap (the C peer ``srmech_genome_chromatin_access``
+    computes the gated level); the pure :func:`_chromatin_access` is the complete alternative +
+    oracle. Attests facultative heterochromatin as ONE facet: X-chromosome inactivation / the Barr
+    body — Chadwick BP & Willard HF (2004) "Multiple spatially distinct types of facultative
+    heterochromatin on the human inactive X chromosome", *PNAS* 101:17450-17455 (NCBI PMC534659,
+    OA); constitutive vs facultative heterochromatin — Brown TA, *Genomes* (NCBI Bookshelf
+    NBK21137, OA). Class-M (read / projection) over Class-K (the ``num>0`` sign) + Class-I (bitwise
+    ``cs & act``) + Class-N (the exact-rational level)."""
+    _plan_validate_cell_state("accessible", cell_state)
+    strand = list(strand)
+    if not strand:
+        return (1, 1)                               # empty strand → default euchromatin
+    dim = len(list(the_one)) if the_one is not None else len(list(strand[0]))
+    for hv in strand:                               # the FIRST chromatin cap gates the chromosome
+        if _cap_kind(hv) == CHROMATIN_MARKER:
+            native = _native.genome_chromatin_access_c(hv.tobytes(), dim, cell_state)
+            if native is not None:
+                return native
+            return _chromatin_access(hv, cell_state)
+    return (1, 1)                                   # chromatin-free → default euchromatin
 
 
 def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
@@ -2593,8 +2861,8 @@ def gene_express(strand, the_one, cell_state):
             # access gate is the OUTER gate over the §128-132 promoter (Class-K, no abs).
             cur_express = access_open and _gene_expresses(hv, cell_state)
             started = True
-        elif kind == CHROMATIN_MARKER:          # §98 access marker — gate the stretch that follows
-            _ct, _an, _ad = _chromatin_spec(hv)
+        elif kind == CHROMATIN_MARKER:          # §98/§102 access marker — gate the stretch that follows
+            _an, _ad = _chromatin_access(hv, cell_state)   # §102/G1 cell-state-conditional access
             access_open = _an > 0               # accessible iff the level numerator > 0 (Class-K)
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
                       KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
@@ -2680,9 +2948,8 @@ def gene_express_levels(strand, the_one, cell_state):
             # chromatin access level composes MULTIPLICATIVELY over the §132 graded promoter level).
             cur_level = _compose_levels(access, _gene_level(hv, cell_state))
             started = True
-        elif kind == CHROMATIN_MARKER:          # §98 access marker — the stretch level that follows
-            _ct, _an, _ad = _chromatin_spec(hv)
-            access = (_an, _ad)                 # the exact accessibility rational (already reduced)
+        elif kind == CHROMATIN_MARKER:          # §98/§102 access marker — the stretch level that follows
+            access = _chromatin_access(hv, cell_state)     # §102/G1 cell-state-conditional access level
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
                       KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
             access = (1, 1)                     # a chromosome boundary resets access (euchromatin)
@@ -6518,11 +6785,15 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
       and is skipped. This is the siona community=chromosome layout: the per-chromosome
       head gate IS the community gate. Mixed E1/E2/E4/E3 gate-types across chromosomes are
       the delivered gates — the plan gates by the inline mask regardless of kind. **§98/rc269
-      chromatin OUTER gate:** if the head slot is a CHROMATIN cap (``0x48``), it gates the
-      whole region — a CONDENSED (silenced, accessibility numerator ``0``) region is SKIPPED
-      at plan time having touched ONLY the chromatin cap (its gene gate cap is NEVER read —
-      even fewer bytes than the §134 read); an OPEN (accessible) region advances one slot and
-      reads the gene gate as before. A chromatin-FREE region is byte-for-byte the rc135 read.
+      chromatin OUTER gate (§102/rc274 cell-state-conditional):** if the head slot is a CHROMATIN
+      cap (``0x48``), its COMPUTED accessibility under ``cell_state`` (:func:`_chromatin_access` —
+      a constitutive cap is constant; a §102/G1 FACULTATIVE cap fires per cell_state) gates the
+      whole region — a SILENCED (accessibility numerator ``0`` under this cell_state) region is
+      SKIPPED at plan time having touched ONLY the chromatin cap (its gene gate cap is NEVER read —
+      even fewer bytes than the §134 read; the cell-state gate rides IN the already-paged cap, so
+      the skip stays a SINGLE-SEEK bounded-I/O read); an OPEN (accessible) region advances one slot
+      and reads the gene gate as before. A chromatin-FREE region is byte-for-byte the rc135 read.
+      WHICH regions are condensed is now a FUNCTION of cell_state (facultative heterochromatin).
     * **STRAND variant (variant a — the in-memory fallback):** ``strand_or_path`` is an
       in-memory strand (a list of Klein-4 vectors). The plan SKELETON-SCANS it — walking
       blocks, computing each block's ON-DISK byte span (a cap is ``leaf_dim`` bytes; a data
@@ -6588,8 +6859,8 @@ def _plan_path_head_expresses(f, off, ln, leaf_dim, cell_state):
     head_block = f.read(leaf_dim)
     if len(head_block) < leaf_dim:
         return False
-    if head_block[0] == CHROMATIN_MARKER:       # §98 HEAD chromatin cap — the OUTER access gate
-        _ct, _an, _ad = _chromatin_spec(_hv_from_block(head_block))
+    if head_block[0] == CHROMATIN_MARKER:       # §98/§102 HEAD chromatin cap — the OUTER access gate
+        _an, _ad = _chromatin_access(_hv_from_block(head_block), cell_state)  # §102/G1 conditional
         access_open = _an > 0                   # accessible iff level numerator > 0 (Class-K, no abs)
         if not access_open:
             return False                        # heterochromatin → SKIP (gene gate NEVER read)
@@ -6623,8 +6894,8 @@ def _gene_express_plan_strand(strand, the_one, cell_state):
             _marker, lbl = _unpack_cap(hv)
             pending = (lbl, hv, pos, access_open)   # capture the access state at the gene's OPEN
             pos += leaf_dim
-        elif kind == CHROMATIN_MARKER:          # §98 access marker — a leaf_dim cap; gates the stretch
-            _ct, _an, _ad = _chromatin_spec(hv)
+        elif kind == CHROMATIN_MARKER:          # §98/§102 access marker — a leaf_dim cap; gates the stretch
+            _an, _ad = _chromatin_access(hv, cell_state)   # §102/G1 cell-state-conditional access
             access_open = _an > 0               # accessible iff the level numerator > 0 (Class-K)
             pos += leaf_dim
         elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
