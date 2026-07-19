@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc274"
-#define SRMECH_VERSION       "0.9.0rc274"
+#define SRMECH_VERSION_PRE   "rc275"
+#define SRMECH_VERSION       "0.9.0rc275"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -100,8 +100,20 @@ extern "C" {
  *      precedent, adding a callback typedef carries a CFUNCTYPE wire-format
  *      implication for the Python ctypes shim, so ABI bumps (the plain
  *      srmech_set_progress_cb function alone would not).
+ * v6 — v0.9.0rc275: the C encode-progress + graceful-abort primitive (§101 /
+ *      PR#687 / F1252). Adds the new function-pointer typedef
+ *      srmech_progress_tick_cb_t (the PER-CALL, PER-ITERATION heartbeat WITH a
+ *      nonzero-return-to-CANCEL channel) + the versioned srmech_progress_ev_t
+ *      event struct + the SRMECH_CANCELLED status, alongside the two
+ *      *_progress overload symbols (srmech_laplacian_fiedler_sparse_file_progress,
+ *      srmech_genome_mint_progress). Distinct from the v5 srmech_progress_cb_t
+ *      dispatch-observer (the libcurl/SQLite separate trace-vs-progress pattern).
+ *      Per the v2→v5 precedent, adding a callback typedef carries a CFUNCTYPE
+ *      wire-format implication for the Python ctypes shim, so ABI bumps (the
+ *      additive *_progress functions alone would not). Later APPEND-only growth
+ *      of srmech_progress_ev_t via its struct_size gate does NOT re-bump.
  */
-#define SRMECH_ABI_VERSION 5
+#define SRMECH_ABI_VERSION 6
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -143,8 +155,62 @@ typedef enum srmech_status {
     SRMECH_ERR_IO         = 3,  /* file / stream I/O failed       */
     SRMECH_ERR_OVERFLOW   = 4,  /* bounded buffer overflow guard  */
     SRMECH_ERR_NOT_IMPL   = 5,  /* not yet implemented (Phase B1) */
-    SRMECH_ERR_INTERNAL   = 6   /* invariant violation; report it */
+    SRMECH_ERR_INTERNAL   = 6,  /* invariant violation; report it */
+    SRMECH_CANCELLED      = 7   /* §101: a progress tick returned nonzero — a
+                                 * CLEAN abort, NOT an error. The out-count
+                                 * reflects the COMPLETE units already written
+                                 * (a valid partial); the C mirror of the
+                                 * telomere_tick honest-decline. */
 } srmech_status_t;
+
+/* ------------------------------------------------------------------ *
+ * ENCODE PROGRESS + GRACEFUL ABORT (v0.9.0rc275, §101 / PR#687 / F1252)
+ *
+ * The caller HEARTBEAT + nonzero-return-to-CANCEL primitive threaded into the
+ * long encode ops. DISTINCT from the v5 srmech_progress_cb_t dispatch-OBSERVER
+ * (void return, once-per-tool, process-global): this is a PER-CALL,
+ * PER-ITERATION heartbeat WITH a cancel channel, passed as a parameter to a long
+ * encode op (the libcurl XFERINFOFUNCTION / SQLite progress_handler / libgit2
+ * transfer_progress pattern — a separate progress handler kept orthogonal to the
+ * trace/verbose observer). Fires INLINE on the encode thread — zero concurrency,
+ * MCU-safe, JPL-deterministic (no task registry, no RTOS threads).
+ *
+ * VERSIONED STRUCT (statx stx_mask / Vulkan sType / Win32 cbSize): the first
+ * field is struct_size. rc276+ fields APPEND after the current tail; the emitter
+ * sets struct_size to what IT knows, the callback reads a field only if
+ * struct_size covers it. So the struct extends WITHOUT an ABI bump — only this
+ * first introduction bumps (the new callback typedef -> CFUNCTYPE implication).
+ *
+ * OFF BY DEFAULT: a NULL tick pointer means the op runs exactly as before (one
+ * pointer test per unit — the hot path pays ~nothing).
+ *
+ * done / total are EXACT integer cardinalities (Class-N; node / kernel / group /
+ * iteration counts). The library NEVER divides and NEVER accumulates a float; a
+ * %-fraction is the observer's own done/total. They are non-negative by
+ * construction (there is no sign to strip — not a Class-K pin-slot site; no abs).
+ * ------------------------------------------------------------------ */
+typedef enum srmech_encode_phase {
+    SRMECH_PHASE_NONE         = 0,  /* unknown / unspecified                    */
+    SRMECH_PHASE_EXTRACTING   = 1,  /* stage-1 co-occurrence extract (F1252)    */
+    SRMECH_PHASE_INTEGRATING  = 2,  /* stage-2 plasmid integrate  (F1252)       */
+    SRMECH_PHASE_MINTING      = 3,  /* mint / mint_strand / centromere splice   */
+    SRMECH_PHASE_PARTITIONING = 4   /* recursive_cut / fiedler bisection        */
+    /* rc276+ phases APPEND HERE (forward-extensible; older readers see the int) */
+} srmech_encode_phase_t;
+
+typedef struct srmech_progress_ev {
+    uint32_t struct_size;   /* == sizeof(srmech_progress_ev_t); the cbSize gate  */
+    uint32_t phase;         /* an srmech_encode_phase_t value                    */
+    uint64_t done;          /* EXACT numerator   (cardinality; always >= 0)      */
+    uint64_t total;         /* EXACT denominator (0 == indeterminate; else > 0)  */
+    /* rc276+ APPEND-ONLY fields go HERE. Older callbacks (struct_size-gated) skip. */
+} srmech_progress_ev_t;
+
+/* Return 0 to CONTINUE, nonzero to CANCEL. Fires inline on the encode thread;
+ * MUST be cheap and MUST NOT re-enter srmech_* (it runs inside the encode). The
+ * new typedef bumps SRMECH_ABI_VERSION 5 -> 6 (the CFUNCTYPE wire implication). */
+typedef int (*srmech_progress_tick_cb_t)(const srmech_progress_ev_t *ev,
+                                         void *user_data);
 
 /* ------------------------------------------------------------------ *
  * Metadata accessors (defined in src/srmech_meta.c)
@@ -1214,6 +1280,25 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t      n,
                                                      double       *out_vec,
                                                      double       *ws,
                                                      size_t        ws_len);
+
+/* §101 (v0.9.0rc275): the ENCODE-PROGRESS overload of the out-of-core Fiedler.
+ * Byte-identical to srmech_laplacian_fiedler_sparse_file (which forwards here with
+ * tick == NULL), but fires the caller `tick` heartbeat once per power-iteration
+ * (phase SRMECH_PHASE_PARTITIONING, done = it+1, total = max_iters). A nonzero
+ * tick return CANCELS: the loop returns SRMECH_CANCELLED with `out_vec` left as
+ * the zeroed init (a valid "no cut" vector, byte-indistinguishable from an
+ * edgeless graph). `tick` may be NULL (runs exactly as the plain symbol).
+ * ABI-additive symbol; the new srmech_progress_tick_cb_t typedef is what bumps
+ * SRMECH_ABI_VERSION 5 -> 6. See the srmech_progress_ev_t block above. */
+srmech_status_t srmech_laplacian_fiedler_sparse_file_progress(
+    uint32_t                   n,
+    const char                *path,
+    uint32_t                   max_iters,
+    double                    *out_vec,
+    double                    *ws,
+    size_t                     ws_len,
+    srmech_progress_tick_cb_t  tick,
+    void                      *tick_user);
 
 /* §75-sparse (issue #698): the STREAMING k-extreme resonant read — the
  * n-unbounded C twin of srmech.amsc.coupling.resonant_spectrum_sparse. Reads the
@@ -5328,7 +5413,7 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * _CHROMATIN_LEVEL_BYTES in srmech.amsc.genome. */
 #define SRMECH_GENOME_CHROMATIN_LEVEL_BYTES 8u
 
-/* §102/v15 (§102/G1 / rc274) chromatin ACCESS-GATE type — an additive uint8 field in the cap's
+/* §98.1/v15 (§98.1/G1 / rc274) chromatin ACCESS-GATE type — an additive uint8 field in the cap's
  * existing NUL padding RIGHT AFTER den (the same dual-read discipline as the §129 repressor / §135
  * copy-number: pre-rc274 NUL padding reads back as NONE). It makes the 0x48 access layer CELL-
  * STATE-CONDITIONAL (facultative heterochromatin — Barr body / X-inactivation): NONE (0) =
@@ -5508,6 +5593,22 @@ srmech_status_t srmech_genome_mint(
     const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out);
 
+/* §101 (v0.9.0rc275): the ENCODE-PROGRESS overload of MINT. Byte-identical to
+ * srmech_genome_mint (which forwards here with tick == NULL), but fires the caller
+ * `tick` heartbeat at the TOP of each kernel (phase SRMECH_PHASE_MINTING,
+ * done = k [complete chromosomes so far], total = n_kernels). A nonzero tick
+ * return CANCELS: *n_blocks_out is set to the COMPLETE blocks already written (a
+ * valid PARTIAL genome of k chromosomes — never a half-written chromosome) and
+ * SRMECH_CANCELLED is returned. `tick` may be NULL (runs exactly as the plain
+ * symbol). ABI-additive symbol; the srmech_progress_tick_cb_t typedef is what
+ * bumps SRMECH_ABI_VERSION 5 -> 6. */
+srmech_status_t srmech_genome_mint_progress(
+    const unsigned char *labels, const size_t *label_lens,
+    const unsigned char *the_one, uint32_t leaf_dim,
+    const unsigned char *leaves, const size_t *leaf_counts, size_t n_kernels,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out,
+    srmech_progress_tick_cb_t tick, void *tick_user);
+
 /* §95a/v13 CENTROMERE READ (rc262) — recover a NUCLEAR chromosome's global orientation +
  * arm-ratio (mirror srmech.amsc.genome.centromere_of). Walks the strand's n_blocks leaf_dim-byte
  * blocks, majority-decodes the orientation from the interior 0x58 cap's α-satellite votes
@@ -5576,9 +5677,9 @@ srmech_status_t srmech_genome_chromatin_of(
     unsigned char *type_out, uint64_t *num_out, uint64_t *den_out,
     size_t *at_out, int *found_out);
 
-/* §102/v15 (§102/G1 / rc274) — the COMPUTED accessibility level of ONE chromatin cap under
+/* §98.1/v15 (§98.1/G1 / rc274) — the COMPUTED accessibility level of ONE chromatin cap under
  * cell_state (mirror srmech.amsc.genome._chromatin_access). Decode the static (chromatin_type, num,
- * den); read the §102 access_gate_type at den_end (guard den_end < leaf_dim, else NONE): NONE →
+ * den); read the §98.1 access_gate_type at den_end (guard den_end < leaf_dim, else NONE): NONE →
  * (num, den) (constitutive, constant in cell_state); a facultative KLEIN4/BOOLEAN/THRESHOLD gate →
  * (num, den) if the gate FIRES under cell_state (the SAME §129/§130/§131 evaluators), else (0, 1)
  * (silenced). `cap` is ONE leaf_dim-byte 0x48 cap. Byte-identical to the pure Python. Additive
@@ -5592,7 +5693,7 @@ srmech_status_t srmech_genome_chromatin_access(
     const unsigned char *cap, uint32_t leaf_dim, uint64_t cell_state,
     uint64_t *num_out, uint64_t *den_out);
 
-/* §102/v15 (§102/G1 / rc274) — the FACULTATIVE chromatin cap writer (mirror the bytes behind
+/* §98.1/v15 (§98.1/G1 / rc274) — the FACULTATIVE chromatin cap writer (mirror the bytes behind
  * srmech.amsc.genome._pack_chromatin with a gate): srmech_genome_chromatin, then append
  * `gate_blob = [access_gate_type(u8)] + payload` VERBATIM after den, NUL-padded to dim. The Python
  * _chromatin_gate_blob serialisation is the oracle; this appends its bytes. A NONE (constitutive)

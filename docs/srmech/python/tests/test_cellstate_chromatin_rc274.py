@@ -1,4 +1,4 @@
-"""v0.9.0rc274 (§102 / G1) — CELL-STATE-CONDITIONAL chromatin (facultative heterochromatin).
+"""v0.9.0rc274 (§98.1 / G1) — CELL-STATE-CONDITIONAL chromatin (facultative heterochromatin).
 
 Extends the rc269 demand-load-chromatin harness. The ``0x48`` chromatin ACCESS layer is now
 cell-state-conditional: an additive ``access_gate_type`` byte after ``den`` (in the cap's existing

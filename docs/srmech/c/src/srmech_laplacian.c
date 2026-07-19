@@ -1631,15 +1631,26 @@ static srmech_status_t fiedler_step_file(const char *path, uint32_t n, const dou
 }
 
 /* Out-of-core power iteration: stream-step until rescale-zero or sign-stability
- * (5 stable-sign steps past a 20-iteration warmup). v holds the running vector. */
+ * (5 stable-sign steps past a 20-iteration warmup). v holds the running vector.
+ * §101: an optional per-iteration progress tick (NULL == off); a nonzero tick
+ * return is a CLEAN cancel -> SRMECH_CANCELLED (the caller leaves out_vec zeroed). */
 static srmech_status_t fiedler_file_iterate(const char *path, uint32_t n,
     const double *s, const double *p, double *v, double *u, double *t,
-    double *y, double *prev, uint32_t max_iters)
+    double *y, double *prev, uint32_t max_iters,
+    srmech_progress_tick_cb_t tick, void *tick_user)
 {
     assert(s != NULL && p != NULL);
     assert(v != NULL && prev != NULL);
     uint32_t stable = 0u;
     for (uint32_t it = 0; it < max_iters; it++) {
+        if (tick != NULL) {
+            srmech_progress_ev_t ev = { (uint32_t)sizeof(srmech_progress_ev_t),
+                                        (uint32_t)SRMECH_PHASE_PARTITIONING,
+                                        (uint64_t)it + 1u, (uint64_t)max_iters };
+            if (tick(&ev, tick_user) != 0) {
+                return SRMECH_CANCELLED;            /* clean abort, JPL Rule-1 return */
+            }
+        }
         srmech_status_t st = fiedler_step_file(path, n, s, p, v, t, y, u);
         if (st != SRMECH_OK) {
             return st;
@@ -1659,8 +1670,23 @@ static srmech_status_t fiedler_file_iterate(const char *path, uint32_t n,
     return SRMECH_OK;
 }
 
+/* §101: the plain symbol keeps its exact ABI signature and forwards to the
+ * _progress overload with a NULL tick (runs exactly as before rc275). */
 srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t n, const char *path,
     uint32_t max_iters, double *out_vec, double *ws, size_t ws_len)
+{
+    assert(out_vec != NULL);
+    assert(ws != NULL);
+    return srmech_laplacian_fiedler_sparse_file_progress(
+        n, path, max_iters, out_vec, ws, ws_len, NULL, NULL);
+}
+
+/* §101: the ENCODE-PROGRESS overload — the plain body + the per-iteration tick
+ * threaded into fiedler_file_iterate. A cancelled iterate returns SRMECH_CANCELLED
+ * with out_vec left zeroed (the early return skips the v -> out_vec copy). */
+srmech_status_t srmech_laplacian_fiedler_sparse_file_progress(uint32_t n, const char *path,
+    uint32_t max_iters, double *out_vec, double *ws, size_t ws_len,
+    srmech_progress_tick_cb_t tick, void *tick_user)
 {
     assert(out_vec != NULL && ws != NULL);
     if (out_vec == NULL || ws == NULL || path == NULL) {
@@ -1699,9 +1725,10 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t n, const char *pat
     for (uint32_t i = 0; i < n; i++) {
         prev[i] = -1.0;
     }
-    st = fiedler_file_iterate(path, n, s, p, v, u, t, y, prev, max_iters);
+    st = fiedler_file_iterate(path, n, s, p, v, u, t, y, prev, max_iters,
+                              tick, tick_user);
     if (st != SRMECH_OK) {
-        return st;
+        return st;                                 /* incl. SRMECH_CANCELLED: out_vec stays zeroed */
     }
     for (uint32_t i = 0; i < n; i++) {
         out_vec[i] = v[i];

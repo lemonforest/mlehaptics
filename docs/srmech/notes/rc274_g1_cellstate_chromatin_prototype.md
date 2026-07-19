@@ -1,4 +1,4 @@
-# rc274 (§102 / G1) — cell-state-conditional chromatin (facultative heterochromatin): BUILD-READY prototype
+# rc274 (§98.1 / G1) — cell-state-conditional chromatin (facultative heterochromatin): BUILD-READY prototype
 
 > **Prototype/design note (2026-07-18).** A concertmaster dispatch. Executes **G1**, the highest-ranked
 > gap from `chromatin_histone_structural_machinery_findings.md`: make the `0x48` chromatin ACCESS layer
@@ -174,7 +174,7 @@ CHROMATIN_GATE_THRESHOLD = 3   # facultative: linear-threshold / perceptron (E4)
 _CHROMATIN_GATE_NAMES = {0: "none", 1: "klein4", 2: "boolean", 3: "threshold"}
 
 def _chromatin_gate_spec(hv):
-    """Decode the FACULTATIVE gate carried after `den` in a chromatin cap (§102/G1), or
+    """Decode the FACULTATIVE gate carried after `den` in a chromatin cap (§98.1/G1), or
     (CHROMATIN_GATE_NONE, None) for a constitutive/pre-rc274 cap. The evaluators are the SAME
     ones the gene path uses — only this DECODER is chromatin-specific. Class-I/N exact; no abs."""
     raw = hv.tobytes()
@@ -206,7 +206,7 @@ def _chromatin_gate_spec(hv):
     raise ValueError(f"chromatin cap has unsupported access_gate_type {gt}")
 
 def _chromatin_access(hv, cell_state):
-    """The COMPUTED accessibility (num, den) of ONE chromatin cap under cell_state (§102/G1).
+    """The COMPUTED accessibility (num, den) of ONE chromatin cap under cell_state (§98.1/G1).
     Constitutive (NONE) → the static stored (num,den). Facultative → the when-open (num,den) if the
     gate FIRES, else (0,1). Reuses _dnf_expresses / _threshold_expresses / the klein4 rule verbatim."""
     _ct, num, den = _chromatin_spec(hv)                      # the when-open (or static) level
@@ -225,7 +225,7 @@ def _chromatin_access(hv, cell_state):
 
 def accessible(strand, cell_state, *, the_one=None, label=None):
     """NEW PUBLIC OP — the COMPUTED accessibility level (num, den) of a chromosome under cell_state
-    (§102/G1). The op⊗operand theorem at the CHROMATIN scale (parallel to gene_express at the gene
+    (§98.1/G1). The op⊗operand theorem at the CHROMATIN scale (parallel to gene_express at the gene
     scale): SAME genome, DIFFERENT cell_state → DIFFERENT open-set. Constitutive / chromatin-free →
     a CONSTANT level; facultative → COMPUTED. A READ (never mutates). num>0 is 'open' (Class-K).
     cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). Native-dispatched

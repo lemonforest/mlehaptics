@@ -66,7 +66,16 @@ from typing import Optional
 #        observer) + the srmech_set_progress_cb registration. Same
 #        CFUNCTYPE wire-format convention as v2→v3, so ABI bumps (the
 #        plain srmech_set_progress_cb function alone would not).
-EXPECTED_ABI_VERSION: int = 5
+#   v6 — v0.9.0rc275: the C encode-progress + graceful-abort primitive
+#        (§101 / F1252); new function-pointer typedef
+#        srmech_progress_tick_cb_t (the PER-CALL, PER-ITERATION heartbeat
+#        WITH a nonzero-return-to-CANCEL channel) + the versioned
+#        srmech_progress_ev_t event struct + the SRMECH_CANCELLED status,
+#        alongside the two *_progress overload symbols. Distinct from the
+#        v5 dispatch-observer. Same CFUNCTYPE wire-format convention as
+#        v2→v3, so ABI bumps (the additive *_progress functions alone
+#        would not). Later APPEND-only struct growth does NOT re-bump.
+EXPECTED_ABI_VERSION: int = 6
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -81,6 +90,9 @@ SRMECH_ERR_IO: int = 3
 SRMECH_ERR_OVERFLOW: int = 4
 SRMECH_ERR_NOT_IMPL: int = 5
 SRMECH_ERR_INTERNAL: int = 6
+SRMECH_CANCELLED: int = 7          # §101: a progress tick returned nonzero — a
+                                  # CLEAN abort (not an error); out-count is the
+                                  # complete units written (a valid partial).
 
 
 # Class L broadening (Phase 2): transcendental op-id enum.
@@ -315,6 +327,69 @@ PROGRESS_CALLBACK = ctypes.CFUNCTYPE(
     ctypes.c_char_p,                          # const char *event_json
     ctypes.c_void_p,                          # void *user_data
 )
+
+
+# v0.9.0rc275: the §101 ENCODE-PROGRESS + graceful-abort primitive ABI (v6).
+# Distinct from the v5 dispatch-observer above (libcurl/SQLite keep a separate
+# progress handler orthogonal to the trace observer). Mirror of srmech.h:
+#
+#   typedef struct srmech_progress_ev {
+#       uint32_t struct_size; uint32_t phase; uint64_t done; uint64_t total; };
+#   typedef int (*srmech_progress_tick_cb_t)(const srmech_progress_ev_t *ev,
+#                                            void *user_data);
+#
+# Field order + widths MUST match the C struct EXACTLY (the tick reads it by
+# pointer from inside the encode loop). The phase enum values mirror
+# srmech_encode_phase_t (NONE=0 / EXTRACTING=1 / INTEGRATING=2 / MINTING=3 /
+# PARTITIONING=4). Adding the typedef is what bumps ABI 5 → 6.
+class _ProgressEv(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_uint32),   # == sizeof(srmech_progress_ev_t)
+        ("phase", ctypes.c_uint32),          # an srmech_encode_phase_t value
+        ("done", ctypes.c_uint64),           # EXACT numerator (cardinality)
+        ("total", ctypes.c_uint64),          # EXACT denominator (0 == indeterminate)
+    ]
+
+
+_TICK_CFUNCTYPE = ctypes.CFUNCTYPE(
+    ctypes.c_int,                            # int return: 0 continue, nonzero cancel
+    ctypes.POINTER(_ProgressEv),             # const srmech_progress_ev_t *ev
+    ctypes.c_void_p,                          # void *user_data
+)
+
+# Phase-id mirrors of srmech_encode_phase_t (the Python-side dict "phase" value).
+SRMECH_PHASE_NONE: int = 0
+SRMECH_PHASE_EXTRACTING: int = 1
+SRMECH_PHASE_INTEGRATING: int = 2
+SRMECH_PHASE_MINTING: int = 3
+SRMECH_PHASE_PARTITIONING: int = 4
+
+# The struct_size a Python emitter reports (the cbSize gate): 4+4+8+8 = 24 bytes.
+PROGRESS_STRUCT_SIZE: int = ctypes.sizeof(_ProgressEv)
+
+
+def _make_tick_trampoline(py_progress, box):
+    """Wrap a Python ``progress`` callable as a C-callable tick that NEVER lets a
+    Python exception cross the C frames (the rc273 Callable-boundary lesson, C
+    side). The C loop calls this inline; on ANY exception it is stashed in ``box``
+    and the tick returns 1 (a clean C-side CANCEL) so the C op unwinds via its
+    normal SRMECH_CANCELLED path — the caller re-raises ``box["exc"]`` AFTER the C
+    call returns. A truthy/nonzero ``progress`` return also cancels (returns 1).
+
+    The returned _TICK_CFUNCTYPE object MUST be kept referenced for the whole C
+    call (ctypes does not; a dropped reference would dangle inside the library) —
+    the caller holds it in a local for the call's duration."""
+    def _tramp(ev_ptr, _user):
+        try:
+            ev = ev_ptr.contents
+            rc = py_progress({"struct_size": int(ev.struct_size),
+                              "phase": int(ev.phase),
+                              "done": int(ev.done), "total": int(ev.total)})
+            return 1 if rc else 0
+        except BaseException as exc:              # noqa: BLE001 — MUST NOT propagate
+            box["exc"] = exc
+            return 1                              # force a clean C-side cancel
+    return _TICK_CFUNCTYPE(_tramp)
 
 
 # rc184 — ctypes mirrors of srmech_tool_param_t / srmech_tool_entry_t (the
@@ -2555,6 +2630,23 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_laplacian_fiedler_sparse_file.restype = ctypes.c_int
 
+        # §101 (rc275) — the ENCODE-PROGRESS overload: the same out-of-core Fiedler
+        # + a per-iteration srmech_progress_tick_cb_t heartbeat with a nonzero-
+        # return-to-CANCEL channel. NEW symbol → own hasattr; additive but rides the
+        # ABI 5 → 6 bump of the new tick typedef.
+        if hasattr(lib, "srmech_laplacian_fiedler_sparse_file_progress"):
+            lib.srmech_laplacian_fiedler_sparse_file_progress.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # path (packed edge file)
+                ctypes.c_uint32,                   # max_iters
+                ctypes.POINTER(ctypes.c_double),  # out_vec (n)
+                ctypes.POINTER(ctypes.c_double),  # ws (9*n scratch arena)
+                ctypes.c_size_t,                   # ws_len (in doubles)
+                _TICK_CFUNCTYPE,                   # tick (NULL == off)
+                ctypes.c_void_p,                   # tick_user
+            ]
+            lib.srmech_laplacian_fiedler_sparse_file_progress.restype = ctypes.c_int
+
         # size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n) +
         # srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n,
         #     const char *path, uint32_t k, uint32_t max_iters,
@@ -3423,6 +3515,14 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_mint.argtypes = [
                 _U8, _PSZ, _U8, _U32, _U8, _PSZ, _SZ, _U8, _SZ, _PSZ]
             lib.srmech_genome_mint.restype = ctypes.c_int
+        # §101 (rc275) — the ENCODE-PROGRESS overload of MINT: same args + a
+        # per-kernel tick + tick_user (the CANCEL channel). NEW symbol → own
+        # hasattr; rides the ABI 5 → 6 bump of the new tick typedef.
+        if hasattr(lib, "srmech_genome_mint_progress"):
+            lib.srmech_genome_mint_progress.argtypes = [
+                _U8, _PSZ, _U8, _U32, _U8, _PSZ, _SZ, _U8, _SZ, _PSZ,
+                _TICK_CFUNCTYPE, ctypes.c_void_p]
+            lib.srmech_genome_mint_progress.restype = ctypes.c_int
         #   int srmech_genome_centromere(unsigned char orientation, uint32_t repeats,
         #       const unsigned char *handle, size_t handle_len, uint32_t dim,
         #       unsigned char *out, size_t out_cap)
@@ -3471,7 +3571,7 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64),
                 _PSZ, ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_chromatin_of.restype = ctypes.c_int
-        # §102/G1 (rc274) — the CELL-STATE-CONDITIONAL (facultative) chromatin surface: the single-
+        # §98.1/G1 (rc274) — the CELL-STATE-CONDITIONAL (facultative) chromatin surface: the single-
         # cap COMPUTED accessibility reader + the FACULTATIVE cap writer. NEW symbols →
         # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
         #   int srmech_genome_chromatin_access(const unsigned char *cap, uint32_t leaf_dim,
@@ -15847,6 +15947,50 @@ def has_native_fiedler_sparse_file() -> bool:
                 and hasattr(LIB, "srmech_laplacian_fiedler_sparse_file"))
 
 
+def has_native_fiedler_sparse_file_progress() -> bool:
+    """True iff the §101/rc275 ENCODE-PROGRESS overload of the out-of-core Fiedler
+    is loaded + bound: the same power iteration + a per-iteration
+    srmech_progress_tick_cb_t heartbeat with a nonzero-return-to-CANCEL channel.
+    False on a pre-rc275 lib — the caller threads ``progress`` into the pure-Python
+    power loop instead (the complete alternative + parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_laplacian_fiedler_sparse_file_progress"))
+
+
+def fiedler_sparse_file_native_progress(n, graph_path, max_iters, progress):
+    """§101 native ENCODE-PROGRESS dispatch for ``fiedler_sparse_file(progress=)``.
+
+    Calls ``srmech_laplacian_fiedler_sparse_file_progress`` with the CFUNCTYPE
+    trampoline so the per-iteration tick (phase PARTITIONING, done=it+1,
+    total=max_iters) reaches the Python ``progress`` callable INLINE. A truthy
+    ``progress`` return cancels → the C op returns SRMECH_CANCELLED with ``out``
+    left ZEROED (a valid "no cut" vector), which this returns as ``list[float]``.
+    An exception in ``progress`` is caught (never crosses the C frames) and
+    re-raised here after the C call returns. Returns ``None`` on a non-OK /
+    non-CANCELLED status (caller falls to the pure path) or if the symbol is
+    absent."""
+    if not has_native_fiedler_sparse_file_progress():
+        return None
+    out = (ctypes.c_double * n)()
+    ws = (ctypes.c_double * (9 * n))()
+    box: dict = {}
+    tramp = _make_tick_trampoline(progress, box)   # keep referenced across the call
+    rc = LIB.srmech_laplacian_fiedler_sparse_file_progress(
+        ctypes.c_uint32(n),
+        graph_path.encode("utf-8"),
+        ctypes.c_uint32(int(max_iters)),
+        out,
+        ws,
+        ctypes.c_size_t(9 * n),
+        tramp, None,
+    )
+    if box.get("exc") is not None:
+        raise box["exc"]                            # re-raise the callback's own exception
+    if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+        return None
+    return list(out)                                # CANCELLED → the zeroed "no cut" vector
+
+
 def has_native_k_extreme_modes() -> bool:
     """True iff the §75-sparse native streaming k-extreme resonant read is loaded
     + bound (rc230+ lib): the bottom-k + top-k combinatorial-Laplacian modes run
@@ -17259,8 +17403,17 @@ def has_native_genome_mint() -> bool:
                 and hasattr(LIB, "srmech_genome_mint"))
 
 
+def has_native_genome_mint_progress() -> bool:
+    """True iff the §101/rc275 ENCODE-PROGRESS overload of MINT is loaded + bound:
+    the per-kernel srmech_progress_tick_cb_t heartbeat + nonzero-return-to-CANCEL.
+    False on a pre-rc275 lib — ``genome()`` threads ``progress`` into its pure
+    per-kernel loop instead (the complete alternative + parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_mint_progress"))
+
+
 def genome_mint_c(labels, the_one: bytes, leaves: bytes, leaf_counts,
-                  leaf_dim: int):
+                  leaf_dim: int, progress=None):
     """Native §95a/rc258 MINT (parity peer ``srmech_genome_mint``): each labelled kernel
     becomes a CHROM-capped chromosome whose SHAPE the tooling picks — a plasmid-scale
     kernel (tome/mobius, depth < 2) stays a stick; a eukaryotic-chromosome-scale kernel
@@ -17268,9 +17421,19 @@ def genome_mint_c(labels, the_one: bytes, leaves: bytes, leaf_counts,
     orientation (sha256(raw leaves)[0] & 3). Args as ``genome_genome_c``; returns the whole
     strand bytes (``(n_kernels + Σ leaf_counts + n_minted) × leaf_dim``), or ``None`` when
     the symbol is absent OR the inputs do not fit the fast path — the caller then runs the
-    exact pure Python. Byte-identical to the Python ``mint()`` strand."""
+    exact pure Python. Byte-identical to the Python ``mint()`` strand.
+
+    §101 ``progress`` (Python-only kwarg; never an MCP wire param): a callable
+    ``progress(ev: dict) -> bool`` fired via the ``srmech_genome_mint_progress`` C
+    overload at the TOP of each kernel (``ev`` = ``{struct_size, phase, done, total}``,
+    phase MINTING). A truthy return CANCELS — the C op returns ``SRMECH_CANCELLED`` and
+    this returns the VALID PARTIAL strand bytes (the whole chromosomes minted so far).
+    An exception raised inside ``progress`` is caught, does NOT cross the C frames, and
+    is re-raised here after the C call returns (the rc273 Callable-boundary lesson)."""
     if not has_native_genome_mint():
         return None
+    if progress is not None and not has_native_genome_mint_progress():
+        return None                            # no _progress symbol → caller runs pure
     raw_labels = [(l.encode("utf-8") if isinstance(l, str) else bytes(l))
                   for l in labels]
     counts = [int(c) for c in leaf_counts]
@@ -17287,12 +17450,24 @@ def genome_mint_c(labels, the_one: bytes, leaves: bytes, leaf_counts,
     cap = (2 * n_kernels + sum(counts)) * leaf_dim
     out = (ctypes.c_uint8 * max(cap, 1))()
     n_blocks = ctypes.c_size_t(0)
-    rc = LIB.srmech_genome_mint(
-        _u8(labels_blob), lens_arr, _u8(the_one), ctypes.c_uint32(leaf_dim),
-        _u8(leaves), counts_arr, ctypes.c_size_t(n_kernels),
-        out, ctypes.c_size_t(cap), ctypes.byref(n_blocks))
-    if rc != SRMECH_OK:
+    if progress is None:
+        rc = LIB.srmech_genome_mint(
+            _u8(labels_blob), lens_arr, _u8(the_one), ctypes.c_uint32(leaf_dim),
+            _u8(leaves), counts_arr, ctypes.c_size_t(n_kernels),
+            out, ctypes.c_size_t(cap), ctypes.byref(n_blocks))
+    else:
+        box: dict = {}
+        tramp = _make_tick_trampoline(progress, box)   # keep referenced across the call
+        rc = LIB.srmech_genome_mint_progress(
+            _u8(labels_blob), lens_arr, _u8(the_one), ctypes.c_uint32(leaf_dim),
+            _u8(leaves), counts_arr, ctypes.c_size_t(n_kernels),
+            out, ctypes.c_size_t(cap), ctypes.byref(n_blocks),
+            tramp, None)
+        if box.get("exc") is not None:
+            raise box["exc"]                    # re-raise the callback's own exception
+    if rc not in (SRMECH_OK, SRMECH_CANCELLED):
         return None
+    # SRMECH_CANCELLED → the valid PARTIAL (n_blocks complete-so-far blocks).
     return bytes(out[:int(n_blocks.value) * leaf_dim])
 
 
@@ -17481,13 +17656,13 @@ def genome_chromatin_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
 
 
 def has_native_genome_chromatin_access() -> bool:
-    """True iff the §102/G1/rc274 srmech_genome_chromatin_access C peer is loaded + bound."""
+    """True iff the §98.1/G1/rc274 srmech_genome_chromatin_access C peer is loaded + bound."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_chromatin_access"))
 
 
 def genome_chromatin_access_c(cap: bytes, leaf_dim: int, cell_state: int):
-    """Native §102/G1 single-cap COMPUTED accessibility (parity peer
+    """Native §98.1/G1 single-cap COMPUTED accessibility (parity peer
     ``srmech_genome_chromatin_access``): the ``(num, den)`` accessibility level of ONE ``0x48``
     chromatin cap under ``cell_state`` — CONSTITUTIVE (gate NONE) → the static level; FACULTATIVE →
     the when-open level if the gate FIRES, else ``(0, 1)``. Returns ``(num, den)`` — or ``None`` when
@@ -17510,13 +17685,13 @@ def genome_chromatin_access_c(cap: bytes, leaf_dim: int, cell_state: int):
 
 
 def has_native_genome_chromatin_gated() -> bool:
-    """True iff the §102/G1/rc274 srmech_genome_chromatin_gated C peer is loaded + bound."""
+    """True iff the §98.1/G1/rc274 srmech_genome_chromatin_gated C peer is loaded + bound."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_chromatin_gated"))
 
 
 def genome_chromatin_gated_c(chromatin_type, num, den, gate_blob, handle, dim: int):
-    """Native §102/G1 FACULTATIVE chromatin cap writer (parity peer
+    """Native §98.1/G1 FACULTATIVE chromatin cap writer (parity peer
     ``srmech_genome_chromatin_gated``): the constitutive ``[0x48] + handle + NUL + type + num + den``
     with ``gate_blob = [access_gate_type] + payload`` appended VERBATIM after ``den``, NUL-padded to
     ``dim`` — the packed ``dim``-byte cap bytes, or ``None`` when the symbol is absent OR the inputs
