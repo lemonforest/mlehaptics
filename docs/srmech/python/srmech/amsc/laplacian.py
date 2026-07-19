@@ -1801,6 +1801,82 @@ def _eig2x2(aa: complex, bb: complex, cc: complex, dd: complex) -> Tuple[complex
     return (tr + disc) / 2.0, (tr - disc) / 2.0
 
 
+def _cmax_component(z: complex) -> float:
+    """``max(|Re z|, |Im z|)`` — a magnitude PROXY that needs no square root, so
+    it is exact at every scale. Sign is a **Class-K** pin-slot with **Class-C**
+    re-application (never a bare ``abs()``)."""
+    r = z.real if z.real >= 0.0 else -z.real
+    i = z.imag if z.imag >= 0.0 else -z.imag
+    return r if r >= i else i
+
+
+# Below this fraction of the (scaled, O(1)) column norm, ``x0``'s phase is taken
+# as real rather than as ``x0/|x0|``. The window is bounded on BOTH sides:
+#
+#  * ABOVE it, ``_fhypot`` must be accurate enough that ``x0/_fhypot(x0)`` is a
+#    unit phase — measured relative error is 1.1e-13 at 1e-4 but 5.3e-10 at
+#    1e-8, and any error there lands directly on ``|α| = ‖x‖``;
+#  * BELOW it, the real branch must not cancel in ``v[0] = x0 − α``. With
+#    ``α = −‖x‖`` that is ``v[0] = x0 + ‖x‖``, which cancels only if ``x0`` is
+#    real-NEGATIVE and comparable to ``‖x‖`` — impossible once ``|x0|`` is
+#    capped at this fraction of it, giving ``|v[0]| ≥ (1 − 1e-4)·‖x‖``.
+_HOUSEHOLDER_PHASE_REL = 1e-4
+
+
+def _householder_reflector(x: List[complex]):
+    """Householder reflector ``P = I − β·v·vᴴ`` with ``P·x = α·e₁``, returned as
+    ``(v, β)`` — or ``None`` when there is nothing to annihilate.
+
+    **Scale-invariance is a CORRECTNESS requirement here (rc285), not a nicety.**
+    ``P`` is invariant under ``v → v/c``, so the vector is first divided by its
+    largest component magnitude, putting every entry at ``O(1)``. That matters
+    because ``_fhypot`` is a **bounded-denominator Class-N rational cascade**,
+    not libm's ``hypot``: it carries ≈ −2e−5 relative error at ``1e-12`` and
+    returns **exactly 0.0** below ≈ ``1e-17``. So for a small ``x0`` the phase
+    ``x0 / _fhypot(x0)`` is **not** a unit complex number — measured 1.25 for
+    ``x0 = 6.9e-17`` — which makes ``|α| ≠ ‖x‖``, and then ``P`` is not a
+    reflector at all. In :func:`_hessenberg_complex` that silently turned the
+    reduction into a NON-similarity: 1.6e-1 asymmetry from a symmetric input and
+    1.4e-2 of spectral drift on an 11-vertex broom graph. Scaling to ``O(1)``
+    first keeps every ``_fhypot`` call inside its accurate range.
+
+    Canonical SSoT: Golub & Van Loan §5.1.3 (Householder vectors, and the
+    standard practice of scaling ``x`` before forming them).
+    """
+    scale = 0.0
+    for z in x:
+        c = _cmax_component(z)                       # exact at every magnitude
+        if c > scale:
+            scale = c
+    if scale == 0.0:
+        return None                                  # x is the zero vector
+    xs = [z / scale for z in x]                      # every entry now O(1)
+    normx2 = 0.0
+    for z in xs:
+        normx2 += (z.conjugate() * z).real
+    if normx2 <= 0.0:
+        return None
+    normx = _fsqrt(normx2)                           # Class-N ‖x‖
+    x0 = xs[0]
+    modx0 = _fhypot(x0.real, x0.imag)                # Class-K magnitude (no abs())
+    # The phase exists ONLY to keep v[0] = x0 − α away from cancellation. When
+    # |x0| is negligible against ‖x‖ there is no cancellation to avoid and x0's
+    # phase is noise, so the real branch is both safe and better conditioned.
+    if modx0 > _HOUSEHOLDER_PHASE_REL * normx:
+        phase = x0 / modx0
+    else:
+        phase = complex(1.0, 0.0)
+    alpha = -phase * normx                           # Class-K pin-slot phase
+    v = list(xs)
+    v[0] = v[0] - alpha
+    vhv = 0.0
+    for z in v:
+        vhv += (z.conjugate() * z).real
+    if vhv == 0.0:
+        return None
+    return v, 2.0 / vhv                              # Class-N 1/(vᴴv) scale
+
+
 def _qr_complex_list(
     rows: List[List[complex]],
 ) -> Tuple[List[List[complex]], List[List[complex]]]:
@@ -1814,24 +1890,13 @@ def _qr_complex_list(
     R = [[complex(rows[i][j]) for j in range(m)] for i in range(m)]
     Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     for k in range(m):
-        normx2 = 0.0
-        for i in range(k, m):
-            normx2 += (R[i][k].conjugate() * R[i][k]).real
-        if normx2 <= 0.0:
+        # rc285: the reflector is built by the SCALE-INVARIANT
+        # :func:`_householder_reflector` — see its docstring for why dividing by
+        # ``_fhypot(x0)`` unscaled does not yield a unit phase.
+        refl = _householder_reflector([R[i][k] for i in range(k, m)])
+        if refl is None:
             continue
-        normx = _fsqrt(normx2)                       # Class-N ‖x‖
-        x0 = R[k][k]
-        modx0 = _fhypot(x0.real, x0.imag)
-        phase = (x0 / modx0) if modx0 > 0.0 else complex(1.0, 0.0)
-        alpha = -phase * normx                       # Class-K pin-slot phase
-        v = [R[i][k] for i in range(k, m)]
-        v[0] = v[0] - alpha
-        vhv = 0.0
-        for vi in v:
-            vhv += (vi.conjugate() * vi).real
-        if vhv == 0.0:
-            continue
-        beta = 2.0 / vhv                             # Class-N 1/(vᴴv) scale
+        v, beta = refl
         for j in range(m):                           # R ← (I − β v vᴴ) R
             s = 0j
             for idx, i in enumerate(range(k, m)):
@@ -1916,6 +1981,69 @@ def _balance_radix2(H: List[List[complex]]) -> List[List[complex]]:
     return H
 
 
+def _hessenberg_complex(A: List[List[complex]]) -> List[List[complex]]:
+    """Unitary reduction of a square ``complex`` matrix to **upper-Hessenberg**
+    form ``P·A·Pᴴ`` by Householder reflectors — the step :func:`mat_eigvals`
+    was missing (rc285; issue #1440).
+
+    **Why the shifted-QR sweep cannot skip this.** The sweep's deflation test
+    inspects the single subdiagonal entry ``H[m-1][m-2]`` and, when it is
+    negligible, accepts ``H[m-1][m-1]`` as a converged eigenvalue. That test is
+    sound **only for an upper-Hessenberg matrix**, where the sub-subdiagonal is
+    structurally zero and so ``H[m-1][m-2]`` is the *whole* of the last row
+    below the diagonal. On a matrix that was never reduced, the last row can
+    hold large entries at ``H[m-1][j]`` for ``j < m-2`` while ``H[m-1][m-2]``
+    is exactly 0, and the sweep then deflates a NON-eigenvalue and continues on
+    the wrong leading block. That is precisely a sparse graph Laplacian whose
+    last two vertices are non-adjacent — a star (every pair of leaves), and
+    equally many paths / trees / forests under an unlucky vertex labelling.
+
+    Each reflector ``P_k = I − β·v·vᴴ`` annihilates column ``k`` below the
+    subdiagonal. ``P_k`` is Hermitian AND unitary (an involution), so the
+    two-sided application ``A ← P_k·A·P_k`` is a **similarity** — the
+    eigenvalue multiset is invariant, exactly as for the :func:`_balance_radix2`
+    diagonal similarity that precedes it. The reflector phase is a **Class-K**
+    pin-slot (no bare ``abs()``); the annihilated entries are pinned to exact
+    zero rather than left at round-off, so the Hessenberg structure the
+    deflation test relies on is a structural fact, not a tolerance.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §7.4.3 (Householder reduction to Hessenberg form) — the
+    prerequisite §7.5's practical shifted-QR algorithm assumes throughout.
+    """
+    n = len(A)
+    H = [[complex(A[i][j]) for j in range(n)] for i in range(n)]
+    for k in range(n - 2):
+        # The reflector is built by the SCALE-INVARIANT
+        # :func:`_householder_reflector`. Building it from the UNSCALED column
+        # is what made this reduction stop being a similarity: see that
+        # function's docstring for the ``_fhypot`` phase defect and the measured
+        # 1.4e-2 spectral drift it caused.
+        refl = _householder_reflector([H[i][k] for i in range(k + 1, n)])
+        if refl is None:                               # column already reduced
+            for i in range(k + 2, n):
+                H[i][k] = 0j                           # Class-K pin-slot at zero
+            continue
+        v, beta = refl
+        for j in range(n):                             # LEFT: H ← (I − β v vᴴ)·H
+            s = 0j
+            for idx, i in enumerate(range(k + 1, n)):
+                s += v[idx].conjugate() * H[i][j]
+            s *= beta
+            for idx, i in enumerate(range(k + 1, n)):
+                H[i][j] -= v[idx] * s
+        for i in range(n):                             # RIGHT: H ← H·(I − β v vᴴ)
+            s = 0j
+            for idx, j in enumerate(range(k + 1, n)):
+                s += H[i][j] * v[idx]
+            s *= beta
+            for idx, j in enumerate(range(k + 1, n)):
+                H[i][j] -= s * v[idx].conjugate()
+        for i in range(k + 2, n):                      # Class-K pin-slot at zero:
+            H[i][k] = 0j                               # structural, not tolerance
+    return H
+
+
 def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     """Eigenvalue MULTISET of a general (non-Hermitian) square matrix over the
     :class:`~srmech.amsc.mat.Mat` carrier — foundation op #4 of the numpy-CARRIER
@@ -1945,10 +2073,59 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
       for badly-scaled input (a lopsided row/col-norm split otherwise loses digits
       in the QR iteration). The shifted-QR step below is unchanged.
 
+    * **Hessenberg reduction (rc285; issue #1440).** After balancing and before
+      the QR sweep, ``H`` is reduced to upper-Hessenberg form by
+      :func:`_hessenberg_complex` — a two-sided Householder similarity
+      ``P·H·Pᴴ``, so the multiset is again invariant. This is a **correctness**
+      prerequisite, not a speed-up: the sweep's deflation test reads only the
+      subdiagonal ``H[m-1][m-2]``, which is the whole of the last row below the
+      diagonal ONLY in Hessenberg form. Before rc285 the reduction was absent,
+      so any matrix with ``H[m-1][m-2] == 0`` but a non-negligible ``H[m-1][j]``
+      for ``j < m-2`` deflated a NON-eigenvalue and then solved the wrong
+      leading block. Every graph Laplacian whose last two vertices are
+      non-adjacent has exactly that shape — every star (its leaves are pairwise
+      non-adjacent), and any path / tree / forest under an unlucky labelling —
+      so ``mat_eigvals`` returned a spectrum with the correct trace and correct
+      interior but a wrong extreme pair, violating the ``λ_min == 0`` Laplacian
+      invariant.
+
+    * **Active-block QR step (rc285).** Each shifted step is applied to
+      ``H[lo:m, lo:m]`` — the trailing UNREDUCED block — after every negligible
+      subdiagonal has been pinned to exact zero. A pinned zero splits the
+      Hessenberg matrix, and the spectrum is then the union of the blocks'
+      spectra, so the off-diagonal blocks need no update when only eigenvalues
+      are wanted. Applying a step whose Wilkinson shift was chosen from the
+      BOTTOM corner across an already-split leading block degrades that block's
+      eigenvalues sweep after sweep. **This is hardening, not the #1440 bug:**
+      over the ratchet's 230 (graph × relabelling) cases the split fires in 181,
+      and forcing ``lo = 0`` with everything else at rc285 still leaves 229 of
+      230 correct (the straggler drifts to 6.5e-9, against 3.9e-14 with the
+      split respected).
+
+    * **Scale-invariant Householder reflectors (rc285).** Both this path's
+      reduction and its per-step ``{QR}`` build reflectors through
+      :func:`_householder_reflector`, which divides the column by its largest
+      component magnitude first. ``_fhypot`` is a bounded-denominator Class-N
+      rational cascade, not libm ``hypot`` — it returns exactly ``0.0`` below
+      ≈``1e-17`` — so an unscaled ``x0 / _fhypot(x0)`` is not a unit phase for a
+      small ``x0``, and the "reflector" built from it is not a reflector. That
+      turned the reduction into a NON-similarity (1.6e-1 asymmetry from a
+      symmetric input, 1.4e-2 of spectral drift on an 11-vertex broom graph).
+      ``cascade.matrix_cascades.qr`` carried the same unsafe division and is
+      fixed with it; every other ``_fhypot`` use in the package is a comparison
+      or a magnitude readout, where snapping a sub-1e-17 value to zero is
+      benign. **Division is the only unsafe consumption of ``_fhypot``.**
+
+      All of the above are ratcheted by
+      ``test_laplacian_kernel_invariant_rc285.py``, whose ``λ_min == 0`` /
+      relabelling-invariance properties hold over EVERY shipped eigensolver,
+      not just this one.
+
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
-    Hopkins, 2013) §7.5 (the practical QR algorithm with Wilkinson shifts) +
-    §7.5.1 (balancing); Parlett & Reinsch, "Balancing a matrix for calculation of
-    eigenvalues and eigenvectors", *Numer. Math.* **13** (1969) 293–304.
+    Hopkins, 2013) §7.4.3 (Householder reduction to Hessenberg form) + §7.5 (the
+    practical QR algorithm with Wilkinson shifts) + §7.5.1 (balancing); Parlett &
+    Reinsch, "Balancing a matrix for calculation of eigenvalues and
+    eigenvectors", *Numer. Math.* **13** (1969) 293–304.
     """
     from .mat import Mat
     assert isinstance(a, Mat), (
@@ -1968,6 +2145,15 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     # similarity, so the multiset is UNCHANGED for well-scaled input and MORE
     # ACCURATE for badly-scaled input. (Parlett & Reinsch 1969; G&VL §7.5.1.)
     H = _balance_radix2(H)
+    # Householder reduction to upper-HESSENBERG form (rc285, issue #1440) — a
+    # unitary similarity P·H·Pᴴ, so the multiset is invariant. This is what makes
+    # the deflation test below (which reads ONLY the subdiagonal H[m-1][m-2])
+    # SOUND: on a Hessenberg matrix the subdiagonal IS the whole of the last row
+    # below the diagonal. Without it, a matrix with H[m-1][m-2] == 0 but a
+    # non-negligible H[m-1][j], j < m-2 — every sparse Laplacian whose last two
+    # vertices are non-adjacent, e.g. any star's two leaves — deflates a
+    # NON-eigenvalue and then solves the wrong leading block. (G&VL §7.4.3.)
+    H = _hessenberg_complex(H)
     eigs: List[complex] = []
     m = n
     sweeps = 0
@@ -1977,8 +2163,15 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
         if m == 1:
             eigs.append(H[0][0])                      # Class-L: last eigenvalue
             break
-        scale = _modulus_c(H[m - 2][m - 2]) + _modulus_c(H[m - 1][m - 1])
-        if _modulus_c(H[m - 1][m - 2]) <= _MAT_EIG_DEFLATE_TOL * (scale + 1e-300):
+        # Negligible-subdiagonal PIN (rc285). Any subdiagonal small against its
+        # two diagonal neighbours is pinned to EXACT zero — a Class-K pin-slot,
+        # not a tolerance carried forward. Every such zero SPLITS the Hessenberg
+        # matrix into independent diagonal blocks whose spectra are disjoint.
+        for i in range(1, m):
+            nbr = _modulus_c(H[i - 1][i - 1]) + _modulus_c(H[i][i])
+            if _modulus_c(H[i][i - 1]) <= _MAT_EIG_DEFLATE_TOL * (nbr + 1e-300):
+                H[i][i - 1] = 0j                      # Class-K pin-slot at zero
+        if H[m - 1][m - 2] == 0j:
             eigs.append(H[m - 1][m - 1])              # Class-L: deflate eigenvalue
             m -= 1
             it = 0                                    # new deflation-target: reset stall
@@ -1988,6 +2181,40 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
             eigs.append(lam1)
             eigs.append(lam2)
             break
+        # ACTIVE-BLOCK search (rc285). ``lo`` is the first row of the trailing
+        # UNREDUCED block: scan up from m-1 while the subdiagonal is non-zero.
+        # The QR step below is applied to H[lo:m, lo:m] ALONE.
+        #
+        # WHY: the Wilkinson shift μ is chosen from the trailing 2×2, i.e. tuned
+        # to the BOTTOM block. Before rc285 a step with that shift was applied
+        # to the whole leading block, pushing a shift wrong for the top block
+        # through already-split rows. Because H[lo][lo-1] is EXACTLY zero the
+        # matrix is block upper-triangular there, so the spectrum is the union
+        # of the blocks' spectra and the off-diagonal blocks need no update when
+        # only eigenvalues are wanted. (Golub & Van Loan §7.5.2, the "Francis QR
+        # step applied to the active submatrix" structure.)
+        #
+        # HONEST SCOPE — this is hardening, not the #1440 bug. Measured over the
+        # ratchet's 230 (graph × relabelling) cases: the split fires (lo > 0) in
+        # 181, and forcing lo = 0 with everything else at rc285 leaves 229 of
+        # 230 still correct, the one straggler drifting to 6.5e-9 (against
+        # 3.9e-14 with the split respected). So it buys real accuracy and is the
+        # textbook structure, but it is NOT what produced the wrong star
+        # spectrum — the missing Hessenberg reduction was — and it is NOT what
+        # produced the 1.4e-2 broom drift, which was the non-unit reflector
+        # phase (see :func:`_householder_reflector`).
+        lo = m - 1
+        while lo > 0 and H[lo][lo - 1] != 0j:
+            lo -= 1
+        if m - lo == 2:                               # active block is 2×2 exactly
+            lam1, lam2 = _eig2x2(
+                H[lo][lo], H[lo][lo + 1], H[lo + 1][lo], H[lo + 1][lo + 1]
+            )
+            eigs.append(lam1)
+            eigs.append(lam2)
+            m = lo
+            it = 0
+            continue
         # Shift selection. The plain Wilkinson μ is the trailing-2×2 eigenvalue
         # closest to H[m-1][m-1]. BUT on a cyclic-permutation / companion block the
         # trailing 2×2 is [[0,0],[1,0]] → both roots 0 → μ=0 → an UNSHIFTED step,
@@ -2000,7 +2227,7 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
         # bare ``abs()`` per the cascade-honesty rule.
         if it == 10 or it == 20:
             mu = _modulus_c(H[m - 1][m - 2])          # EISPACK exceptional shift
-            if m - 3 >= 0:
+            if m - 3 >= lo:
                 mu += _modulus_c(H[m - 2][m - 3])
             mu = complex(mu, 0.0)                     # Class-C real ad-hoc shift
         else:
@@ -2009,16 +2236,22 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
             )
             dd = H[m - 1][m - 1]
             mu = lam1 if _modulus_c(lam1 - dd) < _modulus_c(lam2 - dd) else lam2
-        # QR of the leading m×m block minus μI; then H[:m,:m] ← R·Q + μI, the RQ
-        # contraction routed through the native Mat-carrier mat_matmul (Class K).
-        sub = [[H[i][j] - (mu if i == j else 0j) for j in range(m)] for i in range(m)]
+        # QR of the ACTIVE block H[lo:m, lo:m] minus μI; then that block
+        # ← R·Q + μI, the RQ contraction routed through the native Mat-carrier
+        # mat_matmul (Class K). Rows/cols outside [lo, m) are untouched — the
+        # exact zero at H[lo][lo-1] makes them a separate spectral block.
+        k = m - lo
+        sub = [
+            [H[lo + i][lo + j] - (mu if i == j else 0j) for j in range(k)]
+            for i in range(k)
+        ]
         Q, R = _qr_complex_list(sub)                  # {QR} numpy-free
         rq = mat_matmul(
             Mat.from_rows(R, is_complex=True), Mat.from_rows(Q, is_complex=True)
         )
-        for i in range(m):
-            for j in range(m):
-                H[i][j] = complex(rq[i, j]) + (mu if i == j else 0j)
+        for i in range(k):
+            for j in range(k):
+                H[lo + i][lo + j] = complex(rq[i, j]) + (mu if i == j else 0j)
         sweeps += 1
         it += 1
         if sweeps > sweep_ceiling:                    # genuine non-convergence:
