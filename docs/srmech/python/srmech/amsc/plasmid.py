@@ -333,6 +333,31 @@ def _conserved_side_argmax(hist, lo, hi):
     return best
 
 
+def _conserved_side_modes(hist, max_count):
+    """PRECOMPUTE both flanking modes for every possible gap in ONE pass each:
+    ``pre[b]`` = argmax over ``hist[0..b]``, ``suf[b]`` = argmax over
+    ``hist[b..max_count]``, both lowest-index-on-tie (so they agree exactly with
+    :func:`_conserved_side_argmax`).
+
+    Why this matters: the real corpus histogram is heavy-tailed, with a maximum count
+    in the hundreds of thousands and ~1.7k occupied bins. Re-scanning a side per gap
+    would be O(gaps * max_count) — hundreds of millions of reads for ONE derivation.
+    Two prefix passes make the whole antimode walk O(max_count). Pure integer."""
+    pre = [0] * (max_count + 1)
+    suf = [0] * (max_count + 1)
+    best = 0
+    for b in range(max_count + 1):
+        if hist[b] > hist[best]:
+            best = b                                # strict > keeps the LOWEST index
+        pre[b] = best
+    best = max_count
+    for b in range(max_count, -1, -1):
+        if hist[b] >= hist[best]:
+            best = b                                # >= walking down keeps the LOWEST
+        suf[b] = best
+    return pre, suf
+
+
 def _conserved_antimode(hist, max_count):
     """MEASURE the ANTIMODE of the section-count histogram — **this is why ``k`` is an
     OUTPUT OF THE DATA, not a magic constant**.
@@ -357,12 +382,13 @@ def _conserved_antimode(hist, max_count):
     best_lo = best_w = best_sm = 0
     found = False
     prev = None
+    pre, suf = _conserved_side_modes(hist, max_count)
     for b in range(max_count + 1):
         if hist[b] == 0:
             continue
         if prev is not None and b - prev >= 2:
-            plo = _conserved_side_argmax(hist, 0, prev)
-            phi = _conserved_side_argmax(hist, b, max_count)
+            plo = pre[prev]                          # == _conserved_side_argmax(0, prev)
+            phi = suf[b]                             # == _conserved_side_argmax(b, max)
             sm = hist[plo] if hist[plo] < hist[phi] else hist[phi]
             w = b - prev
             if sm >= 2 and (not found or w > best_w
@@ -374,7 +400,19 @@ def _conserved_antimode(hist, max_count):
     return {"bimodal": True, "k": best_lo + 1, "threshold": best_lo, "gap": best_w}
 
 
-def conserved_core(section_count, *, k=None) -> dict:
+#: ``k="auto"`` — ATTEMPT the antimode derivation, and HONESTLY DECLINE (no core, no
+#: manufactured threshold) when the distribution admits no qualifying split. The
+#: canonical spelling; ``k=None`` is accepted as its alias.
+K_AUTO = "auto"
+
+#: ``k_source`` values on the :func:`conserved_core` result — the provenance of the
+#: threshold, so a caller can never mistake a POLICY choice for a MEASURED one.
+K_DERIVED = "derived"      # a qualifying antimode was MEASURED; k is an output of the data
+K_DECLINED = "declined"    # no qualifying antimode; NO k manufactured (one-DNA-type)
+K_POLICY = "policy"        # a caller-supplied k — a STATED POLICY CHOICE the caller owns
+
+
+def conserved_core(section_count, *, k=K_AUTO) -> dict:
     """CONSERVE (STAGE 2 step 1) — read the section-count distribution and return the
     CONSERVED CORE node set + the threshold ``k`` **derived from the data**.
 
@@ -384,43 +422,70 @@ def conserved_core(section_count, *, k=None) -> dict:
     stay accessory PLASMID. Expect the ASYMMETRIC minority core (~16/84 — F1251), not
     a 50/50 split.
 
-    **``k`` IS DERIVED, NEVER TUNED.** With ``k=None`` (the discipline) this MEASURES
-    the ANTIMODE of the section-count histogram — the same walk and qualifying
-    predicate as the rc272 participation antimode, applied in the count domain (see
+    **``k`` IS DERIVED OR DECLINED — NEVER MANUFACTURED.** With ``k="auto"`` (the
+    default; ``None`` is an accepted alias) this MEASURES the ANTIMODE of the
+    section-count histogram — the same walk and qualifying predicate as the rc272
+    participation antimode, applied in the count domain (see
     :func:`_conserved_antimode`; note the metric INVERSION — high count = nuclear).
-    If the distribution is UNIMODAL there is no clean valley, so this returns
-    ``one_dna_type=True`` with an EMPTY core and does **not** force a split (the F1250
-    discipline). Passing an explicit ``k=`` forces a caller-supplied threshold — a
-    verification / replay affordance, **not** the derived path.
+    If no qualifying antimode exists the result is ``k_source="declined"``: an EMPTY
+    core, ``k=0``, ``one_dna_type=True``, and **no threshold is invented**.
 
-    Returns ``{"k", "bimodal", "one_dna_type", "core", "accessory", "n_core",
-    "n_accessory", "histogram", "threshold", "gap"}`` — ``core`` / ``accessory`` are
-    sorted GLOBAL id lists (a canonical order, so the organize is deterministic).
+    **This decline is a first-class outcome, not a failure — and the real corpus takes
+    it.** F1253 measured the section-count curve over the full simplewiki store
+    (1,100,189 ids, 240,881 sections): singleton 64.6 %, >=2 35.4 %, >=5 14.5 %, >=10
+    8.4 %, >=25 4.3 %, >=50 2.7 %, >=100 1.7 % — successive ratios ~2.4, 1.7, 2.0,
+    1.6, 1.6 decay SMOOTHLY. That is a heavy-tailed, near-power-law shape, and **a
+    scale-free distribution has no characteristic scale, hence no natural antimode**.
+    On such a curve this function correctly declines. Reporting "no natural split in
+    this distribution" IS the finding; manufacturing a `k` to fill the silence would
+    not be.
+
+    Passing an explicit integer ``k`` yields ``k_source="policy"`` — a **stated policy
+    choice the CALLER owns**, never presented as measured. In particular, choosing a
+    ``k`` because it reproduces F1251's ~16 % core fraction would be **post-hoc
+    numerology**, not a derivation: on the F1253 curve ``k>=5`` gives 14.5 % against
+    an attested ~16 %, but that correspondence is threshold-dependent and is NOT used
+    here to select ``k``.
+
+    Returns ``{"k", "k_source", "bimodal", "one_dna_type", "core", "accessory",
+    "n_core", "n_accessory", "histogram", "threshold", "gap"}`` — ``core`` /
+    ``accessory`` are sorted GLOBAL id lists (a canonical order, so the organize is
+    deterministic), and ``k_source`` is one of :data:`K_DERIVED` / :data:`K_DECLINED`
+    / :data:`K_POLICY`.
     Dispatches the whole read to the ``srmech_genome_conserved_core`` C peer when
     ``HAS_NATIVE`` (a bare-C host runs the CONSERVE step end-to-end); the pure body is
     the numpy-free alternative + parity oracle. Class-N exact integer arithmetic; no
     float, no ``abs()``, no spectral solve."""
     ids = sorted(int(v) for v in section_count)
     counts = [int(section_count[v]) for v in ids]
-    if k is not None and (not isinstance(k, int) or isinstance(k, bool) or k < 1):
-        raise ValueError(f"conserved_core: k must be a positive int or None; got {k!r}")
+    auto = k is None or k == K_AUTO
+    if not auto and (not isinstance(k, int) or isinstance(k, bool) or k < 1):
+        raise ValueError(
+            f"conserved_core: k must be a positive int, {K_AUTO!r}, or None; got {k!r}")
     hist, max_count = _count_histogram(counts)
-    native = _native.genome_conserved_core_c(ids, counts, -1 if k is None else k)
+    am = _conserved_antimode(hist, max_count)        # measured ONCE (O(max_count))
+    native = _native.genome_conserved_core_c(ids, counts, -1 if auto else k)
     if native is not None:
         core, k_used, bimodal = native
     else:
-        if k is None:
-            am = _conserved_antimode(hist, max_count)
+        if auto:
             k_used, bimodal = am["k"], am["bimodal"]
         else:
             k_used, bimodal = k, True
         core = [v for v, c in zip(ids, counts) if bimodal and k_used > 0 and c >= k_used]
+    # k_source is the THRESHOLD'S PROVENANCE — so a caller can never mistake a stated
+    # policy choice for a measured one, nor a decline for a derivation.
+    if not auto:
+        k_source = K_POLICY
+    elif bimodal:
+        k_source = K_DERIVED
+    else:
+        k_source = K_DECLINED           # no qualifying antimode -> NO k manufactured
     core_set = set(core)
     accessory = [v for v in ids if v not in core_set]
-    am = _conserved_antimode(hist, max_count)
-    return {"k": k_used, "bimodal": bool(bimodal), "one_dna_type": not bimodal,
-            "core": list(core), "accessory": accessory, "n_core": len(core),
-            "n_accessory": len(accessory), "histogram": hist,
+    return {"k": k_used, "k_source": k_source, "bimodal": bool(bimodal),
+            "one_dna_type": not bimodal, "core": list(core), "accessory": accessory,
+            "n_core": len(core), "n_accessory": len(accessory), "histogram": hist,
             "threshold": am["threshold"], "gap": am["gap"]}
 
 
@@ -498,7 +563,7 @@ def _organize_native(core_strand, section_strands, the_one, dim, progress):
         _the_one_block_bytes(the_one), progress)
 
 
-def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=None,
+def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=K_AUTO,
                               core_edges=None, out_path=None, progress=None) -> dict:
     """STAGE 2 ORGANIZE — sections -> a minted NUCLEAR CORE + retained PLASMIDS.
 
@@ -570,7 +635,8 @@ def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=N
     status = _STATUS_CANCELLED if cancelled else _STATUS_OK
     if out_path is not None and not cancelled:
         _genome.genome_save(strand, out_path, the_one)
-    return {"strand": strand, "k": split["k"], "bimodal": split["bimodal"],
+    return {"strand": strand, "k": split["k"], "k_source": split["k_source"],
+            "bimodal": split["bimodal"],
             "one_dna_type": split["one_dna_type"], "core": core_nodes,
             "counts": {"nuclear": split["n_core"], "plasmid": split["n_accessory"]},
             "n_sections": len(labels), "n_integrated": n_integrated,
@@ -609,7 +675,7 @@ def _organize(core_strand, section_strands, the_one, dim, progress):
     return strand, total, False
 
 
-def add_plasmid(section_store, the_one, tokens, *, state, k=None, window=2,
+def add_plasmid(section_store, the_one, tokens, *, state, k=K_AUTO, window=2,
                 top_k=20, cap_slack=4, label_prefix="sec", cache_edges=True,
                 progress=None) -> dict:
     """INCREMENTAL STAGE 1 + 2 — add ONE document to an organized genome.
@@ -678,6 +744,7 @@ def add_plasmid(section_store, the_one, tokens, *, state, k=None, window=2,
     strand, n_integrated, cancelled = _organize(
         core_strand, section_strands, the_one, dim, progress)
     return {"strand": strand, "state": st, "section": label, "k": split["k"],
+            "k_source": split["k_source"],
             "core_changed": core_changed, "core": core_nodes,
             "bimodal": split["bimodal"], "one_dna_type": split["one_dna_type"],
             "counts": {"nuclear": split["n_core"], "plasmid": split["n_accessory"]},

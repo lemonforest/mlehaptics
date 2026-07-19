@@ -5764,18 +5764,29 @@ static srmech_status_t conserved_hist_build(const uint64_t *counts, size_t n_nod
     return SRMECH_OK;
 }
 
-/* rc279 — the bin of the MAXIMUM count in hist[lo..hi] (lowest index on a tie):
- * the dominant mode of ONE SIDE of an antimode gap. Mirror the Python
- * genome._side_argmax. Pure integer; no float, no abs. */
-static uint64_t conserved_side_argmax(const uint64_t *hist, uint64_t lo, uint64_t hi)
+/* rc279 — PRECOMPUTE both flanking modes for every possible gap in ONE pass each:
+ * pre[b] = argmax over hist[0..b], suf[b] = argmax over hist[b..max_count], both
+ * LOWEST-INDEX-ON-TIE so they agree exactly with conserved_side_argmax.
+ *
+ * Why: the real corpus histogram is HEAVY-TAILED — a maximum count in the hundreds
+ * of thousands with only ~1.7k occupied bins (F1253). Re-scanning a side per gap
+ * would be O(gaps * max_count), hundreds of millions of reads for ONE derivation.
+ * These two prefix passes make the whole antimode walk O(max_count). No abs/float. */
+static void conserved_side_modes(const uint64_t *hist, uint64_t max_count,
+                                 uint64_t *pre, uint64_t *suf)
 {
-    uint64_t best = lo;
+    uint64_t best = 0u, b;
     assert(hist != NULL);
-    assert(lo <= hi);
-    for (uint64_t b = lo; b <= hi; b++) {
-        if (hist[b] > hist[best]) { best = b; }
+    assert(pre != NULL && suf != NULL);
+    for (b = 0u; b <= max_count; b++) {
+        if (hist[b] > hist[best]) { best = b; }   /* strict > keeps the LOWEST index */
+        pre[b] = best;
     }
-    return best;
+    best = max_count;
+    for (b = max_count + 1u; b-- > 0u; ) {
+        if (hist[b] >= hist[best]) { best = b; }  /* >= walking down keeps the LOWEST */
+        suf[b] = best;
+    }
 }
 
 /* rc279 — MEASURE the ANTIMODE of the section-count histogram: the conservation
@@ -5796,17 +5807,18 @@ static uint64_t conserved_side_argmax(const uint64_t *hist, uint64_t lo, uint64_
  * conserved NUCLEAR core. UNIMODAL (no qualifying gap) -> ONE-DNA-TYPE: *bimodal_out
  * = 0 and *k_out = 0 — do NOT force a split (the F1250 discipline). */
 static void conserved_antimode(const uint64_t *hist, uint64_t max_count,
+                               const uint64_t *pre, const uint64_t *suf,
                                uint64_t *k_out, int *bimodal_out)
 {
     uint64_t best_lo = 0u, best_w = 0u, best_sm = 0u, prev = 0u;
     int found = 0, have_prev = 0;
-    assert(hist != NULL);
+    assert(hist != NULL && pre != NULL && suf != NULL);
     assert(k_out != NULL && bimodal_out != NULL);
     for (uint64_t b = 0u; b <= max_count; b++) {
         if (hist[b] == 0u) { continue; }
         if (have_prev != 0 && b - prev >= 2u) {
-            uint64_t plo = conserved_side_argmax(hist, 0u, prev);
-            uint64_t phi = conserved_side_argmax(hist, b, max_count);
+            uint64_t plo = pre[prev];       /* == conserved_side_argmax(0, prev)   */
+            uint64_t phi = suf[b];          /* == conserved_side_argmax(b, max)    */
             uint64_t sm = (hist[plo] < hist[phi]) ? hist[plo] : hist[phi];
             uint64_t w = b - prev;
             if (sm >= 2u && (found == 0 || w > best_w ||
@@ -5831,7 +5843,7 @@ srmech_status_t srmech_genome_conserved_core(
     long k_in, uint64_t *out_core_ids, size_t core_cap, size_t *out_n_core,
     uint64_t *out_k, int *out_bimodal, uint64_t *hist, size_t hist_cap)
 {
-    uint64_t max_count = 0u, k = 0u;
+    uint64_t max_count = 0u, k = 0u, span;
     int bimodal = 0;
     size_t n_core = 0u;
     srmech_status_t st;
@@ -5844,11 +5856,17 @@ srmech_status_t srmech_genome_conserved_core(
     assert(hist != NULL);
     st = conserved_hist_build(counts, n_nodes, hist, hist_cap, &max_count);
     if (st != SRMECH_OK) { return st; }
+    span = max_count + 1u;
+    /* the arena holds THREE span-sized integer bands: the histogram, then the
+     * prefix-mode and suffix-mode tables the O(max_count) antimode walk needs. */
+    if ((uint64_t)hist_cap < 3u * span) { return SRMECH_ERR_OVERFLOW; }
     if (k_in >= 0) {
         k = (uint64_t)k_in;                   /* caller-forced split (not derived) */
         bimodal = 1;
     } else {
-        conserved_antimode(hist, max_count, &k, &bimodal);
+        conserved_side_modes(hist, max_count, hist + span, hist + 2u * span);
+        conserved_antimode(hist, max_count, hist + span, hist + 2u * span,
+                           &k, &bimodal);
     }
     if (bimodal != 0 && k > 0u) {             /* CONSERVED iff section_count >= k */
         for (size_t i = 0u; i < n_nodes; i++) {

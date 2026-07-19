@@ -17336,7 +17336,9 @@ def genome_conserved_core_c(node_ids, counts, k_in):
         cnt = [int(x) for x in counts]
         if len(cnt) != n:
             return None
-        hist_cap = (max(cnt) if cnt else 0) + 2
+        # THREE span-sized bands: the histogram + the two flanking-mode tables
+        # (the O(max_count) antimode walk — the heavy-tailed-corpus fix).
+        hist_cap = 3 * ((max(cnt) if cnt else 0) + 1)
         id_arr = (ctypes.c_uint64 * max(n, 1))(*ids)
         c_arr = (ctypes.c_uint64 * max(n, 1))(*cnt)
         core_arr = (ctypes.c_uint64 * max(n, 1))()

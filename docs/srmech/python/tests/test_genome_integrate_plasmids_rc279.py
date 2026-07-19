@@ -140,16 +140,102 @@ def test_unimodal_distribution_is_one_dna_type_not_a_forced_split():
     assert split["bimodal"] is False
     assert split["one_dna_type"] is True
     assert split["core"] == [] and split["k"] == 0
+    assert split["k_source"] == P.K_DECLINED
 
 
-def test_explicit_k_is_honoured_but_is_not_the_derived_path():
+# ── the HEAVY-TAILED case: the method must HONESTLY DECLINE ─────────────────────
+
+def _f1253_measured_curve(scale=100_000):
+    """THE REAL SHAPE — a section-count distribution reproducing the F1253 measurement
+    over the FULL simplewiki store (1,100,189 ids across 240,881 plasmid sections):
+
+        singleton 64.6% | >=2 35.4% | >=5 14.5% | >=10 8.4%
+        >=25 4.3% | >=50 2.7% | >=100 1.7%
+
+    The successive ratios (35.4/14.5 ~ 2.4, 14.5/8.4 ~ 1.7, 8.4/4.3 ~ 2.0,
+    4.3/2.7 ~ 1.6, 2.7/1.7 ~ 1.6) decay SMOOTHLY — a heavy-tailed, near-power-law
+    curve, NOT a bimodal one with a clean valley. A scale-free distribution has no
+    characteristic scale and therefore NO natural antimode. Deterministic (no RNG)."""
+    bands = [(1, 1, 0.646), (2, 4, 0.209), (5, 9, 0.061), (10, 24, 0.041),
+             (25, 49, 0.016), (50, 99, 0.010), (100, 240_881, 0.017)]
+    counts = []
+    for lo, hi, frac in bands:
+        n = int(scale * frac)
+        span = hi - lo + 1
+        for j in range(n):                           # power-law placement in-band
+            counts.append(lo + int((span - 1) * (j / max(n - 1, 1)) ** 3))
+    return {i: c for i, c in enumerate(counts)}
+
+
+def test_heavy_tailed_real_curve_declines_to_derive_a_k():
+    """**THE DECLINE PATH — as load-bearing as the success path.** On the REAL F1253
+    conservation curve the antimode finds no qualifying split, so ``conserved_core``
+    must report "no natural split in this distribution" rather than manufacture a
+    threshold: ``k_source == "declined"``, ``k == 0``, an EMPTY core.
+
+    This is the honest outcome for a scale-free distribution, and it is a FINDING, not
+    a failure — the count-threshold discriminator may simply have no natural split."""
+    split = P.conserved_core(_f1253_measured_curve())
+    assert split["k_source"] == P.K_DECLINED, (
+        "a heavy-tailed / near-power-law curve has no characteristic scale and so no "
+        "natural antimode — the method MUST decline, not invent a k")
+    assert split["bimodal"] is False and split["one_dna_type"] is True
+    assert split["k"] == 0
+    assert split["core"] == [], "no core may be promoted from a declined derivation"
+
+
+def test_declining_organize_promotes_no_core_and_says_so():
+    """A declined derivation organizes as ALL-PLASMID — no nuclear chromosome is
+    minted — and the result reports the provenance so a caller cannot mistake it."""
+    one = _one()
+    store = _tmp()
+    docs = _planted_every_doc(4)
+    ext = _extract(docs, store, one)
+    flat = {v: 1 for v in ext["section_count"]}      # a declining distribution
+    org = P.genome_integrate_plasmids(store, one, section_count=flat)
+    assert org["k_source"] == P.K_DECLINED
+    assert org["core"] == [] and org["counts"]["nuclear"] == 0
+    assert org["status"] == "ok"                     # a decline is not an error
+    out = _tmp() + "/declined.genome"
+    P.genome_integrate_plasmids(store, one, section_count=flat, out_path=out)
+    kinds = {c["type"] for c in G.genome_census(out, the_one=one)["chromosomes"]}
+    assert "nuclear" not in kinds, "a declined derivation must mint NO nuclear core"
+
+
+def test_k_source_separates_measured_from_stated_policy():
+    """A DERIVED k and a caller-supplied k must never be confused. An explicit integer
+    is a STATED POLICY CHOICE the caller owns (``k_source == "policy"``) — it is not
+    presented as measured, whatever value it takes."""
     one = _one()
     ext = _extract(_planted_every_doc(), _tmp(), one)
-    forced = P.conserved_core(ext["section_count"], k=12)
-    assert forced["k"] == 12
-    assert forced["core"] == _core_ids(ext["vocab"])
+    derived = P.conserved_core(ext["section_count"])
+    assert derived["k_source"] == P.K_DERIVED
+    policy = P.conserved_core(ext["section_count"], k=12)
+    assert policy["k_source"] == P.K_POLICY and policy["k"] == 12
+    assert policy["core"] == _core_ids(ext["vocab"])
+    # a policy k applied to a curve that DECLINES is still policy, never "derived"
+    forced_on_flat = P.conserved_core(_f1253_measured_curve(), k=5)
+    assert forced_on_flat["k_source"] == P.K_POLICY
+    assert forced_on_flat["k"] == 5
+    assert P.conserved_core(ext["section_count"], k="auto")["k_source"] == P.K_DERIVED
     with pytest.raises(ValueError):
         P.conserved_core(ext["section_count"], k=0)
+
+
+def test_k_is_not_selected_to_reproduce_the_attested_core_fraction():
+    """**Anti-numerology guard.** F1251 attests a ~16 % nuclear core, and on the F1253
+    curve ``k>=5`` happens to give 14.5 % — but that correspondence is
+    threshold-dependent and MUST NOT be how ``k`` is chosen. The derivation reads the
+    distribution's own antimode and nothing else, so on this curve it DECLINES rather
+    than landing on the value that would match the attested fraction."""
+    curve = _f1253_measured_curve()
+    assert P.conserved_core(curve)["k_source"] == P.K_DECLINED
+    matching = P.conserved_core(curve, k=5)          # the ~16%-reproducing threshold
+    frac = 100.0 * matching["n_core"] / len(curve)
+    assert 10.0 < frac < 20.0, f"sanity: k>=5 lands near the attested band ({frac:.1f}%)"
+    assert matching["k_source"] == P.K_POLICY, (
+        "the fraction-matching threshold must be reported as a caller POLICY choice — "
+        "selecting k to reproduce ~16% would be post-hoc numerology, not a derivation")
 
 
 # ── the organized genome ────────────────────────────────────────────────────────

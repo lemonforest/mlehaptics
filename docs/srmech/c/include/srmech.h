@@ -6524,13 +6524,18 @@ srmech_status_t srmech_genome_plasmid_extract(
  *                       core_cap >= n_nodes is always sufficient.
  *   out_k             : out — the threshold actually used (0 on one-DNA-type).
  *   out_bimodal       : out — 1 iff a real antimode split was found (or forced).
- *   hist / hist_cap   : caller arena for the count histogram; hist_cap must
- *                       EXCEED the maximum count (max_count + 1 entries).
+ *   hist / hist_cap   : caller arena for the count histogram AND the two
+ *                       flanking-mode tables the O(max_count) antimode walk
+ *                       needs; hist_cap must be >= 3 * (max_count + 1). (The
+ *                       real corpus histogram is HEAVY-TAILED — a max count in
+ *                       the hundreds of thousands over ~1.7k occupied bins,
+ *                       F1253 — so re-scanning a side per gap would be
+ *                       O(gaps * max_count); the prefix tables make it linear.)
  * Error returns:
  *   SRMECH_ERR_NULL_ARG  — out_n_core / out_k / out_bimodal / hist NULL, out_core_ids
  *                          NULL with core_cap > 0, or node_ids / counts NULL with
  *                          n_nodes > 0.
- *   SRMECH_ERR_OVERFLOW  — hist_cap <= max_count, or core_cap too small.
+ *   SRMECH_ERR_OVERFLOW  — hist_cap < 3*(max_count+1), or core_cap too small.
  * Pure integer CARDINALITIES (Class-N): no float, no division, and no abs (a count
  * has no sign to strip — not a Class-K pin-slot site). ADDITIVE plain symbol
  * reusing NO callback typedef -> SRMECH_ABI_VERSION stays 6, GENOME_FORMAT_VERSION
