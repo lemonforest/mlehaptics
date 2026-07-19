@@ -1534,6 +1534,127 @@ srmech_status_t srmech_genome_integrate(
     return SRMECH_OK;
 }
 
+/* §100 GAP 1/v15 MINT-STRAND (rc277) — ONE pass over a strand's leaf_dim-byte blocks:
+ * count DATA turns (genome_cap_kind < 0, the non-cap leaves) AND flag an interior
+ * centromere (0x58). Mirror the Python data_positions scan + the "already carries a
+ * centromere" guard. A READ; no abs, no mutation. */
+static void genome_mint_strand_scan(const unsigned char *strand, size_t n_blocks,
+                                    uint32_t leaf_dim, size_t *n_turns_out,
+                                    int *has_cen_out)
+{
+    assert(strand != NULL || n_blocks == 0u);
+    assert(n_turns_out != NULL && has_cen_out != NULL);
+    size_t turns = 0u;
+    int has_cen = 0;
+    for (size_t i = 0u; i < n_blocks; i++) {
+        int kind = genome_cap_kind(strand + i * (size_t)leaf_dim, leaf_dim);
+        if (kind < 0) { turns++; }                      /* a DATA turn */
+        else if (kind == (int)SRMECH_GENOME_CENTROMERE_CAP_MARKER) { has_cen = 1; }
+    }
+    *n_turns_out = turns;
+    *has_cen_out = has_cen;
+}
+
+/* §100 GAP 1/v15 — the BLOCK index of the `split`-th (0-based) DATA turn, or n_blocks
+ * when split == the data-turn count (the metacentric cap appends at the very end).
+ * Mirror the Python `data_positions[split] if split < n_turns else len(strand)`. A READ;
+ * no abs. */
+static size_t genome_nth_data_turn(const unsigned char *strand, size_t n_blocks,
+                                   uint32_t leaf_dim, size_t split)
+{
+    assert(strand != NULL || n_blocks == 0u);
+    assert(leaf_dim > 0u);
+    size_t seen = 0u;
+    for (size_t i = 0u; i < n_blocks; i++) {
+        if (genome_cap_kind(strand + i * (size_t)leaf_dim, leaf_dim) < 0) {
+            if (seen == split) { return i; }
+            seen++;
+        }
+    }
+    return n_blocks;                       /* split == n_turns -> append at the end */
+}
+
+/* §100 GAP 1/v15 — resolve the GLOBAL orientation for a mint_strand. When
+ * orientation_auto: RECALL the strand's leaves into `scratch` (caller-arena; the recall
+ * output is <= n_blocks*leaf_dim, and the caller passes `out` whose out_cap already fits
+ * the +1-block splice) and fold sha256(recalled)[0] & 3 — the SAME Class-A -> Class-C
+ * _mint_orientation rule mint() uses, applied to the strand's OWN recovered leaves. Else
+ * pass the caller `orientation_in` through. No abs, no float. */
+static srmech_status_t genome_mint_strand_orient(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one, int orientation_auto,
+    unsigned char orientation_in, unsigned char *scratch, size_t scratch_cap,
+    unsigned char *o_out)
+{
+    assert(o_out != NULL);
+    assert(orientation_auto == 0 || (the_one != NULL && scratch != NULL));
+    if (orientation_auto == 0) { *o_out = orientation_in; return SRMECH_OK; }
+    size_t n_leaves = 0u;
+    srmech_status_t st = srmech_genome_recall(strand, n_blocks, leaf_dim, the_one,
+                                              scratch, scratch_cap, &n_leaves);
+    if (st != SRMECH_OK) { return st; }
+    return genome_mint_orientation(scratch, n_leaves * (size_t)leaf_dim, o_out);
+}
+
+/* §100 GAP 1/v15 MINT-STRAND (rc277, #891-peer / F1249 / G5) — the stage-2 PROMOTE
+ * primitive: splice a §95a interior CENTROMERE (0x58) into an ALREADY-PACKED strand at
+ * the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (mirror
+ * srmech.amsc.genome.mint_strand). Scans the strand's leaf_dim-byte DATA turns, resolves
+ * the metacentric split, content-addresses the global orientation (recall -> sha256 & 3)
+ * when orientation_auto, writes the centromere cap, and concatenates
+ * strand[:locus] + cap + strand[locus:] BYTE-IDENTICALLY (whole self-describing blocks,
+ * no re-coupling). Self-contained: a bare-C host promotes a strand end-to-end via this
+ * ONE call (closes the rc270 mint_strand C-host GAP — the cap-writer had a C peer, its
+ * glue did not). */
+srmech_status_t srmech_genome_mint_strand(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one, long centromere_at,
+    unsigned char orientation, int orientation_auto,
+    uint32_t repeats, const unsigned char *handle, size_t handle_len,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out)
+{
+    size_t dim = (size_t)leaf_dim, n_turns = 0u, split, locus, total;
+    int has_cen = 0;
+    unsigned char cap[256];
+    unsigned char o = 0u;
+    if (out == NULL || n_blocks_out == NULL || strand == NULL ||
+        (orientation_auto != 0 && the_one == NULL) ||
+        (handle == NULL && handle_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && n_blocks_out != NULL && strand != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    if (n_blocks == 0u || genome_is_boundary_cap(strand, dim) == 0) {
+        return SRMECH_ERR_BAD_INPUT;      /* empty / not opening with a boundary cap */
+    }
+    genome_mint_strand_scan(strand, n_blocks, leaf_dim, &n_turns, &has_cen);
+    if (has_cen != 0) { return SRMECH_ERR_BAD_INPUT; }   /* already minted (0x58) */
+    if (centromere_at >= 0) {
+        if ((size_t)centromere_at > n_turns) { return SRMECH_ERR_BAD_INPUT; }
+        split = (size_t)centromere_at;                   /* the caller-supplied arm-split */
+    } else {
+        split = n_turns / 2u;                            /* at None -> metacentric midpoint */
+    }
+    total = n_blocks + 1u;
+    if (out_cap < total * dim) { return SRMECH_ERR_OVERFLOW; }
+    /* orientation resolve: recall uses `out` as the caller arena (recalled leaves are
+     * <= n_blocks*dim <= out_cap), FULLY consumed before the splice writes `out`. */
+    srmech_status_t st = genome_mint_strand_orient(
+        strand, n_blocks, leaf_dim, the_one, orientation_auto, orientation,
+        out, out_cap, &o);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_genome_centromere(o, repeats, handle, handle_len, leaf_dim, cap, dim);
+    if (st != SRMECH_OK) { return st; }
+    locus = genome_nth_data_turn(strand, n_blocks, leaf_dim, split);
+    assert(locus <= n_blocks);
+    memcpy(out, strand, locus * dim);                        /* strand[:locus] */
+    memcpy(out + locus * dim, cap, dim);                     /* + centromere cap */
+    memcpy(out + (locus + 1u) * dim, strand + locus * dim,
+           (n_blocks - locus) * dim);                        /* + strand[locus:] */
+    *n_blocks_out = total;
+    return SRMECH_OK;
+}
+
 /* §44 COUNT: walk the body's self-describing blocks (§55/v3 dual-format) and
  * count its CHROM caps AND its total blocks (a pre-scan, so the per-chromosome
  * arrays can be carved to EXACTLY that many — no compiled-in chromosome cap;

@@ -1264,6 +1264,90 @@ int main(void)
         }
     }
 
+    /* §100 GAP 1/rc277 (F1249 / G5) — srmech_genome_mint_strand PROMOTE + splice. Build a
+     * packed strand (CHROM boundary cap + 6 Klein-4 data turns), MINT it (splice a §95a
+     * 0x58 centromere at the metacentric midpoint), and verify: n_blocks+1 out; the cap
+     * lands after 3 data turns (6//2) and decodes to the given orientation + p:q = 3:3;
+     * recall is byte-exact after minting (the cap is transparent, §44); the content-address
+     * orientation is a valid 0..3 sector; and the error paths. leaf_dim 24 fits the
+     * 21-byte cap payload (marker + "cen" + NUL + R=15 + 15 votes). */
+    {
+        const uint32_t ld = 24u;
+        unsigned char one_m[24];
+        for (uint32_t i = 0u; i < ld; i++) { one_m[i] = (unsigned char)(i & 3u); }
+        unsigned char S[7u * 24u];            /* 1 cap + 6 turns = 7 blocks */
+        memset(S, 0, sizeof(S));
+        S[0] = CC; S[1] = (unsigned char)'M';                 /* CHROM boundary cap */
+        for (size_t t = 0u; t < 6u; t++) {                    /* 6 data turns, bytes 0..3 */
+            for (uint32_t k = 0u; k < ld; k++) {
+                S[(1u + t) * ld + k] = (unsigned char)((t + k) & 3u);
+            }
+        }
+        unsigned char M[8u * 24u];
+        size_t mnb = 0u;
+        /* (a) explicit orientation 2, midpoint (centromere_at = -1). */
+        srmech_status_t ms = srmech_genome_mint_strand(
+            S, 7u, ld, one_m, -1L, 2u, 0, 15u, (const unsigned char *)"cen", 3u,
+            M, sizeof(M), &mnb);
+        check_true(ms == SRMECH_OK && mnb == 8u, "rc277: mint_strand OK, n_blocks+1");
+        check_true(M[4u * ld] == (unsigned char)SRMECH_GENOME_CENTROMERE_CAP_MARKER,
+                   "rc277: centromere spliced at the metacentric midpoint (block 4)");
+        {   /* centromere_of the minted strand -> orientation 2, p:q = 3:3. */
+            unsigned char o = 9u; size_t p = 0u, q = 0u; int found = 0;
+            srmech_status_t cs = srmech_genome_centromere_of(M, mnb, ld, &o, &p, &q,
+                                                             &found);
+            check_true(cs == SRMECH_OK && found == 1 && o == 2u && p == 3u && q == 3u,
+                       "rc277: minted cap decodes orientation 2, p:q = 3:3");
+        }
+        {   /* recall the minted strand == recall the original (the cap is transparent). */
+            unsigned char r0[6u * 24u], r1[6u * 24u]; size_t n0 = 0u, n1 = 0u;
+            srmech_status_t a = srmech_genome_recall(S, 7u, ld, one_m, r0, sizeof(r0),
+                                                     &n0);
+            srmech_status_t b = srmech_genome_recall(M, mnb, ld, one_m, r1, sizeof(r1),
+                                                     &n1);
+            check_true(a == SRMECH_OK && b == SRMECH_OK && n0 == 6u && n1 == 6u &&
+                       memcmp(r0, r1, n0 * ld) == 0,
+                       "rc277: recall byte-exact after minting (cap transparent)");
+        }
+        /* (b) content-address orientation (orientation_auto=1) -> a valid 0..3 sector. */
+        {
+            size_t nb2 = 0u;
+            srmech_status_t ms2 = srmech_genome_mint_strand(
+                S, 7u, ld, one_m, -1L, 0u, 1, 15u, (const unsigned char *)"cen", 3u,
+                M, sizeof(M), &nb2);
+            unsigned char o = 9u; size_t p = 0u, q = 0u; int found = 0;
+            (void)srmech_genome_centromere_of(M, nb2, ld, &o, &p, &q, &found);
+            check_true(ms2 == SRMECH_OK && nb2 == 8u && found == 1 && o <= 3u,
+                       "rc277: content-address orientation mints a valid 0..3 sector");
+        }
+        /* (c) already-minted (a 0x58 present) -> BAD_INPUT (M carries a centromere from b). */
+        {
+            size_t nb3 = 0u;
+            srmech_status_t ms3 = srmech_genome_mint_strand(
+                M, 8u, ld, one_m, -1L, 0u, 1, 15u, (const unsigned char *)"cen", 3u,
+                M, sizeof(M), &nb3);
+            check_true(ms3 == SRMECH_ERR_BAD_INPUT, "rc277: already-minted -> BAD_INPUT");
+        }
+        /* (d) not opening with a boundary cap -> BAD_INPUT (first block is a data turn). */
+        {
+            unsigned char bad[2u * 24u]; size_t nb4 = 0u;
+            memset(bad, 0, sizeof(bad));
+            bad[0] = 1u;                                       /* a Klein-4 turn, not a cap */
+            srmech_status_t ms4 = srmech_genome_mint_strand(
+                bad, 2u, ld, one_m, -1L, 2u, 0, 15u, (const unsigned char *)"cen", 3u,
+                M, sizeof(M), &nb4);
+            check_true(ms4 == SRMECH_ERR_BAD_INPUT, "rc277: no boundary cap -> BAD_INPUT");
+        }
+        /* (e) out_cap too small -> OVERFLOW. */
+        {
+            unsigned char tiny[24]; size_t nb5 = 0u;
+            srmech_status_t ms5 = srmech_genome_mint_strand(
+                S, 7u, ld, one_m, -1L, 2u, 0, 15u, (const unsigned char *)"cen", 3u,
+                tiny, sizeof(tiny), &nb5);
+            check_true(ms5 == SRMECH_ERR_OVERFLOW, "rc277: out_cap too small -> OVERFLOW");
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }

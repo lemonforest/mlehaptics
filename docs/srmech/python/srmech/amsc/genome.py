@@ -4669,10 +4669,14 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
     * ``repeats`` / ``handle`` — the α-satellite repeat-array size + the CENP-A inline epigenetic
       address, passed through to :func:`centromere`.
 
-    Composes over the native-dispatched :func:`centromere` cap-writer (byte-identical C peer
-    ``srmech_genome_centromere``) + a PURE strand splice (like :func:`integrate` — self-describing
-    blocks concatenated, no re-coupling), so the minted strand is byte-identical whether the cap
-    came from C or pure Python (the parity contract). After minting, ``genome_save`` +
+    rc277 (§100 GAP 1 / G5): DISPATCHES the WHOLE op (data-turn scan → content-address orientation
+    → centromere cap → single-block splice) to the byte-identical C peer ``srmech_genome_mint_strand``
+    when ``HAS_NATIVE`` — a bare-C host PROMOTES a strand end-to-end via that ONE call (the cap-writer
+    ``srmech_genome_centromere`` already had a C peer; before rc277 its glue was Python-only). The
+    pure path (the native-dispatched :func:`centromere` cap-writer + a block splice, like
+    :func:`integrate` — self-describing blocks concatenated, no re-coupling) is the numpy-free
+    fallback + parity oracle, so the minted strand is byte-identical whether native or pure (the
+    parity contract). After minting, ``genome_save`` +
     :func:`genome_census` report the chromosome as ``nuclear`` (the ``0x58`` is present). Raises if
     the strand is empty, does not OPEN with a chromosome-boundary cap (pass a :func:`chromosome` /
     :func:`kernel_pack` / :func:`graph_to_kernel` strand, NOT raw leaves), or ALREADY carries a
@@ -4712,6 +4716,24 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
             f"mint_strand: centromere_at={centromere_at} out of range [0, {n_turns}] "
             f"(the arm-split index in DATA turns between the short + long arm)"
         )
+    # rc277 (#891-peer / G5): DISPATCH the whole scan → orientation → cap → splice to the
+    # srmech_genome_mint_strand C peer when HAS_NATIVE + uniform fixed-width leaf_dim blocks
+    # — byte-identical (the recall-derived content-address orientation, the SAME native
+    # centromere cap-writer, the SAME block splice). A bare-C host PROMOTES a strand end-to-
+    # end via that ONE peer; here it proves native == pure. The pure path below is the numpy-
+    # free fallback + parity oracle (a non-uniform-width strand, a NUL/over-long handle, or a
+    # bad orientation/repeats falls through so its exact ValueError surfaces). NEVER abs()
+    # (the split is a position, the orientation a content-address sector — no magnitude).
+    raw_handle = handle.encode("utf-8") if isinstance(handle, str) else bytes(handle)
+    blocks = _leaf_blocks(strand)
+    if (dim > 0 and blocks and b"\x00" not in raw_handle
+            and all(len(b) == dim for b in blocks)):
+        native = _native.genome_mint_strand_c(
+            b"".join(blocks), len(blocks), dim, _the_one_block_bytes(the_one),
+            split, orientation, repeats, raw_handle)
+        if native is not None:
+            return [_hv_from_block(native[i * dim:(i + 1) * dim])
+                    for i in range(len(native) // dim)]
     if orientation is None:
         # Class A content-address → Class C chirality: sha256(the strand's OWN recovered leaves)
         # [0] & 3 — the SAME rule mint() assigns a nuclear chromosome (_mint_orientation), so the
