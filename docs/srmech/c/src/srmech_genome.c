@@ -1453,6 +1453,87 @@ srmech_status_t srmech_genome_partition(const unsigned char *strand,
     return SRMECH_OK;
 }
 
+/* §44 CHROMOSOME-BOUNDARY predicate — 1 iff `block` OPENS a chromosome (a CHROM /
+ * kernel-telomere / active-telomere / diploid boundary cap, mirroring the Python
+ * _CHROM_BOUNDARY_MARKERS set), else 0. A READ over genome_cap_kind; no abs. */
+static int genome_is_boundary_cap(const unsigned char *block, size_t len)
+{
+    int kind;
+    assert(block != NULL || len == 0u);
+    assert(len <= 256u);
+    kind = genome_cap_kind(block, len);
+    return (kind == (int)SRMECH_GENOME_CHROM_CAP_MARKER ||
+            kind == (int)SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+            kind == (int)SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
+            kind == (int)SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) ? 1 : 0;
+}
+
+/* §95.1d/v15 INTEGRATE (rc276, #891 / F1244 / G4) — splice a PROVIRUS chromosome
+ * strand INTO a host genome strand at a chromosome boundary; mirror
+ * srmech.amsc.genome.integrate. Scans the host's leaf_dim-byte blocks for
+ * boundary caps, resolves the insert LOCUS from `at`, and concatenates
+ * host[:locus] + provirus + host[locus:] BYTE-IDENTICALLY (whole self-describing
+ * blocks; the provirus turns are already coupled, so no re-coupling). This is
+ * self-contained: a bare-C host integrates end-to-end via this ONE call. */
+srmech_status_t srmech_genome_integrate(
+    const unsigned char *host, size_t host_blocks, uint32_t host_leaf_dim,
+    const unsigned char *provirus, size_t prov_blocks, uint32_t prov_leaf_dim,
+    long at, unsigned char *out, size_t out_cap,
+    size_t *n_blocks_out, int *integrated_out)
+{
+    size_t dim = (size_t)prov_leaf_dim;
+    size_t nb = 0u, locus = 0u, locus_at = 0u, total, off;
+    if (out == NULL || n_blocks_out == NULL || integrated_out == NULL ||
+        (provirus == NULL && prov_blocks > 0u) ||
+        (host == NULL && host_blocks > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && n_blocks_out != NULL && integrated_out != NULL);
+    if (prov_leaf_dim == 0u || prov_leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    if (host_blocks > 0u && (host_leaf_dim == 0u || host_leaf_dim > 256u)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (prov_blocks == 0u || genome_is_boundary_cap(provirus, dim) == 0) {
+        return SRMECH_ERR_BAD_INPUT;      /* provirus must open with a boundary cap */
+    }
+    assert(provirus != NULL && dim > 0u && dim <= 256u);
+    if (host_blocks > 0u &&
+        genome_is_boundary_cap(host, (size_t)host_leaf_dim) == 0) {
+        return SRMECH_ERR_BAD_INPUT;      /* host is not a well-formed genome strand */
+    }
+    /* §135/F1251 GATE: an empty host coheres with any provirus; else EQUAL coupling
+     * WIDTH (a Class-K equality read, NEVER abs — two genomes at different widths were
+     * coupled through different `the_one` invariants and cannot cohere: the CG258
+     * incompatible-replicon analog). Incompatible -> HONEST-DECLINE (the C analog of
+     * the Python None: *integrated_out = 0, nothing written, SRMECH_OK). */
+    if (host_blocks > 0u && host_leaf_dim != prov_leaf_dim) {
+        *integrated_out = 0;
+        return SRMECH_OK;
+    }
+    for (size_t i = 0u; i < host_blocks; i++) {   /* scan host chromosome boundaries */
+        if (genome_is_boundary_cap(host + i * dim, dim) == 0) { continue; }
+        if (at >= 0 && (size_t)at == nb) { locus_at = i; }
+        nb++;
+    }
+    if (at < 0) {
+        locus = host_blocks;              /* at None -> after the last chromosome */
+    } else {
+        if ((size_t)at > nb) { return SRMECH_ERR_BAD_INPUT; }   /* at out of range */
+        locus = ((size_t)at < nb) ? locus_at : host_blocks;
+    }
+    total = host_blocks + prov_blocks;
+    if (out_cap < total * dim) { return SRMECH_ERR_OVERFLOW; }
+    memcpy(out + locus * dim, provirus, prov_blocks * dim);     /* + provirus */
+    if (host_blocks > 0u) {
+        memcpy(out, host, locus * dim);                        /* host[:locus] */
+        off = (locus + prov_blocks) * dim;
+        memcpy(out + off, host + locus * dim, (host_blocks - locus) * dim);
+    }
+    *n_blocks_out = total;
+    *integrated_out = 1;
+    return SRMECH_OK;
+}
+
 /* §44 COUNT: walk the body's self-describing blocks (§55/v3 dual-format) and
  * count its CHROM caps AND its total blocks (a pre-scan, so the per-chromosome
  * arrays can be carved to EXACTLY that many — no compiled-in chromosome cap;

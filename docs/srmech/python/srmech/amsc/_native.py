@@ -3601,6 +3601,17 @@ def _bind(lib: ctypes.CDLL) -> None:
                 _U8, _SZ, _U32, _U8, _U8, _SZ, _U8, _SZ,
                 ctypes.POINTER(ctypes.c_uint32), _SZ, _PSZ, _PSZ]
             lib.srmech_genome_partition.restype = ctypes.c_int
+        # §95.1d/rc276 (#891 / F1244 / G4) — INTEGRATE: the stage-2 SPLICE C peer.
+        # NEW symbol → hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 6.
+        #   int srmech_genome_integrate(const unsigned char *host, size_t host_blocks,
+        #       uint32_t host_leaf_dim, const unsigned char *provirus, size_t prov_blocks,
+        #       uint32_t prov_leaf_dim, long at, unsigned char *out, size_t out_cap,
+        #       size_t *n_blocks_out, int *integrated_out)
+        if hasattr(lib, "srmech_genome_integrate"):
+            lib.srmech_genome_integrate.argtypes = [
+                _U8, _SZ, _U32, _U8, _SZ, _U32, ctypes.c_long, _U8, _SZ,
+                _PSZ, ctypes.POINTER(ctypes.c_int)]
+            lib.srmech_genome_integrate.restype = ctypes.c_int
         # §133/rc133 (#733) — MODULATOR-RECOVERY (the INVERSE of gene_express): M1 the
         # two-sided cell-state FLOOR, M2 the candidate consistency verdict. Whole-strand
         # (the GENE-CAP subset body), caller-arena-free. NEW symbols → hasattr-guarded (a
@@ -17768,6 +17779,54 @@ def genome_partition_c(strand: bytes, n_blocks: int, leaf_dim: int, the_one: byt
         labels.append(slot.split(b"\x00", 1)[0].decode("utf-8"))
     counts = [int(part_counts[p]) for p in range(np_)]
     return leaf_bytes, labels, counts
+
+
+def has_native_genome_integrate() -> bool:
+    """True iff the §95.1d/rc276 srmech_genome_integrate C peer is loaded + bound.
+    False on a no-C or pre-rc276 lib — the pure ``srmech.amsc.genome.integrate`` body
+    is the complete alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_integrate"))
+
+
+def genome_integrate_c(host: bytes, host_blocks: int, host_leaf_dim: int,
+                       provirus: bytes, prov_blocks: int, prov_leaf_dim: int,
+                       at: int):
+    """Native §95.1d/rc276 INTEGRATE (parity peer ``srmech_genome_integrate``): splice
+    ``provirus`` INTO ``host`` at the chromosome boundary resolved from ``at`` — the host
+    chromosome index to insert the provirus BEFORE (0-based); ``at < 0`` = after the last
+    chromosome (the Python ``at=None`` default). Scans the host's ``host_leaf_dim``-byte
+    blocks for chromosome-boundary caps, then concatenates
+    ``host[:locus] + provirus + host[locus:]`` byte-identically. Returns
+    ``(out_bytes, integrated)`` — ``out_bytes`` the spliced strand
+    (``(host_blocks + prov_blocks) × prov_leaf_dim`` bytes) and ``integrated`` True on a
+    compatible splice / False on the §135/F1251 width-coherence HONEST-DECLINE — or
+    ``None`` when the symbol is absent OR the inputs do not fit the fast path (a byte
+    length not matching ``n_blocks × leaf_dim``, an out-of-range ``at``). Byte-identical
+    to the pure ``integrate`` splice."""
+    if not has_native_genome_integrate():
+        return None
+    if (prov_leaf_dim <= 0 or prov_leaf_dim > 256 or prov_blocks <= 0
+            or len(provirus) != prov_blocks * prov_leaf_dim):
+        return None
+    if host_blocks > 0 and (host_leaf_dim <= 0 or host_leaf_dim > 256
+                            or len(host) != host_blocks * host_leaf_dim):
+        return None
+    out_cap = (host_blocks + prov_blocks) * prov_leaf_dim
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    n_blocks = ctypes.c_size_t(0)
+    integrated = ctypes.c_int(0)
+    rc = LIB.srmech_genome_integrate(
+        _u8(host), ctypes.c_size_t(host_blocks), ctypes.c_uint32(host_leaf_dim),
+        _u8(provirus), ctypes.c_size_t(prov_blocks), ctypes.c_uint32(prov_leaf_dim),
+        ctypes.c_long(at), out, ctypes.c_size_t(out_cap),
+        ctypes.byref(n_blocks), ctypes.byref(integrated))
+    if rc != SRMECH_OK:
+        return None
+    if int(integrated.value) == 0:
+        return b"", False
+    nb = int(n_blocks.value)
+    return bytes(out[:nb * prov_leaf_dim]), True
 
 
 def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
