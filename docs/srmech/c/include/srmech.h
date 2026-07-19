@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc276"
-#define SRMECH_VERSION       "0.9.0rc276"
+#define SRMECH_VERSION_PRE   "rc277"
+#define SRMECH_VERSION       "0.9.0rc277"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5691,6 +5691,56 @@ srmech_status_t srmech_genome_integrate(
     const unsigned char *provirus, size_t prov_blocks, uint32_t prov_leaf_dim,
     long at, unsigned char *out, size_t out_cap,
     size_t *n_blocks_out, int *integrated_out);
+
+/* §100 GAP 1/v15 MINT-STRAND (rc277, #891-peer / F1249 / G5) — the stage-2 PROMOTE
+ * primitive of the F1252 two-stage encode: splice a §95a interior CENTROMERE (0x58) into
+ * an ALREADY-PACKED strand at the p:q arm-split, PROMOTING a Tier-1 PLASMID to a Tier-2
+ * NUCLEAR chromosome (mirror srmech.amsc.genome.mint_strand). The cap-writer
+ * (srmech_genome_centromere) already had a C peer; before rc277 the GLUE — data-turn
+ * scan -> metacentric midpoint -> single-block centromere insert — was Python-only. This
+ * closes that GAP so a bare-C host promotes a strand end-to-end via ONE call.
+ *   strand / n_blocks / leaf_dim : the already-packed input strand (>= 1 block, opening
+ *                       with a CHROM / kernel / active / diploid boundary cap); leaf_dim
+ *                       is the block width AND the_one's width AND the output width.
+ *   the_one           : the shared Klein-4 invariant (leaf_dim bytes); read ONLY when
+ *                       orientation_auto != 0 (recall's un-couple), else may be NULL.
+ *   centromere_at     : the arm-split in DATA TURNS (the cap goes AFTER that many data
+ *                       turns); < 0 = the metacentric midpoint n_turns/2 (Python
+ *                       centromere_at=None). Must be in [0, n_turns] when >= 0.
+ *   orientation       : the global 4-way which-way (0..3), used only when
+ *                       orientation_auto == 0.
+ *   orientation_auto  : 1 = content-address the orientation from the strand's OWN
+ *                       recovered leaves (recall -> sha256(leaves)[0] & 3, the SAME
+ *                       _mint_orientation rule mint() uses — the Python orientation=None
+ *                       default); 0 = use `orientation` verbatim.
+ *   repeats           : the centromere α-satellite repeat-array size R in [1, 255].
+ *   handle / handle_len : the CENP-A inline epigenetic address (may be NULL iff 0; no NUL
+ *                       byte inside — the pack rule of srmech_genome_centromere).
+ *   out / out_cap     : caller buffer; out_cap >= (n_blocks + 1)*leaf_dim. When
+ *                       orientation_auto, `out` doubles as the recall scratch arena (the
+ *                       recalled leaves are fully consumed BEFORE the splice writes out).
+ *   n_blocks_out      : out — the minted block count (n_blocks + 1).
+ * BYTE-IDENTICAL to the Python mint_strand (same content-address orientation, the same
+ * centromere cap bytes, the same block splice). The interior centromere is TRANSPARENT to
+ * recall / kernel_to_graph (they skip caps, §44), so the recovered payload is unchanged.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out / n_blocks_out / strand NULL, the_one NULL with
+ *                          orientation_auto, or handle NULL with handle_len > 0.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, an empty strand, a strand not opening with
+ *                          a boundary cap, a strand ALREADY carrying a centromere,
+ *                          centromere_at out of [0, n_turns], or a bad orientation /
+ *                          repeats / over-long handle (from the cap writer).
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the +1-block minted strand.
+ * The §101 progress= gate is a Python-only affordance (a splice has no meaningful partial;
+ * a callable cannot cross the C wire). Additive symbol (no new typedef) ->
+ * SRMECH_ABI_VERSION stays 6, GENOME_FORMAT_VERSION stays 15. Caller-arena; no
+ * malloc/goto/abs/float. */
+srmech_status_t srmech_genome_mint_strand(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *the_one, long centromere_at,
+    unsigned char orientation, int orientation_auto,
+    uint32_t repeats, const unsigned char *handle, size_t handle_len,
+    unsigned char *out, size_t out_cap, size_t *n_blocks_out);
 
 /* §98/v15 CHROMATIN cap writer (rc268, #1422) — mirror srmech.amsc.genome._pack_chromatin:
  * `[0x48] + handle + NUL + chromatin_type + num(uint64 BE) + den(uint64 BE), NUL-padded to dim`.

@@ -3612,6 +3612,19 @@ def _bind(lib: ctypes.CDLL) -> None:
                 _U8, _SZ, _U32, _U8, _SZ, _U32, ctypes.c_long, _U8, _SZ,
                 _PSZ, ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_integrate.restype = ctypes.c_int
+        # §100 GAP 1/rc277 (#891-peer / F1249 / G5) — MINT-STRAND: the stage-2 PROMOTE
+        # C peer (data-turn scan -> midpoint -> centromere-cap splice). NEW symbol ->
+        # hasattr-guarded; additive -> EXPECTED_ABI_VERSION stays 6.
+        #   int srmech_genome_mint_strand(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *the_one, long centromere_at,
+        #       unsigned char orientation, int orientation_auto, uint32_t repeats,
+        #       const unsigned char *handle, size_t handle_len, unsigned char *out,
+        #       size_t out_cap, size_t *n_blocks_out)
+        if hasattr(lib, "srmech_genome_mint_strand"):
+            lib.srmech_genome_mint_strand.argtypes = [
+                _U8, _SZ, _U32, _U8, ctypes.c_long, ctypes.c_uint8, ctypes.c_int,
+                _U32, _U8, _SZ, _U8, _SZ, _PSZ]
+            lib.srmech_genome_mint_strand.restype = ctypes.c_int
         # §133/rc133 (#733) — MODULATOR-RECOVERY (the INVERSE of gene_express): M1 the
         # two-sided cell-state FLOOR, M2 the candidate consistency verdict. Whole-strand
         # (the GENE-CAP subset body), caller-arena-free. NEW symbols → hasattr-guarded (a
@@ -17827,6 +17840,50 @@ def genome_integrate_c(host: bytes, host_blocks: int, host_leaf_dim: int,
         return b"", False
     nb = int(n_blocks.value)
     return bytes(out[:nb * prov_leaf_dim]), True
+
+
+def has_native_genome_mint_strand() -> bool:
+    """True iff the §100 GAP 1/rc277 srmech_genome_mint_strand C peer is loaded + bound.
+    False on a no-C or pre-rc277 lib — the pure ``srmech.amsc.genome.mint_strand`` body is
+    the complete alternative (and the parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_mint_strand"))
+
+
+def genome_mint_strand_c(strand: bytes, n_blocks: int, leaf_dim: int, the_one: bytes,
+                         centromere_at: int, orientation, repeats: int, handle: bytes):
+    """Native §100 GAP 1/rc277 MINT-STRAND (parity peer ``srmech_genome_mint_strand``):
+    PROMOTE an already-packed ``strand`` to a Tier-2 nuclear chromosome by splicing a §95a
+    interior centromere (0x58) at the p:q arm-split. Scans the strand's ``leaf_dim``-byte
+    DATA turns, content-addresses the global orientation from the strand's OWN recovered
+    leaves (recall -> ``sha256(leaves)[0] & 3``) when ``orientation is None``, writes the
+    centromere cap, and concatenates ``strand[:locus] + cap + strand[locus:]`` byte-
+    identically. ``centromere_at`` is the resolved arm-split (data-turn index; ``< 0`` = the
+    metacentric midpoint); ``orientation`` is ``None`` (content-address) or a 0..3 sector;
+    ``handle`` the CENP-A epigenetic address bytes. Returns the minted strand bytes
+    (``(n_blocks + 1) × leaf_dim``), or ``None`` when the symbol is absent OR the inputs do
+    not fit the fast path (a byte length not matching ``n_blocks × leaf_dim``). Byte-
+    identical to the pure ``mint_strand`` splice."""
+    if not has_native_genome_mint_strand():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks <= 0
+            or len(strand) != n_blocks * leaf_dim or len(the_one) != leaf_dim):
+        return None
+    auto = 1 if orientation is None else 0
+    o = 0 if orientation is None else int(orientation)
+    out_cap = (n_blocks + 1) * leaf_dim
+    out = (ctypes.c_uint8 * out_cap)()
+    n_out = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_mint_strand(
+        _u8(strand), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(the_one), ctypes.c_long(centromere_at), ctypes.c_uint8(o & 0xFF),
+        ctypes.c_int(auto), ctypes.c_uint32(repeats),
+        _u8(handle), ctypes.c_size_t(len(handle)),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(n_out))
+    if rc != SRMECH_OK:
+        return None
+    nb = int(n_out.value)
+    return bytes(out[:nb * leaf_dim])
 
 
 def genome_gene_express_c(cap: bytes, leaf_dim: int, cell_state: int) -> bool:
