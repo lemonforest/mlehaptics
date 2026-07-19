@@ -18,7 +18,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "srmech"
-version = "0.9.0rc282"
+version = "0.9.0rc283"
 # IMPORTANT: PyPI's "Summary" metadata field has a HARD 512-character
 # limit. The upload endpoint silently rejects oversize metadata
 # ("could not comply" with no useful detail bubbled into the publish
@@ -75,7 +75,7 @@ collectors = [
     "beautifulsoup4>=4.11",
 ]
 # numpy-FREE (#564): the suite runs with numpy NOT installed.
-tests = ["pytest>=7.0"]
+tests = ["pytest>=7.0", "pytest-xdist>=3.5"]
 # Crypto extra (v0.5.0rc7): UTLP-exact AES-128-CTR Bio-TOTP backend
 # for the bus wire cipher (Claim 255). Pyodide/WASM may not support
 # the cryptography wheel — the stdlib HMAC-SHA-256 fallback always
@@ -90,6 +90,7 @@ anthropic = ["anthropic>=0.40.0"]
 # numpy-FREE (#564): the full pytest suite runs numpy-absent.
 dev = [
     "pytest>=7.0",
+    "pytest-xdist>=3.5",
     "build",
     "twine",
     "hatchling>=1.18",

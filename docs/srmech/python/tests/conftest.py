@@ -8,11 +8,133 @@ the html_scraper parse test exercises the same field-map structure.
 
 from __future__ import annotations
 
+import os as _os
+import shutil as _shutil
+import tempfile as _tempfile
 from array import array as _stdlib_array
 from pathlib import Path
 from typing import Any, List
 
 import pytest
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc283 — the bus registry dir is a PROCESS-EXTERNAL SINGLETON; give each
+# bus test module its own.
+#
+# `srmech.bus` registers endpoints at `~/.srmech/bus-<name>.sock` — a fixed
+# HOME-based path, shared by every process on the box, xdist workers included.
+# Endpoint NAMES are uuid-unique, so this is not a name collision; the shared
+# thing is the DIRECTORY. `list_endpoints(cleanup_dead=True)` scans that whole
+# directory and DELETES any endpoint it judges dead — and a socket that is bound
+# but not yet accepting is indistinguishable from a dead one. So worker A's
+# discovery sweep silently unlinks worker B's in-flight socket, and B then fails
+# with `FileNotFoundError: no bus endpoint ...` or `BusError: reader exited;
+# peer closed`. Observed exactly that way: `-n 4` run 1 was green, run 2 failed
+# two `test_bus_aio.py` tests — an intermittent cross-worker race, not an
+# ordering bug and not a product defect (the sweep is behaving as designed).
+#
+# Fix by REMOVING the singleton rather than serialising around it: point HOME
+# (and USERPROFILE, for the Windows cell, where `Path.home()` reads that
+# instead) at a private temp dir per bus module. `bus_dir()` resolves
+# `Path.home()` at call time, so the redirect reaches the library and any
+# subprocess that inherits the environment. This is preferred over an
+# `xdist_group` pin, which would have forced the bus files onto one worker and
+# given up their parallelism to work around a resource we can simply
+# un-share.
+#
+# MODULE scope, not function scope, is deliberate: within one module the tests
+# keep sharing a bus dir exactly as they do today (each cleans up its own
+# endpoint via the `unique_name` fixture), so intra-module semantics are
+# unchanged. Only the CROSS-worker sharing is removed.
+# ──────────────────────────────────────────────────────────────────────
+
+#: Test modules that create real on-disk bus endpoints. Verified by grepping
+#: `sock_path` / `registry_path` / `bus_dir` / `seed_path` across `tests/` —
+#: every other bus-adjacent module only inspects names or classifications and
+#: never writes into the registry dir.
+_BUS_REGISTRY_TEST_MODULES = {"test_bus", "test_bus_aio"}
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _private_bus_registry_home(request):
+    """Give each bus-endpoint test module a private `~/.srmech/`."""
+    mod = request.module.__name__.rsplit(".", 1)[-1]
+    if mod not in _BUS_REGISTRY_TEST_MODULES:
+        yield
+        return
+
+    # NOT `tmp_path_factory` — an AF_UNIX socket path is capped at ~108 bytes
+    # (sockaddr_un.sun_path), and pytest's factory dirs
+    # (`/tmp/pytest-of-<user>/pytest-<n>/<module-name><n>/`) are long enough
+    # that appending `.srmech/bus-<uuid>.sock` blows the cap — `OSError:
+    # AF_UNIX path too long`. A short `mkdtemp` keeps the whole endpoint path
+    # comfortably inside the limit on every POSIX cell.
+    home = _tempfile.mkdtemp(prefix="srb")
+    saved = {k: _os.environ.get(k) for k in ("HOME", "USERPROFILE")}
+    _os.environ["HOME"] = home
+    _os.environ["USERPROFILE"] = home
+    try:
+        yield
+    finally:
+        for key, val in saved.items():
+            if val is None:
+                _os.environ.pop(key, None)
+            else:
+                _os.environ[key] = val
+        _shutil.rmtree(home, ignore_errors=True)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc283 — signal_processing path-registry LEAK GUARD (order-independence).
+#
+# `srmech.signal_processing.path_registry.clear_registry()` is a destructive
+# PROCESS-GLOBAL wipe, documented as a "test-isolation utility" — but it has
+# no restore, and several tests (notably `test_signal_processing_scaffolding`,
+# which calls it ~10× including in `finally:` blocks) leave the registry EMPTY
+# when they finish. The eager registrations it destroys — `rfft`/`fft`/`ifft`/
+# `pi_cascade`/`hdc_truncation` (registered by importing
+# `srmech.signal_processing.path_b_ops`) and the `rbs_hdc_*` ops — do NOT come
+# back on their own: those modules are already in `sys.modules`, so nothing
+# re-imports and nothing re-registers. `_ensure_loaded()` cannot help either,
+# because rfft has no lazy loader (it is eagerly imported).
+#
+# Serial runs hid this purely by alphabetical luck: `..._rfft.py` sorts BEFORE
+# `..._scaffolding.py`, so the wipe happened after the tests that depend on the
+# registrations. Under xdist, file→worker assignment is arbitrary, so a worker
+# can run scaffolding first and the dependent tests then fail. The dependency
+# is on TEST ORDER, not on xdist — `pytest tests/test_signal_processing_scaffolding.py
+# tests/test_signal_processing_rfft.py` reproduces it serially.
+#
+# This fixture snapshots the registry before each test and restores it after,
+# so no test can leak a wipe (or a stray registration) into any other. It makes
+# the suite genuinely order-independent rather than accidentally-ordered. Cost
+# is a dict copy of ~50 entries per test.
+#
+# `test_signal_processing_path_b_core.py` carries a hand-rolled version of this
+# workaround (it re-runs `_register_path_b_core_ops()` defensively); that older
+# local patch stays valid and harmless under this guard.
+# ──────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _restore_signal_processing_path_registry():
+    """Snapshot/restore the signal_processing path registry around every test."""
+    try:
+        from srmech.signal_processing import path_registry as _reg
+    except Exception:  # pragma: no cover - package unavailable in a slim env
+        yield
+        return
+
+    saved = dict(_reg._REGISTRY)
+    saved_lazy = dict(_reg._LAZY_LOADERS)
+    try:
+        yield
+    finally:
+        _reg._REGISTRY.clear()
+        _reg._REGISTRY.update(saved)
+        _reg._LAZY_LOADERS.clear()
+        _reg._LAZY_LOADERS.update(saved_lazy)
 
 
 # ──────────────────────────────────────────────────────────────────────

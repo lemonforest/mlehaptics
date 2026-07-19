@@ -94,12 +94,29 @@ def _c_bus_wire_body(dna, sender_id, channel_id, send_seq, pt, time_ns, window_n
     return nonce + ct
 
 
-@pytest.mark.parametrize("pt", [b"", b"x", b"hello encrypted bus", os.urandom(2000)])
+@pytest.mark.parametrize(
+    "pt",
+    [
+        b"",
+        b"x",
+        b"hello encrypted bus",
+        # NOTE: the random 2000-byte payload is minted INSIDE the test body, not
+        # here. A collection-time os.urandom() gives every process a different
+        # test ID, which (a) makes xdist workers disagree on the collected set
+        # and abort the run, and (b) makes a failure un-reproducible, because the
+        # payload that triggered it is gone by the time you re-run. Minting in
+        # the body re-randomises per RUN rather than per collection, which is
+        # strictly more fuzzing coverage, not less.
+        pytest.param(None, id="urandom2000"),
+    ],
+)
 def test_c_bus_wire_is_decode_splice_recoverable(monkeypatch, pt):
     """A frame the C serve_encrypted/connect_encrypted build is recovered by the
     Python decode_splice (permissive) — cross-implementation wire parity on the
     HMAC path. Force the stdlib HMAC-CTR backend (the bare-C-host default; the
     AES extra is out of the C mirror)."""
+    if pt is None:
+        pt = os.urandom(2000)
     monkeypatch.setattr(bt, "_HAVE_AES_CTR", False)
     dna = os.urandom(32)
     sender_id, channel_id = 0x8000000000001092, 0x11223344
