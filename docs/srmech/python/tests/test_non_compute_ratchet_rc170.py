@@ -234,11 +234,17 @@ _EXPECTED_SPLIT = {
     # session-state presentation setters; a bare-C host never re-presents the C's
     # canonical plasmid/nuclear output, the rc261 dsl.alias precedent).
     # dev_tooling 49 -> 51; total 197 -> 200.
-    "composes_c": 128,
+    # rc278 (§102 / F1252 STAGE 1): +1 composes_c — plasmid.section_counts (the
+    # genome-native section-count read; scans the store's sections + composes over
+    # the C genome_census / genome_window / kernel_unpack, the genome_census
+    # composes_c precedent). plasmid.plasmid_extract is a BUILDER with a whole-op C
+    # orchestrator (srmech_genome_plasmid_extract) -> composition_of_c, NOT counted
+    # here. composes_c 128 -> 129; total 200 -> 201.
+    "composes_c": 129,
     "host_glue": 21,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 200
+_TOTAL_NON_COMPUTE = 201
 
 
 def _rows():
