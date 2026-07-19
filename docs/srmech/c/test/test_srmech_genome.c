@@ -69,6 +69,23 @@ static int ensure_dir(const char *dir)
 #endif
 }
 
+/* rc280 §101 tick: CANCEL once `done` reaches *(size_t *)user. Records the last
+ * event seen so the test can assert the heartbeat's exact (done, total, phase). */
+static uint64_t g_sc_last_done = 0u;
+static uint64_t g_sc_last_total = 0u;
+static uint32_t g_sc_last_phase = 0u;
+static int g_sc_ticks = 0;
+
+static int sc_cancel_at(const srmech_progress_ev_t *ev, void *user)
+{
+    const uint64_t at = *(const uint64_t *)user;
+    g_sc_last_done = ev->done;
+    g_sc_last_total = ev->total;
+    g_sc_last_phase = ev->phase;
+    g_sc_ticks++;
+    return (ev->done >= at) ? 1 : 0;
+}
+
 int main(void)
 {
     printf("== srmech_genome smoke tests ==\n");
@@ -1414,6 +1431,109 @@ int main(void)
                        "rc278: NULL out_n_syms -> NULL_ARG");
             check_true(eb == SRMECH_ERR_BAD_INPUT,
                        "rc278: leaf_dim < 52 -> BAD_INPUT");
+        }
+    }
+
+    /* §102 / rc280 (F1253) — srmech_genome_section_counts: scan a PLASMID section
+     * store and derive {global_id -> n_sections}. Three sections with OVERLAPPING
+     * node_ids over a store whose vocab karyotype chromosome must be EXCLUDED; each
+     * section carries EDGES after its node_ids table (the bytes the targeted prefix
+     * read must never touch). Covers the exact counts, the within-section dedupe,
+     * the SRMECH_ERR_OVERFLOW capacity-retry contract, and the §101 cancel. */
+    {
+        const uint32_t ld = 64u;
+        unsigned char one_p[64];
+        unsigned char seed[64];
+        char scdir[1100];
+        /* edges sit AFTER node_ids in the §89 stream — deliberately present. */
+        uint64_t ei[3] = { 0u, 1u, 2u }, ej[3] = { 1u, 2u, 0u };
+        uint64_t ww[3] = { 5u, 4u, 3u };
+        uint64_t nidA[3] = { 10u, 20u, 30u };
+        uint64_t nidB[3] = { 20u, 30u, 40u };
+        uint64_t nidC[3] = { 30u, 50u, 30u };   /* a REPEAT — counts ONCE per section */
+        uint64_t ids[16], cnts[16];
+        size_t n_out = 0u, n_done = 0u, nsy = 0u;
+        srmech_status_t ss, st;
+        uint64_t cancel_at;
+        for (uint32_t i = 0; i < ld; i++) { one_p[i] = 1u; }
+        snprintf(scdir, sizeof(scdir), "%s_sc280", temp_dir());
+        (void)ensure_dir(scdir);
+        /* Seed with the VOCAB karyotype chromosome — the scan must SKIP it, so the
+         * section total is 3, not 4. */
+        memset(seed, 0, sizeof(seed));
+        seed[0] = SRMECH_GENOME_CHROM_CAP_MARKER;
+        memcpy(seed + 1, "__vocab__", 9u);
+        ss = srmech_genome_save(scdir, seed, sizeof(seed), ld, one_p,
+                                sizeof(one_p), g_ws, sizeof(g_ws));
+        check_true(ss == SRMECH_OK, "rc280: section store seeded (vocab chromosome)");
+        ss = srmech_genome_plasmid_extract(64u, ei, ej, ww, NULL, 3u, nidA, 3u,
+                                           NULL, 0u, scdir, "s0", ld, one_p,
+                                           g_ws, sizeof(g_ws), &nsy);
+        check_true(ss == SRMECH_OK, "rc280: section s0 extracted {10,20,30}");
+        ss = srmech_genome_plasmid_extract(64u, ei, ej, ww, NULL, 3u, nidB, 3u,
+                                           NULL, 0u, scdir, "s1", ld, one_p,
+                                           g_ws, sizeof(g_ws), &nsy);
+        check_true(ss == SRMECH_OK, "rc280: section s1 extracted {20,30,40}");
+        ss = srmech_genome_plasmid_extract(64u, ei, ej, ww, NULL, 3u, nidC, 3u,
+                                           NULL, 0u, scdir, "s2", ld, one_p,
+                                           g_ws, sizeof(g_ws), &nsy);
+        check_true(ss == SRMECH_OK, "rc280: section s2 extracted {30,50,30}");
+        /* the counts themselves: ASCENDING ids, one count per DISTINCT section. */
+        st = srmech_genome_section_counts(scdir, one_p, ld, NULL, NULL,
+                                          ids, cnts, 16u, &n_out, &n_done);
+        check_true(st == SRMECH_OK, "rc280: section_counts derives OK");
+        check_true(n_out == 5u, "rc280: 5 distinct global ids");
+        check_true(n_done == 3u, "rc280: 3 sections scanned (vocab EXCLUDED)");
+        check_true(ids[0] == 10u && ids[1] == 20u && ids[2] == 30u &&
+                   ids[3] == 40u && ids[4] == 50u,
+                   "rc280: ids ASCENDING 10,20,30,40,50");
+        check_true(cnts[0] == 1u && cnts[1] == 2u && cnts[2] == 3u &&
+                   cnts[3] == 1u && cnts[4] == 1u,
+                   "rc280: counts 1,2,3,1,1 (30 in all three; the s2 repeat once)");
+        {   /* OVERFLOW reports the TRUE need, and the retry at that size succeeds. */
+            uint64_t tid[2], tct[2];
+            size_t tn = 0u, td = 0u;
+            srmech_status_t so = srmech_genome_section_counts(
+                scdir, one_p, ld, NULL, NULL, tid, tct, 2u, &tn, &td);
+            check_true(so == SRMECH_ERR_OVERFLOW,
+                       "rc280: out_cap 2 < 5 -> SRMECH_ERR_OVERFLOW");
+            check_true(tn == 5u, "rc280: OVERFLOW reports the TRUE n_out (5)");
+            memset(ids, 0, sizeof(ids));
+            so = srmech_genome_section_counts(scdir, one_p, ld, NULL, NULL,
+                                              ids, cnts, tn, &n_out, &n_done);
+            check_true(so == SRMECH_OK && n_out == 5u && ids[4] == 50u,
+                       "rc280: retry at the reported cap succeeds");
+        }
+        {   /* CANCEL between whole SECTIONS: the partial counts still come back. */
+            g_sc_ticks = 0;
+            cancel_at = 1u;
+            memset(ids, 0, sizeof(ids));
+            memset(cnts, 0, sizeof(cnts));
+            st = srmech_genome_section_counts(scdir, one_p, ld, sc_cancel_at,
+                                              &cancel_at, ids, cnts, 16u,
+                                              &n_out, &n_done);
+            check_true(st == SRMECH_CANCELLED, "rc280: tick cancel -> SRMECH_CANCELLED");
+            check_true(n_done == 1u, "rc280: cancelled after 1 whole section");
+            check_true(g_sc_last_phase == (uint32_t)SRMECH_PHASE_EXTRACTING &&
+                       g_sc_last_total == 3u && g_sc_last_done == 1u,
+                       "rc280: tick carries EXTRACTING, done=1, total=3");
+            check_true(g_sc_ticks == 2, "rc280: ticks fired at done=0 then done=1");
+            check_true(n_out == 3u && ids[0] == 10u && ids[1] == 20u &&
+                       ids[2] == 30u && cnts[0] == 1u && cnts[1] == 1u &&
+                       cnts[2] == 1u,
+                       "rc280: the PARTIAL counts (s0 only) are still written");
+        }
+        {   /* a NULL tick runs exactly as the plain call; bad args are rejected. */
+            size_t bn = 0u, bd = 0u;
+            srmech_status_t b1 = srmech_genome_section_counts(
+                NULL, one_p, ld, NULL, NULL, ids, cnts, 16u, &bn, &bd);
+            srmech_status_t b2 = srmech_genome_section_counts(
+                scdir, one_p, 4u, NULL, NULL, ids, cnts, 16u, &bn, &bd);
+            srmech_status_t b3 = srmech_genome_section_counts(
+                scdir, one_p, ld, NULL, NULL, ids, cnts, 16u, NULL, &bd);
+            check_true(b1 == SRMECH_ERR_NULL_ARG, "rc280: NULL dir -> NULL_ARG");
+            check_true(b2 == SRMECH_ERR_BAD_INPUT, "rc280: leaf_dim < 52 -> BAD_INPUT");
+            check_true(b3 == SRMECH_ERR_NULL_ARG, "rc280: NULL n_out -> NULL_ARG");
         }
     }
 

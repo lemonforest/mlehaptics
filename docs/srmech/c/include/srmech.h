@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc279"
-#define SRMECH_VERSION       "0.9.0rc279"
+#define SRMECH_VERSION_PRE   "rc280"
+#define SRMECH_VERSION       "0.9.0rc280"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6544,6 +6544,83 @@ srmech_status_t srmech_genome_conserved_core(
     const uint64_t *node_ids, const uint64_t *counts, size_t n_nodes,
     long k_in, uint64_t *out_core_ids, size_t core_cap, size_t *out_n_core,
     uint64_t *out_k, int *out_bimodal, uint64_t *hist, size_t hist_cap);
+
+/* rc280 (§102 / F1253) — SECTION COUNTS: scan a PLASMID section store and derive
+ * {global_id -> n_sections}, the section-occurrence histogram
+ * srmech_genome_conserved_core reads. A bare-C host derives it END-TO-END (no
+ * Python anywhere in the loop); the pure srmech.amsc.plasmid.section_counts body
+ * is the byte-parity oracle. The VOCAB karyotype chromosome ("__vocab__") is
+ * EXCLUDED, and a node counts ONCE per section (deduped within the section).
+ *
+ * WHAT MAKES IT FAST (the two rc280 costs, both structural):
+ *   1. the store CATALOG is derived ONCE for the whole scan. On a v12 HEAD-ONLY
+ *      manifest, deriving it re-reads and re-Merkle-folds the WHOLE body, so
+ *      doing it per section — as a per-label window read does — is O(P * body),
+ *      quadratic in corpus size, and it dominated everything else measured.
+ *   2. per section ONLY the node_ids PREFIX of the region is paged, never the
+ *      EDGE bytes (the bulk of a co-occurrence section). NO format change was
+ *      needed: the §89 payload int stream is
+ *        [vocab_size, n_node_ids] + node_ids + [n_extras] + ... + [n_edges] + ...
+ *      so node_ids is a strict PREFIX; quad_turn is a per-leaf REVERSIBLE
+ *      Klein-4 XOR (leaf k uncouples from leaf k ALONE, no chaining) so a prefix
+ *      of coupled leaves uncouples to exactly the prefix of the symbol stream;
+ *      and the region's integrity bound is its LEADING cap, so a prefix of >= 1
+ *      block re-hashes the SAME cap_sha256 a whole-region read does. A prefix
+ *      read is not a weaker read — it is the same bound over fewer bytes.
+ *   Together: O(P^2 * body) -> O(P * node_ids).
+ *   dir            : the plasmid section store (a genome dir).
+ *   the_one        : the store's shared Klein-4 invariant, leaf_dim bytes.
+ *   leaf_dim       : the store's leaf width; >= 52 (the §89 header fits one leaf).
+ *   tick/tick_ctx  : §101 heartbeat, fired BETWEEN whole SECTIONS with phase
+ *                    SRMECH_PHASE_EXTRACTING, done = sections scanned so far,
+ *                    total = P. A NONZERO return CANCELS: SRMECH_CANCELLED is
+ *                    returned with the PARTIAL counts still written and *n_done
+ *                    set. (A partial count is not a smaller valid count, it is a
+ *                    WRONG one — it would shift every downstream conservation
+ *                    threshold — so the Python caller RAISES rather than
+ *                    returning it. The partial rides out for inspection/resume.)
+ *                    NULL = off.
+ *   out_ids/out_counts/out_cap : caller arrays; out_ids ASCENDING, out_counts[i]
+ *                    the number of DISTINCT sections carrying out_ids[i].
+ *   n_out          : out — the distinct-id count. ALWAYS the TRUE required count,
+ *                    INCLUDING on SRMECH_ERR_OVERFLOW, so a caller retries at
+ *                    exactly the size it needs (a short table would silently
+ *                    UNDER-count, and nothing downstream would reveal it).
+ *   n_done         : out — sections scanned.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — dir / the_one / n_out / n_done NULL, or an out array
+ *                          NULL with out_cap > 0.
+ *   SRMECH_ERR_BAD_INPUT — leaf_dim < 52 or > 256; a leaf_dim/manifest mismatch;
+ *                          a malformed catalog entry; a cap integrity failure; a
+ *                          section whose region cannot satisfy its own declared
+ *                          n_node_ids.
+ *   SRMECH_ERR_OVERFLOW  — out_cap < *n_out (retry at *n_out), OR the scratch
+ *                          below was too small for the store (then *n_out is 0,
+ *                          which the Python binding reads as a DECLINE and runs
+ *                          the pure body — correct, just not native).
+ *   SRMECH_CANCELLED     — a tick asked to stop (a clean section-boundary partial).
+ *
+ * NOT REENTRANT — this call has no `ws` arena parameter and JPL Rule 3 bans
+ * malloc, so its scratch is FILE-SCOPE static: a catalog arena, an open-addressed
+ * count table and a region window. Call from ONE thread at a time. All three are
+ * compile-time overridable, and these defaults are what bound a native scan:
+ *   SRMECH_GENOME_SC_ARENA_BYTES  (default 32 MiB) — the catalog arena. The store
+ *       must satisfy srmech_genome_arena_bytes(body_len, n_chroms, 0) <= this;
+ *       the per-chromosome term (~2.7 KiB) dominates, so ~11,000 sections.
+ *   SRMECH_GENOME_SC_HASH_SLOTS   (default 2^18)   — count-table slots (a power
+ *       of two); the distinct-id ceiling is 3/4 * slots == 196,608.
+ *   SRMECH_GENOME_SC_WINDOW_BYTES (default 64 KiB) — the region read window;
+ *       must exceed one block (leaf_dim <= 256).
+ * ADDITIVE plain symbol reusing the EXISTING srmech_progress_tick_cb_t typedef —
+ * SRMECH_ABI_VERSION stays 6, GENOME_FORMAT_VERSION stays 15. Integer/exact
+ * (Class-N); no float, no abs (a count and an id have no sign to strip — not a
+ * Class-K pin-slot site); no malloc, no goto, no recursion. */
+srmech_status_t srmech_genome_section_counts(
+    const char *dir,
+    const unsigned char *the_one, uint32_t leaf_dim,
+    srmech_progress_tick_cb_t tick, void *tick_ctx,
+    uint64_t *out_ids, uint64_t *out_counts, size_t out_cap,
+    size_t *n_out, size_t *n_done);
 
 /* rc279 (§102 / F1252 STAGE 2 — ORGANIZE) — the C-native ORGANIZE orchestrator:
  * PROMOTE the conserved core then MERGE the retained plasmid sections into ONE

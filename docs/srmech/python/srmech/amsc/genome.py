@@ -5660,6 +5660,21 @@ def _disk_block(mem_block: bytes, leaf_dim: int) -> bytes:
     return _pack_turn_block(mem_block)
 
 
+#: Every block-kind marker byte that keys a LEAF-WIDE (``leaf_dim``-byte) on-disk
+#: block — §95a/§95b/§98 caps plus the §60 kernel header. ONE tuple shared by the
+#: strict :func:`_walk_region_blocks` and the rc280 prefix walker
+#: :func:`_walk_region_prefix_blocks`, so the two can never drift on which
+#: markers are leaf-wide (a drift would mis-stride one walker against the other).
+_LEAF_WIDE_BLOCK_MARKERS = (
+    CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+    BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
+    KERNEL_HEADER_MARKER,
+    KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
+    CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
+    CHROMATIN_MARKER,
+)
+
+
 def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"):
     """Walk a raw on-disk byte region block-by-block — the dual-format (v2 |
     v3 | mixed) walker. Yields ``(raw_block, decoded_block)`` where ``raw_block``
@@ -5674,12 +5689,7 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
-        if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-                    BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
-                    KERNEL_HEADER_MARKER,
-                    KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-                    CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-                    CHROMATIN_MARKER) or kind <= 3:   # §95a/§95b/§98 caps = leaf-wide
+        if kind in _LEAF_WIDE_BLOCK_MARKERS or kind <= 3:
             end = k + leaf_dim
             if end > n:
                 raise GenomeBoundingError(
@@ -6720,6 +6730,232 @@ def _read_region(path, entry, leaf_dim) -> bytes:
             f"genome chromosome {entry['label']!r}: cap integrity bound failed"
         )
     return region
+
+
+# ── §102 / rc280 TARGETED REGION READ ────────────────────────────────────────
+# The §89 graph-kernel payload is emitted by _graph_kernel_encode as
+#
+#     [vocab_size, n_node_ids] + node_ids + [n_extras] + extras + [n_edges] + edges…
+#
+# so the node_ids label table is a strict PREFIX of the stream, and the edges —
+# which are the BULK of a co-occurrence section — sit strictly AFTER it. A reader
+# that only wants node_ids therefore never has to touch the edge bytes at all.
+# Two on-disk properties make paging just that prefix sound, with NO format change:
+#
+#   1. quad_turn is a per-leaf REVERSIBLE Klein-4 XOR bind against the_one — leaf k
+#      uncouples from leaf k alone. There is no chaining across turns, so a prefix
+#      of the coupled leaves uncouples to exactly the prefix of the symbol stream.
+#   2. _read_region's integrity bound is the leading CHROM/kernel cap, which is the
+#      region's FIRST leaf_dim bytes — so it is present in, and paid identically by,
+#      every prefix of at least one block.
+#
+# This is what turns section_counts from O(P * whole section) into O(P * node_ids).
+
+#: The widest ONE serialised int in the graph-kernel stream: a 2-symbol length
+#: header + at most :data:`_GRAPH_KERNEL_MAX_DIGITS` base-4 digits. Used only as the
+#: LAST-RESORT width when nothing has been measured yet — sizing every read at this
+#: worst case would be badly over-pessimistic (a small vocab id costs 5 symbols, not
+#: 17), which would read the whole region and defeat the targeted read entirely.
+_GRAPH_KERNEL_MAX_INT_SYMS = 2 + _GRAPH_KERNEL_MAX_DIGITS
+
+#: The first-pass probe width in SYMBOLS — one leaf's worth. Enough to carry the two
+#: leading ints (``vocab_size`` + ``n_node_ids``) plus a run of node_ids, so the very
+#: first read both learns how many ids there are AND measures what an id actually
+#: costs on this genome. Subsequent passes size from that measurement.
+_NODE_IDS_PROBE_SYMS = 64
+
+#: How many leading ints precede the node_ids table: ``vocab_size``, ``n_node_ids``.
+_NODE_IDS_HEADER_INTS = 2
+
+
+def _walk_region_prefix_blocks(region: bytes, leaf_dim: int):
+    """Walk a region BYTE-PREFIX block-by-block, STOPPING CLEANLY at the last
+    COMPLETE block (§102/rc280).
+
+    The strict :func:`_walk_region_blocks` raises :class:`GenomeBoundingError` on a
+    block that runs past the end — correct for a whole region, wrong for a
+    deliberately truncated read, where a partial trailing block is EXPECTED (a byte
+    prefix does not in general end on a block boundary). Same strides, same decode,
+    same unrecognised-marker rejection; only the trailing-partial case differs, so a
+    corrupt marker is still caught. Yields ``(raw_block, decoded_block)``."""
+    plen = _packed_payload_len(leaf_dim)
+    k, n = 0, len(region)
+    while k < n:
+        kind = region[k]
+        if kind in _LEAF_WIDE_BLOCK_MARKERS or kind <= 3:
+            end = k + leaf_dim
+            if end > n:
+                return                        # trailing PARTIAL block — stop clean
+            yield region[k:end], region[k:end]
+        elif kind == PACKED_TURN_MARKER:
+            end = k + 1 + plen
+            if end > n:
+                return                        # trailing PARTIAL block — stop clean
+            yield region[k:end], _unpack_turn_payload(region[k + 1:end], leaf_dim)
+        else:
+            raise GenomeBoundingError(
+                f"genome region prefix: unrecognised block kind byte {kind} at "
+                f"offset {k} (not a cap, a packed turn, or a Klein-4 symbol)"
+            )
+        k = end
+
+
+def _read_region_prefix(path, entry, leaf_dim, max_bytes) -> bytes:
+    """Page in ONLY the leading ``max_bytes`` bytes of ONE chromosome's region
+    (§102/rc280) — seek + bounded read + the SAME leading-cap integrity bound
+    :func:`_read_region` pays.
+
+    The cap is the region's first ``leaf_dim`` bytes, so any prefix of at least one
+    block still re-hashes it against the manifest's ``cap_sha256`` — the targeted
+    read is NOT a weaker read, it is the same bound over fewer bytes. ``max_bytes``
+    is clamped to the region's true ``byte_len`` (asking for more is not an error,
+    it just reads the whole region) and floored at one block."""
+    byte_len = int(entry["byte_len"])
+    want = byte_len if max_bytes > byte_len else max_bytes
+    if want < leaf_dim:
+        want = leaf_dim if leaf_dim < byte_len else byte_len
+    with (path / _BODY_NAME).open("rb") as f:
+        f.seek(int(entry["byte_offset"]))
+        region = f.read(want)
+    if len(region) != want:
+        raise GenomeBoundingError(
+            f"genome region {entry['label']!r} truncated "
+            f"({len(region)} of {want} prefix bytes)"
+        )
+    if _sha256_bytes(region[:leaf_dim]) != entry["cap_sha256"]:
+        raise GenomeBoundingError(
+            f"genome chromosome {entry['label']!r}: cap integrity bound failed"
+        )
+    return region
+
+
+def _prefix_syms(region, leaf_dim, the_one):
+    """The flat Klein-4 symbol stream carried by a region (or region PREFIX) —
+    caps skipped, every data turn uncoupled through ``the_one``, the §89 header
+    leaf consumed for the kernel's TRUE length ``D`` and the content trimmed to it.
+
+    The prefix-safe mirror of what :func:`kernel_unpack` does for a whole strand:
+    ``leaves[0]`` is the uniformly-Klein-4 header leaf, ``leaves[1:]`` the content.
+    Trimming to ``D`` matters even here — a SHORT section's last leaf carries pad
+    symbols that would otherwise decode as spurious trailing ints."""
+    leaves = [_hv_from_block(dec)
+              for _raw, dec in _walk_region_prefix_blocks(region, leaf_dim)
+              if not _block_is_cap(dec)]
+    if not leaves:
+        return []
+    unc = [quad_turn(hv, the_one) for hv in leaves]
+    true_len, _ld, _et = _unpack_kernel_header_klein4(unc[0])
+    flat = [int(x) for lf in unc[1:] for x in lf]
+    return flat[:true_len] if true_len < len(flat) else flat
+
+
+def _prefix_bytes_for_syms(n_syms, leaf_dim, byte_len):
+    """The region-prefix BYTE budget for ``n_syms`` payload symbols: the leading cap +
+    the §89 header leaf + enough content turns. Clamped to the region's real length.
+
+    Turns are sized at the **v3 packed** width (``1 + ceil(leaf_dim/4)``), the NARROWER
+    of the two on-disk turn forms — i.e. this estimate is deliberately OPTIMISTIC. The
+    asymmetry is the point: :func:`_section_node_ids` wraps this in a growth loop, so
+    under-reading merely costs one more bounded read, while over-reading costs I/O on
+    every section of every scan. Sizing for the wider v2 byte-per-symbol turn would
+    inflate every estimate ~3.8x at ``leaf_dim=64`` and page most of the region — which
+    is exactly the cost this whole targeted read exists to avoid."""
+    turn = 1 + _packed_payload_len(leaf_dim)
+    n_turns = (n_syms + leaf_dim - 1) // leaf_dim
+    need = leaf_dim + turn * (n_turns + 1)     # cap + header leaf + content turns
+    return byte_len if need > byte_len else need
+
+
+def _graph_prefix_ints(syms):
+    """``(ints, n_syms_consumed)`` — :func:`_graph_syms_to_ints` plus how many symbols
+    the complete ints actually occupied. The consumed count is what lets the targeted
+    read MEASURE this genome's real cost-per-int instead of assuming the worst case."""
+    ints, i = [], 0
+    n = len(syms)
+    while i + 2 <= n:
+        ln = syms[i] + (syms[i + 1] << 2)
+        if ln == 0 or i + 2 + ln > n:
+            break
+        v = 0
+        for k in range(ln):
+            v |= syms[i + 2 + k] << (2 * k)
+        ints.append(v)
+        i += 2 + ln
+    return ints, i
+
+
+def _section_node_ids(path, entry, leaf_dim, the_one):
+    """The GLOBAL ``node_ids`` label table of ONE §89 graph-kernel section, read by
+    paging ONLY the node_ids region — never the section's edges (§102/rc280).
+
+    The read GROWS to fit rather than sizing for the worst case. A serialised int is
+    2 symbols of length header plus 1–15 base-4 digits, so a worst-case budget is
+    ~3.4x too big for the id widths a real corpus produces — big enough that it would
+    page the whole region and save nothing. Instead:
+
+    1. a one-leaf PROBE prefix, decoded to recover ``n_node_ids`` AND to MEASURE the
+       mean symbols-per-int actually used by this genome;
+    2. a re-read sized from that measurement (with a symbol of slack per int), and if
+       that still falls short, geometric growth — so the loop always makes progress
+       and terminates at the whole region in the limit.
+
+    Typical case: two bounded reads totalling ~the node_ids extent, independent of how
+    many EDGES the section carries. Byte-identical to the ``node_ids`` a full
+    :func:`_graph_kernel_decode` of the same section returns — never short (a short
+    table would silently UNDER-count, which is why every path here either satisfies
+    ``n_node_ids`` or ends up having read the entire region)."""
+    byte_len = int(entry["byte_len"])
+    want = _prefix_bytes_for_syms(_NODE_IDS_PROBE_SYMS, leaf_dim, byte_len)
+    while True:
+        ints, used = _graph_prefix_ints(
+            _prefix_syms(_read_region_prefix(path, entry, leaf_dim, want),
+                         leaf_dim, the_one))
+        at_end = want >= byte_len
+        if len(ints) >= _NODE_IDS_HEADER_INTS:
+            n_nid = int(ints[1])
+            if n_nid <= 0:
+                return []
+            need = _NODE_IDS_HEADER_INTS + n_nid
+            if len(ints) >= need:
+                return [int(v) for v in ints[_NODE_IDS_HEADER_INTS:need]]
+            # MEASURED width (round up, +1 symbol of slack), not the 17-symbol worst
+            # case — this is what keeps the read proportional to node_ids.
+            per = ((used + len(ints) - 1) // len(ints)) + 1 if ints \
+                else _GRAPH_KERNEL_MAX_INT_SYMS
+            grow = _prefix_bytes_for_syms(need * per, leaf_dim, byte_len)
+            if at_end:
+                raise GenomeBoundingError(
+                    f"genome chromosome {entry['label']!r}: its §89 payload declares "
+                    f"{n_nid} node_ids but only {len(ints) - _NODE_IDS_HEADER_INTS} "
+                    f"are present in the whole {byte_len}-byte region — the section "
+                    f"is malformed (a SHORT node_ids table would silently under-count)"
+                )
+        else:
+            if at_end:
+                return []                       # a section carrying no payload at all
+            grow = 0                            # nothing decoded yet — just double
+        if grow <= want:                        # guarantee forward progress
+            grow = want * 2
+        want = byte_len if grow > byte_len else grow
+
+
+def _region_leaves(path, entry, leaf_dim):
+    """One chromosome's stored DATA turns, paged against an ALREADY-DERIVED catalog
+    ``entry`` (§102/rc280) — the catalog-once counterpart of :func:`genome_window`.
+
+    :func:`genome_window` re-derives the whole catalog on EVERY call, and on a v12
+    head-only manifest that means re-reading and re-Merkle-folding the entire body
+    per chromosome. A caller looping over P chromosomes pays O(P × body) for what is
+    O(body) of actual work. Deriving :func:`_catalog_data` once and calling this per
+    chromosome is byte-identical and removes that quadratic term. Same bounded read,
+    same leading-cap integrity bound, same cap-skipping walk."""
+    return [
+        _hv_from_block(decoded)
+        for _raw, decoded in _walk_region_blocks(
+            _read_region(path, entry, leaf_dim), leaf_dim,
+            context=f"_region_leaves({entry['label']!r})")
+        if not _block_is_cap(decoded)
+    ]
 
 
 def _region_strand(region, leaf_dim) -> List["_HV"]:
