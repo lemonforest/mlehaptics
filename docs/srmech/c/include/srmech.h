@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc273"
-#define SRMECH_VERSION       "0.9.0rc273"
+#define SRMECH_VERSION_PRE   "rc274"
+#define SRMECH_VERSION       "0.9.0rc274"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5328,6 +5328,21 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * _CHROMATIN_LEVEL_BYTES in srmech.amsc.genome. */
 #define SRMECH_GENOME_CHROMATIN_LEVEL_BYTES 8u
 
+/* §102/v15 (§102/G1 / rc274) chromatin ACCESS-GATE type — an additive uint8 field in the cap's
+ * existing NUL padding RIGHT AFTER den (the same dual-read discipline as the §129 repressor / §135
+ * copy-number: pre-rc274 NUL padding reads back as NONE). It makes the 0x48 access layer CELL-
+ * STATE-CONDITIONAL (facultative heterochromatin — Barr body / X-inactivation): NONE (0) =
+ * CONSTITUTIVE (accessibility is the STATIC stored num/den, constant in cell_state — the pre-rc274
+ * read); KLEIN4/BOOLEAN/THRESHOLD (1/2/3) = FACULTATIVE — the stored num/den is the WHEN-OPEN level,
+ * returned iff the gate FIRES under cell_state (the SAME §129/§130/§131 gene-gate evaluators applied
+ * to the chromatin cap), else (0,1) (silenced). Same 0x48 marker → no new marker / block kind, so
+ * SRMECH_GENOME_FORMAT_VERSION STAYS 15 and a constitutive cap is BYTE-IDENTICAL to a v15 cap.
+ * Single-line #defines (JPL Rule 8). Mirrors CHROMATIN_GATE_* in srmech.amsc.genome. */
+#define SRMECH_GENOME_CHROMATIN_GATE_NONE 0u
+#define SRMECH_GENOME_CHROMATIN_GATE_KLEIN4 1u
+#define SRMECH_GENOME_CHROMATIN_GATE_BOOLEAN 2u
+#define SRMECH_GENOME_CHROMATIN_GATE_THRESHOLD 3u
+
 /* Max label byte length (NUL-terminated) for one chromosome. This is a FORMAT
  * width (a label lives inline in a leaf_dim-byte cap block, like PATH_MAX), NOT
  * a count cap — the number of chromosomes is bounded only by the caller arena. */
@@ -5560,6 +5575,38 @@ srmech_status_t srmech_genome_chromatin_of(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     unsigned char *type_out, uint64_t *num_out, uint64_t *den_out,
     size_t *at_out, int *found_out);
+
+/* §102/v15 (§102/G1 / rc274) — the COMPUTED accessibility level of ONE chromatin cap under
+ * cell_state (mirror srmech.amsc.genome._chromatin_access). Decode the static (chromatin_type, num,
+ * den); read the §102 access_gate_type at den_end (guard den_end < leaf_dim, else NONE): NONE →
+ * (num, den) (constitutive, constant in cell_state); a facultative KLEIN4/BOOLEAN/THRESHOLD gate →
+ * (num, den) if the gate FIRES under cell_state (the SAME §129/§130/§131 evaluators), else (0, 1)
+ * (silenced). `cap` is ONE leaf_dim-byte 0x48 cap. Byte-identical to the pure Python. Additive
+ * symbol → SRMECH_ABI_VERSION stays 5. Caller-arena (no malloc), no abs, no float; a READ.
+ *   SRMECH_ERR_NULL_ARG  — cap / num_out / den_out NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, cap[0] != 0x48, a malformed cap / gate, or an
+ *                          unsupported access_gate_type.
+ *   SRMECH_ERR_OVERFLOW   — an int64 threshold-accumulate overflow (caller falls to the exact
+ *                          pure/bignum Python path — the native result, when produced, is exact). */
+srmech_status_t srmech_genome_chromatin_access(
+    const unsigned char *cap, uint32_t leaf_dim, uint64_t cell_state,
+    uint64_t *num_out, uint64_t *den_out);
+
+/* §102/v15 (§102/G1 / rc274) — the FACULTATIVE chromatin cap writer (mirror the bytes behind
+ * srmech.amsc.genome._pack_chromatin with a gate): srmech_genome_chromatin, then append
+ * `gate_blob = [access_gate_type(u8)] + payload` VERBATIM after den, NUL-padded to dim. The Python
+ * _chromatin_gate_blob serialisation is the oracle; this appends its bytes. A NONE (constitutive)
+ * cap passes gate_blob_len 0 → byte-identical to srmech_genome_chromatin. Additive symbol →
+ * SRMECH_ABI_VERSION stays 5. Caller-arena (no malloc), no abs, no float.
+ *   SRMECH_ERR_NULL_ARG  — out NULL, handle NULL with handle_len > 0, or gate_blob NULL with
+ *                          gate_blob_len > 0.
+ *   SRMECH_ERR_BAD_INPUT  — the constitutive cap does not build (see srmech_genome_chromatin), or
+ *                          [marker+handle+NUL+type+num+den+gate_blob] does not fit dim. */
+srmech_status_t srmech_genome_chromatin_gated(
+    unsigned char chromatin_type, uint64_t num, uint64_t den,
+    const unsigned char *gate_blob, size_t gate_blob_len,
+    const unsigned char *handle, size_t handle_len, uint32_t dim,
+    unsigned char *out, size_t out_cap);
 
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome): a CHROM / kernel-telomere / active-telomere cap opens a
