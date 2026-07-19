@@ -4245,10 +4245,15 @@ def integrate(host, provirus, *, at=None, compatible=None):
     unchanged).
 
     Class-C (the integration/orientation) ∘ Class-K (the coherency-width equality gate) ∘
-    composition of the C-built chromosome strands. A C-only host integrates identically by
-    concatenating the two genomes' self-describing regions (byte-identical blocks) at a chromosome
-    boundary — the region byte-offsets are in the manifest. Never ``abs()`` (the gate is an
-    equality read, not a magnitude).
+    composition of the C-built chromosome strands. A C-only host integrates identically via the
+    ``srmech_genome_integrate`` C peer (rc276 / G4): it scans the host's fixed-width blocks for
+    chromosome-boundary caps, resolves the SAME ``at`` → locus, applies the SAME width-coherence
+    gate, and concatenates the two genomes' self-describing regions (byte-identical blocks) at the
+    chromosome boundary — no manifest needed (the strand self-describes on the block scan). When
+    ``HAS_NATIVE`` this Python path DISPATCHES the splice to that peer (byte-identical whether
+    native or pure — the differential proof). The ``compatible=`` hook stays a Python-layer
+    affordance (a callable cannot cross the C wire, so it is checked here, around the dispatch).
+    Never ``abs()`` (the gate is an equality read, not a magnitude).
     """
     host = list(host)
     provirus = list(provirus)
@@ -4276,6 +4281,28 @@ def integrate(host, provirus, *, at=None, compatible=None):
                 "integrate: at={!r} out of range [0, {}] (host chromosome index)".format(
                     at, len(bounds)))
         locus = bounds[at] if at < len(bounds) else len(host)
+    # rc276 (#891 / G4): DISPATCH the SPLICE to the srmech_genome_integrate C peer when
+    # HAS_NATIVE + uniform fixed-width leaf_dim blocks — byte-identical (scan the host's
+    # boundary caps, resolve the SAME at→locus, concatenate whole self-describing blocks).
+    # A bare-C host runs the whole op via that peer; here it proves native == pure. The
+    # width gate + compatible hook already passed above, so the C peer integrates (its own
+    # gate returns integrated=1). The pure block splice below is the numpy-free fallback +
+    # parity oracle (and any non-uniform-width strand). NEVER abs() (an equality read).
+    host_blocks = _leaf_blocks(host)
+    prov_blocks = _leaf_blocks(provirus)
+    prov_dim = len(prov_blocks[0])
+    host_dim = len(host_blocks[0]) if host_blocks else prov_dim
+    if (all(len(b) == host_dim for b in host_blocks)
+            and all(len(b) == prov_dim for b in prov_blocks)):
+        native = _native.genome_integrate_c(
+            b"".join(host_blocks), len(host_blocks), host_dim,
+            b"".join(prov_blocks), len(prov_blocks), prov_dim,
+            -1 if at is None else at)
+        if native is not None:
+            out_bytes, integrated = native
+            if integrated:
+                return [_hv_from_block(out_bytes[i * prov_dim:(i + 1) * prov_dim])
+                        for i in range(len(out_bytes) // prov_dim)]
     return host[:locus] + provirus + host[locus:]
 
 

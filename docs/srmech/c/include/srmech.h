@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc275"
-#define SRMECH_VERSION       "0.9.0rc275"
+#define SRMECH_VERSION_PRE   "rc276"
+#define SRMECH_VERSION       "0.9.0rc276"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5651,6 +5651,46 @@ srmech_status_t srmech_genome_recover_diploid(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     const unsigned char *the_one, unsigned char *out, size_t out_cap,
     size_t *n_out);
+
+/* §95.1d/v15 INTEGRATE (rc276, #891 / F1244 / G4) — the stage-2 SPLICE primitive:
+ * insert a PROVIRUS chromosome strand INTO a host genome strand at a chromosome
+ * boundary (mirror srmech.amsc.genome.integrate). Scans the host's leaf_dim-byte
+ * blocks for boundary caps (CHROM / kernel-telomere / active-telomere / diploid),
+ * resolves the insert LOCUS from `at` (the host chromosome index to insert BEFORE),
+ * and concatenates host[:locus] + provirus + host[locus:] BYTE-IDENTICALLY — whole
+ * self-describing blocks, no re-coupling (the provirus turns are already coupled).
+ * A bare-C host integrates end-to-end via this ONE call (closes the rc262/rc273
+ * "a C-only host integrates identically" claim, which previously had no C peer).
+ *   host / host_blocks / host_leaf_dim : the host strand (host may be NULL iff 0
+ *                       blocks); host_leaf_dim is read only when host_blocks > 0.
+ *   provirus / prov_blocks / prov_leaf_dim : the provirus strand (>= 1 block,
+ *                       opening with a boundary cap); prov_leaf_dim == the output width.
+ *   at                : host chromosome index to insert BEFORE (0-based); < 0 = after
+ *                       the last chromosome (the Python `at=None` default).
+ *   out / out_cap     : caller buffer; out_cap >= (host_blocks + prov_blocks)*prov_leaf_dim.
+ *   n_blocks_out      : out — the spliced block count (host_blocks + prov_blocks) on a
+ *                       compatible integration; untouched on an honest-decline.
+ *   integrated_out    : out — 1 on a compatible splice, 0 on an honest-decline.
+ * The DEFAULT COMPATIBILITY GATE (§135/F1251): an empty host coheres with any
+ * provirus; else host_leaf_dim == prov_leaf_dim (a Class-K coupling-WIDTH EQUALITY
+ * read, NEVER abs — different widths were coupled through different `the_one`
+ * invariants: the CG258 incompatible-replicon analog). On incompatibility this
+ * HONEST-DECLINES (*integrated_out = 0, nothing written, SRMECH_OK — the C analog of
+ * the Python None; mirrors centromere_of's *found_out = 0). The `compatible=` caller
+ * predicate stays a Python-layer affordance (a callable cannot cross the C wire).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out / n_blocks_out / integrated_out NULL, provirus NULL with
+ *                          prov_blocks > 0, or host NULL with host_blocks > 0.
+ *   SRMECH_ERR_BAD_INPUT  — a leaf_dim 0 / > 256, an empty provirus, a provirus / host
+ *                          not opening with a boundary cap, or `at` out of range.
+ *   SRMECH_ERR_OVERFLOW   — out_cap too small for the spliced strand.
+ * Additive symbol (no new typedef) -> SRMECH_ABI_VERSION stays 6, GENOME_FORMAT_VERSION
+ * stays 15. Caller-arena; no malloc/goto/abs/float. */
+srmech_status_t srmech_genome_integrate(
+    const unsigned char *host, size_t host_blocks, uint32_t host_leaf_dim,
+    const unsigned char *provirus, size_t prov_blocks, uint32_t prov_leaf_dim,
+    long at, unsigned char *out, size_t out_cap,
+    size_t *n_blocks_out, int *integrated_out);
 
 /* §98/v15 CHROMATIN cap writer (rc268, #1422) — mirror srmech.amsc.genome._pack_chromatin:
  * `[0x48] + handle + NUL + chromatin_type + num(uint64 BE) + den(uint64 BE), NUL-padded to dim`.

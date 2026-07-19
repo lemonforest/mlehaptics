@@ -1192,6 +1192,78 @@ int main(void)
                    "rc273: plain gene (no copy-number, copy_number 1) reads always-express");
     }
 
+    /* §95.1d/rc276 (F1244 / G4) — srmech_genome_integrate SPLICE + gate. Host has TWO
+     * chromosomes A (blocks 0..1) + B (blocks 2..4); provirus P is ONE chromosome
+     * (blocks 0..1). Boundary caps at host blocks 0 (A) and 2 (B) => 2 chromosomes.
+     * Verify every `at` locus + the honest-decline gate against a hand-built oracle. */
+    {
+        const uint32_t ld = 4u;
+        unsigned char H[20] = {
+            CC,'A',0,0,   0,1,2,3,      /* chrom A: cap + 1 turn   (blocks 0,1) */
+            CC,'B',0,0,   2,2,1,1,  3,0,2,1,  /* chrom B: cap + 2 turns (blocks 2,3,4) */
+        };
+        unsigned char P[8] = { CC,'P',0,0,   1,1,2,2 };   /* provirus: cap + 1 turn */
+        unsigned char got[64];
+        unsigned char exp[64];
+        /* (a) at locus-block combos: -1(None)->5, 0->0, 1->2, 2(==nchrom)->5. */
+        long ats[4]   = { -1L, 0L, 1L, 2L };
+        size_t locs[4] = { 5u, 0u, 2u, 5u };            /* expected locus, in blocks */
+        const char *tags[4] = { "at=None (append last)", "at=0 (before A)",
+                                "at=1 (before B)", "at=2 (== nchrom, append last)" };
+        for (int c = 0; c < 4; c++) {
+            size_t loc = locs[c];
+            size_t nbo = 0u; int integ = -1;
+            srmech_status_t ist = srmech_genome_integrate(
+                H, 5u, ld, P, 2u, ld, ats[c], got, sizeof(got), &nbo, &integ);
+            /* oracle: H[:loc] + P + H[loc:] */
+            memcpy(exp, H, loc * ld);
+            memcpy(exp + loc * ld, P, sizeof(P));
+            memcpy(exp + loc * ld + sizeof(P), H + loc * ld, sizeof(H) - loc * ld);
+            check_true(ist == SRMECH_OK && integ == 1 && nbo == 7u &&
+                       memcmp(got, exp, sizeof(H) + sizeof(P)) == 0, tags[c]);
+        }
+        /* (b) empty host coheres -> out == provirus. */
+        {
+            size_t nbo = 0u; int integ = -1;
+            srmech_status_t ist = srmech_genome_integrate(
+                NULL, 0u, ld, P, 2u, ld, -1L, got, sizeof(got), &nbo, &integ);
+            check_true(ist == SRMECH_OK && integ == 1 && nbo == 2u &&
+                       memcmp(got, P, sizeof(P)) == 0, "rc276: empty host -> provirus");
+        }
+        /* (c) width incoherence -> HONEST-DECLINE (integrated 0, nothing written). */
+        {
+            unsigned char P8[16] = { CC,'Q',0,0,0,0,0,0,  1,1,2,2,0,0,0,0 };
+            size_t nbo = 99u; int integ = -1;
+            srmech_status_t ist = srmech_genome_integrate(
+                H, 5u, ld, P8, 2u, 8u, -1L, got, sizeof(got), &nbo, &integ);
+            check_true(ist == SRMECH_OK && integ == 0,
+                       "rc276: width mismatch -> honest-decline (integrated 0)");
+        }
+        /* (d) at out of range -> BAD_INPUT (2 chromosomes, at=3 > 2). */
+        {
+            size_t nbo = 0u; int integ = -1;
+            srmech_status_t ist = srmech_genome_integrate(
+                H, 5u, ld, P, 2u, ld, 3L, got, sizeof(got), &nbo, &integ);
+            check_true(ist == SRMECH_ERR_BAD_INPUT, "rc276: at out of range -> BAD_INPUT");
+        }
+        /* (e) provirus not opening with a boundary cap -> BAD_INPUT. */
+        {
+            unsigned char bad[8] = { 0,1,2,3,  1,1,1,1 };   /* first block is a data turn */
+            size_t nbo = 0u; int integ = -1;
+            srmech_status_t ist = srmech_genome_integrate(
+                H, 5u, ld, bad, 2u, ld, -1L, got, sizeof(got), &nbo, &integ);
+            check_true(ist == SRMECH_ERR_BAD_INPUT, "rc276: provirus no boundary cap -> BAD_INPUT");
+        }
+        /* (f) out_cap too small -> OVERFLOW. */
+        {
+            unsigned char tiny[8];
+            size_t nbo = 0u; int integ = -1;
+            srmech_status_t ist = srmech_genome_integrate(
+                H, 5u, ld, P, 2u, ld, -1L, tiny, sizeof(tiny), &nbo, &integ);
+            check_true(ist == SRMECH_ERR_OVERFLOW, "rc276: out_cap too small -> OVERFLOW");
+        }
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }
