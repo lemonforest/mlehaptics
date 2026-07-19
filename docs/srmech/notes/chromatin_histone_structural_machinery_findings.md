@@ -49,7 +49,7 @@ Read from `docs/srmech/python/srmech/amsc/genome.py` + `CHANGELOG.md` [0.9.0rc26
 
 | # | Biology structure | Cascade-shape (form) | srmech element | Status | Attested source |
 |---|---|---|---|---|---|
-| 1 | **Nucleosome** — octamer 2×(H2A/H2B/H3/H4), 146 bp wrapped **1.65 left-handed turns**; H1 linker; 10 nm "beads-on-a-string" | fixed-ratio **quantized grouping** of ~147 data units into one packaging/positioning quantum | `turn` = one Klein-4 leaf (2 bits ≈ **one base-pair**); chromosomes/tomes group turns — but **no ~147-unit grouping quantum between datum and domain** | **GAP** (missing rung) | MBoC 4th ed, NBK26834 (attested, fetched); Luger et al. 1997 *Nature* 389:251-260 (paywalled-primary, fact OA-corroborated) |
+| 1 | **Nucleosome** — octamer 2×(H2A/H2B/H3/H4), DNA wrapped ~1.65–1.7 left-handed turns **for the canonical particle only**; H1 linker; 10 nm "beads-on-a-string". **⚠ NOT a fixed quantum — see §2.1** | **quantized grouping** of data units into one packaging/positioning quantum, keyed on the **integer contact count *k*** (attested **14**), *not* on a turn decimal | `turn` = one Klein-4 leaf (2 bits ≈ **one base-pair**); chromosomes/tomes group turns — but **no grouping quantum between datum and domain** | **GAP** (missing rung) | Hodges et al. 2015 *Genetics* PMC4512544 (14 contacts, attested); McGinty & Tan 2014 *Chem Rev* PMC4378457 (147 bp; dyad-on-a-bp); MBoC NBK26834. **Amended 2026-07-19 — see §2.1** |
 | 2a | **Euchromatin vs heterochromatin** — open/transcribed vs condensed/silenced | binary/graded **access gate** over a region | `condense`/`decondense`/`chromatin_of`; the OUTER gate in `gene_express*` | **HAVE** | MBoC NBK26834 (histone code); NBK21137 *Genomes* "Accessing the Genome" (OA) |
 | 2b | **Constitutive** het (permanent — centromeres/telomeres, H3K9me3/HP1) | **structural, mint-time, cell-state-invariant** silence tied to structural landmarks | centromere `0x58` + telomere markers **already are** the constitutive anchors; chromatin `(0,1)` can pin them | **PARTIAL** | NBK21137; Chadwick & Willard 2004 *PNAS* PMC534659 (OA) |
 | 2c | **Facultative** het (context-dependent — Barr body / X-inactivation, H3K27me3/Polycomb) | **cell-state-conditional** access — the access layer itself responds to state | chromatin level is **statically stored**; it is NOT itself a function of `cell_state` (only the *gene* gate is) | **GAP** | NBK45037 (OA); Chadwick & Willard 2004 (OA) |
@@ -57,6 +57,56 @@ Read from `docs/srmech/python/srmech/amsc/genome.py` + `CHANGELOG.md` [0.9.0rc26
 | 4 | **Higher-order** — 10/30 nm fiber, loops, **TADs** (CTCF/cohesin insulators), chromosome territories; A/B compartments | **spectral community partition** with **encoded insulator boundaries**; genome-scale two-way split | `recursive_cut` communities/tomes; rc272 participation split (≈ A/B compartments) | **PARTIAL** (communities HAVE; **insulator marker MISSING**) | Dixon 2012 *Nature* PMC3356448; Lieberman-Aiden 2009 *Science* PMC2858594; Cremer & Cremer 2010 *CSHPB* (OA) — all PMCID-cited, not PDF-verified this pass |
 | 5 | **Chromatin remodelers** (SWI/SNF, ISWI, CHD, INO80) — **ATP-driven** nucleosome repositioning = active WRITE | an **energy-gated actuator** that writes the access layer | `condense`/`decondense` ARE the write-op; the ATP/energy budget = MFO EPH power source (F1059) is **not modeled** | **HAVE (write) / MISSING (energy gate)** | Clapier & Cairns 2009 *Annu Rev Biochem* 78:273-304 (paywalled-primary; training-attribution) |
 | 6 | **Accessibility as index** — nucleosome-free promoters, DNase-HS / ATAC-seq; the accessibility landscape | **cell-state-indexed distributed TOC** — where the open regions are IS "where is what" | rc269 chromatin-gated demand-load plan = the mechanism, but **not named/exposed as the §876 index** | **PARTIAL (latent)** | Klemm, Shipony & Greenleaf 2019 *Nat Rev Genet* 20:207-220 (OA PDF + PMID 30675018); Buenrostro 2013 *Nat Methods* PMC3959825 |
+
+---
+
+## 2.1 AMENDMENT (2026-07-19) — the nucleosome wrap is NOT a fixed quantum
+
+> **Supersedes** the "fixed-ratio ~147-unit quantum / 1.65 turns" framing in row 1 above and in **G3**
+> below. Source: `nucleosome_turn_asymmetry_frame_spike.md` (concertmaster spike, this directory), which
+> ran the question "what exact rational is 1.65?" to ground. Every claim here is OA-attested; the full
+> attestation ledger and the generating script live with that note.
+
+**The finding: there is no fixed value to encode.** The literature spread is *not* measurement scatter:
+
+| particle class | wrapped bp | turns | source |
+|---|---|---|---|
+| H2A.B nucleosome | 103 | **1.2** | PMC7780145 |
+| H3–H4 octasome | ~120 | **1.5** | PMC9659345 |
+| canonical NCP | 145–147 | **1.65–1.7** | PMC4378457 |
+| chromatosome (+H1) | 166–167 | **1.9** | PMC7801413 |
+
+Further: the *in vivo* wrap ranges **~100–170 bp**; salt-dependent unwrapping runs **7 ± 2 → 22 ± 5 bp**
+across physiological ionic strength [PMC8129070]; ΔLk per nucleosome varies **−1.4 … −0.9** as a
+systematic function of nucleosome **spacing** [PMC5659657]; and **the handedness itself inverts**
+(−0.80 ↔ +0.86 turns, barrier ~2.3 k_BT), with wrapping orientation set by the DNA's **pre-assembly
+supercoiling state — not by the octamer** [PMC4623960, PMC7959483]. Farr et al. name nucleosomes "a
+**dynamic family of particles**", not "static building blocks" [PMC8129070]. Luger et al. 1997's own
+abstract already said the DNA *"deviate[s] from ideal superhelix geometry"*.
+
+**The honest object is a distribution, not a constant.**
+
+**Tooling consequence for srmech (the srmech-side content, and the only part this note decides):**
+
+1. **The GAP in row 1 / G3 still stands** — srmech's ladder still jumps from datum (`turn` ≈ bp) straight
+   to domain, with no packaging/positioning rung. That is unchanged.
+2. **But any future quantisation rung must key on the INTEGER contact count *k*, never on a turn decimal
+   or a fixed bp count.** The attested discrete invariant is **14 minor-groove-inward contacts at
+   SHL −6.5…+6.5, one arginine each** [Hodges et al. 2015, PMC4512544]. The bp figure is a *projection*
+   of *k* under a periodicity that itself varies; the turn count is a projection of a projection. A rung
+   parameterised on "147" or "1.65" would be encoding a rounding of one crystal structure as a constant.
+3. **Corollary for the marker design:** a grouping quantum should carry *k* (a small integer) and derive
+   span, rather than store a span and imply *k*. This also makes sub/super-nucleosomal particles
+   (hexasome *k*=11, tetrasome, chromatosome *k*=16) expressible in the same vocabulary instead of as
+   exceptions.
+4. **Do not encode ΔLk = −1.0.** That value is a *postulate*; the measurement is −1.26 [PMC6162219], and
+   it varies with spacing. If a topological field is ever added, it is a distribution parameter.
+
+**Ontological point — MFO-side, cross-ref only (not restated here per
+`[[feedback_mfo_vs_srmech_notebook_split_rule]]`):** that the deviation is itself content rather than
+error, and that the honest object is a distribution, is substrate/ontology material. See
+`nucleosome_turn_asymmetry_frame_spike.md` §2–§4 and the MFO fermata recorded there. **This note does not
+adjudicate it.**
 
 ---
 
@@ -70,7 +120,7 @@ as a gate, not *as* a rung.
 graph TD
   subgraph BIO["biology compaction ladder (nested quanta)"]
     bp["base pair (2 bits, 4 nt)"]
-    nuc["NUCLEOSOME  ~147 bp / 1.65 turns  (octamer quantum)"]
+    nuc["NUCLEOSOME  k=14 contacts  (octamer quantum)<br/>span 100-170 bp / 1.2-1.9 turns = a DISTRIBUTION"]
     f10["10 nm  beads-on-a-string"]
     f30["30 nm fiber (in-vivo existence contested)"]
     loop["loop / TAD  (CTCF+cohesin insulated)"]
@@ -99,7 +149,8 @@ graph TD
 ASCII (the access gate rides *beside* the ladder):
 
 ```
- biology:  bp --> [NUCLEOSOME 147bp/1.65t] --> 10nm --> 30nm --> loop/TAD --> A/B --> territory
+ biology:  bp --> [NUCLEOSOME k=14 contacts] --> 10nm --> 30nm --> loop/TAD --> A/B --> territory
+                   ^ span 100-170bp / 1.2-1.9 turns: a DISTRIBUTION, not a constant (see 2.1)
  srmech :  turn --> ( . . . missing quantum . . . )        -->  chromosome --> tome --> nuclear/plasmid --> cell
                                                                      ^recursive_cut       ^rc272
            access layer (0x48 chromatin):  euchromatin/heterochromatin gate  ==  A/B compartment state
@@ -134,15 +185,24 @@ CONSTITUTIVE/FACULTATIVE type byte (composes with G1). Blue-team caveat: do not 
 "code" is partly interpretive/context; a full mark alphabet risks scope creep. The *minimal* honest
 step is the constitutive/facultative distinction, which G1 already implies.
 
-**G3 — Nucleosome as a quantized grouping/positioning rung. [high, but scope-fenced]**
+**G3 — Nucleosome as a quantized grouping/positioning rung. [high, but scope-fenced] — AMENDED 2026-07-19**
 srmech's ladder skips from datum (turn ≈ bp) straight to domain; biology inserts the nucleosome — a
-fixed-N (~147-unit) quantum that is (a) the unit at which access is granted, (b) the substrate the
-histone-code mask attaches to, (c) *positioned by a code* (Segal 2006). *Cascade-shape it fills:* a
-regular grouping grid on which accessibility is defined (today `condense(region=…)` takes an *arbitrary*
-data-turn index or gene label — no grid). *Candidate:* a positioning/grouping quantum (a fixed span of
-turns) as the addressable unit of access. **Scope fence:** the *physical* 1.65-turn winding / 10.4 bp
-helical period is CAD-banned; the in-scope object is the **information-organization quantum** (fixed-N
-grouping + positioning grid), not the spool.
+quantum that is (a) the unit at which access is granted, (b) the substrate the histone-code mask attaches
+to, (c) *positioned by a code* (Segal 2006). *Cascade-shape it fills:* a regular grouping grid on which
+accessibility is defined (today `condense(region=…)` takes an *arbitrary* data-turn index or gene label —
+no grid). *Candidate:* a positioning/grouping quantum as the addressable unit of access.
+
+> **⚠ AMENDED — the quantum is NOT fixed-N (§2.1).** The original "fixed-N (~147-unit)" framing is
+> superseded. The wrap is a *distribution* (100–170 bp *in vivo*; 1.2/1.5/1.65–1.7/1.9 turns across four
+> attested particle classes; handedness even inverts). **The rung must key on the integer contact count
+> *k* (attested 14), not on a fixed span or a turn decimal** — see §2.1 items 2–3. This *strengthens*
+> rather than weakens G3: keying on *k* makes hexasome/tetrasome/chromatosome first-class in the same
+> vocabulary instead of exceptions to a constant.
+
+**Scope fence (unchanged):** the *physical* winding geometry is out of scope for mesh/FEA/tolerance
+GPU simulation; the in-scope object is the **information-organization quantum** (grouping + positioning
+grid), not the spool. Note per `[[feedback_cad_ban_is_gpu_numerical_not_closedform_physical]]` the
+closed-form topology/algebra of the winding **is** in scope — that is how §2.1's numbers were derived.
 
 **G4 — Insulator / TAD-boundary marker (CTCF/cohesin). [medium]**
 `recursive_cut` finds community boundaries by spectral min-cut (derived); biology *encodes* boundaries
@@ -193,9 +253,12 @@ and the cell-state-conditional access layer are the missing pieces.
 
 - **F-a (unified frame vs separate layers).** G1-G4 all add cap kinds. Does the marker alphabet stay
   byte-per-layer (13→N markers), or does the incoming chromatin/insulator layer force the codon-radix
-  **k=3** unified-frame decision (`project_genome_framing_codon_radix_k3`)? Note: nucleosome core 147 bp
-  = 3×49 = exactly 49 codons (an integer codon count), but the ~10.4 bp positioning period is **not** a
-  codon multiple — two *different* quantization grids coexist. Weak anomaly; flagged, not rested on.
+  **k=3** unified-frame decision (`project_genome_framing_codon_radix_k3`)? ~~Note: nucleosome core 147 bp
+  = 3×49 = exactly 49 codons…~~ **WITHDRAWN 2026-07-19 (§2.1).** That observation rested on 147 bp being a
+  constant. It is not — the wrap is a distribution (100–170 bp), and 147 is one crystal construct's value.
+  A "49 codons exactly" coincidence computed from a non-constant is not an anomaly, weak or otherwise.
+  **Do not revive it without a fixed span to compute from.** The F-a question itself (byte-per-layer vs
+  unified k=3 frame) stands on its own merits, untouched by this withdrawal.
 - **F-b (facultative gate placement).** For G1, does the chromatin cap *carry* its own gate, or
   *reference* a shared gate table? (Carry = self-describing per §44; reference = DRY but adds indirection.)
 - **F-c (how far to take the histone code).** G2 minimal = a constitutive/facultative type byte; maximal
@@ -213,6 +276,8 @@ and the cell-state-conditional access layer are the missing pieces.
 - Alberts B, Johnson A, Lewis J, Raff M, Roberts K, Walter P. *Molecular Biology of the Cell*, 4th ed.
   (Garland Science, 2002), "Chromosomal DNA and Its Packaging in the Chromatin Fiber," **NCBI Bookshelf
   NBK26834** — WebFetch-verified: octamer 2×(H2A/H2B/H3/H4), **146 bp**, wrapped **1.65 turns** left-handed,
+  *(these are the values that source states, recorded verbatim; **146 is superseded by 147** and **1.65 is
+  canonical-particle-only, not a constant** — see §2.1),*
   H1 linker, beads-on-a-string, histone-tail modifications + combinatorial "histone code" proposal.
 - Chadwick BP & Willard HF (2004) "Multiple spatially distinct types of facultative heterochromatin on
   the human inactive X chromosome," *PNAS* 101:17450, **PMC534659** (OA) — facultative het / Barr body.
@@ -238,6 +303,9 @@ and the cell-state-conditional access layer are the missing pieces.
 **Unattested this pass (FLAGGED — do not rest a mapping on without verification):** replication-timing /
 accessibility coupling; histone-variant specifics (CENP-A/H2A.Z/H3.3); DNA methylation (5mC/CpG).
 
-*Cross-links: rc268/rc269 CHANGELOG; `project_genome_streaming_reader_eph_universal`;
+*Cross-links: **`nucleosome_turn_asymmetry_frame_spike.md` (2026-07-19 — the amendment in §2.1 / G3 comes
+from there; also carries the Lk=Tw+Wr frame analysis, the k=3 reading, and the MFO-side fermata F-g)**;
+rc268/rc269 CHANGELOG; `project_genome_streaming_reader_eph_universal`;
 `project_genome_framing_codon_radix_k3`; `user_stance_cascade_matching_substrate_blind_form_not_identity`;
-`feedback_no_lineage_claims_in_notebook`.*
+`feedback_no_lineage_claims_in_notebook`; `feedback_mfo_vs_srmech_notebook_split_rule`;
+`feedback_cad_ban_is_gpu_numerical_not_closedform_physical`.*

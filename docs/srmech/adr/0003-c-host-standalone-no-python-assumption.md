@@ -5,6 +5,11 @@
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.
 **Superseded-by:** none.
+**Amended-by:** **ADR-0009** (2026-07-19) — multi-implementation parity. This ADR remains in
+force in full; ADR-0009 revises **§2.6** (the oracle relation is a rotating *test-time role*,
+not a standing rank — no implementation is primary) and adds the governance ADR-0003 lacked:
+a written exemption rule, a decline-is-a-failure-mode rule, and the capability-rooted ledger +
+C-host manifest that make this ADR's standard checkable. Read the two together.
 **Codifies the standing memory feedback:** `[[feedback_c_must_be_standalone_complete_no_python_fallback]]`
 · `[[feedback_c_peer_delivered_same_rc_never_split]]` ·
 `[[feedback_c_mirror_extends_to_every_composite_not_just_primitive_kernels]]` ·
@@ -79,6 +84,11 @@ orchestrator, I/O boundary, or DSL-declared class):
    numpy-free reference the C peer is checked against, and (b) run in a Python-only consumer.
    It is *never* the thing a C-host build silently falls through to — because in a C-only host
    it does not exist.
+   > **Amended by ADR-0009 §2.2.** The "not the fallback" half stands. The oracle half is a
+   > **test-time role that rotates** (when checking a new C implementation the Python one is
+   > the oracle; when checking a Python refactor the C one is), **not** a standing rank fixing
+   > Python as the reference the other implementation is measured against. No implementation is
+   > primary — see ADR-0009 §2.
 
 7. **Mirror the contract, not the bug.** Before mirroring a Python op to C, check for known
    bugs in the Python side — bit-exact mirroring of a buggy op enshrines the defect in two
