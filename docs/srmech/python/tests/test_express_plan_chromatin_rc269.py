@@ -16,7 +16,10 @@ Proven here (the ask's DoD):
   (i)   the PATH plan SKIPS condensed / graded-0 regions (whole community excluded), across
         all cell_states + all delivered chromatin states;
   (ii)  BYTES-TOUCHED — a condensed region pages neither its body NOR its gene gate cap
-        (only the chromatin cap, one leaf_dim), measured through the ``_open_body_ro`` seam;
+        (only the chromatin cap, one leaf_dim), measured through the ``_open_body_ro`` seam.
+        rc282: this is the PER-REGION term. The catalog derivation's whole-body scan is a
+        separate, cell_state-independent cost, asserted separately rather than folded into
+        (or hidden from) this bound — see ``conftest.BodyReadProbe``;
   (iii) native == pure BYTE-PARITY for the PATH plan on a MIXED genome (condensed + open +
         chromatin-free), every cell_state;
   (iv)  EUCHROMATIN defers to the promoter (open + firing → in; open + not-firing → out);
@@ -37,6 +40,23 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
+
+# rc282 — make this tests/ directory importable when this module is collected
+# ALONE. ``tests/`` is a package (``__init__.py`` present), so pytest's prepend
+# import-mode puts the package PARENT (``python/``) on sys.path, not ``tests/``
+# itself, and a bare ``from conftest import ...`` raises ModuleNotFoundError in
+# isolation. The project's proven shared-helper path (see test_mcp.py /
+# test_immolation.py, rc231 #810).
+import os as _os
+import sys as _sys
+_TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+if _TESTS_DIR not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR)
+
+from conftest import BodyReadProbe
+
+
+
 
 LEAF = G.LEAF_CAP
 B0, B1, B2, B3 = 1 << 0, 1 << 1, 1 << 2, 1 << 3
@@ -91,44 +111,22 @@ def _expected(cs, spec=_SPEC):
     return out
 
 
-class _CountFile:
-    """A read-only file proxy counting bytes actually read (the bounded-I/O probe)."""
-
-    def __init__(self, f):
-        self.f = f
-        self.n = 0
-
-    def seek(self, *a):
-        return self.f.seek(*a)
-
-    def read(self, *a):
-        b = self.f.read(*a)
-        self.n += len(b)
-        return b
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        self.f.close()
-        return False
-
-
 @pytest.fixture()
-def counting_seam(monkeypatch):
-    """Route the demand-load ops' body reads through a counting proxy + force the pure path
-    (so bytes-touched is measurable in Python; the C path reads the same by construction)."""
-    opened = []
-    orig = G._open_body_ro
+def probe(monkeypatch):
+    """The bounded-I/O probe, SPLIT into its two terms (rc282 — see
+    ``_genome_io_probe.py``).
 
-    def wrap(p):
-        cf = _CountFile(orig(p))
-        opened.append(cf)
-        return cf
+    This used to be a single ``sum(cf.n for cf in opened)``. That sum was silently
+    incomplete: ``_catalog_data``'s head-only branch reached the body through
+    ``Path.read_bytes``, NOT through the ``_open_body_ro`` seam, so the whole-body
+    catalog scan every one of these calls performs was invisible. The assertions read
+    as bounding the whole call while in fact bounding only the gate loop. rc282 routed
+    every body read through the one seam, and these numbers became honest.
 
-    monkeypatch.setattr(G, "_open_body_ro", wrap)
-    monkeypatch.setattr(_native, "has_native_genome", lambda: False)
-    return opened
+    The chromatin guarantee is about the PER-REGION gate reads, so it is asserted on
+    ``probe.plan_bytes`` — at exactly the strength it always was. The catalog scan is a
+    separate, cell_state-INDEPENDENT cost and is asserted as such."""
+    return BodyReadProbe().install(monkeypatch)
 
 
 # ── (i) the PATH plan SKIPS condensed / graded-0 regions ──────────────────────────
@@ -144,23 +142,28 @@ def test_path_plan_skips_condensed_regions():
 
 
 # ── (ii) BYTES-TOUCHED: a condensed region pages neither body NOR gene gate cap ──────
-def test_condensed_region_touches_only_the_chromatin_cap(counting_seam):
+def test_condensed_region_touches_only_the_chromatin_cap(probe):
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc269ii_"))
     # ONE condensed community with a sizeable body — the dramatic-skip case
     _build(tmp, spec=[("solo", None, "condensed")], body=60)
     one = G._default_the_one(LEAF)
     full_body = (tmp / G._BODY_NAME).stat().st_size
-    counting_seam.clear()
+    probe.clear()
     plan = G.gene_express_plan(str(tmp), one, 0)
-    plan_bytes = sum(cf.n for cf in counting_seam)
+    probe.assert_live()
     assert plan == []                                  # the whole region is skipped
-    # ONLY the chromatin cap is read (leaf_dim) — the gene gate cap is NEVER touched (would be
-    # 2*LEAF), and the body (many turns) is never paged
-    assert plan_bytes == LEAF, plan_bytes
-    assert plan_bytes < full_body // 2, (plan_bytes, full_body)
+    # THE GUARANTEE (unchanged in strength): ONLY the chromatin cap is read (one leaf_dim)
+    # — the gene gate cap is NEVER touched (that would be 2*LEAF) and the body's many
+    # turns are never paged.
+    assert probe.plan_bytes == LEAF, probe.plan_bytes
+    assert probe.plan_bytes < full_body // 2, (probe.plan_bytes, full_body)
+    # THE SEPARATE, KNOWN COST: deriving the chromosome table scans the whole body
+    # (ADR-0003 — the array is a plaintext TOC and is never stored). Not part of the
+    # chromatin bound, and not hidden inside it either.
+    assert probe.catalog_bytes == full_body, (probe.catalog_bytes, full_body)
 
 
-def test_bytes_touched_by_chromatin_state(counting_seam):
+def test_bytes_touched_by_chromatin_state(probe):
     """Per-state cap accounting on a mixed cond/open/free genome: condensed → 1 cap (chromatin
     only), open → 2 caps (chromatin + gene gate), chromatin-free → 1 cap (gene gate)."""
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc269ii2_"))
@@ -168,12 +171,14 @@ def test_bytes_touched_by_chromatin_state(counting_seam):
     _build(tmp, spec=spec, body=40)
     one = G._default_the_one(LEAF)
     full_body = (tmp / G._BODY_NAME).stat().st_size
-    counting_seam.clear()
+    probe.clear()
     plan = G.gene_express_plan(str(tmp), one, 0)
-    plan_bytes = sum(cf.n for cf in counting_seam)
+    probe.assert_live()
     assert {p[0] for p in plan} == {"o", "f"}          # condensed excluded
-    assert plan_bytes == LEAF + 2 * LEAF + LEAF        # 1 + 2 + 1 caps
-    assert plan_bytes < full_body // 2, (plan_bytes, full_body)
+    # THE GUARANTEE: the per-region gate reads are exactly 1 + 2 + 1 caps.
+    assert probe.plan_bytes == LEAF + 2 * LEAF + LEAF
+    assert probe.plan_bytes < full_body // 2, (probe.plan_bytes, full_body)
+    assert probe.catalog_bytes == full_body, (probe.catalog_bytes, full_body)
 
 
 # ── (iii) native == pure BYTE-PARITY for the PATH plan ───────────────────────────
@@ -207,19 +212,26 @@ def test_euchromatin_defers_to_the_promoter():
 
 
 # ── (v) BACKWARD-COMPAT: a chromatin-free genome's plan + bytes are the rc135 read ───
-def test_chromatin_free_plan_unchanged(counting_seam):
+def test_chromatin_free_plan_unchanged(probe):
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc269v_"))
     # a purely chromatin-free genome (no condense at all)
     spec = [("free_on", None, None), ("free_b1", B1, None), ("free_off", B2, None)]
     _build(tmp, spec=spec, body=20)
     one = G._default_the_one(LEAF)
+    full_body = (tmp / G._BODY_NAME).stat().st_size
+    catalog_terms = set()
     for cs in [0, B1, B2, B1 | B2, ALLB]:
-        counting_seam.clear()
+        probe.clear()
         plan = G.gene_express_plan(str(tmp), one, cs)
-        plan_bytes = sum(cf.n for cf in counting_seam)
+        probe.assert_live()
         assert {p[0] for p in plan} == _expected(cs, spec), cs
-        # exactly ONE head cap read per chromosome — no extra chromatin read (== the rc135 read)
-        assert plan_bytes == len(spec) * LEAF, (cs, plan_bytes)
+        # THE GUARANTEE: exactly ONE head cap read per chromosome — no extra chromatin
+        # read (== the rc135 read).
+        assert probe.plan_bytes == len(spec) * LEAF, (cs, probe.plan_bytes)
+        catalog_terms.add(probe.catalog_bytes)
+    # The catalog scan is a FIXED cost — the same whatever the cell_state. That is what
+    # makes it separable from the bound above rather than noise inside it.
+    assert catalog_terms == {full_body}, catalog_terms
 
 
 # ── (vi) the STRAND plan (rc268) and the PATH plan (rc269) AGREE on the label set ────

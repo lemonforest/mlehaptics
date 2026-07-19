@@ -271,17 +271,20 @@ def _section_entries(store, the_one):
     return leaf_dim, one, entries
 
 
-def _section_leaves(store, label, the_one, entry=None, leaf_dim=None):
+def _section_leaves(store, label, the_one, entry=None, leaf_dim=None, f=None):
     """One section's stored coupled DATA turns. With a pre-derived catalog ``entry``
     this pages the region directly (O(section)); without one it falls back to
     :func:`genome_window`, which re-derives the catalog (O(body)) — pass an entry
-    whenever reading more than one section."""
+    whenever reading more than one section.
+
+    ``f`` — an ALREADY-OPEN body handle (rc282); pass the loop's handle so a P-section
+    read costs ONE open of ``turns.bin`` rather than P."""
     if entry is not None and leaf_dim is not None:
-        return _genome._region_leaves(Path(store), entry, leaf_dim)
+        return _genome._region_leaves(Path(store), entry, leaf_dim, f)
     return genome_window(store, label, the_one=the_one)
 
 
-def _read_section_graph(store, label, the_one, entry=None, leaf_dim=None):
+def _read_section_graph(store, label, the_one, entry=None, leaf_dim=None, f=None):
     """Decode ONE plasmid section back to its directed-graph dict (the LOCAL edges +
     the GLOBAL ``node_ids`` table). Pages the section's coupled leaves, rebuilds the
     KERNEL strand (prepending the section's kernel telomere so ``kernel_unpack``
@@ -291,7 +294,7 @@ def _read_section_graph(store, label, the_one, entry=None, leaf_dim=None):
     edges ARE its payload). :func:`section_counts` deliberately does NOT come through
     here any more: it only ever wanted ``node_ids``, which the §89 payload places
     before the edges, so it uses the targeted prefix read instead."""
-    leaves = _section_leaves(store, label, the_one, entry, leaf_dim)
+    leaves = _section_leaves(store, label, the_one, entry, leaf_dim, f)
     dim = len(list(the_one))
     strand = [_genome._kernel_telomere(label, dim=dim)] + list(leaves)
     syms = kernel_unpack(strand, the_one)
@@ -381,16 +384,22 @@ def section_counts(section_store, *, the_one=None, progress=None) -> dict:
             raise SectionCountsCancelled(int(done), total, counts)
         return counts
     counts: Dict[int, int] = {}
-    for i, entry in enumerate(entries):
-        if progress is not None and progress({
-                "struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_EXTRACTING,
-                "done": i, "total": total}):
-            raise SectionCountsCancelled(i, total, counts)
-        seen = set()                                # a node counts ONCE per section
-        for nid in _genome._section_node_ids(store, entry, leaf_dim, one):
-            seen.add(int(nid))
-        for nid in seen:
-            counts[nid] = counts.get(nid, 0) + 1
+    # ONE open of turns.bin for the WHOLE scan (rc282 fix). rc280 removed this scan's
+    # quadratic and left a syscall constant: _read_region_prefix opened the body on
+    # every call and _section_node_ids calls it in a growth loop, so the pass paid a
+    # measured 2.0 opens PER SECTION — ~481,762 opens extrapolated to the 240,881-
+    # section field store. Holding the handle makes it 1, independent of P.
+    with _genome._open_body_ro(Path(store) / _genome._BODY_NAME) as f:
+        for i, entry in enumerate(entries):
+            if progress is not None and progress({
+                    "struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_EXTRACTING,
+                    "done": i, "total": total}):
+                raise SectionCountsCancelled(i, total, counts)
+            seen = set()                            # a node counts ONCE per section
+            for nid in _genome._section_node_ids(store, entry, leaf_dim, one, f):
+                seen.add(int(nid))
+            for nid in seen:
+                counts[nid] = counts.get(nid, 0) + 1
     return counts
 
 
@@ -610,16 +619,16 @@ def _section_labels(store, the_one) -> List[str]:
     return [c["label"] for c in census["chromosomes"] if c["label"] != VOCAB_LABEL]
 
 
-def _section_strand(store, label, the_one, dim, entry=None, leaf_dim=None):
+def _section_strand(store, label, the_one, dim, entry=None, leaf_dim=None, f=None):
     """One plasmid section's full chromosome STRAND (its kernel telomere + coupled
     leaves) — what :func:`genome.integrate` splices as a provirus. Pass a pre-derived
     catalog ``entry`` when looping over sections (§102/rc280 — see
     :func:`_section_entries`)."""
-    leaves = _section_leaves(store, label, the_one, entry, leaf_dim)
+    leaves = _section_leaves(store, label, the_one, entry, leaf_dim, f)
     return [_genome._kernel_telomere(label, dim=dim)] + list(leaves)
 
 
-def _section_global_edges(store, label, the_one, entry=None, leaf_dim=None):
+def _section_global_edges(store, label, the_one, entry=None, leaf_dim=None, f=None):
     """One section's edges as ``[(u_global, v_global, weight), ...]`` — its LOCAL edge
     indices resolved through its GLOBAL ``node_ids`` table (the id space stage 1
     established so a word shared across sections carries the SAME id).
@@ -627,7 +636,7 @@ def _section_global_edges(store, label, the_one, entry=None, leaf_dim=None):
     This one genuinely needs the WHOLE section (the edges are the payload), so the
     rc280 targeted prefix read does not apply here — but the catalog-once fix does,
     via ``entry``."""
-    graph = _read_section_graph(store, label, the_one, entry, leaf_dim)
+    graph = _read_section_graph(store, label, the_one, entry, leaf_dim, f)
     nid = [int(x) for x in graph["node_ids"]]
     return [(nid[int(i)], nid[int(j)], int(w))
             for (i, j), w in zip(graph["edges"], graph["weights"])]
@@ -745,16 +754,21 @@ def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=K
         store, the_one=the_one)                    # the deliberate fallback
     split = conserved_core(counts, k=k)
     core_nodes = split["core"]
-    if core_nodes:
-        if core_edges is None:
-            core_edges = [_section_global_edges(store, e["label"], the_one, e, leaf_dim)
-                          for e in entries]
-        core_weight = _core_weight_from_sections(core_edges, set(core_nodes))
-        core_strand = _core_packed(core_nodes, core_weight, the_one, dim)
-    else:
-        core_strand = []                           # ONE-DNA-TYPE: no core promoted
-    section_strands = [_section_strand(store, e["label"], the_one, dim, e, leaf_dim)
-                       for e in entries]
+    # rc282: ONE held body handle for BOTH per-section loops below (the edge harvest
+    # and the strand fold) — each used to re-open turns.bin per section.
+    with _genome._open_body_ro(Path(store) / _genome._BODY_NAME) as f:
+        if core_nodes:
+            if core_edges is None:
+                core_edges = [_section_global_edges(store, e["label"], the_one, e,
+                                                    leaf_dim, f)
+                              for e in entries]
+            core_weight = _core_weight_from_sections(core_edges, set(core_nodes))
+            core_strand = _core_packed(core_nodes, core_weight, the_one, dim)
+        else:
+            core_strand = []                       # ONE-DNA-TYPE: no core promoted
+        section_strands = [_section_strand(store, e["label"], the_one, dim, e,
+                                           leaf_dim, f)
+                           for e in entries]
     strand, n_integrated, cancelled = _organize(
         core_strand, section_strands, the_one, dim, progress)
     status = _STATUS_CANCELLED if cancelled else _STATUS_OK
@@ -852,28 +866,31 @@ def add_plasmid(section_store, the_one, tokens, *, state, k=K_AUTO, window=2,
     # core moved, or the edge cache is off) every re-read + the strand fold below.
     leaf_dim, _one, entries = _section_entries(store, the_one)
     by_label = {e["label"]: e for e in entries}
-    new_edges = _section_global_edges(store, label, the_one, by_label.get(label),
-                                      leaf_dim)
-    if cache_edges:
-        st["sections"] = list(st["sections"]) + [new_edges]
-    split = conserved_core(counts, k=k)
-    core_nodes = split["core"]
-    core_changed = list(core_nodes) != list(st.get("core") or [])
-    st["core"], st["k"] = list(core_nodes), split["k"]
-    if core_nodes:
+    # rc282: ONE held body handle for the new section's edge read AND both per-section
+    # loops below — each of those used to re-open turns.bin once per section.
+    with _genome._open_body_ro(Path(store) / _genome._BODY_NAME) as f:
+        new_edges = _section_global_edges(store, label, the_one, by_label.get(label),
+                                          leaf_dim, f)
         if cache_edges:
-            sections = st["sections"]
+            st["sections"] = list(st["sections"]) + [new_edges]
+        split = conserved_core(counts, k=k)
+        core_nodes = split["core"]
+        core_changed = list(core_nodes) != list(st.get("core") or [])
+        st["core"], st["k"] = list(core_nodes), split["k"]
+        if core_nodes:
+            if cache_edges:
+                sections = st["sections"]
+            else:
+                sections = [_section_global_edges(store, lb, the_one,
+                                                  by_label.get(lb), leaf_dim, f)
+                            for lb in st["labels"]]
+            core_weight = _core_weight_from_sections(sections, set(core_nodes))
+            core_strand = _core_packed(core_nodes, core_weight, the_one, dim)
         else:
-            sections = [_section_global_edges(store, lb, the_one,
-                                              by_label.get(lb), leaf_dim)
-                        for lb in st["labels"]]
-        core_weight = _core_weight_from_sections(sections, set(core_nodes))
-        core_strand = _core_packed(core_nodes, core_weight, the_one, dim)
-    else:
-        core_strand = []
-    section_strands = [_section_strand(store, lb, the_one, dim,
-                                       by_label.get(lb), leaf_dim)
-                       for lb in st["labels"]]
+            core_strand = []
+        section_strands = [_section_strand(store, lb, the_one, dim,
+                                           by_label.get(lb), leaf_dim, f)
+                           for lb in st["labels"]]
     strand, n_integrated, cancelled = _organize(
         core_strand, section_strands, the_one, dim, progress)
     return {"strand": strand, "state": st, "section": label, "k": split["k"],

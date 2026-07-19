@@ -200,8 +200,10 @@ def test_bytes_read_per_section_is_independent_of_edge_count():
         tally = {"read": 0, "region": 0, "ids": []}
         real = G._read_region_prefix
 
-        def spy(path, entry, ld, max_bytes):
-            out = real(path, entry, ld, max_bytes)
+        def spy(path, entry, ld, max_bytes, f=None):
+            # rc282 threads an already-open body handle through this read; the spy
+            # forwards it so the tally measures the SAME bytes it always did.
+            out = real(path, entry, ld, max_bytes, f)
             tally["read"] += len(out)
             return out
 

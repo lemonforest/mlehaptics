@@ -471,3 +471,164 @@ def rosetta_reached_ledger_ops(start, cls):
                 continue
             queue.append(callee)
     return reached
+
+
+# ──────────────────────────────────────────────────────────────────────
+# rc282 — shared genome BOUNDED-I/O probe, split into its two terms.
+# Lives here (not in a helper module) for the same reason the rc131 helper
+# above does: neither demand-load test module has to import the other.
+#
+# Shared bounded-I/O probe for the genome demand-load ops (rc282).
+#
+# **Why this exists — the false green it replaces.** The §134/§98 demand-load tests
+# prove a real guarantee: ``gene_express_plan``'s PATH variant reads only each region's
+# head GATE cap, and a CONDENSED region is skipped having touched only its chromatin
+# cap. They measured it by wrapping :func:`genome._open_body_ro` and summing the bytes
+# read, then asserting an exact total (``== LEAF``, ``== 1+2+1 caps``, …).
+#
+# Before rc282 that sum was **silently incomplete**. ``_catalog_data``'s v12+ head-only
+# branch reached the body through ``Path.read_bytes``, not through the ``_open_body_ro``
+# seam — so the whole-body catalog scan that every one of those calls performs was
+# invisible to the probe. The tests appeared to bound the WHOLE CALL while in fact
+# bounding only the gate loop. rc282 routed every body read through the one seam, and
+# the numbers jumped (``4924`` where ``256`` was asserted) — not a regression, the
+# observation becoming honest.
+#
+# **The decomposition.** The fix is NOT to narrow the instrumentation back — that would
+# restore the false green. It is to separate the two terms the old sum conflated, which
+# map exactly onto the code:
+#
+# * the **plan term** — bytes read by the per-region gate loop. This is the guarantee the
+#   chromatin work actually makes, and it is still asserted at full strength (exact byte
+#   equalities, and that skipping a region genuinely *reduces* it).
+# * the **catalog term** — the body scan that derives the chromosome table. A fixed cost,
+#   independent of ``cell_state``, inherent to ADR-0003 (the chromosome array is a
+#   plaintext table-of-contents and is never stored, so it is re-derived by scanning).
+#   Asserted separately as a KNOWN cost rather than folded into a bound it was never
+#   part of.
+#
+# Sessions are tagged **causally**, not by inference: the probe wraps ``_catalog_data``
+# as well as ``_open_body_ro``, and any body handle opened while inside a catalog
+# derivation is tagged ``catalog``. Reordering the code cannot mislabel them.
+#
+# **Probe liveness.** Every accessor here is paired with a session count, because an
+# upper bound alone passes trivially at zero — a disconnected probe must be a RED test,
+# not a green one. That is the same seam lesson rc282 learned from ``_open_body_ro``
+# opening through ``builtins.open`` where the suite was hooking ``Path.open``.
+# ──────────────────────────────────────────────────────────────────────
+
+from srmech.amsc import genome as _G
+
+
+
+class CountFile:
+    """A read-only file proxy counting the bytes actually read (the bounded-I/O
+    probe). One instance per ``_open_body_ro`` call == one SESSION."""
+
+    def __init__(self, f, kind="plan"):
+        self.f = f
+        self.n = 0
+        self.kind = kind            # "plan" | "catalog" — set causally by BodyReadProbe
+
+    def seek(self, *a):
+        return self.f.seek(*a)
+
+    def read(self, *a):
+        b = self.f.read(*a)
+        self.n += len(b)
+        return b
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self.f.close()
+        return False
+
+
+class BodyReadProbe:
+    """Tallies genome body reads, split into the PLAN term and the CATALOG term.
+
+    Install with :func:`install`; read with :attr:`plan_bytes` / :attr:`catalog_bytes`.
+    ``clear()`` between measured calls."""
+
+    def __init__(self):
+        self.sessions: list[CountFile] = []
+        self._depth = 0             # > 0 while inside a _catalog_data derivation
+
+    # ── installation ─────────────────────────────────────────────────────────
+    def install(self, monkeypatch, *, force_pure=True):
+        """Wrap the body-open seam AND the catalog derivation, so every session can be
+        attributed to one or the other. ``force_pure`` pins the pure path, since the C
+        path reads the same bytes by construction but does so through its own fopen,
+        invisible to a Python seam."""
+        from srmech.amsc import _native
+
+        orig_open = _G._open_body_ro
+        orig_catalog = _G._catalog_data
+
+        def wrap_open(p):
+            cf = CountFile(orig_open(p), "catalog" if self._depth > 0 else "plan")
+            self.sessions.append(cf)
+            return cf
+
+        def wrap_catalog(path, the_one=None):
+            self._depth += 1
+            try:
+                return orig_catalog(path, the_one)
+            finally:
+                self._depth -= 1
+
+        monkeypatch.setattr(_G, "_open_body_ro", wrap_open)
+        monkeypatch.setattr(_G, "_catalog_data", wrap_catalog)
+        if force_pure:
+            monkeypatch.setattr(_native, "has_native_genome", lambda: False)
+        return self
+
+    # ── tallies ──────────────────────────────────────────────────────────────
+    def clear(self):
+        self.sessions.clear()
+
+    def _sum(self, kind):
+        return sum(cf.n for cf in self.sessions if cf.kind == kind)
+
+    def _count(self, kind):
+        return sum(1 for cf in self.sessions if cf.kind == kind)
+
+    @property
+    def plan_bytes(self):
+        """Bytes read by the per-region gate loop — the term the chromatin guarantee
+        actually bounds."""
+        return self._sum("plan")
+
+    @property
+    def catalog_bytes(self):
+        """Bytes read deriving the chromosome table by scanning the body (ADR-0003).
+        A fixed cost, independent of ``cell_state``."""
+        return self._sum("catalog")
+
+    @property
+    def total_bytes(self):
+        return sum(cf.n for cf in self.sessions)
+
+    @property
+    def n_plan_sessions(self):
+        return self._count("plan")
+
+    @property
+    def n_catalog_sessions(self):
+        return self._count("catalog")
+
+    # ── liveness ─────────────────────────────────────────────────────────────
+    def assert_live(self, *, plan=True, catalog=True):
+        """A bound alone passes trivially at zero. Assert the probe actually FIRED, so
+        a seam that silently stops observing goes red instead of green."""
+        if plan:
+            assert self.n_plan_sessions > 0 and self.plan_bytes > 0, (
+                "the PLAN probe observed nothing — the body-open seam is disconnected "
+                "(a bounded-I/O assertion on an unfired probe is vacuously true)")
+        if catalog:
+            assert self.n_catalog_sessions > 0 and self.catalog_bytes > 0, (
+                "the CATALOG probe observed nothing — either the catalog derivation "
+                "stopped reading the body (state that as a WIN and update the test) or "
+                "it stopped going through _open_body_ro (the false-green rc282 fixed)")

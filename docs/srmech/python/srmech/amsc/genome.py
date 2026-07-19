@@ -43,6 +43,7 @@ each kernel by its telomere. Completes the F715 hierarchy: GENOME (multi-kernel)
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import shutil
 import tempfile
@@ -5831,13 +5832,31 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
     provenance unit). ``body_sha256`` is the region CHAIN (:func:`_region_chain`),
     NOT the whole-body digest, so an append maintains it in O(1) (extend the head)
     while it stays re-verifiable from the file and body-derivable (§44)."""
-    regions = []
-    region_hexes = []
-    for (_label, _cap, _lc, byte_offset, byte_len, _ck) in chrom_specs:
-        off, ln = int(byte_offset), int(byte_len)
-        rh = _sha256_bytes(bytes(body_bytes[off:off + ln]))
-        region_hexes.append(rh)
-        regions.append({"byte_offset": off, "byte_len": ln, "sha256": rh})
+    return _build_manifest_data_from_hexes(
+        leaf_dim, the_one_blocks, chrom_specs,
+        _region_hexes_from_body(chrom_specs, body_bytes), n_turns)
+
+
+def _region_hexes_from_body(chrom_specs, body_bytes):
+    """Each region's full digest, sliced out of an in-RAM body — the whole-body way to
+    get what :func:`_scan_body_stream` folds incrementally (rc282). Same hexes, same
+    order; this one needs every byte resident, which is why the head-only catalog read
+    uses the streaming peer instead."""
+    return [_sha256_bytes(bytes(body_bytes[int(off):int(off) + int(ln)]))
+            for (_label, _cap, _lc, off, ln, _ck) in chrom_specs]
+
+
+def _build_manifest_data_from_hexes(leaf_dim, the_one_blocks, chrom_specs,
+                                    region_hexes, n_turns):
+    """Assemble the manifest ``data`` from ALREADY-COMPUTED per-region digests (rc282).
+
+    The single assembly point for :func:`_build_manifest_data` (whole-body) and the
+    streaming head-only catalog read, so the two cannot produce different catalogs for
+    the same body — the property the ``body_sha256`` chain check relies on."""
+    regions = [
+        {"byte_offset": int(off), "byte_len": int(ln), "sha256": rh}
+        for (_label, _cap, _lc, off, ln, _ck), rh in zip(chrom_specs, region_hexes)
+    ]
     return {
         "format_version": GENOME_FORMAT_VERSION,
         "leaf_dim": int(leaf_dim),
@@ -6116,29 +6135,57 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
     reads "nuclear" — the R-RBS-LM reference's centromere-first classify). rc271
     (F1251): the field's own names — plasmid (was "stick") / nuclear (was "minted").
     This rides the EXISTING scan (no extra pass, byte-identical to the C genome_scan_chroms)."""
-    chrom_specs: List[Tuple[str, str, int, int, int, str]] = []
-    cur: Optional[list] = None      # [label, cap_sha256, leaf_count, offset, length, cap_kind]
-    n_turns = 0
-    offset = 0
+    state = _ScanState()
     for raw, decoded in _walk_region_blocks(
             bytes(body_bytes), leaf_dim, context="genome rebuild-by-scan"):
-        n_turns += 1
-        if decoded[0] in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
-                          ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER):
-            if cur is not None:
-                chrom_specs.append(tuple(cur))
+        state.fold(raw, decoded)
+    return state.finish()
+
+
+#: The block markers that OPEN a chromosome region — the §44 CHROM cap and the §60 /
+#: §127 / §95b telomere kinds. The ONE predicate both the in-memory
+#: (:func:`_scan_body_to_chrom_specs`) and the STREAMING (:func:`_scan_body_stream`)
+#: catalog derivations use to find a region boundary, so the two cannot drift apart.
+_REGION_OPEN_MARKERS = (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
+                        ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER)
+
+
+class _ScanState:
+    """The §44 body-scan STATE MACHINE, fed ONE block at a time (rc282).
+
+    Extracted verbatim from :func:`_scan_body_to_chrom_specs` so the whole-body scan
+    and the STREAMING scan share one implementation rather than two that must be kept
+    in step — a derived catalog is identical whichever drives it, which is the
+    property the ``body_sha256`` chain check depends on."""
+
+    def __init__(self):
+        self.chrom_specs: List[Tuple[str, str, int, int, int, str]] = []
+        # cur = [label, cap_sha256, leaf_count, offset, length, cap_kind]
+        self.cur: Optional[list] = None
+        self.n_turns = 0
+        self.offset = 0
+
+    def fold(self, raw, decoded):
+        """Fold ONE on-disk block. Returns True iff it OPENED a new region (the signal
+        a streaming caller uses to close the previous region's digest)."""
+        opened = False
+        self.n_turns += 1
+        if decoded[0] in _REGION_OPEN_MARKERS:
+            if self.cur is not None:
+                self.chrom_specs.append(tuple(self.cur))
             # the label is bytes [1:] up to the first NUL — UNIFORM across all telomere
             # kinds (the §127 active telomere's count sits AFTER that NUL).
             label = decoded[1:].split(b"\x00", 1)[0].decode("utf-8")
             cap_kind = "diploid" if decoded[0] == DIPLOID_TELOMERE_MARKER else "plasmid"
-            cur = [label, _sha256_bytes(raw), 0, offset, 0, cap_kind]
-        elif cur is None:
+            self.cur = [label, _sha256_bytes(raw), 0, self.offset, 0, cap_kind]
+            opened = True
+        elif self.cur is None:
             raise ValueError(
                 "genome persistence: strand has turns before its first CHROM "
                 "cap — not a well-formed §44 genome strand"
             )
         elif decoded[0] == CENTROMERE_CAP_MARKER:
-            cur[5] = "nuclear"                # §96: an interior centromere mints (wins)
+            self.cur[5] = "nuclear"           # §96: an interior centromere mints (wins)
         elif (decoded[0] != GENE_CAP_MARKER
               and decoded[0] != REGULATORY_GENE_MARKER
               and decoded[0] != BOOLEAN_GENE_MARKER
@@ -6147,17 +6194,90 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
               and decoded[0] != KERNEL_HEADER_MARKER
               and decoded[0] != CHROMATIN_MARKER
               and decoded[0] != CENTROMERE_CAP_MARKER):
-            cur[2] += 1                       # a data turn (packed or legacy); a GENE
+            self.cur[2] += 1                  # a data turn (packed or legacy); a GENE
                                               # cap (§44 plain / §128 regulatory / §130
                                               # boolean / §131 threshold / §132 graded),
                                               # §60 v5 header, or §95a interior centromere
                                               # is not a turn
                                               # (the §89 v6 Klein-4 header IS a coupled turn)
-        cur[4] += len(raw)
-        offset += len(raw)
-    if cur is not None:
-        chrom_specs.append(tuple(cur))
-    return chrom_specs, n_turns
+        self.cur[4] += len(raw)
+        self.offset += len(raw)
+        return opened
+
+    def finish(self):
+        """Close the last open region and return ``(chrom_specs, n_turns)``."""
+        if self.cur is not None:
+            self.chrom_specs.append(tuple(self.cur))
+            self.cur = None
+        return self.chrom_specs, self.n_turns
+
+
+def _stream_body_blocks(f, leaf_dim, *, context="genome"):
+    """Walk a genome body block-by-block from an ALREADY-OPEN handle (rc282) — the
+    streaming mirror of :func:`_walk_region_blocks`.
+
+    Yields the SAME ``(raw, decoded)`` pairs, in the same order, for the same bytes;
+    the difference is that only ONE block is ever resident, so a caller can derive a
+    catalog without the whole body in RAM. ``f`` is a buffered binary handle, so the
+    per-block reads coalesce into ordinary sequential I/O — no extra syscalls."""
+    plen = _packed_payload_len(leaf_dim)
+    offset = 0
+    while True:
+        first = f.read(1)
+        if not first:
+            return
+        kind = first[0]
+        if kind in _LEAF_WIDE_BLOCK_MARKERS or kind <= 3:
+            rest = f.read(leaf_dim - 1)
+            if len(rest) != leaf_dim - 1:
+                raise GenomeBoundingError(
+                    f"{context}: truncated {leaf_dim}-byte block at offset {offset} "
+                    f"(got {1 + len(rest)} bytes)"
+                )
+            blk = first + rest
+            yield blk, blk
+            offset += leaf_dim
+        elif kind == PACKED_TURN_MARKER:
+            payload = f.read(plen)
+            if len(payload) != plen:
+                raise GenomeBoundingError(
+                    f"{context}: truncated packed turn at offset {offset} "
+                    f"(needs {1 + plen} bytes, got {1 + len(payload)})"
+                )
+            yield first + payload, _unpack_turn_payload(payload, leaf_dim)
+            offset += 1 + plen
+        else:
+            raise GenomeBoundingError(
+                f"{context}: unrecognised block kind byte {kind} at offset {offset} "
+                f"(not a CHROM/GENE cap, a packed turn, or a Klein-4 symbol)"
+            )
+
+
+def _scan_body_stream(f, leaf_dim, *, context="genome rebuild-by-scan"):
+    """Derive ``(chrom_specs, n_turns, region_hexes)`` by STREAMING the body (rc282).
+
+    The catalog-derivation counterpart of :func:`_scan_body_to_chrom_specs` +
+    :func:`_region_hexes_from_body`, computed in ONE forward pass with **RAM bounded
+    by the largest single REGION** rather than by the whole file. That is the same
+    bound :func:`_read_region` / :func:`genome_window` already advertise, so it adds
+    no new assumption; it just stops the head-only catalog read from being the one
+    place that slurps every byte of ``turns.bin`` into memory at once.
+
+    A region's digest is folded the moment the NEXT region opens, so at most one
+    region's bytes are held. ``_sha256_bytes`` has no streaming API (see
+    :func:`genome_load`), which is why the bound is one region and not one block."""
+    state = _ScanState()
+    region = bytearray()
+    region_hexes: List[str] = []
+    for raw, decoded in _stream_body_blocks(f, leaf_dim, context=context):
+        if state.fold(raw, decoded) and region:
+            region_hexes.append(_sha256_bytes(bytes(region)))
+            region.clear()
+        region.extend(raw)
+    if region:
+        region_hexes.append(_sha256_bytes(bytes(region)))
+    chrom_specs, n_turns = state.finish()
+    return chrom_specs, n_turns, region_hexes
 
 
 def _catalog_data(path, the_one=None) -> dict:
@@ -6170,9 +6290,13 @@ def _catalog_data(path, the_one=None) -> dict:
     - **v≤11 full manifest** — read the arrays verbatim (back-compat; never opens
       ``turns.bin``).
     - **v12 HEAD-ONLY manifest** — read the O(1) head, then DERIVE the arrays by
-      scanning the self-describing body (:func:`_scan_body_to_chrom_specs`), using the
+      STREAMING the self-describing body (:func:`_scan_body_stream`), using the
       head's ``leaf_dim`` + ``the_one`` (no ``the_one=`` needed). This is where the
       ADR-0003 "catalog is derived, never a stored plaintext TOC" contract is paid.
+      rc282: the derivation is a single forward pass with RAM bounded by the largest
+      REGION. It previously did ``turns.bin.read_bytes()`` — the ENTIRE body resident
+      at once — and since every store written today is head-only, that was the branch
+      every catalog read took.
     - **no manifest** — REBUILD from the body (needs ``the_one=`` for the leaf width).
 
     So a genome can be shipped as ``turns.bin`` alone (tar one file) + its ``the_one``;
@@ -6186,10 +6310,13 @@ def _catalog_data(path, the_one=None) -> dict:
         # the_one come from the head, so this needs no the_one= argument.
         leaf_dim = int(head["leaf_dim"])
         the_one_block = bytes.fromhex(head["the_one"]["hex"])
-        body_bytes = (path / _BODY_NAME).read_bytes()
-        chrom_specs, n_turns = _scan_body_to_chrom_specs(body_bytes, leaf_dim)
-        data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs,
-                                    body_bytes, n_turns)
+        # rc282: ONE streamed forward pass — RAM bounded by the largest REGION, not by
+        # the whole file. Byte-identical catalog to the old whole-body slurp (both drive
+        # the same _ScanState and the same _build_manifest_data_from_hexes assembly).
+        with _open_body_ro(path / _BODY_NAME) as f:
+            chrom_specs, n_turns, region_hexes = _scan_body_stream(f, leaf_dim)
+        data = _build_manifest_data_from_hexes(leaf_dim, the_one_block, chrom_specs,
+                                               region_hexes, n_turns)
         # INTEGRITY: the head stores the ``body_sha256`` region-CHAIN head (the Merkle
         # root of the body). A body corruption re-derives a DIFFERENT chain → mismatch
         # with the committed head → raise (whole-body granularity; the per-region
@@ -6375,13 +6502,22 @@ def genome_catalog(path, *, the_one=None) -> dict:
 
     Returns the manifest ``data`` dict (``leaf_dim`` / ``n_turns`` /
     ``body_sha256`` / per-chromosome ``cap_sha256`` / ``leaf_count`` /
-    ``byte_offset`` / ``byte_len`` / ``cap_kind`` / ``the_one`` hash+hex). When
-    ``manifest.json`` is present this is the cheap catalog read — it NEVER opens
-    ``turns.bin`` (you can enumerate a genome's chromosomes, sizes, and integrity
-    hashes without paging in any body bytes). §44: when the manifest is ABSENT, the
-    catalog is REBUILT by scanning the self-describing body (the strand is the SSoT,
-    the manifest an optional ``.fai`` cache); that rebuild needs ``the_one=`` (its
-    length is the leaf width) and reads ``turns.bin`` once.
+    ``byte_offset`` / ``byte_len`` / ``cap_kind`` / ``the_one`` hash+hex).
+
+    **What this costs (rc282 — the previous wording here was false).** This docstring
+    used to say the catalog read "NEVER opens ``turns.bin``" when a manifest is
+    present. That is true ONLY of a v≤11 FULL manifest, which stored the chromosome
+    array verbatim. Since v12 the on-disk manifest is HEAD-ONLY — the per-chromosome
+    array is a plaintext table-of-contents and ADR-0003 forbids storing one — so it is
+    DERIVED by scanning the self-describing body. **Every store written today is
+    head-only, so this call reads ``turns.bin`` end to end.** rc282 makes that scan
+    STREAMED (RAM bounded by the largest region rather than the whole file); it does
+    not, and cannot without a format change, make it read fewer BYTES. Use
+    :func:`_read_head` when the O(1) head is all you need.
+
+    §44: when the manifest is ABSENT, the catalog is likewise REBUILT by scanning the
+    body (the strand is the SSoT, the manifest an optional ``.fai`` cache); that
+    rebuild needs ``the_one=`` (its length is the leaf width).
 
     rc271 (F1251): the per-chromosome ``cap_kind`` is the field-canonical
     ``plasmid`` / ``nuclear`` / ``diploid``; an active :func:`set_type_aliases` /
@@ -6745,14 +6881,33 @@ def genome_load(path, *, labels=None, the_one=None):
     return out_strand, the_one, [c["label"] for c in ordered]
 
 
-def _read_region(path, entry, leaf_dim) -> bytes:
+@contextlib.contextmanager
+def _body_handle(path, f=None):
+    """Yield a read-only handle on the genome body — the caller's ALREADY-OPEN ``f``
+    when one is supplied (**zero** syscalls), else one opened for the duration of the
+    block (rc282).
+
+    The single seam every per-region read pages through, so a loop over P regions can
+    hold ONE handle instead of paying P opens, while a lone call still Just Works. The
+    handle is only ever seek+read — a genome read leaves the file byte-identical."""
+    if f is not None:
+        yield f
+        return
+    with _open_body_ro(Path(path) / _BODY_NAME) as opened:
+        yield opened
+
+
+def _read_region(path, entry, leaf_dim, f=None) -> bytes:
     """Page in ONE chromosome's region bytes (seek + bounded read + cap-hash
     check). Shared by :func:`genome_window` / :func:`genome_genes` — RAM is bounded
     by the single chromosome; the leading CHROM cap is re-hashed against the
-    manifest's ``cap_sha256`` (a mismatch is a :class:`GenomeBoundingError`)."""
-    with (path / _BODY_NAME).open("rb") as f:
-        f.seek(int(entry["byte_offset"]))
-        region = f.read(int(entry["byte_len"]))
+    manifest's ``cap_sha256`` (a mismatch is a :class:`GenomeBoundingError`).
+
+    ``f`` — an ALREADY-OPEN body handle (rc282); omit it for the open-once-here
+    convenience path. Same bytes, same bound, either way."""
+    with _body_handle(path, f) as fh:
+        fh.seek(int(entry["byte_offset"]))
+        region = fh.read(int(entry["byte_len"]))
     if len(region) != int(entry["byte_len"]):
         raise GenomeBoundingError(
             f"genome region {entry['label']!r} truncated "
@@ -6834,7 +6989,7 @@ def _walk_region_prefix_blocks(region: bytes, leaf_dim: int):
         k = end
 
 
-def _read_region_prefix(path, entry, leaf_dim, max_bytes) -> bytes:
+def _read_region_prefix(path, entry, leaf_dim, max_bytes, f=None) -> bytes:
     """Page in ONLY the leading ``max_bytes`` bytes of ONE chromosome's region
     (§102/rc280) — seek + bounded read + the SAME leading-cap integrity bound
     :func:`_read_region` pays.
@@ -6843,14 +6998,22 @@ def _read_region_prefix(path, entry, leaf_dim, max_bytes) -> bytes:
     block still re-hashes it against the manifest's ``cap_sha256`` — the targeted
     read is NOT a weaker read, it is the same bound over fewer bytes. ``max_bytes``
     is clamped to the region's true ``byte_len`` (asking for more is not an error,
-    it just reads the whole region) and floored at one block."""
+    it just reads the whole region) and floored at one block.
+
+    ``f`` — an ALREADY-OPEN body handle (rc282). rc280 fixed this read's ASYMPTOTICS
+    and left a syscall constant: this function opened ``turns.bin`` on every call and
+    :func:`_section_node_ids` calls it in a growth loop, so a scan paid a measured
+    **2.0 opens per section** — O(P) opens for what is one file. Pass the scan's own
+    handle and the whole pass costs ONE open. Omitting it keeps the convenience path
+    (open for the duration of this call), so no caller breaks; the BYTES read and the
+    integrity bound paid are identical either way."""
     byte_len = int(entry["byte_len"])
     want = byte_len if max_bytes > byte_len else max_bytes
     if want < leaf_dim:
         want = leaf_dim if leaf_dim < byte_len else byte_len
-    with (path / _BODY_NAME).open("rb") as f:
-        f.seek(int(entry["byte_offset"]))
-        region = f.read(want)
+    with _body_handle(path, f) as fh:
+        fh.seek(int(entry["byte_offset"]))
+        region = fh.read(want)
     if len(region) != want:
         raise GenomeBoundingError(
             f"genome region {entry['label']!r} truncated "
@@ -6918,7 +7081,7 @@ def _graph_prefix_ints(syms):
     return ints, i
 
 
-def _section_node_ids(path, entry, leaf_dim, the_one):
+def _section_node_ids(path, entry, leaf_dim, the_one, f=None):
     """The GLOBAL ``node_ids`` label table of ONE §89 graph-kernel section, read by
     paging ONLY the node_ids region — never the section's edges (§102/rc280).
 
@@ -6937,43 +7100,52 @@ def _section_node_ids(path, entry, leaf_dim, the_one):
     many EDGES the section carries. Byte-identical to the ``node_ids`` a full
     :func:`_graph_kernel_decode` of the same section returns — never short (a short
     table would silently UNDER-count, which is why every path here either satisfies
-    ``n_node_ids`` or ends up having read the entire region)."""
+    ``n_node_ids`` or ends up having read the entire region).
+
+    ``f`` — an ALREADY-OPEN body handle (rc282). The growth loop above is exactly why
+    this matters: every iteration was a fresh ``open`` of ``turns.bin``, so the
+    TYPICAL two-read case cost **2 opens per section** and a P-section scan paid 2P
+    opens of one file. The loop now runs entirely inside ONE handle — the caller's
+    when supplied, otherwise one opened here for the whole loop (so even a lone call
+    is 1 open, not 2). Bytes read and bounds paid are unchanged."""
     byte_len = int(entry["byte_len"])
     want = _prefix_bytes_for_syms(_NODE_IDS_PROBE_SYMS, leaf_dim, byte_len)
-    while True:
-        ints, used = _graph_prefix_ints(
-            _prefix_syms(_read_region_prefix(path, entry, leaf_dim, want),
-                         leaf_dim, the_one))
-        at_end = want >= byte_len
-        if len(ints) >= _NODE_IDS_HEADER_INTS:
-            n_nid = int(ints[1])
-            if n_nid <= 0:
-                return []
-            need = _NODE_IDS_HEADER_INTS + n_nid
-            if len(ints) >= need:
-                return [int(v) for v in ints[_NODE_IDS_HEADER_INTS:need]]
-            # MEASURED width (round up, +1 symbol of slack), not the 17-symbol worst
-            # case — this is what keeps the read proportional to node_ids.
-            per = ((used + len(ints) - 1) // len(ints)) + 1 if ints \
-                else _GRAPH_KERNEL_MAX_INT_SYMS
-            grow = _prefix_bytes_for_syms(need * per, leaf_dim, byte_len)
-            if at_end:
-                raise GenomeBoundingError(
-                    f"genome chromosome {entry['label']!r}: its §89 payload declares "
-                    f"{n_nid} node_ids but only {len(ints) - _NODE_IDS_HEADER_INTS} "
-                    f"are present in the whole {byte_len}-byte region — the section "
-                    f"is malformed (a SHORT node_ids table would silently under-count)"
-                )
-        else:
-            if at_end:
-                return []                       # a section carrying no payload at all
-            grow = 0                            # nothing decoded yet — just double
-        if grow <= want:                        # guarantee forward progress
-            grow = want * 2
-        want = byte_len if grow > byte_len else grow
+    with _body_handle(path, f) as fh:
+        while True:
+            ints, used = _graph_prefix_ints(
+                _prefix_syms(_read_region_prefix(path, entry, leaf_dim, want, fh),
+                             leaf_dim, the_one))
+            at_end = want >= byte_len
+            if len(ints) >= _NODE_IDS_HEADER_INTS:
+                n_nid = int(ints[1])
+                if n_nid <= 0:
+                    return []
+                need = _NODE_IDS_HEADER_INTS + n_nid
+                if len(ints) >= need:
+                    return [int(v) for v in ints[_NODE_IDS_HEADER_INTS:need]]
+                # MEASURED width (round up, +1 symbol of slack), not the 17-symbol
+                # worst case — this keeps the read proportional to node_ids.
+                per = ((used + len(ints) - 1) // len(ints)) + 1 if ints \
+                    else _GRAPH_KERNEL_MAX_INT_SYMS
+                grow = _prefix_bytes_for_syms(need * per, leaf_dim, byte_len)
+                if at_end:
+                    raise GenomeBoundingError(
+                        f"genome chromosome {entry['label']!r}: its §89 payload "
+                        f"declares {n_nid} node_ids but only "
+                        f"{len(ints) - _NODE_IDS_HEADER_INTS} are present in the "
+                        f"whole {byte_len}-byte region — the section is malformed "
+                        f"(a SHORT node_ids table would silently under-count)"
+                    )
+            else:
+                if at_end:
+                    return []                   # a section carrying no payload at all
+                grow = 0                        # nothing decoded yet — just double
+            if grow <= want:                    # guarantee forward progress
+                grow = want * 2
+            want = byte_len if grow > byte_len else grow
 
 
-def _region_leaves(path, entry, leaf_dim):
+def _region_leaves(path, entry, leaf_dim, f=None):
     """One chromosome's stored DATA turns, paged against an ALREADY-DERIVED catalog
     ``entry`` (§102/rc280) — the catalog-once counterpart of :func:`genome_window`.
 
@@ -6982,11 +7154,14 @@ def _region_leaves(path, entry, leaf_dim):
     per chromosome. A caller looping over P chromosomes pays O(P × body) for what is
     O(body) of actual work. Deriving :func:`_catalog_data` once and calling this per
     chromosome is byte-identical and removes that quadratic term. Same bounded read,
-    same leading-cap integrity bound, same cap-skipping walk."""
+    same leading-cap integrity bound, same cap-skipping walk.
+
+    ``f`` — an ALREADY-OPEN body handle (rc282); pass the loop's handle so P regions
+    cost ONE open rather than P."""
     return [
         _hv_from_block(decoded)
         for _raw, decoded in _walk_region_blocks(
-            _read_region(path, entry, leaf_dim), leaf_dim,
+            _read_region(path, entry, leaf_dim, f), leaf_dim,
             context=f"_region_leaves({entry['label']!r})")
         if not _block_is_cap(decoded)
     ]
@@ -7109,12 +7284,17 @@ def genome_genes(path, label, *, the_one=None):
 
 
 def _open_body_ro(body_path):
-    """Open a genome body (``turns.bin``) READ-ONLY — the single seam the §134
-    demand-load plan + partial-load reader page their bytes through, so a caller can
-    MEASURE bytes-touched (the bounded-I/O proof). Returns an open binary file the
-    caller ``with``-closes; NEVER writes (the ops are reads — the file is byte-identical
-    after)."""
-    return open(str(body_path), "rb")
+    """Open a genome body (``turns.bin``) READ-ONLY — the single seam EVERY genome read
+    pages its bytes through (rc282), so a caller can MEASURE bytes-touched (the
+    bounded-I/O proof). Returns an open binary file the caller ``with``-closes; NEVER
+    writes (the ops are reads — the file is byte-identical after).
+
+    Opens via ``Path.open``, deliberately, NOT ``builtins.open``. Instrumentation in
+    this package's own suite hooks ``Path.open`` to prove region-bounded I/O, and a
+    ``builtins.open`` here is invisible to that hook — a seam that silently stops
+    observing is worse than no seam, because the assertions keep passing. Every other
+    body read in this module already went through ``Path.open``; this one now agrees."""
+    return Path(body_path).open("rb")
 
 
 def _plan_validate_cell_state(op, cell_state):
@@ -7161,7 +7341,11 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
       inline gate (E1 ``0x67`` / E2 ``0x62`` / E4 ``0x77`` / E3 ``0x64`` — the delivered
       gates) against ``cell_state``, and includes the EXPRESSED regions'
       ``(chromosome_label, byte_offset, byte_len)``. It MUST NOT read the region body —
-      bounded RAM AND bounded I/O (bytes-touched ≪ full body). A region with no head gene
+      the PLAN reads are bounded RAM AND bounded I/O (bytes-touched ≪ full body).
+      **Scope of that claim (rc282):** it covers the plan's own per-region reads. The
+      catalog derivation that PRECEDES them scans the whole body on a v12+ head-only
+      manifest (see :func:`genome_catalog`), so end-to-end bytes-READ for the path
+      variant is not ≪ full body — only the per-region gate reads are. A region with no head gene
       cap (a single-kernel chromosome, ``byte_len < 2·leaf_dim``) is not a gated community
       and is skipped. This is the siona community=chromosome layout: the per-chromosome
       head gate IS the community gate. Mixed E1/E2/E4/E3 gate-types across chromosomes are
@@ -7213,7 +7397,14 @@ def _gene_express_plan_path(path, the_one, cell_state):
                 str(path), cell_state, _the_one_bytes_or_empty(the_one))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
-    data = _catalog_data(path, the_one)         # the manifest read — never opens turns.bin
+    # The catalog read. On a v12+ HEAD-ONLY manifest — which is EVERY store written
+    # today — this DOES read turns.bin: the chromosome table is derived by scanning the
+    # body (ADR-0003, no stored plaintext TOC). A comment here used to claim the
+    # opposite ("never opens turns.bin"); it was false, and it is plausibly how the
+    # whole-body slurp this rc removed survived review. Only a v<=11 full manifest is
+    # body-free. The BOUNDED-I/O claim below is about the per-region PLAN reads (head
+    # caps only), not about deriving the catalog.
+    data = _catalog_data(path, the_one)
     leaf_dim = int(data["leaf_dim"])
     plan = []
     with _open_body_ro(path / _BODY_NAME) as f:

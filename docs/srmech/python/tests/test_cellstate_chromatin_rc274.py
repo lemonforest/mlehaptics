@@ -42,6 +42,21 @@ import pytest
 from srmech.amsc import genome as G
 from srmech.amsc import _native
 
+# rc282 — make this tests/ directory importable when this module is collected
+# ALONE. ``tests/`` is a package (``__init__.py`` present), so pytest's prepend
+# import-mode puts the package PARENT (``python/``) on sys.path, not ``tests/``
+# itself, and a bare ``from conftest import ...`` raises ModuleNotFoundError in
+# isolation. The project's proven shared-helper path (see test_mcp.py /
+# test_immolation.py, rc231 #810).
+import os as _os
+import sys as _sys
+_TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+if _TESTS_DIR not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR)
+
+from conftest import BodyReadProbe
+
+
 LEAF = G.LEAF_CAP
 B0, B1, B2, B3 = 1 << 0, 1 << 1, 1 << 2, 1 << 3
 ALLB = B0 | B1 | B2 | B3
@@ -170,40 +185,13 @@ def test_t4_demand_load_plan_native_equals_pure(monkeypatch):
 
 
 # ── T5  demand-load skips the right regions per state (bounded single-seek) ────────────
-class _CountFile:
-    def __init__(self, f):
-        self.f = f
-        self.n = 0
-
-    def seek(self, *a):
-        return self.f.seek(*a)
-
-    def read(self, *a):
-        b = self.f.read(*a)
-        self.n += len(b)
-        return b
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        self.f.close()
-        return False
-
-
 @pytest.fixture()
-def counting_seam(monkeypatch):
-    opened = []
-    orig = G._open_body_ro
-
-    def wrap(p):
-        cf = _CountFile(orig(p))
-        opened.append(cf)
-        return cf
-
-    monkeypatch.setattr(G, "_open_body_ro", wrap)
-    monkeypatch.setattr(_native, "has_native_genome", lambda: False)
-    return opened
+def probe(monkeypatch):
+    """The bounded-I/O probe, SPLIT into its plan / catalog terms (rc282 — see
+    ``conftest.BodyReadProbe``). The old single sum silently omitted the catalog
+    derivation's whole-body scan, because that read reached the body through
+    ``Path.read_bytes`` rather than the ``_open_body_ro`` seam this probe wraps."""
+    return BodyReadProbe().install(monkeypatch)
 
 
 def test_t5_facultative_region_in_or_out_of_plan_per_cell_state():
@@ -222,7 +210,7 @@ def test_t5_facultative_region_in_or_out_of_plan_per_cell_state():
     assert "ctrl" in off and "ctrl" in on              # the constitutive control is unaffected
 
 
-def test_t5_state_closed_facultative_touches_only_the_chromatin_cap(counting_seam):
+def test_t5_state_closed_facultative_touches_only_the_chromatin_cap(probe):
     one = G._default_the_one(LEAF)
     # ONE facultative community gated on bit2, a sizeable body — the dramatic-skip case
     strand = G.genome(the_one=one, chromosomes=[("solo", [("solo", _leaves(60))])])
@@ -231,18 +219,27 @@ def test_t5_state_closed_facultative_touches_only_the_chromatin_cap(counting_sea
     G.genome_save(strand, tmp, one)
     full_body = (tmp / G._BODY_NAME).stat().st_size
     # cell_state WITHOUT bit2 → the facultative region is CLOSED → skip reading ONLY its cap
-    counting_seam.clear()
+    probe.clear()
     plan = G.gene_express_plan(str(tmp), one, 0)
-    plan_bytes = sum(cf.n for cf in counting_seam)
+    probe.assert_live()
+    closed_bytes, closed_catalog = probe.plan_bytes, probe.catalog_bytes
     assert plan == []                                  # closed under this cell_state
-    assert plan_bytes == LEAF, plan_bytes              # ONLY the chromatin cap (single-seek); gate unread
-    assert plan_bytes < full_body // 2, (plan_bytes, full_body)
+    # THE GUARANTEE: ONLY the chromatin cap (single-seek); the gene gate is never read.
+    assert closed_bytes == LEAF, closed_bytes
+    assert closed_bytes < full_body // 2, (closed_bytes, full_body)
     # cell_state WITH bit2 → OPEN → advances to the gene gate (2 caps), region planned
-    counting_seam.clear()
+    probe.clear()
     plan_on = G.gene_express_plan(str(tmp), one, B2)
-    on_bytes = sum(cf.n for cf in counting_seam)
+    probe.assert_live()
+    on_bytes, on_catalog = probe.plan_bytes, probe.catalog_bytes
     assert {p[0] for p in plan_on} == {"solo"}
     assert on_bytes == 2 * LEAF, on_bytes              # chromatin cap + gene gate cap
+    # THE POINT OF THE WHOLE FEATURE, asserted as a CONTRAST rather than two constants:
+    # closing the region must genuinely REDUCE the bytes the plan reads.
+    assert closed_bytes < on_bytes, (closed_bytes, on_bytes)
+    # …while the catalog scan is INDEPENDENT of cell_state — which is exactly why it is
+    # a separate term and not part of the bound above.
+    assert closed_catalog == on_catalog == full_body, (closed_catalog, on_catalog)
 
 
 # ── T6  save / reload / decondense / integrate survival ───────────────────────────────
