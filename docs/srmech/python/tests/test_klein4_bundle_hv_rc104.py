@@ -46,7 +46,10 @@ _FLAG_VARIANTS = (
 # ── the DoD ────────────────────────────────────────────────────────────────
 
 def test_dod_list_of_random_hvs_bundles_without_tolist():
-    """DoD: klein4_bundle([klein4_random(D), klein4_random(D)]) works, no .tolist()."""
+    """DoD: klein4_bundle([klein4_expand(D, 1), klein4_expand(D, 2)]) works, no
+    .tolist(). (The rc104 DoD named klein4_random; rc290 renamed the mint and
+    rc292 removed the stochastic remnant — the HV-carrier contract is what is
+    under test and it is unchanged.)"""
     D = 128
     out = hdc.klein4_bundle([hdc.klein4_expand(D, 1),
                              hdc.klein4_expand(D, 2)])

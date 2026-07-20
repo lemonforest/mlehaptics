@@ -269,7 +269,6 @@ srmech.amsc.hdc.klein4_chirality_flip_omega7
 srmech.amsc.hdc.klein4_cpt_mirror
 srmech.amsc.hdc.klein4_holographic_decode
 srmech.amsc.hdc.klein4_holographic_encode
-srmech.amsc.hdc.klein4_random
 srmech.amsc.hdc.klein4_sector_count
 srmech.amsc.hdc.klein4_triality_correct
 srmech.amsc.hdc.klein4_triality_encode

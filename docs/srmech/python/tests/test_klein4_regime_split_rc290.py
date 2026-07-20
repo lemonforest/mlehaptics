@@ -100,19 +100,38 @@ def test_klein4_expand_refuses_non_integer_seeds():
         assert "klein4_role" in str(exc.value)
 
 
-def test_klein4_random_is_stochastic_only_and_refuses_a_seed():
-    """STOCHASTIC: no ``seed=`` at all. This is the F1259 defect itself — an op
-    named "random" that a seed made silently deterministic, so a reader could
-    not tell a magic number from a derived value. Removing the parameter is the
-    fix; a shim would reinstate the defect."""
-    with pytest.raises(TypeError):
-        hdc.klein4_random(D, seed=1)          # type: ignore[call-arg]
-    # It really is non-reproducible.
-    assert list(hdc.klein4_random(4096)) != list(hdc.klein4_random(4096))
-    # And it still honours an explicitly supplied generator.
-    import random
-    assert list(hdc.klein4_random(D, rng=random.Random(0))) == \
-        list(hdc.klein4_random(D, rng=random.Random(0)))
+def test_klein4_random_is_gone_entirely_rc292():
+    """rc292 REMOVED the STOCHASTIC regime. No op, no shim, no alias.
+
+    This test used to assert that ``klein4_random`` refused a ``seed=`` and
+    honoured an explicit ``rng=``. That second assertion is what retired the
+    op. rc290 removed ``seed=`` on the reasoning that a seed made an op named
+    "random" silently deterministic — but it left ``rng=``, and a SEEDED
+    generator through that door is exactly as reproducible. The old test
+    asserted the reproducibility itself
+    (``klein4_random(D, rng=Random(0))`` twice, equal) and called it correct
+    behaviour, so the F1259 defect was not merely surviving, it was PINNED.
+
+    A survey of real call sites found every one of them passing
+    ``default_rng(<seed>)`` — i.e. the op whose documented correctness
+    criterion was NON-REPRODUCIBILITY was, in practice, never used
+    stochastically. An op whose declared regime does not match any of its use
+    is not a regime; it is a defect. There is deliberately no replacement:
+    a caller who wants an unpredictable Klein-4 vector draws their own bytes
+    and composes ``klein4_encode_bytes``, which keeps the non-reproducibility
+    visible at the call site and has C parity all the way down.
+    """
+    assert not hasattr(hdc, "klein4_random")
+    assert "klein4_random" not in hdc.__all__
+    # No silent re-export anywhere on the public surface.
+    from srmech.amsc import tool_schema
+    assert all(e.name != "srmech.amsc.hdc.klein4_random"
+               for e in tool_schema.get_tool_schema().tools)
+    # The documented replacement composition works and is genuinely per-run.
+    import os
+    a = hdc.klein4_encode_bytes(os.urandom(32), 4096)
+    b = hdc.klein4_encode_bytes(os.urandom(32), 4096)
+    assert list(a) != list(b)
 
 
 def test_klein4_address_refuses_an_integer_seed():

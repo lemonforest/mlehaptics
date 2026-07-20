@@ -3426,28 +3426,13 @@ def _register_primitive_class_tools() -> None:
                     "for 'some vector, doesn't matter which' — that is the "
                     "DRAWN anti-pattern (an undeclared draw from an undeclared "
                     "ensemble). For data use klein4_address; for a named slot "
-                    "klein4_role; for a genuinely per-run value klein4_random. "
-                    "rc290 rename of klein4_random(D, seed=…); the MT19937 "
-                    "stream is byte-for-byte unchanged.",
+                    "klein4_role; for a genuinely per-run value draw your own "
+                    "bytes and use klein4_encode_bytes. rc290 rename of "
+                    "klein4_random(D, seed=…); the MT19937 stream is "
+                    "byte-for-byte unchanged.",
             parameters=(P("D", "int", True, "dimension"),
                         P("seed", "int", True,
                           "integer seed (any sign, any width)")),
-            returns=R("HV", "uint8 in {0,1,2,3}"),
-        ),
-        ToolEntry(
-            name="srmech.amsc.hdc.klein4_random", owner="srmech", category="hdc",
-            summary="STOCHASTIC regime — a genuinely random Klein-4 "
-                    "hypervector (D elements in {0,1,2,3}), drawn from OS "
-                    "entropy. CRITERION: NON-REPRODUCIBILITY — this is the one "
-                    "klein4 op where a different answer next call is the "
-                    "point. Use it for a nonce / a fresh probe / a Monte-Carlo "
-                    "trial. Do NOT use it inside an attested cascade: an "
-                    "unreproducible value cannot be re-verified. rc290 REMOVED "
-                    "`seed=` — it made the op silently deterministic while the "
-                    "name said otherwise, so a call site could not be read to "
-                    "find out which regime it was in. Deterministic callers "
-                    "want klein4_expand / klein4_address / klein4_role.",
-            parameters=(P("D", "int", True, "dimension"),),
             returns=R("HV", "uint8 in {0,1,2,3}"),
         ),
         ToolEntry(
