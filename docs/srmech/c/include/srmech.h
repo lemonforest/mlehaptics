@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc288"
-#define SRMECH_VERSION       "0.9.0rc288"
+#define SRMECH_VERSION_PRE   "rc289"
+#define SRMECH_VERSION       "0.9.0rc289"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -11292,9 +11292,9 @@ srmech_status_t srmech_qm_su3_structure(double *out);
  * (v0.9.0rc217; gh #1360)
  *
  * The C mirror of `srmech.amsc.text` — the §40/§52 text→graph leaves of
- * the K1 presence-kernel chain `text → tokenize → cooccurrence_edges →
+ * the K1 presence-kernel chain `text → glyph_stream → cooccurrence_edges →
  * dense_laplacian`, plus the §52 streaming bounded top-K peer. The
- * corpus-linear hot loops (per-codepoint tokenize; windowed pair-count
+ * corpus-linear hot loops (per-codepoint segmentation; windowed pair-count
  * accumulation; bounded chunk merge) run fully in C; the vocab-scale
  * string→id mapping stays host-side (the srmech_klein4_cooccurrence_fold
  * split precedent).

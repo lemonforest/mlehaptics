@@ -3,10 +3,10 @@
  * (v0.9.0rc217; gh #1360).
  *
  * The C mirror of `srmech.amsc.text` — the §40/§52 text→graph leaves of the
- * RBS-LM K1 presence-kernel chain `text → tokenize → cooccurrence_edges →
+ * RBS-LM K1 presence-kernel chain `text → glyph_stream → cooccurrence_edges →
  * dense_laplacian`. These three ops shipped rc50/§52 as pure-Python kernels
  * and were MIS-CLASSIFIED non_compute/composes_c in the Rosetta ledger (the
- * hiding-spot the rc217 ledger fix closes): the tokenize per-codepoint loop +
+ * hiding-spot the rc217 ledger fix closes): the per-codepoint segmentation loop +
  * the windowed pair-count accumulation are THE dominant corpus-encode cost
  * (the full-enwiki comprehended-encode estimated ~6 days with the hot loop in
  * Python on a native wheel — no C symbol existed to dispatch to).
