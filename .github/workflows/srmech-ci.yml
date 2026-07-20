@@ -85,7 +85,36 @@ jobs:
       - name: Run tests
         working-directory: docs/srmech/python
         shell: bash
-        run: pytest tests/ -q
+        # rc283 — parallelised with pytest-xdist. MEASURED on this repo's own
+        # suite, same tree, .so rebuilt from source: serial 2529 s; `-n 4` over
+        # three consecutive runs 1154.7 / 1004.9 / 943.4 s = 2.19x / 2.52x /
+        # 2.68x. The spread is CONTENTION, not variance — a second session was
+        # running pytest on the same box and the figure improved monotonically
+        # as it drained; 943.4 s is the quiet-box number and agrees with an
+        # independent `-n 8` run (924.4 s). Projects the wall-clock-driving
+        # ubuntu cell from ~25.2 min to ~9.4-11.5 min.
+        #
+        # (An earlier scoping investigation reported 2.92x / ~8.6 min. That was
+        # a different run on a different tree and this rc did NOT reproduce it;
+        # the range above is what its own three runs measured. Quote this one.)
+        #
+        # `-n auto` (NOT a fixed `-n 4`): xdist resolves `auto` via
+        # os.cpu_count() here (psutil is deliberately not a dev dep), which is
+        # exactly the vCPU allotment of each GitHub-hosted standard runner —
+        # 4 on ubuntu-latest and windows-latest, 3 on macos-14. A fixed `-n 4`
+        # would OVERSUBSCRIBE the 3-core macOS cell, and would silently become
+        # wrong if GitHub changes runner sizing; `auto` tracks the real core
+        # count per cell and cannot oversubscribe.
+        #
+        # `--dist loadfile` sends a whole FILE to one worker, which (a) keeps
+        # each file's tests in their authored order, and (b) confines the
+        # process-global `os.chdir` / `os.environ` mutations a few test files
+        # perform. Its cost is that no run can finish faster than the slowest
+        # single file (~453 s, test_qm_so8_triality_c_rc146.py); that floor only
+        # starts to bind past ~6 workers, so it does not limit any cell here.
+        #
+        # Coverage is UNCHANGED — same tests, same assertions, distributed.
+        run: pytest tests/ -q -n auto --dist loadfile
 
   pure-wheel-build:
     # Always-on lightweight build of the py3-none-any wheel via the
