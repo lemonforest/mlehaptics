@@ -27,7 +27,7 @@ _DIM = 64
 
 
 def _one():
-    return hdc.klein4_random(_DIM, seed=0)
+    return hdc.klein4_expand(_DIM, 0)
 
 
 def _leaf(i):
@@ -84,8 +84,8 @@ def test_catalog_cap_kind_native_equals_pure():
     with tempfile.TemporaryDirectory() as tmp:
         path = _save_mixed(tmp, one)
         native = json.loads(
-            _native.genome_catalog_c(str(path), G._the_one_block_bytes(one)))["data"]
-        pure = G._catalog_data(str(path), the_one=one)
+            _native.genome_catalog_c(str(path), G._coupling_block_bytes(one)))["data"]
+        pure = G._catalog_data(str(path), coupling=one)
         nk = {c["label"]: c["cap_kind"] for c in native["chromosomes"]}
         pk = {c["label"]: c["cap_kind"] for c in pure["chromosomes"]}
         assert nk == pk == {"stk": "plasmid", "min": "nuclear", "dip": "diploid"}
@@ -151,9 +151,9 @@ def test_census_native_equals_pure():
     with tempfile.TemporaryDirectory() as tmp:
         path = _save_mixed(tmp, one)
         native = json.loads(
-            _native.genome_census_c(str(path), G._the_one_block_bytes(one)))
+            _native.genome_census_c(str(path), G._coupling_block_bytes(one)))
         pure = G._census_from_catalog(
-            G._catalog_data(str(path), the_one=one), str(path))
+            G._catalog_data(str(path), coupling=one), str(path))
         assert native == pure
 
 
@@ -200,11 +200,11 @@ def test_registry_native_equals_pure(monkeypatch):
     with tempfile.TemporaryDirectory() as tmp:
         root = _build_cell(tmp, one)
         native = json.loads(
-            _native.genome_registry_c(str(root), G._the_one_block_bytes(one)))
+            _native.genome_registry_c(str(root), G._coupling_block_bytes(one)))
         # pure = the REAL fallback (native registry forced off) — the same os/pathlib
         # roll-up a no-native host runs. It must equal the C tree byte-for-byte,
         # INCLUDING the "root/name" child-path join (regression: on Windows pathlib's
         # "\\" join diverged from the native "/" — §96 parity).
         monkeypatch.setattr(_native, "has_native_genome_registry", lambda: False)
-        pure = G.genome_registry(str(root), the_one=one)
+        pure = G.genome_registry(str(root), coupling=one)
         assert native == pure

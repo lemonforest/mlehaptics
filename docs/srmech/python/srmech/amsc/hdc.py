@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import ctypes
+import json as _json
 import os
 import random as _random
 from array import array
@@ -40,6 +41,7 @@ from typing import Sequence
 # top-level numpy import and no lazy numpy proxy.
 
 from . import _native
+from . import format as _fmt          # Class A — sha256_bytes (native-dispatched)
 from .hv import HV
 from .mat import Mat
 from .q import Q
@@ -417,7 +419,7 @@ def polar_random(D: int, rng=None, seed: "int | None" = None):
     rc154 (BATCH B10): the deterministic integer-``seed`` path dispatches to the
     standalone-C MT19937 ``srmech_polar_random`` when native is present — a
     byte-for-byte reproduction of CPython's ``random.Random(seed).randrange(-1,
-    2)`` (the polar sibling of the §60 ``srmech_klein4_random`` — a random op
+    2)`` (the polar sibling of the §60 ``srmech_klein4_expand`` — a random op
     with NO C RNG twin cannot be standalone-C, so it earns its own deterministic
     kernel rather than a false composition-of-c). Pure-Python ``random.Random``
     is the complete alternative for a no-C host / a caller-supplied ``rng`` /
@@ -734,62 +736,471 @@ def _seed_to_le_words(seed: int):
     return [(n >> (32 * i)) & 0xFFFFFFFF for i in range(nwords)]
 
 
-def _klein4_random_native(D: int, seed: int):
+# ── §102 / F1259 / F1260: the Klein-4 mint split by REGIME (rc290) ────────
+#
+# Until rc290 ONE op — ``klein4_random(D, rng=, seed=)`` — served four regimes
+# that have DIFFERENT CORRECTNESS CRITERIA, and the call site never declared
+# which one it meant. A ``seed=`` that silently spans "magic number" and
+# "content address" is exactly what let a DRAWN coupling be mistaken for a
+# DERIVED one (F1259), and what made F1260's content-vs-address confusion
+# possible. rc290 splits the mechanism into four ops so the regime is DECLARED
+# at the call site and the wrong choice is hard to WRITE, not merely explicit:
+#
+#   klein4_expand(D, seed)     EXPAND    — a seed integer → D crumbs. What the
+#                                          old op actually WAS on every
+#                                          ``seed=`` call. Deterministic.
+#   klein4_random(D, rng=…)    STOCHASTIC— the ONLY regime where "random" is
+#                                          true. NOT reproducible; a defect
+#                                          inside a cascade.
+#   klein4_address(D, content) ADDRESSED — Class-A content address. Identity,
+#                                          structureless. Correct for a
+#                                          namespace key; WRONG for content.
+#   klein4_role(D, role, base) ROLE      — a binding key for a named slot.
+#                                          Near-orthogonality is the CORRECT
+#                                          target here, not a defect.
+#
+# The teaching case (F1260): at D=8192 ``klein4_address`` of "cat"/"cats" scores
+# 0.2589 against a 0.2454 "cat"/"dog" control, while ``klein4_encode_bytes`` scores
+# 0.6597. SHA-256 avalanche flips 48.77 % of output bits per one-character
+# edit — HIGH DIFFUSION IS WHAT MAKES A GOOD ADDRESS AND WHAT DISQUALIFIES IT
+# AS A REPRESENTATION. Same axis, opposite requirement. Choose by regime.
+
+
+def _klein4_expand_native(D: int, seed: int):
     """Native MT19937 draw of ``D`` Klein-4 codes for an integer ``seed`` —
     byte-identical to ``random.Random(seed)``'s ``randrange(4)`` stream — or
     ``None`` when the C symbol is absent / the call fails (pure-Python is the
     COMPLETE alternative, not a rescue). The C seeds via ``init_by_array`` over
     the seed's little-endian uint32 words; ``out`` is ``D`` bytes in {0,1,2,3}."""
     if not (_native.HAS_NATIVE and _native.LIB is not None
-            and hasattr(_native.LIB, "srmech_klein4_random")):
+            and hasattr(_native.LIB, "srmech_klein4_expand")):
         return None
     words = _seed_to_le_words(seed)
     key = (ctypes.c_uint32 * len(words))(*words)
     out = (ctypes.c_uint8 * D)()
-    rc = _native.LIB.srmech_klein4_random(
+    rc = _native.LIB.srmech_klein4_expand(
         key, len(words), ctypes.c_uint32(D), out)
     if rc != _native.SRMECH_OK:
         return None
     return array("B", out)
 
 
-def klein4_random(D: int, rng=None, seed: "int | None" = None):
-    """Random Klein-4 hypervector of dimension ``D`` with elements in {0,1,2,3}.
+def klein4_expand(D: int, seed: int):
+    """**EXPAND regime.** Deterministically expand an integer ``seed`` into a
+    Klein-4 hypervector of dimension ``D``, elements in {0,1,2,3}.
+
+    **Correctness criterion: REPRODUCIBILITY.** Same ``(D, seed)`` ⇒ the same
+    bytes, on every host, in every implementation, forever. Nothing else is
+    promised — in particular this op makes NO claim that different seeds give
+    near-orthogonal vectors (they do, but that is :func:`klein4_role`'s
+    criterion) and NO claim that the seed is a meaningful description of
+    anything (that is :func:`klein4_address`'s).
+
+    **Use it when** you hold an integer that already means something in your
+    cascade — a byte value, a position index, a table row — and you need a
+    stable vector for it.
+
+    **Do not use it** with a hand-picked constant to stand in for "some vector,
+    doesn't matter which". That is the **DRAWN** anti-pattern F1259 names: an
+    undeclared draw from an undeclared ensemble, indistinguishable at the call
+    site from a derived value. If the vector should be a function of your
+    data, use :func:`klein4_address`; if it keys a named slot, use
+    :func:`klein4_role`; if it genuinely must vary per run, use
+    :func:`klein4_random`.
 
     Args:
         D: Vector dimension (positive).
-        rng: Optional ``numpy.random.Generator`` for in-process Python
-            callers. A ``Generator`` cannot cross JSON-RPC nor be expressed
-            in an Anthropic tool schema; use ``seed`` from those callers.
-        seed: Optional integer seed. When given (and ``rng`` is not), the
-            generator is built internally as ``random.Random(seed)`` (rc125:
-            stdlib, numpy-free), so MCP / Anthropic callers can obtain a
-            DETERMINISTIC vector (srmech's bit-exact / attestation discipline).
-            **Precedence:** an explicit ``rng`` wins over ``seed`` if both are
-            supplied.
+        seed: Integer seed (any sign, any width).
 
-    rc6 (§60 / F864): the deterministic integer-``seed`` path dispatches to the
-    standalone-C MT19937 ``srmech_klein4_random`` when native is present — a
-    byte-for-byte reproduction of CPython's ``random.Random(seed).randrange(4)``
-    (the last ``python_only_debt`` klein4 op earns its C twin, so the §60
-    byte/glyph encoder + the 256-byte vocab + position keys are now fully
-    native). Pure-Python ``random.Random`` is the complete alternative for a
-    no-C host / a caller-supplied ``rng`` / the urandom ``seed=None`` path.
+    rc290 renames this op out of ``klein4_random(D, seed=…)``: with ``seed=``
+    supplied the old op was never random, and the name hid the regime. The
+    STREAM is unchanged — byte-for-byte the CPython
+    ``random.Random(seed).randrange(4)`` sequence, dispatched to the
+    standalone-C MT19937 ``srmech_klein4_expand`` when native is present, with
+    pure-Python ``random.Random`` as the COMPLETE alternative for a no-C host.
     """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_expand: D must be positive")
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise TypeError(
+            "hdc.klein4_expand: seed must be an int — this is the EXPAND "
+            "regime. For content bytes use klein4_address(D, content); for a "
+            "named slot use klein4_role(D, role); for a genuinely stochastic "
+            "draw use klein4_random(D, rng=…)")
+    buf = _klein4_expand_native(D, seed)
+    if buf is not None:
+        return HV(buf, sectors=4)
+    r = _random.Random(seed)
+    return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
+
+
+def klein4_random(D: int, rng=None):
+    """**STOCHASTIC regime.** A genuinely random Klein-4 hypervector of
+    dimension ``D``, elements in {0,1,2,3}.
+
+    **Correctness criterion: NON-REPRODUCIBILITY.** This op is the one place in
+    the klein4 surface where a different answer on the next call is the point.
+    With no ``rng`` it draws from ``random.Random()`` (OS entropy).
+
+    **Use it when** the vector must not be predictable or must differ per run —
+    a nonce, a fresh probe, a Monte-Carlo trial.
+
+    **Do not use it inside a cascade whose output is attested.** An
+    unreproducible value in an attested cascade is a defect, not a
+    convenience — the record cannot be re-verified. rc290 REMOVED the ``seed=``
+    parameter for exactly this reason: it made the op silently deterministic
+    while the name kept saying otherwise, so a call site could not be read to
+    find out which regime it was in. Deterministic callers want
+    :func:`klein4_expand` / :func:`klein4_address` / :func:`klein4_role`.
+
+    Args:
+        D: Vector dimension (positive).
+        rng: Optional generator exposing ``.integers(low, high, size=…)`` (a
+            ``numpy.random.Generator``) or ``.randrange(n)`` (a stdlib
+            ``random.Random``). A ``Generator`` cannot cross JSON-RPC nor be
+            expressed in an Anthropic tool schema, so MCP callers get the
+            OS-entropy default — and if they wanted determinism they wanted a
+            different op.
+
+    **PYTHON-ONLY BY REGIME, not by debt (ADR-0009).** The other three regimes
+    are C-backed. This one has no C peer because it has nothing to be at parity
+    ABOUT: two implementations of "unpredictable" cannot be differentially
+    tested for byte-identity, and a C host needing an unpredictable Klein-4
+    vector draws from its own entropy source. The CAPABILITY — deterministic
+    Klein-4 minting, which is what every cascade actually consumes — is fully
+    covered in both projections by ``klein4_expand`` / ``_address`` / ``_role``.
+    """
+    D = int(D)
     if D <= 0:
         raise ValueError("hdc.klein4_random: D must be positive")
     if rng is not None and hasattr(rng, "integers"):
-        # Back-compat numpy ``Generator`` path: the caller already holds numpy,
-        # so this branch may use it (coerced to a stdlib uint8 buffer — no numpy
-        # name in THIS module). The default (seed / None) path below is
-        # numpy-free (stdlib ``random``) — the §22 numpy-optional core.
+        # numpy ``Generator`` path: the caller already holds numpy, so this
+        # branch may use it (coerced to a stdlib uint8 buffer — no numpy name in
+        # THIS module). The default path below is numpy-free (stdlib
+        # ``random``) — the §22 numpy-optional core.
         return HV(array("B", (int(x) for x in rng.integers(0, 4, size=D))), sectors=4)
-    if rng is None and isinstance(seed, int) and not isinstance(seed, bool):
-        buf = _klein4_random_native(D, seed)
-        if buf is not None:
-            return HV(buf, sectors=4)
-    r = rng if rng is not None else _random.Random(seed)
+    r = rng if rng is not None else _random.Random()
     return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
+
+
+def _klein4_address_native(D: int, content: bytes):
+    """Native Class-A counter-mode SHA-256 expansion of ``content`` to ``D``
+    Klein-4 crumbs, or ``None`` when the C symbol is absent / the call fails
+    (the pure path is the COMPLETE alternative, not a rescue)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_klein4_address")):
+        return None
+    buf = (ctypes.c_uint8 * len(content)).from_buffer_copy(content) \
+        if content else None
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_address(
+        buf, ctypes.c_size_t(len(content)), ctypes.c_uint32(D), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", out)
+
+
+def klein4_address(D: int, content):
+    """**ADDRESSED regime.** The Class-A content address of ``content`` as a
+    Klein-4 hypervector of dimension ``D``.
+
+    TWO-STAGE counter-mode SHA-256::
+
+        h       = sha256_hex(content)                    # one pass, any length
+        block_i = sha256(h || "|" || decimal(i))          # 87-byte preimage
+
+    each digest byte of ``block_i`` contributing four crumbs (bit-pairs,
+    LSB-pair first) until ``D`` symbols are filled. Class A is the foundational
+    anchor of the A–N partition; no foreign code family is reached for.
+
+    **The second stage is not decoration.** Folding ``content`` to a digest
+    first is what lets the counter loop run out of a FIXED buffer for content
+    of any size — which is what the C projection needs to satisfy JPL Rule 3
+    (no malloc) without a compiled-in ceiling. A one-stage
+    ``sha256(content || b"|" || i)`` would need the whole preimage resident per
+    counter block, forcing exactly the "declines cleanly above N" shape
+    ADR-0006 §2.5 names as an anti-pattern and ADR-0009 generalises from
+    carriers to implementations.
+
+    **Correctness criterion: IDENTITY AND STRUCTURELESSNESS.** Equal content ⇒
+    equal vector; unequal content ⇒ vectors at the 0.25 Klein-4 orthogonality
+    floor, with no residual similarity that could let one address be read with
+    another. The vector is *supposed* to be incompressible and *supposed* to
+    sit at the floor. Those are the targets, not defects.
+
+    **Use it when** you need a namespace key, a store identity, or a coupling —
+    a value whose only job is to be reproducibly ITSELF and confusable with
+    nothing else. :func:`klein4_from_one` is a thin wrapper over this op.
+
+    **NEVER use it to represent content you intend to compare.** SHA-256
+    avalanche flips ~48.8 % of output bits for a one-character edit, so at
+    D=8192 ``klein4_address(D, "cat")`` vs ``klein4_address(D, "cats")`` scores
+    0.2589 against a 0.2454 ``"cat"``/``"dog"`` control — the edit is invisible.
+    :func:`klein4_encode_bytes` scores 0.6597 on the same pair because it
+    composes position-bound per-byte vectors and therefore CARRIES morphology.
+    High diffusion is precisely what makes a good ADDRESS and precisely what
+    disqualifies it as a REPRESENTATION (F1260) — the same property read
+    against two opposite requirements. Pick the op that matches your criterion.
+
+    Args:
+        D: Vector dimension (positive).
+        content: The bytes to address (``bytes`` / ``bytearray``; a ``str`` is
+            UTF-8 encoded). May be empty — the empty address is well-defined.
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_address: D must be positive")
+    if isinstance(content, str):
+        content = content.encode("utf-8")
+    elif isinstance(content, bytearray):
+        content = bytes(content)
+    elif not isinstance(content, bytes):
+        raise TypeError(
+            "hdc.klein4_address: content must be bytes / bytearray / str — "
+            "this is the ADDRESSED regime. For an integer seed use "
+            "klein4_expand(D, seed); for a named slot use klein4_role(D, role)")
+    buf = _klein4_address_native(D, content)
+    if buf is not None:
+        return HV(buf, sectors=4)
+    seed_hex = _fmt.sha256_bytes(content).encode("ascii")
+    out = array("B")
+    counter = 0
+    while len(out) < D:
+        block = bytes.fromhex(
+            _fmt.sha256_bytes(seed_hex + b"|" + str(counter).encode("ascii")))
+        for byte in block:
+            for shift in (0, 2, 4, 6):
+                if len(out) < D:
+                    out.append((byte >> shift) & 3)
+        counter += 1
+    return HV(out, sectors=4)
+
+
+def _klein4_role_native(D: int, name: bytes, base: int):
+    """Native FNV-1a role fold + EXPAND, or ``None`` when the C symbol is absent
+    / the call fails (the pure composition is the COMPLETE alternative)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_klein4_role")):
+        return None
+    buf = (ctypes.c_uint8 * len(name)).from_buffer_copy(name) if name else None
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_role(
+        buf, ctypes.c_size_t(len(name)), ctypes.c_uint32(base),
+        ctypes.c_uint32(D), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", out)
+
+
+def klein4_role(D: int, role: str, base: int = 0):
+    """**ROLE regime.** The binding key for a NAMED SLOT — the role half of a
+    role-filler bind — as a Klein-4 hypervector of dimension ``D``.
+
+    ``role`` is folded to a 32-bit seed by the FNV-1a token hash
+    (:func:`_cooc_token_seed`) under the ``base`` namespace, then expanded.
+
+    **Correctness criterion: NEAR-ORTHOGONALITY BETWEEN DISTINCT ROLES.**
+    Two different role names must produce vectors at the 0.25 floor so that
+    binding by one role cannot be read out by another. Unlike the ADDRESSED
+    regime, near-orthogonality here is not merely acceptable — it is the whole
+    functional requirement, because it is what keeps slots from leaking into
+    each other.
+
+    **Use it when** the vector names a POSITION IN A STRUCTURE rather than a
+    piece of data: a field name, a slot label, a co-occurrence role.
+
+    **Do not use it as a content address.** A role is stable under the
+    structure, not under the data; ``base`` deliberately re-namespaces the same
+    role name to a different vector, which is correct for a codebook and wrong
+    for an identity.
+
+    Args:
+        D: Vector dimension (positive).
+        role: The slot name (any object; ``str()``-ed then UTF-8 encoded).
+        base: Namespace seed — distinct ``base`` values give an independent
+            codebook over the same role names.
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_role: D must be positive")
+    if isinstance(base, bool) or not isinstance(base, int):
+        raise TypeError("hdc.klein4_role: base must be an int")
+    name = str(role).encode("utf-8")
+    buf = _klein4_role_native(D, name, base & 0xFFFFFFFF)
+    if buf is not None:
+        return HV(buf, sectors=4)
+    return klein4_expand(D, _cooc_token_seed(role, base))
+
+
+#: The (1,3,7,3) Cayley–Dickson partition as a per-position BLOCK index over the
+#: 14 A–N slots. Blocks tile as ℂ = 2 slots (1 real + 1 imag), ℍ = 4 (1 + 3),
+#: 𝕆 = 8 (1 + 7).
+def _klein4_block_of(slot: int) -> int:
+    """Which Cayley–Dickson block slot ``slot`` (0..13) belongs to: 0=ℂ, 1=ℍ, 2=𝕆."""
+    if slot < 2:
+        return 0
+    if slot < 6:
+        return 1
+    return 2
+
+
+#: Per-block Klein-4 sector flips — the framework's OWN Class-C involutions
+#: (1 = iω₇, 2 = γ₅, 3 = CPT). Indexed by :func:`_klein4_block_of`.
+KLEIN4_BLOCK_SECTOR_MASK = (1, 2, 3)
+
+
+def _klein4_sector_frame_native(D: int):
+    """Native period-14 (1,3,7,3) sector frame, or ``None`` when the C symbol is
+    absent / the call fails (the pure path is the COMPLETE alternative)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_klein4_sector_frame")):
+        return None
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_sector_frame(ctypes.c_uint32(D), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", out)
+
+
+def klein4_sector_frame(D: int):
+    """The **(1,3,7,3) sector frame** of dimension ``D`` — the substrate's own
+    period-14 Klein-4 position structure.
+
+    Position ``j`` carries the Class-C sector flip of the Cayley–Dickson block
+    that slot ``j mod 14`` belongs to: ℂ → ``iω₇`` (1), ℍ → ``γ₅`` (2),
+    𝕆 → CPT (3). These are the framework's own ``klein4_chirality_flip_*``
+    involutions, not an invented lattice.
+
+    **Why the partition enters as a MASK and not as vector content.** The
+    ``One``'s 14-D adjoint carries only TWO independent transcendental values
+    plus a sign — ten of its fourteen slots are θ-constant, slots 3 and 7 are
+    both ``cos θ`` and slots 4 and 12 are ``±sin θ``. So (1,3,7,3) is not
+    vector structure that a projection could preserve; it is OPERATOR structure
+    — how ``G(σ,θ)`` ACTS — while any projection target is an operand. Tiling
+    the 14 slots into D positions is measurably catastrophic (0.82 mean
+    similarity, 1054 collisions across 120 θ, and a wrong-coupling cross-read
+    that returns the true leaf at 64/64). As a period-14 SECTOR MASK the
+    partition is instead well-defined at EVERY D, which is why nothing here
+    requires D divisible by 14 — and nothing gains from it either (measured
+    across 56/64, 112/128, 224/256, 448/512, 896/1024, the means agree to
+    ~0.001).
+
+    **Honest disclosure: the frame is STATISTICALLY INERT.** XOR-by-constant is
+    a Hamming isometry, so masking changes no pairwise statistic whatsoever
+    (measured: mask-vs-no-mask distributions identical). It is carried for
+    STRUCTURAL LEGIBILITY and ATTESTATION — it makes a masked value "an address
+    in the substrate's own sector frame" rather than a bare digest, and it
+    gives a falsifiable invariant: XOR the frame back off and the raw Class-A
+    expansion must reappear exactly.
+
+    Args:
+        D: Vector dimension (positive).
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_sector_frame: D must be positive")
+    buf = _klein4_sector_frame_native(D)
+    if buf is not None:
+        return HV(buf, sectors=4)
+    return HV(array("B", (KLEIN4_BLOCK_SECTOR_MASK[_klein4_block_of(j % 14)]
+                          for j in range(D))), sectors=4)
+
+
+def _klein4_from_one_native(sigma: int, tn: int, td: int, terms: int, D: int):
+    """Native ONE-A14 projection, or ``None`` when the C symbol is absent, the
+    call fails, or a parameter exceeds the C int64 wire (the pure path is the
+    COMPLETE alternative, not a rescue)."""
+    if not (_native.HAS_NATIVE and _native.LIB is not None
+            and hasattr(_native.LIB, "srmech_klein4_from_one")):
+        return None
+    lo, hi = -(2 ** 63), 2 ** 63 - 1
+    for v in (sigma, tn, td, terms):
+        if v < lo or v > hi:
+            return None          # arbitrary-precision θ: pure path handles it
+    out = (ctypes.c_uint8 * D)()
+    rc = _native.LIB.srmech_klein4_from_one(
+        ctypes.c_int64(sigma), ctypes.c_int64(tn), ctypes.c_int64(td),
+        ctypes.c_int64(terms), ctypes.c_uint32(D), out)
+    if rc != _native.SRMECH_OK:
+        return None
+    return array("B", out)
+
+
+def klein4_from_one(one, D: int):
+    """**ONE-A14** — the ``One``'s Klein-4 coupling projection (§102 / F1259).
+
+    Projects ``S(σ,θ)`` to a Klein-4 hypervector of dimension ``D`` that is a
+    DECLARED FUNCTION of the ``One``'s three canonical constructor integers,
+    with no stored bytes, no seed table and no label:
+
+    1. **Class A** — canonical serialisation of ``one._to_jsonable()``
+       (``{"sigma", "terms", "theta"}``, sorted keys, no whitespace) →
+       :func:`klein4_address`.
+    2. **Class C** — XOR the period-14 :func:`klein4_sector_frame`, carrying the
+       (1,3,7,3) partition as the substrate's own sector structure.
+    3. **Class K/C** — σ enters through the ``One``'s own construction (the
+       Class-K pin-slot / Class-C re-application inside ``coupling``), never via
+       ``abs()``.
+
+    **What this is FOR: it is a ROLE, not a representation.** The genome's
+    coupling slot is consumed by ``genome.quad_turn``, which applies it as a
+    uniform :func:`klein4_bind` — and XOR-by-constant is a **Hamming isometry**,
+    so ``sim(t₁^c, t₂^c) == sim(t₁, t₂)`` for ANY coupling ``c``. A coupling
+    therefore *mathematically cannot* transmit structure into stored content, no
+    matter what vector occupies the slot. Consequently the 0.25 orthogonality
+    floor and incompressibility are the CORRECT targets here, and a
+    "structure-preserving" coupling is a LEAK: the naive slot projection scores
+    0.82 mutual similarity and lets one genome be read with another's key at
+    64/64. Do not "improve" this op toward structure-bearing.
+
+    **What it buys is provenance, not statistics.** Measured at D=64 over 120
+    distinct θ (7140 pairs), ONE-A14 gives mean pairwise similarity 0.2501 with
+    ZERO identical pairs, statistically indistinguishable from the magic-integer
+    draw it replaces (0.2498) and from the design-note prototype (0.2491). The
+    gain is that the coupling becomes a declared function of substrate parameters (σ, θ — physical and domain-portable)
+    instead of an undeclared draw from an undeclared ensemble. You pay nothing
+    for the honesty. This is a REPLACEMENT OF AN UNDECLARED DRAW BY A DERIVABLE
+    DESCRIPTION — it is not a quality improvement, and it is not offered as one.
+
+    **The bridge is thin, necessarily** — see :func:`klein4_sector_frame` for
+    why the ``One``'s 14-D vector structure is inert for this purpose. A large
+    bridge here would be a sign of something invented.
+
+    Args:
+        one: A :class:`~srmech.amsc.cascade.one.One` (read structurally: any
+            object exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, and
+            ``.terms``).
+        D: Vector dimension (positive). Free — nothing requires, and nothing
+            gains from, divisibility by 14.
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("hdc.klein4_from_one: D must be positive")
+    try:
+        sigma = int(one.sigma)
+        tn, td = (int(x) for x in one.theta)
+        terms = int(one.terms)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise TypeError(
+            "hdc.klein4_from_one: `one` must expose .sigma, .theta=(num, den) "
+            f"and .terms (a cascade One); got {type(one).__name__}") from exc
+    if td == 0:
+        # `the_one` rejects this at construction, so it can only arrive from a
+        # duck-typed operand — but the C peer ASSERTS theta_den != 0, and an
+        # assert-enabled build would SIGABRT the host rather than raise. Raise
+        # here, before dispatch, so both projections refuse the same input the
+        # same way (the rc289 lesson: a false assert on a reachable input is a
+        # parity break of the worst shape — one projection answers, the other
+        # kills the process).
+        raise ValueError(
+            "hdc.klein4_from_one: theta denominator must be non-zero")
+    buf = _klein4_from_one_native(sigma, tn, td, terms, D)
+    if buf is not None:
+        return HV(buf, sectors=4)
+    preimage = _json.dumps({"sigma": sigma, "terms": terms, "theta": [tn, td]},
+                           sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return klein4_bind(klein4_address(D, preimage), klein4_sector_frame(D))
 
 
 # ── Klein-4 sector / chunk parallel dispatch (v0.6.0rc13; §11.3) ──────────
@@ -1143,7 +1554,7 @@ def klein4_bundle(*vectors, sectors=None, parallel=None, mode="chunk"):
     Both call forms are accepted (issue #1234 Item 4 / F1005 / UPSTREAM §82):
     the varargs ``klein4_bundle(v1, v2, …)`` AND the ``bundle(Sequence)``-style
     single list ``klein4_bundle([v1, v2, …])`` — so the natural :class:`HV`
-    output of :func:`klein4_random` / :func:`klein4_bind` can be bundled
+    output of :func:`klein4_expand` / :func:`klein4_bind` can be bundled
     directly, at parity with :func:`klein4_bind` / :func:`klein4_similarity`
     (which already take HV wrappers), without ``.tolist()``-ing each element.
     Each vector — HV or a plain uint8 sequence, mixed freely — rides the SAME
@@ -1408,10 +1819,10 @@ def klein4_chunk_resolve(chunks, key, candidates):
 # a word vector from POSITION-BOUND per-byte vectors — restoring morphology
 # (sim('cat','cats') ≫ chance) while stripping the English/whitespace privilege
 # (it hashes raw UTF-8 bytes, the universal-script alphabet). Composes
-# klein4_random (the 256-byte vocab + position keys) + klein4_bind + klein4_
+# klein4_expand (the 256-byte vocab + position keys) + klein4_bind + klein4_
 # bundle — no new primitive class. The per-byte / per-position vector minting
-# rides ``klein4_random``, which is now native (rc6 §60: the standalone-C
-# MT19937 ``srmech_klein4_random`` reproduces ``random.Random(seed).randrange(4)``
+# rides ``klein4_expand``, which is native (rc6 §60: the standalone-C
+# MT19937 ``srmech_klein4_expand`` reproduces ``random.Random(seed).randrange(4)``
 # byte-for-byte), so the whole minting + encode is C-dispatched. numpy-free;
 # carrier = one HV.
 
@@ -1421,11 +1832,11 @@ _KLEIN4_POS_SEED_BASE = 0x10000
 
 def _klein4_pos_key(D, pos):
     """A deterministic Klein-4 position role-vector for slot ``pos`` (UPSTREAM
-    §60): ``klein4_random`` over a position-namespaced seed
+    §60): ``klein4_expand`` over a position-namespaced seed
     (``0x10000 + pos``), so it never collides with the 256-byte alphabet
     (seeds 0..255). The role half of the role-filler bind in
     :func:`klein4_encode_bytes` — an internal helper (a seeded
-    :func:`klein4_random`, so not a separately-exposed public op).
+    :func:`klein4_expand`, so not a separately-exposed public op).
     """
     D = int(D)
     if D <= 0:
@@ -1433,17 +1844,17 @@ def _klein4_pos_key(D, pos):
     p = int(pos)
     if p < 0:
         raise ValueError(f"hdc._klein4_pos_key: pos must be ≥ 0; got {p}")
-    return klein4_random(D, seed=_KLEIN4_POS_SEED_BASE + p)
+    return klein4_expand(D, _KLEIN4_POS_SEED_BASE + p)
 
 
 def klein4_encode_bytes(data, D):
     """Byte-composed Klein-4 vector (UPSTREAM §60; F864): a bundle of
     POSITION-BOUND per-byte random vectors —
-    ``bundle_i( klein4_bind(klein4_random(D, seed=byte_i), pos_key(D, i)) )``.
+    ``bundle_i( klein4_bind(klein4_expand(D, byte_i), pos_key(D, i)) )``.
 
-    Each byte ``b`` maps to ``klein4_random(D, seed=b)`` (the 256-byte vocab);
-    binding with a deterministic position role-vector (an internal seeded
-    :func:`klein4_random`) gives the role-filler, and the per-byte binds are
+    Each byte ``b`` maps to ``klein4_expand(D, b)`` (the 256-byte vocab);
+    binding with a deterministic position role-vector (an internal
+    :func:`klein4_expand`) gives the role-filler, and the per-byte binds are
     bundled into one :class:`HV`. This restores **morphology** —
     ``klein4_similarity(encode_bytes(b"cat"), encode_bytes(b"cats"))`` ≫ the
     Klein-4 chance level, because the shared prefix bytes occupy the same
@@ -1466,7 +1877,7 @@ def klein4_encode_bytes(data, D):
     D = int(D)
     if D <= 0:
         raise ValueError("hdc.klein4_encode_bytes: D must be positive")
-    bound = [klein4_bind(klein4_random(D, seed=b), _klein4_pos_key(D, i))
+    bound = [klein4_bind(klein4_expand(D, b), _klein4_pos_key(D, i))
              for i, b in enumerate(data)]
     return klein4_bundle(*bound)
 
@@ -1475,7 +1886,7 @@ def _klein4_compose_native(bufs):
     """Native SINGLE-CALL role-filler compose over ≥1 equal-length array('B')
     klein4 buffers → array('B'), else ``None`` (the pure composition is the
     COMPLETE alternative, not a rescue). The C peer folds the whole bundle —
-    the §60 position keys (klein4_random over seed 0x10000+i) ∘ bind ∘
+    the §60 position keys (klein4_expand over seed 0x10000+i) ∘ bind ∘
     bundle-accumulate/resolve — in one ``srmech_klein4_compose`` call, byte-
     identical to the pure path; for one part it resolves to that part's
     position-bound self (bundle of one = itself), matching the Python shortcut."""
@@ -1710,7 +2121,7 @@ def cooccurrence_fold(tokens, *, window, dim, seed=0):
     per-token fixed-width Klein-4 bundle, WITHOUT ever building the edge list, so
     the store grows with the **VOCABULARY** (corpus-sublinear, Heaps' law) not the
     **#edges** (corpus-linear). Each distinct token gets a stable random atomic code
-    (``klein4_random(dim, seed=…)`` keyed deterministically by the token, §
+(:func:`klein4_role`, keyed deterministically by the token, §
     :func:`_cooc_token_seed`); a token's bundle is the
     :func:`klein4_bundle_accumulate` superposition of its co-occurring neighbours'
     codes.
@@ -1734,7 +2145,7 @@ def cooccurrence_fold(tokens, *, window, dim, seed=0):
     def code_for(tok):
         c = codes.get(tok)
         if c is None:
-            c = klein4_random(dim, seed=_cooc_token_seed(tok, seed))
+            c = klein4_role(dim, tok, seed)
             codes[tok] = c
             vocab.append(tok)
         return c
@@ -2840,7 +3251,12 @@ __all__ = [
     "polar_similarity",
     "polar_density",
     "polar_from_real",
+    "klein4_expand",
     "klein4_random",
+    "klein4_address",
+    "klein4_role",
+    "klein4_sector_frame",
+    "klein4_from_one",
     "klein4_bind",
     "klein4_unbind",
     "klein4_unbundle",

@@ -1019,18 +1019,18 @@ static srmech_mval_t *mc_chunk_list(srmech_marshal_arena_t *a,
 
 /* genome chromosome (add_chromosome; appends): a leading CHROM cap over `label`
  * (the leftover call kwarg, default "chromosome") + each leaf coupled through
- * the_one -> a LIST of (1+n_leaves) leaf_dim BYTES chunks. */
+ * coupling -> a LIST of (1+n_leaves) leaf_dim BYTES chunks. */
 static srmech_mval_t *mc_genome_chromosome(srmech_marshal_arena_t *a,
                                            const srmech_mval_t *args,
                                            const srmech_mval_t *leaves_list,
-                                           const srmech_mval_t *the_one)
+                                           const srmech_mval_t *coupling)
 {
     const unsigned char *one; uint32_t dim; unsigned char *leaves, *out;
     size_t nl = 0u, sn; const srmech_mval_t *lbl; const char *lp = "chromosome";
     uint32_t ll = 10u;
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (!mc_raw_bytes(a, the_one, &one, &dim) || dim == 0u || dim > 256u) { return NULL; }
+    if (!mc_raw_bytes(a, coupling, &one, &dim) || dim == 0u || dim > 256u) { return NULL; }
     leaves = mc_strand_contig(a, leaves_list, dim, &nl);
     if (leaves == NULL) { return NULL; }
     lbl = mc_dict_get(args, "label");
@@ -1046,17 +1046,17 @@ static srmech_mval_t *mc_genome_chromosome(srmech_marshal_arena_t *a,
     return mc_chunk_list(a, out, 1u + nl, dim);
 }
 
-/* genome recall: recover a chromosome's leaves (skip caps; re-bind the_one) ->
+/* genome recall: recover a chromosome's leaves (skip caps; re-bind coupling) ->
  * a LIST of leaf_dim BYTES. `telomere` (bind 2) is unused (gate-agnostic). */
 static srmech_mval_t *mc_genome_recall(srmech_marshal_arena_t *a,
                                        const srmech_mval_t *strand,
-                                       const srmech_mval_t *the_one)
+                                       const srmech_mval_t *coupling)
 {
     const unsigned char *one; uint32_t dim; unsigned char *blocks, *out;
     size_t nb = 0u, n_leaves = 0u;
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (!mc_raw_bytes(a, the_one, &one, &dim) || dim == 0u || dim > 256u) { return NULL; }
+    if (!mc_raw_bytes(a, coupling, &one, &dim) || dim == 0u || dim > 256u) { return NULL; }
     blocks = mc_strand_contig(a, strand, dim, &nb);
     if (blocks == NULL) { return NULL; }
     out = mc_carve(a, nb * dim);
@@ -1070,14 +1070,14 @@ static srmech_mval_t *mc_genome_recall(srmech_marshal_arena_t *a,
  * strand -> a LIST of leaf_dim BYTES chunks. */
 static srmech_mval_t *mc_genome_genome(srmech_marshal_arena_t *a,
                                        const srmech_mval_t *kernels,
-                                       const srmech_mval_t *the_one)
+                                       const srmech_mval_t *coupling)
 {
     const unsigned char *one; uint32_t dim; size_t nk, i, tot = 0u, off = 0u, nbk = 0u;
     unsigned char *labels, *leaves, *out; size_t lab_off = 0u, lab_tot = 0u;
     size_t label_lens[MC_MAX_KERNELS], leaf_counts[MC_MAX_KERNELS];
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (!mc_raw_bytes(a, the_one, &one, &dim) || dim == 0u || dim > 256u) { return NULL; }
+    if (!mc_raw_bytes(a, coupling, &one, &dim) || dim == 0u || dim > 256u) { return NULL; }
     if (kernels == NULL || kernels->kind != SRMECH_MVAL_DICT
         || kernels->n > MC_MAX_KERNELS) { return NULL; }
     nk = kernels->n;
@@ -1155,7 +1155,7 @@ static srmech_mval_t *mc_part_filter(srmech_marshal_arena_t *a,
  * (mirrors partition's dict + dict-comprehension). Bounded leaf counts. */
 static srmech_mval_t *mc_genome_partition(srmech_marshal_arena_t *a,
                                           const srmech_mval_t *strand,
-                                          const srmech_mval_t *the_one,
+                                          const srmech_mval_t *coupling,
                                           const srmech_mval_t *labels)
 {
     const unsigned char *one; uint32_t dim; unsigned char *blocks, *olv, *olab;
@@ -1164,7 +1164,7 @@ static srmech_mval_t *mc_genome_partition(srmech_marshal_arena_t *a,
     uint32_t nu = 0u; srmech_mval_t *d; uint32_t e;
     assert(a != NULL);
     assert(a->cur <= a->end);
-    if (!mc_raw_bytes(a, the_one, &one, &dim) || dim == 0u || dim > 256u) { return NULL; }
+    if (!mc_raw_bytes(a, coupling, &one, &dim) || dim == 0u || dim > 256u) { return NULL; }
     blocks = mc_strand_contig(a, strand, dim, &nb);
     olv = mc_carve(a, nb * dim); olab = mc_carve(a, nb * dim);
     if (blocks == NULL || olv == NULL || olab == NULL) { return NULL; }

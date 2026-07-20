@@ -49,14 +49,14 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc import genome as G
 from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)
 _CORE = ["alpha", "beta", "gamma", "delta"]         # the PLANTED conserved core
 
 
 def _one(seed=1279):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _tmp():
@@ -198,7 +198,7 @@ def test_declining_organize_promotes_no_core_and_says_so():
     assert org["status"] == "ok"                     # a decline is not an error
     out = _tmp() + "/declined.genome"
     P.genome_integrate_plasmids(store, one, section_count=flat, out_path=out)
-    kinds = {c["type"] for c in G.genome_census(out, the_one=one)["chromosomes"]}
+    kinds = {c["type"] for c in G.genome_census(out, coupling=one)["chromosomes"]}
     assert "nuclear" not in kinds, "a declined derivation must mint NO nuclear core"
 
 
@@ -251,7 +251,7 @@ def test_organize_censuses_as_nuclear_core_plus_plasmids():
                                       out_path=out)
     assert org["status"] == "ok"
     kinds = {}
-    for chrom in G.genome_census(out, the_one=one)["chromosomes"]:
+    for chrom in G.genome_census(out, coupling=one)["chromosomes"]:
         kinds[chrom["type"]] = kinds.get(chrom["type"], 0) + 1
     assert kinds.get("nuclear") == 1, f"expected exactly ONE minted core; got {kinds}"
     assert kinds.get("plasmid") == org["n_sections"]
@@ -371,7 +371,7 @@ def test_the_slow_fallback_still_agrees_with_the_accumulator():
     one = _one()
     store = _tmp()
     ext = _extract(_planted_every_doc(), store, one)
-    assert P.section_counts(store, the_one=one) == ext["section_count"], (
+    assert P.section_counts(store, coupling=one) == ext["section_count"], (
         "the streamed accumulator and the on-disk derived read must agree")
     fast = P.genome_integrate_plasmids(store, one, section_count=ext["section_count"])
     slow = P.genome_integrate_plasmids(store, one)          # re-derives (slow path)

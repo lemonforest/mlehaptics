@@ -29,7 +29,7 @@ import pytest
 from srmech.amsc import genome as G
 from srmech.amsc import laplacian as L
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64
 _PARTITIONING = _native.SRMECH_PHASE_PARTITIONING
@@ -38,11 +38,11 @@ _STRUCT = _native.PROGRESS_STRUCT_SIZE
 
 
 def _one(seed=1275):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _lv(n, base=0):
-    return [klein4_random(_DIM, seed=base + s) for s in range(n)]
+    return [klein4_expand(_DIM, base + s) for s in range(n)]
 
 
 class _Recorder:
@@ -149,7 +149,7 @@ def test_genome_from_graph_cancel_in_partition_no_save():
     d = tempfile.mkdtemp()
     path = os.path.join(d, "geno")
     rec = _Recorder(cancel=lambda ev: True)              # cancel during partitioning
-    res = G.genome_from_graph(n, edges, weights, charges, the_one=one,
+    res = G.genome_from_graph(n, edges, weights, charges, coupling=one,
                               path=path, leaf_dim=_DIM, max_tome=12, progress=rec)
     assert res["status"] == "cancelled"
     assert res["strand"] == []
@@ -164,7 +164,7 @@ def test_genome_from_graph_cancel_in_mint_partial_no_save():
     path = os.path.join(d, "geno")
     # let PARTITIONING through; cancel on the 2nd MINTING event (1 chromosome minted)
     rec = _Recorder(cancel=lambda ev: ev["phase"] == _MINTING and ev["done"] >= 1)
-    res = G.genome_from_graph(n, edges, weights, charges, the_one=one,
+    res = G.genome_from_graph(n, edges, weights, charges, coupling=one,
                               path=path, leaf_dim=_DIM, max_tome=12, progress=rec)
     assert res["status"] == "cancelled"
     assert len(res["chromosomes"]) >= 1                  # a valid shorter genome

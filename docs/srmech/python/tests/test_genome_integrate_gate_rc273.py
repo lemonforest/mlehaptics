@@ -9,7 +9,7 @@ None, host unchanged — mirroring telomere_tick's senescence), NOT forcing ever
 every host.
 
 The DEFAULT predicate is the F1244 coherence contract made checkable: host + provirus must
-share the coupling WIDTH (== the_one / leaf_dim); two genomes at different widths were coupled
+share the coupling WIDTH (== coupling / leaf_dim); two genomes at different widths were coupled
 through different invariants and cannot cohere (an incompatible replicon, the CG258 analog).
 An explicit `compatible=(host, provirus)->bool` hook adds a domain lineage barrier (checked in
 addition; both must pass). A COMPATIBLE provirus integrates EXACTLY as rc262 (the gate adds
@@ -20,24 +20,24 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 def _one(dim=64, seed=7):
-    return klein4_random(dim, seed=seed)
+    return klein4_expand(dim, seed)
 
 
 def _lv(n, base=0, dim=64):
-    return [klein4_random(dim, seed=base + s) for s in range(n)]
+    return [klein4_expand(dim, base + s) for s in range(n)]
 
 
 def _host(one):
-    # a Tier-2 eukaryote: a MINTED (nuclear) chromosome + a DIPLOID chromosome, ONE the_one
+    # a Tier-2 eukaryote: a MINTED (nuclear) chromosome + a DIPLOID chromosome, ONE coupling
     return G.mint({"astronomy": _lv(12, 100)}, one) + G.diploid(_lv(6, 200), one, label="chr7")
 
 
 def _provirus(one):
-    # a Tier-1 plasmid (a retrovirus genome), SAME the_one
+    # a Tier-1 plasmid (a retrovirus genome), SAME coupling
     return G.plasmid({"provirus": _lv(3, 300)}, one)
 
 
@@ -123,7 +123,7 @@ def test_empty_host_integrates_any_provirus():
 def test_still_rejects_a_non_chromosome_provirus():
     one = _one()
     with pytest.raises(ValueError):
-        G.integrate(_host(one), [klein4_random(64, seed=1)])  # a bare turn, no boundary cap
+        G.integrate(_host(one), [klein4_expand(64, 1)])  # a bare turn, no boundary cap
 
 
 def test_still_rejects_at_out_of_range():

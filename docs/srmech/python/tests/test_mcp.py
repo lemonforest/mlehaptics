@@ -10,6 +10,7 @@ discipline carried on every tool-call response.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import re
@@ -279,7 +280,7 @@ def test_invoke_tool_klein4_bundle_variadic_dispatches() -> None:
 
     # numpy-free wire form: seeded klein4 vectors, ``.tolist()``'d off the HV
     # carrier to plain lists (the JSON-array shape an MCP client sends).
-    vectors = [hdc.klein4_random(16, seed=11 + i).tolist() for i in range(3)]
+    vectors = [hdc.klein4_expand(16, 11 + i).tolist() for i in range(3)]
     try:
         result = invoke_tool(
             "srmech.amsc.hdc.klein4_bundle", {"vectors": vectors}
@@ -1150,12 +1151,19 @@ def test_dsl_run_toml_chain_one_shot_via_mcp_invoke() -> None:
 # -it ratchet. Both bugs affect BOTH the MCP path and the Anthropic adapter
 # (shared ``srmech.mcp._tools.invoke_tool``).
 #
-# BUG A — ``hdc.klein4_random`` / ``hdc.polar_random`` were seedable only
-# via ``rng: numpy.random.Generator``, which cannot cross JSON-RPC nor be
-# expressed in an Anthropic tool schema — so MCP / Anthropic callers could
-# not get a DETERMINISTIC vector (breaking srmech's bit-exact / attestation
+# BUG A — the Klein-4 / polar mints were seedable only via ``rng:
+# numpy.random.Generator``, which cannot cross JSON-RPC nor be expressed in
+# an Anthropic tool schema — so MCP / Anthropic callers could not get a
+# DETERMINISTIC vector (breaking srmech's bit-exact / attestation
 # discipline). Fix: an integer ``seed`` param; the ToolEntry advertises
 # ``seed`` and DROPS the un-serialisable Generator.
+#
+# rc290 POSTSCRIPT (§102 / F1259): the rc13 fix put ``seed=`` on an op named
+# ``klein4_random``, which delivered the capability and created a second
+# defect — a call site could no longer be READ to find out whether it asked
+# for a random value or a derived one. The deterministic regime is now
+# ``klein4_expand``; ``klein4_random`` is STOCHASTIC-only and refuses a
+# seed. These tests target the op that now carries each regime.
 #
 # BUG B — ``srmech.amsc.naming.lookup``'s ToolEntry declared a param
 # (``entries``) the shipped ``lookup(key, pairs)`` does not accept, so the
@@ -1164,30 +1172,35 @@ def test_dsl_run_toml_chain_one_shot_via_mcp_invoke() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_klein4_random_seed_reproducible() -> None:
-    """``hdc.klein4_random(seed=42)`` is DETERMINISTIC — twice directly,
-    and twice through ``invoke_tool`` (the MCP / Anthropic shared path) —
-    so a JSON-RPC / Anthropic caller can reproduce a Klein-4 vector
-    (bit-exact / attestation discipline). This is the BUG A acceptance
-    test."""
+def test_klein4_expand_seed_reproducible() -> None:
+    """``hdc.klein4_expand(8, 42)`` is DETERMINISTIC — twice directly, and
+    twice through ``invoke_tool`` (the MCP / Anthropic shared path) — so a
+    JSON-RPC / Anthropic caller can reproduce a Klein-4 vector (bit-exact /
+    attestation discipline). This is the BUG A acceptance test.
+
+    rc290: the CAPABILITY is unchanged, the OP SERVING IT is renamed. BUG A
+    was 'MCP callers cannot get a deterministic vector'; the rc13 fix added
+    ``seed=`` to ``klein4_random``, which fixed the capability and created
+    F1259's defect — an op named 'random' that was not. The deterministic
+    regime is now ``klein4_expand`` and the wire path targets it."""
     from srmech.amsc import hdc
 
     # Direct: identical vectors for the same seed (numpy-free — compare the
     # plain-list contents of the HV carrier).
-    a = list(hdc.klein4_random(8, seed=42))
-    b = list(hdc.klein4_random(8, seed=42))
+    a = list(hdc.klein4_expand(8, 42))
+    b = list(hdc.klein4_expand(8, 42))
     assert a == b
     assert set(a) <= {0, 1, 2, 3}
 
     # Through invoke_tool twice (the wire path): also identical.
-    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42}))
-    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42}))
+    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42}))
+    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42}))
     assert r1 == r2
     # And invoke_tool agrees bit-exactly with the direct seeded call.
     assert r1 == a
 
     # A different seed gives a different vector (the seed is load-bearing).
-    c = list(hdc.klein4_random(8, seed=43))
+    c = list(hdc.klein4_expand(8, 43))
     assert a != c
 
 
@@ -1227,18 +1240,30 @@ def test_random_ops_rng_takes_precedence_over_seed() -> None:
     p = hdc.polar_random(8, rng=random.Random(0))
     assert p.typecode == "b" and len(p) == 8
 
-    # rng wins over seed: the rng-built vector differs from the seed-only one.
-    rng_out = hdc.klein4_random(8, rng=random.Random(999), seed=1)
-    seed_out = hdc.klein4_random(8, seed=1)
-    assert list(rng_out.buffer) != list(seed_out.buffer)
+    # polar_random keeps the documented rng-wins-over-seed precedence.
+    rng_out = hdc.polar_random(8, rng=random.Random(999), seed=1)
+    seed_out = hdc.polar_random(8, seed=1)
+    assert list(rng_out) != list(seed_out)
+
+    # rc290: klein4_random has NO seed to take precedence over. The regime is
+    # STOCHASTIC and nothing may make it quietly deterministic — passing a
+    # seed is a TypeError, not a silent regime switch.
+    with pytest.raises(TypeError):
+        hdc.klein4_random(8, seed=1)          # type: ignore[call-arg]
+
+    # Two draws with no rng differ (the op really is non-reproducible).
+    assert list(hdc.klein4_random(4096)) != list(hdc.klein4_random(4096))
 
 
 def test_random_ops_schema_drops_unserialisable_rng() -> None:
-    """The ``*_random`` ToolEntries advertise the JSON-friendly ``seed``
-    and NO un-serialisable ``rng`` Generator (a Generator has no valid
-    JSON-Schema type and must never reach the MCP / Anthropic schema)."""
+    """The DETERMINISTIC mint ToolEntries advertise the JSON-friendly
+    ``seed`` and NO un-serialisable ``rng`` Generator (a Generator has no
+    valid JSON-Schema type and must never reach the MCP / Anthropic schema).
+
+    rc290: ``klein4_random`` left this set — it is the STOCHASTIC regime and
+    has no ``seed`` to advertise. ``klein4_expand`` took its place."""
     schema = get_tool_schema()
-    for name in ("srmech.amsc.hdc.klein4_random",
+    for name in ("srmech.amsc.hdc.klein4_expand",
                  "srmech.amsc.hdc.polar_random"):
         entry = schema.lookup(name)
         assert entry is not None, f"{name} not registered"
@@ -1247,6 +1272,56 @@ def test_random_ops_schema_drops_unserialisable_rng() -> None:
         assert "rng" not in param_names, (
             f"{name} must NOT advertise the un-serialisable `rng` Generator"
         )
+
+
+def test_klein4_random_schema_advertises_neither_seed_nor_rng() -> None:
+    """rc290 / F1259 — the STOCHASTIC regime must not offer a way to make
+    itself deterministic. ``klein4_random``'s schema carries ``D`` only: no
+    ``seed`` (that would restore the exact conflation this rc removes) and
+    no ``rng`` (un-serialisable over JSON-RPC)."""
+    entry = get_tool_schema().lookup("srmech.amsc.hdc.klein4_random")
+    assert entry is not None
+    assert {p.name for p in entry.parameters} == {"D"}
+
+
+def test_klein4_regime_ops_are_registered_and_invokable() -> None:
+    """rc290 — every regime op, the (1,3,7,3) frame and ONE-A14 are
+    registered and callable over the MCP / Anthropic wire path."""
+    schema = get_tool_schema()
+    for name in ("srmech.amsc.hdc.klein4_expand",
+                 "srmech.amsc.hdc.klein4_random",
+                 "srmech.amsc.hdc.klein4_address",
+                 "srmech.amsc.hdc.klein4_role",
+                 "srmech.amsc.hdc.klein4_sector_frame",
+                 "srmech.amsc.hdc.klein4_from_one"):
+        assert schema.lookup(name) is not None, f"{name} not registered"
+
+    # ADDRESSED: same content -> same vector over the wire; different content
+    # -> a different vector. `content` is a `bytes` param, so it rides the
+    # documented base64 wire form.
+    cat = base64.b64encode(b"cat").decode("ascii")
+    dog = base64.b64encode(b"dog").decode("ascii")
+    a = list(invoke_tool("srmech.amsc.hdc.klein4_address",
+                         {"D": 16, "content": cat}))
+    b = list(invoke_tool("srmech.amsc.hdc.klein4_address",
+                         {"D": 16, "content": cat}))
+    assert a == b and set(a) <= {0, 1, 2, 3}
+    assert a != list(invoke_tool("srmech.amsc.hdc.klein4_address",
+                                 {"D": 16, "content": dog}))
+
+    # ROLE: distinct role names give distinct keys; `base` re-namespaces.
+    r1 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+                          {"D": 32, "role": "subject"}))
+    r2 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+                          {"D": 32, "role": "object"}))
+    r3 = list(invoke_tool("srmech.amsc.hdc.klein4_role",
+                          {"D": 32, "role": "subject", "base": 7}))
+    assert r1 != r2 and r1 != r3
+
+    # The (1,3,7,3) frame is period-14 at ANY D (no 14-divisibility needed).
+    f = list(invoke_tool("srmech.amsc.hdc.klein4_sector_frame", {"D": 30}))
+    assert f[:14] == f[14:28]
+    assert f[:14] == [1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3]
 
 
 def test_naming_lookup_callable_via_invoke_tool() -> None:
@@ -1581,14 +1656,16 @@ def test_invoke_dispatch_match_base64_rules() -> None:
     _assert_json_serialisable(raw)
 
 
-def test_invoke_klein4_random_seed_reproducible_rc14_path() -> None:
-    """rc13 ``klein4_random(seed)`` reproducibility still holds through the
-    rc14 coercion path (ndarray result -> JSON list, bit-identical)."""
+def test_invoke_klein4_expand_seed_reproducible_rc14_path() -> None:
+    """rc13 seeded-mint reproducibility still holds through the rc14
+    coercion path (carrier result -> JSON list, bit-identical). rc290
+    retargets it from ``klein4_random(seed=)`` to ``klein4_expand`` — the
+    same MT19937 stream under the name that describes it."""
     r1 = serialise_result(
-        invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
+        invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42})
     )
     r2 = serialise_result(
-        invoke_tool("srmech.amsc.hdc.klein4_random", {"D": 8, "seed": 42})
+        invoke_tool("srmech.amsc.hdc.klein4_expand", {"D": 8, "seed": 42})
     )
     assert r1 == r2
     assert set(json.loads(r1)) <= {0, 1, 2, 3}
@@ -1757,6 +1834,11 @@ def _synth_value_for_type(type_string: str) -> Any:
         # cleanly, and as a term ratio yields a DOMAIN-valid certificate R = 2 (the
         # elliptic-geometric closed form 1/(z−1) = z_den/(z_num−z_den)).
         "EllRatio": [3, 2],
+        # rc290 hdc.klein4_from_one One operand: the One's OWN canonical
+        # JSON-native dict (the shape _to_jsonable emits / one_from_jsonable
+        # reads) — sigma=+1, theta=1/4, default terms. Coerces + binds cleanly
+        # and yields a real ONE-A14 coupling vector.
+        "One": {"sigma": 1, "theta": [1, 4], "terms": 24},
         # rc231 (#810) elliptic_jackson_an z / a variable vectors: a list of
         # symbol-NAME strings — the natural minimal operand for the Aₙ variables
         # (each lifts to EllMonomial.symbol via _to_ellmonomial). Both z and a get

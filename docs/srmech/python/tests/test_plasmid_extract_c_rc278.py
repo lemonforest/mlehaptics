@@ -34,14 +34,14 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc import genome as G
 from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 from srmech.amsc.text import cooccurrence_topk
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)
 
 
 def _one(seed=1278):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _corpus():
@@ -69,7 +69,7 @@ def test_per_doc_plasmid_chromosomes_and_census():
     assert res["status"] == "ok"
     assert res["n_sections"] == len(corpus)
     assert res["sections"] == [f"sec{i}" for i in range(len(corpus))]
-    census = G.genome_census(store, the_one=one)
+    census = G.genome_census(store, coupling=one)
     labels = sorted(c["label"] for c in census["chromosomes"])
     # P plasmid sections + the shared VOCAB chromosome (the karyotype index).
     assert labels == sorted([f"sec{i}" for i in range(len(corpus))] + [P.VOCAB_LABEL])
@@ -97,7 +97,7 @@ def test_section_count_accumulates_and_is_derivable():
     assert sc[idx["quark"]] == 1
     # SSoT: the derived read (scanning the sections' GLOBAL node_ids) == the streamed
     # accumulator, byte-for-byte.
-    assert P.section_counts(store, the_one=one) == sc
+    assert P.section_counts(store, coupling=one) == sc
     # the ~asymmetry: most nodes are accessory (count 1), a few conserved (>1).
     conserved = [v for v in sc.values() if v >= 2]
     assert len(conserved) >= 2 and len(conserved) < len(sc)
@@ -164,7 +164,7 @@ def test_cancel_truncates_at_section_boundary():
                             progress=cancel_after_two)
     assert res["status"] == "cancelled"
     assert res["n_sections"] == 2                    # sec0 + sec1 completed
-    census = G.genome_census(store, the_one=one)
+    census = G.genome_census(store, coupling=one)
     section_labels = sorted(c["label"] for c in census["chromosomes"]
                             if c["label"] != P.VOCAB_LABEL)
     assert section_labels == ["sec0", "sec1"]        # NO partial sec2
@@ -212,21 +212,21 @@ def test_streaming_append_only_prior_sections_byte_untouched():
     vocab = []
     # ingest the first 2 docs.
     P.plasmid_extract(corpus[:2], store, one, vocab=vocab, window=2, k=8)
-    sec0_before = G.genome_window(store, "sec0", the_one=one)
+    sec0_before = G.genome_window(store, "sec0", coupling=one)
     turns_prefix = _turns_bin(store)
     # ingest 2 more (SAME vocab object -> shared global id space).
     res = P.plasmid_extract(corpus[2:], store, one, vocab=vocab, window=2, k=8)
     assert res["n_sections"] == 2
-    census = G.genome_census(store, the_one=one)
+    census = G.genome_census(store, coupling=one)
     sections = sorted(c["label"] for c in census["chromosomes"]
                       if c["label"] != P.VOCAB_LABEL)
     assert sections == ["sec0", "sec1", "sec2", "sec3"]
     # the first section's coupled leaves are byte-untouched (append-only).
-    sec0_after = G.genome_window(store, "sec0", the_one=one)
+    sec0_after = G.genome_window(store, "sec0", coupling=one)
     assert [b.tobytes() for b in sec0_before] == [b.tobytes() for b in sec0_after]
     # the earlier sections' turns.bin span is a PREFIX of the grown body (the vocab
     # chromosome is re-minted at the tail, so compare only the sec0..sec1 region).
-    sec1 = next(c for c in G.genome_catalog(store, the_one=one)["chromosomes"]
+    sec1 = next(c for c in G.genome_catalog(store, coupling=one)["chromosomes"]
                 if c["label"] == "sec1")
     keep = int(sec1["byte_offset"]) + int(sec1["byte_len"])
     assert _turns_bin(store)[:keep] == turns_prefix[:keep]
@@ -236,4 +236,4 @@ def test_streaming_append_only_prior_sections_byte_untouched():
 
 def test_leaf_dim_must_fit_kernel_header():
     with pytest.raises(ValueError):
-        P.plasmid_extract([["a", "b"]], _tmp(), klein4_random(16, seed=1), window=2)
+        P.plasmid_extract([["a", "b"]], _tmp(), klein4_expand(16, 1), window=2)

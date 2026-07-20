@@ -9,7 +9,7 @@ self-describing body:
   byte_offset+byte_len)`` span out of ``turns.bin`` and leaves every OTHER
   chromosome's coupled bytes byte-identical (only relocated) — NO kernel is decoded /
   re-coupled.
-* ``genome_replace(path, label, leaves, the_one)`` splices a fresh chromosome in at
+* ``genome_replace(path, label, leaves, coupling)`` splices a fresh chromosome in at
   the same position.
 
 Both re-derive the optional manifest by scanning. These tests prove the splice is
@@ -26,13 +26,13 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc.genome import GenomeBoundingError
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 DIM = 16
 
 
 def _one():
-    return klein4_random(DIM, seed=7)
+    return klein4_expand(DIM, 7)
 
 
 def _read_body(path):
@@ -46,23 +46,23 @@ def _span(body, entry):
 
 
 def _build3(path):
-    """A 3-chromosome genome alpha/beta/gamma. Returns (the_one, save_data)."""
+    """A 3-chromosome genome alpha/beta/gamma. Returns (coupling, save_data)."""
     one = _one()
     specs = [
-        ("alpha", [("a", [klein4_random(DIM, seed=s) for s in (1, 2)])]),
-        ("beta",  [("b", [klein4_random(DIM, seed=3)])]),
-        ("gamma", [("c", [klein4_random(DIM, seed=s) for s in (4, 5, 6)])]),
+        ("alpha", [("a", [klein4_expand(DIM, s) for s in (1, 2)])]),
+        ("beta",  [("b", [klein4_expand(DIM, 3)])]),
+        ("gamma", [("c", [klein4_expand(DIM, s) for s in (4, 5, 6)])]),
     ]
-    strand = G.genome(chromosomes=specs, the_one=one)
-    data = G.genome_save(strand, path, the_one=one)
+    strand = G.genome(chromosomes=specs, coupling=one)
+    data = G.genome_save(strand, path, coupling=one)
     return one, data
 
 
 def _build1(path):
     one = _one()
-    strand = G.genome(chromosomes=[("solo", [("g", [klein4_random(DIM, seed=1)])])],
-                      the_one=one)
-    data = G.genome_save(strand, path, the_one=one)
+    strand = G.genome(chromosomes=[("solo", [("g", [klein4_expand(DIM, 1)])])],
+                      coupling=one)
+    data = G.genome_save(strand, path, coupling=one)
     return one, data
 
 
@@ -152,7 +152,7 @@ def test_remove_without_manifest_then_reindex():
         ra, rc = _span(body0, by["alpha"]), _span(body0, by["gamma"])
         _drop_manifest(d)
 
-        new = G.genome_remove(d, "beta", the_one=one)
+        new = G.genome_remove(d, "beta", coupling=one)
 
         assert _read_body(d) == ra + rc
         assert [c["label"] for c in new["chromosomes"]] == ["alpha", "gamma"]
@@ -171,7 +171,7 @@ def test_remove_then_tar_just_turns_bin():
         ref, _, ref_labels = G.genome_load(src)
         shutil.copy(os.path.join(src, "turns.bin"), os.path.join(dst, "turns.bin"))
         assert os.listdir(dst) == ["turns.bin"]
-        strand, _, labels = G.genome_load(dst, the_one=one)
+        strand, _, labels = G.genome_load(dst, coupling=one)
         assert labels == ref_labels == ["alpha", "gamma"]
         assert all(a == b for a, b in zip(strand, ref))
     finally:
@@ -185,7 +185,7 @@ def test_remove_then_append_roundtrip():
     try:
         one, _ = _build3(d)
         G.genome_remove(d, "beta")
-        new = G.genome_append(d, "beta", [klein4_random(DIM, seed=99)], one)
+        new = G.genome_append(d, "beta", [klein4_expand(DIM, 99)], one)
         assert [c["label"] for c in new["chromosomes"]] == ["alpha", "gamma", "beta"]
     finally:
         shutil.rmtree(d, ignore_errors=True)
@@ -205,7 +205,7 @@ def test_replace_is_pure_byte_splice_in_place():
         ra, rc = _span(body0, by["alpha"]), _span(body0, by["gamma"])
         wa_ref, wc_ref = G.genome_window(d, "alpha"), G.genome_window(d, "gamma")
 
-        new_leaves = [klein4_random(DIM, seed=s) for s in (20, 21, 22, 23)]
+        new_leaves = [klein4_expand(DIM, s) for s in (20, 21, 22, 23)]
         # §55/v3: the fresh region lands on disk in the packed block form.
         new_region = b"".join(
             G._disk_block(blk, DIM)
@@ -229,18 +229,18 @@ def test_replace_missing_label_raises():
     try:
         one, _ = _build3(d)
         with pytest.raises(ValueError):
-            G.genome_replace(d, "nope", [klein4_random(DIM, seed=1)], one)
+            G.genome_replace(d, "nope", [klein4_expand(DIM, 1)], one)
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
 
-def test_replace_wrong_the_one_dim_raises():
+def test_replace_wrong_coupling_dim_raises():
     d = tempfile.mkdtemp()
     try:
         _build3(d)
-        wrong = klein4_random(DIM * 2, seed=1)          # wrong leaf width
+        wrong = klein4_expand(DIM * 2, 1)          # wrong leaf width
         with pytest.raises(ValueError) as exc:
-            G.genome_replace(d, "beta", [klein4_random(DIM, seed=1)], wrong)
+            G.genome_replace(d, "beta", [klein4_expand(DIM, 1)], wrong)
         assert "leaf_dim" in str(exc.value)
     finally:
         shutil.rmtree(d, ignore_errors=True)

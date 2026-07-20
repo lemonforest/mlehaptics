@@ -28,17 +28,17 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64
 
 
 def _one(seed=7):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _leaves(n, base=0):
-    return [klein4_random(_DIM, seed=base + s) for s in range(n)]
+    return [klein4_expand(_DIM, base + s) for s in range(n)]
 
 
 # ── 1. the primitive: pack / read / majority ────────────────────────────────
@@ -114,7 +114,7 @@ def test_stick_chromosome_has_no_centromere():
 def test_centromere_rejects_gene_and_kernel_forms():
     one = _one()
     with pytest.raises(ValueError):
-        G.chromosome(the_one=one, genes=[("g", _leaves(2))], centromere=1)
+        G.chromosome(coupling=one, genes=[("g", _leaves(2))], centromere=1)
     with pytest.raises(ValueError):
         G.chromosome(_leaves(2), one, kernel=True, centromere=1)
     with pytest.raises(ValueError):
@@ -170,8 +170,8 @@ def test_minted_genome_persists_and_reloads(tmp_path):
     one = _one()
     kernels = {"note": _leaves(2), "big": _leaves(20)}
     strand = G.mint(kernels, one)
-    G.genome_save(strand, tmp_path, the_one=one)
-    loaded, _lone, _labels = G.genome_load(tmp_path, the_one=one)
+    G.genome_save(strand, tmp_path, coupling=one)
+    loaded, _lone, _labels = G.genome_load(tmp_path, coupling=one)
     assert set(G.partition(loaded, one)) == set(kernels)
     assert any(G._cap_kind(hv) == G.CENTROMERE_CAP_MARKER for hv in loaded)
 
@@ -179,8 +179,8 @@ def test_minted_genome_persists_and_reloads(tmp_path):
 def test_catalog_excludes_centromere_from_leaf_count(tmp_path):
     one = _one()
     kernels = {"big": _leaves(20)}                         # minted -> 1 centromere
-    G.genome_save(G.mint(kernels, one), tmp_path, the_one=one)
-    cat = G.genome_catalog(tmp_path, the_one=one)
+    G.genome_save(G.mint(kernels, one), tmp_path, coupling=one)
+    cat = G.genome_catalog(tmp_path, coupling=one)
     assert cat["format_version"] == 15
     lc = {c["label"]: c["leaf_count"] for c in cat["chromosomes"]}
     assert lc["big"] == 20                                 # 20 leaves, NOT 21 (cap excluded)
@@ -259,7 +259,7 @@ def test_parity_minted_genome_persistence(tmp_path, monkeypatch):
         d = tmp_path / ("nat" if native else "pure")
         d.mkdir()
         monkeypatch.setattr(_native, "has_native_genome", lambda: native)
-        G.genome_save(strand, d, the_one=one)
+        G.genome_save(strand, d, coupling=one)
         return (d / "turns.bin").read_bytes(), (d / "manifest.json").read_bytes()
 
     cb, cm = save(True)

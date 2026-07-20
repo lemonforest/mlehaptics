@@ -24,7 +24,7 @@ import pytest
 
 import srmech.amsc._native as _native
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 pytestmark = pytest.mark.skipif(
     not _native.has_native_genome(),
@@ -35,11 +35,11 @@ DIM = 16
 
 
 def _one(seed=7):
-    return klein4_random(DIM, seed=seed)
+    return klein4_expand(DIM, seed)
 
 
 def _specs(labels_seeds):
-    return [(lbl, [(lbl[0], [klein4_random(DIM, seed=s) for s in seeds])])
+    return [(lbl, [(lbl[0], [klein4_expand(DIM, s) for s in seeds])])
             for lbl, seeds in labels_seeds]
 
 
@@ -67,8 +67,8 @@ def _disk(d):
 
 
 def _save(d, labels_seeds, one):
-    return G.genome_save(G.genome(chromosomes=_specs(labels_seeds), the_one=one),
-                         d, the_one=one)
+    return G.genome_save(G.genome(chromosomes=_specs(labels_seeds), coupling=one),
+                         d, coupling=one)
 
 
 def _blocks(strand):
@@ -90,9 +90,9 @@ def test_catalog_matches():
     one = _one()
     d = _tmp()
     _save(d, [("alpha", (1, 2)), ("beta", (3,))], one)
-    nat = G.genome_catalog(d, the_one=one)
+    nat = G.genome_catalog(d, coupling=one)
     with _force_pure():
-        pur = G.genome_catalog(d, the_one=one)
+        pur = G.genome_catalog(d, coupling=one)
     assert nat == pur
 
 
@@ -100,9 +100,9 @@ def test_load_matches():
     one = _one()
     d = _tmp()
     _save(d, [("alpha", (1, 2)), ("beta", (3,)), ("gamma", (4,))], one)
-    s_nat, o_nat, l_nat = G.genome_load(d, the_one=one)
+    s_nat, o_nat, l_nat = G.genome_load(d, coupling=one)
     with _force_pure():
-        s_pur, o_pur, l_pur = G.genome_load(d, the_one=one)
+        s_pur, o_pur, l_pur = G.genome_load(d, coupling=one)
     assert l_nat == l_pur
     assert _blocks(s_nat) == _blocks(s_pur)
     assert _blocks([o_nat]) == _blocks([o_pur])
@@ -112,9 +112,9 @@ def test_window_matches():
     one = _one()
     d = _tmp()
     _save(d, [("alpha", (1, 2)), ("beta", (3, 4))], one)
-    nat = G.genome_window(d, "beta", the_one=one)
+    nat = G.genome_window(d, "beta", coupling=one)
     with _force_pure():
-        pur = G.genome_window(d, "beta", the_one=one)
+        pur = G.genome_window(d, "beta", coupling=one)
     assert _blocks(nat) == _blocks(pur)
 
 
@@ -123,7 +123,7 @@ def test_append_byte_identical():
     nat, pur = _tmp(), _tmp()
     _save(nat, [("alpha", (1,))], one)
     _save(pur, [("alpha", (1,))], one)
-    new = [klein4_random(DIM, seed=s) for s in (8, 9)]
+    new = [klein4_expand(DIM, s) for s in (8, 9)]
     r_nat = G.genome_append(nat, "beta", new, one)
     with _force_pure():
         r_pur = G.genome_append(pur, "beta", new, one)
@@ -136,9 +136,9 @@ def test_remove_byte_identical():
     nat, pur = _tmp(), _tmp()
     _save(nat, [("alpha", (1,)), ("beta", (2,)), ("gamma", (3,))], one)
     _save(pur, [("alpha", (1,)), ("beta", (2,)), ("gamma", (3,))], one)
-    r_nat = G.genome_remove(nat, "beta", the_one=one)
+    r_nat = G.genome_remove(nat, "beta", coupling=one)
     with _force_pure():
-        r_pur = G.genome_remove(pur, "beta", the_one=one)
+        r_pur = G.genome_remove(pur, "beta", coupling=one)
     assert _disk(nat) == _disk(pur)
     assert r_nat == r_pur
 
@@ -148,7 +148,7 @@ def test_replace_byte_identical():
     nat, pur = _tmp(), _tmp()
     _save(nat, [("alpha", (1,)), ("beta", (2,))], one)
     _save(pur, [("alpha", (1,)), ("beta", (2,))], one)
-    new = [klein4_random(DIM, seed=s) for s in (7, 8, 9)]
+    new = [klein4_expand(DIM, s) for s in (7, 8, 9)]
     r_nat = G.genome_replace(nat, "alpha", new, one)
     with _force_pure():
         r_pur = G.genome_replace(pur, "alpha", new, one)
@@ -162,9 +162,9 @@ def test_export_byte_identical():
     _save(d, [("alpha", (1, 2)), ("beta", (3,))], one)
     nat_chr = Path(_tmp()) / "n.chr"
     pur_chr = Path(_tmp()) / "p.chr"
-    r_nat = G.genome_export(d, "alpha", nat_chr, the_one=one)
+    r_nat = G.genome_export(d, "alpha", nat_chr, coupling=one)
     with _force_pure():
-        r_pur = G.genome_export(d, "alpha", pur_chr, the_one=one)
+        r_pur = G.genome_export(d, "alpha", pur_chr, coupling=one)
     assert nat_chr.read_bytes() == pur_chr.read_bytes()
     assert r_nat == r_pur
 
@@ -174,11 +174,11 @@ def test_import_byte_identical():
     src = _tmp()
     _save(src, [("alpha", (1, 2))], one)
     chr_path = Path(_tmp()) / "alpha.chr"
-    G.genome_export(src, "alpha", chr_path, the_one=one)
+    G.genome_export(src, "alpha", chr_path, coupling=one)
     nat, pur = _tmp(), _tmp()                 # existing (mkdtemp) dirs → native SEED fires
-    r_nat = G.genome_import(chr_path, nat, the_one=one)
+    r_nat = G.genome_import(chr_path, nat, coupling=one)
     with _force_pure():
-        r_pur = G.genome_import(chr_path, pur, the_one=one)
+        r_pur = G.genome_import(chr_path, pur, coupling=one)
     assert _disk(nat) == _disk(pur)
     assert r_nat == r_pur
 
@@ -188,9 +188,9 @@ def test_explode_byte_identical():
     d = _tmp()
     _save(d, [("alpha", (1, 2)), ("beta", (3,)), ("gamma", (4, 5))], one)
     nat, pur = _tmp(), _tmp()
-    r_nat = G.genome_explode(d, nat, the_one=one)
+    r_nat = G.genome_explode(d, nat, coupling=one)
     with _force_pure():
-        r_pur = G.genome_explode(d, pur, the_one=one)
+        r_pur = G.genome_explode(d, pur, coupling=one)
     # each loose <label>.chr byte-identical + the returned descriptor list matches
     # (paths differ by out-dir; compare label + region hash).
     for label in ("alpha", "beta", "gamma"):
@@ -206,11 +206,11 @@ def test_pack_byte_identical():
     src = _tmp()
     _save(src, [("gamma", (4,)), ("alpha", (1, 2)), ("beta", (3,))], one)
     loose = _tmp()
-    G.genome_explode(src, loose, the_one=one)
+    G.genome_explode(src, loose, coupling=one)
     nat, pur = _tmp(), _tmp()
-    r_nat = G.genome_pack(loose, nat, the_one=one)
+    r_nat = G.genome_pack(loose, nat, coupling=one)
     with _force_pure():
-        r_pur = G.genome_pack(loose, pur, the_one=one)
+        r_pur = G.genome_pack(loose, pur, coupling=one)
     assert _disk(nat) == _disk(pur)           # re-canonicalised to sorted-label order
     assert r_nat == r_pur
 
@@ -234,7 +234,7 @@ def _big_label(i):
 
 
 def _big_spec(one):
-    pool = [klein4_random(_BIG_DIM, seed=s) for s in range(8)]         # 8 distinct leaves
+    pool = [klein4_expand(_BIG_DIM, s) for s in range(8)]         # 8 distinct leaves
     # §55/v3 (rc114): a data turn packs to 1 + ceil(_BIG_DIM/4) bytes on disk —
     # size the leaf count so the PACKED body still exceeds the old 16 MiB cap.
     packed_turn = 1 + (_BIG_DIM + 3) // 4
@@ -242,27 +242,27 @@ def _big_spec(one):
     chroms = [(_big_label(i),
                [(_big_label(i)[0], [pool[(i + k) % 8] for k in range(leaves_per)])])
               for i in range(_BIG_N_CHROM)]
-    return G.genome(chromosomes=chroms, the_one=one)
+    return G.genome(chromosomes=chroms, coupling=one)
 
 
 def test_save_byte_identical_over_old_caps():
     """A genome over BOTH old caps (>256 chromosomes AND a >16 MiB body) saves
     byte-identically native-vs-pure — the caller-arena refactor's load-bearing proof
     that capacity is the layout formula, not a compiled-in 16 MiB / 256-chrom ceiling."""
-    one = klein4_random(_BIG_DIM, seed=7)
+    one = klein4_expand(_BIG_DIM, 7)
     spec = _big_spec(one)
     nat, pur = _tmp(), _tmp()
-    G.genome_save(spec, nat, the_one=one)
+    G.genome_save(spec, nat, coupling=one)
     with _force_pure():
-        G.genome_save(spec, pur, the_one=one)
+        G.genome_save(spec, pur, coupling=one)
     nat_turns, _nat_man = _disk(nat)
     assert _disk(nat) == _disk(pur)               # byte-identical native vs forced-pure
     assert len(nat_turns) > 16 * 1024 * 1024      # body exceeds the old 16 MiB scratch cap
     # catalog + window also traverse the >caps body under native (no decode cap fires)
-    cat = G.genome_catalog(nat, the_one=one)
+    cat = G.genome_catalog(nat, coupling=one)
     assert len(cat["chromosomes"]) == _BIG_N_CHROM        # > the old 256-chrom cap
     last = _big_label(_BIG_N_CHROM - 1)
-    w_nat = G.genome_window(nat, last, the_one=one)        # native windows the last chrom
+    w_nat = G.genome_window(nat, last, coupling=one)        # native windows the last chrom
     with _force_pure():
-        w_pur = G.genome_window(nat, last, the_one=one)
+        w_pur = G.genome_window(nat, last, coupling=one)
     assert _blocks(w_nat) == _blocks(w_pur)               # window stable native vs pure

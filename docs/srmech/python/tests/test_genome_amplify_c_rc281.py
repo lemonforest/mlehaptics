@@ -26,7 +26,7 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 # leaf_dims wide enough for the label + NUL + the 8-byte field, and one (32) that is
 # comfortably tight — the field placement must hold at every width.
@@ -38,17 +38,17 @@ _COUNTS = (1, 2, 3, 255, 256, 65535, 1 << 20, 1 << 40, (1 << 64) - 1)
 
 
 def _one(dim, seed=1281):
-    return klein4_random(dim, seed=seed)
+    return klein4_expand(dim, seed)
 
 
 def _lv(n, dim, base=0):
-    return [klein4_random(dim, seed=base + s) for s in range(n)]
+    return [klein4_expand(dim, base + s) for s in range(n)]
 
 
 def _chrom(dim, one):
     """A multi-gene chromosome carrying every label under test."""
     genes = [(lab, _lv(2, dim, 10 + 40 * i)) for i, lab in enumerate(_LABELS)]
-    return G.chromosome(genes=genes, the_one=one, label="plasmidR")
+    return G.chromosome(genes=genes, coupling=one, label="plasmidR")
 
 
 def _blocks(strand):

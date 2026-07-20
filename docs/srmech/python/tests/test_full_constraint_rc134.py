@@ -5,7 +5,7 @@ EXPRESSED genes; M2 (modulator_consistent) forward-CHECKS one candidate. M3 retu
 CONSTRAINT characterizing the WHOLE set of cell-states consistent with an observed expression — a
 COMPACT structured constraint, NEVER an enumeration (the consistent set can be exponential).
 
-  * modulator_constraint(strand, the_one, expressed_labels) -> dict
+  * modulator_constraint(strand, coupling, expressed_labels) -> dict
       certain_on / certain_off  = M1's floor (the pinned bits)
       clauses                   = disjunctive bit-clauses:
           {"kind":"nand", "any_absent":mask, "any_present":mask}   (un-expressed E1/E2 -> the gene
@@ -33,7 +33,7 @@ from srmech.amsc.hv import HV
 
 
 def _one(dim=96):
-    return G._default_the_one(dim)
+    return G._default_coupling(dim)
 
 
 def _leaves(n, dim=96, base=0):
@@ -68,7 +68,7 @@ def test_unexpressed_e1_gives_a_nand_clause():
     a single nand-clause {any_absent:a, any_present:b}. M1 gave nothing for it."""
     one = _one()
     genes = [("g1", _leaves(1), A, B)]              # expresses iff a present AND b absent
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     con = G.modulator_constraint(strand, one, [])  # g1 NOT expressed
     nand = [c for c in con["clauses"] if c["kind"] == "nand"]
     assert len(nand) == 1
@@ -84,7 +84,7 @@ def test_unexpressed_e2_ands_one_nand_per_dnf_term():
     (one per DNF term). expresses iff (a) OR (c); un-expressed -> a absent AND c absent."""
     one = _one()
     genes = [("b", _leaves(1), _boolean([(A, 0), (C, 0)]))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     con = G.modulator_constraint(strand, one, [])
     nand = [c for c in con["clauses"] if c["kind"] == "nand"]
     assert len(nand) == 2                          # one per DNF term
@@ -101,7 +101,7 @@ def test_expressed_e2_disjunction_is_an_or_terms_clause():
     (>= 1 term fully matches). M1 only pinned the sound intersection-over-clauses."""
     one = _one()
     genes = [("b", _leaves(1), _boolean([(A | B, 0), (A | C, 0)]))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     con = G.modulator_constraint(strand, one, ["b"])
     ors = [c for c in con["clauses"] if c["kind"] == "or_terms"]
     assert len(ors) == 1
@@ -118,7 +118,7 @@ def test_duplicate_boolean_label_is_a_full_disjunction():
     with both genes' terms (M1 gave nothing — a duplicated label can't be attributed)."""
     one = _one()
     genes = [("dup", _leaves(1), A, 0), ("dup", _leaves(1), B, 0)]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     con = G.modulator_constraint(strand, one, ["dup"])
     ors = [c for c in con["clauses"] if c["kind"] == "or_terms"]
     assert len(ors) == 1
@@ -137,7 +137,7 @@ def test_e4_threshold_inequalities():
     theta (sense '<'). Exact linear inequalities, not a mask-OR."""
     one = _one()
     genes = [("t", _leaves(1), _threshold([2, -1, 1], 1))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     con_on = G.modulator_constraint(strand, one, ["t"])
     assert con_on["inequalities"] == [{"weights": [2, -1, 1], "threshold": 1, "sense": ">="}]
     con_off = G.modulator_constraint(strand, one, [])
@@ -154,7 +154,7 @@ def test_e3_graded_levels():
     UN-expressed -> Sum <= 0 (positive False, level 0)."""
     one = _one()
     genes = [("d", _leaves(1), _graded([1, 1, -1, 0], 4))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     con_on = G.modulator_constraint(strand, one, ["d"])
     assert con_on["levels"] == [{"weights": [1, 1, -1, 0], "denom": 4, "positive": True}]
     con_off = G.modulator_constraint(strand, one, [])
@@ -192,7 +192,7 @@ def _assert_sound_and_complete(strand, one, k, *, expect_complete):
 def test_complete_e1_chromosome():
     one = _one()
     genes = [("p", _leaves(1)), ("g1", _leaves(1), A, B), ("g2", _leaves(1), C, A)]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     assert _assert_sound_and_complete(strand, one, 4, expect_complete=True) is False
 
 
@@ -201,7 +201,7 @@ def test_complete_e1_e2_chromosome():
     genes = [("g1", _leaves(1), A, 0),
              ("b", _leaves(1), _boolean([(A, B), (C, 0)])),   # (a AND not b) OR c
              ("r", _leaves(1), 0, D)]                          # expresses iff d absent
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     assert _assert_sound_and_complete(strand, one, 4, expect_complete=True) is False
 
 
@@ -215,7 +215,7 @@ def test_complete_unexpressed_heavy_chromosome():
              ("g3", _leaves(1), D, 0),
              ("g4", _leaves(1), E, 0),
              ("b", _leaves(1), _boolean([(A | C, 0), (D, E)]))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     assert _assert_sound_and_complete(strand, one, 5, expect_complete=True) is False
 
 
@@ -228,7 +228,7 @@ def test_complete_unique_label_full_mix_chromosome():
              ("bool", _leaves(1), _boolean([(A | C, 0), (B, 0)])),
              ("thr", _leaves(1), _threshold([1, 1, -1], 1)),
              ("grad", _leaves(1), _graded([1, 1, 1, 0], 4))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     assert _assert_sound_and_complete(strand, one, 4, expect_complete=True) is False
 
 
@@ -242,7 +242,7 @@ def test_cross_type_or_is_sound_only_and_flagged():
     genes = [("dup", _leaves(1), A, 0),                                  # E1: expresses iff a
              ("dup", _leaves(1), _threshold([0, 1], 1)),                 # E4: expresses iff b
              ("u", _leaves(1), C, 0)]                                    # a clean unique gene
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     # when "dup" is expressed the constraint is sound-only + flagged
     con = G.modulator_constraint(strand, one, ["dup"])
     assert con["sound_complete"] is False
@@ -257,7 +257,7 @@ def test_cross_type_or_is_sound_only_and_flagged():
 def test_satisfiable_true_for_a_real_expression():
     one = _one()
     genes = [("g1", _leaves(1), A, B), ("g2", _leaves(1), C, 0)]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     for cs in range(16):
         expressed = _expressed(strand, one, cs)
         con = G.modulator_constraint(strand, one, expressed)
@@ -271,7 +271,7 @@ def test_satisfiable_false_for_two_genes_that_cannot_co_express():
     one = _one()
     genes = [("g1", _leaves(1), A, 0),             # expresses iff a present
              ("g2", _leaves(1), 0, A)]             # expresses iff a absent
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     con = G.modulator_constraint(strand, one, ["g1", "g2"])
     assert con["satisfiable"] is False
     # and indeed NO cell_state is consistent with both expressed
@@ -281,7 +281,7 @@ def test_satisfiable_false_for_two_genes_that_cannot_co_express():
 
 def test_satisfiable_false_for_a_nonexistent_expected_label():
     one = _one()
-    strand = G.chromosome(the_one=one, label="cell", genes=[("g", _leaves(1), A, 0)])
+    strand = G.chromosome(coupling=one, label="cell", genes=[("g", _leaves(1), A, 0)])
     con = G.modulator_constraint(strand, one, ["g", "ghost"])   # "ghost" is no gene's label
     assert con["satisfiable"] is False
 
@@ -293,13 +293,13 @@ def test_never_enumerates_the_solution_set():
     exponential) enumeration of consistent states. free_bits characterizes the size."""
     one = _one()
     # 6 don't-care bits (only bit a is read) -> the consistent set is large but the constraint is 1 pin
-    strand = G.chromosome(the_one=one, label="cell", genes=[("g", _leaves(1), A, 0)])
+    strand = G.chromosome(coupling=one, label="cell", genes=[("g", _leaves(1), A, 0)])
     con = G.modulator_constraint(strand, one, ["g"])
     assert con["certain_on"] == A
     assert con["free_bits"] == 0                    # only bit a is referenced, and it is pinned
     assert "NOT enumerated" in con["solution_note"]
     # a truly under-determined case: g reads a|b|c but only needs a -> b,c are free referenced bits
-    strand2 = G.chromosome(the_one=one, label="cell",
+    strand2 = G.chromosome(coupling=one, label="cell",
                            genes=[("g", _leaves(1), _boolean([(A, 0)])),
                                   ("h", _leaves(1), B | C, 0)])
     con2 = G.modulator_constraint(strand2, one, ["g"])   # g expressed, h NOT
@@ -315,7 +315,7 @@ def test_read_only_strand_byte_identical():
              ("b", _leaves(1), _boolean([(A, 0), (C, 0)])),
              ("t", _leaves(1), _threshold([1, 1], 2)),
              ("d", _leaves(1), _graded([1, 1, 1, 1], 4))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     before = [hv.tobytes() for hv in strand]
     con = G.modulator_constraint(strand, one, ["g1", "b"])
     _ = G.modulator_constraint_satisfies(con, A)
@@ -327,14 +327,14 @@ def test_read_only_strand_byte_identical():
 
 def test_expressed_labels_must_be_a_sequence_not_a_bare_string():
     one = _one()
-    strand = G.chromosome(the_one=one, label="cell", genes=[("g", _leaves(1), A, 0)])
+    strand = G.chromosome(coupling=one, label="cell", genes=[("g", _leaves(1), A, 0)])
     with pytest.raises(ValueError):
         G.modulator_constraint(strand, one, "g")
 
 
 def test_candidate_must_be_a_nonneg_int():
     one = _one()
-    strand = G.chromosome(the_one=one, label="cell", genes=[("g", _leaves(1), A, 0)])
+    strand = G.chromosome(coupling=one, label="cell", genes=[("g", _leaves(1), A, 0)])
     con = G.modulator_constraint(strand, one, ["g"])
     with pytest.raises(ValueError):
         G.modulator_constraint_satisfies(con, -1)
@@ -353,7 +353,7 @@ def _mixed_strand(one):
              ("grad", _leaves(1), _graded([1, 1, 1, 1], 4)),
              ("dup", _leaves(1), A, 0),
              ("dup", _leaves(1), B, 0)]
-    return G.chromosome(the_one=one, label="cell", genes=genes)
+    return G.chromosome(coupling=one, label="cell", genes=genes)
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native library not built")

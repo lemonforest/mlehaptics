@@ -22,7 +22,7 @@ from srmech.amsc.hdc import (
     klein4_chirality_flip_gamma5,
     klein4_chirality_flip_omega7,
     klein4_project_axis,
-    klein4_random,
+    klein4_expand,
 )
 
 
@@ -41,7 +41,7 @@ def test_default_axis_is_gamma5():
 
 
 def test_output_is_bipolar():
-    v = klein4_random(64, seed=7)
+    v = klein4_expand(64, 7)
     for axis in ("gamma5", "iomega7"):
         proj = klein4_project_axis(v, axis=axis)
         assert all(x in (-1, 1) for x in proj)
@@ -50,7 +50,7 @@ def test_output_is_bipolar():
 
 def test_axes_are_co_equal_and_independent():
     """Each axis projects its OWN bit; the two are independent (F354)."""
-    v = klein4_random(128, seed=11)
+    v = klein4_expand(128, 11)
     g = klein4_project_axis(v, axis="gamma5")
     o = klein4_project_axis(v, axis="iomega7")
     # Per element, (gamma5_sign, iomega7_sign) recovers the original Klein-4
@@ -61,7 +61,7 @@ def test_axes_are_co_equal_and_independent():
 
 def test_gamma5_flip_negates_only_gamma5_projection():
     """A γ₅ flip flips the γ₅ projection sign; iω₇ projection unchanged (K-flip)."""
-    v = klein4_random(96, seed=3)
+    v = klein4_expand(96, 3)
     flipped = klein4_chirality_flip_gamma5(v)
     g0 = klein4_project_axis(v, axis="gamma5")
     g1 = klein4_project_axis(flipped, axis="gamma5")
@@ -71,7 +71,7 @@ def test_gamma5_flip_negates_only_gamma5_projection():
 
 
 def test_omega7_flip_negates_only_omega7_projection():
-    v = klein4_random(96, seed=5)
+    v = klein4_expand(96, 5)
     flipped = klein4_chirality_flip_omega7(v)
     o0 = klein4_project_axis(v, axis="iomega7")
     o1 = klein4_project_axis(flipped, axis="iomega7")
@@ -100,7 +100,7 @@ def test_out_of_range_element_rejected():
 
 
 def test_deterministic():
-    v = klein4_random(32, seed=9)
+    v = klein4_expand(32, 9)
     assert klein4_project_axis(v) == klein4_project_axis(v)
 
 

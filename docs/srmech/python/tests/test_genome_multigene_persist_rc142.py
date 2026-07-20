@@ -7,7 +7,7 @@ optional derived ``.fai``-style cache). So:
 
   * ``genome(chromosomes=…)`` returns ONE self-describing strand (no ``gene_index``,
     no 2-tuple);
-  * ``genome_save(strand, path, the_one)`` drops the ``gene_index=`` param;
+  * ``genome_save(strand, path, coupling)`` drops the ``gene_index=`` param;
   * ``genome_genes(path, label)`` pages the chromosome region and SCANS the inline
     GENE caps back — no offset table.
 
@@ -24,21 +24,21 @@ from srmech.amsc.genome import (
     chromosome,
     genes,
 )
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 def _one(seed=1, dim=64):
-    return klein4_random(dim, seed=seed)
+    return klein4_expand(dim, seed)
 
 
 def _specs():
     """Two multi-gene chromosomes (2 genes + 2 genes)."""
     one = _one()
     specs = [
-        ("chess", [("rules", [klein4_random(64, seed=s) for s in (1, 2)]),
-                   ("board", [klein4_random(64, seed=3)])]),
-        ("music", [("scales", [klein4_random(64, seed=10)]),
-                   ("chords", [klein4_random(64, seed=s) for s in (11, 12)])]),
+        ("chess", [("rules", [klein4_expand(64, s) for s in (1, 2)]),
+                   ("board", [klein4_expand(64, 3)])]),
+        ("music", [("scales", [klein4_expand(64, 10)]),
+                   ("chords", [klein4_expand(64, s) for s in (11, 12)])]),
     ]
     return one, specs
 
@@ -55,7 +55,7 @@ def _markers(body, leaf_dim=64):
 # ── builder: ONE self-describing strand (no gene_index, no 2-tuple) ──────────
 def test_genome_chromosomes_returns_single_strand_no_sidecar():
     one, specs = _specs()
-    out = genome.genome(chromosomes=specs, the_one=one)
+    out = genome.genome(chromosomes=specs, coupling=one)
     assert isinstance(out, list)              # ONE strand, NOT a (strand, gi) tuple
     n_chrom = sum(1 for hv in out if len(hv) and int(hv[0]) == CHROM_CAP_MARKER)
     n_gene = sum(1 for hv in out if len(hv) and int(hv[0]) == GENE_CAP_MARKER)
@@ -66,9 +66,9 @@ def test_genome_chromosomes_returns_single_strand_no_sidecar():
 # ── disk round-trip: genome_genes SCANS the inline caps back ─────────────────
 def test_genome_genes_round_trips_via_inline_scan(tmp_path):
     one, specs = _specs()
-    strand = genome.genome(chromosomes=specs, the_one=one)
+    strand = genome.genome(chromosomes=specs, coupling=one)
     p = tmp_path / "g"
-    genome.genome_save(strand, p, the_one=one)          # NO gene_index=
+    genome.genome_save(strand, p, coupling=one)          # NO gene_index=
 
     for label, gene_list in specs:
         recovered = genome.genome_genes(p, label)
@@ -77,7 +77,7 @@ def test_genome_genes_round_trips_via_inline_scan(tmp_path):
             assert _as_lists(got) == _as_lists(want)
 
     # disk genome_genes == in-memory genes() for the chess chromosome
-    in_mem = genes(chromosome(genes=specs[0][1], the_one=one, label="chess"), one)
+    in_mem = genes(chromosome(genes=specs[0][1], coupling=one, label="chess"), one)
     on_disk = genome.genome_genes(p, "chess")
     assert [gl for gl, _ in on_disk] == [gl for gl, _ in in_mem]
     for (_, a), (_, b) in zip(on_disk, in_mem):
@@ -87,9 +87,9 @@ def test_genome_genes_round_trips_via_inline_scan(tmp_path):
 # ── the body itself carries the inline gene caps (no sidecar) ────────────────
 def test_body_carries_inline_gene_caps(tmp_path):
     one, specs = _specs()
-    strand = genome.genome(chromosomes=specs, the_one=one)
+    strand = genome.genome(chromosomes=specs, coupling=one)
     p = tmp_path / "g"
-    genome.genome_save(strand, p, the_one=one)
+    genome.genome_save(strand, p, coupling=one)
     markers = _markers((p / "turns.bin").read_bytes())
     assert markers.count(CHROM_CAP_MARKER) == 2
     assert markers.count(GENE_CAP_MARKER) == 4
@@ -101,9 +101,9 @@ def test_body_carries_inline_gene_caps(tmp_path):
 # ── single-kernel chromosome: genome_genes refuses (no inline GENE caps) ──────
 def test_genome_genes_refuses_single_kernel(tmp_path):
     one = _one()
-    strand = genome.genome({"solo": [klein4_random(64, seed=5)]}, one)
+    strand = genome.genome({"solo": [klein4_expand(64, 5)]}, one)
     p = tmp_path / "g"
-    genome.genome_save(strand, p, the_one=one)
+    genome.genome_save(strand, p, coupling=one)
     with pytest.raises(ValueError):
         genome.genome_genes(p, "solo")
 
@@ -111,7 +111,7 @@ def test_genome_genes_refuses_single_kernel(tmp_path):
 # ── partition / window FLATTEN a multi-gene genome (genes view is separate) ───
 def test_partition_flattens_multigene_by_scan(tmp_path):
     one, specs = _specs()
-    strand = genome.genome(chromosomes=specs, the_one=one)
+    strand = genome.genome(chromosomes=specs, coupling=one)
     part = genome.partition(strand, one)            # §44: discovers labels by scan
     assert set(part) == {"chess", "music"}
     flat = [leaf for _gl, leaves in specs[0][1] for leaf in leaves]
@@ -120,9 +120,9 @@ def test_partition_flattens_multigene_by_scan(tmp_path):
 
 def test_window_and_load_round_trip(tmp_path):
     one, specs = _specs()
-    strand = genome.genome(chromosomes=specs, the_one=one)
+    strand = genome.genome(chromosomes=specs, coupling=one)
     p = tmp_path / "g"
-    genome.genome_save(strand, p, the_one=one)
+    genome.genome_save(strand, p, coupling=one)
 
     # whole strand round-trips byte-for-byte
     ls, lo, ll = genome.genome_load(p)
@@ -131,6 +131,6 @@ def test_window_and_load_round_trip(tmp_path):
 
     # window flattens chess to its coupled data turns (every cap skipped)
     win = genome.genome_window(p, "chess")
-    expected = [hv for hv in chromosome(genes=specs[0][1], the_one=one, label="chess")
+    expected = [hv for hv in chromosome(genes=specs[0][1], coupling=one, label="chess")
                 if not (len(hv) and int(hv[0]) in (CHROM_CAP_MARKER, GENE_CAP_MARKER))]
     assert _as_lists(win) == _as_lists(expected)

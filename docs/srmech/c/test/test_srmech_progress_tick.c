@@ -118,14 +118,14 @@ static int test_mint_cancel(void)
 {
     const unsigned char labels[3] = { 'a', 'b', 'c' };
     const size_t label_lens[3] = { 1u, 1u, 1u };
-    const unsigned char the_one[4] = { 1u, 2u, 3u, 0u };
+    const unsigned char coupling[4] = { 1u, 2u, 3u, 0u };
     const unsigned char leaves[12] = { 0u, 1u, 2u, 3u, 3u, 2u, 1u, 0u, 1u, 1u, 2u, 2u };
     const size_t leaf_counts[3] = { 1u, 1u, 1u };
     unsigned char out_full[64];
     unsigned char out_part[64];
     size_t n_full = 0u, n_part = 0u;
 
-    srmech_status_t st = srmech_genome_mint(labels, label_lens, the_one, 4u,
+    srmech_status_t st = srmech_genome_mint(labels, label_lens, coupling, 4u,
                                             leaves, leaf_counts, 3u,
                                             out_full, sizeof out_full, &n_full);
     if (st != SRMECH_OK || n_full == 0u) {
@@ -133,7 +133,7 @@ static int test_mint_cancel(void)
         return 1;
     }
     g_ev_bad = 0; g_last_done = 0u; g_want_phase = (uint32_t)SRMECH_PHASE_MINTING;
-    st = srmech_genome_mint_progress(labels, label_lens, the_one, 4u,
+    st = srmech_genome_mint_progress(labels, label_lens, coupling, 4u,
                                      leaves, leaf_counts, 3u,
                                      out_part, sizeof out_part, &n_part,
                                      mint_tick, NULL);
@@ -163,15 +163,15 @@ static int test_null_tick(void)
 {
     const unsigned char labels[2] = { 'x', 'y' };
     const size_t label_lens[2] = { 1u, 1u };
-    const unsigned char the_one[4] = { 1u, 2u, 3u, 0u };
+    const unsigned char coupling[4] = { 1u, 2u, 3u, 0u };
     const unsigned char leaves[8] = { 0u, 1u, 2u, 3u, 2u, 2u, 1u, 1u };
     const size_t leaf_counts[2] = { 1u, 1u };
     unsigned char out_a[64], out_b[64];
     size_t n_a = 0u, n_b = 0u;
-    srmech_status_t sa = srmech_genome_mint(labels, label_lens, the_one, 4u,
+    srmech_status_t sa = srmech_genome_mint(labels, label_lens, coupling, 4u,
                                             leaves, leaf_counts, 2u,
                                             out_a, sizeof out_a, &n_a);
-    srmech_status_t sb = srmech_genome_mint_progress(labels, label_lens, the_one, 4u,
+    srmech_status_t sb = srmech_genome_mint_progress(labels, label_lens, coupling, 4u,
                                                      leaves, leaf_counts, 2u,
                                                      out_b, sizeof out_b, &n_b,
                                                      NULL, NULL);

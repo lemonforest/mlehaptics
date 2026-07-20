@@ -47,7 +47,7 @@ from srmech.amsc.hv import HV
 
 
 def _one(dim=64):
-    return G._default_the_one(dim)
+    return G._default_coupling(dim)
 
 
 def _leaves(n, dim=64, base=0):
@@ -63,7 +63,7 @@ def _cell_chromosome(one):
     genes = [("housekeeping", _leaves(1, base=0)),
              ("stress", _leaves(2, base=1), 0b011),
              ("mitosis", _leaves(1, base=2), 0b100)]
-    return G.chromosome(the_one=one, label="cell", genes=genes)
+    return G.chromosome(coupling=one, label="cell", genes=genes)
 
 
 # ── (1) the exact expression rule (cell_state & mask) == mask ─────────────────
@@ -143,7 +143,7 @@ def test_plain_genes_always_express():
     every cell_state (an unregulated gene == a regulatory gene with mask 0)."""
     one = _one()
     genes = [("a", _leaves(1)), ("b", _leaves(2, base=1)), ("c", _leaves(1, base=2))]
-    strand = G.chromosome(the_one=one, label="plainonly", genes=genes)
+    strand = G.chromosome(coupling=one, label="plainonly", genes=genes)
     for cs in (0, 1, 7, 2**63):
         got = [l for l, _ in G.gene_express(strand, one, cs)]
         assert got == ["a", "b", "c"]                              # ALL always express
@@ -156,7 +156,7 @@ def test_plain_gene_chromosome_byte_identical_to_prior_writer():
     a v7 writer would produce — the ONLY difference is the manifest format_version field."""
     one = _one()
     genes = [("a", _leaves(1)), ("b", _leaves(2, base=1))]
-    strand = G.chromosome(the_one=one, label="c", genes=genes)
+    strand = G.chromosome(coupling=one, label="c", genes=genes)
     # the body carries NO 0x67 marker (a plain-gene chromosome is un-regulated)
     for blk in G._leaf_blocks(strand):
         assert blk[0] != G.REGULATORY_GENE_MARKER
@@ -173,7 +173,7 @@ def test_regulatory_genome_saves_pages_v8(tmp_path):
     man = G.genome_save(strand, p, one)
     assert man["format_version"] == 15    # rc132 §132 bumped v10->v11 (0x64 graded gene); a v11 writer stamps 11
     # genome_genes pages the region + recovers ALL genes (labels + leaves), mask-agnostic
-    paged = G.genome_genes(p, "cell", the_one=one)
+    paged = G.genome_genes(p, "cell", coupling=one)
     assert [l for l, _ in paged] == ["housekeeping", "stress", "mitosis"]
     # gene_express on the paged/loaded strand filters by cell_state (from disk)
     s2, o2, _ = G.genome_load(p)
@@ -189,7 +189,7 @@ def test_rebuild_by_scan_recovers_masks(tmp_path):
     p = tmp_path / "g"
     G.genome_save(strand, p, one)
     (p / "manifest.json").unlink()                             # drop the derived cache
-    s2, o2, _ = G.genome_load(p, the_one=one)                  # rebuild by scanning turns.bin
+    s2, o2, _ = G.genome_load(p, coupling=one)                  # rebuild by scanning turns.bin
     assert [l for l, _ in G.gene_express(s2, o2, 0b100)] == ["housekeeping", "mitosis"]
 
 
@@ -219,9 +219,9 @@ def test_cell_state_must_be_nonnegative_int():
 def test_mask_must_be_nonnegative_int():
     one = _one()
     with pytest.raises(ValueError, match="non-negative"):
-        G.chromosome(the_one=one, label="c", genes=[("g", _leaves(1), -1)])
+        G.chromosome(coupling=one, label="c", genes=[("g", _leaves(1), -1)])
     with pytest.raises(ValueError, match="exact int"):
-        G.chromosome(the_one=one, label="c", genes=[("g", _leaves(1), 1.5)])
+        G.chromosome(coupling=one, label="c", genes=[("g", _leaves(1), 1.5)])
 
 
 def test_op_provenance_tie_documented():

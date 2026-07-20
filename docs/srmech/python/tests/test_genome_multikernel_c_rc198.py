@@ -11,7 +11,7 @@ rc198 ships the C peers of the two multi-kernel leaves:
 
   * ``srmech_genome_partition`` — the inverse: open a partition per CHROM /
     kernel-telomere / active-telomere cap (label inline), skip gene / header caps
-    (flatten), re-bind each data turn through ``the_one``. ``genome.partition``
+    (flatten), re-bind each data turn through ``coupling``. ``genome.partition``
     DISPATCHES to it when HAS_NATIVE; the caller builds the ``{label: [leaves]}``
     dict (dict overwrite-on-duplicate-label) + applies the ``labels=`` filter.
 
@@ -26,7 +26,7 @@ import pytest
 
 from srmech.amsc import genome
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 _DIMS = [8, 16, 64]
@@ -40,7 +40,7 @@ _LABELS_SETS = [
 
 
 def _one(dim, seed=7):
-    return klein4_random(dim, seed=seed)
+    return klein4_expand(dim, seed)
 
 
 def _fits(labels, dim):
@@ -55,7 +55,7 @@ def _kernels(labels, dim, base_seed):
     out = []
     for i, lbl in enumerate(labels):
         n = i % 4                                # 0, 1, 2, 3, … leaves
-        leaves = [klein4_random(dim, seed=base_seed + i * 10 + j) for j in range(n)]
+        leaves = [klein4_expand(dim, base_seed + i * 10 + j) for j in range(n)]
         out.append((lbl, leaves))
     return out
 
@@ -74,7 +74,7 @@ def _dict_bytes(d):
 def test_multikernel_symbols_present():
     assert _native.has_native_genome_genome()
     assert _native.has_native_genome_partition()
-    assert _native.EXPECTED_ABI_VERSION == 7
+    assert _native.EXPECTED_ABI_VERSION == 8
 
 
 # ── (i) srmech_genome_genome → the strand is BYTE-IDENTICAL native-vs-pure ─────
@@ -192,11 +192,11 @@ def test_partition_flattens_multigene_strand_native_equals_pure():
         dim = 16
         one = _one(dim)
         chromosomes = [
-            ("rules", [("r", [klein4_random(dim, seed=1)]),
-                       ("s", [klein4_random(dim, seed=2), klein4_random(dim, seed=3)])]),
-            ("board", [("b", [klein4_random(dim, seed=4)])]),
+            ("rules", [("r", [klein4_expand(dim, 1)]),
+                       ("s", [klein4_expand(dim, 2), klein4_expand(dim, 3)])]),
+            ("board", [("b", [klein4_expand(dim, 4)])]),
         ]
-        strand = genome.genome(the_one=one, chromosomes=chromosomes)   # pure §44 build
+        strand = genome.genome(coupling=one, chromosomes=chromosomes)   # pure §44 build
         _native.HAS_NATIVE = True
         native = genome.partition(strand, one)
         _native.HAS_NATIVE = False
@@ -217,7 +217,7 @@ def test_genome_overlong_label_raises_in_both_paths():
     # exact ValueError — identical error semantics native or pure.
     dim = 8
     one = _one(dim)
-    km = {"x" * 8: [klein4_random(dim, seed=1)]}      # 8 > dim - 1 = 7
+    km = {"x" * 8: [klein4_expand(dim, 1)]}      # 8 > dim - 1 = 7
     saved = _native.HAS_NATIVE
     try:
         for flag in (True, False):

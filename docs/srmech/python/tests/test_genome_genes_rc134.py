@@ -21,7 +21,7 @@ from srmech.amsc.genome import (
     recall,
     telomere,
 )
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 # ── tlv_unpack: the inverse reader ────────────────────────────────────────
@@ -60,14 +60,14 @@ def test_tlv_unpack_type_guards():
 
 # ── multi-gene chromosome(genes=) / genes() ───────────────────────────────
 def _one(seed=1, dim=16):
-    return klein4_random(dim, seed=seed)
+    return klein4_expand(dim, seed)
 
 
 def test_chromosome_genes_round_trips_labels_and_leaves():
     one = _one()
-    la = [klein4_random(16, seed=10), klein4_random(16, seed=11)]
-    lb = [klein4_random(16, seed=20)]
-    strand = chromosome(genes=[("rules", la), ("board", lb)], the_one=one, label="chess")
+    la = [klein4_expand(16, 10), klein4_expand(16, 11)]
+    lb = [klein4_expand(16, 20)]
+    strand = chromosome(genes=[("rules", la), ("board", lb)], coupling=one, label="chess")
     out = genes(strand, one)
     assert [lbl for lbl, _ in out] == ["rules", "board"]
     assert out[0][1][0] == la[0] and out[0][1][1] == la[1]
@@ -76,7 +76,7 @@ def test_chromosome_genes_round_trips_labels_and_leaves():
 
 def test_gene_headers_are_distinguishable_from_klein4_turns():
     one = _one()
-    strand = chromosome(genes=[("g", [klein4_random(16, seed=3)])], the_one=one)
+    strand = chromosome(genes=[("g", [klein4_expand(16, 3)])], coupling=one)
     # §44: EVERY cap — the CHROM telomere AND the GENE cap — is a fixed-width packed
     # leaf whose first byte is a marker (> 3); only the DATA turns are Klein-4 (every
     # byte <= 3). So caps are scanned-for by their first byte, never mistaken for data.
@@ -92,13 +92,13 @@ def test_gene_headers_are_distinguishable_from_klein4_turns():
 
 def test_empty_gene_and_single_gene():
     one = _one()
-    strand = chromosome(genes=[("only", [])], the_one=one)
+    strand = chromosome(genes=[("only", [])], coupling=one)
     assert genes(strand, one) == [("only", [])]
 
 
 def test_chromosome_single_kernel_path_is_unchanged():
     one = _one()
-    leaves = [klein4_random(16, seed=10), klein4_random(16, seed=11)]
+    leaves = [klein4_expand(16, 10), klein4_expand(16, 11)]
     strand = chromosome(leaves, one, label="solo")
     assert recall(strand, one, telomere("solo", len(list(one)))) == leaves
 
@@ -106,8 +106,8 @@ def test_chromosome_single_kernel_path_is_unchanged():
 def test_chromosome_requires_exactly_one_of_leaves_or_genes():
     one = _one()
     with pytest.raises(ValueError):
-        chromosome(the_one=one)                                  # neither
+        chromosome(coupling=one)                                  # neither
     with pytest.raises(ValueError):
         chromosome([_one()], one, genes=[("a", [_one()])])       # both
     with pytest.raises(ValueError):
-        chromosome([_one()])                                     # the_one missing
+        chromosome([_one()])                                     # coupling missing

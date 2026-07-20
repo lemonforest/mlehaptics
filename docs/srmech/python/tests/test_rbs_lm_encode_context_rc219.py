@@ -52,7 +52,7 @@ def _forced_pure(monkeypatch, fn, *args, **kwargs):
 
 def _oracle_word_k4(word, D, sector, hex_chars):
     """The pre-rc219 encode_word_k4 body, verbatim."""
-    base = hdc.klein4_random(D, seed=token_seed(word, hex_chars))
+    base = hdc.klein4_expand(D, token_seed(word, hex_chars))
     return hdc.klein4_bind(base, _sector_const(D, sector))
 
 
@@ -60,7 +60,7 @@ def _oracle_word_byteglyph(word, D, sector):
     """The pre-rc219 encode_word_byteglyph body, verbatim."""
     data = word.encode("utf-8")
     if len(data) == 0:
-        base = hdc.klein4_random(D, seed=0)
+        base = hdc.klein4_expand(D, 0)
     else:
         base = hdc.klein4_encode_bytes(data, D)
     return hdc.klein4_bind(base, _sector_const(D, sector))

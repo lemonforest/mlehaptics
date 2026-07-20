@@ -79,14 +79,14 @@ def _leaves(n, fill):
 
 
 def _build(tmp, head=4, body=8):
-    """Build + save the mixed two-genome layout; return (strand, the_one, dir)."""
-    one = G._default_the_one(LEAF)
+    """Build + save the mixed two-genome layout; return (strand, coupling, dir)."""
+    one = G._default_coupling(LEAF)
     chrom_list = []
     for name, gate, _bit in _COMMUNITIES:
         genes = [(name + "_head", _leaves(head, 0), gate),
                  (name + "_body", _leaves(body, 1), gate)]
         chrom_list.append((name, genes))
-    strand = G.genome(the_one=one, chromosomes=chrom_list)
+    strand = G.genome(coupling=one, chromosomes=chrom_list)
     G.genome_save(strand, tmp, one)
     return strand, one
 
@@ -150,7 +150,7 @@ def test_variant_b_bounded_io(probe):
     now measured separately and both are asserted."""
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc135iii_"))
     _build(tmp, head=4, body=40)                        # sizeable bodies → dramatic skip
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     full_body = (tmp / G._BODY_NAME).stat().st_size
     probe.clear()
     plan = G.gene_express_plan(str(tmp), one, B1)       # a physics-only query
@@ -177,7 +177,7 @@ def test_variant_b_bounded_io(probe):
 def test_two_genome_layout():
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc135iv_"))
     _build(tmp)
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     for cs in [0, B0, B1, B2, B3, B0 | B2, ALLB]:
         plan_labels = sorted(p[0] for p in G.gene_express_plan(str(tmp), one, cs))
         assert "mito" in plan_labels, f"organelle must ALWAYS be in the plan (cs={cs})"

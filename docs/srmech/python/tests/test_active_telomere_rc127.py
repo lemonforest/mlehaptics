@@ -3,7 +3,7 @@ counter that makes the chromosome GENUINELY op⊗operand (turns the #726 lens in
 theorem).
 
 #726 PROVED the genome telomere is a PASSIVE op-SLOT — swapping the cap leaves the
-leaves unchanged; the_one governs them, telomere-independent. So "chromosome =
+leaves unchanged; coupling governs them, telomere-independent. So "chromosome =
 op⊗operand" was a LENS, not a theorem. The ONE build that makes it a THEOREM: make the
 telomere ACTIVE — carry an exact counter (the OPERAND) that MODULATES a downstream op
 (the OPERATOR). The active telomere = op⊗operand fused in ONE cap: op = the gating rule
@@ -43,7 +43,7 @@ from srmech.amsc.hv import HV
 
 
 def _one(dim=64):
-    return G._default_the_one(dim)
+    return G._default_coupling(dim)
 
 
 def _leaves(n, dim=64, base=0):
@@ -103,7 +103,7 @@ def test_senescence_forever_at_zero():
 
 def test_bare_strand_self_describes_count(tmp_path):
     """The chromosome recovers its CURRENT count by SCANNING the strand — no manifest,
-    no the_one (the count lives inline in the 0x74 cap)."""
+    no coupling (the count lives inline in the 0x74 cap)."""
     one = _one()
     strand = G.chromosome(_leaves(3), one, label="k", active_count=42)
     # in-memory bare scan
@@ -114,7 +114,7 @@ def test_bare_strand_self_describes_count(tmp_path):
     p = tmp_path / "g"
     G.genome_save(strand, p, one)
     (p / "manifest.json").unlink()
-    strand2, _one2, _labels = G.genome_load(p, the_one=one)
+    strand2, _one2, _labels = G.genome_load(p, coupling=one)
     cap2 = next(hv for hv in strand2 if G._cap_kind(hv) == G.ACTIVE_TELOMERE_MARKER)
     assert G._active_telomere_count(cap2) == 42
     # bytes survive the disk round-trip exactly

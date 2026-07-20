@@ -84,16 +84,16 @@ def _leaves(n, fill):
 
 def _build(tmp, spec=_SPEC, body=6):
     """Build the mixed layout, apply per-chromosome chromatin (by label), save; return
-    (in-memory chromatin'd strand, the_one)."""
-    one = G._default_the_one(LEAF)
+    (in-memory chromatin'd strand, coupling)."""
+    one = G._default_coupling(LEAF)
     chrom_list = []
     for name, gate, _chrom in spec:
         gene = (name, _leaves(body, 0)) if gate is None else (name, _leaves(body, 0), gate)
         chrom_list.append((name, [gene]))
-    strand = G.genome(the_one=one, chromosomes=chrom_list)
+    strand = G.genome(coupling=one, chromosomes=chrom_list)
     for name, _gate, chrom in spec:
         if chrom is not None:
-            strand = G.condense(strand, the_one=one, label=name, state=chrom)
+            strand = G.condense(strand, coupling=one, label=name, state=chrom)
     G.genome_save(strand, tmp, one)
     return strand, one
 
@@ -133,7 +133,7 @@ def probe(monkeypatch):
 def test_path_plan_skips_condensed_regions():
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc269i_"))
     _build(tmp)
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     for cs in range(0, ALLB + 1):
         labels = {p[0] for p in G.gene_express_plan(str(tmp), one, cs)}
         assert labels == _expected(cs), f"cs={cs}: {labels} != {_expected(cs)}"
@@ -146,7 +146,7 @@ def test_condensed_region_touches_only_the_chromatin_cap(probe):
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc269ii_"))
     # ONE condensed community with a sizeable body — the dramatic-skip case
     _build(tmp, spec=[("solo", None, "condensed")], body=60)
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     full_body = (tmp / G._BODY_NAME).stat().st_size
     probe.clear()
     plan = G.gene_express_plan(str(tmp), one, 0)
@@ -169,7 +169,7 @@ def test_bytes_touched_by_chromatin_state(probe):
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc269ii2_"))
     spec = [("c", None, "condensed"), ("o", None, "open"), ("f", None, None)]
     _build(tmp, spec=spec, body=40)
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     full_body = (tmp / G._BODY_NAME).stat().st_size
     probe.clear()
     plan = G.gene_express_plan(str(tmp), one, 0)
@@ -187,7 +187,7 @@ def test_bytes_touched_by_chromatin_state(probe):
 def test_native_equals_pure(monkeypatch):
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc269iii_"))
     _build(tmp)
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     for cs in range(0, ALLB + 1):
         monkeypatch.setattr(_native, "has_native_genome", lambda: True)
         plan_c = G.gene_express_plan(str(tmp), one, cs)
@@ -203,7 +203,7 @@ def test_euchromatin_defers_to_the_promoter():
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc269iv_"))
     # an OPEN region gated on bit0 (+ an always-on open control so the genome is non-trivial)
     _build(tmp, spec=[("gate_b0", B0, "open"), ("ctrl", None, "open")])
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     off_labels = {p[0] for p in G.gene_express_plan(str(tmp), one, 0)}      # bit0 ABSENT
     on_labels = {p[0] for p in G.gene_express_plan(str(tmp), one, B0)}      # bit0 PRESENT
     assert "gate_b0" not in off_labels                                     # open but promoter off → out
@@ -217,7 +217,7 @@ def test_chromatin_free_plan_unchanged(probe):
     # a purely chromatin-free genome (no condense at all)
     spec = [("free_on", None, None), ("free_b1", B1, None), ("free_off", B2, None)]
     _build(tmp, spec=spec, body=20)
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     full_body = (tmp / G._BODY_NAME).stat().st_size
     catalog_terms = set()
     for cs in [0, B1, B2, B1 | B2, ALLB]:
@@ -260,4 +260,4 @@ def test_read_only():
 def test_no_format_or_abi_or_toolcount_change():
     assert G.GENOME_FORMAT_VERSION == 15
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 456
+    assert introspect.describe()["tools"]["total"] == 461

@@ -40,7 +40,7 @@ import time
 from srmech.amsc import _native
 from srmech.amsc import genome as G
 from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64                                   # >= 52 (the §89 kernel header)
 
@@ -128,7 +128,7 @@ def build_store(n_sections, doc_len=40, vocab=400, window=2, seed=1282):
     """A plasmid section store with ``n_sections`` sections — the SAME fixture shape
     the `#876` cost probe used (``doc_len=40, vocab=400, window=2, k=8``), so the
     "before" numbers here reproduce that note's measurement."""
-    one = klein4_random(_DIM, seed=seed)
+    one = klein4_expand(_DIM, seed)
     docs = [[f"w{(d * 17 + i * 5) % vocab}" for i in range(doc_len)]
             for d in range(n_sections)]
     dpath = tempfile.mkdtemp(prefix="rc282_")
@@ -165,7 +165,7 @@ def measure(n_sections, repeats=1):
         with _OpenTally() as tally:
             t0 = time.perf_counter()
             for _ in range(repeats):
-                targeted = P.section_counts(store, the_one=one)
+                targeted = P.section_counts(store, coupling=one)
             t_targeted = (time.perf_counter() - t0) / repeats
 
         t0 = time.perf_counter()

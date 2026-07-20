@@ -67,11 +67,11 @@ def test_v6_roundtrip_in_memory(D):
 def test_v6_roundtrip_on_disk(tmp_path, D):
     x = _kernel(D)
     strand = G.kernel_pack(x)
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     p = tmp_path / f"k{D}"
-    man = G.genome_save(strand, p, the_one=one)
+    man = G.genome_save(strand, p, coupling=one)
     assert man["format_version"] == 15                # the v9 writer (rc130 §130 stamps 9)
-    assert G.kernel_unpack(p) == x                   # the_one from the manifest cache
+    assert G.kernel_unpack(p) == x                   # coupling from the manifest cache
 
 
 def test_v6_leaf_dim_non_default_and_non_aligned(tmp_path):
@@ -79,11 +79,11 @@ def test_v6_leaf_dim_non_default_and_non_aligned(tmp_path):
     round-trip EXACT — the header self-records D=250 and leaf_dim=100."""
     x = _kernel(250)
     strand = G.kernel_pack(x, leaf_dim=100)          # 250 -> 3 content leaves (50 pad)
-    hdr = G.recall(strand, G._default_the_one(100))[0]
+    hdr = G.recall(strand, G._default_coupling(100))[0]
     assert G._unpack_kernel_header_klein4(hdr) == (250, 100, G.ELEMENT_TYPE_KLEIN4)
     assert G.kernel_unpack(strand) == x
     p = tmp_path / "k"
-    G.genome_save(strand, p, the_one=G._default_the_one(100))
+    G.genome_save(strand, p, coupling=G._default_coupling(100))
     assert G.kernel_unpack(p) == x
 
 
@@ -99,17 +99,17 @@ def test_leaf_dim_below_header_size_rejected():
 def _seed(tmp_path, one):
     """A genome seeded with one kernel chromosome, ready for O(1) kernel appends."""
     p = tmp_path / "g"
-    G.genome_save(G.kernel_pack(_kernel(300), label="seed"), p, the_one=one)
+    G.genome_save(G.kernel_pack(_kernel(300), label="seed"), p, coupling=one)
     return p
 
 
 def test_append_kernel_roundtrips_and_preserves_header(tmp_path):
     """genome_append_kernel appends a kernel WITH its §89 header; the appended kernel
     (and its self-describing D) recover EXACTLY."""
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     p = _seed(tmp_path, one)
     x = _kernel(777)                                 # non-aligned D
-    man = G.genome_append_kernel(p, "taught", x, the_one=one)
+    man = G.genome_append_kernel(p, "taught", x, coupling=one)
     assert man["chromosomes"][-1]["label"] == "taught"
     # recover the appended kernel: load, split to its chromosome, kernel_unpack it
     strand, one2, _labels = G.genome_load(p)
@@ -121,12 +121,12 @@ def test_append_kernel_is_tail_extend_prior_untouched(tmp_path):
     """The O(1) structural guarantee: the prior body is an EXACT prefix (no
     whole-body rewrite), and only ONE chromosome + region entry is appended, the
     body_sha256 chain extended in O(1) from its prior head."""
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     p = _seed(tmp_path, one)
     man0 = G.genome_catalog(p)
     body0 = (p / "turns.bin").read_bytes()
 
-    man1 = G.genome_append_kernel(p, "k1", _kernel(500), the_one=one)
+    man1 = G.genome_append_kernel(p, "k1", _kernel(500), coupling=one)
     body1 = (p / "turns.bin").read_bytes()
 
     assert body1[:len(body0)] == body0                       # append-only prefix
@@ -141,35 +141,35 @@ def test_append_kernel_is_tail_extend_prior_untouched(tmp_path):
 def test_append_kernel_flat_time(tmp_path):
     """Flat-time: appending a kernel to a genome with MANY chromosomes is not
     dramatically slower than to a small one (O(1) amortised, not O(N))."""
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     p = _seed(tmp_path, one)
     kern = _kernel(400)
 
     def _timed_append(label):
         t0 = time.perf_counter()
-        G.genome_append_kernel(p, label, kern, the_one=one)
+        G.genome_append_kernel(p, label, kern, coupling=one)
         return time.perf_counter() - t0
 
     early = min(_timed_append(f"e{i}") for i in range(3))   # genome ~1..5 chroms
     for i in range(200):
-        G.genome_append_kernel(p, f"bulk{i}", kern, the_one=one)
+        G.genome_append_kernel(p, f"bulk{i}", kern, coupling=one)
     late = min(_timed_append(f"l{i}") for i in range(3))    # genome ~208 chroms
     # O(N) would blow this ratio out; O(1) keeps it bounded (generous CI tolerance).
     assert late < early * 12 + 0.05, (early, late)
 
 
-# ── (3) bare in-memory strand self-describes — no manifest, no the_one ────────
+# ── (3) bare in-memory strand self-describes — no manifest, no coupling ────────
 
 def test_bare_strand_self_describes(tmp_path):
     """§44 portability win: a bare in-memory strand recovers the true D +
-    element_type by SCANNING its Klein-4 header leaf — no manifest, no the_one (the
+    element_type by SCANNING its Klein-4 header leaf — no manifest, no coupling (the
     default all-ones is reconstructed from the leaf width)."""
     x = _kernel(1234)
     strand = G.kernel_pack(x, leaf_dim=128)
-    # no the_one, no manifest, no external length
+    # no coupling, no manifest, no external length
     assert G.kernel_unpack(strand) == x
     # the header self-records D + element_type + leaf_dim (scan the strand)
-    hdr = G.recall(strand, G._default_the_one(128))[0]
+    hdr = G.recall(strand, G._default_coupling(128))[0]
     assert G._unpack_kernel_header_klein4(hdr) == (1234, 128, G.ELEMENT_TYPE_KLEIN4)
 
 
@@ -190,25 +190,25 @@ def _v5_strand(x, leaf_dim, one):
 def test_v5_byte_tlv_header_reads_identically(tmp_path):
     """A v5 0x4B byte-TLV header still reads EXACTLY (dual-read; the block walker
     gains one branch, NEVER breaks an existing genome) — in memory AND on disk."""
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     x = _kernel(700)
     v5 = _v5_strand(x, 256, one)
     assert G._cap_kind(v5[1]) == G.KERNEL_HEADER_MARKER      # the v5 byte-TLV block
-    assert G.kernel_unpack(v5, the_one=one) == x            # in-memory dual-read
+    assert G.kernel_unpack(v5, coupling=one) == x            # in-memory dual-read
     p = tmp_path / "v5"
-    G.genome_save(v5, p, the_one=one)
+    G.genome_save(v5, p, coupling=one)
     assert G.kernel_unpack(p) == x                          # on-disk dual-read
 
 
 def test_no_header_back_compat(tmp_path):
     """A header-less body (pre-rc121) reads as klein4 / full-dim (D = leaf_count x
     leaf_dim) — no trim, no migration."""
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     x = _kernel(1000)
     leaves = [HV.from_sequence((x[i:i + 256] + [0] * 256)[:256], sectors=4)
               for i in range(0, 1000, 256)]
     plain = G.chromosome(leaves, one, label="legacy")
-    back = G.kernel_unpack(plain, the_one=one)
+    back = G.kernel_unpack(plain, coupling=one)
     assert len(back) == 4 * 256 and back[:1000] == x
 
 
@@ -218,10 +218,10 @@ def test_no_mixed_encoding_smell(tmp_path):
     """The v6 store is UNIFORMLY Klein-4: the only cap is the 0x6B kernel telomere;
     every DATA turn (header included) is a bit-packed Klein-4 turn (marker 0x51) whose
     unpacked content is entirely {0,1,2,3}. NO 0x4B byte-TLV residue anywhere."""
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     x = _kernel(1500)
     p = tmp_path / "g"
-    G.genome_save(G.kernel_pack(x), p, the_one=one)
+    G.genome_save(G.kernel_pack(x), p, coupling=one)
     body = (p / "turns.bin").read_bytes()
     # walk the body: the ONLY block kinds are the 0x6B kernel telomere cap and 0x51
     # bit-packed Klein-4 turns — NO 0x4B byte-TLV header BLOCK anywhere (the 0x4B
@@ -248,10 +248,10 @@ def test_python_equals_c_v6_kernel(tmp_path, D):
     pure-Python path on a v6 kernel genome, and both round-trip exactly."""
     x = _kernel(D)
     strand = G.kernel_pack(x)
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
 
     dn = tmp_path / "native"
-    G.genome_save(strand, dn, the_one=one)
+    G.genome_save(strand, dn, coupling=one)
     n_body = (dn / "turns.bin").read_bytes()
     n_man = (dn / "manifest.json").read_bytes()
     back_n = G.kernel_unpack(dn)
@@ -260,10 +260,10 @@ def test_python_equals_c_v6_kernel(tmp_path, D):
     _native.has_native_genome = lambda: False
     try:
         dp = tmp_path / "pure"
-        G.genome_save(strand, dp, the_one=one)
+        G.genome_save(strand, dp, coupling=one)
         p_body = (dp / "turns.bin").read_bytes()
         p_man = (dp / "manifest.json").read_bytes()
-        back_p = G.kernel_unpack(dp, the_one=one)
+        back_p = G.kernel_unpack(dp, coupling=one)
     finally:
         _native.has_native_genome = real
 
@@ -277,12 +277,12 @@ def test_python_equals_c_v6_kernel(tmp_path, D):
 def test_python_equals_c_append_kernel(tmp_path):
     """genome_append_kernel is byte-identical native-vs-pure (the O(1) append writes
     the same turns.bin tail + manifest either way) and recovers the kernel exactly."""
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     x = _kernel(999)
 
     def _build(root):
-        G.genome_save(G.kernel_pack(_kernel(300), label="seed"), root, the_one=one)
-        G.genome_append_kernel(root, "taught", x, the_one=one)
+        G.genome_save(G.kernel_pack(_kernel(300), label="seed"), root, coupling=one)
+        G.genome_append_kernel(root, "taught", x, coupling=one)
         return (root / "turns.bin").read_bytes(), (root / "manifest.json").read_bytes()
 
     dn = tmp_path / "native"
@@ -307,13 +307,13 @@ def test_python_equals_c_append_kernel(tmp_path):
 # ── extra guards: duplicate label (v12 last-wins) + symbol range ──────────────
 
 def test_append_kernel_duplicate_last_wins_and_rejects_non_klein4(tmp_path):
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     p = _seed(tmp_path, one)
-    G.genome_append_kernel(p, "a", _kernel(100), the_one=one)
+    G.genome_append_kernel(p, "a", _kernel(100), coupling=one)
     # v12 (ADR-0003): chromosome labels are content-addresses, so there is NO O(n)
     # duplicate-label scan (that scan was the O(N^2) append wall) — a duplicate label is
     # APPENDED (last-wins on read), not rejected; the caller owns label uniqueness.
-    G.genome_append_kernel(p, "a", _kernel(50), the_one=one)          # no raise
+    G.genome_append_kernel(p, "a", _kernel(50), coupling=one)          # no raise
     # a non-Klein-4 symbol is still a genuine validation error (kept).
     with pytest.raises(ValueError, match=r"not a Klein-4 sector"):
-        G.genome_append_kernel(p, "b", [0, 1, 2, 9], the_one=one)
+        G.genome_append_kernel(p, "b", [0, 1, 2, 9], coupling=one)

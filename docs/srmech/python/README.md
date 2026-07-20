@@ -354,16 +354,18 @@ G.load_type_aliases_toml(path)                                  # a [genome.type
 ```python
 import tempfile, pathlib
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.cascade.one import the_one
+from srmech.amsc.hdc import klein4_expand, klein4_from_one
 
-one = klein4_random(64, seed=7)
-lv = lambda n, b: [klein4_random(64, seed=b + i) for i in range(n)]
+# rc290: the coupling is DERIVED from (sigma, theta, terms) — no magic seed.
+coupling = klein4_from_one(the_one(1, 1, 4), 64)
+lv = lambda n, b: [klein4_expand(64, b + i) for i in range(n)]
 
-strand = G.genome({"small": lv(3, 10), "large": lv(8, 40)}, one)
+strand = G.genome({"small": lv(3, 10), "large": lv(8, 40)}, coupling)
 path = pathlib.Path(tempfile.mkdtemp()) / "demo.genome"
-G.genome_save(strand, path, one)
+G.genome_save(strand, path, coupling)
 
-census = G.genome_census(path, the_one=one)
+census = G.genome_census(path, coupling=coupling)
 print(census["types"])      # {'plasmid': 1, 'nuclear': 1, 'diploid': 0}
 print(census["topology"])   # nuclear-like
 print([(c["label"], c["type"]) for c in census["chromosomes"]])
@@ -394,7 +396,7 @@ print([(c["label"], c["type"]) for c in census["chromosomes"]])
 
 ```python
 chrom = G.chromosome(genes=[("resA", lv(2, 10)), ("resB", lv(3, 20))],
-                     the_one=one, label="plasmidR")
+                     coupling=coupling, label="plasmidR")
 amp = G.amplify(chrom, "resA", 12)
 print(G.copy_number_of(amp, "resA"), G.copy_number_of(amp, "resB"))  # 12 1
 print(len(amp) == len(chrom))                                        # True
@@ -407,13 +409,13 @@ A **constitutive** chromatin cap carries a static level. A **facultative** cap c
 
 ```python
 XIST = 1 << 1
-chrX  = G.chromosome(lv(6, 60), the_one=one, label="chrX")
-gated = G.condense(chrX, the_one=one, state={"activator": XIST})   # facultative
+chrX  = G.chromosome(lv(6, 60), coupling=coupling, label="chrX")
+gated = G.condense(chrX, coupling=coupling, state={"activator": XIST})  # facultative
 print(G.accessible(chrX,  0))       # (1, 1)  — no cap: euchromatin by default
 print(G.accessible(gated, 0))       # (0, 1)  — gate does not fire: silenced
 print(G.accessible(gated, XIST))    # (1, 1)  — gate fires: open
 
-const = G.condense(chrX, the_one=one, state="condensed")           # constitutive
+const = G.condense(chrX, coupling=coupling, state="condensed")          # constitutive
 print(G.accessible(const, 0), G.accessible(const, XIST))  # (0, 1) (0, 1)
 ```
 

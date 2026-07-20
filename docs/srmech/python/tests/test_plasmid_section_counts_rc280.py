@@ -51,13 +51,13 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc import genome as G
 from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)
 
 
 def _one(seed=1280):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _store(docs, one, **kw):
@@ -80,7 +80,7 @@ def _overlapping_docs():
 def _legacy_section_counts(store, one):
     """The rc279 derivation this rc replaces: census + a FULL graph decode per section.
     Kept HERE, in the test, as the independent oracle the fast path must match."""
-    census = G.genome_census(store, the_one=one)
+    census = G.genome_census(store, coupling=one)
     counts = {}
     for chrom in census["chromosomes"]:
         if chrom["label"] == P.VOCAB_LABEL:
@@ -97,7 +97,7 @@ def test_counts_equal_the_full_decode_derivation_and_the_streamed_accumulator():
     """The three independent routes to the same integers agree EXACTLY."""
     one = _one()
     d, ext = _store(_overlapping_docs(), one)
-    fast = P.section_counts(d, the_one=one)
+    fast = P.section_counts(d, coupling=one)
     legacy = _legacy_section_counts(d, one)
     streamed = {int(k): int(v) for k, v in ext["section_count"].items()}
     assert fast == legacy, (
@@ -119,7 +119,7 @@ def test_equivalence_across_store_shapes(n_docs, size, stride):
     docs = [[words[(i * stride + j * 3) % len(words)] for j in range(size)]
             for i in range(n_docs)]
     d, ext = _store(docs, one)
-    fast = P.section_counts(d, the_one=one)
+    fast = P.section_counts(d, coupling=one)
     assert fast == _legacy_section_counts(d, one)
     assert fast == {int(k): int(v) for k, v in ext["section_count"].items()}
 
@@ -145,7 +145,7 @@ def test_vocab_chromosome_is_excluded():
     d, _ext = _store(_overlapping_docs(), one)
     _ld, _one_r, entries = P._section_entries(d, one)
     assert P.VOCAB_LABEL not in [e["label"] for e in entries]
-    labels = {c["label"] for c in G.genome_census(d, the_one=one)["chromosomes"]}
+    labels = {c["label"] for c in G.genome_census(d, coupling=one)["chromosomes"]}
     assert P.VOCAB_LABEL in labels, "fixture should HAVE a vocab chromosome to exclude"
 
 
@@ -162,9 +162,9 @@ def test_catalog_is_derived_once_per_scan_not_once_per_section():
     seen = {}
     real = G._catalog_data
 
-    def counting(path, the_one=None):
+    def counting(path, coupling=None):
         seen["n"] = seen.get("n", 0) + 1
-        return real(path, the_one)
+        return real(path, coupling)
 
     for P_sections in (4, 8, 16, 32):
         docs = [[words[(i * 5 + j * 3) % len(words)] for j in range(25)]
@@ -173,7 +173,7 @@ def test_catalog_is_derived_once_per_scan_not_once_per_section():
         seen["n"] = 0
         G._catalog_data = counting
         try:
-            P.section_counts(d, the_one=one)
+            P.section_counts(d, coupling=one)
         finally:
             G._catalog_data = real
         assert seen["n"] <= 2, (
@@ -263,7 +263,7 @@ def test_progress_ticks_between_whole_sections():
         evs.append(dict(ev))
         return False
 
-    counts = P.section_counts(d, the_one=one, progress=tick)
+    counts = P.section_counts(d, coupling=one, progress=tick)
     assert counts == _legacy_section_counts(d, one), "progress= changed the result"
     assert len(evs) == len(docs), f"expected one tick per section, got {len(evs)}"
     assert {e["phase"] for e in evs} == {_native.SRMECH_PHASE_EXTRACTING}
@@ -279,7 +279,7 @@ def test_cancel_raises_rather_than_returning_a_partial_count():
     docs = _overlapping_docs()
     d, _ext = _store(docs, one)
     with pytest.raises(P.SectionCountsCancelled) as exc:
-        P.section_counts(d, the_one=one, progress=lambda ev: ev["done"] >= 2)
+        P.section_counts(d, coupling=one, progress=lambda ev: ev["done"] >= 2)
     assert exc.value.done == 2
     assert exc.value.total == len(docs)
     assert exc.value.counts, "the partial counts should be carried on the exception"
@@ -293,8 +293,8 @@ def test_cancel_raises_rather_than_returning_a_partial_count():
 def test_a_tick_that_never_cancels_is_equivalent_to_no_tick():
     one = _one()
     d, _ext = _store(_overlapping_docs(), one)
-    assert P.section_counts(d, the_one=one, progress=lambda ev: False) == \
-        P.section_counts(d, the_one=one)
+    assert P.section_counts(d, coupling=one, progress=lambda ev: False) == \
+        P.section_counts(d, coupling=one)
 
 
 # ── native == pure ───────────────────────────────────────────────────────────
@@ -304,11 +304,11 @@ def test_native_and_pure_agree_byte_for_byte():
     peer present this still exercises the pure path end-to-end."""
     one = _one()
     d, _ext = _store(_overlapping_docs(), one)
-    native_result = P.section_counts(d, the_one=one)
+    native_result = P.section_counts(d, coupling=one)
     real = _native.has_native_genome_section_counts
     _native.has_native_genome_section_counts = lambda: False
     try:
-        pure_result = P.section_counts(d, the_one=one)
+        pure_result = P.section_counts(d, coupling=one)
     finally:
         _native.has_native_genome_section_counts = real
     assert native_result == pure_result, (
@@ -360,7 +360,7 @@ def test_k_source_semantics_are_intact():
     presented as the other."""
     one = _one()
     d, ext = _store(_overlapping_docs(), one)
-    counts = P.section_counts(d, the_one=one)
+    counts = P.section_counts(d, coupling=one)
     assert P.conserved_core(counts, k=2)["k_source"] == P.K_POLICY
     auto = P.conserved_core(counts)
     assert auto["k_source"] in (P.K_DERIVED, P.K_DECLINED)

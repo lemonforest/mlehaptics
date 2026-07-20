@@ -19,7 +19,7 @@ import array
 
 import srmech.amsc._native as _native
 from srmech.amsc.hdc import (
-    klein4_random,
+    klein4_expand,
     klein4_bundle,
     klein4_bundle_accumulate,
     klein4_bundle_resolve,
@@ -39,7 +39,7 @@ def test_accumulate_resolve_is_bit_identical_to_batch_bundle():
     """The load-bearing §50 contract: the incremental fold == the batch bundle,
     bit-for-bit, for even AND odd counts (the tie→0 boundary is the even case)."""
     for n in (1, 2, 3, 4, 5, 8, 16, 33, 64):
-        vs = [klein4_random(48, seed=4000 + i) for i in range(n)]
+        vs = [klein4_expand(48, 4000 + i) for i in range(n)]
         folded = _bundle_via_fold(vs)
         batch = klein4_bundle(*vs)
         assert bytes(folded._buf) == bytes(batch._buf), f"n={n} fold != batch"
@@ -51,7 +51,7 @@ def test_accumulator_is_fixed_width_independent_of_count():
     d = 32
     acc = None
     for i in range(500):
-        acc = klein4_bundle_accumulate(acc, klein4_random(d, seed=i))
+        acc = klein4_bundle_accumulate(acc, klein4_expand(d, i))
     assert isinstance(acc, array.array) and acc.typecode == "I"
     assert len(acc) == 1 + 2 * d        # fixed width
     assert acc[0] == 500                # n folded recorded
@@ -60,24 +60,24 @@ def test_accumulator_is_fixed_width_independent_of_count():
 def test_accumulate_creates_and_then_reuses_the_same_array():
     """``acc=None`` creates a fresh accumulator; subsequent folds mutate it in
     place and return the SAME object (so ``acc = accumulate(acc, v)`` is a fold)."""
-    v0 = klein4_random(16, seed=1)
+    v0 = klein4_expand(16, 1)
     acc = klein4_bundle_accumulate(None, v0)
-    same = klein4_bundle_accumulate(acc, klein4_random(16, seed=2))
+    same = klein4_bundle_accumulate(acc, klein4_expand(16, 2))
     assert same is acc and acc[0] == 2
 
 
 def test_resolve_of_single_vector_is_that_vector():
     """A bundle of one is the vector itself (majority of one)."""
-    v = klein4_random(40, seed=99)
+    v = klein4_expand(40, 99)
     acc = klein4_bundle_accumulate(None, v)
     assert bytes(klein4_bundle_resolve(acc)._buf) == bytes(_as(v))
 
 
 def test_dimension_mismatch_rejected():
     import pytest
-    acc = klein4_bundle_accumulate(None, klein4_random(16, seed=1))
+    acc = klein4_bundle_accumulate(None, klein4_expand(16, 1))
     with pytest.raises(ValueError):
-        klein4_bundle_accumulate(acc, klein4_random(17, seed=2))
+        klein4_bundle_accumulate(acc, klein4_expand(17, 2))
 
 
 def test_native_matches_forced_pure_bit_for_bit():
@@ -86,7 +86,7 @@ def test_native_matches_forced_pure_bit_for_bit():
     if not (_native.HAS_NATIVE
             and hasattr(_native.LIB, "srmech_klein4_bundle_accumulate")):
         return  # no native kernel here — the pure path is the only path
-    vs = [klein4_random(56, seed=7000 + i) for i in range(20)]
+    vs = [klein4_expand(56, 7000 + i) for i in range(20)]
     native = _bundle_via_fold(vs)
     orig = _native.HAS_NATIVE
     _native.HAS_NATIVE = False

@@ -352,6 +352,33 @@ def _to_qbipoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_one(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to a :class:`~srmech.amsc.cascade.one.One` for a
+    ``One``-typed param (rc290 ``hdc.klein4_from_one``).
+
+    The One's canonical JSON-native form is the DICT its own
+    :meth:`One._to_jsonable` emits and :func:`one_from_jsonable` reads back —
+    ``{"sigma": int, "theta": [num, den], "terms": int}`` — the exact shape a
+    bare-C host, the Python and the rc201 object-model engine already agree on.
+    So the coercer is that round-trip and nothing more: no new serialisation is
+    invented for the wire. ``terms`` is optional (the constructor default). A
+    value already a ``One`` (an in-process caller) passes through unchanged.
+
+    Exactness is load-bearing: sigma / theta / terms are INTEGERS (the One never
+    receives a float), so a float theta component is rejected rather than
+    silently truncated.
+    """
+    from srmech.amsc.cascade.one import One, one_from_jsonable  # lazy
+    if isinstance(value, One):
+        return value
+    if not isinstance(value, dict):
+        raise TypeError(
+            f"param {param!r}: a One must arrive as its canonical dict "
+            '{"sigma": int, "theta": [num, den], "terms": int}; got '
+            f"{type(value).__name__}")
+    return one_from_jsonable(value)
+
+
 def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value for a poly-ladder PROMOTE param (``Poly | BiPoly``;
     rc116 ``carrier_ladder.poly_promote``). The op restructures an
@@ -937,6 +964,9 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Poly | BiPoly": _to_poly_or_bipoly,
     "BiPoly | TriPoly": _to_bipoly_or_tripoly,
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
+    "One": _to_one,            # 0.9.0rc290: the S(σ,θ) generator, via its own
+                               # canonical (sigma, theta, terms) dict
+                               # (hdc.klein4_from_one / ONE-A14)
     "EllMonomial": _to_ellmonomial,  # 0.9.0rc94: exact-ℚ Laurent monomial carrier (elliptic_cauchy_determinant variable / parameter)
     "Sequence[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc94: elliptic_cauchy_determinant xs / ys variable lists
     "list[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc231: elliptic_jackson_an z / a variable vectors (multivariate_elliptic_jackson_an / an_vwp_multisum_lhs)

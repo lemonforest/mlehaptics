@@ -21,7 +21,7 @@ from srmech.amsc import hdc
 
 NATIVE = _native.has_native_graph_kernel_codec()
 LEAF = 64
-COUPLE = hdc.klein4_random(LEAF, seed=1080)
+COUPLE = hdc.klein4_expand(LEAF, 1080)
 
 
 def test_directed_round_trip_with_node_ids_and_extras():
@@ -33,7 +33,7 @@ def test_directed_round_trip_with_node_ids_and_extras():
     extras = [2, 99]
     strand, n_syms = G.graph_to_kernel(vs, edges, weights, charges,
                                        node_ids=node_ids, extras=extras,
-                                       leaf_dim=LEAF, label="g", the_one=COUPLE)
+                                       leaf_dim=LEAF, label="g", coupling=COUPLE)
     g = G.kernel_to_graph(strand, COUPLE, n_syms)
     assert g == {"vocab_size": vs, "edges": edges, "weights": weights,
                  "charges": charges, "node_ids": node_ids, "extras": extras}
@@ -41,7 +41,7 @@ def test_directed_round_trip_with_node_ids_and_extras():
 
 def test_self_describing_undirected_unlabeled_metadata_free():
     strand, n_syms = G.graph_to_kernel(3, [(0, 1), (1, 2)], [4, 4],
-                                       leaf_dim=LEAF, label="u", the_one=COUPLE)
+                                       leaf_dim=LEAF, label="u", coupling=COUPLE)
     g = G.kernel_to_graph(strand, COUPLE, n_syms)
     assert g["charges"] == [0, 0]          # charges=None -> all zero
     assert g["node_ids"] == [] and g["extras"] == []
@@ -49,7 +49,7 @@ def test_self_describing_undirected_unlabeled_metadata_free():
 
 def test_empty_graph_round_trips():
     strand, n_syms = G.graph_to_kernel(2, [], [], leaf_dim=LEAF, label="e",
-                                       the_one=COUPLE)
+                                       coupling=COUPLE)
     g = G.kernel_to_graph(strand, COUPLE, n_syms)
     assert g["edges"] == [] and g["weights"] == [] and g["vocab_size"] == 2
 
@@ -57,7 +57,7 @@ def test_empty_graph_round_trips():
 def test_self_loop_and_negative_charge():
     strand, n_syms = G.graph_to_kernel(7, [(0, 6), (6, 0), (3, 3)], [100, 1, 255],
                                        [-100, 50, 0], extras=[5],
-                                       leaf_dim=LEAF, label="s", the_one=COUPLE)
+                                       leaf_dim=LEAF, label="s", coupling=COUPLE)
     g = G.kernel_to_graph(strand, COUPLE, n_syms)
     assert g["edges"] == [(0, 6), (6, 0), (3, 3)]
     assert g["charges"] == [-100, 50, 0] and g["extras"] == [5]
@@ -66,22 +66,22 @@ def test_self_loop_and_negative_charge():
 def test_genome_persist_round_trip(tmp_path):
     vs, edges, weights, charges = 4, [(0, 1), (1, 2), (2, 3)], [2, 3, 4], [1, -1, 2]
     strand, n_syms = G.graph_to_kernel(vs, edges, weights, charges,
-                                       leaf_dim=LEAF, label="p", the_one=COUPLE)
+                                       leaf_dim=LEAF, label="p", coupling=COUPLE)
     d = tmp_path / "p.genome"
     G.genome_save(strand, str(d), COUPLE, labels=["p"])
-    chroms, _c, _l = G.genome_load(str(d), labels=["p"], the_one=COUPLE)
+    chroms, _c, _l = G.genome_load(str(d), labels=["p"], coupling=COUPLE)
     g = G.kernel_to_graph(chroms, COUPLE, n_syms)
     assert g["edges"] == edges and g["weights"] == weights and g["charges"] == charges
 
 
 def test_30_bit_cap_raises():
     with pytest.raises(ValueError):
-        G.graph_to_kernel(1 << 30, [], [], leaf_dim=LEAF, label="x", the_one=COUPLE)
+        G.graph_to_kernel(1 << 30, [], [], leaf_dim=LEAF, label="x", coupling=COUPLE)
 
 
 def test_edges_weights_mismatch_raises():
     with pytest.raises(ValueError):
-        G.graph_to_kernel(2, [(0, 1)], [1, 2], leaf_dim=LEAF, label="x", the_one=COUPLE)
+        G.graph_to_kernel(2, [(0, 1)], [1, 2], leaf_dim=LEAF, label="x", coupling=COUPLE)
 
 
 def test_registered_in_tool_schema():
@@ -97,7 +97,7 @@ def test_registered_in_tool_schema():
 def test_native_symbols_bound():
     assert hasattr(_native.LIB, "srmech_graph_kernel_encode")
     assert hasattr(_native.LIB, "srmech_graph_kernel_decode")
-    assert _native.NATIVE_ABI_VERSION == 7
+    assert _native.NATIVE_ABI_VERSION == 8
 
 
 @pytest.mark.skipif(not NATIVE, reason="rc249 graph-kernel C peer not loaded")
@@ -114,13 +114,13 @@ def test_native_equals_pure_codec():
     for vs, edges, weights, charges, node_ids, extras in cases:
         strand_n, ns_n = G.graph_to_kernel(vs, edges, weights, charges,
                                            node_ids=node_ids, extras=extras,
-                                           leaf_dim=LEAF, label="g", the_one=COUPLE)
+                                           leaf_dim=LEAF, label="g", coupling=COUPLE)
         g_n = G.kernel_to_graph(strand_n, COUPLE, ns_n)
         N.has_native_graph_kernel_codec = lambda: False          # force pure codec
         try:
             strand_p, ns_p = G.graph_to_kernel(vs, edges, weights, charges,
                                                node_ids=node_ids, extras=extras,
-                                               leaf_dim=LEAF, label="g", the_one=COUPLE)
+                                               leaf_dim=LEAF, label="g", coupling=COUPLE)
             g_p = G.kernel_to_graph(strand_p, COUPLE, ns_p)
         finally:
             N.has_native_graph_kernel_codec = orig

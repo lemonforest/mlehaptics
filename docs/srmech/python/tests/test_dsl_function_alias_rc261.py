@@ -17,15 +17,15 @@ import pytest
 
 from srmech import dsl
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 def _one(seed=7):
-    return klein4_random(64, seed=seed)
+    return klein4_expand(64, seed)
 
 
 def _kernels(n=3):
-    return {"a": [klein4_random(64, seed=s) for s in range(n)]}
+    return {"a": [klein4_expand(64, s) for s in range(n)]}
 
 
 def _bl(hvs):

@@ -130,7 +130,7 @@ orchestrator, I/O boundary, or DSL-declared class):
 
 ## 5. Worked example — rc258 `mint` (§95a centromere, #1407)
 
-`mint(kernels, the_one)` selects each chromosome's shape (stick vs centromere-minted) by the
+`mint(kernels, coupling)` selects each chromosome's shape (stick vs centromere-minted) by the
 attested `encode_shape` criterion and content-address orientation, then assembles the strand.
 Under this ADR it is **not** enough for the Python `mint` to orchestrate C-backed
 `chromosome`/`centromere` pieces: a `srmech_genome_mint` C entry point ships in the same rc,

@@ -97,7 +97,7 @@ def test_non_integer_nodes_pure_path():
 @pytest.mark.skipif(not NATIVE, reason="rc250 eulerian C peer not loaded")
 def test_native_symbol_bound():
     assert hasattr(_native.LIB, "srmech_eulerian_walk")
-    assert _native.NATIVE_ABI_VERSION == 7
+    assert _native.NATIVE_ABI_VERSION == 8
 
 
 @pytest.mark.skipif(not NATIVE, reason="rc250 eulerian C peer not loaded")

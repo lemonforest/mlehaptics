@@ -24,17 +24,17 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64
 
 
 def _one(seed=1270):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _leaves(n, base=0):
-    return [klein4_random(_DIM, seed=base + s) for s in range(n)]
+    return [klein4_expand(_DIM, base + s) for s in range(n)]
 
 
 def _graph():
@@ -51,7 +51,7 @@ def _graph():
 def _graph_strand(one):
     vs, edges, weights, charges, node_ids, extras = _graph()
     strand, n = G.graph_to_kernel(vs, edges, weights, charges, node_ids=node_ids,
-                                  extras=extras, leaf_dim=_DIM, label="wiki", the_one=one)
+                                  extras=extras, leaf_dim=_DIM, label="wiki", coupling=one)
     return strand, n
 
 
@@ -89,7 +89,7 @@ def test_mint_graph_strand_censuses_nuclear(tmp_path):
     minted = G.mint_strand(strand, one)
     d = tmp_path / "wiki.genome"
     G.genome_save(minted, d, one)
-    census = G.genome_census(str(d), the_one=one)
+    census = G.genome_census(str(d), coupling=one)
     assert census["types"]["nuclear"] == 1 and census["types"]["plasmid"] == 0
     assert census["n_chromosomes"] == 1
     assert census["topology"] == "nuclear-like"             # a nuclear genome is a nucleus
@@ -101,7 +101,7 @@ def test_kernel_to_graph_byte_exact_after_minting():
     one = _one()
     vs, edges, weights, charges, node_ids, extras = _graph()
     strand, n = G.graph_to_kernel(vs, edges, weights, charges, node_ids=node_ids,
-                                  extras=extras, leaf_dim=_DIM, label="wiki", the_one=one)
+                                  extras=extras, leaf_dim=_DIM, label="wiki", coupling=one)
     base = G.kernel_to_graph(strand, one, n)               # the un-minted decode
     minted = G.mint_strand(strand, one)
     got = G.kernel_to_graph(minted, one, n)
@@ -115,7 +115,7 @@ def test_kernel_to_graph_byte_exact_after_minting_via_genome(tmp_path):
     one = _one()
     vs, edges, weights, charges, node_ids, extras = _graph()
     strand, n = G.graph_to_kernel(vs, edges, weights, charges, node_ids=node_ids,
-                                  extras=extras, leaf_dim=_DIM, label="wiki", the_one=one)
+                                  extras=extras, leaf_dim=_DIM, label="wiki", coupling=one)
     base = G.kernel_to_graph(strand, one, n)
     minted = G.mint_strand(strand, one)
     d = tmp_path / "wiki.genome"
@@ -172,7 +172,7 @@ def test_acrocentric_and_telocentric_extremes():
 
 def test_mint_a_kernel_pack_strand():
     one = _one()
-    strand = G.kernel_pack([1, 2, 3, 0, 3, 2, 1, 0] * 20, leaf_dim=_DIM, the_one=one)
+    strand = G.kernel_pack([1, 2, 3, 0, 3, 2, 1, 0] * 20, leaf_dim=_DIM, coupling=one)
     minted = G.mint_strand(strand, one)
     assert G.centromere_of(minted) is not None
     assert G.kernel_unpack(minted, one) == G.kernel_unpack(strand, one)  # payload intact
@@ -247,7 +247,7 @@ def test_mint_strand_registered_and_total_is_446():
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.amsc.genome.mint_strand" in names
-    assert len(names) == 456
+    assert len(names) == 461
     assert "mint_strand" in G.__all__
 
 
@@ -292,7 +292,7 @@ def test_parity_minted_graph_persistence(tmp_path, monkeypatch):
         d = tmp_path / ("nat" if native else "pure")
         d.mkdir()
         monkeypatch.setattr(_native, "has_native_genome", lambda: native)
-        G.genome_save(minted, d, the_one=one)
+        G.genome_save(minted, d, coupling=one)
         return (d / "turns.bin").read_bytes(), (d / "manifest.json").read_bytes()
 
     cb, cm = save(True)

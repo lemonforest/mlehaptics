@@ -18,21 +18,21 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 def _one(seed=7):
-    return klein4_random(64, seed=seed)
+    return klein4_expand(64, seed)
 
 
 def _lv(n, base=0):
-    return [klein4_random(64, seed=base + s) for s in range(n)]
+    return [klein4_expand(64, base + s) for s in range(n)]
 
 
 def _chrom(one):
     # a multi-gene chromosome: two plain genes (resA, resB)
     return G.chromosome(genes=[("resA", _lv(2, 10)), ("resB", _lv(3, 20))],
-                        the_one=one, label="plasmidR")
+                        coupling=one, label="plasmidR")
 
 
 # ── amplify sets, copy_number_of reads; a plain gene reads 1 ─────────────────
@@ -107,8 +107,8 @@ def test_gene_express_is_transparent_to_copy_number():
 def test_copy_number_survives_save_reload(tmp_path):
     one = _one()
     amp = G.amplify(_chrom(one), "resA", 13)
-    G.genome_save(amp, tmp_path, the_one=one)
-    loaded, _o, _l = G.genome_load(tmp_path, the_one=one)
+    G.genome_save(amp, tmp_path, coupling=one)
+    loaded, _o, _l = G.genome_load(tmp_path, coupling=one)
     assert G.copy_number_of(loaded, "resA") == 13
     assert G.copy_number_of(loaded, "resB") == 1
 
@@ -120,8 +120,8 @@ def test_copy_number_survives_integrate_and_disk(tmp_path):
     integrated = G.integrate(host, provirus)
     assert integrated is not None
     assert G.copy_number_of(integrated, "resA") == 21         # survives the splice
-    G.genome_save(integrated, tmp_path, the_one=one)
-    loaded, _o, _l = G.genome_load(tmp_path, the_one=one)
+    G.genome_save(integrated, tmp_path, coupling=one)
+    loaded, _o, _l = G.genome_load(tmp_path, coupling=one)
     assert G.copy_number_of(loaded, "resA") == 21             # + the disk round-trip
     assert set(G.partition(loaded, one)) == {"core", "plasmidR"}
 
@@ -133,8 +133,8 @@ def test_pre_rc273_plain_genome_reads_one(tmp_path):
     reads copy_number 1 on every gene: the all-NUL gene-cap padding == stored 0 == 1."""
     one = _one()
     chrom = _chrom(one)                                       # plain genes, no amplify
-    G.genome_save(chrom, tmp_path, the_one=one)
-    loaded, _o, _l = G.genome_load(tmp_path, the_one=one)
+    G.genome_save(chrom, tmp_path, coupling=one)
+    loaded, _o, _l = G.genome_load(tmp_path, coupling=one)
     assert G.copy_number_of(loaded, "resA") == 1
     assert G.copy_number_of(loaded, "resB") == 1
 

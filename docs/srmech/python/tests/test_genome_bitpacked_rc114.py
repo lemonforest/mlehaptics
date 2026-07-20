@@ -36,7 +36,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 # ── the committed v2 fixture (written VERBATIM by the rc113 code path) ───────
 #
@@ -44,25 +44,25 @@ from srmech.amsc.hdc import klein4_random
 # these deterministic seeds — regenerable, never regenerated (its manifest's
 # parser_version "srmech 0.9.0rc113" is the provenance):
 #
-#   one   = klein4_random(16, seed=7)
-#   alpha = [klein4_random(16, seed=s) for s in (1, 2)]
-#   g1    = [klein4_random(16, seed=s) for s in (3, 4)]
-#   g2    = [klein4_random(16, seed=5)]
+#   one   = klein4_expand(16, 7)
+#   alpha = [klein4_expand(16, s) for s in (1, 2)]
+#   g1    = [klein4_expand(16, s) for s in (3, 4)]
+#   g2    = [klein4_expand(16, 5)]
 #   strand = genome(chromosomes=[("alpha", [("a", alpha)]),
-#                                ("multi", [("g1", g1), ("g2", g2)])], the_one=one)
+#                                ("multi", [("g1", g1), ("g2", g2)])], coupling=one)
 #   strand += chromosome(alpha, one, label="plain")
 _FIXTURE = Path(__file__).parent / "data" / "genome_v2_fixture"
 _V2_DIM = 16
 
 
 def _v2_one():
-    return klein4_random(_V2_DIM, seed=7)
+    return klein4_expand(_V2_DIM, 7)
 
 
 def _v2_leaves():
-    alpha = [klein4_random(_V2_DIM, seed=s) for s in (1, 2)]
-    g1 = [klein4_random(_V2_DIM, seed=s) for s in (3, 4)]
-    g2 = [klein4_random(_V2_DIM, seed=5)]
+    alpha = [klein4_expand(_V2_DIM, s) for s in (1, 2)]
+    g1 = [klein4_expand(_V2_DIM, s) for s in (3, 4)]
+    g2 = [klein4_expand(_V2_DIM, 5)]
     return alpha, g1, g2
 
 
@@ -70,10 +70,22 @@ def _v2_strand(one, alpha, g1, g2):
     strand = G.genome(chromosomes=[
         ("alpha", [("a", alpha)]),
         ("multi", [("g1", g1), ("g2", g2)]),
-    ], the_one=one)
+    ], coupling=one)
     return strand + G.chromosome(alpha, one, label="plain")
 
 
+# rc290 MIGRATION NOTE — the fixture's manifest SIDECAR was re-keyed; its
+# BODY was not. rc290 renamed the manifest key "the_one" -> "coupling" (two
+# unrelated objects had shared that name), which is store-breaking with no
+# shim: every pre-rc290 manifest must be re-saved. This fixture IS a real
+# pre-rc290 store, so it was migrated exactly the way a user migrates one —
+# the JSON key moved and nothing else did. ``turns.bin`` is byte-identical,
+# ``format_version`` is still 2, and every digest in the file
+# (``data.body_sha256``, ``attestation.response_sha256``, and the coupling
+# block's own ``sha256``) is unchanged, because each hashes the BODY or the
+# coupling BLOCK and none of them hashes the key name. So what this module
+# actually tests — that the v2 BIT-PACKED BODY still reads leaf-for-leaf —
+# is untouched by the rename; only the sidecar moved.
 def _copy_fixture(tmp_path) -> Path:
     d = tmp_path / "v2"
     d.mkdir()
@@ -94,11 +106,11 @@ def test_dod_1024x256_chromosome_writes_66kb(tmp_path):
     256/4 payload) — vs the measured 264,230 bytes at rc107 (4.03x bloat).
     Leaf CONTENT is irrelevant to the size, so a small pool is replicated."""
     dim = 256
-    one = klein4_random(dim, seed=7)
-    pool = [klein4_random(dim, seed=s) for s in range(8)]
+    one = klein4_expand(dim, 7)
+    pool = [klein4_expand(dim, s) for s in range(8)]
     leaves = [pool[i % 8] for i in range(1024)]
     p = tmp_path / "g"
-    man = G.genome_save(G.chromosome(leaves, one, label="kernel"), p, the_one=one)
+    man = G.genome_save(G.chromosome(leaves, one, label="kernel"), p, coupling=one)
 
     body_size = (p / "turns.bin").stat().st_size
     manifest_size = (p / "manifest.json").stat().st_size
@@ -116,7 +128,7 @@ def test_dod_1024x256_chromosome_writes_66kb(tmp_path):
     # round-trip EXACT: window + recall, leaf-for-leaf
     win = G.genome_window(p, "kernel")
     assert len(win) == 1024
-    recalled = [G.quad_turn(t, one) for t in win]    # uncouple through the_one
+    recalled = [G.quad_turn(t, one) for t in win]    # uncouple through coupling
     assert _as_lists(recalled) == _as_lists(leaves)
 
 
@@ -126,14 +138,14 @@ def test_dod_1024x256_chromosome_writes_66kb(tmp_path):
 def test_packed_roundtrip_exact_any_width(tmp_path, dim):
     """Save → load → window round-trips leaf-for-leaf at widths where the final
     packed byte is partial (dim % 4 != 0) and where it is whole."""
-    one = klein4_random(dim, seed=3)
+    one = klein4_expand(dim, 3)
     kernels = {
-        "a": [klein4_random(dim, seed=s) for s in (1, 2, 3)],
-        "b": [klein4_random(dim, seed=4)],
+        "a": [klein4_expand(dim, s) for s in (1, 2, 3)],
+        "b": [klein4_expand(dim, 4)],
     }
     strand = G.genome(kernels, one)
     p = tmp_path / f"g{dim}"
-    G.genome_save(strand, p, the_one=one)
+    G.genome_save(strand, p, coupling=one)
 
     ls, lo, ll = G.genome_load(p)
     assert _as_lists(ls) == _as_lists(strand)
@@ -149,7 +161,7 @@ def test_pack_codec_exact_and_canonical():
     partial final byte zero-pads its unused low lanes (canonical form)."""
     for dim in (1, 2, 3, 4, 5, 8, 13):
         for seed in range(4):
-            mem = bytes(list(klein4_random(dim, seed=seed)))
+            mem = bytes(list(klein4_expand(dim, seed)))
             blk = G._pack_turn_block(mem)
             assert blk[0] == G.PACKED_TURN_MARKER
             assert len(blk) == 1 + (dim + 3) // 4
@@ -166,13 +178,13 @@ def test_multigene_chromosome_packed_roundtrip(tmp_path):
     """Inline GENE caps stay leaf_dim-wide between packed turns; genome_genes
     recovers the per-gene split exactly."""
     dim = 32
-    one = klein4_random(dim, seed=9)
-    rules = [klein4_random(dim, seed=s) for s in (1, 2)]
-    board = [klein4_random(dim, seed=3)]
+    one = klein4_expand(dim, 9)
+    rules = [klein4_expand(dim, s) for s in (1, 2)]
+    board = [klein4_expand(dim, 3)]
     strand = G.genome(chromosomes=[("chess", [("rules", rules), ("board", board)])],
-                      the_one=one)
+                      coupling=one)
     p = tmp_path / "g"
-    G.genome_save(strand, p, the_one=one)
+    G.genome_save(strand, p, coupling=one)
     got = G.genome_genes(p, "chess")
     assert [lbl for lbl, _ in got] == ["rules", "board"]
     assert _as_lists(got[0][1]) == _as_lists(rules)
@@ -227,11 +239,11 @@ def test_v2_fixture_reads_identically(tmp_path):
 
 def test_v2_fixture_manifestless_rebuild_reads(tmp_path):
     """§44 held across the format bump: drop the v2 manifest and the catalog
-    rebuilds by scanning the legacy body (given the_one for the width)."""
+    rebuilds by scanning the legacy body (given coupling for the width)."""
     d = _copy_fixture(tmp_path)
     (d / "manifest.json").unlink()
     one = _v2_one()
-    cat = G.genome_catalog(d, the_one=one)
+    cat = G.genome_catalog(d, coupling=one)
     # the rebuilt catalog is the CURRENT (v3) derivation of the same body —
     # every structural field identical to the stored v2 manifest's
     assert [c["label"] for c in cat["chromosomes"]] == ["alpha", "multi", "plain"]
@@ -252,7 +264,7 @@ def test_v2_fixture_manifestless_rebuild_reads(tmp_path):
     assert [(r["byte_offset"], r["byte_len"]) for r in cat["regions"]] == \
         [(c["byte_offset"], c["byte_len"]) for c in v2["chromosomes"]]
     assert cat["body_sha256"] != v2["body_sha256"]        # chain, not whole-body
-    win = G.genome_window(d, "plain", the_one=one)
+    win = G.genome_window(d, "plain", coupling=one)
     alpha, _g1, _g2 = _v2_leaves()
     assert _as_lists([G.quad_turn(t, one) for t in win]) == _as_lists(alpha)
 
@@ -269,7 +281,7 @@ def test_v2_append_yields_mixed_body_reading_correctly(tmp_path):
     body_before = (d / "turns.bin").read_bytes()
     man_before = G.genome_catalog(d)
 
-    new_leaves = [klein4_random(_V2_DIM, seed=s) for s in (30, 31, 32)]
+    new_leaves = [klein4_expand(_V2_DIM, s) for s in (30, 31, 32)]
     man2 = G.genome_append(d, "fresh", new_leaves, one)
 
     # append-only: the v2 bytes are an exact prefix; the tail is the v3 region
@@ -305,14 +317,14 @@ def test_v2_append_yields_mixed_body_reading_correctly(tmp_path):
 
     # §44 on the MIXED body: rebuild-by-scan == the written manifest data
     (d / "manifest.json").unlink()
-    assert G.genome_catalog(d, the_one=one) == man2
+    assert G.genome_catalog(d, coupling=one) == man2
 
     # in-place edit on the mixed body: excise a LEGACY chromosome; the packed
     # survivor still reads (splice + rescan handle both block kinds)
-    G.genome_remove(d, "multi", the_one=one)
-    win2 = G.genome_window(d, "fresh", the_one=one)
+    G.genome_remove(d, "multi", coupling=one)
+    win2 = G.genome_window(d, "fresh", coupling=one)
     assert _as_lists([G.quad_turn(t, one) for t in win2]) == _as_lists(new_leaves)
-    win3 = G.genome_window(d, "plain", the_one=one)
+    win3 = G.genome_window(d, "plain", coupling=one)
     assert _as_lists([G.quad_turn(t, one) for t in win3]) == _as_lists(alpha)
 
 

@@ -91,8 +91,8 @@ int main(void)
     printf("== srmech_genome smoke tests ==\n");
 
     const uint32_t leaf_dim = 4u;
-    /* the_one: one 4-byte Klein-4 block (values 0..3). */
-    unsigned char the_one[4] = { 1u, 2u, 3u, 0u };
+    /* coupling: one 4-byte Klein-4 block (values 0..3). */
+    unsigned char coupling[4] = { 1u, 2u, 3u, 0u };
 
     /* §44 self-describing body (leaf_dim=4, so labels are <= 3 bytes). Two
      * chromosomes; the save SCANS the inline caps (no caller layout).
@@ -115,7 +115,7 @@ int main(void)
     ensure_dir(dir);
 
     srmech_status_t st = srmech_genome_save(
-        dir, body, sizeof(body), leaf_dim, the_one, sizeof(the_one),
+        dir, body, sizeof(body), leaf_dim, coupling, sizeof(coupling),
         g_ws, sizeof(g_ws));
     check_true(st == SRMECH_OK, "genome_save OK (scans inline caps)");
 
@@ -177,7 +177,7 @@ int main(void)
             /* C turn0     */ 1u, 1u, 0u, 3u,
         };
         st = srmech_genome_append(dir, "C", region, sizeof(region),
-                                  leaf_dim, the_one, sizeof(the_one),
+                                  leaf_dim, coupling, sizeof(coupling),
                                   g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "genome_append('C') OK");
 
@@ -256,7 +256,7 @@ int main(void)
                 /* D turn0     */ 1u, 1u, 0u, 3u,
             };
             srmech_status_t ds = srmech_genome_append(dir, "D", dregion,
-                sizeof(dregion), leaf_dim, the_one, sizeof(the_one), g_ws, sz);
+                sizeof(dregion), leaf_dim, coupling, sizeof(coupling), g_ws, sz);
             check_true(ds == SRMECH_OK, "append fits in append_arena_bytes size");
         }
     }
@@ -286,24 +286,24 @@ int main(void)
     }
 
     /* §44 (rc145): manifest.json is the OPTIONAL .fai cache — the loaders
-     * reconstruct from turns.bin ALONE (scan), given the_one for the leaf
+     * reconstruct from turns.bin ALONE (scan), given coupling for the leaf
      * width. So a genome can be shipped as turns.bin only (the §43 goal). */
     {
         /* Re-save a clean genome (the BOUNDING test corrupted turns.bin). */
         st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "re-save clean genome for the §44 section");
         /* Delete manifest.json — the strand is now the sole source of truth. */
         char man_path[1200];
         snprintf(man_path, sizeof(man_path), "%s/manifest.json", dir);
         check_true(remove(man_path) == 0, "delete manifest.json");
 
-        /* CATALOG rebuilt by scanning turns.bin (needs the_one for the width). */
+        /* CATALOG rebuilt by scanning turns.bin (needs coupling for the width). */
         srmech_json_value_t *man = NULL;
-        st = srmech_genome_catalog(dir, the_one, sizeof(the_one),
+        st = srmech_genome_catalog(dir, coupling, sizeof(coupling),
                                    g_ws, sizeof(g_ws), &man);
         check_true(st == SRMECH_OK && man != NULL,
-                   "catalog rebuilt manifest-less (the_one)");
+                   "catalog rebuilt manifest-less (coupling)");
         const srmech_json_value_t *data = srmech_json_object_get(man, "data");
         const srmech_json_value_t *nt = srmech_json_object_get(data, "n_turns");
         check_true(nt != NULL && nt->u.i == 6,
@@ -313,22 +313,22 @@ int main(void)
         unsigned char out[64];
         size_t olen = 0u;
         st = srmech_genome_load(dir, out, sizeof(out), &olen,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK && olen == sizeof(body) &&
                    memcmp(out, body, sizeof(body)) == 0,
                    "load manifest-less == saved body");
 
         /* WINDOW manifest-less -> chromosome 'A' region (first 16 bytes). */
         st = srmech_genome_window(dir, "A", out, sizeof(out), &olen,
-                                  the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                  coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK && olen == 16u &&
                    memcmp(out, body, 16u) == 0,
                    "window('A') manifest-less == first 16 bytes");
 
-        /* HELPFUL error: no manifest AND no the_one -> BAD_INPUT (not IO). */
+        /* HELPFUL error: no manifest AND no coupling -> BAD_INPUT (not IO). */
         st = srmech_genome_catalog(dir, NULL, 0u, g_ws, sizeof(g_ws), &man);
         check_true(st == SRMECH_ERR_BAD_INPUT,
-                   "no manifest + no the_one -> BAD_INPUT (helpful, not IO)");
+                   "no manifest + no coupling -> BAD_INPUT (helpful, not IO)");
 
         /* APPEND manifest-less -> rebuilds, appends, re-writes the .fai cache. */
         unsigned char region[8] = {
@@ -336,7 +336,7 @@ int main(void)
             /* Z turn0     */ 1u, 1u, 0u, 3u,
         };
         st = srmech_genome_append(dir, "Z", region, sizeof(region), leaf_dim,
-                                  the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                  coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "append manifest-less OK (rebuild + grow)");
         st = srmech_genome_catalog(dir, NULL, 0u, g_ws, sizeof(g_ws), &man);
         data = srmech_json_object_get(man, "data");
@@ -351,11 +351,11 @@ int main(void)
     {
         /* clean 2-chromosome body (A + B). */
         st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "re-save clean A+B for the §45 section");
 
         /* REMOVE the FIRST chromosome 'A' (16 bytes) — B slides to the front. */
-        st = srmech_genome_remove(dir, "A", the_one, sizeof(the_one),
+        st = srmech_genome_remove(dir, "A", coupling, sizeof(coupling),
                                   g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "genome_remove('A') OK");
         {
@@ -376,18 +376,18 @@ int main(void)
         }
 
         /* REMOVE the only chromosome -> BAD_INPUT (a genome keeps >= 1). */
-        st = srmech_genome_remove(dir, "B", the_one, sizeof(the_one),
+        st = srmech_genome_remove(dir, "B", coupling, sizeof(coupling),
                                   g_ws, sizeof(g_ws));
         check_true(st == SRMECH_ERR_BAD_INPUT, "remove the only chromosome rejected");
         /* REMOVE a missing label -> BAD_INPUT. */
-        st = srmech_genome_remove(dir, "nope", the_one, sizeof(the_one),
+        st = srmech_genome_remove(dir, "nope", coupling, sizeof(coupling),
                                   g_ws, sizeof(g_ws));
         check_true(st == SRMECH_ERR_BAD_INPUT, "remove('nope') rejected");
 
         /* REPLACE: re-save A+B, then replace 'B' (8 bytes) with a fresh region
          * (CHROM cap 'B' + 2 turns = 3 blocks = 12 bytes). A stays byte-identical. */
         st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "re-save A+B for the replace case");
         {
             unsigned char nregion[12] = {
@@ -398,7 +398,7 @@ int main(void)
             unsigned char out[64];
             size_t olen = 0u;
             st = srmech_genome_replace(dir, "B", nregion, sizeof(nregion),
-                                       leaf_dim, the_one, sizeof(the_one),
+                                       leaf_dim, coupling, sizeof(coupling),
                                        g_ws, sizeof(g_ws));
             check_true(st == SRMECH_OK, "genome_replace('B') OK");
             st = srmech_genome_load(dir, out, sizeof(out), &olen,
@@ -424,7 +424,7 @@ int main(void)
                 if (fseek(f, 0L, SEEK_SET) == 0) { fputc(c ^ 0x01, f); }
                 fclose(f);
             }
-            st = srmech_genome_remove(dir, "A", the_one, sizeof(the_one),
+            st = srmech_genome_remove(dir, "A", coupling, sizeof(coupling),
                                       g_ws, sizeof(g_ws));
             check_true(st == SRMECH_ERR_BAD_INPUT,
                        "remove on a corrupt body -> BAD_INPUT (bound fires)");
@@ -438,7 +438,7 @@ int main(void)
         /* clean 2-chromosome body (A + B) to export from (the §45 section left
          * turns.bin corrupt after its last remove-on-corrupt-body test). */
         st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "re-save clean A+B for the §43 section");
 
         const char *tbase = getenv("TMPDIR");
@@ -501,7 +501,7 @@ int main(void)
             check_true(st == SRMECH_OK, "window('A') on the seeded genome OK");
         }
 
-        /* IMPORT APPEND: a dest coupled to the SAME the_one with a different
+        /* IMPORT APPEND: a dest coupled to the SAME coupling with a different
          * 1-chromosome body -> A is appended byte-for-byte; a dup label fails. */
         ensure_dir(app_dir);
         {
@@ -509,7 +509,7 @@ int main(void)
             unsigned char out[64];
             size_t olen = 0u;
             st = srmech_genome_save(app_dir, solo, sizeof(solo), leaf_dim,
-                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                    coupling, sizeof(coupling), g_ws, sizeof(g_ws));
             check_true(st == SRMECH_OK, "save solo dest for the APPEND case");
             st = srmech_genome_import(chr_path, app_dir, NULL, 0u, g_ws, sizeof(g_ws));
             check_true(st == SRMECH_OK, "genome_import APPEND OK");
@@ -523,16 +523,16 @@ int main(void)
             check_true(st == SRMECH_ERR_BAD_INPUT, "import dup label rejected");
         }
 
-        /* IMPORT into a dest coupled to a DIFFERENT the_one -> BAD_INPUT. */
+        /* IMPORT into a dest coupled to a DIFFERENT coupling -> BAD_INPUT. */
         ensure_dir(mism_dir);
         {
             unsigned char one_b[4] = { 2u, 1u, 0u, 3u };
             unsigned char solo[8] = { CC, (unsigned char)'S', 0u, 0u, 1u, 0u, 3u, 2u };
             st = srmech_genome_save(mism_dir, solo, sizeof(solo), leaf_dim,
                                     one_b, sizeof(one_b), g_ws, sizeof(g_ws));
-            check_true(st == SRMECH_OK, "save the_one-mismatch dest");
+            check_true(st == SRMECH_OK, "save coupling-mismatch dest");
             st = srmech_genome_import(chr_path, mism_dir, NULL, 0u, g_ws, sizeof(g_ws));
-            check_true(st == SRMECH_ERR_BAD_INPUT, "import the_one-mismatch rejected");
+            check_true(st == SRMECH_ERR_BAD_INPUT, "import coupling-mismatch rejected");
         }
 
         /* SELF-VERIFY: flip the first region hex digit in A.chr -> import fails. */
@@ -564,7 +564,7 @@ int main(void)
     {
         /* re-save clean A+B (the §43 section above tampered A.chr, not dir). */
         st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "re-save clean A+B for the loose<->packed section");
 
         const char *tbase = getenv("TMPDIR");
@@ -648,7 +648,7 @@ int main(void)
         snprintf(big_dir, sizeof(big_dir), "%s/srmech_genome_big", tb);
         ensure_dir(big_dir);
         st = srmech_genome_save(big_dir, big, sizeof(big), leaf_dim,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "save 300-chromosome genome (>256, arena-bound)");
         {
             srmech_json_value_t *bm = NULL;
@@ -694,7 +694,7 @@ int main(void)
         snprintf(mix_dir, sizeof(mix_dir), "%s/srmech_genome_v3mix", tb);
         ensure_dir(mix_dir);
         st = srmech_genome_save(mix_dir, mixed, sizeof(mixed), leaf_dim,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "v3 save of a MIXED packed+legacy body OK");
         {
             srmech_json_value_t *man = NULL;
@@ -749,12 +749,12 @@ int main(void)
         }
         {
             /* §44 held across the bump: manifest-less rebuild scans the MIXED
-             * body (the_one gives the width) — same n_turns/chromosomes. */
+             * body (coupling gives the width) — same n_turns/chromosomes. */
             char man_path[1200];
             snprintf(man_path, sizeof(man_path), "%s/manifest.json", mix_dir);
             check_true(remove(man_path) == 0, "delete mixed manifest.json");
             srmech_json_value_t *man = NULL;
-            st = srmech_genome_catalog(mix_dir, the_one, sizeof(the_one),
+            st = srmech_genome_catalog(mix_dir, coupling, sizeof(coupling),
                                        g_ws, sizeof(g_ws), &man);
             const srmech_json_value_t *data =
                 (st == SRMECH_OK) ? srmech_json_object_get(man, "data") : NULL;
@@ -771,7 +771,7 @@ int main(void)
             snprintf(bad_dir, sizeof(bad_dir), "%s/srmech_genome_v3bad", tb);
             ensure_dir(bad_dir);
             st = srmech_genome_save(bad_dir, bad, sizeof(bad), leaf_dim,
-                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                    coupling, sizeof(coupling), g_ws, sizeof(g_ws));
             check_true(st == SRMECH_ERR_BAD_INPUT,
                        "unrecognised block kind byte -> BAD_INPUT");
         }
@@ -797,7 +797,7 @@ int main(void)
         snprintf(cdir, sizeof(cdir), "%s/srmech_genome_census", tb);
         ensure_dir(cdir);
         st = srmech_genome_save(cdir, cbody, sizeof(cbody), leaf_dim,
-                                the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "save mixed plasmid+nuclear+diploid genome");
 
         /* CATALOG carries §96 cap_kind per chromosome (plasmid / nuclear / diploid). */
@@ -869,7 +869,7 @@ int main(void)
             snprintf(pdir, sizeof(pdir), "%s/srmech_genome_organelle", tb);
             ensure_dir(pdir);
             st = srmech_genome_save(pdir, pbody, sizeof(pbody), leaf_dim,
-                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                    coupling, sizeof(coupling), g_ws, sizeof(g_ws));
             check_true(st == SRMECH_OK, "save small all-plasmid (organelle) genome");
             srmech_json_value_t *cen = NULL;
             st = srmech_genome_census(pdir, NULL, 0u, g_ws, sizeof(g_ws), &cen);
@@ -888,7 +888,7 @@ int main(void)
             snprintf(sub, sizeof(sub), "%s/aaa", rroot);
             ensure_dir(sub);
             st = srmech_genome_save(sub, cbody, sizeof(cbody), leaf_dim,
-                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                    coupling, sizeof(coupling), g_ws, sizeof(g_ws));
             check_true(st == SRMECH_OK, "registry: save genome 'aaa' (nucleus)");
             unsigned char pbody[16] = {
                 CC, (unsigned char)'a', 0u, 0u,  0u, 1u, 2u, 3u,
@@ -897,7 +897,7 @@ int main(void)
             snprintf(sub, sizeof(sub), "%s/bbb", rroot);
             ensure_dir(sub);
             st = srmech_genome_save(sub, pbody, sizeof(pbody), leaf_dim,
-                                    the_one, sizeof(the_one), g_ws, sizeof(g_ws));
+                                    coupling, sizeof(coupling), g_ws, sizeof(g_ws));
             check_true(st == SRMECH_OK, "registry: save genome 'bbb' (organelle)");
             snprintf(sub, sizeof(sub), "%s/notgenome", rroot);
             ensure_dir(sub);                        /* no turns.bin -> ignored */
@@ -1071,7 +1071,7 @@ int main(void)
      * content leaves, SPLICE a real centromere cap between them, save -> census NUCLEAR,
      * and recover the graph BYTE-EXACT after the splice (recall skips the cap). */
     {
-        const uint32_t ldg = 32u;                     /* the C genome the_one caps at 32 bytes */
+        const uint32_t ldg = 32u;                     /* the C genome coupling caps at 32 bytes */
         uint64_t ei[6] = {0u, 1u, 2u, 3u, 4u, 0u};
         uint64_t ej[6] = {1u, 2u, 0u, 4u, 3u, 2u};
         uint64_t gw[6] = {5u, 7u, 2u, 9u, 3u, 8u};

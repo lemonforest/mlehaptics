@@ -223,7 +223,7 @@ def _chromatin_access(hv, cell_state):
         fires = _threshold_expresses(w, th, cell_state)      # REUSED (Class-K sign)
     return (num, den) if fires else (0, 1)
 
-def accessible(strand, cell_state, *, the_one=None, label=None):
+def accessible(strand, cell_state, *, coupling=None, label=None):
     """NEW PUBLIC OP — the COMPUTED accessibility level (num, den) of a chromosome under cell_state
     (§98.1/G1). The op⊗operand theorem at the CHROMATIN scale (parallel to gene_express at the gene
     scale): SAME genome, DIFFERENT cell_state → DIFFERENT open-set. Constitutive / chromatin-free →
@@ -333,7 +333,7 @@ Reuse the rc269 harness verbatim: `LEAF=G.LEAF_CAP`, the `_CountFile`/`counting_
 ## 6. Registry-ripple checklist — for the NEW public callable `accessible`
 
 Per `[[feedback_public_callable_ripple_gate_carrier_registry_and_rosetta]]` + the rc273 MCP lesson. `accessible`
-params are ALL wire-serialisable (`strand: Sequence[HV]`, `cell_state: int`, `the_one: HV?`, `label: str?`) —
+params are ALL wire-serialisable (`strand: Sequence[HV]`, `cell_state: int`, `coupling: HV?`, `label: str?`) —
 **no Callable/predicate param**, so every param CAN live in `ToolEntry.parameters` (the rc273 trap does not
 apply; a `cell_state` int is fine — only a caller-supplied *callable* would have to be a Python-only kwarg).
 Mirror `gene_express`'s MCP registration exactly.
@@ -355,12 +355,12 @@ Mirror `gene_express`'s MCP registration exactly.
 10. **non_compute pins** — `accessible` ships WITH a C peer (`srmech_genome_accessible`) → it is a COMPUTE op,
     so it is NOT added to the non_compute set; confirm against `test_non_compute_ratchet_rc170`.
 11. **`test_mcp.py`** — the type-coercibility + schema/signature-alignment ratchets. All param types already
-    have coercers (`gene_express` uses `strand`+`the_one`+`cell_state`); `cell_state:int` is wire-serialisable;
-    no callable param. Verify the signature/schema alignment (kwarg-only `the_one`/`label` matching the
+    have coercers (`gene_express` uses `strand`+`coupling`+`cell_state`); `cell_state:int` is wire-serialisable;
+    no callable param. Verify the signature/schema alignment (kwarg-only `coupling`/`label` matching the
     `ToolEntry`).
 
 **Lighter alternative (fallback, if the conductor wants to minimize surface):** instead of a new op, extend
-`chromatin_of(strand, the_one=None, *, cell_state=None)` — when `cell_state` is given it returns the COMPUTED
+`chromatin_of(strand, coupling=None, *, cell_state=None)` — when `cell_state` is given it returns the COMPUTED
 state. Ripple then = #1 (param add) + #2 (docs) + #11 (new optional int param coercer) only; **no count change,
 no new rosetta row.** Trade-off: loses the clean op⊗operand primitive parallel to `gene_express`. Leading
 recommendation is the new `accessible` op; this is the documented cheaper option. → **fermata F-2** (conductor

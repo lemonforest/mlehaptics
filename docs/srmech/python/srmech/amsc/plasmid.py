@@ -76,10 +76,10 @@ _STATUS_OK = "ok"
 _STATUS_CANCELLED = "cancelled"
 
 
-def _the_one_block_bytes(the_one) -> bytes:
-    """The ``leaf_dim`` raw bytes of the coupling invariant ``the_one`` — the exact
-    bytes ``genome_append`` couples each turn through (the C peer's ``the_one``)."""
-    return bytes(_genome._leaf_blocks([the_one])[0])
+def _coupling_block_bytes(coupling) -> bytes:
+    """The ``leaf_dim`` raw bytes of the coupling invariant ``coupling`` — the exact
+    bytes ``genome_append`` couples each turn through (the C peer's ``coupling``)."""
+    return bytes(_genome._leaf_blocks([coupling])[0])
 
 
 def _bytes_to_klein4(blob: bytes) -> List[int]:
@@ -134,17 +134,17 @@ def _encode_section_syms(vocab_size, edges, weights, node_ids):
 
 
 def _seed_first_section(store, label, vocab_size, edges, weights, node_ids,
-                        the_one):
+                        coupling):
     """The FIRST section into a FRESH store: encode + ``genome_save`` (creates the
     dir + manifest). Same in the native + pure paths (the C append peer requires an
     existing store). Returns the manifest ``data`` dict."""
     syms = _encode_section_syms(vocab_size, edges, weights, node_ids)
-    strand = _genome.kernel_pack(syms, leaf_dim=len(list(the_one)), label=label,
-                                 the_one=the_one)
-    return _genome.genome_save(strand, store, the_one)
+    strand = _genome.kernel_pack(syms, leaf_dim=len(list(coupling)), label=label,
+                                 coupling=coupling)
+    return _genome.genome_save(strand, store, coupling)
 
 
-def _append_section(store, label, vocab_size, edges, weights, node_ids, the_one,
+def _append_section(store, label, vocab_size, edges, weights, node_ids, coupling,
                     dim, data):
     """Append ONE plasmid section to the EXISTING store. Native: the whole
     ``graph_kernel_encode -> §89 region -> genome_append`` runs in the C
@@ -153,7 +153,7 @@ def _append_section(store, label, vocab_size, edges, weights, node_ids, the_one,
     ``data`` (pure) or ``None`` (native — re-derived once at the end)."""
     n_syms = _native.genome_plasmid_extract_c(
         vocab_size, [tuple(e) for e in edges], list(weights), None,
-        list(node_ids), [], str(store), label, dim, _the_one_block_bytes(the_one))
+        list(node_ids), [], str(store), label, dim, _coupling_block_bytes(coupling))
     if n_syms is not None:
         return None                                 # C appended; catalog derived later
     syms = _encode_section_syms(vocab_size, edges, weights, node_ids)
@@ -161,10 +161,10 @@ def _append_section(store, label, vocab_size, edges, weights, node_ids, the_one,
     # return in the pure path); ``None`` (e.g. a first pure append after a native
     # one) falls to a cold O(1)-head read.
     return _genome.genome_append_kernel(
-        store, label, syms, the_one=the_one, catalog=data)
+        store, label, syms, coupling=coupling, catalog=data)
 
 
-def _write_vocab_chromosome(store, words, the_one) -> None:
+def _write_vocab_chromosome(store, words, coupling) -> None:
     """Write (or refresh) the shared VOCAB chromosome (the karyotype index) — the
     global word->id table as a genome-native KERNEL chromosome. Idempotent: an
     existing vocab chromosome is excised first, so a re-run over a grown vocab keeps
@@ -172,15 +172,15 @@ def _write_vocab_chromosome(store, words, the_one) -> None:
     if not words:
         return
     syms = _bytes_to_klein4("\n".join(words).encode("utf-8"))
-    census = genome_census(store, the_one=the_one)
+    census = genome_census(store, coupling=coupling)
     labels = {c["label"] for c in census["chromosomes"]}
     if VOCAB_LABEL in labels:
-        _genome.genome_remove(store, VOCAB_LABEL, the_one=the_one)
-    _genome.genome_append_kernel(store, VOCAB_LABEL, syms, the_one=the_one,
+        _genome.genome_remove(store, VOCAB_LABEL, coupling=coupling)
+    _genome.genome_append_kernel(store, VOCAB_LABEL, syms, coupling=coupling,
                                  catalog=None)
 
 
-def plasmid_extract(docs, section_store, the_one, *, vocab=None, window=2, k=20,
+def plasmid_extract(docs, section_store, coupling, *, vocab=None, window=2, k=20,
                     cap_slack=4, label_prefix="sec", progress=None) -> dict:
     """STAGE 1 EXTRACT — stream ``docs`` into APPEND-ONLY plasmid sections.
 
@@ -192,7 +192,7 @@ def plasmid_extract(docs, section_store, the_one, *, vocab=None, window=2, k=20,
     (``genome_save``); the rest append. A shared VOCAB chromosome (the karyotype
     index) is written so a reader re-anchors the GLOBAL ids.
 
-    ``the_one`` — the coupling invariant (its length is the store's ``leaf_dim``,
+    ``coupling`` — the coupling invariant (its length is the store's ``leaf_dim``,
     which must be >= 52 so the §89 uniformly-Klein-4 kernel header fits one leaf).
     ``vocab`` — a mutable global word list (append-only; ``None`` starts fresh),
     RETURNED grown so a later call streams more documents onto the SAME id space.
@@ -206,12 +206,12 @@ def plasmid_extract(docs, section_store, the_one, *, vocab=None, window=2, k=20,
     accumulator stage-2 promotes on. numpy-free; no ``abs()``; the whole op is
     genome-native (no loose JSON). Byte-identical whether native or pure."""
     store = Path(section_store)
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     if dim < 52:
         raise ValueError(
-            f"plasmid_extract: leaf_dim (len(the_one)) is {dim}; the §89 KERNEL "
+            f"plasmid_extract: leaf_dim (len(coupling)) is {dim}; the §89 KERNEL "
             f"section header needs leaf_dim >= 52 (a plasmid section is a kernel "
-            f"chromosome). Use a wider the_one.")
+            f"chromosome). Use a wider coupling.")
     doc_list = [list(d) for d in docs]              # a section per document (D1)
     n_docs = len(doc_list)
     words, index = _resolve_vocab(vocab)
@@ -225,7 +225,7 @@ def plasmid_extract(docs, section_store, the_one, *, vocab=None, window=2, k=20,
     base_index = 0
     if store_exists:
         base_index = sum(1 for c in genome_census(
-            store, the_one=the_one)["chromosomes"] if c["label"] != VOCAB_LABEL)
+            store, coupling=coupling)["chromosomes"] if c["label"] != VOCAB_LABEL)
     for i, tokens in enumerate(doc_list):
         if progress is not None and progress({
                 "struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_EXTRACTING,
@@ -239,22 +239,22 @@ def plasmid_extract(docs, section_store, the_one, *, vocab=None, window=2, k=20,
         if not store_exists:
             data = _seed_first_section(store, label, len(local_words),
                                        cooc["edges"], cooc["weights"], global_ids,
-                                       the_one)
+                                       coupling)
             store_exists = True
         else:
             data = _append_section(store, label, len(local_words), cooc["edges"],
-                                   cooc["weights"], global_ids, the_one, dim, data)
+                                   cooc["weights"], global_ids, coupling, dim, data)
         labels.append(label)
         for g in global_ids:                        # O(section) integer accumulator
             section_count[g] = section_count.get(g, 0) + 1
-    _write_vocab_chromosome(store, words, the_one)
+    _write_vocab_chromosome(store, words, coupling)
     return {"section_store": str(store), "vocab": words,
             "section_count": section_count, "n_sections": len(labels),
             "sections": labels, "status": status}
 
 
-def _section_entries(store, the_one):
-    """``(leaf_dim, the_one, entries)`` — the store's catalog derived **ONCE**, plus
+def _section_entries(store, coupling):
+    """``(leaf_dim, coupling, entries)`` — the store's catalog derived **ONCE**, plus
     its PLASMID section entries in census order (the VOCAB karyotype chromosome
     excluded) (§102/rc280).
 
@@ -264,14 +264,14 @@ def _section_entries(store, the_one):
     re-Merkle-folds the ENTIRE body. Doing that inside a P-section loop is O(P × body)
     — quadratic in corpus size — and it dominated the measured cost far more than any
     per-section decode did."""
-    data = _genome._catalog_data(Path(store), the_one)
+    data = _genome._catalog_data(Path(store), coupling)
     leaf_dim = int(data["leaf_dim"])
-    one = _genome._resolve_the_one(data, the_one)
+    one = _genome._resolve_coupling(data, coupling)
     entries = [c for c in data["chromosomes"] if c["label"] != VOCAB_LABEL]
     return leaf_dim, one, entries
 
 
-def _section_leaves(store, label, the_one, entry=None, leaf_dim=None, f=None):
+def _section_leaves(store, label, coupling, entry=None, leaf_dim=None, f=None):
     """One section's stored coupled DATA turns. With a pre-derived catalog ``entry``
     this pages the region directly (O(section)); without one it falls back to
     :func:`genome_window`, which re-derives the catalog (O(body)) — pass an entry
@@ -281,10 +281,10 @@ def _section_leaves(store, label, the_one, entry=None, leaf_dim=None, f=None):
     read costs ONE open of ``turns.bin`` rather than P."""
     if entry is not None and leaf_dim is not None:
         return _genome._region_leaves(Path(store), entry, leaf_dim, f)
-    return genome_window(store, label, the_one=the_one)
+    return genome_window(store, label, coupling=coupling)
 
 
-def _read_section_graph(store, label, the_one, entry=None, leaf_dim=None, f=None):
+def _read_section_graph(store, label, coupling, entry=None, leaf_dim=None, f=None):
     """Decode ONE plasmid section back to its directed-graph dict (the LOCAL edges +
     the GLOBAL ``node_ids`` table). Pages the section's coupled leaves, rebuilds the
     KERNEL strand (prepending the section's kernel telomere so ``kernel_unpack``
@@ -294,10 +294,10 @@ def _read_section_graph(store, label, the_one, entry=None, leaf_dim=None, f=None
     edges ARE its payload). :func:`section_counts` deliberately does NOT come through
     here any more: it only ever wanted ``node_ids``, which the §89 payload places
     before the edges, so it uses the targeted prefix read instead."""
-    leaves = _section_leaves(store, label, the_one, entry, leaf_dim, f)
-    dim = len(list(the_one))
+    leaves = _section_leaves(store, label, coupling, entry, leaf_dim, f)
+    dim = len(list(coupling))
     strand = [_genome._kernel_telomere(label, dim=dim)] + list(leaves)
-    syms = kernel_unpack(strand, the_one)
+    syms = kernel_unpack(strand, coupling)
     return _genome._graph_kernel_decode(syms)
 
 
@@ -326,7 +326,7 @@ class SectionCountsCancelled(Exception):
         self.counts = counts
 
 
-def section_counts(section_store, *, the_one=None, progress=None) -> dict:
+def section_counts(section_store, *, coupling=None, progress=None) -> dict:
     """Derive ``{global_id: n_sections}`` — how many distinct PLASMID sections each
     GLOBAL node appears in — by scanning the store's sections' GLOBAL ``node_ids``
     tables. The genome-native, SSoT read stage-2 (rc279) promotes on: a node is
@@ -373,10 +373,10 @@ def section_counts(section_store, *, the_one=None, progress=None) -> dict:
     # ONE catalog derivation for the WHOLE scan (rc280 fix 1). Deriving it here and
     # paging every section against it is what removes the O(P × body) quadratic —
     # genome_window would re-derive it on every single call.
-    leaf_dim, one, entries = _section_entries(store, the_one)
+    leaf_dim, one, entries = _section_entries(store, coupling)
     total = len(entries)
     native = _native.genome_section_counts_c(
-        str(store), _the_one_block_bytes(one), leaf_dim, progress)
+        str(store), _coupling_block_bytes(one), leaf_dim, progress)
     if native is not None:
         ids, cnts, done, cancelled = native
         counts = {int(v): int(c) for v, c in zip(ids, cnts)}
@@ -604,7 +604,7 @@ def conserved_core(section_count, *, k=K_AUTO) -> dict:
             "threshold": am["threshold"], "gap": am["gap"]}
 
 
-def _section_labels(store, the_one) -> List[str]:
+def _section_labels(store, coupling) -> List[str]:
     """The store's PLASMID section labels in census order (the VOCAB karyotype
     chromosome excluded).
 
@@ -615,20 +615,20 @@ def _section_labels(store, the_one) -> List[str]:
     O(body); a call per section is the O(P × body) quadratic rc280 removed. Prefer
     :func:`_section_entries`, which pays that cost ONCE and hands back the entries the
     per-section reads page against."""
-    census = genome_census(store, the_one=the_one)
+    census = genome_census(store, coupling=coupling)
     return [c["label"] for c in census["chromosomes"] if c["label"] != VOCAB_LABEL]
 
 
-def _section_strand(store, label, the_one, dim, entry=None, leaf_dim=None, f=None):
+def _section_strand(store, label, coupling, dim, entry=None, leaf_dim=None, f=None):
     """One plasmid section's full chromosome STRAND (its kernel telomere + coupled
     leaves) — what :func:`genome.integrate` splices as a provirus. Pass a pre-derived
     catalog ``entry`` when looping over sections (§102/rc280 — see
     :func:`_section_entries`)."""
-    leaves = _section_leaves(store, label, the_one, entry, leaf_dim, f)
+    leaves = _section_leaves(store, label, coupling, entry, leaf_dim, f)
     return [_genome._kernel_telomere(label, dim=dim)] + list(leaves)
 
 
-def _section_global_edges(store, label, the_one, entry=None, leaf_dim=None, f=None):
+def _section_global_edges(store, label, coupling, entry=None, leaf_dim=None, f=None):
     """One section's edges as ``[(u_global, v_global, weight), ...]`` — its LOCAL edge
     indices resolved through its GLOBAL ``node_ids`` table (the id space stage 1
     established so a word shared across sections carries the SAME id).
@@ -636,7 +636,7 @@ def _section_global_edges(store, label, the_one, entry=None, leaf_dim=None, f=No
     This one genuinely needs the WHOLE section (the edges are the payload), so the
     rc280 targeted prefix read does not apply here — but the catalog-once fix does,
     via ``entry``."""
-    graph = _read_section_graph(store, label, the_one, entry, leaf_dim, f)
+    graph = _read_section_graph(store, label, coupling, entry, leaf_dim, f)
     nid = [int(x) for x in graph["node_ids"]]
     return [(nid[int(i)], nid[int(j)], int(w))
             for (i, j), w in zip(graph["edges"], graph["weights"])]
@@ -657,7 +657,7 @@ def _core_weight_from_sections(sections, core_set):
     return weight
 
 
-def _core_packed(core_nodes, core_weight, the_one, dim, label="core"):
+def _core_packed(core_nodes, core_weight, coupling, dim, label="core"):
     """Encode the induced CORE subgraph to a §89 KERNEL chromosome — the ALREADY-PACKED
     but NOT-YET-MINTED strand. PROMOTION (the ``0x58`` centromere) is the ORGANIZE
     step's job, so the C orchestrator can perform it via its own
@@ -671,10 +671,10 @@ def _core_packed(core_nodes, core_weight, the_one, dim, label="core"):
     edges = [(local[u], local[v]) for (u, v) in keys]
     weights = [core_weight[key] for key in keys]
     syms = _encode_section_syms(len(core_nodes), edges, weights, core_nodes)
-    return _genome.kernel_pack(syms, leaf_dim=dim, label=label, the_one=the_one)
+    return _genome.kernel_pack(syms, leaf_dim=dim, label=label, coupling=coupling)
 
 
-def _organize_native(core_strand, section_strands, the_one, dim, progress):
+def _organize_native(core_strand, section_strands, coupling, dim, progress):
     """DISPATCH the whole ORGANIZE (mint the core + fold the plasmids, ticking between
     whole chromosomes) to the ``srmech_genome_integrate_plasmids`` C peer. Returns
     ``(strand, n_integrated, cancelled)`` or ``None`` to fall back to the pure fold."""
@@ -688,10 +688,10 @@ def _organize_native(core_strand, section_strands, the_one, dim, progress):
         b"".join(core_blocks), len(core_blocks),
         b"".join(b"".join(blocks) for blocks in sec_blocks),
         [len(blocks) for blocks in sec_blocks], dim,
-        _the_one_block_bytes(the_one), progress)
+        _coupling_block_bytes(coupling), progress)
 
 
-def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=K_AUTO,
+def genome_integrate_plasmids(section_store, coupling, *, section_count=None, k=K_AUTO,
                               core_edges=None, out_path=None, progress=None) -> dict:
     """STAGE 2 ORGANIZE — sections -> a minted NUCLEAR CORE + retained PLASMIDS.
 
@@ -707,8 +707,8 @@ def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=K
     accumulator built during the append pass, costing nothing extra. Chaining
     stage 1 -> stage 2 should hand it straight through::
 
-        ext = plasmid_extract(docs, store, the_one)
-        org = genome_integrate_plasmids(store, the_one,
+        ext = plasmid_extract(docs, store, coupling)
+        org = genome_integrate_plasmids(store, coupling,
                                         section_count=ext["section_count"])
 
     When ``section_count`` is omitted this falls back to :func:`section_counts`, which
@@ -744,14 +744,14 @@ def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=K
     discriminator from F1250's global participation antimode, and **their convergence
     is PENDING validation on the real corpus** — it is not claimed here."""
     store = Path(section_store)
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     # rc280: derive the catalog ONCE for every read below (the labels, the optional
     # core-subgraph harvest, and the strand fold). Each of those used to re-derive it
     # per section — three separate O(P × body) quadratics on one call.
-    leaf_dim, _one, entries = _section_entries(store, the_one)
+    leaf_dim, _one, entries = _section_entries(store, coupling)
     labels = [e["label"] for e in entries]
     counts = dict(section_count) if section_count is not None else section_counts(
-        store, the_one=the_one)                    # the deliberate fallback
+        store, coupling=coupling)                    # the deliberate fallback
     split = conserved_core(counts, k=k)
     core_nodes = split["core"]
     # rc282: ONE held body handle for BOTH per-section loops below (the edge harvest
@@ -759,21 +759,21 @@ def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=K
     with _genome._open_body_ro(Path(store) / _genome._BODY_NAME) as f:
         if core_nodes:
             if core_edges is None:
-                core_edges = [_section_global_edges(store, e["label"], the_one, e,
+                core_edges = [_section_global_edges(store, e["label"], coupling, e,
                                                     leaf_dim, f)
                               for e in entries]
             core_weight = _core_weight_from_sections(core_edges, set(core_nodes))
-            core_strand = _core_packed(core_nodes, core_weight, the_one, dim)
+            core_strand = _core_packed(core_nodes, core_weight, coupling, dim)
         else:
             core_strand = []                       # ONE-DNA-TYPE: no core promoted
-        section_strands = [_section_strand(store, e["label"], the_one, dim, e,
+        section_strands = [_section_strand(store, e["label"], coupling, dim, e,
                                            leaf_dim, f)
                            for e in entries]
     strand, n_integrated, cancelled = _organize(
-        core_strand, section_strands, the_one, dim, progress)
+        core_strand, section_strands, coupling, dim, progress)
     status = _STATUS_CANCELLED if cancelled else _STATUS_OK
     if out_path is not None and not cancelled:
-        _genome.genome_save(strand, out_path, the_one)
+        _genome.genome_save(strand, out_path, coupling)
     return {"strand": strand, "k": split["k"], "k_source": split["k_source"],
             "bimodal": split["bimodal"],
             "one_dna_type": split["one_dna_type"], "core": core_nodes,
@@ -782,7 +782,7 @@ def genome_integrate_plasmids(section_store, the_one, *, section_count=None, k=K
             "histogram": split["histogram"], "status": status}
 
 
-def _organize(core_strand, section_strands, the_one, dim, progress):
+def _organize(core_strand, section_strands, coupling, dim, progress):
     """PROMOTE + MERGE. Dispatches to the C orchestrator when possible, else folds in
     pure Python. ``(strand, n_integrated, cancelled)``.
 
@@ -795,7 +795,7 @@ def _organize(core_strand, section_strands, the_one, dim, progress):
     # §101 C-REALITY (the design's rc279 resolution of the parity-audit concern): the
     # tick is handed THROUGH to the C orchestrator, so the heartbeat + cancel are the
     # C loop's own — not a Python driver hook wrapped around an opaque C call.
-    native = _organize_native(core_strand, section_strands, the_one, dim, progress)
+    native = _organize_native(core_strand, section_strands, coupling, dim, progress)
     if native is not None:
         return native
     if core_strand and progress is not None and progress({
@@ -804,7 +804,7 @@ def _organize(core_strand, section_strands, the_one, dim, progress):
         return [], 0, True
     # PROMOTE — the pure mirror of the C orchestrator's mint_strand call: the packed
     # core becomes a Tier-2 NUCLEAR chromosome (0x58 centromere, metacentric split).
-    strand = _genome.mint_strand(core_strand, the_one) if core_strand else []
+    strand = _genome.mint_strand(core_strand, coupling) if core_strand else []
     for i, sec in enumerate(section_strands):
         if progress is not None and progress({
                 "struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_INTEGRATING,
@@ -814,7 +814,7 @@ def _organize(core_strand, section_strands, the_one, dim, progress):
     return strand, total, False
 
 
-def add_plasmid(section_store, the_one, tokens, *, state, k=K_AUTO, window=2,
+def add_plasmid(section_store, coupling, tokens, *, state, k=K_AUTO, window=2,
                 top_k=20, cap_slack=4, label_prefix="sec", cache_edges=True,
                 progress=None) -> dict:
     """INCREMENTAL STAGE 1 + 2 — add ONE document to an organized genome.
@@ -850,10 +850,10 @@ def add_plasmid(section_store, the_one, tokens, *, state, k=K_AUTO, window=2,
     the order in which sections were accumulated. numpy-free; integer/exact; no
     ``abs()``."""
     store = Path(section_store)
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     st = dict(state) if state else {"section_count": {}, "vocab": [], "labels": [],
                                     "core": [], "k": 0, "sections": []}
-    ext = plasmid_extract([tokens], store, the_one, vocab=st["vocab"], window=window,
+    ext = plasmid_extract([tokens], store, coupling, vocab=st["vocab"], window=window,
                           k=top_k, cap_slack=cap_slack, label_prefix=label_prefix)
     label = ext["sections"][-1]
     st["vocab"] = ext["vocab"]
@@ -864,12 +864,12 @@ def add_plasmid(section_store, the_one, tokens, *, state, k=K_AUTO, window=2,
     st["section_count"] = counts
     # rc280: one catalog derivation serves the new section's edge read AND (when the
     # core moved, or the edge cache is off) every re-read + the strand fold below.
-    leaf_dim, _one, entries = _section_entries(store, the_one)
+    leaf_dim, _one, entries = _section_entries(store, coupling)
     by_label = {e["label"]: e for e in entries}
     # rc282: ONE held body handle for the new section's edge read AND both per-section
     # loops below — each of those used to re-open turns.bin once per section.
     with _genome._open_body_ro(Path(store) / _genome._BODY_NAME) as f:
-        new_edges = _section_global_edges(store, label, the_one, by_label.get(label),
+        new_edges = _section_global_edges(store, label, coupling, by_label.get(label),
                                           leaf_dim, f)
         if cache_edges:
             st["sections"] = list(st["sections"]) + [new_edges]
@@ -881,18 +881,18 @@ def add_plasmid(section_store, the_one, tokens, *, state, k=K_AUTO, window=2,
             if cache_edges:
                 sections = st["sections"]
             else:
-                sections = [_section_global_edges(store, lb, the_one,
+                sections = [_section_global_edges(store, lb, coupling,
                                                   by_label.get(lb), leaf_dim, f)
                             for lb in st["labels"]]
             core_weight = _core_weight_from_sections(sections, set(core_nodes))
-            core_strand = _core_packed(core_nodes, core_weight, the_one, dim)
+            core_strand = _core_packed(core_nodes, core_weight, coupling, dim)
         else:
             core_strand = []
-        section_strands = [_section_strand(store, lb, the_one, dim,
+        section_strands = [_section_strand(store, lb, coupling, dim,
                                            by_label.get(lb), leaf_dim, f)
                            for lb in st["labels"]]
     strand, n_integrated, cancelled = _organize(
-        core_strand, section_strands, the_one, dim, progress)
+        core_strand, section_strands, coupling, dim, progress)
     return {"strand": strand, "state": st, "section": label, "k": split["k"],
             "k_source": split["k_source"],
             "core_changed": core_changed, "core": core_nodes,
