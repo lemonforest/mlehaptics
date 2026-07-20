@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os as _os
 import shutil as _shutil
+import sys as _sys
 import tempfile as _tempfile
 from array import array as _stdlib_array
 from pathlib import Path
@@ -55,6 +56,84 @@ import pytest
 #: never writes into the registry dir.
 _BUS_REGISTRY_TEST_MODULES = {"test_bus", "test_bus_aio"}
 
+#: Longest endpoint NAME the bus suites build, with headroom.
+#:
+#: Worst case in the tree is `test_bus_aio`'s piped endpoint:
+#:     f"aio-test-{uuid4().hex[:12]}" + "-sink"   = 9 + 12 + 5 = 26 chars
+#: `test_bus`'s sync equivalent is 22 (`f"test-{...}"` + "-sink"). The `-src` /
+#: `-sink` suffixes are IDENTICAL in both files — it is the async module's
+#: `aio-` name prefix, not a longer suffix, that makes it the worst case. This
+#: is exactly the endpoint that overflowed on macos-14 in CI
+#: (`test_async_pipe_forwards_broadcasts`).
+#:
+#: Budgeted at 48, well above the current 26, so that adding a longer endpoint
+#: name later cannot silently re-introduce the overflow — the assertion below
+#: is checked against THIS budget, not against today's names.
+_BUS_MAX_ENDPOINT_NAME = 48
+
+#: Bytes the registry dir + filename add around that name:
+#: `<home>` + `/.srmech/` + `bus-` + <name> + `.sock` (`.seed` is the same
+#: length; `.txt` is shorter, and is Windows-only where AF_UNIX is not used).
+_BUS_PATH_RESERVE = (
+    len("/.srmech/") + len("bus-") + _BUS_MAX_ENDPOINT_NAME + len(".sock")
+)
+
+
+def _sun_path_cap() -> int:
+    """Size of ``sockaddr_un.sun_path`` on this platform, in bytes.
+
+    PLATFORM-SPECIFIC and NOT interchangeable: **108** on Linux
+    (`/usr/include/.../sys/un.h`), **104** on macOS/BSD (XNU `bsd/sys/un.h`).
+    Anything unrecognised gets the TIGHTER value — an over-strict cap costs a
+    readable fixture error, an over-loose one costs an opaque `OSError` deep
+    inside a bus test five minutes into a CI run.
+    """
+    return 108 if _sys.platform.startswith("linux") else 104
+
+
+def _bus_home_base() -> str:
+    """Pick a temp base whose longest endpoint path fits ``sun_path``.
+
+    Prefers the platform default (so `TMPDIR` is respected wherever it fits —
+    on Linux `gettempdir()` is already `/tmp`, so this is not a change there),
+    and falls back to `/tmp` only when the default would overflow.
+
+    That fallback is what macos-14 needs: GitHub's macOS runners set `TMPDIR`
+    to the per-user `/var/folders/<xx>/<~30 chars>/T/` form (48 chars —
+    confirmed from the failing job's own log), and 48 + `mkdtemp` (12) +
+    `/.srmech/bus-aio-test-<12hex>-sink.sock` (44) = **104**, against a 104-byte
+    cap whose last byte is the NUL. It overflowed by exactly one.
+
+    `/tmp` is safe here, not merely short: POSIX requires it to exist and be
+    writable, `mkdtemp` creates our directory mode 0700 so privacy does not
+    depend on the parent's permissions, and on macOS — where `/tmp` is a
+    symlink to `/private/tmp` — the kernel length-checks the `sun_path` bytes
+    we actually pass, so the 4-char form is what counts (and even the resolved
+    12-char `/private/tmp` would still fit with room to spare).
+    """
+    candidates = [_tempfile.gettempdir()]
+    if _os.name == "posix" and "/tmp" not in candidates:
+        candidates.append("/tmp")
+
+    cap = _sun_path_cap()
+    for base in candidates:
+        # `mkdtemp` adds `/` + prefix + 8 random chars.
+        projected = len(base) + 1 + len("srb") + 8 + _BUS_PATH_RESERVE
+        if not _os.path.isdir(base):
+            continue
+        if _os.name != "posix" or projected < cap:
+            return base
+
+    raise AssertionError(
+        "no usable temp base for the private bus registry dir: the longest "
+        "endpoint path would exceed this platform's AF_UNIX sun_path cap of "
+        f"{cap} bytes on every candidate. Tried: "
+        + ", ".join(f"{b!r} (projected {len(b) + 12 + _BUS_PATH_RESERVE})"
+                    for b in candidates)
+        + ". Set TMPDIR to a shorter directory, or shorten "
+          "_BUS_MAX_ENDPOINT_NAME if the endpoint names really are shorter."
+    )
+
 
 @pytest.fixture(autouse=True, scope="module")
 def _private_bus_registry_home(request):
@@ -64,13 +143,33 @@ def _private_bus_registry_home(request):
         yield
         return
 
-    # NOT `tmp_path_factory` — an AF_UNIX socket path is capped at ~108 bytes
-    # (sockaddr_un.sun_path), and pytest's factory dirs
-    # (`/tmp/pytest-of-<user>/pytest-<n>/<module-name><n>/`) are long enough
-    # that appending `.srmech/bus-<uuid>.sock` blows the cap — `OSError:
-    # AF_UNIX path too long`. A short `mkdtemp` keeps the whole endpoint path
-    # comfortably inside the limit on every POSIX cell.
-    home = _tempfile.mkdtemp(prefix="srb")
+    # NOT `tmp_path_factory`: its nested dirs
+    # (`<tmp>/pytest-of-<user>/pytest-<n>/<module><n>/`) overflow sun_path on
+    # their own, before any TMPDIR question. A short `mkdtemp` under a base
+    # chosen by `_bus_home_base()` keeps the whole endpoint path inside the cap.
+    home = _tempfile.mkdtemp(prefix="srb", dir=_bus_home_base())
+
+    # Make the length invariant EXPLICIT and LOUD. Without this, an environment
+    # with a long TMPDIR does not fail here — it fails minutes later, inside one
+    # bus test, as a bare `OSError: AF_UNIX path too long` with no indication of
+    # which path or which limit. That is precisely how this reached CI.
+    cap = _sun_path_cap()
+    worst_path = _os.path.join(
+        home, ".srmech", "bus-" + ("x" * _BUS_MAX_ENDPOINT_NAME) + ".sock"
+    )
+    if _os.name == "posix":
+        assert len(worst_path) < cap, (
+            "private bus registry dir would overflow this platform's AF_UNIX "
+            f"sun_path cap: cap={cap} bytes (usable {cap - 1}), longest "
+            f"endpoint path={len(worst_path)} bytes.\n"
+            f"  path: {worst_path}\n"
+            f"  base: {home!r} ({len(home)} bytes)\n"
+            f"  reserve: {_BUS_PATH_RESERVE} bytes "
+            f"(/.srmech/ + bus- + {_BUS_MAX_ENDPOINT_NAME}-char name + .sock)\n"
+            "Bind would fail later as an opaque 'OSError: AF_UNIX path too "
+            "long' inside a bus test; failing here instead."
+        )
+
     saved = {k: _os.environ.get(k) for k in ("HOME", "USERPROFILE")}
     _os.environ["HOME"] = home
     _os.environ["USERPROFILE"] = home
