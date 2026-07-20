@@ -339,6 +339,8 @@ _WHOLE_OP_C_PEER = {
     # whole op IS that one C call, so it is trivially C-runnable.
     "srmech.amsc.genome.quad_turn":        "srmech_klein4_bind",
     "srmech.amsc.genome.recall":           "srmech_genome_recall",
+    "srmech.amsc.laplacian.recursive_cut":
+        "srmech_laplacian_recursive_cut",                                 # rc284
     "srmech.amsc.plasmid.genome_integrate_plasmids":
         "srmech_genome_integrate_plasmids",                               # rc279
     "srmech.amsc.plasmid.plasmid_extract": "srmech_genome_plasmid_extract",
@@ -411,13 +413,6 @@ _KNOWN_GLUE_GAPS = {
         "native but the loop that assembles the plan is not",
         "c_host_parity_audit_rc273 §2 G7",
     ),
-    "srmech.amsc.laplacian.recursive_cut": (
-        "THE deepest gap — the out-of-core recursive spectral bisection driver. "
-        "srmech_laplacian_fiedler_sparse_file is called PER bisection, but the "
-        "`while pending` recursion and the on-disk tome management have no C entry; "
-        "genome_partition and genome_from_graph both dead-end here",
-        "c_host_parity_audit_rc273 §2 G1",
-    ),
     "srmech.amsc.plasmid.add_plasmid": (
         "an ORCHESTRATOR over three C peers (plasmid_extract / conserved_core / "
         "integrate_plasmids) with no whole-op entry of its own — ADR-0003 §3 names "
@@ -427,8 +422,19 @@ _KNOWN_GLUE_GAPS = {
 }
 
 #: DOWN-ONLY ceiling on the known-gap allowlist. 13 -> 11 at rc281 (amplify +
-#: copy_number_of earned their C peers). This number may only DECREASE.
-CEIL_WIRE_GLUE_GAPS = 11
+#: copy_number_of earned their C peers); 11 -> 10 at rc284 (§100 G1
+#: laplacian.recursive_cut earned srmech_laplacian_recursive_cut — the
+#: out-of-core recursive spectral bisection driver). This number may only
+#: DECREASE.
+#:
+#: G1 was the shared dead-end of G2 (genome_from_graph) and G3 (the GRAPH
+#: genome_partition), so rc284 UNBLOCKS both — but unblocking is not closing:
+#: each still needs C surfaces of its own that recursive_cut does not supply.
+#: G3 additionally needs exact-integer participation + the antimode histogram +
+#: per-node classify; G2 needs all of G3 plus its in-RAM _induced_subgraph
+#: relabel, the per-group graph_to_kernel -> mint_strand loop and strand
+#: assembly. They are separate rcs, not free riders on this one.
+CEIL_WIRE_GLUE_GAPS = 10
 
 
 def _wire_scope(cls):

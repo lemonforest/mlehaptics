@@ -59,6 +59,8 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>             /* snprintf — rc284 tome/queue path building (pure string
+                                * formatting; all OS I/O still goes through the PAL) */
 #include <string.h>            /* memcpy — parse packed edge records (no aliasing UB) */
 
 /* Class-N rational sqrt (srmech_rational_sqrt) — the native Jacobi eigensolver
@@ -2042,5 +2044,468 @@ srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n, const char *pa
         return st;
     }
     *out_count = count;
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
+ * §100 G1 (rc284): the OUT-OF-CORE RECURSIVE SPECTRAL BISECTION driver.
+ *
+ * The `while pending` loop that srmech_laplacian_fiedler_sparse_file could
+ * not express on its own. Every sub-graph, every pending node set and every
+ * finished tome lives ON DISK; peak RAM is the single caller arena (O(n)),
+ * not the structure. This is the piece whose absence made §100 G1 the
+ * deepest C-host parity gap: the Fiedler ENGINE has been native since
+ * rc168, but the RECURSION around it was Python-only, so a bare-C host
+ * could bisect once and no further.
+ *
+ * NOT recursive in C (JPL Rule 1): an explicit arena-backed LIFO stack
+ * carries (serial, depth), mirroring the Python driver's `pending` list
+ * pop/append order EXACTLY so both projections emit byte-identical tomes
+ * in byte-identical order.
+ *
+ * The node sets are SORTED ASCENDING by construction — the root is
+ * 0..n-1 and each child preserves the parent's relative order — so the
+ * original->local relabel is a BINARY SEARCH over the set itself. No map,
+ * no hash, no allocation: the invariant the Python dict was hiding.
+ * ================================================================== */
+
+#define RCUT_PATH_MAX    512u    /* one on-disk path (work_dir + stem + index) */
+#define RCUT_NODE_REC      4u    /* one node-set record = uint32 original id */
+#define RCUT_WBUF_RECS  4096u    /* induced-subgraph write buffer, in records */
+
+size_t srmech_laplacian_recursive_cut_arena_bytes(uint32_t n)
+{
+    /* 9n doubles (8n Fiedler ws + n Fiedler out) then 4n+4 uint32
+     * (ids + partition scratch + the (serial,depth) LIFO stack). */
+    size_t d = (size_t)9u * (size_t)n;
+    size_t u = (size_t)4u * (size_t)n + 4u;
+    assert(sizeof(double) == 8u);
+    assert(d / 9u == (size_t)n);            /* the *9 did not overflow size_t */
+    return d * sizeof(double) + u * sizeof(uint32_t);
+}
+
+/* Build "<dir>/<stem><idx>.bin". Truncation is an error, never a silent cut. */
+static srmech_status_t rcut_path(char *out, size_t cap, const char *dir,
+                                 const char *stem, uint32_t idx)
+{
+    assert(out != NULL && dir != NULL && stem != NULL);
+    assert(cap > 0u);
+    int k = snprintf(out, cap, "%s/%s%lu.bin", dir, stem, (unsigned long)idx);
+    if (k < 0 || (size_t)k >= cap) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    return SRMECH_OK;
+}
+
+/* Write `count` original node ids to `path` as packed uint32 records. */
+static srmech_status_t rcut_write_set(const char *path, const uint32_t *ids,
+                                      uint32_t count)
+{
+    assert(path != NULL);
+    assert(ids != NULL || count == 0u);
+    unsigned char buf[RCUT_WBUF_RECS * RCUT_NODE_REC];
+    srmech_status_t st = srmech_plat_file_write(path, 0, NULL, 0u);  /* truncate */
+    if (st != SRMECH_OK) { return st; }
+    uint32_t done = 0u;
+    while (done < count) {
+        uint32_t take = count - done;
+        if (take > RCUT_WBUF_RECS) { take = RCUT_WBUF_RECS; }
+        for (uint32_t i = 0u; i < take; i++) {
+            uint32_t v = ids[done + i];
+            memcpy(buf + (size_t)i * RCUT_NODE_REC, &v, sizeof v);
+        }
+        st = srmech_plat_file_write(path, 1, buf,
+                                    (size_t)take * RCUT_NODE_REC);
+        if (st != SRMECH_OK) { return st; }
+        done += take;
+    }
+    return SRMECH_OK;
+}
+
+/* Read a packed node-set file back into `ids` (capacity `cap`). */
+static srmech_status_t rcut_read_set(const char *path, uint32_t *ids,
+                                     uint32_t cap, uint32_t *out_count)
+{
+    assert(path != NULL);
+    assert(ids != NULL && out_count != NULL);
+    size_t bytes = 0u;
+    srmech_status_t st = srmech_plat_file_size(path, &bytes);
+    if (st != SRMECH_OK) { return st; }
+    if (bytes % RCUT_NODE_REC != 0u) { return SRMECH_ERR_BAD_INPUT; }
+    size_t count = bytes / RCUT_NODE_REC;
+    if (count > (size_t)cap) { return SRMECH_ERR_OVERFLOW; }
+    unsigned char buf[RCUT_WBUF_RECS * RCUT_NODE_REC];
+    size_t done = 0u;
+    while (done < count) {
+        size_t take = count - done;
+        if (take > RCUT_WBUF_RECS) { take = RCUT_WBUF_RECS; }
+        st = srmech_plat_file_read_region(path, done * RCUT_NODE_REC, buf,
+                                          take * RCUT_NODE_REC);
+        if (st != SRMECH_OK) { return st; }
+        for (size_t i = 0u; i < take; i++) {
+            memcpy(&ids[done + i], buf + i * RCUT_NODE_REC, sizeof(uint32_t));
+        }
+        done += take;
+    }
+    *out_count = (uint32_t)count;
+    return SRMECH_OK;
+}
+
+/* Local index of `orig` in the ASCENDING set `ids`, or UINT32_MAX if absent.
+ * The relabel the Python `orig_to_local` dict performed — as a binary search
+ * over the sorted set, so it needs no auxiliary structure at all. */
+static uint32_t rcut_find_local(const uint32_t *ids, uint32_t count, uint32_t orig)
+{
+    assert(ids != NULL || count == 0u);
+    assert(count <= UINT32_MAX);
+    uint32_t lo = 0u;
+    uint32_t hi = count;
+    while (lo < hi) {
+        uint32_t mid = lo + ((hi - lo) >> 1);
+        if (ids[mid] == orig) { return mid; }
+        if (ids[mid] < orig) { lo = mid + 1u; } else { hi = mid; }
+    }
+    return UINT32_MAX;
+}
+
+/* Streaming induced-subgraph writer state (one buffered output file). */
+typedef struct rcut_ind_ctx {
+    const uint32_t *ids;
+    uint32_t        count;
+    const char     *out_path;
+    unsigned char   buf[FIEDLER_CHUNK_BYTES];
+    size_t          fill;        /* bytes currently buffered */
+    int             opened;      /* 0 -> next flush truncates, 1 -> appends */
+    srmech_status_t st;
+} rcut_ind_ctx_t;
+
+static srmech_status_t rcut_ind_flush(rcut_ind_ctx_t *c)
+{
+    assert(c != NULL);
+    assert(c->fill <= FIEDLER_CHUNK_BYTES);
+    srmech_status_t st = srmech_plat_file_write(c->out_path, c->opened,
+                                                c->buf, c->fill);
+    c->opened = 1;
+    c->fill = 0u;
+    return st;
+}
+
+/* Per-record callback: keep an edge iff BOTH endpoints are in the set, and
+ * write it RELABELLED to local ids so the streaming Fiedler can run directly. */
+static srmech_status_t rcut_ind_rec(uint32_t u, uint32_t v, double w, void *ctx)
+{
+    assert(ctx != NULL);
+    rcut_ind_ctx_t *c = (rcut_ind_ctx_t *)ctx;
+    assert(c->fill <= FIEDLER_CHUNK_BYTES);
+    uint32_t lu = rcut_find_local(c->ids, c->count, u);
+    if (lu == UINT32_MAX) { return SRMECH_OK; }
+    uint32_t lv = rcut_find_local(c->ids, c->count, v);
+    if (lv == UINT32_MAX) { return SRMECH_OK; }
+    if (c->fill + FIEDLER_REC_BYTES > FIEDLER_CHUNK_BYTES) {
+        srmech_status_t st = rcut_ind_flush(c);
+        if (st != SRMECH_OK) { return st; }
+    }
+    memcpy(c->buf + c->fill, &lu, sizeof lu);
+    memcpy(c->buf + c->fill + 4u, &lv, sizeof lv);
+    memcpy(c->buf + c->fill + 8u, &w, sizeof w);
+    c->fill += FIEDLER_REC_BYTES;
+    return SRMECH_OK;
+}
+
+/* Stream `parent` and write the sub-graph induced on `ids` to `out_path`. */
+static srmech_status_t rcut_induced(const char *parent, const uint32_t *ids,
+                                    uint32_t count, const char *out_path)
+{
+    assert(parent != NULL && out_path != NULL);
+    assert(ids != NULL || count == 0u);
+    rcut_ind_ctx_t c;
+    memset(&c, 0, sizeof c);
+    c.ids = ids;
+    c.count = count;
+    c.out_path = out_path;
+    c.st = SRMECH_OK;
+    srmech_status_t st = fiedler_file_scan(parent, rcut_ind_rec, &c);
+    if (st != SRMECH_OK) { return st; }
+    return rcut_ind_flush(&c);          /* always runs: creates an empty file too */
+}
+
+/* Driver state — the on-disk layout plus the arena slices, carried between the
+ * ≤60-line helpers so none of them needs a 14-parameter signature. */
+typedef struct rcut_state {
+    char      queue_dir[RCUT_PATH_MAX];
+    char      tomes_dir[RCUT_PATH_MAX];
+    char      graph_path[RCUT_PATH_MAX];
+    char      sub_path[RCUT_PATH_MAX];
+    uint32_t *ids;        /* the popped set, ascending          (n)          */
+    uint32_t *scratch;    /* stable left|right partition buffer (n)          */
+    uint32_t *stack;      /* LIFO of (serial, depth)            (2*(n+2))    */
+    uint32_t  sp;         /* stack depth, in ENTRIES                          */
+    double   *fv;         /* Fiedler vector                     (n doubles)  */
+    double   *ws;         /* Fiedler scratch                    (8n doubles) */
+    uint32_t  n;          /* node count == the ids/scratch capacity           */
+    uint32_t  n_tomes;
+    uint32_t  serial;
+    uint64_t  resolved;   /* §101: Σ finalized-tome sizes (exact, monotone)  */
+} rcut_state_t;
+
+/* Retire a node set into tome slot `n_tomes`. `src` != NULL MOVES the existing
+ * file (never copies — the queue's whole low-RAM point); `src` == NULL writes
+ * `ids` out fresh (the uncuttable-block path, whose set file is already gone). */
+static srmech_status_t rcut_emit_tome(rcut_state_t *s, const char *src,
+                                      const uint32_t *ids, uint32_t count,
+                                      uint32_t *sizes_out, char *paths_out,
+                                      size_t paths_cap)
+{
+    assert(s != NULL);
+    assert(sizes_out != NULL && paths_out != NULL);
+    if ((size_t)s->n_tomes >= paths_cap) { return SRMECH_ERR_OVERFLOW; }
+    char dest[RCUT_PATH_MAX];
+    srmech_status_t st = rcut_path(dest, sizeof dest, s->tomes_dir,
+                                   "tome_", s->n_tomes);
+    if (st != SRMECH_OK) { return st; }
+    st = (src != NULL) ? srmech_plat_file_replace(src, dest)
+                       : rcut_write_set(dest, ids, count);
+    if (st != SRMECH_OK) { return st; }
+    memcpy(paths_out + (size_t)s->n_tomes * RCUT_PATH_MAX, dest, sizeof dest);
+    sizes_out[s->n_tomes] = count;
+    s->n_tomes += 1u;
+    return SRMECH_OK;
+}
+
+/* Create work_dir/queue + work_dir/tomes and seed the queue with the root set
+ * 0..n-1 (ascending — the invariant every later binary-search relabel rides). */
+static srmech_status_t rcut_setup(rcut_state_t *s, uint32_t n,
+                                  const char *work_dir, const char *edges_path)
+{
+    assert(s != NULL);
+    assert(work_dir != NULL && edges_path != NULL);
+    int k = snprintf(s->queue_dir, sizeof s->queue_dir, "%s/queue", work_dir);
+    int k2 = snprintf(s->tomes_dir, sizeof s->tomes_dir, "%s/tomes", work_dir);
+    int k3 = snprintf(s->sub_path, sizeof s->sub_path, "%s/sub.bin", work_dir);
+    int k4 = snprintf(s->graph_path, sizeof s->graph_path, "%s", edges_path);
+    if (k < 0 || (size_t)k >= sizeof s->queue_dir ||
+        k2 < 0 || (size_t)k2 >= sizeof s->tomes_dir ||
+        k3 < 0 || (size_t)k3 >= sizeof s->sub_path ||
+        k4 < 0 || (size_t)k4 >= sizeof s->graph_path) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    srmech_status_t st = srmech_plat_mkdir(work_dir);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_plat_mkdir(s->queue_dir);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_plat_mkdir(s->tomes_dir);
+    if (st != SRMECH_OK) { return st; }
+    for (uint32_t i = 0u; i < n; i++) { s->ids[i] = i; }
+    char root[RCUT_PATH_MAX];
+    st = rcut_path(root, sizeof root, s->queue_dir, "set_", 0u);
+    if (st != SRMECH_OK) { return st; }
+    st = rcut_write_set(root, s->ids, n);
+    if (st != SRMECH_OK) { return st; }
+    s->stack[0] = 0u;        /* serial 0 */
+    s->stack[1] = 0u;        /* depth  0 */
+    s->sp = 1u;
+    s->serial = 1u;
+    return SRMECH_OK;
+}
+
+/* §101 CLEAN partial: promote every STILL-PENDING set to a coarse, uncut tome.
+ * Finalized + promoted still partition ALL n nodes — a valid (coarser)
+ * partition plus a status, never a torn strand. Mirrors the Python promotion
+ * order exactly (stack index 0 upward == the `pending` list in order). */
+static srmech_status_t rcut_cancel(rcut_state_t *s, uint32_t *sizes_out,
+                                   char *paths_out, size_t paths_cap)
+{
+    assert(s != NULL);
+    assert(sizes_out != NULL && paths_out != NULL);
+    for (uint32_t i = 0u; i < s->sp; i++) {
+        char sp_path[RCUT_PATH_MAX];
+        srmech_status_t st = rcut_path(sp_path, sizeof sp_path, s->queue_dir,
+                                       "set_", s->stack[(size_t)i * 2u]);
+        if (st != SRMECH_OK) { return st; }
+        size_t bytes = 0u;
+        st = srmech_plat_file_size(sp_path, &bytes);
+        if (st != SRMECH_OK) { return st; }
+        uint32_t count = (uint32_t)(bytes / RCUT_NODE_REC);
+        st = rcut_emit_tome(s, sp_path, NULL, count, sizes_out, paths_out,
+                            paths_cap);
+        if (st != SRMECH_OK) { return st; }
+    }
+    s->sp = 0u;
+    return srmech_plat_file_remove(s->sub_path);
+}
+
+/* One bisection: stream the induced sub-graph, run the streaming Fiedler, and
+ * SIGN-SPLIT it. `*out_nleft` == 0 or == count means an uncuttable homogeneous
+ * block (the caller then emits it whole). The split is stable — both sides keep
+ * the parent's relative order, which is what preserves the ASCENDING invariant
+ * that rcut_find_local's binary search depends on. */
+static srmech_status_t rcut_bisect(rcut_state_t *s, uint32_t count,
+                                   uint32_t max_iters, uint32_t *out_nleft)
+{
+    assert(s != NULL);
+    assert(out_nleft != NULL && count >= 2u);
+    srmech_status_t st = rcut_induced(s->graph_path, s->ids, count, s->sub_path);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_laplacian_fiedler_sparse_file(count, s->sub_path, max_iters,
+                                              s->fv, s->ws, (size_t)8u * count);
+    if (st != SRMECH_OK) { return st; }
+    uint32_t nl = 0u;
+    for (uint32_t i = 0u; i < count; i++) {         /* Class-K pin-slot at 0 */
+        if (s->fv[i] < 0.0) { s->scratch[nl] = s->ids[i]; nl += 1u; }
+    }
+    uint32_t nr = nl;
+    for (uint32_t i = 0u; i < count; i++) {
+        if (!(s->fv[i] < 0.0)) { s->scratch[nr] = s->ids[i]; nr += 1u; }
+    }
+    assert(nr == count);
+    *out_nleft = nl;
+    return SRMECH_OK;
+}
+
+/* Write the two children out and push them LIFO. Python appends left then
+ * right and pops from the END, so RIGHT is processed first — mirrored here so
+ * the tome ORDER (and therefore every tome file name) matches byte-for-byte. */
+static srmech_status_t rcut_push_children(rcut_state_t *s, uint32_t count,
+                                          uint32_t nleft, uint32_t depth)
+{
+    assert(s != NULL);
+    assert(nleft > 0u && nleft < count);
+    char lp[RCUT_PATH_MAX];
+    char rp[RCUT_PATH_MAX];
+    uint32_t ls = s->serial;
+    uint32_t rs = s->serial + 1u;
+    s->serial += 2u;
+    srmech_status_t st = rcut_path(lp, sizeof lp, s->queue_dir, "set_", ls);
+    if (st != SRMECH_OK) { return st; }
+    st = rcut_path(rp, sizeof rp, s->queue_dir, "set_", rs);
+    if (st != SRMECH_OK) { return st; }
+    st = rcut_write_set(lp, s->scratch, nleft);
+    if (st != SRMECH_OK) { return st; }
+    st = rcut_write_set(rp, s->scratch + nleft, count - nleft);
+    if (st != SRMECH_OK) { return st; }
+    s->stack[(size_t)s->sp * 2u]      = ls;
+    s->stack[(size_t)s->sp * 2u + 1u] = depth + 1u;
+    s->sp += 1u;
+    s->stack[(size_t)s->sp * 2u]      = rs;
+    s->stack[(size_t)s->sp * 2u + 1u] = depth + 1u;
+    s->sp += 1u;
+    return SRMECH_OK;
+}
+
+/* Carve the caller arena: 9n doubles then 4n+4 uint32 (doubles first so the
+ * strictest alignment is satisfied by the arena base itself). */
+static void rcut_carve(rcut_state_t *s, uint32_t n, double *ws)
+{
+    assert(s != NULL);
+    assert(ws != NULL);
+    s->n  = n;
+    s->ws = ws;
+    s->fv = ws + (size_t)8u * n;
+    uint32_t *u = (uint32_t *)(void *)(ws + (size_t)9u * n);
+    s->ids     = u;
+    s->scratch = u + (size_t)n;
+    s->stack   = u + (size_t)2u * n;
+}
+
+/* ONE pop of the work queue: retire the set as a tome, or bisect it and push
+ * the two children. The three terminal conditions mirror the Python driver
+ * exactly — at-or-under max_tome, under 2 nodes, or at the depth guard. */
+static srmech_status_t rcut_step(rcut_state_t *s, uint32_t max_tome,
+                                 uint32_t max_iters, uint32_t max_depth,
+                                 uint32_t *sizes_out, char *paths_out,
+                                 size_t paths_cap)
+{
+    assert(s != NULL);
+    assert(s->sp > 0u);
+    s->sp -= 1u;
+    uint32_t serial = s->stack[(size_t)s->sp * 2u];
+    uint32_t depth  = s->stack[(size_t)s->sp * 2u + 1u];
+    char set_path[RCUT_PATH_MAX];
+    srmech_status_t st = rcut_path(set_path, sizeof set_path, s->queue_dir,
+                                   "set_", serial);
+    if (st != SRMECH_OK) { return st; }
+    uint32_t count = 0u;
+    st = rcut_read_set(set_path, s->ids, s->n, &count);
+    if (st != SRMECH_OK) { return st; }
+    if (count <= max_tome || count < 2u || depth >= max_depth) {
+        st = rcut_emit_tome(s, set_path, NULL, count, sizes_out, paths_out,
+                            paths_cap);
+        if (st != SRMECH_OK) { return st; }
+        s->resolved += count;
+        return SRMECH_OK;
+    }
+    uint32_t nleft = 0u;
+    st = rcut_bisect(s, count, max_iters, &nleft);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_plat_file_remove(set_path);
+    if (st != SRMECH_OK) { return st; }
+    if (nleft == 0u || nleft == count) {      /* uncuttable homogeneous block */
+        st = rcut_emit_tome(s, NULL, s->ids, count, sizes_out, paths_out,
+                            paths_cap);
+        if (st != SRMECH_OK) { return st; }
+        s->resolved += count;
+        return SRMECH_OK;
+    }
+    return rcut_push_children(s, count, nleft, depth);
+}
+
+srmech_status_t srmech_laplacian_recursive_cut(uint32_t                  n,
+                                               const char               *edges_path,
+                                               const char               *work_dir,
+                                               uint32_t                  max_tome,
+                                               uint32_t                  max_iters,
+                                               uint32_t                  max_depth,
+                                               uint32_t                 *tome_sizes_out,
+                                               char                     *tome_paths_out,
+                                               size_t                    paths_cap,
+                                               uint32_t                 *n_tomes_out,
+                                               double                   *ws,
+                                               size_t                    ws_len,
+                                               srmech_progress_tick_cb_t tick,
+                                               void                     *tick_user)
+{
+    if (edges_path == NULL || work_dir == NULL || tome_sizes_out == NULL ||
+        tome_paths_out == NULL || n_tomes_out == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (ws_len < srmech_laplacian_recursive_cut_arena_bytes(n)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(ws_len >= srmech_laplacian_recursive_cut_arena_bytes(n));
+    assert(n_tomes_out != NULL);
+    rcut_state_t s;
+    memset(&s, 0, sizeof s);
+    rcut_carve(&s, n, ws);
+    *n_tomes_out = 0u;
+    /* NO n == 0 early-out: the Python projection seeds the queue with the empty
+     * root set and retires it as ONE empty tome, so an early return here would
+     * be a real byte-parity divergence (caught by the rc284 parity matrix).
+     * The capability is the invariant — C mirrors the shipped contract. */
+    srmech_status_t st = rcut_setup(&s, n, work_dir, edges_path);
+    if (st != SRMECH_OK) { return st; }
+    while (s.sp > 0u) {
+        if (tick != NULL) {
+            srmech_progress_ev_t ev = { (uint32_t)sizeof(srmech_progress_ev_t),
+                                        (uint32_t)SRMECH_PHASE_PARTITIONING,
+                                        s.resolved, (uint64_t)n };
+            if (tick(&ev, tick_user) != 0) {
+                st = rcut_cancel(&s, tome_sizes_out, tome_paths_out, paths_cap);
+                *n_tomes_out = s.n_tomes;
+                return (st == SRMECH_OK) ? SRMECH_CANCELLED : st;
+            }
+        }
+        st = rcut_step(&s, max_tome, max_iters, max_depth, tome_sizes_out,
+                       tome_paths_out, paths_cap);
+        if (st != SRMECH_OK) { return st; }
+    }
+    st = srmech_plat_file_remove(s.sub_path);
+    if (st != SRMECH_OK) { return st; }
+    if (tick != NULL) {                    /* §101 terminal 100% heartbeat */
+        srmech_progress_ev_t ev = { (uint32_t)sizeof(srmech_progress_ev_t),
+                                    (uint32_t)SRMECH_PHASE_PARTITIONING,
+                                    s.resolved, (uint64_t)n };
+        (void)tick(&ev, tick_user);        /* return ignored — already done */
+    }
+    *n_tomes_out = s.n_tomes;
     return SRMECH_OK;
 }

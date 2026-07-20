@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc283"
-#define SRMECH_VERSION       "0.9.0rc283"
+#define SRMECH_VERSION_PRE   "rc284"
+#define SRMECH_VERSION       "0.9.0rc284"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1299,6 +1299,67 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file_progress(
     size_t                     ws_len,
     srmech_progress_tick_cb_t  tick,
     void                      *tick_user);
+
+/* §100 G1 (v0.9.0rc284): the OUT-OF-CORE RECURSIVE SPECTRAL BISECTION driver
+ * — the `while pending` recursion around srmech_laplacian_fiedler_sparse_file
+ * that, until rc284, existed ONLY in Python. That is what made §100 G1 the
+ * deepest C-host parity gap: the Fiedler ENGINE has been native since rc168,
+ * but a bare-C host could bisect ONCE and no further, so it could not build a
+ * partition at all. With this symbol the whole op runs standalone.
+ *
+ * Partitions the graph in `edges_path` (the packed 16-byte-record file
+ * srmech_laplacian_fiedler_sparse_file reads, written by write_packed_graph)
+ * into community TOMES under `work_dir`. Every pending sub-graph and every
+ * finished tome lives ON DISK — peak RAM is the caller arena alone, so the
+ * structure may exceed RAM. A set of <= max_tome nodes (or < 2, or at
+ * max_depth) becomes a leaf tome; otherwise it is sign-split by the streaming
+ * Fiedler and both halves are re-queued.
+ *
+ * NOT recursive in C (JPL Rule 1): an explicit arena-backed LIFO stack carries
+ * (serial, depth), in the Python driver's exact pop/append order, so both
+ * coherency projections emit byte-identical tome files in byte-identical
+ * order. Node sets are ASCENDING by construction, so the original->local
+ * relabel is a binary search over the set — no map, no allocation.
+ *
+ * `work_dir` is created if absent (as are work_dir/queue + work_dir/tomes);
+ * an existing one is REUSED. `tome_paths_out` is a caller array of
+ * `paths_cap` fixed-width 512-byte path slots (NUL-terminated); a partition
+ * needing more tomes than that returns SRMECH_ERR_OVERFLOW. `tome_sizes_out`
+ * (>= paths_cap entries) receives each tome's node count. *n_tomes_out gets
+ * the count written. n == 0 yields exactly ONE empty tome — matching the
+ * Python projection, which seeds the queue with the empty root set and retires
+ * it like any other leaf (an early-out here would be a parity divergence).
+ *
+ * `ws` is a caller arena of >= srmech_laplacian_recursive_cut_arena_bytes(n)
+ * BYTES (note: BYTES, unlike the fiedler_sparse family's DOUBLES) — so there
+ * is no compiled-in node cap; the bound is the caller's RAM.
+ *
+ * §101: `tick` fires once per queue pop (phase SRMECH_PHASE_PARTITIONING,
+ * done = Σ finalized-tome sizes so far — EXACT and monotone, total = n). A
+ * nonzero return CANCELS and returns SRMECH_CANCELLED after promoting every
+ * still-pending set to a coarse, uncut tome: the outputs then still partition
+ * ALL n nodes (a valid COARSER partition), never a torn result. `tick` may be
+ * NULL. Reuses the existing srmech_progress_tick_cb_t typedef, so this is a
+ * purely ABI-ADDITIVE pair of symbols -> SRMECH_ABI_VERSION stays 6. */
+size_t srmech_laplacian_recursive_cut_arena_bytes(uint32_t n);
+
+srmech_status_t srmech_laplacian_recursive_cut(uint32_t                  n,
+                                               const char               *edges_path,
+                                               const char               *work_dir,
+                                               uint32_t                  max_tome,
+                                               uint32_t                  max_iters,
+                                               uint32_t                  max_depth,
+                                               uint32_t                 *tome_sizes_out,
+                                               char                     *tome_paths_out,
+                                               size_t                    paths_cap,
+                                               uint32_t                 *n_tomes_out,
+                                               double                   *ws,
+                                               size_t                    ws_len,
+                                               srmech_progress_tick_cb_t tick,
+                                               void                     *tick_user);
+
+/* The fixed width of one `tome_paths_out` slot, in bytes. */
+#define SRMECH_RECURSIVE_CUT_PATH_MAX 512u
 
 /* §75-sparse (issue #698): the STREAMING k-extreme resonant read — the
  * n-unbounded C twin of srmech.amsc.coupling.resonant_spectrum_sparse. Reads the

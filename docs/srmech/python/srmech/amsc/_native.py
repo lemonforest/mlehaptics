@@ -2647,6 +2647,41 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_laplacian_fiedler_sparse_file_progress.restype = ctypes.c_int
 
+        # §100 G1 (rc284) — the OUT-OF-CORE RECURSIVE SPECTRAL BISECTION driver:
+        #     size_t srmech_laplacian_recursive_cut_arena_bytes(uint32_t n) +
+        #     srmech_status_t srmech_laplacian_recursive_cut(uint32_t n,
+        #         const char *edges_path, const char *work_dir, uint32_t max_tome,
+        #         uint32_t max_iters, uint32_t max_depth, uint32_t *tome_sizes_out,
+        #         char *tome_paths_out, size_t paths_cap, uint32_t *n_tomes_out,
+        #         double *ws, size_t ws_len, tick, void *tick_user)
+        #     The `while pending` recursion around the streaming Fiedler that was
+        #     Python-only before rc284 — the whole reason §100 G1 was the deepest
+        #     C-host parity gap. NEW symbols → own hasattr. ws_len is in BYTES here
+        #     (not doubles, unlike the fiedler_sparse family). Additive; reuses the
+        #     existing tick typedef, so ABI stays 6.
+        if hasattr(lib, "srmech_laplacian_recursive_cut"):
+            lib.srmech_laplacian_recursive_cut_arena_bytes.argtypes = [ctypes.c_uint32]
+            lib.srmech_laplacian_recursive_cut_arena_bytes.restype = ctypes.c_size_t
+            lib.srmech_laplacian_recursive_cut.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # edges_path (packed edge file)
+                ctypes.c_char_p,                   # work_dir
+                ctypes.c_uint32,                   # max_tome
+                ctypes.c_uint32,                   # max_iters
+                ctypes.c_uint32,                   # max_depth
+                ctypes.POINTER(ctypes.c_uint32),  # tome_sizes_out (paths_cap)
+                ctypes.POINTER(ctypes.c_char),    # tome_paths_out (paths_cap*512);
+                #   an OUT buffer, so POINTER(c_char) — c_char_p is the input-string
+                #   type and would not carry writes back.
+                ctypes.c_size_t,                   # paths_cap (slots)
+                ctypes.POINTER(ctypes.c_uint32),  # n_tomes_out
+                ctypes.POINTER(ctypes.c_double),  # ws arena
+                ctypes.c_size_t,                   # ws_len (in BYTES)
+                _TICK_CFUNCTYPE,                   # tick (NULL == off)
+                ctypes.c_void_p,                   # tick_user
+            ]
+            lib.srmech_laplacian_recursive_cut.restype = ctypes.c_int
+
         # size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n) +
         # srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n,
         #     const char *path, uint32_t k, uint32_t max_iters,
@@ -16106,6 +16141,75 @@ def fiedler_sparse_file_native_progress(n, graph_path, max_iters, progress):
     if rc not in (SRMECH_OK, SRMECH_CANCELLED):
         return None
     return list(out)                                # CANCELLED → the zeroed "no cut" vector
+
+
+#: One ``tome_paths_out`` slot, in bytes (SRMECH_RECURSIVE_CUT_PATH_MAX).
+RECURSIVE_CUT_PATH_MAX = 512
+
+
+def has_native_recursive_cut() -> bool:
+    """True iff the §100 G1 native OUT-OF-CORE RECURSIVE SPECTRAL BISECTION driver
+    is loaded + bound (rc284+ lib): the whole ``while pending`` recursion — queue,
+    induced sub-graphs, sign-split, tome retirement — runs in C, so a bare-C host
+    can build a partition standalone. Before rc284 the Fiedler ENGINE was native
+    (rc168) but the recursion around it was Python-only, which is exactly what made
+    this the deepest ADR-0003 parity gap. False on a no-C or pre-rc284 lib — the
+    pure-Python driver is the complete alternative (and the byte-parity oracle)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_laplacian_recursive_cut")
+                and hasattr(LIB, "srmech_laplacian_recursive_cut_arena_bytes"))
+
+
+def recursive_cut_c(n, edges_path, work_dir, max_tome, max_iters, max_depth,
+                    paths_cap, progress=None):
+    """§100 G1 native dispatch for :func:`srmech.amsc.laplacian.recursive_cut`.
+
+    Calls ``srmech_laplacian_recursive_cut``, which writes the tome files itself
+    and reports each tome's path + node count. Returns
+    ``(tome_paths, tome_sizes, cancelled)`` or ``None`` when the symbol is absent
+    or the C op declines (the caller then takes the pure path). ``progress`` is
+    threaded through the CFUNCTYPE trampoline: a truthy return CANCELS, and the C
+    op promotes every still-pending set to a coarse tome first, so the returned
+    tomes ALWAYS partition all ``n`` nodes — coarser, never torn. An exception in
+    ``progress`` is caught before it crosses the C frames and re-raised here."""
+    if not has_native_recursive_cut():
+        return None
+    need = LIB.srmech_laplacian_recursive_cut_arena_bytes(ctypes.c_uint32(n))
+    n_doubles = (int(need) + 7) // 8
+    ws = (ctypes.c_double * max(n_doubles, 1))()
+    sizes = (ctypes.c_uint32 * max(int(paths_cap), 1))()
+    paths = ctypes.create_string_buffer(max(int(paths_cap), 1)
+                                        * RECURSIVE_CUT_PATH_MAX)
+    n_tomes = ctypes.c_uint32(0)
+    box: dict = {}
+    tramp = (_make_tick_trampoline(progress, box) if progress is not None
+             else ctypes.cast(None, _TICK_CFUNCTYPE))
+    rc = LIB.srmech_laplacian_recursive_cut(
+        ctypes.c_uint32(n),
+        str(edges_path).encode("utf-8"),
+        str(work_dir).encode("utf-8"),
+        ctypes.c_uint32(int(max_tome)),
+        ctypes.c_uint32(int(max_iters)),
+        ctypes.c_uint32(int(max_depth)),
+        sizes,
+        ctypes.cast(paths, ctypes.POINTER(ctypes.c_char)),
+        ctypes.c_size_t(int(paths_cap)),
+        ctypes.byref(n_tomes),
+        ws,
+        ctypes.c_size_t(int(need)),
+        tramp, None,
+    )
+    if box.get("exc") is not None:
+        raise box["exc"]                    # re-raise the callback's own exception
+    if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+        return None
+    count = int(n_tomes.value)
+    raw = paths.raw
+    out_paths = []
+    for i in range(count):
+        slot = raw[i * RECURSIVE_CUT_PATH_MAX:(i + 1) * RECURSIVE_CUT_PATH_MAX]
+        out_paths.append(slot.split(b"\x00", 1)[0].decode("utf-8"))
+    return out_paths, [int(sizes[i]) for i in range(count)], rc == SRMECH_CANCELLED
 
 
 def has_native_k_extreme_modes() -> bool:
