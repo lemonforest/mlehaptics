@@ -36,15 +36,32 @@ the loaded library carries no assert machinery, so a misconfigured cell can
 never pass quietly.
 
 SCOPE NOTE — why a targeted smoke and not the full suite under asserts-live.
-A full asserts-live run of ``tests/`` was measured for this rc (489 files, each
+A full asserts-live run of ``tests/`` was measured for this rc (483 files, each
 in its own process so an abort is recorded rather than destroying the session).
-It surfaced exactly ONE aborting module, from exactly ONE wrong assert — the one
-fixed here. There was no pile of pre-existing aborts to work through, so a second
-full ~12-14 min suite in CI would spend the budget to re-prove a null. This file
-covers the documented edge-case inputs where a boundary assert is most likely to
-be wrong (empty containers, zero counts, zero-length labels, absent paths). If a
-future rc has reason to believe the class is broader, widening the cell's
-selection is a one-line change to the workflow.
+It surfaced exactly ONE wrong assert — the one fixed here — reaching three
+modules (``test_genome_census_rc267``, ``test_mcp`` and ``test_immolation``, the
+last two via ``mcp/_tools.invoke_tool``). There was no pile of pre-existing
+aborts to work through, so a second full ~12-14 min suite in CI would spend the
+budget to re-prove a null. This file covers the documented edge-case inputs where
+a boundary assert is most likely to be wrong (empty containers, zero counts,
+zero-length labels, absent paths). If a future rc has reason to believe the class
+is broader, widening the cell's selection is a one-line change to the workflow.
+
+A NOTE FOR ANYONE REPRODUCING THIS LOCALLY
+==========================================
+Getting an asserts-live library is not the same job as getting the asserts-live
+library to be the one that LOADS. ``pyproject.toml`` pins
+``cmake.build-type = "Release"``, so an ordinary ``pip install -e .`` produces an
+assert-free library in site-packages no matter what a separate ``cmake
+-DCMAKE_BUILD_TYPE=Debug`` beside it produced. Build it through the backend:
+
+    pip install -e ".[dev]" --config-settings=cmake.build-type=Debug
+
+Dropping a Debug ``.so`` into ``srmech/_native/`` also works, but only while that
+directory exists to win the ``srmech.__path__`` race against the installed copy —
+which is exactly how the first version of the CI cell failed. Prefer the install
+above, and confirm with ``SRMECH_ASSERTS_LIVE=1``: the first test in this file
+will tell you plainly if you are testing nothing.
 """
 from __future__ import annotations
 

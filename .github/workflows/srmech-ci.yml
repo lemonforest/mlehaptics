@@ -358,12 +358,12 @@ jobs:
     # split that a bare-C host could not even trap, invisible to every green run.
     #
     # SCOPE — a targeted smoke, not the full suite under asserts-live. rc289
-    # measured the full run (489 files, one process each so an abort is recorded
+    # measured the full run (483 files, one process each so an abort is recorded
     # rather than destroying the session): it surfaced ONE root-cause assert,
-    # reaching two modules. There is no backlog of pre-existing aborts, so a
+    # reaching three modules. There is no backlog of pre-existing aborts, so a
     # second ~12-14 min suite would spend the budget re-proving a null. This
     # cell runs the documented edge-case inputs where a boundary assert is most
-    # likely to be wrong. Widening it is a one-line change to the -k selection
+    # likely to be wrong. Widening it is a one-line change to the selection
     # below if a future rc has reason to think the class is broader.
     #
     # Linux/gcc only. The defect class is compiler-independent (it is our own
@@ -377,31 +377,33 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Build the C library with asserts LIVE (no NDEBUG)
-        working-directory: docs/srmech
-        # Debug is what leaves `assert` in. Release/RelWithDebInfo/MinSizeRel
-        # all define NDEBUG and would silently produce an assert-free library —
-        # which is the exact failure this job exists to prevent, so it is
-        # verified below rather than trusted.
-        run: |
-          cmake -S . -B build-asserts -DCMAKE_BUILD_TYPE=Debug
-          cmake --build build-asserts -j
-
-      - name: Install package + dev tools
+      - name: Install with the C library built ASSERTS-LIVE (no NDEBUG)
         working-directory: docs/srmech/python
+        # THE BUILD TYPE MUST TRAVEL THROUGH THE BUILD BACKEND, not around it.
+        #
+        # `pyproject.toml` pins `[tool.scikit-build] cmake.build-type = "Release"`,
+        # so the library the install produces is Release — NDEBUG, every assert
+        # stripped — regardless of any separate `cmake -DCMAKE_BUILD_TYPE=Debug`
+        # run beside it, and regardless of a bare CMAKE_BUILD_TYPE env var, which
+        # scikit-build-core does not read. `--config-settings` is the mechanism it
+        # honours, and it outranks the pyproject value. (Needs pip >= 23.1 for
+        # config-settings on an editable install; the upgrade above guarantees it.)
+        #
+        # The first version of this cell built Debug separately and copied the .so
+        # over the installed one. That is what CI caught: it depends on the copied
+        # file winning a `srmech.__path__` race against the installed Release .so,
+        # and MEASURED (rc289, venv reproduction) the race goes different ways in
+        # different environments — the source tree wins only when it actually has a
+        # `_native/` directory, otherwise `_find_library()` resolves the
+        # site-packages Release copy and the whole cell silently tests nothing.
+        # Building the installed library Debug in the first place removes the race
+        # instead of trying to win it: every candidate path now holds one library,
+        # and it is the asserts-live one.
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev]"
-
-      - name: Swap in the asserts-live library
-        working-directory: docs/srmech/python
-        # `srmech.amsc._native._find_library` resolves via `srmech.__path__`, and
-        # the pytest step below runs from this directory, so the source-tree copy
-        # is the one that loads (the rc224 cwd-wins rule). Overwrite whatever
-        # Release .so the editable install produced.
-        run: |
-          mkdir -p srmech/_native
-          cp ../build-asserts/libsrmech.so srmech/_native/libsrmech.so
+          # No stale hand-placed library may pre-empt the installed one.
+          rm -rf srmech/_native
+          python -m pip install -e ".[dev]" --config-settings=cmake.build-type=Debug
 
       - name: Verify the asserts really ARE live
         working-directory: docs/srmech/python
@@ -410,12 +412,10 @@ jobs:
         # survives compilation emits a call to libc `__assert_fail`; -DNDEBUG
         # removes the references along with the asserts.
         #
-        # Checked against the library `_find_library()` ACTUALLY RESOLVES, not
-        # against the path the previous step wrote. Those can differ: the editable
-        # install also places a Release .so, and `_find_library`'s third strategy
-        # can reach it via the installed-files manifest. Verifying the file we
-        # copied rather than the file that loads would be exactly the kind of
-        # false green this cell exists to catch.
+        # Checked against the library `_find_library()` ACTUALLY RESOLVES, not any
+        # path this workflow wrote down. That distinction is what made the first
+        # failure of this cell legible in one read rather than a mystery, so it
+        # stays even now that the install produces only one library.
         run: |
           LIB=$(python -c "from srmech.amsc import _native; print(_native._find_library())")
           echo "resolved library: $LIB"
