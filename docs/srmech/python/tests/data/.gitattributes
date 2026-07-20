@@ -1,0 +1,14 @@
+# tests/data/ holds BYTE-EXACT fixtures. Git must never rewrite their line endings.
+#
+# Why this file exists (rc287, 2026-07-19): the repo has core.autocrlf=true and had no
+# .gitattributes anywhere, so `GraphemeBreakTest.txt` — the official UCD conformance
+# fixture whose sha256 IS its attestation — was checked out with CRLF on Windows. The
+# committed blob was correct (ee2b9354…) but the working tree hashed to 0866f99d…, so
+# `test_fixture_is_the_attested_upstream_file` failed. On Linux CI autocrlf is off, so
+# the fixture stayed LF and the test passed: an attestation that was silently wrong on
+# ONE PLATFORM ONLY, which CI could not have caught.
+#
+# The rule is general, not a one-off patch: anything in this directory is fixture data
+# whose BYTES are the contract — an attested upstream file, a binary genome store, an
+# NDJSON corpus pinned by hash. Text-normalisation is never correct for any of them.
+* -text
