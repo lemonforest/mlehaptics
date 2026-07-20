@@ -1,8 +1,8 @@
 """Text → tokens → co-occurrence-edge ingestion (the Class-L precursor front of K1).
 
 The text→graph leaves of the RBS-LM **K1 presence-kernel** chain
-``text → tokenize → cooccurrence_edges → dense_laplacian`` (UPSTREAM_NOTES §17 U1
-/ §40). Kept in a dedicated **ingestion** module — `tokenize` is not a spectral
+``text → glyph_stream → cooccurrence_edges → dense_laplacian`` (UPSTREAM_NOTES
+§17 U1 / §40). Kept in a dedicated **ingestion** module — `glyph_stream` is not a spectral
 op and `cooccurrence_edges` is the Class-L *precursor* that produces what
 :func:`srmech.amsc.laplacian.dense_laplacian` consumes — so ``laplacian`` stays
 purely spectral (Class E/G ingestion vs Class-L spectral; §40 Option 1).
@@ -832,7 +832,7 @@ def cooccurrence_topk(
         raise ValueError(f"cooccurrence_topk: chunk_docs must be a positive int; got {chunk_docs!r}")
     if isinstance(docs, str):
         raise TypeError("cooccurrence_topk: docs must be a token sequence or a stream of "
-                        "token sequences, not a raw str — tokenize() it first")
+                        "token sequences, not a raw str — glyph_stream() it first")
     cap = k * cap_slack
 
     fixed_vocab = vocab is not None
@@ -971,7 +971,7 @@ def _as_doc_list(docs: Sequence[object]) -> List[List[str]]:
     if isinstance(docs, str):
         raise TypeError(
             "cooccurrence_edges: docs must be a token sequence or a sequence of "
-            "token sequences, not a raw str — tokenize() it first"
+            "token sequences, not a raw str — glyph_stream() it first"
         )
     materialised = list(docs)
     if not materialised:

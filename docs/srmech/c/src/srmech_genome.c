@@ -3527,12 +3527,26 @@ static int genome_dir_is_genome(const char *root, const char *name, char *dirbuf
 /* List basenames of GENOME dirs under `root` into `names` (cap max_n) via the
  * PAL dir surface (no #ifdef — the OS opendir/FindFirstFile is in the PAL). A
  * missing root yields count 0 (not an error). Bounded (JPL Rule 2). names==NULL
- * runs a count-only pass. */
+ * runs a count-only pass.
+ *
+ * `max_n` is a CAPACITY, and ZERO IS A LEGAL CAPACITY. An EMPTY root is a
+ * documented supported input (the public docstring promises n_genomes 0), and
+ * the two-pass caller reaches pass 2 with (names != NULL, max_n == 0) whenever
+ * pass 1 counted none. That shape is safe by construction: the `n >= max_n`
+ * overflow guard below fires BEFORE any store, so `names` is never dereferenced
+ * at capacity 0 — an empty root simply falls out of the loop with count 0, and
+ * a genome appearing between the two passes is reported as OVERFLOW (a clean
+ * status, not a crash). rc289: this previously asserted `max_n > 0u`, which
+ * ABORTED the host on that documented input under an asserts-live build while
+ * NDEBUG builds returned the right answer — an ADR-0009 projection split that
+ * every shipped (Release) build masked. The assert was wrong, not the code. */
 static srmech_status_t genome_list_genomes(const char *root,
     char names[][SRMECH_PLAT_DIR_NAME_MAX], uint32_t max_n, uint32_t *count)
 {
     assert(root != NULL && count != NULL);
-    assert(names == NULL || max_n > 0u);
+    /* The count-only pass must not claim capacity it has no buffer for; the
+     * fill pass may legally carry capacity 0 (see the note above). */
+    assert(names != NULL || max_n == 0u);
     uint32_t n = 0u;
     srmech_plat_dir_t d;
     srmech_status_t st = srmech_plat_dir_open(root, &d);
