@@ -357,7 +357,6 @@ static const srmech_tool_param_t ts_params_21[] = {
 };
 static const srmech_tool_param_t ts_params_22[] = {
     { "text", "str", 1, "" },
-    { "stoplist", "list", 0, "function words to drop (casefolded); default DEFAULT_STOPLIST. None/empty = raw mode" },
     { "unicode_normalize", "bool", 0, "NFC-normalise text first (default True)" },
 };
 static const srmech_tool_param_t ts_params_23[] = {
@@ -2470,18 +2469,18 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "Build the dense ``n\303\227n`` adjacency matrix from an undirected edge list.",
     },
     { /* 22 */
-        "srmech.amsc.text.tokenize",
+        "srmech.amsc.text.glyph_stream",
         "srmech",
         "text",
-        "Segment text into casefolded Unicode content tokens (Class B/G text-segmentation; \302\24740/F698): keep runs of Unicode letter|mark codepoints (so caf\303\251 / \320\234\320\276\321\201\320\272\320\262\320\260 / \346\227\245\346\234\254\350\252\236 survive, NOT an ASCII word pattern), casefold, drop length<2 or stoplist words. NFC-normalises by default. The text\342\206\222tokens front of the K1 text\342\206\222graph\342\206\222spectral chain.",
-        ts_params_22, 3u,
+        "Segment text into UAX #29 EXTENDED GRAPHEME CLUSTERS \342\200\224 the language-agnostic glyph stream (Class B/G text-segmentation; \302\24740/F698; rc287). A cluster is what a reader perceives as ONE character, and it is the only unit well-defined in every script, so there is no per-language word decision: no length floor, no casefold, no stoplist. It REPLACES the former `tokenize`, whose word decision carried four Latin-shaped assumptions \342\200\224 scriptio-continua scripts collapsed into single 45-96 character tokens with ~89% of types singletons, single-codepoint CJK content words and the Hawaiian okina were deleted outright, and every emoji sequence returned empty. Emoji ZWJ sequences (GB11), flag pairs (GB12/13) and Indic conjuncts (GB9c) each come back as ONE cluster. Lossless: ''.join(result) reconstructs the NFC-normalised input exactly. Scores 1093/1093 on the official UAX #29 GraphemeBreakTest in both coherency projections; the break table is vendored (UCD 16.0.0) because Extended_Pictographic and InCB are not derivable from unicodedata at any fidelity. The text\342\206\222glyphs front of the K1 text\342\206\222graph\342\206\222spectral chain.",
+        ts_params_22, 2u,
         "list[str]",
-        "casefolded Unicode content-token stream",
+        "the UAX #29 grapheme-cluster stream",
         1,
         NULL,
-        "{\"input\":{\"text\":\"'abc'\"},\"output\":\"['abc']\"}",
+        "{\"input\":{\"text\":\"'abc'\"},\"output\":\"['a', 'b', 'c']\"}",
         NULL,
-        "Segment ``text`` into casefolded, Unicode-aware content tokens (\302\24740 / F698).",
+        "Segment ``text`` into UAX #29 extended grapheme clusters \342\200\224 the language-agnostic glyph stream (\302\24740 / F698; rc287). A cluster is what a reader perceives as ONE character and is the only unit well-defined in every script, so there is no per-language word decision: no length floor, no casefold, no stoplist. Emoji ZWJ sequences (GB11), flag pairs (GB12/13) and Indic conjuncts (GB9c) each come back as ONE cluster. Lossless \342\200\224 ''.join(result) reconstructs the NFC-normalised input exactly.",
     },
     { /* 23 */
         "srmech.amsc.text.cooccurrence_edges",

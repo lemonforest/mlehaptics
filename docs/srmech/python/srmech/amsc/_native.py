@@ -75,7 +75,23 @@ from typing import Optional
 #        v5 dispatch-observer. Same CFUNCTYPE wire-format convention as
 #        v2→v3, so ABI bumps (the additive *_progress functions alone
 #        would not). Later APPEND-only struct growth does NOT re-bump.
-EXPECTED_ABI_VERSION: int = 6
+#   v7 — v0.9.0rc287: the glyph-stream tokenizer (BREAKING). REMOVES the
+#        exported srmech_text_tokenize; adds srmech_text_glyph_stream +
+#        srmech_text_default_gb_table. The FIRST bump driven by a REMOVAL
+#        rather than a callback typedef — and the removal alone is enough.
+#        THIS shim is why, though not in the way it first looks: because it
+#        binds optional peers by ``hasattr``, a removed symbol raises
+#        NOTHING against a stale lib. It was checked rather than assumed —
+#        with the peer absent, glyph_stream() returns a CORRECT cluster
+#        stream from the pure body (1093/1093 still). So the removal shows
+#        up as neither a bad result nor a load error; it shows up as
+#        nothing at all, while the ABI check passes, HAS_NATIVE stays True
+#        and every OTHER op keeps dispatching into a mismatched build.
+#        This version is the only thing that can catch that. (The added
+#        symbols alone would not have bumped.) rc286 also claimed 7 but is
+#        NOT shipping — rc287 supersedes it — so 7 belongs here; the gap
+#        is deliberate.
+EXPECTED_ABI_VERSION: int = 7
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -5948,28 +5964,34 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_riemann_theta_multisum.restype = ctypes.c_int
 
-    # rc217: srmech_text_* — the C peers of the srmech.amsc.text §40/§52
-    # text→graph ingestion ops (gh #1360; the enwiki-encode hot loop). All four
-    # are BYTE-IDENTICAL kernels over caller-arena buffers: the tokenizer takes
-    # the caller-built Unicode tables (kept-bitset + casefold exceptions, built
-    # once per process from the RUNNING interpreter's unicodedata — parity by
-    # construction on any Unicode version); the co-occurrence kernels take
-    # per-document uint32 vocab-id streams + a power-of-two (keys, vals) hash
-    # arena (load ≤ 1/2; SRMECH_ERR_OVERFLOW → grow + retry). Explicit
-    # argtypes/restype per the rc201 discipline (size_t marshalling).
-    if hasattr(lib, "srmech_text_tokenize"):
-        lib.srmech_text_tokenize.argtypes = [
+    # srmech_text_* — the C peers of the srmech.amsc.text §40/§52 text→graph
+    # ingestion ops (gh #1360; the enwiki-encode hot loop). All are
+    # BYTE-IDENTICAL kernels over caller-arena buffers: the segmenter takes the
+    # UAX #29 break table as a caller-provided input (rc287 — srmech vendors
+    # the attested default, which a bare-C host reaches via
+    # srmech_text_default_gb_table; it cannot be built from unicodedata because
+    # Extended_Pictographic and InCB are not exposed there); the co-occurrence
+    # kernels take per-document uint32 vocab-id streams + a power-of-two
+    # (keys, vals) hash arena (load ≤ 1/2; SRMECH_ERR_OVERFLOW → grow + retry).
+    # Explicit argtypes/restype per the rc201 discipline (size_t marshalling).
+    if hasattr(lib, "srmech_text_glyph_stream"):
+        lib.srmech_text_glyph_stream.argtypes = [
             ctypes.c_char_p, ctypes.c_size_t,                   # text (zero-copy bytes), len
-            ctypes.POINTER(ctypes.c_uint8),                     # kept_bits
-            ctypes.POINTER(ctypes.c_uint32),                    # fold_cps
-            ctypes.POINTER(ctypes.c_uint32),                    # fold_off
-            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,    # fold_bytes, n_folds
-            ctypes.POINTER(ctypes.c_uint32),                    # stop_off
-            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,    # stop_bytes, n_stop
-            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,    # out, out_cap
-            ctypes.POINTER(ctypes.c_size_t),                    # out_len
+            ctypes.POINTER(ctypes.c_uint32),                    # lo
+            ctypes.POINTER(ctypes.c_uint32),                    # hi
+            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,    # prop, n_ranges
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # out_off, out_cap
+            ctypes.POINTER(ctypes.c_size_t),                    # out_n
         ]
-        lib.srmech_text_tokenize.restype = ctypes.c_int
+        lib.srmech_text_glyph_stream.restype = ctypes.c_int
+    if hasattr(lib, "srmech_text_default_gb_table"):
+        lib.srmech_text_default_gb_table.argtypes = [
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint32)),    # out_lo
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint32)),    # out_hi
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint8)),     # out_prop
+            ctypes.POINTER(ctypes.c_size_t),                    # out_n_ranges
+        ]
+        lib.srmech_text_default_gb_table.restype = None
     if hasattr(lib, "srmech_text_cooccurrence_edges"):
         lib.srmech_text_cooccurrence_edges.argtypes = [
             ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
@@ -15754,14 +15776,14 @@ def q_wz_verify_c(rn_num, rn_den, rk_num, rk_den, cert_num, cert_den):
     return bool(out_equal.value)
 
 
-def has_native_text_tokenize() -> bool:
-    """True iff the rc217 srmech_text_tokenize C peer is loaded + bound: the
-    §40/F698 per-codepoint tokenize loop runs in C (the enwiki-encode hot
-    front). False on a no-C or pre-rc217 lib — the pure-Python
-    :func:`srmech.amsc.text.tokenize` body is the complete alternative (and
-    the byte-identical parity oracle)."""
+def has_native_text_glyph_stream() -> bool:
+    """True iff the rc287 srmech_text_glyph_stream C peer is loaded + bound:
+    the UAX #29 per-codepoint grapheme-cluster segmentation loop runs in C
+    (the enwiki-encode hot front). False on a no-C or pre-rc287 lib — the
+    pure-Python :func:`srmech.amsc.text.glyph_stream` body is the complete
+    alternative (and the byte-identical parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
-                and hasattr(LIB, "srmech_text_tokenize"))
+                and hasattr(LIB, "srmech_text_glyph_stream"))
 
 
 def has_native_text_cooccurrence_edges() -> bool:

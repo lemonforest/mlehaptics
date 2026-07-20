@@ -81,7 +81,7 @@
 {"exposed_as": "srmech.amsc.kepler.equation_of_centre", "defined_at": "srmech.amsc.kepler.equation_of_centre", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.kepler_solve", "defined_at": "srmech.amsc.kepler.kepler_solve", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.kepler.pin_slot", "defined_at": "srmech.amsc.kepler.pin_slot", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.text.tokenize", "defined_at": "srmech.amsc.text.tokenize", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.text.glyph_stream", "defined_at": "srmech.amsc.text.glyph_stream", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.text.cooccurrence_edges", "defined_at": "srmech.amsc.text.cooccurrence_edges", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.text.cooccurrence_topk", "defined_at": "srmech.amsc.text.cooccurrence_topk", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.dense_adjacency", "defined_at": "srmech.amsc.laplacian.dense_adjacency", "bucket": "c_dispatched"}

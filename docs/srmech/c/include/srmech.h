@@ -64,13 +64,25 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc285"
-#define SRMECH_VERSION       "0.9.0rc285"
+#define SRMECH_VERSION_PRE   "rc287"
+#define SRMECH_VERSION       "0.9.0rc287"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
  * function changes. Adding a NEW symbol does not bump ABI; changing
- * an existing signature does.
+ * an existing signature does; and — stated explicitly since rc287,
+ * because its absence here is what let a removal ship unbumped through
+ * a first review pass — REMOVING an exported symbol ALWAYS bumps.
+ *
+ * The reason is not that the removed op misbehaves. It is that a
+ * removal produces NO OTHER SYMPTOM. The ctypes shim binds optional
+ * peers by `hasattr`, so against a stale lib the absent symbol raises
+ * nothing and the wrapper simply runs its pure body — which is the
+ * CORRECT result for that one op. Meanwhile the ABI check has passed,
+ * HAS_NATIVE stays true, and EVERY OTHER op keeps dispatching into a
+ * library built from different source. The ABI version is the only
+ * mechanism that can catch that pairing, and a removal is precisely
+ * the change that leaves it nothing else to catch.
  *
  * v1 — Phase B3 baseline: srmech_sha256_hex.
  * v2 — Phase B4: srmech_ndjson_iter callback signature gained
@@ -112,8 +124,25 @@ extern "C" {
  *      wire-format implication for the Python ctypes shim, so ABI bumps (the
  *      additive *_progress functions alone would not). Later APPEND-only growth
  *      of srmech_progress_ev_t via its struct_size gate does NOT re-bump.
+ * v7 — v0.9.0rc287: the glyph-stream tokenizer (BREAKING). REMOVES the
+ *      exported srmech_text_tokenize and adds srmech_text_glyph_stream +
+ *      srmech_text_default_gb_table. The FIRST bump driven by a REMOVAL
+ *      rather than a callback typedef, and the removal alone is sufficient
+ *      per the policy note above. Verified rather than assumed: with the lib
+ *      loaded but srmech_text_glyph_stream absent, glyph_stream() returns a
+ *      CORRECT grapheme-cluster stream from its pure body (conformance still
+ *      1093/1093) — so the removal is not caught by wrong output, and it is
+ *      not caught by a load error either. Nothing catches it except this
+ *      version, while HAS_NATIVE stays true and the rest of the library
+ *      dispatches into a mismatched build. (The added symbols alone would
+ *      not have bumped.)
+ *
+ *      rc286 also claimed 7, but is NOT shipping: rc287 supersedes it
+ *      completely (it parameterised the `_MIN_LEN` machinery this rc
+ *      deletes outright), so 7 belongs to rc287. The rc286 branch and its
+ *      findings are retained; the numbering gap is deliberate.
  */
-#define SRMECH_ABI_VERSION 6
+#define SRMECH_ABI_VERSION 7
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -11275,14 +11304,21 @@ srmech_status_t srmech_qm_su3_structure(double *out);
  * (-weight, index) tie-breaks, first-seen edge weights, lexicographic
  * edge order) — the correctness gate for the downstream Laplacian.
  *
- * Unicode tables are CALLER-PROVIDED data (caller-arena discipline): the
- * kept-bitset (0x110000 bits — one per codepoint, set iff Unicode
- * category major class is L or M) and the casefold exception table
- * (sorted codepoints + offset-indexed folded-UTF-8 blob, non-identity
- * rows only). The srmech Python wrapper builds both once per process
- * from the RUNNING interpreter's unicodedata, so native == pure holds on
- * any interpreter / Unicode version; a bare-C host supplies its own
- * tables (inputs, like the stoplist).
+ * rc287 replaced the word with the GLYPH CLUSTER as the unit. The
+ * retired tokenizer's word decision carried a length floor, a casefold,
+ * an English stoplist and an apostrophe special case — all of which were
+ * Latin-shaped assumptions that mis-segmented most of the world's
+ * scripts (scriptio continua fell into single 45-96 char "words"; ~89%
+ * of resulting types were singletons). A UAX #29 extended grapheme
+ * cluster is well-defined in EVERY script, so no per-language decision
+ * is made at the front door.
+ *
+ * The break table stays CALLER-PROVIDED data (caller-arena discipline),
+ * but unlike the retired tokenizer's tables it cannot be built from a
+ * host interpreter: unicodedata exposes no grapheme-break property, no
+ * Extended_Pictographic and no InCB. srmech vendors one attested default
+ * (srmech_unicode_gb_tables.h) that both projections load and that
+ * srmech_text_default_gb_table() hands to a bare-C host.
  *
  * All workspaces are caller arenas (JPL Rule 3); a too-small hash /
  * scratch arena returns SRMECH_ERR_OVERFLOW (grow + retry — the
@@ -11292,22 +11328,40 @@ srmech_status_t srmech_qm_su3_structure(double *out);
  * tests/test_text_c_rc217.py.
  * ------------------------------------------------------------------ */
 
-/* Tokenize NFC-normalized UTF-8 `text` into '\n'-separated casefolded
- * content tokens in `out` (*out_len bytes; each kept token is followed
- * by one '\n'). Runs of kept codepoints (kept_bits) accumulate,
- * word-internal apostrophes (U+0027 / U+2019, stored as ASCII ') are
- * kept, each run is per-codepoint casefolded (fold_cps/fold_off/
- * fold_bytes; identity when absent), end-apostrophe-trimmed, and emitted
- * iff its folded codepoint count >= 2 and it is not one of the n_stop
- * sorted stoplist entries (stop_off/stop_bytes, casefolded UTF-8).
- * out_cap >= 4*text_len + 1 always suffices. Malformed UTF-8 →
- * SRMECH_ERR_BAD_INPUT. */
-srmech_status_t srmech_text_tokenize(
-    const uint8_t *text, size_t text_len, const uint8_t *kept_bits,
-    const uint32_t *fold_cps, const uint32_t *fold_off,
-    const uint8_t *fold_bytes, size_t n_folds,
-    const uint32_t *stop_off, const uint8_t *stop_bytes, size_t n_stop,
-    uint8_t *out, size_t out_cap, size_t *out_len);
+/* Expose the srmech-shipped DEFAULT UAX #29 break-property table
+ * (srmech_unicode_gb_tables.h; UCD 16.0.0, attested + re-derivable via
+ * c/tools/gen_unicode_gb_tables.py --verify). This is the entry point that
+ * lets a BARE-C HOST WITH NO PYTHON PRESENT segment the full Unicode
+ * domain (ADR-0003): call this, then pass the four values straight to
+ * srmech_text_glyph_stream. A host with its own table skips this and
+ * passes that table instead — the table is an INPUT, never a hidden
+ * global, so the op stays reentrant and arena-safe. */
+void srmech_text_default_gb_table(
+    const uint32_t **out_lo, const uint32_t **out_hi,
+    const uint8_t **out_prop, size_t *out_n_ranges);
+
+/* Segment NFC-normalized UTF-8 `text` into UAX #29 EXTENDED GRAPHEME
+ * CLUSTERS — the glyph stream (rc287). Writes *out_n + 1 ascending byte
+ * offsets into `out_off`, so cluster i spans [out_off[i], out_off[i+1]);
+ * the trailing sentinel is text_len. out_cap >= text_len + 1 always
+ * suffices (one cluster per byte is the worst case).
+ *
+ * The break table (lo/hi/prop/n_ranges, ascending non-overlapping ranges;
+ * packed byte = gbp in bits 0-3, Extended_Pictographic in bit 4, InCB in
+ * bits 5-6) is a CALLER-PROVIDED input — see srmech_text_default_gb_table.
+ * Hangul LV/LVT are recovered by the UAX #29 §3 syllable algebra and are
+ * deliberately absent from the table; jamo L/V/T are present as rows.
+ *
+ * Implements GB1..GB999 including GB9c (Indic conjuncts, Unicode 15.1)
+ * and GB11 (emoji ZWJ sequences); scores 1093/1093 on the official
+ * GraphemeBreakTest.txt (tests/test_glyph_stream_conformance_rc287.py).
+ * Malformed UTF-8 → SRMECH_ERR_BAD_INPUT; too-small out_cap →
+ * SRMECH_ERR_OVERFLOW (grow + retry; results identical at any sufficient
+ * capacity). */
+srmech_status_t srmech_text_glyph_stream(
+    const uint8_t *text, size_t text_len,
+    const uint32_t *lo, const uint32_t *hi, const uint8_t *prop,
+    size_t n_ranges, uint32_t *out_off, size_t out_cap, size_t *out_n);
 
 /* Windowed unordered co-occurrence pair counts over per-document vocab-id
  * streams (doc d = tok_ids[doc_off[d] .. doc_off[d+1]); the window resets
