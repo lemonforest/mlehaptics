@@ -183,8 +183,21 @@ def build_docs() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]],
         entry: Dict[str, Any] = {}
         if expl:
             entry["explanation"] = expl
-        # prefer an existing hand-written literal example; else auto-build.
-        ex = t.example if t.example else _build_example(t)
+        # A {"call": ...} example is MECHANICALLY derivable from the parameters,
+        # so it must ALWAYS be re-derived — never seeded from t.example.
+        # t.example is loaded FROM the generated _tool_docs.py (tool_schema.py
+        # imports TOOL_DOCS at line 313), so preferring it closes a loop: the
+        # generator reads its own output as authoritative and _build_example
+        # becomes unreachable for every op that already has an entry. A renamed
+        # parameter can then NEVER reach its example. That is how rc290's
+        # the_one -> coupling rename left 49 call signatures advertising a
+        # kwarg that raises TypeError.
+        # Executed-I/O examples ({"input"/"output"}) are NOT derivable — keep those.
+        derived = _build_example(t)
+        if t.example and set(t.example) != {"call"}:
+            ex = t.example          # executed I/O — not re-derivable, preserve
+        else:
+            ex = derived or t.example
         if ex:
             entry["example"] = ex
         if entry:
