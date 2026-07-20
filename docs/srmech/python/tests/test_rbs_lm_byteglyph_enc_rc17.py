@@ -9,14 +9,14 @@ Covers the three shipped pieces + the behaviour-pin guarantee:
      stable across the byte and word scales (F900).
   4. ``RBSLMInferenceSubstrate`` runs on the byte/glyph object natively.
 
-numpy-free (the no-numpy-test discipline); deterministic (seeded ``klein4_random``).
+numpy-free (the no-numpy-test discipline); deterministic (seeded ``klein4_expand``).
 """
 
 from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as cs
 
 D = 96
-_PERTURB = hdc.klein4_random(D, seed=999)  # a fixed off-manifold atom
+_PERTURB = hdc.klein4_expand(D, 999)  # a fixed off-manifold atom
 
 
 def _retained_sim(parts, i):
@@ -44,7 +44,7 @@ def _chained_retained_sim(parts, i):
 def test_klein4_compose_is_similarity_preserving_vs_chained_fold():
     """A one-part change degrades the compositor GRACEFULLY; the chained-bind fold
     collapses to ~chance — the F900 core claim, the reason C1 is the LM substrate."""
-    parts = [hdc.klein4_random(D, seed=s) for s in (1, 2, 3, 4, 5)]
+    parts = [hdc.klein4_expand(D, s) for s in (1, 2, 3, 4, 5)]
     comp = [_retained_sim(parts, i) for i in range(len(parts))]
     chain = [_chained_retained_sim(parts, i) for i in range(len(parts))]
     # compose retains structure; chained fold falls toward the ~0.25 chance level.
@@ -54,7 +54,7 @@ def test_klein4_compose_is_similarity_preserving_vs_chained_fold():
 
 
 def test_klein4_compose_single_and_empty():
-    one = hdc.klein4_random(D, seed=7)
+    one = hdc.klein4_expand(D, 7)
     out = hdc.klein4_compose([one])
     assert len(out) == D  # single part → position-bound (the identity rung)
     try:
@@ -67,9 +67,9 @@ def test_klein4_compose_single_and_empty():
 
 def test_klein4_compose_order_sensitive():
     """Position-binding makes the compositor order-sensitive (a sequence model)."""
-    a = hdc.klein4_random(D, seed=11)
-    b = hdc.klein4_random(D, seed=12)
-    c = hdc.klein4_random(D, seed=13)
+    a = hdc.klein4_expand(D, 11)
+    b = hdc.klein4_expand(D, 12)
+    c = hdc.klein4_expand(D, 13)
     s_ab = float(hdc.klein4_similarity(
         hdc.klein4_compose([a, b, c]), hdc.klein4_compose([c, b, a])))
     assert s_ab < 0.6  # reordering moves the composite well off identity
@@ -126,7 +126,7 @@ def test_pos_key_is_enc_mode_independent():
 def test_scale_signature_is_scale_invariant_and_above_chance():
     """The fractal coherence signature is stable across the byte and word scales
     (the same operator at every rung) and well above the ~0.25 chance floor."""
-    byte_atoms = [hdc.klein4_random(D, seed=b) for b in b"abcde"]   # byte rung
+    byte_atoms = [hdc.klein4_expand(D, b) for b in b"abcde"]   # byte rung
     word_vecs = [hdc.klein4_encode_bytes(w, D)                      # word rung
                  for w in (b"alpha", b"bravo", b"charlie", b"delta", b"echo")]
     sig_byte = float(cs.scale_signature(byte_atoms))
@@ -137,7 +137,7 @@ def test_scale_signature_is_scale_invariant_and_above_chance():
 
 def test_scale_signature_needs_two_parts():
     try:
-        cs.scale_signature([hdc.klein4_random(D, seed=1)])
+        cs.scale_signature([hdc.klein4_expand(D, 1)])
     except ValueError:
         pass
     else:  # pragma: no cover

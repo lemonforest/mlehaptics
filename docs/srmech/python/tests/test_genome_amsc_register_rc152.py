@@ -21,7 +21,7 @@ import pytest
 from srmech.amsc import catalog
 from srmech.amsc import descriptor as D
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 DIM = 16
 
@@ -36,17 +36,17 @@ def _clean_registry():
 
 
 def _one(seed=7):
-    return klein4_random(DIM, seed=seed)
+    return klein4_expand(DIM, seed)
 
 
 def _build_chr_dir(labels_seeds):
     """Build a genome, explode it to a fresh .chr dir, return (chr_dir, one)."""
     one = _one()
     src, loose = tempfile.mkdtemp(), tempfile.mkdtemp()
-    specs = [(lbl, [(lbl[0], [klein4_random(DIM, seed=s) for s in seeds])])
+    specs = [(lbl, [(lbl[0], [klein4_expand(DIM, s) for s in seeds])])
              for lbl, seeds in labels_seeds]
-    G.genome_save(G.genome(chromosomes=specs, the_one=one), src, the_one=one)
-    G.genome_explode(src, loose, the_one=one)
+    G.genome_save(G.genome(chromosomes=specs, coupling=one), src, coupling=one)
+    G.genome_explode(src, loose, coupling=one)
     return loose, one, src
 
 

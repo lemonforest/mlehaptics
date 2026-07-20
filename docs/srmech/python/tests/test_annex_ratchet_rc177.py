@@ -165,8 +165,8 @@ _ANNEX_DELTA = {"composes_c": 13, "host_glue": 12, "dev_tooling": 14}
 # compiled-in const registry — composes_c FROM BIRTH, the rc205 carrier_schema
 # precedent). composes_c 120 -> 121; total 189 -> 190. The bus/dsl _ANNEX_ROWS
 # / _ANNEX_DELTA are untouched (rc225 moves no bus/dsl row).
-_FULL_SPLIT = {"composes_c": 128, "host_glue": 21, "dev_tooling": 51}  # rc261: +2 composes_c (dsl alias TOML) + 1 dev_tooling (dsl.alias)  # rc249 #1390 item 2: +2 genome graph codec  # rc267 §96: +2 composes_c (genome_census + genome_registry)  # rc271 §96/F1251: +1 composes_c (genome.load_type_aliases_toml) + 2 dev_tooling (genome.set/clear_type_aliases)  # rc278 §102/F1252: +1 composes_c (plasmid.section_counts; plasmid_extract is composition_of_c)  # rc280 §102/F1253: -1 composes_c (plasmid.section_counts EARNED the srmech_genome_section_counts C peer -> c_dispatched)
-_TOTAL_NON_COMPUTE = 200
+_FULL_SPLIT = {"composes_c": 128, "host_glue": 22, "dev_tooling": 51}  # rc261: +2 composes_c (dsl alias TOML) + 1 dev_tooling (dsl.alias)  # rc249 #1390 item 2: +2 genome graph codec  # rc267 §96: +2 composes_c (genome_census + genome_registry)  # rc271 §96/F1251: +1 composes_c (genome.load_type_aliases_toml) + 2 dev_tooling (genome.set/clear_type_aliases)  # rc278 §102/F1252: +1 composes_c (plasmid.section_counts; plasmid_extract is composition_of_c)  # rc280 §102/F1253: -1 composes_c (plasmid.section_counts EARNED the srmech_genome_section_counts C peer -> c_dispatched)  # rc290 §102/F1259: +1 host_glue (hdc.klein4_random — the STOCHASTIC regime, alone after the by-regime split; no C peer BY REGIME, not by debt: its output is not a function of any input, so there is no kernel to mirror and nothing to byte-compare. The deterministic mints klein4_expand/_address/_from_one are c_dispatched and klein4_role is composition_of_c, so no debt ceiling moved.)
+_TOTAL_NON_COMPUTE = 201
 
 
 def _rows():

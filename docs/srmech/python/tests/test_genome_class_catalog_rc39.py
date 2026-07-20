@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 from srmech.dsl import (
     get_class_descriptor,
     list_classes,
@@ -45,19 +45,19 @@ def test_make_class_factory_carries_metadata():
 
 
 def test_construct_and_field_defaults():
-    one = klein4_random(64, seed=1)
-    g = make_class("Genome")(the_one=one)
-    assert list(g.fields["the_one"]) == list(one)
+    one = klein4_expand(64, 1)
+    g = make_class("Genome")(coupling=one)
+    assert list(g.fields["coupling"]) == list(one)
     assert g.fields["chromosomes"] == []          # list-typed field defaults to []
 
 
 def test_unknown_field_rejected():
     with pytest.raises(TypeError):
-        make_class("Genome")(the_one=klein4_random(64, seed=1), bogus=1)
+        make_class("Genome")(coupling=klein4_expand(64, 1), bogus=1)
 
 
 def test_unknown_method_raises_attributeerror():
-    g = make_class("Genome")(the_one=klein4_random(64, seed=1))
+    g = make_class("Genome")(coupling=klein4_expand(64, 1))
     with pytest.raises(AttributeError):
         g.no_such_method()
 
@@ -65,28 +65,28 @@ def test_unknown_method_raises_attributeerror():
 # ── method dispatch (bind resolution + the genome round-trip) ─────────────────
 
 def test_shape_method_dispatches_to_encode_shape():
-    g = make_class("Genome")(the_one=klein4_random(64, seed=1))
+    g = make_class("Genome")(coupling=klein4_expand(64, 1))
     r = g.shape(n=5000)                            # bind 'n' from the call
     assert r["shape"] == "quad_strand" and r["depth"] == 3
 
 
-def test_add_chromosome_binds_the_one_from_field_and_appends():
-    one = klein4_random(64, seed=2)
-    g = make_class("Genome")(the_one=one)
-    leaves = [klein4_random(64, seed=s) for s in range(4)]
-    strand = g.add_chromosome(leaves=leaves, label="astronomy")   # the_one from field; label passthrough
+def test_add_chromosome_binds_coupling_from_field_and_appends():
+    one = klein4_expand(64, 2)
+    g = make_class("Genome")(coupling=one)
+    leaves = [klein4_expand(64, s) for s in range(4)]
+    strand = g.add_chromosome(leaves=leaves, label="astronomy")   # coupling from field; label passthrough
     assert len(strand) == len(leaves) + 1          # cap + turns
     assert len(g.fields["chromosomes"]) == 1       # appended to the field
     assert g.fields["chromosomes"][0] is strand
 
 
 def test_full_round_trip_through_the_class():
-    one = klein4_random(64, seed=3)
-    g = make_class("Genome")(the_one=one)
-    leaves = [klein4_random(64, seed=s) for s in range(5)]
+    one = klein4_expand(64, 3)
+    g = make_class("Genome")(coupling=one)
+    leaves = [klein4_expand(64, s) for s in range(5)]
     strand = g.add_chromosome(leaves=leaves, label="music")
     cap = g.cap(label="music")
-    back = g.recall(strand=strand, telomere=cap)   # the_one bound from field
+    back = g.recall(strand=strand, telomere=cap)   # coupling bound from field
     assert [list(x) for x in back] == [list(l) for l in leaves]
 
 
@@ -99,12 +99,12 @@ kind = "storage"
 doc = "A user-declared storage class — zero srmech Python authored."
 
 [class.field]
-the_one = "hv"
+coupling = "hv"
 strands = "list"
 
 [class.method.pack]
 op = "srmech.amsc.genome.chromosome"
-binds = ["leaves", "the_one"]
+binds = ["leaves", "coupling"]
 appends = "strands"
 """
 
@@ -124,9 +124,9 @@ def test_register_user_class_dir_constructs(tmp_path):
         assert "MyKernelStore" in list_classes()
         desc = get_class_descriptor("MyKernelStore")
         assert desc["_provenance"].startswith("user:")    # B-tier, attested to hash
-        one = klein4_random(64, seed=4)
-        store = make_class("MyKernelStore")(the_one=one)
-        store.pack(leaves=[klein4_random(64, seed=9)], label="k")
+        one = klein4_expand(64, 4)
+        store = make_class("MyKernelStore")(coupling=one)
+        store.pack(leaves=[klein4_expand(64, 9)], label="k")
         assert len(store.fields["strands"]) == 1
     finally:
         _reset_user_class_dirs()             # don't leak the user dir to other tests

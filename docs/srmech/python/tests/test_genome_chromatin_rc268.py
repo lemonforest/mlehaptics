@@ -22,15 +22,15 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native as _N
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 def _one(seed=7):
-    return klein4_random(64, seed=seed)
+    return klein4_expand(64, seed)
 
 
 def _lv(n, base=0):
-    return [klein4_random(64, seed=base + s) for s in range(n)]
+    return [klein4_expand(64, base + s) for s in range(n)]
 
 
 def _reload_strand(path, leaf_dim):
@@ -61,7 +61,7 @@ def test_chromatin_marker_is_unused_0x48():
 def test_binary_condensed_head_scope():
     one = _one()
     chrom = G.mint({"astro": _lv(12, 100)}, one)
-    cond = G.condense(chrom, the_one=one, state=True)
+    cond = G.condense(chrom, coupling=one, state=True)
     info = G.chromatin_of(cond, one)
     assert info["type"] == "binary" and info["state"] == "condensed"
     assert info["level"] == (0, 1)
@@ -71,7 +71,7 @@ def test_binary_condensed_head_scope():
 def test_binary_open_marker():
     one = _one()
     chrom = G.mint({"astro": _lv(12, 100)}, one)
-    op = G.condense(chrom, the_one=one, state=False)
+    op = G.condense(chrom, coupling=one, state=False)
     info = G.chromatin_of(op, one)
     assert info["type"] == "binary" and info["state"] == "open"
     assert info["level"] == (1, 1)
@@ -80,7 +80,7 @@ def test_binary_open_marker():
 def test_graded_level_reduced_exact():
     one = _one()
     chrom = G.mint({"astro": _lv(12, 100)}, one)
-    grad = G.condense(chrom, the_one=one, state=(2, 6))     # reduces to 1/3
+    grad = G.condense(chrom, coupling=one, state=(2, 6))     # reduces to 1/3
     info = G.chromatin_of(grad, one)
     assert info["type"] == "graded" and info["level"] == (1, 3)
 
@@ -88,7 +88,7 @@ def test_graded_level_reduced_exact():
 def test_interior_stretch_scope():
     one = _one()
     chrom = G.mint({"astro": _lv(12, 100)}, one)
-    strt = G.condense(chrom, the_one=one, region=3, state=True)
+    strt = G.condense(chrom, coupling=one, region=3, state=True)
     info = G.chromatin_of(strt, one)
     assert info["scope"] == "stretch" and info["at"] == 3
 
@@ -103,9 +103,9 @@ def test_level_out_of_range_rejected():
     one = _one()
     chrom = G.mint({"astro": _lv(12, 100)}, one)
     with pytest.raises(ValueError):
-        G.condense(chrom, the_one=one, state=(3, 2))        # num > den -> not in [0,1]
+        G.condense(chrom, coupling=one, state=(3, 2))        # num > den -> not in [0,1]
     with pytest.raises(ValueError):
-        G.condense(chrom, the_one=one, state=(1, 0))        # den 0
+        G.condense(chrom, coupling=one, state=(1, 0))        # den 0
 
 
 # ── modify-minted-WITHOUT-re-mint (the load-bearing property) ────────────────
@@ -115,7 +115,7 @@ def test_condense_preserves_the_centromere_byte_identical():
     chrom = G.mint({"astro": _lv(12, 100)}, one)
     cen_before = [h.tobytes() for h in chrom if G._cap_kind(h) == G.CENTROMERE_CAP_MARKER]
     info0 = G.centromere_of(chrom)
-    cond = G.condense(chrom, the_one=one, state=True)
+    cond = G.condense(chrom, coupling=one, state=True)
     cen_after = [h.tobytes() for h in cond if G._cap_kind(h) == G.CENTROMERE_CAP_MARKER]
     assert cen_before == cen_after                          # NO re-mint of the centromere
     assert G.centromere_of(cond) == info0                   # orientation + arm-ratio unchanged
@@ -125,8 +125,8 @@ def test_condense_preserves_the_centromere_byte_identical():
 def test_decondense_is_the_exact_inverse():
     one = _one()
     chrom = G.mint({"astro": _lv(12, 100)}, one)
-    cond = G.condense(chrom, the_one=one, state=(1, 4), region=2)
-    back = G.decondense(cond, the_one=one)
+    cond = G.condense(chrom, coupling=one, state=(1, 4), region=2)
+    back = G.decondense(cond, coupling=one)
     assert [h.tobytes() for h in back] == [h.tobytes() for h in chrom]   # byte-identical original
     assert G.chromatin_of(back, one) is None
 
@@ -135,47 +135,47 @@ def test_condense_does_not_mutate_the_input():
     one = _one()
     chrom = G.mint({"astro": _lv(12, 100)}, one)
     snapshot = [h.tobytes() for h in chrom]
-    G.condense(chrom, the_one=one, state=True)
+    G.condense(chrom, coupling=one, state=True)
     assert [h.tobytes() for h in chrom] == snapshot         # input strand unchanged
 
 
 # ── the OUTER gate: expressed = accessible AND promoter ──────────────────────
 
 def _gene_chrom(one):
-    return G.chromosome(genes=[("g1", _lv(2, 10)), ("g2", _lv(2, 20))], the_one=one)
+    return G.chromosome(genes=[("g1", _lv(2, 10)), ("g2", _lv(2, 20))], coupling=one)
 
 
 def test_heterochromatin_silences_even_when_promoter_fires():
     one = _one()
     chrom = _gene_chrom(one)
     assert {l for l, _ in G.gene_express(chrom, one, 0)} == {"g1", "g2"}   # promoters fire
-    cond = G.condense(chrom, the_one=one, state=True)                     # whole-chrom condensed
+    cond = G.condense(chrom, coupling=one, state=True)                     # whole-chrom condensed
     assert G.gene_express(cond, one, 0) == []                             # accessible=0 gates all
 
 
 def test_euchromatin_defers_to_the_promoter():
     one = _one()
     chrom = _gene_chrom(one)
-    op = G.condense(chrom, the_one=one, state=False)                      # explicit euchromatin
+    op = G.condense(chrom, coupling=one, state=False)                      # explicit euchromatin
     assert {l for l, _ in G.gene_express(op, one, 0)} == {"g1", "g2"}     # falls through to promoter
 
 
 def test_interior_stretch_silences_only_the_stretch():
     one = _one()
     chrom = _gene_chrom(one)
-    strt = G.condense(chrom, the_one=one, region="g2", state=True)        # stretch from g2 on
+    strt = G.condense(chrom, coupling=one, region="g2", state=True)        # stretch from g2 on
     assert {l for l, _ in G.gene_express(strt, one, 0)} == {"g1"}         # g1 accessible, g2 silenced
 
 
 def test_graded_chromatin_times_graded_gene_is_exact_rational_product():
     one = _one()
     # a graded gene: level_weight [1] over condition bit 0, denom 2 -> level 1/2 when bit0 present
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("gd", _lv(2, 30), {"gate": "graded", "weights": [1], "denom": 2})])
     base = G.gene_express_levels(strand, one, 0b1)
     assert base and base[0][2] == (1, 2)                                  # promoter level 1/2
     # chromatin graded 1/3 over it: accessibility 1/3 × promoter 1/2 = 1/6
-    gcond = G.condense(strand, the_one=one, state=(1, 3))
+    gcond = G.condense(strand, coupling=one, state=(1, 3))
     lv = G.gene_express_levels(gcond, one, 0b1)
     assert lv and lv[0][2] == (1, 6)                                      # exact rational product
 
@@ -183,7 +183,7 @@ def test_graded_chromatin_times_graded_gene_is_exact_rational_product():
 def test_condensed_graded_zero_is_silenced_in_levels():
     one = _one()
     chrom = _gene_chrom(one)
-    cond = G.condense(chrom, the_one=one, state=True)                     # level 0
+    cond = G.condense(chrom, coupling=one, state=True)                     # level 0
     assert G.gene_express_levels(cond, one, 0) == []                      # 0 × anything = silenced
 
 
@@ -194,16 +194,16 @@ def test_strand_plan_skips_condensed_genes():
     chrom = _gene_chrom(one)
     base = {p[0] for p in G.gene_express_plan(chrom, one, 0)}
     assert base == {"g1", "g2"}
-    strt = G.condense(chrom, the_one=one, region="g2", state=True)
+    strt = G.condense(chrom, coupling=one, region="g2", state=True)
     assert {p[0] for p in G.gene_express_plan(strt, one, 0)} == {"g1"}    # g2's gate not planned
-    cond = G.condense(chrom, the_one=one, state=True)
+    cond = G.condense(chrom, coupling=one, state=True)
     assert G.gene_express_plan(cond, one, 0) == []                        # whole chrom skipped
 
 
 def test_strand_plan_matches_gene_express_set():
     one = _one()
     chrom = _gene_chrom(one)
-    strt = G.condense(chrom, the_one=one, region="g2", state=True)
+    strt = G.condense(chrom, coupling=one, region="g2", state=True)
     plan_set = {p[0] for p in G.gene_express_plan(strt, one, 0)}
     express_set = {l for l, _ in G.gene_express(strt, one, 0)}
     assert plan_set == express_set                                       # plan == express (chromatin)
@@ -213,13 +213,13 @@ def test_strand_plan_matches_gene_express_set():
 
 def test_marks_survive_genome_save_and_reload(tmp_path):
     one = _one()
-    chrom = G.condense(G.mint({"astro": _lv(12, 100)}, one), the_one=one, state=(1, 3))
+    chrom = G.condense(G.mint({"astro": _lv(12, 100)}, one), coupling=one, state=(1, 3))
     G.genome_save(chrom, tmp_path, one)
     leaf_dim = len(list(one))
     reloaded = _reload_strand(tmp_path, leaf_dim)
     assert G.chromatin_of(reloaded, one) == G.chromatin_of(chrom, one)
     # census is unaffected — a chromatin cap is orthogonal to plasmid/nuclear/diploid
-    cen = G.genome_census(tmp_path, the_one=one)
+    cen = G.genome_census(tmp_path, coupling=one)
     assert cen["types"] == {"plasmid": 0, "nuclear": 1, "diploid": 0}
     assert cen["total_leaves"] == 12                                     # leaf-count unbroken
 
@@ -227,7 +227,7 @@ def test_marks_survive_genome_save_and_reload(tmp_path):
 def test_marks_survive_integrate():
     one = _one()
     host = G.mint({"astro": _lv(12, 100)}, one) + G.plasmid({"p": _lv(3, 300)}, one)
-    provirus = G.condense(G.plasmid({"provirus": _lv(4, 400)}, one), the_one=one, state=True)
+    provirus = G.condense(G.plasmid({"provirus": _lv(4, 400)}, one), coupling=one, state=True)
     integrated = G.integrate(host, provirus)
     # find the provirus chromosome and confirm its chromatin state rode along
     start = next(i for i, hv in enumerate(integrated)
@@ -242,8 +242,8 @@ def test_multi_chromosome_condense_by_label():
     one = _one()
     genome = G.plasmid({"a": _lv(3, 1), "b": _lv(3, 2)}, one)
     with pytest.raises(ValueError):
-        G.condense(genome, the_one=one, state=True)                      # ambiguous: needs a label
-    cond = G.condense(genome, the_one=one, state=True, label="b")
+        G.condense(genome, coupling=one, state=True)                      # ambiguous: needs a label
+    cond = G.condense(genome, coupling=one, state=True, label="b")
     # chromatin_of on the 'b' chromosome region sees it; 'a' is untouched
     bounds = [i for i, hv in enumerate(cond)
               if G._cap_kind(hv) in G._CHROM_BOUNDARY_MARKERS]
@@ -259,7 +259,7 @@ def test_chromatin_free_genome_round_trips_unchanged(tmp_path):
     chrom = G.mint({"astro": _lv(12, 100)}, one)
     data = G.genome_save(chrom, tmp_path, one)
     assert data["format_version"] == 15                                  # v15 writer
-    cat = G.genome_catalog(tmp_path, the_one=one)
+    cat = G.genome_catalog(tmp_path, coupling=one)
     assert cat["chromosomes"][0]["cap_kind"] == "nuclear"                # census unbroken
     assert cat["chromosomes"][0]["leaf_count"] == 12
     reloaded = _reload_strand(tmp_path, len(list(one)))
@@ -284,7 +284,7 @@ def test_native_chromatin_of_equals_pure():
     chrom = G.mint({"astro": _lv(12, 100)}, one)
     for kwargs in [dict(state=True), dict(state=False), dict(state=(1, 3)),
                    dict(state=(2, 7), region=4), dict(state=True, region=0)]:
-        cond = G.condense(chrom, the_one=one, **kwargs)
+        cond = G.condense(chrom, coupling=one, **kwargs)
         native = G.chromatin_of(cond, one)
         import srmech.amsc._native as NN
         saved = NN.has_native_genome_chromatin_of

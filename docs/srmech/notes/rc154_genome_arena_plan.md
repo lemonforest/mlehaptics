@@ -132,7 +132,7 @@ static srmech_status_t genome_strings_alloc(genome_strings_t *s, genome_arena_t 
 
 ### 4. `genome_scan_chroms` — `>= SRMECH_GENOME_MAX_CHROMS` → `>= s->cap_chroms`.
 
-### 5. `genome_fill_strings(s, body, body_len, leaf_dim, the_one)` → add `genome_arena_t *a`:
+### 5. `genome_fill_strings(s, body, body_len, leaf_dim, coupling)` → add `genome_arena_t *a`:
 count → `genome_strings_alloc(s, a, n)` → fill hashes (unchanged) → `genome_scan_chroms`.
 
 ### 6. `genome_build_chrom` — `assert(idx < SRMECH_GENOME_MAX_CHROMS)` → `assert(idx < s->cap_chroms)`.
@@ -188,7 +188,7 @@ tree only" → now "for ALL scratch; size it to the genome"). Keep `SRMECH_GENOM
 ### `genome.py` — NO fallback. Per op:
 ```
 if _native.has_native_genome():
-    <Python validates the cheap inputs that produce ValueError — label exists / the_one dim>
+    <Python validates the cheap inputs that produce ValueError — label exists / coupling dim>
     <single authoritative native call>
     <on NativeGenomeError(status==BAD_INPUT) → raise GenomeBoundingError; else re-raise>
     return <derive return from disk via _read_manifest/_read_chr/_hv_from_block>

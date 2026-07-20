@@ -311,7 +311,7 @@ Per-kernel loop; the out buffer accumulates COMPLETE chromosomes. Additive overl
 ```c
 srmech_status_t srmech_genome_mint_progress(
     const unsigned char *labels, const size_t *label_lens,
-    const unsigned char *the_one, uint32_t leaf_dim, const unsigned char *leaves,
+    const unsigned char *coupling, uint32_t leaf_dim, const unsigned char *leaves,
     const size_t *leaf_counts, size_t n_kernels,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out,
     srmech_progress_tick_cb_t tick, void *tick_user)
@@ -413,7 +413,7 @@ Three phases; forward into `genome_partition`, tick the per-group mint loop, tic
 `genome_save`.
 
 ```python
-def genome_from_graph(n, edges, weights=None, charges=None, *, the_one, path=None,
+def genome_from_graph(n, edges, weights=None, charges=None, *, coupling, path=None,
                       leaf_dim=None, max_tome=256, n_bins=_PARTITION_DEFAULT_BINS,
                       centromere_at=None, progress=None):         # + progress
     ...
@@ -440,7 +440,7 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, the_one, path=Non
         if progress is not None:
             progress({"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_RENDERING,
                       "done": 0, "total": 1})     # a cancel here just skips the save
-        genome_save(strand, path, the_one)
+        genome_save(strand, path, coupling)
         ...
     return {..., "status": "ok"}
 ```
@@ -452,7 +452,7 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, the_one, path=Non
 partial strand (whole chromosomes assembled so far).
 
 ```python
-def genome(kernels=None, the_one=None, *, chromosomes=None, progress=None):   # + progress
+def genome(kernels=None, coupling=None, *, chromosomes=None, progress=None):   # + progress
     ...
     # native path: _native.genome_mint_c(..., progress=progress) — the shim installs the
     # CFUNCTYPE trampoline and, on SRMECH_CANCELLED, returns the blocks-so-far bytes.
@@ -473,7 +473,7 @@ def genome(kernels=None, the_one=None, *, chromosomes=None, progress=None):   # 
 returns the **unmodified** input strand (a valid, un-minted strand):
 
 ```python
-def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
+def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
                 repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen", progress=None):
     strand = list(strand)
     ...                                            # existing validation

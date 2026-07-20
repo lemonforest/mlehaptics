@@ -55,7 +55,7 @@ from srmech.amsc.hv import HV
 
 
 def _one(dim=96):
-    return G._default_the_one(dim)
+    return G._default_coupling(dim)
 
 
 def _leaves(n, dim=96, base=0):
@@ -85,7 +85,7 @@ def test_threshold_rule_exact_positive_weights():
     """A pure positive-weight perceptron: weights=[3,2,1] over (a,b,c), θ=4 → express iff the
     weighted sum of present conditions ≥ 4."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _threshold([3, 2, 1], 4))])
 
     def on(cs):
@@ -103,7 +103,7 @@ def test_signed_inhibitory_weight():
     θ=1 → 'a' activates, but 'b' cancels it. abs()-ing the sum would break this (it would treat
     -10 as +10) — the sign is load-bearing (Class-K, never abs)."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _threshold([10, -10], 1))])
 
     def on(cs):
@@ -122,11 +122,11 @@ def test_boundary_is_inclusive(cs, total):
     one = _one()
     weights = [5, -3, 4]
     # θ = total → Σ == θ → expresses (≥ is inclusive)
-    s_eq = G.chromosome(the_one=one, label="c",
+    s_eq = G.chromosome(coupling=one, label="c",
                         genes=[("g", _leaves(1), _threshold(weights, total))])
     assert "g" in [l for l, _ in G.gene_express(s_eq, one, cs)], f"Σ==θ={total} must express"
     # θ = total + 1 → Σ == θ − 1 → does NOT express
-    s_hi = G.chromosome(the_one=one, label="c",
+    s_hi = G.chromosome(coupling=one, label="c",
                         genes=[("g", _leaves(1), _threshold(weights, total + 1))])
     assert "g" not in [l for l, _ in G.gene_express(s_hi, one, cs)], "Σ==θ−1 must NOT express"
 
@@ -148,7 +148,7 @@ def test_majority_gate(n):
     are present. Checked across every popcount."""
     one = _one()
     theta = (n + 1) // 2                                    # ⌈n/2⌉
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("maj", _leaves(1), _threshold([1] * n, theta))])
     for cs in range(1 << n):
         want = _popcount(cs) >= theta
@@ -166,13 +166,13 @@ def test_majority_e4_one_gene_vs_e2_exponential():
     one = _one(dim=dim)
     n, theta = 5, 3
     # E4: ONE gene, 5 weights.
-    s_e4 = G.chromosome(the_one=one, label="c",
+    s_e4 = G.chromosome(coupling=one, label="c",
                         genes=[("maj", _leaves(1, dim=dim), _threshold([1] * n, theta))])
     # E2: the minimal DNF = OR over every 3-subset (require those 3 present). 10 clauses.
     dnf = [(sum(1 << i for i in combo), 0)
            for combo in itertools.combinations(range(n), theta)]
     assert len(dnf) == 10                                   # C(5,3) = 10 (exponential in general)
-    s_e2 = G.chromosome(the_one=one, label="c",
+    s_e2 = G.chromosome(coupling=one, label="c",
                         genes=[("maj", _leaves(1, dim=dim), {"gate": "boolean", "dnf": dnf})])
     for cs in range(1 << n):
         r4 = "maj" in [l for l, _ in G.gene_express(s_e4, one, cs)]
@@ -187,7 +187,7 @@ def _family_chromosome(one):
       E1 klein4_mask : lacZ = (activator=a, repressor=b)              [4-tuple]
       E2 boolean_dnf : xor  = XOR(a,b) = [(a,b),(b,a)]                [dict 'boolean']
       E4 threshold   : dose = weights [2,2,-3], θ=2                   [dict 'threshold']"""
-    return G.chromosome(the_one=one, label="cell", genes=[
+    return G.chromosome(coupling=one, label="cell", genes=[
         ("lacZ", _leaves(1, base=0), A, B),
         ("xor", _leaves(1, base=1), {"gate": "boolean", "dnf": [(A, B), (B, A)]}),
         ("dose", _leaves(1, base=2), _threshold([2, 2, -3], 2)),
@@ -267,7 +267,7 @@ def test_plain_rc128_rc129_rc130_genes_unchanged_bytes_and_behaviour():
              ("stress", _leaves(1, base=1), 0b011),                # rc128 single-mask
              ("lacZ", _leaves(1, base=2), A, B),                   # rc129 two-mask
              ("xor", _leaves(1, base=3), {"gate": "boolean", "dnf": [(A, B), (B, A)]})]  # rc130
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     # NO threshold-gene marker anywhere (byte-level back-compat)
     assert all(G._cap_kind(hv) != G.THRESHOLD_GENE_MARKER for hv in strand)
     cases = {
@@ -296,7 +296,7 @@ def test_bare_strand_self_describes_weights_and_threshold():
     """The chromosome self-describes each threshold gene's weights + threshold by bare-strand SCAN
     (no manifest): a 0x77 cap yields (GATE_TYPE_THRESHOLD, weights, threshold)."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c", genes=[
+    strand = G.chromosome(coupling=one, label="c", genes=[
         ("dose", _leaves(1, base=0), _threshold([5, -3, 4], 2)),
         ("maj", _leaves(1, base=1), _threshold([1, 1, 1, 1, 1], 3)),
     ])
@@ -335,11 +335,11 @@ def test_threshold_genome_saves_v10_and_pages_back(tmp_path):
     one = _one()
     genes = [("housekeeping", _leaves(1)),
              ("maj", _leaves(1, base=1), _threshold([1, 1, 1], 2))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
     assert man["format_version"] == 15                          # rc132 §132 bumped v10->v11; a v11 writer stamps 11
-    paged = G.genome_genes(p, "cell", the_one=one)
+    paged = G.genome_genes(p, "cell", coupling=one)
     assert [l for l, _ in paged] == ["housekeeping", "maj"]     # gate-agnostic recovery
     s2, o2, _ = G.genome_load(p)
     assert set(l for l, _ in G.gene_express(s2, o2, A | B)) == {"housekeeping", "maj"}  # 2 ≥ 2
@@ -350,12 +350,12 @@ def test_rebuild_by_scan_recovers_the_threshold(tmp_path):
     """§44: with NO manifest, the strand is the SSoT — rebuild-by-scan reproduces the threshold
     gene and gene_express still filters correctly (the weights + threshold live in the body)."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c", genes=[
+    strand = G.chromosome(coupling=one, label="c", genes=[
         ("dose", _leaves(1), _threshold([3, 2, 1], 4))])
     p = tmp_path / "g"
     G.genome_save(strand, p, one)
     (p / "manifest.json").unlink()                             # drop the derived cache
-    s2, o2, _ = G.genome_load(p, the_one=one)
+    s2, o2, _ = G.genome_load(p, coupling=one)
     assert set(l for l, _ in G.gene_express(s2, o2, A | B)) == {"dose"}   # 3+2 = 5 ≥ 4
     assert set(l for l, _ in G.gene_express(s2, o2, A)) == set()          # 3 < 4
 
@@ -365,31 +365,31 @@ def test_rebuild_by_scan_recovers_the_threshold(tmp_path):
 def test_threshold_spec_requires_weights_key():
     one = _one()
     with pytest.raises(ValueError, match="weights"):
-        G.chromosome(the_one=one, label="c",
+        G.chromosome(coupling=one, label="c",
                      genes=[("g", _leaves(1), {"gate": "threshold", "threshold": 1})])
 
 
 def test_threshold_spec_requires_threshold_key():
     one = _one()
     with pytest.raises(ValueError, match="threshold"):
-        G.chromosome(the_one=one, label="c",
+        G.chromosome(coupling=one, label="c",
                      genes=[("g", _leaves(1), {"gate": "threshold", "weights": [1, 2]})])
 
 
 def test_threshold_weight_must_be_int():
     one = _one()
     with pytest.raises(ValueError, match="exact int"):
-        G.chromosome(the_one=one, label="c",
+        G.chromosome(coupling=one, label="c",
                      genes=[("g", _leaves(1), _threshold([1.5, 2], 1))])
 
 
 def test_threshold_value_must_fit_int64():
     one = _one()
     with pytest.raises(ValueError, match="int64"):
-        G.chromosome(the_one=one, label="c",
+        G.chromosome(coupling=one, label="c",
                      genes=[("g", _leaves(1), _threshold([1 << 63], 0))])
     with pytest.raises(ValueError, match="int64"):
-        G.chromosome(the_one=one, label="c",
+        G.chromosome(coupling=one, label="c",
                      genes=[("g", _leaves(1), _threshold([1], -(1 << 63) - 1))])
 
 
@@ -453,7 +453,7 @@ def test_python_equals_c_genome_save_threshold(tmp_path):
     """genome_save writes turns.bin + manifest.json BYTE-IDENTICALLY on a genome carrying a
     threshold gene, native-vs-forced-pure."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="cell", genes=[
+    strand = G.chromosome(coupling=one, label="cell", genes=[
         ("maj", _leaves(2), _threshold([1, 1, 1, 1, 1], 3))])
     dn = tmp_path / "native"
     G.genome_save(strand, dn, one)
@@ -482,7 +482,7 @@ def test_native_defers_on_int64_overflow_pure_is_exact():
     path — so the answer is still correct. 3·2^62 overflows int64 but is exactly ≥ 0."""
     one = _one()
     big = 1 << 62
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _threshold([big, big, big], 0))])
     # direct native call raises (it cannot represent the sum exactly in int64) ...
     cap = G._pack_threshold_gene("g", [big, big, big], 0, 128)
@@ -491,6 +491,6 @@ def test_native_defers_on_int64_overflow_pure_is_exact():
     # ... but gene_express still returns the correct answer via the pure bignum path.
     assert "g" in [l for l, _ in G.gene_express(strand, one, A | B | C)]   # 3·2^62 ≥ 0
     # and a genuinely-negative huge sum stays OFF against a positive θ.
-    strand_neg = G.chromosome(the_one=one, label="c",
+    strand_neg = G.chromosome(coupling=one, label="c",
                               genes=[("g", _leaves(1), _threshold([-big, -big, -big], 1))])
     assert "g" not in [l for l, _ in G.gene_express(strand_neg, one, A | B | C)]  # -3·2^62 < 1

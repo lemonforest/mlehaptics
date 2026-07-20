@@ -16,7 +16,7 @@ The whole storage object (F711–F715)::
                                (cascade.parallel_sector_dispatch, CAP=4) + a
                                base-4 leaf-tree address (radix 4^k)
                      └─ LEAF ≤ 256 = 2^8  one dense block ("tome")
-           (every turn coupled through the_one — reversible klein4_bind)
+           (every turn coupled through coupling — reversible klein4_bind)
       TELOMERE        the non-data content-address cap delimiting each chromosome
 
 **Honest caveat (F712).** ``cascade.parallel_sector_dispatch`` is **single-level**
@@ -56,7 +56,7 @@ from srmech.amsc.format import MPRRecord as _MPRRecord
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
 from srmech.amsc.hdc import klein4_bind as _klein4_bind
-from srmech.amsc.hdc import klein4_random as _klein4_random
+from srmech.amsc.hdc import klein4_expand as _klein4_expand
 from srmech.amsc.hv import HV as _HV
 from srmech.amsc.tlv import tlv_pack as _tlv_pack
 from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
@@ -115,7 +115,7 @@ __all__ = [
 #: no offset/label sidecar (biology has no offset table: scan TTAGGG repeats /
 #: ATG-stop codons). This REPLACES the §43 TLV gene-frame (variable-length, which
 #: forced the rc141 manifest sidecar) and the §41 content-address telomere cap
-#: (klein4_random of a label-hash — bytes 0..3, NOT scan-recognisable without the
+#: (klein4_expand of a label-hash — bytes 0..3, NOT scan-recognisable without the
 #: label) with marker caps.
 #: The chromosome boundary cap (telomere-analog). ``0x43`` = ASCII ``'C'``.
 CHROM_CAP_MARKER = 0x43
@@ -685,7 +685,7 @@ _KERNEL_HEADER_PREFIX = 14
 #:   symbols ``[52:leaf_dim]``                — Klein-4 zero padding
 #: Total 52 significant symbols, so a v6 header needs ``leaf_dim >= 52`` (the default
 #: 256 and every DoD width satisfy it). The leaf is 100 % Klein-4, so it couples
-#: through ``the_one`` like any content leaf and bit-packs like any data turn on disk
+#: through ``coupling`` like any content leaf and bit-packs like any data turn on disk
 #: (the store is uniformly Klein-4 — no byte-TLV residue). Same field widths as v5 so
 #: the header carries identical information; the C mirror reads the same base-4 lanes.
 _KH4_D_SYMS = 32          # uint64 D  → 32 base-4 symbols
@@ -749,17 +749,17 @@ def encode_shape(n: int) -> Dict[str, object]:
     return {"n": n, "shape": shape, "leaves": leaves, "depth": depth, "leaf_cap": LEAF_CAP}
 
 
-def quad_turn(turn, the_one):
-    """Couple one helix turn through ``the_one`` — the genome's turn operation (F713).
+def quad_turn(turn, coupling):
+    """Couple one helix turn through ``coupling`` — the genome's turn operation (F713).
 
-    The turn is bound to ``the_one`` (the held invariant) by the **reversible**
+    The turn is bound to ``coupling`` (the held invariant) by the **reversible**
     Klein-4 bind (``V4 = (F2)^2`` XOR, so ``quad_turn(quad_turn(t, one), one) ==
-    t``): the duality held WITHOUT collapse, numpy-free. ``the_one`` is the shared
+    t``): the duality held WITHOUT collapse, numpy-free. ``coupling`` is the shared
     invariant present in every turn's coupling — so a chromosome navigates across
-    its turns through ``the_one`` and recovers any turn by re-binding it.
+    its turns through ``coupling`` and recovers any turn by re-binding it.
 
-    ``turn`` and ``the_one`` are Klein-4 vectors (e.g. from
-    :func:`srmech.amsc.hdc.klein4_random`); returns the coupled turn (a Klein-4
+    ``turn`` and ``coupling`` are Klein-4 vectors (e.g. from
+    :func:`srmech.amsc.hdc.klein4_from_one`); returns the coupled turn (a Klein-4
     ``HV``). Class-M (bind) ∘ Class-C (the chirality the Klein-4 sectors carry).
 
     Each turn sits in the native 4-sector biaxial "+"
@@ -767,7 +767,7 @@ def quad_turn(turn, the_one):
     and the base-4 leaf addressing assemble at the chromosome level. Per the F712
     caveat the 4-way is ONE chirality level, the deeper tree is radix addressing.
     """
-    return _klein4_bind(turn, the_one)
+    return _klein4_bind(turn, coupling)
 
 
 def _pack_cap(marker, label, dim):
@@ -881,7 +881,7 @@ def _pack_kernel_header_klein4(true_len, leaf_dim, element_type, dim):
     length ``true_len`` (uint64 → 32 symbols), its ``leaf_dim`` (uint32 → 16) and its
     ``element_type`` (uint8 → 4), Klein-4-zero-padded to ``dim`` (== ``leaf_dim``, the
     block width). EVERY symbol is a Klein-4 sector ``{0,1,2,3}`` — so this leaf
-    couples through ``the_one`` and bit-packs like any content turn (the store stays
+    couples through ``coupling`` and bit-packs like any content turn (the store stays
     uniformly Klein-4). ``dim`` must fit the 52-symbol header."""
     if dim < _KERNEL_HEADER_KLEIN4_SYMS:
         raise ValueError(
@@ -917,9 +917,9 @@ def telomere(label, dim=64):
     mistaken for a Klein-4 data turn) and **label-recoverable inline** (the strand
     self-describes; chromosome labels recover by scan, no manifest). Same ``label``
     -> same cap; distinct labels -> distinct caps. ``dim`` is the leaf width — match
-    the turns it caps (:func:`chromosome` passes ``len(the_one)`` automatically).
+    the turns it caps (:func:`chromosome` passes ``len(coupling)`` automatically).
 
-    §44 REPLACES the pre-§43.1 content-address cap (``klein4_random`` of a label
+    §44 REPLACES the pre-§43.1 content-address cap (``klein4_expand`` of a label
     hash — bytes ``0..3``, NOT scan-recognisable without already knowing the label,
     which forced a label↔cap sidecar). Integrity (the old cap's one-way hash) moves
     to the optional derived manifest, not the body.
@@ -1591,7 +1591,7 @@ def active_telomere(label, count, dim=64):
 
     ``count`` is an exact non-negative int (Class-I/N; no float; a count is never
     negated, so never ``abs()``). ``dim`` is the leaf width (match the turns it caps;
-    :func:`chromosome` passes ``len(the_one)`` automatically). Same ``label`` + same
+    :func:`chromosome` passes ``len(coupling)`` automatically). Same ``label`` + same
     ``count`` → same cap. Recover the count from the bare strand with
     :func:`_active_telomere_count`; tick it with :func:`telomere_tick`.
     """
@@ -1684,7 +1684,7 @@ def centromere(orientation, *, repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen",
 
     ``handle`` is the inline no-sidecar epigenetic address (CENP-A analog — a
     per-chromosome handle separate from the content-address). ``dim`` is the leaf width
-    (match the turns; :func:`chromosome` passes ``len(the_one)`` automatically). Place it
+    (match the turns; :func:`chromosome` passes ``len(coupling)`` automatically). Place it
     at mint time with ``chromosome(leaves, one, centromere=orientation)`` (or a lower-level
     insert); recover it from a strand with :func:`centromere_of`. Same inputs → same cap."""
     # rc258 (#1407): DISPATCH the cap byte-framing to the srmech_genome_centromere C peer
@@ -1750,14 +1750,14 @@ def _leaf_is_erased(leaf_syms):
     return all(int(s) == 0 for s in leaf_syms)
 
 
-def _diploid_ec_leaf(a_turn, b_turn, which, the_one):
+def _diploid_ec_leaf(a_turn, b_turn, which, coupling):
     """The per-leaf diploid EC read (§95b / F1244; §95.4 erasure-symmetry fix): exactly one
     ERASED (a detectable break) → fill from the intact homolog (the diploid specialist — 2×
     not 3×); both present + agree → use it; both present but DISAGREE (a substitution) → trust
     the centromere which-template mark.
 
     ``a_turn``/``b_turn`` are the two STORED homolog TURNS (the on-disk Klein-4 HVs, PRE-
-    decouple); ``the_one`` the shared invariant; ``which`` the mark parity (0 = trust copyA,
+    decouple); ``coupling`` the shared invariant; ``which`` the mark parity (0 = trust copyA,
     1 = trust copyB). **Erasure is read on the stored TURN, not the decoupled leaf** — a double-
     strand break zeros the stored turn, and a zeroed turn decouples to a NON-zero leaf, so the
     all-zero erasure sentinel MUST be tested before :func:`quad_turn` (the §95.4 bug: testing
@@ -1766,16 +1766,16 @@ def _diploid_ec_leaf(a_turn, b_turn, which, the_one):
     a_erased = _leaf_is_erased(list(a_turn))
     b_erased = _leaf_is_erased(list(b_turn))
     if a_erased and not b_erased:
-        return quad_turn(b_turn, the_one)              # fill from the intact homolog (erasure)
+        return quad_turn(b_turn, coupling)              # fill from the intact homolog (erasure)
     if b_erased and not a_erased:
-        return quad_turn(a_turn, the_one)
-    a, b = quad_turn(a_turn, the_one), quad_turn(b_turn, the_one)
+        return quad_turn(a_turn, coupling)
+    a, b = quad_turn(a_turn, coupling), quad_turn(b_turn, coupling)
     if list(a) == list(b):
         return a                                       # homologs agree (incl. both-erased)
     return b if which else a                           # substitution → the marked template
 
 
-def diploid(leaves, the_one, *, label="diploid", orientation=None,
+def diploid(leaves, coupling, *, label="diploid", orientation=None,
             repeats=CENTROMERE_DEFAULT_REPEATS):
     """A DIPLOID chromosome (§95b / F1244 / #1407) — biology's diploid pair, the erasure/break
     specialist.
@@ -1795,10 +1795,10 @@ def diploid(leaves, the_one, *, label="diploid", orientation=None,
 
     ``orientation`` is the which-template mark + the global orientation (default the kernel's
     content-address folded to a Klein-4 sector); ``repeats`` the centromere α-satellite size."""
-    if the_one is None:
-        raise ValueError("diploid: the_one is required")
+    if coupling is None:
+        raise ValueError("diploid: coupling is required")
     leaves = list(leaves)
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     o = _mint_orientation(leaves) if orientation is None else int(orientation)
     if not 0 <= o <= 3:
         raise ValueError(
@@ -1809,18 +1809,18 @@ def diploid(leaves, the_one, *, label="diploid", orientation=None,
     leaf_bytes = _leaf_blocks(leaves)
     if leaf_bytes and all(len(b) == dim for b in leaf_bytes):
         native = _native.genome_diploid_c(
-            label, _the_one_block_bytes(the_one), b"".join(leaf_bytes), len(leaf_bytes),
+            label, _coupling_block_bytes(coupling), b"".join(leaf_bytes), len(leaf_bytes),
             o, repeats, dim)
         if native is not None:
             return [_hv_from_block(native[i * dim:(i + 1) * dim])
                     for i in range(len(native) // dim)]
-    copy = [quad_turn(leaf, the_one) for leaf in leaves]   # copyA == copyB (homologs)
+    copy = [quad_turn(leaf, coupling) for leaf in leaves]   # copyA == copyB (homologs)
     cap = _pack_cap(DIPLOID_TELOMERE_MARKER, label, dim)
     cen = _pack_centromere(o, dim, repeats=repeats)
     return [cap] + copy + [cen] + copy
 
 
-def recover_diploid(strand, the_one):
+def recover_diploid(strand, coupling):
     """Recover a diploid chromosome's content via the two-copy EC (§95b) — the inverse of
     :func:`diploid`. Splits the strand at its interior centromere into ``copyA | copyB``
     (homologs) and error-corrects per leaf (:func:`_diploid_ec_leaf`): agree → use; one erased
@@ -1837,7 +1837,7 @@ def recover_diploid(strand, the_one):
     dim = len(list(strand[0]))
     native = _native.genome_recover_diploid_c(
         b"".join(hv.tobytes() for hv in strand), len(strand), dim,
-        _the_one_block_bytes(the_one))
+        _coupling_block_bytes(coupling))
     if native is not None:
         return [_HV.from_sequence(native[i * dim:(i + 1) * dim], sectors=QUAD)
                 for i in range(len(native) // dim)]
@@ -1857,7 +1857,7 @@ def recover_diploid(strand, the_one):
     out = []
     for a_turn, b_turn in zip(copyA, copyB):
         # pass the STORED turns (pre-decouple) — erasure is read on the turn (§95.4)
-        out.append(_diploid_ec_leaf(a_turn, b_turn, which, the_one))
+        out.append(_diploid_ec_leaf(a_turn, b_turn, which, coupling))
     return out
 
 
@@ -2205,7 +2205,7 @@ def _chrom_range(strand, label, *, op):
     return start, (nxt[0] if nxt else len(strand))
 
 
-def condense(strand, *, the_one=None, state=True, region=None, handle="chr", label=None):
+def condense(strand, *, coupling=None, state=True, region=None, handle="chr", label=None):
     """CONDENSE a region — SET the chromatin ACCESS marker on an EXISTING chromosome (§98 / #1422).
 
     Biology's epigenetic packaging gate: the modify-WITHOUT-changing-the-DNA layer. ``condense``
@@ -2232,14 +2232,14 @@ def condense(strand, *, the_one=None, state=True, region=None, handle="chr", lab
     before the ``k``-th DATA TURN (the kernel-content granularity, like the §95a centromere sits
     between arms); ``region="<gene_label>"`` places it before that gene's cap (the gene-stretch
     granularity — silences that gene onward). ``label`` picks the chromosome in a multi-chromosome
-    genome strand (required when there is more than one). ``the_one`` gives the leaf width (``dim``;
+    genome strand (required when there is more than one). ``coupling`` gives the leaf width (``dim``;
     defaults to the strand's block width). Returns a NEW strand (the input is unchanged). Native-
     dispatched cap bytes (``srmech_genome_chromatin``). Class A (cap) + Class C (the access
     which-way) + Class N (the exact-rational level)."""
     strand = list(strand)
     if not strand:
         raise ValueError("condense: empty strand (nothing to condense)")
-    dim = len(list(the_one)) if the_one is not None else len(list(strand[0]))
+    dim = len(list(coupling)) if coupling is not None else len(list(strand[0]))
     chromatin_type, num, den, access_gate_type, gate_fields = _chromatin_state(state)
     cap = _chromatin_cap(chromatin_type, num, den, dim, handle=handle,
                          access_gate_type=access_gate_type, gate_fields=gate_fields)
@@ -2266,13 +2266,13 @@ def condense(strand, *, the_one=None, state=True, region=None, handle="chr", lab
     return strand[:insert] + [cap] + strand[insert:]
 
 
-def decondense(strand, *, the_one=None, label=None):
+def decondense(strand, *, coupling=None, label=None):
     """DECONDENSE — CLEAR the chromatin ACCESS marker(s), the inverse of :func:`condense` (§98).
 
     Splices out every :data:`CHROMATIN_MARKER` (``0x48``) cap (or only those inside the ``label``
     chromosome), PRESERVING the centromere + body sequence — so a condensed-then-decondensed NUCLEAR
     chromosome is byte-identical to the original mint (NO re-mint). Returns a NEW strand (the input
-    is unchanged). ``the_one`` is accepted for signature symmetry (the clear is a pure splice)."""
+    is unchanged). ``coupling`` is accepted for signature symmetry (the clear is a pure splice)."""
     strand = list(strand)
     if label is None:
         return [hv for hv in strand if _cap_kind(hv) != CHROMATIN_MARKER]
@@ -2281,7 +2281,7 @@ def decondense(strand, *, the_one=None, label=None):
             if not (start <= i < end and _cap_kind(hv) == CHROMATIN_MARKER)]
 
 
-def chromatin_of(strand, the_one=None):
+def chromatin_of(strand, coupling=None):
     """Recover a chromosome's FIRST chromatin ACCESS state (§98) — or ``None`` if it carries no
     chromatin marker (an all-euchromatin, fully-accessible chromosome; the default).
 
@@ -2314,7 +2314,7 @@ def chromatin_of(strand, the_one=None):
     return None
 
 
-def accessible(strand, cell_state, *, the_one=None):
+def accessible(strand, cell_state, *, coupling=None):
     """The COMPUTED accessibility LEVEL ``(num, den)`` of a chromosome under ``cell_state`` (§98.1/G1).
 
     The op⊗operand THEOREM at the CHROMATIN scale — the parallel of :func:`gene_express` one gate
@@ -2332,7 +2332,7 @@ def accessible(strand, cell_state, *, the_one=None):
 
     ``num > 0`` is "open" (Class-K: the sign of the level numerator). ``cell_state`` is a
     non-negative exact int (Class-I bitwise; each set bit a present cell-state condition; NO float,
-    NEVER ``abs()``). ``the_one`` is accepted for signature symmetry / leaf width (optional). ⚠️ A
+    NEVER ``abs()``). ``coupling`` is accepted for signature symmetry / leaf width (optional). ⚠️ A
     READ — the strand is byte-identical after this call (biology reads the packaging, it does not
     rewrite the DNA). Native-dispatched per-cap (the C peer ``srmech_genome_chromatin_access``
     computes the gated level); the pure :func:`_chromatin_access` is the complete alternative +
@@ -2346,7 +2346,7 @@ def accessible(strand, cell_state, *, the_one=None):
     strand = list(strand)
     if not strand:
         return (1, 1)                               # empty strand → default euchromatin
-    dim = len(list(the_one)) if the_one is not None else len(list(strand[0]))
+    dim = len(list(coupling)) if coupling is not None else len(list(strand[0]))
     for hv in strand:                               # the FIRST chromatin cap gates the chromosome
         if _cap_kind(hv) == CHROMATIN_MARKER:
             native = _native.genome_chromatin_access_c(hv.tobytes(), dim, cell_state)
@@ -2356,16 +2356,16 @@ def accessible(strand, cell_state, *, the_one=None):
     return (1, 1)                                   # chromatin-free → default euchromatin
 
 
-def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
+def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
                kernel=False, active_count=None, centromere=None, centromere_at=None):
     """Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730).
 
     **Single kernel (shipped F713/F715 behaviour, unchanged).** Pass ``leaves``
     (each a Klein-4 vector, one tome). They become a helix of QUAD-TURNS, each
-    coupled through ``the_one`` (the reversible :func:`quad_turn`), led by a
+    coupled through ``coupling`` (the reversible :func:`quad_turn`), led by a
     :func:`telomere` cap derived from ``label``::
 
-        [telomere(label, dim), quad_turn(leaf0, the_one), quad_turn(leaf1, the_one), ...]
+        [telomere(label, dim), quad_turn(leaf0, coupling), quad_turn(leaf1, coupling), ...]
 
     Recover with :func:`recall`.
 
@@ -2379,7 +2379,7 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
          gene_cap('board'), quad_turn(b0, one), ...]
 
     Recover the ``[(gene_label, gene_leaves), …]`` list with :func:`genes`. Pass
-    **exactly one** of ``leaves`` or ``genes``; ``the_one`` is always required
+    **exactly one** of ``leaves`` or ``genes``; ``coupling`` is always required
     (the shared invariant every turn is coupled through). §44: the gene boundary is
     a scanned-for fixed-width cap, NOT a variable-length TLV frame (no offset
     sidecar — biology's nested inline framing).
@@ -2422,8 +2422,8 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
     divide, gated by the count (operand) via :func:`telomere_tick`. Mutually exclusive
     with ``kernel``/``genes`` (a kernel/gene chromosome uses its own cap).
     """
-    if the_one is None:
-        raise ValueError("chromosome: the_one is required")
+    if coupling is None:
+        raise ValueError("chromosome: coupling is required")
     if (leaves is None) == (genes is None):
         raise ValueError("chromosome: pass exactly one of leaves= or genes=")
     if kernel and genes is not None:
@@ -2446,7 +2446,7 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
             "chromosome: centromere_at= sets the p:q arm-ratio split but needs a "
             "centromere= orientation to place at that split"
         )
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     # §89/v6: a kernel chromosome opens with a KERNEL telomere (0x6B); §127: an
     # active-telomere chromosome opens with an ACTIVE telomere (0x74) carrying its count.
     if active_count is not None:
@@ -2467,12 +2467,12 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
             leaf_bytes = _leaf_blocks(leaf_list)
             if all(len(b) == dim for b in leaf_bytes):
                 native = _native.genome_chromosome_c(
-                    label, _the_one_block_bytes(the_one), b"".join(leaf_bytes),
+                    label, _coupling_block_bytes(coupling), b"".join(leaf_bytes),
                     len(leaf_bytes), dim)
                 if native is not None:
                     return [_hv_from_block(native[i * dim:(i + 1) * dim])
                             for i in range(len(native) // dim)]
-        turns = [quad_turn(leaf, the_one) for leaf in leaf_list]
+        turns = [quad_turn(leaf, coupling) for leaf in leaf_list]
         if centromere is None:
             return [cap] + turns
         # §95a MINT (F1243): a TIER-2 nuclear chromosome — insert the INTERIOR centromere
@@ -2522,7 +2522,7 @@ def chromosome(leaves=None, the_one=None, *, label="chromosome", genes=None,
         else:
             gene_label, gene_leaves = gene
             strand.append(_gene_cap(gene_label, dim))
-        strand.extend(quad_turn(leaf, the_one) for leaf in gene_leaves)
+        strand.extend(quad_turn(leaf, coupling) for leaf in gene_leaves)
     return strand
 
 
@@ -2589,11 +2589,11 @@ def _graded_gene_cap_from_spec(gene_label, spec, dim):
     return _pack_graded_gene(gene_label, spec["weights"], spec["denom"], dim)
 
 
-def recall(strand, the_one, telomere=None):
+def recall(strand, coupling, telomere=None):
     """Recover the kernel's leaves from a capped chromosome strand (F713/F715/§44).
 
     Walk the ``strand``; skip every CAP leaf — CHROM or GENE, recognised by its
-    inline marker (first byte ``> 3``), §44 — and re-bind ``the_one`` (the reversible
+    inline marker (first byte ``> 3``), §44 — and re-bind ``coupling`` (the reversible
     :func:`quad_turn` again) on each coupled data turn to recover the original leaf.
     The exact inverse of :func:`chromosome`::
 
@@ -2611,11 +2611,11 @@ def recall(strand, the_one, telomere=None):
     # kernel / active-telomere caps alike), so the C peer covers the multi-gene strand
     # too. The pure walk below is the numpy-free fallback + parity oracle, and handles
     # any non-uniform strand (e.g. a variable-width packed turn).
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     blocks = _leaf_blocks(strand)
     if dim > 0 and blocks and all(len(b) == dim for b in blocks):
         native = _native.genome_recall_c(
-            b"".join(blocks), len(blocks), dim, _the_one_block_bytes(the_one))
+            b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
         if native is not None:
             leaf_bytes, n = native
             return [_HV.from_sequence(leaf_bytes[i * dim:(i + 1) * dim], sectors=QUAD)
@@ -2624,20 +2624,20 @@ def recall(strand, the_one, telomere=None):
     for hv in strand:
         if _cap_kind(hv) is not None:   # a CHROM/GENE cap — a delimiter, not data
             continue
-        leaves.append(quad_turn(hv, the_one))   # reversible uncouple (bind o bind == id)
+        leaves.append(quad_turn(hv, coupling))   # reversible uncouple (bind o bind == id)
     return leaves
 
 
-def genes(strand, the_one):
+def genes(strand, coupling):
     """Recover ``[(gene_label, gene_leaves), …]`` from a multi-gene chromosome (F730/S43).
 
-    The exact inverse of ``chromosome(genes=…, the_one)``. Walk the ``strand``:
+    The exact inverse of ``chromosome(genes=…, coupling)``. Walk the ``strand``:
     a :func:`_gene_cap` (first byte :data:`GENE_CAP_MARKER` — never a Klein-4 turn)
     opens a new gene whose label is read back INLINE (:func:`_unpack_cap`, no TLV);
     every coupled data turn until the next gene-cap (or the end) is re-bound through
-    ``the_one`` (the reversible :func:`quad_turn`) to recover that gene's leaf. The
+    ``coupling`` (the reversible :func:`quad_turn`) to recover that gene's leaf. The
     leading CHROM cap (the chromosome telomere) is skipped — so ``genes`` needs only
-    the strand + ``the_one``, no cap argument::
+    the strand + ``coupling``, no cap argument::
 
         genes(chromosome(genes=[("a", la), ("b", lb)], one), one) == [("a", la), ("b", lb)]
 
@@ -2670,7 +2670,7 @@ def genes(strand, the_one):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, the_one))   # reversible uncouple
+            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
     if started:
         out.append((cur_label, cur_leaves))
     return out
@@ -2760,7 +2760,7 @@ def amplify(chrom, label, n):
     raise ValueError(
         f"amplify: no plain gene labeled {label!r} in the strand (amplify records the copy "
         f"number on a plain GENE cap 0x47 — build one with chromosome(genes=[({label!r}, "
-        f"leaves), …], the_one))")
+        f"leaves), …], coupling))")
 
 
 def copy_number_of(chrom, label):
@@ -2802,10 +2802,10 @@ def copy_number_of(chrom, label):
         f"is carried on a plain GENE cap 0x47; a plain / un-amplified gene reads as 1)")
 
 
-def gene_express(strand, the_one, cell_state):
+def gene_express(strand, coupling, cell_state):
     """Cell-state-modulated gene expression — a READ-TIME FILTER (§128 / #728; §130 / #730).
 
-    ``strand`` is a multi-gene chromosome (from ``chromosome(genes=…, the_one)`` /
+    ``strand`` is a multi-gene chromosome (from ``chromosome(genes=…, coupling)`` /
     :func:`genome` with regulatory genes). This op walks the genes and returns ONLY the
     genes the applied ``cell_state`` EXPRESSES — dispatching on each gene's declared
     **gate_type** (§130 the dispatch FAMILY):
@@ -2868,7 +2868,7 @@ def gene_express(strand, the_one, cell_state):
     regulate it; expression reads the regulatory region). The input ``strand`` is
     byte-identical after this call. Returns the EXPRESSED subset as ``[(gene_label,
     gene_leaves), …]`` (the same shape :func:`genes` returns, filtered) in strand order;
-    ``gene_leaves`` are uncoupled through ``the_one`` (the reversible :func:`quad_turn`).
+    ``gene_leaves`` are uncoupled through ``coupling`` (the reversible :func:`quad_turn`).
 
     ``cell_state`` is a non-negative exact integer (Class-I bitwise; each set bit a present
     cell-state condition; no float, never ``abs()``). Native-dispatched (byte-identical C
@@ -2918,13 +2918,13 @@ def gene_express(strand, the_one, cell_state):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, the_one))   # reversible uncouple
+            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
     if started and cur_express:
         out.append((cur_label, cur_leaves))
     return out
 
 
-def gene_express_levels(strand, the_one, cell_state):
+def gene_express_levels(strand, coupling, cell_state):
     """GRADED / ANALOG gene expression LEVEL — a READ-TIME FILTER (§132 / #732; the E3 rung).
 
     The orthogonal companion to :func:`gene_express`. Where :func:`gene_express` decides *IF* each
@@ -2955,7 +2955,7 @@ def gene_express_levels(strand, the_one, cell_state):
     this call; biology reads the regulatory region, it does not rewrite the DNA). Returns the
     EXPRESSED subset ``[(gene_label, gene_leaves, (num, den)), …]`` in strand order, where
     ``(num, den)`` is the reduced exact-rational level (a JSON-native 2-tuple of ints);
-    ``gene_leaves`` are uncoupled through ``the_one`` (the reversible :func:`quad_turn`).
+    ``gene_leaves`` are uncoupled through ``coupling`` (the reversible :func:`quad_turn`).
 
     ``cell_state`` is a non-negative exact integer (Class-I bitwise; each set bit a present
     condition; no float, never ``abs()``). Native-dispatched (byte-identical C peer
@@ -3004,7 +3004,7 @@ def gene_express_levels(strand, the_one, cell_state):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, the_one))   # reversible uncouple
+            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
     if started and cur_level[0] > 0:
         out.append((cur_label, cur_leaves, cur_level))
     return out
@@ -3187,7 +3187,7 @@ def _modulator_gene_body(strand):
     return b"".join(hv.tobytes() for hv in strand if _cap_kind(hv) in _GENE_MARKERS)
 
 
-def _modulator_recover_native(strand, the_one, labels):
+def _modulator_recover_native(strand, coupling, labels):
     """Native dispatch for :func:`modulator_recover` (parity peer
     ``srmech_genome_modulator_recover``): returns the floor dict, or ``None`` on any
     missing symbol / non-OK status / a label carrying a NUL (the blob delimiter) — the
@@ -3200,7 +3200,7 @@ def _modulator_recover_native(strand, the_one, labels):
         return None
     blob = b"".join(label.encode("utf-8") + b"\x00" for label in dict.fromkeys(labels))
     body = _modulator_gene_body(strand)
-    leaf_dim = len(list(the_one))
+    leaf_dim = len(list(coupling))
     try:
         on, off, und, verdict = _native.genome_modulator_recover_c(body, leaf_dim, blob)
     except _native.NativeGenomeError:
@@ -3209,7 +3209,7 @@ def _modulator_recover_native(strand, the_one, labels):
             "verdict": _MODULATOR_VERDICTS[verdict]}
 
 
-def _modulator_consistent_native(strand, the_one, labels, candidate):
+def _modulator_consistent_native(strand, coupling, labels, candidate):
     """Native dispatch for :func:`modulator_consistent` (parity peer
     ``srmech_genome_modulator_consistent``): returns ``"CONSISTENT"``/``"INCONSISTENT"``,
     or ``None`` on any missing symbol / non-OK status (e.g. an int64 threshold-sum
@@ -3225,7 +3225,7 @@ def _modulator_consistent_native(strand, the_one, labels, candidate):
         return None
     blob = b"".join(label.encode("utf-8") + b"\x00" for label in dict.fromkeys(labels))
     body = _modulator_gene_body(strand)
-    leaf_dim = len(list(the_one))
+    leaf_dim = len(list(coupling))
     try:
         consistent = _native.genome_modulator_consistent_c(body, leaf_dim, blob, candidate)
     except _native.NativeGenomeError:
@@ -3233,7 +3233,7 @@ def _modulator_consistent_native(strand, the_one, labels, candidate):
     return "CONSISTENT" if consistent else "INCONSISTENT"
 
 
-def modulator_recover(strand, the_one, expressed_labels):
+def modulator_recover(strand, coupling, expressed_labels):
     """Recover the TWO-SIDED cell-state FLOOR from an OBSERVED expressed set — M1, the
     INVERSE of :func:`gene_express` (§133 / #733).
 
@@ -3273,7 +3273,7 @@ def modulator_recover(strand, the_one, expressed_labels):
     caps (a duplicated label cannot be attributed → neither contributes). M1 NEVER
     over-claims a bit.
 
-    ⚠️ A READ — never mutates the strand (the input is byte-identical after). ``the_one``
+    ⚠️ A READ — never mutates the strand (the input is byte-identical after). ``coupling``
     is the leaf-width anchor (M1 reads only the gene CAPS, which are not coupled).
     ``expressed_labels`` is a sequence of gene-label strings. Returns
     ``{"certain_on": int, "certain_off": int, "undetermined": int, "verdict": str}``
@@ -3287,20 +3287,20 @@ def modulator_recover(strand, the_one, expressed_labels):
     10.1038/nmeth.2016 (OA: NIH PMC3512113) — the DREAM5 blind assessment of GRN-inference
     methods."""
     labels = _modulator_labels(expressed_labels, "modulator_recover")
-    native = _modulator_recover_native(strand, the_one, labels)
+    native = _modulator_recover_native(strand, coupling, labels)
     if native is not None:
         return native
     return _modulator_recover_pure(strand, labels)
 
 
-def modulator_consistent(strand, the_one, expressed_labels, candidate_cell_state):
+def modulator_consistent(strand, coupling, expressed_labels, candidate_cell_state):
     """Forward-CHECK one candidate cell_state — M2, the consistency verdict (§133 / #733).
 
     Is ``candidate_cell_state`` a cell_state that could have produced ``expressed_labels``?
     Runs the FORWARD :func:`gene_express` on the candidate and compares the produced label
     SET to the observed one::
 
-        set(labels of gene_express(strand, the_one, candidate)) == set(expressed_labels)
+        set(labels of gene_express(strand, coupling, candidate)) == set(expressed_labels)
 
     → ``"CONSISTENT"`` else ``"INCONSISTENT"``. **ONE-SIDED** (the op_verdict EQUAL/UNKNOWN
     reuse): CONSISTENT means "could be the state" (MANY candidates may be — expression is
@@ -3326,10 +3326,10 @@ def modulator_consistent(strand, the_one, expressed_labels, candidate_cell_state
             f"modulator_consistent: candidate_cell_state must be non-negative (a bitmask "
             f"is never signed, so never abs()); got {candidate_cell_state}")
     labels = _modulator_labels(expressed_labels, "modulator_consistent")
-    native = _modulator_consistent_native(strand, the_one, labels, candidate_cell_state)
+    native = _modulator_consistent_native(strand, coupling, labels, candidate_cell_state)
     if native is not None:
         return native
-    produced = {lab for lab, _leaves in gene_express(strand, the_one, candidate_cell_state)}
+    produced = {lab for lab, _leaves in gene_express(strand, coupling, candidate_cell_state)}
     return "CONSISTENT" if produced == set(labels) else "INCONSISTENT"
 
 
@@ -3528,7 +3528,7 @@ def _deserialize_bool_constraint(buf):
     return on, off, nand_list, or_list
 
 
-def _modulator_constraint_native(strand, the_one, labels):
+def _modulator_constraint_native(strand, coupling, labels):
     """Native dispatch for the BOOLEAN part of :func:`modulator_constraint` (parity
     peer ``srmech_genome_modulator_constraint``): returns the emitted
     boolean-constraint bytes, or ``None`` on any missing symbol / non-OK status / a
@@ -3543,7 +3543,7 @@ def _modulator_constraint_native(strand, the_one, labels):
         return None
     blob = b"".join(label.encode("utf-8") + b"\x00" for label in dict.fromkeys(labels))
     body = _modulator_gene_body(strand)
-    leaf_dim = len(list(the_one))
+    leaf_dim = len(list(coupling))
     try:
         return _native.genome_modulator_constraint_c(body, leaf_dim, blob)
     except _native.NativeGenomeError:
@@ -3645,7 +3645,7 @@ def _modulator_satisfiable(on, off, clauses, inequalities, levels,
                   f"{_MODULATOR_SAT_EXACT_BITS}; True = no contradiction proven, not a witness)")
 
 
-def modulator_constraint(strand, the_one, expressed_labels):
+def modulator_constraint(strand, coupling, expressed_labels):
     """The COMPLETE inverse of :func:`gene_express` — M3, the EXACT CONSTRAINT
     characterizing the WHOLE set of cell-states consistent with an observed
     expression (§133 / #733; the last rung of the E-M ladder).
@@ -3700,7 +3700,7 @@ def modulator_constraint(strand, the_one, expressed_labels):
     condition bits; ``solution_note`` characterizes the solution-set SIZE HONESTLY and
     NEVER enumerates it.
 
-    ⚠️ A READ — never mutates the strand (byte-identical after). ``the_one`` is the
+    ⚠️ A READ — never mutates the strand (byte-identical after). ``coupling`` is the
     leaf-width anchor (M3 reads only the gene CAPS). Native-dispatched: the C peer
     ``srmech_genome_modulator_constraint`` emits the BOOLEAN part (floor + clauses)
     byte-identically; the inequalities / levels / satisfiability are computed in the
@@ -3716,7 +3716,7 @@ def modulator_constraint(strand, the_one, expressed_labels):
     labels = _modulator_labels(expressed_labels, "modulator_constraint")
     expressed_set = set(labels)
     # ---- boolean part (floor + clauses): native (byte-identical) or pure ----
-    native_bytes = _modulator_constraint_native(strand, the_one, labels)
+    native_bytes = _modulator_constraint_native(strand, coupling, labels)
     if native_bytes is not None:
         on, off, nand_list, or_list = _deserialize_bool_constraint(native_bytes)
     else:
@@ -3840,7 +3840,7 @@ def modulator_constraint_satisfies(constraint, candidate_cell_state):
     whole constraint: the floor pins (``certain_on`` set, ``certain_off`` clear) AND
     every ``nand`` / ``or_terms`` clause AND every inequality (E4) AND every level (E3),
     ALL ANDed. On the COMPLETE gate-types this EQUALS
-    ``modulator_consistent(strand, the_one, expressed_labels, candidate) == "CONSISTENT"``
+    ``modulator_consistent(strand, coupling, expressed_labels, candidate) == "CONSISTENT"``
     exactly; for a SOUND-ONLY (cross-type-OR) label it is a sound over-approximation
     (True for every consistent state, possibly True for a few inconsistent ones — the
     dropped disjunct).
@@ -3875,7 +3875,7 @@ def modulator_constraint_satisfies(constraint, candidate_cell_state):
     return _satisfies_full(constraint, candidate_cell_state)
 
 
-def plasmid(kernels=None, the_one=None, *, chromosomes=None):
+def plasmid(kernels=None, coupling=None, *, chromosomes=None):
     """Pack many kernels into ONE telomere-partitioned strand of pure PLASMID chromosomes —
     biology's plasmid (F715; the rc260 rename of the old ``genome``, §95.2 / #1407).
 
@@ -3895,11 +3895,11 @@ def plasmid(kernels=None, the_one=None, *, chromosomes=None):
     ``kernels``: each chromosome becomes a telomere-capped region whose genes are
     opened by fixed-width INLINE :func:`_gene_cap` boundaries (§44). Returns ONE
     self-describing strand (NO ``gene_index`` sidecar). Persist with
-    ``genome_save(strand, path, the_one)`` and page one chromosome's genes back with
-    :func:`genome_genes`. ``the_one`` is always required.
+    ``genome_save(strand, path, coupling)`` and page one chromosome's genes back with
+    :func:`genome_genes`. ``coupling`` is always required.
     """
-    if the_one is None:
-        raise ValueError("plasmid: the_one is required")
+    if coupling is None:
+        raise ValueError("plasmid: coupling is required")
     if (kernels is None) == (chromosomes is None):
         raise ValueError("plasmid: pass exactly one of kernels= or chromosomes=")
     if chromosomes is None:
@@ -3911,11 +3911,11 @@ def plasmid(kernels=None, the_one=None, *, chromosomes=None):
         # parity oracle). The §44 chromosomes= multi-gene form opens its own gene caps
         # and stays pure (handled below). Any non-uniform / over-long-label kernel
         # returns None and re-runs the pure path (which raises the exact ValueError).
-        dim = len(list(the_one))
+        dim = len(list(coupling))
         per_kernel = [_leaf_blocks(list(leaves)) for _, leaves in items]
         if dim > 0 and all(len(b) == dim for kb in per_kernel for b in kb):
             native = _native.genome_genome_c(
-                [label for label, _ in items], _the_one_block_bytes(the_one),
+                [label for label, _ in items], _coupling_block_bytes(coupling),
                 b"".join(b"".join(kb) for kb in per_kernel),
                 [len(kb) for kb in per_kernel], dim)
             if native is not None:
@@ -3923,14 +3923,14 @@ def plasmid(kernels=None, the_one=None, *, chromosomes=None):
                         for i in range(len(native) // dim)]
         strand = []
         for label, leaves in items:
-            strand.extend(chromosome(leaves, the_one, label=label))
+            strand.extend(chromosome(leaves, coupling, label=label))
         return strand
     # §44 multi-gene: ONE self-describing strand — each chromosome a telomere-capped
     # region with INLINE fixed-width gene-caps (no gene_index sidecar; the gene
     # boundaries + labels are recovered by scanning the strand).
     strand = []
     for label, genes_list in chromosomes:
-        strand.extend(chromosome(the_one=the_one, label=label, genes=genes_list))
+        strand.extend(chromosome(coupling=coupling, label=label, genes=genes_list))
     return strand
 
 
@@ -4003,7 +4003,7 @@ def mint_plan(kernels):
     return plan
 
 
-def genome(kernels=None, the_one=None, *, chromosomes=None, progress=None):
+def genome(kernels=None, coupling=None, *, chromosomes=None, progress=None):
     """Build a genome — the BIOLOGY-AWARE UMBRELLA that lets the TOOLING pick each
     chromosome's SHAPE by modeling biology (rc260 rename, §95.2 / §95c / F1244 / #1407).
 
@@ -4023,16 +4023,16 @@ def genome(kernels=None, the_one=None, *, chromosomes=None, progress=None):
     of this umbrella (the structured build). See the per-kernel picks with :func:`mint_plan`.
     The ``chromosomes=`` multi-gene form is a different structure (genes) and defers to
     :func:`plasmid`."""
-    if the_one is None:
-        raise ValueError("genome: the_one is required")
+    if coupling is None:
+        raise ValueError("genome: coupling is required")
     if (kernels is None) == (chromosomes is None):
         raise ValueError("genome: pass exactly one of kernels= or chromosomes=")
     if chromosomes is not None:
         # the multi-gene form is not a §95a mint shape (genes are a different structure);
         # build it as pure plasmids — no centromere selection applies.
-        return plasmid(the_one=the_one, chromosomes=chromosomes)
+        return plasmid(coupling=coupling, chromosomes=chromosomes)
     items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     # §95a/rc258 (#1407): DISPATCH the whole mint assemble to the srmech_genome_mint C peer
     # when HAS_NATIVE — 1:1 C↔Python byte parity (user direction 2026-07-16). The per-kernel
     # plasmid-vs-centromere selection (attested encode_shape), the content-address orientation
@@ -4044,7 +4044,7 @@ def genome(kernels=None, the_one=None, *, chromosomes=None, progress=None):
         # the srmech_genome_mint_progress C loop via the ctypes trampoline. On cancel
         # genome_mint_c returns the VALID PARTIAL bytes (whole chromosomes so far).
         native = _native.genome_mint_c(
-            [label for label, _ in items], _the_one_block_bytes(the_one),
+            [label for label, _ in items], _coupling_block_bytes(coupling),
             b"".join(b"".join(kb) for kb in per_kernel),
             [len(kb) for kb in per_kernel], dim, progress=progress)
         if native is not None:
@@ -4059,14 +4059,14 @@ def genome(kernels=None, the_one=None, *, chromosomes=None, progress=None):
         leaves_list = list(leaves)
         _shape, _tier, mint_cen = _mint_shape(leaves_list)
         if mint_cen:
-            strand.extend(chromosome(leaves_list, the_one, label=label,
+            strand.extend(chromosome(leaves_list, coupling, label=label,
                                      centromere=_mint_orientation(leaves_list)))
         else:
-            strand.extend(chromosome(leaves_list, the_one, label=label))
+            strand.extend(chromosome(leaves_list, coupling, label=label))
     return strand
 
 
-def mint(kernels=None, the_one=None, *, chromosomes=None, progress=None):
+def mint(kernels=None, coupling=None, *, chromosomes=None, progress=None):
     """Explicit alias for :func:`genome` — the biology-aware tooling-picks build (rc260 /
     §95c / #1407).
 
@@ -4078,17 +4078,17 @@ def mint(kernels=None, the_one=None, *, chromosomes=None, progress=None):
     §101 ``progress`` (Python-only kwarg; forwarded to :func:`genome`): a per-kernel
     heartbeat + graceful-abort — a truthy return CANCELS and returns the VALID PARTIAL
     strand (the whole chromosomes minted so far)."""
-    return genome(kernels, the_one, chromosomes=chromosomes, progress=progress)
+    return genome(kernels, coupling, chromosomes=chromosomes, progress=progress)
 
 
-def partition(strand, the_one, labels=None):
+def partition(strand, coupling, labels=None):
     """Recover every kernel from a multi-kernel genome strand — the inverse of
     :func:`genome` (F715 / §44).
 
     Walk the ``strand``; each CHROM cap (inline marker :data:`CHROM_CAP_MARKER`,
     §44) starts a new chromosome partition and its label is read back INLINE
     (:func:`_unpack_cap` — no sidecar). The coupled data turns until the next CHROM
-    cap are that kernel's leaves (re-bound through ``the_one`` — the reversible
+    cap are that kernel's leaves (re-bound through ``coupling`` — the reversible
     :func:`quad_turn`); intervening GENE caps are skipped as gene delimiters, so a
     multi-gene chromosome FLATTENS to its concatenated leaves (use :func:`genes` to
     keep the per-gene split). Returns ``{label: leaves}``::
@@ -4103,15 +4103,15 @@ def partition(strand, the_one, labels=None):
     # rc198 (#887): DISPATCH to the srmech_genome_partition C peer when HAS_NATIVE and
     # the strand is uniform fixed-width leaf_dim blocks — byte-identical (open a
     # partition per CHROM / kernel-telomere / active-telomere cap, skip gene / header
-    # caps, re-bind each data turn through the_one). The caller builds the
+    # caps, re-bind each data turn through coupling). The caller builds the
     # {label: leaves} dict here (dict overwrite-on-duplicate-label, exactly like the
     # pure walk's out[current] = []) + applies the labels= filter. The pure walk below
     # is the numpy-free fallback + parity oracle (and any non-uniform strand).
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     blocks = _leaf_blocks(strand)
     if dim > 0 and blocks and all(len(b) == dim for b in blocks):
         native = _native.genome_partition_c(
-            b"".join(blocks), len(blocks), dim, _the_one_block_bytes(the_one))
+            b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
         if native is not None:
             leaf_bytes, part_labels, part_counts = native
             out = {}
@@ -4146,7 +4146,7 @@ def partition(strand, the_one, labels=None):
                                                 # skip, not a coupled data turn
                                                 # not data; flatten past it
         elif current is not None:
-            out[current].append(quad_turn(hv, the_one))   # reversible uncouple
+            out[current].append(quad_turn(hv, coupling))   # reversible uncouple
     if labels is not None:
         return {label: out[label] for label in labels if label in out}
     return out
@@ -4165,11 +4165,11 @@ def partition(strand, the_one, labels=None):
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def _default_the_one(leaf_dim):
+def _default_coupling(leaf_dim):
     """The deterministic default coupling invariant a header-recorded ``leaf_dim``
     reconstructs — an all-ones Klein-4 vector of width ``leaf_dim`` (sectors=4). So
     :func:`kernel_unpack` can uncouple a :func:`kernel_pack` strand that used the
-    default ``the_one`` without the caller re-supplying it."""
+    default ``coupling`` without the caller re-supplying it."""
     return _HV.from_sequence([1] * int(leaf_dim), sectors=QUAD)
 
 
@@ -4220,8 +4220,8 @@ def _integrate_coheres(host, provirus):
     F1251) — does the ``provirus`` COHERE with the ``host`` genome enough to integrate?
 
     F1244's coherency-translation contract is that host + provirus were coupled through the SAME
-    ``the_one`` (the shared k=3 invariant): that is why integration is FREE (no re-coupling). The
-    ``the_one`` has width == the leaf_dim, and EVERY block (cap or coupled turn) in a strand is
+    ``coupling`` (the shared k=3 invariant): that is why integration is FREE (no re-coupling). The
+    ``coupling`` has width == the leaf_dim, and EVERY block (cap or coupled turn) in a strand is
     that leaf_dim wide, so the strand-visible NECESSARY condition for "coupled through the same
     invariant" is an EQUAL coupling WIDTH. Two genomes at DIFFERENT widths were coupled through
     DIFFERENT invariants — they cannot cohere (an incompatible replicon: the F1251 CG258 case,
@@ -4246,7 +4246,7 @@ def integrate(host, provirus, *, at=None, compatible=None):
     integrates into a eukaryote's DNA (Tier-2 — NUCLEAR / DIPLOID) and is thereafter part of it.
     We watch it happen, so there is ONE shared cascade spanning the levels. In srmech that
     coherence is FREE: rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every
-    turn through the SAME ``the_one`` (one k=3 cascade at different rungs, ADR-0005), so a plasmid
+    turn through the SAME ``coupling`` (one k=3 cascade at different rungs, ADR-0005), so a plasmid
     provirus simply becomes another chromosome in the host genome and everything still recovers
     — :func:`partition` recovers every chromosome, :func:`centromere_of` still reads the host's
     nuclear chromosome, :func:`recover_diploid` still recovers its diploid, and the integrated
@@ -4261,7 +4261,7 @@ def integrate(host, provirus, *, at=None, compatible=None):
     crash, mirroring :func:`telomere_tick`'s senescence), leaving the host UNCHANGED, rather than
     forcing every element into every host. The DEFAULT predicate (:func:`_integrate_coheres`) is
     the F1244 coherence contract made checkable: host + provirus must share the COUPLING WIDTH
-    (== the ``the_one`` / leaf_dim), because two genomes at different widths were coupled through
+    (== the ``coupling`` / leaf_dim), because two genomes at different widths were coupled through
     different invariants and cannot cohere (an incompatible replicon — the CG258 analog). Pass an
     explicit ``compatible=`` hook — a callable ``(host, provirus) -> bool`` — to supply a domain
     replicon-/lineage-compatibility predicate (e.g. a same-width but different-lineage barrier);
@@ -4273,7 +4273,7 @@ def integrate(host, provirus, *, at=None, compatible=None):
     with a boundary cap (from :func:`chromosome` / :func:`plasmid` / :func:`mint` /
     :func:`diploid`). ``at`` = the host CHROMOSOME INDEX to insert the provirus BEFORE (0-based;
     default ``None`` = integrate after the last chromosome). **Both must have been coupled through
-    the SAME ``the_one``** — the coherence contract (the shared cascade). This is strand splicing:
+    the SAME ``coupling``** — the coherence contract (the shared cascade). This is strand splicing:
     the provirus's turns are ALREADY coupled, so integration is a composition of self-describing
     blocks, no re-coupling. Returns the combined genome strand on a COMPATIBLE integration (recover
     with :func:`partition`), or ``None`` on an incompatible one (the honest-decline; host
@@ -4341,7 +4341,7 @@ def integrate(host, provirus, *, at=None, compatible=None):
     return host[:locus] + provirus + host[locus:]
 
 
-def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", the_one=None,
+def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", coupling=None,
                 element_type="klein4"):
     """Pack a flat Klein-4 kernel of ANY dimension into a self-describing strand (§89).
 
@@ -4351,7 +4351,7 @@ def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", the_one=None,
     division criterion, generalised to ``leaf_dim``), led by the UNIFORMLY-KLEIN-4 §89
     KERNEL HEADER LEAF that SELF-RECORDS the kernel's TRUE length ``D``, its
     ``element_type`` (``"klein4"`` today — the genome-native 2-bit symbol, so the
-    element codec is identity) and its ``leaf_dim``, all coupled through ``the_one``
+    element codec is identity) and its ``leaf_dim``, all coupled through ``coupling``
     into a KERNEL-telomere-capped :func:`chromosome`. Returns the flat strand
     (``list`` of Klein-4 ``HV`` s): ``[kernel_telomere, klein4_header, turn0, turn1, …]``.
 
@@ -4364,14 +4364,14 @@ def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", the_one=None,
     (:func:`kernel_unpack` dual-reads); this writer no longer emits one.
 
     Recover the EXACT kernel — trimmed to the true ``D``, no external length needed —
-    with :func:`kernel_unpack`. Persist with ``genome_save(strand, path, the_one)``
-    and unpack from the directory with ``kernel_unpack(path, the_one)``.
+    with :func:`kernel_unpack`. Persist with ``genome_save(strand, path, coupling)``
+    and unpack from the directory with ``kernel_unpack(path, coupling)``.
 
     ``leaf_dim`` defaults to :data:`LEAF_CAP` (256, the tome width); it must be at
     least :data:`_KERNEL_HEADER_KLEIN4_SYMS` (52) so the base-4 header fits one leaf.
-    ``the_one`` defaults to the deterministic all-ones invariant
-    (:func:`_default_the_one`) that :func:`kernel_unpack` reconstructs from the
-    header's ``leaf_dim``; pass a custom ``the_one`` (width ``leaf_dim``) only if you
+    ``coupling`` defaults to the deterministic all-ones invariant
+    (:func:`_default_coupling`) that :func:`kernel_unpack` reconstructs from the
+    header's ``leaf_dim``; pass a custom ``coupling`` (width ``leaf_dim``) only if you
     pass the SAME one to unpack.
     """
     if element_type not in _ELEMENT_TYPE_CODES:
@@ -4388,18 +4388,18 @@ def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", the_one=None,
             f"{leaf_dim!r}"
         )
     syms = _validate_kernel_symbols(data)
-    if the_one is None:
-        the_one = _default_the_one(leaf_dim)
-    elif len(list(the_one)) != leaf_dim:
+    if coupling is None:
+        coupling = _default_coupling(leaf_dim)
+    elif len(list(coupling)) != leaf_dim:
         raise ValueError(
-            f"kernel_pack: the_one dim {len(list(the_one))} != leaf_dim {leaf_dim}"
+            f"kernel_pack: coupling dim {len(list(coupling))} != leaf_dim {leaf_dim}"
         )
     leaves = _kernel_v6_leaves(syms, leaf_dim, et_code)
     # [kernel_telomere, coupled_klein4_header, coupled content turns…]
-    return chromosome(leaves, the_one, label=label, kernel=True)
+    return chromosome(leaves, coupling, label=label, kernel=True)
 
 
-def kernel_unpack(strand_or_path, the_one=None):
+def kernel_unpack(strand_or_path, coupling=None):
     """Recover the EXACT flat Klein-4 kernel from a §89/§60 strand or genome path.
 
     The inverse of :func:`kernel_pack`. ``strand_or_path`` is either the in-memory
@@ -4420,14 +4420,14 @@ def kernel_unpack(strand_or_path, the_one=None):
     * **no header** (any pre-rc121 genome): read as ``element_type=klein4`` with
       ``D = leaf_count × leaf_dim`` — no trim, no migration.
 
-    ``the_one`` (the coupling invariant) is optional: for a genome PATH with a present
+    ``coupling`` (the coupling invariant) is optional: for a genome PATH with a present
     manifest it is resolved from the manifest cache; otherwise (an in-memory strand, or
     a manifest-less directory) it defaults to the deterministic all-ones invariant
     reconstructed from the leaf width — matching :func:`kernel_pack`'s default. Pass
-    ``the_one`` explicitly if you packed with a custom one.
+    ``coupling`` explicitly if you packed with a custom one.
     """
     if isinstance(strand_or_path, (str, Path)):
-        strand, the_one, _labels = genome_load(strand_or_path, the_one=the_one)
+        strand, coupling, _labels = genome_load(strand_or_path, coupling=coupling)
     else:
         strand = list(strand_or_path)
     # v5 byte-TLV header (marker 0x4B), if any — READ-ONLY back-compat.
@@ -4436,16 +4436,16 @@ def kernel_unpack(strand_or_path, the_one=None):
     # v6 KERNEL telomere (0x6B) → the first coupled turn is the Klein-4 header LEAF.
     has_kernel_telomere = any(
         _cap_kind(hv) == KERNEL_TELOMERE_MARKER for hv in strand)
-    if the_one is None:
+    if coupling is None:
         # Reconstruct the default coupling invariant from the leaf width (v5 header's
         # recorded leaf_dim, else the first data turn's width — both == leaf_dim).
         if header_v5 is not None:
             _d, hdr_leaf_dim, _et = _unpack_kernel_header(header_v5)
-            the_one = _default_the_one(hdr_leaf_dim)
+            coupling = _default_coupling(hdr_leaf_dim)
         else:
             width = next((len(hv) for hv in strand if _cap_kind(hv) is None), 0)
-            the_one = _default_the_one(width)
-    leaves = recall(strand, the_one)      # skips every cap (incl. the v5 0x4B header
+            coupling = _default_coupling(width)
+    leaves = recall(strand, coupling)      # skips every cap (incl. the v5 0x4B header
                                           # + the 0x6B kernel telomere); uncouples turns
     if header_v5 is not None:
         # v5: recall already skipped the 0x4B marker block, so `leaves` is content.
@@ -4630,7 +4630,7 @@ def _graph_kernel_decode(syms):
 
 
 def graph_to_kernel(vocab_size, edges, weights, charges=None, *,
-                    node_ids=None, extras=(), leaf_dim, label, the_one):
+                    node_ids=None, extras=(), leaf_dim, label, coupling):
     """Serialise a directed SIGNED integer graph -> a packed genome chromosome
     (Klein-4 leaves) + its true symbol count (#1390 item 2).
 
@@ -4657,20 +4657,20 @@ def graph_to_kernel(vocab_size, edges, weights, charges=None, *,
     ex = list(extras)
     syms = _graph_kernel_encode(vocab_size, [tuple(e) for e in edges],
                                 list(weights), ch, nid, ex)
-    strand = kernel_pack(syms, leaf_dim=leaf_dim, label=label, the_one=the_one)
+    strand = kernel_pack(syms, leaf_dim=leaf_dim, label=label, coupling=coupling)
     return strand, len(syms)
 
 
-def kernel_to_graph(chroms, the_one, n_syms):
+def kernel_to_graph(chroms, coupling, n_syms):
     """Inverse of :func:`graph_to_kernel`: a packed chromosome (or genome path)
     + its ``n_syms`` -> the directed signed graph dict
     ``{vocab_size, edges, weights, charges, node_ids, extras}`` (#1390 item 2).
     ``n_syms`` trims the leaf-dim padding :func:`kernel_unpack` restores."""
-    syms = list(kernel_unpack(chroms, the_one))[:n_syms]
+    syms = list(kernel_unpack(chroms, coupling))[:n_syms]
     return _graph_kernel_decode(syms)
 
 
-def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
+def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
                 repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen", progress=None):
     """MINT an ALREADY-PACKED strand — splice a §95a interior CENTROMERE (``0x58``) into it
     at the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (§100 GAP 1 /
@@ -4738,7 +4738,7 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
             {"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_MINTING,
              "done": 0, "total": 1}):
         return strand
-    dim = len(list(the_one))
+    dim = len(list(coupling))
     # §95a: POSITION is the p:q arm-ratio, measured in DATA TURNS (the non-cap leaves) — the SAME
     # units centromere_of reads back (p = data turns BEFORE the cap, q = data turns AFTER). The
     # opening telomere + any interior gene caps are skipped; the metacentric default splits the
@@ -4764,7 +4764,7 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
     if (dim > 0 and blocks and b"\x00" not in raw_handle
             and all(len(b) == dim for b in blocks)):
         native = _native.genome_mint_strand_c(
-            b"".join(blocks), len(blocks), dim, _the_one_block_bytes(the_one),
+            b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling),
             split, orientation, repeats, raw_handle)
         if native is not None:
             return [_hv_from_block(native[i * dim:(i + 1) * dim])
@@ -4774,7 +4774,7 @@ def mint_strand(strand, the_one, *, orientation=None, centromere_at=None,
         # [0] & 3 — the SAME rule mint() assigns a nuclear chromosome (_mint_orientation), so the
         # which-way is deterministic + attested (no magic number). recall skips every cap, so this
         # is the content the payload decode also sees.
-        orientation = _mint_orientation(recall(strand, the_one))
+        orientation = _mint_orientation(recall(strand, coupling))
     # Native-dispatched cap-writer (byte-identical C peer srmech_genome_centromere); the splice is
     # pure block concatenation, so the minted strand is byte-identical to a C-produced one.
     cen_cap = centromere(orientation, repeats=repeats, handle=handle, dim=dim)
@@ -5160,7 +5160,7 @@ def _induced_subgraph(nodes, edge_list, weight_list, charge_list):
             "charges": charges, "node_ids": list(nodes)}
 
 
-def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
+def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
                       path=None, leaf_dim=None, max_tome=256,
                       n_bins=_PARTITION_DEFAULT_BINS, centromere_at=None,
                       progress=None):
@@ -5187,13 +5187,13 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
     ----------
     n, edges, weights, charges
         The directed signed graph (as :func:`genome_partition`).
-    the_one : HV
+    coupling : HV
         The coupling invariant (width ``leaf_dim``); required.
     path : Optional[str|Path]
         If given, ``genome_save`` the assembled strand there and include the census in the
         return; else only the in-memory strand + metadata are returned.
     leaf_dim : Optional[int]
-        The leaf (tome) width to chunk each chromosome into (default ``len(the_one)``; must
+        The leaf (tome) width to chunk each chromosome into (default ``len(coupling)``; must
         be ≥ 52 for the kernel header).
     max_tome, n_bins
         Forwarded to :func:`genome_partition`.
@@ -5210,10 +5210,10 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
     Composes :func:`genome_partition` (composition-of-C) + the C-dispatched
     :func:`graph_to_kernel` + :func:`mint_strand` (composition-of-C) + :func:`genome_save` —
     numpy-free; no ``abs()``. Class L (partition) ∘ Class A/C/K (the mint)."""
-    if the_one is None:
-        raise ValueError("genome_from_graph: the_one is required")
+    if coupling is None:
+        raise ValueError("genome_from_graph: coupling is required")
     if leaf_dim is None:
-        leaf_dim = len(list(the_one))
+        leaf_dim = len(list(coupling))
 
     edge_list, weight_list, charge_list = _partition_validate_graph(
         n, edges, weights, charges)
@@ -5247,10 +5247,10 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
         label = f"{g['type']}_c{g['community']}_{gi}"
         chrom, n_syms = graph_to_kernel(
             sub["vocab_size"], sub["edges"], sub["weights"], sub["charges"],
-            node_ids=sub["node_ids"], leaf_dim=leaf_dim, label=label, the_one=the_one)
+            node_ids=sub["node_ids"], leaf_dim=leaf_dim, label=label, coupling=coupling)
         if g["type"] == "nuclear":
             # MINT the nuclear community — a Tier-2 nuclear chromosome (0x58 centromere).
-            chrom = mint_strand(chrom, the_one, centromere_at=centromere_at)
+            chrom = mint_strand(chrom, coupling, centromere_at=centromere_at)
         strand.extend(chrom)
         chromosomes.append({"label": label, "type": g["type"],
                             "community": g["community"], "n_syms": n_syms,
@@ -5264,9 +5264,9 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, the_one,
         "status": GENOME_STATUS_OK,
     }
     if path is not None and strand:
-        genome_save(strand, path, the_one)
+        genome_save(strand, path, coupling)
         out["path"] = str(path)
-        out["census"] = genome_census(str(path), the_one=the_one)
+        out["census"] = genome_census(str(path), coupling=coupling)
     return out
 
 
@@ -5303,7 +5303,7 @@ def telomere_tick(strand):
          "count_before": N, "count_after": N-1 (divided) | 0 (senescent),
          "daughter": <daughter strand> | None}
 
-    Needs NO ``the_one`` — the count lives in the cap, so the gate reads it from the
+    Needs NO ``coupling`` — the count lives in the cap, so the gate reads it from the
     bare strand (§44 self-description). Native-dispatched (byte-identical C peer
     ``srmech_genome_telomere_tick``); pure Python is the complete alternative. Raises
     ``ValueError`` if ``strand`` does not open with an active telomere.
@@ -5315,7 +5315,7 @@ def telomere_tick(strand):
     if _cap_kind(cap) != ACTIVE_TELOMERE_MARKER:
         raise ValueError(
             "telomere_tick: strand does not open with an active telomere (0x74) — "
-            "build one with chromosome(leaves, the_one, active_count=N)")
+            "build one with chromosome(leaves, coupling, active_count=N)")
     label = _active_telomere_label(cap)
     dim = len(cap)
     native = _telomere_tick_native(cap)
@@ -5470,7 +5470,7 @@ def telomere_tick(strand):
 #: v12 (O(1) genome-native append): the on-disk manifest is now HEAD-ONLY — it drops the
 #: per-chromosome ``chromosomes`` / ``regions`` arrays (a plaintext table-of-contents, the
 #: ADR-0003 regression) and keeps only the O(1) head (``format_version`` / ``leaf_dim`` /
-#: ``n_turns`` / ``n_chromosomes`` / ``the_one`` / ``body_sha256`` chain head). The catalog
+#: ``n_turns`` / ``n_chromosomes`` / ``coupling`` / ``body_sha256`` chain head). The catalog
 #: is DERIVED by scanning the self-describing body (``_catalog_data`` rebuilds it), so
 #: ``genome_append`` rewrites only the tiny head (O(1)) instead of the whole array (the
 #: O(N^2) wall). The BODY format is UNCHANGED (v2..v11 bodies read identically); a v≤11
@@ -5509,7 +5509,7 @@ GENOME_MANIFEST_SCHEMA_ID = "srmech://schema/genome_manifest/v1"
 
 # §43: the data_schema_id of a single-chromosome .chr bundle (genome_export). A .chr
 # is one self-contained MPR record (MPR v1) carrying the chromosome's region +
-# the_one — re-importable self-verifying.
+# coupling — re-importable self-verifying.
 GENOME_CHR_SCHEMA_ID = "srmech://schema/genome_chromosome/v1"
 
 _MANIFEST_NAME = "manifest.json"
@@ -5534,7 +5534,7 @@ def _raise_native_genome(exc):
     :class:`GenomeBoundingError` — §49 / rc154: native is AUTHORITATIVE when
     present, so there is NO "fall back to pure-Python" (pure-Python is the
     complete ALTERNATIVE that runs only when there is no C at all). The cheap,
-    caller-facing ``ValueError`` cases (label absent, the_one width) are
+    caller-facing ``ValueError`` cases (label absent, coupling width) are
     validated in Python BEFORE the native call, so a native non-OK status here
     is an integrity / state failure."""
     raise GenomeBoundingError(
@@ -5809,7 +5809,7 @@ def _region_chain(region_hexes) -> str:
     return acc
 
 
-def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
+def _build_manifest_data(leaf_dim, coupling_blocks, chrom_specs, body_bytes,
                          n_turns):
     """Assemble the manifest ``data`` block — §44's optional DERIVED catalog.
 
@@ -5817,8 +5817,8 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
     byte_len, cap_kind)`` tuples (byte_offset/byte_len index into ``turns.bin``;
     ``leaf_count`` counts DATA turns only, excluding the chromosome's CHROM cap and
     any intra-chromosome GENE caps; ``cap_kind`` ∈ {"plasmid","nuclear","diploid"} is the
-    §96 derived classification). ``the_one_blocks`` is the single
-    ``leaf_dim``-byte block of the_one. ``n_turns`` is the strand BLOCK count
+    §96 derived classification). ``coupling_blocks`` is the single
+    ``leaf_dim``-byte block of coupling. ``n_turns`` is the strand BLOCK count
     (caps + data turns — §55/v3: blocks are variable-width on disk, so the count
     is scanned, no longer ``body_len / leaf_dim``).
 
@@ -5833,7 +5833,7 @@ def _build_manifest_data(leaf_dim, the_one_blocks, chrom_specs, body_bytes,
     NOT the whole-body digest, so an append maintains it in O(1) (extend the head)
     while it stays re-verifiable from the file and body-derivable (§44)."""
     return _build_manifest_data_from_hexes(
-        leaf_dim, the_one_blocks, chrom_specs,
+        leaf_dim, coupling_blocks, chrom_specs,
         _region_hexes_from_body(chrom_specs, body_bytes), n_turns)
 
 
@@ -5846,7 +5846,7 @@ def _region_hexes_from_body(chrom_specs, body_bytes):
             for (_label, _cap, _lc, off, ln, _ck) in chrom_specs]
 
 
-def _build_manifest_data_from_hexes(leaf_dim, the_one_blocks, chrom_specs,
+def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
                                     region_hexes, n_turns):
     """Assemble the manifest ``data`` from ALREADY-COMPUTED per-region digests (rc282).
 
@@ -5861,9 +5861,9 @@ def _build_manifest_data_from_hexes(leaf_dim, the_one_blocks, chrom_specs,
         "format_version": GENOME_FORMAT_VERSION,
         "leaf_dim": int(leaf_dim),
         "n_turns": int(n_turns),
-        "the_one": {
-            "sha256": _sha256_bytes(the_one_blocks),
-            "hex": the_one_blocks.hex(),
+        "coupling": {
+            "sha256": _sha256_bytes(coupling_blocks),
+            "hex": coupling_blocks.hex(),
         },
         "body_sha256": _region_chain(region_hexes),
         "regions": regions,
@@ -5882,7 +5882,7 @@ def _build_manifest_data_from_hexes(leaf_dim, the_one_blocks, chrom_specs,
     }
 
 
-def _build_head_data(leaf_dim, the_one_block, n_turns, n_chromosomes, body_sha256):
+def _build_head_data(leaf_dim, coupling_block, n_turns, n_chromosomes, body_sha256):
     """The v12 HEAD-ONLY manifest ``data`` — the O(1) head with NO per-chromosome
     ``chromosomes`` / ``regions`` arrays. Those are a plaintext table-of-contents
     (ADR-0003) and the O(N^2) append wall; they are DERIVED by scanning the
@@ -5896,17 +5896,17 @@ def _build_head_data(leaf_dim, the_one_block, n_turns, n_chromosomes, body_sha25
         "leaf_dim": int(leaf_dim),
         "n_turns": int(n_turns),
         "n_chromosomes": int(n_chromosomes),
-        "the_one": {
-            "sha256": _sha256_bytes(the_one_block),
-            "hex": the_one_block.hex(),
+        "coupling": {
+            "sha256": _sha256_bytes(coupling_block),
+            "hex": coupling_block.hex(),
         },
         "body_sha256": body_sha256,
     }
 
 
-def _read_head(path, the_one=None) -> dict:
+def _read_head(path, coupling=None) -> dict:
     """The cheap manifest HEAD (``leaf_dim`` / ``n_turns`` / ``n_chromosomes`` /
-    ``body_sha256`` chain head / ``the_one``) — what an O(1) append needs, WITHOUT
+    ``body_sha256`` chain head / ``coupling``) — what an O(1) append needs, WITHOUT
     deriving the per-chromosome catalog. For a v12 head-only manifest this is an O(1)
     file read; for a legacy v≤11 full manifest it reads the whole file once (the
     one-time migration cost of the first v12 append) and back-fills ``n_chromosomes``
@@ -5915,14 +5915,14 @@ def _read_head(path, the_one=None) -> dict:
     if (path / _MANIFEST_NAME).exists():
         head = dict(_read_manifest(path))
     else:
-        if the_one is None:
+        if coupling is None:
             raise GenomeBoundingError(
-                f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no the_one= was "
-                f"given: pass the genome's the_one= so the head can be scanned from "
+                f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no coupling= was "
+                f"given: pass the genome's coupling= so the head can be scanned from "
                 f"{_BODY_NAME}"
             )
         head = dict(_rebuild_manifest_from_body(
-            (path / _BODY_NAME).read_bytes(), len(list(the_one)), the_one))
+            (path / _BODY_NAME).read_bytes(), len(list(coupling)), coupling))
     head.setdefault("n_chromosomes", len(head.get("chromosomes", [])))
     return head
 
@@ -5998,28 +5998,28 @@ def _write_manifest(path, record) -> None:
     manifest_path.write_text(text + "\n", encoding="utf-8", newline="\n")
 
 
-def _the_one_block_bytes(the_one) -> bytes:
-    """The ``leaf_dim``-byte block for ``the_one`` (the width the body lacks inline) —
+def _coupling_block_bytes(coupling) -> bytes:
+    """The ``leaf_dim``-byte block for ``coupling`` (the width the body lacks inline) —
     the native ``srmech_genome_*`` calls take it as raw bytes."""
-    return bytes(_leaf_blocks([the_one])[0])
+    return bytes(_leaf_blocks([coupling])[0])
 
 
-def _the_one_bytes_or_empty(the_one) -> bytes:
-    """``the_one`` as bytes, or ``b""`` when it is ``None`` — for the native genome
+def _coupling_bytes_or_empty(coupling) -> bytes:
+    """``coupling`` as bytes, or ``b""`` when it is ``None`` — for the native genome
     reads (``load`` / ``window`` / ``catalog`` / ``explode`` / ``pack`` / ``import``)
-    where ``the_one`` is only consulted as the §44 rebuild width (a present manifest
-    needs none, so an empty ``the_one`` maps to the C ``NULL,0``)."""
-    return b"" if the_one is None else _the_one_block_bytes(the_one)
+    where ``coupling`` is only consulted as the §44 rebuild width (a present manifest
+    needs none, so an empty ``coupling`` maps to the C ``NULL,0``)."""
+    return b"" if coupling is None else _coupling_block_bytes(coupling)
 
 
-def genome_save(strand, path, the_one, labels=None) -> dict:
+def genome_save(strand, path, coupling, labels=None) -> dict:
     """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41 / §44.
 
     Splits the flat genome ``strand`` into its chromosomes by SCANNING its inline
     CHROM caps (§44 — the strand self-describes; labels are recovered inline),
     writes the self-describing fixed-width body to ``path/turns.bin`` (every strand
     element a ``leaf_dim``-byte block — a CHROM/GENE cap or a coupled data turn),
-    and writes the DERIVED catalog to ``path/manifest.json``. ``the_one`` (the held
+    and writes the DERIVED catalog to ``path/manifest.json``. ``coupling`` (the held
     invariant) is content-addressed into the manifest (its hash + hex) so a load can
     re-anchor without re-deriving it. Returns the manifest ``data`` dict.
 
@@ -6033,7 +6033,7 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
     path = Path(path)
     path.mkdir(parents=True, exist_ok=True)
 
-    leaf_dim = len(list(the_one))
+    leaf_dim = len(list(coupling))
     chroms = _split_into_chromosomes(strand, labels)
 
     body = bytearray()
@@ -6067,12 +6067,12 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
         )
 
     body_bytes = bytes(body)
-    the_one_block = _leaf_blocks([the_one])[0]
+    coupling_block = _leaf_blocks([coupling])[0]
     # The full DERIVED catalog — the RETURN value (callers get chromosomes/regions);
     # on disk only the v12 HEAD is written (the arrays are re-derivable, ADR-0003).
-    data = _build_manifest_data(leaf_dim, the_one_block, chrom_specs, body_bytes,
+    data = _build_manifest_data(leaf_dim, coupling_block, chrom_specs, body_bytes,
                                 n_turns)
-    head = _build_head_data(leaf_dim, the_one_block, n_turns, len(chrom_specs),
+    head = _build_head_data(leaf_dim, coupling_block, n_turns, len(chrom_specs),
                             data["body_sha256"])
 
     # §49/rc154: native C save writes turns.bin + the head-only manifest byte-
@@ -6081,7 +6081,7 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
     # Python path below is the complete alternative ONLY when there is no C.
     if _native.has_native_genome():
         try:
-            _native.genome_save_c(str(path), body_bytes, leaf_dim, bytes(the_one_block))
+            _native.genome_save_c(str(path), body_bytes, leaf_dim, bytes(coupling_block))
             return data
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
@@ -6091,14 +6091,14 @@ def genome_save(strand, path, the_one, labels=None) -> dict:
     return data
 
 
-def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
+def _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling):
     """Reconstruct the manifest ``data`` block by SCANNING ``turns.bin`` alone — §44.
 
     The strand is the SSoT: every manifest field (the per-chromosome ``label`` /
     ``byte_offset`` / ``byte_len`` / ``cap_sha256`` / ``leaf_count``, the
     ``body_sha256`` and ``n_turns``) is derivable by walking the self-describing
     fixed-width body. ``leaf_dim`` — the block width — is the one thing the body does
-    NOT carry inline; it comes from ``the_one`` (``len(the_one)``), the genome's
+    NOT carry inline; it comes from ``coupling`` (``len(coupling)``), the genome's
     identity key. The returned dict is byte-for-byte what :func:`genome_save` wrote
     (same scan + spec accumulation), so a regenerated manifest is identical — that is
     what makes ``manifest.json`` a true optional ``.fai``-style cache (drop it, ship
@@ -6107,14 +6107,14 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one):
     if leaf_dim <= 0:
         raise GenomeBoundingError(
             f"genome rebuild-by-scan: leaf_dim {leaf_dim} is not a positive block "
-            f"width (is the_one's width right?)"
+            f"width (is coupling's width right?)"
         )
     if not body_bytes:
         raise ValueError("genome persistence: empty strand has no chromosomes")
     chrom_specs, n_turns = _scan_body_to_chrom_specs(bytes(body_bytes), leaf_dim)
-    one = the_one if isinstance(the_one, _HV) else _HV.from_sequence(the_one)
-    the_one_block = _leaf_blocks([one])[0]
-    return _build_manifest_data(leaf_dim, the_one_block, chrom_specs,
+    one = coupling if isinstance(coupling, _HV) else _HV.from_sequence(coupling)
+    coupling_block = _leaf_blocks([one])[0]
+    return _build_manifest_data(leaf_dim, coupling_block, chrom_specs,
                                 bytes(body_bytes), n_turns)
 
 
@@ -6280,7 +6280,7 @@ def _scan_body_stream(f, leaf_dim, *, context="genome rebuild-by-scan"):
     return chrom_specs, n_turns, region_hexes
 
 
-def _catalog_data(path, the_one=None) -> dict:
+def _catalog_data(path, coupling=None) -> dict:
     """The manifest ``data`` for a genome at ``path`` — §44's "manifest is an
     optional ``.fai`` cache; the strand is the SSoT".
 
@@ -6291,15 +6291,15 @@ def _catalog_data(path, the_one=None) -> dict:
       ``turns.bin``).
     - **v12 HEAD-ONLY manifest** — read the O(1) head, then DERIVE the arrays by
       STREAMING the self-describing body (:func:`_scan_body_stream`), using the
-      head's ``leaf_dim`` + ``the_one`` (no ``the_one=`` needed). This is where the
+      head's ``leaf_dim`` + ``coupling`` (no ``coupling=`` needed). This is where the
       ADR-0003 "catalog is derived, never a stored plaintext TOC" contract is paid.
       rc282: the derivation is a single forward pass with RAM bounded by the largest
       REGION. It previously did ``turns.bin.read_bytes()`` — the ENTIRE body resident
       at once — and since every store written today is head-only, that was the branch
       every catalog read took.
-    - **no manifest** — REBUILD from the body (needs ``the_one=`` for the leaf width).
+    - **no manifest** — REBUILD from the body (needs ``coupling=`` for the leaf width).
 
-    So a genome can be shipped as ``turns.bin`` alone (tar one file) + its ``the_one``;
+    So a genome can be shipped as ``turns.bin`` alone (tar one file) + its ``coupling``;
     the manifest is an optional ``.fai`` head, never the SSoT."""
     path = Path(path)
     if (path / _MANIFEST_NAME).exists():
@@ -6307,15 +6307,15 @@ def _catalog_data(path, the_one=None) -> dict:
         if "chromosomes" in head:
             return head                        # v2..v11 full manifest — verbatim (back-compat)
         # v12 head-only (no chromosomes array): derive the arrays from the body. leaf_dim +
-        # the_one come from the head, so this needs no the_one= argument.
+        # coupling come from the head, so this needs no coupling= argument.
         leaf_dim = int(head["leaf_dim"])
-        the_one_block = bytes.fromhex(head["the_one"]["hex"])
+        coupling_block = bytes.fromhex(head["coupling"]["hex"])
         # rc282: ONE streamed forward pass — RAM bounded by the largest REGION, not by
         # the whole file. Byte-identical catalog to the old whole-body slurp (both drive
         # the same _ScanState and the same _build_manifest_data_from_hexes assembly).
         with _open_body_ro(path / _BODY_NAME) as f:
             chrom_specs, n_turns, region_hexes = _scan_body_stream(f, leaf_dim)
-        data = _build_manifest_data_from_hexes(leaf_dim, the_one_block, chrom_specs,
+        data = _build_manifest_data_from_hexes(leaf_dim, coupling_block, chrom_specs,
                                                region_hexes, n_turns)
         # INTEGRITY: the head stores the ``body_sha256`` region-CHAIN head (the Merkle
         # root of the body). A body corruption re-derives a DIFFERENT chain → mismatch
@@ -6328,15 +6328,15 @@ def _catalog_data(path, the_one=None) -> dict:
                 f"{head.get('body_sha256')} — the body was modified out of band"
             )
         return data
-    if the_one is None:
+    if coupling is None:
         raise GenomeBoundingError(
-            f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no the_one= was "
+            f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no coupling= was "
             f"given: §44 makes the manifest an optional .fai cache, but rebuilding it "
-            f"by scanning {_BODY_NAME} needs the leaf width (= len(the_one)) — pass "
-            f"the genome's the_one="
+            f"by scanning {_BODY_NAME} needs the leaf width (= len(coupling)) — pass "
+            f"the genome's coupling="
         )
     body_bytes = (path / _BODY_NAME).read_bytes()
-    return _rebuild_manifest_from_body(body_bytes, len(list(the_one)), the_one)
+    return _rebuild_manifest_from_body(body_bytes, len(list(coupling)), coupling)
 
 
 # ── rc271 (F1251) VALUE-ALIAS presentation layer ─────────────────────────────
@@ -6479,7 +6479,7 @@ def _apply_type_aliases_to_registry(reg: dict) -> dict:
     return reg
 
 
-def _canonical_catalog(path, the_one=None) -> dict:
+def _canonical_catalog(path, coupling=None) -> dict:
     """The native-or-pure catalog ``data`` at the CANONICAL cap_kind level (NO type
     alias) — the internal peer of :func:`genome_catalog`. The public ``genome_catalog``
     wraps this with the type-alias presentation; the census / registry roll-ups consume
@@ -6490,19 +6490,19 @@ def _canonical_catalog(path, the_one=None) -> dict:
     if _native.has_native_genome():
         try:
             text = _native.genome_catalog_c(
-                str(Path(path)), _the_one_bytes_or_empty(the_one))
+                str(Path(path)), _coupling_bytes_or_empty(coupling))
             return json.loads(text)["data"]
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
-    return _catalog_data(path, the_one)
+    return _catalog_data(path, coupling)
 
 
-def genome_catalog(path, *, the_one=None) -> dict:
+def genome_catalog(path, *, coupling=None) -> dict:
     """Read the catalog of a genome at ``path`` — UPSTREAM §41 / §44.
 
     Returns the manifest ``data`` dict (``leaf_dim`` / ``n_turns`` /
     ``body_sha256`` / per-chromosome ``cap_sha256`` / ``leaf_count`` /
-    ``byte_offset`` / ``byte_len`` / ``cap_kind`` / ``the_one`` hash+hex).
+    ``byte_offset`` / ``byte_len`` / ``cap_kind`` / ``coupling`` hash+hex).
 
     **What this costs (rc282 — the previous wording here was false).** This docstring
     used to say the catalog read "NEVER opens ``turns.bin``" when a manifest is
@@ -6517,14 +6517,14 @@ def genome_catalog(path, *, the_one=None) -> dict:
 
     §44: when the manifest is ABSENT, the catalog is likewise REBUILT by scanning the
     body (the strand is the SSoT, the manifest an optional ``.fai`` cache); that
-    rebuild needs ``the_one=`` (its length is the leaf width).
+    rebuild needs ``coupling=`` (its length is the leaf width).
 
     rc271 (F1251): the per-chromosome ``cap_kind`` is the field-canonical
     ``plasmid`` / ``nuclear`` / ``diploid``; an active :func:`set_type_aliases` /
     :func:`load_type_aliases_toml` mapping re-presents those values here (a pure
     Python post-transform; the C layer stays canonical).
     """
-    return _apply_type_aliases_to_catalog(_canonical_catalog(path, the_one))
+    return _apply_type_aliases_to_catalog(_canonical_catalog(path, coupling))
 
 
 def _census_topology(types, total_leaves, n_chromosomes) -> str:
@@ -6576,7 +6576,7 @@ def _census_from_catalog(cat, path) -> dict:
     }
 
 
-def genome_census(path, *, the_one=None) -> dict:
+def genome_census(path, *, coupling=None) -> dict:
     """Census ONE genome — the biology-native per-genome roll-up (UPSTREAM §96).
 
     Answers "what is IN this genome, and how does it partition?" the way biology
@@ -6594,7 +6594,7 @@ def genome_census(path, *, the_one=None) -> dict:
     A thin roll-up over :func:`genome_catalog` (which carries the derived
     ``cap_kind`` per chromosome, §96) — the TYPE rides the catalog's ONE body scan,
     no O(n) per-chromosome loads. srmech reads the SHAPE (the inline cap markers);
-    the caller assigns the ROLE. ``the_one=`` is only needed for a manifest-less
+    the caller assigns the ROLE. ``coupling=`` is only needed for a manifest-less
     genome (the catalog rebuild width). numpy-free."""
     # §96: native C census (byte-identical CANONICAL tree) when present; else the pure
     # roll-up over the CANONICAL catalog (itself native-accelerated). Native is
@@ -6606,12 +6606,12 @@ def genome_census(path, *, the_one=None) -> dict:
     if _native.has_native_genome() and _native.has_native_genome_census():
         try:
             text = _native.genome_census_c(
-                str(Path(path)), _the_one_bytes_or_empty(the_one))
+                str(Path(path)), _coupling_bytes_or_empty(coupling))
             return _apply_type_aliases_to_census(json.loads(text))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     return _apply_type_aliases_to_census(
-        _census_from_catalog(_canonical_catalog(path, the_one=the_one), path))
+        _census_from_catalog(_canonical_catalog(path, coupling=coupling), path))
 
 
 def _is_genome_dir(p) -> bool:
@@ -6621,7 +6621,7 @@ def _is_genome_dir(p) -> bool:
     return p.is_dir() and (p / _BODY_NAME).exists() and (p / _MANIFEST_NAME).exists()
 
 
-def genome_registry(root, *, the_one=None) -> dict:
+def genome_registry(root, *, coupling=None) -> dict:
     """Census a ROOT of genomes — the cell / melange census (UPSTREAM §96, ADR-0006).
 
     Scans ``root`` for genome directories (a dir holding BOTH ``turns.bin`` and
@@ -6632,7 +6632,7 @@ def genome_registry(root, *, the_one=None) -> dict:
 
     This is the "cell": which genome is the NUCLEUS (nuclear / diploid chromosomes)
     vs an ORGANELLE (a small all-plasmid plasmid-like genome — a mitochondrion /
-    chloroplast). A dir with no genome subdirs yields ``n_genomes`` 0. ``the_one=``
+    chloroplast). A dir with no genome subdirs yields ``n_genomes`` 0. ``coupling=``
     is only needed for manifest-less genomes. numpy-free."""
     # §96: native C registry (PAL dir scan + per-genome census, one byte-identical
     # CANONICAL tree) when present; else the pure os/pathlib scan + per-dir census
@@ -6641,7 +6641,7 @@ def genome_registry(root, *, the_one=None) -> dict:
     if _native.has_native_genome() and _native.has_native_genome_registry():
         try:
             text = _native.genome_registry_c(
-                str(Path(root)), _the_one_bytes_or_empty(the_one))
+                str(Path(root)), _coupling_bytes_or_empty(coupling))
             return _apply_type_aliases_to_registry(json.loads(text))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
@@ -6659,7 +6659,7 @@ def genome_registry(root, *, the_one=None) -> dict:
         "n_genomes": len(names),
         "genomes": [
             _census_from_catalog(
-                _catalog_data(f"{root_str}/{n}", the_one=the_one), f"{root_str}/{n}")
+                _catalog_data(f"{root_str}/{n}", coupling=coupling), f"{root_str}/{n}")
             for n in names
         ],
     })
@@ -6728,8 +6728,8 @@ def _verify_body_integrity(body_bytes, data) -> None:
         )
 
 
-def _resolve_the_one(data, override=None):
-    """Recover ``the_one`` for a load — §44's "manifest cache + load-param fallback".
+def _resolve_coupling(data, override=None):
+    """Recover ``coupling`` for a load — §44's "manifest cache + load-param fallback".
 
     Prefer a caller-supplied ``override`` (an :class:`HV` / sequence — for when the
     manifest cache is absent or a different anchor is held); otherwise rebuild it
@@ -6737,18 +6737,18 @@ def _resolve_the_one(data, override=None):
     mismatch is a :class:`GenomeBoundingError`)."""
     if override is not None:
         return override if isinstance(override, _HV) else _HV.from_sequence(override)
-    one_block = bytes.fromhex(data["the_one"]["hex"])
-    if _sha256_bytes(one_block) != data["the_one"]["sha256"]:
+    one_block = bytes.fromhex(data["coupling"]["hex"])
+    if _sha256_bytes(one_block) != data["coupling"]["sha256"]:
         raise GenomeBoundingError(
-            "genome the_one integrity bound failed: stored hex does not hash to "
-            "the manifest the_one.sha256"
+            "genome coupling integrity bound failed: stored hex does not hash to "
+            "the manifest coupling.sha256"
         )
     return _hv_from_block(one_block)
 
 
-def genome_load(path, *, labels=None, the_one=None):
+def genome_load(path, *, labels=None, coupling=None):
     """Reconstruct a genome from ``path/`` — UPSTREAM §41 / §44. Returns
-    ``(strand, the_one, labels)``.
+    ``(strand, coupling, labels)``.
 
     ``labels=None`` loads the WHOLE genome: streams ``turns.bin`` block-by-block
     (RAM bounded by the active block, not the whole file held as one giant
@@ -6758,21 +6758,21 @@ def genome_load(path, *, labels=None, the_one=None):
     ``byte_offset`` and reads only its ``byte_len`` bytes (RAM bounded by the
     largest single chromosome), re-hashing that region's cap against
     ``cap_sha256``. The returned strand is byte-for-byte the saved strand for the
-    requested chromosomes (in manifest order). ``the_one`` is rebuilt from the
+    requested chromosomes (in manifest order). ``coupling`` is rebuilt from the
     manifest's stored block (and verified against its stored hash) unless a
-    ``the_one=`` override is supplied (§44 — the manifest is an optional cache). When
+    ``coupling=`` override is supplied (§44 — the manifest is an optional cache). When
     ``manifest.json`` is ABSENT the catalog is reconstructed by scanning
-    ``turns.bin`` (§44 — the strand is the SSoT); that rebuild REQUIRES ``the_one=``
+    ``turns.bin`` (§44 — the strand is the SSoT); that rebuild REQUIRES ``coupling=``
     (its length is the leaf width), so you can load a tar of ``turns.bin`` alone.
     """
     path = Path(path)
-    data = _catalog_data(path, the_one)
+    data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     body_path = path / _BODY_NAME
 
-    # §44: the_one from the manifest cache (verify its content-address bound) or
+    # §44: coupling from the manifest cache (verify its content-address bound) or
     # the caller-supplied override.
-    the_one = _resolve_the_one(data, the_one)
+    coupling = _resolve_coupling(data, coupling)
 
     chrom_entries = list(data["chromosomes"])
     all_labels = [c["label"] for c in chrom_entries]
@@ -6785,7 +6785,7 @@ def genome_load(path, *, labels=None, the_one=None):
         if _native.has_native_genome():
             try:
                 body = _native.genome_load_c(
-                    str(path), bytes(_leaf_blocks([the_one])[0]),
+                    str(path), bytes(_leaf_blocks([coupling])[0]),
                     body_path.stat().st_size)
                 # §55/v3: decode the verified body with the dual-format walker
                 # (v2 byte-per-symbol | v3 bit-packed | mixed).
@@ -6794,7 +6794,7 @@ def genome_load(path, *, labels=None, the_one=None):
                     for _raw, decoded in _walk_region_blocks(
                         body, leaf_dim, context="genome_load")
                 ]
-                return strand, the_one, all_labels
+                return strand, coupling, all_labels
             except _native.NativeGenomeError as exc:
                 _raise_native_genome(exc)
         # Whole-genome streaming read: one block at a time (§55/v3: the block's
@@ -6844,7 +6844,7 @@ def genome_load(path, *, labels=None, the_one=None):
                 body_acc.extend(block)
                 strand.append(_hv_from_block(decoded))
         _verify_body_integrity(bytes(body_acc), data)
-        return strand, the_one, all_labels
+        return strand, coupling, all_labels
 
     # Subset paged read: seek to each requested chromosome's region.
     want = list(labels)
@@ -6878,7 +6878,7 @@ def genome_load(path, *, labels=None, the_one=None):
                 for _raw, decoded in _walk_region_blocks(
                     region, leaf_dim, context=f"genome_load({entry['label']!r})")
             )
-    return out_strand, the_one, [c["label"] for c in ordered]
+    return out_strand, coupling, [c["label"] for c in ordered]
 
 
 @contextlib.contextmanager
@@ -6931,7 +6931,7 @@ def _read_region(path, entry, leaf_dim, f=None) -> bytes:
 # that only wants node_ids therefore never has to touch the edge bytes at all.
 # Two on-disk properties make paging just that prefix sound, with NO format change:
 #
-#   1. quad_turn is a per-leaf REVERSIBLE Klein-4 XOR bind against the_one — leaf k
+#   1. quad_turn is a per-leaf REVERSIBLE Klein-4 XOR bind against coupling — leaf k
 #      uncouples from leaf k alone. There is no chaining across turns, so a prefix
 #      of the coupled leaves uncouples to exactly the prefix of the symbol stream.
 #   2. _read_region's integrity bound is the leading CHROM/kernel cap, which is the
@@ -7026,9 +7026,9 @@ def _read_region_prefix(path, entry, leaf_dim, max_bytes, f=None) -> bytes:
     return region
 
 
-def _prefix_syms(region, leaf_dim, the_one):
+def _prefix_syms(region, leaf_dim, coupling):
     """The flat Klein-4 symbol stream carried by a region (or region PREFIX) —
-    caps skipped, every data turn uncoupled through ``the_one``, the §89 header
+    caps skipped, every data turn uncoupled through ``coupling``, the §89 header
     leaf consumed for the kernel's TRUE length ``D`` and the content trimmed to it.
 
     The prefix-safe mirror of what :func:`kernel_unpack` does for a whole strand:
@@ -7040,7 +7040,7 @@ def _prefix_syms(region, leaf_dim, the_one):
               if not _block_is_cap(dec)]
     if not leaves:
         return []
-    unc = [quad_turn(hv, the_one) for hv in leaves]
+    unc = [quad_turn(hv, coupling) for hv in leaves]
     true_len, _ld, _et = _unpack_kernel_header_klein4(unc[0])
     flat = [int(x) for lf in unc[1:] for x in lf]
     return flat[:true_len] if true_len < len(flat) else flat
@@ -7081,7 +7081,7 @@ def _graph_prefix_ints(syms):
     return ints, i
 
 
-def _section_node_ids(path, entry, leaf_dim, the_one, f=None):
+def _section_node_ids(path, entry, leaf_dim, coupling, f=None):
     """The GLOBAL ``node_ids`` label table of ONE §89 graph-kernel section, read by
     paging ONLY the node_ids region — never the section's edges (§102/rc280).
 
@@ -7114,7 +7114,7 @@ def _section_node_ids(path, entry, leaf_dim, the_one, f=None):
         while True:
             ints, used = _graph_prefix_ints(
                 _prefix_syms(_read_region_prefix(path, entry, leaf_dim, want, fh),
-                             leaf_dim, the_one))
+                             leaf_dim, coupling))
             at_end = want >= byte_len
             if len(ints) >= _NODE_IDS_HEADER_INTS:
                 n_nid = int(ints[1])
@@ -7177,7 +7177,7 @@ def _region_strand(region, leaf_dim) -> List["_HV"]:
     ]
 
 
-def genome_window(path, label, *, the_one=None):
+def genome_window(path, label, *, coupling=None):
     """Page in ONLY one chromosome's leaves from ``path/`` — UPSTREAM §41 / §44.
 
     Seeks to the chromosome ``label``'s ``byte_offset`` and reads only its
@@ -7190,10 +7190,10 @@ def genome_window(path, label, *, the_one=None):
     :func:`genome_genes` to keep the per-gene split). The disk-paging counterpart of
     reaching into one partition of the genome. §44: when ``manifest.json`` is ABSENT
     the offsets are reconstructed by scanning ``turns.bin`` (the strand is the SSoT);
-    pass ``the_one=`` (its length is the leaf width) for that manifest-less path.
+    pass ``coupling=`` (its length is the leaf width) for that manifest-less path.
     """
     path = Path(path)
-    data = _catalog_data(path, the_one)
+    data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     by_label = {c["label"]: c for c in data["chromosomes"]}
     if label not in by_label:
@@ -7206,7 +7206,7 @@ def genome_window(path, label, *, the_one=None):
     if _native.has_native_genome():
         try:
             region = _native.genome_window_c(
-                str(path), label, _the_one_bytes_or_empty(the_one),
+                str(path), label, _coupling_bytes_or_empty(coupling),
                 (path / _BODY_NAME).stat().st_size)
             return [
                 _hv_from_block(decoded)
@@ -7226,14 +7226,14 @@ def genome_window(path, label, *, the_one=None):
     return leaves
 
 
-def genome_genes(path, label, *, the_one=None):
+def genome_genes(path, label, *, coupling=None):
     """Page ONE multi-gene chromosome's genes back from ``path/`` — F732/S43.1 / §44.
 
     The disk counterpart of the in-memory :func:`genes`: pages in only that
     chromosome's region (RAM-bounded + cap-integrity-checked), then SCANS it for the
     inline GENE caps (§44 — no gene-index sidecar; the gene boundaries + labels live
-    in the body) and re-binds ``the_one`` (rebuilt + hash-verified from the manifest
-    cache, or a ``the_one=`` override) to recover ``[(gene_label, gene_leaves), …]``
+    in the body) and re-binds ``coupling`` (rebuilt + hash-verified from the manifest
+    cache, or a ``coupling=`` override) to recover ``[(gene_label, gene_leaves), …]``
     — exactly what ``genes(chromosome(genes=…, one), one)`` returns in memory.
     Raises ``ValueError`` if the chromosome has NO inline GENE caps (it is a
     single-kernel chromosome — use :func:`genome_window` / :func:`partition`)::
@@ -7243,11 +7243,11 @@ def genome_genes(path, label, *, the_one=None):
         genome_genes(path, "g") == [("rules", R), ("board", B)]
 
     §44: when ``manifest.json`` is ABSENT the offsets are reconstructed by scanning
-    ``turns.bin`` (the strand is the SSoT) — ``the_one=`` is required there (and is
+    ``turns.bin`` (the strand is the SSoT) — ``coupling=`` is required there (and is
     needed anyway to uncouple the genes).
     """
     path = Path(path)
-    data = _catalog_data(path, the_one)
+    data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     by_label = {c["label"]: c for c in data["chromosomes"]}
     if label not in by_label:
@@ -7255,7 +7255,7 @@ def genome_genes(path, label, *, the_one=None):
             f"genome_genes: label {label!r} not in the genome "
             f"(have {list(by_label)!r})"
         )
-    the_one = _resolve_the_one(data, the_one)
+    coupling = _resolve_coupling(data, coupling)
     region = _read_region(path, by_label[label], leaf_dim)
     region_strand = _region_strand(region, leaf_dim)
     if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
@@ -7267,8 +7267,8 @@ def genome_genes(path, label, *, the_one=None):
         )
     # §44/§128: scan the inline gene structure — genes() skips the leading CHROM cap and
     # splits on the GENE caps (plain 0x47 / regulatory 0x67), uncoupling each data turn
-    # through the_one (use gene_express() to also apply the regulatory-mask filter).
-    return genes(region_strand, the_one)
+    # through coupling (use gene_express() to also apply the regulatory-mask filter).
+    return genes(region_strand, coupling)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -7323,7 +7323,7 @@ def _plan_close_gene(plan, pending, end_pos, cell_state):
         plan.append((lbl, gstart, end_pos - gstart))
 
 
-def gene_express_plan(strand_or_path, the_one, cell_state):
+def gene_express_plan(strand_or_path, coupling, cell_state):
     """The offset-only LOAD-PLAN for demand-loaded gene expression — §134/rc135
     (#1273, siona green-light; the #736 probe made shippable).
 
@@ -7380,11 +7380,11 @@ def gene_express_plan(strand_or_path, the_one, cell_state):
     #   as of §98/rc269 — the PATH demand-load plan read the chromatin OUTER gate: a condensed
     #   region is skipped at plan time on a single head-slot seek, never touching its gene gate)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
-        return _gene_express_plan_path(Path(strand_or_path), the_one, cell_state)
-    return _gene_express_plan_strand(strand_or_path, the_one, cell_state)
+        return _gene_express_plan_path(Path(strand_or_path), coupling, cell_state)
+    return _gene_express_plan_strand(strand_or_path, coupling, cell_state)
 
 
-def _gene_express_plan_path(path, the_one, cell_state):
+def _gene_express_plan_path(path, coupling, cell_state):
     """PATH variant (b): the DEMAND-LOAD plan — read ONLY each region's head cap(s) via the
     manifest ``byte_offset`` (a seek); NEVER the region body (bounded I/O). §98/rc269: a HEAD
     CHROMATIN cap (``0x48``) is the OUTER access gate over the §134 gene gate — a CONDENSED
@@ -7394,7 +7394,7 @@ def _gene_express_plan_path(path, the_one, cell_state):
     if _native.has_native_genome():
         try:
             return _native.genome_gene_express_plan_c(
-                str(path), cell_state, _the_one_bytes_or_empty(the_one))
+                str(path), cell_state, _coupling_bytes_or_empty(coupling))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     # The catalog read. On a v12+ HEAD-ONLY manifest — which is EVERY store written
@@ -7404,7 +7404,7 @@ def _gene_express_plan_path(path, the_one, cell_state):
     # whole-body slurp this rc removed survived review. Only a v<=11 full manifest is
     # body-free. The BOUNDED-I/O claim below is about the per-region PLAN reads (head
     # caps only), not about deriving the catalog.
-    data = _catalog_data(path, the_one)
+    data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     plan = []
     with _open_body_ro(path / _BODY_NAME) as f:
@@ -7448,11 +7448,11 @@ def _plan_path_head_expresses(f, off, ln, leaf_dim, cell_state):
     return _gene_expresses(_hv_from_block(head_block), cell_state)
 
 
-def _gene_express_plan_strand(strand, the_one, cell_state):
+def _gene_express_plan_strand(strand, coupling, cell_state):
     """STRAND variant (a): the in-memory skeleton-scan — walk the strand's blocks
     computing their ON-DISK byte spans, gate each gene by its cap, and delimit each
     EXPRESSED gene's byte-range. Never decodes a data-turn payload (seeks past it)."""
-    leaf_dim = len(list(the_one))
+    leaf_dim = len(list(coupling))
     turn_width = 1 + _packed_payload_len(leaf_dim)   # §55/v3 on-disk packed-turn width
     plan = []
     pos = 0
@@ -7503,7 +7503,7 @@ def _plan_read_region(f, entry, leaf_dim):
     return region
 
 
-def genome_genes_expressed(path, the_one, cell_state):
+def genome_genes_expressed(path, coupling, cell_state):
     """The PARTIAL-LOAD reader for demand-loaded gene expression — §134/rc135 (#1273).
 
     Uses :func:`gene_express_plan` (the PATH / variant-b plan) to SEEK + load + decode ONLY
@@ -7526,22 +7526,22 @@ def genome_genes_expressed(path, the_one, cell_state):
     #  (the PATH demand-load reader's per-region chromatin single-seek skip (§98) is deferred to
     #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected)
     path = Path(path)
-    plan = _gene_express_plan_path(path, the_one, cell_state)   # the expressed communities
-    data = _catalog_data(path, the_one)
+    plan = _gene_express_plan_path(path, coupling, cell_state)   # the expressed communities
+    data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
-    the_one_hv = _resolve_the_one(data, the_one)
+    coupling_hv = _resolve_coupling(data, coupling)
     by_label = {c["label"]: c for c in data["chromosomes"]}
     out = []
     with _open_body_ro(path / _BODY_NAME) as f:
         for (chrom_label, _off, _ln) in plan:
             region = _plan_read_region(f, by_label[chrom_label], leaf_dim)
             region_strand = _region_strand(region, leaf_dim)
-            for gene in gene_express(region_strand, the_one_hv, cell_state):
+            for gene in gene_express(region_strand, coupling_hv, cell_state):
                 out.append(gene)
     return out
 
 
-def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -> dict:
+def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) -> dict:
     """Append ONE chromosome to an existing genome at ``path/`` in O(1) — UPSTREAM
     §41 / §56 (rc115 #1245(b)) + v12 (the O(1) genome-native rewrite). Returns the
     full catalog ``data`` dict (unchanged shape: ``chromosomes`` / ``regions`` / … ).
@@ -7594,7 +7594,7 @@ def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -
     #   catalog="load"    RESUME a streaming loop with no prior return in hand: read the full
     #                     threadable catalog from disk ONCE (O(n)), then thread it (O(1)/append)
     if catalog == "load":
-        catalog = _catalog_data(path, the_one)      # O(n) once → a threadable catalog dict
+        catalog = _catalog_data(path, coupling)      # O(n) once → a threadable catalog dict
     if catalog is not None and "leaf_dim" not in catalog:
         # the catalog={} / partial-dict footgun — a clear message, not a bare KeyError.
         raise ValueError(
@@ -7607,20 +7607,20 @@ def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -
     # The O(1) head — the threaded in-memory catalog, else a cheap head read (O(1) for
     # a v12 head-only manifest; a one-time O(n) read/scan on the FIRST append to a
     # legacy v≤11 / manifest-less genome, which then becomes v12 head-only).
-    head = catalog if catalog is not None else _read_head(path, the_one)
+    head = catalog if catalog is not None else _read_head(path, coupling)
     leaf_dim = int(head["leaf_dim"])
-    if len(list(the_one)) != leaf_dim:
+    if len(list(coupling)) != leaf_dim:
         raise ValueError(
-            f"genome_append: the_one dim {len(list(the_one))} != genome leaf_dim "
+            f"genome_append: coupling dim {len(list(coupling))} != genome leaf_dim "
             f"{leaf_dim}"
         )
 
-    new_strand = chromosome(leaves, the_one, label=label, kernel=kernel)
+    new_strand = chromosome(leaves, coupling, label=label, kernel=kernel)
     new_blocks = _leaf_blocks(new_strand)
     # §55/v3: the appended region is the packed on-disk form (caps verbatim, data
     # turns bit-packed) — _disk_block validates each width.
     appended = b"".join(_disk_block(blk, leaf_dim) for blk in new_blocks)
-    the_one_block = _leaf_blocks([the_one])[0]
+    coupling_block = _leaf_blocks([coupling])[0]
     body_path = path / _BODY_NAME
 
     # Legacy v2/v3 (format_version < 4): the head's body_sha256 is a WHOLE-BODY digest,
@@ -7632,18 +7632,18 @@ def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -
         if _native.has_native_genome():
             try:
                 _native.genome_append_c(str(path), label, appended, leaf_dim,
-                                        bytes(the_one_block))
+                                        bytes(coupling_block))
             except _native.NativeGenomeError as exc:
                 _raise_native_genome(exc)
         else:
             with body_path.open("ab") as f:
                 f.write(appended)
             grown = body_path.read_bytes()
-            data = _rebuild_manifest_from_body(grown, leaf_dim, the_one)
-            mig_head = _build_head_data(leaf_dim, the_one_block, data["n_turns"],
+            data = _rebuild_manifest_from_body(grown, leaf_dim, coupling)
+            mig_head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
                                         len(data["chromosomes"]), data["body_sha256"])
             _write_manifest(path, _manifest_record(mig_head))
-        return _catalog_data(path, the_one)
+        return _catalog_data(path, coupling)
 
     byte_offset = body_path.stat().st_size          # O(1) stat = the PRIOR body size
     region_sha256 = _sha256_bytes(appended)
@@ -7662,7 +7662,7 @@ def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -
         "byte_len": len(appended),
         "sha256": region_sha256,
     }
-    head_data = _build_head_data(leaf_dim, the_one_block, new_n_turns, new_n_chrom,
+    head_data = _build_head_data(leaf_dim, coupling_block, new_n_turns, new_n_chrom,
                                  new_body_sha)
 
     # Write the DNA + the O(1) head. Native C append is AUTHORITATIVE when present —
@@ -7671,7 +7671,7 @@ def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -
     if _native.has_native_genome():
         try:
             _native.genome_append_c(str(path), label, appended, leaf_dim,
-                                    bytes(the_one_block))
+                                    bytes(coupling_block))
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     else:
@@ -7690,11 +7690,11 @@ def genome_append(path, label, leaves, the_one, *, kernel=False, catalog=None) -
         catalog["format_version"] = GENOME_FORMAT_VERSION
         return catalog
     # Cold call: derive the full catalog from the body once (O(n)) — disk stayed O(1).
-    return _catalog_data(path, the_one)
+    return _catalog_data(path, coupling)
 
 
 def genome_append_kernel(path, label, hv, *, element_type="klein4",
-                         the_one=None, catalog=None) -> dict:
+                         coupling=None, catalog=None) -> dict:
     """Append a newly-taught kernel — WITH its §89 header — to a genome in O(1)
     amortised (§89/rc126, issue #1261). The uniformly-Klein-4 payoff of format v6.
 
@@ -7714,7 +7714,7 @@ def genome_append_kernel(path, label, hv, *, element_type="klein4",
     :func:`genome_append` (unbinding it via klein4_bind failed "must be in {0,1,2,3}");
     v6 makes the header a Klein-4 leaf, so appending a kernel WITH its header is native.
 
-    ``the_one`` (the coupling invariant) is optional when ``path`` has a manifest (it
+    ``coupling`` (the coupling invariant) is optional when ``path`` has a manifest (it
     is resolved from the manifest cache) and REQUIRED for a manifest-less genome (its
     length is the leaf width). ``element_type`` is the declared header enum
     (``"klein4"`` today). Returns the updated manifest ``data`` dict. Raises
@@ -7727,21 +7727,21 @@ def genome_append_kernel(path, label, hv, *, element_type="klein4",
         )
     et_code = _ELEMENT_TYPE_CODES[element_type]
     path = Path(path)
-    head = catalog if catalog is not None else _read_head(path, the_one)   # O(1) head
+    head = catalog if catalog is not None else _read_head(path, coupling)   # O(1) head
     leaf_dim = int(head["leaf_dim"])
     if leaf_dim < _KERNEL_HEADER_KLEIN4_SYMS:
         raise ValueError(
             f"genome_append_kernel: genome leaf_dim {leaf_dim} < "
             f"{_KERNEL_HEADER_KLEIN4_SYMS} — the §89 kernel header does not fit one leaf"
         )
-    if the_one is None:
-        the_one = _resolve_the_one(head, None)    # from the head (the_one hash+hex)
+    if coupling is None:
+        coupling = _resolve_coupling(head, None)    # from the head (coupling hash+hex)
     syms = _validate_kernel_symbols(hv)
     leaves = _kernel_v6_leaves(syms, leaf_dim, et_code)   # [klein4_header, *content]
-    return genome_append(path, label, leaves, the_one, kernel=True, catalog=catalog)
+    return genome_append(path, label, leaves, coupling, kernel=True, catalog=catalog)
 
 
-def _write_body_and_manifest(path, body_bytes, leaf_dim, the_one) -> dict:
+def _write_body_and_manifest(path, body_bytes, leaf_dim, coupling) -> dict:
     """Commit a spliced body to ``turns.bin`` + re-derive its ``.fai`` manifest — §44/§45.
 
     The shared write-path for the in-place edits (:func:`genome_remove` /
@@ -7756,16 +7756,16 @@ def _write_body_and_manifest(path, body_bytes, leaf_dim, the_one) -> dict:
     body_bytes = bytes(body_bytes)
     # §44: rebuild-by-scan validates the splice (whole multiple of leaf_dim, cap-led
     # regions) BEFORE anything is written — a corrupt edit never lands on disk.
-    data = _rebuild_manifest_from_body(body_bytes, leaf_dim, the_one)
-    the_one_block = bytes.fromhex(data["the_one"]["hex"])
-    head = _build_head_data(leaf_dim, the_one_block, data["n_turns"],
+    data = _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling)
+    coupling_block = bytes.fromhex(data["coupling"]["hex"])
+    head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
                             len(data["chromosomes"]), data["body_sha256"])
     (Path(path) / _BODY_NAME).write_bytes(body_bytes)
     _write_manifest(path, _manifest_record(head))     # v12: HEAD-ONLY on disk
     return data
 
 
-def genome_remove(path, label, *, the_one=None) -> dict:
+def genome_remove(path, label, *, coupling=None) -> dict:
     """Excise ONE chromosome from a genome IN PLACE — UPSTREAM §45.
 
     Biology excises; it does not re-synthesize. Finds the chromosome ``label``'s region
@@ -7779,14 +7779,14 @@ def genome_remove(path, label, *, the_one=None) -> dict:
     ``data`` dict.
 
     The whole on-disk body is re-hashed against the committed ``body_sha256`` BEFORE the
-    edit (never splice a corrupt body — a :class:`GenomeBoundingError`). ``the_one`` is
+    edit (never splice a corrupt body — a :class:`GenomeBoundingError`). ``coupling`` is
     needed only when ``manifest.json`` is ABSENT (§44 — its length is the leaf width for
     the rebuild-by-scan); with the manifest present it may be omitted. Raises
     ``ValueError`` if ``label`` is not in the genome, or if it is the genome's ONLY
     chromosome (a genome keeps >= 1 chromosome — remove the directory instead).
     """
     path = Path(path)
-    data = _catalog_data(path, the_one)
+    data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     chrom_entries = list(data["chromosomes"])
     by_label = {c["label"]: c for c in chrom_entries}
@@ -7800,7 +7800,7 @@ def genome_remove(path, label, *, the_one=None) -> dict:
             f"genome_remove: {label!r} is the genome's only chromosome — a genome "
             f"keeps >= 1 chromosome; remove the genome directory instead"
         )
-    one = _resolve_the_one(data, the_one)
+    one = _resolve_coupling(data, coupling)
     # §49/rc154: native C remove (find the region + splice the span out in place +
     # re-derive the manifest, byte-identical); native is authoritative (no fallback).
     if _native.has_native_genome():
@@ -7817,28 +7817,28 @@ def genome_remove(path, label, *, the_one=None) -> dict:
     return _write_body_and_manifest(path, new_body, leaf_dim, one)  # rebuild → v4 regions+chain
 
 
-def genome_replace(path, label, leaves, the_one) -> dict:
+def genome_replace(path, label, leaves, coupling) -> dict:
     """Replace ONE chromosome's content IN PLACE — UPSTREAM §45.
 
     Splices the chromosome ``label``'s old byte span out of ``turns.bin`` and a FRESH
-    telomere-capped :func:`chromosome` (``leaves`` coupled through ``the_one``, same
+    telomere-capped :func:`chromosome` (``leaves`` coupled through ``coupling``, same
     ``label``) IN at the same position — every OTHER chromosome's coupled body bytes
     stay byte-identical (an in-place edit, NOT a whole-genome re-pack). The derived
     manifest is rebuilt by scanning the new body (§44 — the strand is the SSoT). Returns
     the updated manifest ``data`` dict.
 
-    ``the_one`` is REQUIRED here — it both re-couples the new ``leaves`` into the
+    ``coupling`` is REQUIRED here — it both re-couples the new ``leaves`` into the
     chromosome AND supplies the leaf width for the §44 rebuild — and must match the
     genome's ``leaf_dim``. The on-disk body is re-hashed against the committed
     ``body_sha256`` before the edit (a :class:`GenomeBoundingError` on mismatch). Raises
     ``ValueError`` if ``label`` is not in the genome.
     """
     path = Path(path)
-    data = _catalog_data(path, the_one)
+    data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
-    if len(list(the_one)) != leaf_dim:
+    if len(list(coupling)) != leaf_dim:
         raise ValueError(
-            f"genome_replace: the_one dim {len(list(the_one))} != genome leaf_dim "
+            f"genome_replace: coupling dim {len(list(coupling))} != genome leaf_dim "
             f"{leaf_dim}"
         )
     by_label = {c["label"]: c for c in data["chromosomes"]}
@@ -7850,7 +7850,7 @@ def genome_replace(path, label, leaves, the_one) -> dict:
     # §55/v3: the fresh region is written in the packed on-disk form.
     new_region = b"".join(
         _disk_block(blk, leaf_dim)
-        for blk in _leaf_blocks(chromosome(leaves, the_one, label=label))
+        for blk in _leaf_blocks(chromosome(leaves, coupling, label=label))
     )
     # §49/rc154: native C replace (splice old span out + fresh region in at the same
     # position + manifest re-derive, byte-identical); native is authoritative (no
@@ -7859,8 +7859,8 @@ def genome_replace(path, label, leaves, the_one) -> dict:
         try:
             _native.genome_replace_c(
                 str(path), label, new_region, leaf_dim,
-                bytes(_leaf_blocks([the_one])[0]))
-            return _catalog_data(path, the_one)    # full derived catalog
+                bytes(_leaf_blocks([coupling])[0]))
+            return _catalog_data(path, coupling)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     entry = by_label[label]
@@ -7868,14 +7868,14 @@ def genome_replace(path, label, leaves, the_one) -> dict:
     body = (path / _BODY_NAME).read_bytes()
     _verify_body_integrity(body, data)                   # integrity bound before edit
     new_body = body[:off] + new_region + body[off + byte_len:]
-    return _write_body_and_manifest(path, new_body, leaf_dim, the_one)
+    return _write_body_and_manifest(path, new_body, leaf_dim, coupling)
 
 
 # ────────────────────────────────────────────────────────────────────────
 # §43 file-management — the chromosome as a single bundleable .chr file.
 #
 # A .chr is ONE self-contained MPR-attested file (MPR v1) carrying a
-# chromosome's fixed-width region (CHROM cap + coupled data turns) + the_one
+# chromosome's fixed-width region (CHROM cap + coupled data turns) + coupling
 # (the width the body lacks inline). It composes srmech.amsc.format (the
 # MPRRecord + sha256 content-address) — NOT a parallel attestation: tar it, ship
 # it, genome_import it self-verifying. The strand stays the SSoT (§44); a .chr
@@ -7883,11 +7883,11 @@ def genome_replace(path, label, leaves, the_one) -> dict:
 # ────────────────────────────────────────────────────────────────────────
 
 
-def _chr_data(label, leaf_dim, leaf_count, cap_sha256, the_one_block, region):
+def _chr_data(label, leaf_dim, leaf_count, cap_sha256, coupling_block, region):
     """Assemble the .chr ``data`` block for ONE chromosome region — §43.
 
     Carries the chromosome's identity (label / leaf_dim / leaf_count / the cap
-    hash), the_one (sha256 + hex — so the bundle is re-couplable standalone), and
+    hash), coupling (sha256 + hex — so the bundle is re-couplable standalone), and
     the region itself (sha256 + hex — the CHROM cap + coupled turns, the body
     bytes verbatim). The region hex makes the .chr a single self-contained file."""
     return {
@@ -7896,7 +7896,7 @@ def _chr_data(label, leaf_dim, leaf_count, cap_sha256, the_one_block, region):
         "label": label,
         "leaf_count": int(leaf_count),
         "cap_sha256": cap_sha256,
-        "the_one": {"sha256": _sha256_bytes(the_one_block), "hex": the_one_block.hex()},
+        "coupling": {"sha256": _sha256_bytes(coupling_block), "hex": coupling_block.hex()},
         "region": {"sha256": _sha256_bytes(bytes(region)), "hex": bytes(region).hex()},
     }
 
@@ -7934,7 +7934,7 @@ def _chr_record(data) -> _MPRRecord:
             "cite_as": "srmech genome chromosome bundle (UPSTREAM §43)",
             "purpose": (
                 "One self-contained, MPR-attested chromosome: its fixed-width "
-                "region (CHROM cap + coupled turns) + the_one, re-importable "
+                "region (CHROM cap + coupled turns) + coupling, re-importable "
                 "self-verifying."
             ),
         },
@@ -7973,23 +7973,23 @@ def _read_chr(path) -> _MPRRecord:
     return record
 
 
-def genome_export(path, label, out, *, the_one=None) -> dict:
+def genome_export(path, label, out, *, coupling=None) -> dict:
     """Export ONE chromosome as a single self-contained ``.chr`` file — UPSTREAM §43.
 
     Reads the chromosome ``label``'s fixed-width region (CHROM cap + coupled data
     turns; cap re-hashed against the manifest ``cap_sha256``) and writes it — together
-    with ``the_one`` — to ``out`` as ONE MPR-attested record (MPR v1; the
+    with ``coupling`` — to ``out`` as ONE MPR-attested record (MPR v1; the
     ``response_sha256`` IS the region hash). So a chromosome is a self-contained,
     content-addressed unit: ``tar`` it, ship it, :func:`genome_import` it
     self-verifying — realising the §43 "chromosome as a bundleable file" goal on top of
     the §44 self-describing strand. Returns the ``.chr`` ``data`` block. §44: pass
-    ``the_one=`` to export from a manifest-less source genome (the catalog is rebuilt by
+    ``coupling=`` to export from a manifest-less source genome (the catalog is rebuilt by
     scanning ``turns.bin``).
 
     Raises ``ValueError`` if ``label`` is not in the genome.
     """
     path = Path(path)
-    data = _catalog_data(path, the_one)
+    data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     by_label = {c["label"]: c for c in data["chromosomes"]}
     if label not in by_label:
@@ -8003,53 +8003,53 @@ def genome_export(path, label, out, *, the_one=None) -> dict:
     if _native.has_native_genome():
         try:
             _native.genome_export_c(
-                str(path), label, str(out), _the_one_bytes_or_empty(the_one))
+                str(path), label, str(out), _coupling_bytes_or_empty(coupling))
             return _read_chr(Path(out)).data
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     entry = by_label[label]
     region = _read_region(path, entry, leaf_dim)            # cap-integrity checked
-    one_block = bytes.fromhex(data["the_one"]["hex"])
+    one_block = bytes.fromhex(data["coupling"]["hex"])
     chr_data = _chr_data(label, leaf_dim, int(entry["leaf_count"]),
                          entry["cap_sha256"], one_block, region)
     _write_mpr_file(Path(out), _chr_record(chr_data))
     return chr_data
 
 
-def genome_import(chr_path, dest, *, the_one=None) -> dict:
+def genome_import(chr_path, dest, *, coupling=None) -> dict:
     """Import a ``.chr`` chromosome bundle into a genome at ``dest`` — UPSTREAM §43.
 
     Reads the MPR-attested ``.chr`` (:func:`genome_export`'s output), RE-HASHES its
-    region and its ``the_one`` and compares them against the bundle's own attestation —
+    region and its ``coupling`` and compares them against the bundle's own attestation —
     a mismatch is a :class:`GenomeBoundingError` (self-verifying). Then:
 
     * if ``dest`` has NO genome yet, the ``.chr`` SEEDS a fresh one (its region becomes
-      ``turns.bin`` verbatim, its ``the_one`` the coupling invariant);
+      ``turns.bin`` verbatim, its ``coupling`` the coupling invariant);
     * if ``dest`` already holds a genome, the chromosome is APPENDED byte-for-byte —
-      which REQUIRES the same coupling invariant (the dest ``the_one`` must match the
-      ``.chr`` ``the_one``) and a fresh ``label``. The manifest is re-derived by scanning
+      which REQUIRES the same coupling invariant (the dest ``coupling`` must match the
+      ``.chr`` ``coupling``) and a fresh ``label``. The manifest is re-derived by scanning
       the grown body (§44 — the strand is the SSoT).
 
-    Returns the dest manifest ``data`` dict. ``the_one=`` is only consulted for a
+    Returns the dest manifest ``data`` dict. ``coupling=`` is only consulted for a
     manifest-less existing ``dest`` (§44 rebuild width); the bundle carries its own.
     """
     dest = Path(dest)
     # rc154: cheap, caller-facing validation runs in Python BEFORE the native call so a
     # native non-OK status is unambiguously an integrity failure (GenomeBoundingError). A
     # duplicate label is an ordinary usage error (ValueError) — but the native BAD_INPUT
-    # status cannot distinguish it from a the_one mismatch — so it is checked here against
-    # the dest's chromosomes. A the_one mismatch (integrity) takes PRECEDENCE: the
+    # status cannot distinguish it from a coupling mismatch — so it is checked here against
+    # the dest's chromosomes. A coupling mismatch (integrity) takes PRECEDENCE: the
     # ValueError is only raised when the coupling invariant matches (otherwise we fall
     # through to native, which reports the mismatch as a GenomeBoundingError).
     record = _read_chr(chr_path)
     cdata = record.data
     label = cdata["label"]
-    one_block = bytes.fromhex(cdata["the_one"]["hex"])
+    one_block = bytes.fromhex(cdata["coupling"]["hex"])
     body_path = dest / _BODY_NAME
     if body_path.exists():
-        one_for_scan = the_one if the_one is not None else _hv_from_block(one_block)
+        one_for_scan = coupling if coupling is not None else _hv_from_block(one_block)
         dest_data = _catalog_data(dest, one_for_scan)
-        if (dest_data["the_one"]["sha256"] == cdata["the_one"]["sha256"]
+        if (dest_data["coupling"]["sha256"] == cdata["coupling"]["sha256"]
                 and any(c["label"] == label for c in dest_data["chromosomes"])):
             raise ValueError(
                 f"genome_import: chromosome {label!r} already exists in the dest genome"
@@ -8057,13 +8057,13 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
     # §49/rc154: native C import is AUTHORITATIVE when present (re-hash the bundle
     # self-verifying, SEED a fresh dest or APPEND byte-for-byte; Python re-reads the dest
     # manifest for the return). A native non-OK status is an integrity bound →
-    # GenomeBoundingError (flipped byte / the_one mismatch / leaf_dim mismatch).
+    # GenomeBoundingError (flipped byte / coupling mismatch / leaf_dim mismatch).
     if _native.has_native_genome():
         try:
             dest.mkdir(parents=True, exist_ok=True)   # native SEED save needs the dir
             _native.genome_import_c(
-                str(chr_path), str(dest), _the_one_bytes_or_empty(the_one))
-            return _catalog_data(dest, the_one)    # full derived catalog
+                str(chr_path), str(dest), _coupling_bytes_or_empty(coupling))
+            return _catalog_data(dest, coupling)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     # pure-Python alternative (no C present) — full integrity bounds on the already-read
@@ -8075,10 +8075,10 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
             "genome_import: chromosome region integrity bound failed — the .chr's "
             "region does not hash to its attested response_sha256 (a flipped byte)"
         )
-    if _sha256_bytes(one_block) != cdata["the_one"]["sha256"]:
+    if _sha256_bytes(one_block) != cdata["coupling"]["sha256"]:
         raise GenomeBoundingError(
-            "genome_import: the_one integrity bound failed in the .chr (stored hex "
-            "does not hash to the_one.sha256)"
+            "genome_import: coupling integrity bound failed in the .chr (stored hex "
+            "does not hash to coupling.sha256)"
         )
     leaf_dim = int(cdata["leaf_dim"])
     one = _hv_from_block(one_block)
@@ -8089,15 +8089,15 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
         dest.mkdir(parents=True, exist_ok=True)
         return _write_body_and_manifest(dest, region, leaf_dim, one)
     # APPEND into the existing genome — same coupling invariant + fresh label.
-    dest_data = _catalog_data(dest, the_one if the_one is not None else one)
+    dest_data = _catalog_data(dest, coupling if coupling is not None else one)
     if int(dest_data["leaf_dim"]) != leaf_dim:
         raise GenomeBoundingError(
             f"genome_import: dest leaf_dim {dest_data['leaf_dim']} != .chr leaf_dim "
             f"{leaf_dim}"
         )
-    if dest_data["the_one"]["sha256"] != cdata["the_one"]["sha256"]:
+    if dest_data["coupling"]["sha256"] != cdata["coupling"]["sha256"]:
         raise GenomeBoundingError(
-            "genome_import: the_one mismatch — the chromosome is coupled to a "
+            "genome_import: coupling mismatch — the chromosome is coupled to a "
             "different invariant than the dest genome (re-couple before importing)"
         )
     if any(c["label"] == label for c in dest_data["chromosomes"]):
@@ -8109,7 +8109,7 @@ def genome_import(chr_path, dest, *, the_one=None) -> dict:
     return _write_body_and_manifest(dest, dest_body + region, leaf_dim, one)
 
 
-def genome_explode(path, out_dir, *, the_one=None) -> list:
+def genome_explode(path, out_dir, *, coupling=None) -> list:
     """Explode a packed genome into a directory of loose ``.chr`` files — UPSTREAM §43.
 
     The packed→loose half of git's object model: a genome's ``turns.bin`` (the
@@ -8120,13 +8120,13 @@ def genome_explode(path, out_dir, *, the_one=None) -> list:
     :func:`genome_pack` is the inverse.
 
     Returns a list of ``{"label", "path", "region_sha256"}`` dicts (in the genome's
-    chromosome order). ``the_one=`` explodes from a manifest-less source (§44).
+    chromosome order). ``coupling=`` explodes from a manifest-less source (§44).
     Raises ``ValueError`` if a chromosome label is not filename-safe (would not make
     a clean ``<label>.chr`` loose object).
     """
     path = Path(path)
     out_dir = Path(out_dir)
-    data = _catalog_data(path, the_one)
+    data = _catalog_data(path, coupling)
     out_dir.mkdir(parents=True, exist_ok=True)
     labels = [e["label"] for e in data["chromosomes"]]
     for label in labels:
@@ -8141,7 +8141,7 @@ def genome_explode(path, out_dir, *, the_one=None) -> list:
     if _native.has_native_genome():
         try:
             _native.genome_explode_c(
-                str(path), str(out_dir), _the_one_bytes_or_empty(the_one))
+                str(path), str(out_dir), _coupling_bytes_or_empty(coupling))
             return [
                 {"label": label, "path": str(out_dir / f"{label}.chr"),
                  "region_sha256":
@@ -8153,7 +8153,7 @@ def genome_explode(path, out_dir, *, the_one=None) -> list:
     written = []
     for label in labels:
         chr_path = out_dir / f"{label}.chr"
-        cdata = genome_export(path, label, chr_path, the_one=the_one)
+        cdata = genome_export(path, label, chr_path, coupling=coupling)
         written.append({
             "label": label,
             "path": str(chr_path),
@@ -8162,7 +8162,7 @@ def genome_explode(path, out_dir, *, the_one=None) -> list:
     return written
 
 
-def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
+def genome_pack(loose_dir, dest, *, coupling=None) -> dict:
     """Pack a directory of loose ``.chr`` files into one packed genome — UPSTREAM §43.
 
     The loose→packed inverse of :func:`genome_explode` (git ``repack``-like). Every
@@ -8172,13 +8172,13 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
     order is not preserved (a packed genome is canonicalised to sorted-label order).
     The first import SEEDS ``dest`` (when it has no genome yet); the rest APPEND
     byte-for-byte; all the bundles MUST share one coupling invariant (the same
-    ``the_one``) — a mismatched ``.chr`` is a :class:`GenomeBoundingError`, and a
+    ``coupling``) — a mismatched ``.chr`` is a :class:`GenomeBoundingError`, and a
     duplicate label is a ``ValueError``.
 
     A packed genome is byte-identical to its source iff the source was already in
     canonical sorted-label order; otherwise pack re-canonicalises while preserving
     every chromosome's bytes (round-trips by content, verifiable per-chromosome with
-    :func:`genome_window`). Returns the dest manifest ``data`` dict. ``the_one=`` is
+    :func:`genome_window`). Returns the dest manifest ``data`` dict. ``coupling=`` is
     only the §44 rebuild width for a manifest-less existing ``dest``.
 
     Raises ``ValueError`` if ``loose_dir`` holds no ``.chr`` files.
@@ -8194,7 +8194,7 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
     # rc154: cheap, caller-facing validation runs in Python BEFORE the native call. Two
     # bundles sharing a label cannot both pack — a packed genome's labels are unique — so
     # this is an ordinary usage error (ValueError), checked here so a native non-OK status
-    # is unambiguously an integrity failure (a mismatched the_one → GenomeBoundingError).
+    # is unambiguously an integrity failure (a mismatched coupling → GenomeBoundingError).
     seen, dups = set(), set()
     for label, _cf in keyed:
         (dups if label in seen else seen).add(label)
@@ -8214,12 +8214,12 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
         scratch = Path(tempfile.mkdtemp())
         try:
             _native.genome_pack_c(
-                str(loose_dir), str(scratch), _the_one_bytes_or_empty(the_one))
+                str(loose_dir), str(scratch), _coupling_bytes_or_empty(coupling))
             dest.mkdir(parents=True, exist_ok=True)
             (dest / _BODY_NAME).write_bytes((scratch / _BODY_NAME).read_bytes())
             (dest / _MANIFEST_NAME).write_bytes(
                 (scratch / _MANIFEST_NAME).read_bytes())
-            return _catalog_data(dest, the_one)    # full derived catalog
+            return _catalog_data(dest, coupling)    # full derived catalog
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)                                       # real dest untouched
         finally:
@@ -8236,16 +8236,16 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
     if (dest / _BODY_NAME).exists():
         # APPEND into an existing dest: seed the concatenation with its body and
         # adopt its coupling invariant + leaf width (genome_import's bounds).
-        dest_data = _catalog_data(dest, the_one)
-        one_block = bytes.fromhex(dest_data["the_one"]["hex"])
+        dest_data = _catalog_data(dest, coupling)
+        one_block = bytes.fromhex(dest_data["coupling"]["hex"])
         leaf_dim = int(dest_data["leaf_dim"])
         dest_labels = {c["label"] for c in dest_data["chromosomes"]}
         body.extend((dest / _BODY_NAME).read_bytes())
     for lbl, cf in keyed:
         cdata = _read_chr(cf).data
         region = bytes.fromhex(cdata["region"]["hex"])
-        cone = bytes.fromhex(cdata["the_one"]["hex"])
-        # self-verify the bundle: region + the_one hash against its own attestation.
+        cone = bytes.fromhex(cdata["coupling"]["hex"])
+        # self-verify the bundle: region + coupling hash against its own attestation.
         if (_sha256_bytes(region) != cdata["region"]["sha256"] or
                 _read_chr(cf).attestation.get("response_sha256")
                 != cdata["region"]["sha256"]):
@@ -8253,15 +8253,15 @@ def genome_pack(loose_dir, dest, *, the_one=None) -> dict:
                 f"genome_pack: chromosome {lbl!r} region integrity bound failed — "
                 f"the .chr does not hash to its attested response_sha256"
             )
-        if _sha256_bytes(cone) != cdata["the_one"]["sha256"]:
+        if _sha256_bytes(cone) != cdata["coupling"]["sha256"]:
             raise GenomeBoundingError(
-                f"genome_pack: chromosome {lbl!r} the_one integrity bound failed"
+                f"genome_pack: chromosome {lbl!r} coupling integrity bound failed"
             )
         if one_block is None:
             one_block, leaf_dim = cone, int(cdata["leaf_dim"])
         elif cone != one_block:
             raise GenomeBoundingError(
-                f"genome_pack: chromosome {lbl!r} is coupled to a different the_one "
+                f"genome_pack: chromosome {lbl!r} is coupled to a different coupling "
                 f"than the pack (all bundles must share one coupling invariant)"
             )
         elif int(cdata["leaf_dim"]) != leaf_dim:
@@ -8378,7 +8378,7 @@ def genome_register_attested(chr_dir, amsc_root, *, source) -> dict:
             )
         leaf_dim = int(record.data["leaf_dim"])
         region_sha = record.data["region"]["sha256"]
-        one_sha = record.data["the_one"]["sha256"]
+        one_sha = record.data["coupling"]["sha256"]
         src_dir = amsc_root / label
         src_dir.mkdir(parents=True, exist_ok=True)
         (src_dir / "descriptor.toml").write_text(
@@ -8388,7 +8388,7 @@ def genome_register_attested(chr_dir, amsc_root, *, source) -> dict:
             "row_label": label,
             "leaf_dim": leaf_dim,
             "region_sha256": region_sha,       # the .chr's existing attestation
-            "the_one_sha256": one_sha,
+            "coupling_sha256": one_sha,
             "chr_filename": cf.name,
             "data_schema_id": record.data_schema_id,
         }

@@ -68,8 +68,8 @@ def _leaves(n, fill=0):
 
 def _one_gene_strand(label="chrX", gene="g1", body=6):
     """A single-chromosome, single-gene strand (an always-on plain gene) to condense onto."""
-    one = G._default_the_one(LEAF)
-    strand = G.chromosome(the_one=one, label=label, genes=[(gene, _leaves(body))])
+    one = G._default_coupling(LEAF)
+    strand = G.chromosome(coupling=one, label=label, genes=[(gene, _leaves(body))])
     return strand, one
 
 
@@ -85,9 +85,9 @@ def _pure_access(strand, cs):
 def test_t1_constitutive_and_plain_are_invariant():
     strand, one = _one_gene_strand()
     plain = strand                                            # no chromatin cap → (1, 1)
-    open_cap = G.condense(strand, the_one=one, label="chrX", state="open")     # constitutive (1,1)
-    cond_cap = G.condense(strand, the_one=one, label="chrX", state="condensed")  # constitutive (0,1)
-    grad_cap = G.condense(strand, the_one=one, label="chrX", state=(1, 3))     # constitutive (1,3)
+    open_cap = G.condense(strand, coupling=one, label="chrX", state="open")     # constitutive (1,1)
+    cond_cap = G.condense(strand, coupling=one, label="chrX", state="condensed")  # constitutive (0,1)
+    grad_cap = G.condense(strand, coupling=one, label="chrX", state=(1, 3))     # constitutive (1,3)
     for cs in range(0, ALLB + 1):
         assert G.accessible(plain, cs) == (1, 1), cs
         assert G.accessible(open_cap, cs) == (1, 1), cs
@@ -98,9 +98,9 @@ def test_t1_constitutive_and_plain_are_invariant():
 # ── T2  facultative TRACKS cell_state (the core G1 claim) ─────────────────────────────
 def test_t2_facultative_tracks_cell_state():
     strand, one = _one_gene_strand()
-    klein4 = G.condense(strand, the_one=one, label="chrX", state={"activator": B2})
-    boolean = G.condense(strand, the_one=one, label="chrX", state={"dnf": [(B1, 0), (B2, 0)]})
-    thresh = G.condense(strand, the_one=one, label="chrX",
+    klein4 = G.condense(strand, coupling=one, label="chrX", state={"activator": B2})
+    boolean = G.condense(strand, coupling=one, label="chrX", state={"dnf": [(B1, 0), (B2, 0)]})
+    thresh = G.condense(strand, coupling=one, label="chrX",
                         state={"weights": [0, 1, 1], "threshold": 2})
     # klein4: open iff bit2 present
     assert G.accessible(klein4, 0) == (0, 1) and G.accessible(klein4, B2) == (1, 1)
@@ -119,7 +119,7 @@ def test_t2_facultative_tracks_cell_state():
 def test_t3_constitutive_cap_byte_identical_and_format_15():
     strand, one = _one_gene_strand()
     for st, exp in [("open", (1, 1)), ("condensed", (0, 1)), ((2, 5), (2, 5))]:
-        s = G.condense(strand, the_one=one, label="chrX", state=st)
+        s = G.condense(strand, coupling=one, label="chrX", state=st)
         cap = [hv for hv in s if G._cap_kind(hv) == G.CHROMATIN_MARKER][0].tobytes()
         nul = cap.find(b"\x00", 1)
         den_end = nul + 2 + 2 * G._CHROMATIN_LEVEL_BYTES
@@ -131,7 +131,7 @@ def test_t3_constitutive_cap_byte_identical_and_format_15():
             [hv for hv in s if G._cap_kind(hv) == G.CHROMATIN_MARKER][0]) == (G.CHROMATIN_GATE_NONE, None)
     assert G.GENOME_FORMAT_VERSION == 15
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 456
+    assert introspect.describe()["tools"]["total"] == 461
 
 
 # ── T4  C↔Python byte-parity — accessible + the writer + the demand-load plan ─────────
@@ -144,7 +144,7 @@ def test_t4_native_equals_pure_accessible_and_writer(monkeypatch):
               {"dnf": [(B1, 0), (B2, 0)]}, {"weights": [0, 1, 1], "threshold": 2},
               {"activator": B1, "open_level": (1, 3)}, {"weights": [3, -1], "threshold": 1}]
     for st in states:
-        s = G.condense(strand, the_one=one, label="chrX", state=st)
+        s = G.condense(strand, coupling=one, label="chrX", state=st)
         cap = [hv for hv in s if G._cap_kind(hv) == G.CHROMATIN_MARKER][0]
         # (a) the facultative WRITER: native cap bytes == the pure _pack_chromatin oracle bytes
         ct, num, den, agt, gf = G._chromatin_state(st)
@@ -164,14 +164,14 @@ def test_t4_native_equals_pure_accessible_and_writer(monkeypatch):
 @pytest.mark.skipif(not _native.has_native_genome(),
                     reason="native genome plan surface not built")
 def test_t4_demand_load_plan_native_equals_pure(monkeypatch):
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     spec = [("cA", {"activator": B2}), ("cB", "condensed"),
             ("cC", None), ("cD", {"dnf": [(B0, 0)]}), ("cE", {"weights": [0, 1, 1], "threshold": 2})]
     chrom = [(name, [(name, _leaves(6))]) for name, _ in spec]
-    strand = G.genome(the_one=one, chromosomes=chrom)
+    strand = G.genome(coupling=one, chromosomes=chrom)
     for name, st in spec:
         if st is not None:
-            strand = G.condense(strand, the_one=one, label=name, state=st)
+            strand = G.condense(strand, coupling=one, label=name, state=st)
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc274t4_"))
     G.genome_save(strand, tmp, one)
     for cs in range(0, ALLB + 1):
@@ -195,12 +195,12 @@ def probe(monkeypatch):
 
 
 def test_t5_facultative_region_in_or_out_of_plan_per_cell_state():
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     # a single facultative-klein4 (bit2) community + an always-on open control
     chrom = [("fac", [("fac", _leaves(6))]), ("ctrl", [("ctrl", _leaves(6))])]
-    strand = G.genome(the_one=one, chromosomes=chrom)
-    strand = G.condense(strand, the_one=one, label="fac", state={"activator": B2})
-    strand = G.condense(strand, the_one=one, label="ctrl", state="open")
+    strand = G.genome(coupling=one, chromosomes=chrom)
+    strand = G.condense(strand, coupling=one, label="fac", state={"activator": B2})
+    strand = G.condense(strand, coupling=one, label="ctrl", state="open")
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc274t5_"))
     G.genome_save(strand, tmp, one)
     # bit2 ABSENT → facultative region SILENCED (out); bit2 PRESENT → in
@@ -211,10 +211,10 @@ def test_t5_facultative_region_in_or_out_of_plan_per_cell_state():
 
 
 def test_t5_state_closed_facultative_touches_only_the_chromatin_cap(probe):
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     # ONE facultative community gated on bit2, a sizeable body — the dramatic-skip case
-    strand = G.genome(the_one=one, chromosomes=[("solo", [("solo", _leaves(60))])])
-    strand = G.condense(strand, the_one=one, label="solo", state={"activator": B2})
+    strand = G.genome(coupling=one, chromosomes=[("solo", [("solo", _leaves(60))])])
+    strand = G.condense(strand, coupling=one, label="solo", state={"activator": B2})
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc274t5b_"))
     G.genome_save(strand, tmp, one)
     full_body = (tmp / G._BODY_NAME).stat().st_size
@@ -248,8 +248,8 @@ def test_t6_decondense_restores_byte_identity_and_reload_reproduces():
     # PATH plan return DIRECTLY comparable label sets (the rc269 harness convention).
     strand, one = _one_gene_strand(label="chrX", gene="chrX")
     before = [hv.tobytes() for hv in strand]
-    fac = G.condense(strand, the_one=one, label="chrX", state={"dnf": [(B1, 0), (B2, 0)]})
-    restored = G.decondense(fac, the_one=one)
+    fac = G.condense(strand, coupling=one, label="chrX", state={"dnf": [(B1, 0), (B2, 0)]})
+    restored = G.decondense(fac, coupling=one)
     assert [hv.tobytes() for hv in restored] == before   # NO re-mint — byte-identical to the origin
     # save the facultative genome and reload via the demand-load PATH == the in-memory strand
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc274t6_"))
@@ -261,12 +261,12 @@ def test_t6_decondense_restores_byte_identity_and_reload_reproduces():
 
 
 def test_t6_integrate_facultative_provirus_survives():
-    one = G._default_the_one(LEAF)
-    host = G.genome(the_one=one, chromosomes=[("hostA", [("hostA", _leaves(6))])])
-    provirus = G.chromosome(the_one=one, label="prov", genes=[("prov", _leaves(6))])
-    provirus = G.condense(provirus, the_one=one, label="prov", state={"activator": B1})
+    one = G._default_coupling(LEAF)
+    host = G.genome(coupling=one, chromosomes=[("hostA", [("hostA", _leaves(6))])])
+    provirus = G.chromosome(coupling=one, label="prov", genes=[("prov", _leaves(6))])
+    provirus = G.condense(provirus, coupling=one, label="prov", state={"activator": B1})
     combined = G.integrate(host, provirus)
-    assert combined is not None                          # compatible (shared the_one width)
+    assert combined is not None                          # compatible (shared coupling width)
     parts = G.partition(combined, one)
     assert "hostA" in parts and "prov" in parts          # both chromosomes recover
     # the provirus's facultative chromatin still reads under cell_state on the combined strand
@@ -278,9 +278,9 @@ def test_t6_integrate_facultative_provirus_survives():
 
 # ── T7  read-only — strand + turns.bin byte-identical after every read ────────────────
 def test_t7_reads_never_mutate():
-    one = G._default_the_one(LEAF)
-    strand = G.genome(the_one=one, chromosomes=[("chrX", [("g1", _leaves(6))])])
-    strand = G.condense(strand, the_one=one, label="chrX", state={"activator": B2})
+    one = G._default_coupling(LEAF)
+    strand = G.genome(coupling=one, chromosomes=[("chrX", [("g1", _leaves(6))])])
+    strand = G.condense(strand, coupling=one, label="chrX", state={"activator": B2})
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc274t7_"))
     G.genome_save(strand, tmp, one)
     strand_before = [hv.tobytes() for hv in strand]
@@ -296,12 +296,12 @@ def test_t7_reads_never_mutate():
 
 # ── T8  level composition — a graded facultative cap composes MULTIPLICATIVELY ────────
 def test_t8_graded_facultative_composes_with_graded_promoter():
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     # a GRADED promoter gene: level = weights·bits / denom = (1/2) when bit2 present, else 0
     gene = ("g", _leaves(6), {"gate": "graded", "weights": [0, 0, 1], "denom": 2})
-    strand = G.chromosome(the_one=one, label="chrX", genes=[gene])
+    strand = G.chromosome(coupling=one, label="chrX", genes=[gene])
     # a GRADED FACULTATIVE chromatin cap: when-open level (1, 3), gated on bit1
-    strand = G.condense(strand, the_one=one, label="chrX",
+    strand = G.condense(strand, coupling=one, label="chrX",
                         state={"activator": B1, "open_level": (1, 3)})
 
     def level_of(cs):

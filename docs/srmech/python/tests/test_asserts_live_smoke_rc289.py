@@ -80,7 +80,7 @@ _DIM = 64
 
 
 def _one():
-    return hdc.klein4_random(_DIM, seed=0)
+    return hdc.klein4_expand(_DIM, 0)
 
 
 def _leaves(n):
@@ -249,4 +249,4 @@ def test_zero_node_graph_surfaces_do_not_abort():
     part = G.genome_partition(0, [])
     assert part["n"] == 0
     assert part["n_communities"] >= 1
-    assert len(list(G.genome_from_graph(0, [], the_one=one))) > 0
+    assert len(list(G.genome_from_graph(0, [], coupling=one))) > 0

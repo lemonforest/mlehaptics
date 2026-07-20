@@ -247,11 +247,25 @@ _EXPECTED_SPLIT = {
     # c_dispatched (the conserved_core precedent). composes_c 129 -> 128;
     # total 201 -> 200. The debt moved DOWN: one fewer op a bare-C host must
     # re-orchestrate itself.
+    # rc290 (§102 / F1259 / F1260): +1 host_glue — hdc.klein4_random.
+    # The Klein-4 mint split by REGIME left the STOCHASTIC regime alone in an
+    # op of its own, and it is the one klein4 op with NO C peer. That is a
+    # REGIME property, not debt, which is why it lands here and not in
+    # python_only_debt: its output is by definition not a function of any
+    # input, so there is no kernel to mirror and nothing to differentially
+    # test for byte-identity — two implementations of "unpredictable" cannot
+    # be compared. A bare-C host needing an unpredictable Klein-4 vector reads
+    # its own entropy source, exactly as this reads Python's; host_glue (host
+    # I/O, tracked, no ceiling) is the honest sub-bucket. The CAPABILITY every
+    # cascade actually consumes — DETERMINISTIC Klein-4 minting — is fully
+    # covered in both projections by klein4_expand / _address / _from_one
+    # (c_dispatched) and klein4_role (composition_of_c), so no debt ceiling
+    # moved. host_glue 21 -> 22; total 200 -> 201.
     "composes_c": 128,
-    "host_glue": 21,
+    "host_glue": 22,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 200
+_TOTAL_NON_COMPUTE = 201
 
 
 def _rows():

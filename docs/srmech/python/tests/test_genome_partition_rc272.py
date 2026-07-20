@@ -30,13 +30,13 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64
 
 
 def _one(seed=1272):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _clique(nodes, weight=1, charge=1):
@@ -293,7 +293,7 @@ def test_builder_census_reports_measured_nuclear_plasmid(tmp_path):
     one = _one()
     n, edges, weights, charges = _signed_partitionable_graph()
     d = tmp_path / "graph.genome"
-    res = G.genome_from_graph(n, edges, weights, charges, the_one=one,
+    res = G.genome_from_graph(n, edges, weights, charges, coupling=one,
                               path=str(d), leaf_dim=_DIM, max_tome=10)
     census = res["census"]
     # the census reports the MEASURED partition counts.
@@ -307,7 +307,7 @@ def test_builder_census_reports_measured_nuclear_plasmid(tmp_path):
 def test_builder_mints_nuclear_keeps_plasmid(tmp_path):
     one = _one()
     n, edges, weights, charges = _signed_partitionable_graph()
-    res = G.genome_from_graph(n, edges, weights, charges, the_one=one,
+    res = G.genome_from_graph(n, edges, weights, charges, coupling=one,
                               leaf_dim=_DIM, max_tome=10)
     chroms = G._split_into_chromosomes(res["strand"])
     by_label = {lbl: blocks for lbl, blocks in chroms}
@@ -325,7 +325,7 @@ def test_builder_kernel_to_graph_byte_exact_per_community(tmp_path):
     one = _one()
     n, edges, weights, charges = _signed_partitionable_graph()
     el, wl, cl = G._partition_validate_graph(n, edges, weights, charges)
-    res = G.genome_from_graph(n, edges, weights, charges, the_one=one,
+    res = G.genome_from_graph(n, edges, weights, charges, coupling=one,
                               leaf_dim=_DIM, max_tome=10)
     chroms = dict(G._split_into_chromosomes(res["strand"]))
     for meta in res["chromosomes"]:
@@ -345,12 +345,12 @@ def test_builder_byte_exact_after_genome_save(tmp_path):
     n, edges, weights, charges = _signed_partitionable_graph()
     el, wl, cl = G._partition_validate_graph(n, edges, weights, charges)
     d = tmp_path / "graph.genome"
-    res = G.genome_from_graph(n, edges, weights, charges, the_one=one,
+    res = G.genome_from_graph(n, edges, weights, charges, coupling=one,
                               path=str(d), leaf_dim=_DIM, max_tome=10)
     for meta in res["chromosomes"]:
         # genome_load(labels=[label]) seeks + returns that chromosome's packed strand.
         chrom_strand, _one_back, _labels = G.genome_load(
-            str(d), labels=[meta["label"]], the_one=one)
+            str(d), labels=[meta["label"]], coupling=one)
         got = G.kernel_to_graph(chrom_strand, one, meta["n_syms"])
         expected = G._induced_subgraph(meta["nodes"], el, wl, cl)
         assert got["edges"] == expected["edges"]
@@ -359,10 +359,10 @@ def test_builder_byte_exact_after_genome_save(tmp_path):
         assert got["node_ids"] == expected["node_ids"]
 
 
-def test_builder_requires_the_one():
+def test_builder_requires_coupling():
     n, edges, weights, charges = _signed_partitionable_graph()
-    with pytest.raises(ValueError, match="the_one is required"):
-        G.genome_from_graph(n, edges, weights, charges, the_one=None)
+    with pytest.raises(ValueError, match="coupling is required"):
+        G.genome_from_graph(n, edges, weights, charges, coupling=None)
 
 
 # ── 7. registration + docs (the full public-callable surface) ────────────────
@@ -373,7 +373,7 @@ def test_new_ops_registered_and_total_is_448():
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.amsc.genome.genome_partition" in names
     assert "srmech.amsc.genome.genome_from_graph" in names
-    assert len(names) == 456
+    assert len(names) == 461
     assert "genome_partition" in G.__all__
     assert "genome_from_graph" in G.__all__
 

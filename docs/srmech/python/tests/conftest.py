@@ -793,10 +793,10 @@ class BodyReadProbe:
             self.sessions.append(cf)
             return cf
 
-        def wrap_catalog(path, the_one=None):
+        def wrap_catalog(path, coupling=None):
             self._depth += 1
             try:
-                return orig_catalog(path, the_one)
+                return orig_catalog(path, coupling)
             finally:
                 self._depth -= 1
 

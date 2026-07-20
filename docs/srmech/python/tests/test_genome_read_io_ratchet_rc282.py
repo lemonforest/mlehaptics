@@ -40,7 +40,7 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc import genome as G
 from srmech.amsc import plasmid as P
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)
 
@@ -118,7 +118,7 @@ class _BodyIOTally:
 # ── fixtures ─────────────────────────────────────────────────────────────────
 
 def _one(seed=1282):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _store(n_sections, one, doc_len=40, vocab=400, window=2):
@@ -160,7 +160,7 @@ def test_body_opens_do_not_grow_with_section_count(pure_only):
     for n in _SWEEP:
         store = _store(n, one)
         with _BodyIOTally() as tally:
-            P.section_counts(store, the_one=one)
+            P.section_counts(store, coupling=one)
         observed[n] = tally.opens
 
     assert max(observed.values()) <= CEIL_BODY_OPENS_PER_SCAN, (
@@ -207,14 +207,14 @@ def test_streamed_catalog_is_byte_identical_to_the_whole_body_derivation(pure_on
         path = pathlib.Path(store)
         head = G._read_manifest(path)
         leaf_dim = int(head["leaf_dim"])
-        the_one_block = bytes.fromhex(head["the_one"]["hex"])
+        coupling_block = bytes.fromhex(head["coupling"]["hex"])
 
         streamed = G._catalog_data(path, one)
 
         # The pre-rc282 route, reconstructed here as the independent oracle.
         body_bytes = (path / G._BODY_NAME).read_bytes()
         specs, n_turns = G._scan_body_to_chrom_specs(body_bytes, leaf_dim)
-        whole = G._build_manifest_data(leaf_dim, the_one_block, specs,
+        whole = G._build_manifest_data(leaf_dim, coupling_block, specs,
                                        body_bytes, n_turns)
 
         assert streamed == whole, (
@@ -234,7 +234,7 @@ def test_counts_are_unchanged_end_to_end(pure_only):
     d = tempfile.mkdtemp(prefix="rc282_")
     ext = P.plasmid_extract(docs, d, one, window=2, k=8)
 
-    fast = P.section_counts(d, the_one=one)
+    fast = P.section_counts(d, coupling=one)
     streamed = {int(k): int(v) for k, v in ext["section_count"].items()}
     assert fast == streamed, "the held-handle scan changed the counts"
 

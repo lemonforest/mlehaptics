@@ -33,17 +33,17 @@ import pytest
 from srmech.amsc import genome as G
 from srmech.amsc import _native
 from srmech.amsc.format import sha256_bytes
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 24
 
 
 def _one():
-    return klein4_random(_DIM, seed=7)
+    return klein4_expand(_DIM, 7)
 
 
 def _leaves(n, base=0):
-    pool = [klein4_random(_DIM, seed=s + base) for s in range(8)]
+    pool = [klein4_expand(_DIM, s + base) for s in range(8)]
     return [pool[i % 8] for i in range(n)]
 
 
@@ -60,7 +60,7 @@ def test_save_writes_v4_regions_and_chain(tmp_path):
     manifest is head-only, ADR-0003); the §56/v4 region-chain machinery is unchanged."""
     one = _one()
     strand = G.genome({"a": _leaves(5), "b": _leaves(3, base=10)}, one)
-    man = G.genome_save(strand, tmp_path / "g", the_one=one)
+    man = G.genome_save(strand, tmp_path / "g", coupling=one)
 
     assert man["format_version"] == 15
     assert [r["byte_offset"] for r in man["regions"]] == \
@@ -92,7 +92,7 @@ def test_append_is_tail_extend_prior_untouched(tmp_path):
     byte-identical, n_turns grows by the appended block count."""
     one = _one()
     G.genome_save(G.chromosome(_leaves(4), one, label="c0"), tmp_path / "g",
-                  the_one=one)
+                  coupling=one)
     man0 = G.genome_catalog(tmp_path / "g")
     body0 = (tmp_path / "g" / "turns.bin").read_bytes()
 
@@ -121,12 +121,12 @@ def test_rebuild_by_scan_equals_written_manifest_v4(tmp_path):
     (regions + chain included) — the chain is a pure function of the body."""
     one = _one()
     G.genome_save(G.chromosome(_leaves(4), one, label="c0"), tmp_path / "g",
-                  the_one=one)
+                  coupling=one)
     for k in range(1, 5):
         written = G.genome_append(tmp_path / "g", f"c{k}", _leaves(k + 2, base=k),
                                   one)
     (tmp_path / "g" / "manifest.json").unlink()
-    rebuilt = G.genome_catalog(tmp_path / "g", the_one=one)
+    rebuilt = G.genome_catalog(tmp_path / "g", coupling=one)
     assert rebuilt == written
 
 
@@ -137,7 +137,7 @@ def test_flipped_region_byte_fails_integrity(tmp_path):
     whole-genome load (a GenomeBoundingError) — the region hash + chain catch it."""
     one = _one()
     G.genome_save(G.chromosome(_leaves(4), one, label="c0"), tmp_path / "g",
-                  the_one=one)
+                  coupling=one)
     G.genome_append(tmp_path / "g", "c1", _leaves(6, base=20), one)
     body = bytearray((tmp_path / "g" / "turns.bin").read_bytes())
     body[-1] ^= 0x01                                       # flip a tail byte
@@ -153,7 +153,7 @@ def test_region_sha_is_the_chr_region_hash(tmp_path):
     hash (the AMSC provenance unit register_attested uses) — one hash, two views."""
     one = _one()
     G.genome_save(G.chromosome(_leaves(4), one, label="c0"), tmp_path / "g",
-                  the_one=one)
+                  coupling=one)
     G.genome_append(tmp_path / "g", "c1", _leaves(6, base=20), one)
     man = G.genome_catalog(tmp_path / "g")
     by_label = {c["label"]: r for c, r in zip(man["chromosomes"], man["regions"])}
@@ -169,13 +169,13 @@ def test_pack_single_pass_roundtrip_exact(tmp_path):
     chromosome round-trips leaf-for-leaf and the packed manifest is v4."""
     one = _one()
     kernels = {f"c{k}": _leaves(k + 3, base=k) for k in range(6)}
-    G.genome_save(G.genome(kernels, one), tmp_path / "g", the_one=one)
-    G.genome_explode(tmp_path / "g", tmp_path / "loose", the_one=one)
-    man = G.genome_pack(tmp_path / "loose", tmp_path / "packed", the_one=one)
+    G.genome_save(G.genome(kernels, one), tmp_path / "g", coupling=one)
+    G.genome_explode(tmp_path / "g", tmp_path / "loose", coupling=one)
+    man = G.genome_pack(tmp_path / "loose", tmp_path / "packed", coupling=one)
     assert man["format_version"] == 15
     assert len(man["regions"]) == len(kernels)
     for label, leaves in kernels.items():
-        win = G.genome_window(tmp_path / "packed", label, the_one=one)
+        win = G.genome_window(tmp_path / "packed", label, coupling=one)
         assert _as_lists([G.quad_turn(t, one) for t in win]) == _as_lists(leaves)
 
 
@@ -185,7 +185,7 @@ def test_many_appends_all_read_back(tmp_path):
     one = _one()
     want = {}
     lv0 = _leaves(4)
-    G.genome_save(G.chromosome(lv0, one, label="c000"), tmp_path / "g", the_one=one)
+    G.genome_save(G.chromosome(lv0, one, label="c000"), tmp_path / "g", coupling=one)
     want["c000"] = _as_lists(lv0)
     for k in range(1, 30):
         lv = _leaves((k % 9) + 2, base=k)
@@ -208,7 +208,7 @@ def test_append_is_o1_head_only_fixed_manifest_v12(tmp_path):
     import json
     one = _one()
     g = tmp_path / "g"
-    G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, the_one=one)
+    G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, coupling=one)
 
     def on_disk():
         raw = json.loads((g / "manifest.json").read_text("utf-8"))["data"]
@@ -218,7 +218,7 @@ def test_append_is_o1_head_only_fixed_manifest_v12(tmp_path):
     assert "chromosomes" not in d0 and "regions" not in d0   # head-only from the first save
     assert d0["n_chromosomes"] == 1
 
-    data = G.genome_catalog(g, the_one=one)                  # full derived catalog to thread
+    data = G.genome_catalog(g, coupling=one)                  # full derived catalog to thread
     for k in range(200):
         data = G.genome_append(g, f"c{k:04d}", _leaves(2), one, catalog=data)  # O(1) threaded
 
@@ -226,11 +226,11 @@ def test_append_is_o1_head_only_fixed_manifest_v12(tmp_path):
     assert "chromosomes" not in d1 and "regions" not in d1   # STILL head-only after 200 appends
     assert d1["n_chromosomes"] == 201
     # the head is FIXED WIDTH — it does NOT grow with n_chromosomes (only small ints
-    # change; the_one hex + body_sha256 are constant width). This is the O(1) disk write.
+    # change; coupling hex + body_sha256 are constant width). This is the O(1) disk write.
     assert sz1 <= sz0 + 64, (sz0, sz1)
     # the threaded in-memory catalog is complete, and equals the cold body-derived one.
     assert len(data["chromosomes"]) == 201
-    cold = G.genome_catalog(g, the_one=one)
+    cold = G.genome_catalog(g, coupling=one)
     assert len(cold["chromosomes"]) == 201
     assert cold["body_sha256"] == data["body_sha256"]        # threaded head == derived head
 
@@ -245,8 +245,8 @@ def test_catalog_load_resumes_a_streaming_loop(tmp_path):
     one = _one()
     ga, gb = tmp_path / "ga", tmp_path / "gb"
     for g in (ga, gb):
-        G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, the_one=one)
-    a = G.genome_catalog(ga, the_one=one)                    # thread a derived catalog
+        G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, coupling=one)
+    a = G.genome_catalog(ga, coupling=one)                    # thread a derived catalog
     b = "load"                                               # resume with no dict in hand
     for k in range(6):
         a = G.genome_append(ga, f"c{k}", _leaves(2, base=k), one, catalog=a)
@@ -263,7 +263,7 @@ def test_catalog_empty_dict_is_a_clear_error_not_keyerror(tmp_path):
     raises a clear ValueError naming the modes, never a bare KeyError (§95.2 footgun)."""
     one = _one()
     g = tmp_path / "g"
-    G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, the_one=one)
+    G.genome_save(G.chromosome(_leaves(2), one, label="seed"), g, coupling=one)
     with pytest.raises(ValueError, match="leaf_dim"):
         G.genome_append(g, "x", _leaves(2), one, catalog={})
     with pytest.raises(ValueError, match="load"):
@@ -283,14 +283,14 @@ def test_native_append_arena_is_o1_not_o_body(tmp_path):
     rebuild size → OOM at corpus scale (95 GB after 3361 bodies). The O(1) tail-extend
     path is now keyed on `format_version >= 4`, so the arena stays O(1)."""
     dim = 256
-    one = klein4_random(dim, seed=7)
+    one = klein4_expand(dim, 7)
 
     def body(i, n=25):
-        return [klein4_random(dim, seed=10_000 + i * n + j) for j in range(n)]
+        return [klein4_expand(dim, 10_000 + i * n + j) for j in range(n)]
 
     g = tmp_path / "g"
-    G.genome_save(G.chromosome(body(0), one, label="seed"), g, the_one=one)
-    cat = G.genome_catalog(g, the_one=one)
+    G.genome_save(G.chromosome(body(0), one, label="seed"), g, coupling=one)
+    cat = G.genome_catalog(g, coupling=one)
 
     def ws_len():
         return 0 if _native._genome_ws is None else len(_native._genome_ws)
@@ -327,14 +327,14 @@ def test_c_helper_sizes_append_arena(tmp_path):
         pytest.skip("native lib predates srmech_genome_append_arena_bytes (§97)")
 
     dim = 256
-    one = klein4_random(dim, seed=7)
+    one = klein4_expand(dim, 7)
 
     def body(i, n=25):
-        return [klein4_random(dim, seed=10_000 + i * n + j) for j in range(n)]
+        return [klein4_expand(dim, 10_000 + i * n + j) for j in range(n)]
 
     g = tmp_path / "g"
-    G.genome_save(G.chromosome(body(0), one, label="seed"), g, the_one=one)
-    cat = G.genome_catalog(g, the_one=one)
+    G.genome_save(G.chromosome(body(0), one, label="seed"), g, coupling=one)
+    cat = G.genome_catalog(g, coupling=one)
 
     def helper_arena():
         """The raw C helper's arena size for the current on-disk genome (bypass the

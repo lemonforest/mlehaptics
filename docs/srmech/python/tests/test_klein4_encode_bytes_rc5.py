@@ -62,7 +62,7 @@ def test_pos_key_namespaced_off_bytes():
     from srmech.amsc.hdc import _klein4_pos_key
     for i in range(5):
         pk = _klein4_pos_key(2000, i)
-        bv = hdc.klein4_random(2000, seed=i)
+        bv = hdc.klein4_expand(2000, i)
         assert bytes(pk.buffer) != bytes(bv.buffer)
 
 

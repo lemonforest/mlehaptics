@@ -210,8 +210,8 @@ static void genome_arena_tail(const genome_arena_t *a, void **ws, size_t *ws_len
  * srmech_json_new_string; must outlive srmech_json_write). */
 typedef struct {
     char body_sha[65];                              /* body_sha256 + NUL */
-    char one_sha[65];                               /* the_one.sha256    */
-    char one_hex[2 * 256 + 1];                      /* the_one.hex (<=512 hex) */
+    char one_sha[65];                               /* coupling.sha256    */
+    char one_hex[2 * 256 + 1];                      /* coupling.hex (<=512 hex) */
     char rule_hash[65];                             /* parser_rule_hash  */
     char descr_hash[65];                            /* collector_descriptor_hash */
     char parser_version[16 + sizeof(SRMECH_VERSION)]; /* "srmech " + ver */
@@ -315,7 +315,7 @@ static srmech_status_t genome_hex(const unsigned char *data, size_t n,
 /* Decode `n` bytes from the 2*n lowercase-hex chars at `hex` into `out`. The v4
  * region-chain reverses genome_hex (the stored region/chain digests are hex; the
  * chain folds the RAW 32-byte values); the v12 head-rebuild ALSO reverses it for
- * the_one.hex (n == leaf_dim, up to the §102/rc278 kernel-section leaf_dim >= 52
+ * coupling.hex (n == leaf_dim, up to the §102/rc278 kernel-section leaf_dim >= 52
  * — bound by SRMECH_GENOME_LEAF_CAP, the caller one_buf[256]). SRMECH_ERR_BAD_INPUT
  * on a non-hex char. (A fixed-width decoder — distinct from the .chr's
  * variable-length, cap-checked genome_unhex.) */
@@ -368,8 +368,8 @@ static srmech_status_t genome_chain_regions(char (*region_sha)[65],
     return SRMECH_OK;
 }
 
-/* Build the "the_one" sub-object {"sha256":..,"hex":..} from `s`. */
-static srmech_json_value_t *genome_build_the_one(srmech_json_builder_t *b,
+/* Build the "coupling" sub-object {"sha256":..,"hex":..} from `s`. */
+static srmech_json_value_t *genome_build_coupling(srmech_json_builder_t *b,
                                                  const genome_strings_t *s)
 {
     assert(b != NULL && s != NULL);
@@ -447,7 +447,7 @@ static srmech_json_value_t *genome_build_region(srmech_json_builder_t *b,
 }
 
 /* Build the "data" block. head_only (v12): the O(1) HEAD — format_version / leaf_dim /
- * n_turns / n_chromosomes / the_one / body_sha256, NO per-chromosome chromosomes/regions
+ * n_turns / n_chromosomes / coupling / body_sha256, NO per-chromosome chromosomes/regions
  * arrays (those are a plaintext TOC, dropped from disk + derived by scanning the body).
  * !head_only (the reader-side DERIVE / a v≤11 read): the FULL data with the arrays.
  * v4 (rc115 #1245(b)): body_sha256 is the region CHAIN (s->body_sha). */
@@ -464,13 +464,13 @@ static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
     (void)body_len;                 /* §55/v3: n_turns is the scanned BLOCK count */
     if (head_only) {                /* v12 HEAD-ONLY manifest data (no arrays) */
         const char *hkeys[6] = { "format_version", "leaf_dim", "n_turns",
-                                 "n_chromosomes", "the_one", "body_sha256" };
+                                 "n_chromosomes", "coupling", "body_sha256" };
         srmech_json_value_t *hvals[6];
         hvals[0] = srmech_json_new_int(b, (int64_t)SRMECH_GENOME_FORMAT_VERSION);
         hvals[1] = srmech_json_new_int(b, (int64_t)leaf_dim);
         hvals[2] = srmech_json_new_int(b, (int64_t)s->n_blocks);
         hvals[3] = srmech_json_new_int(b, (int64_t)s->n_chroms);
-        hvals[4] = genome_build_the_one(b, s);
+        hvals[4] = genome_build_coupling(b, s);
         hvals[5] = srmech_json_new_string(b, s->body_sha, (uint32_t)strlen(s->body_sha));
         return srmech_json_new_object(b, hkeys, hvals, 6u);
     }
@@ -484,12 +484,12 @@ static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
     (void)body_len;                 /* §55/v3: n_turns is the scanned BLOCK count */
     int64_t n_turns = (int64_t)s->n_blocks;
     const char *keys[7] = { "format_version", "leaf_dim", "n_turns",
-                            "the_one", "body_sha256", "regions", "chromosomes" };
+                            "coupling", "body_sha256", "regions", "chromosomes" };
     srmech_json_value_t *vals[7];
     vals[0] = srmech_json_new_int(b, (int64_t)SRMECH_GENOME_FORMAT_VERSION);
     vals[1] = srmech_json_new_int(b, (int64_t)leaf_dim);
     vals[2] = srmech_json_new_int(b, n_turns);
-    vals[3] = genome_build_the_one(b, s);
+    vals[3] = genome_build_coupling(b, s);
     vals[4] = srmech_json_new_string(b, s->body_sha, (uint32_t)strlen(s->body_sha));
     vals[5] = rarr;
     vals[6] = arr;
@@ -714,25 +714,25 @@ srmech_status_t srmech_genome_encode_shape(uint64_t n, uint64_t *leaves_out,
  * single-kernel plain path: no genes / kernel / active_count). Writes a leading CHROM
  * telomere cap over `label` (reusing the rc196 genome_pack_cap), then each of the
  * `n_leaves` leaves (each leaf_dim bytes, contiguous in `leaves`) coupled through
- * `the_one` via srmech_klein4_bind — the reversible Klein-4 XOR that is quad_turn. The
+ * `coupling` via srmech_klein4_bind — the reversible Klein-4 XOR that is quad_turn. The
  * strand is (1 + n_leaves) leaf_dim-byte blocks in `out`. BYTE-IDENTICAL to the bytes
  * behind the Python strand (recovered by srmech_genome_recall). The gene / kernel /
  * active-telomere forms open their own boundary caps → stay in the pure Python.
  * Caller-arena output (no malloc), no goto, no abs, no float. */
 srmech_status_t srmech_genome_chromosome(const unsigned char *label,
                                          size_t label_len,
-                                         const unsigned char *the_one,
+                                         const unsigned char *coupling,
                                          uint32_t leaf_dim,
                                          const unsigned char *leaves,
                                          size_t n_leaves,
                                          unsigned char *out, size_t out_cap)
 {
-    if (out == NULL || the_one == NULL ||
+    if (out == NULL || coupling == NULL ||
         (label == NULL && label_len != 0u) ||
         (leaves == NULL && n_leaves != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(out != NULL && the_one != NULL);
+    assert(out != NULL && coupling != NULL);
     assert(leaves != NULL || n_leaves == 0u);
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     /* strand = 1 cap + n_leaves turns, each leaf_dim bytes; check the fit without
@@ -745,9 +745,9 @@ srmech_status_t srmech_genome_chromosome(const unsigned char *label,
     srmech_status_t st = genome_pack_cap(SRMECH_GENOME_CHROM_CAP_MARKER, label,
                                          label_len, leaf_dim, out, leaf_dim);
     if (st != SRMECH_OK) { return st; }
-    /* [1..] each leaf coupled through the_one — the reversible Klein-4 bind. */
+    /* [1..] each leaf coupled through coupling — the reversible Klein-4 bind. */
     for (size_t i = 0; i < n_leaves; i++) {
-        st = srmech_klein4_bind(leaves + i * (size_t)leaf_dim, the_one,
+        st = srmech_klein4_bind(leaves + i * (size_t)leaf_dim, coupling,
                                 leaf_dim, out + (i + 1u) * (size_t)leaf_dim);
         if (st != SRMECH_OK) { return st; }
     }
@@ -756,22 +756,22 @@ srmech_status_t srmech_genome_chromosome(const unsigned char *label,
 
 /* rc197 (#887) — the plain RECALL (mirror srmech.amsc.genome.recall): walk the strand's
  * `n_blocks` fixed-width leaf_dim-byte blocks, SKIP every cap (genome_cap_kind >= 0 — the
- * rc196 kind classifier), and re-bind each data turn through `the_one` via
+ * rc196 kind classifier), and re-bind each data turn through `coupling` via
  * srmech_klein4_bind (quad_turn is its own inverse) to recover the original leaf. The
  * recovered leaves are written contiguously to `out` (leaf_dim bytes each); *n_leaves_out
  * gets their count. BYTE-IDENTICAL to recall (gate-agnostic: it flattens across every cap
  * marker, exactly like the pure walk). No malloc, no goto, no abs, no float. */
 srmech_status_t srmech_genome_recall(const unsigned char *strand,
                                      size_t n_blocks, uint32_t leaf_dim,
-                                     const unsigned char *the_one,
+                                     const unsigned char *coupling,
                                      unsigned char *out, size_t out_cap,
                                      size_t *n_leaves_out)
 {
-    if (strand == NULL || the_one == NULL || out == NULL ||
+    if (strand == NULL || coupling == NULL || out == NULL ||
         n_leaves_out == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(strand != NULL && the_one != NULL);
+    assert(strand != NULL && coupling != NULL);
     assert(out != NULL && n_leaves_out != NULL);
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     size_t count = 0u;
@@ -780,7 +780,7 @@ srmech_status_t srmech_genome_recall(const unsigned char *strand,
         if (genome_cap_kind(block, leaf_dim) >= 0) { continue; }   /* skip caps */
         size_t off = count * (size_t)leaf_dim;
         if (off + (size_t)leaf_dim > out_cap) { return SRMECH_ERR_OVERFLOW; }
-        srmech_status_t st = srmech_klein4_bind(block, the_one, leaf_dim,
+        srmech_status_t st = srmech_klein4_bind(block, coupling, leaf_dim,
                                                 out + off);
         if (st != SRMECH_OK) { return st; }
         count++;
@@ -799,12 +799,12 @@ srmech_status_t srmech_genome_recall(const unsigned char *strand,
  *
  * GENOME — assemble `n_kernels` labelled kernels into ONE strand: each kernel
  * becomes a CHROM-capped chromosome (via the rc197 srmech_genome_chromosome),
- * concatenated in kernel order. Mirror srmech.amsc.genome.genome(kernels, the_one)
+ * concatenated in kernel order. Mirror srmech.amsc.genome.genome(kernels, coupling)
  * for the plain (single-gene-per-chromosome) path — the §44 chromosomes= multi-gene
  * form opens its own gene caps and stays in the pure Python.
  *   labels / label_lens : the n_kernels raw UTF-8 labels CONCATENATED (`labels`),
  *                         label_lens[k] the k-th label's byte length (its slice).
- *   the_one / leaf_dim  : the shared Klein-4 invariant (leaf_dim bytes) + block width.
+ *   coupling / leaf_dim  : the shared Klein-4 invariant (leaf_dim bytes) + block width.
  *   leaves / leaf_counts: the kernels' leaves CONCATENATED (each leaf_dim bytes),
  *                         leaf_counts[k] the k-th kernel's leaf count.
  *   n_kernels           : the kernel count (the label / leaf arrays may be NULL iff 0).
@@ -813,7 +813,7 @@ srmech_status_t srmech_genome_recall(const unsigned char *strand,
  * Error returns mirror srmech_genome_chromosome (NULL_ARG / BAD_INPUT / OVERFLOW). */
 srmech_status_t srmech_genome_genome(const unsigned char *labels,
                                      const size_t *label_lens,
-                                     const unsigned char *the_one,
+                                     const unsigned char *coupling,
                                      uint32_t leaf_dim,
                                      const unsigned char *leaves,
                                      const size_t *leaf_counts,
@@ -821,12 +821,12 @@ srmech_status_t srmech_genome_genome(const unsigned char *labels,
                                      unsigned char *out, size_t out_cap,
                                      size_t *n_blocks_out)
 {
-    if (out == NULL || the_one == NULL || n_blocks_out == NULL ||
+    if (out == NULL || coupling == NULL || n_blocks_out == NULL ||
         (n_kernels != 0u &&
          (labels == NULL || label_lens == NULL || leaf_counts == NULL))) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(out != NULL && the_one != NULL && n_blocks_out != NULL);
+    assert(out != NULL && coupling != NULL && n_blocks_out != NULL);
     assert(n_kernels == 0u || (label_lens != NULL && leaf_counts != NULL));
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     size_t label_off = 0u;    /* byte cursor into `labels` */
@@ -838,7 +838,7 @@ srmech_status_t srmech_genome_genome(const unsigned char *labels,
         const unsigned char *kleaves = leaves + leaf_off * (size_t)leaf_dim;
         /* each kernel → a CHROM-capped chromosome via the rc197 peer (byte-exact). */
         srmech_status_t st = srmech_genome_chromosome(
-            labels + label_off, label_lens[k], the_one, leaf_dim,
+            labels + label_off, label_lens[k], coupling, leaf_dim,
             kleaves, kn, out + out_off, out_cap - out_off);
         if (st != SRMECH_OK) { return st; }
         size_t kblocks = kn + 1u;                     /* the CHROM cap + kn turns */
@@ -940,19 +940,19 @@ static srmech_status_t genome_mint_orientation(const unsigned char *content,
     return SRMECH_OK;
 }
 
-/* §95a/v13 — bind turns[from:to] through the_one into `out` starting at block *oi (advancing
+/* §95a/v13 — bind turns[from:to] through coupling into `out` starting at block *oi (advancing
  * it). The reversible Klein-4 XOR that is quad_turn; shared by the nuclear-chromosome arms. */
 static srmech_status_t genome_bind_turns(const unsigned char *kleaves,
                                          size_t from, size_t to,
-                                         const unsigned char *the_one,
+                                         const unsigned char *coupling,
                                          uint32_t leaf_dim, unsigned char *out,
                                          size_t *oi)
 {
     assert(kleaves != NULL || from == to);
-    assert(the_one != NULL && out != NULL && oi != NULL);
+    assert(coupling != NULL && out != NULL && oi != NULL);
     for (size_t i = from; i < to; i++) {
         srmech_status_t st = srmech_klein4_bind(kleaves + i * (size_t)leaf_dim,
-                                                the_one, leaf_dim,
+                                                coupling, leaf_dim,
                                                 out + (*oi) * (size_t)leaf_dim);
         if (st != SRMECH_OK) { return st; }
         (*oi)++;
@@ -967,13 +967,13 @@ static srmech_status_t genome_bind_turns(const unsigned char *kleaves,
  * content-address of the raw leaves. Writes *blocks_out blocks. No malloc/goto/abs/float. */
 static srmech_status_t genome_mint_chromosome(const unsigned char *label,
                                               size_t label_len,
-                                              const unsigned char *the_one,
+                                              const unsigned char *coupling,
                                               uint32_t leaf_dim,
                                               const unsigned char *kleaves,
                                               size_t kn, unsigned char *out,
                                               size_t out_cap, size_t *blocks_out)
 {
-    assert(the_one != NULL && out != NULL && blocks_out != NULL);
+    assert(coupling != NULL && out != NULL && blocks_out != NULL);
     assert(kleaves != NULL || kn == 0u);
     uint64_t leaves_sh = 0u;
     uint32_t depth = 0u;
@@ -981,7 +981,7 @@ static srmech_status_t genome_mint_chromosome(const unsigned char *label,
     srmech_status_t st = srmech_genome_encode_shape(n, &leaves_sh, &depth);
     if (st != SRMECH_OK) { return st; }
     if (depth < 2u) {                                    /* tome/mobius → Tier-1 plasmid */
-        st = srmech_genome_chromosome(label, label_len, the_one, leaf_dim,
+        st = srmech_genome_chromosome(label, label_len, coupling, leaf_dim,
                                       kleaves, kn, out, out_cap);
         if (st != SRMECH_OK) { return st; }
         *blocks_out = kn + 1u;
@@ -998,14 +998,14 @@ static srmech_status_t genome_mint_chromosome(const unsigned char *label,
     if (st != SRMECH_OK) { return st; }
     size_t oi = 1u;
     size_t split = kn / 2u;                              /* metacentric arm-split */
-    st = genome_bind_turns(kleaves, 0u, split, the_one, leaf_dim, out, &oi);
+    st = genome_bind_turns(kleaves, 0u, split, coupling, leaf_dim, out, &oi);
     if (st != SRMECH_OK) { return st; }
     st = genome_pack_centromere(o, SRMECH_GENOME_CENTROMERE_DEFAULT_REPEATS,
                                 (const unsigned char *)"cen", 3u, leaf_dim,
                                 out + oi * (size_t)leaf_dim, leaf_dim);
     if (st != SRMECH_OK) { return st; }
     oi++;
-    st = genome_bind_turns(kleaves, split, kn, the_one, leaf_dim, out, &oi);
+    st = genome_bind_turns(kleaves, split, kn, coupling, leaf_dim, out, &oi);
     if (st != SRMECH_OK) { return st; }
     *blocks_out = total;
     return SRMECH_OK;
@@ -1018,7 +1018,7 @@ static srmech_status_t genome_mint_chromosome(const unsigned char *label,
  * _progress overload with a NULL tick (runs exactly as before rc275). */
 srmech_status_t srmech_genome_mint(const unsigned char *labels,
                                    const size_t *label_lens,
-                                   const unsigned char *the_one,
+                                   const unsigned char *coupling,
                                    uint32_t leaf_dim, const unsigned char *leaves,
                                    const size_t *leaf_counts, size_t n_kernels,
                                    unsigned char *out, size_t out_cap,
@@ -1026,7 +1026,7 @@ srmech_status_t srmech_genome_mint(const unsigned char *labels,
 {
     assert(out != NULL || n_blocks_out == NULL);
     assert(leaf_dim <= 256u);
-    return srmech_genome_mint_progress(labels, label_lens, the_one, leaf_dim,
+    return srmech_genome_mint_progress(labels, label_lens, coupling, leaf_dim,
                                        leaves, leaf_counts, n_kernels, out,
                                        out_cap, n_blocks_out, NULL, NULL);
 }
@@ -1038,19 +1038,19 @@ srmech_status_t srmech_genome_mint(const unsigned char *labels,
  * genome, never a half-written chromosome) and SRMECH_CANCELLED is returned. */
 srmech_status_t srmech_genome_mint_progress(const unsigned char *labels,
                                    const size_t *label_lens,
-                                   const unsigned char *the_one,
+                                   const unsigned char *coupling,
                                    uint32_t leaf_dim, const unsigned char *leaves,
                                    const size_t *leaf_counts, size_t n_kernels,
                                    unsigned char *out, size_t out_cap,
                                    size_t *n_blocks_out,
                                    srmech_progress_tick_cb_t tick, void *tick_user)
 {
-    if (out == NULL || the_one == NULL || n_blocks_out == NULL ||
+    if (out == NULL || coupling == NULL || n_blocks_out == NULL ||
         (n_kernels != 0u &&
          (labels == NULL || label_lens == NULL || leaf_counts == NULL))) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(out != NULL && the_one != NULL && n_blocks_out != NULL);
+    assert(out != NULL && coupling != NULL && n_blocks_out != NULL);
     assert(n_kernels == 0u || (label_lens != NULL && leaf_counts != NULL));
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     size_t label_off = 0u, leaf_off = 0u, out_off = 0u, blocks = 0u;
@@ -1068,7 +1068,7 @@ srmech_status_t srmech_genome_mint_progress(const unsigned char *labels,
         const unsigned char *kleaves = leaves + leaf_off * (size_t)leaf_dim;
         size_t kblocks = 0u;
         srmech_status_t st = genome_mint_chromosome(
-            labels + label_off, label_lens[k], the_one, leaf_dim, kleaves, kn,
+            labels + label_off, label_lens[k], coupling, leaf_dim, kleaves, kn,
             out + out_off, out_cap - out_off, &kblocks);
         if (st != SRMECH_OK) { return st; }
         out_off += kblocks * (size_t)leaf_dim;
@@ -1127,11 +1127,11 @@ srmech_status_t srmech_genome_centromere_of(const unsigned char *strand,
  * float/abs. */
 static srmech_status_t genome_diploid_ec_leaf(const unsigned char *a_turn,
                                               const unsigned char *b_turn,
-                                              const unsigned char *the_one,
+                                              const unsigned char *coupling,
                                               uint32_t leaf_dim, unsigned int which,
                                               unsigned char *out)
 {
-    assert(a_turn != NULL && b_turn != NULL && the_one != NULL && out != NULL);
+    assert(a_turn != NULL && b_turn != NULL && coupling != NULL && out != NULL);
     assert(leaf_dim > 0u && leaf_dim <= 256u);
     int a_erased = 1, b_erased = 1;
     for (uint32_t k = 0; k < leaf_dim; k++) {
@@ -1139,15 +1139,15 @@ static srmech_status_t genome_diploid_ec_leaf(const unsigned char *a_turn,
         if (b_turn[k] != 0u) { b_erased = 0; }
     }
     if (a_erased != 0 && b_erased == 0) {                /* erasure -> heal from intact B */
-        return srmech_klein4_bind(b_turn, the_one, leaf_dim, out);
+        return srmech_klein4_bind(b_turn, coupling, leaf_dim, out);
     }
     if (b_erased != 0 && a_erased == 0) {                /* erasure -> heal from intact A */
-        return srmech_klein4_bind(a_turn, the_one, leaf_dim, out);
+        return srmech_klein4_bind(a_turn, coupling, leaf_dim, out);
     }
     unsigned char a[256], b[256];                        /* both present: decouple + compare */
-    srmech_status_t st = srmech_klein4_bind(a_turn, the_one, leaf_dim, a);
+    srmech_status_t st = srmech_klein4_bind(a_turn, coupling, leaf_dim, a);
     if (st != SRMECH_OK) { return st; }
-    st = srmech_klein4_bind(b_turn, the_one, leaf_dim, b);
+    st = srmech_klein4_bind(b_turn, coupling, leaf_dim, b);
     if (st != SRMECH_OK) { return st; }
     const unsigned char *pick = (memcmp(a, b, (size_t)leaf_dim) == 0)
                                     ? a : ((which != 0u) ? b : a);
@@ -1158,17 +1158,17 @@ static srmech_status_t genome_diploid_ec_leaf(const unsigned char *a_turn,
 /* §95b/v14 DIPLOID builder — [diploid_telomere, copyA…, centromere(orientation), copyB…],
  * copyA == copyB (homologs). BYTE-IDENTICAL to the Python diploid(). */
 srmech_status_t srmech_genome_diploid(const unsigned char *label, size_t label_len,
-                                      const unsigned char *the_one, uint32_t leaf_dim,
+                                      const unsigned char *coupling, uint32_t leaf_dim,
                                       const unsigned char *leaves, size_t n_leaves,
                                       unsigned char orientation, uint32_t repeats,
                                       unsigned char *out, size_t out_cap,
                                       size_t *n_blocks_out)
 {
-    if (out == NULL || the_one == NULL || n_blocks_out == NULL ||
+    if (out == NULL || coupling == NULL || n_blocks_out == NULL ||
         (leaves == NULL && n_leaves != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(out != NULL && the_one != NULL && n_blocks_out != NULL);
+    assert(out != NULL && coupling != NULL && n_blocks_out != NULL);
     assert(leaves != NULL || n_leaves == 0u);
     if (leaf_dim == 0u || leaf_dim > 256u || orientation > 3u) {
         return SRMECH_ERR_BAD_INPUT;
@@ -1181,13 +1181,13 @@ srmech_status_t srmech_genome_diploid(const unsigned char *label, size_t label_l
                                          label_len, leaf_dim, out, leaf_dim);
     if (st != SRMECH_OK) { return st; }
     size_t oi = 1u;
-    st = genome_bind_turns(leaves, 0u, n_leaves, the_one, leaf_dim, out, &oi);  /* copyA */
+    st = genome_bind_turns(leaves, 0u, n_leaves, coupling, leaf_dim, out, &oi);  /* copyA */
     if (st != SRMECH_OK) { return st; }
     st = genome_pack_centromere(orientation, repeats, (const unsigned char *)"cen", 3u,
                                 leaf_dim, out + oi * (size_t)leaf_dim, leaf_dim);
     if (st != SRMECH_OK) { return st; }
     oi++;
-    st = genome_bind_turns(leaves, 0u, n_leaves, the_one, leaf_dim, out, &oi);  /* copyB */
+    st = genome_bind_turns(leaves, 0u, n_leaves, coupling, leaf_dim, out, &oi);  /* copyB */
     if (st != SRMECH_OK) { return st; }
     *n_blocks_out = total;
     return SRMECH_OK;
@@ -1196,14 +1196,14 @@ srmech_status_t srmech_genome_diploid(const unsigned char *label, size_t label_l
 /* §95b/v14 DIPLOID recover — split at the interior centromere into copyA | copyB and
  * error-correct per leaf. BYTE-IDENTICAL to the Python recover_diploid. */
 srmech_status_t srmech_genome_recover_diploid(const unsigned char *strand, size_t n_blocks,
-                                              uint32_t leaf_dim, const unsigned char *the_one,
+                                              uint32_t leaf_dim, const unsigned char *coupling,
                                               unsigned char *out, size_t out_cap,
                                               size_t *n_out)
 {
-    if (strand == NULL || the_one == NULL || out == NULL || n_out == NULL) {
+    if (strand == NULL || coupling == NULL || out == NULL || n_out == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(strand != NULL && the_one != NULL);
+    assert(strand != NULL && coupling != NULL);
     assert(out != NULL && n_out != NULL);
     if (leaf_dim == 0u || leaf_dim > 256u || n_blocks == 0u ||
         strand[0] != SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {
@@ -1228,7 +1228,7 @@ srmech_status_t srmech_genome_recover_diploid(const unsigned char *strand, size_
         /* pass the STORED turns (pre-decouple) — erasure is read on the turn (§95.4) */
         st = genome_diploid_ec_leaf(strand + (1u + j) * (size_t)leaf_dim,
                                     strand + (cen_idx + 1u + j) * (size_t)leaf_dim,
-                                    the_one, leaf_dim, which, out + j * (size_t)leaf_dim);
+                                    coupling, leaf_dim, which, out + j * (size_t)leaf_dim);
         if (st != SRMECH_OK) { return st; }
     }
     *n_out = n_before;
@@ -1374,17 +1374,17 @@ srmech_status_t srmech_genome_chromatin_of(const unsigned char *strand, size_t n
 }
 
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
- * srmech_genome_genome). Mirror srmech.amsc.genome.partition(strand, the_one): walk
+ * srmech_genome_genome). Mirror srmech.amsc.genome.partition(strand, coupling): walk
  * the strand's `n_blocks` fixed-width leaf_dim-byte blocks; a CHROM / kernel-telomere
  * / active-telomere cap OPENS a partition (its label read INLINE by genome_decode_
  * label); a gene / regulatory / boolean / threshold / graded / kernel-header cap is
  * SKIPPED (a delimiter — the partition FLATTENS across genes); every data turn until
- * the next opening cap is re-bound through `the_one` (the reversible Klein-4 bind) as
+ * the next opening cap is re-bound through `coupling` (the reversible Klein-4 bind) as
  * that partition's leaf. The Python-side `labels=` FILTER + the dict overwrite-on-
  * duplicate-label semantics are applied by the caller over these ordered partitions.
  *   strand / n_blocks : the strand's n_blocks blocks, each leaf_dim bytes, contiguous.
- *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(the_one).
- *   the_one           : the shared Klein-4 invariant (leaf_dim bytes).
+ *   leaf_dim          : the block width in bytes (> 0, <= 256) == len(coupling).
+ *   coupling           : the shared Klein-4 invariant (leaf_dim bytes).
  *   out_leaves        : caller buffer for the recovered leaves (leaf_dim bytes each),
  *                       in partition order; out_leaves_cap >= (data-turn count)*leaf_dim.
  *   out_labels        : caller buffer for the partition labels, one leaf_dim-byte
@@ -1398,7 +1398,7 @@ srmech_status_t srmech_genome_chromatin_of(const unsigned char *strand, size_t n
  *   SRMECH_ERR_OVERFLOW   — out_leaves / out_labels / part_leaf_counts too small. */
 srmech_status_t srmech_genome_partition(const unsigned char *strand,
                                         size_t n_blocks, uint32_t leaf_dim,
-                                        const unsigned char *the_one,
+                                        const unsigned char *coupling,
                                         unsigned char *out_leaves,
                                         size_t out_leaves_cap,
                                         unsigned char *out_labels,
@@ -1408,12 +1408,12 @@ srmech_status_t srmech_genome_partition(const unsigned char *strand,
                                         size_t *n_parts_out,
                                         size_t *n_leaves_out)
 {
-    if (strand == NULL || the_one == NULL || out_leaves == NULL ||
+    if (strand == NULL || coupling == NULL || out_leaves == NULL ||
         out_labels == NULL || part_leaf_counts == NULL ||
         n_parts_out == NULL || n_leaves_out == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(strand != NULL && the_one != NULL && out_leaves != NULL);
+    assert(strand != NULL && coupling != NULL && out_leaves != NULL);
     assert(part_leaf_counts != NULL && n_parts_out != NULL);
     if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     size_t n_parts = 0u;
@@ -1443,7 +1443,7 @@ srmech_status_t srmech_genome_partition(const unsigned char *strand,
             if (doff + (size_t)leaf_dim > out_leaves_cap) {
                 return SRMECH_ERR_OVERFLOW;
             }
-            srmech_status_t st = srmech_klein4_bind(block, the_one, leaf_dim,
+            srmech_status_t st = srmech_klein4_bind(block, coupling, leaf_dim,
                                                     out_leaves + doff);
             if (st != SRMECH_OK) { return st; }
             part_leaf_counts[n_parts - 1u]++;
@@ -1505,7 +1505,7 @@ srmech_status_t srmech_genome_integrate(
     }
     /* §135/F1251 GATE: an empty host coheres with any provirus; else EQUAL coupling
      * WIDTH (a Class-K equality read, NEVER abs — two genomes at different widths were
-     * coupled through different `the_one` invariants and cannot cohere: the CG258
+     * coupled through different `coupling` invariants and cannot cohere: the CG258
      * incompatible-replicon analog). Incompatible -> HONEST-DECLINE (the C analog of
      * the Python None: *integrated_out = 0, nothing written, SRMECH_OK). */
     if (host_blocks > 0u && host_leaf_dim != prov_leaf_dim) {
@@ -1584,15 +1584,15 @@ static size_t genome_nth_data_turn(const unsigned char *strand, size_t n_blocks,
  * pass the caller `orientation_in` through. No abs, no float. */
 static srmech_status_t genome_mint_strand_orient(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
-    const unsigned char *the_one, int orientation_auto,
+    const unsigned char *coupling, int orientation_auto,
     unsigned char orientation_in, unsigned char *scratch, size_t scratch_cap,
     unsigned char *o_out)
 {
     assert(o_out != NULL);
-    assert(orientation_auto == 0 || (the_one != NULL && scratch != NULL));
+    assert(orientation_auto == 0 || (coupling != NULL && scratch != NULL));
     if (orientation_auto == 0) { *o_out = orientation_in; return SRMECH_OK; }
     size_t n_leaves = 0u;
-    srmech_status_t st = srmech_genome_recall(strand, n_blocks, leaf_dim, the_one,
+    srmech_status_t st = srmech_genome_recall(strand, n_blocks, leaf_dim, coupling,
                                               scratch, scratch_cap, &n_leaves);
     if (st != SRMECH_OK) { return st; }
     return genome_mint_orientation(scratch, n_leaves * (size_t)leaf_dim, o_out);
@@ -1610,7 +1610,7 @@ static srmech_status_t genome_mint_strand_orient(
  * glue did not). */
 srmech_status_t srmech_genome_mint_strand(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
-    const unsigned char *the_one, long centromere_at,
+    const unsigned char *coupling, long centromere_at,
     unsigned char orientation, int orientation_auto,
     uint32_t repeats, const unsigned char *handle, size_t handle_len,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out)
@@ -1620,7 +1620,7 @@ srmech_status_t srmech_genome_mint_strand(
     unsigned char cap[256];
     unsigned char o = 0u;
     if (out == NULL || n_blocks_out == NULL || strand == NULL ||
-        (orientation_auto != 0 && the_one == NULL) ||
+        (orientation_auto != 0 && coupling == NULL) ||
         (handle == NULL && handle_len != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
@@ -1642,7 +1642,7 @@ srmech_status_t srmech_genome_mint_strand(
     /* orientation resolve: recall uses `out` as the caller arena (recalled leaves are
      * <= n_blocks*dim <= out_cap), FULLY consumed before the splice writes `out`. */
     srmech_status_t st = genome_mint_strand_orient(
-        strand, n_blocks, leaf_dim, the_one, orientation_auto, orientation,
+        strand, n_blocks, leaf_dim, coupling, orientation_auto, orientation,
         out, out_cap, &o);
     if (st != SRMECH_OK) { return st; }
     st = srmech_genome_centromere(o, repeats, handle, handle_len, leaf_dim, cap, dim);
@@ -1819,15 +1819,15 @@ static srmech_status_t genome_fill_regions_chain(genome_strings_t *s,
     return genome_chain_regions(s->region_sha, s->n_chroms, s->body_sha);
 }
 
-/* Fill the per-build string block from the body + the_one: the hashes, the
+/* Fill the per-build string block from the body + coupling: the hashes, the
  * version string, and the §44 inline-cap chromosome scan. */
 static srmech_status_t genome_fill_strings(genome_strings_t *s,
                                            genome_arena_t *a,
                                            const unsigned char *body,
                                            size_t body_len, uint32_t leaf_dim,
-                                           const unsigned char *the_one)
+                                           const unsigned char *coupling)
 {
-    assert(s != NULL && the_one != NULL);
+    assert(s != NULL && coupling != NULL);
     assert(a != NULL && leaf_dim > 0u);
     uint32_t n_chroms = 0u;                            /* count → carve arrays */
     uint32_t n_blocks = 0u;                            /* §55/v3: == n_turns */
@@ -1837,9 +1837,9 @@ static srmech_status_t genome_fill_strings(genome_strings_t *s,
     st = genome_strings_alloc(s, a, n_chroms);
     if (st != SRMECH_OK) { return st; }
     s->n_blocks = n_blocks;
-    st = srmech_sha256_hex(the_one, leaf_dim, s->one_sha);
+    st = srmech_sha256_hex(coupling, leaf_dim, s->one_sha);
     if (st != SRMECH_OK) { return st; }
-    genome_hex(the_one, leaf_dim, s->one_hex);
+    genome_hex(coupling, leaf_dim, s->one_hex);
     st = genome_fill_constants(s);                         /* rule/descr/version */
     if (st != SRMECH_OK) { return st; }
     st = genome_scan_chroms(s, body, body_len, leaf_dim);  /* byte spans first */
@@ -1868,16 +1868,16 @@ static size_t genome_manifest_cap(uint32_t n_chroms)
 static srmech_status_t genome_save_validate(const char *dir,
                                             const unsigned char *body,
                                             size_t body_len, uint32_t leaf_dim,
-                                            const unsigned char *the_one,
-                                            size_t the_one_len, const void *ws)
+                                            const unsigned char *coupling,
+                                            size_t coupling_len, const void *ws)
 {
     assert(body != NULL || body_len == 0u);
     assert(dir != NULL || ws == NULL);
-    if (dir == NULL || the_one == NULL || ws == NULL ||
+    if (dir == NULL || coupling == NULL || ws == NULL ||
         (body == NULL && body_len != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim || leaf_dim > 256u) {
+    if (leaf_dim == 0u || coupling_len != (size_t)leaf_dim || leaf_dim > 256u) {
         return SRMECH_ERR_BAD_INPUT;
     }
     return SRMECH_OK;
@@ -3067,13 +3067,13 @@ srmech_status_t srmech_genome_save(
     const char *dir,
     const unsigned char *body, size_t body_len,
     uint32_t leaf_dim,
-    const unsigned char *the_one, size_t the_one_len,
+    const unsigned char *coupling, size_t coupling_len,
     void *ws, size_t ws_len)
 {
     assert(dir != NULL || ws == NULL);
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     srmech_status_t st = genome_save_validate(dir, body, body_len, leaf_dim,
-                                              the_one, the_one_len, ws);
+                                              coupling, coupling_len, ws);
     if (st != SRMECH_OK) { return st; }
     char body_path[SRMECH_GENOME_PATH_MAX];
     char man_path[SRMECH_GENOME_PATH_MAX];
@@ -3089,7 +3089,7 @@ srmech_status_t srmech_genome_save(
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);
     genome_strings_t strs;
-    st = genome_fill_strings(&strs, &a, body, body_len, leaf_dim, the_one);
+    st = genome_fill_strings(&strs, &a, body, body_len, leaf_dim, coupling);
     if (st != SRMECH_OK) { return st; }
     size_t man_cap = genome_manifest_cap(strs.n_chroms);
     char *manifest = genome_arena_alloc(&a, man_cap + 1u);
@@ -3179,16 +3179,16 @@ static srmech_status_t genome_body_size(const char *dir, size_t *out)
 static const srmech_json_value_t *genome_data_get(
     const srmech_json_value_t *manifest, const char *key);
 
-/* From a v12 HEAD-ONLY manifest tree, extract leaf_dim + decode the_one (into
+/* From a v12 HEAD-ONLY manifest tree, extract leaf_dim + decode coupling (into
  * one_buf, cap >= leaf_dim <= 256) — the params the reader-side derive-from-body
- * needs (the head carries them; no caller the_one= required). */
+ * needs (the head carries them; no caller coupling= required). */
 static srmech_status_t genome_head_rebuild_params(const srmech_json_value_t *head,
     unsigned char *one_buf, uint32_t *leaf_dim)
 {
     assert(head != NULL && one_buf != NULL);
     assert(leaf_dim != NULL);
     const srmech_json_value_t *ld = genome_data_get(head, "leaf_dim");
-    const srmech_json_value_t *dto = genome_data_get(head, "the_one");
+    const srmech_json_value_t *dto = genome_data_get(head, "coupling");
     const srmech_json_value_t *hx =
         (dto != NULL) ? srmech_json_object_get(dto, "hex") : NULL;
     if (ld == NULL || ld->type != SRMECH_JSON_INT || ld->u.i <= 0 ||
@@ -3203,16 +3203,16 @@ static srmech_status_t genome_head_rebuild_params(const srmech_json_value_t *hea
 /* §44: obtain the manifest TREE — parse manifest.json if present (cheap; never
  * opens turns.bin), else REBUILD it by scanning the self-describing body (the
  * strand is the SSoT, the manifest an optional .fai cache). The rebuild needs
- * `the_one` (the_one_len IS leaf_dim, the width the body lacks inline); a
- * missing manifest with the_one==NULL returns SRMECH_ERR_BAD_INPUT (the helpful
- * "pass the_one" error, NOT a bare IO miss). On either path the tree lives in
+ * `coupling` (coupling_len IS leaf_dim, the width the body lacks inline); a
+ * missing manifest with coupling==NULL returns SRMECH_ERR_BAD_INPUT (the helpful
+ * "pass coupling" error, NOT a bare IO miss). On either path the tree lives in
  * `ws`, so the loaders' accessors walk it unchanged. */
 static srmech_status_t genome_obtain_manifest(
-    const char *dir, const unsigned char *the_one, size_t the_one_len,
+    const char *dir, const unsigned char *coupling, size_t coupling_len,
     void *ws, size_t ws_len, srmech_json_value_t **out)
 {
     assert(dir != NULL && out != NULL && ws != NULL);
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     char man_path[SRMECH_GENOME_PATH_MAX];
     srmech_status_t st = genome_join(dir, SRMECH_GENOME_MANIFEST,
                                      man_path, sizeof(man_path));
@@ -3235,17 +3235,17 @@ static srmech_status_t genome_obtain_manifest(
         if (genome_data_get(*out, "chromosomes") != NULL) {
             return SRMECH_OK;                     /* v<=11 FULL manifest — arrays present */
         }
-        /* v12 HEAD-ONLY: derive leaf_dim + the_one from the head, rebuild from body. */
+        /* v12 HEAD-ONLY: derive leaf_dim + coupling from the head, rebuild from body. */
         st = genome_head_rebuild_params(*out, one_buf, &leaf_dim);
         if (st != SRMECH_OK) { return st; }
         one_ptr = one_buf;
         genome_arena_init(&a, ws, ws_len);        /* RESET — the head is copied out */
     } else {
-        if (the_one == NULL || the_one_len == 0u || the_one_len > 256u) {
+        if (coupling == NULL || coupling_len == 0u || coupling_len > 256u) {
             return SRMECH_ERR_BAD_INPUT;              /* cannot scan w/o leaf_dim */
         }
-        leaf_dim = (uint32_t)the_one_len;
-        one_ptr = the_one;
+        leaf_dim = (uint32_t)coupling_len;
+        one_ptr = coupling;
     }
     char body_path[SRMECH_GENOME_PATH_MAX];
     st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
@@ -3269,8 +3269,8 @@ static srmech_status_t genome_obtain_manifest(
 }
 
 srmech_status_t srmech_genome_catalog(const char *dir,
-                                      const unsigned char *the_one,
-                                      size_t the_one_len,
+                                      const unsigned char *coupling,
+                                      size_t coupling_len,
                                       void *ws, size_t ws_len,
                                       srmech_json_value_t **out_manifest)
 {
@@ -3279,7 +3279,7 @@ srmech_status_t srmech_genome_catalog(const char *dir,
     if (dir == NULL || ws == NULL || out_manifest == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    return genome_obtain_manifest(dir, the_one, the_one_len, ws, ws_len,
+    return genome_obtain_manifest(dir, coupling, coupling_len, ws, ws_len,
                                   out_manifest);
 }
 
@@ -3302,11 +3302,11 @@ size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms)
 
 /* Resolve the (leaf_dim, one_ptr) a body SCAN needs — from the manifest HEAD
  * when present (a full OR head-only manifest both carry data.leaf_dim +
- * data.the_one.hex), else from the caller `the_one` (its length IS leaf_dim).
+ * data.coupling.hex), else from the caller `coupling` (its length IS leaf_dim).
  * Bumps `a` past the manifest bytes (the parse TREE lives in a's tail and is
- * reclaimed by the next alloc — leaf_dim + the_one are copied into one_buf). */
+ * reclaimed by the next alloc — leaf_dim + coupling are copied into one_buf). */
 static srmech_status_t genome_scan_params(
-    const char *dir, const unsigned char *the_one, size_t the_one_len,
+    const char *dir, const unsigned char *coupling, size_t coupling_len,
     genome_arena_t *a, unsigned char *one_buf, const unsigned char **one_ptr,
     uint32_t *leaf_dim)
 {
@@ -3332,11 +3332,11 @@ static srmech_status_t genome_scan_params(
         *one_ptr = one_buf;
         return SRMECH_OK;
     }
-    if (the_one == NULL || the_one_len == 0u || the_one_len > 256u) {
+    if (coupling == NULL || coupling_len == 0u || coupling_len > 256u) {
         return SRMECH_ERR_BAD_INPUT;                       /* cannot scan w/o width */
     }
-    *leaf_dim = (uint32_t)the_one_len;
-    *one_ptr = the_one;
+    *leaf_dim = (uint32_t)coupling_len;
+    *one_ptr = coupling;
     return SRMECH_OK;
 }
 
@@ -3452,15 +3452,15 @@ static srmech_json_value_t *genome_census_root(
  * subtree. `dir` is used BOTH as the FS path to read and the census "path" field
  * (so it must outlive the tree — the caller keeps it alive). */
 static srmech_status_t genome_census_build(
-    const char *dir, const unsigned char *the_one, size_t the_one_len,
+    const char *dir, const unsigned char *coupling, size_t coupling_len,
     genome_arena_t *a, srmech_json_value_t **out)
 {
     assert(dir != NULL && a != NULL && out != NULL);
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     unsigned char one_buf[256];
     const unsigned char *one_ptr = NULL;
     uint32_t leaf_dim = 0u;
-    srmech_status_t st = genome_scan_params(dir, the_one, the_one_len, a,
+    srmech_status_t st = genome_scan_params(dir, coupling, coupling_len, a,
                                             one_buf, &one_ptr, &leaf_dim);
     if (st != SRMECH_OK) { return st; }
     genome_strings_t s;
@@ -3488,8 +3488,8 @@ static srmech_status_t genome_census_build(
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_genome_census(const char *dir, const unsigned char *the_one,
-                                     size_t the_one_len, void *ws, size_t ws_len,
+srmech_status_t srmech_genome_census(const char *dir, const unsigned char *coupling,
+                                     size_t coupling_len, void *ws, size_t ws_len,
                                      srmech_json_value_t **out_census)
 {
     assert(out_census != NULL);
@@ -3499,7 +3499,7 @@ srmech_status_t srmech_genome_census(const char *dir, const unsigned char *the_o
     }
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);
-    return genome_census_build(dir, the_one, the_one_len, &a, out_census);
+    return genome_census_build(dir, coupling, coupling_len, &a, out_census);
 }
 
 /* 1 iff <root>/<name> is a genome dir (holds BOTH turns.bin and manifest.json).
@@ -3620,7 +3620,7 @@ static srmech_status_t genome_registry_root(genome_arena_t *a, const char *root,
  * persistent per-genome path + basename scratch (both carved from `a`). */
 static srmech_status_t genome_registry_census_all(genome_arena_t *a,
     const char *root, char (*names)[SRMECH_PLAT_DIR_NAME_MAX], uint32_t n,
-    const unsigned char *the_one, size_t the_one_len, srmech_json_value_t **groots)
+    const unsigned char *coupling, size_t coupling_len, srmech_json_value_t **groots)
 {
     assert(a != NULL && root != NULL);
     assert(groots != NULL || n == 0u);
@@ -3630,14 +3630,14 @@ static srmech_status_t genome_registry_census_all(genome_arena_t *a,
         srmech_status_t st = genome_join(root, names[i], fullpath,
                                          SRMECH_GENOME_PATH_MAX);
         if (st != SRMECH_OK) { return st; }
-        st = genome_census_build(fullpath, the_one, the_one_len, a, &groots[i]);
+        st = genome_census_build(fullpath, coupling, coupling_len, a, &groots[i]);
         if (st != SRMECH_OK) { return st; }
     }
     return SRMECH_OK;
 }
 
-srmech_status_t srmech_genome_registry(const char *root, const unsigned char *the_one,
-                                       size_t the_one_len, void *ws, size_t ws_len,
+srmech_status_t srmech_genome_registry(const char *root, const unsigned char *coupling,
+                                       size_t coupling_len, void *ws, size_t ws_len,
                                        srmech_json_value_t **out_registry)
 {
     assert(out_registry != NULL);
@@ -3659,7 +3659,7 @@ srmech_status_t srmech_genome_registry(const char *root, const unsigned char *th
     st = genome_list_genomes(root, names, n, &n2);                 /* pass 2: fill */
     if (st != SRMECH_OK) { return st; }
     genome_sort_names(names, n2);
-    st = genome_registry_census_all(&a, root, names, n2, the_one, the_one_len, groots);
+    st = genome_registry_census_all(&a, root, names, n2, coupling, coupling_len, groots);
     if (st != SRMECH_OK) { return st; }
     /* Copy `root` into the arena so the tree's "root" is SELF-CONTAINED (held by
      * reference; the caller's `root` string may not outlive the later json write). */
@@ -3761,8 +3761,8 @@ static srmech_status_t genome_verify_body(const unsigned char *body,
  * ------------------------------------------------------------------ */
 srmech_status_t srmech_genome_load(const char *dir, unsigned char *out,
                                    size_t out_cap, size_t *out_len,
-                                   const unsigned char *the_one,
-                                   size_t the_one_len,
+                                   const unsigned char *coupling,
+                                   size_t coupling_len,
                                    void *ws, size_t ws_len)
 {
     assert(out_len != NULL);
@@ -3771,7 +3771,7 @@ srmech_status_t srmech_genome_load(const char *dir, unsigned char *out,
         return SRMECH_ERR_NULL_ARG;
     }
     srmech_json_value_t *manifest = NULL;
-    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+    srmech_status_t st = genome_obtain_manifest(dir, coupling, coupling_len,
                                                 ws, ws_len, &manifest);
     if (st != SRMECH_OK) { return st; }
     char body_path[SRMECH_GENOME_PATH_MAX];
@@ -3818,8 +3818,8 @@ static const srmech_json_value_t *genome_find_chrom(
 srmech_status_t srmech_genome_window(const char *dir, const char *label,
                                      unsigned char *out, size_t out_cap,
                                      size_t *out_len,
-                                     const unsigned char *the_one,
-                                     size_t the_one_len,
+                                     const unsigned char *coupling,
+                                     size_t coupling_len,
                                      void *ws, size_t ws_len)
 {
     assert(out_len != NULL);
@@ -3829,7 +3829,7 @@ srmech_status_t srmech_genome_window(const char *dir, const char *label,
         return SRMECH_ERR_NULL_ARG;
     }
     srmech_json_value_t *manifest = NULL;
-    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+    srmech_status_t st = genome_obtain_manifest(dir, coupling, coupling_len,
                                                 ws, ws_len, &manifest);
     if (st != SRMECH_OK) { return st; }
     size_t off = 0u, len = 0u;
@@ -3962,7 +3962,7 @@ static srmech_status_t genome_plan_emit_one(
 
 srmech_status_t srmech_genome_gene_express_plan(
     const char *dir, uint64_t cell_state,
-    const unsigned char *the_one, size_t the_one_len,
+    const unsigned char *coupling, size_t coupling_len,
     unsigned char *out, size_t out_cap, size_t *out_len,
     void *ws, size_t ws_len)
 {
@@ -3971,9 +3971,9 @@ srmech_status_t srmech_genome_gene_express_plan(
     if (dir == NULL || out == NULL || out_len == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (the_one == NULL && the_one_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    if (coupling == NULL && coupling_len != 0u) { return SRMECH_ERR_NULL_ARG; }
     srmech_json_value_t *manifest = NULL;
-    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+    srmech_status_t st = genome_obtain_manifest(dir, coupling, coupling_len,
                                                 ws, ws_len, &manifest);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
@@ -4158,7 +4158,7 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
 
 
 /* The v12 O(1) HEAD-append core: read ONLY the head fields from the OLD manifest — the
- * body_sha256 chain head, n_turns, the_one, and the prior chromosome COUNT (v12's
+ * body_sha256 chain head, n_turns, coupling, and the prior chromosome COUNT (v12's
  * "n_chromosomes", or the v4..v11 "chromosomes" array length) — then scan ONLY the new
  * region, fold it onto the chain, and set the strings HEAD (n_chroms = the count,
  * n_blocks, body_sha, one_*). NO per-chromosome array copy (the O(n) wall), NO O(n)
@@ -4171,7 +4171,7 @@ static srmech_status_t genome_append_head(genome_strings_t *s,
 {
     assert(s != NULL && manifest != NULL);
     assert(region != NULL && leaf_dim > 0u);
-    const srmech_json_value_t *dto = genome_data_get(manifest, "the_one");
+    const srmech_json_value_t *dto = genome_data_get(manifest, "coupling");
     const srmech_json_value_t *nt = genome_data_get(manifest, "n_turns");
     const srmech_json_value_t *bsha = genome_data_get(manifest, "body_sha256");
     const srmech_json_value_t *nch = genome_data_get(manifest, "n_chromosomes");
@@ -4275,9 +4275,9 @@ static srmech_status_t genome_append_v4(const char *dir, const char *label,
  * legacy genome to the region-partitioned v4 format; subsequent appends are O(1).*/
 static srmech_status_t genome_append_migrate(const char *dir, const char *label,
     const unsigned char *region, size_t region_len, uint32_t leaf_dim,
-    const unsigned char *the_one, size_t the_one_len, genome_arena_t *a)
+    const unsigned char *coupling, size_t coupling_len, genome_arena_t *a)
 {
-    assert(dir != NULL && label != NULL && the_one != NULL && a != NULL);
+    assert(dir != NULL && label != NULL && coupling != NULL && a != NULL);
     assert(region != NULL || region_len == 0u);
     size_t bcap = 0u;
     srmech_status_t st = genome_body_size(dir, &bcap);
@@ -4289,7 +4289,7 @@ static srmech_status_t genome_append_migrate(const char *dir, const char *label,
     size_t tws_len = 0u;
     genome_arena_tail(a, &tws, &tws_len);
     srmech_json_value_t *manifest = NULL;
-    st = genome_obtain_manifest(dir, the_one, the_one_len, tws, tws_len, &manifest);
+    st = genome_obtain_manifest(dir, coupling, coupling_len, tws, tws_len, &manifest);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
     if (ld == NULL || ld->type != SRMECH_JSON_INT ||
@@ -4299,23 +4299,23 @@ static srmech_status_t genome_append_migrate(const char *dir, const char *label,
     size_t new_len = 0u;
     st = genome_grow_body(dir, manifest, region, region_len, body, bcap, &new_len);
     if (st != SRMECH_OK) { return st; }
-    return srmech_genome_save(dir, body, new_len, leaf_dim, the_one, the_one_len,
+    return srmech_genome_save(dir, body, new_len, leaf_dim, coupling, coupling_len,
                               tws, tws_len);
 }
 
 srmech_status_t srmech_genome_append(const char *dir, const char *label,
                                      const unsigned char *region,
                                      size_t region_len, uint32_t leaf_dim,
-                                     const unsigned char *the_one,
-                                     size_t the_one_len, void *ws, size_t ws_len)
+                                     const unsigned char *coupling,
+                                     size_t coupling_len, void *ws, size_t ws_len)
 {
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     assert(dir != NULL || label == NULL);
-    if (dir == NULL || label == NULL || the_one == NULL || ws == NULL ||
+    if (dir == NULL || label == NULL || coupling == NULL || ws == NULL ||
         (region == NULL && region_len != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim || region_len == 0u ||
+    if (leaf_dim == 0u || coupling_len != (size_t)leaf_dim || region_len == 0u ||
         strlen(label) + 1u > SRMECH_GENOME_MAX_LABEL) {
         return SRMECH_ERR_BAD_INPUT;
     }
@@ -4334,7 +4334,7 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
     size_t msz = 0u;
     if (genome_file_size(man_path, &msz) != SRMECH_OK) {   /* manifest-less */
         return genome_append_migrate(dir, label, region, region_len, leaf_dim,
-                                     the_one, the_one_len, &a);
+                                     coupling, coupling_len, &a);
     }
     char *manbuf = genome_arena_alloc(&a, msz + 1u);
     if (manbuf == NULL) { return SRMECH_ERR_OVERFLOW; }
@@ -4352,7 +4352,7 @@ srmech_status_t srmech_genome_append(const char *dir, const char *label,
         !genome_bytes_contains(manbuf, mlen, "\"n_chromosomes\":", 16u)) {
         genome_arena_init(&a, ws, ws_len);      /* migrate re-reads the body itself */
         return genome_append_migrate(dir, label, region, region_len, leaf_dim,
-                                     the_one, the_one_len, &a);
+                                     coupling, coupling_len, &a);
     }
     return genome_append_v4(dir, label, region, region_len, leaf_dim, &a,
                             manbuf, msz, mlen, old_len);
@@ -4420,22 +4420,22 @@ srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_
  * (only relocated). The spliced body is committed via srmech_genome_save, which
  * re-derives the manifest by scanning it (the strand is the SSoT), so the
  * on-disk turns.bin + manifest.json are byte-identical to the Python
- * genome_remove / genome_replace output. Like APPEND (a write op) the_one is
- * REQUIRED here (srmech_genome_save needs it for the manifest the_one hash+hex);
- * the_one_len IS leaf_dim. The whole body is bound-checked against body_sha256
+ * genome_remove / genome_replace output. Like APPEND (a write op) coupling is
+ * REQUIRED here (srmech_genome_save needs it for the manifest coupling hash+hex);
+ * coupling_len IS leaf_dim. The whole body is bound-checked against body_sha256
  * BEFORE the edit (genome_read_bound_body).
  * ------------------------------------------------------------------ */
 
 srmech_status_t srmech_genome_remove(const char *dir, const char *label,
-                                     const unsigned char *the_one,
-                                     size_t the_one_len, void *ws, size_t ws_len)
+                                     const unsigned char *coupling,
+                                     size_t coupling_len, void *ws, size_t ws_len)
 {
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     assert(dir != NULL || label == NULL);
-    if (dir == NULL || label == NULL || the_one == NULL || ws == NULL) {
+    if (dir == NULL || label == NULL || coupling == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (the_one_len == 0u || the_one_len > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    if (coupling_len == 0u || coupling_len > 256u) { return SRMECH_ERR_BAD_INPUT; }
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);
     size_t bcap = 0u;
@@ -4447,13 +4447,13 @@ srmech_status_t srmech_genome_remove(const char *dir, const char *label,
     size_t tws_len = 0u;
     genome_arena_tail(&a, &tws, &tws_len);
     srmech_json_value_t *manifest = NULL;
-    st = genome_obtain_manifest(dir, the_one, the_one_len, tws, tws_len,
+    st = genome_obtain_manifest(dir, coupling, coupling_len, tws, tws_len,
                                 &manifest);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
     const srmech_json_value_t *arr = genome_data_get(manifest, "chromosomes");
     if (ld == NULL || ld->type != SRMECH_JSON_INT ||
-        (size_t)ld->u.i != the_one_len ||
+        (size_t)ld->u.i != coupling_len ||
         arr == NULL || arr->type != SRMECH_JSON_ARRAY) {
         return SRMECH_ERR_BAD_INPUT;
     }
@@ -4468,23 +4468,23 @@ srmech_status_t srmech_genome_remove(const char *dir, const char *label,
     /* splice [off, off+len) out IN PLACE: slide the tail down over the span. */
     memmove(body + off, body + off + len, body_len - off - len);
     return srmech_genome_save(dir, body, body_len - len,
-                              (uint32_t)the_one_len, the_one, the_one_len,
+                              (uint32_t)coupling_len, coupling, coupling_len,
                               tws, tws_len);
 }
 
 srmech_status_t srmech_genome_replace(const char *dir, const char *label,
                                       const unsigned char *region,
                                       size_t region_len, uint32_t leaf_dim,
-                                      const unsigned char *the_one,
-                                      size_t the_one_len, void *ws, size_t ws_len)
+                                      const unsigned char *coupling,
+                                      size_t coupling_len, void *ws, size_t ws_len)
 {
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     assert(dir != NULL || label == NULL);
-    if (dir == NULL || label == NULL || the_one == NULL || ws == NULL ||
+    if (dir == NULL || label == NULL || coupling == NULL || ws == NULL ||
         (region == NULL && region_len != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (leaf_dim == 0u || the_one_len != (size_t)leaf_dim) {
+    if (leaf_dim == 0u || coupling_len != (size_t)leaf_dim) {
         return SRMECH_ERR_BAD_INPUT;   /* §55/v3: blocks are variable-width —
                                         * the save's scan validates the region */
     }
@@ -4500,7 +4500,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
     size_t tws_len = 0u;
     genome_arena_tail(&a, &tws, &tws_len);
     srmech_json_value_t *manifest = NULL;
-    st = genome_obtain_manifest(dir, the_one, the_one_len, tws, tws_len,
+    st = genome_obtain_manifest(dir, coupling, coupling_len, tws, tws_len,
                                 &manifest);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
@@ -4520,7 +4520,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
     memmove(body + off + region_len, body + off + len, tail);
     if (region_len != 0u) { memcpy(body + off, region, region_len); }
     return srmech_genome_save(dir, body, new_len, leaf_dim,
-                              the_one, the_one_len, tws, tws_len);
+                              coupling, coupling_len, tws, tws_len);
 }
 
 /* ------------------------------------------------------------------ *
@@ -4534,7 +4534,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
  * A .chr is ONE MPR record (the SAME json builder + writer the manifest uses,
  * so it is BYTE-IDENTICAL to the Python genome_export's json.dumps(sort_keys=
  * True, ensure_ascii=False) + LF): its `data` carries the chromosome's region
- * (CHROM cap + coupled turns) hex + the_one hex; its attestation.response_sha256
+ * (CHROM cap + coupled turns) hex + coupling hex; its attestation.response_sha256
  * IS the region hash, so an import re-hashes the region and self-verifies. This
  * COMPOSES the §41 MPR surface — it is NOT a parallel attestation.
  *
@@ -4548,7 +4548,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 #define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v15"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
-#define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + the_one, re-importable self-verifying."
+#define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + coupling, re-importable self-verifying."
 /* The §43 rendering "cite_as" (the U+00A7 § is the 2-byte UTF-8 0xC2 0xA7,
  * emitted ensure_ascii=False; the "" breaks the \x hex escape before "43"). */
 #define SRMECH_GENOME_CHR_CITE_AS "srmech genome chromosome bundle (UPSTREAM \xc2\xa7""43)"
@@ -4604,7 +4604,7 @@ static const srmech_json_value_t *genome_find_chrom_obj(
     return NULL;
 }
 
-/* Build a {"sha256":..,"hex":..} sub-object (the_one / region). */
+/* Build a {"sha256":..,"hex":..} sub-object (coupling / region). */
 static srmech_json_value_t *genome_chr_subobj(srmech_json_builder_t *b,
                                               const char *sha, const char *hex)
 {
@@ -4626,7 +4626,7 @@ static srmech_json_value_t *genome_chr_build_data(srmech_json_builder_t *b,
     assert(b != NULL && cs != NULL && region_hex != NULL);
     assert(cs->cap_sha[0] != '\0');
     const char *keys[7] = { "format_version", "leaf_dim", "label", "leaf_count",
-                            "cap_sha256", "the_one", "region" };
+                            "cap_sha256", "coupling", "region" };
     srmech_json_value_t *v[7];
     v[0] = srmech_json_new_int(b, (int64_t)SRMECH_GENOME_FORMAT_VERSION);
     v[1] = srmech_json_new_int(b, (int64_t)cs->leaf_dim);
@@ -4708,8 +4708,8 @@ static srmech_status_t genome_chr_build_file(const genome_chr_strings_t *cs,
 
 /* Pull one chromosome's export metadata out of the manifest into `cs` and set
  * its byte span (*off, *len) — leaf_dim / label / leaf_count / cap_sha256 from
- * the chromosome entry, the_one sha256+hex from the manifest (the .chr re-uses
- * the manifest's the_one verbatim). SRMECH_ERR_BAD_INPUT on absent / malformed. */
+ * the chromosome entry, coupling sha256+hex from the manifest (the .chr re-uses
+ * the manifest's coupling verbatim). SRMECH_ERR_BAD_INPUT on absent / malformed. */
 static srmech_status_t genome_chr_meta(const srmech_json_value_t *manifest,
                                        const char *label, genome_chr_strings_t *cs,
                                        size_t *off, size_t *len)
@@ -4717,7 +4717,7 @@ static srmech_status_t genome_chr_meta(const srmech_json_value_t *manifest,
     assert(manifest != NULL && label != NULL);
     assert(cs != NULL && off != NULL && len != NULL);
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
-    const srmech_json_value_t *to = genome_data_get(manifest, "the_one");
+    const srmech_json_value_t *to = genome_data_get(manifest, "coupling");
     if (ld == NULL || ld->type != SRMECH_JSON_INT || ld->u.i <= 0 ||
         ld->u.i > 256 || to == NULL || to->type != SRMECH_JSON_OBJECT) {
         return SRMECH_ERR_BAD_INPUT;
@@ -4803,21 +4803,21 @@ static srmech_status_t genome_chr_read_region(const char *dir,
 
 srmech_status_t srmech_genome_export(const char *dir, const char *label,
                                      const char *out_path,
-                                     const unsigned char *the_one,
-                                     size_t the_one_len, void *ws, size_t ws_len)
+                                     const unsigned char *coupling,
+                                     size_t coupling_len, void *ws, size_t ws_len)
 {
     assert(dir != NULL || ws == NULL);
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     if (dir == NULL || label == NULL || out_path == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
+    if (coupling != NULL && (coupling_len == 0u || coupling_len > 256u)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);     /* obtain uses the whole arena */
     srmech_json_value_t *manifest = NULL;
-    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+    srmech_status_t st = genome_obtain_manifest(dir, coupling, coupling_len,
                                                 ws, ws_len, &manifest);
     if (st != SRMECH_OK) { return st; }
     genome_chr_strings_t cs;
@@ -4899,9 +4899,9 @@ static srmech_status_t genome_chr_decode_verify(const srmech_json_value_t *sub,
 }
 
 /* Validate a parsed .chr record and extract its region (decoded + self-verified,
- * incl. attestation.response_sha256 == region.sha256), its the_one (decoded +
+ * incl. attestation.response_sha256 == region.sha256), its coupling (decoded +
  * self-verified, length == leaf_dim), leaf_dim and label. Mirrors the integrity
- * bounds of the Python genome_import (_read_chr + the region/the_one re-hash). */
+ * bounds of the Python genome_import (_read_chr + the region/coupling re-hash). */
 static srmech_status_t genome_chr_verify_extract(const srmech_json_value_t *rec,
     unsigned char *region, size_t region_cap, size_t *region_len,
     unsigned char *oneblk, size_t *one_len, uint32_t *leaf_dim,
@@ -4936,7 +4936,7 @@ static srmech_status_t genome_chr_verify_extract(const srmech_json_value_t *rec,
     const srmech_json_value_t *resp = srmech_json_object_get(att, "response_sha256");
     if (resp == NULL || !genome_str_eq(resp, rsha)) { return SRMECH_ERR_BAD_INPUT; }
     char osha[65];
-    st = genome_chr_decode_verify(srmech_json_object_get(data, "the_one"),
+    st = genome_chr_decode_verify(srmech_json_object_get(data, "coupling"),
                                   oneblk, 256u, one_len, osha);
     if (st != SRMECH_OK) { return st; }
     return (*one_len == (size_t)*leaf_dim) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
@@ -4956,9 +4956,9 @@ static int genome_body_exists(const char *dir)
 }
 
 /* APPEND a verified .chr region into an existing dest genome: same coupling
- * invariant (dest the_one.sha256 == the .chr's) + a fresh label, then grow the
+ * invariant (dest coupling.sha256 == the .chr's) + a fresh label, then grow the
  * body byte-for-byte and re-save. `caller_one` is the rebuild width for a
- * manifest-less dest (else the .chr's own the_one). Mirrors genome_import's
+ * manifest-less dest (else the .chr's own coupling). Mirrors genome_import's
  * APPEND branch. */
 static srmech_status_t genome_chr_append(const char *dest, const char *label,
     const unsigned char *region, size_t region_len, uint32_t leaf_dim,
@@ -4987,14 +4987,14 @@ static srmech_status_t genome_chr_append(const char *dest, const char *label,
     const srmech_json_value_t *ld = genome_data_get(manifest, "leaf_dim");
     if (ld == NULL || ld->type != SRMECH_JSON_INT ||
         (uint32_t)ld->u.i != leaf_dim) { return SRMECH_ERR_BAD_INPUT; }
-    const srmech_json_value_t *dto = genome_data_get(manifest, "the_one");
+    const srmech_json_value_t *dto = genome_data_get(manifest, "coupling");
     const srmech_json_value_t *dsha =
         (dto != NULL) ? srmech_json_object_get(dto, "sha256") : NULL;
     char osha[65];
     st = srmech_sha256_hex(one, one_len, osha);
     if (st != SRMECH_OK) { return st; }
     if (dsha == NULL || !genome_str_eq(dsha, osha)) {
-        return SRMECH_ERR_BAD_INPUT;             /* coupled to a different the_one */
+        return SRMECH_ERR_BAD_INPUT;             /* coupled to a different coupling */
     }
     st = genome_check_new_label(manifest, label);          /* no dup labels */
     if (st != SRMECH_OK) { return st; }
@@ -5006,15 +5006,15 @@ static srmech_status_t genome_chr_append(const char *dest, const char *label,
 }
 
 srmech_status_t srmech_genome_import(const char *chr_path, const char *dest,
-                                     const unsigned char *the_one,
-                                     size_t the_one_len, void *ws, size_t ws_len)
+                                     const unsigned char *coupling,
+                                     size_t coupling_len, void *ws, size_t ws_len)
 {
     assert(dest != NULL || ws == NULL);
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     if (chr_path == NULL || dest == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
+    if (coupling != NULL && (coupling_len == 0u || coupling_len > 256u)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     genome_arena_t a;
@@ -5048,7 +5048,7 @@ srmech_status_t srmech_genome_import(const char *chr_path, const char *dest,
                                   oneblk, one_len, pw, pl);
     }
     return genome_chr_append(dest, label, region, region_len, leaf_dim,
-                             oneblk, one_len, the_one, the_one_len, pw, pl);
+                             oneblk, one_len, coupling, coupling_len, pw, pl);
 }
 
 /* ================================================================== *
@@ -5112,22 +5112,22 @@ static srmech_status_t genome_collect_labels(const srmech_json_value_t *manifest
 }
 
 srmech_status_t srmech_genome_explode(const char *dir, const char *out_dir,
-                                      const unsigned char *the_one,
-                                      size_t the_one_len, void *ws, size_t ws_len)
+                                      const unsigned char *coupling,
+                                      size_t coupling_len, void *ws, size_t ws_len)
 {
     assert(dir != NULL || ws == NULL);
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     if (dir == NULL || out_dir == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
+    if (coupling != NULL && (coupling_len == 0u || coupling_len > 256u)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);
     /* pass 1: obtain the manifest to learn the chromosome count. */
     srmech_json_value_t *m0 = NULL;
-    srmech_status_t st = genome_obtain_manifest(dir, the_one, the_one_len,
+    srmech_status_t st = genome_obtain_manifest(dir, coupling, coupling_len,
                                                 ws, ws_len, &m0);
     if (st != SRMECH_OK) { return st; }
     const srmech_json_value_t *arr = genome_data_get(m0, "chromosomes");
@@ -5145,7 +5145,7 @@ srmech_status_t srmech_genome_explode(const char *dir, const char *out_dir,
     size_t el = 0u;
     genome_arena_tail(&a, &ew, &el);
     srmech_json_value_t *manifest = NULL;
-    st = genome_obtain_manifest(dir, the_one, the_one_len, ew, el, &manifest);
+    st = genome_obtain_manifest(dir, coupling, coupling_len, ew, el, &manifest);
     if (st != SRMECH_OK) { return st; }
     uint32_t n = 0u;
     st = genome_collect_labels(manifest, labels, &n);    /* before any export */
@@ -5158,8 +5158,8 @@ srmech_status_t srmech_genome_explode(const char *dir, const char *out_dir,
         char out_path[SRMECH_GENOME_PATH_MAX];
         st = genome_join(out_dir, name, out_path, sizeof(out_path));
         if (st != SRMECH_OK) { return st; }
-        st = srmech_genome_export(dir, labels[i], out_path, the_one,
-                                  the_one_len, ew, el);
+        st = srmech_genome_export(dir, labels[i], out_path, coupling,
+                                  coupling_len, ew, el);
         if (st != SRMECH_OK) { return st; }
     }
     return SRMECH_OK;
@@ -5280,7 +5280,7 @@ static void genome_sort_by_label(char labels[][SRMECH_GENOME_MAX_LABEL],
 
 /* Read + verify one loose .chr and copy its region into `body` at *offset —
  * the single-pass concat step (rc115 #1245(b)). The first bundle (is_first) sets
- * the pack's the_one + leaf_dim; each later bundle must match them (one coupling
+ * the pack's coupling + leaf_dim; each later bundle must match them (one coupling
  * invariant). *offset advances by the region length. */
 static srmech_status_t genome_pack_read_chr(const char *loose_dir,
     const char *name, void *ws, size_t ws_len, unsigned char *body,
@@ -5382,15 +5382,15 @@ static srmech_status_t genome_pack_concat_save(const char *loose_dir,
 }
 
 srmech_status_t srmech_genome_pack(const char *loose_dir, const char *dest,
-                                   const unsigned char *the_one,
-                                   size_t the_one_len, void *ws, size_t ws_len)
+                                   const unsigned char *coupling,
+                                   size_t coupling_len, void *ws, size_t ws_len)
 {
     assert(loose_dir != NULL || ws == NULL);
-    assert(the_one != NULL || the_one_len == 0u);
+    assert(coupling != NULL || coupling_len == 0u);
     if (loose_dir == NULL || dest == NULL || ws == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (the_one != NULL && (the_one_len == 0u || the_one_len > 256u)) {
+    if (coupling != NULL && (coupling_len == 0u || coupling_len > 256u)) {
         return SRMECH_ERR_BAD_INPUT;
     }
     uint32_t nfiles = 0u;
@@ -5650,7 +5650,7 @@ static size_t genome_v3_pack_turn(const unsigned char *leaf, uint32_t leaf_dim,
  * No malloc, no goto, no abs, no float. */
 static srmech_status_t genome_kernel_region(
     const uint8_t *syms, size_t n_syms, uint32_t leaf_dim,
-    const unsigned char *the_one, const char *label,
+    const unsigned char *coupling, const char *label,
     unsigned char *out, size_t out_cap, size_t *out_len)
 {
     unsigned char leaf[256];
@@ -5659,12 +5659,12 @@ static srmech_status_t genome_kernel_region(
     size_t pos = 0u;
     size_t turn_len = 1u + ((size_t)leaf_dim + 3u) / 4u;
     srmech_status_t st;
-    if (syms == NULL || the_one == NULL || out == NULL || out_len == NULL ||
+    if (syms == NULL || coupling == NULL || out == NULL || out_len == NULL ||
         label == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
     assert(out != NULL && out_len != NULL);
-    assert(the_one != NULL && label != NULL);
+    assert(coupling != NULL && label != NULL);
     if (leaf_dim < 52u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     if (out_cap < dim) { return SRMECH_ERR_OVERFLOW; }
     /* [0] KERNEL telomere cap (verbatim leaf_dim bytes). */
@@ -5673,9 +5673,9 @@ static srmech_status_t genome_kernel_region(
                          out, dim);
     if (st != SRMECH_OK) { return st; }
     pos = dim;
-    /* the §89 header leaf: build -> couple through the_one -> v3-pack. */
+    /* the §89 header leaf: build -> couple through coupling -> v3-pack. */
     genome_kernel_header_leaf(n_syms, leaf_dim, leaf, leaf_dim);
-    st = srmech_klein4_bind(leaf, the_one, leaf_dim, coupled);
+    st = srmech_klein4_bind(leaf, coupling, leaf_dim, coupled);
     if (st != SRMECH_OK) { return st; }
     if (pos + turn_len > out_cap) { return SRMECH_ERR_OVERFLOW; }
     pos += genome_v3_pack_turn(coupled, leaf_dim, out + pos);
@@ -5685,7 +5685,7 @@ static srmech_status_t genome_kernel_region(
         for (size_t j = 0; j < dim; j++) {
             leaf[j] = (j < take) ? (unsigned char)(syms[i + j] & 3u) : 0u;
         }
-        st = srmech_klein4_bind(leaf, the_one, leaf_dim, coupled);
+        st = srmech_klein4_bind(leaf, coupling, leaf_dim, coupled);
         if (st != SRMECH_OK) { return st; }
         if (pos + turn_len > out_cap) { return SRMECH_ERR_OVERFLOW; }
         pos += genome_v3_pack_turn(coupled, leaf_dim, out + pos);
@@ -5707,7 +5707,7 @@ srmech_status_t srmech_genome_plasmid_extract(
     const uint64_t *node_ids, size_t n_nid,
     const uint64_t *extras, size_t n_ex,
     const char *dir, const char *label,
-    uint32_t leaf_dim, const unsigned char *the_one,
+    uint32_t leaf_dim, const unsigned char *coupling,
     void *ws, size_t ws_len, size_t *out_n_syms)
 {
     genome_arena_t a;
@@ -5717,13 +5717,13 @@ srmech_status_t srmech_genome_plasmid_extract(
     unsigned char *region;
     void *aws = NULL;
     srmech_status_t st;
-    if (dir == NULL || label == NULL || the_one == NULL || ws == NULL ||
+    if (dir == NULL || label == NULL || coupling == NULL || ws == NULL ||
         out_n_syms == NULL || (node_ids == NULL && n_nid != 0u) ||
         (extras == NULL && n_ex != 0u) ||
         ((edge_i == NULL || edge_j == NULL || weights == NULL) && n_edges != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(dir != NULL && label != NULL && the_one != NULL);
+    assert(dir != NULL && label != NULL && coupling != NULL);
     assert(ws != NULL && out_n_syms != NULL);
     if (leaf_dim < 52u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     genome_arena_init(&a, ws, ws_len);
@@ -5744,14 +5744,14 @@ srmech_status_t srmech_genome_plasmid_extract(
     region_cap = (size_t)leaf_dim + n_leaves * turn_len;
     region = genome_arena_alloc(&a, region_cap);
     if (region == NULL) { return SRMECH_ERR_OVERFLOW; }
-    st = genome_kernel_region(syms, n_syms, leaf_dim, the_one, label,
+    st = genome_kernel_region(syms, n_syms, leaf_dim, coupling, label,
                               region, region_cap, &region_len);
     if (st != SRMECH_OK) { return st; }
     /* append the section (O(1) tail-extend) — srmech_genome_append gets the arena
      * TAIL (the syms + region buffers are already consumed above). */
     genome_arena_tail(&a, &aws, &aws_len);
     st = srmech_genome_append(dir, label, region, region_len, leaf_dim,
-                              the_one, (size_t)leaf_dim, aws, aws_len);
+                              coupling, (size_t)leaf_dim, aws, aws_len);
     if (st != SRMECH_OK) { return st; }
     *out_n_syms = n_syms;
     return SRMECH_OK;
@@ -5920,7 +5920,7 @@ static int organize_tick(srmech_progress_tick_cb_t tick, void *user,
  * minted strand there; it is copied to `out` head). No abs, no float. */
 static srmech_status_t organize_promote_core(
     const unsigned char *core, size_t core_blocks, uint32_t leaf_dim,
-    const unsigned char *the_one, long centromere_at, uint32_t repeats,
+    const unsigned char *coupling, long centromere_at, uint32_t repeats,
     const unsigned char *handle, size_t handle_len,
     unsigned char *out, size_t out_cap, unsigned char *ws, size_t ws_len,
     size_t *n_out)
@@ -5929,7 +5929,7 @@ static srmech_status_t organize_promote_core(
     srmech_status_t st;
     assert(out != NULL && n_out != NULL);
     assert(core != NULL && ws != NULL);
-    st = srmech_genome_mint_strand(core, core_blocks, leaf_dim, the_one,
+    st = srmech_genome_mint_strand(core, core_blocks, leaf_dim, coupling,
                                    centromere_at, 0u, 1, repeats, handle,
                                    handle_len, ws, ws_len, &minted);
     if (st != SRMECH_OK) { return st; }
@@ -5977,7 +5977,7 @@ static srmech_status_t organize_append_section(
 srmech_status_t srmech_genome_integrate_plasmids(
     const unsigned char *core, size_t core_blocks,
     const unsigned char *plasmids, const size_t *plasmid_blocks, size_t n_plasmids,
-    uint32_t leaf_dim, const unsigned char *the_one,
+    uint32_t leaf_dim, const unsigned char *coupling,
     long centromere_at, uint32_t repeats,
     const unsigned char *handle, size_t handle_len,
     srmech_progress_tick_cb_t tick, void *tick_user,
@@ -5988,7 +5988,7 @@ srmech_status_t srmech_genome_integrate_plasmids(
     srmech_status_t st;
     if (out == NULL || n_blocks_out == NULL || n_integrated_out == NULL ||
         (n_plasmids > 0u && (plasmids == NULL || plasmid_blocks == NULL)) ||
-        (core_blocks > 0u && (core == NULL || ws == NULL || the_one == NULL))) {
+        (core_blocks > 0u && (core == NULL || ws == NULL || coupling == NULL))) {
         return SRMECH_ERR_NULL_ARG;
     }
     assert(out != NULL && n_blocks_out != NULL);
@@ -6002,7 +6002,7 @@ srmech_status_t srmech_genome_integrate_plasmids(
             *n_blocks_out = 0u;              /* cancelled before any chromosome */
             return SRMECH_CANCELLED;
         }
-        st = organize_promote_core(core, core_blocks, leaf_dim, the_one,
+        st = organize_promote_core(core, core_blocks, leaf_dim, coupling,
                                    centromere_at, repeats, handle, handle_len,
                                    out, out_cap, ws, ws_len, &minted);
         if (st != SRMECH_OK) { return st; }
@@ -6043,7 +6043,7 @@ srmech_status_t srmech_genome_integrate_plasmids(
  * (2) needs NO format change. The §89 graph-kernel payload int stream is
  *   [vocab_size, n_node_ids] + node_ids + [n_extras] + extras + [n_edges] + ...
  * so node_ids is a strict PREFIX and the edges sit strictly AFTER it; quad_turn
- * is a per-leaf REVERSIBLE Klein-4 XOR against the_one (leaf k uncouples from
+ * is a per-leaf REVERSIBLE Klein-4 XOR against coupling (leaf k uncouples from
  * leaf k ALONE — no chaining), so a prefix of coupled leaves uncouples to
  * exactly the prefix of the symbol stream; and the region's integrity bound is
  * its LEADING cap, present in — and paid identically by — any prefix of >= 1
@@ -6275,20 +6275,20 @@ static size_t sc_block_len(unsigned char kind, uint32_t leaf_dim)
 
 /* Uncouple ONE data block into `unc` (leaf_dim Klein-4 symbols): a v3 packed
  * turn unpacks first, a legacy v2 turn is already byte-per-symbol; both then
- * re-bind through the_one (quad_turn is its own inverse). */
+ * re-bind through coupling (quad_turn is its own inverse). */
 static srmech_status_t sc_uncouple(const unsigned char *blk, uint32_t leaf_dim,
-                                   const unsigned char *the_one,
+                                   const unsigned char *coupling,
                                    unsigned char *unc)
 {
     unsigned char mem[256];
-    assert(blk != NULL && the_one != NULL && unc != NULL);
+    assert(blk != NULL && coupling != NULL && unc != NULL);
     assert(leaf_dim != 0u && leaf_dim <= 256u);
     if (blk[0] == SRMECH_GENOME_PACKED_TURN_MARKER) {
         sc_unpack_turn(blk + 1, leaf_dim, mem);
     } else {
         memcpy(mem, blk, (size_t)leaf_dim);
     }
-    return srmech_klein4_bind(mem, the_one, leaf_dim, unc);
+    return srmech_klein4_bind(mem, coupling, leaf_dim, unc);
 }
 
 /* Verify a region prefix's LEADING cap against the catalog's cap_sha256 — the
@@ -6321,16 +6321,16 @@ typedef struct {
  * turns), the FIRST data turn is the §89 header (it self-records D), every later
  * data turn is content fed to the incremental decoder, trimmed to D. */
 static srmech_status_t sc_block_fold(const unsigned char *blk, uint32_t leaf_dim,
-                                     const unsigned char *the_one,
+                                     const unsigned char *coupling,
                                      sc_walk_t *w, sc_dec_t *d, int *done)
 {
     unsigned char unc[256];
     size_t take;
     srmech_status_t st;
     assert(blk != NULL && w != NULL && d != NULL && done != NULL);
-    assert(the_one != NULL && leaf_dim >= 52u);
+    assert(coupling != NULL && leaf_dim >= 52u);
     if (genome_cap_kind(blk, leaf_dim) >= 0) { return SRMECH_OK; }   /* skip caps */
-    st = sc_uncouple(blk, leaf_dim, the_one, unc);
+    st = sc_uncouple(blk, leaf_dim, coupling, unc);
     if (st != SRMECH_OK) { return st; }
     if (w->have_header == 0) {
         w->true_len = sc_header_true_len(unc);
@@ -6352,7 +6352,7 @@ static srmech_status_t sc_block_fold(const unsigned char *blk, uint32_t leaf_dim
  * failure this op must never return quietly. */
 static srmech_status_t sc_section_scan(srmech_file_ro_t *fh, uint64_t base,
                                        uint64_t byte_len, uint32_t leaf_dim,
-                                       const unsigned char *the_one,
+                                       const unsigned char *coupling,
                                        const srmech_json_value_t *csha,
                                        uint32_t ord)
 {
@@ -6362,7 +6362,7 @@ static srmech_status_t sc_section_scan(srmech_file_ro_t *fh, uint64_t base,
     size_t wlen = 0u;
     int done = 0;
     srmech_status_t st;
-    assert(fh != NULL && the_one != NULL && csha != NULL);
+    assert(fh != NULL && coupling != NULL && csha != NULL);
     assert(leaf_dim >= 52u && leaf_dim <= 256u);
     memset(&d, 0, sizeof(d));
     memset(&w, 0, sizeof(w));
@@ -6386,7 +6386,7 @@ static srmech_status_t sc_section_scan(srmech_file_ro_t *fh, uint64_t base,
             wlen = 0u;                                      /* straddles — refill */
             continue;
         }
-        st = sc_block_fold(&g_sc_win[roff - wbase], leaf_dim, the_one, &w, &d,
+        st = sc_block_fold(&g_sc_win[roff - wbase], leaf_dim, coupling, &w, &d,
                            &done);
         if (st != SRMECH_OK) { return st; }
         roff += (uint64_t)blen;
@@ -6511,12 +6511,12 @@ static size_t sc_count_sections(const srmech_json_value_t *arr)
 static srmech_status_t sc_scan_all(srmech_file_ro_t *fh,
                                    const srmech_json_value_t *arr,
                                    uint32_t leaf_dim,
-                                   const unsigned char *the_one,
+                                   const unsigned char *coupling,
                                    srmech_progress_tick_cb_t tick, void *tick_ctx,
                                    size_t total, size_t *n_done, int *cancelled)
 {
     size_t ord = 0u;
-    assert(fh != NULL && arr != NULL && the_one != NULL);
+    assert(fh != NULL && arr != NULL && coupling != NULL);
     assert(n_done != NULL && cancelled != NULL);
     for (uint32_t i = 0u; i < arr->u.arr.n; i++) {
         const srmech_json_value_t *c = arr->u.arr.items[i], *csha;
@@ -6532,7 +6532,7 @@ static srmech_status_t sc_scan_all(srmech_file_ro_t *fh,
         csha = sc_entry(c, &off, &len);
         if (csha == NULL) { return SRMECH_ERR_BAD_INPUT; }
         ord++;
-        st = sc_section_scan(fh, off, len, leaf_dim, the_one, csha,
+        st = sc_section_scan(fh, off, len, leaf_dim, coupling, csha,
                              (uint32_t)ord);
         if (st != SRMECH_OK) { return st; }
     }
@@ -6543,7 +6543,7 @@ static srmech_status_t sc_scan_all(srmech_file_ro_t *fh,
 /* Derive the store catalog ONCE and resolve the body path — the O(P * body)
  * quadratic this rc removes lives here, in that this runs exactly once per scan
  * rather than once per section. */
-static srmech_status_t sc_open_store(const char *dir, const unsigned char *the_one,
+static srmech_status_t sc_open_store(const char *dir, const unsigned char *coupling,
                                      uint32_t leaf_dim, char *body_path,
                                      size_t path_cap,
                                      const srmech_json_value_t **arr)
@@ -6551,9 +6551,9 @@ static srmech_status_t sc_open_store(const char *dir, const unsigned char *the_o
     srmech_json_value_t *manifest = NULL;
     const srmech_json_value_t *ld, *a;
     srmech_status_t st;
-    assert(dir != NULL && the_one != NULL && body_path != NULL);
+    assert(dir != NULL && coupling != NULL && body_path != NULL);
     assert(arr != NULL && leaf_dim >= 52u);
-    st = genome_obtain_manifest(dir, the_one, (size_t)leaf_dim, g_sc_arena,
+    st = genome_obtain_manifest(dir, coupling, (size_t)leaf_dim, g_sc_arena,
                                 sizeof(g_sc_arena), &manifest);
     if (st != SRMECH_OK) { return st; }
     ld = genome_data_get(manifest, "leaf_dim");
@@ -6569,7 +6569,7 @@ static srmech_status_t sc_open_store(const char *dir, const unsigned char *the_o
 
 srmech_status_t srmech_genome_section_counts(
     const char *dir,
-    const unsigned char *the_one, uint32_t leaf_dim,
+    const unsigned char *coupling, uint32_t leaf_dim,
     srmech_progress_tick_cb_t tick, void *tick_ctx,
     uint64_t *out_ids, uint64_t *out_counts, size_t out_cap,
     size_t *n_out, size_t *n_done)
@@ -6580,24 +6580,24 @@ srmech_status_t srmech_genome_section_counts(
     size_t total;
     int cancelled = 0;
     srmech_status_t st;
-    if (dir == NULL || the_one == NULL || n_out == NULL || n_done == NULL ||
+    if (dir == NULL || coupling == NULL || n_out == NULL || n_done == NULL ||
         ((out_ids == NULL || out_counts == NULL) && out_cap != 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    assert(dir != NULL && the_one != NULL);
+    assert(dir != NULL && coupling != NULL);
     assert(n_out != NULL && n_done != NULL);
     if (leaf_dim < 52u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
     *n_out = 0u;
     *n_done = 0u;
     g_sc_n_ids = 0u;
     memset(g_sc_slots, 0, sizeof(g_sc_slots));
-    st = sc_open_store(dir, the_one, leaf_dim, body_path, sizeof(body_path), &arr);
+    st = sc_open_store(dir, coupling, leaf_dim, body_path, sizeof(body_path), &arr);
     if (st != SRMECH_OK) { return st; }
     total = sc_count_sections(arr);
     /* rc282: ONE open of turns.bin for the WHOLE scan, not one per section. */
     st = srmech_plat_file_open_ro(body_path, &fh);
     if (st != SRMECH_OK) { return st; }
-    st = sc_scan_all(&fh, arr, leaf_dim, the_one, tick, tick_ctx, total,
+    st = sc_scan_all(&fh, arr, leaf_dim, coupling, tick, tick_ctx, total,
                      n_done, &cancelled);
     srmech_plat_file_close_ro(&fh);
     if (st != SRMECH_OK) { return st; }

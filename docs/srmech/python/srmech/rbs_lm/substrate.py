@@ -92,7 +92,7 @@ def encode_word_k4(word: str, *, D: int, sector: int, hex_chars: int) -> HV:
                                  hex_chars=hex_chars, enc_mode="wordhash")
     if native is not None:
         return native
-    base = hdc.klein4_random(D, seed=token_seed(word, hex_chars))
+    base = hdc.klein4_expand(D, token_seed(word, hex_chars))
     return hdc.klein4_bind(base, _sector_const(D, sector))
 
 
@@ -116,7 +116,7 @@ def encode_word_byteglyph(word: str, *, D: int, sector: int) -> HV:
         return native
     data = word.encode("utf-8")
     if len(data) == 0:
-        base = hdc.klein4_random(D, seed=0)  # the empty/pad atom
+        base = hdc.klein4_expand(D, 0)  # the empty/pad atom
     else:
         base = hdc.klein4_encode_bytes(data, D)
     return hdc.klein4_bind(base, _sector_const(D, sector))
@@ -204,7 +204,7 @@ def scale_signature(parts):
         raise ValueError("scale_signature: need at least 2 parts to perturb")
     D = len(parts[0])
     whole = hdc.klein4_compose(parts)
-    neutral = hdc.klein4_random(D, seed=0)
+    neutral = hdc.klein4_expand(D, 0)
     sims = []
     for i in range(len(parts)):
         perturbed = list(parts)

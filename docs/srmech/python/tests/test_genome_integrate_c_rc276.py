@@ -21,21 +21,21 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 # ── builders (mirroring test_genome_integrate_rc262) ─────────────────────────
 
 def _one(width=64, seed=7):
-    return klein4_random(width, seed=seed)
+    return klein4_expand(width, seed)
 
 
 def _lv(n, base=0, width=64):
-    return [klein4_random(width, seed=base + s) for s in range(n)]
+    return [klein4_expand(width, base + s) for s in range(n)]
 
 
 def _rich_host(one):
-    # a Tier-2 eukaryote with THREE chromosomes on ONE the_one: a MINTED (nuclear,
+    # a Tier-2 eukaryote with THREE chromosomes on ONE coupling: a MINTED (nuclear,
     # interior-centromere) chromosome + a PLASMID (Tier-1) + a DIPLOID chromosome.
     return (G.mint({"astro": _lv(12, 100)}, one)
             + G.plasmid({"plas": _lv(3, 400)}, one)
@@ -171,7 +171,7 @@ def test_integrated_genome_still_partitions_after_dispatch():
 def test_non_chromosome_provirus_still_raises():
     one = _one()
     with pytest.raises(ValueError):
-        G.integrate(_rich_host(one), [klein4_random(64, seed=1)])
+        G.integrate(_rich_host(one), [klein4_expand(64, 1)])
 
 
 def test_at_out_of_range_still_raises():

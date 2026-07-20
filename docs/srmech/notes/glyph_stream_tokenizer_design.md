@@ -449,17 +449,17 @@ A turn is coupled to a *shared global invariant*, not to its neighbour:
 
 ```python
 # python/srmech/amsc/genome.py:770
-def quad_turn(turn, the_one):
-    return _klein4_bind(turn, the_one)
+def quad_turn(turn, coupling):
+    return _klein4_bind(turn, coupling)
 ```
 
-Its docstring (genome.py:758) says so: *"`the_one` is the shared invariant
+Its docstring (genome.py:758) says so: *"`coupling` is the shared invariant
 present in every turn's coupling"*. `chromosome()` applies it as a pure
 per-element map (genome.py:2475) and `recall()` inverts it per-element,
 independently (genome.py:2627). Across all eleven `quad_turn` callsites, **not
 one binds a turn to another turn**. The topology is a **hub/star**, not a chain.
 Falsification: delete turn *i* and turn *i+1* still decodes, because decoding
-consults only `the_one` — impossible in a genuine walk.
+consults only `coupling` — impossible in a genuine walk.
 
 **Half 2 — "the tokenizer is the only layer imposing bag-of-words."** It is not;
 the tokenizer is the layer that best *preserves* order. `tokenize()` returns an

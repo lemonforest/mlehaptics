@@ -43,7 +43,7 @@ def _canonical_by_default():
 
 
 def _one():
-    return hdc.klein4_random(_DIM, seed=0)
+    return hdc.klein4_expand(_DIM, 0)
 
 
 def _leaf(i):
@@ -126,9 +126,9 @@ def test_census_native_equals_pure_canonical():
     with tempfile.TemporaryDirectory() as tmp:
         path = _save(_mixed_strand(one), tmp, "mixed.genome", one)
         native = json.loads(
-            _native.genome_census_c(str(path), G._the_one_block_bytes(one)))
+            _native.genome_census_c(str(path), G._coupling_block_bytes(one)))
         pure = G._census_from_catalog(
-            G._catalog_data(str(path), the_one=one), str(path))
+            G._catalog_data(str(path), coupling=one), str(path))
         assert native == pure                                  # both CANONICAL
         assert native["types"] == {"plasmid": 1, "nuclear": 1, "diploid": 1}
 
@@ -222,7 +222,7 @@ def test_alias_does_not_change_native_pure_parity():
         # the pure branch: the SAME alias post-transform over the canonical pure roll-up
         pure = G._apply_type_aliases_to_census(
             G._census_from_catalog(
-                G._canonical_catalog(str(path), the_one=one), str(path)))
+                G._canonical_catalog(str(path), coupling=one), str(path)))
         assert native == pure
         assert native["types"] == {"stick": 1, "minted": 1, "diploid": 1}
 
@@ -243,7 +243,7 @@ def test_v15_genome_reads_unchanged_no_format_bump():
         # cap_kind is NOT stored on disk (head-only v12+; derived on read)
         assert "chromosomes" not in data
         # re-reading derives the new canonical vocabulary from the SAME bytes
-        cat = G.genome_catalog(str(path), the_one=one)
+        cat = G.genome_catalog(str(path), coupling=one)
         assert cat["chromosomes"][0]["cap_kind"] == "nuclear"
 
 

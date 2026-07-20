@@ -22,17 +22,17 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64
 
 
 def _one(seed=7):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _leaves(n, base=0):
-    return [klein4_random(_DIM, seed=base + s) for s in range(n)]
+    return [klein4_expand(_DIM, base + s) for s in range(n)]
 
 
 def _bl(hvs):
@@ -75,12 +75,12 @@ def test_recover_rejects_non_diploid():
 # ── 2. the per-leaf EC (agree / erasure / substitution-mark) ────────────────
 
 def test_ec_leaf_agree_erasure_disagree():
-    # §95.4: _diploid_ec_leaf takes the STORED TURNS (+ the_one) and reads erasure on the
+    # §95.4: _diploid_ec_leaf takes the STORED TURNS (+ coupling) and reads erasure on the
     # turn (all-zero) BEFORE decoupling; it returns the recovered (decoupled) leaf.
     one = _one()
     zero = _zero()
-    la = klein4_random(_DIM, seed=1)
-    lb = klein4_random(_DIM, seed=2)
+    la = klein4_expand(_DIM, 1)
+    lb = klein4_expand(_DIM, 2)
     ta, tb = G.quad_turn(la, one), G.quad_turn(lb, one)          # the on-disk turns of la/lb
     assert list(G._diploid_ec_leaf(ta, ta, 0, one)) == list(la)  # agree -> the leaf
     assert list(G._diploid_ec_leaf(zero, tb, 0, one)) == list(lb)  # erasure A -> intact B
@@ -138,13 +138,13 @@ def test_diploid_persists_and_reloads(tmp_path):
     one = _one()
     leaves = _leaves(6)
     mixed = G.chromosome(_leaves(3), one, label="stick") + G.diploid(leaves, one, label="dp")
-    G.genome_save(mixed, tmp_path, the_one=one)
-    loaded, _o, _l = G.genome_load(tmp_path, the_one=one)
+    G.genome_save(mixed, tmp_path, coupling=one)
+    loaded, _o, _l = G.genome_load(tmp_path, coupling=one)
     assert any(G._cap_kind(hv) == G.DIPLOID_TELOMERE_MARKER for hv in loaded)
     dip_i = next(i for i, hv in enumerate(loaded)
                  if G._cap_kind(hv) == G.DIPLOID_TELOMERE_MARKER)
     assert _bl(G.recover_diploid(loaded[dip_i:], one)) == _bl(leaves)
-    assert G.genome_catalog(tmp_path, the_one=one)["format_version"] == 15
+    assert G.genome_catalog(tmp_path, coupling=one)["format_version"] == 15
 
 
 # ── 5. 1:1 C↔Python byte-parity (gated on the native peer) ──────────────────
@@ -190,7 +190,7 @@ def test_parity_diploid_genome_persistence(tmp_path, monkeypatch):
         d = tmp_path / ("nat" if native else "pure")
         d.mkdir()
         monkeypatch.setattr(_native, "has_native_genome", lambda: native)
-        G.genome_save(strand, d, the_one=one)
+        G.genome_save(strand, d, coupling=one)
         return (d / "turns.bin").read_bytes(), (d / "manifest.json").read_bytes()
 
     cb, cm = save(True)

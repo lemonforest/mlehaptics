@@ -77,7 +77,7 @@ def test_genome_emit_parses_to_valid_descriptor_shape():
     cls = parsed["class"]
     assert cls["name"] == "Genome"
     assert cls["kind"] == "storage"
-    assert cls["field"] == {"the_one": "hv", "chromosomes": "list"}
+    assert cls["field"] == {"coupling": "hv", "chromosomes": "list"}
     assert cls["method"]["add_chromosome"]["appends"] == "chromosomes"
     assert cls["method"]["shape"]["op"] == "srmech.amsc.genome.encode_shape"
 

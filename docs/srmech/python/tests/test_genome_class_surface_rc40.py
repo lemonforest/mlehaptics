@@ -11,18 +11,18 @@ import json
 
 import pytest
 
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 from srmech.dsl import describe_class, list_class_surface, run_class_method
 
 
 def test_describe_class_shape_is_jsonable():
     d = describe_class("Genome")
     assert d["name"] == "Genome" and d["provenance"] == "srmech"
-    assert set(d["fields"]) == {"the_one", "chromosomes"}
+    assert set(d["fields"]) == {"coupling", "chromosomes"}
     assert {"shape", "cap", "add_chromosome", "recall"} <= set(d["methods"])
     m = d["methods"]["add_chromosome"]
     assert m["op"] == "srmech.amsc.genome.chromosome"
-    assert m["binds"] == ["leaves", "the_one"] and m["appends"] == "chromosomes"
+    assert m["binds"] == ["leaves", "coupling"] and m["appends"] == "chromosomes"
     json.dumps(d)                                   # fully JSON-serialisable
 
 
@@ -34,30 +34,30 @@ def test_list_class_surface_includes_seed():
 
 def test_run_class_method_shape_op():
     out = run_class_method("Genome", "shape",
-                           fields={"the_one": klein4_random(64, seed=1)},
+                           fields={"coupling": klein4_expand(64, 1)},
                            args={"n": 5000})
     assert out["class"] == "Genome" and out["method"] == "shape"
     assert out["result"]["shape"] == "quad_strand" and out["result"]["depth"] == 3
 
 
 def test_run_class_method_threads_state_and_round_trips():
-    one = klein4_random(64, seed=5)
-    leaves = [klein4_random(64, seed=s) for s in range(4)]
+    one = klein4_expand(64, 5)
+    leaves = [klein4_expand(64, s) for s in range(4)]
     # one-shot add: the post-call `fields` shows the appended chromosome
     added = run_class_method("Genome", "add_chromosome",
-                             fields={"the_one": one},
+                             fields={"coupling": one},
                              args={"leaves": leaves, "label": "astronomy"})
     strand = added["result"]
     assert len(added["fields"]["chromosomes"]) == 1   # appends mutation visible in returned state
-    # one-shot recall threads the SAME the_one back in as a field
-    cap = run_class_method("Genome", "cap", fields={"the_one": one},
+    # one-shot recall threads the SAME coupling back in as a field
+    cap = run_class_method("Genome", "cap", fields={"coupling": one},
                            args={"label": "astronomy"})["result"]
     back = run_class_method("Genome", "recall",
-                            fields={"the_one": one},
+                            fields={"coupling": one},
                             args={"strand": strand, "telomere": cap})["result"]
     assert [list(x) for x in back] == [list(l) for l in leaves]
 
 
 def test_run_class_method_unknown_method_raises():
     with pytest.raises(AttributeError):
-        run_class_method("Genome", "nope", fields={"the_one": klein4_random(64, seed=1)})
+        run_class_method("Genome", "nope", fields={"coupling": klein4_expand(64, 1)})

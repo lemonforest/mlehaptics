@@ -209,7 +209,7 @@ conductor's to finalize (rc274 may be in flight) — see fermata F1.
 ### 4.1 Stage 1 — `plasmid_extract` (rc278)
 
 ```python
-def plasmid_extract(tokens, *, section_store, the_one, vocab, window=..., cap=..., k=...,
+def plasmid_extract(tokens, *, section_store, coupling, vocab, window=..., cap=..., k=...,
                     leaf_dim=None, progress=None):        # progress= is Python-only (no wire param)
     """dense/text (one DOC) -> one Tier-1 plasmid chromosome, APPENDED to section_store.
     GLOBAL node-ids via `vocab` so stage 2 can detect conservation. Never re-extracts."""
@@ -218,8 +218,8 @@ def plasmid_extract(tokens, *, section_store, the_one, vocab, window=..., cap=..
     chrom, n_syms = graph_to_kernel(len(vocab), edges, weights, charges,
                                     node_ids=sorted(set(ids)),      # the section's node table
                                     leaf_dim=leaf_dim, label=_section_label(section_store),
-                                    the_one=the_one)                # C: srmech_graph_kernel_encode
-    genome_append(section_store, chrom, the_one)                    # C: srmech_genome_append (§v12 O(1))
+                                    coupling=coupling)                # C: srmech_graph_kernel_encode
+    genome_append(section_store, chrom, coupling)                    # C: srmech_genome_append (§v12 O(1))
     return {"n_syms": n_syms, "nodes": sorted(set(ids))}
 ```
 C entry `srmech_genome_plasmid_extract(...)` chains the three existing C peers with a caller arena; the
@@ -228,19 +228,19 @@ tick fires once per call (`EXTRACTING`).
 ### 4.2 Stage 2 — `genome_integrate_plasmids` (rc279)
 
 ```python
-def genome_integrate_plasmids(section_store, the_one, *, k, out_path=None, progress=None):
+def genome_integrate_plasmids(section_store, coupling, *, k, out_path=None, progress=None):
     """ORGANIZE: sections -> minted nuclear core + retained plasmids. INCREMENTAL.
     Conservation = section-occurrence count >= k (integer, no spectral solve)."""
     count = _section_counts(section_store)                 # {node: n_sections}; O(total section mass)
     core_nodes = [v for v, c in count.items() if c >= k]   # the ~16/84 conserved minority (F1251)
     core_sub   = _induced_on(section_store, core_nodes)    # conserved edges among core nodes
-    core_chrom, _ = graph_to_kernel(..., core_sub, ..., the_one=the_one)
-    core_chrom = mint_strand(core_chrom, the_one)          # PROMOTE  (G5 / 0x58 centromere)
+    core_chrom, _ = graph_to_kernel(..., core_sub, ..., coupling=coupling)
+    core_chrom = mint_strand(core_chrom, coupling)          # PROMOTE  (G5 / 0x58 centromere)
     organized  = core_chrom
     for sec in _plasmid_sections(section_store):           # tick per section (MINTING)
         if progress and progress({...,"done":i,"total":P}): return {..., "status":"cancelled"}
         organized = integrate(organized, sec)              # MERGE (G4) — retained plasmids
-    if out_path: genome_save(organized, out_path, the_one)
+    if out_path: genome_save(organized, out_path, coupling)
     return {"strand": organized, "counts": {"nuclear": ..., "plasmid": ...}, "status": "ok"}
 ```
 Incremental variant `add_plasmid(...)`: append (stage 1) → bump `count` over the new section → if any node

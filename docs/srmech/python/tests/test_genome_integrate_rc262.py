@@ -3,7 +3,7 @@
 A Tier-1 STICK provirus (a retrovirus genome — telomere-capped, no centromere) integrates INTO
 a Tier-2 host genome (a eukaryote — MINTED + DIPLOID chromosomes), and thereafter EVERY mode
 still recovers — because rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every
-turn through the SAME the_one (one k=3 cascade at different rungs, ADR-0005). The translation
+turn through the SAME coupling (one k=3 cascade at different rungs, ADR-0005). The translation
 between the Tier-1 and Tier-2 levels is FREE: it needs no conversion because they are the same
 cascade. srmech.amsc.genome.integrate(host, provirus, at=) splices the provirus into the host at
 a chromosome boundary; the coherence is the point.
@@ -18,24 +18,24 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import genome as G
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 def _one(seed=7):
-    return klein4_random(64, seed=seed)
+    return klein4_expand(64, seed)
 
 
 def _lv(n, base=0):
-    return [klein4_random(64, seed=base + s) for s in range(n)]
+    return [klein4_expand(64, base + s) for s in range(n)]
 
 
 def _host(one):
-    # a Tier-2 eukaryote: a MINTED chromosome + a DIPLOID chromosome, on ONE the_one
+    # a Tier-2 eukaryote: a MINTED chromosome + a DIPLOID chromosome, on ONE coupling
     return G.mint({"astronomy": _lv(12, 100)}, one) + G.diploid(_lv(6, 200), one, label="chr7")
 
 
 def _provirus(one):
-    # a Tier-1 stick (a retrovirus genome), same the_one
+    # a Tier-1 stick (a retrovirus genome), same coupling
     return G.plasmid({"provirus": _lv(3, 300)}, one)
 
 
@@ -93,7 +93,7 @@ def test_integrate_at_locus():
 def test_integrate_rejects_a_non_chromosome_provirus():
     one = _one()
     with pytest.raises(ValueError):
-        G.integrate(_host(one), [klein4_random(64, seed=1)])        # a bare turn, no boundary cap
+        G.integrate(_host(one), [klein4_expand(64, 1)])        # a bare turn, no boundary cap
 
 
 def test_integrate_rejects_at_out_of_range():
@@ -107,8 +107,8 @@ def test_integrate_rejects_at_out_of_range():
 def test_integrated_genome_round_trips_through_disk(tmp_path):
     one = _one()
     integrated = G.integrate(_host(one), _provirus(one))
-    G.genome_save(integrated, tmp_path, the_one=one)
-    loaded, _o, _l = G.genome_load(tmp_path, the_one=one)
+    G.genome_save(integrated, tmp_path, coupling=one)
+    loaded, _o, _l = G.genome_load(tmp_path, coupling=one)
     assert set(G.partition(loaded, one)) == {"astronomy", "chr7", "provirus"}
     # and the recovered provirus is still exact after the disk round-trip
     assert [x.tobytes() for x in G.partition(loaded, one)["provirus"]] == \

@@ -25,17 +25,17 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 _DIM = 64
 
 
 def _one(seed=1277):
-    return klein4_random(_DIM, seed=seed)
+    return klein4_expand(_DIM, seed)
 
 
 def _leaves(n, base=0):
-    return [klein4_random(_DIM, seed=base + s) for s in range(n)]
+    return [klein4_expand(_DIM, base + s) for s in range(n)]
 
 
 def _graph_strand(one):
@@ -43,7 +43,7 @@ def _graph_strand(one):
     weights = [5, 7, 2, 9, 1, 3, 8, 6]
     charges = [1, -1, 1, -1, 0, 1, -1, 1]
     strand, n = G.graph_to_kernel(6, edges, weights, charges, node_ids=[100, 200, 300, 400, 500],
-                                  extras=[42, 7], leaf_dim=_DIM, label="wiki", the_one=one)
+                                  extras=[42, 7], leaf_dim=_DIM, label="wiki", coupling=one)
     return strand, n
 
 
@@ -62,7 +62,7 @@ def _strand_shapes(one):
         "graph": gstrand,
         "chromosome": G.chromosome(_leaves(9, 500), one, label="chr"),
         "kernel_pack": G.kernel_pack(
-            [s % 4 for s in range(30)], leaf_dim=_DIM, label="kern", the_one=one),
+            [s % 4 for s in range(30)], leaf_dim=_DIM, label="kern", coupling=one),
         "plasmid": G.plasmid({"plas": _leaves(4, 700)}, one),
     }
 
@@ -104,7 +104,7 @@ def test_native_peer_byte_identical_over_many_combos():
                 split = cat if cat is not None else nt // 2
                 raw = _native.genome_mint_strand_c(
                     b"".join(blocks), len(blocks), _DIM,
-                    G._the_one_block_bytes(one), split, orient, 15, b"cen")
+                    G._coupling_block_bytes(one), split, orient, 15, b"cen")
                 exp = b"".join(b.tobytes() for b in got)
                 if raw != exp:
                     mismatches += 1
@@ -167,7 +167,7 @@ def test_error_contract_unchanged():
     with pytest.raises(ValueError, match="empty"):
         G.mint_strand([], one)
     with pytest.raises(ValueError, match="OPEN with a chromosome-boundary cap"):
-        G.mint_strand([klein4_random(_DIM, seed=1)], one)  # raw leaf, no boundary cap
+        G.mint_strand([klein4_expand(_DIM, 1)], one)  # raw leaf, no boundary cap
     minted = G.mint_strand(G.chromosome(_leaves(6, 900), one, label="c"), one)
     with pytest.raises(ValueError, match="already carries an interior centromere"):
         G.mint_strand(minted, one)                         # re-minting doubles the anchor
