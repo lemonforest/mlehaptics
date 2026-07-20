@@ -39,7 +39,7 @@ ONE = hdc.klein4_random(DIM, seed=0)
 def _seed(text):                                  # Class-A content-address -> deterministic leaf seed
     return int.from_bytes(sha256_raw(text.encode())[:4], "big")
 def _leaf(text):
-    return hdc.klein4_random(DIM, seed=_seed(text))
+    return hdc.klein4_encode_bytes(text, DIM)  # F1260: byte-composed (was seed=hash -> arbitrary code at the 0.25 floor)
 
 # the era-stamped definition payload (the renderable text; the genome holds the structure)
 ERA_DEFS = {

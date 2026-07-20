@@ -34,7 +34,7 @@ def _seed(t):
 def tok(t):                                                  # a token's klein-4 vector (minted, ~orthogonal; memoised)
     v = _vc.get(t)
     if v is None:
-        v = _vc[t] = hdc.klein4_random(D, seed=_seed("tok/" + t))
+        v = _vc[t] = hdc.klein4_encode_bytes(t, D)  # F1260: byte-composed (was seed=hash -> arbitrary code at the 0.25 floor)
     return v
 
 

@@ -47,7 +47,7 @@ def _seed(s):
 
 def leaf(tok):
     if tok not in _LEAF:
-        _LEAF[tok] = hdc.klein4_random(DIM, seed=_seed(tok))   # deterministic, injective at DIM=64
+        _LEAF[tok] = hdc.klein4_encode_bytes(tok, DIM)   # F1260: byte-composed; morphology survives at DIM=64
     return _LEAF[tok]
 
 

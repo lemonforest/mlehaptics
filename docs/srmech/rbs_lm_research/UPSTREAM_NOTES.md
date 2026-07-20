@@ -3380,3 +3380,59 @@ consequences we would like recorded somewhere durable:
 3. **Possibly split the name** so a content-keyed expansion is not called `random` at the call site.
 
 Research-side: F1259 / `R-RBS-LM-SEEDENSEMBLE_…py`. Related: §106 (`fold_marks`), §104/#1440.
+
+---
+
+## §108 — on replacing/removing `klein4_random`: the rename is well-founded, but two natural procedural families MEASURABLY LOSE to it
+
+**Context:** srmech's current ask is to rename `klein4_random` or remove it, checking first whether something
+procedural fits. Researched here (F1260 follow-on), srmech **0.9.0rc288**. **Reporting a negative result** —
+we could not construct a procedural replacement that meets the current bar, and we think the bar should be
+stated before anything is removed.
+
+### The rename is well-founded — none of the three consumers want randomness
+Every use we have reduces to *"give me the k-th member of a FIXED distinguishable family"*:
+
+| consumer | what it needs |
+|---|---|
+| atom vocab (byte / glyph) | 256 fixed distinct vectors |
+| role / position keys | N fixed distinct vectors — **structurelessness is the point** |
+| a coupling / basis constant | one fixed vector |
+
+All three are **indexed lookups into a canonical family**, not draws. So a name like `klein4_member(k, D)` /
+`klein4_code(k, D)` describes every real use better than `random` does, and would have prevented the
+content-seeding trap outright (F1260: a content-derived *seed* is not a content-derived *vector*).
+
+### But removal needs a replacement that clears a measured bar — and two obvious ones don't
+The metric that matters is **worst-case pairwise sector agreement (max, not mean)**. Klein-4's floor is 1/4.
+Measured at D=8192:
+
+| family | N=64 mean / **max** | N=256 mean / **max** | storage |
+|---|---|---|---|
+| **`klein4_random`** | 0.2499 / **0.2665** | 0.2500 / **0.2714** | D bytes, or seed + the RNG pinned |
+| procedural Weyl (golden-ratio multiplicative) | 0.2535 / **0.4004** | — | **0 bytes (a rule)** |
+| Sylvester–Walsh, 2 bit-planes → Klein-4 | 0.3307 / **0.5000** | 0.3327 / **0.5000** | **0 bytes (a rule)** |
+
+**Both procedural families lose, and Walsh loses badly.** The RNG's worst case (0.2665) is close to the 0.25
+floor; Walsh's is 0.5 — twice the floor.
+
+### Why Walsh fails, which is the transferable part
+**Klein-4 similarity is SECTOR AGREEMENT, not an inner product.** Sylvester–Hadamard rows are exactly
+orthogonal in the ±1 inner-product sense, but packing two rows into a 2-bit Klein-4 symbol and then measuring
+*agreement rate* is a different functional — two Walsh-derived vectors agree on half their coordinates in the
+worst case. **Constructions designed for inner-product orthogonality do not optimise this metric.** We flag
+this because it is exactly the mistake we nearly made: our own F1259 reasoned from the Welch bound and
+"designed families hit it exactly," which is a signal-processing intuition that **does not transfer to
+sector-agreement** without re-deriving the bound for this metric. That correction is now recorded on our side.
+
+### The ask
+1. **Rename: yes** — `random` mis-describes all three consumers and actively invites the F1260 defect.
+2. **Remove: only with a measured replacement.** The bar is **worst-case sector agreement ≤ ~0.267 at
+   (N=64, D=8192)** and **≤ ~0.271 at N=256**, plus distinctness. If a procedural family clears it, it wins
+   outright (0 bytes, independently derivable, no RNG version-pin — see §107). We could not find one; we are
+   reporting that rather than assuming it exists.
+3. If a procedural family is designed, the right objective is the **Welch-type bound for sector agreement on
+   Z₂×Z₂**, not the ±1 inner-product bound — different functional, different optimum.
+
+Research-side: F1260 / `R-RBS-LM-TOKGAP`-adjacent probes. Composes §107 (the serialization/version-pin
+argument for *why* procedural is desirable) — which stands regardless of this negative.

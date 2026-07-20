@@ -64,9 +64,18 @@ class Grounding:
         self._byname = dict(self._idx)
 
     def vec(self, w):
+        """Class-M carrier for a WORD — byte-composed, so morphology survives (F1260).
+
+        Was ``klein4_random(D, seed=positional-char-sum)``: deterministic, but the RNG destroys the
+        seed's structure, so every pair landed on the 0.25 Klein-4 orthogonality floor
+        (``cat``/``cats`` 0.2615 ≈ ``cat``/``dog`` 0.2473) — an arbitrary code. It also capped the
+        vocabulary at ``mod 80000`` distinct vectors, an undeclared collision ceiling.
+        ``klein4_encode_bytes`` bundles position-bound per-byte vectors instead: ``cat``/``cats``
+        0.6597, ``walk``/``walked`` 0.7072, while unrelated ``cat``/``dog`` stays at 0.2517.
+        A content-derived SEED is not a content-derived VECTOR — see CLAUDE.md §2 STOP-list.
+        """
         if w not in self._vec_cache:
-            self._vec_cache[w] = self._hdc.klein4_random(
-                self.D, seed=(sum((i + 1) * ord(c) for i, c in enumerate(w)) % 80000) + 7)
+            self._vec_cache[w] = self._hdc.klein4_encode_bytes(w, self.D)
         return self._vec_cache[w]
 
     def _bg(self, ws):  # adjacency bigrams — order-carrying, never a bag

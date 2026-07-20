@@ -127,7 +127,7 @@ def main():
     print("\n--- (3) the FAR tail goes HOLOGRAPHIC: from a Mars view, the sun is present-but-fuzzy (not erased) ---")
 
     def hv(w):
-        return hdc.klein4_random(DIM, seed=int.from_bytes(hashlib.sha256(w.encode()).digest()[:4], "big"))
+        return hdc.klein4_encode_bytes(w, DIM)  # F1260: byte-composed (was seed=hash -> arbitrary code at the 0.25 floor)
 
     if "mars" in vi:
         ct = tome[vi["mars"]]

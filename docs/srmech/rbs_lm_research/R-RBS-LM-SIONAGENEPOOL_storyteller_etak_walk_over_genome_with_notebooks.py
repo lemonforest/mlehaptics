@@ -59,7 +59,7 @@ GENEPOOL_SCHEMA_VERSION = "F796-langlayer+markup+intent+codegrammar"
 DIM = 64
 ONE = hdc.klein4_random(DIM, seed=0)
 def _seed(t): return int.from_bytes(sha256_raw(t.encode())[:4], "big")
-def _leaf(t): return hdc.klein4_random(DIM, seed=_seed(t))
+def _leaf(t): return hdc.klein4_encode_bytes(t, DIM)  # F1260: byte-composed (was seed=hash -> arbitrary code at the 0.25 floor)
 def _slug(s): return (re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_") or "sec")[:36]
 
 # === THE LANGUAGE LAYER (F761) ====================================================================================

@@ -7,8 +7,14 @@ single-file srmech genome (`srmech.amsc.genome`, PKG-3/F832/F833) was prototyped
 format is blocked at corpus scale on two counts — it stores each 2-bit Klein-4 lane as a full byte (a flat 4× bloat)
 and `genome_pack` is O(n²) in chromosome count — both filed upstream (UPSTREAM_NOTES §55). Native-genome bodies are
 revisited once those land; rc1 ships on the loose store. The Klein-4 HV of a token is a deterministic *projection*
-(`klein4_random(seed=hash(token))`) recomputed on demand at inference — the store holds the fiber (the sequence),
-never a spatial HV per position (F833)."""
+(`klein4_encode_bytes(token, D)` — byte-composed, so morphology survives) recomputed on demand at inference — the
+store holds the fiber (the sequence), never a spatial HV per position (F833).
+
+Corrected 2026-07-20 (F1260): this previously read `klein4_random(seed=hash(token))`. A content-derived SEED is
+not a content-derived VECTOR — the RNG's avalanche destroys the content's structure, putting every token pair on
+the 0.25 Klein-4 orthogonality floor (`cat`/`cats` 0.2552 ≈ `cat`/`dog` 0.2426). `klein4_encode_bytes` restores
+sub-word structure (`cat`/`cats` 0.6597) while keeping unrelated tokens at chance. Third occurrence of this
+defect — F899 measured it first."""
 import json
 
 __all__ = ["walk", "recall", "route", "two_mode_recall"]
