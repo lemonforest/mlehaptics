@@ -56,6 +56,7 @@ from srmech.amsc import _native as _native  # rc140: real QR/SVD C dispatch (F2)
 from srmech.amsc.mat import Mat as _Mat
 from srmech.amsc.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
 from srmech.amsc.laplacian import (
+    _cmax_component,  # rc285: exact magnitude proxy for the reflector's scaling
     mat_eigvals as _mat_eigvals,
     mat_lstsq as _mat_lstsq,
     mat_matmul as _mat_matmul,  # rc155: route the 2-operand contraction through C
@@ -180,13 +181,32 @@ def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:
                     _Mat.from_rows(Rf, is_complex=False))
     Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     for j in range(k):
-        x = [R[i][j] for i in range(j, m)]            # column j, rows j..m-1
+        col = [R[i][j] for i in range(j, m)]          # column j, rows j..m-1
+        # rc285 (#1440, defect 3): SCALE the column to O(1) before forming the
+        # reflector. ``P = I − β·v·vᴴ`` is invariant under ``v → v/c``, but
+        # ``_modulus`` is the bounded-denominator Class-N hypot cascade, not libm
+        # ``hypot``: it carries ≈ −2e−5 relative error at 1e-12 and returns
+        # EXACTLY 0.0 below ≈1e-17. Unscaled, ``x0/_modulus(x0)`` is then not a
+        # unit phase (measured 1.25 at x0 = 6.9e-17), so ``|α| ≠ ‖x‖`` and P
+        # stops being a reflector — the same defect that made the
+        # ``mat_eigvals`` Hessenberg reduction a non-similarity. Only COMPLEX
+        # input reaches this loop (real dispatches to ``srmech_qr_f64`` above).
+        cscale = 0.0
+        for z in col:
+            c_ = _cmax_component(z)                   # exact at every magnitude
+            if c_ > cscale:
+                cscale = c_
+        if cscale == 0.0:
+            continue                                  # zero column
+        x = [z / cscale for z in col]                 # every entry now O(1)
         normx = _norm2(x)
         if normx == 0.0:
             continue
         x0 = x[0]
         modx0 = _modulus(x0)
-        phase = (x0 / modx0) if modx0 > 0.0 else complex(1.0, 0.0)
+        # The phase exists only to keep v[0] = x0 − α from cancelling; below
+        # this fraction of ‖x‖ there is no cancellation and x0's phase is noise.
+        phase = (x0 / modx0) if modx0 > 1e-4 * normx else complex(1.0, 0.0)
         alpha = -phase * normx                        # Class K: pin-slot phase
         v = list(x)
         v[0] = x0 - alpha
