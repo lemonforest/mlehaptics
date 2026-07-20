@@ -3283,3 +3283,53 @@ is not met.
    round-trips every orthographic word in `s`.
 
 Research-side: F1257 / `R-RBS-LM-NOSTOP_…py`. Related to §104 (also filed as issue #1440).
+
+---
+
+## §106 — `fold_marks`: the one genuinely domain-agnostic op the rc287 "downstream" split left behind
+
+**Found:** 2026-07-20, srmech **0.9.0rc288**, auditing Siona's private tokenizer against the new
+`glyph_stream` surface (F1258). §105 is **resolved by rc287** — thank you; the single-character drop is gone
+with the word unit itself.
+
+rc287's split is *"case folding and confusable normalisation are per-locale concerns that now belong
+downstream, not at the front door."* That is right for **case**. We think it is worth separating **mark
+folding** from it, and we would rather propose than assume.
+
+### The op
+Siona carries `context_shape.fold_accents`: NFD-normalise, drop every `Mn` (non-spacing mark), lower.
+Stripped of the casefold it is:
+
+```python
+def fold_marks(s):  # NFD -> drop combining marks -> NFC
+    return unicodedata.normalize("NFC", "".join(
+        c for c in unicodedata.normalize("NFD", s)
+        if unicodedata.category(c) != "Mn"))
+```
+
+`epistēmē` → `episteme`, `ʻāina` → `ʻaina`, `naïve` → `naive`.
+
+### Why we think it is not the same kind of thing as casefold
+Casefold is a **locale decision** (Turkish dotless i, German ß). Mark-dropping is a **projection that discards
+a coordinate**: the base cluster is retained and its modifiers are removed. It has no per-locale table and no
+tailoring — it is defined entirely by Unicode general category, which srmech already vendors the machinery to
+reason about. In our A–N vocabulary that reads as a Class-K-shaped projection wearing a text costume, which is
+exactly the profile of an op that belongs in domain-agnostic tooling rather than in one consumer.
+
+It also composes cleanly with `glyph_stream` rather than competing with it: `glyph_stream` decides
+**boundaries**, `fold_marks` decides **what survives inside a cluster**. Both are table-driven, neither is a
+word decision.
+
+### Why it matters to a caller
+Without it, every consumer that wants mark-insensitive matching writes its own NFD/Mn filter — we have one,
+and it is the kind of four-line utility that silently diverges between packages (ours fuses a `.lower()` into
+it, which is precisely the conflation rc287 is trying to undo). A caller doing mark-insensitive lookup over
+Greek, Vietnamese, Hawaiian or Latin-with-diacritics currently has no shared op to reach for.
+
+### The ask (a proposal, not a defect report)
+1. Consider `text.fold_marks(s)` as a **separate op from casefold** — no lowering, no locale table.
+2. If it is judged downstream after all, that is a legitimate call; we would just ask that the reasoning name
+   **marks specifically** rather than folding them into the casefold argument, since the two differ in whether
+   a locale tailoring exists.
+
+Research-side: F1258 / `R-RBS-LM-TOKGAP_…py`. **§105 is CLOSED by rc287.**
