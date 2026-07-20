@@ -3333,3 +3333,50 @@ Greek, Vietnamese, Hawaiian or Latin-with-diacritics currently has no shared op 
    a locale tailoring exists.
 
 Research-side: F1258 / `R-RBS-LM-TOKGAP_…py`. **§105 is CLOSED by rc287.**
+
+---
+
+## §107 — `klein4_random` names three different operations, and one of them is an undeclared version pin
+
+**Found:** 2026-07-20, srmech **0.9.0rc288** (F1259). A naming + provenance observation, not a defect report.
+
+`klein4_random(D, rng=None, seed=None)` is called by us in three regimes that behave nothing alike:
+
+| call | what it is |
+|---|---|
+| `klein4_random(D, seed=sha256(content))` | a **deterministic content-address expanded to D** — a PRF keyed by content. Not random. |
+| `klein4_random(D, seed=1080)` | one sample from an undeclared ensemble — an unattested constant |
+| `klein4_random(D, rng=<Generator>)` | genuinely stochastic; reproducible only if the caller seeded |
+
+The first is the one that matters most to us and it is the one the name fits worst: it is how every
+content-keyed vocabulary vector is built, and it is a **Class-A content-addressing op wearing an RNG name**.
+
+### The provenance issue
+The mapping `(D, seed) → vector` is defined by srmech's **internal RNG**, not by an attested rule. Three
+consequences we would like recorded somewhere durable:
+
+1. **Not independently derivable.** A third party holding our published `(D, seed)` cannot reconstruct our
+   vectors — only running our exact srmech version reproduces them. For a project whose whole discipline is
+   "a citation without attestation is not real," the coupling object at the centre of every genome is
+   currently attested only to *an implementation*.
+2. **Not covered by `GENOME_FORMAT_VERSION`.** That version tracks byte layout; the RNG is not part of it. If
+   the RNG ever changes, every content-seeded vector re-points and **every stored genome decodes to different
+   content with no version signal** — structurally the same "no symptom at all" failure rc287's ABI reasoning
+   identified for symbol removal.
+3. **A random shape cannot be bit-serialized.** Measured at D=8192, Klein-4: a random vector compresses
+   8192 B → **2612 B** (entropy floor for 2-bit values is 0.25; this is essentially incompressible), while a
+   rule-generated lattice compresses 8192 B → **32 B** — an 82× difference, because the constructed object
+   *is* its rule. So a constructed basis ships as a few bytes of construction; a drawn one can only ship as
+   all D values or as seed-plus-pinned-RNG.
+
+### The asks (proposals)
+1. **Document the RNG's stability contract.** Is `(D, seed) → vector` intended to be stable across srmech
+   versions? If yes, it is part of the wire format and should be versioned/attested like
+   `srmech_sha256_constants.h`. If no, callers storing seeds should be told so explicitly.
+2. **Consider a constructed basis op** — e.g. a Walsh/Sylvester or Welch-bound-meeting code family derived
+   from `D` alone, no seed. It would be portable, independently derivable, exactly reproducible across
+   versions and hosts, and (for M ≤ D) exactly rather than quasi orthogonal. Our melange arc needs two
+   independently-built genomes to share a basis; a construction gives that **by construction**.
+3. **Possibly split the name** so a content-keyed expansion is not called `random` at the call site.
+
+Research-side: F1259 / `R-RBS-LM-SEEDENSEMBLE_…py`. Related: §106 (`fold_marks`), §104/#1440.
