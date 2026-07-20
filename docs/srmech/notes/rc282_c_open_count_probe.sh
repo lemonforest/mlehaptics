@@ -23,9 +23,9 @@ PY=/tmp/rc282_csc.py
 cat > "$PY" <<'PYEOF'
 import sys, tempfile
 from srmech.amsc import _native, plasmid as P
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 n = int(sys.argv[1])
-one = klein4_random(64, seed=1282)
+one = klein4_expand(64, 1282)
 docs = [[f"w{(d * 17 + i * 5) % 400}" for i in range(40)] for d in range(n)]
 d = tempfile.mkdtemp(prefix="rc282_csc_")
 P.plasmid_extract(docs, d, one, window=2, k=8)

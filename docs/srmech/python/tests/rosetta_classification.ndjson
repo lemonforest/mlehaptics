@@ -340,7 +340,6 @@
 {"exposed_as": "srmech.amsc.hdc.klein4_holographic_decode", "defined_at": "srmech.amsc.hdc.klein4_holographic_decode", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_holographic_encode", "defined_at": "srmech.amsc.hdc.klein4_holographic_encode", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_expand", "defined_at": "srmech.amsc.hdc.klein4_expand", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.hdc.klein4_random", "defined_at": "srmech.amsc.hdc.klein4_random", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.amsc.hdc.klein4_address", "defined_at": "srmech.amsc.hdc.klein4_address", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_role", "defined_at": "srmech.amsc.hdc.klein4_role", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_sector_frame", "defined_at": "srmech.amsc.hdc.klein4_sector_frame", "bucket": "c_dispatched"}

@@ -261,11 +261,22 @@ _EXPECTED_SPLIT = {
     # covered in both projections by klein4_expand / _address / _from_one
     # (c_dispatched) and klein4_role (composition_of_c), so no debt ceiling
     # moved. host_glue 21 -> 22; total 200 -> 201.
+    # rc292 (§102 / F1259): -1 host_glue — hdc.klein4_random is REMOVED, and
+    # the ceiling comes back DOWN with it. host_glue 22 -> 21; total 201 -> 200.
+    # rc290's reasoning above was sound about the regime and wrong about the
+    # remedy: it argued the op had no C peer because "unpredictable" has
+    # nothing to be at parity about, then kept the op. But rc290 closed only
+    # the ``seed=`` door — a SEEDED ``rng=`` is just as reproducible, and every
+    # real call site was passing one, so the STOCHASTIC bucket was holding an
+    # op that in practice ran deterministically. An op whose declared regime
+    # does not match its use is not a tracked exception; it is a defect. The
+    # honest resolution is removal, not a bucket. Callers draw their own bytes
+    # and compose klein4_encode_bytes, which has C parity all the way down.
     "composes_c": 128,
-    "host_glue": 22,
+    "host_glue": 21,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 201
+_TOTAL_NON_COMPUTE = 200
 
 
 def _rows():

@@ -743,21 +743,29 @@ def _seed_to_le_words(seed: int):
 # which one it meant. A ``seed=`` that silently spans "magic number" and
 # "content address" is exactly what let a DRAWN coupling be mistaken for a
 # DERIVED one (F1259), and what made F1260's content-vs-address confusion
-# possible. rc290 splits the mechanism into four ops so the regime is DECLARED
-# at the call site and the wrong choice is hard to WRITE, not merely explicit:
+# possible. rc290 split the mechanism so the regime is DECLARED at the call
+# site and the wrong choice is hard to WRITE, not merely explicit:
 #
 #   klein4_expand(D, seed)     EXPAND    — a seed integer → D crumbs. What the
 #                                          old op actually WAS on every
 #                                          ``seed=`` call. Deterministic.
-#   klein4_random(D, rng=…)    STOCHASTIC— the ONLY regime where "random" is
-#                                          true. NOT reproducible; a defect
-#                                          inside a cascade.
 #   klein4_address(D, content) ADDRESSED — Class-A content address. Identity,
 #                                          structureless. Correct for a
 #                                          namespace key; WRONG for content.
 #   klein4_role(D, role, base) ROLE      — a binding key for a named slot.
 #                                          Near-orthogonality is the CORRECT
 #                                          target here, not a defect.
+#
+# rc292 REMOVED the fourth — ``klein4_random(D, rng=…)``, the STOCHASTIC
+# regime. rc290 closed the ``seed=`` door and left ``rng=`` open, and a SEEDED
+# generator through that door is just as reproducible: the survey that
+# motivated the removal found every real call site passing
+# ``default_rng(<seed>)``, i.e. using the op documented as "criterion:
+# NON-REPRODUCIBILITY" as a deterministic minter. That is F1259 intact, one
+# parameter over. There is no replacement op by design — a caller who wants an
+# unpredictable Klein-4 vector draws their own bytes and calls
+# ``klein4_encode_bytes``, which puts the non-reproducibility at the call site
+# where it is visible instead of behind a name in the public surface.
 #
 # The teaching case (F1260): at D=8192 ``klein4_address`` of "cat"/"cats" scores
 # 0.2589 against a 0.2454 "cat"/"dog" control, while ``klein4_encode_bytes`` scores
@@ -805,8 +813,10 @@ def klein4_expand(D: int, seed: int):
     undeclared draw from an undeclared ensemble, indistinguishable at the call
     site from a derived value. If the vector should be a function of your
     data, use :func:`klein4_address`; if it keys a named slot, use
-    :func:`klein4_role`; if it genuinely must vary per run, use
-    :func:`klein4_random`.
+    :func:`klein4_role`. If it genuinely must vary per run, draw your own
+    bytes and call :func:`klein4_encode_bytes` — rc292 removed the
+    ``klein4_random`` op rather than keep an unreproducible draw in the
+    public surface.
 
     Args:
         D: Vector dimension (positive).
@@ -827,60 +837,11 @@ def klein4_expand(D: int, seed: int):
             "hdc.klein4_expand: seed must be an int — this is the EXPAND "
             "regime. For content bytes use klein4_address(D, content); for a "
             "named slot use klein4_role(D, role); for a genuinely stochastic "
-            "draw use klein4_random(D, rng=…)")
+            "draw use klein4_encode_bytes(os.urandom(n), D)")
     buf = _klein4_expand_native(D, seed)
     if buf is not None:
         return HV(buf, sectors=4)
     r = _random.Random(seed)
-    return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
-
-
-def klein4_random(D: int, rng=None):
-    """**STOCHASTIC regime.** A genuinely random Klein-4 hypervector of
-    dimension ``D``, elements in {0,1,2,3}.
-
-    **Correctness criterion: NON-REPRODUCIBILITY.** This op is the one place in
-    the klein4 surface where a different answer on the next call is the point.
-    With no ``rng`` it draws from ``random.Random()`` (OS entropy).
-
-    **Use it when** the vector must not be predictable or must differ per run —
-    a nonce, a fresh probe, a Monte-Carlo trial.
-
-    **Do not use it inside a cascade whose output is attested.** An
-    unreproducible value in an attested cascade is a defect, not a
-    convenience — the record cannot be re-verified. rc290 REMOVED the ``seed=``
-    parameter for exactly this reason: it made the op silently deterministic
-    while the name kept saying otherwise, so a call site could not be read to
-    find out which regime it was in. Deterministic callers want
-    :func:`klein4_expand` / :func:`klein4_address` / :func:`klein4_role`.
-
-    Args:
-        D: Vector dimension (positive).
-        rng: Optional generator exposing ``.integers(low, high, size=…)`` (a
-            ``numpy.random.Generator``) or ``.randrange(n)`` (a stdlib
-            ``random.Random``). A ``Generator`` cannot cross JSON-RPC nor be
-            expressed in an Anthropic tool schema, so MCP callers get the
-            OS-entropy default — and if they wanted determinism they wanted a
-            different op.
-
-    **PYTHON-ONLY BY REGIME, not by debt (ADR-0009).** The other three regimes
-    are C-backed. This one has no C peer because it has nothing to be at parity
-    ABOUT: two implementations of "unpredictable" cannot be differentially
-    tested for byte-identity, and a C host needing an unpredictable Klein-4
-    vector draws from its own entropy source. The CAPABILITY — deterministic
-    Klein-4 minting, which is what every cascade actually consumes — is fully
-    covered in both projections by ``klein4_expand`` / ``_address`` / ``_role``.
-    """
-    D = int(D)
-    if D <= 0:
-        raise ValueError("hdc.klein4_random: D must be positive")
-    if rng is not None and hasattr(rng, "integers"):
-        # numpy ``Generator`` path: the caller already holds numpy, so this
-        # branch may use it (coerced to a stdlib uint8 buffer — no numpy name in
-        # THIS module). The default path below is numpy-free (stdlib
-        # ``random``) — the §22 numpy-optional core.
-        return HV(array("B", (int(x) for x in rng.integers(0, 4, size=D))), sectors=4)
-    r = rng if rng is not None else _random.Random()
     return HV(array("B", (r.randrange(4) for _ in range(D))), sectors=4)
 
 
@@ -3252,7 +3213,6 @@ __all__ = [
     "polar_density",
     "polar_from_real",
     "klein4_expand",
-    "klein4_random",
     "klein4_address",
     "klein4_role",
     "klein4_sector_frame",

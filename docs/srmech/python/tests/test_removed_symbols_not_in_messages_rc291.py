@@ -65,6 +65,10 @@ REMOVED: Dict[str, Tuple[str, str]] = {
     "dense_outer_real": ("carrier consolidation", "mat_outer"),
     "mat_dot_real": ("carrier consolidation", "mat_dot"),
     "mat_dot_complex": ("carrier consolidation", "mat_dot"),
+    # rc292 (§102/F1259) — the STOCHASTIC klein4 regime, removed outright
+    # rather than replaced: an unreproducible draw does not belong in the
+    # public surface. A caller who wants one draws their own bytes.
+    "klein4_random": ("rc292", "klein4_encode_bytes"),
 }
 
 
@@ -135,12 +139,16 @@ def test_the_ledger_does_not_go_stale():
     reintroduced, and the test above starts forbidding correct advice about
     a symbol that exists. The ledger has to stay honest to stay useful.
     """
+    import srmech.amsc.hdc as hdc
     import srmech.amsc.laplacian as laplacian
     import srmech.amsc.text as text
 
+    # Every module a ledger row can name must be checked here, or the row is
+    # recorded but never validated. rc292 added ``hdc`` for exactly that
+    # reason — the klein4_random row would otherwise have been unverifiable.
     still_present = [
         name for name in REMOVED
-        if hasattr(text, name) or hasattr(laplacian, name)
+        if hasattr(text, name) or hasattr(laplacian, name) or hasattr(hdc, name)
     ]
     assert not still_present, (
         f"ledger claims these were removed, but they exist: {still_present}. "

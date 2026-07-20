@@ -1236,7 +1236,6 @@ def test_random_ops_rng_takes_precedence_over_seed() -> None:
     from srmech.amsc import hdc
 
     # rng= path still works (back-compat) — stdlib Random.
-    assert len(hdc.klein4_random(8, rng=random.Random(0))) == 8
     p = hdc.polar_random(8, rng=random.Random(0))
     assert p.typecode == "b" and len(p) == 8
 
@@ -1245,14 +1244,12 @@ def test_random_ops_rng_takes_precedence_over_seed() -> None:
     seed_out = hdc.polar_random(8, seed=1)
     assert list(rng_out) != list(seed_out)
 
-    # rc290: klein4_random has NO seed to take precedence over. The regime is
-    # STOCHASTIC and nothing may make it quietly deterministic — passing a
-    # seed is a TypeError, not a silent regime switch.
-    with pytest.raises(TypeError):
-        hdc.klein4_random(8, seed=1)          # type: ignore[call-arg]
-
-    # Two draws with no rng differ (the op really is non-reproducible).
-    assert list(hdc.klein4_random(4096)) != list(hdc.klein4_random(4096))
+    # rc292: the klein4 half of this test is gone with the op. `polar_random`
+    # keeps `rng=` because its `seed=`/`rng=` precedence is DOCUMENTED and its
+    # deterministic path is the C-dispatched one; klein4_random had neither —
+    # it advertised NON-REPRODUCIBILITY while every real caller passed a
+    # seeded generator. See test_klein4_regime_split_rc290.
+    assert not hasattr(hdc, "klein4_random")
 
 
 def test_random_ops_schema_drops_unserialisable_rng() -> None:
@@ -1274,14 +1271,17 @@ def test_random_ops_schema_drops_unserialisable_rng() -> None:
         )
 
 
-def test_klein4_random_schema_advertises_neither_seed_nor_rng() -> None:
-    """rc290 / F1259 — the STOCHASTIC regime must not offer a way to make
-    itself deterministic. ``klein4_random``'s schema carries ``D`` only: no
-    ``seed`` (that would restore the exact conflation this rc removes) and
-    no ``rng`` (un-serialisable over JSON-RPC)."""
-    entry = get_tool_schema().lookup("srmech.amsc.hdc.klein4_random")
-    assert entry is not None
-    assert {p.name for p in entry.parameters} == {"D"}
+def test_klein4_random_is_not_registered_rc292() -> None:
+    """rc292 / F1259 — the STOCHASTIC regime is off the tool surface entirely.
+
+    rc290 tried to make the op safe by starving its schema down to ``D``
+    alone: no ``seed`` (which would restore the conflation) and no ``rng``
+    (un-serialisable over JSON-RPC). That worked for MCP callers and did
+    nothing for Python ones, who kept passing seeded generators through the
+    ``rng=`` parameter the schema was hiding. Hiding a parameter from one
+    projection is not removing a defect — it is removing the evidence.
+    """
+    assert get_tool_schema().lookup("srmech.amsc.hdc.klein4_random") is None
 
 
 def test_klein4_regime_ops_are_registered_and_invokable() -> None:
@@ -1289,7 +1289,6 @@ def test_klein4_regime_ops_are_registered_and_invokable() -> None:
     registered and callable over the MCP / Anthropic wire path."""
     schema = get_tool_schema()
     for name in ("srmech.amsc.hdc.klein4_expand",
-                 "srmech.amsc.hdc.klein4_random",
                  "srmech.amsc.hdc.klein4_address",
                  "srmech.amsc.hdc.klein4_role",
                  "srmech.amsc.hdc.klein4_sector_frame",
