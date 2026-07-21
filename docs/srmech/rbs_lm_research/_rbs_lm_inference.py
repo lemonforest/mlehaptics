@@ -1,8 +1,3 @@
-"""ADOPTED UPSTREAM (F1286): srmech.rbs_lm now ships ContextSubstrate, RBSLMInferenceSubstrate,
-encode_word_k4, encode_bigram_l1, encode_skeleton_l2, encode_sentence_l3, sim_k4_batch, token_seed
-and CoherenceReadout — i.e. THIS ENTIRE SUBSTRATE. This file is the local prototype record; new work
-must import srmech.rbs_lm rather than copy it forward.
-"""
 """_rbs_lm_inference — the native, bit-exact, catalog-instantiable RBS-LM inference
 substrate (F166 Step 5: the fully-realized artifact).
 
@@ -28,6 +23,11 @@ target; this standalone class is its research-subtree precursor).
 
 Per [[user_stance_kepler_shape_universal]]: inference IS a named A-N cascade
 (Class A∘M encode + iω₇ position, Class M retrieve, temperature sample) iterated.
+
+ADOPTED UPSTREAM (F1286): srmech.rbs_lm now ships ContextSubstrate, RBSLMInferenceSubstrate,
+encode_word_k4, encode_bigram_l1, encode_skeleton_l2, encode_sentence_l3, sim_k4_batch,
+token_seed and CoherenceReadout. See F1287 for the shim that repoints this module onto them.
+
 """
 from __future__ import annotations
 
@@ -35,11 +35,29 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
-import numpy as np
+
+# numpy is LAZY (F1287) — the repointed class is numpy-free; a module-level import made the
+# whole module unimportable in a current (numpy-purged, #564) srmech venv.
+class _NumpyProxy:
+    def __getattr__(self, item):
+        import numpy  # srmech-allow: this proxy exists to make the import LAZY so the module loads numpy-free (#564); it narrows numpy's reach rather than adding it, and only the two local-only memory classes that have no upstream equivalent can trigger it
+        return getattr(numpy, item)
+
+
+np = _NumpyProxy()
 
 from srmech.amsc import hdc
 
 import _canonical_substrate as cs
+
+# ─── REPOINTED TO srmech.rbs_lm (F1287) ────────────────────────────────────────────────────────
+# RBSLMInferenceSubstrate used to be DEFINED here. srmech ships it now, and the shipped class is a
+# STRICT SUPERSET — it has every local method (attestation, describe, from_catalog, infer, learn,
+# next_token_distribution) and adds from_params, next_token_coherence, M, n_learned, vocab_vecs.
+# Local-only members: NONE. So this is a clean re-export, not a compromise.
+from srmech.rbs_lm import RBSLMInferenceSubstrate  # noqa: E402,F401
+# ──────────────────────────────────────────────────────────────────────────────────────────────
+
 
 
 def _softmax(x: np.ndarray, t: float) -> np.ndarray:
@@ -49,147 +67,3 @@ def _softmax(x: np.ndarray, t: float) -> np.ndarray:
     return e / e.sum()
 
 
-@dataclass
-class RBSLMInferenceSubstrate:
-    """Native RBS-LM inference substrate (F166). Build via from_catalog()."""
-
-    ctx: cs.ContextSubstrate
-    operating_k: int
-    operating_temperature: float
-    memory_capacity: int
-    default_max_tokens: int
-    learn_seed: int
-    descriptor_hash: str
-    srmech_version: str
-    abi_version: int
-    has_native: bool
-
-    # learned state (populated by .learn())
-    vocab: list[str] = field(default_factory=list)
-    vocab_vecs: np.ndarray | None = None
-    vocab_idx: dict[str, int] = field(default_factory=dict)
-    next_after: dict[str, list[str]] = field(default_factory=dict)
-    bigram_counts: dict[str, Counter] = field(default_factory=dict)
-    M: np.ndarray | None = None
-    n_learned: int = 0
-
-    # ----------------------------------------------------------------- build
-    @classmethod
-    def from_catalog(cls, catalog_path) -> "RBSLMInferenceSubstrate":
-        """Instantiate the substrate from a descriptor catalog (the SSOT)."""
-        from srmech.amsc import load_descriptor, descriptor_hash
-        from srmech.amsc._native import HAS_NATIVE, NATIVE_ABI_VERSION
-        from srmech import __version__ as SRMECH_VERSION
-
-        desc = load_descriptor(catalog_path)
-        dh = descriptor_hash(catalog_path)
-        lc = desc.fetch["literature_curated"]
-        sub = lc["substrate"]
-        inst = lc["inference"]["instrument"]
-        ctx = cs.ContextSubstrate(D=int(sub["D"]),
-                                  hex_chars=int(sub["token_seed_hex_chars"]))
-        return cls(
-            ctx=ctx,
-            operating_k=int(inst["operating_k"]),
-            operating_temperature=float(inst["operating_temperature"]),
-            memory_capacity=int(inst["memory_capacity"]),
-            default_max_tokens=int(inst["default_max_tokens"]),
-            learn_seed=int(inst["learn_seed"]),
-            descriptor_hash=dh,
-            srmech_version=SRMECH_VERSION,
-            abi_version=NATIVE_ABI_VERSION,
-            has_native=HAS_NATIVE,
-        )
-
-    # ----------------------------------------------------------------- learn
-    def learn(self, token_stream: Sequence[str]) -> "RBSLMInferenceSubstrate":
-        """Load corpus knowledge: the bigram candidate structure (full stream) +
-        a context→next associative memory of up to memory_capacity (k-window→next)
-        pairs (the F154-bounded single memory). Deterministic in learn_seed."""
-        stream = list(token_stream)
-        self.vocab = sorted(set(stream))
-        self.vocab_idx = {w: i for i, w in enumerate(self.vocab)}
-        self.vocab_vecs = np.stack([self.ctx.enc(w) for w in self.vocab])
-
-        self.bigram_counts = defaultdict(Counter)
-        for a, b in zip(stream, stream[1:]):
-            self.bigram_counts[a][b] += 1
-        self.next_after = {a: sorted(c.keys()) for a, c in self.bigram_counts.items()}
-
-        k = self.operating_k
-        pairs_all = [(tuple(stream[i - k:i]), stream[i]) for i in range(k, len(stream))]
-        rng = np.random.default_rng(self.learn_seed)
-        n = min(self.memory_capacity, len(pairs_all))
-        idx = rng.choice(len(pairs_all), size=n, replace=False)
-        pairs = [pairs_all[i] for i in idx]
-        assoc = []
-        for win, nxt in pairs:
-            cs_state = self.ctx.encode_context(list(win))
-            assoc.append(hdc.klein4_bind(cs_state, self.ctx.enc(nxt)))
-        self.M = self.ctx.bundle_odd(assoc)
-        self.n_learned = n
-        return self
-
-    # ------------------------------------------------------- distribution
-    def next_token_distribution(self, context: Sequence[str],
-                                temperature: float | None = None):
-        """Return (candidates, probabilities) — the context-conditioned next-token
-        distribution over the bigram-legal candidate set (Steps 2-3)."""
-        if self.M is None:
-            raise RuntimeError("call .learn(stream) before inference")
-        T = self.operating_temperature if temperature is None else temperature
-        k = self.operating_k
-        last = context[-1]
-        candidates = self.next_after.get(last, [])
-        if not candidates:
-            return [], np.array([])
-        if len(candidates) == 1:
-            return candidates, np.array([1.0])
-        cidx = [self.vocab_idx[c] for c in candidates]
-        probe = hdc.klein4_bind(self.M, self.ctx.encode_context(list(context[-k:])))
-        sims = cs.sim_k4_batch(probe, self.vocab_vecs[cidx])
-        return candidates, _softmax(sims, T)
-
-    # ------------------------------------------------------------- infer
-    def infer(self, prompt: Sequence[str], max_tokens: int | None = None,
-              temperature: float | None = None, seed: int = 0) -> list[str]:
-        """Autoregressive generation (Step 4): the substrate conditioned on its own
-        running output. Returns the prompt + generated tokens. Deterministic in seed."""
-        max_tokens = self.default_max_tokens if max_tokens is None else max_tokens
-        gr = np.random.default_rng(seed)
-        out = list(prompt)
-        for _ in range(max_tokens):
-            cands, p = self.next_token_distribution(out, temperature=temperature)
-            if len(cands) == 0:
-                break
-            nxt = cands[int(gr.choice(len(cands), p=p))] if len(cands) > 1 else cands[0]
-            out.append(nxt)
-        return out
-
-    # --------------------------------------------------------- attestation
-    def attestation(self) -> dict:
-        """MPR-style attestation block — makes any generated sequence re-derivable."""
-        return {
-            "method": "config_descriptor",
-            "descriptor_hash": self.descriptor_hash,
-            "srmech_version": self.srmech_version,
-            "abi_version": self.abi_version,
-            "has_native": self.has_native,
-            "operating_k": self.operating_k,
-            "operating_temperature": self.operating_temperature,
-            "memory_capacity": self.memory_capacity,
-            "n_learned": self.n_learned,
-            "vocab_size": len(self.vocab),
-            "substrate": "28D Klein-4 chirality; native cascade; bit-exact",
-            "provenance": ("Native RBS-LM inference substrate (F166 Steps 1-5). "
-                           "Inference = Class A∘M encode + iω₇ position, Class M "
-                           "retrieve, temperature sample, iterated. Same corpus + "
-                           "catalog + srmech_version + seed → bit-exact output. "
-                           "NOT a float-weight distillation."),
-        }
-
-    def describe(self) -> str:
-        return (f"RBSLMInferenceSubstrate(D={self.ctx.D}, k={self.operating_k}, "
-                f"T={self.operating_temperature}, learned={self.n_learned}/"
-                f"{self.memory_capacity}, vocab={len(self.vocab)}, "
-                f"native={self.has_native}, srmech={self.srmech_version})")
