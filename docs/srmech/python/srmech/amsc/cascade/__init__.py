@@ -224,6 +224,10 @@ from .cd_register import (
     cd_navmap,
     cd_navigate,
     cd_navmap_is_signed_permutation,
+    cd_couple_working,
+    cd_uncouple_working,
+    cd_carry,
+    cd_correct,
     WORKING_BLOCK_DIM,
 )
 
@@ -341,6 +345,11 @@ __all__ = [
     "cd_navmap",
     "cd_navigate",
     "cd_navmap_is_signed_permutation",
+    # the OPT layers as pure functions (v0.9.0rc301; `#938`)
+    "cd_couple_working",
+    "cd_uncouple_working",
+    "cd_carry",
+    "cd_correct",
     "WORKING_BLOCK_DIM",
     # back-compat aliases
     "class_k_pin_slot_at_zero",

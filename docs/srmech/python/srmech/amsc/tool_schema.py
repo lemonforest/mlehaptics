@@ -7170,12 +7170,15 @@ def _register_primitive_class_tools() -> None:
                 P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
                 P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
                 P("namespace", "Optional[str]", False, "address-mint namespace (default 'CD{dim}'); 'SEDENION' at dim=16 reproduces the shipped register bit-exactly"),
+                P("coupling", "bool", False, "opt into OPT layer 1 — the reversible working word (couple_working / uncouple_working, Class M, cap min(dim,8)−1). Default False (bare = pure addressing)"),
+                P("error_correction", "bool", False, "opt into OPT layer 2 — the Hamming EC/carry block (carry / correct, an axis independent of dim). Default False"),
             ),
             returns=R("CDRegister",
-                      "the register — .write/.read (addressable storage), "
+                      "the register — CORE: .write/.read (addressable storage), "
                       ".navmap/.navigate (the address↔Cayley–Dickson homomorphism), "
-                      ".is_navigable (reversibility gate), "
-                      ".working_block/.carry_block (the block split)"),
+                      ".is_navigable (reversibility gate), .working_block/.carry_block "
+                      "(the block split); OPT (opt-in): .couple_working/.uncouple_working "
+                      "(reversible word), .carry/.correct (EC block)"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_navmap", owner="srmech",
@@ -7236,6 +7239,107 @@ def _register_primitive_class_tools() -> None:
                 P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
             ),
             returns=R("bool", "True iff the premise holds at this rung"),
+        ),
+        # The two OPTIONAL layers of the general N-slot register as pure functions
+        # (v0.9.0rc301; `#938`) — the reversible working word (couple/uncouple) +
+        # the Hamming EC block (carry/correct), ported from SedenionRegister onto
+        # CDRegister as its dim-scaled generalisation. Registered under STABLE flat
+        # names ``srmech.amsc.cascade.cd_{couple_working,uncouple_working,carry,
+        # correct}``; the submodule-dotted ``cascade.cd_register.*`` are the same
+        # objects re-exported flat (exempt in test_tool_schema_coverage). These take
+        # content-agnostic list/int args (MCP-coercible), UNLIKE the sed_* adapters'
+        # structured slots/codebook state — which is why they are first-class tools
+        # while the sed_* peers stay TOML-class-only. composition_of_c in the Rosetta
+        # ledger (they compose the C-backed hypercomplex_couple / hamming — no new C
+        # symbol, ABI stays 8).
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_couple_working", owner="srmech",
+            category="cascade",
+            summary="Bind ≤ min(dim,8)−1 real streams into one REVERSIBLE working "
+                    "word — THE canonical Class-M bind on the Cayley–Dickson register "
+                    "(`#938`). The dim-scaled generalisation of the sedenion's ≤7 "
+                    "working word: the cap is min(dim,8)−1, DERIVED from Hurwitz, "
+                    "never a hardcoded 7 — dim 2 couples 1 imaginary slot, dim 4 "
+                    "couples 3, dim 8/16/…/256 couple 7 (the e0..e7 octonion "
+                    "subalgebra of every higher rung), dim 1 (ℝ) couples nothing (the "
+                    "degenerate base: empty in → empty out). Composes "
+                    "hypercomplex_couple (axis='diagonal', the F436 coupling axis; its "
+                    "octonion multiply dispatches to the standalone-C "
+                    "srmech_hypercomplex_couple_q61) — reversed exactly by "
+                    "cd_uncouple_working (T̄·(T·q)=‖T‖²·q, F437). At dim 16 bit-exact "
+                    "with the shipped SedenionRegister.couple_working. No abs() (the "
+                    "coupler's sign is Class-K ∘ Class-C). Class M ∘ C ∘ N."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("vals", "sequence", True,
+                  "≤ min(dim,8)−1 real streams to fold into the working word"),
+                P("dim", "int", False,
+                  "register rung (power of two in [1, 256]); sets the cap. Default 8 "
+                  "(the octonion working word, cap 7)"),
+            ),
+            returns=R("list[float]",
+                      "the coupled working word — a 4-component quaternion (≤3 "
+                      "streams) or 8-component octonion (4–7 streams); [] if empty"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_uncouple_working", owner="srmech",
+            category="cascade",
+            summary="Recover the streams bound by cd_couple_working — the EXACT "
+                    "inverse (the Class-M unbind; `#938`). Applies the conjugate "
+                    "twiddle (inverse=True) and drops the anchor slot, returning the "
+                    "carrier's imaginary components (7 for an octonion word, 3 for a "
+                    "quaternion word). Empty in → empty out (the dim-1 boundary). "
+                    "Recovery is exact to float round-off (the division-algebra "
+                    "identity T̄·(T·q)=‖T‖²·q, F437), matching the shipped register's "
+                    "tolerance. Composes hypercomplex_couple; no abs(). Class M ∘ C ∘ N."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("word", "sequence", True,
+                  "a coupled working word (4-component quaternion / 8-component "
+                  "octonion) from cd_couple_working"),
+            ),
+            returns=R("list[float]",
+                      "the recovered streams (the carrier's imaginary slots); [] if "
+                      "empty"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_carry", owner="srmech",
+            category="cascade",
+            summary="Encode overflow bits (past the reversible working set) into a "
+                    "Hamming(2ⁿ−1) single-error-correcting GF(2) codeword — the "
+                    "EC/carry layer of the register (`#938`). The EC axis is "
+                    "INDEPENDENT of the register's dim: the block size is set by n "
+                    "(parity-bit count; codeword 2ⁿ−1, data 2ⁿ−1−n), NOT by the slot "
+                    "count. Composes hamming_encode (the srmech_hamming_encode C "
+                    "peer). Lean-ALU XOR-native (GF(2) add = parity = XOR); no float, "
+                    "no libm, no abs(). Class B ∘ I ∘ A. SSoT: Hamming (1950)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("overflow_bits", "sequence", True,
+                  "exactly 2ⁿ−1−n data bits, each 0/1 (4 for H(7,4), 11 for H(15,11))"),
+                P("n", "int", False,
+                  "parity-bit count, 2 ≤ n ≤ 16; codeword length 2ⁿ−1. Default 3 "
+                  "(Hamming(7,4) — the octonion's own Fano plane)"),
+            ),
+            returns=R("list[int]", "the 2ⁿ−1-bit codeword (0/1 list)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_correct", owner="srmech",
+            category="cascade",
+            summary="Locate + correct a single-bit error in an EC-block codeword and "
+                    "recover the carried payload — the EC/carry layer's read (`#938`). "
+                    "Single-error-correcting (minimum distance 3): a clean or "
+                    "single-error word recovers exactly. Composes "
+                    "hamming_decode_correct (the syndrome dispatches to "
+                    "srmech_hamming_syndrome). Lean-ALU XOR; no float, no libm, no "
+                    "abs() (the located bit is a Class-K GF(2) flip). Class B ∘ I ∘ A."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("codeword", "sequence", True, "a 2ⁿ−1-bit codeword (0/1 list)"),
+            ),
+            returns=R("dict",
+                      "{'data': k corrected payload bits, 'error_position': int "
+                      "(0=clean), 'corrected_codeword': the repaired 2ⁿ−1-bit word}"),
         ),
         # Three RBS-LM UPSTREAM_NOTES candidate-additions (v0.7.4rc2; PR #687
         # §1.2 / §1.3 / rbs_nn Note 1) — pure compositions, no new primitive class.
