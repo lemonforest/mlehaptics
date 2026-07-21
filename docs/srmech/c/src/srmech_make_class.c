@@ -507,12 +507,15 @@ static srmech_mval_t *mc_sed_slots(srmech_marshal_arena_t *a,
 static srmech_mval_t *mc_sed_is_navigable(srmech_marshal_arena_t *a,
                                           const srmech_mval_t *dir)
 {
-    int64_t buf[SRMECH_CD_MAX_DIM]; uint32_t i, n; int inv = 0;
+    /* rc298 (`#933`): sized by the DENSE cap — this buffer feeds
+     * srmech_sedenion_is_navigable, which declines anything above it. Sizing it
+     * off SRMECH_CD_MAX_DIM would stage direction vectors the callee rejects. */
+    int64_t buf[SRMECH_CD_DENSE_MAX_DIM]; uint32_t i, n; int inv = 0;
     assert(a != NULL);
     assert(a->cur <= a->end);
     if (dir == NULL || dir->kind != SRMECH_MVAL_LIST) { return NULL; }
     n = dir->n;
-    if (n == 0u || n > (uint32_t)SRMECH_CD_MAX_DIM) { return NULL; }
+    if (n == 0u || n > (uint32_t)SRMECH_CD_DENSE_MAX_DIM) { return NULL; }
     for (i = 0u; i < n; i++) {
         if (!mc_arg_i64(dir->items[i], &buf[i])) { return NULL; }
     }

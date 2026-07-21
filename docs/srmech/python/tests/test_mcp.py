@@ -1027,7 +1027,8 @@ def test_describe_shape() -> None:
 
     d = describe()
     # Top-level keys (rc15 adds the handle_pending name list; v0.7.5rc41 adds
-    # the user-declared "classes" surface — #962 Part 2).
+    # the user-declared "classes" surface — #962 Part 2; rc298 adds "carriers",
+    # the operand nouns to tools' verbs — `#936`).
     assert set(d.keys()) == {
         "srmech_version",
         "tool_schema_version",
@@ -1036,6 +1037,8 @@ def test_describe_shape() -> None:
         "handle_pending",
         "categories",
         "classes",
+        "carriers",
+        "limits",
     }
     # Version agrees with the package attribute (no hardcoded literal).
     assert d["srmech_version"] == srmech.__version__

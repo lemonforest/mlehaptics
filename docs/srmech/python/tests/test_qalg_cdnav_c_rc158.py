@@ -9,7 +9,8 @@ surface, COMPOSED over the existing ``srmech_cd_basis_product`` cocycle:
   * ``srmech_cd_min_generating_set``  (min spanning cardinality; composes closure)
   * ``srmech_cd_zero_divisor_witness``(first sedenion basis-pair zero divisor)
 
-They are genuinely INTEGER (signed units ±e_i, bounded ≤ 2·dim ≤ 128; NO bignum,
+They are genuinely INTEGER (signed units ±e_i, bounded ≤ 2·dim ≤ 2·CD_MAX_DIM
+= 512 since rc298 raised the cap 64 → 256; NO bignum,
 NO ℚ, NO new carrier) — a bare-C host navigates the whole Moufang loop with no
 Python.
 

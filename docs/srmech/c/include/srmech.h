@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc297"
-#define SRMECH_VERSION       "0.9.0rc297"
+#define SRMECH_VERSION_PRE   "rc298"
+#define SRMECH_VERSION       "0.9.0rc298"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4164,10 +4164,61 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * ------------------------------------------------------------------ */
 
 /* Hard ceiling on the algebra dimension (a power of two). Shared with the
- * Python surface (srmech.amsc.cascade.cayley_dickson.CD_MAX_DIM). */
-#define SRMECH_CD_MAX_DIM 64
+ * Python surface (srmech.amsc.cascade.cayley_dickson.CD_MAX_DIM).
+ *
+ * rc298 (`#933`): 64 -> 256. The old 64 was a TOOLING bound that stopped the
+ * rung sweep four doublings past the Hurwitz wall; PR #687 named it as the
+ * thing blocking the research, not the mathematics.
+ *
+ * WHY 256 IS CHEAP. Every scratch buffer reached by the ADDRESSING path is
+ * LINEAR in this cap:
+ *   srmech_cayley_dickson.c  seen[2*MAX] (121, 204), es[]/ei[] (251-252),
+ *                            units[]/subset[]/sub_gens[] (295, 301-302),
+ *                            acc[] (331)
+ *   srmech_cd_register.c     seen[MAX] (168)
+ *   srmech_qmat.c            arena ws-bounds (linear in dim)
+ * At 256 the largest of those is 2*256*sizeof(int) = 2 KB. The whole
+ * addressing surface fits in a few KB of stack at any rung this cap admits.
+ *
+ * The one QUADRATIC buffer in the tree — srmech_sedenion.c's dim x dim
+ * modular-rank matrix — is NOT on the addressing path and does NOT follow this
+ * cap. It has its own, deliberately smaller ceiling: see
+ * SRMECH_CD_DENSE_MAX_DIM below. Raising THIS macro does not enlarge any
+ * quadratic allocation anywhere.
+ *
+ * The remaining ceiling above 256 is VERIFICATION TIME, not memory: proving
+ * srmech_cd_navmap_is_signed_permutation at a rung costs O(dim^2) basis
+ * products, and the Python cross-path check against a full cd_mult costs
+ * O(dim^4) rational multiplies. The linear buffers would tolerate 1024
+ * (16 KB); we cap where we can still PROVE the rung rather than assert it. */
+#define SRMECH_CD_MAX_DIM 256
 /* log2(SRMECH_CD_MAX_DIM) — the doubling-loop over-bound (JPL Rule 2). */
-#define SRMECH_CD_MAX_LEVELS 6
+#define SRMECH_CD_MAX_LEVELS 8
+
+/* Ceiling on the DENSE dim x dim path — srmech_sedenion_is_navigable's
+ * modular-rank matrix (srmech_sedenion.c). This is a SEPARATE capability from
+ * addressing and carries a separate bound because its cost profile is
+ * quadratic, not linear:
+ *
+ *     dim  |  int64_t mat[dim*dim]
+ *      64  |   32 KB      <- here
+ *     128  |  131 KB
+ *     256  |  524 KB
+ *     512  |    2 MB      <- exceeds MSVC's 1 MB default thread stack
+ *
+ * gcc/clang default to ~8 MB of thread stack; MSVC defaults to 1 MB. Sizing
+ * this buffer off SRMECH_CD_MAX_DIM would put a 524 KB frame on every
+ * is_navigable call — over half the Windows budget — for a function that never
+ * participates in addressing. So the two caps are decoupled.
+ *
+ * Beyond this bound srmech_sedenion_is_navigable returns SRMECH_ERR_BAD_INPUT.
+ * That is a PERFORMANCE-projection boundary, not a capability one: the Python
+ * peer's _native_is_invertible already treats a non-OK return as "route to the
+ * exact-rational oracle" (the same path it uses beyond int64 magnitude), so
+ * left_mult_is_invertible stays CORRECT at every dim <= SRMECH_CD_MAX_DIM —
+ * just slower past this cap. ADR-0009: the capability is the invariant; which
+ * projection answers is not. */
+#define SRMECH_CD_DENSE_MAX_DIM 64
 
 /* Product of two unit basis elements: e_i * e_j = sign * e_index.
  *   dim        : algebra dimension, a power of two in [1, SRMECH_CD_MAX_DIM].
@@ -4312,12 +4363,19 @@ srmech_status_t srmech_sedenion_navigate(int j, const int *in_slots,
                                          int *out_slots, int *out_signs);
 
 /* Reversibility gate: is left-multiplication by `direction` (an integer
- * vector of power-of-two length n in [1, SRMECH_CD_MAX_DIM]) a bijection?
+ * vector of power-of-two length n in [1, SRMECH_CD_DENSE_MAX_DIM]) a bijection?
  * Sets *out_invertible to 1 (invertible / navigable) or 0 (a left zero
  * divisor). Exact (modular rank; bit-identical bool to the Python
  * Fraction-nullspace oracle). Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT
  * (n not a power of two in range, magnitude overflow, or coefficients beyond
- * the certainty prime table). */
+ * the certainty prime table).
+ *
+ * NOTE THE CAP: this is the DENSE bound (rc298, `#933`), deliberately smaller
+ * than SRMECH_CD_MAX_DIM because the dim x dim modular-rank matrix is the only
+ * quadratic buffer in the library. A caller wanting invertibility past it uses
+ * the exact-rational nullspace (srmech_qmat_nullspace over the left-mult
+ * matrix), which is caller-arena-backed and carries no compiled-in cap — that
+ * is exactly what the Python peer does. */
 srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
                                              size_t n, int *out_invertible);
 
