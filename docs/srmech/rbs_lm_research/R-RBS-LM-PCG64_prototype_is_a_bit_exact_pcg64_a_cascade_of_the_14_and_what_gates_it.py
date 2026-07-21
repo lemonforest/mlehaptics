@@ -78,8 +78,14 @@ class PCG64Core:
         self.inc = increment & MASK128
 
     def step(self) -> int:
-        """One LCG step — Class I (cyclic/modular)."""
-        self.state = (self.state * self.mult + self.inc) & MASK128
+        """One LCG step via the SHIPPED srmech bignum (F1292): the 128-bit multiply goes through
+        _native.bigint_mul_c (verified to handle 133-bit results), and the mod-2^128 reduce is a
+        Class-K bitmask. No cyclic.mod_mul (that wrapper is hard-bound to a 64-bit C ABI); no numpy.
+        This is the whole point — the 128-bit modular multiply needs NO new op, only the raw wide
+        multiply srmech already ships plus a mask."""
+        from srmech.amsc import _native
+        prod = _native.bigint_mul_c(self.state, self.mult)
+        self.state = (prod + self.inc) & MASK128
         return self.state
 
     @staticmethod
