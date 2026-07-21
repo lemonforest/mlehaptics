@@ -339,6 +339,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.cd_register.cd_navmap",
     "srmech.amsc.cascade.cd_register.cd_navigate",
     "srmech.amsc.cascade.cd_register.cd_navmap_is_signed_permutation",
+    # cascade.cd_register.cd_{couple_working,uncouple_working,carry,correct}
+    # (v0.9.0rc301, `#938`) — the two OPT layers (reversible working word + Hamming
+    # EC block) ported onto the general register as pure functions. The discoverable
+    # surface is registered under the STABLE flat names ``srmech.amsc.cascade.cd_*``
+    # (which ARE registered); the submodule-dotted names below are the SAME objects
+    # re-exported flat — exempt exactly like cd_navmap / cd_navigate above.
+    "srmech.amsc.cascade.cd_register.cd_couple_working",
+    "srmech.amsc.cascade.cd_register.cd_uncouple_working",
+    "srmech.amsc.cascade.cd_register.cd_carry",
+    "srmech.amsc.cascade.cd_register.cd_correct",
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
     # under STABLE flat names ``srmech.amsc.cascade.{cd_mult,cd_conjugate,

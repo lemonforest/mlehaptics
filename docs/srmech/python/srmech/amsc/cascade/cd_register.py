@@ -84,6 +84,7 @@ from .cayley_dickson import (
     left_mult_is_invertible,
     CD_MAX_DIM,
 )
+from .hamming import hamming_encode, hamming_decode_correct
 from . import chiral_flip
 from srmech.amsc import _native
 
@@ -124,6 +125,21 @@ def _check_dim(dim: int) -> int:
             f"got {dim!r}"
         )
     return dim
+
+
+def _working_cap(dim: int) -> int:
+    """The reversible working-word capacity at ``dim`` — the number of values that
+    can be bound into one reversible working word.
+
+    ``min(WORKING_BLOCK_DIM, dim) − 1`` = ``min(dim, 8) − 1``: the imaginary-slot
+    count of the largest normed-division-algebra block that fits. It is the
+    DERIVED, dim-scaled form of the sedenion's flat ``WORKING_WORD_CAP = 7``.
+    Hurwitz (1898): division algebras exist only at dim 1/2/4/8 (imaginary units
+    0/1/3/7). Below 8 the cap is the algebra's own imaginary count (dim 2 → 1,
+    dim 4 → 3); at/above 8 it PINS at 7 because ``e0..e7`` is an octonion
+    subalgebra of every higher rung — a reversible word survives there but cannot
+    grow. dim 1 (ℝ) → 0 = the degenerate pure-addressing base (no coupling)."""
+    return min(WORKING_BLOCK_DIM, _check_dim(dim)) - 1
 
 
 def cd_navmap(dim: int, j: int) -> Dict[int, Tuple[int, int]]:
@@ -223,6 +239,95 @@ def cd_navmap_is_signed_permutation(dim: int) -> bool:
     return True
 
 
+# ── the OPT layers as pure functions: reversible coupling + Hamming EC ─────────
+# These are the dim-scaled generalisations of the four SedenionRegister value-
+# operations, mirroring how cd_navmap(dim, j) generalises the 16-slot navmap.
+# They compose the already-C-backed hypercomplex_couple / hamming primitives — no
+# new algebra, no new C symbol (composition_of_c, exactly like the sed_* peers).
+
+def cd_couple_working(vals: Sequence[float], dim: int = WORKING_BLOCK_DIM) -> List[float]:
+    """Bind ``≤ min(dim, 8) − 1`` real streams into one reversible working word —
+    the canonical Class-M **bind** on the Cayley–Dickson register (rc301, `#938`).
+
+    The dim-scaled generalisation of :meth:`SedenionRegister.couple_working`: the
+    cap is read from :func:`_working_cap` (``min(dim, 8) − 1``), never a hardcoded
+    7. dim 2 couples 1 imaginary slot, dim 4 couples 3, dim 8/16/…/256 couple 7
+    (the octonion sub-block; Hurwitz). dim 1 (ℝ) couples nothing — the degenerate
+    base — so an empty ``vals`` returns ``[]`` and any value raises.
+
+    Composes :func:`~srmech.amsc.cascade.hypercomplex_couple` (``axis="diagonal"``,
+    the F436 coupling axis) — the reversible ``(σ, θ, μ)`` coupler whose octonion
+    multiply already dispatches to the standalone-C
+    ``srmech_hypercomplex_couple_q61``. Reversed exactly by
+    :func:`cd_uncouple_working`. No ``abs()``; the coupler's sign is Class-K ∘
+    Class-C internally.
+
+    Parameters
+    ----------
+    vals : sequence of float
+        ``≤ min(dim, 8) − 1`` real streams to fold into the working word.
+    dim : int
+        The register rung (a power of two in ``[1, CD_MAX_DIM]``); sets the cap.
+        Default 8 (the octonion working word — cap 7).
+
+    Returns
+    -------
+    list[float]
+        The coupled working word — a 4-component quaternion (≤3 streams) or
+        8-component octonion (4–7 streams); ``[]`` when nothing is coupled.
+    """
+    cap = _working_cap(dim)
+    if len(vals) > cap:
+        raise ValueError(
+            f"the reversible working word at dim {dim} holds ≤{cap} values "
+            f"(min(dim, 8) − 1; the largest division-algebra block's imaginary "
+            f"slots, capped by Hurwitz). Got {len(vals)} — spill the overflow to "
+            f"the EC/carry block via cd_carry()."
+        )
+    if not vals:                    # dim 1, or an empty request: couple nothing
+        return []
+    from . import hypercomplex_couple
+    return hypercomplex_couple(list(vals), axis="diagonal")
+
+
+def cd_uncouple_working(word: Sequence[float]) -> List[float]:
+    """Recover the streams bound by :func:`cd_couple_working` — the exact inverse
+    (the Class-M **unbind**; rc301, `#938`).
+
+    Applies the conjugate twiddle (``inverse=True``) and drops the anchor slot,
+    returning the carrier's imaginary components (``word[1:]``): 7 for an octonion
+    word, 3 for a quaternion word. Empty in → empty out (the dim-1 boundary).
+    Recovery is exact to float round-off (the division-algebra identity
+    ``T̄·(T·q) = ‖T‖²·q``, F437), matching the shipped register's tolerance."""
+    if not word:                    # the dim-1 empty-coupling boundary
+        return []
+    from . import hypercomplex_couple
+    rec = hypercomplex_couple(list(word), axis="diagonal", inverse=True)
+    return list(rec)[1:]            # drop the anchor; keep the imaginary slots
+
+
+def cd_carry(overflow_bits: Sequence[int], n: int = 3) -> List[int]:
+    """Encode overflow bits (past the reversible working set) into a Hamming(2ⁿ−1)
+    single-error-correcting GF(2) codeword — the EC/carry layer (rc301, `#938`).
+
+    The EC axis is INDEPENDENT of the register's ``dim``: the block size is set by
+    ``n`` (parity-bit count; codeword ``2ⁿ−1``, data ``2ⁿ−1−n``), not by the slot
+    count. Composes :func:`~srmech.amsc.cascade.hamming_encode` (the
+    ``srmech_hamming_encode`` C peer). Lean-ALU XOR; no float, no ``abs()``."""
+    return hamming_encode(overflow_bits, n)
+
+
+def cd_correct(codeword: Sequence[int]) -> Dict[str, Any]:
+    """Locate + correct a single-bit error in an EC-block codeword and recover the
+    carried payload — the EC/carry layer's read (rc301, `#938`).
+
+    Composes :func:`~srmech.amsc.cascade.hamming_decode_correct` (the syndrome
+    dispatches to ``srmech_hamming_syndrome``). Returns
+    ``{"data", "error_position", "corrected_codeword"}``. Single-error-correcting
+    (minimum distance 3). Lean-ALU XOR; no float, no ``abs()``."""
+    return hamming_decode_correct(codeword)
+
+
 class CDRegister:
     """A general **N-slot** Cayley–Dickson addressable RBS-HDC register — the
     :class:`~srmech.amsc.cascade.sedenion_register.SedenionRegister` generalised
@@ -238,6 +343,15 @@ class CDRegister:
     :class:`SedenionRegister` **bit-exactly at every** ``D`` — that is the
     faithfulness gate this class is held to, and it is why the parameter exists.
 
+    Three layers (rc301, `#938`): the CORE **addressing** layer is always on and
+    content-AGNOSTIC — ``navmap`` is a pure function of ``dim``, storage holds
+    anything, KIND is dimension-invariant. Two OPT layers are off by default:
+    ``coupling=True`` adds the reversible working word (:meth:`couple_working` /
+    :meth:`uncouple_working`, Class M, capped at ``min(dim, 8) − 1`` by Hurwitz);
+    ``error_correction=True`` adds the Hamming EC block (:meth:`carry` /
+    :meth:`correct`, an axis independent of ``dim``). A bare register (both off) is
+    a pure signed-pointer addressing object and raises on the value-operations.
+
     Capacity note: the associative capacity is ``D``-bounded, and **more slots
     need more** ``D``. A dim-32 shortfall at a ``D`` adequate for dim-16 is a
     capacity fact, not an algebra fact. Sweep ``D``; never report a single point.
@@ -245,7 +359,8 @@ class CDRegister:
 
     def __init__(self, dim: int, D: int = DEFAULT_D,
                  codebook: Optional[Dict[str, bytes]] = None,
-                 minter=None, namespace: Optional[str] = None):
+                 minter=None, namespace: Optional[str] = None,
+                 coupling: bool = False, error_correction: bool = False):
         self.dim = _check_dim(dim)
         self.D = int(D)
         self.namespace = str(namespace) if namespace is not None else f"CD{self.dim}"
@@ -253,6 +368,13 @@ class CDRegister:
         self._minter = minter
         self._addr_cache: Dict[int, bytes] = {}
         self._slots: Dict[int, Tuple[str, int]] = {}   # slot -> (key, sign∈{±1})
+        # The two OPTIONAL layers, off by default (a bare register is pure
+        # signed-pointer addressing — the CORE layer only). Opting in EXPOSES the
+        # value-operations; a bare register raises on them (they are gated, not
+        # merely unused). The flags allocate no per-instance state — the coupling /
+        # EC ops are pure functions of their arguments, not of the slot-map.
+        self._coupling = bool(coupling)
+        self._error_correction = bool(error_correction)
 
     # ── address + codebook minting (numpy-free cascade; deferred import) ──
     def _mint(self, name: str) -> bytes:
@@ -287,11 +409,62 @@ class CDRegister:
         return tuple(range(0, min(WORKING_BLOCK_DIM, self.dim)))
 
     def carry_block(self) -> Tuple[int, ...]:
-        """``e8..e{dim-1}`` — everything past the reversibility horizon. Compose
-        the shipped :func:`~srmech.amsc.cascade.hamming_encode` /
-        ``hamming_decode_correct`` (the GF(2) EC half) over this block; it is not
-        duplicated here."""
+        """``e8..e{dim-1}`` — everything past the reversibility horizon. The
+        Hamming GF(2) EC half rides over this block via :meth:`carry` / :meth:`correct`
+        (opt in with ``error_correction=True``)."""
         return tuple(range(WORKING_BLOCK_DIM, self.dim))
+
+    # ── OPT layer 1: the reversible working word (Class M; opt-in coupling) ────
+    def _require_coupling(self) -> None:
+        """Gate the coupling layer — a bare register is pure addressing."""
+        if not self._coupling:
+            raise ValueError(
+                "this CDRegister was constructed for pure addressing "
+                "(coupling=False). Reconstruct with coupling=True to bind values "
+                "into the reversible working word (couple_working / uncouple_working)."
+            )
+
+    def couple_working(self, vals: Sequence[float]) -> List[float]:
+        """Bind ``≤ len(working_block()) − 1`` values into one reversible working
+        word — THE canonical Class-M bind (rc301). Reads the dim-scaled cap
+        (``min(dim, 8) − 1``), never a hardcoded 7: dim 2 couples 1, dim 4 couples
+        3, dim 8/16/…/256 couple 7, dim 1 couples nothing. Requires ``coupling=True``.
+
+        Delegates to :func:`cd_couple_working` — at dim 16 this is bit-exact with
+        the shipped :meth:`SedenionRegister.couple_working` (the faithfulness gate)."""
+        self._require_coupling()
+        return cd_couple_working(vals, self.dim)
+
+    def uncouple_working(self, word: Sequence[float]) -> List[float]:
+        """The exact inverse of :meth:`couple_working` — recover the streams
+        (Class-M unbind; rc301). Requires ``coupling=True``. Delegates to
+        :func:`cd_uncouple_working`."""
+        self._require_coupling()
+        return cd_uncouple_working(word)
+
+    # ── OPT layer 2: the Hamming EC / carry block (opt-in error_correction) ────
+    def _require_error_correction(self) -> None:
+        """Gate the EC layer — a bare register is pure addressing."""
+        if not self._error_correction:
+            raise ValueError(
+                "this CDRegister was constructed for pure addressing "
+                "(error_correction=False). Reconstruct with error_correction=True "
+                "to use the Hamming EC/carry block (carry / correct)."
+            )
+
+    def carry(self, overflow_bits: Sequence[int], n: int = 3) -> List[int]:
+        """Encode overflow bits into a Hamming(2ⁿ−1) EC codeword (rc301). The EC
+        block size is set by ``n`` (default 3) INDEPENDENT of ``dim``. Requires
+        ``error_correction=True``. Delegates to :func:`cd_carry`."""
+        self._require_error_correction()
+        return cd_carry(overflow_bits, n=n)
+
+    def correct(self, codeword: Sequence[int]) -> Dict[str, Any]:
+        """Locate + correct a single-bit error in an EC codeword and recover the
+        payload (rc301). Requires ``error_correction=True``. Delegates to
+        :func:`cd_correct`."""
+        self._require_error_correction()
+        return cd_correct(codeword)
 
     # ── associative storage (Class M; D-bounded capacity) ─────────────────
     def write(self, slot: int, key: str, *, sign: int = 1) -> None:
@@ -379,7 +552,9 @@ class CDRegister:
             [s for s, _ in items],
             [sgn for _, (_k, sgn) in items])
         out = CDRegister(dim=self.dim, D=self.D, codebook=self.codebook,
-                         minter=self._minter, namespace=self.namespace)
+                         minter=self._minter, namespace=self.namespace,
+                         coupling=self._coupling,
+                         error_correction=self._error_correction)
         out._addr_cache = dict(self._addr_cache)
         keys = [k for _, (k, _sgn) in items]
         for m in range(len(items)):
@@ -401,12 +576,22 @@ class CDRegister:
 
 def cd_register(dim: int, D: int = DEFAULT_D,
                 codebook: Optional[Dict[str, bytes]] = None,
-                namespace: Optional[str] = None) -> CDRegister:
+                namespace: Optional[str] = None,
+                coupling: bool = False,
+                error_correction: bool = False) -> CDRegister:
     """Construct a :class:`CDRegister` — the **general N-slot** Cayley–Dickson
     addressable RBS-HDC register (rc297; `#934`). ``dim`` named slots
     ``e0..e{dim-1}`` for any power of two in ``[1, CD_MAX_DIM]``; ``e0..e7`` is the
     octonion reversible working block at every rung and the remainder is the
     carry/EC block.
+
+    The CORE **addressing** layer (``write`` / ``read`` / ``navmap`` / ``navigate``
+    / ``is_navigable``) is always on and content-agnostic. The two OPTIONAL layers
+    are off by default: ``coupling=True`` enables the reversible working word
+    (``couple_working`` / ``uncouple_working``, Class M, capped at ``min(dim, 8) −
+    1`` by Hurwitz); ``error_correction=True`` enables the Hamming EC block
+    (``carry`` / ``correct``, a separate axis from ``dim``). A bare register is a
+    pure signed-pointer addressing object.
 
     Generalises the 16-slot
     :func:`~srmech.amsc.cascade.sedenion_register.sedenion_register` — the slot
@@ -418,7 +603,8 @@ def cd_register(dim: int, D: int = DEFAULT_D,
     being a signed permutation, which zero divisors (built from *sums* of basis
     elements) do not touch — see :func:`cd_navmap_is_signed_permutation`.
     """
-    return CDRegister(dim=dim, D=D, codebook=codebook, namespace=namespace)
+    return CDRegister(dim=dim, D=D, codebook=codebook, namespace=namespace,
+                      coupling=coupling, error_correction=error_correction)
 
 
 __all__ = [
@@ -430,4 +616,8 @@ __all__ = [
     "cd_navmap",
     "cd_navigate",
     "cd_navmap_is_signed_permutation",
+    "cd_couple_working",
+    "cd_uncouple_working",
+    "cd_carry",
+    "cd_correct",
 ]

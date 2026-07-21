@@ -688,3 +688,7 @@
 {"exposed_as": "srmech.amsc.cascade.cd_navmap", "defined_at": "srmech.amsc.cascade.cd_register.cd_navmap", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cd_navigate", "defined_at": "srmech.amsc.cascade.cd_register.cd_navigate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cd_navmap_is_signed_permutation", "defined_at": "srmech.amsc.cascade.cd_register.cd_navmap_is_signed_permutation", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.cd_couple_working", "defined_at": "srmech.amsc.cascade.cd_register.cd_couple_working", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.cd_uncouple_working", "defined_at": "srmech.amsc.cascade.cd_register.cd_uncouple_working", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.cd_carry", "defined_at": "srmech.amsc.cascade.cd_register.cd_carry", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.cd_correct", "defined_at": "srmech.amsc.cascade.cd_register.cd_correct", "bucket": "composition_of_c"}
