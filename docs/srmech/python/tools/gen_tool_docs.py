@@ -31,6 +31,22 @@ it refuses to write and names the keys. The author then either moves the
 text into ``_tool_docs_curated.py`` (the fix, when it is curation) or
 re-runs with ``--accept-seed-drift`` (when a docstring legitimately
 changed). Silent loss is no longer reachable.
+
+**Stale executed-I/O examples (rc294, `#924`).** "Never fabricates an output"
+above was true of examples this generator BUILDS and false of ones it
+PRESERVES. Executed-I/O examples ({"input"/"output"}) are kept verbatim across
+runs because they cannot be re-derived from a signature — but "not re-derivable"
+is a claim about derivability, and it was doing duty as a claim about TRUTH. An
+example recorded from a call that no longer returns what it returned is a
+fabricated output with extra steps, and it flows through ``get_tool_schema()``
+into the C tool registry. rc294 found one: ``genome_registry``'s example was
+``root='abc'`` -> ``{'genomes': [], 'n_genomes': 0, 'root': 'abc'}``, which
+existed ONLY because an unopenable root wrongly succeeded. Once that was fixed
+the call raised, and the first regeneration ran clean, exited 0 and re-committed
+the example unchanged. So :func:`_build_example` now distinguishes *attempted
+and failed* from *never attempted*, and a preserved example whose call now
+raises is dropped for the honest signature snippet. An exit code was never
+evidence about the examples' truth; this is.
 """
 
 from __future__ import annotations
@@ -112,19 +128,47 @@ def _signature_snippet(name: str, params, returns) -> Dict[str, Any]:
     return {"call": f"{name.rpartition('.')[2]}({args}){ret}"}
 
 
-def _build_example(entry) -> Dict[str, Any]:
-    """Real executed input->output where safe; else an honest usage snippet."""
+def _build_example(entry) -> Tuple[Dict[str, Any], str]:
+    """``(example, verdict)`` — real executed input->output where safe, else an
+    honest usage snippet.
+
+    ``verdict`` says what the EXECUTION attempt found, which the caller needs in
+    order to decide whether a previously-committed executed-I/O example is still
+    true (rc294, `#924`):
+
+      ``"executed"``     the call ran here and this is its real output.
+      ``"failed"``       the call was attempted and RAISED. Any committed
+                         executed-I/O example for this tool is therefore STALE —
+                         it records an outcome the code no longer produces.
+      ``"unverifiable"`` no execution was attempted at all (a carrier / opaque
+                         parameter type with no smoke_test_hint), so nothing can
+                         be said about a committed example either way.
+
+    The distinction is load-bearing. Before rc294 this returned only the example,
+    so ``"failed"`` and ``"unverifiable"`` were indistinguishable — both arrived
+    at the caller as a bare signature snippet, and the caller's rule ("executed
+    I/O is not re-derivable, so preserve it") then preserved a FALSE example just
+    as readily as an unverifiable one. rc294 is how that surfaced: this
+    generator's own record for ``genome_registry`` was
+    ``{"input": {"root": "'abc'"}, "output": "{'genomes': [], 'n_genomes': 0,
+    'root': 'abc'}"}`` — an example that existed ONLY because an unopenable root
+    wrongly succeeded. Fixing the defect made ``root='abc'`` raise, and the
+    generator ran clean, exited 0 and re-committed the stale example unchanged,
+    because a passing exit code was never evidence about the examples' truth.
+    """
     fn = _resolve_callable(entry.name)
+    attempted = False
     # 1) smoke_test_hint gives an attested-safe input — execute it.
     if fn is not None and entry.smoke_test_hint:
+        attempted = True
         try:
             kwargs = {k: eval(v) if isinstance(v, str) else v  # noqa: S307 dev tool
                       for k, v in entry.smoke_test_hint.items()}
             buf = io.StringIO()
             with redirect_stdout(buf), redirect_stderr(buf):
                 out = fn(**kwargs)
-            return {"input": {k: _repr_short(v) for k, v in kwargs.items()},
-                    "output": _repr_short(out)}
+            return ({"input": {k: _repr_short(v) for k, v in kwargs.items()},
+                     "output": _repr_short(out)}, "executed")
         except Exception:
             pass
     # 2) all-scalar params → synthesize + execute.
@@ -140,16 +184,18 @@ def _build_example(entry) -> Dict[str, Any]:
                 break
             synth[p.name] = val
         if ok and synth:
+            attempted = True
             try:
                 buf = io.StringIO()
                 with redirect_stdout(buf), redirect_stderr(buf):
                     out = fn(**synth)
-                return {"input": {k: _repr_short(v) for k, v in synth.items()},
-                        "output": _repr_short(out)}
+                return ({"input": {k: _repr_short(v) for k, v in synth.items()},
+                         "output": _repr_short(out)}, "executed")
             except Exception:
                 pass
     # 3) honest signature snippet (no fabricated output).
-    return _signature_snippet(entry.name, entry.parameters, entry.returns)
+    return (_signature_snippet(entry.name, entry.parameters, entry.returns),
+            "failed" if attempted else "unverifiable")
 
 
 # ── emit ──────────────────────────────────────────────────────────────
@@ -192,9 +238,21 @@ def build_docs() -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]],
         # parameter can then NEVER reach its example. That is how rc290's
         # the_one -> coupling rename left 49 call signatures advertising a
         # kwarg that raises TypeError.
-        # Executed-I/O examples ({"input"/"output"}) are NOT derivable — keep those.
-        derived = _build_example(t)
-        if t.example and set(t.example) != {"call"}:
+        # Executed-I/O examples ({"input"/"output"}) are NOT derivable — keep
+        # those, UNLESS re-execution has since shown them to be false.
+        #
+        # rc294 (`#924`): "not re-derivable" and "still true" are different
+        # claims, and preserving on the first was silently asserting the second.
+        # When _build_example actually ATTEMPTED the call and it RAISED
+        # ("failed"), the committed executed-I/O example records an outcome the
+        # code no longer produces, so preserving it publishes a documented lie
+        # through get_tool_schema() into the C tool registry. Drop it and fall
+        # back to the honest signature snippet — the same "no fabricated output"
+        # rule this generator already applies to examples it builds fresh.
+        # "unverifiable" (never attempted — carrier/opaque params) preserves
+        # exactly as before: nothing was learned, so nothing is thrown away.
+        derived, verdict = _build_example(t)
+        if t.example and set(t.example) != {"call"} and verdict != "failed":
             ex = t.example          # executed I/O — not re-derivable, preserve
         else:
             ex = derived or t.example

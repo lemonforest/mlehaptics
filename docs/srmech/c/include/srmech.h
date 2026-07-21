@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc293"
-#define SRMECH_VERSION       "0.9.0rc293"
+#define SRMECH_VERSION_PRE   "rc294"
+#define SRMECH_VERSION       "0.9.0rc294"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6200,11 +6200,22 @@ size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms);
  *   {root, n_genomes, genomes:[<census per genome>]}
  * `ws` must fit the SUM of the per-genome census arenas
  * (srmech_genome_census_arena_bytes) plus a small registry-root reserve; a
- * root with no genome dirs yields n_genomes 0 (not an error).
+ * root that OPENS but holds no genome dirs yields n_genomes 0 (not an error).
+ *
+ * rc294: a root that CANNOT BE OPENED — absent, permission denied, or not a
+ * directory — is SRMECH_ERR_IO, NOT "n_genomes 0, success". Through rc292 every
+ * dir-open failure was reported as an empty registry with a success status, so
+ * a typo'd corpus path answered "your corpus is empty" authoritatively while
+ * the scripting projection raised on the same input (ADR-0009: the SPLIT was
+ * the defect). The n_genomes-0 contract has always been about an EMPTY dir and
+ * is unchanged. No new status enumerator: SRMECH_ERR_IO was already in this
+ * function's documented error set, so the ctypes wire format is untouched and
+ * SRMECH_ABI_VERSION does not move.
  *
  * Error returns: SRMECH_ERR_NULL_ARG (root/ws/out NULL); SRMECH_ERR_IO
- * (a genome's turns.bin unreadable); SRMECH_ERR_OVERFLOW (ws too small);
- * SRMECH_ERR_BAD_INPUT (a genome's manifest malformed, or absent + no coupling).
+ * (`root` cannot be opened, or a genome's turns.bin unreadable);
+ * SRMECH_ERR_OVERFLOW (ws too small); SRMECH_ERR_BAD_INPUT (a genome's
+ * manifest malformed, or absent + no coupling).
  */
 srmech_status_t srmech_genome_registry(
     const char *root, const unsigned char *coupling, size_t coupling_len,
