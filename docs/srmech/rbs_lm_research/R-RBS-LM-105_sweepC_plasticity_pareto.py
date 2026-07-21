@@ -209,7 +209,7 @@ def item_24_hybrid_extended(D, N, rng):
 
     for i in range(N):
         # Stage 1: klein-4 with sector
-        k4_a = hdc.klein4_random(D, np.random.default_rng(i * 31))
+        k4_a = hdc.klein4_expand(D, i * 31)
         k4_a_tagged = hdc.klein4_bind(k4_a, np.full(D, sectors[i], dtype=np.uint8))
         # Stage 2: convert to polar via state-pair XOR sign extraction
         polar_a = np.where(((k4_a_tagged >> 1) ^ (k4_a_tagged & 1)) == 0, 1, -1).astype(np.int8)
@@ -219,7 +219,7 @@ def item_24_hybrid_extended(D, N, rng):
         polar_a[zero_pos] = 0
         A_concepts.append(polar_a)
 
-        k4_b = hdc.klein4_random(D, np.random.default_rng(i * 31 + 1))
+        k4_b = hdc.klein4_expand(D, i * 31 + 1)
         polar_b = np.where(k4_b > 1, 1, -1).astype(np.int8)
         polar_b[zero_pos] = 0
         B_concepts.append(polar_b)

@@ -88,7 +88,7 @@ def load_text_units(path: Path, n_units: int, rng) -> list[list[str]]:
 
 def encode_word(word: str, D: int, hex_chars: int) -> np.ndarray:
     seed = int(amsc_format.sha256_bytes(word.encode("utf-8"))[:hex_chars], 16)
-    return hdc.klein4_random(D, np.random.default_rng(seed))
+    return hdc.klein4_expand(D, seed)
 
 
 def encode_bigram(a: str, b: str, D: int, hex_chars: int, sector: int) -> np.ndarray:
