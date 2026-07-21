@@ -68,90 +68,19 @@ def basis_prod(i, j, d):
     return (k, 1) if v == 1 else ((k, -1) if v == -1 else None)
 
 
-# ---------------------------------------------------------------- the general-rung register
-class CDRegister:
-    """A general Cayley-Dickson addressable RBS-HDC register — srmech's SedenionRegister
-    generalised from 16 slots to `dim` slots. Mirrors its construction exactly; the ONLY
-    change is the slot bound. Validated against the shipped 16-slot version in Part C."""
+# ---------------------------------------------------------------- the register
+# The hand-rolled CDRegister that used to live here is DELETED (F1286). srmech ships the general
+# register as of rc297 — cascade.cd_register(dim, D=...) — with cd_navmap / cd_navigate /
+# cd_basis_product / cd_navmap_is_signed_permutation alongside it, plus native _c peers. Those ops
+# were built here in F1275 precisely because srmech had none; keeping a local copy after adoption
+# means maintaining a second, less-tested implementation of a supported surface.
+# F1275's numbers were re-verified against the shipped register when rc297 landed: IDENTICAL,
+# 352/352. So nothing is lost by the deletion, and the harness now exercises the real op.
+CDRegister = cascade.CDRegister
 
-    def __init__(self, dim, D=8192):
-        self.dim, self.D = int(dim), int(D)
-        self.codebook = {}
-        self._addr_cache = {}
-        self._slots = {}
 
-    def _mint(self, name):
-        return mint_vector(name, D=self.D)
-
-    def _addr(self, slot):
-        if slot not in self._addr_cache:
-            self._addr_cache[slot] = self._mint("CD%d:e%d" % (self.dim, slot))
-        return self._addr_cache[slot]
-
-    def _value_vec(self, key, sign):
-        if key not in self.codebook:
-            self.codebook[key] = self._mint("VAL:%s" % key)
-        vec = self.codebook[key]
-        # srmech-allow: Class-C sign via chiral_flip, verbatim from srmech's own
-        # SedenionRegister._value_vec — the ratchet fires on the word in the original comment.
-        return vec if sign >= 0 else chiral_flip(vec)
-
-    def write(self, slot, key, sign=1):
-        if not (0 <= slot < self.dim):
-            raise ValueError("slot out of the e0..e%d address space" % (self.dim - 1))
-        self._value_vec(str(key), 1 if sign >= 0 else -1)
-        self._slots[slot] = (str(key), 1 if sign >= 0 else -1)
-
-    def materialize(self):
-        parts = [hdc.bind(self._addr(k), self._value_vec(key, s))
-                 for k, (key, s) in sorted(self._slots.items())]
-        if not parts:
-            raise ValueError("empty register")
-        if len(parts) == 1:
-            return parts[0]
-        if len(parts) % 2 == 0:                            # bundle needs odd N
-            parts = parts + [self._mint("__pad__")]
-        return hdc.bundle(parts)
-
-    def read(self, slot):
-        if not self.codebook or not self._slots:
-            return (None, 1)
-        noisy = hdc.bind(self._addr(slot), self.materialize())
-        best_key, best_sign, best_mag = None, 1, -1.0
-        for key, vec in self.codebook.items():
-            if key == "__pad__":
-                continue
-            s_pos = hdc.similarity(noisy, vec)
-            s_neg = hdc.similarity(noisy, chiral_flip(vec))
-            mag_pos = cascade.magnitude(s_pos)             # Class-K pin-slot
-            mag_neg = cascade.magnitude(s_neg)
-            if mag_pos >= best_mag:
-                best_key, best_sign, best_mag = key, 1, mag_pos
-            if mag_neg > best_mag:
-                best_key, best_sign, best_mag = key, -1, mag_neg
-        return (best_key, best_sign)
-
-    def navmap(self, j):
-        out = {}
-        for i in range(self.dim):
-            bp = basis_prod(i, j, self.dim)
-            if bp is None:
-                raise ValueError("e%d.e%d is not +/- a basis element at dim %d" % (i, j, self.dim))
-            out[i] = bp
-        return out
-
-    def navigate(self, j):
-        nav = self.navmap(j)
-        new = CDRegister(self.dim, self.D)
-        new.codebook = dict(self.codebook)
-        new._addr_cache = dict(self._addr_cache)
-        for i, (key, s) in self._slots.items():
-            k, sgn = nav[i]
-            new._slots[k] = (key, s * sgn)
-        return new
-
-    def slots(self):
-        return dict(self._slots)
+def _reg(dim, D):
+    return cascade.cd_register(dim, D=D)
 
 
 # ---------------------------------------------------------------- PART A
@@ -167,11 +96,11 @@ def part_a():
         for i in range(d):
             for j in range(d):
                 tot += 1
-                if basis_prod(i, j, d) is None:
+                if cascade.cd_basis_product(d, i, j) is None:
                     bad += 1
         bij = True
         for j in range(min(d, 8)):
-            dest = [basis_prod(i, j, d)[0] for i in range(d)]
+            dest = [cascade.cd_basis_product(d, i, j)[0] for i in range(d)]
             if sorted(dest) != list(range(d)):
                 bij = False
         log("  %-10s %-28s %-24s" % ("%d" % d,
@@ -211,7 +140,7 @@ def part_b():
 def roundtrip(dim, D, keys, directions):
     hits = tot = 0
     for j in directions:
-        r = CDRegister(dim, D)
+        r = _reg(dim, D)
         for i, k in enumerate(keys):
             r.write(i, k)
         nav = r.navmap(j)
@@ -300,7 +229,7 @@ def part_e():
     log("")
     log("  %-8s %-14s %-26s %-18s" % ("dim", "e_j.e_j = -1", "content back in same slots", "sign flipped"))
     for dim in (16, 32, 64):
-        r = CDRegister(dim, 4096)
+        r = _reg(dim, 4096)
         for i, k in enumerate(NAMES[:min(4, dim)]):
             r.write(i, k)
         before = r.slots()

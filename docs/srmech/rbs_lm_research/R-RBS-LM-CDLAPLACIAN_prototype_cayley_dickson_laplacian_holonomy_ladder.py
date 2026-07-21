@@ -18,6 +18,10 @@ decomposition IS the Cayley-Dickson tower of Laplacians; "octonion Laplacian" is
 Measured from srmech's octonion structure-constant tensor (qm.so8.octonion_mult_table), restricted to the first
 1/2/4/8 basis elements. Exact ints; no numpy; no abs-builtin. Run:
   /tmp/srmech_v/venv/bin/python3 docs/srmech/rbs_lm_research/R-RBS-LM-CDLAPLACIAN_...py
+
+ADOPTED UPSTREAM (F1286): `cd_mult` now ships in `srmech.amsc.cascade`. This file is the PROTOTYPE RECORD and is
+kept as-run, but NEW code must call the shipped op — copying the local definition forward
+means maintaining a second, less-tested implementation of a supported surface.
 """
 import sys
 

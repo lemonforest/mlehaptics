@@ -1,3 +1,8 @@
+"""ADOPTED UPSTREAM (F1286): srmech.rbs_lm now ships ContextSubstrate, RBSLMInferenceSubstrate,
+encode_word_k4, encode_bigram_l1, encode_skeleton_l2, encode_sentence_l3, sim_k4_batch, token_seed
+and CoherenceReadout — i.e. THIS ENTIRE SUBSTRATE. This file is the local prototype record; new work
+must import srmech.rbs_lm rather than copy it forward.
+"""
 """_canonical_substrate — Klein-4 chirality-level sentence substrate, catalog-driven.
 
 Consumes substrate parameters from a srmech.amsc.Descriptor (loaded via

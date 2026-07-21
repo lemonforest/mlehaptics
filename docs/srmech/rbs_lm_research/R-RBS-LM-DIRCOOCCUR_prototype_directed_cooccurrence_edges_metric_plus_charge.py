@@ -18,6 +18,10 @@ superset, backward-compatible) + **charge** (w_fwd-w_bwd, the direction the fold
 
 srmech 0.9.0rc241; exact ints; no numpy; no abs-builtin (charge sign is Class-K). Run:
   /tmp/srmech_v/venv/bin/python3 docs/srmech/rbs_lm_research/R-RBS-LM-DIRCOOCCUR_...py
+
+ADOPTED UPSTREAM (F1286): `cooccurrence_edges` now ships in `srmech.amsc.text`. This file is the PROTOTYPE RECORD and is
+kept as-run, but NEW code must call the shipped op — copying the local definition forward
+means maintaining a second, less-tested implementation of a supported surface.
 """
 import importlib.util
 import shutil

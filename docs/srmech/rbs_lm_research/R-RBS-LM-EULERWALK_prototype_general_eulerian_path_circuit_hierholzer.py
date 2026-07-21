@@ -8,6 +8,10 @@ and (b) handle circuits, self-loops, and the HONEST no-Eulerian-path / disconnec
 
 srmech 0.9.0rc241; exact ints; no numpy; no abs-builtin. Run:
   /tmp/srmech_v/venv/bin/python3 docs/srmech/rbs_lm_research/R-RBS-LM-EULERWALK_...py
+
+ADOPTED UPSTREAM (F1286): `eulerian_path / eulerian_circuit` now ships in `srmech.amsc.laplacian`. This file is the PROTOTYPE RECORD and is
+kept as-run, but NEW code must call the shipped op — copying the local definition forward
+means maintaining a second, less-tested implementation of a supported surface.
 """
 import importlib.util
 import sys

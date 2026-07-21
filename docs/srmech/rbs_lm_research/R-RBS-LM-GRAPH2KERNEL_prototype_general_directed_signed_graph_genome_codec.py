@@ -12,6 +12,10 @@ no bind/bundle HV object is stored — F1221 disk rule).
 
 srmech 0.9.0rc241; exact ints; no numpy; no abs-builtin (sign is Class-K zig-zag). Run:
   /tmp/srmech_v/venv/bin/python3 docs/srmech/rbs_lm_research/R-RBS-LM-GRAPH2KERNEL_...py
+
+ADOPTED UPSTREAM (F1286): `graph_to_kernel / kernel_to_graph` now ships in `srmech.amsc.genome`. This file is the PROTOTYPE RECORD and is
+kept as-run, but NEW code must call the shipped op — copying the local definition forward
+means maintaining a second, less-tested implementation of a supported surface.
 """
 import importlib.util
 import os
