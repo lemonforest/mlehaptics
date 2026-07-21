@@ -914,6 +914,42 @@ def _register_primitive_class_tools() -> None:
         # (srmech_text_glyph_stream / _cooccurrence_edges / _cooccurrence_topk
         # + _topk_extract) — the corpus-linear hot loops run in C; the pure
         # bodies remain the complete alternative + parity oracle.
+        # rc293 (#928 / F1258 / UPSTREAM_NOTES §106): the FOLD gap - the one
+        # domain-agnostic piece of the downstream tokenizer srmech did not
+        # already own. Its own op, NOT a mode on glyph_stream: glyph_stream
+        # documents a losslessness invariant that a fold flag would break for
+        # one flag value, and the two have different shapes (str -> list[str]
+        # vs str -> str). Ordinary composition keeps both honest. The table is
+        # vendored (UCD 16.0.0) on the ADR-0003 argument - a bare-C host has no
+        # unicodedata - and BOTH projections read it, so they cannot diverge.
+        ToolEntry(
+            name="srmech.amsc.text.fold_marks", owner="srmech",
+            category="text",
+            summary="Drop combining marks by Unicode CATEGORY - Mn/Mc/Me and "
+                    "nothing else (Class B/G text-framing; §106/F1258; "
+                    "rc293). The name is the contract: a VIRAMA is a mark, not "
+                    "an accent, so `fold_accents` would have been wrong in "
+                    "exactly the Indic cases that matter most while quietly "
+                    "re-scoping the op toward Latin - fold_marks('क्षि') = "
+                    "'कष', not just fold_marks('naïve') = 'naive'. Scope is "
+                    "category only: no case change, no locale tailoring, no "
+                    "NFKD/compatibility folding, no ligature expansion - so "
+                    "'ø' and the OHM SIGN are unchanged (a stroke is part of "
+                    "the letter; a mark-free singleton is not this op's "
+                    "business) and Hangul is unchanged in either "
+                    "normalization form. Needs NO normalizer: precomposed "
+                    "characters are handled by the table's replacement rows "
+                    "and decomposed sequences by its drop rows, so the same "
+                    "marks fall out whichever form is supplied. Idempotent - "
+                    "the vendored table is closed, so one pass is complete. "
+                    "A SEPARATE op, not a glyph_stream mode: folding is lossy "
+                    "and glyph_stream is contractually lossless; compose them "
+                    "as glyph_stream(fold_marks(s)).",
+            parameters=(P("text", "str", True),),
+            returns=R("str", "text with combining marks dropped and "
+                             "precomposed mark-bearing characters reduced to "
+                             "their base"),
+        ),
         ToolEntry(
             name="srmech.amsc.text.glyph_stream", owner="srmech",
             category="text",

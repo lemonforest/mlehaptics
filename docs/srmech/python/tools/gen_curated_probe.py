@@ -99,6 +99,23 @@ CENTRAL = [
     ("srmech.amsc.cascade.net_chirality", ((), dict(orientations=[1, -1, 1, 1])),
      "Class-C net chirality: the signed product/sum reduction of a sequence of "
      "per-step orientations into the one net which-way handedness."),
+    # The auto-seed probes fold_marks with 'abc', which round-trips unchanged
+    # and so demonstrates nothing. Probe it with the Devanagari case instead:
+    # the virama and the vowel sign are BOTH marks, which is the whole reason
+    # the op is fold_marks and not fold_accents.
+    ("srmech.amsc.text.fold_marks", ((), dict(text="क्षि")),
+     "Drop combining marks by Unicode CATEGORY — Mn/Mc/Me and nothing else "
+     "(Class B/G text-framing; §106/F1258; rc293). The name is the contract: a "
+     "VIRAMA is a mark, not an accent, so `fold_accents` would have been wrong "
+     "in exactly the Indic cases that matter most while quietly re-scoping the "
+     "op toward Latin. Category only — no case change, no locale tailoring, no "
+     "NFKD/compatibility folding, no ligature expansion — so 'ø' and the OHM "
+     "SIGN are unchanged and Hangul is unchanged in either normalization form. "
+     "Needs NO normalizer: precomposed characters are handled by the vendored "
+     "table's replacement rows and decomposed sequences by its drop rows, so "
+     "the same marks fall out whichever form is supplied. Idempotent. A "
+     "SEPARATE op, not a glyph_stream mode — folding is lossy and glyph_stream "
+     "is contractually lossless; compose as glyph_stream(fold_marks(s))."),
 ]
 
 
