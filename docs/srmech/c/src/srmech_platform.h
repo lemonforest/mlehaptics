@@ -265,6 +265,39 @@ srmech_status_t srmech_plat_file_write(const char *path, int append,
 srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size);
 
 /* ------------------------------------------------------------------ *
+ * READ-PATH OPEN COUNTER (rc296) — so the COMPILED projection's I/O
+ * shape is measurable from a test, not only from an strace probe.
+ *
+ * WHY THIS EXISTS. rc282 fixed an opens-per-section defect in BOTH
+ * projections and shipped a down-only ratchet — but every test in that
+ * ratchet monkeypatched native dispatch OFF, so the ceiling only ever
+ * constrained the scripting projection. The compiled read path could
+ * regress to per-call re-open (the exact rc280 defect) with the ratchet
+ * still green. Python's `builtins.open` / `Path.open` hooks cannot see a
+ * `fopen` inside the shared library, so measuring the compiled side needs
+ * a seam INSIDE the library. Per ADR-0009 the capability is the invariant:
+ * a ratchet that can only ever run one projection cannot enforce it.
+ *
+ * Counts every read-path `fopen` ATTEMPT the PAL makes — file_read,
+ * file_read_region, file_open_ro, file_size and rstream_open. Writes are
+ * NOT counted (the ratchet is about read amplification). Attempts, not
+ * successes, so a failing existence probe is still visible; that matches
+ * what `strace -e trace=openat` records and keeps the two evidence
+ * sources comparable.
+ *
+ * Diagnostic only — no op depends on it and nothing branches on it.
+ * Plain non-atomic statics: accurate for the single-threaded scans this
+ * measures, and deliberately not made thread-safe, because a counter that
+ * needed a lock would put a lock on every read.
+ * ------------------------------------------------------------------ */
+
+/* Total read-path opens since process start or the last reset. */
+uint64_t srmech_plat_file_opens(void);
+
+/* Zero the counter — call immediately before the span being measured. */
+void srmech_plat_file_opens_reset(void);
+
+/* ------------------------------------------------------------------ *
  * MUTATING FILESYSTEM OPS (rc284) — the three surfaces an out-of-core
  * work QUEUE needs and the read-only file surface above cannot express:
  * create a scratch directory, drop a consumed work file, and MOVE a

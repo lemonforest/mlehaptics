@@ -972,6 +972,27 @@ int srmech_plat_has_filesystem(void)
 #endif
 }
 
+/* The rc296 read-path open counter (see srmech_platform.h for why it exists).
+ * Defined OUTSIDE the SRMECH_PLAT_FILE guard so a no-filesystem host still
+ * links the accessors — there it simply reads 0 forever, which is the truth. */
+static uint64_t g_plat_file_opens = 0u;
+
+uint64_t srmech_plat_file_opens(void)
+{
+    uint64_t n = g_plat_file_opens;
+    assert(sizeof(n) == 8u);
+    /* A target with no filesystem cannot have opened anything. */
+    assert(srmech_plat_has_filesystem() != 0 || n == 0u);
+    return n;
+}
+
+void srmech_plat_file_opens_reset(void)
+{
+    assert(sizeof(g_plat_file_opens) == 8u);
+    g_plat_file_opens = 0u;
+    assert(g_plat_file_opens == 0u);
+}
+
 #if defined(SRMECH_PLAT_FILE)
 
 srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
@@ -980,6 +1001,7 @@ srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
     assert(path != NULL);
     assert(out_len != NULL && (buf != NULL || buf_cap == 0));
     FILE *fp = fopen(path, "rb");
+    g_plat_file_opens++;                      /* rc296 read-path open counter */
     if (fp == NULL) { return SRMECH_ERR_IO; }
     size_t total = 0;
     int over = 0;
@@ -1006,6 +1028,7 @@ srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
     assert(path != NULL);
     assert(buf != NULL || len == 0);
     FILE *fp = fopen(path, "rb");
+    g_plat_file_opens++;                      /* rc296 read-path open counter */
     if (fp == NULL) { return SRMECH_ERR_IO; }
     if (fseek(fp, (long)offset, SEEK_SET) != 0) {
         fclose(fp);
@@ -1021,6 +1044,7 @@ srmech_status_t srmech_plat_file_open_ro(const char *path, srmech_file_ro_t *out
     assert(path != NULL);
     assert(out != NULL);
     out->fp = (void *)fopen(path, "rb");
+    g_plat_file_opens++;                      /* rc296 read-path open counter */
     return (out->fp == NULL) ? SRMECH_ERR_IO : SRMECH_OK;
 }
 
@@ -1065,6 +1089,7 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
     assert(path != NULL);
     assert(out_size != NULL);
     FILE *fp = fopen(path, "rb");
+    g_plat_file_opens++;                      /* rc296 read-path open counter */
     if (fp == NULL) { return SRMECH_ERR_IO; }
     int sk = fseek(fp, 0L, SEEK_END);
     long n = (sk == 0) ? ftell(fp) : -1L;
@@ -1133,6 +1158,7 @@ srmech_status_t srmech_plat_rstream_open(const char *path,
     assert(path != NULL);
     assert(out != NULL);
     FILE *fp = fopen(path, "rb");
+    g_plat_file_opens++;                      /* rc296 read-path open counter */
     if (fp == NULL) { return SRMECH_ERR_IO; }
     memcpy(out->handle.bytes, &fp, sizeof(fp));
     return SRMECH_OK;

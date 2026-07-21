@@ -1,0 +1,7 @@
+{"arm": "serial", "repeat": 0, "seconds": 68.8, "exit_code": 0, "pytest_tail": "57 passed in 66.06s (0:01:06)", "cpu_count": 8, "n_files": 6}
+{"arm": "auto", "repeat": 0, "seconds": 63.13, "exit_code": 0, "pytest_tail": "57 passed in 61.10s (0:01:01)", "cpu_count": 8, "n_files": 6}
+{"arm": "serial", "repeat": 1, "seconds": 61.46, "exit_code": 0, "pytest_tail": "57 passed in 59.19s", "cpu_count": 8, "n_files": 6}
+{"arm": "auto", "repeat": 1, "seconds": 62.39, "exit_code": 0, "pytest_tail": "57 passed in 60.53s (0:01:00)", "cpu_count": 8, "n_files": 6}
+{"arm": "serial", "repeat": 2, "seconds": 60.77, "exit_code": 0, "pytest_tail": "57 passed in 58.71s", "cpu_count": 8, "n_files": 6}
+{"arm": "auto", "repeat": 2, "seconds": 63.28, "exit_code": 0, "pytest_tail": "57 passed in 61.21s (0:01:01)", "cpu_count": 8, "n_files": 6}
+{"arm": "summary", "serial_seconds": [68.8, 61.46, 60.77], "auto_seconds": [63.13, 62.39, 63.28], "ratio_min": 0.96, "ratio_median": 0.99, "ratio_max": 1.09, "cpu_count": 8, "files": ["tests/test_genome_read_io_ratchet_rc282.py", "tests/test_genome_chr_bundle_rc148.py", "tests/test_express_plan_rc135.py", "tests/test_cellstate_chromatin_rc274.py", "tests/test_express_plan_chromatin_rc269.py", "tests/test_rosetta_completeness.py"], "scope": "this host, this file set, this moment; --dist loadfile caps the ratio at the slowest single FILE; not a package property"}

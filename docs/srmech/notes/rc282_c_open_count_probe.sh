@@ -2,6 +2,20 @@
 # rc282 - GENERATING CODE for the COMPILED-projection open count
 # (computational-provenance discipline; ADR-0009 parity evidence).
 #
+# rc296 REPAIR: this probe did not run as committed. The rc290 `the_one` ->
+# `coupling` rename left the section_counts call raising TypeError, so from rc290
+# onward the generating code for rc282's "4 / 4 / 4 / 4" claim was dead. Provenance
+# that does not execute is not provenance - a committed harness needs the same
+# rename discipline as shipped code. Re-run at rc296 after the fix: the claim
+# REPRODUCES exactly (4 opens of turns.bin per scan, flat across the sweep).
+#
+# rc296 also makes this measurable WITHOUT strace, from inside the test suite:
+# the PAL read-path open counter (srmech_plat_file_opens / _reset) is asserted by
+# tests/test_genome_read_io_ratchet_rc282.py. This script stays as the independent
+# syscall-level oracle - the counter says what the library thinks it did, strace
+# says what the kernel was actually asked for, and agreement between two
+# instruments is the point.
+#
 # Counts openat("</path/to>/turns.bin") syscalls performed by the NATIVE
 # srmech_genome_section_counts during one scan, over a sweep of section counts.
 #
@@ -31,8 +45,16 @@ d = tempfile.mkdtemp(prefix="rc282_csc_")
 P.plasmid_extract(docs, d, one, window=2, k=8)
 assert _native.has_native_genome_section_counts(), "native section_counts absent"
 open("/tmp/RC282_MARK_START", "w").close()
-P.section_counts(d, the_one=one)
+_native.file_opens_reset_c()                     # rc296 in-library counter
+P.section_counts(d, coupling=one)   # rc296: was `the_one=` (renamed at rc290)
+c_opens = _native.file_opens_c()
 open("/tmp/RC282_MARK_END", "w").close()
+# rc296 cross-instrument line: what the LIBRARY counted for itself. strace (below)
+# counts what the kernel was asked for, including the Python-side opens that happen
+# before dispatch; this counts only the C library's own read-path opens. The two are
+# different quantities on purpose - they must agree on the C-side subtotal.
+with open("/tmp/RC296_C_OPENS", "w") as fh:
+    fh.write(str(c_opens))
 PYEOF
 
 for n in 25 50 100 200; do
@@ -46,5 +68,7 @@ for n in 25 50 100 200; do
     fi
     span=$((end - start))
     opens=$(tail -n +"$start" "$tr" | head -n "$span" | grep -c 'turns\.bin')
-    echo "n_sections=$n  turns_bin_opens_during_native_scan=$opens"
+    c_opens=$(cat /tmp/RC296_C_OPENS 2>/dev/null || echo '?')
+    echo "n_sections=$n  turns_bin_opens_during_native_scan=$opens" \
+         " c_library_read_path_opens=$c_opens"
 done
