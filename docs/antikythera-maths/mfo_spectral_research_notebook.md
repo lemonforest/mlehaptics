@@ -308,6 +308,8 @@ Computed values for relevant cases:
 
 The S⁷ spectrum is what KK compactification on the round 7-sphere would produce as the 4D mass spectrum. Mass ratios (relative to the lowest mode) are √(l(l+6)/7): 1, 1.51, 1.96, 2.39, 2.81, ... — far too evenly spaced to reproduce the SM hierarchy (which spans ~5 orders of magnitude from electron to top quark).
 
+> **Computational realization (srmech cross-ref, 2026-07-18).** The Laplace–Beltrami eigenvalues named here — sphere `l(l+n−1)`, CP² Fubini–Study `4(p+q)(p+q+2)` (§III.2) — are *computationally realized* by srmech's **weighted** graph Laplacian: the cotangent-weighted `dense_laplacian` **is** the discrete LB (attested convergence — Pinkall–Polthier 1993 cotangent; Belkin–Niyogi 2003; Coifman–Lafon 2006), and `heat_trace`/`propagate` (`Tr e^{−tL}` / `e^{−zL}`) supply the §V heat-kernel spectral-dimension diagnostic `d_S = −2 d log K(σ)/d log σ` on the substrate-native *discrete* object. Degree- vs mass-normalization are the `α=0` (connectivity) / `α=1` (metric) endpoints of one Coifman–Lafon Class-L family — the metric-substrate story is thus computable, not only analytic. This is a mathematical FACT (form/convergence), not a framework-validation claim. srmech tooling detail: [`../srmech/notes/laplace_beltrami_scoping.md`](../srmech/notes/laplace_beltrami_scoping.md).
+
 ### III.2 CP² eigenvalues
 
 CP² with the Fubini-Study metric has Laplacian eigenvalues

@@ -352,6 +352,33 @@ def _to_qbipoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_one(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to a :class:`~srmech.amsc.cascade.one.One` for a
+    ``One``-typed param (rc290 ``hdc.klein4_from_one``).
+
+    The One's canonical JSON-native form is the DICT its own
+    :meth:`One._to_jsonable` emits and :func:`one_from_jsonable` reads back —
+    ``{"sigma": int, "theta": [num, den], "terms": int}`` — the exact shape a
+    bare-C host, the Python and the rc201 object-model engine already agree on.
+    So the coercer is that round-trip and nothing more: no new serialisation is
+    invented for the wire. ``terms`` is optional (the constructor default). A
+    value already a ``One`` (an in-process caller) passes through unchanged.
+
+    Exactness is load-bearing: sigma / theta / terms are INTEGERS (the One never
+    receives a float), so a float theta component is rejected rather than
+    silently truncated.
+    """
+    from srmech.amsc.cascade.one import One, one_from_jsonable  # lazy
+    if isinstance(value, One):
+        return value
+    if not isinstance(value, dict):
+        raise TypeError(
+            f"param {param!r}: a One must arrive as its canonical dict "
+            '{"sigma": int, "theta": [num, den], "terms": int}; got '
+            f"{type(value).__name__}")
+    return one_from_jsonable(value)
+
+
 def _to_poly_or_bipoly(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value for a poly-ladder PROMOTE param (``Poly | BiPoly``;
     rc116 ``carrier_ladder.poly_promote``). The op restructures an
@@ -517,17 +544,17 @@ def _seq_int_or_pair(value: Any, *, param: str = "") -> List[Any]:
 
 
 def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
-    """``list[int | Fraction | float]`` (rc231; ``cycle_holonomy`` per-edge
-    ``charges`` in turns) -> list of int / float / ``Fraction``.
+    """``list[int | Q | float]`` (rc231; ``cycle_holonomy`` per-edge ``charges`` in
+    turns) -> list of int / float / srmech :class:`~srmech.amsc.q.Q`.
 
-    A charge is an exact ``int`` / ``Fraction`` (turns) or a ``float`` (projected to
-    a rational by the op). JSON has no Fraction, so an exact rational charge rides as
-    a ``[num, den]`` 2-int-list — matched to :func:`serialise_native`'s outbound
-    ``Fraction -> [num, den]`` — and is rebuilt into a :class:`~fractions.Fraction`
-    here; a bare JSON int / float passes through (the op's ``_to_fraction`` accepts
-    both). ``None`` is handled by :func:`coerce_param`'s null-passthrough (the
-    all-zero / balanced default)."""
-    from fractions import Fraction
+    A charge is an exact ``int`` / ``Q`` (turns) or a ``float`` (projected to a
+    rational by the op). JSON has no rational, so an exact rational charge rides as a
+    ``[num, den]`` 2-int-list — matched to :func:`serialise_native`'s outbound
+    ``Q -> [num, den]`` — and is rebuilt into a ``Q`` here (#845: srmech's exact-ℚ
+    carrier, was ``fractions.Fraction``); a bare JSON int / float passes through (the
+    op's ``_to_fraction`` accepts both). ``None`` is handled by
+    :func:`coerce_param`'s null-passthrough (the all-zero / balanced default)."""
+    from srmech.amsc.q import Q
     if not isinstance(value, (list, tuple)):
         raise ValueError(
             f"expected a list of charges (int / float / [num, den]) for param "
@@ -538,7 +565,7 @@ def _seq_charge(value: Any, *, param: str = "") -> List[Any]:
         if (isinstance(c, (list, tuple)) and len(c) == 2
                 and all(isinstance(x, int) and not isinstance(x, bool)
                         for x in c) and c[1] != 0):
-            out.append(Fraction(int(c[0]), int(c[1])))
+            out.append(Q(int(c[0]), int(c[1])))
         else:
             out.append(c)
     return out
@@ -937,6 +964,9 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Poly | BiPoly": _to_poly_or_bipoly,
     "BiPoly | TriPoly": _to_bipoly_or_tripoly,
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
+    "One": _to_one,            # 0.9.0rc290: the S(σ,θ) generator, via its own
+                               # canonical (sigma, theta, terms) dict
+                               # (hdc.klein4_from_one / ONE-A14)
     "EllMonomial": _to_ellmonomial,  # 0.9.0rc94: exact-ℚ Laurent monomial carrier (elliptic_cauchy_determinant variable / parameter)
     "Sequence[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc94: elliptic_cauchy_determinant xs / ys variable lists
     "list[EllMonomial]": _seq_ellmonomial,  # 0.9.0rc231: elliptic_jackson_an z / a variable vectors (multivariate_elliptic_jackson_an / an_vwp_multisum_lhs)
@@ -984,7 +1014,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     #   cycle_holonomy `charges` — per-edge charge in turns, an int / float / an
     #   exact [num, den] Fraction (rebuilt to Fraction; matches the outbound form).
     "Optional[list[int | tuple[int, int]]]": _seq_int_or_pair,
-    "Optional[list[int | Fraction | float]]": _seq_charge,
+    "Optional[list[int | Q | float]]": _seq_charge,
     # v0.7.5rc29: exact_dft.lift `spectrum` — the exact Z[zeta_N] spectrum is a
     # list of (real_vec, imag_vec) integer pairs; nested lists are JSON-native.
     "list[tuple[list[int], list[int]]]": _identity,
@@ -1007,6 +1037,10 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Sequence[int]": _identity,   # v0.9.0rc121: genome.kernel_pack `data` (flat Klein-4 kernel; JSON-native)
     "list|str": _identity,        # v0.9.0rc121: genome.kernel_unpack `strand_or_path` (strand list OR path str; both JSON-native)
     "int | float | str | list | dict": _identity,
+    # v0.9.0rc268 (§98 chromatin): genome.condense `state` (True/False OR a (num,den) level — a
+    # JSON list) + `region` (None / an int data-turn index / a gene-label str); all JSON-native.
+    "bool | tuple": _identity,
+    "int | str | None": _identity,
     # 0.9.0rc108: laplacian.heat_trace `t` / laplacian.ground_state_flux_response
     # `fluxes` — a scalar diffusion-time/flux OR a list of them; both forms are
     # JSON-native (the op itself dispatches scalar → float, sequence → Vec).
@@ -1104,14 +1138,15 @@ def serialise_native(value: Any) -> Any:
     # complex -> [re, im]
     if isinstance(value, complex):
         return [value.real, value.imag]
-    # Fraction -> [num, den] (rc231; cycle_holonomy returns list[Fraction] cycle
-    # holonomies in [0, 1)). An exact rational rides as an integer [num, den] pair
-    # — the inverse of the inbound _seq_charge [num, den] -> Fraction, so a charge
-    # graph's holonomies round-trip exactly (never a lossy float, never a bare
-    # repr string). Keyed by TYPE, unambiguous with complex's [re, im] (which is
-    # keyed by the declared `complex` param type on the inbound side).
-    from fractions import Fraction as _Fraction
-    if isinstance(value, _Fraction):
+    # Q -> [num, den] (rc231; cycle_holonomy returns list[Q] cycle holonomies in
+    # [0, 1)). #845: srmech's exact-ℚ carrier (was fractions.Fraction). An exact
+    # rational rides as an integer [num, den] pair — the inverse of the inbound
+    # _seq_charge [num, den] -> Q, so a charge graph's holonomies round-trip exactly
+    # (never a lossy float, never a bare repr string). Keyed by TYPE, unambiguous
+    # with complex's [re, im] (which is keyed by the declared `complex` param type
+    # on the inbound side).
+    from srmech.amsc.q import Q as _Q
+    if isinstance(value, _Q):
         return [value.numerator, value.denominator]
     # srmech HV handle (numpy-free Klein-4 carrier, v0.7.0rc29) -> list[int].
     # The core ops return HV; cross JSON-RPC by value as a plain integer list.

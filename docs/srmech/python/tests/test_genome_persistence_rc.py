@@ -10,7 +10,7 @@ touched against the manifest — a mismatch is a ``GenomeBoundingError``).
 
 numpy-free discipline: this test imports NO numpy and runs with numpy blocked
 (``test_numpy_free_load`` proves it by collecting+passing numpy-absent). A strand
-/ the_one is a list of Klein-4 :class:`HV` vectors from ``hdc.klein4_random`` —
+/ coupling is a list of Klein-4 :class:`HV` vectors from ``hdc.klein4_random`` —
 the same house style as ``test_genome_surface_rc37.py``.
 
 The six points (each a test below):
@@ -34,16 +34,16 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc import genome
 from srmech.amsc.format import MPRRecord, validate_mpr_record
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 # ── shared fixtures: a 3-chromosome genome strand ────────────────────────────
 
 def _kernels():
     return {
-        "astronomy": [klein4_random(64, seed=s) for s in range(3)],
-        "geography": [klein4_random(64, seed=s) for s in (10, 11)],
-        "music": [klein4_random(64, seed=20)],
+        "astronomy": [klein4_expand(64, s) for s in range(3)],
+        "geography": [klein4_expand(64, s) for s in (10, 11)],
+        "music": [klein4_expand(64, 20)],
     }
 
 
@@ -65,11 +65,11 @@ def _partition_lists(strand, one, labels):
 # ── (1) round-trip byte-exact + partition-after-load == before ───────────────
 
 def test_save_load_round_trip_is_byte_exact(tmp_path):
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     k, strand, labels = _build(one)
     p = tmp_path / "g"
 
-    manifest = genome.genome_save(strand, p, the_one=one, labels=labels)
+    manifest = genome.genome_save(strand, p, coupling=one, labels=labels)
     assert isinstance(manifest, dict)
     assert manifest["leaf_dim"] == 64
     assert manifest["n_turns"] == len(strand)
@@ -94,10 +94,10 @@ def test_save_load_round_trip_is_byte_exact(tmp_path):
 # ── (2) catalog reads the manifest WITHOUT opening turns.bin ─────────────────
 
 def test_catalog_reads_manifest_without_opening_body(tmp_path, monkeypatch):
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     _, strand, labels = _build(one)
     p = tmp_path / "g"
-    genome.genome_save(strand, p, the_one=one, labels=labels)
+    genome.genome_save(strand, p, coupling=one, labels=labels)
 
     opened_paths = []
     real_open = Path.open
@@ -121,8 +121,12 @@ def test_catalog_reads_manifest_without_opening_body(tmp_path, monkeypatch):
     cat = genome.genome_catalog(p)
     monkeypatch.undo()
 
-    # the catalog NEVER pages in the body
-    assert not any("turns.bin" in o for o in opened_paths), opened_paths
+    # v12 (ADR-0003): the per-chromosome catalog is DERIVED from the self-describing
+    # body — it is no longer a stored plaintext table-of-contents — so genome_catalog
+    # reads the HEAD (manifest.json) AND scans turns.bin to rebuild the arrays. (The
+    # cheap HEAD read is still body-free; the FULL catalog is not. rc-B's mmap
+    # catalog.idx restores an O(1) body-free catalog open.)
+    assert any("turns.bin" in o for o in opened_paths), opened_paths
     assert any("manifest.json" in o for o in opened_paths), opened_paths
 
     # the catalog carries the full chromosome index without the body bytes
@@ -137,20 +141,20 @@ def test_catalog_reads_manifest_without_opening_body(tmp_path, monkeypatch):
 # ── (3) append grows the helix; prior entries byte-identical ─────────────────
 
 def test_append_grows_and_preserves_prior_entries(tmp_path):
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     base = {
-        "astronomy": [klein4_random(64, seed=s) for s in range(3)],
-        "geography": [klein4_random(64, seed=s) for s in (10, 11)],
+        "astronomy": [klein4_expand(64, s) for s in range(3)],
+        "geography": [klein4_expand(64, s) for s in (10, 11)],
     }
     strand = genome.genome(base, one)
     p = tmp_path / "g"
-    man1 = genome.genome_save(strand, p, the_one=one, labels=list(base))
+    man1 = genome.genome_save(strand, p, coupling=one, labels=list(base))
 
     body_before = (p / "turns.bin").read_bytes()
     prior_entries_before = json.loads(json.dumps(man1["chromosomes"]))  # deep copy
 
-    new_leaves = [klein4_random(64, seed=s) for s in (30, 31)]
-    man2 = genome.genome_append(p, "music", new_leaves, the_one=one)
+    new_leaves = [klein4_expand(64, s) for s in (30, 31)]
+    man2 = genome.genome_append(p, "music", new_leaves, coupling=one)
 
     # k2 (the new chromosome) is listed
     labels2 = [c["label"] for c in man2["chromosomes"]]
@@ -178,10 +182,10 @@ def test_append_grows_and_preserves_prior_entries(tmp_path):
 # ── (4) paging — genome_window reads only the region, equals stored leaves ───
 
 def test_window_pages_one_chromosome(tmp_path, monkeypatch):
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     k, strand, labels = _build(one)
     p = tmp_path / "g"
-    man = genome.genome_save(strand, p, the_one=one, labels=labels)
+    man = genome.genome_save(strand, p, coupling=one, labels=labels)
 
     # the stored leaves for "astronomy" = the coupled turns (cap excluded) = the
     # strand region [1:4] (astronomy is first: cap@0, then its 3 turns).
@@ -220,10 +224,13 @@ def test_window_pages_one_chromosome(tmp_path, monkeypatch):
     monkeypatch.undo()
 
     geo = next(c for c in man["chromosomes"] if c["label"] == "geography")
-    total_body = (p / "turns.bin").stat().st_size
-    # the window read at most one chromosome's region, strictly less than the body
-    assert sum(read_byte_counts) == geo["byte_len"]
-    assert sum(read_byte_counts) < total_body
+    # v12 (ADR-0003): genome_window DERIVES the catalog (scans turns.bin) to find the
+    # chromosome's byte offset before paging it, so the read is no longer strictly
+    # region-bounded — the body is scanned for the catalog, then the region is read.
+    # Correctness (win == the stored region) is asserted above; region-bounded I/O is
+    # restored by rc-B's mmap catalog.idx (an O(1) offset lookup). So we assert the
+    # region's own bytes are (at least) read, not that NOTHING else is.
+    assert sum(read_byte_counts) >= geo["byte_len"]
 
     # a subset load is the same paged read for many chromosomes
     sub_strand, sub_one, sub_labels = genome.genome_load(p, labels=["music"])
@@ -236,10 +243,10 @@ def test_window_pages_one_chromosome(tmp_path, monkeypatch):
 # ── (5) bounding — a flipped body byte → GenomeBoundingError ─────────────────
 
 def test_bounding_flipped_body_byte_raises_on_full_load(tmp_path):
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     _, strand, labels = _build(one)
     p = tmp_path / "g"
-    genome.genome_save(strand, p, the_one=one, labels=labels)
+    genome.genome_save(strand, p, coupling=one, labels=labels)
 
     body_path = p / "turns.bin"
     raw = bytearray(body_path.read_bytes())
@@ -252,10 +259,10 @@ def test_bounding_flipped_body_byte_raises_on_full_load(tmp_path):
 
 
 def test_bounding_flipped_cap_byte_raises_on_window(tmp_path):
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     _, strand, labels = _build(one)
     p = tmp_path / "g"
-    man = genome.genome_save(strand, p, the_one=one, labels=labels)
+    man = genome.genome_save(strand, p, coupling=one, labels=labels)
 
     geo = next(c for c in man["chromosomes"] if c["label"] == "geography")
     body_path = p / "turns.bin"
@@ -274,10 +281,10 @@ def test_bounding_flipped_cap_byte_raises_on_window(tmp_path):
 # ── (6) attested + numpy-free ────────────────────────────────────────────────
 
 def test_manifest_is_a_valid_attested_mpr_record(tmp_path):
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     _, strand, labels = _build(one)
     p = tmp_path / "g"
-    man = genome.genome_save(strand, p, the_one=one, labels=labels)
+    man = genome.genome_save(strand, p, coupling=one, labels=labels)
 
     # the on-disk manifest is a real MPRRecord that passes validate_mpr_record
     payload = json.loads((p / "manifest.json").read_text(encoding="utf-8"))
@@ -317,11 +324,11 @@ def test_numpy_free_load(tmp_path, monkeypatch):
     # block numpy: any `import numpy` inside the persistence path would raise
     monkeypatch.setitem(sys.modules, "numpy", None)
 
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     _, strand, labels = _build(one)
     p = tmp_path / "g"
 
-    man = genome.genome_save(strand, p, the_one=one, labels=labels)
+    man = genome.genome_save(strand, p, coupling=one, labels=labels)
     ls, lo, ll = genome.genome_load(p)
     assert _as_lists(ls) == _as_lists(strand)
 
@@ -331,18 +338,18 @@ def test_numpy_free_load(tmp_path, monkeypatch):
     win = genome.genome_window(p, "astronomy")
     assert _as_lists(win) == _as_lists(strand[1:4])
 
-    new_leaves = [klein4_random(64, seed=s) for s in (40, 41)]
-    man2 = genome.genome_append(p, "biology", new_leaves, the_one=one)
+    new_leaves = [klein4_expand(64, s) for s in (40, 41)]
+    man2 = genome.genome_append(p, "biology", new_leaves, coupling=one)
     assert "biology" in [c["label"] for c in man2["chromosomes"]]
 
 
 # ── invariants the spec calls out explicitly ─────────────────────────────────
 
 def test_subset_load_equals_full_load_for_those_chromosomes(tmp_path):
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     _, strand, labels = _build(one)
     p = tmp_path / "g"
-    genome.genome_save(strand, p, the_one=one, labels=labels)
+    genome.genome_save(strand, p, coupling=one, labels=labels)
 
     full, full_one, full_labels = genome.genome_load(p)
     full_part = _partition_lists(full, full_one, full_labels)
@@ -359,11 +366,11 @@ def test_class_surface_save_load_catalog_append(tmp_path):
     ops (zero user Python — declarative [class] TOML)."""
     from srmech.dsl import make_class
 
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     k, strand, labels = _build(one)
     p = tmp_path / "g"
 
-    g = make_class("Genome")(the_one=one)
+    g = make_class("Genome")(coupling=one)
     man = g.save(strand=strand, path=str(p), labels=labels)
     assert man["leaf_dim"] == 64
 
@@ -373,6 +380,6 @@ def test_class_surface_save_load_catalog_append(tmp_path):
     loaded_strand, loaded_one, loaded_labels = g.load(path=str(p))
     assert _as_lists(loaded_strand) == _as_lists(strand)
 
-    new_leaves = [klein4_random(64, seed=s) for s in (50, 51)]
+    new_leaves = [klein4_expand(64, s) for s in (50, 51)]
     man2 = g.append(path=str(p), label="chemistry", leaves=new_leaves)
     assert "chemistry" in [c["label"] for c in man2["chromosomes"]]

@@ -267,7 +267,7 @@ def _is_numpy_import(line: str) -> bool:
 # + `rbs_lm/inference.py` both drop `import numpy as np`. numpy was only ever an
 # INCIDENTAL deterministic source here (not a correctness oracle): the per-token
 # Klein-4 vector seed (`np.random.default_rng(token_seed)` -> stdlib
-# `klein4_random(D, seed=…)`), the learn-memory subsample (`rng.choice(...,
+# `klein4_expand(D, …)`), the learn-memory subsample (`rng.choice(...,
 # replace=False)` -> `random.Random(seed).sample`), and the infer sampler
 # (`gr.choice(..., p=p)` -> `random.Random(seed).choices(weights=p)`). The encode
 # path now returns the framework-native HV carrier end-to-end and `_softmax`

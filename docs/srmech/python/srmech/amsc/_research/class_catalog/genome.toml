@@ -17,16 +17,16 @@
 name = "Genome"
 kind = "storage"
 doc = """
-A telomere-partitioned genome of chromosomes (F711-F715). Hold the_one (the
+A telomere-partitioned genome of chromosomes (F711-F715). Hold coupling (the
 shared invariant every helix turn is coupled through) and accumulate
 telomere-capped chromosome strands; recall any kernel by its strand + cap.
 The biological-structure names ARE the cascade names — substrate-self-recognition.
 """
 
 # Instance state. A "list*"-typed field defaults to []; others default to None
-# and are supplied at construction (e.g. Genome(the_one=...)).
+# and are supplied at construction (e.g. Genome(coupling=...)).
 [class.field]
-the_one = "hv"            # the held invariant (a Klein-4 vector)
+coupling = "hv"            # the held invariant (a Klein-4 vector)
 chromosomes = "list"      # accumulated telomere-capped strands
 
 # Methods. Each binds to a shipped cascade op by dotted path; `binds` names are
@@ -45,23 +45,23 @@ doc = "Make the telomere content-address cap for a chromosome label."
 
 [class.method.add_chromosome]
 op = "srmech.amsc.genome.chromosome"
-binds = ["leaves", "the_one"]
+binds = ["leaves", "coupling"]
 appends = "chromosomes"
-doc = "Pack a kernel into a telomere-capped chromosome (coupled through the_one) and append it."
+doc = "Pack a kernel into a telomere-capped chromosome (coupled through coupling) and append it."
 
 [class.method.recall]
 op = "srmech.amsc.genome.recall"
-binds = ["strand", "the_one", "telomere"]
-doc = "Recover a kernel's leaves from a chromosome strand (re-bind the_one; skip the cap)."
+binds = ["strand", "coupling", "telomere"]
+doc = "Recover a kernel's leaves from a chromosome strand (re-bind coupling; skip the cap)."
 
 [class.method.assemble]
 op = "srmech.amsc.genome.genome"
-binds = ["kernels", "the_one"]
+binds = ["kernels", "coupling"]
 doc = "Pack many kernels {label: leaves} into ONE telomere-partitioned genome strand (the chromosome set)."
 
 [class.method.partition]
 op = "srmech.amsc.genome.partition"
-binds = ["strand", "the_one", "labels"]
+binds = ["strand", "coupling", "labels"]
 doc = "Recover {label: leaves} from a multi-kernel genome strand by its telomere labels."
 
 # ── UPSTREAM §41 — genome persistence (disk save / load / catalog / append) ──
@@ -72,13 +72,13 @@ doc = "Recover {label: leaves} from a multi-kernel genome strand by its telomere
 
 [class.method.save]
 op = "srmech.amsc.genome.genome_save"
-binds = ["strand", "path", "the_one", "labels"]
-doc = "Persist a genome strand to path/ (turns.bin body + MPR manifest catalog); the_one bound from the field. Returns the manifest dict."
+binds = ["strand", "path", "coupling", "labels"]
+doc = "Persist a genome strand to path/ (turns.bin body + MPR manifest catalog); coupling bound from the field. Returns the manifest dict."
 
 [class.method.load]
 op = "srmech.amsc.genome.genome_load"
 binds = ["path"]
-doc = "Reconstruct (strand, the_one, labels) from path/; labels=None loads all (streamed), else only those chromosomes (paged). Bounded by re-hash."
+doc = "Reconstruct (strand, coupling, labels) from path/; labels=None loads all (streamed), else only those chromosomes (paged). Bounded by re-hash."
 
 [class.method.catalog]
 op = "srmech.amsc.genome.genome_catalog"
@@ -87,5 +87,5 @@ doc = "Read ONLY the manifest catalog at path/ (leaf_dim, per-chromosome cap_sha
 
 [class.method.append]
 op = "srmech.amsc.genome.genome_append"
-binds = ["path", "label", "leaves", "the_one"]
-doc = "Append ONE chromosome to the genome at path/ (the helix grows; append-only body; prior entries unchanged); the_one bound from the field. Returns the updated manifest."
+binds = ["path", "label", "leaves", "coupling"]
+doc = "Append ONE chromosome to the genome at path/ (the helix grows; append-only body; prior entries unchanged); coupling bound from the field. Returns the updated manifest."

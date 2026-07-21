@@ -974,7 +974,7 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
 #     crosstalk overwhelms the signal it returns an HONEST "unrecovered"
 #     verdict, NEVER a silent wrong Poly.
 #
-# Pure orchestration over shipped, already-C-backed ops (klein4_random /
+# Pure orchestration over shipped, already-C-backed ops (klein4_role /
 # klein4_bind / klein4_bundle / klein4_match_count / klein4_similarity +
 # Poly.from_coeffs + fractal_spectrum's own helpers) — adds NO new
 # numerical kernel, so BOTH ship non_compute (the cooccurrence_fold /
@@ -1007,7 +1007,7 @@ _FOLD_BRANCH_SLOT = "branches"
 def _fold_val_token(q: "Q") -> str:
     """Canonical value-token string for an exact-``Q`` coefficient: ``'num/den'``
     (``Q`` keeps ``den > 0``). The token is the cleanup-memory key — a value's
-    Klein-4 code is ``klein4_random`` keyed deterministically by this string, so
+    Klein-4 code is ``klein4_role`` keyed deterministically by this string, so
     the SAME coefficient always maps to the SAME code (the recovery key)."""
     return f"{q.numerator}/{q.denominator}"
 
@@ -1028,7 +1028,7 @@ def fold_encode(R, branches, *, dim, seed=0):
     are folded into a single Klein-4 bundle — a **role-filler record** in the
     shape of :func:`srmech.amsc.hdc.cooccurrence_fold`'s holographic store. Each
     coefficient slot ``c{i}`` (and the ``branches`` slot) gets a deterministic
-    **role** code (:func:`~srmech.amsc.hdc.klein4_random`, seeded by the slot
+    **role** code (:func:`~srmech.amsc.hdc.klein4_role`, keyed by the slot
     name); each distinct coefficient VALUE gets a deterministic **filler** code
     (seeded by its ``'num/den'`` token). The fold is the
     :func:`~srmech.amsc.hdc.klein4_bundle` superposition of the role⊗value binds
@@ -1076,7 +1076,7 @@ def fold_encode(R, branches, *, dim, seed=0):
         ValueError: ``R`` not a Poly / coercible sequence, ``R.degree < 2``,
             ``branches < 2``, or ``dim < 1``.
     """
-    from . import hdc as _hdc                # klein4_random / bind / bundle (M)
+    from . import hdc as _hdc                # klein4_role / bind / bundle (M)
     from .poly import Poly                   # exact-ℚ decimation carrier (lazy)
 
     if not isinstance(R, Poly):
@@ -1099,7 +1099,7 @@ def fold_encode(R, branches, *, dim, seed=0):
 
     # Deterministic per-slot ROLE codes (the binding keys).
     roles = {
-        s: _hdc.klein4_random(dim, seed=_hdc._cooc_token_seed("ROLE:" + s, seed))
+        s: _hdc.klein4_role(dim, "ROLE:" + s, seed)
         for s in slots
     }
 
@@ -1110,7 +1110,7 @@ def fold_encode(R, branches, *, dim, seed=0):
     def code_for(tok: str):
         c = codes.get(tok)
         if c is None:
-            c = _hdc.klein4_random(dim, seed=_hdc._cooc_token_seed("VAL:" + tok, seed))
+            c = _hdc.klein4_role(dim, "VAL:" + tok, seed)
             codes[tok] = c
         return c
 

@@ -974,6 +974,18 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     "srmech.dsl._class_surface.list_class_surface",
     "srmech.dsl._tool_surface.list_catalog_ops",
     "srmech.dsl._tool_surface.list_ops",
+    # rc261 (§95.2 / #1407): the config-driven function-alias binder — pure Python
+    # name-binding (bind a user's name to a srmech.* fn); a bare-C host never aliases
+    # Python functions, so it is a justified dev/LLM affordance (ADR-0004).
+    "srmech.dsl._alias.alias",
+    # rc271 (§96 / F1251): the value-alias PRESENTATION setters — install / clear a
+    # canonical→preferred cap_kind display mapping (e.g. restore the pre-rc271
+    # stick/minted names). Pure Python session-state; a bare-C host emits only the
+    # canonical plasmid/nuclear output and never re-presents it, so these are a
+    # justified dev affordance (the dsl.alias precedent). load_type_aliases_toml is
+    # composes_c (it parses the TOML via the C srmech_toml), not dev_tooling.
+    "srmech.amsc.genome.set_type_aliases",
+    "srmech.amsc.genome.clear_type_aliases",
     # rc183 HOST-GLUE annex (srmech.llm) — 3 LLM-agent affordances a bare-C host
     # never needs. HONEST-DEFAULT: classified dev_tooling pending a user decision
     # on whether to build a C Anthropic agent (a separate C-HTTPS/TLS Messages-API
@@ -1297,8 +1309,10 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.amsc.carrier_ladder.poly_promote",
     "srmech.amsc.carrier_ladder.qpoly_project",
     "srmech.amsc.carrier_ladder.qpoly_promote",
-    "srmech.amsc.cascade.cayley_dickson.cd_project",
-    "srmech.amsc.cascade.cayley_dickson.cd_promote",
+    # cd_project / cd_promote LEFT the zero-reach set in 0.9.0rc263 (#845): they
+    # now build the CD element carrier ``Q`` (was a pure-Python ``Fraction(0)``
+    # pad), and ``Q``'s constructor reaches the c_dispatched rational-reduce
+    # symbol — so they are composes_c WITH C reach now, no longer zero-reach.
     "srmech.amsc.cascade.cayley_dickson.is_division_algebra_dim",
     "srmech.amsc.cascade.compose.top_k_by_score",
     "srmech.amsc.cascade.one.one_dim",

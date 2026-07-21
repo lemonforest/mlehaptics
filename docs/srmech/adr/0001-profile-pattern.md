@@ -1,6 +1,6 @@
 # ADR-0001: The srmech profile pattern — domain-specific extension as configuration
 
-**Status:** Draft (Task #199 design phase; not yet implemented).
+**Status:** ⏳ Draft (Task #199 design phase; not yet implemented).
 **Date:** 2026-05-14.
 **Authors:** Steven Kirkland + Claude Opus 4.7.
 **Supersedes:** none.

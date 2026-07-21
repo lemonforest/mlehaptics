@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 """Dev-time PROBE that executes the central ops with real inputs + captures
-verified input->output, emitting a _tool_docs_curated.py CURATED skeleton.
+verified input->output, refreshing their _tool_docs_curated.py CURATED rows.
 
 NOT the SSoT — the human reviews/edits the emitted file. This just guarantees
 every curated EXAMPLE is a REAL executed result (never hand-typed / fabricated).
 Run:  python tools/gen_curated_probe.py   (from docs/srmech/python)
+
+**MERGES, never clobbers (rc291, #916).** This script used to write the whole
+file from the ``CENTRAL`` list below, which silently deleted every curated
+entry CENTRAL does not mention — the same "generator eats curation" defect
+that #916 tracked in gen_tool_docs.py, but worse, because here the casualty
+is the curation SSoT itself. It now loads the existing CURATED, updates only
+the keys it actually probed, and reports preserved-vs-refreshed counts. A key
+present on disk is never dropped.
 """
 from __future__ import annotations
 import io
@@ -91,12 +99,42 @@ CENTRAL = [
     ("srmech.amsc.cascade.net_chirality", ((), dict(orientations=[1, -1, 1, 1])),
      "Class-C net chirality: the signed product/sum reduction of a sequence of "
      "per-step orientations into the one net which-way handedness."),
+    # The auto-seed probes fold_marks with 'abc', which round-trips unchanged
+    # and so demonstrates nothing. Probe it with the Devanagari case instead:
+    # the virama and the vowel sign are BOTH marks, which is the whole reason
+    # the op is fold_marks and not fold_accents.
+    ("srmech.amsc.text.fold_marks", ((), dict(text="क्षि")),
+     "Drop combining marks by Unicode CATEGORY — Mn/Mc/Me and nothing else "
+     "(Class B/G text-framing; §106/F1258; rc293). The name is the contract: a "
+     "VIRAMA is a mark, not an accent, so `fold_accents` would have been wrong "
+     "in exactly the Indic cases that matter most while quietly re-scoping the "
+     "op toward Latin. Category only — no case change, no locale tailoring, no "
+     "NFKD/compatibility folding, no ligature expansion — so 'ø' and the OHM "
+     "SIGN are unchanged and Hangul is unchanged in either normalization form. "
+     "Needs NO normalizer: precomposed characters are handled by the vendored "
+     "table's replacement rows and decomposed sequences by its drop rows, so "
+     "the same marks fall out whichever form is supplied. Idempotent. A "
+     "SEPARATE op, not a glyph_stream mode — folding is lossy and glyph_stream "
+     "is contractually lossless; compose as glyph_stream(fold_marks(s))."),
 ]
 
 
 def _rs(v):
     r = repr(v)
     return r if len(r) <= 200 else r[:197] + "..."
+
+
+def merge_curated(existing, probed):
+    """``existing`` curation with ``probed`` rows laid OVER it, per field.
+
+    The whole point is what it does NOT do: no key in ``existing`` is ever
+    dropped because ``probed`` (i.e. ``CENTRAL``) fails to mention it. That
+    wholesale-rebuild was the rc291 #916 defect on this side.
+    """
+    merged = {k: dict(v) for k, v in existing.items()}
+    for name, entry in probed.items():
+        merged.setdefault(name, {}).update(entry)
+    return merged
 
 
 def main():
@@ -118,21 +156,40 @@ def main():
         except Exception as e:  # noqa: BLE001
             print(f"SKIP {name}: {type(e).__name__}: {e}")
     import json
+    # MERGE over the existing curation — never rebuild the file from CENTRAL
+    # alone (rc291 #916). CENTRAL is a probe list, not the curation SSoT: most
+    # curated entries (the genome / plasmid / text explanations) are not in it
+    # and a wholesale rewrite would delete every one of them.
+    try:
+        from srmech.amsc._tool_docs_curated import CURATED as _existing
+    except Exception:  # noqa: BLE001 — first run / syntactically broken file
+        _existing = {}
+    merged = merge_curated(_existing, out)
+    preserved = sorted(set(merged) - set(out))
+
     lines = ['"""_tool_docs_curated.py — HAND-CURATED introspection docs for the',
              "central ops (rc240 #838). Merged OVER the docstring-seeded floor by",
              "tools/gen_tool_docs.py (curation wins). Every EXAMPLE here is a REAL",
-             'executed result (probed by tools/gen_curated_probe.py), never typed."""',
+             "executed result (probed by tools/gen_curated_probe.py), never typed.",
+             "",
+             "THIS is the file to hand-edit. ``_tool_docs.py`` is GENERATED —",
+             "text written there is destroyed by the next tools/gen_tool_docs.py",
+             "run, which is what happened to the genome/plasmid explanations",
+             "between rc274 and rc290 (rc291 migrated them here). The generator",
+             "now refuses to write when it would clobber prose it cannot",
+             're-derive from a docstring, so that failure mode is loud."""',
              "from __future__ import annotations", "",
              "from typing import Any, Dict", "",
              "CURATED: Dict[str, Dict[str, Any]] = {"]
-    for name in sorted(out):
+    for name in sorted(merged):
         lines.append(f"    {json.dumps(name)}: "
-                     f"{json.dumps(out[name], sort_keys=True, ensure_ascii=False)},")
+                     f"{json.dumps(merged[name], sort_keys=True, ensure_ascii=False)},")
     lines.append("}")
     lines.append("")
     dest = Path(__file__).resolve().parent.parent / "srmech" / "amsc" / "_tool_docs_curated.py"
     dest.write_text("\n".join(lines), encoding="utf-8", newline="\n")
-    print(f"\nwrote {dest} — {len(out)} curated entries")
+    print(f"\nwrote {dest} — {len(merged)} curated entries "
+          f"({len(out)} refreshed by this probe, {len(preserved)} preserved)")
 
 
 if __name__ == "__main__":

@@ -51,7 +51,7 @@ def test_phase_key_rejects_bad_args():
 
 def test_phase_similarity_is_exact_rational_law():
     D = 1000
-    h = hdc.klein4_random(D, seed=42)
+    h = hdc.klein4_expand(D, 42)
     base = hdc.klein4_phase_bind(h, 0.0)
     cases = {0.0: Q(1, 1), 0.25: Q(1, 2), 0.5: Q(0, 1),
              0.9: Q(4, 5), 0.1: Q(4, 5), 0.75: Q(1, 2)}
@@ -63,14 +63,14 @@ def test_phase_similarity_is_exact_rational_law():
 
 
 def test_phase_bind_is_reversible():
-    h = hdc.klein4_random(256, seed=7)
+    h = hdc.klein4_expand(256, 7)
     pb = hdc.klein4_phase_bind(h, 0.3)
     back = hdc.klein4_phase_bind(pb, 0.3)        # same key twice = identity
     assert bytes(back.buffer) == bytes(h.buffer)
 
 
 def test_phase_sigma_mirror():
-    h = hdc.klein4_random(800, seed=11)
+    h = hdc.klein4_expand(800, 11)
     base = hdc.klein4_phase_bind(h, 0.0)
     sp = hdc.klein4_similarity(base, hdc.klein4_phase_bind(h, 0.2))
     sm = hdc.klein4_similarity(base, hdc.klein4_phase_bind(h, -0.2))

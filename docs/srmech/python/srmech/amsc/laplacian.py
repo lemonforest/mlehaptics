@@ -100,7 +100,7 @@ import os  # §52 Part 2: disk-backed work queue + tome files for the out-of-cor
 import struct  # §52 Part 2: pack/unpack the on-disk edge records for the out-of-core Fiedler
 import tempfile  # §52 Part 2: default scratch dir for recursive_cut
 from array import array  # §564: numpy-free 2-D Mat carrier buffer (interleaved-complex)
-from fractions import Fraction  # §26: exact-rational interior solve (Class-N), no float
+from srmech.amsc.q import Q, to_q  # §26: exact-rational interior solve (Class-N), no float
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from srmech.amsc.rational import sqrt as _rsqrt  # §22: scalar root via Class-N, not libm
@@ -173,6 +173,11 @@ from .mat import Mat  # §564: the numpy-free 2-D carrier the mat_* engine retur
 from .vec import Vec  # rc129: the numpy-free 1-D carrier (vectors / eigenvalues)
 
 from . import _native
+
+# §101 (rc275) progress-event mirrors — shared by the pure + native tick paths so
+# the emitted dict is byte-identical across them (the C↔Python parity contract).
+_PROGRESS_STRUCT_SIZE = _native.PROGRESS_STRUCT_SIZE
+_PHASE_PARTITIONING = _native.SRMECH_PHASE_PARTITIONING
 
 __all__ = [
     "dense_adjacency",
@@ -776,7 +781,7 @@ def jacobi_eigvals(
       an integer/rational SYMMETRIC matrix: a non-symmetric integer matrix
       can have complex eigenvalues that the real-root ``eigvals_exact``
       returns incompletely.) The spectrum then stays exact — char-poly
-      Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Fraction``
+      Faddeev–LeVerrier → Yun square-free → Sturm isolation → ``Q``
       bisection — until the single terminal float lift (the rotation-last
       "exact-substrate-achievable" case). The return is the same contract as
       the float path: a 1-D :class:`~srmech.amsc.vec.Vec` of ``n`` ascending
@@ -851,7 +856,7 @@ def _validate_boundary(n: int, boundary_idx: Sequence[int]) -> Tuple[List[int], 
     return b, i
 
 
-def _solve_exact(A: List[list], B: List[list]) -> List[List[Fraction]]:
+def _solve_exact(A: List[list], B: List[list]) -> List[List[Q]]:
     """Exact-rational solve of ``A · X = B`` over the rationals — Gauss–Jordan
     elimination in :class:`fractions.Fraction` (the Class-N exact-rational
     primitive; division here is exact, never a float reciprocal — F392). ``A``
@@ -862,7 +867,7 @@ def _solve_exact(A: List[list], B: List[list]) -> List[List[Fraction]]:
     m = len(A)
     w = len(B[0]) if B else 0
     # Augmented [A | B] in exact rationals.
-    M = [[Fraction(A[r][c]) for c in range(m)] + [Fraction(B[r][c]) for c in range(w)]
+    M = [[to_q(A[r][c]) for c in range(m)] + [to_q(B[r][c]) for c in range(w)]
          for r in range(m)]
     for col in range(m):
         pivot = None
@@ -921,12 +926,12 @@ def dense_solve(A, B, *, exact: bool = False):
 
     With ``exact=True`` the solve is **exact-rational** Gauss–Jordan in
     :class:`fractions.Fraction` (the Class-N core — division is exact, never a
-    float reciprocal, F392) and ``X`` is ``list[list[Fraction]]`` (or
-    ``list[Fraction]`` for a vector RHS) — the exact path keeps the rational
+    float reciprocal, F392) and ``X`` is ``list[list[Q]]`` (or
+    ``list[Q]`` for a vector RHS) — the exact path keeps the rational
     leaves. With ``exact=False`` (the default) the float realization rides the
     numpy-free Mat engine (:func:`mat_solve` — native ``srmech_dense_solve_f64_ws``
     Gauss–Jordan with partial pivoting, the Class-K magnitude pivot — a sign
-    branch, not ``abs()``; else srmech's own exact Fraction fallback coerced to
+    branch, not ``abs()``; else srmech's own exact Q fallback coerced to
     float). The float ``X`` is returned in the numpy-free **carrier** (rc131):
     a :class:`~srmech.amsc.mat.Mat` for a matrix RHS (``.shape`` + ``m[i, j]``)
     or a 1-D :class:`~srmech.amsc.vec.Vec` for a vector RHS (``.shape == (n,)``
@@ -954,7 +959,7 @@ def dense_solve(A, B, *, exact: bool = False):
     is_vec, B_rows = _as_solve_rhs(B, n)
 
     if exact:
-        X = _solve_exact(A_rows, B_rows)  # exact Fraction Gauss–Jordan (Class-N)
+        X = _solve_exact(A_rows, B_rows)  # exact Q Gauss–Jordan (Class-N)
         return [row[0] for row in X] if is_vec else X
 
     # Float realization — the numpy-FREE Mat engine (§564). A complex system is
@@ -1040,7 +1045,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     (conjugate) → Class K (``1/‖·‖²``); no ``abs()``. With ``exact=True`` the
     solve is **exact-rational** Gauss–Jordan elimination in
     :class:`fractions.Fraction` (the Class-N rational core — division is exact,
-    never a float reciprocal) and ``S`` is returned as ``list[list[Fraction]]``.
+    never a float reciprocal) and ``S`` is returned as ``list[list[Q]]``.
     With ``exact=False`` (the default) the float realization rides the numpy-free
     Mat engine (:func:`dense_solve` → :func:`mat_solve`) and ``S`` is returned in
     the numpy-free **carrier** — a ``|∂|×|∂|`` :class:`~srmech.amsc.mat.Mat`
@@ -1058,13 +1063,13 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
         The boundary node indices ``∂``; ``1 ≤ |∂| ≤ n``, no duplicates.
     exact : bool, default ``False``
         Force the exact-rational :class:`~fractions.Fraction` solve (returns
-        ``list[list[Fraction]]``).
+        ``list[list[Q]]``).
 
     Returns
     -------
     S : ``|∂|×|∂|`` boundary effective operator
         a real :class:`~srmech.amsc.mat.Mat` (float path) or
-        ``list[list[Fraction]]`` (exact path).
+        ``list[list[Q]]`` (exact path).
 
     Raises
     ------
@@ -1097,7 +1102,7 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     if not i:
         # No interior to integrate out — the boundary IS the whole space.
         if exact:
-            return [[Fraction(v) for v in r] for r in L_pp]
+            return [[to_q(v) for v in r] for r in L_pp]
         return Mat.from_rows([[float(v) for v in r] for r in L_pp], is_complex=False)
 
     L_pi = _block(b, i)  # L_∂i
@@ -1107,12 +1112,12 @@ def schur_complement(L, boundary_idx: Sequence[int], *, exact: bool = False):
     if exact:
         # Interior solve L_ii · X = L_i∂ (X is |i|×|∂|) via the Class-L
         # dense_solve primitive — exact-rational Gauss–Jordan (Class-N).
-        X = dense_solve(L_ii, L_ip, exact=True)  # list[list[Fraction]]
-        # S = L_∂∂ − L_∂i · X  (all exact Fraction).
+        X = dense_solve(L_ii, L_ip, exact=True)  # list[list[Q]]
+        # S = L_∂∂ − L_∂i · X  (all exact Q).
         S = [
             [
-                Fraction(L_pp[a][c])
-                - sum(Fraction(L_pi[a][k]) * X[k][c] for k in range(len(i)))
+                to_q(L_pp[a][c])
+                - sum(to_q(L_pi[a][k]) * X[k][c] for k in range(len(i)))
                 for c in range(len(b))
             ]
             for a in range(len(b))
@@ -1142,7 +1147,7 @@ def dirichlet_to_neumann(L, boundary_idx: Sequence[int], *, exact: bool = False)
     boundary values, ``S`` returns the boundary normal-derivative of their
     harmonic extension into the interior. Returns the same carrier as
     :func:`schur_complement`: a real :class:`~srmech.amsc.mat.Mat` (float path)
-    or ``list[list[Fraction]]`` (``exact=True``)."""
+    or ``list[list[Q]]`` (``exact=True``)."""
     return schur_complement(L, boundary_idx, exact=exact)
 
 
@@ -1418,7 +1423,7 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     bound is the caller's RAM. Native is authoritative when present (a singular
     ``A`` → ``SRMECH_ERR_BAD_INPUT`` → ``ZeroDivisionError``); with **no native
     lib** the complete alternative is srmech's own **exact-rational Gauss–Jordan**
-    (:func:`_solve_exact`, Class-N ``Fraction`` division, numpy-free) coerced to
+    (:func:`_solve_exact`, Class-N ``Q`` division, numpy-free) coerced to
     float64 — itself uncapped, so the op is unconditionally numpy-free either way.
 
     ``srmech_dense_solve_f64_ws`` is **real-f64 only**; a complex `Mat` (rc95)
@@ -1483,7 +1488,7 @@ def mat_solve(a: "Mat", b: "Mat") -> "Mat":
     # No native lib (pure wheel / Pyodide): srmech's own exact-rational
     # Gauss–Jordan (Class-N) is the COMPLETE alternative implementation, not a
     # fallback rescue — it is the no-C host's only solve and is uncapped too.
-    X = _solve_exact(a.tolist(), b.tolist())  # list[list[Fraction]]; raises if singular
+    X = _solve_exact(a.tolist(), b.tolist())  # list[list[Q]]; raises if singular
     return Mat.from_rows([[float(x) for x in row] for row in X])
 
 
@@ -1796,6 +1801,82 @@ def _eig2x2(aa: complex, bb: complex, cc: complex, dd: complex) -> Tuple[complex
     return (tr + disc) / 2.0, (tr - disc) / 2.0
 
 
+def _cmax_component(z: complex) -> float:
+    """``max(|Re z|, |Im z|)`` — a magnitude PROXY that needs no square root, so
+    it is exact at every scale. Sign is a **Class-K** pin-slot with **Class-C**
+    re-application (never a bare ``abs()``)."""
+    r = z.real if z.real >= 0.0 else -z.real
+    i = z.imag if z.imag >= 0.0 else -z.imag
+    return r if r >= i else i
+
+
+# Below this fraction of the (scaled, O(1)) column norm, ``x0``'s phase is taken
+# as real rather than as ``x0/|x0|``. The window is bounded on BOTH sides:
+#
+#  * ABOVE it, ``_fhypot`` must be accurate enough that ``x0/_fhypot(x0)`` is a
+#    unit phase — measured relative error is 1.1e-13 at 1e-4 but 5.3e-10 at
+#    1e-8, and any error there lands directly on ``|α| = ‖x‖``;
+#  * BELOW it, the real branch must not cancel in ``v[0] = x0 − α``. With
+#    ``α = −‖x‖`` that is ``v[0] = x0 + ‖x‖``, which cancels only if ``x0`` is
+#    real-NEGATIVE and comparable to ``‖x‖`` — impossible once ``|x0|`` is
+#    capped at this fraction of it, giving ``|v[0]| ≥ (1 − 1e-4)·‖x‖``.
+_HOUSEHOLDER_PHASE_REL = 1e-4
+
+
+def _householder_reflector(x: List[complex]):
+    """Householder reflector ``P = I − β·v·vᴴ`` with ``P·x = α·e₁``, returned as
+    ``(v, β)`` — or ``None`` when there is nothing to annihilate.
+
+    **Scale-invariance is a CORRECTNESS requirement here (rc285), not a nicety.**
+    ``P`` is invariant under ``v → v/c``, so the vector is first divided by its
+    largest component magnitude, putting every entry at ``O(1)``. That matters
+    because ``_fhypot`` is a **bounded-denominator Class-N rational cascade**,
+    not libm's ``hypot``: it carries ≈ −2e−5 relative error at ``1e-12`` and
+    returns **exactly 0.0** below ≈ ``1e-17``. So for a small ``x0`` the phase
+    ``x0 / _fhypot(x0)`` is **not** a unit complex number — measured 1.25 for
+    ``x0 = 6.9e-17`` — which makes ``|α| ≠ ‖x‖``, and then ``P`` is not a
+    reflector at all. In :func:`_hessenberg_complex` that silently turned the
+    reduction into a NON-similarity: 1.6e-1 asymmetry from a symmetric input and
+    1.4e-2 of spectral drift on an 11-vertex broom graph. Scaling to ``O(1)``
+    first keeps every ``_fhypot`` call inside its accurate range.
+
+    Canonical SSoT: Golub & Van Loan §5.1.3 (Householder vectors, and the
+    standard practice of scaling ``x`` before forming them).
+    """
+    scale = 0.0
+    for z in x:
+        c = _cmax_component(z)                       # exact at every magnitude
+        if c > scale:
+            scale = c
+    if scale == 0.0:
+        return None                                  # x is the zero vector
+    xs = [z / scale for z in x]                      # every entry now O(1)
+    normx2 = 0.0
+    for z in xs:
+        normx2 += (z.conjugate() * z).real
+    if normx2 <= 0.0:
+        return None
+    normx = _fsqrt(normx2)                           # Class-N ‖x‖
+    x0 = xs[0]
+    modx0 = _fhypot(x0.real, x0.imag)                # Class-K magnitude (no abs())
+    # The phase exists ONLY to keep v[0] = x0 − α away from cancellation. When
+    # |x0| is negligible against ‖x‖ there is no cancellation to avoid and x0's
+    # phase is noise, so the real branch is both safe and better conditioned.
+    if modx0 > _HOUSEHOLDER_PHASE_REL * normx:
+        phase = x0 / modx0
+    else:
+        phase = complex(1.0, 0.0)
+    alpha = -phase * normx                           # Class-K pin-slot phase
+    v = list(xs)
+    v[0] = v[0] - alpha
+    vhv = 0.0
+    for z in v:
+        vhv += (z.conjugate() * z).real
+    if vhv == 0.0:
+        return None
+    return v, 2.0 / vhv                              # Class-N 1/(vᴴv) scale
+
+
 def _qr_complex_list(
     rows: List[List[complex]],
 ) -> Tuple[List[List[complex]], List[List[complex]]]:
@@ -1809,24 +1890,13 @@ def _qr_complex_list(
     R = [[complex(rows[i][j]) for j in range(m)] for i in range(m)]
     Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     for k in range(m):
-        normx2 = 0.0
-        for i in range(k, m):
-            normx2 += (R[i][k].conjugate() * R[i][k]).real
-        if normx2 <= 0.0:
+        # rc285: the reflector is built by the SCALE-INVARIANT
+        # :func:`_householder_reflector` — see its docstring for why dividing by
+        # ``_fhypot(x0)`` unscaled does not yield a unit phase.
+        refl = _householder_reflector([R[i][k] for i in range(k, m)])
+        if refl is None:
             continue
-        normx = _fsqrt(normx2)                       # Class-N ‖x‖
-        x0 = R[k][k]
-        modx0 = _fhypot(x0.real, x0.imag)
-        phase = (x0 / modx0) if modx0 > 0.0 else complex(1.0, 0.0)
-        alpha = -phase * normx                       # Class-K pin-slot phase
-        v = [R[i][k] for i in range(k, m)]
-        v[0] = v[0] - alpha
-        vhv = 0.0
-        for vi in v:
-            vhv += (vi.conjugate() * vi).real
-        if vhv == 0.0:
-            continue
-        beta = 2.0 / vhv                             # Class-N 1/(vᴴv) scale
+        v, beta = refl
         for j in range(m):                           # R ← (I − β v vᴴ) R
             s = 0j
             for idx, i in enumerate(range(k, m)):
@@ -1911,6 +1981,69 @@ def _balance_radix2(H: List[List[complex]]) -> List[List[complex]]:
     return H
 
 
+def _hessenberg_complex(A: List[List[complex]]) -> List[List[complex]]:
+    """Unitary reduction of a square ``complex`` matrix to **upper-Hessenberg**
+    form ``P·A·Pᴴ`` by Householder reflectors — the step :func:`mat_eigvals`
+    was missing (rc285; issue #1440).
+
+    **Why the shifted-QR sweep cannot skip this.** The sweep's deflation test
+    inspects the single subdiagonal entry ``H[m-1][m-2]`` and, when it is
+    negligible, accepts ``H[m-1][m-1]`` as a converged eigenvalue. That test is
+    sound **only for an upper-Hessenberg matrix**, where the sub-subdiagonal is
+    structurally zero and so ``H[m-1][m-2]`` is the *whole* of the last row
+    below the diagonal. On a matrix that was never reduced, the last row can
+    hold large entries at ``H[m-1][j]`` for ``j < m-2`` while ``H[m-1][m-2]``
+    is exactly 0, and the sweep then deflates a NON-eigenvalue and continues on
+    the wrong leading block. That is precisely a sparse graph Laplacian whose
+    last two vertices are non-adjacent — a star (every pair of leaves), and
+    equally many paths / trees / forests under an unlucky vertex labelling.
+
+    Each reflector ``P_k = I − β·v·vᴴ`` annihilates column ``k`` below the
+    subdiagonal. ``P_k`` is Hermitian AND unitary (an involution), so the
+    two-sided application ``A ← P_k·A·P_k`` is a **similarity** — the
+    eigenvalue multiset is invariant, exactly as for the :func:`_balance_radix2`
+    diagonal similarity that precedes it. The reflector phase is a **Class-K**
+    pin-slot (no bare ``abs()``); the annihilated entries are pinned to exact
+    zero rather than left at round-off, so the Hessenberg structure the
+    deflation test relies on is a structural fact, not a tolerance.
+
+    Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
+    Hopkins, 2013) §7.4.3 (Householder reduction to Hessenberg form) — the
+    prerequisite §7.5's practical shifted-QR algorithm assumes throughout.
+    """
+    n = len(A)
+    H = [[complex(A[i][j]) for j in range(n)] for i in range(n)]
+    for k in range(n - 2):
+        # The reflector is built by the SCALE-INVARIANT
+        # :func:`_householder_reflector`. Building it from the UNSCALED column
+        # is what made this reduction stop being a similarity: see that
+        # function's docstring for the ``_fhypot`` phase defect and the measured
+        # 1.4e-2 spectral drift it caused.
+        refl = _householder_reflector([H[i][k] for i in range(k + 1, n)])
+        if refl is None:                               # column already reduced
+            for i in range(k + 2, n):
+                H[i][k] = 0j                           # Class-K pin-slot at zero
+            continue
+        v, beta = refl
+        for j in range(n):                             # LEFT: H ← (I − β v vᴴ)·H
+            s = 0j
+            for idx, i in enumerate(range(k + 1, n)):
+                s += v[idx].conjugate() * H[i][j]
+            s *= beta
+            for idx, i in enumerate(range(k + 1, n)):
+                H[i][j] -= v[idx] * s
+        for i in range(n):                             # RIGHT: H ← H·(I − β v vᴴ)
+            s = 0j
+            for idx, j in enumerate(range(k + 1, n)):
+                s += H[i][j] * v[idx]
+            s *= beta
+            for idx, j in enumerate(range(k + 1, n)):
+                H[i][j] -= s * v[idx].conjugate()
+        for i in range(k + 2, n):                      # Class-K pin-slot at zero:
+            H[i][k] = 0j                               # structural, not tolerance
+    return H
+
+
 def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     """Eigenvalue MULTISET of a general (non-Hermitian) square matrix over the
     :class:`~srmech.amsc.mat.Mat` carrier — foundation op #4 of the numpy-CARRIER
@@ -1940,10 +2073,59 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
       for badly-scaled input (a lopsided row/col-norm split otherwise loses digits
       in the QR iteration). The shifted-QR step below is unchanged.
 
+    * **Hessenberg reduction (rc285; issue #1440).** After balancing and before
+      the QR sweep, ``H`` is reduced to upper-Hessenberg form by
+      :func:`_hessenberg_complex` — a two-sided Householder similarity
+      ``P·H·Pᴴ``, so the multiset is again invariant. This is a **correctness**
+      prerequisite, not a speed-up: the sweep's deflation test reads only the
+      subdiagonal ``H[m-1][m-2]``, which is the whole of the last row below the
+      diagonal ONLY in Hessenberg form. Before rc285 the reduction was absent,
+      so any matrix with ``H[m-1][m-2] == 0`` but a non-negligible ``H[m-1][j]``
+      for ``j < m-2`` deflated a NON-eigenvalue and then solved the wrong
+      leading block. Every graph Laplacian whose last two vertices are
+      non-adjacent has exactly that shape — every star (its leaves are pairwise
+      non-adjacent), and any path / tree / forest under an unlucky labelling —
+      so ``mat_eigvals`` returned a spectrum with the correct trace and correct
+      interior but a wrong extreme pair, violating the ``λ_min == 0`` Laplacian
+      invariant.
+
+    * **Active-block QR step (rc285).** Each shifted step is applied to
+      ``H[lo:m, lo:m]`` — the trailing UNREDUCED block — after every negligible
+      subdiagonal has been pinned to exact zero. A pinned zero splits the
+      Hessenberg matrix, and the spectrum is then the union of the blocks'
+      spectra, so the off-diagonal blocks need no update when only eigenvalues
+      are wanted. Applying a step whose Wilkinson shift was chosen from the
+      BOTTOM corner across an already-split leading block degrades that block's
+      eigenvalues sweep after sweep. **This is hardening, not the #1440 bug:**
+      over the ratchet's 230 (graph × relabelling) cases the split fires in 181,
+      and forcing ``lo = 0`` with everything else at rc285 still leaves 229 of
+      230 correct (the straggler drifts to 6.5e-9, against 3.9e-14 with the
+      split respected).
+
+    * **Scale-invariant Householder reflectors (rc285).** Both this path's
+      reduction and its per-step ``{QR}`` build reflectors through
+      :func:`_householder_reflector`, which divides the column by its largest
+      component magnitude first. ``_fhypot`` is a bounded-denominator Class-N
+      rational cascade, not libm ``hypot`` — it returns exactly ``0.0`` below
+      ≈``1e-17`` — so an unscaled ``x0 / _fhypot(x0)`` is not a unit phase for a
+      small ``x0``, and the "reflector" built from it is not a reflector. That
+      turned the reduction into a NON-similarity (1.6e-1 asymmetry from a
+      symmetric input, 1.4e-2 of spectral drift on an 11-vertex broom graph).
+      ``cascade.matrix_cascades.qr`` carried the same unsafe division and is
+      fixed with it; every other ``_fhypot`` use in the package is a comparison
+      or a magnitude readout, where snapping a sub-1e-17 value to zero is
+      benign. **Division is the only unsafe consumption of ``_fhypot``.**
+
+      All of the above are ratcheted by
+      ``test_laplacian_kernel_invariant_rc285.py``, whose ``λ_min == 0`` /
+      relabelling-invariance properties hold over EVERY shipped eigensolver,
+      not just this one.
+
     Canonical SSoT: Golub & Van Loan, *Matrix Computations* (4th ed., Johns
-    Hopkins, 2013) §7.5 (the practical QR algorithm with Wilkinson shifts) +
-    §7.5.1 (balancing); Parlett & Reinsch, "Balancing a matrix for calculation of
-    eigenvalues and eigenvectors", *Numer. Math.* **13** (1969) 293–304.
+    Hopkins, 2013) §7.4.3 (Householder reduction to Hessenberg form) + §7.5 (the
+    practical QR algorithm with Wilkinson shifts) + §7.5.1 (balancing); Parlett &
+    Reinsch, "Balancing a matrix for calculation of eigenvalues and
+    eigenvectors", *Numer. Math.* **13** (1969) 293–304.
     """
     from .mat import Mat
     assert isinstance(a, Mat), (
@@ -1963,6 +2145,15 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     # similarity, so the multiset is UNCHANGED for well-scaled input and MORE
     # ACCURATE for badly-scaled input. (Parlett & Reinsch 1969; G&VL §7.5.1.)
     H = _balance_radix2(H)
+    # Householder reduction to upper-HESSENBERG form (rc285, issue #1440) — a
+    # unitary similarity P·H·Pᴴ, so the multiset is invariant. This is what makes
+    # the deflation test below (which reads ONLY the subdiagonal H[m-1][m-2])
+    # SOUND: on a Hessenberg matrix the subdiagonal IS the whole of the last row
+    # below the diagonal. Without it, a matrix with H[m-1][m-2] == 0 but a
+    # non-negligible H[m-1][j], j < m-2 — every sparse Laplacian whose last two
+    # vertices are non-adjacent, e.g. any star's two leaves — deflates a
+    # NON-eigenvalue and then solves the wrong leading block. (G&VL §7.4.3.)
+    H = _hessenberg_complex(H)
     eigs: List[complex] = []
     m = n
     sweeps = 0
@@ -1972,8 +2163,15 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
         if m == 1:
             eigs.append(H[0][0])                      # Class-L: last eigenvalue
             break
-        scale = _modulus_c(H[m - 2][m - 2]) + _modulus_c(H[m - 1][m - 1])
-        if _modulus_c(H[m - 1][m - 2]) <= _MAT_EIG_DEFLATE_TOL * (scale + 1e-300):
+        # Negligible-subdiagonal PIN (rc285). Any subdiagonal small against its
+        # two diagonal neighbours is pinned to EXACT zero — a Class-K pin-slot,
+        # not a tolerance carried forward. Every such zero SPLITS the Hessenberg
+        # matrix into independent diagonal blocks whose spectra are disjoint.
+        for i in range(1, m):
+            nbr = _modulus_c(H[i - 1][i - 1]) + _modulus_c(H[i][i])
+            if _modulus_c(H[i][i - 1]) <= _MAT_EIG_DEFLATE_TOL * (nbr + 1e-300):
+                H[i][i - 1] = 0j                      # Class-K pin-slot at zero
+        if H[m - 1][m - 2] == 0j:
             eigs.append(H[m - 1][m - 1])              # Class-L: deflate eigenvalue
             m -= 1
             it = 0                                    # new deflation-target: reset stall
@@ -1983,6 +2181,40 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
             eigs.append(lam1)
             eigs.append(lam2)
             break
+        # ACTIVE-BLOCK search (rc285). ``lo`` is the first row of the trailing
+        # UNREDUCED block: scan up from m-1 while the subdiagonal is non-zero.
+        # The QR step below is applied to H[lo:m, lo:m] ALONE.
+        #
+        # WHY: the Wilkinson shift μ is chosen from the trailing 2×2, i.e. tuned
+        # to the BOTTOM block. Before rc285 a step with that shift was applied
+        # to the whole leading block, pushing a shift wrong for the top block
+        # through already-split rows. Because H[lo][lo-1] is EXACTLY zero the
+        # matrix is block upper-triangular there, so the spectrum is the union
+        # of the blocks' spectra and the off-diagonal blocks need no update when
+        # only eigenvalues are wanted. (Golub & Van Loan §7.5.2, the "Francis QR
+        # step applied to the active submatrix" structure.)
+        #
+        # HONEST SCOPE — this is hardening, not the #1440 bug. Measured over the
+        # ratchet's 230 (graph × relabelling) cases: the split fires (lo > 0) in
+        # 181, and forcing lo = 0 with everything else at rc285 leaves 229 of
+        # 230 still correct, the one straggler drifting to 6.5e-9 (against
+        # 3.9e-14 with the split respected). So it buys real accuracy and is the
+        # textbook structure, but it is NOT what produced the wrong star
+        # spectrum — the missing Hessenberg reduction was — and it is NOT what
+        # produced the 1.4e-2 broom drift, which was the non-unit reflector
+        # phase (see :func:`_householder_reflector`).
+        lo = m - 1
+        while lo > 0 and H[lo][lo - 1] != 0j:
+            lo -= 1
+        if m - lo == 2:                               # active block is 2×2 exactly
+            lam1, lam2 = _eig2x2(
+                H[lo][lo], H[lo][lo + 1], H[lo + 1][lo], H[lo + 1][lo + 1]
+            )
+            eigs.append(lam1)
+            eigs.append(lam2)
+            m = lo
+            it = 0
+            continue
         # Shift selection. The plain Wilkinson μ is the trailing-2×2 eigenvalue
         # closest to H[m-1][m-1]. BUT on a cyclic-permutation / companion block the
         # trailing 2×2 is [[0,0],[1,0]] → both roots 0 → μ=0 → an UNSHIFTED step,
@@ -1995,7 +2227,7 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
         # bare ``abs()`` per the cascade-honesty rule.
         if it == 10 or it == 20:
             mu = _modulus_c(H[m - 1][m - 2])          # EISPACK exceptional shift
-            if m - 3 >= 0:
+            if m - 3 >= lo:
                 mu += _modulus_c(H[m - 2][m - 3])
             mu = complex(mu, 0.0)                     # Class-C real ad-hoc shift
         else:
@@ -2004,16 +2236,22 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
             )
             dd = H[m - 1][m - 1]
             mu = lam1 if _modulus_c(lam1 - dd) < _modulus_c(lam2 - dd) else lam2
-        # QR of the leading m×m block minus μI; then H[:m,:m] ← R·Q + μI, the RQ
-        # contraction routed through the native Mat-carrier mat_matmul (Class K).
-        sub = [[H[i][j] - (mu if i == j else 0j) for j in range(m)] for i in range(m)]
+        # QR of the ACTIVE block H[lo:m, lo:m] minus μI; then that block
+        # ← R·Q + μI, the RQ contraction routed through the native Mat-carrier
+        # mat_matmul (Class K). Rows/cols outside [lo, m) are untouched — the
+        # exact zero at H[lo][lo-1] makes them a separate spectral block.
+        k = m - lo
+        sub = [
+            [H[lo + i][lo + j] - (mu if i == j else 0j) for j in range(k)]
+            for i in range(k)
+        ]
         Q, R = _qr_complex_list(sub)                  # {QR} numpy-free
         rq = mat_matmul(
             Mat.from_rows(R, is_complex=True), Mat.from_rows(Q, is_complex=True)
         )
-        for i in range(m):
-            for j in range(m):
-                H[i][j] = complex(rq[i, j]) + (mu if i == j else 0j)
+        for i in range(k):
+            for j in range(k):
+                H[lo + i][lo + j] = complex(rq[i, j]) + (mu if i == j else 0j)
         sweeps += 1
         it += 1
         if sweeps > sweep_ceiling:                    # genuine non-convergence:
@@ -3213,19 +3451,22 @@ def klein4_relational_structure(
     }
 
 
-def _to_fraction(c) -> Fraction:
-    """Coerce a charge (turns) to an exact :class:`~fractions.Fraction`. Accepts
-    an ``int`` / ``Fraction`` / a ``numbers.Rational`` carrier (e.g. srmech
-    ``Q``) exactly; a ``float`` is projected via ``Fraction(x).limit_denominator``
-    (dyadic floats like 0.25 stay exact — ``Fraction(0.25) == 1/4``)."""
-    import numbers
-    if isinstance(c, Fraction):
-        return c
-    if isinstance(c, int) and not isinstance(c, bool):
-        return Fraction(c)
-    if isinstance(c, numbers.Rational):
-        return Fraction(int(c.numerator), int(c.denominator))
-    return Fraction(float(c)).limit_denominator(10 ** 12)
+def _to_fraction(c) -> Q:
+    """Coerce a charge (turns) to an exact :class:`~srmech.amsc.q.Q` (#845: the
+    exact-ℚ carrier, was ``fractions.Fraction``). Accepts an ``int`` / a
+    ``numbers.Rational`` carrier (a srmech ``Q``, a stdlib ``fractions.Fraction``)
+    exactly; a ``float`` is projected to denominator ≤ 10¹² via the Class-N
+    ``best_rational`` (the old ``Fraction(x).limit_denominator(10**12)`` — dyadic
+    floats like 0.25 stay exact, ``to_q(0.25) == 1/4`` needs no snap)."""
+    if isinstance(c, float):
+        # signed float→ℚ snap (the old Fraction(x).limit_denominator(10**12)):
+        # the SIGNED Class-K∘N∘C cascade handles a NEGATIVE charge (turns can be
+        # negative), which the bare Class-N best_rational rejects. Function-local
+        # import — cascade/__init__ imports this module, so a top-level import
+        # would cycle.
+        from srmech.amsc.cascade import best_rational_signed as _brs
+        return Q.from_pair(_brs(c, max_denominator=10 ** 12))
+    return to_q(c)                                      # int / Fraction / Q / Rational — exact
 
 
 def _cycle_holonomy_py(n, edge_list, charges):
@@ -3243,8 +3484,8 @@ def _cycle_holonomy_py(n, edge_list, charges):
             x = parent[x]
         return x
 
-    tree: List[Tuple[int, int, Fraction]] = []
-    cotree: List[Tuple[int, int, Fraction]] = []
+    tree: List[Tuple[int, int, Q]] = []
+    cotree: List[Tuple[int, int, Q]] = []
     for (u, v), c in zip(edge_list, charges):
         ru, rv = find(u), find(v)
         if ru != rv:
@@ -3253,15 +3494,15 @@ def _cycle_holonomy_py(n, edge_list, charges):
         else:
             cotree.append((u, v, c))
     # pot[i] = signed tree-path charge from the component root to i.
-    pot: List[Optional[Fraction]] = [None] * n
-    adj: List[List[Tuple[int, Fraction]]] = [[] for _ in range(n)]
+    pot: List[Optional[Q]] = [None] * n
+    adj: List[List[Tuple[int, Q]]] = [[] for _ in range(n)]
     for (u, v, c) in tree:
         adj[u].append((v, c))     # u -> v : +c
         adj[v].append((u, -c))    # v -> u : -c
     for s in range(n):
         if pot[s] is not None:
             continue
-        pot[s] = Fraction(0)
+        pot[s] = Q(0)
         stack = [s]
         while stack:
             x = stack.pop()
@@ -3269,7 +3510,7 @@ def _cycle_holonomy_py(n, edge_list, charges):
                 if pot[y] is None:
                     pot[y] = pot[x] + c
                     stack.append(y)
-    holonomies: List[Fraction] = []
+    holonomies: List[Q] = []
     cycle_edges: List[Tuple[int, int]] = []
     for (u, v, c) in cotree:
         h = c + pot[u] - pot[v]
@@ -3287,9 +3528,9 @@ def _cycle_holonomy_native(n, edge_list, charges):
     endpoints (uint32) + per-edge charge num/den (int64) into ctypes buffers and
     calls ``srmech_graph_cycle_holonomy`` with a caller arena sized from
     ``srmech_graph_cycle_holonomy_arena_bytes``. Returns
-    ``(holonomies, cycle_edges)`` as exact ``Fraction`` + ``(u, v)`` pairs, or
+    ``(holonomies, cycle_edges)`` as exact ``Q`` + ``(u, v)`` pairs, or
     ``None`` on a missing symbol / non-OK status / an out-of-int64-range charge
-    (caller then runs the exact pure-Python Fraction cascade)."""
+    (caller then runs the exact pure-Python Q cascade)."""
     if not _native.has_native_cycle_holonomy():
         return None
     num: List[int] = []
@@ -3324,7 +3565,7 @@ def _cycle_holonomy_native(n, edge_list, charges):
     if rc != _native.SRMECH_OK:
         return None
     m = ncyc.value
-    holonomies = [Fraction(int(onum[i]), int(oden[i])) for i in range(m)]
+    holonomies = [Q(int(onum[i]), int(oden[i])) for i in range(m)]
     cycle_edges = [(int(ocu[i]), int(ocv[i])) for i in range(m)]
     return holonomies, cycle_edges
 
@@ -3369,7 +3610,7 @@ def cycle_holonomy(
         The graph edges ``(u, v)``. A parallel edge closes a digon cycle; a
         self-loop is a 1-cycle carrying its own charge.
     charges : Optional[Iterable]
-        Per-edge charge in TURNS parallel to ``edges`` (int / ``Fraction`` /
+        Per-edge charge in TURNS parallel to ``edges`` (int / ``Q`` /
         rational carrier exact; a ``float`` projected via ``limit_denominator``).
         ``None`` → all 0 (a trivially balanced graph). ``(u, v, c) ≡ (v, u, −c)``.
     n : Optional[int]
@@ -3379,14 +3620,14 @@ def cycle_holonomy(
     Returns
     -------
     dict
-        ``{"n_cycles": int, "holonomies": list[Fraction], "cycle_edges":
+        ``{"n_cycles": int, "holonomies": list[Q], "cycle_edges":
         list[(u, v)], "balanced": bool}`` — one holonomy in ``[0, 1)`` per
         fundamental cycle (indexed by its co-tree edge), and ``balanced`` iff
         every holonomy is 0.
 
     Dispatches to the standalone-C ``srmech_graph_cycle_holonomy`` (exact int64
     rational, caller-arena) when ``HAS_NATIVE`` and every charge is within the
-    int64 range; else srmech's own exact-``Fraction`` cascade (the complete
+    int64 range; else srmech's own exact-``Q`` cascade (the complete
     alternative — never a wrong answer, and it handles any denominator). The
     two paths use the SAME spanning-tree choice, so the fundamental-cycle basis
     is identical. numpy-free; no ``abs()``.
@@ -3394,7 +3635,7 @@ def cycle_holonomy(
     edge_list = [tuple(e) for e in edges]
     nn = _infer_n_from_edges(edge_list) if n is None else int(n)
     if charges is None:
-        ch = [Fraction(0)] * len(edge_list)
+        ch = [Q(0)] * len(edge_list)
     else:
         ch = [_to_fraction(c) for c in charges]
         if len(ch) != len(edge_list):
@@ -3605,7 +3846,7 @@ def eulerian_circuit(edges, start=None):
 # symmetric_eigendecompose / magnetic_laplacian / responsion / cycle_holonomy):
 # composition_of_c, no new C symbol. numpy-free; no abs() (Class-K magnitude).
 
-_RECOVER_TOL = Fraction(1, 10 ** 9)
+_RECOVER_TOL = Q(1, 10 ** 9)
 
 
 def _recover_mag(x):
@@ -3624,8 +3865,13 @@ def _recover_op_spectral(dim, edges, weights):
         diag["n_modes"] = len(ev)
         diag["eig_range"] = (round(ev[0], 6), round(ev[-1], 6))
         psd = ev[0] > -1e-9
-        zero_mode = _recover_mag(
-            Fraction(ev[0]).limit_denominator(10 ** 6)) < _RECOVER_TOL
+        # signed float→ℚ snap of the smallest eigenvalue (which can be slightly
+        # NEGATIVE for a near-zero mode — see the psd guard above): the SIGNED
+        # Class-K∘N∘C cascade, since the bare Class-N best_rational rejects a
+        # negative numerator. Function-local import to avoid the cascade cycle.
+        from srmech.amsc.cascade import best_rational_signed as _brs
+        zero_mode = _recover_mag(Q.from_pair(
+            _brs(ev[0], max_denominator=10 ** 6))) < _RECOVER_TOL
         return (len(ev) == dim and psd and zero_mode), diag
     except Exception as e:                          # a malformed op fails HONESTLY
         diag["op_error"] = "%s: %s" % (type(e).__name__, e)
@@ -3661,8 +3907,8 @@ def _recover_curvature(vocab_size, edges, charges):
     holonomy_nonzero = False
     if directed:
         mc = max((_recover_mag(c) for c in charges), default=0) or 1
-        q = Fraction(1, 2 * mc + 1)                 # phase unit that exposes holonomy
-        ph = [Fraction(int(c)) * q for c in charges]
+        q = Q(1, 2 * mc + 1)                 # phase unit that exposes holonomy
+        ph = [Q(int(c)) * q for c in charges]
         hol = cycle_holonomy(edges, charges=ph, n=vocab_size)
         n_cycles = hol["n_cycles"]
         holonomy_nonzero = any(h != 0 for h in hol["holonomies"])
@@ -3734,11 +3980,11 @@ def recover_check_structural(vocab_size, edges, weights, charges=None, *,
             b = seen.get((min(k, j), max(k, j)))
             if a is not None and b is not None and k not in (i, j):
                 mc = _recover_mag(c)
-                q = Fraction(1, 2 * max(1, mc) + 1)
+                q = Q(1, 2 * max(1, mc) + 1)
                 hh = cycle_holonomy(
                     [(i, k), (k, j), (i, j)],
-                    charges=[Fraction(int(a)) * q, Fraction(int(b)) * q,
-                             Fraction(int(c)) * q], n=vocab_size)
+                    charges=[Q(int(a)) * q, Q(int(b)) * q,
+                             Q(int(c)) * q], n=vocab_size)
                 if any(h != 0 for h in hh["holonomies"]):
                     holo = True
                     break
@@ -5463,6 +5709,7 @@ def _fiedler_sparse_py(
     edge_list: List[Tuple[int, int]],
     w_list: List[float],
     max_iters: int,
+    progress=None,
 ) -> List[float]:
     """Pure-Python sparse normalized-cut Fiedler (the complete no-native path).
 
@@ -5500,6 +5747,12 @@ def _fiedler_sparse_py(
     prev_sign: Optional[Tuple[int, ...]] = None
     stable = 0
     for it in range(max_iters):
+        if progress is not None and progress(
+                {"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_PARTITIONING,
+                 "done": it + 1, "total": int(max_iters)}):
+            # §101 CLEAN cancel — the zeroed "no cut" vector, byte-parity with the C
+            # overload (which returns out_vec left as the zeroed init on cancel).
+            return [0.0] * n
         tmp = [s[j] * v[j] for j in range(n)]
         u = [v[i] + s[i] * sum(w * tmp[j] for j, w in nbr[i]) for i in range(n)]  # u = B v
         dot = sum(u[i] * p[i] for i in range(n))
@@ -5762,6 +6015,7 @@ def fiedler_sparse_file(
     graph_path: str,
     *,
     max_iters: int = 250,
+    progress=None,
 ) -> "Vec":
     """Out-of-core sparse normalized-cut Fiedler — the streaming peer of
     :func:`fiedler_sparse` that reads its adjacency from a packed edge FILE
@@ -5798,13 +6052,28 @@ def fiedler_sparse_file(
     """
     if n < 2:
         return Vec.from_sequence([0.0] * max(int(n), 0), is_complex=False)
-    if _native.has_native_fiedler_sparse_file():
-        vals = _fiedler_sparse_file_native(int(n), graph_path, int(max_iters))
+    if progress is None:
+        if _native.has_native_fiedler_sparse_file():
+            vals = _fiedler_sparse_file_native(int(n), graph_path, int(max_iters))
+            if vals is not None:
+                return Vec.from_sequence(vals, is_complex=False)
+        edge_list, w_list = _read_packed_graph(graph_path)
+        return Vec.from_sequence(
+            _fiedler_sparse_py(int(n), edge_list, w_list, int(max_iters)),
+            is_complex=False,
+        )
+    # §101 progress path: the native ENCODE-PROGRESS overload first (same tick
+    # sequence + byte-parity), else the pure power loop threaded with the tick. A
+    # truthy progress return cancels -> the zeroed "no cut" Vec (bare-return op;
+    # the caller owns the callback, so it knows it cancelled — libcurl semantics).
+    if _native.has_native_fiedler_sparse_file_progress():
+        vals = _native.fiedler_sparse_file_native_progress(
+            int(n), graph_path, int(max_iters), progress)
         if vals is not None:
             return Vec.from_sequence(vals, is_complex=False)
     edge_list, w_list = _read_packed_graph(graph_path)
     return Vec.from_sequence(
-        _fiedler_sparse_py(int(n), edge_list, w_list, int(max_iters)),
+        _fiedler_sparse_py(int(n), edge_list, w_list, int(max_iters), progress=progress),
         is_complex=False,
     )
 
@@ -5904,6 +6173,7 @@ def recursive_cut(
     work_dir: Optional[str] = None,
     max_iters: int = 250,
     max_depth: int = 64,
+    progress=None,
 ) -> Dict[str, object]:
     """Out-of-core recursive spectral partition into community **tomes** (§52 Part 2,
     F793) — the same recursion as bisecting with :func:`normalized_cut_bisect` and
@@ -5961,19 +6231,60 @@ def recursive_cut(
     graph_path = os.path.join(work_dir, "graph.bin")
     write_packed_graph(graph_path, edge_list, w_list)
 
+    # §100 G1 (rc284): the whole `while pending` recursion has a standalone-C peer
+    # — queue, induced sub-graphs, sign-split and tome retirement all run in C, so
+    # a bare-C host builds the partition with no Python present. The pure driver
+    # below is the complete alternative AND the byte-parity oracle: both
+    # projections write byte-identical tome files in byte-identical order.
+    _rc = _native.recursive_cut_c(
+        int(n), graph_path, work_dir, int(max_tome), int(max_iters),
+        int(max_depth), int(n) + 1, progress=progress)
+    if _rc is not None:
+        _paths, _sizes, _cancelled = _rc
+        return {
+            "n_tomes": len(_paths),
+            "tome_paths": _paths,
+            "tomes": [_read_node_set(t) for t in _paths],
+            "work_dir": work_dir,
+            "status": "cancelled" if _cancelled else "ok",
+        }
+
     root = os.path.join(queue_dir, "set_0.bin")
     _write_node_set(root, range(int(n)))
     pending: List[Tuple[str, int]] = [(root, 0)]
     tome_paths: List[str] = []
     serial = 1
     sub_path = os.path.join(work_dir, "sub.bin")
+    resolved = 0                                       # §101: Σ finalized-tome sizes (exact,
+    #                                                    monotone; == n when pending empties)
     while pending:
+        if progress is not None and progress(
+                {"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_PARTITIONING,
+                 "done": resolved, "total": int(n)}):
+            # §101 CLEAN partial: promote every still-pending set to a (coarse, uncut)
+            # tome. Finalized tomes + promoted pending still partition ALL n nodes — a
+            # valid (coarser) partition + a status, never a torn strand. No genome hits
+            # disk half-written (recursive_cut only moves whole node-set files).
+            for sp, _d in pending:
+                dest = os.path.join(tomes_dir, "tome_%d.bin" % len(tome_paths))
+                os.replace(sp, dest)
+                tome_paths.append(dest)
+            if os.path.exists(sub_path):
+                os.remove(sub_path)
+            return {
+                "n_tomes": len(tome_paths),
+                "tome_paths": tome_paths,
+                "tomes": [_read_node_set(t) for t in tome_paths],
+                "work_dir": work_dir,
+                "status": "cancelled",
+            }
         set_path, depth = pending.pop()
         ids = _read_node_set(set_path)
         if len(ids) <= int(max_tome) or len(ids) < 2 or depth >= int(max_depth):
             dest = os.path.join(tomes_dir, "tome_%d.bin" % len(tome_paths))
             os.replace(set_path, dest)                 # MOVE the survivor, never copy
             tome_paths.append(dest)
+            resolved += len(ids)                       # §101 exact progress bookkeeping
             continue
         orig_to_local = {orig: i for i, orig in enumerate(ids)}
         _stream_induced_subgraph(graph_path, orig_to_local, sub_path)
@@ -5985,6 +6296,7 @@ def recursive_cut(
             dest = os.path.join(tomes_dir, "tome_%d.bin" % len(tome_paths))
             _write_node_set(dest, ids)
             tome_paths.append(dest)
+            resolved += len(ids)                       # §101 exact progress bookkeeping
             continue
         lp = os.path.join(queue_dir, "set_%d.bin" % serial); serial += 1
         rp = os.path.join(queue_dir, "set_%d.bin" % serial); serial += 1
@@ -5994,11 +6306,15 @@ def recursive_cut(
         pending.append((rp, depth + 1))
     if os.path.exists(sub_path):
         os.remove(sub_path)
+    if progress is not None:                           # §101 terminal 100% heartbeat
+        progress({"struct_size": _PROGRESS_STRUCT_SIZE, "phase": _PHASE_PARTITIONING,
+                  "done": resolved, "total": int(n)})  # done == n; return ignored (done)
     return {
         "n_tomes": len(tome_paths),
         "tome_paths": tome_paths,
         "tomes": [_read_node_set(t) for t in tome_paths],
         "work_dir": work_dir,
+        "status": "ok",
     }
 
 

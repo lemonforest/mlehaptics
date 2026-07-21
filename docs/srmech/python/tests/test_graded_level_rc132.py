@@ -54,7 +54,7 @@ from srmech.amsc.hv import HV
 
 
 def _one(dim=96):
-    return G._default_the_one(dim)
+    return G._default_coupling(dim)
 
 
 def _leaves(n, dim=96, base=0):
@@ -92,7 +92,7 @@ def test_graded_level_reduced_half():
     """The ask's headline case: weights=[1,1,1,1], denom=4, a popcount-2 cell_state → LEVEL 1/2
     (2/4 reduced by the Class-I gcd)."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _graded([1, 1, 1, 1], 4))])
     lv = _levels(strand, one, A | B)          # two of the first four bits present -> dose 2
     assert lv["g"] == (1, 2)                   # 2/4 reduced -> 1/2
@@ -102,7 +102,7 @@ def test_graded_level_sweeps_the_dose_response():
     """A denom=4 all-ones-weight gene: the LEVEL rises 0 -> 1/4 -> 1/2 -> 3/4 -> 1 as more
     conditions are present. Each fraction is REDUCED (2/4->1/2, 4/4->1)."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _graded([1, 1, 1, 1], 4))])
     assert "g" not in _levels(strand, one, 0)          # dose 0 -> off (absent)
     assert _levels(strand, one, A) == {"g": (1, 4)}    # 1/4
@@ -115,7 +115,7 @@ def test_graded_level_arbitrary_reduced_fraction():
     """A non-power-of-two denom: weights=[1,1,1], denom=9, two conditions present -> 2/9 (already
     in lowest terms; gcd(2, 9) == 1)."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _graded([1, 1, 1], 9))])
     assert _levels(strand, one, A | B) == {"g": (2, 9)}
     assert _levels(strand, one, A | B | C) == {"g": (1, 3)}   # 3/9 -> 1/3 reduced
@@ -134,7 +134,7 @@ def test_binary_genes_level_one_and_present_in_both():
         ("bexpr", _leaves(1), _boolean([(A, 0)])),               # boolean: expresses iff a
         ("thr",   _leaves(1), _threshold([1, 1], 2)),            # threshold: a AND b (sum>=2)
     ]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     cs = A | B
     lv = _levels(strand, one, cs)
     assert lv == {"plain": (1, 1), "act": (1, 1), "bexpr": (1, 1), "thr": (1, 1)}
@@ -152,7 +152,7 @@ def test_levels_and_binary_agree_exactly_over_prior_genes():
         ("bool", _leaves(1), _boolean([(A, 0), (C, 0)])),        # a OR c
         ("thr", _leaves(1), _threshold([2, -1], 1)),             # 2a - b >= 1
     ]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     for cs in range(16):
         at_one = {lab for lab, lvl in _levels(strand, one, cs).items() if lvl == (1, 1)}
         assert at_one == set(_binary(strand, one, cs)), cs
@@ -164,7 +164,7 @@ def test_zero_dose_absent_positive_dose_present():
     """The dose-response IS the gate: a graded gene with dose 0 is ABSENT (from BOTH ops); dose > 0
     is present at that rational (and expresses in the binary read too)."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _graded([1, 1], 4))])
     assert "g" not in _levels(strand, one, 0)          # dose 0 -> absent
     assert "g" not in _binary(strand, one, 0)          # binary reading: level 0 -> off
@@ -176,7 +176,7 @@ def test_signed_inhibitory_weight_clamps_to_zero():
     """A NEGATIVE (inhibitory) level-weight REDUCES the dose; a non-positive dose clamps to level 0
     (absent). abs()-ing the dose would break this — the sign is load-bearing (Class-K)."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _graded([2, -5], 10))])
     assert _levels(strand, one, A) == {"g": (1, 5)}    # dose 2 -> 2/10 -> 1/5
     assert "g" not in _levels(strand, one, A | B)      # dose 2-5 = -3 -> clamp 0 -> absent
@@ -186,7 +186,7 @@ def test_signed_inhibitory_weight_clamps_to_zero():
 def test_overshoot_dose_clamps_to_one():
     """A dose >= denom clamps to level 1 (fully on) — the upper Class-K clamp."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _graded([3, 3], 4))])
     assert _levels(strand, one, A) == {"g": (3, 4)}    # dose 3 -> 3/4
     assert _levels(strand, one, A | B) == {"g": (1, 1)}  # dose 6 >= 4 -> clamp to 1
@@ -199,7 +199,7 @@ def test_cell_state_modulates_the_level():
     expression LEVELS (not just a different on/off subset). A graded gene's level is a strictly
     increasing function of how much of its dose is present."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("morph", _leaves(1), _graded([1, 1, 1, 1], 4))])
     seen = [_levels(strand, one, cs).get("morph") for cs in (0, A, A | B, A | B | C, A | B | C | D)]
     assert seen == [None, (1, 4), (1, 2), (3, 4), (1, 1)]   # the graded dose-response
@@ -217,7 +217,7 @@ def test_read_time_filter_strand_byte_identical():
     genes = [("g", _leaves(2), _graded([1, 1, 1, 1], 4)),
              ("h", _leaves(1), _threshold([1, 1], 2)),
              ("p", _leaves(1))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     before = [hv.tobytes() for hv in strand]
     _ = G.gene_express_levels(strand, one, A | B)
     after = [hv.tobytes() for hv in strand]
@@ -237,7 +237,7 @@ def test_back_compat_prior_rc_genes_identical_both_ops():
         ("bool", _leaves(1), _boolean([(A, 0), (C, 0)])),        # rc130 a OR c
         ("thr", _leaves(1), _threshold([1, 1, 1], 2)),           # rc131 majority-of-3
     ]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     for cs in range(16):
         binset = set(_binary(strand, one, cs))
         levset = {lab for lab, lvl in _levels(strand, one, cs).items() if lvl == (1, 1)}
@@ -256,7 +256,7 @@ def test_back_compat_mixed_graded_and_prior_coexist():
         ("thr", _leaves(1), _threshold([1, 1], 2)),
         ("grad", _leaves(2), _graded([1, 1, 1, 1], 4)),
     ]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     cs = A | B
     lv = _levels(strand, one, cs)
     assert lv["plain"] == (1, 1)
@@ -273,7 +273,7 @@ def test_bare_strand_self_describes_weights_and_denom():
     self-describing property. _graded_gene_spec reads them back exactly."""
     one = _one()
     weights, denom = [3, -2, 5, 1], 7
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _graded(weights, denom))])
     caps = [hv for hv in strand if G._cap_kind(hv) == G.GRADED_GENE_MARKER]
     assert len(caps) == 1
@@ -286,7 +286,7 @@ def test_graded_gene_reports_graded_gate_type():
     """A graded gene self-describes its gate_type (GATE_TYPE_GRADED = 3), distinct from the binary
     E1/E2/E4 gate-types — the ORTHOGONAL level axis."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("g", _leaves(1), _graded([1, 1], 2))])
     caps = [hv for hv in strand if G._cap_kind(hv) == G.GRADED_GENE_MARKER]
     assert G._gene_gate_type(caps[0]) == G.GATE_TYPE_GRADED
@@ -297,7 +297,7 @@ def test_graded_gene_reports_graded_gate_type():
 # ── (8) format v10 → v11; a v11 genome saves + pages; pre-rc132 reads identically ─
 
 def test_format_bumped_to_v11():
-    assert G.GENOME_FORMAT_VERSION == 11
+    assert G.GENOME_FORMAT_VERSION == 15
 
 
 def test_graded_genome_saves_v11_and_pages_back(tmp_path):
@@ -306,11 +306,11 @@ def test_graded_genome_saves_v11_and_pages_back(tmp_path):
     one = _one()
     genes = [("housekeeping", _leaves(1)),
              ("dose", _leaves(1, base=1), _graded([1, 1, 1, 1], 4))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 11                          # the v11 bump
-    paged = G.genome_genes(p, "cell", the_one=one)
+    assert man["format_version"] == 15                          # the v11 bump
+    paged = G.genome_genes(p, "cell", coupling=one)
     assert [l for l, _ in paged] == ["housekeeping", "dose"]    # gate-agnostic recovery
     s2, o2, _ = G.genome_load(p)
     lv = _levels(s2, o2, A | B)
@@ -323,7 +323,7 @@ def test_pre_rc132_genome_reads_identically(tmp_path):
     back-compat is STRUCTURAL (the read path is version-independent)."""
     one = _one()
     genes = [("p", _leaves(1)), ("thr", _leaves(1), _threshold([1, 1], 2))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     p = tmp_path / "g"
     G.genome_save(strand, p, one)
     s2, o2, _ = G.genome_load(p)

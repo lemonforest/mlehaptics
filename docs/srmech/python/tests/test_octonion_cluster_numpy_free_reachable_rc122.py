@@ -136,7 +136,7 @@ def test_hdc_loop_family_imports_and_runs_numpy_free():
         assert p.typecode == "b" and len(p) == 16
         assert set(hdc.polar_bind(p, p)) <= {-1, 0, 1}
         # klein-4 HV carrier still numpy-free.
-        kv = hdc.klein4_random(32, seed=2)
+        kv = hdc.klein4_expand(32, 2)
         assert type(kv).__name__ == "HV"
         print("HDC_OK")
         """

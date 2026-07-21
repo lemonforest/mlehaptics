@@ -1,16 +1,21 @@
 # srmech
 
-`srmech` (Stored-Relationship Mechanism) is a research package shipping five load-bearing surfaces:
+`srmech` (Stored-Relationship Mechanism) is a research package shipping six load-bearing surfaces:
 
 1. **14-class primitive vocabulary** (`srmech.amsc.*`) — content-addressing, streaming, cyclic-group, graph-Laplacian, prime-factorisation, TLV, search, dispatch, catalog, templating, rational-approximation, equation-of-centre/Kepler, hyperdimensional-computing (HDC). Each class has both a Python wrapper and a native C symbol in `libsrmech.{so,dll,dylib}`.
-2. **The continuous-math cascade + the One** (`srmech.amsc.cascade.*`, `srmech.qm.*`) — every "scientific" op (trig, exp, sqrt, FFT, SVD, eig, …) is a **composition of the 14**, not a separate primitive (numpy-optional; the native build holds no libm). No particular math is privileged — it is all the same cascade. The same 14 are the graded blocks of **the One**, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1+3+7+3 = 14` (`cascade.the_one(σ, θ, w)`, exact-rational + numpy-free; the bit-exact matrix peer `qm.hurwitz`) — `θ` the **epicycle** half-angle and the winding triad `w = (w_saros, w_metonic, w_callippic)` the **metacycle** grade (carrying the spinor double-cover sign `(−1)^Σw` + the divmod binary tower); the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (`qm.{octonion, so8, triality}`; the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14` = the A-N `1+3+7+3` partition).
+2. **The continuous-math cascade + the One** (`srmech.amsc.cascade.*`, `srmech.qm.*`) — every "scientific" op (trig, exp, sqrt, FFT, SVD, eig, …) is a **composition of the 14**, not a separate primitive (numpy-free; the native build holds no libm). No particular math is privileged — it is all the same cascade. The same 14 are the graded blocks of **the One**, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1+3+7+3 = 14` (`cascade.the_one(σ, θ, w)`, exact-rational + numpy-free; the bit-exact matrix peer `qm.hurwitz`) — `θ` the **epicycle** half-angle and the winding triad `w = (w_saros, w_metonic, w_callippic)` the **metacycle** grade (carrying the spinor double-cover sign `(−1)^Σw` + the divmod binary tower); the ℂ/ℍ/𝕆 Hurwitz ladder = the 28-generator `so(8)` adjoint + Spin(8) triality (`qm.{octonion, so8, triality}`; the order-3 outer automorphism `τ`, `Fix(τ) = g₂ = 14` = the A-N `1+3+7+3` partition).
 3. **Runtime spectral decomposition** (`srmech.spectral`) — eigenbasis projection, HDC delta encoding, spectral prediction, prediction-error gating, sparse-truncate compression.
-4. **Dual-path signal-processing surface** (`srmech.signal_processing`) — 38 closed-form algebra ops (Path A) + an RBS-HDC bound-vector instrument at D=8192 (Path B), with a cascade dispatcher routing per call.
+4. **Dual-path signal-processing surface** (`srmech.signal_processing`) — 41 closed-form algebra ops (Path A) + an RBS-HDC bound-vector instrument at D=8192 (Path B), with a cascade dispatcher routing per call.
 5. **AMSC provenance framework** (`srmech.amsc.format`, `srmech.amsc.catalog`, `srmech.amsc.adapters`) — every ground-proof datum carries a mandatory attestation block (`source_doi`, `source_url`, `license`, `retrieved_at`, `response_sha256`, `parser_version`, `parser_rule_hash`, `collector_descriptor_path`, `collector_descriptor_hash`).
+6. **The genome storage format** (`srmech.amsc.genome`, `srmech.amsc.plasmid`) — srmech's own self-describing on-disk store (wire format **v15**): O(1) append, a catalog derived from the body rather than a stored table of contents, centromere / diploid / chromatin / gene structure read back out of the bytes, and a two-stage extract-then-organize encode that makes adding a document incremental.
+
+> **⚠️ BREAKING at v0.9.0rc287 — text is segmented into glyph clusters, not words.** `srmech.amsc.text.tokenize` and `DEFAULT_STOPLIST` are **removed** and replaced by `glyph_stream`. There is no shim and no compatibility flag. Every stored vocabulary, co-occurrence edge store and text-derived genome built before rc287 contains word tokens and must be **re-encoded** — the container format is unchanged, its contents are not. See [the glyph stream](#srmechamsctext--the-glyph-stream-uax-29) below before upgrading.
 
 Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix covers Linux / macOS / Windows × Python 3.10–3.14; a `py3-none-any` pure-Python wheel ships for Pyodide / WASM environments where the C surface can't load.
 
-**Everything mirrors — a bare-C host runs the whole apparatus, not just the math.** Beyond the compute kernels, the *orchestration* has a 1:1 C peer: the `srmech.bus` cross-process IPC server (req/rep **and** pub/sub broadcast, over AF_UNIX sockets / Windows named pipes, with an optional encrypted wire), the `srmech.dsl` operator-chain interpreter, the MCP server (JSON-RPC over stdio + HTTP/SSE) with in-C tool dispatch over the ~400-entry tool registry, the CLI arg-parser, and the `make_class` config-driven `[class]` object model — all shipped as `libsrmech` symbols, so a host with **no Python present** can serve tools, run cascades, and speak the bus. The exact-algebra tail is C-native too: exact-ℚ `char_poly` / `eigvals` / `eigvec` / `eig` / `jordan_form` and integer-polynomial factoring run on srmech's own `srmech_bigint` (no Python-int oracle), and the Python-side `Q` / `Qi` exact scalars dispatch straight to it.
+**Two implementations, one capability set.** srmech is a multi-implementation codebase: the **scripting-coherency** implementation (`python/srmech`) and the **compiled-coherency** implementation (`c/src`, `c/include`) are co-equal projections of the same capability into different execution regimes, related by projection rather than by rank — neither is the reference, and parity means *byte-identical results*, not similar behaviour (ADR-0009). The orchestration is compiled too, not only the compute kernels: the `srmech.bus` cross-process IPC server (req/rep **and** pub/sub broadcast, over AF_UNIX sockets / Windows named pipes, with an optional encrypted wire), the `srmech.dsl` operator-chain interpreter, the MCP server (JSON-RPC over stdio + HTTP/SSE) with in-C tool dispatch over the 456-entry tool registry, the CLI arg-parser, and the `make_class` config-driven `[class]` object model all ship as `libsrmech` symbols, so a host with **no Python present** can serve tools, run cascades, and speak the bus. The exact-algebra tail is C-native too: exact-ℚ `char_poly` / `eigvals` / `eigvec` / `eig` / `jordan_form` and integer-polynomial factoring run on srmech's own `srmech_bigint` (no Python-int oracle), and the Python-side `Q` / `Qi` exact scalars dispatch straight to it.
+
+Coverage is **not** yet complete, and the gap is enumerated rather than asserted away — see [C-host coverage](#c-host-coverage--what-a-bare-c-host-cannot-run-today) for the ops a bare-C host cannot currently run, and the down-only ratchet that pins them.
 
 ## Companion textbook
 
@@ -24,12 +29,14 @@ Implementation is JPL Power-of-Ten compliant on the C side; cibuildwheel matrix 
 ## Install
 
 ```bash
-pip install srmech                  # the whole package — stdlib only, no numpy, ever
+pip install srmech                  # the whole package — no numpy, ever
 pip install srmech[validation]      # adds jsonschema for strict data-block validation
 pip install srmech[collectors]      # adds requests + beautifulsoup4 for fetched adapters
 ```
 
-The package is **numpy-free** (the v0.7.5 carrier-removal arc, graduated in v0.8.0): there is no numpy dependency and no `[scientific]` extra. The whole surface — the 14-class cascade core *and* the `srmech.qm.*` / `srmech.signal_processing` / `srmech.spectral` tiers — runs on stdlib alone over the numpy-free `Mat` / `Vec` / `HV` carriers, which feed the native dense kernels zero-copy from `array('d')` interleaved-complex buffers. A fresh numpy-absent venv imports and runs the entire package.
+The package is **numpy-free** (the v0.7.5 carrier-removal arc, graduated in v0.8.0): there is no numpy dependency and no `[scientific]` extra. The whole surface — the 14-class cascade core *and* the `srmech.qm.*` / `srmech.signal_processing` / `srmech.spectral` tiers — runs over the numpy-free `Mat` / `Vec` / `HV` carriers, which feed the native dense kernels zero-copy from `array('d')` interleaved-complex buffers. A fresh numpy-absent venv imports and runs the entire package.
+
+**The one non-stdlib runtime dependency, stated exactly.** On **Python 3.10 only**, `pyproject.toml` declares `tomli>=2.0` (`python_version<'3.11'`) — a genuine third-party package. TOML parsing entered the stdlib as `tomllib` in 3.11, so on 3.11+ the install is stdlib-only; on 3.10 it is not. Seven modules carry the `try: import tomllib / except ImportError: import tomli` pair — `amsc/catalog.py`, `amsc/descriptor.py`, `amsc/tool_schema.py`, `dsl/_catalog.py`, `dsl/_class_catalog.py`, `dsl/_toml_chain.py`, `profile_loader.py`. This is worth naming rather than rounding off, because the C library **already ships its own TOML parser** (`c/src/srmech_toml.c`, 1,485 lines; `srmech_toml_parse` / `srmech_toml_table_get` exported, `srmech_toml_canonical` / `_type` / `_value` declared in the public header) for exactly the bare-C host ADR-0003 targets. The Python implementation does not read TOML through it. That is a self-hosting gap, not a packaging accident, and it is tracked as [#907](https://github.com/lemonforest/mlehaptics/issues/907).
 
 ### Carriers — the numpy-free array + scalar family
 
@@ -50,7 +57,7 @@ Every value srmech moves rides one of **six framework-owned carriers** instead o
 
 A cascade is integer arithmetic on the **ALU** (add / multiply / GCD / cross-multiply over big integers) right up to the edge, where a single `float()` "rotates" the held rational onto the **FPU** decimal axis. `Q` is what keeps the ALU stretch exact: `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt,hypot}` return a `Q` (an exact `(num, den)`) instead of a bare `float`, so the value stays in the integer ALU and `float(q)` / `complex(z)` is the *one* last rotation, taken only at the display / carrier edge.
 
-This split is load-bearing because the two halves have different reproducibility guarantees. **Integer-ALU is bit-reproducible and attestable** — the same `(num, den)` on every platform, content-addressable via `sha256_bytes`, no last-bit drift. **The FPU is where cross-platform last-bit divergence lives** (libm rounding, `-ffast-math`, x87-vs-SSE), so the framework spends as little of the cascade there as possible. The native Q61 C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) carry the same exact integer-ALU result across the C boundary, byte-exact-verified against the Python `Q`. When the native library is loaded, `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt}` **dispatch to those peers automatically** (the pure-Python Q61 cascade is the byte-identical fallback when it is not — a spy test asserts the live dispatch on every native CI cell). A **C-only host** reassembles the same exact rational from the peers plus the exported `SRMECH_Q61_ONE` / `SRMECH_Q61_LN2` / `SRMECH_Q61_HALF_PI` model constants — no Python required.
+This split is load-bearing because the two halves have different reproducibility guarantees. **Integer-ALU is bit-reproducible and attestable** — the same `(num, den)` on every platform, content-addressable via `sha256_bytes`, no last-bit drift. **The FPU is where cross-platform last-bit divergence lives** (libm rounding, `-ffast-math`, x87-vs-SSE), so the framework spends as little of the cascade there as possible. The native Q61 C peers (`srmech_{sin,cos,atan,exp,log,sqrt}_q61`) carry the same exact integer-ALU result across the C boundary, byte-exact-verified against the Python `Q`. When the native library is loaded, `srmech.amsc.rational.{sin,cos,tan,atan,atan2,exp,log,sqrt}` **dispatch to those peers automatically** (the Python Q61 cascade computes the byte-identical value when it is not — a spy test asserts the live dispatch on every native CI cell). A **C-only host** reassembles the same exact rational from the peers plus the exported `SRMECH_Q61_ONE` / `SRMECH_Q61_LN2` / `SRMECH_Q61_HALF_PI` model constants — no Python required.
 
 The collapse is a *genuine boundary*, not a no-op shim. Leaf physical-observable scalar ops (`srmech.qm.*`, `amsc/kepler.py`) and the iterative FPU kernels (`amsc/laplacian.py` Jacobi / QR / SVD / Fiedler, `signal_processing` taper/window helpers, the Kuramoto step) collapse to `float` at their edge **because they ARE the FPU** — an iterative numeric kernel that kept exact rationals would grow `num` / `den` unboundedly per sweep. Exact cascades keep `Q`; numeric kernels rotate at the boundary.
 
@@ -117,15 +124,15 @@ Full context: [substrate-native-maths research notebook](https://mlehaptics.read
 
 ### `srmech.amsc.*` — 14-class primitive vocabulary (alphabetical lookup)
 
-Each class is importable as `srmech.amsc.<module>` with native C dispatch and a Python fallback. The C surface is loaded once at import time; if loading fails (Pyodide, ABI mismatch), the package transparently falls back to pure Python.
+Each class is importable as `srmech.amsc.<module>`. Both implementations realise the class; which one services a call inside a co-installed process is a **routing** decision, made once at import time. If `libsrmech` cannot be loaded (Pyodide, ABI mismatch), calls route to the Python implementation and results are unchanged.
 
-To check the backend state, call `srmech.native_status()` (top-level; equivalently `describe()['native']`) — `{has_native, dispatching, abi_version, expected_abi, native_version, load_error}`. `dispatching` is `True` iff `libsrmech` loaded **and** its ABI matched, so native ops really run; otherwise `load_error` carries the reason and the pure-Python fallback is used. (The native shim is `srmech.amsc._native`; `srmech._native` is the data dir that merely *holds* the binary.)
+To check which implementation is routing, call `srmech.native_status()` (top-level; equivalently `describe()['native']`) — `{has_native, dispatching, abi_version, expected_abi, native_version, load_error}`. `dispatching` is `True` iff `libsrmech` loaded **and** its ABI matched (**ABI 7** at this release — the glyph-stream tokenizer's symbol removal took it 6 → 7); otherwise `load_error` carries the reason and the Python implementation services the call. Routing status is not evidence of parity — that is what the ratchets below are for. (The native shim is `srmech.amsc._native`; `srmech._native` is the data dir that merely *holds* the binary.)
 
 ```python
 import srmech
 srmech.native_status()
-# {'has_native': True, 'dispatching': True, 'abi_version': 5,
-#  'expected_abi': 5, 'native_version': '0.9.0', 'load_error': None}
+# {'has_native': True, 'dispatching': True, 'abi_version': 7,
+#  'expected_abi': 7, 'native_version': '0.9.0rc288', 'load_error': None}
 ```
 
 | Module | Class | Primitive operation |
@@ -144,6 +151,10 @@ srmech.native_status()
 | `laplacian` | L | Graph Laplacian — `dense_adjacency`, `dense_laplacian`, `normalized_laplacian`, `jacobi_eigvals`, `hermitian_eigendecompose`, `symmetric_eigendecompose`, `elementwise_transcendental` (pi-free Jacobi in C; n ≤ 256 native bound); relational read-outs `fiedler_vector` / `three_fold_eigvec_groups` (2- and 3-way communities), `spectral_spine` + `relational_structure` (structural centre + coherence λ₂), `magnetic_laplacian` / `signed_laplacian` (directed / signed), `cycle_holonomy` (the odd / chirality channel the Hermitian spectrum provably cannot carry); the **directed Class-L genome recovery family** (#1390) — `eulerian_path` / `eulerian_circuit` (Hierholzer walk reconstruction, `→ None` on an infeasible graph), `recover_check` (the op / operand / responsion / curvature round-trip integrity check, with `recover_check_structural` / `recover_check_spectral` for corpus scale), and `order_fingerprint` / `recover_check_order` (the octonion order faculty that catches a graph-preserving reorder); and `recursive_cut` (balanced out-of-core partition into bounded tomes) |
 | `hdc` | M | HDC spatter codes — binary `bind`, `bundle`, `permute`, `similarity`; `polar_*` `{-1,0,+1}` and `klein4_*` `(ℤ₂)²` variants |
 | `rational` | N | Continued-fraction convergents — `continued_fraction`, `best_rational` |
+
+> **⚠️ Correctness advisory — `mat_eigvals` returned a wrong spectrum before v0.9.0rc285.** If you computed eigenvalues with `mat_eigvals` (or `cascade.matrix_cascades.eigvals`, which delegates to it) on any release before rc285, **recompute them**. The shifted-QR iteration ran on an unreduced matrix — the Householder reduction to Hessenberg form was **entirely absent** — and the Householder reflector divided by a `hypot` cascade whose inaccurate-nonzero returns broke the similarity property, so the iteration converged to numbers that were not the input's eigenvalues.
+>
+> The trigger is **vertex labelling, not hub dominance**, which is why it went unnoticed: it is not a pathological-input bug. A 4-node **path** graph relabelled `0-2-1-3` returned `[1, 1, 1, 3]` against a true spectrum of `[0, 2−√2, 2, 2+√2]`. Relabelling a graph does not change its spectrum, so any answer that moves under relabelling is wrong on its face — that invariant is now a ratchet (`tests/test_laplacian_kernel_invariant_rc285.py`, **65 tests**) applied across **all six** shipped eigensolvers (`mat_eigvals`, `jacobi_eigvals`, `hermitian_eigendecompose`, `symmetric_eigendecompose`, `mat_hermitian_eigendecompose`, `matrix_cascades.eigvals`), not only the one that was broken.
 
 ### `srmech.qm.*` — the substrate engine: the Hurwitz ladder, `so(8)` triality, and the One
 
@@ -189,7 +200,7 @@ A `SpectralHandle` is an opaque, frozen, bytes-bearing dataclass that JSON-RPC c
 
 ### `srmech.amsc.cascade` — foundational cross-domain cascade catalog
 
-The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — **no new primitive class.** Each cascade ships with a **dedicated C symbol** in `libsrmech.{so,dll,dylib}` (full C/Python parity per project discipline) AND a TOML descriptor under `srmech/amsc/_research/cascade_catalog/` documenting the composition declaratively (**10 descriptors** as of v0.6.0, loaded at runtime by `srmech.dsl`). No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
+The cascades that recur across **every / most** domains, promoted so a named cascade is the default and a math-library call the exception (*being forced to reach for a math library is the signal that a cascade is waiting to be found*). Compositions over the 14-class A–N vocabulary — **no new primitive class.** Each cascade in this catalog ships with a **dedicated C symbol** in `libsrmech.{so,dll,dylib}` AND a TOML descriptor under `srmech/amsc/_research/cascade_catalog/` documenting the composition declaratively (**15 descriptors**, loaded at runtime by `srmech.dsl`). No `abs()`: sign is the Class K pin-slot + Class C re-orientation.
 
 As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.amsc.cascade.atoms` holds the irreducible primitives and `srmech.amsc.cascade.compose` holds the composites that chain them — the same surface re-exported flat from `srmech.amsc.cascade`, so existing call sites are unchanged. The catalog grew two ops this line: `parallel_sector_dispatch` (Klein-4 four-sector orchestration) and `kuramoto_step` (the native coupled-oscillator step).
 
@@ -199,7 +210,7 @@ As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.
 - `best_rational_signed(x, *, max_denominator=100, fine_scale=1_000_000)` — **Class K ∘ N ∘ C** float → signed small-denominator rational (sign in the numerator). *(C peer: v0.4.5rc7 — delegates Class N stage to `srmech_best_rational`; banker's rounding via `llrint()`)*
 - `cyclic_gcd(a, b)` — **Class I** (delegates to `srmech.amsc.cyclic.gcd`). *(C peer: v0.4.5rc6 — delegates to Class I primitive `srmech_gcd`)*
 - `chiral_flip(seq)` — **Class C** orientation reversal (`seq[::-1]`). *(C peer: v0.4.5rc1)*
-- `chiral_dual(op, x)` — **Class C ∘ op ∘ Class C**: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is *same spectral shape, inverted orientation* (magnitude preserved, phase flipped — spike-verified); it reduces to the bare Class K `−1` for the sign operators and is the identity for real-symmetric ones. *(C peer: v0.4.5rc8 — queued; higher-order, callback ABI)*
+- `chiral_dual(op, x)` — **Class C ∘ op ∘ Class C**: run an operator in the opposite Class-C orientation. The chiral dual of an A–N operator is *same spectral shape, inverted orientation* (magnitude preserved, phase flipped — spike-verified); it reduces to the bare Class K `−1` for the sign operators and is the identity for real-symmetric ones. *(C: `srmech_cascade_chiral_dual_f64`, v0.4.5rc8; higher-order, callback ABI)*
 - `net_chirality(orientations)` — **Class C** net handedness of a cascade (product of per-op orientations in `{-1,0,+1}`; `0` if any is neutral). *(C peer: v0.4.5rc5)*
 - `parallel_sector_dispatch(body, x, *, n_sectors=4, verify=False)` — **Class C** (Klein-4 `γ₅± × iω₇±` four-sector orchestration). Runs one cascade `body` across its ≤4 Klein-4 chirality sectors and returns a structured self-describing result; a GIL-releasing (native / IO) body lets the ≤4 sectors genuinely overlap. Higher-order (a body-callback orchestrator, not a unary `chain().then(...)` stage). *(C peer: `srmech_cascade_parallel_sector_dispatch`, body-callback ABI, v0.6.0; `n_sectors > 4` → `ValueError` — Klein-4 has no order-4+ element, 8+ needs the order-3 triality.)*
 - `kuramoto_step(theta, omega, *, coupling=1.0, dt=0.01)` — **Class I ∘ sin ∘ Σ ∘ C** one forward-Euler step of the canonical Kuramoto coupled-oscillator model (`θᵢ ← θᵢ + dt·(ωᵢ + (K/n)·Σⱼ sin(θⱼ − θᵢ))`). The O(n²) sin-coupling runs natively. *(C peer: `srmech_cascade_kuramoto_step_f64`, v0.6.0rc9; parity to the native trig-cascade tolerance — the C build holds no libm — same coupling-sum index order both sides; `n == 1` is pure drift.)*
@@ -208,7 +219,7 @@ As of **v0.6.0** the catalog is a **two-tier lean-ISA split** (`#751`): `srmech.
 
 Two paths for the same algebra, dispatched per call:
 
-- **Path A** — closed-form algebra over the numpy-free `Mat` / `Vec` carriers (no numpy, no scipy); one module per op under `srmech.signal_processing.closed_form_ops.*`. 40 ops (38 Phase-2 baseline + `pi_cascade` + `rfft`) covering frequency analysis (`fft`, `ifft`, `rfft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
+- **Path A** — closed-form algebra over the numpy-free `Mat` / `Vec` carriers (no numpy, no scipy); one module per op under `srmech.signal_processing.closed_form_ops.*`. 41 ops (38 Phase-2 baseline + `ifft` + `pi_cascade` + `rfft`) covering frequency analysis (`fft`, `ifft`, `rfft`, `stft`, `spectrogram`, `multitaper`, `dct`, `wavelet`), digital filters (`fir`, `iir`, `allpass`, `polyphase`, `multirate`, `farrow`, `sinc_interp`), detection / estimation (`matched_filter`, `wiener`, `lmmse`, `map_ml`, `mlse`, `viterbi`, `cross_spectral`, `music`, `esprit`, `ica_jade`, `mimo_svd`), modulation (`psk_qam`, `fsk`, `ofdm`, `beamforming_fixed`), coding (`huffman`, `rle`, `lz77`, `arithmetic_coding`, `jpeg`), quantisation / compression (`sign_quantise`, `vector_quantisation`, `hdc_truncation`, `heat_kernel`, `spectral_subtraction`, `pi_cascade`).
 - **Path B** — RBS-HDC bound-vector instrument at D=8192 (`srmech.signal_processing.rbs_hdc_instrument`). Mints class-operator vectors, cascade compositions, stance fingerprints, and full LoE content encodings (Mode-B). Eight ops have full dual-path implementations: `fft`, `ifft`, `rfft`, `sign_quantise`, `matched_filter`, `wiener`, `hdc_truncation`, `pi_cascade`.
 
 ```python
@@ -232,6 +243,252 @@ with begin_cascade() as ctx:
 ```
 
 Path A and Path B produce bit-exact-equal outputs on substrate-natural inputs (D1 algebra-content identity); substrate-fingerprint divergence at D2 is expected and documented.
+
+### `srmech.amsc.text` — the glyph stream (UAX #29)
+
+The front door for text: it turns a string into the units that everything downstream counts, and those units are what a co-occurrence graph, and therefore a text-derived genome, is built out of. **As of v0.9.0rc287 the unit is the extended grapheme cluster — the glyph — not the word.**
+
+#### ⚠️ BREAKING at v0.9.0rc287 — `tokenize` is removed, `glyph_stream` replaces it
+
+`tokenize` and `DEFAULT_STOPLIST` are gone. There is **no shim**, no `legacy_mode=`, and no parallel old path. What a reader upgrading needs, stated first:
+
+| | Before rc287 | rc287 onward |
+|---|---|---|
+| Public op | `tokenize(text)` | `glyph_stream(text, *, unicode_normalize=True)` |
+| Unit | word (Latin-shaped) | UAX #29 extended grapheme cluster |
+| Casefold | always | never — the op does not decide case for you |
+| Length floor | 2 codepoints | none |
+| Stoplist | 146 English function words, by default, in every language | none |
+| Stored data | — | **every** pre-rc287 vocabulary / edge store / text-built genome must be re-encoded |
+| Format / ABI | — | `GENOME_FORMAT_VERSION` unchanged at **15**; **ABI 6 → 7** |
+
+The container is fine; its contents are not. `GENOME_FORMAT_VERSION` does not move because nothing about the byte layout changed — what changed is which strings went into it. ABI moves because the C surface lost an exported symbol (`srmech_text_tokenize`) and gained two (`srmech_text_glyph_stream`, `srmech_text_default_gb_table`), and a **removal always bumps**.
+
+#### Why the word was the wrong unit
+
+The word decision carried four Latin-shaped assumptions — a 2-codepoint length floor, a universal casefold, a 146-word English stoplist, and an apostrophe special case. Each mis-handled most of the world's writing systems, and the failure was not cosmetic: in scriptio-continua scripts it collapsed whole clauses into single "words", leaving roughly **89%** of Chinese / Japanese / Thai types as singletons (English: ~20%). A co-occurrence graph over an 89%-singleton vocabulary carries almost no association mass. It also deleted content outright — `tokenize("中 国")` returned `[]`, both single-codepoint words lost to the length floor.
+
+A grapheme cluster is what a reader perceives as one character. It is the only unit well-defined in **every** script, which is exactly why it replaces the word here. Real output from this tree:
+
+```python
+from srmech.amsc.text import glyph_stream
+
+glyph_stream("语言是人类交流的工具")
+# ['语', '言', '是', '人', '类', '交', '流', '的', '工', '具']   → 10 glyphs, not 1 "word"
+
+glyph_stream("中 国")
+# ['中', ' ', '国']            # before rc287: []  — the content was deleted outright
+
+glyph_stream("’okina")
+# ['’', 'o', 'k', 'i', 'n', 'a']   # the Hawaiian okina survives; it used to vanish
+
+len(glyph_stream("👨‍👩‍👧‍👦"))   # 1  — one family, 7 codepoints, GB11 (emoji ZWJ)
+len(glyph_stream("🇻🇺"))       # 1  — one flag, 2 codepoints, GB12/13
+len(glyph_stream("क्षि"))       # 1  — one Devanagari cluster, GB9c (Indic conjunct)
+len(glyph_stream("1️⃣"))        # 1  — one keycap
+```
+
+Each of those last four is **one thing a human sees** and **one element of the stream**. That agreement is the whole point of the unit.
+
+#### The break table is vendored and attested, not derived at runtime
+
+Python's `unicodedata` does not expose the Grapheme_Cluster_Break property, so the table is vendored: **683 ranges / 6,147 bytes**, from **UCD 16.0.0**, carried as `GB_TABLE_BLOB` in `srmech/amsc/_unicode_gb_tables.py` with a `GB_TABLE_SHA256` content-address and an MPR attestation block (`tests/test_unicode_gb_tables_attested.py`). It is a **caller-provided input** to the C op (`srmech_text_default_gb_table` hands out the default), not a compiled-in constant. Hangul LV/LVT are deliberately absent — they are recovered by the UAX #29 §3 syllable algebra rather than stored.
+
+| Property | Value |
+|---|---|
+| UCD version | 16.0.0 |
+| Ranges | 683 |
+| Blob size | 6,147 bytes |
+| Rules implemented | GB1–GB999, incl. GB9c (Indic conjuncts, Unicode 15.1) and GB11 (emoji ZWJ) |
+| Conformance | **1093/1093** on Unicode's `GraphemeBreakTest.txt`, in **both** implementations |
+
+The 1093/1093 bar is held by the scripting-coherency body and the compiled-coherency peer independently — the C peer gets no allowance for being the fast one.
+
+**Why the bar is the whole suite and not a sample**, which is the more interesting point: a best-effort `unicodedata`-only derivation without the vendored table scores 954/1093 (87.28%) — and that aggregate is exactly the kind of number that hides the problem. The same approximation is **perfectly correct** for Latin, Greek, Cyrillic, Arabic, Hebrew, CJK, Korean and Hawaiian, while being **19.2% wrong for Burmese, 9.2% for Bengali and 8.0% for Devanagari**. An 87% score reads as "mostly fine"; what it actually describes is a segmenter that is flawless on the scripts that barely need clustering and broken on the ones that do. A partial conformance target would conceal that the same way, so the target is the whole suite, exactly. The suite is also what found the third data dependency: omitting InCB scores 1086/1093, and those 7 cases are the only signal that GB9c exists at all.
+
+#### What consumes the stream
+
+`cooccurrence_edges(docs, *, window=2, vocab=None, vocab_size=None, directed=False)` and `cooccurrence_topk(docs, *, window=2, k=20, …)` build the weighted graph the Class-L Laplacian surface and the genome encoders read. They take documents that are already glyph streams, so the unit change propagates through every text-derived store — which is why re-encoding is mandatory rather than advisory.
+
+### `srmech.amsc.genome` / `srmech.amsc.plasmid` — the genome storage format
+
+srmech's own on-disk store for coupled-turn content: a **self-describing** byte format (`turns.bin` + a head-only `manifest.json`) whose structure is read back out of the bytes rather than out of a sidecar table of contents. **Wire format v15.** The vocabulary is biology's because the structures are the ones biology already names — this is form-matching, not a claim about biochemistry.
+
+A genome is a sequence of **chromosomes**; each chromosome opens with a cap marker and carries interior caps. Every marker is one byte, distinct, and a reader that does not know a marker skips it by its self-described length — which is why v15 reads pre-v15 bodies unchanged.
+
+| Marker | Byte | Role |
+|---|---|---|
+| CHROM | `0x43` | opens a plain chromosome; carries the label inline |
+| diploid telomere | `0x44` | opens a **diploid** chromosome (two homologous copies) |
+| kernel telomere | `0x6B` | opens a graph-kernel chromosome |
+| active telomere | `0x74` | opens a chromosome carrying a division count |
+| centromere | `0x58` | **interior**; the p:q arm split + the strand's global orientation |
+| chromatin | `0x48` | **interior**; the epigenetic access level for a region |
+| gene | `0x47` | a named gene; carries copy number in its padding |
+| graded / regulatory / boolean / threshold gene | `0x64` / `0x67` / `0x62` / `0x77` | gene promoters under a cell-state gate |
+
+#### ⚠️ BREAKING at v0.9.0rc271 — the chromosome-type vocabulary follows the field
+
+The derived per-chromosome `cap_kind` and census type **values** were renamed to the names bacterial genomics already uses. `"diploid"` is unchanged.
+
+| Was (srmech-coined) | Now (canonical, field-supplied) | What it is |
+|---|---|---|
+| `"stick"` | **`"plasmid"`** | Tier-1: mobile, append-only, no centromere |
+| `"minted"` | **`"nuclear"`** | Tier-2: stable, centromere-anchored |
+
+This changes **strings, not bytes** — `cap_kind` is derived on read, never stored, so there is **no on-disk migration and no format or ABI bump**; a pre-rc271 genome censuses identically except for those two labels. What moves is the value in `genome_catalog` / `genome_census` / `genome_registry` (including the census `types` dict **keys**) and `mint_plan`'s `shape`.
+
+**To keep the old names, opt in to the value-alias layer** — a pure presentation transform over the canonical output. Storage, the C implementation and the format stay canonical; the alias never touches disk:
+
+```python
+from srmech.amsc import genome as G
+G.set_type_aliases({"plasmid": "stick", "nuclear": "minted"})   # or any vocabulary
+G.clear_type_aliases()                                          # back to canonical
+G.load_type_aliases_toml(path)                                  # a [genome.type_aliases] table
+```
+
+#### The tooling reads the shape
+
+`genome()` picks each chromosome's shape from the kernel it is given, rather than being told: a plasmid-scale kernel (≤ 4 leaves) stays Tier-1, a chromosome-scale kernel (≥ 5 leaves) is minted with an interior centromere. `plasmid()` is the all-Tier-1 builder; `mint()` is an alias of `genome()`; `mint_plan()` reports the picks without building anything.
+
+```python
+import tempfile, pathlib
+from srmech.amsc import genome as G
+from srmech.amsc.cascade.one import the_one
+from srmech.amsc.hdc import klein4_expand, klein4_from_one
+
+# rc290: the coupling is DERIVED from (sigma, theta, terms) — no magic seed.
+coupling = klein4_from_one(the_one(1, 1, 4), 64)
+lv = lambda n, b: [klein4_expand(64, b + i) for i in range(n)]
+
+strand = G.genome({"small": lv(3, 10), "large": lv(8, 40)}, coupling)
+path = pathlib.Path(tempfile.mkdtemp()) / "demo.genome"
+G.genome_save(strand, path, coupling)
+
+census = G.genome_census(path, coupling=coupling)
+print(census["types"])      # {'plasmid': 1, 'nuclear': 1, 'diploid': 0}
+print(census["topology"])   # nuclear-like
+print([(c["label"], c["type"]) for c in census["chromosomes"]])
+# [('small', 'plasmid'), ('large', 'nuclear')]
+```
+
+`genome_census(path)` rolls a genome up; `genome_registry(root)` censuses a whole directory of them (which genome is the nucleus, which is an organelle). `topology` is a structural **integer** read — `nuclear-like` / `organelle-like` / `plasmid/prokaryote-like` / `empty` — with no float anywhere.
+
+#### The op families
+
+| Family | Ops | What it does |
+|---|---|---|
+| build | `genome` · `plasmid` · `mint` · `mint_plan` · `chromosome` · `telomere` | build a strand; the tooling picks each shape |
+| mint post-pack | `mint_strand` | promote an **already-packed** strand to Tier-2 by splicing a centromere at the p:q split — no re-mint from leaves |
+| anchor | `centromere` · `centromere_of` | the global orientation, stored as a majority-decoded repeat array |
+| redundancy | `diploid` · `recover_diploid` | two homologous copies + the centromere as which-template mark; heals an erasure on **either** homolog |
+| access | `condense` · `decondense` · `chromatin_of` · `accessible` | the epigenetic gate — which regions express, **computed** per cell state |
+| multiplicity | `amplify` · `copy_number_of` | a gene's copy number as an exact integer count |
+| splice | `integrate` | splice a Tier-1 provirus into a host genome, with a compatibility gate |
+| graph | `graph_to_kernel` · `kernel_to_graph` · `genome_partition` · `genome_from_graph` | a relational graph in and out of a genome, partitioned by its own structure |
+| persist | `genome_save` · `genome_load` · `genome_append` · `genome_window` · `genome_catalog` | O(1) append; the catalog is derived, never a stored TOC |
+| census | `genome_census` · `genome_registry` | roll up a genome / a directory of genomes |
+| two-stage encode | `plasmid.plasmid_extract` · `plasmid.section_counts` · `plasmid.conserved_core` · `plasmid.genome_integrate_plasmids` · `plasmid.add_plasmid` | extract-then-organize, incremental |
+
+#### Copy number is a multiplicity, not N strands
+
+`amplify` records **how many copies** on a gene's cap, in what was NUL padding. `n == 1` is byte-identical to a plain gene, so only `n >= 2` spends the field, and a gene written before the field existed reads back as `1`. The count is transparent to every existing reader.
+
+```python
+chrom = G.chromosome(genes=[("resA", lv(2, 10)), ("resB", lv(3, 20))],
+                     coupling=coupling, label="plasmidR")
+amp = G.amplify(chrom, "resA", 12)
+print(G.copy_number_of(amp, "resA"), G.copy_number_of(amp, "resB"))  # 12 1
+print(len(amp) == len(chrom))                                        # True
+print(G.amplify(chrom, "resA", 1) == chrom)                          # True
+```
+
+#### Chromatin — accessibility is computed, not stored
+
+A **constitutive** chromatin cap carries a static level. A **facultative** cap carries a *gate*, so the same genome under two different cell states has two different accessible open-sets. `cell_state` is an integer bitmask; the level is an exact `(num, den)` rational.
+
+```python
+XIST = 1 << 1
+chrX  = G.chromosome(lv(6, 60), coupling=coupling, label="chrX")
+gated = G.condense(chrX, coupling=coupling, state={"activator": XIST})  # facultative
+print(G.accessible(chrX,  0))       # (1, 1)  — no cap: euchromatin by default
+print(G.accessible(gated, 0))       # (0, 1)  — gate does not fire: silenced
+print(G.accessible(gated, XIST))    # (1, 1)  — gate fires: open
+
+const = G.condense(chrX, coupling=coupling, state="condensed")          # constitutive
+print(G.accessible(const, 0), G.accessible(const, XIST))  # (0, 1) (0, 1)
+```
+
+A graded chromatin level composes **multiplicatively** with a graded promoter, as exact rationals. On the demand-load path a condensed region is skipped having touched only its chromatin cap — fewer bytes read, not more.
+
+#### Progress and graceful abort (added at ABI 6)
+
+The long encode ops were blind and un-cancellable. `progress=` is an in-process callback taking `{struct_size, phase, done, total}` — exact integers, never a float or a division. Returning truthy **cancels**, and every cancel yields a *valid* shorter result rather than a half-written one. It is available on `genome` / `mint` / `mint_strand` / `genome_partition` / `genome_from_graph`, `laplacian.recursive_cut` / `fiedler_sparse_file`, and the `plasmid.*` pipeline.
+
+```python
+seen = []
+G.genome({"a": lv(3, 1), "b": lv(3, 5), "c": lv(3, 9)}, one,
+         progress=lambda ev: seen.append((ev["phase"], ev["done"], ev["total"])))
+print(seen)   # [(3, 0, 3), (3, 1, 3), (3, 2, 3)]     phase 3 = MINTING
+
+partial = G.genome({"a": lv(3, 1), "b": lv(3, 5), "c": lv(3, 9)}, one,
+                   progress=lambda ev: ev["done"] >= 1)
+print(len(G.partition(partial, one)))   # 1 — complete chromosomes only, never a partial one
+```
+
+This is a C-native primitive, not a Python driver loop: the heartbeat is the compiled loop's own (a versioned `srmech_progress_ev_t` + a `srmech_progress_tick_cb_t` returning nonzero to cancel, plus a `SRMECH_CANCELLED` status). Adding that callback typedef is what took **ABI 5 → 6**. `progress=` is deliberately **not** an MCP wire parameter — a callable cannot cross JSON-RPC — so it adds no tool.
+
+#### Two-stage encode — extract, then organize
+
+Encoding a corpus as one monolithic partition does not scale. The two-stage split makes adding a document an **append plus a bounded re-mint** instead of a global re-solve.
+
+1. **EXTRACT** — `plasmid_extract(docs, store, the_one)` turns each document into one Tier-1 plasmid section appended to a single store, and returns `section_count`, a **free** integer accumulator built during the append pass.
+2. **ORGANIZE** — `conserved_core` derives the conservation threshold `k`, then `genome_integrate_plasmids` promotes the induced core to a nuclear chromosome and merges the retained sections. `add_plasmid` does the same for one document at a time; D incremental calls are byte-identical to one batch call.
+
+`section_counts(store)` re-derives the accumulator from the sections themselves — the SSoT check, and the resume path when you did not just build the store. Pass the accumulator through on the hot path; the re-derivation is the verification path, not the default.
+
+**The read path pays its own bill (v0.9.0rc282), and the part that does not is named.** Scanning a store used to re-open `turns.bin` once per region — about **2 opens per section** in the scripting-coherency implementation, so the cost grew with the store. Both implementations now hold **one** handle for the whole scan and thread it through: the Python side through a `_body_handle` contextmanager, the compiled side through a held `FILE*` and a new platform read-at trio. Catalog derivation also stopped slurping the whole body into RAM — it streams, bounded by **the largest single region** rather than the file, the bound being one region and not one block because the SHA-256 op has no streaming API.
+
+Two honest limits belong with that claim. First, the ratchet that pins it (`tests/test_genome_read_io_ratchet_rc282.py`, `CEIL_BODY_OPENS_PER_SCAN = 2`, verified across a 25/50/100/200-section sweep with an independent assertion that 8× more sections must not raise the count *at all*) exercises the **scripting-coherency** implementation only — it deliberately disables native dispatch, because the compiled projection's open shape is a separate C-side concern that does not yet have an equivalent assertion. Second, the bound is on **RAM**, not on bytes read: `gene_express_plan`'s **call-level** I/O is *not* bounded the way its docstrings once advertised, and cannot be while the chromosome table is derived by scanning — ADR-0003 forbids storing it. Call-level bytes-read is **≥ the whole body**; only the per-region gate reads are bounded. The docstring now says exactly that, and closing the gap needs a format change this release does not make.
+
+**`k` is derived or honestly declined — never manufactured.** `conserved_core` measures the antimode of the section-count histogram. On a distribution with no clean gap it reports `k_source="declined"` with an empty core rather than inventing a threshold; an explicit `k` is reported as `"policy"`, a caller's stated choice, never as measured:
+
+```python
+from srmech.amsc import plasmid as P
+
+planted = {i: 1 for i in range(20)}                # 20 periphery ids, seen once
+planted.update({100 + i: 12 for i in range(4)})    #  4 core ids, seen 12×
+d = P.conserved_core(planted, k="auto")
+print(d["k_source"], d["k"], sorted(d["core"]))
+# derived 2 [100, 101, 102, 103]
+
+p = P.conserved_core(planted, k=8)
+print(p["k_source"], p["k"])       # policy 8
+```
+
+Measured on the full simplewiki corpus, stage 1 extracted **240,881 sections in 11.1 min** where the monolithic builder ran 8+ hours without finishing. The same corpus's conservation curve is heavy-tailed with no clean gap, so `conserved_core` **declines** on it — a scale-free distribution has no characteristic scale and therefore no natural antimode. That is a reported finding, not a defect, and the decline path is tested as a first-class outcome.
+
+### C-host coverage — what a bare-C host cannot run today
+
+ADR-0003 commits srmech to running standalone on a C host with no Python present; ADR-0009 frames the two implementations as co-equal projections of one capability set. Neither is a claim that coverage is currently complete. It is not, and the shortfall is **enumerated in the test suite rather than described in prose**.
+
+`tests/test_rosetta_transitive_standalone.py` ratchets the **wire-format surface** — the ops that lay out srmech's own on-disk byte structures (`srmech.amsc.genome`, `srmech.amsc.plasmid`, and the out-of-core `laplacian.recursive_cut`), where "a bare-C host cannot run this" is load-bearing rather than theoretical. Each such op must either name a **whole-op C entry point** — machine-checked twice over, that the symbol is declared in `c/include/srmech.h` **and** that the op actually reaches it through its dispatch glue — or sit on a documented allowlist. Reaching a C *primitive* through a private helper is deliberately **not** sufficient; that is the weaker property the ratchet exists to reject.
+
+The allowlist is pinned by `CEIL_WIRE_GLUE_GAPS`, currently **10**, and it is **down-only**: a test fails if the list grows. An entry leaves it only by landing a C entry point. The ops a bare-C host cannot currently run end-to-end:
+
+| Op | Why it is still a gap |
+|---|---|
+| `genome.genome_from_graph` | needs `genome_partition` plus its own subgraph relabel, per-group encode loop and strand assembly |
+| `genome.genome_partition` | the **graph** partition: exact-integer participation + antimode + per-node classify, all Python |
+| `plasmid.add_plasmid` | an orchestrator over three C entry points with no whole-op entry of its own |
+| `genome.condense` / `genome.decondense` | the cap bytes are compiled; the label-scoped range-find and splice around them are not |
+| `genome.genes` / `genome.genome_genes` / `genome.genome_genes_expressed` | reads that keep per-gene boundaries, which the existing compiled reads flatten or return as spans |
+| `genome.active_telomere` | a cap packer with no exposed entry point of its own |
+| `genome.mint_plan` | a read-only plan walk; the per-step primitive is compiled, the assembling loop is not |
+
+The count was **11** until v0.9.0rc284, when the out-of-core `laplacian.recursive_cut` driver landed its own C entry point (`srmech_laplacian_recursive_cut`) and left the list. Worth stating precisely, because it is easy to over-read: `recursive_cut` was the shared dead-end of the two `genome_*` entries above, so closing it **unblocked** both — and unblocking is not closing. Each still needs a C surface of its own that `recursive_cut` does not supply (`genome_partition` needs exact-integer participation, the antimode histogram and per-node classify; `genome_from_graph` needs all of that plus its in-RAM subgraph relabel, the per-group `graph_to_kernel` → `mint_strand` loop, and strand assembly). They are separate future rcs, not free riders on that one. The ratchet is what keeps this honest: an op leaves the list by landing an entry point, never by an adjacent op landing one.
+
+Two further coverage facts stated plainly rather than left to be discovered: `srmech_genome_section_counts` **declines** above roughly 11,000 sections and 196,608 distinct ids (bounded static working memory, since JPL Rule 3 bans `malloc` and the signature carries no arena), which is short of the 240,881-section corpus above — over those bounds the Python implementation services the call; and that same static memory makes the call non-reentrant. A clean, typed, well-tested decline is required, and is never the same thing as having the capability.
 
 ### `srmech.amsc` — Attested Multi-Source Collector/Catalog framework
 
@@ -275,7 +532,7 @@ The on-disk format is **Mathematical Provenance Record v1** (`MPR v1`):
     "license": "CC0",
     "retrieved_at": "2026-05-13T00:00:00Z",
     "response_sha256": "<64 hex chars>",
-    "parser_version": "srmech 0.8.0",
+    "parser_version": "srmech 0.9.0",
     "parser_rule_hash": "<64 hex chars>",
     "collector_descriptor_path": "...",
     "collector_descriptor_hash": "<64 hex chars>"

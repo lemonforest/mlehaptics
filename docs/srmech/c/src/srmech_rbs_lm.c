@@ -8,7 +8,7 @@
  *   - srmech_rbs_lm_encode_word    : one token → its Klein-4 word vector
  *                                    (byteglyph = klein4_encode_bytes ∘ sector
  *                                    bind; wordhash = sha256-seeded
- *                                    klein4_random ∘ sector bind)
+ *                                    klein4_expand ∘ sector bind)
  *   - srmech_rbs_lm_encode_context : the WHOLE last-k-token window → ONE
  *                                    Klein-4 context state (per-token encode +
  *                                    positional role-filler bind + odd-padded
@@ -30,13 +30,13 @@
  * BYTE-IDENTICAL parity contract (the correctness gate): every op reproduces
  * the pure-Python `srmech.rbs_lm.substrate` result EXACTLY. All the leaves are
  * integer/byte ops — sha256 token seeds (Class A), the CPython-replicating
- * MT19937 klein4_random mint, (F₂)² XOR bind (Class M), per-bit strict
+ * MT19937 klein4_expand mint, (F₂)² XOR bind (Class M), per-bit strict
  * majority bundle with ties → 0 — so there is no float anywhere and exact
  * parity is the correct gate (the rc217 srmech_text precedent, NOT the
  * within-tol numeric contract).
  *
  * Composes the EXISTING public C leaves — srmech_sha256_hex,
- * srmech_klein4_random, srmech_klein4_bind, srmech_klein4_bundle_accumulate /
+ * srmech_klein4_expand, srmech_klein4_bind, srmech_klein4_bundle_accumulate /
  * _resolve — exactly like srmech_klein4_compose does (the model composite).
  *
  * JPL Power-of-Ten compliance:
@@ -137,7 +137,7 @@ static srmech_status_t rbs_mint_u32(uint32_t seed, uint32_t D, uint8_t *out)
     uint32_t key = seed;
     assert(out != NULL);
     assert(D >= 1u);
-    return srmech_klein4_random(&key, (size_t)1, D, out);
+    return srmech_klein4_expand(&key, (size_t)1, D, out);
 }
 
 /* The D-byte mint for a small integer `seed` — from cache row `slot` when the
@@ -181,7 +181,7 @@ static void rbs_sector_bind(uint8_t *v, uint32_t D, uint8_t sector)
  * ------------------------------------------------------------------ */
 
 /* klein4_encode_bytes(data, D) — the §60/F864 byte-composed word vector:
- * bundle_i( bind(klein4_random(D, seed=data[i]), klein4_random(D, seed=
+ * bundle_i( bind(klein4_expand(D, data[i]), klein4_expand(D, 
  * 0x10000+i)) ), ties → 0 (the plain bundle; NO odd-pad here, matching the
  * pure klein4_encode_bytes). The byte-vocab and position-key mints ride the
  * cache when active. acc is a (1 + 2*D) uint32 accumulator; vec / key / bnd
@@ -225,7 +225,7 @@ static srmech_status_t rbs_encode_bytes(const uint8_t *data, size_t data_len,
  * substrate.encode_word_byteglyph / encode_word_k4:
  *   byteglyph: klein4_encode_bytes(utf8) (empty token → the seed-0 neutral
  *              atom), then the sector bind;
- *   wordhash : klein4_random(D, seed=token_seed(tok, hex_chars)), then the
+ *   wordhash : klein4_expand(D, token_seed(tok, hex_chars)), then the
  *              sector bind. */
 static srmech_status_t rbs_encode_word_core(const uint8_t *tok, size_t tok_len,
                                             uint32_t D, uint8_t sector,
@@ -244,7 +244,7 @@ static srmech_status_t rbs_encode_word_core(const uint8_t *tok, size_t tok_len,
         size_t nwords = 0;
         st = rbs_seed_words(tok, tok_len, hex_chars, words, &nwords);
         if (st != SRMECH_OK) { return st; }
-        st = srmech_klein4_random(words, nwords, D, out);
+        st = srmech_klein4_expand(words, nwords, D, out);
     } else if (tok_len == 0u) {
         st = rbs_mint_u32(0u, D, out);           /* the empty/pad atom */
     } else {
@@ -327,7 +327,7 @@ static srmech_status_t rbs_pos_mint(uint32_t p, uint32_t D, uint32_t hex_chars,
     len++;
     st = rbs_seed_words(label, len, hex_chars, words, &nwords);
     if (st != SRMECH_OK) { return st; }
-    return srmech_klein4_random(words, nwords, D, out);
+    return srmech_klein4_expand(words, nwords, D, out);
 }
 
 /* pos_key(p) into `key`: the raw mint (from the cache's ctxpos section when

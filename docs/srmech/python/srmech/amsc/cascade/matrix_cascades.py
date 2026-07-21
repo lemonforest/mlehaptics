@@ -56,6 +56,7 @@ from srmech.amsc import _native as _native  # rc140: real QR/SVD C dispatch (F2)
 from srmech.amsc.mat import Mat as _Mat
 from srmech.amsc.vec import Vec as _Vec  # rc131: 1-D carrier for singular values / vector solutions / eigenvalues
 from srmech.amsc.laplacian import (
+    _cmax_component,  # rc285: exact magnitude proxy for the reflector's scaling
     mat_eigvals as _mat_eigvals,
     mat_lstsq as _mat_lstsq,
     mat_matmul as _mat_matmul,  # rc155: route the 2-operand contraction through C
@@ -180,13 +181,32 @@ def qr(a, *, mode: str = "reduced") -> Tuple["_Mat", "_Mat"]:
                     _Mat.from_rows(Rf, is_complex=False))
     Q = [[1 + 0j if i == j else 0j for j in range(m)] for i in range(m)]
     for j in range(k):
-        x = [R[i][j] for i in range(j, m)]            # column j, rows j..m-1
+        col = [R[i][j] for i in range(j, m)]          # column j, rows j..m-1
+        # rc285 (#1440, defect 3): SCALE the column to O(1) before forming the
+        # reflector. ``P = I − β·v·vᴴ`` is invariant under ``v → v/c``, but
+        # ``_modulus`` is the bounded-denominator Class-N hypot cascade, not libm
+        # ``hypot``: it carries ≈ −2e−5 relative error at 1e-12 and returns
+        # EXACTLY 0.0 below ≈1e-17. Unscaled, ``x0/_modulus(x0)`` is then not a
+        # unit phase (measured 1.25 at x0 = 6.9e-17), so ``|α| ≠ ‖x‖`` and P
+        # stops being a reflector — the same defect that made the
+        # ``mat_eigvals`` Hessenberg reduction a non-similarity. Only COMPLEX
+        # input reaches this loop (real dispatches to ``srmech_qr_f64`` above).
+        cscale = 0.0
+        for z in col:
+            c_ = _cmax_component(z)                   # exact at every magnitude
+            if c_ > cscale:
+                cscale = c_
+        if cscale == 0.0:
+            continue                                  # zero column
+        x = [z / cscale for z in col]                 # every entry now O(1)
         normx = _norm2(x)
         if normx == 0.0:
             continue
         x0 = x[0]
         modx0 = _modulus(x0)
-        phase = (x0 / modx0) if modx0 > 0.0 else complex(1.0, 0.0)
+        # The phase exists only to keep v[0] = x0 − α from cancelling; below
+        # this fraction of ‖x‖ there is no cancellation and x0's phase is noise.
+        phase = (x0 / modx0) if modx0 > 1e-4 * normx else complex(1.0, 0.0)
         alpha = -phase * normx                        # Class K: pin-slot phase
         v = list(x)
         v[0] = x0 - alpha
@@ -813,7 +833,18 @@ def separate_frame_curvature(a, b):
 # rational bisection (Class N anchors → the algebraic asymptote) → one FPU lift —
 # the eigenvalues come out exact-to-arbitrary-precision and well-conditioned.
 
-from fractions import Fraction as _FR  # noqa: E402  (exact rational substrate)
+from srmech.amsc.q import Q, to_q  # noqa: E402  (#845: exact-ℚ carrier, was Fraction)
+
+
+def _FR(num, den=1):
+    """The exact-ℚ carrier factory (srmech :class:`~srmech.amsc.q.Q`; #845 — was
+    ``fractions.Fraction`` aliased ``_FR``). Kept as the module's rational factory
+    so the root-isolation ``_FR(...)`` call-sites are unchanged: one-arg coerces an
+    int / float / ``Fraction`` / ``Q`` via :func:`~srmech.amsc.q.to_q` (``_FR(coeff)``
+    / ``_FR(x0)`` — the integer char-poly coeffs and box coords); two-arg builds the
+    exact ``Q(num, den)`` (``_FR(1, 1 << bits)`` — the dyadic box widths). All root
+    isolation stays EXACT-ℚ, no float in the box boundary."""
+    return to_q(num) if den == 1 else Q(num, den)
 
 
 def _poly_trim(p: List) -> List:
@@ -1079,7 +1110,7 @@ def _count_roots_in_box(p: List, x0, x1, y0, y1) -> int:
     return count
 
 
-def _cauchy_root_bound(p: List) -> _FR:
+def _cauchy_root_bound(p: List) -> Q:
     """A rational bound ``B`` with every root of ``p`` (low→high) satisfying
     ``|root| < B`` — the Cauchy bound ``1 + max|a_i / a_n|``. Exact ℚ, Class-K
     magnitude (sign-branch, no ``abs()``)."""
@@ -1104,7 +1135,7 @@ def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]
     eta = _FR(1, 1 << 24)
     jx = _FR(1, 997)
     jy = _FR(1, 991)
-    found: List[Tuple[_FR, _FR]] = []
+    found: List[Tuple[Q, Q]] = []
     # work-stack of (x0, x1, y0, y1, expected_count); seed with the whole strip.
     x0, x1, y0, y1 = -B - jx, B + jx, eta, B + jy
     try:
@@ -1153,7 +1184,7 @@ def _isolate_complex_roots_upper(p: List, want: int, bits: int) -> List[complex]
     return [complex(float(cx), float(cy)) for (cx, cy) in found]
 
 
-def _root_free_split(p: List, x0, x1, y0, y1, axis: str) -> _FR:
+def _root_free_split(p: List, x0, x1, y0, y1, axis: str) -> Q:
     """A cut value near the midpoint of the chosen ``axis`` of the box such that
     BOTH resulting sub-boxes have a well-defined root count (no root on the cut).
     Jitters off the midpoint until :func:`_count_roots_in_box` does not raise."""
@@ -1177,7 +1208,7 @@ def _root_free_split(p: List, x0, x1, y0, y1, axis: str) -> _FR:
     raise ValueError("_root_free_split: no root-free cut found")
 
 
-def _refine_box(p: List, x0, x1, y0, y1, bits: int) -> Tuple[_FR, _FR]:
+def _refine_box(p: List, x0, x1, y0, y1, bits: int) -> Tuple[Q, Q]:
     """Refine an isolating box (guaranteed to hold exactly ONE root) to half-width
     ``< 2^-bits`` by root-free-cut bisection; return the box center ``(re, im)``.
 

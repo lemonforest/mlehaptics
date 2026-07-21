@@ -1,47 +1,80 @@
 """Text → tokens → co-occurrence-edge ingestion (the Class-L precursor front of K1).
 
 The text→graph leaves of the RBS-LM **K1 presence-kernel** chain
-``text → tokenize → cooccurrence_edges → dense_laplacian`` (UPSTREAM_NOTES §17 U1
-/ §40). Kept in a dedicated **ingestion** module — `tokenize` is not a spectral
+``text → glyph_stream → cooccurrence_edges → dense_laplacian`` (UPSTREAM_NOTES
+§17 U1 / §40). Kept in a dedicated **ingestion** module — `glyph_stream` is not a spectral
 op and `cooccurrence_edges` is the Class-L *precursor* that produces what
 :func:`srmech.amsc.laplacian.dense_laplacian` consumes — so ``laplacian`` stays
 purely spectral (Class E/G ingestion vs Class-L spectral; §40 Option 1).
 
-This module REPLACES the rc43 `srmech.amsc.laplacian.{tokenize, cooccurrence_edges}`
-that failed the §40 acceptance bar 3/3 (F722). Each function now matches the
-reference wiki kernel (`R-RBS-LM-WIKIKERNEL…` — `content_words` / `build_edges_topk`
-/ `DEFAULT_STOPLIST`) and the three lessons the rc43 versions regressed:
+**rc287 — the unit is the GLYPH CLUSTER, not the word (BREAKING).**
+:func:`glyph_stream` replaces the former ``tokenize``. The word decision it
+retired carried four Latin-shaped assumptions — a 2-codepoint length floor, a
+universal ``casefold``, a 146-word **English** stoplist applied to every
+language, and an apostrophe special case — and each mis-handled most of the
+world's writing systems. Measured on real Wikipedia prose, scriptio-continua
+scripts collapsed into single 45-96 character "words" and **~89% of resulting
+types were singletons** (English: 19.6%), so the co-occurrence graph those
+tokens fed carried almost no association mass. The front door was not merely
+mis-segmenting those languages; it was *manufacturing* a degenerate vocabulary.
 
-* **Unicode-aware** (F698) — keep codepoints whose ``unicodedata.category(ch)[0]``
-  is ``"L"`` (letter) or ``"M"`` (combining mark), casefold; **not** an ASCII
-  ``\\w+`` (which truncated ``café`` → ``caf`` and dropped Cyrillic / CJK).
+A UAX #29 extended grapheme cluster is well-defined in **every** script, so no
+per-language decision is made at ingestion. Scale moves the helpful way:
+vocabulary shrinks ~5x and co-occurrence edges ~40%, while the stream is ~6.7x
+longer (the graph is bounded by vocabulary, not stream length).
+
+``DEFAULT_STOPLIST``, ``_MIN_LEN`` and the apostrophe handling are **gone**, not
+deprecated — there is no compatibility shim and no legacy mode. Case folding and
+confusable normalisation are per-locale concerns that now belong downstream.
+Callers holding stored vocabularies / edge stores built on word ids must
+re-encode; see CHANGELOG 0.9.0rc287.
+
+Retained from the rc43/§40 lineage (`R-RBS-LM-WIKIKERNEL…` / `build_edges_topk`):
+
 * **No silent vocab cap** (F708) — :func:`cooccurrence_edges` keeps the **full**
   ranked vocabulary by default; a top-K cap is an **explicit, logged** caller
   opt-in (``vocab_size=``), never a silent ``min(…, 256)``. The 256 native bound
   is for the dense-eig *block* only, never the vocabulary or the sparse adjacency.
 * **Document-boundary window reset** — co-occurrence never crosses a document
   boundary (one article = one window reset). Pass ``docs`` as a sequence of
-  token-sequences (a flat token list is treated as one document).
+  token-sequences (a flat token list is treated as one document). NB the window
+  is now counted in GLYPHS: ``window=5`` spans ~5 glyphs (under one word), not
+  ~5 words. Window semantics need re-deriving per corpus, not rescaling.
 
-Numpy-free, deterministic. Class B/G text-segmentation (`tokenize`) ∘ the
+Numpy-free, deterministic. Class B/G text-segmentation (`glyph_stream`) ∘ the
 Class-L co-occurrence precursor (`cooccurrence_edges`) — no continuous math
 (the FPU sits idle; counts are exact integers). Retires the hand-rolled
 ``Counter()`` co-occurrence idiom the CLAUDE.md STOP-list flags: the output is
 edges → ``dense_laplacian``, not a ``Counter`` store.
 
-**rc217 (gh #1360): the three ops dispatch to BYTE-IDENTICAL C peers**
-(``srmech_text_tokenize`` / ``srmech_text_cooccurrence_edges`` /
+**The three ops dispatch to BYTE-IDENTICAL C peers**
+(``srmech_text_glyph_stream`` / ``srmech_text_cooccurrence_edges`` /
 ``srmech_text_cooccurrence_topk`` + ``…_topk_extract``) — the corpus-linear
-hot loops (per-codepoint tokenize; windowed pair counting; bounded chunk
+hot loops (per-codepoint segmentation; windowed pair counting; bounded chunk
 merge) run in C, while the vocab-scale string↔id mapping stays Python (the
-``srmech_klein4_cooccurrence_fold`` split precedent). The tokenizer's Unicode
-tables (kept-bitset + casefold exceptions) are built ONCE per process from the
-RUNNING interpreter's ``unicodedata`` and handed to C, so native == pure is
-byte-identical by construction on any interpreter / Unicode version. The
-pure-Python bodies below are the complete alternative (and the parity oracle).
+``srmech_klein4_cooccurrence_fold`` split precedent).
+
+**How the Unicode table reaches C changed at rc287.** The retired tokenizer
+built its tables from the RUNNING interpreter's ``unicodedata``, so native ==
+pure held BY CONSTRUCTION with nothing vendored. UAX #29 forecloses that:
+``unicodedata`` exposes no grapheme-break property, no ``Extended_Pictographic``
+(GB11) and no ``InCB`` (GB9c), so the real choice is vendored-vs-ABSENT, and
+absent means broken emoji and broken Indic. srmech therefore vendors ONE
+attested table (:mod:`srmech.amsc._unicode_gb_tables`, UCD 16.0.0) that both
+coherency projections load; byte-identity is now pinned by **test**
+(``test_unicode_gb_tables_attested.py``) rather than by construction, and
+upstream drift is caught by ``c/tools/gen_unicode_gb_tables.py --verify``.
+
+Running the other way from the usual vendoring worry: because the table no
+longer tracks the host, two hosts at different Python / Unicode versions now
+segment text IDENTICALLY. Under the derive-from-host scheme they would not have.
+
+The pure-Python bodies below are the complete alternative (and the parity
+oracle); both projections score 1093/1093 on the official ``GraphemeBreakTest``.
 """
 from __future__ import annotations
 
+import bisect
 import ctypes
 import itertools
 import logging
@@ -51,240 +84,435 @@ from functools import lru_cache
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from . import _native
+from . import _unicode_gb_tables as _gb
+from . import _unicode_fold_tables as _fold
 
-__all__ = ["DEFAULT_STOPLIST", "tokenize", "cooccurrence_edges", "cooccurrence_topk"]
+__all__ = ["fold_marks", "glyph_stream", "cooccurrence_edges",
+           "cooccurrence_topk"]
 
 _log = logging.getLogger("srmech.amsc.text")
-
-#: General function-word stoplist (articles / conjunctions / prepositions /
-#: be-have-do-modal / determiners / pronouns / high-frequency connectives).
-#: Function words carry no association mass. This is the **general** stoplist —
-#: corpus-specific furniture (wiki markup tokens, etc.) is the caller/adapter's
-#: concern per F700, NOT baked in here. The F714 prepositions
-#: (``around/across/along/toward/onto/within/among/against/throughout``…) ARE
-#: included: the etak-walk drift bug was a *missing function word*, so a thin
-#: list is insufficient. Callers extend or replace it (``stoplist=``); pass an
-#: empty stoplist for raw mode.
-DEFAULT_STOPLIST: frozenset = frozenset({
-    # articles / conjunctions / prepositions
-    "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "for",
-    "with", "by", "from", "into", "than", "then", "so", "as", "about", "over",
-    "under", "after", "before", "between", "during", "through", "out", "up",
-    "down", "off", "above", "below", "near", "around", "across", "along",
-    "toward", "towards", "onto", "upon", "within", "without", "behind",
-    "beyond", "beside", "among", "amongst", "against", "throughout",
-    # be / have / do / modal
-    "is", "are", "was", "were", "be", "been", "being", "am", "has", "have",
-    "had", "having", "do", "does", "did", "may", "can", "could", "would",
-    "should", "will", "shall", "must", "might",
-    # determiners / pronouns
-    "this", "that", "these", "those", "it", "its", "he", "she", "they", "them",
-    "their", "his", "her", "him", "we", "us", "our", "you", "your", "i", "me",
-    "my", "who", "whom", "whose", "which", "what", "such", "no", "not", "all",
-    "any", "some", "each", "every", "both", "few", "more", "most", "other",
-    "another", "many", "much", "one", "two", "there", "here",
-    # high-frequency connectives / function-ish adverbs
-    "also", "when", "where", "while", "how", "why", "if", "because", "however",
-    "though", "like", "just", "only", "very", "too", "now", "well", "back",
-    "even", "still", "first", "same", "new", "old",
-})
-
-#: Apostrophes kept word-internal (ASCII + curly): ``don't`` / ``galaxy's``.
-_APOS = "'’"
-
-#: The casefolded DEFAULT_STOPLIST, precomputed once — the common-case
-#: ``tokenize`` call re-derives the same frozenset per invocation otherwise
-#: (a measured ~23 µs/article tax on the encode loop, both paths).
-_DEFAULT_STOP_FOLDED: frozenset = frozenset(s.casefold() for s in DEFAULT_STOPLIST)
-
-#: Minimum content-word length (single letters are not content words).
-_MIN_LEN = 2
 
 #: uint32 domain guard for the native co-occurrence kernels (vocab ids /
 #: window / cap ride uint32 on the C side; anything beyond falls to pure).
 _U32_MAX = 0xFFFFFFFF
 
 
-# ── rc217: the once-per-process Unicode tables for the native tokenizer ─────
+
+# ── rc287: the vendored UAX #29 break table, decoded once per process ───────
 #
-# Built from the RUNNING interpreter's unicodedata (never vendored), so the C
-# peer is byte-identical to the pure body BY CONSTRUCTION on any Python /
-# Unicode version: (a) the kept-bitset — bit cp set iff category(cp)[0] in
-# ("L", "M"); (b) the casefold exception table — every cp whose str.casefold
-# differs from itself, as sorted cps + offset-indexed folded-UTF-8 blob.
-# str.casefold is per-codepoint (Unicode full case folding C+F is
-# context-free), which the rc217 test battery locks. If any fold output ever
-# contained an apostrophe the C trim-after-fold order would diverge from the
-# pure strip-before-fold order — no Unicode version does this; the builder
-# verifies and declines the native path entirely if it ever appears.
+# The retired word tokenizer built its Unicode tables from the RUNNING
+# interpreter's `unicodedata`, which made native == pure byte-identical BY
+# CONSTRUCTION with nothing vendored. That is not available for UAX #29:
+# `unicodedata` exposes no grapheme-break property, no Extended_Pictographic
+# (GB11) and no InCB (GB9c) — so the choice is vendored-vs-ABSENT, not
+# vendored-vs-derived, and absent means broken emoji and broken Indic.
+#
+# srmech therefore vendors ONE attested table (`_unicode_gb_tables`, UCD
+# 16.0.0) that BOTH coherency projections load, and byte-identity is pinned by
+# test (test_unicode_gb_tables_attested.py) instead of by construction.
+#
+# A consequence worth naming, because it runs the other way from the usual
+# "vendoring introduces drift" worry: two hosts at DIFFERENT Python / Unicode
+# versions now segment text identically. Under the derive-from-host scheme
+# they would not have. The drift that vendoring does introduce is against
+# *upstream*, and it is caught by the re-verification script, not by the host.
 
-_TOKENIZE_TABLES: Optional[tuple] = None
-_TOKENIZE_TABLES_BUILT = False
+_GB_TABLE: Optional[tuple] = None
+_GB_TABLE_C: Optional[tuple] = None
 
 
-def _unicode_tables() -> Optional[tuple]:
-    """The cached (kept_bits, fold_cps, fold_off, fold_bytes, n_folds) ctypes
-    tables for :func:`srmech_text_tokenize`, or ``None`` when the native path
-    must decline (fold-output apostrophe — never on any known Unicode)."""
-    global _TOKENIZE_TABLES, _TOKENIZE_TABLES_BUILT
-    if _TOKENIZE_TABLES_BUILT:
-        return _TOKENIZE_TABLES
-    kept = bytearray(0x110000 >> 3)
-    fold_cps = array("I")
-    fold_off = array("I", [0])
-    fold_bytes = bytearray()
-    usable = True
-    for cp in range(0x110000):
-        ch = chr(cp)
-        if unicodedata.category(ch)[0] in ("L", "M"):
-            kept[cp >> 3] |= 1 << (cp & 7)
-        f = ch.casefold()
-        if f != ch:
-            if "'" in f or "’" in f:      # trim-order safety property
-                usable = False
-                break
-            fold_cps.append(cp)
-            fold_bytes += f.encode("utf-8")
-            fold_off.append(len(fold_bytes))
-    if usable:
-        _TOKENIZE_TABLES = (
-            (ctypes.c_uint8 * len(kept)).from_buffer_copy(kept),
-            (ctypes.c_uint32 * len(fold_cps)).from_buffer_copy(fold_cps),
-            (ctypes.c_uint32 * len(fold_off)).from_buffer_copy(fold_off),
-            (ctypes.c_uint8 * max(1, len(fold_bytes))).from_buffer_copy(
-                bytes(fold_bytes) or b"\x00"),
-            len(fold_cps),
+def _gb_table() -> tuple:
+    """The decoded ``(lo, hi, prop)`` range arrays, built once per process."""
+    global _GB_TABLE
+    if _GB_TABLE is None:
+        blob = _gb.GB_TABLE_BLOB
+        n = _gb.GB_RANGE_COUNT
+        lo = array("I", bytes(n * 4))
+        hi = array("I", bytes(n * 4))
+        prop = bytearray(n)
+        for i in range(n):
+            base = i * 9
+            lo[i] = int.from_bytes(blob[base:base + 4], "little")
+            hi[i] = int.from_bytes(blob[base + 4:base + 8], "little")
+            prop[i] = blob[base + 8]
+        _GB_TABLE = (lo, hi, bytes(prop))
+    return _GB_TABLE
+
+
+def _gb_table_ctypes() -> tuple:
+    """The same table as ctypes arrays for the native peer (built once)."""
+    global _GB_TABLE_C
+    if _GB_TABLE_C is None:
+        lo, hi, prop = _gb_table()
+        _GB_TABLE_C = (
+            (ctypes.c_uint32 * len(lo)).from_buffer_copy(lo),
+            (ctypes.c_uint32 * len(hi)).from_buffer_copy(hi),
+            (ctypes.c_uint8 * len(prop)).from_buffer_copy(prop),
+            len(prop),
         )
-    else:                                       # pragma: no cover — no known
-        _TOKENIZE_TABLES = None                 # Unicode version trips this
-    _TOKENIZE_TABLES_BUILT = True
-    return _TOKENIZE_TABLES
+    return _GB_TABLE_C
 
 
-@lru_cache(maxsize=32)
-def _stop_tables(stop: frozenset) -> tuple:
-    """The (stop_off, stop_bytes, n_stop) ctypes tables for one casefolded
-    stoplist frozenset — sorted UTF-8 entries for the C binary search (UTF-8
-    byte order == codepoint order, so bytewise compare == str compare)."""
-    entries = sorted(s.encode("utf-8") for s in stop)
-    off = array("I", [0])
-    blob = bytearray()
-    for e in entries:
-        blob += e
-        off.append(len(blob))
-    return (
-        (ctypes.c_uint32 * len(off)).from_buffer_copy(off),
-        (ctypes.c_uint8 * max(1, len(blob))).from_buffer_copy(
-            bytes(blob) or b"\x00"),
-        len(entries),
-    )
+def _gb_prop(cp: int) -> int:
+    """Packed property byte for ``cp`` — gbp in bits 0-3, Extended_Pictographic
+    in bit 4, InCB in bits 5-6.
+
+    Hangul LV/LVT come from the UAX #29 §3 syllable algebra rather than table
+    rows: the precomposed block U+AC00..U+D7A3 is 798 ranges of pure
+    alternation, so deriving it saves exactly 7,254 B and is exact. The
+    algebra covers ONLY that block — jamo L/V/T stay table rows, because
+    LBase/VBase/TBase are *composition* anchors that do not coincide with the
+    GBP jamo ranges (U+1160 HANGUL JUNGSEONG FILLER is GBP=V yet sits below
+    VBase=U+1161, and the Jamo Extended-A/B blocks are outside them entirely).
+    """
+    if _gb.HANGUL_SBASE <= cp < _gb.HANGUL_SBASE + _gb.HANGUL_SCOUNT:
+        return (_GBP_LV if (cp - _gb.HANGUL_SBASE) % _gb.HANGUL_TCOUNT == 0
+                else _GBP_LVT)
+    lo, hi, prop = _gb_table()
+    i = bisect.bisect_right(lo, cp) - 1
+    if i >= 0 and cp <= hi[i]:
+        return prop[i]
+    return _GBP_OTHER          # GB999 default
 
 
-def _tokenize_native(text: str, stop: frozenset) -> Optional[List[str]]:
-    """Native :func:`tokenize` body (text already NFC-normalised when asked).
-    Returns the token list, or ``None`` to decline to the pure path (missing
-    tables / non-encodable text such as lone surrogates)."""
-    tables = _unicode_tables()
-    if tables is None:
-        return None
+#: GBP tag ordinals, resolved once from the generated table's wire order.
+(_GBP_OTHER, _GBP_CR, _GBP_LF, _GBP_CONTROL, _GBP_EXTEND, _GBP_ZWJ,
+ _GBP_RI, _GBP_PREPEND, _GBP_SPACINGMARK, _GBP_L, _GBP_V, _GBP_T,
+ _GBP_LV, _GBP_LVT) = range(len(_gb.GBP_TAGS))
+
+#: InCB tag ordinals (UAX #29 GB9c).
+_INCB_NONE, _INCB_LINKER, _INCB_CONSONANT, _INCB_EXTEND = range(
+    len(_gb.INCB_TAGS))
+
+_CONTROLISH = frozenset({_GBP_CONTROL, _GBP_CR, _GBP_LF})
+
+
+def _glyph_stream_native(text: str) -> Optional[List[str]]:
+    """Native :func:`glyph_stream` body. Returns the cluster list, or ``None``
+    to decline to the pure path (non-encodable text such as lone surrogates)."""
     try:
         raw = text.encode("utf-8")
     except UnicodeEncodeError:
         return None                    # lone surrogates — pure path handles
-    kept_c, fcps_c, foff_c, fbytes_c, n_folds = tables
-    soff_c, sbytes_c, n_stop = _stop_tables(stop)
-    # ≥ worst-case fold expansion (≤3× bytes) + one '\n' per token; rounded to
-    # the next power of two so the ctypes array TYPE is cache-hit per bucket
-    # (a fresh per-length type costs more than the C call on small articles).
-    out_cap = 1 << (4 * len(raw) + 16).bit_length()
-    out = (ctypes.c_uint8 * out_cap)()
-    out_len = ctypes.c_size_t(0)
-    rc = _native.LIB.srmech_text_tokenize(
-        raw, len(raw), kept_c, fcps_c, foff_c, fbytes_c, n_folds,
-        soff_c, sbytes_c, n_stop, out, out_cap, ctypes.byref(out_len))
+    lo_c, hi_c, prop_c, n_ranges = _gb_table_ctypes()
+    cap = len(raw) + 1                 # one cluster per byte is the worst case
+    out = (ctypes.c_uint32 * cap)()
+    out_n = ctypes.c_size_t(0)
+    rc = _native.LIB.srmech_text_glyph_stream(
+        raw, len(raw), lo_c, hi_c, prop_c, n_ranges,
+        out, cap, ctypes.byref(out_n))
     if rc != _native.SRMECH_OK:
-        raise RuntimeError(f"srmech_text_tokenize returned status {rc}")
-    n = out_len.value
-    if n == 0:
-        return []
-    return (ctypes.string_at(ctypes.addressof(out), n - 1)
-            .decode("utf-8").split("\n"))
+        raise RuntimeError(f"srmech_text_glyph_stream returned status {rc}")
+    n = out_n.value
+    return [raw[out[i]:out[i + 1]].decode("utf-8") for i in range(n)]
 
 
-def tokenize(
+def glyph_stream(
     text: str,
     *,
-    stoplist: Optional[Iterable[str]] = DEFAULT_STOPLIST,
     unicode_normalize: bool = True,
 ) -> List[str]:
-    """Segment ``text`` into casefolded, Unicode-aware content tokens (§40 / F698).
+    """Segment ``text`` into UAX #29 **extended grapheme clusters** — the
+    language-agnostic glyph stream (rc287).
 
-    Walks codepoints and accumulates runs of Unicode **letters** and **combining
-    marks** (``unicodedata.category(ch)[0] in ("L", "M")``) — so ``café`` /
-    ``naïve`` / ``Москва`` / ``日本語`` survive intact, where the rc43 ASCII
-    ``\\w+`` truncated or dropped them. A word-internal apostrophe (ASCII ``'`` or
-    curly ``’``) is kept; every other character ends the run. Each run is
-    casefolded, apostrophe-stripped at the ends, and kept iff length ≥ 2 and not
-    in ``stoplist``.
+    A grapheme cluster is what a reader perceives as ONE character. It is the
+    only unit that is well-defined in every script, which is precisely why it
+    replaced the word here. The word decision this op retired carried four
+    Latin-shaped assumptions — a 2-codepoint length floor, a universal
+    ``casefold``, a 146-word English stoplist, and an apostrophe special case
+    — and each one mis-handled most of the world's writing systems::
+
+        tokenize('语言是人类交流的工具')  →  ['语言是人类交流的工具']   # 1 "word"
+        glyph_stream('语言是人类交流的工具') →  ['语','言','是', …]      # 10 glyphs
+
+    In scriptio-continua scripts the old front door made ~89% of types
+    singletons — a co-occurrence graph over a 89%-singleton vocabulary carries
+    almost no association mass. It was not merely mis-segmenting those
+    languages; it was manufacturing a degenerate vocabulary.
+
+    The clusters where codepoint-level and glyph-level answers diverge most
+    are the clearest demonstration that the cluster is the right primitive —
+    each of these is ONE thing a human sees, and ONE element of the stream::
+
+        '👨‍👩‍👧‍👦'  → one cluster (7 codepoints, GB11)
+        '🇻🇺'      → one cluster (2 codepoints, GB12/13)
+        'क्षि'      → one cluster (GB9c, Unicode 15.1)
+        '1️⃣'      → one cluster (the old path emitted a base-less mark token)
 
     Parameters
     ----------
     text
-        Already-clean text. Markup stripping (wiki/HTML/LaTeX) is corpus-specific
-        and stays in the caller/adapter (F700) — ``tokenize`` takes clean text so
-        the op stays general.
-    stoplist
-        Iterable of function words to drop (compared casefolded). Defaults to
-        :data:`DEFAULT_STOPLIST`. Pass ``None`` or an empty iterable for **raw
-        mode** (keep all content words). Extend the default to add domain words.
+        Already-clean text. Markup stripping (wiki/HTML/LaTeX) is
+        corpus-specific and stays in the caller/adapter (F700).
     unicode_normalize
-        When ``True`` (default), NFC-normalise ``text`` first so a token's string
-        form is canonical (precomposed ``café``), independent of input encoding.
+        When ``True`` (default), NFC-normalise first so a cluster's string form
+        is canonical. Note this is the ONE place the host's ``unicodedata``
+        still participates; the break decision itself reads only the vendored
+        table, so cluster BOUNDARIES are host-version-independent.
 
     Returns
     -------
     list[str]
-        The casefolded content-token stream :func:`cooccurrence_edges` consumes.
+        The glyph stream. Every codepoint of ``text`` appears in exactly one
+        cluster, in order, so ``"".join(result)`` reconstructs the (normalised)
+        input exactly — the op is lossless, and a boundary never falls inside a
+        codepoint or between a base and its combining marks.
+
+    Notes
+    -----
+    No case folding, no stoplist, no length floor, and whitespace and
+    punctuation are emitted as clusters (they *are* clusters). Case folding and
+    confusable normalisation are per-locale decisions that now belong
+    downstream rather than at the front door.
 
     Class B/G text-segmentation — framing of the text substrate, no numeric
-    compute. Numpy-free, deterministic. Dispatches the per-codepoint loop to
-    the byte-identical C peer ``srmech_text_tokenize`` when the native lib is
-    loaded (rc217); the pure-Python body below is the complete alternative.
+    compute. Numpy-free, deterministic. Dispatches to the byte-identical C peer
+    ``srmech_text_glyph_stream`` when the native lib is loaded; the pure-Python
+    body below is the complete alternative (and the parity oracle). Scores
+    1093/1093 on the official UAX #29 ``GraphemeBreakTest.txt`` in BOTH
+    projections.
     """
     if not isinstance(text, str):
-        raise TypeError(f"tokenize: text must be str; got {type(text).__name__}")
+        raise TypeError(
+            f"glyph_stream: text must be str; got {type(text).__name__}")
     if unicode_normalize:
         text = unicodedata.normalize("NFC", text)
-    if stoplist is DEFAULT_STOPLIST:               # common case, precomputed
-        stop = _DEFAULT_STOP_FOLDED
-    elif stoplist is not None:
-        stop = frozenset(s.casefold() for s in stoplist)
-    else:
-        stop = frozenset()
-    if _native.has_native_text_tokenize():
-        native = _tokenize_native(text, stop)
+    if not text:
+        return []
+    if _native.has_native_text_glyph_stream():
+        native = _glyph_stream_native(text)
         if native is not None:
             return native
+    props = [_gb_prop(ord(ch)) for ch in text]
     out: List[str] = []
-    cur: List[str] = []
-    for ch in text:
-        if unicodedata.category(ch)[0] in ("L", "M"):
-            cur.append(ch)
-        elif ch in _APOS and cur:
-            cur.append("'")
-        elif cur:
-            _emit(cur, stop, out)
-            cur = []
-    if cur:
-        _emit(cur, stop, out)
+    start = 0
+    gb11 = 0                 # 0 none · 1 saw `ExtPict Extend*` · 2 then ZWJ
+    incb_consonant = incb_linker = False
+    ri_run = 0
+    prev = _GBP_OTHER
+    for i, cur in enumerate(props):
+        brk = True if i == 0 else _gb_is_break(
+            prev, cur, gb11, incb_consonant, incb_linker, ri_run)
+        if brk and i:
+            out.append(text[start:i])
+            start = i
+        # ── fold `cur` into the lookbehind flags (GB11 / GB9c / GB12-13) ──
+        b = cur & _gb.PROP_GBP_MASK
+        if cur & _gb.PROP_EXTPICT_BIT:
+            gb11 = 1
+        elif gb11 == 1 and b == _GBP_EXTEND:
+            pass                                     # stay armed
+        elif gb11 == 1 and b == _GBP_ZWJ:
+            gb11 = 2
+        else:
+            gb11 = 0
+        incb = (cur & _gb.PROP_INCB_MASK) >> _gb.PROP_INCB_SHIFT
+        if incb == _INCB_CONSONANT:
+            incb_consonant, incb_linker = True, False
+        elif incb == _INCB_LINKER:
+            if incb_consonant:
+                incb_linker = True
+        elif incb != _INCB_EXTEND:
+            incb_consonant = incb_linker = False
+        if b == _GBP_RI:
+            ri_run = (ri_run + 1
+                      if (prev & _gb.PROP_GBP_MASK) == _GBP_RI and not brk
+                      else 1)
+        else:
+            ri_run = 0
+        prev = cur
+    out.append(text[start:])
     return out
 
 
-def _emit(cur: List[str], stop: frozenset, out: List[str]) -> None:
-    """Casefold + apostrophe-trim one accumulated run; append iff a kept token."""
-    word = "".join(cur).strip("'").casefold()
-    if len(word) >= _MIN_LEN and word not in stop:
-        out.append(word)
+# ── rc293: the vendored combining-mark fold table, decoded once per process ─
+#
+# Same vendoring argument as the break table above, and one step stronger.
+# `unicodedata` DOES expose category + decomposition, so the scripting
+# projection could in principle derive this at runtime — but the COMPILED
+# projection cannot (ADR-0003: a bare-C host has no Python at all), and a
+# derive-in-Python / vendor-in-C split would put the two coherency projections
+# on different data, which is precisely the drift ADR-0009 exists to forbid.
+# So both read the same vendored table, and `unicodedata` is not consulted.
+#
+# The same favourable consequence follows as for rc287: two hosts at different
+# Python / Unicode versions fold identically. This CI host runs UCD 13.0.0
+# while the table is UCD 16.0.0 — so the host's own `unicodedata` is not a
+# valid oracle for this table, and the attestation test says so explicitly.
+
+_FOLD_TABLE: Optional[tuple] = None
+_FOLD_TABLE_C: Optional[tuple] = None
+
+
+def _fold_table() -> tuple:
+    """The decoded ``(lo, hi, rep)`` range arrays, built once per process."""
+    global _FOLD_TABLE
+    if _FOLD_TABLE is None:
+        blob = _fold.FOLD_TABLE_BLOB
+        n = _fold.FOLD_RANGE_COUNT
+        lo = array("I", bytes(n * 4))
+        hi = array("I", bytes(n * 4))
+        rep = array("I", bytes(n * 4))
+        for i in range(n):
+            base = i * 12
+            lo[i] = int.from_bytes(blob[base:base + 4], "little")
+            hi[i] = int.from_bytes(blob[base + 4:base + 8], "little")
+            rep[i] = int.from_bytes(blob[base + 8:base + 12], "little")
+        _FOLD_TABLE = (lo, hi, rep)
+    return _FOLD_TABLE
+
+
+def _fold_table_ctypes() -> tuple:
+    """The same table as ctypes arrays for the native peer (built once)."""
+    global _FOLD_TABLE_C
+    if _FOLD_TABLE_C is None:
+        lo, hi, rep = _fold_table()
+        _FOLD_TABLE_C = (
+            (ctypes.c_uint32 * len(lo)).from_buffer_copy(lo),
+            (ctypes.c_uint32 * len(hi)).from_buffer_copy(hi),
+            (ctypes.c_uint32 * len(rep)).from_buffer_copy(rep),
+            len(rep),
+        )
+    return _FOLD_TABLE_C
+
+
+def _fold_lookup(cp: int) -> Optional[int]:
+    """The fold row covering ``cp``: ``_fold.FOLD_DROP`` to delete it, another
+    codepoint to replace it with, or ``None`` when no row covers it (the
+    codepoint passes through unchanged)."""
+    lo, hi, rep = _fold_table()
+    i = bisect.bisect_right(lo, cp) - 1
+    if i >= 0 and cp <= hi[i]:
+        return rep[i]
+    return None
+
+
+def _fold_marks_native(text: str) -> Optional[str]:
+    """Native :func:`fold_marks` body. Returns the folded string, or ``None``
+    to decline to the pure path (non-encodable text such as lone surrogates)."""
+    try:
+        raw = text.encode("utf-8")
+    except UnicodeEncodeError:
+        return None                    # lone surrogates — pure path handles
+    lo_c, hi_c, rep_c, n_ranges = _fold_table_ctypes()
+    cap = len(raw)                     # folding never grows the byte length
+    out = (ctypes.c_uint8 * cap)()
+    out_len = ctypes.c_size_t(0)
+    rc = _native.LIB.srmech_text_fold_marks(
+        raw, len(raw), lo_c, hi_c, rep_c, n_ranges,
+        out, cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        raise RuntimeError(f"srmech_text_fold_marks returned status {rc}")
+    return bytes(out[:out_len.value]).decode("utf-8")
+
+
+def fold_marks(text: str) -> str:
+    """Drop combining marks from ``text`` by Unicode **category** (rc293).
+
+    The name is the contract. This is ``fold_marks``, never ``fold_accents``:
+    a **virama is a mark, not an accent**, and the Latin-shaped name would have
+    been wrong in exactly the cases that matter most while quietly re-scoping
+    the op toward Latin — the assumption this line of work exists to remove::
+
+        fold_marks('naïve')  →  'naive'      # Latin, the easy case
+        fold_marks('क्षि')     →  'कष'         # virama + vowel sign, both marks
+
+    Scope is **General_Category Mn / Mc / Me and nothing else** — no case
+    change, no locale tailoring, no NFKD/compatibility folding, no ligature
+    expansion. Three consequences that are correct, not oversights::
+
+        fold_marks('ø')  →  'ø'   # a stroke is part of the letter, not a mark
+        fold_marks('Ω')  →  'Ω'   # OHM SIGN: a singleton with no mark in it
+        fold_marks('한')  →  '한'   # Hangul decomposes to jamo — all starters
+
+    Parameters
+    ----------
+    text
+        Any ``str``. **No normalization is required or performed**: precomposed
+        characters are handled by the table's replacement rows and decomposed
+        sequences by its drop rows, so the same marks fall out either way
+        (``fold_marks`` of NFC and of NFD input agree up to normalization,
+        verified over the whole codepoint domain). The op preserves the input's
+        form for what it does not fold — it is a fold, not a normalizer.
+
+    Returns
+    -------
+    str
+        ``text`` with every combining mark removed and every precomposed
+        mark-bearing character replaced by its base. Idempotent:
+        ``fold_marks(fold_marks(s)) == fold_marks(s)`` for all ``s``, because
+        the vendored table is closed (no replacement is itself foldable).
+
+    Notes
+    -----
+    Deliberately a **separate op, not a mode on** :func:`glyph_stream`.
+    ``glyph_stream`` guarantees losslessness — ``''.join(result)`` reconstructs
+    its input — and that invariant is why the cluster is trustworthy as a
+    primitive; folding is lossy, so a fold flag would break the contract for
+    one flag value. The two also have different shapes (``str → list[str]`` vs
+    ``str → str``). Ordinary composition, ``glyph_stream(fold_marks(s))``,
+    keeps both honest.
+
+    Class B/G text-framing — framing of the text substrate, no numeric compute.
+    Numpy-free, deterministic, and calls no normalizer. Dispatches to the
+    byte-identical C peer ``srmech_text_fold_marks`` when the native lib is
+    loaded; the pure-Python body below is the complete alternative (and the
+    parity oracle).
+    """
+    if not isinstance(text, str):
+        raise TypeError(
+            f"fold_marks: text must be str; got {type(text).__name__}")
+    if not text:
+        return ""
+    if _native.has_native_text_fold_marks():
+        native = _fold_marks_native(text)
+        if native is not None:
+            return native
+    out: List[str] = []
+    for ch in text:
+        rep = _fold_lookup(ord(ch))
+        if rep is None:
+            out.append(ch)             # no row — unchanged
+        elif rep != _fold.FOLD_DROP:
+            out.append(chr(rep))       # precomposed → its base
+        # else: rep == FOLD_DROP — a combining mark, dropped
+    return "".join(out)
+
+
+def _gb_is_break(prev: int, cur: int, gb11: int, incb_consonant: bool,
+                 incb_linker: bool, ri_run: int) -> bool:
+    """The UAX #29 GB1..GB999 rule ladder. Rule order is significant.
+
+    GB9c and GB11 are specified with lookbehind; both are carried here as
+    running flags (``gb11`` / ``incb_*``) so the segmenter is a single forward
+    pass — which is also what keeps the C projection inside JPL Rule 4.
+    """
+    a = prev & _gb.PROP_GBP_MASK
+    b = cur & _gb.PROP_GBP_MASK
+    if a == _GBP_CR and b == _GBP_LF:
+        return False                                              # GB3
+    if a in _CONTROLISH or b in _CONTROLISH:
+        return True                                               # GB4 / GB5
+    if a == _GBP_L and b in (_GBP_L, _GBP_V, _GBP_LV, _GBP_LVT):
+        return False                                              # GB6
+    if a in (_GBP_LV, _GBP_V) and b in (_GBP_V, _GBP_T):
+        return False                                              # GB7
+    if a in (_GBP_LVT, _GBP_T) and b == _GBP_T:
+        return False                                              # GB8
+    if b in (_GBP_EXTEND, _GBP_ZWJ):
+        return False                                              # GB9
+    if b == _GBP_SPACINGMARK:
+        return False                                              # GB9a
+    if a == _GBP_PREPEND:
+        return False                                              # GB9b
+    if a == _GBP_ZWJ and (cur & _gb.PROP_EXTPICT_BIT):
+        return gb11 != 2                                          # GB11
+    if a == _GBP_RI and b == _GBP_RI:
+        return (ri_run % 2) == 0                                  # GB12 / GB13
+    if (((cur & _gb.PROP_INCB_MASK) >> _gb.PROP_INCB_SHIFT) == _INCB_CONSONANT
+            and incb_consonant and incb_linker):
+        return False                                              # GB9c
+    return True                                                   # GB999
 
 
 def _pair_events(m: int, window: int) -> int:
@@ -760,7 +988,7 @@ def cooccurrence_topk(
         raise ValueError(f"cooccurrence_topk: chunk_docs must be a positive int; got {chunk_docs!r}")
     if isinstance(docs, str):
         raise TypeError("cooccurrence_topk: docs must be a token sequence or a stream of "
-                        "token sequences, not a raw str — tokenize() it first")
+                        "token sequences, not a raw str — glyph_stream() it first")
     cap = k * cap_slack
 
     fixed_vocab = vocab is not None
@@ -899,7 +1127,7 @@ def _as_doc_list(docs: Sequence[object]) -> List[List[str]]:
     if isinstance(docs, str):
         raise TypeError(
             "cooccurrence_edges: docs must be a token sequence or a sequence of "
-            "token sequences, not a raw str — tokenize() it first"
+            "token sequences, not a raw str — glyph_stream() it first"
         )
     materialised = list(docs)
     if not materialised:

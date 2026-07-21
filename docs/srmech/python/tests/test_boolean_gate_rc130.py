@@ -47,7 +47,7 @@ from srmech.amsc.hv import HV
 
 
 def _one(dim=64):
-    return G._default_the_one(dim)
+    return G._default_coupling(dim)
 
 
 def _leaves(n, dim=64, base=0):
@@ -75,7 +75,7 @@ def _logic_chromosome(one):
              ("OR",  _leaves(1, base=1), _boolean([(A, 0), (B, 0)])),
              ("NOT", _leaves(1, base=2), _boolean([(0, A)])),
              ("XOR", _leaves(1, base=3), _boolean([(A, B), (B, A)]))]
-    return G.chromosome(the_one=one, label="logic", genes=genes)
+    return G.chromosome(coupling=one, label="logic", genes=genes)
 
 
 @pytest.mark.parametrize("cell_state", [0b00, 0b01, 0b10, 0b11])
@@ -104,7 +104,7 @@ def test_xor_is_the_genuine_generalisation():
 def test_empty_dnf_never_expresses():
     """The empty DNF (0 clauses) is the OR-identity FALSE — the gene never expresses."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c", genes=[("never", _leaves(1), _boolean([]))])
+    strand = G.chromosome(coupling=one, label="c", genes=[("never", _leaves(1), _boolean([]))])
     for cs in (0, 1, 2, 3, 0xFF, 2**63):
         assert [l for l, _ in G.gene_express(strand, one, cs)] == []
 
@@ -118,8 +118,8 @@ def test_e1_klein4_equals_one_clause_boolean(activator, repressor):
     """E1 ⊂ E2: a rc129 klein4_mask gene (activator, repressor) is behaviour-identical to a
     boolean gene with the SINGLE DNF clause [(activator, repressor)], for every cell_state."""
     one = _one()
-    s_e1 = G.chromosome(the_one=one, label="e1", genes=[("g", _leaves(1), activator, repressor)])
-    s_e2 = G.chromosome(the_one=one, label="e2",
+    s_e1 = G.chromosome(coupling=one, label="e1", genes=[("g", _leaves(1), activator, repressor)])
+    s_e2 = G.chromosome(coupling=one, label="e2",
                         genes=[("g", _leaves(1), _boolean([(activator, repressor)]))])
     for cs in (0, A, B, C, A | B, A | B | C, 0xFF, 0xF0, 2**40, 2**40 | 2**41):
         r1 = "g" in [l for l, _ in G.gene_express(s_e1, one, cs)]
@@ -135,9 +135,9 @@ def test_lac_operon_via_one_clause_dnf():
     klein4_mask (0x67) lacZ gene."""
     one = _one()
     LACTOSE, GLUCOSE = 0b01, 0b10
-    s62 = G.chromosome(the_one=one, label="ecoli",
+    s62 = G.chromosome(coupling=one, label="ecoli",
                        genes=[("lacZ", _leaves(1), _boolean([(LACTOSE, GLUCOSE)]))])
-    s67 = G.chromosome(the_one=one, label="ecoli",
+    s67 = G.chromosome(coupling=one, label="ecoli",
                        genes=[("lacZ", _leaves(1), LACTOSE, GLUCOSE)])
 
     def on(strand, cs):
@@ -185,7 +185,7 @@ def test_plain_rc128_rc129_genes_unchanged_bytes_and_behaviour():
     genes = [("housekeeping", _leaves(1, base=0)),              # plain (always)
              ("stress", _leaves(2, base=1), 0b011),             # rc128 single-mask
              ("lacZ", _leaves(1, base=2), 0b01, 0b10)]          # rc129 two-mask
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     # no boolean-gene marker anywhere (byte-level back-compat)
     assert all(G._cap_kind(hv) != G.BOOLEAN_GENE_MARKER for hv in strand)
     cases = {
@@ -237,7 +237,7 @@ def test_klein4_genes_report_klein4_gate_type():
     """A plain (0x47) and a klein4-mask (0x67) gene both report gate_type = klein4_mask (the
     fast path) — the dispatch family is complete."""
     one = _one()
-    strand = G.chromosome(the_one=one, label="c",
+    strand = G.chromosome(coupling=one, label="c",
                           genes=[("plain", _leaves(1)), ("reg", _leaves(1), 0b01, 0b10)])
     gate_types = {}
     for hv in strand:
@@ -251,7 +251,7 @@ def test_klein4_genes_report_klein4_gate_type():
 # ── (8) format v8 → v9; a v9 genome saves + pages; pre-rc130 reads identically ─
 
 def test_format_bumped_to_v9():
-    assert G.GENOME_FORMAT_VERSION == 11       # rc132 §132 bumped v10->v11 (0x64 graded gene)
+    assert G.GENOME_FORMAT_VERSION == 15       # rc132 §132 bumped v10->v11 (0x64 graded gene)
 
 
 def test_boolean_genome_saves_v9_and_pages_back(tmp_path):
@@ -260,11 +260,11 @@ def test_boolean_genome_saves_v9_and_pages_back(tmp_path):
     one = _one()
     genes = [("housekeeping", _leaves(1)),
              ("xor_ab", _leaves(2, base=1), _boolean([(A, B), (B, A)]))]
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 11                         # rc132 bumped v10->v11; a v11 writer stamps 11
-    paged = G.genome_genes(p, "cell", the_one=one)
+    assert man["format_version"] == 15                         # rc132 bumped v10->v11; a v11 writer stamps 11
+    paged = G.genome_genes(p, "cell", coupling=one)
     assert [l for l, _ in paged] == ["housekeeping", "xor_ab"]  # gate-agnostic recovery
     s2, o2, _ = G.genome_load(p)
     assert set(l for l, _ in G.gene_express(s2, o2, 0b01)) == {"housekeeping", "xor_ab"}
@@ -279,7 +279,7 @@ def test_rebuild_by_scan_recovers_the_dnf(tmp_path):
     p = tmp_path / "g"
     G.genome_save(strand, p, one)
     (p / "manifest.json").unlink()                             # drop the derived cache
-    s2, o2, _ = G.genome_load(p, the_one=one)
+    s2, o2, _ = G.genome_load(p, coupling=one)
     assert set(l for l, _ in G.gene_express(s2, o2, 0b01)) == {"OR", "XOR"}
     assert set(l for l, _ in G.gene_express(s2, o2, 0b11)) == {"AND", "OR"}
 
@@ -289,28 +289,28 @@ def test_rebuild_by_scan_recovers_the_dnf(tmp_path):
 def test_boolean_spec_requires_dnf_key():
     one = _one()
     with pytest.raises(ValueError, match="dnf"):
-        G.chromosome(the_one=one, label="c", genes=[("g", _leaves(1), {"gate": "boolean"})])
+        G.chromosome(coupling=one, label="c", genes=[("g", _leaves(1), {"gate": "boolean"})])
 
 
 def test_boolean_spec_rejects_unknown_gate():
     one = _one()
     with pytest.raises(ValueError, match="gate"):
-        G.chromosome(the_one=one, label="c",
+        G.chromosome(coupling=one, label="c",
                      genes=[("g", _leaves(1), {"gate": "truth_table", "dnf": [(1, 0)]})])
 
 
 def test_dnf_mask_must_be_nonnegative_int():
     one = _one()
     with pytest.raises(ValueError, match="non-negative"):
-        G.chromosome(the_one=one, label="c", genes=[("g", _leaves(1), _boolean([(1, -1)]))])
+        G.chromosome(coupling=one, label="c", genes=[("g", _leaves(1), _boolean([(1, -1)]))])
     with pytest.raises(ValueError, match="exact int"):
-        G.chromosome(the_one=one, label="c", genes=[("g", _leaves(1), _boolean([(1.5, 0)]))])
+        G.chromosome(coupling=one, label="c", genes=[("g", _leaves(1), _boolean([(1.5, 0)]))])
 
 
 def test_dnf_term_must_be_pair():
     one = _one()
     with pytest.raises(ValueError, match="2-tuple"):
-        G.chromosome(the_one=one, label="c", genes=[("g", _leaves(1), _boolean([(1, 0, 0)]))])
+        G.chromosome(coupling=one, label="c", genes=[("g", _leaves(1), _boolean([(1, 0, 0)]))])
 
 
 def test_attestation_documented():

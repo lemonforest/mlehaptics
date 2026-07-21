@@ -23,6 +23,12 @@
  *     AF_UNIX-socket (POSIX) / named-pipe (Windows) duality, with the
  *     endpoint-name -> OS-path mapping absorbed into the PAL. Consumer:
  *     srmech_bus.c — the last raw-OS surface in the library, now #ifdef-free.
+ *   - MUTATING FS (rc284): mkdir / remove / replacing-rename — the three
+ *     surfaces an out-of-core WORK QUEUE needs and the read-only file
+ *     surface could not express. Their absence is what actually blocked
+ *     §100 G1 (the recursive_cut driver), not the spectral maths: the
+ *     Fiedler engine had been native since rc168. First consumer:
+ *     srmech_laplacian.c's srmech_laplacian_recursive_cut.
  *
  * NOT exported in the public ABI (srmech.h): these are internal cross-TU
  * symbols, exactly like the srmech_simd_* HAL functions.
@@ -220,9 +226,35 @@ srmech_status_t srmech_plat_file_read(const char *path, unsigned char *buf,
                                       size_t buf_cap, size_t *out_len);
 
 /* Read exactly `len` bytes from `path` starting at byte `offset` into `buf`.
- * Short read (offset+len past EOF) → SRMECH_ERR_IO. */
+ * Short read (offset+len past EOF) → SRMECH_ERR_IO.
+ *
+ * NOTE (rc282): this OPENS AND CLOSES `path` on every call. That is right for a
+ * one-shot read and wrong inside a loop — a caller paging many regions of ONE
+ * file must hold a handle via the srmech_plat_file_ro_* trio below, or it pays
+ * an open per region (the genome section-counts scan did exactly that). */
 srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
                                              unsigned char *buf, size_t len);
+
+/* An OPEN read-only file handle (rc282) — the held-handle peer of
+ * srmech_plat_file_read_region, for callers that page MANY regions out of ONE
+ * file. Caller-owned storage (JPL Rule 3: no malloc); `fp` is opaque (a FILE*
+ * on a filesystem target) and is NULL exactly when the handle is closed. */
+typedef struct {
+    void *fp;
+} srmech_file_ro_t;
+
+/* Open `path` read-only into the caller's `out`. SRMECH_ERR_IO if it cannot be
+ * opened (and on a target with no filesystem). */
+srmech_status_t srmech_plat_file_open_ro(const char *path, srmech_file_ro_t *out);
+
+/* Read exactly `len` bytes at `offset` through an ALREADY-OPEN handle — no
+ * open, no close. Short read → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_read_at(srmech_file_ro_t *fh, size_t offset,
+                                         unsigned char *buf, size_t len);
+
+/* Close a handle opened by srmech_plat_file_open_ro. Idempotent: closing an
+ * already-closed handle is a no-op, so a caller's error path may always call it. */
+void srmech_plat_file_close_ro(srmech_file_ro_t *fh);
 
 /* Write `len` bytes of `data` to `path`. `append` != 0 opens in append mode
  * ("ab"); else truncate ("wb"). fopen/fwrite/fclose failure → SRMECH_ERR_IO. */
@@ -231,6 +263,46 @@ srmech_status_t srmech_plat_file_write(const char *path, int append,
 
 /* Byte length of `path` into *out_size. Missing / unstattable → SRMECH_ERR_IO. */
 srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size);
+
+/* ------------------------------------------------------------------ *
+ * MUTATING FILESYSTEM OPS (rc284) — the three surfaces an out-of-core
+ * work QUEUE needs and the read-only file surface above cannot express:
+ * create a scratch directory, drop a consumed work file, and MOVE a
+ * finished one into place. srmech_laplacian_recursive_cut is the first
+ * consumer (its disk-backed queue / tomes lifecycle); before rc284 these
+ * were reachable only from Python (os.makedirs / os.remove / os.replace),
+ * which is exactly why the §100 G1 gap could not be closed in C.
+ *
+ * `remove()` and `rename()` are C89 <stdio.h>, so they need no OS split.
+ * `mkdir` and REPLACING-rename do: POSIX mkdir(path, mode) vs Windows
+ * _mkdir(path), and POSIX rename() replaces an existing destination
+ * atomically while Win32 rename() FAILS on one (MoveFileEx with
+ * MOVEFILE_REPLACE_EXISTING is the Win peer). The split lives here, in
+ * the PAL, so the functional cores stay #ifdef-free.
+ * ------------------------------------------------------------------ */
+
+/* Create directory `path`. ALREADY-EXISTS IS SUCCESS (idempotent, the
+ * os.makedirs(exist_ok=True) semantic) — a caller re-entering a reused
+ * work_dir must not fail. Creates ONE level only: the parent must exist
+ * (the recursive_cut driver creates work_dir, then work_dir/queue and
+ * work_dir/tomes under it, so one level per call is sufficient and keeps
+ * the primitive bounded + non-recursive per JPL Rule 1). No filesystem /
+ * unwritable parent → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_mkdir(const char *path);
+
+/* Delete file `path`. A MISSING file is SUCCESS (idempotent, the
+ * "os.remove under a pre-checked os.path.exists" semantic the callers
+ * want) — so a caller need not race a stat against the unlink. A path
+ * that exists but cannot be removed → SRMECH_ERR_IO. */
+srmech_status_t srmech_plat_file_remove(const char *path);
+
+/* MOVE `src` onto `dst`, REPLACING `dst` if it exists — the os.replace()
+ * semantic, not the C89 rename() one (which is unspecified / failing on an
+ * existing destination on Windows). This is the primitive that lets the
+ * out-of-core driver retire a work file into a finished tome WITHOUT ever
+ * copying its bytes (the queue's whole low-RAM point). Failure to move →
+ * SRMECH_ERR_IO; `src` is then left in place (no half-move). */
+srmech_status_t srmech_plat_file_replace(const char *src, const char *dst);
 
 /* ================================================================== *
  * DIRECTORY ITERATION (rc163) — the POSIX opendir / Win32 FindFirstFile
@@ -262,8 +334,17 @@ typedef struct srmech_plat_dir {
  * bare-metal target with no filesystem. */
 int srmech_plat_has_dirlist(void);
 
-/* Open `path` for iteration; *out receives the handle. SRMECH_ERR_IO if the
- * directory cannot be opened (the caller may treat that as "no entries"). */
+/* Open `path` for iteration; *out receives the handle. SRMECH_ERR_IO iff the
+ * directory CANNOT BE OPENED (absent / not a directory / permission denied).
+ *
+ * rc294: SRMECH_OK means "opened" and NOTHING MORE — an OPENED directory may
+ * still enumerate zero entries, which dir_next reports as end-of-directory on
+ * the first call. Callers MUST NOT read SRMECH_ERR_IO as "no entries": those
+ * are different facts, and conflating them is what let srmech_genome_registry
+ * report "0 genomes, success" for a typo'd corpus path. The Windows backend
+ * reconstructs this distinction from GetLastError (FindFirstFile returns
+ * ERROR_FILE_NOT_FOUND for an empty match set on a directory with no "." /
+ * ".." entries — a FAT/exFAT root); POSIX opendir draws it natively. */
 srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out);
 
 /* Fetch the next entry name into `name` (capacity `name_cap`). *have is set to

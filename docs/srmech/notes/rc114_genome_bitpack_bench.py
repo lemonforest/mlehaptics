@@ -32,23 +32,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "python"))
 
 from srmech.amsc import _native                                  # noqa: E402
 from srmech.amsc import genome as G                              # noqa: E402
-from srmech.amsc.hdc import klein4_random                        # noqa: E402
+from srmech.amsc.hdc import klein4_expand                        # noqa: E402
 
 DIM = 256          # one full tome (LEAF_CAP) — the issue's leaf width
 N_LEAVES = 1024    # the issue's chromosome: 1,024 leaves x 256 symbols
 
 
 def _leaves(n, pool_seeds=range(8)):
-    pool = [klein4_random(DIM, seed=s) for s in pool_seeds]
+    pool = [klein4_expand(DIM, s) for s in pool_seeds]
     return [pool[i % len(pool)] for i in range(n)]
 
 
 def measure_write_size():
-    one = klein4_random(DIM, seed=7)
+    one = klein4_expand(DIM, 7)
     d = Path(tempfile.mkdtemp())
     try:
         G.genome_save(G.chromosome(_leaves(N_LEAVES), one, label="kernel"),
-                      d, the_one=one)
+                      d, coupling=one)
         body = (d / "turns.bin").stat().st_size
         man = (d / "manifest.json").stat().st_size
         total = body + man
@@ -66,13 +66,13 @@ def measure_appends(counts=(10, 20, 40)):
     """(b) DoD — per-append wall time. rc115 makes this FLAT + near-constant ms
     (tail-extend, no whole-body rewrite): a per-append time that does NOT grow with
     the genome's total size, far below the 0.213-0.243 s/append rc114 baseline."""
-    one = klein4_random(DIM, seed=7)
+    one = klein4_expand(DIM, 7)
     per = []
     for n in counts:
         d = Path(tempfile.mkdtemp())
         try:
             G.genome_save(G.chromosome(_leaves(4), one, label="seed"),
-                          d, the_one=one)
+                          d, coupling=one)
             t0 = time.perf_counter()
             for k in range(n):
                 G.genome_append(d, f"chr{k:04d}", _leaves(N_LEAVES), one)
@@ -98,7 +98,7 @@ def _pack_roundtrip_exact(one, n_chroms):
     try:
         want = {}
         lv0 = _leaves(N_LEAVES)
-        G.genome_save(G.chromosome(lv0, one, label="c000"), d / "g", the_one=one)
+        G.genome_save(G.chromosome(lv0, one, label="c000"), d / "g", coupling=one)
         want["c000"] = [list(x) for x in lv0]
         for k in range(1, n_chroms):
             # full 1,024-leaf chromosomes so the packed body scales ~n x (66 KB
@@ -106,14 +106,14 @@ def _pack_roundtrip_exact(one, n_chroms):
             lv = _leaves(N_LEAVES)
             G.genome_append(d / "g", f"c{k:03d}", lv, one)
             want[f"c{k:03d}"] = [list(x) for x in lv]
-        G.genome_explode(d / "g", d / "loose", the_one=one)
+        G.genome_explode(d / "g", d / "loose", coupling=one)
         body = (d / "g" / "turns.bin").stat().st_size
         t0 = time.perf_counter()
-        G.genome_pack(d / "loose", d / "packed", the_one=one)
+        G.genome_pack(d / "loose", d / "packed", coupling=one)
         dt = time.perf_counter() - t0
         # EXACT round-trip: every chromosome's leaves survive pack, leaf-for-leaf.
         for lbl, leaves in want.items():
-            win = G.genome_window(d / "packed", lbl, the_one=one)
+            win = G.genome_window(d / "packed", lbl, coupling=one)
             got = [list(G.quad_turn(t, one)) for t in win]
             assert got == leaves, f"pack round-trip MISMATCH for {lbl}"
         return dt, body
@@ -125,7 +125,7 @@ def measure_pack(sizes=(10, 20, 40)):
     """(c) DoD — genome_pack single-pass compaction is LINEAR in body size (the old
     import-per-bundle loop was quadratic). Also asserts an EXACT append+pack
     round-trip. Reports pack s / body-MB to expose the scaling."""
-    one = klein4_random(DIM, seed=7)
+    one = klein4_expand(DIM, 7)
     rates = []
     for n in sizes:
         dt, body = _pack_roundtrip_exact(one, n)

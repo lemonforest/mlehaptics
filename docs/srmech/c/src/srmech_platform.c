@@ -21,7 +21,9 @@
 #include "srmech_platform.h"
 
 #include <assert.h>
-#include <stdio.h>    /* snprintf (stream endpoint paths) */
+#include <errno.h>    /* ENOENT / EEXIST (rc284 mkdir/remove idempotence) — needed
+                       * on BOTH branches, so it is hoisted out of the POSIX block */
+#include <stdio.h>    /* snprintf (stream endpoint paths); remove/rename (rc284) */
 #include <stdlib.h>   /* getenv (POSIX socket path under $HOME) */
 #include <string.h>
 #include <time.h>     /* timespec_get / TIME_UTC (wall clock, rc179) */
@@ -34,7 +36,6 @@
 #  define SRMECH_PLAT_THREADS_POSIX 1
 #  define SRMECH_PLAT_STREAM_POSIX  1
 #  include <pthread.h>
-#  include <errno.h>        /* EINTR (read/write retry) */
 #  include <sys/socket.h>   /* AF_UNIX / AF_INET stream IPC */
 #  include <sys/stat.h>     /* mkdir / chmod */
 #  include <sys/types.h>
@@ -1015,6 +1016,37 @@ srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
     return (got == len) ? SRMECH_OK : SRMECH_ERR_IO;
 }
 
+srmech_status_t srmech_plat_file_open_ro(const char *path, srmech_file_ro_t *out)
+{
+    assert(path != NULL);
+    assert(out != NULL);
+    out->fp = (void *)fopen(path, "rb");
+    return (out->fp == NULL) ? SRMECH_ERR_IO : SRMECH_OK;
+}
+
+srmech_status_t srmech_plat_file_read_at(srmech_file_ro_t *fh, size_t offset,
+                                         unsigned char *buf, size_t len)
+{
+    assert(fh != NULL);
+    assert(buf != NULL || len == 0);
+    if (fh->fp == NULL) { return SRMECH_ERR_IO; }
+    if (fseek((FILE *)fh->fp, (long)offset, SEEK_SET) != 0) {
+        return SRMECH_ERR_IO;
+    }
+    size_t got = (len == 0u) ? 0u : fread(buf, 1u, len, (FILE *)fh->fp);
+    return (got == len) ? SRMECH_OK : SRMECH_ERR_IO;
+}
+
+void srmech_plat_file_close_ro(srmech_file_ro_t *fh)
+{
+    assert(fh != NULL);
+    assert(srmech_plat_has_filesystem() != 0);
+    if (fh->fp != NULL) {
+        (void)fclose((FILE *)fh->fp);
+        fh->fp = NULL;
+    }
+}
+
 srmech_status_t srmech_plat_file_write(const char *path, int append,
                                        const unsigned char *data, size_t len)
 {
@@ -1040,6 +1072,51 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
     if (n < 0) { return SRMECH_ERR_IO; }
     *out_size = (size_t)n;
     return SRMECH_OK;
+}
+
+/* Mutating filesystem ops (rc284) — mkdir / remove / replacing-rename, the
+ * three surfaces the out-of-core recursive_cut work QUEUE needs. remove() and
+ * rename() are C89 stdio; mkdir and replacing-rename carry the only OS split
+ * in this block, kept here so srmech_laplacian.c stays #ifdef-free. */
+
+srmech_status_t srmech_plat_mkdir(const char *path)
+{
+    assert(path != NULL);
+    assert(path[0] != '\0');
+    if (path == NULL || path[0] == '\0') { return SRMECH_ERR_BAD_INPUT; }
+#if defined(_WIN32) || defined(_WIN64)
+    if (CreateDirectoryA(path, NULL)) { return SRMECH_OK; }
+    /* already-there is SUCCESS: the os.makedirs(exist_ok=True) semantic. */
+    return (GetLastError() == ERROR_ALREADY_EXISTS) ? SRMECH_OK : SRMECH_ERR_IO;
+#else
+    if (mkdir(path, 0700) == 0) { return SRMECH_OK; }
+    return (errno == EEXIST) ? SRMECH_OK : SRMECH_ERR_IO;
+#endif
+}
+
+srmech_status_t srmech_plat_file_remove(const char *path)
+{
+    assert(path != NULL);
+    assert(path[0] != '\0');
+    if (path == NULL || path[0] == '\0') { return SRMECH_ERR_BAD_INPUT; }
+    if (remove(path) == 0) { return SRMECH_OK; }
+    /* MISSING is SUCCESS — the caller wanted it gone and it is gone. */
+    return (errno == ENOENT) ? SRMECH_OK : SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_replace(const char *src, const char *dst)
+{
+    assert(src != NULL && src[0] != '\0');
+    assert(dst != NULL && dst[0] != '\0');
+    if (src == NULL || dst == NULL) { return SRMECH_ERR_NULL_ARG; }
+#if defined(_WIN32) || defined(_WIN64)
+    /* Win32 rename() FAILS on an existing dst; MoveFileEx replaces it. */
+    if (MoveFileExA(src, dst, MOVEFILE_REPLACE_EXISTING)) { return SRMECH_OK; }
+    return SRMECH_ERR_IO;
+#else
+    /* POSIX rename() already replaces an existing dst atomically. */
+    return (rename(src, dst) == 0) ? SRMECH_OK : SRMECH_ERR_IO;
+#endif
 }
 
 /* Streaming read (rc164) — a persistent read handle so a caller can pull a
@@ -1104,6 +1181,31 @@ srmech_status_t srmech_plat_file_read_region(const char *path, size_t offset,
     return SRMECH_ERR_IO;
 }
 
+srmech_status_t srmech_plat_file_open_ro(const char *path, srmech_file_ro_t *out)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(path != NULL && out != NULL);
+    (void)path;
+    out->fp = NULL;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_read_at(srmech_file_ro_t *fh, size_t offset,
+                                         unsigned char *buf, size_t len)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(fh != NULL);
+    (void)fh; (void)offset; (void)buf; (void)len;
+    return SRMECH_ERR_IO;
+}
+
+void srmech_plat_file_close_ro(srmech_file_ro_t *fh)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(fh != NULL);
+    fh->fp = NULL;
+}
+
 srmech_status_t srmech_plat_file_write(const char *path, int append,
                                        const unsigned char *data, size_t len)
 {
@@ -1118,6 +1220,30 @@ srmech_status_t srmech_plat_file_size(const char *path, size_t *out_size)
     assert(srmech_plat_has_filesystem() == 0);
     assert(out_size != NULL);
     (void)path; (void)out_size;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_mkdir(const char *path)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(path != NULL);
+    (void)path;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_remove(const char *path)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(path != NULL);
+    (void)path;
+    return SRMECH_ERR_IO;
+}
+
+srmech_status_t srmech_plat_file_replace(const char *src, const char *dst)
+{
+    assert(srmech_plat_has_filesystem() == 0);
+    assert(src != NULL && dst != NULL);
+    (void)src; (void)dst;
     return SRMECH_ERR_IO;
 }
 
@@ -1187,6 +1313,12 @@ srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out)
     assert(path != NULL);
     assert(out != NULL);
     out->pending_valid = 0;
+    memset(out->handle.bytes, 0, sizeof(out->handle.bytes));
+    /* opendir keeps "opened but empty" and "could not open" apart natively: an
+     * empty directory opens fine and readdir simply reports end-of-stream (on
+     * ordinary POSIX filesystems it still yields "." and ".."). So a NULL here
+     * means a REAL failure — ENOENT / EACCES / ENOTDIR — and is an error. The
+     * Windows branch below has to reconstruct this distinction by hand. */
     DIR *d = opendir(path);
     if (d == NULL) { return SRMECH_ERR_IO; }
     memcpy(out->handle.bytes, &d, sizeof(d));
@@ -1227,12 +1359,37 @@ srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out)
     assert(path != NULL);
     assert(out != NULL);
     out->pending_valid = 0;
+    memset(out->handle.bytes, 0, sizeof(out->handle.bytes));
     char pattern[1024];
     int w = snprintf(pattern, sizeof(pattern), "%s/*", path);
     if (w < 0 || (size_t)w >= sizeof(pattern)) { return SRMECH_ERR_OVERFLOW; }
     WIN32_FIND_DATAA fd;
     HANDLE h = FindFirstFileA(pattern, &fd);
-    if (h == INVALID_HANDLE_VALUE) { return SRMECH_ERR_IO; }
+    /* rc294: FindFirstFile CONFLATES two outcomes that POSIX opendir keeps
+     * apart, and the difference is load-bearing now that an unopenable root is
+     * an ERROR rather than "zero entries".
+     *
+     *   ERROR_FILE_NOT_FOUND — the search RAN and matched nothing. The
+     *       directory opened fine; it simply has no entries to enumerate. Most
+     *       Windows volumes hand back "." and ".." so the wildcard always
+     *       matches, but a FAT/exFAT ROOT directory has no "." / ".." entries
+     *       at all, and some network / virtual filesystems suppress them too.
+     *       On those an EMPTY directory lands HERE. That is the documented
+     *       supported input whose contract is n_genomes 0 (see
+     *       genome_list_genomes), so it MUST NOT become an error.
+     *   anything else (ERROR_PATH_NOT_FOUND, ERROR_ACCESS_DENIED,
+     *       ERROR_DIRECTORY, ...) — the directory could not be opened.
+     *
+     * The empty-match case therefore returns an EXHAUSTED iterator (NULL
+     * handle, no lookahead) with SRMECH_OK: dir_next reports end-of-directory
+     * immediately and dir_close is a no-op on it. Without this split, the
+     * POSIX projection would report 0 genomes for an empty root while the
+     * Windows one reported SRMECH_ERR_IO — trading the ADR-0009 split this rc
+     * closes for a new one along a platform seam instead of a language seam. */
+    if (h == INVALID_HANDLE_VALUE) {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND) { return SRMECH_OK; }
+        return SRMECH_ERR_IO;
+    }
     size_t nl = strlen(fd.cFileName);
     if (nl + 1u > sizeof(out->pending)) { FindClose(h); return SRMECH_ERR_OVERFLOW; }
     memcpy(out->pending, fd.cFileName, nl + 1u);
@@ -1256,6 +1413,10 @@ srmech_status_t srmech_plat_dir_next(srmech_plat_dir_t *dir, char *name,
     }
     HANDLE h = NULL;
     memcpy(&h, dir->handle.bytes, sizeof(h));
+    /* rc294: a NULL handle is the EXHAUSTED iterator dir_open returns for the
+     * ERROR_FILE_NOT_FOUND (opened-but-empty) case. Report end-of-directory
+     * rather than handing NULL to FindNextFile. */
+    if (h == NULL) { *have = 0; return SRMECH_OK; }
     WIN32_FIND_DATAA fd;
     if (FindNextFileA(h, &fd) == 0) { *have = 0; return SRMECH_OK; }
     size_t nl = strlen(fd.cFileName);

@@ -1014,8 +1014,8 @@ def test_native_bus_symbols_present():
     from srmech.amsc import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    assert _native.NATIVE_ABI_VERSION == 5, (
-        f"ABI v5 expected (rc242 progress-callback typedef); "
+    assert _native.NATIVE_ABI_VERSION == 8, (
+        f"ABI v6 expected (rc275 §101 progress-tick typedef); "
         f"got {_native.NATIVE_ABI_VERSION}"
     )
     for sym in (
@@ -1044,7 +1044,7 @@ def test_bus_handler_callback_typedef_constructible():
     assert trampoline is not None
 
 
-def test_abi_version_is_5():
+def test_abi_version_is_7():
     """v0.5.0rc2 ABI bump: 2 → 3 (bus req/rep C peer + handler typedef).
     v0.9.0rc180 ABI bump: 3 → 4 (bus pub/sub C peer + the new
     srmech_bus_subscriber_callback_t delivery typedef).
@@ -1052,8 +1052,8 @@ def test_abi_version_is_5():
     the new srmech_progress_cb_t dispatch-observer typedef, #840).
     """
     from srmech.amsc import _native
-    assert _native.EXPECTED_ABI_VERSION == 5, (
-        f"EXPECTED_ABI_VERSION should be 5; got "
+    assert _native.EXPECTED_ABI_VERSION == 8, (
+        f"EXPECTED_ABI_VERSION should be 7; got "
         f"{_native.EXPECTED_ABI_VERSION}"
     )
 

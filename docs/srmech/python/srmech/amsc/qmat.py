@@ -41,7 +41,6 @@ numpy; a future ``QiMat`` would carry Gaussian-rational (``Qi``) entries.
 
 from __future__ import annotations
 
-from fractions import Fraction
 from typing import List, Sequence, Tuple
 
 from .q import Q
@@ -93,8 +92,6 @@ def _to_q(value, *, allow_float: bool = False):
         return Q(int(value), 1)
     if isinstance(value, int):
         return Q(value, 1)
-    if isinstance(value, Fraction):
-        return Q(value.numerator, value.denominator)
     if isinstance(value, float):
         if not allow_float:
             return None

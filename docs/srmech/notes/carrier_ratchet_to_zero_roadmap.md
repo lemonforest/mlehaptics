@@ -37,7 +37,7 @@ Other corrections:
   (which only proves runtime-math-free, not fresh-import-free —
   `[[feedback_carrier_ratchet_misses_require_numpy_subpackage_gates]]`).
 - qm matrix layer → TOML `[class]` (rc75 Hurwitz precedent): EXTEND `class_catalog/`, reuse `make_class`,
-  NO per-module carrier flips for the [class] ops, NO duplicate `the_one` codepath, NO duplicated loader.
+  NO per-module carrier flips for the [class] ops, NO duplicate `coupling` codepath, NO duplicated loader.
   (spin/relativistic/sm/single_particle are factory-style operator builders, NOT [class] objects → they
   flip onto `Mat` directly, consistent with "group sensibly".)
 - No bare `abs()` (Class-K sign-branch). No new `hashlib.sha256` (route `amsc.format.sha256_bytes`).

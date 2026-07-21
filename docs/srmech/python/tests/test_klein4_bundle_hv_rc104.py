@@ -46,10 +46,13 @@ _FLAG_VARIANTS = (
 # ── the DoD ────────────────────────────────────────────────────────────────
 
 def test_dod_list_of_random_hvs_bundles_without_tolist():
-    """DoD: klein4_bundle([klein4_random(D), klein4_random(D)]) works, no .tolist()."""
+    """DoD: klein4_bundle([klein4_expand(D, 1), klein4_expand(D, 2)]) works, no
+    .tolist(). (The rc104 DoD named klein4_random; rc290 renamed the mint and
+    rc292 removed the stochastic remnant — the HV-carrier contract is what is
+    under test and it is unchanged.)"""
     D = 128
-    out = hdc.klein4_bundle([hdc.klein4_random(D, seed=1),
-                             hdc.klein4_random(D, seed=2)])
+    out = hdc.klein4_bundle([hdc.klein4_expand(D, 1),
+                             hdc.klein4_expand(D, 2)])
     assert isinstance(out, hdc.HV)
     assert len(out) == D
     assert out.sectors == 4
@@ -58,7 +61,7 @@ def test_dod_list_of_random_hvs_bundles_without_tolist():
 # ── HV-list == varargs == tolist, byte-identical ─────────────────────────────
 
 def _hvs(D, seeds):
-    return [hdc.klein4_random(D, seed=s) for s in seeds]
+    return [hdc.klein4_expand(D, s) for s in seeds]
 
 
 def test_list_form_equals_varargs_form():
@@ -99,7 +102,7 @@ def test_mixed_list_hv_and_plain_list():
 def test_single_hv_in_a_list_is_itself():
     """Bundling a single HV (in a list) returns that HV's value — parity with the
     bare single-HV varargs call."""
-    h = hdc.klein4_random(64, seed=77)
+    h = hdc.klein4_expand(64, 77)
     assert _b(hdc.klein4_bundle([h])) == h.tobytes()
     assert _b(hdc.klein4_bundle(h)) == h.tobytes()
 
@@ -127,7 +130,7 @@ def test_regression_bare_vector_containers_unchanged():
     """Bare (unwrapped) single-vector calls in every container type stay one vector."""
     assert hdc.klein4_bundle(bytes([0, 1, 2, 3])).tolist() == [0, 1, 2, 3]
     assert hdc.klein4_bundle(array("B", [3, 2, 1, 0])).tolist() == [3, 2, 1, 0]
-    h = hdc.klein4_random(32, seed=3)
+    h = hdc.klein4_expand(32, 3)
     assert hdc.klein4_bundle(h).tobytes() == h.tobytes()
 
 
@@ -156,18 +159,18 @@ def test_regression_length_mismatch_still_raises():
     pre-dispatch equal-length check an oversized vector was SILENTLY TRUNCATED
     (pure raised, native didn't — caught on the native-path verify)."""
     with pytest.raises(ValueError):
-        hdc.klein4_bundle([hdc.klein4_random(16, seed=1),
-                           hdc.klein4_random(32, seed=2)])   # oversized second
+        hdc.klein4_bundle([hdc.klein4_expand(16, 1),
+                           hdc.klein4_expand(32, 2)])   # oversized second
     with pytest.raises(ValueError):
-        hdc.klein4_bundle([hdc.klein4_random(32, seed=1),
-                           hdc.klein4_random(16, seed=2)])   # undersized second
+        hdc.klein4_bundle([hdc.klein4_expand(32, 1),
+                           hdc.klein4_expand(16, 2)])   # undersized second
     with pytest.raises(ValueError):
-        hdc.klein4_bundle(hdc.klein4_random(16, seed=1),
-                          hdc.klein4_random(32, seed=2))     # varargs form too
+        hdc.klein4_bundle(hdc.klein4_expand(16, 1),
+                          hdc.klein4_expand(32, 2))     # varargs form too
 
 
 def test_mode_validation_unchanged_on_list_form():
     """An invalid mode= still raises even via the list form."""
     with pytest.raises(ValueError):
-        hdc.klein4_bundle([hdc.klein4_random(16, seed=1),
-                           hdc.klein4_random(16, seed=2)], mode="bogus")
+        hdc.klein4_bundle([hdc.klein4_expand(16, 1),
+                           hdc.klein4_expand(16, 2)], mode="bogus")
