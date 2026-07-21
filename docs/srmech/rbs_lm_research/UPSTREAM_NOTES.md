@@ -3436,3 +3436,22 @@ sector-agreement** without re-deriving the bound for this metric. That correctio
 
 Research-side: F1260 / `R-RBS-LM-TOKGAP`-adjacent probes. Composes §107 (the serialization/version-pin
 argument for *why* procedural is desirable) — which stands regardless of this negative.
+
+## §109 — srmech ships Class-A content-addressing but no content→**int** routing helper (gap, minor)
+
+Surfaced by issue #1454 / F1276. **Question asked: does srmech do the hashing we wanted?** Answer is split, and the split is the useful part:
+
+**YES, and better than asked, for the content→VECTOR case.** The 21 defective sites were doing `klein4_random(D, seed=hash(word) % 80000 + 11)` — content → seed → vector. srmech ships **content → vector directly**: `hdc.klein4_encode_bytes(data, D)` and `signal_processing.mint_vector(name, D=...)`. So the seed step should never have existed; removing it removes the salted builtin *and* the F899/F1260 morphology defect at once. srmech does not merely cover this case, it **dissolves** it.
+
+**NO, for the content→stable-INT case** (bucket/chunk routing, e.g. `buckets[route(key) % n_ch]`). `format.*` ships `sha256_bytes` (hex str), `sha256_hex`, `sha256_raw` (32 raw bytes), `sha256_batch` — all Class A and all stable — but there is **no `content_id` / `digest_int` / `route_to_bucket` helper**, so callers hand-roll the last step:
+
+```python
+int.from_bytes(fmt.sha256_raw(key)[:8], "big") % n_ch     # == 17061 for b'the', verified
+int(fmt.sha256_bytes(key)[:16], 16) % n_ch                 # same value, hex route
+```
+
+A swept search for `content_id|stable|route|bucket|to_int|digest_int|seed_from|mint` across the package returns only CLI route constants, private native plumbing (`_bigint_to_int`), and the `mint_*` **vector** family — nothing for the integer case.
+
+**The ask (small):** a Class-A `format.content_int(data: bytes, *, bits: int = 64) -> int` (and/or `content_bucket(data, n)`), so content-routing is one attested op instead of a hand-rolled slice. It matters more than it looks: hand-rolling the last step is exactly where `hash()` got substituted in 21 places, because the builtin *was* the one-liner and the Class-A route was not.
+
+**Not a blocker** — the composition above is two lines and exact. Filed as an ergonomics gap, since ergonomics is what decided which op people actually reached for.

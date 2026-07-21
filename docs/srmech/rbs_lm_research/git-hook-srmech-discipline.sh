@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # srmech/siona discipline pre-commit tripwire — blocks NEWLY ADDED stop-list idioms in staged
 # code under docs/srmech/: the co-occurrence Counter, numpy, python abs, np.linalg eig/svd, and
-# hashlib sha256, and builtin hash() (#1454/F1276 -- PYTHONHASHSEED-salted, and a BUILTIN so   # srmech-allow: names the idiom it forbids
+# hashlib sha256, and builtin hash() (#1454/F1276 -- PYTHONHASHSEED-salted, and a BUILTIN so  # srmech-allow: this header names the idioms it blocks; .sh stays on the grep
 # there is no import to block and nothing to pip-refuse; this gate is the only catch). Prose
 # files (.md/.txt/.rst/.ndjson) are EXCLUDED so a finding may name the idioms it discusses.
 # Diff-aware: only ADDED lines are checked, so existing uses are grandfathered
@@ -14,7 +14,13 @@
 # Install:  cp docs/srmech/rbs_lm_research/git-hook-srmech-discipline.sh "$(git rev-parse --git-path hooks)/pre-commit" && chmod +x "$(git rev-parse --git-path hooks)/pre-commit"
 set -u
 SCOPE="docs/srmech"
-added=$(git diff --cached --unified=0 -- "$SCOPE" \
+# .py -> AST (prose-safe by construction); the grep below keeps NON-Python files, where a
+# textual match is unambiguous. See hook_staged_py_ast.py for why no regex can do the .py case.
+AST_HELPER="docs/srmech/rbs_lm_research/hook_staged_py_ast.py"
+if [ -f "$AST_HELPER" ]; then
+  python3 "$AST_HELPER" || exit 1
+fi
+added=$(git diff --cached --unified=0 -- "$SCOPE" ':(exclude,glob)**/*.py' \
           ':(exclude,glob)**/*.md' ':(exclude,glob)**/*.txt' \
           ':(exclude,glob)**/*.rst' ':(exclude,glob)**/*.ndjson' \
           ':(exclude,glob)*.md' ':(exclude,glob)*.txt' 2>/dev/null \

@@ -27,7 +27,7 @@ Composes F1266 (which refuted the ratio law and flagged the sampling trap this h
 F1265, F1264, F1263, the Hurwitz/CD ladder (DUALITY.md / TRIALITY.md), #231/PKG-3.
 Run:  /tmp/srmech_rc288/bin/python3 R-RBS-LM-EXPONENT_*.py
 
-DEFECT NOTICE (added 2026-07-21, issue #1454 / F1276): the chunk router below uses builtin `hash()`,  (srmech-allow: this notice names the defect)
+DEFECT NOTICE (added 2026-07-21, issue #1454 / F1276): the chunk router below uses builtin `hash()`,
 which is PYTHONHASHSEED-SALTED, so the partition it produces DIFFERS ON EVERY INTERPRETER RUN and the
 exact numbers this harness printed are NOT reproducible. The harness is PRESERVED AS-RUN (it is the
 historical probe that produced the finding; rewriting it would make it no longer that thing) — see the

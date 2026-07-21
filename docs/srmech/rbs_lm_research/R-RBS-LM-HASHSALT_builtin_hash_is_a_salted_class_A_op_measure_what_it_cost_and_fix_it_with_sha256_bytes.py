@@ -1,4 +1,4 @@
-r"""R-RBS-LM-HASHSALT — issue #1454: builtin `hash()` is PYTHONHASHSEED-salted (srmech-allow: studies it),
+r"""R-RBS-LM-HASHSALT — issue #1454: builtin `hash()` is PYTHONHASHSEED-salted
 so 21 research sites keyed word vectors on a value that CHANGES EVERY INTERPRETER INVOCATION. This harness
 (1) independently VERIFIES the claim, (2) measures what it actually cost MY OWN two sites, and (3) ships the
 correct fix — which is not "pin the seed".
@@ -17,8 +17,7 @@ WHY "PIN PYTHONHASHSEED" IS THE WRONG FIX. Pinning makes a run reproducible but 
 content-addressing operation being performed by a salted builtin whose stability is an environment variable.
 The framework already has the right op: **`srmech.amsc.format.sha256_bytes`** — Class A, the foundational
 anchor, stable across processes, machines and Python versions by construction. CLAUDE.md's §2 STOP-list already
-routes `hashlib.sha256(...)` there; it does NOT mention builtin `hash()` -- srmech-allow: names the
-idiom under study -- which is exactly the gap all 21 sites
+routes `hashlib.sha256(...)` there; it does NOT mention builtin `hash()` which is exactly the gap all 21 sites
 (and my 2) fell through. The durable fix is the STOP-list row, not an env var.
 
 WHAT THIS MEASURES, so the cost is a number rather than an adjective:
@@ -117,8 +116,8 @@ def part_a():
         out = subprocess.run([sys.executable, "-c", "print(hash('the')%80000+11, hash(b'the')%80000+11)"],  # srmech-allow: this harness STUDIES the salted builtin; calling it is the measurement
                              capture_output=True, text=True).stdout.split()
         vals.append(tuple(out))
-    log("  hash('the')%%80000+11 across 3 FRESH interpreters: %s" % [v[0] for v in vals])  # srmech-allow: report line
-    log("  hash(b'the') likewise (bytes are salted too):      %s" % [v[1] for v in vals])  # srmech-allow: report line
+    log("  hash('the')%%80000+11 across 3 FRESH interpreters: %s" % [v[0] for v in vals])
+    log("  hash(b'the') likewise (bytes are salted too):      %s" % [v[1] for v in vals])
     env = dict(os.environ, PYTHONHASHSEED="0")
     pinned = subprocess.run([sys.executable, "-c", "print(hash('the')%80000+11)"],  # srmech-allow: this harness STUDIES the salted builtin; calling it is the measurement
                             capture_output=True, text=True, env=env).stdout.strip()
@@ -222,7 +221,7 @@ print(run())
 def part_c(chunked):
     log("")
     log("=== PART C — THE CORRECT FIX: Class-A sha256_bytes routing, not a pinned env var ===")
-    log("  CLAUDE.md §2 routes hashlib.sha256 -> format.sha256_bytes but says nothing about builtin")  # srmech-allow: report line
+    log("  CLAUDE.md §2 routes hashlib.sha256 -> format.sha256_bytes but says nothing about builtin")
     log("  builtin hash. That is the gap all 21 sites (and my 2) fell through. Content-routing IS Class A.")
     dim, M, n_ch = 2048, 3000, 12
     k, v, b = carriers(M, dim)

@@ -61,14 +61,14 @@ class V(ast.NodeVisitor):
         elif name in ("hashlib.sha256",):
             self.hard.append((ln, "hashlib.sha256 — route through srmech.amsc.format.sha256_bytes"))
         elif name == "hash":
-            # #1454 / F1276. builtin hash() is PYTHONHASHSEED-SALTED for str AND bytes, so anything   # srmech-allow: names the idiom it forbids
+            # #1454 / F1276. builtin hash() is PYTHONHASHSEED-SALTED for str AND bytes, so anything
             # keyed on it differs in EVERY interpreter invocation. It is a BUILTIN — no import, so
             # neither a pip-block (numpy, #564) nor an import-check can ever catch it; this AST rule
             # and the pre-commit hook are the only places it can be caught. Routing/seeding by content
             # IS Class-A content-addressing -> format.sha256_bytes, which is stable by construction.
-            # hash() on int/float/tuple-of-int is NOT salted, so this over-blocks slightly on purpose;   # srmech-allow: names the idiom it forbids
+            # hash() on int/float/tuple-of-int is NOT salted, so this over-blocks slightly on purpose;
             # escape a genuinely-stable use with  # srmech-allow: <reason>.
-            self.hard.append((ln, "hash() — PYTHONHASHSEED-salted for str/bytes (#1454/F1276): NOT "  # srmech-allow: names the idiom it forbids
+            self.hard.append((ln, "hash() — PYTHONHASHSEED-salted for str/bytes (#1454/F1276): NOT "
                                   "reproducible across processes. Use srmech.amsc.format.sha256_bytes "
                                   "(Class A). PYTHONHASHSEED=0 is a workaround, not the fix."))
         elif name in HARD_EIG:
