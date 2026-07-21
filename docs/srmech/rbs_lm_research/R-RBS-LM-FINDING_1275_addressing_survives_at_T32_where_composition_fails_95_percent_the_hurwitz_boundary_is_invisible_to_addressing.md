@@ -67,3 +67,20 @@ This tightens F1273's conclusion. It is not merely that the 𝕆 stop "is not lo
 Not more rungs — the structure is now derived, and 64 is srmech's ceiling anyway. The live question is whether any **other** operation of ours (not addressing) *does* track the boundary. F1274's census says the A–N classes are overwhelmingly non-hypercomplex, so the honest expectation is no — but that is an expectation, and the `qm.*` physics layer (31 hypercomplex ops) is where to look if anywhere.
 
 Composes **F1274** (the mechanism this confirms — *→ extended by F1275*), **F1273** (𝕊 addressing; its Control B lesson is Part D's design — *→ extended by F1275*), **F1270**, **F1272**, `[[feedback_sedenion_no_division_is_the_addressing_feature]]`, `[[feedback_three_things_called_random_derived_drawn_stochastic]]`, `[[feedback_read_independent_structure_check_first]]`, #231/PKG-3.
+
+## CONFIRMED against the SHIPPED register (srmech 0.9.0rc297, 2026-07-21)
+
+F1275 flagged its own biggest risk: *"srmech ships `SedenionRegister` at 16 slots and **nothing above it**, so the 32-slot register is **mine** — a register I wrote could be easier than srmech's, and \"addressing works at 32\" would then be an artifact of my own construction."* **rc297 ships a general `CDRegister`**, so that caveat is now testable rather than standing — and it is **closed**.
+
+Re-run on the shipped `cascade.cd_register(dim, D=...)`, independently implemented upstream:
+
+| D | dim 16 (8 keys) | dim 32 (32 keys) |
+|---|---|---|
+| 4096 | 48/48 (100.0 %) | **352/352 (100.0 %)** |
+| 16384 | 48/48 (100.0 %) | **352/352 (100.0 %)** |
+
+**Identical to my hand-rolled numbers, to the count.** The involution holds at 16/32/64 (`e3·e3 = (0, −1)`, content returns to the same slots with every sign flipped), and the shipped `is_navigable` rejects both known zero divisors (`e1+e10`, `e4−e15`) — so the gate discriminates there too.
+
+rc297 also ships **`cd_navmap_is_signed_permutation(dim)`** as a first-class predicate — the exact premise F1275 verified by brute force over all 4096 basis products at dim 64. It returns **True at every rung 2…64**, confirming the structural claim through srmech's own surface rather than my harness. Also new: `cd_basis_product`, `cd_navmap`, `cd_navigate`, `cd_conjugate`, `cd_norm_sq`, `cd_project`, `cd_promote`, and a `namespace=` parameter the hand-rolled version lacked.
+
+**An independent implementation reaching the identical number is stronger evidence than the original run** — it removes the one confound the finding could not remove itself. `CD_MAX_DIM` remains 64, so the tooling bound noted in F1275 is unchanged.
