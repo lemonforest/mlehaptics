@@ -15,6 +15,7 @@ but biology's own ACCESS is near-complete — the gap is our inability to model 
 
 srmech 0.7.4; Class-L Fiedler phase + chirality coordinate sign(V[:,2]); fast ambient stirring (golden quasi-sweep + per-state σ flip). No abs(); no CAD; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
 import numpy as np
 import srmech
@@ -46,7 +47,7 @@ def main():
                              if hand[j] == sigma and min((phi[j] - c) % 1.0, (c - phi[j]) % 1.0) < win / 2}
             nR = sum(1 for j in accessed if hand[j] == 0)
             nL = sum(1 for j in accessed if hand[j] == 1)
-            covs.append(len(accessed) / N); asyms.append(abs(nR - nL) / max(1, nR + nL))
+            covs.append(len(accessed) / N); asyms.append(cascade.magnitude(nR - nL) / max(1, nR + nL))
         return float(np.mean(covs)), float(np.mean(asyms))
 
     print(f"{'collapse-states / access window (W)':<36} {'access coverage':>16} {'(4:3)|(3:4) asym':>17}")

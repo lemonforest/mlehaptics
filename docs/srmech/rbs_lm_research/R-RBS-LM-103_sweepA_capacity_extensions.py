@@ -12,6 +12,7 @@ Consolidated empirical sweep covering 7 STALE_PATHS_QUEUE items:
 
 Output: results JSON + F144 finding markdown.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json
 import time
 from pathlib import Path
@@ -236,7 +237,7 @@ def main():
     k4_matched_above = (k4_matched - base["klein4"]) / (1 - base["klein4"])
     print(f"  bipolar (D=20000): sim={bp_matched:+0.4f}  above-rand {bp_matched_above:+0.4f}")
     print(f"  klein-4 (D=10000): sim={k4_matched:+0.4f}  above-rand {k4_matched_above:+0.4f}")
-    print(f"  Verdict: at matched bits, {'bipolar' if bp_matched_above > k4_matched_above else 'klein-4'} wins by {abs(bp_matched_above - k4_matched_above):.4f}")
+    print(f"  Verdict: at matched bits, {'bipolar' if bp_matched_above > k4_matched_above else 'klein-4'} wins by {cascade.magnitude(bp_matched_above - k4_matched_above):.4f}")
     print()
 
     print("=== Item 4: Noise robustness (bit-flip corruption) ===")

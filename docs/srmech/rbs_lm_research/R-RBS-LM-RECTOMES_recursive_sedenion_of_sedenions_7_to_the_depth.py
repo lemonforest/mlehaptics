@@ -9,6 +9,7 @@ so the structure holds 7^depth complexes in O(depth) octonions, all exactly addr
 
 srmech 0.7.4; cascade.SedenionRegister.couple_working/uncouple_working (the §31 coupler). No abs(); no CAD.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import numpy as np
 import srmech
 from srmech.amsc.cascade import SedenionRegister
@@ -37,12 +38,12 @@ def main():
     exact = 0
     for (t, s) in [(0, 0), (0, 6), (3, 4), (6, 6)]:
         idx = t * K + s
-        assert abs(reg.uncouple_working(super_oct)[t] - tome_keys[t]) < 1e-9   # super confirms tome t
+        assert cascade.magnitude(reg.uncouple_working(super_oct)[t] - tome_keys[t]) < 1e-9   # super confirms tome t
         val = reg.uncouple_working(tomes[t])[s]                  # tome t -> complex s
-        ok = abs(val - items[idx]) < 1e-9
+        ok = cascade.magnitude(val - items[idx]) < 1e-9
         exact += ok
         print(f"  address ({t},{s}) = item {idx:>2}: super->tome {t} confirmed, tome->slot {s} -> {val:>5.1f}  expected {items[idx]:>5.1f}  {'EXACT' if ok else 'MISS'}")
-    all_ok = all(abs(reg.uncouple_working(tomes[i // K])[i % K] - items[i]) < 1e-9 for i in range(M))
+    all_ok = all(cascade.magnitude(reg.uncouple_working(tomes[i // K])[i % K] - items[i]) < 1e-9 for i in range(M))
     print(f"  -> all {M} items exactly addressable through the 2-level (super, tome, slot): {all_ok}\n")
 
     print("CAPACITY (7^depth in O(depth) octonions):")

@@ -31,6 +31,7 @@ BINARY shadow is integer-only (nearest-grid rounding = Class-K pin-slot), modell
 numpy math, no abs().
 Run: /tmp/verify_srmech_v070rc28/bin/python docs/srmech/rbs_lm_research/R-RBS-LM-R25_reverse_direction_43_native_bit_exact.py
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json
 from pathlib import Path
 import srmech
@@ -64,7 +65,7 @@ def compose_binary_shadow(q, step, K, bits):
     bit_exact = (s * exact_den == exact_num * grid)
     return dict(bits=bits, stored=[s, grid], shadow_turn=s / grid,
                 exact_turn=exact_num / exact_den,
-                drift=abs(s / grid - exact_num / exact_den), bit_exact=bool(bit_exact))
+                drift=cascade.magnitude(s / grid - exact_num / exact_den), bit_exact=bool(bit_exact))
 
 
 def main():

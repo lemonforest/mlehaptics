@@ -29,6 +29,7 @@ phenomenon (determinative disambiguates the homophone) is standard textbook Egyp
 srmech 0.7.5rc6: signal_processing.mint_vector (deterministic mint-by-name, Class-M); hdc.{bind,bundle,similarity}
 (Class-M); the bind = the E×B coupling. No abs() in a cascade (counts via comparison). No CAD; no Workflow; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json
 from collections import defaultdict, Counter
 import srmech
@@ -139,7 +140,7 @@ def main():
     print(f"    GAIN from coupling the orthogonal class axis          : {gain:+.1%}\n")
 
     print("VERDICT (does the coupled E×B emission beat the single stream? -- item 2 measured):")
-    verdict = "YES" if gain > 0.02 else ("NO (within noise)" if abs(gain) <= 0.02 else "WORSE")
+    verdict = "YES" if gain > 0.02 else ("NO (within noise)" if cascade.magnitude(gain) <= 0.02 else "WORSE")
     print(f"  • {verdict}: coupling the orthogonal determinative axis (the E×B Poynting bind of F593) lifts homophone")
     print(f"    disambiguation from {single_acc:.1%} (phonogram alone) to {coupled_acc:.1%} -- a {gain:+.1%} gain on a REAL ancient-language")
     print(f"    task. The determinative cuts the candidate field from {mean_t:.1f} to {mean_td:.1f} glosses, and the read-head")

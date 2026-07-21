@@ -12,6 +12,7 @@ Test on one wiki slice (srmech 0.7.3 native):
   [3] cost: load from scratch = 2 eigendecomposes; load from {K1,K3} in hand = 0 → the saves-time claim.
 amsc.laplacian.{dense_laplacian, magnetic_laplacian, hermitian_eigendecompose} (Class L) + hdc.{bundle,similarity}.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
 import numpy as np
 from collections import Counter
@@ -100,8 +101,8 @@ def main():
     cross = [similarity(a, b) for a in K1_modes for b in K3_modes]
     within_k1 = [similarity(K1_modes[i], K1_modes[j]) for i, j in itertools.combinations(range(NMODES), 2)]
     print("\n[2] K1 (presence)  vs  K3 (directed/order)  modes — do the two channels carry DIFFERENT structure?")
-    print(f"      K1×K3 cross-similarity mean = {np.mean(cross):+.3f}  (|mean| {abs(np.mean(cross)):.3f})  → "
-          f"{'ORTHOGONAL — K3 adds order info K1 lacks' if abs(np.mean(cross)) < 0.15 else 'overlapping'}")
+    print(f"      K1×K3 cross-similarity mean = {np.mean(cross):+.3f}  (|mean| {cascade.magnitude(np.mean(cross)):.3f})  → "
+          f"{'ORTHOGONAL — K3 adds order info K1 lacks' if cascade.magnitude(np.mean(cross)) < 0.15 else 'overlapping'}")
     print(f"      (K1 within-channel mean = {np.mean(within_k1):+.3f}, for scale)")
 
     # [3] the cost ledger
@@ -114,7 +115,7 @@ def main():
     print("\nVERDICT:")
     print(f"  • (D) CONFIRMED in shape: the sedenion-load's octonion block IS K1's principal eigenmodes")
     print(f"    (sim {s_load_k1:.2f}) — so if K1 is built, loading needs NO new presence-decompose, just re-addressing.")
-    print(f"  • K3 (directed/order) is ~orthogonal to K1 (cross |{abs(np.mean(cross)):.2f}|) — it supplies the cyclic")
+    print(f"  • K3 (directed/order) is ~orthogonal to K1 (cross |{cascade.magnitude(np.mean(cross)):.2f}|) — it supplies the cyclic")
     print(f"    tori (F467/F471) K1's symmetric channel cannot. So load == re-address(K1) ⊕ K3 = bundle of the")
     print(f"    two EXISTING kernels; the saves-time composition holds (0 new eigendecomposes).")
 

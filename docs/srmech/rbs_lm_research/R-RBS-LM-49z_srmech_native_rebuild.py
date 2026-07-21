@@ -27,6 +27,7 @@ signed-arithmetic + argsort (numpy is fine for that primitive surface).
 The 49z scope is specifically Method B which has the most direct
 srmech-native replacements available.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import re
@@ -304,7 +305,7 @@ def main():
         key = f"b{int(budget*100)}"
         sn = results["srmech_native_B"][key]["chi2_5bins"]
         bn = results["bare_numpy_B"][key]["chi2_5bins"]
-        diff = abs(sn - bn)
+        diff = cascade.magnitude(sn - bn)
         max_chi2_diff = max(max_chi2_diff, diff)
         print(f"  budget={budget:.2f}: srmech-native chi²={sn:.2f}; bare-numpy chi²={bn:.2f}; |Δ|={diff:.2f}")
 

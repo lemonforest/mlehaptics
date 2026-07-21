@@ -34,7 +34,7 @@ def one_kuramoto_wave(STEPS, coupling, seed):
     r, Rs = [], []
     for _ in range(STEPS):
         theta = np.array(cascade.kuramoto_step(theta, omega, coupling=coupling, dt=0.18))
-        z = np.mean(np.exp(1j * theta)); Rs.append(abs(z))             # the Kuramoto order parameter |R|
+        z = np.mean(np.exp(1j * theta)); Rs.append(abs(z))             # the Kuramoto order parameter |R|  # srmech-allow: |z| of a COMPLEX value (the Kuramoto order parameter) is a Euclidean modulus — srmech defines that as a DIFFERENT cascade class than the Class-K real pin-slot, and cascade.magnitude rejects complex by contract. Not a violation.
         th = int(((float(np.angle(z)) % TWO_PI) / TWO_PI) * 360)
         r.append(float(np.array(cascade.the_one(1, th, 360, 8).to_numpy())[4]))   # the_one renders the wave
     return np.array(r), float(np.mean(Rs))

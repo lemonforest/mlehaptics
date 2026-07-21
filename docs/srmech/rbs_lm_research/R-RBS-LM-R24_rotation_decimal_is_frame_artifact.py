@@ -16,6 +16,7 @@ own" -> two regimes (both srmech-native, no numpy):
 srmech-native: amsc.rational.best_rational (Class N), amsc.cyclic.mod_add (Class I). No numpy, no abs().
 Run: /tmp/verify_srmech_v070rc28/bin/python docs/srmech/rbs_lm_research/R-RBS-LM-R24_rotation_decimal_is_frame_artifact.py
 """
+from srmech.amsc.cascade import magnitude as srmech_magnitude  # Class-K pin-slot; aliased because this file binds `cascade`
 import json
 from pathlib import Path
 import srmech
@@ -44,7 +45,7 @@ def main():
     cascade = []
     for md in (2, 3, 5, 8, 13, 21, 55, 144, 377):
         r = rational.best_rational(*g, md)
-        cascade.append({"max_d": md, "convergent": list(r), "err": abs(r[0] / r[1] - 0.6180339887)})
+        cascade.append({"max_d": md, "convergent": list(r), "err": srmech_magnitude(r[0] / r[1] - 0.6180339887)})
     res["B_irrational"] = {"cartesian_decimal": 0.6180339887, "convergent_cascade": cascade}
     print("\n(B) IRRATIONAL (golden): no single finite frame -> the best_rational CASCADE (Class N):")
     for c in cascade:

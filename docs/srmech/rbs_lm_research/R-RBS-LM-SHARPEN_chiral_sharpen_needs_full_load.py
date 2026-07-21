@@ -17,6 +17,7 @@ Three substrate claims, demonstrated srmech-native (Klein-4 chirality, Class C):
 
 srmech 0.7.4; klein4 chirality = the genuine Class-C op (NOT a hand-rolled sign flip, F372). No abs().
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import numpy as np
 import srmech
 from srmech.amsc import hdc
@@ -103,7 +104,7 @@ def main():
     print(f"    LOCAL sharpen (order B) -> idea : {sim(loc_rev)}   (different order -> different result = blind)")
     print(f"    GLOBAL sharpen (full)   -> idea : {sim(glob)}   (medoid = majority hand; minority flipped)\n")
 
-    order_dep = abs(hdc.klein4_similarity(loc_fwd, idea) - hdc.klein4_similarity(loc_rev, idea))
+    order_dep = cascade.magnitude(hdc.klein4_similarity(loc_fwd, idea) - hdc.klein4_similarity(loc_rev, idea))
     print("VERDICT:")
     print(f"  • IRREDUCIBLE: best single partition reaches idea-sim {sim(best_single)}, the aligned full load reaches")
     print(f"    {sim(glob)}. An idea is the bundle of its facets across the WHOLE load — a sentence is one partition,")

@@ -19,6 +19,7 @@ Class-L eigendecomposition of the orientation tensor. Directions read from the a
 ephemerides-spectral install — version-safe, honoring 'not latest srmech base').
 Run: /tmp/verify_srmech_v070rc28/bin/python docs/srmech/rbs_lm_research/R-RBS-LM-R19_maps_lens_cmb_axis_family.py
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json, re
 from pathlib import Path
 import numpy as np
@@ -38,7 +39,7 @@ def lb_to_unit(l_deg, b_deg):
 
 
 def axis_angle_deg(u, v):
-    c = abs(float(np.dot(u, v)))                 # |cos|: axes (n ≡ -n), so fold to [0,90]
+    c = cascade.magnitude(float(np.dot(u, v)))                 # |cos|: axes (n ≡ -n), so fold to [0,90]
     return float(np.degrees(np.arccos(min(1.0, c))))
 
 

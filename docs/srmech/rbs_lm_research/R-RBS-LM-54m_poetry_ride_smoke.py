@@ -41,6 +41,7 @@ Metric: ride-quality minus freq-weighted-target baseline.
 This is the "alignment-specific signal" — does the ride know more
 than just "switch to target's frequent words"?
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import random
@@ -368,7 +369,7 @@ def main():
         verdict = "MODERATE substrate-mismatch: poetry ride beats prose ride by Δ={:+.3f}".format(delta)
     elif delta > 0.03:
         verdict = "WEAK substrate-mismatch: poetry slightly better but margin small (Δ={:+.3f})".format(delta)
-    elif abs(delta) < 0.03:
+    elif cascade.magnitude(delta) < 0.03:
         verdict = "NO substrate-mismatch: poetry and prose ride perform similarly (Δ={:+.3f}); ride mechanism is substrate-agnostic and limited regardless".format(delta)
     else:
         verdict = "REVERSE: prose ride beats poetry ride (Δ={:+.3f}); user hypothesis NOT supported".format(delta)

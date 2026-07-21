@@ -13,6 +13,7 @@ i.e. input = output (the eigenstate, F804). This measures it:
 Contrast with F806's greedy (B′) to show the cascade was a generation artifact. RBS-HDC only (klein-4 binds +
 similarity; F796 bar), simplewiki abstracts, one locked language, no translation. srmech 0.7.5rc169; no abs; no CAD.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
 import json
 import os
@@ -46,7 +47,7 @@ def clean_walk(tokens, k):
         cq = FW.ctx_hv(out[-(k - 1):])
         sims = [(hdc.klein4_similarity(cq, kh), nt) for kh, nt, in [(a, b) for a, b in keys]]
         mx = max(s for s, _ in sims)
-        winners = {nt for s, nt in sims if abs(s - mx) < 1e-9}
+        winners = {nt for s, nt in sims if cascade.magnitude(s - mx) < 1e-9}
         if len(winners) != 1 or mx < 0.99:        # ambiguous / off-manifold -> stop (the generative branch point)
             break
         out.append(next(iter(winners)))

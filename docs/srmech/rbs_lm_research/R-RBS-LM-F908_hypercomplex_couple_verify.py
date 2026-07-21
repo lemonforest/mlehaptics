@@ -36,7 +36,7 @@ def roundtrip_err(n, seed):
             back = cascade.hypercomplex_couple(fwd, axis="diagonal", **kw)
             # recovered streams are the pure-imaginary slots (drop the real anchor at [0])
             rec = list(back)[1:1+n]
-            err = max(abs(a-b) for a, b in zip(streams, rec)) if len(rec) >= n else float("inf")
+            err = max(cascade.magnitude(a-b) for a, b in zip(streams, rec)) if len(rec) >= n else float("inf")
             best = (err, kw) if best is None or err < best[0] else best
         except Exception as e:
             pass
@@ -83,7 +83,7 @@ try:
     x = [[1.0,2.0,3.0,4.0],[0.5,-1.0,2.0,0.0],[3.0,1.0,-2.0,1.0],[0.0,0.0,1.0,1.0]]
     X = cascade.quaternion_dft(x, mu_axis="i")
     xr = cascade.quaternion_dft(X, mu_axis="i", inverse=True)
-    err = max(abs(a-b) for row_a,row_b in zip(x,xr) for a,b in zip(row_a,row_b))
+    err = max(cascade.magnitude(a-b) for row_a,row_b in zip(x,xr) for a,b in zip(row_a,row_b))
     check("quaternion_dft round-trip", err < 1e-9, f"max err {err:.2e}")
 except Exception as e:
     check("quaternion_dft round-trip", False, f"ERR {type(e).__name__}: {e}")

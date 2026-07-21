@@ -37,8 +37,8 @@ def main():
     vp = np.array(cascade.the_one(1, 90, 360, 12).to_numpy())
     vm = np.array(cascade.the_one(-1, 90, 360, 12).to_numpy())
     flip = vp + vm                                                  # ~0 where the component NEGATES (the band); ~2*v where it is KEPT (the anchor)
-    band = [i for i in range(len(vp)) if abs(vp[i] + vm[i]) < 1e-9 and abs(vp[i]) > 1e-9]   # negated + nonzero
-    anchor = [i for i in range(len(vp)) if abs(vp[i] - vm[i]) < 1e-9]                       # kept
+    band = [i for i in range(len(vp)) if cascade.magnitude(vp[i] + vm[i]) < 1e-9 and cascade.magnitude(vp[i]) > 1e-9]   # negated + nonzero
+    anchor = [i for i in range(len(vp)) if cascade.magnitude(vp[i] - vm[i]) < 1e-9]                       # kept
     print("(1) the_one = REAL ANCHOR (kept under the chirality flip) + IMAGINARY BAND (negated): the two pieces of a strip")
     print(f"    anchor (Mobius CORE, fixed) indices: {anchor}")
     print(f"    band   (the STRIP, flipped) indices: {band}   |diff(+s,-s)| = {float(np.linalg.norm(vp - vm)):.2f}\n")
@@ -49,7 +49,7 @@ def main():
     twice = conj(conj(vp))
     flips_to_other_side = np.allclose(once, vm)                     # one half-twist takes +side -> -side
     double_cover = np.allclose(twice, vp)                           # conj^2 = identity: go around TWICE to return
-    fpf = all(abs(vp[i]) > 1e-9 for i in band)                      # fixed-point-free on the band (no e_k == -e_k)
+    fpf = all(cascade.magnitude(vp[i]) > 1e-9 for i in band)                      # fixed-point-free on the band (no e_k == -e_k)
     print("(2) CONJUGATION = the HALF-TWIST (Class-K sign flip, F544):")
     print(f"    one half-twist takes the +side to the -side: {flips_to_other_side}")
     print(f"    conj^2 = identity (the ORIENTATION DOUBLE COVER -- go around TWICE to return): {double_cover}")
@@ -71,7 +71,7 @@ def main():
     y = np.sin(t) * np.cos(t)
     cross = int(np.argmin(x[1:1000] ** 2 + y[1:1000] ** 2)) + 1     # the self-CROSSING (nearest the origin/axis), excluding t=0
     side = np.sign(np.cos(t))                                       # which lobe / the 'sign'
-    flips_at_cross = side[cross - 1] != side[cross + 1] or abs(x[cross]) < 0.05
+    flips_at_cross = side[cross - 1] != side[cross + 1] or cascade.magnitude(x[cross]) < 0.05
     print("(5) CONJECTURE (held open): sign-flip ~ axial intersection ~ strong-coherence point.")
     print(f"    on the figure-8 IMMERSION of the loop, the self-CROSSING sits AT the axis (x~{x[cross]:.2f}, y~{y[cross]:.2f}) -- the")
     print(f"    axial intersection -- and it is where the 'side'/sign flips: {bool(flips_at_cross)}. It is also where the two")

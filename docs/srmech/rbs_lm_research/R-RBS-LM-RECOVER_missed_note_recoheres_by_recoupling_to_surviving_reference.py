@@ -26,7 +26,7 @@ TWO_PI = 6.283185307179586
 
 
 def order_param(theta):
-    return float(abs(np.mean(np.exp(1j * np.asarray(theta)))))
+    return float(abs(np.mean(np.exp(1j * np.asarray(theta)))))  # srmech-allow: |z| of a COMPLEX value (the Kuramoto order parameter) is a Euclidean modulus — srmech defines that as a DIFFERENT cascade class than the Class-K real pin-slot, and cascade.magnitude rejects complex by contract. Not a violation.
 
 
 def run(n=24, coupling=4.0, frac_missed=2 / 24, perturb_at=60, steps=180, seed=0, pin=None, pin_strength=0.0):

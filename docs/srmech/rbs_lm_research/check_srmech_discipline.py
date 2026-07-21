@@ -107,12 +107,19 @@ def imports(tree):
 
 def check(path):
     src = open(path).read()
+    _srclines = src.split("\n")
     try:
         tree = ast.parse(src)
     except SyntaxError as e:
         return {"file": path, "parse_error": str(e)}
     v = V()
     v.visit(tree)
+    # Honour the same `# srmech-allow: <reason>` escape the pre-commit hook honours. Without this the
+    # two guards disagree about what "clean" means -- the hook passes a line the ratchet still counts.
+    def _allowed(ln):
+        return 0 <= ln - 1 < len(_srclines) and "srmech-allow" in _srclines[ln - 1]
+    v.hard = [(ln, m) for ln, m in v.hard if not _allowed(ln)]
+    v.review = [(ln, m) for ln, m in v.review if not _allowed(ln)]
     srmech, helper, numpy = imports(tree)
     if srmech:
         cov = "srmech (direct import)"

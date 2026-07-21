@@ -75,7 +75,7 @@ def main():
         oct_d = C.hypercomplex_couple(streams, axis="diagonal")          # forward bind (≤7 → octonion)
         rec = C.hypercomplex_couple(list(oct_d), axis="diagonal", inverse=True)  # inverse
         rec7 = list(rec)[1:8]   # inverse returns (anchor=0, s0..s6) → streams are positions 1..7
-        err = max(abs(rec7[i] - streams[i]) for i in range(7))
+        err = max(C.magnitude(rec7[i] - streams[i]) for i in range(7))
         max_err = max(max_err, err)
     print(f"    7 values per octonion word, inverse-recovered: max abs error = {max_err:.2e}  "
           f"({'BIT-EXACT reversible ✓' if max_err < 1e-9 else 'approx'})")

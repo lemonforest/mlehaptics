@@ -17,6 +17,7 @@ trig) AND via the actual complex-vector overlap (control). srmech-native trig, n
 the cascade.
 Run: /tmp/verify_srmech_v070rc28/bin/python docs/srmech/rbs_lm_research/R-RBS-LM-R15_observer_vs_data_rotation.py
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json
 from pathlib import Path
 import numpy as np
@@ -64,9 +65,9 @@ def main():
         res["rows"].append(dict(delta=delta, srmech_cos=sc, overlap=fixed, corot=corot, mismatch=mism))
 
     # verdict checks
-    corot_all_one = all(abs(r["corot"] - 1.0) < 1e-9 for r in res["rows"])
-    fixed_tracks_cos = all(abs(r["overlap"] - r["srmech_cos"]) < 1e-6 for r in res["rows"])
-    shadow_at_halfpi = abs(srmech_cos(11, 7)) < 0.05      # cos(~π/2) ≈ 0 (full shadow)
+    corot_all_one = all(cascade.magnitude(r["corot"] - 1.0) < 1e-9 for r in res["rows"])
+    fixed_tracks_cos = all(cascade.magnitude(r["overlap"] - r["srmech_cos"]) < 1e-6 for r in res["rows"])
+    shadow_at_halfpi = cascade.magnitude(srmech_cos(11, 7)) < 0.05      # cos(~π/2) ≈ 0 (full shadow)
 
     print("\n=== verdict ===")
     print(f"  read fidelity = cos(Δ) (srmech cascade-cos matches vector overlap): {fixed_tracks_cos}")

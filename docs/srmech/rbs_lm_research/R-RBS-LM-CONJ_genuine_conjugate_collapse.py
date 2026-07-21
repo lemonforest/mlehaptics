@@ -93,7 +93,7 @@ def main():
     hm = list(C.hypercomplex_couple(list(W), axis="diagonal", inverse=True, sigma=-1))[1:8]   # hand− (σ=−1)
     # cross-check: the σ=−1 hand == the word-conjugate route (Class C), up to the anchor redistribution
     hm_conj = list(C.hypercomplex_couple(conjugate(W), axis="diagonal", inverse=True))[1:8]
-    rev_ok = all(abs(hp[i] - box[i]) < 1e-9 for i in range(7))
+    rev_ok = all(C.magnitude(hp[i] - box[i]) < 1e-9 for i in range(7))
     same_order = sorted(range(7), key=lambda k: hm[k]) == sorted(range(7), key=lambda k: hm_conj[k])
     print(f"\n[COLLAPSE+RE-EXPAND] hand+ (σ=+1) recovers the box (≤𝕆 reversible, F485): {rev_ok}")
     print(f"  hand− (σ=−1) reading: {[round(v,1) for v in hm]}   (= −box = the_one's other hand, the conjugate twiddle)")

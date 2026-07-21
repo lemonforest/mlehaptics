@@ -17,6 +17,7 @@ each; cross-match. Predictions:
   - Sale-probes fire on Rodwell instrument (z >> 1)
   - Sale ≠ Rodwell at K3 level: translator-specific arrangement
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import random
@@ -275,7 +276,7 @@ def main():
     print(f"  Sale ↔ Rodwell K1 similarity (same source):     {sale_rod_sim:+.4f}")
     print(f"  Sale ↔ KJV-NT K1 similarity (diff source):       {sale_kjv_sim:+.4f}")
     print(f"  Rodwell ↔ KJV-NT K1 similarity (diff source):    {rod_kjv_sim:+.4f}")
-    ratio = sale_rod_sim / max(abs(sale_kjv_sim), 0.0001)
+    ratio = sale_rod_sim / max(cascade.magnitude(sale_kjv_sim), 0.0001)
     print(f"  Translation-stability ratio (same/diff): {ratio:.2f}")
 
     if sale_rod_sim > sale_kjv_sim * 2 and sale_rod_sim > rod_kjv_sim * 2:

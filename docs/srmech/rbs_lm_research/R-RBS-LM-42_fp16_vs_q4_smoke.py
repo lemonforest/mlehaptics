@@ -15,6 +15,7 @@ RANK ORDER. Run rank-based read-mode statistics on the controlled pair, plus
 the existing v29-intermediate fp32 (different chat-tune, same family) and
 v31-llama32-1b Q4 (different family, same precision) for context.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import re
@@ -201,7 +202,7 @@ def main():
         delta = m_q4 - m_fp16
         print(f"  Controlled (chat fp16 vs Q4): mean percentile {m_fp16:.1f}% vs {m_q4:.1f}%")
         print(f"  Δ = {delta:+.1f}pp (positive = Q4 worse than fp16)")
-        if abs(delta) < 3.0:
+        if cascade.magnitude(delta) < 3.0:
             print(f"  → Quantization tax is MINOR at this corpus scale (<3pp).")
             print(f"  → Source-side numeric precision does NOT propagate strongly into")
             print(f"    cascade read-mode at byte-mode + 3.5k-byte scale.")

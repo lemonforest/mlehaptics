@@ -19,6 +19,7 @@ Composes F436 (the coupling) · F420 (the_one σ,θ) · F418/F390 (chirality = c
 order-reversal) · F423/F424 (division-algebra Hurwitz cap = reversibility boundary).
 Run: <plain venv>/bin/python (exact rational; no srmech import needed). Defensive / no-lineage.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 from fractions import Fraction as Fr
 import math
 
@@ -80,7 +81,7 @@ def main():
     th = 0.7; c, s = math.cos(th), math.sin(th); k = s / math.sqrt(3)
     t = (c, k, k, k)                                   # e^{μθ}, μ=(i+j+k)/√3  (the diagonal coupler)
     q = (0.0, 2.0, -1.0, 3.0)
-    err = max(abs(a - b) for a, b in zip(fmul(cf(t), fmul(t, q)), q))
+    err = max(cascade.magnitude(a - b) for a, b in zip(fmul(cf(t), fmul(t, q)), q))
     print(f"  diagonal-μ coupler (θ=0.7): unfold round-trip err {err:.1e}  → the real coupler reverses\n")
 
     print("=== terminology: NOT 'two-way' — PHASED CHOICES ===")

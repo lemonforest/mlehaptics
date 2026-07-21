@@ -21,6 +21,7 @@ signed composition matrix + syndrome norm (mechanics, flagged), NOT as a solver.
 
 Run: /tmp/verify_srmech_v070rc25/bin/python docs/srmech/rbs_lm_research/R-RBS-LM-R12_ec_cluster_holographic_signature.py
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json, itertools
 from pathlib import Path
 import numpy as np
@@ -64,12 +65,12 @@ def balance(M):
     coeffs = [(lcm // q) * p for p, q in fr]
     g = 0
     for c in coeffs:
-        g = cyclic.gcd(g, abs(c))
+        g = cyclic.gcd(g, cascade.magnitude(c))
     coeffs = [c // g for c in coeffs] if g else coeffs
     # reorient to all-positive (Class C sign-reapply, never abs() in the cascade)
     if sum(1 for c in coeffs if c < 0) > len(coeffs) / 2:
         coeffs = [-c for c in coeffs]
-    return v, [abs(c) for c in coeffs]
+    return v, [cascade.magnitude(c) for c in coeffs]
 
 
 def null_dim(M, tol=1e-9):
@@ -82,7 +83,7 @@ def erasure_reconstruct(v, keep_idx):
     1-D null space => x = scale * v; scale fixed by ANY nonzero kept coefficient. Part-contains-whole."""
     scale = None
     for i in keep_idx:
-        if abs(v[i]) > 1e-9:
+        if cascade.magnitude(v[i]) > 1e-9:
             scale = 1.0  # the kept coefficient already equals scale*v[i] with the same scale used to build x
             break
     return scale is not None  # reconstructable iff at least one kept coordinate pins the (1-D) scale

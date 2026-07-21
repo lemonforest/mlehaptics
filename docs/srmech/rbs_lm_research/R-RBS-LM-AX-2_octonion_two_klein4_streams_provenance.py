@@ -28,6 +28,7 @@ exact integer — numpy-free, bit-exact, the AX-2 "no FPU" requirement).
 Anchor: F397 (the mechanism + null) · F403 (Klein-4 = two Z2 = γ5,iω7) · F410 (𝕆 Hopf
 15=8+7, the | seam) · F404 (2^n / Mersenne) · F422 (the magnitude layer = lean-ALU).
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 # ---- exact integer quaternion + octonion (Cayley-Dickson), NO floats ----
 def qmul(p, q):
@@ -100,7 +101,7 @@ def main():
     prod = omul(x, y)
     # the product has integer magnitudes that no sector/sign table alone produces:
     ok['general product carries coefficients (magnitude layer, Class-M/ALU)'] = (
-        any(abs(c) > 1 for c in prod))
+        any(cascade.magnitude(c) > 1 for c in prod))
 
     print("\n=== AX-2: two coupled Klein-4 streams vs the octonion product ===")
     for k, v in ok.items():

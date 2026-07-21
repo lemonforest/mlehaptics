@@ -58,7 +58,7 @@ def main():
     streams7 = list(rng.normal(size=7))
     oct_coupled = cascade.hypercomplex_couple(streams7, axis="diagonal", sigma=+1)
     oct_back = cascade.hypercomplex_couple(oct_coupled, axis="diagonal", sigma=-1)
-    couple_err = max(abs(a - b) for a, b in zip(streams7, list(oct_back)[1:8]))
+    couple_err = max(cascade.magnitude(a - b) for a, b in zip(streams7, list(oct_back)[1:8]))
     ok["COUPLE (native hypercomplex_couple): 7 streams -> octonion, reversible"] = couple_err < 1e-9
     GAP["native"].append("cascade.hypercomplex_couple (COUPLE ≤𝕆, #908/0.7.2rc1)")
     print(f"  COUPLE: 7 streams bound -> octonion, unbind err {couple_err:.2e}  (NATIVE)")

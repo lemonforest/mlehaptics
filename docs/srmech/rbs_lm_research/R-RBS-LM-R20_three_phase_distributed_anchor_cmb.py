@@ -83,7 +83,7 @@ def main():
     print(f"    centroid (the candidate distributed anchor / loop-down axis) ↔ CMB dipole = {ang(cdir, dip):.1f}°")
     gaps = inplane_gaps(V)
     print(f"    in-plane splay gaps = {[round(g,1) for g in gaps]}°  (balanced 3-phase = 120,120,120)")
-    splay_dev = float(max(abs(g - 120) for g in gaps))
+    splay_dev = float(max(cascade.magnitude(g - 120) for g in gaps))
 
     # isotropic MC for the splay-balance metric (max |gap-120|) and the spread
     rng = np.random.default_rng(20260604); MC = 20000
@@ -91,7 +91,7 @@ def main():
     for k in range(MC):
         rv = rng.normal(size=(3, 3)); rv /= np.linalg.norm(rv, axis=1, keepdims=True)
         g = inplane_gaps([rv[i] for i in range(3)])
-        devs[k] = max(abs(x - 120) for x in g)
+        devs[k] = max(cascade.magnitude(x - 120) for x in g)
     p_splay = float(np.mean(devs <= splay_dev))   # fraction of random triples AT LEAST as balanced
     print(f"    splay balance: max|gap-120| = {splay_dev:.1f}°; isotropic-MC p(≤ real) = {p_splay:.3f} (N=3, weak)")
 
@@ -105,7 +105,7 @@ def main():
     offs = sorted(float(np.degrees((th[i] - th[0]) % (2 * np.pi))) for i in range(3))
     locked_gaps = sorted([(offs[(i + 1) % 3] - offs[i]) % 360 for i in range(3)])
     print(f"    locked phase offsets = {[round(o,1) for o in offs]}°; gaps = {[round(g,1) for g in locked_gaps]}° (≈120 = splay)")
-    splay_locked = max(abs(g - 120) for g in locked_gaps) < 25
+    splay_locked = max(cascade.magnitude(g - 120) for g in locked_gaps) < 25
 
     print("\n=== verdict ===")
     print(f"  REFRAME (F293/F294): the 3 anomalies SHOULD NOT share one axis — a shared axis = fixed anchor =")

@@ -6,6 +6,7 @@ interaction), 17 (bipolar vs polar in cascade), 22 (multi-class under decay).
 
 Strategy: single script with sub-tests per item. Consolidated finding F145.
 """
+from srmech.amsc.cascade import magnitude as srmech_magnitude  # Class-K pin-slot; aliased because this file binds `cascade`
 import json
 import time
 from pathlib import Path
@@ -128,7 +129,7 @@ def items_7_8_encoding_refinement(D, rng):
         states = np.zeros(D, dtype=np.uint8)
         for d in range(D):
             v = eigvec[indices[d]]
-            states[d] = ((1 if v > 0 else 0) << 1) | (1 if abs(v) > 0.1 else 0)
+            states[d] = ((1 if v > 0 else 0) << 1) | (1 if srmech_magnitude(v) > 0.1 else 0)
         return hdc.klein4_bind(states, np.full(D, sector, dtype=np.uint8))
 
     # Strategy B: random projection per eigvec
@@ -154,7 +155,7 @@ def items_7_8_encoding_refinement(D, rng):
                 content_states = np.zeros(D, dtype=np.uint8)
                 for d in range(D):
                     v = eigvecs[tile_indices[d], eig_idx]
-                    content_states[d] = ((1 if v > 0 else 0) << 1) | (1 if abs(v) > 0.1 else 0)
+                    content_states[d] = ((1 if v > 0 else 0) << 1) | (1 if srmech_magnitude(v) > 0.1 else 0)
                 base_content = content_states  # before sector tag applied
             else:
                 base_content = hdc.klein4_random(D, np.random.default_rng(int(eig_idx) * 7919))

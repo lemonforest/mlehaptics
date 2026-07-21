@@ -31,6 +31,7 @@ Two per-text signatures + a discrimination contrast:
 SCOPE: structural/spectral ONLY. Texts are structural test-objects. No
 doctrinal/truth/origin/ranking claims. §VII.6.20 honored — form only.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 from __future__ import annotations
 
 import argparse
@@ -155,7 +156,7 @@ def analyze_text(units, params, routing: str):
 
 
 def l1(a, b):
-    return float(sum(abs(x - y) for x, y in zip(a, b)))
+    return float(sum(cascade.magnitude(x - y) for x, y in zip(a, b)))
 
 
 def main():

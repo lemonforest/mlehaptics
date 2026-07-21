@@ -43,10 +43,10 @@ def main():
     print("=== 1. SHIPPED single-axis QDFT: carries 3, does it COUPLE 3? ===")
     Q = cascade.quaternion_dft(seq)
     inv = cascade.quaternion_dft(Q, inverse=True)
-    rt = max(abs(inv[t][1]-G[t]) + abs(inv[t][2]-Lx[t]) + abs(inv[t][3]-D[t]) for t in range(N))
+    rt = max(cascade.magnitude(inv[t][1]-G[t]) + cascade.magnitude(inv[t][2]-Lx[t]) + cascade.magnitude(inv[t][3]-D[t]) for t in range(N))
     G2 = list(G); G2[5] += 3.0
     Q2 = cascade.quaternion_dft([[0.0, G2[t], Lx[t], D[t]] for t in range(N)])
-    def chg(c): return sum(abs(Q[w][c]-Q2[w][c]) for w in range(N))
+    def chg(c): return sum(cascade.magnitude(Q[w][c]-Q2[w][c]) for w in range(N))
     print(f"   round-trip (3 streams in 1 object, recovered): max err {rt:.1e}  ✓ CARRIES 3")
     print(f"   perturb i-stream (G) → change in [real {chg(0):.1f} | i {chg(1):.1f} | "
           f"j {chg(2):.2f} | k {chg(3):.2f}]")

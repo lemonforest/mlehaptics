@@ -15,6 +15,7 @@ angle; the ring-graph fact). So:
 The instrument's shape is NOT imposed: it IS the knowledge's own co-occurrence eigenspectrum, on the
 sedenion/Hopf toroidal coordinates.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
 import numpy as np
 from collections import Counter                      # vocab SELECTION + transient edge weights (not storage)
@@ -78,8 +79,8 @@ def main():
     span = evals[-1] - evals[1] + 1e-9
     pairs = 0
     for p in range(0, 14, 2):
-        within = abs(lo[p + 1] - lo[p])
-        between = abs(lo[p + 2] - lo[p + 1]) if p + 2 < len(lo) else span
+        within = cascade.magnitude(lo[p + 1] - lo[p])
+        between = cascade.magnitude(lo[p + 2] - lo[p + 1]) if p + 2 < len(lo) else span
         circ = within < 0.5 * between                      # tight within-pair, gap to next pair
         pairs += int(circ)
         print(f"    modes ({p+1:2d},{p+2:2d}): λ=({lo[p]:.1f},{lo[p+1]:.1f})  within={within:.1f} "

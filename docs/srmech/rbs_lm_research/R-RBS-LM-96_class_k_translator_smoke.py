@@ -43,6 +43,7 @@ coherence value, treating coherence as cos(M) of a mean anomaly.
 Then test: does the transformed coherence correlate better with PPMI
 than raw coherence does?
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import re
@@ -270,7 +271,7 @@ def main():
             "change_vs_baseline": float(change),
         })
         marker = ""
-        if abs(sp) > abs(best_spearman):
+        if cascade.magnitude(sp) > cascade.magnitude(best_spearman):
             best_spearman = sp
             best_e = e
             marker = " ← best so far"
@@ -286,7 +287,7 @@ def main():
     print(f"  Improvement:                  {best_spearman - baseline_spearman:+.4f}")
     print()
 
-    abs_improvement = abs(best_spearman) - abs(baseline_spearman)
+    abs_improvement = cascade.magnitude(best_spearman) - cascade.magnitude(baseline_spearman)
     if abs_improvement > 0.15:
         print(f"  STRONG: Class K with eccentricity {best_e:.2f} substantively")
         print(f"  translates Tier 1 toward Tier 2. The translator hypothesis")

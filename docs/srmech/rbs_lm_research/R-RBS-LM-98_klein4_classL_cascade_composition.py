@@ -28,6 +28,7 @@ Cross-references:
   - srmech.amsc.hdc.klein4_* (Class M rank-2 abelian)
   - F132 §4-5 (Klein-4 HDC engineering proposal)
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json
 import time
 from pathlib import Path
@@ -77,7 +78,7 @@ def klein4_encode_eigvec(eigvec: np.ndarray, D: int, sector: int, rng) -> np.nda
         v = eigvec[indices[d]]
         # Quantise eigvec value into 4 states using 2-bit Gray-like code
         bit_high = 1 if v > 0 else 0  # gamma5 axis: sign
-        bit_low = 1 if abs(v) > 0.1 else 0  # omega7 axis: magnitude
+        bit_low = 1 if cascade.magnitude(v) > 0.1 else 0  # omega7 axis: magnitude
         states[d] = (bit_high << 1) | bit_low
 
     # 2. Apply chirality-axis tag (sector mask via klein4_bind with constant sector)

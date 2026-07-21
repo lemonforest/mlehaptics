@@ -19,6 +19,7 @@ algebra of forming i(A-A^T) and Frobenius norms (mechanics, not a spectral solve
 
 Run: /tmp/verify_srmech_v070rc25/bin/python docs/srmech/rbs_lm_research/R-RBS-LM-R11_directed_laplacian_navigation_reference.py
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import re, random
 from collections import Counter
 from pathlib import Path
@@ -99,7 +100,7 @@ def main():
 
     print("\n=== verdict ===")
     directional = asym_frac > 0.05
-    shuffle_destroys = asym_frac_sh < asym_frac * 0.5 and abs(r_anti) < 0.5
+    shuffle_destroys = asym_frac_sh < asym_frac * 0.5 and cascade.magnitude(r_anti) < 0.5
     print(f"  co-occurrence is genuinely DIRECTIONAL (asym>0.05): {directional}")
     print(f"  directed structure is REAL (shuffle destroys it): {shuffle_destroys}")
     print(f"  directed op is srmech-NATIVE via hermitian_eigendecompose(i(A-Aᵀ)) (no numpy eig): {srmech_native}")

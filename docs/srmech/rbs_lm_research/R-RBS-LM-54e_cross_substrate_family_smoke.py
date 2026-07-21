@@ -18,6 +18,7 @@ If find-cascade is universal form-finder:
 
 This is the closing test for the 54 Rosetta Stone arc.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import re
@@ -225,7 +226,7 @@ def main():
         verdict = "SUBSTRATE-FAMILY BOUNDARIES STRONG — find-cascade aligns better within religious family than across to secular"
     elif np.mean(religious_sims) > np.mean(secular_sims) * 1.1:
         verdict = "WEAK substrate-family boundary — find-cascade has slight religious-family preference"
-    elif abs(np.mean(religious_sims) - np.mean(secular_sims)) < 0.01:
+    elif cascade.magnitude(np.mean(religious_sims) - np.mean(secular_sims)) < 0.01:
         verdict = "NO substrate-family boundary — find-cascade is universal form-finder; aligns across all corpora similarly"
     else:
         verdict = "SECULAR alignment stronger than RELIGIOUS — counter-prediction; era/register dominates substrate-family"

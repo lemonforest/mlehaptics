@@ -22,6 +22,7 @@ corpus-independent for STRUCTURE (F630); the graded corpus stays useful only for
 srmech 0.7.5rc6: amsc.laplacian.{dense_laplacian, jacobi_eigvals} (Class L -- the grammar-graph spectrum, the chess
 parallel); the seen rotates = string/lattice cascades (concat = add). No abs(); no CAD; no Workflow; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import srmech
 from srmech.amsc import laplacian
 
@@ -88,7 +89,7 @@ def main():
     edges = sorted({(min(idx[a], idx[b]), max(idx[a], idx[b])) for a, b in LEGAL})
     L = laplacian.dense_laplacian(len(ROLES), edges, [1.0] * len(edges))
     evals = sorted(float(x) for x in laplacian.jacobi_eigvals(L))
-    zeros = sum(1 for e in evals if abs(e) < 1e-9)
+    zeros = sum(1 for e in evals if cascade.magnitude(e) < 1e-9)
     print(f"    grammar role-transition graph: {len(ROLES)} role-slots, {len(edges)} legal-edges")
     print(f"    Laplacian spectrum (Class L): {[round(e,3) for e in evals]}  (zero-eigs={zeros} => {zeros} component)")
     print(f"    -> syntax is ALSO a spectral object -- the SAME both-ness as chess (F632): a seen generator + a Laplacian")

@@ -18,6 +18,7 @@ similarity 0 — true chiral duals): the FULL-chirality ideal (balanced), the ch
 
 srmech 0.7.4; Class-M klein4 (the chirality instrument: klein4_random / klein4_chirality_flip_gamma5 / klein4_sector_count). No abs(); no CAD; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import numpy as np
 import srmech
 from srmech.amsc import hdc
@@ -36,7 +37,7 @@ def main():
     rng = np.random.default_rng(0)
 
     def asymmetry(n_A, n_B):
-        return abs(n_A - n_B) / (n_A + n_B)                      # the (4:3)|(3:4) chirality-occupancy asymmetry
+        return cascade.magnitude(n_A - n_B) / (n_A + n_B)                      # the (4:3)|(3:4) chirality-occupancy asymmetry
 
     # (i) FULL-chirality ideal (our architecture): balanced hands
     full = asymmetry(N // 2, N // 2)

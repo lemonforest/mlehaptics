@@ -28,6 +28,7 @@ Cross-references:
   - F139 (chirality axis operational at direct bundle scale)
   - srmech.amsc.laplacian, srmech.amsc.hdc, srmech.amsc.cyclic
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json
 import time
 from pathlib import Path
@@ -74,7 +75,7 @@ def encode_multi_class(
     for d in range(D):
         v = eigvec[indices[d]]
         bit_high = 1 if v > 0 else 0
-        bit_low = 1 if abs(v) > 0.1 else 0
+        bit_low = 1 if cascade.magnitude(v) > 0.1 else 0
         spectral_states[d] = (bit_high << 1) | bit_low
 
     # Convert bipolar to klein-4 state-space (map -1 -> 0, +1 -> 1, encoded in low bit only)
@@ -225,7 +226,7 @@ def main():
     p1 = np.mean(same_sims) > base + 0.03
     p2 = np.mean(cross_sims_origC) < base - 0.01  # F139 found anti-correlation
     p3 = np.mean(cross_sims_Cmirror) > base + 0.03
-    p4 = abs(np.mean(cross_sims_Cmirror) - np.mean(same_sims)) < 0.02
+    p4 = cascade.magnitude(np.mean(cross_sims_Cmirror) - np.mean(same_sims)) < 0.02
     print(f"  P1 (same > random + 0.03):       {p1}")
     print(f"  P2 (cross-to-C anti-correlates): {p2}")
     print(f"  P3 (cross-to-Cmirror > random):  {p3}")

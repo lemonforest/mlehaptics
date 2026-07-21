@@ -22,6 +22,7 @@ srmech-native: qm.octonion.{octonion_left_mult, octonion_conjugate, octonion_nor
 to hold the 8/16-vectors and apply the srmech multiply operator; norms via octonion_norm (no abs()).
 Run: /tmp/verify_srmech_v070rc28/bin/python docs/srmech/rbs_lm_research/R-RBS-LM-R31_sedenion_one_chiral_axis_loses_division.py
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json
 from pathlib import Path
 import numpy as np
@@ -67,7 +68,7 @@ def main():
     second_half2 = octonion_norm(a_lift[8:]) ** 2                  # ||doubled-copy half||^2
     lifted_into_second = first_half2 < 1e-9 and second_half2 > 1e-9
     print(f"\n(1) ONE chiral axis e8 (the doubling unit):")
-    print(f"    e8*e8 = {e8sq[:1].tolist()} (re part) -> e8^2 = -1  (truly imaginary): {abs(e8sq[0] + 1) < 1e-9}")
+    print(f"    e8*e8 = {e8sq[:1].tolist()} (re part) -> e8^2 = -1  (truly imaginary): {cascade.magnitude(e8sq[0] + 1) < 1e-9}")
     print(f"    (octonion a in first half) * e8 lands ENTIRELY in the doubled copy O*e8: {bool(lifted_into_second)}")
     print(f"    => e8 is ONE chiral axis that carries the WHOLE octonion O into its mirror copy.")
 

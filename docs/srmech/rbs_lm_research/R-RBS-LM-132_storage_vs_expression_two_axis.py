@@ -23,6 +23,7 @@ NT/ND interpretation is the user's motivating conjecture, engaged as form.
 
 Reuses R-RBS-LM-131's n-gram/backoff machinery. srmech 0.5.0 native ABI=3.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 from __future__ import annotations
 
 import argparse
@@ -195,10 +196,10 @@ def main():
           f"spread {depth_spread:.0f} (max-min)")
     print(f"  SURFACE repetition range: {reps_a.min():.3f} .. {reps_a.max():.3f}")
     print(f"  axis correlation (depth vs surface-rep): {corr:+.3f}")
-    if abs(corr) < 0.4 and depth_spread <= 1:
+    if cascade.magnitude(corr) < 0.4 and depth_spread <= 1:
         print("  → storage depth ~INVARIANT + surface repetition varies independently")
         print("    ⇒ SEPARABLE axes (structural support: same storage, different expression)")
-    elif abs(corr) >= 0.7:
+    elif cascade.magnitude(corr) >= 0.7:
         print("  → depth and surface-rep CORRELATED ⇒ not cleanly separable on this set")
         print("    (the repetition IS the deep structure here; honest non-separation)")
     else:

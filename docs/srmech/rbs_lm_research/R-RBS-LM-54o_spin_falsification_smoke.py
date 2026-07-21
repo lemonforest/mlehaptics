@@ -48,6 +48,7 @@ Per MFO §VII.6.20 epistemic ceiling: we measure form-isomorphism
 between rule-density and spectral-clustering. We do NOT claim Pope's
 couplets ARE a spin-2 field. Form same as; substrate not.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import random
@@ -260,7 +261,7 @@ def main():
     spin_1 = spin_summary.get("spin-1", 0)
     spin_2 = spin_summary.get("spin-2", 0)
     monotonic = (spin_0 <= spin_1 <= spin_2) and (spin_2 > spin_0)
-    big_gap = abs(spin_2 - spin_0) >= 2  # excess clusters difference
+    big_gap = cascade.magnitude(spin_2 - spin_0) >= 2  # excess clusters difference
 
     if monotonic and big_gap:
         verdict = "FORM-ISOMORPHISM SUPPORTED: degenerate-cluster count increases monotonically with predicted spin-N (spin-0={}, spin-1={}, spin-2={})".format(spin_0, spin_1, spin_2)

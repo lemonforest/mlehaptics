@@ -39,6 +39,7 @@ Privacy framing per user direction: the rel_form passing between Stage 1
 and Stage 2 carries no PII (depersonalization at extract). If both stages
 ran on separate machines, only the depersonalized form crosses the wire.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import re
@@ -334,7 +335,7 @@ def main():
     print(f"    Two-stage:          {avg['jaccard_fp16_vs_two_stage']:.3f}")
     delta = avg['jaccard_fp16_vs_two_stage'] - avg['jaccard_fp16_vs_Q4_alone']
     print(f"    Δ (2-stage − Q4):   {delta:+.3f}  "
-          f"({'two-stage preserves more' if delta > 0.05 else 'wash' if abs(delta) < 0.05 else 'Q4-alone wins'})")
+          f"({'two-stage preserves more' if delta > 0.05 else 'wash' if cascade.magnitude(delta) < 0.05 else 'Q4-alone wins'})")
     print(f"  PII / depersonalization:")
     print(f"    Names in original:                     varies per probe")
     print(f"    PII in T1 fp16 output:                 {avg['pii_in_T1']:.2f}")

@@ -15,6 +15,7 @@ EXACTLY ADDRESSABLE (the working window is no longer the ceiling — it is the s
 
 srmech 0.7.4; cascade.SedenionRegister.couple_working/uncouple_working (the genuine §31 coupler). No abs(); no CAD.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import numpy as np
 import srmech
 from srmech.amsc.cascade import SedenionRegister
@@ -42,11 +43,11 @@ def main():
     for i in (0, 6, 7, 20, 34):                                  # probe a few addresses
         t, s = i // PER_TOME, i % PER_TOME
         recovered = reg.uncouple_working(tomes[t])[s]
-        ok = abs(recovered - items[i]) < 1e-9
+        ok = cascade.magnitude(recovered - items[i]) < 1e-9
         exact += ok
         print(f"    address item {i:>2} = (tome {t}, slot {s}): recall {recovered:>6.1f}  expected {items[i]:>6.1f}  {'EXACT' if ok else 'MISS'}")
     # full check
-    all_ok = all(abs(reg.uncouple_working(tomes[i // PER_TOME])[i % PER_TOME] - items[i]) < 1e-9 for i in range(M))
+    all_ok = all(cascade.magnitude(reg.uncouple_working(tomes[i // PER_TOME])[i % PER_TOME] - items[i]) < 1e-9 for i in range(M))
     print(f"    -> all {M} items exactly addressable: {all_ok}\n")
 
     # (3) navigate (the CD-homomorphism addressing, §31)

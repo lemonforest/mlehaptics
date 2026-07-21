@@ -59,7 +59,7 @@ def main():
             else:                                               # SINGLE sigma: one hand this moment
                 sgn = 1 if t0 % 2 == 0 else -1; acc = slice_near(clock(sR, sgn, t0), 0 if sgn == 1 else 1)
             nR = sum(1 for j in acc if hand[j] == 0); nL = sum(1 for j in acc if hand[j] == 1)
-            covs.append(len(acc) / N); asyms.append(abs(nR - nL) / max(1, nR + nL))
+            covs.append(len(acc) / N); asyms.append(cascade.magnitude(nR - nL) / max(1, nR + nL))
         return float(np.mean(covs)), float(np.mean(asyms))
 
     print("(1) ACCESS in ONE moment (NO stirring; averaged over moments) — single-σ (one hand) vs two-stream (both):")

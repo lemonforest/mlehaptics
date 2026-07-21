@@ -14,6 +14,7 @@ This grounds claim (B) — knowledge = deviation from the bare shape — and pro
   [4] (D) probe: does the loaded structure live in the principal modes the existing K1 kernel already has?
 srmech 0.7.3: amsc.laplacian.{dense_laplacian, hermitian_eigendecompose} (Class L).
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
 import math
 import numpy as np
@@ -96,7 +97,7 @@ def main():
     print(f"    BARE     (structureless uniform): Hn={Hb:.4f}  gap={Gb:8.1f}   ← the no-knowledge baseline shape")
     print(f"    SHUFFLED (real vocab, no adjacency): Hn={Hs:.4f}  gap={Gs:8.1f}")
     print(f"    REAL     (wiki co-occurrence):      Hn={Hr:.4f}  gap={Gr:8.1f}")
-    dev_real = abs(Hr - Hb); dev_shuf = abs(Hs - Hb)
+    dev_real = cascade.magnitude(Hr - Hb); dev_shuf = cascade.magnitude(Hs - Hb)
     print(f"\n    deviation from BARE  (|Hn − Hn_bare|):  REAL={dev_real:.4f}   SHUFFLED={dev_shuf:.4f}")
     print(f"    structure ratio (gap_real/gap_bare): {Gr/Gb:.2f}×   (shuffled: {Gs/Gb:.2f}×)")
     ok = dev_real > dev_shuf and Gr > Gs

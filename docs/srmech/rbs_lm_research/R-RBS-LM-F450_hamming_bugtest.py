@@ -83,13 +83,13 @@ print("\n[6] front-loader all-native: CARRY ∘ COUPLE end-to-end")
 rng2=np.random.default_rng(7); streams7=list(rng2.normal(size=7))
 oct_c=cascade.hypercomplex_couple(streams7, axis="diagonal", sigma=+1)
 # derive 11 structure bits from the coupled octonion (sign bits of 8 comps + 3 magnitude-threshold bits)
-bits=[1 if x>=0 else 0 for x in oct_c][:8] + [1 if abs(x)>0.5 else 0 for x in oct_c[:3]]
+bits=[1 if x>=0 else 0 for x in oct_c][:8] + [1 if cascade.magnitude(x)>0.5 else 0 for x in oct_c[:3]]
 bits=bits[:11]
 cw=cascade.hamming_encode(bits,4)                     # CARRY: 11 structure bits + 4 EC -> 15 slots
 corr=list(cw); corr[9]^=1                             # one slot corrupted in transit
 dec=cascade.hamming_decode_correct(corr)              # locate+correct
 oct_back=cascade.hypercomplex_couple(oct_c, axis="diagonal", sigma=-1)  # COUPLE unbind
-streams_err=max(abs(a-b) for a,b in zip(streams7, list(oct_back)[1:8]))
+streams_err=max(cascade.magnitude(a-b) for a,b in zip(streams7, list(oct_back)[1:8]))
 ck("CARRY recovers the 11 structure bits after a transit error", dec["data"]==bits, f"err_pos={dec['error_position']}")
 ck("COUPLE unbinds the octonion (reals) exactly", streams_err<1e-9, f"err {streams_err:.2e}")
 ck("front-loader CARRY∘COUPLE end-to-end all-native", dec["data"]==bits and streams_err<1e-9, "both halves srmech-native, reversible")

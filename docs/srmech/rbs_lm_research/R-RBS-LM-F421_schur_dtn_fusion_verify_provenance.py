@@ -16,6 +16,7 @@ srmech-first: every op below is a srmech.amsc.laplacian call; the only hand-math
 is the reference matmul/block-extract used to CHECK srmech (no Python abs(); the
 Class-K magnitude is not needed here — exact-rational Schur is sign-honest).
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 from fractions import Fraction as Fr
 from srmech.amsc import laplacian as L
 
@@ -30,7 +31,7 @@ def sub(M, rows, cols):
 
 
 def approx(a, b, tol=1e-9):
-    return abs(float(a) - float(b)) < tol
+    return cascade.magnitude(float(a) - float(b)) < tol
 
 
 def main():

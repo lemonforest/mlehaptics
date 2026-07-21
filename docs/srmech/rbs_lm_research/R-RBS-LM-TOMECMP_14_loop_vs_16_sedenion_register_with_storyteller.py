@@ -113,7 +113,7 @@ def main():
     reg = C.SedenionRegister(D=8192)
     work = [float(len(tomes16[b])) for b in filled[:7]]        # 7 tome sizes = the octonion working word e1..e7+anchor
     back = reg.uncouple_working(reg.couple_working(work))
-    err = max(abs(a - b) for a, b in zip(work, back[:len(work)]))
+    err = max(C.magnitude(a - b) for a, b in zip(work, back[:len(work)]))
     print(f"  couple_working: 7 tome-summaries -> octonion -> uncouple, max err {err:.1e} (EXACT ≤7 working block)")
     # navigate (CD-homomorphism): the storyteller addresses a tome by CD-address, not bundle-clean
     print(f"  navigate(3) -> {type(reg.navigate(3)).__name__} (CD-homomorphism addressing — exact, no crosstalk)")

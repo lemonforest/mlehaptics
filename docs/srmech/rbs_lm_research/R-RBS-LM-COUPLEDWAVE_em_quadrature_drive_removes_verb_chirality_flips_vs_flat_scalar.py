@@ -24,6 +24,7 @@ srmech 0.7.4: srmech.calculus.{sin,cos}_series_truncate render the quadrature (C
 pi ~ 355/113; NOT numpy trig); Class-L manifold (sup.build) + F569 POS. Class-K sign via comparison (no abs()); no CAD;
 no Workflow tool; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
 import re
 import numpy as np
@@ -60,7 +61,7 @@ def main():
     E = [s_of(d) for d in deg]                                            # the flat wave / the E field
     B = [c_of(d) for d in deg]                                            # the quadrature partner / the B field
     # sanity: sin^2+cos^2 ~ 1
-    err = max(abs(E[t] * E[t] + B[t] * B[t] - 1.0) for t in range(STEPS))
+    err = max(cascade.magnitude(E[t] * E[t] + B[t] * B[t] - 1.0) for t in range(STEPS))
     print(f"(0) srmech Class-N quadrature ok: max |sin^2+cos^2 - 1| = {err:.1e} (a clean E,B rotation).\n")
 
     # ---- (1) the verb-DIRECTION gate: flat sign(sin) vs coupled (E,B) handedness ----
@@ -90,7 +91,7 @@ def main():
     pos = {w: ("V" if (a / n >= 0.20 and a > de) else ("N" if de / n >= 0.30 else "X")) for w, (de, a, n) in prevc.items() if n >= 5}
     start = next(w for w in ("history", "world", "the") if w in idx)
     story, used, cur = [start], {start}, start
-    Emax = max(abs(e) for e in E) + 1e-9
+    Emax = max(cascade.magnitude(e) for e in E) + 1e-9
     for t in range(STEPS):                                               # one telling; position driven by the wave (same for both)
         c = ((t / STEPS) + 0.16 * (E[t] / Emax)) % 1.0
         live = {vocab[j] for j in range(N) if min((phi[j] - c) % 1.0, (c - phi[j]) % 1.0) < 0.06}

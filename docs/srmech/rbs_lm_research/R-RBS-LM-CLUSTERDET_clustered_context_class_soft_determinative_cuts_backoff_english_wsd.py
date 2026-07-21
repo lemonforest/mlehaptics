@@ -15,6 +15,7 @@ COUPLED key = hdc.bind(form_HV, class_anchor_HV[k]) -- the E×B coupling with th
 srmech 0.7.5rc6: signal_processing.mint_vector (Class-M); hdc.{bind,bundle,similarity} (Class-M; bundle = the context
 superposition + the centroid update). No abs(); capacity-aware bundling under the F222 257-ceiling. No CAD/Workflow/sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json, math, re, random
 from collections import defaultdict, Counter
 import srmech
@@ -158,7 +159,7 @@ def main():
     print(f"    F602 (clustered K={K_CLASSES} class) : gain {c_acc - s_acc:+.1%}, backoff {backoff/n:.0%}")
     print(f"    -> a DENSER class ({'cut' if backoff/n < 0.80 else 'did NOT cut'} the backoff); lift {'rose' if (c_acc-s_acc) > 0.098 else 'did NOT rise above F599'}.\n")
 
-    verdict = "YES" if (c_acc - s_acc) > 0.02 else ("NO (within noise)" if abs(c_acc - s_acc) <= 0.02 else "WORSE")
+    verdict = "YES" if (c_acc - s_acc) > 0.02 else ("NO (within noise)" if cascade.magnitude(c_acc - s_acc) <= 0.02 else "WORSE")
     print("VERDICT (does a clustered/denser learned soft-determinative help, and cut the backoff?):")
     print(f"  • {verdict}: the clustered context-class (an unsupervised Class-M centroid, K={K_CLASSES}) bound as sigma_B lifts")
     print(f"    English pseudoword WSD by {c_acc - s_acc:+.1%} (vs F599's +9.8% with a single-IDF-word class), with backoff")

@@ -19,6 +19,7 @@ So two orthogonal diagnostics give a 2-bit fingerprint:
 
 srmech 0.7.4; Class-M klein4 (chirality diagnostic) + hdc bind/bundle/similarity (magnitude diagnostic = the F550 coupler gap). No abs(); no CAD; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import numpy as np
 import srmech
 from srmech.amsc import hdc
@@ -46,7 +47,7 @@ def main():
     def chirality_asym(got):
         resid = got_substrate & ~got
         nR, nL = int(np.sum(resid & (hand == 0))), int(np.sum(resid & (hand == 1)))
-        return abs(nR - nL) / max(1, nR + nL)
+        return cascade.magnitude(nR - nL) / max(1, nR + nL)
 
     # ---- diagnostic 2: MAGNITUDE error = 1 - mean RAW recovery fidelity (F550 coupler gap, real HDC assoc memory) ----
     def magnitude_error(K):
@@ -67,7 +68,7 @@ def main():
     got_noise = rng.random(N) < (p * 0.85)
     chi_noise, mag_noise = chirality_asym(got_noise), 0.02
 
-    chi_band = float(np.percentile([abs((c := int(rng.binomial(700, 0.5))) - (700 - c)) / 700 for _ in range(300)], 99))
+    chi_band = float(np.percentile([cascade.magnitude((c := int(rng.binomial(700, 0.5))) - (700 - c)) / 700 for _ in range(300)], 99))
     mag_band = 0.10                                               # a recovered value with fidelity < 0.90 = degraded
 
     def fire(v, band):

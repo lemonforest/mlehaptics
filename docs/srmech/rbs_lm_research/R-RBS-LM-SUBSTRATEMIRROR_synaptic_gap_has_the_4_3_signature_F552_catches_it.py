@@ -16,6 +16,7 @@ The same test tells them apart — which is exactly what the noise-rule (F552, C
 
 srmech 0.7.4; Class-M klein4 as the chirality instrument (klein4_random / klein4_chirality_flip_gamma5 / klein4_sector_count). No abs(); no CAD; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import numpy as np
 import srmech
 from srmech.amsc import hdc
@@ -47,12 +48,12 @@ def main():
         resid = got_substrate & ~got_syn
         nR = int(np.sum(resid & (hand == 0)))
         nL = int(np.sum(resid & (hand == 1)))
-        return nR, nL, abs(nR - nL) / max(1, nR + nL)
+        return nR, nL, cascade.magnitude(nR - nL) / max(1, nR + nL)
 
     rA = residual_asymmetry(got_synA)
     rB = residual_asymmetry(got_synB)
     # the i.i.d. random-noise band (F552): ~0.03 at this N
-    band = float(np.percentile([abs((c := int(rng.binomial(m := 700, 0.5))) - (m - c)) / m for _ in range(300)], 99))
+    band = float(np.percentile([cascade.magnitude((c := int(rng.binomial(m := 700, 0.5))) - (m - c)) / m for _ in range(300)], 99))
 
     print("(1) THE TWO SYNAPTIC-MODEL ERRORS — apply the F552 chirality test to each residual:")
     print(f"    {'synaptic model':<34} {'residual R / L':>16} {'chirality asymmetry':>20}")

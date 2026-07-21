@@ -17,6 +17,7 @@ Claims:
 srmech 0.7.4; SedenionRegister (the tome) + Class-I cyclic addressing + calculus cos/sin (the helix geometry,
 attested) + sedenion_zero_divisor_witness (why we stop at S). No abs(); no CAD; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import numpy as np
 import srmech
 from srmech.amsc.cascade import SedenionRegister, sedenion_zero_divisor_witness
@@ -55,11 +56,11 @@ def main():
     for i in (0, 6, 35, 90):
         t, s = i // K, i % K
         val = reg.uncouple_working(tomes[t])[s]
-        good = abs(val - items[i]) < 1e-9
+        good = cascade.magnitude(val - items[i]) < 1e-9
         ok += good
         turn, pos, _ = helix_coord(t, P)
         print(f"    item {i:>2} = tome {t} (turn {turn}, pos {pos}) slot {s} -> {val:>5.1f}  expected {items[i]:>5.1f}  {'EXACT' if good else 'MISS'}")
-    all_ok = all(abs(reg.uncouple_working(tomes[i // K])[i % K] - items[i]) < 1e-9 for i in range(len(items)))
+    all_ok = all(cascade.magnitude(reg.uncouple_working(tomes[i // K])[i % K] - items[i]) < 1e-9 for i in range(len(items)))
     print(f"    -> all {len(items)} complexes exactly addressable on the helix: {all_ok}\n")
 
     # why we stop at the sedenion: above S, coupling is NOT invertible (zero divisors) — the shelf avoids this entirely

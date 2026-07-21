@@ -26,6 +26,7 @@ NT/ND reading is the user's motivating conjecture, engaged as form.
 
 srmech 0.5.0 native ABI=3; reuses R-RBS-LM-132/131 machinery.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 from __future__ import annotations
 
 import argparse
@@ -107,7 +108,7 @@ def main():
         return [x / s for x in lifts] if s > 0 else [1.0 / max_order] * max_order
 
     def tv(p, q):  # total-variation distance between two profile shapes
-        return 0.5 * sum(abs(a - b) for a, b in zip(p, q))
+        return 0.5 * sum(cascade.magnitude(a - b) for a, b in zip(p, q))
 
     # two-axis profile (controlled) for each
     prof = {}
@@ -128,14 +129,14 @@ def main():
               f"{prof[key]['surface_repetition']:>11.3f}")
 
     # WITHIN-PAIR (same content, different translator)
-    dd_within = abs(prof["quran_yusuf"]["storage_depth"] - prof["quran_rodwell"]["storage_depth"])
-    rd_within = abs(prof["quran_yusuf"]["surface_repetition"] - prof["quran_rodwell"]["surface_repetition"])
+    dd_within = cascade.magnitude(prof["quran_yusuf"]["storage_depth"] - prof["quran_rodwell"]["storage_depth"])
+    rd_within = cascade.magnitude(prof["quran_yusuf"]["surface_repetition"] - prof["quran_rodwell"]["surface_repetition"])
 
     # ACROSS-CONTENT (distinct contents, pairwise)
     dkeys = list(distinct.keys())
-    dd_across = [abs(prof[a]["storage_depth"] - prof[b]["storage_depth"])
+    dd_across = [cascade.magnitude(prof[a]["storage_depth"] - prof[b]["storage_depth"])
                  for a, b in itertools.combinations(dkeys, 2)]
-    rd_across = [abs(prof[a]["surface_repetition"] - prof[b]["surface_repetition"])
+    rd_across = [cascade.magnitude(prof[a]["surface_repetition"] - prof[b]["surface_repetition"])
                  for a, b in itertools.combinations(dkeys, 2)]
     dd_across_mean = float(np.mean(dd_across))
     rd_across_mean = float(np.mean(rd_across))

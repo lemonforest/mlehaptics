@@ -37,6 +37,7 @@ If none → the 14-class A-N architectural claim needs revision
 Per `[[feedback_dont_pre_commit_spike_query_operators]]` — pre-curated
 no expected result; null findings count.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 
 import json
 import re
@@ -265,7 +266,7 @@ def analyze_corpus(name: str, path: str, vocab_size: int = 200,
           f"{strict['implied_tier_sizes']}")
     target = [1, 3, 7, 3]
     match = strict['implied_tier_sizes'] == target
-    closeness = sum(abs(a - b) for a, b in zip(
+    closeness = sum(cascade.magnitude(a - b) for a, b in zip(
         strict['implied_tier_sizes'], target))
     print(f"    Target 1:3:7:3: {'EXACT MATCH' if match else f'distance={closeness}'}")
 

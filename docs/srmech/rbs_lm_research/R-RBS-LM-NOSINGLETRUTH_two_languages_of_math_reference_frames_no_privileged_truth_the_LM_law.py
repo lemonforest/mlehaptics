@@ -34,12 +34,12 @@ def main():
     # (1) the_one: two chiral hands = two languages of math for ONE invariant thing
     vp = cascade.the_one(1, 90, 360, 12).to_numpy()
     vm = cascade.the_one(-1, 90, 360, 12).to_numpy()
-    anchor = [i for i in range(len(vp)) if abs(vp[i] - vm[i]) < 1e-9]
-    band = [i for i in range(len(vp)) if abs(vp[i] + vm[i]) < 1e-9 and abs(vp[i]) > 1e-9]
+    anchor = [i for i in range(len(vp)) if cascade.magnitude(vp[i] - vm[i]) < 1e-9]
+    band = [i for i in range(len(vp)) if cascade.magnitude(vp[i] + vm[i]) < 1e-9 and cascade.magnitude(vp[i]) > 1e-9]
     print("(1) the_one's TWO HANDS = TWO LANGUAGES OF MATH for ONE thing (F589):")
     print(f"    ANCHOR (the INVARIANT 'thing', identical across +sigma/-sigma hands): coords {anchor}")
     print(f"    BAND   (the FRAME, differs by hand -- the 'which language'):          coords {band}")
-    print(f"    norm(+sigma)={norm(vp):.4f} == norm(-sigma)={norm(vm):.4f}: {abs(norm(vp)-norm(vm))<1e-9}  (the INVARIANT magnitude)")
+    print(f"    norm(+sigma)={norm(vp):.4f} == norm(-sigma)={norm(vm):.4f}: {cascade.magnitude(norm(vp)-norm(vm))<1e-9}  (the INVARIANT magnitude)")
     print(f"    -> one invariant, two frame-descriptions. NEVER one description. (DUALITY.md: two truths, neither privileged.)\n")
 
     # (2) RELATIVITY: one meaning, many reference frames (languages); the invariant content-address is SHARED

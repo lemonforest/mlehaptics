@@ -31,6 +31,7 @@ axis IS operational and (importantly) DISCRIMINATIVE.
 
 This is the load-bearing F132 §7 test.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import json
 import time
 from pathlib import Path
@@ -160,9 +161,9 @@ def main():
 
         # Tolerance: ±0.02 for "≈"; > 0.05 above for ">>"
         p1 = sc > rc + 0.05
-        p2 = abs(cc - rc) < 0.02
+        p2 = cascade.magnitude(cc - rc) < 0.02
         p3 = cm > rc + 0.05
-        p4 = abs(cm - sc) < 0.02
+        p4 = cascade.magnitude(cm - sc) < 0.02
         all_pass = p1 and p2 and p3 and p4
         verdict = "ALL F132 PREDICTIONS PASS" if all_pass else f"P1={p1}, P2={p2}, P3={p3}, P4={p4}"
         print(f"  D={D:>5}, N={N:>3}: {verdict}")

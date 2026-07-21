@@ -19,6 +19,7 @@ Anchor: F421 (the fusion op shipped+verified) · F412 (holographic = fibration) 
 (Class L = the one-way seam, we only projected) · F419 (the fusion is the breakthrough)
 · F416 (cosmogram = fusion in the wild) · chess-maths notebook.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 from srmech.amsc import laplacian as L
 
 
@@ -39,7 +40,7 @@ def grid_edges(n, skip=None):
 
 def board_adjacent(a, b, n):
     ra, ca = divmod(a, n); rb, cb = divmod(b, n)
-    return abs(ra - rb) + abs(ca - cb) == 1
+    return cascade.magnitude(ra - rb) + cascade.magnitude(ca - cb) == 1
 
 
 def main():
@@ -60,15 +61,15 @@ def main():
     # (2) FUSION keeps positions AND folds the bulk: effective couplings between non-adjacent rim squares
     pos = {idx: i for i, idx in enumerate(rim)}
     folded = sum(1 for ai, a in enumerate(rim) for b in rim[ai+1:]
-                 if not board_adjacent(a, b, n) and abs(S_A[pos[a]][pos[b]]) > 1e-9)
+                 if not board_adjacent(a, b, n) and cascade.magnitude(S_A[pos[a]][pos[b]]) > 1e-9)
     ok['(2) FUSION: interior folds into rim-rim couplings (non-adjacent)'] = folded > 0
 
     # (3) HOLOGRAPHY (decisive): same rim, different bulk (interior wall) -> different S
     wall = {(3*n + 3, 3*n + 4)}
     B = L.dense_laplacian(N, grid_edges(n, skip=wall))
     S_B = L.schur_complement(B, rim, exact=False)
-    maxdiff = max(abs(S_A[i][j] - S_B[i][j]) for i in range(len(rim)) for j in range(len(rim)))
-    changed = sum(1 for i in range(len(rim)) for j in range(len(rim)) if abs(S_A[i][j] - S_B[i][j]) > 1e-9)
+    maxdiff = max(cascade.magnitude(S_A[i][j] - S_B[i][j]) for i in range(len(rim)) for j in range(len(rim)))
+    changed = sum(1 for i in range(len(rim)) for j in range(len(rim)) if cascade.magnitude(S_A[i][j] - S_B[i][j]) > 1e-9)
     ok['(3) HOLOGRAPHY: boundary S is a function of the bulk (wall changes S)'] = maxdiff > 1e-9
 
     # (4) contrast with the projection (operand dropped)

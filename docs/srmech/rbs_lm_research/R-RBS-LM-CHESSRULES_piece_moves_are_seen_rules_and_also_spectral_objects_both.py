@@ -24,6 +24,7 @@ srmech 0.7.5rc6: amsc.laplacian.{dense_laplacian, jacobi_eigvals} (Class L -- th
 sha256_bytes (the content-addressed exception tomes). The seen generators = integer-lattice cascades (add). No abs();
 no CAD; no Workflow; no sub-agents.
 """
+from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import srmech
 from srmech.amsc import laplacian, format as fmt
 
@@ -81,7 +82,7 @@ def main():
     edges = sorted(edges); weights = [1.0] * len(edges)
     L = laplacian.dense_laplacian(B * B, edges, weights)
     evals = sorted(float(x) for x in laplacian.jacobi_eigvals(L))
-    zeros = sum(1 for e in evals if abs(e) < 1e-9)                 # # near-zero eigenvalues = # connected components
+    zeros = sum(1 for e in evals if cascade.magnitude(e) < 1e-9)                 # # near-zero eigenvalues = # connected components
     print(f"    knight-move graph on {B}x{B}: {B*B} squares, {len(edges)} edges (all SEEN from the rule, no games)")
     print(f"    Laplacian spectrum (Class L): lambda_min={evals[0]:.4f}  lambda_max={evals[-1]:.4f}  (zero-eigs={zeros} => {zeros} component(s))")
     print(f"    smallest few: {[round(e,3) for e in evals[:4]]}   largest few: {[round(e,3) for e in evals[-4:]]}")

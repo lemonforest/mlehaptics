@@ -46,7 +46,7 @@ def main():
     seven = list(rng.normal(size=7))                  # 7 representation-streams (e.g. word-problem, LaTeX, py, c, js, go, rust)
     bound = cascade.hypercomplex_couple(seven, axis="diagonal", sigma=+1)
     back = cascade.hypercomplex_couple(bound, axis="diagonal", sigma=-1)
-    err = max(abs(a - b) for a, b in zip(seven, list(back)[1:8]))
+    err = max(cascade.magnitude(a - b) for a, b in zip(seven, list(back)[1:8]))
     print(f"\n[2] k=7 REVERSIBLE: bind 7 representations -> octonion -> unbind, err = {err:.2e}  (lossless ≤𝕆)")
 
     # (3) past 7: sedenion CARRY (Hamming) holds the 8th+ representation
@@ -54,7 +54,7 @@ def main():
     eight = list(rng.normal(size=8))
     f8 = cascade.hypercomplex_couple(eight, axis="diagonal", sigma=+1)
     b8 = cascade.hypercomplex_couple(f8, axis="diagonal", sigma=-1)
-    err8 = max(abs(a - b) for a, b in zip(eight, list(b8)[1:9])) if len(list(b8)) >= 9 else float("inf")
+    err8 = max(cascade.magnitude(a - b) for a, b in zip(eight, list(b8)[1:9])) if len(list(b8)) >= 9 else float("inf")
     print(f"    8-stream couple round-trip err = {err8:.2e}  (NOT lossless — sedenion zero divisors, F424)")
     # so CARRY the representation-membership via the Hamming code (F449/F450): 11 data slots >= 8
     members = [1] * 8 + [0] * 3                       # which of 11 representation-slots are present

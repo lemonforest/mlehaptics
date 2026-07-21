@@ -60,7 +60,7 @@ def main():
         noisy = bind(ADDR[k], reg)
         pos = max(cb, key=lambda n: similarity(noisy, cb[n]))
         flp = max(cb, key=lambda n: similarity(noisy, sign_flip(cb[n])))
-        return (pos, +1) if abs(similarity(noisy, cb[pos])) >= abs(similarity(noisy, sign_flip(cb[flp]))) else (flp, -1)
+        return (pos, +1) if C.magnitude(similarity(noisy, cb[pos])) >= C.magnitude(similarity(noisy, sign_flip(cb[flp]))) else (flp, -1)
 
     assign0 = {k: (vals[k], +1) for k in range(8)}
     reg0 = build_register(assign0)
