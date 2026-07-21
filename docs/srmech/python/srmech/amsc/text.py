@@ -85,8 +85,10 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 from . import _native
 from . import _unicode_gb_tables as _gb
+from . import _unicode_fold_tables as _fold
 
-__all__ = ["glyph_stream", "cooccurrence_edges", "cooccurrence_topk"]
+__all__ = ["fold_marks", "glyph_stream", "cooccurrence_edges",
+           "cooccurrence_topk"]
 
 _log = logging.getLogger("srmech.amsc.text")
 
@@ -321,6 +323,160 @@ def glyph_stream(
         prev = cur
     out.append(text[start:])
     return out
+
+
+# ── rc293: the vendored combining-mark fold table, decoded once per process ─
+#
+# Same vendoring argument as the break table above, and one step stronger.
+# `unicodedata` DOES expose category + decomposition, so the scripting
+# projection could in principle derive this at runtime — but the COMPILED
+# projection cannot (ADR-0003: a bare-C host has no Python at all), and a
+# derive-in-Python / vendor-in-C split would put the two coherency projections
+# on different data, which is precisely the drift ADR-0009 exists to forbid.
+# So both read the same vendored table, and `unicodedata` is not consulted.
+#
+# The same favourable consequence follows as for rc287: two hosts at different
+# Python / Unicode versions fold identically. This CI host runs UCD 13.0.0
+# while the table is UCD 16.0.0 — so the host's own `unicodedata` is not a
+# valid oracle for this table, and the attestation test says so explicitly.
+
+_FOLD_TABLE: Optional[tuple] = None
+_FOLD_TABLE_C: Optional[tuple] = None
+
+
+def _fold_table() -> tuple:
+    """The decoded ``(lo, hi, rep)`` range arrays, built once per process."""
+    global _FOLD_TABLE
+    if _FOLD_TABLE is None:
+        blob = _fold.FOLD_TABLE_BLOB
+        n = _fold.FOLD_RANGE_COUNT
+        lo = array("I", bytes(n * 4))
+        hi = array("I", bytes(n * 4))
+        rep = array("I", bytes(n * 4))
+        for i in range(n):
+            base = i * 12
+            lo[i] = int.from_bytes(blob[base:base + 4], "little")
+            hi[i] = int.from_bytes(blob[base + 4:base + 8], "little")
+            rep[i] = int.from_bytes(blob[base + 8:base + 12], "little")
+        _FOLD_TABLE = (lo, hi, rep)
+    return _FOLD_TABLE
+
+
+def _fold_table_ctypes() -> tuple:
+    """The same table as ctypes arrays for the native peer (built once)."""
+    global _FOLD_TABLE_C
+    if _FOLD_TABLE_C is None:
+        lo, hi, rep = _fold_table()
+        _FOLD_TABLE_C = (
+            (ctypes.c_uint32 * len(lo)).from_buffer_copy(lo),
+            (ctypes.c_uint32 * len(hi)).from_buffer_copy(hi),
+            (ctypes.c_uint32 * len(rep)).from_buffer_copy(rep),
+            len(rep),
+        )
+    return _FOLD_TABLE_C
+
+
+def _fold_lookup(cp: int) -> Optional[int]:
+    """The fold row covering ``cp``: ``_fold.FOLD_DROP`` to delete it, another
+    codepoint to replace it with, or ``None`` when no row covers it (the
+    codepoint passes through unchanged)."""
+    lo, hi, rep = _fold_table()
+    i = bisect.bisect_right(lo, cp) - 1
+    if i >= 0 and cp <= hi[i]:
+        return rep[i]
+    return None
+
+
+def _fold_marks_native(text: str) -> Optional[str]:
+    """Native :func:`fold_marks` body. Returns the folded string, or ``None``
+    to decline to the pure path (non-encodable text such as lone surrogates)."""
+    try:
+        raw = text.encode("utf-8")
+    except UnicodeEncodeError:
+        return None                    # lone surrogates — pure path handles
+    lo_c, hi_c, rep_c, n_ranges = _fold_table_ctypes()
+    cap = len(raw)                     # folding never grows the byte length
+    out = (ctypes.c_uint8 * cap)()
+    out_len = ctypes.c_size_t(0)
+    rc = _native.LIB.srmech_text_fold_marks(
+        raw, len(raw), lo_c, hi_c, rep_c, n_ranges,
+        out, cap, ctypes.byref(out_len))
+    if rc != _native.SRMECH_OK:
+        raise RuntimeError(f"srmech_text_fold_marks returned status {rc}")
+    return bytes(out[:out_len.value]).decode("utf-8")
+
+
+def fold_marks(text: str) -> str:
+    """Drop combining marks from ``text`` by Unicode **category** (rc293).
+
+    The name is the contract. This is ``fold_marks``, never ``fold_accents``:
+    a **virama is a mark, not an accent**, and the Latin-shaped name would have
+    been wrong in exactly the cases that matter most while quietly re-scoping
+    the op toward Latin — the assumption this line of work exists to remove::
+
+        fold_marks('naïve')  →  'naive'      # Latin, the easy case
+        fold_marks('क्षि')     →  'कष'         # virama + vowel sign, both marks
+
+    Scope is **General_Category Mn / Mc / Me and nothing else** — no case
+    change, no locale tailoring, no NFKD/compatibility folding, no ligature
+    expansion. Three consequences that are correct, not oversights::
+
+        fold_marks('ø')  →  'ø'   # a stroke is part of the letter, not a mark
+        fold_marks('Ω')  →  'Ω'   # OHM SIGN: a singleton with no mark in it
+        fold_marks('한')  →  '한'   # Hangul decomposes to jamo — all starters
+
+    Parameters
+    ----------
+    text
+        Any ``str``. **No normalization is required or performed**: precomposed
+        characters are handled by the table's replacement rows and decomposed
+        sequences by its drop rows, so the same marks fall out either way
+        (``fold_marks`` of NFC and of NFD input agree up to normalization,
+        verified over the whole codepoint domain). The op preserves the input's
+        form for what it does not fold — it is a fold, not a normalizer.
+
+    Returns
+    -------
+    str
+        ``text`` with every combining mark removed and every precomposed
+        mark-bearing character replaced by its base. Idempotent:
+        ``fold_marks(fold_marks(s)) == fold_marks(s)`` for all ``s``, because
+        the vendored table is closed (no replacement is itself foldable).
+
+    Notes
+    -----
+    Deliberately a **separate op, not a mode on** :func:`glyph_stream`.
+    ``glyph_stream`` guarantees losslessness — ``''.join(result)`` reconstructs
+    its input — and that invariant is why the cluster is trustworthy as a
+    primitive; folding is lossy, so a fold flag would break the contract for
+    one flag value. The two also have different shapes (``str → list[str]`` vs
+    ``str → str``). Ordinary composition, ``glyph_stream(fold_marks(s))``,
+    keeps both honest.
+
+    Class B/G text-framing — framing of the text substrate, no numeric compute.
+    Numpy-free, deterministic, and calls no normalizer. Dispatches to the
+    byte-identical C peer ``srmech_text_fold_marks`` when the native lib is
+    loaded; the pure-Python body below is the complete alternative (and the
+    parity oracle).
+    """
+    if not isinstance(text, str):
+        raise TypeError(
+            f"fold_marks: text must be str; got {type(text).__name__}")
+    if not text:
+        return ""
+    if _native.has_native_text_fold_marks():
+        native = _fold_marks_native(text)
+        if native is not None:
+            return native
+    out: List[str] = []
+    for ch in text:
+        rep = _fold_lookup(ord(ch))
+        if rep is None:
+            out.append(ch)             # no row — unchanged
+        elif rep != _fold.FOLD_DROP:
+            out.append(chr(rep))       # precomposed → its base
+        # else: rep == FOLD_DROP — a combining mark, dropped
+    return "".join(out)
 
 
 def _gb_is_break(prev: int, cur: int, gb11: int, incb_consonant: bool,

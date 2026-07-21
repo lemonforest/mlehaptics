@@ -6052,6 +6052,30 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),                    # out_n_ranges
         ]
         lib.srmech_text_default_gb_table.restype = None
+    # rc293: the combining-mark fold table is vendored for the same reason
+    # (a bare-C host has no unicodedata), and BOTH projections read it so
+    # the two never diverge. Payload 0 = drop the mark, else the
+    # replacement codepoint; replacements are transitively resolved, so one
+    # pass suffices. Folding never grows the UTF-8 length, so the caller
+    # sizes `out` at len(raw).
+    if hasattr(lib, "srmech_text_fold_marks"):
+        lib.srmech_text_fold_marks.argtypes = [
+            ctypes.c_char_p, ctypes.c_size_t,                   # text, len
+            ctypes.POINTER(ctypes.c_uint32),                    # lo
+            ctypes.POINTER(ctypes.c_uint32),                    # hi
+            ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # rep, n_ranges
+            ctypes.POINTER(ctypes.c_uint8), ctypes.c_size_t,    # out, out_cap
+            ctypes.POINTER(ctypes.c_size_t),                    # out_len
+        ]
+        lib.srmech_text_fold_marks.restype = ctypes.c_int
+    if hasattr(lib, "srmech_text_default_fold_table"):
+        lib.srmech_text_default_fold_table.argtypes = [
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint32)),    # out_lo
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint32)),    # out_hi
+            ctypes.POINTER(ctypes.POINTER(ctypes.c_uint32)),    # out_rep
+            ctypes.POINTER(ctypes.c_size_t),                    # out_n_ranges
+        ]
+        lib.srmech_text_default_fold_table.restype = None
     if hasattr(lib, "srmech_text_cooccurrence_edges"):
         lib.srmech_text_cooccurrence_edges.argtypes = [
             ctypes.POINTER(ctypes.c_uint32), ctypes.c_size_t,   # tok_ids, n_tok
@@ -15844,6 +15868,16 @@ def has_native_text_glyph_stream() -> bool:
     alternative (and the byte-identical parity oracle)."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_text_glyph_stream"))
+
+
+def has_native_text_fold_marks() -> bool:
+    """True iff the rc293 srmech_text_fold_marks C peer is loaded + bound:
+    the per-codepoint combining-mark fold runs in C. False on a no-C or
+    pre-rc293 lib — the pure-Python :func:`srmech.amsc.text.fold_marks` body
+    is the complete alternative (and the byte-identical parity oracle),
+    because BOTH projections read the same vendored table."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_text_fold_marks"))
 
 
 def has_native_text_cooccurrence_edges() -> bool:

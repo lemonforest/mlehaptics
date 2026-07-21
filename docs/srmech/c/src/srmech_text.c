@@ -13,6 +13,8 @@
  *
  *   - srmech_text_glyph_stream        : UAX #29 grapheme-cluster segmentation
  *   - srmech_text_default_gb_table    : the vendored default break table
+ *   - srmech_text_fold_marks          : combining-mark folding (rc293)
+ *   - srmech_text_default_fold_table  : the vendored default fold table
  *   - srmech_text_cooccurrence_edges  : windowed pair-count → sorted edge list
  *   - srmech_text_cooccurrence_topk   : bounded top-K chunk flush (§52 stream)
  *   - srmech_text_cooccurrence_topk_extract : per-node top-K + edge read-out
@@ -58,6 +60,7 @@
 
 #include "srmech.h"
 #include "srmech_unicode_gb_tables.h"
+#include "srmech_unicode_fold_tables.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -313,6 +316,156 @@ srmech_status_t srmech_text_glyph_stream(
     out_off[n] = (uint32_t)text_len;        /* sentinel: cluster i spans
                                              * [out_off[i], out_off[i+1]) */
     *out_n = n;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * srmech_text_fold_marks — combining-mark folding (rc293)
+ *
+ * Drops combining marks by Unicode General_Category (Mn / Mc / Me). The
+ * name is the contract: a VIRAMA is a mark, not an accent, so calling
+ * this "fold_accents" would have been wrong in exactly the Indic cases
+ * that matter most while quietly re-scoping the op toward Latin.
+ *
+ * Category ONLY — no case change, no locale tailoring, no NFKD
+ * compatibility folding, no ligature expansion. So U+00F8 `ø` is
+ * unchanged (a stroke is part of the letter, not a mark) and Hangul is
+ * unchanged in either normalization form (it decomposes to jamo, which
+ * are starters).
+ *
+ * Two facts merge into ONE table row, so one binary search serves both:
+ * rep == SRMECH_FOLD_DROP means the codepoint IS a mark and is deleted;
+ * any other value is the codepoint it is REPLACED by. Replacements are
+ * transitively resolved AT GENERATION TIME (U+1EBF -> U+0065 directly,
+ * not via U+00EA), which is what keeps this loop flat: no recursion, no
+ * decomposition buffer, and one pass is provably enough because the
+ * generator asserts the table is CLOSED (no replacement is itself a row).
+ *
+ * The op calls no normalizer and needs none: precomposed characters are
+ * handled by the map rows and decomposed sequences by the drop rows, so
+ * the SAME marks fall out whichever form the caller supplies. That is
+ * what lets a bare-C host with no Python fold correctly — there is no
+ * `unicodedata` to ask, which is why the table is vendored at all.
+ *
+ * Folding never GROWS the UTF-8 byte length (asserted by the generator),
+ * so out_cap >= text_len always suffices.
+ * ------------------------------------------------------------------ */
+
+/* Look `cp` up in the caller-provided fold table. Returns 1 when a row
+ * covers `cp` (*out_rep set: SRMECH_FOLD_DROP to delete, else the
+ * replacement codepoint), 0 when none does — the codepoint passes
+ * through unchanged. Mirrors txt_gb_prop's guarded binary search; the
+ * guard bound 64 exceeds log2 of any table size (JPL Rule 2). */
+static int txt_fold_lookup(const uint32_t *lo, const uint32_t *hi,
+                           const uint32_t *rep, size_t n_ranges,
+                           uint32_t cp, uint32_t *out_rep)
+{
+    size_t l = 0;
+    size_t h = n_ranges;
+    assert(lo != NULL && hi != NULL && rep != NULL);
+    assert(out_rep != NULL && cp < SRMECH_TEXT_MAX_CP);
+    for (size_t guard = 0; guard < 64u && l < h; guard++) {
+        size_t mid = l + ((h - l) >> 1);
+        if (hi[mid] < cp)      { l = mid + 1u; }
+        else if (lo[mid] > cp) { h = mid; }
+        else                   { *out_rep = rep[mid]; return 1; }
+    }
+    return 0;
+}
+
+/* Encode `cp` as UTF-8 at out[*io_n], advancing *io_n. Returns 1 on
+ * success, 0 when the caller arena is too small. Only reached for
+ * REPLACEMENT codepoints (table data, attested in range); pass-through
+ * codepoints are byte-copied instead. */
+static int txt_utf8_encode(uint8_t *out, size_t out_cap, size_t *io_n,
+                           uint32_t cp)
+{
+    size_t n;
+    assert(io_n != NULL && cp < SRMECH_TEXT_MAX_CP);
+    assert(out != NULL || out_cap == 0u);
+    n = *io_n;
+    if (cp < 0x80u) {
+        if (n + 1u > out_cap) { return 0; }
+        out[n] = (uint8_t)cp;
+        *io_n = n + 1u;
+    } else if (cp < 0x800u) {
+        if (n + 2u > out_cap) { return 0; }
+        out[n]      = (uint8_t)(0xC0u | (cp >> 6));
+        out[n + 1u] = (uint8_t)(0x80u | (cp & 0x3Fu));
+        *io_n = n + 2u;
+    } else if (cp < 0x10000u) {
+        if (n + 3u > out_cap) { return 0; }
+        out[n]      = (uint8_t)(0xE0u | (cp >> 12));
+        out[n + 1u] = (uint8_t)(0x80u | ((cp >> 6) & 0x3Fu));
+        out[n + 2u] = (uint8_t)(0x80u | (cp & 0x3Fu));
+        *io_n = n + 3u;
+    } else {
+        if (n + 4u > out_cap) { return 0; }
+        out[n]      = (uint8_t)(0xF0u | (cp >> 18));
+        out[n + 1u] = (uint8_t)(0x80u | ((cp >> 12) & 0x3Fu));
+        out[n + 2u] = (uint8_t)(0x80u | ((cp >> 6) & 0x3Fu));
+        out[n + 3u] = (uint8_t)(0x80u | (cp & 0x3Fu));
+        *io_n = n + 4u;
+    }
+    return 1;
+}
+
+/* The srmech-shipped DEFAULT fold table (srmech_unicode_fold_tables.h).
+ * This is what lets a bare-C host with no Python present fold combining
+ * marks over the full Unicode domain: hand these three pointers straight
+ * to srmech_text_fold_marks. A host with its own table passes that
+ * instead — the table is an input, never a hidden global. */
+void srmech_text_default_fold_table(const uint32_t **out_lo,
+                                    const uint32_t **out_hi,
+                                    const uint32_t **out_rep,
+                                    size_t *out_n_ranges)
+{
+    assert(out_lo != NULL && out_hi != NULL);
+    assert(out_rep != NULL && out_n_ranges != NULL);
+    if (out_lo == NULL || out_hi == NULL ||
+        out_rep == NULL || out_n_ranges == NULL) {
+        return;
+    }
+    *out_lo       = SRMECH_FOLD_LO;
+    *out_hi       = SRMECH_FOLD_HI;
+    *out_rep      = SRMECH_FOLD_REP;
+    *out_n_ranges = (size_t)SRMECH_FOLD_RANGE_COUNT;
+}
+
+srmech_status_t srmech_text_fold_marks(
+    const uint8_t *text, size_t text_len,
+    const uint32_t *lo, const uint32_t *hi, const uint32_t *rep,
+    size_t n_ranges, uint8_t *out, size_t out_cap, size_t *out_len)
+{
+    size_t i = 0;
+    size_t n = 0;
+    assert(out != NULL || out_cap == 0u);
+    assert(out_len != NULL);
+    if (out_len == NULL || lo == NULL || hi == NULL || rep == NULL ||
+        (text == NULL && text_len > 0u) || (out == NULL && out_cap > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    while (i < text_len) {
+        uint32_t cp;
+        uint32_t folded = 0u;
+        size_t   nb;
+        if (!txt_utf8_next(text, text_len, &i, &cp, &nb)) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (txt_fold_lookup(lo, hi, rep, n_ranges, cp, &folded)) {
+            if (folded == SRMECH_FOLD_DROP) { continue; }   /* combining mark */
+            if (!txt_utf8_encode(out, out_cap, &n, folded)) {
+                return SRMECH_ERR_OVERFLOW;
+            }
+            continue;
+        }
+        /* Unchanged: copy the ORIGINAL bytes rather than re-encoding, so a
+         * pass-through codepoint is byte-preserved by construction. */
+        if (n > out_cap || nb > out_cap - n) { return SRMECH_ERR_OVERFLOW; }
+        memcpy(out + n, text + i - nb, nb);
+        n += nb;
+    }
+    *out_len = n;
     return SRMECH_OK;
 }
 

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc292"
-#define SRMECH_VERSION       "0.9.0rc292"
+#define SRMECH_VERSION_PRE   "rc293"
+#define SRMECH_VERSION       "0.9.0rc293"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -11512,6 +11512,52 @@ srmech_status_t srmech_text_glyph_stream(
     const uint8_t *text, size_t text_len,
     const uint32_t *lo, const uint32_t *hi, const uint8_t *prop,
     size_t n_ranges, uint32_t *out_off, size_t out_cap, size_t *out_n);
+
+/* Expose the srmech-shipped DEFAULT combining-mark fold table
+ * (srmech_unicode_fold_tables.h; UCD 16.0.0, attested + re-derivable via
+ * c/tools/gen_unicode_fold_tables.py --verify). This is the entry point
+ * that lets a BARE-C HOST WITH NO PYTHON PRESENT fold marks over the full
+ * Unicode domain (ADR-0003) - there is no `unicodedata` to ask, which is
+ * why the table is vendored at all. Call this, then pass the four values
+ * straight to srmech_text_fold_marks. A host with its own table skips this
+ * and passes that table instead - the table is an INPUT, never a hidden
+ * global, so the op stays reentrant and arena-safe. */
+void srmech_text_default_fold_table(
+    const uint32_t **out_lo, const uint32_t **out_hi,
+    const uint32_t **out_rep, size_t *out_n_ranges);
+
+/* Drop combining marks from UTF-8 `text` by Unicode General_Category
+ * (Mn / Mc / Me) - the language-agnostic fold (rc293). Writes the folded
+ * UTF-8 bytes to `out` and the byte length to *out_len.
+ *
+ * The NAME is the contract: a VIRAMA is a mark, not an accent, so this is
+ * fold_marks and never fold_accents - the Latin-shaped name would be wrong
+ * in exactly the Indic cases that matter most.
+ *
+ * Category ONLY: no case change, no locale tailoring, no NFKD/compatibility
+ * folding, no ligature expansion. So U+00F8 is unchanged (a stroke is part
+ * of the letter, not a mark), and Hangul is unchanged in either
+ * normalization form (it decomposes to jamo, which are starters).
+ *
+ * The fold table (lo/hi/rep/n_ranges, ascending non-overlapping ranges) is a
+ * CALLER-PROVIDED input - see srmech_text_default_fold_table. A row payload
+ * of SRMECH_FOLD_DROP (0) deletes the codepoint; any other value REPLACES
+ * it. Replacements are transitively resolved in the table, so ONE pass is
+ * sufficient and no decomposition buffer or recursion is needed.
+ *
+ * Needs no normalizer: precomposed characters are handled by the map rows
+ * and decomposed sequences by the drop rows, so the same marks fall out
+ * whichever form the caller supplies (verified over the whole codepoint
+ * domain: NFC(fold(NFC(s))) == NFC(fold(NFD(s)))).
+ *
+ * Folding never GROWS the UTF-8 byte length (asserted by the generator), so
+ * out_cap >= text_len always suffices. Malformed UTF-8 ->
+ * SRMECH_ERR_BAD_INPUT; too-small out_cap -> SRMECH_ERR_OVERFLOW (grow +
+ * retry; results identical at any sufficient capacity). */
+srmech_status_t srmech_text_fold_marks(
+    const uint8_t *text, size_t text_len,
+    const uint32_t *lo, const uint32_t *hi, const uint32_t *rep,
+    size_t n_ranges, uint8_t *out, size_t out_cap, size_t *out_len);
 
 /* Windowed unordered co-occurrence pair counts over per-document vocab-id
  * streams (doc d = tok_ids[doc_off[d] .. doc_off[d+1]); the window resets
