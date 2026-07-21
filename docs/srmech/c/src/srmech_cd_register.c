@@ -158,13 +158,22 @@ static srmech_status_t cdr_dir_is_signed_perm(int dim, int j, int *seen,
 srmech_status_t srmech_cd_navmap_is_signed_permutation(int dim, int *out_ok)
 {
     assert(out_ok != NULL);
-    assert(dim <= SRMECH_CD_MAX_DIM);
     if (out_ok == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
     if (!cdr_dim_ok(dim)) {
-        return SRMECH_ERR_BAD_INPUT;
+        return SRMECH_ERR_BAD_INPUT;      /* out-of-range is a REPORTED error */
     }
+    /* rc299: this assert used to sit ABOVE the guard, where it contradicted
+     * both the documented contract and the rc298 test that calls this with
+     * CD_MAX_DIM*2 expecting SRMECH_ERR_BAD_INPUT — an out-of-range dim cannot
+     * be simultaneously "a reported error" and "impossible". With asserts live
+     * (any non-NDEBUG build, including the default `make lib`) that aborted the
+     * process; CI only stayed green because the wheel build defines NDEBUG and
+     * compiles the assert out. Below the guard the bound is genuinely
+     * invariant, which is what makes the `seen[]` extent safe to claim. The two
+     * sibling entries here already had this shape. */
+    assert(dim <= SRMECH_CD_MAX_DIM);
     int seen[SRMECH_CD_MAX_DIM];
     for (int j = 0; j < dim; j++) {
         int ok = 0;

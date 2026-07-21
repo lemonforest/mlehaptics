@@ -841,6 +841,33 @@ def _bind(lib: ctypes.CDLL) -> None:
         lib.srmech_hermitian_eigendecompose_ws.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
+    # size_t srmech_mat_eigvals_ws_size(uint32_t n)
+    # int    srmech_mat_eigvals_ws(uint32_t n, const double *a_il,
+    #            uint32_t max_sweeps, double *out_eigvals,
+    #            double *workspace, size_t ws_len)
+    # v0.9.0rc299 (`#918`) — the GENERAL (non-Hermitian) eigensolver: the
+    # whole-op C peer of laplacian.mat_eigvals. Before it, C had only the real
+    # symmetric (srmech_jacobi_eigvals), complex Hermitian
+    # (srmech_hermitian_eigendecompose_ws) and exact-integer
+    # (srmech_eigvec_exact) paths, while mat_eigvals was classified
+    # composition_of_c — a bucket annotated "standalone-ready" — despite having
+    # no Hermitian fast path, so a bare-C host could not run it for ANY input.
+    # hasattr-guarded (additive symbols → ABI unchanged) so a lib built before
+    # rc299 keeps the rest of the native surface instead of AttributeError-ing.
+    if hasattr(lib, "srmech_mat_eigvals_ws"):
+        lib.srmech_mat_eigvals_ws_size.argtypes = [ctypes.c_uint32]
+        lib.srmech_mat_eigvals_ws_size.restype = ctypes.c_size_t
+        lib.srmech_mat_eigvals_ws.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_double),    # a_il (2*n*n)
+            ctypes.c_uint32,                    # max_sweeps
+            ctypes.POINTER(ctypes.c_double),    # out_eigvals (2*n)
+            ctypes.POINTER(ctypes.c_double),    # workspace (ws_len doubles)
+            ctypes.c_size_t,                    # ws_len
+        ]
+        lib.srmech_mat_eigvals_ws.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
     # Config layer (rc161) — the Hermitian-eig compute-guard ceiling is a
     # RUNTIME config value, not a compiled-in #define. The getter is the
     # authority for the native dispatch gate in laplacian.py; load_toml /
