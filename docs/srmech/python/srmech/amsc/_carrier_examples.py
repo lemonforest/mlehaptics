@@ -10,6 +10,7 @@ from typing import Any, Dict
 
 CARRIER_EXAMPLES: Dict[str, Dict[str, Any]] = {
     "BiPoly": {"construct": "BiPoly([Poly([Q(1), Q(2)]), Poly([Q(0), Q(1)])])", "yields": "BiPoly(k_degree=1, exact-ℚ[n,k])"},
+    "CDRegister": {"construct": "cd_register(32, D=256)", "yields": "CDRegister(dim=32, D=256, namespace='CD32', occupied=0)"},
     "EllMonomial": {"construct": "EllMonomial(Q(1), {'q': 2})", "yields": "EllMonomial(1·q^2)"},
     "EllRatio": {"construct": "elliptic_gosper(...) operand — prefactor·∏(num θ)/∏(den θ) over an EllMonomial"},
     "Fraction": {"construct": "Fraction(3, 4)", "yields": "Fraction(3, 4)"},

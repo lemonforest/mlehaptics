@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc296"
-#define SRMECH_VERSION       "0.9.0rc296"
+#define SRMECH_VERSION_PRE   "rc297"
+#define SRMECH_VERSION       "0.9.0rc297"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4333,6 +4333,59 @@ srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
  * typedef, so SRMECH_ABI_VERSION stays 4. See srmech_sedenion.c. */
 srmech_status_t srmech_sed_slots(const int *in_slots, const int *in_signs,
                                  size_t count, int *out_slots, int *out_signs);
+
+/* ------------------------------------------------------------------
+ * rc297 (#934): the GENERAL N-slot Cayley-Dickson address layer — the same
+ * navigation surface as the srmech_sedenion_* peers above, generalised from
+ * the hard-coded 16 slots to any power-of-two dim in [1, SRMECH_CD_MAX_DIM].
+ * The Python peer is srmech.amsc.cascade.cd_register (CDRegister).
+ *
+ * WHY THIS IS SOUND ABOVE THE HURWITZ WALL (F1274 / F1275). Addressing does
+ * not need the division property; it needs only that a basis product be a
+ * SIGNED PERMUTATION (e_i * e_j = +- e_k). Zero divisors are built from SUMS
+ * of basis elements, never from a single basis pair, so the boundary that
+ * destroys composition at dim >= 16 leaves addressing untouched. The two
+ * properties are disjoint. srmech_cd_navmap_is_signed_permutation makes that
+ * premise checkable at runtime instead of assumed.
+ *
+ * The slot bound is the ONLY generalisation: every sign and index rule is
+ * shared verbatim with the 16-slot peers through srmech_cd_basis_product.
+ * Nothing here scales quadratically in dim, so this layer imposes no new
+ * ceiling on SRMECH_CD_MAX_DIM.
+ *
+ * ABI-additive: new symbols only, no callback typedef and no wire-format
+ * change to any existing export, so SRMECH_ABI_VERSION stays 8.
+ * See srmech_cd_register.c.
+ * ------------------------------------------------------------------ */
+
+/* The signed pointer-advance permutation for right-multiply-by-e_j over `dim`
+ * slots: for each slot i in [0,dim), out_dest[i] = k and out_sign[i] = s where
+ * e_i * e_j = s * e_k. out_dest / out_sign are caller arrays of length >= dim.
+ * dim is a power of two in [1, SRMECH_CD_MAX_DIM]; j in [0,dim). At dim == 16
+ * this is bit-identical to srmech_sedenion_navmap. Errors:
+ * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (bad dim, or j out of range). */
+srmech_status_t srmech_cd_navmap(int dim, int j, int *out_dest, int *out_sign);
+
+/* Route `count` occupied (slot, sign) records through the x e_j permutation at
+ * `dim` slots, composing the Class-C signs: out_slots[m] = k and out_signs[m] =
+ * in_signs[m] * s where e_{in_slots[m]} * e_j = s * e_k. in_signs entries must
+ * be +1/-1 and in_slots in [0,dim). count == 0 is a no-op. At dim == 16 this is
+ * bit-identical to srmech_sedenion_navigate. Errors: SRMECH_ERR_NULL_ARG;
+ * SRMECH_ERR_BAD_INPUT (bad dim, j / slot out of range, or sign not +-1). */
+srmech_status_t srmech_cd_navigate(int dim, int j, const int *in_slots,
+                                   const int *in_signs, size_t count,
+                                   int *out_slots, int *out_signs);
+
+/* The STRUCTURAL INVARIANT addressing rides on, checked rather than assumed:
+ * for EVERY direction j in [0,dim), is i -> (dest, sign) a bijection on
+ * [0,dim) with every sign in {+1,-1}?  Sets *out_ok to 1 (the premise holds at
+ * this rung) or 0 (it fails). SCOPE: this verifies the bijection + sign-domain
+ * property of the navmap as computed by the srmech_cd_basis_product cocycle;
+ * it does NOT independently re-derive e_i * e_j from a full Cayley-Dickson
+ * multiplication. That cross-path check lives in the Python suite, which has an
+ * exact-rational cd_mult to check the cocycle shortcut against. Errors:
+ * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (bad dim). */
+srmech_status_t srmech_cd_navmap_is_signed_permutation(int dim, int *out_ok);
 
 /* ------------------------------------------------------------------
  * JSON value-tree — parser + canonical writer (§41 genome-persistence

@@ -32,7 +32,7 @@ from srmech.amsc.riemann_theta_multisum import ThetaBracketSum  # noqa: E402
 from srmech.amsc.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402
 from srmech.amsc import laplacian as _lap  # noqa: E402
 from srmech.amsc import hdc as _hdc  # noqa: E402
-from srmech.amsc.cascade import the_one, sedenion_register  # noqa: E402
+from srmech.amsc.cascade import the_one, sedenion_register, cd_register  # noqa: E402
 
 _NS = dict(globals())
 _NS.update(dict(array=array, Fraction=Fraction, Q=Q, Poly=Poly, BiPoly=BiPoly,
@@ -41,7 +41,7 @@ _NS.update(dict(array=array, Fraction=Fraction, Q=Q, Poly=Poly, BiPoly=BiPoly,
                 ThetaSum=ThetaSum, ThetaBracketSum=ThetaBracketSum,
                 MockQSeries=MockQSeries, UnaryTheta=UnaryTheta,
                 HarmonicMaass=HarmonicMaass, the_one=the_one,
-                sedenion_register=sedenion_register,
+                sedenion_register=sedenion_register, cd_register=cd_register,
                 dense_laplacian=_lap.dense_laplacian,
                 jacobi_eigvals=_lap.jacobi_eigvals,
                 fiedler_vector=_lap.fiedler_vector, hdc=_hdc))
@@ -67,6 +67,13 @@ _CONSTRUCT = {
     "ThetaSum": "ThetaSum(terms=[(Q(1), EllMonomial(Q(1), {}), [])])",
     "ThetaBracketSum": "ThetaBracketSum({(('u', 1),): Q(1)})",
     "SedenionRegister": "sedenion_register(D=256)",
+    # dim 32 DELIBERATELY, not 16: the whole point of CDRegister is that the slot
+    # count is a PARAMETER, and an example at n=16 would document it as a sedenion
+    # register with extra steps — the reader would learn nothing the
+    # SedenionRegister row above does not already say. 32 is also the live
+    # research need (𝕋, where composition fails for most generic pairs while
+    # addressing is intact), and it is well inside CD_MAX_DIM=64.
+    "CDRegister": "cd_register(32, D=256)",
 }
 # carriers whose honest example is a usage snippet (float-seq scalars, or a
 # constructor that needs domain objects better shown by its producing op).

@@ -15,8 +15,14 @@ baseline files below; the per-class C surfaces added since
 `srmech_bus.c`, `srmech_parallel.c`, `srmech_kuramoto.c`,
 `srmech_platform.c`, `srmech_json.c`, `srmech_genome.c` — the PAL, rc4,
 the OS sibling of the `srmech_simd.c` HAL, plus the §41 genome-persistence
-JSON mirror and the §41 genome-persistence disk surface itself)
-are held to the same rules by the mechanical ratchet
+JSON mirror and the §41 genome-persistence disk surface itself;
+`srmech_sedenion.c` and `srmech_cd_register.c` — the 16-slot and the
+general N-slot Cayley–Dickson address layers, the latter added in
+v0.9.0rc297 (`#934`) with no Rule-5 exemption: its one predicate helper
+`cdr_dim_ok` asserts the CAP's own shape rather than being exempted,
+so a future `SRMECH_CD_MAX_DIM` change that broke the power-of-two
+invariant would fire instead of silently admitting a dim with no basis
+table) are held to the same rules by the mechanical ratchet
 `tests/test_jpl_audit.py`.
 
 - `c/src/srmech_meta.c` — version + ABI accessors (Phase B3).

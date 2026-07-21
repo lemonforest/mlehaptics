@@ -684,3 +684,7 @@
 {"exposed_as": "srmech.amsc.plasmid.conserved_core", "defined_at": "srmech.amsc.plasmid.conserved_core", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.plasmid.genome_integrate_plasmids", "defined_at": "srmech.amsc.plasmid.genome_integrate_plasmids", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.plasmid.add_plasmid", "defined_at": "srmech.amsc.plasmid.add_plasmid", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.cd_register", "defined_at": "srmech.amsc.cascade.cd_register.cd_register", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.cascade.cd_navmap", "defined_at": "srmech.amsc.cascade.cd_register.cd_navmap", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.cd_navigate", "defined_at": "srmech.amsc.cascade.cd_register.cd_navigate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.cd_navmap_is_signed_permutation", "defined_at": "srmech.amsc.cascade.cd_register.cd_navmap_is_signed_permutation", "bucket": "c_dispatched"}

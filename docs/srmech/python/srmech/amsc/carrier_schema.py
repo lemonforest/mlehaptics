@@ -301,6 +301,22 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "surface."),
         "ladder": None, "rung": None, "variables": [],
     },
+    "CDRegister": {
+        "description": (
+            "General N-slot addressable RBS-HDC register over a "
+            "Cayley–Dickson algebra of dimension n (any power of two in "
+            "[1, CD_MAX_DIM]): n content-keyed slots e0..e{n-1} addressed by "
+            "minted hypervectors, the octonion block e0..e7 as the reversible "
+            "working set at every rung and the remainder as the carry/EC "
+            "block, plus a CD-respecting navigate whose slot routing is the "
+            "signed permutation e_i·e_j = ±e_k. Carries the SAME operand as "
+            "SedenionRegister with the slot bound as a parameter rather than "
+            "a constant — SedenionRegister is its n=16 special case, retained "
+            "as the independent oracle the general form is gated against "
+            "(namespace='SEDENION' at dim 16 reproduces it bit-exactly). "
+            "Produced by cascade.cd_register."),
+        "ladder": None, "rung": None, "variables": [],
+    },
 }
 
 

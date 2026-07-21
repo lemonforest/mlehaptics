@@ -272,11 +272,25 @@ _EXPECTED_SPLIT = {
     # does not match its use is not a tracked exception; it is a defect. The
     # honest resolution is removal, not a bucket. Callers draw their own bytes
     # and compose klein4_encode_bytes, which has C parity all the way down.
-    "composes_c": 128,
+    # rc297 (`#934`): +1 composes_c — the general N-slot Cayley–Dickson register
+    # adds ONE constructor row, ``cascade.cd_register.cd_register``. This is a
+    # POPULATION pin, not a debt ceiling, and a non_compute number going UP is
+    # the reading that most deserves suspicion, so the evidence is stated rather
+    # than left to inference. The row lands in **composes_c (128 -> 129)** and
+    # NOT in host_glue (21, UNCHANGED), and ``CEIL_WIRE_GLUE_GAPS`` stays at
+    # **10** — so the op family has real C peers reachable through dispatch glue
+    # (srmech_cd_navmap / srmech_cd_navigate /
+    # srmech_cd_navmap_is_signed_permutation), not a gap wearing a composition
+    # label. That distinction IS the difference between composition and a
+    # laundered gap. The constructor itself computes nothing (it allocates an
+    # empty slot-map and codebook); all compute is in the methods, which route
+    # to those three c_dispatched rows — which is why it also carries a
+    # justified entry in COMPOSES_C_ZERO_REACH_PINNED.
+    "composes_c": 129,
     "host_glue": 21,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 200
+_TOTAL_NON_COMPUTE = 201        # rc297 (`#934`): 200 -> 201, the cd_register constructor row above
 
 
 def _rows():

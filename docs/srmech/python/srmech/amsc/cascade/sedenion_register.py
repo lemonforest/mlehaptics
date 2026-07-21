@@ -241,7 +241,12 @@ class SedenionRegister:
         """Walk the hyper-loop: right-multiply every slot *name* by ``e_j`` so
         content at slot ``i`` moves to slot ``k`` with sign ``s``, ``e_i·e_j =
         s·e_k`` (the address↔Cayley–Dickson homomorphism). Returns a NEW register
-        with the routed assignment (shares the codebook). Single-basis navigation
+        with the routed assignment. rc297 precision fix: the codebook is COPIED,
+        not aliased — ``__init__`` takes ``dict(codebook)``, so the minted
+        value-vectors (immutable ``bytes``) are shared but later writes to the
+        parent do NOT appear in the child. Behaviour is unchanged; only this
+        sentence, which read "shares the codebook", was imprecise about the
+        mapping. Single-basis navigation
         is exactly reversible — ``navigate(j).navigate(j)`` is the global ``−1``
         (``e_j² = −1``), recoverable as a Class-C sign."""
         m = self.navmap(j)
