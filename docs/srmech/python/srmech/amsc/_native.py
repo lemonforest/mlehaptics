@@ -19195,7 +19195,90 @@ def genome_pack_c(loose_dir: str, dest: str, coupling: bytes) -> None:
         raise NativeGenomeError("srmech_genome_pack", rc)
 
 
+# ----------------------------------------------------------------------
+# rc300 (`#938`) — CLAIM RESOLUTION: is the C path we advertise really here?
+#
+# Every native dispatch site in the package is gated on
+# ``hasattr(LIB, "srmech_x")``, and a missing symbol routes to the pure-Python
+# path. The ANSWERS stay correct — those fallbacks are complete alternatives —
+# but the Rosetta ledger's ``c_dispatched`` classification ("routes to a
+# ``srmech_*`` C symbol") becomes FALSE, and before rc300 nothing anywhere said
+# so. rc299 reclassified ``laplacian.mat_eigvals`` to ``c_dispatched``; its
+# dispatch site is precisely such a gate.
+#
+# ABI matching does NOT already cover this. The header adds symbols
+# ABI-additively — "new symbols only, so SRMECH_ABI_VERSION stays N" recurs
+# roughly a hundred times in srmech.h — so ABI 8 pins the WIRE FORMAT of the
+# existing exports, not the symbol SET. A stale-but-ABI-8 library is therefore a
+# reachable state, not a hypothetical one, and it degrades silently.
+#
+# This reports rather than raises, deliberately. The pure wheel ships no library
+# at all (``HAS_NATIVE`` False), and a stale library still computes correct
+# answers via its fallbacks; raising at import would break both for a condition
+# that is a build defect, not a correctness defect. The loud failure belongs in
+# the test suite (tests/test_c_claim_resolution_rc300.py), which fails on any
+# unresolved claim; this surface makes the same fact legible at runtime — to a
+# human, and to an LLM driving the MCP surface that currently cannot tell
+# whether the C path it was promised actually exists.
+# ----------------------------------------------------------------------
+
+def c_claim_report() -> "dict":
+    """Check every ``c_dispatched`` claim against the LOADED library.
+
+    Resolves each C symbol named in :data:`srmech.amsc._c_claims.C_CLAIMS`
+    against the library this process actually loaded, so a partial or stale
+    build becomes a named, enumerable inconsistency instead of a silent
+    fallback to the pure path.
+
+    Returns
+    -------
+    dict
+        ::
+
+            {"native": <bool>,          # is a library loaded + ABI-matched?
+             "checked_ops": <int>,      # ops whose symbols were resolved
+             "checked_symbols": <int>,  # distinct symbols resolved
+             "unresolved": {<op>: [<missing symbol>, ...]},
+             "unverifiable": <int>,     # ops with no attributable symbol
+             "consistent": <bool>}      # no claim contradicted by this library
+
+    On a pure install (``HAS_NATIVE`` False) there is no library and therefore
+    no claim to contradict: ``consistent`` is True and ``unresolved`` empty.
+    That is not a vacuous pass being dressed up as a real one — ``native``
+    False is reported alongside it, and the ops legitimately run pure.
+    """
+    from ._c_claims import C_CLAIMS, UNVERIFIABLE_CLAIMS
+
+    if not (HAS_NATIVE and LIB is not None):
+        return {
+            "native": False,
+            "checked_ops": 0,
+            "checked_symbols": 0,
+            "unresolved": {},
+            "unverifiable": len(UNVERIFIABLE_CLAIMS),
+            "consistent": True,
+        }
+
+    unresolved = {}
+    resolved = set()
+    for op, symbols in C_CLAIMS.items():
+        missing = [s for s in symbols if not hasattr(LIB, s)]
+        if missing:
+            unresolved[op] = missing
+        resolved.update(s for s in symbols if s not in missing)
+
+    return {
+        "native": True,
+        "checked_ops": len(C_CLAIMS),
+        "checked_symbols": len(resolved),
+        "unresolved": dict(sorted(unresolved.items())),
+        "unverifiable": len(UNVERIFIABLE_CLAIMS),
+        "consistent": not unresolved,
+    }
+
+
 __all__ = [
+    "c_claim_report",
     "ABI_VERSION",
     "BUS_HANDLER_CALLBACK",
     "CASCADE_BODY_CALLBACK_F64",

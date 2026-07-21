@@ -17,6 +17,8 @@ numpy-free per the module's discipline (no numpy import, no ``np.``).
 """
 import array
 
+import pytest
+
 import srmech.amsc._native as _native
 from srmech.amsc.hdc import (
     klein4_expand,
@@ -83,9 +85,13 @@ def test_dimension_mismatch_rejected():
 def test_native_matches_forced_pure_bit_for_bit():
     """When the native kernel is built, the C fold is byte-identical to the pure
     fold — the standalone-C parity proof (skips on a pure-wheel dev tree)."""
+    # rc300 (`#938`): this was a bare `return`, so a missing kernel reported
+    # PASSED and the entire C-vs-pure byte-identity proof — the whole point of
+    # the test — vanished without a trace. The docstring already said "skips";
+    # now it actually does, and the lost coverage is visible in the summary.
     if not (_native.HAS_NATIVE
             and hasattr(_native.LIB, "srmech_klein4_bundle_accumulate")):
-        return  # no native kernel here — the pure path is the only path
+        pytest.skip("no srmech_klein4_bundle_accumulate — pure path is the only path")
     vs = [klein4_expand(56, 7000 + i) for i in range(20)]
     native = _bundle_via_fold(vs)
     orig = _native.HAS_NATIVE

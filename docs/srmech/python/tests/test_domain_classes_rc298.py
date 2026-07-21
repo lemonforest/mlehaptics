@@ -214,4 +214,5 @@ def test_describe_still_reports_the_rest_unchanged():
     assert set(d) == {
         "srmech_version", "tool_schema_version", "native", "tools",
         "handle_pending", "categories", "classes", "carriers", "limits",
+        "c_claims",  # rc300 `#938` — C-claim resolution against the loaded lib
     }
