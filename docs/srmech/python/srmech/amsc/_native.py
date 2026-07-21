@@ -3874,6 +3874,18 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_size_t),                   # n_done
             ]
             lib.srmech_genome_section_counts.restype = ctypes.c_int
+        # rc296 — the PAL read-path OPEN COUNTER. Diagnostic-only instrumentation
+        # (no op depends on it, nothing branches on it) that makes the COMPILED
+        # projection's I/O shape measurable from a test. Python's builtins.open /
+        # Path.open hooks cannot see an fopen inside the shared library, so without
+        # this seam the rc282 open-count ratchet could only ever measure the
+        # scripting projection — which is exactly the ADR-0009 gap rc296 closes.
+        # ADDITIVE plain symbols, no new typedef -> EXPECTED_ABI_VERSION stays 8.
+        if hasattr(lib, "srmech_plat_file_opens"):
+            lib.srmech_plat_file_opens.argtypes = []
+            lib.srmech_plat_file_opens.restype = ctypes.c_uint64
+            lib.srmech_plat_file_opens_reset.argtypes = []
+            lib.srmech_plat_file_opens_reset.restype = None
         # §135/rc281 (F1251) — the GENE COPY-NUMBER pair. rc273 shipped amplify /
         # copy_number_of Python-only because the field is TRANSPARENT to the existing C
         # readers; that is not parity (a bare-C host could neither SET nor GET the axis).
@@ -17639,6 +17651,41 @@ def has_native_genome_section_counts() -> bool:
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_section_counts"))
+
+
+def has_native_file_open_counter() -> bool:
+    """True iff the rc296 PAL read-path open counter is loaded + bound.
+
+    The counter is DIAGNOSTIC instrumentation, not an op: it exists so a test can
+    measure how many times the COMPILED projection opens a file during a span of
+    work. Python's ``builtins.open`` / ``Path.open`` hooks are blind to an ``fopen``
+    inside ``libsrmech``, so before rc296 the compiled read path's open shape was
+    unmeasurable from the suite — and the rc282 down-only open ratchet, whose every
+    test forced the pure path, silently constrained one projection only."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_plat_file_opens")
+                and hasattr(LIB, "srmech_plat_file_opens_reset"))
+
+
+def file_opens_c() -> int:
+    """Read-path opens (``file_read`` / ``file_read_region`` / ``file_open_ro`` /
+    ``file_size`` / ``rstream_open``) the C library has performed since process
+    start or the last :func:`file_opens_reset_c`. Writes are NOT counted.
+
+    Counts ATTEMPTS, not successes — the same thing ``strace -e trace=openat``
+    records, so the counter and the strace probe measure one quantity. Returns 0
+    when the counter is absent; a caller that needs the difference should gate on
+    :func:`has_native_file_open_counter` rather than read 0 as a measurement."""
+    if not has_native_file_open_counter():
+        return 0
+    return int(LIB.srmech_plat_file_opens())
+
+
+def file_opens_reset_c() -> None:
+    """Zero the rc296 read-path open counter. No-op when the counter is absent."""
+    if not has_native_file_open_counter():
+        return
+    LIB.srmech_plat_file_opens_reset()
 
 
 #: The rc280 section-counts first-call output capacity (distinct global ids). A store

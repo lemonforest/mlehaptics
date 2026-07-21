@@ -85,18 +85,31 @@ jobs:
       - name: Run tests
         working-directory: docs/srmech/python
         shell: bash
-        # rc283 — parallelised with pytest-xdist. MEASURED on this repo's own
-        # suite, same tree, .so rebuilt from source: serial 2529 s; `-n 4` over
-        # three consecutive runs 1154.7 / 1004.9 / 943.4 s = 2.19x / 2.52x /
-        # 2.68x. The spread is CONTENTION, not variance — a second session was
-        # running pytest on the same box and the figure improved monotonically
-        # as it drained; 943.4 s is the quiet-box number and agrees with an
-        # independent `-n 8` run (924.4 s). Projects the wall-clock-driving
-        # ubuntu cell from ~25.2 min to ~9.4-11.5 min.
+        # rc283 — parallelised with pytest-xdist.
         #
-        # (An earlier scoping investigation reported 2.92x / ~8.6 min. That was
-        # a different run on a different tree and this rc did NOT reproduce it;
-        # the range above is what its own three runs measured. Quote this one.)
+        # rc296 STRUCK the speedup figures that stood here ("2.19x / 2.52x /
+        # 2.68x"). They had no committed generating code, no artifact and no
+        # log — they were prose, which is exactly what
+        # [[feedback_computational_provenance_discipline]] forbids for a
+        # load-bearing number. Their own note already conceded the spread was
+        # CONTENTION rather than variance, i.e. a property of what else was
+        # running on the box that afternoon.
+        #
+        # No multiple replaces them, because there is no portable one to quote:
+        # the ratio is capped by core count (`auto` = os.cpu_count(), which
+        # differs per cell) and, under `--dist loadfile`, by the SLOWEST SINGLE
+        # FILE rather than by total work. rc296's harness
+        # (`notes/rc283_xdist_speedup_probe.py`, artifact
+        # `notes/rc283_xdist_speedup.ndjson`) makes the point concrete: on a
+        # documented 6-file subset on an 8-core host it measured 0.96-1.09x
+        # over 3 repeats — no speedup at all, because one file dominates the
+        # set. Same flag, same tree, ~1x instead of ~2.5x, purely from which
+        # files you point it at. Run the harness on your own host and file set
+        # if you need a number; it reports a RANGE and refuses a single run.
+        #
+        # What is NOT struck, because it is checkable and is the durable reason
+        # this flag is here: xdist surfaced three real order/isolation bugs
+        # that serial execution had been hiding (see the rc283 CHANGELOG entry).
         #
         # `-n auto` (NOT a fixed `-n 4`): xdist resolves `auto` via
         # os.cpu_count() here (psutil is deliberately not a dev dep), which is
