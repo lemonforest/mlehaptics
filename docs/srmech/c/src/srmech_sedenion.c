@@ -242,7 +242,12 @@ srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
     if (direction == NULL || out_invertible == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (n < 1 || n > (size_t)SRMECH_CD_MAX_DIM ||
+    /* rc298 (`#933`): the DENSE cap, not SRMECH_CD_MAX_DIM. mat[] below is the
+     * only quadratic buffer in the tree; sizing it off the (now 256) addressing
+     * cap would put a 524 KB frame here on every call. Past this bound the
+     * Python peer routes to its exact-rational oracle — see the
+     * SRMECH_CD_DENSE_MAX_DIM comment in srmech.h. */
+    if (n < 1 || n > (size_t)SRMECH_CD_DENSE_MAX_DIM ||
         (n & (n - 1u)) != 0u) {
         return SRMECH_ERR_BAD_INPUT;
     }
@@ -256,7 +261,7 @@ srmech_status_t srmech_sedenion_is_navigable(const int64_t *direction,
     }
     /* |det| <= (sum|x_i|)^n  ->  bit-budget for the singular certainty test. */
     int bound_bits = nn * sed_bitlen_u64(s);
-    int64_t mat[SRMECH_CD_MAX_DIM * SRMECH_CD_MAX_DIM];
+    int64_t mat[SRMECH_CD_DENSE_MAX_DIM * SRMECH_CD_DENSE_MAX_DIM];
     int acc_bits = 0;
     for (int pi = 0; pi < SED_NPRIMES; pi++) {
         srmech_status_t st = sed_build_mod_matrix(direction, nn,

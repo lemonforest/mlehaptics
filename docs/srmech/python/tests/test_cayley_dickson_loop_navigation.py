@@ -98,7 +98,12 @@ def test_min_generating_set_raises_when_no_spanning_subset() -> None:
 
 # ---- input validation ------------------------------------------------------
 
-@pytest.mark.parametrize("bad_dim", [3, 6, 7, 128])
+# The list mixes two rejection reasons: 3/6/7 are not powers of two, and the
+# last entry is a power of two ABOVE the cap. rc298 (`#933`) raised
+# CD_MAX_DIM 64 -> 256, so 128 became a SHIPPED rung and moved out; 512 is the
+# over-cap case now. Derived from the constant rather than re-hardcoded, so the
+# next cap change cannot leave a valid rung sitting in a rejection list.
+@pytest.mark.parametrize("bad_dim", [3, 6, 7, cd.CD_MAX_DIM * 2])
 def test_non_power_of_two_dim_rejected(bad_dim: int) -> None:
     with pytest.raises(ValueError, match="power of two"):
         cd.closure(bad_dim, [1])

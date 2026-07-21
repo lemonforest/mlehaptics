@@ -318,11 +318,20 @@ jobs:
                   _obj = getattr(_obj, _p)
           assert not _unresolved, f'{len(_unresolved)} registered tools unresolved on the installed wheel: {_unresolved[:10]}'
           _cls = list(_dsl.list_classes())
-          assert _cls == _describe()['classes']['names'], 'class registry / describe() drift'
+          _dc = _describe()['classes']
+          # rc298 `#936`: describe()['classes'] is CAPABILITY-first — it lists
+          # every domain class and tags the declaration route. dsl.list_classes()
+          # stays the TOML catalog, so the invariant is containment + an exact
+          # match on the toml-routed subset, not equality with the whole key.
+          assert set(_cls) <= set(_dc['names']), 'describe() dropped a TOML catalog class'
+          assert sorted(n for n, r in _dc['routes'].items() if r == 'toml') == sorted(_cls), 'class registry / describe() route drift'
+          assert _dc['toml_total'] == len(_cls), 'describe() toml_total drift'
           for _nm in _cls:
               _info = _dsl.describe_class(_nm)
               assert _info['name'] == _nm and (_info['fields'] or _info['methods']), f'shipped class {_nm} empty/broken'
-          print(f'registry walk OK: {len(_tools)} tools + {len(_cls)} catalog classes all reachable numpy-free')
+          _n_domain = _dc['total']
+          _n_carriers = _describe()['carriers']['total']
+          print(f'registry walk OK: {len(_tools)} tools + {len(_cls)} catalog classes ({_n_domain} domain classes, {_n_carriers} carriers) all reachable numpy-free')
           print(f'srmech {__version__} OK (numpy-FREE: whole package imports + runs with numpy absent)')
           "
 

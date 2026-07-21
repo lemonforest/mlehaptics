@@ -177,6 +177,7 @@ from .one import (
 # own-code-attested. The integer cocycle cd_basis_product has a JPL-clean C peer.
 from .cayley_dickson import (
     CD_MAX_DIM,
+    CD_DENSE_MAX_DIM,
     CD_DIMS,
     DIVISION_ALGEBRA_DIMS,
     ALGEBRA_NAMES,
@@ -310,6 +311,7 @@ __all__ = [
     "winding_fold",
     # Cayley–Dickson open-exterior demonstrator (v0.7.3rc1; #915 / MFO §VII.6.23)
     "CD_MAX_DIM",
+    "CD_DENSE_MAX_DIM",
     "CD_DIMS",
     "DIVISION_ALGEBRA_DIMS",
     "ALGEBRA_NAMES",

@@ -635,7 +635,42 @@ def describe() -> Dict[str, Any]:
                         "by_category": {<category>: <count>, ...}},
               "handle_pending": [<sorted handle-pending tool names>],
               "categories": [<sorted category names>],
+              "classes": {"total": <int>,
+                          "names": [<sorted domain-class names>],
+                          "routes": {<name>: "toml"|"python", ...},
+                          "toml_total": <int>},
+              "carriers": {"total": <int>,
+                           "names": [<sorted carrier names>]},
+              "limits": {"cd_max_dim": <int>,
+                         "cd_dense_max_dim": <int>},
             }
+
+    ``limits`` (rc298) reports **capability** ceilings only — what this BUILD
+    supports, identical on every platform and in both projections. It is NOT a
+    statement about host headroom: no key here reports how much stack THIS
+    process has left, because rc298 measures none. ``cd_max_dim`` bounds the
+    Cayley–Dickson addressing surface; ``cd_dense_max_dim`` bounds the dense
+    ``dim × dim`` native path, past which the exact-rational oracle answers
+    instead (correct, slower). A resource key would require a real PAL
+    stack-limit query and is deliberately absent rather than approximated.
+
+    rc298 (`#936`) — ``classes`` became CAPABILITY-first, and ``carriers``
+    arrived. Both were the same ADR-0009 mechanism-2 defect: introspection
+    reporting an implementation detail as if it were the capability surface.
+
+    ``classes`` previously enumerated only the ``[class]`` TOML catalog, so
+    ``CDRegister`` — a shipped public class with a registered carrier and three
+    C peers — was absent purely because rc297 hand-coded it. It now lists every
+    domain class, with the declaration route as a ``routes`` FIELD and the
+    TOML-only count preserved as ``toml_total`` for the consumers that need it
+    (``srmech.dsl.describe_class`` resolves TOML-declared classes only).
+
+    ``carriers`` did not exist: the 25-entry carrier registry, which carries a
+    100% construction-example floor and a compiled-in C peer table, was
+    invisible to ``describe()`` entirely. ``tools`` are the verbs and
+    ``carriers`` the nouns; reporting one without the other described half a
+    package. Per-carrier detail stays in
+    :func:`srmech.amsc.carrier_schema.carrier_schema`.
     """
     # Lazy imports: this module is imported during ``srmech.__init__``
     # BEFORE ``warmup_all`` / ``srmech.amsc`` are fully wired, so a
@@ -662,14 +697,48 @@ def describe() -> Dict[str, Any]:
         else:
             handle_pending.append(entry.name)
 
-    # User-declared [class] classes (rc41) — the package recognises its own
-    # user-extensible class surface (the Class-H self-recognition view). Guarded
-    # local import (avoids any srmech.dsl import-cycle at introspect load).
+    # Domain classes (rc41 seeded it as the [class] TOML catalog; rc298 `#936`
+    # made it CAPABILITY-first). ``routes`` carries how each class is declared;
+    # membership is never decided by it. See introspect._domain_classes.
+    from ._domain_classes import list_domain_classes as _list_domain_classes
+    _class_routes = _list_domain_classes()
+    _toml_total = sum(1 for r in _class_routes.values() if r == "toml")
+
+    # Carriers (rc298 `#936`) — the OPERAND nouns. The registry has a 100%
+    # construction-example floor and a compiled-in C peer table, and before
+    # rc298 describe() could not see it at all: the same mechanism-2 defect the
+    # classes key had. Guarded — carrier_schema is independently optional.
     try:
-        from ..dsl import list_classes as _list_classes
-        _class_names = _list_classes()
-    except Exception:  # pragma: no cover — class catalog optional / absent
-        _class_names = []
+        from ..amsc.carrier_schema import _CARRIERS
+        _carrier_names = sorted(_CARRIERS)
+    except Exception:  # pragma: no cover — carrier registry optional / absent
+        _carrier_names = []
+
+    # Dimensional CAPABILITY ceilings (rc298 `#936`). Before this rc describe()
+    # could say whether a native library was present and its ABI, but not what
+    # it could DO: no dimensional bound of any kind was exposed, so a caller —
+    # or an LLM driving the MCP surface — could only discover the largest
+    # admissible dim by trying it and failing, or by reading the C header.
+    #
+    # These are ARTIFACT properties: what this BUILD supports, identical on
+    # every platform, and identical in both projections (the Python constants
+    # and the C macros are pinned equal by tests/test_cd_rungs_rc298.py). They
+    # are deliberately NOT nested under "native" — they bind the pure-Python
+    # path too, and would read as native-only there.
+    #
+    # There is deliberately NO resource/headroom key here. Reporting what THIS
+    # HOST can service needs a real measurement (a PAL stack-limit query);
+    # rc298 ships none, and a compiled constant published under a name implying
+    # runtime headroom would be exactly the kind of wrong number this rc line
+    # exists to remove. A missing key is honest.
+    try:
+        from ..amsc.cascade.cayley_dickson import (
+            CD_DENSE_MAX_DIM as _CD_DENSE_MAX,
+            CD_MAX_DIM as _CD_MAX,
+        )
+        _limits = {"cd_max_dim": _CD_MAX, "cd_dense_max_dim": _CD_DENSE_MAX}
+    except Exception:  # pragma: no cover — cascade surface optional
+        _limits = {}
 
     return {
         "srmech_version": schema.srmech_version,
@@ -687,9 +756,23 @@ def describe() -> Dict[str, Any]:
         },
         "handle_pending": sorted(handle_pending),
         "categories": sorted(by_category.keys()),
-        # User-declared [class] classes (#962 Part 2) — name list; full
-        # descriptors via srmech.dsl.describe_class / `srmech class describe`.
-        "classes": {"total": len(_class_names), "names": sorted(_class_names)},
+        # Domain classes (#962 Part 2; capability-first since rc298 `#936`).
+        # `names`/`total` are EVERY shipped domain class. `routes` says how each
+        # is declared ("toml"/"python") — a field, not an admission criterion.
+        # `toml_total` is the TOML-catalog-only count, for the consumers that
+        # genuinely want it (srmech.dsl.describe_class only resolves those).
+        "classes": {
+            "total": len(_class_routes),
+            "names": sorted(_class_routes),
+            "routes": dict(_class_routes),
+            "toml_total": _toml_total,
+        },
+        # Carriers (rc298 `#936`) — the operand nouns to `tools`' verbs. Full
+        # per-carrier detail via srmech.amsc.carrier_schema.carrier_schema().
+        "carriers": {"total": len(_carrier_names), "names": _carrier_names},
+        # Compiled CAPABILITY ceilings (rc298 `#936`) — what this BUILD
+        # supports. No resource/headroom key; see the note above.
+        "limits": _limits,
     }
 
 

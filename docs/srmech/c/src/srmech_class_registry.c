@@ -10,7 +10,15 @@
  * and no filesystem (JPL-clean: const arrays, no dynamic init, no malloc).
  * The lookup accessor lives in srmech_make_class.c.
  *
- * Classes: 4 (Genome, Hurwitz, One, SedenionRegister).
+ * TOML-declared classes: 4 (Genome, Hurwitz, One, SedenionRegister).
+ *
+ * This is the [class] DESCRIPTOR table, not srmech's class count.
+ * rc298 (task 936) made describe()['classes'] capability-first, so it
+ * reports MORE than this: a hand-coded domain class (CDRegister) has
+ * no descriptor text to bake here, and reaches a bare-C host through
+ * its own peers rather than through srmech_run_class_method. A NULL
+ * from srmech_class_descriptor_lookup for such a name is correct,
+ * not a gap.
  */
 
 #include "srmech.h"
