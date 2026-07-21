@@ -46,10 +46,34 @@ def dotted(node):
     return ".".join(reversed(parts))
 
 
+# A BARE `import numpy` was never HARD here — only np.linalg.* CALLS were. That is how numpy reached
+# 312 imports across 310 files while this ratchet reported clean on them. `fractions` is the same
+# hole one step quieter: Fraction is the Python-native exact rational, so it bypasses the Class-N
+# surface while still producing a correct number. Enforced for real by srmech_import_guard.py; this
+# entry makes the ratchet agree with the guard instead of contradicting it.
+BANNED_IMPORTS = {
+    "numpy": "import numpy — REMOVED at #564; use srmech carriers Mat/Vec/HV + srmech.amsc.laplacian",
+    "fractions": "import fractions — use srmech.amsc.rational (Class N); Fraction silently bypasses it",
+}
+
+
 class V(ast.NodeVisitor):
     def __init__(self):
         self.hard = []
         self.review = []
+
+    def visit_Import(self, n):
+        for a in n.names:
+            b = a.name.split(".")[0]
+            if b in BANNED_IMPORTS:
+                self.hard.append((n.lineno, BANNED_IMPORTS[b]))
+        self.generic_visit(n)
+
+    def visit_ImportFrom(self, n):
+        b = (n.module or "").split(".")[0]
+        if b in BANNED_IMPORTS:
+            self.hard.append((n.lineno, BANNED_IMPORTS[b]))
+        self.generic_visit(n)
 
     def visit_Call(self, n):
         name = dotted(n.func)
