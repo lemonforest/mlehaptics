@@ -17,7 +17,7 @@ srmech 0.7.4; Class-L Fiedler phase + chirality coordinate sign(V[:,2]); fast am
 """
 from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 
 _s = U.spec_from_file_location("sup", "docs/srmech/rbs_lm_research/R-RBS-LM-SUPERPOSITION_structured_spectral_gate_which_band_biology_drops.py")
@@ -31,8 +31,8 @@ def main():
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
-    phi = np.argsort(np.argsort(V[:, 1])) / N                   # Class-L manifold phase
-    hand = (V[:, 2] >= np.median(V[:, 2])).astype(int)          # chirality coordinate (median-split = balanced hands)
+    phi = _nps.argsort(_nps.argsort(V[:, 1])) / N                   # Class-L manifold phase
+    hand = (V[:, 2] >= _nps.median(V[:, 2])).astype(int)          # chirality coordinate (median-split = balanced hands)
     win = 0.10
 
     def access(W):
@@ -48,7 +48,7 @@ def main():
             nR = sum(1 for j in accessed if hand[j] == 0)
             nL = sum(1 for j in accessed if hand[j] == 1)
             covs.append(len(accessed) / N); asyms.append(cascade.magnitude(nR - nL) / max(1, nR + nL))
-        return float(np.mean(covs)), float(np.mean(asyms))
+        return float(_nps.mean(covs)), float(_nps.mean(asyms))
 
     print(f"{'collapse-states / access window (W)':<36} {'access coverage':>16} {'(4:3)|(3:4) asym':>17}")
     print(f"{'(= stirring speed vs thinking)':<36} {'(1.0 = full)':>16} {'(0 = no split)':>17}")

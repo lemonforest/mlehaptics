@@ -39,9 +39,7 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 from srmech.amsc.hdc import bundle, similarity
@@ -155,7 +153,7 @@ def build_eigvec_table(text, n_eigvecs=KERNEL_N_EIGVECS, M_per_eigvec=21):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k]
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_per_eigvec]
+        top_idx = _nps.argsort(-mag_sq)[:M_per_eigvec]
         top_tokens = [vocab[i] for i in top_idx]
         hv = hierarchical_bundle([mint(t) for t in top_tokens])
         table.append({"rank": len(ev) - 1 - k, "eigval": float(ev[k]),
@@ -179,7 +177,7 @@ def find_alignment_score(probe_table, kernel_table):
         best_j, best_sim = max(candidates, key=lambda x: x[1])
         used_k.add(best_j)
         sims.append(best_sim)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def split_holdout(corpus_text, n_fragments=N_PROBE_FRAGMENTS, holdout_frac=HOLDOUT_FRACTION):

@@ -27,9 +27,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 
@@ -118,7 +116,7 @@ def build_kernel(text):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_PER_EIGVEC]
+        top_idx = _nps.argsort(-mag_sq)[:M_PER_EIGVEC]
         top_tokens = [vocab[i] for i in top_idx]
         table.append({"top_tokens": top_tokens, "token_set": set(top_tokens)})
     return table
@@ -127,7 +125,7 @@ def build_kernel(text):
 def sim_cosine(a, b):
     sa, sb = a["token_set"], b["token_set"]
     if not sa or not sb: return 0.0
-    return float(len(sa & sb) / np.sqrt(len(sa) * len(sb)))
+    return float(len(sa & sb) / _nps.sqrt(len(sa) * len(sb)))
 
 
 def find_alignment_score(table_a, table_b):
@@ -138,7 +136,7 @@ def find_alignment_score(table_a, table_b):
         if not cands: break
         bj, bs = max(cands, key=lambda x: x[1])
         used.add(bj); sims.append(bs)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def main():
@@ -211,12 +209,12 @@ def main():
 
     print(f"\n=== Math within/cross ratio analysis ===")
     print(f"  Within-math alignment:           {within_math:+.4f}")
-    print(f"  Cross to ALL non-math (n={len(cross_all)}):     mean = {float(np.mean(cross_all)):+.4f}")
-    print(f"  Cross to KINESTHETIC (n={len(cross_kine)}):   mean = {float(np.mean(cross_kine)):+.4f}")
-    print(f"  Cross to NON-KINESTHETIC (n={len(cross_non_kine)}): mean = {float(np.mean(cross_non_kine)):+.4f}")
+    print(f"  Cross to ALL non-math (n={len(cross_all)}):     mean = {float(_nps.mean(cross_all)):+.4f}")
+    print(f"  Cross to KINESTHETIC (n={len(cross_kine)}):   mean = {float(_nps.mean(cross_kine)):+.4f}")
+    print(f"  Cross to NON-KINESTHETIC (n={len(cross_non_kine)}): mean = {float(_nps.mean(cross_non_kine)):+.4f}")
 
-    ratio_with_kine = within_math / float(np.mean(cross_all))
-    ratio_no_kine = within_math / float(np.mean(cross_non_kine))
+    ratio_with_kine = within_math / float(_nps.mean(cross_all))
+    ratio_no_kine = within_math / float(_nps.mean(cross_non_kine))
 
     print(f"\n  Within/cross ratio WITH kinesthetic in cross set:    {ratio_with_kine:.2f}")
     print(f"  Within/cross ratio WITHOUT kinesthetic (80 baseline): {ratio_no_kine:.2f}")
@@ -247,9 +245,9 @@ def main():
     out = {
         "partition": "R-RBS-LM-83",
         "math_within_alignment": within_math,
-        "cross_to_all_non_math": float(np.mean(cross_all)),
-        "cross_to_kinesthetic_only": float(np.mean(cross_kine)),
-        "cross_to_non_kinesthetic": float(np.mean(cross_non_kine)),
+        "cross_to_all_non_math": float(_nps.mean(cross_all)),
+        "cross_to_kinesthetic_only": float(_nps.mean(cross_kine)),
+        "cross_to_non_kinesthetic": float(_nps.mean(cross_non_kine)),
         "ratio_with_kinesthetic": ratio_with_kine,
         "ratio_without_kinesthetic": ratio_no_kine,
         "ratio_change": ratio_with_kine - ratio_no_kine,

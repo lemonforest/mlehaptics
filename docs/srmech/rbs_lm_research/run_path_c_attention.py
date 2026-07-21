@@ -35,8 +35,7 @@ import json
 import sys
 import time
 from pathlib import Path
-
-import numpy as np
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
@@ -144,19 +143,19 @@ def main():
             "source_decoded": tokenizer.decode(src_new),
             "rbs_decoded": tokenizer.decode(rbs_new),
             "agreement": sum(agreement),
-            "avg_winner_position": float(np.mean([w[0] for w in prompt_winners])),
-            "avg_winner_sim": float(np.mean([w[1] for w in prompt_winners])),
+            "avg_winner_position": float(_nps.mean([w[0] for w in prompt_winners])),
+            "avg_winner_sim": float(_nps.mean([w[1] for w in prompt_winners])),
         })
         print(f"  '{prompt[:40]}...' → agreement {sum(agreement)}/20  "
-              f"(avg winner pos {np.mean([w[0] for w in prompt_winners]):.1f}, "
-              f"avg winner sim {np.mean([w[1] for w in prompt_winners]):+.4f})")
+              f"(avg winner pos {_nps.mean([w[0] for w in prompt_winners]):.1f}, "
+              f"avg winner sim {_nps.mean([w[1] for w in prompt_winners]):+.4f})")
         if sum(agreement) > 0:
             print(f"    src:  {tokenizer.decode(src_new)[:80]}")
             print(f"    RBS:  {tokenizer.decode(rbs_new)[:80]}")
 
     overall = n_agree / n_total
     print(f"\n  Overall: {n_agree}/{n_total} ({100*overall:.1f}%)")
-    print(f"  Per-token latency: {np.mean(latencies):.1f} ± {np.std(latencies):.1f} ms")
+    print(f"  Per-token latency: {_nps.mean(latencies):.1f} ± {_nps.std(latencies):.1f} ms")
 
     print(f"\n=== Bundle vs attention comparison ===")
     print(f"  {'Configuration':<60} {'mechanism':>14} {'agreement':>12}")
@@ -169,8 +168,8 @@ def main():
         "instrument_source": "R-RBS-LM-18 (Path C; 491 obs; D=8192)",
         "n_attend": N_ATTEND,
         "overall_agreement_pct": 100 * overall,
-        "latency_ms_mean": float(np.mean(latencies)),
-        "latency_ms_std": float(np.std(latencies)),
+        "latency_ms_mean": float(_nps.mean(latencies)),
+        "latency_ms_std": float(_nps.std(latencies)),
         "per_prompt_results": per_prompt_results,
         "comparison": {
             "path_c_bundle_491_pct": 3.3,

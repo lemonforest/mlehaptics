@@ -27,9 +27,7 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 from srmech.amsc.hdc import bundle, similarity
@@ -140,7 +138,7 @@ def build_eigenvectors(corpus_path, vocab_size=200, window=5):
         eigval = ev[k]
         # Top tokens by squared magnitude (preserves signed structure)
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:30]
+        top_idx = _nps.argsort(-mag_sq)[:30]
         top_tokens = [(vocab[i], float(eigvec[i])) for i in top_idx]
         ranked.append({"eigval": float(eigval), "eigvec": eigvec, "top_tokens": top_tokens})
     return ranked, vocab
@@ -167,7 +165,7 @@ def best_aligned_rank(probe_phrase, eigvectors_ranked, vocab):
             continue
         eigvec_bundle = hierarchical_bundle([mint(t) for t in top_M_tokens])
         sims.append(similarity(probe_bundle, eigvec_bundle))
-    best_rank = int(np.argmax(sims))
+    best_rank = int(_nps.argmax(sims))
     return best_rank, sims[best_rank], sims
 
 
@@ -236,8 +234,8 @@ def main():
         a_to_b_token_overlap.append(len(a_tokens & b_tokens))
         a_to_c_token_overlap.append(len(a_tokens & c_tokens))
 
-    avg_overlap_AB = np.mean(a_to_b_token_overlap)
-    avg_overlap_AC = np.mean(a_to_c_token_overlap)
+    avg_overlap_AB = _nps.mean(a_to_b_token_overlap)
+    avg_overlap_AC = _nps.mean(a_to_c_token_overlap)
     print(f"  Avg token-overlap A∩B at probe's best rank (same-family): {avg_overlap_AB:.1f} / 21")
     print(f"  Avg token-overlap A∩C at probe's best rank (cross-family): {avg_overlap_AC:.1f} / 21")
     print(f"  Rank distribution across probes: {rank_distrib}")

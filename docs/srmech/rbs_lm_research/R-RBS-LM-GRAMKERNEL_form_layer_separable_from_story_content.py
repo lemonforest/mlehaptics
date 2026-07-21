@@ -43,10 +43,10 @@ def main():
     print()
 
     # the scaffold ratio + sentence-length law
-    fr_ratio = np.mean([sum(1 for w in s if w in func) / len(s) for s in sents])
+    fr_ratio = _nps.mean([sum(1 for w in s if w in func) / len(s) for s in sents])
     lens = [len(s) for s in sents]
     print(f"(3) THE SCAFFOLD: {fr_ratio:.0%} of tokens are function words (the grammatical frame); {1-fr_ratio:.0%} carry content.")
-    print(f"    sentence-length law: mean {np.mean(lens):.1f}, median {int(np.median(lens))} words.\n")
+    print(f"    sentence-length law: mean {_nps.mean(lens):.1f}, median {int(_nps.median(lens))} words.\n")
 
     # soft POS from function-word context (which content words follow 'the/a' = noun-ish, follow 'to/will' = verb-ish)
     after = {"the": {}, "to": {}}
@@ -61,7 +61,7 @@ def main():
 
     print("VERDICT:")
     print(f"  • THE FORM LAYER IS REAL AND SEPARABLE: the corpus's grammar decomposes into a function-word SCAFFOLD ({fr_ratio:.0%}")
-    print(f"    of tokens), reusable sentence FRAMES (the top templates above), a sentence-length law (median {int(np.median(lens))}), and a soft")
+    print(f"    of tokens), reusable sentence FRAMES (the top templates above), a sentence-length law (median {int(_nps.median(lens))}), and a soft")
     print(f"    POS read from function-word context. These are pure FORM — independent of WHICH content fills them (F311).")
     print(f"  • THIS IS THE RBS-LM vs GEN-1 LLM DIFFERENCE (honest): a gen-1 LLM ENTANGLES content+form in one learned")
     print(f"    next-token distribution (attention over positions does grammar implicitly); RBS-LM SEPARATES them — the story")

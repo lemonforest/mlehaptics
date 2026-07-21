@@ -19,7 +19,7 @@ routing, F542); `signal_processing.mint_vector` + `hdc.bundle`/`similarity` (the
 Demotic slice (cross-check, not committed). No abs(); no CAD; no Workflow; no sub-agents.
 """
 import json
-import numpy as np
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, symmetric_eigendecompose
 from srmech import calculus, signal_processing as sp
@@ -80,8 +80,8 @@ def main():
         # recall: each true member should be more similar to the bundle than a non-member baseline
         sims_in = [hdc.similarity(bundled, m) for m in members]
         nonmem = [sp.mint_vector(f"nonmember:{k}", D=D) for k in range(50)]
-        thr = float(np.percentile([hdc.similarity(bundled, x) for x in nonmem], 95))   # 95th pct of non-members
-        recall = float(np.mean([1.0 if s > thr else 0.0 for s in sims_in]))
+        thr = float(_nps.percentile([hdc.similarity(bundled, x) for x in nonmem], 95))   # 95th pct of non-members
+        recall = float(_nps.mean([1.0 if s > thr else 0.0 for s in sims_in]))
         print(f"    {n:>18}{recall:>19.0%}")
     print(f"    -> recall COLLAPSES as N grows (superposition capacity): a single flattened HV cannot hold the shelf.")
     print(f"    That collapse is EXACTLY what the loop-bookshelf-of-tomes was invented to fix (F529/F532/F533).\n")

@@ -44,9 +44,7 @@ PARTITION ASSIGNMENT per corpus (primary foundational partition):
 import json
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 HERE = Path(__file__).parent
 RESULTS_80 = HERE / "R-RBS-LM-80_results.json"
 
@@ -131,13 +129,13 @@ def main():
             within_avg = None
         else:
             within = [get_alignment(a, b) for i, a in enumerate(members) for b in members[i+1:]]
-            within_avg = float(np.mean(within))
+            within_avg = float(_nps.mean(within))
         cross = []
         for a in members:
             for k in corpora_info:
                 if k == a or k in members: continue
                 cross.append(get_alignment(a, k))
-        cross_avg = float(np.mean(cross)) if cross else 0.0
+        cross_avg = float(_nps.mean(cross)) if cross else 0.0
         ratio = within_avg / cross_avg if (within_avg is not None and cross_avg > 0) else None
         wavg_str = f"{within_avg:+.4f}" if within_avg is not None else "  n/a "
         ratio_str = f"{ratio:.2f}" if ratio is not None else " n/a "
@@ -160,7 +158,7 @@ def main():
                 pairs = [get_alignment(a, b) for i, a in enumerate(members_a) for b in members_a[i+1:]]
             else:
                 pairs = [get_alignment(a, b) for a in members_a for b in members_b]
-            m = float(np.mean(pairs)) if pairs else 0.0
+            m = float(_nps.mean(pairs)) if pairs else 0.0
             inter_partition[f"{pa}|{pb}"] = m
             print(f"{m:>+13.4f}", end="")
         print()
@@ -185,8 +183,8 @@ def main():
     new_ratios = [s["ratio"] for s in partition_stats.values() if s["ratio"] is not None]
     old_ratios = [s.get("ratio") for s in subject_stats_80.values() if s.get("ratio") is not None]
 
-    new_mean_ratio = float(np.mean(new_ratios)) if new_ratios else 0.0
-    old_mean_ratio = float(np.mean(old_ratios)) if old_ratios else 0.0
+    new_mean_ratio = float(_nps.mean(new_ratios)) if new_ratios else 0.0
+    old_mean_ratio = float(_nps.mean(old_ratios)) if old_ratios else 0.0
 
     new_min = float(min(new_ratios)) if new_ratios else 0.0
     old_min = float(min(old_ratios)) if old_ratios else 0.0

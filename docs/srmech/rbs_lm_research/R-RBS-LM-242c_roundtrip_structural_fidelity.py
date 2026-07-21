@@ -106,9 +106,7 @@ import re
 from datetime import datetime, timezone
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 import srmech.spectral as spectral
 from srmech.amsc import cascade
@@ -363,7 +361,7 @@ def gen1_loss_for_render(name, source_full_vocab, source_state, source_per_sent,
     sim_clamped, sim_raw, spec, vocab = spectral_fidelity_vs_source(
         name, source_full_vocab, source_state, source_per_sent)
     edge_frac, n_edge, survived = heaviest_edge_survival(name, source_top_edges)
-    spectral_fidelity = float(np.mean([sim_clamped, edge_frac]))
+    spectral_fidelity = float(_nps.mean([sim_clamped, edge_frac]))
 
     text = render_text(name)
     inv = render_invention(vocab, supplied_universe, text)
@@ -428,12 +426,12 @@ def _encode_loss_block(render_stems, model_labels, source_full_vocab, source_sta
                  d["spectral_edge_preservation_b"]["heaviest_edge_survival_fraction"],
                  d["invention_c"]["invention_rate"], d["GEN1_LOSS"]))
     losses = [per_render[m]["GEN1_LOSS"] for m in model_labels]
-    mean_loss = float(np.mean(losses))
-    mean_cluster_pres = float(np.mean([per_render[m]["cluster_preservation_a"]["cluster_preservation"]
+    mean_loss = float(_nps.mean(losses))
+    mean_cluster_pres = float(_nps.mean([per_render[m]["cluster_preservation_a"]["cluster_preservation"]
                                        for m in model_labels]))
-    mean_spectral_fid = float(np.mean([per_render[m]["spectral_edge_preservation_b"]["spectral_fidelity"]
+    mean_spectral_fid = float(_nps.mean([per_render[m]["spectral_edge_preservation_b"]["spectral_fidelity"]
                                        for m in model_labels]))
-    mean_invention = float(np.mean([per_render[m]["invention_c"]["invention_rate"] for m in model_labels]))
+    mean_invention = float(_nps.mean([per_render[m]["invention_c"]["invention_rate"] for m in model_labels]))
     return {
         "render_stems": {m: ("%s.md" % stem_of[m]) for m in model_labels},
         "per_render_gen1_loss": per_render,
@@ -573,7 +571,7 @@ def _decide_verdict(struct, prose, contrast):
     SIGN. The loss is a SCAFFOLD (gen-1 training signal, NOT permanent) — that framing is recorded in
     the tier, never inflated to a trained result. Magnitude/variance via numpy; clamps via Class K."""
     all_losses = struct["_internal"]["losses"] + prose["_internal"]["losses"]
-    loss_var = float(np.var(all_losses))
+    loss_var = float(_nps.var(all_losses))
     uninformative = bool(loss_var < LOSS_VARIANCE_FLOOR)         # (N1)
 
     # (N2): both structural-drift components identically zero across ALL six renders?

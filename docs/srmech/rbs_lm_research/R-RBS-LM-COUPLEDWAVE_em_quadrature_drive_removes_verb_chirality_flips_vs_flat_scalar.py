@@ -27,7 +27,7 @@ no Workflow tool; no sub-agents.
 from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
 import re
-import numpy as np
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 from srmech import calculus
 
@@ -77,7 +77,7 @@ def main():
     # ---- (2) a real telling: verb-direction REVERSALS between consecutive verbs ----
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
-    N = len(vocab); phi = np.argsort(np.argsort(V[:, 1])) / N
+    N = len(vocab); phi = _nps.argsort(_nps.argsort(V[:, 1])) / N
     vset = set(vocab); nxt = {}; prevc = {}
     for x, y in zip(seq, seq[1:]):
         if y in vset:

@@ -15,7 +15,7 @@ Run: /tmp/verify_srmech_v070rc25/bin/python docs/srmech/rbs_lm_research/R-RBS-LM
 """
 import json
 from pathlib import Path
-import numpy as np
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 from srmech.amsc.hdc import bundle, bind, permute, similarity
 from srmech.signal_processing import mint_vector
@@ -72,7 +72,7 @@ def main():
 
     def avg(etype, key):
         v = [r[key] for r in rows if r["type"] == etype]
-        return float(np.mean(v))
+        return float(_nps.mean(v))
 
     print("\n=== per-error-type means ===")
     print(f"  {'type':>14} | {'byte_bag':>8} | {'byte_seq':>8} | {'glyph_bag':>9}")

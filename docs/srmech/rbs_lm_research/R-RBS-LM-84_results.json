@@ -45,9 +45,9 @@
     },
     "communication": {
       "n": 9,
-      "within": 0.1403703703703704,
-      "cross": 0.09773368606701939,
-      "ratio": 1.436253721916449
+      "within": 0.14037037037037037,
+      "cross": 0.0977336860670194,
+      "ratio": 1.4362537219164486
     },
     "structure_order": {
       "n": 8,
@@ -58,7 +58,7 @@
     "places_things": {
       "n": 8,
       "within": 0.10198979591836735,
-      "cross": 0.09255325814536342,
+      "cross": 0.0925532581453634,
       "ratio": 1.1019579208998023
     }
   },
@@ -66,17 +66,17 @@
     "math|math": 0.3602380952380952,
     "math|communication": 0.06826719576719577,
     "math|structure_order": 0.07482142857142857,
-    "math|places_things": 0.06659226190476189,
-    "communication|math": 0.06826719576719578,
-    "communication|communication": 0.1403703703703704,
+    "math|places_things": 0.0665922619047619,
+    "communication|math": 0.06826719576719577,
+    "communication|communication": 0.14037037037037037,
     "communication|structure_order": 0.1074537037037037,
     "communication|places_things": 0.09538029100529101,
     "structure_order|math": 0.07482142857142857,
     "structure_order|communication": 0.1074537037037037,
     "structure_order|structure_order": 0.11857993197278913,
     "structure_order|places_things": 0.09586309523809523,
-    "places_things|math": 0.06659226190476192,
-    "places_things|communication": 0.095380291005291,
+    "places_things|math": 0.0665922619047619,
+    "places_things|communication": 0.09538029100529101,
     "places_things|structure_order": 0.09586309523809523,
     "places_things|places_things": 0.10198979591836735
   },

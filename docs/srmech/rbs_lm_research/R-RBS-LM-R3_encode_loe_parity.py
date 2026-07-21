@@ -16,7 +16,7 @@ Run: /tmp/verify_srmech_v070rc25/bin/python docs/srmech/rbs_lm_research/R-RBS-LM
 """
 import json, re, random
 from pathlib import Path
-import numpy as np
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 from srmech.signal_processing import encode_loe_content
 from srmech.amsc.hdc import similarity
@@ -62,7 +62,7 @@ def main():
     for _ in range(100):
         a, b = rng.sample(paras, 2)
         sims.append(similarity(encode_loe_content(a, D=D), encode_loe_content(b, D=D)))
-    m = float(np.mean(sims)); s = float(np.std(sims)); mx = float(max(sims))
+    m = float(_nps.mean(sims)); s = float(_nps.std(sims)); mx = float(max(sims))
     print(f"  baseline (paragraph pairs): mean={m:+.4f} std={s:.4f} max={mx:+.4f}")
 
     def probe_z(p):
@@ -80,7 +80,7 @@ def main():
         sim, z = probe_z(p); neg.append(z)
         print(f"    z={z:+.2f}  sim={sim:+.4f}  {p}")
 
-    fw_peak, fw_mean = max(fw), float(np.mean(fw))
+    fw_peak, fw_mean = max(fw), float(_nps.mean(fw))
     neg_peak = max(neg)
     print(f"\n  encode_loe_content: framework peak z={fw_peak:+.2f} (mean {fw_mean:+.2f}) | negative peak z={neg_peak:+.2f}")
     print(f"  hand-rolled K1 (F339):       framework peak z=+2.59             | negative peak z=-0.27")

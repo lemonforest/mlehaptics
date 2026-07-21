@@ -17,9 +17,7 @@ family.
 import json
 import sys
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent / "python"))
 sys.path.insert(0, str(HERE))
@@ -109,7 +107,7 @@ def run_instrument(label, instrument_path, phrase_corpus, probes, vocab_table, D
         print(f"    n probes with expected in top-quartile: "
               f"{n_signal}/{len(rank_results)}")
 
-    avg_top1 = float(np.mean(top1_sims))
+    avg_top1 = float(_nps.mean(top1_sims))
     print(f"    avg top-1 sim: {avg_top1:+.4f} "
           f"(vs baseline {baseline['mean']:+.4f}; "
           f"{'SIGNAL' if avg_top1 > baseline['mean'] + 2 * baseline['std'] else 'no signal'})")

@@ -40,9 +40,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1289: numpy-free (pure-statistics tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 
@@ -129,7 +127,7 @@ def build_kernel(text):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_PER_EIGVEC]
+        top_idx = _nps.argsort(-mag_sq)[:M_PER_EIGVEC]
         top_tokens = [vocab[i] for i in top_idx]
         table.append({"top_tokens": top_tokens, "token_set": set(top_tokens)})
     return table
@@ -138,7 +136,7 @@ def build_kernel(text):
 def sim_cosine(a, b):
     sa, sb = a["token_set"], b["token_set"]
     if not sa or not sb: return 0.0
-    return float(len(sa & sb) / np.sqrt(len(sa) * len(sb)))
+    return float(len(sa & sb) / _nps.sqrt(len(sa) * len(sb)))
 
 
 def find_alignment_score(table_a, table_b):
@@ -149,7 +147,7 @@ def find_alignment_score(table_a, table_b):
         if not cands: break
         bj, bs = max(cands, key=lambda x: x[1])
         used.add(bj); sims.append(bs)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def load_music_split_half():
@@ -269,18 +267,18 @@ def main():
 
     print(f"\n=== Within/cross ratio analysis ===")
     print(f"  Within-music (split-half h1↔h2):              {within_music:+.4f}" if within_music is not None else "  Within-music: NOT COMPUTABLE")
-    print(f"  Cross to ALL non-music (n={len(cross_all)}):           mean = {float(np.mean(cross_all)):+.4f}")
-    print(f"  Cross to aesthetic (n={len(cross_aesthetic)}):         mean = {float(np.mean(cross_aesthetic)):+.4f}" if cross_aesthetic else "  Cross to aesthetic: n=0")
-    print(f"  Cross to math (F104 irrep) (n={len(cross_math)}):  mean = {float(np.mean(cross_math)):+.4f}" if cross_math else "  Cross to math: n=0")
-    print(f"  Cross to baseline-only (n={len(cross_baseline_only)}):   mean = {float(np.mean(cross_baseline_only)):+.4f}" if cross_baseline_only else "  Cross to baseline-only: n=0")
+    print(f"  Cross to ALL non-music (n={len(cross_all)}):           mean = {float(_nps.mean(cross_all)):+.4f}")
+    print(f"  Cross to aesthetic (n={len(cross_aesthetic)}):         mean = {float(_nps.mean(cross_aesthetic)):+.4f}" if cross_aesthetic else "  Cross to aesthetic: n=0")
+    print(f"  Cross to math (F104 irrep) (n={len(cross_math)}):  mean = {float(_nps.mean(cross_math)):+.4f}" if cross_math else "  Cross to math: n=0")
+    print(f"  Cross to baseline-only (n={len(cross_baseline_only)}):   mean = {float(_nps.mean(cross_baseline_only)):+.4f}" if cross_baseline_only else "  Cross to baseline-only: n=0")
 
     if within_music is None or not cross_all:
         print("\n  ABORT: insufficient corpora for ratio calculation")
         return
 
-    ratio_full = within_music / float(np.mean(cross_all))
-    ratio_baseline_only = (within_music / float(np.mean(cross_baseline_only))) if cross_baseline_only else None
-    ratio_minus_math = (within_music / float(np.mean(cross_math))) if cross_math else None
+    ratio_full = within_music / float(_nps.mean(cross_all))
+    ratio_baseline_only = (within_music / float(_nps.mean(cross_baseline_only))) if cross_baseline_only else None
+    ratio_minus_math = (within_music / float(_nps.mean(cross_math))) if cross_math else None
     ratio_change = (ratio_full - ratio_baseline_only) if ratio_baseline_only is not None else None
 
     print(f"\n  ratio_with_composing_substrates (within / cross_all): {ratio_full:+.4f}")
@@ -328,10 +326,10 @@ def main():
         "partition": "R-RBS-LM-109",
         "scope": "REDUCED — 1 music corpus split-half; no Tyndall/Helmholtz/Rameau/Hawkins/Burke/Kant proper",
         "music_within_alignment": within_music,
-        "cross_to_all_non_music": float(np.mean(cross_all)) if cross_all else None,
-        "cross_to_aesthetic_only": float(np.mean(cross_aesthetic)) if cross_aesthetic else None,
-        "cross_to_math_only": float(np.mean(cross_math)) if cross_math else None,
-        "cross_to_baseline_only": float(np.mean(cross_baseline_only)) if cross_baseline_only else None,
+        "cross_to_all_non_music": float(_nps.mean(cross_all)) if cross_all else None,
+        "cross_to_aesthetic_only": float(_nps.mean(cross_aesthetic)) if cross_aesthetic else None,
+        "cross_to_math_only": float(_nps.mean(cross_math)) if cross_math else None,
+        "cross_to_baseline_only": float(_nps.mean(cross_baseline_only)) if cross_baseline_only else None,
         "ratio_with_composing_substrates": ratio_full,
         "ratio_baseline_only": ratio_baseline_only,
         "ratio_minus_math": ratio_minus_math,
