@@ -3458,6 +3458,8 @@ A swept search for `content_id|stable|route|bucket|to_int|digest_int|seed_from|m
 
 ## §110 — bit-exact PCG64 / MT for numpy-free RNG: two narrow asks, NOT an arithmetic-in-TOML feature
 
+**Filed as [#1460](https://github.com/lemonforest/mlehaptics/issues/1460)** (goal: Siona composes the TOML cascade; composes #1461 + #1462).
+
 Surfaced by the numpy-migration Tier 3 (F1290/F1291). 184 research files use `np.random.default_rng` and cannot drop numpy without changing their numbers, because PCG64 ≠ Mersenne Twister. A **bit-exact PCG64 op** makes that a rename with zero value change. Prototyped in `R-RBS-LM-PCG64_*.py`: the step is `state = state*mult + inc (mod 2^128)` then an XSL-RR permutation — MULTIPLY/ADD/XOR/SHIFT/ROTATE, all integer, squarely Class I + Class K.
 
 **The user asked whether the arithmetic should go in the make_class TOML, or become a srmech ask. Answer: a srmech ask, and a small one — the TOML is the wrong layer.** srmech ALREADY ships the arithmetic on the Class-I surface. Verified on rc299:
@@ -3477,6 +3479,8 @@ With (1) + (2), a `pcg64_step` cascade is declarable and `make_class` exposes a 
 
 ## §111 — general CDRegister is address-complete but drops the SedenionRegister's reversible-working / EC methods
 
+**Filed as [#1461](https://github.com/lemonforest/mlehaptics/issues/1461)** (goal: Siona composes the TOML cascade; composes #1460 + #1462).
+
 Audited on rc299 (F1296). The general `cascade.cd_register(dim, ...)` is **address-complete at every rung 2→256**: `write` / `read` / `navmap` / `navigate` / `is_navigable` / `materialize` / `slots` / `carry_block` / `working_block` all work (round-trip 100 %, F1285). But compared to the dim-16 `sedenion_register`, the general register is **missing four methods**:
 
 | method (on SedenionRegister, absent on CDRegister) | what it does |
@@ -3495,6 +3499,8 @@ And a second, subtler gap: **`working_block` is frozen at `(0..7)` at every dim*
 Neither blocks addressing (which is complete). They block the register being a drop-in for the *reversible-coupling + error-corrected* role the SedenionRegister filled.
 
 ## §112 — asking Siona for tooling: two gaps surfaced by grounding the PCG64 cascade (F1297)
+
+**Filed as [#1462](https://github.com/lemonforest/mlehaptics/issues/1462)** (goal: Siona composes the TOML cascade — the direct enabler; composes #1460 + #1461).
 
 Siona (`srmech.rbs_lm`) can answer "which op should I use" by grounding a plain utterance against the tool_schema (F1008, 78 % top-1). Running it on the PCG64 cascade (F1297) exposed two upstream-worthy gaps:
 
