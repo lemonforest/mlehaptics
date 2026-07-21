@@ -93,6 +93,54 @@ int main(void)
     st = srmech_klein4_cooccurrence_fold(codes, 1u, oob_tok, 2u, 1u, DIM, bad_out);
     check(st == SRMECH_ERR_BAD_INPUT, "out-of-range token index -> BAD_INPUT");
 
+    /* ── §102 / F1265 (rc295): the NON-COLLAPSING read ─────────────────── */
+
+    /* code1's accumulator is 2*code0 + 2*code2 (n=4), with code0 = {0,1,2,3}
+     * and code2 = {2,2,2,2}, giving per-coordinate marginals
+     *   coord0: c0=0 c1=2 · coord1: c0=2 c1=2 ·
+     *   coord2: c0=0 c1=4 · coord3: c0=2 c1=4
+     * and score(s) = a0(s) * a1(s), a0 = c0 if (s&1) else n-c0,
+     * a1 = c1 if ((s>>1)&1) else n-c1. Hand-computed below. */
+    uint64_t scores[4u * DIM];
+    st = srmech_klein4_bundle_sector_scores(&out_accs[1u * STRIDE], scores, DIM);
+    uint64_t exp_scores[4u * DIM] = {
+        8u, 0u,  8u, 0u,   /* coord 0: e0=4 e1=2 -> {4*2, 0*2, 4*2, 0*2} */
+        4u, 4u,  4u, 4u,   /* coord 1: e0=2 e1=2 -> all 2*2 */
+        0u, 0u, 16u, 0u,   /* coord 2: e0=4 e1=0 -> {0, 0, 4*4, 0} */
+        0u, 0u,  8u, 8u,   /* coord 3: e0=2 e1=0 -> {0, 0, 2*4, 2*4} */
+    };
+    check(st == SRMECH_OK
+          && memcmp(scores, exp_scores, sizeof exp_scores) == 0,
+          "sector_scores(code1 acc) == hand-computed agreement products");
+
+    /* FOUR scores per coordinate, not one symbol. resolve() emitted {0,0,2,2}
+     * for this accumulator — but coord 0 is a TIE between sector 0 and sector 2
+     * (8 each) and coord 1 is a four-way tie, facts the collapsed read has no
+     * way to express. That is exactly the margin structure resolve() discards. */
+    check(scores[0] == scores[2] && scores[1] == scores[3],
+          "coord 0's tie between sectors 0 and 2 is VISIBLE in the soft read");
+    check(scores[4] == scores[5] && scores[5] == scores[6]
+          && scores[6] == scores[7],
+          "coord 1's four-way tie is VISIBLE in the soft read");
+
+    /* A 1-count exceeding n is a corrupt store: reject, never wrap. */
+    uint32_t bad_acc[STRIDE] = { 3u, 99u, 0u, 0u, 0u, 1u, 0u, 0u, 0u };
+    st = srmech_klein4_bundle_sector_scores(bad_acc, scores, DIM);
+    check(st == SRMECH_ERR_BAD_INPUT, "1-count > n -> BAD_INPUT (no wrap)");
+
+    /* uint64 headroom: n = 100000 folds put the product past uint32. */
+    uint32_t big_acc[3] = { 100000u, 100000u, 100000u };   /* dim 1 */
+    uint64_t big_scores[4];
+    st = srmech_klein4_bundle_sector_scores(big_acc, big_scores, 1u);
+    check(st == SRMECH_OK && big_scores[3] == 10000000000ull
+          && big_scores[3] > 4294967295ull,
+          "n=100000 -> score 1e10 exceeds uint32 without wrapping");
+
+    /* (No NULL-arg case here: asserts are live in this build, so a NULL acc
+     * aborts on the assert before the SRMECH_ERR_NULL_ARG return is reachable.
+     * That is the intended JPL contract — assert for a programmer error, a
+     * status code for a data error. The status path is covered from Python.) */
+
     printf("== %d passed, %d failed ==\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;
 }

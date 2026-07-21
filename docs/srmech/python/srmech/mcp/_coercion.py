@@ -1165,6 +1165,25 @@ def serialise_native(value: Any) -> Any:
     from srmech.amsc.vec import Vec as _Vec
     if isinstance(value, _Vec):
         return serialise_native(value.tolist())
+    # stdlib array.array -> flat list (rc295). The §50 accumulator family is the
+    # caller: klein4_bundle_accumulate returns array('I') and, since rc295,
+    # klein4_bundle_sector_scores returns array('Q'). Neither had a branch here,
+    # so both fell through to _json_fallback's last-resort ``repr`` and crossed
+    # the wire as the STRING "array('I', [...])".
+    #
+    # That contradicted a contract already WRITTEN DOWN in two places. The
+    # inbound _to_uint32_acc docstring says outright that its input is "the
+    # cross-JSON wire form, matching serialise_native's array('I') -> list[int]"
+    # — describing a branch that did not exist — and _render_result promises the
+    # two halves are "round-trippable". A repr string does not round-trip, so
+    # the accumulator family was the one place both claims were false. A flat
+    # list closes it, and is exactly what the inbound coercer expects back.
+    #
+    # Placed before the dict/sequence branches: array.array is not a Sequence
+    # subclass, so it would otherwise reach the fall-through return unchanged.
+    from array import array as _array
+    if isinstance(value, _array):
+        return value.tolist()
     # dict -> recurse (a bytes key serialises to its base64 string)
     if isinstance(value, dict):
         out: Dict[Any, Any] = {}

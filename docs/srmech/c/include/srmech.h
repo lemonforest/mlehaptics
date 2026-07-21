@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc294"
-#define SRMECH_VERSION       "0.9.0rc294"
+#define SRMECH_VERSION_PRE   "rc295"
+#define SRMECH_VERSION       "0.9.0rc295"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3508,6 +3508,27 @@ srmech_status_t srmech_klein4_bundle_accumulate(uint32_t      *acc,
 srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
                                              uint8_t        *out,
                                              size_t          dim);
+
+/* klein4_bundle_sector_scores(acc, out, dim) (§102 / F1265; rc295): the
+ * NON-COLLAPSING read of the same (1 + 2*dim) accumulator _resolve collapses.
+ * _resolve emits ONE symbol per coordinate and throws the margins away; this
+ * emits ALL FOUR sector scores per coordinate, so a caller RANKS instead of
+ * matching. out is 4*dim uint64, row-major: out[4*i + s] is coordinate i's
+ * score for sector s, s in {0,1,2,3} with bit0 = s & 1 and bit1 = (s >> 1) & 1.
+ *
+ * The score is the agreement PRODUCT a0(s) * a1(s), where a0 = c0 if bit0 else
+ * n - c0 and a1 = c1 if bit1 else n - c1 — i.e. n^2 * P(sector s) under
+ * per-coordinate bit independence, which is the maximum-likelihood estimate of
+ * the joint cell the marginals can support. Ranking is invariant to the
+ * 1/n^2, so the estimate is kept in EXACT INTEGERS and never divided.
+ *
+ * uint64 out (not uint32) is load-bearing: a0 * a1 reaches n^2, which overflows
+ * uint32 at n > 65535 folded vectors, and the accumulator itself has no such
+ * cap. A malformed accumulator (a bit count exceeding n) -> SRMECH_ERR_BAD_INPUT
+ * rather than a silent wrap. Additive symbol — no ABI bump. */
+srmech_status_t srmech_klein4_bundle_sector_scores(const uint32_t *acc,
+                                                   uint64_t       *out,
+                                                   size_t          dim);
 
 /* klein4_compose(parts, n, D, acc, scratch, out): the scale-invariant role-
  * filler compositor (UPSTREAM §60 / F900; rc18) —

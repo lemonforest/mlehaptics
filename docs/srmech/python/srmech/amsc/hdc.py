@@ -2064,6 +2064,80 @@ def klein4_bundle_resolve(acc):
     return HV(out, sectors=4)
 
 
+def klein4_bundle_sector_scores(acc):
+    """The **non-collapsing** read of a :func:`klein4_bundle_accumulate`
+    accumulator — all four sector scores per coordinate (§102 / F1265).
+
+    :func:`klein4_bundle_resolve` emits ONE symbol per coordinate and throws the
+    margins away: it is a strict per-bit majority, so a coordinate where a sector
+    won 51/49 and one where it won 100/0 resolve identically. This returns the
+    margins instead. Per coordinate you get **four** integers, not one symbol, so
+    a caller **ranks** candidates where the resolved read could only **match**
+    one. That is a READ change over storage the accumulator already pays for —
+    nothing is stored differently and no existing store needs rebuilding.
+
+    Returns an :class:`array.array` of type ``'Q'`` (uint64), length ``4 * D``,
+    row-major: ``out[4 * i + s]`` scores sector ``s`` at coordinate ``i``, where
+    ``bit0 = s & 1`` and ``bit1 = (s >> 1) & 1``.
+
+    The score is the agreement product ``a0(s) * a1(s)`` — ``a0 = c0`` if
+    ``bit0`` else ``n - c0``, ``a1 = c1`` if ``bit1`` else ``n - c1``. Under
+    per-coordinate bit independence that is ``n**2 * P(sector s)``, the
+    maximum-likelihood estimate of the joint cell the marginals can support.
+    Ranking is invariant to the ``1/n**2``, so it is kept in **exact integers**:
+    no division, no float. uint64 is load-bearing — ``a0 * a1`` reaches ``n**2``,
+    which leaves uint32 at ``n > 65535``, and the accumulator has no such cap.
+
+    To score a candidate against a key-bound store, index by the unbind XOR::
+
+        tbl = klein4_bundle_sector_scores(acc)
+        score = sum(tbl[4 * i + (key[i] ^ cand[i])] for i in range(D))
+
+    which is the soft peer of ``klein4_match_count(klein4_unbundle(b, key),
+    cand)``. Measured against that hard read on the native path (task ``#929``
+    protocol, 400 probes, D=4096): recall@1 0.335 → 0.800 at N=512 and 0.060 →
+    0.255 at N=1200. The lift is **dimension-specific** — at D=1024 the same
+    loads give 0.075 → 0.165 and 0.0075 → 0.0325. A malformed accumulator (a bit
+    count exceeding ``n``) raises rather than wrapping. Native-dispatched when
+    present; pure-Python is the complete alternative.
+    """
+    if acc is None or len(acc) < 3 or (len(acc) % 2) == 0:
+        raise ValueError(
+            "hdc.klein4_bundle_sector_scores: acc must be a (1 + 2*D) uint32 "
+            "accumulator"
+        )
+    d = (len(acc) - 1) // 2
+    if _native.HAS_NATIVE and hasattr(
+        _native.LIB, "srmech_klein4_bundle_sector_scores"
+    ):
+        out = (ctypes.c_uint64 * (4 * d))()
+        acc_c = (ctypes.c_uint32 * len(acc)).from_buffer_copy(acc)
+        rc = _native.LIB.srmech_klein4_bundle_sector_scores(acc_c, out, d)
+        if rc != _native.SRMECH_OK:
+            raise ValueError(
+                f"srmech_klein4_bundle_sector_scores returned status {rc}"
+            )
+        return array("Q", bytes(out))
+    # Pure-Python alternative (no C): the per-coordinate agreement product.
+    n = acc[0]
+    out = array("Q", bytes(8 * 4 * d))
+    for i in range(d):
+        c0 = acc[1 + i]
+        c1 = acc[1 + d + i]
+        if c0 > n or c1 > n:
+            raise ValueError(
+                "hdc.klein4_bundle_sector_scores: malformed accumulator — a bit "
+                f"1-count ({max(c0, c1)}) exceeds n ({n}) at coordinate {i}"
+            )
+        e0 = n - c0                     # folds whose bit 0 was 0
+        e1 = n - c1                     # folds whose bit 1 was 0
+        out[4 * i + 0] = e0 * e1        # s=0: bit0=0 bit1=0
+        out[4 * i + 1] = c0 * e1        # s=1: bit0=1 bit1=0
+        out[4 * i + 2] = e0 * c1        # s=2: bit0=0 bit1=1
+        out[4 * i + 3] = c0 * c1        # s=3: bit0=1 bit1=1
+    return out
+
+
 def _cooc_token_seed(token, base_seed):
     """Deterministic 32-bit seed for a token's atomic Klein-4 code — FNV-1a over the
     token's UTF-8 bytes, mixed with ``base_seed``. Stable across runs and streams so
@@ -3225,6 +3299,7 @@ __all__ = [
     "klein4_match_count",
     "klein4_bundle_accumulate",
     "klein4_bundle_resolve",
+    "klein4_bundle_sector_scores",
     "klein4_phase_key",
     "klein4_phase_bind",
     "klein4_chunk_bundle",

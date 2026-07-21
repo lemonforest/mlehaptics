@@ -669,6 +669,54 @@ srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
     return SRMECH_OK;
 }
 
+/* klein4_bundle_sector_scores(acc, out, dim): the NON-COLLAPSING read of the
+ * §50 accumulator (§102 / F1265; rc295). srmech_klein4_bundle_resolve emits ONE
+ * symbol per coordinate — a strict per-bit majority — and discards how close the
+ * losing sectors were. This emits ALL FOUR sector scores per coordinate, so the
+ * caller RANKS candidates instead of MATCHING one collapsed vector. out is
+ * 4*dim uint64, row-major: out[4*i + s] scores sector s at coordinate i, with
+ * bit0 = s & 1 and bit1 = (s >> 1) & 1.
+ *
+ * score(s) = a0(s) * a1(s), the agreement product: a0 = c0 if bit0 else n - c0,
+ * a1 = c1 if bit1 else n - c1. Under per-coordinate bit independence this is
+ * n^2 * P(sector s) — the ML estimate of the joint cell the marginals support.
+ * Ranking is invariant to the 1/n^2, so it stays EXACT INTEGER: no division, no
+ * float, and no abs() (every term is a non-negative count, so no sign boundary
+ * arises; one would be Class-K pin-slot composed with Class-C, never abs()).
+ *
+ * uint64 out is load-bearing — a0 * a1 reaches n^2, past uint32 at n > 65535,
+ * and the accumulator carries no such cap. Class M (HDC superposition read). */
+srmech_status_t srmech_klein4_bundle_sector_scores(const uint32_t *acc,
+                                                   uint64_t       *out,
+                                                   size_t          dim)
+{
+    assert(acc != NULL && out != NULL);
+    assert(dim > 0u);
+    if (acc == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint64_t n = (uint64_t)acc[0];
+    for (size_t i = 0; i < dim; i++) {
+        uint64_t c0 = (uint64_t)acc[1u + i];
+        uint64_t c1 = (uint64_t)acc[1u + dim + i];
+        /* A 1-count can never exceed the number of folded vectors; a store that
+         * says otherwise is malformed, and must not wrap silently. */
+        if (c0 > n || c1 > n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        uint64_t d0 = n - c0;   /* folds whose bit 0 was 0 */
+        uint64_t d1 = n - c1;   /* folds whose bit 1 was 0 */
+        out[(i * 4u) + 0u] = d0 * d1;   /* s=0: bit0=0 bit1=0 */
+        out[(i * 4u) + 1u] = c0 * d1;   /* s=1: bit0=1 bit1=0 */
+        out[(i * 4u) + 2u] = d0 * c1;   /* s=2: bit0=0 bit1=1 */
+        out[(i * 4u) + 3u] = c0 * c1;   /* s=3: bit0=1 bit1=1 */
+    }
+    return SRMECH_OK;
+}
+
 /* The position-namespaced seed base for klein4_compose / klein4_encode_bytes
  * role keys (byte-identical to the Python _KLEIN4_POS_SEED_BASE): 0x10000, so
  * pos-key seeds never collide with the 256-byte alphabet (seeds 0..255). */

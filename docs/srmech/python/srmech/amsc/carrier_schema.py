@@ -326,6 +326,30 @@ def _token_re(name: str) -> "re.Pattern[str]":
         r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])")
 
 
+#: An ``array.array`` typecode as it appears in a ToolEntry type string —
+#: ``array('I')``, ``array('Q')``, ``array('d')``. The quoted character is a
+#: STDLIB TYPECODE, not a carrier name, but the identifier-boundary lookarounds
+#: in :func:`_token_re` treat a quote as a boundary, so a bare single-letter
+#: carrier name matches straight through the quotes.
+#:
+#: rc295 tripped this for real: ``hdc.klein4_bundle_sector_scores`` returns
+#: ``array('Q')`` (uint64 — the agreement product reaches n², past uint32), and
+#: the scan read that ``'Q'`` as srmech's exact-rational **Q** carrier and filed
+#: the op under ``Q.produces``. It produces no ``Q``. Before rc295 no registered
+#: ToolEntry type carried ``array('Q')``, so the hazard was latent, not benign —
+#: ``I`` is the only other typecode in the corpus and no carrier is named ``I``.
+#: Stripping the typecode before the scan is a no-op on every pre-rc295 entry.
+_ARRAY_TYPECODE_RE = re.compile(r"array\((['\"])[A-Za-z](['\"])\)")
+
+
+def _strip_array_typecodes(type_str: str) -> str:
+    """Blank out ``array('X')`` typecodes so the carrier scan cannot read a
+    stdlib typecode letter as a single-letter carrier name (see
+    :data:`_ARRAY_TYPECODE_RE`). The ``array`` token itself is kept — it is not
+    a carrier name, so keeping it costs nothing and keeps the string legible."""
+    return _ARRAY_TYPECODE_RE.sub("array", type_str)
+
+
 def _ladder_slot_carriers(slot: Dict[str, Any], *, produces: bool) -> List[str]:
     """The carrier names a rc120 contract SLOT touches. A non-ladder slot
     contributes nothing here (the ToolEntry token scan covers it); a ladder
@@ -368,8 +392,10 @@ def _derive_ops_index() -> Dict[str, Dict[str, List[str]]]:
     patterns = {name: _token_re(name) for name in _CARRIERS}
 
     for tool in get_tool_schema().tools:
-        param_types = " ".join(p.type for p in tool.parameters)
-        ret_type = tool.returns.type if tool.returns is not None else ""
+        param_types = _strip_array_typecodes(
+            " ".join(p.type for p in tool.parameters))
+        ret_type = _strip_array_typecodes(
+            tool.returns.type if tool.returns is not None else "")
         for name, pat in patterns.items():
             if param_types and pat.search(param_types):
                 consumes[name].add(tool.name)

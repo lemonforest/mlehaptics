@@ -3793,6 +3793,25 @@ def _register_primitive_class_tools() -> None:
             returns=R("HV", "uint8 {0,1,2,3}"),
         ),
         ToolEntry(
+            name="srmech.amsc.hdc.klein4_bundle_sector_scores", owner="srmech",
+            category="hdc",
+            summary="NON-COLLAPSING read of a klein4_bundle_accumulate "
+                    "accumulator (§102/F1265): all FOUR sector scores per "
+                    "coordinate instead of the one symbol klein4_bundle_resolve "
+                    "collapses to, so a caller RANKS where the resolved read "
+                    "could only MATCH. score(s) = a0(s)*a1(s), the agreement "
+                    "product (= n^2 * P(s) under bit independence, the ML "
+                    "estimate the marginals support) — exact integers, no "
+                    "division. uint64 because a0*a1 reaches n^2. A READ change "
+                    "over storage already paid for: no store is rebuilt. "
+                    "Native-dispatched.",
+            parameters=(P("acc", "array('I')", True,
+                          "a (1+2*D) uint32 accumulator"),),
+            returns=R("array('Q')",
+                      "4*D uint64, row-major: out[4*i + s] scores sector s at "
+                      "coordinate i (bit0 = s & 1, bit1 = (s >> 1) & 1)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.hdc.cooccurrence_fold", owner="srmech",
             category="hdc",
             summary="Holographic co-occurrence store (UPSTREAM §50) — the DUAL of "
