@@ -17,7 +17,7 @@ def _dig(s):
     h = fmt.sha256_bytes(s.encode()); return bytes.fromhex(h) if isinstance(h, str) else h
 
 # byte/glyph core: content value vectors
-def byte_k4(b): return hdc.klein4_random(D, seed=b)
+def byte_k4(b): return hdc.klein4_expand(D, b)
 def word_k4(w):
     return cs.bundle_odd([hdc.klein4_bind(byte_k4(b), cs.pos_key(i)) for i, b in enumerate(w.encode("utf-8"))])
 
@@ -38,7 +38,7 @@ def key_k4(window):
     """addressing key = a Klein-4 vector seeded by the octonion context-product (exact)."""
     C = ctx_oct(window)
     s = ",".join(f"{f.numerator}/{f.denominator}" for f in (Fraction(x) for x in C))
-    return hdc.klein4_random(D, seed=int.from_bytes(_dig(s)[:8], "big"))
+    return hdc.klein4_expand(D, int.from_bytes(_dig(s)[:8], 'big'))
 
 # --- additive baseline (F865): position-keyed context bundle (crosstalks) ---
 WPOS = 100

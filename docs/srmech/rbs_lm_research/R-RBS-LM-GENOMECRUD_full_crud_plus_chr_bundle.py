@@ -16,8 +16,8 @@ import srmech
 from srmech.amsc import genome as g, hdc
 
 DIM = 64
-ONE = hdc.klein4_random(DIM, seed=0)
-def Lv(s, n): return [hdc.klein4_random(DIM, seed=s * 100 + i) for i in range(n)]
+ONE = hdc.klein4_expand(DIM, 0)
+def Lv(s, n): return [hdc.klein4_expand(DIM, s * 100 + i) for i in range(n)]
 
 
 def main():

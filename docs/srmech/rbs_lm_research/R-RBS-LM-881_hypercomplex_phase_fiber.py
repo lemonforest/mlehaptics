@@ -23,7 +23,7 @@ def word_oct(w):
 def ctx_key(win):
     p = word_oct(win[0])
     for w in win[1:]: p = tuple(cascade.cd_mult(p, word_oct(w)))
-    return hdc.klein4_random(D, seed=int.from_bytes(_dig(",".join(str(x) for x in p))[:8], "big"))
+    return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))
 def key_at(win, pos, axes):               # axes=1 -> F878 scalar phase; 3 -> QDFT-like; 7 -> ODFT-like
     k = ctx_key(win)
     for a in range(axes):
@@ -31,7 +31,7 @@ def key_at(win, pos, axes):               # axes=1 -> F878 scalar phase; 3 -> QD
     return k
 WV = {}
 def word_k4(w):
-    return cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))
+    return cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))
                           for i, b in enumerate(w.encode("utf-8"))])
 def wv(w):
     if w not in WV: WV[w] = word_k4(w)

@@ -27,7 +27,7 @@ from srmech.amsc import genome as g, hdc
 from srmech.amsc.format import sha256_raw
 
 DIM = 64
-ONE = hdc.klein4_random(DIM, seed=0)
+ONE = hdc.klein4_expand(DIM, 0)
 
 # the 7 ISWA classes (attested to the Wikipedia fetch) + a couple of documented featural sub-parts each (the
 # leaves). leaf seed = Class-A content-address of "class/subpart" (reproducible; attested to the name, not magic).
@@ -45,7 +45,7 @@ def _seed(text):                       # Class-A: content-address the name -> a 
     return int.from_bytes(sha256_raw(text.encode())[:4], "big")
 
 def _leaves(cls, parts):               # one leaf per featural sub-part, seeded from "cls/part"
-    return [hdc.klein4_random(DIM, seed=_seed(f"{cls}/{p}")) for p in parts]
+    return [hdc.klein4_expand(DIM, _seed(f'{cls}/{p}')) for p in parts]
 
 
 def main():
@@ -62,7 +62,7 @@ def main():
     print(f"    7 classes == the framework heptad (the 7 in 1:3:7:3): {len(back) == 7}")
 
     # (2) structural signature: the inter-class Klein-4 similarity (are the classes distinct featural axes?)
-    anchors = {cls: hdc.klein4_random(DIM, seed=_seed(cls)) for cls in ISWA}
+    anchors = {cls: hdc.klein4_expand(DIM, _seed(cls)) for cls in ISWA}
     names = list(ISWA)
     offdiag = []
     for i in range(len(names)):

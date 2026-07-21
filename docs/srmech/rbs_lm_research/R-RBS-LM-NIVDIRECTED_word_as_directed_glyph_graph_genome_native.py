@@ -26,7 +26,7 @@ from srmech.amsc import hdc
 GLYPHS = "abcdefghijklmnopqrstuvwxyz'- "
 GI = {c: i for i, c in enumerate(GLYPHS)}
 LEAF = 64
-COUPLE = hdc.klein4_random(LEAF, seed=1080)          # canonical leaf_dim coupling vector (the sandroing/UNESCO 00073 seed)
+COUPLE = hdc.klein4_expand(LEAF, 1080)          # canonical leaf_dim coupling vector (the sandroing/UNESCO 00073 seed)
 
 
 def word_to_kernel(w, window=1):

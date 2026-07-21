@@ -9,8 +9,8 @@ from srmech.rbs_lm import substrate as S, RBSLMInferenceSubstrate
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
 # --- Build 1: chunk by source ---
-vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}
-ROLE=hdc.klein4_random(D, seed=4242); chain=['a','b','c','d','e']; edges=list(zip(chain,chain[1:]))
+vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000 + i) for i,t in enumerate(vocab)}
+ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']; edges=list(zip(chain,chain[1:]))
 def res(M,x):
     q=bind(M, bind(vec[x],ROLE)); s=sorted(((fl(hdc.klein4_similarity(q,vec[t])),t) for t in vocab),reverse=True); return s[0][1], s[0][0]-s[1][0]
 M_single=cs.bundle_odd([bind(bind(vec[p],ROLE),vec[n]) for p,n in edges])

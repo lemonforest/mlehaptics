@@ -14,7 +14,7 @@ D, C, K, PMAX = 8192, 8, 2, 24
 cs = S.ContextSubstrate(D=D, hex_chars=16)
 def _dig(s):
     h = fmt.sha256_bytes(s.encode()); return bytes.fromhex(h) if isinstance(h, str) else h
-def byte_k4(b): return hdc.klein4_random(D, seed=b)
+def byte_k4(b): return hdc.klein4_expand(D, b)
 def word_k4(w):
     return cs.bundle_odd([hdc.klein4_bind(byte_k4(b), cs.pos_key(i)) for i, b in enumerate(w.encode("utf-8"))])
 def byte_oct(b):
@@ -26,7 +26,7 @@ def word_oct(w):
 def ctx_key(win):
     p = word_oct(win[0])
     for w in win[1:]: p = tuple(cascade.cd_mult(p, word_oct(w)))
-    return hdc.klein4_random(D, seed=int.from_bytes(_dig(",".join(str(x) for x in p))[:8], "big"))
+    return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))
 def key_at(win, pos):                                  # the 1D_t PHASE bound into the key (F878, s59)
     return hdc.klein4_phase_bind(ctx_key(win), pos / PMAX)
 WV = {}

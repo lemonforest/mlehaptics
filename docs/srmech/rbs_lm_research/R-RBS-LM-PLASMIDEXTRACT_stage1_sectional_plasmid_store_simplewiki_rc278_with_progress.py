@@ -27,7 +27,7 @@ from pathlib import Path
 from srmech.amsc import hdc, plasmid as P, text as T
 
 LEAF = 64                                   # >= 52 required (the §89 kernel header fits one leaf)
-COUPLE = hdc.klein4_random(LEAF, seed=1080)  # the store's canonical coupling seed
+COUPLE = hdc.klein4_expand(LEAF, 1080)  # the store's canonical coupling seed
 ART = Path.home() / "corpora" / "wikipedia" / "simplewiki_extracted" / "articles.jsonl"
 OUT = Path.home() / "corpora" / "wikipedia" / "simplewiki_sections.genome"
 REPORT = Path.home() / "corpora" / "wikipedia" / "simplewiki_sections.report.json"

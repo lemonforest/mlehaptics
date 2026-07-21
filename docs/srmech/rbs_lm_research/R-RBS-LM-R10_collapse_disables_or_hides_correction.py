@@ -47,13 +47,13 @@ def main():
     rng0 = np.random.default_rng(20260604)
     for t in range(TRIALS):
         rng = np.random.default_rng(20260604 + t)
-        c = hdc.klein4_random(D, seed=20260604 + t)
+        c = hdc.klein4_expand(D, 20260604 + t)
         sectors = [F[i](c) for i in range(4)]
 
         # --- random 1-sector corruption: FULL vs COLLAPSED reconstruction ---
         bad = int(rng.integers(0, 4))
         views = [sectors[i].copy() for i in range(4)]
-        views[bad] = hdc.klein4_random(D, seed=int(rng.integers(1, 2**31)))
+        views[bad] = hdc.klein4_expand(D, int(rng.integers(1, 2 ** 31)))
         # FULL observer
         full_c = [F[i](views[i]) for i in range(4)]
         rec_full = per_coord_majority(full_c)

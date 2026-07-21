@@ -25,7 +25,7 @@ from srmech.amsc import hdc
 HERE = Path(__file__).parent
 OUTDIR = Path(os.environ.get("OUT", "/tmp/graph2kernel_proto"))
 LEAF = 64
-COUPLE = hdc.klein4_random(LEAF, seed=1080)          # same coupling as NIVDIRECTED (the sandroing/UNESCO 00073 seed)
+COUPLE = hdc.klein4_expand(LEAF, 1080)          # same coupling as NIVDIRECTED (the sandroing/UNESCO 00073 seed)
 
 
 # ------------------------------------------------------------------------------------------------------------------

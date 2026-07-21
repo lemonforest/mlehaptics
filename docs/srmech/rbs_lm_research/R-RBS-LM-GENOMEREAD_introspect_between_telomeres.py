@@ -21,13 +21,13 @@ import srmech.amsc.genome as g
 from srmech.amsc import hdc
 
 DIM = 64
-ONE = hdc.klein4_random(DIM, seed=0)                 # the coherence-anchor leaf ("the one")
+ONE = hdc.klein4_expand(DIM, 0)                 # the coherence-anchor leaf ("the one")
 
 # a small DNA-bookshelf: label -> (leaves, the researcher's human gloss of what this kernel MEANS)
 SHELF = {
-    "siona_identity": ([hdc.klein4_random(DIM, seed=10 + i) for i in range(5)], "who Siona is — her self-identity shelf"),
-    "mfo_the_one":    ([hdc.klein4_random(DIM, seed=20 + i) for i in range(3)], "the MFO 'the one is the held invariant' kernel"),
-    "dragon_taught":  ([hdc.klein4_random(DIM, seed=30 + i) for i in range(2)], "a tome taught at runtime via build-by-dialogue"),
+    "siona_identity": ([hdc.klein4_expand(DIM, 10 + i) for i in range(5)], "who Siona is — her self-identity shelf"),
+    "mfo_the_one":    ([hdc.klein4_expand(DIM, 20 + i) for i in range(3)], "the MFO 'the one is the held invariant' kernel"),
+    "dragon_taught":  ([hdc.klein4_expand(DIM, 30 + i) for i in range(2)], "a tome taught at runtime via build-by-dialogue"),
 }
 
 
@@ -75,9 +75,9 @@ def main():
 
     # (4) CHROMOSOME INTROSPECTION — the genes WITHIN one chromosome (F730/§43; rc138 gene-frame, tag=GENE_FRAME_TAG).
     print(f"\n  CHROMOSOME INTROSPECTION — several genes WITHIN a chromosome (gene-frame tag={g.GENE_FRAME_TAG}='{chr(g.GENE_FRAME_TAG)}'):")
-    chrom_genes = [("intro",   [hdc.klein4_random(DIM, seed=200 + i) for i in range(2)]),
-                   ("history", [hdc.klein4_random(DIM, seed=210 + i) for i in range(3)]),
-                   ("refs",    [hdc.klein4_random(DIM, seed=220 + i) for i in range(1)])]
+    chrom_genes = [("intro",   [hdc.klein4_expand(DIM, 200 + i) for i in range(2)]),
+                   ("history", [hdc.klein4_expand(DIM, 210 + i) for i in range(3)]),
+                   ("refs",    [hdc.klein4_expand(DIM, 220 + i) for i in range(1)])]
     multi = g.chromosome(genes=chrom_genes, the_one=ONE, label="siona_identity")
     inner = g.genes(multi, ONE)
     print(f"    chromosome 'siona_identity' (strand len {len(multi)}) holds {len(inner)} genes:")

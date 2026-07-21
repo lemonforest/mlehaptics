@@ -8,7 +8,7 @@ import re, importlib
 from srmech.amsc import tool_schema as ts, hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bundle=cs.bundle_odd; bind=hdc.klein4_bind
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
 def sim(a,b): return fl(hdc.klein4_similarity(a,b))
 def toks(s):
@@ -23,7 +23,7 @@ for n in tools:
 FUNC=int(NT*0.35); gate=lambda w: 1.0 if docf.get(w,0)<FUNC else FUNC/docf[w]
 gv={}
 def vec(w):
-    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)
+    if w not in gv: gv[w]=hdc.klein4_expand(D, sum(((i + 1) * ord(c) for i, c in enumerate(w))) % 80000 + 7)
     return gv[w]
 def bg(ws): return [bind(vec(a),vec(b)) for a,b in zip(ws,ws[1:])]
 def enc_tool(n):

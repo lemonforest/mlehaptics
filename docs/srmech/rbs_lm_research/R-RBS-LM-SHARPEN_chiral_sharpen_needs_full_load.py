@@ -27,14 +27,14 @@ D = 8192
 
 def facetted_idea(F, rng):
     """the IDEA = the bundle of F facet-patterns (the whole multi-partition shape)."""
-    facets = [hdc.klein4_random(D, seed=int(rng.integers(1, 10**9))) for _ in range(F)]
+    facets = [hdc.klein4_expand(D, int(rng.integers(1, 10 ** 9))) for _ in range(F)]
     return hdc.klein4_bundle(*facets), facets
 
 
 def partition(facets, cover, noise, flipped, rng):
     """one SENTENCE = one partition: a subset (cover) of the idea's facets, diluted with noise, in some hand."""
     idx = sorted(rng.choice(len(facets), size=cover, replace=False))
-    parts = [facets[i] for i in idx] + [hdc.klein4_random(D, seed=int(rng.integers(1, 10**9))) for _ in range(noise)]
+    parts = [facets[i] for i in idx] + [hdc.klein4_expand(D, int(rng.integers(1, 10 ** 9))) for _ in range(noise)]
     p = hdc.klein4_bundle(*parts)
     return hdc.klein4_chirality_flip_gamma5(p) if flipped else p
 

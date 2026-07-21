@@ -81,7 +81,7 @@ def consistency_native_eq_oracle(atol=1e-12):
 # ---------------------------------------------------------------------------
 def make_codebook(rng):
     """Return (klein4_forms, oct_forms): VOCAB klein4 uint8 vectors + VOCAB dim-8 unit octonions."""
-    klein4_forms = [hdc.klein4_random(D_KLEIN, seed=int(rng.integers(1, 2**31)))
+    klein4_forms = [hdc.klein4_expand(D_KLEIN, int(rng.integers(1, 2 ** 31)))
                     for _ in range(VOCAB)]
     raw = rng.standard_normal((VOCAB, DIM8))
     norms = np.sqrt(np.sum(raw * raw, axis=1, keepdims=True))   # Born/inner-product norm, no abs()

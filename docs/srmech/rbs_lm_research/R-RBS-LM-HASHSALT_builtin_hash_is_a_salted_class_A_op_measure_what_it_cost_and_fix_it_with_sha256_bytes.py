@@ -76,8 +76,8 @@ def read_full(C, key, cands):
 
 
 def carriers(n, dim):
-    k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(n)]
-    v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(n)]
+    k = [bytes(hdc.klein4_expand(dim, 10000 + i)) for i in range(n)]
+    v = [bytes(hdc.klein4_expand(dim, 20000 + i)) for i in range(n)]
     b = [bytes(x ^ y for x, y in zip(a, c)) for a, c in zip(k, v)]
     return k, v, b
 

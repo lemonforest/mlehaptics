@@ -24,7 +24,7 @@ import srmech
 from srmech.amsc import genome as G, hdc
 import srmech.dsl as dsl
 
-one = hdc.klein4_random(64, seed=0)
+one = hdc.klein4_expand(64, 0)
 
 
 def leaves(n):

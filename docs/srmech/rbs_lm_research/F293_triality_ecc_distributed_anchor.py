@@ -41,7 +41,7 @@ def part_A():
     # Q8 (quaternion group, the k=3 base) has order 8; its center {+1,-1} has order 2;
     # the quotient Q8/Z has order 8/2 = 4 = Klein-4 = (Z/2)^2 = TWO chiral generators.
     print(f"  Q8/Z(Q8): |Q8|=8, |center|=2  ->  quotient order = {8 // 2} = Klein-4 = 2 chiral generators (gamma5, iomega7)")
-    v = hdc.klein4_random(D, seed=SEED)
+    v = hdc.klein4_expand(D, SEED)
     g5 = hdc.klein4_chirality_flip_gamma5(v)
     o7 = hdc.klein4_chirality_flip_omega7(v)
     g5g5 = hdc.klein4_chirality_flip_gamma5(g5)
@@ -55,7 +55,7 @@ def part_B():
     print("=== B — the triality is ORDER-3 (rotation = correct); the 3 phases sum to ZERO (distributed anchor) ===")
     has_tri = hasattr(hdc, "klein4_triality_cycle")
     if has_tri:
-        v = hdc.klein4_random(D, seed=SEED + 1)
+        v = hdc.klein4_expand(D, SEED + 1)
         c1 = hdc.klein4_triality_cycle(v)
         c2 = hdc.klein4_triality_cycle(c1)
         c3 = hdc.klein4_triality_cycle(c2)

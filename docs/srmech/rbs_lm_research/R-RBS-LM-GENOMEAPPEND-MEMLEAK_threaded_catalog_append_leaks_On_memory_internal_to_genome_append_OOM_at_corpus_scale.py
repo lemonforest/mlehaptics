@@ -27,7 +27,7 @@ from srmech.amsc import genome as G, hdc
 def main():
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 2000
     body = 413                                          # ~ a full-corpus body in leaves
-    one = hdc.klein4_random(64, seed=0)
+    one = hdc.klein4_expand(64, 0)
     leaves = [[(i * 7 + j) % 4 for j in range(64)] for i in range(body)]   # one reused fixed payload
     d = tempfile.mkdtemp()
     cat = G.genome_save(G.genome([("seed", leaves[:3])], one), d, one, labels=["seed"])

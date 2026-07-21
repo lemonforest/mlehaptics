@@ -34,7 +34,7 @@ from srmech.amsc import genome as g, hdc
 from srmech.amsc.format import sha256_raw, write_ndjson, read_ndjson, MPRRecord
 
 DIM = 64
-ONE = hdc.klein4_random(DIM, seed=0)
+ONE = hdc.klein4_expand(DIM, 0)
 
 def _seed(text):                                  # Class-A content-address -> deterministic leaf seed
     return int.from_bytes(sha256_raw(text.encode())[:4], "big")

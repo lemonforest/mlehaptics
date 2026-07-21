@@ -7,7 +7,7 @@ from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 enc=cs.enc                                          # byte-glyph word encoder (encode_word_byteglyph)
 def sim(a,b): return fl(hdc.klein4_similarity(a,b))
 # ---- (A) READ-INDEPENDENT structural: is byte-glyph sim SPELLING or USAGE? ----
@@ -29,7 +29,7 @@ distract=[('a','history'),('is','people'),('the','chinese'),('of','chess'),('in'
           ('and','history'),('to','chinese'),('for','chess'),('on','chairs'),('that','people'),('it','history')]
 rels=[(c,b)]+distract
 # (B1) SEPARATION MARGIN of the spelling-neighbours in each representation (structural, ~read-independent)
-uv={w: hdc.klein4_random(D, seed=dseed(w)) for w in set(cands+[c]+[x for p in rels for x in p])}
+uv={w: hdc.klein4_expand(D, dseed(w)) for w in set(cands+[c]+[x for p in rels for x in p])}
 m_bg = sim(enc(b), enc(bprime))          # how confusable are b / b' in byte-glyph (spelling) space?
 m_us = sim(uv[b], uv[bprime])            # ... in usage (relationship) space?
 print("  (B1) SEPARATION of spelling-neighbours %r / %r (structural, lower=more separable):"%(b,bprime))
@@ -40,7 +40,7 @@ ctx=['pope','china','music','river','planet','engine','doctor','island','forest'
 tgt=['church','empire','melody','valley','saturn','turbine','patient','harbour','meadow','fortress']
 neigh=[w[:-1]+w[-1]+w[-1] for w in tgt]   # churchh, empiree, ... spelling-neighbours (edit-1)
 allw=set(ctx+tgt+neigh+[x for p in distract for x in p])
-uv={w: hdc.klein4_random(D, seed=dseed(w)) for w in allw}
+uv={w: hdc.klein4_expand(D, dseed(w)) for w in allw}
 rels_bg=[(ctx[i],tgt[i]) for i in range(len(tgt))]+distract
 Mbg=cs.bundle_odd([bind(bind(enc(x),ROLE), enc(y)) for x,y in rels_bg])
 Mus=cs.bundle_odd([bind(bind(uv[x],ROLE), uv[y]) for x,y in rels_bg])

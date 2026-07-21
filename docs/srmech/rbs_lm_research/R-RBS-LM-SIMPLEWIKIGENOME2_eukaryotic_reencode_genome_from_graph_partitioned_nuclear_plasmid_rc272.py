@@ -26,7 +26,7 @@ from srmech.amsc import genome as G
 from srmech.amsc import hdc
 
 LEAF = 64
-COUPLE = hdc.klein4_random(LEAF, seed=1080)
+COUPLE = hdc.klein4_expand(LEAF, 1080)
 SRC = Path.home() / "corpora" / "wikipedia" / "simplewiki_directed_sparse_kernel.json"
 OUT = Path.home() / "corpora" / "wikipedia" / "simplewiki_eukaryotic.genome"
 REPORT = Path.home() / "corpora" / "wikipedia" / "simplewiki_eukaryotic.report.json"

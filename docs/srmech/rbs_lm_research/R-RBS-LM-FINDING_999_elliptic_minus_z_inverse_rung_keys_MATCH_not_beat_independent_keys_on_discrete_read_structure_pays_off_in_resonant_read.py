@@ -8,11 +8,11 @@ from srmech.amsc import hdc, laplacian as Lp
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5
+ROLE=hdc.klein4_expand(D, 4242); HV=type(ROLE); g5=hdc.klein4_chirality_flip_gamma5
 NR=6
 def rot(seq,k): k%=len(seq); return seq[-k:]+seq[:-k]
-RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]      # F995: INDEPENDENT random keys
-base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)
+RK_ind=[hdc.klein4_expand(D, 71000 + r) for r in range(NR)]      # F995: INDEPENDENT random keys
+base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)
 RK_ell=[(g5(HV.from_sequence(rot(bl, r*dlt))) if r%2 else HV.from_sequence(rot(bl, r*dlt))) for r in range(NR)]  # elliptic (-z^-1)^r
 arts=[]
 with open('/home/skirklan/corpora/wikipedia/simplewiki_fullbody_instrument.ndjson') as f:

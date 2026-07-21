@@ -9,11 +9,11 @@ from srmech.amsc import hdc, laplacian as Lp
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 g5=hdc.klein4_chirality_flip_gamma5; w7=hdc.klein4_chirality_flip_omega7; cpt=hdc.klein4_cpt_mirror
 
 # ---- (0) is the Klein-4 chirality flip an ISOMETRY? (does a GENERATED frame preserve similarity = free?) ----
-a=hdc.klein4_random(D,seed=1); b=hdc.klein4_random(D,seed=2)
+a=hdc.klein4_expand(D, 1); b=hdc.klein4_expand(D, 2)
 s_ab=fl(hdc.klein4_similarity(a,b)); s_flip=fl(hdc.klein4_similarity(g5(a),g5(b)))
 from srmech.amsc import cascade as _cs
 _iso = fl(_cs.magnitude(s_ab - s_flip)) < 1e-9   # srmech-allow: Class-K |Δ| tolerance check (float near-equality, not a hand-rolled magnitude)

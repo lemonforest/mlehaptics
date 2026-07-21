@@ -25,7 +25,7 @@ def phase_state(hv, frac):
     return hdc.klein4_bind(hv, phase_key(frac % 1.0))
 
 # --- op self-check: circular, syzygy at dphase=0, smooth ---
-base = hdc.klein4_random(D, seed=11)
+base = hdc.klein4_expand(D, 11)
 print("chirality-native continuous-phase op (circular half-window gamma5 population code):")
 for df in [0.0, 0.1, 0.25, 0.5, 0.75, 0.9]:
     s = hdc.klein4_similarity(phase_state(base, 0.0), phase_state(base, df))

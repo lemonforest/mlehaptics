@@ -78,7 +78,7 @@ def atom(content_hash_seed):
     """The DUAL -- a content-addressed random atom. atom(byte) and atom(word) and
     atom(phrase) are the SAME operation at different scales (word-hash = fractal
     form of byte-hash)."""
-    return hdc.klein4_random(D, seed=content_hash_seed)
+    return hdc.klein4_expand(D, content_hash_seed)
 
 def byte_atom(b):   return atom(b)                                    # ground alphabet (256)
 def word_vec(w):    return compose([byte_atom(b) for b in w.encode("utf-8")])  # byte->word

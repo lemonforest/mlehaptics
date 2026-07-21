@@ -44,8 +44,8 @@ SERVICE_MAP = [
 def main():
     print(f"=== R-RBS-LM-SUBSTRATESERVICES (F720) — biology bakes in storage+EC; silicon we must author it  (srmech {srmech.__version__}) ===\n")
 
-    one = klein4_random(64, seed=1)
-    leaves = [klein4_random(64, seed=s) for s in (10, 11, 12)]
+    one = klein4_expand(64, 1)
+    leaves = [klein4_expand(64, s) for s in (10, 11, 12)]
 
     # (1) STORAGE — re-author biology's DNA-storage service on silicon.
     chrom = G.chromosome(leaves, one, label="astronomy")

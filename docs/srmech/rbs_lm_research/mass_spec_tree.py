@@ -86,7 +86,7 @@ def loop_chain(anchors, node_ids):
 def commutative_bundle(anchors, node_ids):
     """Commutative klein4 XOR bundle over the same node set (order washed out)."""
     # Use 2048-dim HDC vectors for the klein4 baseline (separate from the 8-dim octonion anchors)
-    return hdc.klein4_bundle(*[hdc.klein4_random(2048, seed=nid) for nid in node_ids])
+    return hdc.klein4_bundle(*[hdc.klein4_expand(2048, nid) for nid in node_ids])
 
 
 def main():

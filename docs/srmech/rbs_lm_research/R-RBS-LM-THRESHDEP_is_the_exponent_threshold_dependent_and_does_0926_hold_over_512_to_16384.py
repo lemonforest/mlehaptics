@@ -105,8 +105,8 @@ def main():
         centre = max(48, int(0.25 * dim))                      # F1267: N_crit ~ 0.25*dim
         ladder = sorted({max(16, int(centre * f)) for f in (0.35, 0.5, 0.7, 0.9, 1.15, 1.45, 1.9, 2.5)})
         nmax = ladder[-1]
-        keys = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(nmax)]
-        vals = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(nmax)]
+        keys = [bytes(hdc.klein4_expand(dim, 10000 + i)) for i in range(nmax)]
+        vals = [bytes(hdc.klein4_expand(dim, 20000 + i)) for i in range(nmax)]
         bound = [bytes(x ^ y for x, y in zip(a, c)) for a, c in zip(keys, vals)]
         rs = []
         t0 = time.time()

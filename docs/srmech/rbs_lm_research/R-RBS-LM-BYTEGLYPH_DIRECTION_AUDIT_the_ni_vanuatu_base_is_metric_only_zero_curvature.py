@@ -26,11 +26,11 @@ def _seed(t):
 
 
 def _glyph(ch):
-    return hdc.klein4_random(DIM, seed=_seed("niv/" + ch))
+    return hdc.klein4_expand(DIM, _seed('niv/' + ch))
 
 
 def _pos(i):
-    return hdc.klein4_random(DIM, seed=_seed("niv/pos/%d" % i))
+    return hdc.klein4_expand(DIM, _seed('niv/pos/%d' % i))
 
 
 def _word(w, mode="bigram"):

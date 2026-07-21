@@ -5,8 +5,8 @@ from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242); V=1200
-vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]
+ROLE=hdc.klein4_expand(D, 4242); V=1200
+vec=[hdc.klein4_expand(D, 6000 + i) for i in range(V)]
 THINK=0.02
 def read(M, cuelist):
     probe=cs.bundle_odd([bind(M,bind(vec[c],ROLE)) for c in cuelist]) if len(cuelist)>1 else bind(M,bind(vec[cuelist[0]],ROLE))

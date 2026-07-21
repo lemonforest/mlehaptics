@@ -8,8 +8,8 @@ from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-vocab=['a','b','c','d','e','f','g','h','i','j']; vec={t: hdc.klein4_random(D, seed=2000+i) for i,t in enumerate(vocab)}
-ROLE=hdc.klein4_random(D, seed=4242)
+vocab=['a','b','c','d','e','f','g','h','i','j']; vec={t: hdc.klein4_expand(D, 2000 + i) for i,t in enumerate(vocab)}
+ROLE=hdc.klein4_expand(D, 4242)
 edges=[('a','b'),('a','c'),('b','d'),('c','d'),('d','e')]   # a BRANCHES to b,c ; merge at d ; d->e
 src={}
 for p,n in edges: src.setdefault(p,[]).append(bind(bind(vec[p],ROLE),vec[n]))

@@ -14,12 +14,12 @@ _cs = ContextSubstrate(D=D, hex_chars=16)     # reuse its odd-count bundle (the 
 def bundle_odd(vecs): return _cs.bundle_odd(list(vecs))
 
 # ---- the ONE operator (C1) + the two duals, at every scale ----
-def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)     # role/position key
-def byte_atom(b): return hdc.klein4_random(D, seed=b)                # bounded 256 codebook
+def pos_key(i): return hdc.klein4_expand(D, 1879048192 + i)     # role/position key
+def byte_atom(b): return hdc.klein4_expand(D, b)                # bounded 256 codebook
 def compose(parts):                                                 # C1: role-filler bundle
     return bundle_odd([hdc.klein4_bind(p, pos_key(i)) for i, p in enumerate(parts)])
 def atom(s):                                                        # DUAL: content-address (identity)
-    return hdc.klein4_random(D, seed=int(fmt.sha256_bytes(s.encode())[:16], 16))
+    return hdc.klein4_expand(D, int(fmt.sha256_bytes(s.encode())[:16], 16))
 def chained_bind(parts):                                            # the BROKEN op (no positions/bundle)
     acc = parts[0]
     for p in parts[1:]: acc = hdc.klein4_bind(acc, p)
@@ -82,7 +82,7 @@ print(f"        -> coherent units sit ON the self-similar manifold (have neighbo
 # (5) the recursive C1 ladder THROUGH the packaged RBSLMInferenceSubstrate (learn/infer runs on it)
 class C1Context(ContextSubstrate):
     def __init__(self, *, D, hex_chars, sector=0):
-        self._pad = hdc.klein4_random(int(D), seed=0x7FFFFFFF); super().__init__(D=D, hex_chars=hex_chars, sector=sector)
+        self._pad = hdc.klein4_expand(int(D), 2147483647); super().__init__(D=D, hex_chars=hex_chars, sector=sector)
     def enc(self, tok, sector=None):      # the bottom rung of the C1 ladder = the word
         return compose([byte_atom(b) for b in tok.encode("utf-8")])
 PARAMS = {"substrate":{"D":D,"token_seed_hex_chars":16},

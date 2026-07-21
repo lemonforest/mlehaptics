@@ -100,7 +100,7 @@ def _token_klein4(token: str) -> np.ndarray:
     stable token-derived integer. (sha256 used ONLY to derive an rng SEED — not as storage; the
     storage object is the klein4 vector. Routed by directed parity below, not by this hash.)"""
     seed = int(amsc_format.sha256_bytes(token.encode("utf-8"))[:8], 16)   # 32-bit from hex digest
-    return klein4_random(D_KLEIN4, seed=seed % (2**32))
+    return klein4_expand(D_KLEIN4, seed % 2 ** 32)
 
 
 def directed_orientations(chunks_tokens, vocab):
@@ -210,10 +210,10 @@ def so8_chirality_kernel(chunks_tokens):
             reps = 1 + int(round(3.0 * (w / wmax) ** 0.5))   # 1..4 reps, sublinear in freq
             bundle_inputs.extend([rv] * reps)
     if not bundle_inputs:
-        bundle_inputs = routed or [klein4_random(D_KLEIN4, seed=0)]
+        bundle_inputs = routed or [klein4_expand(D_KLEIN4, 0)]
     K_weighted = klein4_bundle(*bundle_inputs)
-    K_unweighted = klein4_bundle(*(routed or [klein4_random(D_KLEIN4, seed=0)]))
-    K_noroute = klein4_bundle(*(raw or [klein4_random(D_KLEIN4, seed=0)]))
+    K_unweighted = klein4_bundle(*(routed or [klein4_expand(D_KLEIN4, 0)]))
+    K_noroute = klein4_bundle(*(raw or [klein4_expand(D_KLEIN4, 0)]))
 
     occ = np.array(klein4_sector_count(K_weighted), dtype=np.float64)
     occ_norm = occ / (occ.sum() + 1e-12)

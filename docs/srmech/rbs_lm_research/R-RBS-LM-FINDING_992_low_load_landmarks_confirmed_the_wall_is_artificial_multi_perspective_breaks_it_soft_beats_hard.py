@@ -9,10 +9,10 @@ from srmech.amsc import hdc, laplacian as Lp
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 
 # ---------- PART A: low-load landmark falsification (synthetic: moderate base accuracy, long run) ----------
-V=120; vec=[hdc.klein4_random(D,seed=6000+i) for i in range(V)]
+V=120; vec=[hdc.klein4_expand(D, 6000 + i) for i in range(V)]
 chain=list(range(40))                                  # long coherent run 0..39
 edges=[]
 for _ in range(4): edges += list(zip(chain,chain[1:]))  # strong chain

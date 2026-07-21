@@ -92,7 +92,7 @@ def build_octonion_codebook():
 
 def build_klein4_codebook():
     """degree -> klein4 hypervector (deterministic per-degree seed)."""
-    return {d: hdc.klein4_random(D, seed=KLEIN_BASE + d) for d in range(N_DEGREES)}
+    return {d: hdc.klein4_expand(D, KLEIN_BASE + d) for d in range(N_DEGREES)}
 
 
 def build_pos_keys(n_max):

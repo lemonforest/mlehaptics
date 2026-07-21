@@ -43,7 +43,7 @@ def order2_cpt_correct_rate(strength, rng_seed):
     ok = 0
     for t in range(TRIALS):
         rng = np.random.default_rng(rng_seed + t)
-        v = hdc.klein4_random(D, seed=rng_seed + t)
+        v = hdc.klein4_expand(D, rng_seed + t)
         sectors = [F[i](v) for i in range(4)]
         bad = int(rng.integers(0, 4))
         seg = sectors[bad].copy(); m = rng.random(D) < strength
@@ -59,7 +59,7 @@ def two_vote_correct_rate(strength, rng_seed):
     ok = 0
     for t in range(TRIALS):
         rng = np.random.default_rng(rng_seed + t)
-        v = hdc.klein4_random(D, seed=rng_seed + t)
+        v = hdc.klein4_expand(D, rng_seed + t)
         orbit = np.asarray(hdc.klein4_triality_encode(v))
         r0 = orbit[:D].copy(); r1 = orbit[D:2 * D].copy()       # drop the 3rd (order-3) vote
         seg = r1.copy(); m = rng.random(D) < strength
@@ -77,7 +77,7 @@ def main():
     print("\n=== op (a1) — klein4_triality_correct vs F359 contract ===")
 
     # bar 2: the 3 votes are the triality orbit of the SAME store (not external copies)
-    v0 = hdc.klein4_random(D, seed=1)
+    v0 = hdc.klein4_expand(D, 1)
     orbit0 = np.asarray(hdc.klein4_triality_encode(v0))
     r0, r1, r2 = orbit0[:D], orbit0[D:2 * D], orbit0[2 * D:]
     cyc1 = np.asarray(hdc.klein4_triality_cycle(r0))
@@ -92,7 +92,7 @@ def main():
         ok = 0
         for t in range(TRIALS):
             rng = np.random.default_rng(900 + t)
-            v = hdc.klein4_random(D, seed=900 + t)
+            v = hdc.klein4_expand(D, 900 + t)
             orbit = np.asarray(hdc.klein4_triality_encode(v))
             bad = corrupt_renders(orbit, D, 1, p, rng)
             rec = np.asarray(hdc.klein4_triality_correct(bad))
@@ -105,7 +105,7 @@ def main():
     ok2 = 0
     for t in range(TRIALS):
         rng = np.random.default_rng(1700 + t)
-        v = hdc.klein4_random(D, seed=1700 + t)
+        v = hdc.klein4_expand(D, 1700 + t)
         orbit = np.asarray(hdc.klein4_triality_encode(v))
         bad = corrupt_renders(orbit, D, 2, 1.0, rng)
         rec = np.asarray(hdc.klein4_triality_correct(bad))

@@ -42,8 +42,8 @@ def collapse_iw7(v): return (v >> 1) << 1   # asymptotic-DoF: drop iω₇ (bipol
 
 def run_trial(seed):
     rng = np.random.default_rng(seed)
-    anchors = [hdc.klein4_random(D, seed=seed + i) for i in range(K)]
-    locs = [hdc.klein4_random(D, seed=seed + 1000 + i) for i in range(K)]
+    anchors = [hdc.klein4_expand(D, seed + i) for i in range(K)]
+    locs = [hdc.klein4_expand(D, seed + 1000 + i) for i in range(K)]
     stored = [hdc.klein4_bind(anchors[i], locs[i]) for i in range(K)]
 
     def fetch(i, end):

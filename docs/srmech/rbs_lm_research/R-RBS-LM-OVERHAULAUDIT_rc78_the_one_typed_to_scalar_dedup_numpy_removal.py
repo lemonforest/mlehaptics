@@ -107,7 +107,7 @@ def main():
 
     print("\n(5) genome regression (de-dup didn't break it):")
     def _gen2():
-        one = klein4_random(64, seed=1); k = {"a": [klein4_random(64, seed=s) for s in (10, 11)], "b": [klein4_random(64, seed=20)]}
+        one = klein4_expand(64, 1); k = {"a": [klein4_expand(64, s) for s in (10, 11)], "b": [klein4_expand(64, 20)]}
         back = G.partition(G.genome(k, one), one, list(k))
         return all(list(map(list, back[x])) == list(map(list, k[x])) for x in k), "round-trip reversible"
     check("genome partition round-trip", _gen2)

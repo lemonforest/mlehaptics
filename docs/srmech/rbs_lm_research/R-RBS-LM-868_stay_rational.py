@@ -14,7 +14,7 @@ D = 10000
 cs = S.ContextSubstrate(D=D, hex_chars=16)
 K, WPOS = 2, 100
 
-def byte_k4(b): return hdc.klein4_random(D, seed=b)
+def byte_k4(b): return hdc.klein4_expand(D, b)
 def word_k4(w):
     return cs.bundle_odd([hdc.klein4_bind(byte_k4(b), cs.pos_key(i)) for i, b in enumerate(w.encode("utf-8"))])
 def key_add(window):

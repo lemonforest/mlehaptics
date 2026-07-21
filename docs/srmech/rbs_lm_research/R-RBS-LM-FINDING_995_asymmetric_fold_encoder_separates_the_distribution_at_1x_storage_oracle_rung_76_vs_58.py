@@ -9,9 +9,9 @@ from srmech.amsc import hdc, laplacian as Lp
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 NR=6
-RK=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]   # NR distinct rung-keys (the fold ladder)
+RK=[hdc.klein4_expand(D, 71000 + r) for r in range(NR)]   # NR distinct rung-keys (the fold ladder)
 arts=[]
 with open('/home/skirklan/corpora/wikipedia/simplewiki_fullbody_instrument.ndjson') as f:
     for line in f:

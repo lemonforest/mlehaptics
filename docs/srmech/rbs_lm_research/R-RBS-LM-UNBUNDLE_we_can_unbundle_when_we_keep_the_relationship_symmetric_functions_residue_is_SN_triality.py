@@ -62,13 +62,13 @@ def triality_is_the_SN_resolver_klein4():
     from srmech.amsc.format import sha256_raw                  # Class-A content hash (not bare hashlib)
     seed = lambda s: int.from_bytes(sha256_raw(s.encode())[:8], "big")
     print("== Klein-4 carrier: S₃/triality recovery is already in srmech (rc170) ==")
-    v = hdc.klein4_random(64, seed=seed("v"))
+    v = hdc.klein4_expand(64, seed('v'))
     T = hdc.klein4_triality_cycle
     print(f"   klein4_triality_cycle is order-3 (T³==I)? {T(T(T(v))) == v}   (the S₃ order-3 generator, Aut(V₄))")
     rec = hdc.klein4_triality_correct(hdc.klein4_triality_encode(v))
     print(f"   triality orbit [v,Tv,T²v] -> 2-of-3 correct round-trips to v? {rec == v}   (k=3 recovery, F291)")
-    a = hdc.klein4_random(64, seed=seed("a"))
-    b = hdc.klein4_random(64, seed=seed("b"))
+    a = hdc.klein4_expand(64, seed('a'))
+    b = hdc.klein4_expand(64, seed('b'))
     bun = hdc.klein4_bundle(a, b)
     print(f"   plain klein4_bundle(a,b) of two distinct -> sim a={hdc.klein4_similarity(bun, a):.2f} "
           f"b={hdc.klein4_similarity(bun, b):.2f}  (e₁ alone ≈ chance: NOT unbundle-able)")

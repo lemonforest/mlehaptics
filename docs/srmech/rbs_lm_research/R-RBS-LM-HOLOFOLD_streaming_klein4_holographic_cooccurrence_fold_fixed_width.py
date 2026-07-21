@@ -53,7 +53,7 @@ def hv_syms(tok, _cache={}):
     v = _cache.get(tok)
     if v is None:
         seed = int.from_bytes(sha256_raw(tok.encode())[:4], "big")
-        v = _cache[tok] = array("b", hdc.klein4_random(D, seed=seed).tolist())
+        v = _cache[tok] = array("b", hdc.klein4_expand(D, seed).tolist())
     return v
 
 

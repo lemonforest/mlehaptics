@@ -27,7 +27,7 @@ from pathlib import Path
 from srmech.amsc import genome as G, hdc, plasmid as P, text as T
 
 LEAF = 64
-COUPLE = hdc.klein4_random(LEAF, seed=1080)
+COUPLE = hdc.klein4_expand(LEAF, 1080)
 ART = Path.home() / "corpora" / "wikipedia" / "simplewiki_extracted" / "articles.jsonl"
 SECTIONS = Path.home() / "corpora" / "wikipedia" / "simplewiki_sections.genome"
 ORGANIZED = Path.home() / "corpora" / "wikipedia" / "simplewiki_organized.genome"

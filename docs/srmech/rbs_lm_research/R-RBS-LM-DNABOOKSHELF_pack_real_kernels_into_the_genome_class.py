@@ -64,7 +64,7 @@ doc = "The colophon (= telomere cap)."
 def leaf(text):
     """Content-address a concept -> a deterministic Klein-4 leaf (the surface's own telomere construction)."""
     seed = int(sha256_bytes(text.encode("utf-8"))[:16], 16)
-    return klein4_random(DIM, seed=seed)
+    return klein4_expand(DIM, seed)
 
 
 def as_leaves(kernels):
@@ -78,7 +78,7 @@ def eq(a, b):
 
 def main():
     print(f"=== R-RBS-LM-DNABOOKSHELF (F721) — pack real kernels into the Genome class  (srmech {srmech.__version__}) ===\n")
-    one = klein4_random(DIM, seed=1)
+    one = klein4_expand(DIM, 1)
     books = as_leaves(KERNELS)
 
     print("(0) THE SHELF MANIFEST — each loose kernel's encode shape (the criterion picks tome/mobius/strand):")

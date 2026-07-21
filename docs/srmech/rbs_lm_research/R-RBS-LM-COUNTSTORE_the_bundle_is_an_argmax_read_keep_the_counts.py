@@ -67,8 +67,8 @@ def main():
 
     import srmech
     log("=== COUNTSTORE (srmech %s) — bundle vs count-preserving, D=%d ===" % (srmech.__version__, dim))
-    keys = [hdc.klein4_random(dim, seed=10_000 + i) for i in range(args.max_n)]
-    vals = [hdc.klein4_random(dim, seed=20_000 + i) for i in range(args.max_n)]
+    keys = [hdc.klein4_expand(dim, 10000 + i) for i in range(args.max_n)]
+    vals = [hdc.klein4_expand(dim, 20000 + i) for i in range(args.max_n)]
 
     log("")
     log("  %-8s %-18s %-18s %-8s" % ("N", "bundle recall@1", "counts recall@1", "lift"))

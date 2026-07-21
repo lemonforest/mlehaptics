@@ -70,10 +70,10 @@ def main():
         s = G.encode_shape(n)
         assert s["shape"] == want_shape and s["depth"] == want_depth, (n, s)
         print(f"    encode_shape(n={n:>9}) -> {s['shape']:<11} leaves={s['leaves']:<5} depth={s['depth']}  [F715 ✓]")
-    one = klein4_random(64, seed=1)
-    kernels = {"astronomy": [klein4_random(64, seed=s) for s in (10, 11, 12)],
-               "geography": [klein4_random(64, seed=s) for s in (20, 21)],
-               "music": [klein4_random(64, seed=30)]}
+    one = klein4_expand(64, 1)
+    kernels = {"astronomy": [klein4_expand(64, s) for s in (10, 11, 12)],
+               "geography": [klein4_expand(64, s) for s in (20, 21)],
+               "music": [klein4_expand(64, 30)]}
     strand = G.genome(kernels, one)
     back = G.partition(strand, one, list(kernels))
     reversible = all(list(map(list, back[L])) == list(map(list, kernels[L])) for L in kernels)

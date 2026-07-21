@@ -47,8 +47,8 @@ def unit_octonion_blocks(D, rng):
 
 def run_klein4(K, seed):
     rng_seed = seed
-    keys = [hdc.klein4_random(D, seed=rng_seed + i) for i in range(K)]
-    vals = [hdc.klein4_random(D, seed=rng_seed + 10_000 + i) for i in range(K)]
+    keys = [hdc.klein4_expand(D, rng_seed + i) for i in range(K)]
+    vals = [hdc.klein4_expand(D, rng_seed + 10000 + i) for i in range(K)]
     bound = [hdc.klein4_bind(keys[i], vals[i]) for i in range(K)]
     S = hdc.klein4_bundle(*bound)
     raw, correct = [], 0

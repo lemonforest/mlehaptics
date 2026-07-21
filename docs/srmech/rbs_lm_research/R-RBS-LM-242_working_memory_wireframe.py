@@ -334,7 +334,7 @@ def _token_atom(token):
     to the SAME atom across sections + runs — that shared identity IS how token-overlap becomes
     sector-alignment under bundling. Returns the Klein-4 atom vector (Class M)."""
     seed = int(fmt.sha256_bytes(("tok|" + token).encode("utf-8"))[:8], 16)   # Class A seed
-    return hdc.klein4_random(KLEIN4_D, seed=seed)                            # Class M atom
+    return hdc.klein4_expand(KLEIN4_D, seed)                            # Class M atom
 
 
 def section_sector_tag(section):

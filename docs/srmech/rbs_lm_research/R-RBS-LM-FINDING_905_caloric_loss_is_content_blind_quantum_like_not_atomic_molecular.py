@@ -14,8 +14,8 @@ D = 8192
 def fl(q): return q.as_float() if hasattr(q, "as_float") else q
 _cs = ContextSubstrate(D=D, hex_chars=16)
 def bundle_odd(v): return _cs.bundle_odd(list(v))
-def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)
-def byte_atom(b): return hdc.klein4_random(D, seed=b)
+def pos_key(i): return hdc.klein4_expand(D, 1879048192 + i)
+def byte_atom(b): return hdc.klein4_expand(D, b)
 ATOMS = [byte_atom(b) for b in range(256)]
 def compose(parts): return bundle_odd([hdc.klein4_bind(p, pos_key(i)) for i, p in enumerate(parts)])
 def read_signal(mol, p, true_b):                       # similarity to the TRUE atom = read fidelity

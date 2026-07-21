@@ -72,7 +72,7 @@ def main():
     # ---------- C. the PRNG dependency (cheap, do it first: it frames everything) ----------
     log("")
     log("--- C. SERIALIZATION: is the vector a function of (D, seed) alone? ---")
-    v = hdc.klein4_random(64, seed=1080)
+    v = hdc.klein4_expand(64, 1080)
     log("  klein4_random(64, seed=1080)[:16] = %s" % list(v[:16]))
     log("  -> reproducible WITHIN this srmech build. But the mapping (D,seed)->vector is defined by srmech's")
     log("     INTERNAL RNG, not by any attested rule. It is not derivable from (D, seed) by an outside party,")
@@ -83,7 +83,7 @@ def main():
     log("")
     log("--- B. SHAPE IS INFORMATION? compressibility of the coupling object ---")
     D = 8192
-    rnd = bytes(hdc.klein4_random(D, seed=1080))
+    rnd = bytes(hdc.klein4_expand(D, 1080))
     # a constructed lattice: Sylvester/Walsh-style sign pattern, Klein-4 valued, derived from D ALONE
     lat = bytes(((bin(i & j).count("1") & 1) | (((bin((i >> 1) & (j >> 1)).count("1") & 1)) << 1))
                 for i in range(D) for j in [1])  # rule-generated, one pass, no seed
@@ -103,7 +103,7 @@ def main():
     rows = []
     for k in range(args.seeds):
         seed = 1080 + k * 7919                      # spread seeds widely
-        couple = hdc.klein4_random(LEAF, seed=seed)
+        couple = hdc.klein4_expand(LEAF, seed)
         store = TMP / ("s%d" % seed)
         import shutil
         shutil.rmtree(store, ignore_errors=True)

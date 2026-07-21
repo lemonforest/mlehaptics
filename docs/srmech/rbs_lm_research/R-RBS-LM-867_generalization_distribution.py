@@ -20,7 +20,7 @@ WPOS = 100
 
 def _dig(s):
     h = fmt.sha256_bytes(s.encode()); return bytes.fromhex(h) if isinstance(h, str) else h
-def byte_k4(b): return hdc.klein4_random(D, seed=b)
+def byte_k4(b): return hdc.klein4_expand(D, b)
 def word_k4(w):
     return cs.bundle_odd([hdc.klein4_bind(byte_k4(b), cs.pos_key(i)) for i, b in enumerate(w.encode("utf-8"))])
 def byte_oct(b):
@@ -39,7 +39,7 @@ def key_add(window):    # SMOOTH: shared words/positions -> shared additive halv
 def key_cpl(window):    # SHARP: octonion coupling-product -> orthogonal key per ordered context
     C = ctx_oct(window)
     s = ",".join(f"{f.numerator}/{f.denominator}" for f in (Fraction(x) for x in C))
-    return hdc.klein4_random(D, seed=int.from_bytes(_dig(s)[:8], "big"))
+    return hdc.klein4_expand(D, int.from_bytes(_dig(s)[:8], 'big'))
 
 CORPUS = [["the", "cat", "sat"], ["the", "dog", "sat"]]
 VOCAB = sorted({w for b in CORPUS for w in b} | {"<e>"})

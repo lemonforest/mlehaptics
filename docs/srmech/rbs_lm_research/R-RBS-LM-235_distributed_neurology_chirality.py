@@ -486,18 +486,18 @@ def _orientation_to_klein4(orientations, dim, seed):
     orthogonal. So klein4_similarity now MEASURES shared-vs-distinct coordination signature."""
     # a fixed bank of position atoms (reproducible) + the two gamma5 sector atoms (in-phase / flip)
     pos_rng_seed = seed
-    sector_inphase = hdc.klein4_random(dim, seed=seed + 1)            # the in-phase (+1) gamma5 sector
+    sector_inphase = hdc.klein4_expand(dim, seed + 1)            # the in-phase (+1) gamma5 sector
     sector_antiphase = hdc.klein4_chirality_flip_gamma5(sector_inphase)  # the gamma5-flip antipode (-1)
     bound = []
     for k, o in enumerate(orientations):
-        pos = hdc.klein4_random(dim, seed=pos_rng_seed + 1000 + k)    # position tag for unit k
+        pos = hdc.klein4_expand(dim, pos_rng_seed + 1000 + k)    # position tag for unit k
         if o == 1:
             bound.append(hdc.klein4_bind(pos, sector_inphase))
         elif o == -1:
             bound.append(hdc.klein4_bind(pos, sector_antiphase))
         # unresolved (o==0) contributes nothing (no coordinated sector to bind)
     if not bound:
-        return hdc.klein4_random(dim, seed=seed + 99)                # degenerate: nothing coordinated
+        return hdc.klein4_expand(dim, seed + 99)                # degenerate: nothing coordinated
     return hdc.klein4_bundle(*bound)
 
 

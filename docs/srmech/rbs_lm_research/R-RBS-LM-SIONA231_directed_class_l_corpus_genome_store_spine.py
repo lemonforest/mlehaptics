@@ -29,7 +29,7 @@ from srmech.amsc import text as T
 HERE = Path(__file__).parent
 LEAF = 64
 OUT = Path("/tmp/siona231")
-COUPLE = hdc.klein4_random(LEAF, seed=1080)          # the sandroing/UNESCO 00073 coupling seed
+COUPLE = hdc.klein4_expand(LEAF, 1080)          # the sandroing/UNESCO 00073 coupling seed
 
 
 # ---------- the vocab string-table codec (a SECOND chromosome so the genome is self-contained, not loose) ----------

@@ -36,7 +36,7 @@ def leaves(n_leaf):
 def main():
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 2000
     n_leaf = 50
-    one = hdc.klein4_random(DIM, seed=0)
+    one = hdc.klein4_expand(DIM, 0)
     d = tempfile.mkdtemp()
     print(f"=== genome_append scaling repro (srmech {srmech.__version__}) — {n} appends of a fixed {n_leaf}-leaf payload ===")
     g.genome_save(g.genome(kernels=[("seed", leaves(n_leaf))], the_one=one), d, one, labels=["seed"])

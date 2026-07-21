@@ -12,7 +12,7 @@ D, K, PMAX, C = 8192, 2, 24, 8
 cs = S.ContextSubstrate(D=D, hex_chars=16)
 def _dig(s):
     h = fmt.sha256_bytes(s.encode()); return bytes.fromhex(h) if isinstance(h, str) else h
-def byte_k4(b): return hdc.klein4_random(D, seed=b)
+def byte_k4(b): return hdc.klein4_expand(D, b)
 def word_k4(w):
     return cs.bundle_odd([hdc.klein4_bind(byte_k4(b), cs.pos_key(i)) for i, b in enumerate(w.encode("utf-8"))])
 def byte_oct(b):
@@ -24,7 +24,7 @@ def word_oct(w):
 def ctx_key(win):
     p = word_oct(win[0])
     for w in win[1:]: p = tuple(cascade.cd_mult(p, word_oct(w)))
-    return hdc.klein4_random(D, seed=int.from_bytes(_dig(",".join(str(x) for x in p))[:8], "big"))
+    return hdc.klein4_expand(D, int.from_bytes(_dig(','.join((str(x) for x in p)))[:8], 'big'))
 def key_at(win, pos): return hdc.klein4_phase_bind(ctx_key(win), pos / PMAX)
 WV = {}
 def wv(w):
@@ -65,7 +65,7 @@ with open(path) as f:
 
 print(f"=== F898 the bit-serialized RBS-HDC instrument ({len(arts)} real articles) ===")
 # (0) serializer round-trip
-t0 = hdc.klein4_random(D, seed=99); rt = bits_to_hv(hv_to_bits(t0)).tolist() == t0.tolist()
+t0 = hdc.klein4_expand(D, 99); rt = bits_to_hv(hv_to_bits(t0)).tolist() == t0.tolist()
 print(f"  serializer: HV -> {len(hv_to_bits(t0))} bytes (2-bit packed; native tobytes was {len(t0.tobytes())}); round-trip exact: {rt}")
 
 tmp = tempfile.mkdtemp(prefix="rbs_")

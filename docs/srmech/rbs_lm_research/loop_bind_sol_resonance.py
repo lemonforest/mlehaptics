@@ -66,7 +66,7 @@ def main():
     print(f"  cos(forward, wrong-sign) = {cos(E_fwd, E_ws):+.3f}  (<1 -> resonance SIGN pattern recoverable)")
 
     # PLAYBACK baseline: commutative klein4 bundle of the body anchors (the period set)
-    kb = [hdc.klein4_random(2048, seed=200 + i) for i in range(3)]
+    kb = [hdc.klein4_expand(2048, 200 + i) for i in range(3)]
     P_fwd = hdc.klein4_bundle(kb[0], kb[1], kb[2])
     P_rev = hdc.klein4_bundle(kb[2], kb[1], kb[0])
     print("\n=== PLAYBACK (commutative bundle): the period set only ===")

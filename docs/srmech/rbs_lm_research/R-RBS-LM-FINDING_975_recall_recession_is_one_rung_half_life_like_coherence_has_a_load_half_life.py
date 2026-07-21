@@ -7,9 +7,9 @@ from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 def margin_at_load(N):                      # chain of N tokens; store forward pairs; margin at ctx[0]
-    vec=[hdc.klein4_random(D, seed=5000+i) for i in range(N)]
+    vec=[hdc.klein4_expand(D, 5000 + i) for i in range(N)]
     M=cs.bundle_odd([bind(bind(vec[i],ROLE),vec[i+1]) for i in range(N-1)])
     probe=bind(M, bind(vec[0],ROLE))
     s=sorted((fl(hdc.klein4_similarity(probe,vec[j])) for j in range(N)), reverse=True)

@@ -28,7 +28,7 @@ def main():
     print(f"=== R-RBS-LM-NOISERULE — a model↔biology deviation is FIRST a substrate chirality feature, k=(4:3)|(3:4)  (srmech {srmech.__version__}) ===\n")
 
     # the two genuine chiral hands (A and its gamma5 chiral dual B) — confirm they are true duals
-    A = hdc.klein4_random(8192, seed=7)
+    A = hdc.klein4_expand(8192, 7)
     B = hdc.klein4_chirality_flip_gamma5(A)
     print(f"(0) the two chiral hands A, B are genuine duals: klein4 similarity(A,B) = {hdc.klein4_similarity(A, B):.2f} (0 = orthogonal chiral dual);")
     print(f"    sector occupancy A={hdc.klein4_sector_count(A)}  B(γ₅-flip)={hdc.klein4_sector_count(B)} (the γ₅ axis swaps the sectors).\n")

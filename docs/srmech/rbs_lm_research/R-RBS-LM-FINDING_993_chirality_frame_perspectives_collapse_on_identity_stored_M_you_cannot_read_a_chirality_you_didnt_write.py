@@ -9,7 +9,7 @@ from srmech.amsc import hdc, laplacian as Lp, harmonic_maass as hm, cascade
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 FR=[lambda v:v, hdc.klein4_chirality_flip_gamma5, hdc.klein4_chirality_flip_omega7, hdc.klein4_cpt_mirror]  # 4 chiral frames
 
 # ---- asymmetric weights: TRANSLATE the theta ladder (mock-theta eulerian_f) -> 4 chirality-frame weights ----

@@ -62,7 +62,7 @@ TOK = re.compile(r"\w+|\s+|[^\w\s]")           # byte-exact partition: word-run 
 
 
 def the_one():
-    return hdc.klein4_random(DIM, seed=0)       # the held invariant (F833 seed=0), content-addressed into the manifest
+    return hdc.klein4_expand(DIM, 0)       # the held invariant (F833 seed=0), content-addressed into the manifest
 
 
 def toks(text):

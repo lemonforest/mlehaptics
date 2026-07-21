@@ -34,7 +34,7 @@ BASE_SEED = 20260603
 def corrupt(v, p, rng):
     """Randomize a fraction p of the klein-4 vector's coordinates (an independent bad render)."""
     out = v.copy()
-    noise = hdc.klein4_random(D, seed=int(rng.integers(1, 2**31)))
+    noise = hdc.klein4_expand(D, int(rng.integers(1, 2 ** 31)))
     mask = rng.random(out.shape[0]) < p
     out[mask] = noise[mask]
     return out
@@ -42,7 +42,7 @@ def corrupt(v, p, rng):
 
 def trial(p, seed):
     rng = np.random.default_rng(seed)
-    v_true = hdc.klein4_random(D, seed=seed)
+    v_true = hdc.klein4_expand(D, seed)
     # three co-equal renders: 2 clean copies + 1 corrupted at strength p
     r1 = v_true.copy()
     r2 = v_true.copy()

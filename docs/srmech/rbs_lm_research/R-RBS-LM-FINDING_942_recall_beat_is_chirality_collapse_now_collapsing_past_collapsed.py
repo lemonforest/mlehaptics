@@ -7,8 +7,8 @@ from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}
-ROLE=hdc.klein4_random(D, seed=4242); chain=['a','b','c','d','e']
+vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000 + i) for i,t in enumerate(vocab)}
+ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']
 M=cs.bundle_odd([ bind(bind(vec[p],ROLE),vec[n]) for p,n in zip(chain,chain[1:]) ])
 def sims(v): return {t: round(fl(hdc.klein4_similarity(v,vec[t])),2) for t in vocab}
 def margin(d): s=sorted(d.values(),reverse=True); return round(s[0]-s[1],2)

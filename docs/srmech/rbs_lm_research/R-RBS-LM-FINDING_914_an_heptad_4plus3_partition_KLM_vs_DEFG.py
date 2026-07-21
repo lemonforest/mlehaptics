@@ -5,7 +5,7 @@ sequence-SENSITIVE) = {D pattern-match, E catalog, F render, G byte-search}. Gro
 associative+commutative. The precise octonion-unit bijection stays open; the (4+3) PARTITION is
 principled. srmech rc13."""
 from srmech.amsc import hdc
-a=hdc.klein4_random(2048,seed=1); b=hdc.klein4_random(2048,seed=2); c=hdc.klein4_random(2048,seed=3)
+a=hdc.klein4_expand(2048, 1); b=hdc.klein4_expand(2048, 2); c=hdc.klein4_expand(2048, 3)
 print("M (klein4_bind) associative:", hdc.klein4_bind(hdc.klein4_bind(a,b),c).tolist()==hdc.klein4_bind(a,hdc.klein4_bind(b,c)).tolist(),
       "| commutative:", hdc.klein4_bind(a,b).tolist()==hdc.klein4_bind(b,a).tolist())
 print("(4+3) heptad partition: 3={K,L,M} order-invariant (associative triality); 4={D,E,F,G} sequence-sensitive (coset).")

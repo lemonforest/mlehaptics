@@ -29,9 +29,9 @@ import srmech.amsc.genome as g
 from srmech.amsc import hdc
 
 DIM = 64
-ONE = hdc.klein4_random(DIM, seed=0)            # the coherence-anchor leaf ("the one"), dim = leaf dim
+ONE = hdc.klein4_expand(DIM, 0)            # the coherence-anchor leaf ("the one"), dim = leaf dim
 def _leaves(seed, n):
-    return [hdc.klein4_random(DIM, seed=seed * 1000 + i) for i in range(n)]
+    return [hdc.klein4_expand(DIM, seed * 1000 + i) for i in range(n)]
 
 KERNELS = [("siona_identity", _leaves(1, 5)),    # the "DNA bookshelf": label -> list of tome-leaves
            ("mfo_the_one",    _leaves(2, 3)),

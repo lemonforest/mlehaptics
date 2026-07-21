@@ -69,7 +69,7 @@ def main():
     lb_perms = [LB(LB(s[i], s[j]), s[k]) for i, j, k in itertools.permutations(range(3))]
     print(f"  loop bind:  {n_distinct(lb_perms)}/6 permutations distinct")
     # klein4 XOR baseline (commutative -> order washed out)
-    k = [hdc.klein4_random(2048, seed=100 + t) for t in range(3)]
+    k = [hdc.klein4_expand(2048, 100 + t) for t in range(3)]
     kb_perms = [hdc.klein4_bind(hdc.klein4_bind(k[i], k[j]), k[kk]) for i, j, kk in itertools.permutations(range(3))]
     kdist = 1
     for v in kb_perms[1:]:
@@ -94,7 +94,7 @@ def main():
     print("\n=== Path D — direction: a*b vs b*a ===")
     a, b = ro(), ro()
     print(f"  loop bind:  cos(a*b, b*a) = {cos(LB(a, b), LB(b, a)):+.3f}  (< 1 -> direction encoded + recoverable)")
-    ka, kb = hdc.klein4_random(2048, seed=11), hdc.klein4_random(2048, seed=12)
+    ka, kb = hdc.klein4_expand(2048, 11), hdc.klein4_expand(2048, 12)
     print(f"  klein4 XOR: sim(a^b, b^a) = {hdc.klein4_similarity(hdc.klein4_bind(ka, kb), hdc.klein4_bind(kb, ka)):.3f}  (= 1 -> direction lost)")
 
     print("\n--- verdict ---")

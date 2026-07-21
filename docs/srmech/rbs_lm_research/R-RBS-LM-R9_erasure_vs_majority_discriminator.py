@@ -54,7 +54,7 @@ def per_coord_majority(cands):
 def trial(seed):
     rng = np.random.default_rng(seed)
     F = flips()
-    c = hdc.klein4_random(D, seed=seed)
+    c = hdc.klein4_expand(D, seed)
     sectors = [F[i](c) for i in range(4)]            # the CPT-orbit store (the 4 quadrants)
 
     res = {}
@@ -81,7 +81,7 @@ def trial(seed):
             for i in range(4):
                 v = sectors[i].copy()
                 if i in bad:                              # corrupt this sector (random klein4)
-                    v = hdc.klein4_random(D, seed=int(rng.integers(1, 2**31)))
+                    v = hdc.klein4_expand(D, int(rng.integers(1, 2 ** 31)))
                 views.append(v)
             cands = [F[i](views[i]) for i in range(4)]    # invert each -> candidate c (clean) or garbage
             rec = per_coord_majority(cands)

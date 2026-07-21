@@ -32,7 +32,7 @@ KERNEL = Path.home() / "corpora" / "wikipedia" / "enwiki_kernel_256.json"
 OUTDIR = Path.home() / "corpora" / "wikipedia" / "wiki_tomes_genome"          # the persisted multi-tome source
 SIDECAR = OUTDIR / "tomes.ndjson"                                             # MPR: each tome's renderable word list
 DIM, NT = 64, 14                                                              # leaf dim; the bookshelf of 14 (the_one)
-ONE = hdc.klein4_random(DIM, seed=0)
+ONE = hdc.klein4_expand(DIM, 0)
 PI = 2.0 * calculus.atan2(1.0, 0.0)                                           # π = 2·atan2(1,0), srmech-native
 def _leaf(t): return hdc.klein4_encode_bytes(t, DIM)  # F1260: byte-composed (was seed=hash -> arbitrary code at the 0.25 floor)
 

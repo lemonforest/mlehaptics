@@ -11,7 +11,7 @@ def differ(a, b):
 
 print("=== Does the object carry ORDER (the WALK needs it) ? ===")
 # Klein-4 (the current store object): XOR group -> commutative + associative -> ORDER-BLIND
-a = hdc.klein4_random(64, seed=1); b = hdc.klein4_random(64, seed=2); c = hdc.klein4_random(64, seed=3)
+a = hdc.klein4_expand(64, 1); b = hdc.klein4_expand(64, 2); c = hdc.klein4_expand(64, 3)
 ab = hdc.klein4_bind(a, b); ba = hdc.klein4_bind(b, a)
 print(f"Klein-4 bind commutative?  a*b == b*a : {hdc.klein4_similarity(ab, ba) == 1.0}  -> ORDER-BLIND (cannot encode a walk's direction)")
 abc = hdc.klein4_bind(hdc.klein4_bind(a, b), c); a_bc = hdc.klein4_bind(a, hdc.klein4_bind(b, c))

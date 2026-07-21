@@ -82,8 +82,8 @@ def main():
     def cap_klein4(K):
         accs = []
         for t in range(TR):
-            V = [hdc.klein4_random(D, seed=10_000 + t * 4000 + m) for m in range(M)]
-            keys = [hdc.klein4_random(D, seed=9_000_000 + t * 4000 + i) for i in range(K)]
+            V = [hdc.klein4_expand(D, 10000 + t * 4000 + m) for m in range(M)]
+            keys = [hdc.klein4_expand(D, 9000000 + t * 4000 + i) for i in range(K)]
             idx = np.random.default_rng(700 + t).choice(M, size=K, replace=False)
             bundle = hdc.klein4_bundle(*[hdc.klein4_bind(keys[i], V[idx[i]]) for i in range(K)])
             ok = sum(int(max(range(M), key=lambda m: hdc.klein4_similarity(hdc.klein4_bind(keys[i], bundle), V[m]))) == int(idx[i]) for i in range(K))
