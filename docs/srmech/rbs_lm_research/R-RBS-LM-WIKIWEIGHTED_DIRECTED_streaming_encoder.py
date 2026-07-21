@@ -31,12 +31,16 @@ from pathlib import Path
 
 import srmech
 from srmech.amsc import laplacian as L
+from srmech.amsc import genome                     # F1299: genome-native persistence (the one-op graph->genome path)
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.cascade import magnitude          # Class-K real pin-slot magnitude (cascade-honest, not the builtin)
 
 HERE = Path(__file__).parent
 DUMP = Path(os.environ.get("WIKI_DUMP", str(Path.home() / "corpora" / "wikipedia" / "simplewiki-latest-pages-articles.xml.bz2")))
 OUT = Path(os.environ.get("OUT", str(Path.home() / "corpora" / "wikipedia" / "simplewiki_directed_sparse_kernel.json")))
+# F1299: genome-native output (content-addressed TLV, per [[feedback_persist_genome_native_not_loose_json]]).
+# Defaults alongside the JSON; set GENOME_OUT="" to skip. Verified on a synthetic directed+charged graph.
+GENOME_OUT = os.environ.get("GENOME_OUT", str(OUT.with_suffix(".genome")))
 WINDOW = int(os.environ.get("WINDOW", "4"))
 _mx = os.environ.get("MAX_ARTICLES", "0")
 MAX_ARTICLES = None if _mx in ("", "0", "none", "None") else int(_mx)
@@ -167,6 +171,22 @@ def persist(vocab, edges, sym_w, fwd, bwd, freq, n_articles):
                     "cooccurrence_edges directed= ask)."}}
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload))
+
+    # F1299: genome-native persist (the ONE-OP graph->genome path, verified on a synthetic directed+charged
+    # graph). genome_from_graph takes the SAME (edges, metric weights, per-edge charges) this encoder already
+    # computes, partitions nuclear/plasmid by the graph's own structure (F1250/F1251), and persists
+    # content-addressed TLV — retiring the loose-JSON anti-pattern ([[feedback_persist_genome_native_not_loose_json]])
+    # and USING the charge (not just storing it, as the JSON does). charges=curvature is the chiral dual-sense
+    # the magnetic Laplacian reads. Guard-wrapped so a JSON-only run is unaffected if GENOME_OUT="".
+    if GENOME_OUT:
+        idx = {w: i for i, w in enumerate(vocab)}
+        gedges = [(int(a), int(b)) for a, b in edges]
+        res = genome.genome_from_graph(
+            len(vocab), gedges, weights=[int(w) for w in sym_w], charges=charge,
+            coupling=genome._default_coupling(52), path=GENOME_OUT)
+        Path(GENOME_OUT).exists() and print(
+            "  genome-native: %s (%d B) counts=%s status=%s"
+            % (Path(GENOME_OUT).name, Path(GENOME_OUT).stat().st_size, res.get("counts"), res.get("status")))
     return OUT.stat().st_size
 
 
