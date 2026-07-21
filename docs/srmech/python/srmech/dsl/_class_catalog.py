@@ -176,7 +176,7 @@ class CatalogClass:
     declared methods by name::
 
         Genome = make_class("Genome")
-        g = Genome(the_one=one)
+        g = Genome(coupling=one)
         g.shape(n=5000)                                  # -> the encode-shape dict
         strand = g.add_chromosome(leaves=[...], label="astronomy")  # appended
         leaves = g.recall(strand=strand, telomere=g.cap(label="astronomy"))
@@ -405,7 +405,7 @@ class CatalogClass:
 def make_class(name: str) -> Callable[..., CatalogClass]:
     """Return a factory that constructs the user-declared class ``name``.
 
-    ``Genome = make_class("Genome"); g = Genome(the_one=...)``. The factory
+    ``Genome = make_class("Genome"); g = Genome(coupling=...)``. The factory
     carries ``.class_name`` and ``.descriptor`` for introspection (the hook
     DSL / CLI / tool_schema class-awareness composes on).
     """

@@ -855,7 +855,7 @@ decrements it).
   deterministic source (not an oracle) — per user direction ("use our own rng …
   rbs_lm is ours") the 3 numpy-RNG sites swap to the framework-native stdlib stream
   + the values re-base ONCE. `substrate.py`: per-token seed `np.random.default_rng(
-  token_seed)`→`hdc.klein4_random(D, seed=…)`, `np.full(D, sector)`→`bytes([sector])
+  token_seed)`→`hdc.klein4_expand(D, …)`, `np.full(D, sector)`→`bytes([sector])
   *D`, encode helpers + `ContextSubstrate` return the **HV** carrier (no `.to_numpy`),
   `sim_k4_batch`→`hdc.klein4_similarity` per HV. `inference.py`: `_softmax` per-element
   exp via Class-N `rational.exp` (NOT numpy-carrier `elementwise_transcendental`),

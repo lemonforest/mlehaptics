@@ -93,7 +93,7 @@ def test_one_plain_accessors_match_pure(method):
 
     inst = make_class("One")(one=one)
     pure_result = getattr(inst, method)()
-    # One's field is a live the_one object; its JSON-native form IS what C emits.
+    # One's field is a live coupling object; its JSON-native form IS what C emits.
     expected = {"class": "One", "method": method,
                 "result": _norm(pure_result), "fields": {"one": oj}}
     assert got == expected
@@ -228,7 +228,7 @@ def test_sed_correct_matches_pure(codeword):
 
 # ── Genome field-state carriers ────────────────────────────────────────────────
 
-_ONE_G = bytes([1, 2, 3, 0, 1, 2, 3, 0])            # a leaf_dim=8 Klein-4 the_one
+_ONE_G = bytes([1, 2, 3, 0, 1, 2, 3, 0])            # a leaf_dim=8 Klein-4 coupling
 _LA = bytes([0, 1, 2, 3, 3, 2, 1, 0])
 _LB = bytes([2, 2, 2, 2, 1, 1, 1, 1])
 _LC = bytes([3, 3, 0, 0, 1, 1, 2, 2])
@@ -239,7 +239,7 @@ def _b64(b):
 
 
 def _gen_jsonfields(chromosomes=None):
-    f = {"the_one": _b64(_ONE_G)}
+    f = {"coupling": _b64(_ONE_G)}
     if chromosomes is not None:
         f["chromosomes"] = chromosomes
     return f
@@ -252,7 +252,7 @@ def _gen_jsonfields(chromosomes=None):
     ("empty", []),
 ])
 def test_genome_add_chromosome_appends_matches_pure(label, leaves):
-    g = make_class("Genome")(the_one=_ONE_G)
+    g = make_class("Genome")(coupling=_ONE_G)
     result = g.add_chromosome(leaves=leaves, label=label)
     expected = {"class": "Genome", "method": "add_chromosome",
                 "result": _norm(result), "fields": _norm(g.fields)}
@@ -264,7 +264,7 @@ def test_genome_add_chromosome_appends_matches_pure(label, leaves):
 
 
 def test_genome_recall_matches_pure():
-    g = make_class("Genome")(the_one=_ONE_G)
+    g = make_class("Genome")(coupling=_ONE_G)
     ch = g.add_chromosome(leaves=[_LA, _LB], label="astro")
     strand_b64 = [_b64(x) for x in ch]
     tel_b64 = _b64(g.cap(label="astro"))
@@ -278,7 +278,7 @@ def test_genome_recall_matches_pure():
 
 
 def test_genome_assemble_matches_pure():
-    g = make_class("Genome")(the_one=_ONE_G)
+    g = make_class("Genome")(coupling=_ONE_G)
     asm = g.assemble(kernels={"astro": [_LA, _LB], "bio": [_LC]})
     expected = {"class": "Genome", "method": "assemble",
                 "result": _norm(asm), "fields": _norm(g.fields)}
@@ -293,7 +293,7 @@ def test_genome_assemble_matches_pure():
     None, ["astro"], ["bio", "astro"], ["astro", "astro"], ["missing"],
 ])
 def test_genome_partition_matches_pure(labels):
-    g = make_class("Genome")(the_one=_ONE_G)
+    g = make_class("Genome")(coupling=_ONE_G)
     asm = g.assemble(kernels={"astro": [_LA, _LB], "bio": [_LC]})
     asm_b64 = [_b64(x) for x in asm]
     part = g.partition(strand=asm, labels=labels)

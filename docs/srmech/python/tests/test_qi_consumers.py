@@ -61,13 +61,13 @@ def _qi(t):
 
 
 def _frac_pair(z: Qi):
-    """``Qi`` → an exact ``(Fraction, Fraction)`` for oracle comparison."""
+    """``Qi`` → an exact ``(Fraction, Q)`` for oracle comparison."""
     return (Fraction(z.real.numerator, z.real.denominator),
             Fraction(z.imag.numerator, z.imag.denominator))
 
 
 def _cd_pair(elem):
-    """A length-2 ``cd_*`` result tuple → a ``(Fraction, Fraction)`` pair."""
+    """A length-2 ``cd_*`` result tuple → a ``(Fraction, Q)`` pair."""
     return (Fraction(elem[0]), Fraction(elem[1]))
 
 
@@ -118,7 +118,7 @@ def test_cd_consumer_stays_exact_not_float():
     # (1/3 + i/7)(2/5 − i/11) = (2/15 + 1/77) + (2/35 − 1/33) i
     assert _cd_pair(cd) == (Fraction(2, 15) + Fraction(1, 77),
                             Fraction(2, 35) - Fraction(1, 33))
-    assert all(isinstance(x, Fraction) for x in cd)
+    assert all(isinstance(x, Q) for x in cd)
 
 
 # ──────────────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ the helix-turn COUPLING (``quad_turn``, F713). Validates:
   * the encode criterion reproduces F715's attested table to the byte
     (200 -> tome, 800 -> mobius, 5000 -> quad_strand depth 3, 1.77M -> depth 7);
   * the criterion is pure-integer (no float in the returned depth/leaves);
-  * ``quad_turn`` couples a turn through the_one by the REVERSIBLE Klein-4 bind
+  * ``quad_turn`` couples a turn through coupling by the REVERSIBLE Klein-4 bind
     (quad_turn(quad_turn(t, one), one) == t — the duality held without collapse).
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 
 from srmech.amsc import genome
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 
 # ── encode_shape — the criterion (F715) ──────────────────────────────────────
@@ -75,29 +75,29 @@ def test_depth_monotone_nondecreasing_in_n():
         prev = d
 
 
-# ── quad_turn — the reversible the_one coupling (F713) ────────────────────────
+# ── quad_turn — the reversible coupling coupling (F713) ────────────────────────
 
-def test_quad_turn_is_reversible_through_the_one():
-    t = klein4_random(64, seed=1)
-    one = klein4_random(64, seed=99)
+def test_quad_turn_is_reversible_through_coupling():
+    t = klein4_expand(64, 1)
+    one = klein4_expand(64, 99)
     coupled = genome.quad_turn(t, one)
-    recovered = genome.quad_turn(coupled, one)        # re-bind the_one
+    recovered = genome.quad_turn(coupled, one)        # re-bind coupling
     assert list(recovered) == list(t)                 # bind o bind == identity
     assert list(coupled) != list(t)                   # it actually coupled
 
 
-def test_the_one_is_the_shared_invariant_across_turns():
-    one = klein4_random(64, seed=7)
-    turns = [klein4_random(64, seed=s) for s in range(5)]
-    # every turn recovers exactly by re-binding the SAME the_one
+def test_coupling_is_the_shared_invariant_across_turns():
+    one = klein4_expand(64, 7)
+    turns = [klein4_expand(64, s) for s in range(5)]
+    # every turn recovers exactly by re-binding the SAME coupling
     for t in turns:
         assert list(genome.quad_turn(genome.quad_turn(t, one), one)) == list(t)
 
 
 def test_quad_turn_distinct_one_gives_distinct_coupling():
-    t = klein4_random(64, seed=3)
-    one_a = klein4_random(64, seed=10)
-    one_b = klein4_random(64, seed=11)
+    t = klein4_expand(64, 3)
+    one_a = klein4_expand(64, 10)
+    one_b = klein4_expand(64, 11)
     assert list(genome.quad_turn(t, one_a)) != list(genome.quad_turn(t, one_b))
 
 
@@ -112,16 +112,16 @@ def test_telomere_distinct_labels_distinct_caps():
 
 
 def test_chromosome_is_telomere_capped_strand():
-    one = klein4_random(64, seed=7)
-    leaves = [klein4_random(64, seed=s) for s in range(5)]
+    one = klein4_expand(64, 7)
+    leaves = [klein4_expand(64, s) for s in range(5)]
     strand = genome.chromosome(leaves, one, label="astronomy")
     assert len(strand) == len(leaves) + 1                  # one cap + N coupled turns
     assert list(strand[0]) == list(genome.telomere("astronomy", dim=64))   # leading cap
 
 
 def test_recall_round_trips_the_kernel():
-    one = klein4_random(64, seed=7)
-    leaves = [klein4_random(64, seed=s) for s in range(5)]
+    one = klein4_expand(64, 7)
+    leaves = [klein4_expand(64, s) for s in range(5)]
     strand = genome.chromosome(leaves, one, label="astronomy")
     cap = genome.telomere("astronomy", dim=64)
     recovered = genome.recall(strand, one, cap)
@@ -130,9 +130,9 @@ def test_recall_round_trips_the_kernel():
 
 def test_recall_skips_the_cap_by_value_not_position():
     # a cap appearing anywhere (the multi-chromosome genome shape) is skipped
-    one = klein4_random(64, seed=2)
+    one = klein4_expand(64, 2)
     cap = genome.telomere("k", dim=64)
-    leaf = klein4_random(64, seed=9)
+    leaf = klein4_expand(64, 9)
     strand = [genome.quad_turn(leaf, one), cap, genome.quad_turn(leaf, one)]
     recovered = genome.recall(strand, one, cap)
     assert len(recovered) == 2 and all(list(x) == list(leaf) for x in recovered)
@@ -142,14 +142,14 @@ def test_recall_skips_the_cap_by_value_not_position():
 
 def _kernels(one):
     return {
-        "astronomy": [klein4_random(64, seed=s) for s in range(3)],
-        "geography": [klein4_random(64, seed=s) for s in (10, 11)],
-        "music": [klein4_random(64, seed=20)],
+        "astronomy": [klein4_expand(64, s) for s in range(3)],
+        "geography": [klein4_expand(64, s) for s in (10, 11)],
+        "music": [klein4_expand(64, 20)],
     }
 
 
 def test_genome_is_concatenated_telomere_capped_chromosomes():
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     k = _kernels(one)
     strand = genome.genome(k, one)
     # 3 caps + (3+2+1) coupled turns
@@ -161,7 +161,7 @@ def test_genome_is_concatenated_telomere_capped_chromosomes():
 
 
 def test_partition_round_trips_every_kernel():
-    one = klein4_random(64, seed=7)
+    one = klein4_expand(64, 7)
     k = _kernels(one)
     strand = genome.genome(k, one)
     back = genome.partition(strand, one, list(k))
@@ -171,8 +171,8 @@ def test_partition_round_trips_every_kernel():
 
 
 def test_genome_accepts_pair_sequence_form():
-    one = klein4_random(64, seed=3)
-    A = [klein4_random(64, seed=1)]
+    one = klein4_expand(64, 3)
+    A = [klein4_expand(64, 1)]
     assert [list(x) for x in genome.genome([("k", A)], one)] \
         == [list(x) for x in genome.genome({"k": A}, one)]
 
@@ -180,10 +180,10 @@ def test_genome_accepts_pair_sequence_form():
 def test_genome_seed_class_assemble_and_partition():
     # the Genome CatalogClass now drives the multi-kernel genome end-to-end
     from srmech.dsl import make_class
-    one = klein4_random(64, seed=7)
-    g = make_class("Genome")(the_one=one)
+    one = klein4_expand(64, 7)
+    g = make_class("Genome")(coupling=one)
     k = _kernels(one)
-    strand = g.assemble(kernels=k)                 # binds the_one from the field
+    strand = g.assemble(kernels=k)                 # binds coupling from the field
     back = g.partition(strand=strand, labels=list(k))
     for label, leaves in k.items():
         assert [list(x) for x in back[label]] == [list(l) for l in leaves]

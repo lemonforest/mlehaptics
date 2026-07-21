@@ -217,11 +217,80 @@ _EXPECTED_SPLIT = {
     # kernel_to_graph (the directed-graph<->Klein-4 codec; dispatch to the
     # byte-identical C peer srmech_graph_kernel_encode / _decode, the kernel_pack
     # composes_c precedent). composes_c 121 -> 123; total 190 -> 192.
-    "composes_c": 123,
+    # rc261 (§95.2 / #1407): +2 composes_c — dsl.build_aliases_from_toml_str /
+    # load_aliases_toml (the [[alias]] TOML function-aliasing layer; parse via the C
+    # srmech_toml, the build_chain_from_toml_str composes_c precedent). composes_c
+    # 123 -> 125. +1 dev_tooling — dsl.alias (pure Python name-binding, a bare-C host
+    # never aliases Python fns). dev_tooling 48 -> 49; total 192 -> 195.
+    # rc267 (§96 / PR#687 UPSTREAM_NOTES): +2 composes_c — genome.genome_census +
+    # genome.genome_registry (the per-genome roll-up + cell census; each composes
+    # over the C genome_catalog / srmech_genome_census / srmech_genome_registry).
+    # composes_c 125 -> 127; total 195 -> 197.
+    # rc271 (§96 / F1251): the VALUE-ALIAS presentation layer (the plasmid/nuclear
+    # field-vocabulary rename's opt-in-old-names companion). +1 composes_c —
+    # genome.load_type_aliases_toml (parses [genome.type_aliases] via the C
+    # srmech_toml, the rc261 load_aliases_toml precedent). composes_c 127 -> 128.
+    # +2 dev_tooling — genome.set_type_aliases / clear_type_aliases (pure Python
+    # session-state presentation setters; a bare-C host never re-presents the C's
+    # canonical plasmid/nuclear output, the rc261 dsl.alias precedent).
+    # dev_tooling 49 -> 51; total 197 -> 200.
+    # rc278 (§102 / F1252 STAGE 1): +1 composes_c — plasmid.section_counts (the
+    # genome-native section-count read; scans the store's sections + composes over
+    # the C genome_census / genome_window / kernel_unpack, the genome_census
+    # composes_c precedent). plasmid.plasmid_extract is a BUILDER with a whole-op C
+    # orchestrator (srmech_genome_plasmid_extract) -> composition_of_c, NOT counted
+    # here. composes_c 128 -> 129; total 200 -> 201.
+    # rc280 (§102 / F1253): -1 composes_c — plasmid.section_counts EARNED its own
+    # whole-op C peer (srmech_genome_section_counts: derive the catalog once, page
+    # only each section's node_ids prefix) and now DISPATCHES to it, so it is no
+    # longer a Python orchestration over other C ops -> it leaves non_compute for
+    # c_dispatched (the conserved_core precedent). composes_c 129 -> 128;
+    # total 201 -> 200. The debt moved DOWN: one fewer op a bare-C host must
+    # re-orchestrate itself.
+    # rc290 (§102 / F1259 / F1260): +1 host_glue — hdc.klein4_random.
+    # The Klein-4 mint split by REGIME left the STOCHASTIC regime alone in an
+    # op of its own, and it is the one klein4 op with NO C peer. That is a
+    # REGIME property, not debt, which is why it lands here and not in
+    # python_only_debt: its output is by definition not a function of any
+    # input, so there is no kernel to mirror and nothing to differentially
+    # test for byte-identity — two implementations of "unpredictable" cannot
+    # be compared. A bare-C host needing an unpredictable Klein-4 vector reads
+    # its own entropy source, exactly as this reads Python's; host_glue (host
+    # I/O, tracked, no ceiling) is the honest sub-bucket. The CAPABILITY every
+    # cascade actually consumes — DETERMINISTIC Klein-4 minting — is fully
+    # covered in both projections by klein4_expand / _address / _from_one
+    # (c_dispatched) and klein4_role (composition_of_c), so no debt ceiling
+    # moved. host_glue 21 -> 22; total 200 -> 201.
+    # rc292 (§102 / F1259): -1 host_glue — hdc.klein4_random is REMOVED, and
+    # the ceiling comes back DOWN with it. host_glue 22 -> 21; total 201 -> 200.
+    # rc290's reasoning above was sound about the regime and wrong about the
+    # remedy: it argued the op had no C peer because "unpredictable" has
+    # nothing to be at parity about, then kept the op. But rc290 closed only
+    # the ``seed=`` door — a SEEDED ``rng=`` is just as reproducible, and every
+    # real call site was passing one, so the STOCHASTIC bucket was holding an
+    # op that in practice ran deterministically. An op whose declared regime
+    # does not match its use is not a tracked exception; it is a defect. The
+    # honest resolution is removal, not a bucket. Callers draw their own bytes
+    # and compose klein4_encode_bytes, which has C parity all the way down.
+    # rc297 (`#934`): +1 composes_c — the general N-slot Cayley–Dickson register
+    # adds ONE constructor row, ``cascade.cd_register.cd_register``. This is a
+    # POPULATION pin, not a debt ceiling, and a non_compute number going UP is
+    # the reading that most deserves suspicion, so the evidence is stated rather
+    # than left to inference. The row lands in **composes_c (128 -> 129)** and
+    # NOT in host_glue (21, UNCHANGED), and ``CEIL_WIRE_GLUE_GAPS`` stays at
+    # **10** — so the op family has real C peers reachable through dispatch glue
+    # (srmech_cd_navmap / srmech_cd_navigate /
+    # srmech_cd_navmap_is_signed_permutation), not a gap wearing a composition
+    # label. That distinction IS the difference between composition and a
+    # laundered gap. The constructor itself computes nothing (it allocates an
+    # empty slot-map and codebook); all compute is in the methods, which route
+    # to those three c_dispatched rows — which is why it also carries a
+    # justified entry in COMPOSES_C_ZERO_REACH_PINNED.
+    "composes_c": 129,
     "host_glue": 21,
-    "dev_tooling": 48,
+    "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 192
+_TOTAL_NON_COMPUTE = 201        # rc297 (`#934`): 200 -> 201, the cd_register constructor row above
 
 
 def _rows():

@@ -70,12 +70,23 @@ def test_register_then_resolve_and_run_composite(tmp_path):
     assert list(dsl.run_toml_chain(spec, seq)) == seq
 
 
-def test_env_var_catalog_path(tmp_path):
+def test_env_var_catalog_path(tmp_path, monkeypatch):
+    # rc283: `monkeypatch.setenv` (not a bare `os.environ[...] = `) so the var is
+    # RESTORED at teardown. A raw assignment leaked SRMECH_CASCADE_PATH into every
+    # later test in the same process, still pointing at this `tmp_path` after
+    # pytest deleted it — a latent order-dependence that serial runs happened not
+    # to trip. Under xdist, file->worker assignment decides what runs next in this
+    # process, so the leak becomes reachable. The catalog cache is cleared on the
+    # way OUT as well as in, so no later test can read an entry loaded under the
+    # temporary path.
     _write(tmp_path, "double_flip.toml", _DOUBLE_FLIP)
-    os.environ["SRMECH_CASCADE_PATH"] = str(tmp_path)
+    monkeypatch.setenv("SRMECH_CASCADE_PATH", str(tmp_path))
     _catalog.load_catalog.cache_clear()  # env is read on (re)load
-    assert "byo_double_flip" in dsl.list_cascade_ops()
-    assert list(dsl.chain().then("byo_double_flip").run([4, 5, 6])) == [4, 5, 6]
+    try:
+        assert "byo_double_flip" in dsl.list_cascade_ops()
+        assert list(dsl.chain().then("byo_double_flip").run([4, 5, 6])) == [4, 5, 6]
+    finally:
+        _catalog.load_catalog.cache_clear()
 
 
 def test_provenance_tags_user_vs_shipped(tmp_path):
@@ -157,4 +168,4 @@ def test_shipped_catalog_intact_and_describe_unchanged():
     for o in dsl.list_catalog_ops():
         assert o["provenance"] == "srmech"
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 432
+    assert introspect.describe()["tools"]["total"] == 466

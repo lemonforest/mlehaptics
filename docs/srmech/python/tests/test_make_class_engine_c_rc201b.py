@@ -169,7 +169,7 @@ def test_sed_correct_matches_pure(codeword):
 
 # ── Genome field-state carriers ────────────────────────────────────────────
 
-_ONE_G = bytes([1, 2, 3, 0, 1, 2, 3, 0])         # a leaf_dim=8 Klein-4 the_one
+_ONE_G = bytes([1, 2, 3, 0, 1, 2, 3, 0])         # a leaf_dim=8 Klein-4 coupling
 _LA = bytes([0, 1, 2, 3, 3, 2, 1, 0])
 _LB = bytes([2, 2, 2, 2, 1, 1, 1, 1])
 _LC = bytes([3, 3, 0, 0, 1, 1, 2, 2])
@@ -180,7 +180,7 @@ def _b64(b):
 
 
 def _gen_jsonfields(chromosomes=None):
-    f = {"the_one": _b64(_ONE_G)}
+    f = {"coupling": _b64(_ONE_G)}
     if chromosomes is not None:
         f["chromosomes"] = chromosomes
     return f
@@ -195,7 +195,7 @@ def _gen_jsonfields(chromosomes=None):
     ("empty", []),
 ])
 def test_genome_add_chromosome_appends_matches_pure(label, leaves):
-    g = make_class("Genome")(the_one=_ONE_G)
+    g = make_class("Genome")(coupling=_ONE_G)
     result = g.add_chromosome(leaves=leaves, label=label)
     exp = {"result": _norm(result), "fields": _norm(g.fields)}
     args = {"leaves": [_b64(x) for x in leaves], "label": label}
@@ -209,7 +209,7 @@ def test_genome_add_chromosome_appends_matches_pure(label, leaves):
 # ── genome recall / assemble / partition (reads) ───────────────────────────
 
 def test_genome_recall_matches_pure():
-    g = make_class("Genome")(the_one=_ONE_G)
+    g = make_class("Genome")(coupling=_ONE_G)
     ch = g.add_chromosome(leaves=[_LA, _LB], label="astro")
     strand_b64 = [_b64(x) for x in ch]
     tel_b64 = _b64(g.cap(label="astro"))
@@ -223,7 +223,7 @@ def test_genome_recall_matches_pure():
 
 
 def test_genome_assemble_matches_pure():
-    g = make_class("Genome")(the_one=_ONE_G)
+    g = make_class("Genome")(coupling=_ONE_G)
     asm = g.assemble(kernels={"astro": [_LA, _LB], "bio": [_LC]})
     exp = {"result": _norm(asm), "fields": _norm(g.fields)}
     kern = {"astro": [_b64(_LA), _b64(_LB)], "bio": [_b64(_LC)]}
@@ -238,7 +238,7 @@ def test_genome_assemble_matches_pure():
 def test_genome_partition_matches_pure(labels):
     """partition's dict semantics — strand order (labels=None) OR the labels=
     order (dedup, filtered) — replicated byte-identically in C."""
-    g = make_class("Genome")(the_one=_ONE_G)
+    g = make_class("Genome")(coupling=_ONE_G)
     asm = g.assemble(kernels={"astro": [_LA, _LB], "bio": [_LC]})
     asm_b64 = [_b64(x) for x in asm]
     part = g.partition(strand=asm, labels=labels)

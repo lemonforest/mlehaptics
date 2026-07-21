@@ -2,7 +2,7 @@ r"""R-RBS-LM-GENOME-BIOLOGY-SURVEY — the ask-(d) translation-layer prototype A
 express biology's genome storage + EDITING mechanisms across the tree of life — bacterial plasmid transfer, CRISPR-
 Cas9, transposon "jumping gene", homologous-recombination repair, ciliate (protozoan) macro/micronucleus
 rearrangement, and retroviral integration — as compositions of ONE shared A–N primitive set (the primitives our
-genome couples through `the_one`, F1242), and verify each works BYTE-EXACT on the shared substrate. If they all reduce to the same small primitive
+genome couples through `coupling`, F1242), and verify each works BYTE-EXACT on the shared substrate. If they all reduce to the same small primitive
 set, that IS the coherency-translation-layer (F1244): the reason a virus can edit a eukaryote, HGT works across
 bacteria, and bacterial CRISPR can be repurposed to edit human genes — the primitives are universal; only the
 SITUATIONAL emphasis differs.
@@ -12,7 +12,7 @@ The shared primitive set (mapped to the 14 A–N + the k=3 tower):
   search(strand, motif) Class D/G — pattern-match / byte-search: the CRISPR PAM+protospacer, restriction site.
   cut(strand, pos)      Class K  — pin-slot boundary: the double-strand break.
   splice(strand,pos,seg)          — insert/append (the Tier-1 stick op, §95c).
-  couple(a,b)           Class M  — klein4 coupling through the_one: recombination / melange / integration join.
+  couple(a,b)           Class M  — klein4 bind through `coupling`: recombination / melange / integration join.
   order(perm)           Class C  — chirality / reorder: the ciliate MDS unscramble.
   triality_repair(3)    k=3      — 2-of-3 majority EC (F291); diploid+mark = its k=2+1 form (F1244).
 
@@ -139,7 +139,7 @@ def main():
     print(f"{'k=3 triality EC (the tower spine)':<44} {'triality_repair (2-of-3 majority)':<52} {'error-correction':<30} {'PASS' if ec else 'FAIL'}")
 
     print("\nSAME (the coherency tower): every mechanism is a composition of {A content-address, D/G search, K cut,")
-    print("     splice/append, M couple, C order, k=3 EC} — the shared cascade (the 14 A–N our genome couples through the_one, F1242).")
+    print("     splice/append, M couple, C order, k=3 EC} — the shared cascade (the 14 A–N our genome couples through `coupling`, F1242).")
     print("DIFFERENT (the specialisation): only WHICH primitives are emphasised + the situational PURPOSE (mobility,")
     print("     immunity, self-mobilisation, break-repair, storage-compaction, infection).")
     print("=> a virus edits a eukaryote / CRISPR edits humans / HGT crosses bacteria BECAUSE the primitives are")

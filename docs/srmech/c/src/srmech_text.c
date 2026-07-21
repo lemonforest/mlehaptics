@@ -3,15 +3,18 @@
  * (v0.9.0rc217; gh #1360).
  *
  * The C mirror of `srmech.amsc.text` — the §40/§52 text→graph leaves of the
- * RBS-LM K1 presence-kernel chain `text → tokenize → cooccurrence_edges →
+ * RBS-LM K1 presence-kernel chain `text → glyph_stream → cooccurrence_edges →
  * dense_laplacian`. These three ops shipped rc50/§52 as pure-Python kernels
  * and were MIS-CLASSIFIED non_compute/composes_c in the Rosetta ledger (the
- * hiding-spot the rc217 ledger fix closes): the tokenize per-codepoint loop +
+ * hiding-spot the rc217 ledger fix closes): the per-codepoint segmentation loop +
  * the windowed pair-count accumulation are THE dominant corpus-encode cost
  * (the full-enwiki comprehended-encode estimated ~6 days with the hot loop in
  * Python on a native wheel — no C symbol existed to dispatch to).
  *
- *   - srmech_text_tokenize            : Unicode content-token segmentation
+ *   - srmech_text_glyph_stream        : UAX #29 grapheme-cluster segmentation
+ *   - srmech_text_default_gb_table    : the vendored default break table
+ *   - srmech_text_fold_marks          : combining-mark folding (rc293)
+ *   - srmech_text_default_fold_table  : the vendored default fold table
  *   - srmech_text_cooccurrence_edges  : windowed pair-count → sorted edge list
  *   - srmech_text_cooccurrence_topk   : bounded top-K chunk flush (§52 stream)
  *   - srmech_text_cooccurrence_topk_extract : per-node top-K + edge read-out
@@ -23,13 +26,24 @@
  * differ between hosts.
  *
  * Unicode tables are CALLER-PROVIDED (the srmech caller-arena discipline
- * applied to data): the Python wrapper builds — once per process, from the
- * RUNNING interpreter's `unicodedata` — (a) the kept-bitset (one bit per
- * codepoint: category major class L or M), and (b) the casefold exception
- * table (codepoint → folded UTF-8, only the ~1.5k non-identity rows). So
- * native == pure is byte-identical BY CONSTRUCTION on ANY interpreter /
- * Unicode version (no vendored Unicode data to drift against the host's).
- * A bare-C host supplies its own tables (they are inputs, like the stoplist).
+ * applied to data), and that contract is UNCHANGED by rc287. What changed is
+ * where the table comes from. The retired tokenizer built its tables from the
+ * RUNNING interpreter's `unicodedata`, which made native == pure hold by
+ * construction with nothing vendored. That is not available for UAX #29:
+ * `unicodedata` exposes no grapheme-break property, no Extended_Pictographic
+ * (GB11) and no InCB (GB9c), so the choice is vendored-vs-ABSENT, not
+ * vendored-vs-derived. srmech therefore ships ONE attested default table
+ * (srmech_unicode_gb_tables.h, UCD 16.0.0, re-derivable via
+ * c/tools/gen_unicode_gb_tables.py --verify) that BOTH coherency projections
+ * load, and byte-identity is pinned by test rather than by construction.
+ *
+ * A bare-C host with no Python present calls srmech_text_default_gb_table()
+ * and hands the result straight to the segmenter; a host with its own table
+ * passes that instead. The table is an input, never a hidden global.
+ *
+ * A side effect worth naming: because the table no longer tracks the host,
+ * two hosts at different Python / Unicode versions now segment text
+ * IDENTICALLY. Under the old derive-from-host scheme they would not have.
  *
  * JPL Power-of-Ten compliance:
  *   - Rule 1 (no goto)        : OK
@@ -45,6 +59,8 @@
  */
 
 #include "srmech.h"
+#include "srmech_unicode_gb_tables.h"
+#include "srmech_unicode_fold_tables.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -95,216 +111,361 @@ static int txt_utf8_next(const uint8_t *s, size_t len, size_t *io_i,
     return 1;
 }
 
-/* Is `cp` a kept codepoint (Unicode category major class L or M) per the
- * caller-built bitset? Bit cp of `bits` (LSB-first within each byte). */
-static int txt_kept(const uint8_t *bits, uint32_t cp)
-{
-    assert(bits != NULL);
-    assert(cp < SRMECH_TEXT_MAX_CP);
-    return (int)((bits[cp >> 3] >> (cp & 7u)) & 1u);
-}
+/* ------------------------------------------------------------------ *
+ * srmech_text_glyph_stream — the UAX #29 extended-grapheme-cluster
+ * segmenter (rc287)
+ *
+ * The glyph cluster replaces the word as the tokenizer's unit. A cluster
+ * is what a human reads as ONE character, in EVERY script — so there is
+ * no per-language word decision, no length floor, no casefold and no
+ * stoplist at the front door (each of those was a property of the word
+ * decision, and each encoded a Latin-shaped assumption).
+ *
+ * The break-property table is a CALLER-PROVIDED INPUT (ADR-0003), the
+ * same discipline the retired tokenizer used for its Unicode tables. The
+ * difference is where the table comes from: it can no longer be derived
+ * from a host interpreter, because Extended_Pictographic (GB11) and InCB
+ * (GB9c) are not exposed by any `unicodedata`. srmech therefore VENDORS
+ * one attested default table (srmech_unicode_gb_tables.h) that both
+ * coherency projections load, and a bare-C host with no Python present
+ * reaches it through srmech_text_default_gb_table().
+ *
+ * Implemented as a single forward pass over a small state record — no
+ * lookbehind buffer, no scratch arena, no file-scope state. GB9c and
+ * GB11 both need lookbehind in their spec form; both are folded into
+ * running flags instead, which is what keeps every function inside JPL
+ * Rule 4 and the whole op reentrant.
+ * ------------------------------------------------------------------ */
 
-/* Binary-search the sorted casefold exception table for `cp`. Returns the
- * row index, or SIZE_MAX when `cp` folds to itself (the identity default). */
-static size_t txt_fold_find(const uint32_t *fold_cps, size_t n_folds,
-                            uint32_t cp)
+/* Running state for the GB rules that are specified with lookbehind.
+ *   gb11 : 0 none · 1 saw `ExtPict Extend*` · 2 that, then ZWJ (GB11)
+ *   incb_consonant / incb_linker : the `Consonant [Extend|Linker]*
+ *       Linker` prefix GB9c requires
+ *   ri_run : Regional_Indicator run length, for the GB12/GB13 parity */
+typedef struct {
+    uint8_t  prev;
+    int      gb11;
+    int      incb_consonant;
+    int      incb_linker;
+    uint32_t ri_run;
+} txt_gb_state;
+
+/* Packed property byte for `cp`: gbp in bits 0-3, Extended_Pictographic
+ * in bit 4, InCB in bits 5-6. Hangul LV/LVT are recovered by the UAX #29
+ * §3 syllable algebra rather than table rows (the precomposed block is
+ * 798 ranges of pure alternation — 7,254 B of table saved, exactly).
+ * NOTE the algebra covers ONLY U+AC00..U+D7A3; jamo L/V/T stay table
+ * rows, because LBase/VBase/TBase are composition anchors that do not
+ * coincide with the GBP jamo ranges (U+1160 is GBP=V yet below VBase). */
+static uint8_t txt_gb_prop(const uint32_t *lo, const uint32_t *hi,
+                           const uint8_t *prop, size_t n_ranges, uint32_t cp)
 {
-    size_t lo = 0;
-    size_t hi = n_folds;
-    assert(fold_cps != NULL || n_folds == 0u);
+    size_t l = 0;
+    size_t h = n_ranges;
+    assert(lo != NULL && hi != NULL && prop != NULL);
     assert(cp < SRMECH_TEXT_MAX_CP);
-    for (size_t guard = 0; guard < 64u && lo < hi; guard++) {
-        size_t mid = lo + ((hi - lo) >> 1);
-        if (fold_cps[mid] < cp)      { lo = mid + 1u; }
-        else if (fold_cps[mid] > cp) { hi = mid; }
-        else                         { return mid; }
+    if (cp >= SRMECH_HANGUL_SBASE &&
+        cp < SRMECH_HANGUL_SBASE + SRMECH_HANGUL_SCOUNT) {
+        return (uint8_t)((((cp - SRMECH_HANGUL_SBASE) % SRMECH_HANGUL_TCOUNT)
+                          == 0u) ? SRMECH_GBP_LV : SRMECH_GBP_LVT);
     }
-    return SIZE_MAX;
+    for (size_t guard = 0; guard < 64u && l < h; guard++) {
+        size_t mid = l + ((h - l) >> 1);
+        if (hi[mid] < cp)      { l = mid + 1u; }
+        else if (lo[mid] > cp) { h = mid; }
+        else                   { return prop[mid]; }
+    }
+    return (uint8_t)SRMECH_GBP_OTHER;      /* GB999 default */
 }
 
-/* Lexicographic bytes compare (memcmp semantics with length tiebreak —
- * shorter sorts first on a common prefix, matching Python bytes order). */
-static int txt_bytes_cmp(const uint8_t *a, size_t alen,
-                         const uint8_t *b, size_t blen)
+/* The GB1..GB999 rule ladder: does a cluster boundary sit between the
+ * codepoint whose property is `st->prev` and the one whose property is
+ * `cur`? Rule order is significant and mirrors UAX #29 exactly. */
+static int txt_gb_is_break(const txt_gb_state *st, uint8_t cur)
 {
-    size_t m = (alen < blen) ? alen : blen;
-    int    c;
-    assert(a != NULL || alen == 0u);
-    assert(b != NULL || blen == 0u);
-    c = (m > 0u) ? memcmp(a, b, m) : 0;
-    if (c != 0) { return c; }
-    if (alen == blen) { return 0; }
-    return (alen < blen) ? -1 : 1;
+    uint8_t a = (uint8_t)(st->prev & SRMECH_GB_PROP_GBP_MASK);
+    uint8_t b = (uint8_t)(cur & SRMECH_GB_PROP_GBP_MASK);
+    int a_ctl = (a == SRMECH_GBP_CONTROL || a == SRMECH_GBP_CR ||
+                 a == SRMECH_GBP_LF);
+    int b_ctl = (b == SRMECH_GBP_CONTROL || b == SRMECH_GBP_CR ||
+                 b == SRMECH_GBP_LF);
+    assert(st != NULL);
+    assert(st->gb11 >= 0 && st->gb11 <= 2);
+    if (a == SRMECH_GBP_CR && b == SRMECH_GBP_LF) { return 0; }   /* GB3  */
+    if (a_ctl || b_ctl)                           { return 1; }   /* GB4/5 */
+    if (a == SRMECH_GBP_L && (b == SRMECH_GBP_L || b == SRMECH_GBP_V ||
+                              b == SRMECH_GBP_LV || b == SRMECH_GBP_LVT)) {
+        return 0;                                                 /* GB6  */
+    }
+    if ((a == SRMECH_GBP_LV || a == SRMECH_GBP_V) &&
+        (b == SRMECH_GBP_V || b == SRMECH_GBP_T))  { return 0; }  /* GB7  */
+    if ((a == SRMECH_GBP_LVT || a == SRMECH_GBP_T) &&
+        b == SRMECH_GBP_T)                         { return 0; }  /* GB8  */
+    if (b == SRMECH_GBP_EXTEND || b == SRMECH_GBP_ZWJ) { return 0; } /* GB9 */
+    if (b == SRMECH_GBP_SPACINGMARK)               { return 0; }  /* GB9a */
+    if (a == SRMECH_GBP_PREPEND)                   { return 0; }  /* GB9b */
+    if (a == SRMECH_GBP_ZWJ && (cur & SRMECH_GB_PROP_EXTPICT_BIT) != 0u) {
+        return (st->gb11 == 2) ? 0 : 1;                           /* GB11 */
+    }
+    if (a == SRMECH_GBP_REGIONAL_INDICATOR &&
+        b == SRMECH_GBP_REGIONAL_INDICATOR) {
+        return ((st->ri_run % 2u) == 0u) ? 1 : 0;                 /* GB12/13 */
+    }
+    if (((cur & SRMECH_GB_PROP_INCB_MASK) >> SRMECH_GB_PROP_INCB_SHIFT)
+        == SRMECH_INCB_CONSONANT && st->incb_consonant && st->incb_linker) {
+        return 0;                                                 /* GB9c */
+    }
+    return 1;                                                     /* GB999 */
 }
 
-/* Is the token `tok[0..tok_len)` in the sorted stoplist (n_stop entries;
- * entry e = stop_bytes[stop_off[e] .. stop_off[e+1])), by binary search?
- * UTF-8 byte order == codepoint order, so bytewise compare == str compare. */
-static int txt_stop_contains(const uint32_t *stop_off, size_t n_stop,
-                             const uint8_t *stop_bytes,
-                             const uint8_t *tok, size_t tok_len)
+/* Fold `cur` into the running state, given whether a boundary was just
+ * placed before it. Must run AFTER txt_gb_is_break for that pair. */
+static void txt_gb_advance(txt_gb_state *st, uint8_t cur, int was_break)
 {
-    size_t lo = 0;
-    size_t hi = n_stop;
-    assert(stop_off != NULL || n_stop == 0u);
-    assert(tok != NULL || tok_len == 0u);
-    for (size_t guard = 0; guard < 64u && lo < hi; guard++) {
-        size_t mid = lo + ((hi - lo) >> 1);
-        const uint8_t *e = &stop_bytes[stop_off[mid]];
-        size_t elen = (size_t)(stop_off[mid + 1u] - stop_off[mid]);
-        int c = txt_bytes_cmp(e, elen, tok, tok_len);
-        if (c < 0)      { lo = mid + 1u; }
-        else if (c > 0) { hi = mid; }
-        else            { return 1; }
+    uint8_t b = (uint8_t)(cur & SRMECH_GB_PROP_GBP_MASK);
+    uint8_t incb = (uint8_t)((cur & SRMECH_GB_PROP_INCB_MASK)
+                             >> SRMECH_GB_PROP_INCB_SHIFT);
+    int is_ext = (cur & SRMECH_GB_PROP_EXTPICT_BIT) != 0u;
+    assert(st != NULL);
+    assert(was_break == 0 || was_break == 1);
+    if (is_ext)                                     { st->gb11 = 1; }
+    else if (st->gb11 == 1 && b == SRMECH_GBP_EXTEND) { /* stay armed */ }
+    else if (st->gb11 == 1 && b == SRMECH_GBP_ZWJ)  { st->gb11 = 2; }
+    else                                            { st->gb11 = 0; }
+    if (incb == SRMECH_INCB_CONSONANT) {
+        st->incb_consonant = 1;
+        st->incb_linker = 0;
+    } else if (incb == SRMECH_INCB_LINKER) {
+        if (st->incb_consonant) { st->incb_linker = 1; }
+    } else if (incb != SRMECH_INCB_EXTEND) {
+        st->incb_consonant = 0;
+        st->incb_linker = 0;
+    }
+    if (b == SRMECH_GBP_REGIONAL_INDICATOR) {
+        st->ri_run = ((st->prev & SRMECH_GB_PROP_GBP_MASK)
+                      == SRMECH_GBP_REGIONAL_INDICATOR && !was_break)
+                     ? st->ri_run + 1u : 1u;
+    } else {
+        st->ri_run = 0u;
+    }
+    st->prev = cur;
+}
+
+/* The srmech-shipped DEFAULT break table (srmech_unicode_gb_tables.h).
+ * This is what lets a bare-C host with no Python present segment the full
+ * Unicode domain: hand these three pointers straight to
+ * srmech_text_glyph_stream. A host with its own table passes that
+ * instead — the table is an input, never a hidden global. */
+void srmech_text_default_gb_table(const uint32_t **out_lo,
+                                  const uint32_t **out_hi,
+                                  const uint8_t **out_prop,
+                                  size_t *out_n_ranges)
+{
+    assert(out_lo != NULL && out_hi != NULL);
+    assert(out_prop != NULL && out_n_ranges != NULL);
+    if (out_lo == NULL || out_hi == NULL ||
+        out_prop == NULL || out_n_ranges == NULL) {
+        return;
+    }
+    *out_lo       = SRMECH_GB_LO;
+    *out_hi       = SRMECH_GB_HI;
+    *out_prop     = SRMECH_GB_PROP;
+    *out_n_ranges = (size_t)SRMECH_GB_RANGE_COUNT;
+}
+
+srmech_status_t srmech_text_glyph_stream(
+    const uint8_t *text, size_t text_len,
+    const uint32_t *lo, const uint32_t *hi, const uint8_t *prop,
+    size_t n_ranges, uint32_t *out_off, size_t out_cap, size_t *out_n)
+{
+    txt_gb_state st;
+    size_t i = 0;
+    size_t n = 0;
+    assert(out_off != NULL || out_cap == 0u);
+    assert(out_n != NULL);
+    if (out_n == NULL || lo == NULL || hi == NULL || prop == NULL ||
+        (text == NULL && text_len > 0u) || (out_off == NULL && out_cap > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    st.prev = 0u;
+    st.gb11 = 0;
+    st.incb_consonant = 0;
+    st.incb_linker = 0;
+    st.ri_run = 0u;
+    while (i < text_len) {
+        uint32_t cp;
+        size_t   nb;
+        size_t   start = i;
+        uint8_t  cur;
+        int      brk;
+        if (!txt_utf8_next(text, text_len, &i, &cp, &nb)) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        cur = txt_gb_prop(lo, hi, prop, n_ranges, cp);
+        brk = (start == 0u) ? 1 : txt_gb_is_break(&st, cur);
+        if (brk) {
+            if (n >= out_cap) { return SRMECH_ERR_OVERFLOW; }
+            out_off[n] = (uint32_t)start;
+            n++;
+        }
+        /* Seeds correctly at start too: `prev` is Other, so a leading
+         * Regional_Indicator sets ri_run = 1 and anything else 0. */
+        txt_gb_advance(&st, cur, brk);
+    }
+    if (n >= out_cap) { return SRMECH_ERR_OVERFLOW; }
+    out_off[n] = (uint32_t)text_len;        /* sentinel: cluster i spans
+                                             * [out_off[i], out_off[i+1]) */
+    *out_n = n;
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * srmech_text_fold_marks — combining-mark folding (rc293)
+ *
+ * Drops combining marks by Unicode General_Category (Mn / Mc / Me). The
+ * name is the contract: a VIRAMA is a mark, not an accent, so calling
+ * this "fold_accents" would have been wrong in exactly the Indic cases
+ * that matter most while quietly re-scoping the op toward Latin.
+ *
+ * Category ONLY — no case change, no locale tailoring, no NFKD
+ * compatibility folding, no ligature expansion. So U+00F8 `ø` is
+ * unchanged (a stroke is part of the letter, not a mark) and Hangul is
+ * unchanged in either normalization form (it decomposes to jamo, which
+ * are starters).
+ *
+ * Two facts merge into ONE table row, so one binary search serves both:
+ * rep == SRMECH_FOLD_DROP means the codepoint IS a mark and is deleted;
+ * any other value is the codepoint it is REPLACED by. Replacements are
+ * transitively resolved AT GENERATION TIME (U+1EBF -> U+0065 directly,
+ * not via U+00EA), which is what keeps this loop flat: no recursion, no
+ * decomposition buffer, and one pass is provably enough because the
+ * generator asserts the table is CLOSED (no replacement is itself a row).
+ *
+ * The op calls no normalizer and needs none: precomposed characters are
+ * handled by the map rows and decomposed sequences by the drop rows, so
+ * the SAME marks fall out whichever form the caller supplies. That is
+ * what lets a bare-C host with no Python fold correctly — there is no
+ * `unicodedata` to ask, which is why the table is vendored at all.
+ *
+ * Folding never GROWS the UTF-8 byte length (asserted by the generator),
+ * so out_cap >= text_len always suffices.
+ * ------------------------------------------------------------------ */
+
+/* Look `cp` up in the caller-provided fold table. Returns 1 when a row
+ * covers `cp` (*out_rep set: SRMECH_FOLD_DROP to delete, else the
+ * replacement codepoint), 0 when none does — the codepoint passes
+ * through unchanged. Mirrors txt_gb_prop's guarded binary search; the
+ * guard bound 64 exceeds log2 of any table size (JPL Rule 2). */
+static int txt_fold_lookup(const uint32_t *lo, const uint32_t *hi,
+                           const uint32_t *rep, size_t n_ranges,
+                           uint32_t cp, uint32_t *out_rep)
+{
+    size_t l = 0;
+    size_t h = n_ranges;
+    assert(lo != NULL && hi != NULL && rep != NULL);
+    assert(out_rep != NULL && cp < SRMECH_TEXT_MAX_CP);
+    for (size_t guard = 0; guard < 64u && l < h; guard++) {
+        size_t mid = l + ((h - l) >> 1);
+        if (hi[mid] < cp)      { l = mid + 1u; }
+        else if (lo[mid] > cp) { h = mid; }
+        else                   { *out_rep = rep[mid]; return 1; }
     }
     return 0;
 }
 
-/* Append `len` bytes to the staging output with capacity guard. */
-static srmech_status_t txt_append(uint8_t *out, size_t out_cap, size_t *io_pos,
-                                  const uint8_t *src, size_t len)
+/* Encode `cp` as UTF-8 at out[*io_n], advancing *io_n. Returns 1 on
+ * success, 0 when the caller arena is too small. Only reached for
+ * REPLACEMENT codepoints (table data, attested in range); pass-through
+ * codepoints are byte-copied instead. */
+static int txt_utf8_encode(uint8_t *out, size_t out_cap, size_t *io_n,
+                           uint32_t cp)
 {
-    assert(out != NULL && io_pos != NULL);
-    assert(src != NULL || len == 0u);
-    if (len > out_cap - *io_pos || *io_pos > out_cap) {
-        return SRMECH_ERR_OVERFLOW;
+    size_t n;
+    assert(io_n != NULL && cp < SRMECH_TEXT_MAX_CP);
+    assert(out != NULL || out_cap == 0u);
+    n = *io_n;
+    if (cp < 0x80u) {
+        if (n + 1u > out_cap) { return 0; }
+        out[n] = (uint8_t)cp;
+        *io_n = n + 1u;
+    } else if (cp < 0x800u) {
+        if (n + 2u > out_cap) { return 0; }
+        out[n]      = (uint8_t)(0xC0u | (cp >> 6));
+        out[n + 1u] = (uint8_t)(0x80u | (cp & 0x3Fu));
+        *io_n = n + 2u;
+    } else if (cp < 0x10000u) {
+        if (n + 3u > out_cap) { return 0; }
+        out[n]      = (uint8_t)(0xE0u | (cp >> 12));
+        out[n + 1u] = (uint8_t)(0x80u | ((cp >> 6) & 0x3Fu));
+        out[n + 2u] = (uint8_t)(0x80u | (cp & 0x3Fu));
+        *io_n = n + 3u;
+    } else {
+        if (n + 4u > out_cap) { return 0; }
+        out[n]      = (uint8_t)(0xF0u | (cp >> 18));
+        out[n + 1u] = (uint8_t)(0x80u | ((cp >> 12) & 0x3Fu));
+        out[n + 2u] = (uint8_t)(0x80u | ((cp >> 6) & 0x3Fu));
+        out[n + 3u] = (uint8_t)(0x80u | (cp & 0x3Fu));
+        *io_n = n + 4u;
     }
-    if (len > 0u) { memcpy(&out[*io_pos], src, len); }
-    *io_pos += len;
-    return SRMECH_OK;
+    return 1;
 }
 
-/* Finish the token staged at out[tok_start..*io_pos): trim trailing
- * apostrophes (Python's word.strip("'"); a LEADING apostrophe is
- * structurally impossible — the accumulate rule appends one only into a
- * non-empty run), then keep iff codepoint count >= 2 and not a stoplist
- * word: commit with a '\n' separator, else rewind to tok_start. */
-static srmech_status_t txt_emit(uint8_t *out, size_t out_cap,
-                                size_t tok_start, size_t *io_pos,
-                                size_t n_cps, const uint32_t *stop_off,
-                                size_t n_stop, const uint8_t *stop_bytes)
+/* The srmech-shipped DEFAULT fold table (srmech_unicode_fold_tables.h).
+ * This is what lets a bare-C host with no Python present fold combining
+ * marks over the full Unicode domain: hand these three pointers straight
+ * to srmech_text_fold_marks. A host with its own table passes that
+ * instead — the table is an input, never a hidden global. */
+void srmech_text_default_fold_table(const uint32_t **out_lo,
+                                    const uint32_t **out_hi,
+                                    const uint32_t **out_rep,
+                                    size_t *out_n_ranges)
 {
-    size_t pos = *io_pos;
-    assert(out != NULL && io_pos != NULL);
-    assert(pos >= tok_start);
-    for (; pos > tok_start && out[pos - 1u] == (uint8_t)'\''; pos--) {
-        n_cps--;                       /* each trimmed apostrophe is one cp */
+    assert(out_lo != NULL && out_hi != NULL);
+    assert(out_rep != NULL && out_n_ranges != NULL);
+    if (out_lo == NULL || out_hi == NULL ||
+        out_rep == NULL || out_n_ranges == NULL) {
+        return;
     }
-    assert(pos == tok_start || out[tok_start] != (uint8_t)'\'');
-    if (n_cps >= 2u &&
-        !txt_stop_contains(stop_off, n_stop, stop_bytes,
-                           &out[tok_start], pos - tok_start)) {
-        static const uint8_t sep = (uint8_t)'\n';
-        *io_pos = pos;
-        return txt_append(out, out_cap, io_pos, &sep, 1u);
-    }
-    *io_pos = tok_start;               /* rejected — rewind the staging */
-    return SRMECH_OK;
+    *out_lo       = SRMECH_FOLD_LO;
+    *out_hi       = SRMECH_FOLD_HI;
+    *out_rep      = SRMECH_FOLD_REP;
+    *out_n_ranges = (size_t)SRMECH_FOLD_RANGE_COUNT;
 }
 
-/* Append the casefold of one kept codepoint (table row `fold_idx`, or the
- * original `nb` input bytes at `src` when identity) and count its folded
- * codepoints into *io_cps (UTF-8 lead bytes = codepoints). */
-static srmech_status_t txt_append_folded(uint8_t *out, size_t out_cap,
-                                         size_t *io_pos, size_t *io_cps,
-                                         const uint8_t *src, size_t nb,
-                                         size_t fold_idx,
-                                         const uint32_t *fold_off,
-                                         const uint8_t *fold_bytes)
+srmech_status_t srmech_text_fold_marks(
+    const uint8_t *text, size_t text_len,
+    const uint32_t *lo, const uint32_t *hi, const uint32_t *rep,
+    size_t n_ranges, uint8_t *out, size_t out_cap, size_t *out_len)
 {
-    assert(out != NULL && io_pos != NULL && io_cps != NULL);
-    assert(src != NULL && nb >= 1u);
-    if (fold_idx == SIZE_MAX) {        /* identity fold: copy the input span */
-        *io_cps += 1u;
-        return txt_append(out, out_cap, io_pos, src, nb);
-    }
-    {
-        const uint8_t *f = &fold_bytes[fold_off[fold_idx]];
-        size_t flen = (size_t)(fold_off[fold_idx + 1u] - fold_off[fold_idx]);
-        for (size_t j = 0; j < flen; j++) {
-            if ((f[j] & 0xC0u) != 0x80u) { *io_cps += 1u; }
-        }
-        return txt_append(out, out_cap, io_pos, f, flen);
-    }
-}
-
-/* ------------------------------------------------------------------ *
- * srmech_text_tokenize — the §40/F698 Unicode content tokenizer
- * ------------------------------------------------------------------ */
-
-/* Build the 128-entry ASCII fold fast-path LUT (fold-table row index, or
- * SIZE_MAX for identity) so the dominant ASCII case skips the per-codepoint
- * binary search over the ~1.5k-row exception table (the measured tokenize
- * hot spot — uppercase ASCII legitimately hits the table). */
-static void txt_ascii_fold_lut(const uint32_t *fold_cps, size_t n_folds,
-                               size_t lut[128])
-{
-    size_t r = 0;
-    assert(lut != NULL);
-    assert(fold_cps != NULL || n_folds == 0u);
-    for (uint32_t cp = 0; cp < 128u; cp++) {
-        for (; r < n_folds && fold_cps[r] < cp; r++) { }
-        lut[cp] = (r < n_folds && fold_cps[r] == cp) ? r : SIZE_MAX;
-    }
-}
-
-srmech_status_t srmech_text_tokenize(
-    const uint8_t *text, size_t text_len, const uint8_t *kept_bits,
-    const uint32_t *fold_cps, const uint32_t *fold_off,
-    const uint8_t *fold_bytes, size_t n_folds,
-    const uint32_t *stop_off, const uint8_t *stop_bytes, size_t n_stop,
-    uint8_t *out, size_t out_cap, size_t *out_len)
-{
-    /* i = input cursor; pos = committed + staged output bytes; tok_start =
-     * staging start of the active run; n_cps = codepoints staged post-fold */
-    size_t i = 0, pos = 0, tok_start = 0, n_cps = 0;
-    int    active = 0;
-    size_t ascii_lut[128];
-    assert(kept_bits != NULL && out != NULL && out_len != NULL);
-    assert(text != NULL || text_len == 0u);
-    if (kept_bits == NULL || out == NULL || out_len == NULL ||
-        (text == NULL && text_len > 0u) ||
-        (fold_cps == NULL && n_folds > 0u) ||
-        (stop_off == NULL && n_stop > 0u)) {
+    size_t i = 0;
+    size_t n = 0;
+    assert(out != NULL || out_cap == 0u);
+    assert(out_len != NULL);
+    if (out_len == NULL || lo == NULL || hi == NULL || rep == NULL ||
+        (text == NULL && text_len > 0u) || (out == NULL && out_cap > 0u)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    txt_ascii_fold_lut(fold_cps, n_folds, ascii_lut);
     while (i < text_len) {
         uint32_t cp;
+        uint32_t folded = 0u;
         size_t   nb;
-        size_t   ci = i;
-        srmech_status_t st = SRMECH_OK;
-        uint8_t  b0 = text[i];
-        if (b0 < 0x80u) {              /* ASCII fast path (no fn call) */
-            cp = b0; nb = 1u; i += 1u;
-        } else if (!txt_utf8_next(text, text_len, &i, &cp, &nb)) {
+        if (!txt_utf8_next(text, text_len, &i, &cp, &nb)) {
             return SRMECH_ERR_BAD_INPUT;
         }
-        if (txt_kept(kept_bits, cp)) {
-            size_t fidx = (cp < 128u) ? ascii_lut[cp]
-                                      : txt_fold_find(fold_cps, n_folds, cp);
-            st = txt_append_folded(out, out_cap, &pos, &n_cps, &text[ci], nb,
-                                   fidx, fold_off, fold_bytes);
-            active = 1;
-        } else if ((cp == 0x27u || cp == 0x2019u) && active) {
-            static const uint8_t apos = (uint8_t)'\'';
-            st = txt_append(out, out_cap, &pos, &apos, 1u);
-            n_cps += 1u;
-        } else if (active) {
-            st = txt_emit(out, out_cap, tok_start, &pos, n_cps,
-                          stop_off, n_stop, stop_bytes);
-            active = 0;
-            n_cps = 0;
-            tok_start = pos;
+        if (txt_fold_lookup(lo, hi, rep, n_ranges, cp, &folded)) {
+            if (folded == SRMECH_FOLD_DROP) { continue; }   /* combining mark */
+            if (!txt_utf8_encode(out, out_cap, &n, folded)) {
+                return SRMECH_ERR_OVERFLOW;
+            }
+            continue;
         }
-        if (st != SRMECH_OK) { return st; }
+        /* Unchanged: copy the ORIGINAL bytes rather than re-encoding, so a
+         * pass-through codepoint is byte-preserved by construction. */
+        if (n > out_cap || nb > out_cap - n) { return SRMECH_ERR_OVERFLOW; }
+        memcpy(out + n, text + i - nb, nb);
+        n += nb;
     }
-    if (active) {
-        srmech_status_t st = txt_emit(out, out_cap, tok_start, &pos, n_cps,
-                                      stop_off, n_stop, stop_bytes);
-        if (st != SRMECH_OK) { return st; }
-    }
-    *out_len = pos;
+    *out_len = n;
     return SRMECH_OK;
 }
 

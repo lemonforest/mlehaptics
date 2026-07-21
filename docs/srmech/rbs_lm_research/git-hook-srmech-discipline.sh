@@ -14,6 +14,16 @@
 # Install:  cp docs/srmech/rbs_lm_research/git-hook-srmech-discipline.sh "$(git rev-parse --git-path hooks)/pre-commit" && chmod +x "$(git rev-parse --git-path hooks)/pre-commit"
 set -u
 SCOPE="docs/srmech"
+
+# A MERGE IS NOT AUTHORING. During a merge every file from the incoming branch appears as
+# "added" in the staged diff, so this gate would re-scan all of main's work and block the sync.
+# That is not hypothetical: it blocked the rc297 merge, and blocking merges is precisely how this
+# branch drifted to rc256 and stayed there (#1454 s1). Incoming commits were gated on their own
+# branch; this hook exists to gate what YOU write. Skip cleanly during a merge.
+if [ -e "$(git rev-parse --git-path MERGE_HEAD)" ]; then
+  echo "  (srmech discipline: merge in progress -- gate skipped; incoming work was gated upstream)"
+  exit 0
+fi
 # .py -> AST (prose-safe by construction); the grep below keeps NON-Python files, where a
 # textual match is unambiguous. See hook_staged_py_ast.py for why no regex can do the .py case.
 AST_HELPER="docs/srmech/rbs_lm_research/hook_staged_py_ast.py"
@@ -21,6 +31,7 @@ if [ -f "$AST_HELPER" ]; then
   python3 "$AST_HELPER" || exit 1
 fi
 added=$(git diff --cached --unified=0 -- "$SCOPE" ':(exclude,glob)**/*.py' \
+          ':(exclude)docs/srmech/python' ':(exclude)docs/srmech/c' \
           ':(exclude,glob)**/*.md' ':(exclude,glob)**/*.txt' \
           ':(exclude,glob)**/*.rst' ':(exclude,glob)**/*.ndjson' \
           ':(exclude,glob)*.md' ':(exclude,glob)*.txt' 2>/dev/null \

@@ -20,6 +20,7 @@ from __future__ import annotations
 import cmath
 import math
 from fractions import Fraction as F
+from srmech.amsc.q import Q  # #845: exact eigenvalue intervals are Q now, not Fraction
 
 import pytest
 
@@ -184,7 +185,7 @@ def test_return_intervals_real_only_path_unchanged():
     iv = eigvals_exact(S, return_intervals=True)
     assert len(iv) == 2
     for (lo, hi) in iv:
-        assert isinstance(lo, F) and isinstance(hi, F)
+        assert isinstance(lo, Q) and isinstance(hi, Q)
     # the bracketed centers are 1 and 3:
     centers = sorted(float((lo + hi) / 2) for (lo, hi) in iv)
     assert centers == [1.0, 3.0]

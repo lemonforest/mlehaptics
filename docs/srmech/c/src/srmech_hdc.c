@@ -49,8 +49,10 @@
 #include "srmech.h"
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 /* Popcount lookup table for byte values 0..255. Used by srmech_hdc_similarity
  * and srmech_hdc_bundle. Portable across compilers without relying on
@@ -667,6 +669,54 @@ srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
     return SRMECH_OK;
 }
 
+/* klein4_bundle_sector_scores(acc, out, dim): the NON-COLLAPSING read of the
+ * §50 accumulator (§102 / F1265; rc295). srmech_klein4_bundle_resolve emits ONE
+ * symbol per coordinate — a strict per-bit majority — and discards how close the
+ * losing sectors were. This emits ALL FOUR sector scores per coordinate, so the
+ * caller RANKS candidates instead of MATCHING one collapsed vector. out is
+ * 4*dim uint64, row-major: out[4*i + s] scores sector s at coordinate i, with
+ * bit0 = s & 1 and bit1 = (s >> 1) & 1.
+ *
+ * score(s) = a0(s) * a1(s), the agreement product: a0 = c0 if bit0 else n - c0,
+ * a1 = c1 if bit1 else n - c1. Under per-coordinate bit independence this is
+ * n^2 * P(sector s) — the ML estimate of the joint cell the marginals support.
+ * Ranking is invariant to the 1/n^2, so it stays EXACT INTEGER: no division, no
+ * float, and no abs() (every term is a non-negative count, so no sign boundary
+ * arises; one would be Class-K pin-slot composed with Class-C, never abs()).
+ *
+ * uint64 out is load-bearing — a0 * a1 reaches n^2, past uint32 at n > 65535,
+ * and the accumulator carries no such cap. Class M (HDC superposition read). */
+srmech_status_t srmech_klein4_bundle_sector_scores(const uint32_t *acc,
+                                                   uint64_t       *out,
+                                                   size_t          dim)
+{
+    assert(acc != NULL && out != NULL);
+    assert(dim > 0u);
+    if (acc == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint64_t n = (uint64_t)acc[0];
+    for (size_t i = 0; i < dim; i++) {
+        uint64_t c0 = (uint64_t)acc[1u + i];
+        uint64_t c1 = (uint64_t)acc[1u + dim + i];
+        /* A 1-count can never exceed the number of folded vectors; a store that
+         * says otherwise is malformed, and must not wrap silently. */
+        if (c0 > n || c1 > n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        uint64_t d0 = n - c0;   /* folds whose bit 0 was 0 */
+        uint64_t d1 = n - c1;   /* folds whose bit 1 was 0 */
+        out[(i * 4u) + 0u] = d0 * d1;   /* s=0: bit0=0 bit1=0 */
+        out[(i * 4u) + 1u] = c0 * d1;   /* s=1: bit0=1 bit1=0 */
+        out[(i * 4u) + 2u] = d0 * c1;   /* s=2: bit0=0 bit1=1 */
+        out[(i * 4u) + 3u] = c0 * c1;   /* s=3: bit0=1 bit1=1 */
+    }
+    return SRMECH_OK;
+}
+
 /* The position-namespaced seed base for klein4_compose / klein4_encode_bytes
  * role keys (byte-identical to the Python _KLEIN4_POS_SEED_BASE): 0x10000, so
  * pos-key seeds never collide with the 256-byte alphabet (seeds 0..255). */
@@ -675,7 +725,7 @@ srmech_status_t srmech_klein4_bundle_resolve(const uint32_t *acc,
 /* klein4_compose (UPSTREAM §60 / F900; rc18): the scale-invariant role-filler
  * compositor — bundle_i( klein4_bind(part_i, klein4_pos_key(D, i)) ) over n
  * pre-composed D-byte Klein-4 `parts` (row-major, codes {0,1,2,3}). The pos key
- * for slot i is klein4_random over SRMECH_KLEIN4_POS_SEED_BASE + i (byte-
+ * for slot i is klein4_expand over SRMECH_KLEIN4_POS_SEED_BASE + i (byte-
  * identical to the Python _klein4_pos_key). The native peer of hdc.klein4_compose
  * (the RECURSIVE rung above klein4_encode_bytes): one C call folds the whole
  * role-filler bundle via srmech_klein4_bundle_accumulate, so a single part
@@ -706,7 +756,7 @@ srmech_status_t srmech_klein4_compose(const uint8_t *parts,
     }
     for (uint32_t i = 0; i < n; i++) {
         uint32_t key = (uint32_t)SRMECH_KLEIN4_POS_SEED_BASE + i;
-        srmech_status_t rc = srmech_klein4_random(&key, (size_t)1, D, poskey);
+        srmech_status_t rc = srmech_klein4_expand(&key, (size_t)1, D, poskey);
         if (rc != SRMECH_OK) {
             return rc;
         }
@@ -1017,12 +1067,12 @@ srmech_status_t srmech_klein4_triality_correct(const uint8_t *store,
 /* ------------------------------------------------------------------ *
  * Class M — Klein-4 deterministic random (v0.9.0rc6)
  *
- * srmech_klein4_random reproduces CPython random.Random(seed).randrange(4),
+ * srmech_klein4_expand reproduces CPython random.Random(seed).randrange(4),
  * D times, BYTE-IDENTICAL: an MT19937 generator seeded by init_by_array over
  * the seed's little-endian uint32 words, each draw = getrandbits(3)
  * (= genrand_uint32() >> 29) with rejection of values >= 4. This makes the §60
  * byte/glyph encoder — and its 256-byte vocab + position keys — fully native
- * (klein4_random was the last python_only_debt klein4 op). The seeding,
+ * (the deterministic mint was the last python_only_debt klein4 op). The seeding,
  * tempering, and rejection match CPython's _randommodule.c + random.py exactly
  * (proven byte-for-byte against random.Random in the Python parity test).
  *
@@ -1152,7 +1202,7 @@ static uint32_t srmech_mt_below4(srmech_mt_t *st)
     return 0u;  /* unreachable; statically-bounded fallback for Rule 2 */
 }
 
-srmech_status_t srmech_klein4_random(const uint32_t *key,
+srmech_status_t srmech_klein4_expand(const uint32_t *key,
                                      size_t          key_length,
                                      uint32_t        D,
                                      uint8_t        *out)
@@ -1170,6 +1220,202 @@ srmech_status_t srmech_klein4_random(const uint32_t *key,
     srmech_mt_init_by_array(&st, key, key_length);
     for (i = 0u; i < D; i++) {
         out[i] = (uint8_t)srmech_mt_below4(&st);
+    }
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------ *
+ * §102 / F1259 / F1260 — the ADDRESSED and ONE-A14 regimes (rc290).
+ *
+ * TWO-STAGE expansion, and the second stage is not decoration:
+ *
+ *     h        = sha256(content)                       one pass, any length
+ *     block_i  = sha256(hex(h) || '|' || decimal(i))    fixed 87-byte preimage
+ *
+ * Folding `content` to a 32-byte digest FIRST is what lets the counter loop
+ * run out of a fixed stack buffer for content of ANY size. The naive
+ * sha256(content || '|' || i) would need the whole preimage resident per
+ * counter block, which under JPL Rule 3 (no malloc) forces a compiled-in
+ * ceiling — and "it declines cleanly above N" is the exact anti-pattern
+ * ADR-0006 §2.5 names and ADR-0009 generalises from carriers to
+ * implementations. Two stages, no ceiling, no decline, no arena.
+ *
+ * The hex form of `h` is used (not the raw 32 bytes) so the preimage is
+ * printable-ASCII and the C and Python constructions read identically.
+ * ------------------------------------------------------------------ */
+
+/* Preimage: 64 hex chars + '|' + up to 20 decimal digits + NUL. */
+#define SRMECH_K4_ADDR_PREIMAGE_MAX 96
+
+/* Decode 64 lowercase hex chars into 32 raw bytes. Returns 0 on success. */
+static int srmech_k4_hex_to_32(const char *hex, uint8_t *out32)
+{
+    size_t i;
+    assert(hex != NULL);
+    assert(out32 != NULL);
+    for (i = 0u; i < 32u; i++) {
+        unsigned int hi = (unsigned char)hex[i * 2u];
+        unsigned int lo = (unsigned char)hex[(i * 2u) + 1u];
+        hi = (hi >= (unsigned int)'a') ? (hi - (unsigned int)'a' + 10u)
+                                       : (hi - (unsigned int)'0');
+        lo = (lo >= (unsigned int)'a') ? (lo - (unsigned int)'a' + 10u)
+                                       : (lo - (unsigned int)'0');
+        if (hi > 15u || lo > 15u) {
+            return -1;
+        }
+        out32[i] = (uint8_t)((hi << 4u) | lo);
+    }
+    return 0;
+}
+
+/* Fill out[0..D) with the crumbs of sha256(seed_hex || '|' || i), i = 0,1,2,…
+ * Each digest byte yields four crumbs, LSB-pair first. */
+static srmech_status_t srmech_k4_counter_expand(const char *seed_hex,
+                                                uint32_t    D,
+                                                uint8_t    *out)
+{
+    char     pre[SRMECH_K4_ADDR_PREIMAGE_MAX];
+    char     hex[65];
+    uint8_t  digest[32];
+    uint32_t filled = 0u;
+    uint64_t counter = 0u;
+    assert(seed_hex != NULL);
+    assert(out != NULL && D > 0u);
+    while (filled < D) {
+        int n = snprintf(pre, sizeof(pre), "%s|%" PRIu64, seed_hex, counter);
+        size_t b;
+        if (n <= 0 || (size_t)n >= sizeof(pre)) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (srmech_sha256_hex((const uint8_t *)pre, (size_t)n, hex) != SRMECH_OK) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        if (srmech_k4_hex_to_32(hex, digest) != 0) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        for (b = 0u; b < 32u && filled < D; b++) {
+            unsigned int shift;
+            for (shift = 0u; shift < 8u && filled < D; shift += 2u) {
+                out[filled] = (uint8_t)((digest[b] >> shift) & 3u);
+                filled++;
+            }
+        }
+        counter++;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_klein4_address(const uint8_t *content,
+                                      size_t         content_len,
+                                      uint32_t       D,
+                                      uint8_t       *out)
+{
+    char hex[65];
+    assert(out != NULL);
+    assert(content != NULL || content_len == 0u);
+    if (out == NULL || (content == NULL && content_len > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    if (srmech_sha256_hex(content, content_len, hex) != SRMECH_OK) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    return srmech_k4_counter_expand(hex, D, out);
+}
+
+srmech_status_t srmech_klein4_role(const uint8_t *role,
+                                   size_t         role_len,
+                                   uint32_t       base,
+                                   uint32_t       D,
+                                   uint8_t       *out)
+{
+    /* FNV-1a over the role name's UTF-8 bytes, mixed with `base` — bit-exact
+     * with the Python _cooc_token_seed — then the EXPAND regime. Same seed
+     * derivation the co-occurrence fold and the HRR role/value codebook use. */
+    uint32_t h = 0x811C9DC5u;
+    uint32_t key;
+    size_t   i;
+    assert(out != NULL);
+    assert(role != NULL || role_len == 0u);
+    if (out == NULL || (role == NULL && role_len > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (i = 0u; i < role_len; i++) {
+        h = (h ^ (uint32_t)role[i]) * 0x01000193u;
+    }
+    key = h ^ base;
+    return srmech_klein4_expand(&key, (size_t)1, D, out);
+}
+
+srmech_status_t srmech_klein4_sector_frame(uint32_t D, uint8_t *out)
+{
+    /* (1,3,7,3) as Cayley-Dickson blocks: C = slots 0..1, H = 2..5, O = 6..13.
+     * Sector flips are the framework's own Class-C involutions: 1 = i*omega7,
+     * 2 = gamma5, 3 = CPT. */
+    static const uint8_t SECTOR_OF_SLOT[14] = {
+        1u, 1u,                            /* C */
+        2u, 2u, 2u, 2u,                    /* H */
+        3u, 3u, 3u, 3u, 3u, 3u, 3u, 3u     /* O */
+    };
+    uint32_t j;
+    assert(out != NULL);
+    assert(D > 0u);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (j = 0u; j < D; j++) {
+        out[j] = SECTOR_OF_SLOT[j % 14u];
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_klein4_from_one(int64_t   sigma,
+                                       int64_t   theta_num,
+                                       int64_t   theta_den,
+                                       int64_t   terms,
+                                       uint32_t  D,
+                                       uint8_t  *out)
+{
+    /* The One's canonical serialisation — byte-identical to Python's
+     * json.dumps(One._to_jsonable(), sort_keys=True, separators=(",", ":")).
+     * Sorted keys put sigma, then terms, then theta. */
+    char            preimage[160];
+    srmech_status_t st;
+    uint32_t        j;
+    int             n;
+    assert(out != NULL);
+    assert(D > 0u && theta_den != 0);
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (D == 0u || theta_den == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    n = snprintf(preimage, sizeof(preimage),
+                 "{\"sigma\":%" PRId64 ",\"terms\":%" PRId64
+                 ",\"theta\":[%" PRId64 ",%" PRId64 "]}",
+                 sigma, terms, theta_num, theta_den);
+    if (n <= 0 || (size_t)n >= sizeof(preimage)) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    st = srmech_klein4_address((const uint8_t *)preimage, (size_t)n, D, out);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    /* Class C: XOR the period-14 (1,3,7,3) sector frame in place. Inlined
+     * rather than calling srmech_klein4_sector_frame + srmech_klein4_bind so
+     * no second D-byte buffer is needed (JPL Rule 3: no malloc). */
+    for (j = 0u; j < D; j++) {
+        uint8_t sector = (j % 14u) < 2u ? 1u : ((j % 14u) < 6u ? 2u : 3u);
+        out[j] = (uint8_t)(out[j] ^ sector);
     }
     return SRMECH_OK;
 }

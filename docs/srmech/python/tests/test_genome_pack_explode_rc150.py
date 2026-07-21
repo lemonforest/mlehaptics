@@ -20,19 +20,19 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc.genome import GenomeBoundingError
-from srmech.amsc.hdc import klein4_random
+from srmech.amsc.hdc import klein4_expand
 
 DIM = 16
 
 
 def _one(seed=7):
-    return klein4_random(DIM, seed=seed)
+    return klein4_expand(DIM, seed)
 
 
 def _build(path, one, labels_seeds):
-    specs = [(lbl, [(lbl[0], [klein4_random(DIM, seed=s) for s in seeds])])
+    specs = [(lbl, [(lbl[0], [klein4_expand(DIM, s) for s in seeds])])
              for lbl, seeds in labels_seeds]
-    return G.genome_save(G.genome(chromosomes=specs, the_one=one), path, the_one=one)
+    return G.genome_save(G.genome(chromosomes=specs, coupling=one), path, coupling=one)
 
 
 def _body(path):
@@ -103,7 +103,7 @@ def test_pack_canonicalises_a_non_sorted_genome():
             shutil.rmtree(p, ignore_errors=True)
 
 
-def test_pack_rejects_mixed_the_one_and_empty_dir():
+def test_pack_rejects_mixed_coupling_and_empty_dir():
     """Two .chr coupled to DIFFERENT invariants cannot pack into one genome
     (GenomeBoundingError); an empty loose dir is a ValueError."""
     a, b, loose, dst = (tempfile.mkdtemp(), tempfile.mkdtemp(),
@@ -111,7 +111,7 @@ def test_pack_rejects_mixed_the_one_and_empty_dir():
     shutil.rmtree(dst)
     try:
         _build(a, _one(seed=7), [("alpha", (1, 2))])
-        _build(b, _one(seed=8), [("beta", (3,))])    # different the_one
+        _build(b, _one(seed=8), [("beta", (3,))])    # different coupling
         G.genome_export(a, "alpha", os.path.join(loose, "alpha.chr"))
         G.genome_export(b, "beta", os.path.join(loose, "beta.chr"))
         with pytest.raises(GenomeBoundingError):
@@ -126,7 +126,7 @@ def test_pack_rejects_mixed_the_one_and_empty_dir():
 
 
 def test_pack_rejects_duplicate_label():
-    """Two .chr with the SAME label (same the_one) cannot both pack — the second is
+    """Two .chr with the SAME label (same coupling) cannot both pack — the second is
     a duplicate (ValueError)."""
     src, loose, dst = (tempfile.mkdtemp(), tempfile.mkdtemp(), tempfile.mkdtemp())
     shutil.rmtree(dst)
@@ -158,7 +158,7 @@ def test_explode_rejects_unsafe_label():
 
 
 def test_explode_manifest_less_source():
-    """§44: explode works from a manifest-less source (turns.bin only) given the_one;
+    """§44: explode works from a manifest-less source (turns.bin only) given coupling;
     the loose bundles round-trip via pack identically to a manifest-present explode."""
     src, loose, dst = (tempfile.mkdtemp(), tempfile.mkdtemp(), tempfile.mkdtemp())
     shutil.rmtree(dst)
@@ -166,12 +166,12 @@ def test_explode_manifest_less_source():
         one = _one()
         _build(src, one, [("alpha", (1, 2)), ("beta", (3,))])
         os.remove(os.path.join(src, "manifest.json"))   # strand is the SSoT
-        written = G.genome_explode(src, loose, the_one=one)
+        written = G.genome_explode(src, loose, coupling=one)
         assert [w["label"] for w in written] == ["alpha", "beta"]
         packed = G.genome_pack(loose, dst)
         assert [c["label"] for c in packed["chromosomes"]] == ["alpha", "beta"]
         for lbl in ("alpha", "beta"):
-            assert G.genome_window(dst, lbl) == G.genome_window(src, lbl, the_one=one)
+            assert G.genome_window(dst, lbl) == G.genome_window(src, lbl, coupling=one)
     finally:
         for p in (src, loose, dst):
             shutil.rmtree(p, ignore_errors=True)

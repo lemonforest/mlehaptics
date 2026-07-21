@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import json
 from fractions import Fraction
+from srmech.amsc.q import Q  # #845: outputs are now Q, not Fraction
 from pathlib import Path
 
 import pytest
@@ -150,7 +151,7 @@ def test_cd_add_value_oracle():
 def test_cd_norm_sq_native_equals_pure(vec):
     nat = _force(True, cd.cd_norm_sq, vec)
     pure = _force(False, cd.cd_norm_sq, vec)
-    assert isinstance(nat, Fraction) and isinstance(pure, Fraction)
+    assert isinstance(nat, Q) and isinstance(pure, Q)
     assert nat.numerator == pure.numerator and nat.denominator == pure.denominator, vec
 
 

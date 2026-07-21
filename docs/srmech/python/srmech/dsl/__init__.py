@@ -73,6 +73,7 @@ from ._class_surface import (
     list_class_surface,
     run_class_method,
 )
+from ._alias import alias, build_aliases_from_toml_str, load_aliases_toml
 from ._tool_surface import list_catalog_ops, list_ops, run_toml_chain
 from ._toml_chain import (
     build_chain_from_dict,
@@ -103,6 +104,11 @@ __all__ = [
     "list_catalog_ops",
     # §17 U3 (rc45): unified op-discovery — cascade-ops + catalog-chains in one list
     "list_ops",
+    # rc261 (§95.2 / #1407): config-driven FUNCTION ALIASING — bind a user's own name to
+    # any srmech.* function via TOML (the domain-agnostic naming layer; ADR-0004).
+    "alias",
+    "build_aliases_from_toml_str",
+    "load_aliases_toml",
     # User-declared classes from [class] TOML (#962 Part 2; rc39) — declarative,
     # generic runtime objects; methods bind to cascade ops by dotted path.
     "make_class",

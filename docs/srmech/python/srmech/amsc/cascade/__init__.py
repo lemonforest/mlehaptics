@@ -209,6 +209,23 @@ from .sedenion_register import (
     WORKING_WORD_CAP,
 )
 
+# ── The GENERAL N-slot Cayley–Dickson register (rc297; `#934`) ─────────
+# The 16-slot instrument above generalised to any power-of-two dim in
+# [1, CD_MAX_DIM]. The slot bound is the ONLY generalisation — every sign and
+# index rule is shared through `cd_basis_product`, so there is no second
+# algebra. `SedenionRegister` remains the independent oracle the general
+# register's faithfulness is gated against (`CDRegister(16, namespace=
+# "SEDENION")` reproduces it bit-exactly at every D); it is deliberately NOT
+# collapsed into an n=16 alias.
+from .cd_register import (
+    CDRegister,
+    cd_register,
+    cd_navmap,
+    cd_navigate,
+    cd_navmap_is_signed_permutation,
+    WORKING_BLOCK_DIM,
+)
+
 # ── Class-L DSL re-export: schur_complement / Dirichlet-to-Neumann ─────
 # ``schur_complement`` lives canonically in ``srmech.amsc.laplacian`` (its
 # A–N home is Class L; the tool-schema entry is registered there). The DSL
@@ -316,6 +333,13 @@ __all__ = [
     "OCT_BLOCK",
     "EC_BLOCK",
     "WORKING_WORD_CAP",
+    # General N-slot Cayley–Dickson register (v0.9.0rc297; `#934`)
+    "CDRegister",
+    "cd_register",
+    "cd_navmap",
+    "cd_navigate",
+    "cd_navmap_is_signed_permutation",
+    "WORKING_BLOCK_DIM",
     # back-compat aliases
     "class_k_pin_slot_at_zero",
     "class_c_reorient",

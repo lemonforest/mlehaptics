@@ -8,7 +8,7 @@ klein4_compose native C peer (srmech_klein4_compose).
      for-byte for every n (native single-call == the multi-call composition, and
      the pure path when no native).
 
-numpy-free; deterministic (seeded ``klein4_random``).
+numpy-free; deterministic (seeded ``klein4_expand``).
 """
 
 from srmech.amsc import hdc
@@ -40,14 +40,14 @@ def test_klein4_compose_matches_manual_role_filler():
     explicit klein4_bind/klein4_bundle composition, for every n incl. 1
     (identity rung) + even (ties→0) + odd."""
     for n in (1, 2, 3, 5, 8):
-        parts = [hdc.klein4_random(80, seed=100 + i) for i in range(n)]
+        parts = [hdc.klein4_expand(80, 100 + i) for i in range(n)]
         got = list(hdc.klein4_compose(parts))
         exp = list(_manual_compose(parts))
         assert got == exp, (n, got[:6], exp[:6])
 
 
 def test_klein4_compose_single_is_position_bound():
-    one = hdc.klein4_random(D, seed=42)
+    one = hdc.klein4_expand(D, 42)
     out = hdc.klein4_compose([one])
     assert list(out) == list(hdc.klein4_bind(one, hdc._klein4_pos_key(D, 0)))
 

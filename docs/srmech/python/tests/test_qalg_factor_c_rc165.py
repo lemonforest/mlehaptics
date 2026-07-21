@@ -69,6 +69,8 @@ def test_numpy_is_absent_so_this_runs_not_skips():
         "this factor_integer_poly C ratchet must run on the numpy-ABSENT matrix")
 
 
+@pytest.mark.skipif(not _native.HAS_NATIVE,
+                    reason="native lib absent — this C symbol-presence / single-call check needs the built libsrmech (#843)")
 def test_native_factor_symbol_is_loaded():
     """The parity below is only meaningful if the C kernel is actually present —
     otherwise BOTH sides are pure and the test proves nothing."""
@@ -78,6 +80,8 @@ def test_native_factor_symbol_is_loaded():
         "native library so the rc165 Zassenhaus kernel is present")
 
 
+@pytest.mark.skipif(not _native.HAS_NATIVE,
+                    reason="native lib absent — this C symbol-presence / single-call check needs the built libsrmech (#843)")
 def test_full_composite_symbol_is_loaded():
     """The FULL composite (content + Yun + core + merge + sort as ONE C call)
     must be present — everything-mirrors: a bare-C host factors with one call."""
@@ -86,6 +90,8 @@ def test_full_composite_symbol_is_loaded():
         "library so the rc165 FULL composite is present")
 
 
+@pytest.mark.skipif(not _native.HAS_NATIVE,
+                    reason="native lib absent — this C symbol-presence / single-call check needs the built libsrmech (#843)")
 def test_full_composite_is_a_single_c_call():
     """factor_integer_poly_c (the ONE-call composite) itself handles a mixed
     content + multiplicity + irreducible-quartic input and equals BOTH the

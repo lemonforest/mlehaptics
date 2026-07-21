@@ -26,6 +26,7 @@ Usage (called by git-hook-srmech-discipline.sh):  python3 hook_staged_py_ast.py
 Exit 0 = clean; 1 = at least one newly-added banned call.
 """
 import ast
+import os
 import re
 import subprocess
 import sys
@@ -64,6 +65,10 @@ def dotted(node):
         parts.append(node.id)
     return ".".join(reversed(parts))
 SCOPE = "docs/srmech"
+# srmech's OWN package + C tree are authored UPSTREAM and arrive via merges from main.
+# Policing them here blocks those merges -- which is precisely how this branch drifted to
+# rc256 and stayed there (#1454 s1). The research-discipline guard is for the scripts WE write.
+EXCLUDE_PREFIXES = ("docs/srmech/python/", "docs/srmech/c/")
 HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
 
 
@@ -73,7 +78,8 @@ def sh(args):
 
 def staged_py():
     out = sh(["git", "diff", "--cached", "--name-only", "--diff-filter=ACM", "--", SCOPE])
-    return [p for p in out.splitlines() if p.endswith(".py")]
+    return [p for p in out.splitlines()
+            if p.endswith(".py") and not p.startswith(EXCLUDE_PREFIXES)]
 
 
 def added_lines(path):
@@ -90,6 +96,9 @@ def added_lines(path):
 
 
 def main():
+    # A merge is not authoring -- see the shell hook's note. Skip so an upstream sync is never blocked.
+    if os.path.exists(sh(["git", "rev-parse", "--git-path", "MERGE_HEAD"]).strip()):
+        return 0
     problems = []
     for path in staged_py():
         src = sh(["git", "show", ":" + path])

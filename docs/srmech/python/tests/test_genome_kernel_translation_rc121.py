@@ -67,15 +67,15 @@ def test_roundtrip_exact_in_memory(D):
 
 @pytest.mark.parametrize("D", _DODS)
 def test_roundtrip_exact_on_disk(tmp_path, D):
-    """Save the packed strand and unpack from the DIRECTORY (the_one resolved from
+    """Save the packed strand and unpack from the DIRECTORY (coupling resolved from
     the manifest cache) — exact for any D."""
     x = _kernel(D)
     strand = G.kernel_pack(x)
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     p = tmp_path / f"k{D}"
-    man = G.genome_save(strand, p, the_one=one)
-    assert man["format_version"] == 11           # the v9 writer (rc130 §130 stamps 9)
-    back = G.kernel_unpack(p)                    # no the_one — from the manifest
+    man = G.genome_save(strand, p, coupling=one)
+    assert man["format_version"] == 15           # the v12 writer (head-only manifest)
+    back = G.kernel_unpack(p)                    # no coupling — from the manifest
     assert back == x
     assert len(back) == D
 
@@ -88,7 +88,7 @@ def test_non_multiple_needs_no_external_trim(tmp_path):
     strand = G.kernel_pack(x)                    # leaf_dim 256 default
     # §89/v6: recall returns [klein4_header, *content]; the CONTENT leaves are the
     # padded storage (4 leaves x 256 = 1024, 24 pad symbols) — the header is leaves[0].
-    leaves = G.recall(strand, G._default_the_one(256))
+    leaves = G.recall(strand, G._default_coupling(256))
     content = leaves[1:]
     assert sum(len(l) for l in content) == 1024  # 4 leaves x 256, 24 pad symbols
     # ... but unpack trims to the TRUE D with no external knowledge of 1000
@@ -141,7 +141,7 @@ def test_header_is_klein4_leaf_after_kernel_telomere(tmp_path):
     bit-packs + counts like content, NOT a verbatim byte-TLV marker block)."""
     x = _kernel(1000)
     strand = G.kernel_pack(x, label="siona")
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     # strand shape: [kernel_telomere, coupled_klein4_header, 4 coupled content turns]
     assert G._cap_kind(strand[0]) == G.KERNEL_TELOMERE_MARKER
     assert G._cap_kind(strand[1]) is None                 # the header is a coupled turn
@@ -151,7 +151,7 @@ def test_header_is_klein4_leaf_after_kernel_telomere(tmp_path):
     assert set(int(s) for s in hdr) <= {0, 1, 2, 3}       # uniformly Klein-4
     assert G._unpack_kernel_header_klein4(hdr) == (1000, 256, G.ELEMENT_TYPE_KLEIN4)
     p = tmp_path / "g"
-    man = G.genome_save(strand, p, the_one=one)
+    man = G.genome_save(strand, p, coupling=one)
     # §89: leaf_count counts DATA turns — the v6 header IS a coupled turn (counted)
     assert man["chromosomes"][0]["leaf_count"] == 1 + 4   # header + 4 content
     assert man["n_turns"] == 6                            # cap + header + 4 turns
@@ -173,10 +173,10 @@ def test_python_equals_c_byte_identical(tmp_path, D):
     forced-pure differential)."""
     x = _kernel(D)
     strand = G.kernel_pack(x)
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
 
     dn = tmp_path / "native"
-    G.genome_save(strand, dn, the_one=one)
+    G.genome_save(strand, dn, coupling=one)
     n_body = (dn / "turns.bin").read_bytes()
     n_man = (dn / "manifest.json").read_bytes()
     back_n = G.kernel_unpack(dn)
@@ -185,10 +185,10 @@ def test_python_equals_c_byte_identical(tmp_path, D):
     _native.has_native_genome = lambda: False        # force the pure-Python path
     try:
         dp = tmp_path / "pure"
-        G.genome_save(strand, dp, the_one=one)
+        G.genome_save(strand, dp, coupling=one)
         p_body = (dp / "turns.bin").read_bytes()
         p_man = (dp / "manifest.json").read_bytes()
-        back_p = G.kernel_unpack(dp, the_one=one)
+        back_p = G.kernel_unpack(dp, coupling=one)
     finally:
         _native.has_native_genome = real
 
@@ -203,7 +203,7 @@ def test_no_header_body_reads_as_klein4_full_dim(tmp_path):
     """A header-less body (any pre-rc121 genome — here a plain chromosome with no
     §60 header) reads as element_type=klein4 with D = leaf_count x leaf_dim —
     today's exact behaviour, no trim, no migration (the rc114 dual-read pattern)."""
-    one = G._default_the_one(256)
+    one = G._default_coupling(256)
     x = _kernel(1000)
     # a PLAIN chromosome (chromosome(), NOT kernel_pack) has no §60 header
     leaves = [HV.from_sequence((x[i:i + 256] + [0] * 256)[:256], sectors=4)
@@ -212,21 +212,21 @@ def test_no_header_body_reads_as_klein4_full_dim(tmp_path):
     assert all(G._cap_kind(hv) != G.KERNEL_HEADER_MARKER for hv in plain)
 
     # in-memory: full-dim (leaf_count x leaf_dim), the padded storage
-    back_mem = G.kernel_unpack(plain, the_one=one)
+    back_mem = G.kernel_unpack(plain, coupling=one)
     assert len(back_mem) == 4 * 256 == 1024
     assert back_mem[:1000] == x                       # the true kernel is the prefix
 
     # on disk (a v5 body with NO header) reads the same full-dim way
     p = tmp_path / "legacy"
-    G.genome_save(plain, p, the_one=one)
+    G.genome_save(plain, p, coupling=one)
     back_disk = G.kernel_unpack(p)
     assert back_disk == back_mem == list(back_mem)
 
 
-def test_empty_body_default_the_one_is_reconstructed():
-    """When no the_one is supplied for an in-memory strand, kernel_unpack
+def test_empty_body_default_coupling_is_reconstructed():
+    """When no coupling is supplied for an in-memory strand, kernel_unpack
     reconstructs the deterministic all-ones invariant from the header's leaf_dim —
-    so the round-trip needs neither a length nor a the_one."""
+    so the round-trip needs neither a length nor a coupling."""
     x = _kernel(300)
     strand = G.kernel_pack(x, leaf_dim=100)           # 3 leaves x 100
-    assert G.kernel_unpack(strand) == x               # no the_one passed
+    assert G.kernel_unpack(strand) == x               # no coupling passed

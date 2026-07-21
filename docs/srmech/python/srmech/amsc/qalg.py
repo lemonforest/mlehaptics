@@ -48,8 +48,6 @@ carrier with just the dunders documented here. No ``math`` module, no numpy, no
 
 from __future__ import annotations
 
-from fractions import Fraction
-
 from .q import Q
 
 __all__ = ["Qalg"]
@@ -67,8 +65,6 @@ def _to_q(value):
         return Q(int(value), 1)
     if isinstance(value, int):
         return Q(value, 1)
-    if isinstance(value, Fraction):
-        return Q(value.numerator, value.denominator)
     if isinstance(value, float):
         try:
             return Q.from_float(value)               # exact ratio of the float

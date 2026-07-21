@@ -66,4 +66,6 @@ def test_introspect_tools_total_is_276():
     # F929 router: dispatch.infer ToolEntry (the OPEN/infer meta-dispatcher
     # over the cyclic/spectral/Σ reduction rows; non_compute orchestration,
     # no C peer) — 330→331.
-    assert introspect.describe()["tools"]["total"] == 432
+    # rc258 (§95a / #1407): the 4 genome-architecture ops — centromere,
+    # centromere_of, mint, mint_plan — 432→436.
+    assert introspect.describe()["tools"]["total"] == 466

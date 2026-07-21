@@ -10,8 +10,13 @@ Proven here (the ask's DoD):
         (all cell_states, several chromosomes);
   (ii)  genome_genes_expressed recovers BYTE-IDENTICAL leaves vs the expressed subset of
         a full gene_express (the partial-load == the full-load-filtered);
-  (iii) the PATH (variant b) plan uses the manifest offsets + does NOT read the full body —
-        bytes-touched << full-body-bytes (bounded I/O, measured through the read seam);
+  (iii) the PATH (variant b) plan uses the manifest offsets + its PER-REGION gate reads do
+        NOT page the body — one leaf_dim cap per chromosome, measured through the read
+        seam. rc282 scope note: this bounds the GATE LOOP, not the whole call. Deriving
+        the chromosome table scans the whole body (ADR-0003 — the array is a plaintext
+        TOC and is never stored), so call-level bytes-read is >= the body. That scan used
+        to bypass this seam, making the old single-sum assertion a FALSE GREEN; the two
+        terms are now measured and asserted separately (``conftest.BodyReadProbe``);
   (iv)  the SIONA TWO-GENOME LAYOUT: an ORGANELLE chromosome (E2 always-on service gate)
         + NUCLEAR chromosomes (E1/E2/E4/E3 single-community gates) → the plan ALWAYS
         includes the organelle + ONLY the cell_state-matching nuclear chromosome;
@@ -30,6 +35,21 @@ import pytest
 
 from srmech.amsc import genome as G
 from srmech.amsc import _native
+
+# rc282 — make this tests/ directory importable when this module is collected
+# ALONE. ``tests/`` is a package (``__init__.py`` present), so pytest's prepend
+# import-mode puts the package PARENT (``python/``) on sys.path, not ``tests/``
+# itself, and a bare ``from conftest import ...`` raises ModuleNotFoundError in
+# isolation. The project's proven shared-helper path (see test_mcp.py /
+# test_immolation.py, rc231 #810).
+import os as _os
+import sys as _sys
+_TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+if _TESTS_DIR not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR)
+
+from conftest import BodyReadProbe
+
 
 LEAF = G.LEAF_CAP
 B0, B1, B2, B3 = 1 << 0, 1 << 1, 1 << 2, 1 << 3
@@ -59,14 +79,14 @@ def _leaves(n, fill):
 
 
 def _build(tmp, head=4, body=8):
-    """Build + save the mixed two-genome layout; return (strand, the_one, dir)."""
-    one = G._default_the_one(LEAF)
+    """Build + save the mixed two-genome layout; return (strand, coupling, dir)."""
+    one = G._default_coupling(LEAF)
     chrom_list = []
     for name, gate, _bit in _COMMUNITIES:
         genes = [(name + "_head", _leaves(head, 0), gate),
                  (name + "_body", _leaves(body, 1), gate)]
         chrom_list.append((name, genes))
-    strand = G.genome(the_one=one, chromosomes=chrom_list)
+    strand = G.genome(coupling=one, chromosomes=chrom_list)
     G.genome_save(strand, tmp, one)
     return strand, one
 
@@ -85,45 +105,12 @@ def _norm(genes):
     return [(l, [list(map(int, x)) for x in lv]) for l, lv in genes]
 
 
-class _CountFile:
-    """A read-only file proxy counting bytes actually read (the bounded-I/O probe)."""
-
-    def __init__(self, f):
-        self.f = f
-        self.n = 0
-
-    def seek(self, *a):
-        return self.f.seek(*a)
-
-    def read(self, *a):
-        b = self.f.read(*a)
-        self.n += len(b)
-        return b
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        self.f.close()
-        return False
-
-
 @pytest.fixture()
-def counting_seam(monkeypatch):
-    """Route the demand-load ops' body reads through a counting proxy + force the pure
-    path (so the bytes-touched is measurable in Python; the C path reads the same by
-    construction)."""
-    opened = []
-    orig = G._open_body_ro
-
-    def wrap(p):
-        cf = _CountFile(orig(p))
-        opened.append(cf)
-        return cf
-
-    monkeypatch.setattr(G, "_open_body_ro", wrap)
-    monkeypatch.setattr(_native, "has_native_genome", lambda: False)
-    return opened
+def probe(monkeypatch):
+    """The bounded-I/O probe, SPLIT into its plan / catalog terms (rc282 — see
+    ``conftest.BodyReadProbe``). Forces the pure path, so bytes-touched is measurable
+    in Python; the C path reads the same by construction."""
+    return BodyReadProbe().install(monkeypatch)
 
 
 # ── (i) STRAND-variant plan expressed-set == gene_express ─────────────────────────
@@ -151,31 +138,46 @@ def test_partial_load_byte_identical():
 
 
 # ── (iii) variant-b bounded I/O — the plan does NOT read the full body ────────────
-def test_variant_b_bounded_io(counting_seam):
+def test_variant_b_bounded_io(probe):
+    """**Scope of the bound (rc282).** This asserts what ``gene_express_plan``'s PATH
+    variant actually guarantees: the PER-REGION gate reads are one ``leaf_dim`` cap per
+    chromosome, and the reader pages only the expressed regions. It does NOT assert
+    that the CALL touches ≪ the body — that is not true and never was. Deriving the
+    chromosome table scans the whole body (ADR-0003: the array is a plaintext
+    table-of-contents and is never stored), so call-level bytes-read is ≥ the body.
+    Before rc282 that scan bypassed this probe's seam, so this test appeared to bound
+    the whole call while bounding only the gate loop — a false green. The two terms are
+    now measured separately and both are asserted."""
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc135iii_"))
     _build(tmp, head=4, body=40)                        # sizeable bodies → dramatic skip
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     full_body = (tmp / G._BODY_NAME).stat().st_size
-    counting_seam.clear()
+    probe.clear()
     plan = G.gene_express_plan(str(tmp), one, B1)       # a physics-only query
-    plan_bytes = sum(cf.n for cf in counting_seam)
-    # the PLAN touches only one leaf_dim gate cap per chromosome — << the full body
-    assert plan_bytes <= len(_COMMUNITIES) * LEAF
-    assert plan_bytes < full_body // 2
+    probe.assert_live()
+    # THE GUARANTEE: the plan touches only one leaf_dim gate cap per chromosome.
+    assert probe.plan_bytes <= len(_COMMUNITIES) * LEAF
+    assert probe.plan_bytes < full_body // 2
     assert sorted(p[0] for p in plan) == sorted(_expected_communities(B1))
+    # THE SEPARATE, KNOWN COST: one whole-body catalog scan.
+    assert probe.catalog_bytes == full_body, (probe.catalog_bytes, full_body)
+
     # the READER pages only the expressed regions (organelle + the one nuclear) — the
-    # unexpressed nuclear communities are never touched
-    counting_seam.clear()
+    # unexpressed nuclear communities are never touched. Again the REGION term, not the
+    # call: genome_genes_expressed derives the catalog twice (once via the plan), so its
+    # catalog term is 2x the body and is asserted as such rather than hidden.
+    probe.clear()
     G.genome_genes_expressed(str(tmp), one, B1)
-    reader_bytes = sum(cf.n for cf in counting_seam)
-    assert reader_bytes < full_body, (reader_bytes, full_body)
+    probe.assert_live()
+    assert probe.plan_bytes < full_body, (probe.plan_bytes, full_body)
+    assert probe.catalog_bytes == 2 * full_body, (probe.catalog_bytes, full_body)
 
 
 # ── (iv) the SIONA two-genome layout: organelle-always + nuclear-matched ──────────
 def test_two_genome_layout():
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="rc135iv_"))
     _build(tmp)
-    one = G._default_the_one(LEAF)
+    one = G._default_coupling(LEAF)
     for cs in [0, B0, B1, B2, B3, B0 | B2, ALLB]:
         plan_labels = sorted(p[0] for p in G.gene_express_plan(str(tmp), one, cs))
         assert "mito" in plan_labels, f"organelle must ALWAYS be in the plan (cs={cs})"
@@ -232,7 +234,7 @@ def test_mixed_gate_types():
 
 # ── no format bump: the ops read the existing v11 caps/manifest ───────────────────
 def test_no_format_bump():
-    assert G.GENOME_FORMAT_VERSION == 11
+    assert G.GENOME_FORMAT_VERSION == 15
 
 
 # ── the STRAND-variant plan also delimits directly loadable gene byte-ranges ──────

@@ -54,7 +54,7 @@ from srmech.amsc.hv import HV
 
 
 def _one(dim=64):
-    return G._default_the_one(dim)
+    return G._default_coupling(dim)
 
 
 def _leaves(n, dim=64, base=0):
@@ -74,7 +74,7 @@ def _four_role_chromosome(one):
              ("activator", _leaves(1, base=1), 0b001, 0),
              ("repressor", _leaves(1, base=2), 0, 0b010),
              ("never", _leaves(1, base=3), 0b100, 0b100)]
-    return G.chromosome(the_one=one, label="roles", genes=genes)
+    return G.chromosome(coupling=one, label="roles", genes=genes)
 
 
 @pytest.mark.parametrize("cell_state,expected", [
@@ -123,7 +123,7 @@ def test_lac_operon_activator_and_repressor():
     one = _one()
     LACTOSE, GLUCOSE = 0b01, 0b10
     genes = [("lacZ", _leaves(1), LACTOSE, GLUCOSE)]
-    strand = G.chromosome(the_one=one, label="ecoli", genes=genes)
+    strand = G.chromosome(coupling=one, label="ecoli", genes=genes)
 
     def expresses(cs):
         return "lacZ" in [l for l, _ in G.gene_express(strand, one, cs)]
@@ -200,7 +200,7 @@ def test_rc128_regulatory_genome_expresses_identically():
     genes = [("housekeeping", _leaves(1, base=0)),              # plain (always)
              ("stress", _leaves(2, base=1), 0b011),             # rc128 single-mask
              ("mitosis", _leaves(1, base=2), 0b100)]            # rc128 single-mask
-    strand = G.chromosome(the_one=one, label="cell", genes=genes)
+    strand = G.chromosome(coupling=one, label="cell", genes=genes)
     cases = {
         0b000: ["housekeeping"],
         0b001: ["housekeeping"],
@@ -218,7 +218,7 @@ def test_plain_genes_always_express():
     every cell_state, and carries NO 0x67 marker (byte-identical to pre-rc128)."""
     one = _one()
     genes = [("a", _leaves(1)), ("b", _leaves(2, base=1)), ("c", _leaves(1, base=2))]
-    strand = G.chromosome(the_one=one, label="plainonly", genes=genes)
+    strand = G.chromosome(coupling=one, label="plainonly", genes=genes)
     for cs in (0, 1, 7, 2**63):
         assert [l for l, _ in G.gene_express(strand, one, cs)] == ["a", "b", "c"]
     assert all(G._cap_kind(hv) != G.REGULATORY_GENE_MARKER for hv in strand)
@@ -268,11 +268,11 @@ def test_no_format_bump_two_mask_genome_saves_v8(tmp_path):
     LACTOSE, GLUCOSE = 0b01, 0b10
     genes = [("housekeeping", _leaves(1)),
              ("lacZ", _leaves(2, base=1), LACTOSE, GLUCOSE)]
-    strand = G.chromosome(the_one=one, label="ecoli", genes=genes)
+    strand = G.chromosome(coupling=one, label="ecoli", genes=genes)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 11                          # rc132 §132 bumped v10->v11 (0x64 graded gene); a two-mask 0x67 genome still saves + pages
-    paged = G.genome_genes(p, "ecoli", the_one=one)
+    assert man["format_version"] == 15                          # rc132 §132 bumped v10->v11 (0x64 graded gene); a two-mask 0x67 genome still saves + pages
+    paged = G.genome_genes(p, "ecoli", coupling=one)
     assert [l for l, _ in paged] == ["housekeeping", "lacZ"]   # mask-agnostic recovery
     s2, o2, _ = G.genome_load(p)
     assert [l for l, _ in G.gene_express(s2, o2, LACTOSE)] == ["housekeeping", "lacZ"]
@@ -288,7 +288,7 @@ def test_rebuild_by_scan_recovers_both_masks(tmp_path):
     p = tmp_path / "g"
     G.genome_save(strand, p, one)
     (p / "manifest.json").unlink()                             # drop the derived cache
-    s2, o2, _ = G.genome_load(p, the_one=one)
+    s2, o2, _ = G.genome_load(p, coupling=one)
     assert [l for l, _ in G.gene_express(s2, o2, 0b001)] == ["dontcare", "activator", "repressor"]
     assert [l for l, _ in G.gene_express(s2, o2, 0b010)] == ["dontcare"]
 
@@ -298,9 +298,9 @@ def test_rebuild_by_scan_recovers_both_masks(tmp_path):
 def test_repressor_mask_must_be_nonnegative_int():
     one = _one()
     with pytest.raises(ValueError, match="non-negative"):
-        G.chromosome(the_one=one, label="c", genes=[("g", _leaves(1), 0b1, -1)])
+        G.chromosome(coupling=one, label="c", genes=[("g", _leaves(1), 0b1, -1)])
     with pytest.raises(ValueError, match="exact int"):
-        G.chromosome(the_one=one, label="c", genes=[("g", _leaves(1), 0b1, 1.5)])
+        G.chromosome(coupling=one, label="c", genes=[("g", _leaves(1), 0b1, 1.5)])
 
 
 def test_jacob_monod_attestation_documented():

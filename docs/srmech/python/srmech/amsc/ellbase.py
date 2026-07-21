@@ -56,7 +56,6 @@ oracle.
 
 from __future__ import annotations
 
-from fractions import Fraction
 from typing import Dict, Iterable, List, Mapping, Tuple
 
 from .q import Q
@@ -79,14 +78,22 @@ def _coerce_q(value) -> "Q | None":
         return Q(int(value), 1)
     if isinstance(value, int):
         return Q(value, 1)
-    if isinstance(value, Fraction):
-        return Q(value.numerator, value.denominator)
     if isinstance(value, float):
         return None
     if (isinstance(value, (tuple, list)) and len(value) == 2
             and isinstance(value[0], int) and isinstance(value[1], int)
             and value[1] != 0):
         return Q(value[0], value[1])
+    # any other exact-rational carrier (a stdlib fractions.Fraction, a Decimal,
+    # another numbers.Rational) via the as_integer_ratio protocol — #845, no
+    # fractions import; float is already rejected above.
+    pair = getattr(value, "as_pair", None) or getattr(value, "as_integer_ratio", None)
+    if pair is not None:
+        try:
+            n, d = pair()
+            return Q(int(n), int(d))
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
     return None
 
 

@@ -12,6 +12,7 @@ oracle), not numpy. The DtN-property and area-law invariants are checked with th
 exact Class-L ``dense_solve`` + stdlib list arithmetic.
 """
 from fractions import Fraction
+from srmech.amsc.q import Q  # #845: outputs are now Q, not Fraction
 
 import pytest
 
@@ -45,7 +46,7 @@ def test_exact_rational_matches_effective_conductance() -> None:
     S = schur_complement(L, [0, 3], exact=True)
     assert S == S_PATH4_EXACT
     # All entries are exact rationals — no float leaked into the core.
-    assert all(isinstance(x, Fraction) for row in S for x in row)
+    assert all(isinstance(x, Q) for row in S for x in row)
 
 
 def test_dirichlet_to_neumann_alias_agrees() -> None:

@@ -18,6 +18,8 @@ rank count on a rank-deficient matrix.)
 
 from __future__ import annotations
 
+from srmech.amsc.q import Q  # #845: dense_solve exact returns Q
+
 import math
 import random
 import re
@@ -77,7 +79,7 @@ def test_dense_solve_exact_fraction_path_is_exact_inverse():
     eye = [[1.0 if i == j else 0.0 for j in range(3)] for i in range(3)]
     inv_exact = dense_solve(m, eye, exact=True)
     # Every entry is an exact Fraction.
-    assert all(isinstance(inv_exact[i][j], Fraction) for i in range(3) for j in range(3))
+    assert all(isinstance(inv_exact[i][j], Q) for i in range(3) for j in range(3))
     # M (as Fractions) · M⁻¹ == I exactly.
     mfrac = [[Fraction(int(m[i][j])) for j in range(3)] for i in range(3)]
     prod = _matmul(mfrac, inv_exact)

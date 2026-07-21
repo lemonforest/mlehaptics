@@ -85,7 +85,49 @@ jobs:
       - name: Run tests
         working-directory: docs/srmech/python
         shell: bash
-        run: pytest tests/ -q
+        # rc283 — parallelised with pytest-xdist.
+        #
+        # rc296 STRUCK the speedup figures that stood here ("2.19x / 2.52x /
+        # 2.68x"). They had no committed generating code, no artifact and no
+        # log — they were prose, which is exactly what
+        # [[feedback_computational_provenance_discipline]] forbids for a
+        # load-bearing number. Their own note already conceded the spread was
+        # CONTENTION rather than variance, i.e. a property of what else was
+        # running on the box that afternoon.
+        #
+        # No multiple replaces them, because there is no portable one to quote:
+        # the ratio is capped by core count (`auto` = os.cpu_count(), which
+        # differs per cell) and, under `--dist loadfile`, by the SLOWEST SINGLE
+        # FILE rather than by total work. rc296's harness
+        # (`notes/rc283_xdist_speedup_probe.py`, artifact
+        # `notes/rc283_xdist_speedup.ndjson`) makes the point concrete: on a
+        # documented 6-file subset on an 8-core host it measured 0.96-1.09x
+        # over 3 repeats — no speedup at all, because one file dominates the
+        # set. Same flag, same tree, ~1x instead of ~2.5x, purely from which
+        # files you point it at. Run the harness on your own host and file set
+        # if you need a number; it reports a RANGE and refuses a single run.
+        #
+        # What is NOT struck, because it is checkable and is the durable reason
+        # this flag is here: xdist surfaced three real order/isolation bugs
+        # that serial execution had been hiding (see the rc283 CHANGELOG entry).
+        #
+        # `-n auto` (NOT a fixed `-n 4`): xdist resolves `auto` via
+        # os.cpu_count() here (psutil is deliberately not a dev dep), which is
+        # exactly the vCPU allotment of each GitHub-hosted standard runner —
+        # 4 on ubuntu-latest and windows-latest, 3 on macos-14. A fixed `-n 4`
+        # would OVERSUBSCRIBE the 3-core macOS cell, and would silently become
+        # wrong if GitHub changes runner sizing; `auto` tracks the real core
+        # count per cell and cannot oversubscribe.
+        #
+        # `--dist loadfile` sends a whole FILE to one worker, which (a) keeps
+        # each file's tests in their authored order, and (b) confines the
+        # process-global `os.chdir` / `os.environ` mutations a few test files
+        # perform. Its cost is that no run can finish faster than the slowest
+        # single file (~453 s, test_qm_so8_triality_c_rc146.py); that floor only
+        # starts to bind past ~6 workers, so it does not limit any cell here.
+        #
+        # Coverage is UNCHANGED — same tests, same assertions, distributed.
+        run: pytest tests/ -q -n auto --dist loadfile
 
   pure-wheel-build:
     # Always-on lightweight build of the py3-none-any wheel via the
@@ -312,3 +354,95 @@ jobs:
       - name: Build (warnings = errors)
         working-directory: docs/srmech
         run: cmake --build build --config Release
+
+  asserts-live-smoke:
+    # rc289 — the cell that gives JPL Rule 5 teeth.
+    #
+    # Every other cell here, and every wheel we ship, compiles -DNDEBUG, which
+    # strips `assert` outright. So before this job existed, the ~2-asserts-per-
+    # function discipline that `tests/test_jpl_audit.py` ratchets down-only had
+    # NO effect in any configuration CI ran: a wrong assert was unobservable.
+    #
+    # rc289 is the cost of that. `genome_list_genomes` asserted `max_n > 0u`,
+    # which the registry's own two-pass caller violates on an EMPTY ROOT — a
+    # documented supported input promising n_genomes 0. NDEBUG builds returned
+    # the right answer; an asserts-live build ABORTED the host (SIGABRT, exit
+    # 134). One projection correct, the other killing the process: an ADR-0009
+    # split that a bare-C host could not even trap, invisible to every green run.
+    #
+    # SCOPE — a targeted smoke, not the full suite under asserts-live. rc289
+    # measured the full run (483 files, one process each so an abort is recorded
+    # rather than destroying the session): it surfaced ONE root-cause assert,
+    # reaching three modules. There is no backlog of pre-existing aborts, so a
+    # second ~12-14 min suite would spend the budget re-proving a null. This
+    # cell runs the documented edge-case inputs where a boundary assert is most
+    # likely to be wrong. Widening it is a one-line change to the selection
+    # below if a future rc has reason to think the class is broader.
+    #
+    # Linux/gcc only. The defect class is compiler-independent (it is our own
+    # assert predicate, not a toolchain behaviour), and the pedantic-build
+    # matrix above already carries the cross-platform C burden.
+    name: asserts-live smoke (JPL Rule 5 with teeth)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install with the C library built ASSERTS-LIVE (no NDEBUG)
+        working-directory: docs/srmech/python
+        # THE BUILD TYPE MUST TRAVEL THROUGH THE BUILD BACKEND, not around it.
+        #
+        # `pyproject.toml` pins `[tool.scikit-build] cmake.build-type = "Release"`,
+        # so the library the install produces is Release — NDEBUG, every assert
+        # stripped — regardless of any separate `cmake -DCMAKE_BUILD_TYPE=Debug`
+        # run beside it, and regardless of a bare CMAKE_BUILD_TYPE env var, which
+        # scikit-build-core does not read. `--config-settings` is the mechanism it
+        # honours, and it outranks the pyproject value. (Needs pip >= 23.1 for
+        # config-settings on an editable install; the upgrade above guarantees it.)
+        #
+        # The first version of this cell built Debug separately and copied the .so
+        # over the installed one. That is what CI caught: it depends on the copied
+        # file winning a `srmech.__path__` race against the installed Release .so,
+        # and MEASURED (rc289, venv reproduction) the race goes different ways in
+        # different environments — the source tree wins only when it actually has a
+        # `_native/` directory, otherwise `_find_library()` resolves the
+        # site-packages Release copy and the whole cell silently tests nothing.
+        # Building the installed library Debug in the first place removes the race
+        # instead of trying to win it: every candidate path now holds one library,
+        # and it is the asserts-live one.
+        run: |
+          python -m pip install --upgrade pip
+          # No stale hand-placed library may pre-empt the installed one.
+          rm -rf srmech/_native
+          python -m pip install -e ".[dev]" --config-settings=cmake.build-type=Debug
+
+      - name: Verify the asserts really ARE live
+        working-directory: docs/srmech/python
+        # A green result from a build whose asserts were stripped proves nothing,
+        # so this is checked mechanically before anything is run. An `assert` that
+        # survives compilation emits a call to libc `__assert_fail`; -DNDEBUG
+        # removes the references along with the asserts.
+        #
+        # Checked against the library `_find_library()` ACTUALLY RESOLVES, not any
+        # path this workflow wrote down. That distinction is what made the first
+        # failure of this cell legible in one read rather than a mystery, so it
+        # stays even now that the install produces only one library.
+        run: |
+          LIB=$(python -c "from srmech.amsc import _native; print(_native._find_library())")
+          echo "resolved library: $LIB"
+          python -c "from srmech.amsc import _native; assert _native.HAS_NATIVE, 'no native library loaded — this cell cannot trip a C assert'; print('HAS_NATIVE', _native.HAS_NATIVE)"
+          nm -u "$LIB" | grep -q __assert_fail \
+            || { echo "::error::$LIB has NO __assert_fail reference — it was built with NDEBUG and every assert was stripped. This cell would pass without testing anything."; exit 1; }
+          echo "OK: asserts are live in the library that actually loads."
+
+      - name: Asserts-live smoke over documented edge-case inputs
+        working-directory: docs/srmech/python
+        env:
+          SRMECH_ASSERTS_LIVE: "1"
+        # Serial and unparallelised ON PURPOSE. Under `--dist loadfile` a dying
+        # worker raises KeyError in xdist teardown and aborts the session before
+        # the summary prints, destroying the very report this cell exists to
+        # produce. A C abort must surface as a readable failure here.
+        run: pytest tests/test_asserts_live_smoke_rc289.py -q -p no:randomly

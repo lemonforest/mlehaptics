@@ -163,6 +163,32 @@ if(SRMECH_SRCS)
         # Run it for the value check: ./build/test_srmech_bigint (exit 0 = all pass)
         add_executable(test_srmech_bigint c/test/test_srmech_bigint.c)
         target_link_libraries(test_srmech_bigint PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc275 §101 ENCODE-PROGRESS + graceful-abort: the bare-C-HOST smoke for the
+        # srmech_progress_tick_cb_t per-iteration heartbeat + nonzero-return-to-CANCEL.
+        # Cancels fiedler_file_iterate at iter 3 (asserts SRMECH_CANCELLED + zeroed
+        # out_vec) and srmech_genome_mint at kernel 1 (asserts the valid byte-prefix
+        # partial), + a NULL-tick == plain-symbol check. Runtime if-guards (not
+        # assert), so it is a real value check under Release/NDEBUG and joins the
+        # -Werror/-WX gate. Run it:
+        #   ./build/test_srmech_progress_tick      (exit 0 = all pass)
+        add_executable(test_srmech_progress_tick c/test/test_srmech_progress_tick.c)
+        target_link_libraries(test_srmech_progress_tick PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc293 (#928) fold_marks: the bare-C-HOST smoke for combining-mark
+        # folding. This op is the first text op whose table a host COULD have
+        # derived from Python (unicodedata exposes category + decomposition,
+        # unlike the UAX #29 properties rc287 needed), so the reason it is
+        # vendored rests entirely on the bare-C host being real — which this
+        # links and exercises: default table -> fold, across Latin
+        # precomposed/decomposed, the Devanagari virama, Hangul, CJK, emoji,
+        # plus OVERFLOW + malformed-UTF-8 rejection. Runtime if-guards (not
+        # assert), so it is a real value check under Release/NDEBUG and joins
+        # the -Werror/-WX gate. Run it:
+        #   ./build/test_srmech_text_fold        (exit 0 = all pass)
+        add_executable(test_srmech_text_fold c/test/test_srmech_text_fold.c)
+        target_include_directories(test_srmech_text_fold PRIVATE c/src)
+        target_link_libraries(test_srmech_text_fold PRIVATE srmech ${SRMECH_MATH_LIB})
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the

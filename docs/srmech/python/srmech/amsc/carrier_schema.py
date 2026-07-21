@@ -179,20 +179,17 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "the terminal read-out)."),
         "ladder": None, "rung": None, "variables": [],
     },
-    "Fraction": {
-        "description": (
-            "stdlib exact rational (fractions.Fraction) — accepted/emitted "
-            "at the exact-LA boundaries (dense_solve exact=True, "
-            "schur_complement, cd_norm_sq): the interchange twin of the "
-            "srmech Q scalar."),
-        "ladder": None, "rung": None, "variables": [],
-    },
     "Q": {
         "description": (
             "srmech's exact rational scalar — a reduced (num, den) integer "
             "pair that compares like a float and collapses to one only via "
-            "float(q): the return carrier of the Class-N series-truncate "
-            "trig/exp/log surface and the HDC similarity scores."),
+            "float(q): THE exact-rational carrier across srmech (#845 — it "
+            "subsumed the former stdlib-Fraction interchange carrier). It is "
+            "the return carrier of the exact-LA boundaries (dense_solve "
+            "exact=True, schur_complement, cd_norm_sq), the Class-N series-"
+            "truncate trig/exp/log surface, and the HDC similarity scores. A "
+            "stdlib fractions.Fraction is still ACCEPTED on input (numeric "
+            "protocol), it is simply never the emitted carrier."),
         "ladder": None, "rung": None, "variables": [],
     },
     # ── the float-LA carriers (numpy-free array('d') family) ─────────────────
@@ -304,6 +301,22 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
             "surface."),
         "ladder": None, "rung": None, "variables": [],
     },
+    "CDRegister": {
+        "description": (
+            "General N-slot addressable RBS-HDC register over a "
+            "Cayley–Dickson algebra of dimension n (any power of two in "
+            "[1, CD_MAX_DIM]): n content-keyed slots e0..e{n-1} addressed by "
+            "minted hypervectors, the octonion block e0..e7 as the reversible "
+            "working set at every rung and the remainder as the carry/EC "
+            "block, plus a CD-respecting navigate whose slot routing is the "
+            "signed permutation e_i·e_j = ±e_k. Carries the SAME operand as "
+            "SedenionRegister with the slot bound as a parameter rather than "
+            "a constant — SedenionRegister is its n=16 special case, retained "
+            "as the independent oracle the general form is gated against "
+            "(namespace='SEDENION' at dim 16 reproduces it bit-exactly). "
+            "Produced by cascade.cd_register."),
+        "ladder": None, "rung": None, "variables": [],
+    },
 }
 
 
@@ -327,6 +340,30 @@ def _token_re(name: str) -> "re.Pattern[str]":
     and 'int' never matches inside 'uint32'."""
     return re.compile(
         r"(?<![A-Za-z0-9_])" + re.escape(name) + r"(?![A-Za-z0-9_])")
+
+
+#: An ``array.array`` typecode as it appears in a ToolEntry type string —
+#: ``array('I')``, ``array('Q')``, ``array('d')``. The quoted character is a
+#: STDLIB TYPECODE, not a carrier name, but the identifier-boundary lookarounds
+#: in :func:`_token_re` treat a quote as a boundary, so a bare single-letter
+#: carrier name matches straight through the quotes.
+#:
+#: rc295 tripped this for real: ``hdc.klein4_bundle_sector_scores`` returns
+#: ``array('Q')`` (uint64 — the agreement product reaches n², past uint32), and
+#: the scan read that ``'Q'`` as srmech's exact-rational **Q** carrier and filed
+#: the op under ``Q.produces``. It produces no ``Q``. Before rc295 no registered
+#: ToolEntry type carried ``array('Q')``, so the hazard was latent, not benign —
+#: ``I`` is the only other typecode in the corpus and no carrier is named ``I``.
+#: Stripping the typecode before the scan is a no-op on every pre-rc295 entry.
+_ARRAY_TYPECODE_RE = re.compile(r"array\((['\"])[A-Za-z](['\"])\)")
+
+
+def _strip_array_typecodes(type_str: str) -> str:
+    """Blank out ``array('X')`` typecodes so the carrier scan cannot read a
+    stdlib typecode letter as a single-letter carrier name (see
+    :data:`_ARRAY_TYPECODE_RE`). The ``array`` token itself is kept — it is not
+    a carrier name, so keeping it costs nothing and keeps the string legible."""
+    return _ARRAY_TYPECODE_RE.sub("array", type_str)
 
 
 def _ladder_slot_carriers(slot: Dict[str, Any], *, produces: bool) -> List[str]:
@@ -371,8 +408,10 @@ def _derive_ops_index() -> Dict[str, Dict[str, List[str]]]:
     patterns = {name: _token_re(name) for name in _CARRIERS}
 
     for tool in get_tool_schema().tools:
-        param_types = " ".join(p.type for p in tool.parameters)
-        ret_type = tool.returns.type if tool.returns is not None else ""
+        param_types = _strip_array_typecodes(
+            " ".join(p.type for p in tool.parameters))
+        ret_type = _strip_array_typecodes(
+            tool.returns.type if tool.returns is not None else "")
         for name, pat in patterns.items():
             if param_types and pat.search(param_types):
                 consumes[name].add(tool.name)

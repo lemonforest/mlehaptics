@@ -13,9 +13,9 @@ from srmech.amsc._native import HAS_NATIVE
 
 
 def _substrate(D=2000, n=5):
-    vocab = {w: hdc.klein4_random(D, seed=100 + i)
+    vocab = {w: hdc.klein4_expand(D, 100 + i)
              for i, w in enumerate(["cat", "dog", "sun", "moon", "tree"][:n])}
-    keys = {f"k{i}": hdc.klein4_random(D, seed=900 + i) for i in range(n)}
+    keys = {f"k{i}": hdc.klein4_expand(D, 900 + i) for i in range(n)}
     names = list(vocab)
     binds = [hdc.klein4_bind(keys[f"k{i}"], vocab[names[i]]) for i in range(n)]
     return vocab, keys, names, binds
@@ -79,7 +79,7 @@ def test_chunk_resolve_rejects_bad_args():
     with pytest.raises(ValueError):
         hdc.klein4_chunk_resolve(chunks, keys["k0"], [])      # no candidates
     with pytest.raises(ValueError):
-        hdc.klein4_chunk_resolve(chunks, hdc.klein4_random(8, seed=1), cands)  # len ≠ D
+        hdc.klein4_chunk_resolve(chunks, hdc.klein4_expand(8, 1), cands)  # len ≠ D
 
 
 # ── surface bookkeeping ──

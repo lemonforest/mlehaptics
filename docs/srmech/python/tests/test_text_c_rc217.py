@@ -1,19 +1,29 @@
-"""rc217 (gh #1360) — BYTE-IDENTICAL C peers for `srmech.amsc.text`.
+"""rc217 (gh #1360) + rc287 — BYTE-IDENTICAL C peers for `srmech.amsc.text`.
 
-The §40/§52 text→graph ingestion ops (`tokenize` / `cooccurrence_edges` /
-`cooccurrence_topk`) shipped rc50/§52 as pure-Python kernels with NO C peer —
-the enwiki comprehended-encode's dominant cost ran in Python even on a native
-wheel. rc217 gives each a byte-identical C peer (`srmech_text_tokenize` /
-`srmech_text_cooccurrence_edges` / `srmech_text_cooccurrence_topk` +
-`…_topk_extract`) and fixes their Rosetta mis-classification
-(non_compute/composes_c → c_dispatched — the self-contained-kernel hiding
-spot; see COMPOSES_C_ZERO_REACH_PINNED in test_rosetta_completeness.py).
+The §40/§52 text→graph ingestion ops shipped rc50/§52 as pure-Python kernels
+with NO C peer — the enwiki comprehended-encode's dominant cost ran in Python
+even on a native wheel. rc217 gave each a byte-identical C peer and fixed
+their Rosetta mis-classification (non_compute/composes_c → c_dispatched — the
+self-contained-kernel hiding spot; see COMPOSES_C_ZERO_REACH_PINNED in
+test_rosetta_completeness.py).
 
-The parity contract here is BYTE-IDENTICAL equality of the whole result
-(token stream / integer counts / tie-breaks / edge order) — the pure body is
-the oracle, exercised by forcing every `has_native_text_*` gate off. On a
-no-C host both sides run the pure body and the assertions still hold (the
-suite stays green with no native lib, per the §17 discipline).
+**rc287 replaced the segmentation op.** `srmech_text_tokenize` is gone and
+`srmech_text_glyph_stream` (+ `srmech_text_default_gb_table`) takes its place,
+because the unit is now the UAX #29 grapheme cluster rather than the word.
+The Unicode battery below was REWRITTEN rather than deleted: every case is
+kept and re-pointed at `glyph_stream`, plus the cases that only exist because
+the word decision existed (casefold expansions, ligature folds, apostrophe
+trimming) are retained as *inputs* — they still have to segment identically in
+both projections, they simply no longer fold or drop anything. Several cases
+that the old suite pinned as correct were pinning bugs; those are called out
+individually where they appear.
+
+The parity contract is unchanged and is the point of this file: BYTE-IDENTICAL
+equality of the whole result (cluster stream / integer counts / tie-breaks /
+edge order), with the pure body as the oracle, exercised by forcing every
+`has_native_text_*` gate off. On a no-C host both sides run the pure body and
+the assertions still hold (the suite stays green with no native lib, per the
+§17 discipline).
 
 Numpy-free.
 """
@@ -26,6 +36,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import _native
+from srmech.amsc import _unicode_gb_tables as gbt
 from srmech.amsc import text as T
 
 
@@ -33,10 +44,10 @@ from srmech.amsc import text as T
 # forced-pure helpers (the oracle side of every parity assert)
 # ──────────────────────────────────────────────────────────────────────
 
-def _pure_tokenize(monkeypatch, *a, **kw):
+def _pure_glyph_stream(monkeypatch, *a, **kw):
     with monkeypatch.context() as m:
-        m.setattr(_native, "has_native_text_tokenize", lambda: False)
-        return T.tokenize(*a, **kw)
+        m.setattr(_native, "has_native_text_glyph_stream", lambda: False)
+        return T.glyph_stream(*a, **kw)
 
 
 def _pure_edges(monkeypatch, *a, **kw):
@@ -52,75 +63,121 @@ def _pure_topk(monkeypatch, *a, **kw):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# tokenize — Unicode battery (byte-identical native == pure)
+# glyph_stream — Unicode battery (byte-identical native == pure)
 # ──────────────────────────────────────────────────────────────────────
 
-_TOKENIZE_CASES = [
-    # plain English + default stoplist
+_GLYPH_CASES = [
+    # plain English (the old suite also exercised the default stoplist here —
+    # there is no stoplist now, so the whole string must survive)
     "Hello, world! The quick brown fox jumps over the lazy dog.",
     # Latin accents / Cyrillic / CJK (the F698 lesson — no ASCII \\w+)
     "café naïve Москва 日本語 straße test",
-    # apostrophes: internal kept, trailing/leading trimmed, curly → ASCII
+    # apostrophes: the old path mapped curly → ASCII and trimmed them, which
+    # DELETED the Hawaiian okina when U+2019 stood in for U+02BB. Kept as a
+    # segmentation battery; nothing is trimmed or rewritten now.
     "don't stop 'quoted' galaxy's rock'n'roll '' ' a''b",
     "’leading curly’ trailing’ mid’dle",
-    # casefold expansions (ß→ss makes the 2-cp floor; İ → i + combining dot)
+    # cases that existed for casefold expansion (ß→ss, İ → i + combining dot).
+    # No folding now, but they remain excellent segmentation inputs: İ carries
+    # a combining dot, and the Greek is a real accent/case battery.
     "ß ẞ İstanbul DİYARBAKIR ΣΊΣΥΦΟΣ ὈΔΥΣΣΕΎΣ",
-    # ligature folds (ﬃ → ffi) + titlecase digraphs
+    # ligature + titlecase digraphs (single codepoints -> single clusters)
     "ﬁre ﬂow oﬃce Ǆungla ǅ ǆ ǳ Ǳ",
-    # combining marks ride the run (category M kept)
-    "étude combininǵ marks͂ café",
-    # separators / punctuation / digits end runs; single letters dropped
+    # combining marks ride their base (GB9)
+    "étude combininǵ marks͂ café",
+    # separators / punctuation / digits are clusters in their own right; the
+    # old path dropped all of them AND any single letter (_MIN_LEN).
     "ab-cd ef_gh 123 x9y a1 ..́..",
     "tabs\tand\nnewlines\r\nmixed  spaces",
     # empties / minimal
     "", "a", "xy", "''", "’’",
+    # rc287 additions — the clusters the old path could not represent at all
+    "\U0001F468‍\U0001F469‍\U0001F467‍\U0001F466",   # GB11 family ZWJ
+    "\U0001F1FB\U0001F1FA\U0001F1F3\U0001F1FF",     # GB12/13 flag pair
+    "1️⃣2️⃣",                                        # keycaps
+    "क्षि क्त",                                       # GB9c conjuncts
+    "한국어 ᄀᅠ",                                      # Hangul + jamo filler
+    "中 国",                                          # single-codepoint CJK
 ]
 
 
-@pytest.mark.parametrize("case", _TOKENIZE_CASES)
-def test_tokenize_native_equals_pure(monkeypatch, case):
-    for kw in ({}, {"stoplist": None},
-               {"stoplist": ["café", "straße", "hello", "ss"]},
-               {"unicode_normalize": False}):
-        assert T.tokenize(case, **kw) == _pure_tokenize(monkeypatch, case, **kw)
+@pytest.mark.parametrize("case", _GLYPH_CASES)
+def test_glyph_stream_native_equals_pure(monkeypatch, case):
+    for kw in ({}, {"unicode_normalize": False}):
+        assert (T.glyph_stream(case, **kw)
+                == _pure_glyph_stream(monkeypatch, case, **kw))
 
 
-def test_tokenize_nfd_input_normalises_identically(monkeypatch):
+@pytest.mark.parametrize("case", _GLYPH_CASES)
+def test_glyph_stream_is_lossless(monkeypatch, case):
+    """No codepoint may be dropped. The old path silently deleted the okina,
+    single-codepoint CJK, digits, punctuation and every emoji."""
+    for kw in ({}, {"unicode_normalize": False}):
+        assert "".join(T.glyph_stream(case, **kw)) == (
+            unicodedata.normalize("NFC", case) if kw.get(
+                "unicode_normalize", True) else case)
+
+
+def test_glyph_stream_nfd_input_normalises_identically(monkeypatch):
     nfd = unicodedata.normalize("NFD", "café naïve étude")
-    assert T.tokenize(nfd) == _pure_tokenize(monkeypatch, nfd)
-    assert T.tokenize(nfd) == T.tokenize("café naïve étude")
+    assert T.glyph_stream(nfd) == _pure_glyph_stream(monkeypatch, nfd)
+    assert T.glyph_stream(nfd) == T.glyph_stream("café naïve étude")
+    # ...and with normalisation OFF the base+mark pairs are STILL one cluster
+    # each (GB9), which is the break rule rather than the normaliser.
+    assert len(T.glyph_stream(nfd, unicode_normalize=False)) == len(
+        "café naïve étude")
 
 
-def test_tokenize_known_values():
-    # pinned semantics (not just parity): stop words drop, ß folds to ss,
-    # curly apostrophe becomes ASCII, trailing apostrophes trim.
-    assert T.tokenize("The Weiße Rose didn’t stop") == ["weisse", "rose", "didn't", "stop"]
-    assert T.tokenize("ß alone") == ["ss", "alone"]     # 1 char → 2 cps ≥ MIN_LEN
-    assert T.tokenize("a b c") == []                    # single letters drop
+def test_glyph_stream_known_values():
+    """Pinned semantics, not just parity.
+
+    The rc217 version of this test pinned three behaviours that rc287 found to
+    be defects, so the assertions are inverted here and each says why:
+
+    * ``tokenize("The Weiße Rose didn’t stop") == ["weisse","rose","didn't","stop"]``
+      — casefold split Turkish vocabularies and could not repair Greek
+      uppercase accent loss; the curly→ASCII rewrite deleted the okina.
+    * ``tokenize("ß alone") == ["ss","alone"]`` — a fold, not a segmentation.
+    * ``tokenize("a b c") == []`` — ``_MIN_LEN`` deleted content words, which
+      erased single-codepoint CJK entirely.
+    """
+    assert T.glyph_stream("The Weiße Rose didn’t stop") == list(
+        "The Weiße Rose didn’t stop")
+    assert T.glyph_stream("ß alone") == list("ß alone")     # no fold to "ss"
+    assert T.glyph_stream("a b c") == list("a b c")         # nothing dropped
+    assert T.glyph_stream("中 国") == ["中", " ", "国"]
 
 
-def test_tokenize_fold_concat_property():
-    """str.casefold is per-codepoint (Unicode full folding C+F is context-free)
-    — the property the C per-char fold relies on; locked over every
-    non-identity fold row concatenated pairwise."""
-    folds = [chr(cp) for cp in range(0x500) if chr(cp).casefold() != chr(cp)]
-    probe = "".join(folds)
-    assert probe.casefold() == "".join(c.casefold() for c in probe)
+def test_break_table_is_loaded_and_handed_to_c_intact():
+    """Replaces ``test_tokenize_fold_outputs_carry_no_apostrophe``.
 
+    That test guarded a real invariant of the retired tokenizer — no casefold
+    output may contain an apostrophe, because the C peer trimmed AFTER folding
+    while the pure body trimmed BEFORE, so a folding apostrophe would have made
+    the two projections disagree. rc287 removed both the fold and the trim, so
+    the invariant has no consumer left and asserting it would be theatre.
 
-def test_tokenize_fold_outputs_carry_no_apostrophe():
-    """No casefold output contains an apostrophe (the C trim-after-fold order
-    relies on it; the table builder verifies EXHAUSTIVELY and declines the
-    native path entirely if it ever appeared). Re-verified here over the BMP;
-    plus the builder's tables exist with non-identity rows."""
-    for cp in range(0x10000):
-        f = chr(cp).casefold()
-        if f != chr(cp):
-            assert "'" not in f and "’" not in f, hex(cp)
-    tables = T._unicode_tables()
-    if tables is None:                                   # pragma: no cover
-        pytest.skip("interpreter Unicode tables declined (fold apostrophe)")
-    assert tables[4] > 0                                 # non-identity rows exist
+    The structural counterpart is kept instead: the table both projections hand
+    to C must decode to the same shape the vendored blob declares, and the
+    ctypes view handed across the FFI must be that table and not a copy that
+    drifted. This is the same class of guard (the tables exist, are non-trivial,
+    and cross the boundary intact) pointed at the object that now matters.
+    """
+    lo, hi, prop = T._gb_table()
+    assert len(lo) == len(hi) == len(prop) == gbt.GB_RANGE_COUNT
+    assert gbt.GB_RANGE_COUNT > 0
+
+    lo_c, hi_c, prop_c, n_ranges = T._gb_table_ctypes()
+    assert n_ranges == gbt.GB_RANGE_COUNT
+    assert list(lo_c) == list(lo)
+    assert list(hi_c) == list(hi)
+    assert bytes(bytearray(prop_c)) == prop
+
+    # The two properties that cannot be derived from ANY host interpreter must
+    # actually be present -- their silent absence would degrade emoji and Indic
+    # while leaving every Latin assertion in this file green.
+    assert any(p & gbt.PROP_EXTPICT_BIT for p in prop)
+    assert any((p & gbt.PROP_INCB_MASK) for p in prop)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -239,7 +296,7 @@ _LEDGER = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 def test_rosetta_rows_are_c_dispatched():
     rows = {json.loads(l)["defined_at"]: json.loads(l)
             for l in _LEDGER.read_text(encoding="utf-8").splitlines() if l.strip()}
-    for op in ("tokenize", "cooccurrence_edges", "cooccurrence_topk"):
+    for op in ("glyph_stream", "cooccurrence_edges", "cooccurrence_topk"):
         row = rows[f"srmech.amsc.text.{op}"]
         assert row["bucket"] == "c_dispatched", row
         assert "non_compute_kind" not in row, row
@@ -248,36 +305,42 @@ def test_rosetta_rows_are_c_dispatched():
 def test_native_gates_bound_on_a_native_host():
     if not _native.HAS_NATIVE:
         pytest.skip("no native lib — pure-only host")
-    assert _native.has_native_text_tokenize()
+    assert _native.has_native_text_glyph_stream()
     assert _native.has_native_text_cooccurrence_edges()
     assert _native.has_native_text_cooccurrence_topk()
-    for sym in ("srmech_text_tokenize", "srmech_text_cooccurrence_edges",
+    for sym in ("srmech_text_glyph_stream", "srmech_text_default_gb_table",
+                "srmech_text_cooccurrence_edges",
                 "srmech_text_cooccurrence_topk",
                 "srmech_text_cooccurrence_topk_extract"):
         assert hasattr(_native.LIB, sym), sym
+    # rc287 removed the word tokenizer from the C surface too, keeping the
+    # C and Python surfaces 1:1 (the rc135 carrier-consolidation precedent:
+    # an orphaned kernel with no caller is removed, not left dangling).
+    assert not hasattr(_native.LIB, "srmech_text_tokenize")
 
 
 def test_native_path_actually_dispatches(monkeypatch):
     """On a native host the wrapper genuinely reaches the C kernel (not a
     silent pure fallback): a sentinel on the ctypes symbol must fire."""
-    if not (_native.HAS_NATIVE and _native.has_native_text_tokenize()):
+    if not (_native.HAS_NATIVE and _native.has_native_text_glyph_stream()):
         pytest.skip("no native lib — pure-only host")
     hits = []
-    real = _native.LIB.srmech_text_tokenize
+    real = _native.LIB.srmech_text_glyph_stream
 
     def spy(*args):
         hits.append(1)
         return real(*args)
 
     with monkeypatch.context() as m:
-        m.setattr(_native.LIB, "srmech_text_tokenize", spy)
-        out = T.tokenize("café straße Hello world's end")
-    assert hits, "native tokenize gate was on but the C symbol never fired"
-    assert out == T.tokenize("café straße Hello world's end")
+        m.setattr(_native.LIB, "srmech_text_glyph_stream", spy)
+        out = T.glyph_stream("café straße Hello world's end")
+    assert hits, "native glyph_stream gate was on but the C symbol never fired"
+    assert out == T.glyph_stream("café straße Hello world's end")
 
 
 def test_tool_schema_entries_exist():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    for op in ("tokenize", "cooccurrence_edges", "cooccurrence_topk"):
+    for op in ("glyph_stream", "cooccurrence_edges", "cooccurrence_topk"):
         assert f"srmech.amsc.text.{op}" in names
+    assert "srmech.amsc.text.tokenize" not in names        # retired at rc287
