@@ -41,16 +41,16 @@ def twiddle_key(win, pos, kaxes):                 # LITERAL exp(mu*theta): rotat
     inv = ISQRT[kaxes]
     q = [c] + [s * inv if a < kaxes else Fr(0) for a in range(7)]   # cos + (1/sqrt k) sin * (e1..ek)
     pr = cascade.cd_mult(tuple(q), p)             # left twiddle in O
-    return hdc.klein4_random(D, seed=_hashseed(pr))
+    return hdc.klein4_address(D, ",".join(str(x) for x in pr))
 
 def scalar_key(win, pos, axes):                   # F881 SPIRIT: composed scalar klein4_phase_bind
-    k = hdc.klein4_random(D, seed=_hashseed(ctx_oct(win)))
+    k = hdc.klein4_address(D, ",".join(str(x) for x in ctx_oct(win)))
     for a in range(axes):
         k = hdc.klein4_phase_bind(k, ((pos * MULT[a]) % PMAX) / PMAX)
     return k
 
 def plain_key(win, pos):                          # no-phase baseline
-    return hdc.klein4_random(D, seed=_hashseed(ctx_oct(win)))
+    return hdc.klein4_address(D, ",".join(str(x) for x in ctx_oct(win)))
 
 WV = {}
 def wv(w):

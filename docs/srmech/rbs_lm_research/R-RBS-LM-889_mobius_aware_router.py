@@ -38,7 +38,7 @@ def cossin(num, den):
 def odft_key(win, num, den):                      # F882 single-sided O-twiddle, angle = num/den
     p = tuple(Fr(x) for x in ctx_oct(win)); c, s = cossin(num, den)
     q = [c] + [s * ISQRT7]*7
-    return hdc.klein4_random(D, seed=_hs(cascade.cd_mult(tuple(q), p)))
+    return hdc.klein4_address(D, ",".join(str(x) for x in cascade.cd_mult(tuple(q), p)))
 def key_base(win, pos): return odft_key(win, pos, PMAX)                 # flat torus (baseline)
 def key_pack(win, pos):                                                 # Mobius: hi bit -> sign, lo -> theta in [0,1/2)
     half = PMAX // 2; sigma = (pos // half) % 2; theta_num = (pos % half)

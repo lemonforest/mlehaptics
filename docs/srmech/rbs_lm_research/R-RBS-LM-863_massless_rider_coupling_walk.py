@@ -38,7 +38,7 @@ print("=== (1) Klein-4 is ORDER-BLIND (cannot be a story) ===")
 kb = hdc.klein4_bundle(*[mint for mint in [_mk for _mk in []]]) if False else None
 # bundle the same tokens in two orders; klein4 bundle/bind are commutative
 D = 1024
-toks_k = {t: hdc.klein4_random(D, seed=sum(t.encode())) for t in set(SENT)}
+toks_k = {t: hdc.klein4_address(D, t) for t in set(SENT)}
 b1 = hdc.klein4_bundle(*[toks_k[t] for t in SENT])
 b2 = hdc.klein4_bundle(*[toks_k[t] for t in PERM])
 print(f"  klein4_bundle(sentence) vs klein4_bundle(reversed): sim = {hdc.klein4_similarity(b1,b2):.3f}  -> 1.000 = SAME (order lost)")

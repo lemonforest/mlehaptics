@@ -36,11 +36,11 @@ def unit_q(pos, kaxes):
 
 def single_key(win, pos, kaxes):                  # F882: left twiddle q*p
     p = tuple(Fr(x) for x in ctx_oct(win))
-    return hdc.klein4_random(D, seed=_hashseed(cascade.cd_mult(unit_q(pos, kaxes), p)))
+    return hdc.klein4_address(D, ",".join(str(x) for x in cascade.cd_mult(unit_q(pos, kaxes), p)))
 def sandwich_key(win, pos, kaxes):                # F883: inverse-coupling rotation q*p*conj(q)
     p = tuple(Fr(x) for x in ctx_oct(win)); q = unit_q(pos, kaxes)
     pr = cascade.cd_mult(cascade.cd_mult(q, p), cascade.cd_conjugate(q))
-    return hdc.klein4_random(D, seed=_hashseed(pr))
+    return hdc.klein4_address(D, ",".join(str(x) for x in pr))
 
 WV = {}
 def wv(w):
