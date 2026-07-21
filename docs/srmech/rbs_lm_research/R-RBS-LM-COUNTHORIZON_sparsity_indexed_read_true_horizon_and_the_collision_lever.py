@@ -91,8 +91,8 @@ def main():
     import srmech
     log("=== COUNTHORIZON (srmech %s) ===" % srmech.__version__)
     log("building carriers up to N=%d, dim=%d ..." % (args.max_n, dim))
-    keys = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(args.max_n)]
-    vals = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(args.max_n)]
+    keys = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(args.max_n)]
+    vals = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(args.max_n)]
     bound = [bytes(a ^ b for a, b in zip(k, v)) for k, v in zip(keys, vals)]
     log("carriers built.")
 
@@ -149,12 +149,12 @@ def main():
         C = build_counts(bound[:N], dim)
         idx = sorted(range(dim), key=lambda i: -margins(C)[i])[:best_m]
         probes = list(range(0, N, max(1, N // 20)))
-        B = hdc.klein4_bundle([hdc.klein4_bind(hdc.klein4_random(dim, seed=10_000 + i),
-                                               hdc.klein4_random(dim, seed=20_000 + i)) for i in range(N)])
+        B = hdc.klein4_bundle([hdc.klein4_bind(hdc.klein4_expand(dim, 10_000 + i),
+                                               hdc.klein4_expand(dim, 20_000 + i)) for i in range(N)])
         hb = 0
         for p in probes:
-            probe = hdc.klein4_bind(B, hdc.klein4_random(dim, seed=10_000 + p))
-            best = max(range(N), key=lambda j: hdc.klein4_similarity(probe, hdc.klein4_random(dim, seed=20_000 + j)))
+            probe = hdc.klein4_bind(B, hdc.klein4_expand(dim, 10_000 + p))
+            best = max(range(N), key=lambda j: hdc.klein4_similarity(probe, hdc.klein4_expand(dim, 20_000 + j)))
             hb += (best == p)
         hc = sum(1 for p in probes if read_sparse(C, keys[p], vals[:N], idx) == p)
         log("  %-8d %-14.3f %-14.3f" % (N, hb / len(probes), hc / len(probes)))
@@ -166,8 +166,8 @@ def main():
     log("  %-8s %-14s" % ("dim", "counts recall"))
     N2 = 2000
     for d2 in (1024, 2048, 4096, 8192):
-        k2 = [bytes(hdc.klein4_random(d2, seed=10_000 + i)) for i in range(N2)]
-        v2 = [bytes(hdc.klein4_random(d2, seed=20_000 + i)) for i in range(N2)]
+        k2 = [bytes(hdc.klein4_expand(d2, 10_000 + i)) for i in range(N2)]
+        v2 = [bytes(hdc.klein4_expand(d2, 20_000 + i)) for i in range(N2)]
         b2 = [bytes(a ^ b for a, b in zip(k, v)) for k, v in zip(k2, v2)]
         C2 = build_counts(b2, d2)
         M2 = max(64, int(best_m * d2 / dim))

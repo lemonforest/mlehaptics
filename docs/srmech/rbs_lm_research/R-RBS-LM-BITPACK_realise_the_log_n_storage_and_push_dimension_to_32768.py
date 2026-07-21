@@ -130,8 +130,8 @@ def part_b(N, dims):
     log("  %-9s %-16s %-10s" % ("dim", "counts recall", "secs"))
     prev = None
     for d in dims:
-        keys = [bytes(hdc.klein4_random(d, seed=10_000 + i)) for i in range(N)]
-        vals = [bytes(hdc.klein4_random(d, seed=20_000 + i)) for i in range(N)]
+        keys = [bytes(hdc.klein4_expand(d, 10_000 + i)) for i in range(N)]
+        vals = [bytes(hdc.klein4_expand(d, 20_000 + i)) for i in range(N)]
         bound = [bytes(a ^ b for a, b in zip(k, v)) for k, v in zip(keys, vals)]
         C = build_counts_flat(bound, d)
         probes = list(range(0, N, max(1, N // 10)))
@@ -156,8 +156,8 @@ def main():
     log("=== BITPACK + DIMENSION PUSH (srmech %s) ===" % srmech.__version__)
 
     d0 = args.pack_dim
-    keys = [bytes(hdc.klein4_random(d0, seed=10_000 + i)) for i in range(args.n)]
-    vals = [bytes(hdc.klein4_random(d0, seed=20_000 + i)) for i in range(args.n)]
+    keys = [bytes(hdc.klein4_expand(d0, 10_000 + i)) for i in range(args.n)]
+    vals = [bytes(hdc.klein4_expand(d0, 20_000 + i)) for i in range(args.n)]
     bound = [bytes(a ^ b for a, b in zip(k, v)) for k, v in zip(keys, vals)]
     part_a(bound, d0, args.n)
 

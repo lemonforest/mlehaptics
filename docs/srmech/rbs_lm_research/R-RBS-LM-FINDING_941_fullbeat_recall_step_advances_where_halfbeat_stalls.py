@@ -7,8 +7,8 @@ from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
 vocab=['a','b','c','d','e','f','g','h']
-vec={t: hdc.klein4_random(D, seed=1000+i) for i,t in enumerate(vocab)}
-ROLE=hdc.klein4_random(D, seed=4242)
+vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}
+ROLE=hdc.klein4_expand(D, 4242)
 chain=['a','b','c','d','e']; edges=list(zip(chain,chain[1:]))
 M=cs.bundle_odd([ bind(bind(vec[p],ROLE),vec[n]) for p,n in edges ])
 def cleanup(v): return max(vocab, key=lambda t: fl(hdc.klein4_similarity(v,vec[t])))

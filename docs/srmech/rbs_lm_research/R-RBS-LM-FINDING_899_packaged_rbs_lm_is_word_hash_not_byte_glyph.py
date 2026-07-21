@@ -23,7 +23,7 @@ print("    infer(['the','cat']) ->", gen)
 print("    attestation keys:", list(sub.attestation().keys()))
 
 # (2) is the packaged ENCODE byte/glyph, or word-hash?  cat vs cot share 2 of 3 bytes.
-def byte_k4(b): return hdc.klein4_random(D, seed=b)
+def byte_k4(b): return hdc.klein4_expand(D, b)
 def word_k4_byteglyph(w):  # F865/F612 byte/glyph core — a word BUILT UP from its bytes
     return cs.bundle_odd([hdc.klein4_bind(byte_k4(b), cs.pos_key(i))
                           for i, b in enumerate(w.encode("utf-8"))])

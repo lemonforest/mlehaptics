@@ -16,7 +16,7 @@ def band(units, alts):
     for i in range(len(units)):
         p=list(units); p[i]=alts[i%len(alts)]; xs.append(sim(whole, kc(p)))
     return st.mean(xs)
-bw=band([hdc.klein4_random(D,seed=b) for b in b"computer"], [hdc.klein4_random(D,seed=b) for b in b"XYZ"])
+bw=band([hdc.klein4_expand(D, b) for b in b"computer"], [hdc.klein4_expand(D, b) for b in b"XYZ"])
 print(f"(1) klein4_compose 1-part-change band (byte->word, n=8): {bw:.3f}  vs F901 hand-rolled 0.745 -> {P(0.68<bw<0.80)}")
 
 # (2) encode_word_byteglyph reproduces the F899/F908 byte/glyph morphology

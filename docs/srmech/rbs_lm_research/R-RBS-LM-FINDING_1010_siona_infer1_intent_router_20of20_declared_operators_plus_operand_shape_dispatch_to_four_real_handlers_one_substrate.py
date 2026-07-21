@@ -8,7 +8,7 @@ import re, importlib
 from srmech.amsc import tool_schema as ts, hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bundle=cs.bundle_odd; bind=hdc.klein4_bind
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
 def sim(a,b): return fl(hdc.klein4_similarity(a,b))
 def toks(s):

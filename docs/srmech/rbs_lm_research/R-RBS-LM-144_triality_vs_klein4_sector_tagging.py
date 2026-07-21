@@ -102,7 +102,7 @@ def klein4_sector_tags(D, seed):
     tags deterministically orthogonal (pairwise klein4-sim = 0.0). This IS the
     Klein-4 sector property (F132): 4 perfectly-separated chirality sectors.
     """
-    base = hdc.klein4_random(D, seed=seed)
+    base = hdc.klein4_expand(D, seed)
     return [
         base,
         hdc.klein4_chirality_flip_gamma5(base),
@@ -116,7 +116,7 @@ def triality_3_3bar_tags(D, seed):
     (the "3bar"). klein4_cpt_mirror is the chirality involution that swaps
     3<->3bar (F197). Conjugate pairs (i, i+3) are orthogonal; the 3 base members
     are mutually random -- exactly the 3(+)3bar shape inside g2."""
-    base3 = [hdc.klein4_random(D, seed=seed + 11 + i) for i in range(3)]
+    base3 = [hdc.klein4_expand(D, seed + 11 + i) for i in range(3)]
     conj3 = [hdc.klein4_cpt_mirror(b) for b in base3]   # 3bar = conjugate of the 3
     return base3 + conj3
 
@@ -143,7 +143,7 @@ def triality_order3_tags(D, seed):
         # Class A content-addressing of the orbit vector's bytes -> deterministic seed.
         digest = sha256_bytes(np.ascontiguousarray(o, dtype=np.float64).tobytes())
         s = int(digest[:16], 16)               # 64-bit seed from the hex digest
-        tags.append(hdc.klein4_random(D, seed=s))
+        tags.append(hdc.klein4_expand(D, s))
     return tags
 
 
@@ -231,7 +231,7 @@ def capacity_sweep(scheme_fn, D, seed, n_grid):
     for N in n_grid:
         # Fresh seeded items for this N (deterministic per (seed, N)).
         item_seeds = rng.integers(0, 2**31 - 1, size=N)
-        items = [hdc.klein4_random(D, seed=int(s)) for s in item_seeds]
+        items = [hdc.klein4_expand(D, int(s)) for s in item_seeds]
         store, sector_of = build_store(items, tags)
         mean_sim, std_sim = within_sector_retrieval(store, items, tags, sector_of)
         above = mean_sim - CHANCE
@@ -266,7 +266,7 @@ def contrast_at_load(scheme_fn, D, seed, N):
     tags = scheme_fn(D, seed)
     rng = np.random.default_rng(seed + 9000)
     item_seeds = rng.integers(0, 2**31 - 1, size=N)
-    items = [hdc.klein4_random(D, seed=int(s)) for s in item_seeds]
+    items = [hdc.klein4_expand(D, int(s)) for s in item_seeds]
     store, sector_of = build_store(items, tags)
     within_mean, within_std = within_sector_retrieval(store, items, tags, sector_of)
     cross_mean, cross_std = cross_sector_retrieval(store, items, tags, sector_of)

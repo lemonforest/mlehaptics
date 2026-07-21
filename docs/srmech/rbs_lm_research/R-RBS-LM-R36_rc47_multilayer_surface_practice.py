@@ -34,8 +34,8 @@ def main():
     print(f"  I  gcd(seed,360)={g}   J  factor(360)={fac}   N  best_rational(seed/1000)={br}")
 
     # M (Klein-4 HDC) — HV carrier; use HV methods, NEVER a numpy reflex
-    a = hdc.klein4_random(64, seed=seed)
-    b = hdc.klein4_random(64, seed=seed + 1)
+    a = hdc.klein4_expand(64, seed)
+    b = hdc.klein4_expand(64, seed + 1)
     bound = hdc.klein4_bind(a, b)
     print(f"  M  klein4_random -> {type(a).__name__} (HV; sectors={a.sectors}); "
           f"bind -> {type(bound).__name__}; self-sim={hdc.klein4_similarity(a, a):.3f}, "

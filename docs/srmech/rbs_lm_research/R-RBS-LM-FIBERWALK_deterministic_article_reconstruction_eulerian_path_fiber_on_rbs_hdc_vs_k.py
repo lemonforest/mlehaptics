@@ -39,7 +39,7 @@ def tok(t):                                                  # a token's klein-4
 
 
 def pos(j):                                                  # a position-role vector (binds order into the context)
-    return hdc.klein4_random(D, seed=_seed("pos/%d" % j))
+    return hdc.klein4_expand(D, _seed("pos/%d" % j))
 
 
 def _foldbind(vs):

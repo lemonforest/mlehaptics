@@ -50,7 +50,7 @@ INST = Path.home() / "corpora" / "wikipedia" / "simplewiki_rawbody_instrument.nd
 
 
 def the_one():
-    return hdc.klein4_random(DIM, seed=0)
+    return hdc.klein4_expand(DIM, 0)
 
 
 def body_key(title):

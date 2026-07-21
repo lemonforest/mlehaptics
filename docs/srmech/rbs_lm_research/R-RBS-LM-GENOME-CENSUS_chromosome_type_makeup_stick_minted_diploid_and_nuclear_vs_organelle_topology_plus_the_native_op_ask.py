@@ -83,7 +83,7 @@ def census_root(root, one):
 
 def _demo():
     import tempfile
-    one = hdc.klein4_random(64, seed=0)
+    one = hdc.klein4_expand(64, 0)
     def leaves(n): return [[(i * 7 + j) % 4 for j in range(64)] for i in range(n)]
     root = Path(tempfile.mkdtemp())
     # a "nucleus": mixed stick + minted (the umbrella auto-mints ≥5-leaf kernels)
@@ -107,7 +107,7 @@ def _demo():
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:                                     # census a real genome dir (or a root of genomes)
-        one = hdc.klein4_random(64, seed=0)
+        one = hdc.klein4_expand(64, 0)
         target = Path(sys.argv[1])
         out = census_root(target, one) if not is_genome_dir(target) else census_one(target, one)
         import json

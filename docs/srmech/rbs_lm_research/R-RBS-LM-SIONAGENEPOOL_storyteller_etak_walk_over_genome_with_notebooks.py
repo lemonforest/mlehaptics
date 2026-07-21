@@ -57,7 +57,7 @@ RK = _U.module_from_spec(_rk_spec); _rk_spec.loader.exec_module(RK)
 GENEPOOL_SCHEMA_VERSION = "F796-langlayer+markup+intent+codegrammar"
 
 DIM = 64
-ONE = hdc.klein4_random(DIM, seed=0)
+ONE = hdc.klein4_expand(DIM, 0)
 def _seed(t): return int.from_bytes(sha256_raw(t.encode())[:4], "big")
 def _leaf(t): return hdc.klein4_encode_bytes(t, DIM)  # F1260: byte-composed (was seed=hash -> arbitrary code at the 0.25 floor)
 def _slug(s): return (re.sub(r"[^a-z0-9]+", "_", s.lower()).strip("_") or "sec")[:36]
@@ -73,9 +73,9 @@ _GLYPH_CACHE = {}
 def _glyph(ch):                                                                  # one abstract base vector per glyph (memoized)
     v = _GLYPH_CACHE.get(ch)
     if v is None:
-        v = _GLYPH_CACHE[ch] = hdc.klein4_random(DIM, seed=_seed("niv/" + ch))
+        v = _GLYPH_CACHE[ch] = hdc.klein4_expand(DIM, _seed("niv/" + ch))
     return v
-def _posrole(i): return hdc.klein4_random(DIM, seed=_seed(f"niv/pos/{i}"))       # position role (order-preserving bind)
+def _posrole(i): return hdc.klein4_expand(DIM, _seed(f"niv/pos/{i}"))       # position role (order-preserving bind)
 def _word_hv(w):
     """A surface word built FROM the ni-Vanuatu glyph base: bundle of character-BIGRAM binds (Class M ∘ glyphs) — the
     edit-robust METRIC channel (F762). NOTE (F1214/F1215): this HV is the METRIC/similarity read ONLY; it does NOT carry

@@ -24,7 +24,7 @@ from srmech.amsc import hdc
 def main():
     print(f"=== R-RBS-LM-SUBSTRATEMIRROR — the synaptic gap has the (4:3)|(3:4) signature; F552 catches it (F544+F546+F550+F552)  (srmech {srmech.__version__}) ===\n")
     # the two genuine chiral hands (F552): R = klein4 base, L = its γ₅ conjugate
-    R = hdc.klein4_random(8192, seed=11)
+    R = hdc.klein4_expand(8192, 11)
     L = hdc.klein4_chirality_flip_gamma5(R)
     print(f"(0) chiral hands R, L (γ₅-duals): klein4 similarity {hdc.klein4_similarity(R, L):.2f} (0 = orthogonal).\n")
 

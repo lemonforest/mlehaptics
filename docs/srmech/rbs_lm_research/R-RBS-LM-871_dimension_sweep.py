@@ -15,14 +15,14 @@ def capacity(D, Ngrid):
     """largest N with the target's match-count >= gate (1.3 x chance). Measured by scan."""
     chance = D // 4
     gate = (chance * 13) // 10
-    key0 = hdc.klein4_random(D, seed=7); val0 = hdc.klein4_random(D, seed=9)
+    key0 = hdc.klein4_expand(D, 7); val0 = hdc.klein4_expand(D, 9)
     target = hdc.klein4_bind(key0, val0)
     Nstar, counts = 0, {}
     for N in Ngrid:
-        others = [hdc.klein4_bind(hdc.klein4_random(D, seed=1000 + i),
-                                  hdc.klein4_random(D, seed=50000 + i)) for i in range(N - 1)]
+        others = [hdc.klein4_bind(hdc.klein4_expand(D, 1000 + i),
+                                  hdc.klein4_expand(D, 50000 + i)) for i in range(N - 1)]
         M = hdc.klein4_bundle(target, *others) if (N % 2 == 1) else hdc.klein4_bundle(
-            target, *others, hdc.klein4_random(D, seed=424242))   # odd count for majority
+            target, *others, hdc.klein4_expand(D, 424242))   # odd count for majority
         c = mcount(hdc.klein4_unbind(M, key0), val0)
         counts[N] = c
         if c >= gate: Nstar = N
@@ -51,7 +51,7 @@ print(f"  mean N*/D x1000  -- powers of 2: {sum(p2)/len(p2):.3f}   non-powers: {
 print("\n=== chance baseline + variance check (theory: chance=D/4, std=sqrt(3D/16)) ===")
 import math
 for D in [4096, 10000, 16384]:
-    a = hdc.klein4_random(D, seed=11); b = hdc.klein4_random(D, seed=22)
+    a = hdc.klein4_expand(D, 11); b = hdc.klein4_expand(D, 22)
     obs = mcount(a, b)
     print(f"  D={D:6d}: random-pair count {obs} vs chance {D//4} (excess {obs - D//4:+d}); pred std {math.sqrt(3*D/16):.1f}")
 print("\n  (Reading the result, not assuming it, in the response.)")

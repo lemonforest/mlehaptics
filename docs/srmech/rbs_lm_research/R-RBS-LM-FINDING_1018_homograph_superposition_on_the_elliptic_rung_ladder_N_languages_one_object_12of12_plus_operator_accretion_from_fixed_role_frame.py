@@ -11,7 +11,7 @@
 Sparse Klein-4; no numpy/abs/Counter/bag."""
 from srmech.amsc import hdc
 D=8192; bind=hdc.klein4_bind; g5=hdc.klein4_chirality_flip_gamma5
-HV=type(hdc.klein4_random(D,seed=0))
+HV=type(hdc.klein4_expand(D, 0))
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
 def sim(a,b): return fl(hdc.klein4_similarity(a,b))
 def vec(w,s=7): return hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+s)

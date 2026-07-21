@@ -42,7 +42,7 @@ def corrupt(v, p, rng):
 
 def trial(p, seed):
     rng = np.random.default_rng(seed)
-    v_true = hdc.klein4_random(D, seed=seed)
+    v_true = hdc.klein4_expand(D, seed)
     # three co-equal renders: 2 clean copies + 1 corrupted at strength p
     r1 = v_true.copy()
     r2 = v_true.copy()

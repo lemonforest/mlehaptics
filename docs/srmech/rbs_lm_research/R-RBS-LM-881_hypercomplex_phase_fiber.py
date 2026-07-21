@@ -31,7 +31,7 @@ def key_at(win, pos, axes):               # axes=1 -> F878 scalar phase; 3 -> QD
     return k
 WV = {}
 def word_k4(w):
-    return cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))
+    return cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))
                           for i, b in enumerate(w.encode("utf-8"))])
 def wv(w):
     if w not in WV: WV[w] = word_k4(w)

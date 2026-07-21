@@ -13,8 +13,8 @@ tbl=[0,1,0,0,0,-1,0,-1,0,0,0,1]
 qs=U.unary_theta(U.Character(12,tbl),1,1,24,8).q_series(400)
 sh=[(1 if c>0 else -1) for c in qs if c!=0]
 sh=(sh*8)[:32]                                    # tile for enough positions
-vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_random(D,seed=1000+i) for i,t in enumerate(vocab)}
-ROLE=hdc.klein4_random(D,seed=4242); chain=['a','b','c','d','e']  # sink = e (no stored next)
+vocab=['a','b','c','d','e','f','g','h']; vec={t: hdc.klein4_expand(D, 1000+i) for i,t in enumerate(vocab)}
+ROLE=hdc.klein4_expand(D, 4242); chain=['a','b','c','d','e']  # sink = e (no stored next)
 def poskey(p, forced):
     k=cs.pos_key(p)
     return hdc.klein4_chirality_flip_gamma5(k) if (forced and sh[p]<0) else k

@@ -22,8 +22,8 @@ freq={}
 for t in toks: freq[t]=freq.get(t,0)+1
 vocab=[t for t,_ in sorted(freq.items(), key=lambda kv:(-kv[1],kv[0]))[:220]]   # top-220 (<=256 Laplacian bound)
 idx={t:i for i,t in enumerate(vocab)}; n=len(vocab)
-vec={t: hdc.klein4_random(D, seed=3000+i) for i,t in enumerate(vocab)}
-ROLE=hdc.klein4_random(D, seed=4242)
+vec={t: hdc.klein4_expand(D, 3000+i) for i,t in enumerate(vocab)}
+ROLE=hdc.klein4_expand(D, 4242)
 
 nexts={}; und={}; rels=set()
 for a,b in zip(toks,toks[1:]):

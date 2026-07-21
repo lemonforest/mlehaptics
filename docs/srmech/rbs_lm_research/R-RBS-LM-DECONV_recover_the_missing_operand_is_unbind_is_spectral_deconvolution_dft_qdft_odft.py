@@ -48,7 +48,7 @@ def recover_missing_operand():
     print(f"  sim(recovered b, true b) = {hdc.polar_similarity(b_rec, b):.3f}")
     print(f"  sim(recovered a, true a) = {hdc.polar_similarity(a_rec, a):.3f}")
     print(f"  sim(b, an unrelated hv)  = {hdc.polar_similarity(b, z):.3f}   (baseline — recovery is real, not chance)")
-    ka, kb = hdc.klein4_random(D, seed=1), hdc.klein4_random(D, seed=2)
+    ka, kb = hdc.klein4_expand(D, 1), hdc.klein4_expand(D, 2)
     krel = hdc.klein4_bind(ka, kb)                   # Z2xZ2 / XOR — self-inverse, so recovery is EXACT
     print(f"  klein4 (XOR) exact recover b from rel+a? {hdc.klein4_unbind(krel, ka) == kb}")
 

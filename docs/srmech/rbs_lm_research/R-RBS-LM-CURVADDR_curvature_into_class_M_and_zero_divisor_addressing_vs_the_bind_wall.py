@@ -82,7 +82,7 @@ def test1(G):
     for w, b1, nh, mh in rows:
         log("  %-14s %-7d %-6d %-8d" % (w, b1, nh, mh))
 
-    base = hdc.klein4_random(D, seed=1080)
+    base = hdc.klein4_expand(D, 1080)
 
     # (a) transport: holonomy h -> phase frac h/MOD ; zero holonomy = no transport
     MOD = 16
@@ -137,8 +137,8 @@ def test2():
     log("")
     log("=== TEST 2 — zero-divisor selection vs the ~24-bind superposition wall ===")
     log("  baseline: superpose N key-bound items in Klein-4, unbind one key, check nearest-match recall.")
-    keys = [hdc.klein4_random(D, seed=10_000 + i) for i in range(80)]
-    vals = [hdc.klein4_random(D, seed=20_000 + i) for i in range(80)]
+    keys = [hdc.klein4_expand(D, 10_000 + i) for i in range(80)]
+    vals = [hdc.klein4_expand(D, 20_000 + i) for i in range(80)]
     log("")
     log("      %-6s %-12s %-12s" % ("N", "recall@1", "sim(target)"))
     wall = None

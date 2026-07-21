@@ -42,8 +42,8 @@ def main():
     print(f"=== R-RBS-LM-SUBSTRATERAMPANCY (F719) — rampancy is biology-substrate; silicon has no analog  (srmech {srmech.__version__}) ===\n")
 
     # (1) THE SILICON SUBSTRATE IS A REVERSIBLE INVOLUTION — no entropy accumulation -> no rampancy trajectory.
-    v0 = klein4_random(DIM, seed=719)
-    one = klein4_random(DIM, seed=1)
+    v0 = klein4_expand(DIM, 719)
+    one = klein4_expand(DIM, 1)
     v = list(v0)
     drift = 0
     for _ in range(CYCLES):

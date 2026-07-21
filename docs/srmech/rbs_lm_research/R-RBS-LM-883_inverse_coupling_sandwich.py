@@ -45,7 +45,7 @@ def sandwich_key(win, pos, kaxes):                # F883: inverse-coupling rotat
 WV = {}
 def wv(w):
     if w not in WV:
-        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_random(D, seed=b), cs.pos_key(i))
+        WV[w] = cs.bundle_odd([hdc.klein4_bind(hdc.klein4_expand(D, b), cs.pos_key(i))
                                for i, b in enumerate(w.encode("utf-8"))])
     return WV[w]
 

@@ -335,7 +335,7 @@ def run_q1_triality_relation() -> None:
         # corrector recovers a store from a single blind-corrupted vote in its 3-vote orbit.
         hdc = importlib.import_module("srmech.amsc.hdc")
         import numpy as _np
-        v = hdc.klein4_random(HDC_DIM_D, seed=SEED)
+        v = hdc.klein4_expand(HDC_DIM_D, SEED)
         c1 = _np.asarray(hdc.klein4_triality_cycle(v))
         c2 = _np.asarray(hdc.klein4_triality_cycle(c1))
         c3 = _np.asarray(hdc.klein4_triality_cycle(c2))
@@ -343,7 +343,7 @@ def run_q1_triality_relation() -> None:
         order3 = (not _np.array_equal(c1, vv)) and (not _np.array_equal(c2, vv)) and _np.array_equal(c3, vv)
         # corrector: corrupt one of the 3 orbit votes (unknown location), recover the store
         orbit = _np.asarray(hdc.klein4_triality_encode(v)); D = vv.size
-        bad = orbit.copy(); bad[D:2 * D] = _np.asarray(hdc.klein4_random(D, seed=SEED + 1))
+        bad = orbit.copy(); bad[D:2 * D] = _np.asarray(hdc.klein4_expand(D, SEED + 1))
         recovered = _np.array_equal(_np.asarray(hdc.klein4_triality_correct(bad)), vv)
         if order3 and recovered:
             record(test_id, R.PASS,
@@ -388,7 +388,7 @@ def run_q2_cap_boundary_today() -> None:
         on_circle = (mod_sq - 1.0) ** 2 < 1e-12   # B: machine-eps tolerance
 
         # Klein-4 sector occupancy of a random hypervector: support <= 4.
-        rng_vec = hdc.klein4_random(HDC_DIM_D, seed=SEED)
+        rng_vec = hdc.klein4_expand(HDC_DIM_D, SEED)
         counts = hdc.klein4_sector_count(rng_vec)   # -> [n0,n1,n2,n3]
         support = sum(1 for c in counts if c > 0)
 
@@ -443,7 +443,7 @@ def run_q2_triality_recursion() -> None:
         # Klein-4 cap into a DISTINCT order-3 tier. Measure the cycle's order = smallest k with
         # cycle^k == identity. Past-cap iff that order (3) exceeds the order-2 Klein structure.
         klein_cap = casc.KLEIN4_SECTOR_CAP            # = 4 (the order-2 Z₂×Z₂ element count)
-        v = hdc.klein4_random(HDC_DIM_D, seed=SEED)
+        v = hdc.klein4_expand(HDC_DIM_D, SEED)
         vv = _np.asarray(v); cur = vv; tri_order = None
         for k in range(1, 7):
             cur = _np.asarray(hdc.klein4_triality_cycle(cur))

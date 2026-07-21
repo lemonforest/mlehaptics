@@ -87,7 +87,7 @@ def main():
 
     # the actual (4:3) native alphabet (F380): klein4 triality ops are exact-integer round-trips
     D = 64
-    v = hdc.klein4_random(D, seed=383)
+    v = hdc.klein4_expand(D, 383)
     recon = hdc.klein4_triality_correct(hdc.klein4_triality_encode(v))
     klein_exact = (aslist(recon) == aslist(v))
     res["klein4_triality_roundtrip_bit_exact"] = bool(klein_exact)

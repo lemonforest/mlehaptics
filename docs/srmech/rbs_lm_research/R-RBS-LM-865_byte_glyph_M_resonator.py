@@ -15,7 +15,7 @@ WPOS = 100  # offset so word-position keys don't collide with byte-position keys
 
 # ---- byte/glyph CORE: a word is composed from its bytes (numpy-free, Klein-4) ----
 def byte_k4(b):
-    return hdc.klein4_random(D, seed=b)                # 256-byte vocab (language-agnostic)
+    return hdc.klein4_expand(D, b)                # 256-byte vocab (language-agnostic)
 def word_k4(w):
     binds = [hdc.klein4_bind(byte_k4(b), cs.pos_key(i)) for i, b in enumerate(w.encode("utf-8"))]
     return cs.bundle_odd(binds)

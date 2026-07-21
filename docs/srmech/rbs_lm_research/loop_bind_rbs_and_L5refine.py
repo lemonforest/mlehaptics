@@ -43,7 +43,7 @@ def part_a():
     print(f"[order] loop-bind: cos(seq[a,b,c], seq[c,b,a]) = {cos(E_fwd, E_rev):+.3f}  -> {'ORDER-DISTINCT' if cos(E_fwd, E_rev) < 0.99 else 'order-blind'}")
 
     # klein4 bag baseline (commutative) is ORDER-blind
-    k = [hdc.klein4_random(D, seed=300 + i) for i in range(3)]
+    k = [hdc.klein4_expand(D, 300 + i) for i in range(3)]
     B_fwd = hdc.klein4_bundle(k[0], k[1], k[2])
     B_rev = hdc.klein4_bundle(k[2], k[1], k[0])
     print(f"[order] klein4 bag: sim(bag[a,b,c], bag[c,b,a]) = {hdc.klein4_similarity(B_fwd, B_rev):.3f}  -> order-BLIND (the flat connection)")

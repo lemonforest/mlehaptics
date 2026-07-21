@@ -24,7 +24,7 @@ import tempfile
 
 from srmech.amsc import genome as G, hdc as H, format as F
 
-COUPLE = H.klein4_random(64, seed=1080)                     # the sandroing/UNESCO-00073 coupling invariant
+COUPLE = H.klein4_expand(64, 1080)                     # the sandroing/UNESCO-00073 coupling invariant
 
 
 def tokens(t):

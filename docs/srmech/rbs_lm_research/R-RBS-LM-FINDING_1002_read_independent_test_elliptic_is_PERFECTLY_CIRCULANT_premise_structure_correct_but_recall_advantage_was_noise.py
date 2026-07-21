@@ -6,15 +6,15 @@ C[r][r'] a function of the rung-difference |r-r'| (the quasi-periodicity fingerp
 sidelobe (what the peak read rides) + the MEAN. This tests whether the -z^-1 STRUCTURE is real and whether it
 has a measurable (non-recall) advantage. Sparse Klein-4; no abs."""
 from srmech.amsc import hdc
-D=8192; g5=hdc.klein4_chirality_flip_gamma5; HV=type(hdc.klein4_random(D,seed=0))
+D=8192; g5=hdc.klein4_chirality_flip_gamma5; HV=type(hdc.klein4_expand(D, 0))
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
 from srmech.amsc import cascade
 def mag(x): return fl(cascade.magnitude(x))     # srmech-allow: Class-K pin-slot |x| for a correlation magnitude (not abs)
 def dlt_(r,s): return r-s if r>s else s-r        # integer rung-difference (index arithmetic, no abs)
 NR=6
 def rot(seq,k): k%=len(seq); return seq[-k:]+seq[:-k]
-RK_ind=[hdc.klein4_random(D, seed=71000+r) for r in range(NR)]
-base=hdc.klein4_random(D, seed=99001); bl=base.tolist(); dlt=D//(2*NR)
+RK_ind=[hdc.klein4_expand(D, 71000+r) for r in range(NR)]
+base=hdc.klein4_expand(D, 99001); bl=base.tolist(); dlt=D//(2*NR)
 RK_ell=[(g5(HV.from_sequence(rot(bl, r*dlt))) if r%2 else HV.from_sequence(rot(bl, r*dlt))) for r in range(NR)]
 def cmat(RK): return [[fl(hdc.klein4_similarity(RK[r],RK[s])) for s in range(NR)] for r in range(NR)]
 def offdiag(C): return [C[r][s] for r in range(NR) for s in range(NR) if r!=s]

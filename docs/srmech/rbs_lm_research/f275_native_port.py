@@ -177,7 +177,7 @@ def main():
     print(f"  cos(forward, wrong-sign) = {cos_fw_nat:+.6f}  (<1 -> SIGN pattern recoverable)")
 
     # Commutative klein4 bundle baseline (playback)
-    kb = [hdc.klein4_random(2048, seed=200 + i) for i in range(3)]
+    kb = [hdc.klein4_expand(2048, 200 + i) for i in range(3)]
     P_fwd = hdc.klein4_bundle(kb[0], kb[1], kb[2])
     P_rev = hdc.klein4_bundle(kb[2], kb[1], kb[0])
     sim_play = hdc.klein4_similarity(P_fwd, P_rev)

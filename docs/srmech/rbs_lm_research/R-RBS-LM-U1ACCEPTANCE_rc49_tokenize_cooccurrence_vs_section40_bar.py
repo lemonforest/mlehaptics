@@ -58,8 +58,8 @@ def bar3_boundary():
 
 
 def genome_regression():
-    one = klein4_random(64, seed=1)
-    kernels = {"a": [klein4_random(64, seed=s) for s in (10, 11)], "b": [klein4_random(64, seed=20)]}
+    one = klein4_expand(64, 1)
+    kernels = {"a": [klein4_expand(64, s) for s in (10, 11)], "b": [klein4_expand(64, 20)]}
     strand = G.genome(kernels, one)
     back = G.partition(strand, one, list(kernels))
     return all([list(map(list, back[k])) == list(map(list, kernels[k])) for k in kernels])

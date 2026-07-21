@@ -7,7 +7,7 @@ from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 enc=cs.enc                                          # byte-glyph word encoder (encode_word_byteglyph)
 def sim(a,b): return fl(hdc.klein4_similarity(a,b))
 # ---- (A) READ-INDEPENDENT structural: is byte-glyph sim SPELLING or USAGE? ----

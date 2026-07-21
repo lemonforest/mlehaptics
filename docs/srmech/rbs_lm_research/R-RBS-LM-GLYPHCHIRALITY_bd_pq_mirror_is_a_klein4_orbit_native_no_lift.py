@@ -47,7 +47,7 @@ def _eq(x, y):
 def shape_vec(seed_label="glyph-shape::bdpq"):
     """The abstract glyph SHAPE as a Klein-4 vector — content-addressed (attested, deterministic)."""
     seed = int(sha256_bytes(seed_label.encode("utf-8"))[:16], 16)
-    return klein4_random(DIM, seed=seed)
+    return klein4_expand(DIM, seed)
 
 
 def chirality_aware():
@@ -61,7 +61,7 @@ def naive():
     out = {}
     for ch in GLYPHS:
         seed = int(sha256_bytes(f"glyph::{ch}".encode("utf-8"))[:16], 16)
-        out[ch] = klein4_random(DIM, seed=seed)
+        out[ch] = klein4_expand(DIM, seed)
     return out
 
 

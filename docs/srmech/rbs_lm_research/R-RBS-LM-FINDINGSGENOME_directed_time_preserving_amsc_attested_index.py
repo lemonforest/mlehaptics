@@ -30,7 +30,7 @@ from srmech.amsc.format import sha256_bytes
 HERE = Path(__file__).parent
 OUTDIR = Path(os.environ.get("OUT", str(Path.home() / "corpora" / "findings_genome")))   # LOCAL test target
 LEAF = 64
-COUPLE = hdc.klein4_random(LEAF, seed=1217)
+COUPLE = hdc.klein4_expand(LEAF, 1217)
 _FID = re.compile(r"FINDING_(\d+)_")
 _FREF = re.compile(r"\bF(\d{2,4})\b")
 _REFUTE = re.compile(r"corrects|refutes?|REFUTED|supersed|retract|rejected|replaces|wrong|the miss|fails|does not",

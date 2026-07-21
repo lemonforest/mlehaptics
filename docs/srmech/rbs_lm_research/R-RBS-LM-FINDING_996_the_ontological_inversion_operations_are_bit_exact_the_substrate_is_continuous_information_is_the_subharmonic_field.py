@@ -9,12 +9,12 @@ from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242)
+ROLE=hdc.klein4_expand(D, 4242)
 def cap(M_modes, N):
     # N random (a_i -> b_i) relationships; each pair assigned a resonant MODE round-robin (i % M_modes)
-    A=[hdc.klein4_random(D, seed=90000+i) for i in range(N)]
-    B=[hdc.klein4_random(D, seed=120000+i) for i in range(N)]
-    MODE=[hdc.klein4_random(D, seed=150000+m) for m in range(M_modes)]
+    A=[hdc.klein4_expand(D, 90000+i) for i in range(N)]
+    B=[hdc.klein4_expand(D, 120000+i) for i in range(N)]
+    MODE=[hdc.klein4_expand(D, 150000+m) for m in range(M_modes)]
     bundle=cs.bundle_odd([bind(bind(A[i],ROLE), bind(MODE[i%M_modes], B[i])) for i in range(N)])
     hits=0
     for i in range(N):

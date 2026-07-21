@@ -8,8 +8,8 @@ from srmech.amsc import hdc
 from srmech.rbs_lm import substrate as S
 D=8192; cs=S.ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
-ROLE=hdc.klein4_random(D, seed=4242); V=700
-vec=[hdc.klein4_random(D, seed=6000+i) for i in range(V)]
+ROLE=hdc.klein4_expand(D, 4242); V=700
+vec=[hdc.klein4_expand(D, 6000+i) for i in range(V)]
 P=0; A,B,T=1,2,3                    # P's nexts: A,B strong (stored 3x,2x), T weak (stored 1x) = buried
 pairs=[]
 for _ in range(3): pairs.append((P,A))

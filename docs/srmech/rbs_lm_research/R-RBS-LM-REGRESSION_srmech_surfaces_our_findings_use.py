@@ -24,7 +24,7 @@ def main():
     from srmech.amsc import cascade as C, hdc as H, text as T, laplacian as L, genome as G, format as FMT
     from srmech.amsc.hdc import klein4_random
     from srmech import dsl
-    v, w = klein4_random(64, seed=3), klein4_random(64, seed=4)
+    v, w = klein4_expand(64, 3), klein4_expand(64, 4)
 
     # cascade package re-exports (the de-dup risk) — every op our findings call:
     for op in ("pin_slot_at_zero", "magnitude", "net_chirality", "reorient", "chiral_flip", "best_rational_signed",

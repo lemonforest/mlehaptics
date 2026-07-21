@@ -26,7 +26,7 @@ import srmech
 from srmech.amsc import genome as g, hdc
 
 DIM = 64
-ONE = hdc.klein4_random(DIM, seed=0)
+ONE = hdc.klein4_expand(DIM, 0)
 
 
 def genome_drop(strand, the_one, label):
@@ -42,7 +42,7 @@ def main():
     print("(0) dedicated remove/delete op in the genome surface:", removeops or "NONE")
 
     def Lv(s, n):
-        return [hdc.klein4_random(DIM, seed=s * 100 + i) for i in range(n)]
+        return [hdc.klein4_expand(DIM, s * 100 + i) for i in range(n)]
     kernels = [("alpha", Lv(1, 3)), ("beta", Lv(2, 2)), ("gamma", Lv(3, 4))]
     strand = g.genome(kernels, ONE)
     before = g.partition(strand, ONE)

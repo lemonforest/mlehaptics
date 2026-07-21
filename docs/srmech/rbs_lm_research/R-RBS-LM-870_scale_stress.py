@@ -18,7 +18,7 @@ GATE = (CHANCE * 13) // 10
 
 def _dig(s):
     h = fmt.sha256_bytes(s.encode()); return bytes.fromhex(h) if isinstance(h, str) else h
-def byte_k4(b): return hdc.klein4_random(D, seed=b)
+def byte_k4(b): return hdc.klein4_expand(D, b)
 def word_k4(w):
     return cs.bundle_odd([hdc.klein4_bind(byte_k4(b), cs.pos_key(i)) for i, b in enumerate(w.encode("utf-8"))])
 def byte_oct(b):
@@ -36,11 +36,11 @@ def mcount(a, b): return sum(1 for x, y in zip(a.tolist(), b.tolist()) if x == y
 
 print("=== Part 1: capacity curve -- one stored relationship's match-count as M fills ===")
 print(f"  (chance={CHANCE}, gate={GATE}, clean single bind=D={D})")
-key0 = hdc.klein4_random(D, seed=999999); val0 = hdc.klein4_random(D, seed=888888)
+key0 = hdc.klein4_expand(D, 999999); val0 = hdc.klein4_expand(D, 888888)
 target = hdc.klein4_bind(key0, val0)
 print("  N binds | single-M count | chunked-M(C=8) count | single>gate?")
 for N in [1, 3, 8, 30, 100, 300, 1000, 3000]:
-    others = [hdc.klein4_bind(hdc.klein4_random(D, seed=i), hdc.klein4_random(D, seed=100000 + i)) for i in range(N - 1)]
+    others = [hdc.klein4_bind(hdc.klein4_expand(D, i), hdc.klein4_expand(D, 100000 + i)) for i in range(N - 1)]
     allb = [target] + others
     single = cs.bundle_odd(allb)
     c_single = mcount(hdc.klein4_unbind(single, key0), val0)

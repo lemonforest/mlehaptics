@@ -68,8 +68,8 @@ _CACHE = {}
 
 def carriers(n, dim):
     if dim not in _CACHE or len(_CACHE[dim][0]) < n:
-        k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(n)]
-        v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(n)]
+        k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(n)]
+        v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(n)]
         b = [bytes(x ^ y for x, y in zip(a, c)) for a, c in zip(k, v)]
         _CACHE[dim] = (k, v, b)
     k, v, b = _CACHE[dim]

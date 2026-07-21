@@ -18,7 +18,7 @@ cs = S.ContextSubstrate(D=D, hex_chars=16)
 
 # ---- glyph/byte CORE (Klein-4, numpy-free): word composed from its bytes ----
 def byte_k4(bv):
-    return hdc.klein4_random(D, seed=bv)                       # 256-byte vocab (language-agnostic)
+    return hdc.klein4_expand(D, bv)                       # 256-byte vocab (language-agnostic)
 
 def word_k4(w):
     """byte/glyph-composed Klein-4 word vector: bundle of byte-at-position binds."""

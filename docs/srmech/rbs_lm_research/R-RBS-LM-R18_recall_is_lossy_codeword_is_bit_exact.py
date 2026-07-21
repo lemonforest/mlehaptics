@@ -52,7 +52,7 @@ def main():
             fid = be = 0.0
             for t in range(TRIALS):
                 rng = np.random.default_rng(700 + 31 * k + t)
-                v = hdc.klein4_random(D, seed=700 + 31 * k + t)
+                v = hdc.klein4_expand(D, 700 + 31 * k + t)
                 votes = [noise(v, p, rng) for _ in range(k)]      # k redundant reads through independent noise
                 recall = per_coord_majority(votes) if k > 1 else votes[0]
                 fid += float(np.mean(recall == np.asarray(v)))
@@ -75,7 +75,7 @@ def main():
         fid = 0.0
         for t in range(TRIALS):
             rng = np.random.default_rng(9000 + t)
-            v = hdc.klein4_random(D, seed=9000 + t)
+            v = hdc.klein4_expand(D, 9000 + t)
             orbit = np.asarray(hdc.klein4_triality_encode(v))
             recon = np.asarray(hdc.klein4_triality_correct(noise(orbit, p, rng)))
             fid += float(np.mean(recon == np.asarray(v)))

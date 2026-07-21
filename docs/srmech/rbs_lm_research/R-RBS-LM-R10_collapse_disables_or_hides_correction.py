@@ -47,7 +47,7 @@ def main():
     rng0 = np.random.default_rng(20260604)
     for t in range(TRIALS):
         rng = np.random.default_rng(20260604 + t)
-        c = hdc.klein4_random(D, seed=20260604 + t)
+        c = hdc.klein4_expand(D, 20260604 + t)
         sectors = [F[i](c) for i in range(4)]
 
         # --- random 1-sector corruption: FULL vs COLLAPSED reconstruction ---

@@ -142,8 +142,8 @@ def build_codebooks(off=0):
     oct_val = [rand_unit_blocks(rng) for _ in range(V)]
     # klein4 codebooks: independent seeds per symbol (no-magic: derived offsets).
     base = SEED_K4_BASE + 100000 * off
-    k4_tok = [hdc.klein4_random(D, seed=base + s) for s in range(V)]
-    k4_val = [hdc.klein4_random(D, seed=base + 1000 + s) for s in range(V)]
+    k4_tok = [hdc.klein4_expand(D, base + s) for s in range(V)]
+    k4_val = [hdc.klein4_expand(D, base + 1000 + s) for s in range(V)]
     return oct_tok, k4_tok, oct_val, k4_val
 
 
@@ -379,8 +379,8 @@ def main():
           f"pairs: max||err||={max_err:.2e}  -> {consistent}")
 
     oct_tok, k4_tok, oct_val, k4_val = build_codebooks()
-    pos0 = hdc.klein4_random(D, seed=SEED_POS0)
-    pos1 = hdc.klein4_random(D, seed=SEED_POS1)
+    pos0 = hdc.klein4_expand(D, SEED_POS0)
+    pos1 = hdc.klein4_expand(D, SEED_POS1)
     print(f"[codebooks] V={V} symbols; octonion D={D} ({NB} blocks x BS={BS}); "
           f"klein4 D={D} uint8; accuracies averaged over {N_SEEDS} codebook draws")
 

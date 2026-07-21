@@ -54,7 +54,7 @@ def leaf(tok):
 def main():
     import srmech
     print(f"=== R-RBS-LM-GENOMERECALL — native srmech-genome full-body recall, bottom-up (srmech {srmech.__version__}) ===\n")
-    one = hdc.klein4_random(DIM, seed=0)
+    one = hdc.klein4_expand(DIM, 0)
     idx = json.load(open(IDX))
     bodies = {}
     with open(INST) as f:

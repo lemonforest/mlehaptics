@@ -79,8 +79,8 @@ def main():
     for dim in DIMS:
         centre = max(48, int(0.25 * dim))
         ladder = sorted({max(16, int(centre * f)) for f in FACTORS})
-        k = [bytes(hdc.klein4_random(dim, seed=10_000 + i)) for i in range(ladder[-1])]
-        v = [bytes(hdc.klein4_random(dim, seed=20_000 + i)) for i in range(ladder[-1])]
+        k = [bytes(hdc.klein4_expand(dim, 10_000 + i)) for i in range(ladder[-1])]
+        v = [bytes(hdc.klein4_expand(dim, 20_000 + i)) for i in range(ladder[-1])]
         b = [bytes(x ^ y for x, y in zip(a, c)) for a, c in zip(k, v)]
         rs, t0 = [], time.time()
         for n in ladder:
