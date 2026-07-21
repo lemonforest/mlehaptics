@@ -359,7 +359,7 @@ def main():
     # Klein-4 orientations bound the SAME way (klein4_bind w/ a random vector).
     control = {}
     for r in range(n_random):
-        orient_vec = hdc.klein4_random(D, np.random.default_rng(seed + 1000 + r))
+        orient_vec = hdc.klein4_expand(D, seed + 1000 + r)
         fn = (lambda ov: (lambda v: hdc.klein4_bind(v, ov)))(orient_vec)
         control[f"rand{r}"] = frame_retrieval(ctxsub, queries, cand_cache, vocab_vecs,
                                               vocab_idx, sector_count, top_k, fn)

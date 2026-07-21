@@ -61,7 +61,7 @@ def random_unit_octonion(seed: int) -> np.ndarray:
 
 def random_klein4_vec(seed: int) -> np.ndarray:
     """Random Klein-4 hypervector (elements in {0,1,2,3}) from seed (attested-B)."""
-    return klein4_random(K4DIM, rng=np.random.default_rng(seed))
+    return klein4_expand(K4DIM, seed)
 
 def cosine(a: np.ndarray, b: np.ndarray) -> float:
     """Cosine similarity via inner product (Class-K clean; no abs())."""
@@ -100,8 +100,8 @@ def check_consistency():
             max_adiff = diff
     la_ok = max_adiff < 1e-10
     # 3. klein4_bundle commutativity: bundle([v,w]) == bundle([w,v]) for k4 vectors
-    kv = klein4_random(K4DIM, rng=np.random.default_rng(77))
-    kw = klein4_random(K4DIM, rng=np.random.default_rng(88))
+    kv = klein4_expand(K4DIM, 77)
+    kw = klein4_expand(K4DIM, 88)
     k4_ab = klein4_bundle(kv, kw)
     k4_ba = klein4_bundle(kw, kv)
     k4_comm_ok = np.array_equal(k4_ab, k4_ba)

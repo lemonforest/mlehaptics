@@ -76,7 +76,7 @@ def random_baseline_klein4(D, rng, N=50):
 def test_1_cascade_ordering(D, N, rng):
     """Test cascade with different harmonic orderings."""
     sectors = [i % 4 for i in range(N)]
-    base_concepts = [hdc.klein4_random(D, np.random.default_rng(i)) for i in range(N)]
+    base_concepts = [hdc.klein4_expand(D, i) for i in range(N)]
 
     def cascade(operators, concept, sector, idx):
         """Apply operators in order; return encoded HV."""

@@ -395,8 +395,8 @@ def main():
     def random_bundles(r):
         """Two random orientation vectors for the XOR-twist mechanism (B) — the
         SAME random-orientation kind F221/F214 used as its control."""
-        bs = hdc.klein4_random(D, np.random.default_rng(seed + 3000 + 2 * r))
-        bd = hdc.klein4_random(D, np.random.default_rng(seed + 3000 + 2 * r + 1))
+        bs = hdc.klein4_expand(D, seed + 3000 + 2 * r)
+        bd = hdc.klein4_expand(D, seed + 3000 + 2 * r + 1)
         return bs, bd
 
     # (A) DOMAIN/language labeled-store key (KNOWN-WORKING)
