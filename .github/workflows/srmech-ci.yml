@@ -329,7 +329,9 @@ jobs:
           for _nm in _cls:
               _info = _dsl.describe_class(_nm)
               assert _info['name'] == _nm and (_info['fields'] or _info['methods']), f'shipped class {_nm} empty/broken'
-          print(f'registry walk OK: {len(_tools)} tools + {len(_cls)} catalog classes ({_dc["total"]} domain classes, {_describe()["carriers"]["total"]} carriers) all reachable numpy-free')
+          _n_domain = _dc['total']
+          _n_carriers = _describe()['carriers']['total']
+          print(f'registry walk OK: {len(_tools)} tools + {len(_cls)} catalog classes ({_n_domain} domain classes, {_n_carriers} carriers) all reachable numpy-free')
           print(f'srmech {__version__} OK (numpy-FREE: whole package imports + runs with numpy absent)')
           "
 
