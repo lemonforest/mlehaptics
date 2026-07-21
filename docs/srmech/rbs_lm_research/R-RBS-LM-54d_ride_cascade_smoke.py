@@ -21,9 +21,7 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 from srmech.amsc.hdc import bundle, similarity
@@ -125,7 +123,7 @@ def build_eigvec_table(corpus_path, M_per_eigvec=21):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k]
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_per_eigvec]
+        top_idx = _nps.argsort(-mag_sq)[:M_per_eigvec]
         top_tokens = [vocab[i] for i in top_idx]
         hv = hierarchical_bundle([mint(t) for t in top_tokens])
         table.append({
@@ -140,7 +138,7 @@ def build_eigvec_table(corpus_path, M_per_eigvec=21):
 def find_alignment(table_A, table_B):
     """54c's find-cascade — returns dict mapping rank_A → rank_B."""
     n_A = len(table_A); n_B = len(table_B)
-    sim_matrix = np.zeros((n_A, n_B))
+    sim_matrix = _nps.zeros((n_A, n_B))
     for i in range(n_A):
         for j in range(n_B):
             sim_matrix[i, j] = similarity(table_A[i]["hypervector"], table_B[j]["hypervector"])
@@ -165,7 +163,7 @@ def encode_probe(phrase):
 def best_aligned_rank(probe_phrase, table):
     probe = encode_probe(probe_phrase)
     sims = [similarity(probe, ev["hypervector"]) for ev in table]
-    return int(np.argmax(sims))
+    return int(_nps.argmax(sims))
 
 
 def main():
@@ -236,23 +234,23 @@ def main():
         print(f"      A∩C (aligned) = {overlap_AC_aligned}/21")
 
     print(f"\n\n=== Summary ===\n")
-    print(f"  Avg A∩B token overlap via 54c alignment (same-family): {np.mean(by_alignment):.2f} / 21")
-    print(f"  Avg A∩B token overlap via 54b same-rank   (same-family): {np.mean(by_rank):.2f} / 21")
-    print(f"  Avg A∩C token overlap via 54c alignment (cross-family): {np.mean(by_alignment_C):.2f} / 21")
+    print(f"  Avg A∩B token overlap via 54c alignment (same-family): {_nps.mean(by_alignment):.2f} / 21")
+    print(f"  Avg A∩B token overlap via 54b same-rank   (same-family): {_nps.mean(by_rank):.2f} / 21")
+    print(f"  Avg A∩C token overlap via 54c alignment (cross-family): {_nps.mean(by_alignment_C):.2f} / 21")
     print()
-    print(f"  Alignment-vs-rank improvement: {np.mean(by_alignment) - np.mean(by_rank):+.2f} tokens")
-    print(f"  Same-family advantage over cross-family: {np.mean(by_alignment) - np.mean(by_alignment_C):+.2f} tokens")
+    print(f"  Alignment-vs-rank improvement: {_nps.mean(by_alignment) - _nps.mean(by_rank):+.2f} tokens")
+    print(f"  Same-family advantage over cross-family: {_nps.mean(by_alignment) - _nps.mean(by_alignment_C):+.2f} tokens")
 
-    if np.mean(by_alignment) > np.mean(by_rank) * 1.5:
+    if _nps.mean(by_alignment) > _nps.mean(by_rank) * 1.5:
         verdict_a = "FIND→RIDE works — alignment-based retrieval significantly outperforms rank-based"
-    elif np.mean(by_alignment) > np.mean(by_rank) + 0.5:
+    elif _nps.mean(by_alignment) > _nps.mean(by_rank) + 0.5:
         verdict_a = "FIND→RIDE moderately improves over rank-matching"
     else:
         verdict_a = "FIND→RIDE not materially better than rank — alignment isn't tightening the ride"
 
-    if np.mean(by_alignment) > np.mean(by_alignment_C) * 1.5:
+    if _nps.mean(by_alignment) > _nps.mean(by_alignment_C) * 1.5:
         verdict_b = "Same-family translation cleanly beats cross-family"
-    elif np.mean(by_alignment) > np.mean(by_alignment_C):
+    elif _nps.mean(by_alignment) > _nps.mean(by_alignment_C):
         verdict_b = "Same-family slight edge over cross-family"
     else:
         verdict_b = "Cross-family ride is as good as same-family (form-family is broader than substrate)"
@@ -262,11 +260,11 @@ def main():
 
     out = {
         "partition": "R-RBS-LM-54d",
-        "avg_AB_via_alignment": float(np.mean(by_alignment)),
-        "avg_AB_via_rank": float(np.mean(by_rank)),
-        "avg_AC_via_alignment": float(np.mean(by_alignment_C)),
-        "alignment_vs_rank_improvement": float(np.mean(by_alignment) - np.mean(by_rank)),
-        "same_vs_cross_family_advantage": float(np.mean(by_alignment) - np.mean(by_alignment_C)),
+        "avg_AB_via_alignment": float(_nps.mean(by_alignment)),
+        "avg_AB_via_rank": float(_nps.mean(by_rank)),
+        "avg_AC_via_alignment": float(_nps.mean(by_alignment_C)),
+        "alignment_vs_rank_improvement": float(_nps.mean(by_alignment) - _nps.mean(by_rank)),
+        "same_vs_cross_family_advantage": float(_nps.mean(by_alignment) - _nps.mean(by_alignment_C)),
         "verdict_alignment_vs_rank": verdict_a,
         "verdict_same_vs_cross": verdict_b,
     }

@@ -19,7 +19,7 @@ srmech 0.7.4; Class-L spectral ring (srmech.calculus.atan2) + Class-I cyclic mir
 No abs(); no CAD; no Workflow tool; no sub-agents.
 """
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.calculus import atan2 as srm_atan2
 from srmech.amsc.cyclic import gcd
@@ -66,8 +66,8 @@ def analyse(NT, vocab, idx, nb, ang, N):
         antipode_recovers.append(len(beyond & antipode_words) / len(beyond))
     return {
         "NT": NT, "odd": NT % 2 == 1, "h": h, "orbit": orbit_size,
-        "mirror_rec": float(np.mean(mirror_recovers)) if mirror_recovers else 0.0,
-        "antipode_rec": float(np.mean(antipode_recovers)) if antipode_recovers else 0.0,
+        "mirror_rec": float(_nps.mean(mirror_recovers)) if mirror_recovers else 0.0,
+        "antipode_rec": float(_nps.mean(antipode_recovers)) if antipode_recovers else 0.0,
     }
 
 
@@ -77,7 +77,7 @@ def main():
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
-    ang = np.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + TWO_PI) % TWO_PI for i in range(N)])
+    ang = _nps.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + TWO_PI) % TWO_PI for i in range(N)])
 
     rows = [analyse(NT, vocab, idx, nb, ang, N) for NT in (7, 8, 13, 14, 15, 16)]
 
@@ -99,8 +99,8 @@ def main():
 
     odd = [r for r in rows if r["odd"]]
     even = [r for r in rows if not r["odd"]]
-    om = np.mean([r["mirror_rec"] for r in odd])
-    em = np.mean([r["mirror_rec"] for r in even])
+    om = _nps.mean([r["mirror_rec"] for r in odd])
+    em = _nps.mean([r["mirror_rec"] for r in even])
     print("VERDICT:")
     print(f"  • THE LIVE (ODD) MIRROR TRAVERSES THE WHOLE SHELF — exactly (Class-I): h=round(NT/2) has gcd(h,NT)=1 on")
     print(f"    odd rings, so iterating the chiral mirror visits ALL NT tomes before returning. On even rings gcd=NT/2,")

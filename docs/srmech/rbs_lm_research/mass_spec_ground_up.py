@@ -23,7 +23,7 @@ textbook/illustrative EI-MS peaks; NO unknown-identification / detection / capab
 (graph/algebra, not 3D molecular geometry). Defensive scope; no-lineage (MS is the
 field's; the projection/fiber reading is ours). Class-K clean.
 """
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 from srmech.amsc import laplacian
 
 # benign known compound: ethanol C2H6O (MW 46). Major EI-MS fragment m/z (textbook, illustrative).
@@ -60,7 +60,7 @@ def main():
     edges, labels = difference_graph(PEAKS)
     n = len(PEAKS)
     L = laplacian.dense_laplacian(n, edges)
-    spec = laplacian.jacobi_eigvals(np.array(L, dtype=float))
+    spec = laplacian.jacobi_eigvals(_nps.array(L, dtype=float))
     print(f"HIDDEN FIBER 1 — neutral-loss difference-graph ({len(edges)} edges the flat chart drops):")
     for hi, lo, d, name in labels:
         print(f"    {hi:>3} -> {lo:<3}   lose {name:<7} (Δ{d})")

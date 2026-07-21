@@ -16,7 +16,7 @@ EXACTLY ADDRESSABLE (the working window is no longer the ceiling — it is the s
 srmech 0.7.4; cascade.SedenionRegister.couple_working/uncouple_working (the genuine §31 coupler). No abs(); no CAD.
 """
 from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.cascade import SedenionRegister
 
@@ -30,7 +30,7 @@ def main():
     complexes = [1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 21.0]            # 7 addressable items (Fibonacci values, attested)
     tome = reg.couple_working(complexes)
     back = reg.uncouple_working(tome)
-    err = float(np.max(np.abs(np.array(back) - np.array(complexes))))
+    err = float(_nps.maximum(_nps.absolute(_nps.array(back) - _nps.array(complexes))))
     print(f"(1) SEVERAL COMPLEXES PER TOME (reversible): couple 7 complexes -> one octonion tome ({len(tome)} reals);")
     print(f"    uncouple -> recovers all 7 EXACTLY (max error {err:.2e}). The tome holds {PER_TOME} addressable complexes.\n")
 

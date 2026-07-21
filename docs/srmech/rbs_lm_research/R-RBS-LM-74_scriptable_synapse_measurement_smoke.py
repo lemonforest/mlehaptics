@@ -52,9 +52,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 
@@ -144,16 +142,16 @@ def compute_eigvec_table(freq, edge_counter, vocab_n=CHECKPOINT_VOCAB_N):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_PER_EIGVEC]
+        top_idx = _nps.argsort(-mag_sq)[:M_PER_EIGVEC]
         top_tokens = [vocab[i] for i in top_idx]
-        table.append({"rank": len(ev)-1-k, "eigval": float(np.real(ev[k])),
+        table.append({"rank": len(ev)-1-k, "eigval": float(_nps.real(ev[k])),
                        "top_tokens": top_tokens, "token_set": set(top_tokens)})
     return table, vocab
 
 
 def cosine_token_set(set_a, set_b):
     if not set_a or not set_b: return 0.0
-    return float(len(set_a & set_b) / np.sqrt(len(set_a) * len(set_b)))
+    return float(len(set_a & set_b) / _nps.sqrt(len(set_a) * len(set_b)))
 
 
 def eigvec_stability(table_a, table_b, top_k=TOP_K_EIGVECS_FOR_STABILITY):
@@ -165,7 +163,7 @@ def eigvec_stability(table_a, table_b, top_k=TOP_K_EIGVECS_FOR_STABILITY):
     sims = []
     for r in range(n):
         sims.append(cosine_token_set(table_a[r]["token_set"], table_b[r]["token_set"]))
-    return float(np.mean(sims))
+    return float(_nps.mean(sims))
 
 
 def top_synapses(edge_counter, k=100):
@@ -211,10 +209,10 @@ def main():
         n_edges = len(edge_counter)
         if not edge_counter:
             print(f"  [SKIP] no synapses yet"); continue
-        weights = np.array(list(edge_counter.values()))
-        weight_median = float(np.median(weights))
-        weight_max = float(np.max(weights))
-        weight_p90 = float(np.percentile(weights, 90))
+        weights = _nps.array(list(edge_counter.values()))
+        weight_median = float(_nps.median(weights))
+        weight_max = float(_nps.maximum(weights))
+        weight_p90 = float(_nps.percentile(weights, 90))
 
         # Top-100 stability
         current_top_100 = top_synapses(edge_counter, k=100)
@@ -287,7 +285,7 @@ def main():
     eigvec_stabilities = [s['eigvec_stability'] for s in snapshots if s['eigvec_stability'] is not None]
     if eigvec_stabilities:
         stab_trend = eigvec_stabilities[-1] - eigvec_stabilities[0] if len(eigvec_stabilities) >= 2 else 0
-        avg_stab = float(np.mean(eigvec_stabilities))
+        avg_stab = float(_nps.mean(eigvec_stabilities))
         print(f"  Avg eigvec stability across grade transitions: {avg_stab:.3f}")
         print(f"  Stability trend (last - first): {stab_trend:+.3f}")
 

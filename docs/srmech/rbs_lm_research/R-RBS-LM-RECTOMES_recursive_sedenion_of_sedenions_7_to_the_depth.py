@@ -10,7 +10,7 @@ so the structure holds 7^depth complexes in O(depth) octonions, all exactly addr
 srmech 0.7.4; cascade.SedenionRegister.couple_working/uncouple_working (the §31 coupler). No abs(); no CAD.
 """
 from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.cascade import SedenionRegister
 
@@ -31,7 +31,7 @@ def main():
 
     # recall any item by (tome, slot), confirming via the super index
     keys_back = reg.uncouple_working(super_oct)                  # the super tells us which tomes exist (the index)
-    key_err = float(np.max(np.abs(np.array(keys_back) - np.array(tome_keys))))
+    key_err = float(_nps.maximum(_nps.absolute(_nps.array(keys_back) - _nps.array(tome_keys))))
     print(f"(level 2) SUPER indexes {K} tomes: uncouple super -> tome-keys recovered (max err {key_err:.0e}).")
     print(f"(level 1) each TOME holds {K} complexes: uncouple -> exact.\n")
 

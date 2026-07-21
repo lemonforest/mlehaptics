@@ -87,9 +87,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 import srmech.spectral as spectral
 from srmech.amsc import cascade
@@ -290,7 +288,7 @@ def render_sector_bundle(vocab):
         for t in vocab[1:]:
             vec = hdc.klein4_bundle(vec, _token_atom(t))             # Class M superposition
     occ = [int(x) for x in hdc.klein4_sector_count(vec)]
-    dominant = int(np.argmax(occ))
+    dominant = int(_nps.argmax(occ))
     return vec, occ, dominant
 
 
@@ -322,7 +320,7 @@ def shared_basis_laplacian(union_vocab, per_sent_by_render):
     edges = sorted(pair_w)
     weights = [float(pair_w[e]) for e in edges]
     L = lap.dense_laplacian(len(union_vocab), edges, weights if weights else None)
-    return np.asarray(L, dtype=float)
+    return _nps.asarray(L, dtype=float)
 
 
 def render_state_vector(union_vocab, vocab):
@@ -330,7 +328,7 @@ def render_state_vector(union_vocab, vocab):
     render surfaced, 0.0 elsewhere. This is the `state` projected by spectral.decompose onto the shared
     Laplacian eigenbasis (Class L) — its coefficients_bytes feed spectral.similarity (Class M-over-L)."""
     present = set(vocab)
-    return np.array([1.0 if t in present else 0.0 for t in union_vocab], dtype=float)
+    return _nps.array([1.0 if t in present else 0.0 for t in union_vocab], dtype=float)
 
 
 def spectral_similarity_on_shared_basis(L_shared, union_vocab, vocab_a, vocab_b, tag):
@@ -485,8 +483,8 @@ def _encode_block(render_stems, model_labels, wf_vocab, wf_vec, wf_per_sent, sup
     pairs = [("haiku", "sonnet"), ("haiku", "opus"), ("sonnet", "opus")]
     cross_spectral = {("%s-vs-%s" % p): spectral_sim["%s|%s" % p] for p in pairs}
     cross_klein4 = {("%s-vs-%s" % p): klein4_sim["%s|%s" % p] for p in pairs}
-    mean_cross_spectral = float(np.mean(list(cross_spectral.values())))
-    mean_cross_klein4 = float(np.mean(list(cross_klein4.values())))
+    mean_cross_spectral = float(_nps.mean(list(cross_spectral.values())))
+    mean_cross_klein4 = float(_nps.mean(list(cross_klein4.values())))
     klein4_sat = {m: klein4_saturated(sector_occ[m]) for m in model_labels}
     klein4_all_saturated = all(klein4_sat.values())
     print("[%s/cross] Class-L spectral: %s mean=%.4f  | Class-M klein4 mean=%.4f%s"
@@ -523,9 +521,9 @@ def _encode_block(render_stems, model_labels, wf_vocab, wf_vec, wf_per_sent, sup
                  invention[m]["structural_token_invention"]["n_invented"],
                  invention[m]["technical_confabulation_invention"]["n_invented"]))
 
-    mean_struct_invention = float(np.mean(
+    mean_struct_invention = float(_nps.mean(
         [invention[m]["structural_token_invention"]["invention_rate"] for m in model_labels]))
-    mean_tech_invention = float(np.mean(
+    mean_tech_invention = float(_nps.mean(
         [invention[m]["technical_confabulation_invention"]["n_invented"] for m in model_labels]))
     return {
         "render_stems": {m: ("%s.md" % stem_of[m]) for m in model_labels},

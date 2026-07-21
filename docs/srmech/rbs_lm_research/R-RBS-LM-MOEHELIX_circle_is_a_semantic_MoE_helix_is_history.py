@@ -13,7 +13,7 @@ This builds the circle-as-MoE routing: does cheap angle-routing pick the RELEVAN
 srmech 0.7.4; Class-L spectral angle (the router) + co-occurrence relevance. No abs(); no CAD; no sub-agents.
 """
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.calculus import atan2 as srm_atan2   # full-circle, |x|>1 safe — NOT np.arctan2 (srmech-first, F540)
 
@@ -33,27 +33,27 @@ def main():
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
-    ang = np.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + 2 * np.pi) % (2 * np.pi) for i in range(N)])  # srmech.calculus.atan2
+    ang = _nps.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + 2 * _nps.pi) % (2 * _nps.pi) for i in range(N)])  # srmech.calculus.atan2
     NT = 16
-    tome_of = (ang / (2 * np.pi) * NT).astype(int) % NT
+    tome_of = (ang / (2 * _nps.pi) * NT).astype(int) % NT
     experts = [[i for i in range(N) if tome_of[i] == t] for t in range(NT)]
 
     def relevance(e, qw):                                        # how relevant is expert e to query word qw
         ws = experts[e]
-        return float(np.mean([jacc(nb[qw], nb[vocab[x]]) for x in ws])) if ws else 0.0
+        return float(_nps.mean([jacc(nb[qw], nb[vocab[x]]) for x in ws])) if ws else 0.0
 
     print("(1) CIRCLE = MoE: cheap angle-routing vs the oracle (does routing pick the relevant experts?):")
     match, k = [], 3
     for qw in [w for w in ("ocean", "history", "music", "science", "earth", "light") if w in idx][:6]:
         e0 = tome_of[idx[qw]]
         routed = {e0, (e0 + 1) % NT, (e0 - 1) % NT}              # ROUTER: expert + neighbours (top-k by angle, O(1))
-        oracle = set(np.argsort([relevance(e, qw) for e in range(NT)])[::-1][:k])  # the actually-most-relevant k
+        oracle = set(_nps.argsort([relevance(e, qw) for e in range(NT)])[::-1][:k])  # the actually-most-relevant k
         ov = len(routed & oracle) / k
         match.append(ov)
-        r_rel = np.mean([relevance(e, qw) for e in routed])
-        rest = np.mean([relevance(e, qw) for e in range(NT) if e not in routed])
+        r_rel = _nps.mean([relevance(e, qw) for e in routed])
+        rest = _nps.mean([relevance(e, qw) for e in range(NT) if e not in routed])
         print(f"    query '{qw:>8}' -> route to experts {sorted(routed)} | routed relevance {r_rel:.3f} vs rest {rest:.3f} | matches oracle {ov:.0%}")
-    print(f"    -> angle-routing matches the oracle top-{k} {np.mean(match):.0%} of the time, consulting {k}/{NT} experts (sparse).\n")
+    print(f"    -> angle-routing matches the oracle top-{k} {_nps.mean(match):.0%} of the time, consulting {k}/{NT} experts (sparse).\n")
 
     print("(2) SPARSE, NO GLOBAL GATING: the router uses the query's ANGLE (an O(1) lookup), not a scan of all")
     print(f"    {NT} experts — exactly the MoE efficiency, and exactly why we do NOT need a global HDC of the circle (F535).\n")
@@ -64,7 +64,7 @@ def main():
 
     print("VERDICT:")
     print(f"  • THE CIRCLE IS A SEMANTIC MoE: tomes = experts on a smooth (spectral) expert manifold; a query routes by")
-    print(f"    its angle to its expert + neighbours (matches the oracle top-{k} {np.mean(match):.0%}), consulting only {k}/{NT} —")
+    print(f"    its angle to its expert + neighbours (matches the oracle top-{k} {_nps.mean(match):.0%}), consulting only {k}/{NT} —")
     print(f"    sparse, content-routed, no global gating; the ring buffer evicts the least-used expert (F535).")
     print(f"  • THE HELIX IS HISTORY: chronological, start-anchored (Class A) + endianness (Class C), unbounded,")
     print(f"    rewindable (F527/F533/F534). Two systems: the circle is addressed by MEANING, the helix by TIME.")

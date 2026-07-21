@@ -14,7 +14,7 @@ amsc.laplacian.{dense_laplacian, magnetic_laplacian, hermitian_eigendecompose} (
 """
 from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 from collections import Counter
 from srmech.amsc.laplacian import dense_laplacian, magnetic_laplacian, hermitian_eigendecompose
 from srmech.amsc.hdc import bundle, similarity
@@ -46,8 +46,8 @@ def mode_hvs(evecs, vocab, principal_lo=True, n=NMODES, topm=TOPM):
     cols = range(1, 1 + n) if principal_lo else range(ncol - n, ncol)
     out = []
     for i in cols:
-        comp = np.abs(evecs[:, i])
-        idx = np.argsort(-comp)[:topm]
+        comp = _nps.absolute(evecs[:, i])
+        idx = _nps.argsort(-comp)[:topm]
         out.append(_bundle([mint_vector(vocab[j], D=D) for j in idx]))
     return out
 
@@ -71,7 +71,7 @@ def main():
                     sym[(min(ix[i], ix[j]), max(ix[i], ix[j]))] += 1
     Ls = dense_laplacian(N, list(sym.keys()), [float(w) for w in sym.values()])
     es, Vs = hermitian_eigendecompose(Ls)
-    Vs = np.asarray(Vs, dtype=complex); order = np.argsort(np.real(np.asarray(es, dtype=complex)))
+    Vs = _nps.asarray(Vs, dtype=complex); order = _nps.argsort(_nps.real(_nps.asarray(es, dtype=complex)))
     Vs = Vs[:, order]
     K1_modes = mode_hvs(Vs, vocab)
 
@@ -84,7 +84,7 @@ def main():
                 dirc[(a, b)] += 1
     Lm = magnetic_laplacian(N, list(dirc.keys()), [float(w) for w in dirc.values()], q=0.25)
     em, Vm = hermitian_eigendecompose(Lm)
-    Vm = np.asarray(Vm, dtype=complex); order_m = np.argsort(np.real(np.asarray(em, dtype=complex)))
+    Vm = _nps.asarray(Vm, dtype=complex); order_m = _nps.argsort(_nps.real(_nps.asarray(em, dtype=complex)))
     Vm = Vm[:, order_m]
     K3_modes = mode_hvs(Vm, vocab)
 
@@ -92,7 +92,7 @@ def main():
     LOAD_block = mode_hvs(Vs, vocab)   # by construction identical procedure to K1's symmetric modes
 
     # [1] does load's octonion block == K1's principal modes? (saves the decompose: reuse K1's)
-    s_load_k1 = np.mean([similarity(LOAD_block[i], K1_modes[i]) for i in range(NMODES)])
+    s_load_k1 = _nps.mean([similarity(LOAD_block[i], K1_modes[i]) for i in range(NMODES)])
     print("[1] load octonion-block  vs  K1 principal modes  (same symmetric decompose):")
     print(f"      per-mode mean similarity = {s_load_k1:+.3f}   ({'IDENTICAL — load reuses K1, no new decompose' if s_load_k1 > 0.99 else 'differ'})")
 
@@ -101,9 +101,9 @@ def main():
     cross = [similarity(a, b) for a in K1_modes for b in K3_modes]
     within_k1 = [similarity(K1_modes[i], K1_modes[j]) for i, j in itertools.combinations(range(NMODES), 2)]
     print("\n[2] K1 (presence)  vs  K3 (directed/order)  modes — do the two channels carry DIFFERENT structure?")
-    print(f"      K1×K3 cross-similarity mean = {np.mean(cross):+.3f}  (|mean| {cascade.magnitude(np.mean(cross)):.3f})  → "
-          f"{'ORTHOGONAL — K3 adds order info K1 lacks' if abs(np.mean(cross)) < 0.15 else 'overlapping'}")  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
-    print(f"      (K1 within-channel mean = {np.mean(within_k1):+.3f}, for scale)")
+    print(f"      K1×K3 cross-similarity mean = {_nps.mean(cross):+.3f}  (|mean| {cascade.magnitude(_nps.mean(cross)):.3f})  → "
+          f"{'ORTHOGONAL — K3 adds order info K1 lacks' if abs(_nps.mean(cross)) < 0.15 else 'overlapping'}")  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
+    print(f"      (K1 within-channel mean = {_nps.mean(within_k1):+.3f}, for scale)")
 
     # [3] the cost ledger
     print("\n[3] cost ledger (the saves-time claim):")
@@ -115,7 +115,7 @@ def main():
     print("\nVERDICT:")
     print(f"  • (D) CONFIRMED in shape: the sedenion-load's octonion block IS K1's principal eigenmodes")
     print(f"    (sim {s_load_k1:.2f}) — so if K1 is built, loading needs NO new presence-decompose, just re-addressing.")
-    print(f"  • K3 (directed/order) is ~orthogonal to K1 (cross |{cascade.magnitude(np.mean(cross)):.2f}|) — it supplies the cyclic")
+    print(f"  • K3 (directed/order) is ~orthogonal to K1 (cross |{cascade.magnitude(_nps.mean(cross)):.2f}|) — it supplies the cyclic")
     print(f"    tori (F467/F471) K1's symmetric channel cannot. So load == re-address(K1) ⊕ K3 = bundle of the")
     print(f"    two EXISTING kernels; the saves-time composition holds (0 new eigendecomposes).")
 

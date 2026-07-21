@@ -13,7 +13,7 @@ Budget = 3 tomes consulted. 7-only: own 7-tome + 2 neighbours. 16-only: own 16-t
 srmech 0.7.4; Class-L spectral ring via srmech.calculus.atan2; two granularities (7, 16). No abs(); no CAD; no sub-agents.
 """
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.calculus import atan2 as srm_atan2
 
@@ -32,7 +32,7 @@ def main():
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
-    ang = np.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + TWO_PI) % TWO_PI for i in range(N)])
+    ang = _nps.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + TWO_PI) % TWO_PI for i in range(N)])
 
     def tomes_for(NT):
         tof = (ang / TWO_PI * NT).astype(int) % NT
@@ -44,7 +44,7 @@ def main():
         pa, pb = T16[a], T16[b]
         if not pa or not pb:
             return 0.0
-        return float(np.mean([jacc(nb[vocab[x]], nb[vocab[y]]) for x in pa[:8] for y in pb[:8]]))
+        return float(_nps.mean([jacc(nb[vocab[x]], nb[vocab[y]]) for x in pa[:8] for y in pb[:8]]))
 
     probes = [w for w in ("ocean", "history", "music", "science", "earth", "light", "war", "city", "world", "river") if w in idx]
     rec7, rec16, recR, recA, c7, c16, cR, cA = [], [], [], [], [], [], [], []
@@ -71,17 +71,17 @@ def main():
 
     print(f"{'scheme':<38} | {'recall':>7} | {'words consulted':>15}")
     print("-" * 68)
-    print(f"{'7-circle only (3 local tomes)':<38} | {np.mean(rec7):>6.0%} | {np.mean(c7):>15.0f}")
-    print(f"{'16-circle only (3 tomes)':<38} | {np.mean(rec16):>6.0%} | {np.mean(c16):>15.0f}")
-    print(f"{'REPLACE hybrid (2 local-7 + 1 far-16)':<38} | {np.mean(recR):>6.0%} | {np.mean(cR):>15.0f}")
-    print(f"{'ADDITIVE hybrid (3 local-7 + 1 far-16)':<38} | {np.mean(recA):>6.0%} | {np.mean(cA):>15.0f}")
+    print(f"{'7-circle only (3 local tomes)':<38} | {_nps.mean(rec7):>6.0%} | {_nps.mean(c7):>15.0f}")
+    print(f"{'16-circle only (3 tomes)':<38} | {_nps.mean(rec16):>6.0%} | {_nps.mean(c16):>15.0f}")
+    print(f"{'REPLACE hybrid (2 local-7 + 1 far-16)':<38} | {_nps.mean(recR):>6.0%} | {_nps.mean(cR):>15.0f}")
+    print(f"{'ADDITIVE hybrid (3 local-7 + 1 far-16)':<38} | {_nps.mean(recA):>6.0%} | {_nps.mean(cA):>15.0f}")
     print()
     print(f"of the true neighbours the 7-circle MISSES, the far 16-chord catches {extra_caught}/{extra_possible} = {extra_caught/max(1,extra_possible):.0%}.")
     print()
     print("VERDICT:")
     print(f"  • THE FAR-CHORD IS THE WRONG TOOL FOR NEIGHBOUR RECALL (honest, mechanistic): the local 7-circle alone gets")
-    print(f"    {np.mean(rec7):.0%}; REPLACING a local tome with a far-16 tome HURTS ({np.mean(recR):.0%}) because local tomes are higher-yield; even")
-    print(f"    ADDING the far tome barely moves recall ({np.mean(recA):.0%}) and it catches only {extra_caught/max(1,extra_possible):.0%} of the neighbours the 7 missed.")
+    print(f"    {_nps.mean(rec7):.0%}; REPLACING a local tome with a far-16 tome HURTS ({_nps.mean(recR):.0%}) because local tomes are higher-yield; even")
+    print(f"    ADDING the far tome barely moves recall ({_nps.mean(recA):.0%}) and it catches only {extra_caught/max(1,extra_possible):.0%} of the neighbours the 7 missed.")
     print(f"  • WHY (the real finding): the 16's far chords are a DIFFERENT RELATION (distant semantic ASSOCIATION, F540) than")
     print(f"    local co-occurrence NEIGHBOURS — true neighbours are mostly local, so the far-chord doesn't help recall THEM.")
     print(f"    The hybrid pays off for a task that needs the distant-association relation, NOT for neighbour recovery.")

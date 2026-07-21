@@ -44,9 +44,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 
@@ -127,9 +125,9 @@ def build_kernel(text):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_PER_EIGVEC]
+        top_idx = _nps.argsort(-mag_sq)[:M_PER_EIGVEC]
         top_tokens = [vocab[i] for i in top_idx]
-        table.append({"rank": len(ev)-1-k, "eigval": float(np.real(ev[k])),
+        table.append({"rank": len(ev)-1-k, "eigval": float(_nps.real(ev[k])),
                        "top_tokens": top_tokens, "token_set": set(top_tokens)})
     return table, freq, len(edges)
 
@@ -137,7 +135,7 @@ def build_kernel(text):
 def sim_cosine(a, b):
     sa, sb = a["token_set"], b["token_set"]
     if not sa or not sb: return 0.0
-    return float(len(sa & sb) / np.sqrt(len(sa) * len(sb)))
+    return float(len(sa & sb) / _nps.sqrt(len(sa) * len(sb)))
 
 
 def find_alignment_score(table_a, table_b):
@@ -148,7 +146,7 @@ def find_alignment_score(table_a, table_b):
         if not cands: break
         bj, bs = max(cands, key=lambda x: x[1])
         used.add(bj); sims.append(bs)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def main():
@@ -209,7 +207,7 @@ def main():
         a, b = mcguffey_seq[i], mcguffey_seq[i+1]
         key = (min(a,b), max(a,b))
         mcguffey_adj.append(pairwise[key])
-    print(f"    Mean McGuffey adjacent alignment: {np.mean(mcguffey_adj):.4f}")
+    print(f"    Mean McGuffey adjacent alignment: {_nps.mean(mcguffey_adj):.4f}")
     print(f"    (If extension works, Grade6↔Kittredge↔Kirkham↔Strunk should be similar)")
 
     # === Question 2: Substrate-kind split? ===
@@ -231,9 +229,9 @@ def main():
         for b in instruction_keys:
             cross_class.append(pairwise[(min(a,b), max(a,b))])
 
-    avg_wr = float(np.mean(within_reading))
-    avg_wi = float(np.mean(within_instruction))
-    avg_cross = float(np.mean(cross_class))
+    avg_wr = float(_nps.mean(within_reading))
+    avg_wi = float(_nps.mean(within_instruction))
+    avg_cross = float(_nps.mean(cross_class))
     print(f"  Within-reading (McGuffey internal) avg: {avg_wr:+.4f}  (n={len(within_reading)})")
     print(f"  Within-instruction avg:                 {avg_wi:+.4f}  (n={len(within_instruction)})")
     print(f"  Cross-class (reading ↔ instruction):    {avg_cross:+.4f}  (n={len(cross_class)})")
@@ -277,7 +275,7 @@ def main():
                             "substrate_kind": kernels[key]["substrate_kind"],
                             "n_tokens": kernels[key]["n_tokens"]} for key, *_ in CORPUS},
         "pairwise_alignments": {f"{a}|{b}": float(s) for (a, b), s in pairwise.items()},
-        "mcguffey_adjacent_mean": float(np.mean(mcguffey_adj)),
+        "mcguffey_adjacent_mean": float(_nps.mean(mcguffey_adj)),
         "extension_sequence": {"grade6_kittredge": g6_kit, "kittredge_kirkham": kit_kirk,
                                 "kirkham_strunk": kirk_st},
         "within_reading_mean": avg_wr,

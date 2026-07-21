@@ -21,9 +21,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 
@@ -116,10 +114,10 @@ def build_kernel(text, n_eigvecs=KERNEL_N_EIGVECS):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_PER_EIGVEC]
+        top_idx = _nps.argsort(-mag_sq)[:M_PER_EIGVEC]
         top_tokens = [vocab[i] for i in top_idx]
         union_tokens.update(top_tokens)
-        table.append({"rank": len(ev)-1-k, "eigval": float(np.real(ev[k])),
+        table.append({"rank": len(ev)-1-k, "eigval": float(_nps.real(ev[k])),
                        "top_tokens": top_tokens, "token_set": set(top_tokens)})
     return table, union_tokens
 

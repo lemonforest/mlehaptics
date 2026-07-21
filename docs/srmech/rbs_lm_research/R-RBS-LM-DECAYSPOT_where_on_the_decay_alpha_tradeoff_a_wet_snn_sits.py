@@ -17,7 +17,7 @@ largest kept-native fraction that still holds shape fidelity high.
 srmech 0.7.4; the_one seed + Class-L dense_laplacian/symmetric_eigendecompose. No abs(); no CAD; no sub-agents.
 """
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc import cascade
 from srmech.amsc.laplacian import dense_laplacian, symmetric_eigendecompose
@@ -33,17 +33,17 @@ def fsim(a, b):
 
 def embed(n, edges, weights):
     L = dense_laplacian(n, edges, weights)
-    w, Vv = symmetric_eigendecompose(np.array(L))
-    return np.array(Vv)[:, np.argsort(np.array(w))][:, 1:3]
+    w, Vv = symmetric_eigendecompose(_nps.array(L))
+    return _nps.array(Vv)[:, _nps.argsort(_nps.array(w))][:, 1:3]
 
 
 def knn(emb, k=6):
-    return [set(np.argsort(((emb - emb[i]) ** 2).sum(1))[1:k + 1].tolist()) for i in range(len(emb))]
+    return [set(_nps.argsort(((emb - emb[i]) ** 2).sum(1))[1:k + 1].tolist()) for i in range(len(emb))]
 
 
 def overlap(eA, eB, k=6):
     a, b = knn(eA, k), knn(eB, k)
-    return float(np.mean([len(a[i] & b[i]) / max(1, len(a[i] | b[i])) for i in range(len(a))]))
+    return float(_nps.mean([len(a[i] & b[i]) / max(1, len(a[i] | b[i])) for i in range(len(a))]))
 
 
 def main():
@@ -62,8 +62,8 @@ def main():
     data_edges = sorted(data_set)
     M = len(data_edges)
 
-    feats = [np.array(cascade.the_one(1, round(i / N * 360), 360, 10).to_numpy()) for i in range(N)]
-    fmean = np.mean(feats, axis=0); feats = [f - fmean for f in feats]
+    feats = [_nps.array(cascade.the_one(1, round(i / N * 360), 360, 10).to_numpy()) for i in range(N)]
+    fmean = _nps.mean(feats, axis=0); feats = [f - fmean for f in feats]
     prior_edges, prior_w = [], []
     for i in range(N):
         for d in (1, 2):

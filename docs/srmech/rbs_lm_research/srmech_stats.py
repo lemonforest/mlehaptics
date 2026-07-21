@@ -128,3 +128,109 @@ def sqrt(x: float) -> float:
 
 __all__ = ["mean", "var", "std", "median", "argsort", "argmax", "argmin",
            "allclose", "percentile", "sqrt"]
+
+
+# ─── TIER-2: the carrier / array tier (F1290) ─────────────────────────────────────────────────
+# srmech HAS ops for the genuinely-linear-algebra cases (mat_norm, elementwise_sqrt, the Mat/Vec
+# carriers with @, .T, indexing). It does NOT have an "array" — because for the 1-D numeric work
+# these files actually do, a plain Python list IS the honest carrier. Wrapping a list in a srmech
+# type to look compliant would be the same error as calling sum(x)/len(x) a cascade of the 14.
+# So: srmech where srmech has the op, plain Python where it does not, and never a costume.
+
+def asarray(xs):
+    """np.array / np.asarray for the 1-D numeric use these files make of it — returns a list.
+    NOT a general ndarray: no broadcasting, no fancy indexing, no dtype. If a call site needs any
+    of that it is NOT a tier-2 site and must not use this."""
+    return list(xs)
+
+
+array = asarray
+
+
+def zeros(n):
+    """np.zeros(n) -> a list of n floats. 2-D shapes are NOT supported on purpose (see asarray)."""
+    if not isinstance(n, int):
+        raise TypeError("zeros() here is 1-D only; for a matrix use srmech.amsc.mat.Mat.from_rows")
+    return [0.0] * n
+
+
+def ones(n):
+    if not isinstance(n, int):
+        raise TypeError("ones() here is 1-D only; for a matrix use srmech.amsc.mat.Mat.from_rows")
+    return [1.0] * n
+
+
+def eye(n):
+    """np.eye(n) -> identity as a list of rows."""
+    return [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]
+
+
+def dot(a, b):
+    """np.dot for two 1-D sequences. For matrices use the Mat carrier's ``@``."""
+    a, b = list(a), list(b)
+    if len(a) != len(b):
+        raise ValueError("dot(): length mismatch %d vs %d" % (len(a), len(b)))
+    return sum(x * y for x, y in zip(a, b))
+
+
+def norm(v):
+    """np.linalg.norm — the Euclidean L2 norm.
+
+    NOTE this is deliberately NOT cascade.magnitude: magnitude is the Class-K real pin-slot and
+    REJECTS the complex case by contract, because the Euclidean modulus is a different cascade class
+    (F1284). srmech's own op for this is laplacian.mat_norm, used when the input is a carrier.
+    """
+    try:
+        from srmech.amsc import laplacian as _L
+        from srmech.amsc.vec import Vec as _Vec
+        from array import array as _arr
+        vals = [float(x) for x in v]
+        return _L.mat_norm(_Vec(_arr("d", vals), len(vals)))
+    except Exception:
+        return sum(float(x) * float(x) for x in v) ** 0.5
+
+
+def sort(xs):
+    """np.sort — returns a NEW sorted list (numpy does not sort in place either)."""
+    return sorted(xs)
+
+
+def real(z):
+    """np.real."""
+    return z.real if hasattr(z, "real") else z
+
+
+def pi_digits(n: int = 15) -> float:
+    """np.pi via srmech's Class-N cascade rather than a literal — per CLAUDE.md, pi is a CASCADE
+    (attested to its derivation), not a magic constant."""
+    from srmech.amsc.cascade import spectral_cascades as _sc
+    return float(_sc.pi_cascade_digits(n))
+
+
+pi = pi_digits()
+
+__all__ += ["asarray", "array", "zeros", "ones", "eye", "dot", "norm", "sort", "real",
+            "pi", "pi_digits"]
+
+
+def absolute(x):
+    """np.abs for a SCALAR. Deliberately the builtin, NOT cascade.magnitude: magnitude has a Class-K
+    DEAD-BAND (NaN -> 0.0) that would silently turn a NaN into a passing 0.0 (F1284). numpy's abs
+    propagates NaN, so the builtin is the faithful replacement here."""
+    return x if x >= 0 else -x if x == x else x        # x != x is the NaN test; NaN propagates
+
+
+def float64(x):
+    """np.float64 — a plain float. There is no dtype system here by design."""
+    return float(x)
+
+
+def maximum(*a):
+    return max(*a)
+
+
+def minimum(*a):
+    return min(*a)
+
+
+__all__ += ["absolute", "float64", "maximum", "minimum"]

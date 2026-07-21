@@ -10,7 +10,7 @@ but the HUBS do NOT. Compare to the plain F526 k=3 (top-3 by e_concept).
 srmech 0.7.4; Class-L eigen-basis; reuses F519 neighbourhood_spectrum + F518 build. No abs(); no CAD; no sub-agents.
 """
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 
 _s = U.spec_from_file_location("sup", "docs/srmech/rbs_lm_research/R-RBS-LM-SUPERPOSITION_structured_spectral_gate_which_band_biology_drops.py")
@@ -21,7 +21,7 @@ think = U.module_from_spec(_t); _t.loader.exec_module(think)
 
 def slice_for(modes, V, SLICE):
     se = (V[:, modes] ** 2).sum(axis=1)
-    return set(int(i) for i in np.argsort(se)[::-1][:SLICE])
+    return set(int(i) for i in _nps.argsort(se)[::-1][:SLICE])
 
 
 def main():
@@ -30,12 +30,12 @@ def main():
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
-    deg = np.array([len(nb[w]) for w in vocab])
-    hub_ids = list(np.argsort(deg)[::-1][:20])
+    deg = _nps.array([len(nb[w]) for w in vocab])
+    hub_ids = list(_nps.argsort(deg)[::-1][:20])
     hubs = set(int(i) for i in hub_ids)
     hub_words = [vocab[i] for i in hub_ids]
     # the modes the HUBS live in (averaged neighbourhood spectrum over hubs)
-    e_hub = np.mean([think.neighbourhood_spectrum(w, idx, nb, V) for w in hub_words], axis=0)
+    e_hub = _nps.mean([think.neighbourhood_spectrum(w, idx, nb, V) for w in hub_words], axis=0)
 
     targets = [w for w in ("ocean", "history", "music", "science", "earth") if w in idx][:5]
     SLICE = 40
@@ -45,8 +45,8 @@ def main():
     pn, ph, an, ah = [], [], [], []
     for c in targets:
         e = think.neighbourhood_spectrum(c, idx, nb, V)
-        plain_modes = np.argsort(e)[::-1][:3] + 1
-        anti_modes = np.argsort(e / (e_hub + 1e-12))[::-1][:3] + 1   # where c lives but hubs DON'T
+        plain_modes = _nps.argsort(e)[::-1][:3] + 1
+        anti_modes = _nps.argsort(e / (e_hub + 1e-12))[::-1][:3] + 1   # where c lives but hubs DON'T
         for modes, keepn, keeph in ((plain_modes, pn, ph), (anti_modes, an, ah)):
             sl = slice_for(modes, V, SLICE)
             cnbr = set(idx[w] for w in nb[c])
@@ -57,11 +57,11 @@ def main():
     base = SLICE * 100 // N
     print()
     print("VERDICT:")
-    print(f"  • ANTI-HUB k=3 PERFORATES THE HUBS OUT: subtracting the hub modes drops hubs-in-slice from {np.mean(ph):.0%}")
-    print(f"    (plain F526, above the {base}% baseline) to {np.mean(ah):.0%} (ANTI-HUB, {'below' if np.mean(ah)<base/100 else 'near'} the {base}% baseline) —")
+    print(f"  • ANTI-HUB k=3 PERFORATES THE HUBS OUT: subtracting the hub modes drops hubs-in-slice from {_nps.mean(ph):.0%}")
+    print(f"    (plain F526, above the {base}% baseline) to {_nps.mean(ah):.0%} (ANTI-HUB, {'below' if _nps.mean(ah)<base/100 else 'near'} the {base}% baseline) —")
     print(f"    the slice now AVOIDS the generic hubs, completing the F525 hub-shortcut fix.")
-    print(f"  • IT STAYS CONCEPT-RESONANT: concept-neighbour retention is {np.mean(an):.0%} (anti-hub) vs {np.mean(pn):.0%} (plain) —")
-    print(f"    {'held' if np.mean(an) > 0.4 else 'somewhat traded'}; the slice is resonant to the concept AND hub-avoiding, so a path")
+    print(f"  • IT STAYS CONCEPT-RESONANT: concept-neighbour retention is {_nps.mean(an):.0%} (anti-hub) vs {_nps.mean(pn):.0%} (plain) —")
+    print(f"    {'held' if _nps.mean(an) > 0.4 else 'somewhat traded'}; the slice is resonant to the concept AND hub-avoiding, so a path")
     print(f"    through it takes the specific/resonant route, not the generic hub-shortcut (F509/F525).")
     print(f"  • So the gappy path is now BOTH resonant and hub-avoiding: the modes where the concept lives but the hubs")
     print(f"    do NOT. F526's leftover is closed. (Knowledge stays whole — this is a SELECTION mask, F528, not damage.)")

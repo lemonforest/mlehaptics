@@ -19,7 +19,7 @@ frequency → a different but coherent story); (3) knowledge stays WHOLE (the li
 srmech 0.7.4; the_one (Class-N resonant clock) + Class-L Fiedler phase + bigram fluency ear (F512). No abs(); no CAD; no sub-agents.
 """
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc import cascade
 
@@ -35,7 +35,7 @@ def tell(vocab, idx, nxt, phi, N, start, steps=24, freq=3, A=0.15, win=0.12, see
     for t in range(steps):
         sigma = 1 if (t // 2) % 2 == 0 else -1                   # the chirality collapse flips on the clock (F528/F526)
         theta = round((t / steps) * 360 * freq) % 360
-        v4 = float(np.array(cascade.the_one(sigma, theta, 360, 8).to_numpy())[4])   # the resonant sine (Class-N)
+        v4 = float(_nps.array(cascade.the_one(sigma, theta, 360, 8).to_numpy())[4])   # the resonant sine (Class-N)
         c = ((t / steps) + A * v4) % 1.0                         # the resonant-wave-driven sweep clock
         live = {j for j in range(N) if min((phi[j] - c) % 1.0, (c - phi[j]) % 1.0) < win / 2}
         slices_union |= live
@@ -56,7 +56,7 @@ def main():
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
-    phi = np.argsort(np.argsort(V[:, 1])) / N                   # Class-L Fiedler phase (F531)
+    phi = _nps.argsort(_nps.argsort(V[:, 1])) / N                   # Class-L Fiedler phase (F531)
     vset = set(vocab)
     nxt = {}                                                    # the bigram fluency ear (F512): next-word support
     for a, b in zip(seq, seq[1:]):
@@ -67,7 +67,7 @@ def main():
     def fluent_frac(story):
         if len(story) < 2:
             return 0.0
-        return float(np.mean([1.0 if story[i + 1] in nxt.get(story[i], {}) else 0.0 for i in range(len(story) - 1)]))
+        return float(_nps.mean([1.0 if story[i + 1] in nxt.get(story[i], {}) else 0.0 for i in range(len(story) - 1)]))
 
     print("(1) THE STORY (resonant clock freq F=3 drives the weave):")
     s3, u3 = tell(vocab, idx, nxt, phi, N, start, freq=3)

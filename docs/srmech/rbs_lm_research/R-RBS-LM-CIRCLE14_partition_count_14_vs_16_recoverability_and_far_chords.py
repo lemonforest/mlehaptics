@@ -19,7 +19,7 @@ srmech-first fix: the circular embedding uses srmech.calculus.atan2 (full-circle
 (the earlier scripts' numpy slip). srmech 0.7.4; Class-L embedding + Class-I cyclic mirror. No abs(); no CAD; no sub-agents.
 """
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.calculus import atan2 as srm_atan2   # full-circle, |x|>1 safe (the single-arg atan_series_truncate is NOT)
 
@@ -52,10 +52,10 @@ def analyse(NT, vocab, idx, nb, ang, N):
         pa, pb = tomes[a], tomes[b]
         if not pa or not pb:
             return 0.0
-        return float(np.mean([jacc(nb[vocab[x]], nb[vocab[y]]) for x in pa[:8] for y in pb[:8]]))
+        return float(_nps.mean([jacc(nb[vocab[x]], nb[vocab[y]]) for x in pa[:8] for y in pb[:8]]))
 
-    nbr = np.mean([tome_sim(t, (t + 1) % NT) for t in range(NT)])
-    far = np.mean([tome_sim(t, (t + NT // 2) % NT) for t in range(NT)])
+    nbr = _nps.mean([tome_sim(t, (t + 1) % NT) for t in range(NT)])
+    far = _nps.mean([tome_sim(t, (t + NT // 2) % NT) for t in range(NT)])
 
     cover, consulted = [], []
     for w in [w for w in ("ocean", "history", "music", "science", "earth", "light", "war", "city") if w in idx]:
@@ -64,7 +64,7 @@ def analyse(NT, vocab, idx, nb, ang, N):
         if not nb[w]:
             continue
         cover.append(len(nb[w] & routed_words) / len(nb[w])); consulted.append(len(routed_words))
-    cov, cons = float(np.mean(cover)), float(np.mean(consulted))
+    cov, cons = float(_nps.mean(cover)), float(_nps.mean(consulted))
 
     dists, strengths, far_chords = [], [], 0
     nonempty = [t for t in range(NT) if tomes[t]]
@@ -80,7 +80,7 @@ def analyse(NT, vocab, idx, nb, ang, N):
     return {
         "NT": NT, "odd": NT % 2 == 1, "ratio": nbr / max(far, 1e-9),
         "cov": cov, "cons": cons, "far_frac": far_chords / max(len(nonempty), 1),
-        "mean_d": float(np.mean(dists)), "invol": invol, "twice": twice,
+        "mean_d": float(_nps.mean(dists)), "invol": invol, "twice": twice,
     }
 
 
@@ -91,7 +91,7 @@ def main():
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
     # srmech-first: full-circle angle via srmech.calculus.atan2 (NOT np.arctan2)
-    ang = np.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + TWO_PI) % TWO_PI for i in range(N)])
+    ang = _nps.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + TWO_PI) % TWO_PI for i in range(N)])
 
     rows = [analyse(NT, vocab, idx, nb, ang, N) for NT in (7, 8, 13, 14, 15, 16, 28)]
 

@@ -21,20 +21,18 @@ srmech-first (hdc.loop_bind restricted to ℂ/ℍ/𝕆 subalgebras). Class-K cle
 """
 import os
 import sys
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from srmech.amsc import hdc
 
 
 def e(i):
-    v = np.zeros(8); v[i] = 1.0
+    v = _nps.zeros(8); v[i] = 1.0
     return v
 
 
 def nrm(v):
-    return float(np.dot(v, v)) ** 0.5
+    return float(_nps.dot(v, v)) ** 0.5
 
 
 def main():

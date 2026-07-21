@@ -14,7 +14,7 @@ walked-via-logic): the distant-association relation IS the cross-navigation brid
 srmech 0.7.4; Class-L spectral ring via srmech.calculus.atan2 at NT=7 and NT=16. No abs(); no CAD; no sub-agents.
 """
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.calculus import atan2 as srm_atan2
 
@@ -33,7 +33,7 @@ def main():
     seq = re.findall(r"[a-z]+", sup.k7.load_text().lower())
     vocab, idx, nb, V = (sup.build(seq))[:4]
     N = len(vocab)
-    ang = np.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + TWO_PI) % TWO_PI for i in range(N)])
+    ang = _nps.array([(srm_atan2(float(V[i, 2]), float(V[i, 1])) + TWO_PI) % TWO_PI for i in range(N)])
 
     def tomes_for(NT):
         tof = (ang / TWO_PI * NT).astype(int) % NT
@@ -45,7 +45,7 @@ def main():
         pa, pb = T16[a], T16[b]
         if not pa or not pb:
             return 0.0
-        return float(np.mean([jacc(nb[vocab[x]], nb[vocab[y]]) for x in pa[:8] for y in pb[:8]]))
+        return float(_nps.mean([jacc(nb[vocab[x]], nb[vocab[y]]) for x in pa[:8] for y in pb[:8]]))
 
     probes = [w for w in ("ocean", "history", "music", "science", "earth", "light", "war", "city", "world", "river", "time", "life") if w in idx]
     loc1_7, loc1_16, dist_7, dist_16 = [], [], [], []
@@ -71,20 +71,20 @@ def main():
 
     print(f"{'relation / scheme':<40} {'local-7 circle':>15} {'sedenion-16 far chord':>22}")
     print("-" * 80)
-    print(f"{'1-hop NEIGHBOURS (F547 metric)':<40} {np.mean(loc1_7):>14.0%} {np.mean(loc1_16):>22.0%}")
-    print(f"{'2-hop DISTANT associates (this metric)':<40} {np.mean(dist_7):>14.0%} {np.mean(dist_16):>22.0%}")
+    print(f"{'1-hop NEIGHBOURS (F547 metric)':<40} {_nps.mean(loc1_7):>14.0%} {_nps.mean(loc1_16):>22.0%}")
+    print(f"{'2-hop DISTANT associates (this metric)':<40} {_nps.mean(dist_7):>14.0%} {_nps.mean(dist_16):>22.0%}")
     print()
-    win7 = np.mean(loc1_7) > np.mean(loc1_16)
-    win16 = np.mean(dist_16) > np.mean(dist_7)
+    win7 = _nps.mean(loc1_7) > _nps.mean(loc1_16)
+    win16 = _nps.mean(dist_16) > _nps.mean(dist_7)
     print("VERDICT:")
     if win7 and win16:
         print(f"  • COMPLEMENTARITY CONFIRMED ON THE DISCRIMINATING METRIC: the local-7 circle wins on 1-HOP neighbours")
-        print(f"    ({np.mean(loc1_7):.0%} vs {np.mean(loc1_16):.0%}), and the sedenion-16 far-chord wins on 2-HOP DISTANT associates")
-        print(f"    ({np.mean(dist_16):.0%} vs {np.mean(dist_7):.0%}). Each circle is the right tool for its OWN relation — exactly F547's claim,")
+        print(f"    ({_nps.mean(loc1_7):.0%} vs {_nps.mean(loc1_16):.0%}), and the sedenion-16 far-chord wins on 2-HOP DISTANT associates")
+        print(f"    ({_nps.mean(dist_16):.0%} vs {_nps.mean(dist_7):.0%}). Each circle is the right tool for its OWN relation — exactly F547's claim,")
         print(f"    now shown where it bites: the 16 IS the distant-association store, not a neighbour-recall booster.")
     else:
         print(f"  • MIXED: 1-hop {'local-7 wins' if win7 else 'tie/16'} ; 2-hop distant {'sedenion-16 wins' if win16 else 'local-7 still ahead'}.")
-        print(f"    local-7 1-hop {np.mean(loc1_7):.0%}/{np.mean(loc1_16):.0%}; distant {np.mean(dist_7):.0%}/{np.mean(dist_16):.0%} — honest read of the corpus.")
+        print(f"    local-7 1-hop {_nps.mean(loc1_7):.0%}/{_nps.mean(loc1_16):.0%}; distant {_nps.mean(dist_7):.0%}/{_nps.mean(dist_16):.0%} — honest read of the corpus.")
     print(f"  • CONNECTS the stale cross-navigation / 'ride' work (R-RBS-LM-54k cross-kernel triangulation; F189")
     print(f"    grammar-walked-via-logic): the DISTANT-association relation IS the cross-navigation bridge — the far chord")
     print(f"    is the substrate-level version of riding one kernel into another. Low-stat ({len(probes)} probes); F394; F398.")

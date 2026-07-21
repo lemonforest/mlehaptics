@@ -15,7 +15,7 @@ NO synthesis routes / reaction prediction / capability -- only the MATH STRUCTUR
 balancing. CAD-ban (algebra, not molecular geometry). Defensive scope. Class-K clean
 (reference via squared magnitude; sign via pin-slot/reorient, never abs()).
 """
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 from srmech.amsc import laplacian, rational, cyclic
 
 # benign textbook reactions; M[element, species] signed (reactant +, product -)
@@ -43,10 +43,10 @@ REACTIONS = {
 
 def balance(M):
     """Class L (null space) ∘ Class N (best_rational) ∘ Class I (lcm/gcd) -> smallest positive integers."""
-    M = np.array(M, dtype=float)
+    M = _nps.array(M, dtype=float)
     evals, evecs = laplacian.symmetric_eigendecompose(M.T @ M)   # Class L: null space = 0-eigenvector
-    v = evecs[:, int(np.argmin(evals))]
-    ref = int(np.argmax(v * v))                                  # max squared-magnitude (Class-K clean)
+    v = evecs[:, int(_nps.argmin(evals))]
+    ref = int(_nps.argmax(v * v))                                  # max squared-magnitude (Class-K clean)
     if v[ref] < 0.0:                                             # Class-K sign pin-slot -> Class-C reorient
         v = -v
     S = 10 ** 6
@@ -64,9 +64,9 @@ def balance(M):
 def main():
     for name, R in REACTIONS.items():
         coeffs, M = balance(R["M"])
-        syndrome = (M @ np.array(coeffs)).astype(int)            # the conservation parity check
+        syndrome = (M @ _nps.array(coeffs)).astype(int)            # the conservation parity check
         guess = [1] * len(coeffs)
-        gs = (M @ np.array(guess)).astype(int)
+        gs = (M @ _nps.array(guess)).astype(int)
         print(f"\n{name}")
         print(f"  species  : {R['species']}")
         print(f"  balanced : {coeffs}   (known {R['known']})  match={coeffs == R['known']}")

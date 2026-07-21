@@ -25,9 +25,7 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 from srmech.amsc.hdc import bundle, similarity
@@ -136,7 +134,7 @@ def build_eigvec_table(corpus_path, M_per_eigvec=21):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k]
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_per_eigvec]
+        top_idx = _nps.argsort(-mag_sq)[:M_per_eigvec]
         top_tokens = [vocab[i] for i in top_idx]
         hv = hierarchical_bundle([mint(t) for t in top_tokens])
         table.append({"rank": len(ev) - 1 - k, "eigval": float(ev[k]),
@@ -146,7 +144,7 @@ def build_eigvec_table(corpus_path, M_per_eigvec=21):
 
 def find_alignment(table_A, table_B):
     n_A = len(table_A); n_B = len(table_B)
-    sim_matrix = np.zeros((n_A, n_B))
+    sim_matrix = _nps.zeros((n_A, n_B))
     for i in range(n_A):
         for j in range(n_B):
             sim_matrix[i, j] = similarity(table_A[i]["hypervector"], table_B[j]["hypervector"])
@@ -182,7 +180,7 @@ def main():
         if key == ANCHOR: continue
         align, sims = find_alignment(tables[ANCHOR], tables[key])
         alignments[key] = align
-        avg_sims[key] = float(np.mean(sims))
+        avg_sims[key] = float(_nps.mean(sims))
         print(f"  {ANCHOR} ↔ {key:<14s} ({DOMAINS[key]['family']:<22s}): avg alignment sim = {avg_sims[key]:+.4f}")
 
     # Sort by family + alignment
@@ -201,32 +199,32 @@ def main():
         by_family.setdefault(f, []).append((key, s))
     for f, items in sorted(by_family.items()):
         avgs = [s for _, s in items]
-        print(f"  {f:<30s} (n={len(items)}): avg sim = {np.mean(avgs):+.4f}; items: {[DOMAINS[k]['label'] for k,_ in items]}")
+        print(f"  {f:<30s} (n={len(items)}): avg sim = {_nps.mean(avgs):+.4f}; items: {[DOMAINS[k]['label'] for k,_ in items]}")
 
     # Same-family vs cross-family
     anchor_family = DOMAINS[ANCHOR]["family"]
     same_family_sims = [s for key, s in avg_sims.items() if DOMAINS[key]["family"] == anchor_family]
     cross_family_sims = [s for key, s in avg_sims.items() if DOMAINS[key]["family"] != anchor_family]
-    print(f"\n  Same-family (={anchor_family}) avg sim: {np.mean(same_family_sims):+.4f}")
-    print(f"  Cross-family avg sim:                      {np.mean(cross_family_sims):+.4f}")
-    same_avg = np.mean(same_family_sims)
-    cross_avg = np.mean(cross_family_sims)
+    print(f"\n  Same-family (={anchor_family}) avg sim: {_nps.mean(same_family_sims):+.4f}")
+    print(f"  Cross-family avg sim:                      {_nps.mean(cross_family_sims):+.4f}")
+    same_avg = _nps.mean(same_family_sims)
+    cross_avg = _nps.mean(cross_family_sims)
     print(f"  Same/cross family ratio: {same_avg / max(cross_avg, 1e-9):.2f}")
 
     # Within religious-superfamily (Abrahamic + Eastern)
     religious_sims = [s for key, s in avg_sims.items() if DOMAINS[key]["family"].startswith("religious")]
     secular_sims = [s for key, s in avg_sims.items() if DOMAINS[key]["family"].startswith("secular")]
-    print(f"\n  Religious super-family avg sim: {np.mean(religious_sims):+.4f}")
-    print(f"  Secular cross-substrate-family avg sim: {np.mean(secular_sims):+.4f}")
-    print(f"  Religious/secular ratio: {np.mean(religious_sims) / max(np.mean(secular_sims), 1e-9):.2f}")
+    print(f"\n  Religious super-family avg sim: {_nps.mean(religious_sims):+.4f}")
+    print(f"  Secular cross-substrate-family avg sim: {_nps.mean(secular_sims):+.4f}")
+    print(f"  Religious/secular ratio: {_nps.mean(religious_sims) / max(_nps.mean(secular_sims), 1e-9):.2f}")
 
     # Verdict
     print(f"\n=== Verdict ===")
-    if np.mean(religious_sims) > np.mean(secular_sims) * 1.5:
+    if _nps.mean(religious_sims) > _nps.mean(secular_sims) * 1.5:
         verdict = "SUBSTRATE-FAMILY BOUNDARIES STRONG — find-cascade aligns better within religious family than across to secular"
-    elif np.mean(religious_sims) > np.mean(secular_sims) * 1.1:
+    elif _nps.mean(religious_sims) > _nps.mean(secular_sims) * 1.1:
         verdict = "WEAK substrate-family boundary — find-cascade has slight religious-family preference"
-    elif abs(np.mean(religious_sims) - np.mean(secular_sims)) < 0.01:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
+    elif abs(_nps.mean(religious_sims) - _nps.mean(secular_sims)) < 0.01:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         verdict = "NO substrate-family boundary — find-cascade is universal form-finder; aligns across all corpora similarly"
     else:
         verdict = "SECULAR alignment stronger than RELIGIOUS — counter-prediction; era/register dominates substrate-family"
@@ -253,9 +251,9 @@ def main():
         "avg_alignment_sims": avg_sims,
         "same_family_avg": float(same_avg),
         "cross_family_avg": float(cross_avg),
-        "religious_avg": float(np.mean(religious_sims)),
-        "secular_avg": float(np.mean(secular_sims)),
-        "religious_secular_ratio": float(np.mean(religious_sims) / max(np.mean(secular_sims), 1e-9)),
+        "religious_avg": float(_nps.mean(religious_sims)),
+        "secular_avg": float(_nps.mean(secular_sims)),
+        "religious_secular_ratio": float(_nps.mean(religious_sims) / max(_nps.mean(secular_sims), 1e-9)),
         "verdict": verdict,
     }
     (HERE / "R-RBS-LM-54e_results.json").write_text(json.dumps(out, indent=2, default=str))

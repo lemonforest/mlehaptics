@@ -24,7 +24,7 @@ No abs(); no CAD; no Workflow; no sub-agents.
 import json
 import re
 import unicodedata
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, symmetric_eigendecompose
 
@@ -107,7 +107,7 @@ def main():
     def hiero(eg):
         return "".join(G2C.get(g, G2C.get(re.match(r'([A-Za-z]+\d+)', g).group(1), "") if re.match(r'([A-Za-z]+\d+)', g) else "") for g in eg2gard.get(eg, []))
     def dist(i, j):
-        d = pos[i] - pos[j]; return float(np.dot(d, d))
+        d = pos[i] - pos[j]; return float(_nps.dot(d, d))
 
     def en_to_targets(words):
         tg = []
@@ -138,7 +138,7 @@ def main():
 
     def coherence_egyptian(seq):
         pr = [(seq[i], seq[i + 1]) for i in range(len(seq) - 1)]
-        return float(np.mean([1.0 if p in bigrams else 0.0 for p in pr])) if pr else 0.0
+        return float(_nps.mean([1.0 if p in bigrams else 0.0 for p in pr])) if pr else 0.0
 
     print("(1) English -> Egyptian etak-head -> HIEROGLYPHIC UNICODE (we impose NO English sentence grammar):")
     demos = [["man", "water"], ["god", "house"], ["king", "land"], ["come", "house"]]
@@ -158,7 +158,7 @@ def main():
         print(f"       back-gloss   : {backgloss}")
         print(f"       coherent-as-Egyptian (adjacent moves attested in the rules): {c:.0%}\n")
 
-    mc = float(np.mean(coh)) if coh else 0.0
+    mc = float(_nps.mean(coh)) if coh else 0.0
     print("VERDICT (the keystone test, F581):")
     print(f"  • A COMPLETE English -> Ancient-Egyptian ETAK-HEAD KERNEL RUNS + RENDERS HIEROGLYPHS: English -> Vygus lemma")
     print(f"    (F585) -> etak-navigate the Egyptian rule-graph (F580 nav on the F583 chess-move surface) -> Gardiner")

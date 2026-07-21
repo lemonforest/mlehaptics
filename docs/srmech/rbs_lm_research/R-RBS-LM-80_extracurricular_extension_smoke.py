@@ -44,9 +44,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 
@@ -150,9 +148,9 @@ def build_kernel(text):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_PER_EIGVEC]
+        top_idx = _nps.argsort(-mag_sq)[:M_PER_EIGVEC]
         top_tokens = [vocab[i] for i in top_idx]
-        table.append({"rank": len(ev)-1-k, "eigval": float(np.real(ev[k])),
+        table.append({"rank": len(ev)-1-k, "eigval": float(_nps.real(ev[k])),
                        "top_tokens": top_tokens, "token_set": set(top_tokens)})
     return table, freq, len(edges)
 
@@ -160,7 +158,7 @@ def build_kernel(text):
 def sim_cosine(a, b):
     sa, sb = a["token_set"], b["token_set"]
     if not sa or not sb: return 0.0
-    return float(len(sa & sb) / np.sqrt(len(sa) * len(sb)))
+    return float(len(sa & sb) / _nps.sqrt(len(sa) * len(sb)))
 
 
 def find_alignment_score(table_a, table_b):
@@ -171,7 +169,7 @@ def find_alignment_score(table_a, table_b):
         if not cands: break
         bj, bs = max(cands, key=lambda x: x[1])
         used.add(bj); sims.append(bs)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def main():
@@ -225,13 +223,13 @@ def main():
             within_avg = None
         else:
             within = [pairwise[tuple(sorted((a,b)))] for i, a in enumerate(members) for b in members[i+1:]]
-            within_avg = float(np.mean(within))
+            within_avg = float(_nps.mean(within))
         cross = []
         for a in members:
             for k in keys:
                 if k == a or k in members: continue
                 cross.append(pairwise[tuple(sorted((a,k)))])
-        cross_avg = float(np.mean(cross)) if cross else 0.0
+        cross_avg = float(_nps.mean(cross)) if cross else 0.0
         ratio = within_avg / cross_avg if (within_avg is not None and cross_avg > 0) else None
         wavg_str = f"{within_avg:+.4f}" if within_avg is not None else "  n/a "
         ratio_str = f"{ratio:.2f}" if ratio is not None else " n/a "

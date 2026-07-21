@@ -17,7 +17,7 @@ sedenion/Hopf toroidal coordinates.
 """
 from srmech.amsc import cascade  # Class-K cascade.magnitude (F1283 abs() migration)
 import importlib.util as U
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 from collections import Counter                      # vocab SELECTION + transient edge weights (not storage)
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 from srmech.amsc.hdc import bind, bundle, similarity
@@ -65,9 +65,9 @@ def main():
     edges = list(ec.keys()); weights = [float(w) for w in ec.values()]
     L = dense_laplacian(N, edges, weights)                 # Class L
     evals, evecs = hermitian_eigendecompose(L)             # the F172 storage signature
-    evals = np.asarray(evals, dtype=float); evecs = np.asarray(evecs, dtype=float)
+    evals = _nps.asarray(evals, dtype=float); evecs = _nps.asarray(evecs, dtype=float)
     # orient: column i = i-th eigenvector; ascending eigenvalues
-    order = np.argsort(evals); evals = evals[order]; evecs = evecs[:, order]
+    order = _nps.argsort(evals); evals = evals[order]; evecs = evecs[:, order]
     if evecs.shape[0] != N:                                # row-major fallback
         evecs = evecs.T[:, order]
     print(f"  {len(sections)} articles, N={N} nodes, {len(edges)} edges; "
@@ -92,11 +92,11 @@ def main():
     ADDR = [mint_vector(f"SEDENION:e{k}", D=D) for k in range(16)]
     def mode_theme(i, top=8):                              # top tokens of eigenmode i (by |component|)
         comp = evecs[:, i]
-        idx = np.argsort(-np.abs(comp))[:top]
+        idx = _nps.argsort(-_nps.absolute(comp))[:top]
         return [vocab[j] for j in idx]
     def mode_hv(i, top=21):
         comp = evecs[:, i]
-        idx = np.argsort(-np.abs(comp))[:top]
+        idx = _nps.argsort(-_nps.absolute(comp))[:top]
         return _bundle([mint_vector(vocab[j], D=D) for j in idx])
     # e0 = anchor (DC/global mode); e1..e7 = the 7 principal tori (reversible working set); e8..e15 = EC tail
     slot_mode = {0: 0}                                     # anchor = DC

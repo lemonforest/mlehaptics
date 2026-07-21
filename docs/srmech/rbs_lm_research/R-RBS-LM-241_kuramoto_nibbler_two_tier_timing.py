@@ -97,15 +97,13 @@ import subprocess
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 from srmech.amsc import cascade
 from srmech.amsc import format as fmt
 from srmech.amsc import laplacian as lap
 
 # --- attested constants (CLAUDE.md §4 no-magic-numbers; every constant classified A / B / C) ---
-PI = float(np.pi)             # A: asymptotic_calculus -- the phase pi = carry-1 antipode of carry-0=0
+PI = float(_nps.pi)             # A: asymptotic_calculus -- the phase pi = carry-1 antipode of carry-0=0
 NIBBLE = 4                    # A: 7483 hardware block = 4 = |Klein-4| = the F233 4-thread rung
 PIN_K = 50.0                  # B: pinning-field strength (>> KC so a pinned carry holds; F236 PIN_K)
 KC_OP = 1.0                   # B: operational coupling, above the measured K_c (F236 KC_OP)

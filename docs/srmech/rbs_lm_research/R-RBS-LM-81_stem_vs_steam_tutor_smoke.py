@@ -69,9 +69,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 
@@ -171,9 +169,9 @@ def build_kernel(text, n_eigvecs=KERNEL_N_EIGVECS):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_PER_EIGVEC]
+        top_idx = _nps.argsort(-mag_sq)[:M_PER_EIGVEC]
         top_tokens = [vocab[i] for i in top_idx]
-        table.append({"rank": len(ev)-1-k, "eigval": float(np.real(ev[k])),
+        table.append({"rank": len(ev)-1-k, "eigval": float(_nps.real(ev[k])),
                        "top_tokens": top_tokens, "token_set": set(top_tokens)})
     return table
 
@@ -188,7 +186,7 @@ def build_probe_kernel(probe_text):
 def sim_cosine(a, b):
     sa, sb = a["token_set"], b["token_set"]
     if not sa or not sb: return 0.0
-    return float(len(sa & sb) / np.sqrt(len(sa) * len(sb)))
+    return float(len(sa & sb) / _nps.sqrt(len(sa) * len(sb)))
 
 
 def find_alignment_score(probe_table, kernel_table):
@@ -199,7 +197,7 @@ def find_alignment_score(probe_table, kernel_table):
         if not cands: break
         bj, bs = max(cands, key=lambda x: x[1])
         used.add(bj); sims.append(bs)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def route(probe_table, bound_kernel_keys, kernels):

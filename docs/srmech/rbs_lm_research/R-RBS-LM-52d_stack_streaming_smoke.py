@@ -46,9 +46,7 @@ import sys
 import time
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 # Streaming HF datasets
 from datasets import load_dataset
 
@@ -163,10 +161,10 @@ def build_streaming_kernel(content_iterator, vocab_n: int = DEFAULT_VOCAB_N,
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:m_per_eigvec]
+        top_idx = _nps.argsort(-mag_sq)[:m_per_eigvec]
         top_tokens = [vocab[i] for i in top_idx]
         table.append({"rank": len(ev) - 1 - k,
-                       "eigval": float(np.real(ev[k])),
+                       "eigval": float(_nps.real(ev[k])),
                        "top_tokens": top_tokens,
                        "token_set": set(top_tokens)})
     print(f"  Laplacian + eigendecompose done: {len(table)} eigvecs; {time.time()-start_t:.1f}s")
@@ -176,7 +174,7 @@ def build_streaming_kernel(content_iterator, vocab_n: int = DEFAULT_VOCAB_N,
 def sim_cosine(row_a, row_b):
     a = row_a["token_set"]; b = row_b["token_set"]
     if not a or not b: return 0.0
-    return float(len(a & b) / np.sqrt(len(a) * len(b)))
+    return float(len(a & b) / _nps.sqrt(len(a) * len(b)))
 
 
 def find_alignment_score(probe_table, kernel_table):
@@ -193,7 +191,7 @@ def find_alignment_score(probe_table, kernel_table):
         best_j, best_sim = max(candidates, key=lambda x: x[1])
         used_k.add(best_j)
         sims.append(best_sim)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def main():
@@ -285,9 +283,9 @@ have has had this that these those it its they them their there here he she we u
         for k in range(len(ev) - 1, -1, -1):
             eigvec = evc[:, k].real
             mag_sq = eigvec * eigvec
-            top_idx = np.argsort(-mag_sq)[:DEFAULT_M_PER_EIGVEC]
+            top_idx = _nps.argsort(-mag_sq)[:DEFAULT_M_PER_EIGVEC]
             top_tokens = [vocab[i] for i in top_idx]
-            table.append({"rank": len(ev)-1-k, "eigval": float(np.real(ev[k])),
+            table.append({"rank": len(ev)-1-k, "eigval": float(_nps.real(ev[k])),
                            "top_tokens": top_tokens, "token_set": set(top_tokens)})
         return table
 
@@ -329,8 +327,8 @@ have has had this that these those it its they them their there here he she we u
         for b in eng_list[i+1:]:
             english_to_english_sims.append(pairwise_sims[(min(a,b), max(a,b))])
 
-    avg_stack_eng = float(np.mean(stack_to_english_sims)) if stack_to_english_sims else 0.0
-    avg_eng_eng = float(np.mean(english_to_english_sims)) if english_to_english_sims else 0.0
+    avg_stack_eng = float(_nps.mean(stack_to_english_sims)) if stack_to_english_sims else 0.0
+    avg_eng_eng = float(_nps.mean(english_to_english_sims)) if english_to_english_sims else 0.0
     print(f"  Stack ↔ English (n={len(stack_to_english_sims)}): avg alignment = {avg_stack_eng:.4f}")
     print(f"  English ↔ English (n={len(english_to_english_sims)}): avg alignment = {avg_eng_eng:.4f}")
     ratio = avg_eng_eng / max(avg_stack_eng, 1e-9)

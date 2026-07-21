@@ -24,7 +24,7 @@ srmech 0.7.4; Class-L dense_laplacian + symmetric_eigendecompose (the genuine lo
 import re
 import importlib.util as U
 from collections import Counter
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, symmetric_eigendecompose
 
@@ -99,7 +99,7 @@ def fine_local_nav(seed, target, nb, vset, max_steps=40):
 def coarse_global_nav(seed, target, nb, vset, idx, emb, max_steps=40):
     """RH / low-SF: greedy DOWN the smooth low-frequency embedding gradient to the target. Few traps -> reaches."""
     tvec = emb[idx[target]]
-    dist = lambda n: float(np.sum((emb[idx[n]] - tvec) ** 2))
+    dist = lambda n: float(_nps.sum((emb[idx[n]] - tvec) ** 2))
     cur, path, energy, visited = seed, [seed], 0, {seed}
     for _ in range(max_steps):
         if cur == target:
@@ -152,7 +152,7 @@ def main():
 
     seed = "water" if "water" in vset else vocab[10]              # a CONTENT anchor (not the hub)
     # rank candidate targets by COARSE-embedding distance from the seed -> the farthest are 'beyond the horizon'
-    cdist = lambda w: float(np.sum((emb[idx[w]] - emb[idx[seed]]) ** 2))
+    cdist = lambda w: float(_nps.sum((emb[idx[w]] - emb[idx[seed]]) ** 2))
     ranked = sorted((w for w in vocab if w != seed), key=cdist)
     targets = [ranked[3], ranked[len(ranked) // 2], ranked[-2], ranked[-1]]   # near / mid / far / farthest
 

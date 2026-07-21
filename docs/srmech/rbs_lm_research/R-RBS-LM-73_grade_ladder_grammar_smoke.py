@@ -54,9 +54,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 
@@ -134,9 +132,9 @@ def build_kernel(text, n_eigvecs=KERNEL_N_EIGVECS, m_per_eigvec=M_PER_EIGVEC):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:m_per_eigvec]
+        top_idx = _nps.argsort(-mag_sq)[:m_per_eigvec]
         top_tokens = [vocab[i] for i in top_idx]
-        table.append({"rank": len(ev) - 1 - k, "eigval": float(np.real(ev[k])),
+        table.append({"rank": len(ev) - 1 - k, "eigval": float(_nps.real(ev[k])),
                        "top_tokens": top_tokens, "token_set": set(top_tokens)})
     return table, freq, len(edges)
 
@@ -144,7 +142,7 @@ def build_kernel(text, n_eigvecs=KERNEL_N_EIGVECS, m_per_eigvec=M_PER_EIGVEC):
 def sim_cosine(a, b):
     set_a = a["token_set"]; set_b = b["token_set"]
     if not set_a or not set_b: return 0.0
-    return float(len(set_a & set_b) / np.sqrt(len(set_a) * len(set_b)))
+    return float(len(set_a & set_b) / _nps.sqrt(len(set_a) * len(set_b)))
 
 
 def find_alignment_score(table_a, table_b):
@@ -157,7 +155,7 @@ def find_alignment_score(table_a, table_b):
         best_j, best_s = max(cands, key=lambda x: x[1])
         used_b.add(best_j)
         sims.append(best_s)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def main():
@@ -230,10 +228,10 @@ def main():
         by_dist.setdefault(d, []).append(s)
     for d in sorted(by_dist):
         sims = by_dist[d]
-        print(f"    distance {d}: mean = {np.mean(sims):+.4f} (n={len(sims)})")
+        print(f"    distance {d}: mean = {_nps.mean(sims):+.4f} (n={len(sims)})")
 
     # Monotone test
-    means = [float(np.mean(by_dist[d])) for d in sorted(by_dist)]
+    means = [float(_nps.mean(by_dist[d])) for d in sorted(by_dist)]
     is_monotone = all(means[i] >= means[i+1] - 0.001 for i in range(len(means)-1))
     print(f"\n  Monotone non-increasing across grade-distance? {is_monotone}")
 
@@ -266,7 +264,7 @@ def main():
             k: kernels[k]["table"][0]["top_tokens"] if kernels[k]["table"] else None
             for k in grade_keys},
         "pairwise_alignments": {f"{a}|{b}": float(s) for (a, b), s in pairwise.items()},
-        "mean_alignment_by_distance": {str(d): float(np.mean(s)) for d, s in by_dist.items()},
+        "mean_alignment_by_distance": {str(d): float(_nps.mean(s)) for d, s in by_dist.items()},
         "is_monotone": bool(is_monotone),
         "alignment_span": float(span),
         "verdict": verdict,

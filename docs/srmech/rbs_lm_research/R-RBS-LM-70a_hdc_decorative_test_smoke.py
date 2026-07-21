@@ -45,9 +45,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 from srmech.amsc.hdc import bundle, similarity
@@ -163,7 +161,7 @@ def build_eigvec_table(text, n_eigvecs=KERNEL_N_EIGVECS):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k].real
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_PER_EIGVEC]
+        top_idx = _nps.argsort(-mag_sq)[:M_PER_EIGVEC]
         top_tokens = [vocab[i] for i in top_idx]
         # HDC bundle (variant HDC)
         hv = hierarchical_bundle([mint(t) for t in top_tokens])
@@ -188,7 +186,7 @@ def sim_jaccard(row_a, row_b):
 def sim_cosine(row_a, row_b):
     a = row_a["token_set"]; b = row_b["token_set"]
     if not a or not b: return 0.0
-    return float(len(a & b) / np.sqrt(len(a) * len(b)))
+    return float(len(a & b) / _nps.sqrt(len(a) * len(b)))
 
 
 def find_alignment_score(probe_table, kernel_table, sim_fn):
@@ -205,7 +203,7 @@ def find_alignment_score(probe_table, kernel_table, sim_fn):
         best_j, best_sim = max(candidates, key=lambda x: x[1])
         used_k.add(best_j)
         sims.append(best_sim)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def split_holdout(text, n_fragments=N_PROBE_FRAGMENTS, holdout_frac=HOLDOUT_FRACTION):
@@ -223,10 +221,10 @@ def split_holdout(text, n_fragments=N_PROBE_FRAGMENTS, holdout_frac=HOLDOUT_FRAC
 
 
 def pearson(a, b):
-    a = np.array(a, dtype=float); b = np.array(b, dtype=float)
+    a = _nps.array(a, dtype=float); b = _nps.array(b, dtype=float)
     if len(a) < 2: return 0.0
     am = a - a.mean(); bm = b - b.mean()
-    da = float(np.sqrt((am * am).sum())); db = float(np.sqrt((bm * bm).sum()))
+    da = float(_nps.sqrt((am * am).sum())); db = float(_nps.sqrt((bm * bm).sum()))
     if da == 0 or db == 0: return 0.0
     return float((am * bm).sum() / (da * db))
 

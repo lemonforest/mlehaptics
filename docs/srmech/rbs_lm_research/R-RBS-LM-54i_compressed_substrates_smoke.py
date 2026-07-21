@@ -38,9 +38,7 @@ import re
 import sys
 from collections import Counter
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.laplacian import dense_laplacian, hermitian_eigendecompose
 from srmech.amsc.hdc import bundle, similarity
@@ -157,7 +155,7 @@ def build_eigvec_table(text, n_eigvecs=KERNEL_N_EIGVECS, M_per_eigvec=21):
     for k in range(len(ev) - 1, -1, -1):
         eigvec = evc[:, k]
         mag_sq = eigvec * eigvec
-        top_idx = np.argsort(-mag_sq)[:M_per_eigvec]
+        top_idx = _nps.argsort(-mag_sq)[:M_per_eigvec]
         top_tokens = [vocab[i] for i in top_idx]
         hv = hierarchical_bundle([mint(t) for t in top_tokens])
         table.append({"rank": len(ev) - 1 - k, "eigval": float(ev[k]),
@@ -179,13 +177,13 @@ def find_alignment_score(probe_table, kernel_table):
         best_j, best_sim = max(candidates, key=lambda x: x[1])
         used_k.add(best_j)
         sims.append(best_sim)
-    return float(np.mean(sims)) if sims else 0.0
+    return float(_nps.mean(sims)) if sims else 0.0
 
 
 def find_pairwise_alignment(table_A, table_B):
     """Hungarian-style greedy bipartite for kernel-to-kernel similarity."""
     n_A = len(table_A); n_B = len(table_B)
-    sim_matrix = np.zeros((n_A, n_B))
+    sim_matrix = _nps.zeros((n_A, n_B))
     for i in range(n_A):
         for j in range(n_B):
             sim_matrix[i, j] = similarity(table_A[i]["hypervector"], table_B[j]["hypervector"])
@@ -198,7 +196,7 @@ def find_pairwise_alignment(table_A, table_B):
         best_j, best_sim = max(candidates, key=lambda x: x[1])
         used_B.add(best_j)
         sims.append(best_sim)
-    return float(np.mean(sims))
+    return float(_nps.mean(sims))
 
 
 def split_holdout(text, n_fragments=N_PROBE_FRAGMENTS, holdout_frac=HOLDOUT_FRACTION):
@@ -296,10 +294,10 @@ def main():
         else:
             cross_class.append(s)
     for sc, sims in sc_groups.items():
-        print(f"  Within '{sc}' (n={len(sims)} pairs): mean alignment = {np.mean(sims):+.3f}")
-    print(f"  Cross substrate-class (n={len(cross_class)} pairs): mean alignment = {np.mean(cross_class):+.3f}")
-    within_mean = np.mean([s for sims in sc_groups.values() for s in sims])
-    print(f"  Within/cross ratio: {within_mean/max(np.mean(cross_class), 1e-9):.2f}")
+        print(f"  Within '{sc}' (n={len(sims)} pairs): mean alignment = {_nps.mean(sims):+.3f}")
+    print(f"  Cross substrate-class (n={len(cross_class)} pairs): mean alignment = {_nps.mean(cross_class):+.3f}")
+    within_mean = _nps.mean([s for sims in sc_groups.values() for s in sims])
+    print(f"  Within/cross ratio: {within_mean/max(_nps.mean(cross_class), 1e-9):.2f}")
 
     # === Test 4: Translator-stability re-test (Finding 49) ===
     # Wallis Budge translates BOTH Egyptian and Babylonian. Do these cluster
@@ -325,9 +323,9 @@ def main():
         s = pairwise.get((a, b), pairwise.get((b, a)))
         eg_to_eastern.append(s)
         print(f"  Budge-Eastern {a} ↔ {b}: {s:+.3f}")
-    print(f"  Avg Budge↔Budge:   {np.mean(budge_sims):+.3f}")
-    print(f"  Avg Budge↔Eastern: {np.mean(eg_to_eastern):+.3f}")
-    ratio = np.mean(budge_sims) / max(np.mean(eg_to_eastern), 1e-9)
+    print(f"  Avg Budge↔Budge:   {_nps.mean(budge_sims):+.3f}")
+    print(f"  Avg Budge↔Eastern: {_nps.mean(eg_to_eastern):+.3f}")
+    ratio = _nps.mean(budge_sims) / max(_nps.mean(eg_to_eastern), 1e-9)
     print(f"  Budge-cluster ratio: {ratio:.2f}")
     if ratio > 1.5:
         translator_verdict = f"Budge form dominates substrate (clusters as 'Budge style' — Finding 49 RE-CONFIRMED for ancient corpora)"
@@ -358,10 +356,10 @@ def main():
         "family_acc": n_correct_family / max(n_total, 1),
         "substrate_class_acc": n_correct_substrate_class / max(n_total, 1),
         "pairwise_alignment": {f"{a}|{b}": float(s) for (a, b), s in pairwise.items()},
-        "within_class_mean": float(np.mean([s for sims in sc_groups.values() for s in sims])),
-        "cross_class_mean": float(np.mean(cross_class)),
-        "budge_budge_avg": float(np.mean(budge_sims)),
-        "budge_eastern_avg": float(np.mean(eg_to_eastern)),
+        "within_class_mean": float(_nps.mean([s for sims in sc_groups.values() for s in sims])),
+        "cross_class_mean": float(_nps.mean(cross_class)),
+        "budge_budge_avg": float(_nps.mean(budge_sims)),
+        "budge_eastern_avg": float(_nps.mean(eg_to_eastern)),
         "budge_ratio": float(ratio),
         "anchor_verdict": anchor_verdict,
         "translator_verdict": translator_verdict,

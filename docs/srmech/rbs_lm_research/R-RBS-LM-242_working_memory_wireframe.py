@@ -68,9 +68,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-
-import numpy as np
-
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 from srmech.amsc import cascade
 from srmech.amsc import format as fmt
 from srmech.amsc import hdc
@@ -318,7 +316,7 @@ def core_spectral_embedding(n_nodes, edges, weights, comp, giant):
             core_w.append(w)
     L = lap.dense_laplacian(len(core), core_edges, core_w if core_w else None)
     evals, evecs = lap.symmetric_eigendecompose(L)               # Class L (sorted asc)
-    return core, [float(e) for e in evals], np.asarray(evecs, dtype=float)
+    return core, [float(e) for e in evals], _nps.asarray(evecs, dtype=float)
 
 
 # =========================================================================================
@@ -351,7 +349,7 @@ def section_sector_tag(section):
         for t in toks[1:]:
             vec = hdc.klein4_bundle(vec, _token_atom(t))         # Class M superposition
     occ = [int(x) for x in hdc.klein4_sector_count(vec)]         # [n0,n1,n2,n3]
-    dominant = int(np.argmax(occ))
+    dominant = int(_nps.argmax(occ))
     return occ, dominant, vec
 
 
@@ -373,10 +371,10 @@ def _fisher_ratio(groups):
     if len(groups) < 2:
         return 0.0
     nk = [len(g) for g in groups]
-    means = [float(np.mean(g)) for g in groups]
-    grand = float(np.mean([x for g in groups for x in g]))
+    means = [float(_nps.mean(g)) for g in groups]
+    grand = float(_nps.mean([x for g in groups for x in g]))
     between = sum(n * (m - grand) ** 2 for n, m in zip(nk, means)) / (len(groups) - 1)
-    within_ss = sum(float(((np.asarray(g) - np.mean(g)) ** 2).sum()) for g in groups)
+    within_ss = sum(float(((_nps.asarray(g) - _nps.mean(g)) ** 2).sum()) for g in groups)
     dof = max(sum(nk) - len(groups), 1)
     within = within_ss / dof
     if within < ZERO_FLOOR:
@@ -475,7 +473,7 @@ def cluster_separation(sections, edges, weights, comp, giant, core, core_evals, 
                 if exclude_self and ia == ib:
                     continue
                 sims.append(float(hdc.klein4_similarity(sector_vecs[ia], sector_vecs[ib])))  # Class M
-        return float(np.mean(sims)) if sims else None
+        return float(_nps.mean(sims)) if sims else None
 
     intra_sims = {}
     for lab in labels:
@@ -486,8 +484,8 @@ def cluster_separation(sections, edges, weights, comp, giant, core, core_evals, 
     for a in range(len(labels)):
         for b in range(a + 1, len(labels)):
             inter_sims.append(mean_sim(members_of[labels[a]], members_of[labels[b]], exclude_self=False))
-    mean_intra = float(np.mean(list(intra_sims.values()))) if intra_sims else None
-    mean_inter = float(np.mean([s for s in inter_sims if s is not None])) if inter_sims else None
+    mean_intra = float(_nps.mean(list(intra_sims.values()))) if intra_sims else None
+    mean_inter = float(_nps.mean([s for s in inter_sims if s is not None])) if inter_sims else None
     klein4_separated = bool(mean_intra is not None and mean_inter is not None and mean_intra > mean_inter)
 
     return {

@@ -18,7 +18,7 @@ directions ("like our universe", many dimensions), not one. A loop is NOT a bigg
 srmech 0.7.4; Class-I cyclic.gcd (circle mirror) + hdc.loop_conj (loop mirror) + cascade.cayley_dickson.cd_basis_product
 (the srmech-native octonion product). No abs(); no CAD; no Workflow tool; no sub-agents.
 """
-import numpy as np
+import srmech_stats as _nps  # F1290: numpy-free (carrier tier)
 import srmech
 from srmech.amsc.cyclic import gcd
 from srmech.amsc import hdc
@@ -80,7 +80,7 @@ def main():
     print(f"=== R-RBS-LM-LOOPSHELF — a LOOP holds even happily vs a CIRCLE (the mirror is conjugation, not rotation)  (srmech {srmech.__version__}) ===\n")
 
     # validate our conjugation against srmech hdc.loop_conj on an 8-vec octonion (real=0.5, e1=1)
-    x = np.array([0.5, 1, 0, 0, 0, 0, 0, 0.0]); sc = np.array(hdc.loop_conj(x))
+    x = _nps.array([0.5, 1, 0, 0, 0, 0, 0, 0.0]); sc = _nps.array(hdc.loop_conj(x))
     ok = (sc[0] == 0.5) and (sc[1] == -1.0)
     print(f"(0) srmech hdc.loop_conj validates the loop mirror = conjugation (real kept, imag negated): {ok}\n")
 
