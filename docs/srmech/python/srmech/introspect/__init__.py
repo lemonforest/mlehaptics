@@ -643,7 +643,25 @@ def describe() -> Dict[str, Any]:
                            "names": [<sorted carrier names>]},
               "limits": {"cd_max_dim": <int>,
                          "cd_dense_max_dim": <int>},
+              "c_claims": {"native": <bool>,
+                           "checked_ops": <int>,
+                           "checked_symbols": <int>,
+                           "unresolved": {<op>: [<symbol>, ...]},
+                           "unverifiable": <int>,
+                           "consistent": <bool>},
             }
+
+    ``c_claims`` (rc300) answers a question ``native`` cannot: not "is a library
+    loaded?" but "does the loaded library actually contain the C symbols our ops
+    claim to route to?". Those are different, because the header adds symbols
+    ABI-additively — a stale build keeps a matching ABI, so ``native`` reports
+    healthy while individual ops fall silently to their pure paths and the
+    Rosetta ledger still classifies them ``c_dispatched``. ``consistent`` False
+    names exactly which ops and symbols are affected. ``unverifiable`` counts
+    ``c_dispatched`` ops whose symbol the static walk cannot attribute, so the
+    unchecked region is a reported number rather than an invisible gap. On a
+    pure install ``native`` is False, ``consistent`` True, and no claim is
+    contradicted because none is made.
 
     ``limits`` (rc298) reports **capability** ceilings only — what this BUILD
     supports, identical on every platform and in both projections. It is NOT a
@@ -740,6 +758,20 @@ def describe() -> Dict[str, Any]:
     except Exception:  # pragma: no cover — cascade surface optional
         _limits = {}
 
+    # C-claim resolution (rc300 `#938`) — is the C path we advertise really in
+    # the library we loaded? ``native`` above says a library loaded and its ABI
+    # matched; it does NOT say the library contains the symbols the ops claim,
+    # because the header adds symbols ABI-additively. A stale or partial build
+    # keeps ABI 8, resolves no new symbol, and every affected op falls silently
+    # to its pure path while the ledger still classifies it ``c_dispatched``.
+    # This key is what makes that discoverable — including to an LLM on the MCP
+    # surface, which could previously see "has_native: true" and reasonably but
+    # wrongly conclude the promised C path existed for a given op.
+    try:
+        _c_claims = _native.c_claim_report()
+    except Exception:  # pragma: no cover — manifest optional / absent
+        _c_claims = {}
+
     return {
         "srmech_version": schema.srmech_version,
         "tool_schema_version": TOOL_SCHEMA_VERSION,
@@ -773,6 +805,10 @@ def describe() -> Dict[str, Any]:
         # Compiled CAPABILITY ceilings (rc298 `#936`) — what this BUILD
         # supports. No resource/headroom key; see the note above.
         "limits": _limits,
+        # C-claim resolution (rc300 `#938`) — every ``c_dispatched`` op's C
+        # symbols checked against the LOADED library. ``consistent`` False means
+        # a build defect: ops are running pure while claiming C.
+        "c_claims": _c_claims,
     }
 
 
