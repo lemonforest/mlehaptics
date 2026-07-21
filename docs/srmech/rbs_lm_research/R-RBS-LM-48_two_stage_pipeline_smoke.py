@@ -335,7 +335,7 @@ def main():
     print(f"    Two-stage:          {avg['jaccard_fp16_vs_two_stage']:.3f}")
     delta = avg['jaccard_fp16_vs_two_stage'] - avg['jaccard_fp16_vs_Q4_alone']
     print(f"    Δ (2-stage − Q4):   {delta:+.3f}  "
-          f"({'two-stage preserves more' if delta > 0.05 else 'wash' if cascade.magnitude(delta) < 0.05 else 'Q4-alone wins'})")
+          f"({'two-stage preserves more' if delta > 0.05 else 'wash' if abs(delta) < 0.05 else 'Q4-alone wins'})")  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
     print(f"  PII / depersonalization:")
     print(f"    Names in original:                     varies per probe")
     print(f"    PII in T1 fp16 output:                 {avg['pii_in_T1']:.2f}")

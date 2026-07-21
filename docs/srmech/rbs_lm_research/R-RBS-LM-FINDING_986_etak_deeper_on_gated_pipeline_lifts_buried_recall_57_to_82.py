@@ -19,7 +19,7 @@ for a in arts:
 FUNC=int(NDOC*0.6)
 def gate(t): d=docf.get(t,1); return 1.0 if d<FUNC else FUNC/d
 toks=[w for a in arts[:6] for w in a]; uniq=list(dict.fromkeys(toks)); idx={w:i for i,w in enumerate(uniq)}; n=len(uniq)
-vec={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}
+vec={w: hdc.klein4_encode_bytes(w.encode() if isinstance(w, str) else bytes(w), D) for w in uniq}
 pairs=[(a,b) for a,b in zip(toks,toks[1:]) if a!=b]
 und={}
 for a,b in pairs:

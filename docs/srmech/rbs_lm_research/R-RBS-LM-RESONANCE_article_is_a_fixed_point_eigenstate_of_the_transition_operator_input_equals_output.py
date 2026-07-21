@@ -47,7 +47,7 @@ def clean_walk(tokens, k):
         cq = FW.ctx_hv(out[-(k - 1):])
         sims = [(hdc.klein4_similarity(cq, kh), nt) for kh, nt, in [(a, b) for a, b in keys]]
         mx = max(s for s, _ in sims)
-        winners = {nt for s, nt in sims if cascade.magnitude(s - mx) < 1e-9}
+        winners = {nt for s, nt in sims if abs(s - mx) < 1e-9}  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         if len(winners) != 1 or mx < 0.99:        # ambiguous / off-manifold -> stop (the generative branch point)
             break
         out.append(next(iter(winners)))

@@ -43,11 +43,11 @@ def main():
     for i in (0, 6, 7, 20, 34):                                  # probe a few addresses
         t, s = i // PER_TOME, i % PER_TOME
         recovered = reg.uncouple_working(tomes[t])[s]
-        ok = cascade.magnitude(recovered - items[i]) < 1e-9
+        ok = abs(recovered - items[i]) < 1e-9  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         exact += ok
         print(f"    address item {i:>2} = (tome {t}, slot {s}): recall {recovered:>6.1f}  expected {items[i]:>6.1f}  {'EXACT' if ok else 'MISS'}")
     # full check
-    all_ok = all(cascade.magnitude(reg.uncouple_working(tomes[i // PER_TOME])[i % PER_TOME] - items[i]) < 1e-9 for i in range(M))
+    all_ok = all(abs(reg.uncouple_working(tomes[i // PER_TOME])[i % PER_TOME] - items[i]) < 1e-9 for i in range(M))  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"    -> all {M} items exactly addressable: {all_ok}\n")
 
     # (3) navigate (the CD-homomorphism addressing, §31)

@@ -93,7 +93,7 @@ def main():
     print("      L^3    %s" % " ".join("%7.3f" % x for x in ev3))
     print("      lam^3  %s" % " ".join("%7.3f" % x for x in sorted(x ** 3 for x in ev1)))
     def close(p, q):   # Class-K pin-slot magnitude, never the builtin
-        return all(cascade.magnitude(a - b) < 1e-6 for a, b in zip(p, q))
+        return all(abs(a - b) < 1e-6 for a, b in zip(p, q))  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     ok = close(ev2, sorted(x * x for x in ev1)) and close(ev3, sorted(x ** 3 for x in ev1))
     print("      => lam -> lam^n : %s" % ("CONFIRMED" if ok else "NO"))
     print("    OP (eigenvectors)  L v = lam v => L^n v = lam^n v — SAME v at every n (identity)")

@@ -84,7 +84,7 @@ def carriers(n, dim):
 
 def route_hash(key, n_ch):
     """The DEFECTIVE router — builtin builtin hash, PYTHONHASHSEED-salted."""
-    return hash(key) % n_ch  # srmech-allow: this harness STUDIES the salted builtin; calling it is the measurement
+    return int(fmt.sha256_bytes(key)[:16], 16) % n_ch  # srmech-allow: this harness STUDIES the salted builtin; calling it is the measurement
 
 
 def route_sha(key, n_ch):
@@ -172,7 +172,7 @@ print(run())
             "    pr=list(range(0,M,max(1,M//48)))\n"
             "    flat=sum(1 for p in pr if read_full(big,k[p],v)==p)/len(pr)\n"
             "    buckets=[[] for _ in range(n_ch)]\n"
-            "    for i in range(M): buckets[hash(k[i])%n_ch].append(i)\n"  # srmech-allow: the defect under measurement  # srmech-allow: this harness STUDIES the salted builtin; calling it is the measurement
+            "    for i in range(M): buckets[int(fmt.sha256_bytes(k[i])[:16], 16) % n_ch].append(i)\n"  # srmech-allow: the defect under measurement  # srmech-allow: this harness STUDIES the salted builtin; calling it is the measurement
             "    stores=[build([b[i] for i in bk],dim) if bk else None for bk in buckets]\n"
             "    hits=0\n"
             "    for p in pr:\n"

@@ -65,9 +65,9 @@ def main():
         res["rows"].append(dict(delta=delta, srmech_cos=sc, overlap=fixed, corot=corot, mismatch=mism))
 
     # verdict checks
-    corot_all_one = all(cascade.magnitude(r["corot"] - 1.0) < 1e-9 for r in res["rows"])
-    fixed_tracks_cos = all(cascade.magnitude(r["overlap"] - r["srmech_cos"]) < 1e-6 for r in res["rows"])
-    shadow_at_halfpi = cascade.magnitude(srmech_cos(11, 7)) < 0.05      # cos(~π/2) ≈ 0 (full shadow)
+    corot_all_one = all(abs(r["corot"] - 1.0) < 1e-9 for r in res["rows"])  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
+    fixed_tracks_cos = all(abs(r["overlap"] - r["srmech_cos"]) < 1e-6 for r in res["rows"])  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
+    shadow_at_halfpi = abs(srmech_cos(11, 7)) < 0.05      # cos(~π/2) ≈ 0 (full shadow)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
 
     print("\n=== verdict ===")
     print(f"  read fidelity = cos(Δ) (srmech cascade-cos matches vector overlap): {fixed_tracks_cos}")

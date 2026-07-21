@@ -23,6 +23,7 @@ srmech 0.7.5rc28 native: amsc.laplacian.{dense_laplacian, dense_adjacency, jacob
 amsc.format.sha256_bytes (Class-A). Reuses F690/F702 (strip_wiki_markup_hardened + content_words + build_edges_topk +
 build_class_l_store + make_query_api). No abs(); no CAD; no Workflow; no sub-agents.
 """
+from srmech.amsc import format as fmt  # Class-A content-address (F1284)
 import sys
 import os
 import time

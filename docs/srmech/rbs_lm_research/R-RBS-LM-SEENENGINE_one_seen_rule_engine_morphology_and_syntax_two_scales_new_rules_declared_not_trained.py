@@ -89,7 +89,7 @@ def main():
     edges = sorted({(min(idx[a], idx[b]), max(idx[a], idx[b])) for a, b in LEGAL})
     L = laplacian.dense_laplacian(len(ROLES), edges, [1.0] * len(edges))
     evals = sorted(float(x) for x in laplacian.jacobi_eigvals(L))
-    zeros = sum(1 for e in evals if cascade.magnitude(e) < 1e-9)
+    zeros = sum(1 for e in evals if abs(e) < 1e-9)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"    grammar role-transition graph: {len(ROLES)} role-slots, {len(edges)} legal-edges")
     print(f"    Laplacian spectrum (Class L): {[round(e,3) for e in evals]}  (zero-eigs={zeros} => {zeros} component)")
     print(f"    -> syntax is ALSO a spectral object -- the SAME both-ness as chess (F632): a seen generator + a Laplacian")

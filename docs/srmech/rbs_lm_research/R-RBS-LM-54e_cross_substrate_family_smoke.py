@@ -226,7 +226,7 @@ def main():
         verdict = "SUBSTRATE-FAMILY BOUNDARIES STRONG — find-cascade aligns better within religious family than across to secular"
     elif np.mean(religious_sims) > np.mean(secular_sims) * 1.1:
         verdict = "WEAK substrate-family boundary — find-cascade has slight religious-family preference"
-    elif cascade.magnitude(np.mean(religious_sims) - np.mean(secular_sims)) < 0.01:
+    elif abs(np.mean(religious_sims) - np.mean(secular_sims)) < 0.01:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         verdict = "NO substrate-family boundary — find-cascade is universal form-finder; aligns across all corpora similarly"
     else:
         verdict = "SECULAR alignment stronger than RELIGIOUS — counter-prediction; era/register dominates substrate-family"

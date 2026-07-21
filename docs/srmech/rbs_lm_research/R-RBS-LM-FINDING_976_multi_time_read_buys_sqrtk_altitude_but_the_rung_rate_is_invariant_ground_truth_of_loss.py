@@ -20,7 +20,7 @@ with open('/home/skirklan/corpora/wikipedia/simplewiki_fullbody_instrument.ndjso
         if len(toks)>=4000: break
 content=[t for t in toks[:4000] if t not in stop]
 uniq=list(dict.fromkeys(content))
-vec={t: hdc.klein4_random(D, seed=hash(t)%90000+7) for t in uniq}
+vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}
 X=uniq[0]; ctxs=[uniq[1],uniq[2],uniq[3]]          # X recurs after 3 distinct contexts (3 time points)
 fillers=uniq[4:]
 def margin_for(probe):

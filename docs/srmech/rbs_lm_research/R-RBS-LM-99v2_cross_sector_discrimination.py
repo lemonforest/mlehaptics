@@ -161,9 +161,9 @@ def main():
 
         # Tolerance: ±0.02 for "≈"; > 0.05 above for ">>"
         p1 = sc > rc + 0.05
-        p2 = cascade.magnitude(cc - rc) < 0.02
+        p2 = abs(cc - rc) < 0.02  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         p3 = cm > rc + 0.05
-        p4 = cascade.magnitude(cm - sc) < 0.02
+        p4 = abs(cm - sc) < 0.02  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         all_pass = p1 and p2 and p3 and p4
         verdict = "ALL F132 PREDICTIONS PASS" if all_pass else f"P1={p1}, P2={p2}, P3={p3}, P4={p4}"
         print(f"  D={D:>5}, N={N:>3}: {verdict}")

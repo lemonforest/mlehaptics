@@ -44,6 +44,7 @@ salts in F1276: revival gap 0.9184 under every salt, spread 0.0408 at 48 probes,
 `format.sha256_bytes` routing reproduces it (1.0000). So the EFFECT stands; only the digits were ever
 unreproducible. New code must route via `srmech.amsc.format.sha256_bytes` per the CLAUDE.md §2 row.
 """
+from srmech.amsc import format as fmt  # Class-A content-address (F1284)
 import sys
 import time
 from array import array
@@ -146,7 +147,7 @@ def part_b():
         d1 = [rs[i + 1] - rs[i] for i in range(len(rs) - 1)]
         log("    dim=%-6d recall  %s" % (dim, " ".join("%.2f" % x for x in rs)))
         log("    %-11s deltas  %s" % ("", " ".join("%+.2f" % x for x in d1)))
-        flats = sum(1 for x in d1 if cascade.magnitude(x) < 0.06)   # Class-K pin-slot, not the builtin
+        flats = sum(1 for x in d1 if abs(x) < 0.06)   # Class-K pin-slot, not the builtin  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         log("    %-11s near-flat steps: %d / %d  -> %s" %
             ("", flats, len(d1),
              "PLATEAU present (structure)" if flats >= 2 else "featureless monotone decay"))
@@ -175,7 +176,7 @@ def part_a():
         n_ch = (M + cap - 1) // cap
         buckets = [[] for _ in range(n_ch)]
         for i in range(M):
-            buckets[hash(k[i]) % n_ch].append(i)          # content-routed, deterministic per run
+            buckets[int(fmt.sha256_bytes(k[i])[:16], 16) % n_ch].append(i)          # content-routed, deterministic per run
         stores = []
         for bk in buckets:
             stores.append(build([b[i] for i in bk], dim) if bk else None)
@@ -183,7 +184,7 @@ def part_a():
         probes = list(range(0, M, max(1, M // 8)))
         hits = 0
         for p in probes:
-            ch = hash(k[p]) % n_ch
+            ch = int(fmt.sha256_bytes(k[p])[:16], 16) % n_ch
             members = buckets[ch]
             if not members:
                 continue

@@ -202,7 +202,7 @@ def main():
         delta = m_q4 - m_fp16
         print(f"  Controlled (chat fp16 vs Q4): mean percentile {m_fp16:.1f}% vs {m_q4:.1f}%")
         print(f"  Δ = {delta:+.1f}pp (positive = Q4 worse than fp16)")
-        if cascade.magnitude(delta) < 3.0:
+        if abs(delta) < 3.0:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
             print(f"  → Quantization tax is MINOR at this corpus scale (<3pp).")
             print(f"  → Source-side numeric precision does NOT propagate strongly into")
             print(f"    cascade read-mode at byte-mode + 3.5k-byte scale.")

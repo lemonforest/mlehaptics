@@ -26,6 +26,7 @@ Scope: STRUCTURAL / origin-of-life literature reading; framework-reading; MFO VI
 no metaphysical pronouncement (a transducer lays the falsification, does not pronounce
 the cosmos alive -- [[user_stance_ai_is_not_a_substrate]]).
 """
+from srmech.amsc import format as fmt  # Class-A content-address (F1284)
 from __future__ import annotations
 
 import datetime as _dt

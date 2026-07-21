@@ -164,7 +164,7 @@ def main():
             hi_a, hi_r = fit(pts[len(pts) // 2:])
             log("  lower half exponent %.3f  (dims %s)" % (lo_a, [d for d, _ in pts[:len(pts) // 2 + 1]]))
             log("  upper half exponent %.3f  (dims %s)" % (hi_a, [d for d, _ in pts[len(pts) // 2:]]))
-            log("  => %s" % ("STABLE across the span" if cascade.magnitude(hi_a - lo_a) < 0.12
+            log("  => %s" % ("STABLE across the span" if abs(hi_a - lo_a) < 0.12  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
                              else "DRIFTS with dim — 0.926 is a local slope, not a law"))
         log("")
         log("  F1267 measured 0.926 over 1024..4096. This run spans 512..16384.")

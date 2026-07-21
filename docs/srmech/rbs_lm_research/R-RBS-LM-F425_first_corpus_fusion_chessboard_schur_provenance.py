@@ -61,7 +61,7 @@ def main():
     # (2) FUSION keeps positions AND folds the bulk: effective couplings between non-adjacent rim squares
     pos = {idx: i for i, idx in enumerate(rim)}
     folded = sum(1 for ai, a in enumerate(rim) for b in rim[ai+1:]
-                 if not board_adjacent(a, b, n) and cascade.magnitude(S_A[pos[a]][pos[b]]) > 1e-9)
+                 if not board_adjacent(a, b, n) and abs(S_A[pos[a]][pos[b]]) > 1e-9)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
     ok['(2) FUSION: interior folds into rim-rim couplings (non-adjacent)'] = folded > 0
 
     # (3) HOLOGRAPHY (decisive): same rim, different bulk (interior wall) -> different S
@@ -69,7 +69,7 @@ def main():
     B = L.dense_laplacian(N, grid_edges(n, skip=wall))
     S_B = L.schur_complement(B, rim, exact=False)
     maxdiff = max(cascade.magnitude(S_A[i][j] - S_B[i][j]) for i in range(len(rim)) for j in range(len(rim)))
-    changed = sum(1 for i in range(len(rim)) for j in range(len(rim)) if cascade.magnitude(S_A[i][j] - S_B[i][j]) > 1e-9)
+    changed = sum(1 for i in range(len(rim)) for j in range(len(rim)) if abs(S_A[i][j] - S_B[i][j]) > 1e-9)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     ok['(3) HOLOGRAPHY: boundary S is a function of the bulk (wall changes S)'] = maxdiff > 1e-9
 
     # (4) contrast with the projection (operand dropped)

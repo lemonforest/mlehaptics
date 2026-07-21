@@ -1,42 +1,19 @@
 {
-  "_comment": "Updated 2026-07-21 (F1283) after the abs() migration. PREVIOUS baseline froze 142 HARD (F1281) after establishing all of it lived in standalone historical probes and the shipped siona package had zero. User direction then OVERRODE the preserve-probes discipline for abs() specifically: 'establish the pattern that math must come from srmech and when we found it doesn't, that we correct it.' 108 abs() sites migrated to Class-K cascade.magnitude; 2 sites marked srmech-allow because |z| of a COMPLEX value (Kuramoto order parameter) is a Euclidean modulus, a DIFFERENT cascade class that magnitude rejects by contract -- those were never violations. abs() HARD is now 0. Remaining 31: hash() 25, hashlib.sha256 2, np.linalg.* 4. VERIFIED behaviour-preserving on all 11 migrated probes runnable in a numpy-free venv (byte-identical output); the other 52 changed files need numpy or an uncommitted corpus and could NOT be run -- for those the guarantee is AST-precise rewriting + an AST check that every callee is import-bound + all-files-parse, which is strong but is not execution. RESIDUAL RISK, stated: cascade.magnitude(nan) returns 0.0 where abs(nan) returns nan, so a NaN flowing through a migrated site would be silently swallowed into a passing-looking 0.0.",
+  "_comment": "Updated 2026-07-21 (F1284). hash() HARD = 0: 20 REPRESENTATION sites -> hdc.klein4_encode_bytes, 5 ROUTING/DIGEST sites -> format.sha256_bytes. The two jobs need DIFFERENT ops (F1277); a routing-first pass silently converts representation seeds to sha256 ('stable but not resonant'), so representation must be matched FIRST. abs(): 71 tolerance COMPARISONS were reverted from cascade.magnitude back to abs() and marked srmech-allow, because magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0) that in a threshold turns a NaN failure into a PASS. srmech's own package and C source contain ZERO abs() calls, while its TEST SUITE uses abs() at 649 sites for exactly this reason -- upstream is compliant and the distinction is real: Class-K magnitude COMPUTES a magnitude, it does not GUARD a threshold.",
   "files": {
     "R-RBS-LM-54p_cluster_rank_smoke.py": 1,
     "R-RBS-LM-92_coupling_evolution_eigvec_emergence_smoke.py": 1,
     "R-RBS-LM-93_bidirectional_cooccurrence_pope_couplet_smoke.py": 1,
     "R-RBS-LM-94_arts_transmission_function_test_smoke.py": 1,
-    "R-RBS-LM-CHUNKLAW_chunked_stores_and_is_the_capacity_ratio_a_projection_not_a_constant.py": 2,
-    "R-RBS-LM-EXPONENT_pin_the_capacity_exponent_and_test_the_cayley_dickson_chunk_reading.py": 2,
     "R-RBS-LM-FEEDBACK_instrument_output_through_the_one_permute_vs_bind.py": 1,
-    "R-RBS-LM-FINDING_1000_QDFT_peak_read_closes_rung_selection_and_elliptic_BEATS_independent_on_the_phase_coherent_read_F999_prediction_confirmed.py": 1,
-    "R-RBS-LM-FINDING_1001_full_complex_QDFT_does_NOT_amplify_peak_is_optimal_for_the_single_rung_spike_elliptic_win_is_noise_floor_not_coherence.py": 1,
-    "R-RBS-LM-FINDING_903_three_bonds_caloric_reading_reversibility.py": 1,
-    "R-RBS-LM-FINDING_976_multi_time_read_buys_sqrtk_altitude_but_the_rung_rate_is_invariant_ground_truth_of_loss.py": 1,
-    "R-RBS-LM-FINDING_981_etak_deeper_at_heavy_real_corpus_load_recovers_where_fast_fails.py": 1,
-    "R-RBS-LM-FINDING_982_de_lens_at_runtime_not_write_time_write_time_drop_doctors_the_ssot_and_destroys_shapes.py": 1,
-    "R-RBS-LM-FINDING_983_full_plus_runtime_delens_rebuild_raw_idf_too_blunt_needs_function_ness_not_frequency.py": 1,
-    "R-RBS-LM-FINDING_984_aboutness_gate_is_document_frequency_one_sided_suppression_the_correct_runtime_delens.py": 1,
-    "R-RBS-LM-FINDING_985_end_to_end_gate_wired_into_cut_and_emission_doubles_content_recall.py": 1,
-    "R-RBS-LM-FINDING_986_etak_deeper_on_gated_pipeline_lifts_buried_recall_57_to_82.py": 1,
-    "R-RBS-LM-FINDING_991_measure_R_on_real_gated_tomes_capacity_lever_pushes_it_wider_context_does_not.py": 1,
-    "R-RBS-LM-FINDING_992_low_load_landmarks_confirmed_the_wall_is_artificial_multi_perspective_breaks_it_soft_beats_hard.py": 1,
-    "R-RBS-LM-FINDING_993_chirality_frame_perspectives_collapse_on_identity_stored_M_you_cannot_read_a_chirality_you_didnt_write.py": 1,
-    "R-RBS-LM-FINDING_994_symmetric_chirality_is_useless_write_or_generate_the_storage_smart_lever_is_the_asymmetric_fractal_fold.py": 1,
-    "R-RBS-LM-FINDING_995_asymmetric_fold_encoder_separates_the_distribution_at_1x_storage_oracle_rung_76_vs_58.py": 1,
-    "R-RBS-LM-FINDING_997_resonant_spectral_store_beats_discrete_bundle_55_vs_42_but_subharmonic_only_fails_fine_edges_are_high_modes.py": 1,
-    "R-RBS-LM-FINDING_998b_two_tier_resonant_translation_bridge_grounded_bounded_high_band_kernel_resolves_fine_content.py": 1,
-    "R-RBS-LM-FINDING_998c_distributional_read_lifts_recall_to_92_top5_but_discrete_bundle_distributes_better_than_resonant_complementary.py": 1,
-    "R-RBS-LM-FINDING_998d_propose_resolve_pipeline_beats_both_alone_sparse_proposes_resonant_resolves_60_vs_53_vs_47.py": 1,
-    "R-RBS-LM-FINDING_999_elliptic_minus_z_inverse_rung_keys_MATCH_not_beat_independent_keys_on_discrete_read_structure_pays_off_in_resonant_read.py": 1,
-    "R-RBS-LM-SEEDENSEMBLE_which_lodged_quantities_are_couple_invariant_and_the_prng_serialization_dependency.py": 1,
     "R-RBS-LM-TWOROUTES_cyclic_vs_cyclic_plus_hdc_theone.py": 1
   },
   "frozen_composition": {
     "abs": 0,
-    "hash": 25,
+    "hash": 0,
     "hashlib.sha256": 2,
     "np.linalg.*": 4
   },
   "live_code_hard": 0,
-  "total": 31
+  "total": 6
 }

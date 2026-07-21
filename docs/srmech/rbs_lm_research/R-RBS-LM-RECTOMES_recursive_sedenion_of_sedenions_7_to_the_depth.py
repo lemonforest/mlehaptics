@@ -38,12 +38,12 @@ def main():
     exact = 0
     for (t, s) in [(0, 0), (0, 6), (3, 4), (6, 6)]:
         idx = t * K + s
-        assert cascade.magnitude(reg.uncouple_working(super_oct)[t] - tome_keys[t]) < 1e-9   # super confirms tome t
+        assert abs(reg.uncouple_working(super_oct)[t] - tome_keys[t]) < 1e-9   # super confirms tome t  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         val = reg.uncouple_working(tomes[t])[s]                  # tome t -> complex s
-        ok = cascade.magnitude(val - items[idx]) < 1e-9
+        ok = abs(val - items[idx]) < 1e-9  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         exact += ok
         print(f"  address ({t},{s}) = item {idx:>2}: super->tome {t} confirmed, tome->slot {s} -> {val:>5.1f}  expected {items[idx]:>5.1f}  {'EXACT' if ok else 'MISS'}")
-    all_ok = all(cascade.magnitude(reg.uncouple_working(tomes[i // K])[i % K] - items[i]) < 1e-9 for i in range(M))
+    all_ok = all(abs(reg.uncouple_working(tomes[i // K])[i % K] - items[i]) < 1e-9 for i in range(M))  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"  -> all {M} items exactly addressable through the 2-level (super, tome, slot): {all_ok}\n")
 
     print("CAPACITY (7^depth in O(depth) octonions):")

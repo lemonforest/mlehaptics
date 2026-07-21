@@ -203,7 +203,7 @@ def integrate_fixed(m, edges, topology, seed, intermittent=False,
     if degree_weight:                                      # FIX (b) — degree-normalized coupling
         deg = _degrees(m, edges)
         # near-zero degree guard via cascade.magnitude (never abs()): an isolated node keeps weight 1.
-        deg_safe = np.array([d if cascade.magnitude(float(d)) > 0.0 else 1.0 for d in deg], dtype=float)
+        deg_safe = np.array([d if abs(float(d)) > 0.0 else 1.0 for d in deg], dtype=float)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         a_full = a_full / deg_safe[:, None]                # row-normalize (random-walk coupling)
 
     edge_rng = np.random.RandomState(seed + 7777)          # F235's independent edge-gating stream
@@ -330,7 +330,7 @@ def _lock_at_k(m, edges, topo, intermittent, kstrength, hub_off, deg_w):
     a_full = f235._dense_matrix(m, edges, kstrength)
     if deg_w:
         deg = _degrees(m, edges)
-        deg_safe = np.array([d if cascade.magnitude(float(d)) > 0.0 else 1.0 for d in deg], dtype=float)
+        deg_safe = np.array([d if abs(float(d)) > 0.0 else 1.0 for d in deg], dtype=float)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         a_full = a_full / deg_safe[:, None]
     edge_rng = np.random.RandomState(SEED + 7777)
     stable = 0

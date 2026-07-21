@@ -17,7 +17,7 @@ def pos_key(i): return hdc.klein4_random(D, seed=0x70000000 + i)
 def byte_atom(b): return hdc.klein4_random(D, seed=b)                       # the 256-atom periodic table
 ATOMS = [byte_atom(b) for b in range(256)]
 def compose(parts): return bundle_odd([hdc.klein4_bind(p, pos_key(i)) for i, p in enumerate(parts)])   # C1 covalent
-def atom_mint(bytes_): return hdc.klein4_random(D, seed=hash(tuple(bytes_)) & 0xFFFFFFFF)               # ionic identity
+def atom_mint(bytes_): return hdc.klein4_encode_bytes(bytes(bytes_), D)               # ionic identity
 def chained(parts):
     acc = parts[0]
     for p in parts[1:]: acc = hdc.klein4_bind(acc, p)

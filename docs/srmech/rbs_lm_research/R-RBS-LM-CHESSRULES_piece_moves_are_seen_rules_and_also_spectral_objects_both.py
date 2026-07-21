@@ -82,7 +82,7 @@ def main():
     edges = sorted(edges); weights = [1.0] * len(edges)
     L = laplacian.dense_laplacian(B * B, edges, weights)
     evals = sorted(float(x) for x in laplacian.jacobi_eigvals(L))
-    zeros = sum(1 for e in evals if cascade.magnitude(e) < 1e-9)                 # # near-zero eigenvalues = # connected components
+    zeros = sum(1 for e in evals if abs(e) < 1e-9)                 # # near-zero eigenvalues = # connected components  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"    knight-move graph on {B}x{B}: {B*B} squares, {len(edges)} edges (all SEEN from the rule, no games)")
     print(f"    Laplacian spectrum (Class L): lambda_min={evals[0]:.4f}  lambda_max={evals[-1]:.4f}  (zero-eigs={zeros} => {zeros} component(s))")
     print(f"    smallest few: {[round(e,3) for e in evals[:4]]}   largest few: {[round(e,3) for e in evals[-4:]]}")

@@ -196,10 +196,10 @@ def main():
           f"spread {depth_spread:.0f} (max-min)")
     print(f"  SURFACE repetition range: {reps_a.min():.3f} .. {reps_a.max():.3f}")
     print(f"  axis correlation (depth vs surface-rep): {corr:+.3f}")
-    if cascade.magnitude(corr) < 0.4 and depth_spread <= 1:
+    if abs(corr) < 0.4 and depth_spread <= 1:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         print("  → storage depth ~INVARIANT + surface repetition varies independently")
         print("    ⇒ SEPARABLE axes (structural support: same storage, different expression)")
-    elif cascade.magnitude(corr) >= 0.7:
+    elif abs(corr) >= 0.7:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         print("  → depth and surface-rep CORRELATED ⇒ not cleanly separable on this set")
         print("    (the repetition IS the deep structure here; honest non-separation)")
     else:

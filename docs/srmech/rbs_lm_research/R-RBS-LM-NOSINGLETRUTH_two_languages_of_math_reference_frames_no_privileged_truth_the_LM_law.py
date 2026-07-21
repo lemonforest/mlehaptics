@@ -34,12 +34,12 @@ def main():
     # (1) the_one: two chiral hands = two languages of math for ONE invariant thing
     vp = cascade.the_one(1, 90, 360, 12).to_numpy()
     vm = cascade.the_one(-1, 90, 360, 12).to_numpy()
-    anchor = [i for i in range(len(vp)) if cascade.magnitude(vp[i] - vm[i]) < 1e-9]
-    band = [i for i in range(len(vp)) if cascade.magnitude(vp[i] + vm[i]) < 1e-9 and cascade.magnitude(vp[i]) > 1e-9]
+    anchor = [i for i in range(len(vp)) if abs(vp[i] - vm[i]) < 1e-9]  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
+    band = [i for i in range(len(vp)) if abs(vp[i] + vm[i]) < 1e-9 and abs(vp[i]) > 1e-9]  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print("(1) the_one's TWO HANDS = TWO LANGUAGES OF MATH for ONE thing (F589):")
     print(f"    ANCHOR (the INVARIANT 'thing', identical across +sigma/-sigma hands): coords {anchor}")
     print(f"    BAND   (the FRAME, differs by hand -- the 'which language'):          coords {band}")
-    print(f"    norm(+sigma)={norm(vp):.4f} == norm(-sigma)={norm(vm):.4f}: {cascade.magnitude(norm(vp)-norm(vm))<1e-9}  (the INVARIANT magnitude)")
+    print(f"    norm(+sigma)={norm(vp):.4f} == norm(-sigma)={norm(vm):.4f}: {abs(norm(vp)-norm(vm))<1e-9}  (the INVARIANT magnitude)")  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"    -> one invariant, two frame-descriptions. NEVER one description. (DUALITY.md: two truths, neither privileged.)\n")
 
     # (2) RELATIVITY: one meaning, many reference frames (languages); the invariant content-address is SHARED

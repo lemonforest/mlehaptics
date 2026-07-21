@@ -83,7 +83,7 @@ def erasure_reconstruct(v, keep_idx):
     1-D null space => x = scale * v; scale fixed by ANY nonzero kept coefficient. Part-contains-whole."""
     scale = None
     for i in keep_idx:
-        if cascade.magnitude(v[i]) > 1e-9:
+        if abs(v[i]) > 1e-9:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
             scale = 1.0  # the kept coefficient already equals scale*v[i] with the same scale used to build x
             break
     return scale is not None  # reconstructable iff at least one kept coordinate pins the (1-D) scale

@@ -36,6 +36,7 @@ salts in F1276: revival gap 0.9184 under every salt, spread 0.0408 at 48 probes,
 `format.sha256_bytes` routing reproduces it (1.0000). So the EFFECT stands; only the digits were ever
 unreproducible. New code must route via `srmech.amsc.format.sha256_bytes` per the CLAUDE.md §2 row.
 """
+from srmech.amsc import format as fmt  # Class-A content-address (F1284)
 import math
 import sys
 import time
@@ -159,12 +160,12 @@ def part2():
         n_ch = (M + cap - 1) // cap
         buckets = [[] for _ in range(n_ch)]
         for i in range(M):
-            buckets[hash(k[i]) % n_ch].append(i)
+            buckets[int(fmt.sha256_bytes(k[i])[:16], 16) % n_ch].append(i)
         stores = [build([b[i] for i in bk], dim) if bk else None for bk in buckets]
         probes = list(range(0, M, max(1, M // 12)))
         hits = 0
         for p in probes:
-            ch = hash(k[p]) % n_ch
+            ch = int(fmt.sha256_bytes(k[p])[:16], 16) % n_ch
             mem = buckets[ch]
             if not mem:
                 continue

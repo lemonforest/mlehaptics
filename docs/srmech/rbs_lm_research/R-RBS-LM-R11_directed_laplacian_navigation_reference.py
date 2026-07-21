@@ -100,7 +100,7 @@ def main():
 
     print("\n=== verdict ===")
     directional = asym_frac > 0.05
-    shuffle_destroys = asym_frac_sh < asym_frac * 0.5 and cascade.magnitude(r_anti) < 0.5
+    shuffle_destroys = asym_frac_sh < asym_frac * 0.5 and abs(r_anti) < 0.5  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"  co-occurrence is genuinely DIRECTIONAL (asym>0.05): {directional}")
     print(f"  directed structure is REAL (shuffle destroys it): {shuffle_destroys}")
     print(f"  directed op is srmech-NATIVE via hermitian_eigendecompose(i(A-Aᵀ)) (no numpy eig): {srmech_native}")

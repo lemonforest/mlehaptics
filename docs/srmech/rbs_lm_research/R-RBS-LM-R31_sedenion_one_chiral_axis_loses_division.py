@@ -68,7 +68,7 @@ def main():
     second_half2 = octonion_norm(a_lift[8:]) ** 2                  # ||doubled-copy half||^2
     lifted_into_second = first_half2 < 1e-9 and second_half2 > 1e-9
     print(f"\n(1) ONE chiral axis e8 (the doubling unit):")
-    print(f"    e8*e8 = {e8sq[:1].tolist()} (re part) -> e8^2 = -1  (truly imaginary): {cascade.magnitude(e8sq[0] + 1) < 1e-9}")
+    print(f"    e8*e8 = {e8sq[:1].tolist()} (re part) -> e8^2 = -1  (truly imaginary): {abs(e8sq[0] + 1) < 1e-9}")  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"    (octonion a in first half) * e8 lands ENTIRELY in the doubled copy O*e8: {bool(lifted_into_second)}")
     print(f"    => e8 is ONE chiral axis that carries the WHOLE octonion O into its mirror copy.")
 

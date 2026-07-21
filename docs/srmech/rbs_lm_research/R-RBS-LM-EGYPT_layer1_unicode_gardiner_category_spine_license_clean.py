@@ -19,6 +19,7 @@ srmech 0.7.5rc6: Class-E catalog taxonomy; Class-M HDC category anchors (signal_
 attestation (format.sha256_bytes). The sign enumeration is stdlib unicodedata (Unicode license). No abs(); no CAD; no
 Workflow tool; no sub-agents.
 """
+from srmech.amsc import format as fmt  # Class-A content-address (F1284)
 import re
 import json
 import unicodedata

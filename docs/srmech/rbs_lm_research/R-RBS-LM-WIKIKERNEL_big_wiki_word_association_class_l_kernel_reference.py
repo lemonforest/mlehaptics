@@ -55,6 +55,7 @@ DISCIPLINE: srmech-first (NEVER a numpy hand-rolled eig; NEVER a Counter AS the 
   only builds edge weights). NEVER python abs() (sign = Class-K; magnitude = cascade.magnitude). No
   CAD; no Workflow tool; no sub-agents.
 """
+from srmech.amsc import format as fmt  # Class-A content-address (F1284)
 import sys
 import re
 import unicodedata

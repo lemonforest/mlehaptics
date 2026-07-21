@@ -560,7 +560,7 @@ def _standardize(rows):
     mat = np.array(rows, dtype=float)
     mu = mat.mean(axis=0)
     sd = mat.std(axis=0)
-    sd_safe = np.array([s if cascade.magnitude(float(s)) > 1e-12 else 1.0 for s in sd])
+    sd_safe = np.array([s if abs(float(s)) > 1e-12 else 1.0 for s in sd])  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     return (mat - mu) / sd_safe
 
 

@@ -20,7 +20,7 @@ FUNC_THRESH=int(NDOC*0.6)                       # in >=60% of tomes => function
 def gate(t):                                    # ONE-SIDED: content unchanged; function suppressed prop. to doc-spread
     d=docf.get(t,1)
     return 1.0 if d<FUNC_THRESH else (FUNC_THRESH/d)   # (<=1 for function words; ==1 for content)
-tome=arts[0]; uniq=list(dict.fromkeys(tome)); vec={t: hdc.klein4_random(D, seed=(hash(t)%80000)+11) for t in uniq}
+tome=arts[0]; uniq=list(dict.fromkeys(tome)); vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}
 M=cs.bundle_odd([bind(bind(vec[x],ROLE),vec[y]) for x,y in zip(tome,tome[1:]) if x!=y])
 def read(ctx, gated):
     probe=bind(M,bind(vec[ctx],ROLE))

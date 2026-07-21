@@ -56,7 +56,7 @@ weights = [1.0] * len(undirected)
 L = laplacian.dense_laplacian(N, undirected, weights)
 spec = sorted(float(x) for x in laplacian.jacobi_eigvals(L))
 spec_fp = sha256_bytes(np.round(np.array(spec, dtype=float), 9).tobytes())   # Class-A pin on Class-L
-ncomp = sum(1 for x in spec if srmech_magnitude(x) < 1e-9)
+ncomp = sum(1 for x in spec if abs(x) < 1e-9)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
 
 ADJ = np.zeros((N, N), dtype=bool)
 for u, v in undirected:

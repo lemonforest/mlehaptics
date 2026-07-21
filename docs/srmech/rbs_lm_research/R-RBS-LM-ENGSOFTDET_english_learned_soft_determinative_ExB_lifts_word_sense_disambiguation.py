@@ -152,7 +152,7 @@ def main():
     print(f"    (coupled backed off to the prior on {backoff}/{n} = {backoff/n:.0%} unseen (form,det) cells -> no memorisation cheat)\n")
 
     print("VERDICT (does the SAME E×B coupling lift English WSD when the class is LEARNED, not given?):")
-    verdict = "YES" if gain > 0.02 else ("NO (within noise)" if cascade.magnitude(gain) <= 0.02 else "WORSE")
+    verdict = "YES" if gain > 0.02 else ("NO (within noise)" if abs(gain) <= 0.02 else "WORSE")  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"  • {verdict}: binding a LEARNED soft-determinative (the highest-IDF context word, a co-occurrence meaning-class)")
     print(f"    as sigma_B lifts English pseudoword disambiguation from {single_acc:.1%} (form alone) to {coupled_acc:.1%} -- a {gain:+.1%} gain")
     print(f"    on held-out data. The SAME E×B coupling that worked on the explicit Egyptian determinative (F596, +25.7%)")

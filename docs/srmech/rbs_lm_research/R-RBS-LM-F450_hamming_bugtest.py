@@ -83,7 +83,7 @@ print("\n[6] front-loader all-native: CARRY ∘ COUPLE end-to-end")
 rng2=np.random.default_rng(7); streams7=list(rng2.normal(size=7))
 oct_c=cascade.hypercomplex_couple(streams7, axis="diagonal", sigma=+1)
 # derive 11 structure bits from the coupled octonion (sign bits of 8 comps + 3 magnitude-threshold bits)
-bits=[1 if x>=0 else 0 for x in oct_c][:8] + [1 if cascade.magnitude(x)>0.5 else 0 for x in oct_c[:3]]
+bits=[1 if x>=0 else 0 for x in oct_c][:8] + [1 if abs(x)>0.5 else 0 for x in oct_c[:3]]  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
 bits=bits[:11]
 cw=cascade.hamming_encode(bits,4)                     # CARRY: 11 structure bits + 4 EC -> 15 slots
 corr=list(cw); corr[9]^=1                             # one slot corrupted in transit

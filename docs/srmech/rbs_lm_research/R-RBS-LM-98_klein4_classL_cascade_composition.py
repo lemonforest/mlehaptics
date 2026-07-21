@@ -78,7 +78,7 @@ def klein4_encode_eigvec(eigvec: np.ndarray, D: int, sector: int, rng) -> np.nda
         v = eigvec[indices[d]]
         # Quantise eigvec value into 4 states using 2-bit Gray-like code
         bit_high = 1 if v > 0 else 0  # gamma5 axis: sign
-        bit_low = 1 if cascade.magnitude(v) > 0.1 else 0  # omega7 axis: magnitude
+        bit_low = 1 if abs(v) > 0.1 else 0  # omega7 axis: magnitude  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         states[d] = (bit_high << 1) | bit_low
 
     # 2. Apply chirality-axis tag (sector mask via klein4_bind with constant sector)

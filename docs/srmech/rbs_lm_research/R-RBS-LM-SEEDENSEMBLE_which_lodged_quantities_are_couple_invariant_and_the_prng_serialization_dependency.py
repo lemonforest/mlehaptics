@@ -27,6 +27,7 @@ srmech 0.9.0rc288. Composes F1254/F1256/F1257 (the lodged results under test), F
 `[[feedback_read_independent_structure_check_first]]`, the F228 no-magic-numbers audit, #263 (melange).
 Run:  /tmp/srmech_rc288/bin/python3 R-RBS-LM-SEEDENSEMBLE_*.py [--limit N] [--seeds K]
 """
+from srmech.amsc import format as fmt  # Class-A content-address (F1284)
 import argparse
 import json
 import sys
@@ -112,7 +113,7 @@ def main():
         n_core = len(core.get("core") or core.get("core_ids") or [])
         rows.append({"seed": seed, "vocab": len(sc), "k": core.get("k"), "n_core": n_core,
                      "n_sections": ext.get("n_sections"),
-                     "sc_digest": hash(tuple(sorted(sc.items())[:2000]))})
+                     "sc_digest": fmt.sha256_bytes(repr(tuple(sorted(sc.items()).encode())[:2000]))})
         shutil.rmtree(store, ignore_errors=True)
         log("  seed=%-8d vocab=%-8d k=%-7s n_core=%-6d n_sections=%s" %
             (seed, len(sc), core.get("k"), n_core, ext.get("n_sections")))

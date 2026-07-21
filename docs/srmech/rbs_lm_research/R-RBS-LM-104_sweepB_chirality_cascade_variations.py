@@ -129,7 +129,7 @@ def items_7_8_encoding_refinement(D, rng):
         states = np.zeros(D, dtype=np.uint8)
         for d in range(D):
             v = eigvec[indices[d]]
-            states[d] = ((1 if v > 0 else 0) << 1) | (1 if srmech_magnitude(v) > 0.1 else 0)
+            states[d] = ((1 if v > 0 else 0) << 1) | (1 if abs(v) > 0.1 else 0)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         return hdc.klein4_bind(states, np.full(D, sector, dtype=np.uint8))
 
     # Strategy B: random projection per eigvec
@@ -155,7 +155,7 @@ def items_7_8_encoding_refinement(D, rng):
                 content_states = np.zeros(D, dtype=np.uint8)
                 for d in range(D):
                     v = eigvecs[tile_indices[d], eig_idx]
-                    content_states[d] = ((1 if v > 0 else 0) << 1) | (1 if srmech_magnitude(v) > 0.1 else 0)
+                    content_states[d] = ((1 if v > 0 else 0) << 1) | (1 if abs(v) > 0.1 else 0)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
                 base_content = content_states  # before sector tag applied
             else:
                 base_content = hdc.klein4_random(D, np.random.default_rng(int(eig_idx) * 7919))

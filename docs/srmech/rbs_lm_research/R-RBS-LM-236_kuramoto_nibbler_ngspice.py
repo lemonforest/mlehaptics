@@ -304,7 +304,7 @@ def path_fiedler(m):
     laplacian_m = lap.dense_laplacian(m, edges)               # Class L
     eig = sorted(float(e) for e in lap.jacobi_eigvals(laplacian_m))  # Class L (no np.linalg)
     # count near-zero eigenvalues = connected components, via Class-K magnitude (no abs())
-    n_zero = sum(1 for e in eig if cascade.magnitude(e) < 1e-9)
+    n_zero = sum(1 for e in eig if abs(e) < 1e-9)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     lam_2 = eig[1] if len(eig) > 1 else 0.0
     return float(lam_2), int(n_zero)
 

@@ -17,7 +17,7 @@ with open('/home/skirklan/corpora/wikipedia/simplewiki_fullbody_instrument.ndjso
 tome=toks[:180]                                    # BOUNDED tome (chunk), ALL tokens kept
 uniq=list(dict.fromkeys(tome)); freq={}
 for t in toks: freq[t]=freq.get(t,0)+1             # freq from a wider slice for the idf lens
-vec={t: hdc.klein4_random(D, seed=(hash(t)%80000)+11) for t in uniq}
+vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}
 nexts={}
 for a,b in zip(tome,tome[1:]):
     if a!=b: nexts.setdefault(b,{}).setdefault(a,0); nexts[b][a]+=1

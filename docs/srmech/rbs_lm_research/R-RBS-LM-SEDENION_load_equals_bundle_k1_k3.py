@@ -102,7 +102,7 @@ def main():
     within_k1 = [similarity(K1_modes[i], K1_modes[j]) for i, j in itertools.combinations(range(NMODES), 2)]
     print("\n[2] K1 (presence)  vs  K3 (directed/order)  modes — do the two channels carry DIFFERENT structure?")
     print(f"      K1×K3 cross-similarity mean = {np.mean(cross):+.3f}  (|mean| {cascade.magnitude(np.mean(cross)):.3f})  → "
-          f"{'ORTHOGONAL — K3 adds order info K1 lacks' if cascade.magnitude(np.mean(cross)) < 0.15 else 'overlapping'}")
+          f"{'ORTHOGONAL — K3 adds order info K1 lacks' if abs(np.mean(cross)) < 0.15 else 'overlapping'}")  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
     print(f"      (K1 within-channel mean = {np.mean(within_k1):+.3f}, for scale)")
 
     # [3] the cost ledger

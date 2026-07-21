@@ -17,7 +17,7 @@ with open('/home/skirklan/corpora/wikipedia/simplewiki_fullbody_instrument.ndjso
 toks=toks[:3000]
 uniq=list(dict.fromkeys(toks)); freq={}
 for t in toks: freq[t]=freq.get(t,0)+1
-vec={t: hdc.klein4_random(D, seed=(hash(t)%80000)+11) for t in uniq}
+vec={t: hdc.klein4_encode_bytes(t.encode() if isinstance(t, str) else bytes(t), D) for t in uniq}
 # FULL memory -- ALL tokens incl function words + punctuation-as-tokens; nothing dropped, shapes preserved
 M=cs.bundle_odd([bind(bind(vec[a],ROLE),vec[b]) for a,b in zip(toks,toks[1:]) if a!=b])
 cand=uniq[:150]

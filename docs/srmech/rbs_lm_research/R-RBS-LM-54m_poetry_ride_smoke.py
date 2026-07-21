@@ -369,7 +369,7 @@ def main():
         verdict = "MODERATE substrate-mismatch: poetry ride beats prose ride by Δ={:+.3f}".format(delta)
     elif delta > 0.03:
         verdict = "WEAK substrate-mismatch: poetry slightly better but margin small (Δ={:+.3f})".format(delta)
-    elif cascade.magnitude(delta) < 0.03:
+    elif abs(delta) < 0.03:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         verdict = "NO substrate-mismatch: poetry and prose ride perform similarly (Δ={:+.3f}); ride mechanism is substrate-agnostic and limited regardless".format(delta)
     else:
         verdict = "REVERSE: prose ride beats poetry ride (Δ={:+.3f}); user hypothesis NOT supported".format(delta)

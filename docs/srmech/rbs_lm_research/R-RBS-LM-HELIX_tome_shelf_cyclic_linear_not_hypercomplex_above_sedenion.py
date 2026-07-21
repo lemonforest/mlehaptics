@@ -56,11 +56,11 @@ def main():
     for i in (0, 6, 35, 90):
         t, s = i // K, i % K
         val = reg.uncouple_working(tomes[t])[s]
-        good = cascade.magnitude(val - items[i]) < 1e-9
+        good = abs(val - items[i]) < 1e-9  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
         ok += good
         turn, pos, _ = helix_coord(t, P)
         print(f"    item {i:>2} = tome {t} (turn {turn}, pos {pos}) slot {s} -> {val:>5.1f}  expected {items[i]:>5.1f}  {'EXACT' if good else 'MISS'}")
-    all_ok = all(cascade.magnitude(reg.uncouple_working(tomes[i // K])[i % K] - items[i]) < 1e-9 for i in range(len(items)))
+    all_ok = all(abs(reg.uncouple_working(tomes[i // K])[i % K] - items[i]) < 1e-9 for i in range(len(items)))  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     print(f"    -> all {len(items)} complexes exactly addressable on the helix: {all_ok}\n")
 
     # why we stop at the sedenion: above S, coupling is NOT invertible (zero divisors) — the shelf avoids this entirely

@@ -160,7 +160,7 @@ G2_frac = [[[Fraction(int(round(x * 2)), 2) for x in row] for row in gen] for ge
 for a, gen in enumerate(G2):
     for r in range(NDIM):
         for c in range(NDIM):
-            assert cascade.magnitude(float(G2_frac[a][r][c]) - gen[r][c]) < 1e-9, "rational lift lossy"
+            assert abs(float(G2_frac[a][r][c]) - gen[r][c]) < 1e-9, "rational lift lossy"  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
 
 
 def stabilizer_constraint_matrix():
@@ -233,7 +233,7 @@ def stabilizer_basis_float():
     evals, evecs = laplacian.symmetric_eigendecompose(ata)
     null_vecs = []
     for idx, ev in enumerate(evals):
-        if cascade.magnitude(float(ev)) <= 1e-9:    # near-zero eigenvalue => nullspace (Class K mag, no abs)
+        if abs(float(ev)) <= 1e-9:    # near-zero eigenvalue => nullspace (Class K mag, no abs)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
             null_vecs.append(evecs[:, idx])
     mats = []
     for cvec in null_vecs:
@@ -352,7 +352,7 @@ def kernel_of_block(blocks_zero):
     evals, evecs = laplacian.symmetric_eigendecompose(ata)
     gens = []
     for idx, ev in enumerate(evals):
-        if cascade.magnitude(float(ev)) <= 1e-8:        # nullspace eigenvector (Class K mag, no abs)
+        if abs(float(ev)) <= 1e-8:        # nullspace eigenvector (Class K mag, no abs)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
             cvec = evecs[:, idx]
             D = np.zeros((NDIM, NDIM))
             for i in range(len(stab_mats)):
@@ -377,7 +377,7 @@ def centralizer_in_stabilizer(target_gens):
     evals, evecs = laplacian.symmetric_eigendecompose(ata)
     gens = []
     for idx, ev in enumerate(evals):
-        if cascade.magnitude(float(ev)) <= 1e-8:
+        if abs(float(ev)) <= 1e-8:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
             cvec = evecs[:, idx]
             D = np.zeros((NDIM, NDIM))
             for i in range(len(stab_mats)):
@@ -446,7 +446,7 @@ def _gram_schmidt(vectors):
         for q in Q:
             w = w - (q @ v) * q
         nrm = float(np.sqrt(w @ w))
-        if cascade.magnitude(nrm) > 1e-10:
+        if abs(nrm) > 1e-10:  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for exactly this reason. Class-K magnitude COMPUTES a magnitude; it does not GUARD.
             Q.append(w / nrm)
     return np.array(Q)
 

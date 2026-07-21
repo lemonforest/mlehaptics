@@ -299,7 +299,7 @@ def klein4_saturated(occ):
     majority-vote bundle has collapsed and klein4_similarity is no longer discriminative. Magnitude via
     cascade.magnitude (Class K; NEVER abs()). Returns True iff the dominant sector >= KLEIN4_D - 1."""
     dominant_count = max(occ) if occ else 0
-    return bool(cascade.magnitude(float(KLEIN4_D - dominant_count)) <= 1.0)
+    return bool(abs(float(KLEIN4_D - dominant_count)) <= 1.0)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
 
 
 # =========================================================================================
@@ -710,8 +710,8 @@ def _decide_verdict(cross_spectral, cross_klein4, mean_l, mean_m, content_recall
     h = {n: honesty_recall[n]["recall_fraction"] for n in honesty_recall}
     honesty_scales = bool(h.get("haiku", 1.0) <= h.get("sonnet", 0.0) and h.get("haiku", 1.0) <= h.get("opus", 0.0))
     # flatness = the two model-deltas are near-zero; magnitude via cascade.magnitude (Class K; NEVER abs())
-    honesty_flat = bool(cascade.magnitude(h.get("haiku", 0.0) - h.get("opus", 0.0)) < 1e-9
-                        and cascade.magnitude(h.get("sonnet", 0.0) - h.get("opus", 0.0)) < 1e-9)
+    honesty_flat = bool(abs(h.get("haiku", 0.0) - h.get("opus", 0.0)) < 1e-9  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
+                        and abs(h.get("sonnet", 0.0) - h.get("opus", 0.0)) < 1e-9)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
 
     klein4_clause = (("Class-M klein4 mean=%.3f but SATURATED (majority-vote bundle collapse at render "
                       "scale) -> corroborating-only, non-discriminative" % mean_m) if klein4_all_saturated

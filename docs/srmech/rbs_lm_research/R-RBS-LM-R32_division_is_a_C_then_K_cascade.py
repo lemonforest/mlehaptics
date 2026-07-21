@@ -98,11 +98,11 @@ def main():
 
     # (3) what ACTUALLY stops: the composition-norm  ||a*b|| = ||a||*||b||  (K homomorphism over M)
     print("\n(3) what STOPS at O — the magnitude-homomorphism ||a*b|| = ||a||*||b|| (Class K over Class M):")
-    octo_mult = all(cascade.magnitude(onorm2(omul(a, b)) - onorm2(a) * onorm2(b)) < 1e-7
+    octo_mult = all(abs(onorm2(omul(a, b)) - onorm2(a) * onorm2(b)) < 1e-7  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), turning a NaN failure into a PASS. srmech's own tests use abs() at 649 sites for this reason. Class-K magnitude COMPUTES; it does not GUARD.
                     for a, b in [(rng.standard_normal(8), rng.standard_normal(8)) for _ in range(20)])
     print(f"    OCTONION: ||a*b||^2 == ||a||^2*||b||^2 for random a,b : {octo_mult}  (composition algebra — holds)")
     sed_pairs = [(rng.standard_normal(16), rng.standard_normal(16)) for _ in range(20)]
-    sed_mult = all(cascade.magnitude(snorm2(smul(a, b)) - snorm2(a) * snorm2(b)) < 1e-7 for a, b in sed_pairs)
+    sed_mult = all(abs(snorm2(smul(a, b)) - snorm2(a) * snorm2(b)) < 1e-7 for a, b in sed_pairs)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     worst = max(cascade.magnitude(snorm2(smul(a, b)) - snorm2(a) * snorm2(b)) for a, b in sed_pairs)
     zda, zdb = e(1) + e(10), e(5) + e(14)               # the F389 zero divisor
     print(f"    SEDENION: ||a*b||^2 == ||a||^2*||b||^2 for random a,b : {sed_mult}  (worst gap {worst:.2f} — FAILS)")

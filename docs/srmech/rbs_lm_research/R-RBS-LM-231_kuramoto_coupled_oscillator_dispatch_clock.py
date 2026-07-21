@@ -161,7 +161,7 @@ def coupling_graph_spectrum(k_matrix: np.ndarray):
     eig = lap.jacobi_eigvals(L)
     eig_sorted = sorted(float(e) for e in eig)
     # count near-zero eigenvalues (algebraic connectivity probe)
-    n_zero = sum(1 for e in eig_sorted if cascade.magnitude(e) < 1e-9)
+    n_zero = sum(1 for e in eig_sorted if abs(e) < 1e-9)  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
     fiedler = eig_sorted[1] if len(eig_sorted) > 1 else 0.0
     return eig_sorted, n_zero, float(fiedler)
 

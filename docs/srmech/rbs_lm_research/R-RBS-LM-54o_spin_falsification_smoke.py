@@ -261,7 +261,7 @@ def main():
     spin_1 = spin_summary.get("spin-1", 0)
     spin_2 = spin_summary.get("spin-2", 0)
     monotonic = (spin_0 <= spin_1 <= spin_2) and (spin_2 > spin_0)
-    big_gap = cascade.magnitude(spin_2 - spin_0) >= 2  # excess clusters difference
+    big_gap = abs(spin_2 - spin_0) >= 2  # excess clusters difference  # srmech-allow: TOLERANCE COMPARISON — cascade.magnitude has a documented Class-K DEAD-BAND (NaN -> 0.0), which in a threshold turns a NaN failure into a PASS. srmech's own tests use abs() here for exactly this reason (649 sites). Class-K magnitude COMPUTES a magnitude; it does not GUARD.
 
     if monotonic and big_gap:
         verdict = "FORM-ISOMORPHISM SUPPORTED: degenerate-cluster count increases monotonically with predicted spin-N (spin-0={}, spin-1={}, spin-2={})".format(spin_0, spin_1, spin_2)
