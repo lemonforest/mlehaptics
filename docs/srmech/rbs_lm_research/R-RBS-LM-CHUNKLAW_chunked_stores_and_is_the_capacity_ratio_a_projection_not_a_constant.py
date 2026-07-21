@@ -34,6 +34,15 @@ srmech 0.9.0rc288. Integer accumulators; no numpy.
 Composes F1265 (whose 1/16 and "ratio law confirmed" are both corrected here), F1264, F1263,
 [[feedback_dim_size_2n_capacity_is_D_independent]], F1205/#263 (couple, never merge).
 Run:  /tmp/srmech_rc288/bin/python3 R-RBS-LM-CHUNKLAW_*.py
+
+DEFECT NOTICE (added 2026-07-21, issue #1454 / F1276): the chunk router below uses builtin `hash()`,  (srmech-allow: this notice names the defect)
+which is PYTHONHASHSEED-SALTED, so the partition it produces DIFFERS ON EVERY INTERPRETER RUN and the
+exact numbers this harness printed are NOT reproducible. The harness is PRESERVED AS-RUN (it is the
+historical probe that produced the finding; rewriting it would make it no longer that thing) — see the
+F1260 precedent of repairing live code while preserving probes. The CLAIM was re-verified under pinned
+salts in F1276: revival gap 0.9184 under every salt, spread 0.0408 at 48 probes, and Class-A
+`format.sha256_bytes` routing reproduces it (1.0000). So the EFFECT stands; only the digits were ever
+unreproducible. New code must route via `srmech.amsc.format.sha256_bytes` per the CLAUDE.md §2 row.
 """
 import sys
 import time

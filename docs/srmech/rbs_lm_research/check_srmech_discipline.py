@@ -60,6 +60,17 @@ class V(ast.NodeVisitor):
             self.review.append((ln, "np.abs — OK only as a residual/diagnostic NORM (e.g. max|recon-orig|); a cascade SIGN-FOLD must use cascade.magnitude (rc22) / Class-K+C, not np.abs"))
         elif name in ("hashlib.sha256",):
             self.hard.append((ln, "hashlib.sha256 — route through srmech.amsc.format.sha256_bytes"))
+        elif name == "hash":
+            # #1454 / F1276. builtin hash() is PYTHONHASHSEED-SALTED for str AND bytes, so anything   # srmech-allow: names the idiom it forbids
+            # keyed on it differs in EVERY interpreter invocation. It is a BUILTIN — no import, so
+            # neither a pip-block (numpy, #564) nor an import-check can ever catch it; this AST rule
+            # and the pre-commit hook are the only places it can be caught. Routing/seeding by content
+            # IS Class-A content-addressing -> format.sha256_bytes, which is stable by construction.
+            # hash() on int/float/tuple-of-int is NOT salted, so this over-blocks slightly on purpose;   # srmech-allow: names the idiom it forbids
+            # escape a genuinely-stable use with  # srmech-allow: <reason>.
+            self.hard.append((ln, "hash() — PYTHONHASHSEED-salted for str/bytes (#1454/F1276): NOT "  # srmech-allow: names the idiom it forbids
+                                  "reproducible across processes. Use srmech.amsc.format.sha256_bytes "
+                                  "(Class A). PYTHONHASHSEED=0 is a workaround, not the fix."))
         elif name in HARD_EIG:
             self.hard.append((ln, f"{name} — use srmech.amsc.laplacian.{{jacobi_eigvals,hermitian_eigendecompose,symmetric_eigendecompose}}"))
         elif name == "Counter" or name.endswith(".Counter"):

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # srmech/siona discipline pre-commit tripwire — blocks NEWLY ADDED stop-list idioms in staged
 # code under docs/srmech/: the co-occurrence Counter, numpy, python abs, np.linalg eig/svd, and
-# hashlib sha256. Diff-aware: only ADDED lines are checked, so existing uses are grandfathered
+# hashlib sha256, and builtin hash() (#1454/F1276 -- PYTHONHASHSEED-salted, and a BUILTIN so   # srmech-allow: names the idiom it forbids
+# there is no import to block and nothing to pip-refuse; this gate is the only catch). Prose
+# files (.md/.txt/.rst/.ndjson) are EXCLUDED so a finding may name the idioms it discusses.
+# Diff-aware: only ADDED lines are checked, so existing uses are grandfathered
 # (the AST ratchet check_srmech_discipline.py is the full-file audit). The co-occurrence Counter
 # is stdlib so it can't be pip-blocked like numpy (no install to refuse) — this commit-gate is the
 # equivalent guard. Escape a genuinely-legit line with a trailing  # srmech-allow: <reason>
@@ -11,11 +14,14 @@
 # Install:  cp docs/srmech/rbs_lm_research/git-hook-srmech-discipline.sh "$(git rev-parse --git-path hooks)/pre-commit" && chmod +x "$(git rev-parse --git-path hooks)/pre-commit"
 set -u
 SCOPE="docs/srmech"
-added=$(git diff --cached --unified=0 -- "$SCOPE" 2>/dev/null \
+added=$(git diff --cached --unified=0 -- "$SCOPE" \
+          ':(exclude,glob)**/*.md' ':(exclude,glob)**/*.txt' \
+          ':(exclude,glob)**/*.rst' ':(exclude,glob)**/*.ndjson' \
+          ':(exclude,glob)*.md' ':(exclude,glob)*.txt' 2>/dev/null \
         | grep -E '^\+' | grep -vE '^\+\+\+' \
         | grep -vE 'srmech-allow')
 hits=$(printf '%s\n' "$added" | grep -nE \
-  '(\bCounter[[:space:]]*\()|(^\+.*\bimport[[:space:]]+numpy)|(^\+.*\bfrom[[:space:]]+numpy)|(\babs[[:space:]]*\()|(np\.linalg\.(eig|eigh|svd))|(numpy\.linalg\.(eig|eigh|svd))|(hashlib\.sha256)' \
+  '(\bCounter[[:space:]]*\()|(^\+.*\bimport[[:space:]]+numpy)|(^\+.*\bfrom[[:space:]]+numpy)|(\babs[[:space:]]*\()|(np\.linalg\.(eig|eigh|svd))|(numpy\.linalg\.(eig|eigh|svd))|(hashlib\.sha256)|(\bhash[[:space:]]*\()' \
   2>/dev/null)
 if [ -n "$hits" ]; then
   echo "x srmech discipline: a NEW stop-list idiom was added under $SCOPE (CLAUDE.md s2 / s57 / #564 numpy purge)."
