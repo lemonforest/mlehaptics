@@ -328,6 +328,17 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.sedenion_register.sed_navmap",
     "srmech.amsc.cascade.sedenion_register.sed_navigate",
     "srmech.amsc.cascade.sedenion_register.sed_is_navigable",
+    # cascade.cd_register.* (v0.9.0rc297, `#934`) — the GENERAL N-slot
+    # Cayley–Dickson register. The discoverable surface is registered under
+    # STABLE flat names ``srmech.amsc.cascade.{cd_register,cd_navmap,cd_navigate,
+    # cd_navmap_is_signed_permutation}`` (which ARE registered); the
+    # submodule-dotted names below are the SAME objects re-exported flat —
+    # exempt exactly like the cayley_dickson.* re-exports below and the
+    # sedenion_register.* ones above.
+    "srmech.amsc.cascade.cd_register.cd_register",
+    "srmech.amsc.cascade.cd_register.cd_navmap",
+    "srmech.amsc.cascade.cd_register.cd_navigate",
+    "srmech.amsc.cascade.cd_register.cd_navmap_is_signed_permutation",
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
     # under STABLE flat names ``srmech.amsc.cascade.{cd_mult,cd_conjugate,

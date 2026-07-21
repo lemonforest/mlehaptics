@@ -1314,6 +1314,15 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     # pad), and ``Q``'s constructor reaches the c_dispatched rational-reduce
     # symbol — so they are composes_c WITH C reach now, no longer zero-reach.
     "srmech.amsc.cascade.cayley_dickson.is_division_algebra_dim",
+    # cd_register (v0.9.0rc297, `#934`) — a CONSTRUCTOR, not a kernel, and the
+    # question this pin exists to force was asked: it allocates a CDRegister with
+    # an empty slot-map and codebook and computes NOTHING. Every compute path in
+    # the general N-slot register is in the METHODS, and those route to the
+    # c_dispatched cd_navmap / cd_navigate / cd_navmap_is_signed_permutation rows
+    # (real C peers: srmech_cd_navmap, srmech_cd_navigate,
+    # srmech_cd_navmap_is_signed_permutation). Exactly the shape of the
+    # sedenion_register row below, which it generalises.
+    "srmech.amsc.cascade.cd_register.cd_register",
     "srmech.amsc.cascade.compose.top_k_by_score",
     "srmech.amsc.cascade.one.one_dim",
     "srmech.amsc.cascade.one.one_flat_rational",

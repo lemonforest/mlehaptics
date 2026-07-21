@@ -7127,6 +7127,110 @@ def _register_primitive_class_tools() -> None:
                       ".couple_working/.uncouple_working (≤7 reversible word), "
                       ".carry/.correct (EC block), .navigate/.is_navigable (hyper-loop)"),
         ),
+        # The GENERAL N-slot Cayley–Dickson register (v0.9.0rc297; `#934`) — the
+        # 16-slot instrument above generalised to any power-of-two dim in
+        # [1, CD_MAX_DIM]. Registered under STABLE flat names; the submodule-dotted
+        # ``cascade.cd_register.*`` are the same objects re-exported flat (exempt in
+        # test_tool_schema_coverage). The class CDRegister is not a module-level
+        # function (not coverage-walked). SedenionRegister deliberately REMAINS an
+        # independent class, not an n=16 alias — it is the oracle the general
+        # register's faithfulness is gated against.
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_register", owner="srmech",
+            category="cascade",
+            summary="Construct a CDRegister — the GENERAL N-slot Cayley–Dickson "
+                    "ADDRESSABLE RBS-HDC register (`#934`). The dim-16 "
+                    "sedenion_register generalised to any power-of-two dim in "
+                    "[1, 64]: dim named slots e0..e{dim-1}, with e0..e7 the octonion "
+                    "reversible working block at EVERY rung and the remainder the "
+                    "carry/EC block (more slots buy ADDRESS SPACE, never a longer "
+                    "reversible word — the Hurwitz cap stays 7). The slot bound is the "
+                    "ONLY generalisation: every sign and index rule is shared with the "
+                    "16-slot register through cd_basis_product, so there is no second "
+                    "algebra. LEGITIMATE PAST THE HURWITZ WALL because addressing rides "
+                    "on the basis product being a SIGNED PERMUTATION (e_i·e_j=±e_k), "
+                    "while zero divisors are built from SUMS of basis elements — "
+                    "disjoint properties, so the boundary that breaks composition at "
+                    "dim≥16 (and ~95% of generic pairs at 32) leaves addressing intact "
+                    "(F1274/F1275). namespace= selects the address-mint namespace "
+                    "(default 'CD{dim}'); namespace='SEDENION' at dim=16 reproduces the "
+                    "shipped SedenionRegister BIT-EXACTLY at every D — the faithfulness "
+                    "gate. Capacity is D-bounded and MORE SLOTS NEED MORE D: a shortfall "
+                    "at fixed D is a capacity fact, not an algebra fact — sweep D. "
+                    "numpy-free; no abs() (sign is Class-K pin-slot ∘ Class-C)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "slot count — a Cayley–Dickson algebra dimension; a power of two in [1, 64] (8 𝕆 / 16 𝕊 / 32 𝕋 / 64)"),
+                P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
+                P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
+                P("namespace", "Optional[str]", False, "address-mint namespace (default 'CD{dim}'); 'SEDENION' at dim=16 reproduces the shipped register bit-exactly"),
+            ),
+            returns=R("CDRegister",
+                      "the register — .write/.read (addressable storage), "
+                      ".navmap/.navigate (the address↔Cayley–Dickson homomorphism), "
+                      ".is_navigable (reversibility gate), "
+                      ".working_block/.carry_block (the block split)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_navmap", owner="srmech",
+            category="cascade",
+            summary="The signed pointer-advance permutation for right-multiply-by-e_j "
+                    "over dim slots: maps each slot i to (k, sign) where e_i·e_j = "
+                    "sign·e_k (the cd_basis_product cocycle). The general-rung form of "
+                    "SedenionRegister.navmap; at dim=16 bit-identical to it. ALWAYS a "
+                    "signed permutation — reversible at EVERY rung for a single basis "
+                    "direction, including past the Hurwitz wall (F1275). Integer-only; "
+                    "the JPL-clean C peer srmech_cd_navmap returns the identical map."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+                P("j", "int", True, "navigation basis direction in [0, dim)"),
+            ),
+            returns=R("dict", "{i: (dest, sign)} over all dim slots; sign in {+1,-1}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_navigate", owner="srmech",
+            category="cascade",
+            summary="Route occupied (slot, sign) records through the ×e_j permutation "
+                    "at dim slots, composing the CLASS-C signs: out_signs[m] = "
+                    "signs[m]·s where e_{slots[m]}·e_j = s·e_{out_slots[m]}. The numeric "
+                    "core of CDRegister.navigate (the key strings ride alongside in the "
+                    "caller); at dim=16 bit-identical to the sedenion navigate routing. "
+                    "Integer-only; the JPL-clean C peer srmech_cd_navigate returns the "
+                    "identical routing. No abs() — the sign is composed, never dropped."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+                P("j", "int", True, "navigation basis direction in [0, dim)"),
+                P("slots", "Sequence[int]", True, "occupied slot indices, each in [0, dim)"),
+                P("signs", "Sequence[int]", True, "the Class-C sign of each record, each in {+1,-1}"),
+            ),
+            returns=R("tuple", "(out_slots, out_signs) — two lists, parallel to the input"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_navmap_is_signed_permutation", owner="srmech",
+            category="cascade",
+            summary="THE STRUCTURAL INVARIANT ADDRESSING RIDES ON, checked rather than "
+                    "assumed (F1274/F1275): for EVERY direction j in [0, dim), is "
+                    "i→(dest, sign) a bijection on [0, dim) with every sign in {+1,-1}? "
+                    "This is what makes an N-slot register legitimate past the Hurwitz "
+                    "boundary — composition fails at dim≥16 and for ~95% of generic "
+                    "pairs at 32, while addressing is untouched, because zero divisors "
+                    "are built from SUMS of basis elements and this property is about a "
+                    "SINGLE basis pair. SCOPE: verifies the bijection + sign-domain of "
+                    "the navmap AS COMPUTED BY the cd_basis_product cocycle; it does NOT "
+                    "independently re-derive e_i·e_j from a full Cayley–Dickson "
+                    "multiplication — that cross-path check (cocycle vs full cd_mult, "
+                    "4096/4096 pairs at dim 64) is enforced in the Python test suite. "
+                    "The JPL-clean C peer srmech_cd_navmap_is_signed_permutation returns "
+                    "the identical bool, so a bare-C host can verify its own address "
+                    "layer before trusting it."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
+            ),
+            returns=R("bool", "True iff the premise holds at this rung"),
+        ),
         # Three RBS-LM UPSTREAM_NOTES candidate-additions (v0.7.4rc2; PR #687
         # §1.2 / §1.3 / rbs_nn Note 1) — pure compositions, no new primitive class.
         # The two compose ops register under flat ``cascade.*`` names (submodule-

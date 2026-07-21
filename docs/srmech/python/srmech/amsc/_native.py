@@ -16877,6 +16877,95 @@ def sedenion_navigate_c(j: int, in_slots, in_signs):
     return ([int(osl[m]) for m in range(cnt)], [int(osg[m]) for m in range(cnt)])
 
 
+# ── rc297 (`#934`): the GENERAL N-slot Cayley–Dickson address layer. The same
+#    navigation surface as the sedenion_* peers above, generalised from the
+#    hard-coded 16 slots to any power-of-two dim in [1, CD_MAX_DIM]. Python peer:
+#    srmech.amsc.cascade.cd_register. ──
+
+def has_native_cd_navmap() -> bool:
+    """True iff the rc297 srmech_cd_navmap C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_cd_navmap"))
+
+
+def cd_navmap_c(dim: int, j: int):
+    """Native srmech_cd_navmap → ``{i: (dest, sign)}`` over ``dim`` slots
+    (``e_i·e_j = sign·e_{dest}``), or None when absent / dim is not a power of two
+    in [1, 64] / ``j`` outside [0, dim). Byte-identical to the pure
+    ``cd_navmap`` cocycle loop, and at dim == 16 to ``sedenion_navmap_c``."""
+    if not has_native_cd_navmap():
+        return None
+    if dim < 1 or dim > 64 or (dim & (dim - 1)) != 0:
+        return None
+    if not (0 <= j < dim):
+        return None
+    dest = (ctypes.c_int * dim)()
+    sign = (ctypes.c_int * dim)()
+    rc = LIB.srmech_cd_navmap(ctypes.c_int(dim), ctypes.c_int(j), dest, sign)
+    if rc != SRMECH_OK:
+        return None
+    return {i: (int(dest[i]), int(sign[i])) for i in range(dim)}
+
+
+def has_native_cd_navigate() -> bool:
+    """True iff the rc297 srmech_cd_navigate C peer is loaded + bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_cd_navigate"))
+
+
+def cd_navigate_c(dim: int, j: int, in_slots, in_signs):
+    """Native srmech_cd_navigate → ``(out_slots, out_signs)`` routing the occupied
+    (slot, sign) records through ×e_j at ``dim`` slots (composing the Class-C
+    signs), or None when absent / dim bad / ``j`` outside [0, dim) / a record is
+    out of domain. Byte-identical to the pure ``cd_navigate`` loop, and at
+    dim == 16 to ``sedenion_navigate_c``."""
+    if not has_native_cd_navigate():
+        return None
+    if dim < 1 or dim > 64 or (dim & (dim - 1)) != 0:
+        return None
+    if not (0 <= j < dim):
+        return None
+    cnt = len(in_slots)
+    if cnt != len(in_signs):
+        return None
+    for s, g in zip(in_slots, in_signs):
+        if not (0 <= s < dim) or g not in (1, -1):
+            return None
+    isl = (ctypes.c_int * cnt)(*in_slots) if cnt else (ctypes.c_int * 0)()
+    isg = (ctypes.c_int * cnt)(*in_signs) if cnt else (ctypes.c_int * 0)()
+    osl = (ctypes.c_int * cnt)() if cnt else (ctypes.c_int * 0)()
+    osg = (ctypes.c_int * cnt)() if cnt else (ctypes.c_int * 0)()
+    rc = LIB.srmech_cd_navigate(
+        ctypes.c_int(dim), ctypes.c_int(j), isl, isg,
+        ctypes.c_size_t(cnt), osl, osg)
+    if rc != SRMECH_OK:
+        return None
+    return ([int(osl[m]) for m in range(cnt)], [int(osg[m]) for m in range(cnt)])
+
+
+def has_native_cd_navmap_is_signed_permutation() -> bool:
+    """True iff the rc297 srmech_cd_navmap_is_signed_permutation peer is bound."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_cd_navmap_is_signed_permutation"))
+
+
+def cd_navmap_is_signed_permutation_c(dim: int):
+    """Native srmech_cd_navmap_is_signed_permutation → ``True``/``False`` — is the
+    navmap a bijection on [0, dim) with every sign in {+1,-1} for EVERY direction
+    ``j``? — or None when absent / dim is not a power of two in [1, 64].
+    Bit-identical (on the bool) to the pure oracle."""
+    if not has_native_cd_navmap_is_signed_permutation():
+        return None
+    if dim < 1 or dim > 64 or (dim & (dim - 1)) != 0:
+        return None
+    out_ok = ctypes.c_int(-1)
+    rc = LIB.srmech_cd_navmap_is_signed_permutation(
+        ctypes.c_int(dim), ctypes.byref(out_ok))
+    if rc != SRMECH_OK:
+        return None
+    return bool(out_ok.value)
+
+
 def has_native_hamming_decode_correct() -> bool:
     """True iff the srmech_hamming_decode_correct C peer is loaded + bound."""
     return bool(HAS_NATIVE and LIB is not None
