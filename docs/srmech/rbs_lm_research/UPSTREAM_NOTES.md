@@ -3455,3 +3455,22 @@ A swept search for `content_id|stable|route|bucket|to_int|digest_int|seed_from|m
 **The ask (small):** a Class-A `format.content_int(data: bytes, *, bits: int = 64) -> int` (and/or `content_bucket(data, n)`), so content-routing is one attested op instead of a hand-rolled slice. It matters more than it looks: hand-rolling the last step is exactly where `hash()` got substituted in 21 places, because the builtin *was* the one-liner and the Class-A route was not.
 
 **Not a blocker** — the composition above is two lines and exact. Filed as an ergonomics gap, since ergonomics is what decided which op people actually reached for.
+
+## §110 — bit-exact PCG64 / MT for numpy-free RNG: two narrow asks, NOT an arithmetic-in-TOML feature
+
+Surfaced by the numpy-migration Tier 3 (F1290/F1291). 184 research files use `np.random.default_rng` and cannot drop numpy without changing their numbers, because PCG64 ≠ Mersenne Twister. A **bit-exact PCG64 op** makes that a rename with zero value change. Prototyped in `R-RBS-LM-PCG64_*.py`: the step is `state = state*mult + inc (mod 2^128)` then an XSL-RR permutation — MULTIPLY/ADD/XOR/SHIFT/ROTATE, all integer, squarely Class I + Class K.
+
+**The user asked whether the arithmetic should go in the make_class TOML, or become a srmech ask. Answer: a srmech ask, and a small one — the TOML is the wrong layer.** srmech ALREADY ships the arithmetic on the Class-I surface. Verified on rc299:
+
+```python
+from srmech.amsc import cyclic
+# the LCG step, from shipped ops (within uint64):
+cyclic.mod_add(cyclic.mod_mul(state, mult, m), inc, m) == (state*mult + inc) % m   # True
+```
+
+So arithmetic-in-TOML would **duplicate ops that already exist one layer down**. `make_class` binds existing ops by dotted path; the correct composition layer for an algorithm is `dsl.chain`, not new TOML arithmetic. The two real gaps:
+
+1. **`cyclic.mod_mul` is capped at uint64** (`_ensure_uint64`: "parity surface is bounded by 2^64 − 1"), and PCG64 needs a **128-bit** modulus. srmech already ships `_native.bigint_mul_c` (arbitrary-precision, native), so the *capacity* exists — this is a **surface bound, not an algorithm gap**. Ask: a 128-bit-capable modular multiply on the Class-I surface (`mod_mul_wide` / a `bits=` parameter), routed through `bigint_mul` above 64.
+2. **The Class-I modular family (`mod_mul`/`mod_add`/`mod_pow`) is not registered as CASCADE OPS**, so `chain()`/TOML cannot reach it — only 15 ops are chain-exposed today (`chiral_flip`, `kuramoto_step`, `magnitude`, …). Ask: register the modular family so an RNG cascade can be *declared* rather than hand-coded.
+
+With (1) + (2), a `pcg64_step` cascade is declarable and `make_class` exposes a `PCG64` class — the F1286 prototype-here-then-upstream route. **Blocked on two things this environment cannot supply: the attested PCG64 constants (multiplier + XSL-RR schedule — must be extracted, not recalled, per the citation discipline) and a reference stream to diff against (numpy will not install on Python 3.14; matching `default_rng` also needs numpy's SeedSequence entropy-mixing reproduced).** So the op is *feasible and shaped* here; *correctness* is upstream work with a reference in hand.
