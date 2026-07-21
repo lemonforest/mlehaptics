@@ -1721,10 +1721,51 @@ _SQRT_Q_K: int = 54
 
 def _sqrt_rational(num: int, den: int, k: int):
     """``√(num/den)`` as an EXACT ``Q(root, 2**k)`` (integer ``isqrt`` of the
-    ``2^{2k}``-scaled radicand). ``num, den >= 0``; ``den > 0``."""
+    ``2^{2k}``-scaled radicand). ``num, den >= 0``; ``den > 0``.
+
+    ``k`` is an **ABSOLUTE** grid: the root is floored to a multiple of
+    ``2^-k``. That is the literal contract an explicit ``precision_bits=``
+    caller asks for. Callers who want ``k`` SIGNIFICANT bits regardless of
+    magnitude must size ``k`` through :func:`_sqrt_relative_k` first — see the
+    rc299 note there."""
     assert num >= 0 and den > 0, "sqrt of a non-negative rational only"
+    assert k >= 0, "fractional-bit count must be non-negative"
     root = _integer_sqrt((num << (2 * k)) // den)   # floor(√(num/den) · 2^k)
     return _q(root, 1 << k)
+
+
+def _sqrt_relative_k(num: int, den: int, k: int) -> int:
+    """Fractional bits so ``√(num/den)`` carries ``k`` SIGNIFICANT bits — the
+    rc299 (`#919`) repair of an ABSOLUTE-precision √ consumed as a relative one.
+
+    :func:`_sqrt_rational` floors the root to a FIXED ``2^-k`` grid. For a
+    radicand at or above 1 that is ``>= k`` significant bits and nothing is
+    wrong. **Below 1 the significant bits fall away linearly**, and below
+    ``2^-2k`` every one of them is gone: the root floors to EXACTLY ``0.0``.
+    At the shipped default ``k = 54`` that made ``hypot(1e-17, 0.0) == 0.0``
+    and — the part that is easy to miss because it returns a plausible
+    non-zero — ``hypot(1e-16, 0.0)`` off by **44%**, ``hypot(1e-13, 0.0)`` off
+    by 2.4e-4. An exactly-zero magnitude is unsafe as a DIVISOR; an
+    inaccurate-non-zero one is worse, because it divides without complaint.
+
+    The premise that a rational cascade cannot reach small magnitudes is
+    **false**, and :func:`sqrt`'s float path already disproves it: it
+    decomposes ``x = M·2^e`` and carries an EXACT power-of-two scale, so it is
+    relative-precision at every magnitude (``sqrt(1e-300)`` is exact to full
+    precision). ``Q`` is an arbitrary-precision integer pair — the floor was
+    never the carrier, only the hard-coded ``k``. So this does not add an
+    epsilon or a guard band; it sizes the grid to the value, which is what the
+    float path always did.
+
+    ``num.bit_length() - den.bit_length()`` brackets ``log2(num/den)`` to ±1, so
+    the root's binary exponent is that halved; ``+1`` absorbs the bracket. For a
+    radicand ``>= 1`` this returns ``k`` UNCHANGED, so every value at or above 1
+    — ``hypot(3, 4) == 5``, the ``hypot(1.0, 1.0)`` doc example — is
+    **byte-identical** to what shipped before rc299."""
+    e = num.bit_length() - den.bit_length()          # ~log2(num/den), ±1
+    if e >= 0:                                       # radicand >= ~1: already k sig-bits
+        return k
+    return k + ((-e) + 1) // 2 + 1                   # Class-K pin-slot on the exponent sign
 
 
 def sqrt(x, *, precision_bits: int = None) -> "Q":
@@ -1750,7 +1791,11 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
             raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
         if xn == 0:
             return _q(0, 1)
-        return _sqrt_rational(xn, xd, precision_bits or _SQRT_Q_K)
+        if precision_bits is not None:            # literal ABSOLUTE grid, as asked
+            return _sqrt_rational(xn, xd, precision_bits)
+        # rc299 (`#919`): size the grid to the radicand so a sub-1 Q keeps its
+        # significant bits instead of flooring away toward an exact 0.0.
+        return _sqrt_rational(xn, xd, _sqrt_relative_k(xn, xd, _SQRT_Q_K))
     x = float(x)
     if x < 0.0:                                   # Class-K pin-slot at zero
         raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
@@ -1793,7 +1838,12 @@ def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
               else float(b).as_integer_ratio())
     num = an * an * bd * bd + bn * bn * ad * ad    # (a²+b²) exact numerator
     den = ad * ad * bd * bd
-    return _sqrt_rational(num, den, precision_bits or _SQRT_Q_K)
+    if precision_bits is not None:                 # literal ABSOLUTE grid, as asked
+        return _sqrt_rational(num, den, precision_bits)
+    # rc299 (`#919`): RELATIVE precision. The old fixed 2^-54 grid returned an
+    # exact 0.0 below ~1e-17 — unsafe as a divisor, and inaccurate well above
+    # that (44% at 1e-16). See :func:`_sqrt_relative_k`.
+    return _sqrt_rational(num, den, _sqrt_relative_k(num, den, _SQRT_Q_K))
 
 
 # ──────────────────────────────────────────────────────────────────────
