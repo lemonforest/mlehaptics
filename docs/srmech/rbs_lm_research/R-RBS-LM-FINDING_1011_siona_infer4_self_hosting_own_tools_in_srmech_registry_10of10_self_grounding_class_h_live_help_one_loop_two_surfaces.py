@@ -39,7 +39,7 @@ for n in tools:
 FUNC=int(NT*0.35); gate=lambda w: 1.0 if docf.get(w,0)<FUNC else FUNC/docf[w]
 gv={}
 def vec(w):
-    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)
+    if w not in gv: gv[w]=hdc.klein4_address(D, w)
     return gv[w]
 def bg(ws): return [bind(vec(a),vec(b)) for a,b in zip(ws,ws[1:])]
 def enc_tool(n):

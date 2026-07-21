@@ -16,7 +16,7 @@ with open('/home/skirklan/corpora/wikipedia/simplewiki_fullbody_instrument.ndjso
         toks.extend(json.loads(line)['s'].split())
         if len(toks)>=5000: break
 content=[t for t in toks[:5000] if t not in stop]
-uniq=list(dict.fromkeys(content)); vec={t: hdc.klein4_random(D, seed=(hash(t)%80000)+11) for t in uniq}
+uniq=list(dict.fromkeys(content)); vec={t: hdc.klein4_address(D, t) for t in uniq}
 # real recurrences: prev -> next content bigrams
 nexts={}
 for a,b in zip(content,content[1:]):

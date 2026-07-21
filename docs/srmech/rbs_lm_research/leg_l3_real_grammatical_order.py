@@ -88,7 +88,7 @@ def build_codebooks(words):
     for w in uniq:
         rng = np.random.default_rng(_word_seed(WORD_SEED, w))
         loop_cb[w] = rand_unit_blocks(rng)                       # unit block-octonion
-        klein_cb[w] = hdc.klein4_random(D, seed=_word_seed(KLEIN_SEED, w))
+        klein_cb[w] = hdc.klein4_address(D, w)
     return loop_cb, klein_cb
 
 

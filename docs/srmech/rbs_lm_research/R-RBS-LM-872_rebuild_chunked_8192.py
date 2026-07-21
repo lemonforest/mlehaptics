@@ -32,7 +32,7 @@ def word_oct(w):
 def key_sharp(win):
     p = word_oct(win[0])
     for w in win[1:]: p = tuple(cascade.cd_mult(p, word_oct(w)))
-    return hdc.klein4_random(D, seed=int.from_bytes(_dig(",".join(str(x) for x in p))[:8], "big"))
+    return hdc.klein4_address(D, ",".join(str(x) for x in p))
 def mcount(a, b): return sum(1 for x, y in zip(a.tolist(), b.tolist()) if x == y)
 
 path = "/home/skirklan/corpora/wikipedia/simplewiki_rawbody_instrument_v082.ndjson"

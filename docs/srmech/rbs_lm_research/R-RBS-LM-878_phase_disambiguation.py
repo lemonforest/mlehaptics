@@ -25,7 +25,7 @@ def word_oct(w):
 def ctx_key(win):
     p = word_oct(win[0])
     for w in win[1:]: p = tuple(cascade.cd_mult(p, word_oct(w)))
-    return hdc.klein4_random(D, seed=int.from_bytes(_dig(",".join(str(x) for x in p))[:8], "big"))
+    return hdc.klein4_address(D, ",".join(str(x) for x in p))
 def key_at(win, pos, use_phase):
     k = ctx_key(win)
     return hdc.klein4_phase_bind(k, pos / PMAX) if use_phase else k    # the 1D_t PHASE (s59) into the key

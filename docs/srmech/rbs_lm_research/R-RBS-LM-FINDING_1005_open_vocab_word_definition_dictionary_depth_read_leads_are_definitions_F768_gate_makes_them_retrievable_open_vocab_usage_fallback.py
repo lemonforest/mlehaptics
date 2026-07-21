@@ -39,7 +39,7 @@ print("      lead opens with the title word             : %d/%d = %.0f%%  (self-
 # ---- (B) DISCRIMINABILITY gated vs ungated (read-independent Gram) ----
 gv={}
 def vec(w):
-    if w not in gv: gv[w]=hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)
+    if w not in gv: gv[w]=hdc.klein4_address(D, w)
     return gv[w]
 def defvec(lead, gated):
     parts=[vec(w) for w in lead for _ in range(1)] if not gated else None

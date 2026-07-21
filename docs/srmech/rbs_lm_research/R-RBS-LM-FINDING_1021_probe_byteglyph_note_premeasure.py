@@ -10,7 +10,7 @@ D=8192; cs=ContextSubstrate(D=D, hex_chars=16); bind=hdc.klein4_bind
 def fl(q): return q.as_float() if hasattr(q,'as_float') else float(q)
 def sim(a,b): return fl(hdc.klein4_similarity(a,b))
 def toks(s): return [w for w in s.lower().split() if w]
-def tvec(w): return hdc.klein4_random(D, seed=(sum((i+1)*ord(c) for i,c in enumerate(w))%80000)+7)
+def tvec(w): return hdc.klein4_address(D, w)
 def enc(ws, mode):
     parts=[]
     for w in ws:

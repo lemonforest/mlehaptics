@@ -21,7 +21,7 @@ FUNC=int(NDOC*0.6)
 def gate(t): d=docf.get(t,1); return 1.0 if d<FUNC else FUNC/d      # F984 one-sided aboutness-gate
 toks=[w for a in arts[:6] for w in a]          # a real multi-article corpus (full, nothing dropped)
 uniq=list(dict.fromkeys(toks)); idx={w:i for i,w in enumerate(uniq)}; n=len(uniq)
-vec={w: hdc.klein4_random(D, seed=(hash(w)%80000)+11) for w in uniq}
+vec={w: hdc.klein4_address(D, w) for w in uniq}
 # directed content pairs for the TEST (prev->next where next is a content word = low doc-freq)
 pairs=[(a,b) for a,b in zip(toks,toks[1:]) if a!=b]
 test=[(a,b) for a,b in pairs if docf.get(b,1)<FUNC]            # targets that are content (the ones we care to recall)
