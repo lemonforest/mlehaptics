@@ -2586,6 +2586,19 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.c_size_t,
             ]
             lib.srmech_klein4_bundle_resolve.restype = ctypes.c_int
+        # §102 / F1265 (rc295): int srmech_klein4_bundle_sector_scores(
+        #     const uint32_t *acc, uint64_t *out, size_t dim) — the
+        # NON-COLLAPSING peer of _resolve: 4*dim uint64 sector scores instead of
+        # dim collapsed symbols. uint64 out because the agreement product
+        # reaches n^2. Its own hasattr so a pre-rc295 klein4 lib doesn't
+        # AttributeError here.
+        if hasattr(lib, "srmech_klein4_bundle_sector_scores"):
+            lib.srmech_klein4_bundle_sector_scores.argtypes = [
+                ctypes.POINTER(ctypes.c_uint32),
+                ctypes.POINTER(ctypes.c_uint64),
+                ctypes.c_size_t,
+            ]
+            lib.srmech_klein4_bundle_sector_scores.restype = ctypes.c_int
         # int srmech_klein4_cooccurrence_fold(const uint8_t *codes,
         #     uint32_t n_codes, const uint32_t *tok_idx, uint32_t n_tokens,
         #     uint32_t window, size_t dim, uint32_t *out_accs)  — UPSTREAM §50
