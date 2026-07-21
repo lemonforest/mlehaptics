@@ -3493,3 +3493,13 @@ And a second, subtler gap: **`working_block` is frozen at `(0..7)` at every dim*
 2. Decide + document whether the working/carry split should **scale with dim** (a dim-32 register offering a ≤15-value working word, etc.) or stay pinned at the octonion 8 by design. Right now it is pinned with no stated rationale, which reads as an oversight rather than a choice.
 
 Neither blocks addressing (which is complete). They block the register being a drop-in for the *reversible-coupling + error-corrected* role the SedenionRegister filled.
+
+## §112 — asking Siona for tooling: two gaps surfaced by grounding the PCG64 cascade (F1297)
+
+Siona (`srmech.rbs_lm`) can answer "which op should I use" by grounding a plain utterance against the tool_schema (F1008, 78 % top-1). Running it on the PCG64 cascade (F1297) exposed two upstream-worthy gaps:
+
+1. **`bigint_mul_c` / `bigint_mul` is NOT in the public tool_schema.** F1292/F1295 rely on it for the 128-bit multiply, but it lives only in `_native`, so Siona *cannot* recommend it — she can only surface schema-registered ops. **Ask: register the bignum multiply (and `mod_mul`-wide, §110) in `tool_schema` so the grounding surface includes the ops real cascades depend on.**
+
+2. **Op summaries describe the IMPLEMENTATION, not the need.** `cyclic.mod_mul`'s summary is *"(a * b) mod n via russian-peasant doubling; portable across platforms"* — its discriminating tokens are `russian/peasant/doubling/portable`, none of which a user searching for "modular multiply" would type. `magnitude` reads *"Class K pin-slot at zero"* not *"absolute value"*. **Ask (soft): add a user-facing aboutness clause to summaries — the words a caller would actually search — so grounding matches intent, not internals.**
+
+Also: the **shipped `encode_sentence_l3` grounds at the orthogonality floor** (1/5) because it rides seed-based `encode_word_k4` (F1287, stable-but-not-resonant). The F1008 **df-gated resonant encoder** (aboutness gate + name-3× + order-aware bigrams) lifts it to 3/5 with right-family neighborhoods. That df-gated grounding encoder is NOT a shipped `rbs_lm` op — callers must hand-build it. **Ask: ship the df-gated tool-grounding encoder as part of Siona, so "ask Siona which op" is a one-call capability rather than a reconstruction.**
