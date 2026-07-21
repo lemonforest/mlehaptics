@@ -3474,3 +3474,22 @@ So arithmetic-in-TOML would **duplicate ops that already exist one layer down**.
 2. **The Class-I modular family (`mod_mul`/`mod_add`/`mod_pow`) is not registered as CASCADE OPS**, so `chain()`/TOML cannot reach it — only 15 ops are chain-exposed today (`chiral_flip`, `kuramoto_step`, `magnitude`, …). Ask: register the modular family so an RNG cascade can be *declared* rather than hand-coded.
 
 With (1) + (2), a `pcg64_step` cascade is declarable and `make_class` exposes a `PCG64` class — the F1286 prototype-here-then-upstream route. **Blocked on two things this environment cannot supply: the attested PCG64 constants (multiplier + XSL-RR schedule — must be extracted, not recalled, per the citation discipline) and a reference stream to diff against (numpy will not install on Python 3.14; matching `default_rng` also needs numpy's SeedSequence entropy-mixing reproduced).** So the op is *feasible and shaped* here; *correctness* is upstream work with a reference in hand.
+
+## §111 — general CDRegister is address-complete but drops the SedenionRegister's reversible-working / EC methods
+
+Audited on rc299 (F1296). The general `cascade.cd_register(dim, ...)` is **address-complete at every rung 2→256**: `write` / `read` / `navmap` / `navigate` / `is_navigable` / `materialize` / `slots` / `carry_block` / `working_block` all work (round-trip 100 %, F1285). But compared to the dim-16 `sedenion_register`, the general register is **missing four methods**:
+
+| method (on SedenionRegister, absent on CDRegister) | what it does |
+|---|---|
+| `couple_working(vals)` | bind ≤7 values into one octonion working word, **bit-exact reversible** |
+| `uncouple_working(octonion)` | the inverse |
+| `carry(overflow_bits, n=3)` | encode overflow past the ≤7 set into a **Hamming(2ⁿ−1) EC block** |
+| `correct(codeword)` | locate + correct a single-bit error in the EC block |
+
+And a second, subtler gap: **`working_block` is frozen at `(0..7)` at every dim** — a dim-256 register still reports an 8-slot working block and 248-slot carry block. So even if `couple_working` were ported verbatim it would still couple only ≤7 values regardless of rung; the reversible-working-word concept has **not been generalised to the wider registers**, only the addressing has.
+
+**Asks (two, both narrow):**
+1. Port `couple_working`/`uncouple_working`/`carry`/`correct` onto the general `CDRegister` (they are shipped, just only on the dim-16 class).
+2. Decide + document whether the working/carry split should **scale with dim** (a dim-32 register offering a ≤15-value working word, etc.) or stay pinned at the octonion 8 by design. Right now it is pinned with no stated rationale, which reads as an oversight rather than a choice.
+
+Neither blocks addressing (which is complete). They block the register being a drop-in for the *reversible-coupling + error-corrected* role the SedenionRegister filled.
