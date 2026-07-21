@@ -2044,6 +2044,35 @@ def _hessenberg_complex(A: List[List[complex]]) -> List[List[complex]]:
     return H
 
 
+def _mat_eigvals_native(H: List[List[complex]], n: int, max_sweeps: int):
+    """Route the general non-Hermitian eigenproblem to ``srmech_mat_eigvals_ws``.
+
+    Returns the ``list[complex]`` multiset, or ``None`` when the native path is
+    unavailable or reports non-convergence — in which case the caller runs the
+    pure sweep, which is the COMPLETE alternative (not a smaller-cap one).
+    """
+    if not (_native.HAS_NATIVE and _native.LIB is not None):
+        return None
+    if not hasattr(_native.LIB, "srmech_mat_eigvals_ws"):
+        return None
+    a_il = (ctypes.c_double * (2 * n * n))()
+    for i in range(n):
+        for j in range(n):
+            z = H[i][j]
+            a_il[(i * n + j) * 2] = z.real
+            a_il[(i * n + j) * 2 + 1] = z.imag
+    ws_len = int(_native.LIB.srmech_mat_eigvals_ws_size(ctypes.c_uint32(n)))
+    workspace = (ctypes.c_double * ws_len)()
+    out = (ctypes.c_double * (2 * n))()
+    rc = _native.LIB.srmech_mat_eigvals_ws(
+        ctypes.c_uint32(n), a_il, ctypes.c_uint32(max_sweeps),
+        out, workspace, ctypes.c_size_t(ws_len),
+    )
+    if rc != _native.SRMECH_OK:
+        return None                                   # → pure sweep (or its raise)
+    return [complex(out[i * 2], out[i * 2 + 1]) for i in range(n)]
+
+
 def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     """Eigenvalue MULTISET of a general (non-Hermitian) square matrix over the
     :class:`~srmech.amsc.mat.Mat` carrier — foundation op #4 of the numpy-CARRIER
@@ -2139,6 +2168,18 @@ def mat_eigvals(a: "Mat", *, max_sweeps: int = 500) -> List[complex]:
     H = [[complex(a[i, j]) for j in range(n)] for i in range(n)]
     if n == 1:
         return [H[0][0]]
+    # rc299 (`#918`) — the whole-op native peer. Before it, this op was
+    # classified ``composition_of_c`` ("standalone-ready") while every step that
+    # matters (balancing, the Hessenberg reduction, deflation, the Wilkinson
+    # shift ladder, {QR}) was Python-only and only the RQ recombine reached C.
+    # A bare-C host could not run it for ANY input, Hermitian included, because
+    # there is no Hermitian fast path here. ``srmech_mat_eigvals_ws`` is the
+    # same algorithm in C, so the classification is now true rather than
+    # narrowed. NUMERIC (FPU-tol) parity — see the C file's header for the one
+    # divergence (the exact-rational vs scaled-float modulus, ~1 ulp).
+    native = _mat_eigvals_native(H, n, max_sweeps)
+    if native is not None:
+        return native
     # Parlett–Reinsch RADIX-2 balancing pre-step: an EXACT diagonal similarity
     # D⁻¹·H·D (powers of two only → no floating rounding) that equalises each
     # index's row-norm against its column-norm. Eigenvalues are invariant under a

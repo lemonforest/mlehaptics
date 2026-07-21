@@ -3101,7 +3101,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.laplacian.mat_eigvals",
         "srmech",
         "laplacian",
-        "Numpy-FREE eigenvalue multiset of a general (non-Hermitian) square matrix over the Mat carrier (carrier-removal #564, foundation #4): a Wilkinson-shifted QR iteration in plain complex with per-step Householder QR and the RQ recombine routed through the native mat_matmul; n=1/2 closed form. Multiset matches NumPy eigvals to ~1e-9. Prefer mat_hermitian_eigendecompose for Hermitian A. Golub & Van Loan \302\2477.5.",
+        "Numpy-FREE eigenvalue multiset of a general (non-Hermitian) square matrix over the Mat carrier (carrier-removal #564, foundation #4): radix-2 balancing, Householder reduction to upper-Hessenberg form, then a Wilkinson-shifted QR iteration with EISPACK exceptional shifts on the active block; n=1/2 closed form. Native-dispatched to srmech_mat_eigvals_ws (rc299) \342\200\224 the whole-op C peer, so a bare-C host runs this too; the pure sweep is the complete fallback. NUMERIC (FPU-tol) parity: bit-exact against the pure projection on real symmetric input, ~1e-14 relative on general complex (the one divergence is the exact-rational vs scaled-float modulus). Multiset matches NumPy eigvals to ~1e-9. Prefer mat_hermitian_eigendecompose for Hermitian A. Golub & Van Loan \302\2477.4.3 + \302\2477.5 + \302\2477.5.1.",
         ts_params_64, 1u,
         "list[complex]",
         "length-n eigenvalue multiset (unique only as a set)",

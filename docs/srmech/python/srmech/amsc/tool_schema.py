@@ -2005,12 +2005,18 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Numpy-FREE eigenvalue multiset of a general (non-Hermitian) "
                     "square matrix over the Mat carrier (carrier-removal #564, "
-                    "foundation #4): a Wilkinson-shifted QR iteration in plain "
-                    "complex with per-step Householder QR and the RQ recombine "
-                    "routed through the native mat_matmul; n=1/2 closed form. "
-                    "Multiset matches NumPy eigvals to ~1e-9. Prefer "
+                    "foundation #4): radix-2 balancing, Householder reduction to "
+                    "upper-Hessenberg form, then a Wilkinson-shifted QR iteration "
+                    "with EISPACK exceptional shifts on the active block; n=1/2 "
+                    "closed form. Native-dispatched to srmech_mat_eigvals_ws "
+                    "(rc299) — the whole-op C peer, so a bare-C host runs this "
+                    "too; the pure sweep is the complete fallback. NUMERIC "
+                    "(FPU-tol) parity: bit-exact against the pure projection on "
+                    "real symmetric input, ~1e-14 relative on general complex "
+                    "(the one divergence is the exact-rational vs scaled-float "
+                    "modulus). Multiset matches NumPy eigvals to ~1e-9. Prefer "
                     "mat_hermitian_eigendecompose for Hermitian A. Golub & Van "
-                    "Loan §7.5.",
+                    "Loan §7.4.3 + §7.5 + §7.5.1.",
             parameters=(P("a", "Mat", True,
                           "n × n real or complex Mat (square, any non-Hermitian)"),),
             returns=R("list[complex]",

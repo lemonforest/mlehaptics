@@ -1575,6 +1575,50 @@ srmech_status_t srmech_hermitian_eigendecompose_ws(
     double        *workspace,
     size_t         ws_len);
 
+/* ── the GENERAL (non-Hermitian) eigenvalue solver (v0.9.0rc299, `#918`) ──
+ *
+ * The whole-op C peer of `srmech.amsc.laplacian.mat_eigvals`. Until rc299 the
+ * C surface had three eigen-paths and none was general — srmech_jacobi_eigvals
+ * (real symmetric), srmech_hermitian_eigendecompose_ws (complex Hermitian) and
+ * the exact integer srmech_eigvec_exact / srmech_complex_isolate — while
+ * `mat_eigvals` was classified `composition_of_c`, a bucket annotated
+ * "standalone-ready". It was not: balancing, the Hessenberg reduction, the
+ * deflation loop, the Wilkinson shift ladder and {QR} were Python-only, and
+ * `mat_eigvals` has no Hermitian fast path, so a bare-C host could not run it
+ * for ANY input. rc285 filed that gap; this closes it.
+ *
+ * `a_interleaved` is n*n interleaved (re, im) pairs, row-major, and may be a
+ * general complex or real matrix (a real matrix is passed with zero imaginary
+ * parts). `out_eigvals` receives n interleaved (re, im) eigenvalues in
+ * DEFLATION order — the multiset is the contract; the ORDER is not, exactly as
+ * on the Python side (an eigenvalue multiset is unique only as a set).
+ *
+ * `max_sweeps` bounds the shifted-QR iteration at max_sweeps*n steps; 500
+ * mirrors the Python default. Non-convergence returns SRMECH_ERR_OVERFLOW
+ * rather than the raw diagonal of an un-converged block — for a companion
+ * matrix that diagonal is all zeros, which is the historic all-zero bug.
+ *
+ * `workspace` is caller-supplied (no malloc), ws_len >= the _ws_size below.
+ *
+ * PARITY: NUMERIC (FPU-tol), not byte-exact. Both projections run the same
+ * operation sequence in IEEE double and share srmech_rational_sqrt bit-for-bit;
+ * the one divergence is the complex MODULUS, which on the Python side roots an
+ * EXACT rational sum-of-squares (arbitrary-precision Class-N) and here is the
+ * scaled float form. That is a ~1 ulp difference feeding a shift estimate and
+ * a reflector phase, far below the deflation tolerance.
+ *
+ * No libm, no <complex.h>, no malloc, no recursion. Additive symbols ->
+ * SRMECH_ABI_VERSION unchanged. */
+size_t srmech_mat_eigvals_ws_size(uint32_t n);
+
+srmech_status_t srmech_mat_eigvals_ws(
+    uint32_t       n,
+    const double  *a_interleaved,
+    uint32_t       max_sweeps,
+    double        *out_eigvals,
+    double        *workspace,
+    size_t         ws_len);
+
 /* Dense complex matrix-matrix multiplication: out = A @ B.
  * A_interleaved is m*k interleaved-double pairs (row-major).
  * B_interleaved is k*n interleaved-double pairs (row-major).

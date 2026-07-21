@@ -156,6 +156,10 @@ srmech.native_status()
 >
 > The trigger is **vertex labelling, not hub dominance**, which is why it went unnoticed: it is not a pathological-input bug. A 4-node **path** graph relabelled `0-2-1-3` returned `[1, 1, 1, 3]` against a true spectrum of `[0, 2−√2, 2, 2+√2]`. Relabelling a graph does not change its spectrum, so any answer that moves under relabelling is wrong on its face — that invariant is now a ratchet (`tests/test_laplacian_kernel_invariant_rc285.py`, **65 tests**) applied across **all six** shipped eigensolvers (`mat_eigvals`, `jacobi_eigvals`, `hermitian_eigendecompose`, `symmetric_eigendecompose`, `mat_hermitian_eigendecompose`, `matrix_cascades.eigvals`), not only the one that was broken.
 
+> **⚠️ Correctness advisory — `rational.hypot` (and `rational.sqrt` on a `Q` input) lost precision for small magnitudes before v0.9.0rc299.** If you computed a magnitude below roughly **1e-8** with `hypot`, with `laplacian.elementwise_hypot`, or with `sqrt` on an exact-`Q` argument, on any release before rc299, **recompute it**. The exact-rational √ floored onto a FIXED `2^-54` grid — **absolute** precision, not relative — so accuracy fell away linearly as the value shrank and vanished entirely below `2^-54 ≈ 5.55e-17`, where the result became exactly `0.0`.
+>
+> The exact zero is the easy half to notice. The dangerous half is **above** it, where the return value looks perfectly ordinary and is not: `hypot(1e-16, 0)` was **44% low**, `hypot(1e-13, 0)` 2.4e-4 low, `hypot(1e-8, 0)` 5.3e-10 low. Nothing in the value signals the error, which is why a "is it zero?" check was never sufficient. Since rc299 the grid is sized to the radicand and both ops are accurate to **~1 ulp at every magnitude** (verified against libm over 220 orders of magnitude). Values at or above 1 are byte-identical to previous releases, so nothing that was already correct moved.
+
 ### `srmech.qm.*` — the substrate engine: the Hurwitz ladder, `so(8)` triality, and the One
 
 The ℂ/ℍ/𝕆 division-algebra ladder and its `so(8)` / Spin(8) structure — the framework's own substrate, not a math-application layer. Modules:
