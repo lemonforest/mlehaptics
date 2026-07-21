@@ -222,18 +222,29 @@ def test_zero_leaf_and_zero_length_label_do_not_abort():
 
 def test_absent_path_declines_cleanly_not_by_aborting():
     """An absent path must DECLINE, not abort. ``genome_census`` /
-    ``genome_catalog`` raise ``GenomeBoundingError`` here in both projections.
+    ``genome_catalog`` / ``genome_registry`` raise ``GenomeBoundingError`` here
+    in both projections.
 
-    Deliberately NOT asserted for ``genome_registry``: that surface has a
-    separate, pre-existing ADR-0009 split on an absent root (the compiled
-    projection returns ``n_genomes`` 0 while the scripting projection raises
-    ``FileNotFoundError``). rc289 fixes the ABORT on that input but does not
-    pick a winner between those two behaviours — that is a semantic decision
-    with a migration cost, reported rather than settled here. Pinning either
-    side in a test would silently make this rc the decision.
+    rc289 EXCLUDED ``genome_registry`` from this list on purpose. That surface
+    carried a separate, pre-existing ADR-0009 split on an absent root — the
+    compiled projection returned ``n_genomes`` 0 with a success status while the
+    scripting projection raised ``FileNotFoundError`` — and rc289's job was the
+    ABORT, not that split. Pinning either side then would have made rc289 the
+    decision by accident, so it recorded the split and left the surface out.
+
+    rc294 (`#924`) settled it deliberately: an unopenable root ERRORS in both
+    projections, because under ADR-0009 the disagreement itself was the defect,
+    the sibling surfaces on this very line already raised, and the ``n_genomes``
+    0 promise was always about an EMPTY dir rather than an absent one. So
+    ``genome_registry`` joins the loop — the exclusion is DISCHARGED, not
+    dropped, and this docstring is the record of why it was ever there.
+
+    The full rc294 case lives in
+    ``tests/test_genome_registry_unopenable_root_rc294.py``; what is added here
+    is the asserts-live exercise of that C boundary, which is this file's job.
     """
     missing = "/nonexistent/srmech/rc289/no/such/root"
-    for fn in (G.genome_census, G.genome_catalog):
+    for fn in (G.genome_census, G.genome_catalog, G.genome_registry):
         with pytest.raises(Exception):
             fn(missing)
 

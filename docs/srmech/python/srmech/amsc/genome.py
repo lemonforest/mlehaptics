@@ -6632,8 +6632,18 @@ def genome_registry(root, *, coupling=None) -> dict:
 
     This is the "cell": which genome is the NUCLEUS (nuclear / diploid chromosomes)
     vs an ORGANELLE (a small all-plasmid plasmid-like genome — a mitochondrion /
-    chloroplast). A dir with no genome subdirs yields ``n_genomes`` 0. ``coupling=``
-    is only needed for manifest-less genomes. numpy-free."""
+    chloroplast). A dir that OPENS but has no genome subdirs yields ``n_genomes``
+    0. ``coupling=`` is only needed for manifest-less genomes. numpy-free.
+
+    A ``root`` that CANNOT BE OPENED — absent, permission denied, or not a
+    directory — raises :class:`GenomeBoundingError` (rc294), in BOTH projections
+    and with the same exception type. Through rc292 the compiled projection
+    answered ``{"n_genomes": 0}`` with a success status for those inputs while
+    this scripting one raised ``FileNotFoundError``; a typo'd corpus path was
+    reported as an empty corpus. Per ADR-0009 the SPLIT was the defect, and this
+    surface was the outlier in its own family — :func:`genome_census` on an
+    absent path already raised. The ``n_genomes`` 0 promise was always about an
+    EMPTY dir, never an absent one, so it is unchanged."""
     # §96: native C registry (PAL dir scan + per-genome census, one byte-identical
     # CANONICAL tree) when present; else the pure os/pathlib scan + per-dir census
     # roll-up over the CANONICAL catalog. rc271: the type-value alias is applied ONCE
@@ -6646,7 +6656,22 @@ def genome_registry(root, *, coupling=None) -> dict:
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
     root_str = str(Path(root))          # normalise identically to the native call above
-    names = sorted(p.name for p in Path(root).iterdir() if _is_genome_dir(p))
+    # rc294 (ADR-0009): an unopenable root ERRORS in this projection too, and as
+    # the SAME exception type the native path raises via _raise_native_genome —
+    # GenomeBoundingError, the family's type (genome_census / genome_catalog
+    # already raise it here). Raising the bare OSError would leave the two
+    # projections agreeing that this is an error but disagreeing about what KIND,
+    # which is the same ADR-0009 defect one layer in. The OSError is chained, so
+    # the ENOENT-vs-EACCES detail a caller needs for diagnosis is not lost.
+    try:
+        entries = list(Path(root).iterdir())
+    except OSError as exc:
+        raise GenomeBoundingError(
+            f"genome registry root {root_str!r} cannot be opened ({exc.strerror}) "
+            f"— an unreadable / absent / non-directory root is an ERROR, not an "
+            f"empty registry (an EMPTY dir that opens yields n_genomes 0)"
+        ) from exc
+    names = sorted(p.name for p in entries if _is_genome_dir(p))
     # §96: build each child path as ``root + "/" + name`` — MIRROR the C ``genome_join``
     # (``srmech_genome_registry``) byte-for-byte — and roll up via ``_census_from_catalog``
     # DIRECTLY over ``_catalog_data`` (the CANONICAL catalog, NOT ``genome_census`` whose

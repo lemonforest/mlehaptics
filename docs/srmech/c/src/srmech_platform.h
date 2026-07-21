@@ -334,8 +334,17 @@ typedef struct srmech_plat_dir {
  * bare-metal target with no filesystem. */
 int srmech_plat_has_dirlist(void);
 
-/* Open `path` for iteration; *out receives the handle. SRMECH_ERR_IO if the
- * directory cannot be opened (the caller may treat that as "no entries"). */
+/* Open `path` for iteration; *out receives the handle. SRMECH_ERR_IO iff the
+ * directory CANNOT BE OPENED (absent / not a directory / permission denied).
+ *
+ * rc294: SRMECH_OK means "opened" and NOTHING MORE — an OPENED directory may
+ * still enumerate zero entries, which dir_next reports as end-of-directory on
+ * the first call. Callers MUST NOT read SRMECH_ERR_IO as "no entries": those
+ * are different facts, and conflating them is what let srmech_genome_registry
+ * report "0 genomes, success" for a typo'd corpus path. The Windows backend
+ * reconstructs this distinction from GetLastError (FindFirstFile returns
+ * ERROR_FILE_NOT_FOUND for an empty match set on a directory with no "." /
+ * ".." entries — a FAT/exFAT root); POSIX opendir draws it natively. */
 srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out);
 
 /* Fetch the next entry name into `name` (capacity `name_cap`). *have is set to

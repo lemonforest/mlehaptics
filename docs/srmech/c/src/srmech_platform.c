@@ -1313,6 +1313,12 @@ srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out)
     assert(path != NULL);
     assert(out != NULL);
     out->pending_valid = 0;
+    memset(out->handle.bytes, 0, sizeof(out->handle.bytes));
+    /* opendir keeps "opened but empty" and "could not open" apart natively: an
+     * empty directory opens fine and readdir simply reports end-of-stream (on
+     * ordinary POSIX filesystems it still yields "." and ".."). So a NULL here
+     * means a REAL failure — ENOENT / EACCES / ENOTDIR — and is an error. The
+     * Windows branch below has to reconstruct this distinction by hand. */
     DIR *d = opendir(path);
     if (d == NULL) { return SRMECH_ERR_IO; }
     memcpy(out->handle.bytes, &d, sizeof(d));
@@ -1353,12 +1359,37 @@ srmech_status_t srmech_plat_dir_open(const char *path, srmech_plat_dir_t *out)
     assert(path != NULL);
     assert(out != NULL);
     out->pending_valid = 0;
+    memset(out->handle.bytes, 0, sizeof(out->handle.bytes));
     char pattern[1024];
     int w = snprintf(pattern, sizeof(pattern), "%s/*", path);
     if (w < 0 || (size_t)w >= sizeof(pattern)) { return SRMECH_ERR_OVERFLOW; }
     WIN32_FIND_DATAA fd;
     HANDLE h = FindFirstFileA(pattern, &fd);
-    if (h == INVALID_HANDLE_VALUE) { return SRMECH_ERR_IO; }
+    /* rc294: FindFirstFile CONFLATES two outcomes that POSIX opendir keeps
+     * apart, and the difference is load-bearing now that an unopenable root is
+     * an ERROR rather than "zero entries".
+     *
+     *   ERROR_FILE_NOT_FOUND — the search RAN and matched nothing. The
+     *       directory opened fine; it simply has no entries to enumerate. Most
+     *       Windows volumes hand back "." and ".." so the wildcard always
+     *       matches, but a FAT/exFAT ROOT directory has no "." / ".." entries
+     *       at all, and some network / virtual filesystems suppress them too.
+     *       On those an EMPTY directory lands HERE. That is the documented
+     *       supported input whose contract is n_genomes 0 (see
+     *       genome_list_genomes), so it MUST NOT become an error.
+     *   anything else (ERROR_PATH_NOT_FOUND, ERROR_ACCESS_DENIED,
+     *       ERROR_DIRECTORY, ...) — the directory could not be opened.
+     *
+     * The empty-match case therefore returns an EXHAUSTED iterator (NULL
+     * handle, no lookahead) with SRMECH_OK: dir_next reports end-of-directory
+     * immediately and dir_close is a no-op on it. Without this split, the
+     * POSIX projection would report 0 genomes for an empty root while the
+     * Windows one reported SRMECH_ERR_IO — trading the ADR-0009 split this rc
+     * closes for a new one along a platform seam instead of a language seam. */
+    if (h == INVALID_HANDLE_VALUE) {
+        if (GetLastError() == ERROR_FILE_NOT_FOUND) { return SRMECH_OK; }
+        return SRMECH_ERR_IO;
+    }
     size_t nl = strlen(fd.cFileName);
     if (nl + 1u > sizeof(out->pending)) { FindClose(h); return SRMECH_ERR_OVERFLOW; }
     memcpy(out->pending, fd.cFileName, nl + 1u);
@@ -1382,6 +1413,10 @@ srmech_status_t srmech_plat_dir_next(srmech_plat_dir_t *dir, char *name,
     }
     HANDLE h = NULL;
     memcpy(&h, dir->handle.bytes, sizeof(h));
+    /* rc294: a NULL handle is the EXHAUSTED iterator dir_open returns for the
+     * ERROR_FILE_NOT_FOUND (opened-but-empty) case. Report end-of-directory
+     * rather than handing NULL to FindNextFile. */
+    if (h == NULL) { *have = 0; return SRMECH_OK; }
     WIN32_FIND_DATAA fd;
     if (FindNextFileA(h, &fd) == 0) { *have = 0; return SRMECH_OK; }
     size_t nl = strlen(fd.cFileName);

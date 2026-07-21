@@ -3526,8 +3526,32 @@ static int genome_dir_is_genome(const char *root, const char *name, char *dirbuf
 
 /* List basenames of GENOME dirs under `root` into `names` (cap max_n) via the
  * PAL dir surface (no #ifdef — the OS opendir/FindFirstFile is in the PAL). A
- * missing root yields count 0 (not an error). Bounded (JPL Rule 2). names==NULL
- * runs a count-only pass.
+ * root that OPENS but holds no genome dirs yields count 0; a root that CANNOT
+ * BE OPENED is SRMECH_ERR_IO. Bounded (JPL Rule 2). names==NULL runs a
+ * count-only pass.
+ *
+ * rc294 (ADR-0009): this used to swallow EVERY dir_open failure as
+ * `*count = 0; return SRMECH_OK` under a comment reading "no root -> none".
+ * The comment described one case; the code covered all of them — absent root,
+ * permission denied, path-is-a-file, I/O error alike all reported ZERO GENOMES
+ * AND SUCCESS. A caller who typo'd a corpus path was told, authoritatively,
+ * that their corpus was empty. The scripting projection meanwhile raised
+ * (Path.iterdir), so the two implementations disagreed on the same input,
+ * which under ADR-0009 makes the SPLIT the defect rather than either side.
+ *
+ * The sibling surface already had it right: genome_census on an absent path
+ * raises in both projections. genome_registry was the outlier in its own
+ * family. And the docstring never sanctioned it — it promises n_genomes 0 for
+ * "a dir with no genome subdirs", which is an EMPTY dir, not an ABSENT one.
+ *
+ * The fix is deliberately NOT a bare `return st`. That would have made the
+ * behaviour of an EMPTY root hostage to how each platform reports one, and
+ * Windows genuinely differs: FindFirstFile signals an empty match set with
+ * ERROR_FILE_NOT_FOUND, indistinguishable at this layer from a failure to
+ * open. So the distinction is drawn where the knowledge lives — in the PAL
+ * (srmech_plat_dir_open), which now returns SRMECH_OK + an exhausted iterator
+ * for "opened, no entries" on every backend. By the time control reaches here,
+ * a non-OK status means the root could not be opened, full stop.
  *
  * `max_n` is a CAPACITY, and ZERO IS A LEGAL CAPACITY. An EMPTY root is a
  * documented supported input (the public docstring promises n_genomes 0), and
@@ -3550,7 +3574,10 @@ static srmech_status_t genome_list_genomes(const char *root,
     uint32_t n = 0u;
     srmech_plat_dir_t d;
     srmech_status_t st = srmech_plat_dir_open(root, &d);
-    if (st != SRMECH_OK) { *count = 0u; return SRMECH_OK; }   /* no root -> none */
+    /* Cannot open -> ERROR (rc294). An OPENED-but-empty root does not come
+     * through here: the PAL reports it as SRMECH_OK + an exhausted iterator,
+     * so it falls out of the loop below with count 0, which is the contract. */
+    if (st != SRMECH_OK) { *count = 0u; return st; }
     char nm[SRMECH_PLAT_DIR_NAME_MAX];
     char dirbuf[SRMECH_GENOME_PATH_MAX];
     int have = 0;
@@ -5182,7 +5209,17 @@ static int genome_chr_name_ok(const char *name)
  * missing/empty dir yields count 0 (not an error — the Python glob simply
  * finds nothing; the caller turns 0 into the "no .chr files" error). The
  * scan is bounded (JPL Rule 2): >max_n matches is OVERFLOW, and a flood of
- * 65536 entries stops. */
+ * 65536 entries stops.
+ *
+ * rc294: this swallow was AUDITED alongside the genome_list_genomes one and
+ * deliberately KEPT — it is not the same defect wearing the same shape. There
+ * the swallow reached the caller as a SUCCESS status; here the sole caller
+ * (srmech_genome_pack) turns count 0 into SRMECH_ERR_BAD_INPUT unconditionally,
+ * and the scripting peer does likewise: Path.glob("*.chr") does NOT raise on an
+ * absent dir, so it also yields nothing and also raises "no .chr files". Both
+ * projections therefore ERROR on an unopenable dir, which is the ADR-0009
+ * invariant. Changing this one would alter the STATUS a bare-C host sees
+ * (BAD_INPUT -> IO) while fixing no split. Verified, not assumed. */
 static srmech_status_t genome_list_chr(const char *dir,
     char names[][SRMECH_GENOME_CHR_NAME_MAX], uint32_t max_n, uint32_t *count)
 {
