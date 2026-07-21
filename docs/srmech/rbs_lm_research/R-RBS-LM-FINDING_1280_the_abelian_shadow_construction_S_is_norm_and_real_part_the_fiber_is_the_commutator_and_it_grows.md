@@ -60,3 +60,5 @@ Whether *our* observation is such a map is a substrate question this harness doe
 The inverse problem is now well-posed enough to attack: **given only shadow data, what is recoverable?** Not the fiber — but the *dimension* of the fiber may be estimable from how badly composition fails (57 % at 𝕊 vs 95 % at 𝕋 is a graded signal, not a binary one). That is a measurement, and it is the natural successor.
 
 Composes **F1278** (the destructive direction), **F1273/F1274/F1275** (reframed — same boundary, opposite verdicts by operation), **F1279** (invisible ≠ absent; the cospectral analogue), **F1216**, `[[feedback_no_privileged_primitive_classes]]`, `[[user_stance_no_information_without_value]]`.
+
+**→ its NEXT is RETRACTED by F1282** — composition-failure rate cannot estimate the fiber dimension: it is flat at 0% across ℂ/ℍ/𝕆 whose fiber dims are 0/3/7. The fiber dimension is **not recoverable from the shadow** at all; measured, it is exactly 0, 3, 7, 15, 31.

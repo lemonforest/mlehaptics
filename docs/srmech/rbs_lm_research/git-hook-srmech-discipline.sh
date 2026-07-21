@@ -34,6 +34,7 @@ added=$(git diff --cached --unified=0 -- "$SCOPE" ':(exclude,glob)**/*.py' \
           ':(exclude)docs/srmech/python' ':(exclude)docs/srmech/c' \
           ':(exclude,glob)**/*.md' ':(exclude,glob)**/*.txt' \
           ':(exclude,glob)**/*.rst' ':(exclude,glob)**/*.ndjson' \
+          ':(exclude,glob)**/*.json' ':(exclude,glob)*.json' \
           ':(exclude,glob)*.md' ':(exclude,glob)*.txt' 2>/dev/null \
         | grep -E '^\+' | grep -vE '^\+\+\+' \
         | grep -vE 'srmech-allow')
