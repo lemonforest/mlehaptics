@@ -5839,6 +5839,8 @@ def _fiedler_sparse_native(
     wbuf = (ctypes.c_double * n_edges)(*(float(w) for w in w_list))
     out = (ctypes.c_double * n)()
     ws = (ctypes.c_double * (9 * n))()
+    # rc307: ws_len is BYTES (was a DOUBLES count) — pass the buffer's byte size,
+    # which comfortably exceeds srmech_laplacian_fiedler_sparse_arena_bytes(n) = 8*n*8.
     rc = _native.LIB.srmech_laplacian_fiedler_sparse(
         ctypes.c_uint32(n),
         ctypes.c_uint32(n_edges),
@@ -5846,7 +5848,7 @@ def _fiedler_sparse_native(
         ctypes.c_uint32(int(max_iters)),
         out,
         ws,
-        ctypes.c_size_t(9 * n),
+        ctypes.c_size_t(ctypes.sizeof(ws)),
     )
     if rc != _native.SRMECH_OK:
         return None
@@ -6038,13 +6040,14 @@ def _fiedler_sparse_file_native(
     or ``None`` on any non-OK status (caller then uses the pure-Python path)."""
     out = (ctypes.c_double * n)()
     ws = (ctypes.c_double * (9 * n))()
+    # rc307: ws_len is BYTES (was a DOUBLES count) — pass the buffer's byte size.
     rc = _native.LIB.srmech_laplacian_fiedler_sparse_file(
         ctypes.c_uint32(n),
         graph_path.encode("utf-8"),
         ctypes.c_uint32(int(max_iters)),
         out,
         ws,
-        ctypes.c_size_t(9 * n),
+        ctypes.c_size_t(ctypes.sizeof(ws)),
     )
     if rc != _native.SRMECH_OK:
         return None

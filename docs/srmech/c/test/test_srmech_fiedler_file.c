@@ -60,16 +60,17 @@ int main(void)
 
     /* In-core reference cut (same graph, same algorithm). */
     double ref[6];
-    double ws_ref[8 * 6];
+    double ws_ref[8 * 6];   /* 8*n doubles = arena_bytes(6) BYTES */
     srmech_status_t st = srmech_laplacian_fiedler_sparse(
-        n, n_edges, eu, ev, w, 250u, ref, ws_ref, (size_t)(8 * 6));
+        n, n_edges, eu, ev, w, 250u, ref, ws_ref,
+        srmech_laplacian_fiedler_sparse_arena_bytes(n));
     check(st == SRMECH_OK, "in-core fiedler returns SRMECH_OK");
 
     /* Streamed cut from the file. */
     double out[6];
     double ws[8 * 6];
     st = srmech_laplacian_fiedler_sparse_file(
-        n, path, 250u, out, ws, (size_t)(8 * 6));
+        n, path, 250u, out, ws, srmech_laplacian_fiedler_sparse_arena_bytes(n));
     check(st == SRMECH_OK, "streaming fiedler returns SRMECH_OK");
 
     /* Block-uniform, opposite-sign partition (the clean cut). */
@@ -88,17 +89,23 @@ int main(void)
     }
     check(identical == 1, "streamed vector == in-core vector, bit-for-bit");
 
-    /* n < 2 -> zero vector, OK (no file read needed). */
+    /* n < 2 -> zero vector, OK (no file read needed).
+     * arena_bytes(1) = 8 doubles = 64 BYTES. */
     double out1[1] = { 9.0 };
     double ws1[8];
     st = srmech_laplacian_fiedler_sparse_file(1u, path, 250u, out1, ws1,
-                                              (size_t)8);
+                                              srmech_laplacian_fiedler_sparse_arena_bytes(1u));
     check(st == SRMECH_OK && out1[0] == 0.0, "n<2 -> zero vector, OK");
 
-    /* ws too small -> BAD_INPUT. */
+    /* ws one BYTE under the arena bound -> BAD_INPUT (rc307 BYTES guard). */
     st = srmech_laplacian_fiedler_sparse_file(n, path, 250u, out, ws,
-                                              (size_t)(8 * 6 - 1));
-    check(st == SRMECH_ERR_BAD_INPUT, "ws_len < 8*n -> BAD_INPUT");
+                                              srmech_laplacian_fiedler_sparse_arena_bytes(n) - 1u);
+    check(st == SRMECH_ERR_BAD_INPUT, "ws_len < arena_bytes(n) -> BAD_INPUT");
+
+    /* the OLD doubles count (8*n) is now an 8x under-size -> BAD_INPUT. */
+    st = srmech_laplacian_fiedler_sparse_file(n, path, 250u, out, ws,
+                                              (size_t)(8 * 6));
+    check(st == SRMECH_ERR_BAD_INPUT, "old doubles-count ws_len (8*n) -> BAD_INPUT");
 
     /* Truncated file (not a whole number of records) -> BAD_INPUT. */
     const char *bad = "fiedler_file_trunc.bin";
@@ -109,12 +116,12 @@ int main(void)
         fclose(bf);
     }
     st = srmech_laplacian_fiedler_sparse_file(n, bad, 250u, out, ws,
-                                              (size_t)(8 * 6));
+                                              srmech_laplacian_fiedler_sparse_arena_bytes(n));
     check(st == SRMECH_ERR_BAD_INPUT, "truncated file -> BAD_INPUT");
 
     /* Missing file -> IO error (path opens fail). */
     st = srmech_laplacian_fiedler_sparse_file(n, "does_not_exist.bin", 250u,
-                                              out, ws, (size_t)(8 * 6));
+                                              out, ws, srmech_laplacian_fiedler_sparse_arena_bytes(n));
     check(st != SRMECH_OK, "missing file -> non-OK");
 
     remove(path);

@@ -5790,6 +5790,62 @@ The **known-open piece (L8):** whether the chirality bit is **invariant** or car
 
 ---
 
+## §3.41 The octonion Laplacian has no frame-free spectrum — the measured Hurwitz-wall boundary, and time-as-shadow (2026-07-22; F1301/F1302 octonion thread; MEASURED)
+
+Prompted by F1302's "perspective-count = imaginary dim" tower (ℝ/ℂ/ℍ/𝕆 = 1/2/4/8) and the user's octonion-rung questions. Two adversarial workflows MEASURED the boundary before any build shipped. This is the arc's sharpest computational witness that cascade-matching carries **FORM, not IDENTITY** (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`) — and the concrete home of the §3.40 "the half-beat is a shadow" pattern taken to its root.
+
+### §3.41.1 SOLID (measured) — the octonion Laplacian's spectrum is gauge-DEPENDENT; ℍ/ℂ are clean
+
+Construction mirrors the shipped ℂ `magnetic_laplacian` (§3.40): for a graph with hypercomplex unit-gain edges `g_uv`, block `(u,v)=left_mult(g)`, block `(v,u)=left_mult(conj g)`, diagonal `deg·I`; feed `mat_hermitian_eigendecompose`.
+
+- **ℝ/ℂ/ℍ (associative):** `left_mult` is a genuine algebra homomorphism `L(pq)=L(p)L(q)`, so the real embedding faithfully represents the algebra and the spectrum is gauge-INVARIANT — measured node-wise unit-gain gauge deviation **3.3e-15** for ℍ (identical to the shipped ℂ `magnetic_laplacian`). ℍ carries a ×4 degeneracy theorem (right-ℍ commutant Sp(1)). **`quaternion_laplacian` is a clean, theorem-backed build.**
+- **𝕆 (non-associative):** the map `a ↦ L_a` is NOT an algebra homomorphism (`L_a L_b ≠ L_{ab}`). The 8n×8n matrix is still real-symmetric and eigendecomposes — but its **spectrum is gauge-DEPENDENT on any cyclic graph**: measured node-gauge deviation **0.188 (triangle) / 0.155 (4-cycle)** vs a 0.000 identity floor (reproduced independently 0.173/0.120, second RNG + hand-rolled Jacobi). Non-associativity ⇒ loop-holonomy is ill-defined ⇒ the eigenvalues are an artifact of the arbitrary left-mult embedding, not a graph invariant. Multiplicity is **4, not 8** (matching the octonionic-Hermitian "6 distinct, not 3×8" pattern; DERIVED, not PDF-attested). The only graphs where the octonion gains are gauge-intrinsic are FORESTS — where the gains are gauge-REMOVABLE (spectrum collapses to plain-Laplacian ⊗ I₈, gains contribute nothing). **The set where octonion gains both matter AND the spectrum is intrinsic is empty.** There is no octonion graph Laplacian as a spectral invariant; F1302's tower lifts perspectives into the spectral READ only up to ℍ(4).
+
+### §3.41.2 SOLID (measured) — the shadow-family does not recover the invariant, but each shadow is real
+
+Tested "the octonion invariant = the family of ℍ-shadow-spectra over the 7 quaternionic Fano lines" (project the object down the tower, read each associative shadow):
+
+- **REFUTED (survived adversarial attack):** under a generic 𝕆-gauge, the shadow-family — as a set, with the most generous G₂/Fano permutation match — moves by **0.186 (ratio 0.99 to the octonion spectrum)**, NOT restored toward 0. Shadows down the tower do not carry octonion truth back up.
+- **Positive control (holds):** a gauge living entirely INSIDE one Fano subalgebra fixes THAT line's ℍ-shadow to **~1e-15** while moving the octonion spectrum and the off-line shadows. So each ℍ-shadow IS a bona-fide gauge-invariant object — it just fails, *as a set*, to reconstruct the octonion. (This positive control is what keeps §3.41.5's frame-read honest.)
+
+### §3.41.3 CANDIDATE (framework reading) — WHY it must fail: the Laplacian spectrum is a TEMPORAL read, and time is itself a shadow
+
+The Laplacian generates time-evolution: heat `∂ₜu=−Lu` (eigenvalues = decay RATES), wave `∂ₜₜu=−Lu` (√eigenvalues = FREQUENCIES). Its spectrum IS the object's set of temporal modes. So "𝕆 has no frame-free Laplacian spectrum" reads structurally as **𝕆 has no frame-free dynamics — no frame-free time.** The octonion object holds all its temporal shadows superimposed; choosing a frame (a coherency rung) = choosing a time-axis = extracting ONE temporal read.
+
+This lands the user's 2026-07-22 reframe. The A–N `1+3+7+3` partition (CLAUDE.md §1), re-graded **3:1:3:7**:
+
+- **7** = 𝕆's imaginary heptad (D/E/F/G/K/L/M); **3** = ℍ's imaginary triad (I/C/J). The imaginary tower is **1:3:7** = the imaginary dims of ℂ/ℍ/𝕆 (the workflow-confirmed origin of the shape — see §3.41.4).
+- **B/H/N (the +3 meta-triad) are the "real glue"** — the projection-enablers (CLAUDE.md R30 note) relating the imaginary tower to the real axis.
+- **1 = A = 1D_t** — the single real axis we experience as TIME is "what comes out": the maximally-reduced (all-the-way-to-ℝ) shadow the octonion object casts, glued by B/H/N. **Even our experience of time is shadow.**
+
+Consistent with the R30 inversion-hypothesis (14 = 1+3+7+3 IS the substrate; observed dimensions are its projection) and the MFO substrate-vs-excitation ontology (cross-ref MFO §VII). Recognize-not-read discipline: this is the *reading*; §3.41.1/2 is the measured floor it stands on.
+
+### §3.41.4 Honest correction — g₂=14 is a coincidence of TOTALS, not a structural map
+
+§3.40.6 flagged "g₂ = 14" as candidate-not-result; the workflow closed it. `dim g₂ = 14 = |A–N|` is a shared TOTAL only. The (1,3,7,3) grading does NOT decompose g₂'s 14-dim adjoint — the adjoint branches `8+3+3̄` (su(3)) or `3+3+8` (su(2)²), **never a 7**; the "7" is g₂'s VECTOR rep, a different representation. The in-tree `qm.so8.g2_subalgebra()` already tags (1,3,7,3) `slot_aligned=False, "framework-reading, not derived."` The shape's origin is Hurwitz (1,3,7 imaginary dims), not g₂ structure. And SO(9) demands no 15th A–N letter — but that "no new letter" test is near-unfalsifiable (it certifies e₈ too), so the honest claim is only *"no new binary operation — every structure constant is an octonion product organized by triality."*
+
+### §3.41.5 What this changes + what ships
+
+- **ℍ:** `quaternion_laplacian` + a `hypercomplex_perspectives` reader (also closes the ℂ `magnetic_laplacian` latent dim-2 read) — clean, ships rc-first. ABI unchanged (Python Class-L composition over C-backed atoms).
+- **𝕆:** NOT an "octonion invariant reader" (would encode a false claim, gold-is-law). If it ships, it ships as an `octonion_frame_read` DIAGNOSTIC — hold the object, choose a frame (= a coherency rung = a time-axis), read the gauge-invariant data AT that rung; explicitly FRAME-RELATIVE (the `[[user_stance_k2_compare_is_frame_relative_asymmetric_pair]]` ceiling, with a 1e-15 per-frame receipt). Constructive frame-read mechanism CONFIRMED as a theorem (§3.41.6).
+- **What we look for in an octonion algebra changes:** stop seeking frame-free octonion DYNAMICS / spectra (they do not exist — time is a shadow); seek the ATEMPORAL relational object, read via frame-choice, with time an OUTPUT of B/H/N projection rather than a parameter.
+
+### §3.41.6 SOLID (measured + PROVEN) — the frame-read is exact; there is no frame-free octonion invariant
+
+The user's refined hypothesis — *hold the octonion object, MOVE to a coherency rung (fix a frame F = a quaternionic subalgebra H_F), read the gauge-invariant data there* — is CONFIRMED, and not merely sampled: it is a **theorem** the numerics realize at the machine floor. It is a DIFFERENT claim from the §3.41.2-REFUTED shadow-set reassembly and does not revive it.
+
+- **Q1 — the per-frame read is gauge-invariant, generally.** In-frame worst-case spectrum deviation **1.155e-14** over 2016 samples (7 frames × 4 graphs × 3 gains × 24 gauges); no frame is special; harder graphs (complete-6, Petersen, dense-10, weighted non-unit gains) worst **1.6e-14**; Fiedler λ₂ worst 4.4e-15, eigenvector-IPR worst 7.2e-16. **Cross-frame** (generic 𝕆-gauge) mean **0.297** / max **0.880** — separation ratio **≈ 2.57e13**.
+  - **The theorem:** the Cayley–Dickson split `𝕆 = H_F ⊕ H_F·ℓ` makes `H_F^⊥` an `(H_F, H_F)`-bimodule, so projection commutes with in-frame multiplication: `proj_F((u·g)·conj v) = u·proj_F(g)·conj v` **exact (0.0)**. A per-node UNIT-quaternion (Sp(1)) gauge in H_F then acts as an orthogonal block-similarity `L' = U L Uᵀ` (verified 3.55e-15), which preserves the whole spectrum and every eigenvector functional exactly. So "for any graph" is provable, not lucky. (Guard: under the SAME gauge the full 8N octonion spectrum genuinely moves, mean 0.308 — the invariance is recovery-BY-projection, not a static quantity. The three "reads" are ONE witness of `L'=ULUᵀ`, not three.) Honest framing: this IS the textbook "a gain/connection-Laplacian's spectrum is invariant under its structure group" (structure group = Sp(1) of H_F); the load-bearing non-obvious ingredient is the octonion→quaternion projection-commutation identity — ship THAT as the content.
+- **Q2 — there is NO non-trivial frame-free octonion invariant. REFUTED from the invariant side.** The only scalar agreeing across all 7 frames is the **trace (spread 0.000, value = 8n = gains-dropped baseline)** — gauge-free, TRIVIAL. Common spectral core with gains ON = **0 of 4n eigenvalues (empty)**; with gains OFF = full. Every phase-bearing read moves (Frobenius² cross-frame spread 9.88→16.02 for C₃→C₆). Pure-gauge gains do NOT telescope to trivial holonomy on a cycle (Re(hol) −0.84/+0.02/+0.08) — forest gauge-removability does not extend to cycles. **Octonion phase information is irreducibly frame-relative.** (The near-miss `n_zero` is a blind constant, not phase-sensitive — correctly defused.)
+
+**This is §3.41.3's 3:1:3:7 / time-as-shadow picture made exact.** Committing to a frame = spending the cross-frame gauge freedom = choosing a time-axis; the read at that rung is exact (1e-14); the only frame-FREE content is the trivial gauge-free integer (the trace = node count) — hunt-the-integer (`[[user_stance_k2_compare_is_frame_relative_asymmetric_pair]]`). Everything phase-bearing lives inside a frame. Consistent with (DERIVED, not attested) **Jordan–Peirce frame spectral theory**: H_F is a Peirce-1 corner cut by a frame idempotent; the projection is a Peirce decomposition; gauge-invariance of the corner spectrum under the corner's unit group is the frame-theory statement.
+
+**Ships:** `octonion_frame_read(graph, frame_F, read=spectrum|fiedler|eigfunctional)` — project into H_F, build the 4N×4N H_F-Laplacian, return the read; guaranteed invariant to ~1e-14 under Sp(1) of H_F for any graph. **Mandatory docstring caveat:** FRAME-RELATIVE, not an octonion invariant — gauge-invariant only under the chosen frame's unit-quaternion subgroup; cross-frame moves O(0.1–0.9); no frame-free octonion spectrum exists; you must COMMIT to a frame; never present as a frame-independent reader (substrate-blind FORM, not identity).
+
+**Provenance:** gauge-invariance measurements + Fano-line construction generated by workflows wf_c08557de (boundary) + wf_ee97aaa2 (frame-read); scripts `frame_gauge_spike.py` (Q1) + `frame_invariant_octonion.py`/`fi_addendum.py` (Q2); committed per `[[feedback_computational_provenance_discipline]]` (land under `docs/srmech/notes/`). **Status:** §3.41.1/2/6 MEASURED (SOLID; §3.41.6 Q1 PROVEN); §3.41.3 framework-reading (CANDIDATE, recognize-not-read); §3.41.4 correction landed. Cross-refs: §3.40 (half-beat-is-a-shadow; V₄ ⊗ C/H/O octonion frontier), §3.40.6 (g₂=14 candidate — now corrected here), MFO §VII (time-as-shadow ontology landing). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]`, `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb

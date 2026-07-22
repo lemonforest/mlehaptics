@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc306"
-#define SRMECH_VERSION       "0.9.0rc306"
+#define SRMECH_VERSION_PRE   "rc307"
+#define SRMECH_VERSION       "0.9.0rc307"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -176,8 +176,26 @@ extern "C" {
  *      would push the OLD 10-arg wire shape at the NEW 12-arg binding, which the
  *      version check is the only thing that catches (HAS_NATIVE would otherwise
  *      stay true). GENOME_FORMAT_VERSION stays 15 — no on-disk format change.
+ * v10 — v0.9.0rc307: the fiedler_sparse family ws_len UNIT unified to BYTES (§51 /
+ *      task #903). No signature changed shape; the CONTRACT of an existing param
+ *      changed: srmech_laplacian_fiedler_sparse / _file / _file_progress guarded
+ *      ws_len as a COUNT OF DOUBLES (`ws_len < 8u*n`), while the rest of the
+ *      caller-arena surface (k_extreme_modes, recursive_cut, every *_arena_bytes
+ *      peer) counts BYTES. That three-way split was a latent unit hazard for an
+ *      EXTERNAL bare-C host sizing by the wrong convention (fail-safe in-tree only
+ *      because the Python sizer happened to over-size). rc307 adds
+ *      srmech_laplacian_fiedler_sparse_arena_bytes(n) = 8*n*sizeof(double) and
+ *      flips the three fiedler guards to it, so ws_len is BYTES uniformly across
+ *      the whole laplacian surface. Reinterpreting an exported function's ws_len
+ *      unit is a breaking wire-contract change for external callers: a caller
+ *      passing the old doubles count now under-sizes the arena 8x and is correctly
+ *      declined (SRMECH_ERR_BAD_INPUT) rather than silently reading OOB — the
+ *      version bump is what tells an out-of-tree caller to re-read the contract.
+ *      The paired Python ctypes dispatch sites pass BYTES in lockstep. The added
+ *      *_arena_bytes symbol alone would NOT have bumped; the unit reinterpretation
+ *      is what does. GENOME_FORMAT_VERSION stays 15 — no on-disk format change.
  */
-#define SRMECH_ABI_VERSION 9
+#define SRMECH_ABI_VERSION 10
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -1315,7 +1333,16 @@ srmech_status_t srmech_graph_cycle_holonomy(uint32_t        n,
  * node cap — the bound is the caller's RAM). `out_vec` (length n) receives the
  * sign-bearing Fiedler vector; n < 2 -> the zero vector. Stops early on sign-
  * stability (5 stable-sign steps past a 20-iteration warmup). max_iters caps the
- * power iteration. ABI-additive (a new symbol) -> SRMECH_ABI_VERSION stays 3. */
+ * power iteration.
+ *
+ * `ws` is a caller arena of >= srmech_laplacian_fiedler_sparse_arena_bytes(n)
+ * BYTES (rc307: BYTES, like the rest of the caller-arena surface — the pre-rc307
+ * DOUBLES-count contract was the odd one out and is gone; see the v10 ABI note).
+ * ABI: the *_arena_bytes helper is a new additive symbol, but rc307 also flips
+ * this guard's ws_len UNIT to BYTES, which is a breaking wire-contract change ->
+ * SRMECH_ABI_VERSION 9 -> 10. */
+size_t srmech_laplacian_fiedler_sparse_arena_bytes(uint32_t n);
+
 srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t        n,
                                                 uint32_t        n_edges,
                                                 const uint32_t *edge_u,
@@ -1331,13 +1358,14 @@ srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t        n,
  * resident — each edge pass STREAMS a packed edge file via the PAL streaming-read.
  * `path` is a packed binary file of 16-byte records (uint32 u | uint32 v | double w,
  * host byte order; records never straddle a read chunk). Only the O(n) working
- * vectors live in RAM (the caller `ws` arena, >= 8*n doubles — no compiled-in node
- * cap), so a low-RAM target can PARTITION a graph whose edge list does not fit RAM:
- * the low-RAM ENCODE for graph partition (composes §52.1 cooccurrence_topk for the
- * bounded edge SET). `out_vec` (length n) receives the sign-bearing Fiedler vector;
- * n < 2 -> the zero vector. A read that is not a whole number of records (truncated
- * file) -> SRMECH_ERR_BAD_INPUT; an out-of-range endpoint -> SRMECH_ERR_BAD_INPUT.
- * ABI-additive (a new symbol) -> SRMECH_ABI_VERSION stays 3. */
+ * vectors live in RAM (the caller `ws` arena, >= srmech_laplacian_fiedler_sparse_arena_bytes(n)
+ * BYTES — rc307: BYTES, no compiled-in node cap), so a low-RAM target can PARTITION
+ * a graph whose edge list does not fit RAM: the low-RAM ENCODE for graph partition
+ * (composes §52.1 cooccurrence_topk for the bounded edge SET). `out_vec` (length n)
+ * receives the sign-bearing Fiedler vector; n < 2 -> the zero vector. A read that is
+ * not a whole number of records (truncated file) -> SRMECH_ERR_BAD_INPUT; an
+ * out-of-range endpoint -> SRMECH_ERR_BAD_INPUT. rc307 flips this guard's ws_len
+ * UNIT to BYTES -> SRMECH_ABI_VERSION 9 -> 10 (see the v10 note). */
 srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t      n,
                                                      const char   *path,
                                                      uint32_t      max_iters,
@@ -1352,8 +1380,10 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file(uint32_t      n,
  * tick return CANCELS: the loop returns SRMECH_CANCELLED with `out_vec` left as
  * the zeroed init (a valid "no cut" vector, byte-indistinguishable from an
  * edgeless graph). `tick` may be NULL (runs exactly as the plain symbol).
- * ABI-additive symbol; the new srmech_progress_tick_cb_t typedef is what bumps
- * SRMECH_ABI_VERSION 5 -> 6. See the srmech_progress_ev_t block above. */
+ * `ws` is a caller arena of >= srmech_laplacian_fiedler_sparse_arena_bytes(n)
+ * BYTES (rc307). The srmech_progress_tick_cb_t typedef is what bumped
+ * SRMECH_ABI_VERSION 5 -> 6; rc307's ws_len BYTES unification bumps 9 -> 10.
+ * See the srmech_progress_ev_t block above. */
 srmech_status_t srmech_laplacian_fiedler_sparse_file_progress(
     uint32_t                   n,
     const char                *path,
@@ -1395,8 +1425,9 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file_progress(
  * it like any other leaf (an early-out here would be a parity divergence).
  *
  * `ws` is a caller arena of >= srmech_laplacian_recursive_cut_arena_bytes(n)
- * BYTES (note: BYTES, unlike the fiedler_sparse family's DOUBLES) — so there
- * is no compiled-in node cap; the bound is the caller's RAM.
+ * BYTES — so there is no compiled-in node cap; the bound is the caller's RAM.
+ * (rc307: the whole laplacian caller-arena surface, fiedler_sparse family
+ * included, now counts ws_len in BYTES — the DOUBLES odd-one-out is gone.)
  *
  * §101: `tick` fires once per queue pop (phase SRMECH_PHASE_PARTITIONING,
  * done = Σ finalized-tome sizes so far — EXACT and monotone, total = n). A

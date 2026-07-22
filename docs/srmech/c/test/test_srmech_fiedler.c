@@ -37,9 +37,10 @@ int main(void)
     uint32_t n = 6u;
 
     double out[6];
-    double ws[8 * 6];   /* caller arena: 8*n doubles */
+    double ws[8 * 6];   /* caller arena: 8*n doubles = arena_bytes(6) BYTES */
     srmech_status_t st = srmech_laplacian_fiedler_sparse(
-        n, n_edges, eu, ev, w, 250u, out, ws, (size_t)(8 * 6));
+        n, n_edges, eu, ev, w, 250u, out, ws,
+        srmech_laplacian_fiedler_sparse_arena_bytes(n));
     check(st == SRMECH_OK, "fiedler returns SRMECH_OK");
 
     /* Sign partition must split A = {0,1,2} from B = {3,4,5} (up to a flip). */
@@ -51,22 +52,29 @@ int main(void)
     check(b_uniform, "block B {3,4,5} has one sign");
     check(sa != sb, "the two blocks have OPPOSITE signs (clean cut)");
 
-    /* n < 2 -> zero vector, OK. */
+    /* n < 2 -> zero vector, OK. (arena_bytes(1) = 8 doubles = 64 BYTES.) */
     double out1[1] = { 9.0 };
     double ws1[8];
     st = srmech_laplacian_fiedler_sparse(1u, 0u, NULL, NULL, NULL, 250u,
-                                         out1, ws1, (size_t)8);
+                                         out1, ws1,
+                                         srmech_laplacian_fiedler_sparse_arena_bytes(1u));
     check(st == SRMECH_OK && out1[0] == 0.0, "n<2 -> zero vector, OK");
 
-    /* ws too small -> BAD_INPUT. */
+    /* ws one BYTE under the arena bound -> BAD_INPUT (rc307: BYTES, not doubles —
+     * catches a caller that hands the OLD 8*n doubles count as a byte size). */
     st = srmech_laplacian_fiedler_sparse(n, n_edges, eu, ev, w, 250u, out, ws,
-                                         (size_t)(8 * 6 - 1));
-    check(st == SRMECH_ERR_BAD_INPUT, "ws_len < 8*n -> BAD_INPUT");
+                                         srmech_laplacian_fiedler_sparse_arena_bytes(n) - 1u);
+    check(st == SRMECH_ERR_BAD_INPUT, "ws_len < arena_bytes(n) -> BAD_INPUT");
+
+    /* the OLD doubles count (8*n) is now an 8x under-size -> BAD_INPUT. */
+    st = srmech_laplacian_fiedler_sparse(n, n_edges, eu, ev, w, 250u, out, ws,
+                                         (size_t)(8 * 6));
+    check(st == SRMECH_ERR_BAD_INPUT, "old doubles-count ws_len (8*n) -> BAD_INPUT");
 
     /* out-of-range edge endpoint -> BAD_INPUT. */
     uint32_t bad_ev[] = { 1u, 99u, 2u, 4u, 5u, 5u, 3u };   /* 99 >= n */
     st = srmech_laplacian_fiedler_sparse(n, n_edges, eu, bad_ev, w, 250u, out,
-                                         ws, (size_t)(8 * 6));
+                                         ws, srmech_laplacian_fiedler_sparse_arena_bytes(n));
     check(st == SRMECH_ERR_BAD_INPUT, "out-of-range edge -> BAD_INPUT");
 
     /* NOTE: the NULL-arg runtime guard (returns SRMECH_ERR_NULL_ARG in a
