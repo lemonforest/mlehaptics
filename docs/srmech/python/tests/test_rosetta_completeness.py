@@ -1349,6 +1349,13 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.amsc.harmonics.classify_harmonic",
     "srmech.amsc.hdc.klein4_project_axis",
     "srmech.amsc.laplacian.write_packed_graph",
+    # hypercomplex_perspectives (v0.9.0rc308, #944) — the quaternion_laplacian /
+    # magnetic_laplacian eigenvector channel reader. A pure STRUCTURAL split: it
+    # indexes an already-decomposed eigenvector Mat and copies each dim-block's
+    # scalar/imaginary components into channel lists. It computes nothing and
+    # calls no ledger op (only Mat.__getitem__ + complex()), so the AST walk
+    # reaches zero — the write_packed_graph accessor precedent above.
+    "srmech.amsc.laplacian.hypercomplex_perspectives",
     "srmech.amsc.modular_forms_ring.modular_forms_ring",
     "srmech.amsc.op_provenance.family_verdict",
     "srmech.amsc.poly.poly_from_coeffs",
