@@ -89,7 +89,8 @@ beyond a single-file read.
   lean-ISA split (#751); **`srmech.qm.so8.quaternion_subalgebra_stabilizer`**
   so(4) = su(2) ⊕ su(2) (#759); **`srmech.qm.triality.lean_isa_seventh_primitive`**
   order-3 triality 7th primitive (#761); `sha256_bytes` docs
-  (#738); a **reentrant C core** (#772); the Klein-4 four-sector
+  (#738); a **reentrant C core** (#772 — thread-local scratch; note the
+  caveat reconciled in rc306 below); the Klein-4 four-sector
   **`cascade.parallel_sector_dispatch`** Python surface (#778) +
   its C peer **`srmech_cascade_parallel_sector_dispatch`** (#771),
   plus the parallel-dispatch slowdown fix; the native Kuramoto
@@ -563,8 +564,8 @@ calls** — go through `sha256_bytes` (Phase B5 discipline).
 
 ### ABI compatibility
 
-C ABI version is currently **6** (`SRMECH_ABI_VERSION = 6` in
-`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 6` in
+C ABI version is currently **9** (`SRMECH_ABI_VERSION = 9` in
+`c/include/srmech.h`; `EXPECTED_ABI_VERSION = 9` in
 `python/srmech/amsc/_native.py`). **Bump in lockstep** whenever
 the wire format of any existing exported function changes. Adding
 a new symbol does NOT bump ABI (the Python shim just doesn't bind
@@ -587,7 +588,29 @@ symbols. Each of v2–v6 bumped because a new callback typedef changed
 the CFUNCTYPE wire format, even though no existing function signature
 changed. (Later APPEND-only growth of `srmech_progress_ev_t` via its
 `struct_size` gate will NOT re-bump — that is the whole point of the
-versioned struct.)
+versioned struct.) **v7 (v0.9.0rc287)** and **v8 (v0.9.0rc290)** were
+the first bumps driven by a symbol REMOVAL (glyph-stream tokenizer;
+Klein-4 mint-by-regime) — a removal produces no other symptom than a
+version mismatch, so by standing policy a removed export always bumps.
+**v9 (v0.9.0rc306, task #899)** is the first bump of the ORDINARY kind —
+an existing exported signature changed: `srmech_genome_section_counts`
+gained `(void *ws, size_t ws_len)` caller-arena params (removing its
+32 MiB static catalog arena / static count table / static window — the
+~11k-section corpus cap AND the non-reentrancy), with the paired ctypes
+argtypes updated in lockstep. `GENOME_FORMAT_VERSION` stays 15.
+
+**#772 reconciliation (rc306).** The "reentrant C core" claim (#772) rests
+on the `SRMECH_THREAD_LOCAL` thread-local-storage scratch. `srmech_genome_section_counts`
+was a genuine EXCEPTION to it: rc280 shipped that op with THREE plain
+file-scope statics (not thread-local) + a static id counter, so two threads
+sharing `libsrmech` would corrupt each other's scan. rc306 removes that
+exception by converting the op to the caller-arena pattern (the count table
++ region window are carved from the caller `ws`, the catalog arena is its
+tail) — no static scan state remains, so the op is now reentrant on disjoint
+`ws` buffers. This does NOT assert the whole C surface is exhaustively
+audited for reentrancy; it states precisely that the one documented
+section_counts exception is closed. Any op still holding mutable file-scope
+scratch remains single-thread-at-a-time until similarly converted.
 
 ### JPL Power-of-Ten audit
 

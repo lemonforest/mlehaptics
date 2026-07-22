@@ -10,7 +10,7 @@ Why the check matters: every native dispatch site is gated on
 the pure-Python path — correct answers, but the ``c_dispatched`` claim is FALSE
 and, before rc300, nothing said so. ABI matching does not cover this: the header
 adds symbols ABI-additively ("new symbols only, so SRMECH_ABI_VERSION stays N"),
-so a stale-but-ABI-8 library is a REACHABLE state with a correct pure
+so a stale-but-ABI-9 library is a REACHABLE state with a correct pure
 fallback and a silently false classification.
 
 Consumed by :func:`srmech.amsc._native.c_claim_report` and surfaced as
@@ -472,7 +472,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_op_provenance_hash_arena_bytes',
     ),
     'srmech.amsc.plasmid.conserved_core': ('srmech_genome_conserved_core',),
-    'srmech.amsc.plasmid.section_counts': ('srmech_genome_section_counts',),
+    'srmech.amsc.plasmid.section_counts': (
+        'srmech_genome_section_counts',
+        'srmech_genome_section_counts_arena_bytes',
+    ),
     'srmech.amsc.primes.cyclic_period': ('srmech_cyclic_period',),
     'srmech.amsc.primes.factor': ('srmech_factor',),
     'srmech.amsc.primes.is_prime': ('srmech_is_prime',),
