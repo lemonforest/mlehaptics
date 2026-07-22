@@ -1191,6 +1191,62 @@ def _register_primitive_class_tools() -> None:
                           "mutually exclusive with q")),
             returns=R("Mat", "n × n complex Hermitian matrix (numpy-free Mat)"),
         ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.quaternion_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Quaternion (ℍ) gain Laplacian — the ASSOCIATIVE dim-4 rung "
+                    "of magnetic_laplacian (the ℂ dim-2 complex-unit-gain "
+                    "Laplacian). A 4n×4n REAL-SYMMETRIC matrix whose (u,v) block "
+                    "is the 4×4 real left-mult rep L(g) of a unit-quaternion "
+                    "gain g∈Sp(1), (v,u) block L(conj g)=L(g)ᵀ, diagonal block "
+                    "(Σ w/2)·I₄. Feed to mat_hermitian_eigendecompose. TWO "
+                    "spectral facts: the spectrum is GAUGE-INVARIANT under the "
+                    "node-wise unit-quaternion gauge g_uv→s_u·g_uv·conj(s_v) "
+                    "(~3.3e-15; the ℍ generalisation of the U(1) gauge "
+                    "invariance), and every eigenvalue is ×4 DEGENERATE (a "
+                    "THEOREM: ℍ associativity ⇒ the left-built matrix commutes "
+                    "with the fixed right-ℍ Sp(1) commutant — callers dedupe "
+                    "every 4th). gains=None → identity gain (½·dense-L ⊗ I₄). "
+                    "Class L composing Class-M quaternion_left_mult "
+                    "(srmech_quaternion_left_mult); no new C symbol. DERIVED: "
+                    "Reff (2012) LAA 436, 3165–3176 (arXiv:1110.4554) one "
+                    "Cayley–Dickson rung up; ℍ per Baez (2002) "
+                    "arXiv:math/0105155 §1.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("gains", "Optional[list[list[float]]]", False,
+                          "per-edge unit quaternions (4-vectors) parallel to "
+                          "edges; default identity gain (1,0,0,0); normalised "
+                          "to Sp(1) via quaternion_norm")),
+            returns=R("Mat",
+                      "4n × 4n real-symmetric quaternion gain Laplacian "
+                      "(numpy-free Mat)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.hypercomplex_perspectives",
+            owner="srmech", category="laplacian",
+            summary="Split each eigenvector into a scalar channel e0 + (dim−1) "
+                    "imaginary phase channels — the hypercomplex reader for "
+                    "quaternion_laplacian (dim=4, ℍ, 4=1+3) that ALSO closes "
+                    "the latent dim-2 read of magnetic_laplacian (dim=2, ℂ, "
+                    "2=1+1). eigvecs is the (N×M) eigenvector Mat (columns = "
+                    "eigenvectors, the 2nd return of "
+                    "mat_hermitian_eigendecompose). dim=2 → each complex entry "
+                    "is one number (e0=re, e1=im); dim=4 → each block of 4 real "
+                    "entries is one quaternion at one node (e0 scalar, e1/e2/e3 "
+                    "imaginary axes); dim=1 → real scalar. Returns a dict "
+                    "{dim, n_vectors, n_blocks, channel_names, vectors} with one "
+                    "channel-dict per eigenvector. Class L (spectral read-out; a "
+                    "pure structural split).",
+            parameters=(P("eigvecs", "Mat", True,
+                          "the (N×M) eigenvector Mat (columns = eigenvectors)"),
+                        P("dim", "int", False,
+                          "real components per hypercomplex unit: 1 (ℝ), 2 (ℂ) "
+                          "or 4 (ℍ); default 4")),
+            returns=R("dict",
+                      "{dim, n_vectors, n_blocks, channel_names, vectors}"),
+        ),
         # ────────────────────────────────────────────────────────────
         # rc229 (#687) — the fuller asymmetric-halves lattice handle: the
         # V4-gain (Klein-4-sector) Laplacian (EVEN channel; C peer

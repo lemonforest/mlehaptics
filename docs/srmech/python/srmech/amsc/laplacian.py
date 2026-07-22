@@ -185,6 +185,8 @@ __all__ = [
     "normalized_laplacian",
     "klein4_gain_laplacian",
     "klein4_relational_structure",
+    "quaternion_laplacian",
+    "hypercomplex_perspectives",
     "cycle_holonomy",
     "eulerian_path",
     "eulerian_circuit",
@@ -3241,6 +3243,300 @@ def magnetic_laplacian(
     # Always complex layout (a Hermitian Laplacian is genuinely complex even
     # when q=0 collapses the imaginary part — pin the carrier dtype explicitly).
     return Mat.from_rows(rows, is_complex=True)
+
+
+# =====================================================================
+# rc308 (#944) — the ℍ (associative) sibling of magnetic_laplacian: the
+# QUATERNION gain Laplacian + the hypercomplex-perspective reader.
+# =====================================================================
+#
+# magnetic_laplacian is the ℂ (dim-2) complex-unit-gain Laplacian (Reff 2012);
+# quaternion_laplacian is its ℍ (dim-4) ASSOCIATIVE rung — a 4n×4n
+# REAL-SYMMETRIC matrix whose (u, v) block is the 4×4 real left-multiplication
+# rep ``L(g_uv)`` of a unit-quaternion gain, with the (v, u) block
+# ``L(conj g_uv) == L(g_uv)ᵀ`` (so the matrix is symmetric BY CONSTRUCTION).
+# Two spectral facts distinguish ℍ from the ℂ leg:
+#
+#   * GAUGE INVARIANCE — a node-wise unit-quaternion gauge ``s_u ∈ Sp(1)``
+#     conjugates the matrix by the ORTHOGONAL block-diagonal ``diag(L(s_u))``
+#     (``L`` of a unit quaternion is orthogonal), so the spectrum is fixed
+#     (proven ~3.3e-15 in the tests). This mirrors the U(1) gauge-invariance of
+#     the complex-unit-gain Laplacian, one rung up the Cayley–Dickson ladder.
+#   * ×4 DEGENERACY (a THEOREM, not an accident) — because ℍ is ASSOCIATIVE,
+#     left- and right-multiplication COMMUTE, so the whole (left-built) matrix
+#     commutes with the fixed RIGHT-ℍ action (the Sp(1) commutant ``R_i/R_j/R_k``
+#     block-diagonalised). A real matrix commuting with the standard right-ℍ
+#     action has right-ℍ-module eigenspaces → EVERY eigenvalue has multiplicity
+#     a multiple of 4. Callers dedupe by taking every 4th eigenvalue.
+#
+# CLASS: **Class L** (graph spectral) composing **Class-M** atoms
+# (:func:`srmech.qm.quaternion.quaternion_left_mult` is the Clifford / HDC
+# bind); the gain conjugate is **Class C**
+# (:func:`srmech.qm.quaternion.quaternion_conjugate`) and the gain
+# normalisation is **Class K + Class C**
+# (:func:`srmech.qm.quaternion.quaternion_norm` — an exact-rational 4-vector
+# hypot, NEVER an ALU ``abs()``; the 2-arg complex ``_modulus_c`` cannot take a
+# 4-vector, and the scalar cascade ``magnitude`` raises on a vector). Attested
+# SSoT (DERIVED-from-open-premises; the complex-unit-gain framing generalises
+# one Cayley–Dickson rung): N. Reff, "Spectral Properties of Complex Unit Gain
+# Graphs", Linear Algebra Appl. 436 (2012) 3165–3176 (arXiv:1110.4554);
+# the ℍ gain algebra is the octonion module's Cayley–Dickson convention at
+# dim 4 (Baez, J.C. (2002) The Octonions, arXiv:math/0105155, §1). The op
+# composes SHIPPED atoms only — ``quaternion_left_mult`` →
+# ``srmech_quaternion_left_mult`` and ``mat_hermitian_eigendecompose`` →
+# ``srmech_hermitian_eigendecompose_ws`` — so a bare-C host assembles both
+# matrices and eigendecomposes (honest C parity; no new C symbol, ABI stays 10).
+
+_QUATERNION_DIM = 4
+_QUATERNION_IDENTITY_GAIN: Tuple[float, ...] = (1.0, 0.0, 0.0, 0.0)
+
+
+def _resolve_quaternion_gains(
+    el: List[Tuple[int, int]],
+    gains: Optional[Iterable[Sequence[float]]],
+) -> List[List[float]]:
+    """Resolve ``gains`` to one UNIT quaternion (4-vector) per edge.
+
+    ``gains=None`` → the identity gain ``e0 = (1, 0, 0, 0)`` on every edge (the
+    undirected control: ``L(e0) = I₄``, so the build collapses to
+    ``½·(dense graph Laplacian) ⊗ I₄``). A supplied gain is normalised to
+    ``Sp(1)`` via the **Class-K + Class-C**
+    :func:`srmech.qm.quaternion.quaternion_norm` (exact-rational 4-vector hypot,
+    never ``abs()``); a zero-norm gain raises. Resolved ONCE per public call so
+    the assembly consumes identical floats.
+    """
+    from srmech.qm.quaternion import quaternion_norm as _qnorm
+    if gains is None:
+        return [list(_QUATERNION_IDENTITY_GAIN) for _ in el]
+    gl = [[float(c) for c in g] for g in gains]
+    if len(gl) != len(el):
+        raise ValueError(f"gains length {len(gl)} != n_edges {len(el)}")
+    out: List[List[float]] = []
+    for k, g in enumerate(gl):
+        if len(g) != _QUATERNION_DIM:
+            raise ValueError(
+                f"gain {k} must be a 4-vector quaternion; got length {len(g)}")
+        nrm = _qnorm(g)
+        if nrm == 0.0:
+            raise ValueError(f"gain {k} must be a non-zero quaternion")
+        inv = 1.0 / nrm
+        out.append([g[0] * inv, g[1] * inv, g[2] * inv, g[3] * inv])
+    return out
+
+
+def _quaternion_laplacian_blocks(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    gl: List[List[float]],
+) -> List[List[float]]:
+    """Assemble the ``4n×4n`` real-symmetric quaternion gain Laplacian as a
+    nested ``list[list[float]]`` (numpy-free).
+
+    Per edge ``k = (u, v, w, g)`` (``g`` an already-unit quaternion): the
+    ``(u, v)`` block accumulates ``−(w/2)·L(g)``, the ``(v, u)`` block
+    ``−(w/2)·L(conj g)`` — and ``L(conj g) == L(g)ᵀ`` for the fixed
+    Cayley–Dickson convention, so ``L[bu+a, bv+b] == L[bv+b, bu+a]`` term by
+    term (the matrix is EXACTLY symmetric, no float asymmetry). Each endpoint's
+    diagonal block gains ``(w/2)·I₄``; the accumulated ``deg[r]·I₄`` mirrors
+    :func:`magnetic_laplacian`'s per-edge ``w/2`` magnitude scale.
+    ``L(g)`` = :func:`srmech.qm.quaternion.quaternion_left_mult` (Class-M bind,
+    native-dispatched); ``conj`` = :func:`srmech.qm.quaternion.quaternion_conjugate`
+    (Class C).
+    """
+    from srmech.qm.quaternion import quaternion_left_mult as _qlm
+    from srmech.qm.quaternion import quaternion_conjugate as _qconj
+    d = _QUATERNION_DIM
+    dim = d * n
+    L = [[0.0] * dim for _ in range(dim)]
+    deg = [0.0] * n
+    for (u, v), w, g in zip(el, wl, gl):
+        u = int(u)
+        v = int(v)
+        hw = 0.5 * float(w)
+        deg[u] += hw
+        deg[v] += hw
+        if u == v:
+            continue  # self-loop: no off-diagonal block; the degree carries it
+        lg = _qlm(g).tolist()               # 4×4 real: x → g·x
+        lgc = _qlm(_qconj(g)).tolist()      # 4×4 real: x → conj(g)·x  (== lgᵀ)
+        bu = d * u
+        bv = d * v
+        for a in range(d):
+            for b in range(d):
+                L[bu + a][bv + b] += -(hw * lg[a][b])
+                L[bv + a][bu + b] += -(hw * lgc[a][b])
+    for r in range(n):
+        base = d * r
+        dval = deg[r]
+        for a in range(d):
+            L[base + a][base + a] += dval
+    return L
+
+
+def quaternion_laplacian(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    *,
+    gains: Optional[Iterable[Sequence[float]]] = None,
+) -> "Mat":
+    """Quaternion (ℍ) gain Laplacian of a graph — the ASSOCIATIVE dim-4 rung of
+    :func:`magnetic_laplacian` (the ℂ dim-2 complex-unit-gain Laplacian).
+
+    Each edge ``(u, v)`` carries a unit-quaternion **gain** ``g ∈ Sp(1)``; the
+    ``4n×4n`` **real-symmetric** matrix is assembled block-wise from the 4×4
+    real left-multiplication rep ``L(g)``
+    (:func:`srmech.qm.quaternion.quaternion_left_mult`):
+
+    * off-diagonal block ``(u, v) = −(w/2)·L(g)`` and
+      ``(v, u) = −(w/2)·L(conj g) = −(w/2)·L(g)ᵀ`` (Hermitian-analogue —
+      real-SYMMETRIC by construction, since ``L(conj g) == L(g)ᵀ``);
+    * diagonal block ``(r, r) = (Σ_incident w/2)·I₄`` — the magnitude degree,
+      the same ``w/2`` scale :func:`magnetic_laplacian`'s per-edge charge mode
+      uses.
+
+    Feed the result to :func:`mat_hermitian_eigendecompose` (a real-symmetric
+    ``Mat`` is a Hermitian ``Mat``). TWO spectral facts:
+
+    * **Gauge-invariant spectrum** — a node-wise unit-quaternion gauge
+      ``s_u ∈ Sp(1)`` (mapping ``g_uv → s_u·g_uv·conj(s_v)``) conjugates the
+      matrix by the ORTHOGONAL block-diagonal ``diag(L(s_u))``, so the
+      eigenvalues are unchanged (proven ~3.3e-15). The ℍ generalisation of the
+      complex-unit-gain U(1) gauge invariance.
+    * **×4 degeneracy (THEOREM)** — ℍ is associative, so left- and
+      right-multiplication commute; the left-built matrix commutes with the
+      fixed right-ℍ action (the Sp(1) commutant), forcing EVERY eigenvalue to a
+      multiplicity that is a multiple of 4. **Callers dedupe by taking every
+      4th eigenvalue.** Split the eigenvectors into channels with
+      :func:`hypercomplex_perspectives` (``dim=4``).
+
+    ``gains=None`` (default) puts the identity gain ``e0`` on every edge — the
+    undirected control ``½·(dense graph Laplacian) ⊗ I₄``. A supplied gain is
+    normalised to ``Sp(1)`` via the Class-K+Class-C
+    :func:`srmech.qm.quaternion.quaternion_norm` (never ``abs()``).
+
+    Numpy-free; **Class L** composing **Class-M** ``quaternion_left_mult`` atoms
+    (native-dispatched to ``srmech_quaternion_left_mult``; ``conj`` is Class C).
+    No new C symbol — a bare-C host assembles this matrix and eigendecomposes it
+    (ABI stays 10). Attested SSoT (DERIVED, complex-unit-gain framing one
+    Cayley–Dickson rung up): N. Reff, "Spectral Properties of Complex Unit Gain
+    Graphs", Linear Algebra Appl. 436 (2012) 3165–3176 (arXiv:1110.4554); the
+    ℍ gain algebra is Baez, J.C. (2002) *The Octonions* (arXiv:math/0105155) §1
+    at dim 4.
+
+    Args:
+        n: Node count (non-negative int).
+        edges: Iterable of ``(u, v)`` endpoint pairs (``0 ≤ u, v < n``).
+        weights: Optional per-edge magnitudes (default all ``1.0``); length must
+            match ``edges``.
+        gains: Optional per-edge unit quaternions (4-vectors) parallel to
+            ``edges``; default the identity gain ``(1, 0, 0, 0)`` on every edge.
+            Each is normalised to ``Sp(1)``.
+
+    Returns:
+        The ``4n×4n`` real-symmetric quaternion gain Laplacian as a
+        :class:`~srmech.amsc.mat.Mat` (``.shape == (4n, 4n)``, real layout).
+
+    Raises:
+        ValueError: bad ``n`` / out-of-range endpoint / weights-length mismatch
+            / gains-length mismatch / a non-4-vector or zero-norm gain.
+    """
+    el, wl = _validate_edges_weights_py(n, edges, weights)
+    gl = _resolve_quaternion_gains(el, gains)
+    rows = _quaternion_laplacian_blocks(n, el, wl, gl)
+    return Mat.from_rows(rows, is_complex=False)
+
+
+#: The hypercomplex channel names, ``e0`` (scalar) + the imaginary axes.
+_HYPERCOMPLEX_CHANNELS: Tuple[str, ...] = ("e0", "e1", "e2", "e3")
+
+
+def hypercomplex_perspectives(eigvecs: "Mat", dim: int = 4) -> Dict:
+    """Split each eigenvector into a scalar channel ``e0`` + ``(dim−1)``
+    imaginary phase channels — the hypercomplex reader for
+    :func:`quaternion_laplacian` (``dim=4``, ℍ, ``4 = 1 + 3``) that ALSO closes
+    the latent dim-2 read of :func:`magnetic_laplacian` (``dim=2``, ℂ,
+    ``2 = 1 + 1``).
+
+    ``eigvecs`` is the ``(N×M)`` eigenvector :class:`~srmech.amsc.mat.Mat` whose
+    COLUMNS are eigenvectors (the second return of
+    :func:`mat_hermitian_eigendecompose`). ``dim`` is the number of real
+    components per hypercomplex unit:
+
+    * ``dim=1`` (ℝ) — each real entry is a scalar; one channel ``e0``, no phase.
+    * ``dim=2`` (ℂ) — each COMPLEX entry is one hypercomplex number: ``e0`` its
+      real (scalar) part, ``e1`` its imaginary (phase) part. The
+      :func:`magnetic_laplacian` read — the complex eigenvector's latent
+      two-channel view.
+    * ``dim=4`` (ℍ) — each consecutive block of 4 REAL entries is one quaternion
+      at one node: ``e0`` the scalar, ``(e1, e2, e3)`` the three imaginary axes.
+      The :func:`quaternion_laplacian` read — the ``4n``-real eigenvector's
+      ``n``-quaternion view (``mat_hermitian_eigendecompose`` returns a complex
+      carrier even for a real-symmetric input, so the real part is taken).
+
+    **Class L** (spectral read-out — a pure structural split of an already-
+    decomposed carrier; no cascade math).
+
+    Args:
+        eigvecs: The ``(N, M)`` eigenvector ``Mat`` (columns = eigenvectors).
+        dim: Real components per hypercomplex unit — 1 (ℝ), 2 (ℂ) or 4 (ℍ).
+
+    Returns:
+        A ``dict`` with keys ``dim``, ``n_vectors`` (``M``), ``n_blocks`` (the
+        hypercomplex units per eigenvector), ``channel_names`` (``["e0", …]``
+        length ``dim``), and ``vectors`` — one ``dict`` per eigenvector mapping
+        each channel name to a length-``n_blocks`` ``list[float]``.
+
+    Raises:
+        TypeError: ``eigvecs`` is not a ``Mat``.
+        ValueError: ``dim`` not in ``{1, 2, 4}``; or (``dim`` in ``{1, 4}``) the
+            eigenvector length ``N`` is not a multiple of ``dim``.
+    """
+    if not isinstance(eigvecs, Mat):
+        raise TypeError(
+            "hypercomplex_perspectives: eigvecs must be a Mat (the eigenvector "
+            f"carrier); got {type(eigvecs).__name__}")
+    if dim not in (1, 2, 4):
+        raise ValueError(f"dim must be 1 (R), 2 (C) or 4 (H); got {dim!r}")
+    n_rows = eigvecs.n_rows
+    n_vectors = eigvecs.n_cols
+    names = list(_HYPERCOMPLEX_CHANNELS[:dim])
+    vectors: List[Dict[str, List[float]]] = []
+    if dim == 2:
+        # Each complex entry IS one hypercomplex number: e0 = re, e1 = im.
+        n_blocks = n_rows
+        for j in range(n_vectors):
+            e0 = [0.0] * n_rows
+            e1 = [0.0] * n_rows
+            for i in range(n_rows):
+                z = complex(eigvecs[i, j])
+                e0[i] = z.real
+                e1[i] = z.imag
+            vectors.append({"e0": e0, "e1": e1})
+    else:
+        # dim in {1, 4}: the real component of each entry, grouped in blocks.
+        if n_rows % dim != 0:
+            raise ValueError(
+                f"hypercomplex_perspectives: eigenvector length {n_rows} is not "
+                f"a multiple of dim={dim}")
+        n_blocks = n_rows // dim
+        for j in range(n_vectors):
+            reals = [complex(eigvecs[i, j]).real for i in range(n_rows)]
+            chans: Dict[str, List[float]] = {
+                name: [0.0] * n_blocks for name in names}
+            for b in range(n_blocks):
+                base = b * dim
+                for c in range(dim):
+                    chans[names[c]][b] = reals[base + c]
+            vectors.append(chans)
+    return {
+        "dim": dim,
+        "n_vectors": n_vectors,
+        "n_blocks": n_blocks,
+        "channel_names": names,
+        "vectors": vectors,
+    }
 
 
 # =====================================================================
@@ -6482,6 +6778,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "normalized_laplacian",
     "signed_laplacian",
     "magnetic_laplacian",
+    "quaternion_laplacian",
+    "hypercomplex_perspectives",
     "klein4_gain_laplacian",
     "klein4_relational_structure",
     "cycle_holonomy",

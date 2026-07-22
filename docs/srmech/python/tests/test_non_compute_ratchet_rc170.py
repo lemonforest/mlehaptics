@@ -286,11 +286,17 @@ _EXPECTED_SPLIT = {
     # empty slot-map and codebook); all compute is in the methods, which route
     # to those three c_dispatched rows — which is why it also carries a
     # justified entry in COMPOSES_C_ZERO_REACH_PINNED.
-    "composes_c": 129,
+    # rc308 (#944): +1 composes_c — laplacian.hypercomplex_perspectives (the
+    # quaternion_laplacian / magnetic_laplacian eigenvector channel reader; a
+    # pure STRUCTURAL split of an already-decomposed carrier — it computes
+    # nothing and reaches no ledger op, so it also carries a justified entry in
+    # COMPOSES_C_ZERO_REACH_PINNED, the write_packed_graph accessor precedent).
+    # composes_c 129 -> 130; total 201 -> 202.
+    "composes_c": 130,
     "host_glue": 21,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 201        # rc297 (`#934`): 200 -> 201, the cd_register constructor row above
+_TOTAL_NON_COMPUTE = 202        # rc308 (#944): 201 -> 202, the hypercomplex_perspectives reader row above
 
 
 def _rows():

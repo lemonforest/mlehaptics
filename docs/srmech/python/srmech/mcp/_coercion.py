@@ -996,6 +996,8 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "list[list[list[float]]]": _identity,  # rank-3 nested list, JSON-native (gauge f^abc)
     "list[list[list[int]]]": _identity,  # v0.9.0rc116: tripoly_from_coeffs `coeffs`, JSON-native
     "list[list[int]]": _identity,  # v0.9.0rc44: modular_linalg.gf_rref `rows` matrix, JSON-native
+    "list[list[float]]": _identity,  # v0.9.0rc308: quaternion_laplacian `gains` — per-edge unit quaternion 4-vectors, JSON-native nested list
+    "Optional[list[list[float]]]": _identity,  # v0.9.0rc308: quaternion_laplacian `gains` (None = identity-gain default)
     # ── legacy numpy-free Sequence/tuple keys kept for wire-form tests ──
     "Sequence[np.ndarray]": _seq_ndarray,
     "tuple[np.ndarray, ...]": _tuple_ndarray,
