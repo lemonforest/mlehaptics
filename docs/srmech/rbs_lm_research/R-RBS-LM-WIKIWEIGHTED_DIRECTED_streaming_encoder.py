@@ -15,7 +15,7 @@ SELF-VALIDATE that w_fwd+w_bwd == the symmetric count EXACTLY (the metric-subset
 
 srmech 0.9.0rc238; numpy-free; no abs-builtin (Class-K magnitude); disciplined sha256_bytes. CC-BY-SA (attested-not-committed).
 Env: WIKI_DUMP, OUT, MAX_ARTICLES (0=ALL; use a subset to VALIDATE first), WINDOW.
-Run (validate on a subset): MAX_ARTICLES=30000 OUT=~/corpora/wikipedia/simplewiki_directed_validate.json \
+Run (validate on a subset): MAX_ARTICLES=30000 OUT=~/corpora/wikipedia/simplewiki_directed_validate.genome \
      /tmp/srmech_v/venv/bin/python3 docs/srmech/rbs_lm_research/R-RBS-LM-WIKIWEIGHTED_DIRECTED_streaming_encoder.py
 """
 import bz2
@@ -37,10 +37,9 @@ from srmech.amsc.cascade import magnitude          # Class-K real pin-slot magni
 
 HERE = Path(__file__).parent
 DUMP = Path(os.environ.get("WIKI_DUMP", str(Path.home() / "corpora" / "wikipedia" / "simplewiki-latest-pages-articles.xml.bz2")))
-OUT = Path(os.environ.get("OUT", str(Path.home() / "corpora" / "wikipedia" / "simplewiki_directed_sparse_kernel.json")))
-# F1299: genome-native output (content-addressed TLV, per [[feedback_persist_genome_native_not_loose_json]]).
-# Defaults alongside the JSON; set GENOME_OUT="" to skip. Verified on a synthetic directed+charged graph.
-GENOME_OUT = os.environ.get("GENOME_OUT", str(OUT.with_suffix(".genome")))
+# F1300: OUT is the GENOME directory — the SSOT. No JSON sidecar (the loose kernel JSON was a red herring:
+# a non-attested, structure-flattened duplicate of what the genome's turns.bin + MPR manifest already hold).
+OUT = Path(os.environ.get("OUT", str(Path.home() / "corpora" / "wikipedia" / "simplewiki_directed.genome")))
 WINDOW = int(os.environ.get("WINDOW", "4"))
 _mx = os.environ.get("MAX_ARTICLES", "0")
 MAX_ARTICLES = None if _mx in ("", "0", "none", "None") else int(_mx)
@@ -152,41 +151,34 @@ def recover_check(vocab, edges, weights, freq, N=256):
 
 
 def persist(vocab, edges, sym_w, fwd, bwd, freq, n_articles):
-    charge = [int(fwd.get((a, b), 0) - bwd.get((a, b), 0)) for (a, b) in edges]
-    payload = {
-        "wiki": OUT.stem.split("_")[0], "srmech": srmech.__version__, "uncapped": True,
-        "directed": True, "format_version": 2, "window": WINDOW,
-        "articles": n_articles, "vocab_size": len(vocab), "edges": len(edges),
-        "vocab": vocab, "freq": [int(freq[w]) for w in vocab],
-        "edge_list": [[int(a), int(b)] for a, b in edges],
-        "edge_weights": [int(w) for w in sym_w],            # METRIC = w_fwd + w_bwd (drop-in; == symmetric kernel)
-        "edge_charge": charge,                              # CURVATURE = w_fwd - w_bwd (signed net direction)
-        "attestation": {
-            "source_url": "https://dumps.wikimedia.org/simplewiki/latest/", "license": "CC-BY-SA-4.0",
-            "response_sha256": sha256_bytes((" ".join(vocab)).encode()),
-            "parser_version": f"srmech {srmech.__version__}",
-            "note": "DIRECTED (curvature-carrying) sparse kernel (R-RBS-LM-WIKIWEIGHTED_DIRECTED / F1210). SUPERSET of the "
-                    "symmetric kernel: metric=edge_weights=w_fwd+w_bwd (exact), curvature=edge_charge=w_fwd-w_bwd -> "
-                    "magnetic_laplacian charge -> cycle_holonomy. Directed forward-window count (interim; UPSTREAM_NOTES "
-                    "cooccurrence_edges directed= ask)."}}
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(payload))
+    """Persist GENOME-NATIVE, and ONLY genome-native (F1300, user direction 2026-07-22).
 
-    # F1299: genome-native persist (the ONE-OP graph->genome path, verified on a synthetic directed+charged
-    # graph). genome_from_graph takes the SAME (edges, metric weights, per-edge charges) this encoder already
-    # computes, partitions nuclear/plasmid by the graph's own structure (F1250/F1251), and persists
-    # content-addressed TLV — retiring the loose-JSON anti-pattern ([[feedback_persist_genome_native_not_loose_json]])
-    # and USING the charge (not just storing it, as the JSON does). charges=curvature is the chiral dual-sense
-    # the magnetic Laplacian reads. Guard-wrapped so a JSON-only run is unaffected if GENOME_OUT="".
-    if GENOME_OUT:
-        idx = {w: i for i, w in enumerate(vocab)}
-        gedges = [(int(a), int(b)) for a, b in edges]
-        res = genome.genome_from_graph(
-            len(vocab), gedges, weights=[int(w) for w in sym_w], charges=charge,
-            coupling=genome._default_coupling(52), path=GENOME_OUT)
-        Path(GENOME_OUT).exists() and print(
-            "  genome-native: %s (%d B) counts=%s status=%s"
-            % (Path(GENOME_OUT).name, Path(GENOME_OUT).stat().st_size, res.get("counts"), res.get("status")))
+    The prior loose `simplewiki_*.json` was a SIDECAR — a red herring. The genome directory already IS
+    the SSOT: `turns.bin` holds the coupled turns (the same `the_one` winding the CD register navigates —
+    the genome's leaf `element_type='klein4'`, `coupling=the_one`), and `manifest.json` is a full MPR
+    (attestation + data + rendering). A separate flat JSON is a NON-ATTESTED, structure-flattened DUPLICATE
+    of what the genome holds natively — exactly the anti-pattern
+    `[[feedback_persist_genome_native_not_loose_json]]` and `[[feedback_no_doctoring_ssot_use_sublanguage_kernels]]`
+    warn against. So there is no JSON here at all.
+
+    `genome_from_graph` takes the SAME (edges, metric weights, per-edge charges) this encoder already computes,
+    partitions nuclear/plasmid by the graph's own structure (F1250/F1251), threads the CURVATURE charge
+    (w_fwd − w_bwd) through, and writes the content-addressed genome directory in one op.
+    """
+    charge = [int(fwd.get((a, b), 0) - bwd.get((a, b), 0)) for (a, b) in edges]   # curvature = signed net direction
+    gedges = [(int(a), int(b)) for a, b in edges]
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    res = genome.genome_from_graph(
+        len(vocab), gedges, weights=[int(w) for w in sym_w], charges=charge,
+        coupling=genome._default_coupling(52), path=str(OUT))
+    # HONEST GAP (F1300): genome_from_graph fills manifest.json with srmech's DEFAULT MPR (srmech.net / CC0),
+    # not the wiki source (dumps.wikimedia.org / CC-BY-SA-4.0). Attestation should ride IN the genome manifest,
+    # caller-supplied — filed as the attestation= ask. Until then the source MPR is recorded here, not sidecar'd:
+    #   source_url=https://dumps.wikimedia.org/simplewiki/latest/  license=CC-BY-SA-4.0
+    print("  genome-native: %s  counts=%s status=%s (SSOT; no JSON sidecar)"
+          % (OUT.name, res.get("counts"), res.get("status")))
+    total = sum(f.stat().st_size for f in OUT.rglob("*")) if OUT.is_dir() else OUT.stat().st_size
+    return total
     return OUT.stat().st_size
 
 
