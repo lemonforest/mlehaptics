@@ -489,6 +489,7 @@ TOOL_DOCS: Dict[str, Dict[str, Any]] = {
     "srmech.qm.triality.triality_cycle": {"example": {"call": "triality_cycle(frame=<str>) -> str"}, "explanation": "The next frame in the order-3 rep-permutation ``8v -> 8s -> 8c -> 8v``."},
     "srmech.qm.triality.triality_relation_residual": {"example": {"call": "triality_relation_residual(g_v=<Mat>, g_s=<Mat>, g_c=<Mat>) -> float"}, "explanation": "Scalar deviation from Cartan's relation (Class K + Class C; never abs())."},
     "srmech.qm.triality.triality_swap": {"example": {"call": "triality_swap() -> Mat"}, "explanation": "The ``28x28`` ``Z2`` companion involution ``S_B``."},
+    "srmech.rbs_lm.encode_aboutness": {"example": {"input": {"D": "3", "text": "'abc'"}, "output": "HV(len=3, sectors=4, [2, 2, 0])"}, "explanation": "Encode ``text`` as one df-gated, name-weighted, order-aware aboutness HV."},
     "srmech.spectral.decompose": {"example": {"call": "decompose(state=<Vec>, laplacian=<Mat>, encoder_tag=<str>) -> SpectralHandle"}, "explanation": "Project ``state`` onto eigenbasis of ``laplacian``; return handle."},
     "srmech.spectral.delta": {"example": {"call": "delta(ref=<SpectralHandle | bytes>, current=<SpectralHandle | bytes>) -> bytes"}, "explanation": "Bit-exact XOR delta of two coefficient byte vectors."},
     "srmech.spectral.predict": {"example": {"call": "predict(handle=<SpectralHandle>, laplacian=<Mat>, steps=<int>, dt=<float>, encoder_tag=<str>) -> SpectralHandle"}, "explanation": "Cascade-extrapolate ``handle`` ``steps`` forward in spectral time."},

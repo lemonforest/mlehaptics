@@ -670,6 +670,8 @@
 {"exposed_as": "srmech.rbs_lm.encode_sentence_l3", "defined_at": "srmech.rbs_lm.substrate.encode_sentence_l3", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.rbs_lm.sim_k4_batch", "defined_at": "srmech.rbs_lm.substrate.sim_k4_batch", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.rbs_lm.substrate.scale_signature", "defined_at": "srmech.rbs_lm.substrate.scale_signature", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.encode_aboutness", "defined_at": "srmech.rbs_lm.grounding.encode_aboutness", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.rbs_lm.ground_tool_schema", "defined_at": "srmech.rbs_lm.grounding.ground_tool_schema", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.introspect.publish", "defined_at": "srmech.introspect.publish", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.introspect.list", "defined_at": "srmech.introspect.list", "bucket": "non_compute", "non_compute_kind": "host_glue"}
 {"exposed_as": "srmech.introspect.by_pid", "defined_at": "srmech.introspect.by_pid", "bucket": "non_compute", "non_compute_kind": "host_glue"}

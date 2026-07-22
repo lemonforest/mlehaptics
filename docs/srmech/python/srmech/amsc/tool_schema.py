@@ -9534,6 +9534,71 @@ def _register_dsl_tools() -> None:
     )
 
 
+def _register_rbs_lm_tools() -> None:
+    """Register the §112 / F1008 df-gated aboutness grounding encoder
+    (v0.9.0rc303). The RBS-LM substrate's :func:`srmech.rbs_lm.encode_aboutness`
+    is the FIRST rbs_lm op promoted to the LLM-facing tool_schema: it turns a
+    natural "which op does X?" utterance (or an op's name+summary) into ONE
+    structure-bearing Klein-4 aboutness vector, so grounding "ask Siona which
+    op" is one call. Declarative ToolEntry data only — no ``srmech.rbs_lm``
+    import here (resolved at invoke time), so no import cycle."""
+    P = ToolParameter
+    R = ToolReturn
+    register_tool(
+        ToolEntry(
+            name="srmech.rbs_lm.encode_aboutness",
+            owner="srmech",
+            category="rbs_lm",
+            summary=(
+                "Doc-frequency-GATED ABOUTNESS encoder — encode a natural "
+                "utterance (or an op's name+summary) as ONE structure-bearing "
+                "Klein-4 aboutness hypervector for grounding \"which srmech op "
+                "does this?\" by klein4_similarity. The F1008 recipe (78% top-1 "
+                "over the tool_schema, zero training) the plain encode_sentence_l3 "
+                "lacks: (1) a doc-frequency aboutness GATE (down-weight tokens "
+                "that appear catalog-wide — 'matrix', 'of'), (2) NAME-weighting "
+                "(an op's own name tokens count 3x + 2x bigram; F769 identity), "
+                "(3) order-aware BIGRAMS (so (klein,4) != (klein,gordon); never a "
+                "bag), plus letter-digit tokenization (klein4->klein 4). Tokens "
+                "are minted via the STRUCTURE-BEARING klein4_encode_bytes (default "
+                "token_mode='byteglyph'), NOT the high-diffusion word-hash "
+                "address (F1260: a hash avalanche destroys morphology — a good "
+                "ADDRESS but a bad REPRESENTATION), so cat/cats stays "
+                "distinguishable from cat/dog. Pass df/n_docs from a corpus to "
+                "enable the gate; name= for an op's identity tokens; None df for "
+                "the single-word case. composition_of_c (klein4_encode_bytes -> "
+                "bind/bundle); numpy-free, no abs()."
+            ),
+            parameters=(
+                P("text", "str", required=True,
+                  summary="the utterance / description body (its tokens are "
+                          "df-gated)"),
+                P("D", "int", required=True,
+                  summary="Klein-4 dimension (F1008 used 8192)"),
+                P("df", "dict", required=False,
+                  summary="token -> doc-frequency table (the aboutness-gate "
+                          "corpus stats); None disables the gate"),
+                P("n_docs", "int", required=False,
+                  summary="document count paired with df (gate threshold = "
+                          "int(n_docs * func_frac))"),
+                P("name", "str", required=False,
+                  summary="an op's IDENTITY string; its tokens are never gated "
+                          "and are name-weighted"),
+                P("name_weight", "int", required=False,
+                  summary="unigram repeat for name tokens (default 3)"),
+                P("name_bigram_weight", "int", required=False,
+                  summary="bigram repeat for name tokens (default 2)"),
+                P("func_frac", "float", required=False,
+                  summary="gate threshold as a fraction of n_docs (default 0.35)"),
+                P("token_mode", "str", required=False,
+                  summary="'byteglyph' (default, structure-bearing) or 'address' "
+                          "(F1008 orthogonal dual)"),
+            ),
+            returns=R("HV", "uint8 in {0,1,2,3}"),
+        )
+    )
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Single registration entry-point (v0.5.0rc11 — Self-recognition root)
 # ──────────────────────────────────────────────────────────────────────
@@ -9588,6 +9653,7 @@ _register_spectral_runtime_tools()
 _register_qm_tools()
 _register_introspect_tools()
 _register_dsl_tools()
+_register_rbs_lm_tools()
 
 
 __all__ = [

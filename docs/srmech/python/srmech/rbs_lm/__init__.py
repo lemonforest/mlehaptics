@@ -57,6 +57,7 @@ from .substrate import (
     token_seed,
 )
 from .inference import CoherenceReadout, RBSLMInferenceSubstrate
+from .grounding import encode_aboutness, ground_tool_schema
 
 __all__ = [
     "ContextSubstrate",
@@ -68,4 +69,7 @@ __all__ = [
     "encode_skeleton_l2",
     "encode_sentence_l3",
     "sim_k4_batch",
+    # §112 / F1008 df-gated aboutness grounding encoder
+    "encode_aboutness",
+    "ground_tool_schema",
 ]

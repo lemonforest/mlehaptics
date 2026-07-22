@@ -291,7 +291,7 @@ def test_tool_entry_registered_and_total_is_413() -> None:
     assert entry is not None
     assert entry.category == "carrier_schema"
     assert "DUAL of tool_schema" in entry.summary
-    assert len(schema.tools) == 477
+    assert len(schema.tools) == 478
 
 
 def test_rosetta_row_is_composes_c() -> None:
