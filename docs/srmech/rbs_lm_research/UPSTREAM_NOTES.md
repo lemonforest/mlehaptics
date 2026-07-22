@@ -3512,6 +3512,8 @@ Also: the **shipped `encode_sentence_l3` grounds at the orthogonality floor** (1
 
 ## §113 — genome_from_graph needs a caller-supplied `attestation=` (provenance must ride IN the genome, since there is no sidecar) — F1300
 
+**Filed as [#1466](https://github.com/lemonforest/mlehaptics/issues/1466)** (siona-toml-cascade; alongside #1465).
+
 The genome's `manifest.json` is already a proper MPR (attestation + data + rendering + data_schema_id, format v15). But `genome_from_graph(...)` fills it with srmech's **default** attestation — `source_url: https://srmech.net/genome/persistence`, `license: CC0`, `retrieved_at: 1970-01-01T00:00:00Z` — with **no way for the caller to supply the real source MPR**. For the simplewiki genome the true provenance is `dumps.wikimedia.org/simplewiki/latest/` under `CC-BY-SA-4.0`; it cannot currently be written into the genome.
 
 Because the standing rule is **no sidecar files for a genome** (F1300 — the genome directory is the SSOT; a JSON beside it is a red herring), the fix is NOT a provenance JSON alongside the genome. It is an **`attestation=` / `source=` parameter on `genome_from_graph`** (and the underlying `genome_save` / `graph_to_kernel` path) that writes the caller's MPR block into `manifest.json` in place of the default. Small, additive, and load-bearing for any attested corpus genome. Composes the §41 genome-manifest-as-MPR work.
