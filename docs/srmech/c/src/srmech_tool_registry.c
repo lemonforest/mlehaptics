@@ -7,7 +7,7 @@
  * const data table (JPL-clean: const arrays, no dynamic init, no malloc).
  * The accessors + the canonical serialiser live in srmech_tool_schema.c.
  *
- * Entries: 477. tool_schema_version: 1.0.
+ * Entries: 478. tool_schema_version: 1.0.
  */
 
 #include "srmech.h"
@@ -2235,15 +2235,26 @@ static const srmech_tool_param_t ts_params_473[] = {
     { "kind", "str", 0, "class kind tag (overrides the introspected kind)." },
 };
 static const srmech_tool_param_t ts_params_474[] = {
+    { "text", "str", 1, "the utterance / description body (its tokens are df-gated)" },
+    { "D", "int", 1, "Klein-4 dimension (F1008 used 8192)" },
+    { "df", "dict", 0, "token -> doc-frequency table (the aboutness-gate corpus stats); None disables the gate" },
+    { "n_docs", "int", 0, "document count paired with df (gate threshold = int(n_docs * func_frac))" },
+    { "name", "str", 0, "an op's IDENTITY string; its tokens are never gated and are name-weighted" },
+    { "name_weight", "int", 0, "unigram repeat for name tokens (default 3)" },
+    { "name_bigram_weight", "int", 0, "bigram repeat for name tokens (default 2)" },
+    { "func_frac", "float", 0, "gate threshold as a fraction of n_docs (default 0.35)" },
+    { "token_mode", "str", 0, "'byteglyph' (default, structure-bearing) or 'address' (F1008 orthogonal dual)" },
+};
+static const srmech_tool_param_t ts_params_475[] = {
     { "framed", "bytes", 1, "Frame body (nonce[16] || ciphertext) \342\200\224 the unwrapped TLV payload." },
     { "dna", "bytes", 1, "32+ byte pre-shared Bio-TOTP secret. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode (same code path; deterministic ciphertext recoverable by anyone)." },
     { "window_ns", "int", 0, "Optional time-window override in nanoseconds (default 250_000_000 = 250 ms; env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` honoured)." },
     { "time_ns", "int", 0, "Optional explicit wall-clock override (defaults to time.time_ns()). Useful for replaying historical captures." },
 };
-static const srmech_tool_param_t ts_params_475[] = {
+static const srmech_tool_param_t ts_params_476[] = {
     { "cleanup_dead", "bool", 0, "When True (default), registration files for endpoints with no live server are removed from disk as a side effect." },
 };
-static const srmech_tool_param_t ts_params_476[] = {
+static const srmech_tool_param_t ts_params_477[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
@@ -8887,11 +8898,25 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "Render a ``[class]`` TOML descriptor string \342\200\224 the inverse of make_class (\302\24739).",
     },
     { /* 474 */
+        "srmech.rbs_lm.encode_aboutness",
+        "srmech",
+        "rbs_lm",
+        "Doc-frequency-GATED ABOUTNESS encoder \342\200\224 encode a natural utterance (or an op's name+summary) as ONE structure-bearing Klein-4 aboutness hypervector for grounding \"which srmech op does this?\" by klein4_similarity. The F1008 recipe (78% top-1 over the tool_schema, zero training) the plain encode_sentence_l3 lacks: (1) a doc-frequency aboutness GATE (down-weight tokens that appear catalog-wide \342\200\224 'matrix', 'of'), (2) NAME-weighting (an op's own name tokens count 3x + 2x bigram; F769 identity), (3) order-aware BIGRAMS (so (klein,4) != (klein,gordon); never a bag), plus letter-digit tokenization (klein4->klein 4). Tokens are minted via the STRUCTURE-BEARING klein4_encode_bytes (default token_mode='byteglyph'), NOT the high-diffusion word-hash address (F1260: a hash avalanche destroys morphology \342\200\224 a good ADDRESS but a bad REPRESENTATION), so cat/cats stays distinguishable from cat/dog. Pass df/n_docs from a corpus to enable the gate; name= for an op's identity tokens; None df for the single-word case. composition_of_c (klein4_encode_bytes -> bind/bundle); numpy-free, no abs().",
+        ts_params_474, 9u,
+        "HV",
+        "uint8 in {0,1,2,3}",
+        1,
+        NULL,
+        "{\"input\":{\"D\":\"3\",\"text\":\"'abc'\"},\"output\":\"HV(len=3, sectors=4, [2, 2, 0])\"}",
+        NULL,
+        "Encode ``text`` as one df-gated, name-weighted, order-aware aboutness HV.",
+    },
+    { /* 475 */
         "srmech.bus.decode_splice",
         "srmech",
         "bus",
         "Decode one frame of a UTLP Bio-TOTP bus channel (Claim 255 alignment) given the per-channel DNA secret. Pure function (no side effects); suitable for LLM / agent introspection of mid-stream traffic. Returns (plaintext, used_time_ns); the plaintext is the original JSON-encoded bus Event and the used_time_ns is the candidate time-bucket value that successfully decoded (the current bucket or \302\2611 bucket for clock-skew tolerance). Cipher: AES-128-CTR when ``pip install srmech[crypto]`` extra is installed (UTLP-exact path); HMAC-SHA-256 counter-mode keystream by default (stdlib-only, structurally equivalent for the defensive-scope threat model). Key derivation rolls every 250 ms (WINDOW_NS=250_000_000; configurable via ``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver tolerates \302\2611 window for clock skew. Frame layout: [nonce:16][ciphertext]; nonce = sender_id_u64 || channel_id_u32 || packet_seq_u32. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode. v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255).",
-        ts_params_474, 4u,
+        ts_params_475, 4u,
         "tuple[bytes, int]",
         "(plaintext, used_time_ns) \342\200\224 JSON-encoded bus Event bytes, and the candidate time value that decoded successfully.",
         1,
@@ -8900,12 +8925,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"dna\":\"b'<32-byte-dna>'\",\"framed\":\"b'<framed-bytes>'\"}",
         "Pure-function decode for tool-schema introspection.",
     },
-    { /* 475 */
+    { /* 476 */
         "srmech.bus.list_endpoints",
         "srmech",
         "bus",
         "Enumerate currently-running srmech.bus endpoints owned by the current user by scanning the `~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` (Windows) registry directory. Best-effort liveness check per endpoint (POSIX: UDS connect probe; Windows: TCP loopback connect or WaitNamedPipeW probe). Side effect (when `cleanup_dead=True`, the default): registration files for endpoints whose server is no longer accepting connections are removed from disk on read. Returns `[]` on Pyodide / WASM (no socket support). Sorted alphabetically by endpoint name. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_475, 1u,
+        ts_params_476, 1u,
         "list[Endpoint]",
         "Each Endpoint is a frozen dataclass: name (str), path (pathlib.Path), transport ('uds' POSIX / 'pipe' or 'tcp' Windows), alive (bool), pid (Optional[int], currently always None \342\200\224 reserved for a future rc that records owner PID in the registry file).",
         1,
@@ -8914,12 +8939,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "Enumerate live (and recently-died) bus endpoints owned by this user.",
     },
-    { /* 476 */
+    { /* 477 */
         "srmech.bus.by_name",
         "srmech",
         "bus",
         "Look up one srmech.bus endpoint by name. Same registry scan as `srmech.bus.list_endpoints` but returns just the matching record (or `None` if no endpoint of that name is registered for the current user). Does NOT auto-clean dead-endpoint registration files (the caller may want to inspect a dead endpoint's record). Returns `None` on Pyodide / WASM. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_476, 1u,
+        ts_params_477, 1u,
         "Endpoint | None",
         "Frozen dataclass with name (str), path (pathlib.Path), transport ('uds' / 'pipe' / 'tcp'), alive (bool), pid (Optional[int]). `None` when no matching endpoint is registered.",
         1,
