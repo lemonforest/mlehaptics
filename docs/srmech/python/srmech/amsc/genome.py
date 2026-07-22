@@ -5163,7 +5163,7 @@ def _induced_subgraph(nodes, edge_list, weight_list, charge_list):
 def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
                       path=None, leaf_dim=None, max_tome=256,
                       n_bins=_PARTITION_DEFAULT_BINS, centromere_at=None,
-                      progress=None):
+                      progress=None, attestation=None):
     """BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN
     STRUCTURE — the §100 GAP 2 builder (PR#687 / F1250 / F1251). "Hand a graph, get
     nuclear + plasmid from its structure."
@@ -5200,6 +5200,16 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
     centromere_at : Optional[int]
         The nuclear arm-split forwarded to :func:`mint_strand` (default the metacentric
         midpoint of each minted community).
+    attestation : Optional[dict]
+        When ``path`` is given, a caller MPR SOURCE-attestation forwarded to
+        :func:`genome_save` — the provided fields OVERRIDE the srmech default written into
+        ``manifest.json`` (override-only over the five source-identity fields
+        ``source_doi`` / ``source_url`` / ``license`` / ``retrieved_at`` /
+        ``response_sha256``). For an attested corpus genome (e.g. a simplewiki dump whose
+        true source is ``https://dumps.wikimedia.org/simplewiki/latest/`` under
+        CC-BY-SA-4.0) this records the REAL provenance genome-natively, in the only
+        legitimate place (no sidecar files, §41/F1300). A malformed override raises. No
+        effect when ``path`` is None (nothing is persisted).
 
     Returns
     -------
@@ -5264,7 +5274,7 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
         "status": GENOME_STATUS_OK,
     }
     if path is not None and strand:
-        genome_save(strand, path, coupling)
+        genome_save(strand, path, coupling, attestation=attestation)
         out["path"] = str(path)
         out["census"] = genome_census(str(path), coupling=coupling)
     return out
@@ -5927,32 +5937,86 @@ def _read_head(path, coupling=None) -> dict:
     return head
 
 
-def _manifest_record(data) -> _MPRRecord:
+#: The attestation fields a caller MAY override via ``genome_save(attestation=…)`` /
+#: ``genome_from_graph(attestation=…)`` — the SOURCE-identity fields (WHERE the encoded
+#: corpus came from). The remaining four attestation fields — ``parser_version`` /
+#: ``parser_rule_hash`` / ``collector_descriptor_path`` / ``collector_descriptor_hash`` —
+#: identify the ENCODER (srmech itself) and stay srmech-owned, so a caller can attest a
+#: real corpus source WITHOUT being able to misreport which srmech version / rule wrote
+#: the bytes. ``response_sha256`` is overridable (an MPR's response_sha256 = the hash of
+#: the upstream RESPONSE, i.e. the corpus dump); genome body integrity is anchored on the
+#: separate ``data["body_sha256"]`` field, NOT this one, so an override cannot weaken it.
+_ATTESTATION_SOURCE_FIELDS = frozenset((
+    "source_doi", "source_url", "license", "retrieved_at", "response_sha256",
+))
+
+
+def _merge_source_attestation(defaults, override):
+    """OVERRIDE-ONLY merge of a caller SOURCE-attestation over the srmech defaults.
+
+    A provided field REPLACES its default; an ABSENT field keeps its default (so a
+    partial dict never blanks a field — a caller passing only ``source_url`` keeps the
+    srmech ``license`` etc. rather than nulling them). Only the five
+    :data:`_ATTESTATION_SOURCE_FIELDS` may be set: any other key — a typo like
+    ``source_uri``, or an attempt to overwrite an ENCODER-identity field — is REJECTED
+    with a clear error, so the very misattribution this parameter exists to prevent can
+    never be introduced silently. The merged block is validated as a whole MPR by the
+    caller (:func:`_manifest_record`), so an empty / non-string value is rejected there."""
+    if not isinstance(override, dict):
+        raise TypeError(
+            "genome attestation override must be a dict of MPR source fields, "
+            f"got {type(override).__name__}"
+        )
+    merged = dict(defaults)
+    for key, value in override.items():
+        if key not in _ATTESTATION_SOURCE_FIELDS:
+            raise ValueError(
+                f"genome attestation: {key!r} is not an overridable source field "
+                f"(allowed: {sorted(_ATTESTATION_SOURCE_FIELDS)}; the four encoder-"
+                f"identity fields — parser_version / parser_rule_hash / "
+                f"collector_descriptor_path / collector_descriptor_hash — are srmech-owned)"
+            )
+        merged[key] = value
+    return merged
+
+
+def _manifest_record(data, *, attestation=None) -> _MPRRecord:
     """Wrap a genome manifest ``data`` block in an MPRRecord (MPR v1) — the
     on-disk catalog format. ``attestation.response_sha256`` IS the body hash
-    (``body_sha256``); ``parser_version`` is the srmech version string. The
-    record satisfies :func:`srmech.amsc.format.validate_mpr_record`."""
+    (``body_sha256``) by default; ``parser_version`` is the srmech version string. The
+    record satisfies :func:`srmech.amsc.format.validate_mpr_record`.
+
+    ``attestation`` (optional): a caller MPR SOURCE-attestation whose provided fields
+    OVERRIDE the srmech defaults (override-only, per :func:`_merge_source_attestation`) —
+    for an attested corpus genome (e.g. a simplewiki dump under CC-BY-SA-4.0) whose true
+    source is NOT ``srmech.net/genome/persistence``. Only the five
+    :data:`_ATTESTATION_SOURCE_FIELDS` may be overridden; a bad override (non-dict,
+    unknown key, or a value that makes the merged block an invalid MPR) RAISES — a
+    caller-supplied attestation that would produce an invalid MPR is never written."""
     body_sha = data["body_sha256"]
     parser_version = f"srmech {_SRMECH_VERSION}"
     rule_hash = _sha256_bytes(
         f"genome_persistence/v{GENOME_FORMAT_VERSION}".encode("utf-8")
     )
     descriptor_hash = _sha256_bytes(GENOME_MANIFEST_SCHEMA_ID.encode("utf-8"))
+    attest = {
+        "source_doi": "10.0/srmech.genome.persistence",
+        "source_url": "https://srmech.net/genome/persistence",
+        "license": "CC0",
+        "retrieved_at": "1970-01-01T00:00:00Z",
+        "response_sha256": body_sha,
+        "parser_version": parser_version,
+        "parser_rule_hash": rule_hash,
+        "collector_descriptor_path": "srmech/amsc/genome.py",
+        "collector_descriptor_hash": descriptor_hash,
+    }
+    if attestation is not None:
+        attest = _merge_source_attestation(attest, attestation)
     record = _MPRRecord(
         mpr_version="1.0",
         data=data,
         data_schema_id=GENOME_MANIFEST_SCHEMA_ID,
-        attestation={
-            "source_doi": "10.0/srmech.genome.persistence",
-            "source_url": "https://srmech.net/genome/persistence",
-            "license": "CC0",
-            "retrieved_at": "1970-01-01T00:00:00Z",
-            "response_sha256": body_sha,
-            "parser_version": parser_version,
-            "parser_rule_hash": rule_hash,
-            "collector_descriptor_path": "srmech/amsc/genome.py",
-            "collector_descriptor_hash": descriptor_hash,
-        },
+        attestation=attest,
         rendering={
             "human_readable_name": "srmech genome (on-disk chromosome set)",
             "cite_as": "srmech genome persistence (UPSTREAM §41)",
@@ -6012,8 +6076,17 @@ def _coupling_bytes_or_empty(coupling) -> bytes:
     return b"" if coupling is None else _coupling_block_bytes(coupling)
 
 
-def genome_save(strand, path, coupling, labels=None) -> dict:
+def genome_save(strand, path, coupling, labels=None, *, attestation=None) -> dict:
     """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41 / §44.
+
+    ``attestation`` (optional keyword) — a caller MPR SOURCE-attestation whose provided
+    fields OVERRIDE the srmech default written into ``manifest.json`` (override-only over
+    the five source-identity fields; see :func:`_merge_source_attestation`). With no
+    ``attestation`` the manifest carries the srmech default and the save is byte-identical
+    to before. Because the genome directory is the SSoT (no sidecar files, §41/F1300),
+    the manifest is the ONLY legitimate home for an attested corpus genome's true source,
+    so this is a genome-NATIVE provenance override, not a sidecar. A malformed override
+    (non-dict / unknown key / invalid-MPR value) RAISES before any bytes reach disk.
 
     Splits the flat genome ``strand`` into its chromosomes by SCANNING its inline
     CHROM caps (§44 — the strand self-describes; labels are recovered inline),
@@ -6079,15 +6152,26 @@ def genome_save(strand, path, coupling, labels=None) -> dict:
     # identically for a genome of ANY size (the C carves its scratch from the caller
     # arena — no compiled-in cap). Native is authoritative when present; the pure-
     # Python path below is the complete alternative ONLY when there is no C.
-    if _native.has_native_genome():
+    # §41 provenance: a caller ``attestation=`` OVERRIDE (an attested corpus genome's
+    # true source) is applied by the PURE manifest write — the native ``srmech_genome_save``
+    # writes the srmech DEFAULT MPR and takes no override, so the override path writes the
+    # (already-materialised) ``body_bytes`` + the overridden manifest from Python, producing
+    # an on-disk manifest BYTE-IDENTICAL to what a byte-identical C save would emit for the
+    # same override (the two projections do NOT diverge; the capability is the invariant,
+    # ADR-0009). With no override the native fast path is unchanged (byte-identical to before).
+    if attestation is None and _native.has_native_genome():
         try:
             _native.genome_save_c(str(path), body_bytes, leaf_dim, bytes(coupling_block))
             return data
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
 
+    # Build + VALIDATE the record BEFORE any bytes hit disk, so a malformed caller
+    # attestation is rejected (no half-written genome). attestation=None reproduces the
+    # default record exactly.
+    record = _manifest_record(head, attestation=attestation)
     (path / _BODY_NAME).write_bytes(body_bytes)
-    _write_manifest(path, _manifest_record(head))     # v12: HEAD-ONLY on disk
+    _write_manifest(path, record)                     # v12: HEAD-ONLY on disk
     return data
 
 
