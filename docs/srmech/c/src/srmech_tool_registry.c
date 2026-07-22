@@ -2259,6 +2259,20 @@ static const srmech_tool_param_t ts_params_477[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
+/* Per-entry composes / preserves string arrays (rc305 #943). */
+static const char *const ts_composes_197[] = {
+    "srmech.amsc.genome.genome_partition",
+    "srmech.amsc.genome.graph_to_kernel",
+    "srmech.amsc.genome.mint_strand",
+    "srmech.amsc.genome.genome_save",
+    "srmech.amsc.genome.genome_census",
+};
+static const char *const ts_preserves_197[] = {
+    "byte-exact per-community round-trip: kernel_to_graph on any chromosome (with its n_syms) recovers that community's induced sub-graph exactly (\302\24744 interior-centromere skip-on-read)",
+    "measured {nuclear, plasmid} counts equal genome_partition's classification",
+    "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
+};
+
 /* The tool registry, in get_tool_schema().tools order (== the order
  * the byte-identity hash-ratchet compares against). */
 const srmech_tool_entry_t srmech_tool_registry_table[] = {
@@ -2275,6 +2289,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"data\":\"b'abc'\"},\"output\":\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"}",
         "{\"data\":\"b''\"}",
         "SHA-256 over raw input bytes; returns the 64-char lowercase hex digest as a ``str`` (NOT the raw 32-byte digest). The ``_bytes`` in the name names the INPUT type (the raw bytes hashed), not the return type \342\200\224 this is the Python parity of C ``srmech_sha256_hex`` and of ``hashlib.sha256(data).hexdigest()``. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 1 */
         "srmech.amsc.format.sha256_batch",
@@ -2289,6 +2305,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"datas\":\"[b'abc']\"},\"output\":\"['ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad']\"}",
         "{\"datas\":\"[b'', b'abc']\"}",
         "SHA-256 over MANY messages at once; returns one 64-char lowercase hex digest per input (a ``list[str]``, parallel to ``datas``). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 2 */
         "srmech.amsc.format.read_ndjson",
@@ -2303,6 +2321,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"read_ndjson(path=<pathlib.Path>) -> Iterator[MPRRecord]\"}",
         NULL,
         "Stream MPRRecords line-by-line from an NDJSON file.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 3 */
         "srmech.amsc.descriptor.descriptor_hash",
@@ -2317,6 +2337,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"descriptor_hash(path=<pathlib.Path>) -> str\"}",
         NULL,
         "SHA-256 over the canonical-serialised content of a descriptor.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 4 */
         "srmech.amsc.catalog.list_attested_sources",
@@ -2331,6 +2353,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"list_attested_sources(adapter_class=<Optional[str]>) -> dict\"}",
         NULL,
         "Enumerate registered attested sources, optionally filtered by adapter class.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 5 */
         "srmech.amsc.catalog.get_attested_dataset",
@@ -2345,6 +2369,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"source_key\":\"'abc'\"},\"output\":\"{'ok': False, 'error': \\\"unknown source_key 'abc'\\\", 'available': ['asymptotic_calculus', 'cmb_bispectrum', 'cmb_lensing', 'cmb_low_ell_maps', 'cmb_polarisation_spectra', 'cosmic_birefringence', 'cos...\"}",
         NULL,
         "Return paginated row content for a registered source.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 6 */
         "srmech.amsc.catalog.register_attested_root",
@@ -2359,6 +2385,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"register_attested_root(path=<pathlib.Path>, source=<str>) -> None\"}",
         NULL,
         "Register an external catalog root with the AMSC framework.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 7 */
         "srmech.amsc.catalog.list_catalog_chains",
@@ -2373,6 +2401,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"source_key\":\"'abc'\"},\"output\":\"{'ok': False, 'error': \\\"unknown source_key 'abc'\\\", 'available': ['asymptotic_calculus', 'cmb_bispectrum', 'cmb_lensing', 'cmb_low_ell_maps', 'cmb_polarisation_spectra', 'cosmic_birefringence', 'cos...\"}",
         NULL,
         "Enumerate operator chains declared by a catalog.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 8 */
         "srmech.amsc.catalog.run_catalog_chain",
@@ -2387,6 +2417,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"run_catalog_chain(source_key=<str>, chain_name=<str>, row_index=<Optional[int]>, inputs=<Optional[dict]>) -> Any\"}",
         NULL,
         "Execute a declared chain on a catalog row.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 9 */
         "srmech.amsc.compose.parse_chain_spec",
@@ -2401,6 +2433,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"parse_chain_spec(chain_dict=<dict>) -> ChainSpec\"}",
         NULL,
         "Parse and validate one ``[[catalog.operator_chain]]`` entry.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 10 */
         "srmech.amsc.compose.parse_catalog_chains",
@@ -2415,6 +2449,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"parse_catalog_chains(toml_dict=<dict>) -> list[ChainSpec]\"}",
         NULL,
         "Parse all chains in a catalog descriptor's TOML dict.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 11 */
         "srmech.amsc.compose.resolve_chain",
@@ -2429,6 +2465,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"resolve_chain(spec=<ChainSpec>, registry=<Optional[dict]>) -> Callable\"}",
         NULL,
         "Resolve a chain to a callable.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 12 */
         "srmech.amsc.compose.run_chain",
@@ -2443,6 +2481,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"run_chain(spec=<ChainSpec>, row=<Optional[dict]>, inputs=<Optional[dict]>, registry=<Optional[dict]>) -> Any\"}",
         NULL,
         "Top-level executor: parse + resolve + run a chain.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 13 */
         "srmech.amsc.cyclic.gcd",
@@ -2457,6 +2497,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"12\",\"b\":\"18\"},\"output\":\"6\"}",
         NULL,
         "Class-I Euclidean GCD. ``gcd(0, 0)`` is ``0``; ``gcd(a, 0)`` is ``a``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 14 */
         "srmech.amsc.cyclic.lcm",
@@ -2471,6 +2513,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"3\",\"b\":\"3\"},\"output\":\"3\"}",
         NULL,
         "LCM via ``a / gcd(a, b) * b``. Raises ``OverflowError`` if the result exceeds uint64 range (matches the C side's ERR_OVERFLOW).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 15 */
         "srmech.amsc.cyclic.mod_add",
@@ -2485,6 +2529,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"3\",\"b\":\"3\",\"n\":\"3\"},\"output\":\"0\"}",
         NULL,
         "``(a + b) mod n``. Raises ``ValueError`` if ``n == 0``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 16 */
         "srmech.amsc.cyclic.mod_mul",
@@ -2499,6 +2545,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"3\",\"b\":\"3\",\"n\":\"3\"},\"output\":\"0\"}",
         NULL,
         "``(a * b) mod n``. Raises ``ValueError`` if ``n == 0``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 17 */
         "srmech.amsc.cyclic.mod_pow",
@@ -2513,6 +2561,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"7\",\"k\":\"13\",\"n\":\"11\"},\"output\":\"2\"}",
         NULL,
         "Modular exponentiation a^k mod n by square-and-multiply (Class-I cyclic group). Exact; the Fermat/RSA-style fast power on \342\204\244/n.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 18 */
         "srmech.amsc.cyclic.mod_inv",
@@ -2527,6 +2577,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mod_inv(a=<int>, n=<int>) -> int\"}",
         NULL,
         "Modular inverse via extended Euclidean. Raises ``ValueError`` if no inverse exists (``gcd(a, n) != 1``) or if ``n in {0, 1}``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 19 */
         "srmech.amsc.cyclic.bigint_mul",
@@ -2541,6 +2593,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"6\",\"b\":\"7\"},\"output\":\"42\"}",
         "{\"a\":\"6\",\"b\":\"7\"}",
         "The Class-I family's **uncapped** integer product ``a * b``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 20 */
         "srmech.amsc.cyclic.mod_mul_wide",
@@ -2555,6 +2609,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"18446744073709551616\",\"b\":\"3\",\"n\":\"340282366920938463463374607431768211456\"},\"output\":\"55340232221128654848\"}",
         "{\"a\":\"2**64\",\"b\":\"3\",\"n\":\"2**128\"}",
         "``(a * b) mod n`` with **no uint64 cap** \342\200\224 the 128-bit-capable multiply.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 21 */
         "srmech.amsc.modular_linalg.gf_rref",
@@ -2569,6 +2625,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gf_rref(rows=<list[list[int]]>, p=<int>) -> dict\"}",
         NULL,
         "Reduced row-echelon form of the integer matrix ``rows`` over GF(p).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 22 */
         "srmech.amsc.modular_linalg.crt_combine",
@@ -2583,6 +2641,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"crt_combine(residues=<list[int]>, moduli=<list[int]>) -> dict\"}",
         NULL,
         "Chinese-Remainder-combine per-prime residues into one residue mod \342\210\217 m\341\265\242.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 23 */
         "srmech.amsc.laplacian.dense_adjacency",
@@ -2597,6 +2657,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"dense_adjacency(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>) -> Mat\"}",
         NULL,
         "Build the dense ``n\303\227n`` adjacency matrix from an undirected edge list.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 24 */
         "srmech.amsc.text.fold_marks",
@@ -2611,6 +2673,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"text\":\"'\\u0915\\u094d\\u0937\\u093f'\"},\"output\":\"'\\u0915\\u0937'\"}",
         NULL,
         "Drop combining marks by Unicode CATEGORY \342\200\224 Mn/Mc/Me and nothing else (Class B/G text-framing; \302\247106/F1258; rc293). The name is the contract: a VIRAMA is a mark, not an accent, so `fold_accents` would have been wrong in exactly the Indic cases that matter most while quietly re-scoping the op toward Latin. Category only \342\200\224 no case change, no locale tailoring, no NFKD/compatibility folding, no ligature expansion \342\200\224 so '\303\270' and the OHM SIGN are unchanged and Hangul is unchanged in either normalization form. Needs NO normalizer: precomposed characters are handled by the vendored table's replacement rows and decomposed sequences by its drop rows, so the same marks fall out whichever form is supplied. Idempotent. A SEPARATE op, not a glyph_stream mode \342\200\224 folding is lossy and glyph_stream is contractually lossless; compose as glyph_stream(fold_marks(s)).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 25 */
         "srmech.amsc.text.glyph_stream",
@@ -2625,6 +2689,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"text\":\"'abc'\"},\"output\":\"['a', 'b', 'c']\"}",
         NULL,
         "Segment ``text`` into UAX #29 extended grapheme clusters \342\200\224 the language-agnostic glyph stream (\302\24740 / F698; rc287). A cluster is what a reader perceives as ONE character and is the only unit well-defined in every script, so there is no per-language word decision: no length floor, no casefold, no stoplist. Emoji ZWJ sequences (GB11), flag pairs (GB12/13) and Indic conjuncts (GB9c) each come back as ONE cluster. Lossless \342\200\224 ''.join(result) reconstructs the NFC-normalised input exactly.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 26 */
         "srmech.amsc.text.cooccurrence_edges",
@@ -2639,6 +2705,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cooccurrence_edges(docs=<list>, window=<int>, vocab=<list>, vocab_size=<int>, directed=<bool>) -> tuple[int, list[tuple[int, int]], list[int]]\"}",
         NULL,
         "Build the weighted co-occurrence graph \342\200\224 the Class-L precursor (\302\24740).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 27 */
         "srmech.amsc.text.cooccurrence_topk",
@@ -2653,6 +2721,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cooccurrence_topk(docs=<list>, window=<int>, k=<int>, vocab=<list>, cap_slack=<int>, chunk_docs=<int>) -> dict\"}",
         NULL,
         "Streaming / bounded top-K co-occurrence \342\200\224 the LOW-RAM ENCODE peer of :func:`cooccurrence_edges` (UPSTREAM \302\24752 / F793).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 28 */
         "srmech.amsc.laplacian.dense_laplacian",
@@ -2667,6 +2737,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"edges\":\"[(0, 1), (1, 2), (2, 0), (2, 3)]\",\"n\":\"4\",\"weights\":\"[1.0, 1.0, 1.0, 1.0]\"},\"output\":\"Mat(4x4, real)\"}",
         NULL,
         "Combinatorial graph Laplacian L = D \342\210\222 A of a weighted undirected graph (n nodes, edges + per-edge weights) as a dense Mat \342\200\224 the foundation the Class-L spectral readers (fiedler / spine / eigvals) run on. F1216: the Class-L Laplacian IS the LONG-TERM relational STORE (exact, addressed, directional, GROWS with knowledge \342\200\224 the genome / disk); the Class-M Klein-4/HDC bundle is the transient working-memory read, bridged by the reversible spectral basis-change (eigen / Walsh-Hadamard).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 29 */
         "srmech.amsc.laplacian.normalized_laplacian",
@@ -2681,6 +2753,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"normalized_laplacian(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>) -> Mat\"}",
         NULL,
         "Symmetric normalised Laplacian ``L_sym = I \342\210\222 D^(\342\210\2221/2) A D^(\342\210\2221/2)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 30 */
         "srmech.amsc.laplacian.signed_laplacian",
@@ -2695,6 +2769,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"signed_laplacian(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>) -> Mat\"}",
         NULL,
         "Signed graph Laplacian ``L = D\314\204 \342\210\222 A`` (real-symmetric, PSD).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 31 */
         "srmech.amsc.laplacian.magnetic_laplacian",
@@ -2709,6 +2785,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"magnetic_laplacian(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>, q=<float>, charges=<Optional[list[float]]>) -> Mat\"}",
         NULL,
         "Magnetic (Hermitian) Laplacian of a **directed** graph.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 32 */
         "srmech.amsc.laplacian.klein4_gain_laplacian",
@@ -2723,6 +2801,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_gain_laplacian(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>, gains=<Optional[list[int | tuple[int, int]]]>) -> dict[str, Mat]\"}",
         NULL,
         "The V\342\202\204-gain (Klein-4-sector) Laplacian \342\200\224 the EVEN-channel fuller partner of :func:`magnetic_laplacian` (gh#687).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 33 */
         "srmech.amsc.laplacian.klein4_relational_structure",
@@ -2737,6 +2817,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_relational_structure(edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>, gains=<Optional[list[int | tuple[int, int]]]>, n=<Optional[int]>) -> dict\"}",
         NULL,
         "The joint EVEN-channel read-out of a V\342\202\204-gain relational graph (gh#687) \342\200\224 per-sector spectral tensions + the Class-K sector-asymmetry meter.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 34 */
         "srmech.amsc.laplacian.cycle_holonomy",
@@ -2751,6 +2833,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cycle_holonomy(edges=<list[tuple[int, int]]>, charges=<Optional[list[int | Q | float]]>, n=<Optional[int]>) -> dict\"}",
         NULL,
         "The cycle holonomies of a gain graph \342\200\224 the ODD channel the (Hermitian / signed) SPECTRUM provably cannot carry (gh#687).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 35 */
         "srmech.amsc.laplacian.eulerian_path",
@@ -2765,6 +2849,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"eulerian_path(edges=<list[tuple[int, int]]>, start=<Optional[int]>) -> list | None\"}",
         NULL,
         "The Eulerian trail of a DIRECTED edge multiset ``[(u, v), ...]`` (repeats / self-loops ok; nodes any hashable) as a node list of length ``len(edges)+1``, or ``None`` if no single Eulerian trail exists (#1390 item 3). Feasibility is CHECKED (degree balance + full-consumption connectivity). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 36 */
         "srmech.amsc.laplacian.eulerian_circuit",
@@ -2779,6 +2865,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"eulerian_circuit(edges=<list[tuple[int, int]]>, start=<Optional[int]>) -> list | None\"}",
         NULL,
         "As :func:`eulerian_path` but REQUIRES a closed circuit (every node balanced): returns a walk with ``start == end``, or ``None`` if the graph is not balanced + connected (#1390 item 3).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 37 */
         "srmech.amsc.laplacian.recover_check",
@@ -2793,6 +2881,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"recover_check(vocab_size=<int>, edges=<list[tuple[int, int]]>, weights=<list>, charges=<Optional[list[int | Q | float]]>) -> dict\"}",
         NULL,
         "The packaged round-trip integrity check of a stored directed Class-L graph (#1390 item 4): the four faculties a genome must recover \342\200\224 ``op`` (L = D \342\210\222 A eigendecomposes, PSD, ~0 mode), ``operand`` (weighted edges present, non-degenerate, uncapped), ``responsion`` (the propagator e^{\342\210\222zL} is excitable), and ``curvature`` \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 38 */
         "srmech.amsc.laplacian.recover_check_structural",
@@ -2807,6 +2897,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"recover_check_structural(vocab_size=<int>, edges=<list[tuple[int, int]]>, weights=<list>, charges=<Optional[list[int | Q | float]]>, cycle_sample=<int>) -> dict\"}",
         NULL,
         "The O(edges) faculties only \342\200\224 ``operand`` (edges present / valid) + a SAMPLED curvature read \342\200\224 so integrity is checkable at ANY vocab size (the dense op / responsion faculties do not scale past the native n<=256 wall). The F1227 sparse peer of :func:`recover_check_spectral` (#1390 item 4). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 39 */
         "srmech.amsc.laplacian.recover_check_spectral",
@@ -2821,6 +2913,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"recover_check_spectral(vocab_size=<int>, edges=<list[tuple[int, int]]>, weights=<list>, charges=<Optional[list[int | Q | float]]>, max_dim=<int>) -> dict\"}",
         NULL,
         "The ``op`` + ``responsion`` (spectral) faculties on a BOUNDED principal submatrix \342\200\224 the first ``min(vocab_size, max_dim)`` nodes + the edges within that block \342\200\224 so the dense n\303\227n eigendecompose stays within the native n<=256 wall at ANY corpus vocab. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 40 */
         "srmech.amsc.laplacian.order_fingerprint",
@@ -2835,6 +2929,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"order_fingerprint(fiber_ids=<list>) -> list\"}",
         NULL,
         "The path-ORDERED octonion product along a walk \342\200\224 an order-sensitive fingerprint of the fiber, 8 ints, independent of walk length (#1390 item 4b; F1229 / F1231; the \342\204\215/\360\235\225\206 grade of the walk). It CATCHES a graph-preserving reorder the op / operand / responsion / \342\204\202-curvature faculties are blind to (F1079 / F1230). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 41 */
         "srmech.amsc.laplacian.recover_check_order",
@@ -2849,6 +2945,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"recover_check_order(true_fingerprint=<list>, recovered_fiber_ids=<list>) -> bool\"}",
         NULL,
         "PASS (True) iff a recovered fiber reproduces the stored order fingerprint (#1390 item 4b) \342\200\224 the order-integrity guard on top of the graph faculties. Store :func:`order_fingerprint` of the true walk beside the genome; on recall recompute it from the :func:`eulerian_path` reconstruction and compare. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 42 */
         "srmech.amsc.laplacian.heat_trace",
@@ -2863,6 +2961,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"heat_trace(L=<Mat>, t=<float | Sequence[float]>) -> float | Vec\"}",
         NULL,
         "The spectral theta / heat trace ``\316\230(t) = Tr(e^{\342\210\222tL}) = \316\243\342\202\226 e^{\342\210\222t\302\267\316\273\342\202\226}`` of a Laplacian (rc108; issue #1234 Item 2 / F1007).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 43 */
         "srmech.amsc.laplacian.ground_state_flux_response",
@@ -2877,6 +2977,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"ground_state_flux_response(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>, fluxes=<float | Sequence[float]>, charges=<Optional[list[float]]>) -> float | Vec\"}",
         NULL,
         "``\316\273_min(\316\246)`` \342\200\224 the magnetic ground state as a function of flux: the F1007 SHADOW reader (rc108; issue #1234 Item 2).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 44 */
         "srmech.amsc.laplacian.propagate",
@@ -2891,6 +2993,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"propagate(L=<Mat>, u0=<Vec>, z=<complex>) -> Vec\"}",
         NULL,
         "EPH \342\200\224 the complex-time Wick-rotation propagator ``harvest = e^{-zL}\302\267u0`` (0.9.0rc136; siona gh#1274). The ONE propagator with the arg(z) coherence dial + the mandatory 2\317\200 seam-fold.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 45 */
         "srmech.amsc.laplacian.eph_harvest",
@@ -2905,6 +3009,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"eph_harvest(L=<Mat>, u0=<Vec>, z=<complex>) -> dict\"}",
         NULL,
         "The EPH cascade read (0.9.0rc136; siona gh#1274) \342\200\224 excite \342\206\222 propagate \342\206\222 Born-rule harvest-rank the reaction center.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 46 */
         "srmech.amsc.laplacian.propagate_sparse",
@@ -2919,6 +3025,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"propagate_sparse(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>, u0=<Vec>, z=<complex>, tol=<float>, max_degree=<int>) -> Vec\"}",
         NULL,
         "EPH SPARSE \342\200\224 the sparse-scaled propagator ``harvest = e^{-zL}\302\267u0`` (0.9.0rc206; siona gh#1274 item 1c \342\200\224 the corpus-scale residual).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 47 */
         "srmech.amsc.laplacian.propagate_wound",
@@ -2933,6 +3041,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"propagate_wound(L=<Mat>, u0=<Vec>, z=<complex>) -> dict\"}",
         NULL,
         "EPH WOUND \342\200\224 :func:`propagate` with the 2\317\200 seam-fold's DIVMOD quotient KEPT (0.9.0rc207; siona gh#1276 \342\200\224 the #741 mod-should-be-divmod audit's first concrete instance).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 48 */
         "srmech.amsc.laplacian.responsion",
@@ -2947,6 +3057,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"responsion(L=<Mat>, u0=<Vec>, z=<complex>, kind=<str>) -> Vec\"}",
         NULL,
         "RESPONSION \342\200\224 the response-function family of a generator ``L`` acting on an excitation ``u0`` (0.9.0rc208; F1186 \342\200\224 the op\342\212\227operand\342\212\227responsion k=3 completion).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 49 */
         "srmech.amsc.laplacian.fiedler_vector",
@@ -2961,6 +3073,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"arg0\":\"Mat(4x4, real)\"},\"output\":\"Vec(4, real)\"}",
         NULL,
         "Eigenvector of the second-smallest Laplacian eigenvalue (\316\2731). Its sign per node gives the natural 2-way spectral cut of the graph.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 50 */
         "srmech.amsc.laplacian.fiedler_sparse",
@@ -2975,6 +3089,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"fiedler_sparse(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>, max_iters=<int>) -> Vec\"}",
         NULL,
         "Sparse / iterative normalized-cut Fiedler vector \342\200\224 the ``n``-unbounded peer of :func:`fiedler_vector` (issue #1097 / UPSTREAM \302\24751).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 51 */
         "srmech.amsc.laplacian.normalized_cut_bisect",
@@ -2989,6 +3105,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"normalized_cut_bisect(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>, max_iters=<int>) -> tuple[list[int], list[int]]\"}",
         NULL,
         "Sparse normalized-cut bisection \342\200\224 split the nodes by the sign of the :func:`fiedler_sparse` vector (issue #1097 / UPSTREAM \302\24751).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 52 */
         "srmech.amsc.laplacian.write_packed_graph",
@@ -3003,6 +3121,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"write_packed_graph(path=<str>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>) -> int\"}",
         NULL,
         "Write a packed binary edge file for the out-of-core streaming Fiedler (\302\24752 Part 2 / F793) \342\200\224 the on-disk adjacency :func:`fiedler_sparse_file` (and the recursive out-of-core driver) reads.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 53 */
         "srmech.amsc.laplacian.fiedler_sparse_file",
@@ -3017,6 +3137,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"fiedler_sparse_file(n=<int>, graph_path=<str>, max_iters=<int>) -> Vec\"}",
         NULL,
         "Out-of-core sparse normalized-cut Fiedler \342\200\224 the streaming peer of :func:`fiedler_sparse` that reads its adjacency from a packed edge FILE instead of an in-RAM edge list (\302\24752 Part 2 / F793).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 54 */
         "srmech.amsc.laplacian.recursive_cut",
@@ -3031,6 +3153,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"recursive_cut(n=<int>, edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>, max_tome=<int>) -> dict\"}",
         NULL,
         "Out-of-core recursive spectral partition into community **tomes** (\302\24752 Part 2, F793) \342\200\224 the same recursion as bisecting with :func:`normalized_cut_bisect` and recursing on each side, but executed **out-of-core**: the adjacency, every pending sub-graph, and every finished tome live on **disk**, so peak RAM is the single \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 55 */
         "srmech.amsc.laplacian.jacobi_eigvals",
@@ -3045,6 +3169,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"arg0\":\"Mat(4x4, real)\"},\"output\":\"Vec(4, real)\"}",
         NULL,
         "Ascending eigenvalues of a symmetric Mat via cyclic Jacobi rotations (no numpy). On a graph Laplacian: \316\2730 = 0 for a connected graph; \316\2731 (the Fiedler value) measures algebraic connectivity.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 56 */
         "srmech.amsc.laplacian.spectral_block_dispatch",
@@ -3059,6 +3185,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"spectral_block_dispatch(blocks=<list>, max_sweeps=<int>, tolerance=<float>, combine=<bool>) -> dict\"}",
         NULL,
         "Eigendecompose \342\211\2444 dense symmetric blocks in parallel \342\200\224 the 1024-node 4-sector spectral one-call (RBS-LM UPSTREAM Ask-3; F233 4-rung).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 57 */
         "srmech.amsc.laplacian.dense_solve",
@@ -3073,6 +3201,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"dense_solve(A=<Mat>, B=<Mat | Vec>, exact=<bool>) -> Mat | Vec | list[list[Q]] | list[Q]\"}",
         NULL,
         "Class-L dense linear solve ``A \302\267 X = B`` (v0.7.1rc3; [#897](https://github.com/lemonforest/mlehaptics/issues/897) \302\24726).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 58 */
         "srmech.amsc.laplacian.schur_complement",
@@ -3087,6 +3217,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"schur_complement(L=<Mat>, boundary_idx=<list[int]>, exact=<bool>) -> Mat | list[list[Q]]\"}",
         NULL,
         "Class-L Schur complement / discrete Dirichlet-to-Neumann (DtN) map (UPSTREAM \302\24726; [#897](https://github.com/lemonforest/mlehaptics/issues/897)).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 59 */
         "srmech.amsc.laplacian.dirichlet_to_neumann",
@@ -3101,6 +3233,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"dirichlet_to_neumann(L=<Mat>, boundary_idx=<list[int]>, exact=<bool>) -> Mat | list[list[Q]]\"}",
         NULL,
         "Alias for :func:`schur_complement` \342\200\224 the discrete Dirichlet-to-Neumann (DtN) map ``S = L_\342\210\202\342\210\202 \342\210\222 L_\342\210\202i \302\267 L_ii\342\201\273\302\271 \302\267 L_i\342\210\202`` (UPSTREAM \302\24726; #897). Given boundary values, ``S`` returns the boundary normal-derivative of their harmonic extension into the interior. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 60 */
         "srmech.amsc.laplacian.hermitian_eigendecompose",
@@ -3115,6 +3249,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"hermitian_eigendecompose(H=<Mat>) -> tuple[Vec, Mat]\"}",
         NULL,
         "Hermitian eigendecomposition: ``H = V \302\267 diag(eigvals) \302\267 V^H``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 61 */
         "srmech.amsc.laplacian.symmetric_eigendecompose",
@@ -3129,6 +3265,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"symmetric_eigendecompose(L=<Mat>) -> tuple[Vec, Mat]\"}",
         NULL,
         "Real-symmetric eigendecomposition: ``L = V \302\267 diag(eigvals) \302\267 V\341\265\200``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 62 */
         "srmech.amsc.laplacian.mat_matmul",
@@ -3143,6 +3281,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_matmul(a=<Mat>, b=<Mat>) -> Mat\"}",
         NULL,
         "Numpy-free dense matrix multiply ``A\302\267B`` over the :class:`~srmech.amsc.mat.Mat` carrier \342\200\224 the 2-D ``@`` replacement for the numpy-CARRIER removal arc (#564, foundation #2).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 63 */
         "srmech.amsc.laplacian.mat_solve",
@@ -3157,6 +3297,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_solve(a=<Mat>, b=<Mat>) -> Mat\"}",
         NULL,
         "Numpy-free dense linear solve ``A\302\267X = B`` over the :class:`~srmech.amsc.mat.Mat` carrier \342\200\224 bridge primitive #2 of the numpy-CARRIER removal arc (#564), the peer of :func:`mat_matmul`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 64 */
         "srmech.amsc.laplacian.mat_lstsq",
@@ -3171,6 +3313,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_lstsq(a=<Mat>, b=<Mat>) -> Mat\"}",
         NULL,
         "Numpy-free least-squares solution of ``A\302\267X \342\211\210 B`` (minimising ``\342\200\226A\302\267X \342\210\222 B\342\200\226``) over the :class:`~srmech.amsc.mat.Mat` carrier \342\200\224 the Mat-return peer of ``matrix_cascades.lstsq`` (rc96, carrier-removal #564).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 65 */
         "srmech.amsc.laplacian.mat_hermitian_eigendecompose",
@@ -3185,6 +3329,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_hermitian_eigendecompose(h=<Mat>) -> tuple[Mat, Mat]\"}",
         NULL,
         "Numpy-free Hermitian eigendecomposition ``H = V\302\267diag(\316\273)\302\267V\341\264\264`` over the :class:`~srmech.amsc.mat.Mat` carrier \342\200\224 bridge primitive **#3** (the last) of the numpy-CARRIER removal arc (#564), completing the family with :func:`mat_matmul` (#1) and :func:`mat_solve` (#2).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 66 */
         "srmech.amsc.laplacian.mat_eigvals",
@@ -3199,6 +3345,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_eigvals(a=<Mat>) -> list[complex]\"}",
         NULL,
         "Eigenvalue MULTISET of a general (non-Hermitian) square matrix over the :class:`~srmech.amsc.mat.Mat` carrier \342\200\224 foundation op #4 of the numpy-CARRIER removal arc (#564), the numpy-free peer of ``matrix_cascades.eigvals``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 67 */
         "srmech.amsc.laplacian.mat_svd",
@@ -3213,6 +3361,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_svd(a=<Mat>) -> tuple\"}",
         NULL,
         "Numpy-free **full** singular-value decomposition ``A = U\302\267diag(S)\302\267V\341\264\264`` over the :class:`~srmech.amsc.mat.Mat` carrier \342\200\224 foundation op **#5** of the numpy-CARRIER removal arc (#564), composed from the native-backed :func:`mat_matmul` + :func:`mat_hermitian_eigendecompose` trio (plus a pure-Python orthonormal completion), \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 68 */
         "srmech.amsc.laplacian.mat_norm",
@@ -3227,6 +3377,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_norm(x=<Mat>) -> float\"}",
         NULL,
         "Euclidean (vector 2-norm) / Frobenius (matrix) norm ``\342\200\226x\342\200\226 = \342\210\232(\316\243|x\341\265\242|\302\262)`` \342\206\222 ``float`` \342\200\224 numpy-FREE over the Mat / Vec / HV carriers.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 69 */
         "srmech.amsc.laplacian.mat_dot",
@@ -3241,6 +3393,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_dot(a=<Mat>, b=<Mat>) -> float\"}",
         NULL,
         "Dtype-polymorphic bilinear inner product ``a \302\267 b = \316\243 a\341\265\242 b\341\265\242`` over the numpy-free :class:`Mat` / :class:`Vec` / :class:`HV` / flat-sequence carriers \342\200\224 **complex** when either operand is complex, else **float**. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 70 */
         "srmech.amsc.laplacian.mat_matvec",
@@ -3255,6 +3409,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_matvec(m=<Mat>, v=<Vec>) -> Vec\"}",
         NULL,
         "Dtype-polymorphic dense matrix-vector product ``M\302\267v`` \342\206\222 :class:`Vec` (complex iff either operand is) over the numpy-free carriers \342\200\224 rides :func:`mat_matmul` over a column :class:`Mat` (native zero-copy when present, else a pure-Python triple loop). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 71 */
         "srmech.amsc.laplacian.mat_outer",
@@ -3269,6 +3425,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mat_outer(a=<Vec>, b=<Vec>) -> Mat\"}",
         NULL,
         "Dtype-polymorphic outer product ``a \342\212\227 b`` \342\206\222 :class:`Mat` ``out[i,j]=a\341\265\242b\342\261\274`` (complex iff either operand is) over the numpy-free carriers. Plain bilinear ``a\341\265\242 b\342\261\274`` (NO conjugation \342\200\224 like NumPy ``outer``; callers wanting ``|\317\210\342\237\251\342\237\250\317\210|`` pass ``b = \317\210.conj()``). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 72 */
         "srmech.amsc.laplacian.elementwise_multiply_complex",
@@ -3283,6 +3441,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elementwise_multiply_complex(a=<Mat | Vec>, b=<Mat | Vec>) -> Mat\"}",
         NULL,
         "Elementwise complex multiplication: ``a * b`` \342\200\224 SHAPE-POLYMORPHIC (rc129).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 73 */
         "srmech.amsc.laplacian.elementwise_transcendental",
@@ -3297,6 +3457,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elementwise_transcendental(arr=<Mat | Vec>, op_name=<str>) -> Mat\"}",
         NULL,
         "Array-vectorised transcendental operation \342\200\224 SHAPE-POLYMORPHIC (rc129).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 74 */
         "srmech.amsc.laplacian.elementwise_hypot",
@@ -3311,6 +3473,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elementwise_hypot(a=<Mat | Vec>, b=<Mat | Vec>) -> Mat\"}",
         NULL,
         "Array Euclidean magnitude ``\342\210\232(a\341\265\242\302\262 + b\341\265\242\302\262)`` via the Class-N hypot cascade \342\200\224 SHAPE-POLYMORPHIC (rc129).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 75 */
         "srmech.amsc.laplacian.elementwise_sqrt",
@@ -3325,6 +3489,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elementwise_sqrt(arr=<Mat | Vec>) -> Mat\"}",
         NULL,
         "Array element-wise ``\342\210\232arr\341\265\242`` via the Class-N rational sqrt cascade \342\200\224 SHAPE-POLYMORPHIC (rc129).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 76 */
         "srmech.amsc.primes.is_prime",
@@ -3339,6 +3505,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"n\":\"97\"},\"output\":\"True\"}",
         NULL,
         "Deterministic primality test (Class-J). True iff n is prime.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 77 */
         "srmech.amsc.primes.factor",
@@ -3353,6 +3521,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"n\":\"3\"},\"output\":\"[(3, 1)]\"}",
         NULL,
         "Return ``[(p_1, e_1), (p_2, e_2), ...]`` with ``n = \342\210\217 p_i^e_i``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 78 */
         "srmech.amsc.primes.cyclic_period",
@@ -3367,6 +3537,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cyclic_period(a=<int>, n=<int>, max_k=<int>) -> int\"}",
         NULL,
         "Return the multiplicative order of ``a`` in ``(Z/nZ)*``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 79 */
         "srmech.amsc.primes.next_prime",
@@ -3381,6 +3553,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"n\":\"3\"},\"output\":\"5\"}",
         NULL,
         "Return the smallest prime strictly greater than ``n`` (the prime successor).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 80 */
         "srmech.amsc.tlv.tlv_pack",
@@ -3395,6 +3569,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"tag\":\"3\",\"value\":\"b'abc'\"},\"output\":\"b'\\\\x03\\\\x00\\\\x00\\\\x00\\\\x03abc'\"}",
         NULL,
         "Pack ``(tag, value)`` into a deterministic TLV byte sequence.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 81 */
         "srmech.amsc.tlv.tlv_unpack",
@@ -3409,6 +3585,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"tlv_unpack(buffer=<bytes>, offset=<int>) -> tuple\"}",
         NULL,
         "Read one TLV frame back out \342\200\224 the inverse of :func:`tlv_pack` (Class B).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 82 */
         "srmech.amsc.search.byte_search",
@@ -3423,6 +3601,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"haystack\":\"b'abc'\",\"needle\":\"b'abc'\"},\"output\":\"0\"}",
         NULL,
         "Return the offset of the first occurrence of ``needle`` in ``haystack``, or ``None`` if ``needle`` is not present.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 83 */
         "srmech.amsc.dispatch.match",
@@ -3437,6 +3617,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"match(input_bytes=<bytes>, rules=<list[tuple[bytes, int]]>) -> Optional[int]\"}",
         NULL,
         "First-match dispatcher: return the tag of the first rule whose pattern occurs in ``input_bytes``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 84 */
         "srmech.amsc.naming.lookup",
@@ -3451,6 +3633,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"lookup(key=<bytes>, pairs=<list[tuple[bytes, bytes]]>) -> Optional[bytes]\"}",
         NULL,
         "Binary-search a sorted (key, value) catalog for ``key``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 85 */
         "srmech.amsc.harmonics.classify_harmonic",
@@ -3465,6 +3649,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"classify_harmonic(class_letter=<str>) -> int\"}",
         NULL,
         "Return the chirality-harmonic order (1, 2, or 3) of an A\342\200\223N class operator.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 86 */
         "srmech.amsc.harmonics.classify_chirality_harmonic",
@@ -3479,6 +3665,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"classify_chirality_harmonic(hv=<HV>, dc_threshold=<float>) -> int\"}",
         NULL,
         "Classify an encoded hypervector into chirality-harmonic 1/2/3 by its spectral symmetry signature (F150 \302\2476.2).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 87 */
         "srmech.amsc.dispatch.mirror_pattern",
@@ -3493,6 +3681,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"pattern\":\"b'abc'\"},\"output\":\"b'cba'\"}",
         NULL,
         "Harmonic-2 chiral mirror of a dispatch pattern (F150): the byte-reversed needle. Class D is harmonic-2 (chiral inverse / self-inverse) per F150 \302\2476.1 \342\200\224 ``mirror_pattern(mirror_pattern(p)) == p`` (period 2). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 88 */
         "srmech.amsc.naming.reverse_order",
@@ -3507,6 +3697,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"reverse_order(sorted_pairs=<list[tuple[bytes, bytes]]>) -> list\"}",
         NULL,
         "Harmonic-2 chiral mirror of a sorted Class-E catalog (F150): the order-reversed ``(key, value)`` list \342\200\224 a descending-key view of an ascending catalog. Class E is harmonic-2 (chiral inverse) per F150 \302\2476.1; ``reverse_order(reverse_order(x)) == list(x)`` (period 2). The chirality-aware companion to :func:`lookup`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 89 */
         "srmech.amsc.search.byte_search_backward",
@@ -3521,6 +3713,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"haystack\":\"b'abc'\",\"needle\":\"b'abc'\"},\"output\":\"0\"}",
         NULL,
         "Harmonic-2 chiral mirror of :func:`byte_search` (F150): the offset of the LAST occurrence of ``needle`` in ``haystack`` (mirrored search direction), or ``None`` if absent. Empty needle returns ``len(haystack)`` (matches ``bytes.rfind(b\"\")``). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 90 */
         "srmech.amsc.cyclic.three_cycle",
@@ -3535,6 +3729,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"value\":\"3\"},\"output\":\"1\"}",
         NULL,
         "Harmonic-3 Z/3 cyclic shift (F150): the order-3 generator on Z/3 \342\200\224 ``(value + 1) % 3``. ``value`` is any non-negative int, read mod 3 (so the three residue classes 0/1/2 cycle 0\342\206\2221\342\206\2222\342\206\2220). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 91 */
         "srmech.amsc.laplacian.three_fold_eigvec_groups",
@@ -3549,6 +3745,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"arg0\":\"Mat(4x4, real)\"},\"output\":\"{'low': Mat(4x1, real), 'mid': Mat(4x1, real), 'high': Mat(4x2, real)}\"}",
         NULL,
         "3-way spectral partition from the sign pattern across the low eigenvectors (the k=3 community read; complements fiedler's 2-way and spine's centrality).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 92 */
         "srmech.amsc.laplacian.spectral_spine",
@@ -3563,6 +3761,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"edges\":\"[(0, 1), (1, 2), (2, 0), (2, 3)]\",\"k\":\"3\",\"weights\":\"[1.0, 1.0, 1.0, 1.0]\"},\"output\":\"[2, 3, 0]\"}",
         NULL,
         "The structurally-central 'spine': top-|component| nodes of the dominant-eigenvalue eigenvector \342\200\224 the centrality axis, complementing the community readers (fiedler 2-way / three_fold 3-way).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 93 */
         "srmech.amsc.laplacian.relational_structure",
@@ -3577,6 +3777,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"relational_structure(edges=<list[tuple[int, int]]>, weights=<Optional[list[float]]>) -> dict\"}",
         NULL,
         "The full spectral structure of a relational graph in ONE call (gh#1324) \342\200\224 the ergonomic sugar that composes the Class-L atoms.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 94 */
         "srmech.amsc.template.render",
@@ -3591,6 +3793,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"render(template_bytes=<bytes>, mapping=<Mapping[bytes, bytes]>) -> bytes\"}",
         NULL,
         "Render ``template_bytes`` with ``{key}`` placeholders expanded via ``mapping``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 95 */
         "srmech.amsc.rational.continued_fraction",
@@ -3605,6 +3809,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"denominator\":\"3\",\"numerator\":\"3\"},\"output\":\"[1]\"}",
         NULL,
         "Return the simple continued-fraction expansion of ``p/q``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 96 */
         "srmech.amsc.rational.best_rational",
@@ -3619,6 +3825,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"denominator\":\"100000\",\"max_denominator\":\"100\",\"numerator\":\"314159\"},\"output\":\"(22, 7)\"}",
         NULL,
         "Best rational p/q with q \342\211\244 max_denominator approximating numerator/denominator (Class-N small-denominator anchor via continued fractions). Takes an INTEGER numerator/denominator pair, never a float.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 97 */
         "srmech.amsc.rational.rational_reconstruct",
@@ -3633,6 +3841,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"modulus\":\"3\",\"residue\":\"3\"},\"output\":\"(0, 1)\"}",
         NULL,
         "Recover the rational ``p/q`` congruent to ``residue`` modulo ``modulus``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 98 */
         "srmech.amsc.rational.exp_series_truncate",
@@ -3647,6 +3857,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"denominator\":\"3\",\"num_terms\":\"3\",\"numerator\":\"3\"},\"output\":\"(8, 3)\"}",
         NULL,
         "Return ``S_N(p/q) = sum_{k=0..N} (p/q)^k / k!`` as an exact rational.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 99 */
         "srmech.amsc.rational.rational_add",
@@ -3661,6 +3873,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"(3, 4)\",\"b\":\"(3, 4)\"},\"output\":\"(3, 2)\"}",
         NULL,
         "Add two rationals; return (num, den) reduced.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 100 */
         "srmech.amsc.rational.rational_mul",
@@ -3675,6 +3889,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"(3, 4)\",\"b\":\"(3, 4)\"},\"output\":\"(9, 16)\"}",
         NULL,
         "Multiply two rationals; return (num, den) reduced.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 101 */
         "srmech.amsc.rational.rational_div",
@@ -3689,6 +3905,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"(3, 4)\",\"b\":\"(3, 4)\"},\"output\":\"(1, 1)\"}",
         NULL,
         "Divide two rationals (a / b); return (num, den) reduced.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 102 */
         "srmech.amsc.rational.rational_pow_uint",
@@ -3703,6 +3921,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"base\":\"(3, 4)\",\"exp\":\"3\"},\"output\":\"(27, 64)\"}",
         NULL,
         "Raise rational (p, q) to non-negative integer exponent.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 103 */
         "srmech.amsc.rational.sin_series_truncate",
@@ -3717,6 +3937,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"denominator\":\"3\",\"num_terms\":\"3\",\"numerator\":\"3\"},\"output\":\"(4241, 5040)\"}",
         NULL,
         "Compute sin(p/q) Taylor partial sum to N terms as exact rational.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 104 */
         "srmech.amsc.rational.cos_series_truncate",
@@ -3731,6 +3953,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"denominator\":\"3\",\"num_terms\":\"3\",\"numerator\":\"3\"},\"output\":\"(389, 720)\"}",
         NULL,
         "Compute cos(p/q) Taylor partial sum to N terms as exact rational.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 105 */
         "srmech.amsc.rational.log1p_series_truncate",
@@ -3745,6 +3969,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"denominator\":\"3\",\"num_terms\":\"3\",\"numerator\":\"3\"},\"output\":\"(5, 6)\"}",
         NULL,
         "Compute log(1 + p/q) Taylor partial sum to N terms as exact rational.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 106 */
         "srmech.amsc.rational.atan_series_truncate",
@@ -3759,6 +3985,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"denominator\":\"3\",\"num_terms\":\"3\",\"numerator\":\"3\"},\"output\":\"(76, 105)\"}",
         NULL,
         "Compute atan(p/q) Taylor partial sum to N terms as exact rational.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 107 */
         "srmech.amsc.rational.jacobi_sncndn_series_truncate",
@@ -3773,6 +4001,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"denominator\":\"3\",\"m_denominator\":\"3\",\"m_numerator\":\"3\",\"num_terms\":\"3\",\"numerator\":\"3\"},\"output\":\"((2, 3), (1, 2), (1, 2))\"}",
         NULL,
         "Jacobi elliptic sn/cn/dn Maclaurin partial sums as exact rationals.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 108 */
         "srmech.amsc.rational.cos",
@@ -3787,6 +4017,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(622926147424044489, 1152921504606846976)\"}",
         NULL,
         "``cos(x)`` (radians) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 109 */
         "srmech.amsc.rational.sin",
@@ -3801,6 +4033,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(485074996943862657, 576460752303423488)\"}",
         NULL,
         "``sin(x)`` (radians) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 110 */
         "srmech.amsc.rational.tan",
@@ -3815,6 +4049,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(323383331295908438, 207642049141348163)\"}",
         NULL,
         "``tan(x) = sin(x) / cos(x)`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 111 */
         "srmech.amsc.rational.atan",
@@ -3829,6 +4065,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(905502432259640355, 1152921504606846976)\"}",
         NULL,
         "``atan(x)`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Q61 three-band Class-N cascade.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 112 */
         "srmech.amsc.rational.atan2",
@@ -3843,6 +4081,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\",\"y\":\"1.0\"},\"output\":\"Q(905502432259640355, 1152921504606846976)\"}",
         NULL,
         "``atan2(y, x)`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Q61 atan cascade with quadrant logic.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 113 */
         "srmech.amsc.rational.exp",
@@ -3857,6 +4097,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(1566982787806226805, 576460752303423488)\"}",
         NULL,
         "``e^x`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 114 */
         "srmech.amsc.rational.log",
@@ -3871,6 +4113,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(0, 1)\"}",
         NULL,
         "``ln(x)`` (natural log, x > 0) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Q61 Class-N atanh cascade.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 115 */
         "srmech.amsc.rational.cexp",
@@ -3885,6 +4129,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"theta\":\"1.0\"},\"output\":\"(0.5403023058681398+0.8414709848078965j)\"}",
         NULL,
         "``e^(i\302\267theta) = cos(theta) + i\302\267sin(theta)`` via the Class-N cascade.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 116 */
         "srmech.amsc.rational.complex_exp",
@@ -3899,6 +4145,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"complex_exp(z=<complex>, terms=<int>) -> complex\"}",
         NULL,
         "``e^z`` for complex ``z`` via the Class-N cascade.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 117 */
         "srmech.amsc.rational.sqrt",
@@ -3913,6 +4161,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(1, 1)\"}",
         NULL,
         "``\342\210\232x`` (x \342\211\245 0) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Class-N rational sqrt cascade.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 118 */
         "srmech.amsc.rational.hypot",
@@ -3927,6 +4177,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"1.0\",\"b\":\"1.0\"},\"output\":\"Q(12738103345051545, 9007199254740992)\"}",
         NULL,
         "``hypot(a, b) = \342\210\232(a\302\262 + b\302\262)`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 119 */
         "srmech.amsc.cascade.spectral_cascades.dft",
@@ -3941,6 +4193,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"dft(x=<list[complex]>, inverse=<bool>) -> list[complex]\"}",
         NULL,
         "Discrete Fourier transform via the Antikythera epicycle-sum.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 120 */
         "srmech.amsc.cascade.spectral_cascades.idft",
@@ -3955,6 +4209,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"idft(x=<list[complex]>) -> list[complex]\"}",
         NULL,
         "Inverse DFT \342\200\224 :func:`dft` with the conjugate twiddle and a ``1/N`` scale.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 121 */
         "srmech.amsc.cascade.spectral_cascades.fft",
@@ -3969,6 +4225,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"fft(x=<list[complex]>, inverse=<bool>) -> list[complex]\"}",
         NULL,
         "Fast Fourier transform \342\200\224 the radix-2 Cooley\342\200\223Tukey butterfly.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 122 */
         "srmech.amsc.cascade.spectral_cascades.ifft",
@@ -3983,6 +4241,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"ifft(x=<list[complex]>) -> list[complex]\"}",
         NULL,
         "Inverse FFT \342\200\224 :func:`fft` with the conjugate twiddle and a ``1/N`` scale.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 123 */
         "srmech.amsc.cascade.spectral_cascades.kron",
@@ -3997,6 +4257,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"kron(a=<list[list[complex]]>, b=<list[list[complex]]>) -> list[list[complex]]\"}",
         NULL,
         "Kronecker product ``A \342\212\227 B`` of two 2-D matrices (lists of rows).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 124 */
         "srmech.amsc.cascade.exact_dft.exact_dft",
@@ -4011,6 +4273,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"exact_dft(signal=<list[complex]>, inverse=<bool>) -> list[tuple[list[int], list[int]]]\"}",
         NULL,
         "Exact ``\342\204\244[\316\266_N]`` integer spectrum of an integer / Gaussian-integer signal.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 125 */
         "srmech.amsc.cascade.exact_dft.exact_idft",
@@ -4025,6 +4289,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"exact_idft(signal=<list[complex]>) -> list[tuple[list[int], list[int]]]\"}",
         NULL,
         "Inverse exact DFT \342\200\224 :func:`exact_dft` with the conjugate twiddle ``\316\266^{-nk}``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 126 */
         "srmech.amsc.cascade.exact_dft.lift",
@@ -4039,6 +4305,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"lift(spectrum=<list[tuple[list[int], list[int]]]>, scale=<int>) -> list[complex]\"}",
         NULL,
         "The single FPU lift: rotate an exact ``\342\204\244[\316\266_N]`` spectrum to ``\342\204\202``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 127 */
         "srmech.amsc.cascade.matrix_cascades.qr",
@@ -4053,6 +4321,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"qr(a=<Mat>, mode=<str>) -> tuple[Mat, Mat]\"}",
         NULL,
         "Householder QR factorization ``A = Q\302\267R`` (numpy-free, list-based).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 128 */
         "srmech.amsc.cascade.matrix_cascades.svd",
@@ -4067,6 +4337,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"svd(a=<Mat>, full_matrices=<bool>) -> tuple[Mat, Vec, Mat]\"}",
         NULL,
         "Singular value decomposition ``A = U\302\267diag(s)\302\267V\341\264\264`` (numpy-free).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 129 */
         "srmech.amsc.cascade.matrix_cascades.lstsq",
@@ -4081,6 +4353,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"lstsq(a=<Mat>, b=<Mat | Vec>) -> Mat | Vec\"}",
         NULL,
         "Least-squares solution of ``A x = b`` (minimising ``\342\200\226A x \342\210\222 b\342\200\226``), numpy-free.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 130 */
         "srmech.amsc.cascade.matrix_cascades.einsum",
@@ -4095,6 +4369,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"einsum(subscripts=<str>, operands=<tuple[Mat, ...]>) -> Mat | Vec | complex | float | list\"}",
         NULL,
         "Einstein-summation tensor contraction (numpy-free, nested-list operands).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 131 */
         "srmech.amsc.cascade.matrix_cascades.eigvals",
@@ -4109,6 +4385,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"eigvals(a=<Mat>, max_sweeps=<int>) -> Vec\"}",
         NULL,
         "Eigenvalue MULTISET of a general (non-Hermitian) square matrix (numpy-free).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 132 */
         "srmech.amsc.cascade.matrix_cascades.char_poly",
@@ -4123,6 +4401,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"char_poly(a=<Mat>) -> list\"}",
         NULL,
         "Exact integer characteristic polynomial ``det(xI - A)`` (Faddeev\342\200\223LeVerrier).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 133 */
         "srmech.amsc.cascade.matrix_cascades.eigvals_exact",
@@ -4137,6 +4417,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"eigvals_exact(a=<Mat>, bits=<int>, return_intervals=<bool>, include_complex=<bool>) -> list\"}",
         NULL,
         "Exact eigenvalues of an integer matrix \342\200\224 the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 134 */
         "srmech.amsc.cascade.matrix_cascades.lll_reduce",
@@ -4151,6 +4433,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"lll_reduce(basis=<list>, delta=<tuple[int, int]>) -> list\"}",
         NULL,
         "LLL-reduce an integer lattice basis \342\200\224 the exact Lenstra\342\200\223Lenstra\342\200\223Lov\303\241sz (1982) reduction, in EXACT rational arithmetic (no float anywhere).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 135 */
         "srmech.amsc.rational.continued_fraction_convergents",
@@ -4165,6 +4449,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"coef_list\":\"[1, 2, 3]\"},\"output\":\"[(1, 1), (3, 2), (10, 7)]\"}",
         NULL,
         "Produce the convergent ladder for a continued-fraction expansion.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 136 */
         "srmech.amsc.rational.pi_cascade_digits",
@@ -4179,6 +4465,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"num_digits\":\"3\"},\"output\":\"'3.141'\"}",
         NULL,
         "Stream decimal digits of \317\200 via the Pfaff\342\200\223Archimedes two-mean chiral-pair bracket.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 137 */
         "srmech.amsc.rational.pi_chudnovsky_digits",
@@ -4193,6 +4481,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"num_digits\":\"3\"},\"output\":\"'3.141'\"}",
         NULL,
         "Stream decimal digits of \317\200 via the ROTATION-LAST Chudnovsky cascade.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 138 */
         "srmech.amsc.genome.encode_shape",
@@ -4207,6 +4497,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"n\":\"3\"},\"output\":\"{'n': 3, 'shape': 'tome', 'leaves': 1, 'depth': 0, 'leaf_cap': 256}\"}",
         NULL,
         "The genome encode **criterion** (F715): how to encode a kernel of size ``n``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 139 */
         "srmech.amsc.genome.quad_turn",
@@ -4221,6 +4513,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quad_turn(turn=<HV>, coupling=<HV>) -> HV\"}",
         NULL,
         "Couple one helix turn through ``coupling`` \342\200\224 the genome's turn operation (F713).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 140 */
         "srmech.amsc.genome.telomere",
@@ -4235,6 +4529,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"label\":\"'abc'\"},\"output\":\"HV(len=64, sectors=256, [67, 97, 98, 99, 0, 0, 0, 0, \\u2026])\"}",
         NULL,
         "The chromosome boundary cap \342\200\224 a fixed-width INLINE CHROM cap (F715 / \302\24744).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 141 */
         "srmech.amsc.genome.active_telomere",
@@ -4249,6 +4545,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"count\":\"3\",\"label\":\"'abc'\"},\"output\":\"HV(len=64, sectors=256, [116, 97, 98, 99, 0, 0, 0, 0, \\u2026])\"}",
         NULL,
         "The ACTIVE TELOMERE \342\200\224 a chromosome cap that carries a LIVE Hayflick counter (\302\247127).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 142 */
         "srmech.amsc.genome.telomere_tick",
@@ -4263,6 +4561,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"telomere_tick(strand=<Sequence[HV]>) -> dict\"}",
         NULL,
         "The divide/gate op \342\200\224 the ACTIVE TELOMERE's count MODULATES the operator (\302\247127/#726).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 143 */
         "srmech.amsc.genome.gene_express",
@@ -4277,6 +4577,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gene_express(strand=<Sequence[HV]>, coupling=<HV>, cell_state=<int>) -> list\"}",
         NULL,
         "Cell-state-modulated gene expression \342\200\224 a READ-TIME FILTER (\302\247128 / #728; \302\247130 / #730).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 144 */
         "srmech.amsc.genome.gene_express_levels",
@@ -4291,6 +4593,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gene_express_levels(strand=<Sequence[HV]>, coupling=<HV>, cell_state=<int>) -> list\"}",
         NULL,
         "GRADED / ANALOG gene expression LEVEL \342\200\224 a READ-TIME FILTER (\302\247132 / #732; the E3 rung).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 145 */
         "srmech.amsc.genome.gene_express_plan",
@@ -4305,6 +4609,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gene_express_plan(strand_or_path=<list|str>, coupling=<HV>, cell_state=<int>) -> list\"}",
         NULL,
         "The offset-only LOAD-PLAN for demand-loaded gene expression \342\200\224 \302\247134/rc135 (#1273, siona green-light; the #736 probe made shippable).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 146 */
         "srmech.amsc.genome.genome_genes_expressed",
@@ -4319,6 +4625,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_genes_expressed(path=<str>, coupling=<HV>, cell_state=<int>) -> list\"}",
         NULL,
         "The PARTIAL-LOAD reader for demand-loaded gene expression \342\200\224 \302\247134/rc135 (#1273).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 147 */
         "srmech.amsc.genome.modulator_recover",
@@ -4333,6 +4641,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"modulator_recover(strand=<Sequence[HV]>, coupling=<HV>, expressed_labels=<Sequence[str]>) -> dict\"}",
         NULL,
         "Recover the TWO-SIDED cell-state FLOOR from an OBSERVED expressed set \342\200\224 M1, the INVERSE of :func:`gene_express` (\302\247133 / #733).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 148 */
         "srmech.amsc.genome.modulator_consistent",
@@ -4347,6 +4657,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"modulator_consistent(strand=<Sequence[HV]>, coupling=<HV>, expressed_labels=<Sequence[str]>, candidate_cell_state=<int>) -> str\"}",
         NULL,
         "Forward-CHECK one candidate cell_state \342\200\224 M2, the consistency verdict (\302\247133 / #733).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 149 */
         "srmech.amsc.genome.modulator_constraint",
@@ -4361,6 +4673,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"modulator_constraint(strand=<Sequence[HV]>, coupling=<HV>, expressed_labels=<Sequence[str]>) -> dict\"}",
         NULL,
         "The COMPLETE inverse of :func:`gene_express` \342\200\224 M3, the EXACT CONSTRAINT characterizing the WHOLE set of cell-states consistent with an observed expression (\302\247133 / #733; the last rung of the E-M ladder).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 150 */
         "srmech.amsc.genome.modulator_constraint_satisfies",
@@ -4375,6 +4689,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"modulator_constraint_satisfies(constraint=<dict>, candidate_cell_state=<int>) -> bool\"}",
         NULL,
         "Does ``candidate_cell_state`` satisfy an M3 ``constraint`` (\302\247133 / #733)? \342\200\224 the runnable checker that makes the SOUND-AND-COMPLETE claim TESTABLE. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 151 */
         "srmech.amsc.genome.chromosome",
@@ -4389,6 +4705,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chromosome(leaves=<Sequence[HV]>, coupling=<HV>, label=<str>, genes=<Sequence[tuple]>) -> list\"}",
         NULL,
         "Pack a kernel \342\200\224 or SEVERAL genes \342\200\224 into a telomere-capped strand (F713/F715/F730).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 152 */
         "srmech.amsc.genome.centromere",
@@ -4403,6 +4721,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"orientation\":\"3\"},\"output\":\"HV(len=64, sectors=256, [88, 99, 101, 110, 0, 15, 3, 3, \\u2026])\"}",
         NULL,
         "The CENTROMERE \342\200\224 a chromosome's INTERIOR global-orientation anchor (\302\24795a / F1243).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 153 */
         "srmech.amsc.genome.centromere_of",
@@ -4417,6 +4737,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"centromere_of(strand=<Sequence[HV]>) -> dict\"}",
         NULL,
         "Recover a nuclear chromosome's GLOBAL orientation + arm-ratio from its centromere (\302\24795a) \342\200\224 or ``None`` if the strand has no centromere (a Tier-1 plasmid chromosome).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 154 */
         "srmech.amsc.genome.diploid",
@@ -4431,6 +4753,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"diploid(leaves=<Sequence[HV]>, coupling=<HV>, label=<str>, orientation=<Optional[int]>, repeats=<int>) -> list\"}",
         NULL,
         "A DIPLOID chromosome (\302\24795b / F1244 / #1407) \342\200\224 biology's diploid pair, the erasure/break specialist.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 155 */
         "srmech.amsc.genome.recover_diploid",
@@ -4445,6 +4769,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"recover_diploid(strand=<Sequence[HV]>, coupling=<HV>) -> list\"}",
         NULL,
         "Recover a diploid chromosome's content via the two-copy EC (\302\24795b) \342\200\224 the inverse of :func:`diploid`. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 156 */
         "srmech.amsc.genome.condense",
@@ -4459,6 +4785,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"condense(strand=<Sequence[HV]>, coupling=<HV>, state=<bool | tuple>, region=<int | str | None>, handle=<str>, label=<str>) -> list\"}",
         NULL,
         "CONDENSE a region \342\200\224 SET the chromatin ACCESS marker (0x48) on an EXISTING chromosome IN-PLACE (\302\24798 / F1246-F1247); a byte-splice preserving the centromere + body (no re-mint). state True/'condensed' silences, False/'open' opens, a (num, den) is a graded level; region=None is whole-chromosome (head), an int / gene-label is an interior stretch.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 157 */
         "srmech.amsc.genome.decondense",
@@ -4473,6 +4801,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"decondense(strand=<Sequence[HV]>, coupling=<HV>, label=<str>) -> list\"}",
         NULL,
         "DECONDENSE \342\200\224 CLEAR the chromatin ACCESS marker(s), the inverse of condense (\302\24798); splices out every 0x48 cap, preserving the centromere + body (a condensed-then-decondensed nuclear chromosome is byte-identical to the original mint).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 158 */
         "srmech.amsc.genome.chromatin_of",
@@ -4487,6 +4817,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chromatin_of(strand=<Sequence[HV]>, coupling=<HV>) -> dict\"}",
         NULL,
         "Recover a chromosome's FIRST chromatin ACCESS state (\302\24798) \342\200\224 {type, state, level (num, den), handle, at, scope} \342\200\224 or ``None`` if it carries no chromatin marker (an all-euchromatin, fully-accessible chromosome; the default). A READ; never mutates.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 159 */
         "srmech.amsc.genome.accessible",
@@ -4501,6 +4833,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"accessible(strand=<Sequence[HV]>, cell_state=<int>, coupling=<HV>) -> tuple\"}",
         NULL,
         "The COMPUTED accessibility level (num, den) of a chromosome under cell_state (\302\24798.1/G1) \342\200\224 the chromatin-scale op\342\212\227operand: the SAME genome under a DIFFERENT cell_state reads a DIFFERENT accessible level (facultative heterochromatin \342\200\224 the Barr body / X-inactivation). A CONSTITUTIVE cap is constant in cell_state; a FACULTATIVE cap (set via condense(state={'activator':..}/{'dnf':..}/{'weights':..})) reads its when-open level iff its gate FIRES, else (0, 1); a chromatin-free strand reads (1, 1). num > 0 is open (Class-K). A READ; never mutates. Native-dispatched (srmech_genome_chromatin_access).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 160 */
         "srmech.amsc.genome.mint",
@@ -4515,6 +4849,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mint(kernels=<dict>, coupling=<HV>, chromosomes=<Sequence[tuple]>) -> list\"}",
         NULL,
         "Explicit alias for :func:`genome` \342\200\224 the biology-aware tooling-picks build (rc260 / \302\24795c / #1407).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 161 */
         "srmech.amsc.genome.mint_plan",
@@ -4529,6 +4865,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mint_plan(kernels=<dict>) -> list\"}",
         NULL,
         "WATCH the tooling pick each kernel's chromosome SHAPE (\302\24795c / F1244) \342\200\224 introspection that BUILDS NOTHING (so we can see the choice before committing, F1244 \"we watch it happen so we know it does it\"). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 162 */
         "srmech.amsc.genome.integrate",
@@ -4543,6 +4881,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"integrate(host=<Sequence[HV]>, provirus=<Sequence[HV]>, at=<Optional[int]>) -> Optional[list]\"}",
         NULL,
         "Integrate a PROVIRUS (a chromosome strand) INTO a host genome-strand \342\200\224 the viral-integration analog (\302\24795.1d / F1244 / #1407), the coherency-translation-layer capstone. \302\247135/rc273 (F1251): a COMPATIBILITY GATE checks host<->provirus coherence (default: equal coupling width == same the_one) BEFORE splicing and HONEST-DECLINES on incompatibility (returns None, host unchanged \342\200\224 the CG258 segregated-replicon analog); Python callers may also pass a compatible=(host, provirus)->bool hook for a domain lineage barrier (an in-process affordance, not an MCP wire param \342\200\224 a callable can't cross JSON-RPC). A compatible provirus integrates exactly as rc262. rc276 (#891 / G4): the SPLICE has a direct C peer srmech_genome_integrate (the stage-2 primitive) \342\200\224 a bare-C host integrates end-to-end, and when HAS_NATIVE this dispatches the splice to it (byte-identical native or pure); the compatible= hook stays Python-only.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 163 */
         "srmech.amsc.genome.amplify",
@@ -4557,6 +4897,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"amplify(chrom=<Sequence[HV]>, label=<str>, n=<int>) -> list\"}",
         NULL,
         "Set a gene's COPY NUMBER (multiplicity) to ``n`` \342\200\224 the IS26-amplification analog (\302\247135/rc273 / F1251). Records the count on the named plain gene's 0x47 cap (in what was NUL padding, transparent to every reader); n==1 is byte-identical to a plain gene, n>=2 spends a uint64 field; format 15 stays. C-dispatched since rc281 (srmech_genome_amplify) \342\200\224 a bare-C host can WRITE the axis, not just ignore it. Read back with copy_number_of.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 164 */
         "srmech.amsc.genome.copy_number_of",
@@ -4571,6 +4913,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"copy_number_of(chrom=<Sequence[HV]>, label=<str>) -> int\"}",
         NULL,
         "Read a gene's COPY NUMBER (multiplicity) \342\200\224 the reader companion to amplify (\302\247135/rc273 / F1251). Returns the amplified count, or 1 (present-once) for a plain / un-amplified / pre-rc273 gene (back-compat). A READ; never mutates. C-dispatched since rc281 (srmech_genome_copy_number).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 165 */
         "srmech.amsc.genome.recall",
@@ -4585,6 +4929,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"recall(strand=<Sequence[HV]>, coupling=<HV>, telomere=<HV>) -> list\"}",
         NULL,
         "Recover the kernel's leaves from a capped chromosome strand (F713/F715/\302\24744).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 166 */
         "srmech.amsc.genome.genes",
@@ -4599,6 +4945,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genes(strand=<Sequence[HV]>, coupling=<HV>) -> list\"}",
         NULL,
         "Recover ``[(gene_label, gene_leaves), \342\200\246]`` from a multi-gene chromosome (F730/S43).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 167 */
         "srmech.amsc.genome.genome",
@@ -4613,6 +4961,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome(kernels=<dict>, coupling=<HV>) -> list\"}",
         NULL,
         "Build a genome \342\200\224 the BIOLOGY-AWARE UMBRELLA that lets the TOOLING pick each chromosome's SHAPE by modeling biology (rc260 rename, \302\24795.2 / \302\24795c / F1244 / #1407).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 168 */
         "srmech.amsc.genome.plasmid",
@@ -4627,6 +4977,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"plasmid(kernels=<dict>, coupling=<HV>, chromosomes=<Sequence[tuple]>) -> list\"}",
         NULL,
         "Pack many kernels into ONE telomere-partitioned strand of pure STICK chromosomes \342\200\224 biology's plasmid (F715; the rc260 rename of the old ``genome``, \302\24795.2 / #1407).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 169 */
         "srmech.amsc.genome.partition",
@@ -4641,6 +4993,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"partition(strand=<Sequence[HV]>, coupling=<HV>, labels=<list>) -> dict\"}",
         NULL,
         "Recover every kernel from a multi-kernel genome strand \342\200\224 the inverse of :func:`genome` (F715 / \302\24744).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 170 */
         "srmech.amsc.genome.genome_save",
@@ -4655,6 +5009,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_save(strand=<Sequence[HV]>, path=<str>, coupling=<HV>, labels=<list>) -> dict\"}",
         NULL,
         "Persist a genome ``strand`` to ``path/`` (a DIRECTORY) \342\200\224 UPSTREAM \302\24741 / \302\24744.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 171 */
         "srmech.amsc.genome.genome_load",
@@ -4669,6 +5025,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_load(path=<str>, labels=<list>) -> tuple\"}",
         NULL,
         "Reconstruct a genome from ``path/`` \342\200\224 UPSTREAM \302\24741 / \302\24744. Returns ``(strand, coupling, labels)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 172 */
         "srmech.amsc.genome.genome_catalog",
@@ -4683,6 +5041,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_catalog(path=<str>) -> dict\"}",
         NULL,
         "Read the catalog of a genome at ``path`` \342\200\224 UPSTREAM \302\24741 / \302\24744 (per-chromosome cap_kind since \302\24796).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 173 */
         "srmech.amsc.genome.genome_census",
@@ -4697,6 +5057,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_census(path=<str>, coupling=<HV>) -> dict\"}",
         NULL,
         "Census ONE genome \342\200\224 the \302\24796 per-genome roll-up {path, n_chromosomes, types (plasmid/nuclear/diploid), chromosomes, total_leaves, topology}; a thin roll-up over genome_catalog's \302\24796 cap_kind (rc271 F1251: plasmid was 'stick', nuclear was 'minted').",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 174 */
         "srmech.amsc.genome.genome_registry",
@@ -4711,6 +5073,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_registry(root=<str>, coupling=<HV>) -> dict\"}",
         NULL,
         "Census a ROOT of genomes \342\200\224 the \302\24796 cell/melange census {root, n_genomes, genomes:[census, \342\200\246]}, sorted by name (the nucleus-vs-organelle read over a directory of genomes).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 175 */
         "srmech.amsc.genome.genome_append",
@@ -4725,6 +5089,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_append(path=<str>, label=<str>, leaves=<Sequence[HV]>, coupling=<HV>) -> dict\"}",
         NULL,
         "Append ONE chromosome to an existing genome at ``path/`` in O(1) \342\200\224 UPSTREAM \302\24741 / \302\24756 (rc115 #1245(b)) + v12 (the O(1) genome-native rewrite). Returns the full catalog ``data`` dict (unchanged shape: ``chromosomes`` / ``regions`` / \342\200\246 ).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 176 */
         "srmech.amsc.genome.genome_window",
@@ -4739,6 +5105,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_window(path=<str>, label=<str>) -> list\"}",
         NULL,
         "Page in ONLY one chromosome's leaves from ``path/`` \342\200\224 UPSTREAM \302\24741 / \302\24744.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 177 */
         "srmech.amsc.genome.genome_genes",
@@ -4753,6 +5121,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_genes(path=<str>, label=<str>) -> list\"}",
         NULL,
         "Page ONE multi-gene chromosome's genes back from ``path/`` \342\200\224 F732/S43.1 / \302\24744.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 178 */
         "srmech.amsc.genome.genome_remove",
@@ -4767,6 +5137,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_remove(path=<str>, label=<str>, coupling=<HV>) -> dict\"}",
         NULL,
         "Excise ONE chromosome from a genome IN PLACE \342\200\224 UPSTREAM \302\24745.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 179 */
         "srmech.amsc.genome.genome_replace",
@@ -4781,6 +5153,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_replace(path=<str>, label=<str>, leaves=<Sequence[HV]>, coupling=<HV>) -> dict\"}",
         NULL,
         "Replace ONE chromosome's content IN PLACE \342\200\224 UPSTREAM \302\24745.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 180 */
         "srmech.amsc.genome.genome_export",
@@ -4795,6 +5169,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_export(path=<str>, label=<str>, out=<str>, coupling=<HV>) -> dict\"}",
         NULL,
         "Export ONE chromosome as a single self-contained ``.chr`` file \342\200\224 UPSTREAM \302\24743.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 181 */
         "srmech.amsc.genome.genome_import",
@@ -4809,6 +5185,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_import(chr_path=<str>, dest=<str>, coupling=<HV>) -> dict\"}",
         NULL,
         "Import a ``.chr`` chromosome bundle into a genome at ``dest`` \342\200\224 UPSTREAM \302\24743.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 182 */
         "srmech.amsc.genome.genome_explode",
@@ -4823,6 +5201,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_explode(path=<str>, out_dir=<str>, coupling=<HV>) -> list\"}",
         NULL,
         "Explode a packed genome into a directory of loose ``.chr`` files \342\200\224 UPSTREAM \302\24743.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 183 */
         "srmech.amsc.genome.genome_pack",
@@ -4837,6 +5217,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_pack(loose_dir=<str>, dest=<str>, coupling=<HV>) -> dict\"}",
         NULL,
         "Pack a directory of loose ``.chr`` files into one packed genome \342\200\224 UPSTREAM \302\24743.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 184 */
         "srmech.amsc.genome.genome_register_attested",
@@ -4851,6 +5233,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_register_attested(chr_dir=<str>, amsc_root=<str>, source=<str>) -> dict\"}",
         NULL,
         "Register a dir of loose ``.chr`` bundles as AMSC attested sources \342\200\224 UPSTREAM \302\24743.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 185 */
         "srmech.amsc.genome.kernel_pack",
@@ -4865,6 +5249,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"kernel_pack(data=<Sequence[int]>, leaf_dim=<int>, label=<str>, coupling=<HV>, element_type=<str>) -> list\"}",
         NULL,
         "Pack a flat Klein-4 kernel of ANY dimension into a self-describing strand (\302\24789).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 186 */
         "srmech.amsc.genome.kernel_unpack",
@@ -4879,6 +5265,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"kernel_unpack(strand_or_path=<list|str>, coupling=<HV>) -> list\"}",
         NULL,
         "Recover the EXACT flat Klein-4 kernel from a \302\24789/\302\24760 strand or genome path.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 187 */
         "srmech.amsc.genome.genome_append_kernel",
@@ -4893,6 +5281,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_append_kernel(path=<str>, label=<str>, hv=<Sequence[int]>, element_type=<str>, coupling=<HV>) -> dict\"}",
         NULL,
         "Append a newly-taught kernel \342\200\224 WITH its \302\24789 header \342\200\224 to a genome in O(1) amortised (\302\24789/rc126, issue #1261). The uniformly-Klein-4 payoff of format v6.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 188 */
         "srmech.amsc.genome.graph_to_kernel",
@@ -4907,6 +5297,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"graph_to_kernel(vocab_size=<int>, edges=<list>, weights=<list>, charges=<list>, node_ids=<list>, extras=<list>, leaf_dim=<int>, label=<str>, coupling=<HV>) -> tuple\"}",
         NULL,
         "Serialise a directed SIGNED integer graph -> a packed genome chromosome (Klein-4 leaves) + its true symbol count (#1390 item 2).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 189 */
         "srmech.amsc.genome.kernel_to_graph",
@@ -4921,6 +5313,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"kernel_to_graph(chroms=<list|str>, coupling=<HV>, n_syms=<int>) -> dict\"}",
         NULL,
         "Inverse of :func:`graph_to_kernel`: a packed chromosome (or genome path) + its ``n_syms`` -> the directed signed graph dict ``{vocab_size, edges, weights, charges, node_ids, extras}`` (#1390 item 2). ``n_syms`` trims the leaf-dim padding :func:`kernel_unpack` restores.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 190 */
         "srmech.amsc.plasmid.plasmid_extract",
@@ -4935,6 +5329,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"plasmid_extract(docs=<list>, section_store=<str>, coupling=<HV>, vocab=<list>, window=<int>, k=<int>, cap_slack=<int>, label_prefix=<str>) -> dict\"}",
         NULL,
         "STAGE 1 EXTRACT (F1252 / \302\247102) \342\200\224 stream documents into APPEND-ONLY plasmid sections (each doc -> ONE \302\24789 KERNEL chromosome of its LOCAL co-occurrence graph, GLOBAL node-ids), retiring the loose monolithic co-occurrence JSON at the graph-L layer. Native-dispatches the whole section to the srmech_genome_plasmid_extract C orchestrator (byte-identical to the pure path); progress= is a Python-only kwarg firing between whole SECTIONS (phase EXTRACTING, clean cancel at a chromosome boundary).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 191 */
         "srmech.amsc.plasmid.section_counts",
@@ -4949,6 +5345,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"section_counts(section_store=<str>, coupling=<HV>) -> dict\"}",
         NULL,
         "Derive {global_id: n_sections} \342\200\224 how many distinct PLASMID sections each GLOBAL node appears in \342\200\224 by scanning a plasmid_extract store's sections (their GLOBAL node_ids). The genome-native SSoT read stage-2 (F1252 rc279) promotes on (a node is CONSERVED iff its section-occurrence count >= k). rc280 (F1253): the catalog is derived ONCE for the whole scan (it was re-derived per section, re-reading the entire body each time \342\200\224 O(P^2 x body)) and each section is read TARGETED, paging only the node_ids prefix the \302\24789 payload puts before the edges \342\200\224 O(P x node_ids), byte-identical counts, no format change. Prefer plasmid_extract's free streamed section_count; this is the resume/verify path.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 192 */
         "srmech.amsc.plasmid.conserved_core",
@@ -4963,6 +5361,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"conserved_core(section_count=<dict>, k=<str>) -> dict\"}",
         NULL,
         "CONSERVE (F1252 / \302\247102 STAGE 2 step 1) \342\200\224 read the section-count distribution and return the CONSERVED CORE node set + the threshold k DERIVED FROM THE DATA (the ANTIMODE of the count histogram \342\200\224 the rc272 participation-antimode discipline in the count domain, with the metric INVERTED: high section-count = the conserved NUCLEAR core). k='auto' (default) derives OR HONESTLY DECLINES: when no qualifying antimode exists it returns k_source='declined' with k=0 and an empty core rather than inventing a threshold \342\200\224 and the REAL F1253 corpus curve (heavy-tailed / near-power-law: singleton 64.6%, >=5 14.5%, >=100 1.7%, ratios decaying smoothly) takes exactly that path, because a scale-free distribution has no characteristic scale and hence no natural antimode. An explicit int is k_source='policy', a stated choice the CALLER owns \342\200\224 never presented as measured, and never selected to reproduce F1251's ~16% core fraction (that would be post-hoc numerology). Dispatches to the srmech_genome_conserved_core C peer.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 193 */
         "srmech.amsc.plasmid.genome_integrate_plasmids",
@@ -4977,6 +5377,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_integrate_plasmids(section_store=<str>, coupling=<HV>, section_count=<dict>, k=<str>, core_edges=<list>, out_path=<str>) -> dict\"}",
         NULL,
         "STAGE 2 ORGANIZE (F1252 / \302\247102) \342\200\224 CONSERVE (derive-or-decline k; the returned k_source records which) -> PROMOTE (mint the core, 0x58 centromere) -> MERGE (fold the retained plasmids), removing the monolithic from-scratch partition from the encode path (recursive_cut is never called). PASS section_count \342\200\224 plasmid_extract returns it FREE as a streamed accumulator; omitting it triggers the deliberate O(P*section) section_counts re-derivation (the slow verification path). Dispatches to the srmech_genome_integrate_plasmids C peer; progress= is a Python-only kwarg ticking between whole chromosomes (MINTING then INTEGRATING).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 194 */
         "srmech.amsc.plasmid.add_plasmid",
@@ -4991,6 +5393,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"add_plasmid(section_store=<str>, coupling=<HV>, tokens=<list>, state=<dict>, k=<str>, window=<int>, top_k=<int>, cap_slack=<int>, label_prefix=<str>, cache_edges=<bool>) -> dict\"}",
         NULL,
         "INCREMENTAL STAGE 1 + 2 (F1252 / \302\247102) \342\200\224 add ONE document: stage-1 append + an O(section) count bump + a re-mint of the small conserved core. No global recursive_cut, no re-extraction; untouched sections stay byte-identical. Threads a running organize state. Calling it D times is BYTE-IDENTICAL to one genome_integrate_plasmids over the same D sections (the exactness contract the rc279 test pins).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 195 */
         "srmech.amsc.genome.mint_strand",
@@ -5005,6 +5409,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"mint_strand(strand=<Sequence[HV]>, coupling=<HV>, orientation=<Optional[int]>, centromere_at=<Optional[int]>, repeats=<int>, handle=<str>) -> list\"}",
         NULL,
         "MINT an ALREADY-PACKED strand \342\200\224 splice a \302\24795a interior CENTROMERE (``0x58``) into it at the p:q arm-split, turning a Tier-1 STICK into a Tier-2 MINTED chromosome (\302\247100 GAP 1 / PR#687 F1249).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 196 */
         "srmech.amsc.genome.genome_partition",
@@ -5019,6 +5425,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_partition(n=<int>, edges=<list>, weights=<list>, charges=<list>, work_dir=<str>, max_tome=<int>, n_bins=<int>, max_iters=<int>) -> dict\"}",
         NULL,
         "PARTITION a directed relational GRAPH into nuclear-core vs plasmid-periphery BY ITS OWN STRUCTURE (\302\247100 GAP 2 / PR#687 / F1250 / F1251). An introspectable READ (builds nothing): runs the out-of-core spectral community partition (:func:`~srmech.amsc.laplacian.recursive_cut`), measures each node's degree-normalized PARTICIPATION (fraction of incident edge-mass that crosses a community boundary \342\200\224 HIGH = plasmid/mobile accessory, LOW = nuclear/embedded core), then MEASURES the antimode: BIMODAL -> split nuclear (low) + plasmid (high), asymmetric minority-nuclear (F1251); UNIMODAL -> ACCEPT ONE-DNA-TYPE, no forced split (F1250). Composes the C-dispatched recursive_cut with a pure exact-integer participation + antimode read (native==pure); numpy-free, no ``abs()``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 197 */
         "srmech.amsc.genome.genome_from_graph",
@@ -5033,6 +5441,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_from_graph(n=<int>, edges=<list>, weights=<list>, charges=<list>, coupling=<HV>, path=<str>, leaf_dim=<int>, max_tome=<int>, n_bins=<int>, centromere_at=<int>, attestation=<dict>) -> dict\"}",
         NULL,
         "BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN STRUCTURE (\302\247100 GAP 2 / PR#687 / F1250 / F1251) \342\200\224 'hand a graph, get nuclear + plasmid from its structure'. Runs :func:`genome_partition`, then MINTS each nuclear community (:func:`mint_strand` -> a 0x58 centromere) and KEEPS each plasmid community as a Tier-1 plasmid chromosome; if ``path`` is given, ``genome_save`` + ``genome_census`` report the measured ``{nuclear, plasmid}``. BYTE-EXACT per community (:func:`kernel_to_graph` recovers each induced sub-graph). numpy-free; no ``abs()``.",
+        ts_composes_197, 5u,
+        ts_preserves_197, 3u,
     },
     { /* 198 */
         "srmech.amsc.kepler.pin_slot",
@@ -5047,6 +5457,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"pin_distance\":\"1.0\",\"pin_offset\":\"1.0\",\"theta\":\"1.0\"},\"output\":\"0.49999999999999994\"}",
         NULL,
         "Antikythera pin-and-slot transform.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 199 */
         "srmech.amsc.kepler.kepler_solve",
@@ -5061,6 +5473,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"kepler_solve(M_rad=<float>, e=<float>, tolerance=<float>, max_iter=<int>) -> float\"}",
         NULL,
         "Newton-Raphson solver for Kepler's equation ``M = E - e * sin(E)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 200 */
         "srmech.amsc.kepler.equation_of_centre",
@@ -5075,6 +5489,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"equation_of_centre(M_rad=<float>, e=<float>, n_terms=<int>) -> float\"}",
         NULL,
         "Fourier-series equation of centre ``nu - M`` (true minus mean anomaly).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 201 */
         "srmech.amsc.hdc.bind",
@@ -5089,6 +5505,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"b'abc'\",\"b\":\"b'abc'\"},\"output\":\"b'\\\\x00\\\\x00\\\\x00'\"}",
         NULL,
         "Component-wise XOR of two binary-spatter-code (BSC) hypervectors \342\200\224 the Class-M bind that ties a role to a filler; self-inverse (bind(x,x)=0). F1216: Class-M / HDC = WORKING MEMORY / active context (fuzzy, composable, BOUNDED ~24-bind span, gracefully decays) \342\200\224 a transient read of the Class-L Laplacian long-term store, never the store itself.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 202 */
         "srmech.amsc.hdc.bundle",
@@ -5103,6 +5521,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"vectors\":\"[b'abc', b'abd', b'abe']\"},\"output\":\"b'abe'\"}",
         NULL,
         "Majority-rule superposition of several BSC hypervectors into one that is similar to each input \342\200\224 the Class-M bundle (the set/record former).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 203 */
         "srmech.amsc.hdc.permute",
@@ -5117,6 +5537,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"b'abc'\",\"rotate_bits\":\"3\"},\"output\":\"b'\\\\x0b\\\\x13\\\\x1b'\"}",
         NULL,
         "Cyclic bit-rotation of a BSC vector by ``rotate_bits`` positions.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 204 */
         "srmech.amsc.hdc.similarity",
@@ -5131,6 +5553,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"b'abc'\",\"b\":\"b'abd'\"},\"output\":\"Q(3, 4)\"}",
         NULL,
         "Normalised agreement (1 \342\210\222 2\302\267Hamming/D) between two BSC hypervectors, as an exact rational Q. +1 = identical, 0 = orthogonal, \342\210\2221 = complementary.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 205 */
         "srmech.amsc.hdc.hamming",
@@ -5145,6 +5569,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"b'abc'\",\"b\":\"b'abc'\"},\"output\":\"0\"}",
         NULL,
         "BSC bit-Hamming distance: the **raw integer** count of differing bits (UPSTREAM \302\24761; F868). ``similarity = 1 - 2 * hamming(a, b) / (8 * len(a))``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 206 */
         "srmech.amsc.hdc.polar_random",
@@ -5159,6 +5585,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":\"3\"},\"output\":\"array('b', [0, 1, -1])\"}",
         NULL,
         "Random polar hypervector of dimension ``D`` with elements in {-1, 0, +1}.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 207 */
         "srmech.amsc.hdc.polar_bind",
@@ -5173,6 +5601,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"polar_bind(a=<HV>, b=<HV>) -> array\"}",
         NULL,
         "Polar bind: element-wise sign-product with 0 **absorbing**.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 208 */
         "srmech.amsc.hdc.polar_unbind",
@@ -5187,6 +5617,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"polar_unbind(c=<HV>, a=<HV>) -> array\"}",
         NULL,
         "Polar unbind: ``unbind(c, a)[i] = c[i] * a[i]`` (the same sign-product).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 209 */
         "srmech.amsc.hdc.polar_bundle",
@@ -5201,6 +5633,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"polar_bundle(vectors=<Sequence[HV]>) -> array\"}",
         NULL,
         "Polar bundle: sticky majority across vectors; ties resolve to 0.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 210 */
         "srmech.amsc.hdc.polar_similarity",
@@ -5215,6 +5649,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"polar_similarity(a=<HV>, b=<HV>, skip_zero=<bool>) -> Q\"}",
         NULL,
         "Polar match-fraction similarity \342\200\224 exact rational :class:`~srmech.amsc.q.Q`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 211 */
         "srmech.amsc.hdc.polar_density",
@@ -5229,6 +5665,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"polar_density(v=<HV>) -> Q\"}",
         NULL,
         "Fraction of non-zero (informative) positions \342\200\224 exact rational :class:`~srmech.amsc.q.Q`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 212 */
         "srmech.amsc.hdc.polar_from_real",
@@ -5243,6 +5681,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"polar_from_real(arr=<HV>, threshold=<float>, dead_band=<float>) -> array\"}",
         NULL,
         "Bridge real-valued data into a polar HDC vector via ``sign_quantise``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 213 */
         "srmech.amsc.hdc.klein4_expand",
@@ -5257,6 +5697,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":\"3\",\"seed\":\"3\"},\"output\":\"HV(len=3, sectors=4, [1, 1, 2])\"}",
         NULL,
         "**EXPAND regime.** Deterministically expand an integer ``seed`` into a Klein-4 hypervector of dimension ``D``, elements in {0,1,2,3}.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 214 */
         "srmech.amsc.hdc.klein4_address",
@@ -5271,6 +5713,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":\"3\",\"content\":\"b'abc'\"},\"output\":\"HV(len=3, sectors=4, [1, 1, 2])\"}",
         NULL,
         "**ADDRESSED regime.** The Class-A content address of ``content`` as a Klein-4 hypervector of dimension ``D``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 215 */
         "srmech.amsc.hdc.klein4_role",
@@ -5285,6 +5729,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":\"3\",\"role\":\"'abc'\"},\"output\":\"HV(len=3, sectors=4, [1, 1, 1])\"}",
         NULL,
         "**ROLE regime.** The binding key for a NAMED SLOT \342\200\224 the role half of a role-filler bind \342\200\224 as a Klein-4 hypervector of dimension ``D``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 216 */
         "srmech.amsc.hdc.klein4_sector_frame",
@@ -5299,6 +5745,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":\"3\"},\"output\":\"HV(len=3, sectors=4, [1, 1, 2])\"}",
         NULL,
         "The **(1,3,7,3) sector frame** of dimension ``D`` \342\200\224 the substrate's own period-14 Klein-4 position structure.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 217 */
         "srmech.amsc.hdc.klein4_from_one",
@@ -5313,6 +5761,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_from_one(one=<One>, D=<int>) -> HV\"}",
         NULL,
         "**ONE-A14** \342\200\224 the ``One``'s Klein-4 coupling projection (\302\247102 / F1259).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 218 */
         "srmech.amsc.hdc.klein4_bind",
@@ -5327,6 +5777,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_bind(a=<HV>, b=<HV>, sectors=<int>, parallel=<bool>, mode=<str>) -> HV\"}",
         NULL,
         "Klein-4 bind: component-wise (F\342\202\202)\302\262-XOR. Commutative, associative, self-inverse (``bind(a, bind(a, b)) == b``); identity is 0.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 219 */
         "srmech.amsc.hdc.klein4_unbind",
@@ -5341,6 +5793,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_unbind(c=<HV>, a=<HV>) -> HV\"}",
         NULL,
         "Klein-4 unbind: self-inverse XOR, so ``unbind(bind(a, b), a) == b``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 220 */
         "srmech.amsc.hdc.klein4_unbundle",
@@ -5355,6 +5809,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_unbundle(bundle=<HV>, key=<HV>) -> HV\"}",
         NULL,
         "Klein-4 unbundle: recover a bound value from a bundle (superposition) \342\200\224 the dual of :func:`klein4_bundle`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 221 */
         "srmech.amsc.hdc.klein4_bundle",
@@ -5369,6 +5825,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_bundle(vectors=<Sequence[HV]>, sectors=<int>, parallel=<bool>, mode=<str>) -> HV\"}",
         NULL,
         "Klein-4 bundle: per-bit majority vote on each of the 2 bits independently. Accepts ANY number of vectors ``n >= 1`` (even OR odd \342\200\224 there is NO odd-only requirement). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 222 */
         "srmech.amsc.hdc.klein4_phase_key",
@@ -5383,6 +5841,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":\"3\",\"frac\":\"1.0\"},\"output\":\"HV(len=3, sectors=4, [2, 0, 0])\"}",
         NULL,
         "A continuous-phase Klein-4 key (UPSTREAM \302\24759; F861).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 223 */
         "srmech.amsc.hdc.klein4_phase_bind",
@@ -5397,6 +5857,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_phase_bind(hv=<HV>, frac=<float>, elem=<int>, width=<int>) -> HV\"}",
         NULL,
         "Bind a continuous phase ``frac`` into a Klein-4 hypervector (UPSTREAM \302\24759): ``klein4_bind(hv, klein4_phase_key(len(hv), frac, elem, width))``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 224 */
         "srmech.amsc.hdc.klein4_chunk_bundle",
@@ -5411,6 +5873,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_chunk_bundle(vectors=<Sequence[HV]>, capacity=<int>) -> list[HV]\"}",
         NULL,
         "Build a CAPACITY-BOUNDED chunk-set from a list of (bound) vectors (UPSTREAM \302\24758; F837): consecutive groups of \342\211\244 ``capacity`` vectors, each reduced with :func:`klein4_bundle`. Returns a ``list`` of :class:`HV` chunks \342\200\224 the cleanup-memory that avoids the single-bundle crosstalk.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 225 */
         "srmech.amsc.hdc.klein4_chunk_resolve",
@@ -5425,6 +5889,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_chunk_resolve(chunks=<Sequence[HV]>, key=<HV>, candidates=<Sequence[HV]>) -> list[Q]\"}",
         NULL,
         "Max-resonance read over a capacity-bounded chunk-set (UPSTREAM \302\24758; F837).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 226 */
         "srmech.amsc.hdc.klein4_encode_bytes",
@@ -5439,6 +5905,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":\"3\",\"data\":\"b'abc'\"},\"output\":\"HV(len=3, sectors=4, [2, 2, 0])\"}",
         NULL,
         "Byte-composed Klein-4 vector (UPSTREAM \302\24760; F864): a bundle of POSITION-BOUND per-byte random vectors \342\200\224 ``bundle_i( klein4_bind(klein4_expand(D, byte_i), pos_key(D, i)) )``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 227 */
         "srmech.amsc.hdc.klein4_compose",
@@ -5453,6 +5921,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_compose(parts=<Sequence[HV]>) -> HV\"}",
         NULL,
         "Scale-invariant role-filler compositor (F900/F901; the byte/glyph LM \"C1\"): a bundle of POSITION-BOUND parts \342\200\224 ``bundle_i( klein4_bind(part_i, klein4_pos_key(D, i)) )``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 228 */
         "srmech.amsc.hdc.klein4_similarity",
@@ -5467,6 +5937,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_similarity(a=<HV>, b=<HV>, sectors=<int>, parallel=<bool>, mode=<str>) -> Q\"}",
         NULL,
         "Klein-4 similarity: fraction of positions where ``a == b`` (0 = orthogonal, 1 = identical) \342\200\224 the exact rational :class:`~srmech.amsc.q.Q`. All four states are informative \342\200\224 there is no skip state.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 229 */
         "srmech.amsc.hdc.klein4_match_count",
@@ -5481,6 +5953,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_match_count(a=<HV>, b=<HV>, sectors=<int>, parallel=<bool>, mode=<str>) -> int\"}",
         NULL,
         "Klein-4 match count: the **raw integer** number of positions where ``a == b`` (UPSTREAM \302\24761; F868). ``klein4_similarity = count / len(a)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 230 */
         "srmech.amsc.hdc.klein4_bundle_accumulate",
@@ -5495,6 +5969,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_bundle_accumulate(acc=<array('I')|None>, v=<HV>) -> array('I')\"}",
         NULL,
         "Fold ONE Klein-4 vector ``v`` into a fixed-width accumulator \342\200\224 the STREAMING form of the batch :func:`klein4_bundle` (UPSTREAM \302\24750; F758).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 231 */
         "srmech.amsc.hdc.klein4_bundle_resolve",
@@ -5509,6 +5985,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_bundle_resolve(acc=<array('I')>) -> HV\"}",
         NULL,
         "Resolve a fixed-width accumulator (:func:`klein4_bundle_accumulate`) to the bundled Klein-4 vector \342\200\224 argmax-per-coordinate (UPSTREAM \302\24750; F758).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 232 */
         "srmech.amsc.hdc.klein4_bundle_sector_scores",
@@ -5523,6 +6001,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_bundle_sector_scores(acc=<array('I')>) -> array('Q')\"}",
         NULL,
         "The **non-collapsing** read of a :func:`klein4_bundle_accumulate` accumulator \342\200\224 all four sector scores per coordinate (\302\247102 / F1265).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 233 */
         "srmech.amsc.hdc.cooccurrence_fold",
@@ -5537,6 +6017,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cooccurrence_fold(tokens=<Sequence[str]>, window=<int>, dim=<int>, seed=<int>) -> dict\"}",
         NULL,
         "Holographic co-occurrence store \342\200\224 the \302\24750 DUAL of the explicit-edge \302\24717-U1 ``cooccurrence_edges`` (UPSTREAM \302\24750; F758).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 234 */
         "srmech.amsc.hdc.klein4_chirality_flip_gamma5",
@@ -5551,6 +6033,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_chirality_flip_gamma5(v=<HV>) -> HV\"}",
         NULL,
         "Flip the \316\263\342\202\205 axis: XOR with the bit-1 sector mask (2).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 235 */
         "srmech.amsc.hdc.klein4_chirality_flip_omega7",
@@ -5565,6 +6049,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_chirality_flip_omega7(v=<HV>) -> HV\"}",
         NULL,
         "Flip the i\317\211\342\202\207 axis: XOR with the bit-0 sector mask (1).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 236 */
         "srmech.amsc.hdc.klein4_cpt_mirror",
@@ -5579,6 +6065,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_cpt_mirror(v=<HV>) -> HV\"}",
         NULL,
         "CPT mirror: flip BOTH chirality axes (XOR with 3).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 237 */
         "srmech.amsc.hdc.klein4_project_axis",
@@ -5593,6 +6081,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_project_axis(v=<HV>, axis=<str>) -> list\"}",
         NULL,
         "Project a Klein-4 hypervector onto ONE chirality axis \342\206\222 bipolar {-1,+1}.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 238 */
         "srmech.amsc.hdc.klein4_triality_cycle",
@@ -5607,6 +6097,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_triality_cycle(v=<HV>, inverse=<bool>) -> HV\"}",
         NULL,
         "Cycle the three Klein-4 chirality involutions \342\200\224 the order-3 S\342\202\203 generator.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 239 */
         "srmech.amsc.hdc.klein4_sector_count",
@@ -5621,6 +6113,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_sector_count(v=<HV>) -> list[int]\"}",
         NULL,
         "Per-sector occupancy ``[n0, n1, n2, n3]`` \342\200\224 substrate attestation of the chirality-sector distribution. Returns a stdlib ``list[int]`` (numpy-free).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 240 */
         "srmech.amsc.hdc.klein4_holographic_encode",
@@ -5635,6 +6129,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_holographic_encode(v=<HV>, replicas=<int>) -> HV\"}",
         NULL,
         "Holographic erasure-encode a Klein-4 store into ``replicas`` copies.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 241 */
         "srmech.amsc.hdc.klein4_holographic_decode",
@@ -5649,6 +6145,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_holographic_decode(store=<HV>, replicas=<int>, erased=<Optional[HV]>) -> HV\"}",
         NULL,
         "Reconstruct a Klein-4 store from a holographic erasure encoding.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 242 */
         "srmech.amsc.hdc.klein4_triality_encode",
@@ -5663,6 +6161,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_triality_encode(v=<HV>) -> HV\"}",
         NULL,
         "Encode a Klein-4 store as its order-3 triality orbit (#797 op (a1); F359).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 243 */
         "srmech.amsc.hdc.klein4_triality_correct",
@@ -5677,6 +6177,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein4_triality_correct(store=<HV>, depth=<int>) -> HV\"}",
         NULL,
         "Correct a Klein-4 store via the order-3 triality 2-of-3 majority (op (a1)).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 244 */
         "srmech.amsc.hdc.loop_bind",
@@ -5691,6 +6193,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_bind(x=<HV>, y=<HV>) -> list[float]\"}",
         NULL,
         "THE LOOP BIND (Moufang) = the Cayley-Dickson / octonion product.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 245 */
         "srmech.amsc.hdc.loop_conj",
@@ -5705,6 +6209,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_conj(x=<HV>) -> list[float]\"}",
         NULL,
         "Octonion conjugate x\314\204 \342\200\224 negate the imaginary part, keep the real anchor ``x[0]``. The Class-C orientation flip that powers the unbind. Single element only \342\200\224 an HD block-octonion vector raises (use ``loop_conj_hd``). Dispatches to the native ``srmech_loop_conj_f64`` for the dim-8 octonion.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 246 */
         "srmech.amsc.hdc.loop_inv",
@@ -5719,6 +6225,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_inv(x=<HV>) -> list[float]\"}",
         NULL,
         "Moufang inverse x\342\201\273\302\271 = x\314\204 / \342\237\250x,x\342\237\251 \342\200\224 the unbind key. For a unit octonion (\342\237\250x,x\342\237\251 = 1) this is just the conjugate; ``loop_bind(x, loop_inv(x))`` = e\342\202\200. Class-K clean: the norm\302\262 gate, never ``abs()``. Single element only \342\200\224 an HD block-octonion vector raises (use ``loop_inv_hd``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 247 */
         "srmech.amsc.hdc.loop_left_op",
@@ -5733,6 +6241,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_left_op(a=<HV>) -> Mat\"}",
         NULL,
         "Left-multiplication operator L_a(x) = a\302\267x (the (4:3) ordering) as a dim\303\227dim :class:`Mat`. L_a \342\211\240 R_a \342\211\240 R_a\341\265\200 \342\200\224 the operational chirality.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 248 */
         "srmech.amsc.hdc.loop_right_op",
@@ -5747,6 +6257,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_right_op(a=<HV>) -> Mat\"}",
         NULL,
         "Right-multiplication operator R_a(x) = x\302\267a (the (3:4) mirror ordering) as a dim\303\227dim :class:`Mat`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 249 */
         "srmech.amsc.hdc.loop_associator",
@@ -5761,6 +6273,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_associator(a=<HV>, b=<HV>, c=<HV>) -> list[float]\"}",
         NULL,
         "(a\302\267b)\302\267c \342\210\222 a\302\267(b\302\267c) = the Class-K associator RESIDUE of the loop bind.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 250 */
         "srmech.amsc.hdc.cross7",
@@ -5775,6 +6289,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cross7(x=<HV>, y=<HV>) -> list[float]\"}",
         NULL,
         "The 7-D cross product x\303\227y = Im(loop_bind(x, y)) \342\200\224 the imaginary part of the octonion product (drop the e\342\202\200 real anchor). For imaginary x, y this is \302\275(x\302\267y \342\210\222 y\302\267x). Antisymmetric (x\303\227y = \342\210\222y\303\227x); the Class-M bind \342\210\230 Class-C ordering with the symmetric part Re(x\302\267y) = \342\210\222\342\237\250x,y\342\237\251 projected off. Identity: \342\200\226x\303\227y\342\200\226\302\262 = \342\200\226x\342\200\226\302\262\342\200\226y\342\200\226\302\262 \342\210\222 \342\237\250x,y\342\237\251\302\262. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 251 */
         "srmech.amsc.hdc.g2_three_form",
@@ -5789,6 +6305,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"g2_three_form(x=<HV>, y=<HV>, z=<HV>) -> float\"}",
         NULL,
         "The associative calibration 3-form \317\206(x,y,z) = \342\237\250x, cross7(y,z)\342\237\251 = \342\237\250x, Im(y\302\267z)\342\237\251 (Harvey\342\200\223Lawson). Fully antisymmetric; nonzero (\302\2611) exactly on the 7 Fano associative 3-planes, zero on the other 28 of the C(7,3)=35 basis triples. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 252 */
         "srmech.amsc.hdc.loop_bind_hd",
@@ -5803,6 +6321,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_bind_hd(x=<HV>, y=<HV>) -> list[float]\"}",
         NULL,
         "Block-octonion HD bind \342\200\224 the direct sum \342\212\225 of NB independent dim-8 octonion loop_binds (D = NB\302\2678; the canonical HD width is 2048 = 256\302\2678). Block-DIAGONAL: block k of the result is exactly the shipped ``loop_bind`` of the two k-th 8-blocks; nothing couples blocks (#811/F289). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 253 */
         "srmech.amsc.hdc.loop_unbind_hd",
@@ -5817,6 +6337,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_unbind_hd(a=<HV>, b=<HV>) -> list[float]\"}",
         NULL,
         "The HD unbind \342\200\224 per-block Moufang left-division conj(a_k)\302\267b_k. For ``a`` built from unit-per-block octonions (the HD regime), this recovers v from ``loop_bind_hd(a, v)`` exactly: conj(a)\302\267(a\302\267v) = v by alternativity. Uses the shipped ``loop_conj`` + ``loop_bind`` block-wise; Class-K clean (conjugate + bind, no abs()). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 254 */
         "srmech.amsc.hdc.loop_conj_hd",
@@ -5831,6 +6353,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_conj_hd(x=<HV>) -> list[float]\"}",
         NULL,
         "Per-block HD octonion conjugate \342\200\224 the direct sum \342\212\225 of NB independent dim-8 ``loop_conj``s. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 255 */
         "srmech.amsc.hdc.loop_inv_hd",
@@ -5845,6 +6369,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_inv_hd(x=<HV>) -> list[float]\"}",
         NULL,
         "Per-block HD Moufang inverse \342\200\224 the direct sum \342\212\225 of NB independent dim-8 ``loop_inv``s (x\314\204\342\202\226 / \342\237\250x\342\202\226,x\342\202\226\342\237\251 per block). The per-block unbind key: ``loop_unbind_hd(x, loop_bind_hd(x, v)) == v``, and for ANY (not only unit) per-block x, ``loop_bind_hd(x, loop_inv_hd(x))`` is the per-block e\342\202\200. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 256 */
         "srmech.amsc.hdc.loop_runbind_hd",
@@ -5859,6 +6385,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"loop_runbind_hd(a=<HV>, b=<HV>) -> list[float]\"}",
         NULL,
         "The HD RIGHT-unbind \342\200\224 per-block Moufang RIGHT-division b\342\202\226\302\267conj(a\342\202\226). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 257 */
         "srmech.amsc.coupling.signed_sum_squared",
@@ -5873,6 +6401,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"signed_sum_squared(sources=<Sequence[Vec]>) -> Vec\"}",
         NULL,
         "Squared signed-sum coupling score across a stack of bit-arrays.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 258 */
         "srmech.amsc.coupling.resonant_spectrum",
@@ -5887,6 +6417,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"resonant_spectrum(L=<Mat>, orders=<int>, max_den=<int>) -> dict\"}",
         NULL,
         "Read a coupling Laplacian as a stored resonant object (\302\24775 / F928).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 259 */
         "srmech.amsc.coupling.resonant_spectrum_sparse",
@@ -5901,6 +6433,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"resonant_spectrum_sparse(edges_or_path=<list|str>, weights=<sequence>, k=<int>, n=<int>, max_iters=<int>, max_den=<int>) -> dict\"}",
         NULL,
         "Read the resonant storage signature at UNBOUNDED ``n`` \342\200\224 the streaming / out-of-core k-extreme-mode peer of :func:`resonant_spectrum` (issue #698).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 260 */
         "srmech.amsc.coupling.from_bodies",
@@ -5915,6 +6449,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"from_bodies(masses=<sequence>, positions=<sequence>) -> tuple[int, list[tuple[int,int]], list[float]]\"}",
         NULL,
         "Build the gravity coupling-graph ``(n, edges, weights)`` for a body set.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 261 */
         "srmech.amsc.coupling.fractal_spectrum",
@@ -5929,6 +6465,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"fractal_spectrum(R=<Poly>, branches=<int>, log_terms=<int>) -> dict\"}",
         NULL,
         "Read a self-similar lattice's spectral-decimation structure \342\200\224 the Ch-2 (quasi-periodic / fractal) DUAL of :func:`resonant_spectrum` (F686 / F974).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 262 */
         "srmech.amsc.coupling.fold_encode",
@@ -5943,6 +6481,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"fold_encode(R=<Poly>, branches=<int>, dim=<int>, seed=<int>) -> dict\"}",
         NULL,
         "Encode a spectral-decimation structure INTO a stored HDC fold \342\200\224 the EXACT / total FORWARD direction of the #697 bidirectional translation.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 263 */
         "srmech.amsc.coupling.fold_spectrum",
@@ -5957,6 +6497,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"fold_spectrum(fold=<dict>, log_terms=<int>, margin_floor=<number>, capacity_mult=<int>) -> dict\"}",
         NULL,
         "Read a stored HDC fold BACK to its spectral-decimation params \342\200\224 the SIMILARITY / CLEANUP-MEMORY READ direction of the #697 bidirectional translation (the \"Q2 reader made LITERAL\").",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 264 */
         "srmech.amsc.coupling.fold_encode_recoverable",
@@ -5971,6 +6513,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"fold_encode_recoverable(R=<Poly>, branches=<int>, dim=<int>, seed=<int>) -> RecoverableFold\"}",
         NULL,
         "Encode a spectral-decimation structure into a RECOVERABLE PAIR \342\200\224 the HarmonicMaass-shaped follow-on to :func:`fold_encode` (task #723).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 265 */
         "srmech.amsc.gosper.gosper",
@@ -5985,6 +6529,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gosper(num=<Poly>, den=<Poly>) -> dict | None\"}",
         NULL,
         "Gosper's indefinite hypergeometric summation over ``\342\204\232[k]``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 266 */
         "srmech.amsc.zeilberger.zeilberger",
@@ -5999,6 +6545,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"zeilberger(rn_num=<BiPoly>, rn_den=<BiPoly>, rk_num=<BiPoly>, rk_den=<BiPoly>, max_order=<int>) -> dict | None\"}",
         NULL,
         "Zeilberger's creative-telescoping recurrence for the definite hypergeometric sum ``f(n) = \316\243_k F(n,k)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 267 */
         "srmech.amsc.wz_certificate.wz_certificate",
@@ -6013,6 +6561,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"wz_certificate(rn_num=<BiPoly>, rn_den=<BiPoly>, rk_num=<BiPoly>, rk_den=<BiPoly>) -> dict | None\"}",
         NULL,
         "Prove a terminating hypergeometric identity by its Wilf\342\200\223Zeilberger pair.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 268 */
         "srmech.amsc.modular_forms_ring.modular_forms_ring_represent",
@@ -6027,6 +6577,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"modular_forms_ring_represent(q_series=<list>, k=<int>, n_terms=<int>) -> dict | None\"}",
         NULL,
         "The level-1 modular-forms-ring MEMBERSHIP DECISION (the WEIGHT-axis REDUCER, the analog of the \316\243-row gosper / zeilberger / wz_certificate reducers): given an exact q-series claimed to be a weight-``k`` level-1 modular form, return its UNIQUE exact-\342\204\232 polynomial representation ``{(a, b): c_{a,b}}`` in ``\342\204\202[E\342\202\204, E\342\202\206]`` \342\200\224 or \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 269 */
         "srmech.amsc.quasimodular_forms_ring.quasimodular_represent",
@@ -6041,6 +6593,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quasimodular_represent(q_series=<list>, k=<int>, n_terms=<int>) -> dict | None\"}",
         NULL,
         "The level-1 quasimodular-forms-ring MEMBERSHIP DECISION (the WEIGHT-axis REDUCER, the analog of the \316\243-row gosper / zeilberger / wz_certificate reducers, one generator up from the rc84 ``modular_forms_ring_represent``; named ``quasimodular_represent`` \342\200\224 not ``quasimodular_forms_ring_represent`` \342\200\224 so the Anthropic tool n \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 270 */
         "srmech.amsc.apagodu_zeilberger.apagodu_zeilberger",
@@ -6055,6 +6609,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"apagodu_zeilberger(rn_num=<TriPoly>, rn_den=<TriPoly>, rj_num=<TriPoly>, rj_den=<TriPoly>, rk_num=<TriPoly>, rk_den=<TriPoly>, max_order=<int>) -> dict | None\"}",
         NULL,
         "The Apagodu\342\200\223Zeilberger creative-telescoping recurrence for the definite DOUBLE hypergeometric sum ``f(n) = \316\243_{j,k} F(n,j,k)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 271 */
         "srmech.amsc.poly.poly_from_coeffs",
@@ -6069,6 +6625,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"coeffs\":\"[0, 1]\"},\"output\":\"Poly(degree=1, exact-rational)\"}",
         "{\"coeffs\":\"[0, 1]\"}",
         "Build the exact-\342\204\232 polynomial carrier :class:`Poly` from an ascending-degree list of INTEGER coefficients \342\200\224 the PROSE-SIDE constructor ToolEntry (rc113; issue #1239 / F1027 / UPSTREAM \302\24785). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 272 */
         "srmech.amsc.qpoly.qpoly_from_coeffs",
@@ -6083,6 +6641,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"coeffs\":\"[0, 1]\"},\"output\":\"QPoly(x_low=1, x_high=1, q_degree=0, exact \\u211a[q])\"}",
         "{\"coeffs\":\"[0, 1]\"}",
         "Build the exact q-shift carrier :class:`QPoly` from an ascending-x list of INTEGER-LEAF coefficient cells \342\200\224 the PROSE-SIDE constructor ToolEntry (rc113; issue #1239 / F1027 / UPSTREAM \302\24785). ``coeffs[i]`` is the ``\342\204\232[q]`` coefficient of ``x**(x_low + i)`` (``x = q**k``), where each cell is:",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 273 */
         "srmech.amsc.qbipoly.qbipoly_from_coeffs",
@@ -6097,6 +6657,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"coeffs\":\"[[0, 1], [-1]]\"},\"output\":\"QBiPoly(y_degree=1, exact bivariate-\\u211a[q] in (X,Y))\"}",
         "{\"coeffs\":\"[[0, 1], [-1]]\"}",
         "Build the exact bivariate-q carrier :class:`QBiPoly` from a ``Y``-ascending list of INTEGER-LEAF x-cell lists \342\200\224 the PROSE-SIDE constructor ToolEntry (rc113; issue #1239 / F1027 / UPSTREAM \302\24785). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 274 */
         "srmech.amsc.zeilberger.bipoly_from_coeffs",
@@ -6111,6 +6673,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"coeffs\":\"[[1, 1], [-1]]\"},\"output\":\"BiPoly(k_degree=1, exact-\\u211a[n,k])\"}",
         "{\"coeffs\":\"[[1, 1], [-1]]\"}",
         "Build the exact-``\342\204\232[n,k]`` bivariate carrier :class:`BiPoly` from a ``k``-ascending list of INTEGER-LEAF ``n``-coefficient lists \342\200\224 the PROSE-SIDE constructor ToolEntry (rc116; issue #1248 / F1038). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 275 */
         "srmech.amsc.tripoly.tripoly_from_coeffs",
@@ -6125,6 +6689,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"coeffs\":\"[[[0, 1]], [[1]]]\"},\"output\":\"TriPoly(j_degree=1, k_degree=0, n_degree=1, exact-\\u211a[n,j,k])\"}",
         "{\"coeffs\":\"[[[0, 1]], [[1]]]\"}",
         "Build the exact-``\342\204\232[n,j,k]`` trivariate carrier :class:`TriPoly` from a ``j``-ascending list of ``k``-ascending lists of INTEGER-LEAF ``n``-coefficient lists \342\200\224 the PROSE-SIDE constructor ToolEntry (rc116; issue #1248 / F1038). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 276 */
         "srmech.amsc.carrier_ladder.poly_promote",
@@ -6139,6 +6705,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"poly_promote(p=<Poly | BiPoly>, n_vars=<int>) -> BiPoly | TriPoly\"}",
         "{\"p\":\"srmech.amsc.poly.Poly.from_coeffs([1, 1])\"}",
         "Promote an ordinary-ladder carrier UP the variable ladder ``Poly(k) \342\206\222 BiPoly(n,k) \342\206\222 TriPoly(n,j,k)`` by the *trivial embedding* (rc116; #1248 / F1038).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 277 */
         "srmech.amsc.carrier_ladder.poly_project",
@@ -6153,6 +6721,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"poly_project(p=<BiPoly | TriPoly>) -> Poly | BiPoly\"}",
         "{\"p\":\"srmech.amsc.zeilberger.BiPoly.from_k_poly(srmech.amsc.poly.Poly.from_coeffs([1, 1]))\"}",
         "Project an ordinary-ladder carrier DOWN one rung ``TriPoly \342\206\222 BiPoly \342\206\222 Poly`` \342\200\224 the inverse of :func:`poly_promote` (rc116; #1248 / F1038).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 278 */
         "srmech.amsc.carrier_ladder.qpoly_promote",
@@ -6167,6 +6737,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"qpoly_promote(p=<QPoly>, n_vars=<int>) -> QBiPoly\"}",
         "{\"p\":\"srmech.amsc.qpoly.QPoly.from_coeffs([0, 1])\"}",
         "Promote a q-ladder carrier UP the variable ladder ``QPoly(x=q\342\201\277) \342\206\222 QBiPoly(X=q\342\201\277, Y=q\341\265\217)`` by the trivial embedding (rc116; #1248 / F1038).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 279 */
         "srmech.amsc.carrier_ladder.qpoly_project",
@@ -6181,6 +6753,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"qpoly_project(p=<QBiPoly>) -> QPoly\"}",
         "{\"p\":\"srmech.amsc.qbipoly.QBiPoly.from_x_qpoly(srmech.amsc.qpoly.QPoly.from_coeffs([0, 1]))\"}",
         "Project a q-ladder carrier DOWN one rung ``QBiPoly \342\206\222 QPoly`` \342\200\224 the inverse of :func:`qpoly_promote` (rc116; #1248 / F1038).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 280 */
         "srmech.amsc.carrier_ladder.carrier_ladder_descriptor",
@@ -6195,6 +6769,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"carrier_ladder_descriptor() -> dict\"}",
         NULL,
         "The declarative CARRIER-LADDER coherency map (rc116; #1248 / F1038) \342\200\224 a small, static descriptor a driver (e.g. siona's result register, F1024) reads to auto-route a lower-rung carrier UP to any consumer that accepts a higher rung.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 281 */
         "srmech.amsc.carrier_schema.carrier_schema",
@@ -6209,6 +6785,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"carrier_schema() -> dict\"}",
         NULL,
         "The CARRIER introspection registry (rc205; gh #1293) \342\200\224 per carrier ``{\"name\", \"description\", \"ladder\", \"rung\", \"variables\", \"ops\"}`` keyed by carrier name; the operand-side dual of ``tool_schema`` (see the module docstring for the full shape + the derivation of ``ops``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 282 */
         "srmech.amsc.responsion_schema.responsion_schema",
@@ -6223,6 +6801,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"responsion_schema() -> dict\"}",
         NULL,
         "The RESPONSION (stored-relationship) introspection registry (rc225; user design 2026-07-12) \342\200\224 the (operator \342\212\227 carrier) \342\206\222 responsion EDGE relation, keyed ``\"<operator>|<carrier>\"`` with both refs first-class in every entry; the k=3 completion binding tool_schema (verbs) and carrier_schema (nouns). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 283 */
         "srmech.amsc.op_provenance.carry",
@@ -6237,6 +6817,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"carry(op=<str>, inputs=<dict>, params=<dict>, family=<dict>) -> dict\"}",
         NULL,
         "Run a registered frontier op AND attach its exact generating operation \342\200\224 the op-carrying carrier (rc117; dives #718/#719).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 284 */
         "srmech.amsc.op_provenance.op_provenance_hash",
@@ -6251,6 +6833,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"op_provenance_hash(record=<dict>) -> str\"}",
         NULL,
         "The canonical provenance hasher (Class A): SHA-256 of the record's MPRRecord-style canonical byte image, EXCLUDING the record's own cached ``chain_sha256`` field (rc117; dive #718).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 285 */
         "srmech.amsc.op_provenance.op_verdict",
@@ -6265,6 +6849,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"op_verdict(p1=<dict>, p2=<dict>) -> str\"}",
         NULL,
         "The honest one-sided op-equality verdict: ``\"EQUAL\"`` or ``\"UNKNOWN\"`` \342\200\224 NEVER a false \"UNEQUAL\" (rc117; dive #718).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 286 */
         "srmech.amsc.op_provenance.family_verdict",
@@ -6279,6 +6865,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"family_verdict(p1=<dict>, p2=<dict>) -> str\"}",
         NULL,
         "The honest one-sided family verdict: ``\"SAME_TARGET\"`` or ``\"UNKNOWN\"`` \342\200\224 NEVER a false \"DIFFERENT\" (rc117; dive #719).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 287 */
         "srmech.amsc.op_provenance.reproject",
@@ -6293,6 +6881,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"reproject(provenance=<dict>, overrides=<dict>, inputs=<dict>) -> dict\"}",
         NULL,
         "Re-run the carried operation at a (possibly different) rung \342\200\224 the value is RE-COMPUTED from the operation-as-SSOT (rc117; dive #718).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 288 */
         "srmech.amsc.op_provenance.lossy_projection_record",
@@ -6307,6 +6897,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"lossy_projection_record(op=<str>, inputs=<dict>) -> dict\"}",
         NULL,
         "Build the exact op-address RECORD for a LOSSY-PROJECTION op whose recovery is EXACT from its CARRIED complement (rc125 / task #723) \342\200\224 an HDC-superposition-collapse ``fold_encode`` is the canonical case, the DUAL face of the float/asymptotic-tower projections :func:`carry` addresses.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 289 */
         "srmech.amsc.q_gosper.q_gosper",
@@ -6321,6 +6913,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"q_gosper(rn_num=<QPoly>, rn_den=<QPoly>) -> dict | None\"}",
         NULL,
         "The q-analog of Gosper's indefinite hypergeometric summation over ``\342\204\232(q)[x]`` (``x = q\341\265\217``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 290 */
         "srmech.amsc.q_zeilberger.q_zeilberger",
@@ -6335,6 +6929,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"q_zeilberger(rn_num=<QBiPoly>, rn_den=<QBiPoly>, rk_num=<QBiPoly>, rk_den=<QBiPoly>, max_order=<int>) -> dict | None\"}",
         NULL,
         "The q-analog of Zeilberger's creative-telescoping recurrence for the definite q-hypergeometric sum ``f(n) = \316\243_k F(n,k)`` over ``(X, Y) = (q**n, q**k)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 291 */
         "srmech.amsc.q_wz_certificate.q_wz_certificate",
@@ -6349,6 +6945,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"q_wz_certificate(rn_num=<QBiPoly>, rn_den=<QBiPoly>, rk_num=<QBiPoly>, rk_den=<QBiPoly>) -> dict | None\"}",
         NULL,
         "Prove a terminating q-hypergeometric identity by its q-Wilf\342\200\223Zeilberger pair.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 292 */
         "srmech.amsc.elliptic_gosper.elliptic_gosper",
@@ -6363,6 +6961,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elliptic_gosper(r=<EllRatio>) -> dict | None\"}",
         NULL,
         "The ELLIPTIC analog of Gosper's indefinite hypergeometric summation over the modified-theta algebra (``x = q\342\201\277``; the FIRST engine op of the ELLIPTIC F929 row).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 293 */
         "srmech.amsc.ellbase.half_shift_response",
@@ -6377,6 +6977,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"half_shift_response(ratio=<EllRatio>, axis=<str>, var=<str>) -> EllMonomial\"}",
         NULL,
         "The exact monomial MULTIPLIER an :class:`EllRatio` carrier acquires under a HALF-period translation along ``axis`` \342\200\224 the #712 Dzhanibekov half-beat edge read (exact even where the theta value is transcendental; the full :meth:`EllRatio.pshift` already exists, this is the HALF + reads ONLY the multiplier).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 294 */
         "srmech.amsc.ellbase.chirality_parity",
@@ -6391,6 +6993,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chirality_parity(ratio=<EllRatio>, var=<str>) -> str\"}",
         NULL,
         "The CHIRALITY parity of an :class:`EllRatio` theta-quotient carrier under the #712 harmonic\342\212\227subharmonic reading: ``\"even\"`` (a HARMONIC reader \342\200\224 it closes under a SINGLE 2K half-beat, like ``dn``: real period 2K, chirality-even) vs ``\"odd\"`` (a SUBHARMONIC reader \342\200\224 it needs 4K / the PAIR, like ``sn`` / ``cn``: real per \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 295 */
         "srmech.amsc.ellbase.beat_relation_residue",
@@ -6405,6 +7009,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"beat_relation_residue(ratio=<EllRatio>, var=<str>) -> EllMonomial\"}",
         NULL,
         "The exact BEAT-RELATION residue of an :class:`EllRatio` written on the HARMONIC (``x``) frame: the nome-axis (period-shift ``var \342\206\246 p\302\267var``) mismatch monomial that RECOVERS the #712 beat relation ``p = q_c\302\262`` (the harmonic torus nome is the SQUARE of the subharmonic half-step). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 296 */
         "srmech.amsc.elliptic_recurrence.elliptic_recurrence_8w7",
@@ -6419,6 +7025,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elliptic_recurrence_8w7(r=<EllRatio>) -> dict | None\"}",
         NULL,
         "The ELLIPTIC \316\243-row ORDER-1 RECURRENCE for the Frenkel\342\200\223Turaev \342\202\210\317\211\342\202\207 summation \342\200\224 a STRUCTURAL (beat-decomposition) finder.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 297 */
         "srmech.amsc.elliptic_zeilberger.elliptic_zeilberger",
@@ -6433,6 +7041,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elliptic_zeilberger(r=<EllRatio>) -> dict | None\"}",
         NULL,
         "The ELLIPTIC \316\243-row CREATIVE-TELESCOPING op for the Frenkel\342\200\223Turaev \342\202\210\317\211\342\202\207 summation \342\200\224 the order-1 recurrence ``f(n+1) = \317\201(n)\302\267f(n)`` PLUS an EXACT connection-coefficient certificate proving it.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 298 */
         "srmech.amsc.elliptic_wz_certificate.elliptic_wz_certificate",
@@ -6447,6 +7057,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elliptic_wz_certificate(r=<EllRatio>) -> dict | None\"}",
         NULL,
         "The ELLIPTIC \316\243-row IDENTITY-PROOF for the Frenkel\342\200\223Turaev \342\202\210\317\211\342\202\207 summation \342\200\224 proves ``\316\243_{k=0}^n F(n,k) = cf(n)`` exactly and returns the closed form ``cf(n)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 299 */
         "srmech.amsc.elliptic_determinant.elliptic_cauchy_determinant",
@@ -6461,6 +7073,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elliptic_cauchy_determinant(t=<EllMonomial>, xs=<Sequence[EllMonomial]>, ys=<Sequence[EllMonomial]>) -> EllRatio\"}",
         NULL,
         "Evaluate the elliptic Cauchy (Frobenius) determinant ``det_{1\342\211\244i,j\342\211\244n}[\316\270(t\302\267x_i\302\267y_j)/\316\270(x_i\302\267y_j)]`` to its exact closed form, returned as an :class:`~srmech.amsc.ellbase.EllRatio` (Rosengren Ex 1.6.6):",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 300 */
         "srmech.amsc.elliptic_partial_fraction.elliptic_partial_fraction",
@@ -6475,6 +7089,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"elliptic_partial_fraction(x=<EllMonomial>, zs=<Sequence[EllMonomial]>, ys=<Sequence[EllMonomial]>) -> ThetaSum\"}",
         NULL,
         "Expand the elliptic product ``\342\210\217_{k=1}^n \316\270(x/z_k)/\316\270(x/y_k)`` into its partial-fraction sum (Rosengren Eq. 1.22), returned as an exact :class:`~srmech.amsc.thetasum.ThetaSum`:",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 301 */
         "srmech.amsc.elliptic_jackson.multivariate_elliptic_jackson",
@@ -6489,6 +7105,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"multivariate_elliptic_jackson(a=<EllMonomial>, b=<EllMonomial>, c=<EllMonomial>, d=<EllMonomial>, x=<EllMonomial>, q=<EllMonomial>, N=<int>, n=<int>) -> EllRatio\"}",
         NULL,
         "Reduce the balanced C\342\202\231 elliptic Jackson summation (Rosengren Thm 2.1, Eq 5) to its closed-form theta-quotient product, returned as an exact :class:`~srmech.amsc.ellbase.EllRatio`:",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 302 */
         "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs",
@@ -6503,6 +7121,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cn_vwp_multisum_lhs(a=<EllMonomial>, b=<EllMonomial>, c=<EllMonomial>, d=<EllMonomial>, x=<EllMonomial>, q=<EllMonomial>, N=<int>, n=<int>) -> ThetaSum\"}",
         NULL,
         "Build the LEFT-hand side of the C\342\202\231 elliptic Jackson summation \342\200\224 the n-fold C\342\202\231 very-well-poised (VWP) elliptic sum over the partitions ``\316\233_{nN} = {N \342\211\245 \316\273\342\202\201 \342\211\245 \342\200\246 \342\211\245 \316\273\342\202\231 \342\211\245 0}`` \342\200\224 SYMBOLICALLY, as an exact :class:`~srmech.amsc.thetasum.ThetaSum` (the ADDITIVE theta carrier):",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 303 */
         "srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an",
@@ -6517,6 +7137,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"multivariate_elliptic_jackson_an(z=<list[EllMonomial]>, a=<list[EllMonomial]>, q=<EllMonomial>, N=<int>, verify=<bool>) -> EllRatio | dict\"}",
         NULL,
         "Reduce the type-A (root-system A\342\202\231) elliptic Jackson summation \342\200\224 the elliptic analogue of Milne's A\342\202\231 Jackson summation (Rosengren arXiv:math/0305379, Eq. 6) \342\200\224 to its closed-form theta-quotient, returned as an exact :class:`~srmech.amsc.ellbase.EllRatio`:",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 304 */
         "srmech.amsc.elliptic_jackson_an.an_vwp_multisum_lhs",
@@ -6531,6 +7153,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"an_vwp_multisum_lhs(z=<list[EllMonomial]>, a=<list[EllMonomial]>, q=<EllMonomial>, N=<int>) -> ThetaSum\"}",
         NULL,
         "Build the LEFT-hand side of the A\342\202\231 elliptic Jackson summation (Rosengren arXiv:math/0305379, Eq. 6) \342\200\224 the n-fold sum over the SIMPLEX (the compositions ``y\342\202\201, \342\200\246, y\342\202\231 \342\211\245 0`` with ``y\342\202\201 + \342\200\246 + y\342\202\231 = N``) \342\200\224 SYMBOLICALLY, as an exact :class:`~srmech.amsc.thetasum.ThetaSum` (the ADDITIVE theta carrier):",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 305 */
         "srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum",
@@ -6545,6 +7169,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"multivariate_riemann_theta_sum(z=<list[EllMonomial]>, points=<list[tuple[EllMonomial\\u00d74]]>, verify=<bool>) -> ThetaBracketSum | dict\"}",
         NULL,
         "Reduce the Spiridonov higher-genus theta multisum (arXiv:math/0408366, the Theorem, Eq. ``sum``) to its closed form \342\200\224 the DIFFERENCE OF TWO PRODUCTS",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 306 */
         "srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs",
@@ -6559,6 +7185,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"riemann_theta_multisum_lhs(z=<list[EllMonomial]>, points=<list[tuple[EllMonomial\\u00d74]]>) -> ThetaBracketSum\"}",
         NULL,
         "Build the LEFT-hand side of the Spiridonov higher-genus theta multisum (arXiv:math/0408366, the Theorem, Eq. ``sum``) \342\200\224 the ``n+1``-term sum",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 307 */
         "srmech.amsc.dispatch.infer",
@@ -6573,6 +7201,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"infer(relationship=<dict>) -> dict\"}",
         NULL,
         "The F929 OPEN/infer router \342\200\224 the meta-dispatcher over srmech's three shipped closed-form reduction-theory rows (cyclic / spectral / \316\243).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 308 */
         "srmech.amsc.carrier_spectrum.carrier_spectrum",
@@ -6587,6 +7217,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"carrier_spectrum(r=<EllRatio>) -> dict\"}",
         NULL,
         "The OPERAND-side dual of ``the_one``: READ a carrier element's harmonic occupancy under the shift-Laplacian (the Class-L eigenbasis of the carrier's shape) in two orthogonal channels, and expose the block structure that makes the elliptic key-equation solve genuinely block-decomposed (non-brute-force).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 309 */
         "srmech.amsc.unary_theta.unary_theta",
@@ -6601,6 +7233,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"unary_theta(char=<str>, j=<int>, a=<int>, b=<int>, D=<int>, support=<str>) -> UnaryTheta\"}",
         NULL,
         "Construct a :class:`UnaryTheta` series",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 310 */
         "srmech.amsc.unary_theta.theta_coefficients",
@@ -6615,6 +7249,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"theta_coefficients(theta=<UnaryTheta>, n_max=<int>) -> list[int]\"}",
         "{\"n_max\":\"7\",\"theta\":\"'g3'\"}",
         "READ a :class:`UnaryTheta`'s exact integer q-expansion \342\200\224 the first registered CONSUMER of the ``UnaryTheta`` carrier (rc113; issue #1239 / F1027 / UPSTREAM \302\24785: before this, a conversationally-built shadow was a dead end after display). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 311 */
         "srmech.amsc.harmonic_maass.harmonic_maass",
@@ -6629,6 +7265,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"harmonic_maass(hol=<MockQSeries>, shadow=<UnaryTheta>) -> HarmonicMaass\"}",
         NULL,
         "Construct a :class:`HarmonicMaass` \342\200\224 a harmonic (weak) Maass form as the FINITE EXACT pair ``(hol holomorphic mock part, shadow g = \316\276_k(f))`` it is determined by (Bruinier\342\200\223Funke Prop. 3.2; the completion ``f\342\201\273`` is the Eichler integral of the shadow, recoverable not stored). \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 312 */
         "srmech.amsc.cascade.pin_slot_at_zero",
@@ -6643,6 +7281,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"-3.5\"},\"output\":\"(-1, 3.5)\"}",
         NULL,
         "The Class-K pin-slot at zero: splits x into its sign (the pinned phase boundary, \342\210\2221/0/+1) and its magnitude \342\200\224 the primitive |\302\267| composes from.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 313 */
         "srmech.amsc.cascade.reorient",
@@ -6657,6 +7297,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"reorient(value=<number>, orientation=<int>) -> number\"}",
         NULL,
         "Class C cascade-orientation: re-apply a captured orientation.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 314 */
         "srmech.amsc.cascade.magnitude",
@@ -6671,6 +7313,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"-3.5\"},\"output\":\"3.5\"}",
         NULL,
         "The Class-K real pin-slot magnitude |x| \342\200\224 the cascade-honest replacement for Python abs(): a sign-branch phase-boundary op, NOT a complex modulus (it rejects complex input by contract).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 315 */
         "srmech.amsc.cascade.best_rational_signed",
@@ -6685,6 +7329,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"(1, 1)\"}",
         NULL,
         "Class K \342\210\230 Class N \342\210\230 Class C: float \342\206\222 signed small-denominator rational.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 316 */
         "srmech.amsc.cascade.cyclic_gcd",
@@ -6699,6 +7345,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"3\",\"b\":\"3\"},\"output\":\"3\"}",
         NULL,
         "Class I cyclic gcd. Delegates to ``srmech.amsc.cyclic.gcd``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 317 */
         "srmech.amsc.cascade.cyclic_mod_mul",
@@ -6713,6 +7361,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"7\",\"b\":\"6\",\"n\":\"10\"},\"output\":\"2\"}",
         "{\"a\":\"7\",\"b\":\"6\",\"n\":\"10\"}",
         "Class I modular multiply ``(a * b) mod n`` (delegates to ``srmech.amsc.cyclic.mod_mul``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 318 */
         "srmech.amsc.cascade.cyclic_mod_add",
@@ -6727,6 +7377,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"7\",\"b\":\"6\",\"n\":\"10\"},\"output\":\"3\"}",
         "{\"a\":\"7\",\"b\":\"6\",\"n\":\"10\"}",
         "Class I modular addition ``(a + b) mod n`` (delegates to ``srmech.amsc.cyclic.mod_add``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 319 */
         "srmech.amsc.cascade.cyclic_mod_pow",
@@ -6741,6 +7393,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"3\",\"k\":\"4\",\"n\":\"10\"},\"output\":\"1\"}",
         "{\"a\":\"3\",\"k\":\"4\",\"n\":\"10\"}",
         "Class I modular exponentiation ``(a ** k) mod n`` via square-and-multiply (delegates to ``srmech.amsc.cyclic.mod_pow``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 320 */
         "srmech.amsc.cascade.cyclic_mod_inv",
@@ -6755,6 +7409,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"3\",\"n\":\"7\"},\"output\":\"5\"}",
         "{\"a\":\"3\",\"n\":\"7\"}",
         "Class I modular inverse of ``a`` in ``Z/nZ`` via extended Euclidean (delegates to ``srmech.amsc.cyclic.mod_inv``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 321 */
         "srmech.amsc.cascade.cyclic_mod_mul_wide",
@@ -6769,6 +7425,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"a\":\"18446744073709551616\",\"b\":\"3\",\"n\":\"340282366920938463463374607431768211456\"},\"output\":\"55340232221128654848\"}",
         "{\"a\":\"2**64\",\"b\":\"3\",\"n\":\"2**128\"}",
         "Class I **uncapped** modular multiply ``(a * b) mod n`` (delegates to ``srmech.amsc.cyclic.mod_mul_wide``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 322 */
         "srmech.amsc.cascade.kuramoto_step",
@@ -6783,6 +7441,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"kuramoto_step(theta=<sequence>, omega=<sequence>, coupling=<float>, dt=<float>, adjacency=<list>, alpha=<float>, pin_anchor=<Optional[list[float]]>, pin_strength=<number>) -> list[float]\"}",
         NULL,
         "Class I \342\210\230 sin \342\210\230 \316\243 \342\210\230 C: one forward-Euler Kuramoto step.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 323 */
         "srmech.amsc.cascade.autocorrelation",
@@ -6797,6 +7457,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"autocorrelation(x=<sequence>) -> list[float]\"}",
         NULL,
         "Class L (Wiener-Khinchin): the circular autocorrelation of ``x``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 324 */
         "srmech.amsc.cascade.quaternion_dft",
@@ -6811,6 +7473,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quaternion_dft(x=<sequence>, form=<str>, mu_axis=<str>, inverse=<bool>) -> list[list[float]]\"}",
         NULL,
         "Quaternion discrete Fourier transform (QDFT) \342\200\224 the native transform for a Klein-4 object, GRADUATED first-class (0.9.0rc110; #1234 Item 1b / #863).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 325 */
         "srmech.amsc.cascade.octonion_dft",
@@ -6825,6 +7489,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"octonion_dft(x=<sequence>, form=<str>, mu_axis=<str>, bracketing=<str>, two_sided_right_axis=<str>, inverse=<bool>) -> list[list[float]]\"}",
         NULL,
         "Octonion discrete Fourier transform (ODFT) \342\200\224 the (8:7) rung above the QDFT, GRADUATED first-class (0.9.0rc111; #1234 Item 1c / #863).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 326 */
         "srmech.amsc.cascade.phase_coherent_peak",
@@ -6839,6 +7505,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"phase_coherent_peak(ladder=<sequence>, keys=<sequence>) -> dict\"}",
         NULL,
         "The LIGHTWEIGHT matched-filter PEAK READ over a rung/mode ladder \342\200\224 the READ reduction for the RBS-LM fold, kept API-DISTINCT from the full :func:`quaternion_dft` / :func:`octonion_dft` transforms (0.9.0rc112; #1234 Item 1d, the F1000\342\206\222F1001\342\206\222F1002 refinement).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 327 */
         "srmech.amsc.cascade.hypercomplex_couple",
@@ -6853,6 +7521,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"hypercomplex_couple(streams=<sequence>, axis=<str>, theta=<float>, sigma=<int>, form=<str>, inverse=<bool>) -> list[float]\"}",
         NULL,
         "Bidirectional ``(\317\203, \316\270, \316\274)`` hypercomplex coupler \342\200\224 bind \342\211\2453 streams into one quaternion/octonion + a joint coherence channel, and unbind losslessly.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 328 */
         "srmech.amsc.cascade.hypercomplex_exp",
@@ -6867,6 +7537,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"k_axes\":\"3\",\"theta\":\"1.0\"},\"output\":\"(Q(622926147424044489, 1152921504606846976), Q(4375909063479625, 9007199254740992), Q(4375909063479625, 9007199254740992), Q(4375909063479625, 9007199254740992), Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1))\"}",
         NULL,
         "The unit hypercomplex exponential ``exp(\316\274\316\270) = cos \316\270 + \316\274\302\267sin \316\270`` as an 8-tuple of EXACT :class:`~srmech.amsc.q.Q` (Q61, denominator ``2**61``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 329 */
         "srmech.amsc.cascade.hamming_encode",
@@ -6881,6 +7553,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"hamming_encode(data_bits=<sequence>, n=<int>) -> list[int]\"}",
         NULL,
         "Encode ``k = 2\342\201\277\342\210\2221\342\210\222n`` data bits into a Hamming(2\342\201\277\342\210\2221, k) codeword.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 330 */
         "srmech.amsc.cascade.hamming_syndrome",
@@ -6895,6 +7569,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"hamming_syndrome(codeword=<sequence>) -> int\"}",
         NULL,
         "Return the 1-indexed position of the single flipped bit (``0`` = clean).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 331 */
         "srmech.amsc.cascade.hamming_decode_correct",
@@ -6909,6 +7585,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"hamming_decode_correct(codeword=<sequence>) -> dict\"}",
         NULL,
         "Locate + correct any single-bit error and recover the data payload.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 332 */
         "srmech.amsc.cascade.cd_mult",
@@ -6923,6 +7601,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_mult(a=<sequence>, b=<sequence>) -> tuple\"}",
         NULL,
         "Exact-rational Cayley\342\200\223Dickson product of two equal-dimension elements.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 333 */
         "srmech.amsc.cascade.cd_conjugate",
@@ -6937,6 +7617,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_conjugate(a=<sequence>) -> tuple\"}",
         NULL,
         "Cayley\342\200\223Dickson conjugation \342\200\224 negate the imaginary part (Class K).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 334 */
         "srmech.amsc.cascade.cd_norm_sq",
@@ -6951,6 +7633,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_norm_sq(a=<sequence>) -> Q\"}",
         NULL,
         "The squared norm ``N(x) = \316\243 x_i\302\262`` (exact rational; ``x\302\267x\314\204 = N(x)\302\2671``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 335 */
         "srmech.amsc.cascade.cd_basis_product",
@@ -6965,6 +7649,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_basis_product(dim=<int>, i=<int>, j=<int>) -> tuple\"}",
         NULL,
         "Product of two unit basis elements: ``e_i \302\267 e_j = sign \302\267 e_index``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 336 */
         "srmech.amsc.cascade.cd_promote",
@@ -6979,6 +7665,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_promote(x=<sequence>, dim=<int>) -> tuple\"}",
         NULL,
         "Promote a Cayley\342\200\223Dickson element UP to a higher rung by the trivial SUBALGEBRA EMBEDDING (zero-pad the higher imaginary half) \342\200\224 TOTAL.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 337 */
         "srmech.amsc.cascade.cd_project",
@@ -6993,6 +7681,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_project(x=<sequence>) -> tuple\"}",
         NULL,
         "Project a Cayley\342\200\223Dickson element DOWN one doubling (dim ``d`` \342\206\222 ``d/2``) by REALIFYING IFF the higher (imaginary-doubling) half all vanish \342\200\224 the inverse of :func:`cd_promote`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 338 */
         "srmech.amsc.cascade.sedenion_zero_divisor_witness",
@@ -7007,6 +7697,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"sedenion_zero_divisor_witness() -> dict\"}",
         NULL,
         "Exhibit a concrete sedenion (dim 16) zero divisor: ``x, y`` both nonzero with ``x\302\267y = 0``. Found by searching basis-unit pairs with **our own** multiplication table (own-work-first, not a literature transcription).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 339 */
         "srmech.amsc.cascade.left_mult_kernel",
@@ -7021,6 +7713,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"left_mult_kernel(x=<sequence>) -> list\"}",
         NULL,
         "Kernel basis of ``u \342\206\246 x\302\267u``. **Nonempty \342\237\272 ``x`` is a left zero divisor \342\237\272 multiply-by-``x`` has no inverse map** \342\200\224 the \"no backward direction to point\" of \302\247VII.6.23.4. Empty for every nonzero element of a division algebra (\342\211\244\360\235\225\206).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 340 */
         "srmech.amsc.cascade.left_mult_is_invertible",
@@ -7035,6 +7729,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"left_mult_is_invertible(x=<sequence>) -> bool\"}",
         NULL,
         "``True`` iff ``u \342\206\246 x\302\267u`` is a bijection (a backward direction exists).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 341 */
         "srmech.amsc.cascade.is_division_algebra_dim",
@@ -7049,6 +7745,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"dim\":\"3\"},\"output\":\"False\"}",
         NULL,
         "``True`` iff the dim-``D`` algebra is a normed division algebra (Hurwitz): the reversible interior is exactly dims 1, 2, 4, 8.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 342 */
         "srmech.amsc.cascade.sedenion_register",
@@ -7063,6 +7761,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"sedenion_register(D=<int>, codebook=<dict>) -> SedenionRegister\"}",
         NULL,
         "Construct a :class:`SedenionRegister` \342\200\224 the sedenion-addressable RBS-HDC instrument (UPSTREAM \302\24731; F465 + F468). 16 named slots ``e0..e15``: the octonion block ``e0..e7`` is the reversible working set, ``e8..e15`` the EC/carry block. Composes shipped v0.7.3 primitives; no new algebra. \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 343 */
         "srmech.amsc.cascade.cd_register",
@@ -7077,6 +7777,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_register(dim=<int>, D=<int>, codebook=<dict>, namespace=<Optional[str]>, coupling=<bool>, error_correction=<bool>) -> CDRegister\"}",
         NULL,
         "Construct a :class:`CDRegister` \342\200\224 the **general N-slot** Cayley\342\200\223Dickson addressable RBS-HDC register (rc297; `#934`). ``dim`` named slots ``e0..e{dim-1}`` for any power of two in ``[1, CD_MAX_DIM]``; ``e0..e7`` is the octonion reversible working block at every rung and the remainder is the carry/EC block.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 344 */
         "srmech.amsc.cascade.cd_navmap",
@@ -7091,6 +7793,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_navmap(dim=<int>, j=<int>) -> dict\"}",
         NULL,
         "The signed pointer-advance permutation for right-multiply-by-``e_j`` over ``dim`` slots: maps each slot ``i`` to ``(k, sign)`` where ``e_i\302\267e_j = sign\302\267e_k`` (the :func:`cd_basis_product` cocycle).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 345 */
         "srmech.amsc.cascade.cd_navigate",
@@ -7105,6 +7809,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_navigate(dim=<int>, j=<int>, slots=<Sequence[int]>, signs=<Sequence[int]>) -> tuple\"}",
         NULL,
         "Route occupied ``(slot, sign)`` records through the ``\303\227e_j`` permutation at ``dim`` slots, composing the **Class-C** signs: returns ``(out_slots, out_signs)`` with ``out_signs[m] = signs[m] * s`` where ``e_{slots[m]}\302\267e_j = s\302\267e_{out_slots[m]}``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 346 */
         "srmech.amsc.cascade.cd_navmap_is_signed_permutation",
@@ -7119,6 +7825,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_navmap_is_signed_permutation(dim=<int>) -> bool\"}",
         NULL,
         "**The structural invariant addressing rides on**, checked rather than assumed (F1274 / F1275): for *every* direction ``j`` in ``[0, dim)``, is ``i \342\206\222 (dest, sign)`` a bijection on ``[0, dim)`` with every sign in ``{+1, -1}``?",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 347 */
         "srmech.amsc.cascade.cd_couple_working",
@@ -7133,6 +7841,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_couple_working(vals=<sequence>, dim=<int>) -> list[float]\"}",
         NULL,
         "Bind ``\342\211\244 min(dim, 8) \342\210\222 1`` real streams into one reversible working word \342\200\224 the canonical Class-M **bind** on the Cayley\342\200\223Dickson register (rc301, `#938`).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 348 */
         "srmech.amsc.cascade.cd_uncouple_working",
@@ -7147,6 +7857,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_uncouple_working(word=<sequence>) -> list[float]\"}",
         NULL,
         "Recover the streams bound by :func:`cd_couple_working` \342\200\224 the exact inverse (the Class-M **unbind**; rc301, `#938`).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 349 */
         "srmech.amsc.cascade.cd_carry",
@@ -7161,6 +7873,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_carry(overflow_bits=<sequence>, n=<int>) -> list[int]\"}",
         NULL,
         "Encode overflow bits (past the reversible working set) into a Hamming(2\342\201\277\342\210\2221) single-error-correcting GF(2) codeword \342\200\224 the EC/carry layer (rc301, `#938`).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 350 */
         "srmech.amsc.cascade.cd_correct",
@@ -7175,6 +7889,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cd_correct(codeword=<sequence>) -> dict\"}",
         NULL,
         "Locate + correct a single-bit error in an EC-block codeword and recover the carried payload \342\200\224 the EC/carry layer's read (rc301, `#938`).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 351 */
         "srmech.amsc.cascade.signed_sum_squared",
@@ -7189,6 +7905,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"signed_sum_squared(sources=<sequence>) -> list[int]\"}",
         NULL,
         "Element-wise squared signed-sum across a stack of bit sources \342\200\224 the coupling-score composite (UPSTREAM_NOTES \302\2471.2).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 352 */
         "srmech.amsc.cascade.top_k_by_score",
@@ -7203,6 +7921,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"top_k_by_score(scores=<sequence>, k=<int>, largest=<bool>) -> list[int]\"}",
         NULL,
         "Indices of the ``k`` highest- (or lowest-) scoring items \342\200\224 the catalog selection composite (UPSTREAM_NOTES \302\2471.3).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 353 */
         "srmech.amsc.hdc.bundle_with_ties",
@@ -7217,6 +7937,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"bundle_with_ties(vectors=<sequence>) -> tuple\"}",
         NULL,
         "Bitwise majority across ANY number of BSC vectors, with the tie state surfaced explicitly (UPSTREAM_NOTES rbs_nn Note 1).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 354 */
         "srmech.amsc.cascade.the_one",
@@ -7231,6 +7953,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"sigma\":\"1\",\"theta_den\":\"4\",\"theta_num\":\"1\",\"w\":\"(1, 0, 1)\"},\"output\":\"One(sigma=+1, theta=(1, 4), terms=24, dim=14, partition=(1, 3, 7, 3), winding=(1, 0, 1))\"}",
         NULL,
         "The One S(\317\203,\316\270,w) = \342\250\201(\342\204\235\302\2671 \342\212\225 \317\203\302\267e^{\303\216\302\267\316\270}\302\267Im \360\235\224\270\342\202\231) over the 1+3+7 Hurwitz tower (dim 2+4+8=14). \317\203 is chirality, (\316\270_num/\316\270_den) the epicycle angle, and the winding triad w = (Saros, Metonic, Callippic) carries the spinor sign (\342\210\2221)^\316\243w + the metacycle tower \342\200\224 the object whose two chiralities are one.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 355 */
         "srmech.amsc.cascade.winding_fold",
@@ -7245,6 +7969,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"theta\":\"1.0\"},\"output\":\"(0, 1.0)\"}",
         NULL,
         "The 2\317\200 seam-fold as the DIVMOD it is \342\200\224 ``theta \342\206\222 (w, theta_res)`` with ``theta = 2\317\200\302\267w + theta_res``, the quotient KEPT (0.9.0rc215; the #741 mod-should-be-divmod audit's F-2 finding \342\200\224 the fold existed natively as ``srmech_winding_fold`` and pure as the laplacian ``_eph_seam_fold`` since rc207/gh#1276, but was reachable \342\200\246",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 356 */
         "srmech.amsc.cascade.frame_carrier.frame_carrier",
@@ -7259,6 +7985,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"frame_carrier(func=<str>, numerator=<int>, denominator=<int>, num_terms=<int>, sigma=<int>) -> dict\"}",
         NULL,
         "Construct the frame-carrying carrier ``(value, frame)`` for a 2\317\200-periodic truncated Taylor series (rc238).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 357 */
         "srmech.amsc.cascade.frame_carrier.frame_carrier_compare",
@@ -7273,6 +8001,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"frame_carrier_compare(func=<str>, num_a=<int>, den_a=<int>, num_b=<int>, den_b=<int>, num_terms=<int>, sigma_a=<int>, sigma_b=<int>) -> dict\"}",
         NULL,
         "Cross-seam compare of two frame-carrying carriers \342\200\224 PARALLEL-TRANSPORT the frame, THEN compare \342\200\224 with the exact ``is_aligned`` certificate (rc238).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 358 */
         "srmech.amsc.cascade.chiral_flip",
@@ -7287,6 +8017,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chiral_flip(seq=<sequence>) -> sequence\"}",
         NULL,
         "Class C orientation reversal: traverse the cascade the other way.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 359 */
         "srmech.amsc.cascade.chiral_dual",
@@ -7301,6 +8033,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chiral_dual(op=<operator_name>, x=<sequence>) -> sequence\"}",
         NULL,
         "Class C \342\210\230 op \342\210\230 Class C: run ``op`` in the opposite Class-C orientation.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 360 */
         "srmech.amsc.cascade.net_chirality",
@@ -7315,6 +8049,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"orientations\":\"[1, -1, 1, 1]\"},\"output\":\"-1\"}",
         NULL,
         "Class-C net chirality: the signed product/sum reduction of a sequence of per-step orientations into the one net which-way handedness.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 361 */
         "srmech.amsc.cascade.parallel_sector_dispatch",
@@ -7329,6 +8065,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"parallel_sector_dispatch(body=<operator_name>, x=<sequence>, n_sectors=<int>, combine=<str>) -> dict\"}",
         NULL,
         "Run ``body`` across its \342\211\2444 Klein-4 chirality sectors CONCURRENTLY.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 362 */
         "srmech.amsc.cascade.coupled.coupled_wave",
@@ -7343,6 +8081,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"theta\":\"1.0\"},\"output\":\"(Q(485074996943862657, 576460752303423488), Q(622926147424044489, 1152921504606846976), 1, (1, 1))\"}",
         NULL,
         "The coupled EM quadrature drive at phase ``theta`` (radians).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 363 */
         "srmech.amsc.cascade.coupled.multiplex_streams",
@@ -7357,6 +8097,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"multiplex_streams(streams=<sequence>, mode=<str>, roles=<sequence>) -> dict\"}",
         NULL,
         "Recombine N steering WAVES into one driver \342\200\224 the multiplex (W18).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 364 */
         "srmech.spectral.decompose",
@@ -7371,6 +8113,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"decompose(state=<Vec>, laplacian=<Mat>, encoder_tag=<str>) -> SpectralHandle\"}",
         NULL,
         "Project ``state`` onto eigenbasis of ``laplacian``; return handle.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 365 */
         "srmech.spectral.delta",
@@ -7385,6 +8129,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"delta(ref=<SpectralHandle | bytes>, current=<SpectralHandle | bytes>) -> bytes\"}",
         NULL,
         "Bit-exact XOR delta of two coefficient byte vectors.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 366 */
         "srmech.spectral.recompose",
@@ -7399,6 +8145,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"recompose(handle=<SpectralHandle>, laplacian=<Mat>, encoder_tag=<str>) -> list[complex]\"}",
         NULL,
         "Reconstruct node-domain state from ``handle`` via inverse projection.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 367 */
         "srmech.spectral.similarity",
@@ -7413,6 +8161,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"similarity(a=<SpectralHandle | bytes>, b=<SpectralHandle | bytes>) -> Q\"}",
         NULL,
         "HDC similarity ``1 \342\210\222 2\302\267hamming(a, b) / D`` in ``[\342\210\2221, 1]`` as the EXACT ``Q`` rational (v0.9.0 F868 stay-rational; ``(D\342\210\2222\302\267hamming)/D``, collapses to a decimal only via ``float(s)``). Re-exports :func:`srmech.amsc.hdc.similarity`.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 368 */
         "srmech.spectral.predict",
@@ -7427,6 +8177,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"predict(handle=<SpectralHandle>, laplacian=<Mat>, steps=<int>, dt=<float>, encoder_tag=<str>) -> SpectralHandle\"}",
         NULL,
         "Cascade-extrapolate ``handle`` ``steps`` forward in spectral time.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 369 */
         "srmech.spectral.prediction_error",
@@ -7441,6 +8193,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"prediction_error(predicted=<SpectralHandle | bytes>, observed=<SpectralHandle | bytes>, threshold=<float>) -> bytes\"}",
         NULL,
         "XOR delta between predicted and observed; gate-by-threshold.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 370 */
         "srmech.spectral.truncate_sparse",
@@ -7455,6 +8209,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"truncate_sparse(handle=<SpectralHandle>, keep_k=<Optional[int]>, threshold=<Optional[float]>) -> SpectralHandle\"}",
         NULL,
         "Sparse-truncate ``handle``'s coefficients; keep only the top modes.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 371 */
         "srmech.qm.single_particle.tdse_evolve",
@@ -7469,6 +8225,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"tdse_evolve(H=<Mat>, psi=<Vec>, t=<float>) -> list[complex]\"}",
         NULL,
         "Closed-form Time-Dependent Schr\303\266dinger evolution.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 372 */
         "srmech.qm.single_particle.tise_solve",
@@ -7483,6 +8241,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"tise_solve(H=<Mat>) -> tuple[Mat, Mat]\"}",
         NULL,
         "Time-Independent Schr\303\266dinger Equation ``H \317\210_n = E_n \317\210_n``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 373 */
         "srmech.qm.single_particle.commutator",
@@ -7497,6 +8257,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"commutator(A=<Mat>, B=<Mat>) -> Mat\"}",
         NULL,
         "Operator commutator ``[A, B] = A B - B A``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 374 */
         "srmech.qm.single_particle.heisenberg_evolve",
@@ -7511,6 +8273,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"heisenberg_evolve(A=<Mat>, H=<Mat>, t=<float>) -> Mat\"}",
         NULL,
         "Heisenberg-picture operator evolution ``A_H(t) = U\342\200\240(t) A U(t)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 375 */
         "srmech.qm.single_particle.lattice_momentum",
@@ -7525,6 +8289,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"n\":\"3\"},\"output\":\"Mat(3x3, complex)\"}",
         NULL,
         "Lattice momentum operator ``p\314\202 = -i \342\210\202_x`` via central-difference.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 376 */
         "srmech.qm.single_particle.density_matrix",
@@ -7539,6 +8305,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"density_matrix(psi=<Vec>) -> Mat\"}",
         NULL,
         "Pure-state density matrix ``\317\201 = |\317\210\342\237\251\342\237\250\317\210|``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 377 */
         "srmech.qm.single_particle.liouville_evolve",
@@ -7553,6 +8321,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"liouville_evolve(rho=<Mat>, H=<Mat>, t=<float>) -> Mat\"}",
         NULL,
         "Liouville-von Neumann evolution ``\317\201(t) = U(t) \317\201(0) U\342\200\240(t)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 378 */
         "srmech.qm.spin.pauli_matrices",
@@ -7567,6 +8337,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"pauli_matrices() -> tuple[Mat, Mat, Mat]\"}",
         NULL,
         "Return the three Pauli matrices ``(\317\203_x, \317\203_y, \317\203_z)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 379 */
         "srmech.qm.spin.pauli_identity",
@@ -7581,6 +8353,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"pauli_identity() -> Mat\"}",
         NULL,
         "The 2\303\2272 identity (Cl(0,3) scalar) as an exact complex ``Mat``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 380 */
         "srmech.qm.spin.pauli_clifford_residuals",
@@ -7595,6 +8369,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"pauli_clifford_residuals() -> tuple[float, float]\"}",
         NULL,
         "Numerical residuals for the Clifford algebra relations on \317\203_i.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 381 */
         "srmech.qm.spin.pauli_spin_operator",
@@ -7609,6 +8385,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"pauli_spin_operator(direction=<Vec>) -> Mat\"}",
         NULL,
         "Spin-\302\275 projection onto an arbitrary axis: ``S_n = (\342\204\217/2) \317\203 \302\267 n\314\202``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 382 */
         "srmech.qm.bell.chsh_pauli_combination",
@@ -7623,6 +8401,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chsh_pauli_combination() -> Mat\"}",
         NULL,
         "Return ``M = \317\203_x \342\212\227 \317\203_x + \317\203_z \342\212\227 \317\203_z`` as a 4\303\2274 Hermitian ``Mat``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 383 */
         "srmech.qm.bell.chsh_operator",
@@ -7637,6 +8417,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chsh_operator() -> Mat\"}",
         NULL,
         "Return the Tsirelson-optimal Bell-CHSH operator ``B_CHSH`` as a 4\303\2274 Hermitian ``Mat``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 384 */
         "srmech.qm.bell.operator_norm",
@@ -7651,6 +8433,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"operator_norm(H=<Mat>) -> float\"}",
         NULL,
         "Operator (spectral) norm of a Hermitian matrix: ``max_i |\316\273_i|``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 385 */
         "srmech.qm.bell.chsh_pauli_combination_norm",
@@ -7665,6 +8449,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chsh_pauli_combination_norm() -> float\"}",
         NULL,
         "Compute ``\342\200\226\317\203_x \342\212\227 \317\203_x + \317\203_z \342\212\227 \317\203_z\342\200\226`` (algebraically exactly ``2``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 386 */
         "srmech.qm.bell.chsh_operator_norm",
@@ -7679,6 +8465,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"chsh_operator_norm() -> float\"}",
         NULL,
         "Compute ``\342\200\226B_CHSH\342\200\226`` via Class L eigendecomp.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 387 */
         "srmech.qm.bell.tsirelson_bound",
@@ -7693,6 +8481,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"tsirelson_bound() -> float\"}",
         NULL,
         "Return the framework-asserted Tsirelson constant ``2\342\210\2322``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 388 */
         "srmech.qm.bell.classical_chsh_bound",
@@ -7707,6 +8497,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"classical_chsh_bound() -> float\"}",
         NULL,
         "Return the classical (Bell) bound ``2``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 389 */
         "srmech.qm.bell.verify_chsh",
@@ -7721,6 +8513,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"verify_chsh(tolerance=<float>) -> tuple[bool, float, float]\"}",
         NULL,
         "Bit-exact verification of the Bell-CHSH + Tsirelson identity.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 390 */
         "srmech.qm.potentials.hydrogen_radial",
@@ -7735,6 +8529,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"hydrogen_radial(n_grid=<int>, r_max=<float>, l_quantum=<int>) -> tuple[list[float], list[float], Mat]\"}",
         NULL,
         "Hydrogen-atom radial Schr\303\266dinger equation eigenstates.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 391 */
         "srmech.qm.potentials.harmonic_oscillator_ladder",
@@ -7749,6 +8545,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"harmonic_oscillator_ladder(n_dim=<int>, omega=<float>) -> tuple[Mat, Mat]\"}",
         NULL,
         "Harmonic-oscillator ladder operators ``(a, a\342\200\240)`` truncated at n_dim.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 392 */
         "srmech.qm.potentials.harmonic_oscillator_hamiltonian",
@@ -7763,6 +8561,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"harmonic_oscillator_hamiltonian(n_dim=<int>, omega=<float>) -> Mat\"}",
         NULL,
         "Harmonic-oscillator Hamiltonian ``H = \342\204\217\317\211 (a\342\200\240 a + 1/2)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 393 */
         "srmech.qm.relativistic.minkowski_metric",
@@ -7777,6 +8577,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"minkowski_metric() -> Mat\"}",
         NULL,
         "Mostly-minus Minkowski metric ``\316\267^{\316\274\316\275} = diag(+1, -1, -1, -1)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 394 */
         "srmech.qm.relativistic.gamma_matrices",
@@ -7791,6 +8593,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gamma_matrices() -> tuple[Mat, ...]\"}",
         NULL,
         "Dirac \316\263-matrices ``(\316\263^0, \316\263^1, \316\263^2, \316\263^3)`` in the Dirac representation.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 395 */
         "srmech.qm.relativistic.gamma_5",
@@ -7805,6 +8609,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gamma_5() -> Mat\"}",
         NULL,
         "``\316\263_5 = i \316\263^0 \316\263^1 \316\263^2 \316\263^3`` \342\200\224 chirality matrix.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 396 */
         "srmech.qm.relativistic.clifford_residuals",
@@ -7819,6 +8625,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"clifford_residuals() -> tuple[float, float, float]\"}",
         NULL,
         "Numerical residuals for the Cl(1,3) Clifford algebra relations.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 397 */
         "srmech.qm.relativistic.weyl_left_projector",
@@ -7833,6 +8641,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"weyl_left_projector() -> Mat\"}",
         NULL,
         "Left-chirality projector ``P_L = (I - \316\263_5) / 2``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 398 */
         "srmech.qm.relativistic.weyl_right_projector",
@@ -7847,6 +8657,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"weyl_right_projector() -> Mat\"}",
         NULL,
         "Right-chirality projector ``P_R = (I + \316\263_5) / 2``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 399 */
         "srmech.qm.relativistic.charge_conjugation_matrix",
@@ -7861,6 +8673,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"charge_conjugation_matrix() -> Mat\"}",
         NULL,
         "Charge-conjugation matrix ``C = i \316\263^2 \316\263^0`` (Dirac representation).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 400 */
         "srmech.qm.relativistic.dirac_operator_momentum_space",
@@ -7875,6 +8689,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"dirac_operator_momentum_space(k=<Vec>, m=<float>) -> Mat\"}",
         NULL,
         "Dirac operator in momentum space: ``\316\263^\316\274 k_\316\274 - m I_4``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 401 */
         "srmech.qm.relativistic.klein_gordon_dispersion",
@@ -7889,6 +8705,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"klein_gordon_dispersion(k_spatial=<Vec>, m=<float>) -> float\"}",
         NULL,
         "Klein-Gordon on-shell energy ``E = +sqrt(|k|\302\262 + m\302\262)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 402 */
         "srmech.qm.relativistic.four_momentum_squared",
@@ -7903,6 +8721,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"four_momentum_squared(k=<Vec>) -> float\"}",
         NULL,
         "Lorentz-invariant squared 4-momentum ``k\302\262 = k_\316\274 k^\316\274 = k_0\302\262 - |k|\302\262``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 403 */
         "srmech.qm.propagators.feynman_scalar_propagator",
@@ -7917,6 +8737,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"feynman_scalar_propagator(k_squared=<float>, m=<float>, epsilon=<float>) -> complex\"}",
         NULL,
         "Scalar Feynman propagator ``G_F(k) = i / (k\302\262 - m\302\262 + i\316\265)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 404 */
         "srmech.qm.propagators.feynman_fermion_propagator",
@@ -7931,6 +8753,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"feynman_fermion_propagator(k=<Vec>, m=<float>, epsilon=<float>) -> Mat\"}",
         NULL,
         "Dirac fermion Feynman propagator ``S_F(k) = i (\316\263^\316\274 k_\316\274 + m) / (k\302\262 - m\302\262 + i\316\265)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 405 */
         "srmech.qm.propagators.feynman_photon_propagator",
@@ -7945,6 +8769,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"k_squared\":\"1.0\"},\"output\":\"Mat(4x4, complex)\"}",
         NULL,
         "Photon (massless gauge boson) Feynman propagator.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 406 */
         "srmech.qm.propagators.feynman_massive_vector_propagator",
@@ -7959,6 +8785,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"feynman_massive_vector_propagator(k=<Vec>, m=<float>, epsilon=<float>) -> Mat\"}",
         NULL,
         "Massive vector (e.g. W, Z) Feynman propagator in unitary gauge.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 407 */
         "srmech.qm.pseudo_hermitian.inner_product_eta",
@@ -7973,6 +8801,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"inner_product_eta(a=<Vec>, b=<Vec>, eta=<Mat>) -> complex\"}",
         NULL,
         "\316\267-deformed inner product ``\342\237\250a|b\342\237\251_\316\267 = \342\237\250a| \316\267 |b\342\237\251``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 408 */
         "srmech.qm.pseudo_hermitian.expectation_eta",
@@ -7987,6 +8817,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"expectation_eta(O=<Mat>, psi=<Vec>, eta=<Mat>) -> complex\"}",
         NULL,
         "\316\267-expectation value ``\342\237\250O\342\237\251_\316\267 = \342\237\250\317\210|\316\267 O|\317\210\342\237\251 / \342\237\250\317\210|\316\267|\317\210\342\237\251``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 409 */
         "srmech.qm.pseudo_hermitian.is_pseudo_hermitian",
@@ -8001,6 +8833,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"is_pseudo_hermitian(O=<Mat>, eta=<Mat>, atol=<float>) -> bool\"}",
         NULL,
         "Check ``O\342\200\240 \316\267 = \316\267 O`` (\316\267-pseudo-Hermiticity).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 410 */
         "srmech.qm.pseudo_hermitian.construct_eta_from_eigendecomposition",
@@ -8015,6 +8849,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"construct_eta_from_eigendecomposition(O=<Mat>, atol=<float>) -> Mat\"}",
         NULL,
         "Construct \316\267 so that ``O`` is \316\267-pseudo-Hermitian via eigendecomposition.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 411 */
         "srmech.qm.pseudo_hermitian.pseudo_hermitian_eigenvalues_real",
@@ -8029,6 +8865,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"pseudo_hermitian_eigenvalues_real(O=<Mat>, eta=<Mat>, atol=<float>) -> bool\"}",
         NULL,
         "Verify \316\267-pseudo-Hermitian ``O`` has all real eigenvalues.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 412 */
         "srmech.qm.gauge.su2_generators",
@@ -8043,6 +8881,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"su2_generators() -> tuple[Mat, Mat, Mat]\"}",
         NULL,
         "SU(2) fundamental generators ``T^a = \317\203^a / 2`` for a = 1, 2, 3.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 413 */
         "srmech.qm.gauge.su2_structure_constants",
@@ -8057,6 +8897,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"su2_structure_constants() -> list[list[list[float]]]\"}",
         NULL,
         "Levi-Civita ``\316\265^{abc}`` \342\200\224 SU(2) structure constants.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 414 */
         "srmech.qm.gauge.su3_gell_mann_matrices",
@@ -8071,6 +8913,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"su3_gell_mann_matrices() -> tuple[Mat, ...]\"}",
         NULL,
         "The eight Gell-Mann matrices ``\316\273^1, ..., \316\273^8`` (Hermitian traceless 3\303\2273).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 415 */
         "srmech.qm.gauge.su3_generators",
@@ -8085,6 +8929,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"su3_generators() -> tuple[Mat, ...]\"}",
         NULL,
         "SU(3) fundamental generators ``T^a = \316\273^a / 2`` for a = 1, ..., 8.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 416 */
         "srmech.qm.gauge.su3_structure_constants",
@@ -8099,6 +8945,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"su3_structure_constants() -> list[list[list[float]]]\"}",
         NULL,
         "SU(3) structure constants ``f^{abc}`` (totally antisymmetric).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 417 */
         "srmech.qm.gauge.lie_algebra_residual",
@@ -8113,6 +8961,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"lie_algebra_residual(generators=<tuple[Mat, ...]>, structure_constants=<list[list[list[float]]]>) -> float\"}",
         NULL,
         "Maximum Frobenius-norm violation of ``[T^a, T^b] = i f^{abc} T^c``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 418 */
         "srmech.qm.gauge.casimir_operator",
@@ -8127,6 +8977,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"casimir_operator(generators=<tuple[Mat, ...]>) -> Mat\"}",
         NULL,
         "Quadratic Casimir ``C_2 = T^a T^a`` (sum over generators).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 419 */
         "srmech.qm.gauge.casimir_eigenvalue",
@@ -8141,6 +8993,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"casimir_eigenvalue(generators=<tuple[Mat, ...]>) -> float\"}",
         NULL,
         "Scalar Casimir eigenvalue ``C_2(R)`` (assumes irreducible representation).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 420 */
         "srmech.qm.gauge.gauge_connection_matrix",
@@ -8155,6 +9009,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gauge_connection_matrix(A_components=<Vec>, generators=<tuple[Mat, ...]>) -> Mat\"}",
         NULL,
         "Lie-algebra connection ``A = A^a T^a`` from component vector.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 421 */
         "srmech.qm.gauge.gauge_path_segment",
@@ -8169,6 +9025,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"gauge_path_segment(A_components=<Vec>, generators=<tuple[Mat, ...]>, coupling=<float>) -> Mat\"}",
         NULL,
         "Path-segment holonomy ``U = exp(i g A^a T^a)`` along a small loop step.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 422 */
         "srmech.qm.gauge.wilson_loop_from_segments",
@@ -8183,6 +9041,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"wilson_loop_from_segments(A_segments=<Mat>, generators=<tuple[Mat, ...]>, coupling=<float>) -> Mat\"}",
         NULL,
         "Wilson loop ``U(C) = P exp(i g \342\210\256_C A) \342\211\210 \342\210\217_k exp(i g A_k)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 423 */
         "srmech.qm.sm.higgs_potential",
@@ -8197,6 +9057,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"higgs_potential(phi=<complex>, mu_squared=<float>, lam=<float>) -> float\"}",
         NULL,
         "Higgs potential ``V(\317\206) = -\316\274\302\262 |\317\206|\302\262 + \316\273 |\317\206|\342\201\264`` (mexican hat).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 424 */
         "srmech.qm.sm.higgs_vev",
@@ -8211,6 +9073,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"lam\":\"1.0\",\"mu_squared\":\"1.0\"},\"output\":\"0.7071067811865475\"}",
         NULL,
         "Higgs vacuum expectation value ``v = sqrt(\316\274\302\262 / (2\316\273))``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 425 */
         "srmech.qm.sm.weak_mixing_angle",
@@ -8225,6 +9089,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"g\":\"1.0\",\"g_prime\":\"1.0\"},\"output\":\"0.7853981633974483\"}",
         NULL,
         "Weak (Weinberg) mixing angle ``\316\270_W = atan(g' / g)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 426 */
         "srmech.qm.sm.w_boson_mass",
@@ -8239,6 +9105,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"g\":\"1.0\",\"vev\":\"1.0\"},\"output\":\"0.5\"}",
         NULL,
         "W boson mass ``M_W = g v / 2``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 427 */
         "srmech.qm.sm.z_boson_mass",
@@ -8253,6 +9121,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"g\":\"1.0\",\"g_prime\":\"1.0\",\"vev\":\"1.0\"},\"output\":\"0.7071067811865475\"}",
         NULL,
         "Z boson mass ``M_Z = v \342\210\232(g\302\262 + g'\302\262) / 2``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 428 */
         "srmech.qm.sm.weinberg_relation_residual",
@@ -8267,6 +9137,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"g\":\"1.0\",\"g_prime\":\"1.0\",\"vev\":\"1.0\"},\"output\":\"2.885271604110669e-17\"}",
         NULL,
         "Verify ``M_W = M_Z cos \316\270_W`` (Weinberg relation).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 429 */
         "srmech.qm.sm.electroweak_summary",
@@ -8281,6 +9153,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"g\":\"1.0\",\"g_prime\":\"1.0\",\"vev\":\"1.0\"},\"output\":\"{'M_W': 0.5, 'M_Z': 0.7071067811865475, 'theta_W_rad': 0.7853981633974483, 'cos_theta_W': 0.7071067811865476, 'sin_theta_W': 0.7071067811865475, 'weinberg_residual': 2.885271604110669e-17}\"}",
         NULL,
         "Bundle electroweak observables in one dict.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 430 */
         "srmech.qm.sm.fermion_mass_from_yukawa",
@@ -8295,6 +9169,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"vev\":\"1.0\",\"yukawa\":\"1.0\"},\"output\":\"0.7071067811865476\"}",
         NULL,
         "Fermion mass from Yukawa coupling: ``m_f = y_f v / \342\210\2322``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 431 */
         "srmech.qm.sm.ckm_matrix",
@@ -8309,6 +9185,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"theta_12\":\"1.0\",\"theta_13\":\"1.0\",\"theta_23\":\"1.0\"},\"output\":\"Mat(3x3, complex)\"}",
         NULL,
         "CKM quark-mixing matrix (standard parameterization).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 432 */
         "srmech.qm.sm.ckm_unitarity_residual",
@@ -8323,6 +9201,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"ckm_unitarity_residual(V=<Mat>) -> float\"}",
         NULL,
         "Frobenius norm of ``V V\342\200\240 - I`` \342\200\224 should be at machine precision.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 433 */
         "srmech.qm.octonion.octonion_mult_table",
@@ -8337,6 +9217,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"octonion_mult_table() -> list[list[list[int]]]\"}",
         NULL,
         "The ``(8, 8, 8)`` int8 structure-constant tensor ``C``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 434 */
         "srmech.qm.octonion.octonion_table_attestation",
@@ -8351,6 +9233,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"octonion_table_attestation() -> dict\"}",
         NULL,
         "MPR v1 self-attestation dict for the structure-constant table.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 435 */
         "srmech.qm.octonion.octonion_left_mult",
@@ -8365,6 +9249,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"octonion_left_mult(a=<HV>) -> Mat\"}",
         NULL,
         "Left-multiplication matrix ``L_a`` (``x -> a * x``) as an ``8x8`` real ``Mat``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 436 */
         "srmech.qm.octonion.octonion_right_mult",
@@ -8379,6 +9265,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"octonion_right_mult(a=<HV>) -> Mat\"}",
         NULL,
         "Right-multiplication matrix ``R_a`` (``x -> x * a``) as an ``8x8`` real ``Mat``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 437 */
         "srmech.qm.octonion.octonion_conjugate",
@@ -8393,6 +9281,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"octonion_conjugate(x=<HV>) -> list[float]\"}",
         NULL,
         "Octonion conjugate ``conj(x) = (x_0, -x_1, ..., -x_7)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 438 */
         "srmech.qm.octonion.octonion_norm",
@@ -8407,6 +9297,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"octonion_norm(x=<HV>) -> float\"}",
         NULL,
         "Octonion norm ``sqrt(sum x_i^2)`` (Class K + Class C; never abs()).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 439 */
         "srmech.qm.octonion.octonion_exp",
@@ -8421,6 +9313,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"theta\":\"1.0\"},\"output\":\"[0.5403023058681398, 0.8414709848078965, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]\"}",
         NULL,
         "The octonion Euler formula ``exp(\316\274\316\270) = cos \316\270\302\2671 + sin \316\270\302\267\316\274\314\202`` \342\200\224 the ODFT twiddle at the float64 boundary (0.9.0rc111; the dim-8 mirror of :func:`srmech.qm.quaternion.quaternion_exp`).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 440 */
         "srmech.qm.octonion.octonion_exp_series_truncate",
@@ -8435,6 +9329,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"num_terms\":\"3\",\"theta_den\":\"3\",\"theta_num\":\"3\"},\"output\":\"((389, 720), (4241, 5040), (0, 1), (0, 1), (0, 1), (0, 1), (0, 1), (0, 1))\"}",
         NULL,
         "EXACT-rational ``exp(e_axis\302\267\316\270)`` for a RATIONAL angle ``\316\270 = p/q`` \342\200\224 the series-truncate tier of the ODFT twiddle (the dim-8 mirror of :func:`srmech.qm.quaternion.quaternion_exp_series_truncate`).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 441 */
         "srmech.qm.octonion.octonion_twiddle",
@@ -8449,6 +9345,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"j\":\"3\",\"k\":\"3\",\"n_points\":\"3\"},\"output\":\"[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]\"}",
         NULL,
         "The ODFT twiddle factor ``exp(\317\203\302\267\316\274\302\2672\317\200jk/N)`` \342\200\224 the DFT-facing form of :func:`octonion_exp`, with \317\200 and the index reduction handled natively (0.9.0rc111; the dim-8 mirror of :func:`srmech.qm.quaternion.quaternion_twiddle`).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 442 */
         "srmech.qm.quaternion.quaternion_mult_table",
@@ -8463,6 +9361,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quaternion_mult_table() -> list[list[list[int]]]\"}",
         NULL,
         "The ``(4, 4, 4)`` int8 structure-constant tensor ``C`` of ``\342\204\215``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 443 */
         "srmech.qm.quaternion.quaternion_table_attestation",
@@ -8477,6 +9377,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quaternion_table_attestation() -> dict\"}",
         NULL,
         "MPR v1 self-attestation dict for the \342\204\215 structure-constant table.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 444 */
         "srmech.qm.quaternion.quaternion_left_mult",
@@ -8491,6 +9393,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quaternion_left_mult(q=<HV>) -> Mat\"}",
         NULL,
         "Left-multiplication matrix ``L_q`` (``x \342\206\222 q\302\267x``) as a ``4\303\2274`` real ``Mat``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 445 */
         "srmech.qm.quaternion.quaternion_right_mult",
@@ -8505,6 +9409,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quaternion_right_mult(q=<HV>) -> Mat\"}",
         NULL,
         "Right-multiplication matrix ``R_q`` (``x \342\206\222 x\302\267q``) as a ``4\303\2274`` real ``Mat``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 446 */
         "srmech.qm.quaternion.quaternion_conjugate",
@@ -8519,6 +9425,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quaternion_conjugate(x=<HV>) -> list[float]\"}",
         NULL,
         "Quaternion conjugate ``conj(x) = (x_0, -x_1, -x_2, -x_3)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 447 */
         "srmech.qm.quaternion.quaternion_norm",
@@ -8533,6 +9441,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quaternion_norm(x=<HV>) -> float\"}",
         NULL,
         "Quaternion norm ``sqrt(sum x_i\302\262)`` (Class K + Class C; never ``abs()``).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 448 */
         "srmech.qm.quaternion.quaternion_exp",
@@ -8547,6 +9457,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"theta\":\"1.0\"},\"output\":\"[0.5403023058681398, 0.8414709848078965, 0.0, 0.0]\"}",
         NULL,
         "The quaternion Euler formula ``exp(\316\274\316\270) = cos \316\270\302\2671 + sin \316\270\302\267\316\274\314\202`` \342\200\224 the QDFT twiddle at the float64 boundary.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 449 */
         "srmech.qm.quaternion.quaternion_exp_series_truncate",
@@ -8561,6 +9473,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"num_terms\":\"3\",\"theta_den\":\"3\",\"theta_num\":\"3\"},\"output\":\"((389, 720), (4241, 5040), (0, 1), (0, 1))\"}",
         NULL,
         "EXACT-rational ``exp(e_axis\302\267\316\270)`` for a RATIONAL angle ``\316\270 = p/q`` \342\200\224 the series-truncate tier of the twiddle (the exact form of the exactness convention).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 450 */
         "srmech.qm.quaternion.quaternion_twiddle",
@@ -8575,6 +9489,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"j\":\"3\",\"k\":\"3\",\"n_points\":\"3\"},\"output\":\"[1.0, 0.0, 0.0, 0.0]\"}",
         NULL,
         "The QDFT twiddle factor ``exp(\317\203\302\267\316\274\302\2672\317\200jk/N)`` \342\200\224 the DFT-facing form of :func:`quaternion_exp`, with \317\200 and the index reduction handled natively.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 451 */
         "srmech.qm.hurwitz.hurwitz_planes",
@@ -8589,6 +9505,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"hurwitz_planes() -> tuple\"}",
         NULL,
         "The oriented Fano planes per algebra (\342\204\202, \342\204\215, \360\235\225\206), DERIVED from the octonion multiplication table.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 452 */
         "srmech.qm.so8.so8_adjoint_basis",
@@ -8603,6 +9521,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"so8_adjoint_basis() -> tuple[Mat, ...]\"}",
         NULL,
         "The 28 ``so(8)`` generators, partitioned ``14 (g2) + 7 (L) + 7 (R)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 453 */
         "srmech.qm.so8.g2_subalgebra",
@@ -8617,6 +9537,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"g2_subalgebra() -> tuple[Mat, ...]\"}",
         NULL,
         "The 14 octonion derivations ``Der(O) = g2`` as antisymmetric ``8x8`` ``Mat``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 454 */
         "srmech.qm.so8.so7_subalgebra",
@@ -8631,6 +9553,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"so7_subalgebra() -> tuple[Mat, ...]\"}",
         NULL,
         "The 21-dim ``so(7)`` fixed space of the ``Z2`` swap (``D4 -> B3`` fold).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 455 */
         "srmech.qm.so8.an_embedding",
@@ -8645,6 +9569,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"an_embedding(imaginary_unit=<int>) -> dict\"}",
         NULL,
         "The bit-exact su(3) \342\212\225 3 \342\212\225 3bar Lie decomposition of ``g2 = Der(O)``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 456 */
         "srmech.qm.so8.quaternion_subalgebra_stabilizer",
@@ -8659,6 +9585,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"quaternion_subalgebra_stabilizer(quaternion_index=<int>) -> dict\"}",
         NULL,
         "The bit-exact 6-dim so(4) = su(2) \342\212\225 su(2) \342\212\202 g2 stabilising \342\204\215 \342\212\202 \360\235\225\206.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 457 */
         "srmech.qm.triality.triality_automorphism",
@@ -8673,6 +9601,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"triality_automorphism() -> Mat\"}",
         NULL,
         "The ``28x28`` order-3 outer automorphism ``tau = S_B\302\267S_C``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 458 */
         "srmech.qm.triality.triality_swap",
@@ -8687,6 +9617,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"triality_swap() -> Mat\"}",
         NULL,
         "The ``28x28`` ``Z2`` companion involution ``S_B``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 459 */
         "srmech.qm.triality.triality_cycle",
@@ -8701,6 +9633,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"triality_cycle(frame=<str>) -> str\"}",
         NULL,
         "The next frame in the order-3 rep-permutation ``8v -> 8s -> 8c -> 8v``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 460 */
         "srmech.qm.triality.triality_apply",
@@ -8715,6 +9649,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"triality_apply(x=<HV>, from_frame=<str>, to_frame=<str>) -> list[float]\"}",
         NULL,
         "Carry an 8-vector ``x`` between irrep frames per the cycle distance.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 461 */
         "srmech.qm.triality.triality_companions",
@@ -8729,6 +9665,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"triality_companions(g_v=<Mat>) -> tuple[Mat, ...]\"}",
         NULL,
         "The ``(g_s, g_c)`` companions solving Cartan's relation for ``g_v``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 462 */
         "srmech.qm.triality.triality_relation_residual",
@@ -8743,6 +9681,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"triality_relation_residual(g_v=<Mat>, g_s=<Mat>, g_c=<Mat>) -> float\"}",
         NULL,
         "Scalar deviation from Cartan's relation (Class K + Class C; never abs()).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 463 */
         "srmech.qm.triality.lean_isa_seventh_primitive",
@@ -8757,6 +9697,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"lean_isa_seventh_primitive() -> dict\"}",
         NULL,
         "The order-3 triality as the 7th lean-ISA primitive (the F220 core).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 464 */
         "srmech.introspect.publish",
@@ -8771,6 +9713,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"publish(remove_on_exit=<bool>) -> contextmanager[_PublishHandle]\"}",
         NULL,
         "Context manager that turns ON introspection emission.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 465 */
         "srmech.introspect.list",
@@ -8785,6 +9729,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"list() -> list[Run]\"}",
         NULL,
         "Enumerate active (+ recently-died) runs owned by the current user.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 466 */
         "srmech.introspect.by_pid",
@@ -8799,6 +9745,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"pid\":\"3\"},\"output\":\"None\"}",
         NULL,
         "Look up the most-recent run for one PID.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 467 */
         "srmech.introspect.describe",
@@ -8813,6 +9761,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"describe() -> dict\"}",
         NULL,
         "Return a structured, at-a-glance map of srmech's own shape.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 468 */
         "srmech.dsl.run_toml_chain",
@@ -8827,6 +9777,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"run_toml_chain(spec=<str>, input_value=<int | float | str | list | dict>) -> Any\"}",
         NULL,
         "Build a cascade from an inline TOML chain spec and run it.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 469 */
         "srmech.dsl.list_catalog_ops",
@@ -8841,6 +9793,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"list_catalog_ops() -> list[dict]\"}",
         NULL,
         "Enumerate the cascade-catalog ops available to a chain spec.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 470 */
         "srmech.dsl.list_ops",
@@ -8855,6 +9809,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"list_ops(source_keys=<list>) -> list[dict]\"}",
         NULL,
         "Unify the two op-discovery registries into ONE list (RBS-LM \302\24717 U3).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 471 */
         "srmech.dsl.list_class_surface",
@@ -8869,6 +9825,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"list_class_surface() -> list[dict]\"}",
         NULL,
         "Enumerate every user-declared class (the discovery companion).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 472 */
         "srmech.dsl.describe_class",
@@ -8883,6 +9841,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"describe_class(name=<str>) -> dict\"}",
         NULL,
         "Return a JSON-able description of the user-declared class ``name``.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 473 */
         "srmech.dsl.generate_class_descriptor",
@@ -8897,6 +9857,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"generate_class_descriptor(name=<str>, fields=<dict>, methods=<dict>, doc=<str>, kind=<str>) -> str\"}",
         NULL,
         "Render a ``[class]`` TOML descriptor string \342\200\224 the inverse of make_class (\302\24739).",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 474 */
         "srmech.rbs_lm.encode_aboutness",
@@ -8911,6 +9873,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"D\":\"3\",\"text\":\"'abc'\"},\"output\":\"HV(len=3, sectors=4, [2, 2, 0])\"}",
         NULL,
         "Encode ``text`` as one df-gated, name-weighted, order-aware aboutness HV.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 475 */
         "srmech.bus.decode_splice",
@@ -8925,6 +9889,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"decode_splice(framed=<bytes>, dna=<bytes>, window_ns=<int>, time_ns=<int>) -> tuple[bytes, int]\"}",
         "{\"dna\":\"b'<32-byte-dna>'\",\"framed\":\"b'<framed-bytes>'\"}",
         "Pure-function decode for tool-schema introspection.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 476 */
         "srmech.bus.list_endpoints",
@@ -8939,6 +9905,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"list_endpoints(cleanup_dead=<bool>) -> list[Endpoint]\"}",
         NULL,
         "Enumerate live (and recently-died) bus endpoints owned by this user.",
+        NULL, 0u,
+        NULL, 0u,
     },
     { /* 477 */
         "srmech.bus.by_name",
@@ -8953,6 +9921,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"input\":{\"name\":\"'abc'\"},\"output\":\"None\"}",
         NULL,
         "Look up one endpoint record by name. Returns ``None`` if not found.",
+        NULL, 0u,
+        NULL, 0u,
     },
 };
 

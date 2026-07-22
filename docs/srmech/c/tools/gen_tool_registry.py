@@ -173,6 +173,20 @@ def generate() -> str:
         b("};")
     b("")
 
+    # Per-entry composes / preserves string arrays (rc305 #943; only for
+    # composite ops — a leaf op emits NULL + 0 in the table row below).
+    b("/* Per-entry composes / preserves string arrays (rc305 #943). */")
+    for idx, t in enumerate(tools):
+        for field_name in ("composes", "preserves"):
+            seq = getattr(t, field_name, ()) or ()
+            if not seq:
+                continue
+            b(f"static const char *const ts_{field_name}_{idx}[] = {{")
+            for s in seq:
+                b(f"    {hoist.expr(s)},")
+            b("};")
+    b("")
+
     # The entry table.
     b("/* The tool registry, in get_tool_schema().tools order (== the order")
     b(" * the byte-identity hash-ratchet compares against). */")
@@ -199,6 +213,14 @@ def generate() -> str:
         b(f"        {hoist.opt_expr(_fragment(t.example))},")
         b(f"        {hoist.opt_expr(_fragment(t.smoke_test_hint))},")
         b(f"        {hoist.opt_expr(t.explanation)},")
+        # rc305 (#943): composes / preserves arrays + counts (NULL + 0 for a
+        # leaf op; the ts_{field}_{idx} arrays are emitted above for composites).
+        composes = getattr(t, "composes", ()) or ()
+        preserves = getattr(t, "preserves", ()) or ()
+        b("        %s, %du," % (
+            f"ts_composes_{idx}" if composes else "NULL", len(composes)))
+        b("        %s, %du," % (
+            f"ts_preserves_{idx}" if preserves else "NULL", len(preserves)))
         b("    },")
     b("};")
     b("")
