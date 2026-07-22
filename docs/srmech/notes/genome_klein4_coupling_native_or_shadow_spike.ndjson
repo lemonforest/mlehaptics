@@ -1,0 +1,7 @@
+{"part": "A_algebra", "op": "klein4_bind==quad_turn", "cayley_table": [[0, 1, 2, 3], [1, 0, 3, 2], [2, 3, 0, 1], [3, 2, 1, 0]], "identity": 0, "commutative": true, "associative": true, "self_inverse_all": true, "group": "V4=(Z2)^2 Klein-four (abelian, exponent-2)"}
+{"part": "B_empirical", "pool": "random_klein4", "trials": 20000, "assoc_fail": 0, "comm_fail": 0}
+{"part": "B_empirical", "pool": "genome_klein4_from_one", "trials": 20000, "assoc_fail": 0, "comm_fail": 0}
+{"part": "B_empirical", "pool": "mixed_quad_turn_chain", "trials": 20000, "assoc_fail": 0, "comm_fail": 0}
+{"part": "B_empirical", "pool": "TOTAL", "trials": 60000, "assoc_fail": 0, "comm_fail": 0, "assoc_frac": 0.0, "comm_frac": 0.0}
+{"part": "C_gauge", "object": "genome-coupled V4-gain Laplacian", "n_nodes": 8, "n_edges": 28, "n_switchings": 200, "max_gauge_dev": 0.0, "mean_gauge_dev": 0.0, "identity_control_dev": 0.0, "ref_octonion_shadow": 0.188, "ref_native_frame_free": 3.3e-15, "ref_identity_floor": 0.0}
+{"part": "VERDICT", "genome_coupling": "NATIVE (frame-free)", "reason": "the_one is projected to a klein4 HV by klein4_from_one and enters ONLY as an XOR operand; the OPERATION is V4 XOR, associative+commutative regardless of operand content; no octonion twist"}
