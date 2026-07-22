@@ -75,13 +75,20 @@ class TestCatalogLoader:
         "octonion_dft",
         "schur_complement",
         "encode_loe_content",   # §17 U2 (rc44): dotted-op text→instrument encoder
+        # §110/§112 (rc302): the Class-I modular family — a modular cascade
+        # (LCG / hash / the PCG64 step) is now DSL-declarable.
+        "cyclic_mod_mul",
+        "cyclic_mod_add",
+        "cyclic_mod_pow",
+        "cyclic_mod_inv",
+        "cyclic_mod_mul_wide",
     }
 
     def test_list_cascade_ops_matches_expected_set(self) -> None:
         assert set(list_cascade_ops()) == self.EXPECTED_OPS
 
     def test_list_cascade_ops_returns_fourteen(self) -> None:
-        assert len(list_cascade_ops()) == 15
+        assert len(list_cascade_ops()) == 20
 
     def test_list_cascade_ops_sorted(self) -> None:
         names = list_cascade_ops()
@@ -463,7 +470,7 @@ class TestCliDsl:
     def test_ops_lists_fourteen(self) -> None:
         result = _run_cli("dsl", "ops")
         assert result.returncode == 0, result.stderr
-        assert "15 total" in result.stdout
+        assert "20 total" in result.stdout
         # Each catalog name appears in the output.
         for name in ["chiral_flip", "magnitude", "cyclic_gcd",
                      "parallel_sector_dispatch", "kuramoto_step",
@@ -476,7 +483,7 @@ class TestCliDsl:
         assert result.returncode == 0, result.stderr
         records = json.loads(result.stdout)
         assert isinstance(records, list)
-        assert len(records) == 15
+        assert len(records) == 20
         for rec in records:
             assert "name" in rec
             assert "class_composition" in rec

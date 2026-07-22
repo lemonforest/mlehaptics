@@ -798,15 +798,18 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.cyclic.mod_mul", owner="srmech", category="cyclic",
-            summary="(a * b) mod n via russian-peasant doubling; portable "
-                    "across platforms without __int128.",
+            summary="Modular multiply — (a * b) mod n — overflow-safe via "
+                    "russian-peasant doubling; portable across platforms "
+                    "without __int128. Capped at uint64; use mod_mul_wide for "
+                    "a wider modulus (e.g. the 128-bit PCG64 step).",
             parameters=(P("a", "int", True), P("b", "int", True),
                         P("n", "int", True, "modulus > 0")),
             returns=R("int", "in [0, n)"),
         ),
         ToolEntry(
             name="srmech.amsc.cyclic.mod_pow", owner="srmech", category="cyclic",
-            summary="(a ** k) mod n via square-and-multiply.",
+            summary="Modular exponentiation — (a ** k) mod n — via "
+                    "square-and-multiply. Bounded by uint64.",
             parameters=(P("a", "int", True), P("k", "int", True),
                         P("n", "int", True, "modulus > 0")),
             returns=R("int", "in [0, n)"),
@@ -817,6 +820,33 @@ def _register_primitive_class_tools() -> None:
                     "Requires gcd(a, n) == 1 and n ≤ INT64_MAX.",
             parameters=(P("a", "int", True), P("n", "int", True)),
             returns=R("int", "in [1, n)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.bigint_mul", owner="srmech", category="cyclic",
+            summary="Bignum multiply — the uncapped integer product a * b "
+                    "(arbitrary precision) on srmech's own C bignum "
+                    "(srmech_bigint_mul); the building block a > 64-bit "
+                    "modular cascade (the PCG64 step) needs before the "
+                    "mod-reduce. No uint64 cap; Python a*b fallback when "
+                    "native is absent.",
+            parameters=(P("a", "int", True), P("b", "int", True)),
+            returns=R("int", "the exact product a * b"),
+            smoke_test_hint={"a": "6", "b": "7"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.mod_mul_wide", owner="srmech",
+            category="cyclic",
+            summary="Wide modular multiply — (a * b) mod n with NO uint64 cap "
+                    "(the 128-bit-capable modular multiply). Routes the "
+                    "product through srmech's C bignum (srmech_bigint_mul) "
+                    "and reduces mod n, so a > 64-bit modulus (the raw PCG64 "
+                    "LCG step at n = 2**128) is expressible where the capped "
+                    "mod_mul cannot. a / b non-negative, n > 0, any width.",
+            parameters=(P("a", "int", True, "non-negative, any width"),
+                        P("b", "int", True, "non-negative, any width"),
+                        P("n", "int", True, "modulus > 0, any width")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "2**64", "b": "3", "n": "2**128"},
         ),
         # ────────────────────────────────────────────────────────────
         # Class I — modular linear algebra: GF(p) reduced row-echelon form
@@ -6563,9 +6593,10 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.cascade.magnitude", owner="srmech",
             category="cascade",
-            summary="Class K pin-slot at zero, magnitude only (orientation "
-                    "discarded). The cascade-honest replacement for Python "
-                    "abs() when only |x| is needed." + PUBLISH_OPT_IN_NOTE,
+            summary="Absolute value |x| (magnitude) — Class K pin-slot at "
+                    "zero, magnitude only (orientation discarded). The "
+                    "cascade-honest replacement for Python abs() when only "
+                    "|x| is needed." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "float", True, "a real value"),),
             returns=R("float", "|x| as the Class K pin-slot magnitude"),
         ),
@@ -6590,6 +6621,88 @@ def _register_primitive_class_tools() -> None:
                     "instead of math.gcd." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "gcd(a, b)"),
+        ),
+        # Class I modular-arithmetic cascade ops (§110 / #1460) — the DSL-
+        # declarable face of the cyclic modular family, so a modular cascade
+        # (an LCG step = cyclic_mod_mul ∘ cyclic_mod_add) can be authored in a
+        # chain spec. Each delegates to the c_dispatched cyclic.* primitive
+        # (composition_of_c). DSL chain contract: the piped value is `a`; the
+        # operands (`b`/`k`/`n`) are bound stage kwargs.
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_mul", owner="srmech",
+            category="cascade",
+            summary="Modular multiply as a cascade stage — (a * b) mod n "
+                    "(delegates to srmech.amsc.cyclic.mod_mul). The DSL-"
+                    "declarable multiply stage of an LCG cascade: pipe the "
+                    "state as `a`, bind `b`=multiplier and `n`=modulus. Capped "
+                    "at uint64 (use cyclic_mod_mul_wide for a wider modulus)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped state"),
+                        P("b", "int", True, "multiplier"),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "7", "b": "6", "n": "10"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_add", owner="srmech",
+            category="cascade",
+            summary="Modular addition as a cascade stage — (a + b) mod n "
+                    "(delegates to srmech.amsc.cyclic.mod_add). The DSL-"
+                    "declarable increment stage of an LCG cascade: pipe the "
+                    "state as `a`, bind `b`=increment and `n`=modulus. Chained "
+                    "after cyclic_mod_mul it IS one linear-congruential step."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped state"),
+                        P("b", "int", True, "addend"),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "7", "b": "6", "n": "10"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_pow", owner="srmech",
+            category="cascade",
+            summary="Modular exponentiation as a cascade stage — (a ** k) mod "
+                    "n via square-and-multiply (delegates to "
+                    "srmech.amsc.cyclic.mod_pow). The DSL-declarable power "
+                    "stage of a multiplicative-hash / modular-power cascade: "
+                    "pipe the base as `a`, bind `k`=exponent and `n`=modulus."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped base"),
+                        P("k", "int", True, "exponent"),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "3", "k": "4", "n": "10"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_inv", owner="srmech",
+            category="cascade",
+            summary="Modular inverse as a cascade stage — a**-1 mod n via "
+                    "extended Euclidean (delegates to "
+                    "srmech.amsc.cyclic.mod_inv). The DSL-declarable un-do "
+                    "stage of a modular cascade: pipe the value as `a`, bind "
+                    "`n`=modulus. Requires gcd(a, n) == 1 and n <= INT64_MAX."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped value to invert"),
+                        P("n", "int", True, "modulus >= 2")),
+            returns=R("int", "in [1, n)"),
+            smoke_test_hint={"a": "3", "n": "7"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_mul_wide", owner="srmech",
+            category="cascade",
+            summary="Wide modular multiply as a cascade stage — (a * b) mod n "
+                    "with NO uint64 cap (delegates to "
+                    "srmech.amsc.cyclic.mod_mul_wide). The DSL-declarable "
+                    "multiply-and-reduce half of a 128-bit LCG (the raw PCG64 "
+                    "step at n = 2**128): pipe the state as `a`, bind "
+                    "`b`=multiplier and `n`=modulus, any width. The product "
+                    "rides srmech's C bignum (srmech_bigint_mul)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped state, any width"),
+                        P("b", "int", True, "multiplier, any width"),
+                        P("n", "int", True, "modulus > 0, any width")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "2**64", "b": "3", "n": "2**128"},
         ),
         ToolEntry(
             name="srmech.amsc.cascade.kuramoto_step", owner="srmech",
@@ -9193,7 +9306,7 @@ def _register_dsl_tools() -> None:
                 "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
                 "`reduce_op` (reduce); any other key forwards as a "
                 "cascade-op kwarg (e.g. `max_denominator`). Op names come "
-                "from `srmech.dsl.list_catalog_ops` (the 15-op cascade "
+                "from `srmech.dsl.list_catalog_ops` (the 20-op cascade "
                 "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
                 "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
                 "DSL composes Class M (cross-class bind) over the cascade "
@@ -9240,9 +9353,11 @@ def _register_dsl_tools() -> None:
                 "class composition + 1-line purpose BEFORE authoring a "
                 "spec. Sourced from the on-disk cascade-catalog TOML "
                 "descriptors (the SSoT), so it stays in lockstep with the "
-                "ops the runner can actually resolve (15 ops: "
+                "ops the runner can actually resolve (20 ops: "
                 "autocorrelation, best_rational_signed, chiral_dual, "
-                "chiral_flip, cyclic_gcd, encode_loe_content, kuramoto_step, "
+                "chiral_flip, cyclic_gcd, cyclic_mod_add, cyclic_mod_inv, "
+                "cyclic_mod_mul, cyclic_mod_mul_wide, cyclic_mod_pow, "
+                "encode_loe_content, kuramoto_step, "
                 "magnitude, net_chirality, octonion_dft, "
                 "parallel_sector_dispatch, pin_slot_at_zero, quaternion_dft, "
                 "reorient, schur_complement). Each record "

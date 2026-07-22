@@ -39,6 +39,11 @@
 {"exposed_as": "srmech.amsc.cascade.chiral_dual", "defined_at": "srmech.amsc.cascade.atoms.chiral_dual", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.chiral_flip", "defined_at": "srmech.amsc.cascade.atoms.chiral_flip", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.cyclic_gcd", "defined_at": "srmech.amsc.cascade.compose.cyclic_gcd", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.cyclic_mod_add", "defined_at": "srmech.amsc.cascade.compose.cyclic_mod_add", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.cyclic_mod_inv", "defined_at": "srmech.amsc.cascade.compose.cyclic_mod_inv", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.cyclic_mod_mul", "defined_at": "srmech.amsc.cascade.compose.cyclic_mod_mul", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.cyclic_mod_mul_wide", "defined_at": "srmech.amsc.cascade.compose.cyclic_mod_mul_wide", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.cyclic_mod_pow", "defined_at": "srmech.amsc.cascade.compose.cyclic_mod_pow", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.hamming_encode", "defined_at": "srmech.amsc.cascade.hamming.hamming_encode", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.hamming_syndrome", "defined_at": "srmech.amsc.cascade.hamming.hamming_syndrome", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.kuramoto_step", "defined_at": "srmech.amsc.cascade.compose.kuramoto_step", "bucket": "c_dispatched"}
@@ -46,11 +51,13 @@
 {"exposed_as": "srmech.amsc.cascade.net_chirality", "defined_at": "srmech.amsc.cascade.atoms.net_chirality", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.pin_slot_at_zero", "defined_at": "srmech.amsc.cascade.atoms.pin_slot_at_zero", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.reorient", "defined_at": "srmech.amsc.cascade.atoms.reorient", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cyclic.bigint_mul", "defined_at": "srmech.amsc.cyclic.bigint_mul", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cyclic.gcd", "defined_at": "srmech.amsc.cyclic.gcd", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cyclic.lcm", "defined_at": "srmech.amsc.cyclic.lcm", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cyclic.mod_add", "defined_at": "srmech.amsc.cyclic.mod_add", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cyclic.mod_inv", "defined_at": "srmech.amsc.cyclic.mod_inv", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cyclic.mod_mul", "defined_at": "srmech.amsc.cyclic.mod_mul", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cyclic.mod_mul_wide", "defined_at": "srmech.amsc.cyclic.mod_mul_wide", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cyclic.mod_pow", "defined_at": "srmech.amsc.cyclic.mod_pow", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cyclic.three_cycle", "defined_at": "srmech.amsc.cyclic.three_cycle", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.descriptor_hash", "defined_at": "srmech.amsc.descriptor.descriptor_hash", "bucket": "c_dispatched"}

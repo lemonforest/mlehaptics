@@ -17,7 +17,7 @@ Coverage:
 * ``run_toml_chain`` is one-shot callable THROUGH
   ``srmech.mcp._tools.invoke_tool`` (the end-to-end proof) with real
   1-op + 2-op specs, returning the correct result (NOT an error).
-* ``list_catalog_ops`` returns the 8 catalog ops with class + purpose.
+* ``list_catalog_ops`` returns the cascade-catalog ops with class + purpose.
 * The rc10 property-key validity ratchet + rc11 describe guards continue
   to hold for the new dsl entries (no leaked varargs sigil; clean keys).
 """
@@ -41,10 +41,11 @@ _DSL_TOOL_NAMES = (
     "srmech.dsl.list_catalog_ops",
 )
 
-#: The 11 cascade-catalog ops a chain spec may reference (rc12 catalog
-#: of 8 lean-ISA atoms/composites + the v0.6.0rc10 pair
-#: parallel_sector_dispatch + kuramoto_step + the v0.7.0rc8
-#: autocorrelation Class-L primitive).
+#: The cascade-catalog ops a chain spec may reference (the lean-ISA
+#: atoms/composites + parallel_sector_dispatch + kuramoto_step +
+#: autocorrelation + the quaternion/octonion DFT composites +
+#: schur_complement + encode_loe_content + the rc302 Class-I modular
+#: family). The count is not frozen in prose — the set below IS the SSoT.
 _EXPECTED_CATALOG_OPS = {
     "autocorrelation",
     "best_rational_signed",
@@ -61,6 +62,13 @@ _EXPECTED_CATALOG_OPS = {
     "reorient",
     "schur_complement",
     "encode_loe_content",   # §17 U2 (rc44): dotted-op text→instrument encoder
+    # rc302 (§110/§112): the Class-I modular family — a modular cascade
+    # (LCG / hash / the PCG64 step) is now DSL-declarable.
+    "cyclic_mod_mul",
+    "cyclic_mod_add",
+    "cyclic_mod_pow",
+    "cyclic_mod_inv",
+    "cyclic_mod_mul_wide",
 }
 
 
@@ -192,9 +200,10 @@ def test_dsl_run_toml_chain_unknown_op_raises() -> None:
 
 
 def test_dsl_list_catalog_ops() -> None:
-    """``srmech.dsl.list_catalog_ops`` returns the 11 catalog ops, each
+    """``srmech.dsl.list_catalog_ops`` returns the cascade-catalog ops, each
     with a name + A–N class + purpose, sourced from the on-disk
-    descriptors."""
+    descriptors (the ``_EXPECTED_CATALOG_OPS`` set is the SSoT for the
+    exact membership)."""
     result = invoke_tool("srmech.dsl.list_catalog_ops", {})
     assert isinstance(result, list)
     names = {rec["name"] for rec in result}
