@@ -202,6 +202,11 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_laplacian_k_extreme_modes_arena_bytes',
         'srmech_laplacian_k_extreme_modes_file',
     ),
+    'srmech.amsc.cyclic.bigint_mul': (
+        'srmech_bigint_mul',
+        'srmech_bigint_mul_ws',
+        'srmech_bigint_mul_ws_bound',
+    ),
     'srmech.amsc.cyclic.gcd': (
         'srmech_bigint_gcd',
         'srmech_bigint_gcd_ws_bound',

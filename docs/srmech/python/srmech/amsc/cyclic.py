@@ -21,12 +21,22 @@ API
 - :func:`mod_mul` — ``(a * b) mod n`` (overflow-safe via russian-peasant in C; Python's arbitrary-precision int handles this trivially in fallback).
 - :func:`mod_pow` — ``a ** k mod n`` via square-and-multiply.
 - :func:`mod_inv` — modular inverse via extended Euclidean (raises ``ValueError`` if no inverse exists).
+- :func:`bigint_mul` — the Class-I family's **uncapped** integer product
+  ``a * b`` (arbitrary precision) routed through srmech's own C bignum
+  ``srmech_bigint_mul``; the building block the wide modular multiply composes.
+- :func:`mod_mul_wide` — ``(a * b) mod n`` with **no uint64 cap** (the
+  128-bit-capable modular multiply; e.g. the PCG64 LCG step at ``n = 2**128``),
+  the product taken on the C bignum and reduced mod ``n``.
 
-All inputs are non-negative ``int`` (Python) / ``uint64`` (C). The
-native C surface is bounded by ``uint64`` range; the pure-Python
-fallback inherits Python's arbitrary-precision semantics but the
-parity test exercises only ``uint64`` inputs to keep the two paths
-byte-exact.
+The six capped operations (``gcd``/``lcm``/``mod_add``/``mod_mul``/``mod_pow``/
+``mod_inv``) take non-negative ``int`` (Python) / ``uint64`` (C); the native C
+surface is bounded by ``uint64`` range and the pure-Python fallback inherits
+Python's arbitrary-precision semantics, but the parity test exercises only
+``uint64`` inputs to keep the two paths byte-exact. ``mod_mul`` in particular is
+deliberately capped: it binds the fixed-64-bit ABI ``srmech_mod_mul`` and MUST
+stay so — :func:`mod_mul_wide` is the uncapped companion, not a widening of the
+guard. It is ERGONOMIC packaging of an existing capability (the raw
+``srmech_bigint_mul`` product + a Python reduce), not a new one.
 """
 
 from __future__ import annotations
@@ -42,6 +52,8 @@ __all__ = [
     "mod_mul",
     "mod_pow",
     "mod_inv",
+    "bigint_mul",
+    "mod_mul_wide",
     "three_cycle",
 ]
 
@@ -277,3 +289,88 @@ def mod_inv(a: int, n: int) -> int:
         return pow(a, -1, n)
     except ValueError as exc:
         raise ValueError(f"mod_inv({a}, {n}): no inverse (gcd != 1)") from exc
+
+
+def bigint_mul(a: int, b: int) -> int:
+    """The Class-I family's **uncapped** integer product ``a * b``.
+
+    Unlike :func:`mod_mul` (bounded by the fixed-64-bit ABI ``srmech_mod_mul``),
+    this is the arbitrary-precision multiply: it dispatches the product to
+    srmech's OWN caller-arena C bignum (``srmech_bigint_mul`` / the rc168
+    Karatsuba-arena entry) via ``_native.bigint_mul_c`` when the native library
+    is present, and falls back to CPython's arbitrary-precision ``a * b``
+    (itself a C ``PyLong`` multiply) — the COMPLETE alternative — otherwise.
+    Byte-identical both ways (the integer product is unique).
+
+    This is the building block the wide modular multiply composes: a modular
+    cascade over a > 64-bit modulus (the PCG64 128-bit LCG step) needs the raw
+    product before the mod-reduce, and that product must not overflow a
+    fixed-width register. srmech ships its own bignum in C precisely so this
+    stays a C path with NO Python-bignum dependency (the standalone-C
+    self-hosting discipline).
+
+    Args:
+        a: an ``int`` (signed; ``srmech_bigint`` carries the sign).
+        b: an ``int`` (signed).
+
+    Returns:
+        The exact product ``a * b`` (arbitrary precision).
+
+    Raises:
+        TypeError: if ``a`` or ``b`` is not an ``int`` (``bool`` is rejected —
+            it is a subclass of ``int`` but not a cyclic-arithmetic operand).
+    """
+    if type(a) is not int or type(b) is not int:
+        raise TypeError(
+            f"bigint_mul: a and b must be int (not bool); "
+            f"got {type(a).__name__}, {type(b).__name__}"
+        )
+    if _native.HAS_NATIVE and _native.LIB is not None:
+        prod = _native.bigint_mul_c(a, b)
+        if prod is not None:
+            return prod
+    return a * b
+
+
+def mod_mul_wide(a: int, b: int, n: int) -> int:
+    """``(a * b) mod n`` with **no uint64 cap** — the 128-bit-capable multiply.
+
+    The uncapped companion to :func:`mod_mul`. ``mod_mul`` is bounded to
+    ``uint64`` because it binds the fixed-64-bit C ABI ``srmech_mod_mul``, and
+    that guard is deliberate; ``mod_mul_wide`` does NOT weaken it. Instead it
+    routes the product through :func:`bigint_mul` (srmech's own C bignum,
+    ``srmech_bigint_mul``) and reduces the result mod ``n``. So it is a
+    ``composition_of_c`` op — packaging the EXISTING bignum-multiply capability
+    for wide moduli, not inventing a new one.
+
+    Worked instance — the raw PCG64 LCG step is
+    ``state <- (state * MULT + INC) mod 2**128``: the multiply-and-reduce half
+    is exactly ``mod_mul_wide(state, MULT, 2**128)``. (numpy's PCG64 default
+    multiplier ``0x2360ed051fc65da44385df649fccf645`` overflows any 64-bit
+    register, so the capped ``mod_mul`` cannot express it — this can.)
+
+    Args:
+        a: a non-negative ``int`` of ANY width (e.g. a 128-bit LCG state).
+        b: a non-negative ``int`` of ANY width (e.g. a 128-bit multiplier).
+        n: the modulus, a positive ``int`` of ANY width (e.g. ``2**128``).
+
+    Returns:
+        ``(a * b) mod n`` in ``[0, n)``.
+
+    Raises:
+        TypeError: if any argument is not an ``int`` (``bool`` rejected).
+        ValueError: if ``n <= 0`` or if ``a`` / ``b`` is negative.
+    """
+    for name, value in (("a", a), ("b", b), ("n", n)):
+        if type(value) is not int:
+            raise TypeError(
+                f"mod_mul_wide: {name} must be int (not bool); "
+                f"got {type(value).__name__}"
+            )
+    if n <= 0:
+        raise ValueError(f"mod_mul_wide requires n > 0; got {n}")
+    if a < 0 or b < 0:
+        raise ValueError(
+            f"mod_mul_wide: a and b must be non-negative; got {a}, {b}"
+        )
+    return bigint_mul(a, b) % n

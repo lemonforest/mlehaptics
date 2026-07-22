@@ -168,6 +168,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.atoms.chiral_dual",
     "srmech.amsc.cascade.atoms.net_chirality",
     "srmech.amsc.cascade.compose.cyclic_gcd",
+    # cascade.compose.cyclic_mod_* (rc302; §110/§112) — the Class-I modular
+    # family's cascade ops, registered under their STABLE flat public names
+    # ``srmech.amsc.cascade.cyclic_mod_{mul,add,pow,inv,mul_wide}`` (which ARE
+    # registered); the submodule-dotted names below are the SAME objects
+    # re-exported flat, exempt exactly like cyclic_gcd above.
+    "srmech.amsc.cascade.compose.cyclic_mod_mul",
+    "srmech.amsc.cascade.compose.cyclic_mod_add",
+    "srmech.amsc.cascade.compose.cyclic_mod_pow",
+    "srmech.amsc.cascade.compose.cyclic_mod_inv",
+    "srmech.amsc.cascade.compose.cyclic_mod_mul_wide",
     "srmech.amsc.cascade.compose.best_rational_signed",
     "srmech.amsc.cascade.compose.kuramoto_step",
     # cascade.compose.autocorrelation (v0.7.0rc8) — the Class-L circular
