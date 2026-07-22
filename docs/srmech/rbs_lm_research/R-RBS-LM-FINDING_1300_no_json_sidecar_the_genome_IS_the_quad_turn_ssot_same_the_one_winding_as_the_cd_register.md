@@ -30,3 +30,5 @@ The genome's `manifest.json` is already a proper MPR — but `genome_from_graph`
 - **Attestation-in-genome** ask noted for filing.
 
 Composes **F1299** (corrected — sidecar removed), **F1294** (one winding / two layer-roles), **F1278** (flattening removes structure — why the JSON is degraded), **F1223/F1224** (klein4 IS the carrier; order is the winding), **F1250/F1251** (the genome partition), `[[feedback_persist_genome_native_not_loose_json]]`, `[[feedback_no_doctoring_ssot_use_sublanguage_kernels]]`.
+
+**→ extended by F1301** — F1301 locates the quad turn in the triple: the **edges/operand/relational** slot is the held multi-perspective SUPERSET (metric + curvature + chirality coherently together; the op/responsion reads are single-Laplacian projections of it), and the perspective-count scales as the imaginary dimension up the fractal tower (1,3,7,15).
