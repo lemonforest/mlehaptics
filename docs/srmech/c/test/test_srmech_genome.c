@@ -1486,6 +1486,7 @@ int main(void)
         check_true(ss == SRMECH_OK, "rc280: section s2 extracted {30,50,30}");
         /* the counts themselves: ASCENDING ids, one count per DISTINCT section. */
         st = srmech_genome_section_counts(scdir, one_p, ld, NULL, NULL,
+                                          g_ws, sizeof(g_ws),
                                           ids, cnts, 16u, &n_out, &n_done);
         check_true(st == SRMECH_OK, "rc280: section_counts derives OK");
         check_true(n_out == 5u, "rc280: 5 distinct global ids");
@@ -1500,12 +1501,14 @@ int main(void)
             uint64_t tid[2], tct[2];
             size_t tn = 0u, td = 0u;
             srmech_status_t so = srmech_genome_section_counts(
-                scdir, one_p, ld, NULL, NULL, tid, tct, 2u, &tn, &td);
+                scdir, one_p, ld, NULL, NULL, g_ws, sizeof(g_ws),
+                tid, tct, 2u, &tn, &td);
             check_true(so == SRMECH_ERR_OVERFLOW,
                        "rc280: out_cap 2 < 5 -> SRMECH_ERR_OVERFLOW");
             check_true(tn == 5u, "rc280: OVERFLOW reports the TRUE n_out (5)");
             memset(ids, 0, sizeof(ids));
             so = srmech_genome_section_counts(scdir, one_p, ld, NULL, NULL,
+                                              g_ws, sizeof(g_ws),
                                               ids, cnts, tn, &n_out, &n_done);
             check_true(so == SRMECH_OK && n_out == 5u && ids[4] == 50u,
                        "rc280: retry at the reported cap succeeds");
@@ -1516,7 +1519,8 @@ int main(void)
             memset(ids, 0, sizeof(ids));
             memset(cnts, 0, sizeof(cnts));
             st = srmech_genome_section_counts(scdir, one_p, ld, sc_cancel_at,
-                                              &cancel_at, ids, cnts, 16u,
+                                              &cancel_at, g_ws, sizeof(g_ws),
+                                              ids, cnts, 16u,
                                               &n_out, &n_done);
             check_true(st == SRMECH_CANCELLED, "rc280: tick cancel -> SRMECH_CANCELLED");
             check_true(n_done == 1u, "rc280: cancelled after 1 whole section");
@@ -1532,11 +1536,14 @@ int main(void)
         {   /* a NULL tick runs exactly as the plain call; bad args are rejected. */
             size_t bn = 0u, bd = 0u;
             srmech_status_t b1 = srmech_genome_section_counts(
-                NULL, one_p, ld, NULL, NULL, ids, cnts, 16u, &bn, &bd);
+                NULL, one_p, ld, NULL, NULL, g_ws, sizeof(g_ws),
+                ids, cnts, 16u, &bn, &bd);
             srmech_status_t b2 = srmech_genome_section_counts(
-                scdir, one_p, 4u, NULL, NULL, ids, cnts, 16u, &bn, &bd);
+                scdir, one_p, 4u, NULL, NULL, g_ws, sizeof(g_ws),
+                ids, cnts, 16u, &bn, &bd);
             srmech_status_t b3 = srmech_genome_section_counts(
-                scdir, one_p, ld, NULL, NULL, ids, cnts, 16u, NULL, &bd);
+                scdir, one_p, ld, NULL, NULL, g_ws, sizeof(g_ws),
+                ids, cnts, 16u, NULL, &bd);
             check_true(b1 == SRMECH_ERR_NULL_ARG, "rc280: NULL dir -> NULL_ARG");
             check_true(b2 == SRMECH_ERR_BAD_INPUT, "rc280: leaf_dim < 52 -> BAD_INPUT");
             check_true(b3 == SRMECH_ERR_NULL_ARG, "rc280: NULL n_out -> NULL_ARG");

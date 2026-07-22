@@ -386,8 +386,10 @@ def test_the_renamed_c_symbol_is_present_and_the_old_one_is_gone():
     assert hasattr(lib, "srmech_klein4_sector_frame")
     assert hasattr(lib, "srmech_klein4_from_one")
     assert not hasattr(lib, "srmech_klein4_random")
-    assert _native.EXPECTED_ABI_VERSION == 8
-    assert _native.NATIVE_ABI_VERSION == 8
+    # ABI has since advanced past rc290's 8 (rc306 = 9, section_counts caller-arena);
+    # this pins the CURRENT value so a stale lib is still caught.
+    assert _native.EXPECTED_ABI_VERSION == 9
+    assert _native.NATIVE_ABI_VERSION == 9
 
 
 # ── the genome slot rename ────────────────────────────────────────────────

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc305"
-#define SRMECH_VERSION       "0.9.0rc305"
+#define SRMECH_VERSION_PRE   "rc306"
+#define SRMECH_VERSION       "0.9.0rc306"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -160,8 +160,24 @@ extern "C" {
  *      built from pre-rc290 source, since the ctypes shim binds by hasattr and
  *      the wrapper would silently run its pure body while every OTHER op kept
  *      dispatching into the mismatched build.
+ * v9 — v0.9.0rc306: srmech_genome_section_counts caller-arena conversion (§102 /
+ *      task #899). ADDS two params (void *ws, size_t ws_len) to the EXISTING
+ *      exported srmech_genome_section_counts signature — an existing-signature
+ *      change, so this is the FIRST bump of the ordinary kind (not a callback
+ *      typedef, not a removal). The op used three file-scope static scratch
+ *      buffers (a 32 MiB catalog arena, a 2^18-slot count table, a 64 KiB window)
+ *      + a static id counter; those made it BOTH corpus-capped (the 32 MiB arena
+ *      admitted ~11,000 chromosomes) AND non-reentrant. It now carves the count
+ *      table + window off the caller `ws` and hands the untouched tail to
+ *      genome_obtain_manifest as the catalog arena — no static state remains, so
+ *      the op is reentrant and the corpus bound is whatever `ws` the caller sizes
+ *      (via the new srmech_genome_section_counts_arena_bytes helper). The paired
+ *      Python ctypes argtypes gain the two params in lockstep; a stale ABI-8 lib
+ *      would push the OLD 10-arg wire shape at the NEW 12-arg binding, which the
+ *      version check is the only thing that catches (HAS_NATIVE would otherwise
+ *      stay true). GENOME_FORMAT_VERSION stays 15 — no on-disk format change.
  */
-#define SRMECH_ABI_VERSION 8
+#define SRMECH_ABI_VERSION 9
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -7040,33 +7056,56 @@ srmech_status_t srmech_genome_conserved_core(
  *                          a malformed catalog entry; a cap integrity failure; a
  *                          section whose region cannot satisfy its own declared
  *                          n_node_ids.
- *   SRMECH_ERR_OVERFLOW  — out_cap < *n_out (retry at *n_out), OR the scratch
- *                          below was too small for the store (then *n_out is 0,
- *                          which the Python binding reads as a DECLINE and runs
- *                          the pure body — correct, just not native).
+ *   SRMECH_ERR_OVERFLOW  — out_cap < *n_out (retry at *n_out), OR `ws` was too
+ *                          small for the store's catalog / count table (then
+ *                          *n_out is 0, which the Python binding reads as a
+ *                          DECLINE and runs the pure body — correct, just not
+ *                          native).
  *   SRMECH_CANCELLED     — a tick asked to stop (a clean section-boundary partial).
  *
- * NOT REENTRANT — this call has no `ws` arena parameter and JPL Rule 3 bans
- * malloc, so its scratch is FILE-SCOPE static: a catalog arena, an open-addressed
- * count table and a region window. Call from ONE thread at a time. All three are
- * compile-time overridable, and these defaults are what bound a native scan:
- *   SRMECH_GENOME_SC_ARENA_BYTES  (default 32 MiB) — the catalog arena. The store
- *       must satisfy srmech_genome_arena_bytes(body_len, n_chroms, 0) <= this;
- *       the per-chromosome term (~2.7 KiB) dominates, so ~11,000 sections.
- *   SRMECH_GENOME_SC_HASH_SLOTS   (default 2^18)   — count-table slots (a power
- *       of two); the distinct-id ceiling is 3/4 * slots == 196,608.
- *   SRMECH_GENOME_SC_WINDOW_BYTES (default 64 KiB) — the region read window;
- *       must exceed one block (leaf_dim <= 256).
- * ADDITIVE plain symbol reusing the EXISTING srmech_progress_tick_cb_t typedef —
- * SRMECH_ABI_VERSION stays 6, GENOME_FORMAT_VERSION stays 15. Integer/exact
- * (Class-N); no float, no abs (a count and an id have no sign to strip — not a
- * Class-K pin-slot site); no malloc, no goto, no recursion. */
+ * REENTRANT (rc306 / task #899 — v9). This call carries NO file-scope static
+ * scratch: the count table + the region window are carved off the caller `ws`,
+ * and its untouched TAIL is the catalog arena genome_obtain_manifest parses the
+ * manifest into. Two threads with DISJOINT `ws` buffers may run it concurrently.
+ * (Before rc306 the scratch was three process-global statics — a 32 MiB catalog
+ * arena, a 2^18-slot count table, a 64 KiB window — which capped the corpus at
+ * ~11,000 chromosomes AND made the call non-reentrant.)
+ *   ws / ws_len    : caller workspace. Size it with
+ *                    srmech_genome_section_counts_arena_bytes(body_len, n_chroms,
+ *                    out_cap): the count table is sized to hold out_cap distinct
+ *                    ids (so the table and the out arrays overflow on the SAME
+ *                    knob — grow out_cap and re-size ws), and the catalog term
+ *                    scales with n_chroms, so there is no compiled-in corpus cap.
+ *                    The region window is a fixed SRMECH_GENOME_SC_WINDOW_BYTES
+ *                    (64 KiB, must exceed one block, leaf_dim <= 256). A short ws
+ *                    leaves *n_out == 0 (the DECLINE above).
+ * GENOME_FORMAT_VERSION stays 15 (no on-disk format change). Adding the ws / ws_len
+ * params to this EXISTING signature changes its wire format, so SRMECH_ABI_VERSION
+ * bumps 8 -> 9 (see the ABI history above). Integer/exact (Class-N); no float, no
+ * abs (a count and an id have no sign to strip — not a Class-K pin-slot site); no
+ * malloc, no goto, no recursion. */
 srmech_status_t srmech_genome_section_counts(
     const char *dir,
     const unsigned char *coupling, uint32_t leaf_dim,
     srmech_progress_tick_cb_t tick, void *tick_ctx,
+    void *ws, size_t ws_len,
     uint64_t *out_ids, uint64_t *out_counts, size_t out_cap,
     size_t *n_out, size_t *n_done);
+
+/* rc306 (task #899) — the caller-arena sizing helper for
+ * srmech_genome_section_counts, mirroring the other *_arena_bytes helpers.
+ * Returns the minimum `ws_len` a scan needs:
+ *   body_len : the store's turns.bin byte length (the catalog arena copies it).
+ *   n_chroms : the manifest's chromosome count (INCLUDING the vocab karyotype).
+ *   out_cap  : the distinct-id capacity the caller sizes its out arrays to; the
+ *              internal count table is sized to hold at least this many ids under
+ *              the 3/4 open-addressing load bound (floored so a tiny store still
+ *              gets real headroom). Grow out_cap (and re-size ws) to census a
+ *              corpus with more distinct ids than the default ceiling.
+ * The total is: count-table + region-window + the srmech_genome_arena_bytes
+ * catalog term + per-carve alignment slop. Pure integer arithmetic. */
+size_t srmech_genome_section_counts_arena_bytes(size_t body_len, uint32_t n_chroms,
+                                                size_t out_cap);
 
 /* rc279 (§102 / F1252 STAGE 2 — ORGANIZE) — the C-native ORGANIZE orchestrator:
  * PROMOTE the conserved core then MERGE the retained plasmid sections into ONE

@@ -101,7 +101,18 @@ from typing import Optional
 #        host had no other regime to escape into (it is deterministic,
 #        never random), so leaving it would have re-created the
 #        Python-rooted taxonomy ADR-0009 names.
-EXPECTED_ABI_VERSION: int = 8
+#  v9 — v0.9.0rc306 (task #899): srmech_genome_section_counts caller-arena
+#        conversion. ADDS (void *ws, size_t ws_len) to the EXISTING
+#        exported signature — the first ORDINARY-kind bump (not a callback
+#        typedef, not a removal). Removes the three file-scope static
+#        scratch buffers (32 MiB catalog arena / 2^18 count table / 64 KiB
+#        window) that made the scan corpus-capped (~11k chromosomes) AND
+#        non-reentrant; the count table + window are now carved off the
+#        caller ws, the catalog is its tail. The ctypes argtypes below gain
+#        the two params in lockstep. A stale ABI-8 lib would push the OLD
+#        10-arg wire shape at the NEW 12-arg binding — only this version
+#        catches that.
+EXPECTED_ABI_VERSION: int = 9
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -3887,20 +3898,30 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_integrate_plasmids.restype = ctypes.c_int
         # §102/rc280 (F1253) — SECTION COUNTS: scan a plasmid section store and
         # derive {global_id: n_sections}, deriving the catalog ONCE and paging only
-        # each section's node_ids prefix (never its edges). REUSES the existing
-        # srmech_progress_tick_cb_t typedef (no NEW typedef) ->
-        # EXPECTED_ABI_VERSION stays 6.
+        # each section's node_ids prefix (never its edges). rc306 (task #899) added
+        # the (void *ws, size_t ws_len) caller arena — removing the 32 MiB static
+        # catalog arena + the non-reentrancy — so the wire format of this EXISTING
+        # signature changed: EXPECTED_ABI_VERSION 8 -> 9 (see the history above).
         if hasattr(lib, "srmech_genome_section_counts"):
             lib.srmech_genome_section_counts.argtypes = [
                 ctypes.c_char_p,                                   # dir
                 ctypes.POINTER(ctypes.c_uint8), ctypes.c_uint32,   # coupling, leaf_dim
                 _TICK_CFUNCTYPE, ctypes.c_void_p,                  # tick, tick_ctx
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len (rc306)
                 ctypes.POINTER(ctypes.c_uint64),                   # out_ids
                 ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # out_counts, out_cap
                 ctypes.POINTER(ctypes.c_size_t),                   # n_out
                 ctypes.POINTER(ctypes.c_size_t),                   # n_done
             ]
             lib.srmech_genome_section_counts.restype = ctypes.c_int
+        # rc306 (task #899) — the caller-arena sizing helper for the above. Pure
+        # integer arithmetic; ADDITIVE symbol (the ABI bump is driven by the
+        # section_counts signature change, not this new symbol).
+        if hasattr(lib, "srmech_genome_section_counts_arena_bytes"):
+            lib.srmech_genome_section_counts_arena_bytes.argtypes = [
+                ctypes.c_size_t, ctypes.c_uint32, ctypes.c_size_t,  # body_len, n_chroms, out_cap
+            ]
+            lib.srmech_genome_section_counts_arena_bytes.restype = ctypes.c_size_t
         # rc296 — the PAL read-path OPEN COUNTER. Diagnostic-only instrumentation
         # (no op depends on it, nothing branches on it) that makes the COMPILED
         # projection's I/O shape measurable from a test. Python's builtins.open /
@@ -17804,14 +17825,20 @@ def file_opens_reset_c() -> None:
     LIB.srmech_plat_file_opens_reset()
 
 
-#: The rc280 section-counts first-call output capacity (distinct global ids). A store
-#: with more distinct ids reports its true need via ``n_out`` and the call is retried
-#: once at exactly that size — so the arena is never over-allocated for a small store
-#: nor short for a corpus-scale one.
+#: The rc280 section-counts first-call distinct-id capacity. It sizes BOTH the out
+#: arrays AND (rc306) the C count table + caller ws, which is why the two overflow on
+#: the SAME knob: a store with more distinct ids reports its true need via ``n_out``
+#: (an exact retry) or overflows the table mid-scan (a geometric grow), and each retry
+#: re-sizes ws — so the arena is never over-allocated for a small store nor short for
+#: a corpus-scale one, with no compiled-in ceiling.
 _SECTION_COUNTS_CAP0: int = 1 << 16
+#: Bound on the retry-grow loop (geometric *4 on a table overflow) so a pathological
+#: input degrades to a pure-body DECLINE rather than looping forever.
+_SECTION_COUNTS_MAX_ATTEMPTS: int = 12
 
 
-def genome_section_counts_c(store, coupling, leaf_dim, progress=None):
+def genome_section_counts_c(store, coupling, leaf_dim, progress=None,
+                            *, body_len=None, n_chroms=None):
     """Native §102/rc280 section-count derivation (parity peer
     ``srmech_genome_section_counts``): scan a plasmid section store and return
     ``(ids, counts, n_done, cancelled)`` — ``ids`` ascending, ``counts[i]`` the number
@@ -17821,20 +17848,45 @@ def genome_section_counts_c(store, coupling, leaf_dim, progress=None):
     ``node_ids`` prefix of the region — never the edge bytes — which is what makes the
     scan O(P × node_ids) instead of O(P² × body). ``progress`` is the Python-only §101
     tick (a truthy return CANCELS at a section boundary; the partial counts still come
-    back, and the Python caller raises rather than returning them). Returns ``None`` to
-    DECLINE (symbol absent / bad shape / arena overflow) so the pure body runs.
-    Value-identical to the pure ``section_counts``."""
+    back, and the Python caller raises rather than returning them).
+
+    **rc306 (task #899) — the caller supplies the arena.** The C op no longer owns a
+    32 MiB static catalog arena (which capped the corpus at ~11k sections) or a static
+    count table / window. This binding sizes ``ws`` with the C
+    ``srmech_genome_section_counts_arena_bytes(body_len, n_chroms, cap)`` helper — so
+    ``body_len`` (turns.bin bytes) and ``n_chroms`` (manifest chromosome count incl.
+    vocab) are REQUIRED to run native; without them this DECLINES to the pure body. On
+    a count-table / out-array overflow it grows ``cap`` and re-sizes ``ws`` (exact when
+    the table held the ids and only the out arrays were short; geometric otherwise) so
+    a corpus with any number of distinct ids censuses natively given enough memory.
+
+    Returns ``None`` to DECLINE (symbol absent / bad shape / unsizable arena) so the
+    pure body runs. Value-identical to the pure ``section_counts``."""
     if not has_native_genome_section_counts():
         return None
+    if not (LIB is not None
+            and hasattr(LIB, "srmech_genome_section_counts_arena_bytes")):
+        return None                       # rc306 ws-sizing helper is required
     try:
         dim = int(leaf_dim)
         one = bytes(coupling)
         if dim <= 0 or dim > 256 or len(one) != dim:
             return None
+        if body_len is None or n_chroms is None:
+            return None                   # the caller must size the arena (see above)
+        blen = int(body_len)
+        nchr = int(n_chroms)
+        if blen < 0 or nchr < 0:
+            return None
         path = str(store).encode("utf-8")
         one_arr = (ctypes.c_uint8 * dim)(*one)
         cap = _SECTION_COUNTS_CAP0
-        for _attempt in (0, 1):
+        for _attempt in range(_SECTION_COUNTS_MAX_ATTEMPTS):
+            ws_len = int(LIB.srmech_genome_section_counts_arena_bytes(
+                ctypes.c_size_t(blen), ctypes.c_uint32(nchr), ctypes.c_size_t(cap)))
+            if ws_len <= 0:
+                return None
+            ws = (ctypes.c_char * ws_len)()
             ids = (ctypes.c_uint64 * cap)()
             cnts = (ctypes.c_uint64 * cap)()
             n_out = ctypes.c_size_t(0)
@@ -17846,12 +17898,17 @@ def genome_section_counts_c(store, coupling, leaf_dim, progress=None):
                 path,                       # bytes -> NUL-terminated const char *
                 one_arr, ctypes.c_uint32(dim),
                 tick, None,
+                ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
                 ids, cnts, ctypes.c_size_t(cap),
                 ctypes.byref(n_out), ctypes.byref(n_done))
             if box.get("exc") is not None:
                 raise box["exc"]
-            if rc == SRMECH_ERR_OVERFLOW and int(n_out.value) > cap:
-                cap = int(n_out.value)          # the peer reported its TRUE need
+            if rc == SRMECH_ERR_OVERFLOW:
+                need = int(n_out.value)
+                if need > cap:
+                    cap = need              # table held the ids; out arrays were short — exact retry
+                else:
+                    cap = cap * 4 + 1       # count table / ws too small — grow geometrically
                 continue
             if rc not in (SRMECH_OK, SRMECH_CANCELLED):
                 return None
