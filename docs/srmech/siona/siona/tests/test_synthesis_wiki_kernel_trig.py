@@ -187,15 +187,15 @@ def test_genome_store_add_kernel_o1_teach_rc123():
     from srmech.amsc import hdc
     from siona import genome_store as GS
     d = tempfile.mkdtemp(prefix="siona_teach_")
-    GS.pack_instrument([("seed", hdc.klein4_random(8192, seed=1))], d)
-    taught = hdc.klein4_random(8192, seed=99)
+    GS.pack_instrument([("seed", hdc.klein4_encode_bytes(b"fixture-1", 8192))], d)
+    taught = hdc.klein4_encode_bytes(b"fixture-99", 8192)
     GS.add_kernel(d, "taught", taught)                       # O(1) append
     assert GS.load_kernel(d, "taught") == list(taught)       # exact via back-compat trim
-    assert GS.load_kernel(d, "seed") == list(hdc.klein4_random(8192, seed=1))  # prior untouched
+    assert GS.load_kernel(d, "seed") == list(hdc.klein4_encode_bytes(b"fixture-1", 8192))  # prior untouched
     # a D not a multiple of leaf_dim must raise (needs the header / upstream kernel-append, §89)
     import pytest
     with pytest.raises(ValueError):
-        GS.add_kernel(d, "bad", hdc.klein4_random(8000, seed=7))  # 8000 % 256 != 0
+        GS.add_kernel(d, "bad", hdc.klein4_encode_bytes(b"fixture-7", 8000))  # 8000 % 256 != 0
 
 
 def test_photosynth_excite_propagate_harvest_rc132():

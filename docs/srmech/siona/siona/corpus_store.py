@@ -21,7 +21,11 @@ from srmech.amsc import hdc as _H
 from srmech.amsc import laplacian as _L          # NATIVE Class-L recursion: recursive_cut / fiedler_sparse (srmech gh#1097 / §52)
 
 LEAF = 64
-COUPLE = _H.klein4_random(LEAF, seed=1080)          # the store's canonical coupling (the sandroing/UNESCO 00073 seed)
+# F1304: the coupling is the SANDROING/UNESCO-00073 SOURCE — so it is content-addressed (the "knowledge it
+# contains"), NOT a random seed. Was klein4_random(LEAF, seed=1080): a DRAWN magic number (F1259) AND
+# klein4_random is DELETED at rc297. klein4 is a CARRIER; its shape comes from the_One or from content, never
+# a seed (user direction 2026-07-22). This de-magicks 1080 to a Class-A content-address, resonant + stable.
+COUPLE = _H.klein4_encode_bytes(b"UNESCO-ICH-00073:vanuatu-sand-drawings", LEAF)
 _REC = struct.Struct("<iii")                         # a neighbour record: (neighbour_id, metric, charge-from-this-view)
 _IDX = struct.Struct("<QI")                          # an index record: (byte_offset uint64, count uint32)
 

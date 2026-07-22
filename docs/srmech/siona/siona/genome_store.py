@@ -23,17 +23,21 @@ Klein-4 end to end.
 """
 import srmech.amsc.genome as _G
 from srmech.amsc import hdc as _hdc
+from srmech.amsc import cascade as _cascade
 
 __all__ = ["pack_instrument", "load_kernel", "load_instrument", "add_kernel", "LEAF_DIM"]
 
 LEAF_DIM = 256          # srmech LEAF_CAP — the tome width each D-vector chunks into
-_COUPLER_SEED = 0       # siona's canonical coupling invariant (deterministic; recorded in the manifest)
+# F1304: the coupler IS the_one winding (documented as such below). klein4 is a CARRIER; its shape comes
+# from the_One or from content, NEVER a random seed (user direction 2026-07-22; F1259/F1302). Was
+# klein4_random(seed=0) — a DRAWN seed that is not a resonant instrument, and klein4_random is DELETED at rc297.
+_ONE = _cascade.the_one(1, 0)   # sigma=1, theta=0 — siona's canonical the_one
 
 
 def _coupler(leaf_dim=LEAF_DIM):
     """siona's coupling invariant ``the_one`` — a deterministic Klein-4 leaf of width ``leaf_dim``.
     Pack and recall use the same one; it is also stored in the genome manifest on save."""
-    return _hdc.klein4_random(leaf_dim, seed=_COUPLER_SEED)
+    return _hdc.klein4_from_one(_ONE, leaf_dim)   # the_one winding, not a seed (F1304)
 
 
 def _leaves(hv, leaf_dim):
