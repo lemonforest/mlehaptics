@@ -112,7 +112,16 @@ from typing import Optional
 #        the two params in lockstep. A stale ABI-8 lib would push the OLD
 #        10-arg wire shape at the NEW 12-arg binding — only this version
 #        catches that.
-EXPECTED_ABI_VERSION: int = 9
+#  v10 — v0.9.0rc307 (task #903): the fiedler_sparse family ws_len UNIT unified
+#        to BYTES. srmech_laplacian_fiedler_sparse / _file / _file_progress
+#        guarded ws_len as a COUNT OF DOUBLES while the rest of the caller-arena
+#        surface counts BYTES. rc307 adds srmech_laplacian_fiedler_sparse_arena_bytes
+#        and flips the three guards to it, so ws_len is BYTES uniformly. That
+#        reinterprets an exported function's ws_len unit — a breaking wire-contract
+#        change — so the fiedler dispatch sites below pass BYTES in lockstep.
+#        The added *_arena_bytes symbol alone would NOT have bumped; the unit
+#        reinterpretation is what does.
+EXPECTED_ABI_VERSION: int = 10
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -16316,13 +16325,14 @@ def fiedler_sparse_file_native_progress(n, graph_path, max_iters, progress):
     ws = (ctypes.c_double * (9 * n))()
     box: dict = {}
     tramp = _make_tick_trampoline(progress, box)   # keep referenced across the call
+    # rc307: ws_len is BYTES (was a DOUBLES count) — pass the buffer's byte size.
     rc = LIB.srmech_laplacian_fiedler_sparse_file_progress(
         ctypes.c_uint32(n),
         graph_path.encode("utf-8"),
         ctypes.c_uint32(int(max_iters)),
         out,
         ws,
-        ctypes.c_size_t(9 * n),
+        ctypes.c_size_t(ctypes.sizeof(ws)),
         tramp, None,
     )
     if box.get("exc") is not None:

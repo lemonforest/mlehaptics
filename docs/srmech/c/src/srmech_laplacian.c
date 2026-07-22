@@ -1465,6 +1465,18 @@ static int fiedler_update_sign(uint32_t n, const double *v, double *prev)
     return all_match;
 }
 
+size_t srmech_laplacian_fiedler_sparse_arena_bytes(uint32_t n)
+{
+    /* Carved doubles: deg, s, p, v, u, t, y, prev — eight length-n vectors.
+     * Returned in BYTES (rc307: BYTES like the rest of the caller-arena surface;
+     * this replaces the pre-rc307 DOUBLES-count guard). n is a uint32 node count;
+     * 8*n*8 <= 2^37 never overflows size_t (64-bit). */
+    size_t doubles = (size_t)8u * (size_t)n;
+    assert(sizeof(double) == 8u);
+    assert(doubles / 8u == (size_t)n);            /* the *8 did not overflow size_t */
+    return doubles * sizeof(double);
+}
+
 srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n, uint32_t n_edges,
     const uint32_t *edge_u, const uint32_t *edge_v, const double *weights,
     uint32_t max_iters, double *out_vec, double *ws, size_t ws_len)
@@ -1476,10 +1488,10 @@ srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n, uint32_t n_edges,
     if (n_edges > 0u && (edge_u == NULL || edge_v == NULL)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (ws_len < (size_t)8u * n) {
+    if (ws_len < srmech_laplacian_fiedler_sparse_arena_bytes(n)) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    assert(ws_len >= (size_t)8u * n);    /* arena holds the 8 length-n scratch vecs */
+    assert(ws_len >= srmech_laplacian_fiedler_sparse_arena_bytes(n));  /* BYTES: 8 length-n vecs */
     for (uint32_t i = 0; i < n; i++) {
         out_vec[i] = 0.0;
     }
@@ -1694,10 +1706,10 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file_progress(uint32_t n, const 
     if (out_vec == NULL || ws == NULL || path == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (ws_len < (size_t)8u * n) {
+    if (ws_len < srmech_laplacian_fiedler_sparse_arena_bytes(n)) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    assert(ws_len >= (size_t)8u * n);
+    assert(ws_len >= srmech_laplacian_fiedler_sparse_arena_bytes(n));   /* BYTES (rc307) */
     for (uint32_t i = 0; i < n; i++) {
         out_vec[i] = 0.0;
     }
@@ -2346,8 +2358,13 @@ static srmech_status_t rcut_bisect(rcut_state_t *s, uint32_t count,
     assert(out_nleft != NULL && count >= 2u);
     srmech_status_t st = rcut_induced(s->graph_path, s->ids, count, s->sub_path);
     if (st != SRMECH_OK) { return st; }
+    /* rc307: fiedler_sparse_file now guards ws_len in BYTES (was a DOUBLES count).
+     * s->ws spans exactly 8n doubles up to s->fv, so for count <= n the arena is
+     * always sufficient — but the SIZE we pass must be BYTES to match the flipped
+     * guard, else this internal caller under-sizes the workspace 8x and corrupts. */
     st = srmech_laplacian_fiedler_sparse_file(count, s->sub_path, max_iters,
-                                              s->fv, s->ws, (size_t)8u * count);
+                                              s->fv, s->ws,
+                                              srmech_laplacian_fiedler_sparse_arena_bytes(count));
     if (st != SRMECH_OK) { return st; }
     uint32_t nl = 0u;
     for (uint32_t i = 0u; i < count; i++) {         /* Class-K pin-slot at 0 */
