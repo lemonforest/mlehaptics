@@ -221,6 +221,25 @@ static void ts_emit_param(ts_emit_t *e, const srmech_tool_param_t *pm)
     ts_cstr(e, "}");
 }
 
+/* Emit a JSON array of strings [ "a", "b", ... ] (compact separators,
+ * order-preserving), byte-identical to json.dumps(list, separators=(",",":")).
+ * rc305 (#943): the composes / preserves array shape. */
+static void ts_emit_str_array(ts_emit_t *e, const char *const *items,
+                              uint32_t count)
+{
+    uint32_t k;
+    assert(e != NULL);
+    assert(items != NULL || count == 0u);
+    ts_cstr(e, "[");
+    for (k = 0u; k < count; k++) {
+        if (k > 0u) {
+            ts_cstr(e, ",");
+        }
+        ts_json_string(e, items[k]);
+    }
+    ts_cstr(e, "]");
+}
+
 /* Emit one entry object: keys in sorted order, optional keys omitted
  * when absent (mirroring ToolEntry.to_jsonable). */
 static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
@@ -230,6 +249,11 @@ static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
     assert(t != NULL);
     ts_cstr(e, "{\"category\":");
     ts_json_string(e, t->category);
+    /* rc305 (#943): "composes" sorts between "category" and "example". */
+    if (t->composes_count > 0u) {
+        ts_cstr(e, ",\"composes\":");
+        ts_emit_str_array(e, t->composes, t->composes_count);
+    }
     if (t->example_json != NULL) {
         ts_cstr(e, ",\"example\":");
         ts_cstr(e, t->example_json);
@@ -256,6 +280,11 @@ static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
         ts_emit_param(e, &t->params[k]);
     }
     ts_cstr(e, "]");
+    /* rc305 (#943): "preserves" sorts between "parameters" and "returns". */
+    if (t->preserves_count > 0u) {
+        ts_cstr(e, ",\"preserves\":");
+        ts_emit_str_array(e, t->preserves, t->preserves_count);
+    }
     if (t->returns_type != NULL) {
         ts_cstr(e, ",\"returns\":{\"shape\":");
         ts_json_string(e, t->returns_shape);

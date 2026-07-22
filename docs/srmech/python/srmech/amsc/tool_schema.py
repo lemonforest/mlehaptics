@@ -194,6 +194,25 @@ class ToolEntry:
     #: Human-readable reason a tool is ``mcp_callable=False`` (surfaced to
     #: introspection consumers). ``None`` for callable tools.
     mcp_unavailable_reason: Optional[str] = None
+    #: v0.9.0rc305 (`#943`) — the Siona compose-a-cascade capstone. ``describe()``
+    #: / ``example`` are PER-OP; a cascade is CROSS-OP. These two fields carry the
+    #: chaining knowledge that otherwise lives only in CHANGELOG prose Siona
+    #: cannot read as data.
+    #:
+    #: ``composes`` — the ORDERED sub-ops this op is built from (or that a
+    #: declared cascade chains). Empty for a LEAF op (the correct default); the
+    #: call-order sequence of registered op names for a composite. Every listed
+    #: name MUST be a real registered tool (the `#943` claim-is-true contract —
+    #: ``test_composes_preserves_rc305.py`` fails otherwise). C-mirrored
+    #: (``srmech_tool_entry_t.composes``) → flows through the tool_schema_sha256
+    #: attestation like ``summary``/``example``.
+    composes: Tuple[str, ...] = ()
+    #: ``preserves`` — the INVARIANTS an op / cascade maintains (e.g. "byte-exact
+    #: per-community round-trip via kernel_to_graph"). The guarantees a composer
+    #: respects and a verifier checks. Each entry is a non-empty claim string.
+    #: Empty for a leaf op with no stated invariant. C-mirrored
+    #: (``srmech_tool_entry_t.preserves``).
+    preserves: Tuple[str, ...] = ()
 
     def to_jsonable(self) -> Dict[str, Any]:
         """Render as a JSON-serialisable dict. Used by
@@ -216,6 +235,14 @@ class ToolEntry:
             out["explanation"] = self.explanation
         if self.mcp_unavailable_reason is not None:
             out["mcp_unavailable_reason"] = self.mcp_unavailable_reason
+        # v0.9.0rc305 (`#943`): the compose/preserve layer. Optional keys —
+        # omitted when empty (the leaf-op default), mirroring the C serialiser's
+        # key-omission (ts_emit_entry) so the byte-identity contract holds. A
+        # JSON array of op-name / invariant strings, order-preserving.
+        if self.composes:
+            out["composes"] = list(self.composes)
+        if self.preserves:
+            out["preserves"] = list(self.preserves)
         return out
 
 
@@ -317,9 +344,9 @@ except Exception:  # noqa: BLE001
 
 def _apply_docs(entry: ToolEntry) -> ToolEntry:
     """Merge the generated `_TOOL_DOCS` floor into a ToolEntry: fill
-    ``explanation`` / ``example`` only when the entry does not already carry
-    its own (a hand-written literal on the registration always wins). No-op
-    when the tool has no docs entry."""
+    ``explanation`` / ``example`` / ``composes`` / ``preserves`` only when the
+    entry does not already carry its own (a hand-written literal on the
+    registration always wins). No-op when the tool has no docs entry."""
     doc = _TOOL_DOCS.get(entry.name)
     if not doc:
         return entry
@@ -327,9 +354,19 @@ def _apply_docs(entry: ToolEntry) -> ToolEntry:
     expl = entry.explanation if entry.explanation is not None \
         else doc.get("explanation")
     ex = entry.example if entry.example is not None else doc.get("example")
-    if expl is entry.explanation and ex is entry.example:
+    # v0.9.0rc305 (`#943`): the compose/preserve layer rides the same
+    # curation floor as explanation/example. A non-empty tuple on the
+    # registration wins; else the curated list (coerced to a tuple so the
+    # ToolEntry stays hashable / frozen-friendly) fills in.
+    composes = entry.composes if entry.composes \
+        else tuple(doc.get("composes", ()))
+    preserves = entry.preserves if entry.preserves \
+        else tuple(doc.get("preserves", ()))
+    if (expl is entry.explanation and ex is entry.example
+            and composes == entry.composes and preserves == entry.preserves):
         return entry
-    return replace(entry, explanation=expl, example=ex)
+    return replace(entry, explanation=expl, example=ex,
+                   composes=composes, preserves=preserves)
 
 
 def register_tool(entry: ToolEntry) -> None:

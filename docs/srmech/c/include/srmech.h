@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc304"
-#define SRMECH_VERSION       "0.9.0rc304"
+#define SRMECH_VERSION_PRE   "rc305"
+#define SRMECH_VERSION       "0.9.0rc305"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4689,6 +4689,14 @@ typedef struct {
     const char               *example_json;    /* pre-canonical compact-ASCII JSON fragment, or NULL */
     const char               *smoke_json;      /* pre-canonical compact-ASCII JSON fragment, or NULL */
     const char               *explanation;     /* NUL-terminated decoded UTF-8 hint, or NULL (rc240 #838) */
+    /* rc305 (#943): the compose/preserve cascade layer. Ordered sub-op names
+     * (`composes`) + maintained-invariant strings (`preserves`); each element
+     * is NUL-terminated decoded UTF-8. NULL iff the matching *_count is 0 (a
+     * leaf op) — mirroring ToolEntry.to_jsonable's key omission. */
+    const char *const        *composes;        /* NULL iff composes_count == 0  */
+    uint32_t                  composes_count;
+    const char *const        *preserves;       /* NULL iff preserves_count == 0 */
+    uint32_t                  preserves_count;
 } srmech_tool_entry_t;
 
 /* Number of registered tool entries in the const table. */
