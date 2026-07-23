@@ -701,9 +701,9 @@ static const srmech_tool_param_t ts_params_97[] = {
     { "denominator", "int", 1, "> 0" },
 };
 static const srmech_tool_param_t ts_params_98[] = {
-    { "numerator", "int", 1, "" },
-    { "denominator", "int", 1, "" },
-    { "max_denominator", "int", 1, "> 0" },
+    { "numerator", "int", 1, "\342\211\245 0; arbitrary magnitude" },
+    { "denominator", "int", 1, "> 0; arbitrary magnitude" },
+    { "max_denominator", "int", 1, "> 0; arbitrary magnitude" },
 };
 static const srmech_tool_param_t ts_params_99[] = {
     { "residue", "int", 1, "the residue r (reduced into [0, M) internally)" },
@@ -3920,7 +3920,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.rational.best_rational",
         "srmech",
         "rational",
-        "Best rational p'/q' with q' \342\211\244 max_denominator approximating p/q via continued-fraction convergents (Stern-Brocot path).",
+        "Best rational p'/q' with q' \342\211\244 max_denominator approximating p/q via continued-fraction convergents (Stern-Brocot path). Inputs are non-negative ints with NO uint64 ceiling (#898): u64-fit inputs take the fast native path (byte-identical to the pure walk); a bignum coordinate (> 2**64 \342\200\224 e.g. an exact Class-N log anchor) carries Python bigints, bounded only by max_denominator (Lam\303\251 caps the CF depth).",
         ts_params_98, 3u,
         "tuple[int, int]",
         "(p', q')",

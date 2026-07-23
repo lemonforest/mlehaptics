@@ -2524,9 +2524,15 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.rational.best_rational", owner="srmech",
             category="rational",
             summary="Best rational p'/q' with q' ≤ max_denominator approximating "
-                    "p/q via continued-fraction convergents (Stern-Brocot path).",
-            parameters=(P("numerator", "int", True), P("denominator", "int", True),
-                        P("max_denominator", "int", True, "> 0")),
+                    "p/q via continued-fraction convergents (Stern-Brocot path). "
+                    "Inputs are non-negative ints with NO uint64 ceiling (#898): "
+                    "u64-fit inputs take the fast native path (byte-identical to "
+                    "the pure walk); a bignum coordinate (> 2**64 — e.g. an exact "
+                    "Class-N log anchor) carries Python bigints, bounded only by "
+                    "max_denominator (Lamé caps the CF depth).",
+            parameters=(P("numerator", "int", True, "≥ 0; arbitrary magnitude"),
+                        P("denominator", "int", True, "> 0; arbitrary magnitude"),
+                        P("max_denominator", "int", True, "> 0; arbitrary magnitude")),
             returns=R("tuple[int, int]", "(p', q')"),
         ),
         # ────────────────────────────────────────────────────────────
