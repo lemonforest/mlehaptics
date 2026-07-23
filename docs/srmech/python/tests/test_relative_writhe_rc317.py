@@ -25,10 +25,10 @@ import math
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc.genome import (
-    relative_writhe, discrete_writhe, cwf_consistency_mod2,
-    _CLASSN_PLATFORM_DEN_BITS, _classn_precision,
+from srmech.amsc.rational import (
+    relative_writhe, _CLASSN_PLATFORM_DEN_BITS, _classn_precision,
 )
+from srmech.amsc.genome import discrete_writhe, cwf_consistency_mod2
 
 
 # ── float ORACLE (copied from the verified fuller_second_spike.py) ──────────

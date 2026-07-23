@@ -413,16 +413,6 @@ _KNOWN_GLUE_GAPS = {
         "native but the loop that assembles the plan is not",
         "c_host_parity_audit_rc273 §2 G7",
     ),
-    "srmech.amsc.genome.relative_writhe": (
-        "rc317 (#1308): the Fuller Second-Theorem relative writhe — a geometry READ "
-        "whose per-step primitives (Class-N sqrt / pi-cascade / best_rational) are "
-        "C-backed, but whose Fuller-integrand assembly + dual-precision best_rational "
-        "ANCHORING LOOP is Python-only, so it is not a whole-op C entry a bare-C host "
-        "can call. Peer to discrete_writhe (which owns srmech_genome_discrete_writhe); "
-        "a srmech_genome_relative_writhe whole-op peer is the eventual close",
-        "c_host_parity_audit rc317 #1308 (Fuller Second-Theorem exact-rational "
-        "relative writhe — composition-only ship; whole-op C peer pending)",
-    ),
     "srmech.amsc.plasmid.add_plasmid": (
         "an ORCHESTRATOR over three C peers (plasmid_extract / conserved_core / "
         "integrate_plasmids) with no whole-op entry of its own — ADR-0003 §3 names "
@@ -444,15 +434,7 @@ _KNOWN_GLUE_GAPS = {
 #: per-node classify; G2 needs all of G3 plus its in-RAM _induced_subgraph
 #: relabel, the per-group graph_to_kernel -> mint_strand loop and strand
 #: assembly. They are separate rcs, not free riders on this one.
-#:
-#: ⚠️ rc317 (#1308) RAISED this 10 -> 11 for genome.relative_writhe (the Fuller
-#: Second-Theorem relative writhe), shipped as composition_of_c per the op's
-#: spec (its Class-N primitives sqrt / pi-cascade / best_rational are C-backed,
-#: but the Fuller-integrand + dual-precision anchoring LOOP is Python glue). By
-#: this ratchet's own policy that is a REGRESSION, not a fix — flagged for review:
-#: the clean close is a whole-op srmech_genome_relative_writhe C peer (then move
-#: it to _WHOLE_OP_C_PEER, reclassify c_dispatched, and lower this back to 10).
-CEIL_WIRE_GLUE_GAPS = 11
+CEIL_WIRE_GLUE_GAPS = 10
 
 
 def _wire_scope(cls):

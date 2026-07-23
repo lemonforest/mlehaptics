@@ -760,8 +760,10 @@ static const srmech_tool_param_t ts_params_109[] = {
     { "num_terms", "int", 1, "truncation N, 0 <= N <= 50" },
 };
 static const srmech_tool_param_t ts_params_110[] = {
-    { "x", "float", 1, "angle in radians" },
-    { "terms", "int", 0, "Taylor terms (keyword-only); default 24" },
+    { "embedding", "list", 1, "the deformed curve C \342\200\224 vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational \342\200\224 floats rejected)" },
+    { "reference", "list", 1, "the base curve C0 \342\200\224 SAME vertex count as embedding (Fuller's integral pairs t0_i with t_i by index)" },
+    { "closed", "bool", 0, "keyword-only; True (default) wraps the polygon (central-difference tangents with the P[n-1]<->P[0] closure); False = an open polyline" },
+    { "precision", "int", 0, "keyword-only; None (default) -> the platform-bounded projection; a positive int P -> the srmech-native bigint projection lengthed by P" },
 };
 static const srmech_tool_param_t ts_params_111[] = {
     { "x", "float", 1, "angle in radians" },
@@ -772,198 +774,202 @@ static const srmech_tool_param_t ts_params_112[] = {
     { "terms", "int", 0, "Taylor terms (keyword-only); default 24" },
 };
 static const srmech_tool_param_t ts_params_113[] = {
+    { "x", "float", 1, "angle in radians" },
+    { "terms", "int", 0, "Taylor terms (keyword-only); default 24" },
+};
+static const srmech_tool_param_t ts_params_114[] = {
     { "x", "float", 1, "argument" },
     { "terms", "int", 0, "atan Taylor terms (keyword-only); default 40" },
 };
-static const srmech_tool_param_t ts_params_114[] = {
+static const srmech_tool_param_t ts_params_115[] = {
     { "y", "float", 1, "ordinate" },
     { "x", "float", 1, "abscissa" },
     { "terms", "int", 0, "atan Taylor terms (keyword-only); default 40" },
 };
-static const srmech_tool_param_t ts_params_115[] = {
+static const srmech_tool_param_t ts_params_116[] = {
     { "x", "float", 1, "real exponent" },
     { "terms", "int", 0, "exact-rational reference Taylor terms (keyword-only); default 24" },
 };
-static const srmech_tool_param_t ts_params_116[] = {
+static const srmech_tool_param_t ts_params_117[] = {
     { "x", "float", 1, "argument, x > 0" },
     { "terms", "int", 0, "exact-rational reference Taylor terms (keyword-only); default 13" },
 };
-static const srmech_tool_param_t ts_params_117[] = {
+static const srmech_tool_param_t ts_params_118[] = {
     { "theta", "float", 1, "phase angle in radians" },
     { "terms", "int", 0, "trig Taylor terms (keyword-only); default 24" },
 };
-static const srmech_tool_param_t ts_params_118[] = {
+static const srmech_tool_param_t ts_params_119[] = {
     { "z", "complex", 1, "complex exponent" },
     { "terms", "int", 0, "trig Taylor terms (keyword-only); default 24" },
 };
-static const srmech_tool_param_t ts_params_119[] = {
+static const srmech_tool_param_t ts_params_120[] = {
     { "x", "float", 1, "radicand, x >= 0" },
     { "precision_bits", "int", 0, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade" },
 };
-static const srmech_tool_param_t ts_params_120[] = {
+static const srmech_tool_param_t ts_params_121[] = {
     { "a", "float", 1, "first leg" },
     { "b", "float", 1, "second leg" },
     { "precision_bits", "int", 0, "scaled-integer precision (keyword-only); default 64" },
 };
-static const srmech_tool_param_t ts_params_121[] = {
+static const srmech_tool_param_t ts_params_122[] = {
     { "x", "list[complex]", 1, "input samples" },
     { "inverse", "bool", 0, "keyword-only; conjugate twiddle + 1/N scale; default False" },
-};
-static const srmech_tool_param_t ts_params_122[] = {
-    { "x", "list[complex]", 1, "input spectrum" },
 };
 static const srmech_tool_param_t ts_params_123[] = {
+    { "x", "list[complex]", 1, "input spectrum" },
+};
+static const srmech_tool_param_t ts_params_124[] = {
     { "x", "list[complex]", 1, "input samples" },
     { "inverse", "bool", 0, "keyword-only; conjugate twiddle + 1/N scale; default False" },
 };
-static const srmech_tool_param_t ts_params_124[] = {
+static const srmech_tool_param_t ts_params_125[] = {
     { "x", "list[complex]", 1, "input spectrum" },
 };
-static const srmech_tool_param_t ts_params_125[] = {
+static const srmech_tool_param_t ts_params_126[] = {
     { "a", "list[list[complex]]", 1, "left matrix (list of rows)" },
     { "b", "list[list[complex]]", 1, "right matrix (list of rows)" },
 };
-static const srmech_tool_param_t ts_params_126[] = {
+static const srmech_tool_param_t ts_params_127[] = {
     { "signal", "list[complex]", 1, "integer / Gaussian-integer power-of-two-length sequence (integer-valued)" },
     { "inverse", "bool", 0, "keyword-only; conjugate exponent zeta^(-nk); default False" },
 };
-static const srmech_tool_param_t ts_params_127[] = {
+static const srmech_tool_param_t ts_params_128[] = {
     { "signal", "list[complex]", 1, "integer / Gaussian-integer power-of-two-length sequence (integer-valued)" },
 };
-static const srmech_tool_param_t ts_params_128[] = {
+static const srmech_tool_param_t ts_params_129[] = {
     { "spectrum", "list[tuple[list[int], list[int]]]", 1, "exact Z[zeta_N] integer spectrum from exact_dft / exact_idft" },
     { "scale", "int", 0, "keyword-only; divide the lifted result (scale=N normalises an inverse); default 1" },
 };
-static const srmech_tool_param_t ts_params_129[] = {
+static const srmech_tool_param_t ts_params_130[] = {
     { "a", "Mat", 1, "(m, n) real or complex 2-D matrix" },
     { "mode", "str", 0, "keyword-only; 'reduced' (default) or 'complete'" },
 };
-static const srmech_tool_param_t ts_params_130[] = {
+static const srmech_tool_param_t ts_params_131[] = {
     { "a", "Mat", 1, "(m, n) real or complex 2-D matrix" },
     { "full_matrices", "bool", 0, "keyword-only; only False (reduced form) is supplied" },
 };
-static const srmech_tool_param_t ts_params_131[] = {
+static const srmech_tool_param_t ts_params_132[] = {
     { "a", "Mat", 1, "(m, n) coefficient matrix, m>=n" },
     { "b", "Mat | Vec", 1, "(m,) or (m, k) right-hand side(s)" },
 };
-static const srmech_tool_param_t ts_params_132[] = {
+static const srmech_tool_param_t ts_params_133[] = {
     { "subscripts", "str", 1, "einsum subscript string, e.g. 'ij,jk->ik'" },
     { "operands", "tuple[Mat, ...]", 0, "the input arrays (variadic)" },
 };
-static const srmech_tool_param_t ts_params_133[] = {
+static const srmech_tool_param_t ts_params_134[] = {
     { "a", "Mat", 1, "(n, n) real or complex square matrix" },
     { "max_sweeps", "int", 0, "keyword-only; per-eigenvalue iteration cap factor (default 500)" },
 };
-static const srmech_tool_param_t ts_params_134[] = {
+static const srmech_tool_param_t ts_params_135[] = {
     { "a", "Mat", 1, "(n, n) square matrix (integer entries \342\206\222 exact integer coefficients)" },
 };
-static const srmech_tool_param_t ts_params_135[] = {
+static const srmech_tool_param_t ts_params_136[] = {
     { "a", "Mat", 1, "(n, n) integer square matrix" },
     { "bits", "int", 0, "keyword-only; bisection refinement precision in bits (default 64)" },
     { "return_intervals", "bool", 0, "keyword-only; return exact (lo, hi) rational intervals instead of floats (real-only path); default False" },
     { "include_complex", "bool", 0, "also isolate+return the complex eigenvalues (default: real only)" },
 };
-static const srmech_tool_param_t ts_params_136[] = {
+static const srmech_tool_param_t ts_params_137[] = {
     { "basis", "list", 1, "a list of m integer row-vectors (each length n, arbitrary-precision ints) \342\200\224 an independent lattice basis" },
     { "delta", "tuple[int, int]", 0, "the Lov\303\241sz parameter as an exact rational pair (num, den) in (1/4, 1]; default (3, 4)" },
 };
-static const srmech_tool_param_t ts_params_137[] = {
+static const srmech_tool_param_t ts_params_138[] = {
     { "coef_list", "list[int]", 1, "CF coefficients [a_0; a_1, ..., a_n]; a_0 may be negative, a_k > 0 for k > 0" },
 };
-static const srmech_tool_param_t ts_params_138[] = {
+static const srmech_tool_param_t ts_params_139[] = {
     { "num_digits", "int", 1, "0 <= num_digits <= 1000" },
     { "max_cascade_depth", "int", 0, "default None (auto-scaled from num_digits); cascade doubling depth in [1, 2000]" },
     { "precision_bits", "int", 0, "default None (auto-scaled from num_digits); scaled-integer \342\210\232 bit precision in [64, 32768]" },
 };
-static const srmech_tool_param_t ts_params_139[] = {
+static const srmech_tool_param_t ts_params_140[] = {
     { "num_digits", "int", 1, "0 <= num_digits <= 100000" },
 };
-static const srmech_tool_param_t ts_params_140[] = {
+static const srmech_tool_param_t ts_params_141[] = {
     { "n", "int", 1, "kernel size (positive int \342\200\224 number of elements/leaves to store)" },
 };
-static const srmech_tool_param_t ts_params_141[] = {
+static const srmech_tool_param_t ts_params_142[] = {
     { "turn", "HV", 1, "a Klein-4 vector (uint8 {0,1,2,3}) \342\200\224 the helix turn (e.g. from hdc.klein4_expand)" },
     { "coupling", "HV", 1, "a Klein-4 vector (uint8 {0,1,2,3}) \342\200\224 the held invariant coupled into every turn" },
 };
-static const srmech_tool_param_t ts_params_142[] = {
+static const srmech_tool_param_t ts_params_143[] = {
     { "label", "str", 1, "the chromosome label \342\200\224 content-addressed to a deterministic cap" },
     { "dim", "int", 0, "Klein-4 vector length (default 64); match the turns the cap delimits" },
 };
-static const srmech_tool_param_t ts_params_143[] = {
+static const srmech_tool_param_t ts_params_144[] = {
     { "label", "str", 1, "the chromosome label \342\200\224 read back inline (bytes [1:] up to the first NUL), uniform with telomere" },
     { "count", "int", 1, "the exact non-negative Hayflick count (allowed divides before senescence); Class-I/N, no float" },
     { "dim", "int", 0, "Klein-4 vector length (default 64); match the turns the cap delimits \342\200\224 must fit label + 10 bytes" },
 };
-static const srmech_tool_param_t ts_params_144[] = {
+static const srmech_tool_param_t ts_params_145[] = {
     { "strand", "Sequence[HV]", 1, "a chromosome strand opening with an active_telomere cap (from chromosome(leaves, coupling, active_count=N))" },
 };
-static const srmech_tool_param_t ts_params_145[] = {
+static const srmech_tool_param_t ts_params_146[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=[(label, leaves) | (label, leaves, activator_mask) | (label, leaves, activator_mask, repressor_mask), ...], coupling))" },
     { "coupling", "HV", 1, "the held invariant the gene turns were coupled through (the expressed leaves are uncoupled through it)" },
     { "cell_state", "int", 1, "the exact non-negative cell-state bitmask; each set bit a present regulatory condition (Class-I bitwise; no float)" },
 };
-static const srmech_tool_param_t ts_params_146[] = {
+static const srmech_tool_param_t ts_params_147[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=[...], coupling)); may mix plain / regulatory / boolean / threshold / graded genes" },
     { "coupling", "HV", 1, "the held invariant the gene turns were coupled through (the expressed leaves are uncoupled through it)" },
     { "cell_state", "int", 1, "the exact non-negative cell-state bitmask; each set bit a present condition (Class-I bitwise; no float)" },
 };
-static const srmech_tool_param_t ts_params_147[] = {
+static const srmech_tool_param_t ts_params_148[] = {
     { "strand_or_path", "list|str", 1, "PATH variant (b): a genome DIRECTORY (written by genome_save) \342\200\224 the demand-load case, reads only each region's head gate cap via the manifest offset. STRAND variant (a): an in-memory strand (list of Klein-4 vectors) \342\200\224 the skeleton-scan fallback." },
     { "coupling", "HV", 1, "the held invariant (the leaf-width anchor; the plan reads only the gate caps, which are not coupled through it)" },
     { "cell_state", "int", 1, "the exact non-negative cell-state bitmask; each set bit a present regulatory condition (Class-I bitwise; no float)" },
 };
-static const srmech_tool_param_t ts_params_148[] = {
+static const srmech_tool_param_t ts_params_149[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "coupling", "HV", 1, "the held invariant the gene turns were coupled through (the expressed leaves are uncoupled through it)" },
     { "cell_state", "int", 1, "the exact non-negative cell-state bitmask; each set bit a present condition (Class-I bitwise; no float)" },
 };
-static const srmech_tool_param_t ts_params_149[] = {
+static const srmech_tool_param_t ts_params_150[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=[...], coupling)); may mix plain / regulatory / boolean / threshold / graded genes" },
     { "coupling", "HV", 1, "the held invariant (the leaf-width anchor; M1 reads only the gene caps, which are not coupled through it)" },
     { "expressed_labels", "Sequence[str]", 1, "the OBSERVED expressed gene labels (a set / list of the gene names that expressed \342\200\224 the recovery input)" },
 };
-static const srmech_tool_param_t ts_params_150[] = {
+static const srmech_tool_param_t ts_params_151[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=[...], coupling))" },
     { "coupling", "HV", 1, "the held invariant the gene turns were coupled through (gene_express uncouples the expressed leaves through it)" },
     { "expressed_labels", "Sequence[str]", 1, "the OBSERVED expressed gene labels (the set to check the candidate against)" },
     { "candidate_cell_state", "int", 1, "the candidate cell-state bitmask to forward-check (Class-I bitwise; non-negative; no float)" },
 };
-static const srmech_tool_param_t ts_params_151[] = {
+static const srmech_tool_param_t ts_params_152[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=[...], coupling)); may mix plain / regulatory / boolean / threshold / graded genes" },
     { "coupling", "HV", 1, "the held invariant (the leaf-width anchor; M3 reads only the gene caps, which are not coupled through it)" },
     { "expressed_labels", "Sequence[str]", 1, "the OBSERVED expressed gene labels (a set / list of the gene names that expressed \342\200\224 the constraint input)" },
 };
-static const srmech_tool_param_t ts_params_152[] = {
+static const srmech_tool_param_t ts_params_153[] = {
     { "constraint", "dict", 1, "the constraint dict modulator_constraint returned (certain_on / certain_off / clauses / inequalities / levels)" },
     { "candidate_cell_state", "int", 1, "the candidate cell-state bitmask to check (Class-I bitwise; non-negative; no float)" },
 };
-static const srmech_tool_param_t ts_params_153[] = {
+static const srmech_tool_param_t ts_params_154[] = {
     { "leaves", "Sequence[HV]", 0, "single-kernel mode: the kernel's leaves \342\200\224 Klein-4 vectors, one tome (<=256) each (pass leaves OR genes)" },
     { "coupling", "HV", 1, "the held invariant every turn is coupled through" },
     { "label", "str", 0, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')" },
     { "genes", "Sequence[tuple]", 0, "keyword-only; multi-gene mode (F730): [(gene_label, gene_leaves), ...] inside one telomere-capped chromosome (pass leaves OR genes). \302\247128/\302\247129/\302\247130 REGULATORY genes carry inline Class-I logic that gene_express filters on: a 4-tuple (gene_label, gene_leaves, activator_mask, repressor_mask) is the \302\247129 two Klein-4 bit-planes / klein4_mask gate (require-present + require-absent conditions); a 3-tuple with an INT third element (gene_label, gene_leaves, activator_mask) is \302\247128 activator-only (repressor 0, byte-identical to rc128); a 3-tuple with a DICT third element (gene_label, gene_leaves, {'gate':'boolean','dnf':[(act,rep),...]}) is a \302\247130 BOOLEAN gene (arbitrary boolean logic as a DNF \342\200\224 an OR of (require-present, require-absent) AND-clauses; AND/OR/NOT/XOR; E1 klein4_mask subset E2 boolean); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'threshold','weights':[w0,w1,...],'threshold':theta}) is a \302\247131 THRESHOLD gene (E4 \342\200\224 a linear-threshold / perceptron gate: SIGNED integer weight per condition + an integer threshold; expresses iff Sum weight_i*bit_i(cell_state) >= theta; SIGNED weights = inhibitory inputs; GENUINELY DISTINCT from E2 \342\200\224 a MAJORITY-of-n / weighted dose-sum needs an exponential DNF, so linear-threshold subset-not small-DNF); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'graded','weights':[w0,w1,...],'denom':D}) is a \302\247132 GRADED gene (E3 \342\200\224 the ORTHOGONAL analog LEVEL axis / dose-response: a SIGNED integer level-weight per condition + a POSITIVE denominator; gene_express_levels reports the reduced exact-rational LEVEL Sum weight_i*bit_i(cell_state) / D clamped to [0,1]); a 2-tuple is UNREGULATED (always expressed)" },
 };
-static const srmech_tool_param_t ts_params_154[] = {
+static const srmech_tool_param_t ts_params_155[] = {
     { "orientation", "int", 1, "the global 4-way orientation \342\200\224 a Klein-4 sector 0..3 (the which-way)" },
     { "repeats", "int", 0, "keyword-only; the alpha-satellite repeat-array size R (default 15; uint8 1..255 \342\200\224 R=1 is the single-index centromere, cheapest but fragile)" },
     { "handle", "str", 0, "keyword-only; the inline epigenetic handle / CENP-A-analog address (default 'cen')" },
     { "dim", "int", 0, "keyword-only; the leaf width in bytes (default 64; match the turns \342\200\224 chromosome passes len(coupling))" },
 };
-static const srmech_tool_param_t ts_params_155[] = {
+static const srmech_tool_param_t ts_params_156[] = {
     { "strand", "Sequence[HV]", 1, "a chromosome strand (from chromosome(..., centromere=o) or mint)" },
 };
-static const srmech_tool_param_t ts_params_156[] = {
+static const srmech_tool_param_t ts_params_157[] = {
     { "leaves", "Sequence[HV]", 1, "the kernel's leaves \342\200\224 Klein-4 vectors, one tome (<=256) each; stored as two homologous copies" },
     { "coupling", "HV", 1, "the held invariant every turn is coupled through" },
     { "label", "str", 0, "keyword-only; the chromosome label for the diploid telomere cap (default 'diploid')" },
     { "orientation", "Optional[int]", 0, "keyword-only; the which-template mark + global orientation, a Klein-4 sector 0..3 (default the kernel's content-address folded to a sector)" },
     { "repeats", "int", 0, "keyword-only; the centromere alpha-satellite repeat-array size (default 15)" },
 };
-static const srmech_tool_param_t ts_params_157[] = {
+static const srmech_tool_param_t ts_params_158[] = {
     { "strand", "Sequence[HV]", 1, "a diploid chromosome strand (from diploid())" },
     { "coupling", "HV", 1, "the held invariant the copies were coupled through" },
 };
-static const srmech_tool_param_t ts_params_158[] = {
+static const srmech_tool_param_t ts_params_159[] = {
     { "strand", "Sequence[HV]", 1, "an in-memory chromosome / genome strand (from chromosome / mint / diploid / genome)" },
     { "coupling", "HV", 0, "keyword-only; the held invariant (gives the leaf width dim; defaults to the strand's block width)" },
     { "state", "bool | tuple", 0, "keyword-only; True/'condensed' (silenced) [default], False/'open' (accessible), or a (num, den) graded level in [0,1]" },
@@ -971,160 +977,160 @@ static const srmech_tool_param_t ts_params_158[] = {
     { "handle", "str", 0, "keyword-only; the inline epigenetic handle (default 'chr')" },
     { "label", "str", 0, "keyword-only; which chromosome in a multi-chromosome strand (required when there is more than one)" },
 };
-static const srmech_tool_param_t ts_params_159[] = {
+static const srmech_tool_param_t ts_params_160[] = {
     { "strand", "Sequence[HV]", 1, "an in-memory chromosome / genome strand carrying one or more 0x48 chromatin caps" },
     { "coupling", "HV", 0, "keyword-only; accepted for signature symmetry with condense (the clear is a pure splice; unused)" },
     { "label", "str", 0, "keyword-only; clear only the chromatin marks inside this chromosome (default None = the whole strand)" },
 };
-static const srmech_tool_param_t ts_params_160[] = {
+static const srmech_tool_param_t ts_params_161[] = {
     { "strand", "Sequence[HV]", 1, "a chromosome strand (possibly carrying a 0x48 chromatin cap, from condense)" },
     { "coupling", "HV", 0, "the held invariant (optional; the leaf width is read from the strand's block width)" },
 };
-static const srmech_tool_param_t ts_params_161[] = {
+static const srmech_tool_param_t ts_params_162[] = {
     { "strand", "Sequence[HV]", 1, "a chromosome / genome strand (possibly carrying a 0x48 chromatin cap, from condense with a constitutive or \302\24798.1/G1 facultative state)" },
     { "cell_state", "int", 1, "the applied cell-state \342\200\224 a non-negative exact int (Class-I bitwise; each set bit a present condition); the facultative access gate is evaluated under it (a constitutive cap ignores it)" },
     { "coupling", "HV", 0, "keyword-only; the held invariant (optional; the leaf width is read from the strand's block width)" },
 };
-static const srmech_tool_param_t ts_params_162[] = {
+static const srmech_tool_param_t ts_params_163[] = {
     { "kernels", "dict", 0, "{label: leaves} mapping OR [(label, leaves), ...] sequence (insertion order = strand order); pass kernels OR chromosomes" },
     { "coupling", "HV", 1, "the held invariant every turn is coupled through" },
     { "chromosomes", "Sequence[tuple]", 0, "keyword-only; the multi-gene form [(label, [(gene_label, gene_leaves), ...]), ...] \342\200\224 defers to plasmid() (all plasmids); pass kernels OR chromosomes" },
 };
-static const srmech_tool_param_t ts_params_163[] = {
+static const srmech_tool_param_t ts_params_164[] = {
     { "kernels", "dict", 1, "the mint() input \342\200\224 {label: leaves} mapping OR [(label, leaves), ...] sequence" },
 };
-static const srmech_tool_param_t ts_params_164[] = {
+static const srmech_tool_param_t ts_params_165[] = {
     { "host", "Sequence[HV]", 1, "a genome strand \342\200\224 any mix of plasmid / nuclear / diploid chromosomes (from genome / plasmid / mint)" },
     { "provirus", "Sequence[HV]", 1, "a chromosome strand opening with a boundary cap (from chromosome / plasmid / mint / diploid), coupled through the SAME coupling as host" },
     { "at", "Optional[int]", 0, "keyword-only; the host CHROMOSOME INDEX to insert the provirus before (0-based; default None = integrate after the last chromosome)" },
 };
-static const srmech_tool_param_t ts_params_165[] = {
+static const srmech_tool_param_t ts_params_166[] = {
     { "chrom", "Sequence[HV]", 1, "a chromosome strand (from chromosome(genes=[(label, leaves), ...], coupling)) or any genome strand carrying the plain gene to amplify" },
     { "label", "str", 1, "the plain gene's inline label (the 0x47 GENE cap whose copy-number to set)" },
     { "n", "int", 1, "the copy number (multiplicity) to record \342\200\224 a Class-I/N exact integer >= 1 (n == 1 is byte-identical to a plain gene; n >= 2 spends the uint64 BE field)" },
 };
-static const srmech_tool_param_t ts_params_166[] = {
+static const srmech_tool_param_t ts_params_167[] = {
     { "chrom", "Sequence[HV]", 1, "a chromosome / genome strand carrying the plain gene whose copy-number to read" },
     { "label", "str", 1, "the plain gene's inline label (the 0x47 GENE cap to read)" },
 };
-static const srmech_tool_param_t ts_params_167[] = {
+static const srmech_tool_param_t ts_params_168[] = {
     { "strand", "Sequence[HV]", 1, "a telomere-capped chromosome strand (from chromosome)" },
     { "coupling", "HV", 1, "the held invariant the turns were coupled through" },
     { "telomere", "HV", 1, "the telomere cap delimiting the chromosome (skipped, not decoded)" },
 };
-static const srmech_tool_param_t ts_params_168[] = {
+static const srmech_tool_param_t ts_params_169[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=...))" },
     { "coupling", "HV", 1, "the held invariant the gene turns were coupled through" },
 };
-static const srmech_tool_param_t ts_params_169[] = {
+static const srmech_tool_param_t ts_params_170[] = {
     { "kernels", "dict", 1, "{label: leaves} \342\200\224 each kernel's leaves are Klein-4 vectors (one tome each)" },
     { "coupling", "HV", 1, "the held invariant every turn of every chromosome is coupled through" },
 };
-static const srmech_tool_param_t ts_params_170[] = {
+static const srmech_tool_param_t ts_params_171[] = {
     { "kernels", "dict", 0, "{label: leaves} \342\200\224 each kernel's leaves are Klein-4 vectors (one tome each); pass kernels OR chromosomes" },
     { "coupling", "HV", 1, "the held invariant every turn of every chromosome is coupled through" },
     { "chromosomes", "Sequence[tuple]", 0, "keyword-only; the multi-gene form [(label, [(gene_label, gene_leaves), ...]), ...] (pass kernels OR chromosomes)" },
 };
-static const srmech_tool_param_t ts_params_171[] = {
+static const srmech_tool_param_t ts_params_172[] = {
     { "strand", "Sequence[HV]", 1, "a multi-kernel genome strand (from genome)" },
     { "coupling", "HV", 1, "the held invariant the turns were coupled through" },
     { "labels", "list", 1, "the chromosome labels whose telomere caps partition the strand" },
 };
-static const srmech_tool_param_t ts_params_172[] = {
+static const srmech_tool_param_t ts_params_173[] = {
     { "strand", "Sequence[HV]", 1, "the flat genome strand to persist (from genome)" },
     { "path", "str", 1, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)" },
     { "coupling", "HV", 1, "the held invariant every turn is coupled through (content-addressed into the manifest)" },
     { "labels", "list", 0, "optional, back-compat; when given VALIDATES the scanned chromosome set (labels are discovered inline)" },
 };
-static const srmech_tool_param_t ts_params_173[] = {
+static const srmech_tool_param_t ts_params_174[] = {
     { "path", "str", 1, "the genome DIRECTORY to upgrade in place (its manifest.json is re-stamped to v16; turns.bin is byte-untouched for a klein4 genome)" },
     { "coupling", "HV", 0, "keyword-only; the held invariant \342\200\224 only needed to rebuild a manifest-LESS genome (its length is the leaf width)" },
 };
-static const srmech_tool_param_t ts_params_174[] = {
+static const srmech_tool_param_t ts_params_175[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "labels", "list", 0, "keyword-only; chromosome subset to page in (None = load all, streamed)" },
 };
-static const srmech_tool_param_t ts_params_175[] = {
+static const srmech_tool_param_t ts_params_176[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
 };
-static const srmech_tool_param_t ts_params_176[] = {
+static const srmech_tool_param_t ts_params_177[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "coupling", "HV", 0, "keyword-only; the held invariant \342\200\224 only needed to rebuild a manifest-less genome (its length is the leaf width)" },
 };
-static const srmech_tool_param_t ts_params_177[] = {
+static const srmech_tool_param_t ts_params_178[] = {
     { "root", "str", 1, "a directory holding genome subdirectories (each written by genome_save)" },
     { "coupling", "HV", 0, "keyword-only; the held invariant \342\200\224 only needed to rebuild manifest-less genomes" },
 };
-static const srmech_tool_param_t ts_params_178[] = {
+static const srmech_tool_param_t ts_params_179[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the new chromosome's label (must not already exist in the genome)" },
     { "leaves", "Sequence[HV]", 1, "the new kernel's Klein-4 leaf vectors" },
     { "coupling", "HV", 1, "the held invariant the new turns are coupled through (dim must match leaf_dim)" },
 };
-static const srmech_tool_param_t ts_params_179[] = {
+static const srmech_tool_param_t ts_params_180[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the chromosome label whose leaves to page in" },
 };
-static const srmech_tool_param_t ts_params_180[] = {
+static const srmech_tool_param_t ts_params_181[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the multi-gene chromosome label whose genes to page in" },
 };
-static const srmech_tool_param_t ts_params_181[] = {
+static const srmech_tool_param_t ts_params_182[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the chromosome label to excise (must not be the genome's only chromosome)" },
     { "coupling", "HV", 0, "the held invariant (only required when manifest.json is absent \342\200\224 its length is the leaf width for the \302\24744 rebuild-by-scan)" },
 };
-static const srmech_tool_param_t ts_params_182[] = {
+static const srmech_tool_param_t ts_params_183[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the chromosome label whose content to replace" },
     { "leaves", "Sequence[HV]", 1, "the replacement kernel's Klein-4 leaf vectors" },
     { "coupling", "HV", 1, "the held invariant the new turns are coupled through (dim must match leaf_dim)" },
 };
-static const srmech_tool_param_t ts_params_183[] = {
+static const srmech_tool_param_t ts_params_184[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
     { "label", "str", 1, "the chromosome label to export as a .chr bundle" },
     { "out", "str", 1, "the output file path for the .chr (one MPR-attested JSON record)" },
     { "coupling", "HV", 0, "the held invariant (only required when the source genome's manifest.json is absent \342\200\224 its length is the leaf width for the \302\24744 rebuild-by-scan)" },
 };
-static const srmech_tool_param_t ts_params_184[] = {
+static const srmech_tool_param_t ts_params_185[] = {
     { "chr_path", "str", 1, "the .chr bundle file written by genome_export" },
     { "dest", "str", 1, "the dest genome directory (seeded fresh if it has no genome, else appended to)" },
     { "coupling", "HV", 0, "the held invariant (only consulted for a manifest-less EXISTING dest \342\200\224 the \302\24744 rebuild width; the bundle carries its own coupling)" },
 };
-static const srmech_tool_param_t ts_params_185[] = {
+static const srmech_tool_param_t ts_params_186[] = {
     { "path", "str", 1, "the packed genome directory written by genome_save" },
     { "out_dir", "str", 1, "the output directory for the loose <label>.chr bundles (created if absent)" },
     { "coupling", "HV", 0, "the held invariant (only required when the source genome's manifest.json is absent \342\200\224 the \302\24744 rebuild width)" },
 };
-static const srmech_tool_param_t ts_params_186[] = {
+static const srmech_tool_param_t ts_params_187[] = {
     { "loose_dir", "str", 1, "the directory of loose .chr bundles (e.g. genome_explode's output)" },
     { "dest", "str", 1, "the dest packed genome directory (seeded fresh if it has no genome, else appended/merged into)" },
     { "coupling", "HV", 0, "the held invariant (only consulted for a manifest-less EXISTING dest \342\200\224 the \302\24744 rebuild width; each .chr carries its own coupling)" },
 };
-static const srmech_tool_param_t ts_params_187[] = {
+static const srmech_tool_param_t ts_params_188[] = {
     { "chr_dir", "str", 1, "the directory of loose .chr bundles to register (e.g. genome_explode's output)" },
     { "amsc_root", "str", 1, "where the per-chromosome <label>/descriptor.toml + row.ndjson AMSC root is written" },
     { "source", "str", 1, "the AMSC source identifier recorded for the registration (e.g. 'srmech.genome.<name>')" },
 };
-static const srmech_tool_param_t ts_params_188[] = {
+static const srmech_tool_param_t ts_params_189[] = {
     { "data", "Sequence[int]", 1, "the flat Klein-4 kernel \342\200\224 symbols {0,1,2,3} (HV / list / bytes) of any dimension D" },
     { "leaf_dim", "int", 0, "keyword-only; the leaf (tome) width to chunk into (default 256; must be >= 14 so the \302\24760 header fits)" },
     { "label", "str", 0, "keyword-only; the chromosome label for the packed kernel (default 'kernel')" },
     { "coupling", "HV", 0, "keyword-only; the coupling invariant (width leaf_dim; default the deterministic all-ones invariant kernel_unpack reconstructs)" },
     { "element_type", "str", 0, "keyword-only; the declared element-type enum recorded in the header (default 'klein4' \342\200\224 the genome-native 2-bit symbol)" },
 };
-static const srmech_tool_param_t ts_params_189[] = {
+static const srmech_tool_param_t ts_params_190[] = {
     { "strand_or_path", "list|str", 1, "the in-memory kernel_pack strand, OR a genome directory written by genome_save of one" },
     { "coupling", "HV", 0, "the coupling invariant (optional; resolved from a present manifest, else reconstructed as the all-ones default from the header's leaf_dim)" },
 };
-static const srmech_tool_param_t ts_params_190[] = {
+static const srmech_tool_param_t ts_params_191[] = {
     { "path", "str", 1, "the genome directory written by genome_save (grown in O(1))" },
     { "label", "str", 1, "the new kernel chromosome's label (must not already exist in the genome)" },
     { "hv", "Sequence[int]", 1, "the flat Klein-4 kernel to append \342\200\224 symbols {0,1,2,3} (HV / list / bytes) of any dimension D" },
     { "element_type", "str", 0, "keyword-only; the declared element-type enum recorded in the \302\24789 header (default 'klein4')" },
     { "coupling", "HV", 0, "keyword-only; the coupling invariant (optional when a manifest is present; its length is the leaf width for a manifest-less genome)" },
 };
-static const srmech_tool_param_t ts_params_191[] = {
+static const srmech_tool_param_t ts_params_192[] = {
     { "vocab_size", "int", 1, "node count of the graph" },
     { "edges", "list", 1, "[(i, j), ...] directed edge list" },
     { "weights", "list", 1, "parallel int metric (co-occurrence counts)" },
@@ -1135,12 +1141,12 @@ static const srmech_tool_param_t ts_params_191[] = {
     { "label", "str", 1, "keyword-only; the chromosome label" },
     { "coupling", "HV", 1, "keyword-only; the coupling invariant (width leaf_dim)" },
 };
-static const srmech_tool_param_t ts_params_192[] = {
+static const srmech_tool_param_t ts_params_193[] = {
     { "chroms", "list|str", 1, "the graph_to_kernel strand, OR a genome directory a genome_save of one wrote" },
     { "coupling", "HV", 1, "the coupling invariant (as passed to graph_to_kernel; resolved from a manifest for a path)" },
     { "n_syms", "int", 1, "the true symbol count graph_to_kernel returned (trims the leaf-dim padding)" },
 };
-static const srmech_tool_param_t ts_params_193[] = {
+static const srmech_tool_param_t ts_params_194[] = {
     { "docs", "list", 1, "the corpus \342\200\224 an iterable of documents, each a token sequence (one section per document, D1)" },
     { "section_store", "str", 1, "the sections genome directory (created on the first document; appended thereafter)" },
     { "coupling", "HV", 1, "the coupling invariant; its length is the store's leaf_dim, which must be >= 52 (the \302\24789 kernel header)" },
@@ -1150,15 +1156,15 @@ static const srmech_tool_param_t ts_params_193[] = {
     { "cap_slack", "int", 0, "keyword-only; the top-k store cap slack (cap = k*cap_slack; default 4)" },
     { "label_prefix", "str", 0, "keyword-only; the section label prefix (default 'sec')" },
 };
-static const srmech_tool_param_t ts_params_194[] = {
+static const srmech_tool_param_t ts_params_195[] = {
     { "section_store", "str", 1, "a plasmid_extract sections genome directory" },
     { "coupling", "HV", 0, "keyword-only; the coupling invariant (only needed for a manifest-less store \342\200\224 its length is the leaf width)" },
 };
-static const srmech_tool_param_t ts_params_195[] = {
+static const srmech_tool_param_t ts_params_196[] = {
     { "section_count", "dict", 1, "the {global_id: n_sections} integer accumulator (from plasmid_extract, or section_counts)" },
     { "k", "str", 0, "keyword-only; 'auto' (default) ATTEMPTS the antimode derivation and DECLINES when the distribution admits no qualifying split; a positive int is a STATED POLICY CHOICE the caller owns (k_source='policy')" },
 };
-static const srmech_tool_param_t ts_params_196[] = {
+static const srmech_tool_param_t ts_params_197[] = {
     { "section_store", "str", 1, "the plasmid_extract sections genome directory" },
     { "coupling", "HV", 1, "the coupling invariant; its length is the store's leaf_dim" },
     { "section_count", "dict", 0, "keyword-only; the FREE streamed accumulator from plasmid_extract \342\200\224 pass it. Omitting it triggers the deliberate O(P*section) section_counts re-derivation" },
@@ -1166,7 +1172,7 @@ static const srmech_tool_param_t ts_params_196[] = {
     { "core_edges", "list", 0, "keyword-only; the per-section GLOBAL edge lists, to skip the core-harvest read" },
     { "out_path", "str", 0, "keyword-only; genome_save the organized genome here (skipped on cancel)" },
 };
-static const srmech_tool_param_t ts_params_197[] = {
+static const srmech_tool_param_t ts_params_198[] = {
     { "section_store", "str", 1, "the sections genome directory (created on the first document)" },
     { "coupling", "HV", 1, "the coupling invariant; its length is the store's leaf_dim (>= 52)" },
     { "tokens", "list", 1, "the ONE document being added \342\200\224 a token sequence" },
@@ -1178,7 +1184,7 @@ static const srmech_tool_param_t ts_params_197[] = {
     { "label_prefix", "str", 0, "keyword-only; the section label prefix (default 'sec')" },
     { "cache_edges", "bool", 0, "keyword-only; keep per-section global edge lists in state so a threshold crossing re-filters in memory (default True)" },
 };
-static const srmech_tool_param_t ts_params_198[] = {
+static const srmech_tool_param_t ts_params_199[] = {
     { "strand", "Sequence[HV]", 1, "an ALREADY-PACKED chromosome strand that OPENS with a boundary cap (from chromosome / kernel_pack / graph_to_kernel); NOT raw leaves" },
     { "coupling", "HV", 1, "the coupling invariant the strand was packed with (its width is the leaf/centromere dim)" },
     { "orientation", "Optional[int]", 0, "keyword-only; the global 4-way which-way, a Klein-4 sector 0..3 (default the content-address fold sha256(recovered leaves)[0]&3 \342\200\224 the same rule mint() uses)" },
@@ -1186,7 +1192,7 @@ static const srmech_tool_param_t ts_params_198[] = {
     { "repeats", "int", 0, "keyword-only; the alpha-satellite repeat-array size R (default 15; uint8 1..255)" },
     { "handle", "str", 0, "keyword-only; the inline CENP-A epigenetic handle (default 'cen')" },
 };
-static const srmech_tool_param_t ts_params_199[] = {
+static const srmech_tool_param_t ts_params_200[] = {
     { "n", "int", 1, "node count (nodes are 0..n-1)" },
     { "edges", "list", 1, "directed edges [(u, v), ...] (treated as undirected for community detection + boundary-crossing)" },
     { "weights", "list", 0, "per-edge INTEGER metric (co-occurrence count); None = unit multiplicity" },
@@ -1196,7 +1202,7 @@ static const srmech_tool_param_t ts_params_199[] = {
     { "n_bins", "int", 0, "keyword-only; participation-histogram resolution for the antimode (default 16)" },
     { "max_iters", "int", 0, "keyword-only; per-bisection power-iteration cap (default 250)" },
 };
-static const srmech_tool_param_t ts_params_200[] = {
+static const srmech_tool_param_t ts_params_201[] = {
     { "n", "int", 1, "node count (nodes are 0..n-1)" },
     { "edges", "list", 1, "directed edges [(u, v), ...]" },
     { "weights", "list", 0, "per-edge INTEGER metric; None = unit" },
@@ -1209,22 +1215,16 @@ static const srmech_tool_param_t ts_params_200[] = {
     { "centromere_at", "int", 0, "keyword-only; the nuclear arm-split forwarded to mint_strand (default the metacentric midpoint)" },
     { "attestation", "dict", 0, "keyword-only; when path is given, a caller MPR SOURCE-attestation forwarded to genome_save whose fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively \342\200\224 the genome directory is the SSoT, no sidecar files (\302\24741/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key / value that makes the merged block an invalid MPR) RAISES before any bytes hit disk; omitted -> the srmech default is written unchanged." },
 };
-static const srmech_tool_param_t ts_params_201[] = {
+static const srmech_tool_param_t ts_params_202[] = {
     { "embedding", "list", 1, "the backbone vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational \342\200\224 floats rejected)" },
     { "closed", "bool", 0, "keyword-only; True (default) closes the loop with the wrap segment P[n-1]->P[0]; False = an open polyline" },
 };
-static const srmech_tool_param_t ts_params_202[] = {
+static const srmech_tool_param_t ts_params_203[] = {
     { "edges", "list", 1, "the strand connectivity [(u,v), ...] \342\200\224 a single fundamental cycle" },
     { "gains", "list", 1, "per-edge unit-quaternion Q8 gains (4-vectors) parallel to edges \342\200\224 the stored physical turns" },
     { "n", "int", 0, "keyword-only; node count (inferred from the edges when None)" },
     { "embedding", "list", 0, "keyword-only; the backbone vertices (node k -> embedding[k]), each an exact rational 3-tuple; None -> intrinsic mod-2 Lk only" },
     { "closed", "bool", 0, "keyword-only; forwarded to discrete_writhe (default True)" },
-};
-static const srmech_tool_param_t ts_params_203[] = {
-    { "embedding", "list", 1, "the deformed curve C \342\200\224 vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational \342\200\224 floats rejected)" },
-    { "reference", "list", 1, "the base curve C0 \342\200\224 SAME vertex count as embedding (Fuller's integral pairs t0_i with t_i by index)" },
-    { "closed", "bool", 0, "keyword-only; True (default) wraps the polygon (central-difference tangents with the P[n-1]<->P[0] closure); False = an open polyline" },
-    { "precision", "int", 0, "keyword-only; None (default) -> the platform-bounded projection; a positive int P -> the srmech-native bigint projection lengthed by P" },
 };
 static const srmech_tool_param_t ts_params_204[] = {
     { "strand", "list", 1, "a 1-D sequence of Q8 base symbols (bytes / bytearray / list / tuple of ints in [0,8); V4 symbols in [0,4) are the sign-free case), or an HV (read via tobytes)" },
@@ -2323,23 +2323,23 @@ static const srmech_tool_param_t ts_params_491[] = {
 };
 
 /* Per-entry composes / preserves string arrays (rc305 #943). */
-static const char *const ts_composes_200[] = {
+static const char *const ts_composes_201[] = {
     "srmech.amsc.genome.genome_partition",
     "srmech.amsc.genome.graph_to_kernel",
     "srmech.amsc.genome.mint_strand",
     "srmech.amsc.genome.genome_save",
     "srmech.amsc.genome.genome_census",
 };
-static const char *const ts_preserves_200[] = {
+static const char *const ts_preserves_201[] = {
     "byte-exact per-community round-trip: kernel_to_graph on any chromosome (with its n_syms) recovers that community's induced sub-graph exactly (\302\24744 interior-centromere skip-on-read)",
     "measured {nuclear, plasmid} counts equal genome_partition's classification",
     "numpy-free; no abs() \342\200\224 sign-handling stays Class-K pin-slot + Class-C",
 };
-static const char *const ts_composes_202[] = {
+static const char *const ts_composes_203[] = {
     "srmech.amsc.genome.discrete_writhe",
     "srmech.qm.quaternion.quaternion_cycle_holonomy",
 };
-static const char *const ts_preserves_202[] = {
+static const char *const ts_preserves_203[] = {
     "Wr is computed from geometry (discrete_writhe), never defined as Lk-Tw \342\200\224 a real independent check",
     "mod-2 only: Q8 pins Lk to its center-parity, not the unbounded integer linking number",
     "no-embedding path returns only the intrinsic mod-2 Lk; no Wr is fabricated",
@@ -4109,11 +4109,27 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 110 */
+        "srmech.amsc.rational.relative_writhe",
+        "srmech",
+        "rational",
+        "rc317 (#1308) \342\200\224 Fuller's Second-Theorem exact-rational RELATIVE WRITHE Wr(C)-Wr(C0), the single-integral peer of the O(n^2) discrete_writhe double sum. Given two closed polygonal curves as EXACT-RATIONAL 3D vertices (int / Fraction / (num,den) per coord; floats rejected), reference=C0 (base) and embedding=C (deformed), it evaluates Fuller's single integral (1/2pi) oint (t0 x t).d(t0+t)/(1+t0.t) ds over the closed polygon, t0/t the central-difference UNIT tangents. CERTIFIED TRUNCATION, NOT the exact writhe: the true relative writhe is generically TRANSCENDENTAL (the pi normalisation + irrational unit-tangent lengths), so it returns an EXACT rational + a STATED remainder_bound on |value-true| \342\200\224 a Class-N best_rational anchor across the writhe's inharmonic responsion seam (F1308). DUAL-PRECISION contract (rc317 PILOT): precision=None -> PLATFORM-BOUNDED (value's num/den ride a native int64 word; the fast hardware-last-mile read; FLOAT-FREE, a bounded rational); precision=P int -> SRMECH-NATIVE BIGINT lengthed by P (remainder_bound ~ 2^-P tightening MONOTONICALLY; the bigint num/den lengthen with P). The +/-2 obstruction (antipodal_events flags the near-antipodal band 1+t0.t < 2^-4; for TRUE unit tangents 1+t0.t in [0,2], =0 only at the exact measure-zero antipode, so the literal <=0 the float spike reads via FP rounding is degenerate under exact rationals) IS the SAME Z->>Z/2 (kernel 2Z) reduction cwf_consistency_mod2 reads via the Q8 center-parity \342\200\224 the SO(3)/SU(2) double cover, a writhe +/-2 vs a spinor sign (DERIVED/argued; the integer lift needs the O(n^2) discrete_writhe). Class N (rational sqrt / pi-cascade / best_rational) . Class K (sign-branch magnitudes + antipodal pole detection, never abs()) . Class I (cyclic wrap); float NOWHERE (atan2 excluded \342\200\224 it projects to float; atan_series_truncate's angle reformulation is a different discretisation). composition_of_c (sqrt/pi/best_rational are C-backed): NO new C symbol, ABI stays 10, GENOME_FORMAT_VERSION stays 16 (a pure geometry READ). CAD-ban-clear: closed-form on the integer ALU, NOT mesh/FEA/GPU. Cites F. Brock Fuller PNAS 68(4):815-819 (1971, doi 10.1073/pnas.68.4.815, PMC389050) + PNAS 75(8):3557-3561 (1978, doi 10.1073/pnas.75.8.3557, PMC392823), both OA.",
+        ts_params_110, 4u,
+        "dict",
+        "{value:(num,den) the relative writhe in turns, remainder_bound:(num,den) stated bound on |value-true|, mode:'platform'|'bigint', precision:int effective bits, antipodal_events:int (steps in the near-antipodal band, the +/-2-obstruction flag), min_one_plus_dot:(num,den) the closest antiparallel approach}",
+        1,
+        NULL,
+        "{\"call\":\"relative_writhe(embedding=<list>, reference=<list>, closed=<bool>, precision=<int>) -> dict\"}",
+        NULL,
+        "Fuller's Second-Theorem RELATIVE WRITHE ``Wr(C) \342\210\222 Wr(C0)`` as an EXACT RATIONAL certified truncation \342\200\224 the single-integral peer of the O(n\302\262) :func:`~srmech.amsc.genome.discrete_writhe` double sum, on the Class-N surface.",
+        NULL, 0u,
+        NULL, 0u,
+    },
+    { /* 111 */
         "srmech.amsc.rational.cos",
         "srmech",
         "rational",
         "cos(x) (radians) via the Class-N rational cascade: range-reduce into [-\317\200, \317\200] with the \317\200-cascade rational, cos Taylor partial sum, returning the EXACT rational Q (the integer-ALU value; float(q) projects to the FPU at the display edge). Substrate-native replacement for math.cos / np.cos (no math.cos in the call graph); float(q) matches libm to ~1e-15.",
-        ts_params_110, 2u,
+        ts_params_111, 2u,
         "Q",
         "cos(x) as an exact rational (Class-N Q carrier); float(q) projects at the display edge",
         1,
@@ -4124,12 +4140,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 111 */
+    { /* 112 */
         "srmech.amsc.rational.sin",
         "srmech",
         "rational",
         "sin(x) (radians) via the Class-N rational cascade (\317\200-cascade range reduction + sin Taylor, returned as an EXACT rational Q). Substrate-native replacement for math.sin / np.sin; float(q) matches libm to ~1e-15.",
-        ts_params_111, 2u,
+        ts_params_112, 2u,
         "Q",
         "sin(x) as an exact rational (Class-N Q carrier)",
         1,
@@ -4140,12 +4156,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 112 */
+    { /* 113 */
         "srmech.amsc.rational.tan",
         "srmech",
         "rational",
         "tan(x) = sin(x)/cos(x) via the Class-N rational cascade (raises if cos(x) == 0). Substrate-native replacement for math.tan / np.tan.",
-        ts_params_112, 2u,
+        ts_params_113, 2u,
         "Q",
         "tan(x) = sin/cos as an exact rational (Class-N Q carrier)",
         1,
@@ -4156,12 +4172,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 113 */
+    { /* 114 */
         "srmech.amsc.rational.atan",
         "srmech",
         "rational",
         "atan(x) via the Class-N atan cascade with three-band argument reduction (\342\210\2322\342\210\2231 edges \342\206\222 every series argument |\302\267|<=\342\210\2322\342\210\2221; Class-K magnitude, no abs()). Substrate-native replacement for math.atan / np.arctan; machine-\316\265 accurate.",
-        ts_params_113, 2u,
+        ts_params_114, 2u,
         "Q",
         "atan(x) as an exact rational (Class-N Q carrier) in (-\317\200/2, \317\200/2)",
         1,
@@ -4172,12 +4188,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 114 */
+    { /* 115 */
         "srmech.amsc.rational.atan2",
         "srmech",
         "rational",
         "atan2(y, x) via the Class-N atan cascade with full quadrant logic. Substrate-native replacement for math.atan2 / np.arctan2; machine-\316\265 accurate.",
-        ts_params_114, 3u,
+        ts_params_115, 3u,
         "Q",
         "atan2(y, x) as an exact rational (Class-N Q carrier) in (-\317\200, \317\200]",
         1,
@@ -4188,12 +4204,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 115 */
+    { /* 116 */
         "srmech.amsc.rational.exp",
         "srmech",
         "rational",
         "e^x (real) via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction (x = n*ln2 + r, |r| <= ln2/2; exp(r) the Q61 integer Taylor, 2^n folded in as an EXACT power-of-two scale \342\206\222 an exact rational Q, no float-collapsed recombine and no DBL_MAX overflow gate). Bit-exact with the native peer srmech_exp_q61; dispatches to C when available. Substrate-native replacement for math.exp / np.exp (real).",
-        ts_params_115, 2u,
+        ts_params_116, 2u,
         "Q",
         "e^x as an exact rational (Class-N Q carrier) from the Q61 cascade",
         1,
@@ -4204,12 +4220,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 116 */
+    { /* 117 */
         "srmech.amsc.rational.log",
         "srmech",
         "rational",
         "ln(x) (natural log, x > 0) via the Q61 Class-N atanh cascade: x = m*2^e read from the bit pattern, m folded into [1/sqrt2, sqrt2), log(m) = 2*atanh((m-1)/(m+1)) the Q61 series, e*ln2 recombined exactly in the Q61 model \342\206\222 an exact rational Q. Bit-exact with the native peer srmech_log_q61; dispatches to C when available. Domain: x <= 0 raises ValueError (log 0 = -Inf is not a rational); non-finite raises. Substrate-native replacement for math.log / np.log (real).",
-        ts_params_116, 2u,
+        ts_params_117, 2u,
         "Q",
         "ln(x) as an exact rational (Class-N Q carrier) from the Q61 cascade",
         1,
@@ -4220,12 +4236,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 117 */
+    { /* 118 */
         "srmech.amsc.rational.cexp",
         "srmech",
         "rational",
         "e^(i*theta) = cos(theta) + i*sin(theta) via the Class-N cascade (Euler). Class-N trig composed with Class-C imaginary-unit rotation \342\200\224 the DFT twiddle factor and the quantum time-evolution phase. Substrate-native replacement for np.exp / cmath.exp of 1j*theta.",
-        ts_params_117, 2u,
+        ts_params_118, 2u,
         "complex",
         "e^(i*theta) on the unit circle",
         1,
@@ -4236,12 +4252,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 118 */
+    { /* 119 */
         "srmech.amsc.rational.complex_exp",
         "srmech",
         "rational",
         "e^z for complex z = e^(z.real)*(cos(z.imag) + i*sin(z.imag)) via the Class-N cascade. Class-N exp + trig composed with Class-C i-rotation. Substrate-native replacement for np.exp / cmath.exp on a complex argument.",
-        ts_params_118, 2u,
+        ts_params_119, 2u,
         "complex",
         "e^z projected from the exact rational",
         1,
@@ -4252,12 +4268,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 119 */
+    { /* 120 */
         "srmech.amsc.rational.sqrt",
         "srmech",
         "rational",
         "sqrt(x) for x >= 0 via the Class-N rational sqrt cascade \342\200\224 IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision_bits=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
-        ts_params_119, 2u,
+        ts_params_120, 2u,
         "Q",
         "sqrt(x) as an exact rational (Class-N Q carrier) from the integer root",
         1,
@@ -4268,12 +4284,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 120 */
+    { /* 121 */
         "srmech.amsc.rational.hypot",
         "srmech",
         "rational",
         "hypot(a, b) = sqrt(a^2 + b^2) via the Class-N sqrt cascade \342\200\224 Class-M sum-of-squares bind composed with the Class-N sqrt. Substrate-native replacement for math.hypot / np.hypot (the complex modulus |z| = hypot(z.real, z.imag)).",
-        ts_params_120, 3u,
+        ts_params_121, 3u,
         "Q",
         "Euclidean norm sqrt(a^2 + b^2) as an exact rational (Class-N Q carrier)",
         1,
@@ -4284,12 +4300,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 121 */
+    { /* 122 */
         "srmech.amsc.cascade.spectral_cascades.dft",
         "srmech",
         "cascade",
         "Discrete Fourier transform as the Antikythera epicycle-sum X_k = sum_n x_n * e^(-2pi*i*(k*n mod N)/N): Class I (cyclic index) + Class N (twiddle) + Class C (i-rotation) + Class M (bundle). Pure-Python O(N^2); substrate-native replacement for NumPy fft on a 1-D sequence.",
-        ts_params_121, 2u,
+        ts_params_122, 2u,
         "list[complex]",
         "DFT spectrum (or inverse)",
         1,
@@ -4300,12 +4316,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 122 */
+    { /* 123 */
         "srmech.amsc.cascade.spectral_cascades.idft",
         "srmech",
         "cascade",
         "Inverse DFT \342\200\224 dft() with the conjugate twiddle and a 1/N scale. Substrate-native replacement for NumPy ifft on a 1-D sequence.",
-        ts_params_122, 1u,
+        ts_params_123, 1u,
         "list[complex]",
         "time-domain samples",
         1,
@@ -4316,12 +4332,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 123 */
+    { /* 124 */
         "srmech.amsc.cascade.spectral_cascades.fft",
         "srmech",
         "cascade",
         "Fast Fourier transform \342\200\224 the radix-2 Cooley-Tukey butterfly. Same value as dft() but O(N log N) when N is a power of two, adding Class J (radix N=2*(N/2) factorization) + Class K (butterfly recursion depth) on top of the DFT cascade. Falls back to direct dft() for non-power-of-2 N, so it is a drop-in for NumPy fft at ANY length.",
-        ts_params_123, 2u,
+        ts_params_124, 2u,
         "list[complex]",
         "FFT spectrum (or inverse)",
         1,
@@ -4332,12 +4348,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 124 */
+    { /* 125 */
         "srmech.amsc.cascade.spectral_cascades.ifft",
         "srmech",
         "cascade",
         "Inverse FFT \342\200\224 fft() with the conjugate twiddle and a 1/N scale. Substrate-native replacement for NumPy ifft on a 1-D sequence.",
-        ts_params_124, 1u,
+        ts_params_125, 1u,
         "list[complex]",
         "time-domain samples",
         1,
@@ -4348,12 +4364,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 125 */
+    { /* 126 */
         "srmech.amsc.cascade.spectral_cascades.kron",
         "srmech",
         "cascade",
         "Kronecker product A (x) B of two 2-D matrices: (A(x)B)[i*p+k, j*q+l] = A[i,j]*B[k,l] \342\200\224 Class I (mixed-radix index) + Class M (element products). Pure-Python; substrate-native replacement for the NumPy Kronecker product.",
-        ts_params_125, 2u,
+        ts_params_126, 2u,
         "list[list[complex]]",
         "Kronecker product block matrix",
         1,
@@ -4364,12 +4380,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 126 */
+    { /* 127 */
         "srmech.amsc.cascade.exact_dft.exact_dft",
         "srmech",
         "cascade",
         "Exact cyclotomic-integer DFT of an integer / Gaussian-integer power-of-two signal: the twiddles e^(-2pi*i*j/N) are roots of unity (algebraic integers in Z[zeta_N]); for power-of-two N, zeta^(N/2) = -1 (a Class-K sign-flip) collapses the ring to the negacyclic integers Z[x]/(x^(N/2)+1), so the transform is PURE INTEGER add/subtract \342\200\224 no floats. Returns the exact spectrum (one integer (real_vec, imag_vec) pair of length N/2 per bin); call lift() for the single FPU rotation to complex. Class I (cyclic index) + Class K (zeta^(N/2)=-1 reduction) + Class M (integer bundle). Rides the native srmech_exact_dft_i64 int64 twin; arbitrary-precision magnitudes use the Python bignum path. Raises on non-integer / non-power-of-two input (use dft there).",
-        ts_params_126, 2u,
+        ts_params_127, 2u,
         "list[tuple[list[int], list[int]]]",
         "exact Z[zeta_N] integer spectrum (per-bin (real_vec, imag_vec))",
         1,
@@ -4380,12 +4396,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 127 */
+    { /* 128 */
         "srmech.amsc.cascade.exact_dft.exact_idft",
         "srmech",
         "cascade",
         "Inverse exact cyclotomic-integer DFT \342\200\224 exact_dft() with the conjugate exponent zeta^(-nk). Unnormalised: the 1/N scale is a Class-N rational applied at lift() time (lift(exact_idft(x), scale=N)), keeping this core pure integer.",
-        ts_params_127, 1u,
+        ts_params_128, 1u,
         "list[tuple[list[int], list[int]]]",
         "exact Z[zeta_N] integer inverse spectrum",
         1,
@@ -4396,12 +4412,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 128 */
+    { /* 129 */
         "srmech.amsc.cascade.exact_dft.lift",
         "srmech",
         "cascade",
         "The single FPU lift: rotate an exact Z[zeta_N] integer spectrum (from exact_dft) to complex at zeta_N = e^(-2pi*i/N). This is the ONLY place a float is produced \342\200\224 the projection from the exact discrete substrate to the continuous observable (floats are for the FPU lift, not the math). scale divides the result (use scale=N for a normalised inverse). Class C (i-rotation) over the Class-N substrate-native cexp.",
-        ts_params_128, 2u,
+        ts_params_129, 2u,
         "list[complex]",
         "lifted complex spectrum / samples",
         1,
@@ -4412,12 +4428,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 129 */
+    { /* 130 */
         "srmech.amsc.cascade.matrix_cascades.qr",
         "srmech",
         "cascade",
         "Householder QR factorization A = Q*R: Q a product (Class M) of elementary reflectors H = I - beta*v*v^H, each Class K (sign-flip across a hyperplane) + Class M (outer-product bind) + Class N (1/(v^H v) scale, with the column norm a rational.sqrt). numpy as CONTAINER only \342\200\224 no NumPy QR in the call graph. mode='reduced' (default, matching NumPy QR) or 'complete'. QR is unique only up to signs; the invariants (Q*R=A, Q^H Q=I, R upper-triangular) hold to round-off.",
-        ts_params_129, 2u,
+        ts_params_130, 2u,
         "tuple[Mat, Mat]",
         "(Q, R): orthonormal-column Q + upper-triangular R",
         1,
@@ -4428,12 +4444,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 130 */
+    { /* 131 */
         "srmech.amsc.cascade.matrix_cascades.svd",
         "srmech",
         "cascade",
         "Singular value decomposition A = U*diag(s)*V^H via the Gram-matrix Hermitian eigendecomposition: Class L (eig of A^H A or A A^H, srmech's hermitian_eigendecompose) + Class N+K (s = sqrt(eigvals), via rational.sqrt) + Class M (U = A*V*Sigma^-1). numpy as CONTAINER only \342\200\224 no NumPy SVD. full_matrices=False (reduced form). Singular values match NumPy SVD to round-off for well-conditioned inputs (the Gram route squares the condition number); U/V unique only up to signs.",
-        ts_params_130, 2u,
+        ts_params_131, 2u,
         "tuple[Mat, Vec, Mat]",
         "(U, s, Vh): singular vectors + descending singular values",
         1,
@@ -4444,12 +4460,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 131 */
+    { /* 132 */
         "srmech.amsc.cascade.matrix_cascades.lstsq",
         "srmech",
         "cascade",
         "Least-squares solution of A x = b (minimising ||A x - b||): {QR} factorization + Class M (the Q\341\264\264 b product) + Class I (back-substitution = the ordered triangular solve). Overdetermined/square m>=n, full column rank; b a vector or stack of RHS. numpy as CONTAINER only \342\200\224 no NumPy lstsq. Matches NumPy lstsq(a,b)[0] to round-off.",
-        ts_params_131, 2u,
+        ts_params_132, 2u,
         "Mat | Vec",
         "least-squares solution x, shape (n,) or (n, k)",
         1,
@@ -4460,12 +4476,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 132 */
+    { /* 133 */
         "srmech.amsc.cascade.matrix_cascades.einsum",
         "srmech",
         "cascade",
         "Einstein-summation tensor contraction via the general index-iteration definition: Class B/D (the subscript spec is a typed index-pattern) + Class I (iterate over free + summed index tuples) + Class M (sum-of-products bundle). Handles any subscript string (matmul ij,jk->ik / trace ii-> / transpose ij->ji / dot i,i-> / outer i,j->ij / arbitrary contraction), implicit output supported. Value-faithful to the NumPy einsum.",
-        ts_params_132, 2u,
+        ts_params_133, 2u,
         "Mat | Vec | complex | float | list",
         "the contracted tensor",
         1,
@@ -4476,12 +4492,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 133 */
+    { /* 134 */
         "srmech.amsc.cascade.matrix_cascades.eigvals",
         "srmech",
         "cascade",
         "Eigenvalues of a general (non-Hermitian) square matrix via the shifted-QR iteration: Class K (iterate-to-convergence asymptotic-DoF) + Class L (spectral content) + {QR} (per-step Householder factorization) + Class C (Wilkinson spectral shifts). Runs in complex arithmetic so complex eigenvalues of real matrices fall out directly. numpy as CONTAINER only \342\200\224 no NumPy eig/eigvals. Eigenvalues unique as a SET; the multiset matches NumPy eigvals to ~1e-12 for moderate sizes.",
-        ts_params_133, 2u,
+        ts_params_134, 2u,
         "Vec",
         "length-n complex eigenvalue array",
         1,
@@ -4492,12 +4508,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 134 */
+    { /* 135 */
         "srmech.amsc.cascade.matrix_cascades.char_poly",
         "srmech",
         "cascade",
         "Exact integer characteristic polynomial det(xI - A) via Faddeev-Leverrier. For an INTEGER matrix returns the EXACT integer coefficients (monic, high->low [1, c1, ..., cn]) in arbitrary-precision integer arithmetic \342\200\224 the exact ALGEBRAIC substrate of the eigenproblem: exact trace = -c1, exact determinant = (-1)^n*cn, all elementary symmetric functions of the spectrum, NO floating point. The eigenvalues are the ROOTS of this exact polynomial (extract them with eigvals_exact, which avoids the Wilkinson ill-conditioning of float root-finding by staying in exact arithmetic). Non-integer matrices fall back to a float Faddeev-Leverrier. Class L (algebraic content) + Class M (matrix-product/trace accumulate) + Class K (exact //k step division).",
-        ts_params_134, 1u,
+        ts_params_135, 1u,
         "list",
         "characteristic-polynomial coefficients, monic high\342\206\222low [1, c1, ..., cn]",
         1,
@@ -4508,12 +4524,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 135 */
+    { /* 136 */
         "srmech.amsc.cascade.matrix_cascades.eigvals_exact",
         "srmech",
         "cascade",
         "Exact eigenvalues of an integer matrix \342\200\224 the well-conditioned exact-until-rotation cascade (no Wilkinson ill-conditioning, because the eigenvalues are ALGEBRAIC and we never leave exact arithmetic). char_poly (exact integer) + Yun square-free factorization (exact multiplicities) + Sturm sign-sequence isolation (Class C sign-count at Class K interval boundaries) + rational bisection (Class N anchors \342\206\222 the algebraic asymptote), all in exact Fraction arithmetic, then ONE FPU lift. bits sets refinement precision; return_intervals=True yields the exact (lo, hi) rational isolating intervals (real-only path). Returns the real eigenvalues ascending WITH multiplicity. With include_complex=True the COMPLEX eigenvalues are also returned, EXACTLY ISOLATED: a float-QR candidate is certified as a unique root of the exact integer char-poly in a rational box by the argument-principle root-count (winding number in exact Fraction arithmetic \342\200\224 no float in the count), refined to bits, the float being the single terminal projection of the certified box center \342\200\224 distinct from the unconditioned float-QR spectrum of mat_eigvals it merely seeds. Returns all n eigenvalues (reals first ascending as float, then complex sorted by (re, im) as complex; conjugate pairs).",
-        ts_params_135, 4u,
+        ts_params_136, 4u,
         "list",
         "real eigenvalues ascending with multiplicity (floats, or (lo, hi) exact-\342\204\232 intervals); with include_complex=True, all n eigenvalues (reals as float then certified complex)",
         1,
@@ -4524,12 +4540,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 136 */
+    { /* 137 */
         "srmech.amsc.cascade.matrix_cascades.lll_reduce",
         "srmech",
         "cascade",
         "EXACT-\342\204\232 LLL lattice-basis reduction \342\200\224 the classic Lenstra\342\200\223Lenstra\342\200\223Lov\303\241sz (1982) reduction of an integer lattice basis, in exact rational arithmetic (no float anywhere), and the foundation for a future van Hoeij polynomial-factorization knapsack (the LLL recombination that supersedes the exponential Zassenhaus subset search in factor_integer_poly). Input basis is m integer row-vectors (length n) spanning a rank-m lattice; delta=(num, den) is the Lov\303\241sz parameter in (1/4, 1] (default 3/4). Returns the LLL-reduced basis (m integer row-vectors): SAME lattice (a unimodular change of basis, det = \302\2611), size-reduced (|\316\274_{k,j}| \342\211\244 1/2 for j<k), Lov\303\241sz-satisfying (\342\200\226b*_k\342\200\226\302\262 \342\211\245 (\316\264 \342\210\222 \316\274\302\262_{k,k\342\210\2221})\302\267\342\200\226b*_{k\342\210\2221}\342\200\226\302\262), so the first vector is provably short. The engine is exact throughout: a Gram-matrix Gram\342\200\223Schmidt orthogonalization over \342\204\232 (\316\274, \342\200\226b*\342\200\226\302\262 as exact Fraction / arbitrary-precision srmech_bigint rationals in the C peer), size reduction by exact nearest-integer rounding of \316\274 (round(a/b) = floor((2a+b)/(2b)) \342\200\224 never a float rint, never abs: the |\316\274| \342\211\244 1/2 guard is a Class-K sign branch on 2\302\267num vs den), and the Lov\303\241sz swap decided on the exact \342\204\232 inequality. Integer-in, integer-out; rotation-last-trivial (no projection). Class L (the lattice / Gram\342\200\223Schmidt spectral content) \342\210\230 Class K (the size-reduction sign pin-slots + the swap-sign boundary \342\200\224 never an ALU abs) \342\210\230 Class N (the exact nearest-integer rational rounding) \342\210\230 Class I (the ordered integer vector row operations). Native-dispatched (srmech_lll_reduce, byte-identical to the pure body \342\200\224 both exact). Raises on a degenerate (linearly dependent) basis or a delta outside (1/4, 1]. Canonical SSoT: A. K. Lenstra, H. W. Lenstra Jr., L. Lov\303\241sz, 'Factoring polynomials with rational coefficients', Math. Ann. 261 (1982), 515\342\200\223534; algorithm as in H. Cohen, A Course in Computational Algebraic Number Theory (1993), Algorithm 2.6.3.",
-        ts_params_136, 2u,
+        ts_params_137, 2u,
         "list",
         "the LLL-reduced basis: m integer row-vectors (same lattice, size-reduced, Lov\303\241sz-satisfying)",
         1,
@@ -4540,12 +4556,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 137 */
+    { /* 138 */
         "srmech.amsc.rational.continued_fraction_convergents",
         "srmech",
         "rational",
         "Produce the convergent ladder [(h_0, k_0), ...] from a continued-fraction coefficient list via the canonical CF recurrence. Anchors `[[user_stance_pi_spectral_shape_scalar_invariant]]` \342\200\224 the convergent ladder IS \317\200's substrate identity. Canonical SSoT: Hardy & Wright *Theory of Numbers* \302\24710.6 (best-rational property) + Khinchin *Continued Fractions* \302\24710 (canonical \317\200 CF).",
-        ts_params_137, 1u,
+        ts_params_138, 1u,
         "list[tuple[int, int]]",
         "convergent ladder (h_k, k_k) per CF coefficient",
         1,
@@ -4556,12 +4572,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 138 */
+    { /* 139 */
         "srmech.amsc.rational.pi_cascade_digits",
         "srmech",
         "rational",
         "Stream decimal digits of \317\200 via integer-cyclic geometric cascade (Archimedes hexagon-doubling with integer-floor \342\210\232 via math.isqrt at fixed precision). Returns '3.141592...' as a string without invoking math.pi anywhere in the call graph (AST-verified discipline gate per `[[user_stance_pi_spectral_shape_scalar_invariant]]`; Spike #32 / PR #460). rc13 cap-expansion (Task #248): num_digits up to 1000 with auto-scaled cascade depth + precision_bits. Canonical SSoT: Archimedes *Measurement of a Circle* (c. 250 BCE) for the algorithm; Khinchin *Continued Fractions* \302\24710 for canonical \317\200 reference.",
-        ts_params_138, 3u,
+        ts_params_139, 3u,
         "str",
         "'3.{num_digits}' decimal expansion of \317\200",
         1,
@@ -4572,12 +4588,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 139 */
+    { /* 140 */
         "srmech.amsc.rational.pi_chudnovsky_digits",
         "srmech",
         "rational",
         "Stream decimal digits of \317\200 via the ROTATION-LAST Chudnovsky series \342\200\224 the canonical srmech cascade shape: the body stays bit-exact (exact integer add/sub/mul/floor-divmod accumulating the Chudnovsky linear series on arbitrary-precision integers \342\200\224 the caller-arena srmech_bigint in C), and the SINGLE continuous/frame projection ('rotation') happens ONCE, terminally, as one isqrt(10005\302\267one\302\262) followed by one division and a base-10 render. NO float, NO math, NO per-term square root \342\200\224 the opposite of pi_cascade_digits (Archimedes), which projects every step. ~14.18 digits land per term. Native C path srmech_pi_chudnovsky when present (byte-identical to the pure-Python bignum oracle; C==Python validated at 1000 + 10000 digits); pure Python is the complete fallback + the parity oracle. Returns '3.141592...' as a string. Canonical SSoT: D. V. & G. V. Chudnovsky, 'Approximations and complex multiplication according to Ramanujan' (1988).",
-        ts_params_139, 1u,
+        ts_params_140, 1u,
         "str",
         "'3.{num_digits}' decimal expansion of \317\200",
         1,
@@ -4588,12 +4604,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 140 */
+    { /* 141 */
         "srmech.amsc.genome.encode_shape",
         "srmech",
         "genome",
         "The genome encode CRITERION (F715): decide how to store a kernel of size n. n<=256 -> a 'tome' (one dense 2**8 leaf); n<=1024 -> a 'mobius' (one quad-turn = the 4 Klein-4 sectors); n>1024 -> a 'quad_strand' (a helix of quad-turns, a chromosome). depth = ceil(log4(ceil(n/256))) is the number of base-4 quad levels over the leaves; computed in pure integer arithmetic (Class I/N; no float log). Thresholds attested to 256=2**8 and the Klein-4 order 4 \342\200\224 no magic. Returns a dict {n, shape, leaves, depth, leaf_cap}.",
-        ts_params_140, 1u,
+        ts_params_141, 1u,
         "dict",
         "{n, shape: 'tome'|'mobius'|'quad_strand', leaves, depth, leaf_cap}",
         1,
@@ -4604,12 +4620,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 141 */
+    { /* 142 */
         "srmech.amsc.genome.quad_turn",
         "srmech",
         "genome",
         "Couple one helix turn through coupling \342\200\224 the genome's turn operation (F713). The turn is bound to the_one (the held invariant) by the REVERSIBLE Klein-4 bind (V4=(F2)^2 XOR, so quad_turn(quad_turn(t, one), one) == t): the duality held WITHOUT collapse, numpy-free. coupling is the shared invariant in every turn's coupling, so a chromosome navigates across its turns through coupling and recovers any turn by re-binding. Each turn sits in the native 4-sector biaxial '+' (cascade.parallel_sector_dispatch, CAP=4) \342\200\224 per F712 the 4-way is ONE chirality level, the deeper leaf-tree is base-4 radix addressing. Class M (bind) composed with Class C (the Klein-4 chirality).",
-        ts_params_141, 2u,
+        ts_params_142, 2u,
         "HV",
         "the coupled turn (re-apply quad_turn with the same coupling to recover turn)",
         1,
@@ -4620,12 +4636,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 142 */
+    { /* 143 */
         "srmech.amsc.genome.telomere",
         "srmech",
         "genome",
         "The non-data content-address CAP that delimits a chromosome (F715) \342\200\224 biology's repetitive non-coding chromosome-end cap. A deterministic, content-addressed Klein-4 sentinel derived from a label (Class A content-address via sha256_bytes -> a seed -> a Klein-4 carrier). Same label gives the same cap (so a chromosome is recalled / partitioned by matching its cap), distinct labels give distinct caps. It marks + protects a partition boundary and carries no kernel data. dim is the Klein-4 vector length (match the turns it caps).",
-        ts_params_142, 2u,
+        ts_params_143, 2u,
         "HV",
         "the telomere cap (a Klein-4 vector, deterministic per label)",
         1,
@@ -4636,12 +4652,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 143 */
+    { /* 144 */
         "srmech.amsc.genome.active_telomere",
         "srmech",
         "genome",
         "The ACTIVE TELOMERE (UPSTREAM \302\247127 / #726) \342\200\224 a chromosome cap made op(x)operand: it opens + governs a chromosome (the OPERATOR \342\200\224 a gating rule, like telomere) AND carries an exact non-negative Hayflick COUNT inline in the strand (the OPERAND \342\200\224 the descending replicative counter; Harley/Futcher/Greider 1990 Nature 345:458, Hayflick 1965 Exp Cell Res 37:614). The count MODULATES a downstream op (telomere_tick): count>0 -> a divide proceeds + decrements; count==0 -> honest senescence. That is what makes the chromosome GENUINELY op(x)operand (a plain telomere is a PASSIVE op-slot \342\200\224 #726). Same (operand, op) pattern as op_provenance.carry (value, operation) and coupling.RecoverableFold (lossy_bundle, exact_seed_R) but with an ACTIVE op. Marker byte 0x74; layout [0x74] + utf-8 label + NUL + count(uint64 big-endian) + NUL-pad; count is an exact Class-I/N integer (no float, never abs). Same label + count give the same cap.",
-        ts_params_143, 3u,
+        ts_params_144, 3u,
         "HV",
         "the active-telomere cap (a fixed-width cap leaf carrying the count inline)",
         1,
@@ -4652,12 +4668,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 144 */
+    { /* 145 */
         "srmech.amsc.genome.telomere_tick",
         "srmech",
         "genome",
         "The DIVIDE/GATE op (UPSTREAM \302\247127 / #726) \342\200\224 the ACTIVE TELOMERE's count MODULATES the operator. strand is a chromosome that opens with an active_telomere cap (0x74); this reads the count (the operand) and its behaviour (the operator) is SELECTED by it: count>0 -> DIVIDE (decrement the count by exactly 1 \342\200\224 the telomere SHORTENS \342\200\224 and return the DAUGHTER strand: the same coupled leaves led by an active telomere of count-1; the telomere governs the leaves WITHOUT decoding them, like biology shortening the cap not re-synthesising the genes), status 'divided'; count==0 -> SENESCENCE (refuse HONESTLY, no daughter, status 'senescent' \342\200\224 the Hayflick limit, Hayflick & Moorhead 1961 Exp Cell Res 25:585 / Hayflick 1965). An active telomere of count N allows EXACTLY N divides, then the N+1-th refuses. THE op(x)operand duality made testable \342\200\224 same call, operator behaviour set by the operand. Needs no the_one (the count lives in the cap; \302\24744 bare-strand self-description). Returns {status, label, count_before, count_after, daughter}. Native-dispatched (byte-identical C peer srmech_genome_telomere_tick).",
-        ts_params_144, 1u,
+        ts_params_145, 1u,
         "dict",
         "{status: 'divided'|'senescent', label, count_before, count_after, daughter: strand|None}",
         1,
@@ -4668,12 +4684,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 145 */
+    { /* 146 */
         "srmech.amsc.genome.gene_express",
         "srmech",
         "genome",
         (const char *)ts_lstr_0,
-        ts_params_145, 3u,
+        ts_params_146, 3u,
         "list",
         "the EXPRESSED subset [(gene_label:str, gene_leaves:list[HV]), ...] in strand order (plain genes always; regulatory genes iff (cell_state & activator) == activator AND (cell_state & repressor) == 0)",
         1,
@@ -4684,12 +4700,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 146 */
+    { /* 147 */
         "srmech.amsc.genome.gene_express_levels",
         "srmech",
         "genome",
         "GRADED / ANALOG gene expression LEVEL (UPSTREAM \302\247132 / #732 \342\200\224 the E3 rung) \342\200\224 the ORTHOGONAL companion to gene_express, a READ-TIME FILTER over a multi-gene chromosome. Where gene_express decides IF each gene expresses (a BINARY set, dispatching on each gene's E1/E2/E4 gate-type) and returns [(gene_label, gene_leaves), ...], this op returns each EXPRESSED gene WITH its exact-rational expression LEVEL [(gene_label, gene_leaves, (num, den)), ...] \342\200\224 HOW MUCH it expresses (real biology is quantitative/analog, not just on/off). The LEVEL axis is ORTHOGONAL to the gate-type family \342\200\224 it composes with EVERY gene kind: a BINARY gene (plain 0x47 / klein4-mask 0x67 / boolean 0x62 / threshold 0x77) is the DEGENERATE {0,1} case, included at LEVEL exact-rational 1 = (1,1) iff its gate PASSES (the SAME \302\247128/\302\247130/\302\247131 decision gene_express uses) and ABSENT otherwise; a GRADED gene (a NEW 0x64 cap, \302\247132) carries a per-condition SIGNED integer LEVEL-WEIGHT vector + a POSITIVE integer DENOMINATOR, and its LEVEL is the reduced exact rational Sum_i (level_weight_i * bit_i(cell_state)) / denom CLAMPED to [0,1] (a Class-K sign-branch, never abs \342\200\224 raw dose <=0 -> 0, raw dose >= denom -> 1, else the reduced in-range fraction; the fraction reduced by the Class-I gcd), included iff its LEVEL > 0 (the dose-response IS the gate \342\200\224 a zero dose = off). So every gene gene_express returns appears here at level 1, and vice versa. NEW 0x64 cap layout: [0x64] + label + NUL + gate_type(uint8=3) + n_weights(uint16 BE) + denom(uint64 BE POSITIVE) + n_weights x level_weight(int64 BE signed) + NUL-pad; a NEW block KIND -> genome format v10 -> v11. THE THEOREM (op(x)operand, refined to a QUANTITY): the cell_state OPERAND modulates the LEVEL the gene_express_levels operator reports \342\200\224 SAME DNA, DIFFERENT cell_state -> DIFFERENT expression LEVELS (not just a different on/off subset); a morphogen at a graded concentration drives a graded transcriptional output. NEVER MUTATES THE STRAND (a READ \342\200\224 the strand is byte-identical after). Returns the expressed subset [(gene_label, gene_leaves, (num, den)), ...] in strand order \342\200\224 (num, den) is the reduced exact-rational level (a JSON-native 2-tuple of ints); gene_leaves uncoupled through coupling. Class-N exact rational (no float, never abs); Class-I gcd-reduce; Class-K clamp. Native-dispatched (byte-identical C peer srmech_genome_gene_express_levels). Attests graded / dose-response gene expression as ONE facet (Alberts et al., Molecular Biology of the Cell 4th ed., How Genetic Switches Work -> Gene Activator Proteins Work Synergistically, NCBI NBK26872 \342\200\224 the joint effect of several activators on the transcription RATE is not merely the sum but the product: a graded, analog modulation of the expression level, not a binary switch).",
-        ts_params_146, 3u,
+        ts_params_147, 3u,
         "list",
         "the EXPRESSED subset [(gene_label:str, gene_leaves:list[HV], level:(num:int, den:int)), ...] in strand order \342\200\224 a BINARY gene at level (1,1) iff its gate passes; a GRADED gene at its reduced dose-response rational in (0,1] (absent when the level is 0)",
         1,
@@ -4700,12 +4716,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 147 */
+    { /* 148 */
         "srmech.amsc.genome.gene_express_plan",
         "srmech",
         "genome",
         "DEMAND-LOAD gene-expression PLAN (UPSTREAM \302\247134 / #1273, siona green-light \342\200\224 the #736 probe made shippable) \342\200\224 the OFFSET-ONLY load plan that computes the EXPRESSED set + each expressed unit's ON-DISK byte-range WITHOUT reading content (never decodes a leaf), so a partial-load reader (genome_genes_expressed) can SEEK only the expressed byte-ranges. Returns [(label, byte_offset, byte_len), ...] for the EXPRESSED genes / regions. TWO variants, dispatched on the input: PATH variant (variant b \342\200\224 the PRIMARY demand-load case): strand_or_path is a genome DIRECTORY (with the rc115 v4 manifest). For each chromosome REGION the plan seeks to the manifest byte_offset and reads ONLY the region's head GATE cap (the SECOND block, one leaf_dim-byte cap right after the CHROM cap), evaluates its inline gate (E1 0x67 / E2 0x62 / E4 0x77 / E3 0x64 \342\200\224 the delivered gates) against cell_state, and includes the EXPRESSED regions' (chromosome_label, byte_offset, byte_len). It MUST NOT read the region body \342\200\224 bounded RAM AND bounded I/O (bytes-touched << full body). A region with no head gene cap (a single-kernel chromosome, byte_len < 2*leaf_dim) is not a gated community and is skipped. This is the siona community=chromosome layout: the per-chromosome head gate IS the community gate. Mixed E1/E2/E4/E3 gate-types across chromosomes are the delivered gates \342\200\224 the plan gates by the inline mask regardless of kind. \302\24798/rc269 chromatin OUTER gate: if the head slot is a CHROMATIN cap (0x48), it gates the whole region \342\200\224 a CONDENSED (silenced, accessibility numerator 0) region is SKIPPED at plan time having touched ONLY the chromatin cap (its gene gate cap is NEVER read \342\200\224 even fewer bytes than the \302\247134 read); an OPEN (accessible) region advances one slot and reads the gene gate as before; a chromatin-FREE region is byte-for-byte the rc135 read. STRAND variant (variant a \342\200\224 the in-memory fallback): strand_or_path is an in-memory strand. The plan SKELETON-SCANS it \342\200\224 walking blocks, computing each block's ON-DISK byte span (a cap is leaf_dim bytes; a data turn is the \302\24755/v3 bit-packed 1 + ceil(leaf_dim/4) bytes \342\200\224 the payload is SEEKED PAST, never decoded), splitting on the inline GENE caps, and delimiting each EXPRESSED gene's byte-range (gene_label, byte_offset, byte_len) in the on-disk layout genome_save would write. The expressed-label set equals gene_express's on the same strand + cell_state. A READ \342\200\224 the strand / file is byte-identical after. cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). The PATH variant is native-dispatched (byte-identical C peer srmech_genome_gene_express_plan reads only the head gate caps + emits the same offset plan); pure Python is the complete alternative. NO format addition \342\200\224 the ops read the existing caps / manifest (genome format v11 stays). Attests demand-loaded differential gene expression \342\200\224 bounded RAM WITHOUT bounded availability, the epigenetic on-demand-transcription facet (Alberts et al., Molecular Biology of the Cell 4th ed., How Genetic Switches Work, NCBI NBK26872: different cell types express different gene selections; the demand-load reads only the promoter / regulatory cap to decide, not the gene body).",
-        ts_params_147, 3u,
+        ts_params_148, 3u,
         "list",
         "the offset-only load plan [(label:str, byte_offset:int, byte_len:int), ...] for the EXPRESSED genes / regions \342\200\224 PATH variant: per expressed chromosome REGION; STRAND variant: per expressed GENE. NEVER decodes / returns leaf content.",
         1,
@@ -4716,12 +4732,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 148 */
+    { /* 149 */
         "srmech.amsc.genome.genome_genes_expressed",
         "srmech",
         "genome",
         "DEMAND-LOAD partial-load READER (UPSTREAM \302\247134 / #1273, siona green-light) \342\200\224 the companion to gene_express_plan. Uses the PATH (variant-b) plan to SEEK + load + decode ONLY the EXPRESSED chromosome regions, then filters each region's genes by gene_express \342\200\224 returning [(gene_label, gene_leaves), ...] BYTE-IDENTICAL to the expressed subset of a full genome_genes / gene_express over the WHOLE genome, WITHOUT loading the unexpressed regions (bounded RAM AND bounded I/O). In the siona community=chromosome layout the per-chromosome head gate IS the community gate, so an unexpressed community (head gate off) contributes no expressed gene \342\200\224 skipping its region is exact. A READ \342\200\224 the file is byte-identical after (biology reads the regulatory region, it does not rewrite the DNA). cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). The plan is native-dispatched (the C peer srmech_genome_gene_express_plan); the per-region load + gene_express decode are the exact pure path \342\200\224 the leaves are byte-identical whether the plan came from C or Python. NO format addition (reads the existing v4 manifest + caps; genome format v11 stays). Attests demand-loaded gene expression: the expressed subset is materialised on demand, the unexpressed genes never paged in (Alberts et al., MBoC 4th ed., NCBI NBK26872).",
-        ts_params_148, 3u,
+        ts_params_149, 3u,
         "list",
         "the EXPRESSED subset [(gene_label:str, gene_leaves:list[HV]), ...] across the whole genome in body order \342\200\224 BYTE-IDENTICAL to the expressed subset of a full gene_express, but with only the expressed regions paged in (the unexpressed communities never loaded)",
         1,
@@ -4732,12 +4748,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 149 */
+    { /* 150 */
         "srmech.amsc.genome.modulator_recover",
         "srmech",
         "genome",
         "MODULATOR-RECOVERY M1 (UPSTREAM \302\247133 / #733) \342\200\224 the INVERSE of gene_express. gene_express is the FORWARD map (cell_state -> expressed genes); this recovers the TWO-SIDED cell-state FLOOR from an OBSERVED expressed-label set (+ the strand's gene regulatory specs). It is UNDER-DETERMINED (many cell_states -> the SAME expressed subset), so the exact cell_state is IRRECOVERABLE BY CONSTRUCTION and the only honest form is a ONE-SIDED floor \342\200\224 the SAME recoverability discipline / op_verdict EQUAL/UNKNOWN contract as op_provenance (rc117) / RecoverableFold / the #725 null: recover the EXACT complement we can PROVE, flag the rest UNKNOWN. THE FLOOR (sharpened by the rc129 activator/repressor two-mask): certain_on = the bits every consistent cell_state MUST have SET \342\200\224 each EXPRESSED E1 gene (klein4-mask 0x67 / plain 0x47) proves its activator bits are on (OR their activator masks); each EXPRESSED E2 gene (boolean DNF 0x62) proves >=1 clause matched, so the bits set in EVERY clause's activator (the INTERSECTION-over-clauses activator) are certain-on. certain_off = the bits every consistent state MUST have CLEAR: OR of expressed E1 repressor masks + the intersection-over-clauses repressor of expressed E2 genes. E4 threshold (0x77) / E3 graded (0x64) / UN-expressed genes give NO clean single-bit certainty (a failed threshold / an absent gene is a DISJUNCTION \342\200\224 that is M3's job) so they contribute NOTHING to the clean floor (SOUND, not over-claiming). undetermined = the referenced condition bits (the union of bits ANY gene reads) minus (certain_on | certain_off). verdict = EXACT if certain_on | certain_off covers ALL referenced bits (the floor fully determines the state), PARTIAL if some pinned, UNKNOWN if none \342\200\224 mirroring op_verdict's one-sidedness (NEVER claim a bit's value it can't prove). SOUNDNESS (the load-bearing contract): for EVERY cell_state modulator_consistent reports CONSISTENT, (state & certain_on) == certain_on AND (state & certain_off) == 0; a gene's floor is applied only when its label is expressed AND UNIQUE among the strand's gene caps (a duplicated label cannot be attributed). NEVER MUTATES the strand (a READ \342\200\224 byte-identical after). coupling is the leaf-width anchor (M1 reads only the gene CAPS, which are not coupled). Class-I exact bitwise (no float, never abs). Native-dispatched (byte-identical C peer srmech_genome_modulator_recover). Attests gene-regulatory-network (GRN) inference \342\200\224 reverse-engineering the regulatory state from an expression pattern \342\200\224 as ONE FACET of a real biological-computational problem (the inverse of expression; #728 discipline \342\200\224 NOT a claim srmech reproduces it): Marbach D, Costello JC, Kuffner R, et al., Wisdom of crowds for robust gene network inference, Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
-        ts_params_149, 3u,
+        ts_params_150, 3u,
         "dict",
         "{certain_on: int (bits every consistent state must have SET), certain_off: int (bits every consistent state must have CLEAR), undetermined: int (referenced-but-unpinned bits), verdict: str (EXACT / PARTIAL / UNKNOWN)} \342\200\224 all JSON-native; the floor is SOUND (never over-claims a bit)",
         1,
@@ -4748,12 +4764,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 150 */
+    { /* 151 */
         "srmech.amsc.genome.modulator_consistent",
         "srmech",
         "genome",
         "MODULATOR-RECOVERY M2 (UPSTREAM \302\247133 / #733) \342\200\224 the candidate consistency verdict for the INVERSE of gene_express. Forward-CHECK one candidate cell_state: is set(labels of gene_express(strand, coupling, candidate)) == set(expressed_labels)? -> CONSISTENT else INCONSISTENT. ONE-SIDED (the op_verdict EQUAL/UNKNOWN reuse): CONSISTENT means 'could be the state' (MANY candidates may be \342\200\224 expression is under-determined), NEVER 'it IS the state'. Reuses the FORWARD gene_express (no new gate logic \342\200\224 it dispatches on each gene's E1/E2/E4 gate-type exactly as the forward map does). Pairs with modulator_recover: M1's floor is SOUND precisely because every state M2 calls CONSISTENT satisfies it (every consistent state has certain_on set and certain_off clear). NEVER MUTATES the strand (a READ). candidate_cell_state is a non-negative exact int (Class-I bitwise; each set bit a present condition; no float, never abs). Native-dispatched (byte-identical C peer srmech_genome_modulator_consistent). Attests GRN-inference / consistency-checking of a candidate regulatory state as ONE FACET (the inverse of expression; #728 discipline \342\200\224 NOT a claim srmech reproduces it): Marbach et al., Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
-        ts_params_150, 4u,
+        ts_params_151, 4u,
         "str",
         "'CONSISTENT' iff gene_express(candidate) produces exactly expressed_labels (could be the state \342\200\224 many may be), else 'INCONSISTENT' (one-sided; never a false positive-identification)",
         1,
@@ -4764,12 +4780,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 151 */
+    { /* 152 */
         "srmech.amsc.genome.modulator_constraint",
         "srmech",
         "genome",
         "MODULATOR-CONSTRAINT M3 (UPSTREAM \302\247133 / #733 \342\200\224 the LAST rung of the E-M ladder) \342\200\224 the COMPLETE inverse of gene_express. Where M1 (modulator_recover) gives the SOUND two-sided FLOOR from the EXPRESSED genes and M2 (modulator_consistent) forward-CHECKS one candidate, M3 returns the EXACT CONSTRAINT characterizing the WHOLE set of cell-states consistent with an observed expression \342\200\224 a COMPACT structured constraint, NEVER an enumeration (the consistent set can be exponential). It ADDS what M1 left out: (a) the DISJUNCTIVE clauses from UN-expressed genes \342\200\224 an un-expressed E1 gene (activator a, repressor r) PROVES (cs & a) != a OR (cs & r) != 0 (some activator absent OR some repressor present) = a nand-clause; an un-expressed E2 gene ANDs one nand-clause per DNF term (all clauses must fail); (b) the FULL expressed-E2 disjunction (M1 only took the SOUND intersection-over-clauses; M3 adds the exact or_terms disjunction \342\200\224 an expressed label with >= 2 boolean terms expresses iff >= 1 term fully matches); (c) the general-gate inverse \342\200\224 an EXPRESSED E4 threshold gene -> Sum w_i*bit_i(cs) >= theta (a linear inequality), UN-expressed -> Sum < theta; an E3 graded gene EXPRESSED -> Sum w_i*bit_i(cs) >= 1 (level > 0), UN-expressed -> Sum <= 0 (level 0). These are CONSTRAINT-SATISFACTION, not a mask-OR. Returns a JSON-native dict {certain_on:int, certain_off:int (M1's floor pins), clauses:[{kind:'nand', any_absent:int, any_present:int} | {kind:'or_terms', terms:[{present:int, absent:int}, ...]}, ...], inequalities:[{weights:[int,...], threshold:int, sense:'>='|'<'}, ...], levels:[{weights:[int,...], denom:int, positive:bool}, ...], satisfiable:bool, free_bits:int, solution_note:str, sound_complete:bool, sound_only_labels:[str, ...]}. ALL clauses / inequalities / levels are ANDed (a conjunction); check a candidate with modulator_constraint_satisfies. SOUND: every cell_state modulator_consistent reports CONSISTENT satisfies the constraint. COMPLETE (satisfies <=> M2-CONSISTENT) for the BOOLEAN gate-types E1/E2 at ANY label multiplicity AND for a UNIQUE single E4/E3 gene; SOUND-ONLY (an over-approximation, HONESTLY reported in sound_only_labels with sound_complete=False) for an EXPRESSED label that is a genuine CROSS-TYPE disjunction (a duplicated label spanning boolean AND threshold/graded, or >= 2 threshold/graded genes) \342\200\224 that OR has no exact flat-clause form, so its expressed requirement is DROPPED to stay sound. UN-expressed labels are COMPLETE for EVERY gate-type (a conjunction of exact silence constraints). satisfiable is True iff SOME cell-state satisfies (a real came-from-a-state expression is always satisfiable; a hand-supplied inconsistent set \342\200\224 e.g. two genes that can't co-express \342\200\224 is False): FALSE is always a PROOF, and within the free-bit bound it is decided EXACTLY (see solution_note). free_bits = the count of referenced-but-unpinned condition bits; solution_note characterizes the solution-set SIZE HONESTLY and NEVER enumerates it. NEVER MUTATES the strand (a READ \342\200\224 byte-identical after). Native-dispatched: the C peer srmech_genome_modulator_constraint emits the BOOLEAN part (floor + clauses) byte-identically; the inequalities / levels / satisfiability are the exact pure Class-N/I path (the owed-C = the E4/E3 emit). Class-I bitwise; Class-N integer sums; the inequality SENSE is a Class-K sign (never abs). Attests gene-regulatory-network (GRN) inference \342\200\224 inferring the COMPLETE regulatory-input constraint from an expression profile, a constraint-satisfaction view of the inverse problem \342\200\224 as ONE FACET (#728 discipline, NOT a claim srmech reproduces it): Marbach D, Costello JC, Kuffner R, et al., Wisdom of crowds for robust gene network inference, Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
-        ts_params_151, 3u,
+        ts_params_152, 3u,
         "dict",
         "{certain_on:int, certain_off:int (M1 floor), clauses:[nand / or_terms dicts], inequalities:[E4 linear inequalities], levels:[E3 level constraints], satisfiable:bool, free_bits:int, solution_note:str, sound_complete:bool, sound_only_labels:[str]} \342\200\224 all JSON-native; the EXACT constraint on the consistent-state set (SOUND everywhere; COMPLETE for E1/E2 + unique E4/E3), NEVER an enumeration",
         1,
@@ -4780,12 +4796,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 152 */
+    { /* 153 */
         "srmech.amsc.genome.modulator_constraint_satisfies",
         "srmech",
         "genome",
         "MODULATOR-CONSTRAINT M3 checker (UPSTREAM \302\247133 / #733) \342\200\224 does a candidate cell_state satisfy an M3 constraint? The runnable predicate that makes the SOUND-AND-COMPLETE claim TESTABLE. Evaluates the WHOLE constraint modulator_constraint returned: the floor pins ((cs & certain_on) == certain_on AND (cs & certain_off) == 0) AND every nand clause ((cs & any_absent) != any_absent OR (cs & any_present) != 0) AND every or_terms clause (>= 1 term fully matches: (cs & present) == present AND (cs & absent) == 0) AND every E4 inequality (Sum w_i*bit_i(cs) >= threshold for sense '>=', < threshold for sense '<') AND every E3 level (Sum >= 1 for positive, Sum <= 0 else), ALL ANDed. On the COMPLETE gate-types this EQUALS modulator_consistent(strand, coupling, expressed_labels, candidate) == 'CONSISTENT' exactly; for a SOUND-ONLY cross-type-OR label it is a sound over-approximation (True for every consistent state, possibly True for a few inconsistent ones \342\200\224 the dropped disjunct). NEVER MUTATES anything (a READ). candidate_cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). Native-dispatched (the C peer srmech_genome_modulator_constraint_satisfies checks the BOOLEAN part byte-identically; the inequality / level checks are the exact pure Class-N path). The inequality SENSE is a Class-K sign-branch, never abs. Returns bool. Attests GRN-inference consistency-checking of a regulatory state against the recovered constraint as ONE FACET (#728 discipline): Marbach et al., Nature Methods 9(8):796-804 (2012), DOI 10.1038/nmeth.2016 (OA: NIH PMC3512113).",
-        ts_params_152, 2u,
+        ts_params_153, 2u,
         "bool",
         "True iff candidate_cell_state satisfies EVERY floor pin + clause + inequality + level of the constraint (== M2-CONSISTENT on the complete gate-types; a sound over-approximation on a sound-only cross-type-OR label)",
         1,
@@ -4796,12 +4812,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 153 */
+    { /* 154 */
         "srmech.amsc.genome.chromosome",
         "srmech",
         "genome",
         "Pack a kernel \342\200\224 or SEVERAL genes \342\200\224 into a telomere-capped strand (F713/F715/F730). Single kernel (unchanged): pass leaves (Klein-4 vectors, one tome each); they become a helix of quad-turns coupled through coupling, led by a telomere cap from label; recover with recall. Several genes (F730/S43): pass genes=[(gene_label, gene_leaves), ...] instead \342\200\224 each gene's leaves are framed by a tlv gene-header (the cheaper internal delimiter, label recoverable via tlv_unpack) inside ONE telomere-capped chromosome; recover with genes(). Pass exactly one of leaves or genes; coupling is always required. Class A (cap) + Class B (gene frame) + Class M (bind) + Class C (the Klein-4 chirality).",
-        ts_params_153, 4u,
+        ts_params_154, 4u,
         "list",
         "the strand: [telomere_cap, coupled turn, ...] (single-kernel) or [telomere_cap, gene_header, coupled turn, ..., gene_header, ...] (multi-gene)",
         1,
@@ -4812,12 +4828,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 154 */
+    { /* 155 */
         "srmech.amsc.genome.centromere",
         "srmech",
         "genome",
         "Build a CENTROMERE cap (\302\24795a / #1407 / F1243) \342\200\224 a chromosome's INTERIOR global-orientation anchor. A telomere caps a chromosome's ENDS; the centromere is the interior constriction BETWEEN its two arms (the segregation / melange-coupling split point) and carries the per-chromosome GLOBAL orientation-chirality (the strand's handedness, distinct from Klein-4's LOCAL per-leaf chirality, ADR-0004). Where it sits in the strand IS the p:q arm-ratio (biology: the centromere position defines the arms); the orientation rides as biology's alpha-satellite REPEAT-ARRAY (repeats copies of the 4-way sector, majority-decoded on read \342\200\224 klein4_triality_correct's 2-of-3 generalised to R; Class-K sector count, no abs/float). Measured (F1243 \302\2471): recovers the global which-way at ~15x fewer bits than per-leaf Klein-4 (R=15 -> 39 bits vs 600) with matching random-noise robustness. handle is the inline no-sidecar epigenetic address (CENP-A analog). Place it at mint time with chromosome(leaves, one, centromere=orientation); recover with centromere_of. Native-dispatched (byte-identical C peer srmech_genome_centromere). Class A (cap) + Class C (the orientation chirality) + Class K (the repeat-array EC read).",
-        ts_params_154, 4u,
+        ts_params_155, 4u,
         "HV",
         "the centromere cap leaf (a fixed-width dim-byte sectors=256 HV: [0x58] + handle + NUL + R + R orientation votes, NUL-padded)",
         1,
@@ -4828,12 +4844,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 155 */
+    { /* 156 */
         "srmech.amsc.genome.centromere_of",
         "srmech",
         "genome",
         "Recover a NUCLEAR chromosome's GLOBAL orientation + p:q arm-ratio from its centromere (\302\24795a) \342\200\224 the inverse read of the centromere anchor. Scans the strand for the interior 0x58 cap, majority-decodes the global 4-way orientation from its alpha-satellite repeat-array (the EC read \342\200\224 klein4_triality_correct's 2-of-3 generalised to R), and reads the p:q arm-ratio from the cap's POSITION: p = data turns BEFORE it (the short arm), q = data turns AFTER (the long arm). Position IS the arm-ratio (biology: the centromere position defines the arms), so nothing double-encodes. Returns None for a Tier-1 plasmid chromosome (no centromere). NEVER MUTATES (a READ). Native-dispatched (the C peer srmech_genome_centromere_of does the majority + arm-ratio scan byte-identically; the handle/repeats are read inline in Python \342\200\224 the composition).",
-        ts_params_155, 1u,
+        ts_params_156, 1u,
         "dict",
         "{orientation: int 0..3, arm_ratio: (p, q), handle: str, repeats: int} \342\200\224 or None if the strand has no centromere",
         1,
@@ -4844,12 +4860,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 156 */
+    { /* 157 */
         "srmech.amsc.genome.diploid",
         "srmech",
         "genome",
         "Build a DIPLOID chromosome (\302\24795b / #1407 / F1244) \342\200\224 biology's diploid pair, the erasure/break specialist. Stores TWO homologous copies of the kernel (maternal | paternal) split by an interior centromere whose orientation is the which-template MARK: [diploid_telomere(label), copyA turns\342\200\246, centromere(orientation), copyB turns\342\200\246], copyA == copyB. 2 copies + 1 mark = 3 = the k=3 triality (F291). A deterministic content-addressed store writes identical homologs; the redundancy is READ-time EC (recover_diploid): on a DETECTABLE loss (an erased leaf \342\200\224 a double-strand break) it fills from the intact homolog, reaching triality-level fidelity at 2x not 3x (measured R-RBS-LM-DIPLOID-EC); on a substitution disagreement the centromere mark is the tiebreak. This is the erasure specialist of the k=3 coherency tower (triality is the substitution specialist). Marker 0x44 'D' opens the chromosome like the CHROM cap. Native-dispatched (byte-identical C peer srmech_genome_diploid). Class A (content-address) + Class C (orientation) + Class K (the EC read).",
-        ts_params_156, 5u,
+        ts_params_157, 5u,
         "list",
         "the diploid strand: [diploid_telomere, copyA turns\342\200\246, centromere, copyB turns\342\200\246] (2*len(leaves)+2 blocks), recovered with recover_diploid",
         1,
@@ -4860,12 +4876,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 157 */
+    { /* 158 */
         "srmech.amsc.genome.recover_diploid",
         "srmech",
         "genome",
         "Recover a DIPLOID chromosome's content via the two-copy EC (\302\24795b) \342\200\224 the inverse of diploid. Splits the strand at its interior centromere into copyA | copyB (homologs) and error-corrects per leaf: both agree -> use it; exactly one ERASED (an all-zero leaf \342\200\224 a detectable double-strand break) -> fill from the intact homolog (the erasure specialist, 2x not 3x); both present but DISAGREE (a substitution) -> trust the centromere which-template mark (parity selects copyA or copyB). Re-binds each surviving turn through coupling. Returns the recovered leaves (half the raw turn count). Raises ValueError if the strand is not a diploid chromosome (no leading 0x44) or is malformed (missing centromere / unequal homolog arms). NEVER MUTATES (a READ). Native-dispatched (byte-identical C peer srmech_genome_recover_diploid).",
-        ts_params_157, 2u,
+        ts_params_158, 2u,
         "list",
         "the recovered kernel leaves (Klein-4 vectors), in order \342\200\224 half the raw diploid turn count",
         1,
@@ -4876,12 +4892,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 158 */
+    { /* 159 */
         "srmech.amsc.genome.condense",
         "srmech",
         "genome",
         "CONDENSE a region \342\200\224 SET the chromatin ACCESS marker (0x48 'H') on an EXISTING chromosome (\302\24798 / #1422 / F1246-F1247). Biology's epigenetic packaging gate: the modify-WITHOUT-changing-the-DNA layer ABOVE the coupled-turn content. condense SPLICES the marker into the strand IN-PLACE (a byte-splice, like genome_remove/genome_replace) and PRESERVES the centromere + body sequence \342\200\224 a NUCLEAR chromosome comes out still nuclear (the 0x58 centromere byte-identical, centromere_of unchanged). NO re-mint; reversible with decondense. state = the access state: True/'condensed' -> binary heterochromatin (silenced, level 0); False/'open' -> binary euchromatin (accessible, level 1); a (num, den) tuple -> a GRADED accessibility level in [0,1] (exact reduced rational; composes multiplicatively with a graded gene in gene_express_levels; Class-N, NO float, NEVER abs). PLACEMENT is scope: region=None (default) -> HEAD scope, the marker goes right after the opening telomere and silences the WHOLE chromosome (the X-inactivation / master case); region=k (int) -> INTERIOR STRETCH before the k-th data turn; region='<gene_label>' -> before that gene's cap (silences that gene onward). label picks the chromosome in a multi-chromosome strand. Native-dispatched cap bytes (srmech_genome_chromatin). Class A (cap) + Class C (the access which-way) + Class N (the level).",
-        ts_params_158, 6u,
+        ts_params_159, 6u,
         "list",
         "a NEW strand with the chromatin cap spliced in (the input is unchanged); recover the state with chromatin_of, clear it with decondense",
         1,
@@ -4892,12 +4908,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 159 */
+    { /* 160 */
         "srmech.amsc.genome.decondense",
         "srmech",
         "genome",
         "DECONDENSE \342\200\224 CLEAR the chromatin ACCESS marker(s), the inverse of condense (\302\24798 / #1422). Splices out every 0x48 chromatin cap (or only those inside the label chromosome), PRESERVING the centromere + body sequence \342\200\224 so a condensed-then-decondensed NUCLEAR chromosome is byte-identical to the original mint (NO re-mint). Returns a NEW strand (the input is unchanged). coupling is accepted for signature symmetry (the clear is a pure byte-splice). This is biology's chromatin remodelling back to accessible euchromatin \342\200\224 modify the ACCESS, not the DNA. Class C (the splice) over the strand.",
-        ts_params_159, 3u,
+        ts_params_160, 3u,
         "list",
         "a NEW strand with the chromatin cap(s) spliced out (the input is unchanged)",
         1,
@@ -4908,12 +4924,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 160 */
+    { /* 161 */
         "srmech.amsc.genome.chromatin_of",
         "srmech",
         "genome",
         "Recover a chromosome's FIRST chromatin ACCESS state (\302\24798 / #1422) \342\200\224 the inverse read of the chromatin gate, or None if it carries no chromatin marker (an all-euchromatin, fully-accessible chromosome; the default). Scans for the interior 0x48 cap, reads its (chromatin_type, num, den) accessibility level + the number of DATA TURNS before it (the scope: 0 -> whole-chromosome, >0 -> a stretch). Returns {type: 'binary'|'graded', state: 'open'|'condensed'|'graded', level: (num, den), handle: str, at: int, scope: 'chromosome'|'stretch'} or None. NEVER MUTATES (a READ \342\200\224 biology reads the packaging, it does not rewrite the DNA). Native-dispatched (the C peer srmech_genome_chromatin_of does the scan; the handle is read inline in Python \342\200\224 the composition).",
-        ts_params_160, 2u,
+        ts_params_161, 2u,
         "dict",
         "{type, state, level: (num, den), handle, at, scope} \342\200\224 or None if the strand has no chromatin marker",
         1,
@@ -4924,12 +4940,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 161 */
+    { /* 162 */
         "srmech.amsc.genome.accessible",
         "srmech",
         "genome",
         "The COMPUTED accessibility LEVEL (num, den) of a chromosome under cell_state (\302\24798.1/G1 / rc274) \342\200\224 the op\342\212\227operand theorem at the CHROMATIN scale, the parallel of gene_express one gate OUTWARD: the SAME genome under a DIFFERENT cell_state reads a DIFFERENT accessible level (facultative heterochromatin \342\200\224 the Barr body / X-inactivation). Scans for the FIRST interior chromatin cap (0x48, the region head gate) and returns its computed accessibility: a CONSTITUTIVE cap (access_gate_type == NONE \342\200\224 the pre-rc274 default; centromeric / telomeric H3K9me3 heterochromatin) reads its STATIC stored level, CONSTANT in cell_state (EXACTLY the pre-rc274 read); a FACULTATIVE cap (a klein4 / boolean / threshold gate set via condense(state={...}) \342\200\224 the H3K27me3-Polycomb X-inactivation analog) reads its WHEN-OPEN level iff the gate FIRES under cell_state (the SAME \302\247129/\302\247130/\302\247131 gene-gate evaluators applied to the chromatin cap), else (0, 1) (silenced); a chromatin-FREE strand reads (1, 1) (default euchromatin, fully accessible). num > 0 is 'open' (Class-K: the sign of the level numerator). A READ \342\200\224 the strand is byte-identical after (biology reads the packaging, it does not rewrite the DNA). cell_state is a non-negative exact int (Class-I bitwise; each set bit a present condition; no float, never abs). This makes gene_express / the rc269 demand-load skip cell-state-conditional \342\200\224 WHICH regions are condensed is now a function of cell_state, evaluated on a SINGLE seek from the already-paged chromatin cap (bounded I/O preserved). Native-dispatched per-cap (byte-identical C peer srmech_genome_chromatin_access); the pure _chromatin_access is the complete alternative + oracle. Attests facultative heterochromatin as ONE facet (X-inactivation / the Barr body \342\200\224 Chadwick & Willard 2004, PNAS 101:17450, PMC534659, OA; constitutive-vs-facultative \342\200\224 Brown, Genomes, NBK21137, OA). Class-M (read / projection) over Class-K (the num>0 sign) + Class-I (bitwise cs&act) + Class-N (the exact-rational level).",
-        ts_params_161, 3u,
+        ts_params_162, 3u,
         "tuple",
         "(num, den) \342\200\224 the computed accessibility level in [0, 1]; num > 0 is open (accessible), (0, 1) is silenced under this cell_state, (1, 1) is a chromatin-free / fully-open default",
         1,
@@ -4940,12 +4956,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 162 */
+    { /* 163 */
         "srmech.amsc.genome.mint",
         "srmech",
         "genome",
         "The explicit alias of genome() \342\200\224 the biology-aware tooling-picks build (rc260 rename / \302\24795c / #1407 / F1244). BYTE-IDENTICAL to genome(): per kernel the attested encode_shape criterion (F715, no magic number) decides plasmid-vs-nuclear \342\200\224 a plasmid-scale kernel (tome/mobius, <=4 leaves) stays a Tier-1 PLASMID chromosome (the same shape plasmid() builds); a eukaryotic-chromosome-scale kernel (quad_strand, >=5 leaves) is MINTED as a Tier-2 NUCLEAR chromosome with an interior centromere carrying its global orientation (content-address folded to a Klein-4 sector, sha256(raw leaves)[0] & 3). RC260 NAMING: genome() is the umbrella noun (default smart constructor); mint() is the explicit 'structured build' name for the SAME behaviour (the mint-vs-append vocabulary); plasmid() is the pure all-plasmid builder. See the picks first with mint_plan. The chromosomes= multi-gene form defers to plasmid() (all plasmids). Native-dispatched (byte-identical C peer srmech_genome_mint \342\200\224 a C-only host mints end-to-end). Class A (content-address) + Class C (orientation) + composition of chromosome/centromere. \302\247101 (rc275): an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) fires a per-kernel MINTING heartbeat + graceful abort \342\200\224 a truthy return CANCELS and returns the VALID PARTIAL strand (the whole chromosomes minted so far); on the native path via the srmech_genome_mint_progress ctypes trampoline (byte-parity with the pure loop).",
-        ts_params_162, 3u,
+        ts_params_163, 3u,
         "list",
         "the genome strand (a flat list of Klein-4 vectors: per kernel a plasmid chromosome or a centromere-minted nuclear one), recovered with partition",
         1,
@@ -4956,12 +4972,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 163 */
+    { /* 164 */
         "srmech.amsc.genome.mint_plan",
         "srmech",
         "genome",
         "WATCH the tooling pick each kernel's chromosome SHAPE (\302\24795c / #1407 / F1244) \342\200\224 introspection that BUILDS NOTHING (so the choice is visible before committing; 'we watch it happen so we know it does it'). The genome architecture builds into chromosomes as they fit: we don't pick the shape, the kernel's biology-analog scale (via the ATTESTED encode_shape, no magic number) does \342\200\224 tome/mobius (<=4 leaves) is plasmid-scale -> Tier-1 plasmid; quad_strand (>=5 leaves) is eukaryotic-chromosome-scale -> Tier-2 nuclear with a centromere (orientation = the content-address sha256(raw leaves)[0] & 3). NEVER MUTATES (a pure classification read). Composes encode_shape (C-dispatched) + the content-address.",
-        ts_params_163, 1u,
+        ts_params_164, 1u,
         "list",
         "[{label, n_leaves, shape, tier, centromere: bool, orientation: int|None, reason}, ...] in kernel order (shape is the derived cap_kind plasmid/nuclear; orientation is the assigned global which-way for nuclear kernels, None for plasmids)",
         1,
@@ -4972,12 +4988,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 164 */
+    { /* 165 */
         "srmech.amsc.genome.integrate",
         "srmech",
         "genome",
         "Integrate a PROVIRUS (a chromosome strand) INTO a host genome strand \342\200\224 the viral-integration analog (\302\24795.1d / #1407 / F1244), the coherency-translation-layer. Biology: a retrovirus (a Tier-1 PLASMID genome \342\200\224 telomere-capped, no centromere) integrates into a eukaryote's DNA (Tier-2 \342\200\224 NUCLEAR / DIPLOID) and is thereafter part of it; we watch it, so ONE shared cascade spans the levels. In srmech that coherence is FREE: rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every turn through the SAME the_one (one k=3 cascade at different rungs), so a plasmid provirus simply becomes another chromosome and EVERYTHING still recovers \342\200\224 partition recovers every chromosome, centromere_of still reads the host's nuclear chromosome, recover_diploid still recovers its diploid, and the provirus recovers too. That is the translation between the Tier-1 and Tier-2 levels: no conversion needed because they are the same cascade. \302\247135/rc273 (F1251) COMPATIBILITY GATE: horizontal transfer has EMPIRICAL BOUNDARIES \342\200\224 attested bacterial genomics (Shropshire et al.) measured CG307 plasmids shared with other clonal groups EXCEPT CG258 (segregated), so HGT is NOT universal. integrate now CHECKS host<->provirus compatibility BEFORE splicing and HONEST-DECLINES on incompatibility (returns None \342\200\224 a clean refuse, inform-don't-crash, mirroring telomere_tick senescence \342\200\224 leaving the host UNCHANGED, not forcing every element into every host). The DEFAULT predicate is the F1244 coherence contract made checkable: host + provirus must share the COUPLING WIDTH (== coupling / leaf_dim) \342\200\224 two genomes at different widths were coupled through different invariants and cannot cohere (an incompatible replicon, the CG258 analog); this is a Class-K/C equality read, never abs(). Python callers may ALSO pass a compatible=(host, provirus)->bool hook to add a domain replicon/lineage barrier (checked IN ADDITION to width; both must pass) \342\200\224 this is an IN-PROCESS Python affordance, NOT an MCP wire parameter (a callable cannot cross JSON-RPC), so it is not in the parameter list. A COMPATIBLE provirus integrates EXACTLY as rc262 (the gate adds ONLY a refuse path \342\200\224 full back-compat). host is a genome strand (any mix of plasmid/nuclear/diploid); provirus is a chromosome strand opening with a boundary cap (from chromosome / plasmid / mint / diploid); at is the host CHROMOSOME INDEX to insert before (0-based; default None = after the last). BOTH must share the_one (the coherence contract). Strand splicing (no re-coupling); a C-only host integrates identically via the srmech_genome_integrate C peer (rc276 / #891 / G4 \342\200\224 the stage-2 SPLICE primitive: it scans the host's boundary caps, resolves the same at->locus, applies the same width-coherence gate, and concatenates the two genomes' self-describing chromosome regions byte-identically), and when HAS_NATIVE this Python path DISPATCHES the splice to that peer (byte-identical whether native or pure). Class C (the integration) o Class K (the coherency-width gate) composing the C-built chromosome strands.",
-        ts_params_164, 3u,
+        ts_params_165, 3u,
         "Optional[list]",
         "the combined genome strand (host with the provirus spliced in at the chromosome boundary, recovered with partition) on a COMPATIBLE integration, else None (the honest-decline; host unchanged) on an incompatible one",
         1,
@@ -4988,12 +5004,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 165 */
+    { /* 166 */
         "srmech.amsc.genome.amplify",
         "srmech",
         "genome",
         "Set a gene's COPY NUMBER (multiplicity) \342\200\224 the IS26-amplification analog (UPSTREAM \302\247135/rc273 / F1251). F1251 read attested bacterial genomics (Shropshire et al.): IS26-mediated amplification RAISES a resistance gene's COPY NUMBER \342\200\224 the genome stores HOW MANY COPIES, a MULTIPLICITY annotation (a count), NOT N physical duplicated strands. amplify walks chrom (a chromosome strand from chromosome(genes=...), or any genome strand), finds the FIRST plain GENE cap (0x47) whose inline label == label, and returns a NEW strand with that cap rewritten to carry n inline (the gene's data turns + every other block byte-copied unchanged; the strand LENGTH is unchanged \342\200\224 a count, not N strands). The count rides in what was the cap's NUL padding, RIGHT AFTER the label's NUL (the \302\247129 regulatory-mask / \302\247127 active-count placement), so partition / recall / gene_express / genome_census all still read the cap as the SAME always-expressed plain gene (the copy-number is TRANSPARENT to them, Python AND C \342\200\224 srmech_genome_gene_express returns on the 0x47 marker before reading any field), and the count survives genome_save / reload / integrate byte-exact. n == 1 (the default present-once) rewrites to the BYTE-IDENTICAL plain gene cap (no field spent), so amplifying to 1 is an identity and a plain gene IS copy-number 1; only n >= 2 spends the 8-byte uint64 BE field (the \302\247129 dual-read discipline, one field over). The on-disk genome format version STAYS 15 (an additive field in existing NUL padding, NO new marker / block kind). Read the count back with copy_number_of. n is a Class-I/N exact integer >= 1 (a multiplicity is never signed \342\200\224 no float, never abs). Raises ValueError if n < 1 or no plain gene named label is found. Pure composition over the C-built strand (a cap rewrite + byte-copy, like mint_strand) \342\200\224 byte-identical whether chrom came from the native or pure builders. C-DISPATCHED since rc281 (srmech_genome_amplify): the whole op has its own C entry point, so a bare-C host can WRITE the copy-number axis (rc273 shipped it Python-only because the field is transparent to existing C readers \342\200\224 transparent-to-readers is not C-host parity).",
-        ts_params_165, 3u,
+        ts_params_166, 3u,
         "list",
         "a NEW strand with the named gene's cap carrying copy-number n (same length as chrom; every other block byte-identical)",
         1,
@@ -5004,12 +5020,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 166 */
+    { /* 167 */
         "srmech.amsc.genome.copy_number_of",
         "srmech",
         "genome",
         "Read a gene's COPY NUMBER (multiplicity) \342\200\224 the reader companion to amplify (UPSTREAM \302\247135/rc273 / F1251). Walks chrom (a chromosome / genome strand), finds the FIRST plain GENE cap (0x47) whose inline label == label, and returns its exact copy-number: the uint64 big-endian count carried RIGHT AFTER the label's NUL, or 1 (present-once, the DEFAULT) for a plain gene / a pre-rc273 genome (all-NUL padding == stored 0 == copy-number 1). So a gene that was never amplified \342\200\224 and every gene in a genome written before rc273 \342\200\224 reads as copy-number 1 (back-compat), and a gene amplified to n reads back exactly n. A READ \342\200\224 the strand is byte-identical after. Class-I/N exact integer (no float, never abs). Raises ValueError if no plain gene named label is found. C-DISPATCHED since rc281 (srmech_genome_copy_number): the READ half of the same parity correction, so a bare-C host can GET the axis and not just skip past it.",
-        ts_params_166, 2u,
+        ts_params_167, 2u,
         "int",
         "the gene's exact copy number (multiplicity) \342\200\224 1 for a plain / un-amplified / pre-rc273 gene, else the amplified count n",
         1,
@@ -5020,12 +5036,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 167 */
+    { /* 168 */
         "srmech.amsc.genome.recall",
         "srmech",
         "genome",
         "Recover a kernel's leaves from a telomere-capped chromosome strand (F713/F715) \342\200\224 the exact inverse of chromosome. Walk the strand; skip every element equal to the telomere cap (the non-data delimiter) and re-bind the_one (the reversible quad_turn again) on each coupled data turn to recover the original leaf. recall(chromosome(leaves, one, label=L), one, telomere(L, len(one))) == leaves. Matching the cap by VALUE (not position) is what lets one recall reach into a multi-chromosome genome strand.",
-        ts_params_167, 3u,
+        ts_params_168, 3u,
         "list",
         "the recovered kernel leaves (Klein-4 vectors), in order",
         1,
@@ -5036,12 +5052,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 168 */
+    { /* 169 */
         "srmech.amsc.genome.genes",
         "srmech",
         "genome",
         "Recover [(gene_label, gene_leaves), ...] from a multi-gene chromosome (F730/S43) \342\200\224 the inverse of chromosome(genes=..., coupling). Walk the strand: a GENE_FRAME_TAG header (first byte > 3, so never a Klein-4 turn whose bytes are all <= 3) opens a new gene whose label is read back with tlv_unpack; each coupled data turn until the next header (or the end) is re-bound through the_one (the reversible quad_turn) to recover that gene's leaf. Leading element(s) before the first gene header are the chromosome's telomere cap (a delimiter, not data) and are skipped \342\200\224 so genes needs only the strand + coupling, no cap argument. Use genes (not recall) on a multi-gene chromosome.",
-        ts_params_168, 2u,
+        ts_params_169, 2u,
         "list",
         "[(gene_label:str, gene_leaves:list[HV]), ...] in strand order",
         1,
@@ -5052,12 +5068,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 169 */
+    { /* 170 */
         "srmech.amsc.genome.genome",
         "srmech",
         "genome",
         "Build a genome \342\200\224 the BIOLOGY-AWARE UMBRELLA that lets the tooling PICK each chromosome's shape by modeling biology (rc260 rename, \302\24795.2 / #1407). The umbrella noun + default smart constructor: per kernel the attested encode_shape criterion (F715, no magic number) decides plasmid-vs-nuclear \342\200\224 a plasmid-scale kernel (tome/mobius, <=4 leaves) stays a Tier-1 PLASMID chromosome (no centromere), a eukaryotic-chromosome-scale kernel (quad_strand, >=5 leaves) is MINTED as a Tier-2 NUCLEAR chromosome with an interior centromere carrying its global orientation (content-address folded to a sector). A genome strand IS a strand (list of Klein-4 vectors); recover with partition (the reader is format-agnostic). RC260 RENAME (breaking): genome was the pure all-plasmid builder \342\200\224 that is now plasmid(); mint() is the explicit alias of this umbrella. kernels is a dict {label: leaves} or (label, leaves) pairs. Composes chromosome + centromere (Class A + Class C + Class M).",
-        ts_params_169, 2u,
+        ts_params_170, 2u,
         "list",
         "the flat genome strand: per kernel a plasmid chromosome or a centromere-minted nuclear one, recovered with partition",
         1,
@@ -5068,12 +5084,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 170 */
+    { /* 171 */
         "srmech.amsc.genome.plasmid",
         "srmech",
         "genome",
         "Build a genome of pure PLASMID chromosomes \342\200\224 biology's plasmid (F715; the rc260 rename of the old all-plasmid genome, \302\24795.2 / #1407). The explicit 'I want plain plasmids' builder: each (label, leaves) kernel becomes a telomere-capped Tier-1 plasmid chromosome (append-friendly, NO centromere \342\200\224 biology's small, appendable plasmid), all concatenated into one self-describing strand; recover with partition. genome() is the biology-aware umbrella that PICKS plasmid-vs-nuclear per kernel; mint() is its explicit alias; plasmid() is the pure-plasmid constructor. kernels is a dict {label: leaves} or (label, leaves) pairs (insertion order = strand order). Native-dispatched (byte-identical C peer srmech_genome_genome). Composes chromosome (Class A cap + Class M coupling).",
-        ts_params_170, 3u,
+        ts_params_171, 3u,
         "list",
         "the flat genome strand: concatenated [telomere cap, turns...] per plasmid chromosome",
         1,
@@ -5084,12 +5100,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 171 */
+    { /* 172 */
         "srmech.amsc.genome.partition",
         "srmech",
         "genome",
         "Recover every kernel from a multi-kernel genome strand \342\200\224 the inverse of genome (F715). Walk the strand; each element equal to one of labels' telomere caps starts a new chromosome partition, and the coupled turns until the next cap are that kernel's leaves (re-bound through coupling \342\200\224 reversible quad_turn). Returns {label: leaves}. partition knows ALL the caps, so (unlike a single-cap recall) it does not mistake one chromosome's cap for another's data: partition(genome({a:A,b:B}, one), one, [a,b]) == {a:A, b:B}.",
-        ts_params_171, 3u,
+        ts_params_172, 3u,
         "dict",
         "{label: leaves} \342\200\224 each kernel's recovered Klein-4 leaves, in order",
         1,
@@ -5100,12 +5116,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 172 */
+    { /* 173 */
         "srmech.amsc.genome.genome_save",
         "srmech",
         "genome",
         "Persist a genome strand to a directory (UPSTREAM \302\24741 / \302\24744 / \302\24755 / \302\24756). SCANS the strand for its inline CHROM caps (\302\24744 \342\200\224 the strand self-describes; chromosome labels are recovered inline), writes a SELF-DESCRIBING body to path/turns.bin (\302\24755/v3: each block's FIRST byte keys its kind + width \342\200\224 a leaf_dim-byte CHROM/GENE cap, or a BIT-PACKED data turn of 1+ceil(leaf_dim/4) bytes carrying 4 Klein-4 symbols per byte; legacy v2 byte-per-symbol turns stay readable in the same walk \342\200\224 no length prefixes), and writes a DERIVED MPR-attested catalog to path/manifest.json (\302\24756/v4: format_version=4, leaf_dim, n_turns = strand block count, coupling hash+hex, a regions array {byte_offset, byte_len, sha256} one per chromosome \342\200\224 the full-region digest, == the chromosome's .chr/AMSC provenance unit \342\200\224 and body_sha256 = the REGION CHAIN Hn=sha256(Hn-1||region_n) that an append maintains in O(1); plus per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). The strand is the SSoT; the manifest is an optional .fai-style cache, rebuildable by scanning the body (the chain is body-derivable). v2/v3 manifests stay READ-compatible. Multi-gene chromosomes carry their gene boundaries INLINE as GENE caps (no gene-index sidecar). coupling is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
-        ts_params_172, 4u,
+        ts_params_173, 4u,
         "dict",
         "the manifest data {format_version=4, leaf_dim, n_turns, coupling, body_sha256 (region chain), regions, chromosomes}",
         1,
@@ -5116,12 +5132,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 173 */
+    { /* 174 */
         "srmech.amsc.genome.upgrade_v15_to_v16",
         "srmech",
         "genome",
         "Migrate a v<=15 genome directory to on-disk format v16 IN PLACE (UPSTREAM \302\24755 / \302\247Q8; rc312) \342\200\224 the Q8 on-disk-format upgrade. rc311 wired the Q8 carrier into the genome as an element_type coupling path but the on-disk WIRE still assumed 2-bit klein4 turns; v16 adds a SECOND data-turn packing (a Q8 turn 3-bit-packs under Q8_PACKED_TURN_MARKER 0x38, the klein4 turn keeps the 2-bit PACKED_TURN_MARKER 0x51) + a manifest carrier field. A v15 genome is ALWAYS klein4 (2-bit turns), and v16's klein4 packer is BYTE-IDENTICAL, so the turns.bin BODY needs NO repack: a v15 turn (bytes 0..3, sign bit 0) is EXACTLY the winding-0 / Lk-0 slice of a v16 Q8 turn (q8_project_v4(turn) == turn and every winding sign bit is 0). The upgrade is therefore a manifest RE-STAMP \342\200\224 re-derive the .fai head by SCANNING the unchanged body (\302\24744 \342\200\224 the strand is the SSoT), which now stamps format_version=16 + the derived carrier ('klein4' / 'q8'). Because the body is untouched and body_sha256 is a pure function of the body (the region CHAIN since v4), the ONLY on-disk bytes that MOVE are the manifest's format_version + carrier fields; turns.bin is byte-identical. Idempotent \342\200\224 a v16 genome re-stamps to itself; REFUSES to downgrade a genome newer than this build. coupling= is only needed for a manifest-LESS genome (its length is the leaf width \342\200\224 you can upgrade a turns.bin shipped alone). Returns the re-derived manifest data dict (format_version=16). The migrate-on-read precedent of the v11->v12 head-only upgrade; numpy-free; hashes via sha256_bytes.",
-        ts_params_173, 2u,
+        ts_params_174, 2u,
         "dict",
         "the re-derived manifest data (format_version=16, carrier, leaf_dim, n_turns, coupling, body_sha256, regions, chromosomes)",
         1,
@@ -5132,12 +5148,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 174 */
+    { /* 175 */
         "srmech.amsc.genome.genome_load",
         "srmech",
         "genome",
         "Reconstruct a genome from a directory (UPSTREAM \302\24741) \342\200\224 returns (strand, coupling, labels). labels=None loads the WHOLE genome: streams turns.bin block-by-block (RAM bounded by the active block, not the whole file) and re-hashes the streamed body against the manifest body_sha256. A subset labels=[...] is a PAGED read: it seeks to each requested chromosome's byte_offset and reads only its byte_len bytes (RAM bounded by the largest single chromosome), re-hashing that region's cap against cap_sha256. Bounding IS integrity \342\200\224 a flipped / truncated / re-ordered byte raises GenomeBoundingError. The returned strand is byte-for-byte the saved strand for the requested chromosomes; coupling is rebuilt from the manifest's stored block and verified against its hash.",
-        ts_params_174, 2u,
+        ts_params_175, 2u,
         "tuple",
         "(strand, coupling, labels) \342\200\224 the reconstructed genome (byte-exact for the requested chromosomes)",
         1,
@@ -5148,12 +5164,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 175 */
+    { /* 176 */
         "srmech.amsc.genome.genome_catalog",
         "srmech",
         "genome",
         "Read the catalog of a genome (UPSTREAM \302\24741 / \302\24744 / \302\24756 / \302\24796). When manifest.json is present this is the cheap, body-free read \342\200\224 it returns the manifest data dict (\302\24756/v4: leaf_dim, n_turns, body_sha256 = the region CHAIN, coupling hash+hex, a regions array {byte_offset, byte_len, sha256}, and per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len / \302\24796 cap_kind) WITHOUT opening turns.bin. \302\24796: cap_kind \342\210\210 {plasmid, nuclear, diploid} is the per-chromosome classification DERIVED on the SAME \302\24744 scan (plasmid = plasmid-scale / nuclear = an interior centromere / diploid = a diploid-telomere opener; nuclear > diploid > plasmid) \342\200\224 a NEW additive field, no format bump (v12 head-only manifests derive it on read). rc271 (F1251) adopts the field's own names \342\200\224 plasmid (was 'stick') / nuclear (was 'minted'); opt back into the old names with genome.set_type_aliases / load_type_aliases_toml (a pure Python presentation layer; the C output stays canonical). \302\24744: when the manifest is ABSENT the catalog is REBUILT by scanning the self-describing body (the strand is the SSoT, the manifest an optional .fai cache; the region chain is body-derivable, so the rebuild reproduces the manifest byte-identically); that rebuild needs coupling= (its length is the leaf width) and reads turns.bin once. The manifest is an MPRRecord (MPR v1) that passes validate_mpr_record (its response_sha256 IS the body_sha256 chain head). v2/v3 manifests read compatibly. numpy-free.",
-        ts_params_175, 1u,
+        ts_params_176, 1u,
         "dict",
         "the manifest data (chromosome index + integrity hashes + \302\24796 per-chromosome cap_kind), read from manifest.json or rebuilt by scanning turns.bin",
         1,
@@ -5164,12 +5180,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 176 */
+    { /* 177 */
         "srmech.amsc.genome.genome_census",
         "srmech",
         "genome",
         "Census ONE genome \342\200\224 the biology-native per-genome roll-up (UPSTREAM \302\24796). Answers what is IN a genome and how it partitions the way biology asks: how many chromosomes, of which TYPE (plasmid = a plasmid-scale accessory/mobile append-only chromosome / nuclear = a core Tier-2 chromosome with an interior centromere / diploid = a diploid-telomere pair), how many total leaves, and a STRUCTURAL nuclear-vs-organelle topology read. A thin roll-up over genome_catalog (the TYPE rides the catalog's ONE body scan via the \302\24796 cap_kind \342\200\224 NO O(n) per-chromosome loads). Returns {path, n_chromosomes, types:{plasmid,nuclear,diploid}, chromosomes:[{label,type,leaf_count}], total_leaves, topology}. topology (INTEGER read, no libm): any nuclear/diploid \342\206\222 'nuclear-like' (a eukaryotic nucleus); else n>0 and total_leaves<=8*n \342\206\222 'organelle-like' (a small all-plasmid mitochondrion/chloroplast plasmid genome); else n>0 \342\206\222 'plasmid/prokaryote-like'; else 'empty'. rc271 (F1251) adopts the field's own names \342\200\224 plasmid (was 'stick') / nuclear (was 'minted'); genome.set_type_aliases / load_type_aliases_toml re-present the old names (a pure Python layer; the C output stays canonical). srmech reads the SHAPE (the inline cap markers); the caller assigns the ROLE. coupling= is only needed for a manifest-less genome. C\342\206\224Python 1:1 (srmech_genome_census). numpy-free.",
-        ts_params_176, 2u,
+        ts_params_177, 2u,
         "dict",
         "the census {path, n_chromosomes, types, chromosomes, total_leaves, topology}",
         1,
@@ -5180,12 +5196,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 177 */
+    { /* 178 */
         "srmech.amsc.genome.genome_registry",
         "srmech",
         "genome",
         "Census a ROOT of genomes \342\200\224 the cell / melange census (UPSTREAM \302\24796, ADR-0006). Scans root for genome directories (a dir holding BOTH turns.bin and manifest.json), censuses each (genome_census), and returns them sorted by name: {root, n_genomes, genomes:[<census per genome>]}. This is the 'cell': which genome is the NUCLEUS (nuclear/diploid chromosomes) vs an ORGANELLE (a small all-plasmid plasmid-like genome \342\200\224 a mitochondrion/chloroplast). A dir that OPENS but has no genome subdirs yields n_genomes 0; a root that CANNOT be opened (absent / permission denied / not a directory) raises GenomeBoundingError in BOTH projections (rc294 \342\200\224 through rc292 the native path answered n_genomes 0 with a success status there, so a typo'd corpus path read as an empty corpus). The native path scans via the PAL directory surface (srmech_plat_dir_*, no #ifdef); the pure path uses os/pathlib. coupling= is only needed for manifest-less genomes. C\342\206\224Python 1:1 (srmech_genome_registry). numpy-free.",
-        ts_params_177, 2u,
+        ts_params_178, 2u,
         "dict",
         "the cell census {root, n_genomes, genomes} (each genome a genome_census dict), sorted by name",
         1,
@@ -5196,12 +5212,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 178 */
+    { /* 179 */
         "srmech.amsc.genome.genome_append",
         "srmech",
         "genome",
         "Append ONE chromosome to an existing genome in O(1)-AMORTISED time (UPSTREAM \302\24741 / \302\24755 / \302\24756 \342\200\224 #1245 ask (b)) \342\200\224 the helix grows. Packs leaves into a telomere-capped chromosome (coupled through coupling) and TAIL-EXTENDS turns.bin with its blocks in the \302\24755/v3 packed form (caps verbatim, data turns bit-packed 4 symbols/byte; APPEND-ONLY \342\200\224 prior body bytes are NEVER read, rewritten, or re-hashed, so appending to a v2 genome yields a MIXED body the walk reads as-is). The manifest is updated by APPENDING one chromosome entry + one region entry and EXTENDING the body_sha256 region CHAIN from its prior head in O(1) \342\200\224 no whole-body re-hash, no whole-body re-scan; n_turns grows by the appended block count. Every EXISTING chromosome / region entry stays byte-identical. \302\24756: the per-append cost is bounded by the NEW chromosome's encoding + the (small) manifest rewrite, NOT the genome's total size \342\200\224 so N appends are O(N) total, not O(N\302\262) (the F833 super-linear wall closed). Appending to a legacy v2/v3 genome migrates it to v4 once. Returns the updated manifest data dict. numpy-free.",
-        ts_params_178, 4u,
+        ts_params_179, 4u,
         "dict",
         "the updated manifest data (with the appended chromosome + region entry + O(1)-extended body_sha256 chain)",
         1,
@@ -5212,12 +5228,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 179 */
+    { /* 180 */
         "srmech.amsc.genome.genome_window",
         "srmech",
         "genome",
         "Page in ONLY one chromosome's leaves from a genome (UPSTREAM \302\24741). Seeks to the chromosome label's byte_offset and reads only its byte_len bytes (RAM bounded by that one chromosome), re-hashing the region's cap against the manifest cap_sha256 \342\200\224 a mismatch raises GenomeBoundingError. Returns the chromosome's stored leaves (the coupled data turns, the cap excluded) as a list of Klein-4 vectors, in order \342\200\224 the disk-paging counterpart of reaching into one partition of the genome without loading the rest.",
-        ts_params_179, 2u,
+        ts_params_180, 2u,
         "list",
         "the chromosome's stored leaves (coupled turns, cap excluded), in order",
         1,
@@ -5228,12 +5244,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 180 */
+    { /* 181 */
         "srmech.amsc.genome.genome_genes",
         "srmech",
         "genome",
         "Page ONE multi-gene chromosome's genes back from a genome (F732 / UPSTREAM \302\24744) \342\200\224 the disk counterpart of the in-memory genes(). Pages in only that chromosome's region (RAM-bounded + cap-integrity-checked), then SCANS it for the inline GENE caps (\302\24744 \342\200\224 no gene-index sidecar; the gene boundaries + labels live in the body) and re-binds the_one (rebuilt + hash-verified from the manifest cache, or a coupling override) to recover a list of (gene_label, gene_leaves) \342\200\224 exactly what genes(chromosome(genes=\342\200\246)) returns in memory. Raises ValueError on a single-kernel chromosome (no inline GENE caps; use genome_window / partition). numpy-free.",
-        ts_params_180, 2u,
+        ts_params_181, 2u,
         "list",
         "the chromosome's genes as a list of (gene_label, gene_leaves) tuples, in order",
         1,
@@ -5244,12 +5260,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 181 */
+    { /* 182 */
         "srmech.amsc.genome.genome_remove",
         "srmech",
         "genome",
         "Excise ONE chromosome from a genome IN PLACE (UPSTREAM \302\24745) \342\200\224 biology excises, it does not re-synthesize. Finds the chromosome label's region in the self-describing body (\302\24744 \342\200\224 its CHROM cap + data turns occupy [byte_offset, byte_offset+byte_len)) and splices THAT byte span out of turns.bin, leaving every OTHER chromosome's coupled body bytes byte-identical (no kernel is decoded / re-coupled \342\200\224 the survivors are the same bytes, only relocated). The derived .fai manifest is then rebuilt by scanning the spliced body (\302\24744 \342\200\224 body_sha256 / n_turns and every survivor's byte_offset recomputed; the manifest stays an optional cache). Re-hashes the whole on-disk body against the committed body_sha256 BEFORE the edit (never splice a corrupt body \342\200\224 GenomeBoundingError). coupling= is needed only when manifest.json is absent (its length is the leaf width for the rebuild-by-scan). Raises ValueError if the label is absent or is the genome's only chromosome. numpy-free.",
-        ts_params_181, 3u,
+        ts_params_182, 3u,
         "dict",
         "the updated manifest data (the excised chromosome gone, survivors' byte_offsets + body_sha256 recomputed)",
         1,
@@ -5260,12 +5276,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 182 */
+    { /* 183 */
         "srmech.amsc.genome.genome_replace",
         "srmech",
         "genome",
         "Replace ONE chromosome's content IN PLACE (UPSTREAM \302\24745). Splices the chromosome label's old byte span out of turns.bin and a FRESH telomere-capped chromosome (leaves coupled through coupling, same label) IN at the same position \342\200\224 every OTHER chromosome's coupled body bytes stay byte-identical (an in-place edit, NOT a whole-genome re-pack). The derived manifest is rebuilt by scanning the new body (\302\24744 \342\200\224 the strand is the SSoT). coupling is REQUIRED (it both re-couples the new leaves AND supplies the leaf width for the \302\24744 rebuild) and must match the genome's leaf_dim. Re-hashes the on-disk body against body_sha256 before the edit (GenomeBoundingError on mismatch). Raises ValueError if the label is absent. numpy-free.",
-        ts_params_182, 4u,
+        ts_params_183, 4u,
         "dict",
         "the updated manifest data (the chromosome's content replaced in place, body_sha256 recomputed)",
         1,
@@ -5276,12 +5292,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 183 */
+    { /* 184 */
         "srmech.amsc.genome.genome_export",
         "srmech",
         "genome",
         "Export ONE chromosome as a single self-contained .chr file (UPSTREAM \302\24743). Reads the chromosome label's fixed-width region (CHROM cap + coupled data turns; the cap re-hashed against the manifest cap_sha256) and writes it \342\200\224 together with the_one \342\200\224 to out as ONE MPR-attested record (MPR v1; response_sha256 IS the region hash). So a chromosome becomes a self-contained, content-addressed unit: tar it, ship it, genome_import it self-verifying \342\200\224 realising the \302\24743 'chromosome as a bundleable file' goal on top of the \302\24744 self-describing strand. Composes srmech.amsc.format (the MPRRecord + sha256 content-address), NOT a parallel attestation. \302\24744: pass the_one= to export from a manifest-less source genome. Raises ValueError if the label is absent. numpy-free.",
-        ts_params_183, 4u,
+        ts_params_184, 4u,
         "dict",
         "the .chr data block (format_version / leaf_dim / label / leaf_count / cap_sha256 / coupling hash+hex / region hash+hex)",
         1,
@@ -5292,12 +5308,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 184 */
+    { /* 185 */
         "srmech.amsc.genome.genome_import",
         "srmech",
         "genome",
         "Import a .chr chromosome bundle into a genome at dest (UPSTREAM \302\24743). Reads the MPR-attested .chr (genome_export's output), RE-HASHES its region and its coupling and compares them against the bundle's own attestation \342\200\224 a mismatch is a GenomeBoundingError (self-verifying). Then: if dest has no genome yet, the .chr SEEDS a fresh one (its region becomes turns.bin verbatim, its coupling the coupling invariant); if dest already holds a genome, the chromosome is APPENDED byte-for-byte \342\200\224 which REQUIRES the same coupling invariant (the dest coupling must match the .chr coupling) and a fresh label. The manifest is re-derived by scanning the grown body (\302\24744 \342\200\224 the strand is the SSoT). numpy-free.",
-        ts_params_184, 3u,
+        ts_params_185, 3u,
         "dict",
         "the dest manifest data (the seeded genome, or the existing genome with the imported chromosome appended)",
         1,
@@ -5308,12 +5324,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 185 */
+    { /* 186 */
         "srmech.amsc.genome.genome_explode",
         "srmech",
         "genome",
         "Explode a packed genome into a directory of loose .chr files (UPSTREAM \302\24743; the packed->loose half of git's object model). A genome's turns.bin (the 'packfile') is written out as ONE self-contained, content-addressed .chr bundle per chromosome (the 'loose objects'), named <out_dir>/<label>.chr \342\200\224 each is genome_export's MPR-attested, self-verifying output, so the loose form is inspectable and shippable chromosome-by-chromosome. genome_pack is the inverse. Returns a list of {label, path, region_sha256} dicts in chromosome order. \302\24744: pass coupling= to explode a manifest-less source. Raises ValueError if a chromosome label is not filename-safe. numpy-free.",
-        ts_params_185, 3u,
+        ts_params_186, 3u,
         "list",
         "a list of {label, path, region_sha256} dicts, one per chromosome (in the genome's chromosome order)",
         1,
@@ -5324,12 +5340,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 186 */
+    { /* 187 */
         "srmech.amsc.genome.genome_pack",
         "srmech",
         "genome",
         "Pack a directory of loose .chr files into one packed genome (UPSTREAM \302\24743; the loose->packed inverse of genome_explode, git repack-like). Every *.chr bundle in loose_dir is genome_import-ed into dest in CANONICAL sorted-label order, so the packed turns.bin is a well-defined function of the chromosome SET \342\200\224 like a content-addressed packfile, insertion order is NOT preserved (a packed genome is canonicalised to sorted-label order). The first import SEEDS dest (when it has no genome yet); the rest APPEND byte-for-byte; all the bundles MUST share one coupling invariant (the same the_one) \342\200\224 a mismatched .chr is a GenomeBoundingError, a duplicate label a ValueError. Byte-identical to the source iff the source was already in canonical sorted-label order; otherwise re-canonicalises while preserving every chromosome's bytes. Raises ValueError if loose_dir holds no .chr files. numpy-free.",
-        ts_params_186, 3u,
+        ts_params_187, 3u,
         "dict",
         "the dest manifest data (the assembled packed genome)",
         1,
@@ -5340,12 +5356,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 187 */
+    { /* 188 */
         "srmech.amsc.genome.genome_register_attested",
         "srmech",
         "genome",
         "Register a directory of loose .chr bundles as AMSC attested sources (UPSTREAM \302\24743; the bundling->AMSC compose, F729). For every <label>.chr in chr_dir (a genome_explode output) it writes a per-chromosome <amsc_root>/<label>/descriptor.toml + row.ndjson, then calls srmech.amsc.catalog.register_attested_root so each chromosome appears in srmech.amsc.catalog.list_attested_sources (one AMSC source per chromosome, keyed by its label, literature_curated adapter). The chromosome's OWN MPR attestation \342\200\224 carried in its .chr (attestation.response_sha256 == the region hash) and echoed into its row.ndjson \342\200\224 IS the provenance; this surfaces it through the AMSC catalog, it does NOT mint a parallel attestation (F730). Returns {ok, amsc_root, source, chromosomes:[{label, source_key, descriptor_path, row_path, region_sha256}], register}. Raises ValueError if chr_dir holds no .chr files or a label is not a filename-safe source key. numpy-free.",
-        ts_params_187, 3u,
+        ts_params_188, 3u,
         "dict",
         "{ok, amsc_root, source, chromosomes, register} \342\200\224 the per-chromosome AMSC sources registered",
         1,
@@ -5356,12 +5372,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 188 */
+    { /* 189 */
         "srmech.amsc.genome.kernel_pack",
         "srmech",
         "genome",
         "Pack a flat Klein-4 kernel of ANY dimension D into a self-describing strand (UPSTREAM \302\24760 / format v5 \342\200\224 issue #1245 REOPENED, the SIZE-AGNOSTIC KERNEL TRANSLATION LAYER). data is the flat kernel (a sequence of Klein-4 sector symbols {0,1,2,3} \342\200\224 an HV / list / bytes; siona's 8192-dim Klein-4 kernel is the driving case). It is chunked into leaf_dim-wide leaves (ceil(D/leaf_dim); the final leaf zero-padded \342\200\224 encode_shape's criterion generalised to leaf_dim), coupled through coupling into a telomere-capped chromosome, and a \302\24760 KERNEL HEADER block (marker 0x4B, right after the telomere) SELF-RECORDS the kernel's TRUE length D, its element_type (declared enum; 'klein4' today), and its leaf_dim \342\200\224 so kernel_unpack recovers the EXACT kernel with NO caller-supplied length (D lives in the strand, the \302\24744 SSoT \342\200\224 not only the rebuildable manifest cache). Symbols are validated {0,1,2,3} UP FRONT (HV accepts >3 in memory but only Klein-4 turns bit-pack). Returns the flat strand [telomere, kernel_header, turn0, ...]; persist with genome_save. leaf_dim defaults to 256 (>= 14 so the 14-byte header fits); coupling defaults to a deterministic all-ones invariant kernel_unpack reconstructs. numpy-free; no abs(); C peer via genome_save's srmech_genome_* walkers (the 0x4B block is one more self-describing kind).",
-        ts_params_188, 5u,
+        ts_params_189, 5u,
         "list",
         "the flat self-describing strand [telomere, \302\24760 kernel_header, coupled turns] \342\200\224 persist with genome_save, recover with kernel_unpack",
         1,
@@ -5372,12 +5388,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 189 */
+    { /* 190 */
         "srmech.amsc.genome.kernel_unpack",
         "srmech",
         "genome",
         "Recover the EXACT flat Klein-4 kernel from a \302\24760 strand or genome path (UPSTREAM \302\24760 / format v5) \342\200\224 the inverse of kernel_pack. strand_or_path is either the in-memory strand kernel_pack returned, or a genome DIRECTORY a genome_save of one wrote. Reads the \302\24760 KERNEL HEADER (marker 0x4B) for the TRUE length D, recalls the coupled leaves (skipping every cap AND the header), flattens them, and TRIMS to D \342\200\224 so the returned list[int] equals the exact packed kernel of ANY dimension, with NO caller-supplied length (W1 closed: a D=1000 kernel returns 1000 symbols, not the 1024 padded storage). coupling is optional: for a genome PATH with a present manifest it is resolved from the manifest cache; otherwise it defaults to the deterministic all-ones invariant reconstructed from the header's recorded leaf_dim (matching kernel_pack). BACK-COMPAT (the rc114 dual-read pattern): a strand / body with NO 0x4B header (any pre-rc121 genome) reads as element_type=klein4 with D = leaf_count * leaf_dim \342\200\224 no trim, no migration. numpy-free; no abs().",
-        ts_params_189, 2u,
+        ts_params_190, 2u,
         "list",
         "the exact flat Klein-4 kernel (list[int] of the TRUE length D \342\200\224 trimmed of the final-leaf zero-padding)",
         1,
@@ -5388,12 +5404,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 190 */
+    { /* 191 */
         "srmech.amsc.genome.genome_append_kernel",
         "srmech",
         "genome",
         "Append a newly-taught kernel \342\200\224 WITH its \302\24789 header \342\200\224 to a genome in O(1) AMORTISED (UPSTREAM \302\24789 / format v6 \342\200\224 issue #1261, F1045/F1046). The uniformly-Klein-4 payoff. hv is the flat kernel (Klein-4 sector symbols {0,1,2,3} \342\200\224 an HV / list / bytes) of ANY dimension D; it is chunked into the genome's leaf_dim-wide leaves (final leaf zero-padded) LED by the UNIFORMLY-KLEIN-4 \302\24789 header LEAF (base-4-encoded D + element_type + leaf_dim \342\200\224 _pack_kernel_header_klein4). Because that header is a 100%-Klein-4 leaf, [header, *content] is just a list of Klein-4 leaves \342\200\224 so this FALLS OUT of genome_append (kernel=True, a KERNEL telomere 0x6B opens the chromosome): the chromosome tail-extends turns.bin and folds one region onto the body_sha256 chain in O(1), no whole-body re-hash / re-scan. This is the deliverable a downstream 'teach a kernel -> append it' loop was about to hand-roll: before v6 the \302\24760 0x4B byte-TLV header could NOT ride genome_append (unbinding it via klein4_bind failed 'must be in {0,1,2,3}'); v6 makes the header a Klein-4 leaf so appending a kernel WITH its header is native. Recover the EXACT kernel (trimmed to D) with kernel_unpack. coupling is optional when path has a manifest (resolved from the cache), required for a manifest-less genome (its length is the leaf width). Raises ValueError on a duplicate label or a non-Klein-4 symbol. numpy-free; no abs(); the C peer is genome_append's srmech_genome_append (the 0x6B kernel telomere is one more self-describing cap).",
-        ts_params_190, 5u,
+        ts_params_191, 5u,
         "dict",
         "the updated manifest data (with the appended kernel chromosome + region entry + O(1)-extended body_sha256 chain)",
         1,
@@ -5404,12 +5420,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 191 */
+    { /* 192 */
         "srmech.amsc.genome.graph_to_kernel",
         "srmech",
         "genome",
         "Serialise a sparse SIGNED INTEGER graph (the directed Class-L Laplacian) into a packed genome chromosome + its true symbol count (#1390 item 2). vocab_size + edges [(i,j),...] + int weights[metric] + optional signed charges[direction] + optional node_ids label table + optional extras metadata are folded into a SELF-DESCRIBING (count-headered) flat Klein-4 symbol stream \342\200\224 each int base-4 digits behind a 2-symbol length header (<=15 digits = 30 bits; Class-K zig-zag sign on the charge) \342\200\224 then kernel_pack'd into leaf_dim-wide leaves. Returns (strand, n_syms): persist the strand with genome_save, pass n_syms to kernel_to_graph. The domain-free 'store a directed graph as a genome' primitive #231 needs; undirected (charges=None) / unlabeled (node_ids=None) / metadata-free (extras=()) all round-trip. Klein-4 is ONLY the 2-bit on-disk alphabet (no bind/bundle HV stored \342\200\224 F1221 disk rule). numpy-free; no abs() (Class-K zig-zag); byte-identical C peer srmech_graph_kernel_encode.",
-        ts_params_191, 9u,
+        ts_params_192, 9u,
         "tuple",
         "(strand, n_syms) \342\200\224 the packed self-describing strand + its true symbol count (pass both to genome_save / kernel_to_graph)",
         1,
@@ -5420,12 +5436,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 192 */
+    { /* 193 */
         "srmech.amsc.genome.kernel_to_graph",
         "srmech",
         "genome",
         "Recover the directed signed graph from a packed chromosome (or genome path) + its n_syms (#1390 item 2) \342\200\224 the inverse of graph_to_kernel. kernel_unpack's the Klein-4 leaves, trims the leaf-dim padding to n_syms, and decodes the self-describing (count-headered) base-4 payload back into {vocab_size, edges, weights, charges, node_ids, extras} BYTE-EXACT (Class-K un-zig-zag on the charge). coupling is the coupling invariant graph_to_kernel packed with (resolved from a manifest for a genome path). numpy-free; no abs(); byte-identical C peer srmech_graph_kernel_decode.",
-        ts_params_192, 3u,
+        ts_params_193, 3u,
         "dict",
         "{vocab_size, edges, weights, charges, node_ids, extras} \342\200\224 the exact directed signed graph",
         1,
@@ -5436,12 +5452,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 193 */
+    { /* 194 */
         "srmech.amsc.plasmid.plasmid_extract",
         "srmech",
         "plasmid",
         "STAGE 1 EXTRACT (F1252 / \302\247102) \342\200\224 stream documents into APPEND-ONLY plasmid sections, RETIRING the loose monolithic co-occurrence JSON at the graph-L layer. Each ingest DOCUMENT (a token sequence) becomes ONE Tier-1 PLASMID chromosome: its LOCAL window co-occurrence graph (cooccurrence_topk \342\200\224 window / top-k / cap_slack) is encoded to a \302\24789/v6 KERNEL chromosome (Klein-4 leaves, a 0x6B kernel telomere, NO centromere) and APPENDED to section_store (a genome directory) in \302\247v12 O(1) HEAD-only time \342\200\224 so adding a document appends ONE bounded plasmid section + bumps the head, NEVER re-extracts, and NEVER dumps a 916 MB monolith (this IS persist-genome-native-not-loose-JSON one layer up). The first document SEEDS the store (genome_save); the rest append. Edges use LOCAL node indices but the section's node_ids label table maps each to a GLOBAL vocab id (via the append-only vocab) \342\200\224 so a word shared across sections carries the SAME id (the precondition stage-2 conservation reads); a shared VOCAB chromosome (the karyotype index) records the global word->id table. The heavy per-section compute (graph_kernel_encode -> the \302\24789 KERNEL-region build -> genome_append) rides the ONE bare-C orchestrator srmech_genome_plasmid_extract when HAS_NATIVE (genome-must-exist-in-C: a bare-C host runs stage-1 end-to-end as cooccurrence_topk -> plasmid_extract, zero Python); the pure body (_graph_kernel_encode + genome_append_kernel) is the numpy-free alternative + BYTE-PARITY oracle (the section turns.bin is byte-identical whether native or pure). \302\247101: an in-process progress= callable (a Python-only kwarg, NOT an MCP wire parameter \342\200\224 a callable cannot cross JSON-RPC) fires between whole SECTIONS with phase EXTRACTING (done=sections so far, total=n docs); a truthy return CANCELS cleanly, truncating at a valid chromosome boundary (a partial section is never left; status='cancelled'). Returns {section_store, vocab (grown, append-only), section_count {global_id: n_sections} the integer accumulator stage-2 promotes on, n_sections, sections, status}. leaf_dim (len(coupling)) must be >= 52 (the \302\24789 uniformly-Klein-4 kernel header fits one leaf). Integer/exact (Class-N); no abs(); numpy-free; genome-native (no loose JSON).",
-        ts_params_193, 8u,
+        ts_params_194, 8u,
         "dict",
         "{section_store, vocab, section_count {global_id: n_sections}, n_sections, sections, status}",
         1,
@@ -5452,12 +5468,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 194 */
+    { /* 195 */
         "srmech.amsc.plasmid.section_counts",
         "srmech",
         "plasmid",
         "Derive {global_id: n_sections} \342\200\224 how many distinct PLASMID sections each GLOBAL node appears in \342\200\224 by SCANNING a plasmid_extract store's sections (their GLOBAL node_ids tables). The genome-native, SSoT read stage-2 (F1252 rc279) promotes on: a node is CONSERVED iff its section-occurrence count >= k (a plain integer accumulator, no spectral solve \342\200\224 the section-level, extract-time-available analog of the F1250 cross-community participation read). HIGH section-count = shared across many plasmids = the conserved core (NUCLEAR); count == 1 = accessory (stays PLASMID). A node counts ONCE per section it appears in; the shared VOCAB chromosome (the karyotype index) is excluded. rc280 (\302\247102 / F1253) made this scan READ ONLY WHAT IT NEEDS, fixing the ~22-hour derivation the field measured at 240,881 sections (~0.33 s/section). Two costs were removed. FIRST, the catalog was re-derived PER SECTION: a v12 head-only manifest stores no chromosome table, so genome_window derives it by scanning the whole body and re-folding its Merkle chain \342\200\224 once per section is O(P x whole body), quadratic in corpus size, and it dominated everything else; the catalog is now derived ONCE for the whole scan. SECOND, every section's full graph was decoded \342\200\224 edges, weights and charges \342\200\224 to reach a node_ids table that the \302\24789 payload places BEFORE all of them ([vocab_size, n_node_ids] + node_ids + ...); the read is now TARGETED, paging only the node_ids prefix of each region and never touching the edge bytes, so per-section cost is O(node_ids) not O(section). NO FORMAT CHANGE WAS NEEDED (GENOME_FORMAT_VERSION stays 15): the sections were already self-describing, quad_turn uncouples each leaf independently of every other so a prefix of coupled leaves uncouples to exactly the prefix of the symbol stream, and the region's leading-cap integrity bound lives in the first block so a prefix pays the SAME bound as a whole-region read \342\200\224 the targeted read is not a weaker read, it is the same bound over fewer bytes. Together the scan goes from O(P^2 x body) to O(P x node_ids); the counts are BYTE-IDENTICAL to the full-decode derivation and that equivalence is the pinned SSoT check. \302\247101: an in-process progress= callable (a Python-only kwarg, NOT an MCP wire parameter) fires between whole SECTIONS with phase EXTRACTING; a truthy return RAISES SectionCountsCancelled rather than returning a partial \342\200\224 unlike a cancelled encode, whose chromosomes-so-far are a valid shorter genome, a partial COUNT is not a smaller valid count but a wrong one that would silently shift every downstream conservation threshold. STILL THE DELIBERATE FALLBACK, NOT THE HOT PATH: plasmid_extract returns section_count as a free streamed accumulator, so passing it to genome_integrate_plasmids means no scan happens at all; this op exists to RESUME against a store you did not just build and to VERIFY the accumulator against the on-disk SSoT. Dispatches the whole scan to the srmech_genome_section_counts C peer when HAS_NATIVE (a bare-C host derives the counts end-to-end); the pure body is the numpy-free alternative + byte-parity oracle. Integer/exact (Class-N); no abs(); numpy-free.",
-        ts_params_194, 2u,
+        ts_params_195, 2u,
         "dict",
         "{global_id: n_sections} \342\200\224 the section-occurrence integer accumulator (stage-2's conservation >= k input)",
         1,
@@ -5468,12 +5484,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 195 */
+    { /* 196 */
         "srmech.amsc.plasmid.conserved_core",
         "srmech",
         "plasmid",
         "CONSERVE (F1252 / \302\247102 STAGE 2 step 1) \342\200\224 read the section-count distribution and return the CONSERVED CORE node set + the threshold k DERIVED FROM THE DATA. section_count is the {global_id: n_sections} integer accumulator plasmid_extract returns for free (or section_counts re-derives). A node is CONSERVED iff its count >= k -> it joins the NUCLEAR core; the rest stay accessory PLASMID. Expect the ASYMMETRIC minority core (~16/84 \342\200\224 F1251), not a 50/50 split. k IS DERIVED OR DECLINED \342\200\224 NEVER MANUFACTURED: with k='auto' (the default; None is an accepted alias) this MEASURES the ANTIMODE of the section-count histogram \342\200\224 the same gap walk, the same qualifying predicate (a gap at least one bin WIDE with a real mode >= 2 nodes on EACH side) and the same widest-gap tie-break as the rc272 participation antimode (genome._partition_antimode), applied in the count domain. NOTE THE METRIC INVERSION vs participation: there HIGH participation = a community-bridging PLASMID, here HIGH section-count = shared across many plasmid sections = the conserved NUCLEAR core; the metric flips direction, the antimode discipline does not. If no qualifying antimode exists the result is k_source='declined': an EMPTY core, k=0, one_dna_type=True, and NO threshold is invented \342\200\224 the split is NOT forced (the F1250 discipline). THIS DECLINE IS A FIRST-CLASS OUTCOME, NOT A FAILURE, AND THE REAL CORPUS TAKES IT: F1253 measured the section-count curve over the full simplewiki store (1,100,189 ids across 240,881 sections) as singleton 64.6%, >=2 35.4%, >=5 14.5%, >=10 8.4%, >=25 4.3%, >=50 2.7%, >=100 1.7% \342\200\224 successive ratios ~2.4, 1.7, 2.0, 1.6, 1.6 decaying SMOOTHLY, i.e. a heavy-tailed near-power-law shape. A scale-free distribution has no characteristic scale and therefore NO natural antimode, so on such a curve this correctly DECLINES; reporting 'no natural split in this distribution' IS the finding. An explicit integer k yields k_source='policy' \342\200\224 a STATED POLICY CHOICE THE CALLER OWNS, never presented as measured. In particular, choosing k because it reproduces F1251's ~16% core fraction would be POST-HOC NUMEROLOGY, not a derivation: on the F1253 curve k>=5 gives 14.5% against an attested ~16%, but that correspondence is threshold-dependent and is NOT used here to select k. k_source is one of 'derived' / 'declined' / 'policy'. Dispatches the whole read to the srmech_genome_conserved_core C peer when HAS_NATIVE (a bare-C host runs the CONSERVE step end-to-end); the pure body is the numpy-free alternative + parity oracle. HONEST SCOPE: this conservation criterion is a DIFFERENT discriminator from F1250's global cross-community participation antimode (cross-DOCUMENT sharing vs cross-COMMUNITY boundary mass) and their convergence is PENDING validation on the real corpus \342\200\224 it is not claimed here. Class-N exact integer arithmetic; no float, no abs(), no spectral solve.",
-        ts_params_195, 2u,
+        ts_params_196, 2u,
         "dict",
         "{k, k_source (derived|declined|policy), bimodal, one_dna_type, core, accessory, n_core, n_accessory, histogram, threshold, gap} \342\200\224 core/accessory are sorted GLOBAL id lists",
         1,
@@ -5484,12 +5500,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 196 */
+    { /* 197 */
         "srmech.amsc.plasmid.genome_integrate_plasmids",
         "srmech",
         "plasmid",
         "STAGE 2 ORGANIZE (F1252 / \302\247102) \342\200\224 sections -> a minted NUCLEAR CORE + retained PLASMIDS. The op that structurally REMOVES the monolithic from-scratch partition from the encode path: it CONSERVES (read the section-count distribution, DERIVE k via the antimode \342\200\224 see conserved_core), PROMOTES (mint the induced core subgraph via genome.mint_strand \342\200\224 the 0x58 centromere at the metacentric p:q split), and MERGES (fold the retained plasmid sections in via genome.integrate). recursive_cut is NEVER called and nothing is ever re-extracted; cost is O(|E|) incremental against O(D*|E|*log n) from-scratch. PASS section_count \342\200\224 IT IS FREE, AND THE ALTERNATIVE IS NOT: plasmid_extract already returns section_count as a streamed integer accumulator built during the append pass, so chaining stage 1 -> stage 2 should hand it straight through (zero re-scan). When omitted this falls back to section_counts, which RE-DERIVES the counts from the sections on disk; rc280 made that fallback O(P x node_ids) instead of the O(P^2 x body) it was (the catalog is derived once, and only each section's node_ids prefix is paged \342\200\224 see section_counts), but it is still a disk scan and still the deliberate path, never the hot one: it exists for RESUMING against a store you did not just build and for VERIFYING the accumulator against the on-disk SSoT. Same for core_edges: supply the per-section global edge lists (as add_plasmid maintains them) to skip the core-harvest read entirely. rc280 also removed the same per-section catalog re-derivation from THIS op's own two reads (the core-subgraph harvest and the section-strand fold), which were each independently O(P x body); the harvest itself still reads whole section bodies, because the edges ARE its payload \342\200\224 the node_ids-prefix technique does not apply there. k='auto' (default) DERIVES the threshold or DECLINES; the returned k_source ('derived' / 'declined' / 'policy') records WHICH, so a caller can never mistake a stated policy choice for a measured one. A declining or UNIMODAL distribution yields ONE-DNA-TYPE: no core is promoted and the plasmids fold as-is (the split is not forced) \342\200\224 and on the real F1253 corpus curve, which is heavy-tailed/near-power-law, that IS the outcome. \302\247101: an in-process progress= callable (a Python-only kwarg, NOT an MCP wire parameter) fires between whole CHROMOSOMES \342\200\224 once with phase MINTING for the core promote, then per section with phase INTEGRATING (done = sections merged, total = P); there is NO scan phase when section_count is supplied. A truthy return CANCELS cleanly: the returned strand is the minted core plus the sections merged so far \342\200\224 a valid, readable shorter organized genome truncated at a chromosome boundary \342\200\224 and out_path is NOT written. Dispatches the mint + fold to the srmech_genome_integrate_plasmids C peer when HAS_NATIVE (byte-identical to the pure fold; a bare-C host runs stage 2 end-to-end). HONEST SCOPE: the conservation criterion (section-count >= k) is a DIFFERENT discriminator from F1250's global participation antimode and their convergence is PENDING validation on the real corpus \342\200\224 this is NOT claimed to reproduce the F1250 participation split. numpy-free; integer/exact; no abs().",
-        ts_params_196, 6u,
+        ts_params_197, 6u,
         "dict",
         "{strand, k, k_source (derived|declined|policy), bimodal, one_dna_type, core, counts {nuclear, plasmid}, n_sections, n_integrated, histogram, status}",
         1,
@@ -5500,12 +5516,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 197 */
+    { /* 198 */
         "srmech.amsc.plasmid.add_plasmid",
         "srmech",
         "plasmid",
         "INCREMENTAL STAGE 1 + 2 (F1252 / \302\247102) \342\200\224 add ONE document to an organized genome. The incremental face of the two-stage encode, and the reason there is no monolithic block left to be blind inside: adding a document is (1) a stage-1 append \342\200\224 extract its LOCAL co-occurrence graph and append ONE plasmid section (plasmid_extract; O(doc), O(1) HEAD rewrite), (2) an O(section) integer count bump, (3) a core delta \342\200\224 re-derive k and re-mint ONLY the small conserved core. A global recursive_cut is NEVER run and no document is ever re-extracted; every plasmid section, and the core when it did not change, stay byte-untouched. state is the running organize state this function threads \342\200\224 pass None to start, then feed the returned state back on each subsequent call; it carries {section_count, vocab, labels, core, k, sections}. With cache_edges (default True) the per-section GLOBAL edge lists are kept in state, so a threshold crossing re-filters them in memory and NOTHING is re-read from disk (cost: O(|E|) resident); cache_edges=False trades that memory back for a re-read of the store when core membership changes (the counts and the fast path are unaffected either way). EQUIVALENCE CONTRACT (pinned by the rc279 test): calling add_plasmid D times over D documents produces a BYTE-IDENTICAL organized genome to one genome_integrate_plasmids over the same D sections \342\200\224 the incremental rule is EXACT, not an approximation, because the core subgraph sums per-section edge multiplicities and emits them in canonical sorted order, making it independent of accumulation order. \302\247101 progress= is a Python-only kwarg (NOT an MCP wire param) firing between whole chromosomes. numpy-free; integer/exact; no abs().",
-        ts_params_197, 10u,
+        ts_params_198, 10u,
         "dict",
         "{strand, state, section, k, k_source, core_changed, core, bimodal, one_dna_type, counts {nuclear, plasmid}, n_sections, n_integrated, status}",
         1,
@@ -5516,12 +5532,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 198 */
+    { /* 199 */
         "srmech.amsc.genome.mint_strand",
         "srmech",
         "genome",
         "MINT an ALREADY-PACKED strand \342\200\224 splice a \302\24795a interior CENTROMERE (0x58) into it at the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (\302\247100 GAP 1 / PR#687 F1249). mint() mints AT BUILD TIME from raw leaves; mint_strand mints a strand that is ALREADY PACKED \342\200\224 a kernel_pack / graph_to_kernel strand (the corpus directed-graph store), any chromosome, or one nuclear community \342\200\224 WITHOUT re-minting it from leaves. This is the capability \302\247100 GAP 1 named as missing: chromosome(packed_strand, centromere=\342\200\246) REJECTS an already-packed strand (it treats the strand as raw leaves and quad_turn binds the 256-sector telomere cap -> 'klein-4 elements must be in {0,1,2,3}'), and there was no centromere= hook on graph_to_kernel \342\200\224 so a directed-graph chromosome could not be given a p:q centromere (its genome censused {plasmid:2, nuclear:0}). The centromere is an INTERIOR cap; recall / kernel_unpack / kernel_to_graph ALL skip caps (\302\24744), so minting is TRANSPARENT to the payload \342\200\224 the recovered kernel / graph is BYTE-IDENTICAL with or without the centromere. centromere_at is the arm-split in DATA TURNS (default the metacentric midpoint n_turns//2, matching chromosome()'s mint default \342\200\224 position IS the p:q arm-ratio: a 30-turn strand mints (15,15), a 9-turn strand (4,5)); orientation is the global 4-way which-way 0..3 (default sha256(recovered leaves)[0]&3 \342\200\224 the SAME Class-A->Class-C rule mint() assigns via _mint_orientation, applied to the strand's own recovered leaves). rc277 (#891-peer / G5) DISPATCHES the WHOLE op \342\200\224 data-turn scan \342\206\222 content-address orientation (recall \342\206\222 sha256&3) \342\206\222 centromere cap \342\206\222 single-block splice \342\200\224 to the byte-identical C peer srmech_genome_mint_strand when HAS_NATIVE, so a bare-C host PROMOTES a strand end-to-end via that ONE call (closing the rc270 mint_strand C-host GAP: the cap-writer srmech_genome_centromere had a C peer, its glue did not). The pure path (the native-dispatched centromere cap-writer + a block splice, like integrate \342\200\224 self-describing blocks concatenated, no re-coupling) is the numpy-free fallback + parity oracle, so the minted strand is byte-identical whether native or pure. After minting, genome_save + genome_census report the chromosome as 'nuclear' (rc271 F1251; was 'minted'). Raises if the strand is empty, does not OPEN with a chromosome-boundary cap (pass a packed strand, NOT raw leaves), or ALREADY carries a centromere. Foundation for \302\247100 GAP 2 (mint each nuclear community) + the streaming reader (a nuclear chromosome IS the eukaryotic/nuclear DNA). Class A (content-address orientation) + Class C (which-way) + Class K (position = p:q). numpy-free; no abs(). \302\247101 (rc275): an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) fires a single pre-op MINTING gate \342\200\224 a truthy return DECLINES cleanly and returns the valid UNMODIFIED pre-mint strand (a splice has no meaningful partial).",
-        ts_params_198, 6u,
+        ts_params_199, 6u,
         "list",
         "the MINTED strand \342\200\224 the input strand with one interior centromere cap (0x58) spliced at the p:q arm-split; recover the orientation + arm-ratio with centromere_of, census as 'nuclear' after genome_save",
         1,
@@ -5532,12 +5548,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 199 */
+    { /* 200 */
         "srmech.amsc.genome.genome_partition",
         "srmech",
         "genome",
         "PARTITION a directed relational GRAPH into nuclear-core vs plasmid-periphery BY ITS OWN STRUCTURE (\302\247100 GAP 2 / PR#687 / F1250 / F1251) \342\200\224 an introspectable READ that BUILDS NOTHING (like mint_plan, 'we watch it happen'; genome_from_graph is the builder). Where mint_plan decides a kernel's shape by LEAF-COUNT (<=4 -> plasmid, >=5 -> nuclear), this finds the split from the graph's relational TOPOLOGY. Runs the out-of-core spectral community partition (laplacian.recursive_cut -> fiedler_sparse_file; peak RAM = the largest sub-graph, NEVER the dense n*n structure), measures each node's degree-normalized PARTICIPATION = the fraction of its incident edge-mass that CROSSES a community boundary (HIGH = a community-bridging PLASMID / mobile accessory, F1059's power source; LOW = a NUCLEAR node embedded in ONE community, the stable topical core), then MEASURES the antimode of that distribution. NOTE (\302\247100.1 / F1250): participation \342\200\224 not the clustering coefficient (F1053) \342\200\224 is the read-INDEPENDENT discriminator that survives at scale (clustering measured unimodal on the 831k word-graph). DECISION: genuinely BIMODAL (a clean, wide, empty-relative antimode valley: 2*valley < min(peak_low,peak_high)) -> SPLIT into nuclear (low participation) + plasmid (high); UNIMODAL (no clean antimode) -> ACCEPT ONE-DNA-TYPE, do NOT force a split (F1250: 'one bridged content mass'). The split is per-NODE (robust even when recursive_cut absorbs a bridge node into a community \342\200\224 a bridge still crosses to the other community), then each community is sliced into its embedded-core nuclear group + its bridging plasmid group. SHAPE: an ASYMMETRIC minority nuclear core + majority plasmid remainder (F1251 attested bacterial genomics: a small stable core + a large mobile accessory), NEVER forced 50/50. weights are the INTEGER edge metric (participation is an exact rational, Class-N; no float, never abs); charges (signed direction) ride through for the builder. Returns {n, n_communities, bimodal, one_dna_type, antimode:{bins,counts,threshold_bin,peak_low_bin,peak_high_bin,valley_count,gap}, participation:[(num,den) per node], communities:[[node,...]], groups:[{community,type,nodes,size,participation}], counts:{nuclear,plasmid}, node_counts, work_dir}. Composes the C-dispatched recursive_cut with a thin PURE participation + antimode read (O(|E|)+O(n), exact integer) -> native==pure (the read is deterministic over the native community assignment). Class L (spectral community) + Class N (the exact participation rational) + Class K (the antimode boundary). \302\247101 (rc275): the return carries a status key ('ok' / 'cancelled'); an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) threads the PARTITIONING heartbeat into recursive_cut \342\200\224 a truthy return CANCELS and returns a clean partial (the valid community assignment, empty groups, status 'cancelled').",
-        ts_params_199, 8u,
+        ts_params_200, 8u,
         "dict",
         "the introspectable partition: {n, n_communities, bimodal, one_dna_type, antimode, participation, communities, groups, counts:{nuclear,plasmid}, node_counts, work_dir}",
         1,
@@ -5548,12 +5564,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 200 */
+    { /* 201 */
         "srmech.amsc.genome.genome_from_graph",
         "srmech",
         "genome",
         "BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN STRUCTURE (\302\247100 GAP 2 / PR#687 / F1250 / F1251) \342\200\224 'hand a graph, get nuclear + plasmid from its structure'. Runs genome_partition, then for EACH classified group packs its INDUCED sub-graph (graph_to_kernel) into a chromosome: a NUCLEAR community is MINTED (mint_strand splices a 0x58 centromere -> a Tier-2 nuclear chromosome, the stable clonal core); a PLASMID community is KEPT as a Tier-1 plasmid chromosome (append-only, no centromere -> the mobile accessory). All chromosomes concatenate into one self-describing strand (each opens with its kernel-telomere boundary cap). If path is given the strand is persisted (genome_save) and censused \342\200\224 genome_census reports the MEASURED {nuclear:N, plasmid:M}. BYTE-EXACT per community: kernel_to_graph on any chromosome (with its n_syms) recovers that community's induced sub-graph exactly (the interior centromere is skipped on read, \302\24744). A cross-community bridge edge is not in any single induced sub-graph \342\200\224 it is represented by the bridge node's PLASMID classification. Returns {strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?}. Composes genome_partition + the C-dispatched graph_to_kernel + mint_strand + genome_save; numpy-free, no abs(). Class L (partition) + Class A/C/K (the mint). \302\247101 (rc275): the return carries a status key ('ok' / 'cancelled'); an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) threads the heartbeat through the partition (PARTITIONING) AND the per-group mint loop (MINTING) \342\200\224 a truthy return CANCELS and returns the whole chromosomes minted so far (a valid shorter genome) WITHOUT genome_save (nothing half-written hits disk). \302\247113 (rc304, #1466): a caller attestation= (a dict) OVERRIDES the srmech-default source written into manifest.json when path is given \342\200\224 override-only over the five MPR SOURCE-identity fields (source_doi / source_url / license / retrieved_at / response_sha256), the four ENCODER fields stay srmech-owned \342\200\224 so an attested corpus genome (e.g. a simplewiki dump whose true source is https://dumps.wikimedia.org/simplewiki/latest/ under CC-BY-SA-4.0) records its REAL provenance genome-natively, in the only legitimate place (the directory is the SSoT, no sidecar files). The default is byte-identical to before when attestation is omitted; a malformed override raises before any bytes hit disk.",
-        ts_params_200, 11u,
+        ts_params_201, 11u,
         "dict",
         "{strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?} \342\200\224 genome_census reports the measured {nuclear, plasmid} when path is given",
         1,
@@ -5561,15 +5577,15 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"genome_from_graph(n=<int>, edges=<list>, weights=<list>, charges=<list>, coupling=<HV>, path=<str>, leaf_dim=<int>, max_tome=<int>, n_bins=<int>, centromere_at=<int>, attestation=<dict>) -> dict\"}",
         NULL,
         "BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN STRUCTURE (\302\247100 GAP 2 / PR#687 / F1250 / F1251) \342\200\224 'hand a graph, get nuclear + plasmid from its structure'. Runs :func:`genome_partition`, then MINTS each nuclear community (:func:`mint_strand` -> a 0x58 centromere) and KEEPS each plasmid community as a Tier-1 plasmid chromosome; if ``path`` is given, ``genome_save`` + ``genome_census`` report the measured ``{nuclear, plasmid}``. BYTE-EXACT per community (:func:`kernel_to_graph` recovers each induced sub-graph). numpy-free; no ``abs()``.",
-        ts_composes_200, 5u,
-        ts_preserves_200, 3u,
+        ts_composes_201, 5u,
+        ts_preserves_201, 3u,
     },
-    { /* 201 */
+    { /* 202 */
         "srmech.amsc.genome.discrete_writhe",
         "srmech",
         "genome",
         "rc313 \342\200\224 the EXACT-rational DIRECTIONAL discrete writhe of a polygonal backbone (the physical-topology peer of the intrinsic mod-2 center-parity holonomy quaternion_cycle_holonomy, rc309). Given a supplied 3D embedding (each vertex an EXACT RATIONAL \342\200\224 int / Fraction / (num,den) per coord), Wr = the discrete Gauss double-sum over non-adjacent segment PAIRS in the z-drop projection: Wr = sum of eps_ij, eps_ij = sign((B-A).((D-C)x(C-A))) when segments i,j cross in the xy-projection (four exact 2D orientation determinants decide the crossing), else 0. HONEST BOUNDING: this is the directional (single-projection) writhe \342\200\224 the signed CROSSING NUMBER, an exact INTEGER \342\200\224 NOT the smooth solid-angle Gauss writhe (which is transcendental and cannot be a rational; the smooth value is this integer averaged over the direction sphere, out of exact-rational/libm-free scope). The mod-2 CWF check uses only its PARITY (+1 == -1). EXACT (W4): every crossing decision + every eps is the SIGN of an INTEGER determinant (the 4 pair-vertices scaled to a common positive integer denominator per axis) over srmech_bigint -> native == pure byte-identical; no float, no libm, no abs (sign is Class K . Class C). CAD-ban-clear: the closed-form discrete Gauss integral in Class-N integers, NOT GPU/mesh/FEA sim. Raises on a non-generic projection or a strand meeting itself in 3D (nudge the embedding). Dispatches to standalone-C srmech_genome_discrete_writhe (caller arena) when HAS_NATIVE, else srmech's own integer-determinant cascade.",
-        ts_params_201, 2u,
+        ts_params_202, 2u,
         "dict",
         "{num, den (the writhe as a reduced rational \342\200\224 den is always 1, the directional writhe being integer-valued), writhe:(num,den), n_points, closed}",
         1,
@@ -5580,12 +5596,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 202 */
+    { /* 203 */
         "srmech.amsc.genome.cwf_consistency_mod2",
         "srmech",
         "genome",
         "rc313 \342\200\224 the mod-2 Calugareanu-White-Fuller consistency check on a strand: Lk == Tw + Wr (mod 2). Three INDEPENDENTLY-computed reads: Lk = the intrinsic mod-2 center-parity holonomy (rc309) \342\200\224 the center_parity of the strand's single fundamental cycle from quaternion_cycle_holonomy over the Q8 gains (center_parity -1 -> Lk==1; +1 -> Lk==0; 0 = pure-imaginary NON-central holonomy -> mod-2 Lk UNDEFINED, flagged); Tw = the framing twist read from the Q8 SIGN accumulation (parity of the count of negative-coset {-1,-i,-j,-k} gains); Wr = the directional writhe of the supplied embedding (discrete_writhe), computed from GEOMETRY, NEVER as Lk-Tw. The geometric independence gives the check teeth: the writhe supplies the non-abelian Q8 cocycle (e.g. i.i=-1) that the per-turn sign-sum Tw misses. HONEST BOUNDING (form not identity): a finite group (Q8) pins Lk only MOD 2 (center-parity), NOT the integer Gauss linking number; the Tw<->Q8-sign map is UNPINNED at integer level (parity only); no claim that DNA IS a quaternion or an integer-level CWF. No-embedding path: returns ONLY the intrinsic mod-2 Lk (+ Tw); wr / wr_mod2 / consistent are None, no Wr fabricated. Composition of C: quaternion_cycle_holonomy . discrete_writhe (both C-dispatched) . mod-2 integer arithmetic.",
-        ts_params_202, 5u,
+        ts_params_203, 5u,
         "dict",
         "{lk_mod2 (0/1 or None if non-central), lk_center_parity (+1/-1/0), tw_mod2, wr:(num,den) or None, wr_mod2 or None, consistent (bool or None), note}",
         1,
@@ -5593,24 +5609,8 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{\"call\":\"cwf_consistency_mod2(edges=<list>, gains=<list>, n=<int>, embedding=<list>, closed=<bool>) -> dict\"}",
         NULL,
         "rc313 \342\200\224 the mod-2 Calugareanu-White-Fuller check on a strand: Lk == Tw + Wr (mod 2). Lk = the intrinsic center-parity holonomy (rc309, quaternion_cycle_holonomy over the Q8 gains); Tw = the Q8 negative-coset SIGN-accumulation parity; Wr = the directional writhe from the supplied GEOMETRY (discrete_writhe), NEVER Lk-Tw \342\200\224 so the writhe supplies the non-abelian Q8 cocycle (i.i=-1) the per-turn sign-sum Tw misses. HONEST: a finite group pins Lk only MOD 2, not the integer Gauss Lk; the Tw<->Q8 map is unpinned at integer level (parity only). No embedding -> intrinsic mod-2 Lk only (no fabricated Wr).",
-        ts_composes_202, 2u,
-        ts_preserves_202, 3u,
-    },
-    { /* 203 */
-        "srmech.amsc.genome.relative_writhe",
-        "srmech",
-        "genome",
-        "rc317 (#1308) \342\200\224 Fuller's Second-Theorem exact-rational RELATIVE WRITHE Wr(C)-Wr(C0), the single-integral peer of the O(n^2) discrete_writhe double sum. Given two closed polygonal curves as EXACT-RATIONAL 3D vertices (int / Fraction / (num,den) per coord; floats rejected), reference=C0 (base) and embedding=C (deformed), it evaluates Fuller's single integral (1/2pi) oint (t0 x t).d(t0+t)/(1+t0.t) ds over the closed polygon, t0/t the central-difference UNIT tangents. CERTIFIED TRUNCATION, NOT the exact writhe: the true relative writhe is generically TRANSCENDENTAL (the pi normalisation + irrational unit-tangent lengths), so it returns an EXACT rational + a STATED remainder_bound on |value-true| \342\200\224 a Class-N best_rational anchor across the writhe's inharmonic responsion seam (F1308). DUAL-PRECISION contract (rc317 PILOT): precision=None -> PLATFORM-BOUNDED (value's num/den ride a native int64 word; the fast hardware-last-mile read; FLOAT-FREE, a bounded rational); precision=P int -> SRMECH-NATIVE BIGINT lengthed by P (remainder_bound ~ 2^-P tightening MONOTONICALLY; the bigint num/den lengthen with P). The +/-2 obstruction (antipodal_events flags the near-antipodal band 1+t0.t < 2^-4; for TRUE unit tangents 1+t0.t in [0,2], =0 only at the exact measure-zero antipode, so the literal <=0 the float spike reads via FP rounding is degenerate under exact rationals) IS the SAME Z->>Z/2 (kernel 2Z) reduction cwf_consistency_mod2 reads via the Q8 center-parity \342\200\224 the SO(3)/SU(2) double cover, a writhe +/-2 vs a spinor sign (DERIVED/argued; the integer lift needs the O(n^2) discrete_writhe). Class N (rational sqrt / pi-cascade / best_rational) . Class K (sign-branch magnitudes + antipodal pole detection, never abs()) . Class I (cyclic wrap); float NOWHERE (atan2 excluded \342\200\224 it projects to float; atan_series_truncate's angle reformulation is a different discretisation). composition_of_c (sqrt/pi/best_rational are C-backed): NO new C symbol, ABI stays 10, GENOME_FORMAT_VERSION stays 16 (a pure geometry READ). CAD-ban-clear: closed-form on the integer ALU, NOT mesh/FEA/GPU. Cites F. Brock Fuller PNAS 68(4):815-819 (1971, doi 10.1073/pnas.68.4.815, PMC389050) + PNAS 75(8):3557-3561 (1978, doi 10.1073/pnas.75.8.3557, PMC392823), both OA.",
-        ts_params_203, 4u,
-        "dict",
-        "{value:(num,den) the relative writhe in turns, remainder_bound:(num,den) stated bound on |value-true|, mode:'platform'|'bigint', precision:int effective bits, antipodal_events:int (steps in the near-antipodal band, the +/-2-obstruction flag), min_one_plus_dot:(num,den) the closest antiparallel approach}",
-        1,
-        NULL,
-        "{\"call\":\"relative_writhe(embedding=<list>, reference=<list>, closed=<bool>, precision=<int>) -> dict\"}",
-        NULL,
-        "Fuller's Second-Theorem RELATIVE WRITHE ``Wr(C) \342\210\222 Wr(C0)`` as an EXACT RATIONAL certified truncation \342\200\224 the single-integral peer of the O(n\302\262) :func:`discrete_writhe` double sum.",
-        NULL, 0u,
-        NULL, 0u,
+        ts_composes_203, 2u,
+        ts_preserves_203, 3u,
     },
     { /* 204 */
         "srmech.amsc.genome.codon_read",
