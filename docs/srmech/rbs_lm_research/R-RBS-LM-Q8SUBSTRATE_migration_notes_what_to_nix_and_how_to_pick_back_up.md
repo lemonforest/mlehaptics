@@ -51,7 +51,10 @@ Verified break: at rc299 `chromosome`/`genome_load`/`gene_express` take `couplin
 ### N2 — `.siona_genepool` is PRE-format-version → RE-ENCODE, don't upgrade
 `rbs_lm_research/.siona_genepool/manifest.json` reads `format_version: None`, no `carrier`. `upgrade_v15_to_v16` **fails** on it (`KeyError 'coupling'`) — it predates the versioned format, so the no-repack upgrade path cannot re-stamp it. **Reliable path = re-encode from source** (the streaming encoder), which we want anyway for the substrate move (N3). Do not depend on auto-migrate for this artifact.
 
-### N3 — the coupler is klein4 (the abelian SHADOW), and the Q₈ `one` minter is missing
+### N3 — the coupler is klein4 (the abelian SHADOW), and the Q₈ `one` minter is missing — ✅ **RESOLVED 2026-07-23 (F1307)**
+
+**✅ Substrate move landed.** siona's `genome_store` now threads `element_type=` (default klein4, byte-untouched); `element_type=ELEMENT_TYPE_Q8` couples through a RESONANT Q₈ `one` (`_coupler_q8` — the `klein4_from_one` coset + a Class-A sign channel, a declared function of `the_one`, NEVER an RNG — rejecting the rc311 test's seeded `_rand_q8_one`). Verified bit-exact on rc313 (five checks, `R-RBS-LM-Q8SUBSTRATEVERIFY_*.py`, exit 0): Q₈ round-trip exact with genuine winding · backward-faithful (`q8_project_v4(Q8 recall)==klein4 recall`) · klein4 default byte-identical to the raw srmech `genome()` path. DEFERRED (fail-loud, not blocking): Q₈ `express`/`add_kernel` + high-level `genome()`/`partition()` `element_type=` — three upstream asks in `UPSTREAM_NOTES.md §Q8-siona`.
+
 - `genome_store._coupler` → `klein4_from_one(_ONE)` (sectors=4) and `corpus_store.COUPLE` → `klein4_encode_bytes(…)` (sectors=4) are the **V4 shadow** coupling (correct for a klein4 genome; F1304). For the **substrate**, thread `element_type=ELEMENT_TYPE_Q8` through `chromosome`/`recall`/`genome_save`/`recover_diploid`/`gene_express` **and** supply a **Q₈ (sectors=8) coupling `one`**.
 - **GAP (open):** rc312 ships no obvious `q8_from_one` / the_one→Q₈ lift. Minters found are klein4-only (`klein4_from_one`, `klein4_expand`, both sectors=4). The rc311 P1 test constructs a Q₈ `one` somehow — **read `tests/test_genome_q8_coupling_rc311.py` for the minter, or file the ask** (§6).
 
