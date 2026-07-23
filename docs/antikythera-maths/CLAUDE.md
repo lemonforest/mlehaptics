@@ -4,6 +4,12 @@ This subdirectory is **research, not fabrication**. Anyone (human or LLM) workin
 
 The line here is the **modelling approach**, not the **objects modelled**. We absolutely do model gears, leaves, slots, pins, pointers, and their spatial motion. We just do it from the algebra / spectral side — phase space, cyclic groups, graph-Laplacian eigenbasis, projected back out to spatial movement — not from the CAD / mechanical-engineering side.
 
+## The deeper line — start from the metric-field carrier, not the spacetime shadow
+
+"No CAD / mesh / FEA / GPU" is the *symptom*; the real line is a **direction of derivation**. **FAVOR carrier-native / metric-field-native operations** — the ops that emerge *from* the discrete carrier (Cayley–Dickson / the H-genome), the carrier's own **distributional ⊗ relational ⊗ resonant** triality (op⊗operand⊗responsion = eigenvectors⊗edges⊗eigenvalues), closed-form on the ALU. **DISFAVOR spacetime-shadow / continuum-projected math** — ops that take continuous spacetime as primary and derive everything as a projection *down*, which is exactly why they need a GPU: the continuum shadow has no closed form. GPU is the *marker* of continuum-first math, not the principle.
+
+The test isn't "is it GPU?" — it's **"does this operation emerge *from* the carrier (bottom-up), or is it a cascade reverse-engineered to approximate a continuous / spacetime target (top-down)?"** Even a cascade is on the wrong side if it is a "continuous composition" (bent to hit a continuous target) rather than the carrier's own emergent triality — same 14 A–N ops, opposite *origin*. (Physical / mechanical structure stays in scope precisely because it can be read this way: `Lk = Tw + Wr`, the Antikythera pin-slot as `K∘L`, the Dzhanibekov flip as `V₄` monodromy — all carrier-native closed form, no GPU. See `[[feedback_metric_field_native_not_spacetime_shadow]]`, which deepens `[[feedback_cad_ban_is_gpu_numerical_not_closedform_physical]]`.)
+
 ## What this project IS
 
 A **mathematical-structural** investigation of the Antikythera mechanism, framed as:

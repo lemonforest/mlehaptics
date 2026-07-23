@@ -293,6 +293,18 @@ geometry" or "compute axle wobble" or "fabrication-tolerance
 geometry" — push back. CAD-grade fabrication geometry is not
 srmech's domain.
 
+**The deeper line (2026-07-23):** "no CAD / GPU" is the *symptom*; the
+real line is a **direction of derivation** — FAVOR carrier-native /
+metric-field-native ops (the CD / H-genome carrier's own
+distributional ⊗ relational ⊗ resonant triality, closed-form on the
+ALU); DISFAVOR spacetime-shadow / continuum-projected math (it needs a
+GPU *because* the continuum shadow has no closed form). The test is
+"does the op emerge FROM the carrier (bottom-up), or is it a cascade
+reverse-engineered to approximate a continuous / spacetime target
+(top-down)?" — not "is it GPU". See
+`[[feedback_metric_field_native_not_spacetime_shadow]]` + the canonical
+scope-doc `docs/antikythera-maths/CLAUDE.md`.
+
 **The C native surface, by contrast, intentionally covers every
 primitive class srmech exposes** — full C/Python parity is the
 architectural commitment per Task #201 and the ephemerides-spectral
