@@ -7286,6 +7286,39 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("q", "bytes", True, "a Q₈ byte buffer"),),
             returns=R("bytes", "the V4 cosets, each in {0, 1, 2, 3}"),
         ),
+        # rc315 (§Q8 completeness): the OCT one MINTER — the Q₈ analogue of
+        # hdc.klein4_from_one, so a Q₈ (substrate) genome can be MINTED + read
+        # through the normal genome API (mint_strand/genes/gene_express/partition
+        # gained an element_type=ELEMENT_TYPE_Q8 path this rc) with NO hand-
+        # construction of the coupling. Native+pure BY COMPOSITION of two already-
+        # C-peered ops (klein4_from_one + klein4_address) → no new C symbol, ABI 10.
+        ToolEntry(
+            name="srmech.amsc.q8.q8_from_one", owner="srmech", category="q8",
+            summary="ONE-OCT — the One's Q₈ COUPLING projection (the Q₈ analogue of "
+                    "hdc.klein4_from_one). Mints the sectors=8 (OCT) coupling one of "
+                    "leaf dim D (bytes 0..7) so a Q₈ (substrate) genome can be MINTED "
+                    "+ read through the normal genome API with NO hand-construction. "
+                    "Two DECLARED planes of the One's (σ, θ, terms): the V4 COSET "
+                    "plane (bits 0..1) IS klein4_from_one's output — so "
+                    "q8_project_v4(q8_from_one(one,D)) == klein4_from_one(one,D) "
+                    "EXACTLY (the F380/R21 backward-faithful bridge, by "
+                    "construction); the Z₂ SIGN plane (bit 2) is a domain-separated "
+                    "Class-A klein4_address of the same One (bit 0 per slot) — a "
+                    "declared function, so the coupling is a GENUINE non-abelian Q₈ "
+                    "one, not a degenerate all-positive one. The sign is a group ⊕-bit "
+                    "(Class-I parity), never an abs(). Class A (both planes) ∘ Class C "
+                    "(sign) ∘ Class M (byte interleave). Native+pure BY COMPOSITION of "
+                    "the C-peered srmech_klein4_from_one + srmech_klein4_address (a "
+                    "bare-C host mints by the same composition) — no dedicated C "
+                    "symbol; ABI 10.",
+            parameters=(P("one", "One", True,
+                          "a cascade One (exposes .sigma, .theta=(num, den), "
+                          ".terms)"),
+                        P("D", "int", True,
+                          "dimension — free; nothing requires or gains from "
+                          "divisibility by 14")),
+            returns=R("HV", "the OCT coupling one, sectors=8, uint8 in {0..7}"),
+        ),
         # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
         # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
         # analog of the srmech.amsc.carrier_ladder variable ladder. Pure
