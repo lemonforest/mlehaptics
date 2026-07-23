@@ -7198,6 +7198,55 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("tuple", "(index, sign) with index in [0, dim), sign in {+1,-1}"),
         ),
+        # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
+        # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
+        # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).
+        # q8_project_v4 is the EXACT F380/R21 homomorphism π: Q8 → V4 collapsing
+        # this onto hdc.klein4_bind: π(q8_bind(a,b)) == klein4_bind(π a, π b).
+        ToolEntry(
+            name="srmech.amsc.q8.q8_mult", owner="srmech", category="q8",
+            summary="The Q₈ group product a·b of two 3-bit bytes "
+                    "(q=(sign<<2)|coset; 0=+1,1=+i,2=+j,3=+k,4=−1,…,7=−k). "
+                    "Non-abelian (q8_mult(1,2)=3 but q8_mult(2,1)=7); i²=j²=k²=4 "
+                    "(−1); associative over all 8×8×8. The sign is the "
+                    "Cayley–Dickson cocycle (derived from cd_basis_product) xored "
+                    "with the two center bits — never an abs(). The abelian "
+                    "projection is exact: (a·b)&3 == (a&3)^(b&3). Class M∘I. "
+                    "Same-rc C peer srmech_q8_mult (byte-exact).",
+            parameters=(P("a", "int", True, "a Q₈ element in [0, 8)"),
+                        P("b", "int", True, "a Q₈ element in [0, 8)")),
+            returns=R("int", "the product a·b as a Q₈ byte in [0, 8)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.q8.q8_conjugate", owner="srmech", category="q8",
+            summary="The Q₈ conjugate / group inverse: conj(a)=a for the center "
+                    "(coset 0, self-inverse), else a^4 (flip an imaginary coset's "
+                    "sign bit). q8_mult(a, q8_conjugate(a))==0 for every a. "
+                    "Class C (orientation; a plain sign-bit flip, no abs()). "
+                    "Same-rc C peer srmech_q8_conjugate (byte-exact).",
+            parameters=(P("a", "int", True, "a Q₈ element in [0, 8)"),),
+            returns=R("int", "conj(a) as a Q₈ byte in [0, 8)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.q8.q8_bind", owner="srmech", category="q8",
+            summary="Elementwise Q₈ bind out[i]=q8_mult(turn[i], one[i]) over two "
+                    "equal-length Q₈ byte buffers (the buffer form of q8_mult). "
+                    "Class M (group bind). Same-rc C peer srmech_q8_bind "
+                    "(documents the out-aliasing contract; byte-exact).",
+            parameters=(P("turn", "bytes", True, "left operand Q₈ byte buffer"),
+                        P("one", "bytes", True, "right operand, same length")),
+            returns=R("bytes", "the elementwise product, length len(turn)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.q8.q8_project_v4", owner="srmech", category="q8",
+            summary="The abelian projection π: Q₈ → V4 elementwise: out[i]=q[i]&3 "
+                    "(drop the center sign bit, keep the {1,i,j,k} coset). The "
+                    "exact F380/R21 homomorphism onto hdc.klein4's value algebra: "
+                    "π(q8_bind(a,b)) == klein4_bind(π a, π b). Class I (abelian "
+                    "coset read). Same-rc C peer srmech_q8_project_v4 (byte-exact).",
+            parameters=(P("q", "bytes", True, "a Q₈ byte buffer"),),
+            returns=R("bytes", "the V4 cosets, each in {0, 1, 2, 3}"),
+        ),
         # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
         # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
         # analog of the srmech.amsc.carrier_ladder variable ladder. Pure

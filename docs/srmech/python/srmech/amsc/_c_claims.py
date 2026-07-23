@@ -480,6 +480,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.primes.factor': ('srmech_factor',),
     'srmech.amsc.primes.is_prime': ('srmech_is_prime',),
     'srmech.amsc.primes.next_prime': ('srmech_next_prime',),
+    'srmech.amsc.q8.q8_bind': ('srmech_q8_bind',),
+    'srmech.amsc.q8.q8_conjugate': ('srmech_q8_conjugate',),
+    'srmech.amsc.q8.q8_mult': ('srmech_q8_mult',),
+    'srmech.amsc.q8.q8_project_v4': ('srmech_q8_project_v4',),
     'srmech.amsc.q_gosper.q_gosper': (
         'srmech_q_gosper',
         'srmech_q_gosper_out_cap',
