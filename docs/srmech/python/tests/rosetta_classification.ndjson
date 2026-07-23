@@ -704,3 +704,7 @@
 {"exposed_as": "srmech.amsc.cascade.cd_uncouple_working", "defined_at": "srmech.amsc.cascade.cd_register.cd_uncouple_working", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.cd_carry", "defined_at": "srmech.amsc.cascade.cd_register.cd_carry", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.cd_correct", "defined_at": "srmech.amsc.cascade.cd_register.cd_correct", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.q8.q8_mult", "defined_at": "srmech.amsc.q8.q8_mult", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.q8.q8_conjugate", "defined_at": "srmech.amsc.q8.q8_conjugate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.q8.q8_bind", "defined_at": "srmech.amsc.q8.q8_bind", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.q8.q8_project_v4", "defined_at": "srmech.amsc.q8.q8_project_v4", "bucket": "c_dispatched"}

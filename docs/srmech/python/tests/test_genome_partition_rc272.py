@@ -373,7 +373,7 @@ def test_new_ops_registered_and_total_is_448():
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.amsc.genome.genome_partition" in names
     assert "srmech.amsc.genome.genome_from_graph" in names
-    assert len(names) == 481
+    assert len(names) == 485
     assert "genome_partition" in G.__all__
     assert "genome_from_graph" in G.__all__
 

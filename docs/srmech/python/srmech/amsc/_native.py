@@ -848,6 +848,34 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_quaternion_cycle_holonomy.restype = ctypes.c_int
 
+    # 0.9.0rc310: srmech_q8 — the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,
+    # +-k} as 3-bit bytes (the discrete peer of the continuous H surface). Pure
+    # uint8 integer ops: q8_mult / q8_conjugate return a uint8 Q8 byte; q8_bind
+    # / q8_project_v4 are elementwise buffer ops returning srmech_status_t.
+    # Additive INTEGER symbols (no callback typedef) -> ABI stays 10.
+    # hasattr-guarded so a stale pre-rc310 lib keeps the rest of the surface.
+    if hasattr(lib, "srmech_q8_mult"):
+        lib.srmech_q8_mult.argtypes = [ctypes.c_uint8, ctypes.c_uint8]
+        lib.srmech_q8_mult.restype = ctypes.c_uint8
+    if hasattr(lib, "srmech_q8_conjugate"):
+        lib.srmech_q8_conjugate.argtypes = [ctypes.c_uint8]
+        lib.srmech_q8_conjugate.restype = ctypes.c_uint8
+    if hasattr(lib, "srmech_q8_bind"):
+        lib.srmech_q8_bind.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # turn (n bytes)
+            ctypes.POINTER(ctypes.c_uint8),     # one  (n bytes)
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_uint8),     # out  (n bytes; may alias)
+        ]
+        lib.srmech_q8_bind.restype = ctypes.c_int
+    if hasattr(lib, "srmech_q8_project_v4"):
+        lib.srmech_q8_project_v4.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # q   (n bytes)
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_uint8),     # out (n bytes; may alias)
+        ]
+        lib.srmech_q8_project_v4.restype = ctypes.c_int
+
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
     #                           double *out_eigvals)

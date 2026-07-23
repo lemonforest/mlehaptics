@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc309"
-#define SRMECH_VERSION       "0.9.0rc309"
+#define SRMECH_VERSION_PRE   "rc310"
+#define SRMECH_VERSION       "0.9.0rc310"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -11341,6 +11341,52 @@ srmech_status_t srmech_quaternion_twiddle(
 srmech_status_t srmech_quaternion_dft(
     const double *x, uint32_t n_points, int32_t left, int32_t inverse,
     const double *mu, size_t n, double *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech_q8 — the DISCRETE quaternion group Q8 = {+-1, +-i, +-j, +-k}
+ * as 3-bit bytes (0.9.0rc310): the discrete peer of the CONTINUOUS H
+ * surface above. A byte q in {0..7} is q = (sign_bit << 2) | v4_coset
+ * with v4_coset = q & 3 in {1,i,j,k} and sign_bit = q >> 2 in {+,-}, so
+ * 0=+1 1=+i 2=+j 3=+k 4=-1 5=-i 6=-j 7=-k. Pure INTEGER bit-arithmetic:
+ * no floats, so no FMA / FP-contraction concern. Q8 is the central
+ * extension 1 -> Z2 -> Q8 -> V4 -> 1; the product's sign is the cocycle
+ * F (= the dim-4 restriction of the srmech_cd_basis_product sign,
+ * verified from Python) xored with the two center bits. The abelian
+ * projection V4 = q & 3 is the EXACT F380 / in-repo R21 homomorphism
+ * pi: Q8 -> V4 (pi(a.b) = pi(a) xor pi(b) for all a,b). Additive
+ * INTEGER symbols (no callback typedef) -> SRMECH_ABI_VERSION stays 10.
+ * See srmech_q8.c.
+ * ------------------------------------------------------------------ */
+
+/* The Q8 group product: (sa . e_xa)(sb . e_xb) = (sa xor sb xor
+ * F[xa][xb]) . e_(xa xor xb), with xa=a&3, xb=b&3, sa=a>>2, sb=b>>2 and
+ * F the central-extension cocycle sign table. NON-abelian (q8_mult(1,2)=3
+ * but q8_mult(2,1)=7), i^2 = j^2 = k^2 = 4 (-1), associative over all
+ * 8x8x8. Class-M group bind o Class-I Z2 sign xor (no abs()). Contract:
+ * a < 8 and b < 8 (asserted). */
+uint8_t srmech_q8_mult(uint8_t a, uint8_t b);
+
+/* The Q8 conjugate / group inverse: conj(a) = a for the center (coset 0,
+ * self-inverse), else a xor 4 (flip an imaginary coset's sign bit).
+ * srmech_q8_mult(a, srmech_q8_conjugate(a)) == 0 for every a. Class-C
+ * orientation flip (no abs()). Contract: a < 8 (asserted). */
+uint8_t srmech_q8_conjugate(uint8_t a);
+
+/* Elementwise Q8 bind over n-length uint8 buffers: out[i] =
+ * srmech_q8_mult(turn[i], one[i]). `out` MAY alias `turn` and/or `one`
+ * (each slot i is read then written before slot i+1 is touched, so an
+ * in-place bind is well defined). n == 0 is a no-op. Every input byte
+ * MUST be a valid Q8 element (< 8). Class-M bind. Errors:
+ * SRMECH_ERR_NULL_ARG (any pointer NULL). */
+srmech_status_t srmech_q8_bind(const uint8_t *turn, const uint8_t *one,
+                               uint32_t n, uint8_t *out);
+
+/* The abelian projection pi: Q8 -> V4 elementwise: out[i] = q[i] & 3
+ * (drop the center sign bit, keeping the {1,i,j,k} coset). `out` MAY
+ * alias `q`. n == 0 is a no-op. Class-I abelian coset read. Errors:
+ * SRMECH_ERR_NULL_ARG (any pointer NULL). */
+srmech_status_t srmech_q8_project_v4(const uint8_t *q, uint32_t n,
+                                     uint8_t *out);
 
 /* ------------------------------------------------------------------ *
  * srmech_octonion — the ODFT twiddle family + the whole-transform
