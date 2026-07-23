@@ -4020,6 +4020,45 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.c_size_t, ctypes.c_uint32, ctypes.c_size_t,  # body_len, n_chroms, out_cap
             ]
             lib.srmech_genome_section_counts_arena_bytes.restype = ctypes.c_size_t
+        # rc313 — srmech_genome_discrete_writhe: the exact-INTEGER directional
+        # discrete writhe of a polygonal backbone (six int64 num/den lanes → a
+        # reduced-rational out pair). Caller-arena; ADDITIVE symbols (ABI stays 10).
+        if hasattr(lib, "srmech_genome_discrete_writhe"):
+            lib.srmech_genome_discrete_writhe.argtypes = [
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # xn, xd
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # yn, yd
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # zn, zd
+                ctypes.c_uint32, ctypes.c_int32,                   # n_points, closed
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # out_num, out_den
+            ]
+            lib.srmech_genome_discrete_writhe.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_discrete_writhe_arena_bytes"):
+            lib.srmech_genome_discrete_writhe_arena_bytes.argtypes = [ctypes.c_uint32]
+            lib.srmech_genome_discrete_writhe_arena_bytes.restype = ctypes.c_size_t
+        # rc313 — srmech_genome_cwf_consistency_mod2: the mod-2 CWF check as a
+        # WHOLE-OP C peer (orchestrates the holonomy + writhe C ops). Caller-arena;
+        # ADDITIVE (ABI stays 10).
+        if hasattr(lib, "srmech_genome_cwf_consistency_mod2"):
+            lib.srmech_genome_cwf_consistency_mod2.argtypes = [
+                ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint32),  # edges_u, edges_v
+                ctypes.POINTER(ctypes.c_double),                   # gains (or NULL)
+                ctypes.c_uint32, ctypes.c_uint32, ctypes.c_int32,  # n_edges, n_nodes, has_embedding
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # xn, xd
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # yn, yd
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # zn, zd
+                ctypes.c_uint32, ctypes.c_int32,                   # n_points, closed
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len
+                ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32),  # lk_mod2, lk_center_parity
+                ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32),  # tw_mod2, wr_mod2
+                ctypes.POINTER(ctypes.c_int32),                    # consistent
+            ]
+            lib.srmech_genome_cwf_consistency_mod2.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_cwf_consistency_mod2_arena_bytes"):
+            lib.srmech_genome_cwf_consistency_mod2_arena_bytes.argtypes = [
+                ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32,
+            ]
+            lib.srmech_genome_cwf_consistency_mod2_arena_bytes.restype = ctypes.c_size_t
         # rc296 — the PAL read-path OPEN COUNTER. Diagnostic-only instrumentation
         # (no op depends on it, nothing branches on it) that makes the COMPILED
         # projection's I/O shape measurable from a test. Python's builtins.open /
@@ -17899,6 +17938,28 @@ def has_native_genome_section_counts() -> bool:
     alternative + parity oracle."""
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_genome_section_counts"))
+
+
+def has_native_genome_discrete_writhe() -> bool:
+    """True iff the rc313 srmech_genome_discrete_writhe C peer is loaded + bound:
+    a bare-C host computes the exact-INTEGER directional writhe of a supplied 3D
+    rational embedding over the srmech_bigint determinant surface. False on a
+    no-C or pre-rc313 lib — the pure srmech.amsc.genome.discrete_writhe body is
+    the complete byte-identical alternative (integer determinants) + oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_discrete_writhe")
+                and hasattr(LIB, "srmech_genome_discrete_writhe_arena_bytes"))
+
+
+def has_native_genome_cwf_consistency_mod2() -> bool:
+    """True iff the rc313 srmech_genome_cwf_consistency_mod2 whole-op C peer is
+    loaded + bound: a bare-C host runs the WHOLE mod-2 CWF check (orchestrating
+    the holonomy + discrete-writhe C ops). False on a no-C or pre-rc313 lib —
+    the pure srmech.amsc.genome.cwf_consistency_mod2 body (composing the two ops
+    in Python) is the complete byte-identical alternative + oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_cwf_consistency_mod2")
+                and hasattr(LIB, "srmech_genome_cwf_consistency_mod2_arena_bytes"))
 
 
 def has_native_file_open_counter() -> bool:

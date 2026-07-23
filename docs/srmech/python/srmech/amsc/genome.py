@@ -65,6 +65,7 @@ from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
 
 __all__ = [
+    "discrete_writhe", "cwf_consistency_mod2",
     "encode_shape", "quad_turn", "telomere", "chromosome",
     "centromere", "centromere_of",
     "diploid", "recover_diploid",
@@ -730,6 +731,411 @@ QUAD = 4
 OCT = 8
 #: One quad-turn spans the 4 Klein-4 sectors of leaves: 1024 = 4 x 256 (F713).
 MOBIUS_CAP = LEAF_CAP * QUAD
+
+
+# =====================================================================
+# rc313 — the exact-rational discrete writhe + the mod-2 CWF check.
+# The physical-topology peer of the intrinsic mod-2 center-parity
+# holonomy (srmech.qm.quaternion.quaternion_cycle_holonomy, rc309).
+# =====================================================================
+
+def _dw_as_rational(v) -> Tuple[int, int]:
+    """Coerce one coordinate to an EXACT ``(num, den)`` integer pair (den != 0).
+
+    Accepts an ``int``, any rational carrying integer ``.numerator`` /
+    ``.denominator`` (e.g. ``fractions.Fraction`` — DUCK-TYPED, never imported:
+    srmech ships no stdlib ``fractions`` dependency), or a 2-sequence
+    ``(num, den)``. Floats are REJECTED — the writhe is exact-rational (no FPU
+    lift); pass ``(num, den)`` or a ``Fraction`` for non-integers."""
+    if isinstance(v, bool):
+        raise TypeError("discrete_writhe: bool is not a coordinate")
+    if isinstance(v, int):
+        return (v, 1)
+    num = getattr(v, "numerator", None)
+    den = getattr(v, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int):   # Fraction et al., duck-typed
+        if den == 0:
+            raise ValueError("discrete_writhe: zero denominator in a coordinate")
+        return (num, den)
+    if isinstance(v, (tuple, list)) and len(v) == 2:
+        num, den = int(v[0]), int(v[1])
+        if den == 0:
+            raise ValueError("discrete_writhe: zero denominator in a coordinate")
+        return (num, den)
+    raise TypeError(
+        "discrete_writhe: coordinate must be int, a rational with integer "
+        "numerator/denominator, or (num, den); "
+        f"got {type(v).__name__} (floats are rejected — writhe is exact-rational)")
+
+
+def _dw_normalise(embedding) -> Tuple[list, list, list, list, list, list]:
+    """Split an embedding (list of 3D rational points) into the six flat
+    ``num``/``den`` integer lanes the C peer + pure path both consume."""
+    xn, xd, yn, yd, zn, zd = [], [], [], [], [], []
+    for k, pt in enumerate(embedding):
+        if len(pt) != 3:
+            raise ValueError(
+                f"discrete_writhe: point {k} must be a 3-tuple (x, y, z)")
+        (a, b) = _dw_as_rational(pt[0]); xn.append(a); xd.append(b)
+        (a, b) = _dw_as_rational(pt[1]); yn.append(a); yd.append(b)
+        (a, b) = _dw_as_rational(pt[2]); zn.append(a); zd.append(b)
+    return xn, xd, yn, yd, zn, zd
+
+
+def _dw_sgn(x: int) -> int:
+    """The Class-K pin-slot sign of an integer (no ``abs()``)."""
+    return (x > 0) - (x < 0)
+
+
+def _dw_scale4(nums, dens) -> list:
+    """One axis of the 4 pair-vertices scaled to a COMMON POSITIVE integer:
+    ``out[k] = num[k] · Π_{m≠k} den[m]`` (dens pre-normalised > 0). Mirrors
+    the C ``srmech_dw_scale4`` term order exactly."""
+    out = []
+    for k in range(4):
+        v = nums[k]
+        for m in range(4):
+            if m != k:
+                v *= dens[m]
+        out.append(v)
+    return out
+
+
+def _dw_writhe_pure(xn, xd, yn, yd, zn, zd, n_points: int, closed: bool) -> int:
+    """Pure-Python complete alternative for the directional writhe — the
+    exact-INTEGER determinant algorithm, byte-identical to the C peer (same
+    sign order, plain Python ints)."""
+    n_seg = n_points if closed else (n_points - 1 if n_points > 0 else 0)
+    if n_seg < 2:
+        return 0
+    wr = 0
+    for i in range(n_seg):
+        a, b = i, (i + 1) % n_points
+        for j in range(i + 1, n_seg):
+            c, d = j, (j + 1) % n_points
+            if a in (c, d) or b in (c, d):
+                continue
+            idx = (a, b, c, d)
+            nx, dx, ny, dy, nz, dz = [], [], [], [], [], []
+            for g in idx:
+                for (nn, dd, ln, ld) in ((xn[g], xd[g], nx, dx),
+                                         (yn[g], yd[g], ny, dy),
+                                         (zn[g], zd[g], nz, dz)):
+                    if dd == 0:
+                        raise ValueError("discrete_writhe: zero denominator")
+                    ln.append(nn if dd > 0 else -nn)
+                    ld.append(dd if dd > 0 else -dd)
+            X = _dw_scale4(nx, dx); Y = _dw_scale4(ny, dy); Z = _dw_scale4(nz, dz)
+
+            def _o2(P, Q, pp, qq, rr):
+                return _dw_sgn((P[qq] - P[pp]) * (Q[rr] - Q[pp])
+                               - (Q[qq] - Q[pp]) * (P[rr] - P[pp]))
+            o1 = _o2(X, Y, 0, 1, 2); o2 = _o2(X, Y, 0, 1, 3)
+            o3 = _o2(X, Y, 2, 3, 0); o4 = _o2(X, Y, 2, 3, 1)
+            if o1 * o2 > 0 or o3 * o4 > 0:
+                continue
+            if 0 in (o1, o2, o3, o4):
+                raise ValueError(
+                    "discrete_writhe: non-generic projection (a crossing-"
+                    "deciding orientation vanished) — nudge the embedding")
+            ux, uy, uz = X[1] - X[0], Y[1] - Y[0], Z[1] - Z[0]
+            vx, vy, vz = X[3] - X[2], Y[3] - Y[2], Z[3] - Z[2]
+            wx, wy, wz = X[2] - X[0], Y[2] - Y[0], Z[2] - Z[0]
+            t = _dw_sgn(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx)
+                        + uz * (vx * wy - vy * wx))
+            if t == 0:
+                raise ValueError(
+                    "discrete_writhe: strands meet in 3D (vanishing triple "
+                    "product at a crossing) — not an embedding")
+            wr += t
+    return wr
+
+
+def _dw_writhe_native(xn, xd, yn, yd, zn, zd, n_points: int, closed: bool):
+    """numpy-free native dispatch — marshals the six int64 lanes into ctypes
+    buffers and calls ``srmech_genome_discrete_writhe`` over a caller arena.
+    Returns ``(num, den)`` or ``None`` on a missing symbol; raises on a
+    degenerate-projection / meet-in-3D status (the pure path raises the same)."""
+    import ctypes
+    if not _native.has_native_genome_discrete_writhe():
+        return None
+
+    def _i64(seq):
+        return (ctypes.c_int64 * max(n_points, 1))(*(int(v) for v in seq))
+    cxn, cxd = _i64(xn), _i64(xd)
+    cyn, cyd = _i64(yn), _i64(yd)
+    czn, czd = _i64(zn), _i64(zd)
+    ws_bytes = int(_native.LIB.srmech_genome_discrete_writhe_arena_bytes(
+        ctypes.c_uint32(n_points)))
+    ws = (ctypes.c_char * ws_bytes)()
+    onum = ctypes.c_int64(0)
+    oden = ctypes.c_int64(1)
+    rc = _native.LIB.srmech_genome_discrete_writhe(
+        cxn, cxd, cyn, cyd, czn, czd,
+        ctypes.c_uint32(n_points), ctypes.c_int32(1 if closed else 0),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
+        ctypes.byref(onum), ctypes.byref(oden))
+    if rc == _native.SRMECH_OK:
+        return (int(onum.value), int(oden.value))
+    if rc == getattr(_native, "SRMECH_ERR_BAD_INPUT", 2):
+        raise ValueError(
+            "discrete_writhe: degenerate projection or non-embedded strand "
+            "(the native peer flagged a vanishing crossing determinant)")
+    return None
+
+
+def discrete_writhe(embedding, *, closed: bool = True) -> Dict[str, object]:
+    """The EXACT-rational DIRECTIONAL discrete writhe of a polygonal backbone.
+
+    Given a caller-supplied 3D embedding of the strand (each vertex an EXACT
+    RATIONAL — an ``int``, a ``Fraction``, or a ``(num, den)`` pair per
+    coordinate), this computes the DISCRETE Gauss double-sum over non-adjacent
+    backbone segment PAIRS in the projection that drops ``z``:
+
+        ``Wr = Σ_{i<j, non-adjacent} ε_ij`` ,  ``ε_ij = sign(T_ij)`` when
+        segments ``i, j`` cross in the ``xy``-projection (four exact 2D
+        orientation determinants decide the crossing), else ``0``;
+        ``T_ij = (B−A)·((D−C)×(C−A))`` is the scalar triple product
+        (``A=P_i, B=P_{i+1}, C=P_j, D=P_{j+1}``).
+
+    **What this IS and is NOT (honest bounding).** This is the *directional*
+    (single-projection) discrete writhe — the **signed crossing number** of the
+    diagram, an exact INTEGER. It is **not** the smooth solid-angle Gauss
+    writhe, which is transcendental and *cannot* be a rational; that smooth
+    value is this integer's average over the direction sphere (arccos /
+    solid-angles — outside the exact-rational, libm-free scope). The mod-2 CWF
+    check (:func:`cwf_consistency_mod2`) uses only the writhe's **parity**,
+    where ``+1 ≡ −1``, so the absolute sign convention is immaterial there.
+
+    **Exactness (W4).** Every crossing decision and every ``ε`` is the SIGN of
+    an INTEGER determinant (the four pair-vertices are scaled to a common
+    positive integer denominator per axis) — computed on the ``srmech_bigint``
+    surface in C, or Python big-ints in the pure path — so no float can flip a
+    near-degenerate crossing sign, and native == pure byte-identically. This is
+    the closed-form discrete Gauss integral in Class-N integers (CAD-ban-clear:
+    NOT GPU / mesh / FEA numerical simulation). No ``abs()`` (sign is
+    Class K ∘ Class C); no float; no libm.
+
+    Args:
+        embedding: the backbone vertices, a sequence of 3-tuples ``(x, y, z)``;
+            each coordinate an ``int`` / ``Fraction`` / ``(num, den)`` pair.
+        closed: when ``True`` (default) the wrap segment ``P_{n-1}→P_0`` closes
+            the loop; when ``False`` the backbone is an open polyline.
+
+    Returns:
+        ``dict`` with ``num`` / ``den`` (the writhe as a reduced rational —
+        ``den`` is always ``1``, the directional writhe being integer-valued),
+        ``writhe`` (the ``(num, den)`` pair), ``n_points``, and ``closed``.
+
+    Raises:
+        ValueError: a non-generic projection (a crossing-deciding orientation
+            determinant vanishes) or a strand that meets itself in 3D (a
+            vanishing triple product at a proper crossing — not an embedding).
+            Nudge the embedding, as the winding-number code does at a root.
+    """
+    pts = list(embedding)
+    n_points = len(pts)
+    xn, xd, yn, yd, zn, zd = _dw_normalise(pts)
+    res = None
+    if n_points > 0:
+        res = _dw_writhe_native(xn, xd, yn, yd, zn, zd, n_points, closed)
+    if res is None:
+        num = _dw_writhe_pure(xn, xd, yn, yd, zn, zd, n_points, closed)
+        res = (num, 1)
+    num, den = res
+    return {
+        "num": num, "den": den, "writhe": (num, den),
+        "n_points": n_points, "closed": bool(closed),
+    }
+
+
+def _cwf_gain_sign(gain) -> int:
+    """The per-turn central sign of a Q₈ gain: ``+1`` for the positive coset
+    ``{1, i, j, k}``, ``−1`` for the negative coset ``{−1, −i, −j, −k}`` — the
+    sign of the FIRST non-zero component (Class-K pin-slot; no ``abs()``).
+    Gains far from Q₈ are read by the same first-nonzero rule."""
+    tol = 1e-9
+    for c in gain:
+        if c > tol:
+            return 1
+        if c < -tol:
+            return -1
+    return 1
+
+
+def _cwf_compute_pure(edge_list, gains, nn, embedding, closed):
+    """Pure-Python composition — Lk from quaternion_cycle_holonomy, Tw from the
+    Q8 sign accumulation, Wr from discrete_writhe. Returns the raw 6-tuple
+    ``(center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent)``."""
+    from srmech.qm.quaternion import quaternion_cycle_holonomy as _qch
+    holo = _qch(edge_list, gains, n=nn)
+    if holo["n_cycles"] != 1:
+        raise ValueError(
+            "cwf_consistency_mod2: expected exactly one fundamental cycle "
+            f"(a single closed strand); got n_cycles={holo['n_cycles']}")
+    center_parity = int(holo["center_parity"][0])
+    lk_mod2 = None if center_parity == 0 else (1 if center_parity == -1 else 0)
+    resolved = [] if gains is None else list(gains)
+    tw_mod2 = (sum(1 for g in resolved if _cwf_gain_sign(g) == -1)) % 2
+    if embedding is None:
+        return center_parity, lk_mod2, tw_mod2, None, None, None
+    wr = discrete_writhe(embedding, closed=closed)
+    wr_pair = (wr["num"], wr["den"])
+    wr_mod2 = (wr["num"] % 2) if wr["den"] == 1 else None
+    consistent = None
+    if lk_mod2 is not None and wr_mod2 is not None:
+        consistent = ((tw_mod2 + wr_mod2) % 2 == lk_mod2)
+    return center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent
+
+
+def _cwf_compute_native(edge_list, gains, nn, embedding, closed):
+    """numpy-free native dispatch to the WHOLE-OP C peer
+    ``srmech_genome_cwf_consistency_mod2`` (it orchestrates the holonomy +
+    writhe C ops). Returns the same 6-tuple as :func:`_cwf_compute_pure`, or
+    ``None`` on a missing symbol / unmarshalable gain; raises on a BAD_INPUT
+    status (not one cycle / degenerate strand)."""
+    import ctypes
+    if not _native.has_native_genome_cwf_consistency_mod2():
+        return None
+    n_edges = len(edge_list)
+    eu = (ctypes.c_uint32 * max(n_edges, 1))(*(int(u) for u, _ in edge_list))
+    ev = (ctypes.c_uint32 * max(n_edges, 1))(*(int(v) for _, v in edge_list))
+    if gains is None:
+        gp = None
+    else:
+        flat = []
+        for g in gains:
+            gg = list(g)
+            if len(gg) != 4:
+                return None                      # let the pure path coerce
+            flat.extend(float(c) for c in gg)
+        gp = (ctypes.c_double * max(len(flat), 1))(*flat)
+    has_emb = 1 if embedding is not None else 0
+    nullp = ctypes.POINTER(ctypes.c_int64)()
+    n_points = 0
+    cxn = cxd = cyn = cyd = czn = czd = nullp
+    if has_emb:
+        pts = list(embedding)
+        n_points = len(pts)
+        xn, xd, yn, yd, zn, zd = _dw_normalise(pts)
+
+        def _i64(seq):
+            return (ctypes.c_int64 * max(n_points, 1))(*(int(v) for v in seq))
+        cxn, cxd, cyn, cyd, czn, czd = (_i64(xn), _i64(xd), _i64(yn),
+                                        _i64(yd), _i64(zn), _i64(zd))
+    ws_bytes = int(_native.LIB.srmech_genome_cwf_consistency_mod2_arena_bytes(
+        ctypes.c_uint32(nn), ctypes.c_uint32(n_edges), ctypes.c_uint32(n_points)))
+    ws = (ctypes.c_char * ws_bytes)()
+    olk = ctypes.c_int32(0); ocp = ctypes.c_int32(0); otw = ctypes.c_int32(0)
+    owr = ctypes.c_int32(0); ocons = ctypes.c_int32(0)
+    rc = _native.LIB.srmech_genome_cwf_consistency_mod2(
+        eu, ev, gp, ctypes.c_uint32(n_edges), ctypes.c_uint32(nn),
+        ctypes.c_int32(has_emb), cxn, cxd, cyn, cyd, czn, czd,
+        ctypes.c_uint32(n_points), ctypes.c_int32(1 if closed else 0),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
+        ctypes.byref(olk), ctypes.byref(ocp), ctypes.byref(otw),
+        ctypes.byref(owr), ctypes.byref(ocons))
+    if rc == _native.SRMECH_OK:
+        center_parity = int(ocp.value)
+        lk_mod2 = None if int(olk.value) < 0 else int(olk.value)
+        tw_mod2 = int(otw.value)
+        wr_mod2 = None if int(owr.value) < 0 else int(owr.value)
+        consistent = None if int(ocons.value) < 0 else bool(int(ocons.value))
+        wr_pair = None
+        if has_emb:                              # the exact (num, den) for the dict
+            wrd = discrete_writhe(embedding, closed=closed)
+            wr_pair = (wrd["num"], wrd["den"])
+        return center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent
+    if rc == getattr(_native, "SRMECH_ERR_BAD_INPUT", 2):
+        raise ValueError(
+            "cwf_consistency_mod2: the native peer flagged a bad input (not "
+            "exactly one fundamental cycle, or a degenerate/non-embedded strand)")
+    return None
+
+
+def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
+                         embedding=None, closed: bool = True) -> Dict[str, object]:
+    """The **mod-2** Călugăreanu–White–Fuller consistency check on a strand:
+
+        ``Lk ≡ Tw + Wr   (mod 2)`` .
+
+    Three INDEPENDENTLY-computed reads of the stored strand and its supplied
+    geometry:
+
+    * **Lk** — the intrinsic mod-2 center-parity holonomy (rc309): the
+      ``center_parity`` of the strand's single fundamental cycle from
+      :func:`srmech.qm.quaternion.quaternion_cycle_holonomy` over the Q₈
+      gains. ``center_parity == −1`` (the ``{−1}`` spinor class) → ``Lk ≡ 1``;
+      ``+1`` (``{1}``) → ``Lk ≡ 0``; ``0`` (the pure-imaginary class) → the
+      holonomy is NON-central and mod-2 ``Lk`` is UNDEFINED (flagged).
+    * **Tw** — the framing twist read from the Q₈ **sign accumulation** along
+      the strand: ``Tw ≡ #{edges whose gain is in the negative coset}
+      (mod 2)`` (the product of per-turn central signs is ``(−1)^Tw``).
+    * **Wr** — the directional writhe of the supplied ``embedding``
+      (:func:`discrete_writhe`), computed from GEOMETRY — **never** as
+      ``Lk − Tw``. That geometric independence is what gives the check teeth:
+      the writhe supplies the non-abelian Q₈ cocycle (e.g. ``i·i = −1``) that
+      the per-turn sign-sum ``Tw`` misses, exactly as CWF's writhe accounts
+      for the crossings a naive twist count omits.
+
+    **HONEST BOUNDING (form, not identity).** A finite group (Q₈) pins ``Lk``
+    only **mod 2** (the center-parity) — NOT the unbounded integer Gauss
+    linking number. The ``Tw`` ↔ Q₈-sign-accumulation map is **unpinned at the
+    integer level** (a full-twist ``±1`` gain and the physical half-twist count
+    are not proven equal); only the **parity** is used, and the check is kept
+    strictly mod-2. We do NOT claim DNA IS a quaternion, nor that the stored
+    integer IS the physical 3D linking number, nor an integer-level CWF.
+
+    **No-embedding path.** With ``embedding=None`` only the intrinsic mod-2
+    ``Lk`` (and ``Tw``) are available: ``wr`` / ``wr_mod2`` / ``consistent``
+    are ``None`` and no ``Wr`` is fabricated.
+
+    Composition of C: :func:`quaternion_cycle_holonomy` ∘ :func:`discrete_writhe`
+    (both C-dispatched) ∘ mod-2 integer arithmetic.
+
+    Args:
+        edges: the strand connectivity ``(u, v)`` — a single fundamental cycle.
+        gains: per-edge unit-quaternion Q₈ gains (4-vectors), parallel to
+            ``edges`` — the stored physical turns.
+        n: node count (keyword-only); inferred from the edges when ``None``.
+        embedding: optional backbone vertices (node ``k`` → ``embedding[k]``),
+            each an exact rational 3-tuple; ``None`` → intrinsic-only.
+        closed: passed to :func:`discrete_writhe` (default ``True``).
+
+    Returns:
+        ``dict`` with ``lk_mod2`` (0/1 or ``None`` if non-central),
+        ``lk_center_parity`` (+1/−1/0), ``tw_mod2``, ``wr`` (``(num, den)`` or
+        ``None``), ``wr_mod2`` (or ``None``), ``consistent`` (bool or ``None``),
+        and ``note`` (the honest bounding / no-embedding annotation).
+
+    Raises:
+        ValueError: the graph does not have exactly one fundamental cycle.
+    """
+    edge_list = [tuple(e) for e in edges]
+    if n is None:
+        nn = 0
+        for (u, v) in edge_list:
+            nn = max(nn, int(u) + 1, int(v) + 1)
+    else:
+        nn = int(n)
+    res = _cwf_compute_native(edge_list, gains, nn, embedding, closed)
+    if res is None:                              # no C peer / unmarshalable
+        res = _cwf_compute_pure(edge_list, gains, nn, embedding, closed)
+    center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent = res
+    note = ("mod-2 CWF: Q8 pins Lk only mod-2 (center-parity), not the integer "
+            "Gauss Lk; the Tw<->Q8-sign map is unpinned at integer level "
+            "(parity only). Wr is computed from geometry, never Lk-Tw.")
+    if lk_mod2 is None:
+        note = ("holonomy is NON-central (pure-imaginary class) — mod-2 Lk is "
+                "undefined for this strand; " + note)
+    if embedding is None:
+        note = ("no embedding supplied — only the intrinsic mod-2 Lk is "
+                "available; no Wr fabricated. " + note)
+    return {
+        "lk_mod2": lk_mod2, "lk_center_parity": center_parity,
+        "tw_mod2": tw_mod2, "wr": wr_pair, "wr_mod2": wr_mod2,
+        "consistent": consistent, "note": note,
+    }
 
 
 def _ceil_log4(m: int) -> int:
