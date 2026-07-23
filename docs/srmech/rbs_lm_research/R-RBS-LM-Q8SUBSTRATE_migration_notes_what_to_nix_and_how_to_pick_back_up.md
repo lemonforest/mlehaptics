@@ -34,8 +34,10 @@ Q₈ is the **non-abelian** central extension; the extra bit `b^4` is the **over
 
 ## 3 — What local stuff needs NIXED (prioritised)
 
-### N1 — `the_one=` → `coupling=` rename (rc290): OUR CODE IS ALREADY BROKEN
-Verified: at rc299 (our working venv) `chromosome` takes `coupling`, **not** `the_one` (no alias, no `**kwargs`) → `TypeError: unexpected keyword argument 'the_one'` **today**, independent of the Q₈ arc. F1304 missed it because it only exercised `_coupler()`, never the `chromosome`/`genome_save` call. Sites to fix:
+### N1 — the genome's `the_one` was a MISLEADING name over an RNG, removed (→ `coupling`); OUR CODE IS ALREADY BROKEN
+**Why it was renamed (user 2026-07-23) — NOT cosmetic.** The genome parameter called `the_one` **was not the real `the_one`** (the σ,θ resonant generator `cascade.the_one`); it **routed through an RNG**. So the name was not merely wrong but **misleading** — a stochastic/DRAWN coupling wearing the name of the resonant instrument, which *hides* the defect. srmech removed it (→ `coupling`) for that reason. This is the **same leak class as F1304** (our own `_coupler` was *documented* `the_one` but *implemented* as `klein4_random(seed=0)`) and exactly what the **F1259 DRAWN/DERIVED/STOCHASTIC** guard names: an RNG in a coupling is a defect, and the resonant name conceals it. **The name leaked from srmech's genome API into our siona code — our `the_one=` kwargs ARE that leak's footprint.**
+
+Verified break: at rc299 `chromosome`/`genome_load`/`gene_express` take `coupling`, **not** `the_one` (no alias, no `**kwargs`) → `TypeError: unexpected keyword argument 'the_one'` **today**, independent of the Q₈ arc. F1304 already fixed *what we pass* (our `one` is now the real `klein4_from_one(the_one)`, genuinely resonant), but the kwarg **name** `the_one=` still leaks. The fix is therefore two-part: rename the kwarg to `coupling=` **AND** keep what we pass genuinely resonant (never re-admit an RNG under any name). Sites to fix:
 - `siona/siona/genome_store.py:98` `chromosome(genes=genes, the_one=one, …)` → `coupling=one`
 - `siona/siona/genome_store.py` (`genome_save`/`genome_load` positional uses are fine; audit every `the_one=` kwarg)
 - `siona/siona/knowledge_genome.py:130` `chromosome(genes=genes, the_one=one, …)` → `coupling=one`
