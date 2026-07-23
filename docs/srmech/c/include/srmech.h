@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc310"
-#define SRMECH_VERSION       "0.9.0rc310"
+#define SRMECH_VERSION_PRE   "rc311"
+#define SRMECH_VERSION       "0.9.0rc311"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6184,6 +6184,30 @@ srmech_status_t srmech_genome_diploid(
  *                          malformed diploid (missing centromere / unequal homolog arms).
  *   SRMECH_ERR_OVERFLOW   — out too small for the recovered leaves. */
 srmech_status_t srmech_genome_recover_diploid(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *coupling, unsigned char *out, size_t out_cap,
+    size_t *n_out);
+
+/* §Q8/rc311 — the Q8 element-type peers of recall / recover_diploid. IDENTICAL signatures to
+ * their klein4 twins (srmech_genome_recall / srmech_genome_recover_diploid); they differ ONLY
+ * in the per-turn op: the DECOUPLE is the Q₈ group INVERSE
+ *   out[i] = srmech_q8_mult(stored[i], srmech_q8_conjugate(one[i]))
+ * instead of the reversible klein4 XOR (Q₈ is NON-abelian, so decouple != couple — this is a
+ * genuine inverse, resting on srmech_q8_mult(a, srmech_q8_conjugate(a)) == 0). The RIGHT-coupling
+ * SIDE is a HARD ASSERTION in the C decouple (re-coupling the result recovers the stored turn),
+ * mirroring the Python _q8_side_ok guard. BYTE-IDENTICAL to recall / recover_diploid with
+ * element_type=ELEMENT_TYPE_Q8. NEW symbols reusing the existing q8 ops (no new typedef) →
+ * SRMECH_ABI_VERSION stays 10, GENOME_FORMAT_VERSION stays 15. No malloc/goto/abs/float; a
+ * non-Q8 data byte (>= 8) returns SRMECH_ERR_BAD_INPUT (the caller falls back to the pure walk).
+ *   SRMECH_ERR_NULL_ARG  — any pointer arg NULL.
+ *   SRMECH_ERR_BAD_INPUT — leaf_dim 0 / > 256, a data-turn byte >= 8, or (recover) not a
+ *                          diploid strand / malformed diploid.
+ *   SRMECH_ERR_OVERFLOW  — out too small for the recovered leaves. */
+srmech_status_t srmech_genome_recall_q8(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *coupling, unsigned char *out, size_t out_cap,
+    size_t *n_leaves_out);
+srmech_status_t srmech_genome_recover_diploid_q8(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     const unsigned char *coupling, unsigned char *out, size_t out_cap,
     size_t *n_out);
