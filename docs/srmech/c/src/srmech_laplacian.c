@@ -63,6 +63,17 @@
                                 * formatting; all OS I/O still goes through the PAL) */
 #include <string.h>            /* memcpy — parse packed edge records (no aliasing UB) */
 
+/* BYTE-EXACT parity contract (rc309): quaternion_cycle_holonomy's per-cycle
+ * quaternion product must match the pure-Python mirror's float-op ORDER, so
+ * FMA contraction must be OFF (a fused multiply-add rounds once where mul+add
+ * round twice). GCC -std=c11 defaults to off; CLANG defaults to ON (the macOS
+ * arm64 CI cell diverged in the rc309 holonomy accumulation, exactly as rc110's
+ * DFT did — see srmech_quaternion.c), so the C11 pragma is applied for clang. */
+#if defined(__clang__)
+#pragma STDC FP_CONTRACT OFF
+#endif
+
+
 /* Class-N rational sqrt (srmech_rational_sqrt) — the native Jacobi eigensolver
  * computes its rotation-angle roots via the cascade, not libm (rc45,
  * C-transpile triality). All call sites pass provably non-negative args. */
