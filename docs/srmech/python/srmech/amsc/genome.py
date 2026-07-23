@@ -8445,7 +8445,13 @@ def genome_genes(path, label, *, coupling=None):
     # §44/§128: scan the inline gene structure — genes() skips the leading CHROM cap and
     # splits on the GENE caps (plain 0x47 / regulatory 0x67), uncoupling each data turn
     # through coupling (use gene_express() to also apply the regulatory-mask filter).
-    return genes(region_strand, coupling)
+    # §Q8/rc316: SELF-DESCRIBING — the stored v16 head carries the element_type ``carrier``
+    # ("klein4"/"q8"), authoritative (a pure function of the body at save time), surfaced by
+    # _catalog_data as data["carrier"]. Thread it so a saved Q8 GENE genome decouples via the
+    # Q8 group-inverse, not the klein4 default (which RAISES on Q8 symbols 4..7). A v≤15 head
+    # (no carrier field) → "klein4" → byte-identical to before.
+    element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
+    return genes(region_strand, coupling, element_type=element_type)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -8717,19 +8723,23 @@ def genome_genes_expressed(path, coupling, cell_state):
     assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
     #  (the PATH demand-load reader's per-region chromatin single-seek skip (§98) is deferred to
     #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected.
-    #   §Q8/v16: gene gates are klein4 — a Q₈ data genome carries none, so the bump is a no-op here)
+    #   §Q8/rc316: a Q8 GENE genome IS first-class (its gene caps are klein4-form but its DATA
+    #   leaves are Q8) — so this reader is SELF-DESCRIBING: it threads the stored head element_type
+    #   ``carrier`` into the decode. The gene GATES/plan stay element_type-agnostic (cap masks only).)
     path = Path(path)
     plan = _gene_express_plan_path(path, coupling, cell_state)   # the expressed communities
     data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     coupling_hv = _resolve_coupling(data, coupling)
+    element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
     by_label = {c["label"]: c for c in data["chromosomes"]}
     out = []
     with _open_body_ro(path / _BODY_NAME) as f:
         for (chrom_label, _off, _ln) in plan:
             region = _plan_read_region(f, by_label[chrom_label], leaf_dim)
             region_strand = _region_strand(region, leaf_dim)
-            for gene in gene_express(region_strand, coupling_hv, cell_state):
+            for gene in gene_express(region_strand, coupling_hv, cell_state,
+                                     element_type=element_type):
                 out.append(gene)
     return out
 
