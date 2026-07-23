@@ -74,8 +74,8 @@ __all__ = [
     "genome", "plasmid", "partition",
     "mint", "mint_plan", "integrate",
     "amplify", "copy_number_of",
-    "genome_save", "genome_load", "genome_catalog", "genome_append",
-    "genome_census", "genome_registry",
+    "genome_save", "upgrade_v15_to_v16", "genome_load", "genome_catalog",
+    "genome_append", "genome_census", "genome_registry",
     "set_type_aliases", "clear_type_aliases", "load_type_aliases_toml",
     "genome_append_kernel",
     "genome_window", "genome_genes",
@@ -99,7 +99,8 @@ __all__ = [
     "GRADED_GENE_MARKER",
     "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF", "GATE_TYPE_THRESHOLD",
     "GATE_TYPE_GRADED",
-    "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
+    "PACKED_TURN_MARKER", "Q8_PACKED_TURN_MARKER",
+    "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4", "ELEMENT_TYPE_Q8",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
@@ -138,6 +139,20 @@ GENE_FRAME_TAG = GENE_CAP_MARKER
 #: readable in the same walk, so old genomes and MIXED (old + appended) bodies
 #: read correctly with no migration.
 PACKED_TURN_MARKER = 0x51
+#: §55/rc312 (format v16, §Q8) — the 3-BIT-PACKED Q₈ data-turn block marker. ``0x38``
+#: = ASCII ``'8'`` (the 8-sector / octet packing). A v16 Q₈ data turn is stored on disk
+#: as ``[0x38] + ceil(leaf_dim*3/8)`` payload bytes — **3 bits per Q₈ symbol** (the Klein-4
+#: coset's 2 bits + the ``±1`` winding/center sign bit the abelian coset cannot carry).
+#: The layout is MSB-FIRST CONTIGUOUS: symbol ``i`` occupies bits ``[3i, 3i+3)`` of a
+#: big-endian bitstream (bit 0 = the MSB of payload byte 0; within a symbol the sign/high
+#: bit comes first), and the unused LOW bits of a partial final byte are zero (canonical —
+#: the round-trip stays byte-exact both ways). The marker is ``> 3`` and distinct from
+#: :data:`PACKED_TURN_MARKER` (0x51) and every cap marker, so a block's first byte keys
+#: BOTH its kind and its width: a v16 body is walked in the SAME self-describing scan as a
+#: v3 klein4 body (§44) — klein4 turns keep the 2-bit :data:`PACKED_TURN_MARKER`, Q₈ turns
+#: use this one, and a reader strides each by its marker with no element_type context. A
+#: v15 klein4 turn (bytes ``0..3``, sign bit 0) is the winding-0 slice of a v16 Q₈ turn.
+Q8_PACKED_TURN_MARKER = 0x38
 #: §60/rc121 (format v5, issue #1245 reopened) — the SIZE-AGNOSTIC KERNEL HEADER
 #: block marker. ``0x4B`` = ASCII ``'K'`` (Kernel). Written by :func:`kernel_pack`
 #: as the SECOND block of a kernel chromosome (right after its telomere CHROM cap):
@@ -5646,7 +5661,17 @@ def telomere_tick(strand):
 #: distinct from every prior marker), so v2..v14 bodies read UNCHANGED (dual-read — the walker
 #: gains ONE branch): back-compat is STRUCTURAL. A chromatin-FREE genome saved by the v15 writer
 #: is byte-identical to the v14 writer EXCEPT the ``format_version`` field. A v15 writer stamps 15.
-GENOME_FORMAT_VERSION = 15
+#: v16 (§55/§Q8/rc312, THE Q₈ on-disk migration): the wire gains a SECOND data-turn packing —
+#: a Q₈ (``ELEMENT_TYPE_Q8``) data turn 3-bit-packs under :data:`Q8_PACKED_TURN_MARKER` (0x38)
+#: instead of the klein4 2-bit :data:`PACKED_TURN_MARKER` (0x51) — plus a manifest ``carrier``
+#: field naming the element type (``"klein4"`` / ``"q8"``). klein4 keeps its 2-bit packer, so a
+#: klein4 body is BYTE-IDENTICAL to v15 (only the manifest ``format_version`` + ``carrier``
+#: fields move); a v15 klein4 genome IS the winding-0 slice of v16 and auto-upgrades by a
+#: manifest re-stamp (:func:`upgrade_v15_to_v16`, klein4's body needs no repack). One more
+#: self-describing marker in the SAME walk (a byte > 3), so v2..v15 bodies read UNCHANGED.
+#: A klein4 genome saved by the v16 writer is byte-identical to the v15 writer EXCEPT the
+#: ``format_version`` + ``carrier`` fields. A v16 writer stamps 16.
+GENOME_FORMAT_VERSION = 16
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -5837,10 +5862,85 @@ def _unpack_turn_payload(payload: bytes, leaf_dim: int) -> bytes:
     return b"".join(_UNPACK_LANES[c] for c in payload)[:leaf_dim]
 
 
-def _disk_block(mem_block: bytes, leaf_dim: int) -> bytes:
-    """One in-memory ``leaf_dim``-byte block → its on-disk v3 form: caps pass
+# ─────────────────────────────────────────────────────────────────────────────
+# §55/§Q8/rc312 (format v16) — the 3-BIT Q₈ packed-turn codec. A Q₈ data turn
+# carries a 3-bit symbol (:mod:`srmech.amsc.q8`: ``(sign_bit << 2) | v4_coset``),
+# so it needs 3 bits/symbol where the klein4 turn packs 2. The layout is MSB-FIRST
+# CONTIGUOUS: symbol ``i`` → bits ``[3i, 3i+3)`` of a big-endian bitstream (symbol
+# 0 in the highest bits, the sign/high bit of each symbol first); the unused LOW
+# bits of a partial final byte are zero (canonical). klein4 keeps the 2-bit packer;
+# a turn's on-disk MARKER (0x38 vs 0x51) keys which codec, so the walk stays
+# self-describing (§44) with NO element_type context needed to READ.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _packed_payload_len_q8(leaf_dim: int) -> int:
+    """Payload bytes of one v16 Q₈ packed data turn: ``ceil(leaf_dim*3 / 8)`` (pure
+    integer — 3-bit Q₈ lanes, MSB-first contiguous bit-packing)."""
+    return (int(leaf_dim) * 3 + 7) // 8
+
+
+def _pack_turn_block_q8(mem_block: bytes) -> bytes:
+    """One in-memory byte-per-symbol Q₈ data turn (bytes ``0..7``) → its v16 on-disk
+    packed block ``[Q8_PACKED_TURN_MARKER] + payload``. 3 bits/symbol, MSB-first
+    contiguous (symbol 0 in the highest bits); the unused LOW bits of a partial final
+    byte are zero (canonical — the round-trip stays byte-exact both ways). Raises
+    ``ValueError`` on a non-Q₈ symbol (> 7).
+
+    M3 (the macOS-cap-overflow lesson — a packing/padding constant belongs in an
+    ASSERTION, not a comment): the partial-final-byte pad width is the exact integer
+    ``pad_bits = plen*8 - n*3`` and those low bits MUST be zero after packing; both
+    are asserted here, so an odd-``leaf_dim`` strand (partial final byte) is checked
+    on the packing hot path, never trusted to a comment."""
+    n = len(mem_block)
+    plen = (n * 3 + 7) // 8
+    acc = 0
+    for i, sym in enumerate(mem_block):
+        if not 0 <= sym <= 7:
+            raise ValueError(
+                f"genome v16 Q8 packing: data-turn symbol {sym} at position {i} "
+                f"is not a Q8 element (0..7) — only Q8 turns 3-bit-pack"
+            )
+        acc = (acc << 3) | sym
+    pad_bits = plen * 8 - n * 3           # THE platform/packing constant (0..7)
+    assert 0 <= pad_bits < 8 and plen == _packed_payload_len_q8(n), (
+        f"q8 pack: pad_bits {pad_bits} / plen {plen} off the ceil(leaf_dim*3/8) "
+        f"invariant at leaf_dim={n}"
+    )
+    acc <<= pad_bits                      # low pad_bits become zero (canonical)
+    payload = acc.to_bytes(plen, "big") if plen else b""
+    if pad_bits and plen:
+        assert payload[-1] & ((1 << pad_bits) - 1) == 0, (
+            f"q8 pack: final byte {payload[-1]:#04x} has nonzero pad in its low "
+            f"{pad_bits} bits (leaf_dim={n}; canonical zero-pad violated)"
+        )
+    return bytes([Q8_PACKED_TURN_MARKER]) + payload
+
+
+def _unpack_turn_payload_q8(payload: bytes, leaf_dim: int) -> bytes:
+    """A v16 Q₈ packed payload → the in-memory byte-per-symbol Q₈ data turn (bytes
+    ``0..7``) — exact inverse of :func:`_pack_turn_block_q8` (drop the low pad bits,
+    read ``leaf_dim`` 3-bit symbols MSB-first)."""
+    n = int(leaf_dim)
+    plen = len(payload)
+    pad_bits = plen * 8 - n * 3
+    acc = int.from_bytes(payload, "big") >> pad_bits
+    out = bytearray(n)
+    for i in range(n - 1, -1, -1):
+        out[i] = acc & 7
+        acc >>= 3
+    return bytes(out)
+
+
+def _disk_block(mem_block: bytes, leaf_dim: int,
+                element_type: int = ELEMENT_TYPE_KLEIN4) -> bytes:
+    """One in-memory ``leaf_dim``-byte block → its on-disk v3/v16 form: caps pass
     through verbatim (their inline-label layout is the §44 format), data turns
-    bit-pack (:func:`_pack_turn_block`)."""
+    bit-pack — klein4 (``element_type=ELEMENT_TYPE_KLEIN4``, the default) 2 bits/symbol
+    via :func:`_pack_turn_block` (v3, unchanged); Q₈ (``element_type=ELEMENT_TYPE_Q8``,
+    v16) 3 bits/symbol via :func:`_pack_turn_block_q8`. The element_type MUST be
+    threaded (not inferred): a Q₈ turn with zero winding is bytes ``0..3``,
+    indistinguishable from klein4 by value alone, so the caller's declared carrier is
+    the only honest source (:func:`_leaf_blocks` drops the HV's ``sectors``)."""
     if len(mem_block) != leaf_dim:
         raise ValueError(
             f"genome: leaf block width {len(mem_block)} != leaf_dim {leaf_dim} "
@@ -5848,6 +5948,8 @@ def _disk_block(mem_block: bytes, leaf_dim: int) -> bytes:
         )
     if _block_is_cap(mem_block):
         return bytes(mem_block)
+    if element_type == ELEMENT_TYPE_Q8:
+        return _pack_turn_block_q8(mem_block)
     return _pack_turn_block(mem_block)
 
 
@@ -5873,10 +5975,13 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     form (caps decode to themselves). A block's FIRST byte keys its kind + width:
     ``CHROM_CAP_MARKER``/``GENE_CAP_MARKER``/``KERNEL_HEADER_MARKER`` (§60) → a
     ``leaf_dim``-byte inline block; ``PACKED_TURN_MARKER`` → a
-    ``1 + ceil(leaf_dim/4)``-byte v3 packed turn; ``0..3`` → a legacy v2
-    ``leaf_dim``-byte byte-per-symbol turn. Anything else (or a block running past
-    the region end) is a :class:`GenomeBoundingError`."""
+    ``1 + ceil(leaf_dim/4)``-byte v3 klein4 packed turn; ``Q8_PACKED_TURN_MARKER``
+    (§Q8/v16) → a ``1 + ceil(leaf_dim*3/8)``-byte 3-bit Q₈ packed turn; ``0..3`` → a
+    legacy v2 ``leaf_dim``-byte byte-per-symbol turn. The marker keys the codec, so a
+    MIXED (klein4 + Q₈) walk needs no element_type context. Anything else (or a block
+    running past the region end) is a :class:`GenomeBoundingError`."""
     plen = _packed_payload_len(leaf_dim)
+    plen_q8 = _packed_payload_len_q8(leaf_dim)
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
@@ -5897,6 +6002,14 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
                     f"(needs {1 + plen} bytes, region ends at {n})"
                 )
             yield region[k:end], _unpack_turn_payload(region[k + 1:end], leaf_dim)
+        elif kind == Q8_PACKED_TURN_MARKER:
+            end = k + 1 + plen_q8
+            if end > n:
+                raise GenomeBoundingError(
+                    f"{context}: truncated Q8 packed turn at offset {k} "
+                    f"(needs {1 + plen_q8} bytes, region ends at {n})"
+                )
+            yield region[k:end], _unpack_turn_payload_q8(region[k + 1:end], leaf_dim)
         else:
             raise GenomeBoundingError(
                 f"{context}: unrecognised block kind byte {kind} at offset {k} "
@@ -5965,8 +6078,26 @@ def _region_chain(region_hexes) -> str:
     return acc
 
 
+def _carrier_name_from_body(body_bytes, leaf_dim) -> str:
+    """The genome's element-type CARRIER name, derived from the body ALONE (§44 —
+    self-describing): ``"q8"`` iff the data turns are Q₈-packed
+    (:data:`Q8_PACKED_TURN_MARKER`), else ``"klein4"``. A genome is carrier-UNIFORM
+    (one element_type per kernel), so the FIRST packed data turn decides — an
+    early-return scan, O(first turn), not O(body). A caps-only or empty body is
+    ``"klein4"`` (the default carrier). Because it is a pure function of the body,
+    :func:`genome_save` and every rebuild-by-scan agree on the manifest ``carrier``
+    field byte-for-byte (the same property that makes ``manifest.json`` a true cache)."""
+    for raw, _dec in _walk_region_blocks(
+            bytes(body_bytes), leaf_dim, context="genome carrier"):
+        if raw and raw[0] == Q8_PACKED_TURN_MARKER:
+            return _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_Q8]
+        if raw and raw[0] == PACKED_TURN_MARKER:
+            return _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]
+    return _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]
+
+
 def _build_manifest_data(leaf_dim, coupling_blocks, chrom_specs, body_bytes,
-                         n_turns):
+                         n_turns, carrier="klein4"):
     """Assemble the manifest ``data`` block — §44's optional DERIVED catalog.
 
     ``chrom_specs`` is a list of ``(label, cap_sha256, leaf_count, byte_offset,
@@ -5990,7 +6121,7 @@ def _build_manifest_data(leaf_dim, coupling_blocks, chrom_specs, body_bytes,
     while it stays re-verifiable from the file and body-derivable (§44)."""
     return _build_manifest_data_from_hexes(
         leaf_dim, coupling_blocks, chrom_specs,
-        _region_hexes_from_body(chrom_specs, body_bytes), n_turns)
+        _region_hexes_from_body(chrom_specs, body_bytes), n_turns, carrier)
 
 
 def _region_hexes_from_body(chrom_specs, body_bytes):
@@ -6003,18 +6134,21 @@ def _region_hexes_from_body(chrom_specs, body_bytes):
 
 
 def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
-                                    region_hexes, n_turns):
+                                    region_hexes, n_turns, carrier="klein4"):
     """Assemble the manifest ``data`` from ALREADY-COMPUTED per-region digests (rc282).
 
     The single assembly point for :func:`_build_manifest_data` (whole-body) and the
     streaming head-only catalog read, so the two cannot produce different catalogs for
-    the same body — the property the ``body_sha256`` chain check relies on."""
+    the same body — the property the ``body_sha256`` chain check relies on. ``carrier``
+    (§Q8/v16) names the element-type carrier (``"klein4"`` / ``"q8"``); it is a pure
+    function of the body (:func:`_carrier_name_from_body`) or the head's stored field."""
     regions = [
         {"byte_offset": int(off), "byte_len": int(ln), "sha256": rh}
         for (_label, _cap, _lc, off, ln, _ck), rh in zip(chrom_specs, region_hexes)
     ]
     return {
         "format_version": GENOME_FORMAT_VERSION,
+        "carrier": carrier,
         "leaf_dim": int(leaf_dim),
         "n_turns": int(n_turns),
         "coupling": {
@@ -6038,7 +6172,8 @@ def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
     }
 
 
-def _build_head_data(leaf_dim, coupling_block, n_turns, n_chromosomes, body_sha256):
+def _build_head_data(leaf_dim, coupling_block, n_turns, n_chromosomes, body_sha256,
+                     carrier="klein4"):
     """The v12 HEAD-ONLY manifest ``data`` — the O(1) head with NO per-chromosome
     ``chromosomes`` / ``regions`` arrays. Those are a plaintext table-of-contents
     (ADR-0003) and the O(N^2) append wall; they are DERIVED by scanning the
@@ -6046,9 +6181,11 @@ def _build_head_data(leaf_dim, coupling_block, n_turns, n_chromosomes, body_sha2
     is needed. ``body_sha256`` is the region-CHAIN head (:func:`_region_chain`), so an
     append folds one region onto it in O(1) and it stays body-derivable +
     re-verifiable. ``n_chromosomes`` is kept in the head so a threaded/cold append and
-    a catalog read know the count without the array."""
+    a catalog read know the count without the array. ``carrier`` (§Q8/v16) names the
+    element-type carrier (``"klein4"`` / ``"q8"``), a pure function of the body."""
     return {
         "format_version": GENOME_FORMAT_VERSION,
+        "carrier": carrier,
         "leaf_dim": int(leaf_dim),
         "n_turns": int(n_turns),
         "n_chromosomes": int(n_chromosomes),
@@ -6222,8 +6359,17 @@ def _coupling_bytes_or_empty(coupling) -> bytes:
     return b"" if coupling is None else _coupling_block_bytes(coupling)
 
 
-def genome_save(strand, path, coupling, labels=None, *, attestation=None) -> dict:
+def genome_save(strand, path, coupling, labels=None, *, attestation=None,
+                element_type=ELEMENT_TYPE_KLEIN4) -> dict:
     """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41 / §44.
+
+    ``element_type`` (§Q8/v16) selects the data-turn on-disk PACKER: the default
+    :data:`ELEMENT_TYPE_KLEIN4` 2-bit-packs each coupled turn (byte-identical to v15);
+    :data:`ELEMENT_TYPE_Q8` 3-bit-packs it (:func:`_pack_turn_block_q8`, the extra bit
+    is the winding sign). Threading it is mandatory, not inferred — a Q₈ turn with zero
+    winding is bytes ``0..3``, value-indistinguishable from klein4 (:func:`_leaf_blocks`
+    drops the HV's ``sectors``). The manifest records the derived ``carrier`` so a load
+    is self-describing. A klein4 save stamps ``carrier="klein4"``; a Q₈ save ``"q8"``.
 
     ``attestation`` (optional keyword) — a caller MPR SOURCE-attestation whose provided
     fields OVERRIDE the srmech default written into ``manifest.json`` (override-only over
@@ -6262,9 +6408,9 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None) -> dic
         byte_offset = len(body)
         leaf_blocks = _leaf_blocks(blocks)
         for blk in leaf_blocks:
-            # §55/v3: caps stay leaf_dim-wide verbatim; data turns bit-pack
-            # (4 Klein-4 symbols per byte) — _disk_block validates the width.
-            body.extend(_disk_block(blk, leaf_dim))
+            # §55/v3: caps stay leaf_dim-wide verbatim; data turns bit-pack — klein4
+            # 4 symbols/byte (2-bit), Q₈ 3-bit (§Q8/v16). _disk_block validates width.
+            body.extend(_disk_block(blk, leaf_dim, element_type))
         n_turns += len(leaf_blocks)
         byte_len = len(body) - byte_offset
         cap_block = leaf_blocks[0]                # the CHROM cap leads the region
@@ -6287,12 +6433,17 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None) -> dic
 
     body_bytes = bytes(body)
     coupling_block = _leaf_blocks([coupling])[0]
+    # §Q8/v16: the carrier is a pure function of the body (the first packed turn's
+    # marker), so it agrees byte-for-byte with the C save's body-scan derivation and
+    # with any rebuild-by-scan. element_type drove the packer, so this reads back "q8"
+    # iff element_type was Q8 (a caps-only body is the "klein4" default, carrier-moot).
+    carrier = _carrier_name_from_body(body_bytes, leaf_dim)
     # The full DERIVED catalog — the RETURN value (callers get chromosomes/regions);
     # on disk only the v12 HEAD is written (the arrays are re-derivable, ADR-0003).
     data = _build_manifest_data(leaf_dim, coupling_block, chrom_specs, body_bytes,
-                                n_turns)
+                                n_turns, carrier)
     head = _build_head_data(leaf_dim, coupling_block, n_turns, len(chrom_specs),
-                            data["body_sha256"])
+                            data["body_sha256"], carrier)
 
     # §49/rc154: native C save writes turns.bin + the head-only manifest byte-
     # identically for a genome of ANY size (the C carves its scratch from the caller
@@ -6321,6 +6472,61 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None) -> dic
     return data
 
 
+def upgrade_v15_to_v16(path, *, coupling=None) -> dict:
+    """Migrate a v≤15 genome directory to format v16 IN PLACE (§Q8/rc312) — the on-disk
+    Q₈-format upgrade. Returns the re-derived manifest ``data`` (now stamped v16).
+
+    A v15 genome is ALWAYS klein4 (2-bit turns), and v16's klein4 packer is byte-identical,
+    so the BODY needs NO repack: a v15 turn (bytes ``0..3``, sign bit 0) is EXACTLY the
+    winding-0 slice of a v16 Q₈ turn (``q8_project_v4(turn) == turn`` and every sign bit is
+    0). The upgrade is therefore a manifest RE-STAMP — re-derive the ``.fai`` head from the
+    body (the SSoT, §44), which now stamps ``format_version = 16`` + the derived ``carrier``.
+    Because the body is untouched and ``body_sha256`` is a pure function of the body (the
+    region CHAIN since v4), the on-disk bytes that move are EXACTLY the manifest's
+    ``format_version`` + ``carrier`` fields; ``turns.bin`` is byte-identical. Idempotent: a
+    v16 genome re-stamps to itself.
+
+    ``coupling`` (optional): the leaf width comes from the manifest's stored coupling block
+    unless overridden; a manifest-LESS genome REQUIRES ``coupling=`` (its length is the leaf
+    width, §44 — you can upgrade a ``turns.bin`` shipped alone).
+    """
+    path = Path(path)
+    body_path = path / _BODY_NAME
+    if not body_path.exists():
+        raise GenomeBoundingError(
+            f"genome at {str(path)!r} has no {_BODY_NAME}: nothing to upgrade"
+        )
+    if coupling is None:
+        if not (path / _MANIFEST_NAME).exists():
+            raise GenomeBoundingError(
+                f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no coupling= was "
+                f"given: pass the genome's coupling= so v15→v16 can rebuild from "
+                f"{_BODY_NAME}"
+            )
+        existing = _read_manifest(path)
+        fmt = int(existing.get("format_version", GENOME_FORMAT_VERSION))
+        if fmt > GENOME_FORMAT_VERSION:
+            raise GenomeBoundingError(
+                f"genome at {str(path)!r} is format v{fmt}, NEWER than this build's "
+                f"v{GENOME_FORMAT_VERSION} — refusing to downgrade"
+            )
+        coupling_hv = _resolve_coupling(existing, None)
+    else:
+        coupling_hv = coupling if isinstance(coupling, _HV) else _HV.from_sequence(coupling)
+    leaf_dim = len(list(coupling_hv))
+    body_bytes = body_path.read_bytes()
+    # Re-derive the manifest by SCANNING the unchanged body — this stamps v16 + carrier
+    # (klein4 for a v15 genome; the packer is identical so no bytes move). The rebuild
+    # also VALIDATES the body (cap-led, whole-block regions) before anything is rewritten.
+    data = _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling_hv)
+    coupling_block = _leaf_blocks([coupling_hv])[0]
+    head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
+                            len(data["chromosomes"]), data["body_sha256"],
+                            data["carrier"])
+    _write_manifest(path, _manifest_record(head))     # v16 HEAD-ONLY on disk
+    return data
+
+
 def _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling):
     """Reconstruct the manifest ``data`` block by SCANNING ``turns.bin`` alone — §44.
 
@@ -6344,8 +6550,9 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling):
     chrom_specs, n_turns = _scan_body_to_chrom_specs(bytes(body_bytes), leaf_dim)
     one = coupling if isinstance(coupling, _HV) else _HV.from_sequence(coupling)
     coupling_block = _leaf_blocks([one])[0]
+    carrier = _carrier_name_from_body(bytes(body_bytes), leaf_dim)   # §Q8/v16
     return _build_manifest_data(leaf_dim, coupling_block, chrom_specs,
-                                bytes(body_bytes), n_turns)
+                                bytes(body_bytes), n_turns, carrier)
 
 
 def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
@@ -6451,6 +6658,7 @@ def _stream_body_blocks(f, leaf_dim, *, context="genome"):
     catalog without the whole body in RAM. ``f`` is a buffered binary handle, so the
     per-block reads coalesce into ordinary sequential I/O — no extra syscalls."""
     plen = _packed_payload_len(leaf_dim)
+    plen_q8 = _packed_payload_len_q8(leaf_dim)
     offset = 0
     while True:
         first = f.read(1)
@@ -6476,6 +6684,15 @@ def _stream_body_blocks(f, leaf_dim, *, context="genome"):
                 )
             yield first + payload, _unpack_turn_payload(payload, leaf_dim)
             offset += 1 + plen
+        elif kind == Q8_PACKED_TURN_MARKER:
+            payload = f.read(plen_q8)
+            if len(payload) != plen_q8:
+                raise GenomeBoundingError(
+                    f"{context}: truncated Q8 packed turn at offset {offset} "
+                    f"(needs {1 + plen_q8} bytes, got {1 + len(payload)})"
+                )
+            yield first + payload, _unpack_turn_payload_q8(payload, leaf_dim)
+            offset += 1 + plen_q8
         else:
             raise GenomeBoundingError(
                 f"{context}: unrecognised block kind byte {kind} at offset {offset} "
@@ -6545,8 +6762,11 @@ def _catalog_data(path, coupling=None) -> dict:
         # the same _ScanState and the same _build_manifest_data_from_hexes assembly).
         with _open_body_ro(path / _BODY_NAME) as f:
             chrom_specs, n_turns, region_hexes = _scan_body_stream(f, leaf_dim)
+        # §Q8/v16: the head stores the carrier (a pure function of the body at save
+        # time); a v≤15 head predates the field → "klein4" (its turns are klein4).
+        carrier = head.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4])
         data = _build_manifest_data_from_hexes(leaf_dim, coupling_block, chrom_specs,
-                                               region_hexes, n_turns)
+                                               region_hexes, n_turns, carrier)
         # INTEGRITY: the head stores the ``body_sha256`` region-CHAIN head (the Merkle
         # root of the body). A body corruption re-derives a DIFFERENT chain → mismatch
         # with the committed head → raise (whole-body granularity; the per-region
@@ -7061,6 +7281,7 @@ def genome_load(path, *, labels=None, coupling=None):
         strand: List[_HV] = []
         body_acc = bytearray()
         plen = _packed_payload_len(leaf_dim)
+        plen_q8 = _packed_payload_len_q8(leaf_dim)
         with body_path.open("rb") as f:
             while True:
                 first = f.read(1)
@@ -7091,6 +7312,15 @@ def genome_load(path, *, labels=None, coupling=None):
                         )
                     block = first + payload
                     decoded = _unpack_turn_payload(payload, leaf_dim)
+                elif kind == Q8_PACKED_TURN_MARKER:
+                    payload = f.read(plen_q8)
+                    if len(payload) != plen_q8:
+                        raise GenomeBoundingError(
+                            f"genome body truncated: trailing {1 + len(payload)} "
+                            f"bytes are not a whole Q8 packed turn ({1 + plen_q8} bytes)"
+                        )
+                    block = first + payload
+                    decoded = _unpack_turn_payload_q8(payload, leaf_dim)
                 else:
                     raise GenomeBoundingError(
                         f"genome body: unrecognised block kind byte {kind} at "
@@ -7223,6 +7453,7 @@ def _walk_region_prefix_blocks(region: bytes, leaf_dim: int):
     same unrecognised-marker rejection; only the trailing-partial case differs, so a
     corrupt marker is still caught. Yields ``(raw_block, decoded_block)``."""
     plen = _packed_payload_len(leaf_dim)
+    plen_q8 = _packed_payload_len_q8(leaf_dim)
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
@@ -7236,6 +7467,11 @@ def _walk_region_prefix_blocks(region: bytes, leaf_dim: int):
             if end > n:
                 return                        # trailing PARTIAL block — stop clean
             yield region[k:end], _unpack_turn_payload(region[k + 1:end], leaf_dim)
+        elif kind == Q8_PACKED_TURN_MARKER:
+            end = k + 1 + plen_q8
+            if end > n:
+                return                        # trailing PARTIAL block — stop clean
+            yield region[k:end], _unpack_turn_payload_q8(region[k + 1:end], leaf_dim)
         else:
             raise GenomeBoundingError(
                 f"genome region prefix: unrecognised block kind byte {kind} at "
@@ -7630,10 +7866,12 @@ def gene_express_plan(strand_or_path, coupling, cell_state):
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 15      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
     #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; BOTH the STRAND plan and —
     #   as of §98/rc269 — the PATH demand-load plan read the chromatin OUTER gate: a condensed
-    #   region is skipped at plan time on a single head-slot seek, never touching its gene gate)
+    #   region is skipped at plan time on a single head-slot seek, never touching its gene gate.
+    #   §Q8/v16: gene gates are klein4 caps — a Q₈ DATA genome carries no genes, so this
+    #   klein4-stride plan reader is correct for every gene-bearing genome, unchanged by the bump)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
         return _gene_express_plan_path(Path(strand_or_path), coupling, cell_state)
     return _gene_express_plan_strand(strand_or_path, coupling, cell_state)
@@ -7777,9 +8015,10 @@ def genome_genes_expressed(path, coupling, cell_state):
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 15      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
     #  (the PATH demand-load reader's per-region chromatin single-seek skip (§98) is deferred to
-    #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected)
+    #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected.
+    #   §Q8/v16: gene gates are klein4 — a Q₈ data genome carries none, so the bump is a no-op here)
     path = Path(path)
     plan = _gene_express_plan_path(path, coupling, cell_state)   # the expressed communities
     data = _catalog_data(path, coupling)
@@ -7895,8 +8134,10 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
                 f.write(appended)
             grown = body_path.read_bytes()
             data = _rebuild_manifest_from_body(grown, leaf_dim, coupling)
-            mig_head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
-                                        len(data["chromosomes"]), data["body_sha256"])
+            mig_head = _build_head_data(
+                leaf_dim, coupling_block, data["n_turns"],
+                len(data["chromosomes"]), data["body_sha256"],
+                data.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]))
             _write_manifest(path, _manifest_record(mig_head))
         return _catalog_data(path, coupling)
 
@@ -7917,8 +8158,9 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
         "byte_len": len(appended),
         "sha256": region_sha256,
     }
-    head_data = _build_head_data(leaf_dim, coupling_block, new_n_turns, new_n_chrom,
-                                 new_body_sha)
+    head_data = _build_head_data(
+        leaf_dim, coupling_block, new_n_turns, new_n_chrom, new_body_sha,
+        head.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]))
 
     # Write the DNA + the O(1) head. Native C append is AUTHORITATIVE when present —
     # it tail-extends turns.bin + writes the head, no whole-body / whole-catalog
@@ -8013,8 +8255,10 @@ def _write_body_and_manifest(path, body_bytes, leaf_dim, coupling) -> dict:
     # regions) BEFORE anything is written — a corrupt edit never lands on disk.
     data = _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling)
     coupling_block = bytes.fromhex(data["coupling"]["hex"])
-    head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
-                            len(data["chromosomes"]), data["body_sha256"])
+    head = _build_head_data(
+        leaf_dim, coupling_block, data["n_turns"],
+        len(data["chromosomes"]), data["body_sha256"],
+        data.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]))
     (Path(path) / _BODY_NAME).write_bytes(body_bytes)
     _write_manifest(path, _manifest_record(head))     # v12: HEAD-ONLY on disk
     return data

@@ -129,9 +129,9 @@ def test_t3_constitutive_cap_byte_identical_and_format_15():
         # and the gate decodes as NONE (the pre-rc274 read)
         assert G._chromatin_gate_spec(
             [hv for hv in s if G._cap_kind(hv) == G.CHROMATIN_MARKER][0]) == (G.CHROMATIN_GATE_NONE, None)
-    assert G.GENOME_FORMAT_VERSION == 15
+    assert G.GENOME_FORMAT_VERSION == 16
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 485
+    assert introspect.describe()["tools"]["total"] == 486
 
 
 # ── T4  C↔Python byte-parity — accessible + the writer + the demand-load plan ─────────

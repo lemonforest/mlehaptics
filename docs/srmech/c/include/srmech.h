@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc311"
-#define SRMECH_VERSION       "0.9.0rc311"
+#define SRMECH_VERSION_PRE   "rc312"
+#define SRMECH_VERSION       "0.9.0rc312"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5703,8 +5703,16 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * scanning the self-describing body on read, so ``srmech_genome_append`` rewrites only the
  * tiny head (O(1)) instead of the whole array (the O(N^2) wall). The BODY format is
  * UNCHANGED (v2..v11 bodies read identically); a v≤11 manifest with the arrays reads
- * verbatim, and the first v12 append migrates it head-only. Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 15
+ * verbatim, and the first v12 append migrates it head-only. Mirrors GENOME_FORMAT_VERSION.
+ * §v16 (§55/§Q8/rc312, the Q₈ on-disk migration): the wire gains a SECOND data-turn packing
+ * — a Q₈ (element_type=q8) data turn 3-bit-packs under SRMECH_GENOME_Q8_PACKED_TURN_MARKER
+ * (0x38) instead of the klein4 2-bit SRMECH_GENOME_PACKED_TURN_MARKER (0x51) — plus a manifest
+ * "carrier" field naming the element type ("klein4"/"q8"). klein4 keeps its 2-bit packer, so a
+ * klein4 body is BYTE-IDENTICAL to v15 (only the manifest format_version + carrier move); a v15
+ * klein4 turn (bytes 0..3, sign bit 0) is the winding-0 slice of a v16 Q₈ turn. One more
+ * self-describing marker in the SAME walk, so v2..v15 bodies read UNCHANGED. A v16 writer
+ * stamps 16. Mirrors GENOME_FORMAT_VERSION. */
+#define SRMECH_GENOME_FORMAT_VERSION 16
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -5720,6 +5728,17 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * markers, so the strand stays self-describing. Mirrors PACKED_TURN_MARKER
  * in srmech.amsc.genome. */
 #define SRMECH_GENOME_PACKED_TURN_MARKER 0x51u /* 'Q' — a quad-packed turn */
+
+/* §55/§Q8/v16 (rc312) 3-BIT Q₈ packed data-turn marker — the FIRST byte of a Q₈
+ * packed turn block ([marker] + ceil(leaf_dim*3/8) payload bytes). MSB-FIRST
+ * CONTIGUOUS: symbol i occupies bits [3i, 3i+3) of a big-endian bitstream (symbol 0
+ * in the highest bits, the sign/high bit of each 3-bit symbol first); the unused LOW
+ * bits of a partial final byte are zero (canonical). > 3 and distinct from the 2-bit
+ * PACKED marker (0x51) and every cap marker, so a block's first byte keys BOTH its
+ * kind and its width — a v16 body is walked in the SAME self-describing scan as a v3
+ * klein4 body, klein4 turns keep 0x51 and Q₈ turns use this. Mirrors
+ * Q8_PACKED_TURN_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_Q8_PACKED_TURN_MARKER 0x38u /* '8' — a 3-bit Q₈ octet turn */
 
 /* §60/v5 SIZE-AGNOSTIC KERNEL HEADER marker — the FIRST byte of a fixed-width
  * leaf_dim-byte inline block written by kernel_pack right after a kernel
@@ -6211,6 +6230,27 @@ srmech_status_t srmech_genome_recover_diploid_q8(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     const unsigned char *coupling, unsigned char *out, size_t out_cap,
     size_t *n_out);
+
+/* §55/§Q8/v16 (rc312) — the 3-BIT Q₈ packed-turn CODEC primitives (the genome-fully-in-C
+ * mirror of _pack_turn_block_q8 / _unpack_turn_payload_q8). A Q₈ data turn carries a 3-bit
+ * symbol (2-bit V4 coset + 1-bit winding sign), so it 3-bit-packs where the klein4 turn packs
+ * 2. Layout is MSB-FIRST CONTIGUOUS: symbol i -> bits [3i, 3i+3) of a big-endian bitstream
+ * (symbol 0 highest, each symbol's high bit first); the unused LOW bits of a partial final byte
+ * are zero (canonical). BYTE-IDENTICAL to the Python codec (the parity gate re-verifies over
+ * odd/partial leaf_dims). ADDITIVE symbols reusing NO callback typedef -> SRMECH_ABI_VERSION
+ * stays 10. No malloc/goto/abs/float (integer bit-arithmetic).
+ *
+ * pack:  `leaf` = leaf_dim Q₈ bytes (0..7); `out` gets [SRMECH_GENOME_Q8_PACKED_TURN_MARKER]
+ *        + ceil(leaf_dim*3/8) payload bytes; *out_len = 1 + ceil(leaf_dim*3/8). `out` must hold
+ *        that many bytes. A byte >= 8 -> SRMECH_ERR_BAD_INPUT.
+ * unpack: `payload` = ceil(leaf_dim*3/8) bytes (NOT the marker); `out` gets leaf_dim Q₈ bytes.
+ *   SRMECH_ERR_NULL_ARG  — any pointer arg NULL.
+ *   SRMECH_ERR_BAD_INPUT — leaf_dim 0 / > 256, or (pack) a symbol >= 8. */
+srmech_status_t srmech_genome_q8_pack_turn(
+    const unsigned char *leaf, uint32_t leaf_dim,
+    unsigned char *out, size_t *out_len);
+srmech_status_t srmech_genome_q8_unpack_turn(
+    const unsigned char *payload, uint32_t leaf_dim, unsigned char *out);
 
 /* §95.1d/v15 INTEGRATE (rc276, #891 / F1244 / G4) — the stage-2 SPLICE primitive:
  * insert a PROVIRUS chromosome strand INTO a host genome strand at a chromosome
