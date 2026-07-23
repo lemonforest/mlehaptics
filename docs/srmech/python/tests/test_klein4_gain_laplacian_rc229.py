@@ -311,7 +311,7 @@ def test_registration_tool_schema_total_418():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     schema = get_tool_schema()
-    assert len(schema.tools) == 491
+    assert len(schema.tools) == 492
     names = {t.name for t in schema.tools}
     for op in ("klein4_gain_laplacian", "klein4_relational_structure",
                "cycle_holonomy"):
