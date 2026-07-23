@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc313"
-#define SRMECH_VERSION       "0.9.0rc313"
+#define SRMECH_VERSION_PRE   "rc314"
+#define SRMECH_VERSION       "0.9.0rc314"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1221,6 +1221,35 @@ srmech_status_t srmech_genome_cwf_consistency_mod2(
     void *ws, size_t ws_len,
     int32_t *out_lk_mod2, int32_t *out_lk_center_parity, int32_t *out_tw_mod2,
     int32_t *out_wr_mod2, int32_t *out_consistent);
+
+/* rc314 — the CODON READ-LAYER whole-op C peers (genome-fully-in-C). Biology
+ * reads the genome in CODONS (triplets); the ribosome IMPOSES that reading over
+ * the stored strand. Both are PURE READS: they store nothing and change no
+ * on-disk format (GENOME_FORMAT_VERSION stays 16). No float, no libm, no abs().
+ * ABI additive → SRMECH_ABI_VERSION stays 10.
+ *
+ * srmech_genome_codon_read: read `strand` (n Q8 base symbols) as codons in
+ * reading frame `phase` in {0,1,2}, writing one amino-acid byte per codon into
+ * `out`. Each symbol is projected (& 3) FIRST so the Q8 CENTER SIGN BIT never
+ * touches identity (biology reads 4 bases, not 8 signed states: coset 0->U/T,
+ * 1->C, 2->A, 3->G). A 3-slot window slides from `phase`; the base-4 index
+ * i = 16*b0 + 4*b1 + b2 in [0,64) indexes `ncbieaa` (the 64-byte NCBI
+ * transl_table=1 amino-acid string — attested reference data passed IN, never
+ * baked). `out` MUST hold >= n/3 bytes; `*out_len` receives the codon count.
+ * Class-I (project + Z3 frame) o Class-E (dense catalog). Byte-identical to the
+ * pure Python. Errors: SRMECH_ERR_NULL_ARG (any pointer NULL),
+ * SRMECH_ERR_BAD_INPUT (phase > 2). */
+srmech_status_t srmech_genome_codon_read(const uint8_t *strand, uint32_t n,
+                                         uint32_t phase, const uint8_t *ncbieaa,
+                                         uint8_t *out, uint32_t *out_len);
+
+/* srmech_genome_codon_frame_monodromy: the Z3 reading-frame monodromy of a
+ * CIRCULAR strand of `n` base symbols — going once around shifts the frame
+ * phi -> phi + n (mod 3), so `*out` = n mod 3 in {0,1,2}. A pure Class-I cyclic
+ * read (V4 projection preserves length, so only the symbol count matters); the
+ * winding Lk lives in the sign bit, NOT here. Errors: SRMECH_ERR_NULL_ARG (out
+ * NULL). */
+srmech_status_t srmech_genome_codon_frame_monodromy(uint32_t n, uint32_t *out);
 
 /* ------------------------------------------------------------------ *
  * Class L — graph Laplacian (Task #217 Phase C1)

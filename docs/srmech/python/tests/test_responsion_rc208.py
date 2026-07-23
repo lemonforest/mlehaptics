@@ -406,7 +406,7 @@ def test_registration_and_count():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.laplacian.responsion" in names
-    assert len(get_tool_schema().tools) == 488
-    assert srmech.describe()["tools"]["total"] == 488
+    assert len(get_tool_schema().tools) == 490
+    assert srmech.describe()["tools"]["total"] == 490
     assert "responsion" in L.LAPLACIAN_OPS
     assert "responsion" in L.__all__

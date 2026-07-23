@@ -44,6 +44,8 @@ each kernel by its telomere. Completes the F715 hierarchy: GENOME (multi-kernel)
 from __future__ import annotations
 
 import contextlib
+import ctypes
+import functools
 import json
 import shutil
 import tempfile
@@ -53,6 +55,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _gcd
 from srmech.amsc.format import MPRRecord as _MPRRecord
+from srmech.amsc.format import read_ndjson as _read_ndjson
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
 from srmech.amsc.hdc import klein4_bind as _klein4_bind
@@ -60,12 +63,14 @@ from srmech.amsc.hdc import klein4_expand as _klein4_expand
 from srmech.amsc.hv import HV as _HV
 from srmech.amsc.q8 import q8_bind as _q8_bind
 from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
+from srmech.amsc.q8 import q8_project_v4 as _q8_project_v4
 from srmech.amsc.tlv import tlv_pack as _tlv_pack
 from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
 
 __all__ = [
     "discrete_writhe", "cwf_consistency_mod2",
+    "codon_read", "codon_frame_monodromy", "CODON_BASES",
     "encode_shape", "quad_turn", "telomere", "chromosome",
     "centromere", "centromere_of",
     "diploid", "recover_diploid",
@@ -1136,6 +1141,236 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
         "tw_mod2": tw_mod2, "wr": wr_pair, "wr_mod2": wr_mod2,
         "consistent": consistent, "note": note,
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# §136 (rc314, #962) — the CODON READ-LAYER (a pure read; stores NOTHING).
+#
+# Biology reads the genome in CODONS (triplets — the genetic code), and that is
+# a READING PROCESS the ribosome IMPOSES over the stored strand, not stored
+# substrate. So this is a READ over the existing store — it changes no format
+# (``GENOME_FORMAT_VERSION`` stays 16), adds no carrier, and is ADDITIVE.
+#
+# THREE distinct order-3 objects are kept SEPARATE (do NOT conflate them):
+#   (a) the reading-frame phase  φ ∈ {0,1,2} — a genuine cyclic C3 (Class I),
+#       the ribosome's window offset; ADDED here.
+#   (b) klein4 triality (:func:`srmech.amsc.hdc.klein4_triality_cycle`) — the
+#       base-axis automorphism, the order-3 S3 generator relabelling the three
+#       non-identity cosets, already used for k=3 error-correction. NOT the frame.
+#   (c) the winding Lk (rc309 center-parity; :func:`cwf_consistency_mod2`) — lives
+#       in the Q8 SIGN BIT, removed by ``q8_project_v4`` before any codon is read.
+# There is NO codon copy of the integer Lk: the codon layer is frame topology in
+# Z3 (:func:`codon_frame_monodromy`); the winding lives in the sign bit.
+
+#: The codon read-layer labels the 4 Klein-4 / V4 cosets as the 4 RNA bases in
+#: NCBI Base-order (Base1/Base2/Base3 read T,C,A,G): coset ``0 -> U`` (shown as
+#: ``T`` in the GenBank DNA alphabet), ``1 -> C``, ``2 -> A``, ``3 -> G``. This
+#: makes the base-4 codon index ``16*b0 + 4*b1 + b2`` IDENTICAL to the NCBI
+#: translation-table-1 codon index, so the attested ``ncbieaa`` string indexes
+#: with NO remapping. It is a STIPULATED labelling of the READ (the ribosome's
+#: frame), not a claim about what the store means.
+CODON_BASES = ("U", "C", "A", "G")
+
+#: The attested Standard Genetic Code datum (NCBI translation table 1). MPR-
+#: attested AMSC data — sibling to the other ``attested/`` catalogs.
+_GENETIC_CODE_DIR = Path(__file__).resolve().parent / "attested" / "genetic_code"
+
+
+def _parse_ncbi_field(source_response: str, key: str) -> str:
+    """Extract a quoted NCBI ``gc.prt`` field (``ncbieaa`` / ``sncbieaa``) from the
+    attested source text. The exact parse rule pinned by ``parser_rule_hash``:
+    the value is the text between the first pair of double quotes on the line
+    that starts with ``key``."""
+    for line in source_response.splitlines():
+        if line.startswith(key):
+            parts = line.split('"')
+            if len(parts) >= 2:
+                return parts[1]
+    raise GenomeBoundingError(
+        f"genetic_code: attested source has no {key!r} line")
+
+
+@functools.lru_cache(maxsize=1)
+def _genetic_code_table() -> Tuple[str, str]:
+    """Load + MPR-validate the Standard Genetic Code (NCBI ``transl_table=1``)
+    from the attested AMSC datum; return ``(ncbieaa, sncbieaa)`` (64-char each).
+
+    The 64 → 20(+stop) codon→amino-acid table is ATTESTED reference data — a
+    citation the reader can re-verify — NEVER an inline invented dict (the
+    fluent-domain-vocabulary failure mode: an invented table has no citation to
+    check). **Class A** re-verifies the ``response_sha256`` content-address over
+    the source bytes, then **Class E** hands back the codon catalog. The datum
+    ships at ``srmech/amsc/attested/genetic_code/`` (source: A. Elzanowski and
+    J. Ostell, *The Genetic Codes*, NCBI; ``ncbieaa`` cross-verified byte-
+    identical across the NCBI ``wprintgc.cgi`` page and the ``gc.prt`` data file;
+    resource DOI 10.1093/database/baaa062, open access).
+    """
+    rows = list(_read_ndjson(_GENETIC_CODE_DIR / "row.ndjson"))
+    if not rows:
+        raise GenomeBoundingError("genetic_code datum is empty")
+    rec = rows[0]
+    _validate_mpr_record(rec)                    # MPR attestation-block gate
+    source = rec.data["source_response"]
+    if _sha256_bytes(source.encode("utf-8")) != rec.attestation["response_sha256"]:
+        raise GenomeBoundingError(
+            "genetic_code: response_sha256 does not match the source bytes")
+    ncbieaa = _parse_ncbi_field(source, "ncbieaa")
+    sncbieaa = _parse_ncbi_field(source, "sncbieaa")
+    if len(ncbieaa) != 64 or len(sncbieaa) != 64:
+        raise GenomeBoundingError(
+            "genetic_code: ncbieaa / sncbieaa are not 64 symbols wide")
+    return ncbieaa, sncbieaa
+
+
+def _codon_symbols(strand):
+    """Coerce a strand to a 1-D buffer of base symbols for the codon read.
+
+    Accepts an ``HV`` (via ``tobytes``) or any 1-D int sequence (``bytes`` /
+    ``bytearray`` / ``list`` / ``tuple``) of Q8 bytes; the
+    :func:`~srmech.amsc.q8.q8_project_v4` call does the element validation."""
+    if hasattr(strand, "tobytes"):
+        return strand.tobytes()
+    return strand
+
+
+def _codon_native_ready(symbol: str) -> bool:
+    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free)."""
+    return bool(
+        _native.HAS_NATIVE and _native.LIB is not None
+        and hasattr(_native.LIB, symbol)
+    )
+
+
+def _codon_read_pure(proj, phase: int, ncbieaa: str) -> str:
+    """The byte-exact pure-Python read: window → base-4 index → catalog lookup."""
+    out: List[str] = []
+    n = len(proj)
+    i = phase
+    while i + 3 <= n:
+        out.append(ncbieaa[16 * proj[i] + 4 * proj[i + 1] + proj[i + 2]])
+        i += 3
+    return "".join(out)
+
+
+def _codon_read_native(proj, phase: int, ncbieaa: str):
+    """Dispatch the codon read to ``srmech_genome_codon_read`` (byte-identical
+    to :func:`_codon_read_pure`); returns the amino-acid ``str`` or ``None`` when
+    the native peer is unavailable."""
+    if not _codon_native_ready("srmech_genome_codon_read"):
+        return None
+    n = len(proj)
+    c_strand = (ctypes.c_uint8 * n).from_buffer_copy(bytes(proj)) if n \
+        else (ctypes.c_uint8 * 0)()
+    c_tab = (ctypes.c_uint8 * 64).from_buffer_copy(ncbieaa.encode("ascii"))
+    c_out = (ctypes.c_uint8 * ((n // 3) + 1))()
+    c_len = ctypes.c_uint32(0)
+    rc = _native.LIB.srmech_genome_codon_read(
+        c_strand, ctypes.c_uint32(n), ctypes.c_uint32(phase),
+        c_tab, c_out, ctypes.byref(c_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return bytes(c_out[:c_len.value]).decode("ascii")
+
+
+def codon_read(strand, phase=0, *, with_indices=False, stop_at_stop=False):
+    """Read a strand as CODONS (triplets) — the genetic-code amino-acid readout.
+
+    A PURE READ: it stores nothing and changes no format. Biology reads 4 BASES
+    (not 8 signed states), so :func:`~srmech.amsc.q8.q8_project_v4` is applied
+    FIRST — the winding / center SIGN BIT must NOT leak into amino-acid identity
+    (a Q8 strand with nonzero winding and its V4-projection yield BYTE-IDENTICAL
+    codons; the winding-invariance gate). Then a 3-slot window slides from the
+    reading-frame offset ``phase ∈ {0,1,2}``, forming a base-4 codon index
+    ``i = 16*b0 + 4*b1 + b2 ∈ [0, 64)`` over the 3 projected symbols
+    (:data:`CODON_BASES` labelling), and a **Class-E** dense-catalog lookup
+    ``i → amino acid`` against the attested Standard Genetic Code (NCBI
+    ``transl_table=1``; :func:`_genetic_code_table`). ``'*'`` denotes a stop.
+
+    The reading-frame phase is a genuine cyclic **C3** (Class I), DISTINCT from
+    :func:`~srmech.amsc.hdc.klein4_triality_cycle` (the base-axis automorphism)
+    and from the winding ``Lk`` (:func:`cwf_consistency_mod2`; the Q8 sign bit).
+
+    Class I (``q8_project_v4`` + the Z3 frame offset) ∘ Class E (the codon
+    catalog). Dispatches to the whole-op C peer ``srmech_genome_codon_read``
+    (``c_dispatched``, genome-fully-in-C; byte-identical pure fallback);
+    ``q8_project_v4`` itself has the C peer ``srmech_q8_project_v4``. ADDITIVE —
+    ``SRMECH_ABI_VERSION`` stays 10, ``GENOME_FORMAT_VERSION`` stays 16.
+
+    Args:
+        strand: A 1-D sequence of Q8 base symbols (``bytes`` / ``bytearray`` /
+            ``list`` / ``tuple`` of ints in ``[0, 8)``; V4 symbols in ``[0, 4)``
+            are the sign-free special case), or an ``HV`` (read via ``tobytes``).
+        phase: The reading-frame offset ``∈ {0, 1, 2}`` (the C3 phase).
+        with_indices: If True, also return the raw codon indices.
+        stop_at_stop: If True, stop reading at the first stop codon (``'*'``)
+            — the codon is included, the read then terminates.
+
+    Returns:
+        The amino-acid string (one char per codon), or
+        ``(amino_acids, codon_indices)`` when ``with_indices`` is True.
+
+    Raises:
+        ValueError: if ``phase`` is not in ``{0, 1, 2}``, or a symbol is not a
+            valid Q8 byte.
+    """
+    ph = int(phase)
+    if ph not in (0, 1, 2):
+        raise ValueError(
+            f"codon_read: phase (reading frame) must be in {{0, 1, 2}}; "
+            f"got {phase!r}")
+    proj = _q8_project_v4(_codon_symbols(strand))    # 4 bases; sign bit dropped
+    ncbieaa, _sncbieaa = _genetic_code_table()
+    protein = _codon_read_native(proj, ph, ncbieaa)  # whole-op C peer
+    if protein is None:
+        protein = _codon_read_pure(proj, ph, ncbieaa)
+    if not (with_indices or stop_at_stop):
+        return protein
+    # `stop_at_stop` / `with_indices` are pure post-processing on the read.
+    if stop_at_stop:
+        star = protein.find("*")
+        if star >= 0:
+            protein = protein[:star + 1]
+    if with_indices:
+        indices = [16 * proj[i] + 4 * proj[i + 1] + proj[i + 2]
+                   for i in range(ph, len(proj) - 2, 3)][:len(protein)]
+        return protein, indices
+    return protein
+
+
+def codon_frame_monodromy(strand):
+    """The Z3 reading-frame MONODROMY of a CIRCULAR strand.
+
+    Going once around a circular strand shifts the reading frame ``φ → φ + L``
+    (mod 3), where ``L`` is the number of base symbols. This returns ``L mod 3``
+    — a REAL Z3 invariant, DISTINCT from :func:`~srmech.amsc.hdc.klein4_triality_cycle`
+    (the base-axis automorphism) and from the winding ``Lk``
+    (:func:`cwf_consistency_mod2`; the sign bit). When ``L mod 3 == 0`` the frame
+    CLOSES on a clean loop (a circular ORF reads in one consistent frame);
+    otherwise a single lap advances the frame by 1 or 2. There is NO codon copy
+    of the integer ``Lk`` — the codon layer is frame topology in Z3, and the
+    winding lives in the Q8 sign bit.
+
+    Class I (cyclic Z3). A pure read: it stores nothing. ``q8_project_v4`` is
+    applied so ``L`` counts sign-free BASE symbols (projection preserves length,
+    so this is ``len(strand) mod 3`` — the projection also validates the bytes).
+    Dispatches to the whole-op C peer ``srmech_genome_codon_frame_monodromy``
+    (``c_dispatched``, genome-fully-in-C; byte-identical pure fallback).
+
+    Args:
+        strand: A 1-D sequence of Q8 base symbols (see :func:`codon_read`), or
+            an ``HV``.
+
+    Returns:
+        int: ``L mod 3 ∈ {0, 1, 2}`` — the frame shift accrued per lap.
+    """
+    n = len(_q8_project_v4(_codon_symbols(strand)))
+    if _codon_native_ready("srmech_genome_codon_frame_monodromy"):
+        out = ctypes.c_uint32(0)
+        rc = _native.LIB.srmech_genome_codon_frame_monodromy(
+            ctypes.c_uint32(n), ctypes.byref(out))
+        if rc == _native.SRMECH_OK:
+            return int(out.value)
+    return n % 3
 
 
 def _ceil_log4(m: int) -> int:
