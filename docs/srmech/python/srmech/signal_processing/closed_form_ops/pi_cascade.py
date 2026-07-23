@@ -134,7 +134,7 @@ def op(
     return _amsc_pi_cascade_digits(
         num_digits,
         max_cascade_depth=max_cascade_depth,
-        precision_bits=precision_bits,
+        precision=precision_bits,   # rc318: amsc kwarg renamed precision_bits -> precision
     )
 
 

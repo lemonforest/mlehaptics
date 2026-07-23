@@ -26,7 +26,7 @@ import pytest
 
 from srmech.amsc import _native
 from srmech.amsc.rational import (
-    relative_writhe, _CLASSN_PLATFORM_DEN_BITS, _classn_precision,
+    relative_writhe, _CLASSN_PLATFORM_DEN_BITS, _classn_working,
 )
 from srmech.amsc.genome import discrete_writhe, cwf_consistency_mod2
 
@@ -312,13 +312,22 @@ def test_f7_precision_monotone_bigint_growth_float_free():
 
 
 def test_precision_contract_helper():
-    """The reusable Class-N precision-contract pilot maps the knob correctly."""
-    plat = _classn_precision(None)
+    """The reusable Class-N precision-contract helper maps the knob correctly.
+
+    rc318: the pilot ``_classn_precision`` was generalized to the KIND-
+    parametrized ``_classn_working(precision, *, kind="bits")``; ``kind="bits"``
+    reproduces the pilot mapping byte-for-byte (relative_writhe is unchanged)."""
+    plat = _classn_working(None, kind="bits")
     assert plat.mode == "platform" and plat.effective == _CLASSN_PLATFORM_DEN_BITS
-    big = _classn_precision(128)
+    big = _classn_working(128, kind="bits")
     assert big.mode == "bigint" and big.effective == 128
     assert big.sqrt_bits > 128 and big.pi_digits >= 40
     with pytest.raises(ValueError):
-        _classn_precision(0)
+        _classn_working(0, kind="bits")
     with pytest.raises(TypeError):
-        _classn_precision(1.5)
+        _classn_working(1.5, kind="bits")
+    # the reserved-for-later-waves kinds are declared but not yet implemented
+    with pytest.raises(NotImplementedError):
+        _classn_working(64, kind="terms")
+    with pytest.raises(NotImplementedError):
+        _classn_working(64, kind="den")

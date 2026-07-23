@@ -178,14 +178,15 @@ def test_sqrt_relative_k_is_identity_above_one_and_grows_below():
 
 
 def test_explicit_precision_bits_is_still_the_literal_absolute_grid():
-    """An explicit ``precision_bits=`` keeps its documented ABSOLUTE meaning.
+    """An explicit ``precision=`` keeps its documented ABSOLUTE meaning.
 
     The relative sizing applies only to the DEFAULT path, so the π cascade and
     any other caller that asks for N fractional bits still gets exactly N.
+    (rc318: the knob was renamed ``precision_bits`` → ``precision``.)
     """
-    q = hypot(1.0, 1.0, precision_bits=10)
+    q = hypot(1.0, 1.0, precision=10)
     assert q.as_pair()[1] <= (1 << 10)
-    assert hypot(1.0, 1.0, precision_bits=_SQRT_Q_K) == _hypot_pre_rc299(1.0, 1.0)
+    assert hypot(1.0, 1.0, precision=_SQRT_Q_K) == _hypot_pre_rc299(1.0, 1.0)
 
 
 # ── (4) the divisor contract the repair exists to serve ──────────────────────

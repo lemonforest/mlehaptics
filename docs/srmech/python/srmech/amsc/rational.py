@@ -1567,7 +1567,7 @@ _EXP_FLOAT_TERMS: int = 24
 #     (``math.isqrt`` == the C two-limb integer isqrt), projected by 2^(e/2−K).
 # float appears ONLY at the final projection. The exact-rational bignum
 # surfaces (``exp_series_truncate`` / ``log1p_series_truncate`` / the
-# ``precision_bits`` sqrt path) remain the separate higher-precision REFERENCE.
+# ``precision`` sqrt path) remain the separate higher-precision REFERENCE.
 # ──────────────────────────────────────────────────────────────────────
 _EXPLOG_INV_LN2 = 1.4426950408889634074
 _EXPLOG_LN2_HI = 6.93147180369123816490e-01      # two-word ln2 (fdlibm split)
@@ -1708,7 +1708,7 @@ def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
 
 # Scaled-integer precision for the bignum REFERENCE sqrt (bits below the
 # radix point; 64 → relative error well under the float64 floor). Pass
-# ``precision_bits=`` explicitly to select this higher-precision reference;
+# ``precision=`` explicitly to select this higher-precision reference;
 # the default float sqrt is the bit-exact-with-C K=27 cascade below.
 _SQRT_PRECISION_BITS: int = 64
 
@@ -1725,7 +1725,7 @@ def _sqrt_rational(num: int, den: int, k: int):
     ``2^{2k}``-scaled radicand). ``num, den >= 0``; ``den > 0``.
 
     ``k`` is an **ABSOLUTE** grid: the root is floored to a multiple of
-    ``2^-k``. That is the literal contract an explicit ``precision_bits=``
+    ``2^-k``. That is the literal contract an explicit ``precision=``
     caller asks for. Callers who want ``k`` SIGNIFICANT bits regardless of
     magnitude must size ``k`` through :func:`_sqrt_relative_k` first — see the
     rc299 note there."""
@@ -1769,21 +1769,23 @@ def _sqrt_relative_k(num: int, den: int, k: int) -> int:
     return k + ((-e) + 1) // 2 + 1                   # Class-K pin-slot on the exponent sign
 
 
-def sqrt(x, *, precision_bits: int = None) -> "Q":
+def sqrt(x, *, precision: int = None) -> "Q":
     """``√x`` (x ≥ 0) → an EXACT :class:`~srmech.amsc.q.Q` via the Class-N
     rational sqrt cascade.
 
     ``x`` may be a ``float`` OR a :class:`~srmech.amsc.q.Q` (rc7 — stays
     rational through :func:`hypot` and the complex modulus). Default
-    (``precision_bits=None``): the IEEE-bit ``M·2^e`` decomposition with
+    (``precision=None``): the IEEE-bit ``M·2^e`` decomposition with
     ``root = isqrt(M << 2K)`` (K=27) scaled by the EXACT ``2^(e/2−K)`` — the
     result is the exact ``Q(root, 2^k)`` (``float`` of it betters the old
     ``float(root)·2^…`` which pre-rounded ``root``). **Class N** rational ∘
     **Class K** sqrt-convergence. A ``Q`` input is rooted at ``_SQRT_Q_K`` bits
     (exact rational radicand). Negative ``x`` raises (Class-K pin-slot at zero).
 
-    ``precision_bits=N`` selects the higher-precision path (the exact rational
-    rooted at ``N`` fractional bits), e.g. for the π-cascade.
+    ``precision=N`` selects the higher-precision path (the exact rational
+    rooted at ``N`` fractional bits), e.g. for the π-cascade. (rc318: the knob
+    was renamed ``precision_bits`` → ``precision`` for the uniform Class-N
+    precision contract — a pure rename, bit-identical at matched precision.)
     """
     # Q-input: root the exact rational directly (stay-rational; e.g. hypot).
     if hasattr(x, "as_pair") and not isinstance(x, float):
@@ -1792,8 +1794,8 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
             raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
         if xn == 0:
             return _q(0, 1)
-        if precision_bits is not None:            # literal ABSOLUTE grid, as asked
-            return _sqrt_rational(xn, xd, precision_bits)
+        if precision is not None:                 # literal ABSOLUTE grid, as asked
+            return _sqrt_rational(xn, xd, precision)
         # rc299 (`#919`): size the grid to the radicand so a sub-1 Q keeps its
         # significant bits instead of flooring away toward an exact 0.0.
         return _sqrt_rational(xn, xd, _sqrt_relative_k(xn, xd, _SQRT_Q_K))
@@ -1804,9 +1806,9 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
         raise ValueError("sqrt: x must be finite (Q is the finite-rational carrier)")
     if x == 0.0:
         return _q(0, 1)
-    if precision_bits is not None:                # exact rational at N frac bits
+    if precision is not None:                     # exact rational at N frac bits
         xn, xd = x.as_integer_ratio()
-        return _sqrt_rational(xn, xd, precision_bits)
+        return _sqrt_rational(xn, xd, precision)
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         root, p = _native.sqrt_q61_c(x)
         return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
@@ -1823,7 +1825,7 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
     return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
 
 
-def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
+def hypot(a: float, b: float, *, precision: int = None) -> "Q":
     """``hypot(a, b) = √(a² + b²)`` → an EXACT :class:`~srmech.amsc.q.Q`.
 
     **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`). rc7
@@ -1832,6 +1834,8 @@ def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
     ``√`` of that exact rational is returned as ``Q``. Substrate-native
     replacement for ``math.hypot`` / ``np.hypot`` (the complex modulus
     ``|z| = hypot(z.real, z.imag)``). ``a``/``b`` may be ``float`` or ``Q``.
+    ``precision=N`` (rc318 rename of ``precision_bits``) selects the literal
+    ABSOLUTE ``N``-fractional-bit grid; a pure rename, bit-identical.
     """
     an, ad = (a.as_pair() if hasattr(a, "as_pair") and not isinstance(a, float)
               else float(a).as_integer_ratio())
@@ -1839,8 +1843,8 @@ def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
               else float(b).as_integer_ratio())
     num = an * an * bd * bd + bn * bn * ad * ad    # (a²+b²) exact numerator
     den = ad * ad * bd * bd
-    if precision_bits is not None:                 # literal ABSOLUTE grid, as asked
-        return _sqrt_rational(num, den, precision_bits)
+    if precision is not None:                       # literal ABSOLUTE grid, as asked
+        return _sqrt_rational(num, den, precision)
     # rc299 (`#919`): RELATIVE precision. The old fixed 2^-54 grid returned an
     # exact 0.0 below ~1e-17 — unsafe as a divisor, and inaccurate well above
     # that (44% at 1e-16). See :func:`_sqrt_relative_k`.
@@ -1863,7 +1867,7 @@ def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
 #
 #   * pi_cascade_digits(num_digits)
 #     — Archimedes hexagon-doubling cascade with rational-bounded √
-#       via integer Newton-Raphson on scaled bignum (precision_bits
+#       via integer Newton-Raphson on scaled bignum (precision
 #       at 512 by default). Produces decimal digits of π without
 #       invoking math.pi anywhere in the call graph. AST-verified
 #       discipline gate enforced by tests/test_pi_cascade_primitives.py.
@@ -2007,8 +2011,8 @@ def continued_fraction_convergents(
 
 # Cap on cascade depth — each cascade doubling adds ~0.6 decimal digits
 # (log10(4)/log10(10) ≈ 0.602). The fixed-precision-integer cascade
-# carries a single bignum at scale M = 2^precision_bits, so increasing
-# depth costs O(depth · precision_bits) bits total — tractable.
+# carries a single bignum at scale M = 2^precision, so increasing
+# depth costs O(depth · precision) bits total — tractable.
 #
 # rc13 raises the depth cap from 90 to 2000 to accommodate num_digits up
 # to 1000 (depth 1800 covers >1000 decimal-digit accuracy with safety
@@ -2024,7 +2028,7 @@ _PI_CASCADE_MAX_DEPTH: int = 2000
 # reachable in single-digit seconds.
 _PI_CASCADE_MAX_DIGITS: int = 1000
 
-# Maximum precision_bits caller may pass. Raised from 8192 (rc12) to
+# Maximum precision caller may pass. Raised from 8192 (rc12) to
 # 32768 (rc13) to cover the auto-scaled precision needed at
 # num_digits=1000 (~10240 bits) with substantial headroom.
 _PI_CASCADE_MAX_PRECISION_BITS: int = 32768
@@ -2047,7 +2051,7 @@ def _pi_cascade_auto_params(num_digits: int) -> Tuple[int, int]:
     headroom over the theoretical log2(10) ≈ 3.32 minimum.
 
     Caller-overridable: explicit ``max_cascade_depth`` /
-    ``precision_bits`` kwargs to ``pi_cascade_digits`` skip this helper
+    ``precision`` kwargs to ``pi_cascade_digits`` skip this helper
     entirely.
 
     Parameters
@@ -2098,7 +2102,7 @@ def _integer_sqrt(n: int) -> int:
 def pi_cascade_digits(num_digits: int,
                       *,
                       max_cascade_depth: int | None = None,
-                      precision_bits: int | None = None) -> str:
+                      precision: int | None = None) -> str:
     """Stream decimal digits of π via the Pfaff–Archimedes two-mean
     chiral-pair bracket.
 
@@ -2156,12 +2160,12 @@ def pi_cascade_digits(num_digits: int,
 
     Auto-scaling
     ------------
-    When ``max_cascade_depth`` / ``precision_bits`` are left as
+    When ``max_cascade_depth`` / ``precision`` are left as
     ``None`` (the default), they are computed automatically from
     ``num_digits`` via ``_pi_cascade_auto_params``:
 
-      depth          = max(90,  ceil(num_digits * 90  / 50))
-      precision_bits = max(512, ceil(num_digits * 512 / 50))
+      depth     = max(90,  ceil(num_digits * 90  / 50))
+      precision = max(512, ceil(num_digits * 512 / 50))
 
     (The chiral pair converges *quadratically*, far faster than the
     linear hexagon-doubling the depth scaling was sized for, so this
@@ -2179,10 +2183,12 @@ def pi_cascade_digits(num_digits: int,
         Cascade mean-iteration depth. ``None`` (default) → auto-scaled
         from ``num_digits`` per ``_pi_cascade_auto_params``. Explicit
         value must be in [1, 2000].
-    precision_bits : int or None, keyword-only
-        Bit precision for the scaled-integer √ operation. ``None``
-        (default) → auto-scaled from ``num_digits``. Explicit value
-        must be in [64, 32768].
+    precision : int or None, keyword-only
+        Bit precision for the scaled-integer √ operation — it sets the
+        ``2^precision`` fixed-point scale. ``None`` (default) → auto-scaled
+        from ``num_digits``. Explicit value must be in [64, 32768].
+        (rc318: renamed from ``precision_bits`` for the uniform Class-N
+        precision contract — a pure rename, digits bit-identical.)
 
     Returns
     -------
@@ -2230,22 +2236,22 @@ def pi_cascade_digits(num_digits: int,
     auto_depth, auto_precision_bits = _pi_cascade_auto_params(num_digits)
     if max_cascade_depth is None:
         max_cascade_depth = auto_depth
-    if precision_bits is None:
-        precision_bits = auto_precision_bits
+    if precision is None:
+        precision = auto_precision_bits
     assert isinstance(max_cascade_depth, int), (
         "max_cascade_depth must be int"
     )
-    assert isinstance(precision_bits, int), "precision_bits must be int"
+    assert isinstance(precision, int), "precision must be int"
     if max_cascade_depth < 1 or max_cascade_depth > _PI_CASCADE_MAX_DEPTH:
         raise ValueError(
             f"max_cascade_depth must be in [1, {_PI_CASCADE_MAX_DEPTH}]; "
             f"got {max_cascade_depth}"
         )
-    if (precision_bits < 64
-            or precision_bits > _PI_CASCADE_MAX_PRECISION_BITS):
+    if (precision < 64
+            or precision > _PI_CASCADE_MAX_PRECISION_BITS):
         raise ValueError(
-            f"precision_bits must be in [64, "
-            f"{_PI_CASCADE_MAX_PRECISION_BITS}]; got {precision_bits}"
+            f"precision must be in [64, "
+            f"{_PI_CASCADE_MAX_PRECISION_BITS}]; got {precision}"
         )
 
     # Special case: zero digits → "3." (the integer part of π).
@@ -2256,17 +2262,17 @@ def pi_cascade_digits(num_digits: int,
     # runs the WHOLE two-mean chiral-pair loop on the caller-arena srmech_bigint
     # — the per-step harmonic-mean divmod + geometric-mean isqrt — byte-identical
     # to the pure-Python fixed-point body below (same resolved max_cascade_depth
-    # / precision_bits, same Python-FLOOR divmod/shr semantics). It marshals ONE
+    # / precision, same Python-FLOOR divmod/shr semantics). It marshals ONE
     # final result (no per-step decimal round-trip), so a bare-C host reaches the
     # digit stream with no Python. The pure-Python body is the complete fallback
     # (no-C / Pyodide) AND the parity oracle the C path is checked against.
     if _native.HAS_NATIVE:
-        r = _native.pi_archimedes_c(num_digits, max_cascade_depth, precision_bits)
+        r = _native.pi_archimedes_c(num_digits, max_cascade_depth, precision)
         if r is not None:
             return r
 
     # Fixed-precision-integer two-mean chiral-pair bracket. We carry one
-    # canonical scale factor M = 2^precision_bits throughout: every
+    # canonical scale factor M = 2^precision throughout: every
     # quantity is an integer that, divided by M, gives the underlying
     # real bound. ``a`` is the circumscribed bound (falls ↓ to π); ``b``
     # is the inscribed bound (rises ↑ to π). The bracket invariant
@@ -2274,7 +2280,7 @@ def pi_cascade_digits(num_digits: int,
     #
     #   b₀ = 3·M           inscribed hexagon half-perimeter  (lower bound)
     #   a₀ = √(12)·M       circumscribed = 2√3·M             (upper bound)
-    M: int = 1 << precision_bits
+    M: int = 1 << precision
     b: int = 3 * M
     # a₀ = 2√3·M = √(12·M²); _integer_sqrt is the PRIMITIVE-NA integer
     # isqrt (intrinsic-float limit, π transcendental — see docstring).
@@ -2542,7 +2548,7 @@ def _scaled_integer_sqrt(y: int, M: int) -> int:
 #
 # The sqrt / π / anchor WORKING precision fed to the Class-N cascade is DERIVED
 # from ``precision`` here (platform-word for ``None``, ``P``-sized for an int) —
-# it is NOT a separate caller knob. This ``_classn_precision`` mapping is the
+# it is NOT a separate caller knob. This ``_classn_working`` mapping is the
 # REUSABLE template: ``sqrt`` / ``exp`` / ``atan_series_truncate`` /
 # ``jacobi_sncndn_series_truncate`` / ``best_rational`` can later adopt the
 # identical ``precision=None|int`` surface with this one helper. Keep it generic
@@ -2586,14 +2592,33 @@ class _ClassNPrecision(NamedTuple):
     effective: int
 
 
-def _classn_precision(precision) -> _ClassNPrecision:
-    """Map the dual-precision knob to the internal Class-N working precisions.
+def _classn_working(precision, *, kind: str = "bits") -> _ClassNPrecision:
+    """Map a Class-N precision knob to the internal Class-N working precisions —
+    the KIND-parametrized generalization of the rc317 dual-precision pilot
+    (rc318 WAVE 1, `#1481`-follow-on).
 
-    ``precision=None`` → the PLATFORM-BOUNDED projection (anchor / √ / π sized to
-    the native word). ``precision=P`` (int ≥ 1) → the SRMECH-NATIVE BIGINT
-    projection LENGTHED BY ``P`` (√ at ``P+4`` bits, π at ⌈0.302·P⌉+3 digits,
-    anchor denominator 2**P). This is the reusable Class-N precision-contract
-    template — deliberately NOT writhe-specific."""
+    ``kind`` selects how ``precision`` is INTERPRETED:
+
+    * ``kind="bits"`` (rc318 WAVE 1 — the ONLY kind implemented) — ``precision``
+      is a FRACTIONAL-BIT budget, exactly the rc317 pilot mapping:
+      ``precision=None`` → the PLATFORM-BOUNDED projection (anchor / √ / π sized
+      to the native word); ``precision=P`` (int ≥ 1) → the SRMECH-NATIVE BIGINT
+      projection LENGTHED BY ``P`` (√ at ``P+4`` bits, π at ⌈0.302·P⌉+3 digits,
+      anchor denominator 2**P).
+    * ``kind="terms"`` / ``kind="den"`` — RESERVED for later Class-N precision-
+      migration waves (the ``*_series_truncate`` num-terms budget and the
+      ``best_rational`` max-denominator budget respectively); not yet
+      implemented.
+
+    Deliberately NOT writhe-specific — it is the reusable Class-N precision-
+    contract template every ``precision=None|int`` op adopts. The None/int
+    dispatch + the bool / non-int / ``P<1`` validation + the ``mode`` /
+    ``effective`` reporting are EXACTLY the rc317 pilot's."""
+    if kind != "bits":
+        raise NotImplementedError(
+            f"_classn_working: kind={kind!r} is reserved for a later Class-N "
+            "precision-migration wave; only kind='bits' is implemented "
+            "(rc318 WAVE 1)")
     if precision is None:
         db = _CLASSN_PLATFORM_DEN_BITS
         return _ClassNPrecision("platform", db, db + 3, 21, db)
@@ -2712,7 +2737,7 @@ def _rw_unit_tangents(pts, closed: bool, sqrt_bits: int) -> list:
             raise ValueError(
                 f"relative_writhe: zero-length tangent at vertex {i} "
                 "(repeated / degenerate point) — nudge the embedding")
-        root = sqrt(norm_sq, precision_bits=sqrt_bits)             # Q ≈ |T|
+        root = sqrt(norm_sq, precision=sqrt_bits)                  # Q ≈ |T|
         tans.append((tx / root, ty / root, tz / root))             # unit Q triple
     return tans
 
@@ -2784,7 +2809,7 @@ def relative_writhe(embedding, reference, *, closed: bool = True,
     on the integer ALU, NOT mesh / FEA / GPU simulation.
 
     **The dual-precision contract (rc317 pilot).** One knob, ``precision``, two
-    co-equal projections of the SAME rational (see :func:`_classn_precision`):
+    co-equal projections of the SAME rational (see :func:`_classn_working`):
 
     * ``precision=None`` → PLATFORM-BOUNDED: ``value`` is a ``best_rational``
       anchor whose num/den ride a native int64 word (``mode="platform"``); the
@@ -2857,7 +2882,7 @@ def relative_writhe(embedding, reference, *, closed: bool = True,
         ValueError: mismatched vertex counts, fewer than 3 vertices, or a
             zero-length (degenerate) tangent.
     """
-    prec = _classn_precision(precision)
+    prec = _classn_working(precision, kind="bits")
     emb = _rw_points(embedding)
     ref = _rw_points(reference)
     n = len(emb)

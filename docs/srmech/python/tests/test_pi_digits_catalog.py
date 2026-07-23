@@ -192,7 +192,7 @@ def test_pi_1000_digits_canonical_rc13_ceiling() -> None:
     """1000-digit row is the rc13 cap-expansion ceiling. Pins the
     deepest cascade (depth=1800, precision_bits=10240) auto-scaled
     from num_digits=1000. The bound itself is not mathematical —
-    callers may pass explicit max_cascade_depth and precision_bits
+    callers may pass explicit max_cascade_depth and precision
     kwargs for studies at non-canonical parameter combinations."""
     rows = [r for r in _iter_rows() if r["row_label"] == "pi_1000_digits"]
     assert len(rows) == 1

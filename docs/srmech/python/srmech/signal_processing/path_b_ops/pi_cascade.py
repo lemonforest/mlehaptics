@@ -234,7 +234,7 @@ def op(
     pi_str = _amsc_pi_cascade_digits(
         num_digits,
         max_cascade_depth=max_cascade_depth,
-        precision_bits=precision_bits,
+        precision=precision_bits,   # rc318: amsc kwarg renamed precision_bits -> precision
     )
 
     # ── Step 3: Class M HDC bind round-trip on cascade content ──

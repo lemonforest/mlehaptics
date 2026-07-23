@@ -252,17 +252,17 @@ def test_pi_cascade_digits_low_depth_low_precision_warns_or_diverges() -> None:
     but the digits will not match canonical π beyond some prefix.
     This pins the parameter's behavior."""
     # Depth 1 (one cascade step) — only correct to ~1-2 digits.
-    result = pi_cascade_digits(5, max_cascade_depth=1, precision_bits=64)
+    result = pi_cascade_digits(5, max_cascade_depth=1, precision=64)
     assert result.startswith("3.")
     # Depth 10 — should give us ~6 correct digits.
-    result = pi_cascade_digits(5, max_cascade_depth=10, precision_bits=128)
+    result = pi_cascade_digits(5, max_cascade_depth=10, precision=128)
     assert result.startswith("3.14")
 
 
 def test_pi_cascade_digits_explicit_kwargs_match_default() -> None:
     """Calling with explicit default kwargs equals calling without."""
     a = pi_cascade_digits(15)
-    b = pi_cascade_digits(15, max_cascade_depth=90, precision_bits=512)
+    b = pi_cascade_digits(15, max_cascade_depth=90, precision=512)
     assert a == b
 
 
@@ -332,7 +332,7 @@ def test_pi_cascade_digits_explicit_kwargs_override_auto() -> None:
     # Auto-scaling for num_digits=15 gives (90, 512) — the rc12-era
     # minimum. Pass explicit (50, 256) — should still produce ~15
     # correct digits (depth 50 covers 50*log10(4)/log10(10) ~= 30 digits).
-    result = pi_cascade_digits(15, max_cascade_depth=50, precision_bits=256)
+    result = pi_cascade_digits(15, max_cascade_depth=50, precision=256)
     assert result == "3.141592653589793", (
         f"Explicit kwargs produced wrong result: {result}"
     )
