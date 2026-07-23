@@ -568,11 +568,12 @@
 {"exposed_as": "srmech.qm.quaternion.quaternion_table_attestation", "defined_at": "srmech.qm.quaternion.quaternion_table_attestation", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_left_mult", "defined_at": "srmech.qm.quaternion.quaternion_left_mult", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_right_mult", "defined_at": "srmech.qm.quaternion.quaternion_right_mult", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.qm.quaternion.quaternion_conjugate", "defined_at": "srmech.qm.quaternion.quaternion_conjugate", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_conjugate", "defined_at": "srmech.qm.quaternion.quaternion_conjugate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_norm", "defined_at": "srmech.qm.quaternion.quaternion_norm", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_exp", "defined_at": "srmech.qm.quaternion.quaternion_exp", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_exp_series_truncate", "defined_at": "srmech.qm.quaternion.quaternion_exp_series_truncate", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.quaternion.quaternion_twiddle", "defined_at": "srmech.qm.quaternion.quaternion_twiddle", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.qm.quaternion.quaternion_cycle_holonomy", "defined_at": "srmech.qm.quaternion.quaternion_cycle_holonomy", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.zeilberger.bipoly_from_coeffs", "defined_at": "srmech.amsc.zeilberger.bipoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.tripoly.tripoly_from_coeffs", "defined_at": "srmech.amsc.tripoly.tripoly_from_coeffs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.carrier_ladder.poly_promote", "defined_at": "srmech.amsc.carrier_ladder.poly_promote", "bucket": "non_compute", "non_compute_kind": "composes_c"}

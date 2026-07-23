@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc308"
-#define SRMECH_VERSION       "0.9.0rc308"
+#define SRMECH_VERSION_PRE   "rc309"
+#define SRMECH_VERSION       "0.9.0rc309"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1321,6 +1321,60 @@ srmech_status_t srmech_graph_cycle_holonomy(uint32_t        n,
                                             uint32_t       *out_n_cycles,
                                             void           *ws,
                                             size_t          ws_len);
+
+/* 0.9.0rc309 (#944 follow-on): the NON-ABELIAN generalization of
+ * srmech_graph_cycle_holonomy — the k=2 discrete holonomy channel over the
+ * quaternion units Q8 = {+-1, +-i, +-j, +-k} (H "which-way" / Lk-analog
+ * reader). Same union-find spanning-forest base-point scaffolding (first-
+ * encountered edge = tree edge), but edge gains are UNIT QUATERNIONS (4
+ * doubles each; NULL -> identity). Per fundamental cycle the holonomy is the
+ * ordered quaternion PRODUCT walked around the cycle,
+ *     H = P_u . g_uv . conj(P_v),
+ * where P_x = the ordered product of edge gains along the tree path root->x
+ * (a reversed edge contributes conj(gain) = its inverse). Under a node-wise
+ * re-gauge g_uv -> s_u . g_uv . conj(s_v) the intermediate factors telescope
+ * and H -> s_root . H . conj(s_root): H is CONJUGATED by the base-point gauge,
+ * so its CONJUGACY CLASS is gauge-invariant.
+ *
+ * THE GAUGE-INVARIANT READ. For unit quaternions (SU(2)) the conjugacy class
+ * is a level set of the SCALAR part w = Re(H) (a conjugation invariant:
+ * Re(s.H.conj(s)) = Re(H) exactly). For a Q8-derived connection w in
+ * {+1, 0, -1}, giving THREE frame-free classes (out_class_index):
+ *   w ~ +1 -> 0 = {1}          center_parity +1
+ *   w ~ -1 -> 1 = {-1}         center_parity -1   (the spinor / Lk half-twist)
+ *   w ~  0 -> 2 = {+-i,+-j,+-k} center_parity  0  (pure-imaginary)
+ * NOTE (measured, not assumed): the finer 5-class Q8 split {+-i}/{+-j}/{+-k}
+ * is invariant only under DISCRETE Q8 re-gauge; under CONTINUOUS unit-
+ * quaternion re-gauge SU(2) merges the three imaginary axes (i and j are
+ * SU(2)-conjugate), so only the scalar-part class above is frame-free. That is
+ * the sound keystone this op ships. out_center_parity is the {1}-vs-{-1}
+ * central sign (a class function, hence also invariant). A holonomy whose
+ * scalar is far from {-1, 0, 1} means the gains were not Q8/unit-consistent ->
+ * SRMECH_ERR_BAD_INPUT (tolerance 1e-9).
+ *
+ * Outputs (each length >= n_edges except out_holonomy): out_class_index +
+ * out_center_parity per fundamental cycle; out_cycle_u/v = the co-tree edge;
+ * out_holonomy (NULLABLE; length >= 4*n_edges) = the raw H quaternion per
+ * cycle; *out_n_cycles = the cyclomatic number. `ws` is a caller arena of >=
+ * srmech_quaternion_cycle_holonomy_arena_bytes(n, n_edges) BYTES (no malloc;
+ * ws_len guarded in BYTES per the rc307 discipline). Additive symbols ->
+ * SRMECH_ABI_VERSION stays 10. See srmech_laplacian.c. */
+size_t srmech_quaternion_cycle_holonomy_arena_bytes(uint32_t n,
+                                                    uint32_t n_edges);
+srmech_status_t srmech_quaternion_cycle_holonomy(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *gains,
+    uint32_t       *out_class_index,
+    int32_t        *out_center_parity,
+    uint32_t       *out_cycle_u,
+    uint32_t       *out_cycle_v,
+    double         *out_holonomy,
+    uint32_t       *out_n_cycles,
+    void           *ws,
+    size_t          ws_len);
 
 /* §51 (issue #1097): the SPARSE / iterative normalized-cut Fiedler — the
  * n-unbounded peer of the dense eigensolver path. Power iteration on the
@@ -11230,6 +11284,17 @@ srmech_status_t srmech_quaternion_left_mult(
  * so L_q != R_q for generic q). Same buffer contract as left_mult. */
 srmech_status_t srmech_quaternion_right_mult(
     const double *q, size_t n, double *out);
+
+/* The quaternion conjugate conj(x) = (x0, -x1, -x2, -x3): the scalar axis is
+ * fixed, the three imaginary axes flip sign (a plain Class-C orientation flip;
+ * no abs()). For a UNIT quaternion conj IS the inverse (x . conj(x) = |x|^2 = 1),
+ * so conj(exp(mu*theta)) = exp(-mu*theta) — the inverse-QDFT twiddle, and the
+ * reversed-edge gain in the cycle-holonomy walk. `n` must be 4; `out` MAY alias
+ * `x` (in-place negation is safe). C peer of srmech.qm.quaternion.quaternion_conjugate
+ * (byte-exact). Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (n != 4).
+ * Additive symbol -> SRMECH_ABI_VERSION stays 10. */
+srmech_status_t srmech_quaternion_conjugate(
+    const double *x, size_t n, double *out);
 
 /* The quaternion Euler twiddle exp(mu*theta) = cos(theta)*1 + sin(theta)*mu.
  * `mu` is a caller-provided UNIT pure-imaginary 4-vector (mu[0] == 0.0;

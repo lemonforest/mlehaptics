@@ -8877,7 +8877,8 @@ def _register_qm_tools() -> None:
             summary="Quaternion conjugate conj(x) = (x_0, -x_1, -x_2, -x_3); "
                     "for a unit twiddle it is the inverse (conj(exp(μθ)) = "
                     "exp(−μθ) — the inverse-QDFT twiddle). Class C "
-                    "(orientation).",
+                    "(orientation). Same-rc C peer srmech_quaternion_conjugate "
+                    "(byte-exact).",
             parameters=(P("x", "HV", True, "4-vector"),),
             returns=R("list[float]", "4-vector"),
         ),
@@ -8955,6 +8956,41 @@ def _register_qm_tools() -> None:
                 P("sigma", "int", False, "−1 forward (default) | +1 inverse"),
             ),
             returns=R("list[float]", "the unit-quaternion twiddle (4 components)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_cycle_holonomy",
+            owner="srmech", category="qm.quaternion",
+            summary="The NON-ABELIAN cycle holonomies of a quaternion gain "
+                    "graph (#944 follow-on) — the k=2 discrete which-way / "
+                    "Lk-analog channel, the associative sibling of the abelian "
+                    "laplacian.cycle_holonomy. Edge gains are UNIT quaternions "
+                    "(Q₈ = {±1,±i,±j,±k} or a continuous re-gauge). Per "
+                    "fundamental cycle H = P_u·g_uv·conj(P_v) (ordered product; "
+                    "P_x = the tree-path root→x product, reversed edge = "
+                    "conj). A node re-gauge g→s_u·g·conj(s_v) telescopes to "
+                    "H→s_root·H·conj(s_root), so the CONJUGACY CLASS is "
+                    "gauge-invariant. class_index = the SU(2) class from the "
+                    "scalar part w=Re(H): 0={1}(w≈+1), 1={−1}(w≈−1, the spinor/"
+                    "Lk half-twist), 2={±i,±j,±k}(w≈0). MEASURED (the rc309 "
+                    "proof gate): the finer 5-class Q₈ split is invariant only "
+                    "under DISCRETE Q₈ re-gauge — continuous SU(2) merges the "
+                    "three axes, so only the scalar-part class is frame-free. "
+                    "center_parity = the {1}/{−1} central sign. Native "
+                    "standalone-C srmech_quaternion_cycle_holonomy "
+                    "(caller-arena); else the byte-exact quaternion cascade. "
+                    "numpy-free; no abs(). Class M∘L∘C.",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "a self-loop is a 1-cycle; a parallel edge a digon"),
+                        P("gains", "Optional[list[list[float]]]", False,
+                          "per-edge UNIT quaternion 4-vector parallel to edges; "
+                          "None → identity (balanced); (u,v,g) ≡ (v,u,conj(g))"),
+                        P("n", "Optional[int]", False,
+                          "node count; inferred from edges when None")),
+            returns=R("dict",
+                      "{'n_cycles', 'class_index': list[int] (SU(2) class), "
+                      "'center_parity': list[int] (+1/−1/0), 'cycle_edges': "
+                      "list[(u,v)], 'holonomies': list[list[float]] (raw ℍ), "
+                      "'balanced': bool}"),
         ),
 
         # ────────────────────────────────────────────────────────────

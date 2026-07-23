@@ -787,6 +787,291 @@ srmech_status_t srmech_graph_cycle_holonomy(uint32_t        n,
     return SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * 0.9.0rc309 (#944 follow-on): quaternion_cycle_holonomy — the NON-ABELIAN
+ * generalization of the abelian srmech_graph_cycle_holonomy above. The edge
+ * gains are unit quaternions (Q8 = {+-1,+-i,+-j,+-k} and its continuous
+ * re-gauges); the per-cycle holonomy is the ordered quaternion product
+ * H = P_u . g_uv . conj(P_v), classified by its SU(2) conjugacy class (the
+ * scalar part w = Re(H), a conjugation invariant). Reuses the union-find
+ * spanning-forest scaffolding (holo_find) + the exported quaternion product
+ * (srmech_quaternion_left_mult) + conjugate (srmech_quaternion_conjugate), so
+ * the product convention is the SINGLE srmech_quaternion.c source of truth
+ * (byte-exact with the pure-Python mirror). See the header for the full
+ * gauge-invariance derivation + the 5-vs-3 class note.
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_QHOLO_DIM  ((size_t)4)     /* the quaternion carrier dimension */
+#define SRMECH_QHOLO_TOL  (1e-9)          /* scalar-part class bucket radius   */
+
+size_t srmech_quaternion_cycle_holonomy_arena_bytes(uint32_t n,
+                                                    uint32_t n_edges)
+{
+    /* double: pot[4n] + tree_gains[4ne] + cotree_gains[4ne] = 8*(4n + 8ne)
+     * int32: parent[n] + rnk[n] + visited[n] + queue[n] + tu[ne] + tv[ne]
+     *        = 4*(4n + 2ne). +64 alignment/padding slop. */
+    size_t bn = (size_t)n;
+    size_t be = (size_t)n_edges;
+    size_t bytes = 8u * (4u * bn + 8u * be) + 4u * (4u * bn + 2u * be) + 64u;
+    assert(bytes >= 64u);            /* always includes the alignment/pad slop */
+    assert(bytes >= 32u * bn);       /* room for the double pot[4n] block      */
+    return bytes;
+}
+
+/* out = a . b (Hamilton product, fixed Cayley-Dickson convention) via the
+ * exported left-multiplication operator: (L_a . b)_i = (a . b)_i. L_a's basis
+ * columns are exact +-a_i (no rounding), so this IS srmech_quaternion.c's
+ * product, byte-exact with the pure-Python quaternion mult. `out` MUST NOT
+ * alias a or b. */
+static srmech_status_t qholo_mul(const double *a, const double *b, double *out)
+{
+    assert(a != NULL && b != NULL);
+    assert(out != NULL);
+    double la[SRMECH_QHOLO_DIM * SRMECH_QHOLO_DIM];
+    srmech_status_t st = srmech_quaternion_left_mult(a, SRMECH_QHOLO_DIM, la);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (size_t i = 0; i < SRMECH_QHOLO_DIM; ++i) {
+        double t = 0.0;
+        for (size_t k = 0; k < SRMECH_QHOLO_DIM; ++k) {
+            t += la[i * SRMECH_QHOLO_DIM + k] * b[k];
+        }
+        out[i] = t;
+    }
+    return SRMECH_OK;
+}
+
+/* Classify a unit-quaternion holonomy `h` into its SU(2) conjugacy class from
+ * the scalar part w = h[0]: w ~ +1 -> class 0 (parity +1); w ~ -1 -> class 1
+ * (parity -1); w ~ 0 -> class 2 (parity 0). |.| via a signed branch (Class-K
+ * pin-slot; no abs()). A scalar far from {-1,0,1} -> SRMECH_ERR_BAD_INPUT. */
+static srmech_status_t qholo_class(const double *h, uint32_t *cls, int32_t *par)
+{
+    assert(h != NULL);
+    assert(cls != NULL && par != NULL);
+    double w = h[0];
+    double dp = w - 1.0;
+    double dm = w + 1.0;
+    double adp = (dp >= 0.0) ? dp : -dp;
+    double adm = (dm >= 0.0) ? dm : -dm;
+    double aw  = (w  >= 0.0) ? w  : -w;
+    if (adp < SRMECH_QHOLO_TOL) {
+        *cls = 0u; *par = 1;
+    } else if (adm < SRMECH_QHOLO_TOL) {
+        *cls = 1u; *par = -1;
+    } else if (aw < SRMECH_QHOLO_TOL) {
+        *cls = 2u; *par = 0;
+    } else {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    return SRMECH_OK;
+}
+
+/* Copy a quaternion gain (4 doubles) from `src` (or identity when NULL) into
+ * `dst`. The identity (1,0,0,0) is the missing-gains default (a balanced graph). */
+static void qholo_copy_gain(const double *src, double *dst)
+{
+    assert(dst != NULL);
+    if (src != NULL) {
+        dst[0] = src[0]; dst[1] = src[1]; dst[2] = src[2]; dst[3] = src[3];
+    } else {
+        dst[0] = 1.0; dst[1] = 0.0; dst[2] = 0.0; dst[3] = 0.0;
+    }
+    assert(dst[0] == dst[0]);   /* NaN-free scalar postcondition (a NaN gain
+                                 * would silently corrupt the holonomy class) */
+}
+
+/* Union-find edge partition: first-encountered spanning edge = tree edge (its
+ * gain stashed in `tg`, stored direction uu->vv); a cycle-closing edge =
+ * co-tree edge (its gain stashed in `cg`, endpoints in out_cycle_u/v). Fills
+ * *n_tree, *n_cyc. An out-of-range endpoint -> SRMECH_ERR_BAD_INPUT. */
+static srmech_status_t qholo_partition(uint32_t n, uint32_t n_edges,
+    const uint32_t *edges_u, const uint32_t *edges_v, const double *gains,
+    int32_t *parent, int32_t *rnk, int32_t *tu, int32_t *tv,
+    double *tg, double *cg, uint32_t *out_cycle_u, uint32_t *out_cycle_v,
+    uint32_t *n_tree, uint32_t *n_cyc)
+{
+    assert(parent != NULL && rnk != NULL);
+    assert(n_tree != NULL && n_cyc != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        parent[i] = (int32_t)i;
+        rnk[i] = 0;
+    }
+    uint32_t nt = 0;
+    uint32_t nc = 0;
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = edges_u[e];
+        uint32_t vv = edges_v[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        const double *ge = (gains != NULL) ? &gains[(size_t)e * SRMECH_QHOLO_DIM]
+                                            : NULL;
+        uint32_t ru = holo_find(parent, uu);
+        uint32_t rv = holo_find(parent, vv);
+        if (ru != rv) {
+            if (rnk[ru] < rnk[rv]) { uint32_t t = ru; ru = rv; rv = t; }
+            parent[rv] = (int32_t)ru;
+            if (rnk[ru] == rnk[rv]) { rnk[ru]++; }
+            tu[nt] = (int32_t)uu;
+            tv[nt] = (int32_t)vv;
+            qholo_copy_gain(ge, &tg[(size_t)nt * SRMECH_QHOLO_DIM]);
+            nt++;
+        } else {
+            out_cycle_u[nc] = uu;
+            out_cycle_v[nc] = vv;
+            qholo_copy_gain(ge, &cg[(size_t)nc * SRMECH_QHOLO_DIM]);
+            nc++;
+        }
+    }
+    *n_tree = nt;
+    *n_cyc = nc;
+    return SRMECH_OK;
+}
+
+/* Build pot[i] = the ordered quaternion product along the UNIQUE tree path
+ * root->i (root = the component seed; pot[root] = identity). BFS over the tree
+ * edges; a reversed edge (nb->x stored) contributes conj(gain). The path is
+ * unique so the product is traversal-order-independent (byte-exact BFS/DFS). */
+static srmech_status_t qholo_build_pot(uint32_t n, uint32_t n_tree,
+    const int32_t *tu, const int32_t *tv, const double *tg,
+    double *pot, int32_t *visited, int32_t *queue)
+{
+    assert(pot != NULL);
+    assert(visited != NULL && queue != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        visited[i] = 0;
+        double *p = &pot[(size_t)i * SRMECH_QHOLO_DIM];
+        p[0] = 1.0; p[1] = 0.0; p[2] = 0.0; p[3] = 0.0;
+    }
+    for (uint32_t s = 0; s < n; s++) {
+        if (visited[s]) {
+            continue;
+        }
+        uint32_t head = 0, tail = 0;
+        visited[s] = 1;
+        queue[tail++] = (int32_t)s;
+        while (head < tail) {
+            uint32_t x = (uint32_t)queue[head++];
+            for (uint32_t e = 0; e < n_tree; e++) {
+                uint32_t a = (uint32_t)tu[e];
+                uint32_t b = (uint32_t)tv[e];
+                const double *te = &tg[(size_t)e * SRMECH_QHOLO_DIM];
+                double g[SRMECH_QHOLO_DIM];
+                uint32_t nb;
+                if (a == x && !visited[b]) {
+                    nb = b;                       /* x->nb: +gain */
+                    g[0] = te[0]; g[1] = te[1]; g[2] = te[2]; g[3] = te[3];
+                } else if (b == x && !visited[a]) {
+                    nb = a;                       /* x->nb reversed: conj(gain) */
+                    srmech_status_t cs = srmech_quaternion_conjugate(
+                        te, SRMECH_QHOLO_DIM, g);
+                    if (cs != SRMECH_OK) { return cs; }
+                } else {
+                    continue;
+                }
+                srmech_status_t st = qholo_mul(
+                    &pot[(size_t)x * SRMECH_QHOLO_DIM], g,
+                    &pot[(size_t)nb * SRMECH_QHOLO_DIM]);   /* pot[nb] = pot[x].g */
+                if (st != SRMECH_OK) { return st; }
+                visited[nb] = 1;
+                queue[tail++] = (int32_t)nb;
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Per co-tree cycle: H = pot[u] . g_uv . conj(pot[v]); classify by scalar part
+ * and (when out_holonomy != NULL) emit the raw H quaternion. */
+static srmech_status_t qholo_finalize(uint32_t n_cyc, const double *pot,
+    const double *cg, const uint32_t *out_cycle_u, const uint32_t *out_cycle_v,
+    uint32_t *out_class_index, int32_t *out_center_parity, double *out_holonomy)
+{
+    assert(pot != NULL && cg != NULL);
+    assert(out_class_index != NULL && out_center_parity != NULL);
+    for (uint32_t i = 0; i < n_cyc; i++) {
+        uint32_t uu = out_cycle_u[i];
+        uint32_t vv = out_cycle_v[i];
+        double cpv[SRMECH_QHOLO_DIM];
+        double t1[SRMECH_QHOLO_DIM];
+        double hol[SRMECH_QHOLO_DIM];
+        srmech_status_t st = srmech_quaternion_conjugate(
+            &pot[(size_t)vv * SRMECH_QHOLO_DIM], SRMECH_QHOLO_DIM, cpv);
+        if (st != SRMECH_OK) { return st; }
+        st = qholo_mul(&pot[(size_t)uu * SRMECH_QHOLO_DIM],
+                       &cg[(size_t)i * SRMECH_QHOLO_DIM], t1);   /* pot[u].g_uv */
+        if (st != SRMECH_OK) { return st; }
+        st = qholo_mul(t1, cpv, hol);                           /* .conj(pot[v]) */
+        if (st != SRMECH_OK) { return st; }
+        st = qholo_class(hol, &out_class_index[i], &out_center_parity[i]);
+        if (st != SRMECH_OK) { return st; }
+        if (out_holonomy != NULL) {
+            double *o = &out_holonomy[(size_t)i * SRMECH_QHOLO_DIM];
+            o[0] = hol[0]; o[1] = hol[1]; o[2] = hol[2]; o[3] = hol[3];
+        }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_quaternion_cycle_holonomy(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *gains,
+    uint32_t       *out_class_index,
+    int32_t        *out_center_parity,
+    uint32_t       *out_cycle_u,
+    uint32_t       *out_cycle_v,
+    double         *out_holonomy,
+    uint32_t       *out_n_cycles,
+    void           *ws,
+    size_t          ws_len)
+{
+    assert(out_n_cycles != NULL);
+    if (out_n_cycles == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_edges > 0 && (edges_u == NULL || edges_v == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (out_class_index == NULL || out_center_parity == NULL ||
+        out_cycle_u == NULL || out_cycle_v == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (ws_len < srmech_quaternion_cycle_holonomy_arena_bytes(n, n_edges)) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    /* Carve the arena: doubles first (8-aligned base), then int32. */
+    double *pot = (double *)ws;
+    double *tg = pot + (size_t)SRMECH_QHOLO_DIM * n;
+    double *cg = tg + (size_t)SRMECH_QHOLO_DIM * n_edges;
+    int32_t *parent = (int32_t *)(cg + (size_t)SRMECH_QHOLO_DIM * n_edges);
+    int32_t *rnk = parent + n;
+    int32_t *visited = rnk + n;
+    int32_t *queue = visited + n;
+    int32_t *tu = queue + n;
+    int32_t *tv = tu + n_edges;
+    uint32_t n_tree = 0;
+    uint32_t n_cyc = 0;
+    srmech_status_t st = qholo_partition(n, n_edges, edges_u, edges_v, gains,
+                                         parent, rnk, tu, tv, tg, cg,
+                                         out_cycle_u, out_cycle_v,
+                                         &n_tree, &n_cyc);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    *out_n_cycles = n_cyc;
+    st = qholo_build_pot(n, n_tree, tu, tv, tg, pot, visited, queue);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    return qholo_finalize(n_cyc, pot, cg, out_cycle_u, out_cycle_v,
+                          out_class_index, out_center_parity, out_holonomy);
+}
+
 /* Helper: apply a single Givens rotation to symmetric `mat` at index
  * pair (p, q). Updates rows + columns p, q in place. Pi-free —
  * c, s computed algebraically from matrix entries (no trig). */

@@ -374,6 +374,23 @@ def quaternion_right_mult(q: Sequence[float]) -> Mat:
     return Mat.from_rows(rows, is_complex=False)
 
 
+def _try_native_conjugate(x: List[float]) -> List[float]:
+    """Dispatch ``conj(x)`` to ``srmech_quaternion_conjugate`` (the rc309 C
+    peer), returning the 4-vector ``list[float]`` — or ``None`` for the pure
+    path. ctypes-only (no numpy)."""
+    if not _native_ready("srmech_quaternion_conjugate"):
+        return None
+    Arr = ctypes.c_double * _DIM
+    c_x = Arr(*(float(v) for v in x))
+    c_out = Arr()
+    rc = _native.LIB.srmech_quaternion_conjugate(
+        ctypes.cast(c_x, _DBLP), ctypes.c_size_t(_DIM), ctypes.cast(c_out, _DBLP)
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [float(c_out[i]) for i in range(_DIM)]
+
+
 def quaternion_conjugate(x: Sequence[float]) -> List[float]:
     """Quaternion conjugate ``conj(x) = (x_0, -x_1, -x_2, -x_3)``.
 
@@ -381,6 +398,8 @@ def quaternion_conjugate(x: Sequence[float]) -> List[float]:
     For a UNIT twiddle it is the inverse: ``conj(exp(μθ)) = exp(−μθ)`` — the
     inverse-QDFT twiddle. Class C (chirality / orientation); a plain sign
     flip (no ``abs()``), mirroring :func:`srmech.qm.octonion.octonion_conjugate`.
+    Dispatches to the same-rc C peer ``srmech_quaternion_conjugate`` (byte-exact
+    pure fallback otherwise).
 
     Args:
         x: A 4-vector quaternion.
@@ -392,6 +411,9 @@ def quaternion_conjugate(x: Sequence[float]) -> List[float]:
         ValueError: if ``x`` is not a 4-vector.
     """
     x = _as_quaternion(x, "quaternion_conjugate")
+    native = _try_native_conjugate(x)
+    if native is not None:
+        return native
     return [x[0]] + [-x[i] for i in range(1, _DIM)]
 
 
@@ -636,8 +658,293 @@ def quaternion_twiddle(j: int, k: int, n_points: int, *,
     return _twiddle_resolved(j_red, k_red, n_points, sigma, mu_hat)
 
 
+# =====================================================================
+# rc309 (#944 follow-on) — quaternion_cycle_holonomy: the k=2 discrete
+# holonomy channel over the quaternion units Q8 (the ℍ "which-way" /
+# Lk-analog reader). The NON-ABELIAN generalization of the abelian
+# srmech.amsc.laplacian.cycle_holonomy (Zaslavsky signed-graph switching)
+# to a non-commutative gain group.
+# =====================================================================
+
+#: Scalar-part bucket radius for the SU(2) conjugacy-class read (matches
+#: SRMECH_QHOLO_TOL in the C peer). Q8-derived holonomies land on scalar
+#: {+1, 0, -1} exactly; a continuous re-gauge perturbs by ~1e-15 << tol.
+_QHOLO_TOL = 1e-9
+
+
+def _quat_mul(a: List[float], b: List[float]) -> List[float]:
+    """``a · b`` (Hamilton product), byte-exact with the C ``qholo_mul``.
+
+    Builds the left-multiplication matrix ``L_a`` from the Cayley-Dickson
+    structure table (columns are exact ``±a_i`` signed permutations — no
+    rounding, identical to ``srmech_quaternion_left_mult``), then the row-dot
+    ``(L_a · b)_i = Σ_k L_a[i,k]·b[k]`` accumulated left-to-right — the SAME
+    float-op order the native peer uses, so native == pure to the bit."""
+    table = _build_mult_table()
+    out = [0.0, 0.0, 0.0, 0.0]
+    for i in range(_DIM):
+        t = 0.0
+        for k in range(_DIM):
+            la_ik = 0.0
+            for j in range(_DIM):
+                la_ik += a[j] * table[j][k][i]     # (a·e_k)_i = Σ_j a_j C[j][k][i]
+            t += la_ik * b[k]
+        out[i] = t
+    return out
+
+
+def _quat_class(h: List[float]) -> Tuple[int, int]:
+    """Classify a unit-quaternion holonomy ``h`` by its SU(2) conjugacy class.
+
+    The class is a level set of the scalar part ``w = h[0]`` (a conjugation
+    invariant: ``Re(s·h·conj(s)) = Re(h)``). For a Q8-derived connection
+    ``w ∈ {+1, 0, −1}``: ``w ≈ +1 → (0, +1)`` = ``{1}``; ``w ≈ −1 → (1, −1)`` =
+    ``{−1}`` (the spinor / Lk half-twist); ``w ≈ 0 → (2, 0)`` = the
+    pure-imaginary class ``{±i, ±j, ±k}``. ``|·|`` via a signed branch (Class-K
+    pin-slot; never ``abs()``). A scalar far from ``{−1, 0, 1}`` means the gains
+    were not Q8/unit-consistent → ``ValueError``."""
+    w = h[0]
+    dp = w - 1.0
+    dm = w + 1.0
+    adp = dp if dp >= 0.0 else -dp
+    adm = dm if dm >= 0.0 else -dm
+    aw = w if w >= 0.0 else -w
+    if adp < _QHOLO_TOL:
+        return 0, 1
+    if adm < _QHOLO_TOL:
+        return 1, -1
+    if aw < _QHOLO_TOL:
+        return 2, 0
+    raise ValueError(
+        f"quaternion_cycle_holonomy: holonomy scalar {w!r} is not Q8-consistent "
+        f"(expected near −1, 0 or +1); gains must be unit quaternions drawn "
+        f"from Q8 (or a continuous re-gauge of it)"
+    )
+
+
+def _quaternion_cycle_holonomy_py(n, edge_list, gains):
+    """Pure-Python complete alternative for :func:`quaternion_cycle_holonomy`.
+
+    Spanning forest by union-find (first-encountered edge = tree edge), then
+    ``pot[i]`` = the ordered quaternion product along the UNIQUE tree path
+    ``root → i`` (root = the smallest node index per component — the SAME seed
+    order the C peer's BFS uses, so the raw holonomy is byte-identical, not just
+    conjugate). Per co-tree edge ``H = pot[u] · g_uv · conj(pot[v])``, classified
+    by scalar part. ``gains`` is a list of resolved 4-vectors parallel to
+    ``edge_list`` (or ``None`` = identity everywhere)."""
+    parent = list(range(n))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    ident = [1.0, 0.0, 0.0, 0.0]
+
+    def gain_at(e: int) -> List[float]:
+        return list(ident) if gains is None else list(gains[e])
+
+    tree: List[Tuple[int, int, List[float]]] = []
+    cotree: List[Tuple[int, int, List[float]]] = []
+    for e, (u, v) in enumerate(edge_list):
+        ru, rv = find(u), find(v)
+        g = gain_at(e)
+        if ru != rv:
+            parent[rv] = ru
+            tree.append((u, v, g))
+        else:
+            cotree.append((u, v, g))
+    pot: List = [None] * n
+    adj: List[List[Tuple[int, List[float]]]] = [[] for _ in range(n)]
+    for (u, v, g) in tree:
+        adj[u].append((v, g))                              # u → v : +g
+        adj[v].append((u, quaternion_conjugate(g)))        # v → u : conj(g)
+    for s in range(n):
+        if pot[s] is not None:
+            continue
+        pot[s] = list(ident)
+        stack = [s]
+        while stack:
+            x = stack.pop()
+            for (y, g) in adj[x]:
+                if pot[y] is None:
+                    pot[y] = _quat_mul(pot[x], g)           # pot[x] · g
+                    stack.append(y)
+    class_index: List[int] = []
+    center_parity: List[int] = []
+    cycle_edges: List[Tuple[int, int]] = []
+    holonomies: List[List[float]] = []
+    for (u, v, g) in cotree:
+        t1 = _quat_mul(pot[u], g)
+        h = _quat_mul(t1, quaternion_conjugate(pot[v]))    # pot[u]·g·conj(pot[v])
+        cls, par = _quat_class(h)
+        class_index.append(cls)
+        center_parity.append(par)
+        cycle_edges.append((u, v))
+        holonomies.append(h)
+    return class_index, center_parity, cycle_edges, holonomies
+
+
+def _quaternion_cycle_holonomy_native(n, edge_list, gain_flat):
+    """numpy-free native dispatch for :func:`quaternion_cycle_holonomy` — marshals
+    the edge endpoints (uint32) + the flat per-edge quaternion gains (4·n_edges
+    doubles, or ``None`` = identity) into ctypes buffers and calls
+    ``srmech_quaternion_cycle_holonomy`` with a caller arena sized from
+    ``srmech_quaternion_cycle_holonomy_arena_bytes``. Returns
+    ``(class_index, center_parity, cycle_edges, holonomies)`` or ``None`` on a
+    missing symbol / non-OK status (caller then runs the pure-Python path)."""
+    if not _native.has_native_quaternion_cycle_holonomy():
+        return None
+    n_edges = len(edge_list)
+    eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in edge_list))
+    ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in edge_list))
+    gp = None if gain_flat is None else \
+        (ctypes.c_double * (_DIM * n_edges))(*gain_flat)
+    ocls = (ctypes.c_uint32 * max(n_edges, 1))()
+    opar = (ctypes.c_int32 * max(n_edges, 1))()
+    ocu = (ctypes.c_uint32 * max(n_edges, 1))()
+    ocv = (ctypes.c_uint32 * max(n_edges, 1))()
+    ohol = (ctypes.c_double * (_DIM * max(n_edges, 1)))()
+    ncyc = ctypes.c_uint32(0)
+    ws_bytes = int(_native.LIB.srmech_quaternion_cycle_holonomy_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges)))
+    ws = (ctypes.c_char * ws_bytes)()
+    rc = _native.LIB.srmech_quaternion_cycle_holonomy(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, gp,
+        ocls, opar, ocu, ocv, ohol, ctypes.byref(ncyc),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    m = ncyc.value
+    class_index = [int(ocls[i]) for i in range(m)]
+    center_parity = [int(opar[i]) for i in range(m)]
+    cycle_edges = [(int(ocu[i]), int(ocv[i])) for i in range(m)]
+    holonomies = [[float(ohol[_DIM * i + t]) for t in range(_DIM)]
+                  for i in range(m)]
+    return class_index, center_parity, cycle_edges, holonomies
+
+
+def quaternion_cycle_holonomy(
+    edges: "Sequence[Tuple[int, int]]",
+    gains=None,
+    *,
+    n: "int | None" = None,
+) -> dict:
+    """The NON-ABELIAN cycle holonomies of a quaternion gain graph — the k=2
+    discrete which-way / Lk-analog channel (rc309, #944 follow-on).
+
+    The associative sibling of the abelian
+    :func:`srmech.amsc.laplacian.cycle_holonomy`. Each edge carries a UNIT
+    quaternion gain (drawn from ``Q₈ = {±1, ±i, ±j, ±k}`` or a continuous
+    re-gauge of it). For each fundamental cycle the holonomy is the **ordered
+    quaternion product** walked around it,
+
+        ``H = P_u · g_uv · conj(P_v)``,
+
+    where ``P_x`` is the ordered product of edge gains along the tree path
+    ``root → x`` (a reversed edge contributes ``conj(gain)`` = its inverse). A
+    node-wise re-gauge ``g_uv → s_u · g_uv · conj(s_v)`` telescopes to
+    ``H → s_root · H · conj(s_root)`` — the holonomy is **conjugated** by the
+    base-point gauge, so its **conjugacy class is gauge-invariant** (Zaslavsky's
+    switching theory, non-abelian form).
+
+    The gauge-invariant read — for unit quaternions (SU(2)) the conjugacy class
+    is a level set of the **scalar part** ``w = Re(H)`` (a conjugation invariant:
+    ``Re(s·H·conj(s)) = Re(H)`` exactly). For a Q₈-derived connection
+    ``w ∈ {+1, 0, −1}``, giving three frame-free classes:
+
+    ==============  ===========  =============  ===============================
+    ``class_index``  conj. class  ``center_parity``  meaning
+    ==============  ===========  =============  ===============================
+    ``0``            ``{1}``      ``+1``         trivial (balanced) holonomy
+    ``1``            ``{−1}``     ``−1``         the spinor / Lk central half-twist
+    ``2``            ``{±i,±j,±k}`` ``0``        pure-imaginary (quarter-turn)
+    ==============  ===========  =============  ===============================
+
+    MEASURED, not assumed (the rc309 proof gate): the finer 5-class Q₈ split
+    ``{±i}``/``{±j}``/``{±k}`` is invariant only under **discrete Q₈** re-gauge;
+    under **continuous** unit-quaternion re-gauge SU(2) merges the three
+    imaginary axes (``i`` and ``j`` are SU(2)-conjugate), so **only the
+    scalar-part class above is frame-free**. That is the sound keystone this op
+    ships; ``center_parity`` (the ``{1}``-vs-``{−1}`` central sign) is a class
+    function, hence also invariant. The raw ``holonomies`` quaternions genuinely
+    MOVE under re-gauge while the class holds — see
+    ``test_quaternion_cycle_holonomy_rc309.py`` for the committed measurement.
+
+    Dispatches to the standalone-C ``srmech_quaternion_cycle_holonomy`` (caller
+    arena) when ``HAS_NATIVE``; else srmech's own quaternion cascade (the
+    complete alternative, byte-exact). numpy-free; no ``abs()`` (sign is
+    Class K ∘ Class C). Class M (quaternion bind) ∘ Class L (graph) ∘ Class C
+    (orientation).
+
+    Args:
+        edges: The graph edges ``(u, v)``. A parallel edge closes a digon; a
+            self-loop is a 1-cycle carrying its own gain.
+        gains: Per-edge UNIT quaternion gain (a 4-sequence) parallel to
+            ``edges``; ``(u, v, g) ≡ (v, u, conj(g))``. ``None`` → identity
+            everywhere (a trivially balanced graph).
+        n: Node count (keyword-only); inferred as one past the largest endpoint
+            when ``None``.
+
+    Returns:
+        ``dict`` with ``n_cycles`` (int), ``class_index`` (list[int], the SU(2)
+        class per cycle), ``center_parity`` (list[int], +1/−1/0), ``cycle_edges``
+        (list[(u, v)] — the co-tree edge per cycle), ``holonomies`` (list of the
+        raw ℍ 4-vectors), and ``balanced`` (bool — all ``class_index == 0``).
+
+    Raises:
+        ValueError: an out-of-range endpoint; a ``gains`` length mismatch; or a
+            holonomy scalar not Q₈-consistent (gains not unit / not Q₈-derived).
+    """
+    edge_list = [tuple(e) for e in edges]
+    n_edges = len(edge_list)
+    if n is None:
+        nn = 0
+        for (u, v) in edge_list:
+            nn = max(nn, int(u) + 1, int(v) + 1)
+    else:
+        nn = int(n)
+    for k, (u, v) in enumerate(edge_list):
+        if not (0 <= u < nn and 0 <= v < nn):
+            raise ValueError(
+                f"quaternion_cycle_holonomy: edge {k} = ({u}, {v}) outside "
+                f"node range [0, {nn})"
+            )
+    if gains is None:
+        gain_resolved = None
+        gain_flat = None
+    else:
+        gain_resolved = [_as_quaternion(g, "quaternion_cycle_holonomy")
+                         for g in gains]
+        if len(gain_resolved) != n_edges:
+            raise ValueError(
+                f"quaternion_cycle_holonomy: gains length {len(gain_resolved)} "
+                f"!= n_edges {n_edges}"
+            )
+        gain_flat = [c for g in gain_resolved for c in g]
+    if nn == 0:
+        return {"n_cycles": 0, "class_index": [], "center_parity": [],
+                "cycle_edges": [], "holonomies": [], "balanced": True}
+    res = _quaternion_cycle_holonomy_native(nn, edge_list, gain_flat)
+    if res is None:
+        res = _quaternion_cycle_holonomy_py(nn, edge_list, gain_resolved)
+    class_index, center_parity, cycle_edges, holonomies = res
+    balanced = all(c == 0 for c in class_index)
+    return {
+        "n_cycles": len(class_index),
+        "class_index": class_index,
+        "center_parity": center_parity,
+        "cycle_edges": cycle_edges,
+        "holonomies": holonomies,
+        "balanced": balanced,
+    }
+
+
 __all__ = [
     "quaternion_conjugate",
+    "quaternion_cycle_holonomy",
     "quaternion_exp",
     "quaternion_exp_series_truncate",
     "quaternion_left_mult",

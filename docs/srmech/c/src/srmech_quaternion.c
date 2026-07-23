@@ -155,6 +155,26 @@ srmech_status_t srmech_quaternion_right_mult(
     return SRMECH_OK;
 }
 
+srmech_status_t srmech_quaternion_conjugate(
+    const double *x, size_t n, double *out)
+{
+    if (x == NULL || out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n != SRMECH_QUAT_DIM) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(x != NULL && out != NULL);
+    assert(n == SRMECH_QUAT_DIM);
+    /* Scalar axis fixed; the three imaginary axes flip (Class-C orientation,
+     * never an abs()). `out` may alias `x` — each write reads its own slot. */
+    out[0] = x[0];
+    out[1] = -x[1];
+    out[2] = -x[2];
+    out[3] = -x[3];
+    return SRMECH_OK;
+}
+
 srmech_status_t srmech_quaternion_exp(
     double theta, const double *mu, size_t n, double *out)
 {
