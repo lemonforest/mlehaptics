@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc312"
-#define SRMECH_VERSION       "0.9.0rc312"
+#define SRMECH_VERSION_PRE   "rc313"
+#define SRMECH_VERSION       "0.9.0rc313"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1148,6 +1148,79 @@ srmech_status_t srmech_unwrapped_phase(int64_t w0, int64_t w1, int64_t w2,
  * convention); SRMECH_ERR_NULL_ARG for a NULL out pointer. */
 srmech_status_t srmech_winding_fold(double theta, int64_t *w_out,
                                     double *theta_out);
+
+/* rc313 — srmech_genome_discrete_writhe: the EXACT-integer DIRECTIONAL
+ * discrete writhe of a polygonal backbone (the physical-topology peer of
+ * the intrinsic mod-2 center-parity holonomy srmech_quaternion_cycle_holonomy,
+ * rc309). Each vertex is an EXACT RATIONAL: xn[k]/xd[k], yn[k]/yd[k],
+ * zn[k]/zd[k] (den != 0; sign folded into the numerator internally). The
+ * writhe is the DISCRETE Gauss double-sum over non-adjacent segment PAIRS
+ * in the z-drop projection,
+ *   Wr = Σ ε_ij, ε_ij = sign((B−A)·((D−C)×(C−A))) when segments i,j cross
+ *   in the xy-projection (four 2D orientation determinants decide the
+ *   crossing), else 0; A=P_i,B=P_{i+1},C=P_j,D=P_{j+1}.
+ * Every crossing decision and every ε is the SIGN of an INTEGER
+ * determinant over srmech_bigint (the 4 pair-vertices are scaled to a
+ * common positive integer denominator per axis) — no float can flip a
+ * near-degenerate sign. This is the exact-INTEGER directional writhe (the
+ * signed crossing number), NOT the transcendental smooth solid-angle
+ * Gauss writhe; the mod-2 CWF check uses only its PARITY.
+ *   closed != 0  → the wrap segment P_{n-1}→P_0 is included (a loop).
+ *   out_num, out_den = the writhe as a reduced rational (den is always 1
+ *      — the directional writhe is integer-valued; the pair form honors
+ *      srmech's exact-rational contract).
+ * Returns SRMECH_ERR_BAD_INPUT on a non-generic projection (an orientation
+ *   determinant that decides a crossing vanishes) or a vanishing triple
+ *   product at a proper crossing (the strands meet in 3D — not an
+ *   embedding); SRMECH_ERR_NULL_ARG on a NULL array / out pointer;
+ *   SRMECH_ERR_OVERFLOW on a too-small ws.
+ *   ws / ws_len : caller workspace; size with
+ *      srmech_genome_discrete_writhe_arena_bytes(n_points). All scratch is
+ *      per-pair and rewound each pair, so the arena is O(1) in n_points.
+ * Integer/exact (Class-N over the bigint surface); no float, no libm, no
+ * malloc, no goto, no recursion. ABI additive → SRMECH_ABI_VERSION stays 10. */
+size_t srmech_genome_discrete_writhe_arena_bytes(uint32_t n_points);
+
+srmech_status_t srmech_genome_discrete_writhe(
+    const int64_t *xn, const int64_t *xd,
+    const int64_t *yn, const int64_t *yd,
+    const int64_t *zn, const int64_t *zd,
+    uint32_t n_points, int32_t closed,
+    void *ws, size_t ws_len,
+    int64_t *out_num, int64_t *out_den);
+
+/* rc313 — srmech_genome_cwf_consistency_mod2: the mod-2 Călugăreanu–White–
+ * Fuller check as a WHOLE-OP C peer (genome-fully-in-C). ORCHESTRATES the
+ * existing C ops: Lk = the single fundamental cycle's center parity via
+ * srmech_quaternion_cycle_holonomy over the Q₈ gains (edges_u/edges_v the
+ * endpoints, gains 4·n_edges doubles or NULL = identity); Tw = the Q₈
+ * negative-coset SIGN-accumulation parity (the sign of each gain's first
+ * component past 1e-9); Wr = the directional writhe of the supplied embedding
+ * (srmech_genome_discrete_writhe) when has_embedding != 0; verdict
+ * (Tw + Wr) mod 2 == Lk mod 2. Outputs (all int32):
+ *   *out_lk_center_parity   +1/-1/0 (the {1}/{−1}/pure-imaginary class)
+ *   *out_lk_mod2            0/1, or -1 when the holonomy is NON-central (0)
+ *   *out_tw_mod2            0/1
+ *   *out_wr_mod2            0/1, or -1 when has_embedding == 0
+ *   *out_consistent         0/1, or -1 when Lk is undefined OR no embedding
+ * Byte-identical to the pure Python (same center parity + writhe integer).
+ * SRMECH_ERR_BAD_INPUT unless there is exactly one fundamental cycle, or on a
+ * degenerate/non-embedded writhe; SRMECH_ERR_NULL_ARG on a NULL edge/out
+ * pointer; SRMECH_ERR_OVERFLOW on a too-small ws (size it with
+ * srmech_genome_cwf_consistency_mod2_arena_bytes(n_nodes, n_edges, n_points)).
+ * No malloc, no goto, no recursion. ABI additive → SRMECH_ABI_VERSION stays 10. */
+size_t srmech_genome_cwf_consistency_mod2_arena_bytes(uint32_t n_nodes,
+                                                      uint32_t n_edges,
+                                                      uint32_t n_points);
+
+srmech_status_t srmech_genome_cwf_consistency_mod2(
+    const uint32_t *edges_u, const uint32_t *edges_v, const double *gains,
+    uint32_t n_edges, uint32_t n_nodes, int32_t has_embedding,
+    const int64_t *xn, const int64_t *xd, const int64_t *yn, const int64_t *yd,
+    const int64_t *zn, const int64_t *zd, uint32_t n_points, int32_t closed,
+    void *ws, size_t ws_len,
+    int32_t *out_lk_mod2, int32_t *out_lk_center_parity, int32_t *out_tw_mod2,
+    int32_t *out_wr_mod2, int32_t *out_consistent);
 
 /* ------------------------------------------------------------------ *
  * Class L — graph Laplacian (Task #217 Phase C1)
