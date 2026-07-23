@@ -666,6 +666,11 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_octonion_exp',
         'srmech_octonion_twiddle',
     ),
+    'srmech.qm.quaternion.quaternion_conjugate': ('srmech_quaternion_conjugate',),
+    'srmech.qm.quaternion.quaternion_cycle_holonomy': (
+        'srmech_quaternion_cycle_holonomy',
+        'srmech_quaternion_cycle_holonomy_arena_bytes',
+    ),
     'srmech.qm.quaternion.quaternion_exp': ('srmech_quaternion_exp',),
     'srmech.qm.quaternion.quaternion_left_mult': ('srmech_quaternion_left_mult',),
     'srmech.qm.quaternion.quaternion_right_mult': ('srmech_quaternion_right_mult',),

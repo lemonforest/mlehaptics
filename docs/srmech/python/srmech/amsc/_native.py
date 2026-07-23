@@ -821,6 +821,33 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_graph_cycle_holonomy.restype = ctypes.c_int
 
+    # 0.9.0rc309 (#944 follow-on): quaternion_cycle_holonomy — the NON-ABELIAN
+    # generalization (edge gains are unit quaternions; per-cycle holonomy is
+    # the ordered quaternion product, classified by its SU(2) conjugacy class /
+    # scalar part). Additive symbols; ABI stays 10. hasattr-guarded.
+    if hasattr(lib, "srmech_quaternion_cycle_holonomy_arena_bytes"):
+        lib.srmech_quaternion_cycle_holonomy_arena_bytes.argtypes = [
+            ctypes.c_uint32, ctypes.c_uint32,
+        ]
+        lib.srmech_quaternion_cycle_holonomy_arena_bytes.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_quaternion_cycle_holonomy"):
+        lib.srmech_quaternion_cycle_holonomy.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v
+            ctypes.POINTER(ctypes.c_double),    # gains (4*n_edges, or NULL)
+            ctypes.POINTER(ctypes.c_uint32),    # out_class_index (>= n_edges)
+            ctypes.POINTER(ctypes.c_int32),     # out_center_parity
+            ctypes.POINTER(ctypes.c_uint32),    # out_cycle_u
+            ctypes.POINTER(ctypes.c_uint32),    # out_cycle_v
+            ctypes.POINTER(ctypes.c_double),    # out_holonomy (4*n_edges, or NULL)
+            ctypes.POINTER(ctypes.c_uint32),    # out_n_cycles
+            ctypes.c_void_p,                    # ws arena
+            ctypes.c_size_t,                    # ws_len
+        ]
+        lib.srmech_quaternion_cycle_holonomy.restype = ctypes.c_int
+
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
     #                           double *out_eigvals)
@@ -16283,6 +16310,18 @@ def has_native_cycle_holonomy() -> bool:
     return bool(HAS_NATIVE and LIB is not None
                 and hasattr(LIB, "srmech_graph_cycle_holonomy")
                 and hasattr(LIB, "srmech_graph_cycle_holonomy_arena_bytes"))
+
+
+def has_native_quaternion_cycle_holonomy() -> bool:
+    """True iff the rc309 NON-ABELIAN quaternion_cycle_holonomy C peer is loaded
+    + bound (#944 follow-on): the ordered quaternion cycle product + SU(2)
+    conjugacy-class read run in C, so
+    :func:`srmech.qm.quaternion.quaternion_cycle_holonomy` dispatches to the C
+    twin (byte-exact with the pure-Python mirror). False on a no-C / pre-rc309
+    lib — the pure-Python quaternion cascade is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_quaternion_cycle_holonomy")
+                and hasattr(LIB, "srmech_quaternion_cycle_holonomy_arena_bytes"))
 
 
 def has_native_fiedler_sparse_file() -> bool:
