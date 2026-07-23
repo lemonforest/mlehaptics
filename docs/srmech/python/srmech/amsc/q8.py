@@ -61,9 +61,11 @@ from __future__ import annotations
 
 import ctypes
 import functools
+import json as _json
 from typing import List, Sequence, Tuple
 
 from srmech.amsc import _native
+from srmech.amsc.hv import HV as _HV
 
 #: The Q8 alphabet size (3 bits: 2 for the V4 coset, 1 for the center sign).
 _Q8_N = 8
@@ -265,9 +267,90 @@ def q8_project_v4(q: Sequence[int]) -> bytes:
     return bytes(b & 3 for b in qb)
 
 
+def q8_from_one(one, D: int) -> "_HV":
+    """**ONE-OCT** — the ``One``'s Q₈ coupling projection: the Q₈ analogue of
+    :func:`srmech.amsc.hdc.klein4_from_one` (§Q8 completeness / rc315).
+
+    Mints the ``sectors=8`` (OCT) coupling ``one`` of leaf dimension ``D`` — a
+    Q₈-valued coupling ``bytes ∈ {0..7}`` — so a downstream caller can build a
+    SUBSTRATE (Q₈) genome (``chromosome`` / ``mint_strand`` / ``recall`` with
+    ``element_type=ELEMENT_TYPE_Q8``) WITHOUT hand-constructing the OCT ``one``. Two
+    declared planes, both functions of the ``One``'s three canonical constructor
+    integers (``sigma`` / ``theta=(num, den)`` / ``terms``):
+
+    1. **The V4 coset plane** (bits ``0..1``, ``q & 3``) — EXACTLY
+       :func:`~srmech.amsc.hdc.klein4_from_one`'s output on the same ``one``. This is
+       the BACKWARD-FAITHFUL bridge, guaranteed BY CONSTRUCTION::
+
+           q8_project_v4(q8_from_one(one, D)) == klein4_from_one(one, D)
+
+       — the F380 / R21 homomorphism ``π: Q₈ → V4`` composed with the minter, so a
+       Q₈ genome's V4 shadow is byte-identical to the Klein-4 genome it extends.
+    2. **The Z₂ sign plane** (bit ``2``, ``q >> 2``) — a DOMAIN-SEPARATED Class-A
+       address of the SAME ``One`` (:func:`~srmech.amsc.hdc.klein4_address` over a
+       ``{"q8_sign": 1, …}`` preimage), taken as bit 0 per slot. So the sign is a
+       DECLARED function of substrate parameters (not an undeclared draw), and the
+       coupling is genuinely non-abelian (a real Q₈ ``one``, not a degenerate
+       all-positive one living in the V4 subgroup). The sign is a group BIT computed
+       by Class-A expansion + Class-I parity (``& 1``) — NEVER an ``abs()``.
+
+    **Native + pure by COMPOSITION (no dedicated C symbol; ABI stays 10).** Both
+    planes are the outputs of already-C-peered ops — ``srmech_klein4_from_one`` (the
+    V4 plane) and ``srmech_klein4_address`` (the sign plane) — so when ``HAS_NATIVE``
+    the heavy lifting runs in C and the only Python work is the trivial Class-I/M byte
+    interleave ``(sign << 2) | coset``. A bare-C host mints the OCT ``one`` by the
+    SAME composition (both sub-op symbols + the interleave loop), so genome-fully-in-C
+    holds without a new export. Class A (both content-address planes) ∘ Class C (the
+    sign chirality) ∘ Class M (the byte bind). NO ``abs()``.
+
+    Args:
+        one: A :class:`~srmech.amsc.cascade.one.One` (read structurally: any object
+            exposing ``.sigma``, ``.theta`` as a ``(num, den)`` pair, and ``.terms``).
+        D: Vector dimension (positive). Free — nothing requires, and nothing gains
+            from, divisibility by 14 (see :func:`~srmech.amsc.hdc.klein4_sector_frame`).
+
+    Returns:
+        The OCT coupling ``one`` as an ``HV`` of ``sectors=8`` (bytes ``0..7``).
+
+    Raises:
+        ValueError: if ``D`` is not positive, or ``one.theta`` denominator is zero
+            (refused before dispatch, the SAME input klein4_from_one refuses).
+        TypeError: if ``one`` does not expose ``.sigma`` / ``.theta`` / ``.terms``.
+    """
+    D = int(D)
+    if D <= 0:
+        raise ValueError("q8.q8_from_one: D must be positive")
+    # Lazy import (the same discipline _build_f_table uses for cd_basis_product): keeps
+    # q8 importable before hdc is, and avoids any package-init ordering surprise.
+    from srmech.amsc.hdc import klein4_address, klein4_from_one
+    # Plane 1 — the V4 coset plane IS klein4_from_one's output (backward-faithful by
+    # construction; klein4_from_one also validates .sigma/.theta/.terms + theta_den != 0).
+    v4 = klein4_from_one(one, D)                       # sectors=4 HV, cosets 0..3
+    try:
+        sigma = int(one.sigma)
+        tn, td = (int(x) for x in one.theta)
+        terms = int(one.terms)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise TypeError(
+            "q8.q8_from_one: `one` must expose .sigma, .theta=(num, den) and .terms "
+            f"(a cascade One); got {type(one).__name__}") from exc
+    # Plane 2 — the Z2 sign plane: a DOMAIN-SEPARATED Class-A address of the same One
+    # (the "q8_sign" tag separates it from klein4_from_one's own preimage), bit 0 per
+    # slot. A declared function of the substrate parameters, never an undeclared draw.
+    sign_preimage = _json.dumps(
+        {"q8_sign": 1, "sigma": sigma, "terms": terms, "theta": [tn, td]},
+        sort_keys=True, separators=(",", ":")).encode("utf-8")
+    sign = klein4_address(D, sign_preimage)            # sectors=4 HV; bit 0 = the sign
+    # The Class-I/M interleave: q[i] = (sign_bit[i] << 2) | v4_coset[i]. No abs(); the
+    # sign is a group ⊕-bit, the coset the abelian V4 read — exactly the q8 byte layout.
+    out = bytes(((int(sign[i]) & 1) << 2) | (int(v4[i]) & 3) for i in range(D))
+    return _HV.from_sequence(out, sectors=_Q8_N)       # sectors=8 (OCT)
+
+
 __all__ = [
     "q8_bind",
     "q8_conjugate",
+    "q8_from_one",
     "q8_mult",
     "q8_project_v4",
 ]

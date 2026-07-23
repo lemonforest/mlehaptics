@@ -341,6 +341,7 @@ TOOL_DOCS: Dict[str, Dict[str, Any]] = {
     "srmech.amsc.primes.next_prime": {"example": {"input": {"n": "3"}, "output": "5"}, "explanation": "Return the smallest prime strictly greater than ``n`` (the prime successor)."},
     "srmech.amsc.q8.q8_bind": {"example": {"call": "q8_bind(turn=<bytes>, one=<bytes>) -> bytes"}, "explanation": "Elementwise Q₈ bind ``out[i] = q8_mult(turn[i], one[i])`` over two equal-length Q₈ byte buffers."},
     "srmech.amsc.q8.q8_conjugate": {"example": {"input": {"a": "3"}, "output": "7"}, "explanation": "The Q₈ conjugate / group inverse ``conj(a)``."},
+    "srmech.amsc.q8.q8_from_one": {"example": {"call": "q8_from_one(one=<One>, D=<int>) -> HV"}, "explanation": "**ONE-OCT** — the ``One``'s Q₈ coupling projection: the Q₈ analogue of :func:`srmech.amsc.hdc.klein4_from_one` (§Q8 completeness / rc315)."},
     "srmech.amsc.q8.q8_mult": {"example": {"input": {"a": "3", "b": "3"}, "output": "4"}, "explanation": "The Q₈ group product ``a · b`` of two Q₈ bytes (the discrete peer of the ``ℍ`` Hamilton product)."},
     "srmech.amsc.q8.q8_project_v4": {"example": {"call": "q8_project_v4(q=<bytes>) -> bytes"}, "explanation": "The abelian projection ``π: Q₈ → V4`` elementwise: ``out[i] = q[i] & 3``."},
     "srmech.amsc.q_gosper.q_gosper": {"example": {"call": "q_gosper(rn_num=<QPoly>, rn_den=<QPoly>) -> dict | None"}, "explanation": "The q-analog of Gosper's indefinite hypergeometric summation over ``ℚ(q)[x]`` (``x = qᵏ``)."},

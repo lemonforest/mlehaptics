@@ -3430,18 +3430,27 @@ def recall(strand, coupling, telomere=None, *, element_type=ELEMENT_TYPE_KLEIN4)
     return leaves
 
 
-def genes(strand, coupling):
+def genes(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Recover ``[(gene_label, gene_leaves), …]`` from a multi-gene chromosome (F730/S43).
 
     The exact inverse of ``chromosome(genes=…, coupling)``. Walk the ``strand``:
     a :func:`_gene_cap` (first byte :data:`GENE_CAP_MARKER` — never a Klein-4 turn)
     opens a new gene whose label is read back INLINE (:func:`_unpack_cap`, no TLV);
-    every coupled data turn until the next gene-cap (or the end) is re-bound through
-    ``coupling`` (the reversible :func:`quad_turn`) to recover that gene's leaf. The
+    every coupled data turn until the next gene-cap (or the end) is DECOUPLED through
+    ``coupling`` (:func:`_quad_unturn`) to recover that gene's leaf. The
     leading CHROM cap (the chromosome telomere) is skipped — so ``genes`` needs only
     the strand + ``coupling``, no cap argument::
 
         genes(chromosome(genes=[("a", la), ("b", lb)], one), one) == [("a", la), ("b", lb)]
+
+    **klein4 (default — UNCHANGED).** The decouple is the reversible Klein-4 XOR bind
+    (an involution — byte-identical to the shipped path).
+
+    **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc315).** The decouple is the Q₈ group
+    INVERSE (:func:`_q8_uncouple_bytes`) — Q₈ is non-abelian, so a self-bind would NOT
+    recover the leaf; ``coupling`` must be the SAME Q₈ ``one`` (sectors=8) the strand was
+    coupled with (build a Q₈ genome with ``chromosome(genes=…, element_type=Q8)``). Returns
+    ``sectors=8`` (:data:`OCT`) HV leaves.
 
     Use :func:`genes` (not :func:`recall`) on a multi-gene chromosome; ``recall``
     flattens across the gene boundaries (§44: scanned by inline marker).
@@ -3472,7 +3481,10 @@ def genes(strand, coupling):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
+            # §Q8: DECOUPLE (not re-couple) — klein4 XOR is an involution so this is
+            # byte-identical to the shipped path; Q₈ is non-abelian so the group inverse
+            # is REQUIRED (a second bind would corrupt the leaf).
+            cur_leaves.append(_quad_unturn(hv, coupling, element_type=element_type))
     if started:
         out.append((cur_label, cur_leaves))
     return out
@@ -3604,7 +3616,7 @@ def copy_number_of(chrom, label):
         f"is carried on a plain GENE cap 0x47; a plain / un-amplified gene reads as 1)")
 
 
-def gene_express(strand, coupling, cell_state):
+def gene_express(strand, coupling, cell_state, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Cell-state-modulated gene expression — a READ-TIME FILTER (§128 / #728; §130 / #730).
 
     ``strand`` is a multi-gene chromosome (from ``chromosome(genes=…, coupling)`` /
@@ -3670,7 +3682,11 @@ def gene_express(strand, coupling, cell_state):
     regulate it; expression reads the regulatory region). The input ``strand`` is
     byte-identical after this call. Returns the EXPRESSED subset as ``[(gene_label,
     gene_leaves), …]`` (the same shape :func:`genes` returns, filtered) in strand order;
-    ``gene_leaves`` are uncoupled through ``coupling`` (the reversible :func:`quad_turn`).
+    ``gene_leaves`` are DECOUPLED through ``coupling`` (:func:`_quad_unturn`). §Q8/rc315:
+    with ``element_type=ELEMENT_TYPE_Q8`` the decouple is the Q₈ group inverse (the gate
+    logic is element-type-agnostic — it reads the cap masks, never a decoded leaf), so a
+    Q₈ genome's expressed genes recover exactly and its V4-projection matches the klein4
+    genome's expression (backward-faithful read). Default stays klein4 (byte-identical).
 
     ``cell_state`` is a non-negative exact integer (Class-I bitwise; each set bit a present
     cell-state condition; no float, never ``abs()``). Native-dispatched (byte-identical C
@@ -3720,13 +3736,14 @@ def gene_express(strand, coupling, cell_state):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
+            cur_leaves.append(_quad_unturn(hv, coupling, element_type=element_type))  # §Q8: decouple
     if started and cur_express:
         out.append((cur_label, cur_leaves))
     return out
 
 
-def gene_express_levels(strand, coupling, cell_state):
+def gene_express_levels(strand, coupling, cell_state, *,
+                        element_type=ELEMENT_TYPE_KLEIN4):
     """GRADED / ANALOG gene expression LEVEL — a READ-TIME FILTER (§132 / #732; the E3 rung).
 
     The orthogonal companion to :func:`gene_express`. Where :func:`gene_express` decides *IF* each
@@ -3757,7 +3774,10 @@ def gene_express_levels(strand, coupling, cell_state):
     this call; biology reads the regulatory region, it does not rewrite the DNA). Returns the
     EXPRESSED subset ``[(gene_label, gene_leaves, (num, den)), …]`` in strand order, where
     ``(num, den)`` is the reduced exact-rational level (a JSON-native 2-tuple of ints);
-    ``gene_leaves`` are uncoupled through ``coupling`` (the reversible :func:`quad_turn`).
+    ``gene_leaves`` are DECOUPLED through ``coupling`` (:func:`_quad_unturn`). §Q8/rc315:
+    with ``element_type=ELEMENT_TYPE_Q8`` the decouple is the Q₈ group inverse (the level
+    computation is element-type-agnostic — it reads the cap weights, never a decoded leaf);
+    default stays klein4 (byte-identical).
 
     ``cell_state`` is a non-negative exact integer (Class-I bitwise; each set bit a present
     condition; no float, never ``abs()``). Native-dispatched (byte-identical C peer
@@ -3806,7 +3826,7 @@ def gene_express_levels(strand, coupling, cell_state):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
+            cur_leaves.append(_quad_unturn(hv, coupling, element_type=element_type))  # §Q8: decouple
     if started and cur_level[0] > 0:
         out.append((cur_label, cur_leaves, cur_level))
     return out
@@ -4883,19 +4903,29 @@ def mint(kernels=None, coupling=None, *, chromosomes=None, progress=None):
     return genome(kernels, coupling, chromosomes=chromosomes, progress=progress)
 
 
-def partition(strand, coupling, labels=None):
+def partition(strand, coupling, labels=None, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Recover every kernel from a multi-kernel genome strand — the inverse of
     :func:`genome` (F715 / §44).
 
     Walk the ``strand``; each CHROM cap (inline marker :data:`CHROM_CAP_MARKER`,
     §44) starts a new chromosome partition and its label is read back INLINE
     (:func:`_unpack_cap` — no sidecar). The coupled data turns until the next CHROM
-    cap are that kernel's leaves (re-bound through ``coupling`` — the reversible
-    :func:`quad_turn`); intervening GENE caps are skipped as gene delimiters, so a
+    cap are that kernel's leaves (DECOUPLED through ``coupling`` — :func:`_quad_unturn`);
+    intervening GENE caps are skipped as gene delimiters, so a
     multi-gene chromosome FLATTENS to its concatenated leaves (use :func:`genes` to
     keep the per-gene split). Returns ``{label: leaves}``::
 
         partition(genome({"a": A, "b": B}, one), one) == {"a": A, "b": B}
+
+    **klein4 (default — UNCHANGED).** The decouple is the reversible Klein-4 XOR bind
+    (native-dispatched to ``srmech_genome_partition`` — byte-identical to before).
+
+    **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc315).** The decouple is the Q₈ group
+    INVERSE (:func:`_quad_unturn` → :func:`_q8_uncouple_bytes`, itself native-accelerated
+    per turn via ``srmech_q8_bind``); the klein4-XOR ``srmech_genome_partition`` C peer is
+    NOT taken (it is the abelian binder), so a Q₈ strand rides the pure per-turn walk.
+    ``coupling`` must be the SAME Q₈ ``one`` (sectors=8) the strand was coupled with; the
+    recovered leaves are ``sectors=8`` (:data:`OCT`) HVs.
 
     §44: chromosomes are DISCOVERED by scanning inline CHROM caps — ``partition`` no
     longer needs the label set handed to it (the strand self-describes). ``labels``
@@ -4911,7 +4941,11 @@ def partition(strand, coupling, labels=None):
     # is the numpy-free fallback + parity oracle (and any non-uniform strand).
     dim = len(list(coupling))
     blocks = _leaf_blocks(strand)
-    if dim > 0 and blocks and all(len(b) == dim for b in blocks):
+    # §Q8: the native partition peer is the klein4 XOR binder — take it only for klein4;
+    # a Q₈ strand falls through to the pure walk (its per-turn Q₈ group-inverse decouple
+    # is itself native-accelerated via srmech_q8_bind, so genome-fully-in-C still holds).
+    if (element_type == ELEMENT_TYPE_KLEIN4
+            and dim > 0 and blocks and all(len(b) == dim for b in blocks)):
         native = _native.genome_partition_c(
             b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
         if native is not None:
@@ -4948,7 +4982,7 @@ def partition(strand, coupling, labels=None):
                                                 # skip, not a coupled data turn
                                                 # not data; flatten past it
         elif current is not None:
-            out[current].append(quad_turn(hv, coupling))   # reversible uncouple
+            out[current].append(_quad_unturn(hv, coupling, element_type=element_type))  # §Q8: decouple
     if labels is not None:
         return {label: out[label] for label in labels if label in out}
     return out
@@ -5473,7 +5507,8 @@ def kernel_to_graph(chroms, coupling, n_syms):
 
 
 def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
-                repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen", progress=None):
+                repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen", progress=None,
+                element_type=ELEMENT_TYPE_KLEIN4):
     """MINT an ALREADY-PACKED strand — splice a §95a interior CENTROMERE (``0x58``) into it
     at the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (§100 GAP 1 /
     PR#687 F1249).
@@ -5518,7 +5553,11 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
     the strand is empty, does not OPEN with a chromosome-boundary cap (pass a :func:`chromosome` /
     :func:`kernel_pack` / :func:`graph_to_kernel` strand, NOT raw leaves), or ALREADY carries a
     centromere (re-minting would double the anchor). Class A (the content-address orientation) ∘
-    Class C (the which-way) ∘ Class K (position = p:q). numpy-free; no ``abs()``."""
+    Class C (the which-way) ∘ Class K (position = p:q). numpy-free; no ``abs()``.
+
+    §Q8/rc315: pass ``element_type=ELEMENT_TYPE_Q8`` to MINT a Q₈ (substrate) strand — the
+    orientation-recall then uses the Q₈ group inverse (the klein4-XOR C peer is not taken);
+    the centromere splice is unchanged. Default stays klein4 (byte-identical)."""
     strand = list(strand)
     if not strand:
         raise ValueError("mint_strand: strand is empty — nothing to mint")
@@ -5563,7 +5602,12 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
     # (the split is a position, the orientation a content-address sector — no magnitude).
     raw_handle = handle.encode("utf-8") if isinstance(handle, str) else bytes(handle)
     blocks = _leaf_blocks(strand)
-    if (dim > 0 and blocks and b"\x00" not in raw_handle
+    # §Q8: the native mint_strand peer recalls via the klein4 XOR to derive the content-
+    # address orientation — take it only for klein4; a Q₈ strand falls through to the pure
+    # path so its orientation-recall uses the Q₈ group inverse (the centromere cap + the
+    # block splice are element-type-agnostic — a cap is sectors=256, the splice is concat).
+    if (element_type == ELEMENT_TYPE_KLEIN4
+            and dim > 0 and blocks and b"\x00" not in raw_handle
             and all(len(b) == dim for b in blocks)):
         native = _native.genome_mint_strand_c(
             b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling),
@@ -5575,8 +5619,9 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
         # Class A content-address → Class C chirality: sha256(the strand's OWN recovered leaves)
         # [0] & 3 — the SAME rule mint() assigns a nuclear chromosome (_mint_orientation), so the
         # which-way is deterministic + attested (no magic number). recall skips every cap, so this
-        # is the content the payload decode also sees.
-        orientation = _mint_orientation(recall(strand, coupling))
+        # is the content the payload decode also sees. §Q8: thread element_type so a Q₈ strand
+        # recalls with the group inverse (the orientation is the content-address of the TRUE leaves).
+        orientation = _mint_orientation(recall(strand, coupling, element_type=element_type))
     # Native-dispatched cap-writer (byte-identical C peer srmech_genome_centromere); the splice is
     # pure block concatenation, so the minted strand is byte-identical to a C-produced one.
     cen_cap = centromere(orientation, repeats=repeats, handle=handle, dim=dim)
@@ -8455,7 +8500,8 @@ def _plan_close_gene(plan, pending, end_pos, cell_state):
         plan.append((lbl, gstart, end_pos - gstart))
 
 
-def gene_express_plan(strand_or_path, coupling, cell_state):
+def gene_express_plan(strand_or_path, coupling, cell_state, *,
+                      element_type=ELEMENT_TYPE_KLEIN4):
     """The offset-only LOAD-PLAN for demand-loaded gene expression — §134/rc135
     (#1273, siona green-light; the #736 probe made shippable).
 
@@ -8511,11 +8557,15 @@ def gene_express_plan(strand_or_path, coupling, cell_state):
     #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; BOTH the STRAND plan and —
     #   as of §98/rc269 — the PATH demand-load plan read the chromatin OUTER gate: a condensed
     #   region is skipped at plan time on a single head-slot seek, never touching its gene gate.
-    #   §Q8/v16: gene gates are klein4 caps — a Q₈ DATA genome carries no genes, so this
-    #   klein4-stride plan reader is correct for every gene-bearing genome, unchanged by the bump)
+    #   §Q8/v16 (rc315): gene CAPS are klein4-form (leaf_dim bytes) in EVERY genome, but a Q₈
+    #   genome's DATA TURNS are the wider 3-bit v16 form. The STRAND plan SEEKS PAST data turns
+    #   to reach the next cap, so it MUST stride at this genome's real turn width — hence
+    #   element_type is threaded to it. (A Q₈ gene-bearing genome is first-class: Q3/Q4/Q5 gate
+    #   it. The PATH plan is element_type-agnostic — it uses STORED manifest byte_offsets and
+    #   reads only leaf_dim-byte gate caps, neither of which depends on the data-turn width.)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
         return _gene_express_plan_path(Path(strand_or_path), coupling, cell_state)
-    return _gene_express_plan_strand(strand_or_path, coupling, cell_state)
+    return _gene_express_plan_strand(strand_or_path, coupling, cell_state, element_type)
 
 
 def _gene_express_plan_path(path, coupling, cell_state):
@@ -8582,12 +8632,20 @@ def _plan_path_head_expresses(f, off, ln, leaf_dim, cell_state):
     return _gene_expresses(_hv_from_block(head_block), cell_state)
 
 
-def _gene_express_plan_strand(strand, coupling, cell_state):
+def _gene_express_plan_strand(strand, coupling, cell_state,
+                              element_type=ELEMENT_TYPE_KLEIN4):
     """STRAND variant (a): the in-memory skeleton-scan — walk the strand's blocks
     computing their ON-DISK byte spans, gate each gene by its cap, and delimit each
     EXPRESSED gene's byte-range. Never decodes a data-turn payload (seeks past it)."""
     leaf_dim = len(list(coupling))
-    turn_width = 1 + _packed_payload_len(leaf_dim)   # §55/v3 on-disk packed-turn width
+    # On-disk data-turn width is element_type-dependent: klein4 packs 4 symbols/byte
+    # (§55/v3 → 1 + ceil(leaf_dim/4)); Q₈ packs 3 bits/symbol (§Q8/v16 → 1 + ceil(leaf_dim*3/8),
+    # WIDER). The plan SEEKS PAST data turns to reach the next cap, so it must stride at THIS
+    # genome's real turn width or the emitted byte offsets drift — a Q₈ gene genome has klein4
+    # gene caps but Q₈ data turns (rc315).
+    turn_width = 1 + (_packed_payload_len_q8(leaf_dim)
+                      if element_type == ELEMENT_TYPE_Q8
+                      else _packed_payload_len(leaf_dim))   # §55/v3 or §Q8/v16 packed-turn width
     plan = []
     pos = 0
     pending = None                              # (label, cap_hv, gene_byte_start)
