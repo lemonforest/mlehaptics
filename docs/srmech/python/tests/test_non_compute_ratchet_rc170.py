@@ -292,11 +292,14 @@ _EXPECTED_SPLIT = {
     # nothing and reaches no ledger op, so it also carries a justified entry in
     # COMPOSES_C_ZERO_REACH_PINNED, the write_packed_graph accessor precedent).
     # composes_c 129 -> 130; total 201 -> 202.
-    "composes_c": 130,
+    # rc312 (§Q8/v16): +1 composes_c (genome.upgrade_v15_to_v16 — the v15->v16 on-disk
+    # migration op; a pure-Python manifest re-stamp that reaches C via sha256_bytes,
+    # sibling-consistent with genome_save/genome_catalog). composes_c 130 -> 131; total 202 -> 203.
+    "composes_c": 131,
     "host_glue": 21,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 202        # rc308 (#944): 201 -> 202, the hypercomplex_perspectives reader row above
+_TOTAL_NON_COMPUTE = 203        # rc312 (§Q8/v16): 202 -> 203, genome.upgrade_v15_to_v16 (rc308 #944: 201 -> 202)
 
 
 def _rows():
