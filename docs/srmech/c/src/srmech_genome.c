@@ -1864,6 +1864,33 @@ static srmech_status_t genome_strings_alloc(genome_strings_t *s,
     return SRMECH_OK;
 }
 
+/* Fold ONE non-opener block (marker `m`) into the current chromosome `cur` during
+ * the §44 scan: a §Q8/v16 packed turn (0x38) flags the carrier "q8"; an interior
+ * §95a centromere (0x58) marks the cap-kind nuclear; a DATA turn — anything that is
+ * NOT a GENE / regulatory / boolean / threshold / graded gene cap, a v5 kernel
+ * header, or an interior centromere/chromatin cap — increments the leaf count. */
+static void genome_scan_fold_block(genome_strings_t *s, unsigned char m, int32_t cur)
+{
+    assert(s != NULL);
+    assert(cur >= 0);
+    if (m == SRMECH_GENOME_Q8_PACKED_TURN_MARKER) {
+        s->carrier_q8 = 1u;                        /* §Q8/v16: a Q₈ turn → carrier "q8" */
+    }
+    if (m == SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
+        s->cap_kind[cur] = SRMECH_GENOME_CAP_KIND_NUCLEAR;   /* §96 nuclear wins */
+    }
+    if (m != SRMECH_GENOME_GENE_CAP_MARKER &&
+        m != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
+        m != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
+        m != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
+        m != SRMECH_GENOME_GRADED_GENE_MARKER &&
+        m != SRMECH_GENOME_KERNEL_HEADER_MARKER &&
+        m != SRMECH_GENOME_CHROMATIN_MARKER &&
+        m != SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
+        s->leaf_count[cur]++;                      /* §95a/§98: an interior cap, not a turn */
+    }
+}
+
 /* §44 SCAN: walk the self-describing body block-by-block (§55/v3 dual-format
  * walker — caps and legacy turns are leaf_dim bytes, packed turns 1 +
  * ceil(leaf_dim/4)) and derive every chromosome's (label, cap_sha256,
@@ -1907,25 +1934,9 @@ static srmech_status_t genome_scan_chroms(genome_strings_t *s,
                 ? SRMECH_GENOME_CAP_KIND_DIPLOID : SRMECH_GENOME_CAP_KIND_PLASMID;
         } else {
             if (cur < 0) { return SRMECH_ERR_BAD_INPUT; }   /* turn before 1st cap */
-            if (body[off] == SRMECH_GENOME_Q8_PACKED_TURN_MARKER) {
-                s->carrier_q8 = 1u;   /* §Q8/v16: a Q₈ turn → carrier "q8" */
-            }
-            if (body[off] == SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
-                s->cap_kind[cur] = SRMECH_GENOME_CAP_KIND_NUCLEAR;  /* §96 nuclear wins */
-            }
-            /* §60/§128/§130/§131/§132: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
-             * threshold 0x77 / graded 0x64) or a v5 KERNEL HEADER (0x4B) is not a data turn. The
-             * §89 v6 Klein-4 header IS a coupled turn (counted). */
-            if (body[off] != SRMECH_GENOME_GENE_CAP_MARKER &&
-                body[off] != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
-                body[off] != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
-                body[off] != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
-                body[off] != SRMECH_GENOME_GRADED_GENE_MARKER &&
-                body[off] != SRMECH_GENOME_KERNEL_HEADER_MARKER &&
-                body[off] != SRMECH_GENOME_CHROMATIN_MARKER &&
-                body[off] != SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
-                s->leaf_count[cur]++;                 /* §95a centromere / §98 chromatin: a cap, not a turn */
-            }
+            /* §55/v3 + §Q8/v16 + §96: fold the non-opener block (carrier flag,
+             * cap-kind, data-turn count) — extracted to keep this scan ≤60 (JPL R4). */
+            genome_scan_fold_block(s, body[off], cur);
         }
         s->byte_len[cur] += (uint32_t)blen;
         off += blen;
