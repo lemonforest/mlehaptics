@@ -4059,6 +4059,25 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32,
             ]
             lib.srmech_genome_cwf_consistency_mod2_arena_bytes.restype = ctypes.c_size_t
+        # rc314 — the CODON READ-LAYER whole-op C peers. Pure reads; ADDITIVE
+        # symbols only, no new typedef -> EXPECTED_ABI_VERSION stays 10 and
+        # GENOME_FORMAT_VERSION stays 16 (a read changes no on-disk format).
+        if hasattr(lib, "srmech_genome_codon_read"):
+            lib.srmech_genome_codon_read.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),     # strand (n Q8 base symbols)
+                ctypes.c_uint32,                    # n
+                ctypes.c_uint32,                    # phase in {0,1,2}
+                ctypes.POINTER(ctypes.c_uint8),     # ncbieaa (64 amino-acid bytes)
+                ctypes.POINTER(ctypes.c_uint8),     # out (>= n/3 bytes)
+                ctypes.POINTER(ctypes.c_uint32),    # out_len (codon count)
+            ]
+            lib.srmech_genome_codon_read.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_codon_frame_monodromy"):
+            lib.srmech_genome_codon_frame_monodromy.argtypes = [
+                ctypes.c_uint32,                    # n
+                ctypes.POINTER(ctypes.c_uint32),    # out (n mod 3)
+            ]
+            lib.srmech_genome_codon_frame_monodromy.restype = ctypes.c_int
         # rc296 — the PAL read-path OPEN COUNTER. Diagnostic-only instrumentation
         # (no op depends on it, nothing branches on it) that makes the COMPILED
         # projection's I/O shape measurable from a test. Python's builtins.open /

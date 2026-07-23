@@ -278,6 +278,8 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     ),
     'srmech.amsc.genome.amplify': ('srmech_genome_amplify',),
     'srmech.amsc.genome.centromere': ('srmech_genome_centromere',),
+    'srmech.amsc.genome.codon_frame_monodromy': ('srmech_genome_codon_frame_monodromy',),
+    'srmech.amsc.genome.codon_read': ('srmech_genome_codon_read',),
     'srmech.amsc.genome.copy_number_of': ('srmech_genome_copy_number',),
     'srmech.amsc.genome.cwf_consistency_mod2': (
         'srmech_genome_cwf_consistency_mod2',

@@ -7090,3 +7090,51 @@ srmech_status_t srmech_genome_copy_number(
     *count_out = (stored >= 1u) ? stored : 1u;   /* stored 0 (plain / pre-rc273) -> 1 */
     return SRMECH_OK;
 }
+
+/* rc314 — the CODON READ-LAYER whole-op C peers. Biology reads the genome in
+ * CODONS (triplets); the ribosome IMPOSES that reading over the stored strand.
+ * PURE READS: no store, no on-disk format change (GENOME_FORMAT_VERSION stays
+ * 16). No float, no libm, no abs() — the base-4 codon index is exact Class-I
+ * integer arithmetic and the amino-acid lookup is a Class-E dense catalog read.
+ * ABI-additive: two new symbols only, so SRMECH_ABI_VERSION stays 10. */
+
+srmech_status_t srmech_genome_codon_read(const uint8_t *strand, uint32_t n,
+                                         uint32_t phase, const uint8_t *ncbieaa,
+                                         uint8_t *out, uint32_t *out_len)
+{
+    if (strand == NULL || ncbieaa == NULL || out == NULL || out_len == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (phase > 2u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(ncbieaa != NULL);
+    assert(out != NULL && out_len != NULL);
+    uint32_t k = 0u;
+    /* q8_project_v4 FIRST (& 3): the sign bit must not touch identity. Then the
+     * base-4 window read (coset 0->U/T, 1->C, 2->A, 3->G) indexes the attested
+     * NCBI transl_table=1 amino-acid string. */
+    for (uint32_t i = phase; i + 3u <= n; i += 3u) {
+        uint32_t b0 = (uint32_t)(strand[i] & 3u);
+        uint32_t b1 = (uint32_t)(strand[i + 1u] & 3u);
+        uint32_t b2 = (uint32_t)(strand[i + 2u] & 3u);
+        uint32_t idx = 16u * b0 + 4u * b1 + b2;   /* base-4 codon index [0,64) */
+        assert(idx < 64u);
+        out[k] = ncbieaa[idx];                    /* Class-E dense catalog read */
+        k += 1u;
+    }
+    *out_len = k;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_codon_frame_monodromy(uint32_t n, uint32_t *out)
+{
+    if (out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    /* V4 projection preserves length, so the Z3 monodromy is just n mod 3. */
+    *out = n % 3u;
+    assert(*out < 3u);
+    return SRMECH_OK;
+}

@@ -3430,6 +3430,21 @@ def _register_primitive_class_tools() -> None:
                         P("closed", "bool", False, "keyword-only; forwarded to discrete_writhe (default True)")),
             returns=R("dict", "{lk_mod2 (0/1 or None if non-central), lk_center_parity (+1/-1/0), tw_mod2, wr:(num,den) or None, wr_mod2 or None, consistent (bool or None), note}"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.codon_read", owner="srmech", category="genome",
+            summary="rc314 — the CODON READ-LAYER. Biology reads the genome in CODONS (triplets — the genetic code), and that is a READING PROCESS the ribosome IMPOSES over the stored strand, not stored substrate — so this is a PURE READ (stores nothing, changes no format; GENOME_FORMAT_VERSION stays 16, additive). q8_project_v4 is applied FIRST (biology reads 4 BASES, not 8 signed states — the winding/center SIGN BIT must NOT leak into amino-acid identity: a Q8 strand with nonzero winding and its V4-projection give BYTE-IDENTICAL codons). Then a 3-slot window slides from the reading-frame offset phase in {0,1,2}, forming a base-4 codon index i = 16*b0 + 4*b1 + b2 in [0,64) over the 3 projected symbols (coset 0->U/T, 1->C, 2->A, 3->G, so i is IDENTICAL to the NCBI transl_table=1 index), and a Class-E dense-catalog lookup i -> amino acid against the ATTESTED Standard Genetic Code (NCBI translation table 1; Elzanowski & Ostell, The Genetic Codes, NCBI; ncbieaa cross-verified byte-identical across wprintgc.cgi + gc.prt; resource DOI 10.1093/database/baaa062, open access) shipped as the MPR-attested datum srmech/amsc/attested/genetic_code/ — NEVER an inline invented dict. '*' denotes a stop. The reading-frame phase is a genuine cyclic C3 (Class I), DISTINCT from klein4_triality_cycle (the base-axis automorphism) and from the winding Lk (cwf_consistency_mod2; the sign bit). Class I (q8_project_v4 + Z3 frame) . Class E (codon catalog). Dispatches to the whole-op C peer srmech_genome_codon_read (c_dispatched, genome-fully-in-C; byte-identical pure fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10, GENOME_FORMAT_VERSION stays 16.",
+            parameters=(P("strand", "list", True, "a 1-D sequence of Q8 base symbols (bytes / bytearray / list / tuple of ints in [0,8); V4 symbols in [0,4) are the sign-free case), or an HV (read via tobytes)"),
+                        P("phase", "int", False, "the reading-frame offset in {0,1,2} (the C3 phase); default 0"),
+                        P("with_indices", "bool", False, "keyword-only; if True also return the raw codon indices"),
+                        P("stop_at_stop", "bool", False, "keyword-only; if True stop reading at the first stop codon (inclusive)")),
+            returns=R("str", "the amino-acid string (one char per codon; '*' = stop), or (amino_acids, codon_indices) when with_indices"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.codon_frame_monodromy", owner="srmech", category="genome",
+            summary="rc314 — the Z3 reading-frame MONODROMY of a CIRCULAR strand: going once around shifts the reading frame phi -> phi + L (mod 3), where L is the number of base symbols; returns L mod 3. A REAL Z3 invariant, DISTINCT from klein4_triality_cycle (the base-axis automorphism) and from the winding Lk (cwf_consistency_mod2; the sign bit) — there is NO codon copy of the integer Lk (the codon layer is frame topology in Z3, the winding lives in the sign bit). When L mod 3 == 0 the frame CLOSES on a clean loop (a circular ORF reads in one consistent frame); otherwise a single lap advances the frame by 1 or 2 (the monodromy is additive around laps). Class I (cyclic Z3). A pure read; stores nothing. q8_project_v4 is applied so L counts sign-free BASE symbols (projection preserves length). Dispatches to the whole-op C peer srmech_genome_codon_frame_monodromy (c_dispatched, genome-fully-in-C; byte-identical pure fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10.",
+            parameters=(P("strand", "list", True, "a 1-D sequence of Q8 base symbols (see codon_read), or an HV"),),
+            returns=R("int", "L mod 3 in {0,1,2} — the reading-frame shift accrued per lap around the circular strand"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

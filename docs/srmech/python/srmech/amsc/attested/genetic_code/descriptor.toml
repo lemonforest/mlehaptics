@@ -1,0 +1,60 @@
+# genetic_code - the Standard Genetic Code (NCBI translation table 1) as an
+# MPR-attested AMSC datum. The 64 -> 20(+stop) codon->amino-acid table read by
+# the codon read-layer (srmech.amsc.genome.codon_read / codon_frame_monodromy,
+# rc314). Biology reads the genome in CODONS (triplets); that reading is a
+# PROCESS the ribosome imposes over the stored strand, not stored substrate --
+# so the table is attested reference data, never an inline invented dict.
+#
+# PROVENANCE (per [[feedback_pdf_extraction_citation_discipline]] +
+# [[feedback_paywalled_doi_cannot_be_attested]]):
+#
+# - The amino-acid assignment string (ncbieaa) was cross-verified BYTE-IDENTICAL
+#   across two independent NCBI-derived sources: the NCBI wprintgc.cgi page
+#   (mode=t, transl_table=1) and the NCBI gc.prt data file. The Standard Code is
+#   public-domain biological fact (a U.S. Government / NCBI work).
+# - source_doi 10.1093/database/baaa062 (Schoch et al. 2020, "NCBI Taxonomy: a
+#   comprehensive update on curation, resources and tools", Database (Oxford)
+#   2020:baaa062) is the peer-reviewed OPEN-ACCESS (CC-BY; PMC7408187) citation
+#   for the NCBI Taxonomy resource that hosts the genetic-code tables. It is an
+#   OA DOI, not a paywalled one -- admissible framework attestation.
+# - The compiling reference is A. Elzanowski and J. Ostell, "The Genetic Codes"
+#   (NCBI, last update 2024-09-23), the canonical resource for translation
+#   table 1; source_url points at it.
+
+[source]
+key = "genetic_code"
+human_readable_name = "The Standard Genetic Code (NCBI translation table 1; Elzanowski and Ostell, The Genetic Codes) - 64 -> 20(+stop) codon->amino-acid table for the srmech codon read-layer (rc314)"
+purpose = "MPR-attested reference datum for the 64-codon Standard Genetic Code (NCBI transl_table=1); the Class-E catalog the codon read-layer looks codons up against. The amino-acid string is public-domain biological fact, cross-verified byte-identical across NCBI wprintgc.cgi and gc.prt."
+license = "Public Domain (NCBI genetic-code tables are a U.S. Government / NCBI work; the codon assignments are biological fact in the public domain)"
+homepage = "https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi"
+canonical_doi = "10.1093/database/baaa062"
+
+[fetch]
+adapter = "literature_curated"
+ndjson_path = "row.ndjson"
+
+[parse]
+require_per_row_source_doi = true
+
+[schema]
+data_schema_id = "genetic_code.transl_table_1.row.v1"
+data_schema_path = "row.schema.json"
+
+[rendering]
+cite_as_template = "Standard Genetic Code (NCBI translation table 1; Elzanowski A, Ostell J, The Genetic Codes, NCBI). Resource citation: Schoch et al. 2020, Database (Oxford) 2020:baaa062, doi:10.1093/database/baaa062. Retrieved {retrieved_at:%Y-%m-%d}."
+purpose_template = "the {schema.name} genetic code (NCBI transl_table={schema.transl_table_id}); 64 codons -> 20 amino acids + stop"
+
+[attestation]
+hash_response = true
+hash_algorithm = "sha256"
+required_fields = [
+    "source_doi",
+    "source_url",
+    "license",
+    "retrieved_at",
+    "response_sha256",
+    "parser_version",
+    "parser_rule_hash",
+    "collector_descriptor_path",
+    "collector_descriptor_hash",
+]

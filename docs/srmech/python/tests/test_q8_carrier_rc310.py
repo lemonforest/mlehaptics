@@ -248,7 +248,7 @@ def test_buffer_rejects_non_q8_byte():
 # =====================================================================
 def test_registration_ratchet():
     import srmech
-    assert srmech.describe()["tools"]["total"] == 488
+    assert srmech.describe()["tools"]["total"] == 490
     for name in ("q8_mult", "q8_conjugate", "q8_bind", "q8_project_v4"):
         assert name in q8.__all__
 
