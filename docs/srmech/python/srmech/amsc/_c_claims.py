@@ -329,7 +329,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_genome_save',
         'srmech_json_write_ws',
     ),
-    'srmech.amsc.genome.recover_diploid': ('srmech_genome_recover_diploid',),
+    'srmech.amsc.genome.recover_diploid': (
+        'srmech_genome_recover_diploid',
+        'srmech_genome_recover_diploid_q8',
+    ),
     'srmech.amsc.genome.telomere': ('srmech_genome_telomere',),
     'srmech.amsc.genome.telomere_tick': (
         'srmech_genome_arena_bytes',

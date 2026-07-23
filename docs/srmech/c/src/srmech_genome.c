@@ -1235,6 +1235,140 @@ srmech_status_t srmech_genome_recover_diploid(const unsigned char *strand, size_
     return SRMECH_OK;
 }
 
+/* §Q8/rc311 — decouple one STORED Q8 turn back to its leaf: out[i] = q8_mult(stored[i],
+ * q8_conjugate(one[i])) — the Q8 group INVERSE (Q8 is NON-abelian, so NOT a second bind; it
+ * rests on srmech_q8_mult(a, srmech_q8_conjugate(a)) == 0). The RIGHT-coupling SIDE is a HARD
+ * ASSERTION: re-coupling the result recovers `stored` (q8_mult(out[i], one[i]) == stored[i]) —
+ * a wrong side would fail HERE, loudly (mirror of the Python _q8_side_ok guard). A non-Q8 byte
+ * (>= 8) returns BAD_INPUT so the caller falls back to the pure path (never an assert-abort).
+ * No malloc/goto/abs/float. */
+static srmech_status_t genome_q8_uncouple(const unsigned char *stored,
+                                          const unsigned char *one,
+                                          uint32_t leaf_dim, unsigned char *out)
+{
+    assert(stored != NULL && one != NULL && out != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    for (uint32_t i = 0; i < leaf_dim; i++) {
+        if (stored[i] >= 8u || one[i] >= 8u) { return SRMECH_ERR_BAD_INPUT; }
+        unsigned char rec = srmech_q8_mult(stored[i], srmech_q8_conjugate(one[i]));
+        assert(srmech_q8_mult(rec, one[i]) == stored[i]);   /* right-coupling side pin */
+        out[i] = rec;
+    }
+    return SRMECH_OK;
+}
+
+/* §Q8/rc311 — the Q8 element-type recall: walk the blocks, skip every cap, and DECOUPLE each
+ * Q8 data turn by the group inverse (genome_q8_uncouple) instead of the reversible klein4 XOR.
+ * BYTE-IDENTICAL to recall(strand, coupling, element_type=ELEMENT_TYPE_Q8). A distinct symbol
+ * from srmech_genome_recall (klein4), so ABI stays 10. No malloc/goto/abs/float. */
+srmech_status_t srmech_genome_recall_q8(const unsigned char *strand,
+                                        size_t n_blocks, uint32_t leaf_dim,
+                                        const unsigned char *coupling,
+                                        unsigned char *out, size_t out_cap,
+                                        size_t *n_leaves_out)
+{
+    if (strand == NULL || coupling == NULL || out == NULL ||
+        n_leaves_out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && coupling != NULL);
+    assert(out != NULL && n_leaves_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    size_t count = 0u;
+    for (size_t i = 0; i < n_blocks; i++) {
+        const unsigned char *block = strand + i * (size_t)leaf_dim;
+        if (genome_cap_kind(block, leaf_dim) >= 0) { continue; }   /* skip caps */
+        size_t off = count * (size_t)leaf_dim;
+        if (off + (size_t)leaf_dim > out_cap) { return SRMECH_ERR_OVERFLOW; }
+        srmech_status_t st = genome_q8_uncouple(block, coupling, leaf_dim,
+                                                out + off);
+        if (st != SRMECH_OK) { return st; }
+        count++;
+    }
+    *n_leaves_out = count;
+    return SRMECH_OK;
+}
+
+/* §Q8/rc311 — the per-leaf diploid EC for the Q8 path: the SAME two-copy + mark logic as
+ * genome_diploid_ec_leaf, but the survivor decouple is the Q8 group inverse
+ * (genome_q8_uncouple). The full-leaf memcmp is bit-width-agnostic, so it resolves a lone Q8
+ * SIGN-bit disagreement (the NEW 3rd bit) through the SAME mark tiebreak it uses for a 2-bit V4
+ * one. Erasure is read on the stored TURN (§95.4). No float/abs. */
+static srmech_status_t genome_q8_ec_leaf(const unsigned char *a_turn,
+                                         const unsigned char *b_turn,
+                                         const unsigned char *coupling,
+                                         uint32_t leaf_dim, unsigned int which,
+                                         unsigned char *out)
+{
+    assert(a_turn != NULL && b_turn != NULL && coupling != NULL && out != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    int a_erased = 1, b_erased = 1;
+    for (uint32_t k = 0; k < leaf_dim; k++) {
+        if (a_turn[k] != 0u) { a_erased = 0; }
+        if (b_turn[k] != 0u) { b_erased = 0; }
+    }
+    if (a_erased != 0 && b_erased == 0) {                /* erasure -> heal from intact B */
+        return genome_q8_uncouple(b_turn, coupling, leaf_dim, out);
+    }
+    if (b_erased != 0 && a_erased == 0) {                /* erasure -> heal from intact A */
+        return genome_q8_uncouple(a_turn, coupling, leaf_dim, out);
+    }
+    unsigned char a[256], b[256];                        /* both present: decouple + compare */
+    srmech_status_t st = genome_q8_uncouple(a_turn, coupling, leaf_dim, a);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_q8_uncouple(b_turn, coupling, leaf_dim, b);
+    if (st != SRMECH_OK) { return st; }
+    const unsigned char *pick = (memcmp(a, b, (size_t)leaf_dim) == 0)
+                                    ? a : ((which != 0u) ? b : a);
+    memcpy(out, pick, (size_t)leaf_dim);
+    return SRMECH_OK;
+}
+
+/* §Q8/rc311 — the Q8 element-type diploid recover: the SAME split-at-centromere + two-copy EC
+ * as srmech_genome_recover_diploid, decoupling each Q8 turn by the group inverse
+ * (genome_q8_ec_leaf). BYTE-IDENTICAL to recover_diploid(..., element_type=ELEMENT_TYPE_Q8). A
+ * distinct symbol from the klein4 peer, so ABI stays 10. No malloc/goto/abs/float. */
+srmech_status_t srmech_genome_recover_diploid_q8(const unsigned char *strand, size_t n_blocks,
+                                                 uint32_t leaf_dim,
+                                                 const unsigned char *coupling,
+                                                 unsigned char *out, size_t out_cap,
+                                                 size_t *n_out)
+{
+    if (strand == NULL || coupling == NULL || out == NULL || n_out == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && coupling != NULL);
+    assert(out != NULL && n_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u || n_blocks == 0u ||
+        strand[0] != SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t cen_idx = 0u, n_before = 0u, n_turns = 0u;
+    int have_cen = 0;
+    for (size_t i = 0; i < n_blocks; i++) {
+        int kind = genome_cap_kind(strand + i * (size_t)leaf_dim, leaf_dim);
+        if (kind == (int)SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
+            cen_idx = i; have_cen = 1; n_before = n_turns;
+        } else if (kind < 0) { n_turns++; }
+    }
+    if (have_cen == 0 || 2u * n_before != n_turns) { return SRMECH_ERR_BAD_INPUT; }
+    unsigned char o = 0u;
+    srmech_status_t st = genome_centromere_orientation(
+        strand + cen_idx * (size_t)leaf_dim, leaf_dim, &o);
+    if (st != SRMECH_OK) { return st; }
+    unsigned int which = (unsigned int)(o & 1u);
+    if (n_before > out_cap / (size_t)leaf_dim) { return SRMECH_ERR_OVERFLOW; }
+    for (size_t j = 0; j < n_before; j++) {
+        /* pass the STORED turns (pre-decouple) — erasure is read on the turn (§95.4) */
+        st = genome_q8_ec_leaf(strand + (1u + j) * (size_t)leaf_dim,
+                               strand + (cen_idx + 1u + j) * (size_t)leaf_dim,
+                               coupling, leaf_dim, which, out + j * (size_t)leaf_dim);
+        if (st != SRMECH_OK) { return st; }
+    }
+    *n_out = n_before;
+    return SRMECH_OK;
+}
+
 /* §98/v15 (rc268, #1422) — write a uint64 BIG-ENDIAN into out[0..8): the chromatin cap's
  * num/den accessibility-level fields. No abs (a level numerator/denominator is never negated). */
 static void genome_put_u64_be(unsigned char *out, uint64_t v)

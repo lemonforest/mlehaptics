@@ -58,6 +58,8 @@ from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
 from srmech.amsc.hdc import klein4_bind as _klein4_bind
 from srmech.amsc.hdc import klein4_expand as _klein4_expand
 from srmech.amsc.hv import HV as _HV
+from srmech.amsc.q8 import q8_bind as _q8_bind
+from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
 from srmech.amsc.tlv import tlv_pack as _tlv_pack
 from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
@@ -98,7 +100,7 @@ __all__ = [
     "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF", "GATE_TYPE_THRESHOLD",
     "GATE_TYPE_GRADED",
     "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
-    "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
+    "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4", "ELEMENT_TYPE_Q8",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
     "CHROMATIN_GATE_THRESHOLD",
@@ -661,7 +663,17 @@ _PHASE_MINTING = _native.SRMECH_PHASE_MINTING
 #: size-agnostic discipline — the header carries the type, so the reader never
 #: assumes one). A header-less body defaults to :data:`ELEMENT_TYPE_KLEIN4`.
 ELEMENT_TYPE_KLEIN4 = 0
-_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4"}
+#: §Q8 (rc311) — the DISCRETE quaternion group ``Q₈ = {±1, ±i, ±j, ±k}`` element type: a
+#: 3-bit symbol ``(sign_bit << 2) | v4_coset`` (:mod:`srmech.amsc.q8`), the NON-abelian
+#: central extension ``1 → Z₂ → Q₈ → V4 → 1`` of the Klein-4 coset. Its coupling is the
+#: Q₈ group product (:func:`quad_turn` right-couple), non-involutive — decoupled by the
+#: Class-C conjugate (group inverse), NOT the XOR self-inverse. Data turns are ``sectors=8``
+#: (:data:`OCT`) HVs (klein4 stays ``sectors=4``). Coexists with the klein4 path with NO
+#: GENOME_FORMAT_VERSION bump (the size-agnostic header discipline — the reader is told the
+#: type; a header-less body still defaults to :data:`ELEMENT_TYPE_KLEIN4`). The §55 8-sector
+#: packer + the format bump land in rc312.
+ELEMENT_TYPE_Q8 = 1
+_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8"}
 _ELEMENT_TYPE_CODES = {name: code for code, name in _ELEMENT_TYPE_NAMES.items()}
 
 #: §60 kernel-header fixed prefix layout (bytes; NUL-padded to ``leaf_dim``):
@@ -697,6 +709,10 @@ _KERNEL_HEADER_KLEIN4_SYMS = _KH4_D_SYMS + _KH4_LEAFDIM_SYMS + _KH4_ETYPE_SYMS  
 LEAF_CAP = 256
 #: The Klein-4 order (Z2 x Z2) — the biaxial "+" / the 4 chirality sectors (F130/F233).
 QUAD = 4
+#: §Q8 (rc311) — the Q₈ carrier order: 8 = the 4 Klein-4 cosets × the ±1 center sign (the
+#: 3-bit ``{0..7}`` symbol). A Q8 data turn is a ``sectors=8`` HV; the extra bit over
+#: :data:`QUAD` is the over/under-winding sign the abelian klein4 coset cannot carry.
+OCT = 8
 #: One quad-turn spans the 4 Klein-4 sectors of leaves: 1024 = 4 x 256 (F713).
 MOBIUS_CAP = LEAF_CAP * QUAD
 
@@ -749,25 +765,104 @@ def encode_shape(n: int) -> Dict[str, object]:
     return {"n": n, "shape": shape, "leaves": leaves, "depth": depth, "leaf_cap": LEAF_CAP}
 
 
-def quad_turn(turn, coupling):
+def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Couple one helix turn through ``coupling`` — the genome's turn operation (F713).
 
-    The turn is bound to ``coupling`` (the held invariant) by the **reversible**
-    Klein-4 bind (``V4 = (F2)^2`` XOR, so ``quad_turn(quad_turn(t, one), one) ==
-    t``): the duality held WITHOUT collapse, numpy-free. ``coupling`` is the shared
-    invariant present in every turn's coupling — so a chromosome navigates across
-    its turns through ``coupling`` and recovers any turn by re-binding it.
+    **klein4 (``element_type=ELEMENT_TYPE_KLEIN4``, the default — UNCHANGED).** The turn
+    is bound to ``coupling`` (the held invariant) by the **reversible** Klein-4 bind
+    (``V4 = (F2)^2`` XOR, so ``quad_turn(quad_turn(t, one), one) == t``): the duality held
+    WITHOUT collapse, numpy-free. ``coupling`` is the shared invariant present in every
+    turn — so a chromosome navigates across its turns through ``coupling`` and recovers any
+    turn by re-binding it. ``turn`` / ``coupling`` are Klein-4 vectors (``sectors=4``, e.g.
+    from :func:`srmech.amsc.hdc.klein4_from_one`); returns the coupled turn.
 
-    ``turn`` and ``coupling`` are Klein-4 vectors (e.g. from
-    :func:`srmech.amsc.hdc.klein4_from_one`); returns the coupled turn (a Klein-4
-    ``HV``). Class-M (bind) ∘ Class-C (the chirality the Klein-4 sectors carry).
+    **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc311).** The turn is RIGHT-coupled by the
+    Q₈ group product — ``stored[i] = q8_mult(turn[i], one[i])`` per slot (:func:`q8_bind`).
+    Q₈ is NON-abelian, so this is NOT a self-inverse: :func:`recall` decouples with the
+    Class-C conjugate (group inverse), not a second bind. Because a wrong coupling SIDE
+    corrupts silently (there is no round-trip error to catch it downstream), the side is a
+    HARD RUNTIME ASSERTION here (:func:`_q8_side_ok`), not a doc note. ``turn`` / ``coupling``
+    are Q₈ vectors (``sectors=8`` = :data:`OCT`, bytes ``0..7``).
 
-    Each turn sits in the native 4-sector biaxial "+"
-    (:func:`srmech.amsc.cascade.parallel_sector_dispatch`, CAP=4); that dispatch
-    and the base-4 leaf addressing assemble at the chromosome level. Per the F712
-    caveat the 4-way is ONE chirality level, the deeper tree is radix addressing.
+    Class-M (bind) ∘ Class-C (the chirality the sectors carry). Each turn sits in the native
+    4-sector biaxial "+" (:func:`srmech.amsc.cascade.parallel_sector_dispatch`, CAP=4); that
+    dispatch and base-4 leaf addressing assemble at the chromosome level.
     """
-    return _klein4_bind(turn, coupling)
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        return _klein4_bind(turn, coupling)
+    if element_type == ELEMENT_TYPE_Q8:
+        return _q8_couple(turn, coupling)
+    raise ValueError(
+        f"quad_turn: unknown element_type {element_type!r}; declared types are "
+        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+
+
+def _hv_bytes(x):
+    """The raw ``bytes`` of an HV / bytes-like turn (numpy-free; the Q8 ops consume a
+    flat byte buffer). Class-B byte-canonicalisation, no float."""
+    return x.tobytes() if isinstance(x, _HV) else bytes(x)
+
+
+def _q8_conj_buffer(one_bytes):
+    """The per-slot Q₈ conjugate (group inverse) of a coupling buffer — ``conj(one)[i] =
+    q8_conjugate(one[i])`` (Class-C chirality; a sign-bit flip on the imaginary cosets, NO
+    ``abs()``). The right-inverse the Q8 decouple binds against."""
+    return bytes(_q8_conjugate(o) for o in one_bytes)
+
+
+def _q8_uncouple_bytes(stored_bytes, one_bytes):
+    """Right-inverse Q₈ decouple on raw bytes: ``recovered[i] = q8_mult(stored[i],
+    q8_conjugate(one[i]))`` = ``q8_bind(stored, conj(one))``. Rests on the group law
+    ``q8_mult(a, q8_conjugate(a)) == 0`` (0 = identity; verified rc310), so a RIGHT-coupled
+    ``stored = q8_mult(turn, one)`` decouples exactly to ``turn`` (associativity). Class-M
+    (bind) ∘ Class-C (conjugate)."""
+    return _q8_bind(stored_bytes, _q8_conj_buffer(one_bytes))
+
+
+def _q8_side_ok(stored_bytes, turn_bytes, one_bytes):
+    """The Q₈ coupling-SIDE invariant, as a fireable predicate: True iff the module's
+    RIGHT-conjugate decouple inverts ``stored`` back to ``turn``. RIGHT-coupling
+    (``stored = q8_mult(turn, one)``) satisfies it; a LEFT-coupled ``stored =
+    q8_mult(one, turn)`` does NOT (Q₈ is non-abelian), so :func:`quad_turn` asserts this
+    and a wrong side FAILS LOUDLY instead of corrupting silently. Class-K exact byte
+    compare, no float/abs."""
+    return bytes(_q8_uncouple_bytes(stored_bytes, one_bytes)) == bytes(turn_bytes)
+
+
+def _q8_couple(turn, coupling):
+    """Right-couple one Q₈ turn: ``stored[i] = q8_mult(turn[i], one[i])`` (:func:`q8_bind`,
+    the Q₈ group product, NON-abelian). Returns a ``sectors=8`` (:data:`OCT`) HV. The
+    coupling SIDE is a HARD runtime assertion (:func:`_q8_side_ok`) — Q₈ has no self-inverse
+    safety net, so a left-side couple would round-trip WRONG with no downstream error; the
+    assert pins couple↔uncouple on the SAME (right) side. Class-M ∘ Class-C."""
+    turn_bytes = _hv_bytes(turn)
+    one_bytes = _hv_bytes(coupling)
+    stored = _q8_bind(turn_bytes, one_bytes)          # right: turn · one, per slot
+    assert _q8_side_ok(stored, turn_bytes, one_bytes), (
+        "q8 couple side error: the right-conjugate decouple does not invert the stored "
+        "turn — couple and uncouple are on opposite sides (Q₈ is non-abelian; §Q8)")
+    return _HV.from_sequence(stored, sectors=OCT)
+
+
+def _quad_unturn(hv, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
+    """Uncouple one STORED turn back to its leaf — the direction-aware inverse of
+    :func:`quad_turn`.
+
+    **klein4 (default — UNCHANGED).** The SAME reversible Klein-4 XOR bind
+    (``_klein4_bind`` is an involution, so uncouple == couple); byte-identical to the
+    shipped :func:`recall` / :func:`recover_diploid` path.
+
+    **Q8 (§Q8 / rc311).** The Q₈ group-INVERSE decouple (:func:`_q8_uncouple_bytes`) — Q₈ is
+    non-abelian so uncouple ≠ couple; ``recovered[i] = q8_mult(stored[i], conj(one[i]))``.
+    Returns a ``sectors=8`` (:data:`OCT`) HV."""
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        return _klein4_bind(hv, coupling)             # involution — identical to shipped path
+    if element_type == ELEMENT_TYPE_Q8:
+        return _HV.from_sequence(
+            _q8_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)), sectors=OCT)
+    raise ValueError(
+        f"_quad_unturn: unknown element_type {element_type!r}; declared types are "
+        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
 
 
 def _pack_cap(marker, label, dim):
@@ -1750,33 +1845,40 @@ def _leaf_is_erased(leaf_syms):
     return all(int(s) == 0 for s in leaf_syms)
 
 
-def _diploid_ec_leaf(a_turn, b_turn, which, coupling):
+def _diploid_ec_leaf(a_turn, b_turn, which, coupling, *,
+                     element_type=ELEMENT_TYPE_KLEIN4):
     """The per-leaf diploid EC read (§95b / F1244; §95.4 erasure-symmetry fix): exactly one
     ERASED (a detectable break) → fill from the intact homolog (the diploid specialist — 2×
     not 3×); both present + agree → use it; both present but DISAGREE (a substitution) → trust
     the centromere which-template mark.
 
-    ``a_turn``/``b_turn`` are the two STORED homolog TURNS (the on-disk Klein-4 HVs, PRE-
-    decouple); ``coupling`` the shared invariant; ``which`` the mark parity (0 = trust copyA,
-    1 = trust copyB). **Erasure is read on the stored TURN, not the decoupled leaf** — a double-
-    strand break zeros the stored turn, and a zeroed turn decouples to a NON-zero leaf, so the
-    all-zero erasure sentinel MUST be tested before :func:`quad_turn` (the §95.4 bug: testing
-    the decoupled leaf detected NO erasure, so a copyA break healed only by substitution-
-    tiebreak luck — asymmetric). Class-K sector compare, no float/abs."""
+    ``a_turn``/``b_turn`` are the two STORED homolog TURNS (the on-disk HVs, PRE-decouple);
+    ``coupling`` the shared invariant; ``which`` the mark parity (0 = trust copyA, 1 = trust
+    copyB). **Erasure is read on the stored TURN, not the decoupled leaf** — a double-strand
+    break zeros the stored turn, and a zeroed turn decouples to a NON-zero leaf, so the
+    all-zero erasure sentinel MUST be tested before the decouple (the §95.4 bug: testing the
+    decoupled leaf detected NO erasure, so a copyA break healed only by substitution-tiebreak
+    luck — asymmetric). Class-K sector compare, no float/abs.
+
+    §Q8 (rc311): the compare + tiebreak are FULL-symbol (``list(a) == list(b)``), so they are
+    bit-width-agnostic — a lone Q₈ SIGN-bit disagreement (the NEW 3rd bit) is a whole-leaf
+    disagreement and resolves through the SAME mark tiebreak as a 2-bit V4 coset one. The
+    decouple is the element-typed inverse (:func:`_quad_unturn` — klein4 XOR / Q8 conjugate)."""
     a_erased = _leaf_is_erased(list(a_turn))
     b_erased = _leaf_is_erased(list(b_turn))
     if a_erased and not b_erased:
-        return quad_turn(b_turn, coupling)              # fill from the intact homolog (erasure)
+        return _quad_unturn(b_turn, coupling, element_type=element_type)   # intact homolog
     if b_erased and not a_erased:
-        return quad_turn(a_turn, coupling)
-    a, b = quad_turn(a_turn, coupling), quad_turn(b_turn, coupling)
+        return _quad_unturn(a_turn, coupling, element_type=element_type)
+    a = _quad_unturn(a_turn, coupling, element_type=element_type)
+    b = _quad_unturn(b_turn, coupling, element_type=element_type)
     if list(a) == list(b):
         return a                                       # homologs agree (incl. both-erased)
     return b if which else a                           # substitution → the marked template
 
 
 def diploid(leaves, coupling, *, label="diploid", orientation=None,
-            repeats=CENTROMERE_DEFAULT_REPEATS):
+            repeats=CENTROMERE_DEFAULT_REPEATS, element_type=ELEMENT_TYPE_KLEIN4):
     """A DIPLOID chromosome (§95b / F1244 / #1407) — biology's diploid pair, the erasure/break
     specialist.
 
@@ -1805,41 +1907,61 @@ def diploid(leaves, coupling, *, label="diploid", orientation=None,
             f"diploid orientation must be a Klein-4 sector 0..3 (the which-template mark + "
             f"global orientation); got {orientation!r}")
     # rc259 (#1407): DISPATCH the whole diploid assemble to the srmech_genome_diploid C peer
-    # when HAS_NATIVE — 1:1 C↔Python byte parity. The pure build below is the numpy-free oracle.
+    # when HAS_NATIVE — 1:1 C↔Python byte parity. §Q8 (rc311): the C peer is the klein4 XOR
+    # bind; a Q8 diploid couples with the non-abelian Q₈ product, so it takes the pure path
+    # (each homolog turn via :func:`quad_turn`, dispatching to the native q8_bind).
     leaf_bytes = _leaf_blocks(leaves)
-    if leaf_bytes and all(len(b) == dim for b in leaf_bytes):
+    if (element_type == ELEMENT_TYPE_KLEIN4
+            and leaf_bytes and all(len(b) == dim for b in leaf_bytes)):
         native = _native.genome_diploid_c(
             label, _coupling_block_bytes(coupling), b"".join(leaf_bytes), len(leaf_bytes),
             o, repeats, dim)
         if native is not None:
             return [_hv_from_block(native[i * dim:(i + 1) * dim])
                     for i in range(len(native) // dim)]
-    copy = [quad_turn(leaf, coupling) for leaf in leaves]   # copyA == copyB (homologs)
+    copy = [quad_turn(leaf, coupling, element_type=element_type)
+            for leaf in leaves]                        # copyA == copyB (homologs)
     cap = _pack_cap(DIPLOID_TELOMERE_MARKER, label, dim)
     cen = _pack_centromere(o, dim, repeats=repeats)
     return [cap] + copy + [cen] + copy
 
 
-def recover_diploid(strand, coupling):
+def recover_diploid(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Recover a diploid chromosome's content via the two-copy EC (§95b) — the inverse of
     :func:`diploid`. Splits the strand at its interior centromere into ``copyA | copyB``
     (homologs) and error-corrects per leaf (:func:`_diploid_ec_leaf`): agree → use; one erased
     (a detectable break) → fill from the intact homolog; disagree → trust the centromere
     which-template mark. Returns the recovered leaves. Raises ``ValueError`` if ``strand`` is
     not a diploid chromosome (no ``0x44`` cap) or is malformed (missing centromere / unequal
-    arms)."""
+    arms).
+
+    §Q8 (rc311): with ``element_type=ELEMENT_TYPE_Q8`` the per-turn decouple is the Q₈ group
+    inverse (:func:`_quad_unturn`), and the two-copy compare/mark EC resolves a lone Q₈ SIGN-bit
+    (3-bit-symbol) disagreement through the SAME full-leaf tiebreak it uses for a 2-bit V4 one."""
     strand = list(strand)
     if not strand or _cap_kind(strand[0]) != DIPLOID_TELOMERE_MARKER:
         raise ValueError(
             "recover_diploid: strand is not a diploid chromosome (no leading 0x44 cap)")
-    # rc259 (#1407): DISPATCH the two-copy EC to srmech_genome_recover_diploid when HAS_NATIVE
-    # (byte-identical). The pure walk below is the numpy-free oracle.
+    # rc259 (#1407): DISPATCH the klein4 two-copy EC to srmech_genome_recover_diploid. §Q8
+    # (rc311): DISPATCH the Q8 EC to srmech_genome_recover_diploid_q8 (the q8_mult(stored,
+    # conj(one)) decouple per turn) — a distinct native symbol so ABI stays 10. Both are
+    # byte-identical to the pure walk below (the numpy-free oracle).
     dim = len(list(strand[0]))
-    native = _native.genome_recover_diploid_c(
-        b"".join(hv.tobytes() for hv in strand), len(strand), dim,
-        _coupling_block_bytes(coupling))
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        native = _native.genome_recover_diploid_c(
+            b"".join(hv.tobytes() for hv in strand), len(strand), dim,
+            _coupling_block_bytes(coupling))
+    elif element_type == ELEMENT_TYPE_Q8:
+        native = _native.genome_recover_diploid_q8_c(
+            b"".join(hv.tobytes() for hv in strand), len(strand), dim,
+            _coupling_block_bytes(coupling))
+    else:
+        raise ValueError(
+            f"recover_diploid: unknown element_type {element_type!r}; declared types are "
+            f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+    sectors = OCT if element_type == ELEMENT_TYPE_Q8 else QUAD
     if native is not None:
-        return [_HV.from_sequence(native[i * dim:(i + 1) * dim], sectors=QUAD)
+        return [_HV.from_sequence(native[i * dim:(i + 1) * dim], sectors=sectors)
                 for i in range(len(native) // dim)]
     copyA, copyB, cen = [], [], None
     seen_cen = False
@@ -1857,7 +1979,8 @@ def recover_diploid(strand, coupling):
     out = []
     for a_turn, b_turn in zip(copyA, copyB):
         # pass the STORED turns (pre-decouple) — erasure is read on the turn (§95.4)
-        out.append(_diploid_ec_leaf(a_turn, b_turn, which, coupling))
+        out.append(_diploid_ec_leaf(a_turn, b_turn, which, coupling,
+                                    element_type=element_type))
     return out
 
 
@@ -2357,7 +2480,8 @@ def accessible(strand, cell_state, *, coupling=None):
 
 
 def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
-               kernel=False, active_count=None, centromere=None, centromere_at=None):
+               kernel=False, active_count=None, centromere=None, centromere_at=None,
+               element_type=ELEMENT_TYPE_KLEIN4):
     """Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730).
 
     **Single kernel (shipped F713/F715 behaviour, unchanged).** Pass ``leaves``
@@ -2463,7 +2587,11 @@ def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
         # the reversible srmech_klein4_bind). The pure list-comp below is the numpy-free
         # fallback + parity oracle; the kernel / active-telomere / gene / MINT forms open
         # their own boundary caps (or an interior centromere) and stay pure here.
-        if not kernel and active_count is None and centromere is None:
+        # §Q8: the native chromosome C peer is the klein4 XOR bind; a Q8 chromosome couples
+        # with the non-abelian Q₈ product, so it takes the pure path (each turn via
+        # :func:`quad_turn`, which dispatches to the natively-accelerated q8_bind).
+        if (element_type == ELEMENT_TYPE_KLEIN4
+                and not kernel and active_count is None and centromere is None):
             leaf_bytes = _leaf_blocks(leaf_list)
             if all(len(b) == dim for b in leaf_bytes):
                 native = _native.genome_chromosome_c(
@@ -2472,7 +2600,7 @@ def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
                 if native is not None:
                     return [_hv_from_block(native[i * dim:(i + 1) * dim])
                             for i in range(len(native) // dim)]
-        turns = [quad_turn(leaf, coupling) for leaf in leaf_list]
+        turns = [quad_turn(leaf, coupling, element_type=element_type) for leaf in leaf_list]
         if centromere is None:
             return [cap] + turns
         # §95a MINT (F1243): a TIER-2 nuclear chromosome — insert the INTERIOR centromere
@@ -2522,7 +2650,8 @@ def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
         else:
             gene_label, gene_leaves = gene
             strand.append(_gene_cap(gene_label, dim))
-        strand.extend(quad_turn(leaf, coupling) for leaf in gene_leaves)
+        strand.extend(
+            quad_turn(leaf, coupling, element_type=element_type) for leaf in gene_leaves)
     return strand
 
 
@@ -2589,42 +2718,59 @@ def _graded_gene_cap_from_spec(gene_label, spec, dim):
     return _pack_graded_gene(gene_label, spec["weights"], spec["denom"], dim)
 
 
-def recall(strand, coupling, telomere=None):
+def recall(strand, coupling, telomere=None, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Recover the kernel's leaves from a capped chromosome strand (F713/F715/§44).
 
     Walk the ``strand``; skip every CAP leaf — CHROM or GENE, recognised by its
-    inline marker (first byte ``> 3``), §44 — and re-bind ``coupling`` (the reversible
-    :func:`quad_turn` again) on each coupled data turn to recover the original leaf.
-    The exact inverse of :func:`chromosome`::
+    inline marker (first byte ``> 3``), §44 — and DECOUPLE each coupled data turn to
+    recover the original leaf. The exact inverse of :func:`chromosome`::
 
         recall(chromosome(leaves, one, label=L), one) == leaves
+
+    **klein4 (default — UNCHANGED).** The decouple is the reversible Klein-4 XOR bind
+    (:func:`_quad_unturn`, an involution — byte-identical to the shipped path).
+
+    **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc311).** The decouple is the Q₈ group
+    INVERSE (``q8_mult(stored, conj(one))``, :func:`_q8_uncouple_bytes`) — Q₈ is non-abelian,
+    so this is a genuine inverse, NOT a second bind. ``coupling`` must be the SAME Q₈ ``one``
+    the strand was coupled with; the Q₈ ``one`` is not stored in a header this rc (no
+    GENOME_FORMAT_VERSION bump), so the ``element_type`` is passed here (as at
+    :func:`chromosome`). Returns ``sectors=8`` (:data:`OCT`) HV leaves.
 
     §44: caps are recognised by their inline marker (the strand self-describes), not
     matched by value — so ``recall`` no longer needs the cap handed to it; the
     ``telomere`` parameter is accepted for back-compat and ignored. (Use :func:`genes`
     on a multi-gene chromosome to keep the per-gene split; ``recall`` flattens.)
     """
-    # rc197 (#887): DISPATCH to the srmech_genome_recall C peer when HAS_NATIVE and
-    # the strand is uniform fixed-width leaf_dim blocks — byte-identical (skip every
-    # cap via genome_cap_kind, re-bind each data turn via the reversible
-    # srmech_klein4_bind). recall is gate-agnostic (it flattens across CHROM / GENE /
-    # kernel / active-telomere caps alike), so the C peer covers the multi-gene strand
-    # too. The pure walk below is the numpy-free fallback + parity oracle, and handles
-    # any non-uniform strand (e.g. a variable-width packed turn).
     dim = len(list(coupling))
     blocks = _leaf_blocks(strand)
+    sectors = OCT if element_type == ELEMENT_TYPE_Q8 else QUAD
     if dim > 0 and blocks and all(len(b) == dim for b in blocks):
-        native = _native.genome_recall_c(
-            b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+        # rc197 (#887): DISPATCH the klein4 path to srmech_genome_recall (reversible XOR
+        # per turn). §Q8 (rc311): DISPATCH the Q8 path to srmech_genome_recall_q8 (the
+        # q8_mult(stored, conj(one)) group inverse per turn) — a distinct native symbol so
+        # ABI stays 10 (the klein4 C peer is byte-untouched). Both are byte-identical to
+        # the pure walk below (the numpy-free fallback + parity oracle, which also handles
+        # any non-uniform strand, e.g. a variable-width packed turn).
+        if element_type == ELEMENT_TYPE_KLEIN4:
+            native = _native.genome_recall_c(
+                b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+        elif element_type == ELEMENT_TYPE_Q8:
+            native = _native.genome_recall_q8_c(
+                b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+        else:
+            raise ValueError(
+                f"recall: unknown element_type {element_type!r}; declared types are "
+                f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
         if native is not None:
             leaf_bytes, n = native
-            return [_HV.from_sequence(leaf_bytes[i * dim:(i + 1) * dim], sectors=QUAD)
+            return [_HV.from_sequence(leaf_bytes[i * dim:(i + 1) * dim], sectors=sectors)
                     for i in range(n)]
     leaves = []
     for hv in strand:
         if _cap_kind(hv) is not None:   # a CHROM/GENE cap — a delimiter, not data
             continue
-        leaves.append(quad_turn(hv, coupling))   # reversible uncouple (bind o bind == id)
+        leaves.append(_quad_unturn(hv, coupling, element_type=element_type))
     return leaves
 
 

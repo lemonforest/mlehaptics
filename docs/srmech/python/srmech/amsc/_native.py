@@ -3779,6 +3779,26 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_recover_diploid.argtypes = [
                 _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
             lib.srmech_genome_recover_diploid.restype = ctypes.c_int
+        # §Q8/rc311 — the Q8 element-type recall + recover_diploid peers. IDENTICAL
+        # signatures to their klein4 twins (srmech_genome_recall / *_recover_diploid);
+        # they differ ONLY in the per-turn op (q8_mult(stored, q8_conjugate(one)) — the
+        # non-abelian group inverse — instead of the reversible klein4 XOR). NEW symbols
+        # → hasattr-guarded; additive (q8 typedefs already exist) → EXPECTED_ABI_VERSION
+        # stays 10, GENOME_FORMAT_VERSION stays 15.
+        #   int srmech_genome_recall_q8(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *coupling,
+        #       unsigned char *out, size_t out_cap, size_t *n_leaves_out)
+        if hasattr(lib, "srmech_genome_recall_q8"):
+            lib.srmech_genome_recall_q8.argtypes = [
+                _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
+            lib.srmech_genome_recall_q8.restype = ctypes.c_int
+        #   int srmech_genome_recover_diploid_q8(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *coupling, unsigned char *out,
+        #       size_t out_cap, size_t *n_out)
+        if hasattr(lib, "srmech_genome_recover_diploid_q8"):
+            lib.srmech_genome_recover_diploid_q8.argtypes = [
+                _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
+            lib.srmech_genome_recover_diploid_q8.restype = ctypes.c_int
         # §98/rc268 (#1422) — the CHROMATIN access cap writer + strand read. NEW symbols →
         # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
         #   int srmech_genome_chromatin(unsigned char chromatin_type, uint64_t num, uint64_t den,
@@ -18254,6 +18274,41 @@ def genome_recall_c(strand: bytes, n_blocks: int, leaf_dim: int, coupling: bytes
     return bytes(out[:n * leaf_dim]), n
 
 
+def has_native_genome_recall_q8() -> bool:
+    """True iff the §Q8/rc311 srmech_genome_recall_q8 C peer is loaded + bound. False on a
+    no-C or pre-rc311 lib — the pure ``recall(..., element_type=ELEMENT_TYPE_Q8)`` walk (each
+    turn via the natively-accelerated q8_bind/q8_conjugate) is the complete alternative +
+    parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_recall_q8"))
+
+
+def genome_recall_q8_c(strand: bytes, n_blocks: int, leaf_dim: int, coupling: bytes):
+    """Native §Q8/rc311 Q8-path recall (parity peer ``srmech_genome_recall_q8``): walk the
+    ``n_blocks`` fixed-width ``leaf_dim``-byte blocks of ``strand``, skip every cap, and
+    DECOUPLE each Q₈ data turn by the group inverse ``q8_mult(stored, q8_conjugate(one))``
+    (NON-abelian, so NOT a second bind). Returns ``(leaf_bytes, n_leaves)``, or ``None`` when
+    the symbol is absent OR the inputs do not fit the fast path (width mismatch, a data-turn
+    byte > 7) — the caller then runs the exact pure Python. Byte-identical to ``recall`` with
+    ``element_type=ELEMENT_TYPE_Q8``."""
+    if not has_native_genome_recall_q8():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(coupling) != leaf_dim
+            or len(strand) != n_blocks * leaf_dim):
+        return None
+    cap = max(n_blocks * leaf_dim, 1)
+    out = (ctypes.c_uint8 * cap)()
+    n_out = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_recall_q8(
+        _u8(strand), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(coupling), out, ctypes.c_size_t(n_blocks * leaf_dim),
+        ctypes.byref(n_out))
+    if rc != SRMECH_OK:
+        return None
+    n = int(n_out.value)
+    return bytes(out[:n * leaf_dim]), n
+
+
 def has_native_genome_genome() -> bool:
     """True iff the rc198 srmech_genome_genome C peer is loaded + bound. False on a
     no-C or pre-rc198 lib — the pure ``srmech.amsc.genome.genome`` body is the
@@ -18560,6 +18615,38 @@ def genome_recover_diploid_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
     out = (ctypes.c_uint8 * cap)()
     n_out = ctypes.c_size_t(0)
     rc = LIB.srmech_genome_recover_diploid(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(coupling), out, ctypes.c_size_t(cap), ctypes.byref(n_out))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:int(n_out.value) * leaf_dim])
+
+
+def has_native_genome_recover_diploid_q8() -> bool:
+    """True iff the §Q8/rc311 srmech_genome_recover_diploid_q8 C peer is loaded + bound. False
+    on a no-C or pre-rc311 lib — the pure ``recover_diploid(..., element_type=ELEMENT_TYPE_Q8)``
+    two-copy EC is the complete alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_recover_diploid_q8"))
+
+
+def genome_recover_diploid_q8_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
+                                coupling: bytes):
+    """Native §Q8/rc311 Q8-path DIPLOID recover (parity peer ``srmech_genome_recover_diploid_q8``):
+    split at the interior centromere into copyA | copyB and error-correct per leaf, DECOUPLING
+    each Q₈ turn by the group inverse ``q8_mult(stored, q8_conjugate(one))``. Returns the
+    recovered leaf bytes (``n_leaves * leaf_dim``), or ``None`` when the symbol is absent OR the
+    inputs do not fit the fast path. Byte-identical to ``recover_diploid`` with
+    ``element_type=ELEMENT_TYPE_Q8``."""
+    if not has_native_genome_recover_diploid_q8():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(coupling) != leaf_dim
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    cap = max(n_blocks * leaf_dim, 1)
+    out = (ctypes.c_uint8 * cap)()
+    n_out = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_recover_diploid_q8(
         _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
         _u8(coupling), out, ctypes.c_size_t(cap), ctypes.byref(n_out))
     if rc != SRMECH_OK:
