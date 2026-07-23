@@ -158,8 +158,9 @@ def test_sqrt_edges():
 
 
 def test_sqrt_precision_bits_reference_is_separate():
-    # The default cascade is the C-bit-exact K=27 path; precision_bits selects
+    # The default cascade is the C-bit-exact K=27 path; precision selects
     # the higher-precision bignum reference (may differ in the last ULP).
-    ref = R.sqrt(2.0, precision_bits=64)
+    # (rc318: the knob was renamed precision_bits -> precision.)
+    ref = R.sqrt(2.0, precision=64)
     assert abs(ref - math.sqrt(2.0)) <= 1e-15
     assert R.hypot(3.0, 4.0) == 5.0

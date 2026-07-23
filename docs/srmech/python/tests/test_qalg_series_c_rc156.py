@@ -136,14 +136,14 @@ def test_integer_sqrt_bignum_native_equals_pure():
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 def test_tsirelson_sqrt_native_equals_pure_exact_pair():
-    """The exact Q(num, den) of rational.sqrt(2, precision_bits=64) — the
+    """The exact Q(num, den) of rational.sqrt(2, precision=64) — the
     tsirelson_bound cascade — is byte-identical native vs forced-pure."""
     saved = _native.HAS_NATIVE
     try:
         _native.HAS_NATIVE = True
-        qn = R.sqrt(2.0, precision_bits=64)
+        qn = R.sqrt(2.0, precision=64)
         _native.HAS_NATIVE = False
-        qp = R.sqrt(2.0, precision_bits=64)
+        qp = R.sqrt(2.0, precision=64)
     finally:
         _native.HAS_NATIVE = saved
     assert (qn.numerator, qn.denominator) == (qp.numerator, qp.denominator)

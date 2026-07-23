@@ -804,12 +804,12 @@ static const srmech_tool_param_t ts_params_119[] = {
 };
 static const srmech_tool_param_t ts_params_120[] = {
     { "x", "float", 1, "radicand, x >= 0" },
-    { "precision_bits", "int", 0, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade" },
+    { "precision", "int", 0, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade" },
 };
 static const srmech_tool_param_t ts_params_121[] = {
     { "a", "float", 1, "first leg" },
     { "b", "float", 1, "second leg" },
-    { "precision_bits", "int", 0, "scaled-integer precision (keyword-only); default 64" },
+    { "precision", "int", 0, "scaled-integer precision (keyword-only); default 64" },
 };
 static const srmech_tool_param_t ts_params_122[] = {
     { "x", "list[complex]", 1, "input samples" },
@@ -879,7 +879,7 @@ static const srmech_tool_param_t ts_params_138[] = {
 static const srmech_tool_param_t ts_params_139[] = {
     { "num_digits", "int", 1, "0 <= num_digits <= 1000" },
     { "max_cascade_depth", "int", 0, "default None (auto-scaled from num_digits); cascade doubling depth in [1, 2000]" },
-    { "precision_bits", "int", 0, "default None (auto-scaled from num_digits); scaled-integer \342\210\232 bit precision in [64, 32768]" },
+    { "precision", "int", 0, "default None (auto-scaled from num_digits); scaled-integer \342\210\232 bit precision in [64, 32768]" },
 };
 static const srmech_tool_param_t ts_params_140[] = {
     { "num_digits", "int", 1, "0 <= num_digits <= 100000" },
@@ -4272,7 +4272,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.rational.sqrt",
         "srmech",
         "rational",
-        "sqrt(x) for x >= 0 via the Class-N rational sqrt cascade \342\200\224 IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision_bits=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
+        "sqrt(x) for x >= 0 via the Class-N rational sqrt cascade \342\200\224 IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
         ts_params_120, 2u,
         "Q",
         "sqrt(x) as an exact rational (Class-N Q carrier) from the integer root",
@@ -4576,7 +4576,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.rational.pi_cascade_digits",
         "srmech",
         "rational",
-        "Stream decimal digits of \317\200 via integer-cyclic geometric cascade (Archimedes hexagon-doubling with integer-floor \342\210\232 via math.isqrt at fixed precision). Returns '3.141592...' as a string without invoking math.pi anywhere in the call graph (AST-verified discipline gate per `[[user_stance_pi_spectral_shape_scalar_invariant]]`; Spike #32 / PR #460). rc13 cap-expansion (Task #248): num_digits up to 1000 with auto-scaled cascade depth + precision_bits. Canonical SSoT: Archimedes *Measurement of a Circle* (c. 250 BCE) for the algorithm; Khinchin *Continued Fractions* \302\24710 for canonical \317\200 reference.",
+        "Stream decimal digits of \317\200 via integer-cyclic geometric cascade (Archimedes hexagon-doubling with integer-floor \342\210\232 via math.isqrt at fixed precision). Returns '3.141592...' as a string without invoking math.pi anywhere in the call graph (AST-verified discipline gate per `[[user_stance_pi_spectral_shape_scalar_invariant]]`; Spike #32 / PR #460). rc13 cap-expansion (Task #248): num_digits up to 1000 with auto-scaled cascade depth + precision. Canonical SSoT: Archimedes *Measurement of a Circle* (c. 250 BCE) for the algorithm; Khinchin *Continued Fractions* \302\24710 for canonical \317\200 reference.",
         ts_params_139, 3u,
         "str",
         "'3.{num_digits}' decimal expansion of \317\200",
