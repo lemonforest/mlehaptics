@@ -112,6 +112,17 @@ def _ensure_uint64(name: str, value: int) -> int:
     return value
 
 
+def _ensure_nonneg_int(name: str, value: int) -> int:
+    """A non-negative int with NO uint64 ceiling — §898 (rc319): ``best_rational``
+    may take a bignum ratio / ``max_denominator`` (an exact Class-N log overflows
+    u64). Whether the fast native u64 path is eligible is decided by the caller."""
+    if not isinstance(value, int):
+        raise TypeError(f"{name} must be int; got {type(value).__name__}")
+    if value < 0:
+        raise ValueError(f"{name} must be non-negative; got {value}")
+    return value
+
+
 def continued_fraction(numerator: int, denominator: int) -> List[int]:
     """Return the simple continued-fraction expansion of ``p/q``.
 
@@ -158,17 +169,26 @@ def best_rational(numerator: int,
     mediant tree). Returns ``(0, 1)`` if no non-trivial convergent fits
     within ``max_denominator``. Raises ``ValueError`` for invalid inputs.
 
-    Both C and Python paths produce byte-exact identical results;
-    pinned by ``tests/test_rational_parity.py``.
+    §898 (rc319): the inputs are non-negative ints with **no uint64 ceiling** —
+    an exact Class-N log's ratio / ``max_denominator`` can exceed 2^64 (the
+    overflow the music spike hit). When every coordinate fits u64 the fast
+    native path runs and both projections stay byte-exact identical (pinned by
+    ``tests/test_rational_parity.py``); when any coordinate exceeds u64 the
+    pure-Python convergent walk carries the bignums (Python ints), bounded only
+    by ``max_denominator`` (Lamé's theorem caps the walk depth).
     """
-    p = _ensure_uint64("numerator", numerator)
-    q = _ensure_uint64("denominator", denominator)
-    max_q = _ensure_uint64("max_denominator", max_denominator)
+    # §898 (rc319): non-negative ints with NO u64 ceiling — an exact Class-N log's
+    # ratio / max_denominator may exceed uint64. The u64-fit dispatch is decided below.
+    p = _ensure_nonneg_int("numerator", numerator)
+    q = _ensure_nonneg_int("denominator", denominator)
+    max_q = _ensure_nonneg_int("max_denominator", max_denominator)
     if q == 0:
         raise ValueError("best_rational requires denominator > 0")
     if max_q == 0:
         raise ValueError("best_rational requires max_denominator > 0")
-    if _native.HAS_NATIVE and _native.LIB is not None:
+    _U64 = 0xFFFF_FFFF_FFFF_FFFF
+    fits_u64 = p <= _U64 and q <= _U64 and max_q <= _U64
+    if fits_u64 and _native.HAS_NATIVE and _native.LIB is not None:
         out_p = ctypes.c_uint64(0)
         out_q = ctypes.c_uint64(0)
         rc = _native.LIB.srmech_best_rational(
@@ -183,17 +203,22 @@ def best_rational(numerator: int,
                 f"srmech_best_rational returned non-OK status {rc}"
             )
         return int(out_p.value), int(out_q.value)
-    # Pure-Python fallback: walk convergents.
+    # Pure-Python fallback: walk convergents. §898: for u64-fit inputs the u64
+    # overflow guards mirror the C path (byte-parity, pinned by test_rational_parity);
+    # for a bignum coordinate (> u64) they are dropped — Python bigints carry the
+    # convergents, bounded only by ``max_denominator`` (Lamé: the CF depth is
+    # ~1.44·log2(max_denominator), so the walk terminates without a compiled cap).
     h_prev, h_curr = 1, 0
     k_prev, k_curr = 0, 1
     best_p, best_q = 0, 1
     while q != 0:
         a = p // q
-        # Overflow guard mirrors the C path.
-        if h_prev > 0 and a > (0xFFFF_FFFF_FFFF_FFFF - h_curr) // h_prev:
-            break
-        if k_prev > 0 and a > (0xFFFF_FFFF_FFFF_FFFF - k_curr) // k_prev:
-            break
+        if fits_u64:
+            # Overflow guard mirrors the C path (u64-fit inputs only).
+            if h_prev > 0 and a > (_U64 - h_curr) // h_prev:
+                break
+            if k_prev > 0 and a > (_U64 - k_curr) // k_prev:
+                break
         h_next = a * h_prev + h_curr
         k_next = a * k_prev + k_curr
         if k_next > max_q:
