@@ -44,10 +44,10 @@ def load(genome_dir, the_one=None):
     """Decode the whole genome -> (vocab, graph). The CANONICAL read (no external metadata; self-describing format
     stops at n_edges; vocab tail trimmed to vocab_size). Heavy at corpus scale — used to BUILD reads/, then not again."""
     the_one = COUPLE if the_one is None else the_one
-    chg, _c, _l = _G.genome_load(str(genome_dir), labels=["graph"], the_one=the_one)
+    chg, _c, _l = _G.genome_load(str(genome_dir), labels=["graph"], coupling=the_one)
     n = len(list(_G.kernel_unpack(chg, the_one)))
     graph = _G.kernel_to_graph(chg, the_one, n)
-    chv, _c2, _l2 = _G.genome_load(str(genome_dir), labels=["vocab"], the_one=the_one)
+    chv, _c2, _l2 = _G.genome_load(str(genome_dir), labels=["vocab"], coupling=the_one)
     vs = list(_G.kernel_unpack(chv, the_one))
     b = bytearray()
     for i in range(0, len(vs) - 3, 4):

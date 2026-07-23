@@ -127,7 +127,7 @@ def build_regulatory(grounder, path, *, modules=None):
     for lbl, desc in stream_descriptions(modules).items():
         hv = list(grounder.enc_query(desc))
         genes.append((lbl, _GS._leaves(hv, _GS.LEAF_DIM), MODULE_BITS.get(lbl.split(".")[0], 0)))
-    strand = _G.chromosome(genes=genes, the_one=one, label="knowledge")
+    strand = _G.chromosome(genes=genes, coupling=one, label="knowledge")
     _G.genome_save(strand, str(path), one, ["knowledge"])
     with open(_version_path(path), "w", encoding="utf-8") as fh:
         fh.write(_stream_version(modules))

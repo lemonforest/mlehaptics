@@ -95,7 +95,7 @@ def build_genome(named_genes, *, leaf_dim=LEAF_DIM, the_one=None, label="genome"
     of it per ``cell_state`` (SAME genome, DIFFERENT cell_state → DIFFERENT expressed subset)."""
     one = _coupler(leaf_dim) if the_one is None else the_one
     genes = [((g[0], _leaves(g[1], leaf_dim)) + tuple(g[2:])) for g in named_genes]
-    return _G.chromosome(genes=genes, the_one=one, label=label), one
+    return _G.chromosome(genes=genes, coupling=one, label=label), one
 
 
 def express(strand, cell_state, *, the_one):
