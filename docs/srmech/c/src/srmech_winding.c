@@ -276,7 +276,7 @@ static srmech_status_t srmech_dw_orient2d(srmech_dw_arena_t *ar,
 {
     assert(X != NULL && Y != NULL);
     assert(sgn != NULL);
-    srmech_bigint_t xqp, yrp, yqp, xrp, m0, m1, d;
+    srmech_bigint_t xqp, yrp, yqp, xrp, m0, m1, d = {0};
     srmech_status_t st = srmech_dw_bi(ar, &xqp);
     if (st == SRMECH_OK) { st = srmech_dw_bi(ar, &yrp); }
     if (st == SRMECH_OK) { st = srmech_dw_bi(ar, &yqp); }
@@ -327,7 +327,7 @@ static srmech_status_t srmech_dw_triple(srmech_dw_arena_t *ar,
 {
     assert(X != NULL && Y != NULL && Z != NULL);
     assert(sgn != NULL);
-    srmech_bigint_t u[3], v[3], w[3], m0, m1, m2, t0, t1, t2, s, T;
+    srmech_bigint_t u[3], v[3], w[3], m0, m1, m2, t0, t1, t2, s, T = {0};
     srmech_status_t st = SRMECH_OK;
     srmech_bigint_t *slots[17] = { &u[0], &u[1], &u[2], &v[0], &v[1], &v[2],
                                    &w[0], &w[1], &w[2], &m0, &m1, &m2,
