@@ -5909,6 +5909,44 @@ The sister RBS-LM arc pins the tetrad's chirality slot concretely: **`Aut(Q8) = 
 
 ---
 
+## §3.43 The so(9)/Spin(9) rung — one Cayley–Dickson step above so(8); and the honest verdict on the associator↔Spin(9)-holonomy conjecture (2026-07-24; srmech `qm.so9`, rc323 / task #945; DERIVED build + PARTIAL conjecture)
+
+The natural tower-traversal sequel to §3.30 (the 28-D `𝔰𝔬(8)` chiral read-out / triality) and §3.41 (the octonion no-frame-free-spectrum wall). Where `so(8)` acts on the octonions `𝕆` (dim 8), the next orthogonal rung `so(9)` (dim **36 = C(9,2)**) has a **16-dim real spinor** `Δ₉` that acts on `𝕆 ⊕ 𝕆 = ℝ¹⁶` — the `Spin(9)` isotropy group of the octonionic projective plane. Shipped as `srmech.qm.so9` (numpy-free, bit-exact, on the `Mat` carrier). **This is a DERIVED build** (the arithmetic falls out and is content-addressed), **not** a re-derivation of anyone's theory; the parent facts cite Baez (2002, arXiv:math/0105155) and Schafer (1954). Everything below is re-runnable in a numpy-absent venv.
+
+### §3.43.1 The bit-exact build (DERIVED — every residual is exactly 0)
+
+The nine Clifford generators are built from the *same attested octonion table* the so(8) engine uses: `Γ_a = [[0, L_{e_a}], [L_{e_a}ᵀ, 0]]` for `a = 0..7` (block off-diagonal, from `octonion_left_mult`) and the chirality operator `Γ₈ = diag(I₈, −I₈)`. Because these nine `Γ` are **real** `16×16`, the construction *is* the proof that `Δ₉` is a 16-dim **real** rep.
+
+| Fact | Value | How verified (bit-exact) |
+|------|-------|--------------------------|
+| `dim so(9)` (vector rep, 36 antisym `9×9` `E_{pq}`) | **36** | rank over ℚ (`_q_rank`) = 36 |
+| Clifford `{Γ_a, Γ_b} = 2 δ_{ab} I₁₆` | residual **0** | exact-integer, all 81 pairs; entries in `{−1,0,+1}` |
+| spinor generators `Σ_{ab} = ¼[Γ_a, Γ_b]` (antisym `16×16`) | **36**, rank **36** | rank over ℚ = 36 |
+| `Σ` obey the **same** `so(9)` structure constants as the `E_{pq}` | residual **0** | `[Σ_{ab},Σ_{cd}] = δ_{bc}Σ_{ad} − …`, all pairs |
+| **Spin(8) ⊂ Spin(9)**: the 28 `Σ_{ab}` with `a,b ≤ 7` are block-diagonal | off-block residual **0** | `Δ₉ = 𝕆 ⊕ 𝕆` splits |
+| `Γ₈` (hence `P_± = ½(I ± Γ₈)`) commutes with all of Spin(8) | residual **0** | the two blocks are invariant |
+| the branching **16 = 8_s ⊕ 8_c** | `(8, 8)`, ranks `(28, 28)` | each block a *faithful* `so(8)`; the two carry **different** actions (bit-exact witness ‖top−bottom‖ > 0) |
+
+So `Δ₉` restricted to `Spin(8)` is the two inequivalent **half-spinors** `8_s` (the `+Γ₈`/top block) ⊕ `8_c` (the `−Γ₈`/bottom block) — the *spinor-side face* of the same `8_v / 8_s / 8_c` triality §3.30 reads on the *vector* side (`8_v` = the `so(9)` vector rep restricted to Spin(8)). The `8_s ≇ 8_c` inequivalence itself is the RECOGNIZED representation-theory fact (Baez §2.4/§3.4); the block structure, the projector commutation, and the `28+28` ranks are the module's own DERIVED computation. `srmech.qm.so9.spin8_in_spin9_branching()` returns the whole certificate + an MPR self-attestation (Class A content-address of the `Γ`+`Σ` bytes).
+
+### §3.43.2 The conjecture — does the 𝕆-associator curvature reappear as a Spin(9) holonomy at the 𝕊 rung? Verdict: **PARTIAL** (honest tiering)
+
+**The question.** Non-associativity of `𝕆` is measured by the associator `[a,b,c] = (ab)c − a(bc)`, whose infinitesimal symmetry algebra is `g₂ = Der(𝕆)` (dim 14, §3.30). The *next* Cayley–Dickson rung `𝕊` (sedenions, `srmech.amsc.cascade.cayley_dickson`) has real dimension **16 — the same as `Δ₉`** (both are `𝕆 ⊕ 𝕆`). Does the associator's `g₂` "curvature" show up at `𝕊` as a holonomy valued in `Spin(9)`?
+
+**The honest bound (given, load-bearing): `Spin(9) ≠ Aut(𝕊)`.** `Aut(𝕊) ≅ G₂ ⋊ S₃` (dim 14; `G₂`-flavored) and `Der(𝕊) = g₂` (dim 14, Schafer 1954) — both *far* smaller than `dim Spin(9) = 36`. So the strong "the associator fills a Spin(9) holonomy" reading is expected to **fail**, and per `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]` (FORM, not identity) a NULL/PARTIAL *counts*. `sedenion_holonomy_conjecture()` returns the tiered verdict below (each tier bit-exact, arithmetic shown, content-addressed).
+
+| Tier | Statement | Bit-exact evidence |
+|------|-----------|--------------------|
+| **RECOGNIZED** (carrier, NOT identity) | `dim Δ₉ = 16 = dim_ℝ 𝕊` — both **are** `𝕆 ⊕ 𝕆` | the shared carrier is what makes the question askable; it is *not* a Spin(9) action by sedenion automorphisms |
+| **DERIVED** (positive) | `Der(𝕊) = g₂` persists to `𝕊` **and** embeds in `spin(9)` as the triality-diagonal `g₂`, acting on `Δ₉ = 𝕊` as `diag(D, D)` | all **14** such lifts have sedenion-Leibniz residual **exactly 0** (genuine derivations); they lie in `span(spin(9))`; **`dim(spin(9) ∩ Der(𝕊)) = 14`** (exact ℚ nullspace) |
+| **NULL** (the honest bound) | the strong conjecture **fails** — the associator holonomy is valued in `g₂` (dim 14), **not** `Spin(9)` (dim 36) | only a 14-dim subspace of the 36 `spin(9)` directions preserves `𝕊`-multiplication; the other 22 (block-mixing `Σ_{a,8}` + `8_s ≠ 8_c` directions) have **nonzero** Leibniz residual; **0 of 36** individual generators are derivations |
+
+**Reading.** The associator curvature does **not** reappear as a *Spin(9)* holonomy; it reappears as the **same `g₂ ⊂ Spin(9)`** holonomy it already was on `𝕆`. Nothing *new* appears at the `𝕊` rung — the symmetry is the same `G₂ = Aut(𝕆)` it already was; the derivation algebra is *stable* at `g₂` up the whole Cayley–Dickson tower (Schafer). The dimension coincidence `16 = 16` is a **shared carrier, not a shared symmetry** — exactly the `[[feedback_cross_substrate_transfers_the_algorithm_not_the_constant]]` failure mode (the `g₂` *algorithm* transfers; a Spin(9) *constant* does not). This composes with §3.41 (the `𝕆` Laplacian has no frame-free spectrum — the reversible interior *ends* at `𝕆`) and the `𝕆`-reversible / `𝕊`-not tower (`sedenion_zero_divisor_witness`): past `𝕆`, both the reversibility *and* the symmetry-growth stop.
+
+**Status:** DERIVED build + PARTIAL conjecture verdict; recognize-not-read, FORM-not-identity, no lineage claim (`[[feedback_no_lineage_claims_in_notebook]]`). Surface: `srmech.qm.so9` (rc323) — `so9_adjoint_basis` / `spin9_gamma_matrices` / `spin9_spinor_generators` / `spin8_in_spin9_branching` / `sedenion_holonomy_conjecture`. SSoT: Baez (2002, arXiv:math/0105155) §2.4/§3.4 (octonionic `Spin(9)` / triality); Schafer (1954, *Amer. J. Math.* 76, 435–446) (`Der(𝔸ₙ) = g₂`, `n ≥ 3`). Cross-refs: §3.30 (`𝔰𝔬(8)`/triality — the rung below), §3.41 (the octonion Hurwitz wall), MFO §VIII.31.16 (the `𝕆→𝕊` reversibility horizon). An honest NULL half of a PARTIAL is a first-class deliverable.
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb

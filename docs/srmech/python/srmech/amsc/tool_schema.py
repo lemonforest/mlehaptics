@@ -9355,6 +9355,104 @@ def _register_qm_tools() -> None:
                       "chirality_complete_core 7), attestation, "
                       "framework_chirality_complete_reading}"),
         ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.so9 — the so(9)/Spin(9) rung one Cayley-Dickson step
+        # above so(8): the 36-dim so(9) adjoint, the 16-dim real spinor
+        # Δ₉ (9 octonion-built Clifford Γ), the Spin(8) ⊂ Spin(9)
+        # branching 16 = 8_s ⊕ 8_c, and the honest tiered associator ↔
+        # Spin(9)-holonomy conjecture at the sedenion 𝕊 rung. Class M
+        # (Clifford binders); Class C (chiral split); Class D∘L∘K (conj).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.so9.so9_adjoint_basis", owner="srmech",
+            category="qm.so9",
+            summary="The 36 antisymmetric 9×9 so(9) generators E_{pq} (the "
+                    "vector / defining rep; dim so(9) = C(9,2) = 36), rank "
+                    "exactly 36 (EXACT over ℚ). One rung above so8_adjoint_basis "
+                    "(dim 28); so(9) ⊃ so(8) as the E_{pq} with p,q≤7. Class M. "
+                    "Baez (2002) §2.",
+            parameters=(),
+            returns=R("tuple[Mat, ...]", "36 antisymmetric 9×9 spanning so(9)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so9.spin9_gamma_matrices", owner="srmech",
+            category="qm.so9",
+            summary="The 9 real symmetric 16×16 Clifford generators Γ_a of the "
+                    "16-dim real spinor Δ₉ of Spin(9): Γ_a = [[0, L_{e_a}], "
+                    "[L_{e_a}^T, 0]] (a=0..7, from octonion_left_mult) + Γ_8 = "
+                    "diag(I_8, −I_8). Satisfy {Γ_a,Γ_b} = 2 δ_{ab} I_16 "
+                    "bit-exact (max residual 0; entries in {−1,0,+1}) — the "
+                    "construction proves Δ₉ is a 16-dim REAL rep. Class M. "
+                    "Baez (2002) §2.3-2.4 + §3.4.",
+            parameters=(),
+            returns=R("tuple[Mat, ...]",
+                      "9 real symmetric 16×16 with {Γ_a,Γ_b}=2δ_ab I"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so9.spin9_spinor_generators", owner="srmech",
+            category="qm.so9",
+            summary="The 36 spin(9) generators Σ_{ab} = ¼[Γ_a,Γ_b] in the 16-dim "
+                    "real spinor Δ₉ (antisymmetric 16×16, dyadic entries). Rank "
+                    "exactly 36 (over ℚ) and obey the SAME so(9) structure "
+                    "constants as the 9×9 vector rep (bracket residual bit-exact "
+                    "0) — Δ₉ is a genuine spin(9) ≅ so(9) rep. Class M. "
+                    "Baez (2002) §2.4.",
+            parameters=(),
+            returns=R("tuple[Mat, ...]",
+                      "36 antisymmetric 16×16 spanning spin(9) in Δ₉"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so9.spin8_in_spin9_branching", owner="srmech",
+            category="qm.so9",
+            summary="The bit-exact Spin(8) ⊂ Spin(9) embedding + the 16 = 8_s ⊕ "
+                    "8_c spinor branching. The 28 Σ_{ab} (a,b≤7) are all "
+                    "block-diagonal on Δ₉ = O ⊕ O (off-block residual 0), so the "
+                    "chirality operator Γ_8 = diag(I,−I) commutes with the whole "
+                    "Spin(8) and its projectors ½(I±Γ_8) split Δ₉ into two "
+                    "invariant 8-dim half-spinors 8_s (top) / 8_c (bottom), each "
+                    "a faithful so(8) (rank 28) with DIFFERENT actions "
+                    "(bit-exact distinct-action witness). The 8_s ≇ 8_c "
+                    "inequivalence is the recognized rep-theory fact (Baez); the "
+                    "block structure + projector commutation + 28+28 ranks are "
+                    "this op's own bit-exact computation. Class C ∘ L. "
+                    "Baez (2002) §2.4 + §3.4.",
+            parameters=(),
+            returns=R("dict",
+                      "{spinor_rep:{spinor_dim 16, spin9_dim 36, "
+                      "clifford_max_residual, spinor_rank 36, "
+                      "so9_bracket_max_residual}, branching:{branch (8,8), "
+                      "branch_labels (8_s,8_c), chirality_operator, "
+                      "off_block_max_residual, projector_commutator_max_residual, "
+                      "half_spinor_ranks (28,28), half_spinors_distinct_actions}, "
+                      "attestation}"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so9.sedenion_holonomy_conjecture", owner="srmech",
+            category="qm.so9",
+            summary="HONEST tiered test (verdict PARTIAL): does the octonion "
+                    "associator curvature (g₂ = Der O) reappear as a Spin(9) "
+                    "holonomy at the sedenion 𝕊 (dim 16) rung? RECOGNIZED: "
+                    "dim Δ₉ = 16 = dim_R 𝕊 (shared O⊕O carrier, NOT a Spin(9) "
+                    "automorphism action). DERIVED (bit-exact): Der(𝕊) = g₂ "
+                    "(dim 14) persists + embeds in spin(9) as the "
+                    "triality-diagonal diag(D,D) (all 14 lifts have sedenion-"
+                    "Leibniz residual 0); dim(spin(9) ∩ Der(𝕊)) = 14. NULL "
+                    "(the honest bound Spin(9) ≠ Aut(𝕊)): only 14 of the 36 "
+                    "spin(9) directions preserve 𝕊 multiplication (0/36 "
+                    "individual generators are derivations) — the holonomy is "
+                    "valued in g₂ (dim 14), NOT Spin(9) (dim 36). FORM not "
+                    "identity; never abs(). Class D ∘ L ∘ K. Baez (2002); "
+                    "Schafer (1954) Der(𝕊)=g₂.",
+            parameters=(),
+            returns=R("dict",
+                      "{verdict 'PARTIAL', dimensions:{spinor_delta9 16, "
+                      "sedenion_real 16, spin9 36, g2 14, der_sedenion 14, "
+                      "spin9_cap_der_sedenion 14, aut_sedenion_approx 14}, "
+                      "certificate (bit-exact), tiers "
+                      "{RECOGNIZED,DERIVED,NULL}, framework_reading, "
+                      "attestation}"),
+        ),
     ]
     for e in entries:
         register_tool(e)

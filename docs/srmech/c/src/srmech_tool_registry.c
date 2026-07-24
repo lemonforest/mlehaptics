@@ -7,7 +7,7 @@
  * const data table (JPL-clean: const arrays, no dynamic init, no malloc).
  * The accessors + the canonical serialiser live in srmech_tool_schema.c.
  *
- * Entries: 495. tool_schema_version: 1.0.
+ * Entries: 500. tool_schema_version: 1.0.
  */
 
 #include "srmech.h"
@@ -2286,30 +2286,30 @@ static const srmech_tool_param_t ts_params_479[] = {
     { "g_s", "Mat", 1, "8\303\2278 8_s companion" },
     { "g_c", "Mat", 1, "8\303\2278 8_c companion" },
 };
-static const srmech_tool_param_t ts_params_481[] = {
+static const srmech_tool_param_t ts_params_486[] = {
     { "remove_on_exit", "bool", 0, "If True, the status file is unlinked when the with-block exits. Default False \342\200\224 leave the file for `srmech status` to auto-clean on next read." },
 };
-static const srmech_tool_param_t ts_params_483[] = {
+static const srmech_tool_param_t ts_params_488[] = {
     { "pid", "int", 1, "Process ID to look up." },
 };
-static const srmech_tool_param_t ts_params_485[] = {
+static const srmech_tool_param_t ts_params_490[] = {
     { "spec", "str", 1, "TOML chain spec: a [chain] table + [[stage]] array (one builder call per stage)." },
     { "input_value", "int | float | str | list | dict", 1, "Seed value fed to the first stage (a JSON-shaped value: number / string / list / dict). Passed to Chain.run unchanged." },
 };
-static const srmech_tool_param_t ts_params_487[] = {
+static const srmech_tool_param_t ts_params_492[] = {
     { "source_keys", "list", 0, "restrict the catalog-chain half to these source keys; omit to auto-discover all registered sources." },
 };
-static const srmech_tool_param_t ts_params_489[] = {
+static const srmech_tool_param_t ts_params_494[] = {
     { "name", "str", 1, "the class name to describe (e.g. 'Genome')." },
 };
-static const srmech_tool_param_t ts_params_490[] = {
+static const srmech_tool_param_t ts_params_495[] = {
     { "name", "str", 1, "the class name (introspected if fields/methods omitted; else the emitted [class].name)." },
     { "fields", "dict", 0, "{field: type} declarations; omit (with methods) to introspect a registered class instead." },
     { "methods", "dict", 0, "{method: {op, binds, doc, appends|sets}} \342\200\224 methods as dotted cascade-op refs." },
     { "doc", "str", 0, "class docstring (overrides the introspected doc)." },
     { "kind", "str", 0, "class kind tag (overrides the introspected kind)." },
 };
-static const srmech_tool_param_t ts_params_491[] = {
+static const srmech_tool_param_t ts_params_496[] = {
     { "text", "str", 1, "the utterance / description body (its tokens are df-gated)" },
     { "D", "int", 1, "Klein-4 dimension (F1008 used 8192)" },
     { "df", "dict", 0, "token -> doc-frequency table (the aboutness-gate corpus stats); None disables the gate" },
@@ -2320,16 +2320,16 @@ static const srmech_tool_param_t ts_params_491[] = {
     { "func_frac", "float", 0, "gate threshold as a fraction of n_docs (default 0.35)" },
     { "token_mode", "str", 0, "'byteglyph' (default, structure-bearing) or 'address' (F1008 orthogonal dual)" },
 };
-static const srmech_tool_param_t ts_params_492[] = {
+static const srmech_tool_param_t ts_params_497[] = {
     { "framed", "bytes", 1, "Frame body (nonce[16] || ciphertext) \342\200\224 the unwrapped TLV payload." },
     { "dna", "bytes", 1, "32+ byte pre-shared Bio-TOTP secret. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode (same code path; deterministic ciphertext recoverable by anyone)." },
     { "window_ns", "int", 0, "Optional time-window override in nanoseconds (default 250_000_000 = 250 ms; env-var ``SRMECH_BUS_TOTP_WINDOW_NS`` honoured)." },
     { "time_ns", "int", 0, "Optional explicit wall-clock override (defaults to time.time_ns()). Useful for replaying historical captures." },
 };
-static const srmech_tool_param_t ts_params_493[] = {
+static const srmech_tool_param_t ts_params_498[] = {
     { "cleanup_dead", "bool", 0, "When True (default), registration files for endpoints with no live server are removed from disk as a side effect." },
 };
-static const srmech_tool_param_t ts_params_494[] = {
+static const srmech_tool_param_t ts_params_499[] = {
     { "name", "str", 1, "Endpoint name (matches the name passed to `srmech.bus.serve(name, ...)`)." },
 };
 
@@ -10056,11 +10056,91 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
     },
     { /* 481 */
+        "srmech.qm.so9.so9_adjoint_basis",
+        "srmech",
+        "qm.so9",
+        "The 36 antisymmetric 9\303\2279 so(9) generators E_{pq} (the vector / defining rep; dim so(9) = C(9,2) = 36), rank exactly 36 (EXACT over \342\204\232). One rung above so8_adjoint_basis (dim 28); so(9) \342\212\203 so(8) as the E_{pq} with p,q\342\211\2447. Class M. Baez (2002) \302\2472.",
+        NULL, 0u,
+        "tuple[Mat, ...]",
+        "36 antisymmetric 9\303\2279 spanning so(9)",
+        1,
+        NULL,
+        "{\"call\":\"so9_adjoint_basis() -> tuple[Mat, ...]\"}",
+        NULL,
+        "The 36 ``so(9)`` generators \342\200\224 antisymmetric ``9x9`` ``E_{pq}`` (the vector / defining representation), ``0 <= p < q <= 8``.",
+        NULL, 0u,
+        NULL, 0u,
+    },
+    { /* 482 */
+        "srmech.qm.so9.spin9_gamma_matrices",
+        "srmech",
+        "qm.so9",
+        "The 9 real symmetric 16\303\22716 Clifford generators \316\223_a of the 16-dim real spinor \316\224\342\202\211 of Spin(9): \316\223_a = [[0, L_{e_a}], [L_{e_a}^T, 0]] (a=0..7, from octonion_left_mult) + \316\223_8 = diag(I_8, \342\210\222I_8). Satisfy {\316\223_a,\316\223_b} = 2 \316\264_{ab} I_16 bit-exact (max residual 0; entries in {\342\210\2221,0,+1}) \342\200\224 the construction proves \316\224\342\202\211 is a 16-dim REAL rep. Class M. Baez (2002) \302\2472.3-2.4 + \302\2473.4.",
+        NULL, 0u,
+        "tuple[Mat, ...]",
+        "9 real symmetric 16\303\22716 with {\316\223_a,\316\223_b}=2\316\264_ab I",
+        1,
+        NULL,
+        "{\"call\":\"spin9_gamma_matrices() -> tuple[Mat, ...]\"}",
+        NULL,
+        "The 9 real symmetric ``16x16`` Clifford generators ``\316\223_a`` of ``\316\224\342\202\211``.",
+        NULL, 0u,
+        NULL, 0u,
+    },
+    { /* 483 */
+        "srmech.qm.so9.spin9_spinor_generators",
+        "srmech",
+        "qm.so9",
+        "The 36 spin(9) generators \316\243_{ab} = \302\274[\316\223_a,\316\223_b] in the 16-dim real spinor \316\224\342\202\211 (antisymmetric 16\303\22716, dyadic entries). Rank exactly 36 (over \342\204\232) and obey the SAME so(9) structure constants as the 9\303\2279 vector rep (bracket residual bit-exact 0) \342\200\224 \316\224\342\202\211 is a genuine spin(9) \342\211\205 so(9) rep. Class M. Baez (2002) \302\2472.4.",
+        NULL, 0u,
+        "tuple[Mat, ...]",
+        "36 antisymmetric 16\303\22716 spanning spin(9) in \316\224\342\202\211",
+        1,
+        NULL,
+        "{\"call\":\"spin9_spinor_generators() -> tuple[Mat, ...]\"}",
+        NULL,
+        "The 36 ``spin(9)`` generators ``\316\243_{ab} = \302\274[\316\223_a, \316\223_b]`` in ``\316\224\342\202\211``.",
+        NULL, 0u,
+        NULL, 0u,
+    },
+    { /* 484 */
+        "srmech.qm.so9.spin8_in_spin9_branching",
+        "srmech",
+        "qm.so9",
+        "The bit-exact Spin(8) \342\212\202 Spin(9) embedding + the 16 = 8_s \342\212\225 8_c spinor branching. The 28 \316\243_{ab} (a,b\342\211\2447) are all block-diagonal on \316\224\342\202\211 = O \342\212\225 O (off-block residual 0), so the chirality operator \316\223_8 = diag(I,\342\210\222I) commutes with the whole Spin(8) and its projectors \302\275(I\302\261\316\223_8) split \316\224\342\202\211 into two invariant 8-dim half-spinors 8_s (top) / 8_c (bottom), each a faithful so(8) (rank 28) with DIFFERENT actions (bit-exact distinct-action witness). The 8_s \342\211\207 8_c inequivalence is the recognized rep-theory fact (Baez); the block structure + projector commutation + 28+28 ranks are this op's own bit-exact computation. Class C \342\210\230 L. Baez (2002) \302\2472.4 + \302\2473.4.",
+        NULL, 0u,
+        "dict",
+        "{spinor_rep:{spinor_dim 16, spin9_dim 36, clifford_max_residual, spinor_rank 36, so9_bracket_max_residual}, branching:{branch (8,8), branch_labels (8_s,8_c), chirality_operator, off_block_max_residual, projector_commutator_max_residual, half_spinor_ranks (28,28), half_spinors_distinct_actions}, attestation}",
+        1,
+        NULL,
+        "{\"call\":\"spin8_in_spin9_branching() -> dict\"}",
+        NULL,
+        "The bit-exact ``Spin(8) \342\212\202 Spin(9)`` embedding + the ``16 = 8_s \342\212\225 8_c`` spinor branching (with the ``\316\224\342\202\211`` Clifford / spinor certificate).",
+        NULL, 0u,
+        NULL, 0u,
+    },
+    { /* 485 */
+        "srmech.qm.so9.sedenion_holonomy_conjecture",
+        "srmech",
+        "qm.so9",
+        "HONEST tiered test (verdict PARTIAL): does the octonion associator curvature (g\342\202\202 = Der O) reappear as a Spin(9) holonomy at the sedenion \360\235\225\212 (dim 16) rung? RECOGNIZED: dim \316\224\342\202\211 = 16 = dim_R \360\235\225\212 (shared O\342\212\225O carrier, NOT a Spin(9) automorphism action). DERIVED (bit-exact): Der(\360\235\225\212) = g\342\202\202 (dim 14) persists + embeds in spin(9) as the triality-diagonal diag(D,D) (all 14 lifts have sedenion-Leibniz residual 0); dim(spin(9) \342\210\251 Der(\360\235\225\212)) = 14. NULL (the honest bound Spin(9) \342\211\240 Aut(\360\235\225\212)): only 14 of the 36 spin(9) directions preserve \360\235\225\212 multiplication (0/36 individual generators are derivations) \342\200\224 the holonomy is valued in g\342\202\202 (dim 14), NOT Spin(9) (dim 36). FORM not identity; never abs(). Class D \342\210\230 L \342\210\230 K. Baez (2002); Schafer (1954) Der(\360\235\225\212)=g\342\202\202.",
+        NULL, 0u,
+        "dict",
+        "{verdict 'PARTIAL', dimensions:{spinor_delta9 16, sedenion_real 16, spin9 36, g2 14, der_sedenion 14, spin9_cap_der_sedenion 14, aut_sedenion_approx 14}, certificate (bit-exact), tiers {RECOGNIZED,DERIVED,NULL}, framework_reading, attestation}",
+        1,
+        NULL,
+        "{\"call\":\"sedenion_holonomy_conjecture() -> dict\"}",
+        NULL,
+        "HONEST tiered test: does the octonion associator curvature reappear as a ``Spin(9)`` holonomy at the sedenion (``\360\235\225\212``, dim 16) rung?",
+        NULL, 0u,
+        NULL, 0u,
+    },
+    { /* 486 */
         "srmech.introspect.publish",
         "srmech",
         "introspect",
         "Opt-in context manager that enables per-op event emission for `srmech status` / `srmech bus tap` consumers. Wrap your sweep in `with srmech.introspect.publish():` OR set `SRMECH_PUBLISH_STATUS=1` env-var before importing srmech to enable per-op events. Without this opt-in, all srmech operations are silent (no overhead). Designed for research sessions where you want to observe a long-running sweep from a second process via `srmech status` or via `srmech bus tap`. Events land in `~/.srmech/run-{pid}-{start_time_ns}.ndjson` (NDJSON, one MPR-shaped event per line). v0.4.6+ (out-of-band introspection); v0.5.0rc7 (catalog discoverability).",
-        ts_params_481, 1u,
+        ts_params_486, 1u,
         "contextmanager[_PublishHandle]",
         "Yields a handle exposing pid, start_time_ns, file_path of the active writer.",
         1,
@@ -10071,7 +10151,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 482 */
+    { /* 487 */
         "srmech.introspect.list",
         "srmech",
         "introspect",
@@ -10087,12 +10167,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 483 */
+    { /* 488 */
         "srmech.introspect.by_pid",
         "srmech",
         "introspect",
         "Look up the most-recent srmech run for one PID. PID-recycling defence: if two status files share the same PID because the OS reused it, the one with the larger `start_time_ns` wins (the more-recent run; the `start_time_ns` suffix in the filename defeats PID recycling). Returns `None` if no file matches, or on Pyodide / WASM (no filesystem). v0.5.0rc9 (MCP / catalog discoverability).",
-        ts_params_483, 1u,
+        ts_params_488, 1u,
         "Run | None",
         "Frozen dataclass with pid (int), start_time_ns (int), script_name (str), current_op (str), current_class (str), elapsed_ms (int), status ('running' | 'finished' | 'died'), event_count (int), file_path (pathlib.Path). `None` when no file matches the PID.",
         1,
@@ -10103,7 +10183,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 484 */
+    { /* 489 */
         "srmech.introspect.describe",
         "srmech",
         "introspect",
@@ -10119,12 +10199,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 485 */
+    { /* 490 */
         "srmech.dsl.run_toml_chain",
         "srmech",
         "dsl",
         "Compose AND run a cascade in ONE call: author an inline TOML chain spec, feed an input value, get the chain result. The declarative, one-shot face of the rc8 cascade DSL (the fluent `chain().then(...).loop(...)` builder is not tool-callable \342\200\224 a tool call can't chain methods). The `spec` is a TOML document with a `[chain]` table + `[[stage]]` array entries; each stage carries exactly one discriminator: `op` (then), `loop_n` + `sub_chain` (loop), `fold_init` + `fold_op` (fold), or `reduce_op` (reduce); any other key forwards as a cascade-op kwarg (e.g. `max_denominator`). Op names come from `srmech.dsl.list_catalog_ops` (the 20-op cascade catalog). Example spec: `[chain]\\nname='demo'\\n\\n[[stage]]\\nop='chiral_flip'`. Framework reading: the DSL composes Class M (cross-class bind) over the cascade catalog; each stage is one A\342\200\223N primitive-class instance, the chain is the composition. (v0.5.0rc12 \342\200\224 DSL surface voxel).",
-        ts_params_485, 2u,
+        ts_params_490, 2u,
         "Any",
         "Output of the final stage (an empty chain returns the input unchanged).",
         1,
@@ -10135,7 +10215,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 486 */
+    { /* 491 */
         "srmech.dsl.list_catalog_ops",
         "srmech",
         "dsl",
@@ -10151,12 +10231,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 487 */
+    { /* 492 */
         "srmech.dsl.list_ops",
         "srmech",
         "dsl",
         "Unify the two op-discovery registries into ONE list (\302\24717 U3): BOTH the value-transform cascade ops (`list_catalog_ops`) AND the AMSC catalog-declared operator chains (`catalog.list_catalog_chains`), each record tagged a uniform `kind` (`stage` | `combinator` | `catalog-chain`) and `provenance` (`srmech` | `user` | `catalog:<source_key>`). Before this the DSL op list and the catalog-chain registry were disjoint \342\200\224 a kernel chain declared on a text-catalog was invisible to the DSL. `source_keys` restricts the catalog-chain half; omit to auto-discover every registered attested source. Framework reading: Class E (catalog enumeration) over both registries at once. (v0.7.5rc45 \342\200\224 \302\24717 U3 unified op-discovery.)",
-        ts_params_487, 1u,
+        ts_params_492, 1u,
         "list[dict]",
         "[{'name': str, 'class': str, 'purpose': str, 'kind': 'stage'|'combinator'|'catalog-chain', 'provenance': str}, ...] sorted by (kind, name).",
         1,
@@ -10167,7 +10247,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 488 */
+    { /* 493 */
         "srmech.dsl.list_class_surface",
         "srmech",
         "dsl",
@@ -10183,12 +10263,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 489 */
+    { /* 494 */
         "srmech.dsl.describe_class",
         "srmech",
         "dsl",
         "Describe ONE user-declared srmech class by name \342\200\224 the focused companion to `srmech.dsl.list_class_surface`. Returns the JSON-able descriptor (name, kind, doc, fields, methods with each method's bound cascade op + binds + appends/sets, provenance) for the shipped seed `Genome` or any bring-your-own class. The shape srmech.dsl.make_class(name) constructs and srmech.dsl.run_class_method runs. Framework reading: Class F (descriptor render) over the [class] catalog. (v0.7.5rc41 \342\200\224 class-from-TOML surface; #962 Part 2).",
-        ts_params_489, 1u,
+        ts_params_494, 1u,
         "dict",
         "{'name', 'kind', 'doc', 'fields', 'methods', 'provenance'} \342\200\224 the full class descriptor.",
         1,
@@ -10199,12 +10279,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 490 */
+    { /* 495 */
         "srmech.dsl.generate_class_descriptor",
         "srmech",
         "dsl",
         "Render a [class] TOML descriptor string \342\200\224 the INVERSE of srmech.dsl.make_class (\302\24739). Two modes: (explicit) pass `fields` ({field: type}) + `methods` ({method: {op: dotted-cascade-op, binds: [...], doc, appends|sets}} \342\200\224 the describe_class method shape) and it renders straight from the components; (introspection) pass ONLY `name` of a registered class (e.g. 'Genome') and it recovers the descriptor via describe_class and re-emits it \342\200\224 a constructed class rendering its OWN [class] TOML back out. The emitted string is round-trippable: drop it in a register_class_dir dir and make_class constructs the identical class (docs re-emit single-line with escaped newlines, so a multi-line seed doc decodes back bit-identically). Closes the make_class loop the other direction. Framework reading: Class E (catalog enumeration) \342\210\230 Class F (descriptor render) \342\210\230 Class H (self-introspection) \342\200\224 no new primitive class. (v0.7.5rc49 \342\200\224 \302\24739 make_class inverse; #962 Part 2.)",
-        ts_params_490, 5u,
+        ts_params_495, 5u,
         "str",
         "A [class] TOML descriptor string (name/kind/doc + [class.field] + [class.method.*]) round-trippable through srmech.dsl.make_class.",
         1,
@@ -10215,12 +10295,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 491 */
+    { /* 496 */
         "srmech.rbs_lm.encode_aboutness",
         "srmech",
         "rbs_lm",
         "Doc-frequency-GATED ABOUTNESS encoder \342\200\224 encode a natural utterance (or an op's name+summary) as ONE structure-bearing Klein-4 aboutness hypervector for grounding \"which srmech op does this?\" by klein4_similarity. The F1008 recipe (78% top-1 over the tool_schema, zero training) the plain encode_sentence_l3 lacks: (1) a doc-frequency aboutness GATE (down-weight tokens that appear catalog-wide \342\200\224 'matrix', 'of'), (2) NAME-weighting (an op's own name tokens count 3x + 2x bigram; F769 identity), (3) order-aware BIGRAMS (so (klein,4) != (klein,gordon); never a bag), plus letter-digit tokenization (klein4->klein 4). Tokens are minted via the STRUCTURE-BEARING klein4_encode_bytes (default token_mode='byteglyph'), NOT the high-diffusion word-hash address (F1260: a hash avalanche destroys morphology \342\200\224 a good ADDRESS but a bad REPRESENTATION), so cat/cats stays distinguishable from cat/dog. Pass df/n_docs from a corpus to enable the gate; name= for an op's identity tokens; None df for the single-word case. composition_of_c (klein4_encode_bytes -> bind/bundle); numpy-free, no abs().",
-        ts_params_491, 9u,
+        ts_params_496, 9u,
         "HV",
         "uint8 in {0,1,2,3}",
         1,
@@ -10231,12 +10311,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 492 */
+    { /* 497 */
         "srmech.bus.decode_splice",
         "srmech",
         "bus",
         "Decode one frame of a UTLP Bio-TOTP bus channel (Claim 255 alignment) given the per-channel DNA secret. Pure function (no side effects); suitable for LLM / agent introspection of mid-stream traffic. Returns (plaintext, used_time_ns); the plaintext is the original JSON-encoded bus Event and the used_time_ns is the candidate time-bucket value that successfully decoded (the current bucket or \302\2611 bucket for clock-skew tolerance). Cipher: AES-128-CTR when ``pip install srmech[crypto]`` extra is installed (UTLP-exact path); HMAC-SHA-256 counter-mode keystream by default (stdlib-only, structurally equivalent for the defensive-scope threat model). Key derivation rolls every 250 ms (WINDOW_NS=250_000_000; configurable via ``SRMECH_BUS_TOTP_WINDOW_NS`` env var); the receiver tolerates \302\2611 window for clock skew. Frame layout: [nonce:16][ciphertext]; nonce = sender_id_u64 || channel_id_u32 || packet_seq_u32. Pass ZERO_DNA (b'\\x00'*32) for herd-immunity / public mode. v0.5.0rc7 (Bio-TOTP wire format; UTLP Claim 255).",
-        ts_params_492, 4u,
+        ts_params_497, 4u,
         "tuple[bytes, int]",
         "(plaintext, used_time_ns) \342\200\224 JSON-encoded bus Event bytes, and the candidate time value that decoded successfully.",
         1,
@@ -10247,12 +10327,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 493 */
+    { /* 498 */
         "srmech.bus.list_endpoints",
         "srmech",
         "bus",
         "Enumerate currently-running srmech.bus endpoints owned by the current user by scanning the `~/.srmech/bus-*.sock` (POSIX) / `~/.srmech/bus-*.txt` (Windows) registry directory. Best-effort liveness check per endpoint (POSIX: UDS connect probe; Windows: TCP loopback connect or WaitNamedPipeW probe). Side effect (when `cleanup_dead=True`, the default): registration files for endpoints whose server is no longer accepting connections are removed from disk on read. Returns `[]` on Pyodide / WASM (no socket support). Sorted alphabetically by endpoint name. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_493, 1u,
+        ts_params_498, 1u,
         "list[Endpoint]",
         "Each Endpoint is a frozen dataclass: name (str), path (pathlib.Path), transport ('uds' POSIX / 'pipe' or 'tcp' Windows), alive (bool), pid (Optional[int], currently always None \342\200\224 reserved for a future rc that records owner PID in the registry file).",
         1,
@@ -10263,12 +10343,12 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL, 0u,
         NULL, 0u,
     },
-    { /* 494 */
+    { /* 499 */
         "srmech.bus.by_name",
         "srmech",
         "bus",
         "Look up one srmech.bus endpoint by name. Same registry scan as `srmech.bus.list_endpoints` but returns just the matching record (or `None` if no endpoint of that name is registered for the current user). Does NOT auto-clean dead-endpoint registration files (the caller may want to inspect a dead endpoint's record). Returns `None` on Pyodide / WASM. v0.5.0rc9 (MCP / catalog discoverability; backing function shipped since v0.5.0rc1).",
-        ts_params_494, 1u,
+        ts_params_499, 1u,
         "Endpoint | None",
         "Frozen dataclass with name (str), path (pathlib.Path), transport ('uds' / 'pipe' / 'tcp'), alive (bool), pid (Optional[int]). `None` when no matching endpoint is registered.",
         1,
