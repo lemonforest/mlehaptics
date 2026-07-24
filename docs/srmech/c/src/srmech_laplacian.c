@@ -2822,3 +2822,505 @@ srmech_status_t srmech_laplacian_recursive_cut(uint32_t                  n,
     *n_tomes_out = s.n_tomes;
     return SRMECH_OK;
 }
+
+/* ================================================================== *
+ * §100 G3 (rc321, task #904): the WHOLE-OP GRAPH PARTITION —
+ * srmech_genome_graph_partition. Composes srmech_laplacian_recursive_cut (the
+ * out-of-core community assignment) with an EXACT-INTEGER participation read
+ * (cross/tot per node, streamed once from the same packed edge file), the
+ * antimode histogram DECISION, a per-node nuclear/plasmid classify, and group
+ * assembly — all in C, so a bare-C host builds the whole partition. Mirrors the
+ * pure srmech.amsc.genome.genome_partition body BIT-FOR-BIT (ADR-0009: the two
+ * projections emit the SAME structure). NEVER abs — every value is non-negative.
+ * ================================================================== */
+
+/* Class-I gcd for the exact participation reduction (den never fractional). */
+static uint64_t ggp_gcd(uint64_t a, uint64_t b)
+{
+    assert(a <= UINT64_MAX);
+    assert(b <= UINT64_MAX);
+    while (b != 0u) {
+        uint64_t t = a % b;
+        a = b;
+        b = t;
+    }
+    return a;
+}
+
+/* Reduce a non-negative (num, den); den == 0 -> (0, 1). Mirrors _reduce_pair. */
+static void ggp_reduce(uint64_t num, uint64_t den, uint64_t *rn, uint64_t *rd)
+{
+    assert(rn != NULL);
+    assert(rd != NULL);
+    if (den == 0u) {
+        *rn = 0u;
+        *rd = 1u;
+        return;
+    }
+    uint64_t g = ggp_gcd(num, den);
+    if (g == 0u) {
+        g = 1u;
+    }
+    *rn = num / g;
+    *rd = den / g;
+}
+
+/* Participation accumulator: per-node cross/tot exact integer mass (undirected;
+ * a self-loop adds to tot twice, never to cross — same community). */
+typedef struct ggp_part_ctx {
+    uint32_t        n;
+    const uint32_t *community;
+    uint64_t       *cross;
+    uint64_t       *tot;
+} ggp_part_ctx_t;
+
+static srmech_status_t ggp_part_cb(uint32_t u, uint32_t v, double w, void *ctx)
+{
+    ggp_part_ctx_t *c = (ggp_part_ctx_t *)ctx;
+    assert(c != NULL);
+    assert(c->cross != NULL && c->tot != NULL);
+    if (u >= c->n || v >= c->n) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(w >= 0.0);                        /* genome weights are non-negative ints */
+    uint64_t iw = (uint64_t)w;               /* exact: write_packed_graph stored an int */
+    c->tot[u] += iw;
+    c->tot[v] += iw;
+    if (c->community[u] != c->community[v]) {
+        c->cross[u] += iw;
+        c->cross[v] += iw;
+    }
+    return SRMECH_OK;
+}
+
+/* Read each tome back and stamp community_out[node] = tome index (cid). The tomes
+ * partition ALL n nodes, so every node is assigned exactly once. */
+static srmech_status_t ggp_read_communities(const char *paths, uint32_t n_tomes,
+                                            uint32_t *ids, uint32_t cap,
+                                            uint32_t *community_out)
+{
+    assert(paths != NULL);
+    assert(ids != NULL || cap == 0u);
+    for (uint32_t cid = 0u; cid < n_tomes; cid++) {
+        const char *path = paths + (size_t)cid * SRMECH_RECURSIVE_CUT_PATH_MAX;
+        uint32_t count = 0u;
+        srmech_status_t st = rcut_read_set(path, ids, cap, &count);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        for (uint32_t i = 0u; i < count; i++) {
+            assert(ids[i] < cap);
+            community_out[ids[i]] = cid;
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* The participation histogram bin of one node — pure integer, mirrors
+ * _partition_bin: floor(cross*n_bins / tot) clamped to [0, n_bins-1]; tot==0 -> 0. */
+static uint32_t ggp_bin(uint64_t cross_v, uint64_t tot_v, uint32_t n_bins)
+{
+    assert(n_bins >= 2u);
+    assert(cross_v <= tot_v);                /* participation <= 1 (cross subset of tot) */
+    if (tot_v == 0u) {
+        return 0u;
+    }
+    uint64_t b = (cross_v * (uint64_t)n_bins) / tot_v;
+    if (b >= (uint64_t)n_bins) {
+        return n_bins - 1u;
+    }
+    return (uint32_t)b;
+}
+
+/* Fill node_bin[] + the counts[] histogram over all n nodes. */
+static void ggp_histogram(const uint64_t *cross, const uint64_t *tot, uint32_t n,
+                          uint32_t n_bins, uint32_t *node_bin, uint64_t *counts)
+{
+    assert(counts != NULL);
+    assert(node_bin != NULL || n == 0u);
+    for (uint32_t b = 0u; b < n_bins; b++) {
+        counts[b] = 0u;
+    }
+    for (uint32_t v = 0u; v < n; v++) {
+        uint32_t b = ggp_bin(cross[v], tot[v], n_bins);
+        node_bin[v] = b;
+        counts[b] += 1u;
+    }
+}
+
+/* The bin of the maximum count in counts[lo..hi] (lowest index on a tie) — the
+ * dominant mode of one side of a gap. Mirrors _side_argmax. */
+static uint32_t ggp_side_argmax(const uint64_t *counts, uint32_t lo, uint32_t hi)
+{
+    assert(counts != NULL);
+    assert(lo <= hi);
+    uint32_t best = lo;
+    for (uint32_t b = lo; b <= hi; b++) {
+        if (counts[b] > counts[best]) {
+            best = b;
+        }
+    }
+    return best;
+}
+
+/* min(counts[lo_occ+1 : hi_occ]) — the in-gap antimode. width >= 2 guarantees at
+ * least one in-between bin. Mirrors the Python slice-min. */
+static uint64_t ggp_valley_min(const uint64_t *counts, uint32_t lo_occ, uint32_t hi_occ)
+{
+    assert(counts != NULL);
+    assert(hi_occ >= lo_occ + 2u);
+    uint64_t m = counts[lo_occ + 1u];
+    for (uint32_t b = lo_occ + 2u; b < hi_occ; b++) {
+        if (counts[b] < m) {
+            m = counts[b];
+        }
+    }
+    return m;
+}
+
+/* The widest qualifying antimode gap between consecutive OCCUPIED bins (ties ->
+ * larger smaller-mode, then the lower bin — the FIRST maximum is kept). */
+typedef struct ggp_gap { int have; uint32_t width; uint64_t smaller;
+                         uint32_t lo; uint32_t hi; } ggp_gap_t;
+
+static ggp_gap_t ggp_scan_gaps(const uint64_t *counts, uint32_t n_bins)
+{
+    assert(counts != NULL);
+    assert(n_bins >= 2u);
+    ggp_gap_t best = { 0, 0u, 0u, 0u, 0u };
+    int have_prev = 0;
+    uint32_t prev = 0u;
+    for (uint32_t b = 0u; b < n_bins; b++) {
+        if (counts[b] == 0u) {
+            continue;
+        }
+        if (have_prev && (b - prev) >= 2u) {
+            uint32_t lo = prev, hi = b;
+            uint64_t pl = counts[ggp_side_argmax(counts, 0u, lo)];
+            uint64_t ph = counts[ggp_side_argmax(counts, hi, n_bins - 1u)];
+            uint64_t smaller = (pl < ph) ? pl : ph;
+            uint64_t valley = ggp_valley_min(counts, lo, hi);
+            uint32_t width = hi - lo;
+            if (smaller >= 2u && 2u * valley < smaller &&
+                (!best.have || width > best.width ||
+                 (width == best.width && smaller > best.smaller))) {
+                best.have = 1; best.width = width; best.smaller = smaller;
+                best.lo = lo; best.hi = hi;
+            }
+        }
+        have_prev = 1;
+        prev = b;
+    }
+    return best;
+}
+
+/* MEASURE the antimode + the single mode, filling the scalar result fields.
+ * Mirrors _partition_antimode: unimodal defaults, then the widest qualifying gap. */
+static void ggp_antimode(const uint64_t *counts, uint32_t n_bins,
+                         srmech_genome_graph_partition_result_t *r)
+{
+    assert(counts != NULL);
+    assert(r != NULL);
+    uint32_t mode_bin = 0u;
+    uint32_t n_occ = 0u;
+    for (uint32_t b = 0u; b < n_bins; b++) {
+        if (counts[b] > counts[mode_bin]) {
+            mode_bin = b;
+        }
+        if (counts[b] > 0u) {
+            n_occ += 1u;
+        }
+    }
+    r->bimodal = 0u;
+    r->threshold_bin = -1; r->peak_low_bin = -1; r->peak_high_bin = -1;
+    r->valley_count = -1; r->gap = 0u; r->mode_bin = mode_bin;
+    if (n_occ < 2u) {
+        return;
+    }
+    ggp_gap_t g = ggp_scan_gaps(counts, n_bins);
+    if (!g.have) {
+        return;
+    }
+    uint64_t valley = ggp_valley_min(counts, g.lo, g.hi);
+    r->bimodal = 1u;
+    r->threshold_bin = (int32_t)g.lo;
+    r->peak_low_bin = (int32_t)ggp_side_argmax(counts, 0u, g.lo);
+    r->peak_high_bin = (int32_t)ggp_side_argmax(counts, g.hi, n_bins - 1u);
+    r->valley_count = (int64_t)valley;
+    r->gap = g.smaller - valley;
+}
+
+/* Per-node type: nuclear=0, plasmid=1. Mirrors the classify branch. */
+static uint32_t ggp_node_type(uint32_t node_bin_v, int bimodal, int32_t threshold,
+                              uint32_t one_dna)
+{
+    assert(one_dna <= 1u);
+    assert(bimodal == 0 || bimodal == 1);
+    if (bimodal) {
+        return (node_bin_v > (uint32_t)threshold) ? 1u : 0u;
+    }
+    return one_dna;
+}
+
+/* Group OUT surface — the caller's per-group arrays + the flat member cursor. */
+typedef struct ggp_group_out {
+    uint32_t *comm;
+    uint32_t *type;
+    uint32_t *size;
+    uint64_t *num;
+    uint64_t *den;
+    uint32_t *members;
+    uint32_t  cap;
+    uint32_t  n_groups;
+    uint32_t  n_members;
+} ggp_group_out_t;
+
+/* Emit community `cid`'s nuclear group THEN its plasmid group (empty groups
+ * skipped), members in ascending tome order — mirrors the Python group loop. */
+static srmech_status_t ggp_emit_community_groups(
+    const char *paths, uint32_t cid, uint32_t *ids, uint32_t cap,
+    const uint64_t *cross, const uint64_t *tot, const uint32_t *node_bin,
+    int bimodal, int32_t threshold, uint32_t one_dna, ggp_group_out_t *go)
+{
+    assert(paths != NULL && go != NULL);
+    assert(ids != NULL || cap == 0u);
+    const char *path = paths + (size_t)cid * SRMECH_RECURSIVE_CUT_PATH_MAX;
+    uint32_t count = 0u;
+    srmech_status_t st = rcut_read_set(path, ids, cap, &count);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (uint32_t gt = 0u; gt < 2u; gt++) {
+        uint64_t gc = 0u, gtt = 0u;
+        uint32_t start = go->n_members, size = 0u;
+        for (uint32_t i = 0u; i < count; i++) {
+            uint32_t vv = ids[i];
+            if (ggp_node_type(node_bin[vv], bimodal, threshold, one_dna) != gt) {
+                continue;
+            }
+            go->members[start + size] = vv;
+            gc += cross[vv];
+            gtt += tot[vv];
+            size += 1u;
+        }
+        if (size == 0u) {
+            continue;
+        }
+        if (go->n_groups >= go->cap) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+        go->comm[go->n_groups] = cid;
+        go->type[go->n_groups] = gt;
+        go->size[go->n_groups] = size;
+        ggp_reduce(gc, gtt, &go->num[go->n_groups], &go->den[go->n_groups]);
+        go->n_groups += 1u;
+        go->n_members += size;
+    }
+    return SRMECH_OK;
+}
+
+/* The driver's carved arena slices — doubles first (the recursive_cut sub-arena),
+ * then the uint64 accumulators, then the uint32 scratch + the tome-path buffer. */
+typedef struct ggp_state {
+    uint32_t  n;
+    uint32_t  n_bins;
+    uint32_t  n_tomes;
+    double   *rc_ws;
+    uint64_t *cross;
+    uint64_t *tot;
+    uint64_t *counts;
+    uint32_t *sizes;
+    uint32_t *node_bin;
+    uint32_t *ids;
+    char     *paths;
+} ggp_state_t;
+
+static void ggp_carve(uint32_t n, uint32_t n_bins, size_t paths_cap, void *ws,
+                      ggp_state_t *s)
+{
+    assert(ws != NULL);
+    assert(s != NULL);
+    s->n = n; s->n_bins = n_bins; s->n_tomes = 0u;
+    unsigned char *base = (unsigned char *)ws;
+    size_t rc = srmech_laplacian_recursive_cut_arena_bytes(n);
+    rc = (rc + 7u) & ~(size_t)7u;
+    s->rc_ws = (double *)(void *)base;
+    uint64_t *q = (uint64_t *)(void *)(base + rc);
+    s->cross = q; q += n;
+    s->tot = q; q += n;
+    s->counts = q; q += n_bins;
+    uint32_t *d = (uint32_t *)(void *)q;
+    s->sizes = d; d += paths_cap;
+    s->node_bin = d; d += n;
+    s->ids = d; d += n;
+    s->paths = (char *)(void *)d;
+}
+
+size_t srmech_genome_graph_partition_arena_bytes(uint32_t n, uint32_t n_edges,
+                                                 uint32_t n_bins, size_t paths_cap)
+{
+    (void)n_edges;                           /* participation STREAMS the file */
+    assert(n_bins >= 2u);
+    assert(paths_cap >= 1u);
+    size_t rc = srmech_laplacian_recursive_cut_arena_bytes(n);
+    rc = (rc + 7u) & ~(size_t)7u;
+    size_t u64s = ((size_t)2u * n + n_bins) * sizeof(uint64_t);   /* cross,tot,counts */
+    size_t u32s = (paths_cap + (size_t)2u * n) * sizeof(uint32_t);/* sizes,node_bin,ids */
+    size_t paths = paths_cap * SRMECH_RECURSIVE_CUT_PATH_MAX;
+    return rc + u64s + u32s + paths;
+}
+
+/* recursive_cut + read the community assignment back. On a §101 cancel the tomes
+ * still partition ALL n nodes, so the community read is valid either way. */
+static srmech_status_t ggp_step_cut(ggp_state_t *s, const char *edges_path,
+    const char *work_dir, uint32_t max_tome, uint32_t max_iters, uint32_t max_depth,
+    uint32_t *community_out, srmech_progress_tick_cb_t tick, void *tick_ctx,
+    int *cancelled)
+{
+    assert(s != NULL && cancelled != NULL);
+    assert(edges_path != NULL && work_dir != NULL);
+    size_t paths_cap = (size_t)s->n + 1u;
+    srmech_status_t st = srmech_laplacian_recursive_cut(
+        s->n, edges_path, work_dir, max_tome, max_iters, max_depth,
+        s->sizes, s->paths, paths_cap, &s->n_tomes, s->rc_ws,
+        srmech_laplacian_recursive_cut_arena_bytes(s->n), tick, tick_ctx);
+    *cancelled = (st == SRMECH_CANCELLED) ? 1 : 0;
+    if (st != SRMECH_OK && st != SRMECH_CANCELLED) {
+        return st;
+    }
+    return ggp_read_communities(s->paths, s->n_tomes, s->ids, s->n, community_out);
+}
+
+/* Stream the edge file ONCE -> cross/tot, then reduce per-node participation. */
+static srmech_status_t ggp_step_participation(ggp_state_t *s, const char *edges_path,
+    const uint32_t *community, uint64_t *part_num_out, uint64_t *part_den_out)
+{
+    assert(s != NULL && edges_path != NULL);
+    assert(part_num_out != NULL && part_den_out != NULL);
+    for (uint32_t v = 0u; v < s->n; v++) {
+        s->cross[v] = 0u;
+        s->tot[v] = 0u;
+    }
+    ggp_part_ctx_t pc;
+    pc.n = s->n; pc.community = community; pc.cross = s->cross; pc.tot = s->tot;
+    srmech_status_t st = fiedler_file_scan(edges_path, ggp_part_cb, &pc);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (uint32_t v = 0u; v < s->n; v++) {
+        ggp_reduce(s->cross[v], s->tot[v], &part_num_out[v], &part_den_out[v]);
+    }
+    return SRMECH_OK;
+}
+
+/* Histogram + antimode + one_dna_type. */
+static void ggp_step_antimode(ggp_state_t *s, uint64_t *counts_out,
+                              srmech_genome_graph_partition_result_t *r)
+{
+    assert(s != NULL && counts_out != NULL);
+    assert(r != NULL);
+    ggp_histogram(s->cross, s->tot, s->n, s->n_bins, s->node_bin, s->counts);
+    for (uint32_t b = 0u; b < s->n_bins; b++) {
+        counts_out[b] = s->counts[b];
+    }
+    ggp_antimode(s->counts, s->n_bins, r);
+    if (r->bimodal) {
+        r->one_dna_type = -1;                /* None — the split fixes each node */
+    } else {
+        r->one_dna_type =
+            ((uint64_t)r->mode_bin * 2u < (uint64_t)s->n_bins) ? 0 : 1;
+    }
+}
+
+/* Build the groups per community + tally the per-type node counts. */
+static srmech_status_t ggp_step_groups(ggp_state_t *s,
+    srmech_genome_graph_partition_result_t *r, ggp_group_out_t *go)
+{
+    assert(s != NULL && r != NULL && go != NULL);
+    assert(go->members != NULL || s->n == 0u);
+    int bimodal = (int)r->bimodal;
+    int32_t threshold = r->threshold_bin;
+    uint32_t one_dna = (r->one_dna_type < 0) ? 0u : (uint32_t)r->one_dna_type;
+    for (uint32_t cid = 0u; cid < s->n_tomes; cid++) {
+        srmech_status_t st = ggp_emit_community_groups(
+            s->paths, cid, s->ids, s->n, s->cross, s->tot, s->node_bin,
+            bimodal, threshold, one_dna, go);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+    }
+    uint64_t nuc = 0u, pla = 0u;
+    for (uint32_t g = 0u; g < go->n_groups; g++) {
+        if (go->type[g] == 0u) {
+            nuc += go->size[g];
+        } else {
+            pla += go->size[g];
+        }
+    }
+    r->node_nuclear = nuc;
+    r->node_plasmid = pla;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_graph_partition(
+    uint32_t n, const char *edges_path, const char *work_dir,
+    uint32_t max_tome, uint32_t n_bins, uint32_t max_iters, uint32_t max_depth,
+    uint32_t *community_out, uint64_t *part_num_out, uint64_t *part_den_out,
+    uint64_t *counts_out,
+    uint32_t *group_comm_out, uint32_t *group_type_out, uint32_t *group_size_out,
+    uint64_t *group_num_out, uint64_t *group_den_out,
+    uint32_t *group_members_out, uint32_t groups_cap,
+    srmech_genome_graph_partition_result_t *result_out,
+    void *ws, size_t ws_len,
+    srmech_progress_tick_cb_t tick, void *tick_ctx)
+{
+    if (edges_path == NULL || work_dir == NULL || community_out == NULL ||
+        part_num_out == NULL || part_den_out == NULL || counts_out == NULL ||
+        group_comm_out == NULL || group_type_out == NULL || group_size_out == NULL ||
+        group_num_out == NULL || group_den_out == NULL || group_members_out == NULL ||
+        result_out == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_bins < 2u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t paths_cap = (size_t)n + 1u;
+    size_t need = srmech_genome_graph_partition_arena_bytes(n, 0u, n_bins, paths_cap);
+    if (ws_len < need) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(ws_len >= need);
+    assert(result_out != NULL);
+    ggp_state_t s;
+    ggp_carve(n, n_bins, paths_cap, ws, &s);
+    memset(result_out, 0, sizeof *result_out);
+    result_out->struct_size = (uint32_t)sizeof *result_out;
+    int cancelled = 0;
+    srmech_status_t st = ggp_step_cut(&s, edges_path, work_dir, max_tome, max_iters,
+                                      max_depth, community_out, tick, tick_ctx,
+                                      &cancelled);
+    if (st != SRMECH_OK && st != SRMECH_CANCELLED) {
+        return st;
+    }
+    result_out->n_communities = s.n_tomes;
+    result_out->cancelled = (uint32_t)(cancelled ? 1 : 0);
+    if (cancelled) {
+        return SRMECH_CANCELLED;              /* community assignment only (clean partial) */
+    }
+    st = ggp_step_participation(&s, edges_path, community_out, part_num_out,
+                                part_den_out);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    ggp_step_antimode(&s, counts_out, result_out);
+    ggp_group_out_t go;
+    go.comm = group_comm_out; go.type = group_type_out; go.size = group_size_out;
+    go.num = group_num_out; go.den = group_den_out; go.members = group_members_out;
+    go.cap = groups_cap; go.n_groups = 0u; go.n_members = 0u;
+    st = ggp_step_groups(&s, result_out, &go);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    result_out->n_groups = go.n_groups;
+    return SRMECH_OK;
+}

@@ -414,6 +414,32 @@ SRMECH_PHASE_PARTITIONING: int = 4
 PROGRESS_STRUCT_SIZE: int = ctypes.sizeof(_ProgressEv)
 
 
+# §100 G3 (rc321, task #904) — ctypes mirror of
+# srmech_genome_graph_partition_result_t. Field ORDER + TYPES must match
+# c/include/srmech.h EXACTLY: 10 four-byte fields (6 uint32 + 4 int32) then 4
+# eight-byte fields — no internal padding, so 72 bytes total on any LP64/LLP64 ABI.
+class _GenomeGraphPartitionResult(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_uint32),   # == sizeof(the C struct)
+        ("n_communities", ctypes.c_uint32),  # recursive_cut tome count
+        ("n_groups", ctypes.c_uint32),       # emitted (community, type) slices
+        ("cancelled", ctypes.c_uint32),      # 0/1 — §101 clean partial
+        ("bimodal", ctypes.c_uint32),        # 0/1
+        ("mode_bin", ctypes.c_uint32),       # single dominant mode
+        ("threshold_bin", ctypes.c_int32),   # -1 == None
+        ("peak_low_bin", ctypes.c_int32),    # -1 == None
+        ("peak_high_bin", ctypes.c_int32),   # -1 == None
+        ("one_dna_type", ctypes.c_int32),    # -1 None / 0 nuclear / 1 plasmid
+        ("valley_count", ctypes.c_int64),    # -1 == None
+        ("gap", ctypes.c_uint64),
+        ("node_nuclear", ctypes.c_uint64),
+        ("node_plasmid", ctypes.c_uint64),
+    ]
+
+
+GENOME_GRAPH_PARTITION_RESULT_SIZE: int = ctypes.sizeof(_GenomeGraphPartitionResult)
+
+
 def _make_tick_trampoline(py_progress, box):
     """Wrap a Python ``progress`` callable as a C-callable tick that NEVER lets a
     Python exception cross the C frames (the rc273 Callable-boundary lesson, C
@@ -2872,6 +2898,48 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.c_void_p,                   # tick_user
             ]
             lib.srmech_laplacian_recursive_cut.restype = ctypes.c_int
+
+        # §100 G3 (rc321, task #904) — the WHOLE-OP GRAPH partition C peer of
+        # srmech.amsc.genome.genome_partition (the GRAPH op; NOT the strand-recovery
+        # srmech_genome_partition). Composes recursive_cut + an exact-integer
+        # participation read + the antimode DECISION + per-node classify + group
+        # assembly, all in C. NEW symbols → own hasattr; ws_len is in BYTES.
+        # ADDITIVE — a new struct + two symbols reusing the tick typedef, so ABI
+        # stays 10.
+        if hasattr(lib, "srmech_genome_graph_partition"):
+            lib.srmech_genome_graph_partition_arena_bytes.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_uint32,                   # n_edges (unused; streamed)
+                ctypes.c_uint32,                   # n_bins
+                ctypes.c_size_t,                   # paths_cap
+            ]
+            lib.srmech_genome_graph_partition_arena_bytes.restype = ctypes.c_size_t
+            lib.srmech_genome_graph_partition.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # edges_path (packed edge file)
+                ctypes.c_char_p,                   # work_dir
+                ctypes.c_uint32,                   # max_tome
+                ctypes.c_uint32,                   # n_bins
+                ctypes.c_uint32,                   # max_iters
+                ctypes.c_uint32,                   # max_depth
+                ctypes.POINTER(ctypes.c_uint32),  # community_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # part_num_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # part_den_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # counts_out (n_bins)
+                ctypes.POINTER(ctypes.c_uint32),  # group_comm_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_type_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_size_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint64),  # group_num_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint64),  # group_den_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_members_out (n)
+                ctypes.c_uint32,                   # groups_cap
+                ctypes.POINTER(_GenomeGraphPartitionResult),  # result_out
+                ctypes.POINTER(ctypes.c_double),  # ws arena
+                ctypes.c_size_t,                   # ws_len (in BYTES)
+                _TICK_CFUNCTYPE,                   # tick (NULL == off)
+                ctypes.c_void_p,                   # tick_ctx
+            ]
+            lib.srmech_genome_graph_partition.restype = ctypes.c_int
 
         # size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n) +
         # srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n,
@@ -16589,6 +16657,126 @@ def recursive_cut_c(n, edges_path, work_dir, max_tome, max_iters, max_depth,
         slot = raw[i * RECURSIVE_CUT_PATH_MAX:(i + 1) * RECURSIVE_CUT_PATH_MAX]
         out_paths.append(slot.split(b"\x00", 1)[0].decode("utf-8"))
     return out_paths, [int(sizes[i]) for i in range(count)], rc == SRMECH_CANCELLED
+
+
+def has_native_genome_graph_partition() -> bool:
+    """True iff the §100 G3 (rc321, task #904) WHOLE-OP graph-partition C peer is
+    loaded + bound: ``srmech_genome_graph_partition`` runs recursive_cut + the
+    exact-integer participation + the antimode DECISION + per-node classify + group
+    assembly ALL in C, so a bare-C host builds the whole genome_partition. Before
+    rc321 only recursive_cut was native and the participation/antimode/groups read
+    was Python-only — exactly the §100 G3 parity gap. False on a no-C or pre-rc321
+    lib — the pure ``srmech.amsc.genome.genome_partition`` body is the complete
+    byte-parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_graph_partition")
+                and hasattr(LIB, "srmech_genome_graph_partition_arena_bytes"))
+
+
+def genome_graph_partition_c(n, edges_path, work_dir, max_tome, n_bins, max_iters,
+                             max_depth, paths_cap, progress=None):
+    """§100 G3 native dispatch for :func:`srmech.amsc.genome.genome_partition` (the
+    GRAPH op). Runs the WHOLE partition in C: ``srmech_laplacian_recursive_cut`` over
+    ``edges_path`` (a :func:`~srmech.amsc.laplacian.write_packed_graph` edge file),
+    then the exact-integer participation, the antimode histogram DECISION, per-node
+    classify and group assembly.
+
+    Returns a dict of the partition read-out — ``community`` (per node), ``participation``
+    (per node, exact reduced pairs), ``counts`` (the histogram), ``antimode``,
+    ``one_dna_type``, ``node_counts``, ``groups`` (each with reduced participation), and
+    ``n_communities`` — OR ``None`` when the symbol is absent / the C op declines (the
+    caller then takes the pure body, the byte-parity oracle). ``progress`` threads the
+    §101 partition heartbeat through the tick trampoline; a truthy return CANCELS -> the
+    C op returns SRMECH_CANCELLED and this returns ``{"cancelled": True, ...}`` with only
+    the (valid coarser) community assignment. An exception in ``progress`` is caught
+    before it crosses the C frames and re-raised here."""
+    if not has_native_genome_graph_partition():
+        return None
+    if (not isinstance(n, int) or isinstance(n, bool) or n < 0 or n > 0xFFFF_FFFF
+            or not isinstance(n_bins, int) or isinstance(n_bins, bool) or n_bins < 2):
+        return None
+    pc = int(paths_cap)
+    groups_cap = 2 * pc
+    need = LIB.srmech_genome_graph_partition_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(0), ctypes.c_uint32(int(n_bins)),
+        ctypes.c_size_t(pc))
+    n_doubles = (int(need) + 7) // 8
+    ws = (ctypes.c_double * max(n_doubles, 1))()
+    community = (ctypes.c_uint32 * max(n, 1))()
+    part_num = (ctypes.c_uint64 * max(n, 1))()
+    part_den = (ctypes.c_uint64 * max(n, 1))()
+    counts = (ctypes.c_uint64 * int(n_bins))()
+    g_comm = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_type = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_size = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_num = (ctypes.c_uint64 * max(groups_cap, 1))()
+    g_den = (ctypes.c_uint64 * max(groups_cap, 1))()
+    g_members = (ctypes.c_uint32 * max(n, 1))()
+    result = _GenomeGraphPartitionResult()
+    box: dict = {}
+    tramp = (_make_tick_trampoline(progress, box) if progress is not None
+             else ctypes.cast(None, _TICK_CFUNCTYPE))
+    rc = LIB.srmech_genome_graph_partition(
+        ctypes.c_uint32(n),
+        str(edges_path).encode("utf-8"),
+        str(work_dir).encode("utf-8"),
+        ctypes.c_uint32(int(max_tome)),
+        ctypes.c_uint32(int(n_bins)),
+        ctypes.c_uint32(int(max_iters)),
+        ctypes.c_uint32(int(max_depth)),
+        community, part_num, part_den, counts,
+        g_comm, g_type, g_size, g_num, g_den, g_members,
+        ctypes.c_uint32(groups_cap),
+        ctypes.byref(result),
+        ws, ctypes.c_size_t(int(need)),
+        tramp, None,
+    )
+    if box.get("exc") is not None:
+        raise box["exc"]                    # re-raise the callback's own exception
+    if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+        return None
+    n_comm = int(result.n_communities)
+    community_list = [int(community[v]) for v in range(n)]
+    if rc == SRMECH_CANCELLED or result.cancelled:
+        return {"cancelled": True, "n_communities": n_comm,
+                "community": community_list}
+
+    def _opt(x):
+        return None if int(x) < 0 else int(x)
+
+    groups = []
+    off = 0
+    for gi in range(int(result.n_groups)):
+        sz = int(g_size[gi])
+        nodes = [int(g_members[off + j]) for j in range(sz)]
+        off += sz
+        groups.append({
+            "community": int(g_comm[gi]),
+            "type": "nuclear" if int(g_type[gi]) == 0 else "plasmid",
+            "nodes": nodes, "size": sz,
+            "participation": (int(g_num[gi]), int(g_den[gi])),
+        })
+    one_dna = int(result.one_dna_type)
+    one_dna_type = None if one_dna < 0 else ("nuclear" if one_dna == 0 else "plasmid")
+    return {
+        "cancelled": False,
+        "n_communities": n_comm,
+        "community": community_list,
+        "participation": [(int(part_num[v]), int(part_den[v])) for v in range(n)],
+        "counts": [int(counts[b]) for b in range(int(n_bins))],
+        "antimode": {
+            "bimodal": bool(result.bimodal),
+            "threshold_bin": _opt(result.threshold_bin),
+            "peak_low_bin": _opt(result.peak_low_bin),
+            "peak_high_bin": _opt(result.peak_high_bin),
+            "valley_count": _opt(result.valley_count),
+            "gap": int(result.gap),
+        },
+        "one_dna_type": one_dna_type,
+        "node_counts": {"nuclear": int(result.node_nuclear),
+                        "plasmid": int(result.node_plasmid)},
+        "groups": groups,
+    }
 
 
 def has_native_k_extreme_modes() -> bool:
