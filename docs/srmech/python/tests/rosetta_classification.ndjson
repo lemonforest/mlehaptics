@@ -715,6 +715,9 @@
 {"exposed_as": "srmech.amsc.q8.q8_bind", "defined_at": "srmech.amsc.q8.q8_bind", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.q8.q8_project_v4", "defined_at": "srmech.amsc.q8.q8_project_v4", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.q8.q8_from_one", "defined_at": "srmech.amsc.q8.q8_from_one", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.octonion.oct_mult", "defined_at": "srmech.amsc.octonion.oct_mult", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.octonion.oct_conjugate", "defined_at": "srmech.amsc.octonion.oct_conjugate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.octonion.oct_bind", "defined_at": "srmech.amsc.octonion.oct_bind", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.discrete_writhe", "defined_at": "srmech.amsc.genome.discrete_writhe", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.cwf_consistency_mod2", "defined_at": "srmech.amsc.genome.cwf_consistency_mod2", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.relative_writhe", "defined_at": "srmech.amsc.rational.relative_writhe", "bucket": "composition_of_c"}

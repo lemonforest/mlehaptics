@@ -64,6 +64,8 @@ from srmech.amsc.hv import HV as _HV
 from srmech.amsc.q8 import q8_bind as _q8_bind
 from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
 from srmech.amsc.q8 import q8_project_v4 as _q8_project_v4
+from srmech.amsc.octonion import oct_bind as _oct_bind
+from srmech.amsc.octonion import oct_conjugate as _oct_conjugate
 from srmech.amsc.tlv import tlv_pack as _tlv_pack
 from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
@@ -106,9 +108,10 @@ __all__ = [
     "GRADED_GENE_MARKER",
     "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF", "GATE_TYPE_THRESHOLD",
     "GATE_TYPE_GRADED",
-    "PACKED_TURN_MARKER", "Q8_PACKED_TURN_MARKER",
+    "PACKED_TURN_MARKER", "Q8_PACKED_TURN_MARKER", "OCTONION_PACKED_TURN_MARKER",
     "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4", "ELEMENT_TYPE_Q8",
+    "ELEMENT_TYPE_OCTONION", "OCTONION_SECTORS",
     "FIBER_CAP_MARKER",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
@@ -161,6 +164,17 @@ PACKED_TURN_MARKER = 0x51
 #: use this one, and a reader strides each by its marker with no element_type context. A
 #: v15 klein4 turn (bytes ``0..3``, sign bit 0) is the winding-0 slice of a v16 Q₈ turn.
 Q8_PACKED_TURN_MARKER = 0x38
+#: §𝕆/rc324 — the 4-BIT-PACKED octonion data-turn block marker. ``0x39`` = ASCII ``'9'``
+#: (adjacent to Q₈'s ``'8'``; the octonion sits one Cayley–Dickson rung up). An octonion
+#: data turn packs as ``[0x39] + ceil(leaf_dim*4/8)`` payload bytes — **4 bits per octonion
+#: symbol** (3 index bits ``e₀..e₇`` + the ``±1`` center sign). Same MSB-FIRST CONTIGUOUS
+#: layout as the Q₈ codec (symbol ``i`` in bits ``[4i, 4i+4)`` of a big-endian bitstream,
+#: the sign/high bit first; the partial-final-byte low pad bits are zero, canonical). The
+#: marker is ``> 3`` and distinct from :data:`PACKED_TURN_MARKER` / :data:`Q8_PACKED_TURN_MARKER`
+#: / every cap marker. **rc324 is the CARRIER: this codec is a standalone, directly-tested
+#: round-trip; wiring it into the on-disk region walk + the GENOME_FORMAT_VERSION bump is a
+#: later rc (mirroring how the Q₈ 3-bit codec landed in rc312, not the rc311 carrier).**
+OCTONION_PACKED_TURN_MARKER = 0x39
 #: §60/rc121 (format v5, issue #1245 reopened) — the SIZE-AGNOSTIC KERNEL HEADER
 #: block marker. ``0x4B`` = ASCII ``'K'`` (Kernel). Written by :func:`kernel_pack`
 #: as the SECOND block of a kernel chromosome (right after its telomere CHROM cap):
@@ -720,7 +734,20 @@ ELEMENT_TYPE_KLEIN4 = 0
 #: type; a header-less body still defaults to :data:`ELEMENT_TYPE_KLEIN4`). The §55 8-sector
 #: packer + the format bump land in rc312.
 ELEMENT_TYPE_Q8 = 1
-_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8"}
+#: §𝕆 (rc324) — the DISCRETE octonion Moufang loop ``{±e₀, …, ±e₇}`` element type: a
+#: 4-bit symbol ``(sign_bit << 3) | index`` (:mod:`srmech.amsc.octonion`), the Cayley–
+#: Dickson rung ABOVE :data:`ELEMENT_TYPE_Q8`. Its coupling is the octonion loop product
+#: (:func:`quad_turn` right-couple), non-involutive — decoupled by the Class-C conjugate
+#: (loop inverse) via the Moufang inverse property, NOT the XOR self-inverse. Data turns
+#: are ``sectors=16`` (:data:`OCTONION_SECTORS`) HVs storing the FULL octonion (indices
+#: ``0..7`` — including the non-quaternionic ``4..7`` the Q₈ ``0..3`` sub-block cannot
+#: reach). Coexists with the klein4 + Q8 paths with NO GENOME_FORMAT_VERSION bump (the
+#: size-agnostic header discipline — the reader is told the type; a header-less body still
+#: defaults to :data:`ELEMENT_TYPE_KLEIN4`). This rc ships the CARRIER only; the octonion
+#: associator / fiber-holonomy channel + the on-disk 4-bit turn wiring land in a later rc.
+ELEMENT_TYPE_OCTONION = 2
+_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8",
+                       ELEMENT_TYPE_OCTONION: "octonion"}
 _ELEMENT_TYPE_CODES = {name: code for code, name in _ELEMENT_TYPE_NAMES.items()}
 
 #: §60 kernel-header fixed prefix layout (bytes; NUL-padded to ``leaf_dim``):
@@ -760,6 +787,11 @@ QUAD = 4
 #: 3-bit ``{0..7}`` symbol). A Q8 data turn is a ``sectors=8`` HV; the extra bit over
 #: :data:`QUAD` is the over/under-winding sign the abelian klein4 coset cannot carry.
 OCT = 8
+#: §𝕆 (rc324) — the octonion carrier order: 16 = the 8 basis units ``e₀..e₇`` × the ±1
+#: center sign (the 4-bit ``{0..15}`` symbol). An octonion data turn is a ``sectors=16`` HV;
+#: the extra index bit over :data:`OCT` reaches the non-quaternionic units ``e₄..e₇``. NOT a
+#: rename of :data:`OCT` (which is the Q₈ order 8, a historical misnomer) — a distinct name.
+OCTONION_SECTORS = 16
 #: One quad-turn spans the 4 Klein-4 sectors of leaves: 1024 = 4 x 256 (F713).
 MOBIUS_CAP = LEAF_CAP * QUAD
 
@@ -1710,9 +1742,11 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
         return _klein4_bind(turn, coupling)
     if element_type == ELEMENT_TYPE_Q8:
         return _q8_couple(turn, coupling)
+    if element_type == ELEMENT_TYPE_OCTONION:
+        return _oct_couple(turn, coupling)
     raise ValueError(
         f"quad_turn: unknown element_type {element_type!r}; declared types are "
-        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
 
 
 def _hv_bytes(x):
@@ -1762,6 +1796,49 @@ def _q8_couple(turn, coupling):
     return _HV.from_sequence(stored, sectors=OCT)
 
 
+def _oct_conj_buffer(one_bytes):
+    """The per-slot octonion conjugate (loop inverse) of a coupling buffer —
+    ``conj(one)[i] = oct_conjugate(one[i])`` (Class-C chirality; a sign-bit flip on the
+    imaginary units, NO ``abs()``). The right-inverse the octonion decouple binds against."""
+    return bytes(_oct_conjugate(o) for o in one_bytes)
+
+
+def _oct_uncouple_bytes(stored_bytes, one_bytes):
+    """Right-inverse octonion decouple on raw bytes: ``recovered[i] = oct_mult(stored[i],
+    oct_conjugate(one[i]))`` = ``oct_bind(stored, conj(one))``. Rests on the Moufang loop
+    INVERSE PROPERTY ``(turn · one) · conj(one) == turn`` per slot — each slot holds a single
+    signed basis unit, and ``⟨turn, one⟩`` is an associative subalgebra (Artin), so a
+    RIGHT-coupled ``stored = oct_mult(turn, one)`` decouples exactly to ``turn`` even though
+    𝕆 is globally non-associative. Class-M (bind) ∘ Class-C (conjugate)."""
+    return _oct_bind(stored_bytes, _oct_conj_buffer(one_bytes))
+
+
+def _oct_side_ok(stored_bytes, turn_bytes, one_bytes):
+    """The octonion coupling-SIDE invariant, as a fireable predicate: True iff the module's
+    RIGHT-conjugate decouple inverts ``stored`` back to ``turn``. RIGHT-coupling
+    (``stored = oct_mult(turn, one)``) satisfies it; a LEFT-coupled ``stored =
+    oct_mult(one, turn)`` does NOT (𝕆 is non-commutative), so :func:`_oct_couple` asserts
+    this and a wrong side FAILS LOUDLY instead of corrupting silently. Class-K exact byte
+    compare, no float/abs."""
+    return bytes(_oct_uncouple_bytes(stored_bytes, one_bytes)) == bytes(turn_bytes)
+
+
+def _oct_couple(turn, coupling):
+    """Right-couple one octonion turn: ``stored[i] = oct_mult(turn[i], one[i])``
+    (:func:`oct_bind`, the octonion loop product). Returns a ``sectors=16``
+    (:data:`OCTONION_SECTORS`) HV. The coupling SIDE is a HARD runtime assertion
+    (:func:`_oct_side_ok`) — 𝕆 is non-commutative, so a left-side couple would round-trip
+    WRONG with no downstream error; the assert pins couple↔uncouple on the SAME (right) side
+    via the Moufang inverse property. Class-M ∘ Class-C."""
+    turn_bytes = _hv_bytes(turn)
+    one_bytes = _hv_bytes(coupling)
+    stored = _oct_bind(turn_bytes, one_bytes)         # right: turn · one, per slot
+    assert _oct_side_ok(stored, turn_bytes, one_bytes), (
+        "octonion couple side error: the right-conjugate decouple does not invert the "
+        "stored turn — couple and uncouple are on opposite sides (𝕆 is non-commutative; §𝕆)")
+    return _HV.from_sequence(stored, sectors=OCTONION_SECTORS)
+
+
 def _quad_unturn(hv, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Uncouple one STORED turn back to its leaf — the direction-aware inverse of
     :func:`quad_turn`.
@@ -1778,9 +1855,13 @@ def _quad_unturn(hv, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     if element_type == ELEMENT_TYPE_Q8:
         return _HV.from_sequence(
             _q8_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)), sectors=OCT)
+    if element_type == ELEMENT_TYPE_OCTONION:
+        return _HV.from_sequence(
+            _oct_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)),
+            sectors=OCTONION_SECTORS)
     raise ValueError(
         f"_quad_unturn: unknown element_type {element_type!r}; declared types are "
-        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
 
 
 def _pack_cap(marker, label, dim):
@@ -2873,11 +2954,15 @@ def recover_diploid(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
         native = _native.genome_recover_diploid_q8_c(
             b"".join(hv.tobytes() for hv in strand), len(strand), dim,
             _coupling_block_bytes(coupling))
+    elif element_type == ELEMENT_TYPE_OCTONION:
+        native = None   # rc324: carrier only — no native octonion genome peer yet; the pure
+        #                 per-leaf _diploid_ec_leaf walk below (element-type-agnostic) is used.
     else:
         raise ValueError(
             f"recover_diploid: unknown element_type {element_type!r}; declared types are "
-            f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
-    sectors = OCT if element_type == ELEMENT_TYPE_Q8 else QUAD
+            f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
+    sectors = (OCTONION_SECTORS if element_type == ELEMENT_TYPE_OCTONION
+               else OCT if element_type == ELEMENT_TYPE_Q8 else QUAD)
     if native is not None:
         return [_HV.from_sequence(native[i * dim:(i + 1) * dim], sectors=sectors)
                 for i in range(len(native) // dim)]
@@ -3662,7 +3747,8 @@ def recall(strand, coupling, telomere=None, *, element_type=ELEMENT_TYPE_KLEIN4)
     """
     dim = len(list(coupling))
     blocks = _leaf_blocks(strand)
-    sectors = OCT if element_type == ELEMENT_TYPE_Q8 else QUAD
+    sectors = (OCTONION_SECTORS if element_type == ELEMENT_TYPE_OCTONION
+               else OCT if element_type == ELEMENT_TYPE_Q8 else QUAD)
     if dim > 0 and blocks and all(len(b) == dim for b in blocks):
         # rc197 (#887): DISPATCH the klein4 path to srmech_genome_recall (reversible XOR
         # per turn). §Q8 (rc311): DISPATCH the Q8 path to srmech_genome_recall_q8 (the
@@ -3676,10 +3762,13 @@ def recall(strand, coupling, telomere=None, *, element_type=ELEMENT_TYPE_KLEIN4)
         elif element_type == ELEMENT_TYPE_Q8:
             native = _native.genome_recall_q8_c(
                 b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+        elif element_type == ELEMENT_TYPE_OCTONION:
+            native = None   # rc324: carrier only — no native octonion genome peer yet; the
+            #                 pure per-turn _quad_unturn walk below is authoritative.
         else:
             raise ValueError(
                 f"recall: unknown element_type {element_type!r}; declared types are "
-                f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+                f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
         if native is not None:
             leaf_bytes, n = native
             return [_HV.from_sequence(leaf_bytes[i * dim:(i + 1) * dim], sectors=sectors)
@@ -6956,6 +7045,76 @@ def _unpack_turn_payload_q8(payload: bytes, leaf_dim: int) -> bytes:
     for i in range(n - 1, -1, -1):
         out[i] = acc & 7
         acc >>= 3
+    return bytes(out)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# §𝕆/rc324 — the 4-BIT octonion packed-turn codec. An octonion data turn carries
+# a 4-bit symbol (:mod:`srmech.amsc.octonion`: ``(sign_bit << 3) | index``), so it
+# needs 4 bits/symbol where the Q₈ turn packs 3 and the klein4 turn packs 2. Same
+# MSB-FIRST CONTIGUOUS layout as the Q₈ codec (symbol ``i`` → bits ``[4i, 4i+4)`` of
+# a big-endian bitstream, symbol 0 in the highest bits; the unused LOW bits of a
+# partial final byte are zero, canonical). This is the CARRIER codec (rc324) — a
+# standalone directly-tested round-trip; the on-disk region-walk wiring + the format
+# bump are a later rc (mirroring the Q₈ rc311-carrier → rc312-on-disk split). Do NOT
+# reuse the 3-bit Q₈ path (an octonion symbol 8..15 does not fit 3 bits).
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _packed_payload_len_octonion(leaf_dim: int) -> int:
+    """Payload bytes of one octonion packed data turn: ``ceil(leaf_dim*4 / 8)`` =
+    ``ceil(leaf_dim / 2)`` (pure integer — 4-bit octonion lanes, MSB-first contiguous
+    bit-packing; two symbols per byte)."""
+    return (int(leaf_dim) * 4 + 7) // 8
+
+
+def _pack_turn_block_octonion(mem_block: bytes) -> bytes:
+    """One in-memory byte-per-symbol octonion data turn (bytes ``0..15``) → its packed
+    block ``[OCTONION_PACKED_TURN_MARKER] + payload``. 4 bits/symbol, MSB-first contiguous
+    (symbol 0 in the highest bits); the unused LOW bits of a partial final byte are zero
+    (canonical — the round-trip stays byte-exact both ways). Raises ``ValueError`` on a
+    non-octonion symbol (> 15).
+
+    The partial-final-byte pad width is the exact integer ``pad_bits = plen*8 - n*4`` and
+    those low bits MUST be zero after packing; both are asserted here (the packing constant
+    lives in an ASSERTION, not a comment — the M3 lesson), so an odd-``leaf_dim`` strand is
+    checked on the hot path, never trusted to a comment."""
+    n = len(mem_block)
+    plen = (n * 4 + 7) // 8
+    acc = 0
+    for i, sym in enumerate(mem_block):
+        if not 0 <= sym <= 15:
+            raise ValueError(
+                f"genome octonion packing: data-turn symbol {sym} at position {i} "
+                f"is not an octonion element (0..15) — only octonion turns 4-bit-pack"
+            )
+        acc = (acc << 4) | sym
+    pad_bits = plen * 8 - n * 4            # THE platform/packing constant (0 or 4)
+    assert 0 <= pad_bits < 8 and plen == _packed_payload_len_octonion(n), (
+        f"octonion pack: pad_bits {pad_bits} / plen {plen} off the ceil(leaf_dim*4/8) "
+        f"invariant at leaf_dim={n}"
+    )
+    acc <<= pad_bits                      # low pad_bits become zero (canonical)
+    payload = acc.to_bytes(plen, "big") if plen else b""
+    if pad_bits and plen:
+        assert payload[-1] & ((1 << pad_bits) - 1) == 0, (
+            f"octonion pack: final byte {payload[-1]:#04x} has nonzero pad in its low "
+            f"{pad_bits} bits (leaf_dim={n}; canonical zero-pad violated)"
+        )
+    return bytes([OCTONION_PACKED_TURN_MARKER]) + payload
+
+
+def _unpack_turn_payload_octonion(payload: bytes, leaf_dim: int) -> bytes:
+    """An octonion packed payload → the in-memory byte-per-symbol octonion data turn (bytes
+    ``0..15``) — exact inverse of :func:`_pack_turn_block_octonion` (drop the low pad bits,
+    read ``leaf_dim`` 4-bit symbols MSB-first)."""
+    n = int(leaf_dim)
+    plen = len(payload)
+    pad_bits = plen * 8 - n * 4
+    acc = int.from_bytes(payload, "big") >> pad_bits
+    out = bytearray(n)
+    for i in range(n - 1, -1, -1):
+        out[i] = acc & 15
+        acc >>= 4
     return bytes(out)
 
 
