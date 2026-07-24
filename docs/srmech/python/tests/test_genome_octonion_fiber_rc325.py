@@ -207,7 +207,7 @@ def test_f3_base_is_a_strict_prefix_plus_one_oct_cap():
 
 
 def test_f3_format_version_is_18():
-    assert GENOME_FORMAT_VERSION == 18
+    assert GENOME_FORMAT_VERSION == 19
 
 
 def test_f3_both_hbar_and_octonion_caps_round_trip_independently():
@@ -240,7 +240,7 @@ def test_f3_pre_rc325_fmt17_body_still_opens(tmp_path):
     strand = chromosome(leaves, one, label="k4", element_type=ELEMENT_TYPE_KLEIN4)
     d = str(tmp_path)
     data = G.genome_save(strand, d, one, element_type=ELEMENT_TYPE_KLEIN4)
-    assert data["format_version"] == 18                  # the current (v18) writer stamps 18
+    assert data["format_version"] == 19                  # the current (v18) writer stamps 18
     # rewrite the manifest to a pre-rc325 format_version 17 (the body is byte-identical)
     man_path = Path(d, "manifest.json")
     man = json.loads(man_path.read_text(encoding="utf-8"))

@@ -70,7 +70,7 @@ def test_v6_roundtrip_on_disk(tmp_path, D):
     one = G._default_coupling(256)
     p = tmp_path / f"k{D}"
     man = G.genome_save(strand, p, coupling=one)
-    assert man["format_version"] == 18                # the v9 writer (rc130 §130 stamps 9)
+    assert man["format_version"] == 19                # the v9 writer (rc130 §130 stamps 9)
     assert G.kernel_unpack(p) == x                   # coupling from the manifest cache
 
 

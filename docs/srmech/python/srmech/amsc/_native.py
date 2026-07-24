@@ -3924,6 +3924,21 @@ def _bind(lib: ctypes.CDLL) -> None:
         if hasattr(lib, "srmech_genome_q8_unpack_turn"):
             lib.srmech_genome_q8_unpack_turn.argtypes = [_U8, _U32, _U8]
             lib.srmech_genome_q8_unpack_turn.restype = ctypes.c_int
+        # §55/§𝕆-TURN/v19 (rc326) — the 4-bit octonion packed-turn CODEC primitives (genome-
+        # fully-in-C mirror of _pack_turn_block_octonion / _unpack_turn_payload_octonion). NEW
+        # symbols, no callback typedef → hasattr-guarded, additive → EXPECTED_ABI_VERSION stays
+        # 10. The on-disk format is v19 (GENOME_FORMAT_VERSION 18→19), a DATA change, not a
+        # C-wire change.
+        #   int srmech_genome_octonion_pack_turn(const unsigned char *leaf, uint32_t leaf_dim,
+        #       unsigned char *out, size_t *out_len)
+        if hasattr(lib, "srmech_genome_octonion_pack_turn"):
+            lib.srmech_genome_octonion_pack_turn.argtypes = [_U8, _U32, _U8, _PSZ]
+            lib.srmech_genome_octonion_pack_turn.restype = ctypes.c_int
+        #   int srmech_genome_octonion_unpack_turn(const unsigned char *payload,
+        #       uint32_t leaf_dim, unsigned char *out)
+        if hasattr(lib, "srmech_genome_octonion_unpack_turn"):
+            lib.srmech_genome_octonion_unpack_turn.argtypes = [_U8, _U32, _U8]
+            lib.srmech_genome_octonion_unpack_turn.restype = ctypes.c_int
         # §98/rc268 (#1422) — the CHROMATIN access cap writer + strand read. NEW symbols →
         # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
         #   int srmech_genome_chromatin(unsigned char chromatin_type, uint64_t num, uint64_t den,
