@@ -161,9 +161,11 @@ def test_p2_uniform_contract():
     with pytest.raises(ValueError):
         _classn_working(-4, kind="bits")
 
-    # the reserved-for-later-waves kinds are declared but not yet implemented
-    with pytest.raises(NotImplementedError):
-        _classn_working(64, kind="terms")
+    # kind="terms" is now IMPLEMENTED (rc320 WAVE 2) — same None/int dispatch as
+    # the bits wave; kind="den" is still reserved for a later wave.
+    assert _classn_working(None, kind="terms").mode == "platform"
+    assert _classn_working(64, kind="terms").mode == "bigint"
+    assert _classn_working(64, kind="terms").effective == 64
     with pytest.raises(NotImplementedError):
         _classn_working(64, kind="den")
 

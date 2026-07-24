@@ -767,40 +767,40 @@ static const srmech_tool_param_t ts_params_110[] = {
 };
 static const srmech_tool_param_t ts_params_111[] = {
     { "x", "float", 1, "angle in radians" },
-    { "terms", "int", 0, "Taylor terms (keyword-only); default 24" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_112[] = {
     { "x", "float", 1, "angle in radians" },
-    { "terms", "int", 0, "Taylor terms (keyword-only); default 24" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_113[] = {
     { "x", "float", 1, "angle in radians" },
-    { "terms", "int", 0, "Taylor terms (keyword-only); default 24" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_114[] = {
     { "x", "float", 1, "argument" },
-    { "terms", "int", 0, "atan Taylor terms (keyword-only); default 40" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_115[] = {
     { "y", "float", 1, "ordinate" },
     { "x", "float", 1, "abscissa" },
-    { "terms", "int", 0, "atan Taylor terms (keyword-only); default 40" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_116[] = {
     { "x", "float", 1, "real exponent" },
-    { "terms", "int", 0, "exact-rational reference Taylor terms (keyword-only); default 24" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_117[] = {
     { "x", "float", 1, "argument, x > 0" },
-    { "terms", "int", 0, "exact-rational reference Taylor terms (keyword-only); default 13" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_118[] = {
     { "theta", "float", 1, "phase angle in radians" },
-    { "terms", "int", 0, "trig Taylor terms (keyword-only); default 24" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_119[] = {
     { "z", "complex", 1, "complex exponent" },
-    { "terms", "int", 0, "trig Taylor terms (keyword-only); default 24" },
+    { "precision", "int", 0, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)" },
 };
 static const srmech_tool_param_t ts_params_120[] = {
     { "x", "float", 1, "radicand, x >= 0" },
@@ -4136,7 +4136,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(622926147424044489, 1152921504606846976)\"}",
         NULL,
-        "``cos(x)`` (radians) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).",
+        "``cos(x)`` (radians) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q`.",
         NULL, 0u,
         NULL, 0u,
     },
@@ -4152,7 +4152,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(485074996943862657, 576460752303423488)\"}",
         NULL,
-        "``sin(x)`` (radians) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).",
+        "``sin(x)`` (radians) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q`.",
         NULL, 0u,
         NULL, 0u,
     },
@@ -4184,7 +4184,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(905502432259640355, 1152921504606846976)\"}",
         NULL,
-        "``atan(x)`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Q61 three-band Class-N cascade.",
+        "``atan(x)`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q`.",
         NULL, 0u,
         NULL, 0u,
     },
@@ -4200,7 +4200,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"input\":{\"x\":\"1.0\",\"y\":\"1.0\"},\"output\":\"Q(905502432259640355, 1152921504606846976)\"}",
         NULL,
-        "``atan2(y, x)`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Q61 atan cascade with quadrant logic.",
+        "``atan2(y, x)`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q`.",
         NULL, 0u,
         NULL, 0u,
     },
@@ -4216,7 +4216,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(1566982787806226805, 576460752303423488)\"}",
         NULL,
-        "``e^x`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction.",
+        "``e^x`` \342\206\222 an EXACT :class:`~srmech.amsc.q.Q`.",
         NULL, 0u,
         NULL, 0u,
     },
@@ -4232,7 +4232,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         NULL,
         "{\"input\":{\"x\":\"1.0\"},\"output\":\"Q(0, 1)\"}",
         NULL,
-        "``ln(x)`` (natural log, x > 0) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q` via the Q61 Class-N atanh cascade.",
+        "``ln(x)`` (natural log, x > 0) \342\206\222 an EXACT :class:`~srmech.amsc.q.Q`.",
         NULL, 0u,
         NULL, 0u,
     },
@@ -4262,7 +4262,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "e^z projected from the exact rational",
         1,
         NULL,
-        "{\"call\":\"complex_exp(z=<complex>, terms=<int>) -> complex\"}",
+        "{\"call\":\"complex_exp(z=<complex>, precision=<int>) -> complex\"}",
         NULL,
         "``e^z`` for complex ``z`` via the Class-N cascade.",
         NULL, 0u,

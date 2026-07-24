@@ -853,7 +853,11 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
             :meth:`~srmech.amsc.poly.Poly.from_coeffs`). Must be degree ``≥ 2``
             with ``R(0) = 0`` and ``R'(0) > 1``.
         branches: the number of self-similar copies (an int ``≥ 2``).
-        log_terms: the Class-N ``log`` series-truncation depth (default 25).
+        log_terms: INERT since rc320 (kept for back-compat; a follow-up rc
+            removes it). It fed ``rational.log``'s ``terms`` knob, which the Q61
+            cascade always ignored; rc320 removed that knob, so ``log_terms`` no
+            longer threads anywhere and the log is the exact Q61 rational. Passing
+            it changes nothing.
 
     Returns:
         A dict with:
@@ -921,11 +925,15 @@ def fractal_spectrum(R, branches, *, log_terms: int = 25) -> Dict[str, object]:
     si = int(scale) if scale.denominator == 1 else None
 
     # SELF-SIMILARITY (fracton / spectral) DIMENSION d_s = 2 log(branches)/log(scale).
-    lb = _rational.log(branches, terms=log_terms)
+    # rc320: `rational.log` dropped its always-ignored `terms` knob (the Q61
+    # cascade never used it), so `log_terms` no longer threads anywhere — the log
+    # is the exact Q61 rational, byte-identical to every prior rc. `log_terms` is
+    # kept on the signature for back-compat but is now INERT (a follow-up rc
+    # removes it); passing it changes nothing.
+    lb = _rational.log(branches)
     ls = _rational.log(
-        si if si is not None else float(scale.numerator) / scale.denominator,
-        terms=log_terms)
-    ds = (_FRACTAL_Q2 * lb) / ls                # Q ratio of the series-truncated logs
+        si if si is not None else float(scale.numerator) / scale.denominator)
+    ds = (_FRACTAL_Q2 * lb) / ls                # Q ratio of the exact Q61 logs
     d_s = _rational.best_rational(ds.numerator, ds.denominator, 10 ** 9)
 
     # F974 |q|-METER: octaves per level = ceil(log2(scale)); a SINGLE R iterated is
