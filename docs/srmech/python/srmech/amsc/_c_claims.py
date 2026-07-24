@@ -520,9 +520,17 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     ),
     'srmech.amsc.rational.atan': (
         'srmech_atan_q61',
+        'srmech_bigint_divmod',
+        'srmech_bigint_gcd',
+        'srmech_bigint_gcd_ws_bound',
         'srmech_exp_q61',
         'srmech_sin_q61',
         'srmech_sqrt_q61',
+    ),
+    'srmech.amsc.rational.atan2': (
+        'srmech_bigint_divmod',
+        'srmech_bigint_gcd',
+        'srmech_bigint_gcd_ws_bound',
     ),
     'srmech.amsc.rational.atan_series_truncate': (
         'srmech_atan_series_truncate_big',
@@ -536,6 +544,9 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.rational.continued_fraction': ('srmech_continued_fraction',),
     'srmech.amsc.rational.continued_fraction_convergents': ('srmech_cf_convergents_int64',),
     'srmech.amsc.rational.cos': (
+        'srmech_bigint_divmod',
+        'srmech_bigint_gcd',
+        'srmech_bigint_gcd_ws_bound',
         'srmech_cos_q61',
         'srmech_exp_q61',
         'srmech_sin_q61',
@@ -550,6 +561,9 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_exp_series_truncate_big',
     ),
     'srmech.amsc.rational.exp': (
+        'srmech_bigint_divmod',
+        'srmech_bigint_gcd',
+        'srmech_bigint_gcd_ws_bound',
         'srmech_exp_q61',
         'srmech_sin_q61',
         'srmech_sqrt_q61',
@@ -627,6 +641,9 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_rational_pow_uint',
     ),
     'srmech.amsc.rational.sin': (
+        'srmech_bigint_divmod',
+        'srmech_bigint_gcd',
+        'srmech_bigint_gcd_ws_bound',
         'srmech_exp_q61',
         'srmech_sin_q61',
         'srmech_sqrt_q61',
@@ -749,7 +766,6 @@ UNVERIFIABLE_CLAIMS: Tuple[str, ...] = (
     'srmech.amsc.modular_forms_ring.modular_forms_ring_represent',
     'srmech.amsc.modular_linalg.crt_combine',
     'srmech.amsc.quasimodular_forms_ring.quasimodular_represent',
-    'srmech.amsc.rational.atan2',
     'srmech.amsc.rational.rational_reconstruct',
     'srmech.amsc.unary_theta.theta_coefficients',
     'srmech.amsc.unary_theta.unary_theta',
@@ -761,4 +777,4 @@ UNVERIFIABLE_CLAIMS: Tuple[str, ...] = (
 #: statically attributable dispatch path; RAISING it is the edit this ratchet
 #: exists to forbid — a rise means a new C-backed claim shipped that nothing can
 #: verify.
-UNVERIFIABLE_CEILING: int = 23
+UNVERIFIABLE_CEILING: int = 22
