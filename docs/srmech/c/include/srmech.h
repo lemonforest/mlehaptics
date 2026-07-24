@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc320"
-#define SRMECH_VERSION       "0.9.0rc320"
+#define SRMECH_VERSION_PRE   "rc321"
+#define SRMECH_VERSION       "0.9.0rc321"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1611,6 +1611,77 @@ srmech_status_t srmech_laplacian_recursive_cut(uint32_t                  n,
 
 /* The fixed width of one `tome_paths_out` slot, in bytes. */
 #define SRMECH_RECURSIVE_CUT_PATH_MAX 512u
+
+/* §100 G3 (rc321, task #904) — the WHOLE-OP C peer of the GRAPH partition
+ * srmech.amsc.genome.genome_partition. NOT the strand-recovery op that shares the
+ * C name srmech_genome_partition: this reads a directed relational GRAPH into a
+ * nuclear-core vs plasmid-periphery split BY ITS OWN TOPOLOGY. It composes
+ * srmech_laplacian_recursive_cut (the out-of-core community assignment) with an
+ * exact-integer participation read + the antimode histogram DECISION + a per-node
+ * classify + group assembly — all in C, so a bare-C host builds the partition with
+ * NO Python present (closes the deepest half of the §100 G-series parity ladder).
+ *
+ * The result STRUCT carries the scalar read-out (the histogram DECISION + the
+ * one-DNA-type + node counts); the caller-arena OUT arrays carry the per-node and
+ * per-group vectors. `struct_size` is the cbSize forward-compat gate (a later
+ * APPEND-only growth is size-gated, never a re-bump). `threshold_bin` /
+ * `peak_low_bin` / `peak_high_bin` / `one_dna_type` / `valley_count` use -1 as the
+ * Python `None` sentinel (unimodal). ADDITIVE — a new struct + two symbols reusing
+ * the existing srmech_progress_tick_cb_t typedef (NO new callback typedef), so
+ * SRMECH_ABI_VERSION stays 10, SRMECH_GENOME_FORMAT_VERSION stays 16 (this op reads
+ * a packed GRAPH edge file + writes recursive_cut tomes — it never touches the genome
+ * strand format). */
+typedef struct srmech_genome_graph_partition_result {
+    uint32_t struct_size;    /* == sizeof(srmech_genome_graph_partition_result_t) */
+    uint32_t n_communities;  /* the recursive_cut tome count                       */
+    uint32_t n_groups;       /* emitted (community, type) slices (<= 2*n_comm)      */
+    uint32_t cancelled;      /* 0/1 — §101: recursive_cut returned a clean partial  */
+    uint32_t bimodal;        /* 0/1 — a clean antimode valley was found             */
+    uint32_t mode_bin;       /* the single dominant mode (fixes one_dna_type)       */
+    int32_t  threshold_bin;  /* the low occupied bin at the split; -1 == None       */
+    int32_t  peak_low_bin;   /* -1 == None (unimodal)                               */
+    int32_t  peak_high_bin;  /* -1 == None (unimodal)                               */
+    int32_t  one_dna_type;   /* -1 None, 0 nuclear, 1 plasmid                        */
+    int64_t  valley_count;   /* the in-gap antimode; -1 == None                      */
+    uint64_t gap;            /* smaller_mode - valley (both non-negative; no abs)   */
+    uint64_t node_nuclear;   /* count of nuclear-classified nodes                    */
+    uint64_t node_plasmid;   /* count of plasmid-classified nodes                    */
+} srmech_genome_graph_partition_result_t;
+
+/* Arena size (BYTES) for srmech_genome_graph_partition: the recursive_cut
+ * sub-arena + cross/tot/counts accumulators + the tome-path/size buffers + the
+ * node-bin + tome-read scratch. `n_edges` is accepted for signature symmetry but
+ * the participation read STREAMS the edge file (never resident), so it is unused.
+ * `n_bins` must be >= 2; pass `paths_cap = n + 1` (the op uses that internally). */
+size_t srmech_genome_graph_partition_arena_bytes(uint32_t n, uint32_t n_edges,
+                                                 uint32_t n_bins, size_t paths_cap);
+
+/* Run the whole GRAPH partition. `edges_path` is a packed 16-byte-record edge file
+ * (write_packed_graph format: uint32 u | uint32 v | double w, integer weights); the
+ * op writes the recursive_cut tomes under `work_dir`. Per-node OUT arrays
+ * (>= n): community_out (tome index), part_num_out / part_den_out (the exact reduced
+ * participation rational). counts_out (>= n_bins) receives the participation
+ * histogram. The group OUT arrays (>= groups_cap, with groups_cap >= 2*(n+1)) receive
+ * each slice's community / type (0 nuclear, 1 plasmid) / size / reduced participation;
+ * group_members_out (>= n) is the flat member list in group-emission order (per group
+ * ascending). *result_out carries the scalar read-out. `tick` (may be NULL) threads
+ * the §101 partition heartbeat into recursive_cut; a nonzero return CANCELS -> the op
+ * returns SRMECH_CANCELLED with the community assignment still a valid COARSER
+ * partition (participation / groups are then not computed — the Python projection
+ * emits the same clean partial). `ws` is a caller arena of >=
+ * srmech_genome_graph_partition_arena_bytes(n, 0, n_bins, n + 1) BYTES (no malloc).
+ * NEVER abs (all values are non-negative). ADDITIVE — SRMECH_ABI_VERSION stays 10. */
+srmech_status_t srmech_genome_graph_partition(
+    uint32_t n, const char *edges_path, const char *work_dir,
+    uint32_t max_tome, uint32_t n_bins, uint32_t max_iters, uint32_t max_depth,
+    uint32_t *community_out, uint64_t *part_num_out, uint64_t *part_den_out,
+    uint64_t *counts_out,
+    uint32_t *group_comm_out, uint32_t *group_type_out, uint32_t *group_size_out,
+    uint64_t *group_num_out, uint64_t *group_den_out,
+    uint32_t *group_members_out, uint32_t groups_cap,
+    srmech_genome_graph_partition_result_t *result_out,
+    void *ws, size_t ws_len,
+    srmech_progress_tick_cb_t tick, void *tick_ctx);
 
 /* §75-sparse (issue #698): the STREAMING k-extreme resonant read — the
  * n-unbounded C twin of srmech.amsc.coupling.resonant_spectrum_sparse. Reads the

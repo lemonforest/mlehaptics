@@ -5817,6 +5817,54 @@ def _reduce_pair(num, den):
     return (num // g, den // g)
 
 
+def _assemble_graph_partition(n, n_bins, work_dir, gg):
+    """Assemble the §100 GAP 2 partition return dict from the native
+    :func:`~srmech.amsc._native.genome_graph_partition_c` read-out ``gg`` — the EXACT
+    SAME dict the pure body produces (ADR-0009 byte-parity), including the §101 cancel
+    shape. ``communities`` is rebuilt from the per-node community ids (ascending, so a
+    community's node list is sorted — identical to the pure ``[sorted(t) for t in
+    tomes]``)."""
+    communities: List[List[int]] = [[] for _ in range(gg["n_communities"])]
+    community = gg["community"]
+    for v in range(n):
+        communities[community[v]].append(v)
+    if gg.get("cancelled"):
+        return {
+            "n": n, "n_communities": len(communities), "bimodal": False,
+            "one_dna_type": None, "antimode": None, "participation": [],
+            "communities": communities, "groups": [],
+            "counts": {"nuclear": 0, "plasmid": 0},
+            "node_counts": {"nuclear": 0, "plasmid": 0},
+            "work_dir": work_dir, "status": GENOME_STATUS_CANCELLED,
+        }
+    groups = [{"community": g["community"], "type": g["type"], "nodes": g["nodes"],
+               "size": g["size"], "participation": g["participation"]}
+              for g in gg["groups"]]
+    counts_by_type = {"nuclear": 0, "plasmid": 0}
+    for g in groups:
+        counts_by_type[g["type"]] += 1
+    am = gg["antimode"]
+    return {
+        "n": n,
+        "n_communities": len(communities),
+        "bimodal": am["bimodal"],
+        "one_dna_type": gg["one_dna_type"],
+        "antimode": {
+            "bins": n_bins, "counts": gg["counts"],
+            "threshold_bin": am["threshold_bin"], "peak_low_bin": am["peak_low_bin"],
+            "peak_high_bin": am["peak_high_bin"], "valley_count": am["valley_count"],
+            "gap": am["gap"], "bimodal": am["bimodal"],
+        },
+        "participation": gg["participation"],
+        "communities": communities,
+        "groups": groups,
+        "counts": counts_by_type,
+        "node_counts": gg["node_counts"],
+        "work_dir": work_dir,
+        "status": GENOME_STATUS_OK,
+    }
+
+
 def genome_partition(n, edges, weights=None, charges=None, *,
                      work_dir=None, max_tome=256, n_bins=_PARTITION_DEFAULT_BINS,
                      max_iters=250, progress=None):
@@ -5896,6 +5944,27 @@ def genome_partition(n, edges, weights=None, charges=None, *,
         n, edges, weights, charges)
     if not isinstance(n_bins, int) or isinstance(n_bins, bool) or n_bins < 2:
         raise ValueError(f"genome_partition: n_bins must be an int >= 2; got {n_bins!r}")
+
+    # §100 G3 (rc321, task #904): the WHOLE GRAPH partition has a standalone-C peer
+    # srmech_genome_graph_partition — recursive_cut + the exact-integer participation
+    # + the antimode DECISION + per-node classify + group assembly ALL run in C, so a
+    # bare-C host builds the partition with NO Python present. The pure body below is
+    # the complete alternative AND the byte-parity oracle (ADR-0009: the two coherency
+    # projections emit the SAME structure). The edges go to the SAME write_packed_graph
+    # file recursive_cut consumes; max_depth is recursive_cut's default (64), matching
+    # the pure recursive_cut(...) call below (which omits max_depth).
+    if _native.has_native_genome_graph_partition():
+        import os
+        from srmech.amsc.laplacian import write_packed_graph
+        wd = work_dir if work_dir is not None else tempfile.mkdtemp(prefix="srmech_cut_")
+        os.makedirs(wd, exist_ok=True)
+        graph_path = os.path.join(wd, "graph.bin")
+        write_packed_graph(graph_path, edge_list, weight_list)
+        _gg = _native.genome_graph_partition_c(
+            int(n), graph_path, wd, int(max_tome), int(n_bins), int(max_iters),
+            64, int(n) + 1, progress=progress)
+        if _gg is not None:
+            return _assemble_graph_partition(n, n_bins, wd, _gg)
 
     # SCOPE — the full-graph out-of-core community assignment (never the dense structure).
     # §101: progress= threads the PARTITIONING heartbeat into recursive_cut (the dominant

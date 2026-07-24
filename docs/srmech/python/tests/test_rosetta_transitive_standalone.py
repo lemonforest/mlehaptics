@@ -330,6 +330,12 @@ _WHOLE_OP_C_PEER = {
     "srmech.amsc.genome.chromosome":       "srmech_genome_chromosome",
     "srmech.amsc.genome.copy_number_of":   "srmech_genome_copy_number",   # rc281 (G6)
     "srmech.amsc.genome.genome":           "srmech_genome_mint",
+    # rc321 (§100 G3): the GRAPH partition earned its whole-op C peer
+    # srmech_genome_graph_partition (recursive_cut + the exact-integer participation +
+    # the antimode DECISION + per-node classify + group assembly, all in C). NOT the
+    # strand-recovery `partition` below, which shares the DIFFERENT C name
+    # srmech_genome_partition.
+    "srmech.amsc.genome.genome_partition": "srmech_genome_graph_partition",
     # `mint` is a pure delegation to `genome` (its whole body is `return genome(...)`),
     # so it inherits that op's entry point rather than owning a second one.
     "srmech.amsc.genome.mint":             "srmech_genome_mint",
@@ -402,12 +408,6 @@ _KNOWN_GLUE_GAPS = {
         "loop and strand assembly",
         "c_host_parity_audit_rc273 §2 G2",
     ),
-    "srmech.amsc.genome.genome_partition": (
-        "the GRAPH partition (NOT the strand-recovery op that shares the C name "
-        "srmech_genome_partition): composes recursive_cut + an exact-integer "
-        "participation + antimode + per-node classify, all Python",
-        "c_host_parity_audit_rc273 §2 G3",
-    ),
     "srmech.amsc.genome.mint_plan": (
         "a pure encode_shape-loop READ (it builds nothing); the per-step primitive is "
         "native but the loop that assembles the plan is not",
@@ -424,17 +424,18 @@ _KNOWN_GLUE_GAPS = {
 #: DOWN-ONLY ceiling on the known-gap allowlist. 13 -> 11 at rc281 (amplify +
 #: copy_number_of earned their C peers); 11 -> 10 at rc284 (§100 G1
 #: laplacian.recursive_cut earned srmech_laplacian_recursive_cut — the
-#: out-of-core recursive spectral bisection driver). This number may only
-#: DECREASE.
+#: out-of-core recursive spectral bisection driver); 10 -> 9 at rc321 (§100 G3
+#: genome_partition GRAPH op earned srmech_genome_graph_partition — recursive_cut +
+#: the exact-integer participation + the antimode DECISION + per-node classify +
+#: group assembly, all in C). This number may only DECREASE.
 #:
 #: G1 was the shared dead-end of G2 (genome_from_graph) and G3 (the GRAPH
-#: genome_partition), so rc284 UNBLOCKS both — but unblocking is not closing:
-#: each still needs C surfaces of its own that recursive_cut does not supply.
-#: G3 additionally needs exact-integer participation + the antimode histogram +
-#: per-node classify; G2 needs all of G3 plus its in-RAM _induced_subgraph
-#: relabel, the per-group graph_to_kernel -> mint_strand loop and strand
-#: assembly. They are separate rcs, not free riders on this one.
-CEIL_WIRE_GLUE_GAPS = 10
+#: genome_partition): rc284 UNBLOCKED both and rc321 now CLOSES G3 with its own C
+#: surface (participation + antimode histogram + per-node classify + group assembly
+#: on top of recursive_cut). G2 remains open — it needs all of G3 PLUS its in-RAM
+#: _induced_subgraph relabel, the per-group graph_to_kernel -> mint_strand loop and
+#: strand assembly, so it is a separate rc, not a free rider on this one.
+CEIL_WIRE_GLUE_GAPS = 9
 
 
 def _wire_scope(cls):
