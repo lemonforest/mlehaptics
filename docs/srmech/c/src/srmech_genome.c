@@ -70,7 +70,7 @@
 
 /* The §41 parser_rule_hash pre-image (== f"genome_persistence/v{FORMAT_VERSION}" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; v15->v16 §Q8 packer). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v18"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v19"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -240,6 +240,10 @@ typedef struct {
                                                      * Q₈ packed turn (0x38) → the
                                                      * manifest "carrier" is "q8";
                                                      * 0 → "klein4" (the default) */
+    unsigned char carrier_oct;                      /* §𝕆-TURN/v19: 1 iff the scan saw
+                                                     * an octonion packed turn (0x39) →
+                                                     * the manifest "carrier" is
+                                                     * "octonion" (wins over q8/klein4) */
 } genome_strings_t;
 
 /* §44 CAP-KIND classifier — the C mirror of srmech.amsc.genome._cap_kind. The
@@ -297,6 +301,8 @@ static srmech_status_t genome_block_len(const unsigned char *body,
         n = 1u + ((size_t)leaf_dim + 3u) / 4u;      /* v3 klein4 2-bit packed turn */
     } else if (kind == SRMECH_GENOME_Q8_PACKED_TURN_MARKER) {
         n = 1u + ((size_t)leaf_dim * 3u + 7u) / 8u; /* §Q8/v16 3-bit packed turn */
+    } else if (kind == SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER) {
+        n = 1u + ((size_t)leaf_dim * 4u + 7u) / 8u; /* §𝕆-TURN/v19 4-bit packed turn */
     } else {
         return SRMECH_ERR_BAD_INPUT;                /* unrecognised kind byte */
     }
@@ -470,10 +476,13 @@ static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
     assert(leaf_dim > 0u);
     assert(head_only || s->n_chroms <= s->cap_chroms);   /* head: n_chroms is a COUNT */
     (void)body_len;                 /* §55/v3: n_turns is the scanned BLOCK count */
-    /* §Q8/v16: "carrier" names the element-type packer ("klein4"/"q8"), derived from
-     * the body scan (a Q₈ 0x38 turn seen → "q8"). The json writer SORTS keys, so build
-     * order is cosmetic; this stays byte-identical to json.dumps(sort_keys=True). */
-    const char *carrier = s->carrier_q8 ? "q8" : "klein4";
+    /* §Q8/v16 + §𝕆-TURN/v19: "carrier" names the element-type packer
+     * ("klein4"/"q8"/"octonion"), derived from the body scan (a 0x39 octonion turn wins,
+     * else a 0x38 Q₈ turn → "q8", else "klein4"). A genome is carrier-UNIFORM. The json
+     * writer SORTS keys, so build order is cosmetic; this stays byte-identical to
+     * json.dumps(sort_keys=True). */
+    const char *carrier = s->carrier_oct ? "octonion"
+                                         : (s->carrier_q8 ? "q8" : "klein4");
     if (head_only) {                /* v12 HEAD-ONLY manifest data (no arrays) */
         const char *hkeys[7] = { "format_version", "carrier", "leaf_dim", "n_turns",
                                  "n_chromosomes", "coupling", "body_sha256" };
@@ -1271,6 +1280,30 @@ static srmech_status_t genome_q8_uncouple(const unsigned char *stored,
     return SRMECH_OK;
 }
 
+/* §𝕆-TURN/rc326 — decouple one STORED octonion turn back to its leaf: out[i] =
+ * oct_mult(stored[i], oct_conjugate(one[i])) — the octonion Moufang-loop INVERSE (𝕆 is
+ * non-associative globally, but each slot holds a single signed basis unit and
+ * <turn, one> is an associative subalgebra by Artin's theorem, so this right-conjugate
+ * bind inverts the right-couple exactly). The RIGHT-coupling SIDE is a HARD ASSERTION:
+ * re-coupling the result recovers `stored` (oct_mult(out[i], one[i]) == stored[i]) — a wrong
+ * side would fail HERE, loudly (mirror of the Python _oct_side_ok guard). A non-octonion byte
+ * (>= 16) returns BAD_INPUT so the caller falls back to the pure path (never an assert-abort).
+ * No malloc/goto/abs/float. */
+static srmech_status_t genome_octonion_uncouple(const unsigned char *stored,
+                                                const unsigned char *one,
+                                                uint32_t leaf_dim, unsigned char *out)
+{
+    assert(stored != NULL && one != NULL && out != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    for (uint32_t i = 0; i < leaf_dim; i++) {
+        if (stored[i] >= 16u || one[i] >= 16u) { return SRMECH_ERR_BAD_INPUT; }
+        unsigned char rec = srmech_oct_mult(stored[i], srmech_oct_conjugate(one[i]));
+        assert(srmech_oct_mult(rec, one[i]) == stored[i]);   /* right-coupling side pin */
+        out[i] = rec;
+    }
+    return SRMECH_OK;
+}
+
 /* §Q8/rc311 — the Q8 element-type recall: walk the blocks, skip every cap, and DECOUPLE each
  * Q8 data turn by the group inverse (genome_q8_uncouple) instead of the reversible klein4 XOR.
  * BYTE-IDENTICAL to recall(strand, coupling, element_type=ELEMENT_TYPE_Q8). A distinct symbol
@@ -1923,7 +1956,8 @@ static srmech_status_t genome_strings_alloc(genome_strings_t *s,
 }
 
 /* Fold ONE non-opener block (marker `m`) into the current chromosome `cur` during
- * the §44 scan: a §Q8/v16 packed turn (0x38) flags the carrier "q8"; an interior
+ * the §44 scan: a §Q8/v16 packed turn (0x38) flags the carrier "q8", a §𝕆-TURN/v19
+ * packed turn (0x39) flags "octonion"; an interior
  * §95a centromere (0x58) marks the cap-kind nuclear; a DATA turn — anything that is
  * NOT a GENE / regulatory / boolean / threshold / graded gene cap, a v5 kernel
  * header, or an interior centromere/chromatin cap — increments the leaf count. */
@@ -1933,6 +1967,9 @@ static void genome_scan_fold_block(genome_strings_t *s, unsigned char m, int32_t
     assert(cur >= 0);
     if (m == SRMECH_GENOME_Q8_PACKED_TURN_MARKER) {
         s->carrier_q8 = 1u;                        /* §Q8/v16: a Q₈ turn → carrier "q8" */
+    }
+    if (m == SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER) {
+        s->carrier_oct = 1u;                       /* §𝕆-TURN/v19: an 𝕆 turn → "octonion" */
     }
     if (m == SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
         s->cap_kind[cur] = SRMECH_GENOME_CAP_KIND_NUCLEAR;   /* §96 nuclear wins */
@@ -2009,6 +2046,7 @@ static srmech_status_t genome_fill_constants(genome_strings_t *s)
     assert(s != NULL);
     assert(sizeof(SRMECH_VERSION) > 0u);
     s->carrier_q8 = 0u;             /* §Q8/v16: klein4 unless the scan finds a 0x38 turn */
+    s->carrier_oct = 0u;            /* §𝕆-TURN/v19: not octonion unless a 0x39 turn is seen */
     srmech_status_t st = srmech_sha256_hex(
         (const uint8_t *)SRMECH_GENOME_RULE_PREIMAGE,
         strlen(SRMECH_GENOME_RULE_PREIMAGE), s->rule_hash);
@@ -4442,12 +4480,16 @@ static srmech_status_t genome_append_head(genome_strings_t *s,
     s->body_sha[64] = '\0';
     st = genome_fill_constants(s);
     if (st != SRMECH_OK) { return st; }
-    /* §Q8/v16: PRESERVE the genome's carrier across the O(1) append — read it from the
-     * existing manifest (a v≤15 manifest predates the field → klein4, the default). */
+    /* §Q8/v16 + §𝕆-TURN/v19: PRESERVE the genome's carrier across the O(1) append — read it
+     * from the existing manifest (a v≤15 manifest predates the field → klein4, the default). */
     const srmech_json_value_t *cf = genome_data_get(manifest, "carrier");
     if (cf != NULL && cf->type == SRMECH_JSON_STRING &&
         cf->u.str.len == 2u && memcmp(cf->u.str.ptr, "q8", 2u) == 0) {
         s->carrier_q8 = 1u;
+    }
+    if (cf != NULL && cf->type == SRMECH_JSON_STRING &&
+        cf->u.str.len == 8u && memcmp(cf->u.str.ptr, "octonion", 8u) == 0) {
+        s->carrier_oct = 1u;
     }
     uint32_t new_lc = 0u, new_nb = 0u;
     st = genome_scan_region(region, region_len, leaf_dim, s->cap_sha[0],
@@ -4798,7 +4840,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
 /* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v{FORMAT_VERSION}" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; v15->v16 §Q8 packer). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v18"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v19"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + coupling, re-importable self-verifying."
@@ -5965,6 +6007,67 @@ srmech_status_t srmech_genome_q8_unpack_turn(const unsigned char *payload,
     return SRMECH_OK;
 }
 
+/* §55/§𝕆-TURN/v19 (rc326) — pack ONE coupled leaf_dim-symbol octonion turn (bytes 0..15) into
+ * its on-disk block [SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER] + ceil(leaf_dim*4/8) payload
+ * bytes: 4 bits/symbol, MSB-FIRST CONTIGUOUS (symbol i -> bits [4i, 4i+4), symbol 0 in the high
+ * nibble of byte 0, each symbol's high bit first; a partial final byte's unused LOW bits stay 0
+ * — canonical). Exported genome-fully-in-C primitive; BYTE-IDENTICAL to
+ * _pack_turn_block_octonion. *out_len = 1 + ceil(leaf_dim*4/8); the caller has bounded `out`. */
+srmech_status_t srmech_genome_octonion_pack_turn(const unsigned char *leaf,
+                                                 uint32_t leaf_dim,
+                                                 unsigned char *out, size_t *out_len)
+{
+    size_t plen;
+    if (leaf == NULL || out == NULL || out_len == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(leaf != NULL && out != NULL && out_len != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    for (uint32_t i = 0u; i < leaf_dim; i++) {
+        if (leaf[i] >= 16u) { return SRMECH_ERR_BAD_INPUT; }
+    }
+    plen = ((size_t)leaf_dim * 4u + 7u) / 8u;
+    out[0] = SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER;
+    for (size_t i = 0; i < plen; i++) { out[1u + i] = 0u; }
+    for (size_t i = 0; i < (size_t)leaf_dim; i++) {
+        unsigned char sym = (unsigned char)(leaf[i] & 15u);
+        size_t bitpos = i * 4u;
+        for (size_t k = 0; k < 4u; k++) {
+            if (((unsigned)(sym >> (3u - k)) & 1u) != 0u) {
+                size_t bp = bitpos + k;
+                out[1u + (bp >> 3)] |= (unsigned char)(0x80u >> (bp & 7u));
+            }
+        }
+    }
+    assert(plen == ((size_t)leaf_dim * 4u + 7u) / 8u);
+    *out_len = 1u + plen;
+    return SRMECH_OK;
+}
+
+/* §55/§𝕆-TURN/v19 (rc326) — an octonion packed payload (NOT the marker) -> its byte-per-symbol
+ * octonion leaf (bytes 0..15): exact inverse of srmech_genome_octonion_pack_turn, reading
+ * leaf_dim 4-bit symbols MSB-first. Exported; BYTE-IDENTICAL to _unpack_turn_payload_octonion. */
+srmech_status_t srmech_genome_octonion_unpack_turn(const unsigned char *payload,
+                                                   uint32_t leaf_dim, unsigned char *out)
+{
+    if (payload == NULL || out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(payload != NULL && out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    for (uint32_t i = 0u; i < leaf_dim; i++) {
+        unsigned char sym = 0u;
+        size_t bitpos = (size_t)i * 4u;
+        for (size_t k = 0; k < 4u; k++) {
+            size_t bp = bitpos + k;
+            unsigned char bit =
+                (unsigned char)((payload[bp >> 3] >> (7u - (bp & 7u))) & 1u);
+            sym = (unsigned char)((sym << 1) | bit);
+        }
+        out[i] = sym;
+    }
+    assert(leaf_dim <= 256u);
+    return SRMECH_OK;
+}
+
 /* rc278 — build ONE §89/v6 KERNEL-chromosome on-disk region from a flat Klein-4
  * symbol stream `syms` (`n_syms`): a KERNEL telomere (0x6B) cap over `label`
  * (verbatim, leaf_dim bytes), then the coupled + v3-packed §89 header leaf, then
@@ -6613,14 +6716,18 @@ static size_t sc_block_len(unsigned char kind, uint32_t leaf_dim)
     if (kind == SRMECH_GENOME_Q8_PACKED_TURN_MARKER) {
         return 1u + ((size_t)leaf_dim * 3u + 7u) / 8u;   /* §Q8/v16 3-bit turn */
     }
+    if (kind == SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER) {
+        return 1u + ((size_t)leaf_dim * 4u + 7u) / 8u;   /* §𝕆-TURN/v19 4-bit turn */
+    }
     return 0u;
 }
 
 /* Uncouple ONE data block into `unc` (leaf_dim symbols): a v3 klein4 packed turn
  * unpacks (2-bit) then klein4-decouples (XOR, its own inverse); a §Q8/v16 packed turn
- * unpacks (3-bit) then Q₈-decouples (the group INVERSE, genome_q8_uncouple); a legacy
- * v2 turn is already byte-per-symbol. So a mixed body's section-count scan strides +
- * decodes both carriers. */
+ * unpacks (3-bit) then Q₈-decouples (the group INVERSE, genome_q8_uncouple); a §𝕆-TURN/v19
+ * packed turn unpacks (4-bit) then octonion-decouples (the Moufang-loop INVERSE,
+ * genome_octonion_uncouple); a legacy v2 turn is already byte-per-symbol. So a mixed body's
+ * section-count scan strides + decodes all three carriers. */
 static srmech_status_t sc_uncouple(const unsigned char *blk, uint32_t leaf_dim,
                                    const unsigned char *coupling,
                                    unsigned char *unc)
@@ -6628,6 +6735,11 @@ static srmech_status_t sc_uncouple(const unsigned char *blk, uint32_t leaf_dim,
     unsigned char mem[256];
     assert(blk != NULL && coupling != NULL && unc != NULL);
     assert(leaf_dim != 0u && leaf_dim <= 256u);
+    if (blk[0] == SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER) {
+        srmech_status_t su = srmech_genome_octonion_unpack_turn(blk + 1, leaf_dim, mem);
+        if (su != SRMECH_OK) { return su; }
+        return genome_octonion_uncouple(mem, coupling, leaf_dim, unc);
+    }
     if (blk[0] == SRMECH_GENOME_Q8_PACKED_TURN_MARKER) {
         srmech_status_t su = srmech_genome_q8_unpack_turn(blk + 1, leaf_dim, mem);
         if (su != SRMECH_OK) { return su; }

@@ -239,7 +239,7 @@ def test_v15_genome_reads_unchanged_no_format_bump():
         path = _save(G.mint({"astro": _leaves(9)}, one), tmp, "nucleus.genome", one)
         raw = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
         data = raw.get("data", raw)
-        assert data["format_version"] == 18               # no format bump
+        assert data["format_version"] == 19               # no format bump
         # cap_kind is NOT stored on disk (head-only v12+; derived on read)
         assert "chromosomes" not in data
         # re-reading derives the new canonical vocabulary from the SAME bytes

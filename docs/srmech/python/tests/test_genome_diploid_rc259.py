@@ -49,7 +49,7 @@ def _zero():
 # ── 1. build + clean round-trip ─────────────────────────────────────────────
 
 def test_format_version_is_14():
-    assert G.GENOME_FORMAT_VERSION == 18
+    assert G.GENOME_FORMAT_VERSION == 19
 
 
 def test_marker_is_0x44():
@@ -144,7 +144,7 @@ def test_diploid_persists_and_reloads(tmp_path):
     dip_i = next(i for i, hv in enumerate(loaded)
                  if G._cap_kind(hv) == G.DIPLOID_TELOMERE_MARKER)
     assert _bl(G.recover_diploid(loaded[dip_i:], one)) == _bl(leaves)
-    assert G.genome_catalog(tmp_path, coupling=one)["format_version"] == 18
+    assert G.genome_catalog(tmp_path, coupling=one)["format_version"] == 19
 
 
 # ── 5. 1:1 C↔Python byte-parity (gated on the native peer) ──────────────────

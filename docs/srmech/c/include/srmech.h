@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc325"
-#define SRMECH_VERSION       "0.9.0rc325"
+#define SRMECH_VERSION_PRE   "rc326"
+#define SRMECH_VERSION       "0.9.0rc326"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5901,8 +5901,19 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * 0x4F cap is BYTE-IDENTICAL to v17 (klein4/Q8/octonion turns pack unchanged); only the
  * manifest format_version moves. The octonion fiber cap is OPT-IN (genome_add_octonion_fiber),
  * so a default save is base bytes exactly as before. A v18 writer stamps 18; v2..v17 bodies
- * read UNCHANGED (one more self-describing cap in the SAME walk). */
-#define SRMECH_GENOME_FORMAT_VERSION 18
+ * read UNCHANGED (one more self-describing cap in the SAME walk).
+ *
+ * v18->v19 (rc326, §𝕆-TURN): the on-disk WIRE gains a THIRD data-turn packing — an octonion
+ * (element_type=octonion) DATA turn 4-bit-packs under SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER
+ * (0x39) instead of the klein4 2-bit 0x51 or the Q8 3-bit 0x38 — plus the manifest "carrier"
+ * field gains the "octonion" value. rc324 shipped the 𝕆 carrier + 4-bit codec and rc325 the 𝕆
+ * fiber CAP, but the on-disk wire still packed only klein4/Q8 DATA turns; v19 closes that gap so
+ * an octonion turn (INCLUDING the non-quaternionic indices 4..7) persists to turns.bin and
+ * round-trips through a genome file. A body with NO 0x39 turn is BYTE-IDENTICAL to v18
+ * (klein4/Q8 turns pack unchanged); only the manifest format_version moves. A v19 writer stamps
+ * 19; v2..v18 bodies read UNCHANGED (one more self-describing marker in the SAME walk). The
+ * mirror of the v15->v16 Q8 on-disk migration, ONE Cayley-Dickson rung up. */
+#define SRMECH_GENOME_FORMAT_VERSION 19
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -5929,6 +5940,17 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * klein4 body, klein4 turns keep 0x51 and Q₈ turns use this. Mirrors
  * Q8_PACKED_TURN_MARKER in srmech.amsc.genome. */
 #define SRMECH_GENOME_Q8_PACKED_TURN_MARKER 0x38u /* '8' — a 3-bit Q₈ octet turn */
+
+/* §55/§𝕆-TURN/v19 (rc326) 4-BIT octonion packed data-turn marker — the FIRST byte of an
+ * octonion packed turn block ([marker] + ceil(leaf_dim*4/8) = ceil(leaf_dim/2) payload bytes,
+ * two 4-bit symbols per byte). MSB-FIRST CONTIGUOUS: symbol i occupies bits [4i, 4i+4) of a
+ * big-endian bitstream (symbol 0 in the high nibble of payload byte 0, each symbol's high bit
+ * first); the unused LOW bits of a partial final byte are zero (canonical). > 3 and distinct
+ * from the 2-bit PACKED marker (0x51), the 3-bit Q8 marker (0x38), and every cap marker, so a
+ * block's first byte keys BOTH its kind and its width — a v19 body is walked in the SAME
+ * self-describing scan as a v3/v16 body: klein4 turns keep 0x51, Q8 turns use 0x38, octonion
+ * turns use this. Mirrors OCTONION_PACKED_TURN_MARKER in srmech.amsc.genome. */
+#define SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER 0x39u /* '9' — a 4-bit octonion turn */
 
 /* §60/v5 SIZE-AGNOSTIC KERNEL HEADER marker — the FIRST byte of a fixed-width
  * leaf_dim-byte inline block written by kernel_pack right after a kernel
@@ -6472,6 +6494,30 @@ srmech_status_t srmech_genome_q8_pack_turn(
     const unsigned char *leaf, uint32_t leaf_dim,
     unsigned char *out, size_t *out_len);
 srmech_status_t srmech_genome_q8_unpack_turn(
+    const unsigned char *payload, uint32_t leaf_dim, unsigned char *out);
+
+/* §55/§𝕆-TURN/v19 (rc326) — the 4-BIT octonion packed-turn CODEC primitives (the
+ * genome-fully-in-C mirror of _pack_turn_block_octonion / _unpack_turn_payload_octonion). An
+ * octonion data turn carries a 4-bit symbol (the ±e₀..±e₇ index), so it 4-bit-packs where the
+ * Q8 turn packs 3 and the klein4 turn 2. Layout is MSB-FIRST CONTIGUOUS: symbol i -> bits
+ * [4i, 4i+4) of a big-endian bitstream (symbol 0 in the high nibble, each symbol's high bit
+ * first); the unused LOW bits of a partial final byte are zero (canonical). BYTE-IDENTICAL to
+ * the Python codec (the parity gate re-verifies over odd/partial leaf_dims). ADDITIVE symbols
+ * reusing NO callback typedef -> SRMECH_ABI_VERSION stays 10. No malloc/goto/abs/float (integer
+ * bit-arithmetic).
+ *
+ * pack:  `leaf` = leaf_dim octonion bytes (0..15); `out` gets
+ *        [SRMECH_GENOME_OCTONION_PACKED_TURN_MARKER] + ceil(leaf_dim*4/8) payload bytes;
+ *        *out_len = 1 + ceil(leaf_dim*4/8). `out` must hold that many bytes. A byte >= 16 ->
+ *        SRMECH_ERR_BAD_INPUT.
+ * unpack: `payload` = ceil(leaf_dim*4/8) bytes (NOT the marker); `out` gets leaf_dim octonion
+ *        bytes.
+ *   SRMECH_ERR_NULL_ARG  — any pointer arg NULL.
+ *   SRMECH_ERR_BAD_INPUT — leaf_dim 0 / > 256, or (pack) a symbol >= 16. */
+srmech_status_t srmech_genome_octonion_pack_turn(
+    const unsigned char *leaf, uint32_t leaf_dim,
+    unsigned char *out, size_t *out_len);
+srmech_status_t srmech_genome_octonion_unpack_turn(
     const unsigned char *payload, uint32_t leaf_dim, unsigned char *out);
 
 /* §95.1d/v15 INTEGRATE (rc276, #891 / F1244 / G4) — the stage-2 SPLICE primitive:
