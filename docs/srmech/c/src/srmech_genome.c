@@ -70,7 +70,7 @@
 
 /* The §41 parser_rule_hash pre-image (== f"genome_persistence/v{FORMAT_VERSION}" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; v15->v16 §Q8 packer). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v17"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v18"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -268,6 +268,7 @@ static int genome_cap_kind(const unsigned char *block, size_t len)
         m == SRMECH_GENOME_CENTROMERE_CAP_MARKER ||    /* §95a interior centromere */
         m == SRMECH_GENOME_CHROMATIN_MARKER ||         /* §98 interior chromatin cap */
         m == SRMECH_GENOME_FIBER_CAP_MARKER ||         /* §Q8-FIBER/v17 interior fiber cap */
+        m == SRMECH_GENOME_OCT_FIBER_CAP_MARKER ||     /* §𝕆-FIBER/v18 interior octonion fiber cap */
         m == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid boundary */
         return (int)m;
     }
@@ -1459,6 +1460,35 @@ srmech_status_t srmech_genome_fiber_holonomy(const uint8_t *turns,
         const uint8_t *turn = turns + (size_t)t * (size_t)leaf_dim;
         for (uint32_t s = 0u; s < leaf_dim; ++s) {
             out[s] = srmech_q8_mult(out[s], turn[s]);   /* ordered: acc . turn_t */
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* §𝕆-FIBER/v18 (rc325) — the strand's OCTONION TOPOLOGY/FIBER channel, the 𝕆 analog
+ * of srmech_genome_fiber_holonomy ONE Cayley-Dickson rung up (q8_mult -> oct_mult).
+ * Folds the ORDERED per-slot octonion product of the coupled turns along the strand:
+ * out[s] = oct_mult(...oct_mult(0, turns[0][s])..., turns[n_turns-1][s]). Because 𝕆 is
+ * non-commutative (and non-associative), REORDERING the turns changes the fold — the
+ * fiber the winding-invariant per-turn store cannot carry. Writes `out` (leaf_dim
+ * octonion bytes) directly; no scratch, no malloc. REUSES srmech_oct_mult (NOT a
+ * reimplemented product). See the header doc + Python genome.genome_octonion_holonomy
+ * (the parity oracle). Class-M oct-bind fold; no abs(). */
+srmech_status_t srmech_genome_octonion_holonomy(const uint8_t *turns,
+                                                uint32_t n_turns,
+                                                uint32_t leaf_dim,
+                                                uint8_t *out)
+{
+    if (turns == NULL || out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(turns != NULL && out != NULL);
+    assert(leaf_dim > 0u);
+    for (uint32_t s = 0u; s < leaf_dim; ++s) {
+        out[s] = 0u;                        /* the octonion identity +e0 (byte 0) */
+    }
+    for (uint32_t t = 0u; t < n_turns; ++t) {
+        const uint8_t *turn = turns + (size_t)t * (size_t)leaf_dim;
+        for (uint32_t s = 0u; s < leaf_dim; ++s) {
+            out[s] = srmech_oct_mult(out[s], turn[s]);  /* ordered: acc . turn_t */
         }
     }
     return SRMECH_OK;
@@ -4768,7 +4798,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
 /* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v{FORMAT_VERSION}" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; v15->v16 §Q8 packer). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v17"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v18"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + coupling, re-importable self-verifying."

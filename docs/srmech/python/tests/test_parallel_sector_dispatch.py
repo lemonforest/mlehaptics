@@ -272,7 +272,7 @@ def test_collapse_lattice_bi_symmetric_collapses_to_1():
 def test_introspect_tools_total_matches_live():
     import srmech.introspect as introspect
 
-    assert introspect.describe()["tools"]["total"] == 503
+    assert introspect.describe()["tools"]["total"] == 507
 
 
 # ----------------------------------------------------------------------

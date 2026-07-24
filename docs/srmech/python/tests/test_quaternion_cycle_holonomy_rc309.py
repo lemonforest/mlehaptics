@@ -301,7 +301,7 @@ def test_empty_graph():
 # =====================================================================
 def test_registration_ratchet():
     import srmech
-    assert srmech.describe()["tools"]["total"] == 503
+    assert srmech.describe()["tools"]["total"] == 507
     assert "quaternion_cycle_holonomy" in Q.__all__
     assert "quaternion_conjugate" in Q.__all__
 

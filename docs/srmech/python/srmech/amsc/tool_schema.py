@@ -3480,6 +3480,33 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("strand", "list", True, "a genome strand carrying exactly one FIBER cap (from genome_add_fiber)"),),
             returns=R("dict", "{label, holonomy (stored gauge bytes), recomputed (re-derived from the base), consistent (bool — stored==recomputed), lk_mod2 (bytes, one 0/1 per slot)}"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_octonion_holonomy", owner="srmech", category="genome",
+            summary="rc325 (§𝕆-FIBER) — the OCTONION analog of genome_fiber_holonomy ONE Cayley–Dickson rung up (Q8 -> 𝕆): the strand's ORDERED accumulated OCTONION holonomy of the coupled turns along a strand. Folds the ordered per-slot octonion LEFT product acc[s] = oct_mult(acc[s], turn_t[s]) along the strand (identity +e0 == byte 0), REUSING the rc324 oct_mult (NOT a reimplemented product). Because 𝕆 is non-commutative AND non-associative, REORDERING the turns CHANGES the fold — the fiber the winding-INVARIANT per-turn octonion store cannot carry. Class-M (octonion bind) ordered fold; no abs() (the sign is a group ⊕-bit). Dispatches to the whole-op C peer srmech_genome_octonion_holonomy (c_dispatched; byte-identical pure oct_bind fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10 (the octonion fiber CAP storage bumps GENOME_FORMAT_VERSION 17->18).",
+            parameters=(P("turns", "list", True, "the stored/coupled data turns — a flat bytes of n_turns*leaf_dim octonion bytes (leaf_dim required), or a sequence of per-turn buffers (HV / bytes / list[int] of leaf_dim octonion bytes)"),
+                        P("leaf_dim", "int", False, "the per-turn width (inferred from the first buffer when a sequence of buffers is given; required for a flat buffer)")),
+            returns=R("bytes", "the accumulated per-slot octonion holonomy (leaf_dim bytes)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_octonion_associator", owner="srmech", category="genome",
+            summary="rc325 (§𝕆-FIBER) — the per-slot OCTONION associator DEFECT: the non-associativity Q8 (associative) cannot express. A COMPOSED op (non_compute; two pure-Python folds) — computes the fully-LEFT-associated fold L[s] and the fully-RIGHT-associated fold R[s] of the same ordered turns; because the octonion index lane is ⊕-associative, L[s] and R[s] share the same index and differ ONLY in the center sign bit, so defect[s] = (L[s]>>3) ^ (R[s]>>3) ∈ {0,1}. Identically 0 for n<3 (any two units associate, Artin) and for any all-quaternionic strand (indices ⊆ {0,1,2,3}); nonzero exactly when the ordered turns break associativity — the 𝕆 analog of rc322's lk_mod2. Class-K (⊕ sign-bit compare) ∘ Class-M (two octonion folds); no abs().",
+            parameters=(P("turns", "list", True, "the ordered data turns — a flat bytes of n_turns*leaf_dim octonion bytes (leaf_dim required), or a sequence of per-turn buffers"),
+                        P("leaf_dim", "int", False, "the per-turn width (inferred from the first buffer when a sequence of buffers is given; required for a flat buffer)")),
+            returns=R("bytes", "one 0/1 associator-defect bit per slot (leaf_dim bytes)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_add_octonion_fiber", owner="srmech", category="genome",
+            summary="rc325 (§𝕆-FIBER) — return `strand` with an OCTONION FIBER cap appended so the genome register HOLDS BOTH SIDES of the 𝕆 fibration (the 𝕆 analog of genome_add_fiber). Scans the strand's DATA turns (caps skipped), folds their ORDERED octonion holonomy (genome_octonion_holonomy), and appends an OCT_FIBER_CAP_MARKER (0x4F) cap holding it (layout [0x4F]+label+NUL+n_holo(u16 BE)+4-bit-packed holonomy — the octonion codec, NOT the 3-bit Q8 packing). The base/sequence channel is UNTOUCHED (same data turns, same order; the octonion fiber cap is an INTERIOR cap every codon/data-turn walk skips), so a genome that never calls this is BYTE-IDENTICAL to a pre-rc325 genome (the fiber is OPT-IN). ADDITIVE. Class-M fiber fold ∘ Class-B cap framing; composition over the C octonion fiber op + the cap packer.",
+            parameters=(P("strand", "list", True, "a genome strand (a sequence of HV leaf blocks — caps + octonion data turns)"),
+                        P("label", "str", False, "keyword-only; the octonion fiber cap's inline label (default 'octonion')")),
+            returns=R("list", "the strand with one trailing OCTONION FIBER cap (the 𝕆 fibration's second side, held in the strand)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_read_octonion_fiber", owner="srmech", category="genome",
+            summary="rc325 (§𝕆-FIBER) — read the OCTONION FIBER cap back and RECONSTRUCT the fiber from the pair (base + fiber). Finds the strand's OCT_FIBER_CAP_MARKER (0x4F) cap (the stored gauge), RE-DERIVES the ordered holonomy from the base DATA turns (genome_octonion_holonomy), reports whether the pair is consistent, and reads the per-slot associator defect (genome_octonion_associator) — the non-associativity the base (and the Q8 fiber) cannot hold. Composition over the cap unpacker + the C octonion fiber op + the associator.",
+            parameters=(P("strand", "list", True, "a genome strand carrying exactly one OCTONION FIBER cap (from genome_add_octonion_fiber)"),),
+            returns=R("dict", "{label, holonomy (stored gauge bytes), recomputed (re-derived from the base), consistent (bool — stored==recomputed), associator_defect (bytes, one 0/1 per slot)}"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

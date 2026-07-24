@@ -119,7 +119,7 @@ def test_dod_1024x256_chromosome_writes_66kb(tmp_path):
     assert body_size == 256 + 1024 * (1 + 256 // 4) == 66816
     assert total < 70_000                    # "~66 KB" — vs 264,230 B at rc107
     assert 264_230 / total > 3.8             # the 4.03x bloat removed
-    assert man["format_version"] == 17        # v12 writer (head-only manifest on disk)
+    assert man["format_version"] == 18        # v12 writer (head-only manifest on disk)
     assert man["n_turns"] == 1025            # blocks: 1 cap + 1024 turns
     # rc115 (#1245(b)): one region entry per chromosome; body_sha256 is the chain
     assert [r["byte_offset"] for r in man["regions"]] == [0]
@@ -260,7 +260,7 @@ def test_v2_fixture_manifestless_rebuild_reads(tmp_path):
     # structural chromosome fields are byte-identical to the stored v2 manifest's,
     # but body_sha256 is now the region CHAIN (not the v2 whole-body digest), and a
     # regions partition is derived (one per chromosome, tiling the body).
-    assert cat["format_version"] == 17        # rebuild derives the current (v12) writer
+    assert cat["format_version"] == 18        # rebuild derives the current (v12) writer
     assert [(r["byte_offset"], r["byte_len"]) for r in cat["regions"]] == \
         [(c["byte_offset"], c["byte_len"]) for c in v2["chromosomes"]]
     assert cat["body_sha256"] != v2["body_sha256"]        # chain, not whole-body
@@ -295,7 +295,7 @@ def test_v2_append_yields_mixed_body_reading_correctly(tmp_path):
     # Appending to a v2 genome MIGRATES it to the current writer (v12): the body
     # tail-extends (prior bytes an exact prefix), and the head is rebuilt with the
     # region chain. man2 is the full derived catalog (chromosomes/regions present).
-    assert man2["format_version"] == 17
+    assert man2["format_version"] == 18
     # §96: man2 is the MIGRATED (derived) catalog → carries cap_kind; man_before was
     # read VERBATIM from the v2 full manifest (which predates cap_kind). The prior 3
     # chromosome entries are byte-identical modulo the new additive cap_kind field.
