@@ -70,6 +70,7 @@ from srmech.version import __version__ as _SRMECH_VERSION
 
 __all__ = [
     "discrete_writhe", "cwf_consistency_mod2",
+    "genome_fiber_holonomy", "genome_add_fiber", "genome_read_fiber",
     "codon_read", "codon_frame_monodromy", "CODON_BASES",
     "encode_shape", "quad_turn", "telomere", "chromosome",
     "centromere", "centromere_of",
@@ -108,6 +109,7 @@ __all__ = [
     "PACKED_TURN_MARKER", "Q8_PACKED_TURN_MARKER",
     "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4", "ELEMENT_TYPE_Q8",
+    "FIBER_CAP_MARKER",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
     "CHROMATIN_GATE_THRESHOLD",
@@ -338,6 +340,30 @@ DIPLOID_TELOMERE_MARKER = 0x44
 #: branch, and a chromatin-FREE genome reads all-euchromatin by default. Mirrors
 #: ``SRMECH_GENOME_CHROMATIN_MARKER`` in the C header.
 CHROMATIN_MARKER = 0x48
+
+#: §Q8-FIBER/rc322 (format v16 → v17, F-HOLO-MISLOCATED) — the TOPOLOGY / FIBER cap marker.
+#: ``0x46`` = ASCII ``'F'`` (Fiber). The fibration has TWO sides and this cap holds the SECOND:
+#: the base / sequence channel (the coupled data turns, :func:`quad_turn`) is winding-INVARIANT —
+#: ``quad_turn`` re-stamps ``q8_mult(turn, one)`` per turn (a function of the turn + the shared
+#: ``one`` ALONE, never of prior turns), so a reorder is a pure positional permutation (the #914
+#: order-discard) that leaves the abelian Watson–Crick sequence / codon read unchanged. The FIBER
+#: cap holds the strand's ORDERED accumulated Q₈ holonomy (:func:`genome_fiber_holonomy`): the
+#: non-abelian fold ``acc[s] = q8_mult(acc[s], turn_t[s])`` along the strand, which — because Q₈
+#: is non-abelian (``i·j = +k`` but ``j·i = −k``) — CHANGES under reorder. That accumulated
+#: holonomy IS the gauge: its per-slot center-sign is the accumulated ``Lk`` (biology's
+#: supercoiling channel, ``Lk = Tw + Wr`` accumulating along DNA; :func:`cwf_consistency_mod2`).
+#: Like the §95a :data:`CENTROMERE_CAP_MARKER` / §98 :data:`CHROMATIN_MARKER` it is an INTERIOR
+#: cap (it never OPENS a chromosome, and every cap-skip / data-turn / codon walk flattens past
+#: it), so the base sequence read is byte-IDENTICAL with or without it. It is OPT-IN
+#: (:func:`genome_add_fiber`), so a genome that carries no fiber is BYTE-IDENTICAL to a v16 body.
+#: Layout (the §127 active-telomere inline-field pattern):
+#:   ``[0x46] + utf-8 label + NUL + n_holo(uint16 BE) + packed_holonomy``
+#: where ``packed_holonomy`` is the ``ceil(n_holo*3/8)``-byte 3-bit MSB-first Q₈ packing (the
+#: SAME layout as a :data:`Q8_PACKED_TURN_MARKER` turn payload) of the ``n_holo == leaf_dim``
+#: accumulated Q₈ bytes, NUL-padded to ``leaf_dim``. ``> 3`` and distinct from every prior
+#: marker, so v2..v16 bodies read UNCHANGED. Mirrors ``SRMECH_GENOME_FIBER_CAP_MARKER`` in the
+#: C header.
+FIBER_CAP_MARKER = 0x46
 
 #: §98/rc268 chromatin TYPE — BINARY (0) = open ``(1,1)`` / condensed ``(0,1)``; GRADED (1) = an
 #: arbitrary reduced-rational accessibility level in ``[0,1]``. Stored inline in the cap so the
@@ -1144,6 +1170,242 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# §Q8-FIBER (rc322, F-HOLO-MISLOCATED) — the genome's TOPOLOGY / FIBER channel.
+#
+# The fibration has TWO sides; the genome register holds BOTH and reconstructs the
+# gauge from the pair:
+#
+#   BASE  (sequence)  — the coupled data turns (:func:`quad_turn`, `stored[i] =
+#     q8_mult(turn[i], one[i])`). ABELIAN + winding-INVARIANT: each turn is a function
+#     of that turn + the shared `one` ALONE, never of prior turns, so a reorder is a
+#     pure positional permutation (the #914 order-discard) and the codon / Watson–Crick
+#     sequence read is unchanged. This side is KEPT byte-identical (do not modify it).
+#
+#   FIBER (topology) — :func:`genome_fiber_holonomy` folds the ORDERED non-abelian Q₈
+#     product of the coupled turns along the strand (`acc[s] = q8_mult(acc[s],
+#     turn_t[s])`). Q₈ is non-abelian (`i·j = +k` but `j·i = −k`), so REORDER CHANGES
+#     the fold: this is the accumulated holonomy = the gauge = the accumulated `Lk`
+#     (biology's supercoiling channel, `Lk = Tw + Wr` accumulating along DNA;
+#     :func:`cwf_consistency_mod2`). The per-slot center-sign `acc[s] >> 2` IS the
+#     accumulated `Lk` mod 2. Stored genome-natively as a :data:`FIBER_CAP_MARKER`
+#     (0x46) cap held IN the strand (:func:`genome_add_fiber`), read back +
+#     reconstructed from the pair by :func:`genome_read_fiber`.
+#
+# rc-A ships the ℍ-rung (Q₈) only; the octonion 7-rung is a later rc.
+
+
+def _fiber_normalize_turns(turns, leaf_dim):
+    """Coerce ``turns`` to ``(flat_bytes, n_turns, leaf_dim)`` for the ordered fold.
+
+    Accepts a FLAT ``bytes``/``bytearray`` (``leaf_dim`` required) OR a sequence of
+    per-turn buffers (each an ``HV`` / ``bytes`` / ``list[int]`` of ``leaf_dim`` Q₈
+    bytes; ``leaf_dim`` inferred from the first). Validates every byte is a Q₈
+    element (``0..7``) — the fold is the SAME exact-integer Q₈ product the base store
+    uses, so out-of-range input is a hard error, not silent truncation."""
+    if isinstance(turns, (bytes, bytearray)):
+        flat = bytes(turns)
+        if leaf_dim is None:
+            raise ValueError(
+                "genome_fiber_holonomy: leaf_dim is required for a flat bytes buffer")
+        seq_flat = True
+    else:
+        seq = list(turns)
+        if seq and isinstance(seq[0], int):
+            flat = bytes(seq)
+            if leaf_dim is None:
+                raise ValueError(
+                    "genome_fiber_holonomy: leaf_dim is required for a flat int list")
+            seq_flat = True
+        else:
+            rows = [_hv_bytes(t) for t in seq]
+            if leaf_dim is None:
+                leaf_dim = len(rows[0]) if rows else 0
+            for i, r in enumerate(rows):
+                if len(r) != leaf_dim:
+                    raise ValueError(
+                        f"genome_fiber_holonomy: turn {i} has width {len(r)} != "
+                        f"leaf_dim {leaf_dim} (every turn is a fixed-width leaf)")
+            flat = b"".join(rows)
+            seq_flat = False
+    leaf_dim = int(leaf_dim)
+    if seq_flat:
+        if leaf_dim <= 0 or len(flat) % leaf_dim != 0:
+            raise ValueError(
+                f"genome_fiber_holonomy: flat buffer length {len(flat)} is not a "
+                f"multiple of leaf_dim {leaf_dim}")
+    n_turns = (len(flat) // leaf_dim) if leaf_dim else 0
+    for b in flat:
+        if not 0 <= b <= 7:
+            raise ValueError(
+                f"genome_fiber_holonomy: byte {b} is not a Q₈ element (0..7) — the "
+                f"fiber fold is the exact-integer Q₈ product")
+    return flat, n_turns, leaf_dim
+
+
+def genome_fiber_holonomy(turns, leaf_dim=None):
+    """The strand's ORDERED accumulated Q₈ holonomy — the genome's FIBER / gauge.
+
+    Folds the ordered per-slot Q₈ product of the coupled turns along the strand:
+    ``acc[s] = q8_mult(...q8_mult(q8_mult(0, turns[0][s]), turns[1][s])...,
+    turns[n-1][s])`` (identity ``+1`` == byte 0). Because Q₈ is NON-abelian
+    (``i·j = +k`` but ``j·i = −k``), REORDERING the turns CHANGES the result — this
+    is the topology / gauge the winding-INVARIANT per-turn coupled store
+    (:func:`quad_turn`, which re-stamps ``q8_mult(turn, one)`` per turn) cannot carry.
+    The per-slot center-sign ``holonomy[s] >> 2`` is the accumulated ``Lk`` mod 2
+    (``Lk = Tw + Wr``; :func:`cwf_consistency_mod2`). Class-M (Q₈ bind) ordered fold;
+    no ``abs()`` — the sign is a group ⊕-bit.
+
+    Args:
+        turns: the stored/coupled data turns — a FLAT ``bytes`` of ``n_turns *
+            leaf_dim`` Q₈ bytes (``leaf_dim`` required) OR a sequence of per-turn
+            buffers (``HV`` / ``bytes`` / ``list[int]`` of ``leaf_dim`` Q₈ bytes).
+        leaf_dim: the per-turn width (keyword; inferred from the first buffer when a
+            sequence of buffers is given).
+
+    Returns:
+        ``bytes`` of length ``leaf_dim`` — the accumulated per-slot Q₈ holonomy.
+
+    Raises:
+        ValueError: a non-Q₈ byte, a width mismatch, or a missing ``leaf_dim``.
+    """
+    flat, n_turns, leaf_dim = _fiber_normalize_turns(turns, leaf_dim)
+    if leaf_dim == 0:
+        return b""
+    native = _native.genome_fiber_holonomy_c(flat, n_turns, leaf_dim)
+    if native is not None:
+        return native
+    acc = bytes(leaf_dim)                       # zeros == the Q₈ identity +1
+    for t in range(n_turns):
+        acc = _q8_bind(acc, flat[t * leaf_dim:(t + 1) * leaf_dim])
+    return acc
+
+
+def _q8_pack_holonomy_payload(holonomy: bytes) -> bytes:
+    """The 3-bit MSB-first Q₈ packing of ``holonomy`` WITHOUT the turn marker — the
+    exact :func:`_pack_turn_block_q8` payload (``ceil(len*3/8)`` bytes), reused so the
+    fiber cap's holonomy field packs byte-identically to a Q₈ data-turn payload."""
+    return _pack_turn_block_q8(bytes(holonomy))[1:]
+
+
+def _pack_fiber_cap(holonomy, label, dim: int) -> "_HV":
+    """A fixed-width ``dim``-byte FIBER cap holding ``holonomy`` (the accumulated Q₈
+    gauge). Layout: ``[FIBER_CAP_MARKER] + utf-8 label + NUL + n_holo(uint16 BE) +
+    packed_holonomy`` (:func:`_q8_pack_holonomy_payload`), NUL-padded to ``dim``. The
+    inline-field-after-label discipline is the §127 active-telomere pattern, so
+    :func:`_unpack_cap`'s uniform label decode still works. Raises if the label +
+    packed holonomy do not fit one leaf."""
+    raw_label = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    holo = bytes(holonomy)
+    n_holo = len(holo)
+    if n_holo > 0xFFFF:
+        raise ValueError(
+            f"_pack_fiber_cap: holonomy length {n_holo} exceeds the uint16 field")
+    packed = _q8_pack_holonomy_payload(holo)
+    payload = (bytes([FIBER_CAP_MARKER]) + raw_label + b"\x00"
+               + n_holo.to_bytes(2, "big") + packed)
+    if len(payload) > dim:
+        raise ValueError(
+            f"_pack_fiber_cap: the fiber cap needs {len(payload)} bytes but leaf_dim "
+            f"is {dim} (shorten the label {label!r} or use a wider leaf_dim; a Q₈ "
+            f"holonomy 3-bit-packs to {len(packed)} bytes)")
+    block = payload + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _unpack_fiber_cap(hv):
+    """Inverse of :func:`_pack_fiber_cap` — returns ``(label, holonomy_bytes)`` from a
+    :data:`FIBER_CAP_MARKER` cap. The ``n_holo`` uint16 read starts right AFTER the
+    label's NUL (uniform with :func:`_unpack_cap`); the packed holonomy is decoded by
+    the SAME :func:`_unpack_turn_payload_q8` a Q₈ data turn uses."""
+    raw = hv.tobytes() if isinstance(hv, _HV) else bytes(hv)
+    if not raw or raw[0] != FIBER_CAP_MARKER:
+        raise ValueError("not a fiber cap (first byte != FIBER_CAP_MARKER)")
+    label_bytes = raw[1:].split(b"\x00", 1)[0]
+    label = label_bytes.decode("utf-8")
+    p = 1 + len(label_bytes) + 1                # past marker + label + NUL
+    n_holo = int.from_bytes(raw[p:p + 2], "big")
+    p += 2
+    plen = _packed_payload_len_q8(n_holo)
+    holonomy = _unpack_turn_payload_q8(raw[p:p + plen], n_holo)
+    return label, holonomy
+
+
+def genome_add_fiber(strand, *, label: str = "fiber"):
+    """Return ``strand`` with a FIBER cap appended — the register now HOLDS BOTH SIDES.
+
+    Scans the strand's DATA turns (caps are skipped), folds their ORDERED Q₈ holonomy
+    (:func:`genome_fiber_holonomy`), and appends a :data:`FIBER_CAP_MARKER` cap holding
+    it. The base / sequence channel is UNTOUCHED (the returned strand's data turns are
+    the SAME blocks in the SAME order; the fiber cap is an INTERIOR cap that every
+    codon / data-turn walk skips), so a genome that never calls this is byte-identical
+    to a pre-rc322 genome. ADDITIVE: this stores the gauge the base cannot carry.
+
+    Args:
+        strand: a genome strand (a sequence of ``HV`` leaf blocks — caps + Q₈ turns).
+        label: the fiber cap's inline label (keyword; default ``"fiber"``).
+
+    Returns:
+        ``list`` — the strand with one trailing FIBER cap.
+
+    Raises:
+        ValueError: an empty strand, or a strand that already carries a fiber cap.
+    """
+    blocks = list(strand)
+    if not blocks:
+        raise ValueError("genome_add_fiber: empty strand has no turns")
+    if any(_cap_kind(hv) == FIBER_CAP_MARKER for hv in blocks):
+        raise ValueError(
+            "genome_add_fiber: strand already carries a fiber cap (read it with "
+            "genome_read_fiber; the fiber is derived, mint it once)")
+    leaf_dim = len(blocks[0])
+    turns = [_hv_bytes(hv) for hv in blocks if _cap_kind(hv) is None]
+    holonomy = genome_fiber_holonomy(turns, leaf_dim) if turns else bytes(leaf_dim)
+    cap = _pack_fiber_cap(holonomy, label, leaf_dim)
+    return blocks + [cap]
+
+
+def genome_read_fiber(strand) -> Dict[str, object]:
+    """Read the FIBER cap back and RECONSTRUCT the gauge from the pair (base + fiber).
+
+    Finds the strand's :data:`FIBER_CAP_MARKER` cap (the stored gauge), RE-DERIVES the
+    ordered holonomy from the base DATA turns (:func:`genome_fiber_holonomy`), and
+    reports whether the pair is consistent — the gauge reconstructs from base bytes +
+    the fiber holonomy. The per-slot ``lk_mod2`` (center-sign) is the accumulated
+    ``Lk`` the base (winding-invariant) channel cannot hold.
+
+    Returns:
+        ``dict`` with ``label``, ``holonomy`` (the stored gauge, ``bytes``),
+        ``recomputed`` (re-derived from the base, ``bytes``), ``consistent`` (bool —
+        stored == recomputed), and ``lk_mod2`` (``bytes``, one ``0/1`` per slot).
+
+    Raises:
+        ValueError: the strand carries no fiber cap, or more than one.
+    """
+    blocks = list(strand)
+    fiber_caps = [hv for hv in blocks if _cap_kind(hv) == FIBER_CAP_MARKER]
+    if not fiber_caps:
+        raise ValueError(
+            "genome_read_fiber: strand carries no fiber cap (a v≤16 / base-only "
+            "genome; add one with genome_add_fiber)")
+    if len(fiber_caps) > 1:
+        raise ValueError(
+            f"genome_read_fiber: strand carries {len(fiber_caps)} fiber caps (expected 1)")
+    label, stored = _unpack_fiber_cap(fiber_caps[0])
+    leaf_dim = len(stored)
+    turns = [_hv_bytes(hv) for hv in blocks if _cap_kind(hv) is None]
+    recomputed = genome_fiber_holonomy(turns, leaf_dim) if turns else bytes(leaf_dim)
+    stored = bytes(stored)
+    recomputed = bytes(recomputed)
+    return {
+        "label": label,
+        "holonomy": stored,
+        "recomputed": recomputed,
+        "consistent": stored == recomputed,
+        "lk_mod2": bytes(b >> 2 for b in stored),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # §136 (rc314, #962) — the CODON READ-LAYER (a pure read; stores NOTHING).
 #
 # Biology reads the genome in CODONS (triplets — the genetic code), and that is
@@ -1554,7 +1816,7 @@ def _cap_kind(hv):
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
         CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-        CHROMATIN_MARKER) else None   # §95a/§95b/§98 caps
+        CHROMATIN_MARKER, FIBER_CAP_MARKER) else None   # §95a/§95b/§98 caps
 
 
 def _unpack_cap(hv):
@@ -6426,7 +6688,18 @@ def telomere_tick(strand):
 #: self-describing marker in the SAME walk (a byte > 3), so v2..v15 bodies read UNCHANGED.
 #: A klein4 genome saved by the v16 writer is byte-identical to the v15 writer EXCEPT the
 #: ``format_version`` + ``carrier`` fields. A v16 writer stamps 16.
-GENOME_FORMAT_VERSION = 16
+#:
+#: v17 (§Q8-FIBER/rc322, THE TOPOLOGY/FIBER channel, F-HOLO-MISLOCATED): adds the interior
+#: :data:`FIBER_CAP_MARKER` (0x46) — a cap holding the strand's ORDERED accumulated Q₈
+#: holonomy (the fiber / gauge the winding-INVARIANT per-turn store cannot carry:
+#: :func:`quad_turn` re-stamps ``q8_mult(turn, one)`` per turn, so reorder = pure permutation;
+#: the fiber :func:`genome_fiber_holonomy` folds the ordered non-abelian product, so reorder
+#: CHANGES it). The fiber cap is an INTERIOR cap (recall/codon-skipped) and OPT-IN
+#: (:func:`genome_add_fiber`), so a body with NO 0x46 cap is BYTE-IDENTICAL to v16 (the base /
+#: sequence channel is untouched) — only the manifest ``format_version`` moves. One more
+#: self-describing marker in the SAME walk, so v2..v16 bodies read UNCHANGED. A v17 writer
+#: stamps 17.
+GENOME_FORMAT_VERSION = 17
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -6543,7 +6816,7 @@ def _block_is_cap(block: bytes) -> bool:
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
         CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-        CHROMATIN_MARKER)   # §95a/§95b/§98 caps (a chromatin cap is stored VERBATIM, not a turn)
+        CHROMATIN_MARKER, FIBER_CAP_MARKER)   # §95a/§95b/§98/§Q8-FIBER caps (a chromatin cap is stored VERBATIM, not a turn)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -6719,7 +6992,7 @@ _LEAF_WIDE_BLOCK_MARKERS = (
     KERNEL_HEADER_MARKER,
     KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
     CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-    CHROMATIN_MARKER,
+    CHROMATIN_MARKER, FIBER_CAP_MARKER,
 )
 
 
@@ -8628,7 +8901,7 @@ def gene_express_plan(strand_or_path, coupling, cell_state, *,
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 17      # a READ of existing caps/manifest
     #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; BOTH the STRAND plan and —
     #   as of §98/rc269 — the PATH demand-load plan read the chromatin OUTER gate: a condensed
     #   region is skipped at plan time on a single head-slot seek, never touching its gene gate.
@@ -8789,7 +9062,7 @@ def genome_genes_expressed(path, coupling, cell_state):
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 17      # a READ of existing caps/manifest
     #  (the PATH demand-load reader's per-region chromatin single-seek skip (§98) is deferred to
     #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected.
     #   §Q8/rc316: a Q8 GENE genome IS first-class (its gene caps are klein4-form but its DATA

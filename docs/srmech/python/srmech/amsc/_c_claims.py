@@ -313,6 +313,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_genome_save',
         'srmech_json_write_ws',
     ),
+    'srmech.amsc.genome.genome_fiber_holonomy': ('srmech_genome_fiber_holonomy',),
     'srmech.amsc.genome.integrate': ('srmech_genome_integrate',),
     'srmech.amsc.genome.mint_strand': ('srmech_genome_mint_strand',),
     'srmech.amsc.genome.modulator_consistent': (

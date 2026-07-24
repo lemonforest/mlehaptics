@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc321"
-#define SRMECH_VERSION       "0.9.0rc321"
+#define SRMECH_VERSION_PRE   "rc322"
+#define SRMECH_VERSION       "0.9.0rc322"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5884,8 +5884,16 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * klein4 body is BYTE-IDENTICAL to v15 (only the manifest format_version + carrier move); a v15
  * klein4 turn (bytes 0..3, sign bit 0) is the winding-0 slice of a v16 Q₈ turn. One more
  * self-describing marker in the SAME walk, so v2..v15 bodies read UNCHANGED. A v16 writer
- * stamps 16. Mirrors GENOME_FORMAT_VERSION. */
-#define SRMECH_GENOME_FORMAT_VERSION 16
+ * stamps 16. Mirrors GENOME_FORMAT_VERSION.
+ *
+ * v16->v17 (rc322, §Q8-FIBER, F-HOLO-MISLOCATED): adds the TOPOLOGY / FIBER cap marker
+ * SRMECH_GENOME_FIBER_CAP_MARKER (0x46) — an INTERIOR cap holding the strand's ORDERED
+ * accumulated Q8 holonomy (the fiber / gauge the winding-invariant per-turn store cannot
+ * carry). A body with NO 0x46 cap is BYTE-IDENTICAL to v16 (klein4/Q8 turns pack
+ * unchanged); only the manifest format_version moves. The fiber cap is OPT-IN (genome_add_
+ * fiber), so a default save is winding-INVARIANT base bytes exactly as before. A v17 writer
+ * stamps 17; v2..v16 bodies read UNCHANGED (one more self-describing cap in the SAME walk). */
+#define SRMECH_GENOME_FORMAT_VERSION 17
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -6130,6 +6138,21 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * walk flattens past it (it is NOT a data turn, NOT a chromosome-opener). Mirrors
  * CHROMATIN_MARKER in srmech.amsc.genome. 0x48 = 'H' — histone / heterochromatin. */
 #define SRMECH_GENOME_CHROMATIN_MARKER 0x48u /* 'H' — a §98 interior chromatin cap */
+
+/* §Q8-FIBER/v17 FIBER (topology/gauge) cap marker (rc322, F-HOLO-MISLOCATED) — the FIRST
+ * byte of a fixed-width leaf holding the strand's ORDERED accumulated Q8 holonomy (the
+ * fiber / gauge). Layout (the §127 active-telomere inline-field pattern): [0x46] + utf-8
+ * label + NUL, then n_holo (uint16 big-endian, the holonomy length in Q8 symbols == leaf_dim)
+ * right after the label NUL, then ceil(n_holo*3/8) bytes of the 3-bit-packed Q8 holonomy
+ * (the SAME MSB-first packing as a Q8 data turn payload), NUL-padded to leaf_dim. Like the
+ * §95a centromere / §98 chromatin caps it is an INTERIOR cap (genome_cap_kind recognises it,
+ * every cap-skip walk flattens past it — it is NOT a data turn, NOT a chromosome-opener), so
+ * a codon / sequence read is byte-IDENTICAL with or without it (the fiber is OPT-IN). > 3 and
+ * distinct from every prior marker (CHROM 0x43 / diploid 0x44 / GENE 0x47 / chromatin 0x48 /
+ * Q8-turn 0x38 / KERNEL 0x4B / PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE 0x74 / regulatory
+ * 0x67 / boolean 0x62 / threshold 0x77 / graded 0x64 / centromere 0x58), so v2..v16 bodies
+ * read UNCHANGED. Mirrors FIBER_CAP_MARKER in srmech.amsc.genome. 0x46 = 'F' — Fiber. */
+#define SRMECH_GENOME_FIBER_CAP_MARKER 0x46u /* 'F' — a §Q8-FIBER interior fiber/gauge cap */
 
 /* §98/v15 chromatin TYPE enum (rc268). BINARY (0) = open (1,1) / condensed (0,1); GRADED (1) =
  * an arbitrary reduced-rational accessibility level in [0,1]. Single-line #defines (JPL Rule 8). */
@@ -11624,6 +11647,25 @@ srmech_status_t srmech_q8_bind(const uint8_t *turn, const uint8_t *one,
  * SRMECH_ERR_NULL_ARG (any pointer NULL). */
 srmech_status_t srmech_q8_project_v4(const uint8_t *q, uint32_t n,
                                      uint8_t *out);
+
+/* §Q8-FIBER/v17 (rc322, F-HOLO-MISLOCATED) — the strand's TOPOLOGY / FIBER
+ * channel: the ORDERED (order-carried) accumulated Q8 holonomy of the coupled
+ * turns along a strand. `turns` is a flat n_turns x leaf_dim buffer of Q8 bytes
+ * (row t = the t-th stored/coupled data turn, one Q8 element per slot); `out` is
+ * leaf_dim Q8 bytes. Per slot s, out[s] = q8_mult(...q8_mult(q8_mult(0, turns[0]
+ * [s]), turns[1][s])..., turns[n_turns-1][s]) — the ordered left-to-right fold
+ * (identity +1 == byte 0). Q8 is NON-abelian (i.j=+k but j.i=-k), so REORDERING
+ * the turns CHANGES the fold: this is the fiber/gauge the per-turn coupled STORE
+ * cannot carry (that store re-stamps q8_mult(turn, one) per turn — winding-
+ * INVARIANT). The accumulated sign bit (out[s] >> 2) IS the per-slot Lk mod 2
+ * (the accumulated Lk = Tw + Wr; no abs()). Writes `out` directly — no scratch,
+ * no malloc; additive INTEGER symbol, SRMECH_ABI_VERSION stays 10. n_turns == 0
+ * yields the identity. `out` MUST NOT alias `turns`. Every input byte MUST be a
+ * valid Q8 element (< 8). Errors: SRMECH_ERR_NULL_ARG (turns or out NULL). */
+srmech_status_t srmech_genome_fiber_holonomy(const uint8_t *turns,
+                                             uint32_t n_turns,
+                                             uint32_t leaf_dim,
+                                             uint8_t *out);
 
 /* ------------------------------------------------------------------ *
  * srmech_octonion — the ODFT twiddle family + the whole-transform

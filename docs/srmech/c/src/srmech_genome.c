@@ -70,7 +70,7 @@
 
 /* The §41 parser_rule_hash pre-image (== f"genome_persistence/v{FORMAT_VERSION}" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _manifest_record; v15->v16 §Q8 packer). */
-#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v16"
+#define SRMECH_GENOME_RULE_PREIMAGE "genome_persistence/v17"
 
 /* ------------------------------------------------------------------ *
  * Path + file helpers (stdio — Rule 3 allows file I/O, bans malloc).
@@ -267,6 +267,7 @@ static int genome_cap_kind(const unsigned char *block, size_t len)
         m == SRMECH_GENOME_ACTIVE_TELOMERE_MARKER ||
         m == SRMECH_GENOME_CENTROMERE_CAP_MARKER ||    /* §95a interior centromere */
         m == SRMECH_GENOME_CHROMATIN_MARKER ||         /* §98 interior chromatin cap */
+        m == SRMECH_GENOME_FIBER_CAP_MARKER ||         /* §Q8-FIBER/v17 interior fiber cap */
         m == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER) {  /* §95b diploid boundary */
         return (int)m;
     }
@@ -1433,6 +1434,33 @@ static srmech_status_t genome_pack_chromatin(unsigned char chromatin_type,
     genome_put_u64_be(out + 3u + handle_len, num);        /* num (u64 BE) */
     genome_put_u64_be(out + 3u + handle_len + lb, den);   /* den (u64 BE) */
     memset(out + payload, 0, (size_t)dim - payload);      /* NUL pad */
+    return SRMECH_OK;
+}
+
+/* §Q8-FIBER/v17 (rc322, F-HOLO-MISLOCATED) — the strand's TOPOLOGY/FIBER channel.
+ * Folds the ORDERED per-slot Q8 product of the coupled turns along the strand:
+ * out[s] = q8_mult(...q8_mult(0, turns[0][s])..., turns[n_turns-1][s]). Because Q8
+ * is non-abelian, REORDERING the turns changes the fold — the fiber/gauge (the
+ * accumulated Lk) the winding-invariant per-turn store cannot carry. Writes `out`
+ * (leaf_dim Q8 bytes) directly; no scratch, no malloc. See the header doc + Python
+ * genome.genome_fiber_holonomy (the parity oracle). Class-M q8-bind fold; no abs(). */
+srmech_status_t srmech_genome_fiber_holonomy(const uint8_t *turns,
+                                             uint32_t n_turns,
+                                             uint32_t leaf_dim,
+                                             uint8_t *out)
+{
+    if (turns == NULL || out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    assert(turns != NULL && out != NULL);
+    assert(leaf_dim > 0u);
+    for (uint32_t s = 0u; s < leaf_dim; ++s) {
+        out[s] = 0u;                        /* the Q8 identity +1 (byte 0) */
+    }
+    for (uint32_t t = 0u; t < n_turns; ++t) {
+        const uint8_t *turn = turns + (size_t)t * (size_t)leaf_dim;
+        for (uint32_t s = 0u; s < leaf_dim; ++s) {
+            out[s] = srmech_q8_mult(out[s], turn[s]);   /* ordered: acc . turn_t */
+        }
+    }
     return SRMECH_OK;
 }
 
@@ -4740,7 +4768,7 @@ srmech_status_t srmech_genome_replace(const char *dir, const char *label,
 #define SRMECH_GENOME_CHR_SCHEMA_ID "srmech://schema/genome_chromosome/v1"
 /* The §43 parser_rule_hash pre-image (== f"genome_chromosome/v{FORMAT_VERSION}" — tracks
  * SRMECH_GENOME_FORMAT_VERSION, mirroring the Python _chr_record; v15->v16 §Q8 packer). */
-#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v16"
+#define SRMECH_GENOME_CHR_RULE_PREIMAGE "genome_chromosome/v17"
 /* The §43 rendering "purpose" — VERBATIM from genome.py _chr_record
  * (single-line #define; JPL Rule 8 forbids backslash line-continuation). */
 #define SRMECH_GENOME_CHR_PURPOSE "One self-contained, MPR-attested chromosome: its fixed-width region (CHROM cap + coupled turns) + coupling, re-importable self-verifying."
