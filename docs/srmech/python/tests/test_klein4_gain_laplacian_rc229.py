@@ -307,7 +307,7 @@ def test_registration_all_and_laplacian_ops():
         assert name in LAPLACIAN_OPS, f"{name} missing from LAPLACIAN_OPS"
 
 
-def test_registration_tool_schema_total_418():
+def test_registration_tool_schema_total_matches_live():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     schema = get_tool_schema()

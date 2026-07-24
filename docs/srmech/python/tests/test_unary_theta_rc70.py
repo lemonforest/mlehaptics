@@ -249,7 +249,7 @@ def test_unary_theta_tool_entry_registered():
     assert "srmech.amsc.unary_theta.unary_theta" in names
 
 
-def test_introspect_tools_total_is_340():
+def test_introspect_tools_total_matches_live():
     """The canonical shipped tool count after the rc71 ``harmonic_maass`` op (339 →
     340; the rc70 ``unary_theta`` op took it 338 → 339). Counted over the SHIPPED
     surface only — other tests (e.g. ``test_tool_schema.py``) imperatively

@@ -255,7 +255,7 @@ def test_ops_view_reachable_via_the_registry():
     assert d["ops"]["octonion_conjugate"]["consumes"]["rung"] == 8
 
 
-def test_tools_total_unchanged_at_384():
+def test_tools_total_matches_live():
     """FORM (2): the contract is a descriptor FIELD, not a new callable → 0 delta
     on tools.total (no new ToolEntry, no rosetta / coverage change)."""
     from srmech import introspect

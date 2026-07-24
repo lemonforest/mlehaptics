@@ -277,7 +277,7 @@ def test_modular_forms_ring_source_is_numpy_math_abs_free():
 
 
 # ── gate (h): the REDUCER is a ToolEntry → tools.total 342; carrier accessors not
-def test_represent_is_a_tool_entry_total_341():
+def test_represent_is_a_tool_entry_total_matches_live():
     """``modular_forms_ring_represent`` is a genuine REDUCER (the WEIGHT-axis analog
     of the Σ-row gosper/zeilberger/wz_certificate) → it IS a registered ToolEntry,
     which took the shipped tool count 340 → 341 at rc84 (now 342 with the rc89

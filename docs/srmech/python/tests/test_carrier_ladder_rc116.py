@@ -368,7 +368,7 @@ def test_descriptor_shape_and_self_consistency():
 
 # ── (7) registration: tools.total, entries, buckets ──────────────────────────
 
-def test_tools_total_is_376():
+def test_tools_total_matches_live():
     """rc116 ships 9 genuinely NEW public ops → +9 ToolEntries (367 → 376)."""
     from srmech import introspect
     assert introspect.describe()["tools"]["total"] == 492

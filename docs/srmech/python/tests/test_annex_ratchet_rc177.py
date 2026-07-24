@@ -228,9 +228,11 @@ def test_annex_delta_is_39_split_1_12_12_14():
     assert sum(counts.values()) == 39
 
 
-def test_full_non_compute_split_sums_to_153():
+def test_full_non_compute_split_matches_pin():
     """The full non_compute ledger split — bus/dsl annex (rc177–182) + the rc183
-    mcp/cli/llm host-glue annex — is 15/103/15/44 = 177 (living-pin bump)."""
+    mcp/cli/llm host-glue annex — matches the pinned ``_FULL_SPLIT`` and sums to
+    the single living pin ``_TOTAL_NON_COMPUTE`` (updated per-rc; 203 at rc312).
+    The exact numbers live in the constants, not this test's name."""
     counts = Counter(r["non_compute_kind"] for r in _rows()
                      if r.get("bucket") == "non_compute")
     assert dict(counts) == _FULL_SPLIT, (

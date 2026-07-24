@@ -476,7 +476,7 @@ def test_twiddle_native_matches_pure_byte_for_byte(monkeypatch):
 # (7) Registration + attestation + carrier hygiene
 # ────────────────────────────────────────────────────────────────────
 
-def test_tools_total_is_367():
+def test_tools_total_matches_live():
     """rc109 added the 9 qm.quaternion ToolEntries (350 → 359); the live
     pin tracks later rcs (rc111: +3 qm.octonion twiddle-family → 362)."""
     from srmech import introspect

@@ -312,9 +312,10 @@ def _non_compute_kind_counts() -> Counter:
                    if r.get("bucket") == "non_compute")
 
 
-def test_non_compute_total_is_153():
-    """The non_compute bucket is exactly 153 rows (rc177 annex population: the
-    original 114 + the 39 bus/dsl rows the extended _ROOTS surfaces)."""
+def test_non_compute_total_matches_pin():
+    """The non_compute bucket population equals the single living pin
+    ``_TOTAL_NON_COMPUTE`` (updated per-rc; 203 at rc312). The exact count lives
+    in the constant, not this test's name — the four-way split is pinned to it."""
     n = sum(1 for r in _rows() if r.get("bucket") == "non_compute")
     assert n == _TOTAL_NON_COMPUTE, (
         f"non_compute bucket has {n} rows, expected {_TOTAL_NON_COMPUTE} — the "
@@ -346,8 +347,10 @@ def test_every_non_compute_row_has_a_kind_in_the_four():
     )
 
 
-def test_four_way_split_sums_to_114():
-    """The four sub-bucket counts partition the 114 non_compute rows exactly."""
+def test_four_way_split_matches_pin():
+    """The four sub-bucket counts partition the non_compute rows exactly, summing
+    to the single living pin ``_TOTAL_NON_COMPUTE`` (updated per-rc; 203 at rc312).
+    The exact number lives in the constant, not this test's name."""
     counts = _non_compute_kind_counts()
     # every counted kind is one of the four
     assert set(counts) <= set(_NON_COMPUTE_KINDS), (

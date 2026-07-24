@@ -265,7 +265,7 @@ def test_harmonic_maass_tool_entry_registered():
     assert "srmech.amsc.harmonic_maass.harmonic_maass" in names
 
 
-def test_introspect_tools_total_is_340_rc71():
+def test_introspect_tools_total_matches_live_rc71():
     """The canonical shipped tool count after the rc71 ``harmonic_maass`` op
     (339 → 340). Counted over the SHIPPED surface only (excluding any ``test.``-
     namespaced injections other tests leak), so the invariant is order-independent."""

@@ -399,7 +399,7 @@ def test_registered_in_tool_schema():
         assert entry.category == "laplacian"
 
 
-def test_tools_total_is_367():
+def test_tools_total_matches_live():
     from srmech import introspect
 
     assert introspect.describe()["tools"]["total"] == 492

@@ -249,7 +249,7 @@ def test_no_abs_call_in_op_functions():
 # (f) Registration — a NEW ToolEntry (tools.total 362 → 363) + ledger
 # ────────────────────────────────────────────────────────────────────
 
-def test_tools_total_is_367():
+def test_tools_total_matches_live():
     """phase_coherent_peak is a NEW public op → +1 ToolEntry (362 → 363)."""
     from srmech import introspect
     assert introspect.describe()["tools"]["total"] == 492
