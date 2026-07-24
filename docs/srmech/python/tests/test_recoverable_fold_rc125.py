@@ -297,7 +297,7 @@ def test_lossy_projection_record_validates():
 # ─────────────────────────────────────────────────────────────────────
 # (g) registration + counts
 # ─────────────────────────────────────────────────────────────────────
-def test_tools_total_is_390():
+def test_tools_total_matches_live():
     from srmech import introspect
     assert introspect.describe()["tools"]["total"] == 492
 

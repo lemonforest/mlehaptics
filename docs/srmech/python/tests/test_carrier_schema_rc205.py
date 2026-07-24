@@ -285,7 +285,7 @@ def test_generated_table_holds_every_carrier() -> None:
 
 # ── 6. registration ───────────────────────────────────────────────────────────
 
-def test_tool_entry_registered_and_total_is_413() -> None:
+def test_tool_entry_registered_and_total_matches_live() -> None:
     schema = get_tool_schema()
     entry = schema.lookup("srmech.amsc.carrier_schema.carrier_schema")
     assert entry is not None

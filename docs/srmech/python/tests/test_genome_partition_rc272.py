@@ -367,7 +367,7 @@ def test_builder_requires_coupling():
 
 # ── 7. registration + docs (the full public-callable surface) ────────────────
 
-def test_new_ops_registered_and_total_is_448():
+def test_new_ops_registered_and_total_matches_live():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]

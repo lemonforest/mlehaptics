@@ -185,7 +185,7 @@ def test_generic_rational_z_is_genuinely_cyclotomic():
 
 
 # ── gate (4a): tools.total is UNCHANGED (a CARRIER method, not a ToolEntry) ────────
-def test_theta_at_is_a_carrier_method_total_341():
+def test_theta_at_is_a_carrier_method_total_matches_live():
     assert introspect.describe()["tools"]["total"] == 492
 
 

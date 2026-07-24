@@ -460,7 +460,7 @@ def test_descriptor_bracketing_block_is_the_attested_field():
 # (h) Registration / ledger
 # ────────────────────────────────────────────────────────────────────
 
-def test_tools_total_is_367():
+def test_tools_total_matches_live():
     """rc111 adds the 3 qm.octonion twiddle-family ToolEntries (359 → 362);
     the octonion_dft ToolEntry pre-existed (v0.7.0rc31 — graduation updates
     the entry + its Rosetta bucket, it does not add a tool)."""
