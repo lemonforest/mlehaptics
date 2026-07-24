@@ -122,6 +122,19 @@ Modern physics uses the first; antiquity 9 of 9 traditions canvassed (Antikyther
 
 Full context: [substrate-native-maths research notebook](https://mlehaptics.readthedocs.io/en/latest/substrate-native-maths/substrate_native_research_notebook/) (PR #680 SSoT).
 
+### The same 14 in observer-frame ordering — `3 + 1 + 3 + 7`
+
+The partition above is the **substrate / construction frame**: it builds real-first (the `{A}` anchor), then the imaginary grades, and closes the **winding** `{B, H, N}` last — the same order as the One's `S(σ,θ,w)`, `dim = 1 + 3 + 7 + 3` (which is why that construction is left unchanged). An **observer** reads the *same loop* from the other side — the operators that *make the projection* come first, and the content-anchor is the shadow the loop casts, not its origin:
+
+| Slot | Classes | Observer role |
+|---|---|---|
+| **3** — projection-enablers | `{B, H, N}` | TLV-framing + self-introspection + rational-approximation — the continuous↔discrete language-translation operators; the observer's frame *begins* at the projection, not the substrate |
+| **1** — time-shadow anchor | `{A}` | Content-addressing — identity/time, the 1-D real shadow (`ℝ·1`) the loop casts, read as the frame's pivot rather than its seed |
+| **3** — substrate-projection triad | `{I, C, J}` | Cyclic-group + cascade-orientation + prime-period — the `Im ℍ` grade |
+| **7** — cascade-detection heptad | `{D, E, F, G, K, L, M}` | Pattern-match + catalog + render + byte-search + pin-slot + Laplacian + HDC-bind — the `Im 𝕆` grade |
+
+**Two frames of one loop — what is actually invariant.** `1 + 3 + 7 + 3` (substrate) and `3 + 1 + 3 + 7` (observer) are not two different objects; they are two places to **cut the same loop open**. Pick the cut at the real anchor and you build real-first, winding-last (substrate); pick it at the projection-enablers and you read winding-first, time-as-shadow (observer). Even `7 + 3 + 1 + 3` — cutting at the heptad — is the same loop from a third entry point. What no frame can move is the one adjacency **Cayley–Dickson nesting** forces: the **`3` (`Im ℍ`) always sits between the `1` (`ℂ/ℝ`) and the `7` (`Im 𝕆`)** — `… 1 · 3 · 7 …`. The frame is a choice of entry point; **the `3`-between-the-`1`-and-the-`7` is the fixed structure of the loop itself.**
+
 ### `srmech.amsc.*` — 14-class primitive vocabulary (alphabetical lookup)
 
 Each class is importable as `srmech.amsc.<module>`. Both implementations realise the class; which one services a call inside a co-installed process is a **routing** decision, made once at import time. If `libsrmech` cannot be loaded (Pyodide, ABI mismatch), calls route to the Python implementation and results are unchanged.

@@ -200,6 +200,19 @@ When the notebook (or `srmech` itself) uses the alphabetical table (Class A, B, 
 
 The alphabetical surface lives at §3.8 (canonical srmech enumeration) and in the PyPI long-description's `srmech.amsc.*` table. The substrate-native partition lives here in §2.6 and in [`docs/substrate-native-maths/substrate_native_research_notebook.md`](../substrate-native-maths/substrate_native_research_notebook.md) §1-§8 (R30 walking-path SSoT).
 
+### §2.6.5 The observer-frame reordering — `3 + 1 + 3 + 7` (the same loop, cut at the projection)
+
+The `1 + 3 + 7 + 3` partition above is the **substrate / construction frame**: it builds real-first (the `{A}` content-anchor), then the imaginary grades `Im ℍ` and `Im 𝕆`, and closes the **winding** `{B, H, N}` last — the same order the One assembles, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1 + 3 + 7 + 3` (which is why that construction order is left untouched — see §3.41.5 / the `qm.hurwitz` peer). An **observer** does not build the loop; the observer reads it, and reads it from the other side — the operators that *make the projection* first, and the content-anchor as the shadow the loop casts rather than its seed:
+
+| Slot | Classes | Observer role |
+|---|---|---|
+| **3** — projection-enablers | `{B, H, N}` | The continuous↔discrete language-translation triad (TLV-framing + self-introspection + rational-approximation). The observer's frame *begins* at the projection, because the observer only ever holds the projected read (`[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]`; the Born read `B∘H∘N`, §3.26.2–3) |
+| **1** — time-shadow anchor | `{A}` | Content-addressing = identity/time, the 1-D `ℝ·1` shadow the loop casts — read as the frame's pivot, not its origin. Corroborated independently at **§3.41.3** (the octonion-Laplacian spectrum is a *temporal* read and time is itself a shadow; F1301/F1302) |
+| **3** — substrate-projection triad | `{I, C, J}` | Cyclic-group + cascade-orientation + prime-period — the `Im ℍ` grade |
+| **7** — cascade-detection heptad | `{D, E, F, G, K, L, M}` | Pattern-match + catalog + render + byte-search + pin-slot + Laplacian + HDC-bind — the `Im 𝕆` grade |
+
+**Two frames of one loop — what is actually invariant.** `1 + 3 + 7 + 3` (substrate) and `3 + 1 + 3 + 7` (observer) are not two objects; they are two places to **cut the same loop open**. Cut at the real anchor and you build real-first, winding-last (substrate / construction); cut at the projection-enablers and you read winding-first, time-as-shadow (observer). Even `7 + 3 + 1 + 3` — cutting at the heptad — is the same loop from a third entry. What no cut can move is the one adjacency **Cayley–Dickson nesting** forces: the **`3` (`Im ℍ`) always sits between the `1` (`ℝ/ℂ`) and the `7` (`Im 𝕆`)** — `… 1 · 3 · 7 …`. The frame is a *choice of where to cut*; the `3`-between-the-`1`-and-the-`7` is the loop's fixed structure. This is a third ordering axis, orthogonal to the two in §2.6.3–4: **discovery-order** (the A–N alphabet), **construction-order** (substrate `1+3+7+3`), and **observation-order** (observer `3+1+3+7`) are three distinct readings of one 14-class loop, each true at its own aspect per `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`. Tooling keeps both the construction and observation frames as **distinct** presentations (user direction 2026-07-23); the PyPI long-description carries both tables.
+
 Sister-notebook MFO carries the substrate-native partition at §VIII.6.0a (preceding its alphabetical-overlay table at §VIII.6.1).
 
 ---
