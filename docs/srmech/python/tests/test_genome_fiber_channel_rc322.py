@@ -177,7 +177,7 @@ def test_f3_turns_bin_base_identical_and_fiber_appends_one_cap():
     data0, body0 = _save_body(strand)
     data1, body1 = _save_body(fib)
     # format bumped, but the BASE bytes are byte-identical: body0 is a strict prefix
-    assert data0["format_version"] == 17 and data1["format_version"] == 17
+    assert data0["format_version"] == 18 and data1["format_version"] == 18
     assert body1.startswith(body0)                # base sequence bytes untouched
     appended = body1[len(body0):]
     assert len(appended) == _LD and appended[0] == FIBER_CAP_MARKER
@@ -196,7 +196,7 @@ def test_f3_native_save_load_roundtrips_the_fiber():
 
 
 def test_f3_format_version_is_17():
-    assert GENOME_FORMAT_VERSION == 17
+    assert GENOME_FORMAT_VERSION == 18
 
 
 # ── F4 — native == pure ──────────────────────────────────────────────────────

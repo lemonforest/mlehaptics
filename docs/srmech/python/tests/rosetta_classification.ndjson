@@ -726,3 +726,7 @@
 {"exposed_as": "srmech.amsc.genome.genome_fiber_holonomy", "defined_at": "srmech.amsc.genome.genome_fiber_holonomy", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.genome_add_fiber", "defined_at": "srmech.amsc.genome.genome_add_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_read_fiber", "defined_at": "srmech.amsc.genome.genome_read_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_octonion_holonomy", "defined_at": "srmech.amsc.genome.genome_octonion_holonomy", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.genome.genome_octonion_associator", "defined_at": "srmech.amsc.genome.genome_octonion_associator", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_add_octonion_fiber", "defined_at": "srmech.amsc.genome.genome_add_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_read_octonion_fiber", "defined_at": "srmech.amsc.genome.genome_read_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}

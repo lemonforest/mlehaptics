@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc324"
-#define SRMECH_VERSION       "0.9.0rc324"
+#define SRMECH_VERSION_PRE   "rc325"
+#define SRMECH_VERSION       "0.9.0rc325"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5892,8 +5892,17 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * carry). A body with NO 0x46 cap is BYTE-IDENTICAL to v16 (klein4/Q8 turns pack
  * unchanged); only the manifest format_version moves. The fiber cap is OPT-IN (genome_add_
  * fiber), so a default save is winding-INVARIANT base bytes exactly as before. A v17 writer
- * stamps 17; v2..v16 bodies read UNCHANGED (one more self-describing cap in the SAME walk). */
-#define SRMECH_GENOME_FORMAT_VERSION 17
+ * stamps 17; v2..v16 bodies read UNCHANGED (one more self-describing cap in the SAME walk).
+ *
+ * v17->v18 (rc325, §𝕆-FIBER): adds the 𝕆 (octonion) analog of the v17 ℍ (Q8) fiber cap —
+ * the TOPOLOGY / FIBER cap marker SRMECH_GENOME_OCT_FIBER_CAP_MARKER (0x4F) holding the
+ * strand's ORDERED accumulated OCTONION holonomy (the fiber the winding-invariant per-turn
+ * octonion store cannot carry), ONE Cayley-Dickson rung up from the Q8 fiber. A body with NO
+ * 0x4F cap is BYTE-IDENTICAL to v17 (klein4/Q8/octonion turns pack unchanged); only the
+ * manifest format_version moves. The octonion fiber cap is OPT-IN (genome_add_octonion_fiber),
+ * so a default save is base bytes exactly as before. A v18 writer stamps 18; v2..v17 bodies
+ * read UNCHANGED (one more self-describing cap in the SAME walk). */
+#define SRMECH_GENOME_FORMAT_VERSION 18
 
 /* §44 inline cap markers — the FIRST byte of a fixed-width cap leaf. Both are
  * > 3 so a cap is told apart from a Klein-4 data turn (bytes 0..3) by its
@@ -6153,6 +6162,23 @@ size_t srmech_op_reproject_arena_bytes(size_t record_len, size_t inputs_len);
  * 0x67 / boolean 0x62 / threshold 0x77 / graded 0x64 / centromere 0x58), so v2..v16 bodies
  * read UNCHANGED. Mirrors FIBER_CAP_MARKER in srmech.amsc.genome. 0x46 = 'F' — Fiber. */
 #define SRMECH_GENOME_FIBER_CAP_MARKER 0x46u /* 'F' — a §Q8-FIBER interior fiber/gauge cap */
+
+/* §𝕆-FIBER/v18 OCTONION FIBER (topology/gauge) cap marker (rc325) — the 𝕆 analog of the
+ * v17 Q8 fiber cap, ONE Cayley-Dickson rung up. The FIRST byte of a fixed-width leaf holding
+ * the strand's ORDERED accumulated OCTONION holonomy (the non-associativity-carrying fiber).
+ * Layout (the §127 active-telomere inline-field pattern): [0x4F] + utf-8 label + NUL, then
+ * n_holo (uint16 big-endian, the holonomy length in octonion symbols == leaf_dim) right after
+ * the label NUL, then ceil(n_holo*4/8) = ceil(n_holo/2) bytes of the 4-bit-packed octonion
+ * holonomy (the SAME MSB-first packing as an octonion data turn payload), NUL-padded to
+ * leaf_dim. Like the §95a centromere / §98 chromatin / §Q8-FIBER caps it is an INTERIOR cap
+ * (genome_cap_kind recognises it, every cap-skip walk flattens past it — NOT a data turn, NOT
+ * a chromosome-opener), so a codon / sequence read is byte-IDENTICAL with or without it (the
+ * fiber is OPT-IN). > 3 and distinct from every prior marker (CHROM 0x43 / diploid 0x44 / GENE
+ * 0x47 / chromatin 0x48 / Q8-turn 0x38 / octonion-turn 0x39 / KERNEL 0x4B / Q8-fiber 0x46 /
+ * PACKED 0x51 / KERNEL-telomere 0x6B / ACTIVE 0x74 / regulatory 0x67 / boolean 0x62 / threshold
+ * 0x77 / graded 0x64 / centromere 0x58), so v2..v17 bodies read UNCHANGED. Mirrors
+ * OCT_FIBER_CAP_MARKER in srmech.amsc.genome. 0x4F = 'O' — Octonion fiber. */
+#define SRMECH_GENOME_OCT_FIBER_CAP_MARKER 0x4Fu /* 'O' — a §𝕆-FIBER interior octonion fiber cap */
 
 /* §98/v15 chromatin TYPE enum (rc268). BINARY (0) = open (1,1) / condensed (0,1); GRADED (1) =
  * an arbitrary reduced-rational accessibility level in [0,1]. Single-line #defines (JPL Rule 8). */
@@ -11705,6 +11731,25 @@ srmech_status_t srmech_genome_fiber_holonomy(const uint8_t *turns,
                                              uint32_t n_turns,
                                              uint32_t leaf_dim,
                                              uint8_t *out);
+
+/* §𝕆-FIBER/v18 (rc325) — the strand's OCTONION TOPOLOGY / FIBER channel, the 𝕆
+ * analog of srmech_genome_fiber_holonomy ONE Cayley-Dickson rung up (Q8 -> 𝕆).
+ * The ORDERED accumulated octonion holonomy of the coupled turns along a strand.
+ * `turns` is a flat n_turns x leaf_dim buffer of octonion bytes (row t = the t-th
+ * stored/coupled data turn, one octonion element per slot); `out` is leaf_dim
+ * octonion bytes. Per slot s, out[s] = oct_mult(...oct_mult(oct_mult(0, turns[0]
+ * [s]), turns[1][s])..., turns[n_turns-1][s]) — the ordered LEFT-to-right fold
+ * (identity +e0 == byte 0), REUSING srmech_oct_mult (NOT a reimplemented product).
+ * 𝕆 is non-commutative AND non-associative, so REORDERING the turns CHANGES the
+ * fold: this is the fiber the per-turn coupled octonion STORE cannot carry (that
+ * store re-stamps oct_mult(turn, one) per turn). Writes `out` directly — no scratch,
+ * no malloc; additive INTEGER symbol, SRMECH_ABI_VERSION stays 10. n_turns == 0
+ * yields the identity. `out` MUST NOT alias `turns`. Every input byte MUST be a
+ * valid octonion element (< 16). Errors: SRMECH_ERR_NULL_ARG (turns or out NULL). */
+srmech_status_t srmech_genome_octonion_holonomy(const uint8_t *turns,
+                                                uint32_t n_turns,
+                                                uint32_t leaf_dim,
+                                                uint8_t *out);
 
 /* ------------------------------------------------------------------ *
  * srmech_octonion — the ODFT twiddle family + the whole-transform

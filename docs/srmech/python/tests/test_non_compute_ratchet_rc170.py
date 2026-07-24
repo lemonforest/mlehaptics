@@ -299,11 +299,17 @@ _EXPECTED_SPLIT = {
     # genome.genome_read_fiber — the fiber cap ASSEMBLE / READ ops; each composes the
     # c_dispatched genome_fiber_holonomy + pure cap byte-framing, sibling-consistent with
     # genome_save). composes_c 131 -> 133; total 203 -> 205.
-    "composes_c": 133,
+    # rc325 (§𝕆-FIBER/v18): +3 composes_c (genome.genome_octonion_associator — the two-fold
+    # associator DEFECT reader, composes the c_dispatched octonion oct_bind fold; +
+    # genome.genome_add_octonion_fiber + genome.genome_read_octonion_fiber — the octonion
+    # fiber cap ASSEMBLE / READ ops, each composes the c_dispatched genome_octonion_holonomy
+    # + pure cap byte-framing, sibling-consistent with the rc322 Q8 fiber ops). composes_c
+    # 133 -> 136; total 205 -> 208.
+    "composes_c": 136,
     "host_glue": 21,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 205        # rc322 (§Q8-FIBER/v17): 203 -> 205, genome.genome_add_fiber + genome_read_fiber (rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16; rc308 #944: 201 -> 202)
+_TOTAL_NON_COMPUTE = 208        # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)
 
 
 def _rows():

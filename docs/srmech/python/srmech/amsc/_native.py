@@ -932,6 +932,18 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_uint8),     # out (leaf_dim bytes)
         ]
         lib.srmech_genome_fiber_holonomy.restype = ctypes.c_int
+    # §𝕆-FIBER/v18 (rc325): the genome OCTONION TOPOLOGY/FIBER fold — the ordered per-slot
+    # octonion holonomy of n_turns x leaf_dim coupled turns into a leaf_dim out buffer, the
+    # 𝕆 analog one Cayley–Dickson rung up. Additive INTEGER symbol (no callback typedef) ->
+    # ABI stays 10; hasattr-guarded.
+    if hasattr(lib, "srmech_genome_octonion_holonomy"):
+        lib.srmech_genome_octonion_holonomy.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # turns (n_turns * leaf_dim bytes)
+            ctypes.c_uint32,                    # n_turns
+            ctypes.c_uint32,                    # leaf_dim
+            ctypes.POINTER(ctypes.c_uint8),     # out (leaf_dim bytes)
+        ]
+        lib.srmech_genome_octonion_holonomy.restype = ctypes.c_int
 
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
@@ -17901,6 +17913,36 @@ def genome_fiber_holonomy_c(turns: bytes, n_turns: int, leaf_dim: int):
     return bytes(c_out)
 
 
+def has_native_genome_octonion_holonomy() -> bool:
+    """True iff the §𝕆-FIBER/v18 (rc325) native ``srmech_genome_octonion_holonomy`` is
+    loaded — a pre-rc325 lib lacks it, so ``genome.genome_octonion_holonomy`` folds the
+    ordered octonion product in pure Python (``oct_bind``)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_octonion_holonomy"))
+
+
+def genome_octonion_holonomy_c(turns: bytes, n_turns: int, leaf_dim: int):
+    """Native dispatch for the genome OCTONION TOPOLOGY/FIBER fold — the ordered per-slot
+    octonion holonomy of ``n_turns × leaf_dim`` coupled turns (flat ``turns`` buffer) into a
+    ``leaf_dim``-byte result, the 𝕆 analog one Cayley–Dickson rung up. Returns ``bytes``
+    (length ``leaf_dim``) or ``None`` on a missing symbol / non-OK status (caller then runs
+    the pure ``oct_bind`` fold). No scratch/arena — the C op writes ``out`` directly."""
+    if not has_native_genome_octonion_holonomy():
+        return None
+    n = int(leaf_dim)
+    if n <= 0:
+        return b""
+    buf = bytes(turns)
+    c_turns = (ctypes.c_uint8 * max(len(buf), 1)).from_buffer_copy(
+        buf if buf else b"\x00")
+    c_out = (ctypes.c_uint8 * n)()
+    rc = LIB.srmech_genome_octonion_holonomy(
+        c_turns, ctypes.c_uint32(int(n_turns)), ctypes.c_uint32(n), c_out)
+    if rc != SRMECH_OK:
+        return None
+    return bytes(c_out)
+
+
 def has_native_genome_census() -> bool:
     """True iff the §96/rc267 native ``srmech_genome_census`` (+ its arena SSoT) is
     loaded — a pre-rc267 lib lacks it, so ``genome.genome_census`` uses the pure
@@ -19879,9 +19921,11 @@ __all__ = [
     "NativeGenomeError",
     "has_native_genome",
     "has_native_genome_fiber_holonomy",
+    "has_native_genome_octonion_holonomy",
     "has_native_genome_census",
     "has_native_genome_registry",
     "genome_fiber_holonomy_c",
+    "genome_octonion_holonomy_c",
     "genome_save_c",
     "genome_load_c",
     "genome_catalog_c",
