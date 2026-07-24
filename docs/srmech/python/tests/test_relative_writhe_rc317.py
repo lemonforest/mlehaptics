@@ -326,8 +326,7 @@ def test_precision_contract_helper():
         _classn_working(0, kind="bits")
     with pytest.raises(TypeError):
         _classn_working(1.5, kind="bits")
-    # the reserved-for-later-waves kinds are declared but not yet implemented
-    with pytest.raises(NotImplementedError):
-        _classn_working(64, kind="terms")
+    # kind="terms" is implemented (rc320 WAVE 2); kind="den" is still reserved.
+    assert _classn_working(64, kind="terms").mode == "bigint"
     with pytest.raises(NotImplementedError):
         _classn_working(64, kind="den")

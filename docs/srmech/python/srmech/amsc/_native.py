@@ -8823,6 +8823,22 @@ _BIGEXP_SYMS = (
     "srmech_bigint_to_dec_bound",
 )
 
+# 0.9.0rc320 — the per-symbol native ``num_terms`` cap. The C series arenas
+# (``c/src/srmech_bigexp.c``: ``BIGEXP_EXP_MAX_TERMS 512`` / ``BIGEXP_TRIG_MAX_TERMS
+# 50`` / ``BIGEXP_LOG_MAX_TERMS 64``) are SIZED for these bounds and reject a
+# larger ``num_terms`` with ``SRMECH_ERR_BAD_INPUT``. Above the cap ``_bigexp_call``
+# skips native and lets the caller's ceilingless pure-Python bignum body run —
+# byte-identical, just slower. This is what makes the raised Python-side caps
+# (``_TRIG_SERIES_MAX_TERMS`` / ``_LOG_SERIES_MAX_TERMS`` = 512) consistent and
+# lets the ``precision=P`` REFERENCE path request as many terms as ``2**-P`` needs.
+_BIGEXP_NATIVE_TERM_CAP = {
+    "srmech_exp_series_truncate_big": 512,
+    "srmech_sin_series_truncate_big": 50,
+    "srmech_cos_series_truncate_big": 50,
+    "srmech_log1p_series_truncate_big": 64,
+    "srmech_atan_series_truncate_big": 64,
+}
+
 
 def has_native_bigexp() -> bool:
     """True iff the rc35 bignum-exact transcendental series + the srmech_bigint
@@ -9248,6 +9264,11 @@ def _bigexp_call(symbol: str, numerator: int, denominator: int,
     path has NO ceiling (byte-identical to ``srmech.amsc.rational`` at any
     magnitude)."""
     if not has_native_bigexp() or not hasattr(LIB, symbol):
+        return None
+    # 0.9.0rc320: above the C arena's per-op num_terms cap, skip native and let
+    # the caller's ceilingless pure-Python bignum body compute the (byte-
+    # identical) partial sum — the C peer would only reject with BAD_INPUT.
+    if num_terms > _BIGEXP_NATIVE_TERM_CAP.get(symbol, 512):
         return None
     # Limb sizing: 9 decimal digits ≈ 1 limb; pad generously. The output /
     # working carriers are sized to hold the reduced result, which for these
