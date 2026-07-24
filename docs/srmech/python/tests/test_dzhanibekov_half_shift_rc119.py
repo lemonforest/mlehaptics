@@ -250,10 +250,10 @@ def test_has_native_flag_present():
 
 
 # ── tool-schema registration (the coverage/rosetta surface) ─────────────────────
-def test_tools_total_is_384():
+def test_tools_total_matches_live():
     """rc119 ships 3 genuinely NEW public ops → +3 ToolEntries (381 → 384)."""
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 466
+    assert introspect.describe()["tools"]["total"] == 492
 
 
 def test_three_ops_registered():

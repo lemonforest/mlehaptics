@@ -515,13 +515,21 @@ def test_rc211_product_at_2_63_falls_back_to_python_ref():
     assert cascade.best_rational_signed(-x) == (-(10**13), 1)
 
 
-def test_rc211_product_beyond_uint64_raises_like_pure_python():
-    """A product >= 2^64 reaches the Python reference path (native
-    rejects it at the 2^63 int64 bound) where the Class N primitive's
-    uint64 contract raises ValueError — the SAME behaviour the
-    pure-Python surface always had. Pinned so the native-enabled and
-    pure-Python surfaces agree instead of the pre-rc210 silent
-    platform-divergent llrint() domain-error result.
+def test_rc211_product_beyond_uint64_now_computes_matching_pure_python_898():
+    """`#898` (rc319) lifted the Class N ``best_rational`` uint64 ceiling, so a
+    product >= 2^64 no longer raises. The native cascade peer still rejects it
+    at the 2^63 int64 bound, so the dispatch reaches the Python reference path,
+    where the now-bignum ``best_rational`` anchors the huge magnitude to a
+    low-denominator convergent (q <= max_denominator; here (bignum, 61)). The
+    native-enabled and pure-Python surfaces still AGREE — that agreement, not
+    the ValueError, was always the point of this pin (pre-rc210 llrint() gave a
+    silent platform-divergent result; the old u64 guard replaced it with a
+    raise; #898 replaces the raise with an exact bignum answer). Runs in both
+    native and pure hosts.
     """
-    with pytest.raises(ValueError, match="uint64"):
-        cascade.best_rational_signed(1e300)
+    x = 1e300
+    assert x * 10 ** 6 >= 2 ** 64          # the product the old u64 guard rejected
+    ref = _python_ref(x)                    # independent pure reference (bignum)
+    assert ref[0] > 0 and 1 <= ref[1] <= 100  # a positive anchor within max_denom
+    assert cascade.best_rational_signed(x) == ref          # cascade path == ref
+    assert cascade.best_rational_signed(-x) == (-ref[0], ref[1])  # sign mirror

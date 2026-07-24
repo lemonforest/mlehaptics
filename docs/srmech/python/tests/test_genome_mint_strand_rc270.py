@@ -242,12 +242,12 @@ def test_unminted_strand_is_never_mutated():
 
 # ── 7. registration ─────────────────────────────────────────────────────────
 
-def test_mint_strand_registered_and_total_is_446():
+def test_mint_strand_registered_and_total_matches_live():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.amsc.genome.mint_strand" in names
-    assert len(names) == 466
+    assert len(names) == 492
     assert "mint_strand" in G.__all__
 
 

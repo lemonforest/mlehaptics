@@ -101,7 +101,18 @@ def generate() -> str:
     w(" * and no filesystem (JPL-clean: const arrays, no dynamic init, no malloc).")
     w(" * The lookup accessor lives in srmech_make_class.c.")
     w(" *")
-    w(f" * Classes: {len(entries)} ({', '.join(n for n, _ in entries)}).")
+    w(f" * TOML-declared classes: {len(entries)} "
+      f"({', '.join(n for n, _ in entries)}).")
+    w(" *")
+    # ASCII-ONLY: test_class_registry_codegen_rc202 pins the generated .c to
+    # pure ASCII (MSVC-safe under /WX). No em-dashes, no smart quotes.
+    w(" * This is the [class] DESCRIPTOR table, not srmech's class count.")
+    w(" * rc298 (task 936) made describe()['classes'] capability-first, so it")
+    w(" * reports MORE than this: a hand-coded domain class (CDRegister) has")
+    w(" * no descriptor text to bake here, and reaches a bare-C host through")
+    w(" * its own peers rather than through srmech_run_class_method. A NULL")
+    w(" * from srmech_class_descriptor_lookup for such a name is correct,")
+    w(" * not a gap.")
     w(" */")
     w("")
     w('#include "srmech.h"')

@@ -91,14 +91,34 @@ def test_every_registered_tool_resolves_numpy_free():
 
 
 def test_every_shipped_catalog_class_describes_numpy_free():
-    """All ``describe()['classes']['total']`` shipped catalog classes describe
-    via the DSL class surface with numpy absent."""
+    """All shipped TOML-catalog classes describe via the DSL class surface with
+    numpy absent.
+
+    rc298 (`#936`): this walk is scoped to the TOML catalog, and it says so.
+    ``dsl.describe_class`` resolves TOML-DECLARED classes only — a hand-coded
+    domain class like ``CDRegister`` has no descriptor to return — so the loop
+    below must run over ``dsl.list_classes()``, not over the (now wider)
+    ``describe()['classes']['names']``.
+
+    The relation to ``describe()`` is therefore CONTAINMENT plus an exact match
+    against the route-tagged TOML subset, not equality with the whole key. That
+    is the real invariant: describe() must not lose a TOML class, and its
+    ``toml_total`` must agree with the catalog it claims to summarise.
+    """
     names = list(dsl.list_classes())
-    assert names == describe()["classes"]["names"], (
-        f"dsl.list_classes()={names} disagrees with "
-        f"describe()['classes']['names']={describe()['classes']['names']}"
+    d_classes = describe()["classes"]
+
+    assert set(names) <= set(d_classes["names"]), (
+        f"describe()['classes']['names']={d_classes['names']} DROPPED a TOML "
+        f"catalog class; dsl.list_classes()={names}"
     )
-    assert len(names) == describe()["classes"]["total"]
+    toml_routed = sorted(n for n, r in d_classes["routes"].items() if r == "toml")
+    assert toml_routed == sorted(names), (
+        f"describe() routes {toml_routed} as TOML-declared but the catalog is "
+        f"{sorted(names)} — the route field has drifted from the catalog"
+    )
+    assert d_classes["toml_total"] == len(names)
+    assert d_classes["total"] == len(d_classes["names"])
 
     required = {"doc", "fields", "kind", "methods", "name", "provenance"}
     for nm in names:

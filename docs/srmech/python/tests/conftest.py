@@ -54,7 +54,12 @@ import pytest
 #: `sock_path` / `registry_path` / `bus_dir` / `seed_path` across `tests/` —
 #: every other bus-adjacent module only inspects names or classifications and
 #: never writes into the registry dir.
-_BUS_REGISTRY_TEST_MODULES = {"test_bus", "test_bus_aio"}
+_BUS_REGISTRY_TEST_MODULES = {
+    "test_bus", "test_bus_aio",
+    # rc305 (`#920`) — the discovery-cleanup root-fix regression module binds
+    # raw UDS sockets in the registry dir, so it needs the same private HOME.
+    "test_bus_discovery_cleanup_rc305",
+}
 
 #: Longest endpoint NAME the bus suites build, with headroom.
 #:

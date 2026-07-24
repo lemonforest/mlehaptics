@@ -370,4 +370,4 @@ def test_python_equals_c_modulator_consistent():
 def test_no_genome_format_bump():
     """rc133 adds NO new marker / block KIND — the modulator ops are a READ over the existing gene
     caps, so the genome format stays v11 (the rc132 value)."""
-    assert G.GENOME_FORMAT_VERSION == 15
+    assert G.GENOME_FORMAT_VERSION == 16

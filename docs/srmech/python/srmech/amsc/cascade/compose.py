@@ -33,6 +33,11 @@ from typing import List, Sequence, Tuple
 
 from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _cyclic_gcd
+from srmech.amsc.cyclic import mod_add as _cyclic_mod_add
+from srmech.amsc.cyclic import mod_mul as _cyclic_mod_mul
+from srmech.amsc.cyclic import mod_pow as _cyclic_mod_pow
+from srmech.amsc.cyclic import mod_inv as _cyclic_mod_inv
+from srmech.amsc.cyclic import mod_mul_wide as _cyclic_mod_mul_wide
 from srmech.amsc.rational import best_rational as _best_rational
 from srmech.amsc.rational import sin as _rsin  # §22: Class-N rational trig, not libm
 
@@ -292,6 +297,125 @@ def cyclic_gcd(a: int, b: int) -> int:
     if native is not None:
         return native
     return _cyclic_gcd(a, b)
+
+
+# ── Class I modular-arithmetic cascade ops (0.9.0rc302; §110 / #1460) ────────
+# The cascade-namespace face of the Class-I modular family so a modular-
+# arithmetic cascade (an LCG, a hash, the PCG64 step) can be DECLARED via the
+# DSL — `chain().then("cyclic_mod_mul", b=MULT, n=MOD)` — and DISCOVERED in the
+# tool_schema, not only hand-composed in Python. Each is a THIN delegation to
+# the already-``c_dispatched`` `srmech.amsc.cyclic.*` primitive (which routes to
+# its own `srmech_mod_*` C symbol); these wrappers add NO native dispatch and
+# NO new C symbol — they are the cascade-catalog / DSL-registration layer
+# (`composition_of_c`). Following the DSL chain contract, the piped value is the
+# first positional arg (`a`) and the operands (`b`/`k`/`n`) are bound kwargs
+# (`.then("cyclic_mod_mul", b=MULT, n=MOD)`), exactly as schur_complement binds
+# `boundary_idx`.
+
+
+def cyclic_mod_mul(a: int, b: int, n: int) -> int:
+    """Class I modular multiply ``(a * b) mod n`` (delegates to
+    ``srmech.amsc.cyclic.mod_mul``).
+
+    The cascade-named alias for the Class-I modular multiply so a modular
+    cascade (e.g. an LCG step ``mod_mul`` ∘ ``mod_add``) can be declared in the
+    DSL. Overflow-safe via russian-peasant doubling in C; the modulus and
+    operands are bounded by ``uint64`` (use :func:`cyclic_mod_mul_wide` for a
+    wider modulus). ``n`` must be ``> 0``.
+
+    Args:
+        a: non-negative ``int`` in ``uint64`` range (the piped cascade value).
+        b: non-negative ``int`` in ``uint64`` range (the multiplier).
+        n: modulus ``> 0`` in ``uint64`` range.
+
+    Returns:
+        ``(a * b) mod n`` in ``[0, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_mul", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_mul(a, b, n)
+
+
+def cyclic_mod_add(a: int, b: int, n: int) -> int:
+    """Class I modular addition ``(a + b) mod n`` (delegates to
+    ``srmech.amsc.cyclic.mod_add``).
+
+    The cascade-named alias for the Class-I modular addition — the
+    increment stage of an LCG cascade. Operands and modulus are bounded by
+    ``uint64``; ``n`` must be ``> 0``.
+
+    Args:
+        a: non-negative ``int`` in ``uint64`` range (the piped cascade value).
+        b: non-negative ``int`` in ``uint64`` range (the addend).
+        n: modulus ``> 0`` in ``uint64`` range.
+
+    Returns:
+        ``(a + b) mod n`` in ``[0, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_add", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_add(a, b, n)
+
+
+def cyclic_mod_pow(a: int, k: int, n: int) -> int:
+    """Class I modular exponentiation ``(a ** k) mod n`` via
+    square-and-multiply (delegates to ``srmech.amsc.cyclic.mod_pow``).
+
+    The cascade-named alias for the Class-I modular power — the core of a
+    modular-exponentiation cascade (multiplicative hashing, RSA-style
+    powering). Operands and modulus are bounded by ``uint64``; ``n`` must be
+    ``> 0`` (returns ``0`` for ``n == 1``).
+
+    Args:
+        a: non-negative ``int`` in ``uint64`` range (the piped base).
+        k: non-negative ``int`` exponent in ``uint64`` range.
+        n: modulus ``> 0`` in ``uint64`` range.
+
+    Returns:
+        ``(a ** k) mod n`` in ``[0, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_pow", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_pow(a, k, n)
+
+
+def cyclic_mod_inv(a: int, n: int) -> int:
+    """Class I modular inverse of ``a`` in ``Z/nZ`` via extended Euclidean
+    (delegates to ``srmech.amsc.cyclic.mod_inv``).
+
+    The cascade-named alias for the Class-I modular inverse — the un-do stage
+    of a modular cascade (recovering a multiplicative factor). Requires
+    ``gcd(a, n) == 1`` (raises ``ValueError`` otherwise) and ``n <= INT64_MAX``
+    on the C path.
+
+    Args:
+        a: non-negative ``int`` in ``uint64`` range (the piped value to invert).
+        n: modulus ``>= 2`` in ``uint64`` range.
+
+    Returns:
+        The inverse ``a**-1 mod n`` in ``[1, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_inv", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_inv(a, n)
+
+
+def cyclic_mod_mul_wide(a: int, b: int, n: int) -> int:
+    """Class I **uncapped** modular multiply ``(a * b) mod n`` (delegates to
+    ``srmech.amsc.cyclic.mod_mul_wide``).
+
+    The cascade-named alias for the 128-bit-capable modular multiply — the
+    multiply-and-reduce half of a wide LCG (the raw PCG64 step at
+    ``n = 2**128``). The product rides srmech's own C bignum
+    (``srmech_bigint_mul``); ``composition_of_c``, no uint64 cap. ``a`` / ``b``
+    non-negative, ``n > 0``, all of arbitrary width.
+
+    Args:
+        a: non-negative ``int`` of ANY width (the piped LCG state).
+        b: non-negative ``int`` of ANY width (the multiplier).
+        n: modulus ``> 0`` of ANY width (e.g. ``2**128``).
+
+    Returns:
+        ``(a * b) mod n`` in ``[0, n)``.
+    """
+    if _is_pub(): _emit("cascade.cyclic_mod_mul_wide", class_="I", input_shape=_shape(a))
+    return _cyclic_mod_mul_wide(a, b, n)
 
 
 def _try_native_kuramoto_step(theta, omega, coupling, dt):
@@ -720,6 +844,11 @@ __all__ = [
     "DEFAULT_MAX_DENOMINATOR",
     "DEFAULT_FINE_SCALE",
     "cyclic_gcd",
+    "cyclic_mod_mul",
+    "cyclic_mod_add",
+    "cyclic_mod_pow",
+    "cyclic_mod_inv",
+    "cyclic_mod_mul_wide",
     "best_rational_signed",
     "kuramoto_step",
     "autocorrelation",

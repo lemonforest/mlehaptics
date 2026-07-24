@@ -50,6 +50,12 @@ def test_exact_dft_over_old_cap_native_accepts_and_matches_pure():
     re = [((i * 3) % 7) - 3 for i in range(n)]   # small ints → int64-safe
     im = [((i * 5) % 5) - 2 for i in range(n)]
 
+    # rc300 (`#938`): this `if` has no `else`, so an absent symbol used to drop
+    # the HONOR claim silently. Left as-is deliberately — the pure/public parity
+    # block below is real coverage that a skip would throw away, and the SYMBOL
+    # is now checked systemically: srmech_exact_dft_i64 is claimed by
+    # exact_dft in _c_claims.C_CLAIMS, so its absence fails
+    # test_c_claim_resolution_rc300 loudly rather than passing unnoticed here.
     if _native.HAS_NATIVE and hasattr(_native.LIB, "srmech_exact_dft_i64"):
         # HONOR: the C kernel no longer rejects N > 4096 — it returns a spectrum.
         native = edft._exact_dft_core_native(re, im, n, False)

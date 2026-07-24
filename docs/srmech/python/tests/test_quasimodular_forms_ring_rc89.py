@@ -312,14 +312,14 @@ def test_quasimodular_forms_ring_source_is_numpy_math_abs_free():
 
 
 # ── gate (h): the REDUCER is a ToolEntry → tools.total 342; accessors not ──────
-def test_represent_is_a_tool_entry_total_342():
+def test_represent_is_a_tool_entry_total_matches_live():
     """``quasimodular_represent`` is a genuine REDUCER (the WEIGHT-axis
     analog of the Σ-row reducers, one generator up from rc84) → it IS a registered
     ToolEntry, taking the shipped tool count 341 → 342. eisenstein_e2 + the bare
     constructor + weight_monomials/dim are NOT ToolEntries."""
     from srmech.amsc.tool_schema import get_tool_schema
     shipped = [t for t in get_tool_schema().tools if not t.name.startswith("test.")]
-    assert len(shipped) == 466
+    assert len(shipped) == 492
     names = {t.name for t in shipped}
     assert ("srmech.amsc.quasimodular_forms_ring.quasimodular_represent"
             in names)

@@ -91,16 +91,35 @@ from srmech.amsc.q import Q, to_q            # #845: the CD element carrier is Q
 
 from srmech.amsc import _native  # rc10: native srmech_cd_basis_product dispatch
 
-#: Hard ceiling on the algebra dimension (the demonstrator is not unbounded; the
-#: C peer shares this bound). 64 = the 6th doubling — enough to show the open
-#: exterior persists well past dim 16. dim must be a power of two ``≤`` this.
-CD_MAX_DIM = 64
+#: Hard ceiling on the algebra dimension (the C peer shares this bound —
+#: ``SRMECH_CD_MAX_DIM``). dim must be a power of two ``≤`` this.
+#:
+#: rc298 (`#933`): **64 → 256**, four doublings past the Hurwitz wall. The old
+#: 64 was a TOOLING bound, not a mathematical one — PR #687 named it as the
+#: thing stopping the rung sweep. Every scratch buffer on the addressing path
+#: (both projections) is LINEAR in this cap; the single quadratic buffer in the
+#: library is on the *dense* path and keeps its own smaller ceiling
+#: (:data:`CD_DENSE_MAX_DIM`). The remaining limit above 256 is verification
+#: time — proving a rung costs ``O(dim²)`` basis products — not memory.
+CD_MAX_DIM = 256
+
+#: Ceiling on the **dense** ``dim × dim`` native path — the modular-rank gate
+#: ``srmech_sedenion_is_navigable`` (``SRMECH_CD_DENSE_MAX_DIM``). Its matrix is
+#: the one quadratic buffer in the C library: 32 KB at 64, but 2 MB at 512,
+#: which overruns MSVC's 1 MB default thread stack. Decoupled from
+#: :data:`CD_MAX_DIM` so raising the addressing cap costs nothing here.
+#:
+#: This is a **performance** boundary, not a capability one:
+#: :func:`left_mult_is_invertible` past this dim routes to the exact-rational
+#: nullspace oracle (the same fallback it already used beyond int64 magnitude)
+#: and stays correct at every dim ``≤`` :data:`CD_MAX_DIM` — just slower.
+CD_DENSE_MAX_DIM = 64
 
 #: The normed **division** algebras (Hurwitz 1898) — the reversible interior.
 DIVISION_ALGEBRA_DIMS: Tuple[int, int, int, int] = (1, 2, 4, 8)
 
 #: The Cayley–Dickson ladder up to the demonstrator ceiling.
-CD_DIMS: Tuple[int, ...] = (1, 2, 4, 8, 16, 32, 64)
+CD_DIMS: Tuple[int, ...] = (1, 2, 4, 8, 16, 32, 64, 128, 256)
 
 #: Human names of the rungs (the exterior names ≥ 32 are non-standard; C7).
 ALGEBRA_NAMES: Dict[int, str] = {
@@ -111,6 +130,8 @@ ALGEBRA_NAMES: Dict[int, str] = {
     16: "S (sedenion)",
     32: "trigintaduonion",
     64: "(64-ion)",
+    128: "(128-ion)",
+    256: "(256-ion)",
 }
 
 
@@ -713,12 +734,18 @@ def _native_is_invertible(el: Tuple[Q, ...]):
     """The invertibility decision via the native modular-rank gate
     ``srmech_sedenion_is_navigable`` (rc12; bignum-free, exact — see
     ``c/src/srmech_sedenion.c``). Returns the bool, or ``None`` when there is no
-    native lib OR the integer-cleared direction exceeds the C domain (int64
-    magnitude / the certainty prime table) — in which case the caller routes to
-    the exact-rational kernel. Singularity is scale-invariant, so clearing
-    denominators to integer numerators is exact."""
+    native lib OR the integer-cleared direction exceeds the C domain (dim past
+    :data:`CD_DENSE_MAX_DIM` / int64 magnitude / the certainty prime table) — in
+    which case the caller routes to the exact-rational kernel. Singularity is
+    scale-invariant, so clearing denominators to integer numerators is exact."""
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_sedenion_is_navigable")):
+        return None
+    # rc298 (`#933`): the dense n×n C path stops at CD_DENSE_MAX_DIM (its
+    # modular-rank matrix is the library's one quadratic buffer). Decline HERE
+    # rather than marshalling a vector the callee will reject — the exact
+    # oracle below is the complete answer at every dim ≤ CD_MAX_DIM.
+    if len(el) > CD_DENSE_MAX_DIM:
         return None
     den = 1
     for v in el:

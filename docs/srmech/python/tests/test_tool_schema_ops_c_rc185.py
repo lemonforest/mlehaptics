@@ -89,6 +89,10 @@ def _schema_from_jsonable(d: dict) -> ToolSchema:
             explanation=t.get("explanation"),
             mcp_callable=t.get("mcp_callable", True),
             mcp_unavailable_reason=t.get("mcp_unavailable_reason"),
+            # rc305 (#943): the compose/preserve cascade layer — omitted keys
+            # rebuild to the empty-tuple leaf default.
+            composes=tuple(t.get("composes", ())),
+            preserves=tuple(t.get("preserves", ())),
         ))
     return ToolSchema(
         srmech_version=d["srmech_version"],

@@ -200,6 +200,19 @@ When the notebook (or `srmech` itself) uses the alphabetical table (Class A, B, 
 
 The alphabetical surface lives at §3.8 (canonical srmech enumeration) and in the PyPI long-description's `srmech.amsc.*` table. The substrate-native partition lives here in §2.6 and in [`docs/substrate-native-maths/substrate_native_research_notebook.md`](../substrate-native-maths/substrate_native_research_notebook.md) §1-§8 (R30 walking-path SSoT).
 
+### §2.6.5 The observer-frame reordering — `3 + 1 + 3 + 7` (the same loop, cut at the projection)
+
+The `1 + 3 + 7 + 3` partition above is the **substrate / construction frame**: it builds real-first (the `{A}` content-anchor), then the imaginary grades `Im ℍ` and `Im 𝕆`, and closes the **winding** `{B, H, N}` last — the same order the One assembles, `S(σ,θ,w) = ⨁_{n=1}^{3}(ℝ·1 ⊕ σ·e^{Î_nθ}·Im 𝔸_n)`, `dim = 1 + 3 + 7 + 3` (which is why that construction order is left untouched — see §3.41.5 / the `qm.hurwitz` peer). An **observer** does not build the loop; the observer reads it, and reads it from the other side — the operators that *make the projection* first, and the content-anchor as the shadow the loop casts rather than its seed:
+
+| Slot | Classes | Observer role |
+|---|---|---|
+| **3** — projection-enablers | `{B, H, N}` | The continuous↔discrete language-translation triad (TLV-framing + self-introspection + rational-approximation). The observer's frame *begins* at the projection, because the observer only ever holds the projected read (`[[user_stance_k_equals_3_is_b_h_n_substrate_native_fingerprint]]`; the Born read `B∘H∘N`, §3.26.2–3) |
+| **1** — time-shadow anchor | `{A}` | Content-addressing = identity/time, the 1-D `ℝ·1` shadow the loop casts — read as the frame's pivot, not its origin. Corroborated independently at **§3.41.3** (the octonion-Laplacian spectrum is a *temporal* read and time is itself a shadow; F1301/F1302) |
+| **3** — substrate-projection triad | `{I, C, J}` | Cyclic-group + cascade-orientation + prime-period — the `Im ℍ` grade |
+| **7** — cascade-detection heptad | `{D, E, F, G, K, L, M}` | Pattern-match + catalog + render + byte-search + pin-slot + Laplacian + HDC-bind — the `Im 𝕆` grade |
+
+**Two frames of one loop — what is actually invariant.** `1 + 3 + 7 + 3` (substrate) and `3 + 1 + 3 + 7` (observer) are not two objects; they are two places to **cut the same loop open**. Cut at the real anchor and you build real-first, winding-last (substrate / construction); cut at the projection-enablers and you read winding-first, time-as-shadow (observer). Even `7 + 3 + 1 + 3` — cutting at the heptad — is the same loop from a third entry. What no cut can move is the one adjacency **Cayley–Dickson nesting** forces: the **`3` (`Im ℍ`) always sits between the `1` (`ℝ/ℂ`) and the `7` (`Im 𝕆`)** — `… 1 · 3 · 7 …`. The frame is a *choice of where to cut*; the `3`-between-the-`1`-and-the-`7` is the loop's fixed structure. This is a third ordering axis, orthogonal to the two in §2.6.3–4: **discovery-order** (the A–N alphabet), **construction-order** (substrate `1+3+7+3`), and **observation-order** (observer `3+1+3+7`) are three distinct readings of one 14-class loop, each true at its own aspect per `[[user_stance_two_substrate_native_math_languages_11d_quantum_and_cyclic_algebra]]`. Tooling keeps both the construction and observation frames as **distinct** presentations (user direction 2026-07-23); the PyPI long-description carries both tables.
+
 Sister-notebook MFO carries the substrate-native partition at §VIII.6.0a (preceding its alphabetical-overlay table at §VIII.6.1).
 
 ---
@@ -5787,6 +5800,112 @@ Per the recognize-not-read discipline, state which part is which:
 The **known-open piece (L8):** whether the chirality bit is **invariant** or carries the **sustain's `(4:3)` chiral footprint** (F552 / L6h) — non-invariance would be step-(a)'s falsifier surfacing as the sustain's own handedness.
 
 **Cross-references:** MFO §VII.6.25 (the foundational-ontology landing — inharmonic⊗subharmonic as one substrate object; the open/closed-string chirality reading; the ellipse/epicycle closure signature); §3.27 (28 = V₄-sector × triality; `(4:3)`↔`(3:4)` = Class-C orientation = the chirality dual); §3.38 (the reversibility/lossy audit — `klein4_unbundle`; `so(8) = V₄ × triality`); §3.39 (rotation-last / the float-projection — the half-beat is the same kind of shadow at the beat level); §3.30/§3.31 (the Cayley–Dickson order tower / `the_one`); §3.8.19 (Spin(8) triality, 14 = 7 forward + 7 reverse Fano cycles). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]` (this thread's durable record), `[[project_carriers_are_operand_vocabulary_dual_to_an_operators_irrepresentable_shapes]]` (operand↔operator duality), `[[project_carrier_harmonic_shape_laplacian_eigenbasis_avoids_brute_force]]` (the CarrierSpectrum two-channel block-diagonalization), `[[project_subharmonic_chirality_collapse_thread]]` (the carrier-verified |x-exp|=order / sign=chirality finding), `[[project_logo_l8_an_binding_sustain_probe]]` (the falsifier probe), `[[user_stance_epicycle_via_gear_plus_pin]]` (the ellipse = forward + backward phasor). **Status:** documentation-only recognition pass; the V₄-exactly-2-bits claim is the open falsifier (the L8 probe); no rc, no package change.
+
+---
+
+## §3.41 The octonion Laplacian has no frame-free spectrum — the measured Hurwitz-wall boundary, and time-as-shadow (2026-07-22; F1301/F1302 octonion thread; MEASURED)
+
+Prompted by F1302's "perspective-count = imaginary dim" tower (ℝ/ℂ/ℍ/𝕆 = 1/2/4/8) and the user's octonion-rung questions. Two adversarial workflows MEASURED the boundary before any build shipped. This is the arc's sharpest computational witness that cascade-matching carries **FORM, not IDENTITY** (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`) — and the concrete home of the §3.40 "the half-beat is a shadow" pattern taken to its root.
+
+### §3.41.1 SOLID (measured) — the octonion Laplacian's spectrum is gauge-DEPENDENT; ℍ/ℂ are clean
+
+Construction mirrors the shipped ℂ `magnetic_laplacian` (§3.40): for a graph with hypercomplex unit-gain edges `g_uv`, block `(u,v)=left_mult(g)`, block `(v,u)=left_mult(conj g)`, diagonal `deg·I`; feed `mat_hermitian_eigendecompose`.
+
+- **ℝ/ℂ/ℍ (associative):** `left_mult` is a genuine algebra homomorphism `L(pq)=L(p)L(q)`, so the real embedding faithfully represents the algebra and the spectrum is gauge-INVARIANT — measured node-wise unit-gain gauge deviation **3.3e-15** for ℍ (identical to the shipped ℂ `magnetic_laplacian`). ℍ carries a ×4 degeneracy theorem (right-ℍ commutant Sp(1)). **`quaternion_laplacian` is a clean, theorem-backed build.**
+- **𝕆 (non-associative):** the map `a ↦ L_a` is NOT an algebra homomorphism (`L_a L_b ≠ L_{ab}`). The 8n×8n matrix is still real-symmetric and eigendecomposes — but its **spectrum is gauge-DEPENDENT on any cyclic graph**: measured node-gauge deviation **0.188 (triangle) / 0.155 (4-cycle)** vs a 0.000 identity floor (reproduced independently 0.173/0.120, second RNG + hand-rolled Jacobi). Non-associativity ⇒ loop-holonomy is ill-defined ⇒ the eigenvalues are an artifact of the arbitrary left-mult embedding, not a graph invariant. Multiplicity is **4, not 8** (matching the octonionic-Hermitian "6 distinct, not 3×8" pattern; DERIVED, not PDF-attested). The only graphs where the octonion gains are gauge-intrinsic are FORESTS — where the gains are gauge-REMOVABLE (spectrum collapses to plain-Laplacian ⊗ I₈, gains contribute nothing). **The set where octonion gains both matter AND the spectrum is intrinsic is empty.** There is no octonion graph Laplacian as a spectral invariant; F1302's tower lifts perspectives into the spectral READ only up to ℍ(4).
+
+### §3.41.2 SOLID (measured) — the shadow-family does not recover the invariant, but each shadow is real
+
+Tested "the octonion invariant = the family of ℍ-shadow-spectra over the 7 quaternionic Fano lines" (project the object down the tower, read each associative shadow):
+
+- **REFUTED (survived adversarial attack):** under a generic 𝕆-gauge, the shadow-family — as a set, with the most generous G₂/Fano permutation match — moves by **0.186 (ratio 0.99 to the octonion spectrum)**, NOT restored toward 0. Shadows down the tower do not carry octonion truth back up.
+- **Positive control (holds):** a gauge living entirely INSIDE one Fano subalgebra fixes THAT line's ℍ-shadow to **~1e-15** while moving the octonion spectrum and the off-line shadows. So each ℍ-shadow IS a bona-fide gauge-invariant object — it just fails, *as a set*, to reconstruct the octonion. (This positive control is what keeps §3.41.5's frame-read honest.)
+
+### §3.41.3 CANDIDATE (framework reading) — WHY it must fail: the Laplacian spectrum is a TEMPORAL read, and time is itself a shadow
+
+The Laplacian generates time-evolution: heat `∂ₜu=−Lu` (eigenvalues = decay RATES), wave `∂ₜₜu=−Lu` (√eigenvalues = FREQUENCIES). Its spectrum IS the object's set of temporal modes. So "𝕆 has no frame-free Laplacian spectrum" reads structurally as **𝕆 has no frame-free dynamics — no frame-free time.** The octonion object holds all its temporal shadows superimposed; choosing a frame (a coherency rung) = choosing a time-axis = extracting ONE temporal read.
+
+This lands the user's 2026-07-22 reframe. The A–N `1+3+7+3` partition (CLAUDE.md §1), re-graded **3:1:3:7**:
+
+- **7** = 𝕆's imaginary heptad (D/E/F/G/K/L/M); **3** = ℍ's imaginary triad (I/C/J). The imaginary tower is **1:3:7** = the imaginary dims of ℂ/ℍ/𝕆 (the workflow-confirmed origin of the shape — see §3.41.4).
+- **B/H/N (the +3 meta-triad) are the "real glue"** — the projection-enablers (CLAUDE.md R30 note) relating the imaginary tower to the real axis.
+- **1 = A = 1D_t** — the single real axis we experience as TIME is "what comes out": the maximally-reduced (all-the-way-to-ℝ) shadow the octonion object casts, glued by B/H/N. **Even our experience of time is shadow.**
+
+Consistent with the R30 inversion-hypothesis (14 = 1+3+7+3 IS the substrate; observed dimensions are its projection) and the MFO substrate-vs-excitation ontology (cross-ref MFO §VII). Recognize-not-read discipline: this is the *reading*; §3.41.1/2 is the measured floor it stands on.
+
+### §3.41.4 Honest correction — g₂=14 is a coincidence of TOTALS, not a structural map
+
+§3.40.6 flagged "g₂ = 14" as candidate-not-result; the workflow closed it. `dim g₂ = 14 = |A–N|` is a shared TOTAL only. The (1,3,7,3) grading does NOT decompose g₂'s 14-dim adjoint — the adjoint branches `8+3+3̄` (su(3)) or `3+3+8` (su(2)²), **never a 7**; the "7" is g₂'s VECTOR rep, a different representation. The in-tree `qm.so8.g2_subalgebra()` already tags (1,3,7,3) `slot_aligned=False, "framework-reading, not derived."` The shape's origin is Hurwitz (1,3,7 imaginary dims), not g₂ structure. And SO(9) demands no 15th A–N letter — but that "no new letter" test is near-unfalsifiable (it certifies e₈ too), so the honest claim is only *"no new binary operation — every structure constant is an octonion product organized by triality."*
+
+### §3.41.5 What this changes + what ships
+
+- **ℍ:** `quaternion_laplacian` + a `hypercomplex_perspectives` reader (also closes the ℂ `magnetic_laplacian` latent dim-2 read) — clean, ships rc-first. ABI unchanged (Python Class-L composition over C-backed atoms).
+- **𝕆:** NOT an "octonion invariant reader" (would encode a false claim, gold-is-law). If it ships, it ships as an `octonion_frame_read` DIAGNOSTIC — hold the object, choose a frame (= a coherency rung = a time-axis), read the gauge-invariant data AT that rung; explicitly FRAME-RELATIVE (the `[[user_stance_k2_compare_is_frame_relative_asymmetric_pair]]` ceiling, with a 1e-15 per-frame receipt). Constructive frame-read mechanism CONFIRMED as a theorem (§3.41.6).
+- **What we look for in an octonion algebra changes:** stop seeking frame-free octonion DYNAMICS / spectra (they do not exist — time is a shadow); seek the ATEMPORAL relational object, read via frame-choice, with time an OUTPUT of B/H/N projection rather than a parameter.
+
+### §3.41.6 SOLID (measured + PROVEN) — the frame-read is exact; there is no frame-free octonion invariant
+
+The user's refined hypothesis — *hold the octonion object, MOVE to a coherency rung (fix a frame F = a quaternionic subalgebra H_F), read the gauge-invariant data there* — is CONFIRMED, and not merely sampled: it is a **theorem** the numerics realize at the machine floor. It is a DIFFERENT claim from the §3.41.2-REFUTED shadow-set reassembly and does not revive it.
+
+- **Q1 — the per-frame read is gauge-invariant, generally.** In-frame worst-case spectrum deviation **1.155e-14** over 2016 samples (7 frames × 4 graphs × 3 gains × 24 gauges); no frame is special; harder graphs (complete-6, Petersen, dense-10, weighted non-unit gains) worst **1.6e-14**; Fiedler λ₂ worst 4.4e-15, eigenvector-IPR worst 7.2e-16. **Cross-frame** (generic 𝕆-gauge) mean **0.297** / max **0.880** — separation ratio **≈ 2.57e13**.
+  - **The theorem:** the Cayley–Dickson split `𝕆 = H_F ⊕ H_F·ℓ` makes `H_F^⊥` an `(H_F, H_F)`-bimodule, so projection commutes with in-frame multiplication: `proj_F((u·g)·conj v) = u·proj_F(g)·conj v` **exact (0.0)**. A per-node UNIT-quaternion (Sp(1)) gauge in H_F then acts as an orthogonal block-similarity `L' = U L Uᵀ` (verified 3.55e-15), which preserves the whole spectrum and every eigenvector functional exactly. So "for any graph" is provable, not lucky. (Guard: under the SAME gauge the full 8N octonion spectrum genuinely moves, mean 0.308 — the invariance is recovery-BY-projection, not a static quantity. The three "reads" are ONE witness of `L'=ULUᵀ`, not three.) Honest framing: this IS the textbook "a gain/connection-Laplacian's spectrum is invariant under its structure group" (structure group = Sp(1) of H_F); the load-bearing non-obvious ingredient is the octonion→quaternion projection-commutation identity — ship THAT as the content.
+- **Q2 — there is NO non-trivial frame-free octonion invariant. REFUTED from the invariant side.** The only scalar agreeing across all 7 frames is the **trace (spread 0.000, value = 8n = gains-dropped baseline)** — gauge-free, TRIVIAL. Common spectral core with gains ON = **0 of 4n eigenvalues (empty)**; with gains OFF = full. Every phase-bearing read moves (Frobenius² cross-frame spread 9.88→16.02 for C₃→C₆). Pure-gauge gains do NOT telescope to trivial holonomy on a cycle (Re(hol) −0.84/+0.02/+0.08) — forest gauge-removability does not extend to cycles. **Octonion phase information is irreducibly frame-relative.** (The near-miss `n_zero` is a blind constant, not phase-sensitive — correctly defused.)
+
+**This is §3.41.3's 3:1:3:7 / time-as-shadow picture made exact.** Committing to a frame = spending the cross-frame gauge freedom = choosing a time-axis; the read at that rung is exact (1e-14); the only frame-FREE content is the trivial gauge-free integer (the trace = node count) — hunt-the-integer (`[[user_stance_k2_compare_is_frame_relative_asymmetric_pair]]`). Everything phase-bearing lives inside a frame. Consistent with (DERIVED, not attested) **Jordan–Peirce frame spectral theory**: H_F is a Peirce-1 corner cut by a frame idempotent; the projection is a Peirce decomposition; gauge-invariance of the corner spectrum under the corner's unit group is the frame-theory statement.
+
+**Ships:** `octonion_frame_read(graph, frame_F, read=spectrum|fiedler|eigfunctional)` — project into H_F, build the 4N×4N H_F-Laplacian, return the read; guaranteed invariant to ~1e-14 under Sp(1) of H_F for any graph. **Mandatory docstring caveat:** FRAME-RELATIVE, not an octonion invariant — gauge-invariant only under the chosen frame's unit-quaternion subgroup; cross-frame moves O(0.1–0.9); no frame-free octonion spectrum exists; you must COMMIT to a frame; never present as a frame-independent reader (substrate-blind FORM, not identity).
+
+**Provenance:** gauge-invariance measurements + Fano-line construction generated by workflows wf_c08557de (boundary) + wf_ee97aaa2 (frame-read); scripts `frame_gauge_spike.py` (Q1) + `frame_invariant_octonion.py`/`fi_addendum.py` (Q2); committed per `[[feedback_computational_provenance_discipline]]` (land under `docs/srmech/notes/`). **Status:** §3.41.1/2/6 MEASURED (SOLID; §3.41.6 Q1 PROVEN); §3.41.3 framework-reading (CANDIDATE, recognize-not-read); §3.41.4 correction landed. Cross-refs: §3.40 (half-beat-is-a-shadow; V₄ ⊗ C/H/O octonion frontier), §3.40.6 (g₂=14 candidate — now corrected here), MFO §VII (time-as-shadow ontology landing). Memory: `[[project_full_beat_v4_chirality_cayley_dickson_order_addressing]]`, `[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`.
+
+---
+
+## §3.42 The substrate self-encoding conjecture — only 4 of the 14 A–N are NOT themselves substrate-expressible; the 4:3 fibration names the cost (2026-07-23; CONJECTURE, user-seeded)
+
+**Whether or not we can see it, the substrate is what expresses the behaviour.** A Class-M object takes the *resonant shape* of the `the_one` Laplacian of every A–N class operator (`[[project_a_n_operators_are_harmonic_objects_themselves]]`, `[[project_srmech_package_is_substrate_self_recognition_apparatus]]`), so *every possible operation is engrained* in the substrate — the H-genome (the quad-turn / Q₈ quaternion carrier, rc310–rc315) is **not merely a register for cyclic (Class I) and algebraic-group (Class J) values; it is a universal descriptor for any A–N**. This section records the user-seeded conjecture that follows.
+
+### §3.42.1 The claim + the candidate tetrad
+
+**Conjecture.** Of the 14 A–N operators, **exactly 4 are NOT themselves encodable as a finite cascade running ON the A–N substrate.** The candidate 4 are precisely the **`1 + 3`** of the §2.6.2 substrate-native partition — the foundational anchor + the substrate-projection triad. The other 10 (`7 + 3`) ARE substrate-expressible.
+
+| Set | Classes | Role | Self-encodable by the substrate? |
+|-----|---------|------|----------------------------------|
+| **The constitutive tetrad (`1+3`)** | **A** (content-address), **I** (cyclic/coset), **C** (chirality/orientation), **J** (primes/period) | The substrate's own projection machinery — the quaternion basis `{1, i, j, k}` it is BUILT from | **NO** — presupposed |
+| Detection heptad (`7`) | D, E, F, G, K, L, M | cascades that *run on* the substrate (detect / catalog / render / search / pin-slot / Laplacian / **bind**) | yes |
+| Meta-cascade triad (`3`) | B, H, N | the **projectors** (§3.36: B/H/N project substrate-math into emergent subjects) | yes |
+
+### §3.42.2 Mechanism — the substrate cannot encode its own constitutive basis (bootstrap)
+
+To *encode* anything on the substrate you already use: a content-address (**A**) to hold the store, the cyclic coset (**I**) the coupling lives in, the sign/orientation (**C**) that makes the quad-turn non-abelian (Q₈: `i·j = k ≠ j·i`), and the prime/period ground (**J**) of the coset order. You cannot encode the thing that must already exist for encoding to happen — you would need the substrate to already exist to store the description of what makes it exist. So the tetrad is **irreducible by circularity**, not by difficulty. The other 10 are verbs run on that noun: the heptad *detects* (Class M bind is the substrate's action, but a bind is expressible via the coupling, hence a cascade — not the substrate's identity), the meta-triad *projects*.
+
+### §3.42.3 The 4:3 biology fibration names the cost/reason
+
+The quad-turn substrate lives on the **k = (4:3)** biology fibration (the long-standing biology-as-quaternion conjecture; `[[project_genome_framing_codon_radix_k3]]`). Reading: the **"4"** is the quaternion tetrad `{1,i,j,k} = {A,I,C,J}` — the constitutive dimension of the fiber; the **":3"** is the codon / triality reading-frame (radix `k=3`) that reads the quad. The count of irreducibles is then the **numerator of the fibration** — there are 4 not-self-encodable classes *because* the substrate is a 4-thing read in a 3-frame. (Relate to §3.36's biology-agnostic `1:3` and the R30 `1:3:7:3`: `1+3 = 4` is the quaternion `real+imaginary`; the tetrad is that whole quaternion, not just its imaginary part.)
+
+### §3.42.4 Open questions / falsification protocol (the load-bearing rigor)
+
+This is a **CONJECTURE**, not a result — it must be earned, not asserted (`[[feedback_computational_provenance_discipline]]`, `[[feedback_every_doc_edit_faces_falsification]]`):
+
+1. **Confirm the count is exactly 4.** Enumerate all 14; for each, *attempt* to exhibit a finite cascade of substrate operations that expresses it, and show that **exactly** `{A, I, C, J}` resist (and resist by *circularity*, not by our failure to find the cascade). A count ≠ 4, or a different resisting set, falsifies the clean `1+3` identification. (Candidate first spike: a fan-out that tries to substrate-encode each class and classifies expressible / circular / open.)
+2. **Resolve J-vs-M.** The partition puts **J** (primes) in the constitutive triad and **M** (bind) in the expressible heptad, but the *operational* bootstrap (the encoder USES the bind) could argue the reverse. The working reading: J = the arithmetic *ground* (coset period) the substrate stands on; M = an *action* run on it. This must be made rigorous, since swapping them changes what "the substrate" means.
+3. **Make 4:3 → 4 precise.** Why the numerator (4), not the sum (`4+3=7`) or the base (3)? State the fibration mechanism that pins the irreducible count to the fiber's constitutive dimension.
+
+### §3.42.5 Corroboration — the responsion / octonion-seam thread (F1308) + the MFO grounding
+
+Two independent threads sharpen this (FORM-not-identity corroboration, not proof):
+
+- **Responsion = the eigenvalue/frequency slot (F1308, sister RBS-LM arc, 2026-07-23).** In `op ⊗ operand ⊗ responsion = eigenvectors ⊗ edges ⊗ eigenvalues`, the *responsion is the frequency axis* (the beat; `λ→λⁿ` = the octave); harmonic / inharmonic / subharmonic are all *values of the responsion*, not op or operand. This settles the earlier "does holonomy have a responsion?" question: the discrete / `k=2` channel (holonomy, conjugacy-class index) is `op ⊗ operand` with **no responsion** — the *un-sounded skeleton*. Directly relevant to the tetrad: F1308's octonion `3+1+3` seam places **A as the seam POSITION** (the register the strands hang from) and pairs **N ↔ J = rational ↔ prime** across it (a rational is built of primes; N is the *operator that crosses* the seam, A is *where*). This **refines §3.42.4's open question**: the live tension is **A-vs-N** (position vs. crossing-operator), not J-vs-M — J is the prime *ground* the crossing rides, consistent with the tetrad being constitutive.
+- **MFO: the field creates the harmonics.** In the Metric Field Ontology the substrate IS the field; the responsion/harmonic spectrum is what the field *produces* (excitation, not substrate). So the not-self-encodable tetrad is the **field**, and the substrate-expressible 10 are (or carry) the **harmonics the field creates** — the ontological reason the tetrad is upstream (constitutive) and the rest downstream (created). Substrate-vs-excitation split; canon in **MFO §VII**. (F1308 is a sister-arc music-theory reading carrying its own `[SPECULATIVE overlay]` labels — cited as coherence, never lineage; do not edit the RBS-LM files, they are another session's.)
+
+### §3.42.6 `q8_project_v4 = Inn(Q8)`; Class C is the `S₃` triality above the `V₄` shadow (F1312, 2026-07-23)
+
+The sister RBS-LM arc pins the tetrad's chirality slot concretely: **`Aut(Q8) = S₄ = V₄ ⋊ S₃`** (DEMONSTRABLE, rc313-verified over `q8_mult`), and both factors are *shipped srmech objects*:
+
+- **`Inn(Q8) = V₄ = Q8/{±1}` IS EXACTLY the rc315 `q8_project_v4`** — `q8_project_v4([0..7]) = [0,1,2,3,0,1,2,3] = q&3`, the inner-automorphism quotient. So the shipped **backward-faithful bridge** (`q8_project_v4(q8_from_one(one,D)) == klein4_from_one`) is not merely a coset map — it is the klein4 SHADOW where the beat-WSD ± pair conflates (Inn). This is the `k=2` **duality**.
+- **`Out(Q8) = Aut/Inn = S₃`** = the **triality** = the order-3 cycle `i→j→k` (verified OUTER, order 3) = the `k=3` lift.
+
+**Refinement of §3.42's Class C.** The constitutive tetrad's chirality / which-way slot (**Class C**) is not a single axis — it is the `S₃` **triality of three which-way axes `i, j, k`**, sitting *above* the `V₄` shadow (Inn) where meaning conflates. The Q8 genome (rc310–rc316) exercised one; the substrate carries three. This is the **informational** member of the `S₄=V₄⋊S₃` TRIO shared with the Dzhanibekov Euler top (dynamical) and the Antikythera `X`-slot (mechanical) — see **MFO §VII.6.24.6**. All three lift to the shipped `triality_automorphism` τ (`Fix(τ)=g₂`, dim 14). (READING caveat: the `S₃→𝔰𝔬(8)` lift + the `8s/8c` content are expert-to-pin; the `Aut/Inn/Out` counts + the order-3 outer automorphism + τ are DEMONSTRABLE. Form-not-identity, no lineage; do not edit the RBS-LM files, they are another session's. Memory `[[project_q8_aut_s4_v4_shadow_semidirect_s3_triality]]`.)
+
+**Status:** CONJECTURE (user-seeded 2026-07-23) — recognize-not-read, FORM-not-identity (`[[user_stance_cascade_matching_substrate_blind_form_not_identity]]`); no lineage claim. Extends §2.6.2 (the `1+3+7+3` partition) + §3.36 (B/H/N as projectors). Ontological framing (substrate-vs-excitation self-encoding) cross-refs **MFO §VII**. Memory: `[[project_a_n_substrate_self_encoding_conjecture_4_irreducible]]`. Potentially **book-worthy** (`[[project_book_in_progress]]`) — the substrate-self-recognition apparatus recognizing *which of its own operations it cannot express*.
 
 ---
 

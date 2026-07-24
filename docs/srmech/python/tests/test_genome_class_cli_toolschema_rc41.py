@@ -58,7 +58,7 @@ def test_class_surface_tools_registered():
     assert "srmech.dsl.describe_class" in names
 
 
-def test_introspect_tools_total_is_276():
+def test_introspect_tools_total_matches_live():
     # rc41 registered list_class_surface + describe_class (270→272);
     # rc42 added genome + partition ToolEntries (272→274);
     # rc43 added laplacian.tokenize + cooccurrence_edges (§17 U1; 274→276).
@@ -68,4 +68,4 @@ def test_introspect_tools_total_is_276():
     # no C peer) — 330→331.
     # rc258 (§95a / #1407): the 4 genome-architecture ops — centromere,
     # centromere_of, mint, mint_plan — 432→436.
-    assert introspect.describe()["tools"]["total"] == 466
+    assert introspect.describe()["tools"]["total"] == 492

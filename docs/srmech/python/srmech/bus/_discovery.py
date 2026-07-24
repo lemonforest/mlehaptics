@@ -138,6 +138,63 @@ def _endpoint_alive_uds(path: Path) -> bool:
             pass
 
 
+def _proc_net_unix_bound_paths() -> Optional[frozenset]:
+    """The set of filesystem paths currently BOUND by SOME process's
+    Unix-domain socket, from ``/proc/net/unix`` (Linux).
+
+    This is the liveness signal :func:`_endpoint_alive_uds` structurally
+    CANNOT provide: a connect-probe fails identically for a crashed server's
+    stale socket file, a server still inside its ``bind()``→``listen()``
+    window, and a server whose accept backlog is momentarily full — yet the
+    last two are ALIVE. ``/proc/net/unix`` lists a pathname-bound socket the
+    instant ``bind()`` returns, independent of ``listen()`` / ``accept()``, so
+    membership distinguishes "a live process owns this" from "orphaned file".
+
+    Returns ``None`` when ``/proc/net/unix`` is unavailable (macOS / the BSDs /
+    Windows) — the caller then treats liveness as UNKNOWN and REFUSES to delete
+    (the conservative branch: a stale file there self-heals, because
+    :meth:`UDSTransport.bind` unlinks a stale path before reusing the name).
+    """
+    try:
+        with open("/proc/net/unix", "r", encoding="utf-8",
+                  errors="replace") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return None
+    # Columns: Num RefCount Protocol Flags Type St Inode [Path]. The Path
+    # column is present ONLY for pathname-bound sockets; unbound/abstract
+    # sockets have no trailing pathname (abstract ones begin with '@').
+    paths = set()
+    for line in lines[1:]:  # skip the header row
+        parts = line.split()
+        if len(parts) >= 8:
+            candidate = " ".join(parts[7:])
+            if candidate.startswith("/"):
+                paths.add(candidate)
+    return frozenset(paths)
+
+
+def _uds_confirmed_stale(path: Path, bound_paths: Optional[frozenset]) -> bool:
+    """True iff ``path`` is a UDS socket file that NO live process owns — the
+    only case in which auto-cleanup may safely unlink it (issue #920 root fix).
+
+    ``bound_paths`` is the once-per-sweep ``/proc/net/unix`` snapshot (or
+    ``None`` when it could not be read). When it is ``None`` we cannot confirm
+    death, so we return ``False`` (never delete a socket we cannot prove is
+    orphaned).
+    """
+    if bound_paths is None:
+        return False
+    if str(path) in bound_paths:
+        return False
+    try:
+        if os.path.realpath(str(path)) in bound_paths:
+            return False
+    except OSError:
+        pass
+    return True
+
+
 def _endpoint_alive_tcp_registry(path: Path) -> bool:
     """Parse a registry file + try to connect to its TCP port.
 
@@ -296,6 +353,17 @@ def list_endpoints(*, cleanup_dead: bool = True) -> List[Endpoint]:
         return []
     results: List[Endpoint] = []
     posix = is_posix_uds()
+    # issue #920 root fix — take a single /proc/net/unix snapshot for the whole
+    # sweep so the cleanup below can tell a crashed server's ORPHANED socket
+    # file (safe to unlink) from a LIVE server that just fails the 50 ms
+    # connect-probe (in its bind→listen window, or backlog momentarily full).
+    # Deleting the latter is exactly what let one xdist worker's discovery sweep
+    # unlink another worker's in-flight socket, surfacing as `FileNotFoundError:
+    # no bus endpoint` / `BusError: reader exited; peer closed`. Only queried
+    # when we might actually delete (POSIX + cleanup_dead).
+    bound_paths: Optional[frozenset] = (
+        _proc_net_unix_bound_paths() if (cleanup_dead and posix) else None
+    )
     for path in _iter_candidate_files(root):
         # Pick only files matching the active-platform pattern.
         if posix:
@@ -325,7 +393,18 @@ def list_endpoints(*, cleanup_dead: bool = True) -> List[Endpoint]:
                     transport = "tcp"
             except OSError:
                 pass
-        if cleanup_dead and not alive:
+        # issue #920 root fix — only unlink a dead-LOOKING registration when we
+        # can CONFIRM no live process owns it. For POSIX UDS that proof is
+        # /proc/net/unix non-membership (a bound socket, listening or not,
+        # appears there); when the proof is unavailable (macOS/BSD — no
+        # /proc/net/unix) we DECLINE to delete, since a mis-deletion corrupts a
+        # live peer while a genuinely-stale file self-heals at the next
+        # bind(). The Windows TCP/pipe registry keeps its prior behaviour (a
+        # closed-port / absent-pipe probe has no bind→listen ambiguity).
+        may_unlink = (
+            _uds_confirmed_stale(path, bound_paths) if posix else True
+        )
+        if cleanup_dead and not alive and may_unlink:
             try:
                 path.unlink(missing_ok=True)  # type: ignore[arg-type]
             except (OSError, TypeError):

@@ -149,7 +149,7 @@ def test_registration():
     import srmech.amsc.elliptic_jackson as ej
     assert "cn_vwp_multisum_lhs" in ej.__all__
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 466
+    assert schema["tools"]["total"] == 492
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.amsc.elliptic_jackson.cn_vwp_multisum_lhs" in names

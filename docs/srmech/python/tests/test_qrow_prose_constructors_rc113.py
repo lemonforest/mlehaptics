@@ -406,11 +406,11 @@ def test_theta_coefficients_native_equals_pure_byte_identical(monkeypatch):
 
 # ── (7) registration: tools.total, entries, buckets ──────────────────────────
 
-def test_tools_total_is_367():
+def test_tools_total_matches_live():
     """rc113 ships 4 genuinely NEW public ops (3 builders + the theta reader)
     → +4 ToolEntries (363 → 367)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 466
+    assert introspect.describe()["tools"]["total"] == 492
 
 
 def test_new_tool_entries_present_with_declared_types():

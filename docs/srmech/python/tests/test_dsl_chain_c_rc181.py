@@ -68,7 +68,7 @@ def _pure(ch, inp):
 def test_symbols_bound_and_abi_5():
     assert hasattr(_native.LIB, "srmech_dsl_chain_run")
     assert hasattr(_native.LIB, "srmech_dsl_chain_run_arena_bytes")
-    assert _native.NATIVE_ABI_VERSION == 8
+    assert _native.NATIVE_ABI_VERSION == 10
 
 
 # ─────────────────────────────────────────────────────────────────────

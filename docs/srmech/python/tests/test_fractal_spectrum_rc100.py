@@ -164,10 +164,10 @@ def test_registered_in_tool_schema():
     assert ptypes["branches"] == "int"
 
 
-def test_tools_total_is_367():
+def test_tools_total_matches_live():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 466
+    assert introspect.describe()["tools"]["total"] == 492
 
 
 # ─────────────────────────────────────────────────────────────────────

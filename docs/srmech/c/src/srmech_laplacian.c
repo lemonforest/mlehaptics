@@ -63,6 +63,17 @@
                                 * formatting; all OS I/O still goes through the PAL) */
 #include <string.h>            /* memcpy — parse packed edge records (no aliasing UB) */
 
+/* BYTE-EXACT parity contract (rc309): quaternion_cycle_holonomy's per-cycle
+ * quaternion product must match the pure-Python mirror's float-op ORDER, so
+ * FMA contraction must be OFF (a fused multiply-add rounds once where mul+add
+ * round twice). GCC -std=c11 defaults to off; CLANG defaults to ON (the macOS
+ * arm64 CI cell diverged in the rc309 holonomy accumulation, exactly as rc110's
+ * DFT did — see srmech_quaternion.c), so the C11 pragma is applied for clang. */
+#if defined(__clang__)
+#pragma STDC FP_CONTRACT OFF
+#endif
+
+
 /* Class-N rational sqrt (srmech_rational_sqrt) — the native Jacobi eigensolver
  * computes its rotation-angle roots via the cascade, not libm (rc45,
  * C-transpile triality). All call sites pass provably non-negative args. */
@@ -787,6 +798,291 @@ srmech_status_t srmech_graph_cycle_holonomy(uint32_t        n,
     return SRMECH_OK;
 }
 
+/* ------------------------------------------------------------------
+ * 0.9.0rc309 (#944 follow-on): quaternion_cycle_holonomy — the NON-ABELIAN
+ * generalization of the abelian srmech_graph_cycle_holonomy above. The edge
+ * gains are unit quaternions (Q8 = {+-1,+-i,+-j,+-k} and its continuous
+ * re-gauges); the per-cycle holonomy is the ordered quaternion product
+ * H = P_u . g_uv . conj(P_v), classified by its SU(2) conjugacy class (the
+ * scalar part w = Re(H), a conjugation invariant). Reuses the union-find
+ * spanning-forest scaffolding (holo_find) + the exported quaternion product
+ * (srmech_quaternion_left_mult) + conjugate (srmech_quaternion_conjugate), so
+ * the product convention is the SINGLE srmech_quaternion.c source of truth
+ * (byte-exact with the pure-Python mirror). See the header for the full
+ * gauge-invariance derivation + the 5-vs-3 class note.
+ * ------------------------------------------------------------------ */
+
+#define SRMECH_QHOLO_DIM  ((size_t)4)     /* the quaternion carrier dimension */
+#define SRMECH_QHOLO_TOL  (1e-9)          /* scalar-part class bucket radius   */
+
+size_t srmech_quaternion_cycle_holonomy_arena_bytes(uint32_t n,
+                                                    uint32_t n_edges)
+{
+    /* double: pot[4n] + tree_gains[4ne] + cotree_gains[4ne] = 8*(4n + 8ne)
+     * int32: parent[n] + rnk[n] + visited[n] + queue[n] + tu[ne] + tv[ne]
+     *        = 4*(4n + 2ne). +64 alignment/padding slop. */
+    size_t bn = (size_t)n;
+    size_t be = (size_t)n_edges;
+    size_t bytes = 8u * (4u * bn + 8u * be) + 4u * (4u * bn + 2u * be) + 64u;
+    assert(bytes >= 64u);            /* always includes the alignment/pad slop */
+    assert(bytes >= 32u * bn);       /* room for the double pot[4n] block      */
+    return bytes;
+}
+
+/* out = a . b (Hamilton product, fixed Cayley-Dickson convention) via the
+ * exported left-multiplication operator: (L_a . b)_i = (a . b)_i. L_a's basis
+ * columns are exact +-a_i (no rounding), so this IS srmech_quaternion.c's
+ * product, byte-exact with the pure-Python quaternion mult. `out` MUST NOT
+ * alias a or b. */
+static srmech_status_t qholo_mul(const double *a, const double *b, double *out)
+{
+    assert(a != NULL && b != NULL);
+    assert(out != NULL);
+    double la[SRMECH_QHOLO_DIM * SRMECH_QHOLO_DIM];
+    srmech_status_t st = srmech_quaternion_left_mult(a, SRMECH_QHOLO_DIM, la);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (size_t i = 0; i < SRMECH_QHOLO_DIM; ++i) {
+        double t = 0.0;
+        for (size_t k = 0; k < SRMECH_QHOLO_DIM; ++k) {
+            t += la[i * SRMECH_QHOLO_DIM + k] * b[k];
+        }
+        out[i] = t;
+    }
+    return SRMECH_OK;
+}
+
+/* Classify a unit-quaternion holonomy `h` into its SU(2) conjugacy class from
+ * the scalar part w = h[0]: w ~ +1 -> class 0 (parity +1); w ~ -1 -> class 1
+ * (parity -1); w ~ 0 -> class 2 (parity 0). |.| via a signed branch (Class-K
+ * pin-slot; no abs()). A scalar far from {-1,0,1} -> SRMECH_ERR_BAD_INPUT. */
+static srmech_status_t qholo_class(const double *h, uint32_t *cls, int32_t *par)
+{
+    assert(h != NULL);
+    assert(cls != NULL && par != NULL);
+    double w = h[0];
+    double dp = w - 1.0;
+    double dm = w + 1.0;
+    double adp = (dp >= 0.0) ? dp : -dp;
+    double adm = (dm >= 0.0) ? dm : -dm;
+    double aw  = (w  >= 0.0) ? w  : -w;
+    if (adp < SRMECH_QHOLO_TOL) {
+        *cls = 0u; *par = 1;
+    } else if (adm < SRMECH_QHOLO_TOL) {
+        *cls = 1u; *par = -1;
+    } else if (aw < SRMECH_QHOLO_TOL) {
+        *cls = 2u; *par = 0;
+    } else {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    return SRMECH_OK;
+}
+
+/* Copy a quaternion gain (4 doubles) from `src` (or identity when NULL) into
+ * `dst`. The identity (1,0,0,0) is the missing-gains default (a balanced graph). */
+static void qholo_copy_gain(const double *src, double *dst)
+{
+    assert(dst != NULL);
+    if (src != NULL) {
+        dst[0] = src[0]; dst[1] = src[1]; dst[2] = src[2]; dst[3] = src[3];
+    } else {
+        dst[0] = 1.0; dst[1] = 0.0; dst[2] = 0.0; dst[3] = 0.0;
+    }
+    assert(dst[0] == dst[0]);   /* NaN-free scalar postcondition (a NaN gain
+                                 * would silently corrupt the holonomy class) */
+}
+
+/* Union-find edge partition: first-encountered spanning edge = tree edge (its
+ * gain stashed in `tg`, stored direction uu->vv); a cycle-closing edge =
+ * co-tree edge (its gain stashed in `cg`, endpoints in out_cycle_u/v). Fills
+ * *n_tree, *n_cyc. An out-of-range endpoint -> SRMECH_ERR_BAD_INPUT. */
+static srmech_status_t qholo_partition(uint32_t n, uint32_t n_edges,
+    const uint32_t *edges_u, const uint32_t *edges_v, const double *gains,
+    int32_t *parent, int32_t *rnk, int32_t *tu, int32_t *tv,
+    double *tg, double *cg, uint32_t *out_cycle_u, uint32_t *out_cycle_v,
+    uint32_t *n_tree, uint32_t *n_cyc)
+{
+    assert(parent != NULL && rnk != NULL);
+    assert(n_tree != NULL && n_cyc != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        parent[i] = (int32_t)i;
+        rnk[i] = 0;
+    }
+    uint32_t nt = 0;
+    uint32_t nc = 0;
+    for (uint32_t e = 0; e < n_edges; e++) {
+        uint32_t uu = edges_u[e];
+        uint32_t vv = edges_v[e];
+        if (uu >= n || vv >= n) {
+            return SRMECH_ERR_BAD_INPUT;
+        }
+        const double *ge = (gains != NULL) ? &gains[(size_t)e * SRMECH_QHOLO_DIM]
+                                            : NULL;
+        uint32_t ru = holo_find(parent, uu);
+        uint32_t rv = holo_find(parent, vv);
+        if (ru != rv) {
+            if (rnk[ru] < rnk[rv]) { uint32_t t = ru; ru = rv; rv = t; }
+            parent[rv] = (int32_t)ru;
+            if (rnk[ru] == rnk[rv]) { rnk[ru]++; }
+            tu[nt] = (int32_t)uu;
+            tv[nt] = (int32_t)vv;
+            qholo_copy_gain(ge, &tg[(size_t)nt * SRMECH_QHOLO_DIM]);
+            nt++;
+        } else {
+            out_cycle_u[nc] = uu;
+            out_cycle_v[nc] = vv;
+            qholo_copy_gain(ge, &cg[(size_t)nc * SRMECH_QHOLO_DIM]);
+            nc++;
+        }
+    }
+    *n_tree = nt;
+    *n_cyc = nc;
+    return SRMECH_OK;
+}
+
+/* Build pot[i] = the ordered quaternion product along the UNIQUE tree path
+ * root->i (root = the component seed; pot[root] = identity). BFS over the tree
+ * edges; a reversed edge (nb->x stored) contributes conj(gain). The path is
+ * unique so the product is traversal-order-independent (byte-exact BFS/DFS). */
+static srmech_status_t qholo_build_pot(uint32_t n, uint32_t n_tree,
+    const int32_t *tu, const int32_t *tv, const double *tg,
+    double *pot, int32_t *visited, int32_t *queue)
+{
+    assert(pot != NULL);
+    assert(visited != NULL && queue != NULL);
+    for (uint32_t i = 0; i < n; i++) {
+        visited[i] = 0;
+        double *p = &pot[(size_t)i * SRMECH_QHOLO_DIM];
+        p[0] = 1.0; p[1] = 0.0; p[2] = 0.0; p[3] = 0.0;
+    }
+    for (uint32_t s = 0; s < n; s++) {
+        if (visited[s]) {
+            continue;
+        }
+        uint32_t head = 0, tail = 0;
+        visited[s] = 1;
+        queue[tail++] = (int32_t)s;
+        while (head < tail) {
+            uint32_t x = (uint32_t)queue[head++];
+            for (uint32_t e = 0; e < n_tree; e++) {
+                uint32_t a = (uint32_t)tu[e];
+                uint32_t b = (uint32_t)tv[e];
+                const double *te = &tg[(size_t)e * SRMECH_QHOLO_DIM];
+                double g[SRMECH_QHOLO_DIM];
+                uint32_t nb;
+                if (a == x && !visited[b]) {
+                    nb = b;                       /* x->nb: +gain */
+                    g[0] = te[0]; g[1] = te[1]; g[2] = te[2]; g[3] = te[3];
+                } else if (b == x && !visited[a]) {
+                    nb = a;                       /* x->nb reversed: conj(gain) */
+                    srmech_status_t cs = srmech_quaternion_conjugate(
+                        te, SRMECH_QHOLO_DIM, g);
+                    if (cs != SRMECH_OK) { return cs; }
+                } else {
+                    continue;
+                }
+                srmech_status_t st = qholo_mul(
+                    &pot[(size_t)x * SRMECH_QHOLO_DIM], g,
+                    &pot[(size_t)nb * SRMECH_QHOLO_DIM]);   /* pot[nb] = pot[x].g */
+                if (st != SRMECH_OK) { return st; }
+                visited[nb] = 1;
+                queue[tail++] = (int32_t)nb;
+            }
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* Per co-tree cycle: H = pot[u] . g_uv . conj(pot[v]); classify by scalar part
+ * and (when out_holonomy != NULL) emit the raw H quaternion. */
+static srmech_status_t qholo_finalize(uint32_t n_cyc, const double *pot,
+    const double *cg, const uint32_t *out_cycle_u, const uint32_t *out_cycle_v,
+    uint32_t *out_class_index, int32_t *out_center_parity, double *out_holonomy)
+{
+    assert(pot != NULL && cg != NULL);
+    assert(out_class_index != NULL && out_center_parity != NULL);
+    for (uint32_t i = 0; i < n_cyc; i++) {
+        uint32_t uu = out_cycle_u[i];
+        uint32_t vv = out_cycle_v[i];
+        double cpv[SRMECH_QHOLO_DIM];
+        double t1[SRMECH_QHOLO_DIM];
+        double hol[SRMECH_QHOLO_DIM];
+        srmech_status_t st = srmech_quaternion_conjugate(
+            &pot[(size_t)vv * SRMECH_QHOLO_DIM], SRMECH_QHOLO_DIM, cpv);
+        if (st != SRMECH_OK) { return st; }
+        st = qholo_mul(&pot[(size_t)uu * SRMECH_QHOLO_DIM],
+                       &cg[(size_t)i * SRMECH_QHOLO_DIM], t1);   /* pot[u].g_uv */
+        if (st != SRMECH_OK) { return st; }
+        st = qholo_mul(t1, cpv, hol);                           /* .conj(pot[v]) */
+        if (st != SRMECH_OK) { return st; }
+        st = qholo_class(hol, &out_class_index[i], &out_center_parity[i]);
+        if (st != SRMECH_OK) { return st; }
+        if (out_holonomy != NULL) {
+            double *o = &out_holonomy[(size_t)i * SRMECH_QHOLO_DIM];
+            o[0] = hol[0]; o[1] = hol[1]; o[2] = hol[2]; o[3] = hol[3];
+        }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_quaternion_cycle_holonomy(
+    uint32_t        n,
+    uint32_t        n_edges,
+    const uint32_t *edges_u,
+    const uint32_t *edges_v,
+    const double   *gains,
+    uint32_t       *out_class_index,
+    int32_t        *out_center_parity,
+    uint32_t       *out_cycle_u,
+    uint32_t       *out_cycle_v,
+    double         *out_holonomy,
+    uint32_t       *out_n_cycles,
+    void           *ws,
+    size_t          ws_len)
+{
+    assert(out_n_cycles != NULL);
+    if (out_n_cycles == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_edges > 0 && (edges_u == NULL || edges_v == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (out_class_index == NULL || out_center_parity == NULL ||
+        out_cycle_u == NULL || out_cycle_v == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (ws_len < srmech_quaternion_cycle_holonomy_arena_bytes(n, n_edges)) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    /* Carve the arena: doubles first (8-aligned base), then int32. */
+    double *pot = (double *)ws;
+    double *tg = pot + (size_t)SRMECH_QHOLO_DIM * n;
+    double *cg = tg + (size_t)SRMECH_QHOLO_DIM * n_edges;
+    int32_t *parent = (int32_t *)(cg + (size_t)SRMECH_QHOLO_DIM * n_edges);
+    int32_t *rnk = parent + n;
+    int32_t *visited = rnk + n;
+    int32_t *queue = visited + n;
+    int32_t *tu = queue + n;
+    int32_t *tv = tu + n_edges;
+    uint32_t n_tree = 0;
+    uint32_t n_cyc = 0;
+    srmech_status_t st = qholo_partition(n, n_edges, edges_u, edges_v, gains,
+                                         parent, rnk, tu, tv, tg, cg,
+                                         out_cycle_u, out_cycle_v,
+                                         &n_tree, &n_cyc);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    *out_n_cycles = n_cyc;
+    st = qholo_build_pot(n, n_tree, tu, tv, tg, pot, visited, queue);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    return qholo_finalize(n_cyc, pot, cg, out_cycle_u, out_cycle_v,
+                          out_class_index, out_center_parity, out_holonomy);
+}
+
 /* Helper: apply a single Givens rotation to symmetric `mat` at index
  * pair (p, q). Updates rows + columns p, q in place. Pi-free —
  * c, s computed algebraically from matrix entries (no trig). */
@@ -1465,6 +1761,18 @@ static int fiedler_update_sign(uint32_t n, const double *v, double *prev)
     return all_match;
 }
 
+size_t srmech_laplacian_fiedler_sparse_arena_bytes(uint32_t n)
+{
+    /* Carved doubles: deg, s, p, v, u, t, y, prev — eight length-n vectors.
+     * Returned in BYTES (rc307: BYTES like the rest of the caller-arena surface;
+     * this replaces the pre-rc307 DOUBLES-count guard). n is a uint32 node count;
+     * 8*n*8 <= 2^37 never overflows size_t (64-bit). */
+    size_t doubles = (size_t)8u * (size_t)n;
+    assert(sizeof(double) == 8u);
+    assert(doubles / 8u == (size_t)n);            /* the *8 did not overflow size_t */
+    return doubles * sizeof(double);
+}
+
 srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n, uint32_t n_edges,
     const uint32_t *edge_u, const uint32_t *edge_v, const double *weights,
     uint32_t max_iters, double *out_vec, double *ws, size_t ws_len)
@@ -1476,10 +1784,10 @@ srmech_status_t srmech_laplacian_fiedler_sparse(uint32_t n, uint32_t n_edges,
     if (n_edges > 0u && (edge_u == NULL || edge_v == NULL)) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (ws_len < (size_t)8u * n) {
+    if (ws_len < srmech_laplacian_fiedler_sparse_arena_bytes(n)) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    assert(ws_len >= (size_t)8u * n);    /* arena holds the 8 length-n scratch vecs */
+    assert(ws_len >= srmech_laplacian_fiedler_sparse_arena_bytes(n));  /* BYTES: 8 length-n vecs */
     for (uint32_t i = 0; i < n; i++) {
         out_vec[i] = 0.0;
     }
@@ -1694,10 +2002,10 @@ srmech_status_t srmech_laplacian_fiedler_sparse_file_progress(uint32_t n, const 
     if (out_vec == NULL || ws == NULL || path == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    if (ws_len < (size_t)8u * n) {
+    if (ws_len < srmech_laplacian_fiedler_sparse_arena_bytes(n)) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    assert(ws_len >= (size_t)8u * n);
+    assert(ws_len >= srmech_laplacian_fiedler_sparse_arena_bytes(n));   /* BYTES (rc307) */
     for (uint32_t i = 0; i < n; i++) {
         out_vec[i] = 0.0;
     }
@@ -2346,8 +2654,13 @@ static srmech_status_t rcut_bisect(rcut_state_t *s, uint32_t count,
     assert(out_nleft != NULL && count >= 2u);
     srmech_status_t st = rcut_induced(s->graph_path, s->ids, count, s->sub_path);
     if (st != SRMECH_OK) { return st; }
+    /* rc307: fiedler_sparse_file now guards ws_len in BYTES (was a DOUBLES count).
+     * s->ws spans exactly 8n doubles up to s->fv, so for count <= n the arena is
+     * always sufficient — but the SIZE we pass must be BYTES to match the flipped
+     * guard, else this internal caller under-sizes the workspace 8x and corrupts. */
     st = srmech_laplacian_fiedler_sparse_file(count, s->sub_path, max_iters,
-                                              s->fv, s->ws, (size_t)8u * count);
+                                              s->fv, s->ws,
+                                              srmech_laplacian_fiedler_sparse_arena_bytes(count));
     if (st != SRMECH_OK) { return st; }
     uint32_t nl = 0u;
     for (uint32_t i = 0u; i < count; i++) {         /* Class-K pin-slot at 0 */
@@ -2507,5 +2820,507 @@ srmech_status_t srmech_laplacian_recursive_cut(uint32_t                  n,
         (void)tick(&ev, tick_user);        /* return ignored — already done */
     }
     *n_tomes_out = s.n_tomes;
+    return SRMECH_OK;
+}
+
+/* ================================================================== *
+ * §100 G3 (rc321, task #904): the WHOLE-OP GRAPH PARTITION —
+ * srmech_genome_graph_partition. Composes srmech_laplacian_recursive_cut (the
+ * out-of-core community assignment) with an EXACT-INTEGER participation read
+ * (cross/tot per node, streamed once from the same packed edge file), the
+ * antimode histogram DECISION, a per-node nuclear/plasmid classify, and group
+ * assembly — all in C, so a bare-C host builds the whole partition. Mirrors the
+ * pure srmech.amsc.genome.genome_partition body BIT-FOR-BIT (ADR-0009: the two
+ * projections emit the SAME structure). NEVER abs — every value is non-negative.
+ * ================================================================== */
+
+/* Class-I gcd for the exact participation reduction (den never fractional). */
+static uint64_t ggp_gcd(uint64_t a, uint64_t b)
+{
+    assert(a <= UINT64_MAX);
+    assert(b <= UINT64_MAX);
+    while (b != 0u) {
+        uint64_t t = a % b;
+        a = b;
+        b = t;
+    }
+    return a;
+}
+
+/* Reduce a non-negative (num, den); den == 0 -> (0, 1). Mirrors _reduce_pair. */
+static void ggp_reduce(uint64_t num, uint64_t den, uint64_t *rn, uint64_t *rd)
+{
+    assert(rn != NULL);
+    assert(rd != NULL);
+    if (den == 0u) {
+        *rn = 0u;
+        *rd = 1u;
+        return;
+    }
+    uint64_t g = ggp_gcd(num, den);
+    if (g == 0u) {
+        g = 1u;
+    }
+    *rn = num / g;
+    *rd = den / g;
+}
+
+/* Participation accumulator: per-node cross/tot exact integer mass (undirected;
+ * a self-loop adds to tot twice, never to cross — same community). */
+typedef struct ggp_part_ctx {
+    uint32_t        n;
+    const uint32_t *community;
+    uint64_t       *cross;
+    uint64_t       *tot;
+} ggp_part_ctx_t;
+
+static srmech_status_t ggp_part_cb(uint32_t u, uint32_t v, double w, void *ctx)
+{
+    ggp_part_ctx_t *c = (ggp_part_ctx_t *)ctx;
+    assert(c != NULL);
+    assert(c->cross != NULL && c->tot != NULL);
+    if (u >= c->n || v >= c->n) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(w >= 0.0);                        /* genome weights are non-negative ints */
+    uint64_t iw = (uint64_t)w;               /* exact: write_packed_graph stored an int */
+    c->tot[u] += iw;
+    c->tot[v] += iw;
+    if (c->community[u] != c->community[v]) {
+        c->cross[u] += iw;
+        c->cross[v] += iw;
+    }
+    return SRMECH_OK;
+}
+
+/* Read each tome back and stamp community_out[node] = tome index (cid). The tomes
+ * partition ALL n nodes, so every node is assigned exactly once. */
+static srmech_status_t ggp_read_communities(const char *paths, uint32_t n_tomes,
+                                            uint32_t *ids, uint32_t cap,
+                                            uint32_t *community_out)
+{
+    assert(paths != NULL);
+    assert(ids != NULL || cap == 0u);
+    for (uint32_t cid = 0u; cid < n_tomes; cid++) {
+        const char *path = paths + (size_t)cid * SRMECH_RECURSIVE_CUT_PATH_MAX;
+        uint32_t count = 0u;
+        srmech_status_t st = rcut_read_set(path, ids, cap, &count);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        for (uint32_t i = 0u; i < count; i++) {
+            assert(ids[i] < cap);
+            community_out[ids[i]] = cid;
+        }
+    }
+    return SRMECH_OK;
+}
+
+/* The participation histogram bin of one node — pure integer, mirrors
+ * _partition_bin: floor(cross*n_bins / tot) clamped to [0, n_bins-1]; tot==0 -> 0. */
+static uint32_t ggp_bin(uint64_t cross_v, uint64_t tot_v, uint32_t n_bins)
+{
+    assert(n_bins >= 2u);
+    assert(cross_v <= tot_v);                /* participation <= 1 (cross subset of tot) */
+    if (tot_v == 0u) {
+        return 0u;
+    }
+    uint64_t b = (cross_v * (uint64_t)n_bins) / tot_v;
+    if (b >= (uint64_t)n_bins) {
+        return n_bins - 1u;
+    }
+    return (uint32_t)b;
+}
+
+/* Fill node_bin[] + the counts[] histogram over all n nodes. */
+static void ggp_histogram(const uint64_t *cross, const uint64_t *tot, uint32_t n,
+                          uint32_t n_bins, uint32_t *node_bin, uint64_t *counts)
+{
+    assert(counts != NULL);
+    assert(node_bin != NULL || n == 0u);
+    for (uint32_t b = 0u; b < n_bins; b++) {
+        counts[b] = 0u;
+    }
+    for (uint32_t v = 0u; v < n; v++) {
+        uint32_t b = ggp_bin(cross[v], tot[v], n_bins);
+        node_bin[v] = b;
+        counts[b] += 1u;
+    }
+}
+
+/* The bin of the maximum count in counts[lo..hi] (lowest index on a tie) — the
+ * dominant mode of one side of a gap. Mirrors _side_argmax. */
+static uint32_t ggp_side_argmax(const uint64_t *counts, uint32_t lo, uint32_t hi)
+{
+    assert(counts != NULL);
+    assert(lo <= hi);
+    uint32_t best = lo;
+    for (uint32_t b = lo; b <= hi; b++) {
+        if (counts[b] > counts[best]) {
+            best = b;
+        }
+    }
+    return best;
+}
+
+/* min(counts[lo_occ+1 : hi_occ]) — the in-gap antimode. width >= 2 guarantees at
+ * least one in-between bin. Mirrors the Python slice-min. */
+static uint64_t ggp_valley_min(const uint64_t *counts, uint32_t lo_occ, uint32_t hi_occ)
+{
+    assert(counts != NULL);
+    assert(hi_occ >= lo_occ + 2u);
+    uint64_t m = counts[lo_occ + 1u];
+    for (uint32_t b = lo_occ + 2u; b < hi_occ; b++) {
+        if (counts[b] < m) {
+            m = counts[b];
+        }
+    }
+    return m;
+}
+
+/* The widest qualifying antimode gap between consecutive OCCUPIED bins (ties ->
+ * larger smaller-mode, then the lower bin — the FIRST maximum is kept). */
+typedef struct ggp_gap { int have; uint32_t width; uint64_t smaller;
+                         uint32_t lo; uint32_t hi; } ggp_gap_t;
+
+static ggp_gap_t ggp_scan_gaps(const uint64_t *counts, uint32_t n_bins)
+{
+    assert(counts != NULL);
+    assert(n_bins >= 2u);
+    ggp_gap_t best = { 0, 0u, 0u, 0u, 0u };
+    int have_prev = 0;
+    uint32_t prev = 0u;
+    for (uint32_t b = 0u; b < n_bins; b++) {
+        if (counts[b] == 0u) {
+            continue;
+        }
+        if (have_prev && (b - prev) >= 2u) {
+            uint32_t lo = prev, hi = b;
+            uint64_t pl = counts[ggp_side_argmax(counts, 0u, lo)];
+            uint64_t ph = counts[ggp_side_argmax(counts, hi, n_bins - 1u)];
+            uint64_t smaller = (pl < ph) ? pl : ph;
+            uint64_t valley = ggp_valley_min(counts, lo, hi);
+            uint32_t width = hi - lo;
+            if (smaller >= 2u && 2u * valley < smaller &&
+                (!best.have || width > best.width ||
+                 (width == best.width && smaller > best.smaller))) {
+                best.have = 1; best.width = width; best.smaller = smaller;
+                best.lo = lo; best.hi = hi;
+            }
+        }
+        have_prev = 1;
+        prev = b;
+    }
+    return best;
+}
+
+/* MEASURE the antimode + the single mode, filling the scalar result fields.
+ * Mirrors _partition_antimode: unimodal defaults, then the widest qualifying gap. */
+static void ggp_antimode(const uint64_t *counts, uint32_t n_bins,
+                         srmech_genome_graph_partition_result_t *r)
+{
+    assert(counts != NULL);
+    assert(r != NULL);
+    uint32_t mode_bin = 0u;
+    uint32_t n_occ = 0u;
+    for (uint32_t b = 0u; b < n_bins; b++) {
+        if (counts[b] > counts[mode_bin]) {
+            mode_bin = b;
+        }
+        if (counts[b] > 0u) {
+            n_occ += 1u;
+        }
+    }
+    r->bimodal = 0u;
+    r->threshold_bin = -1; r->peak_low_bin = -1; r->peak_high_bin = -1;
+    r->valley_count = -1; r->gap = 0u; r->mode_bin = mode_bin;
+    if (n_occ < 2u) {
+        return;
+    }
+    ggp_gap_t g = ggp_scan_gaps(counts, n_bins);
+    if (!g.have) {
+        return;
+    }
+    uint64_t valley = ggp_valley_min(counts, g.lo, g.hi);
+    r->bimodal = 1u;
+    r->threshold_bin = (int32_t)g.lo;
+    r->peak_low_bin = (int32_t)ggp_side_argmax(counts, 0u, g.lo);
+    r->peak_high_bin = (int32_t)ggp_side_argmax(counts, g.hi, n_bins - 1u);
+    r->valley_count = (int64_t)valley;
+    r->gap = g.smaller - valley;
+}
+
+/* Per-node type: nuclear=0, plasmid=1. Mirrors the classify branch. */
+static uint32_t ggp_node_type(uint32_t node_bin_v, int bimodal, int32_t threshold,
+                              uint32_t one_dna)
+{
+    assert(one_dna <= 1u);
+    assert(bimodal == 0 || bimodal == 1);
+    if (bimodal) {
+        return (node_bin_v > (uint32_t)threshold) ? 1u : 0u;
+    }
+    return one_dna;
+}
+
+/* Group OUT surface — the caller's per-group arrays + the flat member cursor. */
+typedef struct ggp_group_out {
+    uint32_t *comm;
+    uint32_t *type;
+    uint32_t *size;
+    uint64_t *num;
+    uint64_t *den;
+    uint32_t *members;
+    uint32_t  cap;
+    uint32_t  n_groups;
+    uint32_t  n_members;
+} ggp_group_out_t;
+
+/* Emit community `cid`'s nuclear group THEN its plasmid group (empty groups
+ * skipped), members in ascending tome order — mirrors the Python group loop. */
+static srmech_status_t ggp_emit_community_groups(
+    const char *paths, uint32_t cid, uint32_t *ids, uint32_t cap,
+    const uint64_t *cross, const uint64_t *tot, const uint32_t *node_bin,
+    int bimodal, int32_t threshold, uint32_t one_dna, ggp_group_out_t *go)
+{
+    assert(paths != NULL && go != NULL);
+    assert(ids != NULL || cap == 0u);
+    const char *path = paths + (size_t)cid * SRMECH_RECURSIVE_CUT_PATH_MAX;
+    uint32_t count = 0u;
+    srmech_status_t st = rcut_read_set(path, ids, cap, &count);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (uint32_t gt = 0u; gt < 2u; gt++) {
+        uint64_t gc = 0u, gtt = 0u;
+        uint32_t start = go->n_members, size = 0u;
+        for (uint32_t i = 0u; i < count; i++) {
+            uint32_t vv = ids[i];
+            if (ggp_node_type(node_bin[vv], bimodal, threshold, one_dna) != gt) {
+                continue;
+            }
+            go->members[start + size] = vv;
+            gc += cross[vv];
+            gtt += tot[vv];
+            size += 1u;
+        }
+        if (size == 0u) {
+            continue;
+        }
+        if (go->n_groups >= go->cap) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+        go->comm[go->n_groups] = cid;
+        go->type[go->n_groups] = gt;
+        go->size[go->n_groups] = size;
+        ggp_reduce(gc, gtt, &go->num[go->n_groups], &go->den[go->n_groups]);
+        go->n_groups += 1u;
+        go->n_members += size;
+    }
+    return SRMECH_OK;
+}
+
+/* The driver's carved arena slices — doubles first (the recursive_cut sub-arena),
+ * then the uint64 accumulators, then the uint32 scratch + the tome-path buffer. */
+typedef struct ggp_state {
+    uint32_t  n;
+    uint32_t  n_bins;
+    uint32_t  n_tomes;
+    double   *rc_ws;
+    uint64_t *cross;
+    uint64_t *tot;
+    uint64_t *counts;
+    uint32_t *sizes;
+    uint32_t *node_bin;
+    uint32_t *ids;
+    char     *paths;
+} ggp_state_t;
+
+static void ggp_carve(uint32_t n, uint32_t n_bins, size_t paths_cap, void *ws,
+                      ggp_state_t *s)
+{
+    assert(ws != NULL);
+    assert(s != NULL);
+    s->n = n; s->n_bins = n_bins; s->n_tomes = 0u;
+    unsigned char *base = (unsigned char *)ws;
+    size_t rc = srmech_laplacian_recursive_cut_arena_bytes(n);
+    rc = (rc + 7u) & ~(size_t)7u;
+    s->rc_ws = (double *)(void *)base;
+    uint64_t *q = (uint64_t *)(void *)(base + rc);
+    s->cross = q; q += n;
+    s->tot = q; q += n;
+    s->counts = q; q += n_bins;
+    uint32_t *d = (uint32_t *)(void *)q;
+    s->sizes = d; d += paths_cap;
+    s->node_bin = d; d += n;
+    s->ids = d; d += n;
+    s->paths = (char *)(void *)d;
+}
+
+size_t srmech_genome_graph_partition_arena_bytes(uint32_t n, uint32_t n_edges,
+                                                 uint32_t n_bins, size_t paths_cap)
+{
+    (void)n_edges;                           /* participation STREAMS the file */
+    assert(n_bins >= 2u);
+    assert(paths_cap >= 1u);
+    size_t rc = srmech_laplacian_recursive_cut_arena_bytes(n);
+    rc = (rc + 7u) & ~(size_t)7u;
+    size_t u64s = ((size_t)2u * n + n_bins) * sizeof(uint64_t);   /* cross,tot,counts */
+    size_t u32s = (paths_cap + (size_t)2u * n) * sizeof(uint32_t);/* sizes,node_bin,ids */
+    size_t paths = paths_cap * SRMECH_RECURSIVE_CUT_PATH_MAX;
+    return rc + u64s + u32s + paths;
+}
+
+/* recursive_cut + read the community assignment back. On a §101 cancel the tomes
+ * still partition ALL n nodes, so the community read is valid either way. */
+static srmech_status_t ggp_step_cut(ggp_state_t *s, const char *edges_path,
+    const char *work_dir, uint32_t max_tome, uint32_t max_iters, uint32_t max_depth,
+    uint32_t *community_out, srmech_progress_tick_cb_t tick, void *tick_ctx,
+    int *cancelled)
+{
+    assert(s != NULL && cancelled != NULL);
+    assert(edges_path != NULL && work_dir != NULL);
+    size_t paths_cap = (size_t)s->n + 1u;
+    srmech_status_t st = srmech_laplacian_recursive_cut(
+        s->n, edges_path, work_dir, max_tome, max_iters, max_depth,
+        s->sizes, s->paths, paths_cap, &s->n_tomes, s->rc_ws,
+        srmech_laplacian_recursive_cut_arena_bytes(s->n), tick, tick_ctx);
+    *cancelled = (st == SRMECH_CANCELLED) ? 1 : 0;
+    if (st != SRMECH_OK && st != SRMECH_CANCELLED) {
+        return st;
+    }
+    return ggp_read_communities(s->paths, s->n_tomes, s->ids, s->n, community_out);
+}
+
+/* Stream the edge file ONCE -> cross/tot, then reduce per-node participation. */
+static srmech_status_t ggp_step_participation(ggp_state_t *s, const char *edges_path,
+    const uint32_t *community, uint64_t *part_num_out, uint64_t *part_den_out)
+{
+    assert(s != NULL && edges_path != NULL);
+    assert(part_num_out != NULL && part_den_out != NULL);
+    for (uint32_t v = 0u; v < s->n; v++) {
+        s->cross[v] = 0u;
+        s->tot[v] = 0u;
+    }
+    ggp_part_ctx_t pc;
+    pc.n = s->n; pc.community = community; pc.cross = s->cross; pc.tot = s->tot;
+    srmech_status_t st = fiedler_file_scan(edges_path, ggp_part_cb, &pc);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    for (uint32_t v = 0u; v < s->n; v++) {
+        ggp_reduce(s->cross[v], s->tot[v], &part_num_out[v], &part_den_out[v]);
+    }
+    return SRMECH_OK;
+}
+
+/* Histogram + antimode + one_dna_type. */
+static void ggp_step_antimode(ggp_state_t *s, uint64_t *counts_out,
+                              srmech_genome_graph_partition_result_t *r)
+{
+    assert(s != NULL && counts_out != NULL);
+    assert(r != NULL);
+    ggp_histogram(s->cross, s->tot, s->n, s->n_bins, s->node_bin, s->counts);
+    for (uint32_t b = 0u; b < s->n_bins; b++) {
+        counts_out[b] = s->counts[b];
+    }
+    ggp_antimode(s->counts, s->n_bins, r);
+    if (r->bimodal) {
+        r->one_dna_type = -1;                /* None — the split fixes each node */
+    } else {
+        r->one_dna_type =
+            ((uint64_t)r->mode_bin * 2u < (uint64_t)s->n_bins) ? 0 : 1;
+    }
+}
+
+/* Build the groups per community + tally the per-type node counts. */
+static srmech_status_t ggp_step_groups(ggp_state_t *s,
+    srmech_genome_graph_partition_result_t *r, ggp_group_out_t *go)
+{
+    assert(s != NULL && r != NULL && go != NULL);
+    assert(go->members != NULL || s->n == 0u);
+    int bimodal = (int)r->bimodal;
+    int32_t threshold = r->threshold_bin;
+    uint32_t one_dna = (r->one_dna_type < 0) ? 0u : (uint32_t)r->one_dna_type;
+    for (uint32_t cid = 0u; cid < s->n_tomes; cid++) {
+        srmech_status_t st = ggp_emit_community_groups(
+            s->paths, cid, s->ids, s->n, s->cross, s->tot, s->node_bin,
+            bimodal, threshold, one_dna, go);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+    }
+    uint64_t nuc = 0u, pla = 0u;
+    for (uint32_t g = 0u; g < go->n_groups; g++) {
+        if (go->type[g] == 0u) {
+            nuc += go->size[g];
+        } else {
+            pla += go->size[g];
+        }
+    }
+    r->node_nuclear = nuc;
+    r->node_plasmid = pla;
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_graph_partition(
+    uint32_t n, const char *edges_path, const char *work_dir,
+    uint32_t max_tome, uint32_t n_bins, uint32_t max_iters, uint32_t max_depth,
+    uint32_t *community_out, uint64_t *part_num_out, uint64_t *part_den_out,
+    uint64_t *counts_out,
+    uint32_t *group_comm_out, uint32_t *group_type_out, uint32_t *group_size_out,
+    uint64_t *group_num_out, uint64_t *group_den_out,
+    uint32_t *group_members_out, uint32_t groups_cap,
+    srmech_genome_graph_partition_result_t *result_out,
+    void *ws, size_t ws_len,
+    srmech_progress_tick_cb_t tick, void *tick_ctx)
+{
+    if (edges_path == NULL || work_dir == NULL || community_out == NULL ||
+        part_num_out == NULL || part_den_out == NULL || counts_out == NULL ||
+        group_comm_out == NULL || group_type_out == NULL || group_size_out == NULL ||
+        group_num_out == NULL || group_den_out == NULL || group_members_out == NULL ||
+        result_out == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (n_bins < 2u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    size_t paths_cap = (size_t)n + 1u;
+    size_t need = srmech_genome_graph_partition_arena_bytes(n, 0u, n_bins, paths_cap);
+    if (ws_len < need) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    assert(ws_len >= need);
+    assert(result_out != NULL);
+    ggp_state_t s;
+    ggp_carve(n, n_bins, paths_cap, ws, &s);
+    memset(result_out, 0, sizeof *result_out);
+    result_out->struct_size = (uint32_t)sizeof *result_out;
+    int cancelled = 0;
+    srmech_status_t st = ggp_step_cut(&s, edges_path, work_dir, max_tome, max_iters,
+                                      max_depth, community_out, tick, tick_ctx,
+                                      &cancelled);
+    if (st != SRMECH_OK && st != SRMECH_CANCELLED) {
+        return st;
+    }
+    result_out->n_communities = s.n_tomes;
+    result_out->cancelled = (uint32_t)(cancelled ? 1 : 0);
+    if (cancelled) {
+        return SRMECH_CANCELLED;              /* community assignment only (clean partial) */
+    }
+    st = ggp_step_participation(&s, edges_path, community_out, part_num_out,
+                                part_den_out);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    ggp_step_antimode(&s, counts_out, result_out);
+    ggp_group_out_t go;
+    go.comm = group_comm_out; go.type = group_type_out; go.size = group_size_out;
+    go.num = group_num_out; go.den = group_den_out; go.members = group_members_out;
+    go.cap = groups_cap; go.n_groups = 0u; go.n_members = 0u;
+    st = ggp_step_groups(&s, result_out, &go);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    result_out->n_groups = go.n_groups;
     return SRMECH_OK;
 }

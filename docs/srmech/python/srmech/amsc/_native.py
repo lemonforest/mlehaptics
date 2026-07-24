@@ -101,7 +101,27 @@ from typing import Optional
 #        host had no other regime to escape into (it is deterministic,
 #        never random), so leaving it would have re-created the
 #        Python-rooted taxonomy ADR-0009 names.
-EXPECTED_ABI_VERSION: int = 8
+#  v9 — v0.9.0rc306 (task #899): srmech_genome_section_counts caller-arena
+#        conversion. ADDS (void *ws, size_t ws_len) to the EXISTING
+#        exported signature — the first ORDINARY-kind bump (not a callback
+#        typedef, not a removal). Removes the three file-scope static
+#        scratch buffers (32 MiB catalog arena / 2^18 count table / 64 KiB
+#        window) that made the scan corpus-capped (~11k chromosomes) AND
+#        non-reentrant; the count table + window are now carved off the
+#        caller ws, the catalog is its tail. The ctypes argtypes below gain
+#        the two params in lockstep. A stale ABI-8 lib would push the OLD
+#        10-arg wire shape at the NEW 12-arg binding — only this version
+#        catches that.
+#  v10 — v0.9.0rc307 (task #903): the fiedler_sparse family ws_len UNIT unified
+#        to BYTES. srmech_laplacian_fiedler_sparse / _file / _file_progress
+#        guarded ws_len as a COUNT OF DOUBLES while the rest of the caller-arena
+#        surface counts BYTES. rc307 adds srmech_laplacian_fiedler_sparse_arena_bytes
+#        and flips the three guards to it, so ws_len is BYTES uniformly. That
+#        reinterprets an exported function's ws_len unit — a breaking wire-contract
+#        change — so the fiedler dispatch sites below pass BYTES in lockstep.
+#        The added *_arena_bytes symbol alone would NOT have bumped; the unit
+#        reinterpretation is what does.
+EXPECTED_ABI_VERSION: int = 10
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -392,6 +412,32 @@ SRMECH_PHASE_PARTITIONING: int = 4
 
 # The struct_size a Python emitter reports (the cbSize gate): 4+4+8+8 = 24 bytes.
 PROGRESS_STRUCT_SIZE: int = ctypes.sizeof(_ProgressEv)
+
+
+# §100 G3 (rc321, task #904) — ctypes mirror of
+# srmech_genome_graph_partition_result_t. Field ORDER + TYPES must match
+# c/include/srmech.h EXACTLY: 10 four-byte fields (6 uint32 + 4 int32) then 4
+# eight-byte fields — no internal padding, so 72 bytes total on any LP64/LLP64 ABI.
+class _GenomeGraphPartitionResult(ctypes.Structure):
+    _fields_ = [
+        ("struct_size", ctypes.c_uint32),   # == sizeof(the C struct)
+        ("n_communities", ctypes.c_uint32),  # recursive_cut tome count
+        ("n_groups", ctypes.c_uint32),       # emitted (community, type) slices
+        ("cancelled", ctypes.c_uint32),      # 0/1 — §101 clean partial
+        ("bimodal", ctypes.c_uint32),        # 0/1
+        ("mode_bin", ctypes.c_uint32),       # single dominant mode
+        ("threshold_bin", ctypes.c_int32),   # -1 == None
+        ("peak_low_bin", ctypes.c_int32),    # -1 == None
+        ("peak_high_bin", ctypes.c_int32),   # -1 == None
+        ("one_dna_type", ctypes.c_int32),    # -1 None / 0 nuclear / 1 plasmid
+        ("valley_count", ctypes.c_int64),    # -1 == None
+        ("gap", ctypes.c_uint64),
+        ("node_nuclear", ctypes.c_uint64),
+        ("node_plasmid", ctypes.c_uint64),
+    ]
+
+
+GENOME_GRAPH_PARTITION_RESULT_SIZE: int = ctypes.sizeof(_GenomeGraphPartitionResult)
 
 
 def _make_tick_trampoline(py_progress, box):
@@ -801,6 +847,61 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_graph_cycle_holonomy.restype = ctypes.c_int
 
+    # 0.9.0rc309 (#944 follow-on): quaternion_cycle_holonomy — the NON-ABELIAN
+    # generalization (edge gains are unit quaternions; per-cycle holonomy is
+    # the ordered quaternion product, classified by its SU(2) conjugacy class /
+    # scalar part). Additive symbols; ABI stays 10. hasattr-guarded.
+    if hasattr(lib, "srmech_quaternion_cycle_holonomy_arena_bytes"):
+        lib.srmech_quaternion_cycle_holonomy_arena_bytes.argtypes = [
+            ctypes.c_uint32, ctypes.c_uint32,
+        ]
+        lib.srmech_quaternion_cycle_holonomy_arena_bytes.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_quaternion_cycle_holonomy"):
+        lib.srmech_quaternion_cycle_holonomy.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v
+            ctypes.POINTER(ctypes.c_double),    # gains (4*n_edges, or NULL)
+            ctypes.POINTER(ctypes.c_uint32),    # out_class_index (>= n_edges)
+            ctypes.POINTER(ctypes.c_int32),     # out_center_parity
+            ctypes.POINTER(ctypes.c_uint32),    # out_cycle_u
+            ctypes.POINTER(ctypes.c_uint32),    # out_cycle_v
+            ctypes.POINTER(ctypes.c_double),    # out_holonomy (4*n_edges, or NULL)
+            ctypes.POINTER(ctypes.c_uint32),    # out_n_cycles
+            ctypes.c_void_p,                    # ws arena
+            ctypes.c_size_t,                    # ws_len
+        ]
+        lib.srmech_quaternion_cycle_holonomy.restype = ctypes.c_int
+
+    # 0.9.0rc310: srmech_q8 — the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,
+    # +-k} as 3-bit bytes (the discrete peer of the continuous H surface). Pure
+    # uint8 integer ops: q8_mult / q8_conjugate return a uint8 Q8 byte; q8_bind
+    # / q8_project_v4 are elementwise buffer ops returning srmech_status_t.
+    # Additive INTEGER symbols (no callback typedef) -> ABI stays 10.
+    # hasattr-guarded so a stale pre-rc310 lib keeps the rest of the surface.
+    if hasattr(lib, "srmech_q8_mult"):
+        lib.srmech_q8_mult.argtypes = [ctypes.c_uint8, ctypes.c_uint8]
+        lib.srmech_q8_mult.restype = ctypes.c_uint8
+    if hasattr(lib, "srmech_q8_conjugate"):
+        lib.srmech_q8_conjugate.argtypes = [ctypes.c_uint8]
+        lib.srmech_q8_conjugate.restype = ctypes.c_uint8
+    if hasattr(lib, "srmech_q8_bind"):
+        lib.srmech_q8_bind.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # turn (n bytes)
+            ctypes.POINTER(ctypes.c_uint8),     # one  (n bytes)
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_uint8),     # out  (n bytes; may alias)
+        ]
+        lib.srmech_q8_bind.restype = ctypes.c_int
+    if hasattr(lib, "srmech_q8_project_v4"):
+        lib.srmech_q8_project_v4.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # q   (n bytes)
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_uint8),     # out (n bytes; may alias)
+        ]
+        lib.srmech_q8_project_v4.restype = ctypes.c_int
+
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
     #                           double *out_eigvals)
@@ -839,6 +940,33 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_size_t,                    # ws_len
         ]
         lib.srmech_hermitian_eigendecompose_ws.restype = ctypes.c_int
+
+    # ------------------------------------------------------------------
+    # size_t srmech_mat_eigvals_ws_size(uint32_t n)
+    # int    srmech_mat_eigvals_ws(uint32_t n, const double *a_il,
+    #            uint32_t max_sweeps, double *out_eigvals,
+    #            double *workspace, size_t ws_len)
+    # v0.9.0rc299 (`#918`) — the GENERAL (non-Hermitian) eigensolver: the
+    # whole-op C peer of laplacian.mat_eigvals. Before it, C had only the real
+    # symmetric (srmech_jacobi_eigvals), complex Hermitian
+    # (srmech_hermitian_eigendecompose_ws) and exact-integer
+    # (srmech_eigvec_exact) paths, while mat_eigvals was classified
+    # composition_of_c — a bucket annotated "standalone-ready" — despite having
+    # no Hermitian fast path, so a bare-C host could not run it for ANY input.
+    # hasattr-guarded (additive symbols → ABI unchanged) so a lib built before
+    # rc299 keeps the rest of the native surface instead of AttributeError-ing.
+    if hasattr(lib, "srmech_mat_eigvals_ws"):
+        lib.srmech_mat_eigvals_ws_size.argtypes = [ctypes.c_uint32]
+        lib.srmech_mat_eigvals_ws_size.restype = ctypes.c_size_t
+        lib.srmech_mat_eigvals_ws.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_double),    # a_il (2*n*n)
+            ctypes.c_uint32,                    # max_sweeps
+            ctypes.POINTER(ctypes.c_double),    # out_eigvals (2*n)
+            ctypes.POINTER(ctypes.c_double),    # workspace (ws_len doubles)
+            ctypes.c_size_t,                    # ws_len
+        ]
+        lib.srmech_mat_eigvals_ws.restype = ctypes.c_int
 
     # ------------------------------------------------------------------
     # Config layer (rc161) — the Hermitian-eig compute-guard ceiling is a
@@ -2771,6 +2899,48 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_laplacian_recursive_cut.restype = ctypes.c_int
 
+        # §100 G3 (rc321, task #904) — the WHOLE-OP GRAPH partition C peer of
+        # srmech.amsc.genome.genome_partition (the GRAPH op; NOT the strand-recovery
+        # srmech_genome_partition). Composes recursive_cut + an exact-integer
+        # participation read + the antimode DECISION + per-node classify + group
+        # assembly, all in C. NEW symbols → own hasattr; ws_len is in BYTES.
+        # ADDITIVE — a new struct + two symbols reusing the tick typedef, so ABI
+        # stays 10.
+        if hasattr(lib, "srmech_genome_graph_partition"):
+            lib.srmech_genome_graph_partition_arena_bytes.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_uint32,                   # n_edges (unused; streamed)
+                ctypes.c_uint32,                   # n_bins
+                ctypes.c_size_t,                   # paths_cap
+            ]
+            lib.srmech_genome_graph_partition_arena_bytes.restype = ctypes.c_size_t
+            lib.srmech_genome_graph_partition.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # edges_path (packed edge file)
+                ctypes.c_char_p,                   # work_dir
+                ctypes.c_uint32,                   # max_tome
+                ctypes.c_uint32,                   # n_bins
+                ctypes.c_uint32,                   # max_iters
+                ctypes.c_uint32,                   # max_depth
+                ctypes.POINTER(ctypes.c_uint32),  # community_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # part_num_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # part_den_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # counts_out (n_bins)
+                ctypes.POINTER(ctypes.c_uint32),  # group_comm_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_type_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_size_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint64),  # group_num_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint64),  # group_den_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_members_out (n)
+                ctypes.c_uint32,                   # groups_cap
+                ctypes.POINTER(_GenomeGraphPartitionResult),  # result_out
+                ctypes.POINTER(ctypes.c_double),  # ws arena
+                ctypes.c_size_t,                   # ws_len (in BYTES)
+                _TICK_CFUNCTYPE,                   # tick (NULL == off)
+                ctypes.c_void_p,                   # tick_ctx
+            ]
+            lib.srmech_genome_graph_partition.restype = ctypes.c_int
+
         # size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n) +
         # srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n,
         #     const char *path, uint32_t k, uint32_t max_iters,
@@ -3677,6 +3847,40 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_recover_diploid.argtypes = [
                 _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
             lib.srmech_genome_recover_diploid.restype = ctypes.c_int
+        # §Q8/rc311 — the Q8 element-type recall + recover_diploid peers. IDENTICAL
+        # signatures to their klein4 twins (srmech_genome_recall / *_recover_diploid);
+        # they differ ONLY in the per-turn op (q8_mult(stored, q8_conjugate(one)) — the
+        # non-abelian group inverse — instead of the reversible klein4 XOR). NEW symbols
+        # → hasattr-guarded; additive (q8 typedefs already exist) → EXPECTED_ABI_VERSION
+        # stays 10, GENOME_FORMAT_VERSION stays 15.
+        #   int srmech_genome_recall_q8(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *coupling,
+        #       unsigned char *out, size_t out_cap, size_t *n_leaves_out)
+        if hasattr(lib, "srmech_genome_recall_q8"):
+            lib.srmech_genome_recall_q8.argtypes = [
+                _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
+            lib.srmech_genome_recall_q8.restype = ctypes.c_int
+        #   int srmech_genome_recover_diploid_q8(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *coupling, unsigned char *out,
+        #       size_t out_cap, size_t *n_out)
+        if hasattr(lib, "srmech_genome_recover_diploid_q8"):
+            lib.srmech_genome_recover_diploid_q8.argtypes = [
+                _U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
+            lib.srmech_genome_recover_diploid_q8.restype = ctypes.c_int
+        # §55/§Q8/v16 (rc312) — the 3-bit Q8 packed-turn CODEC primitives (genome-fully-in-C
+        # mirror of _pack_turn_block_q8 / _unpack_turn_payload_q8). NEW symbols, no callback
+        # typedef → hasattr-guarded, additive → EXPECTED_ABI_VERSION stays 10. The on-disk
+        # format is v16 (GENOME_FORMAT_VERSION 15→16), a DATA change, not a C-wire change.
+        #   int srmech_genome_q8_pack_turn(const unsigned char *leaf, uint32_t leaf_dim,
+        #       unsigned char *out, size_t *out_len)
+        if hasattr(lib, "srmech_genome_q8_pack_turn"):
+            lib.srmech_genome_q8_pack_turn.argtypes = [_U8, _U32, _U8, _PSZ]
+            lib.srmech_genome_q8_pack_turn.restype = ctypes.c_int
+        #   int srmech_genome_q8_unpack_turn(const unsigned char *payload, uint32_t leaf_dim,
+        #       unsigned char *out)
+        if hasattr(lib, "srmech_genome_q8_unpack_turn"):
+            lib.srmech_genome_q8_unpack_turn.argtypes = [_U8, _U32, _U8]
+            lib.srmech_genome_q8_unpack_turn.restype = ctypes.c_int
         # §98/rc268 (#1422) — the CHROMATIN access cap writer + strand read. NEW symbols →
         # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
         #   int srmech_genome_chromatin(unsigned char chromatin_type, uint64_t num, uint64_t den,
@@ -3860,20 +4064,88 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_integrate_plasmids.restype = ctypes.c_int
         # §102/rc280 (F1253) — SECTION COUNTS: scan a plasmid section store and
         # derive {global_id: n_sections}, deriving the catalog ONCE and paging only
-        # each section's node_ids prefix (never its edges). REUSES the existing
-        # srmech_progress_tick_cb_t typedef (no NEW typedef) ->
-        # EXPECTED_ABI_VERSION stays 6.
+        # each section's node_ids prefix (never its edges). rc306 (task #899) added
+        # the (void *ws, size_t ws_len) caller arena — removing the 32 MiB static
+        # catalog arena + the non-reentrancy — so the wire format of this EXISTING
+        # signature changed: EXPECTED_ABI_VERSION 8 -> 9 (see the history above).
         if hasattr(lib, "srmech_genome_section_counts"):
             lib.srmech_genome_section_counts.argtypes = [
                 ctypes.c_char_p,                                   # dir
                 ctypes.POINTER(ctypes.c_uint8), ctypes.c_uint32,   # coupling, leaf_dim
                 _TICK_CFUNCTYPE, ctypes.c_void_p,                  # tick, tick_ctx
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len (rc306)
                 ctypes.POINTER(ctypes.c_uint64),                   # out_ids
                 ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t,  # out_counts, out_cap
                 ctypes.POINTER(ctypes.c_size_t),                   # n_out
                 ctypes.POINTER(ctypes.c_size_t),                   # n_done
             ]
             lib.srmech_genome_section_counts.restype = ctypes.c_int
+        # rc306 (task #899) — the caller-arena sizing helper for the above. Pure
+        # integer arithmetic; ADDITIVE symbol (the ABI bump is driven by the
+        # section_counts signature change, not this new symbol).
+        if hasattr(lib, "srmech_genome_section_counts_arena_bytes"):
+            lib.srmech_genome_section_counts_arena_bytes.argtypes = [
+                ctypes.c_size_t, ctypes.c_uint32, ctypes.c_size_t,  # body_len, n_chroms, out_cap
+            ]
+            lib.srmech_genome_section_counts_arena_bytes.restype = ctypes.c_size_t
+        # rc313 — srmech_genome_discrete_writhe: the exact-INTEGER directional
+        # discrete writhe of a polygonal backbone (six int64 num/den lanes → a
+        # reduced-rational out pair). Caller-arena; ADDITIVE symbols (ABI stays 10).
+        if hasattr(lib, "srmech_genome_discrete_writhe"):
+            lib.srmech_genome_discrete_writhe.argtypes = [
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # xn, xd
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # yn, yd
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # zn, zd
+                ctypes.c_uint32, ctypes.c_int32,                   # n_points, closed
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # out_num, out_den
+            ]
+            lib.srmech_genome_discrete_writhe.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_discrete_writhe_arena_bytes"):
+            lib.srmech_genome_discrete_writhe_arena_bytes.argtypes = [ctypes.c_uint32]
+            lib.srmech_genome_discrete_writhe_arena_bytes.restype = ctypes.c_size_t
+        # rc313 — srmech_genome_cwf_consistency_mod2: the mod-2 CWF check as a
+        # WHOLE-OP C peer (orchestrates the holonomy + writhe C ops). Caller-arena;
+        # ADDITIVE (ABI stays 10).
+        if hasattr(lib, "srmech_genome_cwf_consistency_mod2"):
+            lib.srmech_genome_cwf_consistency_mod2.argtypes = [
+                ctypes.POINTER(ctypes.c_uint32), ctypes.POINTER(ctypes.c_uint32),  # edges_u, edges_v
+                ctypes.POINTER(ctypes.c_double),                   # gains (or NULL)
+                ctypes.c_uint32, ctypes.c_uint32, ctypes.c_int32,  # n_edges, n_nodes, has_embedding
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # xn, xd
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # yn, yd
+                ctypes.POINTER(ctypes.c_int64), ctypes.POINTER(ctypes.c_int64),  # zn, zd
+                ctypes.c_uint32, ctypes.c_int32,                   # n_points, closed
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len
+                ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32),  # lk_mod2, lk_center_parity
+                ctypes.POINTER(ctypes.c_int32), ctypes.POINTER(ctypes.c_int32),  # tw_mod2, wr_mod2
+                ctypes.POINTER(ctypes.c_int32),                    # consistent
+            ]
+            lib.srmech_genome_cwf_consistency_mod2.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_cwf_consistency_mod2_arena_bytes"):
+            lib.srmech_genome_cwf_consistency_mod2_arena_bytes.argtypes = [
+                ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32,
+            ]
+            lib.srmech_genome_cwf_consistency_mod2_arena_bytes.restype = ctypes.c_size_t
+        # rc314 — the CODON READ-LAYER whole-op C peers. Pure reads; ADDITIVE
+        # symbols only, no new typedef -> EXPECTED_ABI_VERSION stays 10 and
+        # GENOME_FORMAT_VERSION stays 16 (a read changes no on-disk format).
+        if hasattr(lib, "srmech_genome_codon_read"):
+            lib.srmech_genome_codon_read.argtypes = [
+                ctypes.POINTER(ctypes.c_uint8),     # strand (n Q8 base symbols)
+                ctypes.c_uint32,                    # n
+                ctypes.c_uint32,                    # phase in {0,1,2}
+                ctypes.POINTER(ctypes.c_uint8),     # ncbieaa (64 amino-acid bytes)
+                ctypes.POINTER(ctypes.c_uint8),     # out (>= n/3 bytes)
+                ctypes.POINTER(ctypes.c_uint32),    # out_len (codon count)
+            ]
+            lib.srmech_genome_codon_read.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_codon_frame_monodromy"):
+            lib.srmech_genome_codon_frame_monodromy.argtypes = [
+                ctypes.c_uint32,                    # n
+                ctypes.POINTER(ctypes.c_uint32),    # out (n mod 3)
+            ]
+            lib.srmech_genome_codon_frame_monodromy.restype = ctypes.c_int
         # rc296 — the PAL read-path OPEN COUNTER. Diagnostic-only instrumentation
         # (no op depends on it, nothing branches on it) that makes the COMPILED
         # projection's I/O shape measurable from a test. Python's builtins.open /
@@ -8619,6 +8891,22 @@ _BIGEXP_SYMS = (
     "srmech_bigint_to_dec_bound",
 )
 
+# 0.9.0rc320 — the per-symbol native ``num_terms`` cap. The C series arenas
+# (``c/src/srmech_bigexp.c``: ``BIGEXP_EXP_MAX_TERMS 512`` / ``BIGEXP_TRIG_MAX_TERMS
+# 50`` / ``BIGEXP_LOG_MAX_TERMS 64``) are SIZED for these bounds and reject a
+# larger ``num_terms`` with ``SRMECH_ERR_BAD_INPUT``. Above the cap ``_bigexp_call``
+# skips native and lets the caller's ceilingless pure-Python bignum body run —
+# byte-identical, just slower. This is what makes the raised Python-side caps
+# (``_TRIG_SERIES_MAX_TERMS`` / ``_LOG_SERIES_MAX_TERMS`` = 512) consistent and
+# lets the ``precision=P`` REFERENCE path request as many terms as ``2**-P`` needs.
+_BIGEXP_NATIVE_TERM_CAP = {
+    "srmech_exp_series_truncate_big": 512,
+    "srmech_sin_series_truncate_big": 50,
+    "srmech_cos_series_truncate_big": 50,
+    "srmech_log1p_series_truncate_big": 64,
+    "srmech_atan_series_truncate_big": 64,
+}
+
 
 def has_native_bigexp() -> bool:
     """True iff the rc35 bignum-exact transcendental series + the srmech_bigint
@@ -9044,6 +9332,11 @@ def _bigexp_call(symbol: str, numerator: int, denominator: int,
     path has NO ceiling (byte-identical to ``srmech.amsc.rational`` at any
     magnitude)."""
     if not has_native_bigexp() or not hasattr(LIB, symbol):
+        return None
+    # 0.9.0rc320: above the C arena's per-op num_terms cap, skip native and let
+    # the caller's ceilingless pure-Python bignum body compute the (byte-
+    # identical) partial sum — the C peer would only reject with BAD_INPUT.
+    if num_terms > _BIGEXP_NATIVE_TERM_CAP.get(symbol, 512):
         return None
     # Limb sizing: 9 decimal digits ≈ 1 limb; pad generously. The output /
     # working carriers are sized to hold the reduced result, which for these
@@ -16228,6 +16521,18 @@ def has_native_cycle_holonomy() -> bool:
                 and hasattr(LIB, "srmech_graph_cycle_holonomy_arena_bytes"))
 
 
+def has_native_quaternion_cycle_holonomy() -> bool:
+    """True iff the rc309 NON-ABELIAN quaternion_cycle_holonomy C peer is loaded
+    + bound (#944 follow-on): the ordered quaternion cycle product + SU(2)
+    conjugacy-class read run in C, so
+    :func:`srmech.qm.quaternion.quaternion_cycle_holonomy` dispatches to the C
+    twin (byte-exact with the pure-Python mirror). False on a no-C / pre-rc309
+    lib — the pure-Python quaternion cascade is the complete alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_quaternion_cycle_holonomy")
+                and hasattr(LIB, "srmech_quaternion_cycle_holonomy_arena_bytes"))
+
+
 def has_native_fiedler_sparse_file() -> bool:
     """True iff the §52 Part 2 native OUT-OF-CORE streaming Fiedler is loaded +
     bound (rc168+ lib): the matvec power iteration runs in C reading the
@@ -16268,13 +16573,14 @@ def fiedler_sparse_file_native_progress(n, graph_path, max_iters, progress):
     ws = (ctypes.c_double * (9 * n))()
     box: dict = {}
     tramp = _make_tick_trampoline(progress, box)   # keep referenced across the call
+    # rc307: ws_len is BYTES (was a DOUBLES count) — pass the buffer's byte size.
     rc = LIB.srmech_laplacian_fiedler_sparse_file_progress(
         ctypes.c_uint32(n),
         graph_path.encode("utf-8"),
         ctypes.c_uint32(int(max_iters)),
         out,
         ws,
-        ctypes.c_size_t(9 * n),
+        ctypes.c_size_t(ctypes.sizeof(ws)),
         tramp, None,
     )
     if box.get("exc") is not None:
@@ -16351,6 +16657,126 @@ def recursive_cut_c(n, edges_path, work_dir, max_tome, max_iters, max_depth,
         slot = raw[i * RECURSIVE_CUT_PATH_MAX:(i + 1) * RECURSIVE_CUT_PATH_MAX]
         out_paths.append(slot.split(b"\x00", 1)[0].decode("utf-8"))
     return out_paths, [int(sizes[i]) for i in range(count)], rc == SRMECH_CANCELLED
+
+
+def has_native_genome_graph_partition() -> bool:
+    """True iff the §100 G3 (rc321, task #904) WHOLE-OP graph-partition C peer is
+    loaded + bound: ``srmech_genome_graph_partition`` runs recursive_cut + the
+    exact-integer participation + the antimode DECISION + per-node classify + group
+    assembly ALL in C, so a bare-C host builds the whole genome_partition. Before
+    rc321 only recursive_cut was native and the participation/antimode/groups read
+    was Python-only — exactly the §100 G3 parity gap. False on a no-C or pre-rc321
+    lib — the pure ``srmech.amsc.genome.genome_partition`` body is the complete
+    byte-parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_graph_partition")
+                and hasattr(LIB, "srmech_genome_graph_partition_arena_bytes"))
+
+
+def genome_graph_partition_c(n, edges_path, work_dir, max_tome, n_bins, max_iters,
+                             max_depth, paths_cap, progress=None):
+    """§100 G3 native dispatch for :func:`srmech.amsc.genome.genome_partition` (the
+    GRAPH op). Runs the WHOLE partition in C: ``srmech_laplacian_recursive_cut`` over
+    ``edges_path`` (a :func:`~srmech.amsc.laplacian.write_packed_graph` edge file),
+    then the exact-integer participation, the antimode histogram DECISION, per-node
+    classify and group assembly.
+
+    Returns a dict of the partition read-out — ``community`` (per node), ``participation``
+    (per node, exact reduced pairs), ``counts`` (the histogram), ``antimode``,
+    ``one_dna_type``, ``node_counts``, ``groups`` (each with reduced participation), and
+    ``n_communities`` — OR ``None`` when the symbol is absent / the C op declines (the
+    caller then takes the pure body, the byte-parity oracle). ``progress`` threads the
+    §101 partition heartbeat through the tick trampoline; a truthy return CANCELS -> the
+    C op returns SRMECH_CANCELLED and this returns ``{"cancelled": True, ...}`` with only
+    the (valid coarser) community assignment. An exception in ``progress`` is caught
+    before it crosses the C frames and re-raised here."""
+    if not has_native_genome_graph_partition():
+        return None
+    if (not isinstance(n, int) or isinstance(n, bool) or n < 0 or n > 0xFFFF_FFFF
+            or not isinstance(n_bins, int) or isinstance(n_bins, bool) or n_bins < 2):
+        return None
+    pc = int(paths_cap)
+    groups_cap = 2 * pc
+    need = LIB.srmech_genome_graph_partition_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(0), ctypes.c_uint32(int(n_bins)),
+        ctypes.c_size_t(pc))
+    n_doubles = (int(need) + 7) // 8
+    ws = (ctypes.c_double * max(n_doubles, 1))()
+    community = (ctypes.c_uint32 * max(n, 1))()
+    part_num = (ctypes.c_uint64 * max(n, 1))()
+    part_den = (ctypes.c_uint64 * max(n, 1))()
+    counts = (ctypes.c_uint64 * int(n_bins))()
+    g_comm = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_type = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_size = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_num = (ctypes.c_uint64 * max(groups_cap, 1))()
+    g_den = (ctypes.c_uint64 * max(groups_cap, 1))()
+    g_members = (ctypes.c_uint32 * max(n, 1))()
+    result = _GenomeGraphPartitionResult()
+    box: dict = {}
+    tramp = (_make_tick_trampoline(progress, box) if progress is not None
+             else ctypes.cast(None, _TICK_CFUNCTYPE))
+    rc = LIB.srmech_genome_graph_partition(
+        ctypes.c_uint32(n),
+        str(edges_path).encode("utf-8"),
+        str(work_dir).encode("utf-8"),
+        ctypes.c_uint32(int(max_tome)),
+        ctypes.c_uint32(int(n_bins)),
+        ctypes.c_uint32(int(max_iters)),
+        ctypes.c_uint32(int(max_depth)),
+        community, part_num, part_den, counts,
+        g_comm, g_type, g_size, g_num, g_den, g_members,
+        ctypes.c_uint32(groups_cap),
+        ctypes.byref(result),
+        ws, ctypes.c_size_t(int(need)),
+        tramp, None,
+    )
+    if box.get("exc") is not None:
+        raise box["exc"]                    # re-raise the callback's own exception
+    if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+        return None
+    n_comm = int(result.n_communities)
+    community_list = [int(community[v]) for v in range(n)]
+    if rc == SRMECH_CANCELLED or result.cancelled:
+        return {"cancelled": True, "n_communities": n_comm,
+                "community": community_list}
+
+    def _opt(x):
+        return None if int(x) < 0 else int(x)
+
+    groups = []
+    off = 0
+    for gi in range(int(result.n_groups)):
+        sz = int(g_size[gi])
+        nodes = [int(g_members[off + j]) for j in range(sz)]
+        off += sz
+        groups.append({
+            "community": int(g_comm[gi]),
+            "type": "nuclear" if int(g_type[gi]) == 0 else "plasmid",
+            "nodes": nodes, "size": sz,
+            "participation": (int(g_num[gi]), int(g_den[gi])),
+        })
+    one_dna = int(result.one_dna_type)
+    one_dna_type = None if one_dna < 0 else ("nuclear" if one_dna == 0 else "plasmid")
+    return {
+        "cancelled": False,
+        "n_communities": n_comm,
+        "community": community_list,
+        "participation": [(int(part_num[v]), int(part_den[v])) for v in range(n)],
+        "counts": [int(counts[b]) for b in range(int(n_bins))],
+        "antimode": {
+            "bimodal": bool(result.bimodal),
+            "threshold_bin": _opt(result.threshold_bin),
+            "peak_low_bin": _opt(result.peak_low_bin),
+            "peak_high_bin": _opt(result.peak_high_bin),
+            "valley_count": _opt(result.valley_count),
+            "gap": int(result.gap),
+        },
+        "one_dna_type": one_dna_type,
+        "node_counts": {"nuclear": int(result.node_nuclear),
+                        "plasmid": int(result.node_plasmid)},
+        "groups": groups,
+    }
 
 
 def has_native_k_extreme_modes() -> bool:
@@ -17742,6 +18168,28 @@ def has_native_genome_section_counts() -> bool:
                 and hasattr(LIB, "srmech_genome_section_counts"))
 
 
+def has_native_genome_discrete_writhe() -> bool:
+    """True iff the rc313 srmech_genome_discrete_writhe C peer is loaded + bound:
+    a bare-C host computes the exact-INTEGER directional writhe of a supplied 3D
+    rational embedding over the srmech_bigint determinant surface. False on a
+    no-C or pre-rc313 lib — the pure srmech.amsc.genome.discrete_writhe body is
+    the complete byte-identical alternative (integer determinants) + oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_discrete_writhe")
+                and hasattr(LIB, "srmech_genome_discrete_writhe_arena_bytes"))
+
+
+def has_native_genome_cwf_consistency_mod2() -> bool:
+    """True iff the rc313 srmech_genome_cwf_consistency_mod2 whole-op C peer is
+    loaded + bound: a bare-C host runs the WHOLE mod-2 CWF check (orchestrating
+    the holonomy + discrete-writhe C ops). False on a no-C or pre-rc313 lib —
+    the pure srmech.amsc.genome.cwf_consistency_mod2 body (composing the two ops
+    in Python) is the complete byte-identical alternative + oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_cwf_consistency_mod2")
+                and hasattr(LIB, "srmech_genome_cwf_consistency_mod2_arena_bytes"))
+
+
 def has_native_file_open_counter() -> bool:
     """True iff the rc296 PAL read-path open counter is loaded + bound.
 
@@ -17777,14 +18225,20 @@ def file_opens_reset_c() -> None:
     LIB.srmech_plat_file_opens_reset()
 
 
-#: The rc280 section-counts first-call output capacity (distinct global ids). A store
-#: with more distinct ids reports its true need via ``n_out`` and the call is retried
-#: once at exactly that size — so the arena is never over-allocated for a small store
-#: nor short for a corpus-scale one.
+#: The rc280 section-counts first-call distinct-id capacity. It sizes BOTH the out
+#: arrays AND (rc306) the C count table + caller ws, which is why the two overflow on
+#: the SAME knob: a store with more distinct ids reports its true need via ``n_out``
+#: (an exact retry) or overflows the table mid-scan (a geometric grow), and each retry
+#: re-sizes ws — so the arena is never over-allocated for a small store nor short for
+#: a corpus-scale one, with no compiled-in ceiling.
 _SECTION_COUNTS_CAP0: int = 1 << 16
+#: Bound on the retry-grow loop (geometric *4 on a table overflow) so a pathological
+#: input degrades to a pure-body DECLINE rather than looping forever.
+_SECTION_COUNTS_MAX_ATTEMPTS: int = 12
 
 
-def genome_section_counts_c(store, coupling, leaf_dim, progress=None):
+def genome_section_counts_c(store, coupling, leaf_dim, progress=None,
+                            *, body_len=None, n_chroms=None):
     """Native §102/rc280 section-count derivation (parity peer
     ``srmech_genome_section_counts``): scan a plasmid section store and return
     ``(ids, counts, n_done, cancelled)`` — ``ids`` ascending, ``counts[i]`` the number
@@ -17794,20 +18248,45 @@ def genome_section_counts_c(store, coupling, leaf_dim, progress=None):
     ``node_ids`` prefix of the region — never the edge bytes — which is what makes the
     scan O(P × node_ids) instead of O(P² × body). ``progress`` is the Python-only §101
     tick (a truthy return CANCELS at a section boundary; the partial counts still come
-    back, and the Python caller raises rather than returning them). Returns ``None`` to
-    DECLINE (symbol absent / bad shape / arena overflow) so the pure body runs.
-    Value-identical to the pure ``section_counts``."""
+    back, and the Python caller raises rather than returning them).
+
+    **rc306 (task #899) — the caller supplies the arena.** The C op no longer owns a
+    32 MiB static catalog arena (which capped the corpus at ~11k sections) or a static
+    count table / window. This binding sizes ``ws`` with the C
+    ``srmech_genome_section_counts_arena_bytes(body_len, n_chroms, cap)`` helper — so
+    ``body_len`` (turns.bin bytes) and ``n_chroms`` (manifest chromosome count incl.
+    vocab) are REQUIRED to run native; without them this DECLINES to the pure body. On
+    a count-table / out-array overflow it grows ``cap`` and re-sizes ``ws`` (exact when
+    the table held the ids and only the out arrays were short; geometric otherwise) so
+    a corpus with any number of distinct ids censuses natively given enough memory.
+
+    Returns ``None`` to DECLINE (symbol absent / bad shape / unsizable arena) so the
+    pure body runs. Value-identical to the pure ``section_counts``."""
     if not has_native_genome_section_counts():
         return None
+    if not (LIB is not None
+            and hasattr(LIB, "srmech_genome_section_counts_arena_bytes")):
+        return None                       # rc306 ws-sizing helper is required
     try:
         dim = int(leaf_dim)
         one = bytes(coupling)
         if dim <= 0 or dim > 256 or len(one) != dim:
             return None
+        if body_len is None or n_chroms is None:
+            return None                   # the caller must size the arena (see above)
+        blen = int(body_len)
+        nchr = int(n_chroms)
+        if blen < 0 or nchr < 0:
+            return None
         path = str(store).encode("utf-8")
         one_arr = (ctypes.c_uint8 * dim)(*one)
         cap = _SECTION_COUNTS_CAP0
-        for _attempt in (0, 1):
+        for _attempt in range(_SECTION_COUNTS_MAX_ATTEMPTS):
+            ws_len = int(LIB.srmech_genome_section_counts_arena_bytes(
+                ctypes.c_size_t(blen), ctypes.c_uint32(nchr), ctypes.c_size_t(cap)))
+            if ws_len <= 0:
+                return None
+            ws = (ctypes.c_char * ws_len)()
             ids = (ctypes.c_uint64 * cap)()
             cnts = (ctypes.c_uint64 * cap)()
             n_out = ctypes.c_size_t(0)
@@ -17819,12 +18298,17 @@ def genome_section_counts_c(store, coupling, leaf_dim, progress=None):
                 path,                       # bytes -> NUL-terminated const char *
                 one_arr, ctypes.c_uint32(dim),
                 tick, None,
+                ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
                 ids, cnts, ctypes.c_size_t(cap),
                 ctypes.byref(n_out), ctypes.byref(n_done))
             if box.get("exc") is not None:
                 raise box["exc"]
-            if rc == SRMECH_ERR_OVERFLOW and int(n_out.value) > cap:
-                cap = int(n_out.value)          # the peer reported its TRUE need
+            if rc == SRMECH_ERR_OVERFLOW:
+                need = int(n_out.value)
+                if need > cap:
+                    cap = need              # table held the ids; out arrays were short — exact retry
+                else:
+                    cap = cap * 4 + 1       # count table / ws too small — grow geometrically
                 continue
             if rc not in (SRMECH_OK, SRMECH_CANCELLED):
                 return None
@@ -18084,6 +18568,41 @@ def genome_recall_c(strand: bytes, n_blocks: int, leaf_dim: int, coupling: bytes
     out = (ctypes.c_uint8 * cap)()
     n_out = ctypes.c_size_t(0)
     rc = LIB.srmech_genome_recall(
+        _u8(strand), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(coupling), out, ctypes.c_size_t(n_blocks * leaf_dim),
+        ctypes.byref(n_out))
+    if rc != SRMECH_OK:
+        return None
+    n = int(n_out.value)
+    return bytes(out[:n * leaf_dim]), n
+
+
+def has_native_genome_recall_q8() -> bool:
+    """True iff the §Q8/rc311 srmech_genome_recall_q8 C peer is loaded + bound. False on a
+    no-C or pre-rc311 lib — the pure ``recall(..., element_type=ELEMENT_TYPE_Q8)`` walk (each
+    turn via the natively-accelerated q8_bind/q8_conjugate) is the complete alternative +
+    parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_recall_q8"))
+
+
+def genome_recall_q8_c(strand: bytes, n_blocks: int, leaf_dim: int, coupling: bytes):
+    """Native §Q8/rc311 Q8-path recall (parity peer ``srmech_genome_recall_q8``): walk the
+    ``n_blocks`` fixed-width ``leaf_dim``-byte blocks of ``strand``, skip every cap, and
+    DECOUPLE each Q₈ data turn by the group inverse ``q8_mult(stored, q8_conjugate(one))``
+    (NON-abelian, so NOT a second bind). Returns ``(leaf_bytes, n_leaves)``, or ``None`` when
+    the symbol is absent OR the inputs do not fit the fast path (width mismatch, a data-turn
+    byte > 7) — the caller then runs the exact pure Python. Byte-identical to ``recall`` with
+    ``element_type=ELEMENT_TYPE_Q8``."""
+    if not has_native_genome_recall_q8():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(coupling) != leaf_dim
+            or len(strand) != n_blocks * leaf_dim):
+        return None
+    cap = max(n_blocks * leaf_dim, 1)
+    out = (ctypes.c_uint8 * cap)()
+    n_out = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_recall_q8(
         _u8(strand), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
         _u8(coupling), out, ctypes.c_size_t(n_blocks * leaf_dim),
         ctypes.byref(n_out))
@@ -18399,6 +18918,38 @@ def genome_recover_diploid_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
     out = (ctypes.c_uint8 * cap)()
     n_out = ctypes.c_size_t(0)
     rc = LIB.srmech_genome_recover_diploid(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(coupling), out, ctypes.c_size_t(cap), ctypes.byref(n_out))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:int(n_out.value) * leaf_dim])
+
+
+def has_native_genome_recover_diploid_q8() -> bool:
+    """True iff the §Q8/rc311 srmech_genome_recover_diploid_q8 C peer is loaded + bound. False
+    on a no-C or pre-rc311 lib — the pure ``recover_diploid(..., element_type=ELEMENT_TYPE_Q8)``
+    two-copy EC is the complete alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_recover_diploid_q8"))
+
+
+def genome_recover_diploid_q8_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int,
+                                coupling: bytes):
+    """Native §Q8/rc311 Q8-path DIPLOID recover (parity peer ``srmech_genome_recover_diploid_q8``):
+    split at the interior centromere into copyA | copyB and error-correct per leaf, DECOUPLING
+    each Q₈ turn by the group inverse ``q8_mult(stored, q8_conjugate(one))``. Returns the
+    recovered leaf bytes (``n_leaves * leaf_dim``), or ``None`` when the symbol is absent OR the
+    inputs do not fit the fast path. Byte-identical to ``recover_diploid`` with
+    ``element_type=ELEMENT_TYPE_Q8``."""
+    if not has_native_genome_recover_diploid_q8():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(coupling) != leaf_dim
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    cap = max(n_blocks * leaf_dim, 1)
+    out = (ctypes.c_uint8 * cap)()
+    n_out = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_recover_diploid_q8(
         _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
         _u8(coupling), out, ctypes.c_size_t(cap), ctypes.byref(n_out))
     if rc != SRMECH_OK:
@@ -19168,7 +19719,90 @@ def genome_pack_c(loose_dir: str, dest: str, coupling: bytes) -> None:
         raise NativeGenomeError("srmech_genome_pack", rc)
 
 
+# ----------------------------------------------------------------------
+# rc300 (`#938`) — CLAIM RESOLUTION: is the C path we advertise really here?
+#
+# Every native dispatch site in the package is gated on
+# ``hasattr(LIB, "srmech_x")``, and a missing symbol routes to the pure-Python
+# path. The ANSWERS stay correct — those fallbacks are complete alternatives —
+# but the Rosetta ledger's ``c_dispatched`` classification ("routes to a
+# ``srmech_*`` C symbol") becomes FALSE, and before rc300 nothing anywhere said
+# so. rc299 reclassified ``laplacian.mat_eigvals`` to ``c_dispatched``; its
+# dispatch site is precisely such a gate.
+#
+# ABI matching does NOT already cover this. The header adds symbols
+# ABI-additively — "new symbols only, so SRMECH_ABI_VERSION stays N" recurs
+# roughly a hundred times in srmech.h — so ABI 8 pins the WIRE FORMAT of the
+# existing exports, not the symbol SET. A stale-but-ABI-8 library is therefore a
+# reachable state, not a hypothetical one, and it degrades silently.
+#
+# This reports rather than raises, deliberately. The pure wheel ships no library
+# at all (``HAS_NATIVE`` False), and a stale library still computes correct
+# answers via its fallbacks; raising at import would break both for a condition
+# that is a build defect, not a correctness defect. The loud failure belongs in
+# the test suite (tests/test_c_claim_resolution_rc300.py), which fails on any
+# unresolved claim; this surface makes the same fact legible at runtime — to a
+# human, and to an LLM driving the MCP surface that currently cannot tell
+# whether the C path it was promised actually exists.
+# ----------------------------------------------------------------------
+
+def c_claim_report() -> "dict":
+    """Check every ``c_dispatched`` claim against the LOADED library.
+
+    Resolves each C symbol named in :data:`srmech.amsc._c_claims.C_CLAIMS`
+    against the library this process actually loaded, so a partial or stale
+    build becomes a named, enumerable inconsistency instead of a silent
+    fallback to the pure path.
+
+    Returns
+    -------
+    dict
+        ::
+
+            {"native": <bool>,          # is a library loaded + ABI-matched?
+             "checked_ops": <int>,      # ops whose symbols were resolved
+             "checked_symbols": <int>,  # distinct symbols resolved
+             "unresolved": {<op>: [<missing symbol>, ...]},
+             "unverifiable": <int>,     # ops with no attributable symbol
+             "consistent": <bool>}      # no claim contradicted by this library
+
+    On a pure install (``HAS_NATIVE`` False) there is no library and therefore
+    no claim to contradict: ``consistent`` is True and ``unresolved`` empty.
+    That is not a vacuous pass being dressed up as a real one — ``native``
+    False is reported alongside it, and the ops legitimately run pure.
+    """
+    from ._c_claims import C_CLAIMS, UNVERIFIABLE_CLAIMS
+
+    if not (HAS_NATIVE and LIB is not None):
+        return {
+            "native": False,
+            "checked_ops": 0,
+            "checked_symbols": 0,
+            "unresolved": {},
+            "unverifiable": len(UNVERIFIABLE_CLAIMS),
+            "consistent": True,
+        }
+
+    unresolved = {}
+    resolved = set()
+    for op, symbols in C_CLAIMS.items():
+        missing = [s for s in symbols if not hasattr(LIB, s)]
+        if missing:
+            unresolved[op] = missing
+        resolved.update(s for s in symbols if s not in missing)
+
+    return {
+        "native": True,
+        "checked_ops": len(C_CLAIMS),
+        "checked_symbols": len(resolved),
+        "unresolved": dict(sorted(unresolved.items())),
+        "unverifiable": len(UNVERIFIABLE_CLAIMS),
+        "consistent": not unresolved,
+    }
+
+
 __all__ = [
+    "c_claim_report",
     "ABI_VERSION",
     "BUS_HANDLER_CALLBACK",
     "CASCADE_BODY_CALLBACK_F64",

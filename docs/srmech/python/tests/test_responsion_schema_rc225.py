@@ -355,14 +355,14 @@ def test_generated_table_holds_every_edge() -> None:
 
 # ── 7. registration ───────────────────────────────────────────────────────────
 
-def test_tool_entry_registered_and_total_is_413() -> None:
+def test_tool_entry_registered_and_total_matches_live() -> None:
     schema = get_tool_schema()
     entry = schema.lookup("srmech.amsc.responsion_schema.responsion_schema")
     assert entry is not None
     assert entry.category == "responsion_schema"
     assert "k=3" in entry.summary
     assert "EDGE" in entry.summary
-    assert len(schema.tools) == 466
+    assert len(schema.tools) == 492
 
 
 def test_rosetta_row_is_composes_c() -> None:
@@ -377,10 +377,10 @@ def test_rosetta_row_is_composes_c() -> None:
     assert row[0]["non_compute_kind"] == "composes_c"
 
 
-def test_describe_total_is_413() -> None:
+def test_describe_total_matches_live() -> None:
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 466
+    assert introspect.describe()["tools"]["total"] == 492
 
 
 def test_within_edge_order_is_deterministic() -> None:

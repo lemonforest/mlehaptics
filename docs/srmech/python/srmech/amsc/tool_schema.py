@@ -194,6 +194,25 @@ class ToolEntry:
     #: Human-readable reason a tool is ``mcp_callable=False`` (surfaced to
     #: introspection consumers). ``None`` for callable tools.
     mcp_unavailable_reason: Optional[str] = None
+    #: v0.9.0rc305 (`#943`) — the Siona compose-a-cascade capstone. ``describe()``
+    #: / ``example`` are PER-OP; a cascade is CROSS-OP. These two fields carry the
+    #: chaining knowledge that otherwise lives only in CHANGELOG prose Siona
+    #: cannot read as data.
+    #:
+    #: ``composes`` — the ORDERED sub-ops this op is built from (or that a
+    #: declared cascade chains). Empty for a LEAF op (the correct default); the
+    #: call-order sequence of registered op names for a composite. Every listed
+    #: name MUST be a real registered tool (the `#943` claim-is-true contract —
+    #: ``test_composes_preserves_rc305.py`` fails otherwise). C-mirrored
+    #: (``srmech_tool_entry_t.composes``) → flows through the tool_schema_sha256
+    #: attestation like ``summary``/``example``.
+    composes: Tuple[str, ...] = ()
+    #: ``preserves`` — the INVARIANTS an op / cascade maintains (e.g. "byte-exact
+    #: per-community round-trip via kernel_to_graph"). The guarantees a composer
+    #: respects and a verifier checks. Each entry is a non-empty claim string.
+    #: Empty for a leaf op with no stated invariant. C-mirrored
+    #: (``srmech_tool_entry_t.preserves``).
+    preserves: Tuple[str, ...] = ()
 
     def to_jsonable(self) -> Dict[str, Any]:
         """Render as a JSON-serialisable dict. Used by
@@ -216,6 +235,14 @@ class ToolEntry:
             out["explanation"] = self.explanation
         if self.mcp_unavailable_reason is not None:
             out["mcp_unavailable_reason"] = self.mcp_unavailable_reason
+        # v0.9.0rc305 (`#943`): the compose/preserve layer. Optional keys —
+        # omitted when empty (the leaf-op default), mirroring the C serialiser's
+        # key-omission (ts_emit_entry) so the byte-identity contract holds. A
+        # JSON array of op-name / invariant strings, order-preserving.
+        if self.composes:
+            out["composes"] = list(self.composes)
+        if self.preserves:
+            out["preserves"] = list(self.preserves)
         return out
 
 
@@ -317,9 +344,9 @@ except Exception:  # noqa: BLE001
 
 def _apply_docs(entry: ToolEntry) -> ToolEntry:
     """Merge the generated `_TOOL_DOCS` floor into a ToolEntry: fill
-    ``explanation`` / ``example`` only when the entry does not already carry
-    its own (a hand-written literal on the registration always wins). No-op
-    when the tool has no docs entry."""
+    ``explanation`` / ``example`` / ``composes`` / ``preserves`` only when the
+    entry does not already carry its own (a hand-written literal on the
+    registration always wins). No-op when the tool has no docs entry."""
     doc = _TOOL_DOCS.get(entry.name)
     if not doc:
         return entry
@@ -327,9 +354,19 @@ def _apply_docs(entry: ToolEntry) -> ToolEntry:
     expl = entry.explanation if entry.explanation is not None \
         else doc.get("explanation")
     ex = entry.example if entry.example is not None else doc.get("example")
-    if expl is entry.explanation and ex is entry.example:
+    # v0.9.0rc305 (`#943`): the compose/preserve layer rides the same
+    # curation floor as explanation/example. A non-empty tuple on the
+    # registration wins; else the curated list (coerced to a tuple so the
+    # ToolEntry stays hashable / frozen-friendly) fills in.
+    composes = entry.composes if entry.composes \
+        else tuple(doc.get("composes", ()))
+    preserves = entry.preserves if entry.preserves \
+        else tuple(doc.get("preserves", ()))
+    if (expl is entry.explanation and ex is entry.example
+            and composes == entry.composes and preserves == entry.preserves):
         return entry
-    return replace(entry, explanation=expl, example=ex)
+    return replace(entry, explanation=expl, example=ex,
+                   composes=composes, preserves=preserves)
 
 
 def register_tool(entry: ToolEntry) -> None:
@@ -798,15 +835,18 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.cyclic.mod_mul", owner="srmech", category="cyclic",
-            summary="(a * b) mod n via russian-peasant doubling; portable "
-                    "across platforms without __int128.",
+            summary="Modular multiply — (a * b) mod n — overflow-safe via "
+                    "russian-peasant doubling; portable across platforms "
+                    "without __int128. Capped at uint64; use mod_mul_wide for "
+                    "a wider modulus (e.g. the 128-bit PCG64 step).",
             parameters=(P("a", "int", True), P("b", "int", True),
                         P("n", "int", True, "modulus > 0")),
             returns=R("int", "in [0, n)"),
         ),
         ToolEntry(
             name="srmech.amsc.cyclic.mod_pow", owner="srmech", category="cyclic",
-            summary="(a ** k) mod n via square-and-multiply.",
+            summary="Modular exponentiation — (a ** k) mod n — via "
+                    "square-and-multiply. Bounded by uint64.",
             parameters=(P("a", "int", True), P("k", "int", True),
                         P("n", "int", True, "modulus > 0")),
             returns=R("int", "in [0, n)"),
@@ -817,6 +857,33 @@ def _register_primitive_class_tools() -> None:
                     "Requires gcd(a, n) == 1 and n ≤ INT64_MAX.",
             parameters=(P("a", "int", True), P("n", "int", True)),
             returns=R("int", "in [1, n)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.bigint_mul", owner="srmech", category="cyclic",
+            summary="Bignum multiply — the uncapped integer product a * b "
+                    "(arbitrary precision) on srmech's own C bignum "
+                    "(srmech_bigint_mul); the building block a > 64-bit "
+                    "modular cascade (the PCG64 step) needs before the "
+                    "mod-reduce. No uint64 cap; Python a*b fallback when "
+                    "native is absent.",
+            parameters=(P("a", "int", True), P("b", "int", True)),
+            returns=R("int", "the exact product a * b"),
+            smoke_test_hint={"a": "6", "b": "7"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cyclic.mod_mul_wide", owner="srmech",
+            category="cyclic",
+            summary="Wide modular multiply — (a * b) mod n with NO uint64 cap "
+                    "(the 128-bit-capable modular multiply). Routes the "
+                    "product through srmech's C bignum (srmech_bigint_mul) "
+                    "and reduces mod n, so a > 64-bit modulus (the raw PCG64 "
+                    "LCG step at n = 2**128) is expressible where the capped "
+                    "mod_mul cannot. a / b non-negative, n > 0, any width.",
+            parameters=(P("a", "int", True, "non-negative, any width"),
+                        P("b", "int", True, "non-negative, any width"),
+                        P("n", "int", True, "modulus > 0, any width")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "2**64", "b": "3", "n": "2**128"},
         ),
         # ────────────────────────────────────────────────────────────
         # Class I — modular linear algebra: GF(p) reduced row-echelon form
@@ -1123,6 +1190,62 @@ def _register_primitive_class_tools() -> None:
                           "(len(charges) == len(edges)); (u,v,c) ≡ (v,u,−c); "
                           "mutually exclusive with q")),
             returns=R("Mat", "n × n complex Hermitian matrix (numpy-free Mat)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.quaternion_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Quaternion (ℍ) gain Laplacian — the ASSOCIATIVE dim-4 rung "
+                    "of magnetic_laplacian (the ℂ dim-2 complex-unit-gain "
+                    "Laplacian). A 4n×4n REAL-SYMMETRIC matrix whose (u,v) block "
+                    "is the 4×4 real left-mult rep L(g) of a unit-quaternion "
+                    "gain g∈Sp(1), (v,u) block L(conj g)=L(g)ᵀ, diagonal block "
+                    "(Σ w/2)·I₄. Feed to mat_hermitian_eigendecompose. TWO "
+                    "spectral facts: the spectrum is GAUGE-INVARIANT under the "
+                    "node-wise unit-quaternion gauge g_uv→s_u·g_uv·conj(s_v) "
+                    "(~3.3e-15; the ℍ generalisation of the U(1) gauge "
+                    "invariance), and every eigenvalue is ×4 DEGENERATE (a "
+                    "THEOREM: ℍ associativity ⇒ the left-built matrix commutes "
+                    "with the fixed right-ℍ Sp(1) commutant — callers dedupe "
+                    "every 4th). gains=None → identity gain (½·dense-L ⊗ I₄). "
+                    "Class L composing Class-M quaternion_left_mult "
+                    "(srmech_quaternion_left_mult); no new C symbol. DERIVED: "
+                    "Reff (2012) LAA 436, 3165–3176 (arXiv:1110.4554) one "
+                    "Cayley–Dickson rung up; ℍ per Baez (2002) "
+                    "arXiv:math/0105155 §1.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("gains", "Optional[list[list[float]]]", False,
+                          "per-edge unit quaternions (4-vectors) parallel to "
+                          "edges; default identity gain (1,0,0,0); normalised "
+                          "to Sp(1) via quaternion_norm")),
+            returns=R("Mat",
+                      "4n × 4n real-symmetric quaternion gain Laplacian "
+                      "(numpy-free Mat)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.hypercomplex_perspectives",
+            owner="srmech", category="laplacian",
+            summary="Split each eigenvector into a scalar channel e0 + (dim−1) "
+                    "imaginary phase channels — the hypercomplex reader for "
+                    "quaternion_laplacian (dim=4, ℍ, 4=1+3) that ALSO closes "
+                    "the latent dim-2 read of magnetic_laplacian (dim=2, ℂ, "
+                    "2=1+1). eigvecs is the (N×M) eigenvector Mat (columns = "
+                    "eigenvectors, the 2nd return of "
+                    "mat_hermitian_eigendecompose). dim=2 → each complex entry "
+                    "is one number (e0=re, e1=im); dim=4 → each block of 4 real "
+                    "entries is one quaternion at one node (e0 scalar, e1/e2/e3 "
+                    "imaginary axes); dim=1 → real scalar. Returns a dict "
+                    "{dim, n_vectors, n_blocks, channel_names, vectors} with one "
+                    "channel-dict per eigenvector. Class L (spectral read-out; a "
+                    "pure structural split).",
+            parameters=(P("eigvecs", "Mat", True,
+                          "the (N×M) eigenvector Mat (columns = eigenvectors)"),
+                        P("dim", "int", False,
+                          "real components per hypercomplex unit: 1 (ℝ), 2 (ℂ) "
+                          "or 4 (ℍ); default 4")),
+            returns=R("dict",
+                      "{dim, n_vectors, n_blocks, channel_names, vectors}"),
         ),
         # ────────────────────────────────────────────────────────────
         # rc229 (#687) — the fuller asymmetric-halves lattice handle: the
@@ -2005,12 +2128,18 @@ def _register_primitive_class_tools() -> None:
             owner="srmech", category="laplacian",
             summary="Numpy-FREE eigenvalue multiset of a general (non-Hermitian) "
                     "square matrix over the Mat carrier (carrier-removal #564, "
-                    "foundation #4): a Wilkinson-shifted QR iteration in plain "
-                    "complex with per-step Householder QR and the RQ recombine "
-                    "routed through the native mat_matmul; n=1/2 closed form. "
-                    "Multiset matches NumPy eigvals to ~1e-9. Prefer "
+                    "foundation #4): radix-2 balancing, Householder reduction to "
+                    "upper-Hessenberg form, then a Wilkinson-shifted QR iteration "
+                    "with EISPACK exceptional shifts on the active block; n=1/2 "
+                    "closed form. Native-dispatched to srmech_mat_eigvals_ws "
+                    "(rc299) — the whole-op C peer, so a bare-C host runs this "
+                    "too; the pure sweep is the complete fallback. NUMERIC "
+                    "(FPU-tol) parity: bit-exact against the pure projection on "
+                    "real symmetric input, ~1e-14 relative on general complex "
+                    "(the one divergence is the exact-rational vs scaled-float "
+                    "modulus). Multiset matches NumPy eigvals to ~1e-9. Prefer "
                     "mat_hermitian_eigendecompose for Hermitian A. Golub & Van "
-                    "Loan §7.5.",
+                    "Loan §7.4.3 + §7.5 + §7.5.1.",
             parameters=(P("a", "Mat", True,
                           "n × n real or complex Mat (square, any non-Hermitian)"),),
             returns=R("list[complex]",
@@ -2395,9 +2524,15 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.rational.best_rational", owner="srmech",
             category="rational",
             summary="Best rational p'/q' with q' ≤ max_denominator approximating "
-                    "p/q via continued-fraction convergents (Stern-Brocot path).",
-            parameters=(P("numerator", "int", True), P("denominator", "int", True),
-                        P("max_denominator", "int", True, "> 0")),
+                    "p/q via continued-fraction convergents (Stern-Brocot path). "
+                    "Inputs are non-negative ints with NO uint64 ceiling (#898): "
+                    "u64-fit inputs take the fast native path (byte-identical to "
+                    "the pure walk); a bignum coordinate (> 2**64 — e.g. an exact "
+                    "Class-N log anchor) carries Python bigints, bounded only by "
+                    "max_denominator (Lamé caps the CF depth).",
+            parameters=(P("numerator", "int", True, "≥ 0; arbitrary magnitude"),
+                        P("denominator", "int", True, "> 0; arbitrary magnitude"),
+                        P("max_denominator", "int", True, "> 0; arbitrary magnitude")),
             returns=R("tuple[int, int]", "(p', q')"),
         ),
         # ────────────────────────────────────────────────────────────
@@ -2538,31 +2673,40 @@ def _register_primitive_class_tools() -> None:
                       "((sn_num, sn_den), (cn_num, cn_den), (dn_num, dn_den)) reduced"),
         ),
         ToolEntry(
+            name="srmech.amsc.rational.relative_writhe", owner="srmech", category="rational",
+            summary="rc317 (#1308) — Fuller's Second-Theorem exact-rational RELATIVE WRITHE Wr(C)-Wr(C0), the single-integral peer of the O(n^2) discrete_writhe double sum. Given two closed polygonal curves as EXACT-RATIONAL 3D vertices (int / Fraction / (num,den) per coord; floats rejected), reference=C0 (base) and embedding=C (deformed), it evaluates Fuller's single integral (1/2pi) oint (t0 x t).d(t0+t)/(1+t0.t) ds over the closed polygon, t0/t the central-difference UNIT tangents. CERTIFIED TRUNCATION, NOT the exact writhe: the true relative writhe is generically TRANSCENDENTAL (the pi normalisation + irrational unit-tangent lengths), so it returns an EXACT rational + a STATED remainder_bound on |value-true| — a Class-N best_rational anchor across the writhe's inharmonic responsion seam (F1308). DUAL-PRECISION contract (rc317 PILOT): precision=None -> PLATFORM-BOUNDED (value's num/den ride a native int64 word; the fast hardware-last-mile read; FLOAT-FREE, a bounded rational); precision=P int -> SRMECH-NATIVE BIGINT lengthed by P (remainder_bound ~ 2^-P tightening MONOTONICALLY; the bigint num/den lengthen with P). The +/-2 obstruction (antipodal_events flags the near-antipodal band 1+t0.t < 2^-4; for TRUE unit tangents 1+t0.t in [0,2], =0 only at the exact measure-zero antipode, so the literal <=0 the float spike reads via FP rounding is degenerate under exact rationals) IS the SAME Z->>Z/2 (kernel 2Z) reduction cwf_consistency_mod2 reads via the Q8 center-parity — the SO(3)/SU(2) double cover, a writhe +/-2 vs a spinor sign (DERIVED/argued; the integer lift needs the O(n^2) discrete_writhe). Class N (rational sqrt / pi-cascade / best_rational) . Class K (sign-branch magnitudes + antipodal pole detection, never abs()) . Class I (cyclic wrap); float NOWHERE (atan2 excluded — it projects to float; atan_series_truncate's angle reformulation is a different discretisation). composition_of_c (sqrt/pi/best_rational are C-backed): NO new C symbol, ABI stays 10, GENOME_FORMAT_VERSION stays 16 (a pure geometry READ). CAD-ban-clear: closed-form on the integer ALU, NOT mesh/FEA/GPU. Cites F. Brock Fuller PNAS 68(4):815-819 (1971, doi 10.1073/pnas.68.4.815, PMC389050) + PNAS 75(8):3557-3561 (1978, doi 10.1073/pnas.75.8.3557, PMC392823), both OA.",
+            parameters=(P("embedding", "list", True, "the deformed curve C — vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational — floats rejected)"),
+                        P("reference", "list", True, "the base curve C0 — SAME vertex count as embedding (Fuller's integral pairs t0_i with t_i by index)"),
+                        P("closed", "bool", False, "keyword-only; True (default) wraps the polygon (central-difference tangents with the P[n-1]<->P[0] closure); False = an open polyline"),
+                        P("precision", "int", False, "keyword-only; None (default) -> the platform-bounded projection; a positive int P -> the srmech-native bigint projection lengthed by P")),
+            returns=R("dict", "{value:(num,den) the relative writhe in turns, remainder_bound:(num,den) stated bound on |value-true|, mode:'platform'|'bigint', precision:int effective bits, antipodal_events:int (steps in the near-antipodal band, the +/-2-obstruction flag), min_one_plus_dot:(num,den) the closest antiparallel approach}"),
+        ),
+        ToolEntry(
             name="srmech.amsc.rational.cos", owner="srmech", category="rational",
             summary="cos(x) (radians) via the Class-N rational cascade: range-reduce into [-π, π] with the π-cascade rational, cos Taylor partial sum, returning the EXACT rational Q (the integer-ALU value; float(q) projects to the FPU at the display edge). Substrate-native replacement for math.cos / np.cos (no math.cos in the call graph); float(q) matches libm to ~1e-15.",
             parameters=(P("x", "float", True, "angle in radians"),
-                        P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "cos(x) as an exact rational (Class-N Q carrier); float(q) projects at the display edge"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.sin", owner="srmech", category="rational",
             summary="sin(x) (radians) via the Class-N rational cascade (π-cascade range reduction + sin Taylor, returned as an EXACT rational Q). Substrate-native replacement for math.sin / np.sin; float(q) matches libm to ~1e-15.",
             parameters=(P("x", "float", True, "angle in radians"),
-                        P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "sin(x) as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.tan", owner="srmech", category="rational",
             summary="tan(x) = sin(x)/cos(x) via the Class-N rational cascade (raises if cos(x) == 0). Substrate-native replacement for math.tan / np.tan.",
             parameters=(P("x", "float", True, "angle in radians"),
-                        P("terms", "int", False, "Taylor terms (keyword-only); default 24")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "tan(x) = sin/cos as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.atan", owner="srmech", category="rational",
             summary="atan(x) via the Class-N atan cascade with three-band argument reduction (√2∓1 edges → every series argument |·|<=√2−1; Class-K magnitude, no abs()). Substrate-native replacement for math.atan / np.arctan; machine-ε accurate.",
             parameters=(P("x", "float", True, "argument"),
-                        P("terms", "int", False, "atan Taylor terms (keyword-only); default 40")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "atan(x) as an exact rational (Class-N Q carrier) in (-π/2, π/2)"),
         ),
         ToolEntry(
@@ -2570,42 +2714,42 @@ def _register_primitive_class_tools() -> None:
             summary="atan2(y, x) via the Class-N atan cascade with full quadrant logic. Substrate-native replacement for math.atan2 / np.arctan2; machine-ε accurate.",
             parameters=(P("y", "float", True, "ordinate"),
                         P("x", "float", True, "abscissa"),
-                        P("terms", "int", False, "atan Taylor terms (keyword-only); default 40")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "atan2(y, x) as an exact rational (Class-N Q carrier) in (-π, π]"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.exp", owner="srmech", category="rational",
             summary="e^x (real) via the Q61 Class-N exp cascade with Cody-Waite ln2 reduction (x = n*ln2 + r, |r| <= ln2/2; exp(r) the Q61 integer Taylor, 2^n folded in as an EXACT power-of-two scale → an exact rational Q, no float-collapsed recombine and no DBL_MAX overflow gate). Bit-exact with the native peer srmech_exp_q61; dispatches to C when available. Substrate-native replacement for math.exp / np.exp (real).",
             parameters=(P("x", "float", True, "real exponent"),
-                        P("terms", "int", False, "exact-rational reference Taylor terms (keyword-only); default 24")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "e^x as an exact rational (Class-N Q carrier) from the Q61 cascade"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.log", owner="srmech", category="rational",
             summary="ln(x) (natural log, x > 0) via the Q61 Class-N atanh cascade: x = m*2^e read from the bit pattern, m folded into [1/sqrt2, sqrt2), log(m) = 2*atanh((m-1)/(m+1)) the Q61 series, e*ln2 recombined exactly in the Q61 model → an exact rational Q. Bit-exact with the native peer srmech_log_q61; dispatches to C when available. Domain: x <= 0 raises ValueError (log 0 = -Inf is not a rational); non-finite raises. Substrate-native replacement for math.log / np.log (real).",
             parameters=(P("x", "float", True, "argument, x > 0"),
-                        P("terms", "int", False, "exact-rational reference Taylor terms (keyword-only); default 13")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("Q", "ln(x) as an exact rational (Class-N Q carrier) from the Q61 cascade"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.cexp", owner="srmech", category="rational",
             summary="e^(i*theta) = cos(theta) + i*sin(theta) via the Class-N cascade (Euler). Class-N trig composed with Class-C imaginary-unit rotation — the DFT twiddle factor and the quantum time-evolution phase. Substrate-native replacement for np.exp / cmath.exp of 1j*theta.",
             parameters=(P("theta", "float", True, "phase angle in radians"),
-                        P("terms", "int", False, "trig Taylor terms (keyword-only); default 24")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("complex", "e^(i*theta) on the unit circle"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.complex_exp", owner="srmech", category="rational",
             summary="e^z for complex z = e^(z.real)*(cos(z.imag) + i*sin(z.imag)) via the Class-N cascade. Class-N exp + trig composed with Class-C i-rotation. Substrate-native replacement for np.exp / cmath.exp on a complex argument.",
             parameters=(P("z", "complex", True, "complex exponent"),
-                        P("terms", "int", False, "trig Taylor terms (keyword-only); default 24")),
+                        P("precision", "int", False, "None (default) = the Q61 fast path, byte-identical to prior rcs; P>=1 = the exact-rational reference at P fractional bits, error < 2**-P (keyword-only)")),
             returns=R("complex", "e^z projected from the exact rational"),
         ),
         ToolEntry(
             name="srmech.amsc.rational.sqrt", owner="srmech", category="rational",
-            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision_bits=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
+            summary="sqrt(x) for x >= 0 via the Class-N rational sqrt cascade — IEEE-bit x = M*2^e, root = isqrt(M << 2K) (K=27), projected by 2^(e/2 - K). Bit-exact with the native peer srmech_rational_sqrt; dispatches to C. precision=N selects the higher-precision bignum reference (as_integer_ratio + scaled floor-isqrt). No math.sqrt / np.sqrt in the call graph; negative x raises a domain error.",
             parameters=(P("x", "float", True, "radicand, x >= 0"),
-                        P("precision_bits", "int", False, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade")),
+                        P("precision", "int", False, "higher-precision bignum reference (keyword-only); default None = C-bit-exact K=27 cascade")),
             returns=R("Q", "sqrt(x) as an exact rational (Class-N Q carrier) from the integer root"),
         ),
         ToolEntry(
@@ -2613,7 +2757,7 @@ def _register_primitive_class_tools() -> None:
             summary="hypot(a, b) = sqrt(a^2 + b^2) via the Class-N sqrt cascade — Class-M sum-of-squares bind composed with the Class-N sqrt. Substrate-native replacement for math.hypot / np.hypot (the complex modulus |z| = hypot(z.real, z.imag)).",
             parameters=(P("a", "float", True, "first leg"),
                         P("b", "float", True, "second leg"),
-                        P("precision_bits", "int", False, "scaled-integer precision (keyword-only); default 64")),
+                        P("precision", "int", False, "scaled-integer precision (keyword-only); default 64")),
             returns=R("Q", "Euclidean norm sqrt(a^2 + b^2) as an exact rational (Class-N Q carrier)"),
         ),
         ToolEntry(
@@ -2740,11 +2884,11 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.rational.pi_cascade_digits",
             owner="srmech",
             category="rational",
-            summary="Stream decimal digits of π via integer-cyclic geometric cascade (Archimedes hexagon-doubling with integer-floor √ via math.isqrt at fixed precision). Returns '3.141592...' as a string without invoking math.pi anywhere in the call graph (AST-verified discipline gate per `[[user_stance_pi_spectral_shape_scalar_invariant]]`; Spike #32 / PR #460). rc13 cap-expansion (Task #248): num_digits up to 1000 with auto-scaled cascade depth + precision_bits. Canonical SSoT: Archimedes *Measurement of a Circle* (c. 250 BCE) for the algorithm; Khinchin *Continued Fractions* §10 for canonical π reference.",
+            summary="Stream decimal digits of π via integer-cyclic geometric cascade (Archimedes hexagon-doubling with integer-floor √ via math.isqrt at fixed precision). Returns '3.141592...' as a string without invoking math.pi anywhere in the call graph (AST-verified discipline gate per `[[user_stance_pi_spectral_shape_scalar_invariant]]`; Spike #32 / PR #460). rc13 cap-expansion (Task #248): num_digits up to 1000 with auto-scaled cascade depth + precision. Canonical SSoT: Archimedes *Measurement of a Circle* (c. 250 BCE) for the algorithm; Khinchin *Continued Fractions* §10 for canonical π reference.",
             parameters=(P("num_digits", "int", True, "0 <= num_digits <= 1000"),
                         P("max_cascade_depth", "int", False,
                           "default None (auto-scaled from num_digits); cascade doubling depth in [1, 2000]"),
-                        P("precision_bits", "int", False,
+                        P("precision", "int", False,
                           "default None (auto-scaled from num_digits); scaled-integer √ bit precision in [64, 32768]")),
             returns=R("str", "'3.{num_digits}' decimal expansion of π"),
         ),
@@ -3028,6 +3172,13 @@ def _register_primitive_class_tools() -> None:
             returns=R("dict", "the manifest data {format_version=4, leaf_dim, n_turns, coupling, body_sha256 (region chain), regions, chromosomes}"),
         ),
         ToolEntry(
+            name="srmech.amsc.genome.upgrade_v15_to_v16", owner="srmech", category="genome",
+            summary="Migrate a v<=15 genome directory to on-disk format v16 IN PLACE (UPSTREAM §55 / §Q8; rc312) — the Q8 on-disk-format upgrade. rc311 wired the Q8 carrier into the genome as an element_type coupling path but the on-disk WIRE still assumed 2-bit klein4 turns; v16 adds a SECOND data-turn packing (a Q8 turn 3-bit-packs under Q8_PACKED_TURN_MARKER 0x38, the klein4 turn keeps the 2-bit PACKED_TURN_MARKER 0x51) + a manifest carrier field. A v15 genome is ALWAYS klein4 (2-bit turns), and v16's klein4 packer is BYTE-IDENTICAL, so the turns.bin BODY needs NO repack: a v15 turn (bytes 0..3, sign bit 0) is EXACTLY the winding-0 / Lk-0 slice of a v16 Q8 turn (q8_project_v4(turn) == turn and every winding sign bit is 0). The upgrade is therefore a manifest RE-STAMP — re-derive the .fai head by SCANNING the unchanged body (§44 — the strand is the SSoT), which now stamps format_version=16 + the derived carrier ('klein4' / 'q8'). Because the body is untouched and body_sha256 is a pure function of the body (the region CHAIN since v4), the ONLY on-disk bytes that MOVE are the manifest's format_version + carrier fields; turns.bin is byte-identical. Idempotent — a v16 genome re-stamps to itself; REFUSES to downgrade a genome newer than this build. coupling= is only needed for a manifest-LESS genome (its length is the leaf width — you can upgrade a turns.bin shipped alone). Returns the re-derived manifest data dict (format_version=16). The migrate-on-read precedent of the v11->v12 head-only upgrade; numpy-free; hashes via sha256_bytes.",
+            parameters=(P("path", "str", True, "the genome DIRECTORY to upgrade in place (its manifest.json is re-stamped to v16; turns.bin is byte-untouched for a klein4 genome)"),
+                        P("coupling", "HV", False, "keyword-only; the held invariant — only needed to rebuild a manifest-LESS genome (its length is the leaf width)")),
+            returns=R("dict", "the re-derived manifest data (format_version=16, carrier, leaf_dim, n_turns, coupling, body_sha256, regions, chromosomes)"),
+        ),
+        ToolEntry(
             name="srmech.amsc.genome.genome_load", owner="srmech", category="genome",
             summary="Reconstruct a genome from a directory (UPSTREAM §41) — returns (strand, coupling, labels). labels=None loads the WHOLE genome: streams turns.bin block-by-block (RAM bounded by the active block, not the whole file) and re-hashes the streamed body against the manifest body_sha256. A subset labels=[...] is a PAGED read: it seeks to each requested chromosome's byte_offset and reads only its byte_len bytes (RAM bounded by the largest single chromosome), re-hashing that region's cap against cap_sha256. Bounding IS integrity — a flipped / truncated / re-ordered byte raises GenomeBoundingError. The returned strand is byte-for-byte the saved strand for the requested chromosomes; coupling is rebuilt from the manifest's stored block and verified against its hash.",
             parameters=(P("path", "str", True, "the genome directory written by genome_save"),
@@ -3263,7 +3414,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_from_graph", owner="srmech", category="genome",
-            summary="BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN STRUCTURE (§100 GAP 2 / PR#687 / F1250 / F1251) — 'hand a graph, get nuclear + plasmid from its structure'. Runs genome_partition, then for EACH classified group packs its INDUCED sub-graph (graph_to_kernel) into a chromosome: a NUCLEAR community is MINTED (mint_strand splices a 0x58 centromere -> a Tier-2 nuclear chromosome, the stable clonal core); a PLASMID community is KEPT as a Tier-1 plasmid chromosome (append-only, no centromere -> the mobile accessory). All chromosomes concatenate into one self-describing strand (each opens with its kernel-telomere boundary cap). If path is given the strand is persisted (genome_save) and censused — genome_census reports the MEASURED {nuclear:N, plasmid:M}. BYTE-EXACT per community: kernel_to_graph on any chromosome (with its n_syms) recovers that community's induced sub-graph exactly (the interior centromere is skipped on read, §44). A cross-community bridge edge is not in any single induced sub-graph — it is represented by the bridge node's PLASMID classification. Returns {strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?}. Composes genome_partition + the C-dispatched graph_to_kernel + mint_strand + genome_save; numpy-free, no abs(). Class L (partition) + Class A/C/K (the mint). §101 (rc275): the return carries a status key ('ok' / 'cancelled'); an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) threads the heartbeat through the partition (PARTITIONING) AND the per-group mint loop (MINTING) — a truthy return CANCELS and returns the whole chromosomes minted so far (a valid shorter genome) WITHOUT genome_save (nothing half-written hits disk).",
+            summary="BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN STRUCTURE (§100 GAP 2 / PR#687 / F1250 / F1251) — 'hand a graph, get nuclear + plasmid from its structure'. Runs genome_partition, then for EACH classified group packs its INDUCED sub-graph (graph_to_kernel) into a chromosome: a NUCLEAR community is MINTED (mint_strand splices a 0x58 centromere -> a Tier-2 nuclear chromosome, the stable clonal core); a PLASMID community is KEPT as a Tier-1 plasmid chromosome (append-only, no centromere -> the mobile accessory). All chromosomes concatenate into one self-describing strand (each opens with its kernel-telomere boundary cap). If path is given the strand is persisted (genome_save) and censused — genome_census reports the MEASURED {nuclear:N, plasmid:M}. BYTE-EXACT per community: kernel_to_graph on any chromosome (with its n_syms) recovers that community's induced sub-graph exactly (the interior centromere is skipped on read, §44). A cross-community bridge edge is not in any single induced sub-graph — it is represented by the bridge node's PLASMID classification. Returns {strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?}. Composes genome_partition + the C-dispatched graph_to_kernel + mint_strand + genome_save; numpy-free, no abs(). Class L (partition) + Class A/C/K (the mint). §101 (rc275): the return carries a status key ('ok' / 'cancelled'); an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) threads the heartbeat through the partition (PARTITIONING) AND the per-group mint loop (MINTING) — a truthy return CANCELS and returns the whole chromosomes minted so far (a valid shorter genome) WITHOUT genome_save (nothing half-written hits disk). §113 (rc304, #1466): a caller attestation= (a dict) OVERRIDES the srmech-default source written into manifest.json when path is given — override-only over the five MPR SOURCE-identity fields (source_doi / source_url / license / retrieved_at / response_sha256), the four ENCODER fields stay srmech-owned — so an attested corpus genome (e.g. a simplewiki dump whose true source is https://dumps.wikimedia.org/simplewiki/latest/ under CC-BY-SA-4.0) records its REAL provenance genome-natively, in the only legitimate place (the directory is the SSoT, no sidecar files). The default is byte-identical to before when attestation is omitted; a malformed override raises before any bytes hit disk.",
             parameters=(P("n", "int", True, "node count (nodes are 0..n-1)"),
                         P("edges", "list", True, "directed edges [(u, v), ...]"),
                         P("weights", "list", False, "per-edge INTEGER metric; None = unit"),
@@ -3273,8 +3424,41 @@ def _register_primitive_class_tools() -> None:
                         P("leaf_dim", "int", False, "keyword-only; the leaf (tome) width to chunk each chromosome into (default len(coupling); must be >= 52)"),
                         P("max_tome", "int", False, "keyword-only; forwarded to genome_partition (default 256)"),
                         P("n_bins", "int", False, "keyword-only; forwarded to genome_partition (default 16)"),
-                        P("centromere_at", "int", False, "keyword-only; the nuclear arm-split forwarded to mint_strand (default the metacentric midpoint)")),
+                        P("centromere_at", "int", False, "keyword-only; the nuclear arm-split forwarded to mint_strand (default the metacentric midpoint)"),
+                        P("attestation", "dict", False, "keyword-only; when path is given, a caller MPR SOURCE-attestation forwarded to genome_save whose fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively — the genome directory is the SSoT, no sidecar files (§41/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key / value that makes the merged block an invalid MPR) RAISES before any bytes hit disk; omitted -> the srmech default is written unchanged.")),
             returns=R("dict", "{strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?} — genome_census reports the measured {nuclear, plasmid} when path is given"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.discrete_writhe", owner="srmech", category="genome",
+            summary="rc313 — the EXACT-rational DIRECTIONAL discrete writhe of a polygonal backbone (the physical-topology peer of the intrinsic mod-2 center-parity holonomy quaternion_cycle_holonomy, rc309). Given a supplied 3D embedding (each vertex an EXACT RATIONAL — int / Fraction / (num,den) per coord), Wr = the discrete Gauss double-sum over non-adjacent segment PAIRS in the z-drop projection: Wr = sum of eps_ij, eps_ij = sign((B-A).((D-C)x(C-A))) when segments i,j cross in the xy-projection (four exact 2D orientation determinants decide the crossing), else 0. HONEST BOUNDING: this is the directional (single-projection) writhe — the signed CROSSING NUMBER, an exact INTEGER — NOT the smooth solid-angle Gauss writhe (which is transcendental and cannot be a rational; the smooth value is this integer averaged over the direction sphere, out of exact-rational/libm-free scope). The mod-2 CWF check uses only its PARITY (+1 == -1). EXACT (W4): every crossing decision + every eps is the SIGN of an INTEGER determinant (the 4 pair-vertices scaled to a common positive integer denominator per axis) over srmech_bigint -> native == pure byte-identical; no float, no libm, no abs (sign is Class K . Class C). CAD-ban-clear: the closed-form discrete Gauss integral in Class-N integers, NOT GPU/mesh/FEA sim. Raises on a non-generic projection or a strand meeting itself in 3D (nudge the embedding). Dispatches to standalone-C srmech_genome_discrete_writhe (caller arena) when HAS_NATIVE, else srmech's own integer-determinant cascade.",
+            parameters=(P("embedding", "list", True, "the backbone vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational — floats rejected)"),
+                        P("closed", "bool", False, "keyword-only; True (default) closes the loop with the wrap segment P[n-1]->P[0]; False = an open polyline")),
+            returns=R("dict", "{num, den (the writhe as a reduced rational — den is always 1, the directional writhe being integer-valued), writhe:(num,den), n_points, closed}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.cwf_consistency_mod2", owner="srmech", category="genome",
+            summary="rc313 — the mod-2 Calugareanu-White-Fuller consistency check on a strand: Lk == Tw + Wr (mod 2). Three INDEPENDENTLY-computed reads: Lk = the intrinsic mod-2 center-parity holonomy (rc309) — the center_parity of the strand's single fundamental cycle from quaternion_cycle_holonomy over the Q8 gains (center_parity -1 -> Lk==1; +1 -> Lk==0; 0 = pure-imaginary NON-central holonomy -> mod-2 Lk UNDEFINED, flagged); Tw = the framing twist read from the Q8 SIGN accumulation (parity of the count of negative-coset {-1,-i,-j,-k} gains); Wr = the directional writhe of the supplied embedding (discrete_writhe), computed from GEOMETRY, NEVER as Lk-Tw. The geometric independence gives the check teeth: the writhe supplies the non-abelian Q8 cocycle (e.g. i.i=-1) that the per-turn sign-sum Tw misses. HONEST BOUNDING (form not identity): a finite group (Q8) pins Lk only MOD 2 (center-parity), NOT the integer Gauss linking number; the Tw<->Q8-sign map is UNPINNED at integer level (parity only); no claim that DNA IS a quaternion or an integer-level CWF. No-embedding path: returns ONLY the intrinsic mod-2 Lk (+ Tw); wr / wr_mod2 / consistent are None, no Wr fabricated. Composition of C: quaternion_cycle_holonomy . discrete_writhe (both C-dispatched) . mod-2 integer arithmetic.",
+            parameters=(P("edges", "list", True, "the strand connectivity [(u,v), ...] — a single fundamental cycle"),
+                        P("gains", "list", True, "per-edge unit-quaternion Q8 gains (4-vectors) parallel to edges — the stored physical turns"),
+                        P("n", "int", False, "keyword-only; node count (inferred from the edges when None)"),
+                        P("embedding", "list", False, "keyword-only; the backbone vertices (node k -> embedding[k]), each an exact rational 3-tuple; None -> intrinsic mod-2 Lk only"),
+                        P("closed", "bool", False, "keyword-only; forwarded to discrete_writhe (default True)")),
+            returns=R("dict", "{lk_mod2 (0/1 or None if non-central), lk_center_parity (+1/-1/0), tw_mod2, wr:(num,den) or None, wr_mod2 or None, consistent (bool or None), note}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.codon_read", owner="srmech", category="genome",
+            summary="rc314 — the CODON READ-LAYER. Biology reads the genome in CODONS (triplets — the genetic code), and that is a READING PROCESS the ribosome IMPOSES over the stored strand, not stored substrate — so this is a PURE READ (stores nothing, changes no format; GENOME_FORMAT_VERSION stays 16, additive). q8_project_v4 is applied FIRST (biology reads 4 BASES, not 8 signed states — the winding/center SIGN BIT must NOT leak into amino-acid identity: a Q8 strand with nonzero winding and its V4-projection give BYTE-IDENTICAL codons). Then a 3-slot window slides from the reading-frame offset phase in {0,1,2}, forming a base-4 codon index i = 16*b0 + 4*b1 + b2 in [0,64) over the 3 projected symbols (coset 0->U/T, 1->C, 2->A, 3->G, so i is IDENTICAL to the NCBI transl_table=1 index), and a Class-E dense-catalog lookup i -> amino acid against the ATTESTED Standard Genetic Code (NCBI translation table 1; Elzanowski & Ostell, The Genetic Codes, NCBI; ncbieaa cross-verified byte-identical across wprintgc.cgi + gc.prt; resource DOI 10.1093/database/baaa062, open access) shipped as the MPR-attested datum srmech/amsc/attested/genetic_code/ — NEVER an inline invented dict. '*' denotes a stop. The reading-frame phase is a genuine cyclic C3 (Class I), DISTINCT from klein4_triality_cycle (the base-axis automorphism) and from the winding Lk (cwf_consistency_mod2; the sign bit). Class I (q8_project_v4 + Z3 frame) . Class E (codon catalog). Dispatches to the whole-op C peer srmech_genome_codon_read (c_dispatched, genome-fully-in-C; byte-identical pure fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10, GENOME_FORMAT_VERSION stays 16.",
+            parameters=(P("strand", "list", True, "a 1-D sequence of Q8 base symbols (bytes / bytearray / list / tuple of ints in [0,8); V4 symbols in [0,4) are the sign-free case), or an HV (read via tobytes)"),
+                        P("phase", "int", False, "the reading-frame offset in {0,1,2} (the C3 phase); default 0"),
+                        P("with_indices", "bool", False, "keyword-only; if True also return the raw codon indices"),
+                        P("stop_at_stop", "bool", False, "keyword-only; if True stop reading at the first stop codon (inclusive)")),
+            returns=R("str", "the amino-acid string (one char per codon; '*' = stop), or (amino_acids, codon_indices) when with_indices"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.codon_frame_monodromy", owner="srmech", category="genome",
+            summary="rc314 — the Z3 reading-frame MONODROMY of a CIRCULAR strand: going once around shifts the reading frame phi -> phi + L (mod 3), where L is the number of base symbols; returns L mod 3. A REAL Z3 invariant, DISTINCT from klein4_triality_cycle (the base-axis automorphism) and from the winding Lk (cwf_consistency_mod2; the sign bit) — there is NO codon copy of the integer Lk (the codon layer is frame topology in Z3, the winding lives in the sign bit). When L mod 3 == 0 the frame CLOSES on a clean loop (a circular ORF reads in one consistent frame); otherwise a single lap advances the frame by 1 or 2 (the monodromy is additive around laps). Class I (cyclic Z3). A pure read; stores nothing. q8_project_v4 is applied so L counts sign-free BASE symbols (projection preserves length). Dispatches to the whole-op C peer srmech_genome_codon_frame_monodromy (c_dispatched, genome-fully-in-C; byte-identical pure fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10.",
+            parameters=(P("strand", "list", True, "a 1-D sequence of Q8 base symbols (see codon_read), or an HV"),),
+            returns=R("int", "L mod 3 in {0,1,2} — the reading-frame shift accrued per lap around the circular strand"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -6557,9 +6741,10 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.cascade.magnitude", owner="srmech",
             category="cascade",
-            summary="Class K pin-slot at zero, magnitude only (orientation "
-                    "discarded). The cascade-honest replacement for Python "
-                    "abs() when only |x| is needed." + PUBLISH_OPT_IN_NOTE,
+            summary="Absolute value |x| (magnitude) — Class K pin-slot at "
+                    "zero, magnitude only (orientation discarded). The "
+                    "cascade-honest replacement for Python abs() when only "
+                    "|x| is needed." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "float", True, "a real value"),),
             returns=R("float", "|x| as the Class K pin-slot magnitude"),
         ),
@@ -6584,6 +6769,88 @@ def _register_primitive_class_tools() -> None:
                     "instead of math.gcd." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("a", "int", True), P("b", "int", True)),
             returns=R("int", "gcd(a, b)"),
+        ),
+        # Class I modular-arithmetic cascade ops (§110 / #1460) — the DSL-
+        # declarable face of the cyclic modular family, so a modular cascade
+        # (an LCG step = cyclic_mod_mul ∘ cyclic_mod_add) can be authored in a
+        # chain spec. Each delegates to the c_dispatched cyclic.* primitive
+        # (composition_of_c). DSL chain contract: the piped value is `a`; the
+        # operands (`b`/`k`/`n`) are bound stage kwargs.
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_mul", owner="srmech",
+            category="cascade",
+            summary="Modular multiply as a cascade stage — (a * b) mod n "
+                    "(delegates to srmech.amsc.cyclic.mod_mul). The DSL-"
+                    "declarable multiply stage of an LCG cascade: pipe the "
+                    "state as `a`, bind `b`=multiplier and `n`=modulus. Capped "
+                    "at uint64 (use cyclic_mod_mul_wide for a wider modulus)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped state"),
+                        P("b", "int", True, "multiplier"),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "7", "b": "6", "n": "10"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_add", owner="srmech",
+            category="cascade",
+            summary="Modular addition as a cascade stage — (a + b) mod n "
+                    "(delegates to srmech.amsc.cyclic.mod_add). The DSL-"
+                    "declarable increment stage of an LCG cascade: pipe the "
+                    "state as `a`, bind `b`=increment and `n`=modulus. Chained "
+                    "after cyclic_mod_mul it IS one linear-congruential step."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped state"),
+                        P("b", "int", True, "addend"),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "7", "b": "6", "n": "10"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_pow", owner="srmech",
+            category="cascade",
+            summary="Modular exponentiation as a cascade stage — (a ** k) mod "
+                    "n via square-and-multiply (delegates to "
+                    "srmech.amsc.cyclic.mod_pow). The DSL-declarable power "
+                    "stage of a multiplicative-hash / modular-power cascade: "
+                    "pipe the base as `a`, bind `k`=exponent and `n`=modulus."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped base"),
+                        P("k", "int", True, "exponent"),
+                        P("n", "int", True, "modulus > 0")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "3", "k": "4", "n": "10"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_inv", owner="srmech",
+            category="cascade",
+            summary="Modular inverse as a cascade stage — a**-1 mod n via "
+                    "extended Euclidean (delegates to "
+                    "srmech.amsc.cyclic.mod_inv). The DSL-declarable un-do "
+                    "stage of a modular cascade: pipe the value as `a`, bind "
+                    "`n`=modulus. Requires gcd(a, n) == 1 and n <= INT64_MAX."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped value to invert"),
+                        P("n", "int", True, "modulus >= 2")),
+            returns=R("int", "in [1, n)"),
+            smoke_test_hint={"a": "3", "n": "7"},
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cyclic_mod_mul_wide", owner="srmech",
+            category="cascade",
+            summary="Wide modular multiply as a cascade stage — (a * b) mod n "
+                    "with NO uint64 cap (delegates to "
+                    "srmech.amsc.cyclic.mod_mul_wide). The DSL-declarable "
+                    "multiply-and-reduce half of a 128-bit LCG (the raw PCG64 "
+                    "step at n = 2**128): pipe the state as `a`, bind "
+                    "`b`=multiplier and `n`=modulus, any width. The product "
+                    "rides srmech's C bignum (srmech_bigint_mul)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("a", "int", True, "the piped state, any width"),
+                        P("b", "int", True, "multiplier, any width"),
+                        P("n", "int", True, "modulus > 0, any width")),
+            returns=R("int", "in [0, n)"),
+            smoke_test_hint={"a": "2**64", "b": "3", "n": "2**128"},
         ),
         ToolEntry(
             name="srmech.amsc.cascade.kuramoto_step", owner="srmech",
@@ -6985,6 +7252,88 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("tuple", "(index, sign) with index in [0, dim), sign in {+1,-1}"),
         ),
+        # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
+        # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
+        # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).
+        # q8_project_v4 is the EXACT F380/R21 homomorphism π: Q8 → V4 collapsing
+        # this onto hdc.klein4_bind: π(q8_bind(a,b)) == klein4_bind(π a, π b).
+        ToolEntry(
+            name="srmech.amsc.q8.q8_mult", owner="srmech", category="q8",
+            summary="The Q₈ group product a·b of two 3-bit bytes "
+                    "(q=(sign<<2)|coset; 0=+1,1=+i,2=+j,3=+k,4=−1,…,7=−k). "
+                    "Non-abelian (q8_mult(1,2)=3 but q8_mult(2,1)=7); i²=j²=k²=4 "
+                    "(−1); associative over all 8×8×8. The sign is the "
+                    "Cayley–Dickson cocycle (derived from cd_basis_product) xored "
+                    "with the two center bits — never an abs(). The abelian "
+                    "projection is exact: (a·b)&3 == (a&3)^(b&3). Class M∘I. "
+                    "Same-rc C peer srmech_q8_mult (byte-exact).",
+            parameters=(P("a", "int", True, "a Q₈ element in [0, 8)"),
+                        P("b", "int", True, "a Q₈ element in [0, 8)")),
+            returns=R("int", "the product a·b as a Q₈ byte in [0, 8)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.q8.q8_conjugate", owner="srmech", category="q8",
+            summary="The Q₈ conjugate / group inverse: conj(a)=a for the center "
+                    "(coset 0, self-inverse), else a^4 (flip an imaginary coset's "
+                    "sign bit). q8_mult(a, q8_conjugate(a))==0 for every a. "
+                    "Class C (orientation; a plain sign-bit flip, no abs()). "
+                    "Same-rc C peer srmech_q8_conjugate (byte-exact).",
+            parameters=(P("a", "int", True, "a Q₈ element in [0, 8)"),),
+            returns=R("int", "conj(a) as a Q₈ byte in [0, 8)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.q8.q8_bind", owner="srmech", category="q8",
+            summary="Elementwise Q₈ bind out[i]=q8_mult(turn[i], one[i]) over two "
+                    "equal-length Q₈ byte buffers (the buffer form of q8_mult). "
+                    "Class M (group bind). Same-rc C peer srmech_q8_bind "
+                    "(documents the out-aliasing contract; byte-exact).",
+            parameters=(P("turn", "bytes", True, "left operand Q₈ byte buffer"),
+                        P("one", "bytes", True, "right operand, same length")),
+            returns=R("bytes", "the elementwise product, length len(turn)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.q8.q8_project_v4", owner="srmech", category="q8",
+            summary="The abelian projection π: Q₈ → V4 elementwise: out[i]=q[i]&3 "
+                    "(drop the center sign bit, keep the {1,i,j,k} coset). The "
+                    "exact F380/R21 homomorphism onto hdc.klein4's value algebra: "
+                    "π(q8_bind(a,b)) == klein4_bind(π a, π b). Class I (abelian "
+                    "coset read). Same-rc C peer srmech_q8_project_v4 (byte-exact).",
+            parameters=(P("q", "bytes", True, "a Q₈ byte buffer"),),
+            returns=R("bytes", "the V4 cosets, each in {0, 1, 2, 3}"),
+        ),
+        # rc315 (§Q8 completeness): the OCT one MINTER — the Q₈ analogue of
+        # hdc.klein4_from_one, so a Q₈ (substrate) genome can be MINTED + read
+        # through the normal genome API (mint_strand/genes/gene_express/partition
+        # gained an element_type=ELEMENT_TYPE_Q8 path this rc) with NO hand-
+        # construction of the coupling. Native+pure BY COMPOSITION of two already-
+        # C-peered ops (klein4_from_one + klein4_address) → no new C symbol, ABI 10.
+        ToolEntry(
+            name="srmech.amsc.q8.q8_from_one", owner="srmech", category="q8",
+            summary="ONE-OCT — the One's Q₈ COUPLING projection (the Q₈ analogue of "
+                    "hdc.klein4_from_one). Mints the sectors=8 (OCT) coupling one of "
+                    "leaf dim D (bytes 0..7) so a Q₈ (substrate) genome can be MINTED "
+                    "+ read through the normal genome API with NO hand-construction. "
+                    "Two DECLARED planes of the One's (σ, θ, terms): the V4 COSET "
+                    "plane (bits 0..1) IS klein4_from_one's output — so "
+                    "q8_project_v4(q8_from_one(one,D)) == klein4_from_one(one,D) "
+                    "EXACTLY (the F380/R21 backward-faithful bridge, by "
+                    "construction); the Z₂ SIGN plane (bit 2) is a domain-separated "
+                    "Class-A klein4_address of the same One (bit 0 per slot) — a "
+                    "declared function, so the coupling is a GENUINE non-abelian Q₈ "
+                    "one, not a degenerate all-positive one. The sign is a group ⊕-bit "
+                    "(Class-I parity), never an abs(). Class A (both planes) ∘ Class C "
+                    "(sign) ∘ Class M (byte interleave). Native+pure BY COMPOSITION of "
+                    "the C-peered srmech_klein4_from_one + srmech_klein4_address (a "
+                    "bare-C host mints by the same composition) — no dedicated C "
+                    "symbol; ABI 10.",
+            parameters=(P("one", "One", True,
+                          "a cascade One (exposes .sigma, .theta=(num, den), "
+                          ".terms)"),
+                        P("D", "int", True,
+                          "dimension — free; nothing requires or gains from "
+                          "divisibility by 14")),
+            returns=R("HV", "the OCT coupling one, sectors=8, uint8 in {0..7}"),
+        ),
         # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
         # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
         # analog of the srmech.amsc.carrier_ladder variable ladder. Pure
@@ -7164,12 +7513,15 @@ def _register_primitive_class_tools() -> None:
                 P("D", "int", False, "hypervector width in bits (default 8192; the RBS-HDC dimension)"),
                 P("codebook", "dict", False, "optional preset {name: bytes} value-vectors for read cleanup"),
                 P("namespace", "Optional[str]", False, "address-mint namespace (default 'CD{dim}'); 'SEDENION' at dim=16 reproduces the shipped register bit-exactly"),
+                P("coupling", "bool", False, "opt into OPT layer 1 — the reversible working word (couple_working / uncouple_working, Class M, cap min(dim,8)−1). Default False (bare = pure addressing)"),
+                P("error_correction", "bool", False, "opt into OPT layer 2 — the Hamming EC/carry block (carry / correct, an axis independent of dim). Default False"),
             ),
             returns=R("CDRegister",
-                      "the register — .write/.read (addressable storage), "
+                      "the register — CORE: .write/.read (addressable storage), "
                       ".navmap/.navigate (the address↔Cayley–Dickson homomorphism), "
-                      ".is_navigable (reversibility gate), "
-                      ".working_block/.carry_block (the block split)"),
+                      ".is_navigable (reversibility gate), .working_block/.carry_block "
+                      "(the block split); OPT (opt-in): .couple_working/.uncouple_working "
+                      "(reversible word), .carry/.correct (EC block)"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_navmap", owner="srmech",
@@ -7230,6 +7582,107 @@ def _register_primitive_class_tools() -> None:
                 P("dim", "int", True, "algebra dimension — a power of two in [1, 64]"),
             ),
             returns=R("bool", "True iff the premise holds at this rung"),
+        ),
+        # The two OPTIONAL layers of the general N-slot register as pure functions
+        # (v0.9.0rc301; `#938`) — the reversible working word (couple/uncouple) +
+        # the Hamming EC block (carry/correct), ported from SedenionRegister onto
+        # CDRegister as its dim-scaled generalisation. Registered under STABLE flat
+        # names ``srmech.amsc.cascade.cd_{couple_working,uncouple_working,carry,
+        # correct}``; the submodule-dotted ``cascade.cd_register.*`` are the same
+        # objects re-exported flat (exempt in test_tool_schema_coverage). These take
+        # content-agnostic list/int args (MCP-coercible), UNLIKE the sed_* adapters'
+        # structured slots/codebook state — which is why they are first-class tools
+        # while the sed_* peers stay TOML-class-only. composition_of_c in the Rosetta
+        # ledger (they compose the C-backed hypercomplex_couple / hamming — no new C
+        # symbol, ABI stays 8).
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_couple_working", owner="srmech",
+            category="cascade",
+            summary="Bind ≤ min(dim,8)−1 real streams into one REVERSIBLE working "
+                    "word — THE canonical Class-M bind on the Cayley–Dickson register "
+                    "(`#938`). The dim-scaled generalisation of the sedenion's ≤7 "
+                    "working word: the cap is min(dim,8)−1, DERIVED from Hurwitz, "
+                    "never a hardcoded 7 — dim 2 couples 1 imaginary slot, dim 4 "
+                    "couples 3, dim 8/16/…/256 couple 7 (the e0..e7 octonion "
+                    "subalgebra of every higher rung), dim 1 (ℝ) couples nothing (the "
+                    "degenerate base: empty in → empty out). Composes "
+                    "hypercomplex_couple (axis='diagonal', the F436 coupling axis; its "
+                    "octonion multiply dispatches to the standalone-C "
+                    "srmech_hypercomplex_couple_q61) — reversed exactly by "
+                    "cd_uncouple_working (T̄·(T·q)=‖T‖²·q, F437). At dim 16 bit-exact "
+                    "with the shipped SedenionRegister.couple_working. No abs() (the "
+                    "coupler's sign is Class-K ∘ Class-C). Class M ∘ C ∘ N."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("vals", "sequence", True,
+                  "≤ min(dim,8)−1 real streams to fold into the working word"),
+                P("dim", "int", False,
+                  "register rung (power of two in [1, 256]); sets the cap. Default 8 "
+                  "(the octonion working word, cap 7)"),
+            ),
+            returns=R("list[float]",
+                      "the coupled working word — a 4-component quaternion (≤3 "
+                      "streams) or 8-component octonion (4–7 streams); [] if empty"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_uncouple_working", owner="srmech",
+            category="cascade",
+            summary="Recover the streams bound by cd_couple_working — the EXACT "
+                    "inverse (the Class-M unbind; `#938`). Applies the conjugate "
+                    "twiddle (inverse=True) and drops the anchor slot, returning the "
+                    "carrier's imaginary components (7 for an octonion word, 3 for a "
+                    "quaternion word). Empty in → empty out (the dim-1 boundary). "
+                    "Recovery is exact to float round-off (the division-algebra "
+                    "identity T̄·(T·q)=‖T‖²·q, F437), matching the shipped register's "
+                    "tolerance. Composes hypercomplex_couple; no abs(). Class M ∘ C ∘ N."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("word", "sequence", True,
+                  "a coupled working word (4-component quaternion / 8-component "
+                  "octonion) from cd_couple_working"),
+            ),
+            returns=R("list[float]",
+                      "the recovered streams (the carrier's imaginary slots); [] if "
+                      "empty"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_carry", owner="srmech",
+            category="cascade",
+            summary="Encode overflow bits (past the reversible working set) into a "
+                    "Hamming(2ⁿ−1) single-error-correcting GF(2) codeword — the "
+                    "EC/carry layer of the register (`#938`). The EC axis is "
+                    "INDEPENDENT of the register's dim: the block size is set by n "
+                    "(parity-bit count; codeword 2ⁿ−1, data 2ⁿ−1−n), NOT by the slot "
+                    "count. Composes hamming_encode (the srmech_hamming_encode C "
+                    "peer). Lean-ALU XOR-native (GF(2) add = parity = XOR); no float, "
+                    "no libm, no abs(). Class B ∘ I ∘ A. SSoT: Hamming (1950)."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("overflow_bits", "sequence", True,
+                  "exactly 2ⁿ−1−n data bits, each 0/1 (4 for H(7,4), 11 for H(15,11))"),
+                P("n", "int", False,
+                  "parity-bit count, 2 ≤ n ≤ 16; codeword length 2ⁿ−1. Default 3 "
+                  "(Hamming(7,4) — the octonion's own Fano plane)"),
+            ),
+            returns=R("list[int]", "the 2ⁿ−1-bit codeword (0/1 list)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.cascade.cd_correct", owner="srmech",
+            category="cascade",
+            summary="Locate + correct a single-bit error in an EC-block codeword and "
+                    "recover the carried payload — the EC/carry layer's read (`#938`). "
+                    "Single-error-correcting (minimum distance 3): a clean or "
+                    "single-error word recovers exactly. Composes "
+                    "hamming_decode_correct (the syndrome dispatches to "
+                    "srmech_hamming_syndrome). Lean-ALU XOR; no float, no libm, no "
+                    "abs() (the located bit is a Class-K GF(2) flip). Class B ∘ I ∘ A."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("codeword", "sequence", True, "a 2ⁿ−1-bit codeword (0/1 list)"),
+            ),
+            returns=R("dict",
+                      "{'data': k corrected payload bits, 'error_position': int "
+                      "(0=clean), 'corrected_codeword': the repaired 2ⁿ−1-bit word}"),
         ),
         # Three RBS-LM UPSTREAM_NOTES candidate-additions (v0.7.4rc2; PR #687
         # §1.2 / §1.3 / rbs_nn Note 1) — pure compositions, no new primitive class.
@@ -8560,7 +9013,8 @@ def _register_qm_tools() -> None:
             summary="Quaternion conjugate conj(x) = (x_0, -x_1, -x_2, -x_3); "
                     "for a unit twiddle it is the inverse (conj(exp(μθ)) = "
                     "exp(−μθ) — the inverse-QDFT twiddle). Class C "
-                    "(orientation).",
+                    "(orientation). Same-rc C peer srmech_quaternion_conjugate "
+                    "(byte-exact).",
             parameters=(P("x", "HV", True, "4-vector"),),
             returns=R("list[float]", "4-vector"),
         ),
@@ -8638,6 +9092,41 @@ def _register_qm_tools() -> None:
                 P("sigma", "int", False, "−1 forward (default) | +1 inverse"),
             ),
             returns=R("list[float]", "the unit-quaternion twiddle (4 components)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.quaternion.quaternion_cycle_holonomy",
+            owner="srmech", category="qm.quaternion",
+            summary="The NON-ABELIAN cycle holonomies of a quaternion gain "
+                    "graph (#944 follow-on) — the k=2 discrete which-way / "
+                    "Lk-analog channel, the associative sibling of the abelian "
+                    "laplacian.cycle_holonomy. Edge gains are UNIT quaternions "
+                    "(Q₈ = {±1,±i,±j,±k} or a continuous re-gauge). Per "
+                    "fundamental cycle H = P_u·g_uv·conj(P_v) (ordered product; "
+                    "P_x = the tree-path root→x product, reversed edge = "
+                    "conj). A node re-gauge g→s_u·g·conj(s_v) telescopes to "
+                    "H→s_root·H·conj(s_root), so the CONJUGACY CLASS is "
+                    "gauge-invariant. class_index = the SU(2) class from the "
+                    "scalar part w=Re(H): 0={1}(w≈+1), 1={−1}(w≈−1, the spinor/"
+                    "Lk half-twist), 2={±i,±j,±k}(w≈0). MEASURED (the rc309 "
+                    "proof gate): the finer 5-class Q₈ split is invariant only "
+                    "under DISCRETE Q₈ re-gauge — continuous SU(2) merges the "
+                    "three axes, so only the scalar-part class is frame-free. "
+                    "center_parity = the {1}/{−1} central sign. Native "
+                    "standalone-C srmech_quaternion_cycle_holonomy "
+                    "(caller-arena); else the byte-exact quaternion cascade. "
+                    "numpy-free; no abs(). Class M∘L∘C.",
+            parameters=(P("edges", "list[tuple[int, int]]", True,
+                          "a self-loop is a 1-cycle; a parallel edge a digon"),
+                        P("gains", "Optional[list[list[float]]]", False,
+                          "per-edge UNIT quaternion 4-vector parallel to edges; "
+                          "None → identity (balanced); (u,v,g) ≡ (v,u,conj(g))"),
+                        P("n", "Optional[int]", False,
+                          "node count; inferred from edges when None")),
+            returns=R("dict",
+                      "{'n_cycles', 'class_index': list[int] (SU(2) class), "
+                      "'center_parity': list[int] (+1/−1/0), 'cycle_edges': "
+                      "list[(u,v)], 'holonomies': list[list[float]] (raw ℍ), "
+                      "'balanced': bool}"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -9083,7 +9572,7 @@ def _register_dsl_tools() -> None:
                 "`sub_chain` (loop), `fold_init` + `fold_op` (fold), or "
                 "`reduce_op` (reduce); any other key forwards as a "
                 "cascade-op kwarg (e.g. `max_denominator`). Op names come "
-                "from `srmech.dsl.list_catalog_ops` (the 15-op cascade "
+                "from `srmech.dsl.list_catalog_ops` (the 20-op cascade "
                 "catalog). Example spec: `[chain]\\nname='demo'\\n\\n"
                 "[[stage]]\\nop='chiral_flip'`. Framework reading: the "
                 "DSL composes Class M (cross-class bind) over the cascade "
@@ -9130,9 +9619,11 @@ def _register_dsl_tools() -> None:
                 "class composition + 1-line purpose BEFORE authoring a "
                 "spec. Sourced from the on-disk cascade-catalog TOML "
                 "descriptors (the SSoT), so it stays in lockstep with the "
-                "ops the runner can actually resolve (15 ops: "
+                "ops the runner can actually resolve (20 ops: "
                 "autocorrelation, best_rational_signed, chiral_dual, "
-                "chiral_flip, cyclic_gcd, encode_loe_content, kuramoto_step, "
+                "chiral_flip, cyclic_gcd, cyclic_mod_add, cyclic_mod_inv, "
+                "cyclic_mod_mul, cyclic_mod_mul_wide, cyclic_mod_pow, "
+                "encode_loe_content, kuramoto_step, "
                 "magnitude, net_chirality, octonion_dft, "
                 "parallel_sector_dispatch, pin_slot_at_zero, quaternion_dft, "
                 "reorient, schur_complement). Each record "
@@ -9309,6 +9800,71 @@ def _register_dsl_tools() -> None:
     )
 
 
+def _register_rbs_lm_tools() -> None:
+    """Register the §112 / F1008 df-gated aboutness grounding encoder
+    (v0.9.0rc303). The RBS-LM substrate's :func:`srmech.rbs_lm.encode_aboutness`
+    is the FIRST rbs_lm op promoted to the LLM-facing tool_schema: it turns a
+    natural "which op does X?" utterance (or an op's name+summary) into ONE
+    structure-bearing Klein-4 aboutness vector, so grounding "ask Siona which
+    op" is one call. Declarative ToolEntry data only — no ``srmech.rbs_lm``
+    import here (resolved at invoke time), so no import cycle."""
+    P = ToolParameter
+    R = ToolReturn
+    register_tool(
+        ToolEntry(
+            name="srmech.rbs_lm.encode_aboutness",
+            owner="srmech",
+            category="rbs_lm",
+            summary=(
+                "Doc-frequency-GATED ABOUTNESS encoder — encode a natural "
+                "utterance (or an op's name+summary) as ONE structure-bearing "
+                "Klein-4 aboutness hypervector for grounding \"which srmech op "
+                "does this?\" by klein4_similarity. The F1008 recipe (78% top-1 "
+                "over the tool_schema, zero training) the plain encode_sentence_l3 "
+                "lacks: (1) a doc-frequency aboutness GATE (down-weight tokens "
+                "that appear catalog-wide — 'matrix', 'of'), (2) NAME-weighting "
+                "(an op's own name tokens count 3x + 2x bigram; F769 identity), "
+                "(3) order-aware BIGRAMS (so (klein,4) != (klein,gordon); never a "
+                "bag), plus letter-digit tokenization (klein4->klein 4). Tokens "
+                "are minted via the STRUCTURE-BEARING klein4_encode_bytes (default "
+                "token_mode='byteglyph'), NOT the high-diffusion word-hash "
+                "address (F1260: a hash avalanche destroys morphology — a good "
+                "ADDRESS but a bad REPRESENTATION), so cat/cats stays "
+                "distinguishable from cat/dog. Pass df/n_docs from a corpus to "
+                "enable the gate; name= for an op's identity tokens; None df for "
+                "the single-word case. composition_of_c (klein4_encode_bytes -> "
+                "bind/bundle); numpy-free, no abs()."
+            ),
+            parameters=(
+                P("text", "str", required=True,
+                  summary="the utterance / description body (its tokens are "
+                          "df-gated)"),
+                P("D", "int", required=True,
+                  summary="Klein-4 dimension (F1008 used 8192)"),
+                P("df", "dict", required=False,
+                  summary="token -> doc-frequency table (the aboutness-gate "
+                          "corpus stats); None disables the gate"),
+                P("n_docs", "int", required=False,
+                  summary="document count paired with df (gate threshold = "
+                          "int(n_docs * func_frac))"),
+                P("name", "str", required=False,
+                  summary="an op's IDENTITY string; its tokens are never gated "
+                          "and are name-weighted"),
+                P("name_weight", "int", required=False,
+                  summary="unigram repeat for name tokens (default 3)"),
+                P("name_bigram_weight", "int", required=False,
+                  summary="bigram repeat for name tokens (default 2)"),
+                P("func_frac", "float", required=False,
+                  summary="gate threshold as a fraction of n_docs (default 0.35)"),
+                P("token_mode", "str", required=False,
+                  summary="'byteglyph' (default, structure-bearing) or 'address' "
+                          "(F1008 orthogonal dual)"),
+            ),
+            returns=R("HV", "uint8 in {0,1,2,3}"),
+        )
+    )
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Single registration entry-point (v0.5.0rc11 — Self-recognition root)
 # ──────────────────────────────────────────────────────────────────────
@@ -9363,6 +9919,7 @@ _register_spectral_runtime_tools()
 _register_qm_tools()
 _register_introspect_tools()
 _register_dsl_tools()
+_register_rbs_lm_tools()
 
 
 __all__ = [

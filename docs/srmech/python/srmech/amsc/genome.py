@@ -44,6 +44,8 @@ each kernel by its telomere. Completes the F715 hierarchy: GENOME (multi-kernel)
 from __future__ import annotations
 
 import contextlib
+import ctypes
+import functools
 import json
 import shutil
 import tempfile
@@ -53,16 +55,22 @@ from typing import Dict, List, Optional, Sequence, Tuple
 from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _gcd
 from srmech.amsc.format import MPRRecord as _MPRRecord
+from srmech.amsc.format import read_ndjson as _read_ndjson
 from srmech.amsc.format import sha256_bytes as _sha256_bytes
 from srmech.amsc.format import validate_mpr_record as _validate_mpr_record
 from srmech.amsc.hdc import klein4_bind as _klein4_bind
 from srmech.amsc.hdc import klein4_expand as _klein4_expand
 from srmech.amsc.hv import HV as _HV
+from srmech.amsc.q8 import q8_bind as _q8_bind
+from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
+from srmech.amsc.q8 import q8_project_v4 as _q8_project_v4
 from srmech.amsc.tlv import tlv_pack as _tlv_pack
 from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
 
 __all__ = [
+    "discrete_writhe", "cwf_consistency_mod2",
+    "codon_read", "codon_frame_monodromy", "CODON_BASES",
     "encode_shape", "quad_turn", "telomere", "chromosome",
     "centromere", "centromere_of",
     "diploid", "recover_diploid",
@@ -72,8 +80,8 @@ __all__ = [
     "genome", "plasmid", "partition",
     "mint", "mint_plan", "integrate",
     "amplify", "copy_number_of",
-    "genome_save", "genome_load", "genome_catalog", "genome_append",
-    "genome_census", "genome_registry",
+    "genome_save", "upgrade_v15_to_v16", "genome_load", "genome_catalog",
+    "genome_append", "genome_census", "genome_registry",
     "set_type_aliases", "clear_type_aliases", "load_type_aliases_toml",
     "genome_append_kernel",
     "genome_window", "genome_genes",
@@ -97,8 +105,9 @@ __all__ = [
     "GRADED_GENE_MARKER",
     "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF", "GATE_TYPE_THRESHOLD",
     "GATE_TYPE_GRADED",
-    "PACKED_TURN_MARKER", "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
-    "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4",
+    "PACKED_TURN_MARKER", "Q8_PACKED_TURN_MARKER",
+    "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
+    "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4", "ELEMENT_TYPE_Q8",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
     "CHROMATIN_GATE_THRESHOLD",
@@ -136,6 +145,20 @@ GENE_FRAME_TAG = GENE_CAP_MARKER
 #: readable in the same walk, so old genomes and MIXED (old + appended) bodies
 #: read correctly with no migration.
 PACKED_TURN_MARKER = 0x51
+#: §55/rc312 (format v16, §Q8) — the 3-BIT-PACKED Q₈ data-turn block marker. ``0x38``
+#: = ASCII ``'8'`` (the 8-sector / octet packing). A v16 Q₈ data turn is stored on disk
+#: as ``[0x38] + ceil(leaf_dim*3/8)`` payload bytes — **3 bits per Q₈ symbol** (the Klein-4
+#: coset's 2 bits + the ``±1`` winding/center sign bit the abelian coset cannot carry).
+#: The layout is MSB-FIRST CONTIGUOUS: symbol ``i`` occupies bits ``[3i, 3i+3)`` of a
+#: big-endian bitstream (bit 0 = the MSB of payload byte 0; within a symbol the sign/high
+#: bit comes first), and the unused LOW bits of a partial final byte are zero (canonical —
+#: the round-trip stays byte-exact both ways). The marker is ``> 3`` and distinct from
+#: :data:`PACKED_TURN_MARKER` (0x51) and every cap marker, so a block's first byte keys
+#: BOTH its kind and its width: a v16 body is walked in the SAME self-describing scan as a
+#: v3 klein4 body (§44) — klein4 turns keep the 2-bit :data:`PACKED_TURN_MARKER`, Q₈ turns
+#: use this one, and a reader strides each by its marker with no element_type context. A
+#: v15 klein4 turn (bytes ``0..3``, sign bit 0) is the winding-0 slice of a v16 Q₈ turn.
+Q8_PACKED_TURN_MARKER = 0x38
 #: §60/rc121 (format v5, issue #1245 reopened) — the SIZE-AGNOSTIC KERNEL HEADER
 #: block marker. ``0x4B`` = ASCII ``'K'`` (Kernel). Written by :func:`kernel_pack`
 #: as the SECOND block of a kernel chromosome (right after its telomere CHROM cap):
@@ -661,7 +684,17 @@ _PHASE_MINTING = _native.SRMECH_PHASE_MINTING
 #: size-agnostic discipline — the header carries the type, so the reader never
 #: assumes one). A header-less body defaults to :data:`ELEMENT_TYPE_KLEIN4`.
 ELEMENT_TYPE_KLEIN4 = 0
-_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4"}
+#: §Q8 (rc311) — the DISCRETE quaternion group ``Q₈ = {±1, ±i, ±j, ±k}`` element type: a
+#: 3-bit symbol ``(sign_bit << 2) | v4_coset`` (:mod:`srmech.amsc.q8`), the NON-abelian
+#: central extension ``1 → Z₂ → Q₈ → V4 → 1`` of the Klein-4 coset. Its coupling is the
+#: Q₈ group product (:func:`quad_turn` right-couple), non-involutive — decoupled by the
+#: Class-C conjugate (group inverse), NOT the XOR self-inverse. Data turns are ``sectors=8``
+#: (:data:`OCT`) HVs (klein4 stays ``sectors=4``). Coexists with the klein4 path with NO
+#: GENOME_FORMAT_VERSION bump (the size-agnostic header discipline — the reader is told the
+#: type; a header-less body still defaults to :data:`ELEMENT_TYPE_KLEIN4`). The §55 8-sector
+#: packer + the format bump land in rc312.
+ELEMENT_TYPE_Q8 = 1
+_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8"}
 _ELEMENT_TYPE_CODES = {name: code for code, name in _ELEMENT_TYPE_NAMES.items()}
 
 #: §60 kernel-header fixed prefix layout (bytes; NUL-padded to ``leaf_dim``):
@@ -697,8 +730,647 @@ _KERNEL_HEADER_KLEIN4_SYMS = _KH4_D_SYMS + _KH4_LEAFDIM_SYMS + _KH4_ETYPE_SYMS  
 LEAF_CAP = 256
 #: The Klein-4 order (Z2 x Z2) — the biaxial "+" / the 4 chirality sectors (F130/F233).
 QUAD = 4
+#: §Q8 (rc311) — the Q₈ carrier order: 8 = the 4 Klein-4 cosets × the ±1 center sign (the
+#: 3-bit ``{0..7}`` symbol). A Q8 data turn is a ``sectors=8`` HV; the extra bit over
+#: :data:`QUAD` is the over/under-winding sign the abelian klein4 coset cannot carry.
+OCT = 8
 #: One quad-turn spans the 4 Klein-4 sectors of leaves: 1024 = 4 x 256 (F713).
 MOBIUS_CAP = LEAF_CAP * QUAD
+
+
+# =====================================================================
+# rc313 — the exact-rational discrete writhe + the mod-2 CWF check.
+# The physical-topology peer of the intrinsic mod-2 center-parity
+# holonomy (srmech.qm.quaternion.quaternion_cycle_holonomy, rc309).
+# =====================================================================
+
+def _dw_as_rational(v) -> Tuple[int, int]:
+    """Coerce one coordinate to an EXACT ``(num, den)`` integer pair (den != 0).
+
+    Accepts an ``int``, any rational carrying integer ``.numerator`` /
+    ``.denominator`` (e.g. ``fractions.Fraction`` — DUCK-TYPED, never imported:
+    srmech ships no stdlib ``fractions`` dependency), or a 2-sequence
+    ``(num, den)``. Floats are REJECTED — the writhe is exact-rational (no FPU
+    lift); pass ``(num, den)`` or a ``Fraction`` for non-integers."""
+    if isinstance(v, bool):
+        raise TypeError("discrete_writhe: bool is not a coordinate")
+    if isinstance(v, int):
+        return (v, 1)
+    num = getattr(v, "numerator", None)
+    den = getattr(v, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int):   # Fraction et al., duck-typed
+        if den == 0:
+            raise ValueError("discrete_writhe: zero denominator in a coordinate")
+        return (num, den)
+    if isinstance(v, (tuple, list)) and len(v) == 2:
+        num, den = int(v[0]), int(v[1])
+        if den == 0:
+            raise ValueError("discrete_writhe: zero denominator in a coordinate")
+        return (num, den)
+    raise TypeError(
+        "discrete_writhe: coordinate must be int, a rational with integer "
+        "numerator/denominator, or (num, den); "
+        f"got {type(v).__name__} (floats are rejected — writhe is exact-rational)")
+
+
+def _dw_normalise(embedding) -> Tuple[list, list, list, list, list, list]:
+    """Split an embedding (list of 3D rational points) into the six flat
+    ``num``/``den`` integer lanes the C peer + pure path both consume."""
+    xn, xd, yn, yd, zn, zd = [], [], [], [], [], []
+    for k, pt in enumerate(embedding):
+        if len(pt) != 3:
+            raise ValueError(
+                f"discrete_writhe: point {k} must be a 3-tuple (x, y, z)")
+        (a, b) = _dw_as_rational(pt[0]); xn.append(a); xd.append(b)
+        (a, b) = _dw_as_rational(pt[1]); yn.append(a); yd.append(b)
+        (a, b) = _dw_as_rational(pt[2]); zn.append(a); zd.append(b)
+    return xn, xd, yn, yd, zn, zd
+
+
+def _dw_sgn(x: int) -> int:
+    """The Class-K pin-slot sign of an integer (no ``abs()``)."""
+    return (x > 0) - (x < 0)
+
+
+def _dw_scale4(nums, dens) -> list:
+    """One axis of the 4 pair-vertices scaled to a COMMON POSITIVE integer:
+    ``out[k] = num[k] · Π_{m≠k} den[m]`` (dens pre-normalised > 0). Mirrors
+    the C ``srmech_dw_scale4`` term order exactly."""
+    out = []
+    for k in range(4):
+        v = nums[k]
+        for m in range(4):
+            if m != k:
+                v *= dens[m]
+        out.append(v)
+    return out
+
+
+def _dw_writhe_pure(xn, xd, yn, yd, zn, zd, n_points: int, closed: bool) -> int:
+    """Pure-Python complete alternative for the directional writhe — the
+    exact-INTEGER determinant algorithm, byte-identical to the C peer (same
+    sign order, plain Python ints)."""
+    n_seg = n_points if closed else (n_points - 1 if n_points > 0 else 0)
+    if n_seg < 2:
+        return 0
+    wr = 0
+    for i in range(n_seg):
+        a, b = i, (i + 1) % n_points
+        for j in range(i + 1, n_seg):
+            c, d = j, (j + 1) % n_points
+            if a in (c, d) or b in (c, d):
+                continue
+            idx = (a, b, c, d)
+            nx, dx, ny, dy, nz, dz = [], [], [], [], [], []
+            for g in idx:
+                for (nn, dd, ln, ld) in ((xn[g], xd[g], nx, dx),
+                                         (yn[g], yd[g], ny, dy),
+                                         (zn[g], zd[g], nz, dz)):
+                    if dd == 0:
+                        raise ValueError("discrete_writhe: zero denominator")
+                    ln.append(nn if dd > 0 else -nn)
+                    ld.append(dd if dd > 0 else -dd)
+            X = _dw_scale4(nx, dx); Y = _dw_scale4(ny, dy); Z = _dw_scale4(nz, dz)
+
+            def _o2(P, Q, pp, qq, rr):
+                return _dw_sgn((P[qq] - P[pp]) * (Q[rr] - Q[pp])
+                               - (Q[qq] - Q[pp]) * (P[rr] - P[pp]))
+            o1 = _o2(X, Y, 0, 1, 2); o2 = _o2(X, Y, 0, 1, 3)
+            o3 = _o2(X, Y, 2, 3, 0); o4 = _o2(X, Y, 2, 3, 1)
+            if o1 * o2 > 0 or o3 * o4 > 0:
+                continue
+            if 0 in (o1, o2, o3, o4):
+                raise ValueError(
+                    "discrete_writhe: non-generic projection (a crossing-"
+                    "deciding orientation vanished) — nudge the embedding")
+            ux, uy, uz = X[1] - X[0], Y[1] - Y[0], Z[1] - Z[0]
+            vx, vy, vz = X[3] - X[2], Y[3] - Y[2], Z[3] - Z[2]
+            wx, wy, wz = X[2] - X[0], Y[2] - Y[0], Z[2] - Z[0]
+            t = _dw_sgn(ux * (vy * wz - vz * wy) - uy * (vx * wz - vz * wx)
+                        + uz * (vx * wy - vy * wx))
+            if t == 0:
+                raise ValueError(
+                    "discrete_writhe: strands meet in 3D (vanishing triple "
+                    "product at a crossing) — not an embedding")
+            wr += t
+    return wr
+
+
+def _dw_writhe_native(xn, xd, yn, yd, zn, zd, n_points: int, closed: bool):
+    """numpy-free native dispatch — marshals the six int64 lanes into ctypes
+    buffers and calls ``srmech_genome_discrete_writhe`` over a caller arena.
+    Returns ``(num, den)`` or ``None`` on a missing symbol; raises on a
+    degenerate-projection / meet-in-3D status (the pure path raises the same)."""
+    import ctypes
+    if not _native.has_native_genome_discrete_writhe():
+        return None
+
+    def _i64(seq):
+        return (ctypes.c_int64 * max(n_points, 1))(*(int(v) for v in seq))
+    cxn, cxd = _i64(xn), _i64(xd)
+    cyn, cyd = _i64(yn), _i64(yd)
+    czn, czd = _i64(zn), _i64(zd)
+    ws_bytes = int(_native.LIB.srmech_genome_discrete_writhe_arena_bytes(
+        ctypes.c_uint32(n_points)))
+    ws = (ctypes.c_char * ws_bytes)()
+    onum = ctypes.c_int64(0)
+    oden = ctypes.c_int64(1)
+    rc = _native.LIB.srmech_genome_discrete_writhe(
+        cxn, cxd, cyn, cyd, czn, czd,
+        ctypes.c_uint32(n_points), ctypes.c_int32(1 if closed else 0),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
+        ctypes.byref(onum), ctypes.byref(oden))
+    if rc == _native.SRMECH_OK:
+        return (int(onum.value), int(oden.value))
+    if rc == getattr(_native, "SRMECH_ERR_BAD_INPUT", 2):
+        raise ValueError(
+            "discrete_writhe: degenerate projection or non-embedded strand "
+            "(the native peer flagged a vanishing crossing determinant)")
+    return None
+
+
+def discrete_writhe(embedding, *, closed: bool = True) -> Dict[str, object]:
+    """The EXACT-rational DIRECTIONAL discrete writhe of a polygonal backbone.
+
+    Given a caller-supplied 3D embedding of the strand (each vertex an EXACT
+    RATIONAL — an ``int``, a ``Fraction``, or a ``(num, den)`` pair per
+    coordinate), this computes the DISCRETE Gauss double-sum over non-adjacent
+    backbone segment PAIRS in the projection that drops ``z``:
+
+        ``Wr = Σ_{i<j, non-adjacent} ε_ij`` ,  ``ε_ij = sign(T_ij)`` when
+        segments ``i, j`` cross in the ``xy``-projection (four exact 2D
+        orientation determinants decide the crossing), else ``0``;
+        ``T_ij = (B−A)·((D−C)×(C−A))`` is the scalar triple product
+        (``A=P_i, B=P_{i+1}, C=P_j, D=P_{j+1}``).
+
+    **What this IS and is NOT (honest bounding).** This is the *directional*
+    (single-projection) discrete writhe — the **signed crossing number** of the
+    diagram, an exact INTEGER. It is **not** the smooth solid-angle Gauss
+    writhe, which is transcendental and *cannot* be a rational; that smooth
+    value is this integer's average over the direction sphere (arccos /
+    solid-angles — outside the exact-rational, libm-free scope). The mod-2 CWF
+    check (:func:`cwf_consistency_mod2`) uses only the writhe's **parity**,
+    where ``+1 ≡ −1``, so the absolute sign convention is immaterial there.
+
+    **Exactness (W4).** Every crossing decision and every ``ε`` is the SIGN of
+    an INTEGER determinant (the four pair-vertices are scaled to a common
+    positive integer denominator per axis) — computed on the ``srmech_bigint``
+    surface in C, or Python big-ints in the pure path — so no float can flip a
+    near-degenerate crossing sign, and native == pure byte-identically. This is
+    the closed-form discrete Gauss integral in Class-N integers (CAD-ban-clear:
+    NOT GPU / mesh / FEA numerical simulation). No ``abs()`` (sign is
+    Class K ∘ Class C); no float; no libm.
+
+    Args:
+        embedding: the backbone vertices, a sequence of 3-tuples ``(x, y, z)``;
+            each coordinate an ``int`` / ``Fraction`` / ``(num, den)`` pair.
+        closed: when ``True`` (default) the wrap segment ``P_{n-1}→P_0`` closes
+            the loop; when ``False`` the backbone is an open polyline.
+
+    Returns:
+        ``dict`` with ``num`` / ``den`` (the writhe as a reduced rational —
+        ``den`` is always ``1``, the directional writhe being integer-valued),
+        ``writhe`` (the ``(num, den)`` pair), ``n_points``, and ``closed``.
+
+    Raises:
+        ValueError: a non-generic projection (a crossing-deciding orientation
+            determinant vanishes) or a strand that meets itself in 3D (a
+            vanishing triple product at a proper crossing — not an embedding).
+            Nudge the embedding, as the winding-number code does at a root.
+    """
+    pts = list(embedding)
+    n_points = len(pts)
+    xn, xd, yn, yd, zn, zd = _dw_normalise(pts)
+    res = None
+    if n_points > 0:
+        res = _dw_writhe_native(xn, xd, yn, yd, zn, zd, n_points, closed)
+    if res is None:
+        num = _dw_writhe_pure(xn, xd, yn, yd, zn, zd, n_points, closed)
+        res = (num, 1)
+    num, den = res
+    return {
+        "num": num, "den": den, "writhe": (num, den),
+        "n_points": n_points, "closed": bool(closed),
+    }
+
+
+def _cwf_gain_sign(gain) -> int:
+    """The per-turn central sign of a Q₈ gain: ``+1`` for the positive coset
+    ``{1, i, j, k}``, ``−1`` for the negative coset ``{−1, −i, −j, −k}`` — the
+    sign of the FIRST non-zero component (Class-K pin-slot; no ``abs()``).
+    Gains far from Q₈ are read by the same first-nonzero rule."""
+    tol = 1e-9
+    for c in gain:
+        if c > tol:
+            return 1
+        if c < -tol:
+            return -1
+    return 1
+
+
+def _cwf_compute_pure(edge_list, gains, nn, embedding, closed):
+    """Pure-Python composition — Lk from quaternion_cycle_holonomy, Tw from the
+    Q8 sign accumulation, Wr from discrete_writhe. Returns the raw 6-tuple
+    ``(center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent)``."""
+    from srmech.qm.quaternion import quaternion_cycle_holonomy as _qch
+    holo = _qch(edge_list, gains, n=nn)
+    if holo["n_cycles"] != 1:
+        raise ValueError(
+            "cwf_consistency_mod2: expected exactly one fundamental cycle "
+            f"(a single closed strand); got n_cycles={holo['n_cycles']}")
+    center_parity = int(holo["center_parity"][0])
+    lk_mod2 = None if center_parity == 0 else (1 if center_parity == -1 else 0)
+    resolved = [] if gains is None else list(gains)
+    tw_mod2 = (sum(1 for g in resolved if _cwf_gain_sign(g) == -1)) % 2
+    if embedding is None:
+        return center_parity, lk_mod2, tw_mod2, None, None, None
+    wr = discrete_writhe(embedding, closed=closed)
+    wr_pair = (wr["num"], wr["den"])
+    wr_mod2 = (wr["num"] % 2) if wr["den"] == 1 else None
+    consistent = None
+    if lk_mod2 is not None and wr_mod2 is not None:
+        consistent = ((tw_mod2 + wr_mod2) % 2 == lk_mod2)
+    return center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent
+
+
+def _cwf_compute_native(edge_list, gains, nn, embedding, closed):
+    """numpy-free native dispatch to the WHOLE-OP C peer
+    ``srmech_genome_cwf_consistency_mod2`` (it orchestrates the holonomy +
+    writhe C ops). Returns the same 6-tuple as :func:`_cwf_compute_pure`, or
+    ``None`` on a missing symbol / unmarshalable gain; raises on a BAD_INPUT
+    status (not one cycle / degenerate strand)."""
+    import ctypes
+    if not _native.has_native_genome_cwf_consistency_mod2():
+        return None
+    n_edges = len(edge_list)
+    eu = (ctypes.c_uint32 * max(n_edges, 1))(*(int(u) for u, _ in edge_list))
+    ev = (ctypes.c_uint32 * max(n_edges, 1))(*(int(v) for _, v in edge_list))
+    if gains is None:
+        gp = None
+    else:
+        flat = []
+        for g in gains:
+            gg = list(g)
+            if len(gg) != 4:
+                return None                      # let the pure path coerce
+            flat.extend(float(c) for c in gg)
+        gp = (ctypes.c_double * max(len(flat), 1))(*flat)
+    has_emb = 1 if embedding is not None else 0
+    nullp = ctypes.POINTER(ctypes.c_int64)()
+    n_points = 0
+    cxn = cxd = cyn = cyd = czn = czd = nullp
+    if has_emb:
+        pts = list(embedding)
+        n_points = len(pts)
+        xn, xd, yn, yd, zn, zd = _dw_normalise(pts)
+
+        def _i64(seq):
+            return (ctypes.c_int64 * max(n_points, 1))(*(int(v) for v in seq))
+        cxn, cxd, cyn, cyd, czn, czd = (_i64(xn), _i64(xd), _i64(yn),
+                                        _i64(yd), _i64(zn), _i64(zd))
+    ws_bytes = int(_native.LIB.srmech_genome_cwf_consistency_mod2_arena_bytes(
+        ctypes.c_uint32(nn), ctypes.c_uint32(n_edges), ctypes.c_uint32(n_points)))
+    ws = (ctypes.c_char * ws_bytes)()
+    olk = ctypes.c_int32(0); ocp = ctypes.c_int32(0); otw = ctypes.c_int32(0)
+    owr = ctypes.c_int32(0); ocons = ctypes.c_int32(0)
+    rc = _native.LIB.srmech_genome_cwf_consistency_mod2(
+        eu, ev, gp, ctypes.c_uint32(n_edges), ctypes.c_uint32(nn),
+        ctypes.c_int32(has_emb), cxn, cxd, cyn, cyd, czn, czd,
+        ctypes.c_uint32(n_points), ctypes.c_int32(1 if closed else 0),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_bytes),
+        ctypes.byref(olk), ctypes.byref(ocp), ctypes.byref(otw),
+        ctypes.byref(owr), ctypes.byref(ocons))
+    if rc == _native.SRMECH_OK:
+        center_parity = int(ocp.value)
+        lk_mod2 = None if int(olk.value) < 0 else int(olk.value)
+        tw_mod2 = int(otw.value)
+        wr_mod2 = None if int(owr.value) < 0 else int(owr.value)
+        consistent = None if int(ocons.value) < 0 else bool(int(ocons.value))
+        wr_pair = None
+        if has_emb:                              # the exact (num, den) for the dict
+            wrd = discrete_writhe(embedding, closed=closed)
+            wr_pair = (wrd["num"], wrd["den"])
+        return center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent
+    if rc == getattr(_native, "SRMECH_ERR_BAD_INPUT", 2):
+        raise ValueError(
+            "cwf_consistency_mod2: the native peer flagged a bad input (not "
+            "exactly one fundamental cycle, or a degenerate/non-embedded strand)")
+    return None
+
+
+def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
+                         embedding=None, closed: bool = True) -> Dict[str, object]:
+    """The **mod-2** Călugăreanu–White–Fuller consistency check on a strand:
+
+        ``Lk ≡ Tw + Wr   (mod 2)`` .
+
+    Three INDEPENDENTLY-computed reads of the stored strand and its supplied
+    geometry:
+
+    * **Lk** — the intrinsic mod-2 center-parity holonomy (rc309): the
+      ``center_parity`` of the strand's single fundamental cycle from
+      :func:`srmech.qm.quaternion.quaternion_cycle_holonomy` over the Q₈
+      gains. ``center_parity == −1`` (the ``{−1}`` spinor class) → ``Lk ≡ 1``;
+      ``+1`` (``{1}``) → ``Lk ≡ 0``; ``0`` (the pure-imaginary class) → the
+      holonomy is NON-central and mod-2 ``Lk`` is UNDEFINED (flagged).
+    * **Tw** — the framing twist read from the Q₈ **sign accumulation** along
+      the strand: ``Tw ≡ #{edges whose gain is in the negative coset}
+      (mod 2)`` (the product of per-turn central signs is ``(−1)^Tw``).
+    * **Wr** — the directional writhe of the supplied ``embedding``
+      (:func:`discrete_writhe`), computed from GEOMETRY — **never** as
+      ``Lk − Tw``. That geometric independence is what gives the check teeth:
+      the writhe supplies the non-abelian Q₈ cocycle (e.g. ``i·i = −1``) that
+      the per-turn sign-sum ``Tw`` misses, exactly as CWF's writhe accounts
+      for the crossings a naive twist count omits.
+
+    **HONEST BOUNDING (form, not identity).** A finite group (Q₈) pins ``Lk``
+    only **mod 2** (the center-parity) — NOT the unbounded integer Gauss
+    linking number. The ``Tw`` ↔ Q₈-sign-accumulation map is **unpinned at the
+    integer level** (a full-twist ``±1`` gain and the physical half-twist count
+    are not proven equal); only the **parity** is used, and the check is kept
+    strictly mod-2. We do NOT claim DNA IS a quaternion, nor that the stored
+    integer IS the physical 3D linking number, nor an integer-level CWF.
+
+    **No-embedding path.** With ``embedding=None`` only the intrinsic mod-2
+    ``Lk`` (and ``Tw``) are available: ``wr`` / ``wr_mod2`` / ``consistent``
+    are ``None`` and no ``Wr`` is fabricated.
+
+    Composition of C: :func:`quaternion_cycle_holonomy` ∘ :func:`discrete_writhe`
+    (both C-dispatched) ∘ mod-2 integer arithmetic.
+
+    Args:
+        edges: the strand connectivity ``(u, v)`` — a single fundamental cycle.
+        gains: per-edge unit-quaternion Q₈ gains (4-vectors), parallel to
+            ``edges`` — the stored physical turns.
+        n: node count (keyword-only); inferred from the edges when ``None``.
+        embedding: optional backbone vertices (node ``k`` → ``embedding[k]``),
+            each an exact rational 3-tuple; ``None`` → intrinsic-only.
+        closed: passed to :func:`discrete_writhe` (default ``True``).
+
+    Returns:
+        ``dict`` with ``lk_mod2`` (0/1 or ``None`` if non-central),
+        ``lk_center_parity`` (+1/−1/0), ``tw_mod2``, ``wr`` (``(num, den)`` or
+        ``None``), ``wr_mod2`` (or ``None``), ``consistent`` (bool or ``None``),
+        and ``note`` (the honest bounding / no-embedding annotation).
+
+    Raises:
+        ValueError: the graph does not have exactly one fundamental cycle.
+    """
+    edge_list = [tuple(e) for e in edges]
+    if n is None:
+        nn = 0
+        for (u, v) in edge_list:
+            nn = max(nn, int(u) + 1, int(v) + 1)
+    else:
+        nn = int(n)
+    res = _cwf_compute_native(edge_list, gains, nn, embedding, closed)
+    if res is None:                              # no C peer / unmarshalable
+        res = _cwf_compute_pure(edge_list, gains, nn, embedding, closed)
+    center_parity, lk_mod2, tw_mod2, wr_pair, wr_mod2, consistent = res
+    note = ("mod-2 CWF: Q8 pins Lk only mod-2 (center-parity), not the integer "
+            "Gauss Lk; the Tw<->Q8-sign map is unpinned at integer level "
+            "(parity only). Wr is computed from geometry, never Lk-Tw.")
+    if lk_mod2 is None:
+        note = ("holonomy is NON-central (pure-imaginary class) — mod-2 Lk is "
+                "undefined for this strand; " + note)
+    if embedding is None:
+        note = ("no embedding supplied — only the intrinsic mod-2 Lk is "
+                "available; no Wr fabricated. " + note)
+    return {
+        "lk_mod2": lk_mod2, "lk_center_parity": center_parity,
+        "tw_mod2": tw_mod2, "wr": wr_pair, "wr_mod2": wr_mod2,
+        "consistent": consistent, "note": note,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# §136 (rc314, #962) — the CODON READ-LAYER (a pure read; stores NOTHING).
+#
+# Biology reads the genome in CODONS (triplets — the genetic code), and that is
+# a READING PROCESS the ribosome IMPOSES over the stored strand, not stored
+# substrate. So this is a READ over the existing store — it changes no format
+# (``GENOME_FORMAT_VERSION`` stays 16), adds no carrier, and is ADDITIVE.
+#
+# THREE distinct order-3 objects are kept SEPARATE (do NOT conflate them):
+#   (a) the reading-frame phase  φ ∈ {0,1,2} — a genuine cyclic C3 (Class I),
+#       the ribosome's window offset; ADDED here.
+#   (b) klein4 triality (:func:`srmech.amsc.hdc.klein4_triality_cycle`) — the
+#       base-axis automorphism, the order-3 S3 generator relabelling the three
+#       non-identity cosets, already used for k=3 error-correction. NOT the frame.
+#   (c) the winding Lk (rc309 center-parity; :func:`cwf_consistency_mod2`) — lives
+#       in the Q8 SIGN BIT, removed by ``q8_project_v4`` before any codon is read.
+# There is NO codon copy of the integer Lk: the codon layer is frame topology in
+# Z3 (:func:`codon_frame_monodromy`); the winding lives in the sign bit.
+
+#: The codon read-layer labels the 4 Klein-4 / V4 cosets as the 4 RNA bases in
+#: NCBI Base-order (Base1/Base2/Base3 read T,C,A,G): coset ``0 -> U`` (shown as
+#: ``T`` in the GenBank DNA alphabet), ``1 -> C``, ``2 -> A``, ``3 -> G``. This
+#: makes the base-4 codon index ``16*b0 + 4*b1 + b2`` IDENTICAL to the NCBI
+#: translation-table-1 codon index, so the attested ``ncbieaa`` string indexes
+#: with NO remapping. It is a STIPULATED labelling of the READ (the ribosome's
+#: frame), not a claim about what the store means.
+CODON_BASES = ("U", "C", "A", "G")
+
+#: The attested Standard Genetic Code datum (NCBI translation table 1). MPR-
+#: attested AMSC data — sibling to the other ``attested/`` catalogs.
+_GENETIC_CODE_DIR = Path(__file__).resolve().parent / "attested" / "genetic_code"
+
+
+def _parse_ncbi_field(source_response: str, key: str) -> str:
+    """Extract a quoted NCBI ``gc.prt`` field (``ncbieaa`` / ``sncbieaa``) from the
+    attested source text. The exact parse rule pinned by ``parser_rule_hash``:
+    the value is the text between the first pair of double quotes on the line
+    that starts with ``key``."""
+    for line in source_response.splitlines():
+        if line.startswith(key):
+            parts = line.split('"')
+            if len(parts) >= 2:
+                return parts[1]
+    raise GenomeBoundingError(
+        f"genetic_code: attested source has no {key!r} line")
+
+
+@functools.lru_cache(maxsize=1)
+def _genetic_code_table() -> Tuple[str, str]:
+    """Load + MPR-validate the Standard Genetic Code (NCBI ``transl_table=1``)
+    from the attested AMSC datum; return ``(ncbieaa, sncbieaa)`` (64-char each).
+
+    The 64 → 20(+stop) codon→amino-acid table is ATTESTED reference data — a
+    citation the reader can re-verify — NEVER an inline invented dict (the
+    fluent-domain-vocabulary failure mode: an invented table has no citation to
+    check). **Class A** re-verifies the ``response_sha256`` content-address over
+    the source bytes, then **Class E** hands back the codon catalog. The datum
+    ships at ``srmech/amsc/attested/genetic_code/`` (source: A. Elzanowski and
+    J. Ostell, *The Genetic Codes*, NCBI; ``ncbieaa`` cross-verified byte-
+    identical across the NCBI ``wprintgc.cgi`` page and the ``gc.prt`` data file;
+    resource DOI 10.1093/database/baaa062, open access).
+    """
+    rows = list(_read_ndjson(_GENETIC_CODE_DIR / "row.ndjson"))
+    if not rows:
+        raise GenomeBoundingError("genetic_code datum is empty")
+    rec = rows[0]
+    _validate_mpr_record(rec)                    # MPR attestation-block gate
+    source = rec.data["source_response"]
+    if _sha256_bytes(source.encode("utf-8")) != rec.attestation["response_sha256"]:
+        raise GenomeBoundingError(
+            "genetic_code: response_sha256 does not match the source bytes")
+    ncbieaa = _parse_ncbi_field(source, "ncbieaa")
+    sncbieaa = _parse_ncbi_field(source, "sncbieaa")
+    if len(ncbieaa) != 64 or len(sncbieaa) != 64:
+        raise GenomeBoundingError(
+            "genetic_code: ncbieaa / sncbieaa are not 64 symbols wide")
+    return ncbieaa, sncbieaa
+
+
+def _codon_symbols(strand):
+    """Coerce a strand to a 1-D buffer of base symbols for the codon read.
+
+    Accepts an ``HV`` (via ``tobytes``) or any 1-D int sequence (``bytes`` /
+    ``bytearray`` / ``list`` / ``tuple``) of Q8 bytes; the
+    :func:`~srmech.amsc.q8.q8_project_v4` call does the element validation."""
+    if hasattr(strand, "tobytes"):
+        return strand.tobytes()
+    return strand
+
+
+def _codon_native_ready(symbol: str) -> bool:
+    """True iff the native lib is loaded AND exports ``symbol`` (numpy-free)."""
+    return bool(
+        _native.HAS_NATIVE and _native.LIB is not None
+        and hasattr(_native.LIB, symbol)
+    )
+
+
+def _codon_read_pure(proj, phase: int, ncbieaa: str) -> str:
+    """The byte-exact pure-Python read: window → base-4 index → catalog lookup."""
+    out: List[str] = []
+    n = len(proj)
+    i = phase
+    while i + 3 <= n:
+        out.append(ncbieaa[16 * proj[i] + 4 * proj[i + 1] + proj[i + 2]])
+        i += 3
+    return "".join(out)
+
+
+def _codon_read_native(proj, phase: int, ncbieaa: str):
+    """Dispatch the codon read to ``srmech_genome_codon_read`` (byte-identical
+    to :func:`_codon_read_pure`); returns the amino-acid ``str`` or ``None`` when
+    the native peer is unavailable."""
+    if not _codon_native_ready("srmech_genome_codon_read"):
+        return None
+    n = len(proj)
+    c_strand = (ctypes.c_uint8 * n).from_buffer_copy(bytes(proj)) if n \
+        else (ctypes.c_uint8 * 0)()
+    c_tab = (ctypes.c_uint8 * 64).from_buffer_copy(ncbieaa.encode("ascii"))
+    c_out = (ctypes.c_uint8 * ((n // 3) + 1))()
+    c_len = ctypes.c_uint32(0)
+    rc = _native.LIB.srmech_genome_codon_read(
+        c_strand, ctypes.c_uint32(n), ctypes.c_uint32(phase),
+        c_tab, c_out, ctypes.byref(c_len))
+    if rc != _native.SRMECH_OK:
+        return None
+    return bytes(c_out[:c_len.value]).decode("ascii")
+
+
+def codon_read(strand, phase=0, *, with_indices=False, stop_at_stop=False):
+    """Read a strand as CODONS (triplets) — the genetic-code amino-acid readout.
+
+    A PURE READ: it stores nothing and changes no format. Biology reads 4 BASES
+    (not 8 signed states), so :func:`~srmech.amsc.q8.q8_project_v4` is applied
+    FIRST — the winding / center SIGN BIT must NOT leak into amino-acid identity
+    (a Q8 strand with nonzero winding and its V4-projection yield BYTE-IDENTICAL
+    codons; the winding-invariance gate). Then a 3-slot window slides from the
+    reading-frame offset ``phase ∈ {0,1,2}``, forming a base-4 codon index
+    ``i = 16*b0 + 4*b1 + b2 ∈ [0, 64)`` over the 3 projected symbols
+    (:data:`CODON_BASES` labelling), and a **Class-E** dense-catalog lookup
+    ``i → amino acid`` against the attested Standard Genetic Code (NCBI
+    ``transl_table=1``; :func:`_genetic_code_table`). ``'*'`` denotes a stop.
+
+    The reading-frame phase is a genuine cyclic **C3** (Class I), DISTINCT from
+    :func:`~srmech.amsc.hdc.klein4_triality_cycle` (the base-axis automorphism)
+    and from the winding ``Lk`` (:func:`cwf_consistency_mod2`; the Q8 sign bit).
+
+    Class I (``q8_project_v4`` + the Z3 frame offset) ∘ Class E (the codon
+    catalog). Dispatches to the whole-op C peer ``srmech_genome_codon_read``
+    (``c_dispatched``, genome-fully-in-C; byte-identical pure fallback);
+    ``q8_project_v4`` itself has the C peer ``srmech_q8_project_v4``. ADDITIVE —
+    ``SRMECH_ABI_VERSION`` stays 10, ``GENOME_FORMAT_VERSION`` stays 16.
+
+    Args:
+        strand: A 1-D sequence of Q8 base symbols (``bytes`` / ``bytearray`` /
+            ``list`` / ``tuple`` of ints in ``[0, 8)``; V4 symbols in ``[0, 4)``
+            are the sign-free special case), or an ``HV`` (read via ``tobytes``).
+        phase: The reading-frame offset ``∈ {0, 1, 2}`` (the C3 phase).
+        with_indices: If True, also return the raw codon indices.
+        stop_at_stop: If True, stop reading at the first stop codon (``'*'``)
+            — the codon is included, the read then terminates.
+
+    Returns:
+        The amino-acid string (one char per codon), or
+        ``(amino_acids, codon_indices)`` when ``with_indices`` is True.
+
+    Raises:
+        ValueError: if ``phase`` is not in ``{0, 1, 2}``, or a symbol is not a
+            valid Q8 byte.
+    """
+    ph = int(phase)
+    if ph not in (0, 1, 2):
+        raise ValueError(
+            f"codon_read: phase (reading frame) must be in {{0, 1, 2}}; "
+            f"got {phase!r}")
+    proj = _q8_project_v4(_codon_symbols(strand))    # 4 bases; sign bit dropped
+    ncbieaa, _sncbieaa = _genetic_code_table()
+    protein = _codon_read_native(proj, ph, ncbieaa)  # whole-op C peer
+    if protein is None:
+        protein = _codon_read_pure(proj, ph, ncbieaa)
+    if not (with_indices or stop_at_stop):
+        return protein
+    # `stop_at_stop` / `with_indices` are pure post-processing on the read.
+    if stop_at_stop:
+        star = protein.find("*")
+        if star >= 0:
+            protein = protein[:star + 1]
+    if with_indices:
+        indices = [16 * proj[i] + 4 * proj[i + 1] + proj[i + 2]
+                   for i in range(ph, len(proj) - 2, 3)][:len(protein)]
+        return protein, indices
+    return protein
+
+
+def codon_frame_monodromy(strand):
+    """The Z3 reading-frame MONODROMY of a CIRCULAR strand.
+
+    Going once around a circular strand shifts the reading frame ``φ → φ + L``
+    (mod 3), where ``L`` is the number of base symbols. This returns ``L mod 3``
+    — a REAL Z3 invariant, DISTINCT from :func:`~srmech.amsc.hdc.klein4_triality_cycle`
+    (the base-axis automorphism) and from the winding ``Lk``
+    (:func:`cwf_consistency_mod2`; the sign bit). When ``L mod 3 == 0`` the frame
+    CLOSES on a clean loop (a circular ORF reads in one consistent frame);
+    otherwise a single lap advances the frame by 1 or 2. There is NO codon copy
+    of the integer ``Lk`` — the codon layer is frame topology in Z3, and the
+    winding lives in the Q8 sign bit.
+
+    Class I (cyclic Z3). A pure read: it stores nothing. ``q8_project_v4`` is
+    applied so ``L`` counts sign-free BASE symbols (projection preserves length,
+    so this is ``len(strand) mod 3`` — the projection also validates the bytes).
+    Dispatches to the whole-op C peer ``srmech_genome_codon_frame_monodromy``
+    (``c_dispatched``, genome-fully-in-C; byte-identical pure fallback).
+
+    Args:
+        strand: A 1-D sequence of Q8 base symbols (see :func:`codon_read`), or
+            an ``HV``.
+
+    Returns:
+        int: ``L mod 3 ∈ {0, 1, 2}`` — the frame shift accrued per lap.
+    """
+    n = len(_q8_project_v4(_codon_symbols(strand)))
+    if _codon_native_ready("srmech_genome_codon_frame_monodromy"):
+        out = ctypes.c_uint32(0)
+        rc = _native.LIB.srmech_genome_codon_frame_monodromy(
+            ctypes.c_uint32(n), ctypes.byref(out))
+        if rc == _native.SRMECH_OK:
+            return int(out.value)
+    return n % 3
 
 
 def _ceil_log4(m: int) -> int:
@@ -749,25 +1421,104 @@ def encode_shape(n: int) -> Dict[str, object]:
     return {"n": n, "shape": shape, "leaves": leaves, "depth": depth, "leaf_cap": LEAF_CAP}
 
 
-def quad_turn(turn, coupling):
+def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Couple one helix turn through ``coupling`` — the genome's turn operation (F713).
 
-    The turn is bound to ``coupling`` (the held invariant) by the **reversible**
-    Klein-4 bind (``V4 = (F2)^2`` XOR, so ``quad_turn(quad_turn(t, one), one) ==
-    t``): the duality held WITHOUT collapse, numpy-free. ``coupling`` is the shared
-    invariant present in every turn's coupling — so a chromosome navigates across
-    its turns through ``coupling`` and recovers any turn by re-binding it.
+    **klein4 (``element_type=ELEMENT_TYPE_KLEIN4``, the default — UNCHANGED).** The turn
+    is bound to ``coupling`` (the held invariant) by the **reversible** Klein-4 bind
+    (``V4 = (F2)^2`` XOR, so ``quad_turn(quad_turn(t, one), one) == t``): the duality held
+    WITHOUT collapse, numpy-free. ``coupling`` is the shared invariant present in every
+    turn — so a chromosome navigates across its turns through ``coupling`` and recovers any
+    turn by re-binding it. ``turn`` / ``coupling`` are Klein-4 vectors (``sectors=4``, e.g.
+    from :func:`srmech.amsc.hdc.klein4_from_one`); returns the coupled turn.
 
-    ``turn`` and ``coupling`` are Klein-4 vectors (e.g. from
-    :func:`srmech.amsc.hdc.klein4_from_one`); returns the coupled turn (a Klein-4
-    ``HV``). Class-M (bind) ∘ Class-C (the chirality the Klein-4 sectors carry).
+    **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc311).** The turn is RIGHT-coupled by the
+    Q₈ group product — ``stored[i] = q8_mult(turn[i], one[i])`` per slot (:func:`q8_bind`).
+    Q₈ is NON-abelian, so this is NOT a self-inverse: :func:`recall` decouples with the
+    Class-C conjugate (group inverse), not a second bind. Because a wrong coupling SIDE
+    corrupts silently (there is no round-trip error to catch it downstream), the side is a
+    HARD RUNTIME ASSERTION here (:func:`_q8_side_ok`), not a doc note. ``turn`` / ``coupling``
+    are Q₈ vectors (``sectors=8`` = :data:`OCT`, bytes ``0..7``).
 
-    Each turn sits in the native 4-sector biaxial "+"
-    (:func:`srmech.amsc.cascade.parallel_sector_dispatch`, CAP=4); that dispatch
-    and the base-4 leaf addressing assemble at the chromosome level. Per the F712
-    caveat the 4-way is ONE chirality level, the deeper tree is radix addressing.
+    Class-M (bind) ∘ Class-C (the chirality the sectors carry). Each turn sits in the native
+    4-sector biaxial "+" (:func:`srmech.amsc.cascade.parallel_sector_dispatch`, CAP=4); that
+    dispatch and base-4 leaf addressing assemble at the chromosome level.
     """
-    return _klein4_bind(turn, coupling)
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        return _klein4_bind(turn, coupling)
+    if element_type == ELEMENT_TYPE_Q8:
+        return _q8_couple(turn, coupling)
+    raise ValueError(
+        f"quad_turn: unknown element_type {element_type!r}; declared types are "
+        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+
+
+def _hv_bytes(x):
+    """The raw ``bytes`` of an HV / bytes-like turn (numpy-free; the Q8 ops consume a
+    flat byte buffer). Class-B byte-canonicalisation, no float."""
+    return x.tobytes() if isinstance(x, _HV) else bytes(x)
+
+
+def _q8_conj_buffer(one_bytes):
+    """The per-slot Q₈ conjugate (group inverse) of a coupling buffer — ``conj(one)[i] =
+    q8_conjugate(one[i])`` (Class-C chirality; a sign-bit flip on the imaginary cosets, NO
+    ``abs()``). The right-inverse the Q8 decouple binds against."""
+    return bytes(_q8_conjugate(o) for o in one_bytes)
+
+
+def _q8_uncouple_bytes(stored_bytes, one_bytes):
+    """Right-inverse Q₈ decouple on raw bytes: ``recovered[i] = q8_mult(stored[i],
+    q8_conjugate(one[i]))`` = ``q8_bind(stored, conj(one))``. Rests on the group law
+    ``q8_mult(a, q8_conjugate(a)) == 0`` (0 = identity; verified rc310), so a RIGHT-coupled
+    ``stored = q8_mult(turn, one)`` decouples exactly to ``turn`` (associativity). Class-M
+    (bind) ∘ Class-C (conjugate)."""
+    return _q8_bind(stored_bytes, _q8_conj_buffer(one_bytes))
+
+
+def _q8_side_ok(stored_bytes, turn_bytes, one_bytes):
+    """The Q₈ coupling-SIDE invariant, as a fireable predicate: True iff the module's
+    RIGHT-conjugate decouple inverts ``stored`` back to ``turn``. RIGHT-coupling
+    (``stored = q8_mult(turn, one)``) satisfies it; a LEFT-coupled ``stored =
+    q8_mult(one, turn)`` does NOT (Q₈ is non-abelian), so :func:`quad_turn` asserts this
+    and a wrong side FAILS LOUDLY instead of corrupting silently. Class-K exact byte
+    compare, no float/abs."""
+    return bytes(_q8_uncouple_bytes(stored_bytes, one_bytes)) == bytes(turn_bytes)
+
+
+def _q8_couple(turn, coupling):
+    """Right-couple one Q₈ turn: ``stored[i] = q8_mult(turn[i], one[i])`` (:func:`q8_bind`,
+    the Q₈ group product, NON-abelian). Returns a ``sectors=8`` (:data:`OCT`) HV. The
+    coupling SIDE is a HARD runtime assertion (:func:`_q8_side_ok`) — Q₈ has no self-inverse
+    safety net, so a left-side couple would round-trip WRONG with no downstream error; the
+    assert pins couple↔uncouple on the SAME (right) side. Class-M ∘ Class-C."""
+    turn_bytes = _hv_bytes(turn)
+    one_bytes = _hv_bytes(coupling)
+    stored = _q8_bind(turn_bytes, one_bytes)          # right: turn · one, per slot
+    assert _q8_side_ok(stored, turn_bytes, one_bytes), (
+        "q8 couple side error: the right-conjugate decouple does not invert the stored "
+        "turn — couple and uncouple are on opposite sides (Q₈ is non-abelian; §Q8)")
+    return _HV.from_sequence(stored, sectors=OCT)
+
+
+def _quad_unturn(hv, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
+    """Uncouple one STORED turn back to its leaf — the direction-aware inverse of
+    :func:`quad_turn`.
+
+    **klein4 (default — UNCHANGED).** The SAME reversible Klein-4 XOR bind
+    (``_klein4_bind`` is an involution, so uncouple == couple); byte-identical to the
+    shipped :func:`recall` / :func:`recover_diploid` path.
+
+    **Q8 (§Q8 / rc311).** The Q₈ group-INVERSE decouple (:func:`_q8_uncouple_bytes`) — Q₈ is
+    non-abelian so uncouple ≠ couple; ``recovered[i] = q8_mult(stored[i], conj(one[i]))``.
+    Returns a ``sectors=8`` (:data:`OCT`) HV."""
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        return _klein4_bind(hv, coupling)             # involution — identical to shipped path
+    if element_type == ELEMENT_TYPE_Q8:
+        return _HV.from_sequence(
+            _q8_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)), sectors=OCT)
+    raise ValueError(
+        f"_quad_unturn: unknown element_type {element_type!r}; declared types are "
+        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
 
 
 def _pack_cap(marker, label, dim):
@@ -1750,33 +2501,40 @@ def _leaf_is_erased(leaf_syms):
     return all(int(s) == 0 for s in leaf_syms)
 
 
-def _diploid_ec_leaf(a_turn, b_turn, which, coupling):
+def _diploid_ec_leaf(a_turn, b_turn, which, coupling, *,
+                     element_type=ELEMENT_TYPE_KLEIN4):
     """The per-leaf diploid EC read (§95b / F1244; §95.4 erasure-symmetry fix): exactly one
     ERASED (a detectable break) → fill from the intact homolog (the diploid specialist — 2×
     not 3×); both present + agree → use it; both present but DISAGREE (a substitution) → trust
     the centromere which-template mark.
 
-    ``a_turn``/``b_turn`` are the two STORED homolog TURNS (the on-disk Klein-4 HVs, PRE-
-    decouple); ``coupling`` the shared invariant; ``which`` the mark parity (0 = trust copyA,
-    1 = trust copyB). **Erasure is read on the stored TURN, not the decoupled leaf** — a double-
-    strand break zeros the stored turn, and a zeroed turn decouples to a NON-zero leaf, so the
-    all-zero erasure sentinel MUST be tested before :func:`quad_turn` (the §95.4 bug: testing
-    the decoupled leaf detected NO erasure, so a copyA break healed only by substitution-
-    tiebreak luck — asymmetric). Class-K sector compare, no float/abs."""
+    ``a_turn``/``b_turn`` are the two STORED homolog TURNS (the on-disk HVs, PRE-decouple);
+    ``coupling`` the shared invariant; ``which`` the mark parity (0 = trust copyA, 1 = trust
+    copyB). **Erasure is read on the stored TURN, not the decoupled leaf** — a double-strand
+    break zeros the stored turn, and a zeroed turn decouples to a NON-zero leaf, so the
+    all-zero erasure sentinel MUST be tested before the decouple (the §95.4 bug: testing the
+    decoupled leaf detected NO erasure, so a copyA break healed only by substitution-tiebreak
+    luck — asymmetric). Class-K sector compare, no float/abs.
+
+    §Q8 (rc311): the compare + tiebreak are FULL-symbol (``list(a) == list(b)``), so they are
+    bit-width-agnostic — a lone Q₈ SIGN-bit disagreement (the NEW 3rd bit) is a whole-leaf
+    disagreement and resolves through the SAME mark tiebreak as a 2-bit V4 coset one. The
+    decouple is the element-typed inverse (:func:`_quad_unturn` — klein4 XOR / Q8 conjugate)."""
     a_erased = _leaf_is_erased(list(a_turn))
     b_erased = _leaf_is_erased(list(b_turn))
     if a_erased and not b_erased:
-        return quad_turn(b_turn, coupling)              # fill from the intact homolog (erasure)
+        return _quad_unturn(b_turn, coupling, element_type=element_type)   # intact homolog
     if b_erased and not a_erased:
-        return quad_turn(a_turn, coupling)
-    a, b = quad_turn(a_turn, coupling), quad_turn(b_turn, coupling)
+        return _quad_unturn(a_turn, coupling, element_type=element_type)
+    a = _quad_unturn(a_turn, coupling, element_type=element_type)
+    b = _quad_unturn(b_turn, coupling, element_type=element_type)
     if list(a) == list(b):
         return a                                       # homologs agree (incl. both-erased)
     return b if which else a                           # substitution → the marked template
 
 
 def diploid(leaves, coupling, *, label="diploid", orientation=None,
-            repeats=CENTROMERE_DEFAULT_REPEATS):
+            repeats=CENTROMERE_DEFAULT_REPEATS, element_type=ELEMENT_TYPE_KLEIN4):
     """A DIPLOID chromosome (§95b / F1244 / #1407) — biology's diploid pair, the erasure/break
     specialist.
 
@@ -1805,41 +2563,61 @@ def diploid(leaves, coupling, *, label="diploid", orientation=None,
             f"diploid orientation must be a Klein-4 sector 0..3 (the which-template mark + "
             f"global orientation); got {orientation!r}")
     # rc259 (#1407): DISPATCH the whole diploid assemble to the srmech_genome_diploid C peer
-    # when HAS_NATIVE — 1:1 C↔Python byte parity. The pure build below is the numpy-free oracle.
+    # when HAS_NATIVE — 1:1 C↔Python byte parity. §Q8 (rc311): the C peer is the klein4 XOR
+    # bind; a Q8 diploid couples with the non-abelian Q₈ product, so it takes the pure path
+    # (each homolog turn via :func:`quad_turn`, dispatching to the native q8_bind).
     leaf_bytes = _leaf_blocks(leaves)
-    if leaf_bytes and all(len(b) == dim for b in leaf_bytes):
+    if (element_type == ELEMENT_TYPE_KLEIN4
+            and leaf_bytes and all(len(b) == dim for b in leaf_bytes)):
         native = _native.genome_diploid_c(
             label, _coupling_block_bytes(coupling), b"".join(leaf_bytes), len(leaf_bytes),
             o, repeats, dim)
         if native is not None:
             return [_hv_from_block(native[i * dim:(i + 1) * dim])
                     for i in range(len(native) // dim)]
-    copy = [quad_turn(leaf, coupling) for leaf in leaves]   # copyA == copyB (homologs)
+    copy = [quad_turn(leaf, coupling, element_type=element_type)
+            for leaf in leaves]                        # copyA == copyB (homologs)
     cap = _pack_cap(DIPLOID_TELOMERE_MARKER, label, dim)
     cen = _pack_centromere(o, dim, repeats=repeats)
     return [cap] + copy + [cen] + copy
 
 
-def recover_diploid(strand, coupling):
+def recover_diploid(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Recover a diploid chromosome's content via the two-copy EC (§95b) — the inverse of
     :func:`diploid`. Splits the strand at its interior centromere into ``copyA | copyB``
     (homologs) and error-corrects per leaf (:func:`_diploid_ec_leaf`): agree → use; one erased
     (a detectable break) → fill from the intact homolog; disagree → trust the centromere
     which-template mark. Returns the recovered leaves. Raises ``ValueError`` if ``strand`` is
     not a diploid chromosome (no ``0x44`` cap) or is malformed (missing centromere / unequal
-    arms)."""
+    arms).
+
+    §Q8 (rc311): with ``element_type=ELEMENT_TYPE_Q8`` the per-turn decouple is the Q₈ group
+    inverse (:func:`_quad_unturn`), and the two-copy compare/mark EC resolves a lone Q₈ SIGN-bit
+    (3-bit-symbol) disagreement through the SAME full-leaf tiebreak it uses for a 2-bit V4 one."""
     strand = list(strand)
     if not strand or _cap_kind(strand[0]) != DIPLOID_TELOMERE_MARKER:
         raise ValueError(
             "recover_diploid: strand is not a diploid chromosome (no leading 0x44 cap)")
-    # rc259 (#1407): DISPATCH the two-copy EC to srmech_genome_recover_diploid when HAS_NATIVE
-    # (byte-identical). The pure walk below is the numpy-free oracle.
+    # rc259 (#1407): DISPATCH the klein4 two-copy EC to srmech_genome_recover_diploid. §Q8
+    # (rc311): DISPATCH the Q8 EC to srmech_genome_recover_diploid_q8 (the q8_mult(stored,
+    # conj(one)) decouple per turn) — a distinct native symbol so ABI stays 10. Both are
+    # byte-identical to the pure walk below (the numpy-free oracle).
     dim = len(list(strand[0]))
-    native = _native.genome_recover_diploid_c(
-        b"".join(hv.tobytes() for hv in strand), len(strand), dim,
-        _coupling_block_bytes(coupling))
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        native = _native.genome_recover_diploid_c(
+            b"".join(hv.tobytes() for hv in strand), len(strand), dim,
+            _coupling_block_bytes(coupling))
+    elif element_type == ELEMENT_TYPE_Q8:
+        native = _native.genome_recover_diploid_q8_c(
+            b"".join(hv.tobytes() for hv in strand), len(strand), dim,
+            _coupling_block_bytes(coupling))
+    else:
+        raise ValueError(
+            f"recover_diploid: unknown element_type {element_type!r}; declared types are "
+            f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+    sectors = OCT if element_type == ELEMENT_TYPE_Q8 else QUAD
     if native is not None:
-        return [_HV.from_sequence(native[i * dim:(i + 1) * dim], sectors=QUAD)
+        return [_HV.from_sequence(native[i * dim:(i + 1) * dim], sectors=sectors)
                 for i in range(len(native) // dim)]
     copyA, copyB, cen = [], [], None
     seen_cen = False
@@ -1857,7 +2635,8 @@ def recover_diploid(strand, coupling):
     out = []
     for a_turn, b_turn in zip(copyA, copyB):
         # pass the STORED turns (pre-decouple) — erasure is read on the turn (§95.4)
-        out.append(_diploid_ec_leaf(a_turn, b_turn, which, coupling))
+        out.append(_diploid_ec_leaf(a_turn, b_turn, which, coupling,
+                                    element_type=element_type))
     return out
 
 
@@ -2357,7 +3136,8 @@ def accessible(strand, cell_state, *, coupling=None):
 
 
 def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
-               kernel=False, active_count=None, centromere=None, centromere_at=None):
+               kernel=False, active_count=None, centromere=None, centromere_at=None,
+               element_type=ELEMENT_TYPE_KLEIN4):
     """Pack a kernel — or SEVERAL genes — into a telomere-capped strand (F713/F715/F730).
 
     **Single kernel (shipped F713/F715 behaviour, unchanged).** Pass ``leaves``
@@ -2463,7 +3243,11 @@ def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
         # the reversible srmech_klein4_bind). The pure list-comp below is the numpy-free
         # fallback + parity oracle; the kernel / active-telomere / gene / MINT forms open
         # their own boundary caps (or an interior centromere) and stay pure here.
-        if not kernel and active_count is None and centromere is None:
+        # §Q8: the native chromosome C peer is the klein4 XOR bind; a Q8 chromosome couples
+        # with the non-abelian Q₈ product, so it takes the pure path (each turn via
+        # :func:`quad_turn`, which dispatches to the natively-accelerated q8_bind).
+        if (element_type == ELEMENT_TYPE_KLEIN4
+                and not kernel and active_count is None and centromere is None):
             leaf_bytes = _leaf_blocks(leaf_list)
             if all(len(b) == dim for b in leaf_bytes):
                 native = _native.genome_chromosome_c(
@@ -2472,7 +3256,7 @@ def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
                 if native is not None:
                     return [_hv_from_block(native[i * dim:(i + 1) * dim])
                             for i in range(len(native) // dim)]
-        turns = [quad_turn(leaf, coupling) for leaf in leaf_list]
+        turns = [quad_turn(leaf, coupling, element_type=element_type) for leaf in leaf_list]
         if centromere is None:
             return [cap] + turns
         # §95a MINT (F1243): a TIER-2 nuclear chromosome — insert the INTERIOR centromere
@@ -2522,7 +3306,8 @@ def chromosome(leaves=None, coupling=None, *, label="chromosome", genes=None,
         else:
             gene_label, gene_leaves = gene
             strand.append(_gene_cap(gene_label, dim))
-        strand.extend(quad_turn(leaf, coupling) for leaf in gene_leaves)
+        strand.extend(
+            quad_turn(leaf, coupling, element_type=element_type) for leaf in gene_leaves)
     return strand
 
 
@@ -2589,57 +3374,83 @@ def _graded_gene_cap_from_spec(gene_label, spec, dim):
     return _pack_graded_gene(gene_label, spec["weights"], spec["denom"], dim)
 
 
-def recall(strand, coupling, telomere=None):
+def recall(strand, coupling, telomere=None, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Recover the kernel's leaves from a capped chromosome strand (F713/F715/§44).
 
     Walk the ``strand``; skip every CAP leaf — CHROM or GENE, recognised by its
-    inline marker (first byte ``> 3``), §44 — and re-bind ``coupling`` (the reversible
-    :func:`quad_turn` again) on each coupled data turn to recover the original leaf.
-    The exact inverse of :func:`chromosome`::
+    inline marker (first byte ``> 3``), §44 — and DECOUPLE each coupled data turn to
+    recover the original leaf. The exact inverse of :func:`chromosome`::
 
         recall(chromosome(leaves, one, label=L), one) == leaves
+
+    **klein4 (default — UNCHANGED).** The decouple is the reversible Klein-4 XOR bind
+    (:func:`_quad_unturn`, an involution — byte-identical to the shipped path).
+
+    **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc311).** The decouple is the Q₈ group
+    INVERSE (``q8_mult(stored, conj(one))``, :func:`_q8_uncouple_bytes`) — Q₈ is non-abelian,
+    so this is a genuine inverse, NOT a second bind. ``coupling`` must be the SAME Q₈ ``one``
+    the strand was coupled with; the Q₈ ``one`` is not stored in a header this rc (no
+    GENOME_FORMAT_VERSION bump), so the ``element_type`` is passed here (as at
+    :func:`chromosome`). Returns ``sectors=8`` (:data:`OCT`) HV leaves.
 
     §44: caps are recognised by their inline marker (the strand self-describes), not
     matched by value — so ``recall`` no longer needs the cap handed to it; the
     ``telomere`` parameter is accepted for back-compat and ignored. (Use :func:`genes`
     on a multi-gene chromosome to keep the per-gene split; ``recall`` flattens.)
     """
-    # rc197 (#887): DISPATCH to the srmech_genome_recall C peer when HAS_NATIVE and
-    # the strand is uniform fixed-width leaf_dim blocks — byte-identical (skip every
-    # cap via genome_cap_kind, re-bind each data turn via the reversible
-    # srmech_klein4_bind). recall is gate-agnostic (it flattens across CHROM / GENE /
-    # kernel / active-telomere caps alike), so the C peer covers the multi-gene strand
-    # too. The pure walk below is the numpy-free fallback + parity oracle, and handles
-    # any non-uniform strand (e.g. a variable-width packed turn).
     dim = len(list(coupling))
     blocks = _leaf_blocks(strand)
+    sectors = OCT if element_type == ELEMENT_TYPE_Q8 else QUAD
     if dim > 0 and blocks and all(len(b) == dim for b in blocks):
-        native = _native.genome_recall_c(
-            b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+        # rc197 (#887): DISPATCH the klein4 path to srmech_genome_recall (reversible XOR
+        # per turn). §Q8 (rc311): DISPATCH the Q8 path to srmech_genome_recall_q8 (the
+        # q8_mult(stored, conj(one)) group inverse per turn) — a distinct native symbol so
+        # ABI stays 10 (the klein4 C peer is byte-untouched). Both are byte-identical to
+        # the pure walk below (the numpy-free fallback + parity oracle, which also handles
+        # any non-uniform strand, e.g. a variable-width packed turn).
+        if element_type == ELEMENT_TYPE_KLEIN4:
+            native = _native.genome_recall_c(
+                b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+        elif element_type == ELEMENT_TYPE_Q8:
+            native = _native.genome_recall_q8_c(
+                b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+        else:
+            raise ValueError(
+                f"recall: unknown element_type {element_type!r}; declared types are "
+                f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
         if native is not None:
             leaf_bytes, n = native
-            return [_HV.from_sequence(leaf_bytes[i * dim:(i + 1) * dim], sectors=QUAD)
+            return [_HV.from_sequence(leaf_bytes[i * dim:(i + 1) * dim], sectors=sectors)
                     for i in range(n)]
     leaves = []
     for hv in strand:
         if _cap_kind(hv) is not None:   # a CHROM/GENE cap — a delimiter, not data
             continue
-        leaves.append(quad_turn(hv, coupling))   # reversible uncouple (bind o bind == id)
+        leaves.append(_quad_unturn(hv, coupling, element_type=element_type))
     return leaves
 
 
-def genes(strand, coupling):
+def genes(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Recover ``[(gene_label, gene_leaves), …]`` from a multi-gene chromosome (F730/S43).
 
     The exact inverse of ``chromosome(genes=…, coupling)``. Walk the ``strand``:
     a :func:`_gene_cap` (first byte :data:`GENE_CAP_MARKER` — never a Klein-4 turn)
     opens a new gene whose label is read back INLINE (:func:`_unpack_cap`, no TLV);
-    every coupled data turn until the next gene-cap (or the end) is re-bound through
-    ``coupling`` (the reversible :func:`quad_turn`) to recover that gene's leaf. The
+    every coupled data turn until the next gene-cap (or the end) is DECOUPLED through
+    ``coupling`` (:func:`_quad_unturn`) to recover that gene's leaf. The
     leading CHROM cap (the chromosome telomere) is skipped — so ``genes`` needs only
     the strand + ``coupling``, no cap argument::
 
         genes(chromosome(genes=[("a", la), ("b", lb)], one), one) == [("a", la), ("b", lb)]
+
+    **klein4 (default — UNCHANGED).** The decouple is the reversible Klein-4 XOR bind
+    (an involution — byte-identical to the shipped path).
+
+    **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc315).** The decouple is the Q₈ group
+    INVERSE (:func:`_q8_uncouple_bytes`) — Q₈ is non-abelian, so a self-bind would NOT
+    recover the leaf; ``coupling`` must be the SAME Q₈ ``one`` (sectors=8) the strand was
+    coupled with (build a Q₈ genome with ``chromosome(genes=…, element_type=Q8)``). Returns
+    ``sectors=8`` (:data:`OCT`) HV leaves.
 
     Use :func:`genes` (not :func:`recall`) on a multi-gene chromosome; ``recall``
     flattens across the gene boundaries (§44: scanned by inline marker).
@@ -2670,7 +3481,10 @@ def genes(strand, coupling):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
+            # §Q8: DECOUPLE (not re-couple) — klein4 XOR is an involution so this is
+            # byte-identical to the shipped path; Q₈ is non-abelian so the group inverse
+            # is REQUIRED (a second bind would corrupt the leaf).
+            cur_leaves.append(_quad_unturn(hv, coupling, element_type=element_type))
     if started:
         out.append((cur_label, cur_leaves))
     return out
@@ -2802,7 +3616,7 @@ def copy_number_of(chrom, label):
         f"is carried on a plain GENE cap 0x47; a plain / un-amplified gene reads as 1)")
 
 
-def gene_express(strand, coupling, cell_state):
+def gene_express(strand, coupling, cell_state, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Cell-state-modulated gene expression — a READ-TIME FILTER (§128 / #728; §130 / #730).
 
     ``strand`` is a multi-gene chromosome (from ``chromosome(genes=…, coupling)`` /
@@ -2868,7 +3682,11 @@ def gene_express(strand, coupling, cell_state):
     regulate it; expression reads the regulatory region). The input ``strand`` is
     byte-identical after this call. Returns the EXPRESSED subset as ``[(gene_label,
     gene_leaves), …]`` (the same shape :func:`genes` returns, filtered) in strand order;
-    ``gene_leaves`` are uncoupled through ``coupling`` (the reversible :func:`quad_turn`).
+    ``gene_leaves`` are DECOUPLED through ``coupling`` (:func:`_quad_unturn`). §Q8/rc315:
+    with ``element_type=ELEMENT_TYPE_Q8`` the decouple is the Q₈ group inverse (the gate
+    logic is element-type-agnostic — it reads the cap masks, never a decoded leaf), so a
+    Q₈ genome's expressed genes recover exactly and its V4-projection matches the klein4
+    genome's expression (backward-faithful read). Default stays klein4 (byte-identical).
 
     ``cell_state`` is a non-negative exact integer (Class-I bitwise; each set bit a present
     cell-state condition; no float, never ``abs()``). Native-dispatched (byte-identical C
@@ -2918,13 +3736,14 @@ def gene_express(strand, coupling, cell_state):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
+            cur_leaves.append(_quad_unturn(hv, coupling, element_type=element_type))  # §Q8: decouple
     if started and cur_express:
         out.append((cur_label, cur_leaves))
     return out
 
 
-def gene_express_levels(strand, coupling, cell_state):
+def gene_express_levels(strand, coupling, cell_state, *,
+                        element_type=ELEMENT_TYPE_KLEIN4):
     """GRADED / ANALOG gene expression LEVEL — a READ-TIME FILTER (§132 / #732; the E3 rung).
 
     The orthogonal companion to :func:`gene_express`. Where :func:`gene_express` decides *IF* each
@@ -2955,7 +3774,10 @@ def gene_express_levels(strand, coupling, cell_state):
     this call; biology reads the regulatory region, it does not rewrite the DNA). Returns the
     EXPRESSED subset ``[(gene_label, gene_leaves, (num, den)), …]`` in strand order, where
     ``(num, den)`` is the reduced exact-rational level (a JSON-native 2-tuple of ints);
-    ``gene_leaves`` are uncoupled through ``coupling`` (the reversible :func:`quad_turn`).
+    ``gene_leaves`` are DECOUPLED through ``coupling`` (:func:`_quad_unturn`). §Q8/rc315:
+    with ``element_type=ELEMENT_TYPE_Q8`` the decouple is the Q₈ group inverse (the level
+    computation is element-type-agnostic — it reads the cap weights, never a decoded leaf);
+    default stays klein4 (byte-identical).
 
     ``cell_state`` is a non-negative exact integer (Class-I bitwise; each set bit a present
     condition; no float, never ``abs()``). Native-dispatched (byte-identical C peer
@@ -3004,7 +3826,7 @@ def gene_express_levels(strand, coupling, cell_state):
         elif not started:
             continue                            # any leading cap before the first gene
         else:
-            cur_leaves.append(quad_turn(hv, coupling))   # reversible uncouple
+            cur_leaves.append(_quad_unturn(hv, coupling, element_type=element_type))  # §Q8: decouple
     if started and cur_level[0] > 0:
         out.append((cur_label, cur_leaves, cur_level))
     return out
@@ -4081,19 +4903,29 @@ def mint(kernels=None, coupling=None, *, chromosomes=None, progress=None):
     return genome(kernels, coupling, chromosomes=chromosomes, progress=progress)
 
 
-def partition(strand, coupling, labels=None):
+def partition(strand, coupling, labels=None, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Recover every kernel from a multi-kernel genome strand — the inverse of
     :func:`genome` (F715 / §44).
 
     Walk the ``strand``; each CHROM cap (inline marker :data:`CHROM_CAP_MARKER`,
     §44) starts a new chromosome partition and its label is read back INLINE
     (:func:`_unpack_cap` — no sidecar). The coupled data turns until the next CHROM
-    cap are that kernel's leaves (re-bound through ``coupling`` — the reversible
-    :func:`quad_turn`); intervening GENE caps are skipped as gene delimiters, so a
+    cap are that kernel's leaves (DECOUPLED through ``coupling`` — :func:`_quad_unturn`);
+    intervening GENE caps are skipped as gene delimiters, so a
     multi-gene chromosome FLATTENS to its concatenated leaves (use :func:`genes` to
     keep the per-gene split). Returns ``{label: leaves}``::
 
         partition(genome({"a": A, "b": B}, one), one) == {"a": A, "b": B}
+
+    **klein4 (default — UNCHANGED).** The decouple is the reversible Klein-4 XOR bind
+    (native-dispatched to ``srmech_genome_partition`` — byte-identical to before).
+
+    **Q8 (``element_type=ELEMENT_TYPE_Q8``, §Q8 / rc315).** The decouple is the Q₈ group
+    INVERSE (:func:`_quad_unturn` → :func:`_q8_uncouple_bytes`, itself native-accelerated
+    per turn via ``srmech_q8_bind``); the klein4-XOR ``srmech_genome_partition`` C peer is
+    NOT taken (it is the abelian binder), so a Q₈ strand rides the pure per-turn walk.
+    ``coupling`` must be the SAME Q₈ ``one`` (sectors=8) the strand was coupled with; the
+    recovered leaves are ``sectors=8`` (:data:`OCT`) HVs.
 
     §44: chromosomes are DISCOVERED by scanning inline CHROM caps — ``partition`` no
     longer needs the label set handed to it (the strand self-describes). ``labels``
@@ -4109,7 +4941,11 @@ def partition(strand, coupling, labels=None):
     # is the numpy-free fallback + parity oracle (and any non-uniform strand).
     dim = len(list(coupling))
     blocks = _leaf_blocks(strand)
-    if dim > 0 and blocks and all(len(b) == dim for b in blocks):
+    # §Q8: the native partition peer is the klein4 XOR binder — take it only for klein4;
+    # a Q₈ strand falls through to the pure walk (its per-turn Q₈ group-inverse decouple
+    # is itself native-accelerated via srmech_q8_bind, so genome-fully-in-C still holds).
+    if (element_type == ELEMENT_TYPE_KLEIN4
+            and dim > 0 and blocks and all(len(b) == dim for b in blocks)):
         native = _native.genome_partition_c(
             b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
         if native is not None:
@@ -4146,7 +4982,7 @@ def partition(strand, coupling, labels=None):
                                                 # skip, not a coupled data turn
                                                 # not data; flatten past it
         elif current is not None:
-            out[current].append(quad_turn(hv, coupling))   # reversible uncouple
+            out[current].append(_quad_unturn(hv, coupling, element_type=element_type))  # §Q8: decouple
     if labels is not None:
         return {label: out[label] for label in labels if label in out}
     return out
@@ -4671,7 +5507,8 @@ def kernel_to_graph(chroms, coupling, n_syms):
 
 
 def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
-                repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen", progress=None):
+                repeats=CENTROMERE_DEFAULT_REPEATS, handle="cen", progress=None,
+                element_type=ELEMENT_TYPE_KLEIN4):
     """MINT an ALREADY-PACKED strand — splice a §95a interior CENTROMERE (``0x58``) into it
     at the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (§100 GAP 1 /
     PR#687 F1249).
@@ -4716,7 +5553,11 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
     the strand is empty, does not OPEN with a chromosome-boundary cap (pass a :func:`chromosome` /
     :func:`kernel_pack` / :func:`graph_to_kernel` strand, NOT raw leaves), or ALREADY carries a
     centromere (re-minting would double the anchor). Class A (the content-address orientation) ∘
-    Class C (the which-way) ∘ Class K (position = p:q). numpy-free; no ``abs()``."""
+    Class C (the which-way) ∘ Class K (position = p:q). numpy-free; no ``abs()``.
+
+    §Q8/rc315: pass ``element_type=ELEMENT_TYPE_Q8`` to MINT a Q₈ (substrate) strand — the
+    orientation-recall then uses the Q₈ group inverse (the klein4-XOR C peer is not taken);
+    the centromere splice is unchanged. Default stays klein4 (byte-identical)."""
     strand = list(strand)
     if not strand:
         raise ValueError("mint_strand: strand is empty — nothing to mint")
@@ -4761,7 +5602,12 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
     # (the split is a position, the orientation a content-address sector — no magnitude).
     raw_handle = handle.encode("utf-8") if isinstance(handle, str) else bytes(handle)
     blocks = _leaf_blocks(strand)
-    if (dim > 0 and blocks and b"\x00" not in raw_handle
+    # §Q8: the native mint_strand peer recalls via the klein4 XOR to derive the content-
+    # address orientation — take it only for klein4; a Q₈ strand falls through to the pure
+    # path so its orientation-recall uses the Q₈ group inverse (the centromere cap + the
+    # block splice are element-type-agnostic — a cap is sectors=256, the splice is concat).
+    if (element_type == ELEMENT_TYPE_KLEIN4
+            and dim > 0 and blocks and b"\x00" not in raw_handle
             and all(len(b) == dim for b in blocks)):
         native = _native.genome_mint_strand_c(
             b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling),
@@ -4773,8 +5619,9 @@ def mint_strand(strand, coupling, *, orientation=None, centromere_at=None,
         # Class A content-address → Class C chirality: sha256(the strand's OWN recovered leaves)
         # [0] & 3 — the SAME rule mint() assigns a nuclear chromosome (_mint_orientation), so the
         # which-way is deterministic + attested (no magic number). recall skips every cap, so this
-        # is the content the payload decode also sees.
-        orientation = _mint_orientation(recall(strand, coupling))
+        # is the content the payload decode also sees. §Q8: thread element_type so a Q₈ strand
+        # recalls with the group inverse (the orientation is the content-address of the TRUE leaves).
+        orientation = _mint_orientation(recall(strand, coupling, element_type=element_type))
     # Native-dispatched cap-writer (byte-identical C peer srmech_genome_centromere); the splice is
     # pure block concatenation, so the minted strand is byte-identical to a C-produced one.
     cen_cap = centromere(orientation, repeats=repeats, handle=handle, dim=dim)
@@ -4970,6 +5817,54 @@ def _reduce_pair(num, den):
     return (num // g, den // g)
 
 
+def _assemble_graph_partition(n, n_bins, work_dir, gg):
+    """Assemble the §100 GAP 2 partition return dict from the native
+    :func:`~srmech.amsc._native.genome_graph_partition_c` read-out ``gg`` — the EXACT
+    SAME dict the pure body produces (ADR-0009 byte-parity), including the §101 cancel
+    shape. ``communities`` is rebuilt from the per-node community ids (ascending, so a
+    community's node list is sorted — identical to the pure ``[sorted(t) for t in
+    tomes]``)."""
+    communities: List[List[int]] = [[] for _ in range(gg["n_communities"])]
+    community = gg["community"]
+    for v in range(n):
+        communities[community[v]].append(v)
+    if gg.get("cancelled"):
+        return {
+            "n": n, "n_communities": len(communities), "bimodal": False,
+            "one_dna_type": None, "antimode": None, "participation": [],
+            "communities": communities, "groups": [],
+            "counts": {"nuclear": 0, "plasmid": 0},
+            "node_counts": {"nuclear": 0, "plasmid": 0},
+            "work_dir": work_dir, "status": GENOME_STATUS_CANCELLED,
+        }
+    groups = [{"community": g["community"], "type": g["type"], "nodes": g["nodes"],
+               "size": g["size"], "participation": g["participation"]}
+              for g in gg["groups"]]
+    counts_by_type = {"nuclear": 0, "plasmid": 0}
+    for g in groups:
+        counts_by_type[g["type"]] += 1
+    am = gg["antimode"]
+    return {
+        "n": n,
+        "n_communities": len(communities),
+        "bimodal": am["bimodal"],
+        "one_dna_type": gg["one_dna_type"],
+        "antimode": {
+            "bins": n_bins, "counts": gg["counts"],
+            "threshold_bin": am["threshold_bin"], "peak_low_bin": am["peak_low_bin"],
+            "peak_high_bin": am["peak_high_bin"], "valley_count": am["valley_count"],
+            "gap": am["gap"], "bimodal": am["bimodal"],
+        },
+        "participation": gg["participation"],
+        "communities": communities,
+        "groups": groups,
+        "counts": counts_by_type,
+        "node_counts": gg["node_counts"],
+        "work_dir": work_dir,
+        "status": GENOME_STATUS_OK,
+    }
+
+
 def genome_partition(n, edges, weights=None, charges=None, *,
                      work_dir=None, max_tome=256, n_bins=_PARTITION_DEFAULT_BINS,
                      max_iters=250, progress=None):
@@ -5049,6 +5944,27 @@ def genome_partition(n, edges, weights=None, charges=None, *,
         n, edges, weights, charges)
     if not isinstance(n_bins, int) or isinstance(n_bins, bool) or n_bins < 2:
         raise ValueError(f"genome_partition: n_bins must be an int >= 2; got {n_bins!r}")
+
+    # §100 G3 (rc321, task #904): the WHOLE GRAPH partition has a standalone-C peer
+    # srmech_genome_graph_partition — recursive_cut + the exact-integer participation
+    # + the antimode DECISION + per-node classify + group assembly ALL run in C, so a
+    # bare-C host builds the partition with NO Python present. The pure body below is
+    # the complete alternative AND the byte-parity oracle (ADR-0009: the two coherency
+    # projections emit the SAME structure). The edges go to the SAME write_packed_graph
+    # file recursive_cut consumes; max_depth is recursive_cut's default (64), matching
+    # the pure recursive_cut(...) call below (which omits max_depth).
+    if _native.has_native_genome_graph_partition():
+        import os
+        from srmech.amsc.laplacian import write_packed_graph
+        wd = work_dir if work_dir is not None else tempfile.mkdtemp(prefix="srmech_cut_")
+        os.makedirs(wd, exist_ok=True)
+        graph_path = os.path.join(wd, "graph.bin")
+        write_packed_graph(graph_path, edge_list, weight_list)
+        _gg = _native.genome_graph_partition_c(
+            int(n), graph_path, wd, int(max_tome), int(n_bins), int(max_iters),
+            64, int(n) + 1, progress=progress)
+        if _gg is not None:
+            return _assemble_graph_partition(n, n_bins, wd, _gg)
 
     # SCOPE — the full-graph out-of-core community assignment (never the dense structure).
     # §101: progress= threads the PARTITIONING heartbeat into recursive_cut (the dominant
@@ -5163,7 +6079,7 @@ def _induced_subgraph(nodes, edge_list, weight_list, charge_list):
 def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
                       path=None, leaf_dim=None, max_tome=256,
                       n_bins=_PARTITION_DEFAULT_BINS, centromere_at=None,
-                      progress=None):
+                      progress=None, attestation=None):
     """BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN
     STRUCTURE — the §100 GAP 2 builder (PR#687 / F1250 / F1251). "Hand a graph, get
     nuclear + plasmid from its structure."
@@ -5200,6 +6116,16 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
     centromere_at : Optional[int]
         The nuclear arm-split forwarded to :func:`mint_strand` (default the metacentric
         midpoint of each minted community).
+    attestation : Optional[dict]
+        When ``path`` is given, a caller MPR SOURCE-attestation forwarded to
+        :func:`genome_save` — the provided fields OVERRIDE the srmech default written into
+        ``manifest.json`` (override-only over the five source-identity fields
+        ``source_doi`` / ``source_url`` / ``license`` / ``retrieved_at`` /
+        ``response_sha256``). For an attested corpus genome (e.g. a simplewiki dump whose
+        true source is ``https://dumps.wikimedia.org/simplewiki/latest/`` under
+        CC-BY-SA-4.0) this records the REAL provenance genome-natively, in the only
+        legitimate place (no sidecar files, §41/F1300). A malformed override raises. No
+        effect when ``path`` is None (nothing is persisted).
 
     Returns
     -------
@@ -5264,7 +6190,7 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
         "status": GENOME_STATUS_OK,
     }
     if path is not None and strand:
-        genome_save(strand, path, coupling)
+        genome_save(strand, path, coupling, attestation=attestation)
         out["path"] = str(path)
         out["census"] = genome_census(str(path), coupling=coupling)
     return out
@@ -5490,7 +6416,17 @@ def telomere_tick(strand):
 #: distinct from every prior marker), so v2..v14 bodies read UNCHANGED (dual-read — the walker
 #: gains ONE branch): back-compat is STRUCTURAL. A chromatin-FREE genome saved by the v15 writer
 #: is byte-identical to the v14 writer EXCEPT the ``format_version`` field. A v15 writer stamps 15.
-GENOME_FORMAT_VERSION = 15
+#: v16 (§55/§Q8/rc312, THE Q₈ on-disk migration): the wire gains a SECOND data-turn packing —
+#: a Q₈ (``ELEMENT_TYPE_Q8``) data turn 3-bit-packs under :data:`Q8_PACKED_TURN_MARKER` (0x38)
+#: instead of the klein4 2-bit :data:`PACKED_TURN_MARKER` (0x51) — plus a manifest ``carrier``
+#: field naming the element type (``"klein4"`` / ``"q8"``). klein4 keeps its 2-bit packer, so a
+#: klein4 body is BYTE-IDENTICAL to v15 (only the manifest ``format_version`` + ``carrier``
+#: fields move); a v15 klein4 genome IS the winding-0 slice of v16 and auto-upgrades by a
+#: manifest re-stamp (:func:`upgrade_v15_to_v16`, klein4's body needs no repack). One more
+#: self-describing marker in the SAME walk (a byte > 3), so v2..v15 bodies read UNCHANGED.
+#: A klein4 genome saved by the v16 writer is byte-identical to the v15 writer EXCEPT the
+#: ``format_version`` + ``carrier`` fields. A v16 writer stamps 16.
+GENOME_FORMAT_VERSION = 16
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -5681,10 +6617,85 @@ def _unpack_turn_payload(payload: bytes, leaf_dim: int) -> bytes:
     return b"".join(_UNPACK_LANES[c] for c in payload)[:leaf_dim]
 
 
-def _disk_block(mem_block: bytes, leaf_dim: int) -> bytes:
-    """One in-memory ``leaf_dim``-byte block → its on-disk v3 form: caps pass
+# ─────────────────────────────────────────────────────────────────────────────
+# §55/§Q8/rc312 (format v16) — the 3-BIT Q₈ packed-turn codec. A Q₈ data turn
+# carries a 3-bit symbol (:mod:`srmech.amsc.q8`: ``(sign_bit << 2) | v4_coset``),
+# so it needs 3 bits/symbol where the klein4 turn packs 2. The layout is MSB-FIRST
+# CONTIGUOUS: symbol ``i`` → bits ``[3i, 3i+3)`` of a big-endian bitstream (symbol
+# 0 in the highest bits, the sign/high bit of each symbol first); the unused LOW
+# bits of a partial final byte are zero (canonical). klein4 keeps the 2-bit packer;
+# a turn's on-disk MARKER (0x38 vs 0x51) keys which codec, so the walk stays
+# self-describing (§44) with NO element_type context needed to READ.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _packed_payload_len_q8(leaf_dim: int) -> int:
+    """Payload bytes of one v16 Q₈ packed data turn: ``ceil(leaf_dim*3 / 8)`` (pure
+    integer — 3-bit Q₈ lanes, MSB-first contiguous bit-packing)."""
+    return (int(leaf_dim) * 3 + 7) // 8
+
+
+def _pack_turn_block_q8(mem_block: bytes) -> bytes:
+    """One in-memory byte-per-symbol Q₈ data turn (bytes ``0..7``) → its v16 on-disk
+    packed block ``[Q8_PACKED_TURN_MARKER] + payload``. 3 bits/symbol, MSB-first
+    contiguous (symbol 0 in the highest bits); the unused LOW bits of a partial final
+    byte are zero (canonical — the round-trip stays byte-exact both ways). Raises
+    ``ValueError`` on a non-Q₈ symbol (> 7).
+
+    M3 (the macOS-cap-overflow lesson — a packing/padding constant belongs in an
+    ASSERTION, not a comment): the partial-final-byte pad width is the exact integer
+    ``pad_bits = plen*8 - n*3`` and those low bits MUST be zero after packing; both
+    are asserted here, so an odd-``leaf_dim`` strand (partial final byte) is checked
+    on the packing hot path, never trusted to a comment."""
+    n = len(mem_block)
+    plen = (n * 3 + 7) // 8
+    acc = 0
+    for i, sym in enumerate(mem_block):
+        if not 0 <= sym <= 7:
+            raise ValueError(
+                f"genome v16 Q8 packing: data-turn symbol {sym} at position {i} "
+                f"is not a Q8 element (0..7) — only Q8 turns 3-bit-pack"
+            )
+        acc = (acc << 3) | sym
+    pad_bits = plen * 8 - n * 3           # THE platform/packing constant (0..7)
+    assert 0 <= pad_bits < 8 and plen == _packed_payload_len_q8(n), (
+        f"q8 pack: pad_bits {pad_bits} / plen {plen} off the ceil(leaf_dim*3/8) "
+        f"invariant at leaf_dim={n}"
+    )
+    acc <<= pad_bits                      # low pad_bits become zero (canonical)
+    payload = acc.to_bytes(plen, "big") if plen else b""
+    if pad_bits and plen:
+        assert payload[-1] & ((1 << pad_bits) - 1) == 0, (
+            f"q8 pack: final byte {payload[-1]:#04x} has nonzero pad in its low "
+            f"{pad_bits} bits (leaf_dim={n}; canonical zero-pad violated)"
+        )
+    return bytes([Q8_PACKED_TURN_MARKER]) + payload
+
+
+def _unpack_turn_payload_q8(payload: bytes, leaf_dim: int) -> bytes:
+    """A v16 Q₈ packed payload → the in-memory byte-per-symbol Q₈ data turn (bytes
+    ``0..7``) — exact inverse of :func:`_pack_turn_block_q8` (drop the low pad bits,
+    read ``leaf_dim`` 3-bit symbols MSB-first)."""
+    n = int(leaf_dim)
+    plen = len(payload)
+    pad_bits = plen * 8 - n * 3
+    acc = int.from_bytes(payload, "big") >> pad_bits
+    out = bytearray(n)
+    for i in range(n - 1, -1, -1):
+        out[i] = acc & 7
+        acc >>= 3
+    return bytes(out)
+
+
+def _disk_block(mem_block: bytes, leaf_dim: int,
+                element_type: int = ELEMENT_TYPE_KLEIN4) -> bytes:
+    """One in-memory ``leaf_dim``-byte block → its on-disk v3/v16 form: caps pass
     through verbatim (their inline-label layout is the §44 format), data turns
-    bit-pack (:func:`_pack_turn_block`)."""
+    bit-pack — klein4 (``element_type=ELEMENT_TYPE_KLEIN4``, the default) 2 bits/symbol
+    via :func:`_pack_turn_block` (v3, unchanged); Q₈ (``element_type=ELEMENT_TYPE_Q8``,
+    v16) 3 bits/symbol via :func:`_pack_turn_block_q8`. The element_type MUST be
+    threaded (not inferred): a Q₈ turn with zero winding is bytes ``0..3``,
+    indistinguishable from klein4 by value alone, so the caller's declared carrier is
+    the only honest source (:func:`_leaf_blocks` drops the HV's ``sectors``)."""
     if len(mem_block) != leaf_dim:
         raise ValueError(
             f"genome: leaf block width {len(mem_block)} != leaf_dim {leaf_dim} "
@@ -5692,6 +6703,8 @@ def _disk_block(mem_block: bytes, leaf_dim: int) -> bytes:
         )
     if _block_is_cap(mem_block):
         return bytes(mem_block)
+    if element_type == ELEMENT_TYPE_Q8:
+        return _pack_turn_block_q8(mem_block)
     return _pack_turn_block(mem_block)
 
 
@@ -5717,10 +6730,13 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     form (caps decode to themselves). A block's FIRST byte keys its kind + width:
     ``CHROM_CAP_MARKER``/``GENE_CAP_MARKER``/``KERNEL_HEADER_MARKER`` (§60) → a
     ``leaf_dim``-byte inline block; ``PACKED_TURN_MARKER`` → a
-    ``1 + ceil(leaf_dim/4)``-byte v3 packed turn; ``0..3`` → a legacy v2
-    ``leaf_dim``-byte byte-per-symbol turn. Anything else (or a block running past
-    the region end) is a :class:`GenomeBoundingError`."""
+    ``1 + ceil(leaf_dim/4)``-byte v3 klein4 packed turn; ``Q8_PACKED_TURN_MARKER``
+    (§Q8/v16) → a ``1 + ceil(leaf_dim*3/8)``-byte 3-bit Q₈ packed turn; ``0..3`` → a
+    legacy v2 ``leaf_dim``-byte byte-per-symbol turn. The marker keys the codec, so a
+    MIXED (klein4 + Q₈) walk needs no element_type context. Anything else (or a block
+    running past the region end) is a :class:`GenomeBoundingError`."""
     plen = _packed_payload_len(leaf_dim)
+    plen_q8 = _packed_payload_len_q8(leaf_dim)
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
@@ -5741,6 +6757,14 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
                     f"(needs {1 + plen} bytes, region ends at {n})"
                 )
             yield region[k:end], _unpack_turn_payload(region[k + 1:end], leaf_dim)
+        elif kind == Q8_PACKED_TURN_MARKER:
+            end = k + 1 + plen_q8
+            if end > n:
+                raise GenomeBoundingError(
+                    f"{context}: truncated Q8 packed turn at offset {k} "
+                    f"(needs {1 + plen_q8} bytes, region ends at {n})"
+                )
+            yield region[k:end], _unpack_turn_payload_q8(region[k + 1:end], leaf_dim)
         else:
             raise GenomeBoundingError(
                 f"{context}: unrecognised block kind byte {kind} at offset {k} "
@@ -5809,8 +6833,26 @@ def _region_chain(region_hexes) -> str:
     return acc
 
 
+def _carrier_name_from_body(body_bytes, leaf_dim) -> str:
+    """The genome's element-type CARRIER name, derived from the body ALONE (§44 —
+    self-describing): ``"q8"`` iff the data turns are Q₈-packed
+    (:data:`Q8_PACKED_TURN_MARKER`), else ``"klein4"``. A genome is carrier-UNIFORM
+    (one element_type per kernel), so the FIRST packed data turn decides — an
+    early-return scan, O(first turn), not O(body). A caps-only or empty body is
+    ``"klein4"`` (the default carrier). Because it is a pure function of the body,
+    :func:`genome_save` and every rebuild-by-scan agree on the manifest ``carrier``
+    field byte-for-byte (the same property that makes ``manifest.json`` a true cache)."""
+    for raw, _dec in _walk_region_blocks(
+            bytes(body_bytes), leaf_dim, context="genome carrier"):
+        if raw and raw[0] == Q8_PACKED_TURN_MARKER:
+            return _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_Q8]
+        if raw and raw[0] == PACKED_TURN_MARKER:
+            return _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]
+    return _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]
+
+
 def _build_manifest_data(leaf_dim, coupling_blocks, chrom_specs, body_bytes,
-                         n_turns):
+                         n_turns, carrier="klein4"):
     """Assemble the manifest ``data`` block — §44's optional DERIVED catalog.
 
     ``chrom_specs`` is a list of ``(label, cap_sha256, leaf_count, byte_offset,
@@ -5834,7 +6876,7 @@ def _build_manifest_data(leaf_dim, coupling_blocks, chrom_specs, body_bytes,
     while it stays re-verifiable from the file and body-derivable (§44)."""
     return _build_manifest_data_from_hexes(
         leaf_dim, coupling_blocks, chrom_specs,
-        _region_hexes_from_body(chrom_specs, body_bytes), n_turns)
+        _region_hexes_from_body(chrom_specs, body_bytes), n_turns, carrier)
 
 
 def _region_hexes_from_body(chrom_specs, body_bytes):
@@ -5847,18 +6889,21 @@ def _region_hexes_from_body(chrom_specs, body_bytes):
 
 
 def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
-                                    region_hexes, n_turns):
+                                    region_hexes, n_turns, carrier="klein4"):
     """Assemble the manifest ``data`` from ALREADY-COMPUTED per-region digests (rc282).
 
     The single assembly point for :func:`_build_manifest_data` (whole-body) and the
     streaming head-only catalog read, so the two cannot produce different catalogs for
-    the same body — the property the ``body_sha256`` chain check relies on."""
+    the same body — the property the ``body_sha256`` chain check relies on. ``carrier``
+    (§Q8/v16) names the element-type carrier (``"klein4"`` / ``"q8"``); it is a pure
+    function of the body (:func:`_carrier_name_from_body`) or the head's stored field."""
     regions = [
         {"byte_offset": int(off), "byte_len": int(ln), "sha256": rh}
         for (_label, _cap, _lc, off, ln, _ck), rh in zip(chrom_specs, region_hexes)
     ]
     return {
         "format_version": GENOME_FORMAT_VERSION,
+        "carrier": carrier,
         "leaf_dim": int(leaf_dim),
         "n_turns": int(n_turns),
         "coupling": {
@@ -5882,7 +6927,8 @@ def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
     }
 
 
-def _build_head_data(leaf_dim, coupling_block, n_turns, n_chromosomes, body_sha256):
+def _build_head_data(leaf_dim, coupling_block, n_turns, n_chromosomes, body_sha256,
+                     carrier="klein4"):
     """The v12 HEAD-ONLY manifest ``data`` — the O(1) head with NO per-chromosome
     ``chromosomes`` / ``regions`` arrays. Those are a plaintext table-of-contents
     (ADR-0003) and the O(N^2) append wall; they are DERIVED by scanning the
@@ -5890,9 +6936,11 @@ def _build_head_data(leaf_dim, coupling_block, n_turns, n_chromosomes, body_sha2
     is needed. ``body_sha256`` is the region-CHAIN head (:func:`_region_chain`), so an
     append folds one region onto it in O(1) and it stays body-derivable +
     re-verifiable. ``n_chromosomes`` is kept in the head so a threaded/cold append and
-    a catalog read know the count without the array."""
+    a catalog read know the count without the array. ``carrier`` (§Q8/v16) names the
+    element-type carrier (``"klein4"`` / ``"q8"``), a pure function of the body."""
     return {
         "format_version": GENOME_FORMAT_VERSION,
+        "carrier": carrier,
         "leaf_dim": int(leaf_dim),
         "n_turns": int(n_turns),
         "n_chromosomes": int(n_chromosomes),
@@ -5927,32 +6975,86 @@ def _read_head(path, coupling=None) -> dict:
     return head
 
 
-def _manifest_record(data) -> _MPRRecord:
+#: The attestation fields a caller MAY override via ``genome_save(attestation=…)`` /
+#: ``genome_from_graph(attestation=…)`` — the SOURCE-identity fields (WHERE the encoded
+#: corpus came from). The remaining four attestation fields — ``parser_version`` /
+#: ``parser_rule_hash`` / ``collector_descriptor_path`` / ``collector_descriptor_hash`` —
+#: identify the ENCODER (srmech itself) and stay srmech-owned, so a caller can attest a
+#: real corpus source WITHOUT being able to misreport which srmech version / rule wrote
+#: the bytes. ``response_sha256`` is overridable (an MPR's response_sha256 = the hash of
+#: the upstream RESPONSE, i.e. the corpus dump); genome body integrity is anchored on the
+#: separate ``data["body_sha256"]`` field, NOT this one, so an override cannot weaken it.
+_ATTESTATION_SOURCE_FIELDS = frozenset((
+    "source_doi", "source_url", "license", "retrieved_at", "response_sha256",
+))
+
+
+def _merge_source_attestation(defaults, override):
+    """OVERRIDE-ONLY merge of a caller SOURCE-attestation over the srmech defaults.
+
+    A provided field REPLACES its default; an ABSENT field keeps its default (so a
+    partial dict never blanks a field — a caller passing only ``source_url`` keeps the
+    srmech ``license`` etc. rather than nulling them). Only the five
+    :data:`_ATTESTATION_SOURCE_FIELDS` may be set: any other key — a typo like
+    ``source_uri``, or an attempt to overwrite an ENCODER-identity field — is REJECTED
+    with a clear error, so the very misattribution this parameter exists to prevent can
+    never be introduced silently. The merged block is validated as a whole MPR by the
+    caller (:func:`_manifest_record`), so an empty / non-string value is rejected there."""
+    if not isinstance(override, dict):
+        raise TypeError(
+            "genome attestation override must be a dict of MPR source fields, "
+            f"got {type(override).__name__}"
+        )
+    merged = dict(defaults)
+    for key, value in override.items():
+        if key not in _ATTESTATION_SOURCE_FIELDS:
+            raise ValueError(
+                f"genome attestation: {key!r} is not an overridable source field "
+                f"(allowed: {sorted(_ATTESTATION_SOURCE_FIELDS)}; the four encoder-"
+                f"identity fields — parser_version / parser_rule_hash / "
+                f"collector_descriptor_path / collector_descriptor_hash — are srmech-owned)"
+            )
+        merged[key] = value
+    return merged
+
+
+def _manifest_record(data, *, attestation=None) -> _MPRRecord:
     """Wrap a genome manifest ``data`` block in an MPRRecord (MPR v1) — the
     on-disk catalog format. ``attestation.response_sha256`` IS the body hash
-    (``body_sha256``); ``parser_version`` is the srmech version string. The
-    record satisfies :func:`srmech.amsc.format.validate_mpr_record`."""
+    (``body_sha256``) by default; ``parser_version`` is the srmech version string. The
+    record satisfies :func:`srmech.amsc.format.validate_mpr_record`.
+
+    ``attestation`` (optional): a caller MPR SOURCE-attestation whose provided fields
+    OVERRIDE the srmech defaults (override-only, per :func:`_merge_source_attestation`) —
+    for an attested corpus genome (e.g. a simplewiki dump under CC-BY-SA-4.0) whose true
+    source is NOT ``srmech.net/genome/persistence``. Only the five
+    :data:`_ATTESTATION_SOURCE_FIELDS` may be overridden; a bad override (non-dict,
+    unknown key, or a value that makes the merged block an invalid MPR) RAISES — a
+    caller-supplied attestation that would produce an invalid MPR is never written."""
     body_sha = data["body_sha256"]
     parser_version = f"srmech {_SRMECH_VERSION}"
     rule_hash = _sha256_bytes(
         f"genome_persistence/v{GENOME_FORMAT_VERSION}".encode("utf-8")
     )
     descriptor_hash = _sha256_bytes(GENOME_MANIFEST_SCHEMA_ID.encode("utf-8"))
+    attest = {
+        "source_doi": "10.0/srmech.genome.persistence",
+        "source_url": "https://srmech.net/genome/persistence",
+        "license": "CC0",
+        "retrieved_at": "1970-01-01T00:00:00Z",
+        "response_sha256": body_sha,
+        "parser_version": parser_version,
+        "parser_rule_hash": rule_hash,
+        "collector_descriptor_path": "srmech/amsc/genome.py",
+        "collector_descriptor_hash": descriptor_hash,
+    }
+    if attestation is not None:
+        attest = _merge_source_attestation(attest, attestation)
     record = _MPRRecord(
         mpr_version="1.0",
         data=data,
         data_schema_id=GENOME_MANIFEST_SCHEMA_ID,
-        attestation={
-            "source_doi": "10.0/srmech.genome.persistence",
-            "source_url": "https://srmech.net/genome/persistence",
-            "license": "CC0",
-            "retrieved_at": "1970-01-01T00:00:00Z",
-            "response_sha256": body_sha,
-            "parser_version": parser_version,
-            "parser_rule_hash": rule_hash,
-            "collector_descriptor_path": "srmech/amsc/genome.py",
-            "collector_descriptor_hash": descriptor_hash,
-        },
+        attestation=attest,
         rendering={
             "human_readable_name": "srmech genome (on-disk chromosome set)",
             "cite_as": "srmech genome persistence (UPSTREAM §41)",
@@ -6012,8 +7114,26 @@ def _coupling_bytes_or_empty(coupling) -> bytes:
     return b"" if coupling is None else _coupling_block_bytes(coupling)
 
 
-def genome_save(strand, path, coupling, labels=None) -> dict:
+def genome_save(strand, path, coupling, labels=None, *, attestation=None,
+                element_type=ELEMENT_TYPE_KLEIN4) -> dict:
     """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41 / §44.
+
+    ``element_type`` (§Q8/v16) selects the data-turn on-disk PACKER: the default
+    :data:`ELEMENT_TYPE_KLEIN4` 2-bit-packs each coupled turn (byte-identical to v15);
+    :data:`ELEMENT_TYPE_Q8` 3-bit-packs it (:func:`_pack_turn_block_q8`, the extra bit
+    is the winding sign). Threading it is mandatory, not inferred — a Q₈ turn with zero
+    winding is bytes ``0..3``, value-indistinguishable from klein4 (:func:`_leaf_blocks`
+    drops the HV's ``sectors``). The manifest records the derived ``carrier`` so a load
+    is self-describing. A klein4 save stamps ``carrier="klein4"``; a Q₈ save ``"q8"``.
+
+    ``attestation`` (optional keyword) — a caller MPR SOURCE-attestation whose provided
+    fields OVERRIDE the srmech default written into ``manifest.json`` (override-only over
+    the five source-identity fields; see :func:`_merge_source_attestation`). With no
+    ``attestation`` the manifest carries the srmech default and the save is byte-identical
+    to before. Because the genome directory is the SSoT (no sidecar files, §41/F1300),
+    the manifest is the ONLY legitimate home for an attested corpus genome's true source,
+    so this is a genome-NATIVE provenance override, not a sidecar. A malformed override
+    (non-dict / unknown key / invalid-MPR value) RAISES before any bytes reach disk.
 
     Splits the flat genome ``strand`` into its chromosomes by SCANNING its inline
     CHROM caps (§44 — the strand self-describes; labels are recovered inline),
@@ -6043,9 +7163,9 @@ def genome_save(strand, path, coupling, labels=None) -> dict:
         byte_offset = len(body)
         leaf_blocks = _leaf_blocks(blocks)
         for blk in leaf_blocks:
-            # §55/v3: caps stay leaf_dim-wide verbatim; data turns bit-pack
-            # (4 Klein-4 symbols per byte) — _disk_block validates the width.
-            body.extend(_disk_block(blk, leaf_dim))
+            # §55/v3: caps stay leaf_dim-wide verbatim; data turns bit-pack — klein4
+            # 4 symbols/byte (2-bit), Q₈ 3-bit (§Q8/v16). _disk_block validates width.
+            body.extend(_disk_block(blk, leaf_dim, element_type))
         n_turns += len(leaf_blocks)
         byte_len = len(body) - byte_offset
         cap_block = leaf_blocks[0]                # the CHROM cap leads the region
@@ -6068,26 +7188,97 @@ def genome_save(strand, path, coupling, labels=None) -> dict:
 
     body_bytes = bytes(body)
     coupling_block = _leaf_blocks([coupling])[0]
+    # §Q8/v16: the carrier is a pure function of the body (the first packed turn's
+    # marker), so it agrees byte-for-byte with the C save's body-scan derivation and
+    # with any rebuild-by-scan. element_type drove the packer, so this reads back "q8"
+    # iff element_type was Q8 (a caps-only body is the "klein4" default, carrier-moot).
+    carrier = _carrier_name_from_body(body_bytes, leaf_dim)
     # The full DERIVED catalog — the RETURN value (callers get chromosomes/regions);
     # on disk only the v12 HEAD is written (the arrays are re-derivable, ADR-0003).
     data = _build_manifest_data(leaf_dim, coupling_block, chrom_specs, body_bytes,
-                                n_turns)
+                                n_turns, carrier)
     head = _build_head_data(leaf_dim, coupling_block, n_turns, len(chrom_specs),
-                            data["body_sha256"])
+                            data["body_sha256"], carrier)
 
     # §49/rc154: native C save writes turns.bin + the head-only manifest byte-
     # identically for a genome of ANY size (the C carves its scratch from the caller
     # arena — no compiled-in cap). Native is authoritative when present; the pure-
     # Python path below is the complete alternative ONLY when there is no C.
-    if _native.has_native_genome():
+    # §41 provenance: a caller ``attestation=`` OVERRIDE (an attested corpus genome's
+    # true source) is applied by the PURE manifest write — the native ``srmech_genome_save``
+    # writes the srmech DEFAULT MPR and takes no override, so the override path writes the
+    # (already-materialised) ``body_bytes`` + the overridden manifest from Python, producing
+    # an on-disk manifest BYTE-IDENTICAL to what a byte-identical C save would emit for the
+    # same override (the two projections do NOT diverge; the capability is the invariant,
+    # ADR-0009). With no override the native fast path is unchanged (byte-identical to before).
+    if attestation is None and _native.has_native_genome():
         try:
             _native.genome_save_c(str(path), body_bytes, leaf_dim, bytes(coupling_block))
             return data
         except _native.NativeGenomeError as exc:
             _raise_native_genome(exc)
 
+    # Build + VALIDATE the record BEFORE any bytes hit disk, so a malformed caller
+    # attestation is rejected (no half-written genome). attestation=None reproduces the
+    # default record exactly.
+    record = _manifest_record(head, attestation=attestation)
     (path / _BODY_NAME).write_bytes(body_bytes)
-    _write_manifest(path, _manifest_record(head))     # v12: HEAD-ONLY on disk
+    _write_manifest(path, record)                     # v12: HEAD-ONLY on disk
+    return data
+
+
+def upgrade_v15_to_v16(path, *, coupling=None) -> dict:
+    """Migrate a v≤15 genome directory to format v16 IN PLACE (§Q8/rc312) — the on-disk
+    Q₈-format upgrade. Returns the re-derived manifest ``data`` (now stamped v16).
+
+    A v15 genome is ALWAYS klein4 (2-bit turns), and v16's klein4 packer is byte-identical,
+    so the BODY needs NO repack: a v15 turn (bytes ``0..3``, sign bit 0) is EXACTLY the
+    winding-0 slice of a v16 Q₈ turn (``q8_project_v4(turn) == turn`` and every sign bit is
+    0). The upgrade is therefore a manifest RE-STAMP — re-derive the ``.fai`` head from the
+    body (the SSoT, §44), which now stamps ``format_version = 16`` + the derived ``carrier``.
+    Because the body is untouched and ``body_sha256`` is a pure function of the body (the
+    region CHAIN since v4), the on-disk bytes that move are EXACTLY the manifest's
+    ``format_version`` + ``carrier`` fields; ``turns.bin`` is byte-identical. Idempotent: a
+    v16 genome re-stamps to itself.
+
+    ``coupling`` (optional): the leaf width comes from the manifest's stored coupling block
+    unless overridden; a manifest-LESS genome REQUIRES ``coupling=`` (its length is the leaf
+    width, §44 — you can upgrade a ``turns.bin`` shipped alone).
+    """
+    path = Path(path)
+    body_path = path / _BODY_NAME
+    if not body_path.exists():
+        raise GenomeBoundingError(
+            f"genome at {str(path)!r} has no {_BODY_NAME}: nothing to upgrade"
+        )
+    if coupling is None:
+        if not (path / _MANIFEST_NAME).exists():
+            raise GenomeBoundingError(
+                f"genome at {str(path)!r} has no {_MANIFEST_NAME} and no coupling= was "
+                f"given: pass the genome's coupling= so v15→v16 can rebuild from "
+                f"{_BODY_NAME}"
+            )
+        existing = _read_manifest(path)
+        fmt = int(existing.get("format_version", GENOME_FORMAT_VERSION))
+        if fmt > GENOME_FORMAT_VERSION:
+            raise GenomeBoundingError(
+                f"genome at {str(path)!r} is format v{fmt}, NEWER than this build's "
+                f"v{GENOME_FORMAT_VERSION} — refusing to downgrade"
+            )
+        coupling_hv = _resolve_coupling(existing, None)
+    else:
+        coupling_hv = coupling if isinstance(coupling, _HV) else _HV.from_sequence(coupling)
+    leaf_dim = len(list(coupling_hv))
+    body_bytes = body_path.read_bytes()
+    # Re-derive the manifest by SCANNING the unchanged body — this stamps v16 + carrier
+    # (klein4 for a v15 genome; the packer is identical so no bytes move). The rebuild
+    # also VALIDATES the body (cap-led, whole-block regions) before anything is rewritten.
+    data = _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling_hv)
+    coupling_block = _leaf_blocks([coupling_hv])[0]
+    head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
+                            len(data["chromosomes"]), data["body_sha256"],
+                            data["carrier"])
+    _write_manifest(path, _manifest_record(head))     # v16 HEAD-ONLY on disk
     return data
 
 
@@ -6114,8 +7305,9 @@ def _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling):
     chrom_specs, n_turns = _scan_body_to_chrom_specs(bytes(body_bytes), leaf_dim)
     one = coupling if isinstance(coupling, _HV) else _HV.from_sequence(coupling)
     coupling_block = _leaf_blocks([one])[0]
+    carrier = _carrier_name_from_body(bytes(body_bytes), leaf_dim)   # §Q8/v16
     return _build_manifest_data(leaf_dim, coupling_block, chrom_specs,
-                                bytes(body_bytes), n_turns)
+                                bytes(body_bytes), n_turns, carrier)
 
 
 def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
@@ -6221,6 +7413,7 @@ def _stream_body_blocks(f, leaf_dim, *, context="genome"):
     catalog without the whole body in RAM. ``f`` is a buffered binary handle, so the
     per-block reads coalesce into ordinary sequential I/O — no extra syscalls."""
     plen = _packed_payload_len(leaf_dim)
+    plen_q8 = _packed_payload_len_q8(leaf_dim)
     offset = 0
     while True:
         first = f.read(1)
@@ -6246,6 +7439,15 @@ def _stream_body_blocks(f, leaf_dim, *, context="genome"):
                 )
             yield first + payload, _unpack_turn_payload(payload, leaf_dim)
             offset += 1 + plen
+        elif kind == Q8_PACKED_TURN_MARKER:
+            payload = f.read(plen_q8)
+            if len(payload) != plen_q8:
+                raise GenomeBoundingError(
+                    f"{context}: truncated Q8 packed turn at offset {offset} "
+                    f"(needs {1 + plen_q8} bytes, got {1 + len(payload)})"
+                )
+            yield first + payload, _unpack_turn_payload_q8(payload, leaf_dim)
+            offset += 1 + plen_q8
         else:
             raise GenomeBoundingError(
                 f"{context}: unrecognised block kind byte {kind} at offset {offset} "
@@ -6315,8 +7517,11 @@ def _catalog_data(path, coupling=None) -> dict:
         # the same _ScanState and the same _build_manifest_data_from_hexes assembly).
         with _open_body_ro(path / _BODY_NAME) as f:
             chrom_specs, n_turns, region_hexes = _scan_body_stream(f, leaf_dim)
+        # §Q8/v16: the head stores the carrier (a pure function of the body at save
+        # time); a v≤15 head predates the field → "klein4" (its turns are klein4).
+        carrier = head.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4])
         data = _build_manifest_data_from_hexes(leaf_dim, coupling_block, chrom_specs,
-                                               region_hexes, n_turns)
+                                               region_hexes, n_turns, carrier)
         # INTEGRITY: the head stores the ``body_sha256`` region-CHAIN head (the Merkle
         # root of the body). A body corruption re-derives a DIFFERENT chain → mismatch
         # with the committed head → raise (whole-body granularity; the per-region
@@ -6831,6 +8036,7 @@ def genome_load(path, *, labels=None, coupling=None):
         strand: List[_HV] = []
         body_acc = bytearray()
         plen = _packed_payload_len(leaf_dim)
+        plen_q8 = _packed_payload_len_q8(leaf_dim)
         with body_path.open("rb") as f:
             while True:
                 first = f.read(1)
@@ -6861,6 +8067,15 @@ def genome_load(path, *, labels=None, coupling=None):
                         )
                     block = first + payload
                     decoded = _unpack_turn_payload(payload, leaf_dim)
+                elif kind == Q8_PACKED_TURN_MARKER:
+                    payload = f.read(plen_q8)
+                    if len(payload) != plen_q8:
+                        raise GenomeBoundingError(
+                            f"genome body truncated: trailing {1 + len(payload)} "
+                            f"bytes are not a whole Q8 packed turn ({1 + plen_q8} bytes)"
+                        )
+                    block = first + payload
+                    decoded = _unpack_turn_payload_q8(payload, leaf_dim)
                 else:
                     raise GenomeBoundingError(
                         f"genome body: unrecognised block kind byte {kind} at "
@@ -6993,6 +8208,7 @@ def _walk_region_prefix_blocks(region: bytes, leaf_dim: int):
     same unrecognised-marker rejection; only the trailing-partial case differs, so a
     corrupt marker is still caught. Yields ``(raw_block, decoded_block)``."""
     plen = _packed_payload_len(leaf_dim)
+    plen_q8 = _packed_payload_len_q8(leaf_dim)
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
@@ -7006,6 +8222,11 @@ def _walk_region_prefix_blocks(region: bytes, leaf_dim: int):
             if end > n:
                 return                        # trailing PARTIAL block — stop clean
             yield region[k:end], _unpack_turn_payload(region[k + 1:end], leaf_dim)
+        elif kind == Q8_PACKED_TURN_MARKER:
+            end = k + 1 + plen_q8
+            if end > n:
+                return                        # trailing PARTIAL block — stop clean
+            yield region[k:end], _unpack_turn_payload_q8(region[k + 1:end], leaf_dim)
         else:
             raise GenomeBoundingError(
                 f"genome region prefix: unrecognised block kind byte {kind} at "
@@ -7293,7 +8514,13 @@ def genome_genes(path, label, *, coupling=None):
     # §44/§128: scan the inline gene structure — genes() skips the leading CHROM cap and
     # splits on the GENE caps (plain 0x47 / regulatory 0x67), uncoupling each data turn
     # through coupling (use gene_express() to also apply the regulatory-mask filter).
-    return genes(region_strand, coupling)
+    # §Q8/rc316: SELF-DESCRIBING — the stored v16 head carries the element_type ``carrier``
+    # ("klein4"/"q8"), authoritative (a pure function of the body at save time), surfaced by
+    # _catalog_data as data["carrier"]. Thread it so a saved Q8 GENE genome decouples via the
+    # Q8 group-inverse, not the klein4 default (which RAISES on Q8 symbols 4..7). A v≤15 head
+    # (no carrier field) → "klein4" → byte-identical to before.
+    element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
+    return genes(region_strand, coupling, element_type=element_type)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -7348,7 +8575,8 @@ def _plan_close_gene(plan, pending, end_pos, cell_state):
         plan.append((lbl, gstart, end_pos - gstart))
 
 
-def gene_express_plan(strand_or_path, coupling, cell_state):
+def gene_express_plan(strand_or_path, coupling, cell_state, *,
+                      element_type=ELEMENT_TYPE_KLEIN4):
     """The offset-only LOAD-PLAN for demand-loaded gene expression — §134/rc135
     (#1273, siona green-light; the #736 probe made shippable).
 
@@ -7400,13 +8628,19 @@ def gene_express_plan(strand_or_path, coupling, cell_state):
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 15      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
     #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; BOTH the STRAND plan and —
     #   as of §98/rc269 — the PATH demand-load plan read the chromatin OUTER gate: a condensed
-    #   region is skipped at plan time on a single head-slot seek, never touching its gene gate)
+    #   region is skipped at plan time on a single head-slot seek, never touching its gene gate.
+    #   §Q8/v16 (rc315): gene CAPS are klein4-form (leaf_dim bytes) in EVERY genome, but a Q₈
+    #   genome's DATA TURNS are the wider 3-bit v16 form. The STRAND plan SEEKS PAST data turns
+    #   to reach the next cap, so it MUST stride at this genome's real turn width — hence
+    #   element_type is threaded to it. (A Q₈ gene-bearing genome is first-class: Q3/Q4/Q5 gate
+    #   it. The PATH plan is element_type-agnostic — it uses STORED manifest byte_offsets and
+    #   reads only leaf_dim-byte gate caps, neither of which depends on the data-turn width.)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
         return _gene_express_plan_path(Path(strand_or_path), coupling, cell_state)
-    return _gene_express_plan_strand(strand_or_path, coupling, cell_state)
+    return _gene_express_plan_strand(strand_or_path, coupling, cell_state, element_type)
 
 
 def _gene_express_plan_path(path, coupling, cell_state):
@@ -7473,12 +8707,20 @@ def _plan_path_head_expresses(f, off, ln, leaf_dim, cell_state):
     return _gene_expresses(_hv_from_block(head_block), cell_state)
 
 
-def _gene_express_plan_strand(strand, coupling, cell_state):
+def _gene_express_plan_strand(strand, coupling, cell_state,
+                              element_type=ELEMENT_TYPE_KLEIN4):
     """STRAND variant (a): the in-memory skeleton-scan — walk the strand's blocks
     computing their ON-DISK byte spans, gate each gene by its cap, and delimit each
     EXPRESSED gene's byte-range. Never decodes a data-turn payload (seeks past it)."""
     leaf_dim = len(list(coupling))
-    turn_width = 1 + _packed_payload_len(leaf_dim)   # §55/v3 on-disk packed-turn width
+    # On-disk data-turn width is element_type-dependent: klein4 packs 4 symbols/byte
+    # (§55/v3 → 1 + ceil(leaf_dim/4)); Q₈ packs 3 bits/symbol (§Q8/v16 → 1 + ceil(leaf_dim*3/8),
+    # WIDER). The plan SEEKS PAST data turns to reach the next cap, so it must stride at THIS
+    # genome's real turn width or the emitted byte offsets drift — a Q₈ gene genome has klein4
+    # gene caps but Q₈ data turns (rc315).
+    turn_width = 1 + (_packed_payload_len_q8(leaf_dim)
+                      if element_type == ELEMENT_TYPE_Q8
+                      else _packed_payload_len(leaf_dim))   # §55/v3 or §Q8/v16 packed-turn width
     plan = []
     pos = 0
     pending = None                              # (label, cap_hv, gene_byte_start)
@@ -7547,21 +8789,26 @@ def genome_genes_expressed(path, coupling, cell_state):
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 15      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
     #  (the PATH demand-load reader's per-region chromatin single-seek skip (§98) is deferred to
-    #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected)
+    #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected.
+    #   §Q8/rc316: a Q8 GENE genome IS first-class (its gene caps are klein4-form but its DATA
+    #   leaves are Q8) — so this reader is SELF-DESCRIBING: it threads the stored head element_type
+    #   ``carrier`` into the decode. The gene GATES/plan stay element_type-agnostic (cap masks only).)
     path = Path(path)
     plan = _gene_express_plan_path(path, coupling, cell_state)   # the expressed communities
     data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     coupling_hv = _resolve_coupling(data, coupling)
+    element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
     by_label = {c["label"]: c for c in data["chromosomes"]}
     out = []
     with _open_body_ro(path / _BODY_NAME) as f:
         for (chrom_label, _off, _ln) in plan:
             region = _plan_read_region(f, by_label[chrom_label], leaf_dim)
             region_strand = _region_strand(region, leaf_dim)
-            for gene in gene_express(region_strand, coupling_hv, cell_state):
+            for gene in gene_express(region_strand, coupling_hv, cell_state,
+                                     element_type=element_type):
                 out.append(gene)
     return out
 
@@ -7665,8 +8912,10 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
                 f.write(appended)
             grown = body_path.read_bytes()
             data = _rebuild_manifest_from_body(grown, leaf_dim, coupling)
-            mig_head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
-                                        len(data["chromosomes"]), data["body_sha256"])
+            mig_head = _build_head_data(
+                leaf_dim, coupling_block, data["n_turns"],
+                len(data["chromosomes"]), data["body_sha256"],
+                data.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]))
             _write_manifest(path, _manifest_record(mig_head))
         return _catalog_data(path, coupling)
 
@@ -7687,8 +8936,9 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
         "byte_len": len(appended),
         "sha256": region_sha256,
     }
-    head_data = _build_head_data(leaf_dim, coupling_block, new_n_turns, new_n_chrom,
-                                 new_body_sha)
+    head_data = _build_head_data(
+        leaf_dim, coupling_block, new_n_turns, new_n_chrom, new_body_sha,
+        head.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]))
 
     # Write the DNA + the O(1) head. Native C append is AUTHORITATIVE when present —
     # it tail-extends turns.bin + writes the head, no whole-body / whole-catalog
@@ -7783,8 +9033,10 @@ def _write_body_and_manifest(path, body_bytes, leaf_dim, coupling) -> dict:
     # regions) BEFORE anything is written — a corrupt edit never lands on disk.
     data = _rebuild_manifest_from_body(body_bytes, leaf_dim, coupling)
     coupling_block = bytes.fromhex(data["coupling"]["hex"])
-    head = _build_head_data(leaf_dim, coupling_block, data["n_turns"],
-                            len(data["chromosomes"]), data["body_sha256"])
+    head = _build_head_data(
+        leaf_dim, coupling_block, data["n_turns"],
+        len(data["chromosomes"]), data["body_sha256"],
+        data.get("carrier", _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_KLEIN4]))
     (Path(path) / _BODY_NAME).write_bytes(body_bytes)
     _write_manifest(path, _manifest_record(head))     # v12: HEAD-ONLY on disk
     return data

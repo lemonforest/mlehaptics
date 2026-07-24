@@ -122,6 +122,19 @@ Modern physics uses the first; antiquity 9 of 9 traditions canvassed (Antikyther
 
 Full context: [substrate-native-maths research notebook](https://mlehaptics.readthedocs.io/en/latest/substrate-native-maths/substrate_native_research_notebook/) (PR #680 SSoT).
 
+### The same 14 in observer-frame ordering — `3 + 1 + 3 + 7`
+
+The partition above is the **substrate / construction frame**: it builds real-first (the `{A}` anchor), then the imaginary grades, and closes the **winding** `{B, H, N}` last — the same order as the One's `S(σ,θ,w)`, `dim = 1 + 3 + 7 + 3` (which is why that construction is left unchanged). An **observer** reads the *same loop* from the other side — the operators that *make the projection* come first, and the content-anchor is the shadow the loop casts, not its origin:
+
+| Slot | Classes | Observer role |
+|---|---|---|
+| **3** — projection-enablers | `{B, H, N}` | TLV-framing + self-introspection + rational-approximation — the continuous↔discrete language-translation operators; the observer's frame *begins* at the projection, not the substrate |
+| **1** — time-shadow anchor | `{A}` | Content-addressing — identity/time, the 1-D real shadow (`ℝ·1`) the loop casts, read as the frame's pivot rather than its seed |
+| **3** — substrate-projection triad | `{I, C, J}` | Cyclic-group + cascade-orientation + prime-period — the `Im ℍ` grade |
+| **7** — cascade-detection heptad | `{D, E, F, G, K, L, M}` | Pattern-match + catalog + render + byte-search + pin-slot + Laplacian + HDC-bind — the `Im 𝕆` grade |
+
+**Two frames of one loop — what is actually invariant.** `1 + 3 + 7 + 3` (substrate) and `3 + 1 + 3 + 7` (observer) are not two different objects; they are two places to **cut the same loop open**. Pick the cut at the real anchor and you build real-first, winding-last (substrate); pick it at the projection-enablers and you read winding-first, time-as-shadow (observer). Even `7 + 3 + 1 + 3` — cutting at the heptad — is the same loop from a third entry point. What no frame can move is the one adjacency **Cayley–Dickson nesting** forces: the **`3` (`Im ℍ`) always sits between the `1` (`ℂ/ℝ`) and the `7` (`Im 𝕆`)** — `… 1 · 3 · 7 …`. The frame is a choice of entry point; **the `3`-between-the-`1`-and-the-`7` is the fixed structure of the loop itself.**
+
 ### `srmech.amsc.*` — 14-class primitive vocabulary (alphabetical lookup)
 
 Each class is importable as `srmech.amsc.<module>`. Both implementations realise the class; which one services a call inside a co-installed process is a **routing** decision, made once at import time. If `libsrmech` cannot be loaded (Pyodide, ABI mismatch), calls route to the Python implementation and results are unchanged.
@@ -155,6 +168,10 @@ srmech.native_status()
 > **⚠️ Correctness advisory — `mat_eigvals` returned a wrong spectrum before v0.9.0rc285.** If you computed eigenvalues with `mat_eigvals` (or `cascade.matrix_cascades.eigvals`, which delegates to it) on any release before rc285, **recompute them**. The shifted-QR iteration ran on an unreduced matrix — the Householder reduction to Hessenberg form was **entirely absent** — and the Householder reflector divided by a `hypot` cascade whose inaccurate-nonzero returns broke the similarity property, so the iteration converged to numbers that were not the input's eigenvalues.
 >
 > The trigger is **vertex labelling, not hub dominance**, which is why it went unnoticed: it is not a pathological-input bug. A 4-node **path** graph relabelled `0-2-1-3` returned `[1, 1, 1, 3]` against a true spectrum of `[0, 2−√2, 2, 2+√2]`. Relabelling a graph does not change its spectrum, so any answer that moves under relabelling is wrong on its face — that invariant is now a ratchet (`tests/test_laplacian_kernel_invariant_rc285.py`, **65 tests**) applied across **all six** shipped eigensolvers (`mat_eigvals`, `jacobi_eigvals`, `hermitian_eigendecompose`, `symmetric_eigendecompose`, `mat_hermitian_eigendecompose`, `matrix_cascades.eigvals`), not only the one that was broken.
+
+> **⚠️ Correctness advisory — `rational.hypot` (and `rational.sqrt` on a `Q` input) lost precision for small magnitudes before v0.9.0rc299.** If you computed a magnitude below roughly **1e-8** with `hypot`, with `laplacian.elementwise_hypot`, or with `sqrt` on an exact-`Q` argument, on any release before rc299, **recompute it**. The exact-rational √ floored onto a FIXED `2^-54` grid — **absolute** precision, not relative — so accuracy fell away linearly as the value shrank and vanished entirely below `2^-54 ≈ 5.55e-17`, where the result became exactly `0.0`.
+>
+> The exact zero is the easy half to notice. The dangerous half is **above** it, where the return value looks perfectly ordinary and is not: `hypot(1e-16, 0)` was **44% low**, `hypot(1e-13, 0)` 2.4e-4 low, `hypot(1e-8, 0)` 5.3e-10 low. Nothing in the value signals the error, which is why a "is it zero?" check was never sufficient. Since rc299 the grid is sized to the radicand and both ops are accurate to **~1 ulp at every magnitude** (verified against libm over 220 orders of magnitude). Values at or above 1 are byte-identical to previous releases, so nothing that was already correct moved.
 
 ### `srmech.qm.*` — the substrate engine: the Hurwitz ladder, `so(8)` triality, and the One
 

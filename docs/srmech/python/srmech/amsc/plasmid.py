@@ -375,8 +375,17 @@ def section_counts(section_store, *, coupling=None, progress=None) -> dict:
     # genome_window would re-derive it on every single call.
     leaf_dim, one, entries = _section_entries(store, coupling)
     total = len(entries)
+    # rc306 (task #899): the C peer takes a caller arena instead of a 32 MiB static
+    # one (which capped the corpus at ~11k sections). Size it from the store —
+    # body_len = turns.bin bytes, n_chroms = the plasmid sections + the excluded
+    # vocab karyotype — so the catalog arena scales with the corpus with no cap.
+    try:
+        body_len = (store / _genome._BODY_NAME).stat().st_size
+    except OSError:
+        body_len = None
     native = _native.genome_section_counts_c(
-        str(store), _coupling_block_bytes(one), leaf_dim, progress)
+        str(store), _coupling_block_bytes(one), leaf_dim, progress,
+        body_len=body_len, n_chroms=len(entries) + 1)
     if native is not None:
         ids, cnts, done, cancelled = native
         counts = {int(v): int(c) for v, c in zip(ids, cnts)}

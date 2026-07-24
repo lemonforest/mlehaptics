@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "genetic_code.transl_table_1.row.v1",
+  "title": "Standard Genetic Code (NCBI translation table 1) MPR data block",
+  "type": "object",
+  "required": [
+    "row_label",
+    "row_type",
+    "transl_table_id",
+    "name",
+    "ncbieaa",
+    "sncbieaa",
+    "base_order",
+    "n_codons",
+    "codon_index_formula",
+    "source_response"
+  ],
+  "properties": {
+    "row_label": {
+      "type": "string"
+    },
+    "row_type": {
+      "type": "string",
+      "const": "genetic_code_table"
+    },
+    "transl_table_id": {
+      "type": "integer",
+      "const": 1
+    },
+    "name": {
+      "type": "string"
+    },
+    "ncbieaa": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[A-Z*]{64}$"
+    },
+    "sncbieaa": {
+      "type": "string",
+      "minLength": 64,
+      "maxLength": 64,
+      "pattern": "^[-A-Z*]{64}$"
+    },
+    "base_order": {
+      "type": "string",
+      "const": "TCAG"
+    },
+    "n_codons": {
+      "type": "integer",
+      "const": 64
+    },
+    "n_amino_acids": {
+      "type": "integer"
+    },
+    "codon_index_formula": {
+      "type": "string"
+    },
+    "source_response": {
+      "type": "string"
+    },
+    "entered_locally_at": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

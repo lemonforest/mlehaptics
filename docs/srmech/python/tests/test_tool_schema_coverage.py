@@ -168,6 +168,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.atoms.chiral_dual",
     "srmech.amsc.cascade.atoms.net_chirality",
     "srmech.amsc.cascade.compose.cyclic_gcd",
+    # cascade.compose.cyclic_mod_* (rc302; §110/§112) — the Class-I modular
+    # family's cascade ops, registered under their STABLE flat public names
+    # ``srmech.amsc.cascade.cyclic_mod_{mul,add,pow,inv,mul_wide}`` (which ARE
+    # registered); the submodule-dotted names below are the SAME objects
+    # re-exported flat, exempt exactly like cyclic_gcd above.
+    "srmech.amsc.cascade.compose.cyclic_mod_mul",
+    "srmech.amsc.cascade.compose.cyclic_mod_add",
+    "srmech.amsc.cascade.compose.cyclic_mod_pow",
+    "srmech.amsc.cascade.compose.cyclic_mod_inv",
+    "srmech.amsc.cascade.compose.cyclic_mod_mul_wide",
     "srmech.amsc.cascade.compose.best_rational_signed",
     "srmech.amsc.cascade.compose.kuramoto_step",
     # cascade.compose.autocorrelation (v0.7.0rc8) — the Class-L circular
@@ -339,6 +349,16 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.cd_register.cd_navmap",
     "srmech.amsc.cascade.cd_register.cd_navigate",
     "srmech.amsc.cascade.cd_register.cd_navmap_is_signed_permutation",
+    # cascade.cd_register.cd_{couple_working,uncouple_working,carry,correct}
+    # (v0.9.0rc301, `#938`) — the two OPT layers (reversible working word + Hamming
+    # EC block) ported onto the general register as pure functions. The discoverable
+    # surface is registered under the STABLE flat names ``srmech.amsc.cascade.cd_*``
+    # (which ARE registered); the submodule-dotted names below are the SAME objects
+    # re-exported flat — exempt exactly like cd_navmap / cd_navigate above.
+    "srmech.amsc.cascade.cd_register.cd_couple_working",
+    "srmech.amsc.cascade.cd_register.cd_uncouple_working",
+    "srmech.amsc.cascade.cd_register.cd_carry",
+    "srmech.amsc.cascade.cd_register.cd_correct",
     # cascade.cayley_dickson.* — the open-exterior boundary-demonstrator
     # (v0.7.3rc1 / #915 / MFO §VII.6.23). The discoverable surface is registered
     # under STABLE flat names ``srmech.amsc.cascade.{cd_mult,cd_conjugate,

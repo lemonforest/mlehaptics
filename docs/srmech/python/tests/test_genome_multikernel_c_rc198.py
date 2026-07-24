@@ -74,7 +74,7 @@ def _dict_bytes(d):
 def test_multikernel_symbols_present():
     assert _native.has_native_genome_genome()
     assert _native.has_native_genome_partition()
-    assert _native.EXPECTED_ABI_VERSION == 8
+    assert _native.EXPECTED_ABI_VERSION == 10
 
 
 # ── (i) srmech_genome_genome → the strand is BYTE-IDENTICAL native-vs-pure ─────

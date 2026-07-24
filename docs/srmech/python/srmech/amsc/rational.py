@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import ctypes
 import struct
-from typing import List, Tuple
+from typing import Dict, List, NamedTuple, Tuple
 
 from . import _native
 from . import cyclic as _cyclic
@@ -59,6 +59,7 @@ __all__ = [
     "complex_exp",
     "sqrt",
     "hypot",
+    "relative_writhe",
 ]
 
 # Max terms a uint64 continued fraction can produce is Fibonacci-worst-
@@ -111,6 +112,17 @@ def _ensure_uint64(name: str, value: int) -> int:
     return value
 
 
+def _ensure_nonneg_int(name: str, value: int) -> int:
+    """A non-negative int with NO uint64 ceiling — §898 (rc319): ``best_rational``
+    may take a bignum ratio / ``max_denominator`` (an exact Class-N log overflows
+    u64). Whether the fast native u64 path is eligible is decided by the caller."""
+    if not isinstance(value, int):
+        raise TypeError(f"{name} must be int; got {type(value).__name__}")
+    if value < 0:
+        raise ValueError(f"{name} must be non-negative; got {value}")
+    return value
+
+
 def continued_fraction(numerator: int, denominator: int) -> List[int]:
     """Return the simple continued-fraction expansion of ``p/q``.
 
@@ -157,17 +169,26 @@ def best_rational(numerator: int,
     mediant tree). Returns ``(0, 1)`` if no non-trivial convergent fits
     within ``max_denominator``. Raises ``ValueError`` for invalid inputs.
 
-    Both C and Python paths produce byte-exact identical results;
-    pinned by ``tests/test_rational_parity.py``.
+    §898 (rc319): the inputs are non-negative ints with **no uint64 ceiling** —
+    an exact Class-N log's ratio / ``max_denominator`` can exceed 2^64 (the
+    overflow the music spike hit). When every coordinate fits u64 the fast
+    native path runs and both projections stay byte-exact identical (pinned by
+    ``tests/test_rational_parity.py``); when any coordinate exceeds u64 the
+    pure-Python convergent walk carries the bignums (Python ints), bounded only
+    by ``max_denominator`` (Lamé's theorem caps the walk depth).
     """
-    p = _ensure_uint64("numerator", numerator)
-    q = _ensure_uint64("denominator", denominator)
-    max_q = _ensure_uint64("max_denominator", max_denominator)
+    # §898 (rc319): non-negative ints with NO u64 ceiling — an exact Class-N log's
+    # ratio / max_denominator may exceed uint64. The u64-fit dispatch is decided below.
+    p = _ensure_nonneg_int("numerator", numerator)
+    q = _ensure_nonneg_int("denominator", denominator)
+    max_q = _ensure_nonneg_int("max_denominator", max_denominator)
     if q == 0:
         raise ValueError("best_rational requires denominator > 0")
     if max_q == 0:
         raise ValueError("best_rational requires max_denominator > 0")
-    if _native.HAS_NATIVE and _native.LIB is not None:
+    _U64 = 0xFFFF_FFFF_FFFF_FFFF
+    fits_u64 = p <= _U64 and q <= _U64 and max_q <= _U64
+    if fits_u64 and _native.HAS_NATIVE and _native.LIB is not None:
         out_p = ctypes.c_uint64(0)
         out_q = ctypes.c_uint64(0)
         rc = _native.LIB.srmech_best_rational(
@@ -182,17 +203,22 @@ def best_rational(numerator: int,
                 f"srmech_best_rational returned non-OK status {rc}"
             )
         return int(out_p.value), int(out_q.value)
-    # Pure-Python fallback: walk convergents.
+    # Pure-Python fallback: walk convergents. §898: for u64-fit inputs the u64
+    # overflow guards mirror the C path (byte-parity, pinned by test_rational_parity);
+    # for a bignum coordinate (> u64) they are dropped — Python bigints carry the
+    # convergents, bounded only by ``max_denominator`` (Lamé: the CF depth is
+    # ~1.44·log2(max_denominator), so the walk terminates without a compiled cap).
     h_prev, h_curr = 1, 0
     k_prev, k_curr = 0, 1
     best_p, best_q = 0, 1
     while q != 0:
         a = p // q
-        # Overflow guard mirrors the C path.
-        if h_prev > 0 and a > (0xFFFF_FFFF_FFFF_FFFF - h_curr) // h_prev:
-            break
-        if k_prev > 0 and a > (0xFFFF_FFFF_FFFF_FFFF - k_curr) // k_prev:
-            break
+        if fits_u64:
+            # Overflow guard mirrors the C path (u64-fit inputs only).
+            if h_prev > 0 and a > (_U64 - h_curr) // h_prev:
+                break
+            if k_prev > 0 and a > (_U64 - k_curr) // k_prev:
+                break
         h_next = a * h_prev + h_curr
         k_next = a * k_prev + k_curr
         if k_next > max_q:
@@ -802,8 +828,17 @@ def _check_series_inputs(numerator: int,
         )
 
 
-_TRIG_SERIES_MAX_TERMS: int = 50
-_LOG_SERIES_MAX_TERMS: int = 64
+# 0.9.0rc320 (Class-N precision-contract WAVE 2): the trig / log / atan series
+# caps rise to 512 (matching the exp cap ``_EXP_SERIES_MAX_TERMS``) so the new
+# ``precision=P`` REFERENCE path (``cos``/``sin``/``tan``/``atan``/``atan2``/
+# ``log``) can request enough terms to drive the truncation remainder below
+# ``2**-P`` for large P. The bignum body has NO ceiling (see ``_bigexp_call``);
+# these are pure safety guards, and the raise is a strict relaxation (every
+# previously-accepted ``num_terms`` still validates). A worst-case reduced
+# argument at P=160 needs ~137 log terms (|m-1| ≤ √2-1 ≈ 0.414) — above the old
+# 64 cap — so the raise is load-bearing for the migration.
+_TRIG_SERIES_MAX_TERMS: int = 512
+_LOG_SERIES_MAX_TERMS: int = 512
 _JACOBI_SERIES_MAX_TERMS: int = 50
 
 
@@ -1432,20 +1467,352 @@ def _q61_atan_nonneg(m: float) -> float:
     return half_pi / 2.0 + (-a if neg else a)
 
 
-def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
-    """``cos(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).
+# ──────────────────────────────────────────────────────────────────────
+# 0.9.0rc320 — Class-N precision-contract WAVE 2: the ``precision=P`` EXACT
+# REFERENCE surface for the seven Q61 float-projection ops.
+#
+# ``precision=None``  → the byte-identical Q61 fast path (untouched below).
+# ``precision=P`` (int ≥ 1) → range-reduce ``x`` in EXACT rationals, call the
+# matching ``*_series_truncate`` op with ``num_terms`` sized so the truncation
+# remainder is < ``2**-P``, recombine exactly, and return a higher-precision
+# exact ``Q``. FLOAT-FREE in the value: the only float is the IEEE-754 bit-read
+# of the ``float`` argument (its EXACT rational via ``float.as_integer_ratio``)
+# and the discrete band / octant SELECTION (which reduction to take — never the
+# value). Sign handling is the explicit Class-K branch + Class-C reorient,
+# NEVER ``abs()`` (`[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]`).
+# ──────────────────────────────────────────────────────────────────────
 
-    0.9.0rc7 stay-rational (F868): the Class-N Q61 cascade computes the exact
-    rational ``v / 2**61``; this returns that ``Q`` instead of collapsing to a
-    float — ``float(cos(x))`` reproduces (and slightly betters) the old float.
-    Substrate-native replacement for ``math.cos`` / ``np.cos`` — no ``math.cos``
-    in the call graph. Non-finite ``x`` raises (``Q`` is the finite-rational
-    carrier). ``terms`` is retained for back-compat (fixed Q61 cap). The
-    arbitrary-precision exact reference surface is ``cos_series_truncate``.
+
+def _round_div(a: int, b: int) -> int:
+    """``round(a / b)`` to the nearest integer for ``b > 0`` (round half up).
+
+    Used ONLY to PICK the discrete reduction count ``n`` (which octant / which
+    ``n·ln2``); the recombine that follows is exact, so the exact tie rule is
+    immaterial. Pure integer — no float rounds the count."""
+    assert b > 0, "_round_div requires b > 0"
+    return (2 * a + b) // (2 * b)
+
+
+#: The highest-precision exact π / ln2 computed so far, cached ``(bits, num,
+#: den)``. A request at ``bits`` reuses a cached value of AT LEAST ``bits``
+#: (more accuracy never hurts); a tighter request recomputes + replaces.
+_PI_EXACT_CACHE: "Tuple[int, int, int] | None" = None
+_LN2_EXACT_CACHE: "Tuple[int, int, int] | None" = None
+
+
+def _pi_exact(bits: int) -> Tuple[int, int]:
+    """π as an exact rational ``(num, den)`` with ``|π − num/den| < 2**-bits``.
+
+    Derives the decimal digits via :func:`pi_cascade_digits` (the Archimedes
+    two-mean chiral pair — no ``math.pi``) and reads them as ``num / 10**D``.
+    ``D = ⌈bits / log2(10)⌉ + margin`` guarantees the binary-bit bound."""
+    global _PI_EXACT_CACHE
+    if _PI_EXACT_CACHE is not None and _PI_EXACT_CACHE[0] >= bits:
+        return _PI_EXACT_CACHE[1], _PI_EXACT_CACHE[2]
+    digits = (bits * 1000) // 3321 + 4               # 1/log2(10) ≈ 0.30103
+    dec = pi_cascade_digits(digits)                  # "3.14159..."
+    int_part, _, frac_part = dec.partition(".")
+    num = int(int_part + frac_part) if frac_part else int(int_part)
+    den = 10 ** len(frac_part) if frac_part else 1
+    _PI_EXACT_CACHE = (bits, num, den)
+    return num, den
+
+
+def _ln2_exact(bits: int) -> Tuple[int, int]:
+    """ln(2) as an exact rational ``(num, den)`` with ``|ln2 − num/den| <
+    2**-bits``.
+
+    DERIVED (no ``math.log``): ``ln2 = −log1p(−1/2)`` — the Class-N
+    ``log1p_series_truncate`` at ``x = −1/2`` (|x| < 1, geometric). Its
+    monotone remainder after ``N`` terms is < ``2**-N``, so ``N = bits + 4``
+    clears the bound. The result ``log1p(−1/2) = −ln2`` is negated (Class-K
+    sign-flip ∘ Class-C reorient — never ``abs()``)."""
+    global _LN2_EXACT_CACHE
+    if _LN2_EXACT_CACHE is not None and _LN2_EXACT_CACHE[0] >= bits:
+        return _LN2_EXACT_CACHE[1], _LN2_EXACT_CACHE[2]
+    n_terms = bits + 4
+    neg_num, den = log1p_series_truncate(-1, 2, n_terms)   # = log(1/2) = −ln2
+    num = -neg_num                                   # Class-C reorient to +ln2
+    _LN2_EXACT_CACHE = (bits, num, den)
+    return num, den
+
+
+def _num_terms_for(bnum: int, bden: int, target_bits: int, shape: str) -> int:
+    """Smallest ``num_terms`` ``N`` so the named Taylor series, at an argument of
+    magnitude ``≤ bnum/bden`` (a positive rational bound), has truncation
+    remainder < ``2**-target_bits``.
+
+    The remainder of each of these series is bounded by its first OMITTED term
+    (Leibniz for the alternating sin/cos/log1p/atan; the first tail term ×<2 for
+    the all-positive exp, whose ratio ``b/(k+1) < 0.35`` gives ``1/(1−ratio) <
+    2``). Term magnitudes are tracked as an UNREDUCED integer pair ``tn/td``
+    (bit-length differences are the true ``log2`` regardless of common factors),
+    grown one index at a time — pure integer, no float sizes the count. A few
+    margin terms are added on top. This is the per-op ``num_terms(P)`` the
+    ``_classn_working(precision, kind="terms")`` contract delegates to each op.
+
+    Documented reduced-argument bounds (worst case), each < the raised 512 cap:
+      * exp  |r| ≤ ln2/2 ≈ 0.347   → factorial; ~32 terms at target 160
+      * sin/cos |r| ≤ π/4 ≈ 0.785  → factorial; ~20 terms at target 160
+      * log1p |m−1| ≤ √2−1 ≈ 0.414 → geometric; ~135 terms at target 160
+      * atan  |u| ≤ √2−1 ≈ 0.414   → geometric; ~70 terms at target 160
     """
+    assert bden > 0, "_num_terms_for requires a positive bound denominator"
+    b = bnum if bnum >= 0 else -bnum                  # Class-K magnitude
+    need = target_bits + 4                            # bit_length is a coarse log2
+    if b == 0:
+        return 1
+    b2n, b2d = b * b, bden * bden
+    # a_k = magnitude of the k-th term; advance until a_k < 2**-need, then +2.
+    if shape == "exp":                                # a_k = b^k / k!
+        tn, td, k = 1, 1, 0
+        while td.bit_length() - tn.bit_length() < need:
+            k += 1
+            tn *= b
+            td *= bden * k
+        return k + 2
+    if shape == "log1p":                              # a_k = b^k / k  (k ≥ 1)
+        tn, td, k = b, bden, 1
+        while td.bit_length() - tn.bit_length() < need:
+            k += 1
+            tn *= b * (k - 1)
+            td *= bden * k
+        return k + 2
+    if shape == "cos":                                # a_k = b^{2k} / (2k)!
+        tn, td, k = 1, 1, 0
+        while td.bit_length() - tn.bit_length() < need:
+            k += 1
+            tn *= b2n
+            td *= b2d * (2 * k - 1) * (2 * k)
+        return k + 2
+    if shape == "sin":                                # a_k = b^{2k+1} / (2k+1)!
+        tn, td, k = b, bden, 0
+        while td.bit_length() - tn.bit_length() < need:
+            k += 1
+            tn *= b2n
+            td *= b2d * (2 * k) * (2 * k + 1)
+        return k + 2
+    if shape == "atan":                               # a_k = b^{2k+1} / (2k+1)
+        tn, td, k = b, bden, 0
+        while td.bit_length() - tn.bit_length() < need:
+            k += 1
+            tn *= b2n * (2 * k - 1)
+            td *= b2d * (2 * k + 1)
+        return k + 2
+    raise ValueError(f"_num_terms_for: unknown series shape {shape!r}")
+
+
+def _exp_reference(x: float, precision: int) -> "Q":
+    """``exp(x)`` EXACT-rational reference at ``precision=P`` fractional bits.
+
+    ``x = n·ln2 + r`` with ``|r| ≤ ln2/2`` (``n`` picked by an exact rational
+    round, ``ln2`` a DERIVED exact rational). ``exp(r)`` is
+    ``exp_series_truncate`` sized so its remainder is < ``2**-(P+n₊)``, and the
+    ``2^n`` recombine is an EXACT rational shift, so the ABSOLUTE result error
+    (``2^n · remainder``) is < ``2**-P``."""
+    P = _classn_working(precision, kind="terms").effective
+    xn, xd = x.as_integer_ratio()                    # exact (x is finite here)
+    if xn == 0:
+        return _q(1, 1)
+    ln2n0, ln2d0 = _ln2_exact(64)                    # 64-bit ln2 → pick integer n
+    n = _round_div(xn * ln2d0, xd * ln2n0)           # round(x / ln2); xd,ln2* > 0
+    npos = n if n > 0 else 0                          # Class-K: 2^n amplifies err
+    nbits = n if n >= 0 else -n                       # Class-K magnitude
+    tgt = P + npos + 6
+    ln2n, ln2d = _ln2_exact(tgt + nbits.bit_length() + 4)
+    rn = xn * ln2d - n * ln2n * xd                   # r = x − n·ln2  (exact)
+    rd = xd * ln2d
+    rn, rd = _reduce_rational(rn, rd)
+    n_terms = _num_terms_for(rn, rd, tgt, "exp")
+    en, ed = exp_series_truncate(rn, rd, n_terms)    # exp(r), exact
+    if n >= 0:
+        return _q(en << n, ed)                       # × 2^n, exact rational shift
+    return _q(en, ed << (-n))
+
+
+def _log_reference(x: float, precision: int) -> "Q":
+    """``ln(x)`` EXACT-rational reference at ``precision=P`` (x > 0, finite).
+
+    ``x = m·2^e`` bit-extracted EXACTLY (reusing the Q61 log's IEEE read), ``m``
+    folded to ``[1/√2, √2)``; ``log(m) = log1p(m−1)`` (``|m−1| ≤ √2−1``) via
+    ``log1p_series_truncate`` sized to < ``2**-(P)``, and ``+ e·ln2`` recombines
+    against a DERIVED exact ln2 sized so ``|e|·(ln2 error) < 2**-P``."""
+    P = _classn_working(precision, kind="terms").effective
+    bits = struct.unpack("<Q", struct.pack("<d", x))[0]
+    raw = (bits >> 52) & 0x7FF
+    frac = bits & ((1 << 52) - 1)
+    if raw == 0:                                      # subnormal — normalise
+        f = frac
+        sh = 0
+        while sh < 53 and (f & (1 << 52)) == 0:
+            f <<= 1
+            sh += 1
+        mant = f
+        e = -1022 - sh
+    else:
+        mant = frac | (1 << 52)
+        e = raw - 1023
+    m_num, m_den = mant, (1 << 52)                   # m = mant / 2^52 ∈ [1, 2)
+    if mant * mant >= (1 << 105):                    # m ≥ √2 → fold to [1/√2, √2)
+        m_den <<= 1                                  # m ← m/2
+        e += 1
+    tgt = P + 8
+    a_num = m_num - m_den                            # (m − 1) numerator over m_den
+    logm_n, logm_d = log1p_series_truncate(
+        a_num, m_den, _num_terms_for(a_num, m_den, tgt, "log1p"))
+    if e == 0:
+        return _q(logm_n, logm_d)
+    ebits = e if e >= 0 else -e                       # Class-K magnitude
+    ln2n, ln2d = _ln2_exact(tgt + ebits.bit_length() + 4)
+    rn = logm_n * ln2d + e * ln2n * logm_d           # log(m) + e·ln2
+    rd = logm_d * ln2d
+    return _q(rn, rd)
+
+
+def _trig_reference(x: float, precision: int, want: str) -> "Q":
+    """``cos``/``sin`` EXACT-rational reference at ``precision=P`` (finite x).
+
+    Octant-reduce ``x = n·(π/2) + r`` with ``|r| ≤ π/4`` (``n`` picked by an
+    exact rational round against a DERIVED exact π; ``r`` exact). The reduced
+    ``cos_series_truncate`` / ``sin_series_truncate`` is sized to < ``2**-P``,
+    and the octant select applies the sign as Class-K ∘ Class-C — never
+    ``abs()``."""
+    P = _classn_working(precision, kind="terms").effective
+    xn, xd = x.as_integer_ratio()                    # exact, xd > 0
+    tgt = P + 8
+    pin0, pid0 = _pi_exact(64)                        # 64-bit π → pick integer n
+    n = _round_div(2 * xn * pid0, xd * pin0)          # round(x / (π/2))
+    nbits = n if n >= 0 else -n                        # Class-K magnitude
+    pin, pid = _pi_exact(tgt + nbits.bit_length() + 6)
+    rn = xn * (2 * pid) - n * pin * xd               # r = x − n·(π/2), exact
+    rd = xd * (2 * pid)
+    rn, rd = _reduce_rational(rn, rd)                 # |r| ≤ π/4
+    octant = n % 4
+    if want == "cos":                                # cos(o·π/2 + r)
+        use_cos = octant in (0, 2)                    # 0→cos r, 2→−cos r
+        neg = octant in (1, 2)                        # 1→−sin r, 2→−cos r
+    else:                                             # sin(o·π/2 + r)
+        use_cos = octant in (1, 3)                    # 1→cos r, 3→−cos r
+        neg = octant in (2, 3)                        # 2→−sin r, 3→−cos r
+    if use_cos:
+        vn, vd = cos_series_truncate(rn, rd, _num_terms_for(rn, rd, tgt, "cos"))
+    else:
+        vn, vd = sin_series_truncate(rn, rd, _num_terms_for(rn, rd, tgt, "sin"))
+    if neg:
+        vn = -vn                                      # Class-K flip ∘ Class-C
+    return _q(vn, vd)
+
+
+def _tan_reference(x: float, precision: int) -> "Q":
+    """``tan(x) = sin(x) / cos(x)`` EXACT-rational reference at ``precision=P``.
+
+    The exact ``Q`` quotient of the two ``precision=P`` reductions; raises where
+    the (rational) ``cos`` is exactly 0."""
+    c = _trig_reference(x, precision, "cos")
+    if c == 0:
+        raise ValueError("tan undefined: cos(x) == 0")
+    return _trig_reference(x, precision, "sin") / c   # exact Q / Q
+
+
+def _atan_ratio_reference(num: int, den: int, precision: int) -> "Q":
+    """``atan(num/den)`` EXACT-rational reference at ``precision=P`` (den ≠ 0).
+
+    Mirrors the Q61 THREE-BAND reduction in exact rationals so every
+    ``atan_series_truncate`` argument stays ``|·| ≤ √2−1 ≈ 0.414``:
+    band 1 direct; band 3 ``π/2 − atan(1/x)``; band 2 ``π/4 + atan((|x|−1)/(|x|
+    +1))``. Class-K magnitude + Class-C reorient (never ``abs()``); π DERIVED."""
+    P = _classn_working(precision, kind="terms").effective
+    if den < 0:                                       # normalise den > 0 (Class-C)
+        num, den = -num, -den
+    if num == 0:
+        return _q(0, 1)
+    neg = num < 0
+    axn = -num if neg else num                        # |num|; |x| = axn/den
+    tgt = P + 8
+    pin, pid = _pi_exact(tgt + 8)
+    axf = axn / den                                   # float magnitude — band SELECT only
+    if axf <= _TAN_PI_8:                              # band 1: atan(x) = series(x)
+        sn, sd = atan_series_truncate(
+            axn, den, _num_terms_for(axn, den, tgt, "atan"))
+        an, ad = sn, sd
+    elif axf >= _COT_PI_8:                            # band 3: π/2 − atan(1/x)
+        sn, sd = atan_series_truncate(
+            den, axn, _num_terms_for(den, axn, tgt, "atan"))
+        an = pin * sd - sn * (2 * pid)                # π/2 − s = pin/(2pid) − sn/sd
+        ad = 2 * pid * sd
+    else:                                             # band 2: π/4 + atan((|x|−1)/(|x|+1))
+        un = axn - den                                # u = (|x|−1)/(|x|+1)
+        ud = axn + den
+        sn, sd = atan_series_truncate(
+            un, ud, _num_terms_for(un, ud, tgt, "atan"))
+        an = pin * sd + sn * (4 * pid)                # π/4 + s = pin/(4pid) + sn/sd
+        ad = 4 * pid * sd
+    an, ad = _reduce_rational(an, ad)
+    return _q(-an, ad) if neg else _q(an, ad)         # Class-C reorient (atan odd)
+
+
+def _atan_reference(x: float, precision: int) -> "Q":
+    """``atan(x)`` EXACT-rational reference; ``atan(±Inf) = ±π/2`` (exact π)."""
+    if _is_inf(x):
+        _classn_working(precision, kind="terms")     # validate P
+        pin, pid = _pi_exact(precision + 16)
+        return _q(pin, 2 * pid) if x > 0.0 else _q(-pin, 2 * pid)
+    xn, xd = x.as_integer_ratio()
+    return _atan_ratio_reference(xn, xd, precision)
+
+
+def _atan2_reference(y: float, x: float, precision: int) -> "Q":
+    """``atan2(y, x)`` EXACT-rational reference at ``precision=P``.
+
+    The quadrant limits are exact rational multiples of a DERIVED π; the finite
+    branch is ``atan(y/x)`` over the EXACT ratio (not the float ``y/x``, so it
+    holds full P bits) plus the same ``±π`` quadrant shift the Q61 path uses."""
+    P = _classn_working(precision, kind="terms").effective
+    pin, pid = _pi_exact(P + 16)
+    if not (_is_finite(y) and _is_finite(x)):
+        if _is_inf(y) and _is_inf(x):                # ±π/4 or ±3π/4
+            if x > 0.0:
+                return _q(pin if y >= 0.0 else -pin, 4 * pid)
+            return _q(3 * pin if y >= 0.0 else -3 * pin, 4 * pid)
+        if _is_inf(y):                               # |y|=Inf, x finite → ±π/2
+            return _q(pin if y >= 0.0 else -pin, 2 * pid)
+        if x > 0.0:                                  # x=+Inf, y finite → ±0
+            return _q(0, 1)
+        return _q(pin if y >= 0.0 else -pin, pid)    # x=−Inf → ±π
+    if x == 0.0:
+        if y > 0.0:
+            return _q(pin, 2 * pid)
+        if y < 0.0:
+            return _q(-pin, 2 * pid)
+        return _q(0, 1)
+    yn, yd = y.as_integer_ratio()
+    xn, xd = x.as_integer_ratio()
+    base = _atan_ratio_reference(yn * xd, yd * xn, precision)   # atan(y/x), exact ratio
+    if x > 0.0:
+        return base
+    pi_q = _q(pin, pid)                              # x<0 quadrant shift (Class C)
+    return base + pi_q if y >= 0.0 else base - pi_q
+
+
+def cos(x: float, *, precision: int | None = None) -> "Q":
+    """``cos(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q`.
+
+    ``precision=None`` (default) → the Q61 fixed-point cascade: the exact
+    rational ``v / 2**61``, BYTE-IDENTICAL to the native peer and to every prior
+    rc — ``float(cos(x))`` reproduces (and slightly betters) the old float. No
+    ``math.cos`` in the call graph. Non-finite ``x`` raises (``Q`` is the
+    finite-rational carrier).
+
+    ``precision=P`` (int ≥ 1, keyword-only) → the EXACT-rational REFERENCE at
+    ``P`` fractional bits: octant-reduce in exact rationals and drive
+    ``cos_series_truncate`` / ``sin_series_truncate`` until the truncation
+    remainder is < ``2**-P`` (0.9.0rc320, Class-N precision-contract WAVE 2 —
+    the dead ``terms`` kwarg is REPLACED, no legacy alias)."""
     x = float(x)
     if not _is_finite(x):
         raise ValueError("cos: x must be finite (Q is the finite-rational carrier)")
+    if precision is not None:
+        return _trig_reference(x, precision, "cos")
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         return _q(_native.cos_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
@@ -1457,15 +1824,18 @@ def cos(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
     return _q(v, _Q61_ONE)
 
 
-def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
-    """``sin(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q` (Q61 rational).
+def sin(x: float, *, precision: int | None = None) -> "Q":
+    """``sin(x)`` (radians) → an EXACT :class:`~srmech.amsc.q.Q`.
 
-    Stay-rational peer of :func:`cos` (the exact Q61 ``v / 2**61``).
-    Substrate-native replacement for ``math.sin`` / ``np.sin``.
-    """
+    ``precision=None`` (default) → the Q61 stay-rational peer of :func:`cos`
+    (byte-identical to every prior rc). ``precision=P`` → the EXACT-rational
+    REFERENCE at ``P`` fractional bits (0.9.0rc320 WAVE 2; the dead ``terms``
+    kwarg is REPLACED)."""
     x = float(x)
     if not _is_finite(x):
         raise ValueError("sin: x must be finite (Q is the finite-rational carrier)")
+    if precision is not None:
+        return _trig_reference(x, precision, "sin")
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         return _q(_native.sin_q61_c(x), _Q61_ONE)
     ok, octant, r = _q61_reduce(x)
@@ -1477,29 +1847,39 @@ def sin(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
     return _q(v, _Q61_ONE)
 
 
-def tan(x: float, *, terms: int = _TRIG_FLOAT_TERMS) -> "Q":
+def tan(x: float, *, precision: int | None = None) -> "Q":
     """``tan(x) = sin(x) / cos(x)`` → an EXACT :class:`~srmech.amsc.q.Q`.
 
-    The exact ``Q`` quotient of the Q61 ``sin`` / ``cos`` (no native
-    ``srmech_tan``). Raises where ``cos(x) == 0``."""
+    ``precision=None`` (default) → the exact ``Q`` quotient of the Q61 ``sin`` /
+    ``cos`` (byte-identical to every prior rc; no native ``srmech_tan``).
+    ``precision=P`` → the exact quotient of the two ``precision=P`` reductions
+    (0.9.0rc320 WAVE 2; the dead ``terms`` kwarg is REPLACED). Raises where
+    ``cos(x) == 0``."""
+    if precision is not None:
+        xf = float(x)
+        if not _is_finite(xf):
+            raise ValueError("tan: x must be finite (Q is the finite-rational carrier)")
+        return _tan_reference(xf, precision)
     c = cos(x)
     if c == 0:
         raise ValueError("tan undefined: cos(x) == 0")
     return sin(x) / c                              # exact Q / Q
 
 
-def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
-    """``atan(x)`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 three-band
-    Class-N cascade.
+def atan(x: float, *, precision: int | None = None) -> "Q":
+    """``atan(x)`` → an EXACT :class:`~srmech.amsc.q.Q`.
 
-    Class-K magnitude (never ``abs()`` of the value) + Class-C re-orientation;
-    the three-band reduction keeps every series argument fast. ``atan(±Inf)`` =
-    ``±π/2`` is a representable rational, returned as ``Q(±pi/2_q61, 2**61)``;
-    NaN raises. Substrate-native replacement for ``math.atan`` / ``np.arctan``.
-    """
+    ``precision=None`` (default) → the Q61 three-band Class-N cascade,
+    byte-identical to every prior rc. Class-K magnitude (never ``abs()`` of the
+    value) + Class-C re-orientation; ``atan(±Inf) = ±π/2`` is a representable
+    rational, NaN raises. ``precision=P`` → the EXACT-rational THREE-BAND
+    REFERENCE at ``P`` fractional bits (0.9.0rc320 WAVE 2; the dead ``terms``
+    kwarg is REPLACED)."""
     x = float(x)
     if x != x:                                     # NaN
         raise ValueError("atan: x is NaN (not a rational)")
+    if precision is not None:
+        return _atan_reference(x, precision)
     if _native.has_native_trans_q61():          # native handles ±Inf via the COT band
         return _q(_native.atan_q61_c(x), _Q61_ONE)
     if _is_inf(x):                              # atan(±Inf) = ±π/2 (exact Q)
@@ -1510,19 +1890,21 @@ def atan(x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
     return _q(v if x >= 0.0 else -v, _Q61_ONE)     # Class-C re-orientation
 
 
-def atan2(y: float, x: float, *, terms: int = _ATAN_FLOAT_TERMS) -> "Q":
-    """``atan2(y, x)`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 atan
-    cascade with quadrant logic.
+def atan2(y: float, x: float, *, precision: int | None = None) -> "Q":
+    """``atan2(y, x)`` → an EXACT :class:`~srmech.amsc.q.Q`.
 
-    The quadrant limits (``±π/2``, ``±π/4``, ``±3π/4``, ``±π``, ``±0``) are all
-    representable rationals — returned as exact ``Q`` over ``2**61`` — so the
-    ``±Inf`` argument cases stay rational; only a NaN argument raises.
-    Substrate-native replacement for ``math.atan2`` / ``np.arctan2``.
-    """
+    ``precision=None`` (default) → the Q61 atan cascade with quadrant logic,
+    byte-identical to every prior rc. The quadrant limits (``±π/2``, ``±π/4``,
+    ``±3π/4``, ``±π``, ``±0``) are all representable rationals; only a NaN
+    argument raises. ``precision=P`` → the EXACT-rational REFERENCE at ``P``
+    fractional bits — ``atan(y/x)`` over the EXACT ratio plus the same ``±π``
+    quadrant shift (0.9.0rc320 WAVE 2; the dead ``terms`` kwarg is REPLACED)."""
     y = float(y)
     x = float(x)
     if y != y or x != x:                           # any NaN → not a rational
         raise ValueError("atan2: y or x is NaN (not a rational)")
+    if precision is not None:
+        return _atan2_reference(y, x, precision)
     hp = _Q61_HALF_PI_Q61                          # pi/2 in Q61
     if not (_is_finite(y) and _is_finite(x)):
         if _is_inf(y) and _is_inf(x):        # both ±Inf → ±π/4 or ±3π/4
@@ -1566,7 +1948,7 @@ _EXP_FLOAT_TERMS: int = 24
 #     (``math.isqrt`` == the C two-limb integer isqrt), projected by 2^(e/2−K).
 # float appears ONLY at the final projection. The exact-rational bignum
 # surfaces (``exp_series_truncate`` / ``log1p_series_truncate`` / the
-# ``precision_bits`` sqrt path) remain the separate higher-precision REFERENCE.
+# ``precision`` sqrt path) remain the separate higher-precision REFERENCE.
 # ──────────────────────────────────────────────────────────────────────
 _EXPLOG_INV_LN2 = 1.4426950408889634074
 _EXPLOG_LN2_HI = 6.93147180369123816490e-01      # two-word ln2 (fdlibm split)
@@ -1604,23 +1986,27 @@ def _q_log_core(t: int) -> int:
     return s * 2
 
 
-def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> "Q":
-    """``e^x`` → an EXACT :class:`~srmech.amsc.q.Q` via the Q61 Class-N exp
-    cascade with Cody-Waite ln2 reduction.
+def exp(x: float, *, precision: int | None = None) -> "Q":
+    """``e^x`` → an EXACT :class:`~srmech.amsc.q.Q`.
 
-    ``x = n·ln2 + r`` with ``|r| <= ln2/2``; ``exp(r)`` is the Q61 integer
-    Taylor ``1 + r + r²/2! + …`` (an exact ``Q(core, 2**61)``) and the ``2^n``
-    scale is an EXACT power of two folded into the rational — so the result is
-    the exact rational ``core·2^n / 2**61``, never a float-collapsed ``2^n``
-    recombine. 0.9.0rc7 stay-rational: there is no ``DBL_MAX`` overflow gate
-    (that was a float artefact) — a finite ``x`` gives the exact (possibly
-    large) rational; only non-finite ``x`` raises. Substrate-native replacement
-    for ``math.exp`` / ``np.exp`` (real). ``terms`` selects the arbitrary-
-    precision REFERENCE surface ``exp_series_truncate``.
-    """
+    ``precision=None`` (default) → the Q61 Class-N exp cascade with Cody-Waite
+    ln2 reduction, BYTE-IDENTICAL to every prior rc: ``x = n·ln2 + r`` with
+    ``|r| <= ln2/2``; ``exp(r)`` is the Q61 integer Taylor and the ``2^n`` scale
+    is an EXACT power of two folded into the rational. 0.9.0rc7 stay-rational:
+    there is no ``DBL_MAX`` overflow gate (that was a float artefact) — a finite
+    ``x`` gives the exact (possibly large) rational; only non-finite ``x``
+    raises.
+
+    ``precision=P`` (int ≥ 1, keyword-only) → the EXACT-rational REFERENCE at
+    ``P`` fractional bits: the SAME ``n·ln2 + r`` reduction in exact rationals,
+    ``exp_series_truncate`` sized so the ``2^n``-scaled absolute error is <
+    ``2**-P`` (0.9.0rc320, Class-N precision-contract WAVE 2 — the dead ``terms``
+    kwarg is REPLACED, no legacy alias)."""
     x = float(x)
     if not _is_finite(x):
         raise ValueError("exp: x must be finite (Q is the finite-rational carrier)")
+    if precision is not None:
+        return _exp_reference(x, precision)
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         core, n = _native.exp_q61_c(x)
         return _q(core << n, _Q61_ONE) if n >= 0 else _q(core, _Q61_ONE << (-n))
@@ -1634,24 +2020,28 @@ def exp(x: float, *, terms: int = _EXP_FLOAT_TERMS) -> "Q":
     return _q(core, _Q61_ONE << (-n))
 
 
-def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> "Q":
-    """``ln(x)`` (natural log, x > 0) → an EXACT :class:`~srmech.amsc.q.Q` via
-    the Q61 Class-N atanh cascade.
+def log(x: float, *, precision: int | None = None) -> "Q":
+    """``ln(x)`` (natural log, x > 0) → an EXACT :class:`~srmech.amsc.q.Q`.
 
-    ``x = m·2^e`` read EXACTLY from the bit pattern, ``m`` folded into
-    ``[1/√2, √2)``; ``log(m) = 2·atanh((m−1)/(m+1))`` is the Q61 series and the
-    ``e·ln2`` recombine stays in the Q61 model (``_Q61_LN2``, cascade-derived),
-    so the result is the exact ``Q((logm + e·ln2_q61), 2**61)`` — no two-word
-    float recombine. Substrate-native replacement for ``math.log`` / ``np.log``
-    (real). Domain: ``x <= 0`` raises (``log 0 = −∞``, ``log(<0)`` undefined —
-    neither is a rational); non-finite raises. The arbitrary-precision REFERENCE
-    surface is ``log1p_series_truncate``.
-    """
+    ``precision=None`` (default) → the Q61 Class-N atanh cascade, BYTE-IDENTICAL
+    to every prior rc: ``x = m·2^e`` read EXACTLY from the bit pattern, ``m``
+    folded into ``[1/√2, √2)``; ``log(m) = 2·atanh((m−1)/(m+1))`` is the Q61
+    series and the ``e·ln2`` recombine stays in the Q61 model (``_Q61_LN2``).
+    Domain: ``x <= 0`` raises (``log 0 = −∞``, ``log(<0)`` undefined — neither is
+    a rational); non-finite raises.
+
+    ``precision=P`` (int ≥ 1, keyword-only) → the EXACT-rational REFERENCE at
+    ``P`` fractional bits: the SAME ``m·2^e`` bit-extraction, ``log(m) =
+    log1p(m−1)`` via ``log1p_series_truncate`` sized to < ``2**-P`` and a DERIVED
+    exact ``e·ln2`` (0.9.0rc320, Class-N precision-contract WAVE 2 — the dead
+    ``terms`` kwarg is REPLACED, no legacy alias)."""
     x = float(x)
     if not _is_finite(x):
         raise ValueError("log: x must be finite (Q is the finite-rational carrier)")
     if x <= 0.0:
         raise ValueError(f"log domain: x must be > 0 (log 0 = −∞ is not rational); got {x}")
+    if precision is not None:
+        return _log_reference(x, precision)
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         logm, e = _native.log_q61_c(x)
         return _q(logm + e * _Q61_LN2, _Q61_ONE)
@@ -1679,35 +2069,40 @@ def log(x: float, *, terms: int = _EXPLOG_LOG_TERMS) -> "Q":
     return _q(logm + e * _Q61_LN2, _Q61_ONE)        # + e·ln2, exact in Q61
 
 
-def cexp(theta: float, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
+def cexp(theta: float, *, precision: int | None = None) -> complex:
     """``e^(i·theta) = cos(theta) + i·sin(theta)`` via the Class-N cascade.
 
     Euler's formula: Class-N trig ∘ Class-C imaginary-unit rotation (the
     imaginary unit *is* a 90° phase-plane rotation). Substrate-native
     replacement for ``np.exp`` / ``cmath.exp`` of ``1j*theta`` — the
-    DFT twiddle factor and the quantum time-evolution phase.
+    DFT twiddle factor and the quantum time-evolution phase. ``precision``
+    (0.9.0rc320) is threaded to the underlying :func:`cos` / :func:`sin`
+    (``None`` = the Q61 fast path; ``P`` = the exact reduction) before the
+    ``complex()`` display collapse.
     """
-    return complex(cos(theta, terms=terms), sin(theta, terms=terms))
+    return complex(cos(theta, precision=precision), sin(theta, precision=precision))
 
 
-def complex_exp(z: complex, *, terms: int = _TRIG_FLOAT_TERMS) -> complex:
+def complex_exp(z: complex, *, precision: int | None = None) -> complex:
     """``e^z`` for complex ``z`` via the Class-N cascade.
 
     ``e^z = e^(z.real)·(cos(z.imag) + i·sin(z.imag))`` — Class-N exp +
     trig, composed by a Class-C imaginary-unit rotation. Substrate-native
     replacement for ``np.exp`` / ``cmath.exp`` on a complex argument.
+    ``precision`` (0.9.0rc320) threads to :func:`exp` / :func:`cos` / :func:`sin`.
     """
     z = complex(z)
-    er = exp(z.real)                                # Q — stay in the integer ALU
+    er = exp(z.real, precision=precision)           # Q — stay in the integer ALU
     # e^z = e^Re·(cos Im + i sin Im). The ``er * cos`` / ``er * sin`` are exact
     # Q·Q products (ALU); the float/FPU appears ONLY at the ``complex()`` last
     # rotate (this IS the display boundary for the complex result).
-    return complex(er * cos(z.imag, terms=terms), er * sin(z.imag, terms=terms))
+    return complex(er * cos(z.imag, precision=precision),
+                   er * sin(z.imag, precision=precision))
 
 
 # Scaled-integer precision for the bignum REFERENCE sqrt (bits below the
 # radix point; 64 → relative error well under the float64 floor). Pass
-# ``precision_bits=`` explicitly to select this higher-precision reference;
+# ``precision=`` explicitly to select this higher-precision reference;
 # the default float sqrt is the bit-exact-with-C K=27 cascade below.
 _SQRT_PRECISION_BITS: int = 64
 
@@ -1721,27 +2116,70 @@ _SQRT_Q_K: int = 54
 
 def _sqrt_rational(num: int, den: int, k: int):
     """``√(num/den)`` as an EXACT ``Q(root, 2**k)`` (integer ``isqrt`` of the
-    ``2^{2k}``-scaled radicand). ``num, den >= 0``; ``den > 0``."""
+    ``2^{2k}``-scaled radicand). ``num, den >= 0``; ``den > 0``.
+
+    ``k`` is an **ABSOLUTE** grid: the root is floored to a multiple of
+    ``2^-k``. That is the literal contract an explicit ``precision=``
+    caller asks for. Callers who want ``k`` SIGNIFICANT bits regardless of
+    magnitude must size ``k`` through :func:`_sqrt_relative_k` first — see the
+    rc299 note there."""
     assert num >= 0 and den > 0, "sqrt of a non-negative rational only"
+    assert k >= 0, "fractional-bit count must be non-negative"
     root = _integer_sqrt((num << (2 * k)) // den)   # floor(√(num/den) · 2^k)
     return _q(root, 1 << k)
 
 
-def sqrt(x, *, precision_bits: int = None) -> "Q":
+def _sqrt_relative_k(num: int, den: int, k: int) -> int:
+    """Fractional bits so ``√(num/den)`` carries ``k`` SIGNIFICANT bits — the
+    rc299 (`#919`) repair of an ABSOLUTE-precision √ consumed as a relative one.
+
+    :func:`_sqrt_rational` floors the root to a FIXED ``2^-k`` grid. For a
+    radicand at or above 1 that is ``>= k`` significant bits and nothing is
+    wrong. **Below 1 the significant bits fall away linearly**, and below
+    ``2^-2k`` every one of them is gone: the root floors to EXACTLY ``0.0``.
+    At the shipped default ``k = 54`` that made ``hypot(1e-17, 0.0) == 0.0``
+    and — the part that is easy to miss because it returns a plausible
+    non-zero — ``hypot(1e-16, 0.0)`` off by **44%**, ``hypot(1e-13, 0.0)`` off
+    by 2.4e-4. An exactly-zero magnitude is unsafe as a DIVISOR; an
+    inaccurate-non-zero one is worse, because it divides without complaint.
+
+    The premise that a rational cascade cannot reach small magnitudes is
+    **false**, and :func:`sqrt`'s float path already disproves it: it
+    decomposes ``x = M·2^e`` and carries an EXACT power-of-two scale, so it is
+    relative-precision at every magnitude (``sqrt(1e-300)`` is exact to full
+    precision). ``Q`` is an arbitrary-precision integer pair — the floor was
+    never the carrier, only the hard-coded ``k``. So this does not add an
+    epsilon or a guard band; it sizes the grid to the value, which is what the
+    float path always did.
+
+    ``num.bit_length() - den.bit_length()`` brackets ``log2(num/den)`` to ±1, so
+    the root's binary exponent is that halved; ``+1`` absorbs the bracket. For a
+    radicand ``>= 1`` this returns ``k`` UNCHANGED, so every value at or above 1
+    — ``hypot(3, 4) == 5``, the ``hypot(1.0, 1.0)`` doc example — is
+    **byte-identical** to what shipped before rc299."""
+    e = num.bit_length() - den.bit_length()          # ~log2(num/den), ±1
+    if e >= 0:                                       # radicand >= ~1: already k sig-bits
+        return k
+    return k + ((-e) + 1) // 2 + 1                   # Class-K pin-slot on the exponent sign
+
+
+def sqrt(x, *, precision: int = None) -> "Q":
     """``√x`` (x ≥ 0) → an EXACT :class:`~srmech.amsc.q.Q` via the Class-N
     rational sqrt cascade.
 
     ``x`` may be a ``float`` OR a :class:`~srmech.amsc.q.Q` (rc7 — stays
     rational through :func:`hypot` and the complex modulus). Default
-    (``precision_bits=None``): the IEEE-bit ``M·2^e`` decomposition with
+    (``precision=None``): the IEEE-bit ``M·2^e`` decomposition with
     ``root = isqrt(M << 2K)`` (K=27) scaled by the EXACT ``2^(e/2−K)`` — the
     result is the exact ``Q(root, 2^k)`` (``float`` of it betters the old
     ``float(root)·2^…`` which pre-rounded ``root``). **Class N** rational ∘
     **Class K** sqrt-convergence. A ``Q`` input is rooted at ``_SQRT_Q_K`` bits
     (exact rational radicand). Negative ``x`` raises (Class-K pin-slot at zero).
 
-    ``precision_bits=N`` selects the higher-precision path (the exact rational
-    rooted at ``N`` fractional bits), e.g. for the π-cascade.
+    ``precision=N`` selects the higher-precision path (the exact rational
+    rooted at ``N`` fractional bits), e.g. for the π-cascade. (rc318: the knob
+    was renamed ``precision_bits`` → ``precision`` for the uniform Class-N
+    precision contract — a pure rename, bit-identical at matched precision.)
     """
     # Q-input: root the exact rational directly (stay-rational; e.g. hypot).
     if hasattr(x, "as_pair") and not isinstance(x, float):
@@ -1750,7 +2188,11 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
             raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
         if xn == 0:
             return _q(0, 1)
-        return _sqrt_rational(xn, xd, precision_bits or _SQRT_Q_K)
+        if precision is not None:                 # literal ABSOLUTE grid, as asked
+            return _sqrt_rational(xn, xd, precision)
+        # rc299 (`#919`): size the grid to the radicand so a sub-1 Q keeps its
+        # significant bits instead of flooring away toward an exact 0.0.
+        return _sqrt_rational(xn, xd, _sqrt_relative_k(xn, xd, _SQRT_Q_K))
     x = float(x)
     if x < 0.0:                                   # Class-K pin-slot at zero
         raise ValueError(f"sqrt domain error: x must be >= 0; got {x}")
@@ -1758,9 +2200,9 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
         raise ValueError("sqrt: x must be finite (Q is the finite-rational carrier)")
     if x == 0.0:
         return _q(0, 1)
-    if precision_bits is not None:                # exact rational at N frac bits
+    if precision is not None:                     # exact rational at N frac bits
         xn, xd = x.as_integer_ratio()
-        return _sqrt_rational(xn, xd, precision_bits)
+        return _sqrt_rational(xn, xd, precision)
     if _native.has_native_trans_q61():          # 0.9.0rc7: native Q61, byte-exact
         root, p = _native.sqrt_q61_c(x)
         return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
@@ -1777,7 +2219,7 @@ def sqrt(x, *, precision_bits: int = None) -> "Q":
     return _q(root << p, 1) if p >= 0 else _q(root, 1 << (-p))
 
 
-def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
+def hypot(a: float, b: float, *, precision: int = None) -> "Q":
     """``hypot(a, b) = √(a² + b²)`` → an EXACT :class:`~srmech.amsc.q.Q`.
 
     **Class M** (the sum-of-squares bind) ∘ **Class N∘K** (:func:`sqrt`). rc7
@@ -1786,6 +2228,8 @@ def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
     ``√`` of that exact rational is returned as ``Q``. Substrate-native
     replacement for ``math.hypot`` / ``np.hypot`` (the complex modulus
     ``|z| = hypot(z.real, z.imag)``). ``a``/``b`` may be ``float`` or ``Q``.
+    ``precision=N`` (rc318 rename of ``precision_bits``) selects the literal
+    ABSOLUTE ``N``-fractional-bit grid; a pure rename, bit-identical.
     """
     an, ad = (a.as_pair() if hasattr(a, "as_pair") and not isinstance(a, float)
               else float(a).as_integer_ratio())
@@ -1793,7 +2237,12 @@ def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
               else float(b).as_integer_ratio())
     num = an * an * bd * bd + bn * bn * ad * ad    # (a²+b²) exact numerator
     den = ad * ad * bd * bd
-    return _sqrt_rational(num, den, precision_bits or _SQRT_Q_K)
+    if precision is not None:                       # literal ABSOLUTE grid, as asked
+        return _sqrt_rational(num, den, precision)
+    # rc299 (`#919`): RELATIVE precision. The old fixed 2^-54 grid returned an
+    # exact 0.0 below ~1e-17 — unsafe as a divisor, and inaccurate well above
+    # that (44% at 1e-16). See :func:`_sqrt_relative_k`.
+    return _sqrt_rational(num, den, _sqrt_relative_k(num, den, _SQRT_Q_K))
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1812,7 +2261,7 @@ def hypot(a: float, b: float, *, precision_bits: int = None) -> "Q":
 #
 #   * pi_cascade_digits(num_digits)
 #     — Archimedes hexagon-doubling cascade with rational-bounded √
-#       via integer Newton-Raphson on scaled bignum (precision_bits
+#       via integer Newton-Raphson on scaled bignum (precision
 #       at 512 by default). Produces decimal digits of π without
 #       invoking math.pi anywhere in the call graph. AST-verified
 #       discipline gate enforced by tests/test_pi_cascade_primitives.py.
@@ -1956,8 +2405,8 @@ def continued_fraction_convergents(
 
 # Cap on cascade depth — each cascade doubling adds ~0.6 decimal digits
 # (log10(4)/log10(10) ≈ 0.602). The fixed-precision-integer cascade
-# carries a single bignum at scale M = 2^precision_bits, so increasing
-# depth costs O(depth · precision_bits) bits total — tractable.
+# carries a single bignum at scale M = 2^precision, so increasing
+# depth costs O(depth · precision) bits total — tractable.
 #
 # rc13 raises the depth cap from 90 to 2000 to accommodate num_digits up
 # to 1000 (depth 1800 covers >1000 decimal-digit accuracy with safety
@@ -1973,7 +2422,7 @@ _PI_CASCADE_MAX_DEPTH: int = 2000
 # reachable in single-digit seconds.
 _PI_CASCADE_MAX_DIGITS: int = 1000
 
-# Maximum precision_bits caller may pass. Raised from 8192 (rc12) to
+# Maximum precision caller may pass. Raised from 8192 (rc12) to
 # 32768 (rc13) to cover the auto-scaled precision needed at
 # num_digits=1000 (~10240 bits) with substantial headroom.
 _PI_CASCADE_MAX_PRECISION_BITS: int = 32768
@@ -1996,7 +2445,7 @@ def _pi_cascade_auto_params(num_digits: int) -> Tuple[int, int]:
     headroom over the theoretical log2(10) ≈ 3.32 minimum.
 
     Caller-overridable: explicit ``max_cascade_depth`` /
-    ``precision_bits`` kwargs to ``pi_cascade_digits`` skip this helper
+    ``precision`` kwargs to ``pi_cascade_digits`` skip this helper
     entirely.
 
     Parameters
@@ -2047,7 +2496,7 @@ def _integer_sqrt(n: int) -> int:
 def pi_cascade_digits(num_digits: int,
                       *,
                       max_cascade_depth: int | None = None,
-                      precision_bits: int | None = None) -> str:
+                      precision: int | None = None) -> str:
     """Stream decimal digits of π via the Pfaff–Archimedes two-mean
     chiral-pair bracket.
 
@@ -2105,12 +2554,12 @@ def pi_cascade_digits(num_digits: int,
 
     Auto-scaling
     ------------
-    When ``max_cascade_depth`` / ``precision_bits`` are left as
+    When ``max_cascade_depth`` / ``precision`` are left as
     ``None`` (the default), they are computed automatically from
     ``num_digits`` via ``_pi_cascade_auto_params``:
 
-      depth          = max(90,  ceil(num_digits * 90  / 50))
-      precision_bits = max(512, ceil(num_digits * 512 / 50))
+      depth     = max(90,  ceil(num_digits * 90  / 50))
+      precision = max(512, ceil(num_digits * 512 / 50))
 
     (The chiral pair converges *quadratically*, far faster than the
     linear hexagon-doubling the depth scaling was sized for, so this
@@ -2128,10 +2577,12 @@ def pi_cascade_digits(num_digits: int,
         Cascade mean-iteration depth. ``None`` (default) → auto-scaled
         from ``num_digits`` per ``_pi_cascade_auto_params``. Explicit
         value must be in [1, 2000].
-    precision_bits : int or None, keyword-only
-        Bit precision for the scaled-integer √ operation. ``None``
-        (default) → auto-scaled from ``num_digits``. Explicit value
-        must be in [64, 32768].
+    precision : int or None, keyword-only
+        Bit precision for the scaled-integer √ operation — it sets the
+        ``2^precision`` fixed-point scale. ``None`` (default) → auto-scaled
+        from ``num_digits``. Explicit value must be in [64, 32768].
+        (rc318: renamed from ``precision_bits`` for the uniform Class-N
+        precision contract — a pure rename, digits bit-identical.)
 
     Returns
     -------
@@ -2179,22 +2630,22 @@ def pi_cascade_digits(num_digits: int,
     auto_depth, auto_precision_bits = _pi_cascade_auto_params(num_digits)
     if max_cascade_depth is None:
         max_cascade_depth = auto_depth
-    if precision_bits is None:
-        precision_bits = auto_precision_bits
+    if precision is None:
+        precision = auto_precision_bits
     assert isinstance(max_cascade_depth, int), (
         "max_cascade_depth must be int"
     )
-    assert isinstance(precision_bits, int), "precision_bits must be int"
+    assert isinstance(precision, int), "precision must be int"
     if max_cascade_depth < 1 or max_cascade_depth > _PI_CASCADE_MAX_DEPTH:
         raise ValueError(
             f"max_cascade_depth must be in [1, {_PI_CASCADE_MAX_DEPTH}]; "
             f"got {max_cascade_depth}"
         )
-    if (precision_bits < 64
-            or precision_bits > _PI_CASCADE_MAX_PRECISION_BITS):
+    if (precision < 64
+            or precision > _PI_CASCADE_MAX_PRECISION_BITS):
         raise ValueError(
-            f"precision_bits must be in [64, "
-            f"{_PI_CASCADE_MAX_PRECISION_BITS}]; got {precision_bits}"
+            f"precision must be in [64, "
+            f"{_PI_CASCADE_MAX_PRECISION_BITS}]; got {precision}"
         )
 
     # Special case: zero digits → "3." (the integer part of π).
@@ -2205,17 +2656,17 @@ def pi_cascade_digits(num_digits: int,
     # runs the WHOLE two-mean chiral-pair loop on the caller-arena srmech_bigint
     # — the per-step harmonic-mean divmod + geometric-mean isqrt — byte-identical
     # to the pure-Python fixed-point body below (same resolved max_cascade_depth
-    # / precision_bits, same Python-FLOOR divmod/shr semantics). It marshals ONE
+    # / precision, same Python-FLOOR divmod/shr semantics). It marshals ONE
     # final result (no per-step decimal round-trip), so a bare-C host reaches the
     # digit stream with no Python. The pure-Python body is the complete fallback
     # (no-C / Pyodide) AND the parity oracle the C path is checked against.
     if _native.HAS_NATIVE:
-        r = _native.pi_archimedes_c(num_digits, max_cascade_depth, precision_bits)
+        r = _native.pi_archimedes_c(num_digits, max_cascade_depth, precision)
         if r is not None:
             return r
 
     # Fixed-precision-integer two-mean chiral-pair bracket. We carry one
-    # canonical scale factor M = 2^precision_bits throughout: every
+    # canonical scale factor M = 2^precision throughout: every
     # quantity is an integer that, divided by M, gives the underlying
     # real bound. ``a`` is the circumscribed bound (falls ↓ to π); ``b``
     # is the inscribed bound (rises ↑ to π). The bracket invariant
@@ -2223,7 +2674,7 @@ def pi_cascade_digits(num_digits: int,
     #
     #   b₀ = 3·M           inscribed hexagon half-perimeter  (lower bound)
     #   a₀ = √(12)·M       circumscribed = 2√3·M             (upper bound)
-    M: int = 1 << precision_bits
+    M: int = 1 << precision
     b: int = 3 * M
     # a₀ = 2√3·M = √(12·M²); _integer_sqrt is the PRIMITIVE-NA integer
     # isqrt (intrinsic-float limit, π transcendental — see docstring).
@@ -2463,3 +2914,435 @@ def _scaled_integer_sqrt(y: int, M: int) -> int:
     if (s_hi * s_hi - scaled) < (scaled - s_lo * s_lo):
         return s_hi
     return s_lo
+
+
+# =====================================================================
+# rc317 (#1308) — Fuller's Second Theorem exact-rational RELATIVE WRITHE.
+# A Class-N surface op (lives HERE with sqrt / atan2 / best_rational, NOT in
+# genome / plasmid — so it carries no wire-format C-host parity obligation):
+# the certified-truncation rational read of Wr(C) − Wr(C0), and the geometric
+# face of the SAME Z ↠ Z/2 obstruction the mod-2 CWF check reads through the
+# Q₈ center-parity (srmech.amsc.genome.cwf_consistency_mod2).
+# =====================================================================
+
+# ── The Class-N DUAL-PRECISION CONTRACT (rc317 PILOT) ───────────────────────
+# ONE knob, ``precision``, offers TWO co-equal coherency projections of the
+# SAME exact-rational quantity — the "same problem at two scales / ALU-all-the-
+# way, hardware-last-mile" stance:
+#
+#   * ``precision=None``  → PLATFORM-BOUNDED: the working rational is anchored
+#     (Class-N ``best_rational``) to a platform-int-fitting denominator
+#     (2**60 ≈ 1.16e18, so the value's num/den ride a native int64 word) — the
+#     fast hardware-last-mile read. FLOAT-FREE: a platform-BOUNDED *rational*,
+#     never an FPU ``float`` (the stay-rational discipline).
+#   * ``precision=P`` (int) → SRMECH-NATIVE BIGINT: the working length is
+#     LENGTHED BY ``P`` — the sqrt / π / anchor precisions all scale with ``P``,
+#     so bigger ``P`` ⇒ longer bigints ⇒ a tighter ``remainder_bound`` (≈2**−P),
+#     tightening MONOTONICALLY. The arbitrary-precision substrate answer.
+#
+# The sqrt / π / anchor WORKING precision fed to the Class-N cascade is DERIVED
+# from ``precision`` here (platform-word for ``None``, ``P``-sized for an int) —
+# it is NOT a separate caller knob. This ``_classn_working`` mapping is the
+# REUSABLE template: ``sqrt`` / ``exp`` / ``atan_series_truncate`` /
+# ``jacobi_sncndn_series_truncate`` / ``best_rational`` can later adopt the
+# identical ``precision=None|int`` surface with this one helper. Keep it generic
+# (never writhe-specific) — it is the Class-N precision-contract pilot, and it
+# belongs on the Class-N surface next to the ops it will unify.
+
+#: The platform-bounded anchor denominator exponent — 2**60 ≈ 1.16e18 keeps the
+#: value's reduced num/den inside a native signed-int64 word for O(1)-magnitude
+#: writhes (~8.7e-19 resolution). Exported so the dual-projection gate can pass
+#: ``precision=_CLASSN_PLATFORM_DEN_BITS`` and reproduce the platform read.
+_CLASSN_PLATFORM_DEN_BITS: int = 60
+
+#: 1 + t0·t below 2**−40 → the Class-K pin-slot CLAMP at the antipodal pole
+#: (mirrors the float spike's 1e-12 guard). Keeps the near-singular kernel
+#: finite so the ±2 obstruction reads as a clean topological jump, never a
+#: division-by-zero grid artefact. Sign is Class K ∘ Class C, never abs().
+_RW_ANTIPODAL_CLAMP_BITS: int = 40
+
+#: 1 + t0·t below 2**−4 (t0·t < −0.9375, i.e. tangents > ~159.6° apart) → the
+#: NEAR-ANTIPODAL band that flags a ±2-obstruction passage. For TRUE unit
+#: tangents 1 + t0·t ∈ [0, 2] and is 0 only at the EXACT antipode (measure-zero,
+#: essentially never hit by a discrete sample) — so the literal "≤ 0" the float
+#: spike reads only via FP rounding is degenerate under exact rationals. The
+#: honest local flag is this near-antipodal band (the tangent indicatrix of C
+#: passing near the antipode of C0's), the same near-touch of 0 that drives
+#: Fuller's single integral's ±2 jump. Class-K pin-slot; never abs().
+_RW_NEAR_POLE_BITS: int = 4
+
+
+class _ClassNPrecision(NamedTuple):
+    """The resolved Class-N working precision (rc317 dual-precision pilot).
+
+    ``mode`` ∈ {``"platform"``, ``"bigint"``}; ``den_bits`` sizes the
+    ``best_rational`` anchor denominator (2**den_bits); ``sqrt_bits`` /
+    ``pi_digits`` size the Class-N √ and π truncations; ``effective`` is the
+    reported precision (bits)."""
+    mode: str
+    den_bits: int
+    sqrt_bits: int
+    pi_digits: int
+    effective: int
+
+
+def _classn_working(precision, *, kind: str = "bits") -> _ClassNPrecision:
+    """Map a Class-N precision knob to the internal Class-N working precisions —
+    the KIND-parametrized generalization of the rc317 dual-precision pilot
+    (rc318 WAVE 1, `#1481`-follow-on).
+
+    ``kind`` selects how ``precision`` is INTERPRETED:
+
+    * ``kind="bits"`` (rc318 WAVE 1 — the ONLY kind implemented) — ``precision``
+      is a FRACTIONAL-BIT budget, exactly the rc317 pilot mapping:
+      ``precision=None`` → the PLATFORM-BOUNDED projection (anchor / √ / π sized
+      to the native word); ``precision=P`` (int ≥ 1) → the SRMECH-NATIVE BIGINT
+      projection LENGTHED BY ``P`` (√ at ``P+4`` bits, π at ⌈0.302·P⌉+3 digits,
+      anchor denominator 2**P).
+    * ``kind="terms"`` (0.9.0rc320 WAVE 2) — ``precision`` is the
+      ``*_series_truncate`` num-terms BUDGET for the seven Q61 float-projection
+      ops (``cos``/``sin``/``tan``/``atan``/``atan2``/``exp``/``log``):
+      ``precision=None`` → the fast/native Q61 REGIME MARKER (``mode``
+      ``"platform"``); ``precision=P`` (int ≥ 1) → the SRMECH-NATIVE BIGINT
+      regime whose ``effective`` is the fractional-bit target ``P``. Because
+      each series has a different convergence rate, the ACTUAL per-op
+      ``num_terms`` is computed by :func:`_num_terms_for` from the reduced-
+      argument bound + ``P`` (documented per op there); this helper's job is the
+      None/int dispatch + validation + the ``P`` budget, IDENTICAL to the bits
+      wave.
+    * ``kind="den"`` — RESERVED for a later wave (the ``best_rational``
+      max-denominator budget); not yet implemented.
+
+    Deliberately NOT writhe-specific — it is the reusable Class-N precision-
+    contract template every ``precision=None|int`` op adopts. The None/int
+    dispatch + the bool / non-int / ``P<1`` validation + the ``mode`` /
+    ``effective`` reporting are EXACTLY the rc317 pilot's."""
+    if kind not in ("bits", "terms"):
+        raise NotImplementedError(
+            f"_classn_working: kind={kind!r} is reserved for a later Class-N "
+            "precision-migration wave; only kind='bits' (rc318 WAVE 1) and "
+            "kind='terms' (rc320 WAVE 2) are implemented")
+    if precision is None:
+        db = _CLASSN_PLATFORM_DEN_BITS
+        return _ClassNPrecision("platform", db, db + 3, 21, db)
+    if isinstance(precision, bool) or not isinstance(precision, int):
+        raise TypeError(
+            f"precision must be None or a positive int; got {precision!r}")
+    if precision < 1:
+        raise ValueError(f"precision (bits) must be >= 1; got {precision}")
+    pi_digits = (precision * 302) // 1000 + 3        # ⌈log10(2)·P⌉ + margin
+    return _ClassNPrecision("bigint", precision, precision + 4, pi_digits,
+                            precision)
+
+
+def _rw_best_rational(num: int, den: int, max_den: int) -> Tuple[int, int]:
+    """Best rational ``(p, q)`` with ``q <= max_den`` approximating ``num/den`` —
+    the Class-N ``best_rational`` convergent recurrence (continued-fraction /
+    Stern-Brocot convergents) at BIGNUM scale.
+
+    :func:`best_rational` caps its operands at ``uint64``; the exact writhe
+    rational (and the running-sum anchor) routinely exceed that, so this runs the
+    SAME convergent recurrence over Python big-ints — byte-identical to the C
+    ``srmech_best_rational`` within its ``uint64`` domain (the #765 self-hosting
+    bignum mirror, the discipline the whole module already applies). Sign is
+    Class K ∘ Class C (an explicit sign-branch, never an ALU ``abs()``); no
+    float."""
+    num, den = _reduce_rational(num, den)            # den > 0, lowest terms
+    sign = 1
+    if num < 0:                                      # Class-K magnitude branch
+        sign = -1
+        num = -num
+    p, q = num, den
+    h_prev, h_curr = 1, 0
+    k_prev, k_curr = 0, 1
+    best_p, best_q = num // den, 1                   # the floor is always admissible
+    while q != 0:
+        a = p // q
+        h_next = a * h_prev + h_curr
+        k_next = a * k_prev + k_curr
+        if k_next > max_den:
+            break
+        best_p, best_q = h_next, k_next
+        h_curr, h_prev = h_prev, h_next
+        k_curr, k_prev = k_prev, k_next
+        p, q = q, p - a * q                          # p mod q (p, q >= 0)
+    return (sign * best_p, best_q)                   # Class-C sign re-application
+
+
+def _rw_coord_to_pair(v) -> Tuple[int, int]:
+    """Coerce one 3D-vertex coordinate to an EXACT ``(num, den)`` integer pair
+    (den > 0). Accepts an ``int``, any rational with integer ``.numerator`` /
+    ``.denominator`` (``fractions.Fraction`` — DUCK-TYPED, never imported), or a
+    ``(num, den)`` 2-sequence. Floats are REJECTED (the writhe is exact-rational,
+    no FPU lift). Kept LOCAL so the op has no genome dependency — it lives on the
+    Class-N surface (mirrors genome's ``_dw_as_rational`` exactly)."""
+    if isinstance(v, bool):
+        raise TypeError("relative_writhe: bool is not a coordinate")
+    if isinstance(v, int):
+        return (v, 1)
+    num = getattr(v, "numerator", None)
+    den = getattr(v, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int):    # Fraction et al. (duck-typed)
+        if den == 0:
+            raise ValueError("relative_writhe: zero denominator in a coordinate")
+        return (num, den)
+    if isinstance(v, (tuple, list)) and len(v) == 2:
+        num, den = int(v[0]), int(v[1])
+        if den == 0:
+            raise ValueError("relative_writhe: zero denominator in a coordinate")
+        return (num, den)
+    raise TypeError(
+        "relative_writhe: coordinate must be int, a rational with integer "
+        "numerator/denominator, or (num, den); "
+        f"got {type(v).__name__} (floats are rejected — writhe is exact-rational)")
+
+
+def _rw_points(seq) -> list:
+    """Coerce a curve to a list of exact-rational :class:`~srmech.amsc.q.Q`
+    3-tuples via :func:`_rw_coord_to_pair` (floats rejected — the writhe is
+    exact-rational, no FPU lift)."""
+    pts = []
+    for k, p in enumerate(seq):
+        if len(p) != 3:
+            raise ValueError(
+                f"relative_writhe: vertex {k} must be a 3-tuple (x, y, z)")
+        xn, xd = _rw_coord_to_pair(p[0])
+        yn, yd = _rw_coord_to_pair(p[1])
+        zn, zd = _rw_coord_to_pair(p[2])
+        pts.append((_q(xn, xd), _q(yn, yd), _q(zn, zd)))
+    return pts
+
+
+def _rw_unit_tangents(pts, closed: bool, sqrt_bits: int) -> list:
+    """Central-difference UNIT tangents of a curve as exact-rational ``Q``
+    triples. The unit normalisation ``T / |T|`` needs a √ — the ONE certified
+    truncation: |T| is a Class-N :func:`sqrt` of the EXACT rational ``T·T`` to
+    ``sqrt_bits`` fractional bits (float-free — the Q-input √ path is pure
+    integer ``isqrt``). A zero-length tangent (a repeated / degenerate vertex)
+    raises, as the writhe double-sum does."""
+    n = len(pts)
+    tans = []
+    for i in range(n):
+        if closed:
+            a = pts[(i + 1) % n]
+            b = pts[(i - 1) % n]
+        elif i == 0:
+            a, b = pts[1], pts[0]
+        elif i == n - 1:
+            a, b = pts[n - 1], pts[n - 2]
+        else:
+            a, b = pts[i + 1], pts[i - 1]
+        tx = a[0] - b[0]
+        ty = a[1] - b[1]
+        tz = a[2] - b[2]
+        norm_sq = tx * tx + ty * ty + tz * tz        # exact rational T·T (Q)
+        if not norm_sq:
+            raise ValueError(
+                f"relative_writhe: zero-length tangent at vertex {i} "
+                "(repeated / degenerate point) — nudge the embedding")
+        root = sqrt(norm_sq, precision=sqrt_bits)                  # Q ≈ |T|
+        tans.append((tx / root, ty / root, tz / root))             # unit Q triple
+    return tans
+
+
+def _rw_two_pi(pi_digits: int) -> Tuple[int, int]:
+    """``2π`` as an exact rational ``(num, den)`` to ``pi_digits`` decimal places
+    — the Class-N π geometric cascade (:func:`pi_cascade_digits`, integer-only;
+    no ``math.pi``). Called directly (not via the cached ``_pi_rational``) so the
+    digit count is EXACTLY ``pi_digits`` and the ``10**-pi_digits`` π-truncation
+    term of the remainder bound is honest."""
+    dec = pi_cascade_digits(pi_digits)               # "3.14159..."
+    int_part, _, frac = dec.partition(".")
+    num = int(int_part + frac) if frac else int(int_part)
+    den = 10 ** len(frac) if frac else 1
+    return _reduce_rational(2 * num, den)            # 2π
+
+
+def _rw_remainder_bound(prec: _ClassNPrecision, n_steps: int,
+                        value: Tuple[int, int]) -> Tuple[int, int]:
+    """A STATED rational upper bound on ``|value − true|`` (the certified
+    truncation), valid in the ANTIPARALLEL-FREE regime and MONOTONE in
+    ``precision``. Three additive Class-N truncation terms, each shrinking as
+    the derived precisions grow: the per-step + final ``best_rational`` ANCHOR
+    (≤ 1/2**den_bits each), the unit-tangent √ truncation (conservative
+    ``8·n / 2**sqrt_bits``), and the π rational in the ``1/2π`` factor
+    (``2·|value| / 10**pi_digits``). Near an antipodal pole the 1/(1+t0·t)
+    amplification is NOT claimed bounded by this term — the pole is flagged by
+    ``antipodal_events`` instead."""
+    vn, vd = value
+    v_mag = (vn if vn >= 0 else -vn) // vd + 1        # Class-K magnitude bound
+    b_anchor = (n_steps + 2, 1 << prec.den_bits)
+    b_sqrt = (8 * n_steps, 1 << prec.sqrt_bits)
+    b_pi = (2 * v_mag, 10 ** prec.pi_digits)
+    r = rational_add(b_anchor, b_sqrt)
+    return rational_add(r, b_pi)
+
+
+def relative_writhe(embedding, reference, *, closed: bool = True,
+                    precision=None) -> Dict[str, object]:
+    """Fuller's Second-Theorem RELATIVE WRITHE ``Wr(C) − Wr(C0)`` as an EXACT
+    RATIONAL certified truncation — the single-integral peer of the O(n²)
+    :func:`~srmech.amsc.genome.discrete_writhe` double sum, on the Class-N surface.
+
+    Given two closed polygonal curves as EXACT-RATIONAL 3D vertices (each
+    coordinate an ``int`` / ``fractions.Fraction`` / ``(num, den)`` pair — the
+    same format :func:`~srmech.amsc.genome.discrete_writhe` accepts; floats
+    rejected), with ``reference`` the base curve ``C0`` and ``embedding`` the
+    deformed curve ``C``, this evaluates Fuller's single integral (F. Brock
+    Fuller, *The Writhing Number of a Space Curve*, PNAS **68**(4):815-819, 1971,
+    doi:10.1073/pnas.68.4.815, PMC389050; and *Decomposition of the linking
+    number of a closed ribbon: A problem from molecular biology*, PNAS
+    **75**(8):3557-3561, 1978, doi:10.1073/pnas.75.8.3557, PMC392823 — both OA)::
+
+        Wr(C) − Wr(C0) = (1/2π) ∮ [ (t0 × t) · d(t0 + t) ] / (1 + t0·t)  ds
+
+    over the closed polygon, ``t0`` / ``t`` the central-difference UNIT tangents
+    of ``C0`` / ``C``. The discrete form is the float spike's oracle sum
+    ``Σ_i (t0_i × t_i)/(1 + t0_i·t_i) · [(t_{i+1}+t0_{i+1}) − (t_i+t0_i)]``,
+    carried in EXACT rationals.
+
+    **HONEST BOUNDING — a CERTIFIED TRUNCATION, not the exact writhe.** The true
+    relative writhe is generically TRANSCENDENTAL (the π normalisation and the
+    irrational unit-tangent lengths). This returns an EXACT rational plus a
+    STATED ``remainder_bound`` on ``|value − true|`` — a *best-rational anchor
+    across the writhe's inharmonic responsion seam* (F1308: responsion = the
+    eigenvalue/frequency slot; harmonic = the commensurate/exact end, inharmonic
+    = the transcendental seam the Class-N ``best_rational`` bridges). It is NOT,
+    and does not claim to be, the exact real writhe. CAD-ban-clear: closed-form
+    on the integer ALU, NOT mesh / FEA / GPU simulation.
+
+    **The dual-precision contract (rc317 pilot).** One knob, ``precision``, two
+    co-equal projections of the SAME rational (see :func:`_classn_working`):
+
+    * ``precision=None`` → PLATFORM-BOUNDED: ``value`` is a ``best_rational``
+      anchor whose num/den ride a native int64 word (``mode="platform"``); the
+      fast hardware-last-mile read. FLOAT-FREE (a bounded *rational*).
+    * ``precision=P`` → SRMECH-NATIVE BIGINT: the working length is LENGTHED by
+      ``P`` (``mode="bigint"``); ``remainder_bound`` ≈ 2**−P tightens
+      MONOTONICALLY and the value's bigint num/den lengthen with ``P``.
+
+    **The ±2 obstruction IS the Q₈ mod-2, in geometric form (DERIVED, argued —
+    not measured here).** When the tangents sweep through the antipode
+    (``1 + t0·t`` enters the near-antipodal band — see below), Fuller's single
+    integral from a FIXED reference jumps by an EVEN integer (``±2`` per passage)
+    relative to the antiparallel-free continuation — flagged by
+    ``antipodal_events``. (For TRUE unit tangents ``1 + t0·t ∈ [0, 2]``, ``= 0``
+    only at the EXACT antipode — a measure-zero point a discrete sample never
+    lands on — so the literal ``≤ 0`` the float spike reads only via FP rounding
+    is degenerate under exact rationals; the honest flag is the near-antipodal
+    band ``1 + t0·t < 2**−4``.) This is
+    the SAME reduction ``Z ↠ Z/2`` (kernel 2Z) on a Z-valued 3D topological
+    invariant that :func:`~srmech.amsc.genome.cwf_consistency_mod2` reads through
+    the Q₈ center-parity (rc309): both are the SO(3)/SU(2) double cover, one seen
+    as a writhe ±2 and one as a spinor sign. The argument is the classical
+    double-cover identity; the INTEGER lift needs the O(n²)
+    :func:`~srmech.amsc.genome.discrete_writhe` double sum (or a proven
+    antiparallel-free reference), which this op does not itself supply — hence
+    DERIVED, not measured.
+
+    **Class composition (honest cascade — NO ``abs()``, NO ``float``).**
+    *Class N* — the unit-tangent normalisation is a rational :func:`sqrt`
+    (Q-input, pure ``isqrt``); the ``1/2π`` is the π geometric cascade
+    (:func:`pi_cascade_digits`); the dual-precision anchor is the
+    ``best_rational`` convergent walk (:func:`_rw_best_rational`, the bignum
+    mirror of the C ``srmech_best_rational``). *Class K* — sign-branch magnitudes
+    and the antipodal-pole detection / pin-slot clamp (sign is Class K ∘ Class C,
+    never an ALU ``abs()``). *Class I* — the cyclic ``(i±1) mod n`` closed-polygon
+    wrap. Every rational is carried as ``(num, den)`` / ``Q``; float appears
+    NOWHERE (the exact-rational ``atan_series_truncate`` was NOT used: its
+    azimuthal-angle reformulation is a different discretisation not guaranteed to
+    track the float oracle, and its float-projecting sibling ``atan2`` would break
+    the float-free contract).
+
+    Ships as ``composition_of_c`` (a composition of already-C-peered Class-N ops
+    — √, π, best_rational — like ``q8_from_one``): NO new C symbol,
+    ``SRMECH_ABI_VERSION`` stays 10. It lives on the Class-N surface
+    (``srmech.amsc.rational``), OFF the wire-format modules (genome / plasmid),
+    so it carries no on-disk-format / bare-C-host parity obligation — the same
+    off-wire ``composition_of_c`` status as ``cascade.cd_register``.
+
+    Args:
+        embedding: the deformed curve ``C`` — a sequence of exact-rational
+            3-tuples (``int`` / ``Fraction`` / ``(num, den)`` per coordinate).
+        reference: the base curve ``C0`` — SAME vertex count as ``embedding``
+            (Fuller's integral pairs ``t0_i`` with ``t_i`` by index).
+        closed: when ``True`` (default) the polygon wraps (central-difference
+            tangents with the ``P[n-1]↔P[0]`` closure); ``False`` = open polyline
+            (one-sided end tangents).
+        precision: ``None`` → the platform-bounded projection; a positive ``int``
+            ``P`` → the srmech-native bigint projection lengthed by ``P``.
+
+    Returns:
+        ``dict`` with ``value`` (the relative writhe as an exact ``(num, den)``
+        turns), ``remainder_bound`` (``(num, den)`` stated bound on
+        ``|value − true|``), ``mode`` (``"platform"`` / ``"bigint"``),
+        ``precision`` (effective bits), ``antipodal_events`` (count of steps
+        where ``1 + t0·t`` entered the near-antipodal band ``< 2**−4`` — the
+        ±2-obstruction flag), and ``min_one_plus_dot`` (``(num, den)`` — the
+        closest antiparallel approach, the smallest ``1 + t0·t``).
+
+    Raises:
+        ValueError: mismatched vertex counts, fewer than 3 vertices, or a
+            zero-length (degenerate) tangent.
+    """
+    prec = _classn_working(precision, kind="bits")
+    emb = _rw_points(embedding)
+    ref = _rw_points(reference)
+    n = len(emb)
+    if len(ref) != n:
+        raise ValueError(
+            "relative_writhe: embedding and reference must have the same "
+            f"vertex count; got {n} and {len(ref)}")
+    if n < 3:
+        raise ValueError(
+            f"relative_writhe: need >= 3 vertices for central-difference "
+            f"tangents; got {n}")
+    t = _rw_unit_tangents(emb, closed, prec.sqrt_bits)     # embedding tangents
+    t0 = _rw_unit_tangents(ref, closed, prec.sqrt_bits)    # reference tangents
+    max_den = 1 << prec.den_bits
+    clamp = _q(1, 1 << _RW_ANTIPODAL_CLAMP_BITS)
+    neg_clamp = -clamp
+    near_pole = _q(1, 1 << _RW_NEAR_POLE_BITS)             # ±2-obstruction band
+    two_pi = _rw_two_pi(prec.pi_digits)
+    total = _q(0, 1)
+    antipodal_events = 0
+    min_opd = None
+    n_steps = n if closed else (n - 1)
+    for i in range(n_steps):
+        a0 = t0[i]
+        a = t[i]
+        dot = a0[0] * a[0] + a0[1] * a[1] + a0[2] * a[2]
+        one_plus = dot + 1                                 # 1 + t0·t (Q)
+        if (min_opd is None) or (one_plus < min_opd):
+            min_opd = one_plus
+        if one_plus < near_pole:                           # Class-K near-pole flag
+            antipodal_events += 1
+        denom = one_plus
+        if neg_clamp < denom < clamp:                      # Class-K pin-slot clamp
+            denom = clamp if denom >= 0 else neg_clamp
+        cx = a0[1] * a[2] - a0[2] * a[1]                   # t0 × t
+        cy = a0[2] * a[0] - a0[0] * a[2]
+        cz = a0[0] * a[1] - a0[1] * a[0]
+        kx = cx / denom
+        ky = cy / denom
+        kz = cz / denom
+        j = (i + 1) % n                                    # Class-I cyclic wrap
+        dsx = (t[j][0] + t0[j][0]) - (a[0] + a0[0])        # d(t + t0)
+        dsy = (t[j][1] + t0[j][1]) - (a[1] + a0[1])
+        dsz = (t[j][2] + t0[j][2]) - (a[2] + a0[2])
+        contrib = kx * dsx + ky * dsy + kz * dsz           # exact rational (Q)
+        sn, sd = (total + contrib).as_pair()
+        total = _q(*_rw_best_rational(sn, sd, max_den))    # anchor running sum
+    tn, td = total.as_pair()
+    vn, vd = rational_div((tn, td), two_pi)                # ÷ 2π (exact)
+    value = _rw_best_rational(vn, vd, max_den)             # Class-N seam bridge
+    mn, md = (min_opd if min_opd is not None else _q(1, 1)).as_pair()
+    min_pair = _rw_best_rational(mn, md, max_den)
+    return {
+        "value": value,
+        "remainder_bound": _rw_remainder_bound(prec, n_steps, value),
+        "mode": prec.mode,
+        "precision": prec.effective,
+        "antipodal_events": antipodal_events,
+        "min_one_plus_dot": min_pair,
+    }

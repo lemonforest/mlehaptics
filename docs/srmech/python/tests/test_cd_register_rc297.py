@@ -421,19 +421,27 @@ def test_is_navigable_gate_single_basis_versus_zero_divisor():
 # Domain / discipline
 # ──────────────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("bad", [0, 3, 5, 6, 7, 12, 24, 48, 128, 256, -1, -16])
+# rc298 (`#933`): 128 and 256 LEFT this list — they are shipped rungs now.
+@pytest.mark.parametrize("bad", [0, 3, 5, 6, 7, 12, 24, 48, 512, 1024, -1, -16])
 def test_dim_must_be_a_power_of_two_within_the_cap(bad):
     with pytest.raises(ValueError, match="power of two"):
         cascade.cd_register(bad)
 
 
-def test_dim_cap_is_the_shipped_cd_max_dim_and_this_rc_did_not_raise_it():
-    """rc297 builds to the EXISTING cap. Raising ``CD_MAX_DIM`` is task `#933`,
-    deliberately sequenced after — this pin fails loudly if that leaks in here."""
-    assert CD_MAX_DIM == 64
+def test_dim_cap_is_the_shipped_cd_max_dim():
+    """The cap pin. rc297 set it at 64 and said raising it was task `#933`;
+    rc298 IS that task, so the pin MOVED to 256 rather than being deleted — a
+    cap with no pin is a cap that drifts silently.
+
+    256 is the addressing cap. The dense n-by-n path keeps its own smaller
+    ceiling (``CD_DENSE_MAX_DIM``); the two are decoupled on purpose and
+    ``test_cd_rungs_rc298.py`` pins that separation."""
+    assert CD_MAX_DIM == 256
     assert cascade.cd_register(64, D=256).dim == 64
+    assert cascade.cd_register(128, D=256).dim == 128
+    assert cascade.cd_register(256, D=256).dim == 256
     with pytest.raises(ValueError, match="power of two"):
-        cascade.cd_register(128)
+        cascade.cd_register(512)
 
 
 def test_slot_and_direction_domains_are_enforced():

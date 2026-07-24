@@ -258,6 +258,6 @@ def test_read_only():
 
 # ── no format / ABI / tool-count change (a READ behavior change only) ────────────
 def test_no_format_or_abi_or_toolcount_change():
-    assert G.GENOME_FORMAT_VERSION == 15
+    assert G.GENOME_FORMAT_VERSION == 16
     import srmech.introspect as introspect
-    assert introspect.describe()["tools"]["total"] == 466
+    assert introspect.describe()["tools"]["total"] == 492

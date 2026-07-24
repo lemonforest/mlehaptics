@@ -276,10 +276,10 @@ def test_registered_in_tool_schema():
     assert {p.name: p.type for p in rd.parameters}["fold"] == "dict"
 
 
-def test_tools_total_is_388():
+def test_tools_total_matches_live():
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 466
+    assert introspect.describe()["tools"]["total"] == 492
 
 
 # ─────────────────────────────────────────────────────────────────────

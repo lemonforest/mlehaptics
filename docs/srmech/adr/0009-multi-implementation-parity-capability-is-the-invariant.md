@@ -263,6 +263,28 @@ The Rosetta ratchets enumerate Python and ask whether it reaches C; no test enum
 manifest closes the reverse direction, and is the thing that would have caught rc262 / rc270 /
 rc273 at review time.
 
+> **Status note (rc300, `#938`) — a bounded first step on (b), not its delivery.**
+> `srmech/amsc/_c_claims.py` records, per `c_dispatched` op, the `srmech_*` symbols that op's
+> dispatch path names, filtered against the symbols *declared in `c/include/srmech.h`*; it is
+> checked against the loaded library by `srmech.amsc._native.c_claim_report()`, surfaced as
+> `describe()["c_claims"]`, and asserted by `tests/test_c_claim_resolution_rc300.py`.
+>
+> What this changes in §1.3 mechanism 3: the claim that *"the only test that reads
+> `c/include/srmech.h` at all reads it for the version string"* is no longer true, and the claim
+> that *"nothing in the tree today would notice if the C implementation lost a capability
+> entirely"* is now **partially** false — a lost symbol that a `c_dispatched` op claims is
+> detected, named, and fails the suite. That state was previously silent, because ABI matching
+> does not cover it: `srmech.h` adds symbols ABI-additively, so a stale build keeps ABI 8, keeps
+> `HAS_NATIVE` true, and falls to correct pure paths under a false classification.
+>
+> What it does **not** do, and why (b) stays open: the direction is still Python-rooted. It asks
+> *"is the symbol this Python op claims present?"*, not *"is the C host complete?"*. It cannot
+> see a capability C never had a Python claimant for, it says nothing about whether a reached
+> symbol **suffices** over the real input domain (the §1.2 / mechanism-2 defect is untouched),
+> and its extraction is static, leaving **23 of 263** `c_dispatched` ops with no attributable
+> symbol — enumerated in `UNVERIFIABLE_CLAIMS` under a down-only ceiling rather than left
+> invisible.
+
 **(c) How a third implementation is additive, not a port.** Under this framing a Go or Rust
 implementation is **a third projection of the same capability set**, not a translation of the
 Python or C source. It is checked against the capability ledger and the manifest, differentially

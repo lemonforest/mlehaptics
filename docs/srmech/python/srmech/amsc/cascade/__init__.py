@@ -104,6 +104,11 @@ from .compose import (
     DEFAULT_MAX_DENOMINATOR,
     DEFAULT_FINE_SCALE,
     cyclic_gcd,
+    cyclic_mod_mul,
+    cyclic_mod_add,
+    cyclic_mod_pow,
+    cyclic_mod_inv,
+    cyclic_mod_mul_wide,
     best_rational_signed,
     kuramoto_step,
     autocorrelation,
@@ -177,6 +182,7 @@ from .one import (
 # own-code-attested. The integer cocycle cd_basis_product has a JPL-clean C peer.
 from .cayley_dickson import (
     CD_MAX_DIM,
+    CD_DENSE_MAX_DIM,
     CD_DIMS,
     DIVISION_ALGEBRA_DIMS,
     ALGEBRA_NAMES,
@@ -223,6 +229,10 @@ from .cd_register import (
     cd_navmap,
     cd_navigate,
     cd_navmap_is_signed_permutation,
+    cd_couple_working,
+    cd_uncouple_working,
+    cd_carry,
+    cd_correct,
     WORKING_BLOCK_DIM,
 )
 
@@ -269,6 +279,11 @@ __all__ = [
     "magnitude",
     "best_rational_signed",
     "cyclic_gcd",
+    "cyclic_mod_mul",
+    "cyclic_mod_add",
+    "cyclic_mod_pow",
+    "cyclic_mod_inv",
+    "cyclic_mod_mul_wide",
     "kuramoto_step",
     "autocorrelation",
     "signed_sum_squared",
@@ -310,6 +325,7 @@ __all__ = [
     "winding_fold",
     # Cayley–Dickson open-exterior demonstrator (v0.7.3rc1; #915 / MFO §VII.6.23)
     "CD_MAX_DIM",
+    "CD_DENSE_MAX_DIM",
     "CD_DIMS",
     "DIVISION_ALGEBRA_DIMS",
     "ALGEBRA_NAMES",
@@ -339,6 +355,11 @@ __all__ = [
     "cd_navmap",
     "cd_navigate",
     "cd_navmap_is_signed_permutation",
+    # the OPT layers as pure functions (v0.9.0rc301; `#938`)
+    "cd_couple_working",
+    "cd_uncouple_working",
+    "cd_carry",
+    "cd_correct",
     "WORKING_BLOCK_DIM",
     # back-compat aliases
     "class_k_pin_slot_at_zero",

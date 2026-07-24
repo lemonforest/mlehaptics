@@ -123,9 +123,14 @@ def _svd_check(m, n, A, tol=1e-9):
 
 def _svd_check_against_ata(m, n, A, sigma):
     import ctypes
+    # rc300 (`#938`): this was a bare `return`. The S² vs eigenvalues(AᵀA) check
+    # is the ONLY thing validating the SVD against an independent kernel, and it
+    # used to disappear silently — the callers still passed on their weaker
+    # self-consistency asserts, so the loss was doubly invisible. A skip names it.
     if not (_native.HAS_NATIVE and _native.LIB is not None
             and hasattr(_native.LIB, "srmech_jacobi_eigvals")):
-        return
+        pytest.skip("no srmech_jacobi_eigvals — the independent AᵀA cross-check "
+                    "cannot run; SVD is left on self-consistency asserts only")
     ata = [sum(A[k][i] * A[k][j] for k in range(m)) for i in range(n) for j in range(n)]
     D = ctypes.c_double
     buf = (D * (n * n))(*ata)

@@ -285,13 +285,13 @@ def test_generated_table_holds_every_carrier() -> None:
 
 # ── 6. registration ───────────────────────────────────────────────────────────
 
-def test_tool_entry_registered_and_total_is_413() -> None:
+def test_tool_entry_registered_and_total_matches_live() -> None:
     schema = get_tool_schema()
     entry = schema.lookup("srmech.amsc.carrier_schema.carrier_schema")
     assert entry is not None
     assert entry.category == "carrier_schema"
     assert "DUAL of tool_schema" in entry.summary
-    assert len(schema.tools) == 466
+    assert len(schema.tools) == 492
 
 
 def test_rosetta_row_is_composes_c() -> None:
