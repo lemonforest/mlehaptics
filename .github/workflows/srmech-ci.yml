@@ -379,19 +379,43 @@ jobs:
     # 134). One projection correct, the other killing the process: an ADR-0009
     # split that a bare-C host could not even trap, invisible to every green run.
     #
-    # SCOPE — a targeted smoke, not the full suite under asserts-live. rc289
-    # measured the full run (483 files, one process each so an abort is recorded
-    # rather than destroying the session): it surfaced ONE root-cause assert,
-    # reaching three modules. There is no backlog of pre-existing aborts, so a
-    # second ~12-14 min suite would spend the budget re-proving a null. This
-    # cell runs the documented edge-case inputs where a boundary assert is most
-    # likely to be wrong. Widening it is a one-line change to the selection
-    # below if a future rc has reason to think the class is broader.
+    # SCOPE (#937 — rc289's "targeted smoke" decision REVERSED). The original
+    # cell ran ONE hand-curated file. A FIXED selection means every C assert added
+    # after rc289 is UNOBSERVED by it, so the down-only JPL-Rule-5 discipline this
+    # cell exists to give teeth to could silently regain a wrong assert — the fixed
+    # list IS the #937 defect. The fix is to make coverage == COLLECTION: run the
+    # WHOLE suite under the asserts-live build so a new test or a new assert is
+    # exercised automatically, no edit here. Honest bound (do not overclaim): this
+    # observes every assert on an input a test actually DRIVES — not every assert
+    # predicate — but that is the entire suite's inputs, not one file's. rc289
+    # already MEASURED the full run one-process-each (483 files); this makes it
+    # standing rather than a one-off.
+    #
+    # ISOLATION — a live C assert() calls abort() (SIGABRT). Under plain xdist a
+    # dying worker corrupts the execnet session (the #923 KeyError-in-teardown).
+    # pytest-forked forks a child PER TEST, so an abort kills only that short-lived
+    # child and is reported as one failed test ("child died with signal 6"); the
+    # worker and the run survive. MEASURED locally: without --forked a SIGABRT
+    # cores the whole run (exit 134, later tests never report); with --forked it is
+    # 1 failed / N passed and libsrmech dispatches correctly in the forked children
+    # (fork-after-dlopen inherits the mapping COW; no libsrmech call is in flight at
+    # a test boundary — where the fork happens — so no lock is held, no TLS shared).
+    #
+    # NARROWING GUARD — the run takes a DIRECTORY (tests/), never a -k or a single
+    # file; the "coverage tracks collection" step below asserts it collects from
+    # ~every test file, so re-introducing a filter (the #937 mechanism) turns this
+    # cell RED instead of silently shrinking.
+    #
+    # COST — the full forked suite is heavier than one file (fork+report per test).
+    # It runs per-PR here so this rc MEASURES the real cost; if that proves too
+    # heavy a follow-up reroutes the full sweep to nightly + on-rc-tag and keeps a
+    # changed-scope forked subset per PR (the routing is a measured decision, not a
+    # guess).
     #
     # Linux/gcc only. The defect class is compiler-independent (it is our own
     # assert predicate, not a toolchain behaviour), and the pedantic-build
     # matrix above already carries the cross-platform C burden.
-    name: asserts-live smoke (JPL Rule 5 with teeth)
+    name: asserts-live FULL suite, fork-isolated (JPL Rule 5 with teeth, #937)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -446,12 +470,35 @@ jobs:
             || { echo "::error::$LIB has NO __assert_fail reference — it was built with NDEBUG and every assert was stripped. This cell would pass without testing anything."; exit 1; }
           echo "OK: asserts are live in the library that actually loads."
 
-      - name: Asserts-live smoke over documented edge-case inputs
+      - name: Coverage tracks collection (anti-narrowing guard, #937)
+        working-directory: docs/srmech/python
+        # #937's root cause was a FIXED selection. Defend "asserts-live coverage
+        # == full collection" as a number that cannot silently drop: the forked
+        # run below takes the whole tests/ tree, and here we assert it COLLECTS
+        # from ~every test file. If a future edit re-adds a -k or a single-file
+        # path (the exact #937 mechanism), the collected-file count falls and this
+        # step fails — narrowing becomes a red build, not an unobserved regression.
+        # The threshold is derived from the tree (files on disk), never a frozen
+        # number (that would be the #935 mistake).
+        run: |
+          FILES=$(ls tests/test_*.py | wc -l)
+          COLLECTED=$(pytest tests/ --collect-only -q -p no:cacheprovider 2>/dev/null \
+            | grep -oE "tests/test_[A-Za-z0-9_]+\.py" | sort -u | wc -l)
+          echo "test files on disk: $FILES ; files pytest collects: $COLLECTED"
+          # tolerate a handful of files that legitimately collect no test item
+          [ "$COLLECTED" -ge "$((FILES - 6))" ] \
+            || { echo "::error::asserts-live collection ($COLLECTED files) is materially below the tree ($FILES) — a filter/narrowing crept into the run. #937 forbids this."; exit 1; }
+          echo "OK: asserts-live run covers the full collection."
+
+      - name: Asserts-live FULL suite, fork-isolated
         working-directory: docs/srmech/python
         env:
           SRMECH_ASSERTS_LIVE: "1"
-        # Serial and unparallelised ON PURPOSE. Under `--dist loadfile` a dying
-        # worker raises KeyError in xdist teardown and aborts the session before
-        # the summary prints, destroying the very report this cell exists to
-        # produce. A C abort must surface as a readable failure here.
-        run: pytest tests/test_asserts_live_smoke_rc289.py -q -p no:randomly
+        # The WHOLE suite under the asserts-live build, one fork per test so a live
+        # C abort is a single failed test, not a destroyed session (see ISOLATION
+        # above). No -k, no single file — coverage == collection (#937). -n auto
+        # for speed; --forked composes with xdist because the fork boundary is
+        # INSIDE each worker (a SIGABRT kills only the worker's short-lived
+        # fork-child, so the execnet session that the #923 KeyError destroyed is
+        # never touched).
+        run: pytest tests/ -q -n auto --forked -p no:randomly
