@@ -901,6 +901,26 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_uint8),     # out (n bytes; may alias)
         ]
         lib.srmech_q8_project_v4.restype = ctypes.c_int
+    # 0.9.0rc324: srmech_oct — the DISCRETE octonion Moufang loop {+-e0..+-e7} as
+    # 4-bit bytes (the Cayley-Dickson rung ABOVE Q8; the byte-exact carrier peer of
+    # the float srmech_octonion_* ODFT family). Pure uint8 integer ops: oct_mult /
+    # oct_conjugate return a uint8 octonion byte; oct_bind is an elementwise buffer
+    # op returning srmech_status_t. Additive INTEGER symbols (no callback typedef)
+    # -> ABI stays 10. hasattr-guarded so a stale pre-rc324 lib keeps the surface.
+    if hasattr(lib, "srmech_oct_mult"):
+        lib.srmech_oct_mult.argtypes = [ctypes.c_uint8, ctypes.c_uint8]
+        lib.srmech_oct_mult.restype = ctypes.c_uint8
+    if hasattr(lib, "srmech_oct_conjugate"):
+        lib.srmech_oct_conjugate.argtypes = [ctypes.c_uint8]
+        lib.srmech_oct_conjugate.restype = ctypes.c_uint8
+    if hasattr(lib, "srmech_oct_bind"):
+        lib.srmech_oct_bind.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # turn (n bytes)
+            ctypes.POINTER(ctypes.c_uint8),     # one  (n bytes)
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_uint8),     # out  (n bytes; may alias)
+        ]
+        lib.srmech_oct_bind.restype = ctypes.c_int
     # §Q8-FIBER/v17 (rc322): the genome TOPOLOGY/FIBER fold — the ordered per-slot Q8
     # holonomy of n_turns x leaf_dim coupled turns into a leaf_dim out buffer. Additive
     # INTEGER symbol (no callback typedef) -> ABI stays 10; hasattr-guarded.

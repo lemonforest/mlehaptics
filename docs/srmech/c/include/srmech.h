@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc323"
-#define SRMECH_VERSION       "0.9.0rc323"
+#define SRMECH_VERSION_PRE   "rc324"
+#define SRMECH_VERSION       "0.9.0rc324"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -11647,6 +11647,45 @@ srmech_status_t srmech_q8_bind(const uint8_t *turn, const uint8_t *one,
  * SRMECH_ERR_NULL_ARG (any pointer NULL). */
 srmech_status_t srmech_q8_project_v4(const uint8_t *q, uint32_t n,
                                      uint8_t *out);
+
+/* ------------------------------------------------------------------ *
+ * srmech_oct — the DISCRETE octonion Moufang loop {+-e0, +-e1, ...,
+ * +-e7} as 4-bit bytes (0.9.0rc324): the Cayley-Dickson rung ABOVE the
+ * Q8 group above. A byte o in {0..15} is o = (sign_bit << 3) | index
+ * with index = o & 7 in {e0..e7} and sign_bit = o >> 3 in {+,-}, so
+ * 0=+e0(=+1) ... 7=+e7, 8=-e0(=-1) ... 15=-e7 (the FULL octonion —
+ * indices 4..7 are the non-quaternionic units the Q8 sub-block 0..3
+ * cannot reach). Pure INTEGER bit-arithmetic: no floats. The product's
+ * sign is the Cayley-Dickson cocycle F at dim 8 (computed by calling
+ * srmech_cd_basis_product, of which Q8's F is the dim-4 restriction)
+ * xored with the two center bits; the result index is ALWAYS xa xor xb.
+ * NON-associative for >= 3 independent units, but the per-slot Moufang
+ * loop has the inverse property so the right-conjugate decouple round-
+ * trips byte-exact. Additive INTEGER symbols (no callback typedef) ->
+ * SRMECH_ABI_VERSION stays 10. See srmech_octonion_carrier.c. */
+
+/* The octonion loop product: (sa . e_xa)(sb . e_xb) = (sa xor sb xor
+ * F[xa][xb]) . e_(xa xor xb), with xa=a&7, xb=b&7, sa=a>>3, sb=b>>3 and
+ * F the dim-8 Cayley-Dickson cocycle sign (via srmech_cd_basis_product).
+ * 0 (+e0) is the identity; e_i^2 = -1 (byte 8) for i != 0. Class-M loop
+ * bind o Class-I Z2 sign xor (no abs()). Contract: a < 16 and b < 16
+ * (asserted). */
+uint8_t srmech_oct_mult(uint8_t a, uint8_t b);
+
+/* The octonion conjugate / loop inverse: conj(a) = a for the real center
+ * (index 0, self-inverse), else a xor 8 (flip an imaginary unit's sign
+ * bit). srmech_oct_mult(a, srmech_oct_conjugate(a)) == 0 for every a.
+ * Class-C orientation flip (no abs()). Contract: a < 16 (asserted). */
+uint8_t srmech_oct_conjugate(uint8_t a);
+
+/* Elementwise octonion bind over n-length uint8 buffers: out[i] =
+ * srmech_oct_mult(turn[i], one[i]). `out` MAY alias `turn` and/or `one`
+ * (each slot i is read then written before slot i+1 is touched, so an
+ * in-place bind is well defined). n == 0 is a no-op. Every input byte
+ * MUST be a valid octonion element (< 16). Class-M bind. Errors:
+ * SRMECH_ERR_NULL_ARG (any pointer NULL). */
+srmech_status_t srmech_oct_bind(const uint8_t *turn, const uint8_t *one,
+                                uint32_t n, uint8_t *out);
 
 /* §Q8-FIBER/v17 (rc322, F-HOLO-MISLOCATED) — the strand's TOPOLOGY / FIBER
  * channel: the ORDERED (order-carried) accumulated Q8 holonomy of the coupled

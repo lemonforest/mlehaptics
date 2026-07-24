@@ -481,6 +481,9 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.modular_linalg.gf_rref': ('srmech_gf_rref',),
     'srmech.amsc.naming.lookup': ('srmech_catalog_lookup',),
     'srmech.amsc.naming.reverse_order': ('srmech_reverse_order',),
+    'srmech.amsc.octonion.oct_bind': ('srmech_oct_bind',),
+    'srmech.amsc.octonion.oct_conjugate': ('srmech_oct_conjugate',),
+    'srmech.amsc.octonion.oct_mult': ('srmech_oct_mult',),
     'srmech.amsc.op_provenance.op_provenance_hash': (
         'srmech_op_provenance_hash',
         'srmech_op_provenance_hash_arena_bytes',

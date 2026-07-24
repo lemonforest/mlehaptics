@@ -7354,6 +7354,52 @@ def _register_primitive_class_tools() -> None:
                           "divisibility by 14")),
             returns=R("HV", "the OCT coupling one, sectors=8, uint8 in {0..7}"),
         ),
+        # rc324: the DISCRETE octonion Moufang loop {±e₀..±e₇} as 4-bit bytes —
+        # the Cayley–Dickson rung ABOVE Q8 (the byte-exact carrier peer of the
+        # float srmech.qm.octonion ODFT). The genome's 𝕆 element-type carrier
+        # (ELEMENT_TYPE_OCTONION): stores the FULL octonion (indices 0..7, incl.
+        # the non-quaternionic 4..7). ADDITIVE; carrier only (the associator /
+        # fiber channel is a later rc). oct_mult's sign is the cd_basis_product
+        # cocycle at dim 8 xored with the two center bits — never an abs().
+        ToolEntry(
+            name="srmech.amsc.octonion.oct_mult", owner="srmech",
+            category="octonion",
+            summary="The octonion Moufang-loop product a·b of two 4-bit bytes "
+                    "(o=(sign<<3)|index; 0=+e₀,…,7=+e₇,8=−e₀,…,15=−e₇). The "
+                    "Cayley–Dickson rung above q8_mult: NON-associative for ≥3 "
+                    "independent units (the octonion associator), e_i²=−1 (byte "
+                    "8) for i≠0. The sign is the cd_basis_product cocycle at dim "
+                    "8 xored with the two center bits — never an abs(); the index "
+                    "lane is exact (a·b)&7 == (a&7)^(b&7). Class M∘I. Same-rc C "
+                    "peer srmech_oct_mult (byte-exact).",
+            parameters=(P("a", "int", True, "an octonion element in [0, 16)"),
+                        P("b", "int", True, "an octonion element in [0, 16)")),
+            returns=R("int", "the product a·b as an octonion byte in [0, 16)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.octonion.oct_conjugate", owner="srmech",
+            category="octonion",
+            summary="The octonion conjugate / loop inverse: conj(a)=a for the "
+                    "real center (index 0, self-inverse), else a^8 (flip an "
+                    "imaginary unit's sign bit). oct_mult(a, oct_conjugate(a))==0 "
+                    "for every a (the Moufang inverse property). Class C "
+                    "(orientation; a plain sign-bit flip, no abs()). Same-rc C "
+                    "peer srmech_oct_conjugate (byte-exact).",
+            parameters=(P("a", "int", True, "an octonion element in [0, 16)"),),
+            returns=R("int", "conj(a) as an octonion byte in [0, 16)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.octonion.oct_bind", owner="srmech",
+            category="octonion",
+            summary="Elementwise octonion bind out[i]=oct_mult(turn[i], one[i]) "
+                    "over two equal-length octonion byte buffers (the buffer form "
+                    "of oct_mult). Class M (loop bind). Same-rc C peer "
+                    "srmech_oct_bind (documents the out-aliasing contract; "
+                    "byte-exact).",
+            parameters=(P("turn", "bytes", True, "left operand octonion buffer"),
+                        P("one", "bytes", True, "right operand, same length")),
+            returns=R("bytes", "the elementwise product, length len(turn)"),
+        ),
         # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
         # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
         # analog of the srmech.amsc.carrier_ladder variable ladder. Pure
