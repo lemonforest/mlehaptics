@@ -42,7 +42,7 @@ def _reload_strand(path, leaf_dim):
 # ── format version + marker economy ──────────────────────────────────────────
 
 def test_format_version_bumped_to_15():
-    assert G.GENOME_FORMAT_VERSION == 16
+    assert G.GENOME_FORMAT_VERSION == 17
 
 
 def test_chromatin_marker_is_unused_0x48():
@@ -258,7 +258,7 @@ def test_chromatin_free_genome_round_trips_unchanged(tmp_path):
     one = _one()
     chrom = G.mint({"astro": _lv(12, 100)}, one)
     data = G.genome_save(chrom, tmp_path, one)
-    assert data["format_version"] == 16                                  # v15 writer
+    assert data["format_version"] == 17                                  # v15 writer
     cat = G.genome_catalog(tmp_path, coupling=one)
     assert cat["chromosomes"][0]["cap_kind"] == "nuclear"                # census unbroken
     assert cat["chromosomes"][0]["leaf_count"] == 12

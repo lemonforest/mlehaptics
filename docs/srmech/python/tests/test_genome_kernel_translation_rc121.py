@@ -74,7 +74,7 @@ def test_roundtrip_exact_on_disk(tmp_path, D):
     one = G._default_coupling(256)
     p = tmp_path / f"k{D}"
     man = G.genome_save(strand, p, coupling=one)
-    assert man["format_version"] == 16           # the v12 writer (head-only manifest)
+    assert man["format_version"] == 17           # the v12 writer (head-only manifest)
     back = G.kernel_unpack(p)                    # no coupling — from the manifest
     assert back == x
     assert len(back) == D

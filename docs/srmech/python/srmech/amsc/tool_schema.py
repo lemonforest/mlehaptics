@@ -3460,6 +3460,26 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("strand", "list", True, "a 1-D sequence of Q8 base symbols (see codon_read), or an HV"),),
             returns=R("int", "L mod 3 in {0,1,2} — the reading-frame shift accrued per lap around the circular strand"),
         ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_fiber_holonomy", owner="srmech", category="genome",
+            summary="rc322 (§Q8-FIBER, F-HOLO-MISLOCATED) — the strand's TOPOLOGY/FIBER channel: the ORDERED accumulated Q8 holonomy of the coupled turns along a strand. The base/sequence channel (the per-turn coupled store quad_turn, stored[i]=q8_mult(turn[i], one[i])) is a function of that turn + the shared `one` ALONE, never of prior turns — so it is winding-INVARIANT (a reorder is a pure positional permutation, the #914 order-discard; the abelian Watson-Crick sequence / codon read is unchanged). This op ADDS the non-abelian complement: fold the ordered per-slot Q8 product acc[s] = q8_mult(acc[s], turn_t[s]) along the strand (identity +1 == byte 0). Because Q8 is NON-abelian (i.j=+k but j.i=-k), REORDERING the turns CHANGES the fold — this is the fiber/gauge = the accumulated Lk (biology's supercoiling channel, Lk=Tw+Wr accumulating along DNA; cwf_consistency_mod2). The per-slot center-sign holonomy[s]>>2 IS the accumulated Lk mod 2 (no abs(); the sign is a group xor-bit). Class-M (Q8 bind) ordered fold. Dispatches to the whole-op C peer srmech_genome_fiber_holonomy (c_dispatched; byte-identical pure q8_bind fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10 (the fiber CAP storage bumps GENOME_FORMAT_VERSION 16->17).",
+            parameters=(P("turns", "list", True, "the stored/coupled data turns — a flat bytes of n_turns*leaf_dim Q8 bytes (leaf_dim required), or a sequence of per-turn buffers (HV / bytes / list[int] of leaf_dim Q8 bytes)"),
+                        P("leaf_dim", "int", False, "the per-turn width (inferred from the first buffer when a sequence of buffers is given; required for a flat buffer)")),
+            returns=R("bytes", "the accumulated per-slot Q8 holonomy (leaf_dim bytes); the center-sign of each byte is that slot's accumulated Lk mod 2"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_add_fiber", owner="srmech", category="genome",
+            summary="rc322 (§Q8-FIBER) — return `strand` with a FIBER cap appended so the genome register HOLDS BOTH SIDES OF THE FIBRATION. Scans the strand's DATA turns (caps skipped), folds their ORDERED Q8 holonomy (genome_fiber_holonomy), and appends a FIBER_CAP_MARKER (0x46) cap holding it (layout [0x46]+label+NUL+n_holo(u16 BE)+3-bit-packed holonomy). The base/sequence channel is UNTOUCHED — the returned strand's data turns are the SAME blocks in the SAME order, and the fiber cap is an INTERIOR cap every codon/data-turn walk skips — so a genome that never calls this is BYTE-IDENTICAL to a pre-rc322 genome (the fiber is OPT-IN). ADDITIVE: it stores the gauge (the accumulated Lk) the winding-invariant base cannot carry. Class-M fiber fold . Class-B cap framing. Composition over the C fiber op + the cap packer.",
+            parameters=(P("strand", "list", True, "a genome strand (a sequence of HV leaf blocks — caps + Q8 data turns)"),
+                        P("label", "str", False, "keyword-only; the fiber cap's inline label (default 'fiber')")),
+            returns=R("list", "the strand with one trailing FIBER cap (the fibration's second side, held in the strand)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_read_fiber", owner="srmech", category="genome",
+            summary="rc322 (§Q8-FIBER) — read the FIBER cap back and RECONSTRUCT the gauge from the pair (base + fiber). Finds the strand's FIBER_CAP_MARKER (0x46) cap (the stored gauge), RE-DERIVES the ordered holonomy from the base DATA turns (genome_fiber_holonomy), and reports whether the pair is consistent — the gauge reconstructs from base bytes + the fiber holonomy. The per-slot lk_mod2 (center-sign) is the accumulated Lk (Lk=Tw+Wr) the winding-invariant base channel structurally cannot hold. Composition over the cap unpacker + the C fiber op.",
+            parameters=(P("strand", "list", True, "a genome strand carrying exactly one FIBER cap (from genome_add_fiber)"),),
+            returns=R("dict", "{label, holonomy (stored gauge bytes), recomputed (re-derived from the base), consistent (bool — stored==recomputed), lk_mod2 (bytes, one 0/1 per slot)}"),
+        ),
 
         # ────────────────────────────────────────────────────────────
         # Class K — equation-of-centre / pin-slot

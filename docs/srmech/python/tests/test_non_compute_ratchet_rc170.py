@@ -295,11 +295,15 @@ _EXPECTED_SPLIT = {
     # rc312 (§Q8/v16): +1 composes_c (genome.upgrade_v15_to_v16 — the v15->v16 on-disk
     # migration op; a pure-Python manifest re-stamp that reaches C via sha256_bytes,
     # sibling-consistent with genome_save/genome_catalog). composes_c 130 -> 131; total 202 -> 203.
-    "composes_c": 131,
+    # rc322 (§Q8-FIBER/v17, F-HOLO-MISLOCATED): +2 composes_c (genome.genome_add_fiber +
+    # genome.genome_read_fiber — the fiber cap ASSEMBLE / READ ops; each composes the
+    # c_dispatched genome_fiber_holonomy + pure cap byte-framing, sibling-consistent with
+    # genome_save). composes_c 131 -> 133; total 203 -> 205.
+    "composes_c": 133,
     "host_glue": 21,
     "dev_tooling": 51,
 }
-_TOTAL_NON_COMPUTE = 203        # rc312 (§Q8/v16): 202 -> 203, genome.upgrade_v15_to_v16 (rc308 #944: 201 -> 202)
+_TOTAL_NON_COMPUTE = 205        # rc322 (§Q8-FIBER/v17): 203 -> 205, genome.genome_add_fiber + genome_read_fiber (rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16; rc308 #944: 201 -> 202)
 
 
 def _rows():

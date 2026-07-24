@@ -901,6 +901,17 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_uint8),     # out (n bytes; may alias)
         ]
         lib.srmech_q8_project_v4.restype = ctypes.c_int
+    # §Q8-FIBER/v17 (rc322): the genome TOPOLOGY/FIBER fold — the ordered per-slot Q8
+    # holonomy of n_turns x leaf_dim coupled turns into a leaf_dim out buffer. Additive
+    # INTEGER symbol (no callback typedef) -> ABI stays 10; hasattr-guarded.
+    if hasattr(lib, "srmech_genome_fiber_holonomy"):
+        lib.srmech_genome_fiber_holonomy.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # turns (n_turns * leaf_dim bytes)
+            ctypes.c_uint32,                    # n_turns
+            ctypes.c_uint32,                    # leaf_dim
+            ctypes.POINTER(ctypes.c_uint8),     # out (leaf_dim bytes)
+        ]
+        lib.srmech_genome_fiber_holonomy.restype = ctypes.c_int
 
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
@@ -17840,6 +17851,36 @@ def has_native_genome() -> bool:
                 and hasattr(LIB, "srmech_genome_arena_bytes"))
 
 
+def has_native_genome_fiber_holonomy() -> bool:
+    """True iff the §Q8-FIBER/v17 (rc322) native ``srmech_genome_fiber_holonomy`` is
+    loaded — a pre-rc322 lib lacks it, so ``genome.genome_fiber_holonomy`` folds the
+    ordered Q8 product in pure Python (``q8_bind``)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_fiber_holonomy"))
+
+
+def genome_fiber_holonomy_c(turns: bytes, n_turns: int, leaf_dim: int):
+    """Native dispatch for the genome TOPOLOGY/FIBER fold — the ordered per-slot Q8
+    holonomy of ``n_turns × leaf_dim`` coupled turns (flat ``turns`` buffer) into a
+    ``leaf_dim``-byte result. Returns ``bytes`` (length ``leaf_dim``) or ``None`` on a
+    missing symbol / non-OK status (caller then runs the pure ``q8_bind`` fold). No
+    scratch/arena — the C op writes the ``out`` buffer directly."""
+    if not has_native_genome_fiber_holonomy():
+        return None
+    n = int(leaf_dim)
+    if n <= 0:
+        return b""
+    buf = bytes(turns)
+    c_turns = (ctypes.c_uint8 * max(len(buf), 1)).from_buffer_copy(
+        buf if buf else b"\x00")
+    c_out = (ctypes.c_uint8 * n)()
+    rc = LIB.srmech_genome_fiber_holonomy(
+        c_turns, ctypes.c_uint32(int(n_turns)), ctypes.c_uint32(n), c_out)
+    if rc != SRMECH_OK:
+        return None
+    return bytes(c_out)
+
+
 def has_native_genome_census() -> bool:
     """True iff the §96/rc267 native ``srmech_genome_census`` (+ its arena SSoT) is
     loaded — a pre-rc267 lib lacks it, so ``genome.genome_census`` uses the pure
@@ -19817,8 +19858,10 @@ __all__ = [
     "NativeNDJsonError",
     "NativeGenomeError",
     "has_native_genome",
+    "has_native_genome_fiber_holonomy",
     "has_native_genome_census",
     "has_native_genome_registry",
+    "genome_fiber_holonomy_c",
     "genome_save_c",
     "genome_load_c",
     "genome_catalog_c",
