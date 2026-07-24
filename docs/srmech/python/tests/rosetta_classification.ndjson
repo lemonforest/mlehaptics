@@ -391,6 +391,11 @@
 {"exposed_as": "srmech.qm.so8.quaternion_subalgebra_stabilizer", "defined_at": "srmech.qm.so8.quaternion_subalgebra_stabilizer", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.so8.so7_subalgebra", "defined_at": "srmech.qm.so8.so7_subalgebra", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.so8.so8_adjoint_basis", "defined_at": "srmech.qm.so8.so8_adjoint_basis", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.sedenion_holonomy_conjecture", "defined_at": "srmech.qm.so9.sedenion_holonomy_conjecture", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.so9_adjoint_basis", "defined_at": "srmech.qm.so9.so9_adjoint_basis", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.spin8_in_spin9_branching", "defined_at": "srmech.qm.so9.spin8_in_spin9_branching", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.spin9_gamma_matrices", "defined_at": "srmech.qm.so9.spin9_gamma_matrices", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.spin9_spinor_generators", "defined_at": "srmech.qm.so9.spin9_spinor_generators", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.spin.pauli_clifford_residuals", "defined_at": "srmech.qm.spin.pauli_clifford_residuals", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.lean_isa_seventh_primitive", "defined_at": "srmech.qm.triality.lean_isa_seventh_primitive", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.triality_automorphism", "defined_at": "srmech.qm.triality.triality_automorphism", "bucket": "composition_of_c"}

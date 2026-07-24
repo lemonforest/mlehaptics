@@ -54,6 +54,11 @@ Submodules:
   order-3 outer automorphism ``τ = S_B ∘ S_C`` (``τ³ = I``,
   ``Fix(τ) = g2`` dim 14 = the A-N ``1+3+7+3`` partition), the ``Z2`` swap,
   Cartan companions + residual.
+- :mod:`srmech.qm.so9` — the so(9)/Spin(9) rung one Cayley-Dickson step
+  above so(8): the 36-dim ``so(9)`` adjoint, the 16-dim real spinor ``Δ₉``
+  (9 octonion-built Clifford ``Γ`` matrices), the ``Spin(8) ⊂ Spin(9)``
+  branching ``16 = 8_s ⊕ 8_c``, and the honest tiered associator ↔
+  Spin(9)-holonomy conjecture at the sedenion (``𝕊``) rung.
 
 Canonical SSoT:
 
@@ -95,6 +100,7 @@ __all__ = [
     "single_particle",
     "sm",
     "so8",
+    "so9",
     "spin",
     "triality",
 ]
