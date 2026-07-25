@@ -7654,10 +7654,14 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("CDRegister",
                       "the register — CORE: .write/.read (addressable storage), "
-                      ".navmap/.navigate (the address↔Cayley–Dickson homomorphism), "
-                      ".is_navigable (reversibility gate), .working_block/.carry_block "
-                      "(the block split); OPT (opt-in): .couple_working/.uncouple_working "
-                      "(reversible word), .carry/.correct (EC block)"),
+                      ".element/.norm/.conjugate/.multiply/.add (per-rung carrier "
+                      "arithmetic over the slot-held signed-basis element Σ sign_i·e_i "
+                      "— the method-form of cd_norm_sq/cd_conjugate/cd_mult/cd_add; "
+                      "`#948`), .navmap/.navigate (the address↔Cayley–Dickson "
+                      "homomorphism), .is_navigable (reversibility gate), "
+                      ".working_block/.carry_block (the block split); OPT (opt-in): "
+                      ".couple_working/.uncouple_working (reversible word), "
+                      ".carry/.correct (EC block)"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_navmap", owner="srmech",
