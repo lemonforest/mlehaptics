@@ -4089,6 +4089,30 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_decondense.argtypes = [
                 _U8, _SZ, _U32, _U8, _SZ, ctypes.c_int, _U8]
             lib.srmech_genome_decondense.restype = ctypes.c_int
+        # rc333 (§102 G7, #887) — the GENES FAMILY: the per-gene (label, leaves)
+        # boundary-preserving read (in-memory + the two on-disk siblings). NEW symbols →
+        # hasattr-guarded; additive → ABI stays 10.
+        #   int srmech_genome_genes(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *coupling,
+        #       unsigned char *out, size_t out_cap, size_t *out_len)
+        if hasattr(lib, "srmech_genome_genes"):
+            lib.srmech_genome_genes.argtypes = [_U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
+            lib.srmech_genome_genes.restype = ctypes.c_int
+        #   int srmech_genome_genome_genes(const char *dir, const char *label,
+        #       const unsigned char *coupling, size_t coupling_len,
+        #       unsigned char *out, size_t out_cap, size_t *out_len, void *ws, size_t ws_len)
+        if hasattr(lib, "srmech_genome_genome_genes"):
+            lib.srmech_genome_genome_genes.argtypes = [
+                _CP, _CP, _U8, _SZ, _U8, _SZ, _PSZ, _VP, _SZ]
+            lib.srmech_genome_genome_genes.restype = ctypes.c_int
+        #   int srmech_genome_genes_expressed(const char *dir, uint64_t cell_state,
+        #       const unsigned char *coupling, size_t coupling_len, unsigned char *out,
+        #       size_t out_cap, size_t *out_len, void *ws, size_t ws_len,
+        #       void *region_ws, size_t region_ws_len)
+        if hasattr(lib, "srmech_genome_genes_expressed"):
+            lib.srmech_genome_genes_expressed.argtypes = [
+                _CP, ctypes.c_uint64, _U8, _SZ, _U8, _SZ, _PSZ, _VP, _SZ, _VP, _SZ]
+            lib.srmech_genome_genes_expressed.restype = ctypes.c_int
         # §98.1/G1 (rc274) — the CELL-STATE-CONDITIONAL (facultative) chromatin surface: the single-
         # cap COMPUTED accessibility reader + the FACULTATIVE cap writer. NEW symbols →
         # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
@@ -19574,6 +19598,131 @@ def genome_decondense_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label
     if rc != SRMECH_OK:
         return None
     return [bool(keep[i]) for i in range(n_blocks)]
+
+
+def _decode_genes(buf: bytes, leaf_dim: int):
+    """Decode the shared rc333 GENES structure — ``[u32 n_genes]`` then per gene
+    ``[u32 label_len][label][u32 n_leaves][n_leaves * leaf_dim]`` (all big-endian) — into
+    ``[(label_str, [leaf_bytes, …]), …]``. Each ``leaf_bytes`` is one ``leaf_dim``-byte DECOUPLED
+    (recovered) leaf; the caller (``genome.py``) re-wraps it into an ``HV`` with the carrier's
+    sectors. The one decoder for ``srmech_genome_genes`` / ``_genome_genes`` / ``_genes_expressed``."""
+    mv = memoryview(buf)
+    n = int.from_bytes(mv[0:4], "big")
+    pos = 4
+    out = []
+    for _g in range(n):
+        ll = int.from_bytes(mv[pos:pos + 4], "big")
+        pos += 4
+        label = bytes(mv[pos:pos + ll]).decode("utf-8")
+        pos += ll
+        nl = int.from_bytes(mv[pos:pos + 4], "big")
+        pos += 4
+        leaves = []
+        for _l in range(nl):
+            leaves.append(bytes(mv[pos:pos + leaf_dim]))
+            pos += leaf_dim
+        out.append((label, leaves))
+    return out
+
+
+def has_native_genome_genes() -> bool:
+    """True iff the rc333 §102/G7 srmech_genome_genes C peer is loaded + bound: a bare-C host
+    recovers the IN-MEMORY per-gene (label, leaves) split with no Python present. False on a no-C
+    or pre-rc333 lib — the pure ``srmech.amsc.genome.genes`` walk is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_genes"))
+
+
+def genome_genes_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, coupling: bytes):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genes` (the KLEIN4 default): run the
+    WHOLE per-gene split in C via ``srmech_genome_genes`` and return
+    ``[(label_str, [leaf_bytes, …]), …]`` (each ``leaf_bytes`` a ``leaf_dim``-byte recovered leaf
+    the caller re-wraps into an ``HV``), or ``None`` when the symbol is absent / an input is off the
+    fast path (width mismatch), so the caller takes the pure body. ``strand_bytes`` is the
+    ``n_blocks`` fixed-width leaf blocks concatenated. Byte-identical to the pure ``genes``."""
+    if not has_native_genome_genes():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(coupling) != leaf_dim
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    out_cap = 2 * len(strand_bytes) + (n_blocks + 8) * 8 + 64
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_genes(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(coupling), out, ctypes.c_size_t(out_cap), ctypes.byref(out_len))
+    if rc != SRMECH_OK:
+        return None
+    return _decode_genes(bytes(out[:out_len.value]), leaf_dim)
+
+
+def has_native_genome_genome_genes() -> bool:
+    """True iff the rc333 §102/G7 srmech_genome_genome_genes C peer is loaded + bound: a bare-C host
+    pages ONE chromosome's region off disk and recovers its per-gene split with no Python present."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_genome_genes"))
+
+
+def genome_genome_genes_c(dir_: str, label: str, coupling: bytes, leaf_dim: int):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genome_genes`: obtain the manifest,
+    page the ``label`` chromosome's region (cap-integrity checked), and run the per-gene split in C
+    via ``srmech_genome_genome_genes``. Returns ``[(label_str, [leaf_bytes, …]), …]`` (empty list
+    for a chromosome with NO gene caps — the caller then raises the "no inline GENE caps"
+    ValueError), or ``None`` when the symbol is absent / the C declines (bad label / IO), so the
+    caller takes the pure body. Byte-identical to the pure ``genome_genes``."""
+    if not has_native_genome_genome_genes() or not has_native_genome():
+        return None
+    body = _turns_size(dir_)
+    n_chroms = _genome_chrom_count(dir_, coupling)
+    ws, ws_len = _genome_arena(body, n_chroms, body)      # ws reused for region staging in C
+    out_cap = 2 * body + (body // max(leaf_dim, 1) + n_chroms + 16) * 8 + 4096
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_genome_genes(
+        dir_.encode("utf-8"), label.encode("utf-8"),
+        _u8(coupling), ctypes.c_size_t(len(coupling)),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_len),
+        ws, ctypes.c_size_t(ws_len))
+    if rc != SRMECH_OK:
+        return None
+    return _decode_genes(bytes(out[:out_len.value]), leaf_dim)
+
+
+def has_native_genome_genes_expressed() -> bool:
+    """True iff the rc333 §102/G7 srmech_genome_genes_expressed C peer is loaded + bound: a bare-C
+    host runs the demand-load gene-express orchestration (plan-walk + region-page + collect) with
+    no Python present."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_genes_expressed"))
+
+
+def genome_genes_expressed_c(dir_: str, cell_state: int, coupling: bytes, leaf_dim: int):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genome_genes_expressed`: walk the
+    manifest, page ONLY the expressed communities' regions, filter each by gene_express, and collect
+    ``[(label_str, [leaf_bytes, …]), …]`` in C via ``srmech_genome_genes_expressed``, or ``None``
+    when the symbol is absent / the C declines, so the caller takes the pure body. Byte-identical to
+    the pure ``genome_genes_expressed``. A SEPARATE ``region_ws`` stages one region at a time (the
+    manifest tree persists in ``ws`` across the chromosome loop)."""
+    if not has_native_genome_genes_expressed() or not has_native_genome():
+        return None
+    body = _turns_size(dir_)
+    n_chroms = _genome_chrom_count(dir_, coupling)
+    ws, ws_len = _genome_arena(body, n_chroms, 0)         # manifest tree only
+    region_cap = max(body, 1) + 4096                      # a SEPARATE region-staging buffer
+    region_ws = (ctypes.c_char * region_cap)()
+    out_cap = 2 * body + (body // max(leaf_dim, 1) + n_chroms + 16) * 8 + 4096
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_genes_expressed(
+        dir_.encode("utf-8"), ctypes.c_uint64(cell_state),
+        _u8(coupling), ctypes.c_size_t(len(coupling)),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_len),
+        ws, ctypes.c_size_t(ws_len),
+        ctypes.cast(region_ws, ctypes.c_void_p), ctypes.c_size_t(region_cap))
+    if rc != SRMECH_OK:
+        return None
+    return _decode_genes(bytes(out[:out_len.value]), leaf_dim)
 
 
 def has_native_genome_chromatin_access() -> bool:

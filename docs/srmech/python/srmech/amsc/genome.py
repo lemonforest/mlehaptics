@@ -4142,6 +4142,23 @@ def genes(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     Use :func:`genes` (not :func:`recall`) on a multi-gene chromosome; ``recall``
     flattens across the gene boundaries (§44: scanned by inline marker).
     """
+    # rc333 (§102 G7): the per-gene (label, leaves) BOUNDARY-PRESERVING split has a standalone-C
+    # peer srmech_genome_genes, so a bare-C host recovers the per-gene structure with NO Python
+    # present — closing the §2 G7 genes-family gap (srmech_genome_recall FLATTENS boundaries;
+    # srmech_genome_gene_express_plan returns SPANS; neither is this (label, leaves) split). The
+    # KLEIN4 default (the shipped wire format) dispatches; Q8/octonion take the pure oracle below —
+    # a DECODED in-memory strand carries no on-disk carrier marker, so the C cannot infer the
+    # carrier, while the pure _quad_unturn does via element_type. The list assembly is the trivial
+    # formatting (the mint_plan pattern: the COMPUTATION runs in C). BYTE-IDENTICAL to the pure walk.
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        blocks = _leaf_blocks(strand)
+        dim = len(list(coupling))
+        if dim > 0 and blocks and all(len(b) == dim for b in blocks):
+            native = _native.genome_genes_c(
+                b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+            if native is not None:
+                return [(lbl, [_HV.from_sequence(lf, sectors=QUAD) for lf in leaves])
+                        for lbl, leaves in native]
     out = []
     cur_label = None
     cur_leaves = []
@@ -9411,6 +9428,26 @@ def genome_genes(path, label, *, coupling=None):
             f"(have {list(by_label)!r})"
         )
     coupling = _resolve_coupling(data, coupling)
+    element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
+    # rc333 (§102 G7): the ON-DISK page-region + per-gene split has a standalone-C peer
+    # srmech_genome_genome_genes, so a bare-C host pages ONE chromosome's region and recovers its
+    # (label, leaves) split with NO Python present — the on-disk sibling of the `genes` closure.
+    # The C peer decouples each carrier from its on-disk turn marker (klein4 / §Q8 / §𝕆), so it is
+    # self-describing; the caller re-wraps each leaf with the head-declared carrier's sectors. An
+    # EMPTY result means a single-kernel chromosome (no gene caps) → the exact ValueError. The pure
+    # body below is the byte-identical alternative + oracle (the mint_plan pattern: COMPUTATION in C).
+    native = _native.genome_genome_genes_c(
+        str(path), label, _coupling_block_bytes(coupling), leaf_dim)
+    if native is not None:
+        if not native:
+            raise ValueError(
+                f"genome_genes: chromosome {label!r} has no inline GENE caps — it is a "
+                f"single-kernel chromosome; use genome_window / partition"
+            )
+        _sectors = (OCT if element_type == ELEMENT_TYPE_Q8
+                    else OCTONION_SECTORS if element_type == ELEMENT_TYPE_OCTONION else QUAD)
+        return [(lbl, [_HV.from_sequence(lf, sectors=_sectors) for lf in leaves])
+                for lbl, leaves in native]
     region = _read_region(path, by_label[label], leaf_dim)
     region_strand = _region_strand(region, leaf_dim)
     if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
@@ -9709,11 +9746,25 @@ def genome_genes_expressed(path, coupling, cell_state):
     #   §𝕆-TURN/v19 (rc326): an octonion carrier threads the SAME way — an octonion data genome
     #   carries no genes, so the gene-gate reader is a no-op on it and the bump is transparent here.)
     path = Path(path)
-    plan = _gene_express_plan_path(path, coupling, cell_state)   # the expressed communities
     data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     coupling_hv = _resolve_coupling(data, coupling)
     element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
+    # rc333 (§102 G7): the WHOLE demand-load ORCHESTRATION (the plan-walk + region-page + collect
+    # loop around the per-community head gate srmech_genome_gene_express_plan and the per-gene
+    # decision srmech_genome_gene_express) has a standalone-C peer srmech_genome_genes_expressed,
+    # so a bare-C host runs the partial-load reader end-to-end with NO Python present. The C
+    # decouples each carrier from its on-disk turn marker; the caller re-wraps each leaf with the
+    # head-declared carrier's sectors. The pure body below is the byte-identical alternative +
+    # oracle (the mint_plan pattern: the COMPUTATION runs in C, the assembly is formatting).
+    native = _native.genome_genes_expressed_c(
+        str(path), cell_state, _coupling_block_bytes(coupling_hv), leaf_dim)
+    if native is not None:
+        _sectors = (OCT if element_type == ELEMENT_TYPE_Q8
+                    else OCTONION_SECTORS if element_type == ELEMENT_TYPE_OCTONION else QUAD)
+        return [(lbl, [_HV.from_sequence(lf, sectors=_sectors) for lf in leaves])
+                for lbl, leaves in native]
+    plan = _gene_express_plan_path(path, coupling, cell_state)   # the expressed communities
     by_label = {c["label"]: c for c in data["chromosomes"]}
     out = []
     with _open_body_ro(path / _BODY_NAME) as f:

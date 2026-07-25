@@ -7901,6 +7901,380 @@ srmech_status_t srmech_genome_decondense(
     return SRMECH_OK;
 }
 
+/* rc333 (§102 G7, #887) — the GENES-FAMILY whole-op C peers: the per-gene
+ * (label, leaves) BOUNDARY-PRESERVING read that srmech_genome_recall FLATTENS and
+ * srmech_genome_gene_express_plan returns as SPANS. Emit format (big-endian) — the
+ * ONE structure all three ops share (Python re-wraps each leaf into an HV):
+ *   [u32 n_genes] then per gene [u32 label_len][label][u32 n_leaves][n_leaves*leaf_dim].
+ * The COMPUTATION runs in C (the §44 scan + the sc_uncouple decouple that recovers each
+ * leaf, carrier-aware via the on-disk turn marker — klein4 / §Q8 / §𝕆); the list assembly
+ * is the trivial formatting (the rc329 mint_plan pattern). BYTE-IDENTICAL to the pure
+ * genes / genome_genes / genome_genes_expressed. */
+
+/* Open a gene record: emit [u32 label_len][label bytes] then RESERVE a [u32 n_leaves]
+ * slot at *count_at (backfilled with genome_poke_u32 at the gene's close). The label is
+ * cap[1..NUL) via genome_gene_label (mirrors _unpack_cap). No abs; a READ. */
+static srmech_status_t genome_genes_open(
+    const unsigned char *cap, uint32_t leaf_dim,
+    unsigned char *out, size_t out_cap, size_t *pos, size_t *count_at)
+{
+    size_t label_len = 0u;
+    const unsigned char *label;
+    srmech_status_t st;
+    assert(cap != NULL && out != NULL);
+    assert(pos != NULL && count_at != NULL);
+    label = genome_gene_label(cap, (size_t)leaf_dim, &label_len);
+    if (label == NULL) { return SRMECH_ERR_BAD_INPUT; }
+    st = genome_emit_u32(out, out_cap, pos, (uint32_t)label_len);
+    if (st != SRMECH_OK) { return st; }
+    if (*pos + label_len > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    memcpy(out + *pos, label, label_len);
+    *pos += label_len;
+    *count_at = *pos;                                    /* the n_leaves backfill slot */
+    return genome_emit_u32(out, out_cap, pos, 0u);
+}
+
+/* The SHARED per-gene splitter — the whole body of srmech.amsc.genome.genes, over a byte
+ * buffer of §55/v3 dual-format blocks (fixed-width caps + legacy v2 or bit-packed data
+ * turns). Mirrors the pure `genes` walk EXACTLY: a GENE cap (genome_is_gene_cap) opens a
+ * gene (its inline label read back); the 4 chromosome-boundary caps (CHROM / KERNEL-header /
+ * KERNEL-telomere / ACTIVE-telomere) are SKIPPED; a leading block before the first gene is
+ * SKIPPED; every other block once STARTED is DECOUPLED (sc_uncouple — carrier-aware) into the
+ * current gene's leaves. Emits the shared genes structure into `out`. No abs (a leaf/gene
+ * count is a non-negative cardinality); a READ; caller-arena; no malloc/goto/recursion. */
+static srmech_status_t genome_genes_split(
+    const unsigned char *body, size_t body_len, uint32_t leaf_dim,
+    const unsigned char *coupling, unsigned char *out, size_t out_cap, size_t *out_len)
+{
+    size_t dim = (size_t)leaf_dim, pos = 0u, off = 0u, count_at = 0u;
+    uint32_t n_genes = 0u, cur_leaves = 0u;
+    int started = 0;
+    unsigned char unc[256];
+    srmech_status_t st;
+    assert(body != NULL || body_len == 0u);
+    assert(coupling != NULL && out != NULL && out_len != NULL);
+    st = genome_emit_u32(out, out_cap, &pos, 0u);        /* reserve n_genes */
+    if (st != SRMECH_OK) { return st; }
+    while (off < body_len) {
+        size_t blen = 0u;
+        const unsigned char *block = body + off;
+        int kind;
+        st = genome_block_len(body, body_len, off, leaf_dim, &blen);
+        if (st != SRMECH_OK) { return st; }
+        kind = genome_cap_kind(block, dim);
+        if (genome_is_gene_cap(block, dim) != 0) {
+            if (started != 0) { genome_poke_u32(out, count_at, cur_leaves); n_genes++; }
+            st = genome_genes_open(block, leaf_dim, out, out_cap, &pos, &count_at);
+            if (st != SRMECH_OK) { return st; }
+            cur_leaves = 0u;
+            started = 1;
+        } else if (kind == (int)SRMECH_GENOME_CHROM_CAP_MARKER ||
+                   kind == (int)SRMECH_GENOME_KERNEL_HEADER_MARKER ||
+                   kind == (int)SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+                   kind == (int)SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+            (void)0;                                     /* a boundary cap — not gene data */
+        } else if (started != 0) {
+            st = sc_uncouple(block, leaf_dim, coupling, unc);
+            if (st != SRMECH_OK) { return st; }
+            if (pos + dim > out_cap) { return SRMECH_ERR_OVERFLOW; }
+            memcpy(out + pos, unc, dim);
+            pos += dim;
+            cur_leaves++;
+        }
+        off += blen;
+    }
+    if (started != 0) { genome_poke_u32(out, count_at, cur_leaves); n_genes++; }
+    genome_poke_u32(out, 0u, n_genes);
+    *out_len = pos;
+    return SRMECH_OK;
+}
+
+/* §98/v15 (rc333 §102 G7, #887) GENES — the IN-MEMORY per-gene split of
+ * srmech.amsc.genome.genes in C (the KLEIN4 default; Q8/octonion in-memory strands take the
+ * pure oracle since a DECODED strand carries no carrier marker). `strand` is n_blocks
+ * fixed-width leaf_dim-byte blocks; the peer walks them and emits the shared genes structure.
+ * BYTE-IDENTICAL to the pure genes. Caller-arena; no malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_genes(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *coupling, unsigned char *out, size_t out_cap, size_t *out_len)
+{
+    if (strand == NULL || coupling == NULL || out == NULL || out_len == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && coupling != NULL);
+    assert(out != NULL && out_len != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    return genome_genes_split(strand, n_blocks * (size_t)leaf_dim, leaf_dim,
+                              coupling, out, out_cap, out_len);
+}
+
+/* §98/v15 (rc333 §102 G7, #887) GENOME_GENES — the ON-DISK sibling: obtain the manifest
+ * (parse or §44 rebuild-by-scan), resolve (leaf_dim, coupling) from the head, find the label's
+ * chromosome, PAGE its region (RAM-bounded, §45 cap-integrity checked), then run the SHARED
+ * splitter over the raw region (sc_uncouple decouples every carrier from the on-disk turn
+ * marker). BYTE-IDENTICAL to the pure genome_genes. `ws` (>= srmech_genome_arena_bytes) holds
+ * the manifest tree; it is REUSED as the region-staging buffer after the label/offsets/cap-hash
+ * are copied out. Caller-arena; no malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_genome_genes(
+    const char *dir, const char *label,
+    const unsigned char *coupling, size_t coupling_len,
+    unsigned char *out, size_t out_cap, size_t *out_len, void *ws, size_t ws_len)
+{
+    unsigned char one_buf[256];
+    uint32_t leaf_dim = 0u;
+    size_t off = 0u, len = 0u;
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    char cap_hex[65], got[65];
+    srmech_json_value_t *manifest = NULL;
+    const srmech_json_value_t *csha;
+    genome_arena_t a;
+    unsigned char *region;
+    srmech_status_t st;
+    if (dir == NULL || label == NULL || out == NULL || out_len == NULL || ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (coupling == NULL && coupling_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    assert(dir != NULL && out != NULL);
+    assert(out_len != NULL && ws != NULL);
+    st = genome_obtain_manifest(dir, coupling, coupling_len, ws, ws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_head_rebuild_params(manifest, one_buf, &leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    csha = genome_find_chrom(manifest, label, &off, &len);
+    if (csha == NULL || csha->type != SRMECH_JSON_STRING || csha->u.str.len != 64u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    memcpy(cap_hex, csha->u.str.ptr, 64u);               /* copy out before ws reuse */
+    cap_hex[64] = '\0';
+    st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    genome_arena_init(&a, ws, ws_len);                   /* the manifest tree is copied out */
+    region = genome_arena_alloc(&a, (len == 0u) ? 1u : len);
+    if (region == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = genome_read_region(body_path, off, len, region, len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sha256_hex(region, (size_t)leaf_dim, got);
+    if (st != SRMECH_OK) { return st; }
+    if (memcmp(got, cap_hex, 64u) != 0) { return SRMECH_ERR_BAD_INPUT; }
+    return genome_genes_split(region, len, leaf_dim, one_buf, out, out_cap, out_len);
+}
+
+/* The gate EXPRESSION decision for ONE gene cap — the SAME §128/§130/§131/§132 dispatch
+ * genome_plan_emit_one uses: a GRADED gene (0x64) expresses iff its clamped level > 0
+ * (srmech_genome_gene_express_levels); a plain / regulatory / boolean / threshold gene decides
+ * via srmech_genome_gene_express; any other block is NOT a gene and does not express. Mirrors
+ * the pure _gene_expresses. *expressed gets 0/1. No abs (a level numerator / a mask is a
+ * non-negative cardinality); a READ. */
+static srmech_status_t genome_gene_cap_expresses(
+    const unsigned char *cap, uint32_t leaf_dim, uint64_t cell_state, int *expressed)
+{
+    unsigned char gm;
+    assert(cap != NULL && expressed != NULL);
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);
+    gm = cap[0];
+    *expressed = 0;
+    if (gm == SRMECH_GENOME_GRADED_GENE_MARKER) {
+        uint64_t num = 0u, den = 0u;
+        srmech_status_t st = srmech_genome_gene_express_levels(cap, leaf_dim, cell_state,
+                                                               &num, &den);
+        if (st != SRMECH_OK) { return st; }
+        *expressed = (num > 0u) ? 1 : 0;
+        return SRMECH_OK;
+    }
+    if (gm == SRMECH_GENOME_GENE_CAP_MARKER || gm == SRMECH_GENOME_REGULATORY_GENE_MARKER ||
+        gm == SRMECH_GENOME_BOOLEAN_GENE_MARKER || gm == SRMECH_GENOME_THRESHOLD_GENE_MARKER) {
+        return srmech_genome_gene_express(cap, leaf_dim, cell_state, expressed, NULL);
+    }
+    return SRMECH_OK;                                    /* not a gene cap -> not expressed */
+}
+
+/* Does the community (chromosome `entry`) express? — the SAME head-gate decision
+ * genome_plan_emit_one makes (the §98 chromatin OUTER gate over the §134 head gene gate),
+ * WITHOUT emitting a plan record: len < 2*leaf_dim / a silenced chromatin head / a non-gene
+ * head -> 0; else genome_gene_cap_expresses on the resolved head gate. `gate` (>= leaf_dim) is
+ * the caller's single-cap scratch. A READ; no abs. */
+static srmech_status_t genome_community_expresses(
+    const char *body_path, const srmech_json_value_t *entry, uint32_t leaf_dim,
+    uint64_t cell_state, unsigned char *gate, int *expressed)
+{
+    const srmech_json_value_t *bo = srmech_json_object_get(entry, "byte_offset");
+    const srmech_json_value_t *bl = srmech_json_object_get(entry, "byte_len");
+    size_t off, len;
+    int skip = 0;
+    srmech_status_t st;
+    assert(entry != NULL && gate != NULL && expressed != NULL);
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);
+    *expressed = 0;
+    if (bo == NULL || bl == NULL || bo->type != SRMECH_JSON_INT ||
+        bl->type != SRMECH_JSON_INT) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    off = (size_t)bo->u.i;
+    len = (size_t)bl->u.i;
+    if (len < (size_t)2u * leaf_dim) { return SRMECH_OK; }   /* no head gene cap */
+    st = genome_plan_read_head(body_path, off, len, leaf_dim, cell_state, gate, &skip);
+    if (st != SRMECH_OK) { return st; }
+    if (skip != 0) { return SRMECH_OK; }
+    return genome_gene_cap_expresses(gate, leaf_dim, cell_state, expressed);
+}
+
+/* The gene_express FILTER over ONE region — the whole body of srmech.amsc.genome.gene_express,
+ * emitting ONLY the EXPRESSED genes' (label, leaves) into the shared structure. Mirrors the pure
+ * walk EXACTLY: a GENE cap sets cur_express = access_open AND genome_gene_cap_expresses(cap); a
+ * §98 chromatin cap re-gates access_open (accessible iff its level numerator > 0); the 4
+ * boundary caps RESET access_open (euchromatin); a data block of an EXPRESSED gene is decoupled
+ * (sc_uncouple, carrier-aware) into that gene's leaves; an unexpressed gene's turns are skipped
+ * (their leaves are discarded in the pure path too). No abs (Class-K access is a sign-branch on a
+ * numerator); a READ. */
+static srmech_status_t genome_genes_express_region(
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    const unsigned char *coupling, uint64_t cell_state,
+    unsigned char *out, size_t out_cap, size_t *pos, uint32_t *n_genes)
+{
+    size_t dim = (size_t)leaf_dim, off = 0u, count_at = 0u;
+    int started = 0, access_open = 1, cur_express = 0;
+    uint32_t cur_leaves = 0u;
+    unsigned char unc[256];
+    srmech_status_t st;
+    assert(region != NULL || region_len == 0u);
+    assert(coupling != NULL && out != NULL && pos != NULL && n_genes != NULL);
+    while (off < region_len) {
+        size_t blen = 0u;
+        const unsigned char *block = region + off;
+        int kind;
+        st = genome_block_len(region, region_len, off, leaf_dim, &blen);
+        if (st != SRMECH_OK) { return st; }
+        kind = genome_cap_kind(block, dim);
+        if (genome_is_gene_cap(block, dim) != 0) {
+            int expr = 0;
+            if (started != 0 && cur_express != 0) {
+                genome_poke_u32(out, count_at, cur_leaves); (*n_genes)++;
+            }
+            st = genome_gene_cap_expresses(block, leaf_dim, cell_state, &expr);
+            if (st != SRMECH_OK) { return st; }
+            cur_express = (access_open != 0 && expr != 0) ? 1 : 0;
+            cur_leaves = 0u;
+            started = 1;
+            if (cur_express != 0) {
+                st = genome_genes_open(block, leaf_dim, out, out_cap, pos, &count_at);
+                if (st != SRMECH_OK) { return st; }
+            }
+        } else if (kind == (int)SRMECH_GENOME_CHROMATIN_MARKER) {
+            uint64_t num = 0u, den = 0u;
+            st = genome_chromatin_access(block, dim, cell_state, &num, &den);
+            if (st != SRMECH_OK) { return st; }
+            access_open = (num > 0u) ? 1 : 0;
+        } else if (kind == (int)SRMECH_GENOME_CHROM_CAP_MARKER ||
+                   kind == (int)SRMECH_GENOME_KERNEL_HEADER_MARKER ||
+                   kind == (int)SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
+                   kind == (int)SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
+            access_open = 1;
+        } else if (started != 0 && cur_express != 0) {
+            st = sc_uncouple(block, leaf_dim, coupling, unc);
+            if (st != SRMECH_OK) { return st; }
+            if (*pos + dim > out_cap) { return SRMECH_ERR_OVERFLOW; }
+            memcpy(out + *pos, unc, dim);
+            *pos += dim;
+            cur_leaves++;
+        }
+        off += blen;
+    }
+    if (started != 0 && cur_express != 0) {
+        genome_poke_u32(out, count_at, cur_leaves); (*n_genes)++;
+    }
+    return SRMECH_OK;
+}
+
+/* One chromosome's contribution to genome_genes_expressed: skip it unless its community head
+ * gate EXPRESSES (genome_community_expresses); else PAGE its full region into `region_ws`
+ * (§45 cap-integrity checked) and run the gene_express filter over it. `region_ws` is SEPARATE
+ * from the manifest `ws` (the manifest tree must persist across the chromosome loop). A READ. */
+static srmech_status_t genome_expressed_emit_chrom(
+    const char *body_path, const srmech_json_value_t *entry, uint32_t leaf_dim,
+    const unsigned char *coupling, uint64_t cell_state, unsigned char *gate,
+    void *region_ws, size_t region_ws_len,
+    unsigned char *out, size_t out_cap, size_t *pos, uint32_t *n_genes)
+{
+    int expressed = 0;
+    const srmech_json_value_t *bo, *bl, *cs;
+    size_t off, len;
+    genome_arena_t a;
+    unsigned char *region;
+    char got[65];
+    srmech_status_t st;
+    assert(entry != NULL && gate != NULL && out != NULL);
+    assert(pos != NULL && n_genes != NULL);
+    st = genome_community_expresses(body_path, entry, leaf_dim, cell_state, gate, &expressed);
+    if (st != SRMECH_OK) { return st; }
+    if (expressed == 0) { return SRMECH_OK; }
+    bo = srmech_json_object_get(entry, "byte_offset");
+    bl = srmech_json_object_get(entry, "byte_len");
+    cs = srmech_json_object_get(entry, "cap_sha256");
+    if (bo == NULL || bl == NULL || cs == NULL || cs->type != SRMECH_JSON_STRING) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    off = (size_t)bo->u.i;
+    len = (size_t)bl->u.i;
+    genome_arena_init(&a, region_ws, region_ws_len);
+    region = genome_arena_alloc(&a, (len == 0u) ? 1u : len);
+    if (region == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = genome_read_region(body_path, off, len, region, len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sha256_hex(region, (size_t)leaf_dim, got);
+    if (st != SRMECH_OK) { return st; }
+    if (genome_str_eq(cs, got) == 0) { return SRMECH_ERR_BAD_INPUT; }
+    return genome_genes_express_region(region, len, leaf_dim, coupling, cell_state,
+                                       out, out_cap, pos, n_genes);
+}
+
+/* §98/v15 (rc333 §102 G7, #887) GENOME_GENES_EXPRESSED — the ON-DISK gene-express ORCHESTRATION
+ * whole-op peer: the plan-walk + region-page + collect loop that srmech_genome_gene_express_plan
+ * (the per-community head-gate) and srmech_genome_gene_express (the per-gene decision) did NOT
+ * compose. Walks every chromosome, pages ONLY the expressed communities' regions, filters each
+ * by gene_express, and emits the shared genes structure. BYTE-IDENTICAL to the pure
+ * genome_genes_expressed. `ws` holds the manifest tree; `region_ws` (SEPARATE, >= body_len)
+ * stages one region at a time. Caller-arena; no malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_genes_expressed(
+    const char *dir, uint64_t cell_state,
+    const unsigned char *coupling, size_t coupling_len,
+    unsigned char *out, size_t out_cap, size_t *out_len,
+    void *ws, size_t ws_len, void *region_ws, size_t region_ws_len)
+{
+    unsigned char one_buf[256], gate[256];
+    uint32_t leaf_dim = 0u, n_genes = 0u;
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    srmech_json_value_t *manifest = NULL;
+    const srmech_json_value_t *arr;
+    size_t pos = 0u;
+    srmech_status_t st;
+    if (dir == NULL || out == NULL || out_len == NULL || ws == NULL || region_ws == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (coupling == NULL && coupling_len != 0u) { return SRMECH_ERR_NULL_ARG; }
+    assert(dir != NULL && out != NULL);
+    assert(out_len != NULL && ws != NULL && region_ws != NULL);
+    st = genome_obtain_manifest(dir, coupling, coupling_len, ws, ws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_head_rebuild_params(manifest, one_buf, &leaf_dim);
+    if (st != SRMECH_OK) { return st; }
+    st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    arr = genome_data_get(manifest, "chromosomes");
+    if (arr == NULL || arr->type != SRMECH_JSON_ARRAY) { return SRMECH_ERR_BAD_INPUT; }
+    st = genome_emit_u32(out, out_cap, &pos, 0u);        /* reserve n_genes */
+    if (st != SRMECH_OK) { return st; }
+    for (uint32_t i = 0u; i < arr->u.arr.n; i++) {
+        st = genome_expressed_emit_chrom(body_path, arr->u.arr.items[i], leaf_dim,
+                                         one_buf, cell_state, gate,
+                                         region_ws, region_ws_len,
+                                         out, out_cap, &pos, &n_genes);
+        if (st != SRMECH_OK) { return st; }
+    }
+    genome_poke_u32(out, 0u, n_genes);
+    *out_len = pos;
+    return SRMECH_OK;
+}
+
 /* rc314 — the CODON READ-LAYER whole-op C peers. Biology reads the genome in
  * CODONS (triplets); the ribosome IMPOSES that reading over the stored strand.
  * PURE READS: no store, no on-disk format change (GENOME_FORMAT_VERSION stays
