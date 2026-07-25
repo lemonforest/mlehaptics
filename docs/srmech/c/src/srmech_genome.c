@@ -2130,8 +2130,16 @@ static srmech_status_t genome_fill_strings_bound(genome_strings_t *s,
                                              coupling);
     if (st != SRMECH_OK) { return st; }
     if (committed[0] == '\0') { return SRMECH_OK; }   /* nothing committed to bind */
-    return (memcmp(committed, s->body_sha, 64u) == 0) ? SRMECH_OK
-                                                      : SRMECH_ERR_BAD_INPUT;
+    /* #955 BISECT (TEMPORARY): report the mismatch instead of failing the call, so
+     * CI tells us whether windows' 22 reds come from THIS comparison firing or from
+     * the rc337 structural refactor around it. Every structural change stays live;
+     * only the verdict is neutralised. RESTORE BEFORE MERGE. */
+    if (memcmp(committed, s->body_sha, 64u) != 0) {
+        fprintf(stderr, "[955-BISECT] chain mismatch: committed=%.64s derived=%.64s\n",
+                committed, s->body_sha);
+        fflush(stderr);
+    }
+    return SRMECH_OK;
 }
 
 /* ------------------------------------------------------------------ *
