@@ -2373,6 +2373,24 @@ def _bind(lib: ctypes.CDLL) -> None:
     ]
     lib.srmech_best_rational.restype = ctypes.c_int
 
+    # rc336: int srmech_best_rational_path(uint64_t p, uint64_t q,
+    #     uint64_t max_denominator, uint64_t *terms, uint32_t max_terms,
+    #     uint32_t *out_count, uint64_t *out_p, uint64_t *out_q)
+    # Additive symbol — hasattr-guarded so a stale .so falls back to the pure
+    # Python convergent walk (the c_claim gate then reports it, rc300/#939).
+    if hasattr(lib, "srmech_best_rational_path"):
+        lib.srmech_best_rational_path.argtypes = [
+            ctypes.c_uint64,
+            ctypes.c_uint64,
+            ctypes.c_uint64,
+            ctypes.POINTER(ctypes.c_uint64),
+            ctypes.c_uint32,
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.POINTER(ctypes.c_uint64),
+            ctypes.POINTER(ctypes.c_uint64),
+        ]
+        lib.srmech_best_rational_path.restype = ctypes.c_int
+
     # rc8: int srmech_exp_series_truncate(int64_t  x_num,
     #                                      uint64_t x_den,
     #                                      uint32_t num_terms,

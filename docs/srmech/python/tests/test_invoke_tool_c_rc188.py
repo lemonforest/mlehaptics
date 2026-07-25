@@ -64,6 +64,23 @@ _BATCH_CASES = [
      {"numerator": 22, "denominator": 7, "max_denominator": 100}),
     ("srmech.amsc.rational.best_rational",
      {"numerator": 355, "denominator": 113, "max_denominator": 50}),
+    # rc336 — the OPTIONAL 4th param `with_path`. The registry now carries 4
+    # params, and iv_dispatch passes entry->param_count as argc, so the thunk
+    # must accept BOTH arities: absent / false -> the pinned (p', q') pair;
+    # true -> the (p', q', path) triple carrying the Stern-Brocot / CF
+    # partial quotients (the Class-N approximation holonomy).
+    ("srmech.amsc.rational.best_rational",
+     {"numerator": 22, "denominator": 7, "max_denominator": 100,
+      "with_path": False}),
+    ("srmech.amsc.rational.best_rational",
+     {"numerator": 22, "denominator": 7, "max_denominator": 100,
+      "with_path": True}),
+    ("srmech.amsc.rational.best_rational",
+     {"numerator": 13, "denominator": 8, "max_denominator": 8,
+      "with_path": True}),                       # full CF [1,1,1,1,2]
+    ("srmech.amsc.rational.best_rational",
+     {"numerator": 1, "denominator": 2, "max_denominator": 1,
+      "with_path": True}),                       # only the trivial [0] fits
     # u -> list[(int, int)]  (container result)
     ("srmech.amsc.primes.factor", {"n": 360}),
     ("srmech.amsc.primes.factor", {"n": 1}),
