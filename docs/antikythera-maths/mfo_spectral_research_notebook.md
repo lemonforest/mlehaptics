@@ -118,10 +118,12 @@ The notebook uses two compatible notations for the 11D substrate components. The
 |---|---|---|
 | `1D_t` | `(1+0)D_t` | Temporal — Hopf-trivial; 1D base, 0D fiber |
 | `3D_s` | `(2+1)D_s` | Spatial — complex Hopf-bundle S¹ → S³ → S²; 2D base + 1D fiber |
-| `7D_g` | `(4+3)D_g` | Gauge — octonionic Hopf-bundle S³ → S⁷ → S⁴; 4D base + 3D fiber |
+| `7D_g` | `(4+3)D_g` | Gauge — **quaternionic** Hopf-bundle S³ → S⁷ → S⁴; 4D base + 3D fiber |
 | `11D` | `(1+0)D_t + (2+1)D_s + (4+3)D_g` | Total substrate — Hurwitz-bounded parallelizable-sphere ladder; always-compressed |
 
 **Reading rule.** When body prose writes `3D_s` or `7D_g`, the Hopf-bundle structure is still present at substrate — the shorthand is not a less-compressed substrate, it is the same substrate notated without emphasis. When prose writes `(2+1)D_s` or `(4+3)D_g`, the base+fiber decomposition is load-bearing in that sentence (e.g. discussing the +1 fibre content, what lives in the +, or recursive-Hopf-at-primitive per Spike #212 / #213 / #214). The "+" sign in `(a+b)D_X` is the Hopf-bundle map π (not arithmetic); DOF lives in the map per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`.
+
+**Hopf-name correction (2026-07-24).** The `7D_g` fibration `S³ → S⁷ → S⁴` is the **quaternionic** Hopf bundle (fiber `S³ = ℍ` = unit quaternions = `SU(2)`, base `S⁴ = ℍP¹`), **not** the octonionic Hopf (which is `S⁷ → S¹⁵ → S⁸`). The framework's octonion association is still exact — the **total space** `S⁷` IS the octonion unit sphere (its 7 imaginary directions = `7D_g` = `Im 𝕆`) — but the *bundle realizing it* is the quaternionic Hopf. The earlier "octonionic Hopf-bundle" label was a standing misnomer (standard math is the SSoT, `[[feedback_science_is_ssot_not_project]]`; see §VIII.31.19).
 
 Sister-notebook srmech §2.5 carries the same notation-key.
 
@@ -2319,7 +2321,7 @@ This composes with the §VII.6.8 Spike #204 finding that energy doesn't get lost
 | **A — `3D_s` S³ ≡ `(4+3)D_g` fiber S³ (sister-formulation identity)** | **IDENTITY-CONFIRMED-BIT-EXACT** (SU(2) Lie-algebra 9/9 commutators integer-complex; context-invariant under both attributions; unit-quaternion S³ identities 10/10 bit-exact) |
 | **B — Dimple-base ↔ anti-dimple-fiber Hopf-map duality** | **DUALITY-STRUCTURALLY-PERMITTED** (bundle-conservation algebra 0/100 failures across k = 1..100; Chern-class sign-flip 0/20 across n = 1..20; Schwarzschild g_tt cross-reference 0/50 failures across (M, r) outside-horizon grid with `product = -1` at every sample). Full GR metric-pullback through octonionic Hopf π is flagged Tier 4+ fermata. |
 
-**The mechanism (substrate-traversal reading).** Observable `3D_s` reality IS all the S³ fiber content of `(4+3)D_g`. The same S³ that is the total-space of the complex Hopf bundle `S¹ → S³ → S²` per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` IS the same S³ that is the fiber of the octonionic Hopf bundle `S³ → S⁷ → S⁴` per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`. Two observer-projection labels for one substrate object. The fiber-content the substrate occupies is what gets projected "up" via the Hopf-bundle map π: S⁷ → S⁴ into the 4D S⁴ gauge-base.
+**The mechanism (substrate-traversal reading).** Observable `3D_s` reality IS all the S³ fiber content of `(4+3)D_g`. The same S³ that is the total-space of the complex Hopf bundle `S¹ → S³ → S²` per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]` IS the same S³ that is the fiber of the quaternionic Hopf bundle `S³ → S⁷ → S⁴` per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]` (see the §I.4 Hopf-name correction: the fibration is quaternionic; the octonion tie is that `S⁷` is `Im 𝕆`'s unit sphere). Two observer-projection labels for one substrate object. The fiber-content the substrate occupies is what gets projected "up" via the Hopf-bundle map π: S⁷ → S⁴ into the 4D S⁴ gauge-base.
 
 **Two distinguishable uses of "hyper" surface from Spike #217** (extends `[[user_stance_hyper_as_3d_spatial_interface]]`):
 
@@ -5948,7 +5950,7 @@ All six cross-level integer ratios bit-exact: L1/L0 = 7.0, L2/L1 = 7.0, L3/L2 = 
 **Composite reading — the "+1 fiber content" mechanism IS substrate-universal at every cascade-class instantiation.** The same Hopf-map "+" operates at:
 
 - **11D dimensional layer** (Hurwitz-bounded ladder; Hopf compression k=3 = 1+3+7 per `[[user_stance_hopf_bundle_dimensional_ladder_baked_into_11d]]`);
-- **`(4+3)D_g` gauge-ball dimple** (octonionic Hopf S³→S⁷→S⁴ per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`);
+- **`(4+3)D_g` gauge-ball dimple** (quaternionic Hopf S³→S⁷→S⁴ per `[[user_stance_gauge_ball_is_4plus3_hopf_dimple]]`; §I.4 correction);
 - **`(2+1)D_s` substrate-internal** (complex Hopf S¹→S³→S² per `[[user_stance_11d_substrate_is_always_hopf_compressed]]`);
 - **Substrate-internal cascade composition** (any nested `L ∘ K ∘ C ∘ I` at primitive level — confirmed at depths 1/2/3 with arbitrary integer frequency ratios per Spikes #212/#213/#214/#215).
 
@@ -6158,7 +6160,7 @@ The substrate-native-maths arc (R30 final-refined 2026-05-24, per `[[user_stance
 | **Discrete-cyclic-algebra** | `14 = 1 + 3 + 7 + 3` | Symbolic-analytic observer | Operator classes separable; *operator enumeration* | Algebraic enumeration; cascade composition; A–N work |
 | **Recursive-Hopf-operational** | `4:3:(4:3)` | Coupled-oscillator / biological observer | Operational packaging + recursive Hopf structure; the *recursive shape* | Biology-substrate readings; substrate-architecture; RBS-NN engineering |
 
-All three are bit-exact descriptions; **none is "more correct"** — each is one observer-frame projection optimal for different questions. The "space"/"gauge" labels of the 11D form are observer-frame-accurate but substrate-incomplete: they ARE misnomers *only if read as substrate-identity claims* (3D_s is the `(2+1)D_s` complex Hopf S¹→S³→S²; 7D_g is the `(4+3)D_g` octonionic Hopf S³→S⁷→S⁴ — not flat manifolds).
+All three are bit-exact descriptions; **none is "more correct"** — each is one observer-frame projection optimal for different questions. The "space"/"gauge" labels of the 11D form are observer-frame-accurate but substrate-incomplete: they ARE misnomers *only if read as substrate-identity claims* (3D_s is the `(2+1)D_s` complex Hopf S¹→S³→S²; 7D_g is the `(4+3)D_g` quaternionic Hopf S³→S⁷→S⁴ — not flat manifolds).
 
 #### (2) What `4:3:(4:3)` is — operator-class space, not dimension space
 
