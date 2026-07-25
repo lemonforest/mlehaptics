@@ -7565,6 +7565,645 @@ size_t srmech_genome_section_counts_arena_bytes(size_t body_len, uint32_t n_chro
     return table + window + catalog + 64u;   /* +64: per-carve 16-align slop */
 }
 
+/* ═════════════════════════════════════════════════════════════════════════════
+ * rc334 (§102 G7, #887) — ADD PLASMID: the INCREMENTAL STAGE 1+2 whole-op C peer,
+ * the LAST genome wire-glue parity gap (CEIL_WIRE_GLUE_GAPS 1 -> 0, ADR-0003
+ * "genome must exist fully in C" — the enumerated gap list becomes EMPTY).
+ *
+ * A bare-C host runs the CONSERVE+ORGANIZE half of one incremental add END-TO-END:
+ * given the store (the new plasmid section ALREADY appended by
+ * srmech_genome_plasmid_extract — which seeds a fresh store + refreshes the vocab
+ * karyotype; the Python projection owns THAT stage-1 step so the FIRST section can
+ * seed and the vocab chromosome stays a §102 karyotype index), the PRIOR
+ * section-count accumulator, the NEW section's GLOBAL node_ids, and k, it:
+ *   (1) MERGE the counts  — prior {id:count} + the new section's ids (+1 each; a
+ *                           node counts ONCE per section), byte-identical to the
+ *                           pure O(section) dict bump, sorted ascending;
+ *   (2) CONSERVE          — srmech_genome_conserved_core over the merged counts
+ *                           (DERIVE k from the antimode or force it; the ~16/84
+ *                           asymmetric nuclear/plasmid split, F1251);
+ *   (3) HARVEST + PROMOTE — page every plasmid section off disk, decode its GLOBAL
+ *                           edges (srmech_graph_kernel_decode), keep the induced
+ *                           CORE subgraph (both endpoints conserved), SUM the
+ *                           per-section multiplicities in canonical sorted (u,v)
+ *                           order (ORDER-FREE, so it is independent of accumulation
+ *                           order), and pack it (srmech_graph_kernel_encode ->
+ *                           genome_kernel_blocks) into a core strand;
+ *   (4) MERGE the strand  — MINT the core (0x58 centromere) at the head, then FOLD
+ *                           each retained plasmid section's strand (paged + unpacked
+ *                           off disk) onto the running TAIL — the
+ *                           srmech_genome_integrate_plasmids discipline
+ *                           (organize_promote_core + organize_append_section), with
+ *                           the §101 MINTING/INTEGRATING heartbeat.
+ * BYTE-IDENTICAL to the pure srmech.amsc.plasmid.add_plasmid strand + state. A global
+ * recursive_cut is NEVER run and no document is re-extracted; every plasmid section,
+ * and the core when it did not change, stay byte-untouched. See srmech.h for the full
+ * contract. Caller-arena; no malloc/goto/recursion/abs/float.
+ * ═════════════════════════════════════════════════════════════════════════════ */
+
+typedef struct { uint64_t id; uint64_t count; } gap_count_t;
+typedef struct { uint64_t u; uint64_t v; uint64_t w; } gap_edge_t;
+
+/* Sift a[i] down a max-heap of n uint64 (ascending heapsort of the new section's
+ * ids). Iterative — JPL Rule 1 bans recursion. */
+static void gap_u64_sift(uint64_t *a, size_t n, size_t i)
+{
+    assert(a != NULL);
+    assert(i < n || n == 0u);
+    for (;;) {
+        size_t l = 2u * i + 1u, r = l + 1u, big = i;
+        uint64_t t;
+        if (l < n && a[l] > a[big]) { big = l; }
+        if (r < n && a[r] > a[big]) { big = r; }
+        if (big == i) { return; }
+        t = a[i]; a[i] = a[big]; a[big] = t; i = big;
+    }
+}
+
+static void gap_u64_sort(uint64_t *a, size_t n)
+{
+    assert(a != NULL || n == 0u);
+    assert(n != (size_t)-1);
+    for (size_t k = n / 2u; k > 0u; k--) { gap_u64_sift(a, n, k - 1u); }
+    for (size_t k = n; k > 1u; k--) {
+        uint64_t t = a[0]; a[0] = a[k - 1u]; a[k - 1u] = t;
+        gap_u64_sift(a, k - 1u, 0u);
+    }
+}
+
+/* 1 iff edge x sorts AFTER edge y in the canonical (u, then v) order — the same
+ * order the pure _core_packed emits sorted(core_weight) keys in. No abs. */
+static int gap_edge_gt(const gap_edge_t *x, const gap_edge_t *y)
+{
+    assert(x != NULL);
+    assert(y != NULL);
+    if (x->u != y->u) { return (x->u > y->u) ? 1 : 0; }
+    return (x->v > y->v) ? 1 : 0;
+}
+
+static void gap_edge_sift(gap_edge_t *a, size_t n, size_t i)
+{
+    assert(a != NULL);
+    assert(i < n || n == 0u);
+    for (;;) {
+        size_t l = 2u * i + 1u, r = l + 1u, big = i;
+        gap_edge_t t;
+        if (l < n && gap_edge_gt(&a[l], &a[big]) != 0) { big = l; }
+        if (r < n && gap_edge_gt(&a[r], &a[big]) != 0) { big = r; }
+        if (big == i) { return; }
+        t = a[i]; a[i] = a[big]; a[big] = t; i = big;
+    }
+}
+
+static void gap_edge_sort(gap_edge_t *a, size_t n)
+{
+    assert(a != NULL || n == 0u);
+    assert(n != (size_t)-1);
+    for (size_t k = n / 2u; k > 0u; k--) { gap_edge_sift(a, n, k - 1u); }
+    for (size_t k = n; k > 1u; k--) {
+        gap_edge_t t = a[0]; a[0] = a[k - 1u]; a[k - 1u] = t;
+        gap_edge_sift(a, k - 1u, 0u);
+    }
+}
+
+/* First index i in the ASCENDING array a[0..n) with a[i] >= key (a std lower_bound).
+ * For an id known to be IN the core it returns that id's LOCAL index — the same
+ * {v: i for i, v in enumerate(core_nodes)} map the pure _core_packed builds. */
+static size_t gap_lower_bound(const uint64_t *a, size_t n, uint64_t key)
+{
+    size_t lo = 0u, hi = n;
+    assert(a != NULL || n == 0u);
+    assert(n != (size_t)-1);
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2u;
+        if (a[mid] < key) { lo = mid + 1u; } else { hi = mid; }
+    }
+    return lo;
+}
+
+static int gap_in_core(const uint64_t *core, size_t n, uint64_t id)
+{
+    size_t i = gap_lower_bound(core, n, id);
+    assert(core != NULL || n == 0u);
+    assert(n != (size_t)-1);
+    return (i < n && core[i] == id) ? 1 : 0;
+}
+
+/* MERGE the prior section-count accumulator (ASCENDING {id:count}) with the NEW
+ * section's GLOBAL ids (each a +1 bump — deduped within the section), into the
+ * ascending out arrays. Byte-identical to the pure `counts[node] += bump` dict bump
+ * then sort. `new_ids` MUST be sorted ascending + unique. No abs (a count is a
+ * non-negative cardinality). */
+static srmech_status_t gap_merge_counts(
+    const uint64_t *prior_ids, const uint64_t *prior_counts, size_t n_prior,
+    const uint64_t *new_ids, size_t n_new,
+    uint64_t *out_ids, uint64_t *out_counts, size_t cap, size_t *n_out)
+{
+    size_t i = 0u, j = 0u, w = 0u;
+    assert(out_ids != NULL && out_counts != NULL && n_out != NULL);
+    assert((prior_ids != NULL || n_prior == 0u) && (new_ids != NULL || n_new == 0u));
+    while (i < n_prior || j < n_new) {
+        uint64_t id, c;
+        if (j >= n_new || (i < n_prior && prior_ids[i] < new_ids[j])) {
+            id = prior_ids[i]; c = prior_counts[i]; i++;
+        } else if (i >= n_prior || new_ids[j] < prior_ids[i]) {
+            id = new_ids[j]; c = 1u; j++;
+        } else {                                 /* equal id: prior + this section */
+            id = prior_ids[i]; c = prior_counts[i] + 1u; i++; j++;
+        }
+        if (w >= cap) { return SRMECH_ERR_OVERFLOW; }
+        out_ids[w] = id; out_counts[w] = c; w++;
+    }
+    *n_out = w;
+    return SRMECH_OK;
+}
+
+/* Page ONE plasmid section's region off disk into `region` and re-hash its LEADING
+ * cap against the catalog cap_sha256 (§45 integrity — the SAME bound a whole-region
+ * read pays). *rlen the region byte length. A READ. */
+static srmech_status_t gap_read_region(const char *body_path,
+    const srmech_json_value_t *entry, uint32_t leaf_dim,
+    unsigned char *region, size_t region_cap, size_t *rlen)
+{
+    const srmech_json_value_t *bo, *bl, *cs;
+    size_t off, len;
+    char got[65];
+    srmech_status_t st;
+    assert(entry != NULL && region != NULL && rlen != NULL);
+    assert(leaf_dim >= 52u && leaf_dim <= 256u);
+    bo = srmech_json_object_get(entry, "byte_offset");
+    bl = srmech_json_object_get(entry, "byte_len");
+    cs = srmech_json_object_get(entry, "cap_sha256");
+    if (bo == NULL || bl == NULL || cs == NULL || bo->type != SRMECH_JSON_INT ||
+        bl->type != SRMECH_JSON_INT || cs->type != SRMECH_JSON_STRING ||
+        bo->u.i < 0 || bl->u.i <= 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    off = (size_t)bo->u.i;
+    len = (size_t)bl->u.i;
+    if (len > region_cap) { return SRMECH_ERR_OVERFLOW; }
+    st = genome_read_region(body_path, off, len, region, region_cap);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_sha256_hex(region, (size_t)leaf_dim, got);
+    if (st != SRMECH_OK) { return st; }
+    if (genome_str_eq(cs, got) == 0) { return SRMECH_ERR_BAD_INPUT; }
+    *rlen = len;
+    return SRMECH_OK;
+}
+
+/* Walk ONE section's on-disk region. When `strand` != NULL emit its STRAND blocks
+ * (the telomere cap copied VERBATIM + each packed data turn UNPACKED to its coupled
+ * leaf — byte-identical to the pure _section_strand). When `syms` != NULL emit the
+ * DECOUPLED CONTENT symbols (the §89 header read for D, content trimmed to D) for
+ * the core-edge decode — byte-identical to kernel_unpack. No abs; a READ. */
+static srmech_status_t gap_walk_section(
+    const unsigned char *region, size_t region_len, uint32_t leaf_dim,
+    const unsigned char *coupling,
+    unsigned char *strand, size_t strand_cap, size_t *n_blocks,
+    uint8_t *syms, size_t syms_cap, size_t *n_syms)
+{
+    size_t dim = (size_t)leaf_dim, off = 0u, nb = 0u, ns = 0u;
+    int have_header = 0;
+    uint64_t true_len = 0u, fed = 0u;
+    unsigned char unc[256], dec[256];
+    srmech_status_t st;
+    assert(region != NULL || region_len == 0u);
+    assert(n_blocks != NULL && (coupling != NULL || syms == NULL));
+    while (off < region_len) {
+        size_t blen = 0u;
+        const unsigned char *blk = region + off;
+        st = genome_block_len(region, region_len, off, leaf_dim, &blen);
+        if (st != SRMECH_OK) { return st; }
+        if (genome_cap_kind(blk, dim) >= 0) {              /* a cap: copy verbatim */
+            if (strand != NULL) {
+                if (nb * dim + dim > strand_cap) { return SRMECH_ERR_OVERFLOW; }
+                memcpy(strand + nb * dim, blk, dim);
+            }
+        } else {                                           /* a data turn */
+            if (blk[0] == SRMECH_GENOME_PACKED_TURN_MARKER) {
+                sc_unpack_turn(blk + 1, leaf_dim, unc);    /* v3 -> coupled leaf */
+            } else {
+                memcpy(unc, blk, dim);                     /* legacy v2 byte-per-symbol */
+            }
+            if (strand != NULL) {
+                if (nb * dim + dim > strand_cap) { return SRMECH_ERR_OVERFLOW; }
+                memcpy(strand + nb * dim, unc, dim);
+            }
+            if (syms != NULL) {
+                st = srmech_klein4_bind(unc, coupling, leaf_dim, dec);   /* decouple */
+                if (st != SRMECH_OK) { return st; }
+                if (have_header == 0) {
+                    true_len = sc_header_true_len(dec);
+                    have_header = 1;
+                } else if (fed < true_len) {
+                    size_t take = (true_len - fed > (uint64_t)leaf_dim)
+                                ? dim : (size_t)(true_len - fed);
+                    if (ns + take > syms_cap) { return SRMECH_ERR_OVERFLOW; }
+                    memcpy(syms + ns, dec, take);
+                    ns += take;
+                    fed += (uint64_t)take;
+                }
+            }
+        }
+        nb++;
+        off += blen;
+    }
+    *n_blocks = nb;
+    if (n_syms != NULL) { *n_syms = ns; }
+    return SRMECH_OK;
+}
+
+/* Decode ONE section's content syms to its GLOBAL graph edges and APPEND the induced
+ * CORE subgraph (edges with BOTH endpoints conserved) to `edges`. Mirrors the pure
+ * _section_global_edges resolve (LOCAL edge indices through the section's node_ids
+ * GLOBAL table) + _core_weight_from_sections' both-in-core filter. No abs. */
+static srmech_status_t gap_harvest_syms(
+    const uint8_t *syms, size_t n_syms, const uint64_t *core, size_t n_core,
+    uint64_t *dei, uint64_t *dej, uint64_t *dw, int64_t *dc, uint64_t *dnid,
+    size_t dcap, gap_edge_t *edges, size_t edge_cap, size_t *n_edges)
+{
+    uint64_t vs = 0u;
+    size_t ne = 0u, nn = 0u, nx = 0u, w = *n_edges;
+    srmech_status_t st;
+    assert(core != NULL || n_core == 0u);
+    assert(edges != NULL || edge_cap == 0u);
+    st = srmech_graph_kernel_decode(syms, n_syms, &vs, dei, dej, dw, dc, dcap, &ne,
+                                    dnid, dcap, &nn, dnid, 0u, &nx);
+    if (st != SRMECH_OK) { return st; }
+    for (size_t e = 0u; e < ne; e++) {
+        uint64_t u, v;
+        if (dei[e] >= nn || dej[e] >= nn) { return SRMECH_ERR_BAD_INPUT; }
+        u = dnid[dei[e]];
+        v = dnid[dej[e]];
+        if (gap_in_core(core, n_core, u) == 0 || gap_in_core(core, n_core, v) == 0) {
+            continue;
+        }
+        if (w >= edge_cap) { return SRMECH_ERR_OVERFLOW; }
+        edges[w].u = u; edges[w].v = v; edges[w].w = dw[e];
+        w++;
+    }
+    *n_edges = w;
+    return SRMECH_OK;
+}
+
+/* SORT the harvested core edges by (u, v), SUM the per-(u,v) multiplicities, remap to
+ * LOCAL core indices, and pack the induced core subgraph to a KERNEL BLOCK strand
+ * (srmech_graph_kernel_encode over the canonical sorted edges -> genome_kernel_blocks,
+ * node_ids = the sorted core_nodes). Byte-identical to the pure _core_packed. No abs. */
+static srmech_status_t gap_core_pack(
+    gap_edge_t *edges, size_t n_edges, const uint64_t *core, size_t n_core,
+    uint32_t leaf_dim, const unsigned char *coupling,
+    uint64_t *li, uint64_t *lj, uint64_t *lw, int64_t *lc, size_t key_cap,
+    uint8_t *syms, size_t syms_cap,
+    unsigned char *blocks, size_t blocks_cap, size_t *n_blocks)
+{
+    size_t nk = 0u, i = 0u, n_syms = 0u;
+    srmech_status_t st;
+    assert(core != NULL || n_core == 0u);
+    assert(blocks != NULL && n_blocks != NULL);
+    gap_edge_sort(edges, n_edges);
+    while (i < n_edges) {
+        uint64_t u = edges[i].u, v = edges[i].v, sum = 0u;
+        while (i < n_edges && edges[i].u == u && edges[i].v == v) {
+            sum += edges[i].w; i++;
+        }
+        if (nk >= key_cap) { return SRMECH_ERR_OVERFLOW; }
+        li[nk] = (uint64_t)gap_lower_bound(core, n_core, u);
+        lj[nk] = (uint64_t)gap_lower_bound(core, n_core, v);
+        lw[nk] = sum;
+        lc[nk] = 0;
+        nk++;
+    }
+    st = srmech_graph_kernel_encode((uint64_t)n_core, li, lj, lw, lc, nk,
+                                    core, n_core, NULL, 0u, syms, syms_cap, &n_syms);
+    if (st != SRMECH_OK) { return st; }
+    return genome_kernel_blocks(syms, n_syms, leaf_dim, coupling, "core",
+                                blocks, blocks_cap, n_blocks);
+}
+
+/* The per-carve scratch for the organize passes. Sized from the survey (n_sec /
+ * total_len / max_len) + n_core; the harvest bands collapse to nothing when the
+ * distribution is ONE-DNA-TYPE (n_core == 0). */
+typedef struct {
+    gap_edge_t    *edges;   size_t edge_cap;
+    uint64_t      *li; uint64_t *lj; uint64_t *lw; int64_t *lc;  size_t key_cap;
+    uint8_t       *core_syms;   size_t core_syms_cap;
+    unsigned char *core_blocks; size_t core_blocks_cap;
+    unsigned char *mint_ws;     size_t mint_ws_len;
+    uint8_t       *sec_syms;    size_t sec_syms_cap;
+    uint64_t      *dei; uint64_t *dej; uint64_t *dw; int64_t *dc; uint64_t *dnid;
+    size_t         dcap;
+    unsigned char *region;      size_t region_cap;
+    unsigned char *sec_strand;  size_t sec_cap;
+} gap_state_t;
+
+/* Number of PLASMID sections + their total / max on-disk region bytes (the vocab
+ * karyotype excluded) — sizes the passes' scratch + the §101 tick `total`. */
+static void gap_survey(const srmech_json_value_t *arr, size_t *n_sec,
+                       size_t *total_len, size_t *max_len)
+{
+    size_t ns = 0u, tot = 0u, mx = 0u;
+    assert(arr != NULL && n_sec != NULL);
+    assert(total_len != NULL && max_len != NULL);
+    for (uint32_t k = 0u; k < arr->u.arr.n; k++) {
+        const srmech_json_value_t *e = arr->u.arr.items[k];
+        const srmech_json_value_t *bl;
+        if (sc_is_vocab(e) != 0) { continue; }
+        bl = srmech_json_object_get(e, "byte_len");
+        if (bl != NULL && bl->type == SRMECH_JSON_INT && bl->u.i > 0) {
+            size_t L = (size_t)bl->u.i;
+            tot += L;
+            if (L > mx) { mx = L; }
+        }
+        ns++;
+    }
+    *n_sec = ns; *total_len = tot; *max_len = mx;
+}
+
+/* Carve the organize scratch off `a`. SRMECH_ERR_OVERFLOW when the caller arena is
+ * short (the Python binding grows it and retries — the op APPENDS nothing, so a
+ * re-run is idempotent). No abs. */
+static srmech_status_t gap_carve_big(genome_arena_t *a, gap_state_t *s,
+    uint32_t leaf_dim, size_t n_core, size_t total_len, size_t max_len)
+{
+    size_t dim = (size_t)leaf_dim;
+    size_t ecap = (n_core == 0u) ? 1u : (total_len + 64u);
+    assert(a != NULL && s != NULL);
+    assert(dim >= 52u);
+    s->edge_cap = ecap; s->key_cap = ecap;
+    s->edges = genome_arena_alloc(a, ecap * sizeof(gap_edge_t));
+    s->li = genome_arena_alloc(a, ecap * sizeof(uint64_t));
+    s->lj = genome_arena_alloc(a, ecap * sizeof(uint64_t));
+    s->lw = genome_arena_alloc(a, ecap * sizeof(uint64_t));
+    s->lc = genome_arena_alloc(a, ecap * sizeof(int64_t));
+    s->core_syms_cap = 17u * (8u + n_core + 4u * ecap) + 64u;
+    s->core_syms = genome_arena_alloc(a, s->core_syms_cap);
+    s->core_blocks_cap = (2u + (s->core_syms_cap + dim - 1u) / dim + 1u) * dim;
+    s->core_blocks = genome_arena_alloc(a, s->core_blocks_cap);
+    s->mint_ws_len = s->core_blocks_cap + dim;
+    s->mint_ws = genome_arena_alloc(a, s->mint_ws_len);
+    s->sec_syms_cap = 4u * max_len + 64u;
+    s->sec_syms = genome_arena_alloc(a, s->sec_syms_cap);
+    s->dcap = 2u * max_len + 64u;
+    s->dei = genome_arena_alloc(a, s->dcap * sizeof(uint64_t));
+    s->dej = genome_arena_alloc(a, s->dcap * sizeof(uint64_t));
+    s->dw  = genome_arena_alloc(a, s->dcap * sizeof(uint64_t));
+    s->dc  = genome_arena_alloc(a, s->dcap * sizeof(int64_t));
+    s->dnid = genome_arena_alloc(a, s->dcap * sizeof(uint64_t));
+    s->region_cap = max_len + dim + 64u;
+    s->region = genome_arena_alloc(a, s->region_cap);
+    s->sec_cap = 5u * max_len + 2u * dim + 64u;
+    s->sec_strand = genome_arena_alloc(a, s->sec_cap);
+    if (s->edges == NULL || s->li == NULL || s->lj == NULL || s->lw == NULL ||
+        s->lc == NULL || s->core_syms == NULL || s->core_blocks == NULL ||
+        s->mint_ws == NULL || s->sec_syms == NULL || s->dei == NULL ||
+        s->dej == NULL || s->dw == NULL || s->dc == NULL || s->dnid == NULL ||
+        s->region == NULL || s->sec_strand == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    return SRMECH_OK;
+}
+
+/* PASS 1 (only when a core exists): page each plasmid section, decode its content
+ * syms, and harvest the induced CORE subgraph edges into `edges`. */
+static srmech_status_t gap_harvest_all(const char *body_path,
+    const srmech_json_value_t *arr, uint32_t leaf_dim, const unsigned char *coupling,
+    const uint64_t *core, size_t n_core, gap_state_t *s, size_t *n_edges)
+{
+    srmech_status_t st;
+    *n_edges = 0u;
+    assert(arr != NULL && s != NULL && n_edges != NULL);
+    assert(core != NULL && n_core != 0u);
+    for (uint32_t k = 0u; k < arr->u.arr.n; k++) {
+        const srmech_json_value_t *e = arr->u.arr.items[k];
+        size_t rlen = 0u, nb = 0u, ns = 0u;
+        if (sc_is_vocab(e) != 0) { continue; }
+        st = gap_read_region(body_path, e, leaf_dim, s->region, s->region_cap, &rlen);
+        if (st != SRMECH_OK) { return st; }
+        st = gap_walk_section(s->region, rlen, leaf_dim, coupling, NULL, 0u, &nb,
+                              s->sec_syms, s->sec_syms_cap, &ns);
+        if (st != SRMECH_OK) { return st; }
+        st = gap_harvest_syms(s->sec_syms, ns, core, n_core, s->dei, s->dej, s->dw,
+                              s->dc, s->dnid, s->dcap, s->edges, s->edge_cap, n_edges);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return SRMECH_OK;
+}
+
+/* PASS 2 — the FOLD: MINT the core at the head (when present), then page + unpack
+ * each retained plasmid section's strand and integrate it onto the running TAIL. The
+ * §101 tick fires between whole chromosomes (MINTING once, then INTEGRATING per
+ * section); a nonzero return is a CLEAN chromosome-boundary partial. */
+static srmech_status_t gap_fold_all(const char *body_path,
+    const srmech_json_value_t *arr, uint32_t leaf_dim, const unsigned char *coupling,
+    const unsigned char *core_blocks, size_t n_core_blocks,
+    long centromere_at, uint32_t repeats, const unsigned char *handle, size_t handle_len,
+    srmech_progress_tick_cb_t tick, void *tick_ctx, gap_state_t *s,
+    unsigned char *out, size_t out_cap, size_t *out_nblocks,
+    size_t *n_integrated, uint32_t *out_cancelled, size_t n_sec)
+{
+    size_t off = 0u, blocks = 0u, p = 0u;
+    srmech_status_t st;
+    assert(arr != NULL && out != NULL && s != NULL);
+    assert(out_nblocks != NULL && n_integrated != NULL && out_cancelled != NULL);
+    *n_integrated = 0u; *out_cancelled = 0u;
+    if (n_core_blocks > 0u) {
+        size_t minted = 0u;
+        if (organize_tick(tick, tick_ctx, (uint32_t)SRMECH_PHASE_MINTING, 0u, 1u) != 0) {
+            *out_nblocks = 0u; *out_cancelled = 1u; return SRMECH_CANCELLED;
+        }
+        st = organize_promote_core(core_blocks, n_core_blocks, leaf_dim, coupling,
+                                   centromere_at, repeats, handle, handle_len,
+                                   out, out_cap, s->mint_ws, s->mint_ws_len, &minted);
+        if (st != SRMECH_OK) { return st; }
+        off = minted * (size_t)leaf_dim; blocks = minted;
+    }
+    for (uint32_t k = 0u; k < arr->u.arr.n; k++) {
+        const srmech_json_value_t *e = arr->u.arr.items[k];
+        size_t rlen = 0u, nb = 0u, add = 0u;
+        if (sc_is_vocab(e) != 0) { continue; }
+        if (organize_tick(tick, tick_ctx, (uint32_t)SRMECH_PHASE_INTEGRATING,
+                          (uint64_t)p, (uint64_t)n_sec) != 0) {
+            *out_nblocks = blocks; *n_integrated = p; *out_cancelled = 1u;
+            return SRMECH_CANCELLED;
+        }
+        st = gap_read_region(body_path, e, leaf_dim, s->region, s->region_cap, &rlen);
+        if (st != SRMECH_OK) { return st; }
+        st = gap_walk_section(s->region, rlen, leaf_dim, coupling, s->sec_strand,
+                              s->sec_cap, &nb, NULL, 0u, NULL);
+        if (st != SRMECH_OK) { return st; }
+        st = organize_append_section(s->sec_strand, nb, leaf_dim, leaf_dim, out,
+                                     out_cap, off, &add);
+        if (st != SRMECH_OK) { return st; }
+        off += add * (size_t)leaf_dim; blocks += add; p++;
+    }
+    *out_nblocks = blocks; *n_integrated = p;
+    return SRMECH_OK;
+}
+
+/* CONSERVE: sort the new ids, MERGE the counts, then srmech_genome_conserved_core
+ * over the merged ascending {id:count} (the hist arena carved from `a` off the
+ * scanned max count). Writes the ascending counts (out_ids/out_counts) + the core. */
+static srmech_status_t gap_conserve(genome_arena_t *a, long k_in,
+    const uint64_t *prior_ids, const uint64_t *prior_counts, size_t n_prior,
+    const uint64_t *new_nid, size_t n_new,
+    uint64_t *out_ids, uint64_t *out_counts, size_t counts_cap, size_t *n_counts,
+    uint64_t *out_core, size_t core_cap, size_t *n_core, uint64_t *out_k, int *bimodal)
+{
+    uint64_t *nsort, *hist, mx = 0u;
+    size_t hist_cap;
+    srmech_status_t st;
+    assert(a != NULL && out_ids != NULL && out_core != NULL);
+    assert(n_counts != NULL && n_core != NULL);
+    nsort = genome_arena_alloc(a, ((n_new == 0u) ? 1u : n_new) * sizeof(uint64_t));
+    if (nsort == NULL) { return SRMECH_ERR_OVERFLOW; }
+    for (size_t i = 0u; i < n_new; i++) { nsort[i] = new_nid[i]; }
+    gap_u64_sort(nsort, n_new);
+    st = gap_merge_counts(prior_ids, prior_counts, n_prior, nsort, n_new,
+                          out_ids, out_counts, counts_cap, n_counts);
+    if (st != SRMECH_OK) { return st; }
+    for (size_t i = 0u; i < *n_counts; i++) {
+        if (out_counts[i] > mx) { mx = out_counts[i]; }
+    }
+    hist_cap = 3u * ((size_t)mx + 1u);
+    hist = genome_arena_alloc(a, hist_cap * sizeof(uint64_t));
+    if (hist == NULL) { return SRMECH_ERR_OVERFLOW; }
+    return srmech_genome_conserved_core(out_ids, out_counts, *n_counts, k_in,
+                                        out_core, core_cap, n_core, out_k, bimodal,
+                                        hist, hist_cap);
+}
+
+/* The ORGANIZE half: obtain the manifest, survey the sections, carve the pass
+ * scratch, harvest+pack the core (when present), and fold the organized strand.
+ * `mws` is the manifest arena (SEPARATE from `a` — the tree persists across the
+ * section loops); `a` is the scratch that gap_conserve already carved counts off. */
+static srmech_status_t gap_organize(genome_arena_t *a, const char *dir,
+    const unsigned char *coupling, uint32_t leaf_dim,
+    const uint64_t *core, size_t n_core,
+    long centromere_at, uint32_t repeats, const unsigned char *handle, size_t handle_len,
+    srmech_progress_tick_cb_t tick, void *tick_ctx,
+    unsigned char *out, size_t out_cap, size_t *out_nblocks,
+    size_t *n_integrated, uint32_t *out_cancelled, void *mws, size_t mws_len)
+{
+    srmech_json_value_t *manifest = NULL;
+    const srmech_json_value_t *arr, *ld;
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    gap_state_t s;
+    size_t n_sec = 0u, total_len = 0u, max_len = 0u, n_edges = 0u, ncb = 0u;
+    srmech_status_t st;
+    assert(a != NULL && dir != NULL && out != NULL);
+    assert(out_nblocks != NULL && n_integrated != NULL);
+    st = genome_obtain_manifest(dir, coupling, (size_t)leaf_dim, mws, mws_len, &manifest);
+    if (st != SRMECH_OK) { return st; }
+    ld = genome_data_get(manifest, "leaf_dim");
+    if (ld == NULL || ld->type != SRMECH_JSON_INT || (uint32_t)ld->u.i != leaf_dim) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    arr = genome_data_get(manifest, "chromosomes");
+    if (arr == NULL || arr->type != SRMECH_JSON_ARRAY) { return SRMECH_ERR_BAD_INPUT; }
+    st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    gap_survey(arr, &n_sec, &total_len, &max_len);
+    st = gap_carve_big(a, &s, leaf_dim, n_core, total_len, max_len);
+    if (st != SRMECH_OK) { return st; }
+    if (n_core > 0u) {
+        st = gap_harvest_all(body_path, arr, leaf_dim, coupling, core, n_core, &s,
+                             &n_edges);
+        if (st != SRMECH_OK) { return st; }
+        st = gap_core_pack(s.edges, n_edges, core, n_core, leaf_dim, coupling,
+                           s.li, s.lj, s.lw, s.lc, s.key_cap, s.core_syms,
+                           s.core_syms_cap, s.core_blocks, s.core_blocks_cap, &ncb);
+        if (st != SRMECH_OK) { return st; }
+    }
+    return gap_fold_all(body_path, arr, leaf_dim, coupling,
+                        (ncb > 0u) ? s.core_blocks : NULL, ncb, centromere_at,
+                        repeats, handle, handle_len, tick, tick_ctx, &s, out, out_cap,
+                        out_nblocks, n_integrated, out_cancelled, n_sec);
+}
+
+/* rc334 (§102 G7, #887) — the ADD-PLASMID whole-op orchestrator (doc: srmech.h).
+ * CONSERVE (merge counts + srmech_genome_conserved_core) -> ORGANIZE (harvest + pack
+ * the core off disk, then fold the organized strand). BYTE-IDENTICAL to the pure
+ * srmech.amsc.plasmid.add_plasmid. No malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_add_plasmid(
+    const char *dir, const unsigned char *coupling, uint32_t leaf_dim, long k_in,
+    const uint64_t *prior_ids, const uint64_t *prior_counts, size_t n_prior,
+    const uint64_t *new_nid, size_t n_new,
+    const uint64_t *prior_core, size_t n_prior_core,
+    long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len,
+    srmech_progress_tick_cb_t tick, void *tick_ctx,
+    uint64_t *out_ids, uint64_t *out_counts, size_t counts_cap, size_t *n_counts,
+    uint64_t *out_core, size_t core_cap, size_t *n_core_out,
+    uint64_t *out_k, int *out_bimodal, int *out_core_changed,
+    unsigned char *out, size_t out_cap, size_t *out_nblocks,
+    size_t *n_integrated, uint32_t *out_cancelled,
+    void *ws, size_t ws_len, void *scratch, size_t scratch_len)
+{
+    genome_arena_t a;
+    size_t n_core = 0u;
+    uint64_t k_used = 0u;
+    int bimodal = 0, changed;
+    srmech_status_t st;
+    if (dir == NULL || coupling == NULL || out_ids == NULL || out_counts == NULL ||
+        n_counts == NULL || out_core == NULL || n_core_out == NULL || out_k == NULL ||
+        out_bimodal == NULL || out_core_changed == NULL || out == NULL ||
+        out_nblocks == NULL || n_integrated == NULL || out_cancelled == NULL ||
+        ws == NULL || scratch == NULL ||
+        (prior_ids == NULL && n_prior != 0u) || (new_nid == NULL && n_new != 0u) ||
+        (prior_core == NULL && n_prior_core != 0u) ||
+        (handle == NULL && handle_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(dir != NULL && out != NULL);
+    assert(ws != NULL && scratch != NULL);
+    if (leaf_dim < 52u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    *out_nblocks = 0u; *n_integrated = 0u; *out_cancelled = 0u;
+    genome_arena_init(&a, scratch, scratch_len);
+    st = gap_conserve(&a, k_in, prior_ids, prior_counts, n_prior, new_nid, n_new,
+                      out_ids, out_counts, counts_cap, n_counts,
+                      out_core, core_cap, &n_core, &k_used, &bimodal);
+    if (st != SRMECH_OK) { return st; }
+    *n_core_out = n_core; *out_k = k_used; *out_bimodal = bimodal;
+    changed = (n_core != n_prior_core) ? 1 : 0;
+    for (size_t i = 0u; changed == 0 && i < n_core; i++) {
+        if (out_core[i] != prior_core[i]) { changed = 1; }
+    }
+    *out_core_changed = changed;
+    return gap_organize(&a, dir, coupling, leaf_dim, out_core, n_core, centromere_at,
+                        repeats, handle, handle_len, tick, tick_ctx, out, out_cap,
+                        out_nblocks, n_integrated, out_cancelled, ws, ws_len);
+}
+
+/* rc334 (§102 G7, #887) — the caller-arena sizing helper for the add-plasmid
+ * organize scratch (mirrors the other genome *_arena_bytes helpers). Returns a
+ * GENEROUS `scratch_len` bound; the manifest arena `ws` is sized separately with
+ * srmech_genome_arena_bytes. total_len is bounded above by the store's turns.bin
+ * byte length. Pure integer; no float, no abs. */
+size_t srmech_genome_add_plasmid_scratch_bytes(size_t body_len, size_t n_new,
+                                               uint32_t leaf_dim)
+{
+    size_t dim = (leaf_dim < 52u) ? 52u : (size_t)leaf_dim;
+    size_t ecap = body_len + 64u;
+    size_t csyms = 17u * (8u + ecap + 4u * ecap) + 64u;
+    size_t cblocks = (2u + (csyms + dim - 1u) / dim + 1u) * dim;
+    size_t total = 0u;
+    assert(dim >= 52u);
+    assert(n_new != (size_t)-1);
+    total += (n_new + 1u) * 8u + 64u;                 /* new_sorted                */
+    total += 3u * (ecap + 2u) * 8u + 64u;             /* hist (max_count <= ecap)  */
+    total += ecap * sizeof(gap_edge_t) + 64u;         /* core edges                */
+    total += 4u * ecap * 8u + 256u;                   /* li/lj/lw/lc               */
+    total += csyms + 64u;                             /* core syms                 */
+    total += cblocks + 64u;                           /* core blocks               */
+    total += cblocks + dim + 64u;                     /* mint ws                   */
+    total += 4u * body_len + 64u;                     /* per-section syms          */
+    total += 5u * body_len * 8u + 256u;               /* decode ei/ej/w/nid + c    */
+    total += body_len + dim + 128u;                   /* region window             */
+    total += 5u * body_len + 2u * dim + 64u;          /* section strand            */
+    return total + 4096u;                             /* per-carve align slop      */
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
  * rc281 (§135 / F1251) — the GENE COPY-NUMBER pair: amplify (write) + copy_number
  * (read). rc273 shipped these Python-only because the field is TRANSPARENT to the

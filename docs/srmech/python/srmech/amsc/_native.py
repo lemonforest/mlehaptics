@@ -4302,6 +4302,37 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.c_size_t, ctypes.c_uint32, ctypes.c_size_t,  # body_len, n_chroms, out_cap
             ]
             lib.srmech_genome_section_counts_arena_bytes.restype = ctypes.c_size_t
+        # rc334 (§102/F1252, task #887) — ADD PLASMID: the incremental stage-1+2
+        # whole-op peer that closes the LAST genome wire-glue gap (CEIL 1 -> 0).
+        # CONSERVE (merge counts + conserved_core) + ORGANIZE (harvest+pack the core
+        # off disk, then fold). ADDITIVE symbols reusing srmech_progress_tick_cb_t
+        # (no new typedef), so EXPECTED_ABI_VERSION stays 10.
+        if hasattr(lib, "srmech_genome_add_plasmid"):
+            _U64P = ctypes.POINTER(ctypes.c_uint64)
+            _SZP = ctypes.POINTER(ctypes.c_size_t)
+            lib.srmech_genome_add_plasmid.argtypes = [
+                ctypes.c_char_p, _U8, ctypes.c_uint32, ctypes.c_long,  # dir, coupling, leaf_dim, k_in
+                _U64P, _U64P, ctypes.c_size_t,                     # prior_ids, prior_counts, n_prior
+                _U64P, ctypes.c_size_t,                            # new_nid, n_new
+                _U64P, ctypes.c_size_t,                            # prior_core, n_prior_core
+                ctypes.c_long, ctypes.c_uint32,                    # centromere_at, repeats
+                _U8, ctypes.c_size_t,                              # handle, handle_len
+                _TICK_CFUNCTYPE, ctypes.c_void_p,                  # tick, tick_ctx
+                _U64P, _U64P, ctypes.c_size_t, _SZP,               # out_ids, out_counts, cap, n_counts
+                _U64P, ctypes.c_size_t, _SZP,                      # out_core, core_cap, n_core_out
+                _U64P, ctypes.POINTER(ctypes.c_int),               # out_k, out_bimodal
+                ctypes.POINTER(ctypes.c_int),                      # out_core_changed
+                _U8, ctypes.c_size_t, _SZP,                        # out, out_cap, out_nblocks
+                _SZP, ctypes.POINTER(ctypes.c_uint32),             # n_integrated, out_cancelled
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len
+                ctypes.c_void_p, ctypes.c_size_t,                  # scratch, scratch_len
+            ]
+            lib.srmech_genome_add_plasmid.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_add_plasmid_scratch_bytes"):
+            lib.srmech_genome_add_plasmid_scratch_bytes.argtypes = [
+                ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32,  # body_len, n_new, leaf_dim
+            ]
+            lib.srmech_genome_add_plasmid_scratch_bytes.restype = ctypes.c_size_t
         # rc313 — srmech_genome_discrete_writhe: the exact-INTEGER directional
         # discrete writhe of a polygonal backbone (six int64 num/den lanes → a
         # reduced-rational out pair). Caller-arena; ADDITIVE symbols (ABI stays 10).
@@ -18802,6 +18833,134 @@ def genome_integrate_plasmids_c(core, core_blocks, plasmids, plasmid_blocks,
         strand = [_hv_from_block(raw[i * dim:(i + 1) * dim])
                   for i in range(nb.value)]
         return strand, int(n_int.value), rc == SRMECH_CANCELLED
+    except Exception:
+        return None
+
+
+def has_native_genome_add_plasmid() -> bool:
+    """True iff the §102/rc334 srmech_genome_add_plasmid whole-op C peer (task #887)
+    is loaded + bound — the LAST genome wire-glue gap closed (CEIL_WIRE_GLUE_GAPS
+    1 -> 0). A bare-C host runs one incremental add's CONSERVE + ORGANIZE half
+    (merge counts -> conserved_core -> harvest+pack the core off disk -> fold the
+    organized strand) end-to-end. False on a no-C or pre-rc334 lib — the pure
+    srmech.amsc.plasmid.add_plasmid body is the complete byte-identical alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_add_plasmid")
+                and hasattr(LIB, "srmech_genome_add_plasmid_scratch_bytes")
+                and hasattr(LIB, "srmech_genome_section_counts_arena_bytes"))
+
+
+def genome_add_plasmid_c(store, coupling, leaf_dim, k_in, prior_counts, new_nid,
+                         prior_core, *, body_len, n_chroms, progress=None,
+                         centromere_at=-1, repeats=None, handle=b"cen"):
+    """Native §102/rc334 incremental add (parity peer srmech_genome_add_plasmid): the
+    CONSERVE + ORGANIZE half of one add_plasmid, run END-TO-END in C over the store
+    (the new section ALREADY appended by the Python plasmid_extract, which seeds +
+    refreshes the vocab karyotype).
+
+    ``prior_counts`` is the PRIOR section-count accumulator (a ``{global_id: n}`` dict);
+    ``new_nid`` the new section's UNIQUE global node_ids; ``prior_core`` the prior
+    conserved core (for ``core_changed``); ``k_in`` the conservation threshold (< 0 =
+    DERIVE from the antimode, >= 0 = force). ``body_len`` (turns.bin bytes) + ``n_chroms``
+    (manifest chromosome count incl. vocab) size the caller arenas.
+
+    Returns ``(strand_hvs, counts_dict, core_list, k, bimodal, core_changed,
+    n_integrated, cancelled)`` — byte-identical to the pure add_plasmid strand + the
+    section_count/core/k state — or ``None`` to DECLINE so the pure body runs."""
+    if not has_native_genome_add_plasmid():
+        return None
+    from .genome import _hv_from_block, CENTROMERE_DEFAULT_REPEATS
+    try:
+        dim = int(leaf_dim)
+        one = bytes(coupling)
+        if dim < 52 or dim > 256 or len(one) != dim:
+            return None
+        if body_len is None or n_chroms is None:
+            return None
+        pri = sorted((int(k), int(v)) for k, v in dict(prior_counts).items())
+        p_ids = [k for k, _ in pri]
+        p_cnt = [v for _, v in pri]
+        n_prior = len(p_ids)
+        nn = [int(x) for x in new_nid]
+        n_new = len(nn)
+        pc = [int(x) for x in prior_core]
+        n_pcore = len(pc)
+        counts_cap = n_prior + n_new + 1
+        core_cap = counts_cap
+        hnd = bytes(handle) if handle else b""
+        reps = CENTROMERE_DEFAULT_REPEATS if repeats is None else int(repeats)
+        one_arr = (ctypes.c_uint8 * dim)(*one)
+        p_ids_arr = (ctypes.c_uint64 * max(n_prior, 1))(*p_ids)
+        p_cnt_arr = (ctypes.c_uint64 * max(n_prior, 1))(*p_cnt)
+        nn_arr = (ctypes.c_uint64 * max(n_new, 1))(*nn)
+        pc_arr = (ctypes.c_uint64 * max(n_pcore, 1))(*pc)
+        hnd_arr = ((ctypes.c_uint8 * len(hnd)).from_buffer_copy(hnd) if hnd
+                   else ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8)))
+        # the manifest arena (the tree persists across the section passes); the
+        # section_counts sizer's catalog term is exactly srmech_genome_arena_bytes.
+        ws_len = int(LIB.srmech_genome_section_counts_arena_bytes(
+            ctypes.c_size_t(int(body_len)), ctypes.c_uint32(int(n_chroms)),
+            ctypes.c_size_t(1)))
+        if ws_len <= 0:
+            return None
+        ws = (ctypes.c_char * ws_len)()
+        out_ids = (ctypes.c_uint64 * counts_cap)()
+        out_counts = (ctypes.c_uint64 * counts_cap)()
+        out_core = (ctypes.c_uint64 * core_cap)()
+        n_counts = ctypes.c_size_t(0)
+        n_core = ctypes.c_size_t(0)
+        out_k = ctypes.c_uint64(0)
+        out_bimodal = ctypes.c_int(0)
+        out_changed = ctypes.c_int(0)
+        n_integ = ctypes.c_size_t(0)
+        cancelled = ctypes.c_uint32(0)
+        scratch_len = max(int(LIB.srmech_genome_add_plasmid_scratch_bytes(
+            ctypes.c_size_t(int(body_len)), ctypes.c_size_t(n_new),
+            ctypes.c_uint32(dim))), 4096)
+        out_cap = max(int(body_len) * 6 + int(n_chroms) * dim + 4096, dim)
+        for _attempt in range(6):
+            scratch = (ctypes.c_char * scratch_len)()
+            out = (ctypes.c_uint8 * out_cap)()
+            out_nblocks = ctypes.c_size_t(0)
+            box: dict = {}
+            tick = _make_tick_trampoline(progress, box) if progress is not None else \
+                ctypes.cast(None, _TICK_CFUNCTYPE)
+            rc = LIB.srmech_genome_add_plasmid(
+                str(store).encode("utf-8"), one_arr, ctypes.c_uint32(dim),
+                ctypes.c_long(int(k_in)),
+                p_ids_arr, p_cnt_arr, ctypes.c_size_t(n_prior),
+                nn_arr, ctypes.c_size_t(n_new),
+                pc_arr, ctypes.c_size_t(n_pcore),
+                ctypes.c_long(int(centromere_at)), ctypes.c_uint32(reps),
+                hnd_arr, ctypes.c_size_t(len(hnd)),
+                tick, None,
+                out_ids, out_counts, ctypes.c_size_t(counts_cap),
+                ctypes.byref(n_counts),
+                out_core, ctypes.c_size_t(core_cap), ctypes.byref(n_core),
+                ctypes.byref(out_k), ctypes.byref(out_bimodal),
+                ctypes.byref(out_changed),
+                out, ctypes.c_size_t(out_cap), ctypes.byref(out_nblocks),
+                ctypes.byref(n_integ), ctypes.byref(cancelled),
+                ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+                ctypes.cast(scratch, ctypes.c_void_p), ctypes.c_size_t(scratch_len))
+            if box.get("exc") is not None:
+                raise box["exc"]
+            if rc == SRMECH_ERR_OVERFLOW:
+                scratch_len = scratch_len * 2 + 1
+                out_cap = out_cap * 2 + dim
+                continue
+            if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+                return None
+            nb = int(out_nblocks.value)
+            raw = bytes(out)[:nb * dim]
+            strand = [_hv_from_block(raw[i * dim:(i + 1) * dim]) for i in range(nb)]
+            counts = {int(out_ids[i]): int(out_counts[i])
+                      for i in range(int(n_counts.value))}
+            core = [int(out_core[i]) for i in range(int(n_core.value))]
+            return (strand, counts, core, int(out_k.value), bool(out_bimodal.value),
+                    bool(out_changed.value), int(n_integ.value),
+                    rc == SRMECH_CANCELLED)
+        return None
     except Exception:
         return None
 
