@@ -82,11 +82,16 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from .cayley_dickson import (
     cd_basis_product,
     left_mult_is_invertible,
+    cd_norm_sq,
+    cd_conjugate,
+    cd_mult,
+    cd_add,
     CD_MAX_DIM,
 )
 from .hamming import hamming_encode, hamming_decode_correct
 from . import chiral_flip
 from srmech.amsc import _native
+from srmech.amsc.q import Q
 
 #: Default hypervector width (bits) — the RBS-HDC associative-register dimension.
 DEFAULT_D = 8192
@@ -345,7 +350,13 @@ class CDRegister:
 
     Three layers (rc301, `#938`): the CORE **addressing** layer is always on and
     content-AGNOSTIC — ``navmap`` is a pure function of ``dim``, storage holds
-    anything, KIND is dimension-invariant. Two OPT layers are off by default:
+    anything, KIND is dimension-invariant. Alongside it (rc330, `#948`) the CORE
+    **carrier-arithmetic** surface is likewise always on: :meth:`element` /
+    :meth:`norm` / :meth:`conjugate` / :meth:`multiply` / :meth:`add` read the
+    signed-basis element ``Σ sign_i·e_i`` a register holds and DELEGATE to the
+    exact-``Q`` :mod:`~srmech.amsc.cascade.cayley_dickson` ops over it (the
+    method-form of ``cd_norm_sq`` / ``cd_conjugate`` / ``cd_mult`` / ``cd_add``,
+    no new algebra). Two OPT layers are off by default:
     ``coupling=True`` adds the reversible working word (:meth:`couple_working` /
     :meth:`uncouple_working`, Class M, capped at ``min(dim, 8) − 1`` by Hurwitz);
     ``error_correction=True`` adds the Hamming EC block (:meth:`carry` /
@@ -523,6 +534,86 @@ class CDRegister:
     def slots(self) -> Dict[int, Tuple[str, int]]:
         """A copy of the current ``slot → (key, sign)`` assignment."""
         return dict(self._slots)
+
+    # ── CORE carrier-arithmetic surface: the slot-held CD element (rc330; `#948`) ─
+    # A register slot holds a content NAME + a Class-C sign, magnitude implicit 1,
+    # so the natural Cayley–Dickson element a register HOLDS is the signed-basis-
+    # unit sum  x = Σ_{i occupied} sign_i·e_i  (coefficients in {-1, 0, +1}). These
+    # read-only methods DELEGATE the exact-rational CD arithmetic to the already-
+    # C-backed cayley_dickson.cd_* ops over that element — no new algebra, no new
+    # C symbol, no ToolEntry (composition_of_c, exactly like couple_working is the
+    # method-form of cd_couple_working). Always on (CORE), content-agnostic: the
+    # KEY (content name) is orthogonal to the carrier reading — the arithmetic
+    # reads only (index, sign) via slots().
+
+    def element(self) -> Tuple[Q, ...]:
+        """The slot-held Cayley–Dickson element as a length-``dim`` exact-``Q``
+        tuple: ``v[i] = Q(sign_i)`` at occupied slots, ``Q(0)`` elsewhere (rc330,
+        `#948`). The accessor the other carrier methods read; the register's KEY
+        strings are orthogonal to it — only ``(index, sign)`` enters the carrier."""
+        v = [Q(0)] * self.dim
+        for slot, (_key, sign) in self._slots.items():
+            v[slot] = Q(int(sign))
+        return tuple(v)
+
+    def norm(self) -> Q:
+        """The squared norm ``N(x) = Σ xᵢ²`` of the slot-held element, as an exact
+        ``Q`` scalar (rc330, `#948`). Delegates to
+        :func:`~srmech.amsc.cascade.cayley_dickson.cd_norm_sq`. Since every occupied
+        coefficient is ``±1``, this equals the number of occupied slots. Returns a
+        ``Q``, not a register — a norm is a real scalar, not a CD element."""
+        return cd_norm_sq(self.element())
+
+    def conjugate(self) -> Tuple[Q, ...]:
+        """The Cayley–Dickson conjugate ``x̄`` of the slot-held element as a
+        ``Q``-tuple (rc330, `#948`). Delegates to
+        :func:`~srmech.amsc.cascade.cayley_dickson.cd_conjugate` (negate the
+        imaginary part; Class-K sign-flip, no ``abs()``). The conjugate of a
+        signed-basis element is ALWAYS signed-basis — it only flips imaginary-slot
+        signs — so this one *could* round-trip into a register; it is returned
+        uniform with ``cd_conjugate`` as a ``Q``-tuple."""
+        return cd_conjugate(self.element())
+
+    def multiply(self, other: "CDRegister") -> Tuple[Q, ...]:
+        """The Cayley–Dickson product ``x·y`` of this register's slot-held element
+        with ``other``'s, as a raw ``Q``-tuple CD element (rc330, `#948`).
+        Delegates to :func:`~srmech.amsc.cascade.cayley_dickson.cd_mult` (Class-M
+        bind ∘ Class-C ∘ Class-K; no ``abs()``). ``other`` is another
+        :class:`CDRegister` of the same ``dim`` (symmetric operands).
+
+        Returns a ``Q``-tuple, NOT a register: the product of two signed-basis sums
+        is GENERALLY NOT signed-basis (``e_i ⊕ e_j`` collisions make ``|coeff| >
+        1``), so it cannot round-trip into a coefficient-free slot register. Past
+        the Hurwitz wall this is a well-defined product even where norm-
+        multiplicativity fails — at ``dim=16`` a zero-divisor pair (both nonzero)
+        multiplies to the all-zero element, an object the ≤7 octonion coupler
+        :meth:`couple_working` structurally cannot even accept, let alone produce."""
+        if not isinstance(other, CDRegister):
+            raise TypeError(
+                f"multiply expects another CDRegister (symmetric operands); "
+                f"got {type(other).__name__}")
+        if self.dim != other.dim:
+            raise ValueError(
+                f"dim mismatch: {self.dim} vs {other.dim} — carrier multiply is "
+                f"defined only between equal-rung elements")
+        return cd_mult(self.element(), other.element())
+
+    def add(self, other: "CDRegister") -> Tuple[Q, ...]:
+        """The component-wise sum ``x + y`` of this register's slot-held element
+        with ``other``'s, as a ``Q``-tuple (rc330, `#948`). Delegates to
+        :func:`~srmech.amsc.cascade.cayley_dickson.cd_add`. ``other`` is another
+        :class:`CDRegister` of the same ``dim`` (symmetric operands). Returned as a
+        ``Q``-tuple: co-occupied slots sum to ``±2`` / ``0``, off the signed-basis
+        set a register can round-trip, so the raw carrier element is returned."""
+        if not isinstance(other, CDRegister):
+            raise TypeError(
+                f"add expects another CDRegister (symmetric operands); "
+                f"got {type(other).__name__}")
+        if self.dim != other.dim:
+            raise ValueError(
+                f"dim mismatch: {self.dim} vs {other.dim} — carrier add is defined "
+                f"only between equal-rung elements")
+        return cd_add(self.element(), other.element())
 
     # ── the operational hyper-loop: address↔CD homomorphism ───────────────
     def navmap(self, j: int) -> Dict[int, Tuple[int, int]]:
