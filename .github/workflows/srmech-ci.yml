@@ -40,13 +40,6 @@ jobs:
     # tomllib / typing regressions that only surface on the floor.
     name: ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
-    # rc336 — bound the cell. Steady state is 7.5–15 min (macos 7:35, ubuntu
-    # 13:24/14:03, windows 14:57 at rc335), so 30 gives ~2x headroom. Without a
-    # cap a hang — or a pathological assert render — rides GitHub's 360-min
-    # DEFAULT: rc336 run 30160391715 burned 38:36 on one cell (10 reds whose
-    # ~800KB byte-diffs pytest difflib'd into a 482,898-line log) and the other
-    # four cells were still going at 40 min. A red must fail FAST, not idle.
-    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -424,9 +417,6 @@ jobs:
     # matrix above already carries the cross-platform C burden.
     name: asserts-live FULL suite, fork-isolated (JPL Rule 5 with teeth, #937)
     runs-on: ubuntu-latest
-    # rc336 — the critical path (17:34 at rc335; fork-isolation makes it the
-    # slowest cell by design). 40 keeps >2x headroom while still capping a hang.
-    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
