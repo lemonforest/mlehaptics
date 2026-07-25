@@ -320,8 +320,10 @@ def test_unknown_method_defers():
 
 def test_engine_deferred_leaves_defer():
     """The leaves the int64/bytes mval carrier cannot emit byte-identically (the
-    One bignum leaves) DEFER — exactly as make_class_run defers them."""
+    One BIGNUM leaves flat/scalar — 249-bit trace numerators the int64 mval cannot
+    hold) DEFER — exactly as make_class_run defers them. (rc331: matrix left this
+    list — it now DISPATCHES via the correctly-rounded float→MAT path.)"""
     oj = the_one(+1, 1, 2)._to_jsonable()
-    for method in ["flat", "matrix", "scalar"]:
+    for method in ["flat", "scalar"]:
         dispatched, _ = _run_c("One", method, {"one": oj}, {})
         assert not dispatched, f"One.{method} must DEFER (bignum/float, not int64)"

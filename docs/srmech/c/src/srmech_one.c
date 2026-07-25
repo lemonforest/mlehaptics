@@ -20,11 +20,13 @@
  *     Python (the as_float terminal cast stays in the caller, no float here).
  *
  *   - srmech_one_matrix : the 14x14 block-diagonal float operator G(sigma,theta)
- *     = (+)_n (1 (+) sigma R_n(theta)) as 196 row-major doubles. NUMERIC (the
- *     opt-in lossy [scientific] realisation, never the math path): cos/sin are
- *     read from the exact flat rationals + rounded to double, then the +-1 / +-cos
- *     / +-sin tile is placed (no float accumulation -> FMA-safe). WITHIN-TOL
- *     (<= 1e-12) to the pure Python, NOT byte-identical.
+ *     = (+)_n (1 (+) sigma R_n(theta)) as 196 row-major doubles. cos/sin are the
+ *     exact flat rationals CORRECTLY-ROUNDED to double (round-half-to-even, the
+ *     SAME nearest binary64 CPython int/int returns), then the +-1 / +-cos / +-sin
+ *     tile is placed (no float accumulation -> FMA-safe). BYTE-IDENTICAL to the
+ *     pure Python One.to_matrix (rc331; #948): each cell is the bit-exact double
+ *     the pure cn/cd division yields, so srmech_mcp_serialise_result emits the
+ *     14x14 float array byte-for-byte with json.dumps(serialise_native(...)).
  *
  * No abs(): a sign is applied by negating the sign-magnitude numerator / by a
  * Class-K branch, never an ALU abs() (the sign is the Class-K pin, its
@@ -52,6 +54,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
 /* The substrate dimension: 2 + 4 + 8 = 14 (One.DIM). */
 #define ONE_DIM 14u
@@ -62,8 +65,11 @@
 /* The trig-series term cap (matches srmech_the_one / rational._TRIG_SERIES_MAX). */
 #define ONE_MAX_TERMS 50u
 
-/* 2^32 exactly as a double (a power of two -> exact). */
-#define ONE_POW2_32 4294967296.0
+/* Correctly-rounded bigrat->double convergence bound: s = 54 - (bitlen(|num|) -
+ * bitlen(den)) lands the quotient at 54 or 55 bits, so bitlen(quot) reaches the
+ * target 55 in <= 1 adjustment (bitlen(floor(|num|*2^s/den)) steps by exactly 1
+ * per unit s). A cap of 4 gives ample margin; JPL Rule-2 bounded loop. */
+#define ONE_ROUND_ITERS 4
 
 /* to_scalar modes (mirror the Python mode strings). */
 #define ONE_SCALAR_TRACE     0
@@ -322,28 +328,70 @@ srmech_status_t srmech_one_scalar(int32_t sigma, const srmech_bigint_t *theta_nu
                              base + cur, tail_words * sizeof(uint32_t));
 }
 
-/* ---- bignum rational -> double (math.h-free, within-tol) --------------- */
+/* ---- bignum rational -> double (math.h-free, CORRECTLY-ROUNDED) -------- */
 
-/* |quot| as a double via Horner over its limbs (quot is small + non-negative
- * here: floor(|num|*2^96 / den) fits ~4 limbs for |num/den| <= 1). The Horner
- * rounds to ~53 bits, the same precision a plain double carries. */
-static double one_horner_double(const srmech_bigint_t *a)
+/* Bit length of a non-negative bignum: (n-1)*32 + bits in the top limb. Zero ->
+ * 0. Bounded 32-step top-limb scan (JPL Rule 2). No leading-zero limbs, so the
+ * top limb is nonzero for n > 0. */
+static uint32_t one_bigint_bitlen(const srmech_bigint_t *a)
 {
-    double v = 0.0;
-    size_t i = a->n;
+    uint32_t top, bl;
     assert(a != NULL);
     assert(a->n == 0u || a->limbs != NULL);
-    while (i > 0u) {
-        i--;
-        v = v * ONE_POW2_32 + (double)a->limbs[i];
-    }
-    return v;
+    if (a->n == 0u) { return 0u; }
+    top = a->limbs[a->n - 1u];
+    bl = (a->n - 1u) * 32u;
+    while (top > 0u) { bl++; top >>= 1u; }
+    return bl;
 }
 
-/* out = num/den as a double (num signed, den > 0), correctly to ~1e-29 abs for
- * |value| <= 1: shift |num| left 96 bits, floor-divide by den, scale the small
- * quotient back by 2^-96. Class-K/C sign at the end (no abs on the double). c
- * carriers: mag (|num|), shifted (mag<<96), quot, rem. */
+/* quot,rem = divmod(|num|*2^s, den) for the current shift s (s < 0 shifts den by
+ * -s and divides |num| instead — the same exact ratio). `shifted` is the scratch
+ * carrier for the shifted operand. Python-floor divmod (num,den >= 0 -> exact). */
+static srmech_status_t one_divmod_shift(const srmech_bigint_t *mag,
+                                        const srmech_bigint_t *den, int32_t s,
+                                        srmech_bigint_t *shifted,
+                                        srmech_bigint_t *quot, srmech_bigint_t *rem,
+                                        void *ws, size_t ws_len)
+{
+    srmech_status_t st;
+    assert(mag != NULL && den != NULL);
+    assert(shifted != NULL && quot != NULL && rem != NULL);
+    if (s >= 0) {
+        st = srmech_bigint_shl_bits(shifted, mag, (uint32_t)s);
+        if (st != SRMECH_OK) { return st; }
+        return srmech_bigint_divmod(quot, rem, shifted, den, ws, ws_len);
+    }
+    st = srmech_bigint_shl_bits(shifted, den, (uint32_t)(-s));
+    if (st != SRMECH_OK) { return st; }
+    return srmech_bigint_divmod(quot, rem, mag, shifted, ws, ws_len);
+}
+
+/* Assemble the IEEE-754 binary64 value keep*2^exp2 with sign `sign`, by direct
+ * bit layout (deterministic across Linux/macOS/Windows; no libm/ldexp). keep is
+ * normalised in [2^52, 2^53] (53-bit mantissa incl. the implicit bit; == 2^53 is
+ * the round-up carry -> renormalise). biased exponent = (exp2 + 52) + 1023. */
+static double one_ieee_scale(uint64_t keep, int32_t exp2, int32_t sign)
+{
+    uint64_t frac, biased, bits; double out;
+    assert(keep >= (UINT64_C(1) << 52) && keep <= (UINT64_C(1) << 53));
+    assert(sign == 1 || sign == -1);
+    if (keep == (UINT64_C(1) << 53)) { keep >>= 1; exp2 += 1; }  /* carry renorm */
+    biased = (uint64_t)((int64_t)exp2 + 1075);
+    frac = keep - (UINT64_C(1) << 52);               /* low 52 bits = the mantissa */
+    assert(biased >= 1u && biased <= 2046u);         /* normal-range (the One domain) */
+    bits = ((uint64_t)(sign < 0 ? 1 : 0) << 63) | (biased << 52) | frac;
+    memcpy(&out, &bits, sizeof out);
+    return out;
+}
+
+/* out = num/den as the NEAREST binary64 (round-half-to-even), num signed, den > 0
+ * — BYTE-IDENTICAL to CPython int(num)/int(den) at ANY magnitude (rc331; #948).
+ * A dynamic shift s = 54 - (bitlen(|num|) - bitlen(den)) lands the exact quotient
+ * at 55 bits (53 mantissa + 2 guard); the divmod remainder is the sticky bit;
+ * round-half-even; the scale is an EXACT power of two via direct IEEE assembly.
+ * Pure integer + srmech_bigint ops (libm-free). Class-K magnitude / Class-C sign
+ * (no abs on the double). c carriers: mag (|num|), shifted, quot, rem. */
 static srmech_status_t one_bigrat_to_double(const srmech_bigint_t *num,
                                             const srmech_bigint_t *den, double *out,
                                             srmech_bigint_t *mag,
@@ -352,20 +400,32 @@ static srmech_status_t one_bigrat_to_double(const srmech_bigint_t *num,
                                             srmech_bigint_t *rem,
                                             void *ws, size_t ws_len)
 {
-    srmech_status_t st;
-    double pow2_96 = ONE_POW2_32 * ONE_POW2_32 * ONE_POW2_32;   /* 2^96 exact */
+    srmech_status_t st; int32_t s, sign, iter; uint32_t bl = 0u;
+    uint64_t q_u64, keep, low2; int sticky;
     assert(num != NULL && den != NULL && out != NULL);
     assert(den->sign > 0);
     if (num->sign == 0) { *out = 0.0; return SRMECH_OK; }
+    sign = (num->sign < 0) ? -1 : 1;                 /* Class-K pin (no abs) */
     st = srmech_bigint_copy(mag, num);
     if (st != SRMECH_OK) { return st; }
-    mag->sign = 1;                                   /* Class-K magnitude (no abs) */
-    st = srmech_bigint_shl_bits(shifted, mag, 96u);  /* |num| << 96 */
-    if (st != SRMECH_OK) { return st; }
-    st = srmech_bigint_divmod(quot, rem, shifted, den, ws, ws_len);
-    if (st != SRMECH_OK) { return st; }
-    *out = one_horner_double(quot) / pow2_96;        /* |num/den| */
-    if (num->sign < 0) { *out = -*out; }             /* Class-C orientation */
+    mag->sign = 1;                                   /* Class-K magnitude */
+    s = 54 - ((int32_t)one_bigint_bitlen(mag) - (int32_t)one_bigint_bitlen(den));
+    for (iter = 0; iter < ONE_ROUND_ITERS; iter++) { /* converge |quot| to 55 bits */
+        st = one_divmod_shift(mag, den, s, shifted, quot, rem, ws, ws_len);
+        if (st != SRMECH_OK) { return st; }
+        bl = one_bigint_bitlen(quot);
+        if (bl == 55u) { break; }
+        s += (bl < 55u) ? 1 : -1;
+    }
+    if (bl != 55u) { return SRMECH_ERR_OVERFLOW; }   /* out-of-domain magnitude */
+    assert(quot->n >= 1u && quot->n <= 2u);
+    q_u64 = (uint64_t)quot->limbs[0];
+    if (quot->n >= 2u) { q_u64 |= ((uint64_t)quot->limbs[1]) << 32; }
+    sticky = srmech_bigint_is_zero(rem) ? 0 : 1;
+    keep = q_u64 >> 2;                               /* top 53 bits */
+    low2 = q_u64 & 3u;                               /* 2 dropped guard/round bits */
+    if (low2 > 2u || (low2 == 2u && (sticky || (keep & 1u)))) { keep += 1u; }
+    *out = one_ieee_scale(keep, -s + 2, sign);       /* Class-C orientation */
     return SRMECH_OK;
 }
 
@@ -456,15 +516,24 @@ srmech_status_t srmech_one_matrix(int32_t sigma, const srmech_bigint_t *theta_nu
     }
     if (st != SRMECH_OK) { return SRMECH_ERR_OVERFLOW; }
     tail_words = words - cur;
-    /* flat[3] = sigma*cos, flat[4] = sigma*sin (H Fano plane); un-apply sigma by
-     * scaling the signed double by sigma (== the Class-K/C _chiral_scale). */
+    /* flat[3] = sigma*cos, flat[4] = sigma*sin (the stored ADJOINT of the H Fano
+     * plane). Python's to_matrix rounds the RAW cos/sin: _chiral_scale un-applies
+     * sigma at the RATIONAL level (twice = identity -> the raw num,den), THEN cn/cd
+     * -> double. Mirror that EXACTLY — un-apply sigma here as a Class-C numerator
+     * sign reversal (no abs), NOT as a float s*leaf: a float un-apply would mint
+     * the WRONG signed zero (-0.0 vs +0.0) on sin(0). The assemble then applies s
+     * ONCE, byte-identical to the pure s*cos_t / s*sgn*sin_t. */
     s = (double)sigma;
+    if (sigma < 0) {                                 /* raw = sigma * adjoint (Class-C) */
+        if (fnum[3].sign != 0) { fnum[3].sign = -fnum[3].sign; }
+        if (fnum[4].sign != 0) { fnum[4].sign = -fnum[4].sign; }
+    }
     st = one_bigrat_to_double(&fnum[3], &fden[3], &cos_t, &c[0], &c[1], &c[2],
                               &c[3], base + cur, tail_words * sizeof(uint32_t));
     if (st != SRMECH_OK) { return st; }
     st = one_bigrat_to_double(&fnum[4], &fden[4], &sin_t, &c[0], &c[1], &c[2],
                               &c[3], base + cur, tail_words * sizeof(uint32_t));
     if (st != SRMECH_OK) { return st; }
-    one_assemble_matrix(out, s, s * cos_t, s * sin_t);
+    one_assemble_matrix(out, s, cos_t, sin_t);       /* raw doubles; assemble applies s */
     return SRMECH_OK;
 }

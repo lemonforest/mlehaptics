@@ -13,18 +13,19 @@ shelling out per method:
     ``to_scalar`` DISPATCHES to it when HAS_NATIVE (this pins that dispatch).
 
   * ``srmech_one_matrix`` — the 14×14 float operator G(σ,θ), 196 row-major
-    doubles. NUMERIC (the opt-in lossy [scientific] realisation): cos/sin read
-    from the exact flat rationals + rounded to double, then the ±1/±cos/±sin
-    tile placed with NO float accumulation (FMA-safe) → WITHIN-TOL (≤ 1e-12) to
-    the pure One.to_matrix, NOT byte-identical. The Python One.to_matrix stays
-    the pure (byte-identical native-vs-pure) realisation; this C peer is the
-    bare-C-host mirror, proven within-tol equivalent here.
+    doubles. cos/sin are the exact flat rationals CORRECTLY-ROUNDED to double
+    (round-half-to-even), then the ±1/±cos/±sin tile placed with NO float
+    accumulation (FMA-safe) → BYTE-IDENTICAL to the pure One.to_matrix (rc331;
+    #948 Thread B — this is what lets One.matrix DISPATCH in the make_class
+    engine instead of deferring). Earlier this leaf was WITHIN-TOL-only (a naive
+    fixed-96-bit shift, ~1 ULP off for ~0.12% of cells); rc331 makes it bit-exact.
 
-Additive C symbols → SRMECH_ABI_VERSION stays 4.
+Additive C symbols → SRMECH_ABI_VERSION unchanged.
 """
 from __future__ import annotations
 
 import random
+import struct
 
 import pytest
 
@@ -127,21 +128,47 @@ def test_trace_scalar_matches_character_formula():
             assert (got.numerator, got.denominator) == expected
 
 
-# ── (ii) srmech_one_matrix WITHIN-TOL to the pure One.to_matrix ───────────────
+# ── (ii) srmech_one_matrix BYTE-IDENTICAL to the pure One.to_matrix (rc331) ────
+
+def _dbits(x: float) -> bytes:
+    """The raw IEEE-754 binary64 bytes — bit-exact float equality (NaN-safe,
+    ±0-distinguishing), the real byte-identity make_class emit needs."""
+    return struct.pack("<d", x)
+
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
 @pytest.mark.parametrize("sigma", _SIGMAS)
 @pytest.mark.parametrize("tn,td", _THETAS)
-def test_one_matrix_c_within_tol_of_pure(sigma, tn, td):
-    # The C peer's 196 doubles are within 1e-12 of the pure One.to_matrix (which
-    # stays the byte-identical native-vs-pure Python realisation).
+def test_one_matrix_c_byte_identical_to_pure(sigma, tn, td):
+    # rc331 (#948 Thread B): the C peer's 196 doubles are BIT-EXACT to the pure
+    # One.to_matrix — cos/sin are correctly-rounded (round-half-to-even), the SAME
+    # nearest binary64 CPython int/int returns, so every cell matches byte-for-byte
+    # (this is what lets One.matrix DISPATCH in the make_class engine, not defer).
     nat = _native.one_matrix_c(sigma, tn, td, 24)
     assert nat is not None
     assert len(nat) == 14 and all(len(row) == 14 for row in nat)
     pure = the_one(sigma, tn, td, 24).to_matrix().tolist()
-    maxdiff = max(abs(nat[r][c] - pure[r][c])
-                  for r in range(14) for c in range(14))
-    assert maxdiff <= _MATRIX_TOL, (sigma, tn, td, maxdiff)
+    for r in range(14):
+        for c in range(14):
+            assert _dbits(nat[r][c]) == _dbits(pure[r][c]), (
+                sigma, tn, td, r, c, nat[r][c], pure[r][c])
+
+
+@pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
+def test_one_matrix_c_byte_identical_large_magnitude():
+    # The |value| > 1 domain the OLD fixed-96-bit shift silently mis-handled: a
+    # large-angle truncated cos/sin series (θ=27, 24 terms → cos ≈ 9.5e6) sits far
+    # outside |value| ≤ 1, yet the magnitude-safe DYNAMIC-shift routine stays
+    # BIT-EXACT vs the pure cn/cd float division (the latent-domain-bug closure).
+    for sigma in _SIGMAS:
+        for tn, td, terms in [(27, 1, 24), (27, 24, 24), (50, 1, 30), (100, 1, 40)]:
+            nat = _native.one_matrix_c(sigma, tn, td, terms)
+            assert nat is not None
+            pure = the_one(sigma, tn, td, terms).to_matrix().tolist()
+            for r in range(14):
+                for c in range(14):
+                    assert _dbits(nat[r][c]) == _dbits(pure[r][c]), (
+                        sigma, tn, td, terms, r, c, nat[r][c], pure[r][c])
 
 
 @pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
