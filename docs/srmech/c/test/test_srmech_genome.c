@@ -1660,8 +1660,8 @@ int main(void)
                    "rc281: a leaf too narrow for the field reads 1 (absent == default)");
     }
 
-    /* rc337 (#952): the catalog/census derive BINDS the re-derived region chain
-     * against the manifest head's COMMITTED body_sha256.
+    /* rc337 (#952): srmech_genome_catalog BINDS the re-derived region chain against
+     * the manifest head's COMMITTED body_sha256.
      *
      * Every corruption test ABOVE flips byte 0 — the CHROM cap's KIND byte — which
      * the structural walk rejects on its own (genome_block_len: unrecognised kind).
@@ -1669,13 +1669,22 @@ int main(void)
      * changed PAYLOAD. Here byte 2 is inside chromosome A's label field: the walk
      * still sees a valid CC cap and 6 well-formed blocks, only the label (and hence
      * the region digest) changed. Pre-rc337 that was accepted silently and the
-     * catalog reported the MANGLED label; now the chain mismatch is BAD_INPUT. */
+     * catalog reported the MANGLED label; now the chain mismatch is BAD_INPUT.
+     *
+     * SCOPE: the CATALOG READ only. srmech_genome_census / _registry run a second,
+     * parallel derive that rc337 does not reach, and srmech_genome_load's own
+     * genome_verify_body is a tautology on a v12 head-only store (the tree it
+     * compares against was derived from the body being verified). Both are asserted
+     * BELOW as still-permissive, so the #955 follow-up has a from-C baseline and so
+     * this block cannot be read as claiming more than it does. Binding them means
+     * reaching genome_obtain_manifest, whose fifteen callers include every mutation
+     * — that is what turned windows-latest red with 22 mutation-path failures. */
     {
         st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
                                 coupling, sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(st == SRMECH_OK, "rc337: re-save a clean genome for the bound test");
 
-        /* CONTROL FIRST — the clean store still reads on all four surfaces, so the
+        /* CONTROL FIRST — the clean store still reads on every surface, so the
          * assertions below cannot pass by having degenerated into reject-everything. */
         srmech_json_value_t *cman = NULL;
         srmech_json_value_t *ccen = NULL;
@@ -1717,16 +1726,27 @@ int main(void)
                                                   sizeof(g_ws), &cen2);
         srmech_status_t k3 = srmech_genome_load(dir, out2, sizeof(out2), &olen2,
                                                 NULL, 0u, g_ws, sizeof(g_ws));
-        srmech_status_t k4 = srmech_genome_remove(dir, "B", coupling,
-                                                  sizeof(coupling), g_ws, sizeof(g_ws));
         check_true(k1 == SRMECH_ERR_BAD_INPUT,
                    "rc337: well-formed body + corrupt payload -> catalog BAD_INPUT");
-        check_true(k2 == SRMECH_ERR_BAD_INPUT,
-                   "rc337: well-formed body + corrupt payload -> census BAD_INPUT");
-        check_true(k3 == SRMECH_ERR_BAD_INPUT,
-                   "rc337: well-formed body + corrupt payload -> load BAD_INPUT");
-        check_true(k4 == SRMECH_ERR_BAD_INPUT,
-                   "rc337: well-formed body + corrupt payload -> remove BAD_INPUT");
+        check_true(k2 == SRMECH_OK,
+                   "rc337 scope: census is NOT bound (its own derive) — #955");
+        check_true(k3 == SRMECH_OK,
+                   "rc337 scope: load is NOT bound (verify_body tautology) — #955");
+
+        /* And the store is UNDAMAGED by the rejection: repair the payload byte and
+         * the same catalog read succeeds again. A bound that left the genome
+         * permanently unreadable would satisfy every assertion above. */
+        bf = fopen(bpath, "r+b");
+        check_true(bf != NULL, "rc337: reopen turns.bin to REPAIR the payload byte");
+        if (bf != NULL) {
+            if (fseek(bf, 2L, SEEK_SET) == 0) { fputc((int)body[2], bf); }
+            fclose(bf);
+        }
+        srmech_json_value_t *man3 = NULL;
+        srmech_status_t k5 = srmech_genome_catalog(dir, NULL, 0u, g_ws,
+                                                   sizeof(g_ws), &man3);
+        check_true(k5 == SRMECH_OK && man3 != NULL,
+                   "rc337: repairing the payload byte makes the catalog read again");
     }
 
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);

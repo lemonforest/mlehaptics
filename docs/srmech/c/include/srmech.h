@@ -6983,7 +6983,18 @@ srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_
  * against the head's COMMITTED body_sha256, so a body modified out of band is
  * SRMECH_ERR_BAD_INPUT rather than a catalog built from the corrupt bytes. A
  * manifest-LESS genome has no committed value and is therefore unbound (the strand
- * IS the truth), and a v≤11 FULL manifest is returned as parsed.
+ * IS the truth), and a v≤11 FULL manifest is returned as parsed — there
+ * body_sha256 can be a WHOLE-BODY digest rather than the v4+ region CHAIN a scan
+ * re-derives, so an unconditional compare would hard-fail every legacy store.
+ *
+ * The bound is applied HERE, in this READ entry point, and NOT in the shared
+ * derive it calls: that derive also serves every MUTATION (remove / replace /
+ * export / explode / the .chr import append / the plasmid + integrate paths),
+ * which obtain the manifest while the store is mid-edit. Binding it there polices
+ * a TRANSIENT window and rejects CLEAN stores. srmech_genome_census /
+ * srmech_genome_registry / srmech_genome_load are correspondingly NOT bound yet —
+ * that is the #955 follow-up, tracked with executable xfail specs in
+ * python/tests/test_genome_catalog_body_bound_rc337.py.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / ws / out_manifest is NULL.
@@ -7011,15 +7022,19 @@ srmech_status_t srmech_genome_catalog(
  * "minted"). `topology` is a STRUCTURAL integer read (no libm): "nuclear-like"
  * (any nuclear / diploid), else "organelle-like" (n>0 and total_leaves <= 8*n),
  * else "plasmid/prokaryote-like" (n>0, all plasmid), else "empty". Same manifest-present
- * / manifest-less rules as srmech_genome_catalog (pass coupling when absent) — and,
- * since rc337, the same integrity bound: the census runs its OWN derive (it does not
- * go through the catalog's), and that derive is likewise held against the head's
- * committed body_sha256.
+ * / manifest-less rules as srmech_genome_catalog (pass coupling when absent).
+ *
+ * NOT YET BOUND (rc337 scope, #955): the census runs its OWN derive
+ * (genome_scan_params → genome_load_strings) and does NOT go through the one
+ * srmech_genome_catalog binds, so a turns.bin modified out of band still yields a
+ * census OF THE CORRUPT BYTES with a success status while the scripting
+ * projection raises. That is a live ADR-0009 split. Closing it means binding the
+ * shared derive, which also serves every mutation — see the scope note on
+ * srmech_genome_catalog for why rc337 did not.
  *
  * Error returns: SRMECH_ERR_NULL_ARG (dir/ws/out NULL); SRMECH_ERR_IO
  * (turns.bin unreadable); SRMECH_ERR_OVERFLOW (ws too small);
- * SRMECH_ERR_BAD_INPUT (malformed manifest; absent + no coupling; or (rc337) the
- * body no longer matches the head's committed body_sha256).
+ * SRMECH_ERR_BAD_INPUT (malformed manifest, or absent + no coupling).
  */
 srmech_status_t srmech_genome_census(
     const char *dir, const unsigned char *coupling, size_t coupling_len,
@@ -7048,15 +7063,15 @@ size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms);
  * function's documented error set, so the ctypes wire format is untouched and
  * SRMECH_ABI_VERSION does not move.
  *
- * rc337: each per-genome census carries the same integrity bound as
- * srmech_genome_census, so ONE corrupt genome under `root` fails the whole
- * registry read rather than contributing a census of its corrupt bytes.
+ * NOT YET BOUND (rc337 scope, #955): each per-genome census inherits
+ * srmech_genome_census's derive, which rc337 did not bind — so a corrupt genome
+ * under `root` contributes a census of its corrupt bytes instead of failing the
+ * read. See the scope notes on srmech_genome_catalog / srmech_genome_census.
  *
  * Error returns: SRMECH_ERR_NULL_ARG (root/ws/out NULL); SRMECH_ERR_IO
  * (`root` cannot be opened, or a genome's turns.bin unreadable);
  * SRMECH_ERR_OVERFLOW (ws too small); SRMECH_ERR_BAD_INPUT (a genome's
- * manifest malformed; absent + no coupling; or (rc337) a genome's body no
- * longer matches its head's committed body_sha256).
+ * manifest malformed, or absent + no coupling).
  */
 srmech_status_t srmech_genome_registry(
     const char *root, const unsigned char *coupling, size_t coupling_len,
@@ -7070,12 +7085,14 @@ srmech_status_t srmech_genome_registry(
  * needs `coupling` (coupling_len IS the leaf width); pass coupling=NULL,0 when a
  * manifest is present.
  *
- * rc337: on a v12 HEAD-ONLY store that trailing re-hash is a tautology — the
- * manifest tree it compares against was itself derived from the body being
- * verified. The load's real bound is now the one the catalog derive applies
- * (derived region chain vs the head's COMMITTED body_sha256), which fires first.
- * The trailing re-hash remains the operative check on a v≤11 FULL manifest, where
- * the arrays are an independent committed record parsed off disk.
+ * rc337 (#955): on a v12 HEAD-ONLY store — which is every store written today —
+ * that trailing re-hash is a TAUTOLOGY. The manifest tree it compares against was
+ * itself derived from the body being verified, so its body_sha256 and its regions
+ * both come out of that one scan and the comparison cannot fail, whatever the body
+ * says. The check remains operative on a v≤11 FULL manifest, whose arrays are an
+ * independent committed record parsed off disk. Until #955 lands, a caller that
+ * needs a head-only body actually bounded should read srmech_genome_catalog first
+ * (which IS bound) and treat its status as the gate.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / out / out_len / ws is NULL.

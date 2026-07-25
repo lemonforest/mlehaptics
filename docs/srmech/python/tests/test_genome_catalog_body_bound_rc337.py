@@ -1,4 +1,4 @@
-"""rc337 — the genome CATALOG derive binds the body against the manifest (`#952`).
+"""rc337 — the genome CATALOG READ binds the body against the manifest (`#952`).
 
 WHAT WAS WRONG
 ==============
@@ -29,9 +29,35 @@ single byte changed inside the first chromosome's label field::
 
     genome_catalog(...)["chromosomes"][0]["label"]  ->  'g\\x02ography'
 
-A mangled label, returned with a success status, from all four native entry
-points (``genome_catalog_c`` / ``genome_census_c`` / ``genome_registry_c`` /
-``genome_load_c``). The pure projection raised on the same store.
+A mangled label, returned with a success status, from every native entry point.
+The pure projection raised on the same store.
+
+WHAT rc337 BINDS — AND WHAT IT DELIBERATELY DOES NOT
+====================================================
+rc337 binds the **READ entry point** ``srmech_genome_catalog`` and nothing else.
+``srmech_genome_census`` / ``srmech_genome_registry`` run a SECOND, parallel derive
+(``genome_scan_params`` -> ``genome_load_strings``) that never touches
+``genome_obtain_manifest``, and they remain unbound. That is the ``#955``
+follow-up, and the assertions for it are kept below as ``xfail`` rather than
+deleted, so the follow-up ships with its specification already written.
+
+The narrowing is not caution for its own sake — it is a measured result. A first
+cut bound the derive INSIDE ``genome_obtain_manifest``, which is where the head is
+already parsed and the comparison costs nothing extra. But that function has
+FIFTEEN callers and they include every MUTATION (``srmech_genome_remove`` /
+``_replace`` / ``_export`` / ``_explode``, the ``.chr`` import append, the plasmid
+and integrate paths). A mutation obtains the manifest while the store is mid-edit,
+so the comparison policed a TRANSIENT window: ubuntu / macOS / all three pedantic
+builds were green and **windows-latest py3.12 went red with 22 mutation-path
+failures**, e.g. ``srmech_genome_remove returned non-OK status 2`` on a store a
+CI-instrumented probe proved byte-identical to a green Linux one. A READ entry
+point observes only settled state, so the bound is sound where it now lives.
+
+Note what this means for the surfaces below: ``window`` / ``load`` / ``genes`` /
+``remove`` DO reject a corrupt body in both projections — but they get there
+because the scripting layer reads the catalog first (``_catalog_data``), which now
+raises on either projection. Their NATIVE entry points are still permissive; see
+``test_native_census_registry_load_are_still_permissive_pending_955``.
 
 WHY ``genome_verify_body`` DID NOT ALREADY COVER THIS
 =====================================================
@@ -40,10 +66,9 @@ It looks like it should: ``genome_load`` re-verifies the body against
 store written today — the manifest tree handed to ``genome_verify_body`` was
 DERIVED from the very body being verified. Its ``body_sha256`` and its ``regions``
 both come out of that one scan, so the comparison is a tautology: it cannot fail,
-whatever the body says. That check is real only on a v≤11 FULL manifest, whose
+whatever the body says. That check is real only on a v<=11 FULL manifest, whose
 arrays were parsed off disk as an independent committed record. rc337 leaves it
-alone and binds one layer up instead, where the committed value is actually
-reachable.
+alone and binds one layer up instead, where the committed value is reachable.
 
 WHY THE BOUND IS GATED ON "HEAD-ONLY"
 =====================================
@@ -52,7 +77,7 @@ region CHAIN (fold the per-region digests in order); in v2/v3 it is a plain
 whole-body ``sha256`` — the two branches of ``genome_verify_body`` are exactly that
 distinction. A body scan re-derives the CHAIN, so comparing it against a v2/v3
 committed digest would hard-fail every legacy store. The C helper therefore
-returns an empty-string sentinel when a ``chromosomes`` array is present (a v≤11
+returns an empty-string sentinel when a ``chromosomes`` array is present (a v<=11
 full manifest) and the derive proceeds unbound — which is also precisely where the
 pure projection draws the line: it binds on the v12 head-only path (:8438) and
 falls straight through otherwise (:8452).
@@ -70,18 +95,19 @@ Four corruption vectors, chosen so that no single mechanism can satisfy them all
 * **C — region MERGE.** The second chromosome's CHROM-cap marker set to
   ``(b+1)%4 == 0``. ``genome_block_len`` treats ``kind <= 3`` as a legacy v2 turn
   (c:295-299), so the walk ACCEPTS it, the block folds into the previous region,
-  and ``n_chromosomes`` silently drops 2 → 1. This one is invisible to every
+  and ``n_chromosomes`` silently drops 2 -> 1. This one is invisible to every
   per-region check in the tree, because the tree itself is re-derived with the
   wrong number of regions; before rc337 it was caught by ``genome.py:8438`` alone.
 * **D — control.** ``byte_offset ^ 0x01``: ``0x43 -> 0x42``, genuinely unrecognised
-  by ``genome_block_len``. This was ALREADY rejected before rc337 and must behave
-  identically after, so the new bound cannot be credited with a rejection the
-  structural walk was already making. (``(b+1)%4`` is NOT a usable control here:
-  ``0x43 + 1 mod 4 == 0``, which vector C shows is accepted.)
+  by ``genome_block_len``. This was ALREADY rejected before rc337, on EVERY entry
+  point, and must behave identically after — so the new bound cannot be credited
+  with a rejection the structural walk was already making. (``(b+1)%4`` is NOT a
+  usable control here: ``0x43 + 1 mod 4 == 0``, which vector C shows is accepted.)
 
 plus the controls that keep the above from passing vacuously — a clean store still
-reads on every surface, and a manifest-LESS genome with a corrupt body still scans
-(there is no committed value to bind against, in either projection).
+reads on every surface, a manifest-LESS genome with a corrupt body still scans
+(there is no committed value to bind against, in either projection), and a
+manifest-LESS APPEND still succeeds (the regression the first cut shipped).
 """
 
 from __future__ import annotations
@@ -106,6 +132,17 @@ _DIM = 64
 #: ABI argument: nothing about the ctypes wire format moves, so
 #: ``SRMECH_ABI_VERSION`` stays 10.
 _BAD_INPUT = 2
+
+#: The scope line. Assertions that need a surface rc337 did NOT bind are kept and
+#: marked with this rather than deleted, so ``#955`` inherits an executable spec.
+#: Non-strict on purpose: when #955 lands these XPASS (visible in the report) and
+#: can be promoted to plain assertions, without an intermediate red CI on a host
+#: whose behaviour happens to move first.
+_PENDING_955 = pytest.mark.xfail(
+    reason="rc337 binds the catalog READ only; census / registry / mutation "
+           "binding is the #955 follow-up, which must first characterise the "
+           "mid-edit window that turned the wide bind red on Windows",
+)
 
 
 def _one():
@@ -218,7 +255,7 @@ def _both_projections_fresh(monkeypatch, build, make_fn):
     return native, pure
 
 
-# ── the four vectors, both projections ───────────────────────────────────────
+# ── the four vectors through the catalog read, both projections ──────────────
 
 @pytest.mark.parametrize("vector", ["A", "B", "C", "D"])
 def test_corrupt_body_raises_in_both_projections(vector, monkeypatch):
@@ -271,7 +308,7 @@ def test_vector_A_no_longer_returns_a_mangled_label(monkeypatch):
         monkeypatch.undo()
 
 
-def test_vector_C_region_merge_never_reports_a_short_count(monkeypatch):
+def test_vector_C_region_merge_never_reports_a_short_catalog(monkeypatch):
     """The vector that no per-region check can see.
 
     Setting the second chromosome's marker to ``0x00`` does not break the walk —
@@ -282,23 +319,43 @@ def test_vector_C_region_merge_never_reports_a_short_count(monkeypatch):
     comparison against a value committed BEFORE the corruption, which is what
     rc337 adds.
 
-    Measured pre-fix: ``genome_catalog`` returned ``n_chromosomes 1`` and
-    ``genome_census_c`` reported ``n_chromosomes 1``, both with a success status.
+    Measured pre-fix: ``genome_catalog`` returned ``n_chromosomes 1``, with a
+    success status.
     """
     with tempfile.TemporaryDirectory() as tmp:
-        d, one = _save_two_chromosomes(tmp)
+        d, _one_ = _save_two_chromosomes(tmp)
         _corrupt(d, "C")
         for projection in ("native", "pure"):
             if projection == "pure":
                 monkeypatch.setattr(_native, "has_native_genome", lambda: False)
-            for name, fn in (("catalog", lambda: G.genome_catalog(str(d))),
-                             ("census", lambda: G.genome_census(str(d)))):
-                got = _call(fn)
-                assert got == ("raised", GenomeBoundingError), (
-                    f"{projection} {name}: a merged region must raise, not report a "
-                    f"short genome; got {got!r}")
-                if got[0] == "ok":           # defensive: name the symptom precisely
-                    assert got[1].get("n_chromosomes") != 1
+            got = _call(lambda: G.genome_catalog(str(d)))
+            assert got == ("raised", GenomeBoundingError), (
+                f"{projection} catalog: a merged region must raise, not report a "
+                f"short genome; got {got!r}")
+            if got[0] == "ok":               # defensive: name the symptom precisely
+                assert got[1].get("n_chromosomes") != 1
+        monkeypatch.undo()
+
+
+@_PENDING_955
+def test_vector_C_region_merge_never_reports_a_short_census(monkeypatch):
+    """#955 — the same vector through ``genome_census``.
+
+    ``genome_census_c`` reported ``n_chromosomes 1`` with a success status pre-rc337
+    and still does: the census runs its own derive and rc337 did not bind it. The
+    scripting projection raises, so this IS a live ADR-0009 split — just a narrower
+    one than the catalog split rc337 closed.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        d, _one_ = _save_two_chromosomes(tmp)
+        _corrupt(d, "C")
+        for projection in ("native", "pure"):
+            if projection == "pure":
+                monkeypatch.setattr(_native, "has_native_genome", lambda: False)
+            got = _call(lambda: G.genome_census(str(d)))
+            assert got == ("raised", GenomeBoundingError), (
+                f"{projection} census: a merged region must raise, not report a "
+                f"short genome; got {got!r}")
         monkeypatch.undo()
 
 
@@ -320,22 +377,19 @@ def test_vector_D_control_is_unchanged_by_rc337():
         assert ei.value.status == _BAD_INPUT
 
 
-# ── all four native entry points, per vector ─────────────────────────────────
+# ── the native entry points ──────────────────────────────────────────────────
+
+def _native_entry_calls(d):
+    return {
+        "genome_census_c": lambda: _native.genome_census_c(str(d), b""),
+        "genome_registry_c": lambda: _native.genome_registry_c(str(d.parent), b""),
+        "genome_load_c": lambda: _native.genome_load_c(str(d), b"", 1 << 20),
+    }
+
 
 @pytest.mark.parametrize("vector", ["A", "B", "C", "D"])
-def test_all_four_native_entry_points_reject(vector):
-    """Both C derive paths, not just the one everybody looks at.
-
-    ``genome_catalog`` reaches the body through ``genome_obtain_manifest``.
-    ``genome_census`` and ``genome_registry`` do NOT — they run a second, parallel
-    derive (``genome_scan_params`` → ``genome_load_strings``) that never touches
-    that function. Fixing only ``genome_obtain_manifest`` would leave the census
-    and registry surfaces silently accepting a corrupt body, so the bound is
-    threaded through both and pinned here on both.
-
-    ``genome_load`` is included because it is the surface whose OWN check
-    (``genome_verify_body``) is the tautology described in the module docstring:
-    pre-rc337 it returned the corrupt bytes with a success status.
+def test_native_catalog_entry_point_rejects_every_vector(vector):
+    """``genome_catalog_c`` — the one entry point rc337 binds.
 
     The status is asserted PER VECTOR rather than as one shared constant. Different
     corruptions can legitimately fail at different layers — a region SPLIT, for
@@ -347,26 +401,75 @@ def test_all_four_native_entry_points_reject(vector):
     with tempfile.TemporaryDirectory() as tmp:
         d, _one_ = _save_two_chromosomes(tmp)
         _corrupt(d, vector)
-        entries = {
-            "genome_catalog_c": lambda: _native.genome_catalog_c(str(d), b""),
-            "genome_census_c": lambda: _native.genome_census_c(str(d), b""),
-            "genome_registry_c": lambda: _native.genome_registry_c(str(d.parent), b""),
-            "genome_load_c": lambda: _native.genome_load_c(str(d), b"", 1 << 20),
-        }
-        for name, fn in entries.items():
-            with pytest.raises(_native.NativeGenomeError) as ei:
-                fn()
-            assert ei.value.status == _BAD_INPUT, (
-                f"vector {vector}: {name} returned status {ei.value.status}, "
-                f"expected SRMECH_ERR_BAD_INPUT ({_BAD_INPUT}) — a different status "
-                f"here is an ABI question, not a detail")
+        with pytest.raises(_native.NativeGenomeError) as ei:
+            _native.genome_catalog_c(str(d), b"")
+        assert ei.value.status == _BAD_INPUT, (
+            f"vector {vector}: genome_catalog_c returned status {ei.value.status}, "
+            f"expected SRMECH_ERR_BAD_INPUT ({_BAD_INPUT}) — a different status "
+            f"here is an ABI question, not a detail")
 
 
-# ── the whole public surface, both projections ───────────────────────────────
+@pytest.mark.parametrize("entry", ["genome_census_c", "genome_registry_c",
+                                   "genome_load_c"])
+def test_vector_D_still_rejected_on_every_native_entry_point(entry):
+    """Non-degeneracy for the three entry points rc337 leaves alone.
 
-_PUBLIC_SURFACE = (
-    "catalog", "census", "registry", "window", "load", "genes", "remove",
-)
+    Without this, ``test_native_census_registry_load_are_still_permissive_pending_955``
+    below would be satisfied by an entry point that had regressed into accepting
+    ANYTHING. Vector D is structurally invalid, so the walk rejects it on every
+    surface — before rc337 and after.
+    """
+    _requires_native()
+    with tempfile.TemporaryDirectory() as tmp:
+        d, _one_ = _save_two_chromosomes(tmp)
+        _corrupt(d, "D")
+        with pytest.raises(_native.NativeGenomeError) as ei:
+            _native_entry_calls(d)[entry]()
+        assert ei.value.status == _BAD_INPUT
+
+
+@_PENDING_955
+@pytest.mark.parametrize("vector", ["A", "B", "C"])
+@pytest.mark.parametrize("entry", ["genome_census_c", "genome_registry_c",
+                                   "genome_load_c"])
+def test_native_census_registry_load_are_still_permissive_pending_955(entry, vector):
+    """#955 — the three native entry points rc337 does NOT bind.
+
+    ``genome_census`` and ``genome_registry`` reach the body through a SECOND,
+    parallel derive (``genome_scan_params`` -> ``genome_load_strings``) that never
+    touches ``genome_obtain_manifest``, so the catalog's bound does not reach them.
+    ``genome_load`` is here for a different reason: its OWN check
+    (``genome_verify_body``) is the tautology described in the module docstring, so
+    on a v12 head-only store it returns the corrupt bytes with a success status.
+
+    Measured today: all three return OK for vectors A / B / C (the structurally
+    valid corruptions) and BAD_INPUT for D. When #955 lands, this xfail flips to a
+    pass and can be promoted to a plain assertion.
+    """
+    _requires_native()
+    with tempfile.TemporaryDirectory() as tmp:
+        d, _one_ = _save_two_chromosomes(tmp)
+        _corrupt(d, vector)
+        with pytest.raises(_native.NativeGenomeError) as ei:
+            _native_entry_calls(d)[entry]()
+        assert ei.value.status == _BAD_INPUT
+
+
+# ── the public surface, both projections ─────────────────────────────────────
+
+#: Surfaces that agree across projections on a corrupt body TODAY. Note WHY they
+#: agree: only ``catalog`` is bound in C. ``window`` / ``load`` / ``genes`` /
+#: ``remove`` read the catalog through ``_catalog_data`` in the scripting layer
+#: BEFORE dispatching to native, so they inherit the catalog bound — which is also
+#: why the no-mutation guard further down holds.
+_BOUND_SURFACE = ("catalog", "window", "load", "genes", "remove")
+
+#: Surfaces still split — the ``#955`` follow-up. Both gate on their OWN native
+#: symbol (``has_native_genome_census`` / ``_registry``) and never read the catalog
+#: first, so the compiled projection answers from the corrupt bytes.
+_SPLIT_SURFACE = ("census", "registry")
+
+_PUBLIC_SURFACE = _BOUND_SURFACE + _SPLIT_SURFACE
 
 
 def _public_ops(d, one):
@@ -387,14 +490,30 @@ def _corrupt_build(tmp):
     return d, one
 
 
-@pytest.mark.parametrize("op", _PUBLIC_SURFACE)
-def test_both_projections_agree_on_type_across_the_surface(op, monkeypatch):
+@pytest.mark.parametrize("op", _BOUND_SURFACE)
+def test_both_projections_agree_on_type_across_the_bound_surface(op, monkeypatch):
     """Type parity op by op, not just on the one function that was fixed.
 
-    Every op in this list reaches the body through one of the two derive paths, so
-    a bound applied to only one of them shows up here as a per-op split rather
-    than as a single obvious failure. Parametrised so the report names the op that
-    diverged.
+    Parametrised so the report names the op that diverged rather than collapsing
+    five surfaces into one failure line.
+    """
+    native, pure = _both_projections_fresh(
+        monkeypatch, _corrupt_build, lambda d, one: _public_ops(d, one)[op])
+    assert native == ("raised", GenomeBoundingError), (
+        f"{op}: compiled projection gave {native!r}")
+    assert pure == ("raised", GenomeBoundingError), (
+        f"{op}: scripting projection gave {pure!r}")
+
+
+@_PENDING_955
+@pytest.mark.parametrize("op", _SPLIT_SURFACE)
+def test_both_projections_agree_on_type_across_the_split_surface(op, monkeypatch):
+    """#955 — the two public surfaces still answering differently.
+
+    Measured today: the compiled projection returns a census/registry built from
+    the corrupt bytes (``label 'g\\x02ography'``, success status) while the
+    scripting one raises ``GenomeBoundingError``. That is the SAME ADR-0009 defect
+    rc337 closed for ``genome_catalog``, on the derive rc337 did not reach.
     """
     native, pure = _both_projections_fresh(
         monkeypatch, _corrupt_build, lambda d, one: _public_ops(d, one)[op])
@@ -408,11 +527,14 @@ def test_both_projections_agree_on_type_across_the_surface(op, monkeypatch):
 
 @pytest.mark.parametrize("op", _PUBLIC_SURFACE)
 def test_clean_store_still_reads_in_both_projections(op, monkeypatch):
-    """The non-degenerate control.
+    """The non-degenerate control, over the WHOLE surface including the ``#955``
+    half.
 
     Without this, every assertion above is satisfiable by an implementation that
     has regressed into rejecting everything — which is the cheapest possible way
-    to make a "does it raise?" suite green.
+    to make a "does it raise?" suite green. It is also the assertion that would
+    have caught the first cut of rc337: binding inside ``genome_obtain_manifest``
+    made the mutation ops reject CLEAN stores on Windows.
     """
     native, pure = _both_projections_fresh(
         monkeypatch, _save_with_genes, lambda d, one: _public_ops(d, one)[op])
@@ -425,10 +547,11 @@ def test_manifestless_genome_with_a_corrupt_body_still_scans(monkeypatch):
 
     With no ``manifest.json`` there is no committed value in existence, so there is
     nothing to bind against and the strand is by definition its own SSoT. The C
-    expresses this as an empty-string sentinel (the manifest-absent branch never
-    populates ``committed``); the pure side expresses it by simply not reaching the
-    ``:8438`` comparison. Both must return the SAME catalog — the one the corrupt
-    bytes describe, mangled label and all — because that is what the file says.
+    expresses this as an empty-string sentinel (``genome_catalog_committed_head``
+    returns before it ever parses); the pure side expresses it by simply not
+    reaching the ``:8438`` comparison. Both must return the SAME catalog — the one
+    the corrupt bytes describe, mangled label and all — because that is what the
+    file says.
 
     This is the case an unconditional ``memcmp`` would have broken, and the reason
     the sentinel exists rather than a bare "always compare".
@@ -445,17 +568,39 @@ def test_manifestless_genome_with_a_corrupt_body_still_scans(monkeypatch):
     assert native[1] == pure[1], "and the two projections must scan it identically"
 
 
+def test_a_manifestless_append_still_succeeds():
+    """The regression the first cut of rc337 actually shipped, pinned.
+
+    ``genome_append`` on a manifest-LESS store migrates through
+    ``genome_append_migrate`` -> ``genome_obtain_manifest`` -> ``genome_grow_body``,
+    which bound-checks the old body against the DERIVED manifest tree. The first
+    cut restructured ``genome_obtain_manifest`` (extracting the turns.bin read into
+    a helper, to buy the JPL Rule-4 line budget the bound needed), and this call
+    began returning ``SRMECH_ERR_BAD_INPUT`` on a perfectly clean store. rc337 as
+    shipped does not touch that function at all; this test says so out loud, and
+    fails loudly if a later refactor reaches back into it.
+    """
+    _requires_native()
+    with tempfile.TemporaryDirectory() as tmp:
+        d, one = _save_two_chromosomes(tmp)
+        (d / "manifest.json").unlink()
+        data = G.genome_append(str(d), "extra", _leaves(2), one)
+    assert [c["label"] for c in data["chromosomes"]] == [
+        "geography", "history", "extra"]
+
+
 # ── the store is not damaged by a rejected write ─────────────────────────────
 
 @pytest.mark.parametrize("op", ["remove", "replace"])
 def test_a_rejected_edit_leaves_the_store_byte_identical(op):
     """The bound fires BEFORE any write, not partway through one.
 
-    ``genome_remove`` / ``genome_replace`` splice ``turns.bin`` in place. If the
-    integrity check were positioned after the splice began — or if a caller
-    retried past it — a corrupt store would become a corrupt-AND-truncated store,
-    turning a detectable fault into an unrecoverable one. Both files are hashed so
-    a manifest rewrite counts as damage too.
+    ``genome_remove`` / ``genome_replace`` splice ``turns.bin`` in place. Both read
+    the catalog first, so with rc337 the bound fires in the scripting layer and the
+    native mutation is never dispatched. If the check were positioned after the
+    splice began — or if a caller retried past it — a corrupt store would become a
+    corrupt-AND-truncated store, turning a detectable fault into an unrecoverable
+    one. Both files are hashed so a manifest rewrite counts as damage too.
     """
     with tempfile.TemporaryDirectory() as tmp:
         d, one = _save_two_chromosomes(tmp)
@@ -477,8 +622,9 @@ def test_a_rejected_edit_leaves_the_store_byte_identical(op):
 def test_rc337_introduces_no_new_status_enumerator():
     """rc337 adds no exported symbol, changes no signature, and reuses a status
     already in every touched export's documented error set — so
-    ``SRMECH_ABI_VERSION`` does not move. Every function it added or changed in
-    ``srmech_genome.c`` is ``static``.
+    ``SRMECH_ABI_VERSION`` does not move. Every function it added is ``static``,
+    and the only exported function whose BODY changed is ``srmech_genome_catalog``,
+    whose signature is untouched.
 
     If a later change routes this bound through a NEW status, this test fails and
     the ABI question has to be answered deliberately rather than by omission.
