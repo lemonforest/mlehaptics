@@ -424,6 +424,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.kepler.equation_of_centre': ('srmech_equation_of_centre',),
     'srmech.amsc.kepler.kepler_solve': ('srmech_kepler_solve',),
     'srmech.amsc.kepler.pin_slot': ('srmech_pin_slot',),
+    'srmech.amsc.laplacian.cotangent_weights': ('srmech_graph_cotangent_weights',),
     'srmech.amsc.laplacian.cycle_holonomy': (
         'srmech_graph_cycle_holonomy',
         'srmech_graph_cycle_holonomy_arena_bytes',
@@ -448,6 +449,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     ),
     'srmech.amsc.laplacian.jacobi_eigvals': ('srmech_jacobi_eigvals',),
     'srmech.amsc.laplacian.klein4_gain_laplacian': ('srmech_graph_klein4_gain_laplacian',),
+    'srmech.amsc.laplacian.mass_normalized_laplacian': ('srmech_graph_mass_normalized_laplacian',),
     'srmech.amsc.laplacian.mat_eigvals': (
         'srmech_mat_eigvals_ws',
         'srmech_mat_eigvals_ws_size',

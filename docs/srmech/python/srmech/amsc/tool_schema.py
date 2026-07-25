@@ -1140,6 +1140,49 @@ def _register_primitive_class_tools() -> None:
                         P("weights", "Optional[list[float]]", False)),
             returns=R("Mat", "n × n symmetric matrix (numpy-free 2-D carrier)"),
         ),
+        # rc328 (task #893 / #888 rec (c)): the Laplace–Beltrami α-family.
+        # mass_normalized_laplacian generalises normalized_laplacian from
+        # degree-D to an arbitrary diagonal mass M (α=0 connectivity vs α=1
+        # metric / discrete LB); cotangent_weights emits the LB stiffness
+        # edge weights that feed dense_laplacian. Both are c_dispatched.
+        ToolEntry(
+            name="srmech.amsc.laplacian.mass_normalized_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Mass-normalized (Laplace–Beltrami α-family) Laplacian: "
+                    "M^{-1/2}(D-W)M^{-1/2} (kind='symmetric', PSD) or "
+                    "M^{-1}(D-W) (kind='rw', rows sum to 0). masses=None → "
+                    "M=degree D (α=0 connectivity; recovers normalized_laplacian); "
+                    "masses=Voronoi areas → α=1 metric / discrete Laplace–Beltrami "
+                    "spectrum. The M^{-1/2} sqrt is the Class-N rational cascade; "
+                    "native C dispatch. #888 scoping.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("masses", "Optional[list[float]]", False,
+                          "diagonal mass M; None → degree D (α=0)"),
+                        P("kind", "str", False,
+                          "'symmetric' (default) or 'rw' (random-walk)")),
+            returns=R("Mat", "n × n real mass-normalized Laplacian (numpy-free Mat)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.cotangent_weights", owner="srmech",
+            category="laplacian",
+            summary="Cotangent-weight Laplacian weights — the discrete "
+                    "Laplace–Beltrami edge weights on a triangulated manifold "
+                    "(Pinkall & Polthier 1993). Per triangle emits the three "
+                    "per-corner ½·cot(θ) contributions cot θ = (u·v)/|u×v| "
+                    "(|u×v| via the Lagrange identity; NO trig, NO abs, one "
+                    "algebraic sqrt/corner). Returns (edges, weights) whose "
+                    "parallel-edge accumulation in dense_laplacian gives the "
+                    "standard ½(cot α + cot β). positions are given data, NOT "
+                    "CAD mesh geometry. #888.",
+            parameters=(P("triangles", "list[tuple[int, int, int]]", True,
+                          "vertex-index triples (i, j, k) per triangle"),
+                        P("positions", "list[list[float]]", True,
+                          "vertex coordinates, 2-D or 3-D")),
+            returns=R("tuple", "(edges: list[tuple[int, int]], weights: list[float]) "
+                               "— feed straight to dense_laplacian(n_vertices, ...)"),
+        ),
         # #797 op (b): directed / signed Laplacian (rc26). The dissolved
         # Class-O signed-metric absorbed into L + the directed-navigation
         # leg (magnetic / Hermitian Laplacian). Heavy eigen runs on the

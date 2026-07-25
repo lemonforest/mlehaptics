@@ -183,6 +183,8 @@ __all__ = [
     "dense_adjacency",
     "dense_laplacian",
     "normalized_laplacian",
+    "mass_normalized_laplacian",
+    "cotangent_weights",
     "klein4_gain_laplacian",
     "klein4_relational_structure",
     "quaternion_laplacian",
@@ -644,6 +646,310 @@ def normalized_laplacian(
         if m is not None:
             return Mat.from_rows(m, is_complex=False)
     return Mat.from_rows(_normalized_laplacian_py(n, edges, weights), is_complex=False)
+
+
+# ── 0.9.0rc328 (task #893 / #888 rec (c)) — the Laplace–Beltrami α-family ──
+# mass_normalized_laplacian generalises normalized_laplacian from degree-D to
+# an arbitrary diagonal mass M; cotangent_weights emits the discrete LB edge
+# weights. See docs/srmech/notes/laplace_beltrami_scoping.md — LB is a
+# WEIGHTING/NORMALIZATION of the shipped Class-L Laplacian, not a PDE solver.
+_MASS_NORM_KINDS: dict = {"symmetric": 0, "rw": 1}
+
+
+def _mass_normalized_laplacian_py(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    ml: Optional[List[float]],
+    kind_code: int,
+) -> List[List[float]]:
+    """Pure-Python mass-normalized Laplacian (the numpy-free fallback).
+
+    Builds ``L = D − W`` then applies the diagonal scale ``s_i``. ``ml is None``
+    → ``m_i`` is the degree ``L[i][i]`` (α=0 connectivity); else ``m_i = ml[i]``
+    (α=1 metric). Symmetric (kind 0): ``L̂[r,c] = L[r,c]·s_r·s_c``, ``s_i =
+    1/sqrt(m_i)``; random-walk (kind 1): ``L̂[r,c] = L[r,c]·s_r``, ``s_i =
+    1/m_i``. ``m_i <= 0`` → ``s_i = 0`` (isolated / massless vertex, mirroring
+    normalized_laplacian). No ``abs()``: the ``m_i > 0`` guard is a Class-K
+    pin-slot on the sqrt/reciprocal domain, not an ALU magnitude."""
+    L = _dense_laplacian_py(n, el, wl)  # list[list[float]], diagonal = degree
+    m = [L[i][i] for i in range(n)] if ml is None else list(ml)
+    s = [0.0] * n
+    for i in range(n):
+        mi = m[i]
+        if mi > 0.0:
+            s[i] = (1.0 / _fsqrt(mi)) if kind_code == 0 else (1.0 / mi)
+    for r in range(n):
+        sr = s[r]
+        for c in range(n):
+            L[r][c] = (L[r][c] * sr * s[c]) if kind_code == 0 else (L[r][c] * sr)
+    return L
+
+
+def _mass_normalized_laplacian_native(
+    n: int,
+    el: List[Tuple[int, int]],
+    wl: List[float],
+    ml: Optional[List[float]],
+    kind_code: int,
+) -> Optional[List[List[float]]]:
+    """numpy-free native dispatch for :func:`mass_normalized_laplacian` (rc328).
+
+    Marshals the edge / weight / mass lists into ctypes buffers and calls the
+    standalone-C ``srmech_graph_mass_normalized_laplacian`` with a caller
+    ``scale_ws`` workspace (n doubles) + an ``n*n``-double output. The C peer
+    runs the SAME Class-N ``srmech_rational_sqrt`` the pure path runs, so the
+    result is bit-identical. Returns the nested ``list[list[float]]``, or
+    ``None`` on any non-OK status / missing symbol (caller then uses the pure
+    Python build)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_graph_mass_normalized_laplacian")
+    ):
+        return None
+    n_edges = len(el)
+    out = (ctypes.c_double * (n * n))()
+    scale_ws = (ctypes.c_double * n)()
+    null_u = ctypes.cast(None, ctypes.POINTER(ctypes.c_uint32))
+    null_d = ctypes.cast(None, ctypes.POINTER(ctypes.c_double))
+    if n_edges:
+        eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in el))
+        ev = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in el))
+        wbuf = (ctypes.c_double * n_edges)(*(float(w) for w in wl))
+    else:
+        eu = ev = null_u
+        wbuf = null_d
+    mbuf = null_d if ml is None else (ctypes.c_double * n)(*(float(x) for x in ml))
+    rc = _native.LIB.srmech_graph_mass_normalized_laplacian(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges), eu, ev, wbuf,
+        mbuf, ctypes.c_uint32(kind_code), scale_ws, out,
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    return [[out[r * n + c] for c in range(n)] for r in range(n)]
+
+
+def mass_normalized_laplacian(
+    n: int,
+    edges: Iterable[Tuple[int, int]],
+    weights: Optional[Iterable[float]] = None,
+    masses: Optional[Iterable[float]] = None,
+    *,
+    kind: str = "symmetric",
+) -> "Mat":
+    """Mass-normalized (Laplace–Beltrami α-family) Laplacian.
+
+    Builds the weighted combinatorial Laplacian ``L = D − W`` and normalizes it
+    by a diagonal mass ``M``:
+
+    * ``kind="symmetric"`` → ``L̂ = M^(−1/2) (D − W) M^(−1/2)`` (real-symmetric,
+      PSD; the constant nullvector becomes ``M^(1/2)·𝟙``);
+    * ``kind="rw"`` → ``L̂ = M^(−1) (D − W)`` (the random-walk Laplacian; every
+      row sums to 0).
+
+    ``masses`` (length ``n``) is the diagonal mass. **This selects the position
+    on the Coifman–Lafon diffusion-maps ``α``-family** (*Diffusion Maps*, ACHA
+    21(1):5–30, 2006 — author-hosted OA):
+
+    * ``masses=None`` → ``M = D`` (the weighted **degree**): the **α = 0**
+      *connectivity*-normalization. Symmetric with ``masses=None`` recovers
+      :func:`normalized_laplacian` (``I − D^(−1/2) A D^(−1/2)``) up to the
+      exact-1 diagonal convention (here the diagonal is ``d_i·s_i²``, float-1);
+    * ``masses`` = Voronoi/barycentric areas → the **α = 1** *metric*-
+      normalization: the geometrically-faithful **discrete Laplace–Beltrami**
+      spectrum (generalized eigenproblem ``L_c v = λ M v``), recovered
+      independent of sampling density. Feed cotangent stiffness weights (see
+      :func:`cotangent_weights`) as ``weights`` and Voronoi areas as ``masses``.
+
+    A mass ``m_i <= 0`` yields scale 0 (isolated / massless vertex, mirroring
+    :func:`normalized_laplacian`); **no** ``abs()`` — the ``m_i > 0`` guard is a
+    Class-K pin-slot on the sqrt/reciprocal domain. The one algebraic step is
+    the ``M^(−1/2)`` sqrt (the Class-N ``srmech_rational_sqrt`` cascade, NOT
+    libm). Native (rc328): dispatches to the standalone-C
+    ``srmech_graph_mass_normalized_laplacian`` (bit-identical; the pure-Python
+    build is the complete no-native alternative). No node cap.
+
+    Attested scoping SSoT: ``docs/srmech/notes/laplace_beltrami_scoping.md``
+    (task #888) — LB is a *weighting* of the Class-L Laplacian, not a new member.
+
+    Returns an ``n×n`` real :class:`~srmech.amsc.mat.Mat` (``.shape`` +
+    ``m[i, j]``, NOT a bare ``list[list[float]]``).
+    """
+    kind_code = _MASS_NORM_KINDS.get(kind)
+    if kind_code is None:
+        raise ValueError(
+            f"kind must be 'symmetric' or 'rw'; got {kind!r}"
+        )
+    el, wl = _validate_edges_weights_py(n, edges, weights)
+    ml: Optional[List[float]] = None
+    if masses is not None:
+        ml = [float(x) for x in masses]
+        if len(ml) != n:
+            raise ValueError(f"masses length {len(ml)} != n {n}")
+    rows = _mass_normalized_laplacian_native(n, el, wl, ml, kind_code)
+    if rows is None:
+        rows = _mass_normalized_laplacian_py(n, el, wl, ml, kind_code)
+    return Mat.from_rows(rows, is_complex=False)
+
+
+def _cotangent_weights_py(
+    tris: List[Tuple[int, int, int]],
+    pos: List[List[float]],
+    dim: int,
+) -> Tuple[List[Tuple[int, int]], List[float]]:
+    """Pure-Python cotangent-weight contributions (the numpy-free fallback).
+
+    Per triangle, emits the three per-corner ``½·cot(θ)`` contributions — one
+    per edge, opposite each vertex. cot θ = (u·v)/|u×v| with the Lagrange cross
+    magnitude ``|u×v| = sqrt(|u|²|v|² − (u·v)²)`` (≥ 0 in 2-D and 3-D; NO
+    ``abs()``). Raises on a degenerate (collinear) triangle."""
+    edges: List[Tuple[int, int]] = []
+    weights: List[float] = []
+    for (a, b, c) in tris:
+        v3 = (a, b, c)
+        for corner in range(3):
+            ka = v3[corner]
+            ib = v3[(corner + 1) % 3]
+            jc = v3[(corner + 2) % 3]
+            uvec = [float(pos[ib][d]) - float(pos[ka][d]) for d in range(dim)]
+            vvec = [float(pos[jc][d]) - float(pos[ka][d]) for d in range(dim)]
+            dot = 0.0
+            uu = 0.0
+            vv = 0.0
+            for d in range(dim):
+                dot += uvec[d] * vvec[d]
+                uu += uvec[d] * uvec[d]
+                vv += vvec[d] * vvec[d]
+            cross2 = uu * vv - dot * dot  # |u×v|² (Lagrange identity)
+            if not (cross2 > 0.0):
+                raise ValueError(
+                    f"degenerate (collinear) triangle {(a, b, c)}: the cross "
+                    "magnitude vanishes so the cotangent is undefined"
+                )
+            cot = dot / _fsqrt(cross2)
+            edges.append((ib, jc))
+            weights.append(0.5 * cot)
+    return edges, weights
+
+
+def _cotangent_weights_native(
+    tris: List[Tuple[int, int, int]],
+    pos: List[List[float]],
+    dim: int,
+    n_vert: int,
+) -> Optional[Tuple[List[Tuple[int, int]], List[float]]]:
+    """numpy-free native dispatch for :func:`cotangent_weights` (rc328).
+
+    Marshals the triangle indices + flat positions into ctypes buffers and
+    calls the standalone-C ``srmech_graph_cotangent_weights`` with 3·n_tri
+    output slots. Same Class-N ``srmech_rational_sqrt`` → bit-identical.
+    Returns ``(edges, weights)``, or ``None`` on any non-OK status / missing
+    symbol (caller then uses the pure-Python build, which raises the same
+    degenerate-triangle error)."""
+    if not (
+        _native.HAS_NATIVE
+        and _native.LIB is not None
+        and hasattr(_native.LIB, "srmech_graph_cotangent_weights")
+    ):
+        return None
+    n_tri = len(tris)
+    if n_tri == 0:
+        return [], []
+    flat_tri: List[int] = []
+    for (a, b, c) in tris:
+        flat_tri.extend((a, b, c))
+    flat_pos: List[float] = []
+    for p in pos:
+        for d in range(dim):
+            flat_pos.append(float(p[d]))
+    n_slots = 3 * n_tri
+    tri_buf = (ctypes.c_uint32 * (3 * n_tri))(*flat_tri)
+    pos_buf = (ctypes.c_double * len(flat_pos))(*flat_pos)
+    out_u = (ctypes.c_uint32 * n_slots)()
+    out_v = (ctypes.c_uint32 * n_slots)()
+    out_w = (ctypes.c_double * n_slots)()
+    rc = _native.LIB.srmech_graph_cotangent_weights(
+        ctypes.c_uint32(n_tri), tri_buf, pos_buf,
+        ctypes.c_uint32(dim), ctypes.c_uint32(n_vert),
+        out_u, out_v, out_w,
+    )
+    if rc != _native.SRMECH_OK:
+        return None
+    edges = [(int(out_u[i]), int(out_v[i])) for i in range(n_slots)]
+    weights = [out_w[i] for i in range(n_slots)]
+    return edges, weights
+
+
+def cotangent_weights(
+    triangles: Iterable[Tuple[int, int, int]],
+    positions: Iterable[Iterable[float]],
+) -> Tuple[List[Tuple[int, int]], List[float]]:
+    """Cotangent-weight Laplacian weights — the discrete Laplace–Beltrami
+    edge weights on a triangulated manifold (Pinkall & Polthier 1993).
+
+    Takes the triangle geometry as given **numbers** (``positions`` as data —
+    this is algebra/spectral only, **NOT** CAD mesh-contact / fabrication
+    geometry) and returns ``(edges, weights)`` ready to feed
+    :func:`dense_laplacian`: for each triangle it emits the THREE per-corner
+    contributions ``½·cot(θ_k)`` for the edge opposite vertex ``k``, with the
+    two edge vectors ``u = p_i − p_k``, ``v = p_j − p_k`` taken from ``k``:
+
+        cot θ = (u·v) / |u×v|,   |u×v| = sqrt(|u|²|v|² − (u·v)²)   (Lagrange)
+
+    **No trig** (no ``cos``/``sin``/``atan``): the only irrationality is one
+    algebraic ``sqrt`` per corner (the Class-N ``srmech_rational_sqrt``
+    cascade); the Lagrange cross magnitude is ≥ 0 in 2-D and 3-D alike, so
+    there is **no** ``abs()`` (the signed area is a Class-K pin-slot the
+    magnitude never needs). In 2-D the cotangent is fully rational; in 3-D the
+    single ``sqrt`` is ``2·Area``.
+
+    The returned ``edges`` list holds the 3·n_tri per-corner contributions
+    (the two triangles sharing an edge appear as parallel edges), so::
+
+        L_cot = dense_laplacian(n_vertices, *cotangent_weights(tris, positions))
+
+    accumulates them — via :func:`dense_laplacian`'s parallel-edge summation —
+    into the standard cotangent Laplacian ``w_ij = ½(cot α_ij + cot β_ij)``
+    (symmetric, every row summing to 0). This is the ``α = 1`` metric leg's
+    stiffness matrix; pair it with Voronoi ``masses`` in
+    :func:`mass_normalized_laplacian` for the discrete LB spectrum.
+
+    Attested SSoT: U. Pinkall & K. Polthier, "Computing Discrete Minimal
+    Surfaces and Their Conjugates", Exp. Math. 2(1):15–36 (1993) (Project
+    Euclid OA); scoping in ``docs/srmech/notes/laplace_beltrami_scoping.md``.
+
+    Native (rc328): dispatches to the standalone-C
+    ``srmech_graph_cotangent_weights`` (bit-identical). Raises ``ValueError``
+    on a degenerate (collinear) triangle or a non-2-D/3-D / ragged position.
+    """
+    pos: List[List[float]] = [list(p) for p in positions]
+    n_vert = len(pos)
+    if n_vert == 0:
+        raise ValueError("positions must be non-empty")
+    dim = len(pos[0])
+    if dim not in (2, 3):
+        raise ValueError(f"positions must be 2-D or 3-D; got dim={dim}")
+    for i, p in enumerate(pos):
+        if len(p) != dim:
+            raise ValueError(
+                f"position {i} has dimension {len(p)} != {dim} (ragged)"
+            )
+    tris: List[Tuple[int, int, int]] = []
+    for t in triangles:
+        tt = tuple(int(x) for x in t)
+        if len(tt) != 3:
+            raise ValueError(f"triangle {tt} is not a 3-tuple of vertex indices")
+        for idx in tt:
+            if not (0 <= idx < n_vert):
+                raise ValueError(
+                    f"triangle vertex {idx} outside node range [0, {n_vert})"
+                )
+        tris.append(tt)  # type: ignore[arg-type]
+    res = _cotangent_weights_native(tris, pos, dim, n_vert)
+    if res is None:
+        res = _cotangent_weights_py(tris, pos, dim)
+    return res
 
 
 def _jacobi_eigvals_native_listmarshal(rows, n, max_sweeps, tolerance):
@@ -6776,6 +7082,8 @@ LAPLACIAN_OPS: Tuple[str, ...] = (
     "dense_adjacency",
     "dense_laplacian",
     "normalized_laplacian",
+    "mass_normalized_laplacian",
+    "cotangent_weights",
     "signed_laplacian",
     "magnetic_laplacian",
     "quaternion_laplacian",

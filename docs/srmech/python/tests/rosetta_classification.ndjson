@@ -114,6 +114,8 @@
 {"exposed_as": "srmech.amsc.laplacian.jacobi_eigvals", "defined_at": "srmech.amsc.laplacian.jacobi_eigvals", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.spectral_block_dispatch", "defined_at": "srmech.amsc.laplacian.spectral_block_dispatch", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.normalized_laplacian", "defined_at": "srmech.amsc.laplacian.normalized_laplacian", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.mass_normalized_laplacian", "defined_at": "srmech.amsc.laplacian.mass_normalized_laplacian", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.cotangent_weights", "defined_at": "srmech.amsc.laplacian.cotangent_weights", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.quaternion_laplacian", "defined_at": "srmech.amsc.laplacian.quaternion_laplacian", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.hypercomplex_perspectives", "defined_at": "srmech.amsc.laplacian.hypercomplex_perspectives", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.naming.lookup", "defined_at": "srmech.amsc.naming.lookup", "bucket": "c_dispatched"}

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc327"
-#define SRMECH_VERSION       "0.9.0rc327"
+#define SRMECH_VERSION_PRE   "rc328"
+#define SRMECH_VERSION       "0.9.0rc328"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -1303,6 +1303,65 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
                                                   const uint32_t *edges_v,
                                                   const double   *weights,
                                                   double         *out_matrix);
+
+/* ------------------------------------------------------------------
+ * 0.9.0rc328 (task #893 / #888 rec (c)): the Laplace–Beltrami α-family —
+ * two closed-form Class-L constructors that expose the discrete LB
+ * operator as a WEIGHTING/NORMALIZATION of the shipped weighted Laplacian
+ * (NOT a PDE / mesh-FEA solve; see docs/srmech/notes/laplace_beltrami_scoping.md).
+ *
+ * srmech_graph_mass_normalized_laplacian — the α-family / mass-normalized
+ * Laplacian.  Builds L = D − W (the weighted combinatorial Laplacian) and
+ * applies a diagonal mass normalization:
+ *   kind == 0  symmetric   L̂ = M^(−1/2) (D − W) M^(−1/2)
+ *   kind == 1  random-walk L̂ = M^(−1)   (D − W)
+ * `masses` (n doubles) is the diagonal mass; NULL → the degree D (the
+ * α = 0 connectivity case, which recovers srmech_graph_normalized_laplacian
+ * up to the exact-1 diagonal convention).  A supplied mass (e.g. Voronoi
+ * areas) is the α = 1 metric case — the discrete Laplace–Beltrami spectrum.
+ * m_i <= 0 → scale 0 (isolated / massless vertex, mirroring normalized_lap).
+ * `scale_ws` is a CALLER workspace of >= n doubles (holds the per-node
+ * scale s_i; caller-arena, no malloc/static — reentrant on disjoint ws).
+ * The one algebraic step is the D^(−1/2) sqrt (srmech_rational_sqrt, NOT
+ * libm); byte-exact with the pure-Python Class-N cascade. No node cap.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 10. */
+srmech_status_t srmech_graph_mass_normalized_laplacian(uint32_t        n,
+                                                       uint32_t        n_edges,
+                                                       const uint32_t *edges_u,
+                                                       const uint32_t *edges_v,
+                                                       const double   *weights,
+                                                       const double   *masses,
+                                                       uint32_t        kind,
+                                                       double         *scale_ws,
+                                                       double         *out_matrix);
+
+/* srmech_graph_cotangent_weights — the cotangent-weight Laplacian weight
+ * constructor (the discrete Laplace–Beltrami weights on a triangulated
+ * manifold; Pinkall & Polthier 1993).  Takes the triangle geometry as
+ * given NUMBERS (positions as data — algebra/spectral only, NOT CAD
+ * mesh-contact) and emits, per triangle, the THREE per-corner contributions
+ * `½·cot(θ)` for the edge opposite each vertex.  For the apex `k` opposite
+ * edge (i, j), with u = p_i − p_k, v = p_j − p_k:
+ *   cot θ = (u·v) / |u×v|,   |u×v| = sqrt(|u|²|v|² − (u·v)²)   (Lagrange)
+ * — the Lagrange cross magnitude is ≥ 0 in 2-D and 3-D alike (NO abs; the
+ * signed area is a Class-K pin-slot the magnitude does not need).  NO trig
+ * (no cos/sin/atan): the only irrationality is one algebraic sqrt per corner
+ * (srmech_rational_sqrt).  The 3·n_tri (edge, weight) contributions FEED
+ * srmech_graph_dense_laplacian, whose parallel-edge accumulation sums the
+ * two triangles sharing an edge into the standard ½(cot α + cot β).
+ *   tri        : 3·n_tri vertex indices (i, j, k per triangle).
+ *   positions  : n_vert·dim doubles, row-major; dim ∈ {2, 3}.
+ *   out_edges_u / out_edges_v / out_weights : 3·n_tri each (caller-alloc).
+ * Degenerate (collinear) triangle → SRMECH_ERR_BAD_INPUT.  No node cap.
+ * ABI-additive: a new symbol, so SRMECH_ABI_VERSION stays 10. */
+srmech_status_t srmech_graph_cotangent_weights(uint32_t        n_tri,
+                                               const uint32_t *tri,
+                                               const double   *positions,
+                                               uint32_t        dim,
+                                               uint32_t        n_vert,
+                                               uint32_t       *out_edges_u,
+                                               uint32_t       *out_edges_v,
+                                               double         *out_weights);
 
 /* 0.9.0rc105 (issue #1234 Item 3 / F1006 / F1007): magnetic (Hermitian)
  * Laplacian of a DIRECTED graph — the standalone-C builder peer of the
