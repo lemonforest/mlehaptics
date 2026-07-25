@@ -1660,6 +1660,75 @@ int main(void)
                    "rc281: a leaf too narrow for the field reads 1 (absent == default)");
     }
 
+    /* rc337 (#952): the catalog/census derive BINDS the re-derived region chain
+     * against the manifest head's COMMITTED body_sha256.
+     *
+     * Every corruption test ABOVE flips byte 0 — the CHROM cap's KIND byte — which
+     * the structural walk rejects on its own (genome_block_len: unrecognised kind).
+     * So the C host had never exercised a body that walks PERFECTLY but carries a
+     * changed PAYLOAD. Here byte 2 is inside chromosome A's label field: the walk
+     * still sees a valid CC cap and 6 well-formed blocks, only the label (and hence
+     * the region digest) changed. Pre-rc337 that was accepted silently and the
+     * catalog reported the MANGLED label; now the chain mismatch is BAD_INPUT. */
+    {
+        st = srmech_genome_save(dir, body, sizeof(body), leaf_dim,
+                                coupling, sizeof(coupling), g_ws, sizeof(g_ws));
+        check_true(st == SRMECH_OK, "rc337: re-save a clean genome for the bound test");
+
+        /* CONTROL FIRST — the clean store still reads on all four surfaces, so the
+         * assertions below cannot pass by having degenerated into reject-everything. */
+        srmech_json_value_t *cman = NULL;
+        srmech_json_value_t *ccen = NULL;
+        unsigned char cout[64];
+        size_t colen = 0u;
+        srmech_status_t c1 = srmech_genome_catalog(dir, NULL, 0u, g_ws,
+                                                   sizeof(g_ws), &cman);
+        srmech_status_t c2 = srmech_genome_census(dir, NULL, 0u, g_ws,
+                                                  sizeof(g_ws), &ccen);
+        srmech_status_t c3 = srmech_genome_load(dir, cout, sizeof(cout), &colen,
+                                                NULL, 0u, g_ws, sizeof(g_ws));
+        check_true(c1 == SRMECH_OK && cman != NULL, "rc337: clean store -> catalog OK");
+        check_true(c2 == SRMECH_OK && ccen != NULL, "rc337: clean store -> census OK");
+        check_true(c3 == SRMECH_OK && colen == sizeof(body),
+                   "rc337: clean store -> load OK");
+
+        char bpath[1200];
+        snprintf(bpath, sizeof(bpath), "%s/turns.bin", dir);
+        FILE *bf = fopen(bpath, "r+b");
+        check_true(bf != NULL, "rc337: reopen turns.bin to perturb a PAYLOAD byte");
+        if (bf != NULL) {
+            /* chromosome A is at byte_offset 0; +2 lands in its label field. */
+            if (fseek(bf, 2L, SEEK_SET) == 0) {
+                int c = fgetc(bf);
+                if (fseek(bf, 2L, SEEK_SET) == 0) {
+                    fputc((c + 1) % 4, bf);        /* still a legal Klein-4 symbol */
+                }
+            }
+            fclose(bf);
+        }
+
+        srmech_json_value_t *man2 = NULL;
+        srmech_json_value_t *cen2 = NULL;
+        unsigned char out2[64];
+        size_t olen2 = 0u;
+        srmech_status_t k1 = srmech_genome_catalog(dir, NULL, 0u, g_ws,
+                                                   sizeof(g_ws), &man2);
+        srmech_status_t k2 = srmech_genome_census(dir, NULL, 0u, g_ws,
+                                                  sizeof(g_ws), &cen2);
+        srmech_status_t k3 = srmech_genome_load(dir, out2, sizeof(out2), &olen2,
+                                                NULL, 0u, g_ws, sizeof(g_ws));
+        srmech_status_t k4 = srmech_genome_remove(dir, "B", coupling,
+                                                  sizeof(coupling), g_ws, sizeof(g_ws));
+        check_true(k1 == SRMECH_ERR_BAD_INPUT,
+                   "rc337: well-formed body + corrupt payload -> catalog BAD_INPUT");
+        check_true(k2 == SRMECH_ERR_BAD_INPUT,
+                   "rc337: well-formed body + corrupt payload -> census BAD_INPUT");
+        check_true(k3 == SRMECH_ERR_BAD_INPUT,
+                   "rc337: well-formed body + corrupt payload -> load BAD_INPUT");
+        check_true(k4 == SRMECH_ERR_BAD_INPUT,
+                   "rc337: well-formed body + corrupt payload -> remove BAD_INPUT");
+    }
+
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
     return (g_failed == 0) ? 0 : 1;
 }

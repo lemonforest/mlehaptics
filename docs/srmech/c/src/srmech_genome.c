@@ -2104,6 +2104,36 @@ static srmech_status_t genome_fill_strings(genome_strings_t *s,
     return genome_fill_regions_chain(s, body);             /* v4 regions + chain */
 }
 
+/* rc337 (#952) INTEGRITY BOUND — the C peer of genome.py:8438. genome_fill_strings
+ * DERIVES the region chain (s->body_sha) from the body it just walked; this wrapper
+ * additionally holds that fresh chain against the manifest head's COMMITTED
+ * body_sha256. A body modified out of band re-derives a DIFFERENT chain →
+ * SRMECH_ERR_BAD_INPUT (the GenomeBoundingError analogue). `committed` == "" is the
+ * SENTINEL for "no committed chain to bind against" — a manifest-LESS genome, or a
+ * v≤11 FULL manifest whose body_sha256 may be a whole-body digest rather than a
+ * region chain — matching genome.py:8452-8453, which likewise binds ONLY on the v12
+ * head-only path.
+ *
+ * Deliberately NOT folded into genome_fill_strings itself: srmech_genome_save
+ * (c:3457) calls that primitive to CREATE the committed value, so a memcmp inside it
+ * would fail every save. The bound belongs to the READER-side derive only. */
+static srmech_status_t genome_fill_strings_bound(genome_strings_t *s,
+                                                 genome_arena_t *a,
+                                                 const unsigned char *body,
+                                                 size_t body_len, uint32_t leaf_dim,
+                                                 const unsigned char *coupling,
+                                                 const char *committed)
+{
+    assert(s != NULL && committed != NULL);
+    assert(a != NULL && coupling != NULL);
+    srmech_status_t st = genome_fill_strings(s, a, body, body_len, leaf_dim,
+                                             coupling);
+    if (st != SRMECH_OK) { return st; }
+    if (committed[0] == '\0') { return SRMECH_OK; }   /* nothing committed to bind */
+    return (memcmp(committed, s->body_sha, 64u) == 0) ? SRMECH_OK
+                                                      : SRMECH_ERR_BAD_INPUT;
+}
+
 /* ------------------------------------------------------------------ *
  * Manifest write buffer — the serialised manifest bytes + trailing LF, carved
  * from the caller arena (NO fixed cap). The size is bounded by the chromosome
@@ -3565,13 +3595,75 @@ static srmech_status_t genome_head_rebuild_params(const srmech_json_value_t *hea
     return genome_hex2bytes(hx->u.str.ptr, *leaf_dim, one_buf);
 }
 
+/* rc337 (#952): copy the manifest head's COMMITTED body_sha256 out as a
+ * NUL-terminated 64-hex string (`out` needs 65 bytes) — the value the reader-side
+ * derive is then BOUND against by genome_fill_strings_bound.
+ *
+ * HEAD-ONLY GATE. A v≤11 FULL manifest (a `chromosomes` array present) yields the
+ * EMPTY-STRING sentinel instead: there body_sha256 can be a WHOLE-BODY digest rather
+ * than the v4+ region CHAIN a body scan re-derives (genome_verify_body's v2/v3
+ * branch), so an unconditional compare would hard-fail every legacy store. The gate
+ * lives HERE rather than at the call sites so the census/registry derive
+ * (genome_scan_params) inherits it. This is also exactly where the pure projection
+ * draws the line — genome.py binds only on the v12 head-only path (:8438) and falls
+ * through untouched otherwise (:8452).
+ *
+ * On a v12 head-only manifest a missing / non-string / wrong-length body_sha256 is
+ * SRMECH_ERR_BAD_INPUT — parity with the pure side, where `head.get("body_sha256")`
+ * returning None mismatches the derived chain and raises. */
+static srmech_status_t genome_head_committed_body_sha(
+    const srmech_json_value_t *head, char *out)
+{
+    assert(head != NULL);
+    assert(out != NULL);
+    out[0] = '\0';
+    if (genome_data_get(head, "chromosomes") != NULL) {
+        return SRMECH_OK;              /* v≤11 FULL manifest — not a derivable chain */
+    }
+    const srmech_json_value_t *bs = genome_data_get(head, "body_sha256");
+    if (bs == NULL || bs->type != SRMECH_JSON_STRING || bs->u.str.len != 64u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    memcpy(out, bs->u.str.ptr, 64u);
+    out[64] = '\0';
+    return SRMECH_OK;
+}
+
+/* Read <dir>/turns.bin into the arena `a` — the body-read step shared by BOTH
+ * reader-side derives (genome_obtain_manifest's §44 rebuild and the census's
+ * genome_load_strings, which carried byte-identical copies of it). Behaviour-
+ * preserving extraction; on success *body points into `a` and *blen is the byte
+ * count read. */
+static srmech_status_t genome_arena_read_body(const char *dir, genome_arena_t *a,
+                                              unsigned char **body, size_t *blen)
+{
+    assert(dir != NULL && a != NULL);
+    assert(body != NULL && blen != NULL);
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(dir, SRMECH_GENOME_BODY,
+                                     body_path, sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    size_t bsz = 0u;
+    st = genome_file_size(body_path, &bsz);
+    if (st != SRMECH_OK) { return st; }
+    *body = genome_arena_alloc(a, (bsz == 0u) ? 1u : bsz);
+    if (*body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    *blen = 0u;
+    return genome_read_file(body_path, *body, bsz, blen);
+}
+
 /* §44: obtain the manifest TREE — parse manifest.json if present (cheap; never
  * opens turns.bin), else REBUILD it by scanning the self-describing body (the
  * strand is the SSoT, the manifest an optional .fai cache). The rebuild needs
  * `coupling` (coupling_len IS leaf_dim, the width the body lacks inline); a
  * missing manifest with coupling==NULL returns SRMECH_ERR_BAD_INPUT (the helpful
  * "pass coupling" error, NOT a bare IO miss). On either path the tree lives in
- * `ws`, so the loaders' accessors walk it unchanged. */
+ * `ws`, so the loaders' accessors walk it unchanged.
+ *
+ * rc337 (#952): when the head-only rebuild runs, the head's COMMITTED body_sha256 is
+ * captured BEFORE the arena reset discards the parsed head, and the re-derived region
+ * chain is bound against it (genome_fill_strings_bound) — a body modified out of band
+ * is SRMECH_ERR_BAD_INPUT here rather than a silently mangled catalog. */
 static srmech_status_t genome_obtain_manifest(
     const char *dir, const unsigned char *coupling, size_t coupling_len,
     void *ws, size_t ws_len, srmech_json_value_t **out)
@@ -3588,6 +3680,7 @@ static srmech_status_t genome_obtain_manifest(
     uint32_t leaf_dim;
     const unsigned char *one_ptr;
     unsigned char one_buf[256];
+    char committed[65] = { '\0' };            /* rc337: "" = no bound (manifest-less) */
     if (genome_file_size(man_path, &msz) == SRMECH_OK) {  /* manifest present: parse it */
         char *manbuf = genome_arena_alloc(&a, msz + 1u);
         if (manbuf == NULL) { return SRMECH_ERR_OVERFLOW; }
@@ -3603,6 +3696,8 @@ static srmech_status_t genome_obtain_manifest(
         /* v12 HEAD-ONLY: derive leaf_dim + coupling from the head, rebuild from body. */
         st = genome_head_rebuild_params(*out, one_buf, &leaf_dim);
         if (st != SRMECH_OK) { return st; }
+        st = genome_head_committed_body_sha(*out, committed);   /* BEFORE the reset */
+        if (st != SRMECH_OK) { return st; }
         one_ptr = one_buf;
         genome_arena_init(&a, ws, ws_len);        /* RESET — the head is copied out */
     } else {
@@ -3612,19 +3707,13 @@ static srmech_status_t genome_obtain_manifest(
         leaf_dim = (uint32_t)coupling_len;
         one_ptr = coupling;
     }
-    char body_path[SRMECH_GENOME_PATH_MAX];
-    st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
-    if (st != SRMECH_OK) { return st; }
-    size_t bsz = 0u;
-    st = genome_file_size(body_path, &bsz);
-    if (st != SRMECH_OK) { return st; }
-    unsigned char *body = genome_arena_alloc(&a, (bsz == 0u) ? 1u : bsz);
-    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    unsigned char *body = NULL;
     size_t blen = 0u;
-    st = genome_read_file(body_path, body, bsz, &blen);
+    st = genome_arena_read_body(dir, &a, &body, &blen);
     if (st != SRMECH_OK) { return st; }
     genome_strings_t rstrs;
-    st = genome_fill_strings(&rstrs, &a, body, blen, leaf_dim, one_ptr);
+    st = genome_fill_strings_bound(&rstrs, &a, body, blen, leaf_dim, one_ptr,
+                                   committed);
     if (st != SRMECH_OK) { return st; }
     void *tws = NULL;
     size_t tws_len = 0u;
@@ -3669,19 +3758,25 @@ size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms)
  * when present (a full OR head-only manifest both carry data.leaf_dim +
  * data.coupling.hex), else from the caller `coupling` (its length IS leaf_dim).
  * Bumps `a` past the manifest bytes (the parse TREE lives in a's tail and is
- * reclaimed by the next alloc — leaf_dim + coupling are copied into one_buf). */
+ * reclaimed by the next alloc — leaf_dim + coupling are copied into one_buf).
+ *
+ * rc337 (#952): also copies out the head's COMMITTED body_sha256 into `committed`
+ * (65 bytes; "" when there is nothing to bind against) so the census/registry derive
+ * — which does NOT go through genome_obtain_manifest — gets the same integrity bound
+ * as the catalog derive. */
 static srmech_status_t genome_scan_params(
     const char *dir, const unsigned char *coupling, size_t coupling_len,
     genome_arena_t *a, unsigned char *one_buf, const unsigned char **one_ptr,
-    uint32_t *leaf_dim)
+    uint32_t *leaf_dim, char *committed)
 {
     assert(dir != NULL && a != NULL && one_buf != NULL);
-    assert(one_ptr != NULL && leaf_dim != NULL);
+    assert(one_ptr != NULL && leaf_dim != NULL && committed != NULL);
     char man_path[SRMECH_GENOME_PATH_MAX];
     srmech_status_t st = genome_join(dir, SRMECH_GENOME_MANIFEST,
                                      man_path, sizeof(man_path));
     if (st != SRMECH_OK) { return st; }
     size_t msz = 0u;
+    committed[0] = '\0';                     /* rc337: "" = no committed chain */
     if (genome_file_size(man_path, &msz) == SRMECH_OK) {   /* manifest present */
         char *manbuf = genome_arena_alloc(a, msz + 1u);
         if (manbuf == NULL) { return SRMECH_ERR_OVERFLOW; }
@@ -3693,6 +3788,8 @@ static srmech_status_t genome_scan_params(
         st = genome_parse_manifest(dir, manbuf, msz + 1u, &mlen, ptws, ptws_len, &man);
         if (st != SRMECH_OK) { return st; }
         st = genome_head_rebuild_params(man, one_buf, leaf_dim);  /* copies out */
+        if (st != SRMECH_OK) { return st; }
+        st = genome_head_committed_body_sha(man, committed);      /* copies out */
         if (st != SRMECH_OK) { return st; }
         *one_ptr = one_buf;
         return SRMECH_OK;
@@ -3707,26 +3804,20 @@ static srmech_status_t genome_scan_params(
 
 /* Read <dir>/turns.bin into the arena `a` and fill the §44 strings block
  * (label / leaf_count / cap_kind / … per chromosome) — the census's ONE body
- * scan. `a` already holds the resolved (leaf_dim, one_ptr). */
+ * scan. `a` already holds the resolved (leaf_dim, one_ptr). rc337 (#952):
+ * `committed` is the head's body_sha256 the derived region chain is bound against
+ * ("" = nothing to bind; see genome_fill_strings_bound). */
 static srmech_status_t genome_load_strings(
     const char *dir, const unsigned char *one_ptr, uint32_t leaf_dim,
-    genome_arena_t *a, genome_strings_t *s)
+    genome_arena_t *a, genome_strings_t *s, const char *committed)
 {
-    assert(dir != NULL && one_ptr != NULL);
+    assert(dir != NULL && one_ptr != NULL && committed != NULL);
     assert(a != NULL && s != NULL && leaf_dim > 0u);
-    char body_path[SRMECH_GENOME_PATH_MAX];
-    srmech_status_t st = genome_join(dir, SRMECH_GENOME_BODY,
-                                     body_path, sizeof(body_path));
-    if (st != SRMECH_OK) { return st; }
-    size_t bsz = 0u;
-    st = genome_file_size(body_path, &bsz);
-    if (st != SRMECH_OK) { return st; }
-    unsigned char *body = genome_arena_alloc(a, (bsz == 0u) ? 1u : bsz);
-    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    unsigned char *body = NULL;
     size_t blen = 0u;
-    st = genome_read_file(body_path, body, bsz, &blen);
+    srmech_status_t st = genome_arena_read_body(dir, a, &body, &blen);
     if (st != SRMECH_OK) { return st; }
-    return genome_fill_strings(s, a, body, blen, leaf_dim, one_ptr);
+    return genome_fill_strings_bound(s, a, body, blen, leaf_dim, one_ptr, committed);
 }
 
 /* §96 topology — the structural nuclear/organelle/plasmid read, INTEGER-only
@@ -3825,11 +3916,12 @@ static srmech_status_t genome_census_build(
     unsigned char one_buf[256];
     const unsigned char *one_ptr = NULL;
     uint32_t leaf_dim = 0u;
+    char committed[65] = { '\0' };       /* rc337 (#952): the head's body_sha256 */
     srmech_status_t st = genome_scan_params(dir, coupling, coupling_len, a,
-                                            one_buf, &one_ptr, &leaf_dim);
+                                            one_buf, &one_ptr, &leaf_dim, committed);
     if (st != SRMECH_OK) { return st; }
     genome_strings_t s;
-    st = genome_load_strings(dir, one_ptr, leaf_dim, a, &s);
+    st = genome_load_strings(dir, one_ptr, leaf_dim, a, &s, committed);
     if (st != SRMECH_OK) { return st; }
     /* Copy `dir` into the arena so the tree's "path" is SELF-CONTAINED (the census
      * value tree is held by reference — the caller's `dir` string may not outlive
@@ -4122,7 +4214,18 @@ static srmech_status_t genome_verify_body_chain(const unsigned char *body,
 /* Whole-body integrity bound, format-aware (rc115 #1245(b)): v4 (a `regions`
  * array present) re-folds the region chain from the chromosome byte spans; v2/v3
  * (no `regions`) checks sha256(body) == body_sha256. The GenomeBoundingError
- * analogue — SRMECH_ERR_BAD_INPUT on any mismatch. */
+ * analogue — SRMECH_ERR_BAD_INPUT on any mismatch.
+ *
+ * rc337 (#952) SCOPE NOTE — this check is REAL only on a v≤11 FULL manifest, where
+ * `manifest` was PARSED off disk and its arrays are an independent committed record.
+ * On a v12 head-only store the tree handed in here was DERIVED from the very body
+ * being verified (genome_obtain_manifest rebuilds it), so `body_sha256` and the
+ * regions both come out of that same scan and the comparison is a tautology. The
+ * head-only case is now bound one layer up instead: genome_obtain_manifest binds the
+ * derived chain against the head's COMMITTED body_sha256 via
+ * genome_fill_strings_bound, so the tree reaching this function has ALREADY been held
+ * against the manifest. Do not "fix" the tautology by widening this function — the
+ * committed value is not reachable from its inputs. */
 static srmech_status_t genome_verify_body(const unsigned char *body,
                                           size_t body_len,
                                           const srmech_json_value_t *manifest)
