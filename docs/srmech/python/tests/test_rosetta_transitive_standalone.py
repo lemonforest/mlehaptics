@@ -333,7 +333,14 @@ _WHOLE_OP_C_PEER = {
     "srmech.amsc.genome.centromere_of":    "srmech_genome_centromere_of",
     "srmech.amsc.genome.chromatin_of":     "srmech_genome_chromatin_of",
     "srmech.amsc.genome.chromosome":       "srmech_genome_chromosome",
+    # rc332 (§102 G7): the chromatin CONDENSE/DECONDENSE pair earned their whole-op C peers —
+    # srmech_genome_condense (the shared label -> chromatin-range find + region resolution -> the
+    # cap-splice insert index) and srmech_genome_decondense (the inverse per-block keep-mask). The
+    # cap BYTES were already native (srmech_genome_chromatin); this rc lifts the Python-only
+    # _chrom_range + region resolution into C, so a bare-C host runs each end-to-end.
+    "srmech.amsc.genome.condense":         "srmech_genome_condense",
     "srmech.amsc.genome.copy_number_of":   "srmech_genome_copy_number",   # rc281 (G6)
+    "srmech.amsc.genome.decondense":       "srmech_genome_decondense",
     "srmech.amsc.genome.genome":           "srmech_genome_mint",
     # rc327 (§100 G2): the GAP-2 flagship builder earned its whole-op C peer
     # srmech_genome_from_graph — the G3 partition + per-group induced-subgraph relabel +
@@ -383,17 +390,6 @@ _WHOLE_OP_C_PEER = {
 #: hand-written list: rc276 closed `integrate` and rc277 closed `mint_strand`, so the
 #: audit's G4/G5 are already gone; rc281 closes G6 (amplify + copy_number_of).
 _KNOWN_GLUE_GAPS = {
-    "srmech.amsc.genome.condense": (
-        "GAP-lite: the cap BYTES are native (srmech_genome_chromatin) but the "
-        "_chrom_range(label) lookup, region resolution and splice around them are "
-        "Python-only — reaching a C primitive is not a whole-op entry",
-        "c_host_parity_audit_rc273 §2 G7",
-    ),
-    "srmech.amsc.genome.decondense": (
-        "the whole-strand form is a near-trivial 0x48 cap-filter, but the label-scoped "
-        "form needs the same Python-only range-find as condense",
-        "c_host_parity_audit_rc273 §2 G7",
-    ),
     "srmech.amsc.genome.genes": (
         "an in-memory recall-variant that KEEPS per-gene boundaries; "
         "srmech_genome_recall flattens them and srmech_genome_gene_express_plan returns "
@@ -431,18 +427,22 @@ _KNOWN_GLUE_GAPS = {
 #: (§102 G7: the ACTIVE-TELOMERE packer earned srmech_genome_active_telomere — the
 #: op⊗operand Hayflick cap pack factored out of the tick, no daughter-minting; and the
 #: MINT-PLAN read loop earned srmech_genome_mint_plan — the encode_shape shape decision
-#: + the content-address orientation per kernel, the WHOLE assembling loop in C). This
-#: number may only DECREASE.
+#: + the content-address orientation per kernel, the WHOLE assembling loop in C); 6 -> 4 at
+#: rc332 (§102 G7: the chromatin CONDENSE/DECONDENSE pair earned srmech_genome_condense /
+#: srmech_genome_decondense — the shared label -> chromatin-range find + region resolution ->
+#: the cap-splice insert index, and the inverse per-block keep-mask; the cap BYTES were already
+#: native, so this lifts the Python-only _chrom_range + region resolution into C). This number
+#: may only DECREASE.
 #:
 #: G1 was the shared dead-end of G2 (genome_from_graph) and G3 (the GRAPH
 #: genome_partition): rc284 UNBLOCKED both, rc321 CLOSED G3 with its own C surface
 #: (participation + antimode histogram + per-node classify + group assembly on top of
 #: recursive_cut), and rc327 CLOSED G2 — it composes G3 PLUS its in-RAM
 #: _induced_subgraph relabel, the per-group graph_to_kernel -> mint_strand loop and
-#: strand assembly. The §100 G-series parity ladder is fully closed; rc329 works the §2
-#: G7 leaf-family (active_telomere / mint_plan closed; condense / decondense / the genes
-#: family / plasmid.add_plasmid remain).
-CEIL_WIRE_GLUE_GAPS = 6
+#: strand assembly. The §100 G-series parity ladder is fully closed; rc329 + rc332 work the §2
+#: G7 leaf-family (active_telomere / mint_plan / condense / decondense closed; the genes family /
+#: plasmid.add_plasmid remain).
+CEIL_WIRE_GLUE_GAPS = 4
 
 
 def _wire_scope(cls):

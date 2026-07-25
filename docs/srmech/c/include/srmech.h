@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc331"
-#define SRMECH_VERSION       "0.9.0rc331"
+#define SRMECH_VERSION_PRE   "rc332"
+#define SRMECH_VERSION       "0.9.0rc332"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6725,6 +6725,52 @@ srmech_status_t srmech_genome_chromatin_gated(
     const unsigned char *gate_blob, size_t gate_blob_len,
     const unsigned char *handle, size_t handle_len, uint32_t dim,
     unsigned char *out, size_t out_cap);
+
+/* §98/v15 (rc332 §102 G7, #887) CONDENSE — the WHOLE placement decision of
+ * srmech.amsc.genome.condense: resolve the target chromosome's block range (the shared
+ * label -> chromatin-range find, mirroring _chrom_range) and, WITHIN it, the BLOCK index at
+ * which the already-built chromatin cap (srmech_genome_chromatin, an existing C peer) is spliced.
+ * `*insert_out` is that index; a bare-C host then lays out strand[:insert] + cap + strand[insert:]
+ * (the trivial byte mechanics). The Python-only _chrom_range(label) lookup + region resolution
+ * this rc lifts into C (the "reaching a C primitive is not a whole-op entry" gap). PLACEMENT is
+ * scope, mirroring the pure body EXACTLY:
+ *   region_kind 0 (None)  -> insert = start + 1 (HEAD scope: right after the opening telomere).
+ *   region_kind 1 (int)   -> `region_turn` selects the region_turn-th DATA turn in (start, end);
+ *                            == the turn count appends at `end`; > it DECLINES.
+ *   region_kind 2 (label) -> the FIRST gene in (start, end) whose inline label equals
+ *                            (region_label, region_label_len); no match DECLINES.
+ * `label`/`label_is_none` pick the chromosome (label_is_none requires a single-chromosome strand,
+ * mirroring label=None). BYTE-IDENTICAL to the pure insert index; a turn count is a non-negative
+ * cardinality (no abs, NOT a Class-K pin-slot site). Additive plain symbol (no new typedef) ->
+ * SRMECH_ABI_VERSION stays 10, SRMECH_GENOME_FORMAT_VERSION stays 19. Caller-arena; no
+ * malloc/goto/recursion/abs/float.
+ *   SRMECH_ERR_NULL_ARG  — strand / insert_out NULL, or a label pointer NULL with a nonzero length.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, a range-find decline (strand does not open with a
+ *                          boundary cap / ambiguous label=None / no chromosome by that label), a
+ *                          region_turn past the data-turn count, or a gene label with no match. */
+srmech_status_t srmech_genome_condense(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, int label_is_none,
+    int region_kind, uint64_t region_turn,
+    const unsigned char *region_label, size_t region_label_len,
+    size_t *insert_out);
+
+/* §98/v15 (rc332 §102 G7, #887) DECONDENSE — the inverse: the WHOLE cap-clear decision of
+ * srmech.amsc.genome.decondense. Writes a KEEP-MASK — `keep_out[i]` is 1 iff block i SURVIVES the
+ * clear, 0 iff it is dropped — one byte per block (caller buffer >= n_blocks bytes); a bare-C host
+ * then filters the strand by the mask. Mirrors the pure body EXACTLY:
+ *   label_is_none (whole strand) -> drop EVERY 0x48 chromatin cap; never declines (a pure filter).
+ *   else (label scope)          -> drop only the 0x48 caps inside the target chromosome's block
+ *                                  range [start, end) (the SAME range-find as condense).
+ * BYTE-IDENTICAL to the pure kept-block set. Additive plain symbol (no new typedef) ->
+ * SRMECH_ABI_VERSION stays 10, SRMECH_GENOME_FORMAT_VERSION stays 19. Caller-arena; no
+ * malloc/goto/recursion/abs/float.
+ *   SRMECH_ERR_NULL_ARG  — strand / keep_out NULL, or label NULL with label_len > 0 (label scope).
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, or a label-scope range-find decline. */
+srmech_status_t srmech_genome_decondense(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, int label_is_none,
+    unsigned char *keep_out);
 
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome): a CHROM / kernel-telomere / active-telomere cap opens a

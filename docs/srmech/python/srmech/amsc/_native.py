@@ -4069,6 +4069,26 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64),
                 _PSZ, ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_chromatin_of.restype = ctypes.c_int
+        # rc332 (§102 G7, #887) — CONDENSE / DECONDENSE: the shared label -> chromatin-range
+        # finder + region resolution (condense's insert index) / the per-block keep-mask
+        # (decondense), lifted out of Python. NEW symbols → hasattr-guarded; additive → ABI
+        # stays 10.
+        #   int srmech_genome_condense(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *label, size_t label_len,
+        #       int label_is_none, int region_kind, uint64_t region_turn,
+        #       const unsigned char *region_label, size_t region_label_len, size_t *insert_out)
+        if hasattr(lib, "srmech_genome_condense"):
+            lib.srmech_genome_condense.argtypes = [
+                _U8, _SZ, _U32, _U8, _SZ, ctypes.c_int, ctypes.c_int, ctypes.c_uint64,
+                _U8, _SZ, _PSZ]
+            lib.srmech_genome_condense.restype = ctypes.c_int
+        #   int srmech_genome_decondense(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *label, size_t label_len,
+        #       int label_is_none, unsigned char *keep_out)
+        if hasattr(lib, "srmech_genome_decondense"):
+            lib.srmech_genome_decondense.argtypes = [
+                _U8, _SZ, _U32, _U8, _SZ, ctypes.c_int, _U8]
+            lib.srmech_genome_decondense.restype = ctypes.c_int
         # §98.1/G1 (rc274) — the CELL-STATE-CONDITIONAL (facultative) chromatin surface: the single-
         # cap COMPUTED accessibility reader + the FACULTATIVE cap writer. NEW symbols →
         # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
@@ -19465,6 +19485,95 @@ def genome_chromatin_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
         return None
     return (bool(found.value), int(t_out.value), int(num_out.value),
             int(den_out.value), int(at_out.value))
+
+
+def has_native_genome_condense() -> bool:
+    """True iff the rc332 §102/G7 srmech_genome_condense C peer is loaded + bound: a bare-C
+    host resolves condense's chromatin-range + region -> insert index with no Python present.
+    False on a no-C or pre-rc332 lib — the pure ``srmech.amsc.genome.condense`` body (the
+    _chrom_range + region resolution) is the complete byte-identical alternative + parity
+    oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_condense"))
+
+
+def genome_condense_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label, region):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.condense`: run the WHOLE placement
+    decision in C via ``srmech_genome_condense`` — the label -> chromatin-range find + the
+    ``region`` resolution — and return the BLOCK INDEX at which the (already-native) chromatin
+    cap is spliced, or ``None`` when the symbol is absent / an input is off the fast path / the
+    C op declines (a range or region error), so the caller takes the pure body (which raises the
+    exact ValueError). ``label`` is the chromosome label str (``None`` for a single-chromosome
+    strand); ``region`` is ``None`` (head) / a non-negative int (data-turn index) / a gene-label
+    str — the SAME three forms condense accepts. Byte-identical to the pure insert index."""
+    if not has_native_genome_condense():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    if label is None:
+        lbytes, is_none = b"", 1
+    elif isinstance(label, str):
+        lbytes, is_none = label.encode("utf-8"), 0
+    else:
+        return None
+    if region is None:
+        rkind, rturn, rlab = 0, 0, b""
+    elif isinstance(region, bool):
+        return None                              # a bool is not a valid region (pure raises)
+    elif isinstance(region, int):
+        if region < 0 or region >= (1 << 64):
+            return None                          # negative / oversized -> pure raises / declines
+        rkind, rturn, rlab = 1, region, b""
+    elif isinstance(region, str):
+        rkind, rturn, rlab = 2, 0, region.encode("utf-8")
+    else:
+        return None                              # an unsupported region type -> pure raises
+    insert = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_condense(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(lbytes), ctypes.c_size_t(len(lbytes)), ctypes.c_int(is_none),
+        ctypes.c_int(rkind), ctypes.c_uint64(rturn),
+        _u8(rlab), ctypes.c_size_t(len(rlab)), ctypes.byref(insert))
+    if rc != SRMECH_OK:
+        return None
+    return int(insert.value)
+
+
+def has_native_genome_decondense() -> bool:
+    """True iff the rc332 §102/G7 srmech_genome_decondense C peer is loaded + bound: a bare-C
+    host computes decondense's per-block keep-mask with no Python present. False on a no-C or
+    pre-rc332 lib — the pure ``srmech.amsc.genome.decondense`` body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_decondense"))
+
+
+def genome_decondense_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.decondense`: run the WHOLE cap-clear
+    decision in C via ``srmech_genome_decondense`` and return the per-block KEEP-MASK as a list of
+    ``bool`` (``True`` keep, ``False`` drop), or ``None`` when the symbol is absent / an input is
+    off the fast path / the label-scope range-find declines, so the caller takes the pure body.
+    ``label`` is ``None`` (whole strand: drop every 0x48 cap) or a chromosome label str (drop only
+    the 0x48 caps inside that chromosome). Byte-identical to the pure kept-block set."""
+    if not has_native_genome_decondense():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks <= 0
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    if label is None:
+        lbytes, is_none = b"", 1
+    elif isinstance(label, str):
+        lbytes, is_none = label.encode("utf-8"), 0
+    else:
+        return None
+    keep = (ctypes.c_uint8 * n_blocks)()
+    rc = LIB.srmech_genome_decondense(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(lbytes), ctypes.c_size_t(len(lbytes)), ctypes.c_int(is_none), keep)
+    if rc != SRMECH_OK:
+        return None
+    return [bool(keep[i]) for i in range(n_blocks)]
 
 
 def has_native_genome_chromatin_access() -> bool:
