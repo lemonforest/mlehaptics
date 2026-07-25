@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc326"
-#define SRMECH_VERSION       "0.9.0rc326"
+#define SRMECH_VERSION_PRE   "rc327"
+#define SRMECH_VERSION       "0.9.0rc327"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -7325,6 +7325,60 @@ srmech_status_t srmech_graph_kernel_decode(
     size_t *out_n_edges,
     uint64_t *out_node_ids, size_t nid_cap, size_t *out_n_nid,
     uint64_t *out_extras, size_t ex_cap, size_t *out_n_ex);
+
+/* rc327 (§100 GAP 2 / G2, task #905) — GENOME FROM GRAPH: the C-native orchestrator
+ * that builds a multi-chromosome genome from a directed SIGNED graph PARTITIONED BY
+ * ITS OWN STRUCTURE, so a bare-C host runs the §100 GAP-2 builder end-to-end (the
+ * LAST §100 G-series parity gap G2; the G2 SIBLING of G3 srmech_genome_graph_partition).
+ * It COMPOSES srmech_genome_graph_partition (the groups) -> per group an in-RAM
+ * induced-subgraph relabel (keep every edge with BOTH endpoints in the group,
+ * ORIGINAL edge order) -> srmech_graph_kernel_encode -> the HV kernel BLOCK build
+ * (byte-identical to kernel_pack's leaves, the mint-strand block form) -> a NUCLEAR
+ * community is MINTED via srmech_genome_mint_strand (a 0x58 centromere), a PLASMID
+ * community is kept -> CONCATENATE into one strand. BYTE-IDENTICAL to the pure Python
+ * srmech.amsc.genome.genome_from_graph strand.
+ *
+ * The PARTITION READ-OUT arrays are the SAME shape srmech_genome_graph_partition
+ * writes (community_out / part_*_out / counts_out / group_*_out / group_members_out /
+ * result_out) and are CALLER-OWNED — so ONE call yields BOTH the assembled strand AND
+ * the data the Python projection rebuilds the partition dict from (no double partition).
+ * groups_cap >= 2*(n+1). The STRAND is written to `out` as uniform leaf_dim-byte HV
+ * blocks (out_cap >= the assembled block count * leaf_dim); *out_nblocks the block
+ * count, *out_nchroms the chromosome (== group) count, chrom_nsyms_out[gi] the group's
+ * true Klein-4 symbol count D (kernel_unpack recovers it from the §89 header, but it is
+ * surfaced for the chromosome record). `edges_path` is the write_packed_graph edge file
+ * srmech_genome_graph_partition streams; `edge_i/edge_j/weights/charges` (n_edges; the
+ * charges may be NULL = all 0) are the SAME edges IN MEMORY for the induced-subgraph
+ * rebuild (write_packed_graph does not carry charges). `centromere_at < 0` = the
+ * metacentric midpoint; repeats/handle -> mint_strand. `tick` threads the §101
+ * PARTITIONING heartbeat into the partition AND fires a MINTING heartbeat per group; a
+ * nonzero return CANCELS -> *out_cancelled = 1 with a CLEAN partial (the partition
+ * cancel builds no strand; a mint-loop cancel keeps whole chromosomes so far). `ws` is a
+ * caller arena of >= srmech_genome_from_graph_arena_bytes(n, n_edges, n_bins, leaf_dim)
+ * BYTES (no malloc). NEVER abs (participations/counts/relabels are non-negative).
+ * ADDITIVE — a plain symbol reusing the existing srmech_progress_tick_cb_t typedef (NO
+ * new callback typedef): SRMECH_ABI_VERSION stays 10, GENOME_FORMAT_VERSION stays 19
+ * (the strand is plain v15-era KERNEL chromosomes over existing caps + blocks). */
+size_t srmech_genome_from_graph_arena_bytes(uint32_t n, uint32_t n_edges,
+                                            uint32_t n_bins, uint32_t leaf_dim);
+
+srmech_status_t srmech_genome_from_graph(
+    uint32_t n, const char *edges_path, const char *work_dir,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    uint32_t leaf_dim, const unsigned char *coupling,
+    uint32_t max_tome, uint32_t n_bins, uint32_t max_iters, uint32_t max_depth,
+    long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len,
+    uint32_t *community_out, uint64_t *part_num_out, uint64_t *part_den_out,
+    uint64_t *counts_out,
+    uint32_t *group_comm_out, uint32_t *group_type_out, uint32_t *group_size_out,
+    uint64_t *group_num_out, uint64_t *group_den_out,
+    uint32_t *group_members_out, uint32_t groups_cap,
+    srmech_genome_graph_partition_result_t *result_out,
+    unsigned char *out, size_t out_cap, size_t *out_nblocks,
+    uint64_t *chrom_nsyms_out, size_t *out_nchroms, uint32_t *out_cancelled,
+    void *ws, size_t ws_len, srmech_progress_tick_cb_t tick, void *tick_ctx);
 
 /* rc278 (§102 / F1252 STAGE 1 — EXTRACT) — PLASMID EXTRACT: the C-native
  * orchestrator that COMPOSES the stage-1 C peers so a bare-C host extracts ONE

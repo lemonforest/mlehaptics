@@ -6184,6 +6184,362 @@ srmech_status_t srmech_genome_plasmid_extract(
     return SRMECH_OK;
 }
 
+/* rc327 (§100 GAP 2 / G2) — build the HV IN-MEMORY block form of ONE kernel_pack
+ * strand from a flat Klein-4 symbol stream. The SAME leaves genome_kernel_region
+ * writes, but emitted as uniform leaf_dim-byte HV blocks — the KERNEL telomere cap
+ * VERBATIM, then the §89 header leaf and each content leaf COUPLED through
+ * `coupling` but NOT §55/v3 bit-packed. Byte-identical to
+ * _leaf_blocks(graph_to_kernel(...)[0]) — the representation srmech_genome_mint_strand
+ * consumes (dim-byte blocks), so the two compose. Final content leaf Klein-4-zero-
+ * padded. Caller-arena `out`; *out_nblocks the block count. No malloc/goto/abs/float. */
+static srmech_status_t genome_kernel_blocks(
+    const uint8_t *syms, size_t n_syms, uint32_t leaf_dim,
+    const unsigned char *coupling, const char *label,
+    unsigned char *out, size_t out_cap, size_t *out_nblocks)
+{
+    unsigned char leaf[256];
+    size_t dim = (size_t)leaf_dim;
+    size_t pos = 0u, nb = 0u;
+    srmech_status_t st;
+    if (syms == NULL || coupling == NULL || out == NULL || out_nblocks == NULL ||
+        label == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && out_nblocks != NULL);
+    assert(coupling != NULL && label != NULL);
+    if (leaf_dim < 52u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    if (out_cap < dim) { return SRMECH_ERR_OVERFLOW; }
+    /* [0] KERNEL telomere cap (verbatim leaf_dim bytes). */
+    st = genome_pack_cap(SRMECH_GENOME_KERNEL_TELOMERE_MARKER,
+                         (const unsigned char *)label, strlen(label), leaf_dim,
+                         out, dim);
+    if (st != SRMECH_OK) { return st; }
+    pos = dim; nb = 1u;
+    /* the §89 header leaf: build -> couple through coupling (NOT v3-packed). */
+    genome_kernel_header_leaf(n_syms, leaf_dim, leaf, leaf_dim);
+    if (pos + dim > out_cap) { return SRMECH_ERR_OVERFLOW; }
+    st = srmech_klein4_bind(leaf, coupling, leaf_dim, out + pos);
+    if (st != SRMECH_OK) { return st; }
+    pos += dim; nb++;
+    /* content leaves: chunk syms leaf_dim-wide, zero-pad final -> couple. */
+    for (size_t i = 0u; i < n_syms; i += dim) {
+        size_t take = (n_syms - i < dim) ? (n_syms - i) : dim;
+        for (size_t j = 0u; j < dim; j++) {
+            leaf[j] = (j < take) ? (unsigned char)(syms[i + j] & 3u) : 0u;
+        }
+        if (pos + dim > out_cap) { return SRMECH_ERR_OVERFLOW; }
+        st = srmech_klein4_bind(leaf, coupling, leaf_dim, out + pos);
+        if (st != SRMECH_OK) { return st; }
+        pos += dim; nb++;
+    }
+    *out_nblocks = nb;
+    return SRMECH_OK;
+}
+
+/* rc327 (§100 GAP 2 / G2) — the per-group scratch carved off the caller arena for
+ * srmech_genome_from_graph. The recursive_cut/participation PARTITION arena (`pws`)
+ * plus the per-community induced-subgraph buffers (reused across groups: the O(n)
+ * membership map + node-id table, the O(n_edges) relabelled edge arrays, the syms
+ * stream, the packed-block + minted-block buffers). The partition READ-OUT arrays
+ * are caller-owned (so the Python projection rebuilds the SAME partition dict). */
+typedef struct {
+    uint32_t n;
+    uint32_t leaf_dim;
+    void          *pws;    size_t pws_len;
+    uint32_t      *map;                       /* n; GFG_SENTINEL between groups   */
+    uint64_t      *nid;                       /* n; group members as uint64       */
+    uint64_t      *ei2;   uint64_t *ej2;      /* n_edges; relabelled endpoints    */
+    uint64_t      *w2;    int64_t  *c2;        /* n_edges; metric + signed charge  */
+    uint8_t       *syms;  size_t syms_cap;
+    unsigned char *blocks; size_t blocks_cap;
+    unsigned char *minted; size_t minted_cap;
+    /* caller PARTITION arrays (bound after the partition returns). */
+    const uint32_t *g_comm; const uint32_t *g_type; const uint32_t *g_size;
+    const uint32_t *g_members;
+} gfg_state_t;
+
+#define GFG_SENTINEL 0xFFFFFFFFu
+#define GFG_ALIGN16(x) (((size_t)(x) + 15u) & ~(size_t)15u)
+
+/* rc327 — the arena BYTES srmech_genome_from_graph needs: the graph-partition
+ * arena + the per-group scratch (all reused across groups at whole-graph worst-case
+ * size — each induced subgraph is a strict subset). Mirrors the other genome
+ * *_arena_bytes helpers. Pure integer; no float, no abs. */
+size_t srmech_genome_from_graph_arena_bytes(uint32_t n, uint32_t n_edges,
+                                            uint32_t n_bins, uint32_t leaf_dim)
+{
+    size_t nn = (n == 0u) ? 1u : (size_t)n;
+    size_t ne = (n_edges == 0u) ? 1u : (size_t)n_edges;
+    size_t ld = (leaf_dim < 52u) ? 52u : (size_t)leaf_dim;
+    size_t n_ints = 8u + (size_t)n + 4u * (size_t)n_edges;
+    size_t syms_cap = 17u * n_ints + 64u;
+    size_t n_leaves = 2u + (syms_cap + ld - 1u) / ld;
+    size_t blocks_cap = n_leaves * ld;
+    size_t total = 0u;
+    assert(n_bins >= 2u);
+    assert(ld >= 52u);
+    total += GFG_ALIGN16(srmech_genome_graph_partition_arena_bytes(
+                             n, 0u, n_bins, (size_t)n + 1u));
+    total += GFG_ALIGN16(nn * sizeof(uint32_t));      /* map                     */
+    total += GFG_ALIGN16(nn * sizeof(uint64_t));      /* nid                     */
+    total += 3u * GFG_ALIGN16(ne * sizeof(uint64_t)); /* ei2, ej2, w2            */
+    total += GFG_ALIGN16(ne * sizeof(int64_t));       /* c2                      */
+    total += GFG_ALIGN16(syms_cap);
+    total += GFG_ALIGN16(blocks_cap);
+    total += GFG_ALIGN16(blocks_cap + ld);            /* minted                  */
+    return total + 512u;                              /* per-carve align slop    */
+}
+
+/* rc327 — carve the partition arena + per-group scratch off the caller `ws`. The
+ * partition read-out arrays stay caller-owned (carved by the binding), so the
+ * scratch here is only what the group build reuses. NULL on overflow. */
+static srmech_status_t gfg_carve(gfg_state_t *s, uint32_t n, uint32_t n_edges,
+                                 uint32_t n_bins, uint32_t leaf_dim,
+                                 void *ws, size_t ws_len)
+{
+    genome_arena_t a;
+    size_t nn = (n == 0u) ? 1u : (size_t)n;
+    size_t ne = (n_edges == 0u) ? 1u : (size_t)n_edges;
+    size_t ld = (size_t)leaf_dim;
+    size_t n_ints = 8u + (size_t)n + 4u * (size_t)n_edges;
+    size_t syms_cap = 17u * n_ints + 64u;
+    size_t n_leaves = 2u + (syms_cap + ld - 1u) / ld;
+    size_t blocks_cap = n_leaves * ld;
+    assert(s != NULL);
+    assert(ws != NULL || ws_len == 0u);
+    genome_arena_init(&a, ws, ws_len);
+    s->n = n; s->leaf_dim = leaf_dim;
+    s->pws = genome_arena_alloc(&a, srmech_genome_graph_partition_arena_bytes(
+                                        n, 0u, n_bins, (size_t)n + 1u));
+    s->pws_len = srmech_genome_graph_partition_arena_bytes(n, 0u, n_bins,
+                                                           (size_t)n + 1u);
+    s->map = genome_arena_alloc(&a, nn * sizeof(uint32_t));
+    s->nid = genome_arena_alloc(&a, nn * sizeof(uint64_t));
+    s->ei2 = genome_arena_alloc(&a, ne * sizeof(uint64_t));
+    s->ej2 = genome_arena_alloc(&a, ne * sizeof(uint64_t));
+    s->w2  = genome_arena_alloc(&a, ne * sizeof(uint64_t));
+    s->c2  = genome_arena_alloc(&a, ne * sizeof(int64_t));
+    s->syms = genome_arena_alloc(&a, syms_cap); s->syms_cap = syms_cap;
+    s->blocks = genome_arena_alloc(&a, blocks_cap); s->blocks_cap = blocks_cap;
+    s->minted = genome_arena_alloc(&a, blocks_cap + ld); s->minted_cap = blocks_cap + ld;
+    if (s->pws == NULL || s->map == NULL || s->nid == NULL || s->ei2 == NULL ||
+        s->ej2 == NULL || s->w2 == NULL || s->c2 == NULL || s->syms == NULL ||
+        s->blocks == NULL || s->minted == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    return SRMECH_OK;
+}
+
+/* rc327 — the sub-graph INDUCED on `members` (a partition group), relabelled to
+ * local ids 0..size-1: keep every edge with BOTH endpoints in the group, carrying
+ * its metric weight + signed charge (mirror genome._induced_subgraph, ORIGINAL edge
+ * order). `map` is GFG_SENTINEL for every node on entry and is restored to that on
+ * exit, so it is reused across groups in O(size), not O(n). No abs (a relabel/charge
+ * has no magnitude to strip). */
+static void gfg_induced(const uint32_t *members, uint32_t size, uint32_t n,
+                        const uint64_t *edge_i, const uint64_t *edge_j,
+                        const uint64_t *weights, const int64_t *charges,
+                        size_t n_edges, uint32_t *map,
+                        uint64_t *ei2, uint64_t *ej2, uint64_t *w2, int64_t *c2,
+                        size_t *n_edges2)
+{
+    size_t m = 0u;
+    assert(members != NULL || size == 0u);
+    assert(map != NULL && n_edges2 != NULL);
+    for (uint32_t k = 0u; k < size; k++) { map[members[k]] = k; }
+    for (size_t e = 0u; e < n_edges; e++) {
+        uint64_t u = edge_i[e], v = edge_j[e];
+        if (u >= (uint64_t)n || v >= (uint64_t)n) { continue; }
+        uint32_t lu = map[(size_t)u], lv = map[(size_t)v];
+        if (lu == GFG_SENTINEL || lv == GFG_SENTINEL) { continue; }
+        ei2[m] = lu; ej2[m] = lv;
+        w2[m] = weights[e];
+        c2[m] = (charges != NULL) ? charges[e] : 0;
+        m++;
+    }
+    for (uint32_t k = 0u; k < size; k++) { map[members[k]] = GFG_SENTINEL; }
+    *n_edges2 = m;
+}
+
+/* rc327 — a UNIQUE, self-describing chromosome label per group (mirror the Python
+ * f"{type}_c{community}_{gi}"). type 0 -> "nuclear", 1 -> "plasmid". `buf` is >= 64
+ * bytes; the formatted label always fits a leaf_dim >= 52 cap (genome_pack_cap
+ * rejects an over-long one). No abs. */
+static void gfg_label(uint32_t type, uint32_t comm, uint32_t gi,
+                      char *buf, size_t cap)
+{
+    const char *ts = (type == 0u) ? "nuclear" : "plasmid";
+    int wrote;
+    assert(buf != NULL && cap > 1u);
+    assert(type == 0u || type == 1u);
+    wrote = snprintf(buf, cap, "%s_c%u_%u", ts, comm, gi);
+    (void)wrote;
+}
+
+/* rc327 — build ONE chromosome for group `gi`: induced sub-graph -> graph_kernel
+ * encode -> HV kernel blocks -> (MINT a §95a centromere iff nuclear) -> append the
+ * blocks to `out`. Byte-identical to the Python per-group graph_to_kernel ->
+ * mint_strand splice. No malloc/goto/abs/float. */
+static srmech_status_t gfg_build_group(gfg_state_t *s, uint32_t gi,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    const unsigned char *coupling, long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len, uint32_t member_off,
+    unsigned char *out, size_t out_cap, size_t *out_pos, uint64_t *chrom_nsyms)
+{
+    uint32_t size = s->g_size[gi], comm = s->g_comm[gi], type = s->g_type[gi];
+    const uint32_t *members = s->g_members + member_off;
+    char label[64];
+    size_t n_edges2 = 0u, n_syms = 0u, nb = 0u, wb;
+    size_t dim = (size_t)s->leaf_dim;
+    srmech_status_t st;
+    assert(s != NULL && out != NULL && out_pos != NULL);
+    assert(chrom_nsyms != NULL);
+    for (uint32_t k = 0u; k < size; k++) { s->nid[k] = (uint64_t)members[k]; }
+    gfg_induced(members, size, s->n, edge_i, edge_j, weights, charges, n_edges,
+                s->map, s->ei2, s->ej2, s->w2, s->c2, &n_edges2);
+    st = srmech_graph_kernel_encode((uint64_t)size, s->ei2, s->ej2, s->w2, s->c2,
+                                    n_edges2, s->nid, (size_t)size, NULL, 0u,
+                                    s->syms, s->syms_cap, &n_syms);
+    if (st != SRMECH_OK) { return st; }
+    gfg_label(type, comm, gi, label, sizeof label);
+    st = genome_kernel_blocks(s->syms, n_syms, s->leaf_dim, coupling, label,
+                              s->blocks, s->blocks_cap, &nb);
+    if (st != SRMECH_OK) { return st; }
+    *chrom_nsyms = (uint64_t)n_syms;
+    if (type == 0u) {                     /* NUCLEAR -> MINT the 0x58 centromere */
+        st = srmech_genome_mint_strand(s->blocks, nb, s->leaf_dim, coupling,
+                                       centromere_at, 0u, 1, repeats, handle,
+                                       handle_len, s->minted, s->minted_cap, &nb);
+        if (st != SRMECH_OK) { return st; }
+    }
+    wb = nb * dim;
+    if (*out_pos + wb > out_cap) { return SRMECH_ERR_OVERFLOW; }
+    memcpy(out + *out_pos, (type == 0u) ? s->minted : s->blocks, wb);
+    *out_pos += wb;
+    return SRMECH_OK;
+}
+
+/* rc327 — fire ONE §101 MINTING heartbeat (mirror the Python per-group progress
+ * tick). Returns nonzero to CANCEL. A NULL tick is OFF. done/total are EXACT
+ * cardinalities; the library never divides. */
+static int gfg_tick(srmech_progress_tick_cb_t tick, void *user,
+                    uint64_t done, uint64_t total)
+{
+    srmech_progress_ev_t ev;
+    assert((uint32_t)SRMECH_PHASE_MINTING <= (uint32_t)SRMECH_PHASE_PARTITIONING);
+    assert(total == 0u || done <= total);
+    if (tick == NULL) { return 0; }
+    ev.struct_size = (uint32_t)sizeof(srmech_progress_ev_t);
+    ev.phase = (uint32_t)SRMECH_PHASE_MINTING;
+    ev.done = done;
+    ev.total = total;
+    return tick(&ev, user);
+}
+
+/* rc327 — the per-group build loop: for each partition group emit its chromosome
+ * (nuclear MINTED, plasmid kept) and CONCATENATE into `out`. A §101 MINTING tick
+ * fires at the TOP of each group; a nonzero return is a CLEAN partial (whole
+ * chromosomes so far). No abs. */
+static srmech_status_t gfg_run_groups(gfg_state_t *s, uint32_t n_groups,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    const unsigned char *coupling, long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len,
+    unsigned char *out, size_t out_cap, size_t *out_nblocks,
+    uint64_t *chrom_nsyms_out, size_t *out_nchroms, uint32_t *out_cancelled,
+    srmech_progress_tick_cb_t tick, void *tick_ctx)
+{
+    size_t out_pos = 0u;
+    uint32_t member_off = 0u;
+    srmech_status_t st;
+    assert(s != NULL && out != NULL);
+    assert(out_nblocks != NULL && out_nchroms != NULL);
+    for (uint32_t gi = 0u; gi < n_groups; gi++) {
+        if (gfg_tick(tick, tick_ctx, gi, n_groups) != 0) {   /* clean partial */
+            *out_cancelled = 1u;
+            break;
+        }
+        st = gfg_build_group(s, gi, edge_i, edge_j, weights, charges, n_edges,
+                             coupling, centromere_at, repeats, handle, handle_len,
+                             member_off, out, out_cap, &out_pos,
+                             &chrom_nsyms_out[gi]);
+        if (st != SRMECH_OK) { return st; }
+        member_off += s->g_size[gi];
+        *out_nchroms += 1u;
+    }
+    *out_nblocks = out_pos / (size_t)s->leaf_dim;
+    return SRMECH_OK;
+}
+
+/* rc327 (§100 GAP 2 / G2, task #905) — the C-native GENOME-FROM-GRAPH orchestrator
+ * (doc: srmech.h). Composes srmech_genome_graph_partition (the groups) -> per group
+ * an in-RAM induced-subgraph relabel -> srmech_graph_kernel_encode -> the HV kernel
+ * blocks -> srmech_genome_mint_strand (nuclear only) -> strand assembly, so a bare-C
+ * host builds a multi-chromosome genome from a directed graph END-TO-END (closes the
+ * LAST §100 G-series parity gap G2). BYTE-IDENTICAL to the pure Python
+ * genome_from_graph strand. The partition READ-OUT arrays are caller-owned so the
+ * Python projection rebuilds the SAME partition dict from ONE call. No malloc/goto/
+ * abs/float. */
+srmech_status_t srmech_genome_from_graph(
+    uint32_t n, const char *edges_path, const char *work_dir,
+    const uint64_t *edge_i, const uint64_t *edge_j,
+    const uint64_t *weights, const int64_t *charges, size_t n_edges,
+    uint32_t leaf_dim, const unsigned char *coupling,
+    uint32_t max_tome, uint32_t n_bins, uint32_t max_iters, uint32_t max_depth,
+    long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len,
+    uint32_t *community_out, uint64_t *part_num_out, uint64_t *part_den_out,
+    uint64_t *counts_out,
+    uint32_t *group_comm_out, uint32_t *group_type_out, uint32_t *group_size_out,
+    uint64_t *group_num_out, uint64_t *group_den_out,
+    uint32_t *group_members_out, uint32_t groups_cap,
+    srmech_genome_graph_partition_result_t *result_out,
+    unsigned char *out, size_t out_cap, size_t *out_nblocks,
+    uint64_t *chrom_nsyms_out, size_t *out_nchroms, uint32_t *out_cancelled,
+    void *ws, size_t ws_len, srmech_progress_tick_cb_t tick, void *tick_ctx)
+{
+    gfg_state_t s;
+    srmech_status_t st;
+    if (edges_path == NULL || work_dir == NULL || coupling == NULL ||
+        community_out == NULL || group_comm_out == NULL || group_type_out == NULL ||
+        group_size_out == NULL || group_members_out == NULL || result_out == NULL ||
+        out == NULL || out_nblocks == NULL || chrom_nsyms_out == NULL ||
+        out_nchroms == NULL || out_cancelled == NULL || ws == NULL ||
+        (handle == NULL && handle_len != 0u) ||
+        ((edge_i == NULL || edge_j == NULL || weights == NULL) && n_edges != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL && out_nblocks != NULL && ws != NULL);
+    assert(coupling != NULL && result_out != NULL);
+    if (leaf_dim < 52u || leaf_dim > 256u || n_bins < 2u ||
+        n_edges > 0xFFFFFFFFu) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    *out_nblocks = 0u; *out_nchroms = 0u; *out_cancelled = 0u;
+    st = gfg_carve(&s, n, (uint32_t)n_edges, n_bins, leaf_dim, ws, ws_len);
+    if (st != SRMECH_OK) { return st; }
+    st = srmech_genome_graph_partition(
+        n, edges_path, work_dir, max_tome, n_bins, max_iters, max_depth,
+        community_out, part_num_out, part_den_out, counts_out,
+        group_comm_out, group_type_out, group_size_out, group_num_out,
+        group_den_out, group_members_out, groups_cap, result_out,
+        s.pws, s.pws_len, tick, tick_ctx);
+    if (st == SRMECH_CANCELLED || result_out->cancelled != 0u) {
+        *out_cancelled = 1u;
+        return SRMECH_CANCELLED;                 /* clean partial: no strand built */
+    }
+    if (st != SRMECH_OK) { return st; }
+    for (uint32_t v = 0u; v < n; v++) { s.map[v] = GFG_SENTINEL; }
+    s.g_comm = group_comm_out; s.g_type = group_type_out;
+    s.g_size = group_size_out; s.g_members = group_members_out;
+    return gfg_run_groups(&s, result_out->n_groups, edge_i, edge_j, weights,
+                          charges, n_edges, coupling, centromere_at, repeats,
+                          handle, handle_len, out, out_cap, out_nblocks,
+                          chrom_nsyms_out, out_nchroms, out_cancelled,
+                          tick, tick_ctx);
+}
+
 /* rc279 (§102 / F1252 STAGE 2 — ORGANIZE) — build the SECTION-COUNT HISTOGRAM:
  * hist[c] = how many nodes have section_count == c, over c in [0, max_count].
  * Pure integer CARDINALITIES (Class-N): no float, and no abs (a count has no

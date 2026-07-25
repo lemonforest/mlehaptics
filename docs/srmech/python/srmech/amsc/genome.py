@@ -6799,6 +6799,53 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
 
     edge_list, weight_list, charge_list = _partition_validate_graph(
         n, edges, weights, charges)
+
+    # §100 G2 (rc327, task #905): the WHOLE builder has a standalone-C peer
+    # srmech_genome_from_graph — the partition + per-group induced-subgraph relabel +
+    # graph_to_kernel + mint_strand + strand assembly ALL run in C, so a bare-C host
+    # builds the genome with NO Python present (closes the LAST §100 G-series parity
+    # gap G2, the sibling of rc321's G3). The pure body below is the complete
+    # alternative AND the byte-parity oracle (ADR-0009: the two coherency projections
+    # emit the SAME strand). Gated on progress is None — the pure path threads the §101
+    # heartbeat itself; the C peer's own tick channel serves a bare-C host. Native uses
+    # the SAME write_packed_graph edge file the G3 partition consumes, with
+    # max_depth = recursive_cut's default (64) and max_iters the genome_partition
+    # default (250), matching the pure genome_partition(...) call below.
+    if progress is None and _native.has_native_genome_from_graph():
+        import os
+        from srmech.amsc.laplacian import write_packed_graph
+        wd = tempfile.mkdtemp(prefix="srmech_fromgraph_")
+        os.makedirs(wd, exist_ok=True)
+        graph_path = os.path.join(wd, "graph.bin")
+        write_packed_graph(graph_path, edge_list, weight_list)
+        _fg = _native.genome_from_graph_c(
+            int(n), graph_path, wd, edge_list, weight_list, charge_list,
+            _coupling_block_bytes(coupling), leaf_dim, int(max_tome), int(n_bins),
+            250, 64, -1 if centromere_at is None else int(centromere_at),
+            CENTROMERE_DEFAULT_REPEATS, b"cen")
+        if _fg is not None:
+            part = _assemble_graph_partition(n, n_bins, wd, _fg)
+            if part.get("status") == GENOME_STATUS_CANCELLED:
+                return {"strand": [], "chromosomes": [], "partition": part,
+                        "counts": {"nuclear": 0, "plasmid": 0},
+                        "status": GENOME_STATUS_CANCELLED}
+            sb = _fg["strand_bytes"]
+            strand = [_hv_from_block(sb[i * leaf_dim:(i + 1) * leaf_dim])
+                      for i in range(len(sb) // leaf_dim)]
+            chromosomes = []
+            for gi, g in enumerate(part["groups"]):
+                chromosomes.append({
+                    "label": f"{g['type']}_c{g['community']}_{gi}",
+                    "type": g["type"], "community": g["community"],
+                    "n_syms": _fg["chrom_nsyms"][gi], "nodes": g["nodes"]})
+            out = {"strand": strand, "chromosomes": chromosomes, "partition": part,
+                   "counts": dict(part["counts"]), "status": GENOME_STATUS_OK}
+            if path is not None and strand:
+                genome_save(strand, path, coupling, attestation=attestation)
+                out["path"] = str(path)
+                out["census"] = genome_census(str(path), coupling=coupling)
+            return out
+
     # §101: progress= threads the heartbeat into the partition (PARTITIONING) AND the
     # per-group mint loop below (MINTING). A cancelled partition short-circuits here.
     part = genome_partition(n, edge_list, weight_list, charge_list,
