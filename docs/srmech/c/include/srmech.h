@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc336"
-#define SRMECH_VERSION       "0.9.0rc336"
+#define SRMECH_VERSION_PRE   "rc337"
+#define SRMECH_VERSION       "0.9.0rc337"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6962,21 +6962,50 @@ srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_
                                                  size_t *out_bytes);
 
 /* CATALOG: obtain the manifest catalog as a JSON value tree from the caller
- * arena `ws`. When <dir>/manifest.json is PRESENT this parses it ONLY (never
- * opens turns.bin) — the cheap catalog read. §44: when it is ABSENT the catalog
- * is REBUILT by scanning the self-describing turns.bin (the strand is the SSoT,
- * the manifest an optional .fai cache); that rebuild needs `coupling`
- * (coupling_len IS the leaf width). On success *out_manifest points at the root
- * object (the full MPRRecord; its "data" child is the catalog).
- * Pass coupling=NULL,coupling_len=0 when a manifest is known to be present.
+ * arena `ws`.
+ *
+ * WHAT THIS COSTS (rc337 — the previous wording here was false). This block used
+ * to claim the catalog "never opens turns.bin" when manifest.json is present. That
+ * holds only for a v≤11 FULL manifest, which stored the per-chromosome array
+ * verbatim. Since v12 the on-disk manifest is HEAD-ONLY — the array is a plaintext
+ * table-of-contents and ADR-0003 forbids storing one — so it is DERIVED by scanning
+ * the self-describing body. EVERY store written today is head-only, so this call
+ * reads turns.bin end to end. (The Python docstring was corrected in rc282; this
+ * one was not.)
+ *
+ * §44: when manifest.json is ABSENT the catalog is likewise REBUILT by scanning
+ * turns.bin (the strand is the SSoT, the manifest an optional .fai cache); that
+ * rebuild needs `coupling` (coupling_len IS the leaf width). On success
+ * *out_manifest points at the root object (the full MPRRecord; its "data" child is
+ * the catalog). Pass coupling=NULL,coupling_len=0 when a manifest is present.
+ *
+ * INTEGRITY (rc337): on the head-only path the re-derived region chain is held
+ * against the head's COMMITTED body_sha256, so a body modified out of band is
+ * SRMECH_ERR_BAD_INPUT rather than a catalog built from the corrupt bytes. A
+ * manifest-LESS genome has no committed value and is therefore unbound (the strand
+ * IS the truth), and a v≤11 FULL manifest is returned as parsed — there
+ * body_sha256 can be a WHOLE-BODY digest rather than the v4+ region CHAIN a scan
+ * re-derives, so an unconditional compare would hard-fail every legacy store.
+ *
+ * The bound is applied HERE, in this READ entry point, and NOT in the shared
+ * derive it calls: that derive also serves every MUTATION (remove / replace /
+ * export / explode / the .chr import append / the plasmid + integrate paths),
+ * which obtain the manifest while the store is mid-edit. Binding it there polices
+ * a TRANSIENT window and rejects CLEAN stores. srmech_genome_census /
+ * srmech_genome_registry / srmech_genome_load are correspondingly NOT bound yet —
+ * that is the #955 follow-up, tracked with executable xfail specs in
+ * python/tests/test_genome_catalog_body_bound_rc337.py.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / ws / out_manifest is NULL.
  *   SRMECH_ERR_IO          — turns.bin could not be opened / read on rebuild.
  *   SRMECH_ERR_OVERFLOW    — the manifest or its tree exceeds ws / turns.bin
  *                           exceeds the rebuild scratch.
- *   SRMECH_ERR_BAD_INPUT   — manifest.json is malformed JSON, OR it is absent
- *                           and no coupling was supplied (cannot scan).
+ *   SRMECH_ERR_BAD_INPUT   — manifest.json is malformed JSON; OR it is absent
+ *                           and no coupling was supplied (cannot scan); OR (rc337)
+ *                           the body's derived region chain does not match the
+ *                           head's committed body_sha256 (modified out of band),
+ *                           or that head field is missing / not 64 hex chars.
  */
 srmech_status_t srmech_genome_catalog(
     const char *dir, const unsigned char *coupling, size_t coupling_len,
@@ -6994,6 +7023,14 @@ srmech_status_t srmech_genome_catalog(
  * (any nuclear / diploid), else "organelle-like" (n>0 and total_leaves <= 8*n),
  * else "plasmid/prokaryote-like" (n>0, all plasmid), else "empty". Same manifest-present
  * / manifest-less rules as srmech_genome_catalog (pass coupling when absent).
+ *
+ * NOT YET BOUND (rc337 scope, #955): the census runs its OWN derive
+ * (genome_scan_params → genome_load_strings) and does NOT go through the one
+ * srmech_genome_catalog binds, so a turns.bin modified out of band still yields a
+ * census OF THE CORRUPT BYTES with a success status while the scripting
+ * projection raises. That is a live ADR-0009 split. Closing it means binding the
+ * shared derive, which also serves every mutation — see the scope note on
+ * srmech_genome_catalog for why rc337 did not.
  *
  * Error returns: SRMECH_ERR_NULL_ARG (dir/ws/out NULL); SRMECH_ERR_IO
  * (turns.bin unreadable); SRMECH_ERR_OVERFLOW (ws too small);
@@ -7026,6 +7063,11 @@ size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms);
  * function's documented error set, so the ctypes wire format is untouched and
  * SRMECH_ABI_VERSION does not move.
  *
+ * NOT YET BOUND (rc337 scope, #955): each per-genome census inherits
+ * srmech_genome_census's derive, which rc337 did not bind — so a corrupt genome
+ * under `root` contributes a census of its corrupt bytes instead of failing the
+ * read. See the scope notes on srmech_genome_catalog / srmech_genome_census.
+ *
  * Error returns: SRMECH_ERR_NULL_ARG (root/ws/out NULL); SRMECH_ERR_IO
  * (`root` cannot be opened, or a genome's turns.bin unreadable);
  * SRMECH_ERR_OVERFLOW (ws too small); SRMECH_ERR_BAD_INPUT (a genome's
@@ -7042,6 +7084,15 @@ srmech_status_t srmech_genome_registry(
  * manifest.json is absent the catalog is rebuilt by scanning turns.bin, which
  * needs `coupling` (coupling_len IS the leaf width); pass coupling=NULL,0 when a
  * manifest is present.
+ *
+ * rc337 (#955): on a v12 HEAD-ONLY store — which is every store written today —
+ * that trailing re-hash is a TAUTOLOGY. The manifest tree it compares against was
+ * itself derived from the body being verified, so its body_sha256 and its regions
+ * both come out of that one scan and the comparison cannot fail, whatever the body
+ * says. The check remains operative on a v≤11 FULL manifest, whose arrays are an
+ * independent committed record parsed off disk. Until #955 lands, a caller that
+ * needs a head-only body actually bounded should read srmech_genome_catalog first
+ * (which IS bound) and treat its status as the gate.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / out / out_len / ws is NULL.

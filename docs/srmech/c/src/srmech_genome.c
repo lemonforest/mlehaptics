@@ -3540,9 +3540,12 @@ static srmech_status_t genome_body_size(const char *dir, size_t *out)
 }
 
 /* Forward decl: genome_data_get is defined below but genome_obtain_manifest (v12
- * head-only branch) needs it above. */
+ * head-only branch) needs it above. genome_str_eq likewise — rc337's catalog
+ * bound compares a derived digest against a committed one, and
+ * srmech_genome_catalog sits above the accessor block. */
 static const srmech_json_value_t *genome_data_get(
     const srmech_json_value_t *manifest, const char *key);
+static int genome_str_eq(const srmech_json_value_t *v, const char *hex);
 
 /* From a v12 HEAD-ONLY manifest tree, extract leaf_dim + decode coupling (into
  * one_buf, cap >= leaf_dim <= 256) — the params the reader-side derive-from-body
@@ -3563,6 +3566,57 @@ static srmech_status_t genome_head_rebuild_params(const srmech_json_value_t *hea
     }
     *leaf_dim = (uint32_t)ld->u.i;
     return genome_hex2bytes(hx->u.str.ptr, *leaf_dim, one_buf);
+}
+
+/* rc337: read <dir>/manifest.json's COMMITTED body_sha256 into `out` (cap >= 65)
+ * — the value the reader-side derive is held against. `out` is left as the
+ * EMPTY-STRING sentinel, "there is nothing committed to bind against", in every
+ * case that is not a well-formed v12 HEAD-ONLY manifest:
+ *
+ *   - no manifest.json at all (§44: the strand IS the SSoT — a manifest-LESS
+ *     genome has no committed value in existence);
+ *   - a v<=11 FULL manifest (a `chromosomes` array present), because there
+ *     body_sha256 may be a WHOLE-BODY digest rather than the v4+ region CHAIN a
+ *     body scan re-derives (that is the v2/v3 branch of genome_verify_body) — an
+ *     unconditional compare would hard-fail every legacy store. This mirrors the
+ *     scripting projection's gate exactly (genome.py:8418 `if "chromosomes" in
+ *     head: return head`, so it never reaches the :8438 comparison);
+ *   - a malformed manifest, or a body_sha256 that is absent / not 64 hex chars.
+ *
+ * Failures are SILENT (sentinel, no status): this is a bound, not a parser — a
+ * manifest that will not parse is genome_obtain_manifest's error to report, with
+ * its own message, one call later. `ws` is scratch and is fully consumed; the
+ * caller's derive re-inits its own arena over the same buffer afterwards, which
+ * is exactly why the digest is COPIED out into `out` rather than referenced. */
+static void genome_catalog_committed_head(const char *dir, void *ws,
+                                          size_t ws_len, char *out)
+{
+    assert(dir != NULL && out != NULL);
+    assert(ws != NULL || ws_len == 0u);
+    out[0] = '\0';
+    char man_path[SRMECH_GENOME_PATH_MAX];
+    if (genome_join(dir, SRMECH_GENOME_MANIFEST, man_path,
+                    sizeof(man_path)) != SRMECH_OK) { return; }
+    size_t msz = 0u;
+    if (genome_file_size(man_path, &msz) != SRMECH_OK) { return; }  /* §44: none */
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    char *manbuf = genome_arena_alloc(&a, msz + 1u);
+    if (manbuf == NULL) { return; }
+    void *ptws = NULL;
+    size_t ptws_len = 0u;
+    genome_arena_tail(&a, &ptws, &ptws_len);
+    size_t mlen = 0u;
+    srmech_json_value_t *head = NULL;
+    if (genome_parse_manifest(dir, manbuf, msz + 1u, &mlen, ptws, ptws_len,
+                              &head) != SRMECH_OK) { return; }
+    if (genome_data_get(head, "chromosomes") != NULL) { return; }   /* v<=11 FULL */
+    const srmech_json_value_t *v = genome_data_get(head, "body_sha256");
+    if (v == NULL || v->type != SRMECH_JSON_STRING || v->u.str.len != 64u) {
+        return;
+    }
+    memcpy(out, v->u.str.ptr, 64u);
+    out[64] = '\0';
 }
 
 /* §44: obtain the manifest TREE — parse manifest.json if present (cheap; never
@@ -3644,8 +3698,39 @@ srmech_status_t srmech_genome_catalog(const char *dir,
     if (dir == NULL || ws == NULL || out_manifest == NULL) {
         return SRMECH_ERR_NULL_ARG;
     }
-    return genome_obtain_manifest(dir, coupling, coupling_len, ws, ws_len,
-                                  out_manifest);
+    /* rc337 INTEGRITY BOUND — the derived catalog is held against the manifest
+     * head's COMMITTED body_sha256, so a turns.bin modified out of band is
+     * SRMECH_ERR_BAD_INPUT (the GenomeBoundingError analogue) instead of a
+     * catalog built from the corrupt bytes and returned with a success status.
+     *
+     * WHY IT LIVES HERE AND NOT IN genome_obtain_manifest, which is where the
+     * head is already parsed and would need no second read: that function has
+     * FIFTEEN callers and they include every MUTATION — srmech_genome_remove /
+     * _replace / _export / _explode, the .chr import append, the plasmid +
+     * integrate paths. A mutation obtains the manifest while the store is
+     * mid-edit, so a derive-vs-committed comparison down there polices a
+     * TRANSIENT window: Windows CI went red with 22 mutation-path failures
+     * (`srmech_genome_remove returned non-OK status 2`) on stores an
+     * instrumented probe proved byte-identical to a green Linux one. This READ
+     * entry point observes only settled state. Binding census / registry /
+     * mutation is the #955 follow-up and needs that window characterised first
+     * — do NOT "simplify" this down into genome_obtain_manifest.
+     *
+     * The cost is one extra parse of manifest.json (a few hundred bytes for a
+     * v12 head) against a derive that reads the whole body. `committed` must be
+     * a COPY on this frame: the head's tree lives in `ws`, which the derive then
+     * re-inits over. An empty-string sentinel means "nothing committed to bind
+     * against" (manifest-less, or a v<=11 full manifest) and passes through
+     * unbound — the same line genome.py:8418/:8438 draws. */
+    char committed[65];
+    genome_catalog_committed_head(dir, ws, ws_len, committed);
+    srmech_status_t st = genome_obtain_manifest(dir, coupling, coupling_len,
+                                                ws, ws_len, out_manifest);
+    if (st != SRMECH_OK) { return st; }
+    if (committed[0] == '\0') { return SRMECH_OK; }
+    const srmech_json_value_t *derived = genome_data_get(*out_manifest,
+                                                         "body_sha256");
+    return genome_str_eq(derived, committed) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
 }
 
 /* ------------------------------------------------------------------ *
