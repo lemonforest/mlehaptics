@@ -52,3 +52,5 @@ The user's *"this will join our carrier soon, for full beat perspective pick"* i
 - `[SPECULATIVE]`: that a "perspective selector" is the right carrier field. Nothing is built, nothing measured on a strand. The claim that declaring a triad *determines* the seam rests on F1324 §6, which is itself a derivation about what a metric would do — not a measurement of our code.
 
 Composes **F1322** (`ker(π)` = the real axis — *now identified as the perspective-supplied component*), **F1324** (the metric picks the seam; the join is the middle 1), **F1325** (the mirror = conjugation — *the second 3 is the conjugate image*), **F1310/F1308** (the Dzhanibekov / octonion 3+1+3), **F1317/F1318** (shadow ladder + fiber). Generating code: `R-RBS-LM-PERSPECTIVE_*.py` (exit 0).
+
+**→ a wet-system instance in F1327** — `GATC` is a perfect palindrome, so the *site* supplies no orientation; the disambiguating component rides an entirely separate physical channel (hemimethylation). Same shape as the borrowed anchor: the symmetric object cannot carry the component that resolves it.
