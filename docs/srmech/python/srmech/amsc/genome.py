@@ -2994,6 +2994,14 @@ def active_telomere(label, count, dim=64):
     ``count`` → same cap. Recover the count from the bare strand with
     :func:`_active_telomere_count`; tick it with :func:`telomere_tick`.
     """
+    # rc329 (§102 G7): the pack has a standalone-C peer srmech_genome_active_telomere,
+    # so a bare-C host builds ONE active cap with NO daughter-minting (the pack logic
+    # used to live only INSIDE srmech_genome_telomere_tick). The pure
+    # _pack_active_telomere below is the complete byte-identical alternative + the
+    # parity oracle (it also raises the exact ValueErrors the C peer declines on).
+    native = _native.genome_active_telomere_c(label, count, dim)
+    if native is not None:
+        return _hv_from_block(native)
     return _pack_active_telomere(label, count, dim)
 
 
@@ -5464,15 +5472,32 @@ def mint_plan(kernels):
     — ``orientation`` is the assigned global which-way for nuclear kernels (``None`` for
     plasmids)."""
     items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
+    materialized = [(label, list(leaves)) for label, leaves in items]
+    # rc329 (§102 G7): the WHOLE read-loop has a standalone-C peer srmech_genome_mint_plan
+    # — the F715 shape decision (encode_shape → plasmid vs nuclear) + the content-address
+    # orientation (sha256(content)[0] & 3) per kernel, ALL in C, so a bare-C host assembles
+    # the plan with NO Python present (closes the §2 G7 "the per-step primitive is native
+    # but the loop that assembles the plan is not" gap). The pure per-kernel _mint_shape /
+    # _mint_orientation below are the byte-identical alternative + the parity oracle.
+    native = _native.genome_mint_plan_c(
+        [_kernel_content_bytes(lv) for _, lv in materialized],
+        [len(lv) for _, lv in materialized])
     plan = []
-    for label, leaves in items:
-        leaves_list = list(leaves)
-        _shape, tier, mint_cen = _mint_shape(leaves_list)
+    for idx, (label, leaves_list) in enumerate(materialized):
         n_leaves = len(leaves_list)
+        if native is not None:
+            is_nuclear, orient = native[idx]
+            mint_cen = bool(is_nuclear)
+            _shape = "nuclear" if mint_cen else "plasmid"
+            tier = 2 if mint_cen else 1
+            orientation = orient if mint_cen else None
+        else:
+            _shape, tier, mint_cen = _mint_shape(leaves_list)
+            orientation = _mint_orientation(leaves_list) if mint_cen else None
         plan.append({
             "label": label, "n_leaves": n_leaves, "shape": _shape, "tier": tier,
             "centromere": mint_cen,
-            "orientation": _mint_orientation(leaves_list) if mint_cen else None,
+            "orientation": orientation,
             "reason": (f"quad_strand ({n_leaves} leaves) → eukaryotic-chromosome-scale "
                        f"→ mint a Tier-2 centromere" if mint_cen else
                        f"{encode_shape(max(1, n_leaves) * LEAF_CAP)['shape']} "

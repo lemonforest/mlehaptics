@@ -222,7 +222,10 @@ def test_rosetta_ratchet_closed_g2():
     spec = importlib.util.spec_from_file_location("_rosetta_ratchet_probe", p)
     R = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(R)
-    assert R.CEIL_WIRE_GLUE_GAPS == 8
+    # The global CEIL_WIRE_GLUE_GAPS count is pinned authoritatively in the
+    # ratchet module (and the per-rc test); this per-op G2 test asserts only
+    # that genome_from_graph is CLOSED, so it stays green as later rcs (rc329+)
+    # lower the ceiling further. (rc329: dropped the stale `== 8` global pin.)
     assert R._WHOLE_OP_C_PEER["srmech.amsc.genome.genome_from_graph"] == \
         "srmech_genome_from_graph"
     assert "srmech.amsc.genome.genome_from_graph" not in R._KNOWN_GLUE_GAPS

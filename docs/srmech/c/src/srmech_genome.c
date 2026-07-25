@@ -2198,6 +2198,114 @@ srmech_status_t srmech_genome_telomere_tick(
     return SRMECH_OK;
 }
 
+/* §127/v7 (#726, rc329 §102 G7) — the ACTIVE-TELOMERE PACKER: build ONE §127 active
+ * telomere cap (mirror srmech.amsc.genome._pack_active_telomere / active_telomere).
+ * Layout: [0x74 marker] + label + NUL + count(uint64 BIG-ENDIAN), NUL-padded to
+ * leaf_dim. The op⊗operand cap — a telomere that opens+governs a chromosome (the op)
+ * carrying the exact non-negative Hayflick counter `count` INLINE (the operand). The
+ * count sits RIGHT AFTER the label's NUL terminator so the label decodes UNIFORMLY
+ * (bytes [1:] up to the first NUL). This is the PACK counterpart of
+ * srmech_genome_telomere_tick, which reads+decrements this cap to mint a DAUGHTER cap;
+ * factoring the pack into its own entry lets a bare-C host build ONE active cap with NO
+ * daughter-minting (the c_host_parity_audit_rc273 §2 G7 exhibit). `count` is a uint64 —
+ * a Hayflick counter counts DOWN to 0 = senescence and is never signed, so there is
+ * nothing to strip (NOT a Class-K pin-slot site). BYTE-IDENTICAL to the bytes behind the
+ * Python cap (which HV(sectors=256)-wraps them).
+ *   SRMECH_ERR_NULL_ARG  — out NULL, or label NULL with label_len > 0.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > out_cap, a NUL byte inside label, or the
+ *                          [marker+label+NUL+count] payload does not fit leaf_dim.
+ * Additive plain symbol (no new typedef) → SRMECH_ABI_VERSION stays 10,
+ * GENOME_FORMAT_VERSION stays 19. Caller-arena; no malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_active_telomere(
+    const unsigned char *label, size_t label_len, uint64_t count,
+    uint32_t leaf_dim, unsigned char *out, size_t out_cap)
+{
+    size_t payload = 2u + label_len + SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES;
+    size_t dim = (size_t)leaf_dim;
+    size_t base;
+    if (out == NULL || (label == NULL && label_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(out != NULL);
+    assert(label != NULL || label_len == 0u);
+    if (leaf_dim == 0u || dim > out_cap) { return SRMECH_ERR_BAD_INPUT; }
+    for (size_t i = 0u; i < label_len; i++) {
+        if (label[i] == 0u) { return SRMECH_ERR_BAD_INPUT; }   /* no NUL inside label */
+    }
+    if (payload > dim) { return SRMECH_ERR_BAD_INPUT; }        /* label + field too wide */
+    out[0] = SRMECH_GENOME_ACTIVE_TELOMERE_MARKER;
+    if (label_len != 0u) { memcpy(out + 1, label, label_len); }
+    out[1u + label_len] = 0u;                                  /* label terminator NUL */
+    base = 2u + label_len;                                     /* count field offset */
+    for (size_t k = 0u; k < SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES; k++) {
+        unsigned shift = (unsigned)(8u *
+            (SRMECH_GENOME_ACTIVE_TELOMERE_COUNT_BYTES - 1u - k));
+        out[base + k] = (unsigned char)((count >> shift) & 0xFFu);
+    }
+    memset(out + payload, 0, dim - payload);                   /* NUL-pad to leaf_dim */
+    return SRMECH_OK;
+}
+
+/* rc329 (§102 G7) — the MINT-PLAN read loop: for each kernel decide its chromosome
+ * SHAPE (plasmid vs nuclear) and, for a nuclear kernel, its content-addressed global
+ * orientation — the WHOLE read-loop of srmech.amsc.genome.mint_plan in C, so a bare-C
+ * host assembles the plan with no Python present (the c_host_parity_audit_rc273 §2 G7
+ * exhibit: the per-step primitive was native but the assembling loop was not). It
+ * BUILDS NOTHING — introspection only. Per kernel i:
+ *   depth   = srmech_genome_encode_shape(max(1, leaf_counts[i]) * SRMECH_GENOME_LEAF_CAP)
+ *             — the F715 attested criterion; is_nuclear iff shape == quad_strand
+ *             (depth >= 2), else a Tier-1 plasmid (mirror genome._mint_shape).
+ *   orient  = sha256(content_i)[0] & 3 (Class A content-address → Class C sector,
+ *             genome_mint_orientation) — WRITTEN only for a nuclear kernel; 0 for a
+ *             plasmid (the Python projection maps a plasmid's orientation to None).
+ * `content` is the flat concatenation of every kernel's content preimage (the SAME
+ * bytes genome._kernel_content_bytes serialises — its leaves as fixed-width blocks);
+ * content_lens[i] is kernel i's slice length; leaf_counts[i] its leaf count (the plan's
+ * n_leaves). BYTE-IDENTICAL to the pure mint_plan's (shape, orientation) per kernel.
+ * A leaf count is a non-negative cardinality — no abs (NOT a Class-K pin-slot site).
+ *   SRMECH_ERR_NULL_ARG  — is_nuclear_out / orient_out NULL, or leaf_counts /
+ *                          content_lens NULL with n_kernels > 0.
+ *   SRMECH_ERR_BAD_INPUT  — a leaf count whose *256 would overflow uint64.
+ * Additive plain symbol (no new typedef) → SRMECH_ABI_VERSION stays 10,
+ * GENOME_FORMAT_VERSION stays 19. Caller-arena; no malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_mint_plan(
+    const unsigned char *content, const size_t *content_lens,
+    const size_t *leaf_counts, size_t n_kernels,
+    unsigned char *is_nuclear_out, unsigned char *orient_out)
+{
+    size_t off = 0u;
+    if (is_nuclear_out == NULL || orient_out == NULL ||
+        (leaf_counts == NULL && n_kernels != 0u) ||
+        (content_lens == NULL && n_kernels != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(is_nuclear_out != NULL && orient_out != NULL);
+    assert(leaf_counts != NULL || n_kernels == 0u);
+    for (size_t i = 0u; i < n_kernels; i++) {
+        uint64_t cnt = (uint64_t)leaf_counts[i];
+        uint64_t n = (cnt == 0u) ? 1u : cnt;                   /* max(1, n_leaves) */
+        uint64_t leaves = 0u;
+        uint32_t depth = 0u;
+        srmech_status_t st;
+        if (n > (uint64_t)0xFFFFFFFFFFFFFFFFull / (uint64_t)SRMECH_GENOME_LEAF_CAP) {
+            return SRMECH_ERR_BAD_INPUT;                        /* n*256 would wrap */
+        }
+        st = srmech_genome_encode_shape(n * (uint64_t)SRMECH_GENOME_LEAF_CAP,
+                                        &leaves, &depth);
+        if (st != SRMECH_OK) { return st; }
+        is_nuclear_out[i] = (depth >= 2u) ? 1u : 0u;           /* quad_strand → nuclear */
+        orient_out[i] = 0u;
+        if (is_nuclear_out[i] != 0u) {                         /* content_lens[i] > 0 */
+            unsigned char o = 0u;
+            st = genome_mint_orientation(content + off, content_lens[i], &o);
+            if (st != SRMECH_OK) { return st; }
+            orient_out[i] = o;
+        }
+        off += content_lens[i];
+    }
+    return SRMECH_OK;
+}
+
 /* §130/v9 (#730) — read one uint64 BIG-ENDIAN mask at cap[base..base+8). Bounds are checked by
  * the caller (genome_dnf_expresses). No abs (a mask is never negated). */
 static uint64_t genome_read_u64_be(const unsigned char *cap, size_t base)

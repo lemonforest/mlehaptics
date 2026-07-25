@@ -324,6 +324,11 @@ _WIRE_FORMAT_EXTRA = frozenset({"srmech.amsc.laplacian.recursive_cut"})
 #: glue. A declaration alone proves nothing — that was the rc273 failure mode.
 _WHOLE_OP_C_PEER = {
     "srmech.amsc.genome.accessible":       "srmech_genome_chromatin_access",
+    # rc329 (§102 G7): the ACTIVE-TELOMERE packer earned its whole-op C peer
+    # srmech_genome_active_telomere — the op⊗operand Hayflick cap pack (marker + label
+    # + NUL + count, NUL-padded), factored out of srmech_genome_telomere_tick so a
+    # bare-C host builds ONE active cap with no daughter-minting.
+    "srmech.amsc.genome.active_telomere":  "srmech_genome_active_telomere",
     "srmech.amsc.genome.amplify":          "srmech_genome_amplify",       # rc281 (G6)
     "srmech.amsc.genome.centromere_of":    "srmech_genome_centromere_of",
     "srmech.amsc.genome.chromatin_of":     "srmech_genome_chromatin_of",
@@ -344,6 +349,11 @@ _WHOLE_OP_C_PEER = {
     # `mint` is a pure delegation to `genome` (its whole body is `return genome(...)`),
     # so it inherits that op's entry point rather than owning a second one.
     "srmech.amsc.genome.mint":             "srmech_genome_mint",
+    # rc329 (§102 G7): the MINT-PLAN read loop earned its whole-op C peer
+    # srmech_genome_mint_plan — encode_shape (plasmid-vs-nuclear) + the content-address
+    # orientation per kernel, the WHOLE assembling loop in C (the per-step primitive was
+    # already native; the loop that assembles the plan was not).
+    "srmech.amsc.genome.mint_plan":        "srmech_genome_mint_plan",
     "srmech.amsc.genome.partition":        "srmech_genome_partition",
     "srmech.amsc.genome.plasmid":          "srmech_genome_genome",
     # `quad_turn` is a pure delegation to the reversible Klein-4 bind primitive — the
@@ -373,12 +383,6 @@ _WHOLE_OP_C_PEER = {
 #: hand-written list: rc276 closed `integrate` and rc277 closed `mint_strand`, so the
 #: audit's G4/G5 are already gone; rc281 closes G6 (amplify + copy_number_of).
 _KNOWN_GLUE_GAPS = {
-    "srmech.amsc.genome.active_telomere": (
-        "a single cap PACKER with no exposed entry point; the pack logic exists inside "
-        "srmech_genome_telomere_tick (which mints daughter active caps) but is not "
-        "callable on its own",
-        "c_host_parity_audit_rc273 §2 G7",
-    ),
     "srmech.amsc.genome.condense": (
         "GAP-lite: the cap BYTES are native (srmech_genome_chromatin) but the "
         "_chrom_range(label) lookup, region resolution and splice around them are "
@@ -407,11 +411,6 @@ _KNOWN_GLUE_GAPS = {
         "loop around it does not",
         "c_host_parity_audit_rc273 §2 G7 (genes family)",
     ),
-    "srmech.amsc.genome.mint_plan": (
-        "a pure encode_shape-loop READ (it builds nothing); the per-step primitive is "
-        "native but the loop that assembles the plan is not",
-        "c_host_parity_audit_rc273 §2 G7",
-    ),
     "srmech.amsc.plasmid.add_plasmid": (
         "an ORCHESTRATOR over three C peers (plasmid_extract / conserved_core / "
         "integrate_plasmids) with no whole-op entry of its own — ADR-0003 §3 names "
@@ -428,16 +427,22 @@ _KNOWN_GLUE_GAPS = {
 #: the exact-integer participation + the antimode DECISION + per-node classify +
 #: group assembly, all in C); 9 -> 8 at rc327 (§100 G2 genome_from_graph earned
 #: srmech_genome_from_graph — the G3 partition + per-group induced-subgraph relabel +
-#: graph_to_kernel -> mint_strand loop + strand assembly, all in C). This number may
-#: only DECREASE.
+#: graph_to_kernel -> mint_strand loop + strand assembly, all in C); 8 -> 6 at rc329
+#: (§102 G7: the ACTIVE-TELOMERE packer earned srmech_genome_active_telomere — the
+#: op⊗operand Hayflick cap pack factored out of the tick, no daughter-minting; and the
+#: MINT-PLAN read loop earned srmech_genome_mint_plan — the encode_shape shape decision
+#: + the content-address orientation per kernel, the WHOLE assembling loop in C). This
+#: number may only DECREASE.
 #:
 #: G1 was the shared dead-end of G2 (genome_from_graph) and G3 (the GRAPH
 #: genome_partition): rc284 UNBLOCKED both, rc321 CLOSED G3 with its own C surface
 #: (participation + antimode histogram + per-node classify + group assembly on top of
-#: recursive_cut), and rc327 now CLOSES G2 — it composes G3 PLUS its in-RAM
+#: recursive_cut), and rc327 CLOSED G2 — it composes G3 PLUS its in-RAM
 #: _induced_subgraph relabel, the per-group graph_to_kernel -> mint_strand loop and
-#: strand assembly. The §100 G-series parity ladder is now fully closed.
-CEIL_WIRE_GLUE_GAPS = 8
+#: strand assembly. The §100 G-series parity ladder is fully closed; rc329 works the §2
+#: G7 leaf-family (active_telomere / mint_plan closed; condense / decondense / the genes
+#: family / plasmid.add_plasmid remain).
+CEIL_WIRE_GLUE_GAPS = 6
 
 
 def _wire_scope(cls):
