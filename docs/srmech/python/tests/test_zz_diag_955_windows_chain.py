@@ -79,13 +79,43 @@ def test_diag_955_committed_vs_derived(tmp_path, with_genes):
     except Exception as exc:            # noqa: BLE001 - diagnostic
         _dump("native_derive_RAISED", f"{type(exc).__name__}: {exc}")
 
-    # and the op that actually failed on windows
+    # ── the mutation sequence, bracketed step by step (round 2) ──────────────
+    def _state(tag):
+        """committed (on disk) vs pure-derived vs native-derived, right now."""
+        b = (p / "turns.bin").read_bytes()
+        h = json.loads((p / "manifest.json").read_text(encoding="utf-8"))
+        hd = h.get("data", h)
+        _dump(f"{tag}.body_len", len(b))
+        _dump(f"{tag}.committed", hd.get("body_sha256"))
+        _dump(f"{tag}.n_turns", hd.get("n_turns"))
+        _dump(f"{tag}.n_chromosomes", hd.get("n_chromosomes"))
+        try:
+            pd = G._catalog_data(p, one)
+            _dump(f"{tag}.pure_derived", pd.get("body_sha256"))
+            _dump(f"{tag}.MATCH_pure", pd.get("body_sha256") == hd.get("body_sha256"))
+            _dump(f"{tag}.pure_regions",
+                  [(r.get("byte_offset"), r.get("byte_len")) for r in (pd.get("regions") or [])])
+        except Exception as e:          # noqa: BLE001
+            _dump(f"{tag}.pure_RAISED", f"{type(e).__name__}: {e}")
+        try:
+            nd = G._canonical_catalog(p, one)
+            _dump(f"{tag}.native_derived", nd.get("body_sha256"))
+            _dump(f"{tag}.MATCH_native", nd.get("body_sha256") == hd.get("body_sha256"))
+        except Exception as e:          # noqa: BLE001
+            _dump(f"{tag}.native_RAISED", f"{type(e).__name__}: {e}")
+
+    _state("S0_after_save")
     try:
         G.genome_append(p, "chrB", leaves, one)
         _dump("append", "ok")
+    except Exception as exc:            # noqa: BLE001
+        _dump("append_RAISED", f"{type(exc).__name__}: {exc}")
+    _state("S1_after_append")
+    try:
         G.genome_remove(p, "chrB", coupling=one)
         _dump("remove", "ok")
-    except Exception as exc:            # noqa: BLE001 - diagnostic
-        _dump("mutation_RAISED", f"{type(exc).__name__}: {exc}")
+    except Exception as exc:            # noqa: BLE001
+        _dump("remove_RAISED", f"{type(exc).__name__}: {exc}")
+    _state("S2_after_remove")
 
     pytest.fail("[955] diagnostic — see the [955] lines above (this failure is intentional)")
