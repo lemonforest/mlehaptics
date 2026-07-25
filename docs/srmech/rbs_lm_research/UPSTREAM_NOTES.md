@@ -3529,3 +3529,47 @@ The Q₈ substrate ships at the LOW level (rc311: `element_type=ELEMENT_TYPE_Q8`
 3. **No public `q8_from_one` minter.** The rc311 TEST mints its Q₈ `one` from an RNG (`_rand_q8_one`) — the F1304/F1259 misleading-`the_one` defect (a coupling routed through a seed). siona constructs a RESONANT Q₈ `one` from `the_one` instead (`genome_store._coupler_q8`: `klein4_from_one` coset + a Class-A sign channel, π-faithful, no seed). **Ask (soft): ship a resonant `q8_from_one(one, D)`** (the Q₈ analogue of `klein4_from_one`) so downstream need not hand-build the OCT `one`.
 
 None of these blocks the substrate move (siona works around #1, fail-louds #2, constructs #3); all three would remove workarounds.
+
+## §U18 — a strand ORDER-INTEGRITY read: the shipped holonomy is order-BLIND on sparse strands (F1315/F1316) — HELD, not filed
+
+**Status: HELD** pending the srmech worktree deliverables preview (user 2026-07-23). Measured on rc335.
+
+`genome_fiber_holonomy` (ℍ) and `genome_octonion_holonomy` (𝕆) are the shipped ordered folds, and their
+docstrings correctly say a REORDER CHANGES THE RESULT — **but that is false on SPARSE strands**, which is the
+regime srmech's own genome is built for. Both fold **PER SLOT**, byte 0 is the identity at every rung and
+commutes with everything, so **leaves with disjoint per-slot support never multiply two non-identity values in
+the same slot** and the fold cannot see the reorder. Measured, 4 leaves × 128 slots, 460 permutations/row:
+
+| non-zero slots/leaf | ℍ `genome_fiber_holonomy` | 𝕆 `genome_octonion_holonomy` |
+|---|---|---|
+| 1 | **460/460 = 100 % order-collisions** | **460/460 = 100 %** |
+| 4 | 400/460 = 87 % | 416/460 = 90 % |
+| 16 | 57/460 = 12 % | 14/460 = 3 % |
+| 64+ | 0 % | 0 % |
+
+So a downstream caller reaching for the shipped holonomy to detect a reorder **gets a silent false pass on
+sparse data, with no exception** — the same failure class as the two silent-corruption bugs in §U5/§U6.
+
+**The defect and the repair are BOTH carrier-independent** (F1316): 𝕆 is ~2× less commutative than ℍ *and*
+32.8 % non-associative, and it fails **identically** — richness is orthogonal, because the cause is the
+identity element plus support geometry. The `genome_octonion_associator` does **not** help either: augmenting
+the fold with it scores **bit-for-bit identical** collisions (1502 = 1502 at every density). It is a richness
+read, not an order read.
+
+**Ask (one line, works at every rung):** an order-exact strand read — apply a **Class-C reorient** (rotate turn
+*t* by `stride·t`) **before** the existing per-slot fold. Measured **0 collisions in 3680 permutations at both
+ℍ and 𝕆**, matching the ordered-content-address bound exactly. Suggested surface, mirroring the existing pair:
+
+```
+genome_fiber_holonomy_ordered(turns, leaf_dim=None, *, stride=None)
+genome_octonion_holonomy_ordered(turns, leaf_dim=None, *, stride=None)
+   # or an `ordered=True` flag on the existing ops (default False preserves byte-compat)
+```
+
+Alternatively (cheaper, and honest): **document the sparsity bound on the existing ops' docstrings** — "the
+reorder-detection property holds only for strands whose per-slot supports overlap; on sparse strands the fold
+is order-blind" — so callers stop treating the shipped holonomy as an integrity check it cannot provide.
+
+Prereq for us either way: the `stride × leaf_dim` degeneracy sweep (unswept; a rotation that maps a support set
+onto itself would reintroduce the collision). Generating code: `R-RBS-LM-TOCV3_*.py`, `R-RBS-LM-TOCV3OCT_*.py`.
+
