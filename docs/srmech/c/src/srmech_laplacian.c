@@ -217,6 +217,166 @@ srmech_status_t srmech_graph_normalized_laplacian(uint32_t        n,
 }
 
 /* ------------------------------------------------------------------
+ * 0.9.0rc328 (task #893 / #888 rec (c)): the Laplace–Beltrami α-family.
+ * mass_normalized_laplacian generalises normalized_laplacian from
+ * degree-D to an arbitrary diagonal mass M (the α = 0 connectivity leg
+ * vs the α = 1 metric / LB leg); cotangent_weights emits the discrete
+ * LB edge weights.  Both are strict graph-algebra + one algebraic sqrt —
+ * see srmech.h + docs/srmech/notes/laplace_beltrami_scoping.md.
+ * ------------------------------------------------------------------ */
+
+srmech_status_t srmech_graph_mass_normalized_laplacian(uint32_t        n,
+                                                       uint32_t        n_edges,
+                                                       const uint32_t *edges_u,
+                                                       const uint32_t *edges_v,
+                                                       const double   *weights,
+                                                       const double   *masses,
+                                                       uint32_t        kind,
+                                                       double         *scale_ws,
+                                                       double         *out_matrix)
+{
+    assert(out_matrix != NULL);
+    assert(n == 0 || scale_ws != NULL);
+    if (out_matrix == NULL || (n > 0 && scale_ws == NULL)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (kind > 1u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    /* Build L = D − W (weighted combinatorial Laplacian) into out_matrix. */
+    srmech_status_t st = srmech_graph_dense_laplacian(
+        n, n_edges, edges_u, edges_v, weights, out_matrix);
+    if (st != SRMECH_OK) {
+        return st;
+    }
+    /* Per-node scale s_i.  m_i = caller mass, or (masses == NULL) the degree
+     * d_i the L build left on the diagonal.  Symmetric: s_i = 1/sqrt(m_i);
+     * random-walk: s_i = 1/m_i.  m_i <= 0 → 0 (isolated / massless vertex). */
+    for (uint32_t i = 0; i < n; i++) {
+        double m_i = (masses != NULL) ? masses[i]
+                                      : out_matrix[(size_t)i * n + i];
+        double s_i = 0.0;
+        if (m_i > 0.0) {
+            s_i = (kind == 0u) ? (1.0 / lap_sqrt(m_i)) : (1.0 / m_i);
+        }
+        scale_ws[i] = s_i;
+    }
+    /* Apply.  Symmetric: L̂[r,c] = L[r,c]·s_r·s_c (the diagonal d_r·s_r² =
+     * d_r/m_r follows the same formula).  Random-walk: L̂[r,c] = L[r,c]·s_r. */
+    for (uint32_t r = 0; r < n; r++) {
+        double s_r = scale_ws[r];
+        for (uint32_t c = 0; c < n; c++) {
+            size_t idx = (size_t)r * n + c;
+            out_matrix[idx] = (kind == 0u)
+                                  ? out_matrix[idx] * s_r * scale_ws[c]
+                                  : out_matrix[idx] * s_r;
+        }
+    }
+    assert(n == 0 || out_matrix != NULL);
+    return SRMECH_OK;
+}
+
+/* Cotangent of the apex angle between edge vectors u, v (dim = 2 or 3):
+ * cot θ = (u·v) / |u×v|, |u×v| = sqrt(|u|²|v|² − (u·v)²) (Lagrange; ≥ 0 in
+ * 2-D and 3-D, NO abs).  SRMECH_ERR_BAD_INPUT on a degenerate (collinear)
+ * apex where the cross magnitude vanishes. */
+static srmech_status_t lap_cotangent(const double *u, const double *v,
+                                     uint32_t dim, double *out_cot)
+{
+    assert(u != NULL && v != NULL);
+    assert(out_cot != NULL);
+    double dot = 0.0;
+    double uu = 0.0;
+    double vv = 0.0;
+    for (uint32_t d = 0; d < dim; d++) {
+        dot += u[d] * v[d];
+        uu  += u[d] * u[d];
+        vv  += v[d] * v[d];
+    }
+    double cross2 = uu * vv - dot * dot;   /* |u×v|² (Lagrange identity) */
+    if (!(cross2 > 0.0)) {
+        return SRMECH_ERR_BAD_INPUT;       /* degenerate / collinear triangle */
+    }
+    *out_cot = dot / lap_sqrt(cross2);
+    return SRMECH_OK;
+}
+
+/* Emit the three cotangent-weight contributions of triangle `t` into slots
+ * [3t, 3t+3) of the output arrays.  Corner k opposite edge (i, j): the edge
+ * (i, j) gets ½·cot(angle at k), the two edge vectors taken FROM k. */
+static srmech_status_t srmech_cotangent_emit_triangle(uint32_t        t,
+                                                      const uint32_t *tri,
+                                                      const double   *positions,
+                                                      uint32_t        dim,
+                                                      uint32_t        n_vert,
+                                                      uint32_t       *eu,
+                                                      uint32_t       *ev,
+                                                      double         *w)
+{
+    assert(tri != NULL && positions != NULL);
+    assert(eu != NULL && ev != NULL && w != NULL);
+    uint32_t vidx[3] = { tri[(size_t)3u * t],
+                         tri[(size_t)3u * t + 1u],
+                         tri[(size_t)3u * t + 2u] };
+    if (vidx[0] >= n_vert || vidx[1] >= n_vert || vidx[2] >= n_vert) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t corner = 0; corner < 3u; corner++) {
+        uint32_t ka = vidx[corner];              /* apex */
+        uint32_t ib = vidx[(corner + 1u) % 3u];  /* edge endpoint 1 */
+        uint32_t jc = vidx[(corner + 2u) % 3u];  /* edge endpoint 2 */
+        double uvec[3] = { 0.0, 0.0, 0.0 };
+        double vvec[3] = { 0.0, 0.0, 0.0 };
+        for (uint32_t d = 0; d < dim; d++) {
+            uvec[d] = positions[(size_t)ib * dim + d]
+                    - positions[(size_t)ka * dim + d];
+            vvec[d] = positions[(size_t)jc * dim + d]
+                    - positions[(size_t)ka * dim + d];
+        }
+        double cot = 0.0;
+        srmech_status_t st = lap_cotangent(uvec, vvec, dim, &cot);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+        size_t slot = (size_t)3u * t + corner;
+        eu[slot] = ib;
+        ev[slot] = jc;
+        w[slot]  = 0.5 * cot;
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_graph_cotangent_weights(uint32_t        n_tri,
+                                               const uint32_t *tri,
+                                               const double   *positions,
+                                               uint32_t        dim,
+                                               uint32_t        n_vert,
+                                               uint32_t       *out_edges_u,
+                                               uint32_t       *out_edges_v,
+                                               double         *out_weights)
+{
+    assert(out_edges_u != NULL && out_edges_v != NULL);
+    assert(out_weights != NULL);
+    if (tri == NULL || positions == NULL || out_edges_u == NULL
+        || out_edges_v == NULL || out_weights == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim != 2u && dim != 3u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    for (uint32_t t = 0; t < n_tri; t++) {
+        srmech_status_t st = srmech_cotangent_emit_triangle(
+            t, tri, positions, dim, n_vert,
+            out_edges_u, out_edges_v, out_weights);
+        if (st != SRMECH_OK) {
+            return st;
+        }
+    }
+    assert(out_weights != NULL);
+    return SRMECH_OK;
+}
+
+/* ------------------------------------------------------------------
  * 0.9.0rc105 (issue #1234 Item 3 / F1006 / F1007): magnetic (Hermitian)
  * Laplacian of a directed graph — the standalone-C builder peer of
  * `laplacian.magnetic_laplacian`. See srmech.h for the two-mode wire

@@ -804,6 +804,40 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_graph_magnetic_laplacian.restype = ctypes.c_int
 
+    # 0.9.0rc328 (task #893 / #888 rec (c)): the Laplace–Beltrami α-family.
+    # mass_normalized_laplacian — M^(-1/2)(D-W)M^(-1/2) (kind 0) or M^(-1)(D-W)
+    # (kind 1); masses NULL -> degree (the α=0 leg). scale_ws is a caller
+    # workspace of n doubles. hasattr-guarded (additive; ABI stays 10).
+    if hasattr(lib, "srmech_graph_mass_normalized_laplacian"):
+        lib.srmech_graph_mass_normalized_laplacian.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v
+            ctypes.POINTER(ctypes.c_double),    # weights (or NULL)
+            ctypes.POINTER(ctypes.c_double),    # masses (or NULL -> degree)
+            ctypes.c_uint32,                    # kind (0 sym / 1 random-walk)
+            ctypes.POINTER(ctypes.c_double),    # scale_ws (n doubles)
+            ctypes.POINTER(ctypes.c_double),    # out_matrix (n*n doubles)
+        ]
+        lib.srmech_graph_mass_normalized_laplacian.restype = ctypes.c_int
+
+    # cotangent_weights — 3*n_tri per-corner ½·cot contributions that feed
+    # srmech_graph_dense_laplacian. tri is 3*n_tri uint32; positions is
+    # n_vert*dim doubles (dim 2 or 3). hasattr-guarded (additive; ABI stays 10).
+    if hasattr(lib, "srmech_graph_cotangent_weights"):
+        lib.srmech_graph_cotangent_weights.argtypes = [
+            ctypes.c_uint32,                    # n_tri
+            ctypes.POINTER(ctypes.c_uint32),    # tri (3*n_tri)
+            ctypes.POINTER(ctypes.c_double),    # positions (n_vert*dim)
+            ctypes.c_uint32,                    # dim (2 or 3)
+            ctypes.c_uint32,                    # n_vert
+            ctypes.POINTER(ctypes.c_uint32),    # out_edges_u (3*n_tri)
+            ctypes.POINTER(ctypes.c_uint32),    # out_edges_v (3*n_tri)
+            ctypes.POINTER(ctypes.c_double),    # out_weights (3*n_tri)
+        ]
+        lib.srmech_graph_cotangent_weights.restype = ctypes.c_int
+
     # 0.9.0rc229 (#687): the V4-gain (Klein-4-sector) Laplacian builder —
     # four real signed Laplacians in one call. gains is uint8 (0..3 per
     # edge; NULL -> identity); out is 4*n*n doubles, sector-major.

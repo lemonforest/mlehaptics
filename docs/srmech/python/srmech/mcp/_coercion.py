@@ -1010,6 +1010,7 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "pathlib.Path": _to_path,
     "tuple[int, int]": _to_int_tuple,
     "list[tuple[int, int]]": _identity,   # nested lists JSON-native
+    "list[tuple[int, int, int]]": _identity,  # v0.9.0rc328: cotangent_weights `triangles` — (i,j,k) vertex-index triples, JSON-native nested list
     # 0.9.0rc231 (#810 / #687): the V₄-gain-graph odd/even-channel ops.
     #   klein4_gain_laplacian / klein4_relational_structure `gains` — per-edge V₄
     #   gain, an int 0..3 OR a [g0, g1] bit pair (each pair re-tupled).
