@@ -55,3 +55,5 @@ The user's question was the right one and the answer is that **we were trying to
 Composes **F1317** (the compounded carrier — *its cost claim is corrected here*), **F1318** (the constructor / the bit ledger — *the `+1` is now split derivable vs content*), **F1307/F1309** (the winding sign as genuine content — the case that DOES pay), **F1319** (the open-items closeout), `[[feedback_computational_provenance_discipline]]`.
 
 **→ corrects F1317 §5 and issue #1514 §3** — the "~2× space" trade is not a blanket cost; it applies only to genuinely sign-bearing content.
+
+**→ extended by F1321** — the fiber bit this finding says *must be supplied* is **already being computed and then discarded**: `the_one` holds a winding `w` whose `separate_winding_curvature()` yields a `spinor_sign` (−1 on odd holonomy), but `klein4_from_one` produces a **byte-identical coupling for every `w`** (θ moves it; `w` does not). So we throw away the very quantity we then have to re-supply. Same defect class as F1307/F1315/F1320, now at the coupling boundary.
