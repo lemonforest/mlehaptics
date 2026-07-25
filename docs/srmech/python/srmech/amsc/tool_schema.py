@@ -2572,11 +2572,22 @@ def _register_primitive_class_tools() -> None:
                     "u64-fit inputs take the fast native path (byte-identical to "
                     "the pure walk); a bignum coordinate (> 2**64 — e.g. an exact "
                     "Class-N log anchor) carries Python bigints, bounded only by "
-                    "max_denominator (Lamé caps the CF depth).",
+                    "max_denominator (Lamé caps the CF depth). with_path=True ALSO "
+                    "emits the Stern-Brocot / continued-fraction partial-quotient "
+                    "path (the Class-N approximation holonomy) whose landing "
+                    "convergent equals (p', q') — the walk was always computed and, "
+                    "before rc336, discarded.",
             parameters=(P("numerator", "int", True, "≥ 0; arbitrary magnitude"),
                         P("denominator", "int", True, "> 0; arbitrary magnitude"),
-                        P("max_denominator", "int", True, "> 0; arbitrary magnitude")),
-            returns=R("tuple[int, int]", "(p', q')"),
+                        P("max_denominator", "int", True, "> 0; arbitrary magnitude"),
+                        P("with_path", "bool", False, "keyword-only (rc336); default "
+                          "False → the pinned (p', q') 2-tuple. True → ALSO return "
+                          "the compact CF [a_0, a_1, ...] of the accepted convergents "
+                          "(the RLE of the Stern-Brocot L/R mediant walk = the Class-N "
+                          "approximation holonomy)")),
+            returns=R("tuple[int, int] | tuple[int, int, list[int]]",
+                      "(p', q') — or (p', q', path) when with_path=True, path = the "
+                      "CF partial quotients, whose folded convergent is (p', q')"),
         ),
         # ────────────────────────────────────────────────────────────
         # Class N — rational reconstruction (rc45, rung 2 of the

@@ -715,6 +715,7 @@ static const srmech_tool_param_t ts_params_100[] = {
     { "numerator", "int", 1, "\342\211\245 0; arbitrary magnitude" },
     { "denominator", "int", 1, "> 0; arbitrary magnitude" },
     { "max_denominator", "int", 1, "> 0; arbitrary magnitude" },
+    { "with_path", "bool", 0, "keyword-only (rc336); default False \342\206\222 the pinned (p', q') 2-tuple. True \342\206\222 ALSO return the compact CF [a_0, a_1, ...] of the accepted convergents (the RLE of the Stern-Brocot L/R mediant walk = the Class-N approximation holonomy)" },
 };
 static const srmech_tool_param_t ts_params_101[] = {
     { "residue", "int", 1, "the residue r (reduced into [0, M) internally)" },
@@ -4000,10 +4001,10 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.rational.best_rational",
         "srmech",
         "rational",
-        "Best rational p'/q' with q' \342\211\244 max_denominator approximating p/q via continued-fraction convergents (Stern-Brocot path). Inputs are non-negative ints with NO uint64 ceiling (#898): u64-fit inputs take the fast native path (byte-identical to the pure walk); a bignum coordinate (> 2**64 \342\200\224 e.g. an exact Class-N log anchor) carries Python bigints, bounded only by max_denominator (Lam\303\251 caps the CF depth).",
-        ts_params_100, 3u,
-        "tuple[int, int]",
-        "(p', q')",
+        "Best rational p'/q' with q' \342\211\244 max_denominator approximating p/q via continued-fraction convergents (Stern-Brocot path). Inputs are non-negative ints with NO uint64 ceiling (#898): u64-fit inputs take the fast native path (byte-identical to the pure walk); a bignum coordinate (> 2**64 \342\200\224 e.g. an exact Class-N log anchor) carries Python bigints, bounded only by max_denominator (Lam\303\251 caps the CF depth). with_path=True ALSO emits the Stern-Brocot / continued-fraction partial-quotient path (the Class-N approximation holonomy) whose landing convergent equals (p', q') \342\200\224 the walk was always computed and, before rc336, discarded.",
+        ts_params_100, 4u,
+        "tuple[int, int] | tuple[int, int, list[int]]",
+        "(p', q') \342\200\224 or (p', q', path) when with_path=True, path = the CF partial quotients, whose folded convergent is (p', q')",
         1,
         NULL,
         "{\"input\":{\"denominator\":\"100000\",\"max_denominator\":\"100\",\"numerator\":\"314159\"},\"output\":\"(22, 7)\"}",

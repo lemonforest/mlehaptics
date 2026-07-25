@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc335"
-#define SRMECH_VERSION       "0.9.0rc335"
+#define SRMECH_VERSION_PRE   "rc336"
+#define SRMECH_VERSION       "0.9.0rc336"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -3249,6 +3249,25 @@ srmech_status_t srmech_best_rational(uint64_t  numerator,
                                      uint64_t  max_denominator,
                                      uint64_t *out_p,
                                      uint64_t *out_q);
+
+/* best_rational's Stern-Brocot / continued-fraction path made explicit
+ * (rc336). Identical bounded convergent walk to srmech_best_rational, but
+ * ALSO emits the partial quotients a_0, a_1, ... of the ACCEPTED convergents
+ * into caller-allocated `terms` (the compact CF = the run-length encoding of
+ * the Stern-Brocot L/R mediant path = the Class-N approximation holonomy).
+ * *out_p / *out_q are the landing convergent, byte-identical to
+ * srmech_best_rational. Bounded by SRMECH_RATIONAL_EUCLID_CAP.
+ * Returns SRMECH_ERR_BAD_INPUT for denominator == 0 or max_denominator == 0;
+ * SRMECH_ERR_NULL_ARG for a null out-param / terms; SRMECH_ERR_OVERFLOW if
+ * max_terms is exceeded. */
+srmech_status_t srmech_best_rational_path(uint64_t  numerator,
+                                          uint64_t  denominator,
+                                          uint64_t  max_denominator,
+                                          uint64_t *terms,
+                                          uint32_t  max_terms,
+                                          uint32_t *out_count,
+                                          uint64_t *out_p,
+                                          uint64_t *out_q);
 
 /* Class N rc8: exp Taylor partial sum as exact rational.
  *
