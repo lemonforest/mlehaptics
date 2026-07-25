@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc334"
-#define SRMECH_VERSION       "0.9.0rc334"
+#define SRMECH_VERSION_PRE   "rc335"
+#define SRMECH_VERSION       "0.9.0rc335"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5294,12 +5294,24 @@ typedef enum {
     SRMECH_MVAL_COMPLEX,    /* (re, im) f64 pair — [re,im] on wire       */
     SRMECH_MVAL_LIST,       /* ordered children (items, n; is_tuple bit) */
     SRMECH_MVAL_DICT,       /* ordered key/value pairs (keys, items, n)  */
-    SRMECH_MVAL_MAT         /* rc190 real f64 Mat carrier — n=n_rows,     */
+    SRMECH_MVAL_MAT,        /* rc190 real f64 Mat carrier — n=n_rows,     */
                             /* i=n_cols, b=row-major double buffer, blen= */
                             /* n_rows*n_cols doubles (is_tuple=0, real).  */
                             /* Matches coerce_param("Mat")=Mat.from_rows( */
                             /* is_complex=False); a genuine-complex Mat    */
                             /* rides the by-reference handle path.        */
+    SRMECH_MVAL_BIGINT      /* rc335 (#948/#887) arbitrary-precision INT   */
+                            /* carrier — a PRE-FORMATTED decimal string in */
+                            /* (s, slen), REUSING those fields (NO struct- */
+                            /* layout change). mm_serialise emits it       */
+                            /* RAW/UNQUOTED (like an int64, not a string), */
+                            /* so a bignum that OVERFLOWS int64 serialises */
+                            /* BYTE-for-BYTE with json.dumps(int) / CPython */
+                            /* str(int). The One.flat / One.scalar make_   */
+                            /* class thunks build it via srmech_bigint_to_ */
+                            /* dec (leading '-', "0" for zero, no leading  */
+                            /* zeros). ABI-additive (a new enum value, no  */
+                            /* wire change) -> SRMECH_ABI_VERSION stays 10. */
 } srmech_mval_kind_t;
 
 /* The uniform JSON-args<->typed-C-args value carrier. All pointer members
