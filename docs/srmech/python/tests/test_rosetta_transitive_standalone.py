@@ -330,6 +330,11 @@ _WHOLE_OP_C_PEER = {
     "srmech.amsc.genome.chromosome":       "srmech_genome_chromosome",
     "srmech.amsc.genome.copy_number_of":   "srmech_genome_copy_number",   # rc281 (G6)
     "srmech.amsc.genome.genome":           "srmech_genome_mint",
+    # rc327 (§100 G2): the GAP-2 flagship builder earned its whole-op C peer
+    # srmech_genome_from_graph — the G3 partition + per-group induced-subgraph relabel +
+    # graph_to_kernel -> mint_strand loop + strand assembly, ALL in C. The LAST §100
+    # G-series parity gap (the sibling of G3 below).
+    "srmech.amsc.genome.genome_from_graph": "srmech_genome_from_graph",
     # rc321 (§100 G3): the GRAPH partition earned its whole-op C peer
     # srmech_genome_graph_partition (recursive_cut + the exact-integer participation +
     # the antimode DECISION + per-node classify + group assembly, all in C). NOT the
@@ -402,12 +407,6 @@ _KNOWN_GLUE_GAPS = {
         "loop around it does not",
         "c_host_parity_audit_rc273 §2 G7 (genes family)",
     ),
-    "srmech.amsc.genome.genome_from_graph": (
-        "the §100 GAP-2 compound flagship: needs recursive_cut + genome_partition plus "
-        "its own _induced_subgraph relabel, per-group graph_to_kernel -> mint_strand "
-        "loop and strand assembly",
-        "c_host_parity_audit_rc273 §2 G2",
-    ),
     "srmech.amsc.genome.mint_plan": (
         "a pure encode_shape-loop READ (it builds nothing); the per-step primitive is "
         "native but the loop that assembles the plan is not",
@@ -427,15 +426,18 @@ _KNOWN_GLUE_GAPS = {
 #: out-of-core recursive spectral bisection driver); 10 -> 9 at rc321 (§100 G3
 #: genome_partition GRAPH op earned srmech_genome_graph_partition — recursive_cut +
 #: the exact-integer participation + the antimode DECISION + per-node classify +
-#: group assembly, all in C). This number may only DECREASE.
+#: group assembly, all in C); 9 -> 8 at rc327 (§100 G2 genome_from_graph earned
+#: srmech_genome_from_graph — the G3 partition + per-group induced-subgraph relabel +
+#: graph_to_kernel -> mint_strand loop + strand assembly, all in C). This number may
+#: only DECREASE.
 #:
 #: G1 was the shared dead-end of G2 (genome_from_graph) and G3 (the GRAPH
-#: genome_partition): rc284 UNBLOCKED both and rc321 now CLOSES G3 with its own C
-#: surface (participation + antimode histogram + per-node classify + group assembly
-#: on top of recursive_cut). G2 remains open — it needs all of G3 PLUS its in-RAM
+#: genome_partition): rc284 UNBLOCKED both, rc321 CLOSED G3 with its own C surface
+#: (participation + antimode histogram + per-node classify + group assembly on top of
+#: recursive_cut), and rc327 now CLOSES G2 — it composes G3 PLUS its in-RAM
 #: _induced_subgraph relabel, the per-group graph_to_kernel -> mint_strand loop and
-#: strand assembly, so it is a separate rc, not a free rider on this one.
-CEIL_WIRE_GLUE_GAPS = 9
+#: strand assembly. The §100 G-series parity ladder is now fully closed.
+CEIL_WIRE_GLUE_GAPS = 8
 
 
 def _wire_scope(cls):

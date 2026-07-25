@@ -2984,6 +2984,65 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_genome_graph_partition.restype = ctypes.c_int
 
+        # §100 G2 (rc327, task #905) — GENOME FROM GRAPH: the WHOLE-OP C peer of
+        # srmech.amsc.genome.genome_from_graph. Composes srmech_genome_graph_partition
+        # -> per group an in-RAM induced-subgraph relabel -> srmech_graph_kernel_encode
+        # -> the HV kernel BLOCK build -> srmech_genome_mint_strand (nuclear) -> strand
+        # assembly. The partition read-out arrays are the SAME shape the G3 op writes
+        # (caller-owned so the Python projection rebuilds the partition dict). ADDITIVE
+        # — a plain symbol reusing the tick typedef, so ABI stays 10; ws_len in BYTES.
+        if hasattr(lib, "srmech_genome_from_graph"):
+            lib.srmech_genome_from_graph_arena_bytes.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_uint32,                   # n_edges
+                ctypes.c_uint32,                   # n_bins
+                ctypes.c_uint32,                   # leaf_dim
+            ]
+            lib.srmech_genome_from_graph_arena_bytes.restype = ctypes.c_size_t
+            lib.srmech_genome_from_graph.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # edges_path (packed edge file)
+                ctypes.c_char_p,                   # work_dir
+                ctypes.POINTER(ctypes.c_uint64),  # edge_i (n_edges)
+                ctypes.POINTER(ctypes.c_uint64),  # edge_j (n_edges)
+                ctypes.POINTER(ctypes.c_uint64),  # weights (n_edges)
+                ctypes.POINTER(ctypes.c_int64),   # charges (n_edges; NULL = all 0)
+                ctypes.c_size_t,                   # n_edges
+                ctypes.c_uint32,                   # leaf_dim
+                ctypes.POINTER(ctypes.c_uint8),   # coupling (leaf_dim)
+                ctypes.c_uint32,                   # max_tome
+                ctypes.c_uint32,                   # n_bins
+                ctypes.c_uint32,                   # max_iters
+                ctypes.c_uint32,                   # max_depth
+                ctypes.c_long,                     # centromere_at (< 0 = metacentric)
+                ctypes.c_uint32,                   # repeats
+                ctypes.POINTER(ctypes.c_uint8),   # handle
+                ctypes.c_size_t,                   # handle_len
+                ctypes.POINTER(ctypes.c_uint32),  # community_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # part_num_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # part_den_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # counts_out (n_bins)
+                ctypes.POINTER(ctypes.c_uint32),  # group_comm_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_type_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_size_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint64),  # group_num_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint64),  # group_den_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_members_out (n)
+                ctypes.c_uint32,                   # groups_cap
+                ctypes.POINTER(_GenomeGraphPartitionResult),  # result_out
+                ctypes.POINTER(ctypes.c_uint8),   # out (strand blocks)
+                ctypes.c_size_t,                   # out_cap
+                ctypes.POINTER(ctypes.c_size_t),  # out_nblocks
+                ctypes.POINTER(ctypes.c_uint64),  # chrom_nsyms_out (groups_cap)
+                ctypes.POINTER(ctypes.c_size_t),  # out_nchroms
+                ctypes.POINTER(ctypes.c_uint32),  # out_cancelled
+                ctypes.POINTER(ctypes.c_double),  # ws arena
+                ctypes.c_size_t,                   # ws_len (in BYTES)
+                _TICK_CFUNCTYPE,                   # tick (NULL == off)
+                ctypes.c_void_p,                   # tick_ctx
+            ]
+            lib.srmech_genome_from_graph.restype = ctypes.c_int
+
         # size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n) +
         # srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n,
         #     const char *path, uint32_t k, uint32_t max_iters,
@@ -16834,6 +16893,147 @@ def genome_graph_partition_c(n, edges_path, work_dir, max_tome, n_bins, max_iter
         "node_counts": {"nuclear": int(result.node_nuclear),
                         "plasmid": int(result.node_plasmid)},
         "groups": groups,
+    }
+
+
+def has_native_genome_from_graph() -> bool:
+    """True iff the §100 GAP 2/rc327 srmech_genome_from_graph C peer is loaded +
+    bound: a bare-C host builds a multi-chromosome genome from a directed graph
+    (srmech_genome_graph_partition -> per-group induced-subgraph relabel ->
+    graph_kernel_encode -> the HV kernel blocks -> mint_strand -> strand assembly)
+    end-to-end. False on a no-C or pre-rc327 lib — the pure
+    srmech.amsc.genome.genome_from_graph body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_from_graph")
+                and hasattr(LIB, "srmech_genome_from_graph_arena_bytes"))
+
+
+def genome_from_graph_c(n, edges_path, work_dir, edge_list, weight_list,
+                        charge_list, coupling, leaf_dim, max_tome, n_bins,
+                        max_iters, max_depth, centromere_at, repeats, handle):
+    """§100 G2 native dispatch for :func:`srmech.amsc.genome.genome_from_graph`. Runs
+    the WHOLE builder in C via ``srmech_genome_from_graph``:
+    ``srmech_genome_graph_partition`` (the groups) -> per group an in-RAM induced-
+    subgraph relabel -> ``srmech_graph_kernel_encode`` -> the HV kernel BLOCK build ->
+    ``srmech_genome_mint_strand`` (nuclear only) -> strand assembly.
+
+    Returns a dict carrying the SAME partition read-out keys
+    :func:`genome_graph_partition_c` returns (so :func:`_assemble_graph_partition`
+    rebuilds the partition dict from ONE call) PLUS ``strand_bytes`` (the assembled
+    strand as concatenated ``leaf_dim``-byte HV blocks) and ``chrom_nsyms`` (the
+    per-group ``graph_to_kernel`` symbol count). Or ``None`` when the symbol is absent
+    / the C op declines, so the caller takes the pure body (the byte-parity oracle).
+    ``coupling`` / ``handle`` are bytes; ``centromere_at`` is the arm-split (``< 0`` =
+    the metacentric midpoint). ``edges_path`` is the ``write_packed_graph`` edge file
+    the partition streams; ``edge_list`` etc. are the SAME edges IN MEMORY for the
+    induced-subgraph rebuild (the packed file does not carry charges)."""
+    if not has_native_genome_from_graph():
+        return None
+    if (not isinstance(n, int) or isinstance(n, bool) or n < 0 or n > 0xFFFF_FFFF
+            or not isinstance(n_bins, int) or isinstance(n_bins, bool) or n_bins < 2
+            or int(leaf_dim) < 52 or int(leaf_dim) > 256
+            or len(bytes(coupling)) != int(leaf_dim)):
+        return None
+    leaf_dim = int(leaf_dim)
+    n_edges = len(edge_list)
+    if n_edges > 0xFFFF_FFFF:
+        return None
+    pc = int(n) + 1
+    groups_cap = 2 * pc
+    need = LIB.srmech_genome_from_graph_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges),
+        ctypes.c_uint32(int(n_bins)), ctypes.c_uint32(leaf_dim))
+    n_doubles = (int(need) + 7) // 8
+    ws = (ctypes.c_double * max(n_doubles, 1))()
+    edge_i = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[0]) for e in edge_list])
+    edge_j = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[1]) for e in edge_list])
+    w_arr = (ctypes.c_uint64 * max(n_edges, 1))(*[int(x) for x in weight_list])
+    c_arr = (ctypes.c_int64 * max(n_edges, 1))(*[int(x) for x in charge_list])
+    one_arr = (ctypes.c_uint8 * leaf_dim)(*bytes(coupling))
+    h = bytes(handle)
+    h_arr = ((ctypes.c_uint8 * len(h))(*h) if h
+             else ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8)))
+    community = (ctypes.c_uint32 * max(n, 1))()
+    part_num = (ctypes.c_uint64 * max(n, 1))()
+    part_den = (ctypes.c_uint64 * max(n, 1))()
+    counts = (ctypes.c_uint64 * int(n_bins))()
+    g_comm = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_type = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_size = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_num = (ctypes.c_uint64 * max(groups_cap, 1))()
+    g_den = (ctypes.c_uint64 * max(groups_cap, 1))()
+    g_members = (ctypes.c_uint32 * max(n, 1))()
+    chrom_nsyms = (ctypes.c_uint64 * max(groups_cap, 1))()
+    result = _GenomeGraphPartitionResult()
+    syms_whole = 17 * (8 + int(n) + 4 * n_edges) + 64
+    out_cap = (5 * groups_cap + (syms_whole // leaf_dim) + 32) * leaf_dim
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_nblocks = ctypes.c_size_t(0)
+    out_nchroms = ctypes.c_size_t(0)
+    out_cancelled = ctypes.c_uint32(0)
+    rc = LIB.srmech_genome_from_graph(
+        ctypes.c_uint32(n),
+        str(edges_path).encode("utf-8"), str(work_dir).encode("utf-8"),
+        edge_i, edge_j, w_arr, c_arr, ctypes.c_size_t(n_edges),
+        ctypes.c_uint32(leaf_dim), one_arr,
+        ctypes.c_uint32(int(max_tome)), ctypes.c_uint32(int(n_bins)),
+        ctypes.c_uint32(int(max_iters)), ctypes.c_uint32(int(max_depth)),
+        ctypes.c_long(int(centromere_at)), ctypes.c_uint32(int(repeats)),
+        h_arr, ctypes.c_size_t(len(h)),
+        community, part_num, part_den, counts,
+        g_comm, g_type, g_size, g_num, g_den, g_members,
+        ctypes.c_uint32(groups_cap), ctypes.byref(result),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_nblocks),
+        chrom_nsyms, ctypes.byref(out_nchroms), ctypes.byref(out_cancelled),
+        ws, ctypes.c_size_t(int(need)),
+        ctypes.cast(None, _TICK_CFUNCTYPE), None)
+    if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+        return None
+    n_comm = int(result.n_communities)
+    community_list = [int(community[v]) for v in range(n)]
+    if rc == SRMECH_CANCELLED or result.cancelled:
+        return {"cancelled": True, "n_communities": n_comm,
+                "community": community_list}
+
+    def _opt(x):
+        return None if int(x) < 0 else int(x)
+
+    groups = []
+    off = 0
+    for gi in range(int(result.n_groups)):
+        sz = int(g_size[gi])
+        nodes = [int(g_members[off + j]) for j in range(sz)]
+        off += sz
+        groups.append({
+            "community": int(g_comm[gi]),
+            "type": "nuclear" if int(g_type[gi]) == 0 else "plasmid",
+            "nodes": nodes, "size": sz,
+            "participation": (int(g_num[gi]), int(g_den[gi])),
+        })
+    one_dna = int(result.one_dna_type)
+    one_dna_type = None if one_dna < 0 else ("nuclear" if one_dna == 0 else "plasmid")
+    nb = int(out_nblocks.value)
+    return {
+        "cancelled": False,
+        "n_communities": n_comm,
+        "community": community_list,
+        "participation": [(int(part_num[v]), int(part_den[v])) for v in range(n)],
+        "counts": [int(counts[b]) for b in range(int(n_bins))],
+        "antimode": {
+            "bimodal": bool(result.bimodal),
+            "threshold_bin": _opt(result.threshold_bin),
+            "peak_low_bin": _opt(result.peak_low_bin),
+            "peak_high_bin": _opt(result.peak_high_bin),
+            "valley_count": _opt(result.valley_count),
+            "gap": int(result.gap),
+        },
+        "one_dna_type": one_dna_type,
+        "node_counts": {"nuclear": int(result.node_nuclear),
+                        "plasmid": int(result.node_plasmid)},
+        "groups": groups,
+        "strand_bytes": bytes(out[:nb * leaf_dim]),
+        "chrom_nsyms": [int(chrom_nsyms[gi]) for gi in range(int(result.n_groups))],
     }
 
 
