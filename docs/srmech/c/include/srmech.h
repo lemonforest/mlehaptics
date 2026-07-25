@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc330"
-#define SRMECH_VERSION       "0.9.0rc330"
+#define SRMECH_VERSION_PRE   "rc331"
+#define SRMECH_VERSION       "0.9.0rc331"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -8442,10 +8442,13 @@ size_t srmech_one_matrix_ws_bound(size_t num_limbs, size_t den_limbs,
 
 /* The 14x14 block-diagonal float operator G(sigma,theta) = (+)_n (1 (+) sigma
  * R_n(theta)) written into `out` as ONE_DIM*ONE_DIM = 196 row-major doubles
- * (out_count must be >= 196). cos/sin are read from the exact flat rationals +
- * rounded to double, then the +-1 / +-cos / +-sin tile is placed with NO float
- * accumulation (FMA-safe) — NUMERIC (the opt-in lossy [scientific] realisation),
- * WITHIN-TOL (<= 1e-12) to the pure Python One.to_matrix, NOT byte-identical.
+ * (out_count must be >= 196). cos/sin are the exact flat rationals CORRECTLY-
+ * ROUNDED to double (round-half-to-even — the SAME nearest binary64 CPython
+ * int/int returns), then the +-1 / +-cos / +-sin tile is placed with NO float
+ * accumulation (FMA-safe). BYTE-IDENTICAL to the pure Python One.to_matrix
+ * (rc331; #948) — each cell is the bit-exact double the pure cn/cd division
+ * yields; the rounding is a dynamic-shift bignum divmod + round-half-even + an
+ * exact power-of-two IEEE assembly (libm-free, deterministic cross-platform).
  * Bad sigma / theta_den <= 0 / num_terms > 50 -> SRMECH_ERR_BAD_INPUT; out_count
  * < 196 or too-small ws -> SRMECH_ERR_OVERFLOW. */
 srmech_status_t srmech_one_matrix(int32_t sigma,

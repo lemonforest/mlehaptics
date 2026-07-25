@@ -98,6 +98,7 @@
 #define MC_MAX_FIELDS 16
 #define MC_MAX_BINDS  8
 #define MC_SED_SLOTS  16
+#define MC_ONE_DIM    14u  /* One.DIM = 2+4+8; the 14x14 = 196-cell G(sigma,theta) */
 
 /* rc201b heavy-vtable bounds (all caller-arena; JPL Rule 2 loop over-bounds). */
 #define MC_MAX_PARTS   (MC_SED_SLOTS + 1)  /* ≤16 slot binds + 1 __pad__ vector   */
@@ -464,6 +465,67 @@ static srmech_mval_t *mc_one_const(srmech_marshal_arena_t *a, const char *op)
         return NULL;
     }
     return lst;
+}
+
+/* mc_mat — a real f64 MAT carrier (rc331; #948): rows*cols row-major doubles
+ * carved 8-aligned into the arena; *out_buf receives the fillable buffer. Mirrors
+ * the marshal mm_mat carrier (n=rows, i=cols, blen=#doubles, is_tuple=0 = real),
+ * so srmech_mcp_serialise_result emits the nested [[...]] float array byte-for-byte
+ * with json.dumps(serialise_native(Mat)). */
+static srmech_mval_t *mc_mat(srmech_marshal_arena_t *a, uint32_t rows, uint32_t cols,
+                             double **out_buf)
+{
+    srmech_mval_t *v; size_t nd = (size_t)rows * cols;
+    assert(a != NULL && out_buf != NULL);
+    assert(a->cur <= a->end);
+    v = mc_new(a, SRMECH_MVAL_MAT);
+    if (v == NULL) { return NULL; }
+    v->n = rows; v->i = (int64_t)cols; v->is_tuple = 0; v->blen = (uint32_t)nd;
+    v->b = mc_carve(a, nd * sizeof(double));         /* 8-aligned by mc_carve */
+    if (v->b == NULL) { return NULL; }
+    *out_buf = (double *)(void *)v->b;
+    return v;
+}
+
+/* mc_one_matrix — the One.matrix() vtable thunk (rc331; #948). Reads the `one`
+ * field DICT {"sigma": int, "theta": [num, den], "terms": int} (all int64 — the
+ * INPUT is not bignum, only srmech_one_matrix's internal series are), regenerates
+ * G(sigma,theta) via srmech_one_matrix into a MAT carrier BYTE-IDENTICAL to the
+ * pure One.to_matrix (the correctly-rounded cos/sin closes the make_class DEFER).
+ * The srmech_one_matrix workspace is carved from the arena. NULL (defer) on a
+ * malformed field / out-of-domain input / arena exhaustion. */
+static srmech_mval_t *mc_one_matrix(srmech_marshal_arena_t *a,
+                                    const srmech_mval_t **binds, uint32_t nb)
+{
+    const srmech_mval_t *one_d, *theta;
+    int64_t sigma, tn, td, terms;
+    uint32_t tnl[3], tdl[3];
+    srmech_bigint_t tnb, tdb;
+    srmech_mval_t *mat; double *buf; unsigned char *ws; size_t ws_len;
+    assert(a != NULL);
+    assert(binds != NULL || nb == 0u);
+    if (nb != 1u) { return NULL; }
+    one_d = binds[0];
+    theta = mc_dict_get(one_d, "theta");
+    if (!mc_arg_i64(mc_dict_get(one_d, "sigma"), &sigma)) { return NULL; }
+    if (!mc_arg_i64(mc_dict_get(one_d, "terms"), &terms)) { return NULL; }
+    if (theta == NULL || theta->kind != SRMECH_MVAL_LIST || theta->n != 2u) { return NULL; }
+    if (!mc_arg_i64(theta->items[0], &tn) || !mc_arg_i64(theta->items[1], &td)) { return NULL; }
+    if (terms < 0 || terms > 50 || td <= 0 || (sigma != 1 && sigma != -1)) { return NULL; }
+    tnb.limbs = tnl; tnb.cap = 3u; tnb.n = 0u; tnb.sign = 0;
+    tdb.limbs = tdl; tdb.cap = 3u; tdb.n = 0u; tdb.sign = 0;
+    if (srmech_bigint_set_i64(&tnb, tn) != SRMECH_OK) { return NULL; }
+    if (srmech_bigint_set_i64(&tdb, td) != SRMECH_OK) { return NULL; }
+    ws_len = srmech_one_matrix_ws_bound(tnb.n, tdb.n, (uint32_t)terms);
+    ws = mc_carve(a, ws_len);
+    if (ws == NULL) { return NULL; }
+    mat = mc_mat(a, MC_ONE_DIM, MC_ONE_DIM, &buf);
+    if (mat == NULL) { return NULL; }
+    if (srmech_one_matrix((int32_t)sigma, &tnb, &tdb, (uint32_t)terms, buf,
+                          (size_t)MC_ONE_DIM * MC_ONE_DIM, ws, ws_len) != SRMECH_OK) {
+        return NULL;
+    }
+    return mat;
 }
 
 /* sed navmap -> {STR "0".."15" -> [dest, sign]} for x e_j. */
@@ -1268,6 +1330,9 @@ static srmech_mval_t *mc_vtable_call(srmech_marshal_arena_t *a, const char *op,
 {
     assert(a != NULL && op != NULL);
     assert(binds != NULL || nb == 0u);
+    if (strcmp(op, "srmech.amsc.cascade.one.one_matrix") == 0) {
+        return mc_one_matrix(a, binds, nb);        /* rc331: the field-DICT thunk */
+    }
     if (strncmp(op, "srmech.amsc.cascade.one.one_", 28) == 0) {
         return mc_one_const(a, op);
     }
@@ -1571,10 +1636,13 @@ size_t srmech_make_class_run_arena_bytes(size_t toml_len, size_t fields_len,
     /* The TOML tree (32x, the srmech_toml builder's node overhead) + the two
      * JSON trees + two mval trees + the rc201b heavy-leaf working carriers
      * (base64 decodes, minted vectors, bind/bundle parts, split chunk LISTs +
-     * the rebuilt route state), generously over-allocated plus a fixed floor. */
-    size_t base = 65536u;
+     * the rebuilt route state), generously over-allocated plus a fixed floor.
+     * rc331 (#948): the floor also budgets the srmech_one_matrix workspace the
+     * One.matrix() thunk carves here (~0.34 MiB at num_terms=50) so it dispatches
+     * rather than OVERFLOW-defers. */
+    size_t base = 131072u;
     assert(base > 0u);
-    assert(base >= 65536u);
+    assert(base >= 131072u);
     return base + 128u * (toml_len + fields_len + args_len);
 }
 

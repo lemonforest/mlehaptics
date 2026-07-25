@@ -156,21 +156,62 @@ def test_sed_navigate_returns_self_matches_pure(j):
 
 def test_heavy_leaves_defer_to_pure():
     """rc201b wired the byte-representable heavy leaves (sed write/materialize/
-    read/carry/correct + genome chromosome/recall/genome/partition); what STILL
-    defers is exactly what the int64/bytes mval carrier cannot emit byte-
-    identically: the One bignum leaves (flat/scalar exact rationals overflow
-    int64; matrix is float within-tol) + the float couple/uncouple working word.
+    read/carry/correct + genome chromosome/recall/genome/partition); rc331 (#948
+    Thread B) wired One.matrix (the MAT carrier + correctly-rounded cos/sin). What
+    STILL defers is exactly what the int64/bytes mval carrier cannot emit byte-
+    identically: the One bignum leaves (flat/scalar exact rationals overflow int64)
+    + the float couple/uncouple working word.
     (rc103 inform-don't-limit: pure runs these, never a wrong answer.)"""
     oj = the_one(+1, 1, 2)._to_jsonable()
-    for method in ["flat", "matrix", "scalar"]:            # One bignum / float leaves
+    for method in ["flat", "scalar"]:                      # One bignum leaves (matrix now dispatches)
         dispatched, _ = _run_c(_ONE_TOML, method, {"one": oj}, {})
-        assert not dispatched, f"One.{method} must DEFER (bignum/float, not int64-emit)"
+        assert not dispatched, f"One.{method} must DEFER (bignum, not int64-emit)"
     reg = _make_reg()
     fields = _sed_fields(reg)
     for method, args in [("couple_working", {"vals": [1.0, 2.0]}),
                          ("uncouple_working", {"octonion": [1.0, 2.0]})]:
         dispatched, _ = _run_c(_SED_TOML, method, fields, args)
         assert not dispatched, f"Sed.{method} must DEFER (float working word)"
+
+
+# ── rc331 (#948 Thread B): One.matrix DISPATCHES byte-identically ──────────────
+
+def test_one_matrix_dispatches_byte_identical():
+    """One.matrix() now DISPATCHES in the make_class engine (srmech_one_matrix →
+    a SRMECH_MVAL_MAT carrier, cos/sin correctly-rounded), emitting JSON BYTE-
+    IDENTICAL to the pure CatalogClass emit. Includes a |value|>1 large-angle case
+    (θ=27, cos ≈ 9.5e6) that the old fixed-96-bit shift mis-handled."""
+    from srmech.mcp._coercion import serialise_native
+    for sigma, tn, td, terms in [(+1, 1, 2, 24), (-1, 22, 7, 24),
+                                 (+1, 0, 1, 24), (+1, 27, 1, 24)]:
+        one = the_one(sigma, tn, td, terms)
+        oj = one._to_jsonable()
+        dispatched, text = _native.make_class_run_c(_ONE_TOML, "matrix", {"one": oj}, {})
+        assert dispatched, f"One.matrix must DISPATCH in rc331 ({sigma},{tn}/{td},{terms})"
+        pure_mat = make_class("One")(one=one).matrix()
+        expected = {"result": serialise_native(pure_mat), "fields": {"one": oj}}
+        assert text == json.dumps(expected, separators=(",", ":")), (sigma, tn, td, terms)
+        got = json.loads(text)
+        assert len(got["result"]) == 14 and all(len(r) == 14 for r in got["result"])
+        assert got["fields"] == {"one": oj}
+
+
+def test_one_matrix_run_class_method_dispatches():
+    """srmech_run_class_method (class NAME resolved IN C) also dispatches
+    One.matrix — the 4-key {"class","method","result","fields"} wrap byte-identical
+    to the pure run_class_method emit."""
+    if not _native.has_native_run_class_method():
+        pytest.skip("rc202 run_class_method C peer not built")
+    from srmech.mcp._coercion import serialise_native
+    for sigma, tn, td, terms in [(+1, 1, 2, 24), (-1, 7, 3, 30)]:
+        one = the_one(sigma, tn, td, terms)
+        oj = one._to_jsonable()
+        dispatched, text = _native.run_class_method_c("One", "matrix", {"one": oj}, {})
+        assert dispatched, f"run_class_method One.matrix must DISPATCH ({sigma},{tn}/{td})"
+        pure_mat = make_class("One")(one=one).matrix()
+        expected = {"class": "One", "method": "matrix",
+                    "result": serialise_native(pure_mat), "fields": {"one": oj}}
+        assert text == json.dumps(expected, separators=(",", ":")), (sigma, tn, td, terms)
 
 
 def test_unknown_method_and_class_defer():
