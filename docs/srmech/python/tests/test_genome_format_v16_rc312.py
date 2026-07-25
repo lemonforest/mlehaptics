@@ -67,7 +67,7 @@ def _lists(hvs):
 
 def test_format_version_is_16():
     """The SSoT constant is bumped to 16 (mirrors SRMECH_GENOME_FORMAT_VERSION in C)."""
-    assert GENOME_FORMAT_VERSION == 16
+    assert GENOME_FORMAT_VERSION == 19
     assert Q8_PACKED_TURN_MARKER == 0x38
     assert PACKED_TURN_MARKER == 0x51            # klein4 marker UNCHANGED
 
@@ -158,7 +158,7 @@ def test_m4_q8_disk_round_trip_winding_survives(tmp_path):
         path = tmp_path / f"q8g_{trial}"
         genome_save(strand, path, one, element_type=ELEMENT_TYPE_Q8)
         man = json.loads((path / "manifest.json").read_text())["data"]
-        assert man["format_version"] == 16 and man["carrier"] == "q8"
+        assert man["format_version"] == 19 and man["carrier"] == "q8"
         st, _cp, _labs = genome_load(path)
         rec = recall(st, one, element_type=ELEMENT_TYPE_Q8)
         assert _lists(rec) == _lists(leaves)                       # exact recall
@@ -198,7 +198,7 @@ def test_m5_manifest_mirror_byte_identity_klein4(tmp_path):
     c_bytes, py_bytes = _save_native_and_pure(strand, one, ELEMENT_TYPE_KLEIN4, tmp_path)
     assert c_bytes == py_bytes
     assert b'"carrier": "klein4"' in c_bytes
-    assert b'"format_version": 16' in c_bytes
+    assert b'"format_version": 19' in c_bytes
 
 
 @pytest.mark.skipif(not _native.has_native_genome(),
@@ -212,7 +212,7 @@ def test_m5_manifest_mirror_byte_identity_q8(tmp_path):
     c_bytes, py_bytes = _save_native_and_pure(strand, one, ELEMENT_TYPE_Q8, tmp_path)
     assert c_bytes == py_bytes
     assert b'"carrier": "q8"' in c_bytes
-    assert b'"format_version": 16' in c_bytes
+    assert b'"format_version": 19' in c_bytes
 
 
 # ── M6 — klein4 v15 UNCHANGED end-to-end ─────────────────────────────────────
@@ -228,7 +228,7 @@ def test_m6_klein4_unchanged_end_to_end(tmp_path):
     path = tmp_path / "k4g"
     genome_save(strand, path, one)
     man = json.loads((path / "manifest.json").read_text())["data"]
-    assert man["carrier"] == "klein4" and man["format_version"] == 16
+    assert man["carrier"] == "klein4" and man["format_version"] == 19
     st, _cp, _labs = genome_load(path)
     rec = recall(st, one, element_type=ELEMENT_TYPE_KLEIN4)
     assert _lists(rec) == _lists(leaves)
@@ -272,9 +272,9 @@ def test_m1_v15_to_v16_auto_upgrade_round_trip(tmp_path):
 
     # the manifest re-stamps to v16 + carrier; the body is byte-identical (klein4 no repack)
     assert body_after == body_before
-    assert data["format_version"] == 16 and data["carrier"] == "klein4"
+    assert data["format_version"] == 19 and data["carrier"] == "klein4"
     man = json.loads((path / "manifest.json").read_text())["data"]
-    assert man["format_version"] == 16 and man["carrier"] == "klein4"
+    assert man["format_version"] == 19 and man["carrier"] == "klein4"
 
     # recall recovers the EXACT original sequence after the upgrade
     st, _cp, _labs = genome_load(path)

@@ -867,6 +867,48 @@ def add_plasmid(section_store, coupling, tokens, *, state, k=K_AUTO, window=2,
     label = ext["sections"][-1]
     st["vocab"] = ext["vocab"]
     st["labels"] = list(st["labels"]) + [label]
+    # rc334 (§102 G7, #887) — the WHOLE-OP native dispatch closing the LAST genome
+    # wire-glue gap: srmech_genome_add_plasmid runs the CONSERVE (merge the counts +
+    # conserved_core) + ORGANIZE (harvest + pack the core off disk, then fold the
+    # organized strand) half END-TO-END in C over the store the stage-1 append (above)
+    # just extended. The prior section-count accumulator + the new section's global
+    # node_ids marshal IN, the byte-identical strand + the new {section_count, core, k}
+    # state marshal OUT. The pure body below is the complete byte-identical alternative.
+    _auto = k is None or k == K_AUTO
+    _k_valid = _auto or (isinstance(k, int) and not isinstance(k, bool) and k >= 1)
+    if _k_valid:
+        try:
+            _body_len = (store / _genome._BODY_NAME).stat().st_size
+        except OSError:
+            _body_len = None
+        native = _native.genome_add_plasmid_c(
+            store, coupling, dim, -1 if _auto else int(k),
+            st["section_count"], list(ext["section_count"].keys()),
+            list(st.get("core") or []),
+            body_len=_body_len, n_chroms=len(st["labels"]) + 1,
+            progress=progress) if _body_len is not None else None
+        if native is not None:
+            (strand, counts, core_nodes, k_used, bimodal, core_changed,
+             n_integrated, cancelled) = native
+            st["section_count"] = counts
+            st["core"], st["k"] = list(core_nodes), k_used
+            if cache_edges:
+                leaf_dim, _one, entries = _section_entries(store, coupling)
+                with _genome._open_body_ro(Path(store) / _genome._BODY_NAME) as f:
+                    new_edges = _section_global_edges(
+                        store, label, coupling,
+                        {e["label"]: e for e in entries}.get(label), leaf_dim, f)
+                st["sections"] = list(st["sections"]) + [new_edges]
+            k_source = (K_POLICY if not _auto
+                        else (K_DERIVED if bimodal else K_DECLINED))
+            n_core = len(core_nodes)
+            return {"strand": strand, "state": st, "section": label, "k": k_used,
+                    "k_source": k_source, "core_changed": core_changed,
+                    "core": list(core_nodes), "bimodal": bimodal,
+                    "one_dna_type": not bimodal,
+                    "counts": {"nuclear": n_core, "plasmid": len(counts) - n_core},
+                    "n_sections": len(st["labels"]), "n_integrated": n_integrated,
+                    "status": _STATUS_CANCELLED if cancelled else _STATUS_OK}
     counts = dict(st["section_count"])             # O(section) integer bump
     for node, bump in ext["section_count"].items():
         counts[node] = counts.get(node, 0) + bump

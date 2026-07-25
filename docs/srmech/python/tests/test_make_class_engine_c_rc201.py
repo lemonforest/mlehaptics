@@ -156,21 +156,111 @@ def test_sed_navigate_returns_self_matches_pure(j):
 
 def test_heavy_leaves_defer_to_pure():
     """rc201b wired the byte-representable heavy leaves (sed write/materialize/
-    read/carry/correct + genome chromosome/recall/genome/partition); what STILL
-    defers is exactly what the int64/bytes mval carrier cannot emit byte-
-    identically: the One bignum leaves (flat/scalar exact rationals overflow
-    int64; matrix is float within-tol) + the float couple/uncouple working word.
+    read/carry/correct + genome chromosome/recall/genome/partition); rc331 (#948
+    Thread B) wired One.matrix (the MAT carrier + correctly-rounded cos/sin); rc335
+    (#948/#887) wired One.flat + One.scalar (the SRMECH_MVAL_BIGINT emit). What
+    STILL defers is the float couple/uncouple working word — the mval carrier
+    cannot emit its within-tol float working word byte-identically.
     (rc103 inform-don't-limit: pure runs these, never a wrong answer.)"""
-    oj = the_one(+1, 1, 2)._to_jsonable()
-    for method in ["flat", "matrix", "scalar"]:            # One bignum / float leaves
-        dispatched, _ = _run_c(_ONE_TOML, method, {"one": oj}, {})
-        assert not dispatched, f"One.{method} must DEFER (bignum/float, not int64-emit)"
     reg = _make_reg()
     fields = _sed_fields(reg)
     for method, args in [("couple_working", {"vals": [1.0, 2.0]}),
                          ("uncouple_working", {"octonion": [1.0, 2.0]})]:
         dispatched, _ = _run_c(_SED_TOML, method, fields, args)
         assert not dispatched, f"Sed.{method} must DEFER (float working word)"
+
+
+# ── rc331 (#948 Thread B): One.matrix DISPATCHES byte-identically ──────────────
+
+def test_one_matrix_dispatches_byte_identical():
+    """One.matrix() now DISPATCHES in the make_class engine (srmech_one_matrix →
+    a SRMECH_MVAL_MAT carrier, cos/sin correctly-rounded), emitting JSON BYTE-
+    IDENTICAL to the pure CatalogClass emit. Includes a |value|>1 large-angle case
+    (θ=27, cos ≈ 9.5e6) that the old fixed-96-bit shift mis-handled."""
+    from srmech.mcp._coercion import serialise_native
+    for sigma, tn, td, terms in [(+1, 1, 2, 24), (-1, 22, 7, 24),
+                                 (+1, 0, 1, 24), (+1, 27, 1, 24)]:
+        one = the_one(sigma, tn, td, terms)
+        oj = one._to_jsonable()
+        dispatched, text = _native.make_class_run_c(_ONE_TOML, "matrix", {"one": oj}, {})
+        assert dispatched, f"One.matrix must DISPATCH in rc331 ({sigma},{tn}/{td},{terms})"
+        pure_mat = make_class("One")(one=one).matrix()
+        expected = {"result": serialise_native(pure_mat), "fields": {"one": oj}}
+        assert text == json.dumps(expected, separators=(",", ":")), (sigma, tn, td, terms)
+        got = json.loads(text)
+        assert len(got["result"]) == 14 and all(len(r) == 14 for r in got["result"])
+        assert got["fields"] == {"one": oj}
+
+
+def test_one_matrix_run_class_method_dispatches():
+    """srmech_run_class_method (class NAME resolved IN C) also dispatches
+    One.matrix — the 4-key {"class","method","result","fields"} wrap byte-identical
+    to the pure run_class_method emit."""
+    if not _native.has_native_run_class_method():
+        pytest.skip("rc202 run_class_method C peer not built")
+    from srmech.mcp._coercion import serialise_native
+    for sigma, tn, td, terms in [(+1, 1, 2, 24), (-1, 7, 3, 30)]:
+        one = the_one(sigma, tn, td, terms)
+        oj = one._to_jsonable()
+        dispatched, text = _native.run_class_method_c("One", "matrix", {"one": oj}, {})
+        assert dispatched, f"run_class_method One.matrix must DISPATCH ({sigma},{tn}/{td})"
+        pure_mat = make_class("One")(one=one).matrix()
+        expected = {"class": "One", "method": "matrix",
+                    "result": serialise_native(pure_mat), "fields": {"one": oj}}
+        assert text == json.dumps(expected, separators=(",", ":")), (sigma, tn, td, terms)
+
+
+# ── rc335 (#948/#887): One.flat + One.scalar DISPATCH byte-identically ─────────
+
+@pytest.mark.parametrize("sigma,tn,td,terms", [
+    (+1, 1, 2, 24), (-1, 1, 2, 24), (+1, 0, 1, 24), (+1, 99, 100, 24),
+    (+1, 355, 113, 30), (+1, 1, 1, 50), (-1, 22, 7, 40),
+])
+def test_one_flat_dispatches_byte_identical(sigma, tn, td, terms):
+    """One.flat() now DISPATCHES in the make_class engine (srmech_the_one → 14
+    exact adjoint rationals → LIST[14] of LIST[2] of SRMECH_MVAL_BIGINT), emitting
+    JSON BYTE-IDENTICAL to the pure CatalogClass emit — including the ~249-bit
+    (1/2, 24-term) numerators that overflow int64."""
+    from srmech.mcp._coercion import serialise_native
+    one = the_one(sigma, tn, td, terms)
+    oj = one._to_jsonable()
+    dispatched, text = _native.make_class_run_c(_ONE_TOML, "flat", {"one": oj}, {})
+    assert dispatched, f"One.flat must DISPATCH in rc335 ({sigma},{tn}/{td},{terms})"
+    expected = {"result": serialise_native(one.to_flat_rational()),
+                "fields": {"one": oj}}
+    assert text == json.dumps(expected, separators=(",", ":"))
+    got = json.loads(text)
+    assert len(got["result"]) == 14 and all(len(p) == 2 for p in got["result"])
+    assert got["fields"] == {"one": oj}
+
+
+@pytest.mark.parametrize("mode,kwargs", [
+    ("trace", {}), ("trace", {"mode": "trace"}),
+    ("sqnorm", {"mode": "sqnorm"}), ("component", {"mode": "component", "index": 3}),
+    ("component", {"mode": "component", "index": 0}),
+    ("component", {"mode": "component", "index": 13}),
+])
+def test_one_scalar_dispatches_byte_identical(mode, kwargs):
+    """One.scalar() now DISPATCHES (srmech_one_scalar → an exact (num, den) →
+    LIST[2] of SRMECH_MVAL_BIGINT), byte-identical to the pure CatalogClass emit,
+    across all three modes. The scalar carrier is a Q — build the expected via
+    serialise_native (the pure oracle), NOT bare _norm (which can't emit a Q)."""
+    from srmech.mcp._coercion import serialise_native
+    one = the_one(+1, 1, 2, 24)                 # the ~249-bit numerator case
+    oj = one._to_jsonable()
+    dispatched, text = _native.make_class_run_c(_ONE_TOML, "scalar", {"one": oj}, kwargs)
+    assert dispatched, f"One.scalar must DISPATCH in rc335 (mode={mode})"
+    pure_q = one.to_scalar(**kwargs)
+    expected = {"result": serialise_native(pure_q), "fields": {"one": oj}}
+    assert text == json.dumps(expected, separators=(",", ":"))
+
+
+def test_one_scalar_as_float_defers():
+    """as_float=True is the terminal float cast — the pure caller's job. The C
+    scalar thunk DEFERS it (it emits only the exact (num, den) bignum rational)."""
+    oj = the_one(+1, 1, 2, 24)._to_jsonable()
+    dispatched, _ = _run_c(_ONE_TOML, "scalar", {"one": oj}, {"as_float": True})
+    assert not dispatched, "One.scalar(as_float=True) must DEFER (terminal float cast)"
 
 
 def test_unknown_method_and_class_defer():

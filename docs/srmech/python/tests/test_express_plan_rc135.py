@@ -234,7 +234,7 @@ def test_mixed_gate_types():
 
 # ── no format bump: the ops read the existing v11 caps/manifest ───────────────────
 def test_no_format_bump():
-    assert G.GENOME_FORMAT_VERSION == 16
+    assert G.GENOME_FORMAT_VERSION == 19
 
 
 # ── the STRAND-variant plan also delimits directly loadable gene byte-ranges ──────

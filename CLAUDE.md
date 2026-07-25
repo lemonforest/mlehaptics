@@ -41,9 +41,9 @@ Per `[[project_a_n_operators_are_harmonic_objects_themselves]]` (user direction 
 | | **H** | Self-introspection | Recursive introspection |
 | | **N** | Rational-approximation | Small-denominator anchors; `best_rational(num, denom, max_d)` |
 
-### Per R30 active walking-path (MS #18 R30/R31/R32; PR #680)
+### Per R30 (structurally closed 2026-05-24; MS #18 R30/R31/R32; PR #680)
 
-The +3 meta-cascade triad (B/H/N) are candidate **projection-enablers** in the inversion-hypothesis that 14 = 1+3+7+3 IS the substrate-structure and 11D is its observer-frame projection. R31 Antikythera dispatch confirmed (a) SURVIVES — the back-panel metacycle dials (Saros + Metonic + Callippic) are exactly projection-enablers per R30 prediction.
+R30 **final-refined** (substrate notebook §5): 11D-quantum-language and 14 = 1+3+7+3 cyclic-algebra-language are **two co-equal substrate-native mathematical languages for the same substrate**, both bit-exact — NOT substrate-vs-projection. The original inversion-hypothesis ("11D is a projection-artifact of the 14-substrate") was **structurally falsified** (substrate §3.2: *"no projection-residue at 14→11D"*), even though the 1:3:7:3 = 14 antiquity-convergence is real. Accordingly the +3 meta-cascade triad (B/H/N) are **substrate-native language-translation operators** between the continuous-Hopf-quantum and discrete-cyclic-cascade languages — **NOT "projection-enablers"** (that earlier wording is retracted; §4.2/§5). R31 Antikythera SURVIVES: the back-panel metacycle dials (Saros + Metonic + Callippic) ARE the three B/H/N language-translation anchors. The universal +3 = B/H/N is the source of the **k=3 cross-substrate signature** (every catalogued k=3 is a B/H/N instantiation event; substrate §5–§6). The 14 = 3 anchors + 11 imaginaries decomposition and the "11D observer frame" *label* survive the refinement; only the projection/inversion *direction* was retracted. (CLAUDE.md kept the stale "projection-enabler / inversion" wording until 2026-07-24; corrected then.)
 
 ### Class O dissolution note (vocabulary discipline; 2026-05-16)
 
@@ -161,7 +161,7 @@ Per `[[feedback_prefer_config_driven_toml_classes]]` (user direction 2026-06-13)
 
 | Arc | Surface | Status |
 |-----|---------|--------|
-| **Substrate-native maths** (R30 walking-path; 1:3:7:3 substrate) | [PR #680](https://github.com/lemonforest/mlehaptics/pull/680) + [`docs/substrate-native-maths/`](docs/substrate-native-maths/) | active; Antikythera (a) SURVIVES |
+| **Substrate-native maths** (R30 walking-path; 1:3:7:3 substrate) | [PR #680](https://github.com/lemonforest/mlehaptics/pull/680) + [`docs/substrate-native-maths/`](docs/substrate-native-maths/) | structurally closed 2026-05-24 (two co-equal substrate-native languages; inversion falsified, B/H/N = language-translation operators); Antikythera (a) SURVIVES |
 | **M-theory cost-asymmetry** | [PR #679](https://github.com/lemonforest/mlehaptics/pull/679) + `docs/unsolved-maths/unsolved_maths_spectral_research_notebook.md` §11 | rolling-spike; vocabulary work converging |
 | **Unsolved-maths cascade canvass** | [`docs/unsolved-maths/unsolved_maths_spectral_research_notebook.md`](docs/unsolved-maths/unsolved_maths_spectral_research_notebook.md) | PR #677 merged; 26 partitions across Hilbert / Millennium / Number Theory / Set Theory / Logic / Geometry / Topology / Analysis |
 | **MS #18** — Biology IS ONE substrate-class | [milestone/18](https://github.com/lemonforest/mlehaptics/milestone/18) | 32-refinement cluster (R26 rejected); R30 active walking-path |

@@ -61,14 +61,19 @@
  * srmech_genome_chromosome), recall/assemble/partition (srmech_genome_recall/
  * genome/partition, the partition dict dedup/labels-order semantics replicated).
  *
- * DEFER (rc103 inform-don't-limit — what the int64/bytes mval carrier CANNOT emit
- * byte-identically): the One bignum leaves flat/scalar (exact rationals overflow
- * int64 — a 249-bit trace numerator) + matrix (float within-tol, not byte-exact);
- * Hurwitz.generate (a live One object, not JSON); the sed couple/uncouple working
- * word (float); the genome disk quartet save/load/catalog/append (host-FS) +
- * shape/cap. A method whose op is not in the vtable (or whose leaf/route the
- * engine cannot represent) sets *out_kind = SRMECH_MAKE_CLASS_DEFER and the caller
- * runs the COMPLETE pure CatalogClass (never a wrong answer). A user
+ * rc331 (#948 Thread B) wired One.matrix (the correctly-rounded cos/sin -> MAT
+ * carrier); rc335 (#948/#887) wired One.flat + One.scalar via a new
+ * SRMECH_MVAL_BIGINT emit kind (srmech_the_one / srmech_one_scalar -> the 14 /
+ * the one exact adjoint rationals, each rendered to its CPython-str(int) decimal
+ * by srmech_bigint_to_dec and emitted RAW/unquoted). So EVERY One method now
+ * DISPATCHES — the One [class] is FULLY C-hosted.
+ *
+ * DEFER (rc103 inform-don't-limit — what the mval carrier still CANNOT emit
+ * byte-identically): Hurwitz.generate (a live One object, not JSON); the sed
+ * couple/uncouple working word (float); the genome disk quartet save/load/catalog/
+ * append (host-FS) + shape/cap. A method whose op is not in the vtable (or whose
+ * leaf/route the engine cannot represent) sets *out_kind = SRMECH_MAKE_CLASS_DEFER
+ * and the caller runs the COMPLETE pure CatalogClass (never a wrong answer). A user
  * (register_class_dir) class DEFERS the same way (no host op-resolver callback).
  *
  * make_class is DISCHARGED owed_orchestration -> composes_c this rc: the engine
@@ -98,6 +103,7 @@
 #define MC_MAX_FIELDS 16
 #define MC_MAX_BINDS  8
 #define MC_SED_SLOTS  16
+#define MC_ONE_DIM    14u  /* One.DIM = 2+4+8; the 14x14 = 196-cell G(sigma,theta) */
 
 /* rc201b heavy-vtable bounds (all caller-arena; JPL Rule 2 loop over-bounds). */
 #define MC_MAX_PARTS   (MC_SED_SLOTS + 1)  /* ≤16 slot binds + 1 __pad__ vector   */
@@ -140,7 +146,7 @@ static srmech_mval_t *mc_new(srmech_marshal_arena_t *a, srmech_mval_kind_t kind)
 {
     srmech_mval_t *v;
     assert(a != NULL);
-    assert(kind >= SRMECH_MVAL_NONE && kind <= SRMECH_MVAL_MAT);
+    assert(kind >= SRMECH_MVAL_NONE && kind <= SRMECH_MVAL_BIGINT);
     v = (srmech_mval_t *)mc_carve(a, sizeof(srmech_mval_t));
     if (v == NULL) { return NULL; }
     v->kind = kind; v->i = 0; v->re = 0.0; v->im = 0.0;
@@ -228,6 +234,35 @@ static srmech_mval_t *mc_pair(srmech_marshal_arena_t *a, int64_t x, int64_t y)
     if (t == NULL || n0 == NULL || n1 == NULL) { return NULL; }
     t->items[0] = n0; t->items[1] = n1;
     return t;
+}
+
+/* A SRMECH_MVAL_BIGINT carrier (rc335; #948/#887): render the srmech_bigint `b`
+ * to its CPython-str(int)-identical decimal via srmech_bigint_to_dec into an
+ * arena buffer, stashed in the REUSED s/slen fields (NO struct change) — mm_
+ * serialise emits those bytes RAW/unquoted, so a bignum that overflows int64
+ * serialises byte-for-byte with json.dumps(int). The to_dec decimal buffer +
+ * its (b->n+1)-limb scratch are carved 8-aligned off the arena. NULL (defer) on
+ * arena exhaustion / a to_dec failure. */
+static srmech_mval_t *mc_bigint(srmech_marshal_arena_t *a, const srmech_bigint_t *b)
+{
+    srmech_mval_t *v; char *buf; unsigned char *ws;
+    size_t cap, ws_len, out_len = 0u;
+    assert(a != NULL && b != NULL);
+    assert(a->cur <= a->end);
+    v = mc_new(a, SRMECH_MVAL_BIGINT);
+    if (v == NULL) { return NULL; }
+    cap = srmech_bigint_to_dec_bound(b->n);              /* b->n*10 + 2 (NUL room) */
+    ws_len = ((size_t)b->n + 1u) * sizeof(uint32_t);     /* bi_to_dec_digits cur[] */
+    buf = (char *)mc_carve(a, cap);
+    ws = mc_carve(a, ws_len);
+    if (buf == NULL || ws == NULL) { return NULL; }
+    if (srmech_bigint_to_dec(b, buf, cap, &out_len, ws, ws_len) != SRMECH_OK) {
+        return NULL;
+    }
+    assert(out_len >= 1u);                               /* at least "0" / one digit */
+    v->s = buf;
+    v->slen = (uint32_t)out_len;                         /* bounded: <= b->n*10 + 1 */
+    return v;
 }
 
 /* ------------------------------------------------------------------
@@ -463,6 +498,224 @@ static srmech_mval_t *mc_one_const(srmech_marshal_arena_t *a, const char *op)
     } else {
         return NULL;
     }
+    return lst;
+}
+
+/* mc_mat — a real f64 MAT carrier (rc331; #948): rows*cols row-major doubles
+ * carved 8-aligned into the arena; *out_buf receives the fillable buffer. Mirrors
+ * the marshal mm_mat carrier (n=rows, i=cols, blen=#doubles, is_tuple=0 = real),
+ * so srmech_mcp_serialise_result emits the nested [[...]] float array byte-for-byte
+ * with json.dumps(serialise_native(Mat)). */
+static srmech_mval_t *mc_mat(srmech_marshal_arena_t *a, uint32_t rows, uint32_t cols,
+                             double **out_buf)
+{
+    srmech_mval_t *v; size_t nd = (size_t)rows * cols;
+    assert(a != NULL && out_buf != NULL);
+    assert(a->cur <= a->end);
+    v = mc_new(a, SRMECH_MVAL_MAT);
+    if (v == NULL) { return NULL; }
+    v->n = rows; v->i = (int64_t)cols; v->is_tuple = 0; v->blen = (uint32_t)nd;
+    v->b = mc_carve(a, nd * sizeof(double));         /* 8-aligned by mc_carve */
+    if (v->b == NULL) { return NULL; }
+    *out_buf = (double *)(void *)v->b;
+    return v;
+}
+
+/* mc_one_matrix — the One.matrix() vtable thunk (rc331; #948). Reads the `one`
+ * field DICT {"sigma": int, "theta": [num, den], "terms": int} (all int64 — the
+ * INPUT is not bignum, only srmech_one_matrix's internal series are), regenerates
+ * G(sigma,theta) via srmech_one_matrix into a MAT carrier BYTE-IDENTICAL to the
+ * pure One.to_matrix (the correctly-rounded cos/sin closes the make_class DEFER).
+ * The srmech_one_matrix workspace is carved from the arena. NULL (defer) on a
+ * malformed field / out-of-domain input / arena exhaustion. */
+static srmech_mval_t *mc_one_matrix(srmech_marshal_arena_t *a,
+                                    const srmech_mval_t **binds, uint32_t nb)
+{
+    const srmech_mval_t *one_d, *theta;
+    int64_t sigma, tn, td, terms;
+    uint32_t tnl[3], tdl[3];
+    srmech_bigint_t tnb, tdb;
+    srmech_mval_t *mat; double *buf; unsigned char *ws; size_t ws_len;
+    assert(a != NULL);
+    assert(binds != NULL || nb == 0u);
+    if (nb != 1u) { return NULL; }
+    one_d = binds[0];
+    theta = mc_dict_get(one_d, "theta");
+    if (!mc_arg_i64(mc_dict_get(one_d, "sigma"), &sigma)) { return NULL; }
+    if (!mc_arg_i64(mc_dict_get(one_d, "terms"), &terms)) { return NULL; }
+    if (theta == NULL || theta->kind != SRMECH_MVAL_LIST || theta->n != 2u) { return NULL; }
+    if (!mc_arg_i64(theta->items[0], &tn) || !mc_arg_i64(theta->items[1], &td)) { return NULL; }
+    if (terms < 0 || terms > 50 || td <= 0 || (sigma != 1 && sigma != -1)) { return NULL; }
+    tnb.limbs = tnl; tnb.cap = 3u; tnb.n = 0u; tnb.sign = 0;
+    tdb.limbs = tdl; tdb.cap = 3u; tdb.n = 0u; tdb.sign = 0;
+    if (srmech_bigint_set_i64(&tnb, tn) != SRMECH_OK) { return NULL; }
+    if (srmech_bigint_set_i64(&tdb, td) != SRMECH_OK) { return NULL; }
+    ws_len = srmech_one_matrix_ws_bound(tnb.n, tdb.n, (uint32_t)terms);
+    ws = mc_carve(a, ws_len);
+    if (ws == NULL) { return NULL; }
+    mat = mc_mat(a, MC_ONE_DIM, MC_ONE_DIM, &buf);
+    if (mat == NULL) { return NULL; }
+    if (srmech_one_matrix((int32_t)sigma, &tnb, &tdb, (uint32_t)terms, buf,
+                          (size_t)MC_ONE_DIM * MC_ONE_DIM, ws, ws_len) != SRMECH_OK) {
+        return NULL;
+    }
+    return mat;
+}
+
+/* 1 iff STR carrier `v` equals the NUL-terminated `lit` byte-for-byte. */
+static int mc_str_eq(const srmech_mval_t *v, const char *lit)
+{
+    size_t l;
+    assert(lit != NULL);
+    assert(v == NULL || v->slen == 0u || v->s != NULL);   /* STR bytes invariant */
+    if (v == NULL || v->kind != SRMECH_MVAL_STR) { return 0; }
+    l = strlen(lit);
+    return v->slen == (uint32_t)l && memcmp(v->s, lit, l) == 0;
+}
+
+/* Read + validate the One field DICT {"sigma", "theta":[n,d], "terms"} into int64
+ * out-params (rc335; shared by the flat/scalar thunks). All three fields are int64
+ * (the INPUT is not bignum, only srmech_the_one's internal series are). Returns 1
+ * on a valid IN-DOMAIN One (sigma in {+1,-1}, theta_den > 0, 0 <= terms <= 50), 0
+ * to DEFER (malformed field / out-of-domain). */
+static int mc_one_read(const srmech_mval_t *one_d, int64_t *sigma, int64_t *tn,
+                       int64_t *td, int64_t *terms)
+{
+    const srmech_mval_t *theta;
+    assert(sigma != NULL && tn != NULL);
+    assert(td != NULL && terms != NULL);
+    theta = mc_dict_get(one_d, "theta");
+    if (!mc_arg_i64(mc_dict_get(one_d, "sigma"), sigma)) { return 0; }
+    if (!mc_arg_i64(mc_dict_get(one_d, "terms"), terms)) { return 0; }
+    if (theta == NULL || theta->kind != SRMECH_MVAL_LIST || theta->n != 2u) { return 0; }
+    if (!mc_arg_i64(theta->items[0], tn) || !mc_arg_i64(theta->items[1], td)) { return 0; }
+    if (*terms < 0 || *terms > 50 || *td <= 0 || (*sigma != 1 && *sigma != -1)) { return 0; }
+    return 1;
+}
+
+/* Regenerate the 14 exact adjoint (num,den) rationals via srmech_the_one into
+ * arena-carved bigint carriers (rc335; mirrors srmech_one.c one_regen_flat over
+ * the marshal arena). fnum/fden are caller arrays of MC_ONE_DIM carriers; their
+ * limbs + the srmech_the_one series scratch are ONE arena block (the scratch is
+ * the tail PAST the 28 carriers, live only DURING the call). Returns 1 on a clean
+ * regeneration, 0 on arena exhaustion / an out-of-domain the_one. */
+static int mc_one_flat_carriers(srmech_marshal_arena_t *a, int32_t sigma,
+                                const srmech_bigint_t *tn, const srmech_bigint_t *td,
+                                uint32_t terms, srmech_bigint_t *fnum,
+                                srmech_bigint_t *fden)
+{
+    size_t flat_cap, tow_bytes, region_bytes, i;
+    uint32_t *base; unsigned char *blk;
+    assert(a != NULL && fnum != NULL && fden != NULL);
+    assert(tn != NULL && td != NULL);
+    flat_cap = 32u * ((size_t)terms + 9u * ((size_t)tn->n + (size_t)td->n)) + 128u;
+    tow_bytes = srmech_the_one_ws_bound(tn->n, td->n, terms);
+    region_bytes = 2u * (size_t)MC_ONE_DIM * flat_cap * sizeof(uint32_t)
+                   + tow_bytes + 64u;
+    blk = mc_carve(a, region_bytes);
+    if (blk == NULL) { return 0; }
+    base = (uint32_t *)(void *)blk;
+    for (i = 0u; i < MC_ONE_DIM; i++) {
+        fnum[i].limbs = base; fnum[i].cap = (uint32_t)flat_cap;
+        fnum[i].n = 0u; fnum[i].sign = 0; base += flat_cap;
+        fden[i].limbs = base; fden[i].cap = (uint32_t)flat_cap;
+        fden[i].n = 0u; fden[i].sign = 0; base += flat_cap;
+    }
+    /* `base` now points at the arena tail — the srmech_the_one series scratch. */
+    return srmech_the_one(sigma, tn, td, terms, fnum, fden, base, tow_bytes)
+           == SRMECH_OK;
+}
+
+/* mc_one_flat_rational — the One.flat() vtable thunk (rc335; closes an EXACT
+ * make_class->C defer, #948/#887). Reads the `one` field DICT, regenerates the 14
+ * exact adjoint rationals via srmech_the_one, and emits LIST[14] of LIST[2] of
+ * BIGINT — BYTE-IDENTICAL to json.dumps(serialise_native(one.to_flat_rational())).
+ * NULL (defer) on a malformed field / out-of-domain input / arena exhaustion. */
+static srmech_mval_t *mc_one_flat_rational(srmech_marshal_arena_t *a,
+                                           const srmech_mval_t **binds, uint32_t nb)
+{
+    int64_t sigma, tn, td, terms; uint32_t tnl[3], tdl[3], i;
+    srmech_bigint_t tnb, tdb, fnum[MC_ONE_DIM], fden[MC_ONE_DIM];
+    srmech_mval_t *lst;
+    assert(a != NULL);
+    assert(binds != NULL || nb == 0u);
+    if (nb != 1u) { return NULL; }
+    if (!mc_one_read(binds[0], &sigma, &tn, &td, &terms)) { return NULL; }
+    tnb.limbs = tnl; tnb.cap = 3u; tnb.n = 0u; tnb.sign = 0;
+    tdb.limbs = tdl; tdb.cap = 3u; tdb.n = 0u; tdb.sign = 0;
+    if (srmech_bigint_set_i64(&tnb, tn) != SRMECH_OK) { return NULL; }
+    if (srmech_bigint_set_i64(&tdb, td) != SRMECH_OK) { return NULL; }
+    if (!mc_one_flat_carriers(a, (int32_t)sigma, &tnb, &tdb, (uint32_t)terms,
+                              fnum, fden)) { return NULL; }
+    lst = mc_list(a, MC_ONE_DIM, 1);                     /* tuple of 14 (n,d) pairs */
+    if (lst == NULL) { return NULL; }
+    for (i = 0u; i < MC_ONE_DIM; i++) {
+        srmech_mval_t *pair = mc_list(a, 2u, 1);
+        if (pair == NULL) { return NULL; }
+        pair->items[0] = mc_bigint(a, &fnum[i]);
+        pair->items[1] = mc_bigint(a, &fden[i]);
+        if (pair->items[0] == NULL || pair->items[1] == NULL) { return NULL; }
+        lst->items[i] = pair;
+    }
+    return lst;
+}
+
+/* mc_to_scalar — the One.scalar() vtable thunk (rc335; closes an EXACT make_class
+ * ->C defer, #948/#887). Reads the `one` field DICT + the method args {mode:
+ * "trace"|"sqnorm"|"component", index?: int, as_float?: bool}, runs
+ * srmech_one_scalar, and emits LIST[2] of BIGINT [num, den] — BYTE-IDENTICAL to
+ * json.dumps(serialise_native(to_scalar(one, mode=...))). as_float=True DEFERS
+ * (the terminal float cast is the pure caller's job). NULL (defer) on a malformed
+ * field / out-of-domain input / arena exhaustion. */
+static srmech_mval_t *mc_to_scalar(srmech_marshal_arena_t *a,
+                                   const srmech_mval_t **binds, uint32_t nb,
+                                   const srmech_mval_t *args)
+{
+    const srmech_mval_t *modev, *idxv, *afv;
+    int64_t sigma, tn, td, terms, index = 0;
+    int32_t mode = 0;                                    /* ONE_SCALAR_TRACE */
+    uint32_t tnl[3], tdl[3]; uint32_t *ob;
+    srmech_bigint_t tnb, tdb, onum, oden;
+    unsigned char *ws, *oc; size_t ws_len, out_cap;
+    srmech_mval_t *lst, *nn, *dn;
+    assert(a != NULL);
+    assert(binds != NULL || nb == 0u);
+    if (nb != 1u) { return NULL; }
+    afv = mc_dict_get(args, "as_float");                 /* True -> the pure float cast */
+    if (afv != NULL && afv->kind == SRMECH_MVAL_BOOL && afv->i != 0) { return NULL; }
+    modev = mc_dict_get(args, "mode");
+    if (modev != NULL) {
+        if (mc_str_eq(modev, "trace")) { mode = 0; }
+        else if (mc_str_eq(modev, "sqnorm")) { mode = 1; }
+        else if (mc_str_eq(modev, "component")) { mode = 2; }
+        else { return NULL; }
+    }
+    idxv = mc_dict_get(args, "index");
+    if (mode == 2 && !mc_arg_i64(idxv, &index)) { return NULL; }
+    if (!mc_one_read(binds[0], &sigma, &tn, &td, &terms)) { return NULL; }
+    tnb.limbs = tnl; tnb.cap = 3u; tnb.n = 0u; tnb.sign = 0;
+    tdb.limbs = tdl; tdb.cap = 3u; tdb.n = 0u; tdb.sign = 0;
+    if (srmech_bigint_set_i64(&tnb, tn) != SRMECH_OK) { return NULL; }
+    if (srmech_bigint_set_i64(&tdb, td) != SRMECH_OK) { return NULL; }
+    out_cap = 32u * ((size_t)terms + 9u * ((size_t)tnb.n + (size_t)tdb.n)) + 128u;
+    oc = mc_carve(a, 2u * out_cap * sizeof(uint32_t));
+    if (oc == NULL) { return NULL; }
+    ob = (uint32_t *)(void *)oc;
+    onum.limbs = ob; onum.cap = (uint32_t)out_cap; onum.n = 0u; onum.sign = 0;
+    oden.limbs = ob + out_cap; oden.cap = (uint32_t)out_cap; oden.n = 0u; oden.sign = 0;
+    ws_len = srmech_one_scalar_ws_bound(tnb.n, tdb.n, (uint32_t)terms);
+    ws = mc_carve(a, ws_len);
+    if (ws == NULL) { return NULL; }
+    if (srmech_one_scalar((int32_t)sigma, &tnb, &tdb, (uint32_t)terms, mode,
+                          (int32_t)index, &onum, &oden, ws, ws_len) != SRMECH_OK) {
+        return NULL;
+    }
+    lst = mc_list(a, 2u, 1);
+    if (lst == NULL) { return NULL; }
+    nn = mc_bigint(a, &onum);
+    dn = mc_bigint(a, &oden);
+    if (nn == NULL || dn == NULL) { return NULL; }
+    lst->items[0] = nn; lst->items[1] = dn;
     return lst;
 }
 
@@ -1268,6 +1521,15 @@ static srmech_mval_t *mc_vtable_call(srmech_marshal_arena_t *a, const char *op,
 {
     assert(a != NULL && op != NULL);
     assert(binds != NULL || nb == 0u);
+    if (strcmp(op, "srmech.amsc.cascade.one.one_matrix") == 0) {
+        return mc_one_matrix(a, binds, nb);        /* rc331: the field-DICT thunk */
+    }
+    if (strcmp(op, "srmech.amsc.cascade.one.one_flat_rational") == 0) {
+        return mc_one_flat_rational(a, binds, nb); /* rc335: the bignum-emit thunk */
+    }
+    if (strcmp(op, "srmech.amsc.cascade.to_scalar") == 0) {
+        return mc_to_scalar(a, binds, nb, args);   /* rc335: the bignum-emit thunk */
+    }
     if (strncmp(op, "srmech.amsc.cascade.one.one_", 28) == 0) {
         return mc_one_const(a, op);
     }
@@ -1571,11 +1833,22 @@ size_t srmech_make_class_run_arena_bytes(size_t toml_len, size_t fields_len,
     /* The TOML tree (32x, the srmech_toml builder's node overhead) + the two
      * JSON trees + two mval trees + the rc201b heavy-leaf working carriers
      * (base64 decodes, minted vectors, bind/bundle parts, split chunk LISTs +
-     * the rebuilt route state), generously over-allocated plus a fixed floor. */
-    size_t base = 65536u;
+     * the rebuilt route state), generously over-allocated plus a fixed floor.
+     * rc331 (#948): the floor also budgets the srmech_one_matrix workspace the
+     * One.matrix() thunk carves here (~0.34 MiB at num_terms=50) so it dispatches
+     * rather than OVERFLOW-defers. rc335 (#948/#887): ALSO budget the One.flat()/
+     * One.scalar() bignum-emit thunks — the srmech_the_one / srmech_one_scalar
+     * workspace (28 flat carriers + the series scratch; scalar's is the larger,
+     * with 8x accumulation headroom) + the 28 decimal-render buffers. int64 theta
+     * fits <= 2 limbs and the trig cap is 50 terms, so the worst case is a FIXED
+     * bound — srmech_one_scalar_ws_bound(2, 2, 50), which dominates the flat
+     * thunk's arena, plus a decimal-buffer margin. */
+    size_t base = 131072u;
+    size_t one_ws = srmech_one_scalar_ws_bound(2u, 2u, 50u);
     assert(base > 0u);
-    assert(base >= 65536u);
-    return base + 128u * (toml_len + fields_len + args_len);
+    assert(base >= 131072u);
+    assert(one_ws > 0u);
+    return base + one_ws + 65536u + 128u * (toml_len + fields_len + args_len);
 }
 
 /* Parse `json`[0..len) into an mval DICT (or NONE for empty). Returns 0 on a

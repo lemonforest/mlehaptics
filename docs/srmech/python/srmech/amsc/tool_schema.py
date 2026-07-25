@@ -1140,6 +1140,49 @@ def _register_primitive_class_tools() -> None:
                         P("weights", "Optional[list[float]]", False)),
             returns=R("Mat", "n × n symmetric matrix (numpy-free 2-D carrier)"),
         ),
+        # rc328 (task #893 / #888 rec (c)): the Laplace–Beltrami α-family.
+        # mass_normalized_laplacian generalises normalized_laplacian from
+        # degree-D to an arbitrary diagonal mass M (α=0 connectivity vs α=1
+        # metric / discrete LB); cotangent_weights emits the LB stiffness
+        # edge weights that feed dense_laplacian. Both are c_dispatched.
+        ToolEntry(
+            name="srmech.amsc.laplacian.mass_normalized_laplacian", owner="srmech",
+            category="laplacian",
+            summary="Mass-normalized (Laplace–Beltrami α-family) Laplacian: "
+                    "M^{-1/2}(D-W)M^{-1/2} (kind='symmetric', PSD) or "
+                    "M^{-1}(D-W) (kind='rw', rows sum to 0). masses=None → "
+                    "M=degree D (α=0 connectivity; recovers normalized_laplacian); "
+                    "masses=Voronoi areas → α=1 metric / discrete Laplace–Beltrami "
+                    "spectrum. The M^{-1/2} sqrt is the Class-N rational cascade; "
+                    "native C dispatch. #888 scoping.",
+            parameters=(P("n", "int", True),
+                        P("edges", "list[tuple[int, int]]", True),
+                        P("weights", "Optional[list[float]]", False),
+                        P("masses", "Optional[list[float]]", False,
+                          "diagonal mass M; None → degree D (α=0)"),
+                        P("kind", "str", False,
+                          "'symmetric' (default) or 'rw' (random-walk)")),
+            returns=R("Mat", "n × n real mass-normalized Laplacian (numpy-free Mat)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.laplacian.cotangent_weights", owner="srmech",
+            category="laplacian",
+            summary="Cotangent-weight Laplacian weights — the discrete "
+                    "Laplace–Beltrami edge weights on a triangulated manifold "
+                    "(Pinkall & Polthier 1993). Per triangle emits the three "
+                    "per-corner ½·cot(θ) contributions cot θ = (u·v)/|u×v| "
+                    "(|u×v| via the Lagrange identity; NO trig, NO abs, one "
+                    "algebraic sqrt/corner). Returns (edges, weights) whose "
+                    "parallel-edge accumulation in dense_laplacian gives the "
+                    "standard ½(cot α + cot β). positions are given data, NOT "
+                    "CAD mesh geometry. #888.",
+            parameters=(P("triangles", "list[tuple[int, int, int]]", True,
+                          "vertex-index triples (i, j, k) per triangle"),
+                        P("positions", "list[list[float]]", True,
+                          "vertex coordinates, 2-D or 3-D")),
+            returns=R("tuple", "(edges: list[tuple[int, int]], weights: list[float]) "
+                               "— feed straight to dense_laplacian(n_vertices, ...)"),
+        ),
         # #797 op (b): directed / signed Laplacian (rc26). The dissolved
         # Class-O signed-metric absorbed into L + the directed-navigation
         # leg (magnetic / Hermitian Laplacian). Heavy eigen runs on the
@@ -3459,6 +3502,53 @@ def _register_primitive_class_tools() -> None:
             summary="rc314 — the Z3 reading-frame MONODROMY of a CIRCULAR strand: going once around shifts the reading frame phi -> phi + L (mod 3), where L is the number of base symbols; returns L mod 3. A REAL Z3 invariant, DISTINCT from klein4_triality_cycle (the base-axis automorphism) and from the winding Lk (cwf_consistency_mod2; the sign bit) — there is NO codon copy of the integer Lk (the codon layer is frame topology in Z3, the winding lives in the sign bit). When L mod 3 == 0 the frame CLOSES on a clean loop (a circular ORF reads in one consistent frame); otherwise a single lap advances the frame by 1 or 2 (the monodromy is additive around laps). Class I (cyclic Z3). A pure read; stores nothing. q8_project_v4 is applied so L counts sign-free BASE symbols (projection preserves length). Dispatches to the whole-op C peer srmech_genome_codon_frame_monodromy (c_dispatched, genome-fully-in-C; byte-identical pure fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10.",
             parameters=(P("strand", "list", True, "a 1-D sequence of Q8 base symbols (see codon_read), or an HV"),),
             returns=R("int", "L mod 3 in {0,1,2} — the reading-frame shift accrued per lap around the circular strand"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_fiber_holonomy", owner="srmech", category="genome",
+            summary="rc322 (§Q8-FIBER, F-HOLO-MISLOCATED) — the strand's TOPOLOGY/FIBER channel: the ORDERED accumulated Q8 holonomy of the coupled turns along a strand. The base/sequence channel (the per-turn coupled store quad_turn, stored[i]=q8_mult(turn[i], one[i])) is a function of that turn + the shared `one` ALONE, never of prior turns — so it is winding-INVARIANT (a reorder is a pure positional permutation, the #914 order-discard; the abelian Watson-Crick sequence / codon read is unchanged). This op ADDS the non-abelian complement: fold the ordered per-slot Q8 product acc[s] = q8_mult(acc[s], turn_t[s]) along the strand (identity +1 == byte 0). Because Q8 is NON-abelian (i.j=+k but j.i=-k), REORDERING the turns CHANGES the fold — this is the fiber/gauge = the accumulated Lk (biology's supercoiling channel, Lk=Tw+Wr accumulating along DNA; cwf_consistency_mod2). The per-slot center-sign holonomy[s]>>2 IS the accumulated Lk mod 2 (no abs(); the sign is a group xor-bit). Class-M (Q8 bind) ordered fold. Dispatches to the whole-op C peer srmech_genome_fiber_holonomy (c_dispatched; byte-identical pure q8_bind fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10 (the fiber CAP storage bumps GENOME_FORMAT_VERSION 16->17).",
+            parameters=(P("turns", "list", True, "the stored/coupled data turns — a flat bytes of n_turns*leaf_dim Q8 bytes (leaf_dim required), or a sequence of per-turn buffers (HV / bytes / list[int] of leaf_dim Q8 bytes)"),
+                        P("leaf_dim", "int", False, "the per-turn width (inferred from the first buffer when a sequence of buffers is given; required for a flat buffer)")),
+            returns=R("bytes", "the accumulated per-slot Q8 holonomy (leaf_dim bytes); the center-sign of each byte is that slot's accumulated Lk mod 2"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_add_fiber", owner="srmech", category="genome",
+            summary="rc322 (§Q8-FIBER) — return `strand` with a FIBER cap appended so the genome register HOLDS BOTH SIDES OF THE FIBRATION. Scans the strand's DATA turns (caps skipped), folds their ORDERED Q8 holonomy (genome_fiber_holonomy), and appends a FIBER_CAP_MARKER (0x46) cap holding it (layout [0x46]+label+NUL+n_holo(u16 BE)+3-bit-packed holonomy). The base/sequence channel is UNTOUCHED — the returned strand's data turns are the SAME blocks in the SAME order, and the fiber cap is an INTERIOR cap every codon/data-turn walk skips — so a genome that never calls this is BYTE-IDENTICAL to a pre-rc322 genome (the fiber is OPT-IN). ADDITIVE: it stores the gauge (the accumulated Lk) the winding-invariant base cannot carry. Class-M fiber fold . Class-B cap framing. Composition over the C fiber op + the cap packer.",
+            parameters=(P("strand", "list", True, "a genome strand (a sequence of HV leaf blocks — caps + Q8 data turns)"),
+                        P("label", "str", False, "keyword-only; the fiber cap's inline label (default 'fiber')")),
+            returns=R("list", "the strand with one trailing FIBER cap (the fibration's second side, held in the strand)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_read_fiber", owner="srmech", category="genome",
+            summary="rc322 (§Q8-FIBER) — read the FIBER cap back and RECONSTRUCT the gauge from the pair (base + fiber). Finds the strand's FIBER_CAP_MARKER (0x46) cap (the stored gauge), RE-DERIVES the ordered holonomy from the base DATA turns (genome_fiber_holonomy), and reports whether the pair is consistent — the gauge reconstructs from base bytes + the fiber holonomy. The per-slot lk_mod2 (center-sign) is the accumulated Lk (Lk=Tw+Wr) the winding-invariant base channel structurally cannot hold. Composition over the cap unpacker + the C fiber op.",
+            parameters=(P("strand", "list", True, "a genome strand carrying exactly one FIBER cap (from genome_add_fiber)"),),
+            returns=R("dict", "{label, holonomy (stored gauge bytes), recomputed (re-derived from the base), consistent (bool — stored==recomputed), lk_mod2 (bytes, one 0/1 per slot)}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_octonion_holonomy", owner="srmech", category="genome",
+            summary="rc325 (§𝕆-FIBER) — the OCTONION analog of genome_fiber_holonomy ONE Cayley–Dickson rung up (Q8 -> 𝕆): the strand's ORDERED accumulated OCTONION holonomy of the coupled turns along a strand. Folds the ordered per-slot octonion LEFT product acc[s] = oct_mult(acc[s], turn_t[s]) along the strand (identity +e0 == byte 0), REUSING the rc324 oct_mult (NOT a reimplemented product). Because 𝕆 is non-commutative AND non-associative, REORDERING the turns CHANGES the fold — the fiber the winding-INVARIANT per-turn octonion store cannot carry. Class-M (octonion bind) ordered fold; no abs() (the sign is a group ⊕-bit). Dispatches to the whole-op C peer srmech_genome_octonion_holonomy (c_dispatched; byte-identical pure oct_bind fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10 (the octonion fiber CAP storage bumps GENOME_FORMAT_VERSION 17->18).",
+            parameters=(P("turns", "list", True, "the stored/coupled data turns — a flat bytes of n_turns*leaf_dim octonion bytes (leaf_dim required), or a sequence of per-turn buffers (HV / bytes / list[int] of leaf_dim octonion bytes)"),
+                        P("leaf_dim", "int", False, "the per-turn width (inferred from the first buffer when a sequence of buffers is given; required for a flat buffer)")),
+            returns=R("bytes", "the accumulated per-slot octonion holonomy (leaf_dim bytes)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_octonion_associator", owner="srmech", category="genome",
+            summary="rc325 (§𝕆-FIBER) — the per-slot OCTONION associator DEFECT: the non-associativity Q8 (associative) cannot express. A COMPOSED op (non_compute; two pure-Python folds) — computes the fully-LEFT-associated fold L[s] and the fully-RIGHT-associated fold R[s] of the same ordered turns; because the octonion index lane is ⊕-associative, L[s] and R[s] share the same index and differ ONLY in the center sign bit, so defect[s] = (L[s]>>3) ^ (R[s]>>3) ∈ {0,1}. Identically 0 for n<3 (any two units associate, Artin) and for any all-quaternionic strand (indices ⊆ {0,1,2,3}); nonzero exactly when the ordered turns break associativity — the 𝕆 analog of rc322's lk_mod2. Class-K (⊕ sign-bit compare) ∘ Class-M (two octonion folds); no abs().",
+            parameters=(P("turns", "list", True, "the ordered data turns — a flat bytes of n_turns*leaf_dim octonion bytes (leaf_dim required), or a sequence of per-turn buffers"),
+                        P("leaf_dim", "int", False, "the per-turn width (inferred from the first buffer when a sequence of buffers is given; required for a flat buffer)")),
+            returns=R("bytes", "one 0/1 associator-defect bit per slot (leaf_dim bytes)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_add_octonion_fiber", owner="srmech", category="genome",
+            summary="rc325 (§𝕆-FIBER) — return `strand` with an OCTONION FIBER cap appended so the genome register HOLDS BOTH SIDES of the 𝕆 fibration (the 𝕆 analog of genome_add_fiber). Scans the strand's DATA turns (caps skipped), folds their ORDERED octonion holonomy (genome_octonion_holonomy), and appends an OCT_FIBER_CAP_MARKER (0x4F) cap holding it (layout [0x4F]+label+NUL+n_holo(u16 BE)+4-bit-packed holonomy — the octonion codec, NOT the 3-bit Q8 packing). The base/sequence channel is UNTOUCHED (same data turns, same order; the octonion fiber cap is an INTERIOR cap every codon/data-turn walk skips), so a genome that never calls this is BYTE-IDENTICAL to a pre-rc325 genome (the fiber is OPT-IN). ADDITIVE. Class-M fiber fold ∘ Class-B cap framing; composition over the C octonion fiber op + the cap packer.",
+            parameters=(P("strand", "list", True, "a genome strand (a sequence of HV leaf blocks — caps + octonion data turns)"),
+                        P("label", "str", False, "keyword-only; the octonion fiber cap's inline label (default 'octonion')")),
+            returns=R("list", "the strand with one trailing OCTONION FIBER cap (the 𝕆 fibration's second side, held in the strand)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.genome.genome_read_octonion_fiber", owner="srmech", category="genome",
+            summary="rc325 (§𝕆-FIBER) — read the OCTONION FIBER cap back and RECONSTRUCT the fiber from the pair (base + fiber). Finds the strand's OCT_FIBER_CAP_MARKER (0x4F) cap (the stored gauge), RE-DERIVES the ordered holonomy from the base DATA turns (genome_octonion_holonomy), reports whether the pair is consistent, and reads the per-slot associator defect (genome_octonion_associator) — the non-associativity the base (and the Q8 fiber) cannot hold. Composition over the cap unpacker + the C octonion fiber op + the associator.",
+            parameters=(P("strand", "list", True, "a genome strand carrying exactly one OCTONION FIBER cap (from genome_add_octonion_fiber)"),),
+            returns=R("dict", "{label, holonomy (stored gauge bytes), recomputed (re-derived from the base), consistent (bool — stored==recomputed), associator_defect (bytes, one 0/1 per slot)}"),
         ),
 
         # ────────────────────────────────────────────────────────────
@@ -7334,6 +7424,52 @@ def _register_primitive_class_tools() -> None:
                           "divisibility by 14")),
             returns=R("HV", "the OCT coupling one, sectors=8, uint8 in {0..7}"),
         ),
+        # rc324: the DISCRETE octonion Moufang loop {±e₀..±e₇} as 4-bit bytes —
+        # the Cayley–Dickson rung ABOVE Q8 (the byte-exact carrier peer of the
+        # float srmech.qm.octonion ODFT). The genome's 𝕆 element-type carrier
+        # (ELEMENT_TYPE_OCTONION): stores the FULL octonion (indices 0..7, incl.
+        # the non-quaternionic 4..7). ADDITIVE; carrier only (the associator /
+        # fiber channel is a later rc). oct_mult's sign is the cd_basis_product
+        # cocycle at dim 8 xored with the two center bits — never an abs().
+        ToolEntry(
+            name="srmech.amsc.octonion.oct_mult", owner="srmech",
+            category="octonion",
+            summary="The octonion Moufang-loop product a·b of two 4-bit bytes "
+                    "(o=(sign<<3)|index; 0=+e₀,…,7=+e₇,8=−e₀,…,15=−e₇). The "
+                    "Cayley–Dickson rung above q8_mult: NON-associative for ≥3 "
+                    "independent units (the octonion associator), e_i²=−1 (byte "
+                    "8) for i≠0. The sign is the cd_basis_product cocycle at dim "
+                    "8 xored with the two center bits — never an abs(); the index "
+                    "lane is exact (a·b)&7 == (a&7)^(b&7). Class M∘I. Same-rc C "
+                    "peer srmech_oct_mult (byte-exact).",
+            parameters=(P("a", "int", True, "an octonion element in [0, 16)"),
+                        P("b", "int", True, "an octonion element in [0, 16)")),
+            returns=R("int", "the product a·b as an octonion byte in [0, 16)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.octonion.oct_conjugate", owner="srmech",
+            category="octonion",
+            summary="The octonion conjugate / loop inverse: conj(a)=a for the "
+                    "real center (index 0, self-inverse), else a^8 (flip an "
+                    "imaginary unit's sign bit). oct_mult(a, oct_conjugate(a))==0 "
+                    "for every a (the Moufang inverse property). Class C "
+                    "(orientation; a plain sign-bit flip, no abs()). Same-rc C "
+                    "peer srmech_oct_conjugate (byte-exact).",
+            parameters=(P("a", "int", True, "an octonion element in [0, 16)"),),
+            returns=R("int", "conj(a) as an octonion byte in [0, 16)"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.octonion.oct_bind", owner="srmech",
+            category="octonion",
+            summary="Elementwise octonion bind out[i]=oct_mult(turn[i], one[i]) "
+                    "over two equal-length octonion byte buffers (the buffer form "
+                    "of oct_mult). Class M (loop bind). Same-rc C peer "
+                    "srmech_oct_bind (documents the out-aliasing contract; "
+                    "byte-exact).",
+            parameters=(P("turn", "bytes", True, "left operand octonion buffer"),
+                        P("one", "bytes", True, "right operand, same length")),
+            returns=R("bytes", "the elementwise product, length len(turn)"),
+        ),
         # rc116 (#1248 / F1038): the Hurwitz rung of the CARRIER CONVERSION
         # LADDER — promote / project between ℝ↪ℂ↪ℍ↪𝕆↪𝕊, the algebra-one-level-up
         # analog of the srmech.amsc.carrier_ladder variable ladder. Pure
@@ -7518,10 +7654,14 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("CDRegister",
                       "the register — CORE: .write/.read (addressable storage), "
-                      ".navmap/.navigate (the address↔Cayley–Dickson homomorphism), "
-                      ".is_navigable (reversibility gate), .working_block/.carry_block "
-                      "(the block split); OPT (opt-in): .couple_working/.uncouple_working "
-                      "(reversible word), .carry/.correct (EC block)"),
+                      ".element/.norm/.conjugate/.multiply/.add (per-rung carrier "
+                      "arithmetic over the slot-held signed-basis element Σ sign_i·e_i "
+                      "— the method-form of cd_norm_sq/cd_conjugate/cd_mult/cd_add; "
+                      "`#948`), .navmap/.navigate (the address↔Cayley–Dickson "
+                      "homomorphism), .is_navigable (reversibility gate), "
+                      ".working_block/.carry_block (the block split); OPT (opt-in): "
+                      ".couple_working/.uncouple_working (reversible word), "
+                      ".carry/.correct (EC block)"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_navmap", owner="srmech",
@@ -9334,6 +9474,104 @@ def _register_qm_tools() -> None:
                       "3, residuals, abelian_group_order 8, lagrange_obstruction, "
                       "chirality_complete_core 7), attestation, "
                       "framework_chirality_complete_reading}"),
+        ),
+
+        # ────────────────────────────────────────────────────────────
+        # srmech.qm.so9 — the so(9)/Spin(9) rung one Cayley-Dickson step
+        # above so(8): the 36-dim so(9) adjoint, the 16-dim real spinor
+        # Δ₉ (9 octonion-built Clifford Γ), the Spin(8) ⊂ Spin(9)
+        # branching 16 = 8_s ⊕ 8_c, and the honest tiered associator ↔
+        # Spin(9)-holonomy conjecture at the sedenion 𝕊 rung. Class M
+        # (Clifford binders); Class C (chiral split); Class D∘L∘K (conj).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.qm.so9.so9_adjoint_basis", owner="srmech",
+            category="qm.so9",
+            summary="The 36 antisymmetric 9×9 so(9) generators E_{pq} (the "
+                    "vector / defining rep; dim so(9) = C(9,2) = 36), rank "
+                    "exactly 36 (EXACT over ℚ). One rung above so8_adjoint_basis "
+                    "(dim 28); so(9) ⊃ so(8) as the E_{pq} with p,q≤7. Class M. "
+                    "Baez (2002) §2.",
+            parameters=(),
+            returns=R("tuple[Mat, ...]", "36 antisymmetric 9×9 spanning so(9)"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so9.spin9_gamma_matrices", owner="srmech",
+            category="qm.so9",
+            summary="The 9 real symmetric 16×16 Clifford generators Γ_a of the "
+                    "16-dim real spinor Δ₉ of Spin(9): Γ_a = [[0, L_{e_a}], "
+                    "[L_{e_a}^T, 0]] (a=0..7, from octonion_left_mult) + Γ_8 = "
+                    "diag(I_8, −I_8). Satisfy {Γ_a,Γ_b} = 2 δ_{ab} I_16 "
+                    "bit-exact (max residual 0; entries in {−1,0,+1}) — the "
+                    "construction proves Δ₉ is a 16-dim REAL rep. Class M. "
+                    "Baez (2002) §2.3-2.4 + §3.4.",
+            parameters=(),
+            returns=R("tuple[Mat, ...]",
+                      "9 real symmetric 16×16 with {Γ_a,Γ_b}=2δ_ab I"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so9.spin9_spinor_generators", owner="srmech",
+            category="qm.so9",
+            summary="The 36 spin(9) generators Σ_{ab} = ¼[Γ_a,Γ_b] in the 16-dim "
+                    "real spinor Δ₉ (antisymmetric 16×16, dyadic entries). Rank "
+                    "exactly 36 (over ℚ) and obey the SAME so(9) structure "
+                    "constants as the 9×9 vector rep (bracket residual bit-exact "
+                    "0) — Δ₉ is a genuine spin(9) ≅ so(9) rep. Class M. "
+                    "Baez (2002) §2.4.",
+            parameters=(),
+            returns=R("tuple[Mat, ...]",
+                      "36 antisymmetric 16×16 spanning spin(9) in Δ₉"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so9.spin8_in_spin9_branching", owner="srmech",
+            category="qm.so9",
+            summary="The bit-exact Spin(8) ⊂ Spin(9) embedding + the 16 = 8_s ⊕ "
+                    "8_c spinor branching. The 28 Σ_{ab} (a,b≤7) are all "
+                    "block-diagonal on Δ₉ = O ⊕ O (off-block residual 0), so the "
+                    "chirality operator Γ_8 = diag(I,−I) commutes with the whole "
+                    "Spin(8) and its projectors ½(I±Γ_8) split Δ₉ into two "
+                    "invariant 8-dim half-spinors 8_s (top) / 8_c (bottom), each "
+                    "a faithful so(8) (rank 28) with DIFFERENT actions "
+                    "(bit-exact distinct-action witness). The 8_s ≇ 8_c "
+                    "inequivalence is the recognized rep-theory fact (Baez); the "
+                    "block structure + projector commutation + 28+28 ranks are "
+                    "this op's own bit-exact computation. Class C ∘ L. "
+                    "Baez (2002) §2.4 + §3.4.",
+            parameters=(),
+            returns=R("dict",
+                      "{spinor_rep:{spinor_dim 16, spin9_dim 36, "
+                      "clifford_max_residual, spinor_rank 36, "
+                      "so9_bracket_max_residual}, branching:{branch (8,8), "
+                      "branch_labels (8_s,8_c), chirality_operator, "
+                      "off_block_max_residual, projector_commutator_max_residual, "
+                      "half_spinor_ranks (28,28), half_spinors_distinct_actions}, "
+                      "attestation}"),
+        ),
+        ToolEntry(
+            name="srmech.qm.so9.sedenion_holonomy_conjecture", owner="srmech",
+            category="qm.so9",
+            summary="HONEST tiered test (verdict PARTIAL): does the octonion "
+                    "associator curvature (g₂ = Der O) reappear as a Spin(9) "
+                    "holonomy at the sedenion 𝕊 (dim 16) rung? RECOGNIZED: "
+                    "dim Δ₉ = 16 = dim_R 𝕊 (shared O⊕O carrier, NOT a Spin(9) "
+                    "automorphism action). DERIVED (bit-exact): Der(𝕊) = g₂ "
+                    "(dim 14) persists + embeds in spin(9) as the "
+                    "triality-diagonal diag(D,D) (all 14 lifts have sedenion-"
+                    "Leibniz residual 0); dim(spin(9) ∩ Der(𝕊)) = 14. NULL "
+                    "(the honest bound Spin(9) ≠ Aut(𝕊)): only 14 of the 36 "
+                    "spin(9) directions preserve 𝕊 multiplication (0/36 "
+                    "individual generators are derivations) — the holonomy is "
+                    "valued in g₂ (dim 14), NOT Spin(9) (dim 36). FORM not "
+                    "identity; never abs(). Class D ∘ L ∘ K. Baez (2002); "
+                    "Schafer (1954) Der(𝕊)=g₂.",
+            parameters=(),
+            returns=R("dict",
+                      "{verdict 'PARTIAL', dimensions:{spinor_delta9 16, "
+                      "sedenion_real 16, spin9 36, g2 14, der_sedenion 14, "
+                      "spin9_cap_der_sedenion 14, aut_sedenion_approx 14}, "
+                      "certificate (bit-exact), tiers "
+                      "{RECOGNIZED,DERIVED,NULL}, framework_reading, "
+                      "attestation}"),
         ),
     ]
     for e in entries:

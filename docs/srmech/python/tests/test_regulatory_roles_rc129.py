@@ -271,7 +271,7 @@ def test_no_format_bump_two_mask_genome_saves_v8(tmp_path):
     strand = G.chromosome(coupling=one, label="ecoli", genes=genes)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 16                          # rc132 §132 bumped v10->v11 (0x64 graded gene); a two-mask 0x67 genome still saves + pages
+    assert man["format_version"] == 19                          # rc132 §132 bumped v10->v11 (0x64 graded gene); a two-mask 0x67 genome still saves + pages
     paged = G.genome_genes(p, "ecoli", coupling=one)
     assert [l for l, _ in paged] == ["housekeeping", "lacZ"]   # mask-agnostic recovery
     s2, o2, _ = G.genome_load(p)

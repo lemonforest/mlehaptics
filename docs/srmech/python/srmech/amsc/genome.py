@@ -64,12 +64,17 @@ from srmech.amsc.hv import HV as _HV
 from srmech.amsc.q8 import q8_bind as _q8_bind
 from srmech.amsc.q8 import q8_conjugate as _q8_conjugate
 from srmech.amsc.q8 import q8_project_v4 as _q8_project_v4
+from srmech.amsc.octonion import oct_bind as _oct_bind
+from srmech.amsc.octonion import oct_conjugate as _oct_conjugate
 from srmech.amsc.tlv import tlv_pack as _tlv_pack
 from srmech.amsc.tlv import tlv_unpack as _tlv_unpack
 from srmech.version import __version__ as _SRMECH_VERSION
 
 __all__ = [
     "discrete_writhe", "cwf_consistency_mod2",
+    "genome_fiber_holonomy", "genome_add_fiber", "genome_read_fiber",
+    "genome_octonion_holonomy", "genome_octonion_associator",
+    "genome_add_octonion_fiber", "genome_read_octonion_fiber",
     "codon_read", "codon_frame_monodromy", "CODON_BASES",
     "encode_shape", "quad_turn", "telomere", "chromosome",
     "centromere", "centromere_of",
@@ -105,9 +110,11 @@ __all__ = [
     "GRADED_GENE_MARKER",
     "GATE_TYPE_KLEIN4_MASK", "GATE_TYPE_BOOLEAN_DNF", "GATE_TYPE_THRESHOLD",
     "GATE_TYPE_GRADED",
-    "PACKED_TURN_MARKER", "Q8_PACKED_TURN_MARKER",
+    "PACKED_TURN_MARKER", "Q8_PACKED_TURN_MARKER", "OCTONION_PACKED_TURN_MARKER",
     "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4", "ELEMENT_TYPE_Q8",
+    "ELEMENT_TYPE_OCTONION", "OCTONION_SECTORS",
+    "FIBER_CAP_MARKER", "OCT_FIBER_CAP_MARKER",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
     "CHROMATIN_GATE_THRESHOLD",
@@ -159,6 +166,17 @@ PACKED_TURN_MARKER = 0x51
 #: use this one, and a reader strides each by its marker with no element_type context. A
 #: v15 klein4 turn (bytes ``0..3``, sign bit 0) is the winding-0 slice of a v16 Q₈ turn.
 Q8_PACKED_TURN_MARKER = 0x38
+#: §𝕆/rc324 — the 4-BIT-PACKED octonion data-turn block marker. ``0x39`` = ASCII ``'9'``
+#: (adjacent to Q₈'s ``'8'``; the octonion sits one Cayley–Dickson rung up). An octonion
+#: data turn packs as ``[0x39] + ceil(leaf_dim*4/8)`` payload bytes — **4 bits per octonion
+#: symbol** (3 index bits ``e₀..e₇`` + the ``±1`` center sign). Same MSB-FIRST CONTIGUOUS
+#: layout as the Q₈ codec (symbol ``i`` in bits ``[4i, 4i+4)`` of a big-endian bitstream,
+#: the sign/high bit first; the partial-final-byte low pad bits are zero, canonical). The
+#: marker is ``> 3`` and distinct from :data:`PACKED_TURN_MARKER` / :data:`Q8_PACKED_TURN_MARKER`
+#: / every cap marker. **rc324 is the CARRIER: this codec is a standalone, directly-tested
+#: round-trip; wiring it into the on-disk region walk + the GENOME_FORMAT_VERSION bump is a
+#: later rc (mirroring how the Q₈ 3-bit codec landed in rc312, not the rc311 carrier).**
+OCTONION_PACKED_TURN_MARKER = 0x39
 #: §60/rc121 (format v5, issue #1245 reopened) — the SIZE-AGNOSTIC KERNEL HEADER
 #: block marker. ``0x4B`` = ASCII ``'K'`` (Kernel). Written by :func:`kernel_pack`
 #: as the SECOND block of a kernel chromosome (right after its telomere CHROM cap):
@@ -338,6 +356,52 @@ DIPLOID_TELOMERE_MARKER = 0x44
 #: branch, and a chromatin-FREE genome reads all-euchromatin by default. Mirrors
 #: ``SRMECH_GENOME_CHROMATIN_MARKER`` in the C header.
 CHROMATIN_MARKER = 0x48
+
+#: §Q8-FIBER/rc322 (format v16 → v17, F-HOLO-MISLOCATED) — the TOPOLOGY / FIBER cap marker.
+#: ``0x46`` = ASCII ``'F'`` (Fiber). The fibration has TWO sides and this cap holds the SECOND:
+#: the base / sequence channel (the coupled data turns, :func:`quad_turn`) is winding-INVARIANT —
+#: ``quad_turn`` re-stamps ``q8_mult(turn, one)`` per turn (a function of the turn + the shared
+#: ``one`` ALONE, never of prior turns), so a reorder is a pure positional permutation (the #914
+#: order-discard) that leaves the abelian Watson–Crick sequence / codon read unchanged. The FIBER
+#: cap holds the strand's ORDERED accumulated Q₈ holonomy (:func:`genome_fiber_holonomy`): the
+#: non-abelian fold ``acc[s] = q8_mult(acc[s], turn_t[s])`` along the strand, which — because Q₈
+#: is non-abelian (``i·j = +k`` but ``j·i = −k``) — CHANGES under reorder. That accumulated
+#: holonomy IS the gauge: its per-slot center-sign is the accumulated ``Lk`` (biology's
+#: supercoiling channel, ``Lk = Tw + Wr`` accumulating along DNA; :func:`cwf_consistency_mod2`).
+#: Like the §95a :data:`CENTROMERE_CAP_MARKER` / §98 :data:`CHROMATIN_MARKER` it is an INTERIOR
+#: cap (it never OPENS a chromosome, and every cap-skip / data-turn / codon walk flattens past
+#: it), so the base sequence read is byte-IDENTICAL with or without it. It is OPT-IN
+#: (:func:`genome_add_fiber`), so a genome that carries no fiber is BYTE-IDENTICAL to a v16 body.
+#: Layout (the §127 active-telomere inline-field pattern):
+#:   ``[0x46] + utf-8 label + NUL + n_holo(uint16 BE) + packed_holonomy``
+#: where ``packed_holonomy`` is the ``ceil(n_holo*3/8)``-byte 3-bit MSB-first Q₈ packing (the
+#: SAME layout as a :data:`Q8_PACKED_TURN_MARKER` turn payload) of the ``n_holo == leaf_dim``
+#: accumulated Q₈ bytes, NUL-padded to ``leaf_dim``. ``> 3`` and distinct from every prior
+#: marker, so v2..v16 bodies read UNCHANGED. Mirrors ``SRMECH_GENOME_FIBER_CAP_MARKER`` in the
+#: C header.
+FIBER_CAP_MARKER = 0x46
+
+#: §𝕆-FIBER/rc325 (format v17 → v18) — the OCTONION TOPOLOGY / FIBER cap marker, the 𝕆 analog of
+#: :data:`FIBER_CAP_MARKER` ONE Cayley–Dickson rung up (Q₈ → 𝕆). ``0x4F`` = ASCII ``'O'``
+#: (Octonion fiber). The octonion base / sequence channel (the coupled data turns,
+#: :func:`_oct_couple`) re-stamps ``oct_mult(turn, one)`` per turn, so a reorder is a pure
+#: positional permutation; this cap holds the SECOND side — the strand's ORDERED accumulated
+#: OCTONION holonomy (:func:`genome_octonion_holonomy`), the LEFT-fold ``acc[s] = oct_mult(acc[s],
+#: turn_t[s])`` which — because 𝕆 is non-commutative AND non-associative — CHANGES under reorder.
+#: The non-associativity that Q₈ (associative) cannot express is read by
+#: :func:`genome_octonion_associator` (the per-slot ``L`` vs ``R`` associator defect bit). Like the
+#: §Q8-FIBER cap it is an INTERIOR cap (never opens a chromosome; every cap-skip / data-turn /
+#: codon walk flattens past it), so the base read is byte-IDENTICAL with or without it, and it is
+#: OPT-IN (:func:`genome_add_octonion_fiber`) — a genome carrying no octonion fiber is
+#: BYTE-IDENTICAL to a v17 body. Layout (the §127 active-telomere inline-field pattern):
+#:   ``[0x4F] + utf-8 label + NUL + n_holo(uint16 BE) + packed_holonomy``
+#: where ``packed_holonomy`` is the ``ceil(n_holo*4/8) = ceil(n_holo/2)``-byte 4-bit MSB-first
+#: octonion packing (the SAME layout as an :data:`OCTONION_PACKED_TURN_MARKER` turn payload, NOT
+#: the 3-bit Q₈ packing) of the ``n_holo == leaf_dim`` accumulated octonion bytes, NUL-padded to
+#: ``leaf_dim``. ``> 3`` and distinct from every prior marker (incl. Q₈-fiber ``0x46`` /
+#: octonion-turn ``0x39`` / KERNEL ``0x4B``), so v2..v17 bodies read UNCHANGED. Mirrors
+#: ``SRMECH_GENOME_OCT_FIBER_CAP_MARKER`` in the C header.
+OCT_FIBER_CAP_MARKER = 0x4F
 
 #: §98/rc268 chromatin TYPE — BINARY (0) = open ``(1,1)`` / condensed ``(0,1)``; GRADED (1) = an
 #: arbitrary reduced-rational accessibility level in ``[0,1]``. Stored inline in the cap so the
@@ -694,7 +758,20 @@ ELEMENT_TYPE_KLEIN4 = 0
 #: type; a header-less body still defaults to :data:`ELEMENT_TYPE_KLEIN4`). The §55 8-sector
 #: packer + the format bump land in rc312.
 ELEMENT_TYPE_Q8 = 1
-_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8"}
+#: §𝕆 (rc324) — the DISCRETE octonion Moufang loop ``{±e₀, …, ±e₇}`` element type: a
+#: 4-bit symbol ``(sign_bit << 3) | index`` (:mod:`srmech.amsc.octonion`), the Cayley–
+#: Dickson rung ABOVE :data:`ELEMENT_TYPE_Q8`. Its coupling is the octonion loop product
+#: (:func:`quad_turn` right-couple), non-involutive — decoupled by the Class-C conjugate
+#: (loop inverse) via the Moufang inverse property, NOT the XOR self-inverse. Data turns
+#: are ``sectors=16`` (:data:`OCTONION_SECTORS`) HVs storing the FULL octonion (indices
+#: ``0..7`` — including the non-quaternionic ``4..7`` the Q₈ ``0..3`` sub-block cannot
+#: reach). Coexists with the klein4 + Q8 paths with NO GENOME_FORMAT_VERSION bump (the
+#: size-agnostic header discipline — the reader is told the type; a header-less body still
+#: defaults to :data:`ELEMENT_TYPE_KLEIN4`). This rc ships the CARRIER only; the octonion
+#: associator / fiber-holonomy channel + the on-disk 4-bit turn wiring land in a later rc.
+ELEMENT_TYPE_OCTONION = 2
+_ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8",
+                       ELEMENT_TYPE_OCTONION: "octonion"}
 _ELEMENT_TYPE_CODES = {name: code for code, name in _ELEMENT_TYPE_NAMES.items()}
 
 #: §60 kernel-header fixed prefix layout (bytes; NUL-padded to ``leaf_dim``):
@@ -734,6 +811,11 @@ QUAD = 4
 #: 3-bit ``{0..7}`` symbol). A Q8 data turn is a ``sectors=8`` HV; the extra bit over
 #: :data:`QUAD` is the over/under-winding sign the abelian klein4 coset cannot carry.
 OCT = 8
+#: §𝕆 (rc324) — the octonion carrier order: 16 = the 8 basis units ``e₀..e₇`` × the ±1
+#: center sign (the 4-bit ``{0..15}`` symbol). An octonion data turn is a ``sectors=16`` HV;
+#: the extra index bit over :data:`OCT` reaches the non-quaternionic units ``e₄..e₇``. NOT a
+#: rename of :data:`OCT` (which is the Q₈ order 8, a historical misnomer) — a distinct name.
+OCTONION_SECTORS = 16
 #: One quad-turn spans the 4 Klein-4 sectors of leaves: 1024 = 4 x 256 (F713).
 MOBIUS_CAP = LEAF_CAP * QUAD
 
@@ -1144,6 +1226,522 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# §Q8-FIBER (rc322, F-HOLO-MISLOCATED) — the genome's TOPOLOGY / FIBER channel.
+#
+# The fibration has TWO sides; the genome register holds BOTH and reconstructs the
+# gauge from the pair:
+#
+#   BASE  (sequence)  — the coupled data turns (:func:`quad_turn`, `stored[i] =
+#     q8_mult(turn[i], one[i])`). ABELIAN + winding-INVARIANT: each turn is a function
+#     of that turn + the shared `one` ALONE, never of prior turns, so a reorder is a
+#     pure positional permutation (the #914 order-discard) and the codon / Watson–Crick
+#     sequence read is unchanged. This side is KEPT byte-identical (do not modify it).
+#
+#   FIBER (topology) — :func:`genome_fiber_holonomy` folds the ORDERED non-abelian Q₈
+#     product of the coupled turns along the strand (`acc[s] = q8_mult(acc[s],
+#     turn_t[s])`). Q₈ is non-abelian (`i·j = +k` but `j·i = −k`), so REORDER CHANGES
+#     the fold: this is the accumulated holonomy = the gauge = the accumulated `Lk`
+#     (biology's supercoiling channel, `Lk = Tw + Wr` accumulating along DNA;
+#     :func:`cwf_consistency_mod2`). The per-slot center-sign `acc[s] >> 2` IS the
+#     accumulated `Lk` mod 2. Stored genome-natively as a :data:`FIBER_CAP_MARKER`
+#     (0x46) cap held IN the strand (:func:`genome_add_fiber`), read back +
+#     reconstructed from the pair by :func:`genome_read_fiber`.
+#
+# rc-A ships the ℍ-rung (Q₈) only; the octonion 7-rung is a later rc.
+
+
+def _fiber_normalize_turns(turns, leaf_dim):
+    """Coerce ``turns`` to ``(flat_bytes, n_turns, leaf_dim)`` for the ordered fold.
+
+    Accepts a FLAT ``bytes``/``bytearray`` (``leaf_dim`` required) OR a sequence of
+    per-turn buffers (each an ``HV`` / ``bytes`` / ``list[int]`` of ``leaf_dim`` Q₈
+    bytes; ``leaf_dim`` inferred from the first). Validates every byte is a Q₈
+    element (``0..7``) — the fold is the SAME exact-integer Q₈ product the base store
+    uses, so out-of-range input is a hard error, not silent truncation."""
+    if isinstance(turns, (bytes, bytearray)):
+        flat = bytes(turns)
+        if leaf_dim is None:
+            raise ValueError(
+                "genome_fiber_holonomy: leaf_dim is required for a flat bytes buffer")
+        seq_flat = True
+    else:
+        seq = list(turns)
+        if seq and isinstance(seq[0], int):
+            flat = bytes(seq)
+            if leaf_dim is None:
+                raise ValueError(
+                    "genome_fiber_holonomy: leaf_dim is required for a flat int list")
+            seq_flat = True
+        else:
+            rows = [_hv_bytes(t) for t in seq]
+            if leaf_dim is None:
+                leaf_dim = len(rows[0]) if rows else 0
+            for i, r in enumerate(rows):
+                if len(r) != leaf_dim:
+                    raise ValueError(
+                        f"genome_fiber_holonomy: turn {i} has width {len(r)} != "
+                        f"leaf_dim {leaf_dim} (every turn is a fixed-width leaf)")
+            flat = b"".join(rows)
+            seq_flat = False
+    leaf_dim = int(leaf_dim)
+    if seq_flat:
+        if leaf_dim <= 0 or len(flat) % leaf_dim != 0:
+            raise ValueError(
+                f"genome_fiber_holonomy: flat buffer length {len(flat)} is not a "
+                f"multiple of leaf_dim {leaf_dim}")
+    n_turns = (len(flat) // leaf_dim) if leaf_dim else 0
+    for b in flat:
+        if not 0 <= b <= 7:
+            raise ValueError(
+                f"genome_fiber_holonomy: byte {b} is not a Q₈ element (0..7) — the "
+                f"fiber fold is the exact-integer Q₈ product")
+    return flat, n_turns, leaf_dim
+
+
+def genome_fiber_holonomy(turns, leaf_dim=None):
+    """The strand's ORDERED accumulated Q₈ holonomy — the genome's FIBER / gauge.
+
+    Folds the ordered per-slot Q₈ product of the coupled turns along the strand:
+    ``acc[s] = q8_mult(...q8_mult(q8_mult(0, turns[0][s]), turns[1][s])...,
+    turns[n-1][s])`` (identity ``+1`` == byte 0). Because Q₈ is NON-abelian
+    (``i·j = +k`` but ``j·i = −k``), REORDERING the turns CHANGES the result — this
+    is the topology / gauge the winding-INVARIANT per-turn coupled store
+    (:func:`quad_turn`, which re-stamps ``q8_mult(turn, one)`` per turn) cannot carry.
+    The per-slot center-sign ``holonomy[s] >> 2`` is the accumulated ``Lk`` mod 2
+    (``Lk = Tw + Wr``; :func:`cwf_consistency_mod2`). Class-M (Q₈ bind) ordered fold;
+    no ``abs()`` — the sign is a group ⊕-bit.
+
+    Args:
+        turns: the stored/coupled data turns — a FLAT ``bytes`` of ``n_turns *
+            leaf_dim`` Q₈ bytes (``leaf_dim`` required) OR a sequence of per-turn
+            buffers (``HV`` / ``bytes`` / ``list[int]`` of ``leaf_dim`` Q₈ bytes).
+        leaf_dim: the per-turn width (keyword; inferred from the first buffer when a
+            sequence of buffers is given).
+
+    Returns:
+        ``bytes`` of length ``leaf_dim`` — the accumulated per-slot Q₈ holonomy.
+
+    Raises:
+        ValueError: a non-Q₈ byte, a width mismatch, or a missing ``leaf_dim``.
+    """
+    flat, n_turns, leaf_dim = _fiber_normalize_turns(turns, leaf_dim)
+    if leaf_dim == 0:
+        return b""
+    native = _native.genome_fiber_holonomy_c(flat, n_turns, leaf_dim)
+    if native is not None:
+        return native
+    acc = bytes(leaf_dim)                       # zeros == the Q₈ identity +1
+    for t in range(n_turns):
+        acc = _q8_bind(acc, flat[t * leaf_dim:(t + 1) * leaf_dim])
+    return acc
+
+
+def _q8_pack_holonomy_payload(holonomy: bytes) -> bytes:
+    """The 3-bit MSB-first Q₈ packing of ``holonomy`` WITHOUT the turn marker — the
+    exact :func:`_pack_turn_block_q8` payload (``ceil(len*3/8)`` bytes), reused so the
+    fiber cap's holonomy field packs byte-identically to a Q₈ data-turn payload."""
+    return _pack_turn_block_q8(bytes(holonomy))[1:]
+
+
+def _pack_fiber_cap(holonomy, label, dim: int) -> "_HV":
+    """A fixed-width ``dim``-byte FIBER cap holding ``holonomy`` (the accumulated Q₈
+    gauge). Layout: ``[FIBER_CAP_MARKER] + utf-8 label + NUL + n_holo(uint16 BE) +
+    packed_holonomy`` (:func:`_q8_pack_holonomy_payload`), NUL-padded to ``dim``. The
+    inline-field-after-label discipline is the §127 active-telomere pattern, so
+    :func:`_unpack_cap`'s uniform label decode still works. Raises if the label +
+    packed holonomy do not fit one leaf."""
+    raw_label = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    holo = bytes(holonomy)
+    n_holo = len(holo)
+    if n_holo > 0xFFFF:
+        raise ValueError(
+            f"_pack_fiber_cap: holonomy length {n_holo} exceeds the uint16 field")
+    packed = _q8_pack_holonomy_payload(holo)
+    payload = (bytes([FIBER_CAP_MARKER]) + raw_label + b"\x00"
+               + n_holo.to_bytes(2, "big") + packed)
+    if len(payload) > dim:
+        raise ValueError(
+            f"_pack_fiber_cap: the fiber cap needs {len(payload)} bytes but leaf_dim "
+            f"is {dim} (shorten the label {label!r} or use a wider leaf_dim; a Q₈ "
+            f"holonomy 3-bit-packs to {len(packed)} bytes)")
+    block = payload + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _unpack_fiber_cap(hv):
+    """Inverse of :func:`_pack_fiber_cap` — returns ``(label, holonomy_bytes)`` from a
+    :data:`FIBER_CAP_MARKER` cap. The ``n_holo`` uint16 read starts right AFTER the
+    label's NUL (uniform with :func:`_unpack_cap`); the packed holonomy is decoded by
+    the SAME :func:`_unpack_turn_payload_q8` a Q₈ data turn uses."""
+    raw = hv.tobytes() if isinstance(hv, _HV) else bytes(hv)
+    if not raw or raw[0] != FIBER_CAP_MARKER:
+        raise ValueError("not a fiber cap (first byte != FIBER_CAP_MARKER)")
+    label_bytes = raw[1:].split(b"\x00", 1)[0]
+    label = label_bytes.decode("utf-8")
+    p = 1 + len(label_bytes) + 1                # past marker + label + NUL
+    n_holo = int.from_bytes(raw[p:p + 2], "big")
+    p += 2
+    plen = _packed_payload_len_q8(n_holo)
+    holonomy = _unpack_turn_payload_q8(raw[p:p + plen], n_holo)
+    return label, holonomy
+
+
+def genome_add_fiber(strand, *, label: str = "fiber"):
+    """Return ``strand`` with a FIBER cap appended — the register now HOLDS BOTH SIDES.
+
+    Scans the strand's DATA turns (caps are skipped), folds their ORDERED Q₈ holonomy
+    (:func:`genome_fiber_holonomy`), and appends a :data:`FIBER_CAP_MARKER` cap holding
+    it. The base / sequence channel is UNTOUCHED (the returned strand's data turns are
+    the SAME blocks in the SAME order; the fiber cap is an INTERIOR cap that every
+    codon / data-turn walk skips), so a genome that never calls this is byte-identical
+    to a pre-rc322 genome. ADDITIVE: this stores the gauge the base cannot carry.
+
+    Args:
+        strand: a genome strand (a sequence of ``HV`` leaf blocks — caps + Q₈ turns).
+        label: the fiber cap's inline label (keyword; default ``"fiber"``).
+
+    Returns:
+        ``list`` — the strand with one trailing FIBER cap.
+
+    Raises:
+        ValueError: an empty strand, or a strand that already carries a fiber cap.
+    """
+    blocks = list(strand)
+    if not blocks:
+        raise ValueError("genome_add_fiber: empty strand has no turns")
+    if any(_cap_kind(hv) == FIBER_CAP_MARKER for hv in blocks):
+        raise ValueError(
+            "genome_add_fiber: strand already carries a fiber cap (read it with "
+            "genome_read_fiber; the fiber is derived, mint it once)")
+    leaf_dim = len(blocks[0])
+    turns = [_hv_bytes(hv) for hv in blocks if _cap_kind(hv) is None]
+    holonomy = genome_fiber_holonomy(turns, leaf_dim) if turns else bytes(leaf_dim)
+    cap = _pack_fiber_cap(holonomy, label, leaf_dim)
+    return blocks + [cap]
+
+
+def genome_read_fiber(strand) -> Dict[str, object]:
+    """Read the FIBER cap back and RECONSTRUCT the gauge from the pair (base + fiber).
+
+    Finds the strand's :data:`FIBER_CAP_MARKER` cap (the stored gauge), RE-DERIVES the
+    ordered holonomy from the base DATA turns (:func:`genome_fiber_holonomy`), and
+    reports whether the pair is consistent — the gauge reconstructs from base bytes +
+    the fiber holonomy. The per-slot ``lk_mod2`` (center-sign) is the accumulated
+    ``Lk`` the base (winding-invariant) channel cannot hold.
+
+    Returns:
+        ``dict`` with ``label``, ``holonomy`` (the stored gauge, ``bytes``),
+        ``recomputed`` (re-derived from the base, ``bytes``), ``consistent`` (bool —
+        stored == recomputed), and ``lk_mod2`` (``bytes``, one ``0/1`` per slot).
+
+    Raises:
+        ValueError: the strand carries no fiber cap, or more than one.
+    """
+    blocks = list(strand)
+    fiber_caps = [hv for hv in blocks if _cap_kind(hv) == FIBER_CAP_MARKER]
+    if not fiber_caps:
+        raise ValueError(
+            "genome_read_fiber: strand carries no fiber cap (a v≤16 / base-only "
+            "genome; add one with genome_add_fiber)")
+    if len(fiber_caps) > 1:
+        raise ValueError(
+            f"genome_read_fiber: strand carries {len(fiber_caps)} fiber caps (expected 1)")
+    label, stored = _unpack_fiber_cap(fiber_caps[0])
+    leaf_dim = len(stored)
+    turns = [_hv_bytes(hv) for hv in blocks if _cap_kind(hv) is None]
+    recomputed = genome_fiber_holonomy(turns, leaf_dim) if turns else bytes(leaf_dim)
+    stored = bytes(stored)
+    recomputed = bytes(recomputed)
+    return {
+        "label": label,
+        "holonomy": stored,
+        "recomputed": recomputed,
+        "consistent": stored == recomputed,
+        "lk_mod2": bytes(b >> 2 for b in stored),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# §𝕆-FIBER (rc325) — the genome's OCTONION TOPOLOGY / FIBER channel.
+#
+# The 𝕆 analog of the §Q8-FIBER channel ONE Cayley–Dickson rung up (Q₈ → 𝕆). The
+# octonion base / sequence store (:func:`_oct_couple`, `stored[i] = oct_mult(turn[i],
+# one[i])`) re-stamps per turn, so a reorder is a pure positional permutation. This
+# channel adds the SECOND side:
+#
+#   HOLONOMY — :func:`genome_octonion_holonomy` folds the ORDERED LEFT octonion product
+#     of the coupled turns along the strand (`acc[s] = oct_mult(acc[s], turn_t[s])`).
+#     𝕆 is non-commutative AND non-associative, so REORDER CHANGES it. Stored genome-
+#     natively in a :data:`OCT_FIBER_CAP_MARKER` (0x4F) cap.
+#
+#   ASSOCIATOR — :func:`genome_octonion_associator` reads the NON-ASSOCIATIVITY that Q₈
+#     (associative) cannot express: the per-slot defect bit between the fully-LEFT and
+#     fully-RIGHT associated folds of the same ordered turns. Because the octonion index
+#     is ⊕-associative, L[s] and R[s] share the same index and differ only in the sign
+#     bit, so `defect[s] = (L[s]>>3) ^ (R[s]>>3) ∈ {0,1}`. Identically 0 for n<3 and for
+#     any all-quaternionic strand (indices ⊆ {0..3}); nonzero exactly when the turns
+#     break associativity. This is the 𝕆 analog of rc322's `lk_mod2`.
+
+
+def _octonion_fiber_normalize_turns(turns, leaf_dim):
+    """Coerce ``turns`` to ``(flat_bytes, n_turns, leaf_dim)`` for the ordered octonion
+    fold — the 𝕆 peer of :func:`_fiber_normalize_turns` (validates every byte is an
+    octonion element ``0..15`` instead of a Q₈ ``0..7``).
+
+    Accepts a FLAT ``bytes``/``bytearray`` (``leaf_dim`` required) OR a sequence of
+    per-turn buffers (each an ``HV`` / ``bytes`` / ``list[int]`` of ``leaf_dim`` octonion
+    bytes; ``leaf_dim`` inferred from the first). The fold is the SAME exact-integer
+    octonion product the base store uses, so an out-of-range byte is a hard error."""
+    if isinstance(turns, (bytes, bytearray)):
+        flat = bytes(turns)
+        if leaf_dim is None:
+            raise ValueError(
+                "genome_octonion_holonomy: leaf_dim is required for a flat bytes buffer")
+        seq_flat = True
+    else:
+        seq = list(turns)
+        if seq and isinstance(seq[0], int):
+            flat = bytes(seq)
+            if leaf_dim is None:
+                raise ValueError(
+                    "genome_octonion_holonomy: leaf_dim is required for a flat int list")
+            seq_flat = True
+        else:
+            rows = [_hv_bytes(t) for t in seq]
+            if leaf_dim is None:
+                leaf_dim = len(rows[0]) if rows else 0
+            for i, r in enumerate(rows):
+                if len(r) != leaf_dim:
+                    raise ValueError(
+                        f"genome_octonion_holonomy: turn {i} has width {len(r)} != "
+                        f"leaf_dim {leaf_dim} (every turn is a fixed-width leaf)")
+            flat = b"".join(rows)
+            seq_flat = False
+    leaf_dim = int(leaf_dim)
+    if seq_flat:
+        if leaf_dim <= 0 or len(flat) % leaf_dim != 0:
+            raise ValueError(
+                f"genome_octonion_holonomy: flat buffer length {len(flat)} is not a "
+                f"multiple of leaf_dim {leaf_dim}")
+    n_turns = (len(flat) // leaf_dim) if leaf_dim else 0
+    for b in flat:
+        if not 0 <= b <= 15:
+            raise ValueError(
+                f"genome_octonion_holonomy: byte {b} is not an octonion element (0..15) "
+                f"— the fiber fold is the exact-integer octonion product")
+    return flat, n_turns, leaf_dim
+
+
+def genome_octonion_holonomy(turns, leaf_dim=None):
+    """The strand's ORDERED accumulated OCTONION holonomy — the 𝕆 FIBER / gauge, the
+    Cayley–Dickson rung above :func:`genome_fiber_holonomy`.
+
+    Folds the ordered per-slot octonion product of the coupled turns along the strand:
+    ``acc[s] = oct_mult(...oct_mult(oct_mult(0, turns[0][s]), turns[1][s])...,
+    turns[n-1][s])`` (identity ``+e₀`` == byte 0), REUSING :func:`~srmech.amsc.octonion.oct_mult`
+    (via :func:`~srmech.amsc.octonion.oct_bind`) — NOT a reimplemented product. Because 𝕆 is
+    NON-commutative AND NON-associative, REORDERING the turns CHANGES the result — the fiber
+    the winding-INVARIANT per-turn coupled store (:func:`_oct_couple`) cannot carry. Class-M
+    (octonion bind) ordered fold; no ``abs()`` — the sign is a group ⊕-bit.
+
+    Args:
+        turns: the stored/coupled data turns — a FLAT ``bytes`` of ``n_turns * leaf_dim``
+            octonion bytes (``leaf_dim`` required) OR a sequence of per-turn buffers
+            (``HV`` / ``bytes`` / ``list[int]`` of ``leaf_dim`` octonion bytes).
+        leaf_dim: the per-turn width (keyword; inferred from the first buffer when a
+            sequence of buffers is given).
+
+    Returns:
+        ``bytes`` of length ``leaf_dim`` — the accumulated per-slot octonion holonomy.
+
+    Raises:
+        ValueError: a non-octonion byte, a width mismatch, or a missing ``leaf_dim``.
+    """
+    flat, n_turns, leaf_dim = _octonion_fiber_normalize_turns(turns, leaf_dim)
+    if leaf_dim == 0:
+        return b""
+    native = _native.genome_octonion_holonomy_c(flat, n_turns, leaf_dim)
+    if native is not None:
+        return native
+    acc = bytes(leaf_dim)                       # zeros == the octonion identity +e₀
+    for t in range(n_turns):
+        acc = _oct_bind(acc, flat[t * leaf_dim:(t + 1) * leaf_dim])
+    return acc
+
+
+def genome_octonion_associator(turns, leaf_dim=None):
+    """The per-slot OCTONION associator DEFECT — the non-associativity Q₈ cannot express.
+
+    A COMPOSED op (kept ``non_compute``; computed in pure Python from two folds). For the
+    same ordered turns it computes the fully-**LEFT**-associated fold ``L[s]`` (== the
+    :func:`genome_octonion_holonomy` left-fold, ``acc = oct_mult(acc, turn)``) and the
+    fully-**RIGHT**-associated fold ``R[s]`` (``acc = oct_mult(turn, acc)`` from the last
+    turn backward, i.e. ``turns[0]·(turns[1]·(…·turns[n-1]))``). Because the octonion index
+    lane is ⊕-associative, ``L[s]`` and ``R[s]`` ALWAYS share the same index and can differ
+    ONLY in the center sign bit, so the defect is that one bit::
+
+        defect[s] = (L[s] >> 3) ^ (R[s] >> 3)   ∈ {0, 1}
+
+    It is identically ``0`` for ``n < 3`` (any two units generate an associative subalgebra,
+    Artin) and for any all-quaternionic strand (all turn indices ⊆ ``{0,1,2,3}``), and
+    nonzero exactly when the ordered turns break associativity — the 𝕆 analog of rc322's
+    ``lk_mod2`` (which read the Q₈ center-sign directly). Class-K (the ⊕ sign-bit compare) ∘
+    Class-M (the two octonion folds); no ``abs()``.
+
+    Args:
+        turns: as :func:`genome_octonion_holonomy` (flat ``bytes`` + ``leaf_dim``, or a
+            sequence of per-turn buffers).
+        leaf_dim: the per-turn width (keyword; inferred from the first buffer for a
+            sequence).
+
+    Returns:
+        ``bytes`` of length ``leaf_dim`` — one ``0/1`` associator-defect bit per slot.
+
+    Raises:
+        ValueError: a non-octonion byte, a width mismatch, or a missing ``leaf_dim``.
+    """
+    flat, n_turns, leaf_dim = _octonion_fiber_normalize_turns(turns, leaf_dim)
+    if leaf_dim == 0:
+        return b""
+    left = bytes(leaf_dim)                      # zeros == +e₀ identity
+    for t in range(n_turns):
+        left = _oct_bind(left, flat[t * leaf_dim:(t + 1) * leaf_dim])
+    right = bytes(leaf_dim)                     # zeros == +e₀ identity
+    for t in range(n_turns - 1, -1, -1):
+        right = _oct_bind(flat[t * leaf_dim:(t + 1) * leaf_dim], right)
+    return bytes(((left[s] >> 3) ^ (right[s] >> 3)) for s in range(leaf_dim))
+
+
+def _oct_pack_holonomy_payload(holonomy: bytes) -> bytes:
+    """The 4-bit MSB-first octonion packing of ``holonomy`` WITHOUT the turn marker — the
+    exact :func:`_pack_turn_block_octonion` payload (``ceil(len/2)`` bytes), reused so the
+    octonion fiber cap's holonomy field packs byte-identically to an octonion data-turn
+    payload (distinct from the 3-bit Q₈ :func:`_q8_pack_holonomy_payload`)."""
+    return _pack_turn_block_octonion(bytes(holonomy))[1:]
+
+
+def _pack_oct_fiber_cap(holonomy, label, dim: int) -> "_HV":
+    """A fixed-width ``dim``-byte OCTONION FIBER cap holding ``holonomy`` (the accumulated
+    octonion gauge). Layout: ``[OCT_FIBER_CAP_MARKER] + utf-8 label + NUL + n_holo(uint16
+    BE) + packed_holonomy`` (:func:`_oct_pack_holonomy_payload`, the 4-bit packing),
+    NUL-padded to ``dim``. Mirrors :func:`_pack_fiber_cap` but with the octonion 4-bit
+    codec. Raises if the label + packed holonomy do not fit one leaf."""
+    raw_label = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    holo = bytes(holonomy)
+    n_holo = len(holo)
+    if n_holo > 0xFFFF:
+        raise ValueError(
+            f"_pack_oct_fiber_cap: holonomy length {n_holo} exceeds the uint16 field")
+    packed = _oct_pack_holonomy_payload(holo)
+    payload = (bytes([OCT_FIBER_CAP_MARKER]) + raw_label + b"\x00"
+               + n_holo.to_bytes(2, "big") + packed)
+    if len(payload) > dim:
+        raise ValueError(
+            f"_pack_oct_fiber_cap: the octonion fiber cap needs {len(payload)} bytes but "
+            f"leaf_dim is {dim} (shorten the label {label!r} or use a wider leaf_dim; an "
+            f"octonion holonomy 4-bit-packs to {len(packed)} bytes)")
+    block = payload + b"\x00" * (dim - len(payload))
+    return _HV.from_sequence(block, sectors=256)
+
+
+def _unpack_oct_fiber_cap(hv):
+    """Inverse of :func:`_pack_oct_fiber_cap` — returns ``(label, holonomy_bytes)`` from a
+    :data:`OCT_FIBER_CAP_MARKER` cap. The ``n_holo`` uint16 read starts right AFTER the
+    label's NUL; the packed holonomy is decoded by the SAME
+    :func:`_unpack_turn_payload_octonion` an octonion data turn uses."""
+    raw = hv.tobytes() if isinstance(hv, _HV) else bytes(hv)
+    if not raw or raw[0] != OCT_FIBER_CAP_MARKER:
+        raise ValueError("not an octonion fiber cap (first byte != OCT_FIBER_CAP_MARKER)")
+    label_bytes = raw[1:].split(b"\x00", 1)[0]
+    label = label_bytes.decode("utf-8")
+    p = 1 + len(label_bytes) + 1                # past marker + label + NUL
+    n_holo = int.from_bytes(raw[p:p + 2], "big")
+    p += 2
+    plen = _packed_payload_len_octonion(n_holo)
+    holonomy = _unpack_turn_payload_octonion(raw[p:p + plen], n_holo)
+    return label, holonomy
+
+
+def genome_add_octonion_fiber(strand, *, label: str = "octonion"):
+    """Return ``strand`` with an OCTONION FIBER cap appended — the register now HOLDS BOTH
+    SIDES of the 𝕆 fibration (the 𝕆 analog of :func:`genome_add_fiber`).
+
+    Scans the strand's DATA turns (caps skipped), folds their ORDERED octonion holonomy
+    (:func:`genome_octonion_holonomy`), and appends a :data:`OCT_FIBER_CAP_MARKER` cap
+    holding it. The base / sequence channel is UNTOUCHED (the returned strand's data turns
+    are the SAME blocks in the SAME order; the octonion fiber cap is an INTERIOR cap every
+    codon / data-turn walk skips), so a genome that never calls this is byte-identical to a
+    pre-rc325 genome. ADDITIVE: it stores the fiber the base cannot carry.
+
+    Args:
+        strand: a genome strand (a sequence of ``HV`` leaf blocks — caps + octonion turns).
+        label: the octonion fiber cap's inline label (keyword; default ``"octonion"``).
+
+    Returns:
+        ``list`` — the strand with one trailing OCTONION FIBER cap.
+
+    Raises:
+        ValueError: an empty strand, or a strand that already carries an octonion fiber cap.
+    """
+    blocks = list(strand)
+    if not blocks:
+        raise ValueError("genome_add_octonion_fiber: empty strand has no turns")
+    if any(_cap_kind(hv) == OCT_FIBER_CAP_MARKER for hv in blocks):
+        raise ValueError(
+            "genome_add_octonion_fiber: strand already carries an octonion fiber cap (read "
+            "it with genome_read_octonion_fiber; the fiber is derived, mint it once)")
+    leaf_dim = len(blocks[0])
+    turns = [_hv_bytes(hv) for hv in blocks if _cap_kind(hv) is None]
+    holonomy = genome_octonion_holonomy(turns, leaf_dim) if turns else bytes(leaf_dim)
+    cap = _pack_oct_fiber_cap(holonomy, label, leaf_dim)
+    return blocks + [cap]
+
+
+def genome_read_octonion_fiber(strand) -> Dict[str, object]:
+    """Read the OCTONION FIBER cap back and RECONSTRUCT the fiber from the pair (base +
+    fiber) — the 𝕆 analog of :func:`genome_read_fiber`.
+
+    Finds the strand's :data:`OCT_FIBER_CAP_MARKER` cap (the stored gauge), RE-DERIVES the
+    ordered holonomy from the base DATA turns (:func:`genome_octonion_holonomy`), reports
+    whether the pair is consistent, and reads the per-slot associator defect
+    (:func:`genome_octonion_associator`) — the non-associativity the base (and the Q₈ fiber)
+    cannot hold.
+
+    Returns:
+        ``dict`` with ``label``, ``holonomy`` (the stored gauge, ``bytes``), ``recomputed``
+        (re-derived from the base, ``bytes``), ``consistent`` (bool — stored == recomputed),
+        and ``associator_defect`` (``bytes``, one ``0/1`` per slot).
+
+    Raises:
+        ValueError: the strand carries no octonion fiber cap, or more than one.
+    """
+    blocks = list(strand)
+    oct_caps = [hv for hv in blocks if _cap_kind(hv) == OCT_FIBER_CAP_MARKER]
+    if not oct_caps:
+        raise ValueError(
+            "genome_read_octonion_fiber: strand carries no octonion fiber cap (a v≤17 / "
+            "base-only genome; add one with genome_add_octonion_fiber)")
+    if len(oct_caps) > 1:
+        raise ValueError(
+            f"genome_read_octonion_fiber: strand carries {len(oct_caps)} octonion fiber "
+            f"caps (expected 1)")
+    label, stored = _unpack_oct_fiber_cap(oct_caps[0])
+    leaf_dim = len(stored)
+    turns = [_hv_bytes(hv) for hv in blocks if _cap_kind(hv) is None]
+    recomputed = genome_octonion_holonomy(turns, leaf_dim) if turns else bytes(leaf_dim)
+    defect = genome_octonion_associator(turns, leaf_dim) if turns else bytes(leaf_dim)
+    stored = bytes(stored)
+    recomputed = bytes(recomputed)
+    return {
+        "label": label,
+        "holonomy": stored,
+        "recomputed": recomputed,
+        "consistent": stored == recomputed,
+        "associator_defect": defect,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # §136 (rc314, #962) — the CODON READ-LAYER (a pure read; stores NOTHING).
 #
 # Biology reads the genome in CODONS (triplets — the genetic code), and that is
@@ -1448,9 +2046,11 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
         return _klein4_bind(turn, coupling)
     if element_type == ELEMENT_TYPE_Q8:
         return _q8_couple(turn, coupling)
+    if element_type == ELEMENT_TYPE_OCTONION:
+        return _oct_couple(turn, coupling)
     raise ValueError(
         f"quad_turn: unknown element_type {element_type!r}; declared types are "
-        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
 
 
 def _hv_bytes(x):
@@ -1500,6 +2100,49 @@ def _q8_couple(turn, coupling):
     return _HV.from_sequence(stored, sectors=OCT)
 
 
+def _oct_conj_buffer(one_bytes):
+    """The per-slot octonion conjugate (loop inverse) of a coupling buffer —
+    ``conj(one)[i] = oct_conjugate(one[i])`` (Class-C chirality; a sign-bit flip on the
+    imaginary units, NO ``abs()``). The right-inverse the octonion decouple binds against."""
+    return bytes(_oct_conjugate(o) for o in one_bytes)
+
+
+def _oct_uncouple_bytes(stored_bytes, one_bytes):
+    """Right-inverse octonion decouple on raw bytes: ``recovered[i] = oct_mult(stored[i],
+    oct_conjugate(one[i]))`` = ``oct_bind(stored, conj(one))``. Rests on the Moufang loop
+    INVERSE PROPERTY ``(turn · one) · conj(one) == turn`` per slot — each slot holds a single
+    signed basis unit, and ``⟨turn, one⟩`` is an associative subalgebra (Artin), so a
+    RIGHT-coupled ``stored = oct_mult(turn, one)`` decouples exactly to ``turn`` even though
+    𝕆 is globally non-associative. Class-M (bind) ∘ Class-C (conjugate)."""
+    return _oct_bind(stored_bytes, _oct_conj_buffer(one_bytes))
+
+
+def _oct_side_ok(stored_bytes, turn_bytes, one_bytes):
+    """The octonion coupling-SIDE invariant, as a fireable predicate: True iff the module's
+    RIGHT-conjugate decouple inverts ``stored`` back to ``turn``. RIGHT-coupling
+    (``stored = oct_mult(turn, one)``) satisfies it; a LEFT-coupled ``stored =
+    oct_mult(one, turn)`` does NOT (𝕆 is non-commutative), so :func:`_oct_couple` asserts
+    this and a wrong side FAILS LOUDLY instead of corrupting silently. Class-K exact byte
+    compare, no float/abs."""
+    return bytes(_oct_uncouple_bytes(stored_bytes, one_bytes)) == bytes(turn_bytes)
+
+
+def _oct_couple(turn, coupling):
+    """Right-couple one octonion turn: ``stored[i] = oct_mult(turn[i], one[i])``
+    (:func:`oct_bind`, the octonion loop product). Returns a ``sectors=16``
+    (:data:`OCTONION_SECTORS`) HV. The coupling SIDE is a HARD runtime assertion
+    (:func:`_oct_side_ok`) — 𝕆 is non-commutative, so a left-side couple would round-trip
+    WRONG with no downstream error; the assert pins couple↔uncouple on the SAME (right) side
+    via the Moufang inverse property. Class-M ∘ Class-C."""
+    turn_bytes = _hv_bytes(turn)
+    one_bytes = _hv_bytes(coupling)
+    stored = _oct_bind(turn_bytes, one_bytes)         # right: turn · one, per slot
+    assert _oct_side_ok(stored, turn_bytes, one_bytes), (
+        "octonion couple side error: the right-conjugate decouple does not invert the "
+        "stored turn — couple and uncouple are on opposite sides (𝕆 is non-commutative; §𝕆)")
+    return _HV.from_sequence(stored, sectors=OCTONION_SECTORS)
+
+
 def _quad_unturn(hv, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     """Uncouple one STORED turn back to its leaf — the direction-aware inverse of
     :func:`quad_turn`.
@@ -1516,9 +2159,13 @@ def _quad_unturn(hv, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     if element_type == ELEMENT_TYPE_Q8:
         return _HV.from_sequence(
             _q8_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)), sectors=OCT)
+    if element_type == ELEMENT_TYPE_OCTONION:
+        return _HV.from_sequence(
+            _oct_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)),
+            sectors=OCTONION_SECTORS)
     raise ValueError(
         f"_quad_unturn: unknown element_type {element_type!r}; declared types are "
-        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
 
 
 def _pack_cap(marker, label, dim):
@@ -1554,7 +2201,8 @@ def _cap_kind(hv):
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
         CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-        CHROMATIN_MARKER) else None   # §95a/§95b/§98 caps
+        CHROMATIN_MARKER, FIBER_CAP_MARKER,
+        OCT_FIBER_CAP_MARKER) else None   # §95a/§95b/§98/§Q8-FIBER/§𝕆-FIBER caps
 
 
 def _unpack_cap(hv):
@@ -2346,6 +2994,14 @@ def active_telomere(label, count, dim=64):
     ``count`` → same cap. Recover the count from the bare strand with
     :func:`_active_telomere_count`; tick it with :func:`telomere_tick`.
     """
+    # rc329 (§102 G7): the pack has a standalone-C peer srmech_genome_active_telomere,
+    # so a bare-C host builds ONE active cap with NO daughter-minting (the pack logic
+    # used to live only INSIDE srmech_genome_telomere_tick). The pure
+    # _pack_active_telomere below is the complete byte-identical alternative + the
+    # parity oracle (it also raises the exact ValueErrors the C peer declines on).
+    native = _native.genome_active_telomere_c(label, count, dim)
+    if native is not None:
+        return _hv_from_block(native)
     return _pack_active_telomere(label, count, dim)
 
 
@@ -2611,11 +3267,15 @@ def recover_diploid(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
         native = _native.genome_recover_diploid_q8_c(
             b"".join(hv.tobytes() for hv in strand), len(strand), dim,
             _coupling_block_bytes(coupling))
+    elif element_type == ELEMENT_TYPE_OCTONION:
+        native = None   # rc324: carrier only — no native octonion genome peer yet; the pure
+        #                 per-leaf _diploid_ec_leaf walk below (element-type-agnostic) is used.
     else:
         raise ValueError(
             f"recover_diploid: unknown element_type {element_type!r}; declared types are "
-            f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
-    sectors = OCT if element_type == ELEMENT_TYPE_Q8 else QUAD
+            f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
+    sectors = (OCTONION_SECTORS if element_type == ELEMENT_TYPE_OCTONION
+               else OCT if element_type == ELEMENT_TYPE_Q8 else QUAD)
     if native is not None:
         return [_HV.from_sequence(native[i * dim:(i + 1) * dim], sectors=sectors)
                 for i in range(len(native) // dim)]
@@ -3022,6 +3682,17 @@ def condense(strand, *, coupling=None, state=True, region=None, handle="chr", la
     chromatin_type, num, den, access_gate_type, gate_fields = _chromatin_state(state)
     cap = _chromatin_cap(chromatin_type, num, den, dim, handle=handle,
                          access_gate_type=access_gate_type, gate_fields=gate_fields)
+    # rc332 (§102 G7): the label -> chromatin-range find + `region` resolution -> insert index
+    # has a standalone-C peer srmech_genome_condense, so a bare-C host resolves WHERE the (already
+    # native, srmech_genome_chromatin) cap splices with NO Python present — closing the §2 G7
+    # "reaching a C primitive is not a whole-op entry" gap. The pure _chrom_range + region body
+    # below is the byte-identical alternative + the parity oracle (it also raises the exact
+    # ValueErrors the C peer declines on). The list splice is the trivial assembly (mint_plan
+    # pattern: the COMPUTATION runs in C).
+    native = _native.genome_condense_c(
+        b"".join(hv.tobytes() for hv in strand), len(strand), dim, label, region)
+    if native is not None:
+        return strand[:native] + [cap] + strand[native:]
     start, end = _chrom_range(strand, label, op="condense")
     if region is None:
         insert = start + 1                          # HEAD scope: right after the opening telomere
@@ -3053,6 +3724,18 @@ def decondense(strand, *, coupling=None, label=None):
     chromosome is byte-identical to the original mint (NO re-mint). Returns a NEW strand (the input
     is unchanged). ``coupling`` is accepted for signature symmetry (the clear is a pure splice)."""
     strand = list(strand)
+    # rc332 (§102 G7): the per-block keep decision (drop the 0x48 chromatin caps — whole-strand,
+    # or only those inside the `label` chromosome via the SAME range-find as condense) has a
+    # standalone-C peer srmech_genome_decondense, so a bare-C host clears the packaging with NO
+    # Python present. The pure body below is the byte-identical alternative + the parity oracle
+    # (it also raises the exact ValueErrors the C peer declines on for the label scope). The list
+    # filter is the trivial assembly (mint_plan pattern: the COMPUTATION runs in C).
+    if strand:
+        dim = len(list(strand[0]))
+        keep = _native.genome_decondense_c(
+            b"".join(hv.tobytes() for hv in strand), len(strand), dim, label)
+        if keep is not None:
+            return [hv for i, hv in enumerate(strand) if keep[i]]
     if label is None:
         return [hv for hv in strand if _cap_kind(hv) != CHROMATIN_MARKER]
     start, end = _chrom_range(strand, label, op="decondense")
@@ -3400,7 +4083,8 @@ def recall(strand, coupling, telomere=None, *, element_type=ELEMENT_TYPE_KLEIN4)
     """
     dim = len(list(coupling))
     blocks = _leaf_blocks(strand)
-    sectors = OCT if element_type == ELEMENT_TYPE_Q8 else QUAD
+    sectors = (OCTONION_SECTORS if element_type == ELEMENT_TYPE_OCTONION
+               else OCT if element_type == ELEMENT_TYPE_Q8 else QUAD)
     if dim > 0 and blocks and all(len(b) == dim for b in blocks):
         # rc197 (#887): DISPATCH the klein4 path to srmech_genome_recall (reversible XOR
         # per turn). §Q8 (rc311): DISPATCH the Q8 path to srmech_genome_recall_q8 (the
@@ -3414,10 +4098,13 @@ def recall(strand, coupling, telomere=None, *, element_type=ELEMENT_TYPE_KLEIN4)
         elif element_type == ELEMENT_TYPE_Q8:
             native = _native.genome_recall_q8_c(
                 b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+        elif element_type == ELEMENT_TYPE_OCTONION:
+            native = None   # rc324: carrier only — no native octonion genome peer yet; the
+            #                 pure per-turn _quad_unturn walk below is authoritative.
         else:
             raise ValueError(
                 f"recall: unknown element_type {element_type!r}; declared types are "
-                f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8)")
+                f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
         if native is not None:
             leaf_bytes, n = native
             return [_HV.from_sequence(leaf_bytes[i * dim:(i + 1) * dim], sectors=sectors)
@@ -3455,6 +4142,23 @@ def genes(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     Use :func:`genes` (not :func:`recall`) on a multi-gene chromosome; ``recall``
     flattens across the gene boundaries (§44: scanned by inline marker).
     """
+    # rc333 (§102 G7): the per-gene (label, leaves) BOUNDARY-PRESERVING split has a standalone-C
+    # peer srmech_genome_genes, so a bare-C host recovers the per-gene structure with NO Python
+    # present — closing the §2 G7 genes-family gap (srmech_genome_recall FLATTENS boundaries;
+    # srmech_genome_gene_express_plan returns SPANS; neither is this (label, leaves) split). The
+    # KLEIN4 default (the shipped wire format) dispatches; Q8/octonion take the pure oracle below —
+    # a DECODED in-memory strand carries no on-disk carrier marker, so the C cannot infer the
+    # carrier, while the pure _quad_unturn does via element_type. The list assembly is the trivial
+    # formatting (the mint_plan pattern: the COMPUTATION runs in C). BYTE-IDENTICAL to the pure walk.
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        blocks = _leaf_blocks(strand)
+        dim = len(list(coupling))
+        if dim > 0 and blocks and all(len(b) == dim for b in blocks):
+            native = _native.genome_genes_c(
+                b"".join(blocks), len(blocks), dim, _coupling_block_bytes(coupling))
+            if native is not None:
+                return [(lbl, [_HV.from_sequence(lf, sectors=QUAD) for lf in leaves])
+                        for lbl, leaves in native]
     out = []
     cur_label = None
     cur_leaves = []
@@ -4808,15 +5512,32 @@ def mint_plan(kernels):
     — ``orientation`` is the assigned global which-way for nuclear kernels (``None`` for
     plasmids)."""
     items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
+    materialized = [(label, list(leaves)) for label, leaves in items]
+    # rc329 (§102 G7): the WHOLE read-loop has a standalone-C peer srmech_genome_mint_plan
+    # — the F715 shape decision (encode_shape → plasmid vs nuclear) + the content-address
+    # orientation (sha256(content)[0] & 3) per kernel, ALL in C, so a bare-C host assembles
+    # the plan with NO Python present (closes the §2 G7 "the per-step primitive is native
+    # but the loop that assembles the plan is not" gap). The pure per-kernel _mint_shape /
+    # _mint_orientation below are the byte-identical alternative + the parity oracle.
+    native = _native.genome_mint_plan_c(
+        [_kernel_content_bytes(lv) for _, lv in materialized],
+        [len(lv) for _, lv in materialized])
     plan = []
-    for label, leaves in items:
-        leaves_list = list(leaves)
-        _shape, tier, mint_cen = _mint_shape(leaves_list)
+    for idx, (label, leaves_list) in enumerate(materialized):
         n_leaves = len(leaves_list)
+        if native is not None:
+            is_nuclear, orient = native[idx]
+            mint_cen = bool(is_nuclear)
+            _shape = "nuclear" if mint_cen else "plasmid"
+            tier = 2 if mint_cen else 1
+            orientation = orient if mint_cen else None
+        else:
+            _shape, tier, mint_cen = _mint_shape(leaves_list)
+            orientation = _mint_orientation(leaves_list) if mint_cen else None
         plan.append({
             "label": label, "n_leaves": n_leaves, "shape": _shape, "tier": tier,
             "centromere": mint_cen,
-            "orientation": _mint_orientation(leaves_list) if mint_cen else None,
+            "orientation": orientation,
             "reason": (f"quad_strand ({n_leaves} leaves) → eukaryotic-chromosome-scale "
                        f"→ mint a Tier-2 centromere" if mint_cen else
                        f"{encode_shape(max(1, n_leaves) * LEAF_CAP)['shape']} "
@@ -6143,6 +6864,53 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
 
     edge_list, weight_list, charge_list = _partition_validate_graph(
         n, edges, weights, charges)
+
+    # §100 G2 (rc327, task #905): the WHOLE builder has a standalone-C peer
+    # srmech_genome_from_graph — the partition + per-group induced-subgraph relabel +
+    # graph_to_kernel + mint_strand + strand assembly ALL run in C, so a bare-C host
+    # builds the genome with NO Python present (closes the LAST §100 G-series parity
+    # gap G2, the sibling of rc321's G3). The pure body below is the complete
+    # alternative AND the byte-parity oracle (ADR-0009: the two coherency projections
+    # emit the SAME strand). Gated on progress is None — the pure path threads the §101
+    # heartbeat itself; the C peer's own tick channel serves a bare-C host. Native uses
+    # the SAME write_packed_graph edge file the G3 partition consumes, with
+    # max_depth = recursive_cut's default (64) and max_iters the genome_partition
+    # default (250), matching the pure genome_partition(...) call below.
+    if progress is None and _native.has_native_genome_from_graph():
+        import os
+        from srmech.amsc.laplacian import write_packed_graph
+        wd = tempfile.mkdtemp(prefix="srmech_fromgraph_")
+        os.makedirs(wd, exist_ok=True)
+        graph_path = os.path.join(wd, "graph.bin")
+        write_packed_graph(graph_path, edge_list, weight_list)
+        _fg = _native.genome_from_graph_c(
+            int(n), graph_path, wd, edge_list, weight_list, charge_list,
+            _coupling_block_bytes(coupling), leaf_dim, int(max_tome), int(n_bins),
+            250, 64, -1 if centromere_at is None else int(centromere_at),
+            CENTROMERE_DEFAULT_REPEATS, b"cen")
+        if _fg is not None:
+            part = _assemble_graph_partition(n, n_bins, wd, _fg)
+            if part.get("status") == GENOME_STATUS_CANCELLED:
+                return {"strand": [], "chromosomes": [], "partition": part,
+                        "counts": {"nuclear": 0, "plasmid": 0},
+                        "status": GENOME_STATUS_CANCELLED}
+            sb = _fg["strand_bytes"]
+            strand = [_hv_from_block(sb[i * leaf_dim:(i + 1) * leaf_dim])
+                      for i in range(len(sb) // leaf_dim)]
+            chromosomes = []
+            for gi, g in enumerate(part["groups"]):
+                chromosomes.append({
+                    "label": f"{g['type']}_c{g['community']}_{gi}",
+                    "type": g["type"], "community": g["community"],
+                    "n_syms": _fg["chrom_nsyms"][gi], "nodes": g["nodes"]})
+            out = {"strand": strand, "chromosomes": chromosomes, "partition": part,
+                   "counts": dict(part["counts"]), "status": GENOME_STATUS_OK}
+            if path is not None and strand:
+                genome_save(strand, path, coupling, attestation=attestation)
+                out["path"] = str(path)
+                out["census"] = genome_census(str(path), coupling=coupling)
+            return out
+
     # §101: progress= threads the heartbeat into the partition (PARTITIONING) AND the
     # per-group mint loop below (MINTING). A cancelled partition short-circuits here.
     part = genome_partition(n, edge_list, weight_list, charge_list,
@@ -6426,7 +7194,40 @@ def telomere_tick(strand):
 #: self-describing marker in the SAME walk (a byte > 3), so v2..v15 bodies read UNCHANGED.
 #: A klein4 genome saved by the v16 writer is byte-identical to the v15 writer EXCEPT the
 #: ``format_version`` + ``carrier`` fields. A v16 writer stamps 16.
-GENOME_FORMAT_VERSION = 16
+#:
+#: v17 (§Q8-FIBER/rc322, THE TOPOLOGY/FIBER channel, F-HOLO-MISLOCATED): adds the interior
+#: :data:`FIBER_CAP_MARKER` (0x46) — a cap holding the strand's ORDERED accumulated Q₈
+#: holonomy (the fiber / gauge the winding-INVARIANT per-turn store cannot carry:
+#: :func:`quad_turn` re-stamps ``q8_mult(turn, one)`` per turn, so reorder = pure permutation;
+#: the fiber :func:`genome_fiber_holonomy` folds the ordered non-abelian product, so reorder
+#: CHANGES it). The fiber cap is an INTERIOR cap (recall/codon-skipped) and OPT-IN
+#: (:func:`genome_add_fiber`), so a body with NO 0x46 cap is BYTE-IDENTICAL to v16 (the base /
+#: sequence channel is untouched) — only the manifest ``format_version`` moves. One more
+#: self-describing marker in the SAME walk, so v2..v16 bodies read UNCHANGED. A v17 writer
+#: stamps 17.
+#:
+#: v18 (§𝕆-FIBER/rc325, the OCTONION topology/fiber channel): adds the interior
+#: :data:`OCT_FIBER_CAP_MARKER` (0x4F) — the 𝕆 analog of the v17 Q₈ fiber cap ONE
+#: Cayley–Dickson rung up, a cap holding the strand's ORDERED accumulated OCTONION holonomy
+#: (:func:`genome_octonion_holonomy`) with the non-associativity read by
+#: :func:`genome_octonion_associator`. Like the Q₈ fiber cap it is an INTERIOR cap
+#: (recall/codon-skipped) and OPT-IN (:func:`genome_add_octonion_fiber`), so a body with NO
+#: 0x4F cap is BYTE-IDENTICAL to v17 — only the manifest ``format_version`` moves. v2..v17
+#: bodies read UNCHANGED. A v18 writer stamps 18.
+#:
+#: v19 (§𝕆-TURN/rc326, the OCTONION DATA-turn on-disk persistence): the wire gains a THIRD
+#: data-turn packing — an octonion (:data:`ELEMENT_TYPE_OCTONION`) data turn 4-bit-packs under
+#: :data:`OCTONION_PACKED_TURN_MARKER` (0x39) instead of the klein4 2-bit
+#: :data:`PACKED_TURN_MARKER` (0x51) or the Q₈ 3-bit :data:`Q8_PACKED_TURN_MARKER` (0x38) —
+#: plus the manifest ``carrier`` field gains the ``"octonion"`` value. rc324 shipped the 𝕆
+#: carrier + the 4-bit codec and rc325 the 𝕆 fiber CAP, but the on-disk WIRE still packed only
+#: klein4/Q₈ DATA turns; v19 closes that gap so an octonion turn — INCLUDING the non-quaternionic
+#: indices 4..7 (e₄..e₇) — persists to ``turns.bin`` and round-trips through a genome file. One
+#: more self-describing marker in the SAME walk (a byte > 3, distinct from every cap + the two
+#: prior turn markers), so v2..v18 bodies read UNCHANGED; klein4/Q₈ on-disk turns are
+#: BYTE-IDENTICAL to v18. A v19 writer stamps 19. The mirror of the v15→v16 Q₈ on-disk migration
+#: (rc312), ONE Cayley–Dickson rung up.
+GENOME_FORMAT_VERSION = 19
 
 #: rc115 (#1245 ask (b)) — the empty-body chain seed H₀ = sha256(b"") (a derived
 #: constant, not magic: THE well-known empty-string digest). The whole-body
@@ -6543,7 +7344,12 @@ def _block_is_cap(block: bytes) -> bool:
         KERNEL_HEADER_MARKER,
         KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
         CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-        CHROMATIN_MARKER)   # §95a/§95b/§98 caps (a chromatin cap is stored VERBATIM, not a turn)
+        CHROMATIN_MARKER, FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER)
+    # §95a/§95b/§98/§Q8-FIBER/§𝕆-FIBER caps (a chromatin / fiber cap is stored VERBATIM, not
+    # a turn). §𝕆-TURN/v19 (rc326): OCT_FIBER_CAP_MARKER (0x4F) joins here so an octonion-
+    # fiber-bearing strand PERSISTS — it is a leaf-wide INTERIOR cap (already in
+    # _LEAF_WIDE_BLOCK_MARKERS on the READ side and in the C genome_cap_kind classifier), so
+    # _disk_block passes it through verbatim instead of mis-packing it as a 4-bit data turn.
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -6686,16 +7492,89 @@ def _unpack_turn_payload_q8(payload: bytes, leaf_dim: int) -> bytes:
     return bytes(out)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# §𝕆/rc324 — the 4-BIT octonion packed-turn codec. An octonion data turn carries
+# a 4-bit symbol (:mod:`srmech.amsc.octonion`: ``(sign_bit << 3) | index``), so it
+# needs 4 bits/symbol where the Q₈ turn packs 3 and the klein4 turn packs 2. Same
+# MSB-FIRST CONTIGUOUS layout as the Q₈ codec (symbol ``i`` → bits ``[4i, 4i+4)`` of
+# a big-endian bitstream, symbol 0 in the highest bits; the unused LOW bits of a
+# partial final byte are zero, canonical). This is the CARRIER codec (rc324) — a
+# standalone directly-tested round-trip; the on-disk region-walk wiring + the format
+# bump are a later rc (mirroring the Q₈ rc311-carrier → rc312-on-disk split). Do NOT
+# reuse the 3-bit Q₈ path (an octonion symbol 8..15 does not fit 3 bits).
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _packed_payload_len_octonion(leaf_dim: int) -> int:
+    """Payload bytes of one octonion packed data turn: ``ceil(leaf_dim*4 / 8)`` =
+    ``ceil(leaf_dim / 2)`` (pure integer — 4-bit octonion lanes, MSB-first contiguous
+    bit-packing; two symbols per byte)."""
+    return (int(leaf_dim) * 4 + 7) // 8
+
+
+def _pack_turn_block_octonion(mem_block: bytes) -> bytes:
+    """One in-memory byte-per-symbol octonion data turn (bytes ``0..15``) → its packed
+    block ``[OCTONION_PACKED_TURN_MARKER] + payload``. 4 bits/symbol, MSB-first contiguous
+    (symbol 0 in the highest bits); the unused LOW bits of a partial final byte are zero
+    (canonical — the round-trip stays byte-exact both ways). Raises ``ValueError`` on a
+    non-octonion symbol (> 15).
+
+    The partial-final-byte pad width is the exact integer ``pad_bits = plen*8 - n*4`` and
+    those low bits MUST be zero after packing; both are asserted here (the packing constant
+    lives in an ASSERTION, not a comment — the M3 lesson), so an odd-``leaf_dim`` strand is
+    checked on the hot path, never trusted to a comment."""
+    n = len(mem_block)
+    plen = (n * 4 + 7) // 8
+    acc = 0
+    for i, sym in enumerate(mem_block):
+        if not 0 <= sym <= 15:
+            raise ValueError(
+                f"genome octonion packing: data-turn symbol {sym} at position {i} "
+                f"is not an octonion element (0..15) — only octonion turns 4-bit-pack"
+            )
+        acc = (acc << 4) | sym
+    pad_bits = plen * 8 - n * 4            # THE platform/packing constant (0 or 4)
+    assert 0 <= pad_bits < 8 and plen == _packed_payload_len_octonion(n), (
+        f"octonion pack: pad_bits {pad_bits} / plen {plen} off the ceil(leaf_dim*4/8) "
+        f"invariant at leaf_dim={n}"
+    )
+    acc <<= pad_bits                      # low pad_bits become zero (canonical)
+    payload = acc.to_bytes(plen, "big") if plen else b""
+    if pad_bits and plen:
+        assert payload[-1] & ((1 << pad_bits) - 1) == 0, (
+            f"octonion pack: final byte {payload[-1]:#04x} has nonzero pad in its low "
+            f"{pad_bits} bits (leaf_dim={n}; canonical zero-pad violated)"
+        )
+    return bytes([OCTONION_PACKED_TURN_MARKER]) + payload
+
+
+def _unpack_turn_payload_octonion(payload: bytes, leaf_dim: int) -> bytes:
+    """An octonion packed payload → the in-memory byte-per-symbol octonion data turn (bytes
+    ``0..15``) — exact inverse of :func:`_pack_turn_block_octonion` (drop the low pad bits,
+    read ``leaf_dim`` 4-bit symbols MSB-first)."""
+    n = int(leaf_dim)
+    plen = len(payload)
+    pad_bits = plen * 8 - n * 4
+    acc = int.from_bytes(payload, "big") >> pad_bits
+    out = bytearray(n)
+    for i in range(n - 1, -1, -1):
+        out[i] = acc & 15
+        acc >>= 4
+    return bytes(out)
+
+
 def _disk_block(mem_block: bytes, leaf_dim: int,
                 element_type: int = ELEMENT_TYPE_KLEIN4) -> bytes:
-    """One in-memory ``leaf_dim``-byte block → its on-disk v3/v16 form: caps pass
+    """One in-memory ``leaf_dim``-byte block → its on-disk v3/v16/v19 form: caps pass
     through verbatim (their inline-label layout is the §44 format), data turns
     bit-pack — klein4 (``element_type=ELEMENT_TYPE_KLEIN4``, the default) 2 bits/symbol
     via :func:`_pack_turn_block` (v3, unchanged); Q₈ (``element_type=ELEMENT_TYPE_Q8``,
-    v16) 3 bits/symbol via :func:`_pack_turn_block_q8`. The element_type MUST be
-    threaded (not inferred): a Q₈ turn with zero winding is bytes ``0..3``,
-    indistinguishable from klein4 by value alone, so the caller's declared carrier is
-    the only honest source (:func:`_leaf_blocks` drops the HV's ``sectors``)."""
+    v16) 3 bits/symbol via :func:`_pack_turn_block_q8`; octonion
+    (``element_type=ELEMENT_TYPE_OCTONION``, §𝕆-TURN/v19) 4 bits/symbol via
+    :func:`_pack_turn_block_octonion` (the extra bits carry the ±e₀..±e₇ index the Q₈
+    3-bit symbol cannot hold). The element_type MUST be threaded (not inferred): a Q₈ /
+    octonion turn confined to the low indices is bytes ``0..3``, indistinguishable from
+    klein4 by value alone, so the caller's declared carrier is the only honest source
+    (:func:`_leaf_blocks` drops the HV's ``sectors``)."""
     if len(mem_block) != leaf_dim:
         raise ValueError(
             f"genome: leaf block width {len(mem_block)} != leaf_dim {leaf_dim} "
@@ -6703,6 +7582,8 @@ def _disk_block(mem_block: bytes, leaf_dim: int,
         )
     if _block_is_cap(mem_block):
         return bytes(mem_block)
+    if element_type == ELEMENT_TYPE_OCTONION:
+        return _pack_turn_block_octonion(mem_block)
     if element_type == ELEMENT_TYPE_Q8:
         return _pack_turn_block_q8(mem_block)
     return _pack_turn_block(mem_block)
@@ -6719,7 +7600,7 @@ _LEAF_WIDE_BLOCK_MARKERS = (
     KERNEL_HEADER_MARKER,
     KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
     CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-    CHROMATIN_MARKER,
+    CHROMATIN_MARKER, FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER,
 )
 
 
@@ -6731,12 +7612,15 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
     ``CHROM_CAP_MARKER``/``GENE_CAP_MARKER``/``KERNEL_HEADER_MARKER`` (§60) → a
     ``leaf_dim``-byte inline block; ``PACKED_TURN_MARKER`` → a
     ``1 + ceil(leaf_dim/4)``-byte v3 klein4 packed turn; ``Q8_PACKED_TURN_MARKER``
-    (§Q8/v16) → a ``1 + ceil(leaf_dim*3/8)``-byte 3-bit Q₈ packed turn; ``0..3`` → a
-    legacy v2 ``leaf_dim``-byte byte-per-symbol turn. The marker keys the codec, so a
-    MIXED (klein4 + Q₈) walk needs no element_type context. Anything else (or a block
-    running past the region end) is a :class:`GenomeBoundingError`."""
+    (§Q8/v16) → a ``1 + ceil(leaf_dim*3/8)``-byte 3-bit Q₈ packed turn;
+    ``OCTONION_PACKED_TURN_MARKER`` (§𝕆-TURN/v19) → a ``1 + ceil(leaf_dim*4/8)``-byte
+    4-bit octonion packed turn; ``0..3`` → a legacy v2 ``leaf_dim``-byte byte-per-symbol
+    turn. The marker keys the codec, so a MIXED (klein4 + Q₈ + octonion) walk needs no
+    element_type context. Anything else (or a block running past the region end) is a
+    :class:`GenomeBoundingError`."""
     plen = _packed_payload_len(leaf_dim)
     plen_q8 = _packed_payload_len_q8(leaf_dim)
+    plen_oct = _packed_payload_len_octonion(leaf_dim)
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
@@ -6765,6 +7649,15 @@ def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"
                     f"(needs {1 + plen_q8} bytes, region ends at {n})"
                 )
             yield region[k:end], _unpack_turn_payload_q8(region[k + 1:end], leaf_dim)
+        elif kind == OCTONION_PACKED_TURN_MARKER:
+            end = k + 1 + plen_oct
+            if end > n:
+                raise GenomeBoundingError(
+                    f"{context}: truncated octonion packed turn at offset {k} "
+                    f"(needs {1 + plen_oct} bytes, region ends at {n})"
+                )
+            yield region[k:end], _unpack_turn_payload_octonion(
+                region[k + 1:end], leaf_dim)
         else:
             raise GenomeBoundingError(
                 f"{context}: unrecognised block kind byte {kind} at offset {k} "
@@ -6835,7 +7728,8 @@ def _region_chain(region_hexes) -> str:
 
 def _carrier_name_from_body(body_bytes, leaf_dim) -> str:
     """The genome's element-type CARRIER name, derived from the body ALONE (§44 —
-    self-describing): ``"q8"`` iff the data turns are Q₈-packed
+    self-describing): ``"octonion"`` iff the data turns are octonion-packed
+    (:data:`OCTONION_PACKED_TURN_MARKER`), ``"q8"`` iff Q₈-packed
     (:data:`Q8_PACKED_TURN_MARKER`), else ``"klein4"``. A genome is carrier-UNIFORM
     (one element_type per kernel), so the FIRST packed data turn decides — an
     early-return scan, O(first turn), not O(body). A caps-only or empty body is
@@ -6844,6 +7738,8 @@ def _carrier_name_from_body(body_bytes, leaf_dim) -> str:
     field byte-for-byte (the same property that makes ``manifest.json`` a true cache)."""
     for raw, _dec in _walk_region_blocks(
             bytes(body_bytes), leaf_dim, context="genome carrier"):
+        if raw and raw[0] == OCTONION_PACKED_TURN_MARKER:
+            return _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_OCTONION]
         if raw and raw[0] == Q8_PACKED_TURN_MARKER:
             return _ELEMENT_TYPE_NAMES[ELEMENT_TYPE_Q8]
         if raw and raw[0] == PACKED_TURN_MARKER:
@@ -7118,13 +8014,16 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
                 element_type=ELEMENT_TYPE_KLEIN4) -> dict:
     """Persist a genome ``strand`` to ``path/`` (a DIRECTORY) — UPSTREAM §41 / §44.
 
-    ``element_type`` (§Q8/v16) selects the data-turn on-disk PACKER: the default
+    ``element_type`` selects the data-turn on-disk PACKER: the default
     :data:`ELEMENT_TYPE_KLEIN4` 2-bit-packs each coupled turn (byte-identical to v15);
-    :data:`ELEMENT_TYPE_Q8` 3-bit-packs it (:func:`_pack_turn_block_q8`, the extra bit
-    is the winding sign). Threading it is mandatory, not inferred — a Q₈ turn with zero
-    winding is bytes ``0..3``, value-indistinguishable from klein4 (:func:`_leaf_blocks`
-    drops the HV's ``sectors``). The manifest records the derived ``carrier`` so a load
-    is self-describing. A klein4 save stamps ``carrier="klein4"``; a Q₈ save ``"q8"``.
+    :data:`ELEMENT_TYPE_Q8` (§Q8/v16) 3-bit-packs it (:func:`_pack_turn_block_q8`, the
+    extra bit is the winding sign); :data:`ELEMENT_TYPE_OCTONION` (§𝕆-TURN/v19) 4-bit-packs
+    it (:func:`_pack_turn_block_octonion`, the 4 bits carry the ±e₀..±e₇ index — INCLUDING
+    the non-quaternionic e₄..e₇). Threading it is mandatory, not inferred — a Q₈ / octonion
+    turn confined to the low indices is bytes ``0..3``, value-indistinguishable from klein4
+    (:func:`_leaf_blocks` drops the HV's ``sectors``). The manifest records the derived
+    ``carrier`` so a load is self-describing: a klein4 save stamps ``carrier="klein4"``, a Q₈
+    save ``"q8"``, an octonion save ``"octonion"``.
 
     ``attestation`` (optional keyword) — a caller MPR SOURCE-attestation whose provided
     fields OVERRIDE the srmech default written into ``manifest.json`` (override-only over
@@ -7414,6 +8313,7 @@ def _stream_body_blocks(f, leaf_dim, *, context="genome"):
     per-block reads coalesce into ordinary sequential I/O — no extra syscalls."""
     plen = _packed_payload_len(leaf_dim)
     plen_q8 = _packed_payload_len_q8(leaf_dim)
+    plen_oct = _packed_payload_len_octonion(leaf_dim)
     offset = 0
     while True:
         first = f.read(1)
@@ -7448,6 +8348,15 @@ def _stream_body_blocks(f, leaf_dim, *, context="genome"):
                 )
             yield first + payload, _unpack_turn_payload_q8(payload, leaf_dim)
             offset += 1 + plen_q8
+        elif kind == OCTONION_PACKED_TURN_MARKER:
+            payload = f.read(plen_oct)
+            if len(payload) != plen_oct:
+                raise GenomeBoundingError(
+                    f"{context}: truncated octonion packed turn at offset {offset} "
+                    f"(needs {1 + plen_oct} bytes, got {1 + len(payload)})"
+                )
+            yield first + payload, _unpack_turn_payload_octonion(payload, leaf_dim)
+            offset += 1 + plen_oct
         else:
             raise GenomeBoundingError(
                 f"{context}: unrecognised block kind byte {kind} at offset {offset} "
@@ -8037,6 +8946,7 @@ def genome_load(path, *, labels=None, coupling=None):
         body_acc = bytearray()
         plen = _packed_payload_len(leaf_dim)
         plen_q8 = _packed_payload_len_q8(leaf_dim)
+        plen_oct = _packed_payload_len_octonion(leaf_dim)
         with body_path.open("rb") as f:
             while True:
                 first = f.read(1)
@@ -8076,6 +8986,15 @@ def genome_load(path, *, labels=None, coupling=None):
                         )
                     block = first + payload
                     decoded = _unpack_turn_payload_q8(payload, leaf_dim)
+                elif kind == OCTONION_PACKED_TURN_MARKER:
+                    payload = f.read(plen_oct)
+                    if len(payload) != plen_oct:
+                        raise GenomeBoundingError(
+                            f"genome body truncated: trailing {1 + len(payload)} bytes "
+                            f"are not a whole octonion packed turn ({1 + plen_oct} bytes)"
+                        )
+                    block = first + payload
+                    decoded = _unpack_turn_payload_octonion(payload, leaf_dim)
                 else:
                     raise GenomeBoundingError(
                         f"genome body: unrecognised block kind byte {kind} at "
@@ -8209,6 +9128,7 @@ def _walk_region_prefix_blocks(region: bytes, leaf_dim: int):
     corrupt marker is still caught. Yields ``(raw_block, decoded_block)``."""
     plen = _packed_payload_len(leaf_dim)
     plen_q8 = _packed_payload_len_q8(leaf_dim)
+    plen_oct = _packed_payload_len_octonion(leaf_dim)
     k, n = 0, len(region)
     while k < n:
         kind = region[k]
@@ -8227,6 +9147,12 @@ def _walk_region_prefix_blocks(region: bytes, leaf_dim: int):
             if end > n:
                 return                        # trailing PARTIAL block — stop clean
             yield region[k:end], _unpack_turn_payload_q8(region[k + 1:end], leaf_dim)
+        elif kind == OCTONION_PACKED_TURN_MARKER:
+            end = k + 1 + plen_oct
+            if end > n:
+                return                        # trailing PARTIAL block — stop clean
+            yield region[k:end], _unpack_turn_payload_octonion(
+                region[k + 1:end], leaf_dim)
         else:
             raise GenomeBoundingError(
                 f"genome region prefix: unrecognised block kind byte {kind} at "
@@ -8502,6 +9428,26 @@ def genome_genes(path, label, *, coupling=None):
             f"(have {list(by_label)!r})"
         )
     coupling = _resolve_coupling(data, coupling)
+    element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
+    # rc333 (§102 G7): the ON-DISK page-region + per-gene split has a standalone-C peer
+    # srmech_genome_genome_genes, so a bare-C host pages ONE chromosome's region and recovers its
+    # (label, leaves) split with NO Python present — the on-disk sibling of the `genes` closure.
+    # The C peer decouples each carrier from its on-disk turn marker (klein4 / §Q8 / §𝕆), so it is
+    # self-describing; the caller re-wraps each leaf with the head-declared carrier's sectors. An
+    # EMPTY result means a single-kernel chromosome (no gene caps) → the exact ValueError. The pure
+    # body below is the byte-identical alternative + oracle (the mint_plan pattern: COMPUTATION in C).
+    native = _native.genome_genome_genes_c(
+        str(path), label, _coupling_block_bytes(coupling), leaf_dim)
+    if native is not None:
+        if not native:
+            raise ValueError(
+                f"genome_genes: chromosome {label!r} has no inline GENE caps — it is a "
+                f"single-kernel chromosome; use genome_window / partition"
+            )
+        _sectors = (OCT if element_type == ELEMENT_TYPE_Q8
+                    else OCTONION_SECTORS if element_type == ELEMENT_TYPE_OCTONION else QUAD)
+        return [(lbl, [_HV.from_sequence(lf, sectors=_sectors) for lf in leaves])
+                for lbl, leaves in native]
     region = _read_region(path, by_label[label], leaf_dim)
     region_strand = _region_strand(region, leaf_dim)
     if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
@@ -8628,7 +9574,7 @@ def gene_express_plan(strand_or_path, coupling, cell_state, *,
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
-    assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 19      # a READ of existing caps/manifest
     #  (v13 centromere 0x58 + v15 chromatin 0x48 are INTERIOR caps; BOTH the STRAND plan and —
     #   as of §98/rc269 — the PATH demand-load plan read the chromatin OUTER gate: a condensed
     #   region is skipped at plan time on a single head-slot seek, never touching its gene gate.
@@ -8637,7 +9583,9 @@ def gene_express_plan(strand_or_path, coupling, cell_state, *,
     #   to reach the next cap, so it MUST stride at this genome's real turn width — hence
     #   element_type is threaded to it. (A Q₈ gene-bearing genome is first-class: Q3/Q4/Q5 gate
     #   it. The PATH plan is element_type-agnostic — it uses STORED manifest byte_offsets and
-    #   reads only leaf_dim-byte gate caps, neither of which depends on the data-turn width.)
+    #   reads only leaf_dim-byte gate caps, neither of which depends on the data-turn width.
+    #   §𝕆-TURN/v19 (rc326): an octonion DATA genome carries no genes, and its turns stride via
+    #   the threaded element_type exactly as Q₈ does, so this gene-plan reader is unchanged.)
     if isinstance(strand_or_path, (str, Path)) or hasattr(strand_or_path, "__fspath__"):
         return _gene_express_plan_path(Path(strand_or_path), coupling, cell_state)
     return _gene_express_plan_strand(strand_or_path, coupling, cell_state, element_type)
@@ -8789,18 +9737,34 @@ def genome_genes_expressed(path, coupling, cell_state):
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
-    assert GENOME_FORMAT_VERSION == 16      # a READ of existing caps/manifest
+    assert GENOME_FORMAT_VERSION == 19      # a READ of existing caps/manifest
     #  (the PATH demand-load reader's per-region chromatin single-seek skip (§98) is deferred to
     #   rc269; today it reads the §134 gene-gate-only plan — a chromatin-free genome is unaffected.
     #   §Q8/rc316: a Q8 GENE genome IS first-class (its gene caps are klein4-form but its DATA
     #   leaves are Q8) — so this reader is SELF-DESCRIBING: it threads the stored head element_type
-    #   ``carrier`` into the decode. The gene GATES/plan stay element_type-agnostic (cap masks only).)
+    #   ``carrier`` into the decode. The gene GATES/plan stay element_type-agnostic (cap masks only).
+    #   §𝕆-TURN/v19 (rc326): an octonion carrier threads the SAME way — an octonion data genome
+    #   carries no genes, so the gene-gate reader is a no-op on it and the bump is transparent here.)
     path = Path(path)
-    plan = _gene_express_plan_path(path, coupling, cell_state)   # the expressed communities
     data = _catalog_data(path, coupling)
     leaf_dim = int(data["leaf_dim"])
     coupling_hv = _resolve_coupling(data, coupling)
     element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
+    # rc333 (§102 G7): the WHOLE demand-load ORCHESTRATION (the plan-walk + region-page + collect
+    # loop around the per-community head gate srmech_genome_gene_express_plan and the per-gene
+    # decision srmech_genome_gene_express) has a standalone-C peer srmech_genome_genes_expressed,
+    # so a bare-C host runs the partial-load reader end-to-end with NO Python present. The C
+    # decouples each carrier from its on-disk turn marker; the caller re-wraps each leaf with the
+    # head-declared carrier's sectors. The pure body below is the byte-identical alternative +
+    # oracle (the mint_plan pattern: the COMPUTATION runs in C, the assembly is formatting).
+    native = _native.genome_genes_expressed_c(
+        str(path), cell_state, _coupling_block_bytes(coupling_hv), leaf_dim)
+    if native is not None:
+        _sectors = (OCT if element_type == ELEMENT_TYPE_Q8
+                    else OCTONION_SECTORS if element_type == ELEMENT_TYPE_OCTONION else QUAD)
+        return [(lbl, [_HV.from_sequence(lf, sectors=_sectors) for lf in leaves])
+                for lbl, leaves in native]
+    plan = _gene_express_plan_path(path, coupling, cell_state)   # the expressed communities
     by_label = {c["label"]: c for c in data["chromosomes"]}
     out = []
     with _open_body_ro(path / _BODY_NAME) as f:

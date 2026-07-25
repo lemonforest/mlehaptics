@@ -181,13 +181,13 @@ def test_catalog_excludes_centromere_from_leaf_count(tmp_path):
     kernels = {"big": _leaves(20)}                         # minted -> 1 centromere
     G.genome_save(G.mint(kernels, one), tmp_path, coupling=one)
     cat = G.genome_catalog(tmp_path, coupling=one)
-    assert cat["format_version"] == 16
+    assert cat["format_version"] == 19
     lc = {c["label"]: c["leaf_count"] for c in cat["chromosomes"]}
     assert lc["big"] == 20                                 # 20 leaves, NOT 21 (cap excluded)
 
 
 def test_format_version_is_13():
-    assert G.GENOME_FORMAT_VERSION == 16
+    assert G.GENOME_FORMAT_VERSION == 19
 
 
 # ── 5. the F1243 §1 ~15× cost claim ─────────────────────────────────────────

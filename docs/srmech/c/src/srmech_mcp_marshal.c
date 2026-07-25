@@ -90,7 +90,7 @@ static srmech_mval_t *mm_new(srmech_marshal_arena_t *a, srmech_mval_kind_t kind)
 {
     srmech_mval_t *v;
     assert(a != NULL);
-    assert(kind >= SRMECH_MVAL_NONE && kind <= SRMECH_MVAL_MAT);
+    assert(kind >= SRMECH_MVAL_NONE && kind <= SRMECH_MVAL_BIGINT);
     v = (srmech_mval_t *)mm_carve(a, sizeof(srmech_mval_t));
     if (v == NULL) { return NULL; }
     v->kind = kind; v->i = 0; v->re = 0.0; v->im = 0.0;
@@ -622,6 +622,18 @@ static void mm_serialise_complex(mm_emit_t *e, const srmech_mval_t *v)
     mm_raw(e, "]", 1u);
 }
 
+/* A BIGINT -> its PRE-FORMATTED decimal (s, slen) emitted RAW/UNQUOTED — the
+ * bignum peer of mm_emit_int (rc335; #948/#887). The string is a
+ * srmech_bigint_to_dec render (leading '-', "0" for zero, no leading zeros),
+ * so this is byte-for-byte json.dumps(int) / CPython str(int) at ANY magnitude —
+ * NOT mm_json_string (which would quote + escape it). */
+static void mm_serialise_bigint(mm_emit_t *e, const srmech_mval_t *v)
+{
+    assert(e != NULL && v != NULL);
+    assert(v->kind == SRMECH_MVAL_BIGINT);
+    mm_raw(e, v->s, v->slen);
+}
+
 /* A LIST or tuple -> a JSON array (insertion order). */
 static void mm_serialise_list(mm_emit_t *e, const srmech_mval_t *v, uint32_t depth)
 {
@@ -672,6 +684,7 @@ static void mm_serialise(mm_emit_t *e, const srmech_mval_t *v, uint32_t depth)
     case SRMECH_MVAL_LIST:    mm_serialise_list(e, v, depth); break;
     case SRMECH_MVAL_DICT:    mm_serialise_dict(e, v, depth); break;
     case SRMECH_MVAL_MAT:     mm_serialise_mat(e, v); break;
+    case SRMECH_MVAL_BIGINT:  mm_serialise_bigint(e, v); break;
     default:                  e->overflow = 1; break;
     }
 }
@@ -685,7 +698,7 @@ srmech_status_t srmech_mcp_serialise_result(const srmech_mval_t *v,
      * size-query passes buf==NULL; the caller may pass out_len==NULL) is
      * contractually handled, not an invariant violation (rc715). */
     if (v == NULL || out_len == NULL) { return SRMECH_ERR_NULL_ARG; }
-    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_MAT);
+    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_BIGINT);
     e.buf = buf; e.cap = (buf == NULL) ? 0u : buf_len; e.used = 0u; e.overflow = 0;
     assert(e.overflow == 0 && e.used == 0u);        /* sink starts empty/clean  */
     mm_serialise(&e, v, 0u);
@@ -964,7 +977,7 @@ srmech_status_t srmech_mcp_marshal_arg(const char *type_string,
         return SRMECH_ERR_NULL_ARG;
     }
     assert(a->cur <= a->end);                       /* genuine arena invariant */
-    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_MAT);
+    assert(v->kind >= SRMECH_MVAL_NONE && v->kind <= SRMECH_MVAL_BIGINT);
     if (v->kind == SRMECH_MVAL_NONE) { *out = (srmech_mval_t *)v; return SRMECH_OK; }
     act = mm_action_for(type_string);
     switch (act) {

@@ -319,9 +319,51 @@ def test_unknown_method_defers():
 
 
 def test_engine_deferred_leaves_defer():
-    """The leaves the int64/bytes mval carrier cannot emit byte-identically (the
-    One bignum leaves) DEFER — exactly as make_class_run defers them."""
-    oj = the_one(+1, 1, 2)._to_jsonable()
-    for method in ["flat", "matrix", "scalar"]:
-        dispatched, _ = _run_c("One", method, {"one": oj}, {})
-        assert not dispatched, f"One.{method} must DEFER (bignum/float, not int64)"
+    """A leaf the mval carrier cannot emit byte-identically DEFERS — exactly as
+    make_class_run defers it. (rc331 dispatched One.matrix; rc335 dispatched
+    One.flat + One.scalar via SRMECH_MVAL_BIGINT — so the remaining One-adjacent
+    engine defer is the sed float couple/uncouple working word.)"""
+    for method, args in [("couple_working", {"vals": [1.0, 2.0]}),
+                         ("uncouple_working", {"octonion": [1.0, 2.0]})]:
+        dispatched, _ = _run_c("SedenionRegister", method,
+                               _sed_jsonfields(_make_reg()), args)
+        assert not dispatched, f"sed.{method} must DEFER (float working word)"
+
+
+# ── rc335 (#948/#887): One.flat + One.scalar DISPATCH byte-identically ─────────
+
+@pytest.mark.parametrize("sigma,tn,td,terms", [
+    (+1, 1, 2, 24), (-1, 1, 2, 24), (+1, 0, 1, 24), (+1, 355, 113, 30),
+])
+def test_one_flat_run_class_method_dispatches(sigma, tn, td, terms):
+    """run_class_method (class NAME resolved IN C) dispatches One.flat — the 4-key
+    {"class","method","result","fields"} wrap byte-identical to the pure emit
+    (LIST[14] of LIST[2] of SRMECH_MVAL_BIGINT, incl. the ~249-bit case)."""
+    from srmech.mcp._coercion import serialise_native
+    one = the_one(sigma, tn, td, terms)
+    oj = one._to_jsonable()
+    dispatched, text = _native.run_class_method_c("One", "flat", {"one": oj}, {})
+    assert dispatched, f"run_class_method One.flat must DISPATCH ({sigma},{tn}/{td})"
+    expected = {"class": "One", "method": "flat",
+                "result": serialise_native(one.to_flat_rational()),
+                "fields": {"one": oj}}
+    assert text == json.dumps(expected, separators=(",", ":"))
+
+
+@pytest.mark.parametrize("kwargs", [
+    {}, {"mode": "trace"}, {"mode": "sqnorm"},
+    {"mode": "component", "index": 3}, {"mode": "component", "index": 13},
+])
+def test_one_scalar_run_class_method_dispatches(kwargs):
+    """run_class_method dispatches One.scalar across all three modes — byte-
+    identical to the pure emit (LIST[2] of SRMECH_MVAL_BIGINT [num, den]). The
+    scalar carrier is a Q; the expected is built via serialise_native, NOT _norm."""
+    from srmech.mcp._coercion import serialise_native
+    one = the_one(+1, 1, 2, 24)
+    oj = one._to_jsonable()
+    dispatched, text = _native.run_class_method_c("One", "scalar", {"one": oj}, kwargs)
+    assert dispatched, f"run_class_method One.scalar must DISPATCH ({kwargs})"
+    expected = {"class": "One", "method": "scalar",
+                "result": serialise_native(one.to_scalar(**kwargs)),
+                "fields": {"one": oj}}
+    assert text == json.dumps(expected, separators=(",", ":"))

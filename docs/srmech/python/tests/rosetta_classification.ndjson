@@ -114,6 +114,8 @@
 {"exposed_as": "srmech.amsc.laplacian.jacobi_eigvals", "defined_at": "srmech.amsc.laplacian.jacobi_eigvals", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.spectral_block_dispatch", "defined_at": "srmech.amsc.laplacian.spectral_block_dispatch", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.normalized_laplacian", "defined_at": "srmech.amsc.laplacian.normalized_laplacian", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.mass_normalized_laplacian", "defined_at": "srmech.amsc.laplacian.mass_normalized_laplacian", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.laplacian.cotangent_weights", "defined_at": "srmech.amsc.laplacian.cotangent_weights", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.quaternion_laplacian", "defined_at": "srmech.amsc.laplacian.quaternion_laplacian", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.hypercomplex_perspectives", "defined_at": "srmech.amsc.laplacian.hypercomplex_perspectives", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.naming.lookup", "defined_at": "srmech.amsc.naming.lookup", "bucket": "c_dispatched"}
@@ -391,6 +393,11 @@
 {"exposed_as": "srmech.qm.so8.quaternion_subalgebra_stabilizer", "defined_at": "srmech.qm.so8.quaternion_subalgebra_stabilizer", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.so8.so7_subalgebra", "defined_at": "srmech.qm.so8.so7_subalgebra", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.so8.so8_adjoint_basis", "defined_at": "srmech.qm.so8.so8_adjoint_basis", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.sedenion_holonomy_conjecture", "defined_at": "srmech.qm.so9.sedenion_holonomy_conjecture", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.so9_adjoint_basis", "defined_at": "srmech.qm.so9.so9_adjoint_basis", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.spin8_in_spin9_branching", "defined_at": "srmech.qm.so9.spin8_in_spin9_branching", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.spin9_gamma_matrices", "defined_at": "srmech.qm.so9.spin9_gamma_matrices", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.qm.so9.spin9_spinor_generators", "defined_at": "srmech.qm.so9.spin9_spinor_generators", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.spin.pauli_clifford_residuals", "defined_at": "srmech.qm.spin.pauli_clifford_residuals", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.lean_isa_seventh_primitive", "defined_at": "srmech.qm.triality.lean_isa_seventh_primitive", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.qm.triality.triality_automorphism", "defined_at": "srmech.qm.triality.triality_automorphism", "bucket": "composition_of_c"}
@@ -710,8 +717,18 @@
 {"exposed_as": "srmech.amsc.q8.q8_bind", "defined_at": "srmech.amsc.q8.q8_bind", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.q8.q8_project_v4", "defined_at": "srmech.amsc.q8.q8_project_v4", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.q8.q8_from_one", "defined_at": "srmech.amsc.q8.q8_from_one", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.octonion.oct_mult", "defined_at": "srmech.amsc.octonion.oct_mult", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.octonion.oct_conjugate", "defined_at": "srmech.amsc.octonion.oct_conjugate", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.octonion.oct_bind", "defined_at": "srmech.amsc.octonion.oct_bind", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.discrete_writhe", "defined_at": "srmech.amsc.genome.discrete_writhe", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.cwf_consistency_mod2", "defined_at": "srmech.amsc.genome.cwf_consistency_mod2", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.relative_writhe", "defined_at": "srmech.amsc.rational.relative_writhe", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.genome.codon_read", "defined_at": "srmech.amsc.genome.codon_read", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.genome.codon_frame_monodromy", "defined_at": "srmech.amsc.genome.codon_frame_monodromy", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.genome.genome_fiber_holonomy", "defined_at": "srmech.amsc.genome.genome_fiber_holonomy", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.genome.genome_add_fiber", "defined_at": "srmech.amsc.genome.genome_add_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_read_fiber", "defined_at": "srmech.amsc.genome.genome_read_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_octonion_holonomy", "defined_at": "srmech.amsc.genome.genome_octonion_holonomy", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.genome.genome_octonion_associator", "defined_at": "srmech.amsc.genome.genome_octonion_associator", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_add_octonion_fiber", "defined_at": "srmech.amsc.genome.genome_add_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.amsc.genome.genome_read_octonion_fiber", "defined_at": "srmech.amsc.genome.genome_read_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}

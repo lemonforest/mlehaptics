@@ -313,6 +313,8 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_genome_save',
         'srmech_json_write_ws',
     ),
+    'srmech.amsc.genome.genome_fiber_holonomy': ('srmech_genome_fiber_holonomy',),
+    'srmech.amsc.genome.genome_octonion_holonomy': ('srmech_genome_octonion_holonomy',),
     'srmech.amsc.genome.integrate': ('srmech_genome_integrate',),
     'srmech.amsc.genome.mint_strand': ('srmech_genome_mint_strand',),
     'srmech.amsc.genome.modulator_consistent': (
@@ -422,6 +424,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.kepler.equation_of_centre': ('srmech_equation_of_centre',),
     'srmech.amsc.kepler.kepler_solve': ('srmech_kepler_solve',),
     'srmech.amsc.kepler.pin_slot': ('srmech_pin_slot',),
+    'srmech.amsc.laplacian.cotangent_weights': ('srmech_graph_cotangent_weights',),
     'srmech.amsc.laplacian.cycle_holonomy': (
         'srmech_graph_cycle_holonomy',
         'srmech_graph_cycle_holonomy_arena_bytes',
@@ -446,6 +449,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     ),
     'srmech.amsc.laplacian.jacobi_eigvals': ('srmech_jacobi_eigvals',),
     'srmech.amsc.laplacian.klein4_gain_laplacian': ('srmech_graph_klein4_gain_laplacian',),
+    'srmech.amsc.laplacian.mass_normalized_laplacian': ('srmech_graph_mass_normalized_laplacian',),
     'srmech.amsc.laplacian.mat_eigvals': (
         'srmech_mat_eigvals_ws',
         'srmech_mat_eigvals_ws_size',
@@ -480,6 +484,9 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.modular_linalg.gf_rref': ('srmech_gf_rref',),
     'srmech.amsc.naming.lookup': ('srmech_catalog_lookup',),
     'srmech.amsc.naming.reverse_order': ('srmech_reverse_order',),
+    'srmech.amsc.octonion.oct_bind': ('srmech_oct_bind',),
+    'srmech.amsc.octonion.oct_conjugate': ('srmech_oct_conjugate',),
+    'srmech.amsc.octonion.oct_mult': ('srmech_oct_mult',),
     'srmech.amsc.op_provenance.op_provenance_hash': (
         'srmech_op_provenance_hash',
         'srmech_op_provenance_hash_arena_bytes',

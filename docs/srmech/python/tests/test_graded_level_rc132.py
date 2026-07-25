@@ -297,7 +297,7 @@ def test_graded_gene_reports_graded_gate_type():
 # ── (8) format v10 → v11; a v11 genome saves + pages; pre-rc132 reads identically ─
 
 def test_format_bumped_to_v11():
-    assert G.GENOME_FORMAT_VERSION == 16
+    assert G.GENOME_FORMAT_VERSION == 19
 
 
 def test_graded_genome_saves_v11_and_pages_back(tmp_path):
@@ -309,7 +309,7 @@ def test_graded_genome_saves_v11_and_pages_back(tmp_path):
     strand = G.chromosome(coupling=one, label="cell", genes=genes)
     p = tmp_path / "g"
     man = G.genome_save(strand, p, one)
-    assert man["format_version"] == 16                          # the v11 bump
+    assert man["format_version"] == 19                          # the v11 bump
     paged = G.genome_genes(p, "cell", coupling=one)
     assert [l for l, _ in paged] == ["housekeeping", "dose"]    # gate-agnostic recovery
     s2, o2, _ = G.genome_load(p)

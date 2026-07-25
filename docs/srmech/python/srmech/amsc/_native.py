@@ -804,6 +804,40 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_graph_magnetic_laplacian.restype = ctypes.c_int
 
+    # 0.9.0rc328 (task #893 / #888 rec (c)): the Laplace–Beltrami α-family.
+    # mass_normalized_laplacian — M^(-1/2)(D-W)M^(-1/2) (kind 0) or M^(-1)(D-W)
+    # (kind 1); masses NULL -> degree (the α=0 leg). scale_ws is a caller
+    # workspace of n doubles. hasattr-guarded (additive; ABI stays 10).
+    if hasattr(lib, "srmech_graph_mass_normalized_laplacian"):
+        lib.srmech_graph_mass_normalized_laplacian.argtypes = [
+            ctypes.c_uint32,                    # n
+            ctypes.c_uint32,                    # n_edges
+            ctypes.POINTER(ctypes.c_uint32),    # edges_u
+            ctypes.POINTER(ctypes.c_uint32),    # edges_v
+            ctypes.POINTER(ctypes.c_double),    # weights (or NULL)
+            ctypes.POINTER(ctypes.c_double),    # masses (or NULL -> degree)
+            ctypes.c_uint32,                    # kind (0 sym / 1 random-walk)
+            ctypes.POINTER(ctypes.c_double),    # scale_ws (n doubles)
+            ctypes.POINTER(ctypes.c_double),    # out_matrix (n*n doubles)
+        ]
+        lib.srmech_graph_mass_normalized_laplacian.restype = ctypes.c_int
+
+    # cotangent_weights — 3*n_tri per-corner ½·cot contributions that feed
+    # srmech_graph_dense_laplacian. tri is 3*n_tri uint32; positions is
+    # n_vert*dim doubles (dim 2 or 3). hasattr-guarded (additive; ABI stays 10).
+    if hasattr(lib, "srmech_graph_cotangent_weights"):
+        lib.srmech_graph_cotangent_weights.argtypes = [
+            ctypes.c_uint32,                    # n_tri
+            ctypes.POINTER(ctypes.c_uint32),    # tri (3*n_tri)
+            ctypes.POINTER(ctypes.c_double),    # positions (n_vert*dim)
+            ctypes.c_uint32,                    # dim (2 or 3)
+            ctypes.c_uint32,                    # n_vert
+            ctypes.POINTER(ctypes.c_uint32),    # out_edges_u (3*n_tri)
+            ctypes.POINTER(ctypes.c_uint32),    # out_edges_v (3*n_tri)
+            ctypes.POINTER(ctypes.c_double),    # out_weights (3*n_tri)
+        ]
+        lib.srmech_graph_cotangent_weights.restype = ctypes.c_int
+
     # 0.9.0rc229 (#687): the V4-gain (Klein-4-sector) Laplacian builder —
     # four real signed Laplacians in one call. gains is uint8 (0..3 per
     # edge; NULL -> identity); out is 4*n*n doubles, sector-major.
@@ -901,6 +935,49 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_uint8),     # out (n bytes; may alias)
         ]
         lib.srmech_q8_project_v4.restype = ctypes.c_int
+    # 0.9.0rc324: srmech_oct — the DISCRETE octonion Moufang loop {+-e0..+-e7} as
+    # 4-bit bytes (the Cayley-Dickson rung ABOVE Q8; the byte-exact carrier peer of
+    # the float srmech_octonion_* ODFT family). Pure uint8 integer ops: oct_mult /
+    # oct_conjugate return a uint8 octonion byte; oct_bind is an elementwise buffer
+    # op returning srmech_status_t. Additive INTEGER symbols (no callback typedef)
+    # -> ABI stays 10. hasattr-guarded so a stale pre-rc324 lib keeps the surface.
+    if hasattr(lib, "srmech_oct_mult"):
+        lib.srmech_oct_mult.argtypes = [ctypes.c_uint8, ctypes.c_uint8]
+        lib.srmech_oct_mult.restype = ctypes.c_uint8
+    if hasattr(lib, "srmech_oct_conjugate"):
+        lib.srmech_oct_conjugate.argtypes = [ctypes.c_uint8]
+        lib.srmech_oct_conjugate.restype = ctypes.c_uint8
+    if hasattr(lib, "srmech_oct_bind"):
+        lib.srmech_oct_bind.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # turn (n bytes)
+            ctypes.POINTER(ctypes.c_uint8),     # one  (n bytes)
+            ctypes.c_uint32,                    # n
+            ctypes.POINTER(ctypes.c_uint8),     # out  (n bytes; may alias)
+        ]
+        lib.srmech_oct_bind.restype = ctypes.c_int
+    # §Q8-FIBER/v17 (rc322): the genome TOPOLOGY/FIBER fold — the ordered per-slot Q8
+    # holonomy of n_turns x leaf_dim coupled turns into a leaf_dim out buffer. Additive
+    # INTEGER symbol (no callback typedef) -> ABI stays 10; hasattr-guarded.
+    if hasattr(lib, "srmech_genome_fiber_holonomy"):
+        lib.srmech_genome_fiber_holonomy.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # turns (n_turns * leaf_dim bytes)
+            ctypes.c_uint32,                    # n_turns
+            ctypes.c_uint32,                    # leaf_dim
+            ctypes.POINTER(ctypes.c_uint8),     # out (leaf_dim bytes)
+        ]
+        lib.srmech_genome_fiber_holonomy.restype = ctypes.c_int
+    # §𝕆-FIBER/v18 (rc325): the genome OCTONION TOPOLOGY/FIBER fold — the ordered per-slot
+    # octonion holonomy of n_turns x leaf_dim coupled turns into a leaf_dim out buffer, the
+    # 𝕆 analog one Cayley–Dickson rung up. Additive INTEGER symbol (no callback typedef) ->
+    # ABI stays 10; hasattr-guarded.
+    if hasattr(lib, "srmech_genome_octonion_holonomy"):
+        lib.srmech_genome_octonion_holonomy.argtypes = [
+            ctypes.POINTER(ctypes.c_uint8),     # turns (n_turns * leaf_dim bytes)
+            ctypes.c_uint32,                    # n_turns
+            ctypes.c_uint32,                    # leaf_dim
+            ctypes.POINTER(ctypes.c_uint8),     # out (leaf_dim bytes)
+        ]
+        lib.srmech_genome_octonion_holonomy.restype = ctypes.c_int
 
     # int srmech_jacobi_eigvals(uint32_t n, double *matrix,
     #                           uint32_t max_sweeps, double tolerance,
@@ -2941,6 +3018,65 @@ def _bind(lib: ctypes.CDLL) -> None:
             ]
             lib.srmech_genome_graph_partition.restype = ctypes.c_int
 
+        # §100 G2 (rc327, task #905) — GENOME FROM GRAPH: the WHOLE-OP C peer of
+        # srmech.amsc.genome.genome_from_graph. Composes srmech_genome_graph_partition
+        # -> per group an in-RAM induced-subgraph relabel -> srmech_graph_kernel_encode
+        # -> the HV kernel BLOCK build -> srmech_genome_mint_strand (nuclear) -> strand
+        # assembly. The partition read-out arrays are the SAME shape the G3 op writes
+        # (caller-owned so the Python projection rebuilds the partition dict). ADDITIVE
+        # — a plain symbol reusing the tick typedef, so ABI stays 10; ws_len in BYTES.
+        if hasattr(lib, "srmech_genome_from_graph"):
+            lib.srmech_genome_from_graph_arena_bytes.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_uint32,                   # n_edges
+                ctypes.c_uint32,                   # n_bins
+                ctypes.c_uint32,                   # leaf_dim
+            ]
+            lib.srmech_genome_from_graph_arena_bytes.restype = ctypes.c_size_t
+            lib.srmech_genome_from_graph.argtypes = [
+                ctypes.c_uint32,                   # n
+                ctypes.c_char_p,                   # edges_path (packed edge file)
+                ctypes.c_char_p,                   # work_dir
+                ctypes.POINTER(ctypes.c_uint64),  # edge_i (n_edges)
+                ctypes.POINTER(ctypes.c_uint64),  # edge_j (n_edges)
+                ctypes.POINTER(ctypes.c_uint64),  # weights (n_edges)
+                ctypes.POINTER(ctypes.c_int64),   # charges (n_edges; NULL = all 0)
+                ctypes.c_size_t,                   # n_edges
+                ctypes.c_uint32,                   # leaf_dim
+                ctypes.POINTER(ctypes.c_uint8),   # coupling (leaf_dim)
+                ctypes.c_uint32,                   # max_tome
+                ctypes.c_uint32,                   # n_bins
+                ctypes.c_uint32,                   # max_iters
+                ctypes.c_uint32,                   # max_depth
+                ctypes.c_long,                     # centromere_at (< 0 = metacentric)
+                ctypes.c_uint32,                   # repeats
+                ctypes.POINTER(ctypes.c_uint8),   # handle
+                ctypes.c_size_t,                   # handle_len
+                ctypes.POINTER(ctypes.c_uint32),  # community_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # part_num_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # part_den_out (n)
+                ctypes.POINTER(ctypes.c_uint64),  # counts_out (n_bins)
+                ctypes.POINTER(ctypes.c_uint32),  # group_comm_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_type_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_size_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint64),  # group_num_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint64),  # group_den_out (groups_cap)
+                ctypes.POINTER(ctypes.c_uint32),  # group_members_out (n)
+                ctypes.c_uint32,                   # groups_cap
+                ctypes.POINTER(_GenomeGraphPartitionResult),  # result_out
+                ctypes.POINTER(ctypes.c_uint8),   # out (strand blocks)
+                ctypes.c_size_t,                   # out_cap
+                ctypes.POINTER(ctypes.c_size_t),  # out_nblocks
+                ctypes.POINTER(ctypes.c_uint64),  # chrom_nsyms_out (groups_cap)
+                ctypes.POINTER(ctypes.c_size_t),  # out_nchroms
+                ctypes.POINTER(ctypes.c_uint32),  # out_cancelled
+                ctypes.POINTER(ctypes.c_double),  # ws arena
+                ctypes.c_size_t,                   # ws_len (in BYTES)
+                _TICK_CFUNCTYPE,                   # tick (NULL == off)
+                ctypes.c_void_p,                   # tick_ctx
+            ]
+            lib.srmech_genome_from_graph.restype = ctypes.c_int
+
         # size_t srmech_laplacian_k_extreme_modes_arena_bytes(uint32_t n) +
         # srmech_status_t srmech_laplacian_k_extreme_modes_file(uint32_t n,
         #     const char *path, uint32_t k, uint32_t max_iters,
@@ -3764,6 +3900,25 @@ def _bind(lib: ctypes.CDLL) -> None:
         if hasattr(lib, "srmech_genome_telomere"):
             lib.srmech_genome_telomere.argtypes = [_U8, _SZ, _U32, _U8, _SZ]
             lib.srmech_genome_telomere.restype = ctypes.c_int
+        # rc329 (§102 G7) — the ACTIVE-TELOMERE PACKER (the pack counterpart of the §127
+        # tick: build ONE active cap with no daughter-minting) + the MINT-PLAN read loop
+        # (encode_shape + the content-address orientation per kernel). NEW symbols →
+        # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 10.
+        #   int srmech_genome_active_telomere(const unsigned char *label,
+        #       size_t label_len, uint64_t count, uint32_t leaf_dim,
+        #       unsigned char *out, size_t out_cap)
+        if hasattr(lib, "srmech_genome_active_telomere"):
+            lib.srmech_genome_active_telomere.argtypes = [
+                _U8, _SZ, ctypes.c_uint64, _U32, _U8, _SZ]
+            lib.srmech_genome_active_telomere.restype = ctypes.c_int
+        #   int srmech_genome_mint_plan(const unsigned char *content,
+        #       const size_t *content_lens, const size_t *leaf_counts,
+        #       size_t n_kernels, unsigned char *is_nuclear_out,
+        #       unsigned char *orient_out)
+        if hasattr(lib, "srmech_genome_mint_plan"):
+            lib.srmech_genome_mint_plan.argtypes = [
+                _U8, _PSZ, _PSZ, _SZ, _U8, _U8]
+            lib.srmech_genome_mint_plan.restype = ctypes.c_int
         # rc197 (#887) — the make_class → C leaf-batch 3: the genome [class]'s plain
         # CHROMOSOME builder + RECALL. Both are byte-exact (cap framing + reversible
         # Klein-4 XOR), caller-provided out buffers (no arena). NEW symbols →
@@ -3881,6 +4036,21 @@ def _bind(lib: ctypes.CDLL) -> None:
         if hasattr(lib, "srmech_genome_q8_unpack_turn"):
             lib.srmech_genome_q8_unpack_turn.argtypes = [_U8, _U32, _U8]
             lib.srmech_genome_q8_unpack_turn.restype = ctypes.c_int
+        # §55/§𝕆-TURN/v19 (rc326) — the 4-bit octonion packed-turn CODEC primitives (genome-
+        # fully-in-C mirror of _pack_turn_block_octonion / _unpack_turn_payload_octonion). NEW
+        # symbols, no callback typedef → hasattr-guarded, additive → EXPECTED_ABI_VERSION stays
+        # 10. The on-disk format is v19 (GENOME_FORMAT_VERSION 18→19), a DATA change, not a
+        # C-wire change.
+        #   int srmech_genome_octonion_pack_turn(const unsigned char *leaf, uint32_t leaf_dim,
+        #       unsigned char *out, size_t *out_len)
+        if hasattr(lib, "srmech_genome_octonion_pack_turn"):
+            lib.srmech_genome_octonion_pack_turn.argtypes = [_U8, _U32, _U8, _PSZ]
+            lib.srmech_genome_octonion_pack_turn.restype = ctypes.c_int
+        #   int srmech_genome_octonion_unpack_turn(const unsigned char *payload,
+        #       uint32_t leaf_dim, unsigned char *out)
+        if hasattr(lib, "srmech_genome_octonion_unpack_turn"):
+            lib.srmech_genome_octonion_unpack_turn.argtypes = [_U8, _U32, _U8]
+            lib.srmech_genome_octonion_unpack_turn.restype = ctypes.c_int
         # §98/rc268 (#1422) — the CHROMATIN access cap writer + strand read. NEW symbols →
         # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
         #   int srmech_genome_chromatin(unsigned char chromatin_type, uint64_t num, uint64_t den,
@@ -3899,6 +4069,50 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.POINTER(ctypes.c_uint64), ctypes.POINTER(ctypes.c_uint64),
                 _PSZ, ctypes.POINTER(ctypes.c_int)]
             lib.srmech_genome_chromatin_of.restype = ctypes.c_int
+        # rc332 (§102 G7, #887) — CONDENSE / DECONDENSE: the shared label -> chromatin-range
+        # finder + region resolution (condense's insert index) / the per-block keep-mask
+        # (decondense), lifted out of Python. NEW symbols → hasattr-guarded; additive → ABI
+        # stays 10.
+        #   int srmech_genome_condense(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *label, size_t label_len,
+        #       int label_is_none, int region_kind, uint64_t region_turn,
+        #       const unsigned char *region_label, size_t region_label_len, size_t *insert_out)
+        if hasattr(lib, "srmech_genome_condense"):
+            lib.srmech_genome_condense.argtypes = [
+                _U8, _SZ, _U32, _U8, _SZ, ctypes.c_int, ctypes.c_int, ctypes.c_uint64,
+                _U8, _SZ, _PSZ]
+            lib.srmech_genome_condense.restype = ctypes.c_int
+        #   int srmech_genome_decondense(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *label, size_t label_len,
+        #       int label_is_none, unsigned char *keep_out)
+        if hasattr(lib, "srmech_genome_decondense"):
+            lib.srmech_genome_decondense.argtypes = [
+                _U8, _SZ, _U32, _U8, _SZ, ctypes.c_int, _U8]
+            lib.srmech_genome_decondense.restype = ctypes.c_int
+        # rc333 (§102 G7, #887) — the GENES FAMILY: the per-gene (label, leaves)
+        # boundary-preserving read (in-memory + the two on-disk siblings). NEW symbols →
+        # hasattr-guarded; additive → ABI stays 10.
+        #   int srmech_genome_genes(const unsigned char *strand, size_t n_blocks,
+        #       uint32_t leaf_dim, const unsigned char *coupling,
+        #       unsigned char *out, size_t out_cap, size_t *out_len)
+        if hasattr(lib, "srmech_genome_genes"):
+            lib.srmech_genome_genes.argtypes = [_U8, _SZ, _U32, _U8, _U8, _SZ, _PSZ]
+            lib.srmech_genome_genes.restype = ctypes.c_int
+        #   int srmech_genome_genome_genes(const char *dir, const char *label,
+        #       const unsigned char *coupling, size_t coupling_len,
+        #       unsigned char *out, size_t out_cap, size_t *out_len, void *ws, size_t ws_len)
+        if hasattr(lib, "srmech_genome_genome_genes"):
+            lib.srmech_genome_genome_genes.argtypes = [
+                _CP, _CP, _U8, _SZ, _U8, _SZ, _PSZ, _VP, _SZ]
+            lib.srmech_genome_genome_genes.restype = ctypes.c_int
+        #   int srmech_genome_genes_expressed(const char *dir, uint64_t cell_state,
+        #       const unsigned char *coupling, size_t coupling_len, unsigned char *out,
+        #       size_t out_cap, size_t *out_len, void *ws, size_t ws_len,
+        #       void *region_ws, size_t region_ws_len)
+        if hasattr(lib, "srmech_genome_genes_expressed"):
+            lib.srmech_genome_genes_expressed.argtypes = [
+                _CP, ctypes.c_uint64, _U8, _SZ, _U8, _SZ, _PSZ, _VP, _SZ, _VP, _SZ]
+            lib.srmech_genome_genes_expressed.restype = ctypes.c_int
         # §98.1/G1 (rc274) — the CELL-STATE-CONDITIONAL (facultative) chromatin surface: the single-
         # cap COMPUTED accessibility reader + the FACULTATIVE cap writer. NEW symbols →
         # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 5.
@@ -4088,6 +4302,37 @@ def _bind(lib: ctypes.CDLL) -> None:
                 ctypes.c_size_t, ctypes.c_uint32, ctypes.c_size_t,  # body_len, n_chroms, out_cap
             ]
             lib.srmech_genome_section_counts_arena_bytes.restype = ctypes.c_size_t
+        # rc334 (§102/F1252, task #887) — ADD PLASMID: the incremental stage-1+2
+        # whole-op peer that closes the LAST genome wire-glue gap (CEIL 1 -> 0).
+        # CONSERVE (merge counts + conserved_core) + ORGANIZE (harvest+pack the core
+        # off disk, then fold). ADDITIVE symbols reusing srmech_progress_tick_cb_t
+        # (no new typedef), so EXPECTED_ABI_VERSION stays 10.
+        if hasattr(lib, "srmech_genome_add_plasmid"):
+            _U64P = ctypes.POINTER(ctypes.c_uint64)
+            _SZP = ctypes.POINTER(ctypes.c_size_t)
+            lib.srmech_genome_add_plasmid.argtypes = [
+                ctypes.c_char_p, _U8, ctypes.c_uint32, ctypes.c_long,  # dir, coupling, leaf_dim, k_in
+                _U64P, _U64P, ctypes.c_size_t,                     # prior_ids, prior_counts, n_prior
+                _U64P, ctypes.c_size_t,                            # new_nid, n_new
+                _U64P, ctypes.c_size_t,                            # prior_core, n_prior_core
+                ctypes.c_long, ctypes.c_uint32,                    # centromere_at, repeats
+                _U8, ctypes.c_size_t,                              # handle, handle_len
+                _TICK_CFUNCTYPE, ctypes.c_void_p,                  # tick, tick_ctx
+                _U64P, _U64P, ctypes.c_size_t, _SZP,               # out_ids, out_counts, cap, n_counts
+                _U64P, ctypes.c_size_t, _SZP,                      # out_core, core_cap, n_core_out
+                _U64P, ctypes.POINTER(ctypes.c_int),               # out_k, out_bimodal
+                ctypes.POINTER(ctypes.c_int),                      # out_core_changed
+                _U8, ctypes.c_size_t, _SZP,                        # out, out_cap, out_nblocks
+                _SZP, ctypes.POINTER(ctypes.c_uint32),             # n_integrated, out_cancelled
+                ctypes.c_void_p, ctypes.c_size_t,                  # ws, ws_len
+                ctypes.c_void_p, ctypes.c_size_t,                  # scratch, scratch_len
+            ]
+            lib.srmech_genome_add_plasmid.restype = ctypes.c_int
+        if hasattr(lib, "srmech_genome_add_plasmid_scratch_bytes"):
+            lib.srmech_genome_add_plasmid_scratch_bytes.argtypes = [
+                ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32,  # body_len, n_new, leaf_dim
+            ]
+            lib.srmech_genome_add_plasmid_scratch_bytes.restype = ctypes.c_size_t
         # rc313 — srmech_genome_discrete_writhe: the exact-INTEGER directional
         # discrete writhe of a polygonal backbone (six int64 num/den lanes → a
         # reduced-rational out pair). Caller-arena; ADDITIVE symbols (ABI stays 10).
@@ -16779,6 +17024,147 @@ def genome_graph_partition_c(n, edges_path, work_dir, max_tome, n_bins, max_iter
     }
 
 
+def has_native_genome_from_graph() -> bool:
+    """True iff the §100 GAP 2/rc327 srmech_genome_from_graph C peer is loaded +
+    bound: a bare-C host builds a multi-chromosome genome from a directed graph
+    (srmech_genome_graph_partition -> per-group induced-subgraph relabel ->
+    graph_kernel_encode -> the HV kernel blocks -> mint_strand -> strand assembly)
+    end-to-end. False on a no-C or pre-rc327 lib — the pure
+    srmech.amsc.genome.genome_from_graph body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_from_graph")
+                and hasattr(LIB, "srmech_genome_from_graph_arena_bytes"))
+
+
+def genome_from_graph_c(n, edges_path, work_dir, edge_list, weight_list,
+                        charge_list, coupling, leaf_dim, max_tome, n_bins,
+                        max_iters, max_depth, centromere_at, repeats, handle):
+    """§100 G2 native dispatch for :func:`srmech.amsc.genome.genome_from_graph`. Runs
+    the WHOLE builder in C via ``srmech_genome_from_graph``:
+    ``srmech_genome_graph_partition`` (the groups) -> per group an in-RAM induced-
+    subgraph relabel -> ``srmech_graph_kernel_encode`` -> the HV kernel BLOCK build ->
+    ``srmech_genome_mint_strand`` (nuclear only) -> strand assembly.
+
+    Returns a dict carrying the SAME partition read-out keys
+    :func:`genome_graph_partition_c` returns (so :func:`_assemble_graph_partition`
+    rebuilds the partition dict from ONE call) PLUS ``strand_bytes`` (the assembled
+    strand as concatenated ``leaf_dim``-byte HV blocks) and ``chrom_nsyms`` (the
+    per-group ``graph_to_kernel`` symbol count). Or ``None`` when the symbol is absent
+    / the C op declines, so the caller takes the pure body (the byte-parity oracle).
+    ``coupling`` / ``handle`` are bytes; ``centromere_at`` is the arm-split (``< 0`` =
+    the metacentric midpoint). ``edges_path`` is the ``write_packed_graph`` edge file
+    the partition streams; ``edge_list`` etc. are the SAME edges IN MEMORY for the
+    induced-subgraph rebuild (the packed file does not carry charges)."""
+    if not has_native_genome_from_graph():
+        return None
+    if (not isinstance(n, int) or isinstance(n, bool) or n < 0 or n > 0xFFFF_FFFF
+            or not isinstance(n_bins, int) or isinstance(n_bins, bool) or n_bins < 2
+            or int(leaf_dim) < 52 or int(leaf_dim) > 256
+            or len(bytes(coupling)) != int(leaf_dim)):
+        return None
+    leaf_dim = int(leaf_dim)
+    n_edges = len(edge_list)
+    if n_edges > 0xFFFF_FFFF:
+        return None
+    pc = int(n) + 1
+    groups_cap = 2 * pc
+    need = LIB.srmech_genome_from_graph_arena_bytes(
+        ctypes.c_uint32(n), ctypes.c_uint32(n_edges),
+        ctypes.c_uint32(int(n_bins)), ctypes.c_uint32(leaf_dim))
+    n_doubles = (int(need) + 7) // 8
+    ws = (ctypes.c_double * max(n_doubles, 1))()
+    edge_i = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[0]) for e in edge_list])
+    edge_j = (ctypes.c_uint64 * max(n_edges, 1))(*[int(e[1]) for e in edge_list])
+    w_arr = (ctypes.c_uint64 * max(n_edges, 1))(*[int(x) for x in weight_list])
+    c_arr = (ctypes.c_int64 * max(n_edges, 1))(*[int(x) for x in charge_list])
+    one_arr = (ctypes.c_uint8 * leaf_dim)(*bytes(coupling))
+    h = bytes(handle)
+    h_arr = ((ctypes.c_uint8 * len(h))(*h) if h
+             else ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8)))
+    community = (ctypes.c_uint32 * max(n, 1))()
+    part_num = (ctypes.c_uint64 * max(n, 1))()
+    part_den = (ctypes.c_uint64 * max(n, 1))()
+    counts = (ctypes.c_uint64 * int(n_bins))()
+    g_comm = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_type = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_size = (ctypes.c_uint32 * max(groups_cap, 1))()
+    g_num = (ctypes.c_uint64 * max(groups_cap, 1))()
+    g_den = (ctypes.c_uint64 * max(groups_cap, 1))()
+    g_members = (ctypes.c_uint32 * max(n, 1))()
+    chrom_nsyms = (ctypes.c_uint64 * max(groups_cap, 1))()
+    result = _GenomeGraphPartitionResult()
+    syms_whole = 17 * (8 + int(n) + 4 * n_edges) + 64
+    out_cap = (5 * groups_cap + (syms_whole // leaf_dim) + 32) * leaf_dim
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_nblocks = ctypes.c_size_t(0)
+    out_nchroms = ctypes.c_size_t(0)
+    out_cancelled = ctypes.c_uint32(0)
+    rc = LIB.srmech_genome_from_graph(
+        ctypes.c_uint32(n),
+        str(edges_path).encode("utf-8"), str(work_dir).encode("utf-8"),
+        edge_i, edge_j, w_arr, c_arr, ctypes.c_size_t(n_edges),
+        ctypes.c_uint32(leaf_dim), one_arr,
+        ctypes.c_uint32(int(max_tome)), ctypes.c_uint32(int(n_bins)),
+        ctypes.c_uint32(int(max_iters)), ctypes.c_uint32(int(max_depth)),
+        ctypes.c_long(int(centromere_at)), ctypes.c_uint32(int(repeats)),
+        h_arr, ctypes.c_size_t(len(h)),
+        community, part_num, part_den, counts,
+        g_comm, g_type, g_size, g_num, g_den, g_members,
+        ctypes.c_uint32(groups_cap), ctypes.byref(result),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_nblocks),
+        chrom_nsyms, ctypes.byref(out_nchroms), ctypes.byref(out_cancelled),
+        ws, ctypes.c_size_t(int(need)),
+        ctypes.cast(None, _TICK_CFUNCTYPE), None)
+    if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+        return None
+    n_comm = int(result.n_communities)
+    community_list = [int(community[v]) for v in range(n)]
+    if rc == SRMECH_CANCELLED or result.cancelled:
+        return {"cancelled": True, "n_communities": n_comm,
+                "community": community_list}
+
+    def _opt(x):
+        return None if int(x) < 0 else int(x)
+
+    groups = []
+    off = 0
+    for gi in range(int(result.n_groups)):
+        sz = int(g_size[gi])
+        nodes = [int(g_members[off + j]) for j in range(sz)]
+        off += sz
+        groups.append({
+            "community": int(g_comm[gi]),
+            "type": "nuclear" if int(g_type[gi]) == 0 else "plasmid",
+            "nodes": nodes, "size": sz,
+            "participation": (int(g_num[gi]), int(g_den[gi])),
+        })
+    one_dna = int(result.one_dna_type)
+    one_dna_type = None if one_dna < 0 else ("nuclear" if one_dna == 0 else "plasmid")
+    nb = int(out_nblocks.value)
+    return {
+        "cancelled": False,
+        "n_communities": n_comm,
+        "community": community_list,
+        "participation": [(int(part_num[v]), int(part_den[v])) for v in range(n)],
+        "counts": [int(counts[b]) for b in range(int(n_bins))],
+        "antimode": {
+            "bimodal": bool(result.bimodal),
+            "threshold_bin": _opt(result.threshold_bin),
+            "peak_low_bin": _opt(result.peak_low_bin),
+            "peak_high_bin": _opt(result.peak_high_bin),
+            "valley_count": _opt(result.valley_count),
+            "gap": int(result.gap),
+        },
+        "one_dna_type": one_dna_type,
+        "node_counts": {"nuclear": int(result.node_nuclear),
+                        "plasmid": int(result.node_plasmid)},
+        "groups": groups,
+        "strand_bytes": bytes(out[:nb * leaf_dim]),
+        "chrom_nsyms": [int(chrom_nsyms[gi]) for gi in range(int(result.n_groups))],
+    }
+
+
 def has_native_k_extreme_modes() -> bool:
     """True iff the §75-sparse native streaming k-extreme resonant read is loaded
     + bound (rc230+ lib): the bottom-k + top-k combinatorial-Laplacian modes run
@@ -17840,6 +18226,66 @@ def has_native_genome() -> bool:
                 and hasattr(LIB, "srmech_genome_arena_bytes"))
 
 
+def has_native_genome_fiber_holonomy() -> bool:
+    """True iff the §Q8-FIBER/v17 (rc322) native ``srmech_genome_fiber_holonomy`` is
+    loaded — a pre-rc322 lib lacks it, so ``genome.genome_fiber_holonomy`` folds the
+    ordered Q8 product in pure Python (``q8_bind``)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_fiber_holonomy"))
+
+
+def genome_fiber_holonomy_c(turns: bytes, n_turns: int, leaf_dim: int):
+    """Native dispatch for the genome TOPOLOGY/FIBER fold — the ordered per-slot Q8
+    holonomy of ``n_turns × leaf_dim`` coupled turns (flat ``turns`` buffer) into a
+    ``leaf_dim``-byte result. Returns ``bytes`` (length ``leaf_dim``) or ``None`` on a
+    missing symbol / non-OK status (caller then runs the pure ``q8_bind`` fold). No
+    scratch/arena — the C op writes the ``out`` buffer directly."""
+    if not has_native_genome_fiber_holonomy():
+        return None
+    n = int(leaf_dim)
+    if n <= 0:
+        return b""
+    buf = bytes(turns)
+    c_turns = (ctypes.c_uint8 * max(len(buf), 1)).from_buffer_copy(
+        buf if buf else b"\x00")
+    c_out = (ctypes.c_uint8 * n)()
+    rc = LIB.srmech_genome_fiber_holonomy(
+        c_turns, ctypes.c_uint32(int(n_turns)), ctypes.c_uint32(n), c_out)
+    if rc != SRMECH_OK:
+        return None
+    return bytes(c_out)
+
+
+def has_native_genome_octonion_holonomy() -> bool:
+    """True iff the §𝕆-FIBER/v18 (rc325) native ``srmech_genome_octonion_holonomy`` is
+    loaded — a pre-rc325 lib lacks it, so ``genome.genome_octonion_holonomy`` folds the
+    ordered octonion product in pure Python (``oct_bind``)."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_octonion_holonomy"))
+
+
+def genome_octonion_holonomy_c(turns: bytes, n_turns: int, leaf_dim: int):
+    """Native dispatch for the genome OCTONION TOPOLOGY/FIBER fold — the ordered per-slot
+    octonion holonomy of ``n_turns × leaf_dim`` coupled turns (flat ``turns`` buffer) into a
+    ``leaf_dim``-byte result, the 𝕆 analog one Cayley–Dickson rung up. Returns ``bytes``
+    (length ``leaf_dim``) or ``None`` on a missing symbol / non-OK status (caller then runs
+    the pure ``oct_bind`` fold). No scratch/arena — the C op writes ``out`` directly."""
+    if not has_native_genome_octonion_holonomy():
+        return None
+    n = int(leaf_dim)
+    if n <= 0:
+        return b""
+    buf = bytes(turns)
+    c_turns = (ctypes.c_uint8 * max(len(buf), 1)).from_buffer_copy(
+        buf if buf else b"\x00")
+    c_out = (ctypes.c_uint8 * n)()
+    rc = LIB.srmech_genome_octonion_holonomy(
+        c_turns, ctypes.c_uint32(int(n_turns)), ctypes.c_uint32(n), c_out)
+    if rc != SRMECH_OK:
+        return None
+    return bytes(c_out)
+
+
 def has_native_genome_census() -> bool:
     """True iff the §96/rc267 native ``srmech_genome_census`` (+ its arena SSoT) is
     loaded — a pre-rc267 lib lacks it, so ``genome.genome_census`` uses the pure
@@ -18391,6 +18837,134 @@ def genome_integrate_plasmids_c(core, core_blocks, plasmids, plasmid_blocks,
         return None
 
 
+def has_native_genome_add_plasmid() -> bool:
+    """True iff the §102/rc334 srmech_genome_add_plasmid whole-op C peer (task #887)
+    is loaded + bound — the LAST genome wire-glue gap closed (CEIL_WIRE_GLUE_GAPS
+    1 -> 0). A bare-C host runs one incremental add's CONSERVE + ORGANIZE half
+    (merge counts -> conserved_core -> harvest+pack the core off disk -> fold the
+    organized strand) end-to-end. False on a no-C or pre-rc334 lib — the pure
+    srmech.amsc.plasmid.add_plasmid body is the complete byte-identical alternative."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_add_plasmid")
+                and hasattr(LIB, "srmech_genome_add_plasmid_scratch_bytes")
+                and hasattr(LIB, "srmech_genome_section_counts_arena_bytes"))
+
+
+def genome_add_plasmid_c(store, coupling, leaf_dim, k_in, prior_counts, new_nid,
+                         prior_core, *, body_len, n_chroms, progress=None,
+                         centromere_at=-1, repeats=None, handle=b"cen"):
+    """Native §102/rc334 incremental add (parity peer srmech_genome_add_plasmid): the
+    CONSERVE + ORGANIZE half of one add_plasmid, run END-TO-END in C over the store
+    (the new section ALREADY appended by the Python plasmid_extract, which seeds +
+    refreshes the vocab karyotype).
+
+    ``prior_counts`` is the PRIOR section-count accumulator (a ``{global_id: n}`` dict);
+    ``new_nid`` the new section's UNIQUE global node_ids; ``prior_core`` the prior
+    conserved core (for ``core_changed``); ``k_in`` the conservation threshold (< 0 =
+    DERIVE from the antimode, >= 0 = force). ``body_len`` (turns.bin bytes) + ``n_chroms``
+    (manifest chromosome count incl. vocab) size the caller arenas.
+
+    Returns ``(strand_hvs, counts_dict, core_list, k, bimodal, core_changed,
+    n_integrated, cancelled)`` — byte-identical to the pure add_plasmid strand + the
+    section_count/core/k state — or ``None`` to DECLINE so the pure body runs."""
+    if not has_native_genome_add_plasmid():
+        return None
+    from .genome import _hv_from_block, CENTROMERE_DEFAULT_REPEATS
+    try:
+        dim = int(leaf_dim)
+        one = bytes(coupling)
+        if dim < 52 or dim > 256 or len(one) != dim:
+            return None
+        if body_len is None or n_chroms is None:
+            return None
+        pri = sorted((int(k), int(v)) for k, v in dict(prior_counts).items())
+        p_ids = [k for k, _ in pri]
+        p_cnt = [v for _, v in pri]
+        n_prior = len(p_ids)
+        nn = [int(x) for x in new_nid]
+        n_new = len(nn)
+        pc = [int(x) for x in prior_core]
+        n_pcore = len(pc)
+        counts_cap = n_prior + n_new + 1
+        core_cap = counts_cap
+        hnd = bytes(handle) if handle else b""
+        reps = CENTROMERE_DEFAULT_REPEATS if repeats is None else int(repeats)
+        one_arr = (ctypes.c_uint8 * dim)(*one)
+        p_ids_arr = (ctypes.c_uint64 * max(n_prior, 1))(*p_ids)
+        p_cnt_arr = (ctypes.c_uint64 * max(n_prior, 1))(*p_cnt)
+        nn_arr = (ctypes.c_uint64 * max(n_new, 1))(*nn)
+        pc_arr = (ctypes.c_uint64 * max(n_pcore, 1))(*pc)
+        hnd_arr = ((ctypes.c_uint8 * len(hnd)).from_buffer_copy(hnd) if hnd
+                   else ctypes.cast(None, ctypes.POINTER(ctypes.c_uint8)))
+        # the manifest arena (the tree persists across the section passes); the
+        # section_counts sizer's catalog term is exactly srmech_genome_arena_bytes.
+        ws_len = int(LIB.srmech_genome_section_counts_arena_bytes(
+            ctypes.c_size_t(int(body_len)), ctypes.c_uint32(int(n_chroms)),
+            ctypes.c_size_t(1)))
+        if ws_len <= 0:
+            return None
+        ws = (ctypes.c_char * ws_len)()
+        out_ids = (ctypes.c_uint64 * counts_cap)()
+        out_counts = (ctypes.c_uint64 * counts_cap)()
+        out_core = (ctypes.c_uint64 * core_cap)()
+        n_counts = ctypes.c_size_t(0)
+        n_core = ctypes.c_size_t(0)
+        out_k = ctypes.c_uint64(0)
+        out_bimodal = ctypes.c_int(0)
+        out_changed = ctypes.c_int(0)
+        n_integ = ctypes.c_size_t(0)
+        cancelled = ctypes.c_uint32(0)
+        scratch_len = max(int(LIB.srmech_genome_add_plasmid_scratch_bytes(
+            ctypes.c_size_t(int(body_len)), ctypes.c_size_t(n_new),
+            ctypes.c_uint32(dim))), 4096)
+        out_cap = max(int(body_len) * 6 + int(n_chroms) * dim + 4096, dim)
+        for _attempt in range(6):
+            scratch = (ctypes.c_char * scratch_len)()
+            out = (ctypes.c_uint8 * out_cap)()
+            out_nblocks = ctypes.c_size_t(0)
+            box: dict = {}
+            tick = _make_tick_trampoline(progress, box) if progress is not None else \
+                ctypes.cast(None, _TICK_CFUNCTYPE)
+            rc = LIB.srmech_genome_add_plasmid(
+                str(store).encode("utf-8"), one_arr, ctypes.c_uint32(dim),
+                ctypes.c_long(int(k_in)),
+                p_ids_arr, p_cnt_arr, ctypes.c_size_t(n_prior),
+                nn_arr, ctypes.c_size_t(n_new),
+                pc_arr, ctypes.c_size_t(n_pcore),
+                ctypes.c_long(int(centromere_at)), ctypes.c_uint32(reps),
+                hnd_arr, ctypes.c_size_t(len(hnd)),
+                tick, None,
+                out_ids, out_counts, ctypes.c_size_t(counts_cap),
+                ctypes.byref(n_counts),
+                out_core, ctypes.c_size_t(core_cap), ctypes.byref(n_core),
+                ctypes.byref(out_k), ctypes.byref(out_bimodal),
+                ctypes.byref(out_changed),
+                out, ctypes.c_size_t(out_cap), ctypes.byref(out_nblocks),
+                ctypes.byref(n_integ), ctypes.byref(cancelled),
+                ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+                ctypes.cast(scratch, ctypes.c_void_p), ctypes.c_size_t(scratch_len))
+            if box.get("exc") is not None:
+                raise box["exc"]
+            if rc == SRMECH_ERR_OVERFLOW:
+                scratch_len = scratch_len * 2 + 1
+                out_cap = out_cap * 2 + dim
+                continue
+            if rc not in (SRMECH_OK, SRMECH_CANCELLED):
+                return None
+            nb = int(out_nblocks.value)
+            raw = bytes(out)[:nb * dim]
+            strand = [_hv_from_block(raw[i * dim:(i + 1) * dim]) for i in range(nb)]
+            counts = {int(out_ids[i]): int(out_counts[i])
+                      for i in range(int(n_counts.value))}
+            core = [int(out_core[i]) for i in range(int(n_core.value))]
+            return (strand, counts, core, int(out_k.value), bool(out_bimodal.value),
+                    bool(out_changed.value), int(n_integ.value),
+                    rc == SRMECH_CANCELLED)
+        return None
+    except Exception:
+        return None
+
+
 def has_native_eulerian() -> bool:
     """True iff the rc250 srmech_eulerian_walk C peer is loaded + bound: the
     #1390 item-3 Hierholzer Eulerian trail / circuit runs in C (integer nodes).
@@ -18476,6 +19050,81 @@ def genome_encode_shape_c(n: int):
     if rc != SRMECH_OK:
         return None
     return int(leaves.value), int(depth.value)
+
+
+def has_native_genome_active_telomere() -> bool:
+    """True iff the rc329 §127/G7 srmech_genome_active_telomere C peer is loaded +
+    bound: a bare-C host packs ONE §127 active-telomere cap (the op⊗operand Hayflick
+    cap) with no daughter-minting. False on a no-C or pre-rc329 lib — the pure
+    ``srmech.amsc.genome._pack_active_telomere`` body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_active_telomere"))
+
+
+def genome_active_telomere_c(label, count: int, leaf_dim: int):
+    """Native §127/G7 active-telomere packer (parity peer
+    ``srmech_genome_active_telomere``): ``(label, count, leaf_dim)`` → the packed
+    ``leaf_dim``-byte cap bytes ``[0x74] + utf-8(label) + NUL + count(uint64 BE)``,
+    NUL-padded. Returns ``None`` when the symbol is absent OR the inputs do not fit
+    the fast path (``count`` out of the uint64 field, a NUL byte in the label, or the
+    ``[marker+label+NUL+count]`` payload over ``leaf_dim``) — the caller then runs the
+    exact pure ``_pack_active_telomere`` (which raises the matching ValueError).
+    Byte-identical to the bytes behind the Python cap (wrapped in HV(sectors=256))."""
+    if not has_native_genome_active_telomere():
+        return None
+    if (not isinstance(count, int) or isinstance(count, bool)
+            or count < 0 or count >= (1 << 64)):
+        return None
+    raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    if leaf_dim <= 0 or b"\x00" in raw or (2 + len(raw) + 8) > leaf_dim:
+        return None
+    out = (ctypes.c_uint8 * leaf_dim)()
+    rc = LIB.srmech_genome_active_telomere(
+        _u8(raw), ctypes.c_size_t(len(raw)), ctypes.c_uint64(count),
+        ctypes.c_uint32(leaf_dim), out, ctypes.c_size_t(leaf_dim))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:leaf_dim])
+
+
+def has_native_genome_mint_plan() -> bool:
+    """True iff the rc329 §102/G7 srmech_genome_mint_plan C peer is loaded + bound: a
+    bare-C host runs the WHOLE mint_plan read-loop (encode_shape + the content-address
+    orientation per kernel) with no Python present. False on a no-C or pre-rc329 lib —
+    the pure ``srmech.amsc.genome.mint_plan`` body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_mint_plan"))
+
+
+def genome_mint_plan_c(contents, leaf_counts):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.mint_plan`. Runs the WHOLE
+    read-loop in C via ``srmech_genome_mint_plan``: per kernel the F715 shape decision
+    (``srmech_genome_encode_shape`` → plasmid vs nuclear) and, for a nuclear kernel, its
+    content-addressed orientation (``sha256(content)[0] & 3``).
+
+    ``contents`` is the per-kernel content preimage bytes (each ==
+    ``genome._kernel_content_bytes(leaves)``); ``leaf_counts`` the per-kernel leaf count
+    (the plan's ``n_leaves``). Returns a list of ``(is_nuclear: int, orientation: int)``
+    per kernel (``orientation`` is 0 for a plasmid — the caller maps that to ``None``),
+    or ``None`` when the symbol is absent / the C op declines, so the caller takes the
+    pure body (the byte-parity oracle)."""
+    if not has_native_genome_mint_plan():
+        return None
+    n = len(contents)
+    if n != len(leaf_counts):
+        return None
+    flat = b"".join(bytes(c) for c in contents)
+    clens = (ctypes.c_size_t * max(n, 1))(*[len(bytes(c)) for c in contents])
+    lcounts = (ctypes.c_size_t * max(n, 1))(*[int(x) for x in leaf_counts])
+    is_nuc = (ctypes.c_uint8 * max(n, 1))()
+    orient = (ctypes.c_uint8 * max(n, 1))()
+    rc = LIB.srmech_genome_mint_plan(
+        _u8(flat), clens, lcounts, ctypes.c_size_t(n), is_nuc, orient)
+    if rc != SRMECH_OK:
+        return None
+    return [(int(is_nuc[i]), int(orient[i])) for i in range(n)]
 
 
 def has_native_genome_telomere() -> bool:
@@ -19019,6 +19668,220 @@ def genome_chromatin_of_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int):
         return None
     return (bool(found.value), int(t_out.value), int(num_out.value),
             int(den_out.value), int(at_out.value))
+
+
+def has_native_genome_condense() -> bool:
+    """True iff the rc332 §102/G7 srmech_genome_condense C peer is loaded + bound: a bare-C
+    host resolves condense's chromatin-range + region -> insert index with no Python present.
+    False on a no-C or pre-rc332 lib — the pure ``srmech.amsc.genome.condense`` body (the
+    _chrom_range + region resolution) is the complete byte-identical alternative + parity
+    oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_condense"))
+
+
+def genome_condense_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label, region):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.condense`: run the WHOLE placement
+    decision in C via ``srmech_genome_condense`` — the label -> chromatin-range find + the
+    ``region`` resolution — and return the BLOCK INDEX at which the (already-native) chromatin
+    cap is spliced, or ``None`` when the symbol is absent / an input is off the fast path / the
+    C op declines (a range or region error), so the caller takes the pure body (which raises the
+    exact ValueError). ``label`` is the chromosome label str (``None`` for a single-chromosome
+    strand); ``region`` is ``None`` (head) / a non-negative int (data-turn index) / a gene-label
+    str — the SAME three forms condense accepts. Byte-identical to the pure insert index."""
+    if not has_native_genome_condense():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    if label is None:
+        lbytes, is_none = b"", 1
+    elif isinstance(label, str):
+        lbytes, is_none = label.encode("utf-8"), 0
+    else:
+        return None
+    if region is None:
+        rkind, rturn, rlab = 0, 0, b""
+    elif isinstance(region, bool):
+        return None                              # a bool is not a valid region (pure raises)
+    elif isinstance(region, int):
+        if region < 0 or region >= (1 << 64):
+            return None                          # negative / oversized -> pure raises / declines
+        rkind, rturn, rlab = 1, region, b""
+    elif isinstance(region, str):
+        rkind, rturn, rlab = 2, 0, region.encode("utf-8")
+    else:
+        return None                              # an unsupported region type -> pure raises
+    insert = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_condense(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(lbytes), ctypes.c_size_t(len(lbytes)), ctypes.c_int(is_none),
+        ctypes.c_int(rkind), ctypes.c_uint64(rturn),
+        _u8(rlab), ctypes.c_size_t(len(rlab)), ctypes.byref(insert))
+    if rc != SRMECH_OK:
+        return None
+    return int(insert.value)
+
+
+def has_native_genome_decondense() -> bool:
+    """True iff the rc332 §102/G7 srmech_genome_decondense C peer is loaded + bound: a bare-C
+    host computes decondense's per-block keep-mask with no Python present. False on a no-C or
+    pre-rc332 lib — the pure ``srmech.amsc.genome.decondense`` body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_decondense"))
+
+
+def genome_decondense_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, label):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.decondense`: run the WHOLE cap-clear
+    decision in C via ``srmech_genome_decondense`` and return the per-block KEEP-MASK as a list of
+    ``bool`` (``True`` keep, ``False`` drop), or ``None`` when the symbol is absent / an input is
+    off the fast path / the label-scope range-find declines, so the caller takes the pure body.
+    ``label`` is ``None`` (whole strand: drop every 0x48 cap) or a chromosome label str (drop only
+    the 0x48 caps inside that chromosome). Byte-identical to the pure kept-block set."""
+    if not has_native_genome_decondense():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or n_blocks <= 0
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    if label is None:
+        lbytes, is_none = b"", 1
+    elif isinstance(label, str):
+        lbytes, is_none = label.encode("utf-8"), 0
+    else:
+        return None
+    keep = (ctypes.c_uint8 * n_blocks)()
+    rc = LIB.srmech_genome_decondense(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(lbytes), ctypes.c_size_t(len(lbytes)), ctypes.c_int(is_none), keep)
+    if rc != SRMECH_OK:
+        return None
+    return [bool(keep[i]) for i in range(n_blocks)]
+
+
+def _decode_genes(buf: bytes, leaf_dim: int):
+    """Decode the shared rc333 GENES structure — ``[u32 n_genes]`` then per gene
+    ``[u32 label_len][label][u32 n_leaves][n_leaves * leaf_dim]`` (all big-endian) — into
+    ``[(label_str, [leaf_bytes, …]), …]``. Each ``leaf_bytes`` is one ``leaf_dim``-byte DECOUPLED
+    (recovered) leaf; the caller (``genome.py``) re-wraps it into an ``HV`` with the carrier's
+    sectors. The one decoder for ``srmech_genome_genes`` / ``_genome_genes`` / ``_genes_expressed``."""
+    mv = memoryview(buf)
+    n = int.from_bytes(mv[0:4], "big")
+    pos = 4
+    out = []
+    for _g in range(n):
+        ll = int.from_bytes(mv[pos:pos + 4], "big")
+        pos += 4
+        label = bytes(mv[pos:pos + ll]).decode("utf-8")
+        pos += ll
+        nl = int.from_bytes(mv[pos:pos + 4], "big")
+        pos += 4
+        leaves = []
+        for _l in range(nl):
+            leaves.append(bytes(mv[pos:pos + leaf_dim]))
+            pos += leaf_dim
+        out.append((label, leaves))
+    return out
+
+
+def has_native_genome_genes() -> bool:
+    """True iff the rc333 §102/G7 srmech_genome_genes C peer is loaded + bound: a bare-C host
+    recovers the IN-MEMORY per-gene (label, leaves) split with no Python present. False on a no-C
+    or pre-rc333 lib — the pure ``srmech.amsc.genome.genes`` walk is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_genes"))
+
+
+def genome_genes_c(strand_bytes: bytes, n_blocks: int, leaf_dim: int, coupling: bytes):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genes` (the KLEIN4 default): run the
+    WHOLE per-gene split in C via ``srmech_genome_genes`` and return
+    ``[(label_str, [leaf_bytes, …]), …]`` (each ``leaf_bytes`` a ``leaf_dim``-byte recovered leaf
+    the caller re-wraps into an ``HV``), or ``None`` when the symbol is absent / an input is off the
+    fast path (width mismatch), so the caller takes the pure body. ``strand_bytes`` is the
+    ``n_blocks`` fixed-width leaf blocks concatenated. Byte-identical to the pure ``genes``."""
+    if not has_native_genome_genes():
+        return None
+    if (leaf_dim <= 0 or leaf_dim > 256 or len(coupling) != leaf_dim
+            or len(strand_bytes) != n_blocks * leaf_dim):
+        return None
+    out_cap = 2 * len(strand_bytes) + (n_blocks + 8) * 8 + 64
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_genes(
+        _u8(strand_bytes), ctypes.c_size_t(n_blocks), ctypes.c_uint32(leaf_dim),
+        _u8(coupling), out, ctypes.c_size_t(out_cap), ctypes.byref(out_len))
+    if rc != SRMECH_OK:
+        return None
+    return _decode_genes(bytes(out[:out_len.value]), leaf_dim)
+
+
+def has_native_genome_genome_genes() -> bool:
+    """True iff the rc333 §102/G7 srmech_genome_genome_genes C peer is loaded + bound: a bare-C host
+    pages ONE chromosome's region off disk and recovers its per-gene split with no Python present."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_genome_genes"))
+
+
+def genome_genome_genes_c(dir_: str, label: str, coupling: bytes, leaf_dim: int):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genome_genes`: obtain the manifest,
+    page the ``label`` chromosome's region (cap-integrity checked), and run the per-gene split in C
+    via ``srmech_genome_genome_genes``. Returns ``[(label_str, [leaf_bytes, …]), …]`` (empty list
+    for a chromosome with NO gene caps — the caller then raises the "no inline GENE caps"
+    ValueError), or ``None`` when the symbol is absent / the C declines (bad label / IO), so the
+    caller takes the pure body. Byte-identical to the pure ``genome_genes``."""
+    if not has_native_genome_genome_genes() or not has_native_genome():
+        return None
+    body = _turns_size(dir_)
+    n_chroms = _genome_chrom_count(dir_, coupling)
+    ws, ws_len = _genome_arena(body, n_chroms, body)      # ws reused for region staging in C
+    out_cap = 2 * body + (body // max(leaf_dim, 1) + n_chroms + 16) * 8 + 4096
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_genome_genes(
+        dir_.encode("utf-8"), label.encode("utf-8"),
+        _u8(coupling), ctypes.c_size_t(len(coupling)),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_len),
+        ws, ctypes.c_size_t(ws_len))
+    if rc != SRMECH_OK:
+        return None
+    return _decode_genes(bytes(out[:out_len.value]), leaf_dim)
+
+
+def has_native_genome_genes_expressed() -> bool:
+    """True iff the rc333 §102/G7 srmech_genome_genes_expressed C peer is loaded + bound: a bare-C
+    host runs the demand-load gene-express orchestration (plan-walk + region-page + collect) with
+    no Python present."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_genes_expressed"))
+
+
+def genome_genes_expressed_c(dir_: str, cell_state: int, coupling: bytes, leaf_dim: int):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.genome_genes_expressed`: walk the
+    manifest, page ONLY the expressed communities' regions, filter each by gene_express, and collect
+    ``[(label_str, [leaf_bytes, …]), …]`` in C via ``srmech_genome_genes_expressed``, or ``None``
+    when the symbol is absent / the C declines, so the caller takes the pure body. Byte-identical to
+    the pure ``genome_genes_expressed``. A SEPARATE ``region_ws`` stages one region at a time (the
+    manifest tree persists in ``ws`` across the chromosome loop)."""
+    if not has_native_genome_genes_expressed() or not has_native_genome():
+        return None
+    body = _turns_size(dir_)
+    n_chroms = _genome_chrom_count(dir_, coupling)
+    ws, ws_len = _genome_arena(body, n_chroms, 0)         # manifest tree only
+    region_cap = max(body, 1) + 4096                      # a SEPARATE region-staging buffer
+    region_ws = (ctypes.c_char * region_cap)()
+    out_cap = 2 * body + (body // max(leaf_dim, 1) + n_chroms + 16) * 8 + 4096
+    out = (ctypes.c_uint8 * max(out_cap, 1))()
+    out_len = ctypes.c_size_t(0)
+    rc = LIB.srmech_genome_genes_expressed(
+        dir_.encode("utf-8"), ctypes.c_uint64(cell_state),
+        _u8(coupling), ctypes.c_size_t(len(coupling)),
+        out, ctypes.c_size_t(out_cap), ctypes.byref(out_len),
+        ws, ctypes.c_size_t(ws_len),
+        ctypes.cast(region_ws, ctypes.c_void_p), ctypes.c_size_t(region_cap))
+    if rc != SRMECH_OK:
+        return None
+    return _decode_genes(bytes(out[:out_len.value]), leaf_dim)
 
 
 def has_native_genome_chromatin_access() -> bool:
@@ -19817,8 +20680,12 @@ __all__ = [
     "NativeNDJsonError",
     "NativeGenomeError",
     "has_native_genome",
+    "has_native_genome_fiber_holonomy",
+    "has_native_genome_octonion_holonomy",
     "has_native_genome_census",
     "has_native_genome_registry",
+    "genome_fiber_holonomy_c",
+    "genome_octonion_holonomy_c",
     "genome_save_c",
     "genome_load_c",
     "genome_catalog_c",
