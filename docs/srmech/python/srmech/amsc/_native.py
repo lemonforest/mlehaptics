@@ -3900,6 +3900,25 @@ def _bind(lib: ctypes.CDLL) -> None:
         if hasattr(lib, "srmech_genome_telomere"):
             lib.srmech_genome_telomere.argtypes = [_U8, _SZ, _U32, _U8, _SZ]
             lib.srmech_genome_telomere.restype = ctypes.c_int
+        # rc329 (§102 G7) — the ACTIVE-TELOMERE PACKER (the pack counterpart of the §127
+        # tick: build ONE active cap with no daughter-minting) + the MINT-PLAN read loop
+        # (encode_shape + the content-address orientation per kernel). NEW symbols →
+        # hasattr-guarded; additive → EXPECTED_ABI_VERSION stays 10.
+        #   int srmech_genome_active_telomere(const unsigned char *label,
+        #       size_t label_len, uint64_t count, uint32_t leaf_dim,
+        #       unsigned char *out, size_t out_cap)
+        if hasattr(lib, "srmech_genome_active_telomere"):
+            lib.srmech_genome_active_telomere.argtypes = [
+                _U8, _SZ, ctypes.c_uint64, _U32, _U8, _SZ]
+            lib.srmech_genome_active_telomere.restype = ctypes.c_int
+        #   int srmech_genome_mint_plan(const unsigned char *content,
+        #       const size_t *content_lens, const size_t *leaf_counts,
+        #       size_t n_kernels, unsigned char *is_nuclear_out,
+        #       unsigned char *orient_out)
+        if hasattr(lib, "srmech_genome_mint_plan"):
+            lib.srmech_genome_mint_plan.argtypes = [
+                _U8, _PSZ, _PSZ, _SZ, _U8, _U8]
+            lib.srmech_genome_mint_plan.restype = ctypes.c_int
         # rc197 (#887) — the make_class → C leaf-batch 3: the genome [class]'s plain
         # CHROMOSOME builder + RECALL. Both are byte-exact (cap framing + reversible
         # Klein-4 XOR), caller-provided out buffers (no arena). NEW symbols →
@@ -18828,6 +18847,81 @@ def genome_encode_shape_c(n: int):
     if rc != SRMECH_OK:
         return None
     return int(leaves.value), int(depth.value)
+
+
+def has_native_genome_active_telomere() -> bool:
+    """True iff the rc329 §127/G7 srmech_genome_active_telomere C peer is loaded +
+    bound: a bare-C host packs ONE §127 active-telomere cap (the op⊗operand Hayflick
+    cap) with no daughter-minting. False on a no-C or pre-rc329 lib — the pure
+    ``srmech.amsc.genome._pack_active_telomere`` body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_active_telomere"))
+
+
+def genome_active_telomere_c(label, count: int, leaf_dim: int):
+    """Native §127/G7 active-telomere packer (parity peer
+    ``srmech_genome_active_telomere``): ``(label, count, leaf_dim)`` → the packed
+    ``leaf_dim``-byte cap bytes ``[0x74] + utf-8(label) + NUL + count(uint64 BE)``,
+    NUL-padded. Returns ``None`` when the symbol is absent OR the inputs do not fit
+    the fast path (``count`` out of the uint64 field, a NUL byte in the label, or the
+    ``[marker+label+NUL+count]`` payload over ``leaf_dim``) — the caller then runs the
+    exact pure ``_pack_active_telomere`` (which raises the matching ValueError).
+    Byte-identical to the bytes behind the Python cap (wrapped in HV(sectors=256))."""
+    if not has_native_genome_active_telomere():
+        return None
+    if (not isinstance(count, int) or isinstance(count, bool)
+            or count < 0 or count >= (1 << 64)):
+        return None
+    raw = label.encode("utf-8") if isinstance(label, str) else bytes(label)
+    if leaf_dim <= 0 or b"\x00" in raw or (2 + len(raw) + 8) > leaf_dim:
+        return None
+    out = (ctypes.c_uint8 * leaf_dim)()
+    rc = LIB.srmech_genome_active_telomere(
+        _u8(raw), ctypes.c_size_t(len(raw)), ctypes.c_uint64(count),
+        ctypes.c_uint32(leaf_dim), out, ctypes.c_size_t(leaf_dim))
+    if rc != SRMECH_OK:
+        return None
+    return bytes(out[:leaf_dim])
+
+
+def has_native_genome_mint_plan() -> bool:
+    """True iff the rc329 §102/G7 srmech_genome_mint_plan C peer is loaded + bound: a
+    bare-C host runs the WHOLE mint_plan read-loop (encode_shape + the content-address
+    orientation per kernel) with no Python present. False on a no-C or pre-rc329 lib —
+    the pure ``srmech.amsc.genome.mint_plan`` body is the complete byte-identical
+    alternative + parity oracle."""
+    return bool(HAS_NATIVE and LIB is not None
+                and hasattr(LIB, "srmech_genome_mint_plan"))
+
+
+def genome_mint_plan_c(contents, leaf_counts):
+    """§102/G7 native dispatch for :func:`srmech.amsc.genome.mint_plan`. Runs the WHOLE
+    read-loop in C via ``srmech_genome_mint_plan``: per kernel the F715 shape decision
+    (``srmech_genome_encode_shape`` → plasmid vs nuclear) and, for a nuclear kernel, its
+    content-addressed orientation (``sha256(content)[0] & 3``).
+
+    ``contents`` is the per-kernel content preimage bytes (each ==
+    ``genome._kernel_content_bytes(leaves)``); ``leaf_counts`` the per-kernel leaf count
+    (the plan's ``n_leaves``). Returns a list of ``(is_nuclear: int, orientation: int)``
+    per kernel (``orientation`` is 0 for a plasmid — the caller maps that to ``None``),
+    or ``None`` when the symbol is absent / the C op declines, so the caller takes the
+    pure body (the byte-parity oracle)."""
+    if not has_native_genome_mint_plan():
+        return None
+    n = len(contents)
+    if n != len(leaf_counts):
+        return None
+    flat = b"".join(bytes(c) for c in contents)
+    clens = (ctypes.c_size_t * max(n, 1))(*[len(bytes(c)) for c in contents])
+    lcounts = (ctypes.c_size_t * max(n, 1))(*[int(x) for x in leaf_counts])
+    is_nuc = (ctypes.c_uint8 * max(n, 1))()
+    orient = (ctypes.c_uint8 * max(n, 1))()
+    rc = LIB.srmech_genome_mint_plan(
+        _u8(flat), clens, lcounts, ctypes.c_size_t(n), is_nuc, orient)
+    if rc != SRMECH_OK:
+        return None
+    return [(int(is_nuc[i]), int(orient[i])) for i in range(n)]
 
 
 def has_native_genome_telomere() -> bool:

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc328"
-#define SRMECH_VERSION       "0.9.0rc328"
+#define SRMECH_VERSION_PRE   "rc329"
+#define SRMECH_VERSION       "0.9.0rc329"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -7177,6 +7177,62 @@ srmech_status_t srmech_genome_pack(
 srmech_status_t srmech_genome_telomere_tick(
     const unsigned char *cap, size_t leaf_dim,
     unsigned char *out_cap, int *senescent, uint64_t *count_after);
+
+/* §127/v7 (#726, rc329 §102 G7) ACTIVE-TELOMERE PACKER — build ONE §127 active telomere
+ * cap (mirror srmech.amsc.genome._pack_active_telomere / active_telomere), the PACK
+ * counterpart of srmech_genome_telomere_tick above. Layout: [0x74 marker] + label + NUL
+ * + count(uint64 BIG-ENDIAN), NUL-padded to leaf_dim. A telomere that opens+governs a
+ * chromosome (the op) carrying the exact non-negative Hayflick counter `count` INLINE
+ * (the operand), the count right AFTER the label's NUL so the label decodes UNIFORMLY.
+ * The tick op above reads+decrements this cap to mint a DAUGHTER; this entry packs ONE
+ * active cap with NO daughter-minting, so a bare-C host builds it standalone (the
+ * c_host_parity_audit_rc273 §2 G7 exhibit). `count` is a uint64 — a Hayflick counter is
+ * never signed, so nothing to strip (NOT a Class-K pin-slot site). BYTE-IDENTICAL to the
+ * bytes behind the Python cap.
+ *   label / label_len : the chromosome label (may be NULL iff label_len 0; no NUL inside).
+ *   count             : the exact non-negative Hayflick counter.
+ *   leaf_dim          : the leaf width (match the turns it caps).
+ *   out / out_cap     : caller buffer >= leaf_dim bytes — the packed cap leaf.
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — out NULL, or label NULL with label_len > 0.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > out_cap, a NUL byte inside label, or the
+ *                          [marker+label+NUL+count] payload does not fit leaf_dim.
+ * Additive plain symbol (no new typedef) → SRMECH_ABI_VERSION stays 10,
+ * GENOME_FORMAT_VERSION stays 19. Caller-arena; no malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_active_telomere(
+    const unsigned char *label, size_t label_len, uint64_t count,
+    uint32_t leaf_dim, unsigned char *out, size_t out_cap);
+
+/* rc329 (§102 G7) MINT PLAN — the read-only introspection loop of
+ * srmech.amsc.genome.mint_plan in C: for each kernel decide its chromosome SHAPE
+ * (plasmid vs nuclear) and, for a nuclear kernel, its content-addressed global
+ * orientation, so a bare-C host assembles the plan with no Python present (the
+ * c_host_parity_audit_rc273 §2 G7 exhibit: the per-step primitive srmech_genome_encode_shape
+ * was native but the assembling loop was not). BUILDS NOTHING. Per kernel i:
+ *   is_nuclear_out[i] = 1 iff srmech_genome_encode_shape(max(1, leaf_counts[i]) *
+ *                       SRMECH_GENOME_LEAF_CAP) yields a quad_strand (depth >= 2) — the
+ *                       F715 attested criterion (mirror genome._mint_shape); else 0 (a
+ *                       Tier-1 plasmid).
+ *   orient_out[i]     = sha256(content_i)[0] & 3 (Class A content-address → Class C
+ *                       sector) — WRITTEN only for a nuclear kernel; 0 for a plasmid
+ *                       (the Python projection maps a plasmid's orientation to None).
+ *   content / content_lens : the flat concatenation of every kernel's content preimage
+ *                       (the SAME bytes genome._kernel_content_bytes serialises: its
+ *                       leaves as fixed-width blocks); content_lens[i] is kernel i's slice.
+ *   leaf_counts / n_kernels : the per-kernel leaf count (the plan's n_leaves) and count.
+ *   is_nuclear_out / orient_out : caller arrays of n_kernels bytes each.
+ * BYTE-IDENTICAL to the pure mint_plan's (shape, orientation) per kernel. A leaf count is
+ * a non-negative cardinality — no abs (NOT a Class-K pin-slot site).
+ * Error returns:
+ *   SRMECH_ERR_NULL_ARG  — is_nuclear_out / orient_out NULL, or leaf_counts /
+ *                          content_lens NULL with n_kernels > 0.
+ *   SRMECH_ERR_BAD_INPUT  — a leaf count whose *256 would overflow uint64.
+ * Additive plain symbol (no new typedef) → SRMECH_ABI_VERSION stays 10,
+ * GENOME_FORMAT_VERSION stays 19. Caller-arena; no malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_mint_plan(
+    const unsigned char *content, const size_t *content_lens,
+    const size_t *leaf_counts, size_t n_kernels,
+    unsigned char *is_nuclear_out, unsigned char *orient_out);
 
 /* §128/v8 (#728) + §129 (#729) GENE EXPRESSION — the per-gene read-time FILTER whose OPERATOR
  * behaviour (express or not) is SELECTED by its OPERAND (the cell_state). Read the regulatory
