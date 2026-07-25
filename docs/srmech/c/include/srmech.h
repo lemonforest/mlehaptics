@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc333"
-#define SRMECH_VERSION       "0.9.0rc333"
+#define SRMECH_VERSION_PRE   "rc334"
+#define SRMECH_VERSION       "0.9.0rc334"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -194,6 +194,13 @@ extern "C" {
  *      The paired Python ctypes dispatch sites pass BYTES in lockstep. The added
  *      *_arena_bytes symbol alone would NOT have bumped; the unit reinterpretation
  *      is what does. GENOME_FORMAT_VERSION stays 15 — no on-disk format change.
+ *  (rc334, v0.9.0rc334, task #887) — srmech_genome_add_plasmid + its
+ *      srmech_genome_add_plasmid_scratch_bytes sizer close the LAST genome wire-glue
+ *      parity gap (add_plasmid; CEIL_WIRE_GLUE_GAPS 1 -> 0). Two ADDITIVE plain
+ *      symbols reusing the existing srmech_progress_tick_cb_t typedef (NO new
+ *      callback typedef, no existing signature changed), so SRMECH_ABI_VERSION STAYS
+ *      10 and GENOME_FORMAT_VERSION STAYS 19 — the organized strand is plain v15-era
+ *      KERNEL chromosomes over existing caps + blocks.
  */
 #define SRMECH_ABI_VERSION 10
 
@@ -7860,6 +7867,85 @@ srmech_status_t srmech_genome_integrate_plasmids(
     srmech_progress_tick_cb_t tick, void *tick_user,
     unsigned char *out, size_t out_cap, size_t *n_blocks_out,
     size_t *n_integrated_out, unsigned char *ws, size_t ws_len);
+
+/* rc334 (§102 / F1252 — INCREMENTAL STAGE 1+2, task #887) — ADD PLASMID: the
+ * whole-op C peer of srmech.amsc.plasmid.add_plasmid and the LAST genome wire-glue
+ * parity gap. It CLOSES the ADR-0003 "genome must exist fully in C" commitment — the
+ * enumerated wire-glue gap list (CEIL_WIRE_GLUE_GAPS) drops 1 -> 0.
+ *
+ * The Python projection owns the stage-1 APPEND (srmech_genome_plasmid_extract, which
+ * seeds a fresh store + refreshes the "__vocab__" karyotype index — the seed + vocab
+ * bookkeeping is not this op's job), then hands this peer the store (new section
+ * ALREADY appended), the PRIOR section-count accumulator, the NEW section's GLOBAL
+ * node_ids, and k. This peer runs the CONSERVE + ORGANIZE half END-TO-END:
+ *   (1) MERGE   — prior {id:count} + the new section ids (+1 each; a node counts ONCE
+ *                 per section) -> the ascending merged counts. Byte-identical to the
+ *                 pure O(section) dict bump.
+ *   (2) CONSERVE— srmech_genome_conserved_core over the merged counts (k_in < 0 DERIVES
+ *                 k from the antimode; >= 0 forces it). *out_core the ASCENDING
+ *                 conserved node ids, *out_k / *out_bimodal the threshold + its shape.
+ *   (3) HARVEST + PROMOTE — page every plasmid section off disk, decode its GLOBAL
+ *                 edges (srmech_graph_kernel_decode), keep the induced CORE subgraph
+ *                 (both endpoints conserved), SUM the per-(u,v) multiplicities in
+ *                 canonical sorted order (ORDER-FREE), and pack it
+ *                 (srmech_graph_kernel_encode -> the kernel BLOCK form) into a core
+ *                 strand — byte-identical to the pure _core_packed.
+ *   (4) MERGE the strand — MINT the core (0x58 centromere) at the head, then FOLD each
+ *                 retained plasmid section's strand (paged + unpacked off disk) onto
+ *                 the running TAIL, the srmech_genome_integrate_plasmids discipline
+ *                 (mint_strand promote + integrate merge).
+ * A global recursive_cut is NEVER run and no document is re-extracted. BYTE-IDENTICAL
+ * to the pure add_plasmid `strand` + `state` (the section_count map, the core, k).
+ *   dir / coupling / leaf_dim : the section store + its shared Klein-4 invariant
+ *                       (coupling is leaf_dim bytes; leaf_dim in [52, 256]).
+ *   k_in                : < 0 DERIVE the conservation threshold; >= 0 force it.
+ *   prior_ids/prior_counts/n_prior : the PRIOR ascending section-count accumulator.
+ *   new_nid / n_new     : the new section's UNIQUE GLOBAL node_ids (+1 each).
+ *   prior_core/n_prior_core : the PRIOR conserved core (for *out_core_changed).
+ *   centromere_at/repeats/handle/handle_len : mint_strand params for the core promote
+ *                       (centromere_at < 0 = the metacentric midpoint; the defaults
+ *                       MUST match the pure mint_strand, i.e. repeats=15, handle="cen").
+ *   tick/tick_ctx       : §101 heartbeat — MINTING once for the core, then INTEGRATING
+ *                       per section; a nonzero return CANCELS at a chromosome boundary
+ *                       (*out_cancelled = 1, SRMECH_CANCELLED, *out_nblocks a clean
+ *                       partial). NULL = off.
+ *   out_ids/out_counts/counts_cap/n_counts : the NEW ascending merged counts
+ *                       (counts_cap >= n_prior + n_new is always sufficient).
+ *   out_core/core_cap/n_core_out : the NEW conserved core (core_cap >= n_counts).
+ *   out_k/out_bimodal/out_core_changed : the derived threshold, its shape, and 1 iff
+ *                       the core membership moved from prior_core.
+ *   out/out_cap/out_nblocks : the organized strand as leaf_dim-byte HV blocks.
+ *   n_integrated        : the plasmid sections merged (== the section count unless
+ *                       cancelled).
+ *   ws/ws_len           : the MANIFEST arena (>= srmech_genome_arena_bytes(body_len,
+ *                       n_chroms, 0); the tree persists across the section passes).
+ *   scratch/scratch_len : the ORGANIZE scratch (>= srmech_genome_add_plasmid_scratch_bytes;
+ *                       SRMECH_ERR_OVERFLOW when short — the op appends NOTHING, so a
+ *                       larger re-run is idempotent).
+ * Error returns: SRMECH_ERR_NULL_ARG (a required pointer NULL), SRMECH_ERR_BAD_INPUT
+ * (leaf_dim out of range / a manifest-mismatch / a malformed section), SRMECH_ERR_OVERFLOW
+ * (an out buffer or arena too small), SRMECH_CANCELLED (a tick asked to stop).
+ * ADDITIVE — two new plain symbols REUSING the existing srmech_progress_tick_cb_t
+ * typedef (NO new callback typedef): SRMECH_ABI_VERSION stays 10, GENOME_FORMAT_VERSION
+ * stays 19 (no on-disk format change — plain v15-era KERNEL chromosomes). Caller-arena;
+ * no malloc/goto/recursion/abs/float. */
+srmech_status_t srmech_genome_add_plasmid(
+    const char *dir, const unsigned char *coupling, uint32_t leaf_dim, long k_in,
+    const uint64_t *prior_ids, const uint64_t *prior_counts, size_t n_prior,
+    const uint64_t *new_nid, size_t n_new,
+    const uint64_t *prior_core, size_t n_prior_core,
+    long centromere_at, uint32_t repeats,
+    const unsigned char *handle, size_t handle_len,
+    srmech_progress_tick_cb_t tick, void *tick_ctx,
+    uint64_t *out_ids, uint64_t *out_counts, size_t counts_cap, size_t *n_counts,
+    uint64_t *out_core, size_t core_cap, size_t *n_core_out,
+    uint64_t *out_k, int *out_bimodal, int *out_core_changed,
+    unsigned char *out, size_t out_cap, size_t *out_nblocks,
+    size_t *n_integrated, uint32_t *out_cancelled,
+    void *ws, size_t ws_len, void *scratch, size_t scratch_len);
+
+size_t srmech_genome_add_plasmid_scratch_bytes(size_t body_len, size_t n_new,
+                                               uint32_t leaf_dim);
 
 /* rc281 (§135 / F1251 — the GENE COPY-NUMBER pair) — WRITE a gene's copy number.
  *

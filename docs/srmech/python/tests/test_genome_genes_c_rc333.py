@@ -288,9 +288,10 @@ def test_rc333_peers_declared_and_gaps_closed():
             == "srmech_genome_genes_expressed")
     for op in ("genes", "genome_genes", "genome_genes_expressed"):
         assert f"srmech.amsc.genome.{op}" not in r._KNOWN_GLUE_GAPS
-    # only plasmid.add_plasmid remains, and the ceiling agrees
-    assert set(r._KNOWN_GLUE_GAPS) == {"srmech.amsc.plasmid.add_plasmid"}
-    assert len(r._KNOWN_GLUE_GAPS) == r.CEIL_WIRE_GLUE_GAPS == 1
+    # rc334 closed the last gap (add_plasmid): _KNOWN_GLUE_GAPS is now EMPTY and the
+    # DOWN-ONLY ceiling agrees at 0 (see test_genome_add_plasmid_c_rc334.py).
+    assert set(r._KNOWN_GLUE_GAPS) == set()
+    assert len(r._KNOWN_GLUE_GAPS) == r.CEIL_WIRE_GLUE_GAPS == 0
 
 
 def test_rc333_peers_are_actually_dispatched():
