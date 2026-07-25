@@ -438,6 +438,50 @@ static srmech_status_t iv_shape_u_to_bool(const srmech_tool_entry_t *e,
  * Shape thunk: uN -> (int, int) pair  (rational.best_rational).
  * ------------------------------------------------------------------ */
 
+/* Upper bound on the emitted Stern-Brocot / CF path. Mirrors the kernel's own
+ * file-local SRMECH_RATIONAL_EUCLID_CAP (128): the Fibonacci worst case for a
+ * uint64 pair is ~91 partial quotients, so 128 cannot be reached in practice.
+ * A fixed stack bound keeps JPL Rule 3 (no malloc) intact. */
+#define IV_BR_PATH_MAX 128u
+
+/* rc336 — best_rational(with_path=True): the (p', q', [a_0, a_1, ...]) triple.
+ * The landing convergent PLUS the partial-quotient path (the RLE of the
+ * Stern-Brocot L/R mediant walk = the Class-N approximation holonomy). The
+ * outer node is a TUPLE, the path an ordinary LIST, matching the pure return
+ * byte-for-byte. Any >int64 coordinate defers to the pure projection. */
+static srmech_status_t iv_best_rational_path(uint64_t p, uint64_t q, uint64_t md,
+                                             srmech_marshal_arena_t *a,
+                                             srmech_mval_t **out)
+{
+    uint64_t terms[IV_BR_PATH_MAX]; uint64_t op = 0u, oq = 0u;
+    uint32_t n = 0u, i; srmech_mval_t *tup, *lst, *n0, *n1, *it;
+    assert(a != NULL && out != NULL);
+    assert(q != 0u && md != 0u);
+    if (srmech_best_rational_path(p, q, md, terms, IV_BR_PATH_MAX,
+                                  &n, &op, &oq) != SRMECH_OK) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    if (op > (uint64_t)INT64_MAX || oq > (uint64_t)INT64_MAX) {
+        return SRMECH_ERR_NOT_IMPL;
+    }
+    tup = iv_list(a, 3u, 1);
+    lst = iv_list(a, n, 0);
+    n0 = iv_int(a, (int64_t)op);
+    n1 = iv_int(a, (int64_t)oq);
+    if (tup == NULL || lst == NULL || n0 == NULL || n1 == NULL) {
+        return SRMECH_ERR_OVERFLOW;
+    }
+    for (i = 0u; i < n; i++) {
+        if (terms[i] > (uint64_t)INT64_MAX) { return SRMECH_ERR_NOT_IMPL; }
+        it = iv_int(a, (int64_t)terms[i]);
+        if (it == NULL) { return SRMECH_ERR_OVERFLOW; }
+        lst->items[i] = it;
+    }
+    tup->items[0] = n0; tup->items[1] = n1; tup->items[2] = lst;
+    *out = tup;
+    return SRMECH_OK;
+}
+
 static srmech_status_t iv_shape_u_to_pair(const srmech_tool_entry_t *e,
                                           srmech_mval_t **argv, uint32_t argc,
                                           srmech_marshal_arena_t *a,
@@ -447,11 +491,21 @@ static srmech_status_t iv_shape_u_to_pair(const srmech_tool_entry_t *e,
     srmech_mval_t *tup, *n0, *n1;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 3u || strcmp(e->name, "srmech.amsc.rational.best_rational") != 0) {
+    /* rc336: the registry entry carries the optional 4th param `with_path`, and
+     * iv_dispatch passes entry->param_count as argc, so BOTH arities are live
+     * (3 = a pre-rc336 registry, 4 = current). */
+    if ((argc != 3u && argc != 4u)
+        || strcmp(e->name, "srmech.amsc.rational.best_rational") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_u64(argv[0], &p) || !iv_arg_u64(argv[1], &q)
         || !iv_arg_u64(argv[2], &md)) { return SRMECH_ERR_NOT_IMPL; }
+    /* with_path absent (NULL) or false -> the pinned 2-tuple; true -> the
+     * triple. A non-BOOL carrier in that slot defers to the pure projection. */
+    if (argc == 4u && argv[3] != NULL) {
+        if (argv[3]->kind != SRMECH_MVAL_BOOL) { return SRMECH_ERR_NOT_IMPL; }
+        if (argv[3]->i != 0) { return iv_best_rational_path(p, q, md, a, out); }
+    }
     st = srmech_best_rational(p, q, md, &op, &oq);
     if (st != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
     if (op > (uint64_t)INT64_MAX || oq > (uint64_t)INT64_MAX) {
