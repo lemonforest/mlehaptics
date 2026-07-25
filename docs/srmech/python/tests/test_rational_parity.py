@@ -138,3 +138,91 @@ def test_native_best_rational_matches_fallback():
             assert native_result == fallback_result
     finally:
         _native.HAS_NATIVE = saved
+
+
+# ---------------------------------------------------------------------
+# best_rational(with_path=True) — the Stern-Brocot / CF holonomy path
+# (rc336). The walk was always computed and discarded; now it is emitted.
+# ---------------------------------------------------------------------
+
+@pytest.mark.parametrize("p, q, max_q, expected", [
+    (22, 7, 7, (22, 7, [3, 7])),        # already fits — full CF of 22/7
+    (22, 7, 3, (3, 1, [3])),            # bound forces the [3] convergent
+    (355, 113, 100, (22, 7, [3, 7])),   # bound forces 22/7, path lands there
+    (355, 113, 200, (355, 113, [3, 7, 16])),  # 113 fits — full CF
+    (1, 2, 1, (0, 1, [0])),             # only the trivial [0] convergent fits
+    (1, 2, 2, (1, 2, [0, 2])),          # 1/2 fits exactly
+    (13, 8, 8, (13, 8, [1, 1, 1, 1, 2])),     # Fibonacci — full CF
+])
+def test_best_rational_path_reference(p, q, max_q, expected):
+    assert rational.best_rational(p, q, max_q, with_path=True) == expected
+
+
+def test_best_rational_default_is_two_tuple():
+    # Default (with_path=False) preserves the pinned 2-tuple contract.
+    r = rational.best_rational(355, 113, 100)
+    assert r == (22, 7) and len(r) == 2
+
+
+def test_best_rational_path_folds_to_its_convergent():
+    # The emitted path IS the compact CF of the returned convergent: folding
+    # it back reproduces exactly (p', q'), and the head 2 elements equal the
+    # pinned best_rational return.
+    rng = random.Random(20260725)
+    for _ in range(200):
+        p = rng.randrange(0, 10**9)
+        q = rng.randrange(1, 10**9)
+        max_q = rng.randrange(1, 10**6)
+        bp, bq, path = rational.best_rational(p, q, max_q, with_path=True)
+        assert (bp, bq) == rational.best_rational(p, q, max_q)
+        assert len(path) >= 1                    # a_0 always accepted (k=1)
+        assert _from_cf(path) == (bp, bq)        # path folds to the convergent
+
+
+def test_best_rational_path_unbounded_is_full_cf():
+    # With max_q >= q the whole ratio fits: the path is the FULL continued
+    # fraction of p/q, and the convergent is p/q itself (coprime inputs).
+    rng = random.Random(20260726)
+    for _ in range(200):
+        a = rng.randrange(1, 10**9)
+        b = rng.randrange(1, 10**9)
+        g = math.gcd(a, b)
+        p, q = a // g, b // g
+        bp, bq, path = rational.best_rational(p, q, q, with_path=True)
+        assert (bp, bq) == (p, q)
+        assert path == rational.continued_fraction(p, q)
+
+
+def test_best_rational_path_bignum_fallback():
+    # A coordinate above u64 takes the pure-Python bignum walk; the path is
+    # still emitted and folds to the (bignum) convergent.
+    p = 10**25 + 7
+    q = 3
+    max_q = 10**6
+    bp, bq, path = rational.best_rational(p, q, max_q, with_path=True)
+    assert (bp, bq) == rational.best_rational(p, q, max_q)
+    assert len(path) >= 1
+    assert _from_cf(path) == (bp, bq)
+
+
+@pytest.mark.skipif(not _native.HAS_NATIVE, reason="native lib not loaded")
+def test_native_best_rational_path_matches_fallback():
+    # The full (p', q', path) 3-tuple is byte-identical between the native
+    # srmech_best_rational_path and the pure-Python walk (u64-fit inputs).
+    rng = random.Random(20260727)
+    saved = _native.HAS_NATIVE
+    try:
+        for _ in range(200):
+            p = rng.randrange(0, 10**9)
+            q = rng.randrange(1, 10**9)
+            max_q = rng.randrange(1, 10**6)
+            _native.HAS_NATIVE = True
+            native_result = rational.best_rational(p, q, max_q, with_path=True)
+            _native.HAS_NATIVE = False
+            fallback_result = rational.best_rational(p, q, max_q, with_path=True)
+            assert native_result == fallback_result, (
+                f"p/q={p}/{q} max_q={max_q}: native={native_result} "
+                f"fallback={fallback_result}"
+            )
+    finally:
+        _native.HAS_NATIVE = saved

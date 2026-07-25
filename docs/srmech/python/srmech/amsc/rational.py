@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import ctypes
 import struct
-from typing import Dict, List, NamedTuple, Tuple
+from typing import Dict, List, NamedTuple, Tuple, Union
 
 from . import _native
 from . import cyclic as _cyclic
@@ -161,7 +161,10 @@ def continued_fraction(numerator: int, denominator: int) -> List[int]:
 
 def best_rational(numerator: int,
                   denominator: int,
-                  max_denominator: int) -> Tuple[int, int]:
+                  max_denominator: int,
+                  *,
+                  with_path: bool = False
+                  ) -> Union[Tuple[int, int], Tuple[int, int, List[int]]]:
     """Return the best rational ``(p', q')`` with ``q' <= max_denominator``
     approximating ``numerator / denominator``.
 
@@ -176,6 +179,18 @@ def best_rational(numerator: int,
     ``tests/test_rational_parity.py``); when any coordinate exceeds u64 the
     pure-Python convergent walk carries the bignums (Python ints), bounded only
     by ``max_denominator`` (Lamé's theorem caps the walk depth).
+
+    rc336 — ``with_path`` (keyword-only): when ``True``, ALSO return the
+    partial-quotient path as a third element, ``(p', q', path)``. ``path`` is
+    the compact continued fraction ``[a_0, a_1, ...]`` of the accepted
+    convergents — the run-length encoding of the Stern-Brocot L/R mediant walk
+    to the approximant, i.e. the Class-N *holonomy* (how many times the
+    denominator wraps the numerator at each level). The walk was always
+    computed and, before rc336, discarded; folding ``path`` back reproduces
+    exactly ``(p', q')``. The default ``False`` preserves the pinned 2-tuple
+    return. Dispatches to the native ``srmech_best_rational_path`` when the
+    symbol is present (byte-identical to the pure walk); a stale ``.so`` without
+    it falls through to the pure-Python walk (which also carries the path).
     """
     # §898 (rc319): non-negative ints with NO u64 ceiling — an exact Class-N log's
     # ratio / max_denominator may exceed uint64. The u64-fit dispatch is decided below.
@@ -189,20 +204,42 @@ def best_rational(numerator: int,
     _U64 = 0xFFFF_FFFF_FFFF_FFFF
     fits_u64 = p <= _U64 and q <= _U64 and max_q <= _U64
     if fits_u64 and _native.HAS_NATIVE and _native.LIB is not None:
-        out_p = ctypes.c_uint64(0)
-        out_q = ctypes.c_uint64(0)
-        rc = _native.LIB.srmech_best_rational(
-            ctypes.c_uint64(p),
-            ctypes.c_uint64(q),
-            ctypes.c_uint64(max_q),
-            ctypes.byref(out_p),
-            ctypes.byref(out_q),
-        )
-        if rc != _native.SRMECH_OK:
-            raise RuntimeError(
-                f"srmech_best_rational returned non-OK status {rc}"
+        if with_path and hasattr(_native.LIB, "srmech_best_rational_path"):
+            terms = (ctypes.c_uint64 * _MAX_TERMS)()
+            out_count = ctypes.c_uint32(0)
+            out_p = ctypes.c_uint64(0)
+            out_q = ctypes.c_uint64(0)
+            rc = _native.LIB.srmech_best_rational_path(
+                ctypes.c_uint64(p),
+                ctypes.c_uint64(q),
+                ctypes.c_uint64(max_q),
+                terms,
+                ctypes.c_uint32(_MAX_TERMS),
+                ctypes.byref(out_count),
+                ctypes.byref(out_p),
+                ctypes.byref(out_q),
             )
-        return int(out_p.value), int(out_q.value)
+            if rc != _native.SRMECH_OK:
+                raise RuntimeError(
+                    f"srmech_best_rational_path returned non-OK status {rc}"
+                )
+            path = [int(terms[i]) for i in range(out_count.value)]
+            return int(out_p.value), int(out_q.value), path
+        if not with_path:
+            out_p = ctypes.c_uint64(0)
+            out_q = ctypes.c_uint64(0)
+            rc = _native.LIB.srmech_best_rational(
+                ctypes.c_uint64(p),
+                ctypes.c_uint64(q),
+                ctypes.c_uint64(max_q),
+                ctypes.byref(out_p),
+                ctypes.byref(out_q),
+            )
+            if rc != _native.SRMECH_OK:
+                raise RuntimeError(
+                    f"srmech_best_rational returned non-OK status {rc}"
+                )
+            return int(out_p.value), int(out_q.value)
     # Pure-Python fallback: walk convergents. §898: for u64-fit inputs the u64
     # overflow guards mirror the C path (byte-parity, pinned by test_rational_parity);
     # for a bignum coordinate (> u64) they are dropped — Python bigints carry the
@@ -211,6 +248,7 @@ def best_rational(numerator: int,
     h_prev, h_curr = 1, 0
     k_prev, k_curr = 0, 1
     best_p, best_q = 0, 1
+    path: List[int] = []
     while q != 0:
         a = p // q
         if fits_u64:
@@ -224,9 +262,13 @@ def best_rational(numerator: int,
         if k_next > max_q:
             break
         best_p, best_q = h_next, k_next
+        if with_path:
+            path.append(a)          # accepted partial quotient — the CF/S-B path
         h_curr, h_prev = h_prev, h_next
         k_curr, k_prev = k_prev, k_next
         p, q = q, p % q
+    if with_path:
+        return best_p, best_q, path
     return best_p, best_q
 
 

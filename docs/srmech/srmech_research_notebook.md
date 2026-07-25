@@ -5949,6 +5949,36 @@ So `Δ₉` restricted to `Spin(8)` is the two inequivalent **half-spinors** `8_s
 
 ---
 
+## §3.44 The Stern-Brocot packed-Q spike — `best_rational` already computes the Class-N holonomy and discards it; packed-Q transport is niche, the "uniform bignum layer" is a null (2026-07-25; user-seeded; MEASURED)
+
+**The seed.** Could a rational `num:den` be packed into a *single* integer "the Stern-Brocot way," as a fast-path on `best_rational` — the user's "layer between all functions being also bignum native" (a uniform int-or-bignum `Q` carrier where `den = 1` is a plain-int passthrough, and the packing tells you "how many `den` wraps `num`")? Prototype-first spike (scratchpad `sb_packed_q.py` / `sbq_measure.py` / `sbq_addendum.py`). The result splits three ways — one real find, one niche, one honest null. Recorded here per `[[feedback_computational_provenance_discipline]]` so the framework can reference it down the road.
+
+### §3.44.1 The real find (SOLID) — `best_rational` walks the CF/Stern-Brocot path and throws it away; emitting it is near-free
+
+`best_rational(num, den, max_d)` (Class-N, `srmech.amsc.rational`; C `srmech_best_rational`, `srmech_rational.c`) runs the **continued-fraction convergent recurrence** `h_k = a_k·h_{k-1} + h_{k-2}`, `k_k = a_k·k_{k-1} + k_{k-2}` with `a_k = ⌊p/q⌋`, keeping the last convergent whose denominator `k_k ≤ max_d`. The sequence of partial quotients `[a_0, a_1, …]` **IS** the compact continued fraction, which **IS** the run-length encoding of the Stern-Brocot L/R path to the approximant — precisely the user's "holonomy: how many `den` wraps `num`" at each level. The recurrence already computes every `a_k`; the op **keeps only `best_p / best_q` and discards the path.**
+
+So the user's holonomy intuition was **correct and already latent in the tool**: the path is sitting there computed-and-thrown-away. srmech already ships the *unbounded-exact* form — `continued_fraction(p, q)` (C `srmech_continued_fraction`) and `continued_fraction_convergents` (C `srmech_cf_convergents_int64`). What is genuinely *new* and non-redundant is the **`max_d`-bounded** walk with its landing convergent: `continued_fraction` expands the full exact ratio (and its int64 C peer can't take a bignum coordinate), whereas the bounded path is the prefix that lands *exactly* on the returned approximant and covers the bignum-fallback regime (`> u64`, per `[[project_class_n_precision_contract_migration_breaking_no_legacy]]`). Emitting it is one `append` per accepted convergent ≈ **free**. → **Shipping as rc336** (`best_rational_path` sibling op; keeps `best_rational`'s pinned 2-tuple contract intact; additive C peer `srmech_best_rational_path`, no ABI bump). This exposes the Class-N *holonomy* as a first-class output — the compact fingerprint of an approximation, not just its endpoint.
+
+### §3.44.2 Packed-Q transport (NICHE) — a real but narrow codec, and CF-RLE is the wrong packing
+
+Packing a small `Q` into 8 bytes for wire/NDJSON/bus transport is real but narrow. The measured verdict on *how* to pack:
+
+| Packing | Coverage (`max_d ≤ 65535`) | Where it wins | Verdict |
+|---|---|---|---|
+| **48:16 shift-and-mask** (`num` hi 48b, `den` lo 16b) | ~100% | the common small-`Q` regime | **use this if ever** — a fraction of the code |
+| **Stern-Brocot RLE / compact-CF** | ties the split | only `den ∈ (65 K, ~1 M]` at O(1) magnitude | **~300× fewer distinct-rationals-per-bit** than the split; self-delimiting gamma codes are redundant |
+| raw L/R path (unary Stern-Brocot) | dominated everywhere | — | never |
+
+The intuition that the Stern-Brocot path is the "natural" packing is **wrong for transport**: the CF-RLE spends its bits on self-delimitation the split gets for free from a fixed field boundary. If a packed-`Q` codec is ever pursued it is a **C-side serialization codec only, out of the arithmetic path**, using the 48:16 split.
+
+### §3.44.3 The "uniform bignum-native layer" (HONEST NULL as framed)
+
+The framing — a tri-state packed `Q` as "the uniform layer between all functions being also bignum native" — is a **null as posed**, because the uniformity it seeks **already exists**: srmech's Class-N ops already take/return `(num, den)` tuples, and Python ints are already arbitrary-precision, so `den = 1` plain-int passthrough already works. A packed fixnum *adds* a third representation every function must destructure. Measured cost of the packed form: **~50× slower reads** (decode per access), **not** faster hashing, and **arithmetic ~47× slower** (unpack → rational-arith → repack — confirming the win is transport, never arithmetic). The only genuine benefit is C-level inline 8-byte alloc-free storage, and **no C-side bottleneck was demonstrated** to motivate it. Per `[[user_stance_srmech_is_multi_implementation_not_python_with_c_accel]]` the capability (a rational carrier) is already the invariant; a packed projection that reads 50× slower is not a co-equal projection, it is a pessimization.
+
+**Boundary.** The find applies to small-den `best_rational` *approximants*, **not** exact bignum rationals — `One.scalar`'s ~249-bit numerator always takes the bignum escape (rc335). Composes with §3.26.6 (the combination principle = Class-N differences-of-anchors — the *ladder* whose rungs `best_rational` anchors), §3.38 (the reversibility audit, where `best_rational` is the lossy continuous→discrete projection), and §3.39.3 (the per-transcendental Class-N cascade reading). The `gcd`-reduce inside a rational is *projectivization*, **not** the Hopf principle (`[[reference_hopf_fibration_names_quaternionic_not_octonionic]]`) — the earlier fibration-vs-Class-N workflow null. **Status:** MEASURED; one SOLID find shipping as rc336, one NICHE codec deferred, one honest NULL — a full-coverage spike verdict per `[[feedback_dont_pre_commit_spike_query_operators]]` (null findings count).
+
+---
+
 ## §4 Open research questions
 
 ### 4.1 Additional spectral graphic operations the architecture should learn to absorb

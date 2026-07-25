@@ -322,6 +322,66 @@ srmech_status_t srmech_best_rational(uint64_t  numerator,
     return SRMECH_OK;
 }
 
+/* best_rational's continued-fraction / Stern-Brocot path made explicit —
+ * same bounded convergent walk, but also emits each accepted partial quotient
+ * a_k into `terms` (the compact CF = the Class-N approximation holonomy). */
+srmech_status_t srmech_best_rational_path(uint64_t  numerator,
+                                          uint64_t  denominator,
+                                          uint64_t  max_denominator,
+                                          uint64_t *terms,
+                                          uint32_t  max_terms,
+                                          uint32_t *out_count,
+                                          uint64_t *out_p,
+                                          uint64_t *out_q)
+{
+    assert(out_count != NULL);
+    assert(out_p != NULL && out_q != NULL);
+    if (out_count == NULL || out_p == NULL || out_q == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    *out_count = 0;
+    *out_p = 0;
+    *out_q = 1;
+    if (terms == NULL || max_terms == 0) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (denominator == 0 || max_denominator == 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    uint64_t p = numerator, q = denominator;
+    uint64_t h_prev = 1, h_curr = 0, k_prev = 0, k_curr = 1;
+    for (uint32_t i = 0; i < SRMECH_RATIONAL_EUCLID_CAP; i++) {
+        if (q == 0) {
+            break;
+        }
+        uint64_t a = p / q;
+        if (h_prev > 0 && a > (UINT64_MAX - h_curr) / h_prev) {
+            break;
+        }
+        if (k_prev > 0 && a > (UINT64_MAX - k_curr) / k_prev) {
+            break;
+        }
+        uint64_t h_next = a * h_prev + h_curr;
+        uint64_t k_next = a * k_prev + k_curr;
+        if (k_next > max_denominator) {
+            break;
+        }
+        if (*out_count >= max_terms) {
+            return SRMECH_ERR_OVERFLOW;
+        }
+        terms[*out_count] = a;
+        (*out_count)++;
+        *out_p = h_next;
+        *out_q = k_next;
+        h_curr = h_prev; h_prev = h_next;
+        k_curr = k_prev; k_prev = k_next;
+        uint64_t r = p % q;
+        p = q; q = r;
+    }
+    assert(*out_q > 0);
+    return SRMECH_OK;
+}
+
 /* Helper — reduce signed (sum_num, sum_den) to lowest terms via gcd.
  * Handles the zero-numerator case explicitly (sum_num == 0 -> 0/1). */
 static void exp_series_reduce(int64_t   sum_num,

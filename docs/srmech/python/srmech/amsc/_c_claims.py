@@ -547,7 +547,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_bigint_gcd_ws_bound',
         'srmech_exp_series_truncate_big',
     ),
-    'srmech.amsc.rational.best_rational': ('srmech_best_rational',),
+    'srmech.amsc.rational.best_rational': (
+        'srmech_best_rational',
+        'srmech_best_rational_path',
+    ),
     'srmech.amsc.rational.continued_fraction': ('srmech_continued_fraction',),
     'srmech.amsc.rational.continued_fraction_convergents': ('srmech_cf_convergents_int64',),
     'srmech.amsc.rational.cos': (
