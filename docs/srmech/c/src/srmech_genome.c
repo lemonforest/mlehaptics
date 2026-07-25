@@ -8161,7 +8161,9 @@ static srmech_status_t genome_genes_express_region(
             }
         } else if (kind == (int)SRMECH_GENOME_CHROMATIN_MARKER) {
             uint64_t num = 0u, den = 0u;
-            st = genome_chromatin_access(block, dim, cell_state, &num, &den);
+            /* dim == (size_t)leaf_dim, so it always fits uint32_t; the cast
+               silences MSVC C4267 (size_t->uint32_t) — Class-K width pin. */
+            st = genome_chromatin_access(block, (uint32_t)dim, cell_state, &num, &den);
             if (st != SRMECH_OK) { return st; }
             access_open = (num > 0u) ? 1 : 0;
         } else if (kind == (int)SRMECH_GENOME_CHROM_CAP_MARKER ||
