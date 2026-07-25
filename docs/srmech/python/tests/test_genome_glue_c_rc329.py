@@ -195,9 +195,11 @@ def _load_rosetta():
 
 
 def test_rc329_peers_declared_whole_op():
-    """The two ops left ``_KNOWN_GLUE_GAPS`` for ``_WHOLE_OP_C_PEER`` — assert the map
-    names the right symbol and the ceiling dropped to 6. (The full transitive ratchet
-    lives in test_rosetta_transitive_standalone.py; this is a local coherence pin.)"""
+    """The two rc329 ops left ``_KNOWN_GLUE_GAPS`` for ``_WHOLE_OP_C_PEER`` — assert the map
+    names the right symbol and that neither is still a gap. (The full transitive ratchet — and
+    the DOWN-ONLY ``CEIL_WIRE_GLUE_GAPS`` pin, which later rcs keep lowering — lives in
+    test_rosetta_transitive_standalone.py; this is a local coherence pin for THESE ops only, so
+    it does NOT re-pin the global ceiling to its rc329-era value.)"""
     rosetta = _load_rosetta()
     assert rosetta._WHOLE_OP_C_PEER["srmech.amsc.genome.active_telomere"] == \
         "srmech_genome_active_telomere"
@@ -205,7 +207,6 @@ def test_rc329_peers_declared_whole_op():
         "srmech_genome_mint_plan"
     assert "srmech.amsc.genome.active_telomere" not in rosetta._KNOWN_GLUE_GAPS
     assert "srmech.amsc.genome.mint_plan" not in rosetta._KNOWN_GLUE_GAPS
-    assert rosetta.CEIL_WIRE_GLUE_GAPS == 6
     assert len(rosetta._KNOWN_GLUE_GAPS) == rosetta.CEIL_WIRE_GLUE_GAPS
 
 

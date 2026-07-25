@@ -7725,6 +7725,182 @@ srmech_status_t srmech_genome_copy_number(
     return SRMECH_OK;
 }
 
+/* rc332 (§102 G7, #887) — §98 GENE-cap predicate: 1 iff `block` opens a GENE (plain /
+ * regulatory / boolean / threshold / graded — the Python _GENE_MARKERS set), else 0. The
+ * region= gene-label scope of condense skips to the FIRST gene by that label. A READ over
+ * genome_cap_kind; no abs. Sibling of genome_is_boundary_cap above. */
+static int genome_is_gene_cap(const unsigned char *block, size_t len)
+{
+    int kind;
+    assert(block != NULL || len == 0u);
+    assert(len <= 256u);
+    kind = genome_cap_kind(block, len);
+    return (kind == (int)SRMECH_GENOME_GENE_CAP_MARKER ||
+            kind == (int)SRMECH_GENOME_REGULATORY_GENE_MARKER ||
+            kind == (int)SRMECH_GENOME_BOOLEAN_GENE_MARKER ||
+            kind == (int)SRMECH_GENOME_THRESHOLD_GENE_MARKER ||
+            kind == (int)SRMECH_GENOME_GRADED_GENE_MARKER) ? 1 : 0;
+}
+
+/* rc332 (§102 G7, #887) — the shared label -> chromatin-RANGE finder: the (start, end) BLOCK
+ * indices of the TARGET chromosome in `strand`, mirroring srmech.amsc.genome._chrom_range.
+ * A chromosome OPENS with a boundary cap (genome_is_boundary_cap); a well-formed strand opens
+ * with one at block 0. When label_is_none the strand must carry EXACTLY ONE chromosome (else
+ * the range is ambiguous — pass a label); else (label, label_len) picks the FIRST boundary whose
+ * inline label matches (genome_gene_label_eq is the generic cap-label compare). `end` is the next
+ * boundary index AFTER `start`, or n_blocks (the chromosome runs to the strand's end). The
+ * Python-only range-find that USED to sit behind BOTH condense and decondense; the shared NEW C
+ * content this rc adds. A typed DECLINE (SRMECH_ERR_BAD_INPUT) on EVERY case _chrom_range raises
+ * ValueError — the caller then runs the pure oracle, which raises the exact ValueError. A READ;
+ * no abs, no mutation, no malloc (a two-pass scan, no boundary-index array). */
+static srmech_status_t genome_label_range(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, int label_is_none,
+    size_t *start_out, size_t *end_out)
+{
+    size_t dim = (size_t)leaf_dim;
+    size_t n_bounds = 0u;
+    size_t start = n_blocks;                       /* not-found sentinel */
+    size_t end = n_blocks;
+    assert(start_out != NULL && end_out != NULL);
+    assert(leaf_dim > 0u && leaf_dim <= 256u);
+    if (n_blocks == 0u || genome_is_boundary_cap(strand, dim) == 0) {
+        return SRMECH_ERR_BAD_INPUT;               /* does not open with a boundary cap */
+    }
+    for (size_t i = 0u; i < n_blocks; i++) {       /* count boundaries + resolve start */
+        const unsigned char *block = strand + i * dim;
+        if (genome_is_boundary_cap(block, dim) == 0) { continue; }
+        n_bounds++;
+        if (label_is_none == 0 && start == n_blocks
+                && genome_gene_label_eq(block, dim, label, label_len) != 0) {
+            start = i;                             /* first boundary whose label matches */
+        }
+    }
+    if (label_is_none != 0) {
+        if (n_bounds != 1u) { return SRMECH_ERR_BAD_INPUT; }   /* ambiguous — pass a label */
+        start = 0u;                                /* the sole chromosome opens at block 0 */
+    } else if (start == n_blocks) {
+        return SRMECH_ERR_BAD_INPUT;               /* no chromosome by that label */
+    }
+    for (size_t j = start + 1u; j < n_blocks; j++) {   /* end = next boundary after start */
+        if (genome_is_boundary_cap(strand + j * dim, dim) != 0) { end = j; break; }
+    }
+    *start_out = start;
+    *end_out = end;
+    return SRMECH_OK;
+}
+
+/* rc332 (§102 G7, #887) CONDENSE — the WHOLE placement decision of srmech.amsc.genome.condense
+ * in C: resolve the target chromosome's range (genome_label_range) and, WITHIN it, the BLOCK
+ * index at which the already-built chromatin cap (srmech_genome_chromatin, an existing C peer)
+ * is spliced. `*insert_out` is that index; the caller (either the Python projection or a bare-C
+ * host) then lays out strand[:insert] + cap + strand[insert:] — the trivial list/byte mechanics,
+ * the rc329 mint_plan pattern (the COMPUTATION runs in C; the assembly is formatting). PLACEMENT
+ * is scope, mirroring the pure body EXACTLY:
+ *   region_kind 0 (None)  -> insert = start + 1        (HEAD scope: right after the telomere)
+ *   region_kind 1 (int)   -> the region_turn-th DATA turn in (start, end); == the turn count
+ *                            appends at `end`; > the turn count DECLINES (region exceeds turns)
+ *   region_kind 2 (label) -> the FIRST gene (genome_is_gene_cap) in (start, end) whose label
+ *                            equals (region_label, region_label_len); no such gene DECLINES
+ * BYTE-IDENTICAL to the pure insert index. A leaf/turn count is a non-negative cardinality — no
+ * abs (NOT a Class-K pin-slot site). A READ; no malloc/goto/recursion/float.
+ *   SRMECH_ERR_NULL_ARG  — strand / insert_out NULL, or label / region_label NULL with a nonzero
+ *                          length (and not the label_is_none / non-label-region case).
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, a range-find decline (see genome_label_range), a
+ *                          region_turn past the data-turn count, or a gene label with no match. */
+srmech_status_t srmech_genome_condense(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, int label_is_none,
+    int region_kind, uint64_t region_turn,
+    const unsigned char *region_label, size_t region_label_len,
+    size_t *insert_out)
+{
+    size_t dim = (size_t)leaf_dim;
+    size_t start = 0u, end = 0u;
+    srmech_status_t st;
+    if (strand == NULL || insert_out == NULL ||
+        (label == NULL && label_is_none == 0 && label_len != 0u) ||
+        (region_label == NULL && region_kind == 2 && region_label_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(strand != NULL && insert_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);
+    st = genome_label_range(strand, n_blocks, leaf_dim, label, label_len,
+                            label_is_none, &start, &end);
+    if (st != SRMECH_OK) { return st; }
+    if (region_kind == 0) {                        /* None -> HEAD scope */
+        *insert_out = start + 1u;
+        return SRMECH_OK;
+    }
+    if (region_kind == 2) {                          /* a gene label */
+        for (size_t i = start + 1u; i < end; i++) {
+            const unsigned char *block = strand + i * dim;
+            if (genome_is_gene_cap(block, dim) != 0 &&
+                genome_gene_label_eq(block, dim, region_label, region_label_len) != 0) {
+                *insert_out = i;
+                return SRMECH_OK;
+            }
+        }
+        return SRMECH_ERR_BAD_INPUT;                /* no gene labelled region in the chromosome */
+    }
+    size_t nturns = 0u, chosen = 0u;                 /* region_kind 1 — a data-turn index */
+    int have = 0;
+    for (size_t i = start + 1u; i < end; i++) {
+        if (genome_cap_kind(strand + i * dim, dim) < 0) {   /* a coupled DATA turn */
+            if (nturns == region_turn && have == 0) { chosen = i; have = 1; }
+            nturns++;
+        }
+    }
+    if (region_turn > (uint64_t)nturns) { return SRMECH_ERR_BAD_INPUT; }   /* exceeds turns */
+    *insert_out = (have != 0) ? chosen : end;        /* turn_idx[region] else append at end */
+    return SRMECH_OK;
+}
+
+/* rc332 (§102 G7, #887) DECONDENSE — the WHOLE cap-clear decision of
+ * srmech.amsc.genome.decondense in C: per block, WHETHER it survives the clear (writes a
+ * KEEP-MASK, one byte per block: 1 keep, 0 drop). The caller filters strand by the mask — the
+ * trivial list/byte mechanics (the rc329 mint_plan pattern; the COMPUTATION is the per-block
+ * decision, in C). Mirrors the pure body EXACTLY:
+ *   label_is_none (whole strand) : drop EVERY 0x48 chromatin cap; no range-find, never declines
+ *   else (label scope)          : range-find the target chromosome (genome_label_range) and drop
+ *                                 only the 0x48 caps in [start, end)
+ * BYTE-IDENTICAL to the pure kept-block set. A READ; no abs, no malloc/goto/recursion/float.
+ *   SRMECH_ERR_NULL_ARG  — strand / keep_out NULL, or label NULL with label_len > 0 (label scope).
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, or a label-scope range-find decline. */
+srmech_status_t srmech_genome_decondense(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *label, size_t label_len, int label_is_none,
+    unsigned char *keep_out)
+{
+    size_t dim = (size_t)leaf_dim;
+    size_t start = 0u, end = 0u;
+    srmech_status_t st;
+    if (strand == NULL || keep_out == NULL ||
+        (label == NULL && label_is_none == 0 && label_len != 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    assert(keep_out != NULL);
+    if (leaf_dim == 0u || leaf_dim > 256u) { return SRMECH_ERR_BAD_INPUT; }
+    assert(leaf_dim >= 1u && leaf_dim <= 256u);
+    if (label_is_none != 0) {                        /* whole strand: drop every 0x48 cap */
+        for (size_t i = 0u; i < n_blocks; i++) {
+            keep_out[i] = (genome_cap_kind(strand + i * dim, dim)
+                           == (int)SRMECH_GENOME_CHROMATIN_MARKER) ? 0u : 1u;
+        }
+        return SRMECH_OK;
+    }
+    st = genome_label_range(strand, n_blocks, leaf_dim, label, label_len, 0, &start, &end);
+    if (st != SRMECH_OK) { return st; }
+    for (size_t i = 0u; i < n_blocks; i++) {         /* drop only 0x48 caps in [start, end) */
+        int drop = (i >= start && i < end &&
+                    genome_cap_kind(strand + i * dim, dim)
+                    == (int)SRMECH_GENOME_CHROMATIN_MARKER) ? 1 : 0;
+        keep_out[i] = drop ? 0u : 1u;
+    }
+    return SRMECH_OK;
+}
+
 /* rc314 — the CODON READ-LAYER whole-op C peers. Biology reads the genome in
  * CODONS (triplets); the ribosome IMPOSES that reading over the stored strand.
  * PURE READS: no store, no on-disk format change (GENOME_FORMAT_VERSION stays

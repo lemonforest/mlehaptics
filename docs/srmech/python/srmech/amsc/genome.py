@@ -3682,6 +3682,17 @@ def condense(strand, *, coupling=None, state=True, region=None, handle="chr", la
     chromatin_type, num, den, access_gate_type, gate_fields = _chromatin_state(state)
     cap = _chromatin_cap(chromatin_type, num, den, dim, handle=handle,
                          access_gate_type=access_gate_type, gate_fields=gate_fields)
+    # rc332 (§102 G7): the label -> chromatin-range find + `region` resolution -> insert index
+    # has a standalone-C peer srmech_genome_condense, so a bare-C host resolves WHERE the (already
+    # native, srmech_genome_chromatin) cap splices with NO Python present — closing the §2 G7
+    # "reaching a C primitive is not a whole-op entry" gap. The pure _chrom_range + region body
+    # below is the byte-identical alternative + the parity oracle (it also raises the exact
+    # ValueErrors the C peer declines on). The list splice is the trivial assembly (mint_plan
+    # pattern: the COMPUTATION runs in C).
+    native = _native.genome_condense_c(
+        b"".join(hv.tobytes() for hv in strand), len(strand), dim, label, region)
+    if native is not None:
+        return strand[:native] + [cap] + strand[native:]
     start, end = _chrom_range(strand, label, op="condense")
     if region is None:
         insert = start + 1                          # HEAD scope: right after the opening telomere
@@ -3713,6 +3724,18 @@ def decondense(strand, *, coupling=None, label=None):
     chromosome is byte-identical to the original mint (NO re-mint). Returns a NEW strand (the input
     is unchanged). ``coupling`` is accepted for signature symmetry (the clear is a pure splice)."""
     strand = list(strand)
+    # rc332 (§102 G7): the per-block keep decision (drop the 0x48 chromatin caps — whole-strand,
+    # or only those inside the `label` chromosome via the SAME range-find as condense) has a
+    # standalone-C peer srmech_genome_decondense, so a bare-C host clears the packaging with NO
+    # Python present. The pure body below is the byte-identical alternative + the parity oracle
+    # (it also raises the exact ValueErrors the C peer declines on for the label scope). The list
+    # filter is the trivial assembly (mint_plan pattern: the COMPUTATION runs in C).
+    if strand:
+        dim = len(list(strand[0]))
+        keep = _native.genome_decondense_c(
+            b"".join(hv.tobytes() for hv in strand), len(strand), dim, label)
+        if keep is not None:
+            return [hv for i, hv in enumerate(strand) if keep[i]]
     if label is None:
         return [hv for hv in strand if _cap_kind(hv) != CHROMATIN_MARKER]
     start, end = _chrom_range(strand, label, op="decondense")
