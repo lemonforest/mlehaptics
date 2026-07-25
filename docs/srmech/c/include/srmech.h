@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc332"
-#define SRMECH_VERSION       "0.9.0rc332"
+#define SRMECH_VERSION_PRE   "rc333"
+#define SRMECH_VERSION       "0.9.0rc333"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6771,6 +6771,60 @@ srmech_status_t srmech_genome_decondense(
     const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
     const unsigned char *label, size_t label_len, int label_is_none,
     unsigned char *keep_out);
+
+/* §98/v15 (rc333 §102 G7, #887) — the GENES-FAMILY whole-op C peers: the per-gene
+ * (label, leaves) BOUNDARY-PRESERVING read that srmech_genome_recall FLATTENS and
+ * srmech_genome_gene_express_plan returns as SPANS. All three emit ONE shared big-endian
+ * structure a bare-C host parses without Python:
+ *   [u32 n_genes] then per gene [u32 label_len][label bytes][u32 n_leaves][n_leaves*leaf_dim],
+ * each leaf the DECOUPLED (recovered) byte-per-symbol leaf. Additive plain symbols (no new
+ * typedef) -> SRMECH_ABI_VERSION stays 10, SRMECH_GENOME_FORMAT_VERSION stays 19.
+ *
+ * GENES — the IN-MEMORY per-gene split of srmech.amsc.genome.genes (the KLEIN4 default; a
+ * DECODED Q8/octonion strand carries no on-disk carrier marker, so those take the pure oracle).
+ * `strand` is `n_blocks` fixed-width `leaf_dim`-byte blocks; the peer walks them (a GENE cap
+ * opens a gene whose inline label is read back; the 4 chromosome-boundary caps + any leading
+ * block are skipped; every other started block is decoupled into the gene's leaves) and emits the
+ * shared structure. BYTE-IDENTICAL to the pure genes. Caller-arena; no malloc/goto/recursion/abs.
+ *   SRMECH_ERR_NULL_ARG  — strand / coupling / out / out_len NULL.
+ *   SRMECH_ERR_BAD_INPUT  — leaf_dim 0 / > 256, a malformed gene cap (no label NUL).
+ *   SRMECH_ERR_OVERFLOW   — `out` (out_cap) too small for the emitted structure. */
+srmech_status_t srmech_genome_genes(
+    const unsigned char *strand, size_t n_blocks, uint32_t leaf_dim,
+    const unsigned char *coupling, unsigned char *out, size_t out_cap, size_t *out_len);
+
+/* GENOME_GENES — the ON-DISK sibling: obtain the manifest (parse or §44 rebuild-by-scan),
+ * resolve (leaf_dim, coupling) from the head, find `label`'s chromosome, PAGE its region
+ * (RAM-bounded, §45 cap-integrity checked), and run the SAME per-gene split over the raw region
+ * (each carrier decoupled from its on-disk turn marker). BYTE-IDENTICAL to the pure genome_genes.
+ * `ws` (>= srmech_genome_arena_bytes(body_len, n_chroms, body_len)) holds the manifest tree and is
+ * REUSED as the region-staging buffer after the label/offsets/cap-hash are copied out.
+ * Caller-arena; no malloc/goto/recursion/abs.
+ *   SRMECH_ERR_NULL_ARG  — dir / label / out / out_len / ws NULL, or coupling NULL w/ a nonzero len.
+ *   SRMECH_ERR_BAD_INPUT  — no manifest+coupling, a malformed head, no chromosome by that label,
+ *                          a cap-integrity mismatch, or a malformed gene cap.
+ *   SRMECH_ERR_OVERFLOW   — `out` or the region-staging arena too small. */
+srmech_status_t srmech_genome_genome_genes(
+    const char *dir, const char *label,
+    const unsigned char *coupling, size_t coupling_len,
+    unsigned char *out, size_t out_cap, size_t *out_len, void *ws, size_t ws_len);
+
+/* GENOME_GENES_EXPRESSED — the ON-DISK gene-express ORCHESTRATION whole-op peer: the plan-walk +
+ * region-page + collect loop that srmech_genome_gene_express_plan (per-community head-gate) and
+ * srmech_genome_gene_express (per-gene decision) did NOT compose. Walks every chromosome, pages
+ * ONLY the expressed communities' regions, filters each by gene_express (the §98 chromatin outer
+ * gate over the §128-132 promoter, carrier-aware decouple), and emits the shared genes structure.
+ * BYTE-IDENTICAL to the pure genome_genes_expressed. `ws` holds the manifest tree; `region_ws`
+ * (SEPARATE, >= body_len) stages one region at a time (the manifest tree must persist across the
+ * chromosome loop, so the region cannot reuse `ws`). Caller-arena; no malloc/goto/recursion/abs.
+ *   SRMECH_ERR_NULL_ARG  — dir / out / out_len / ws / region_ws NULL, or coupling NULL w/ nonzero len.
+ *   SRMECH_ERR_BAD_INPUT  — no manifest+coupling, a malformed head/entry, or a cap-integrity mismatch.
+ *   SRMECH_ERR_OVERFLOW   — `out` or the region-staging arena too small. */
+srmech_status_t srmech_genome_genes_expressed(
+    const char *dir, uint64_t cell_state,
+    const unsigned char *coupling, size_t coupling_len,
+    unsigned char *out, size_t out_cap, size_t *out_len,
+    void *ws, size_t ws_len, void *region_ws, size_t region_ws_len);
 
 /* PARTITION — recover every kernel from a multi-kernel strand (the inverse of
  * srmech_genome_genome): a CHROM / kernel-telomere / active-telomere cap opens a
