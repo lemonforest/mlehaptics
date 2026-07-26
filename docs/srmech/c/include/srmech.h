@@ -12521,10 +12521,23 @@ srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
  * EllMonomial/EllRatio/ThetaSum, the weight-axis UnaryTheta/MockQSeries/
  * HarmonicMaass, and the HDC objects One/SedenionRegister) with, per
  * carrier: a one-line human-readable description, its promote/project
- * ladder + rung (NULL/0 off-ladder), its shift variables, and the DERIVED
- * ops back-index (which registered tools consume / produce it) — so a
- * bare-C host (no Python) discovers BOTH the verbs and the nouns
- * (the Siona / RBS-LM self-hosting ask).
+ * ladder + rung (NULL/0 off-ladder), its shift variables, the rc339 (`#967`)
+ * CAPABILITY block, and the DERIVED ops back-index (which registered tools
+ * consume / produce it) — so a bare-C host (no Python) discovers BOTH the
+ * verbs and the nouns (the Siona / RBS-LM self-hosting ask).
+ *
+ * CAPABILITY (rc339) — what the carrier can DO, not only what it is:
+ * {product, address, compose, turn, commutative, varies_with}. It reports the
+ * WORST case over everything the carrier admits (CDRegister publishes the
+ * dim-256 answer, not the dim-4 one), so a permissive number elsewhere can
+ * never be read as a capability the carrier does not have; `varies_with` names
+ * the knob that can improve it. `turn` == "abelian_only" is read together with
+ * `commutative`: vacuous on a commutative carrier, a DEGRADATION on a
+ * non-commutative one — which is exactly the octonion rung, where the
+ * turn-composing set and the commuting set were measured to be the same set.
+ * The dimension ceilings are SRMECH_CD_COMPOSE_MAX_DIM / SRMECH_CD_TURN_MAX_DIM
+ * above; the measured ontology is
+ * docs/srmech/notes/carrier_capability_ontology_rc339.py.
  *
  * The table lives in the GENERATED translation unit
  * `srmech_carrier_registry.c` (regenerate with
@@ -12544,7 +12557,7 @@ srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
 
 /* One carrier (operand) type in the registry. All string pointers are
  * NUL-terminated decoded UTF-8; `entry_json` is the per-carrier payload
- * {"description","ladder","name","ops","rung","variables"} as its
+ * {"capability","description","ladder","name","ops","rung","variables"} as its
  * pre-canonical compact-ASCII JSON fragment (`entry_len` bytes, excluding
  * the NUL). */
 typedef struct {
