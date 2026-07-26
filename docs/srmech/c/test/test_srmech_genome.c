@@ -879,6 +879,116 @@ int main(void)
                        "census topology == nuclear-like");
         }
 
+        /* rc345 (task T964) CONTENT — a bare-C host derives the repartition-invariant
+         * count through its OWN entry point (ADR-0009), no Python present.
+         *
+         * This fixture is the interesting case, not the easy one: 8 blocks = 3 CHROM
+         * boundary caps + 1 INTERIOR centromere cap + 4 data turns. So
+         *   n_turns      == 8
+         *   n_chromosomes== 3   (one boundary cap each; a cap IS a block)
+         *   n_content    == 5   == 8 - 3
+         *   total_leaves == 4   (the census excludes EVERY cap)
+         * n_content EXCEEDS total_leaves by exactly 1 — the interior centromere. That
+         * gap is the whole point: n_content means "not a container", NOT "leaves", and
+         * a fixture with no inline caps would have let the two collapse and hidden it. */
+        {
+            srmech_json_value_t *con = NULL;
+            st = srmech_genome_content(cdir, NULL, 0u, g_ws, sizeof(g_ws), &con);
+            check_true(st == SRMECH_OK && con != NULL, "genome_content OK");
+            const srmech_json_value_t *ct =
+                (con != NULL) ? srmech_json_object_get(con, "n_turns") : NULL;
+            const srmech_json_value_t *cc =
+                (con != NULL) ? srmech_json_object_get(con, "n_chromosomes") : NULL;
+            const srmech_json_value_t *cn =
+                (con != NULL) ? srmech_json_object_get(con, "n_content") : NULL;
+            check_true(ct != NULL && ct->u.i == 8, "content n_turns == 8");
+            check_true(cc != NULL && cc->u.i == 3, "content n_chromosomes == 3");
+            check_true(cn != NULL && cn->u.i == 5, "content n_content == 5");
+            check_true(ct != NULL && cc != NULL && cn != NULL &&
+                       cn->u.i == ct->u.i - cc->u.i,
+                       "content n_content == n_turns - n_chromosomes (exact, no residual)");
+            /* the honest scope: content counts the interior cap, the census does not */
+            check_true(cn != NULL && cn->u.i == 4 + 1,
+                       "content EXCEEDS total_leaves by the 1 interior centromere cap");
+            /* the full CATALOG must publish the same two scalars (native == pure) */
+            srmech_json_value_t *man2 = NULL;
+            srmech_status_t st2 = srmech_genome_catalog(cdir, NULL, 0u, g_ws,
+                                                        sizeof(g_ws), &man2);
+            const srmech_json_value_t *d2 =
+                (st2 == SRMECH_OK) ? srmech_json_object_get(man2, "data") : NULL;
+            const srmech_json_value_t *mc =
+                (d2 != NULL) ? srmech_json_object_get(d2, "n_chromosomes") : NULL;
+            const srmech_json_value_t *mn =
+                (d2 != NULL) ? srmech_json_object_get(d2, "n_content") : NULL;
+            check_true(mc != NULL && mc->u.i == 3, "catalog data n_chromosomes == 3");
+            check_true(mn != NULL && mn->u.i == 5, "catalog data n_content == 5");
+        }
+
+        /* rc345 — CONTENT is INVARIANT under repartitioning, in bare C. The same 4 data
+         * turns as 1 chromosome and as 4: n_turns moves 5 -> 8, n_chromosomes 1 -> 4,
+         * n_content is 4 in both. This is the C peer of the 8-row Python sweep. */
+        {
+            /* leaf_dim is 4, so each 4-byte group is ONE block: 1 cap + 4 data turns. */
+            unsigned char one_chrom[20] = {
+                CC, (unsigned char)'w', 0u, 0u,
+                0u, 1u, 2u, 3u,
+                1u, 1u, 1u, 1u,
+                2u, 2u, 2u, 2u,
+                3u, 3u, 3u, 3u,
+            };
+            /* the SAME 4 data turns, cut four ways: 4 caps + 4 data turns. */
+            unsigned char four_chrom[32] = {
+                CC, (unsigned char)'a', 0u, 0u,  0u, 1u, 2u, 3u,
+                CC, (unsigned char)'b', 0u, 0u,  1u, 1u, 1u, 1u,
+                CC, (unsigned char)'c', 0u, 0u,  2u, 2u, 2u, 2u,
+                CC, (unsigned char)'d', 0u, 0u,  3u, 3u, 3u, 3u,
+            };
+            /* MEASURED: n_turns 5 -> 8 (three added boundaries, three added turns),
+             * n_chromosomes 1 -> 4, n_content 4 in BOTH. */
+            char d1[1024];
+            char d4[1024];
+            snprintf(d1, sizeof(d1), "%s/srmech_genome_content_1", tb);
+            snprintf(d4, sizeof(d4), "%s/srmech_genome_content_4", tb);
+            ensure_dir(d1);
+            ensure_dir(d4);
+            st = srmech_genome_save(d1, one_chrom, sizeof(one_chrom), leaf_dim,
+                                    coupling, sizeof(coupling), g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "save 1-chromosome content fixture");
+            srmech_json_value_t *c1 = NULL;
+            st = srmech_genome_content(d1, NULL, 0u, g_ws, sizeof(g_ws), &c1);
+            const srmech_json_value_t *t1 =
+                (st == SRMECH_OK) ? srmech_json_object_get(c1, "n_turns") : NULL;
+            const srmech_json_value_t *n1 =
+                (st == SRMECH_OK) ? srmech_json_object_get(c1, "n_content") : NULL;
+            check_true(t1 != NULL && t1->u.i == 5, "1-chrom n_turns == 5");
+            check_true(n1 != NULL && n1->u.i == 4, "1-chrom n_content == 4");
+            /* COPY the scalars out before reusing g_ws: the value tree lives IN the
+             * arena (the rc338/#T956 lifetime rule this file pins elsewhere), so the
+             * second content call below overwrites c1's storage. Comparing the two
+             * trees directly would read clobbered memory. */
+            int64_t turns1 = (t1 != NULL) ? t1->u.i : -1;
+            int64_t content1 = (n1 != NULL) ? n1->u.i : -1;
+
+            st = srmech_genome_save(d4, four_chrom, sizeof(four_chrom), leaf_dim,
+                                    coupling, sizeof(coupling), g_ws, sizeof(g_ws));
+            check_true(st == SRMECH_OK, "save 4-chromosome content fixture");
+            srmech_json_value_t *c4 = NULL;
+            st = srmech_genome_content(d4, NULL, 0u, g_ws, sizeof(g_ws), &c4);
+            const srmech_json_value_t *t4 =
+                (st == SRMECH_OK) ? srmech_json_object_get(c4, "n_turns") : NULL;
+            const srmech_json_value_t *n4 =
+                (st == SRMECH_OK) ? srmech_json_object_get(c4, "n_content") : NULL;
+            check_true(t4 != NULL && t4->u.i == 8, "4-chrom n_turns == 8");
+            check_true(n4 != NULL && n4->u.i == 4, "4-chrom n_content == 4");
+            /* THE INVARIANCE, stated as one comparison over the same content. */
+            check_true(n4 != NULL && content1 == n4->u.i,
+                       "n_content is INVARIANT across the two partitionings");
+            /* ...and the discriminating half: n_turns MOVED (5 -> 8). A fixture where
+             * n_turns did not move would prove nothing about invariance. */
+            check_true(t4 != NULL && turns1 != t4->u.i,
+                       "n_turns is NOT invariant across the two partitionings");
+        }
+
         /* CENSUS of a small all-plasmid genome -> organelle-like. */
         {
             unsigned char pbody[16] = {
