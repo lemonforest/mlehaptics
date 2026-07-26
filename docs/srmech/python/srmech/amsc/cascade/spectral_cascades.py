@@ -173,6 +173,65 @@ def ifft(x: Sequence[complex]) -> List[complex]:
     return fft(x, inverse=True)
 
 
+def _int_components(m: Sequence[Sequence[complex]]) -> "tuple | None":
+    """Exact integer ``(real, imag)`` component matrices for ``m``, or ``None``.
+
+    The 2-D peer of :func:`srmech.amsc.cascade.exact_dft._try_int_pairs`. Returns
+    ``None`` the moment any entry has a non-integral real or imaginary part, so a
+    genuinely-continuous (float) operand falls straight through to the FPU matmul
+    path and pays nothing for this probe.
+    """
+    re_rows: List[List[int]] = []
+    im_rows: List[List[int]] = []
+    for row in m:
+        rr: List[int] = []
+        ri: List[int] = []
+        for v in row:
+            vr = v.real if hasattr(v, "real") else v
+            vi = v.imag if hasattr(v, "imag") else 0
+            try:
+                ir = int(vr)
+                ii = int(vi)
+            except (TypeError, ValueError):
+                return None
+            if ir != vr or ii != vi:       # non-integral → not exact-eligible
+                return None
+            rr.append(ir)
+            ri.append(ii)
+        re_rows.append(rr)
+        im_rows.append(ri)
+    return re_rows, im_rows
+
+
+def _exact_kron(ar: List[List[int]], ai: List[List[int]],
+                br: List[List[int]], bi: List[List[int]],
+                is_cx: bool) -> List[List[complex]]:
+    """``A ⊗ B`` in exact Python integer arithmetic (no float anywhere).
+
+    The Gaussian-integer product ``(x_r + i·x_i)(y_r + i·y_i)`` is evaluated on
+    ℤ — **Class M** (the element products) under the **Class I** mixed-radix
+    re-index — so the result is the true Kronecker product at ANY magnitude, with
+    no 53-bit significand ceiling. ``is_cx`` reproduces the caller's
+    complex-ness contract: a complex operand yields ``complex`` entries, an
+    all-real integer operand yields exact Python ``int`` entries.
+    """
+    ma, na = len(ar), len(ar[0])
+    mb, nb = len(br), len(br[0])
+    out: List[List[complex]] = [[0 for _ in range(na * nb)]
+                                for _ in range(ma * mb)]
+    for i in range(ma):
+        for k in range(mb):
+            orow = out[i * mb + k]
+            for j in range(na):
+                x_r, x_i = ar[i][j], ai[i][j]
+                for ell in range(nb):
+                    y_r, y_i = br[k][ell], bi[k][ell]
+                    p_r = x_r * y_r - x_i * y_i
+                    p_i = x_r * y_i + x_i * y_r
+                    orow[j * nb + ell] = complex(p_r, p_i) if is_cx else p_r
+    return out
+
+
 def kron(a: Sequence[Sequence[complex]],
          b: Sequence[Sequence[complex]]) -> List[List[complex]]:
     """Kronecker product ``A ⊗ B`` of two 2-D matrices (lists of rows).
@@ -180,16 +239,42 @@ def kron(a: Sequence[Sequence[complex]],
     ``(A⊗B)[i·p+k, j·q+l] = A[i,j]·B[k,l]`` — **Class I** (the mixed-radix row/
     column index) ∘ **Class M** (the element products).
 
-    rc155 (BATCH B-residue): the Kronecker product is an OUTER PRODUCT followed
-    by a pure integer RE-INDEX — ``(A⊗B)`` entries are exactly the entries of the
-    rank-1 matrix ``vec(A) · vec(B)ᵀ`` re-laid into the block layout. So the
-    Class-M element products ride the c_dispatched
-    :func:`srmech.amsc.laplacian.mat_matmul` (``srmech_dense_matmul_complex``) —
-    a single-term (inner-dim-1) complex multiply per entry, order-independent, so
-    an integer / Gaussian-integer input is BYTE-IDENTICAL to the pure element
-    loop (the parity oracle below). The block re-index ``out[i·mb+k][j·nb+l] =
-    outer[i·na+j][k·nb+l]`` is exact integer glue. This makes ``kron`` a
-    ``composition_of_c`` op (standalone-C-ready through the matmul foundation).
+    **Integer / Gaussian-integer input runs an EXACT integer cascade** (rc344,
+    task T973): every entrywise product is evaluated on ℤ by :func:`_exact_kron`,
+    so the result is the true Kronecker product **at any magnitude**. For an
+    all-real integer operand the entries come back as exact Python ``int`` and
+    are byte-identical to the pure element loop (the ``_kron_ref`` parity oracle
+    in ``tests/test_residue_c_rc155.py``) with **no precondition**. For a
+    Gaussian-integer operand the components are likewise computed exactly on ℤ;
+    the ``complex`` return type then rounds each component to float64, so
+    identity with the oracle holds iff each component is float64-representable —
+    a limit of the return type, not of the cascade.
+
+    This mirrors :func:`dft` / :func:`fft`, which route an integer signal through
+    the exact ``ℤ[ζ_N]`` engine for the same reason: *don't use floats for
+    bit-exact math*.
+
+    **Float (genuinely continuous) input** takes the OUTER-PRODUCT path — the
+    ``(A⊗B)`` entries are the entries of the rank-1 matrix ``vec(A)·vec(B)ᵀ``
+    re-laid into the block layout, so the Class-M element products ride the
+    c_dispatched :func:`srmech.amsc.laplacian.mat_matmul`
+    (``srmech_dense_matmul_complex``) — one single-term multiply per entry — and
+    the block re-index ``out[i·mb+k][j·nb+l] = outer[i·na+j][k·nb+l]`` is exact
+    integer glue. No exactness is claimed there: float in, FPU-tol out.
+
+    ``kron`` stays a ``composition_of_c`` op — the float path composes the C
+    matmul, and the exact path composes the C bignum multiply
+    (``srmech_bigint_mul``), so a standalone-C host reaches both.
+
+    **Historical note (rc344).** Through rc343 this docstring claimed the C
+    matmul path was BYTE-IDENTICAL to the oracle for integer input, full stop.
+    That was FALSE: the matmul rides ``array('d')`` on BOTH its native and its
+    pure-Python branch, so any entrywise product whose significand exceeds
+    float64's 53 bits was silently rounded. The governing quantity is
+    **significand width, not operand scale** — ``kron`` was exact on an 806-bit
+    product (``7·2⁴⁰⁰ ⊗ 9·2⁴⁰⁰``, significand 6) and lossy on a 54-bit one
+    (``3 × 3002399751580331 = 2⁵³+1``). The claim is now true because the op was
+    fixed, not because the claim was weakened.
     """
     A = [list(row) for row in a]
     B = [list(row) for row in b]
@@ -199,8 +284,17 @@ def kron(a: Sequence[Sequence[complex]],
         return [[0 for _ in range(na * nb)] for _ in range(ma * mb)]
     is_cx = any(isinstance(v, complex) for row in A for v in row) or \
         any(isinstance(v, complex) for row in B for v in row)
-    # Class-M outer product vec(A)·vec(B)ᵀ through the C matmul (rank-1: a column
-    # times a row → one complex multiply per entry, so integer input is exact).
+    # Exact integer / Gaussian-integer cascade (no float): the substrate-native
+    # answer, peer of the _exact_transform route in dft/fft above.
+    a_int = _int_components(A)
+    if a_int is not None:
+        b_int = _int_components(B)
+        if b_int is not None:
+            return _exact_kron(a_int[0], a_int[1], b_int[0], b_int[1], is_cx)
+    # FLOAT path only (integer input returned above). Class-M outer product
+    # vec(A)·vec(B)ᵀ through the C matmul (rank-1: a column times a row → one
+    # complex multiply per entry). The operands are genuinely continuous here, so
+    # the result is FPU-tol — no exactness is claimed or available.
     a_col = _Mat.from_rows([[row[j]] for row in A for j in range(na)], is_complex=is_cx)
     b_row = _Mat.from_rows([[B[k][ell] for k in range(mb) for ell in range(nb)]],
                            is_complex=is_cx)
