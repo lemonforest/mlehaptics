@@ -9173,7 +9173,23 @@ def genome_census(path, *, coupling=None) -> dict:
     ``cap_kind`` per chromosome, §96) — the TYPE rides the catalog's ONE body scan,
     no O(n) per-chromosome loads. srmech reads the SHAPE (the inline cap markers);
     the caller assigns the ROLE. ``coupling=`` is only needed for a manifest-less
-    genome (the catalog rebuild width). numpy-free."""
+    genome (the catalog rebuild width). numpy-free.
+
+    **INTEGRITY (rc342, #T969) — this read BOUNDS.** The derived inventory is held
+    against the manifest head's committed ``body_sha256``; a ``turns.bin`` modified
+    out of band is a :class:`GenomeBoundingError`, in BOTH projections and with the
+    same type. Through rc341 only the SCRIPTING projection bounded here: the
+    compiled one runs its own derive that never touches the catalog rc337 bound, so
+    it returned a full census OF THE CORRUPT BYTES with a success status. That was
+    the worst surface in the family to carry the gap, because this is the CHEAP
+    INVENTORY read — a caller who censuses and never windows was told the object
+    was fine and never learned otherwise, and a caller who censused first and
+    windowed later got a green light followed by a hard error.
+
+    Two cases pass through UNBOUND on purpose, identically in both projections: a
+    manifest-LESS genome (§44 — no committed value exists, so the strand IS the
+    truth) and a v≤11 FULL manifest (whose ``body_sha256`` may be a whole-body
+    digest rather than the v4+ region CHAIN a scan re-derives)."""
     # §96: native C census (byte-identical CANONICAL tree) when present; else the pure
     # roll-up over the CANONICAL catalog (itself native-accelerated). Native is
     # authoritative. rc271: the type-value alias is a uniform PRESENTATION post-transform
@@ -9221,7 +9237,13 @@ def genome_registry(root, *, coupling=None) -> dict:
     reported as an empty corpus. Per ADR-0009 the SPLIT was the defect, and this
     surface was the outlier in its own family — :func:`genome_census` on an
     absent path already raised. The ``n_genomes`` 0 promise was always about an
-    EMPTY dir, never an absent one, so it is unchanged."""
+    EMPTY dir, never an absent one, so it is unchanged.
+
+    **INTEGRITY (rc342, #T969) — this read BOUNDS.** Each per-genome census is held
+    against that genome's committed ``body_sha256``, so a corrupt genome anywhere
+    under ``root`` fails the registry read rather than contributing an inventory of
+    its corrupt bytes. Both projections, same exception type. See
+    :func:`genome_census` for the two deliberately-unbound cases."""
     # §96: native C registry (PAL dir scan + per-genome census, one byte-identical
     # CANONICAL tree) when present; else the pure os/pathlib scan + per-dir census
     # roll-up over the CANONICAL catalog. rc271: the type-value alias is applied ONCE
@@ -9367,6 +9389,13 @@ def genome_load(path, *, labels=None, coupling=None):
     ``manifest.json`` is ABSENT the catalog is reconstructed by scanning
     ``turns.bin`` (§44 — the strand is the SSoT); that rebuild REQUIRES ``coupling=``
     (its length is the leaf width), so you can load a tar of ``turns.bin`` alone.
+
+    **INTEGRITY (rc342, #T969) — this read BOUNDS.** What it derives from
+    ``turns.bin`` is held against the manifest head's committed ``body_sha256``,
+    so a body modified out of band is a :class:`GenomeBoundingError` in BOTH
+    projections and with the same type. rc342 made that true of every read rather
+    than of whichever ones happened to route through the catalog; see
+    :func:`genome_census` for the two cases that pass through unbound on purpose.
     """
     path = Path(path)
     data = _catalog_data(path, coupling)
@@ -9827,6 +9856,13 @@ def genome_window(path, label, *, coupling=None):
     reaching into one partition of the genome. §44: when ``manifest.json`` is ABSENT
     the offsets are reconstructed by scanning ``turns.bin`` (the strand is the SSoT);
     pass ``coupling=`` (its length is the leaf width) for that manifest-less path.
+
+    **INTEGRITY (rc342, #T969) — this read BOUNDS.** What it derives from
+    ``turns.bin`` is held against the manifest head's committed ``body_sha256``,
+    so a body modified out of band is a :class:`GenomeBoundingError` in BOTH
+    projections and with the same type. rc342 made that true of every read rather
+    than of whichever ones happened to route through the catalog; see
+    :func:`genome_census` for the two cases that pass through unbound on purpose.
     """
     path = Path(path)
     data = _catalog_data(path, coupling)
@@ -9881,6 +9917,13 @@ def genome_genes(path, label, *, coupling=None):
     §44: when ``manifest.json`` is ABSENT the offsets are reconstructed by scanning
     ``turns.bin`` (the strand is the SSoT) — ``coupling=`` is required there (and is
     needed anyway to uncouple the genes).
+
+    **INTEGRITY (rc342, #T969) — this read BOUNDS.** What it derives from
+    ``turns.bin`` is held against the manifest head's committed ``body_sha256``,
+    so a body modified out of band is a :class:`GenomeBoundingError` in BOTH
+    projections and with the same type. rc342 made that true of every read rather
+    than of whichever ones happened to route through the catalog; see
+    :func:`genome_census` for the two cases that pass through unbound on purpose.
     """
     path = Path(path)
     data = _catalog_data(path, coupling)
@@ -10036,6 +10079,19 @@ def gene_express_plan(strand_or_path, coupling, cell_state, *,
     is native-dispatched (byte-identical C peer ``srmech_genome_gene_express_plan`` reads
     only the head gate caps + emits the same offset plan); pure Python is the complete
     alternative. NO format addition — the ops read the existing caps/manifest (v11 stays).
+
+    **INTEGRITY (rc342, #T969) — the PATH variant BOUNDS.** It is held against the
+    manifest head's committed ``body_sha256``, so a ``turns.bin`` modified out of
+    band is a :class:`GenomeBoundingError` in both projections. This surface was the
+    sharpest instance of the rc337 gap and the reason rc342 chose "every read
+    bounds" over "census too": unlike the other reads it does NOT pass through
+    :func:`_catalog_data` before dispatching, so the scripting layer's bound never
+    reached the compiled path, and it returned the mangled label ``'g\\x02ography'``
+    with a SUCCESS status — the exact symptom rc337 was written to remove, on a
+    surface rc337's own test file never enumerated. The bound lives in the C entry
+    point rather than in an added Python catalog read, so the per-region
+    bounded-I/O claim above is unaffected: no byte is read that was not already
+    being read. The STRAND variant has no on-disk object and nothing to bind.
     """
     _plan_validate_cell_state("gene_express_plan", cell_state)
     assert GENOME_FORMAT_VERSION == 19      # a READ of existing caps/manifest
@@ -10208,6 +10264,13 @@ def genome_genes_expressed(path, coupling, cell_state):
     ``srmech_genome_gene_express_plan``); the per-region load + :func:`gene_express` decode
     are the exact pure path — the leaves are byte-identical whether the plan came from C or
     Python. NO format addition (the reader reads the existing v4 manifest + caps; v11 stays).
+
+    **INTEGRITY (rc342, #T969) — this read BOUNDS.** What it derives from
+    ``turns.bin`` is held against the manifest head's committed ``body_sha256``,
+    so a body modified out of band is a :class:`GenomeBoundingError` in BOTH
+    projections and with the same type. rc342 made that true of every read rather
+    than of whichever ones happened to route through the catalog; see
+    :func:`genome_census` for the two cases that pass through unbound on purpose.
     """
     _plan_validate_cell_state("genome_genes_expressed", cell_state)
     assert GENOME_FORMAT_VERSION == 19      # a READ of existing caps/manifest
@@ -10746,6 +10809,13 @@ def genome_export(path, label, out, *, coupling=None) -> dict:
     scanning ``turns.bin``).
 
     Raises ``ValueError`` if ``label`` is not in the genome.
+
+    **INTEGRITY (rc342, #T969) — this read BOUNDS.** What it derives from
+    ``turns.bin`` is held against the manifest head's committed ``body_sha256``,
+    so a body modified out of band is a :class:`GenomeBoundingError` in BOTH
+    projections and with the same type. rc342 made that true of every read rather
+    than of whichever ones happened to route through the catalog; see
+    :func:`genome_census` for the two cases that pass through unbound on purpose.
     """
     path = Path(path)
     data = _catalog_data(path, coupling)
@@ -10882,6 +10952,13 @@ def genome_explode(path, out_dir, *, coupling=None) -> list:
     chromosome order). ``coupling=`` explodes from a manifest-less source (§44).
     Raises ``ValueError`` if a chromosome label is not filename-safe (would not make
     a clean ``<label>.chr`` loose object).
+
+    **INTEGRITY (rc342, #T969) — this read BOUNDS.** What it derives from
+    ``turns.bin`` is held against the manifest head's committed ``body_sha256``,
+    so a body modified out of band is a :class:`GenomeBoundingError` in BOTH
+    projections and with the same type. rc342 made that true of every read rather
+    than of whichever ones happened to route through the catalog; see
+    :func:`genome_census` for the two cases that pass through unbound on purpose.
     """
     path = Path(path)
     out_dir = Path(out_dir)

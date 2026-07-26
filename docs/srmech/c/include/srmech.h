@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc341"
-#define SRMECH_VERSION       "0.9.0rc341"
+#define SRMECH_VERSION_PRE   "rc342"
+#define SRMECH_VERSION       "0.9.0rc342"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -6885,6 +6885,10 @@ srmech_status_t srmech_genome_genes(
  *   SRMECH_ERR_NULL_ARG  — dir / label / out / out_len / ws NULL, or coupling NULL w/ a nonzero len.
  *   SRMECH_ERR_BAD_INPUT  — no manifest+coupling, a malformed head, no chromosome by that label,
  *                          a cap-integrity mismatch, or a malformed gene cap.
+ *
+ * BOUND (rc342, #T969): a READ - it holds the derive against the head's
+ * committed body_sha256 and is SRMECH_ERR_BAD_INPUT on a mismatch. See THE
+ * READ-SIDE INTEGRITY BOUND note above srmech_genome_catalog.
  *   SRMECH_ERR_OVERFLOW   — `out` or the region-staging arena too small. */
 srmech_status_t srmech_genome_genome_genes(
     const char *dir, const char *label,
@@ -6901,6 +6905,10 @@ srmech_status_t srmech_genome_genome_genes(
  * chromosome loop, so the region cannot reuse `ws`). Caller-arena; no malloc/goto/recursion/abs.
  *   SRMECH_ERR_NULL_ARG  — dir / out / out_len / ws / region_ws NULL, or coupling NULL w/ nonzero len.
  *   SRMECH_ERR_BAD_INPUT  — no manifest+coupling, a malformed head/entry, or a cap-integrity mismatch.
+ *
+ * BOUND (rc342, #T969): a READ - it holds the derive against the head's
+ * committed body_sha256 and is SRMECH_ERR_BAD_INPUT on a mismatch. See THE
+ * READ-SIDE INTEGRITY BOUND note above srmech_genome_catalog.
  *   SRMECH_ERR_OVERFLOW   — `out` or the region-staging arena too small. */
 srmech_status_t srmech_genome_genes_expressed(
     const char *dir, uint64_t cell_state,
@@ -7005,6 +7013,61 @@ srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_
                                                  void *ws, size_t ws_len,
                                                  size_t *out_bytes);
 
+/* ------------------------------------------------------------------ *
+ * THE READ-SIDE INTEGRITY BOUND (rc342, #T969) - the genome READ contract
+ *
+ * EVERY read entry point below holds what it derived from turns.bin against the
+ * COMMITTED body_sha256 in <dir>/manifest.json, and returns SRMECH_ERR_BAD_INPUT
+ * (the GenomeBoundingError analogue) when the two disagree. "Every" IS the
+ * contract: srmech_genome_catalog / _census / _registry / _load / _window /
+ * _export / _explode / _genome_genes / _genes_expressed / _gene_express_plan /
+ * _section_counts. A caller may treat any one of them as an integrity gate.
+ *
+ * WHY THE CONTRACT IS "EVERY READ" AND NOT A LIST. rc337 bound exactly ONE read,
+ * srmech_genome_catalog. That made the answer to "does a read reject a corrupt
+ * body?" a fact about plumbing rather than about policy, and the measured answer
+ * was a patchwork: with ONE byte flipped in a chromosome label, _census /
+ * _registry / _load / _explode / _genome_genes / _gene_express_plan all returned a
+ * plausible result with a SUCCESS status, while _window / _export rejected it only
+ * when the flipped byte happened to land inside the FIRST chromosome (a per-region
+ * cap check, not a whole-body one - flip a byte in the LAST chromosome and they
+ * accepted it too). _gene_express_plan was the sharpest case: it handed back the
+ * mangled label "g\x02ography" with a success status, which is the exact symptom
+ * rc337 was written to remove. A per-surface allow-list cannot be audited;
+ * "every read bounds" can.
+ *
+ * WHAT IS UNBOUND, BY DECLARATION. The MUTATION entry points -
+ * srmech_genome_append / _remove / _replace / _import / _add_plasmid - obtain the
+ * manifest while the store is MID-EDIT, where a derive-vs-committed compare
+ * polices a TRANSIENT window rather than settled state. rc337 measured that
+ * directly: binding the shared derive turned Windows CI red with 22 mutation-path
+ * failures, on stores an instrumented probe proved byte-identical to a green Linux
+ * one. Those surfaces are bound one layer up, in the scripting projection, which
+ * reads the catalog before dispatching. Their C entry points are NOT integrity
+ * gates and a bare-C host must not use them as one. Closing that gap needs the
+ * mid-edit window characterised first and is tracked separately.
+ *
+ * WHAT IS UNBOUND BECAUSE THERE IS NOTHING TO BIND AGAINST. Two cases pass through
+ * every read unbound, in BOTH projections, on purpose:
+ *   - a manifest-LESS genome (S44: the strand IS the SSoT - no committed value
+ *     exists, so the bytes on disk are by definition the truth);
+ *   - a v<=11 FULL manifest, whose body_sha256 may be a plain WHOLE-BODY digest
+ *     rather than the v4+ region CHAIN a body scan re-derives; comparing those
+ *     would hard-fail every legacy store.
+ *
+ * COST: none measured. The committed digest is copied out of the manifest parse
+ * the derive ALREADY performs, so no read gained an open, a parse, or a hash, and
+ * the comparison is a 64-byte memcmp. This is load-bearing rather than incidental:
+ * plumbed the obvious way - a second open+parse of manifest.json, which is how
+ * rc337 reached the value - the rc282 DOWN-ONLY open-count ratchet measured
+ * srmech_genome_section_counts going 5 -> 7 opens per scan.
+ *
+ * ABI: unchanged at 10. Every function rc342 added or re-shaped is static; no
+ * exported signature moved and no symbol was added or removed. The rejection
+ * reuses SRMECH_ERR_BAD_INPUT, already in each of these functions' documented
+ * error sets.
+ * ------------------------------------------------------------------ */
+
 /* CATALOG: obtain the manifest catalog as a JSON value tree from the caller
  * arena `ws`.
  *
@@ -7031,14 +7094,11 @@ srmech_status_t srmech_genome_append_arena_bytes(const char *dir, size_t region_
  * body_sha256 can be a WHOLE-BODY digest rather than the v4+ region CHAIN a scan
  * re-derives, so an unconditional compare would hard-fail every legacy store.
  *
- * The bound is applied HERE, in this READ entry point, and NOT in the shared
- * derive it calls: that derive also serves every MUTATION (remove / replace /
- * export / explode / the .chr import append / the plasmid + integrate paths),
- * which obtain the manifest while the store is mid-edit. Binding it there polices
- * a TRANSIENT window and rejects CLEAN stores. srmech_genome_census /
- * srmech_genome_registry / srmech_genome_load are correspondingly NOT bound yet —
- * that is the #955 follow-up, tracked with executable xfail specs in
- * python/tests/test_genome_catalog_body_bound_rc337.py.
+ * The bound is applied in the READ entry points and NOT in the shared derive
+ * they call: that derive also serves every MUTATION, where it would police a
+ * transient mid-edit window. See THE READ-SIDE INTEGRITY BOUND note above -
+ * rc342 made the bound GLOBAL across reads. (The rc337 text here said census /
+ * registry / load were 'NOT bound yet'. They now are.)
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / ws / out_manifest is NULL.
@@ -7068,13 +7128,14 @@ srmech_status_t srmech_genome_catalog(
  * else "plasmid/prokaryote-like" (n>0, all plasmid), else "empty". Same manifest-present
  * / manifest-less rules as srmech_genome_catalog (pass coupling when absent).
  *
- * NOT YET BOUND (rc337 scope, #955): the census runs its OWN derive
- * (genome_scan_params → genome_load_strings) and does NOT go through the one
- * srmech_genome_catalog binds, so a turns.bin modified out of band still yields a
- * census OF THE CORRUPT BYTES with a success status while the scripting
- * projection raises. That is a live ADR-0009 split. Closing it means binding the
- * shared derive, which also serves every mutation — see the scope note on
- * srmech_genome_catalog for why rc337 did not.
+ * BOUND (rc342, #T969): the census runs its OWN derive (genome_scan_params ->
+ * genome_load_strings), never the one srmech_genome_catalog binds, so it needed
+ * its own. It now holds the re-derived region chain against the head's committed
+ * body_sha256 and returns SRMECH_ERR_BAD_INPUT on a mismatch. Through rc341 it
+ * returned a census OF THE CORRUPT BYTES with a success status while the
+ * scripting projection raised - a live ADR-0009 split, and the worst surface to
+ * have one on: the census is the CHEAP INVENTORY read, so a caller who censuses
+ * and never windows was told the object was fine and never learned otherwise.
  *
  * Error returns: SRMECH_ERR_NULL_ARG (dir/ws/out NULL); SRMECH_ERR_IO
  * (turns.bin unreadable); SRMECH_ERR_OVERFLOW (ws too small);
@@ -7107,10 +7168,9 @@ size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms);
  * function's documented error set, so the ctypes wire format is untouched and
  * SRMECH_ABI_VERSION does not move.
  *
- * NOT YET BOUND (rc337 scope, #955): each per-genome census inherits
- * srmech_genome_census's derive, which rc337 did not bind — so a corrupt genome
- * under `root` contributes a census of its corrupt bytes instead of failing the
- * read. See the scope notes on srmech_genome_catalog / srmech_genome_census.
+ * BOUND (rc342, #T969): each per-genome census inherits srmech_genome_census's
+ * bound, so a corrupt genome under `root` fails the registry read instead of
+ * contributing a census of its corrupt bytes. See THE READ-SIDE INTEGRITY BOUND.
  *
  * Error returns: SRMECH_ERR_NULL_ARG (root/ws/out NULL); SRMECH_ERR_IO
  * (`root` cannot be opened, or a genome's turns.bin unreadable);
@@ -7129,14 +7189,15 @@ srmech_status_t srmech_genome_registry(
  * needs `coupling` (coupling_len IS the leaf width); pass coupling=NULL,0 when a
  * manifest is present.
  *
- * rc337 (#955): on a v12 HEAD-ONLY store — which is every store written today —
- * that trailing re-hash is a TAUTOLOGY. The manifest tree it compares against was
- * itself derived from the body being verified, so its body_sha256 and its regions
- * both come out of that one scan and the comparison cannot fail, whatever the body
- * says. The check remains operative on a v≤11 FULL manifest, whose arrays are an
- * independent committed record parsed off disk. Until #955 lands, a caller that
- * needs a head-only body actually bounded should read srmech_genome_catalog first
- * (which IS bound) and treat its status as the gate.
+ * WHY THE TRAILING RE-HASH IS NOT THE BOUND. On a v12 HEAD-ONLY store - which is
+ * every store written today - that re-hash is a TAUTOLOGY: the manifest tree it
+ * compares against was itself derived from the body being verified, so its
+ * body_sha256 and its regions both come out of that one scan and the comparison
+ * cannot fail, whatever the body says. It stays operative on a v<=11 FULL
+ * manifest, whose arrays are an independent committed record parsed off disk.
+ * rc342 (#T969) added the REAL bound one layer up, against the head's committed
+ * body_sha256, so this call IS now an integrity gate on a head-only store; the
+ * rc337 advice to 'read srmech_genome_catalog first' is obsolete.
  *
  * Error returns:
  *   SRMECH_ERR_NULL_ARG   — dir / out / out_len / ws is NULL.
@@ -7166,6 +7227,10 @@ srmech_status_t srmech_genome_load(
  *   SRMECH_ERR_OVERFLOW    — out_cap < byte_len, or ws too small.
  *   SRMECH_ERR_BAD_INPUT   — label absent, cap hash != cap_sha256, a
  *                           malformed manifest, OR no manifest and no coupling.
+ *
+ * BOUND (rc342, #T969): a READ - it holds the derive against the head's
+ * committed body_sha256 and is SRMECH_ERR_BAD_INPUT on a mismatch. See THE
+ * READ-SIDE INTEGRITY BOUND note above srmech_genome_catalog.
  */
 srmech_status_t srmech_genome_window(
     const char *dir, const char *label,
@@ -7196,6 +7261,10 @@ srmech_status_t srmech_genome_window(
  *   SRMECH_ERR_OVERFLOW    — ws too small for the manifest parse.
  *   SRMECH_ERR_BAD_INPUT   — out too small for the plan, a malformed manifest,
  *                           OR no manifest and no coupling.
+ *
+ * BOUND (rc342, #T969): a READ - it holds the derive against the head's
+ * committed body_sha256 and is SRMECH_ERR_BAD_INPUT on a mismatch. See THE
+ * READ-SIDE INTEGRITY BOUND note above srmech_genome_catalog.
  */
 srmech_status_t srmech_genome_gene_express_plan(
     const char *dir, uint64_t cell_state,
@@ -7222,6 +7291,12 @@ srmech_status_t srmech_genome_gene_express_plan(
  *                           truncated / unrecognised region block (§55/v3:
  *                           blocks are variable-width, validated by the scan),
  *                           prior body bound failed, or malformed manifest.
+ *
+ * NOT AN INTEGRITY GATE (rc342, #T969): a MUTATION - it obtains the manifest
+ * MID-EDIT, so it is deliberately NOT bound against the committed body_sha256
+ * (that would police a transient window; rc337 measured 22 Windows failures).
+ * Bound one layer up in the scripting projection. See THE READ-SIDE INTEGRITY
+ * BOUND note above srmech_genome_catalog.
  */
 srmech_status_t srmech_genome_append(
     const char *dir, const char *label,
@@ -7253,6 +7328,12 @@ srmech_status_t srmech_genome_append(
  *   SRMECH_ERR_BAD_INPUT   — coupling_len 0 / > 256 or != stored leaf_dim, label
  *                           absent, `label` is the genome's ONLY chromosome,
  *                           prior body bound failed, or malformed manifest.
+ *
+ * NOT AN INTEGRITY GATE (rc342, #T969): a MUTATION - it obtains the manifest
+ * MID-EDIT, so it is deliberately NOT bound against the committed body_sha256
+ * (that would police a transient window; rc337 measured 22 Windows failures).
+ * Bound one layer up in the scripting projection. See THE READ-SIDE INTEGRITY
+ * BOUND note above srmech_genome_catalog.
  */
 srmech_status_t srmech_genome_remove(
     const char *dir, const char *label,
@@ -7275,6 +7356,12 @@ srmech_status_t srmech_genome_remove(
  *                           leaf_dim, region_len not a whole multiple of
  *                           leaf_dim, label absent, prior body bound failed, or
  *                           malformed manifest.
+ *
+ * NOT AN INTEGRITY GATE (rc342, #T969): a MUTATION - it obtains the manifest
+ * MID-EDIT, so it is deliberately NOT bound against the committed body_sha256
+ * (that would police a transient window; rc337 measured 22 Windows failures).
+ * Bound one layer up in the scripting projection. See THE READ-SIDE INTEGRITY
+ * BOUND note above srmech_genome_catalog.
  */
 srmech_status_t srmech_genome_replace(
     const char *dir, const char *label,
@@ -7310,6 +7397,10 @@ srmech_status_t srmech_genome_replace(
  *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this
  *                           chromosome (its region / hex / .chr text).
  *   SRMECH_ERR_BAD_INPUT   — coupling_len 0 / > 256, label absent, cap integrity
+ *
+ * BOUND (rc342, #T969): a READ - it holds the derive against the head's
+ * committed body_sha256 and is SRMECH_ERR_BAD_INPUT on a mismatch. See THE
+ * READ-SIDE INTEGRITY BOUND note above srmech_genome_catalog.
  *                           bound failed, or a malformed manifest. */
 srmech_status_t srmech_genome_export(
     const char *dir, const char *label, const char *out_path,
@@ -7335,6 +7426,12 @@ srmech_status_t srmech_genome_export(
  *   SRMECH_ERR_BAD_INPUT   — not a chromosome bundle (wrong data_schema_id),
  *                           a region / coupling integrity bound failed, the dest
  *                           leaf_dim / coupling mismatches, the label already
+ *
+ * NOT AN INTEGRITY GATE (rc342, #T969): a MUTATION - it obtains the manifest
+ * MID-EDIT, so it is deliberately NOT bound against the committed body_sha256
+ * (that would police a transient window; rc337 measured 22 Windows failures).
+ * Bound one layer up in the scripting projection. See THE READ-SIDE INTEGRITY
+ * BOUND note above srmech_genome_catalog.
  *                           exists in dest, or a malformed bundle / manifest. */
 srmech_status_t srmech_genome_import(
     const char *chr_path, const char *dest,
@@ -7358,6 +7455,10 @@ srmech_status_t srmech_genome_import(
  *   SRMECH_ERR_OVERFLOW    — the caller arena ws is too small for this explode
  *                           (the labels array / a chromosome), or a path too long.
  *   SRMECH_ERR_BAD_INPUT   — coupling_len 0 / > 256, an unsafe label, a cap
+ *
+ * BOUND (rc342, #T969): a READ - it holds the derive against the head's
+ * committed body_sha256 and is SRMECH_ERR_BAD_INPUT on a mismatch. See THE
+ * READ-SIDE INTEGRITY BOUND note above srmech_genome_catalog.
  *                           integrity bound failed, or a malformed manifest. */
 srmech_status_t srmech_genome_explode(
     const char *dir, const char *out_dir,
@@ -7902,6 +8003,10 @@ srmech_status_t srmech_genome_conserved_core(
  * params to this EXISTING signature changes its wire format, so SRMECH_ABI_VERSION
  * bumps 8 -> 9 (see the ABI history above). Integer/exact (Class-N); no float, no
  * abs (a count and an id have no sign to strip — not a Class-K pin-slot site); no
+ *
+ * BOUND (rc342, #T969): a READ - it holds the derive against the head's
+ * committed body_sha256 and is SRMECH_ERR_BAD_INPUT on a mismatch. See THE
+ * READ-SIDE INTEGRITY BOUND note above srmech_genome_catalog.
  * malloc, no goto, no recursion. */
 srmech_status_t srmech_genome_section_counts(
     const char *dir,
@@ -8054,6 +8159,12 @@ srmech_status_t srmech_genome_integrate_plasmids(
  * ADDITIVE — two new plain symbols REUSING the existing srmech_progress_tick_cb_t
  * typedef (NO new callback typedef): SRMECH_ABI_VERSION stays 10, GENOME_FORMAT_VERSION
  * stays 19 (no on-disk format change — plain v15-era KERNEL chromosomes). Caller-arena;
+ *
+ * NOT AN INTEGRITY GATE (rc342, #T969): a MUTATION - it obtains the manifest
+ * MID-EDIT, so it is deliberately NOT bound against the committed body_sha256
+ * (that would police a transient window; rc337 measured 22 Windows failures).
+ * Bound one layer up in the scripting projection. See THE READ-SIDE INTEGRITY
+ * BOUND note above srmech_genome_catalog.
  * no malloc/goto/recursion/abs/float. */
 srmech_status_t srmech_genome_add_plasmid(
     const char *dir, const unsigned char *coupling, uint32_t leaf_dim, long k_in,

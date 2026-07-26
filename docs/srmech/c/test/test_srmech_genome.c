@@ -1748,10 +1748,16 @@ int main(void)
                                                 NULL, 0u, g_ws, sizeof(g_ws));
         check_true(k1 == SRMECH_ERR_BAD_INPUT,
                    "rc337: well-formed body + corrupt payload -> catalog BAD_INPUT");
-        check_true(k2 == SRMECH_OK,
-                   "rc337 scope: census is NOT bound (its own derive) — #955");
-        check_true(k3 == SRMECH_OK,
-                   "rc337 scope: load is NOT bound (verify_body tautology) — #955");
+        /* rc342 (#T969): census and load are now bound too. rc337 pinned them at
+         * SRMECH_OK on purpose, as an executable record of the scope it did not
+         * cover; census ran its own derive (genome_scan_params -> load_strings) and
+         * load's own verify_body is a tautology on a head-only store. Both now hold
+         * the derive against the head's committed body_sha256. This assertion pair
+         * flipping IS the rc342 landing signal on a bare-C host. */
+        check_true(k2 == SRMECH_ERR_BAD_INPUT,
+                   "rc342: corrupt payload -> census BAD_INPUT (was OK in rc337)");
+        check_true(k3 == SRMECH_ERR_BAD_INPUT,
+                   "rc342: corrupt payload -> load BAD_INPUT (was OK in rc337)");
 
         /* And the store is UNDAMAGED by the rejection: repair the payload byte and
          * the same catalog read succeeds again. A bound that left the genome
