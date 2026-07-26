@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc344"
-#define SRMECH_VERSION       "0.9.0rc344"
+#define SRMECH_VERSION_PRE   "rc345"
+#define SRMECH_VERSION       "0.9.0rc345"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -7180,6 +7180,47 @@ srmech_status_t srmech_genome_census(
 /* Arena bytes srmech_genome_census needs for a body of `body_len` bytes /
  * `n_chroms` chromosomes (== the catalog budget; a census subtree is smaller). */
 size_t srmech_genome_census_arena_bytes(size_t body_len, uint32_t n_chroms);
+
+/* rc345 (task T964) CONTENT: the count that survives REPARTITIONING. Scans the body
+ * and returns a JSON value tree in the caller arena `ws`:
+ *   {path, n_turns, n_chromosomes, n_content}
+ * with n_content = n_turns - n_chromosomes.
+ *
+ * WHY THE SUBTRACTION IS EXACT. Every chromosome opens with exactly ONE boundary
+ * (telomere) cap, and a cap is a leaf_dim-wide BLOCK — i.e. a turn — like any other
+ * strand element, so the boundary caps are IN n_turns. Subtracting the chromosome count
+ * removes the container overhead with NO residual. Cut fixed content into chromosomes N
+ * different ways and n_chromosomes changes (it IS the cut), n_turns changes (one turn
+ * per added boundary) and body_sha256 changes (the caps are in the bytes) — n_content
+ * does not. MEASURED over 8 partitionings of 24 leaves: n_turns 25/26/27/28/30/32/36/48,
+ * n_content 24 in all eight, 8 distinct body_sha256.
+ *
+ * READ IT AS "NOT A CONTAINER", NOT AS "LEAVES". n_content counts every NON-BOUNDARY
+ * block, INCLUDING inline §44 GENE caps and §95a centromeres. It equals the census's
+ * total_leaves (which excludes ALL caps) only when the chromosomes carry no inline caps;
+ * the same 24 leaves as 4 genes of one chromosome give n_content 28, total_leaves 24.
+ *
+ * DERIVED, NEVER STORED. n_content is not a manifest field and
+ * SRMECH_GENOME_FORMAT_VERSION does not move for it — the strand determines it, and a
+ * stored copy of an exactly-derivable value is a second encoding that can go stale.
+ * This reads the counts the §44 way, by SCANNING the self-describing body rather than
+ * trusting the head's cached scalars, and therefore carries the rc342 READ-SIDE
+ * INTEGRITY BOUND for free: the scan re-derives the region chain anyway, so holding it
+ * against the head's committed body_sha256 costs no extra open, parse, or hash. Same
+ * manifest-present / manifest-less rules as srmech_genome_catalog (pass coupling when
+ * absent); a manifest-LESS genome or a v<=11 FULL manifest passes through UNBOUND.
+ *
+ * Error returns: SRMECH_ERR_NULL_ARG (dir/ws/out NULL); SRMECH_ERR_IO (turns.bin
+ * unreadable); SRMECH_ERR_OVERFLOW (ws too small); SRMECH_ERR_BAD_INPUT (malformed
+ * manifest, absent + no coupling, or a body/committed-digest mismatch).
+ */
+srmech_status_t srmech_genome_content(
+    const char *dir, const unsigned char *coupling, size_t coupling_len,
+    void *ws, size_t ws_len, srmech_json_value_t **out_content);
+
+/* Arena bytes srmech_genome_content needs (== the census budget; the derive is the
+ * census's derive and only the emitted subtree is smaller). */
+size_t srmech_genome_content_arena_bytes(size_t body_len, uint32_t n_chroms);
 
 /* §96 REGISTRY: the cell/melange census over a ROOT of genomes. Scans `root`
  * for genome dirs (a subdir holding BOTH turns.bin and manifest.json) via the

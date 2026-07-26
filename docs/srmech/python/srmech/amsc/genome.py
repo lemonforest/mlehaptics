@@ -86,7 +86,7 @@ __all__ = [
     "mint", "mint_plan", "integrate",
     "amplify", "copy_number_of",
     "genome_save", "upgrade_v15_to_v16", "genome_load", "genome_catalog",
-    "genome_append", "genome_census", "genome_registry",
+    "genome_append", "genome_census", "genome_content", "genome_registry",
     "set_type_aliases", "clear_type_aliases", "load_type_aliases_toml",
     "genome_append_kernel",
     "genome_window", "genome_genes",
@@ -1000,6 +1000,7 @@ GENOME_CARRIER_SURFACE: Dict[str, Tuple[str, str]] = {
     "genome_window": ("derived", "pages a region; the same marker-keyed walk"),
     "genome_catalog": ("derived", "reports the head's `carrier` field"),
     "genome_census": ("derived", "reads the catalog, carrier included"),
+    "genome_content": ("derived", "counts blocks; carrier-agnostic (a cap is a cap)"),
     "genome_registry": ("derived", "walks catalogs; each reports its own carrier"),
     "genome_genes": ("derived", "threads the head's `carrier` into the gene decode"),
     "genome_genes_expressed": ("derived", "threads the head's `carrier` into the decode"),
@@ -8248,6 +8249,50 @@ def _region_hexes_from_body(chrom_specs, body_bytes):
             for (_label, _cap, _lc, off, ln, _ck) in chrom_specs]
 
 
+def _content_turns(n_turns, n_chromosomes) -> int:
+    """The genome's CONTENT count — ``n_turns - n_chromosomes`` (rc345, task T964).
+
+    WHY THE SUBTRACTION IS EXACT. Every chromosome opens with exactly ONE boundary
+    (telomere) cap, and a cap is a ``leaf_dim``-wide BLOCK — i.e. a turn — like any other
+    strand element. :func:`genome_save` counts blocks (``n_turns += len(leaf_blocks)``),
+    so the boundary caps are IN ``n_turns``. Subtracting the chromosome count therefore
+    removes the container overhead exactly, with no residual: one cap per chromosome,
+    one turn per cap.
+
+    This is DEFINITIONAL to the format, not a discovery — it is what "each chromosome
+    emits a cap and a cap is a turn" means, restated. What it buys is that the
+    decomposition ``n_turns = n_chromosomes + n_content`` is EXACT, so CONTENT is
+    recoverable from the two counts with nothing left over; an approximate relation would
+    be useless for the thing it is for (comparing two partitionings of the same content).
+
+    WHAT IT COUNTS, PRECISELY. ``n_content`` is the NON-BOUNDARY block count: the data
+    turns PLUS any INLINE caps — §44 GENE caps (0x47), §95a centromeres (0x58), and the
+    other interior markers. It equals the LEAF count (``genome_census``'s
+    ``total_leaves``, which excludes every cap) exactly when the chromosomes carry no
+    inline caps. MEASURED (``scratchpad/fusion_test.py``): 24 leaves at DIM=64, klein4
+    coupling seed 7, repartitioned 8 ways (1/2/3/4/6/8/12/24 chromosomes) gives
+    ``n_turns`` 25/26/27/28/30/32/36/48 and ``n_content`` 24 in all eight, while
+    ``body_sha256`` differs in all eight. The same 24 leaves as 4 inline GENES of one
+    chromosome gives ``n_turns`` 29, ``n_content`` 28, ``total_leaves`` 24 — the 4 GENE
+    caps are content, not containers. So ``n_content == total_leaves`` is a
+    CAP-FREE-INTERIOR statement, and the general law is
+    ``n_content == total_leaves + n_inline_caps``.
+
+    WHAT IS AND IS NOT INVARIANT. Neither ``n_turns`` nor ``n_chromosomes`` survives a
+    repartitioning of fixed content — the first grows one turn per added boundary, the
+    second IS the partitioning. ``body_sha256`` does not survive either (the caps are in
+    the bytes). ``n_content`` does. Repartitioning is a container operation; this is the
+    quantity it leaves alone.
+
+    DERIVED, NEVER STORED. The strand determines both inputs, so ``n_content`` is not
+    given a home in ``manifest.json`` and ``GENOME_FORMAT_VERSION`` does not move for it
+    (one encoding per datum — a stored copy of an exactly-derivable value is a second
+    encoding that can go stale). Class-N exact integer arithmetic: a count is never
+    signed, so there is no ``abs()`` and no Class-K pin-slot here.
+    """
+    return int(n_turns) - int(n_chromosomes)
+
+
 def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
                                     region_hexes, n_turns, carrier="klein4"):
     """Assemble the manifest ``data`` from ALREADY-COMPUTED per-region digests (rc282).
@@ -8256,16 +8301,35 @@ def _build_manifest_data_from_hexes(leaf_dim, coupling_blocks, chrom_specs,
     streaming head-only catalog read, so the two cannot produce different catalogs for
     the same body — the property the ``body_sha256`` chain check relies on. ``carrier``
     (§Q8/v16) names the element-type carrier (``"klein4"`` / ``"q8"``); it is a pure
-    function of the body (:func:`_carrier_name_from_body`) or the head's stored field."""
+    function of the body (:func:`_carrier_name_from_body`) or the head's stored field.
+
+    rc345 (task T964) adds the two DERIVED scalars ``n_chromosomes`` + ``n_content``.
+    Both are computed HERE, at assembly time, from ``chrom_specs`` + ``n_turns`` the
+    builder already holds — they cost one ``len()`` and one subtraction, touch no extra
+    read/parse/hash, and are NOT written to disk (the on-disk manifest is the v12 HEAD
+    from :func:`_build_head_data`, which this function does not feed). That is the
+    ONE-ENCODING-PER-DATUM rule: the strand determines both, so neither earns a second
+    home in the format. ``GENOME_FORMAT_VERSION`` is untouched.
+
+    Before rc345 the full catalog carried the chromosome count ONLY as the length of its
+    ``chromosomes`` array while the HEAD carried the scalar ``n_chromosomes`` — so
+    ``genome_save(...).get("n_chromosomes")`` read ``None`` even though the count was
+    right there. :func:`_read_head` already normalised the OTHER direction (it back-fills
+    the scalar from the array), so the scalar name was already the convention; this makes
+    the full catalog honour it too. ``n_chromosomes == len(data["chromosomes"])`` always.
+    """
     regions = [
         {"byte_offset": int(off), "byte_len": int(ln), "sha256": rh}
         for (_label, _cap, _lc, off, ln, _ck), rh in zip(chrom_specs, region_hexes)
     ]
+    n_chromosomes = len(chrom_specs)
     return {
         "format_version": GENOME_FORMAT_VERSION,
         "carrier": carrier,
         "leaf_dim": int(leaf_dim),
         "n_turns": int(n_turns),
+        "n_chromosomes": int(n_chromosomes),
+        "n_content": _content_turns(n_turns, n_chromosomes),
         "coupling": {
             "sha256": _sha256_bytes(coupling_blocks),
             "hex": coupling_blocks.hex(),
@@ -8505,6 +8569,26 @@ def genome_save(strand, path, coupling, labels=None, *, attestation=None,
     and writes the DERIVED catalog to ``path/manifest.json``. ``coupling`` (the held
     invariant) is content-addressed into the manifest (its hash + hex) so a load can
     re-anchor without re-deriving it. Returns the manifest ``data`` dict.
+
+    IT DOES NOT AUTO-PARTITION (rc345, task T964 — stated because the question recurs).
+    "Splits" above means DERIVES the boundaries from caps the CALLER already placed; it
+    never invents one. ``save`` chooses no chromosome count, no split points, and no
+    size threshold — hand it a strand with one CHROM cap and you get one chromosome of
+    any length; hand it twenty-four and you get twenty-four. Partitioning is decided
+    UPSTREAM, by whoever built the strand (:func:`chromosome` / :func:`genome` /
+    :func:`genome_from_graph`, whose ``genome_partition`` step is where a structural
+    split actually happens). This follows from the strand being the SSoT: if ``save``
+    could re-partition, the bytes it wrote would not be the bytes it was handed, and the
+    manifest would stop being a pure derivation of the body. Note the cost of a boundary,
+    since it is the caller who is spending it — each chromosome adds exactly one cap,
+    hence exactly one turn (:func:`_content_turns`); ``n_content`` is what stays fixed
+    across the choice.
+
+    The returned ``data`` carries the DERIVED scalars ``n_chromosomes`` and ``n_content``
+    (rc345) alongside the ``chromosomes`` / ``regions`` arrays. Neither scalar is written
+    to disk — the on-disk manifest is the v12 HEAD, and both are exactly recoverable from
+    the strand, so storing them would be a second encoding of what the body already says.
+    :func:`genome_content` reads the same two counts without building the arrays.
 
     §44: the strand (``turns.bin``) is the SSoT — the manifest is an optional
     ``.fai``-style cache, every field rebuildable by scanning the body. Multi-gene
@@ -9206,6 +9290,68 @@ def genome_census(path, *, coupling=None) -> dict:
             _raise_native_genome(exc)
     return _apply_type_aliases_to_census(
         _census_from_catalog(_canonical_catalog(path, coupling=coupling), path))
+
+
+def genome_content(path, *, coupling=None) -> dict:
+    """The genome's CONTENT count, DERIVED from the strand (rc345, task T964).
+
+    Returns ``{path, n_turns, n_chromosomes, n_content}`` where
+    ``n_content = n_turns - n_chromosomes`` — the count that survives repartitioning.
+
+    THE QUESTION THIS ANSWERS. Take fixed content and cut it into chromosomes N
+    different ways. ``n_chromosomes`` changes (it IS the cut), ``n_turns`` changes (each
+    boundary cap is itself a turn), and ``body_sha256`` changes (the caps are in the
+    bytes) — so none of the three tells you the two genomes hold the same thing.
+    ``n_content`` does, and exactly: one cap per chromosome, one turn per cap, no
+    residual. MEASURED over 8 partitionings of 24 leaves (``scratchpad/fusion_test.py``),
+    ``n_turns`` runs 25/26/27/28/30/32/36/48 and ``n_content`` is 24 in all eight.
+
+    READ ``n_content`` AS "NOT A CONTAINER", NOT AS "LEAVES". It counts every
+    non-boundary block, which includes INLINE caps — §44 GENE caps, §95a centromeres. It
+    equals :func:`genome_census`'s ``total_leaves`` (which excludes ALL caps) only for a
+    genome whose chromosomes have no inline structure; the same 24 leaves written as 4
+    genes of one chromosome give ``n_content`` 28 against ``total_leaves`` 24. Use
+    ``genome_census`` when you want leaves; use this when you want "how much of this
+    strand is not framing".
+
+    DERIVED, NOT CACHED. ``n_content`` is exactly recoverable from the strand, so it is
+    NOT a manifest field and ``GENOME_FORMAT_VERSION`` does not move for it — one
+    encoding per datum; a stored copy of a derivable value is a second encoding that can
+    disagree with the body. This reads the counts the way §44 says to: by SCANNING the
+    self-describing body, not by trusting the head's cached scalars. Which also means it
+    inherits the rc342 READ-SIDE INTEGRITY BOUND for free — the scan re-derives the
+    region chain anyway, so holding it against the head's committed ``body_sha256`` costs
+    no extra open, parse, or hash, and a ``turns.bin`` modified out of band raises
+    :class:`GenomeBoundingError` here exactly as it does in ``genome_catalog`` /
+    ``genome_census``. A manifest-LESS genome (§44) passes through unbound — there is
+    nothing committed to compare against — and needs ``coupling=`` for the leaf width.
+
+    C↔Python 1:1 (``srmech_genome_content``, ADR-0009 — the capability is the invariant,
+    so a bare-C host derives the same three counts through its own entry point rather
+    than reconstructing them from a catalog call). Class-N exact integers; no ``abs()``.
+    """
+    if _native.has_native_genome() and _native.has_native_genome_content():
+        try:
+            text = _native.genome_content_c(
+                str(Path(path)), _coupling_bytes_or_empty(coupling))
+            return json.loads(text)
+        except _native.NativeGenomeError as exc:
+            _raise_native_genome(exc)
+    # Pure projection over the CANONICAL catalog — the same single streamed body pass
+    # (_scan_body_stream) and the same committed-digest bound, so the two projections
+    # answer identically on every input including a corrupt body.
+    data = _canonical_catalog(path, coupling=coupling)
+    n_turns = int(data["n_turns"])
+    # A v≤11 FULL manifest is returned verbatim by _catalog_data (back-compat, never
+    # opens turns.bin), so it predates the rc345 scalar and carries only the array —
+    # the same back-fill _read_head has always applied in the other direction.
+    n_chromosomes = int(data.get("n_chromosomes", len(data.get("chromosomes", []))))
+    return {
+        "path": str(Path(path)),
+        "n_turns": n_turns,
+        "n_chromosomes": n_chromosomes,
+        "n_content": _content_turns(n_turns, n_chromosomes),
+    }
 
 
 def _is_genome_dir(p) -> bool:

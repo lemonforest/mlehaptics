@@ -13,6 +13,43 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc345]
+
+_**The genome's CONTENT count — `n_turns - n_chromosomes` — is what survives repartitioning, and it is DERIVED, never stored (`#T964`). `genome_save`'s returned catalog gains the scalars `n_chromosomes` + `n_content`; the on-disk head is byte-identical, `GENOME_FORMAT_VERSION` stays 19, `SRMECH_ABI_VERSION` stays 10.**_
+
+- **GROUND TRUTH — the return and the head disagreed about SHAPE, not about the count.** `genome_save(...).get("n_chromosomes")` read `None` in 8/8 runs while the manifest head carried `n_chromosomes: 1`. Neither side was wrong. `_build_manifest_data_from_hexes` assembles the FULL catalog with a `chromosomes` **array** and no scalar; `_build_head_data` assembles the v12 HEAD with the **scalar** and no array; only the head reaches disk. So the count was never missing — it was `len(data["chromosomes"])`. The scalar name was already the house convention (`_read_head` has always back-filled it from the array in the other direction), so rc345 makes the full catalog honour it too, in both projections, with `n_chromosomes == len(data["chromosomes"])` always.
+
+- **THE INVARIANT.** Each chromosome opens with exactly ONE boundary cap, and a cap is a `leaf_dim`-wide block — i.e. a turn — like any other strand element. So the boundary caps are IN `n_turns`, and subtracting the chromosome count removes the container overhead with **no residual**. Generating code: `scratchpad/fusion_test.py` (24 leaves, DIM 64, klein4 coupling seed 7, re-derived on every run of the new test module).
+
+  | partitioning | `n_turns` | `n_chromosomes` | `n_content` | `body_sha256` |
+  |---|---|---|---|---|
+  | 1 × 24 leaves | 25 | 1 | **24** | distinct |
+  | 2 × 12 leaves | 26 | 2 | **24** | distinct |
+  | 3 × 8 leaves | 27 | 3 | **24** | distinct |
+  | 4 × 6 leaves | 28 | 4 | **24** | distinct |
+  | 6 × 4 leaves | 30 | 6 | **24** | distinct |
+  | 8 × 3 leaves | 32 | 8 | **24** | distinct |
+  | 12 × 2 leaves | 36 | 12 | **24** | distinct |
+  | 24 × 1 leaf | 48 | 24 | **24** | distinct |
+
+  Neither the container count nor the raw turn count nor the digest is invariant; `n_content` is. **This is DEFINITIONAL to the format, not a discovery** — it restates "each chromosome emits a cap and a cap is a turn". What it buys is that the decomposition is EXACT, so two partitionings of the same content are comparable at all; an approximate relation would be useless for the one job it has.
+
+- **THE SCOPE, STATED HONESTLY.** `n_content` counts every **non-boundary** block, which **includes inline caps** — §44 GENE caps, §95a centromeres. It equals `genome_census`'s `total_leaves` (which excludes *all* caps) only for a genome whose chromosomes have no inline structure. MEASURED: the same 24 leaves written as 4 genes of one chromosome give `n_turns` 29, `n_content` 28, `total_leaves` 24. The general law is `n_content == total_leaves + n_inline_caps`. Read it as "not a container", not as "leaves"; `genome_census` remains the leaf surface. `tests/…::test_content_counts_non_boundary_blocks_not_leaves` pins the inequality so the claim cannot drift back into the stronger form.
+
+- **DERIVED, NEVER STORED — one encoding per datum.** `n_content` is exactly recoverable from the strand, so it gets no field in `manifest.json`: a stored copy of a derivable value is a second encoding that can go stale. The on-disk head is unchanged (same 7 keys, `format_version` 19), so there is no migration and no back-compat shim. Both scalars are computed at assembly time from counts the builder already holds — one `len()` and one subtraction, no extra read, parse, or hash.
+
+- **NEW: `genome_content(path, *, coupling=None)`** → `{path, n_turns, n_chromosomes, n_content}`. It derives from the **strand** (the §44 body scan), not from the head's cached scalars — which is why it inherits the rc342 READ-SIDE INTEGRITY BOUND for free: the scan re-derives the region chain anyway, so holding it against the committed `body_sha256` costs no extra open, parse, or hash. A `turns.bin` modified out of band raises `GenomeBoundingError` here exactly as in `genome_catalog` / `genome_census`; a head-only fast path would have answered cheerfully. Manifest-less genomes pass through unbound and need `coupling=`.
+
+- **CO-EQUAL C (ADR-0009).** New `srmech_genome_content` + `srmech_genome_content_arena_bytes`, so a bare-C host derives the three counts through its own entry point rather than reconstructing them from a catalog call. `genome_build_data`'s FULL branch emits the two new scalars too — without that the native catalog and the pure catalog would have disagreed on key set, which is an ADR-0009 split rather than a cosmetic gap. Verified native == pure for `genome_content` AND `genome_catalog` across 1/3/8/24 chromosomes. Additive symbols only, so **ABI stays 10**; a pre-rc345 library reports `has_native_genome_content()` False and takes the pure projection.
+
+- **`genome_save` DOES NOT AUTO-PARTITION** — now stated in the docstring so the question stops recurring. "Splits" means it DERIVES boundaries from caps the **caller** already placed; it never invents one, and chooses no chromosome count, no split points, no size threshold. If it could re-partition, the bytes it wrote would not be the bytes it was handed and the manifest would stop being a pure derivation of the body. Pinned three ways (one long chromosome stays one; 24 single-leaf chromosomes stay 24; labels verbatim).
+
+- **RATCHET PROVEN AGAINST CLEAN `origin/main`** (`3ebee07d8`), extracted with `git archive` rather than by switching the checkout: the new test module runs **14 failed / 1 passed** there, the failures being real `KeyError` on `'n_chromosomes'` / `'n_content'` and `AttributeError` on `genome_content` — not import errors. It imports only surfaces `origin/main` already publishes, so it RUNS there and disagrees. `fusion_test.py --ratchet` likewise reports 4 violations / exit 1 there and exits 0 here.
+
+- **JPL.** The ratchet caught two violations in the new C and both were FIXED, not exempted: `genome_build_data` hit 67 lines (split into `genome_build_head_data` + `genome_carrier_name`, which also gives the on-disk head its own named function), and `srmech_genome_content_arena_bytes` had 0 asserts (given two real ones — nonzero budget, and at least `body_len`).
+
+- **Ripple:** `tool_schema` ToolEntry, regenerated `_tool_docs.py` (510 tools) and `srmech_tool_registry.c`, the Rosetta ledger row (`non_compute`/`composes_c`, matching the rest of the genome family), and the `tools.total` pins 509 → 510 across 54 test files. `_c_claims.py` regenerated as a proven **no-op** (it covers `c_dispatched` ops; the genome family is `composes_c`). `srmech_carrier_registry.c` and the `srmech_invoke.c` arity guard are untouched — checked, not assumed: no carrier moved, and `srmech_invoke.c` carries no genome op at all. Regeneration is idempotent (second pass byte-identical).
+
 ## [0.9.0rc344]
 
 _**`kron` documented itself as BYTE-IDENTICAL to an exact-integer parity oracle while riding float64 (`#T973`). The claim was false, and the ratchet guarding it compared `complex(g) == complex(w)` — rounding the exact oracle value to float64 before comparing, so it could never observe the loss. rc344 fixes the OP, not the claim. `SRMECH_ABI_VERSION` stays 10.**_

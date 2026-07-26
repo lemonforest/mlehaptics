@@ -3817,6 +3817,14 @@ def _bind(lib: ctypes.CDLL) -> None:
             lib.srmech_genome_census.restype = ctypes.c_int
             lib.srmech_genome_census_arena_bytes.argtypes = [_SZ, _U32]
             lib.srmech_genome_census_arena_bytes.restype = ctypes.c_size_t
+        # rc345 (task T964) genome_content — same (dir, coupling, ws, &tree) shape as
+        # census; additive symbol, so EXPECTED_ABI_VERSION stays 10.
+        if hasattr(lib, "srmech_genome_content"):
+            lib.srmech_genome_content.argtypes = [_CP, _U8, _SZ, _VP, _SZ,
+                                                  ctypes.POINTER(_VP)]
+            lib.srmech_genome_content.restype = ctypes.c_int
+            lib.srmech_genome_content_arena_bytes.argtypes = [_SZ, _U32]
+            lib.srmech_genome_content_arena_bytes.restype = ctypes.c_size_t
         if hasattr(lib, "srmech_genome_registry"):
             lib.srmech_genome_registry.argtypes = [_CP, _U8, _SZ, _VP, _SZ,
                                                    ctypes.POINTER(_VP)]
@@ -18313,6 +18321,15 @@ def has_native_genome_census() -> bool:
                 and hasattr(LIB, "srmech_genome_census_arena_bytes"))
 
 
+def has_native_genome_content() -> bool:
+    """True iff the rc345 (task T964) native ``srmech_genome_content`` (+ its arena
+    SSoT) is loaded — a pre-rc345 lib lacks it, so ``genome.genome_content`` projects
+    the three counts off the canonical catalog instead."""
+    return bool(has_native_genome()
+                and hasattr(LIB, "srmech_genome_content")
+                and hasattr(LIB, "srmech_genome_content_arena_bytes"))
+
+
 def has_native_genome_registry() -> bool:
     """True iff the §96/rc267 native ``srmech_genome_registry`` is loaded — a
     pre-rc267 lib lacks it, so ``genome.genome_registry`` uses the pure
@@ -20410,6 +20427,27 @@ def genome_census_c(dir_: str, coupling: bytes) -> str:
         ws, ctypes.c_size_t(ws_len), ctypes.byref(tree))
     if rc != SRMECH_OK:
         raise NativeGenomeError("srmech_genome_census", rc)
+    return _genome_tree_to_text(tree, max(256 * 1024, 4 * max(man_sz, body_sz)))
+
+
+def genome_content_c(dir_: str, coupling: bytes) -> str:
+    """Native rc345 (task T964) genome CONTENT — scan the body, hold the derive against
+    the head's committed ``body_sha256``, and return the JSON tree text ``{path,
+    n_turns, n_chromosomes, n_content}`` (``genome.py`` ``json.loads`` it), where
+    ``n_content = n_turns - n_chromosomes`` is the count that survives repartitioning.
+    ``coupling`` may be empty when a manifest is present."""
+    if not has_native_genome_content():
+        raise NativeGenomeError("srmech_genome_content", SRMECH_ERR_NOT_IMPL)
+    man_sz = _genome_file_size(os.path.join(dir_, "manifest.json"))
+    body_sz = _genome_file_size(os.path.join(dir_, "turns.bin"))
+    ws, ws_len = _genome_arena(max(man_sz, body_sz),
+                               _genome_chrom_count(dir_, coupling))
+    tree = ctypes.c_void_p()
+    rc = LIB.srmech_genome_content(
+        dir_.encode("utf-8"), _u8(coupling), ctypes.c_size_t(len(coupling)),
+        ws, ctypes.c_size_t(ws_len), ctypes.byref(tree))
+    if rc != SRMECH_OK:
+        raise NativeGenomeError("srmech_genome_content", rc)
     return _genome_tree_to_text(tree, max(256 * 1024, 4 * max(man_sz, body_sz)))
 
 
