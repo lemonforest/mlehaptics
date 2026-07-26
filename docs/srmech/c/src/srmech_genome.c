@@ -26,8 +26,18 @@
  *
  * The strings the manifest builder references (hex digests, the version
  * string, the parser/descriptor hashes, the chromosome labels) are held BY
- * REFERENCE by srmech_json_new_string — so they live in caller-or-this-frame
- * buffers that stay alive until after srmech_json_write. The §41 rendering /
+ * REFERENCE by srmech_json_new_string. rc338 (#956) makes the rule explicit,
+ * because the loose form of it ("caller-or-this-frame buffers that stay alive
+ * until after srmech_json_write") is what let a use-after-scope ship:
+ *
+ *   A genome_strings_t may live on the STACK only when the tree built from it
+ *   is also CONSUMED (serialised) before that frame returns. Any builder whose
+ *   TREE outlives the call must put the block in the CALLER ARENA, next to the
+ *   json nodes that point into it.
+ *
+ * genome_save and the O(1) append serialise in-call, so theirs stay on the
+ * stack; genome_obtain_manifest hands the tree back to fifteen callers, so its
+ * block is arena-carved (genome_rebuild_manifest_tree). The §41 rendering /
  * attestation constants are copied VERBATIM from srmech/amsc/genome.py
  * (_manifest_record).
  *
@@ -206,8 +216,13 @@ static void genome_arena_tail(const genome_arena_t *a, void **ws, size_t *ws_len
  * `genome_strings_t`, which stays alive across srmech_json_write.
  * ------------------------------------------------------------------ */
 
-/* Stable string storage for one manifest build (held BY REFERENCE by
- * srmech_json_new_string; must outlive srmech_json_write). */
+/* Stable string storage for one manifest build. The SIX inline char arrays
+ * below are held BY REFERENCE by srmech_json_new_string (the array-valued
+ * members further down are arena-carved, so they were never at risk), which
+ * makes this block's LIFETIME part of the tree's contract: it must outlive
+ * srmech_json_write. rc338/#956 — a stack `genome_strings_t` is therefore legal
+ * only in a builder that also SERIALISES before returning; a builder that hands
+ * the TREE back to its caller must carve the block from the caller arena. */
 typedef struct {
     char body_sha[65];                              /* body_sha256 + NUL */
     char one_sha[65];                               /* coupling.sha256    */
@@ -3496,7 +3511,12 @@ size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
       + 64u;                                                    /* per-chrom align pads */
     size_t bodies = 2u * body_len + region_len;     /* spliced/grown body + rebuild copy */
     size_t chr = 5u * region_len + 8192u;           /* region + 2*hex + 2*io + slop */
-    size_t fixed = 64u * 1024u + 4096u;             /* top-level json + manifest header */
+    size_t fixed = 64u * 1024u + 4096u              /* top-level json + manifest header */
+      + sizeof(genome_strings_t) + 16u;             /* rc338/#956: the §44 rebuild's
+                                                     * strings block is arena-resident
+                                                     * (+ its alignment pad), not a
+                                                     * stack local — see
+                                                     * genome_rebuild_manifest_tree */;
     return bodies + chr + (size_t)n_chroms * per_chrom + fixed;
 }
 
@@ -3619,6 +3639,68 @@ static void genome_catalog_committed_head(const char *dir, void *ws,
     out[64] = '\0';
 }
 
+/* rc338 (#956) — the §44 REBUILD tail, split out of genome_obtain_manifest so
+ * the strings block it scans into can be ARENA-RESIDENT.
+ *
+ * THE DEFECT THIS CLOSES. The block used to be `genome_strings_t rstrs;`, a
+ * stack local of genome_obtain_manifest. Its six INLINE char arrays (body_sha /
+ * one_sha / one_hex / rule_hash / descr_hash / parser_version) are handed to
+ * srmech_json_new_string, which does NOT copy (srmech_json.c: `v->u.str.ptr =
+ * ptr;  /` `* not copied — caller keeps bytes alive *` `/`). So the tree that
+ * genome_obtain_manifest RETURNS held six pointers into a frame that died on
+ * return, and every caller walked it afterwards. Reading them yielded whatever
+ * the next call left at that address — most often the right bytes still lying
+ * undisturbed, which is why it shipped: a use-after-scope surviving on
+ * stack-layout luck. MSVC lays frames out differently and is where the luck ran
+ * out; the wide first cut of rc337 also dropped a char[4096] from that frame,
+ * moving the layout that had been masking it. The DATA was never wrong — the
+ * POINTER was, which is exactly why it read as a chain drift.
+ *
+ * WHY THE ARENA AND NOT A COPYING TREE. The alternative was to make
+ * srmech_json_new_string copy into the builder's arena. That is a contract
+ * change to the shared json builder, which srmech_catalog.c / srmech_compose.c /
+ * srmech_compose_run.c / srmech_dsl_chain_run.c all build against by reference;
+ * it would move every one of their arena budgets and re-audit nothing that was
+ * actually broken. The caller-arena pattern is already this file's discipline
+ * (ADR-0003; the same move rc306 made for srmech_genome_section_counts), the
+ * block's own ARRAY members were already carved from `a`, and the tree the
+ * strings serve lives in `a`'s tail — so putting the block in `a` makes storage
+ * and pointee co-resident by construction. It is also strictly local: the
+ * function is static, no exported signature moves, so SRMECH_ABI_VERSION stays.
+ *
+ * `a` must already be positioned where the tree is to live; the tree is built on
+ * whatever tail remains after the body + the block + the per-chromosome arrays. */
+static srmech_status_t genome_rebuild_manifest_tree(
+    const char *dir, const unsigned char *one_ptr, uint32_t leaf_dim,
+    genome_arena_t *a, srmech_json_value_t **out)
+{
+    assert(dir != NULL && one_ptr != NULL);
+    assert(a != NULL && out != NULL && leaf_dim > 0u);
+    char body_path[SRMECH_GENOME_PATH_MAX];
+    srmech_status_t st = genome_join(dir, SRMECH_GENOME_BODY, body_path,
+                                     sizeof(body_path));
+    if (st != SRMECH_OK) { return st; }
+    size_t bsz = 0u;
+    st = genome_file_size(body_path, &bsz);
+    if (st != SRMECH_OK) { return st; }
+    unsigned char *body = genome_arena_alloc(a, (bsz == 0u) ? 1u : bsz);
+    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
+    size_t blen = 0u;
+    st = genome_read_file(body_path, body, bsz, &blen);
+    if (st != SRMECH_OK) { return st; }
+    /* #956: the strings block goes in the ARENA, beside the tree that points at
+     * it — NOT on this frame, which dies while the tree is still being read. */
+    genome_strings_t *s = genome_arena_alloc(a, sizeof(*s));
+    if (s == NULL) { return SRMECH_ERR_OVERFLOW; }
+    st = genome_fill_strings(s, a, body, blen, leaf_dim, one_ptr);
+    if (st != SRMECH_OK) { return st; }
+    void *tws = NULL;
+    size_t tws_len = 0u;
+    genome_arena_tail(a, &tws, &tws_len);
+    return genome_build_manifest_tree(s, leaf_dim, blen, tws, tws_len,
+                                      out, NULL, NULL, 0);  /* FULL — readers need arrays */
+}
+
 /* §44: obtain the manifest TREE — parse manifest.json if present (cheap; never
  * opens turns.bin), else REBUILD it by scanning the self-describing body (the
  * strand is the SSoT, the manifest an optional .fai cache). The rebuild needs
@@ -3666,25 +3748,9 @@ static srmech_status_t genome_obtain_manifest(
         leaf_dim = (uint32_t)coupling_len;
         one_ptr = coupling;
     }
-    char body_path[SRMECH_GENOME_PATH_MAX];
-    st = genome_join(dir, SRMECH_GENOME_BODY, body_path, sizeof(body_path));
-    if (st != SRMECH_OK) { return st; }
-    size_t bsz = 0u;
-    st = genome_file_size(body_path, &bsz);
-    if (st != SRMECH_OK) { return st; }
-    unsigned char *body = genome_arena_alloc(&a, (bsz == 0u) ? 1u : bsz);
-    if (body == NULL) { return SRMECH_ERR_OVERFLOW; }
-    size_t blen = 0u;
-    st = genome_read_file(body_path, body, bsz, &blen);
-    if (st != SRMECH_OK) { return st; }
-    genome_strings_t rstrs;
-    st = genome_fill_strings(&rstrs, &a, body, blen, leaf_dim, one_ptr);
-    if (st != SRMECH_OK) { return st; }
-    void *tws = NULL;
-    size_t tws_len = 0u;
-    genome_arena_tail(&a, &tws, &tws_len);
-    return genome_build_manifest_tree(&rstrs, leaf_dim, blen, tws, tws_len,
-                                      out, NULL, NULL, 0);  /* FULL — readers need arrays */
+    /* rc338/#956: the rebuild's strings block is ARENA-resident, so the tree
+     * returned from here does not point into this frame. */
+    return genome_rebuild_manifest_tree(dir, one_ptr, leaf_dim, &a, out);
 }
 
 srmech_status_t srmech_genome_catalog(const char *dir,

@@ -326,7 +326,10 @@ builders (`genome_build_the_one` /
 `_chrom` / `_data` / `_attest` / `_render` / `_manifest` / `_manifest_tree`), the
 §44 inline-cap body scan (`genome_decode_label` / `genome_scan_chroms`) + the
 string-block fill (`genome_fill_strings`, `genome_hex`), the §44 manifest-optional
-acquirer (`genome_obtain_manifest` — parse if present, else rebuild by scan), the
+acquirer (`genome_obtain_manifest` — parse if present, else rebuild by scan — and
+its rc338/#956 rebuild tail `genome_rebuild_manifest_tree`, split out so the
+scan's `genome_strings_t` can be arena-resident rather than a stack local the
+returned tree would outlive), the
 catalog/load/window/append entries + their accessors (`genome_data_get` /
 `genome_str_eq` / `genome_find_chrom` / `genome_check_new_label` /
 `genome_read_bound_body` / `genome_grow_body` / `genome_save_validate`), the §45
