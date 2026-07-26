@@ -85,10 +85,29 @@ def test_kron_matches_definition():
     for a, b in cases:
         got = kron(a, b)
         want = _kron_ref(a, b)
-        # Kronecker is exact integer/Gaussian-integer multiplication — bit-exact.
+        # NOTE (rc344 / task T973): ``_kron_ref`` above is the FLOAT-definition
+        # oracle (it multiplies through ``complex()``), so this loop asserts
+        # float-path parity only — it is NOT an exactness check, and the
+        # comparison below rounds both sides to float64. The exact-integer
+        # contract is pinned separately in the next test and, against the
+        # exact-integer ``_kron_ref``, in ``test_residue_c_rc155.py``.
         for grow, wrow in zip(got, want):
             for g, w in zip(grow, wrow):
                 assert complex(g) == complex(w), (a, b)
+
+
+def test_kron_is_exact_beyond_float64_significand():
+    """``kron`` on integer input is exact past float64's 53-bit significand.
+
+    rc344 (task T973). ``3 × 3002399751580331 == 2**53 + 1`` is the smallest
+    positive integer float64 cannot represent; through rc343 ``kron`` routed
+    integer input through the ``array('d')``-backed matmul and returned
+    ``2**53`` here. Compared on ℤ — wrapping either side in ``complex()`` would
+    round the evidence away.
+    """
+    got = kron([[3]], [[3002399751580331]])[0][0]
+    assert got == 2 ** 53 + 1, got
+    assert float(2 ** 53 + 1) != 2 ** 53 + 1      # float64 truly cannot hold it
 
 
 def test_dft_no_libm_pi_in_call_graph():
