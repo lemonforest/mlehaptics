@@ -1,0 +1,15 @@
+{"associates": [64, 64], "code": 0, "commute_only": 0, "commutes": [16, 16], "element_type": "klein4", "measurement": "element_type_rung", "order": 4, "turn_only": 0, "turn_set_equals_commute_set": true, "turns_compose": [16, 16]}
+{"associates": [512, 512], "code": 1, "commute_only": 0, "commutes": [40, 64], "element_type": "q8", "measurement": "element_type_rung", "order": 8, "turn_only": 24, "turn_set_equals_commute_set": false, "turns_compose": [64, 64]}
+{"associates": [2752, 4096], "code": 2, "commute_only": 0, "commutes": [88, 256], "element_type": "octonion", "measurement": "element_type_rung", "order": 16, "turn_only": 0, "turn_set_equals_commute_set": true, "turns_compose": [88, 256]}
+{"commutes": [1, 1], "dim": 1, "largest_sub_rung_whose_turns_compose": 1, "measurement": "cd_turn_capacity", "survivors_are_identity_or_self_paired": true, "turn_set_equals_commute_set": true, "turns_compose": [1, 1]}
+{"commutes": [4, 4], "dim": 2, "largest_sub_rung_whose_turns_compose": 2, "measurement": "cd_turn_capacity", "survivors_are_identity_or_self_paired": true, "turn_set_equals_commute_set": true, "turns_compose": [4, 4]}
+{"commutes": [10, 16], "dim": 4, "largest_sub_rung_whose_turns_compose": 4, "measurement": "cd_turn_capacity", "survivors_are_identity_or_self_paired": false, "turn_set_equals_commute_set": false, "turns_compose": [16, 16]}
+{"commutes": [22, 64], "dim": 8, "largest_sub_rung_whose_turns_compose": 4, "measurement": "cd_turn_capacity", "survivors_are_identity_or_self_paired": true, "turn_set_equals_commute_set": true, "turns_compose": [22, 64]}
+{"commutes": [46, 256], "dim": 16, "largest_sub_rung_whose_turns_compose": 4, "measurement": "cd_turn_capacity", "survivors_are_identity_or_self_paired": true, "turn_set_equals_commute_set": true, "turns_compose": [46, 256]}
+{"commutes": [94, 1024], "dim": 32, "largest_sub_rung_whose_turns_compose": 4, "measurement": "cd_turn_capacity", "survivors_are_identity_or_self_paired": true, "turn_set_equals_commute_set": true, "turns_compose": [94, 1024]}
+{"dim": 2, "exact": true, "failures": 0, "measurement": "xor_index_lane", "pairs": 4}
+{"dim": 4, "exact": true, "failures": 0, "measurement": "xor_index_lane", "pairs": 16}
+{"dim": 8, "exact": true, "failures": 0, "measurement": "xor_index_lane", "pairs": 64}
+{"dim": 16, "exact": true, "failures": 0, "measurement": "xor_index_lane", "pairs": 256}
+{"dim": 32, "exact": true, "failures": 0, "measurement": "xor_index_lane", "pairs": 1024}
+{"dim": 64, "exact": true, "failures": 0, "measurement": "xor_index_lane", "pairs": 4096}

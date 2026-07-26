@@ -131,18 +131,23 @@ def test_every_toml_routed_class_actually_describes():
 def test_describe_surfaces_the_carrier_registry():
     """`#936` follow-through: a 25-entry registry with a 100%
     construction-example floor and a compiled-in C peer table was invisible to
-    describe() entirely. ``tools`` are the verbs; ``carriers`` are the nouns."""
+    describe() entirely. ``tools`` are the verbs; ``carriers`` are the nouns.
+
+    rc339 (`#967`) replaced the flat ``names`` list with capability-keyed rows —
+    a name list said WHICH operands exist and nothing about what any of them can
+    do. The membership assertion is unchanged; only where the names are read
+    from moved (``sorted(...["capabilities"])``)."""
     d = describe()
     assert "carriers" in d, "describe() reports verbs but not operands"
     assert d["carriers"]["total"] == len(_CARRIERS)
-    assert d["carriers"]["names"] == sorted(_CARRIERS)
+    assert sorted(d["carriers"]["capabilities"]) == sorted(_CARRIERS)
 
 
 def test_the_hdc_domain_classes_are_carriers_too():
     """The registry already knew about the class describe() was missing —
     CDRegister has been a registered carrier since rc297. That is what made the
     under-reporting visible."""
-    carriers = set(describe()["carriers"]["names"])
+    carriers = set(describe()["carriers"]["capabilities"])
     for name in ("One", "SedenionRegister", "CDRegister"):
         assert name in carriers
 
@@ -156,13 +161,17 @@ def test_describe_reports_the_compiled_dimension_ceilings():
     library existed and its ABI, but exposed NO dimensional bound at all — so a
     caller (or an LLM driving MCP) could only find the largest admissible dim by
     trying it and failing, or by reading the C header. For a package whose whole
-    stance is self-description, that was a gap."""
+    stance is self-description, that was a gap.
+
+    rc339 (`#967`) kept both numbers and moved them INSIDE the capability they
+    bound. They were always addressing ceilings; nothing said so, which is how
+    256 came to be read as a turn ceiling."""
     from srmech.amsc.cascade.cayley_dickson import CD_DENSE_MAX_DIM, CD_MAX_DIM
 
-    limits = describe()["limits"]
-    assert limits["cd_max_dim"] == CD_MAX_DIM
-    assert limits["cd_dense_max_dim"] == CD_DENSE_MAX_DIM
-    assert limits["cd_dense_max_dim"] <= limits["cd_max_dim"]
+    address = describe()["limits"]["capabilities"]["address"]
+    assert address["max_dim"] == CD_MAX_DIM
+    assert address["dense_max_dim"] == CD_DENSE_MAX_DIM
+    assert address["dense_max_dim"] <= address["max_dim"]
 
 
 def test_limits_reports_capability_only_and_claims_no_host_headroom():
@@ -175,17 +184,30 @@ def test_limits_reports_capability_only_and_claims_no_host_headroom():
     a wrong number, and a wrong number is worse than a missing key. If a
     resource ceiling is ever added it gets its own unmistakable name; this test
     fails if one is smuggled into the capability block instead.
+
+    rc339 (`#967`) nested the block one level (capability → ceilings), so the
+    scan walks the leaf keys instead of the top-level ones. The rule is
+    unchanged and now covers strictly MORE keys than it did at rc298.
     """
     limits = describe()["limits"]
-    assert set(limits) == {"cd_max_dim", "cd_dense_max_dim"}, (
+    assert set(limits) == {"capabilities", "element_types"}, (
         f"unexpected key in the capability block: {sorted(limits)} — a runtime "
         f"resource measurement must not live here")
     forbidden = ("stack", "headroom", "available", "free", "remaining",
                  "usable", "host", "rlimit")
-    for key in limits:
-        assert not any(word in key.lower() for word in forbidden), (
-            f"limits[{key!r}] reads as a host-resource measurement; rc298 "
-            f"measures none")
+
+    def _walk(node, path):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                assert not any(word in str(key).lower() for word in forbidden), (
+                    f"limits{path}[{key!r}] reads as a host-resource "
+                    f"measurement; srmech measures none")
+                _walk(value, f"{path}[{key!r}]")
+        elif isinstance(node, list):
+            for i, value in enumerate(node):
+                _walk(value, f"{path}[{i}]")
+
+    _walk(limits, "")
 
 
 def test_capability_ceiling_is_not_nested_under_native():

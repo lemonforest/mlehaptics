@@ -19,6 +19,14 @@ human-readable description per carrier, so introspection could not say *what a
         "ladder":      "variable" | "variable_q" | "cayley_dickson" | None,
         "rung":        <int> | None,
         "variables":   ["k", ...],        # shift variables (poly ladders)
+        "capability": {                   # rc339 — what the carrier can DO
+          "product":     "<the closed binary op the verdicts describe>" | None,
+          "address":     "exact" | None,
+          "compose":     "full" | "zero_divisors" | "unclassified" | None,
+          "turn":        "non_commuting" | "abelian_only" | "unclassified" | None,
+          "commutative": True | False | None,
+          "varies_with": "dim" | "element_type" | None,
+        },
         "ops": {                          # back-index into tool_schema
           "consumes": ["srmech....", ...],   # full ToolEntry names
           "produces": ["srmech....", ...],
@@ -26,6 +34,55 @@ human-readable description per carrier, so introspection could not say *what a
       },
       ...
     }
+
+The ``capability`` block (rc339, `#967`)
+----------------------------------------
+Before rc339 the registry said what each carrier IS and never what it can DO,
+and the only ceilings :func:`srmech.introspect.describe` published were
+``cd_max_dim`` 256 and ``cd_dense_max_dim`` 64 — **both ADDRESSING bounds**. A
+caller reading 256 and reaching for a TURN there was reading a permissive number
+with no capability attached; non-commuting turn composition has been dead since
+dim 8. This block is the missing half. The measured ontology behind it lives in
+``docs/srmech/notes/carrier_capability_ontology_rc339.py`` (generating code) and
+its NDJSON; the dimension ceilings are
+:data:`~srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` and
+:data:`~srmech.amsc.cascade.cayley_dickson.CD_TURN_MAX_DIM`.
+
+**The three capabilities.**
+
+``address``
+    ``"exact"`` — an index / key / degree / slot recovers an individual element
+    bit-exactly. Every carrier srmech ships is exactly addressed; the field is
+    kept anyway so a carrier that ever is NOT has to say so out loud rather
+    than inherit silence. On the Cayley–Dickson ladder this is the signed
+    permutation ``e_i·e_j = ±e_{i XOR j}``, measured exact with zero failures
+    through dim 64.
+
+``compose``
+    ``"full"`` — the ``product`` is closed with NO zero divisors.
+    ``"zero_divisors"`` — closed, but ``x·y == 0`` is reachable with ``x ≠ 0``
+    and ``y ≠ 0``. ``"unclassified"`` — srmech has not established which, and
+    says so rather than guessing. ``None`` — the carrier has no closed binary
+    product on srmech's surface, so the question does not apply.
+
+``turn``
+    Does a turn FOLD? A turn composes iff left multiplication is a
+    representation, ``L_x ∘ L_y == L_{x·y}``. ``"non_commuting"`` — it holds
+    AND the product is non-commutative, so a which-way turn survives being
+    folded (ℍ / Q₈ / matmul). ``"abelian_only"`` — only the commuting pairs
+    compose. Read that together with ``commutative``: for a commutative carrier
+    it is vacuous; for a NON-commutative one (``commutative`` False) it is a
+    genuine DEGRADATION, and it is exactly what happens at 𝕆, where the
+    turn-composing set and the commuting set were measured to be THE SAME SET.
+
+**The worst-case rule.** A carrier's published capability is the guarantee that
+holds across EVERYTHING the carrier admits — not its best case. ``CDRegister``
+admits any power-of-two dim in ``[1, CD_MAX_DIM]``, so it publishes the dim-256
+answer (``zero_divisors`` / ``abelian_only``), not the dim-4 one; ``HV`` publishes
+the weakest of its three genome ``element_type`` rungs. ``varies_with`` names the
+knob that can improve it, and points the caller at
+``describe()["limits"]["element_types"]`` for the per-rung answer. Publishing the
+best case is the failure mode this whole block exists to remove.
 
 The ``ops`` back-index is **DERIVED, never hand-maintained**: it unions
 
@@ -320,6 +377,146 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
 }
 
 
+# ── the per-carrier CAPABILITY table (rc339, `#967`) ─────────────────────────
+#
+# What each carrier can DO, as opposed to what it IS. Held as its own table
+# rather than folded into _CARRIERS so the whole ontology reads as ONE object,
+# and so the key-set assertion below FORCES a new carrier to declare capability
+# instead of inheriting silence. Vocabulary + the worst-case rule: module
+# docstring. Measured ontology + generating code:
+# docs/srmech/notes/carrier_capability_ontology_rc339.py.
+#
+# "compose"/"turn" describe the carrier's `product` — the closed binary op under
+# which it is an algebra. Where a carrier has two closed products (Mat: `@`
+# matmul AND `*` elementwise) the ALGEBRA product is the one named; where it has
+# none (One, HarmonicMaass) every verdict is None, because the question does not
+# apply and a False would read as a measured negative.
+
+_CAP_EXACT = "exact"
+_CAP_FULL = "full"
+_CAP_ZERO_DIVISORS = "zero_divisors"
+_CAP_NON_COMMUTING = "non_commuting"
+_CAP_ABELIAN_ONLY = "abelian_only"
+_CAP_UNCLASSIFIED = "unclassified"
+
+
+def _cap(product, compose, turn, commutative, varies_with=None):
+    """One capability row. ``address`` is ``"exact"`` iff the carrier has any
+    structure at all — every srmech carrier is exactly addressed, and the field
+    exists so a future one that is not must say so."""
+    return {
+        "product": product,
+        "address": _CAP_EXACT,
+        "compose": compose,
+        "turn": turn,
+        "commutative": commutative,
+        "varies_with": varies_with,
+    }
+
+
+#: No closed binary product on srmech's surface → the compose / turn question
+#: does not apply. Distinct from ``"unclassified"`` (it applies; we have not
+#: established the answer).
+_CAP_NO_PRODUCT = _cap(None, None, None, None)
+
+_CAPABILITY: Dict[str, Dict[str, Any]] = {
+    # ── the polynomial ladders: commutative integral domains over ℚ ──────────
+    "Poly": _cap("polynomial multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    "BiPoly": _cap("polynomial multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    "TriPoly": _cap("polynomial multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    "QPoly": _cap("Laurent multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    "QBiPoly": _cap("Laurent multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    # ── the Cayley–Dickson ladder: THE capability ladder ─────────────────────
+    # Hurwitz (1898): 1, 2, 4, 8 are the only normed division algebras, so
+    # `compose` dies between octonion and sedenion. `turn` dies one rung
+    # EARLIER, between quaternion and octonion — the two ceilings are NOT the
+    # same wall, and conflating them is how "cd_max_dim: 256" came to imply a
+    # turn that does not exist.
+    "float": _cap("field multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    "complex": _cap("field multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    # ℍ — the LAST rung whose non-commuting turns fold: measured 16/16 basis
+    # pairs compose while only 10/16 commute, so 6 non-commuting pairs survive.
+    "quaternion": _cap("cd_mult (H)", _CAP_FULL, _CAP_NON_COMMUTING, False),
+    # 𝕆 — still a division algebra (compose survives, and this rung exists to
+    # reach e₄..e₇), but turn-composing == commuting AS SETS (88 == 88, both
+    # differences empty). Non-commuting turn composition is gone.
+    "octonion": _cap("cd_mult (O)", _CAP_FULL, _CAP_ABELIAN_ONLY, False),
+    # 𝕊 — past Hurwitz. srmech ships the witness: cascade.sedenion_zero_divisor_witness.
+    "sedenion": _cap("cd_mult (S)", _CAP_ZERO_DIVISORS, _CAP_ABELIAN_ONLY, False),
+    # ── the exact scalars ────────────────────────────────────────────────────
+    "int": _cap("integer multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    "Q": _cap("rational multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    # ── the float-LA carriers ────────────────────────────────────────────────
+    # Mat's ALGEBRA product is `@` (mat_matmul): associative and NON-commutative,
+    # so turns fold with their which-way intact — and it has zero divisors
+    # (any singular pair), so it composes turns without being a composition
+    # algebra. That combination is exactly why the two verdicts are separate
+    # fields: `turn` is not downstream of `compose`.
+    "Mat": _cap("mat_matmul (@)", _CAP_ZERO_DIVISORS, _CAP_NON_COMMUTING, False),
+    # Vec has no closed non-commutative product — `@` is the dot and leaves the
+    # carrier (Vec × Vec → scalar). Its closed op is the elementwise Hadamard
+    # product: commutative, associative, and full of zero divisors (any two
+    # complementary support patterns).
+    "Vec": _cap("elementwise (*)", _CAP_ZERO_DIVISORS, _CAP_ABELIAN_ONLY, True),
+    # HV's product IS the genome coupling, and WHICH coupling is set by the
+    # §60 header's element_type — klein4 (abelian XOR) / Q8 (non-abelian, turns
+    # fold) / octonion (abelian-only turns). Per the worst-case rule the row
+    # publishes the weakest of the three; `varies_with` points at the knob and
+    # at describe()["limits"]["element_types"] for the per-rung answer. All
+    # three are group / loop products, so none of them has zero divisors.
+    "HV": _cap("genome coupling (quad_turn)", _CAP_FULL, _CAP_ABELIAN_ONLY,
+               False, varies_with="element_type"),
+    # ── the elliptic row ─────────────────────────────────────────────────────
+    # A monomial / theta-quotient product is zero only if a coefficient is:
+    # the symbol part is a free abelian group, so no zero divisors.
+    "EllMonomial": _cap("monomial multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    "EllRatio": _cap("theta-quotient multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    # ThetaSum.__mul__ is commutative and associative by construction, but
+    # whether the cleared theta ring is an integral domain is NOT established
+    # in-tree. UNCLASSIFIED is the honest verdict; a guess here would be
+    # precisely the kind of unearned claim the attestation discipline exists to
+    # stop.
+    "ThetaSum": _cap("ThetaSum multiply", _CAP_UNCLASSIFIED,
+                     _CAP_ABELIAN_ONLY, True),
+    # A FREE commutative ℤ-algebra on the bracket generators is a polynomial
+    # ring, hence an integral domain.
+    "ThetaBracketSum": _cap("bracket-product multiply", _CAP_FULL,
+                            _CAP_ABELIAN_ONLY, True),
+    # ── carriers with no closed binary product ───────────────────────────────
+    "UnaryTheta": _CAP_NO_PRODUCT,
+    "MockQSeries": _CAP_NO_PRODUCT,
+    "HarmonicMaass": _CAP_NO_PRODUCT,
+    "One": _CAP_NO_PRODUCT,
+    # ── the addressable registers ────────────────────────────────────────────
+    # The register's product is its CD-respecting navigate — routing a slot
+    # through ×e_j. At dim 16 the ambient algebra is 𝕊, which is why the
+    # register's REVERSIBLE working set is the octonion block e₀..e₇ and the
+    # remainder is carry/EC: the design already encodes this ceiling, and rc339
+    # makes introspection say so.
+    "SedenionRegister": _cap("cd_navigate (S, dim 16)", _CAP_ZERO_DIVISORS,
+                             _CAP_ABELIAN_ONLY, False),
+    # Worst case over every dim in [1, CD_MAX_DIM] — NOT the dim-4 best case.
+    # This row is the direct answer to the rc339 defect: a caller who read
+    # cd_max_dim 256 and reached for a turn gets told here that at the dims this
+    # register admits, turns are abelian-only and the product has zero divisors.
+    "CDRegister": _cap("cd_navigate (CD dim n <= CD_MAX_DIM)",
+                       _CAP_ZERO_DIVISORS, _CAP_ABELIAN_ONLY, False,
+                       varies_with="dim"),
+}
+
+# A new carrier MUST declare its capability. Without this, adding a carrier
+# would silently publish a capability-less row and re-open exactly the gap
+# rc339 closed. An explicit raise, not an `assert` — `python -O` strips asserts,
+# and a published-surface guard that evaporates under an interpreter flag is the
+# false-green shape this rc exists to remove. Cheap: one set compare at import.
+if set(_CAPABILITY) != set(_CARRIERS):  # pragma: no cover — import-time guard
+    raise RuntimeError(
+        "carrier/capability drift: "
+        f"{sorted(set(_CARRIERS) ^ set(_CAPABILITY))} — every registered "
+        "carrier must declare {product, address, compose, turn, commutative, "
+        "varies_with}")
+
+
 # The ladder rung → carrier-name maps (the value-carrier names of the
 # carrier_ladder_descriptor rung tables; cayley_dickson keys R/C/H/O/S surface
 # under their Python value-carrier names). Tested against the descriptor.
@@ -446,6 +643,8 @@ def _pure_carrier_schema() -> Dict[str, Dict[str, Any]]:
             "ladder": meta["ladder"],
             "rung": meta["rung"],
             "variables": list(meta["variables"]),
+            # rc339 (`#967`) — what the carrier can DO, not only what it is.
+            "capability": dict(_CAPABILITY[name]),
             "ops": ops_index[name],
         }
         # rc241 (#839) — the per-carrier construction example, when present.
@@ -471,9 +670,14 @@ def _native_carrier_schema() -> Optional[Dict[str, Dict[str, Any]]]:
 
 def carrier_schema() -> Dict[str, Dict[str, Any]]:
     """The CARRIER introspection registry (rc205; gh #1293) — per carrier
-    ``{"name", "description", "ladder", "rung", "variables", "ops"}`` keyed
-    by carrier name; the operand-side dual of ``tool_schema`` (see the
-    module docstring for the full shape + the derivation of ``ops``).
+    ``{"name", "description", "ladder", "rung", "variables", "capability",
+    "ops"}`` keyed by carrier name; the operand-side dual of ``tool_schema``
+    (see the module docstring for the full shape + the derivation of ``ops``).
+
+    ``capability`` (rc339, `#967`) is what the carrier can DO —
+    ``{product, address, compose, turn, commutative, varies_with}``. It reports
+    the WORST case over everything the carrier admits, so a permissive number
+    elsewhere can never be read as a capability the carrier does not have.
 
     Native-dispatched: when the rc205 C peer is loaded AND no profile tools
     are registered (a profile tool could extend the live ops back-index the

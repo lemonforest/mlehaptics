@@ -3,7 +3,8 @@
 
 The CARRIER (operand) introspection registry — gh #1293: emit the
 ``srmech.amsc.carrier_schema`` per-carrier metadata (name / description /
-ladder / rung / variables / the DERIVED ops back-index) as a ``const`` C data
+ladder / rung / variables / the rc339 CAPABILITY block / the DERIVED ops
+back-index) as a ``const`` C data
 table so a bare-C host (no Python) produces the carrier registry DATA and the
 canonical carrier-schema JSON with no interpreter — the operand-side peer of
 the rc184 ``gen_tool_registry.py`` tool table (and the rc202

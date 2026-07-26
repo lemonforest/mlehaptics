@@ -640,9 +640,31 @@ def describe() -> Dict[str, Any]:
                           "routes": {<name>: "toml"|"python", ...},
                           "toml_total": <int>},
               "carriers": {"total": <int>,
-                           "names": [<sorted carrier names>]},
-              "limits": {"cd_max_dim": <int>,
-                         "cd_dense_max_dim": <int>},
+                           "capabilities": {<carrier>: {
+                               "product": <str|None>,
+                               "address": "exact"|None,
+                               "compose": "full"|"zero_divisors"
+                                          |"unclassified"|None,
+                               "turn": "non_commuting"|"abelian_only"
+                                       |"unclassified"|None,
+                               "commutative": <bool|None>,
+                               "varies_with": "dim"|"element_type"|None},
+                               ...}},
+              "limits": {"capabilities": {<capability>: {
+                             "means": <str>,
+                             "max_dim": <int>,
+                             "beyond_ceiling": <str|None>,
+                             "bounded_by": <str>,
+                             "holds_through": <element-type name|None>,
+                             ...}},
+                         "element_types": [{"code": <int>, "name": <str>,
+                             "algebra": <str>, "order": <int>,
+                             "cd_dim": <int|None>, "commutative": <bool>,
+                             "address": <str>, "compose": <str>,
+                             "turn": <str>,
+                             "commutes": [<pass>, <total>],
+                             "associates": [<pass>, <total>],
+                             "turns_compose": [<pass>, <total>]}, ...]},
               "c_claims": {"native": <bool>,
                            "checked_ops": <int>,
                            "checked_symbols": <int>,
@@ -666,11 +688,68 @@ def describe() -> Dict[str, Any]:
     ``limits`` (rc298) reports **capability** ceilings only — what this BUILD
     supports, identical on every platform and in both projections. It is NOT a
     statement about host headroom: no key here reports how much stack THIS
-    process has left, because rc298 measures none. ``cd_max_dim`` bounds the
-    Cayley–Dickson addressing surface; ``cd_dense_max_dim`` bounds the dense
-    ``dim × dim`` native path, past which the exact-rational oracle answers
-    instead (correct, slower). A resource key would require a real PAL
-    stack-limit query and is deliberately absent rather than approximated.
+    process has left, because rc298 measures none. A resource key would require
+    a real PAL stack-limit query and is deliberately absent rather than
+    approximated.
+
+    rc339 (`#967`) — ``limits`` became CAPABILITY-KEYED and ``carriers`` became
+    capability-tagged, because reporting only the permissive ceiling implies a
+    capability that does not exist.
+
+    rc298 published exactly two ceilings, ``cd_max_dim`` 256 and
+    ``cd_dense_max_dim`` 64, and **both are ADDRESSING bounds**. srmech's
+    carriers have THREE ceilings, and the other two are the ones that actually
+    bind:
+
+    ==========  ============================================  ==============
+    capability  what it means                                 ceiling
+    ==========  ============================================  ==============
+    address     content-key an element; ``e_i·e_j =            effectively
+                ±e_{i XOR j}``                                unbounded
+                                                              (verified exact
+                                                              to dim 64, 0
+                                                              failures / 4096
+                                                              pairs; the
+                                                              build admits
+                                                              256)
+    compose     multiply with no zero divisors                dim 8 — 𝕆,
+                                                              Hurwitz. Past
+                                                              it, zero
+                                                              divisors.
+    turn        fold two turns into one:                      dim 4 — ℍ. Past
+                ``L_x ∘ L_y == L_{x·y}``                      it, abelian-only.
+    ==========  ============================================  ==============
+
+    So a caller — or an LLM driving the MCP surface, which is an explicit design
+    goal — could read 256 and reach for a TURN there, where non-commuting turn
+    composition has been dead since dim 8. That is a false green in the
+    self-description, the same failure class as a dead instrumentation seam, not
+    a documentation gap.
+
+    Every dimension therefore now lives INSIDE the capability it bounds
+    (``limits["capabilities"][<cap>]["max_dim"]``); there is no bare number at
+    the top of ``limits`` for a reader to pick up unqualified.
+    ``limits["element_types"]`` is the SAME ladder from the rung side — the
+    genome's ``ELEMENT_TYPE_*`` codes, which appeared nowhere in ``describe()``
+    before this rc, each with its verdict AND the exhaustive measurement the
+    verdict was read from. ``holds_through`` on each capability is DERIVED from
+    those rows, so the two facets are one fact reported once and cannot drift.
+
+    The precise statement about the octonion rung matters and the imprecise
+    version ("turns stop at ℍ") should not be propagated: at Q₈ the
+    turn-composing pairs STRICTLY CONTAIN the commuting pairs (24 non-commuting
+    pairs still fold), while at 𝕆 the two are **THE SAME SET** — 88 == 88, both
+    set differences empty. Turns DEGRADE TO ABELIAN-ONLY at 𝕆; what dies there
+    is specifically NON-COMMUTING turn composition. Read ``turn`` together with
+    ``commutative``: ``abelian_only`` on a commutative rung is vacuous, on a
+    non-commutative one it is the degradation. Generating code + NDJSON:
+    ``docs/srmech/notes/carrier_capability_ontology_rc339.py``.
+
+    ``carriers`` gained the same treatment: each carrier reports
+    ``{product, address, compose, turn, commutative, varies_with}`` for the
+    WORST case over everything it admits — ``CDRegister`` publishes the dim-256
+    answer, not the dim-4 one — with ``varies_with`` naming the knob that can
+    improve it. Publishing the best case is the failure mode this rc removes.
 
     rc298 (`#936`) — ``classes`` became CAPABILITY-first, and ``carriers``
     arrived. Both were the same ADR-0009 mechanism-2 defect: introspection
@@ -726,11 +805,18 @@ def describe() -> Dict[str, Any]:
     # construction-example floor and a compiled-in C peer table, and before
     # rc298 describe() could not see it at all: the same mechanism-2 defect the
     # classes key had. Guarded — carrier_schema is independently optional.
+    #
+    # rc339 (`#967`): a flat NAME LIST is the same defect one turn further in.
+    # It said which operands exist and nothing about what any of them can DO,
+    # while the only ceilings published alongside were both ADDRESSING bounds —
+    # so the report answered "how big?" with 256 and stayed silent on the two
+    # ceilings that bind. Each carrier now carries its capability row; the names
+    # are recoverable as sorted(carriers["capabilities"]).
     try:
-        from ..amsc.carrier_schema import _CARRIERS
-        _carrier_names = sorted(_CARRIERS)
+        from ..amsc.carrier_schema import _CAPABILITY, _CARRIERS
+        _carrier_caps = {n: dict(_CAPABILITY[n]) for n in sorted(_CARRIERS)}
     except Exception:  # pragma: no cover — carrier registry optional / absent
-        _carrier_names = []
+        _carrier_caps = {}
 
     # Dimensional CAPABILITY ceilings (rc298 `#936`). Before this rc describe()
     # could say whether a native library was present and its ABI, but not what
@@ -749,14 +835,84 @@ def describe() -> Dict[str, Any]:
     # rc298 ships none, and a compiled constant published under a name implying
     # runtime headroom would be exactly the kind of wrong number this rc line
     # exists to remove. A missing key is honest.
+    # rc339 (`#967`) — CAPABILITY-KEYED. Both rc298 keys were ADDRESSING bounds
+    # and nothing said so, so the block answered "how big can this go?" with 256
+    # and was silent on the two ceilings that actually bind. A caller reading 256
+    # and reaching for a TURN was reading a permissive number for a capability
+    # that died at dim 8. Reporting only the permissive ceiling IMPLIES A
+    # CAPABILITY THAT DOES NOT EXIST — the same failure class as a dead
+    # instrumentation seam, and not a documentation gap.
+    #
+    # So every dimension now lives INSIDE the capability it bounds; there is no
+    # bare number at the top of ``limits`` for a reader to pick up unqualified.
+    # ``element_types`` is the same ladder seen from the rung side (verdict +
+    # the measured evidence it was read from), not a second copy of the
+    # ceilings — ``holds_through`` is DERIVED from those rows below, so the two
+    # facets cannot drift apart.
     try:
         from ..amsc.cascade.cayley_dickson import (
+            CD_ADDRESS_VERIFIED_DIM as _CD_ADDR_VERIFIED,
+            CD_COMPOSE_MAX_DIM as _CD_COMPOSE_MAX,
             CD_DENSE_MAX_DIM as _CD_DENSE_MAX,
             CD_MAX_DIM as _CD_MAX,
+            CD_TURN_MAX_DIM as _CD_TURN_MAX,
         )
-        _limits = {"cd_max_dim": _CD_MAX, "cd_dense_max_dim": _CD_DENSE_MAX}
+        _capabilities: Dict[str, Any] = {
+            "address": {
+                "means": (
+                    "content-key an individual element; on the Cayley-Dickson "
+                    "ladder the index lane e_i*e_j = +/- e_(i XOR j)"),
+                "max_dim": _CD_MAX,
+                "dense_max_dim": _CD_DENSE_MAX,
+                "verified_exact_to_dim": _CD_ADDR_VERIFIED,
+                "beyond_ceiling": None,
+                "bounded_by": "tooling",
+            },
+            "compose": {
+                "means": (
+                    "multiply with NO zero divisors (a normed composition "
+                    "algebra)"),
+                "max_dim": _CD_COMPOSE_MAX,
+                "beyond_ceiling": "zero_divisors",
+                "bounded_by": "hurwitz",
+            },
+            "turn": {
+                "means": (
+                    "fold two turns into one: L_x o L_y == L_(x*y), i.e. "
+                    "x*(y*z) == (x*y)*z for every z"),
+                "max_dim": _CD_TURN_MAX,
+                "beyond_ceiling": "abelian_only",
+                "bounded_by": "associativity",
+            },
+        }
     except Exception:  # pragma: no cover — cascade surface optional
-        _limits = {}
+        _capabilities = {}
+    try:
+        from ..amsc.genome import ELEMENT_TYPE_CAPABILITY as _ET_CAP
+        _element_types = [
+            {k: (builtins.list(v) if isinstance(v, tuple) else v)
+             for k, v in row.items()}
+            for row in _ET_CAP
+        ]
+    except Exception:  # pragma: no cover — genome surface optional
+        _element_types = []
+    # The verdict value that counts as "this capability holds in FULL" on a
+    # rung. ``holds_through`` is then the HIGHEST rung carrying it — derived, so
+    # the ceiling and the ladder are one fact reported once, and a rung whose
+    # verdict changes moves the ceiling's cross-reference with it.
+    _FULL_VERDICT = {"address": "exact", "compose": "full",
+                     "turn": "non_commuting"}
+    for _cap_name, _cap in _capabilities.items():
+        _through = None
+        for _row in _element_types:
+            if _row.get(_cap_name) == _FULL_VERDICT[_cap_name]:
+                _through = _row["name"]
+        _cap["holds_through"] = _through
+    _limits: Dict[str, Any] = {}
+    if _capabilities:
+        _limits["capabilities"] = _capabilities
+    if _element_types:
+        _limits["element_types"] = _element_types
 
     # C-claim resolution (rc300 `#938`) — is the C path we advertise really in
     # the library we loaded? ``native`` above says a library loaded and its ABI
@@ -799,11 +955,17 @@ def describe() -> Dict[str, Any]:
             "routes": dict(_class_routes),
             "toml_total": _toml_total,
         },
-        # Carriers (rc298 `#936`) — the operand nouns to `tools`' verbs. Full
+        # Carriers (rc298 `#936`; capability-tagged rc339 `#967`) — the operand
+        # nouns to `tools`' verbs, each with what it can DO. `capabilities` is
+        # keyed by carrier name, so sorted(...) recovers the old name list. Full
         # per-carrier detail via srmech.amsc.carrier_schema.carrier_schema().
-        "carriers": {"total": len(_carrier_names), "names": _carrier_names},
-        # Compiled CAPABILITY ceilings (rc298 `#936`) — what this BUILD
-        # supports. No resource/headroom key; see the note above.
+        "carriers": {
+            "total": len(_carrier_caps),
+            "capabilities": _carrier_caps,
+        },
+        # Compiled CAPABILITY ceilings (rc298 `#936`; capability-KEYED rc339
+        # `#967`) — what this BUILD supports, with every dimension inside the
+        # capability it bounds. No resource/headroom key; see the note above.
         "limits": _limits,
         # C-claim resolution (rc300 `#938`) — every ``c_dispatched`` op's C
         # symbols checked against the LOADED library. ``consistent`` False means
