@@ -902,6 +902,7 @@ static const srmech_tool_param_t ts_params_143[] = {
 static const srmech_tool_param_t ts_params_144[] = {
     { "turn", "HV", 1, "a Klein-4 vector (uint8 {0,1,2,3}) \342\200\224 the helix turn (e.g. from hdc.klein4_expand)" },
     { "coupling", "HV", 1, "a Klein-4 vector (uint8 {0,1,2,3}) \342\200\224 the held invariant coupled into every turn" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_145[] = {
     { "label", "str", 1, "the chromosome label \342\200\224 content-addressed to a deterministic cap" },
@@ -919,16 +920,19 @@ static const srmech_tool_param_t ts_params_148[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=[(label, leaves) | (label, leaves, activator_mask) | (label, leaves, activator_mask, repressor_mask), ...], coupling))" },
     { "coupling", "HV", 1, "the held invariant the gene turns were coupled through (the expressed leaves are uncoupled through it)" },
     { "cell_state", "int", 1, "the exact non-negative cell-state bitmask; each set bit a present regulatory condition (Class-I bitwise; no float)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_149[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=[...], coupling)); may mix plain / regulatory / boolean / threshold / graded genes" },
     { "coupling", "HV", 1, "the held invariant the gene turns were coupled through (the expressed leaves are uncoupled through it)" },
     { "cell_state", "int", 1, "the exact non-negative cell-state bitmask; each set bit a present condition (Class-I bitwise; no float)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_150[] = {
     { "strand_or_path", "list|str", 1, "PATH variant (b): a genome DIRECTORY (written by genome_save) \342\200\224 the demand-load case, reads only each region's head gate cap via the manifest offset. STRAND variant (a): an in-memory strand (list of Klein-4 vectors) \342\200\224 the skeleton-scan fallback." },
     { "coupling", "HV", 1, "the held invariant (the leaf-width anchor; the plan reads only the gate caps, which are not coupled through it)" },
     { "cell_state", "int", 1, "the exact non-negative cell-state bitmask; each set bit a present regulatory condition (Class-I bitwise; no float)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_151[] = {
     { "path", "str", 1, "the genome directory written by genome_save" },
@@ -960,6 +964,7 @@ static const srmech_tool_param_t ts_params_156[] = {
     { "coupling", "HV", 1, "the held invariant every turn is coupled through" },
     { "label", "str", 0, "keyword-only; the chromosome label for the telomere cap (default 'chromosome')" },
     { "genes", "Sequence[tuple]", 0, "keyword-only; multi-gene mode (F730): [(gene_label, gene_leaves), ...] inside one telomere-capped chromosome (pass leaves OR genes). \302\247128/\302\247129/\302\247130 REGULATORY genes carry inline Class-I logic that gene_express filters on: a 4-tuple (gene_label, gene_leaves, activator_mask, repressor_mask) is the \302\247129 two Klein-4 bit-planes / klein4_mask gate (require-present + require-absent conditions); a 3-tuple with an INT third element (gene_label, gene_leaves, activator_mask) is \302\247128 activator-only (repressor 0, byte-identical to rc128); a 3-tuple with a DICT third element (gene_label, gene_leaves, {'gate':'boolean','dnf':[(act,rep),...]}) is a \302\247130 BOOLEAN gene (arbitrary boolean logic as a DNF \342\200\224 an OR of (require-present, require-absent) AND-clauses; AND/OR/NOT/XOR; E1 klein4_mask subset E2 boolean); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'threshold','weights':[w0,w1,...],'threshold':theta}) is a \302\247131 THRESHOLD gene (E4 \342\200\224 a linear-threshold / perceptron gate: SIGNED integer weight per condition + an integer threshold; expresses iff Sum weight_i*bit_i(cell_state) >= theta; SIGNED weights = inhibitory inputs; GENUINELY DISTINCT from E2 \342\200\224 a MAJORITY-of-n / weighted dose-sum needs an exponential DNF, so linear-threshold subset-not small-DNF); a 3-tuple with a DICT (gene_label, gene_leaves, {'gate':'graded','weights':[w0,w1,...],'denom':D}) is a \302\247132 GRADED gene (E3 \342\200\224 the ORTHOGONAL analog LEVEL axis / dose-response: a SIGNED integer level-weight per condition + a POSITIVE denominator; gene_express_levels reports the reduced exact-rational LEVEL Sum weight_i*bit_i(cell_state) / D clamped to [0,1]); a 2-tuple is UNREGULATED (always expressed)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_157[] = {
     { "orientation", "int", 1, "the global 4-way orientation \342\200\224 a Klein-4 sector 0..3 (the which-way)" },
@@ -976,10 +981,12 @@ static const srmech_tool_param_t ts_params_159[] = {
     { "label", "str", 0, "keyword-only; the chromosome label for the diploid telomere cap (default 'diploid')" },
     { "orientation", "Optional[int]", 0, "keyword-only; the which-template mark + global orientation, a Klein-4 sector 0..3 (default the kernel's content-address folded to a sector)" },
     { "repeats", "int", 0, "keyword-only; the centromere alpha-satellite repeat-array size (default 15)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_160[] = {
     { "strand", "Sequence[HV]", 1, "a diploid chromosome strand (from diploid())" },
     { "coupling", "HV", 1, "the held invariant the copies were coupled through" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_161[] = {
     { "strand", "Sequence[HV]", 1, "an in-memory chromosome / genome strand (from chromosome / mint / diploid / genome)" },
@@ -1007,6 +1014,7 @@ static const srmech_tool_param_t ts_params_165[] = {
     { "kernels", "dict", 0, "{label: leaves} mapping OR [(label, leaves), ...] sequence (insertion order = strand order); pass kernels OR chromosomes" },
     { "coupling", "HV", 1, "the held invariant every turn is coupled through" },
     { "chromosomes", "Sequence[tuple]", 0, "keyword-only; the multi-gene form [(label, [(gene_label, gene_leaves), ...]), ...] \342\200\224 defers to plasmid() (all plasmids); pass kernels OR chromosomes" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_166[] = {
     { "kernels", "dict", 1, "the mint() input \342\200\224 {label: leaves} mapping OR [(label, leaves), ...] sequence" },
@@ -1029,30 +1037,36 @@ static const srmech_tool_param_t ts_params_170[] = {
     { "strand", "Sequence[HV]", 1, "a telomere-capped chromosome strand (from chromosome)" },
     { "coupling", "HV", 1, "the held invariant the turns were coupled through" },
     { "telomere", "HV", 1, "the telomere cap delimiting the chromosome (skipped, not decoded)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_171[] = {
     { "strand", "Sequence[HV]", 1, "a multi-gene chromosome strand (from chromosome(genes=...))" },
     { "coupling", "HV", 1, "the held invariant the gene turns were coupled through" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_172[] = {
     { "kernels", "dict", 1, "{label: leaves} \342\200\224 each kernel's leaves are Klein-4 vectors (one tome each)" },
     { "coupling", "HV", 1, "the held invariant every turn of every chromosome is coupled through" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_173[] = {
     { "kernels", "dict", 0, "{label: leaves} \342\200\224 each kernel's leaves are Klein-4 vectors (one tome each); pass kernels OR chromosomes" },
     { "coupling", "HV", 1, "the held invariant every turn of every chromosome is coupled through" },
     { "chromosomes", "Sequence[tuple]", 0, "keyword-only; the multi-gene form [(label, [(gene_label, gene_leaves), ...]), ...] (pass kernels OR chromosomes)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_174[] = {
     { "strand", "Sequence[HV]", 1, "a multi-kernel genome strand (from genome)" },
     { "coupling", "HV", 1, "the held invariant the turns were coupled through" },
     { "labels", "list", 1, "the chromosome labels whose telomere caps partition the strand" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_175[] = {
     { "strand", "Sequence[HV]", 1, "the flat genome strand to persist (from genome)" },
     { "path", "str", 1, "the genome DIRECTORY to write (created if absent; gets manifest.json + turns.bin)" },
     { "coupling", "HV", 1, "the held invariant every turn is coupled through (content-addressed into the manifest)" },
     { "labels", "list", 0, "optional, back-compat; when given VALIDATES the scanned chromosome set (labels are discovered inline)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_176[] = {
     { "path", "str", 1, "the genome DIRECTORY to upgrade in place (its manifest.json is re-stamped to v16; turns.bin is byte-untouched for a klein4 genome)" },
@@ -1134,6 +1148,7 @@ static const srmech_tool_param_t ts_params_191[] = {
 static const srmech_tool_param_t ts_params_192[] = {
     { "strand_or_path", "list|str", 1, "the in-memory kernel_pack strand, OR a genome directory written by genome_save of one" },
     { "coupling", "HV", 0, "the coupling invariant (optional; resolved from a present manifest, else reconstructed as the all-ones default from the header's leaf_dim)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_193[] = {
     { "path", "str", 1, "the genome directory written by genome_save (grown in O(1))" },
@@ -1152,11 +1167,13 @@ static const srmech_tool_param_t ts_params_194[] = {
     { "leaf_dim", "int", 1, "keyword-only; the leaf (tome) width to chunk into" },
     { "label", "str", 1, "keyword-only; the chromosome label" },
     { "coupling", "HV", 1, "keyword-only; the coupling invariant (width leaf_dim)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_195[] = {
     { "chroms", "list|str", 1, "the graph_to_kernel strand, OR a genome directory a genome_save of one wrote" },
     { "coupling", "HV", 1, "the coupling invariant (as passed to graph_to_kernel; resolved from a manifest for a path)" },
     { "n_syms", "int", 1, "the true symbol count graph_to_kernel returned (trims the leaf-dim padding)" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_196[] = {
     { "docs", "list", 1, "the corpus \342\200\224 an iterable of documents, each a token sequence (one section per document, D1)" },
@@ -1203,6 +1220,7 @@ static const srmech_tool_param_t ts_params_201[] = {
     { "centromere_at", "Optional[int]", 0, "keyword-only; the arm-split index in DATA turns, 0..n_turns (default the metacentric midpoint n_turns//2 \342\200\224 position IS the p:q arm-ratio)" },
     { "repeats", "int", 0, "keyword-only; the alpha-satellite repeat-array size R (default 15; uint8 1..255)" },
     { "handle", "str", 0, "keyword-only; the inline CENP-A epigenetic handle (default 'cen')" },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_202[] = {
     { "n", "int", 1, "node count (nodes are 0..n-1)" },
@@ -1226,6 +1244,7 @@ static const srmech_tool_param_t ts_params_203[] = {
     { "n_bins", "int", 0, "keyword-only; forwarded to genome_partition (default 16)" },
     { "centromere_at", "int", 0, "keyword-only; the nuclear arm-split forwarded to mint_strand (default the metacentric midpoint)" },
     { "attestation", "dict", 0, "keyword-only; when path is given, a caller MPR SOURCE-attestation forwarded to genome_save whose fields OVERRIDE the srmech default written into manifest.json (override-only over the five source-identity fields source_doi / source_url / license / retrieved_at / response_sha256; the four ENCODER-identity fields parser_version / parser_rule_hash / collector_descriptor_path / collector_descriptor_hash stay srmech-owned). Records an attested corpus genome's REAL source (e.g. a simplewiki dump under CC-BY-SA-4.0) genome-natively \342\200\224 the genome directory is the SSoT, no sidecar files (\302\24741/F1300), so the manifest is the only legitimate home for it. A malformed override (non-dict / unknown key / value that makes the merged block an invalid MPR) RAISES before any bytes hit disk; omitted -> the srmech default is written unchanged." },
+    { "element_type", "str", 0, "keyword-only; the CARRIER rung the turns are coupled through \342\200\224 a CAPABILITY LADDER, not a size knob: 'klein4' (0, the DEFAULT; V4, abelian \342\200\224 every turn composes and none carries a which-way), 'q8' (1; the only rung where a NON-COMMUTING turn still folds), 'octonion' (2; addressing reaches e4..e7, but turn composition degrades to abelian-only). The int code works too. Read the measured verdicts + the evidence each was derived from in introspect.describe()['limits']['element_types']." },
 };
 static const srmech_tool_param_t ts_params_204[] = {
     { "embedding", "list", 1, "the backbone vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational \342\200\224 floats rejected)" },
@@ -4706,7 +4725,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Couple one helix turn through coupling \342\200\224 the genome's turn operation (F713). The turn is bound to the_one (the held invariant) by the REVERSIBLE Klein-4 bind (V4=(F2)^2 XOR, so quad_turn(quad_turn(t, one), one) == t): the duality held WITHOUT collapse, numpy-free. coupling is the shared invariant in every turn's coupling, so a chromosome navigates across its turns through coupling and recovers any turn by re-binding. Each turn sits in the native 4-sector biaxial '+' (cascade.parallel_sector_dispatch, CAP=4) \342\200\224 per F712 the 4-way is ONE chirality level, the deeper leaf-tree is base-4 radix addressing. Class M (bind) composed with Class C (the Klein-4 chirality). CAPABILITY (rc339 / #967): this MCP surface is the KLEIN-4 rung of the genome's element_type ladder \342\200\224 V4 is ABELIAN, so every turn here composes and none of them carries a which-way. The library kwarg element_type selects the rung: klein4=0 (abelian), q8=1 (the ONLY rung where a NON-COMMUTING turn still folds \342\200\224 24 such pairs measured), octonion=2 (addressing reaches e4..e7 and composition is still zero-divisor-free, but turn composition DEGRADES TO ABELIAN-ONLY: the turn-composing set and the commuting set are the same 88 pairs). See introspect.describe()['limits'].",
-        ts_params_144, 2u,
+        ts_params_144, 3u,
         "HV",
         "the coupled turn (re-apply quad_turn with the same coupling to recover turn)",
         1,
@@ -4770,7 +4789,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         (const char *)ts_lstr_0,
-        ts_params_148, 3u,
+        ts_params_148, 4u,
         "list",
         "the EXPRESSED subset [(gene_label:str, gene_leaves:list[HV]), ...] in strand order (plain genes always; regulatory genes iff (cell_state & activator) == activator AND (cell_state & repressor) == 0)",
         1,
@@ -4786,7 +4805,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "GRADED / ANALOG gene expression LEVEL (UPSTREAM \302\247132 / #732 \342\200\224 the E3 rung) \342\200\224 the ORTHOGONAL companion to gene_express, a READ-TIME FILTER over a multi-gene chromosome. Where gene_express decides IF each gene expresses (a BINARY set, dispatching on each gene's E1/E2/E4 gate-type) and returns [(gene_label, gene_leaves), ...], this op returns each EXPRESSED gene WITH its exact-rational expression LEVEL [(gene_label, gene_leaves, (num, den)), ...] \342\200\224 HOW MUCH it expresses (real biology is quantitative/analog, not just on/off). The LEVEL axis is ORTHOGONAL to the gate-type family \342\200\224 it composes with EVERY gene kind: a BINARY gene (plain 0x47 / klein4-mask 0x67 / boolean 0x62 / threshold 0x77) is the DEGENERATE {0,1} case, included at LEVEL exact-rational 1 = (1,1) iff its gate PASSES (the SAME \302\247128/\302\247130/\302\247131 decision gene_express uses) and ABSENT otherwise; a GRADED gene (a NEW 0x64 cap, \302\247132) carries a per-condition SIGNED integer LEVEL-WEIGHT vector + a POSITIVE integer DENOMINATOR, and its LEVEL is the reduced exact rational Sum_i (level_weight_i * bit_i(cell_state)) / denom CLAMPED to [0,1] (a Class-K sign-branch, never abs \342\200\224 raw dose <=0 -> 0, raw dose >= denom -> 1, else the reduced in-range fraction; the fraction reduced by the Class-I gcd), included iff its LEVEL > 0 (the dose-response IS the gate \342\200\224 a zero dose = off). So every gene gene_express returns appears here at level 1, and vice versa. NEW 0x64 cap layout: [0x64] + label + NUL + gate_type(uint8=3) + n_weights(uint16 BE) + denom(uint64 BE POSITIVE) + n_weights x level_weight(int64 BE signed) + NUL-pad; a NEW block KIND -> genome format v10 -> v11. THE THEOREM (op(x)operand, refined to a QUANTITY): the cell_state OPERAND modulates the LEVEL the gene_express_levels operator reports \342\200\224 SAME DNA, DIFFERENT cell_state -> DIFFERENT expression LEVELS (not just a different on/off subset); a morphogen at a graded concentration drives a graded transcriptional output. NEVER MUTATES THE STRAND (a READ \342\200\224 the strand is byte-identical after). Returns the expressed subset [(gene_label, gene_leaves, (num, den)), ...] in strand order \342\200\224 (num, den) is the reduced exact-rational level (a JSON-native 2-tuple of ints); gene_leaves uncoupled through coupling. Class-N exact rational (no float, never abs); Class-I gcd-reduce; Class-K clamp. Native-dispatched (byte-identical C peer srmech_genome_gene_express_levels). Attests graded / dose-response gene expression as ONE facet (Alberts et al., Molecular Biology of the Cell 4th ed., How Genetic Switches Work -> Gene Activator Proteins Work Synergistically, NCBI NBK26872 \342\200\224 the joint effect of several activators on the transcription RATE is not merely the sum but the product: a graded, analog modulation of the expression level, not a binary switch).",
-        ts_params_149, 3u,
+        ts_params_149, 4u,
         "list",
         "the EXPRESSED subset [(gene_label:str, gene_leaves:list[HV], level:(num:int, den:int)), ...] in strand order \342\200\224 a BINARY gene at level (1,1) iff its gate passes; a GRADED gene at its reduced dose-response rational in (0,1] (absent when the level is 0)",
         1,
@@ -4802,7 +4821,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "DEMAND-LOAD gene-expression PLAN (UPSTREAM \302\247134 / #1273, siona green-light \342\200\224 the #736 probe made shippable) \342\200\224 the OFFSET-ONLY load plan that computes the EXPRESSED set + each expressed unit's ON-DISK byte-range WITHOUT reading content (never decodes a leaf), so a partial-load reader (genome_genes_expressed) can SEEK only the expressed byte-ranges. Returns [(label, byte_offset, byte_len), ...] for the EXPRESSED genes / regions. TWO variants, dispatched on the input: PATH variant (variant b \342\200\224 the PRIMARY demand-load case): strand_or_path is a genome DIRECTORY (with the rc115 v4 manifest). For each chromosome REGION the plan seeks to the manifest byte_offset and reads ONLY the region's head GATE cap (the SECOND block, one leaf_dim-byte cap right after the CHROM cap), evaluates its inline gate (E1 0x67 / E2 0x62 / E4 0x77 / E3 0x64 \342\200\224 the delivered gates) against cell_state, and includes the EXPRESSED regions' (chromosome_label, byte_offset, byte_len). It MUST NOT read the region body \342\200\224 bounded RAM AND bounded I/O (bytes-touched << full body). A region with no head gene cap (a single-kernel chromosome, byte_len < 2*leaf_dim) is not a gated community and is skipped. This is the siona community=chromosome layout: the per-chromosome head gate IS the community gate. Mixed E1/E2/E4/E3 gate-types across chromosomes are the delivered gates \342\200\224 the plan gates by the inline mask regardless of kind. \302\24798/rc269 chromatin OUTER gate: if the head slot is a CHROMATIN cap (0x48), it gates the whole region \342\200\224 a CONDENSED (silenced, accessibility numerator 0) region is SKIPPED at plan time having touched ONLY the chromatin cap (its gene gate cap is NEVER read \342\200\224 even fewer bytes than the \302\247134 read); an OPEN (accessible) region advances one slot and reads the gene gate as before; a chromatin-FREE region is byte-for-byte the rc135 read. STRAND variant (variant a \342\200\224 the in-memory fallback): strand_or_path is an in-memory strand. The plan SKELETON-SCANS it \342\200\224 walking blocks, computing each block's ON-DISK byte span (a cap is leaf_dim bytes; a data turn is the \302\24755/v3 bit-packed 1 + ceil(leaf_dim/4) bytes \342\200\224 the payload is SEEKED PAST, never decoded), splitting on the inline GENE caps, and delimiting each EXPRESSED gene's byte-range (gene_label, byte_offset, byte_len) in the on-disk layout genome_save would write. The expressed-label set equals gene_express's on the same strand + cell_state. A READ \342\200\224 the strand / file is byte-identical after. cell_state is a non-negative exact int (Class-I bitwise; no float, never abs). The PATH variant is native-dispatched (byte-identical C peer srmech_genome_gene_express_plan reads only the head gate caps + emits the same offset plan); pure Python is the complete alternative. NO format addition \342\200\224 the ops read the existing caps / manifest (genome format v11 stays). Attests demand-loaded differential gene expression \342\200\224 bounded RAM WITHOUT bounded availability, the epigenetic on-demand-transcription facet (Alberts et al., Molecular Biology of the Cell 4th ed., How Genetic Switches Work, NCBI NBK26872: different cell types express different gene selections; the demand-load reads only the promoter / regulatory cap to decide, not the gene body).",
-        ts_params_150, 3u,
+        ts_params_150, 4u,
         "list",
         "the offset-only load plan [(label:str, byte_offset:int, byte_len:int), ...] for the EXPRESSED genes / regions \342\200\224 PATH variant: per expressed chromosome REGION; STRAND variant: per expressed GENE. NEVER decodes / returns leaf content.",
         1,
@@ -4898,7 +4917,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Pack a kernel \342\200\224 or SEVERAL genes \342\200\224 into a telomere-capped strand (F713/F715/F730). Single kernel (unchanged): pass leaves (Klein-4 vectors, one tome each); they become a helix of quad-turns coupled through coupling, led by a telomere cap from label; recover with recall. Several genes (F730/S43): pass genes=[(gene_label, gene_leaves), ...] instead \342\200\224 each gene's leaves are framed by a tlv gene-header (the cheaper internal delimiter, label recoverable via tlv_unpack) inside ONE telomere-capped chromosome; recover with genes(). Pass exactly one of leaves or genes; coupling is always required. Class A (cap) + Class B (gene frame) + Class M (bind) + Class C (the Klein-4 chirality).",
-        ts_params_156, 4u,
+        ts_params_156, 5u,
         "list",
         "the strand: [telomere_cap, coupled turn, ...] (single-kernel) or [telomere_cap, gene_header, coupled turn, ..., gene_header, ...] (multi-gene)",
         1,
@@ -4946,7 +4965,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Build a DIPLOID chromosome (\302\24795b / #1407 / F1244) \342\200\224 biology's diploid pair, the erasure/break specialist. Stores TWO homologous copies of the kernel (maternal | paternal) split by an interior centromere whose orientation is the which-template MARK: [diploid_telomere(label), copyA turns\342\200\246, centromere(orientation), copyB turns\342\200\246], copyA == copyB. 2 copies + 1 mark = 3 = the k=3 triality (F291). A deterministic content-addressed store writes identical homologs; the redundancy is READ-time EC (recover_diploid): on a DETECTABLE loss (an erased leaf \342\200\224 a double-strand break) it fills from the intact homolog, reaching triality-level fidelity at 2x not 3x (measured R-RBS-LM-DIPLOID-EC); on a substitution disagreement the centromere mark is the tiebreak. This is the erasure specialist of the k=3 coherency tower (triality is the substitution specialist). Marker 0x44 'D' opens the chromosome like the CHROM cap. Native-dispatched (byte-identical C peer srmech_genome_diploid). Class A (content-address) + Class C (orientation) + Class K (the EC read).",
-        ts_params_159, 5u,
+        ts_params_159, 6u,
         "list",
         "the diploid strand: [diploid_telomere, copyA turns\342\200\246, centromere, copyB turns\342\200\246] (2*len(leaves)+2 blocks), recovered with recover_diploid",
         1,
@@ -4962,7 +4981,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Recover a DIPLOID chromosome's content via the two-copy EC (\302\24795b) \342\200\224 the inverse of diploid. Splits the strand at its interior centromere into copyA | copyB (homologs) and error-corrects per leaf: both agree -> use it; exactly one ERASED (an all-zero leaf \342\200\224 a detectable double-strand break) -> fill from the intact homolog (the erasure specialist, 2x not 3x); both present but DISAGREE (a substitution) -> trust the centromere which-template mark (parity selects copyA or copyB). Re-binds each surviving turn through coupling. Returns the recovered leaves (half the raw turn count). Raises ValueError if the strand is not a diploid chromosome (no leading 0x44) or is malformed (missing centromere / unequal homolog arms). NEVER MUTATES (a READ). Native-dispatched (byte-identical C peer srmech_genome_recover_diploid).",
-        ts_params_160, 2u,
+        ts_params_160, 3u,
         "list",
         "the recovered kernel leaves (Klein-4 vectors), in order \342\200\224 half the raw diploid turn count",
         1,
@@ -5042,7 +5061,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "The explicit alias of genome() \342\200\224 the biology-aware tooling-picks build (rc260 rename / \302\24795c / #1407 / F1244). BYTE-IDENTICAL to genome(): per kernel the attested encode_shape criterion (F715, no magic number) decides plasmid-vs-nuclear \342\200\224 a plasmid-scale kernel (tome/mobius, <=4 leaves) stays a Tier-1 PLASMID chromosome (the same shape plasmid() builds); a eukaryotic-chromosome-scale kernel (quad_strand, >=5 leaves) is MINTED as a Tier-2 NUCLEAR chromosome with an interior centromere carrying its global orientation (content-address folded to a Klein-4 sector, sha256(raw leaves)[0] & 3). RC260 NAMING: genome() is the umbrella noun (default smart constructor); mint() is the explicit 'structured build' name for the SAME behaviour (the mint-vs-append vocabulary); plasmid() is the pure all-plasmid builder. See the picks first with mint_plan. The chromosomes= multi-gene form defers to plasmid() (all plasmids). Native-dispatched (byte-identical C peer srmech_genome_mint \342\200\224 a C-only host mints end-to-end). Class A (content-address) + Class C (orientation) + composition of chromosome/centromere. \302\247101 (rc275): an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) fires a per-kernel MINTING heartbeat + graceful abort \342\200\224 a truthy return CANCELS and returns the VALID PARTIAL strand (the whole chromosomes minted so far); on the native path via the srmech_genome_mint_progress ctypes trampoline (byte-parity with the pure loop).",
-        ts_params_165, 3u,
+        ts_params_165, 4u,
         "list",
         "the genome strand (a flat list of Klein-4 vectors: per kernel a plasmid chromosome or a centromere-minted nuclear one), recovered with partition",
         1,
@@ -5122,7 +5141,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Recover a kernel's leaves from a telomere-capped chromosome strand (F713/F715) \342\200\224 the exact inverse of chromosome. Walk the strand; skip every element equal to the telomere cap (the non-data delimiter) and re-bind the_one (the reversible quad_turn again) on each coupled data turn to recover the original leaf. recall(chromosome(leaves, one, label=L), one, telomere(L, len(one))) == leaves. Matching the cap by VALUE (not position) is what lets one recall reach into a multi-chromosome genome strand.",
-        ts_params_170, 3u,
+        ts_params_170, 4u,
         "list",
         "the recovered kernel leaves (Klein-4 vectors), in order",
         1,
@@ -5138,7 +5157,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Recover [(gene_label, gene_leaves), ...] from a multi-gene chromosome (F730/S43) \342\200\224 the inverse of chromosome(genes=..., coupling). Walk the strand: a GENE_FRAME_TAG header (first byte > 3, so never a Klein-4 turn whose bytes are all <= 3) opens a new gene whose label is read back with tlv_unpack; each coupled data turn until the next header (or the end) is re-bound through the_one (the reversible quad_turn) to recover that gene's leaf. Leading element(s) before the first gene header are the chromosome's telomere cap (a delimiter, not data) and are skipped \342\200\224 so genes needs only the strand + coupling, no cap argument. Use genes (not recall) on a multi-gene chromosome.",
-        ts_params_171, 2u,
+        ts_params_171, 3u,
         "list",
         "[(gene_label:str, gene_leaves:list[HV]), ...] in strand order",
         1,
@@ -5154,7 +5173,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Build a genome \342\200\224 the BIOLOGY-AWARE UMBRELLA that lets the tooling PICK each chromosome's shape by modeling biology (rc260 rename, \302\24795.2 / #1407). The umbrella noun + default smart constructor: per kernel the attested encode_shape criterion (F715, no magic number) decides plasmid-vs-nuclear \342\200\224 a plasmid-scale kernel (tome/mobius, <=4 leaves) stays a Tier-1 PLASMID chromosome (no centromere), a eukaryotic-chromosome-scale kernel (quad_strand, >=5 leaves) is MINTED as a Tier-2 NUCLEAR chromosome with an interior centromere carrying its global orientation (content-address folded to a sector). A genome strand IS a strand (list of Klein-4 vectors); recover with partition (the reader is format-agnostic). RC260 RENAME (breaking): genome was the pure all-plasmid builder \342\200\224 that is now plasmid(); mint() is the explicit alias of this umbrella. kernels is a dict {label: leaves} or (label, leaves) pairs. Composes chromosome + centromere (Class A + Class C + Class M).",
-        ts_params_172, 2u,
+        ts_params_172, 3u,
         "list",
         "the flat genome strand: per kernel a plasmid chromosome or a centromere-minted nuclear one, recovered with partition",
         1,
@@ -5170,7 +5189,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Build a genome of pure PLASMID chromosomes \342\200\224 biology's plasmid (F715; the rc260 rename of the old all-plasmid genome, \302\24795.2 / #1407). The explicit 'I want plain plasmids' builder: each (label, leaves) kernel becomes a telomere-capped Tier-1 plasmid chromosome (append-friendly, NO centromere \342\200\224 biology's small, appendable plasmid), all concatenated into one self-describing strand; recover with partition. genome() is the biology-aware umbrella that PICKS plasmid-vs-nuclear per kernel; mint() is its explicit alias; plasmid() is the pure-plasmid constructor. kernels is a dict {label: leaves} or (label, leaves) pairs (insertion order = strand order). Native-dispatched (byte-identical C peer srmech_genome_genome). Composes chromosome (Class A cap + Class M coupling).",
-        ts_params_173, 3u,
+        ts_params_173, 4u,
         "list",
         "the flat genome strand: concatenated [telomere cap, turns...] per plasmid chromosome",
         1,
@@ -5186,7 +5205,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Recover every kernel from a multi-kernel genome strand \342\200\224 the inverse of genome (F715). Walk the strand; each element equal to one of labels' telomere caps starts a new chromosome partition, and the coupled turns until the next cap are that kernel's leaves (re-bound through coupling \342\200\224 reversible quad_turn). Returns {label: leaves}. partition knows ALL the caps, so (unlike a single-cap recall) it does not mistake one chromosome's cap for another's data: partition(genome({a:A,b:B}, one), one, [a,b]) == {a:A, b:B}.",
-        ts_params_174, 3u,
+        ts_params_174, 4u,
         "dict",
         "{label: leaves} \342\200\224 each kernel's recovered Klein-4 leaves, in order",
         1,
@@ -5202,7 +5221,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Persist a genome strand to a directory (UPSTREAM \302\24741 / \302\24744 / \302\24755 / \302\24756). SCANS the strand for its inline CHROM caps (\302\24744 \342\200\224 the strand self-describes; chromosome labels are recovered inline), writes a SELF-DESCRIBING body to path/turns.bin (\302\24755/v3: each block's FIRST byte keys its kind + width \342\200\224 a leaf_dim-byte CHROM/GENE cap, or a BIT-PACKED data turn of 1+ceil(leaf_dim/4) bytes carrying 4 Klein-4 symbols per byte; legacy v2 byte-per-symbol turns stay readable in the same walk \342\200\224 no length prefixes), and writes a DERIVED MPR-attested catalog to path/manifest.json (\302\24756/v4: format_version=4, leaf_dim, n_turns = strand block count, coupling hash+hex, a regions array {byte_offset, byte_len, sha256} one per chromosome \342\200\224 the full-region digest, == the chromosome's .chr/AMSC provenance unit \342\200\224 and body_sha256 = the REGION CHAIN Hn=sha256(Hn-1||region_n) that an append maintains in O(1); plus per-chromosome cap_sha256 / leaf_count / byte_offset / byte_len). The strand is the SSoT; the manifest is an optional .fai-style cache, rebuildable by scanning the body (the chain is body-derivable). v2/v3 manifests stay READ-compatible. Multi-gene chromosomes carry their gene boundaries INLINE as GENE caps (no gene-index sidecar). coupling is content-addressed into the manifest so a load re-anchors without re-deriving it. Returns the manifest data dict. numpy-free; hashes via sha256_bytes.",
-        ts_params_175, 4u,
+        ts_params_175, 5u,
         "dict",
         "the manifest data {format_version=4, leaf_dim, n_turns, coupling, body_sha256 (region chain), regions, chromosomes}",
         1,
@@ -5474,7 +5493,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Recover the EXACT flat Klein-4 kernel from a \302\24760 strand or genome path (UPSTREAM \302\24760 / format v5) \342\200\224 the inverse of kernel_pack. strand_or_path is either the in-memory strand kernel_pack returned, or a genome DIRECTORY a genome_save of one wrote. Reads the \302\24760 KERNEL HEADER (marker 0x4B) for the TRUE length D, recalls the coupled leaves (skipping every cap AND the header), flattens them, and TRIMS to D \342\200\224 so the returned list[int] equals the exact packed kernel of ANY dimension, with NO caller-supplied length (W1 closed: a D=1000 kernel returns 1000 symbols, not the 1024 padded storage). coupling is optional: for a genome PATH with a present manifest it is resolved from the manifest cache; otherwise it defaults to the deterministic all-ones invariant reconstructed from the header's recorded leaf_dim (matching kernel_pack). BACK-COMPAT (the rc114 dual-read pattern): a strand / body with NO 0x4B header (any pre-rc121 genome) reads as element_type=klein4 with D = leaf_count * leaf_dim \342\200\224 no trim, no migration. numpy-free; no abs().",
-        ts_params_192, 2u,
+        ts_params_192, 3u,
         "list",
         "the exact flat Klein-4 kernel (list[int] of the TRUE length D \342\200\224 trimmed of the final-leaf zero-padding)",
         1,
@@ -5506,7 +5525,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Serialise a sparse SIGNED INTEGER graph (the directed Class-L Laplacian) into a packed genome chromosome + its true symbol count (#1390 item 2). vocab_size + edges [(i,j),...] + int weights[metric] + optional signed charges[direction] + optional node_ids label table + optional extras metadata are folded into a SELF-DESCRIBING (count-headered) flat Klein-4 symbol stream \342\200\224 each int base-4 digits behind a 2-symbol length header (<=15 digits = 30 bits; Class-K zig-zag sign on the charge) \342\200\224 then kernel_pack'd into leaf_dim-wide leaves. Returns (strand, n_syms): persist the strand with genome_save, pass n_syms to kernel_to_graph. The domain-free 'store a directed graph as a genome' primitive #231 needs; undirected (charges=None) / unlabeled (node_ids=None) / metadata-free (extras=()) all round-trip. Klein-4 is ONLY the 2-bit on-disk alphabet (no bind/bundle HV stored \342\200\224 F1221 disk rule). numpy-free; no abs() (Class-K zig-zag); byte-identical C peer srmech_graph_kernel_encode.",
-        ts_params_194, 9u,
+        ts_params_194, 10u,
         "tuple",
         "(strand, n_syms) \342\200\224 the packed self-describing strand + its true symbol count (pass both to genome_save / kernel_to_graph)",
         1,
@@ -5522,7 +5541,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "Recover the directed signed graph from a packed chromosome (or genome path) + its n_syms (#1390 item 2) \342\200\224 the inverse of graph_to_kernel. kernel_unpack's the Klein-4 leaves, trims the leaf-dim padding to n_syms, and decodes the self-describing (count-headered) base-4 payload back into {vocab_size, edges, weights, charges, node_ids, extras} BYTE-EXACT (Class-K un-zig-zag on the charge). coupling is the coupling invariant graph_to_kernel packed with (resolved from a manifest for a genome path). numpy-free; no abs(); byte-identical C peer srmech_graph_kernel_decode.",
-        ts_params_195, 3u,
+        ts_params_195, 4u,
         "dict",
         "{vocab_size, edges, weights, charges, node_ids, extras} \342\200\224 the exact directed signed graph",
         1,
@@ -5618,7 +5637,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "MINT an ALREADY-PACKED strand \342\200\224 splice a \302\24795a interior CENTROMERE (0x58) into it at the p:q arm-split, turning a Tier-1 PLASMID into a Tier-2 NUCLEAR chromosome (\302\247100 GAP 1 / PR#687 F1249). mint() mints AT BUILD TIME from raw leaves; mint_strand mints a strand that is ALREADY PACKED \342\200\224 a kernel_pack / graph_to_kernel strand (the corpus directed-graph store), any chromosome, or one nuclear community \342\200\224 WITHOUT re-minting it from leaves. This is the capability \302\247100 GAP 1 named as missing: chromosome(packed_strand, centromere=\342\200\246) REJECTS an already-packed strand (it treats the strand as raw leaves and quad_turn binds the 256-sector telomere cap -> 'klein-4 elements must be in {0,1,2,3}'), and there was no centromere= hook on graph_to_kernel \342\200\224 so a directed-graph chromosome could not be given a p:q centromere (its genome censused {plasmid:2, nuclear:0}). The centromere is an INTERIOR cap; recall / kernel_unpack / kernel_to_graph ALL skip caps (\302\24744), so minting is TRANSPARENT to the payload \342\200\224 the recovered kernel / graph is BYTE-IDENTICAL with or without the centromere. centromere_at is the arm-split in DATA TURNS (default the metacentric midpoint n_turns//2, matching chromosome()'s mint default \342\200\224 position IS the p:q arm-ratio: a 30-turn strand mints (15,15), a 9-turn strand (4,5)); orientation is the global 4-way which-way 0..3 (default sha256(recovered leaves)[0]&3 \342\200\224 the SAME Class-A->Class-C rule mint() assigns via _mint_orientation, applied to the strand's own recovered leaves). rc277 (#891-peer / G5) DISPATCHES the WHOLE op \342\200\224 data-turn scan \342\206\222 content-address orientation (recall \342\206\222 sha256&3) \342\206\222 centromere cap \342\206\222 single-block splice \342\200\224 to the byte-identical C peer srmech_genome_mint_strand when HAS_NATIVE, so a bare-C host PROMOTES a strand end-to-end via that ONE call (closing the rc270 mint_strand C-host GAP: the cap-writer srmech_genome_centromere had a C peer, its glue did not). The pure path (the native-dispatched centromere cap-writer + a block splice, like integrate \342\200\224 self-describing blocks concatenated, no re-coupling) is the numpy-free fallback + parity oracle, so the minted strand is byte-identical whether native or pure. After minting, genome_save + genome_census report the chromosome as 'nuclear' (rc271 F1251; was 'minted'). Raises if the strand is empty, does not OPEN with a chromosome-boundary cap (pass a packed strand, NOT raw leaves), or ALREADY carries a centromere. Foundation for \302\247100 GAP 2 (mint each nuclear community) + the streaming reader (a nuclear chromosome IS the eukaryotic/nuclear DNA). Class A (content-address orientation) + Class C (which-way) + Class K (position = p:q). numpy-free; no abs(). \302\247101 (rc275): an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) fires a single pre-op MINTING gate \342\200\224 a truthy return DECLINES cleanly and returns the valid UNMODIFIED pre-mint strand (a splice has no meaningful partial).",
-        ts_params_201, 6u,
+        ts_params_201, 7u,
         "list",
         "the MINTED strand \342\200\224 the input strand with one interior centromere cap (0x58) spliced at the p:q arm-split; recover the orientation + arm-ratio with centromere_of, census as 'nuclear' after genome_save",
         1,
@@ -5650,7 +5669,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech",
         "genome",
         "BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN STRUCTURE (\302\247100 GAP 2 / PR#687 / F1250 / F1251) \342\200\224 'hand a graph, get nuclear + plasmid from its structure'. Runs genome_partition, then for EACH classified group packs its INDUCED sub-graph (graph_to_kernel) into a chromosome: a NUCLEAR community is MINTED (mint_strand splices a 0x58 centromere -> a Tier-2 nuclear chromosome, the stable clonal core); a PLASMID community is KEPT as a Tier-1 plasmid chromosome (append-only, no centromere -> the mobile accessory). All chromosomes concatenate into one self-describing strand (each opens with its kernel-telomere boundary cap). If path is given the strand is persisted (genome_save) and censused \342\200\224 genome_census reports the MEASURED {nuclear:N, plasmid:M}. BYTE-EXACT per community: kernel_to_graph on any chromosome (with its n_syms) recovers that community's induced sub-graph exactly (the interior centromere is skipped on read, \302\24744). A cross-community bridge edge is not in any single induced sub-graph \342\200\224 it is represented by the bridge node's PLASMID classification. Returns {strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?}. Composes genome_partition + the C-dispatched graph_to_kernel + mint_strand + genome_save; numpy-free, no abs(). Class L (partition) + Class A/C/K (the mint). \302\247101 (rc275): the return carries a status key ('ok' / 'cancelled'); an in-process progress= callable (Python-only kwarg, NOT an MCP wire param) threads the heartbeat through the partition (PARTITIONING) AND the per-group mint loop (MINTING) \342\200\224 a truthy return CANCELS and returns the whole chromosomes minted so far (a valid shorter genome) WITHOUT genome_save (nothing half-written hits disk). \302\247113 (rc304, #1466): a caller attestation= (a dict) OVERRIDES the srmech-default source written into manifest.json when path is given \342\200\224 override-only over the five MPR SOURCE-identity fields (source_doi / source_url / license / retrieved_at / response_sha256), the four ENCODER fields stay srmech-owned \342\200\224 so an attested corpus genome (e.g. a simplewiki dump whose true source is https://dumps.wikimedia.org/simplewiki/latest/ under CC-BY-SA-4.0) records its REAL provenance genome-natively, in the only legitimate place (the directory is the SSoT, no sidecar files). The default is byte-identical to before when attestation is omitted; a malformed override raises before any bytes hit disk.",
-        ts_params_203, 11u,
+        ts_params_203, 12u,
         "dict",
         "{strand, chromosomes:[{label,type,community,n_syms,nodes}], partition, counts:{nuclear,plasmid}, path?, census?} \342\200\224 genome_census reports the measured {nuclear, plasmid} when path is given",
         1,
