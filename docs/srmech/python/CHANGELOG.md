@@ -2,6 +2,8 @@
 
 All notable changes to this package will be documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this package uses semantic versioning.
 
+**Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR. The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`.
+
 ## [Unreleased]
 
 _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffer (mmap, for >1k events/sec). It stays deferred until an op proves the need — no consumer in the RBS-LM pipeline yet exceeds the Tier-1 flush-per-write rate. (The C-side `srmech_progress_cb_t` callback ABI — the OTHER deferred half — shipped in rc242 below.)_
@@ -10,6 +12,43 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
+
+## [0.9.0rc340]
+
+_**The carrier could be chosen when BUILDING a chromosome but not through the UMBRELLA that wraps it — and over the wire it could not be chosen at all (#T965, the coverage half; rc339 shipped the ontology half).**_ rc339 published *what each `element_type` rung can do*. This rc answers the other question: *which ops can be asked*. Measured at rc339: **14 of 70** public `srmech.amsc.genome` callables accepted `element_type` in Python — and only **2 of 67** published it on the MCP / tool-schema surface.
+
+- **THE HALF THAT MATTERED MORE — a silently-wrong carrier, not an absent parameter.** **19 ops accepted `element_type` in Python while their tool entries did not publish it**, `quad_turn` among them. Over the wire those ops were **klein4-only**: a remote caller got the DEFAULT rung — V4, **abelian**, carrying no which-way — with no way to request q8 or octonion and **no error saying so**. The tool schema is the surface an LLM prosthetic calls through, so the MCP number is the one that actually bounds a remote caller. Same parity-crack family as `#T954`, across the Python/MCP boundary instead of Python/C. **Cracks: 19 → 0**, pinned there.
+
+  The fix was declarative, not plumbing — `invoke_tool` already calls `fn(**coerced)`, so publishing the parameter IS what routes it. The gap was that the wire never told anyone the choice existed. One shared `ET_PARAM` declares the rung by NAME (`'klein4'` / `'q8'` / `'octonion'` — the form an LLM reads and writes) and its description carries the **capability ladder, not a size knob**, plus a pointer to the measured verdicts rc339 put in `describe()['limits']['element_types']`.
+
+  **The regeneration is load-bearing, not hygiene:** `tool_schema_view()` serves the **native C const table** when `HAS_NATIVE`, so without regenerating `c/src/srmech_tool_registry.c` the Python-side schema edit would have been invisible to the very surface it fixes — the source would look correct while the served surface stayed stale.
+
+- **COVERAGE, on both surfaces.** Python **14 → 22**; MCP **2 → 22**.
+
+  | | rc339 | rc340 |
+  |---|---|---|
+  | Python ops accepting `element_type` | 14 / 70 | **22 / 70** |
+  | MCP entries publishing it | 2 / 67 | **22 / 67** |
+  | Python-accepts-but-MCP-drops (silent default) | **19** | **0** |
+
+  Threaded through the umbrella and its builders — `genome` / `mint` / `plasmid` (to every `chromosome` they build), `genome_from_graph` (to each community's `graph_to_kernel` + `mint_strand`), `graph_to_kernel` → `kernel_pack`, `kernel_to_graph` → `kernel_unpack`, and `modulator_consistent` (it reuses the forward `gene_express` decode, so a Q₈ strand was being checked with klein4 semantics).
+
+- **FOUR RELATIONSHIPS, not one percentage — `GENOME_CARRIER_SURFACE` classifies all 70 callables with a one-line reason each.** "Does not take `element_type`" covered three very different situations, and collapsing them into a coverage number hid the only ones that mattered. **accepts (22)** — the carrier cannot be inferred (an in-memory leaf is just bytes; `_leaf_blocks` drops the HV's `sectors`, and a Q₈ turn confined to the low indices is byte-identical to a klein4 one), so the caller must say. **derived (16)** — the store SELF-DESCRIBES it (turn marker `0x51`/`0x38`/`0x39`, cached as the head's `carrier`); a parameter here could only agree or be wrong, so where one exists it **asserts** and raises on contradiction. **fixed (9)** — the carrier IS the op's identity (the Q₈/𝕆 fiber + holonomy + associator family; `codon_read`'s Q₈→V4 projection); parameterising it would be asking for a different op. **free (23)** — no carrier exists (caps, byte splices, integer criteria, the Class-L graph partition); giving these a parameter would report a capability it does not deliver. **Padding the coverage number is exactly what the map exists to prevent**, and a test fails until a new op is classified rather than defaulted.
+
+- **DERIVED-NOT-SUPPLIED FIXED THREE LIVE DEFECTS.** A genome is carrier-UNIFORM, so an op that edits an existing store has no rung of its own to choose:
+  - **`genome_append` / `genome_replace` corrupted non-klein4 stores.** Both coupled with the klein4 XOR and wrote 2-bit packed turns **regardless of the store's carrier**. They now read the carrier from the head/catalog and couple + pack at that rung.
+  - **`genome_append_kernel`'s `element_type` stamped a §89 header the body did not honour.** It is now an ASSERTION, checked against the store and raised on.
+  - **`kernel_pack` declared a carrier it did not use.** `element_type="q8"` wrote `q8` into the header, rejected every symbol a Q₈ kernel actually holds (4..7), and coupled klein4 — a strand claiming a rung it was not on. The rung is now threaded into `chromosome` and bounds symbol validation by that carrier's own alphabet. **The klein4 message is preserved verbatim.**
+
+- **TWO MORE DEFECTS THE HONESTY RATCHET CAUGHT.** The new guard DRIVES every accepting op on all three rungs and fails if the argument is ignored:
+  - **`gene_express_plan`'s on-disk stride was a two-way klein4/Q₈ branch that never learned about the octonion rung rc326 put on the wire.** An octonion genome strode at the klein4 width, so **every emitted byte offset after the first data turn was wrong** (measured 81 where 97 is correct). Now enumerated from one mapping over all three rungs.
+  - **`element_type=False` silently selected klein4 and `True` selected q8.** The rung was matched with a bare `==` against the int enum, and `bool` subclasses `int` (`False == 0`) — a which-carrier choice read as a flag. The fast path is now an exact `is int` check; non-ints fall to the normaliser and are refused. Per-turn cost is unchanged.
+
+- **ONE VOCABULARY.** The turn-level ops took the int enum (`0`), the kernel-header ops took the name (`"klein4"`); a caller who learned one surface could not drive the other, and the wire could publish only one. `_element_type_code` accepts BOTH everywhere.
+
+- **RATCHETS (down-only, and pinned tight — a slack ceiling stops ratcheting, so a test asserts they equal the measured counts).** `CEIL_GENOME_CARRIER_GAP_PY` 56 → **48**; `CEIL_GENOME_CARRIER_GAP_MCP` 65 → **45**; `CEIL_GENOME_CARRIER_PYTHON_MCP_CRACKS` 19 → **0**. `tests/test_genome_carrier_coverage_rc340.py`.
+
+- **Default-preserving throughout; `SRMECH_ABI_VERSION` stays 10** (no exported C signature changed, no callback typedef added, no export removed — the C delta is the generated const registry table plus the two version literals). klein4 keeps every whole-assemble native dispatch (`genome_genome_c` / `genome_mint_c` / `genome_from_graph_c`) and is byte-identical; a non-klein4 build takes the per-turn path, itself dispatching to the natively-accelerated q8 / octonion binds.
 
 ## [0.9.0rc339]
 

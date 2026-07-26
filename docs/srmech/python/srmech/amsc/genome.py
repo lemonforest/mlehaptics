@@ -742,7 +742,7 @@ GENOME_STATUS_CANCELLED = "cancelled"
 _PROGRESS_STRUCT_SIZE = _native.PROGRESS_STRUCT_SIZE
 _PHASE_MINTING = _native.SRMECH_PHASE_MINTING
 
-#: **THE ELEMENT-TYPE LADDER IS A CAPABILITY LADDER** (rc339, `#967`) — read the
+#: **THE ELEMENT-TYPE LADDER IS A CAPABILITY LADDER** (rc339, `#T967`) — read the
 #: three ``ELEMENT_TYPE_*`` codes below as *abelian → non-abelian associative →
 #: non-associative*, NOT as a truncated Hurwitz tower (there is no ℝ or ℂ rung
 #: here, and adding one would not mean anything: the genome's turn needs a
@@ -841,7 +841,46 @@ _ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8",
                        ELEMENT_TYPE_OCTONION: "octonion"}
 _ELEMENT_TYPE_CODES = {name: code for code, name in _ELEMENT_TYPE_NAMES.items()}
 
-#: The element-type ladder as MACHINE-READABLE capability (rc339, `#967`) — the
+
+def _element_type_code(element_type, *, op: str) -> int:
+    """One ``element_type`` argument — int enum OR declared name — → its int code.
+
+    rc340 (`#T965`): the carrier argument shipped in TWO vocabularies. The turn-level
+    ops (:func:`quad_turn`, :func:`chromosome`, :func:`recall`, :func:`partition`, …)
+    took the INT enum (:data:`ELEMENT_TYPE_KLEIN4` = 0); the kernel-header ops
+    (:func:`kernel_pack`, :func:`genome_append_kernel`) took the NAME (``"klein4"``).
+    A caller who learned one surface could not drive the other, and the MCP wire
+    surface could only publish one of them. This normaliser accepts BOTH everywhere,
+    so ``element_type=1`` and ``element_type="q8"`` are the same request.
+
+    Deliberately NOT called on the int fast path of the hot per-turn ops — a caller
+    passing the int enum pays nothing (see :func:`quad_turn`). Rejects ``bool``
+    (``True`` is not element_type 1 — a which-carrier choice is not a flag) and any
+    code outside the measured ladder."""
+    if isinstance(element_type, str):
+        code = _ELEMENT_TYPE_CODES.get(element_type)
+        if code is None:
+            raise ValueError(
+                f"{op}: unknown element_type {element_type!r}; declared names are "
+                f"{sorted(_ELEMENT_TYPE_CODES)} (or their int codes "
+                f"{sorted(_ELEMENT_TYPE_NAMES)})"
+            )
+        return code
+    if isinstance(element_type, bool) or not isinstance(element_type, int):
+        raise ValueError(
+            f"{op}: element_type must be an int code {sorted(_ELEMENT_TYPE_NAMES)} "
+            f"or a declared name {sorted(_ELEMENT_TYPE_CODES)}; got "
+            f"{element_type!r} ({type(element_type).__name__})"
+        )
+    if element_type not in _ELEMENT_TYPE_NAMES:
+        raise ValueError(
+            f"{op}: unknown element_type {element_type!r}; declared types are "
+            f"{sorted(_ELEMENT_TYPE_NAMES)} — the measured capability ladder "
+            f"(klein4=0 abelian, q8=1, octonion=2). See ELEMENT_TYPE_CAPABILITY."
+        )
+    return int(element_type)
+
+#: The element-type ladder as MACHINE-READABLE capability (rc339, `#T967`) — the
 #: programmatic form of the prose above, in ladder order (weakest first). This is
 #: what :func:`srmech.introspect.describe` publishes under
 #: ``limits["element_types"]``, so a caller — or an LLM on the MCP surface — can
@@ -889,6 +928,129 @@ ELEMENT_TYPE_CAPABILITY: Tuple[Dict[str, Any], ...] = (
         "turns_compose": (88, 256),
     },
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# rc340 (#T965) — the CARRIER SURFACE map: how each public genome op relates to
+# the element_type ladder above.
+#
+# (Notation: `#T###` is a LOCAL task-tracker item, `F####` an RBS-LM finding, and
+# a bare `#NNNN` a REAL GitHub issue/PR. The `T` keeps GitHub from autolinking a
+# task ID onto whatever unrelated issue happens to hold that number.)
+#
+# rc339 answered "what can each rung DO"; this answers "which ops can be ASKED".
+# The honest answer is not one list but FOUR relationships, because "does not take
+# element_type" covers three very different situations and collapsing them into a
+# single coverage percentage hides the only ones that matter.
+#
+#   "accepts"  — the carrier CANNOT be inferred from the inputs, so the caller must
+#                say. Every such op takes element_type on BOTH the Python and the
+#                MCP surface (rc340 made those agree). The rule: an in-memory leaf
+#                or strand is just bytes — _leaf_blocks drops the HV's `sectors`,
+#                and a Q8 turn confined to the low indices is byte-identical to a
+#                klein4 one — so there is nothing to read.
+#   "derived"  — the op READS a store or strand that SELF-DESCRIBES its carrier
+#                (the on-disk turn MARKER keys the codec: 0x51 klein4 / 0x38 Q8 /
+#                0x39 octonion; the manifest head caches it as `carrier`). Adding a
+#                parameter here would be strictly worse than deriving: the store is
+#                the authority, and a caller-supplied value could only agree or be
+#                wrong. Where such an op accepts one at all it is an ASSERTION,
+#                checked against the store and raised on, never obeyed.
+#   "fixed"    — the carrier IS the op's identity, not a choice about it. The
+#                fiber/holonomy family exists precisely to read the Q8 (or 𝕆)
+#                channel; parameterising it would let a caller ask a Q8 holonomy to
+#                be klein4, which is a request for a different op.
+#   "free"     — the op HAS no carrier. Caps, byte-level splices, integer criteria
+#                and graph reads never couple or decouple a turn. Giving these an
+#                element_type would be the false green #T965 warns about — a
+#                parameter reporting a capability it does not deliver.
+#
+# ``tests/test_genome_carrier_coverage_rc340.py`` pins this map three ways: every
+# public callable appears exactly once (a new op must be classified, not defaulted),
+# "accepts" matches the MEASURED signatures on both surfaces, and every "accepts" op
+# is DRIVEN on all three rungs to prove it does not ignore the argument.
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: ``{op_name: (relationship, reason)}`` — the carrier-surface map described above.
+#: ``relationship`` is one of ``"accepts"`` / ``"derived"`` / ``"fixed"`` / ``"free"``.
+GENOME_CARRIER_SURFACE: Dict[str, Tuple[str, str]] = {
+    # ── accepts: no marker to read; the caller is the only source ───────────
+    "quad_turn": ("accepts", "the turn-level bind itself — the rung IS the operation"),
+    "chromosome": ("accepts", "couples raw in-memory leaves into turns"),
+    "genome": ("accepts", "the umbrella; threads the rung to every chromosome it builds"),
+    "mint": ("accepts", "explicit alias of genome; forwards the rung unchanged"),
+    "plasmid": ("accepts", "all-plasmid builder; threads the rung to every chromosome"),
+    "diploid": ("accepts", "couples two homolog copies from in-memory leaves"),
+    "recall": ("accepts", "decouples an IN-MEMORY strand, which carries no marker"),
+    "partition": ("accepts", "decouples an in-memory multi-kernel strand"),
+    "genes": ("accepts", "decouples an in-memory multi-gene chromosome"),
+    "recover_diploid": ("accepts", "decouples an in-memory diploid strand"),
+    "gene_express": ("accepts", "decouples the expressed turns of an in-memory strand"),
+    "gene_express_levels": ("accepts", "as gene_express, with graded dose levels"),
+    "gene_express_plan": ("accepts", "plans + decodes; the strand form has no marker"),
+    "modulator_consistent": ("accepts", "reuses the forward gene_express decode"),
+    "kernel_pack": ("accepts", "couples a flat kernel AND records the rung in the header"),
+    "kernel_unpack": ("accepts", "for an in-memory strand; DERIVES for a path"),
+    "graph_to_kernel": ("accepts", "storage rung for the packed graph chromosome"),
+    "kernel_to_graph": ("accepts", "forwards to kernel_unpack; derives for a path"),
+    "genome_from_graph": ("accepts", "threads the rung to each community's chromosome"),
+    "mint_strand": ("accepts", "re-reads the strand's turns to content-address it"),
+    "genome_save": ("accepts", "bit-packs in-memory turns to disk at the rung's width"),
+    # ── derived: the store/strand self-describes its carrier ────────────────
+    "genome_load": ("derived", "the on-disk turn MARKER keys the codec, per block"),
+    "genome_window": ("derived", "pages a region; the same marker-keyed walk"),
+    "genome_catalog": ("derived", "reports the head's `carrier` field"),
+    "genome_census": ("derived", "reads the catalog, carrier included"),
+    "genome_registry": ("derived", "walks catalogs; each reports its own carrier"),
+    "genome_genes": ("derived", "threads the head's `carrier` into the gene decode"),
+    "genome_genes_expressed": ("derived", "threads the head's `carrier` into the decode"),
+    "genome_append": ("derived", "a genome is carrier-UNIFORM; appends at the store's rung"),
+    "genome_append_kernel": ("derived", "header enum = the store's rung; an argument asserts"),
+    "genome_replace": ("derived", "rebuilds the region at the surrounding body's rung"),
+    "genome_remove": ("derived", "splices bytes out; the rebuilt manifest re-derives carrier"),
+    "genome_import": ("derived", "rebuilds the manifest by scanning the merged body"),
+    "genome_pack": ("derived", "rebuilds the manifest by scanning the packed body"),
+    "genome_explode": ("derived", "each written sub-genome re-derives its own carrier"),
+    "genome_export": ("derived", "copies a region verbatim; markers ride along"),
+    "upgrade_v15_to_v16": ("derived", "the v16 head's `carrier` IS what it computes"),
+    # ── fixed: the carrier is the op's identity, not a parameter ────────────
+    "genome_fiber_holonomy": ("fixed", "Q8 by construction — the non-abelian fold IS the op"),
+    "genome_add_fiber": ("fixed", "writes the Q8 fiber cap"),
+    "genome_read_fiber": ("fixed", "reads the Q8 fiber cap"),
+    "genome_octonion_holonomy": ("fixed", "octonion by construction"),
+    "genome_octonion_associator": ("fixed", "measures 𝕆 non-associativity; 𝕆-only by nature"),
+    "genome_add_octonion_fiber": ("fixed", "writes the octonion fiber cap"),
+    "genome_read_octonion_fiber": ("fixed", "reads the octonion fiber cap"),
+    "codon_read": ("fixed", "projects Q8 -> V4 (q8_project_v4); the projection IS the op"),
+    "codon_frame_monodromy": ("fixed", "the codon frame's Q8 projection, as codon_read"),
+    # ── free: no carrier exists in the operation ────────────────────────────
+    "telomere": ("free", "a cap is a content-addressed sentinel block, never a coupled turn"),
+    "active_telomere": ("free", "a cap carrying an integer count; not a turn"),
+    "centromere": ("free", "an interior cap; position and orientation, no algebra"),
+    "centromere_of": ("free", "reads a cap's inline orientation byte"),
+    "telomere_tick": ("free", "decrements a cap's inline count; decodes no turn"),
+    "copy_number_of": ("free", "reads a gene cap's inline copy number"),
+    "chromatin_of": ("free", "reads chromatin cap state"),
+    "condense": ("free", "sets chromatin cap state; turns are untouched"),
+    "decondense": ("free", "clears chromatin cap state; turns are untouched"),
+    "accessible": ("free", "gates on cap masks only — no turn is decoded"),
+    "amplify": ("free", "duplicates whole blocks verbatim; never decodes one"),
+    "integrate": ("free", "concatenates self-describing blocks; no re-coupling (that is why it is free)"),
+    "encode_shape": ("free", "an integer criterion on a COUNT; no strand exists"),
+    "mint_plan": ("free", "reports the shape pick from leaf COUNTS; builds nothing"),
+    "genome_partition": ("free", "a Class-L spectral read of a GRAPH; no strand exists yet"),
+    "discrete_writhe": ("free", "a geometric embedding, not a strand"),
+    "cwf_consistency_mod2": ("free", "edges + gains; a graph, not a strand"),
+    "modulator_constraint": ("free", "pure cap-mask boolean algebra; no turn decoded"),
+    "modulator_constraint_satisfies": ("free", "evaluates a constraint against a bitmask"),
+    "modulator_recover": ("free", "solves over cap masks; no turn decoded"),
+    "genome_register_attested": ("free", "attestation + filesystem registration"),
+    "set_type_aliases": ("free", "a name->name mapping; no strand, no turns"),
+    "clear_type_aliases": ("free", "clears that mapping"),
+    "load_type_aliases_toml": ("free", "reads that mapping from TOML"),
+}
+
+#: The four relationships :data:`GENOME_CARRIER_SURFACE` classifies ops into.
+GENOME_CARRIER_RELATIONSHIPS: Tuple[str, ...] = ("accepts", "derived", "fixed", "free")
 
 #: §60 kernel-header fixed prefix layout (bytes; NUL-padded to ``leaf_dim``):
 #:   ``[0]``      marker ``0x4B``
@@ -2159,7 +2321,7 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     by the Class-C loop inverse via the Moufang inverse property. Read the capability note
     below before folding turns at this rung.
 
-    WHICH element_type CAN DO WHAT (rc339, `#967`)
+    WHICH element_type CAN DO WHAT (rc339, `#T967`)
     ----------------------------------------------
     ``element_type`` is not a size knob — it is a **capability ladder**, *abelian →
     non-abelian associative → non-associative*. Two turns FOLD INTO ONE iff left-coupling is
@@ -2189,15 +2351,20 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     4-sector biaxial "+" (:func:`srmech.amsc.cascade.parallel_sector_dispatch`, CAP=4); that
     dispatch and base-4 leaf addressing assemble at the chromosome level.
     """
-    if element_type == ELEMENT_TYPE_KLEIN4:
-        return _klein4_bind(turn, coupling)
-    if element_type == ELEMENT_TYPE_Q8:
-        return _q8_couple(turn, coupling)
-    if element_type == ELEMENT_TYPE_OCTONION:
-        return _oct_couple(turn, coupling)
-    raise ValueError(
-        f"quad_turn: unknown element_type {element_type!r}; declared types are "
-        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
+    # The int enum is the HOT path (one type check + one compare per turn); the rc340
+    # name form ("q8") falls through to the normaliser and re-enters with its code.
+    # The type check is EXACT (`is int`, not isinstance) so `True`/`False`/`1.0` do NOT
+    # slip through the `==` comparisons — bool is an int subclass and `False == 0`, so
+    # a plain `==` fast path would silently read `False` as klein4 and `True` as q8.
+    if element_type.__class__ is int:
+        if element_type == ELEMENT_TYPE_KLEIN4:
+            return _klein4_bind(turn, coupling)
+        if element_type == ELEMENT_TYPE_Q8:
+            return _q8_couple(turn, coupling)
+        if element_type == ELEMENT_TYPE_OCTONION:
+            return _oct_couple(turn, coupling)
+    return quad_turn(turn, coupling,
+                     element_type=_element_type_code(element_type, op="quad_turn"))
 
 
 def _hv_bytes(x):
@@ -2301,18 +2468,20 @@ def _quad_unturn(hv, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     **Q8 (§Q8 / rc311).** The Q₈ group-INVERSE decouple (:func:`_q8_uncouple_bytes`) — Q₈ is
     non-abelian so uncouple ≠ couple; ``recovered[i] = q8_mult(stored[i], conj(one[i]))``.
     Returns a ``sectors=8`` (:data:`OCT`) HV."""
-    if element_type == ELEMENT_TYPE_KLEIN4:
-        return _klein4_bind(hv, coupling)             # involution — identical to shipped path
-    if element_type == ELEMENT_TYPE_Q8:
-        return _HV.from_sequence(
-            _q8_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)), sectors=OCT)
-    if element_type == ELEMENT_TYPE_OCTONION:
-        return _HV.from_sequence(
-            _oct_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)),
-            sectors=OCTONION_SECTORS)
-    raise ValueError(
-        f"_quad_unturn: unknown element_type {element_type!r}; declared types are "
-        f"{sorted(_ELEMENT_TYPE_NAMES)} (0=klein4, 1=q8, 2=octonion)")
+    # Exact `is int` for the same reason as quad_turn: a bare `==` would read False as
+    # klein4 and True as q8 (bool subclasses int), silently picking a rung.
+    if element_type.__class__ is int:
+        if element_type == ELEMENT_TYPE_KLEIN4:
+            return _klein4_bind(hv, coupling)         # involution — identical to shipped path
+        if element_type == ELEMENT_TYPE_Q8:
+            return _HV.from_sequence(
+                _q8_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)), sectors=OCT)
+        if element_type == ELEMENT_TYPE_OCTONION:
+            return _HV.from_sequence(
+                _oct_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)),
+                sectors=OCTONION_SECTORS)
+    return _quad_unturn(hv, coupling,
+                        element_type=_element_type_code(element_type, op="_quad_unturn"))
 
 
 def _pack_cap(marker, label, dim):
@@ -4966,7 +5135,8 @@ def modulator_recover(strand, coupling, expressed_labels):
     return _modulator_recover_pure(strand, labels)
 
 
-def modulator_consistent(strand, coupling, expressed_labels, candidate_cell_state):
+def modulator_consistent(strand, coupling, expressed_labels, candidate_cell_state,
+                         *, element_type=ELEMENT_TYPE_KLEIN4):
     """Forward-CHECK one candidate cell_state — M2, the consistency verdict (§133 / #733).
 
     Is ``candidate_cell_state`` a cell_state that could have produced ``expressed_labels``?
@@ -4999,10 +5169,20 @@ def modulator_consistent(strand, coupling, expressed_labels, candidate_cell_stat
             f"modulator_consistent: candidate_cell_state must be non-negative (a bitmask "
             f"is never signed, so never abs()); got {candidate_cell_state}")
     labels = _modulator_labels(expressed_labels, "modulator_consistent")
-    native = _modulator_consistent_native(strand, coupling, labels, candidate_cell_state)
-    if native is not None:
-        return native
-    produced = {lab for lab, _leaves in gene_express(strand, coupling, candidate_cell_state)}
+    element_type = _element_type_code(element_type, op="modulator_consistent")
+    # §Q8/rc340 (#T965): the native verdict peer walks the klein4 XOR decouple; a
+    # non-klein4 strand takes the pure path, which threads the rung into the forward
+    # gene_express it reuses. Without this a Q8 strand was checked with klein4
+    # semantics — the ONE op in the modulator family that decodes turns at all
+    # (constraint / satisfies / recover are pure cap-mask algebra, carrier-free).
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        native = _modulator_consistent_native(strand, coupling, labels,
+                                              candidate_cell_state)
+        if native is not None:
+            return native
+    produced = {lab for lab, _leaves in gene_express(strand, coupling,
+                                                    candidate_cell_state,
+                                                    element_type=element_type)}
     return "CONSISTENT" if produced == set(labels) else "INCONSISTENT"
 
 
@@ -5548,7 +5728,8 @@ def modulator_constraint_satisfies(constraint, candidate_cell_state):
     return _satisfies_full(constraint, candidate_cell_state)
 
 
-def plasmid(kernels=None, coupling=None, *, chromosomes=None):
+def plasmid(kernels=None, coupling=None, *, chromosomes=None,
+            element_type=ELEMENT_TYPE_KLEIN4):
     """Pack many kernels into ONE telomere-partitioned strand of pure PLASMID chromosomes —
     biology's plasmid (F715; the rc260 rename of the old ``genome``, §95.2 / #1407).
 
@@ -5570,11 +5751,21 @@ def plasmid(kernels=None, coupling=None, *, chromosomes=None):
     self-describing strand (NO ``gene_index`` sidecar). Persist with
     ``genome_save(strand, path, coupling)`` and page one chromosome's genes back with
     :func:`genome_genes`. ``coupling`` is always required.
+
+    **CARRIER (rc340 / `#T965`).** ``element_type`` selects the rung every turn is
+    coupled through — :data:`ELEMENT_TYPE_KLEIN4` (0, the default and the abelian V4
+    XOR), :data:`ELEMENT_TYPE_Q8` (1), :data:`ELEMENT_TYPE_OCTONION` (2); the declared
+    NAME (``"q8"``) works too. It is THREADED to each :func:`chromosome`, so the
+    umbrella can build the same carriers its parts already could. klein4 keeps the
+    native whole-assemble C dispatch and is byte-identical to every prior release;
+    a non-klein4 build takes the per-turn path (:func:`quad_turn`, itself
+    natively-accelerated). Recover with ``partition(..., element_type=...)``.
     """
     if coupling is None:
         raise ValueError("plasmid: coupling is required")
     if (kernels is None) == (chromosomes is None):
         raise ValueError("plasmid: pass exactly one of kernels= or chromosomes=")
+    element_type = _element_type_code(element_type, op="plasmid")
     if chromosomes is None:
         items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
         # rc198 (#887): DISPATCH the plain multi-kernel assemble to the
@@ -5586,7 +5777,11 @@ def plasmid(kernels=None, coupling=None, *, chromosomes=None):
         # returns None and re-runs the pure path (which raises the exact ValueError).
         dim = len(list(coupling))
         per_kernel = [_leaf_blocks(list(leaves)) for _, leaves in items]
-        if dim > 0 and all(len(b) == dim for kb in per_kernel for b in kb):
+        # §Q8/rc340: the native whole-assemble peer is the klein4 XOR bind; a non-klein4
+        # plasmid couples through its own product, so it takes the pure per-kernel loop
+        # (each chromosome threads element_type down to the natively-accelerated bind).
+        if (element_type == ELEMENT_TYPE_KLEIN4
+                and dim > 0 and all(len(b) == dim for kb in per_kernel for b in kb)):
             native = _native.genome_genome_c(
                 [label for label, _ in items], _coupling_block_bytes(coupling),
                 b"".join(b"".join(kb) for kb in per_kernel),
@@ -5596,14 +5791,16 @@ def plasmid(kernels=None, coupling=None, *, chromosomes=None):
                         for i in range(len(native) // dim)]
         strand = []
         for label, leaves in items:
-            strand.extend(chromosome(leaves, coupling, label=label))
+            strand.extend(chromosome(leaves, coupling, label=label,
+                                     element_type=element_type))
         return strand
     # §44 multi-gene: ONE self-describing strand — each chromosome a telomere-capped
     # region with INLINE fixed-width gene-caps (no gene_index sidecar; the gene
     # boundaries + labels are recovered by scanning the strand).
     strand = []
     for label, genes_list in chromosomes:
-        strand.extend(chromosome(coupling=coupling, label=label, genes=genes_list))
+        strand.extend(chromosome(coupling=coupling, label=label, genes=genes_list,
+                                 element_type=element_type))
     return strand
 
 
@@ -5693,7 +5890,8 @@ def mint_plan(kernels):
     return plan
 
 
-def genome(kernels=None, coupling=None, *, chromosomes=None, progress=None):
+def genome(kernels=None, coupling=None, *, chromosomes=None, progress=None,
+           element_type=ELEMENT_TYPE_KLEIN4):
     """Build a genome — the BIOLOGY-AWARE UMBRELLA that lets the TOOLING pick each
     chromosome's SHAPE by modeling biology (rc260 rename, §95.2 / §95c / F1244 / #1407).
 
@@ -5712,15 +5910,27 @@ def genome(kernels=None, coupling=None, *, chromosomes=None, progress=None):
     all-plasmid build use :func:`plasmid` (biology's plasmid); :func:`mint` is the explicit alias
     of this umbrella (the structured build). See the per-kernel picks with :func:`mint_plan`.
     The ``chromosomes=`` multi-gene form is a different structure (genes) and defers to
-    :func:`plasmid`."""
+    :func:`plasmid`.
+
+    **CARRIER (rc340 / `#T965`).** ``element_type`` selects the rung every turn is coupled
+    through — klein4 (0, the default), q8 (1), octonion (2), by int code or declared name.
+    It is THREADED to every :func:`chromosome` this umbrella builds (both the plasmid and
+    the minted-nuclear branch) and forwarded to :func:`plasmid` for the ``chromosomes=``
+    form. This is the gap `#T965` named: the carrier could be chosen when building a
+    chromosome directly but not through the umbrella that wraps it. klein4 keeps the
+    whole-assemble native dispatch and is byte-identical to every prior release. The
+    carrier is NOT part of the plasmid-vs-nuclear pick — that stays the attested
+    :func:`encode_shape` criterion, which reads leaf COUNT, not the algebra."""
     if coupling is None:
         raise ValueError("genome: coupling is required")
     if (kernels is None) == (chromosomes is None):
         raise ValueError("genome: pass exactly one of kernels= or chromosomes=")
+    element_type = _element_type_code(element_type, op="genome")
     if chromosomes is not None:
         # the multi-gene form is not a §95a mint shape (genes are a different structure);
         # build it as pure plasmids — no centromere selection applies.
-        return plasmid(coupling=coupling, chromosomes=chromosomes)
+        return plasmid(coupling=coupling, chromosomes=chromosomes,
+                       element_type=element_type)
     items = list(kernels.items()) if isinstance(kernels, dict) else list(kernels)
     dim = len(list(coupling))
     # §95a/rc258 (#1407): DISPATCH the whole mint assemble to the srmech_genome_mint C peer
@@ -5729,7 +5939,11 @@ def genome(kernels=None, coupling=None, *, chromosomes=None, progress=None):
     # (srmech_sha256_hex), and the interior centromere pack all mirror in C. The pure loop
     # below is the numpy-free oracle + the non-uniform-width fallback.
     per_kernel = [_leaf_blocks(list(leaves)) for _, leaves in items]
-    if dim > 0 and all(len(b) == dim for kb in per_kernel for b in kb):
+    # §Q8/rc340: the whole-mint native peer binds klein4; a non-klein4 umbrella build
+    # takes the pure per-kernel loop below, which threads element_type into each
+    # chromosome (and so into the natively-accelerated per-turn q8 / octonion bind).
+    if (element_type == ELEMENT_TYPE_KLEIN4
+            and dim > 0 and all(len(b) == dim for kb in per_kernel for b in kb)):
         # §101: progress= (Python-only kwarg) threads the per-kernel MINTING tick into
         # the srmech_genome_mint_progress C loop via the ctypes trampoline. On cancel
         # genome_mint_c returns the VALID PARTIAL bytes (whole chromosomes so far).
@@ -5750,13 +5964,16 @@ def genome(kernels=None, coupling=None, *, chromosomes=None, progress=None):
         _shape, _tier, mint_cen = _mint_shape(leaves_list)
         if mint_cen:
             strand.extend(chromosome(leaves_list, coupling, label=label,
-                                     centromere=_mint_orientation(leaves_list)))
+                                     centromere=_mint_orientation(leaves_list),
+                                     element_type=element_type))
         else:
-            strand.extend(chromosome(leaves_list, coupling, label=label))
+            strand.extend(chromosome(leaves_list, coupling, label=label,
+                                     element_type=element_type))
     return strand
 
 
-def mint(kernels=None, coupling=None, *, chromosomes=None, progress=None):
+def mint(kernels=None, coupling=None, *, chromosomes=None, progress=None,
+         element_type=ELEMENT_TYPE_KLEIN4):
     """Explicit alias for :func:`genome` — the biology-aware tooling-picks build (rc260 /
     §95c / #1407).
 
@@ -5767,8 +5984,12 @@ def mint(kernels=None, coupling=None, *, chromosomes=None, progress=None):
 
     §101 ``progress`` (Python-only kwarg; forwarded to :func:`genome`): a per-kernel
     heartbeat + graceful-abort — a truthy return CANCELS and returns the VALID PARTIAL
-    strand (the whole chromosomes minted so far)."""
-    return genome(kernels, coupling, chromosomes=chromosomes, progress=progress)
+    strand (the whole chromosomes minted so far).
+
+    ``element_type`` (rc340 / `#T965`) is forwarded unchanged — ``mint`` is an alias, so
+    it carries the umbrella's carrier choice rather than pinning klein4."""
+    return genome(kernels, coupling, chromosomes=chromosomes, progress=progress,
+                  element_type=element_type)
 
 
 def partition(strand, coupling, labels=None, *, element_type=ELEMENT_TYPE_KLEIN4):
@@ -5877,37 +6098,70 @@ def _default_coupling(leaf_dim):
     return _HV.from_sequence([1] * int(leaf_dim), sectors=QUAD)
 
 
-def _validate_kernel_symbols(data):
-    """``data`` → a validated ``list[int]`` of Klein-4 sector symbols ``{0,1,2,3}``,
-    raising ``ValueError`` on any symbol out of range (the §60 sharp-edge guard —
-    ``HV.from_sequence(sectors=4)`` accepts ``>3`` in memory but only Klein-4 turns
-    bit-pack, so reject before packing)."""
+#: The symbol ALPHABET each element_type packs — the carrier's order (rc340, `#T965`).
+#: klein4 symbols are the 4 V4 cosets ``{0..3}``; a Q₈ symbol is the coset PLUS the ±1
+#: centre sign (8); an octonion symbol is ``±e₀..±e₇`` (16). This is what
+#: :func:`_validate_kernel_symbols` bounds against, so a declared carrier admits exactly
+#: the symbols its own turn codec can pack (:func:`_pack_turn_block_q8` 3 bits,
+#: :func:`_pack_turn_block_octonion` 4 bits).
+_ELEMENT_TYPE_SECTORS = {ELEMENT_TYPE_KLEIN4: QUAD, ELEMENT_TYPE_Q8: OCT,
+                         ELEMENT_TYPE_OCTONION: OCTONION_SECTORS}
+
+#: PROSE spelling of each carrier, for error messages only (the wire/API name stays
+#: :data:`_ELEMENT_TYPE_NAMES`). klein4's entry is the historical "Klein-4" spelling so
+#: the shipped symbol-guard message is preserved verbatim when the bound generalised.
+_ELEMENT_TYPE_DISPLAY = {ELEMENT_TYPE_KLEIN4: "Klein-4", ELEMENT_TYPE_Q8: "Q8",
+                         ELEMENT_TYPE_OCTONION: "octonion"}
+
+
+def _validate_kernel_symbols(data, element_type=ELEMENT_TYPE_KLEIN4):
+    """``data`` → a validated ``list[int]`` of ``element_type`` sector symbols, raising
+    ``ValueError`` on any symbol outside the carrier's alphabet (the §60 sharp-edge
+    guard — ``HV.from_sequence`` accepts an out-of-range symbol in memory but only a
+    symbol the carrier's turn codec can pack round-trips, so reject before packing).
+
+    rc340 (`#T965`): the bound is now the DECLARED carrier's order
+    (:data:`_ELEMENT_TYPE_SECTORS`) rather than a hard-coded ``0..3``. Before this, a
+    ``kernel_pack(element_type="q8")`` stamped ``q8`` into the §89 header and then
+    rejected every symbol a Q₈ kernel actually holds (4..7) — the declared carrier
+    could not be used. klein4 keeps the identical ``0..3`` bound AND the identical
+    message — the shipped wording ("is not a Klein-4 sector") is preserved verbatim,
+    so no existing caller's error handling moves."""
+    sectors = _ELEMENT_TYPE_SECTORS[element_type]
+    name = _ELEMENT_TYPE_NAMES[element_type]
+    shown = _ELEMENT_TYPE_DISPLAY[element_type]
     syms = [int(x) for x in data]
     for i, s in enumerate(syms):
-        if s < 0 or s > 3:
+        if s < 0 or s >= sectors:
             raise ValueError(
-                f"kernel: symbol {s} at position {i} is not a Klein-4 sector "
-                f"(0..3) — element_type='klein4' packs only Klein-4 kernels"
+                f"kernel: symbol {s} at position {i} is not a {shown} sector "
+                f"(0..{sectors - 1}) — element_type={name!r} packs only "
+                f"{shown} kernels"
             )
     return syms
 
 
 def _kernel_v6_leaves(syms, leaf_dim, et_code):
-    """The §89/v6 leaf list for a validated Klein-4 kernel ``syms`` — the header LEAF
+    """The §89/v6 leaf list for a validated kernel ``syms`` — the header LEAF
     (uniformly-Klein-4 :func:`_pack_kernel_header_klein4`) followed by the content
     leaves (``leaf_dim``-wide, final leaf zero-padded — the ``encode_shape``
-    ceil-division criterion generalised to ``leaf_dim``). EVERY leaf is 100 % Klein-4,
-    so ``[header, *content]`` rides the plain coupled-turn path: :func:`kernel_pack`
-    caps it with a KERNEL telomere, :func:`genome_append_kernel` appends it O(1)."""
+    ceil-division criterion generalised to ``leaf_dim``). The HEADER leaf is always
+    100 % Klein-4 (its base-4 fields are what make the store self-describing); the
+    CONTENT leaves carry the declared carrier's sectors (rc340 / `#T965`, so a Q₈ or
+    octonion kernel's symbols survive the round-trip instead of being narrowed to
+    ``sectors=4``). klein4 is byte-identical to before. ``[header, *content]`` rides
+    the plain coupled-turn path: :func:`kernel_pack` caps it with a KERNEL telomere,
+    :func:`genome_append_kernel` appends it O(1)."""
     D = len(syms)
     header = _pack_kernel_header_klein4(D, leaf_dim, et_code, leaf_dim)
+    sectors = _ELEMENT_TYPE_SECTORS[et_code]
     leaves = [header]
     i = 0
     while i < D:
         block = syms[i:i + leaf_dim]
         if len(block) < leaf_dim:
             block = block + [0] * (leaf_dim - len(block))
-        leaves.append(_HV.from_sequence(block, sectors=QUAD))
+        leaves.append(_HV.from_sequence(block, sectors=sectors))
         i += leaf_dim
     return leaves
 
@@ -6078,12 +6332,7 @@ def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", coupling=None,
     header's ``leaf_dim``; pass a custom ``coupling`` (width ``leaf_dim``) only if you
     pass the SAME one to unpack.
     """
-    if element_type not in _ELEMENT_TYPE_CODES:
-        raise ValueError(
-            f"kernel_pack: unknown element_type {element_type!r}; declared types are "
-            f"{sorted(_ELEMENT_TYPE_CODES)} (element_type is a §60 header enum)"
-        )
-    et_code = _ELEMENT_TYPE_CODES[element_type]
+    et_code = _element_type_code(element_type, op="kernel_pack")
     if not isinstance(leaf_dim, int) or isinstance(leaf_dim, bool) \
             or leaf_dim < _KERNEL_HEADER_KLEIN4_SYMS:
         raise ValueError(
@@ -6091,7 +6340,7 @@ def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", coupling=None,
             f"(so the §89 uniformly-Klein-4 kernel header fits one leaf); got "
             f"{leaf_dim!r}"
         )
-    syms = _validate_kernel_symbols(data)
+    syms = _validate_kernel_symbols(data, et_code)
     if coupling is None:
         coupling = _default_coupling(leaf_dim)
     elif len(list(coupling)) != leaf_dim:
@@ -6100,11 +6349,16 @@ def kernel_pack(data, *, leaf_dim=LEAF_CAP, label="kernel", coupling=None,
         )
     leaves = _kernel_v6_leaves(syms, leaf_dim, et_code)
     # [kernel_telomere, coupled_klein4_header, coupled content turns…]
-    return chromosome(leaves, coupling, label=label, kernel=True)
+    # rc340 (#T965): THREAD the declared carrier into the coupling. Before this the code
+    # recorded et_code in the §89 header and then coupled klein4 regardless — a strand
+    # that CLAIMED q8 but was bound by the V4 XOR. The header enum is now the carrier the
+    # turns are actually coupled through, so kernel_unpack's derived read is honest.
+    return chromosome(leaves, coupling, label=label, kernel=True,
+                      element_type=et_code)
 
 
-def kernel_unpack(strand_or_path, coupling=None):
-    """Recover the EXACT flat Klein-4 kernel from a §89/§60 strand or genome path.
+def kernel_unpack(strand_or_path, coupling=None, *, element_type=None):
+    """Recover the EXACT flat kernel from a §89/§60 strand or genome path.
 
     The inverse of :func:`kernel_pack`. ``strand_or_path`` is either the in-memory
     strand :func:`kernel_pack` returned, or a genome DIRECTORY that a
@@ -6129,11 +6383,41 @@ def kernel_unpack(strand_or_path, coupling=None):
     a manifest-less directory) it defaults to the deterministic all-ones invariant
     reconstructed from the leaf width — matching :func:`kernel_pack`'s default. Pass
     ``coupling`` explicitly if you packed with a custom one.
+
+    **CARRIER (rc340 / `#T965`) — DERIVED for a path, SUPPLIED for a strand.** The turns
+    must be uncoupled through the SAME element_type :func:`kernel_pack` coupled them
+    with. For a genome PATH that carrier is DERIVED from the stored head's ``carrier``
+    field (a pure function of the body's turn markers — the same read
+    :func:`genome_genes` does), so no argument is needed and passing one that
+    CONTRADICTS the store raises rather than silently decoding wrong. For an IN-MEMORY
+    strand there is no marker to read (``_leaf_blocks`` drops the HV's ``sectors``), so
+    a non-klein4 strand must say which rung it is: ``element_type=`` (int code or name).
+    ``None`` (the default) means "derive if you can, else klein4" — byte-identical to
+    every pre-rc340 call.
     """
+    if element_type is not None:
+        element_type = _element_type_code(element_type, op="kernel_unpack")
     if isinstance(strand_or_path, (str, Path)):
+        # DERIVE the carrier from the store's own head before decoding (§Q8/rc316
+        # pattern). The head's `carrier` is a pure function of the body's turn markers,
+        # so it is authoritative; a caller-supplied element_type that disagrees is a
+        # real mistake, not a preference — refuse rather than decode to garbage.
+        derived = _ELEMENT_TYPE_CODES.get(
+            _catalog_data(Path(strand_or_path), coupling).get("carrier"),
+            ELEMENT_TYPE_KLEIN4)
+        if element_type is not None and element_type != derived:
+            raise ValueError(
+                f"kernel_unpack: element_type="
+                f"{_ELEMENT_TYPE_NAMES[element_type]!r} contradicts the stored "
+                f"carrier {_ELEMENT_TYPE_NAMES[derived]!r} at {strand_or_path!r}; "
+                f"the on-disk turn markers are authoritative — omit element_type"
+            )
+        element_type = derived
         strand, coupling, _labels = genome_load(strand_or_path, coupling=coupling)
     else:
         strand = list(strand_or_path)
+    if element_type is None:
+        element_type = ELEMENT_TYPE_KLEIN4
     # v5 byte-TLV header (marker 0x4B), if any — READ-ONLY back-compat.
     header_v5 = next(
         (hv for hv in strand if _cap_kind(hv) == KERNEL_HEADER_MARKER), None)
@@ -6149,8 +6433,8 @@ def kernel_unpack(strand_or_path, coupling=None):
         else:
             width = next((len(hv) for hv in strand if _cap_kind(hv) is None), 0)
             coupling = _default_coupling(width)
-    leaves = recall(strand, coupling)      # skips every cap (incl. the v5 0x4B header
-                                          # + the 0x6B kernel telomere); uncouples turns
+    leaves = recall(strand, coupling,      # skips every cap (incl. the v5 0x4B header
+                    element_type=element_type)  # + the 0x6B kernel telomere); uncouples
     if header_v5 is not None:
         # v5: recall already skipped the 0x4B marker block, so `leaves` is content.
         flat = [int(x) for lf in leaves for x in lf]
@@ -6334,9 +6618,10 @@ def _graph_kernel_decode(syms):
 
 
 def graph_to_kernel(vocab_size, edges, weights, charges=None, *,
-                    node_ids=None, extras=(), leaf_dim, label, coupling):
+                    node_ids=None, extras=(), leaf_dim, label, coupling,
+                    element_type=ELEMENT_TYPE_KLEIN4):
     """Serialise a directed SIGNED integer graph -> a packed genome chromosome
-    (Klein-4 leaves) + its true symbol count (#1390 item 2).
+    + its true symbol count (#1390 item 2).
 
     ``edges``: ``[(i, j), ...]``; ``weights``: ``[int, ...]`` (metric);
     ``charges``: ``[signed int, ...]`` or ``None`` (direction); ``node_ids``:
@@ -6346,7 +6631,17 @@ def graph_to_kernel(vocab_size, edges, weights, charges=None, *,
     ``n_syms`` to :func:`kernel_to_graph`. The payload<->symbol codec dispatches
     to the byte-identical C peer ``srmech_graph_kernel_encode`` when loaded; the
     pure body is the complete alternative + parity oracle. Faithful port of
-    R-RBS-LM-GRAPH2KERNEL."""
+    R-RBS-LM-GRAPH2KERNEL.
+
+    **CARRIER (rc340 / `#T965`).** ``element_type`` chooses the STORAGE rung the packed
+    strand is coupled + bit-packed through (klein4 = the default 2-bit V4 XOR, q8 = the
+    3-bit Q₈ product, octonion = the 4-bit 𝕆 product), forwarded to :func:`kernel_pack`.
+    Note the distinction: the graph PAYLOAD codec (:func:`_graph_kernel_encode`) always
+    emits base-4 digits — that is the serialisation alphabet, not the carrier — and
+    those digits are valid symbols on every rung, so the decoded graph is identical
+    whichever rung stores it. What changes is the algebra the turns are bound through
+    (and hence the on-disk width). :func:`kernel_to_graph` derives the rung back from
+    the store, so the round-trip needs no matching argument."""
     if len(edges) != len(weights):
         raise ValueError(
             f"graph_to_kernel: edges/weights length mismatch "
@@ -6361,16 +6656,22 @@ def graph_to_kernel(vocab_size, edges, weights, charges=None, *,
     ex = list(extras)
     syms = _graph_kernel_encode(vocab_size, [tuple(e) for e in edges],
                                 list(weights), ch, nid, ex)
-    strand = kernel_pack(syms, leaf_dim=leaf_dim, label=label, coupling=coupling)
+    strand = kernel_pack(syms, leaf_dim=leaf_dim, label=label, coupling=coupling,
+                         element_type=element_type)
     return strand, len(syms)
 
 
-def kernel_to_graph(chroms, coupling, n_syms):
+def kernel_to_graph(chroms, coupling, n_syms, *, element_type=None):
     """Inverse of :func:`graph_to_kernel`: a packed chromosome (or genome path)
     + its ``n_syms`` -> the directed signed graph dict
     ``{vocab_size, edges, weights, charges, node_ids, extras}`` (#1390 item 2).
-    ``n_syms`` trims the leaf-dim padding :func:`kernel_unpack` restores."""
-    syms = list(kernel_unpack(chroms, coupling))[:n_syms]
+    ``n_syms`` trims the leaf-dim padding :func:`kernel_unpack` restores.
+
+    ``element_type`` (rc340 / `#T965`) is forwarded to :func:`kernel_unpack` and follows
+    the same rule: for a genome PATH the rung is DERIVED from the stored head's
+    ``carrier`` (leave it ``None``); for an in-memory non-klein4 strand there is no
+    marker to read, so name the rung. ``None`` is byte-identical to every prior call."""
+    syms = list(kernel_unpack(chroms, coupling, element_type=element_type))[:n_syms]
     return _graph_kernel_decode(syms)
 
 
@@ -6947,7 +7248,8 @@ def _induced_subgraph(nodes, edge_list, weight_list, charge_list):
 def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
                       path=None, leaf_dim=None, max_tome=256,
                       n_bins=_PARTITION_DEFAULT_BINS, centromere_at=None,
-                      progress=None, attestation=None):
+                      progress=None, attestation=None,
+                      element_type=ELEMENT_TYPE_KLEIN4):
     """BUILD a multi-chromosome genome from a directed graph, PARTITIONED BY ITS OWN
     STRUCTURE — the §100 GAP 2 builder (PR#687 / F1250 / F1251). "Hand a graph, get
     nuclear + plasmid from its structure."
@@ -6994,6 +7296,14 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
         CC-BY-SA-4.0) this records the REAL provenance genome-natively, in the only
         legitimate place (no sidecar files, §41/F1300). A malformed override raises. No
         effect when ``path`` is None (nothing is persisted).
+    element_type : int | str
+        rc340 (`#T965`) — the CARRIER rung every chromosome's turns are coupled through
+        (klein4 = 0 the default, q8 = 1, octonion = 2; the declared name works too),
+        forwarded to :func:`graph_to_kernel` and :func:`mint_strand`. The graph's own
+        PARTITION is carrier-independent — it is a Class-L spectral read of the edge
+        structure, which has no algebra of its own — so only the storage/coupling rung
+        moves. klein4 keeps the whole-builder native C dispatch and is byte-identical to
+        every prior release; a non-klein4 build takes the pure per-community path.
 
     Returns
     -------
@@ -7008,6 +7318,7 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
         raise ValueError("genome_from_graph: coupling is required")
     if leaf_dim is None:
         leaf_dim = len(list(coupling))
+    element_type = _element_type_code(element_type, op="genome_from_graph")
 
     edge_list, weight_list, charge_list = _partition_validate_graph(
         n, edges, weights, charges)
@@ -7023,7 +7334,11 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
     # the SAME write_packed_graph edge file the G3 partition consumes, with
     # max_depth = recursive_cut's default (64) and max_iters the genome_partition
     # default (250), matching the pure genome_partition(...) call below.
-    if progress is None and _native.has_native_genome_from_graph():
+    # §Q8/rc340: the whole-builder C peer assembles klein4-coupled chromosomes; a
+    # non-klein4 build takes the pure per-community path below (which threads the rung
+    # into graph_to_kernel + mint_strand).
+    if (progress is None and element_type == ELEMENT_TYPE_KLEIN4
+            and _native.has_native_genome_from_graph()):
         import os
         from srmech.amsc.laplacian import write_packed_graph
         wd = tempfile.mkdtemp(prefix="srmech_fromgraph_")
@@ -7088,10 +7403,12 @@ def genome_from_graph(n, edges, weights=None, charges=None, *, coupling,
         label = f"{g['type']}_c{g['community']}_{gi}"
         chrom, n_syms = graph_to_kernel(
             sub["vocab_size"], sub["edges"], sub["weights"], sub["charges"],
-            node_ids=sub["node_ids"], leaf_dim=leaf_dim, label=label, coupling=coupling)
+            node_ids=sub["node_ids"], leaf_dim=leaf_dim, label=label, coupling=coupling,
+            element_type=element_type)
         if g["type"] == "nuclear":
             # MINT the nuclear community — a Tier-2 nuclear chromosome (0x58 centromere).
-            chrom = mint_strand(chrom, coupling, centromere_at=centromere_at)
+            chrom = mint_strand(chrom, coupling, centromere_at=centromere_at,
+                                element_type=element_type)
         strand.extend(chrom)
         chromosomes.append({"label": label, "type": g["type"],
                             "community": g["community"], "n_syms": n_syms,
@@ -9810,12 +10127,21 @@ def _gene_express_plan_strand(strand, coupling, cell_state,
     leaf_dim = len(list(coupling))
     # On-disk data-turn width is element_type-dependent: klein4 packs 4 symbols/byte
     # (§55/v3 → 1 + ceil(leaf_dim/4)); Q₈ packs 3 bits/symbol (§Q8/v16 → 1 + ceil(leaf_dim*3/8),
-    # WIDER). The plan SEEKS PAST data turns to reach the next cap, so it must stride at THIS
+    # WIDER); octonion packs 4 bits/symbol (§𝕆-TURN/v19 → 1 + ceil(leaf_dim*4/8), WIDER STILL).
+    # The plan SEEKS PAST data turns to reach the next cap, so it must stride at THIS
     # genome's real turn width or the emitted byte offsets drift — a Q₈ gene genome has klein4
     # gene caps but Q₈ data turns (rc315).
-    turn_width = 1 + (_packed_payload_len_q8(leaf_dim)
-                      if element_type == ELEMENT_TYPE_Q8
-                      else _packed_payload_len(leaf_dim))   # §55/v3 or §Q8/v16 packed-turn width
+    #
+    # rc340 (#T965): this was a TWO-way klein4/Q₈ branch that never learned about the
+    # octonion rung rc326 put on the wire, so an octonion genome strode at the klein4
+    # width and every emitted byte offset after the first data turn was WRONG. The
+    # three rungs are now enumerated from one mapping, so a fourth could not be added
+    # to the ladder without this stride being confronted.
+    turn_width = 1 + {
+        ELEMENT_TYPE_KLEIN4: _packed_payload_len,
+        ELEMENT_TYPE_Q8: _packed_payload_len_q8,
+        ELEMENT_TYPE_OCTONION: _packed_payload_len_octonion,
+    }[element_type](leaf_dim)                    # §55/v3, §Q8/v16 or §𝕆-TURN/v19 width
     plan = []
     pos = 0
     pending = None                              # (label, cap_hv, gene_byte_start)
@@ -9969,6 +10295,18 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
 
     §89/rc126: ``kernel=True`` opens the appended chromosome with a KERNEL telomere
     (``0x6B``) — used by :func:`genome_append_kernel`.
+
+    **CARRIER (rc340 / `#T965`) — DERIVED, not supplied.** A genome is carrier-UNIFORM
+    (the head's ``carrier`` field is a pure function of the body's turn markers), so an
+    append has no carrier of its own to choose: it MUST couple + bit-pack through the
+    rung the store already uses, or the head would describe a body it no longer matches.
+    The rung is therefore read from the head (the same derivation :func:`genome_genes`
+    does) and threaded into both the :func:`chromosome` build and the on-disk
+    :func:`_disk_block` packing. This FIXES a real defect — before rc340 an append into
+    a Q₈ or octonion store coupled with the klein4 XOR and packed 2-bit turns regardless
+    of the store's carrier, silently corrupting it. A klein4 store is byte-identical to
+    every prior release. To build a genome on a different rung, pass ``element_type`` to
+    :func:`genome`/:func:`plasmid`/:func:`chromosome` when CREATING it.
     """
     path = Path(path)
     # §95.2 / #1407 ergonomics — three explicit catalog MODES (see the docstring):
@@ -9998,11 +10336,16 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
             f"{leaf_dim}"
         )
 
-    new_strand = chromosome(leaves, coupling, label=label, kernel=kernel)
+    # rc340 (#T965): the store's own carrier — the append couples + packs through the
+    # rung the body already uses (a genome is carrier-UNIFORM; see the docstring).
+    element_type = _ELEMENT_TYPE_CODES.get(head.get("carrier"), ELEMENT_TYPE_KLEIN4)
+
+    new_strand = chromosome(leaves, coupling, label=label, kernel=kernel,
+                            element_type=element_type)
     new_blocks = _leaf_blocks(new_strand)
     # §55/v3: the appended region is the packed on-disk form (caps verbatim, data
-    # turns bit-packed) — _disk_block validates each width.
-    appended = b"".join(_disk_block(blk, leaf_dim) for blk in new_blocks)
+    # turns bit-packed at the store's carrier width) — _disk_block validates each width.
+    appended = b"".join(_disk_block(blk, leaf_dim, element_type) for blk in new_blocks)
     coupling_block = _leaf_blocks([coupling])[0]
     body_path = path / _BODY_NAME
 
@@ -10079,7 +10422,7 @@ def genome_append(path, label, leaves, coupling, *, kernel=False, catalog=None) 
     return _catalog_data(path, coupling)
 
 
-def genome_append_kernel(path, label, hv, *, element_type="klein4",
+def genome_append_kernel(path, label, hv, *, element_type=None,
                          coupling=None, catalog=None) -> dict:
     """Append a newly-taught kernel — WITH its §89 header — to a genome in O(1)
     amortised (§89/rc126, issue #1261). The uniformly-Klein-4 payoff of format v6.
@@ -10102,16 +10445,19 @@ def genome_append_kernel(path, label, hv, *, element_type="klein4",
 
     ``coupling`` (the coupling invariant) is optional when ``path`` has a manifest (it
     is resolved from the manifest cache) and REQUIRED for a manifest-less genome (its
-    length is the leaf width). ``element_type`` is the declared header enum
-    (``"klein4"`` today). Returns the updated manifest ``data`` dict. Raises
-    ``ValueError`` if ``label`` already exists or a symbol is not a Klein-4 sector.
+    length is the leaf width). Returns the updated manifest ``data`` dict. Raises
+    ``ValueError`` if ``label`` already exists or a symbol is outside the carrier's
+    alphabet.
+
+    **CARRIER (rc340 / `#T965`) — DERIVED, with an assertive override.** ``element_type``
+    now defaults to ``None`` = "the rung this genome already uses", read from the head.
+    That is the only value that can be correct: the §89 header enum is written INTO a
+    body whose turns :func:`genome_append` couples at the store's carrier, so a header
+    that disagreed with the store would be a self-contradicting chromosome. Passing an
+    explicit ``element_type`` (int code or name) is allowed as an ASSERTION — it must
+    equal the store's carrier or it raises, rather than stamping a header the body does
+    not honour. Pre-rc340 callers passing ``"klein4"`` to a klein4 genome are unaffected.
     """
-    if element_type not in _ELEMENT_TYPE_CODES:
-        raise ValueError(
-            f"genome_append_kernel: unknown element_type {element_type!r}; declared "
-            f"types are {sorted(_ELEMENT_TYPE_CODES)} (element_type is a §89 header enum)"
-        )
-    et_code = _ELEMENT_TYPE_CODES[element_type]
     path = Path(path)
     head = catalog if catalog is not None else _read_head(path, coupling)   # O(1) head
     leaf_dim = int(head["leaf_dim"])
@@ -10122,7 +10468,22 @@ def genome_append_kernel(path, label, hv, *, element_type="klein4",
         )
     if coupling is None:
         coupling = _resolve_coupling(head, None)    # from the head (coupling hash+hex)
-    syms = _validate_kernel_symbols(hv)
+    # rc340 (#T965): the store's carrier IS the header enum — genome_append couples the
+    # turns at that rung, so a header claiming another one would describe its own body
+    # wrongly. An explicit element_type is an assertion, checked rather than obeyed.
+    et_code = _ELEMENT_TYPE_CODES.get(head.get("carrier"), ELEMENT_TYPE_KLEIN4)
+    if element_type is not None:
+        asserted = _element_type_code(element_type, op="genome_append_kernel")
+        if asserted != et_code:
+            raise ValueError(
+                f"genome_append_kernel: element_type="
+                f"{_ELEMENT_TYPE_NAMES[asserted]!r} contradicts the genome's carrier "
+                f"{_ELEMENT_TYPE_NAMES[et_code]!r} at {str(path)!r}. A genome is "
+                f"carrier-uniform: the appended kernel is coupled at the store's rung, "
+                f"so its §89 header must declare that rung. Omit element_type, or build "
+                f"a new genome with genome(..., element_type=...)"
+            )
+    syms = _validate_kernel_symbols(hv, et_code)
     leaves = _kernel_v6_leaves(syms, leaf_dim, et_code)   # [klein4_header, *content]
     return genome_append(path, label, leaves, coupling, kernel=True, catalog=catalog)
 
@@ -10220,6 +10581,13 @@ def genome_replace(path, label, leaves, coupling) -> dict:
     genome's ``leaf_dim``. The on-disk body is re-hashed against the committed
     ``body_sha256`` before the edit (a :class:`GenomeBoundingError` on mismatch). Raises
     ``ValueError`` if ``label`` is not in the genome.
+
+    **CARRIER (rc340 / `#T965`) — DERIVED, not supplied.** Like :func:`genome_append`,
+    an in-place replace has no carrier of its own: the fresh region must couple +
+    bit-pack through the rung the surrounding body already uses, so it is read from the
+    catalog's ``carrier`` and threaded into both the :func:`chromosome` build and
+    :func:`_disk_block`. Before rc340 a replace into a Q₈ / octonion store rebuilt the
+    region as klein4, corrupting it; a klein4 store is byte-identical to before.
     """
     path = Path(path)
     data = _catalog_data(path, coupling)
@@ -10235,10 +10603,13 @@ def genome_replace(path, label, leaves, coupling) -> dict:
             f"genome_replace: label {label!r} not in the genome "
             f"(have {list(by_label)!r})"
         )
-    # §55/v3: the fresh region is written in the packed on-disk form.
+    # §55/v3: the fresh region is written in the packed on-disk form, at the STORE's
+    # carrier (rc340 / #T965 — the surrounding body's rung, derived not supplied).
+    element_type = _ELEMENT_TYPE_CODES.get(data.get("carrier"), ELEMENT_TYPE_KLEIN4)
     new_region = b"".join(
-        _disk_block(blk, leaf_dim)
-        for blk in _leaf_blocks(chromosome(leaves, coupling, label=label))
+        _disk_block(blk, leaf_dim, element_type)
+        for blk in _leaf_blocks(chromosome(leaves, coupling, label=label,
+                                           element_type=element_type))
     )
     # §49/rc154: native C replace (splice old span out + fresh region in at the same
     # position + manifest re-derive, byte-identical); native is authoritative (no
