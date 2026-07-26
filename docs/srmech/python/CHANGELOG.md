@@ -13,6 +13,68 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc342]
+
+_**Two read paths over the same corrupted genome disagreed about whether it was readable — `genome_census` returned a full inventory with a success status where `genome_window` raised (#T969). Every READ now bounds. No behaviour change on a clean store; `SRMECH_ABI_VERSION` stays 10.**_
+
+- **THE DEFECT — the bound was POSITIONAL, not global.** rc337 closed this for `srmech_genome_catalog` by inlining a derive-vs-committed-`body_sha256` comparison into it. Inlining is what made it positional: whether a read rejected a body modified out of band came down to whether that surface happened to route through the catalog. Measured on rc341 with a SINGLE byte changed inside a chromosome label (the structural walk left entirely valid — kind byte, block widths and region tiling all still correct):
+
+  | native entry point | flip in FIRST chromosome | flip in LAST chromosome |
+  |---|---|---|
+  | `genome_catalog_c` | raised | raised |
+  | `genome_census_c` | **OK** | **OK** |
+  | `genome_registry_c` | **OK** | **OK** |
+  | `genome_load_c` | **OK** | **OK** |
+  | `genome_explode_c` | **OK** | **OK** |
+  | `genome_window_c` | raised | **OK** |
+  | `genome_export_c` | raised | **OK** |
+
+  Two things in that table matter more than the count of gaps.
+
+  **`window` / `export` were bound by ACCIDENT.** They reject a first-chromosome flip because they re-hash that ONE region's cap against `cap_sha256` — a per-region check. Move the byte to the last chromosome and they accept it. A test that only ever corrupts the first chromosome reads as proving a whole-body bound while proving a per-region one, which is exactly how rc341 looked green there.
+
+  **`gene_express_plan` was the sharpest case.** It is the one read that does NOT pass through `_catalog_data` before dispatching, so the scripting layer's bound never reached the compiled path. Through the PUBLIC Python surface it returned `[('g\x02ography', 0, 162), ('history', 162, 162)]` — a mangled label with a success status, the exact symptom rc337 was written to remove, on a surface rc337's own test file never enumerated.
+
+- **WHY IT MATTERED MOST ON `census`.** That is the cheap inventory read. Succeeding on a corrupted body means reporting a census of an object whose integrity has already failed elsewhere: a caller who censuses first and windows later gets a green light followed by a hard error, and a caller who ONLY censuses never learns the body is corrupt at all. Under ADR-0009 the SPLIT itself is the defect — and this one had a direction, which is worse than a disagreement: the compiled projection is the one that runs on every host with a wheel, and it was the permissive half.
+
+- **THE CONTRACT CHOSEN: EVERY READ BOUNDS.** Not "census too". An allow-list of bound surfaces cannot be audited, and this family has now cracked twice at whichever surface the previous rc did not enumerate. Bound: `catalog` / `census` / `registry` / `load` / `window` / `export` / `explode` / `genome_genes` / `genes_expressed` / `gene_express_plan` / `section_counts`. Any one may be used as an integrity gate.
+
+  **Mutations are UNBOUND at the C entry point BY DECLARATION**, stated per-function in `srmech.h` rather than left implicit. `append` / `remove` / `replace` / `import` / `add_plasmid` obtain the manifest MID-EDIT, where the comparison polices a TRANSIENT window rather than settled state; rc337 measured that directly, with 22 Windows mutation-path failures on stores an instrumented probe proved byte-identical to a green Linux one. They are bound one layer up, in the scripting projection, which reads the catalog before dispatching — a weaker guarantee than the reads have, and now a written one.
+
+  **Two cases stay unbound because nothing exists to bind against**, identically in both projections: a manifest-LESS genome (§44 — the strand IS the SSoT, so the bytes on disk are by definition the truth) and a v≤11 FULL manifest (whose `body_sha256` may be a plain whole-body digest rather than the v4+ region CHAIN a scan re-derives, so an unconditional compare would hard-fail every legacy store). Both are asserted to still SUCCEED on a corrupt body, so a later "just always compare" cannot pass.
+
+- **PERFORMANCE — the measurement that dictated the design.** The obvious plumbing is a second open+parse of `manifest.json`, which is how rc337 reached the committed value. That is NOT free on a hot read: wired that way, the rc282 **DOWN-ONLY** open-count ratchet caught `srmech_genome_section_counts` going **5 → 7 opens per scan**. Since rc280 took that op from ~22 hours to minutes over the largest stores in the system, a 40% open-count regression there is a real one, and the ratchet is not raisable by policy.
+
+  So the digest is threaded out of the parse the derive ALREADY performs. `genome_obtain_manifest` gains an OPTIONAL trailing `char *committed` out-param, filled while the parsed head is still live (the arena is reset a few lines later); the nine READ call sites route through a new `genome_obtain_manifest_bound` wrapper with an identical signature — so adoption is a one-token substitution and JPL Rule 4 is untouched — and the five MUTATION sites pass `NULL` with the reason inline. The census/registry derive (`genome_scan_params`, which never touches `genome_obtain_manifest` at all — that is why rc337's bound could not reach it) does the same, and `genome_census_build` compares against `s.body_sha`, the region chain `genome_fill_strings` just computed. **Net cost: no read gained an open, a parse, or a hash. The comparison is a 64-byte `memcmp`.**
+
+- **A SILENT FAILURE MODE REMOVED.** rc337's `genome_catalog_committed_head` returned `void`, so its empty-string sentinel carried two meanings a caller could not tell apart: "there is genuinely nothing committed to bind against" and "I could not get far enough to look" (an arena shortfall). The second makes the bound fail **OPEN** — a caller with a tight `ws` would read UNBOUND and be told nothing. Threading the value out of the existing parse deletes that helper and the ambiguity with it. `genome_committed_from_head` now factors the ONE rule both derives apply, so the two families cannot drift apart again on what "committed" means.
+
+- **THE RATCHET, PROVEN NON-VACUOUS.** `tests/test_genome_read_bound_global_rc342.py` — 100 cases + 1 xfail — drives a corrupted-body fixture through every public read path and asserts each surface's DECLARED behaviour. Rebuilt `libsrmech` from `origin/main`'s `srmech_genome.c` and ran the file against it: **28 failures, in the exact pattern of the measured defect** (public census / registry / gene_express_plan on all three live vectors; native census_c / registry_c / load_c / explode_c on all three; native window_c / export_c on the LAST-chromosome and tail vectors only — the per-region-cap signature). A suite that goes red *somewhere* proves little; one whose failure pattern reproduces the table above is measuring the thing it claims to.
+
+  "Does it raise?" is the cheapest assertion to make green, so four mechanisms stop *reject everything* from passing: the whole surface (reads AND mutations) must SUCCEED on a clean store; the mangled label `'g\x02ography'` is pinned by **ABSENCE**, so an implementation returning the ORIGINAL label from a cached head — papering over a corrupt body rather than reporting it — passes every raise assertion and fails that one; the control vector `0x43^0x01 == 0x42` was ALREADY rejected by the structural walk pre-rc342 and must behave identically, so the new bound cannot be credited with someone else's rejection; and the manifest-less case must still read.
+
+  Two fixture facts were live false-green risks. The store is **GATED** (inline gene caps + gate masks) because without gates `gene_express_plan` and `genome_genes_expressed` raise `ValueError` on a CLEAN store, the bound question becomes unaskable, and a first pass of this work read them as "bound" when they were merely mis-fixtured — on the very surface that turned out to be worst. And `section_counts` gets its own fixture, because it reads a §89 plasmid SECTION store rather than an arbitrary genome; dropping it would have left untested the one read whose plumbing dictated the whole design.
+
+- **rc337's DEFERRAL, COLLECTED.** `test_genome_catalog_body_bound_rc337.py` kept four assertions as non-strict `xfail` rather than deleting them, so the follow-up would inherit an EXECUTABLE spec instead of a prose TODO. That paid off exactly as intended: nobody had to remember they existed, all 12 parametrised cases **XPASSed** in the report the moment the behaviour moved, and promoting them to plain assertions was mechanical. `_PENDING_955` is gone; the scope notes are re-marked as history where they described the split as live and kept where they still hold. Worth recording as a method, not just a housekeeping line.
+
+- **THE SIBLING CRACK, MEASURED AND LEFT AS A SPEC — `#T954` is NOT fixed here, and this is why.** Same surface, same question, different vector: a **non-UTF-8** label byte (`0xFF`). rc342's vectors all keep the label decodable (`(b+1)%4` lands in 0..3 — control characters, but valid UTF-8), so they exercise the bound without touching the decode path. Measured at rc342:
+
+  | store | compiled | scripting |
+  |---|---|---|
+  | manifest PRESENT | `GenomeBoundingError` | **`UnicodeDecodeError`** |
+  | manifest ABSENT | `UnicodeDecodeError` | `UnicodeDecodeError` |
+
+  The split is in the top row only: with a manifest the compiled bound fires before any label is decoded, while the scripting projection derives the catalog by scanning the body — which decodes labels — and only then compares `body_sha256`, so the decode blows up before the bound is reached. Same shape as rc294's registry `OSError`: both projections agree it is an error and disagree about what KIND.
+
+  **The obvious fix closes the top row and OPENS the bottom one.** Raising `GenomeBoundingError` from the pure decode site (chained, as rc294 chained its `OSError`) makes the two projections disagree in the manifest-LESS case, where they currently agree. Closing that too means deciding what an undecodable label means on a genome that is its own SSoT, and fixing the ctypes boundary where the compiled projection's JSON output is decoded — a different layer from anything rc342 touched. So it is a real second piece of work, not a loose end of this one, and it now ships with its own executable xfail spec carrying the table above rather than a re-derivation cost. What rc342 does guarantee is the thing that would have made `#T954` worse: **no third error shape** — every rejection added here is `GenomeBoundingError` / `SRMECH_ERR_BAD_INPUT`, both already in the family.
+
+- **NAMED, NOT FIXED — three native wrappers swallow the rejection into a DECLINE.** `genome_genome_genes_c`, `genome_genes_expressed_c` and `genome_section_counts_c` map EVERY non-OK status to `None` so the caller runs the pure body. As of rc342 that set includes the C rejecting a corrupt body. The public surfaces are still bound (the pure body raises from `_catalog_data`) and their docstrings now say what they swallow, but these wrappers cannot distinguish "the C cannot do this shape" from "the object is corrupt", so they are not where to read the compiled projection's integrity verdict. A bare-C host sees the real `SRMECH_ERR_BAD_INPUT`, and `c/test/test_srmech_genome.c` asserts it there. Converting a decline into a raise would change error routing on two public surfaces for reasons unrelated to this defect, so it is left alone deliberately.
+
+- **BARE-C.** `test_srmech_genome.c`'s two rc337 scope assertions — census and load pinned at `SRMECH_OK` as an executable record of what rc337 did not cover — flip to `SRMECH_ERR_BAD_INPUT`. That flip IS the landing signal on a host with no Python. **215/215** bare-C checks pass.
+
+- **ABI stays 10.** Every function added or re-shaped is `static`; no exported signature moved, nothing was added or removed, no callback typedef appeared, and the rejection reuses `SRMECH_ERR_BAD_INPUT` — already in every touched export's documented error set. Asserted executably, so a later change routing the bound through a new status has to answer the ABI question deliberately rather than by omission. **No ripple:** no public callable's surface changed; the three generators were run in the load-bearing order (`gen_tool_docs` → `gen_c_claims` → `gen_tool_registry`) and produce **zero content delta** (the genome entries are curated), byte-identical across two consecutive runs. JPL audit unchanged; pedantic `-Werror` clean.
+
+
 ## [0.9.0rc341]
 
 _**Prose only — 49 residual FALSE BACKLINKS from rc338/rc339 re-notated (#T974). No behaviour change; `SRMECH_ABI_VERSION` stays 10.**_ rc340 introduced the `#T###` convention and cleaned its own references; these are the ones already on `main` from the two rcs before it.
