@@ -818,7 +818,7 @@ def _register_primitive_class_tools() -> None:
     # caller silently got the DEFAULT rung — KLEIN-4, which is ABELIAN and therefore
     # carries no which-way — with no way to ask for another and no error saying so.
     # A silently-wrong carrier is worse than an absent parameter, so this is the same
-    # parity crack as #954, across the Python/MCP boundary instead of Python/C.
+    # parity crack as #T954, across the Python/MCP boundary instead of Python/C.
     #
     # Declared as `str` (the NAME) because that is the form an LLM consumer can read
     # and write; `genome._element_type_code` accepts the int enum equally, so a caller
