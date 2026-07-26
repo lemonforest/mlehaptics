@@ -115,8 +115,66 @@ CD_MAX_DIM = 256
 #: and stays correct at every dim ``≤`` :data:`CD_MAX_DIM` — just slower.
 CD_DENSE_MAX_DIM = 64
 
+#: **ADDRESS ceiling — the honest one** (rc339, `#967`): the highest rung at
+#: which the index lane ``e_i·e_j = ±e_{i XOR j}`` has been EXHAUSTIVELY
+#: verified. 0 failures / 4096 pairs at 64 (generating code:
+#: ``docs/srmech/notes/carrier_capability_ontology_rc339.py``). Distinct from
+#: :data:`CD_MAX_DIM` (what the build ADMITS, 256) and from
+#: :data:`CD_DENSE_MAX_DIM` (which happens to share the value 64 for an
+#: unrelated reason — MSVC's 1 MB stack against a quadratic buffer). Three
+#: different facts; three names, so none of them can stand in for another.
+CD_ADDRESS_VERIFIED_DIM = 64
+
 #: The normed **division** algebras (Hurwitz 1898) — the reversible interior.
 DIVISION_ALGEBRA_DIMS: Tuple[int, int, int, int] = (1, 2, 4, 8)
+
+#: The **ASSOCIATIVE** rungs — the sub-ladder on which a TURN COMPOSES
+#: (rc339, `#967`). ``ℝ ↪ ℂ ↪ ℍ`` and no further: at dim 8 the octonions are
+#: alternative but not associative, so ``L_x ∘ L_y == L_{x·y}`` stops holding
+#: in general. Strictly inside :data:`DIVISION_ALGEBRA_DIMS` — a rung can be a
+#: division algebra (dim 8) and still not compose its turns.
+ASSOCIATIVE_ALGEBRA_DIMS: Tuple[int, int, int] = (1, 2, 4)
+
+#: **COMPOSE ceiling** (rc339, `#967`): the largest dim at which the product
+#: has NO ZERO DIVISORS — a normed composition algebra. ``max
+#: DIVISION_ALGEBRA_DIMS``; Hurwitz (1898) says 1, 2, 4, 8 and nothing else.
+#: Past it (dim 16, 𝕊) there exist ``x ≠ 0``, ``y ≠ 0`` with ``x·y == 0``, which
+#: is why :func:`left_mult_is_invertible` has something to answer at all.
+#:
+#: This is the SECOND of srmech's three carrier ceilings and it is NOT the
+#: addressing one: :data:`CD_MAX_DIM` = 256 bounds ADDRESSING and says nothing
+#: about composition. Reporting only the permissive ceiling is what rc339 came
+#: to remove — see :func:`srmech.introspect.describe`.
+CD_COMPOSE_MAX_DIM = 8
+
+#: **TURN ceiling** (rc339, `#967`): the largest dim at which NON-COMMUTING
+#: turn composition survives — ``max ASSOCIATIVE_ALGEBRA_DIMS`` = 4 (ℍ).
+#:
+#: A "turn" composes iff left multiplication is a representation::
+#:
+#:     L_x ∘ L_y == L_{x·y}          i.e.   x·(y·z) == (x·y)·z  for all z
+#:
+#: MEASURED over the basis of every rung (generating code:
+#: ``docs/srmech/notes/carrier_capability_ontology_rc339.py``; NDJSON beside
+#: it)::
+#:
+#:     dim  1: 1/1     dim  2: 4/4     dim  4: 16/16
+#:     dim  8: 22/64   dim 16: 46/256  dim 32: 94/1024
+#:
+#: The largest power-of-two SUB-rung all of whose turns compose is **4 at dim 8
+#: AND at dim 16 AND at dim 32** — it saturates and never grows again.
+#:
+#: The precise statement about dim 8 is NOT "turns stop at ℍ". Turns **DEGRADE
+#: TO ABELIAN-ONLY** at 𝕆: measured as SETS (not merely as counts), the
+#: turn-composing basis pairs and the commuting basis pairs are THE SAME SET at
+#: dim 8, 16 and 32 — both set differences empty. At dim 4 they are NOT: 16
+#: pairs compose but only 10 commute, so 6 non-commuting pairs still compose.
+#: What dies at the octonion rung is specifically **non-commuting turn
+#: composition**. The 22 dim-8 survivors are exactly ``{anything paired with
+#: e₀} ∪ {every element with itself}`` (power-associativity, which every rung
+#: keeps), and 22 basis pairs × 4 sign combinations = the 88/256 measured on
+#: the signed octonion loop — two independent routes, one number.
+CD_TURN_MAX_DIM = 4
 
 #: The Cayley–Dickson ladder up to the demonstrator ceiling.
 CD_DIMS: Tuple[int, ...] = (1, 2, 4, 8, 16, 32, 64, 128, 256)

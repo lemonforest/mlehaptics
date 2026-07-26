@@ -4623,6 +4623,50 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * projection answers is not. */
 #define SRMECH_CD_DENSE_MAX_DIM 64
 
+/* ---- the OTHER two carrier ceilings (rc339, `#967`) ---------------------
+ *
+ * SRMECH_CD_MAX_DIM and SRMECH_CD_DENSE_MAX_DIM above are BOTH ADDRESSING
+ * bounds. Publishing only those answers "how big can this go?" with 256 and
+ * stays silent on the two ceilings that actually bind, so a caller — or an LLM
+ * driving the MCP surface — can read 256 and try to TURN there, where
+ * non-commuting turn composition died at dim 8. A permissive ceiling reported
+ * without its capability implies a capability that does not exist. These two
+ * macros are the missing halves; the Python peers are
+ * srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM / CD_TURN_MAX_DIM and
+ * tests/test_carrier_capability_rc339.py pins the four in lockstep (ADR-0009:
+ * the capability is the invariant, so a bare-C host reads the same ceilings).
+ *
+ * Macros, not exported symbols: SRMECH_ABI_VERSION is untouched. */
+
+/* COMPOSE ceiling: the largest dim whose product has NO ZERO DIVISORS (a
+ * normed composition algebra). Hurwitz (1898): 1, 2, 4, 8 and nothing else.
+ * Past it (dim 16, the sedenions) there exist x != 0, y != 0 with x*y == 0 —
+ * which is the whole reason srmech_sedenion_is_navigable has a question to
+ * answer. Strictly below SRMECH_CD_MAX_DIM: addressing outruns composition. */
+#define SRMECH_CD_COMPOSE_MAX_DIM 8
+
+/* TURN ceiling: the largest dim at which NON-COMMUTING turn composition
+ * survives. A turn composes iff left multiplication is a representation —
+ * L_x o L_y == L_(x*y), i.e. x*(y*z) == (x*y)*z for every z — so this is
+ * associativity read as a statement about turns, and it stops at H (dim 4).
+ *
+ * MEASURED over the basis of each rung (generating code + NDJSON:
+ * docs/srmech/notes/carrier_capability_ontology_rc339.py):
+ *
+ *     dim  1: 1/1     dim  2: 4/4     dim  4: 16/16
+ *     dim  8: 22/64   dim 16: 46/256  dim 32: 94/1024
+ *
+ * The largest power-of-two SUB-rung all of whose turns compose is 4 at dim 8
+ * AND at dim 16 AND at dim 32 — it saturates and never grows again.
+ *
+ * The precise statement is NOT "turns stop at H". Turns DEGRADE TO
+ * ABELIAN-ONLY at O: measured as SETS (not merely as equal counts), the
+ * turn-composing basis pairs and the commuting basis pairs are THE SAME SET at
+ * dim 8, 16 and 32 — both set differences empty. At dim 4 they are not (16
+ * compose, 10 commute: 6 non-commuting pairs still compose). What dies at the
+ * octonion rung is specifically NON-COMMUTING turn composition. */
+#define SRMECH_CD_TURN_MAX_DIM 4
+
 /* Product of two unit basis elements: e_i * e_j = sign * e_index.
  *   dim        : algebra dimension, a power of two in [1, SRMECH_CD_MAX_DIM].
  *   i, j       : basis indices in [0, dim).
