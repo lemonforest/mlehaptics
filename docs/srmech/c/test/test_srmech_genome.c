@@ -27,6 +27,14 @@ static int g_failed = 0;
 /* 8 MiB workspace arena — matches the json smoke + parity harness. */
 static unsigned char g_ws[8u * 1024u * 1024u];
 
+/* rc338 (#956): a SECOND, disjoint arena. The lifetime check below holds two
+ * derived manifest trees alive at once, and they must not share storage — with
+ * one arena the second call would overwrite the first tree's json nodes
+ * outright, which is a different (and uninteresting) failure than the
+ * use-after-scope this checks for. Disjoint arenas leave the STACK as the only
+ * thing the two calls share. */
+static unsigned char g_ws2[8u * 1024u * 1024u];
+
 static void check_true(int cond, const char *desc)
 {
     if (cond) {
@@ -47,6 +55,18 @@ static const char *temp_dir(void)
     if (base == NULL) { base = getenv("TMP"); }
     if (base == NULL) { base = "/tmp"; }
     snprintf(dir, sizeof(dir), "%s/srmech_genome_smoke", base);
+    return dir;
+}
+
+/* rc338 (#956): a SECOND store, so the lifetime check has a genome whose digests
+ * are distinguishable from the first's. */
+static const char *temp_dir2(void)
+{
+    static char dir[1024];
+    const char *base = getenv("TMPDIR");
+    if (base == NULL) { base = getenv("TMP"); }
+    if (base == NULL) { base = "/tmp"; }
+    snprintf(dir, sizeof(dir), "%s/srmech_genome_smoke2", base);
     return dir;
 }
 
@@ -1747,6 +1767,103 @@ int main(void)
                                                    sizeof(g_ws), &man3);
         check_true(k5 == SRMECH_OK && man3 != NULL,
                    "rc337: repairing the payload byte makes the catalog read again");
+    }
+
+    /* rc338 (#956) LIFETIME — a derived manifest tree must not point into the
+     * dead frame of the function that built it.
+     *
+     * `genome_obtain_manifest` used to scan into a STACK-local genome_strings_t
+     * and hand back a tree whose body_sha256 / coupling.* / attestation.* string
+     * nodes pointed at it (srmech_json_new_string does not copy). The bytes were
+     * usually still lying undisturbed in the abandoned frame, so it shipped.
+     *
+     * Make the reuse deterministic with the most faithful scribbler there is: a
+     * SECOND catalog call. It re-enters genome_obtain_manifest at the identical
+     * stack depth, so its strings block lands on exactly the bytes the first
+     * call's did — and fills them with the SECOND genome's digests. The two
+     * calls use disjoint arenas, so the stack is all they share.
+     *
+     * This is the bare-C-HOST projection of
+     * python/tests/test_genome_manifest_tree_lifetime_rc338.py: a C-only host
+     * with no Python reaches the identical defect through the identical symbol,
+     * which is exactly what ADR-0009 means by co-equal projections. */
+    {
+        const char *dir2 = temp_dir2();
+        ensure_dir(dir2);
+        /* A distinguishable second genome: a different coupling (so coupling.hex
+         * and coupling.sha256 differ) over different content (so body_sha256
+         * differs) — three chromosomes rather than two. */
+        unsigned char coupling2[4] = { 3u, 1u, 0u, 2u };
+        unsigned char body2[24] = {
+            /* C CHROM cap */ CC, (unsigned char)'C', 0u, 0u,
+            /* C turn0     */ 1u, 1u, 3u, 2u,
+            /* D CHROM cap */ CC, (unsigned char)'D', 0u, 0u,
+            /* D turn0     */ 2u, 3u, 0u, 1u,
+            /* E CHROM cap */ CC, (unsigned char)'E', 0u, 0u,
+            /* E turn0     */ 0u, 3u, 3u, 2u,
+        };
+        srmech_status_t s2 = srmech_genome_save(
+            dir2, body2, sizeof(body2), leaf_dim, coupling2, sizeof(coupling2),
+            g_ws2, sizeof(g_ws2));
+        check_true(s2 == SRMECH_OK, "rc338: second store saves");
+
+        srmech_json_value_t *ta = NULL;
+        srmech_status_t la = srmech_genome_catalog(dir, NULL, 0u, g_ws,
+                                                   sizeof(g_ws), &ta);
+        check_true(la == SRMECH_OK && ta != NULL, "rc338: catalog A (arena 1)");
+
+        /* Snapshot A's answers BEFORE anything else runs on that stack region. */
+        char ref_body[65] = { 0 };
+        char ref_hex[65] = { 0 };
+        const srmech_json_value_t *da = (ta != NULL)
+            ? srmech_json_object_get(ta, "data") : NULL;
+        const srmech_json_value_t *ba = (da != NULL)
+            ? srmech_json_object_get(da, "body_sha256") : NULL;
+        const srmech_json_value_t *ca = (da != NULL)
+            ? srmech_json_object_get(da, "coupling") : NULL;
+        const srmech_json_value_t *ha = (ca != NULL)
+            ? srmech_json_object_get(ca, "hex") : NULL;
+        check_true(ba != NULL && ba->type == SRMECH_JSON_STRING &&
+                   ba->u.str.len == 64u, "rc338: tree A has a 64-hex body_sha256");
+        check_true(ha != NULL && ha->type == SRMECH_JSON_STRING &&
+                   ha->u.str.len == 2u * leaf_dim, "rc338: tree A has coupling.hex");
+        if (ba != NULL && ba->u.str.len == 64u) { memcpy(ref_body, ba->u.str.ptr, 64u); }
+        if (ha != NULL && ha->u.str.len <= 64u) {
+            memcpy(ref_hex, ha->u.str.ptr, ha->u.str.len);
+        }
+
+        /* THE SCRIBBLER — same symbol, same depth, disjoint arena. */
+        srmech_json_value_t *tb = NULL;
+        srmech_status_t lb = srmech_genome_catalog(dir2, NULL, 0u, g_ws2,
+                                                   sizeof(g_ws2), &tb);
+        check_true(lb == SRMECH_OK && tb != NULL, "rc338: catalog B (arena 2)");
+
+        const srmech_json_value_t *db = (tb != NULL)
+            ? srmech_json_object_get(tb, "data") : NULL;
+        const srmech_json_value_t *bb = (db != NULL)
+            ? srmech_json_object_get(db, "body_sha256") : NULL;
+        check_true(bb != NULL && bb->type == SRMECH_JSON_STRING &&
+                   bb->u.str.len == 64u && memcmp(bb->u.str.ptr, ref_body, 64u) != 0,
+                   "rc338: the two genomes ARE distinguishable (fixture)");
+
+        /* Pre-fix these two read back as genome B's digest and coupling: a
+         * well-formed manifest, a success status, and the WRONG genome. */
+        check_true(ba != NULL && memcmp(ba->u.str.ptr, ref_body, 64u) == 0,
+                   "rc338/#956: tree A still reports A's body_sha256 after call B");
+        check_true(ha != NULL &&
+                   memcmp(ha->u.str.ptr, ref_hex, ha->u.str.len) == 0,
+                   "rc338/#956: tree A still reports A's coupling.hex after call B");
+
+        /* And the LAST writer of that frame must be right too — a "fix" that only
+         * swapped which of the two trees gets corrupted would pass the above. */
+        const srmech_json_value_t *ab = (tb != NULL)
+            ? srmech_json_object_get(tb, "attestation") : NULL;
+        const srmech_json_value_t *rb = (ab != NULL)
+            ? srmech_json_object_get(ab, "response_sha256") : NULL;
+        check_true(rb != NULL && rb->type == SRMECH_JSON_STRING &&
+                   bb != NULL && rb->u.str.len == 64u &&
+                   memcmp(rb->u.str.ptr, bb->u.str.ptr, 64u) == 0,
+                   "rc338: tree B's attestation.response_sha256 == its body_sha256");
     }
 
     printf("== %d passed, %d failed ==\n", g_passed, g_failed);
