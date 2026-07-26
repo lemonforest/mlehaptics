@@ -661,6 +661,98 @@ def test_a_rejected_edit_leaves_the_store_byte_identical(op):
             f"genome_{op} raised but MUTATED manifest.json")
 
 
+# ── the SIBLING crack, measured and left as an executable spec ───────────────
+
+#: #T954 — same surface, same question ("what does a read do when the object is
+#: bad?"), DIFFERENT vector, and rc342 does NOT close it. Kept as an xfail rather
+#: than a prose TODO for the reason rc337's xfails just proved out: nobody has to
+#: remember it exists, and it XPASSes into the report the moment the behaviour
+#: moves. Non-strict so a host whose behaviour moves first does not turn CI red.
+_PENDING_T954 = pytest.mark.xfail(
+    reason="#T954: with a NON-UTF-8 label byte the pure projection raises "
+           "UnicodeDecodeError where native raises GenomeBoundingError. Not "
+           "closable without also fixing the manifest-LESS native boundary — see "
+           "the measurement in the test body.",
+)
+
+
+def _corrupt_label_not_utf8(d):
+    """Set a label byte to ``0xFF`` — the #T954 vector.
+
+    rc342's vectors all keep the label DECODABLE (``(b+1)%4`` lands in 0..3, which
+    are control characters but perfectly valid UTF-8), so they exercise the
+    integrity bound without ever touching the decode path. ``0xFF`` is not valid
+    UTF-8 in any position, which is what makes this a different question.
+    """
+    off = G.genome_catalog(str(d))["chromosomes"][0]["byte_offset"]
+    b = bytearray((d / "turns.bin").read_bytes())
+    b[off + 2] = 0xFF
+    (d / "turns.bin").write_bytes(bytes(b))
+
+
+@_PENDING_T954
+def test_a_non_utf8_label_raises_the_same_type_in_both_projections():
+    """#T954, measured at rc342 so the follow-up starts from data.
+
+    ==========================  ======================  ====================
+    store                       compiled                scripting
+    ==========================  ======================  ====================
+    manifest PRESENT            ``GenomeBoundingError`` ``UnicodeDecodeError``
+    manifest ABSENT             ``UnicodeDecodeError``  ``UnicodeDecodeError``
+    ==========================  ======================  ====================
+
+    WHY THE SPLIT IS IN THE TOP ROW ONLY. With a manifest present, the compiled
+    projection's integrity bound fires in C before any label is decoded, so the
+    corrupt body is reported as what it is. The scripting projection derives the
+    catalog by SCANNING the body first — which decodes labels — and only then
+    compares ``body_sha256``, so the decode blows up before the bound is reached.
+    Same defect shape as rc294's registry ``OSError``: both projections agree it is
+    an error and disagree about what KIND.
+
+    WHY rc342 DOES NOT FIX IT, stated plainly rather than deferred vaguely. The
+    obvious fix — raise ``GenomeBoundingError`` from the pure decode site, chained
+    from the ``UnicodeDecodeError`` so the diagnostic detail survives, exactly as
+    rc294 chained its ``OSError`` — closes the top row and OPENS THE BOTTOM ONE.
+    With no manifest there is nothing to bind against (§44), both projections
+    currently raise ``UnicodeDecodeError``, and they AGREE; changing only the pure
+    side makes them disagree. Closing the bottom row too means deciding what an
+    undecodable label means on a genome that is its own SSoT, and fixing the ctypes
+    boundary where the compiled projection's JSON output is decoded — which is a
+    different layer from anything rc342 touched. So it is a real second piece of
+    work, not a loose end of this one.
+
+    What rc342 DOES guarantee here is the thing that would have made #T954 worse:
+    no THIRD error shape was introduced. Every rejection this rc adds is
+    ``GenomeBoundingError`` / ``SRMECH_ERR_BAD_INPUT``, both already in the family.
+    """
+    native, pure = _both_projections(
+        lambda tmp: (lambda dc: (_corrupt_label_not_utf8(dc[0]), dc)[1])(
+            _save_gated(tmp)),
+        lambda d, one, tmp: (lambda: G.genome_catalog(str(d))))
+    assert native[0] == "raised" and pure[0] == "raised", (native, pure)
+    assert native[1] is pure[1], (
+        f"#T954: the two projections must raise the SAME type for an undecodable "
+        f"label; got native={native[1]!r} pure={pure[1]!r}")
+
+
+def test_the_non_utf8_vector_is_at_least_rejected_by_both_projections():
+    """The part of #T954 that DOES hold today, pinned so it cannot silently rot.
+
+    The projections disagree about the exception TYPE, which is the defect. They do
+    NOT disagree about whether this is an error — neither returns a mangled label
+    with a success status, which is the failure class rc342 exists to remove. That
+    distinction is worth an assertion of its own: if a future change made either
+    side ACCEPT a non-UTF-8 label, the xfail above would keep passing (it only
+    compares types) while a genuinely worse regression shipped.
+    """
+    native, pure = _both_projections(
+        lambda tmp: (lambda dc: (_corrupt_label_not_utf8(dc[0]), dc)[1])(
+            _save_gated(tmp)),
+        lambda d, one, tmp: (lambda: G.genome_catalog(str(d))))
+    assert native[0] == "raised", f"compiled ACCEPTED a non-UTF-8 label: {native!r}"
+    assert pure[0] == "raised", f"scripting ACCEPTED a non-UTF-8 label: {pure!r}"
+
+
 # ── the ABI statement, made executable ───────────────────────────────────────
 
 def test_rc342_introduces_no_new_status_enumerator_and_does_not_move_the_abi():
