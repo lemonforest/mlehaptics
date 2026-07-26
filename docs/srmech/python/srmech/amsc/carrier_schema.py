@@ -35,7 +35,7 @@ human-readable description per carrier, so introspection could not say *what a
       ...
     }
 
-The ``capability`` block (rc339, `#967`)
+The ``capability`` block (rc339, `#T967`)
 ----------------------------------------
 Before rc339 the registry said what each carrier IS and never what it can DO,
 and the only ceilings :func:`srmech.introspect.describe` published were
@@ -377,7 +377,7 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
 }
 
 
-# ── the per-carrier CAPABILITY table (rc339, `#967`) ─────────────────────────
+# ── the per-carrier CAPABILITY table (rc339, `#T967`) ─────────────────────────
 #
 # What each carrier can DO, as opposed to what it IS. Held as its own table
 # rather than folded into _CARRIERS so the whole ontology reads as ONE object,
@@ -643,7 +643,7 @@ def _pure_carrier_schema() -> Dict[str, Dict[str, Any]]:
             "ladder": meta["ladder"],
             "rung": meta["rung"],
             "variables": list(meta["variables"]),
-            # rc339 (`#967`) — what the carrier can DO, not only what it is.
+            # rc339 (`#T967`) — what the carrier can DO, not only what it is.
             "capability": dict(_CAPABILITY[name]),
             "ops": ops_index[name],
         }
@@ -674,7 +674,7 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
     "ops"}`` keyed by carrier name; the operand-side dual of ``tool_schema``
     (see the module docstring for the full shape + the derivation of ``ops``).
 
-    ``capability`` (rc339, `#967`) is what the carrier can DO —
+    ``capability`` (rc339, `#T967`) is what the carrier can DO —
     ``{product, address, compose, turn, commutative, varies_with}``. It reports
     the WORST case over everything the carrier admits, so a permissive number
     elsewhere can never be read as a capability the carrier does not have.

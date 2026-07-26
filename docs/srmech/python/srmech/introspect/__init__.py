@@ -692,7 +692,7 @@ def describe() -> Dict[str, Any]:
     a real PAL stack-limit query and is deliberately absent rather than
     approximated.
 
-    rc339 (`#967`) — ``limits`` became CAPABILITY-KEYED and ``carriers`` became
+    rc339 (`#T967`) — ``limits`` became CAPABILITY-KEYED and ``carriers`` became
     capability-tagged, because reporting only the permissive ceiling implies a
     capability that does not exist.
 
@@ -806,7 +806,7 @@ def describe() -> Dict[str, Any]:
     # rc298 describe() could not see it at all: the same mechanism-2 defect the
     # classes key had. Guarded — carrier_schema is independently optional.
     #
-    # rc339 (`#967`): a flat NAME LIST is the same defect one turn further in.
+    # rc339 (`#T967`): a flat NAME LIST is the same defect one turn further in.
     # It said which operands exist and nothing about what any of them can DO,
     # while the only ceilings published alongside were both ADDRESSING bounds —
     # so the report answered "how big?" with 256 and stayed silent on the two
@@ -835,7 +835,7 @@ def describe() -> Dict[str, Any]:
     # rc298 ships none, and a compiled constant published under a name implying
     # runtime headroom would be exactly the kind of wrong number this rc line
     # exists to remove. A missing key is honest.
-    # rc339 (`#967`) — CAPABILITY-KEYED. Both rc298 keys were ADDRESSING bounds
+    # rc339 (`#T967`) — CAPABILITY-KEYED. Both rc298 keys were ADDRESSING bounds
     # and nothing said so, so the block answered "how big can this go?" with 256
     # and was silent on the two ceilings that actually bind. A caller reading 256
     # and reaching for a TURN was reading a permissive number for a capability
@@ -955,7 +955,7 @@ def describe() -> Dict[str, Any]:
             "routes": dict(_class_routes),
             "toml_total": _toml_total,
         },
-        # Carriers (rc298 `#936`; capability-tagged rc339 `#967`) — the operand
+        # Carriers (rc298 `#936`; capability-tagged rc339 `#T967`) — the operand
         # nouns to `tools`' verbs, each with what it can DO. `capabilities` is
         # keyed by carrier name, so sorted(...) recovers the old name list. Full
         # per-carrier detail via srmech.amsc.carrier_schema.carrier_schema().
@@ -964,7 +964,7 @@ def describe() -> Dict[str, Any]:
             "capabilities": _carrier_caps,
         },
         # Compiled CAPABILITY ceilings (rc298 `#936`; capability-KEYED rc339
-        # `#967`) — what this BUILD supports, with every dimension inside the
+        # `#T967`) — what this BUILD supports, with every dimension inside the
         # capability it bounds. No resource/headroom key; see the note above.
         "limits": _limits,
         # C-claim resolution (rc300 `#938`) — every ``c_dispatched`` op's C

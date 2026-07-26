@@ -133,7 +133,7 @@ def test_describe_surfaces_the_carrier_registry():
     construction-example floor and a compiled-in C peer table was invisible to
     describe() entirely. ``tools`` are the verbs; ``carriers`` are the nouns.
 
-    rc339 (`#967`) replaced the flat ``names`` list with capability-keyed rows —
+    rc339 (`#T967`) replaced the flat ``names`` list with capability-keyed rows —
     a name list said WHICH operands exist and nothing about what any of them can
     do. The membership assertion is unchanged; only where the names are read
     from moved (``sorted(...["capabilities"])``)."""
@@ -163,7 +163,7 @@ def test_describe_reports_the_compiled_dimension_ceilings():
     trying it and failing, or by reading the C header. For a package whose whole
     stance is self-description, that was a gap.
 
-    rc339 (`#967`) kept both numbers and moved them INSIDE the capability they
+    rc339 (`#T967`) kept both numbers and moved them INSIDE the capability they
     bound. They were always addressing ceilings; nothing said so, which is how
     256 came to be read as a turn ceiling."""
     from srmech.amsc.cascade.cayley_dickson import CD_DENSE_MAX_DIM, CD_MAX_DIM
@@ -185,7 +185,7 @@ def test_limits_reports_capability_only_and_claims_no_host_headroom():
     resource ceiling is ever added it gets its own unmistakable name; this test
     fails if one is smuggled into the capability block instead.
 
-    rc339 (`#967`) nested the block one level (capability → ceilings), so the
+    rc339 (`#T967`) nested the block one level (capability → ceilings), so the
     scan walks the leaf keys instead of the top-level ones. The rule is
     unchanged and now covers strictly MORE keys than it did at rc298.
     """

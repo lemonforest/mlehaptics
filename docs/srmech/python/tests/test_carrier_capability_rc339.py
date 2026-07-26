@@ -1,4 +1,4 @@
-"""rc339 (`#967`, and the ontology half of `#965`) — introspection must report
+"""rc339 (`#T967`, and the ontology half of `#T965`) — introspection must report
 what a limit is FOR, and the published ontology must stay tied to the carrier.
 
 THE DEFECT

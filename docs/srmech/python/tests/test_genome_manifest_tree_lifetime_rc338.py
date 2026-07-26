@@ -1,4 +1,4 @@
-"""rc338 — the derived manifest TREE must not point into a dead stack frame (`#956`).
+"""rc338 — the derived manifest TREE must not point into a dead stack frame (`#T956`).
 
 THE DEFECT
 ==========
@@ -212,7 +212,7 @@ def test_derived_tree_survives_a_later_catalog_call(monkeypatch):
         got_b = _tree_json(tree_b, str(d_b))["data"]
 
     assert got_a["body_sha256"] == want_a["body_sha256"], (
-        f"#956: the tree from genome A reported body_sha256="
+        f"#T956: the tree from genome A reported body_sha256="
         f"{got_a['body_sha256']!r} after a second catalog call. Genome A's true "
         f"digest is {want_a['body_sha256']!r}"
         + (f" — the value reported is genome B's ({want_b['body_sha256']!r}), i.e. "
@@ -221,10 +221,10 @@ def test_derived_tree_survives_a_later_catalog_call(monkeypatch):
            if got_a["body_sha256"] == want_b["body_sha256"]
            else " — the string node is reading a dead stack frame."))
     assert got_a["coupling"]["hex"] == want_a["coupling"]["hex"], (
-        "#956: the tree from genome A reported the wrong coupling.hex after a "
+        "#T956: the tree from genome A reported the wrong coupling.hex after a "
         "second catalog call — one_hex escaped its frame with body_sha")
     assert got_a["coupling"]["sha256"] == want_a["coupling"]["sha256"], (
-        "#956: coupling.sha256 escaped its frame")
+        "#T956: coupling.sha256 escaped its frame")
     # B is the LAST writer of that frame, so B alone would pass even unfixed. It is
     # asserted so a "fix" that merely swapped which genome gets corrupted is caught.
     assert got_b["body_sha256"] == want_b["body_sha256"]
@@ -247,17 +247,17 @@ def test_derived_tree_matches_the_scripting_projection_in_full(monkeypatch):
         got = _tree_json(tree_a, str(d_a))
 
     assert got["data"] == want, (
-        "#956: the compiled projection's derived data block diverged from the "
+        "#T956: the compiled projection's derived data block diverged from the "
         "scripting projection's after an intervening rebuild")
     att = got["attestation"]
     assert att["response_sha256"] == want["body_sha256"], (
-        "#956: attestation.response_sha256 (the same body_sha buffer) escaped")
+        "#T956: attestation.response_sha256 (the same body_sha buffer) escaped")
     assert att["parser_version"].startswith("srmech "), (
-        f"#956: attestation.parser_version read back as {att['parser_version']!r} "
+        f"#T956: attestation.parser_version read back as {att['parser_version']!r} "
         f"— the version string escaped its frame")
     for key in ("parser_rule_hash", "collector_descriptor_hash"):
         assert len(att[key]) == 64 and all(c in "0123456789abcdef" for c in att[key]), (
-            f"#956: attestation.{key} read back as {att[key]!r}, not 64 lowercase "
+            f"#T956: attestation.{key} read back as {att[key]!r}, not 64 lowercase "
             f"hex — the digest escaped its frame")
 
 
@@ -279,10 +279,10 @@ def test_three_trees_alive_at_once(monkeypatch):
 
     for i, (g, w) in enumerate(zip(got, want)):
         assert g["body_sha256"] == w["body_sha256"], (
-            f"#956: tree {i} of 3 reported body_sha256={g['body_sha256']!r}, "
+            f"#T956: tree {i} of 3 reported body_sha256={g['body_sha256']!r}, "
             f"expected {w['body_sha256']!r}")
         assert g["coupling"]["hex"] == w["coupling"]["hex"], (
-            f"#956: tree {i} of 3 reported the wrong coupling.hex")
+            f"#T956: tree {i} of 3 reported the wrong coupling.hex")
 
 
 # ── controls — the sites that were already sound, pinned so they stay sound ───
@@ -325,6 +325,6 @@ def test_the_shipping_catalog_path_is_correct_for_repeated_reads(monkeypatch):
     for i, got in enumerate(seq):
         want = want_a if i % 2 == 0 else want_b
         assert got["body_sha256"] == want["body_sha256"], (
-            f"#956: read {i} of the alternating sequence returned the wrong "
+            f"#T956: read {i} of the alternating sequence returned the wrong "
             f"body_sha256")
         assert got["coupling"]["hex"] == want["coupling"]["hex"]

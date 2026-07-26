@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""rc339 (`#967` / `#965`) — the generating code for srmech's CARRIER CAPABILITY
+"""rc339 (`#T967` / `#T965`) — the generating code for srmech's CARRIER CAPABILITY
 ontology: the three ceilings ADDRESS / COMPOSE / TURN, measured rather than
 asserted.
 

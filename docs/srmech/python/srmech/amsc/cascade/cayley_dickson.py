@@ -115,7 +115,7 @@ CD_MAX_DIM = 256
 #: and stays correct at every dim ``≤`` :data:`CD_MAX_DIM` — just slower.
 CD_DENSE_MAX_DIM = 64
 
-#: **ADDRESS ceiling — the honest one** (rc339, `#967`): the highest rung at
+#: **ADDRESS ceiling — the honest one** (rc339, `#T967`): the highest rung at
 #: which the index lane ``e_i·e_j = ±e_{i XOR j}`` has been EXHAUSTIVELY
 #: verified. 0 failures / 4096 pairs at 64 (generating code:
 #: ``docs/srmech/notes/carrier_capability_ontology_rc339.py``). Distinct from
@@ -129,13 +129,13 @@ CD_ADDRESS_VERIFIED_DIM = 64
 DIVISION_ALGEBRA_DIMS: Tuple[int, int, int, int] = (1, 2, 4, 8)
 
 #: The **ASSOCIATIVE** rungs — the sub-ladder on which a TURN COMPOSES
-#: (rc339, `#967`). ``ℝ ↪ ℂ ↪ ℍ`` and no further: at dim 8 the octonions are
+#: (rc339, `#T967`). ``ℝ ↪ ℂ ↪ ℍ`` and no further: at dim 8 the octonions are
 #: alternative but not associative, so ``L_x ∘ L_y == L_{x·y}`` stops holding
 #: in general. Strictly inside :data:`DIVISION_ALGEBRA_DIMS` — a rung can be a
 #: division algebra (dim 8) and still not compose its turns.
 ASSOCIATIVE_ALGEBRA_DIMS: Tuple[int, int, int] = (1, 2, 4)
 
-#: **COMPOSE ceiling** (rc339, `#967`): the largest dim at which the product
+#: **COMPOSE ceiling** (rc339, `#T967`): the largest dim at which the product
 #: has NO ZERO DIVISORS — a normed composition algebra. ``max
 #: DIVISION_ALGEBRA_DIMS``; Hurwitz (1898) says 1, 2, 4, 8 and nothing else.
 #: Past it (dim 16, 𝕊) there exist ``x ≠ 0``, ``y ≠ 0`` with ``x·y == 0``, which
@@ -147,7 +147,7 @@ ASSOCIATIVE_ALGEBRA_DIMS: Tuple[int, int, int] = (1, 2, 4)
 #: to remove — see :func:`srmech.introspect.describe`.
 CD_COMPOSE_MAX_DIM = 8
 
-#: **TURN ceiling** (rc339, `#967`): the largest dim at which NON-COMMUTING
+#: **TURN ceiling** (rc339, `#T967`): the largest dim at which NON-COMMUTING
 #: turn composition survives — ``max ASSOCIATIVE_ALGEBRA_DIMS`` = 4 (ℍ).
 #:
 #: A "turn" composes iff left multiplication is a representation::
