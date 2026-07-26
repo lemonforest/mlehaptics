@@ -6103,6 +6103,12 @@ def _default_coupling(leaf_dim):
 _ELEMENT_TYPE_SECTORS = {ELEMENT_TYPE_KLEIN4: QUAD, ELEMENT_TYPE_Q8: OCT,
                          ELEMENT_TYPE_OCTONION: OCTONION_SECTORS}
 
+#: PROSE spelling of each carrier, for error messages only (the wire/API name stays
+#: :data:`_ELEMENT_TYPE_NAMES`). klein4's entry is the historical "Klein-4" spelling so
+#: the shipped symbol-guard message is preserved verbatim when the bound generalised.
+_ELEMENT_TYPE_DISPLAY = {ELEMENT_TYPE_KLEIN4: "Klein-4", ELEMENT_TYPE_Q8: "Q8",
+                         ELEMENT_TYPE_OCTONION: "octonion"}
+
 
 def _validate_kernel_symbols(data, element_type=ELEMENT_TYPE_KLEIN4):
     """``data`` → a validated ``list[int]`` of ``element_type`` sector symbols, raising
@@ -6114,16 +6120,19 @@ def _validate_kernel_symbols(data, element_type=ELEMENT_TYPE_KLEIN4):
     (:data:`_ELEMENT_TYPE_SECTORS`) rather than a hard-coded ``0..3``. Before this, a
     ``kernel_pack(element_type="q8")`` stamped ``q8`` into the §89 header and then
     rejected every symbol a Q₈ kernel actually holds (4..7) — the declared carrier
-    could not be used. klein4 keeps the identical ``0..3`` bound + message."""
+    could not be used. klein4 keeps the identical ``0..3`` bound AND the identical
+    message — the shipped wording ("is not a Klein-4 sector") is preserved verbatim,
+    so no existing caller's error handling moves."""
     sectors = _ELEMENT_TYPE_SECTORS[element_type]
     name = _ELEMENT_TYPE_NAMES[element_type]
+    shown = _ELEMENT_TYPE_DISPLAY[element_type]
     syms = [int(x) for x in data]
     for i, s in enumerate(syms):
         if s < 0 or s >= sectors:
             raise ValueError(
-                f"kernel: symbol {s} at position {i} is not a {name} sector "
+                f"kernel: symbol {s} at position {i} is not a {shown} sector "
                 f"(0..{sectors - 1}) — element_type={name!r} packs only "
-                f"{name} kernels"
+                f"{shown} kernels"
             )
     return syms
 
