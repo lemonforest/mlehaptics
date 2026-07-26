@@ -332,9 +332,16 @@ remaining classes K/M/N ship in subsequent rc additions under
 signed-metric / Wick-rotation operation located by Spike #24
 bonus 8 and narrowed by bonus 9 was **dissolved into Class L
 as a signed-Laplacian-variant sub-operation** per
-`[[feedback_no_privileged_primitive_classes]]`. Future Class L rcs
-will add the signed-Laplacian op when Phase C2 cascade-composition
-work calls for it. Vocabulary stays at 14 classes A–N.
+`[[feedback_no_privileged_primitive_classes]]`. **The signed-Laplacian
+op SHIPPED** — `signed_laplacian` at `srmech/amsc/laplacian.py:3279`
+(real symmetric PSD, Class-K magnitude degree; Kunegis et al. SDM 2010),
+with `magnetic_laplacian` at `:3458` as the Hermitian directed / chiral
+peer (per-edge `charges=` mode; Lieb & Loss, *Duke Math. J.* **71**
+(1993) 337–363, arXiv:cond-mat/9209031; Reff, *LAA* **436** (2012)
+3165–3176, arXiv:1110.4554). This passage previously read "future
+Class L rcs will add the signed-Laplacian op" and was stale per
+`[[feedback_claude_md_orientation_can_lag_notebook_ssot]]` — corrected
+2026-07-25. Vocabulary stays at 14 classes A–N.
 
 Each class follows the same ratchet — parity test + JPL Power-of-Ten
 audit + cibuildwheel matrix update + TestPyPI rc verification per

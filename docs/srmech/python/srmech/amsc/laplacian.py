@@ -3497,14 +3497,31 @@ def magnetic_laplacian(
     ``L[u,v] += −(w/2)·e^{+i·2π·c}`` / ``L[v,u] += −(w/2)·e^{−i·2π·c}``
     (``(u, v, c) ≡ (v, u, −c)``; the ``w/2`` matches the scalar mode's
     ``(W + Wᵀ)/2`` magnitude scale), and the real diagonal carries the
-    magnitude degree ``Σ w/2``. WHY (F1006/F1007): the real
-    :func:`signed_laplacian` ANNIHILATES a dual-sense edge — "is-a" (+1)
-    and "is-not-a" (−1) sum to 0 and the relationship vanishes — while
-    the two phase senses ``e^{±i·2π·q}`` are conjugate partners that
-    SURVIVE: a dual-sense pair ``(a, +q)`` + ``(b, −q)`` reads
-    ``−[(a+b)/2·cos(2πq) + i·(a−b)/2·sin(2πq)]`` — the symmetric part in
-    the real cosine, the is-a/is-not-a IMBALANCE in the imaginary sine
-    residue (chiral flux, not cancellation).
+    magnitude degree ``Σ w/2``. WHY (F1006/F1007): on an **exactly
+    balanced** dual-sense edge the real :func:`signed_laplacian`
+    ANNIHILATES it — "is-a" (+1) and "is-not-a" (−1) sum to 0 and the
+    relationship vanishes — while the two phase senses ``e^{±i·2π·q}``
+    are conjugate partners that SURVIVE: a dual-sense pair ``(a, +q)`` +
+    ``(b, −q)`` reads ``−[(a+b)/2·cos(2πq) + i·(a−b)/2·sin(2πq)]`` — the
+    symmetric part in the real cosine, the is-a/is-not-a IMBALANCE in the
+    imaginary sine residue (chiral flux, not cancellation).
+
+    **The balanced case is the ONLY case that cancels — do not read this
+    as chiral preservation of a bias** (measured, workflow ``w8y06lpew``
+    2026-07-25). When ``a ≠ b`` the real operator does NOT annihilate: it
+    returns exactly ``−(a − b)`` (300/300, worst deviation 0.0), because
+    :func:`_dense_adjacency_py` sums parallel edges *before* the Class-K
+    magnitude. That is **twice** the ``(a − b)/2`` the chiral mode
+    retains, so on an imbalanced pair the REAL operator carries the
+    imbalance more strongly, not less. Neither mode amplifies: the
+    chirality order parameter grows as ``tanh(2k·atanh(s/d))``, which a
+    real ABELIAN 2×2 with the same splitting reproduces to 9 decimal
+    places — ``k ~ 1/ε`` linear filtering, not ``k ~ log(1/ε)``
+    autocatalysis (a Hermitian operator has a real spectrum and cannot
+    beat its own eigenvalue ratio). Any apparent ε-floor difference
+    between the two modes is an ENCODING artefact, not a property of
+    chirality: under a scale-free encoding the chiral mode's relative
+    splitting is ``1.0000`` from ``ε = 1e-6`` down to ``1e-100``.
 
     **Contract: ``q`` and ``charges`` are mutually exclusive.** Passing
     ``charges`` moves every edge's phase onto the edge itself, so a scalar
