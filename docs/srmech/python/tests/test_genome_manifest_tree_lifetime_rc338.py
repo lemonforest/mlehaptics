@@ -60,6 +60,24 @@ describing the WRONG genome, returned with a success status. That is the shape t
 makes this worth an rc: not a crash, not a garbled string, but a plausible answer
 about a different object.
 
+WHY NOT JUST RUN ADDRESSSANITIZER
+=================================
+It was run, and it names the defect exactly — ``c/src/*.c`` + the C smoke built
+``-fsanitize=address`` under ``ASAN_OPTIONS=detect_stack_use_after_return=1``
+reports, against the pre-fix source::
+
+    ERROR: AddressSanitizer: stack-use-after-return
+    Address ... is located in stack of thread T0 at offset 368 in frame
+        #0 genome_obtain_manifest srmech_genome.c:3632
+        [368, 1240) 'rstrs' (line 3680) <== Memory access ... inside this variable
+
+but it is not a substitute for this file, for two reasons. It needs a sanitizer
+build, which no shipped configuration is; and its fake-stack machinery gives every
+call its own frame, so under ASan the second call never lands on the first's
+storage and the WRONG-GENOME symptom disappears entirely — the redzone poison is
+what reports, not the value. The two are complementary. This file pins the
+behaviour a user actually gets, in the build a user actually runs.
+
 WHAT IS *NOT* CLAIMED
 =====================
 This pins the ONE escaping site. ``genome_census_build`` also holds a
