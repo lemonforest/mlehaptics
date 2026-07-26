@@ -3068,7 +3068,8 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("strand", "Sequence[HV]", True, "a multi-gene chromosome strand (from chromosome(genes=[...], coupling))"),
                         P("coupling", "HV", True, "the held invariant the gene turns were coupled through (gene_express uncouples the expressed leaves through it)"),
                         P("expressed_labels", "Sequence[str]", True, "the OBSERVED expressed gene labels (the set to check the candidate against)"),
-                        P("candidate_cell_state", "int", True, "the candidate cell-state bitmask to forward-check (Class-I bitwise; non-negative; no float)")),
+                        P("candidate_cell_state", "int", True, "the candidate cell-state bitmask to forward-check (Class-I bitwise; non-negative; no float)"),
+                        ET_PARAM),
             returns=R("str", "'CONSISTENT' iff gene_express(candidate) produces exactly expressed_labels (could be the state — many may be), else 'INCONSISTENT' (one-sided; never a false positive-identification)"),
         ),
         ToolEntry(

@@ -929,6 +929,125 @@ ELEMENT_TYPE_CAPABILITY: Tuple[Dict[str, Any], ...] = (
     },
 )
 
+# ─────────────────────────────────────────────────────────────────────────────
+# rc340 (#965) — the CARRIER SURFACE map: how each public genome op relates to
+# the element_type ladder above.
+#
+# rc339 answered "what can each rung DO"; this answers "which ops can be ASKED".
+# The honest answer is not one list but FOUR relationships, because "does not take
+# element_type" covers three very different situations and collapsing them into a
+# single coverage percentage hides the only ones that matter.
+#
+#   "accepts"  — the carrier CANNOT be inferred from the inputs, so the caller must
+#                say. Every such op takes element_type on BOTH the Python and the
+#                MCP surface (rc340 made those agree). The rule: an in-memory leaf
+#                or strand is just bytes — _leaf_blocks drops the HV's `sectors`,
+#                and a Q8 turn confined to the low indices is byte-identical to a
+#                klein4 one — so there is nothing to read.
+#   "derived"  — the op READS a store or strand that SELF-DESCRIBES its carrier
+#                (the on-disk turn MARKER keys the codec: 0x51 klein4 / 0x38 Q8 /
+#                0x39 octonion; the manifest head caches it as `carrier`). Adding a
+#                parameter here would be strictly worse than deriving: the store is
+#                the authority, and a caller-supplied value could only agree or be
+#                wrong. Where such an op accepts one at all it is an ASSERTION,
+#                checked against the store and raised on, never obeyed.
+#   "fixed"    — the carrier IS the op's identity, not a choice about it. The
+#                fiber/holonomy family exists precisely to read the Q8 (or 𝕆)
+#                channel; parameterising it would let a caller ask a Q8 holonomy to
+#                be klein4, which is a request for a different op.
+#   "free"     — the op HAS no carrier. Caps, byte-level splices, integer criteria
+#                and graph reads never couple or decouple a turn. Giving these an
+#                element_type would be the false green #965 warns about — a
+#                parameter reporting a capability it does not deliver.
+#
+# ``tests/test_genome_carrier_coverage_rc340.py`` pins this map three ways: every
+# public callable appears exactly once (a new op must be classified, not defaulted),
+# "accepts" matches the MEASURED signatures on both surfaces, and every "accepts" op
+# is DRIVEN on all three rungs to prove it does not ignore the argument.
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: ``{op_name: (relationship, reason)}`` — the carrier-surface map described above.
+#: ``relationship`` is one of ``"accepts"`` / ``"derived"`` / ``"fixed"`` / ``"free"``.
+GENOME_CARRIER_SURFACE: Dict[str, Tuple[str, str]] = {
+    # ── accepts: no marker to read; the caller is the only source ───────────
+    "quad_turn": ("accepts", "the turn-level bind itself — the rung IS the operation"),
+    "chromosome": ("accepts", "couples raw in-memory leaves into turns"),
+    "genome": ("accepts", "the umbrella; threads the rung to every chromosome it builds"),
+    "mint": ("accepts", "explicit alias of genome; forwards the rung unchanged"),
+    "plasmid": ("accepts", "all-plasmid builder; threads the rung to every chromosome"),
+    "diploid": ("accepts", "couples two homolog copies from in-memory leaves"),
+    "recall": ("accepts", "decouples an IN-MEMORY strand, which carries no marker"),
+    "partition": ("accepts", "decouples an in-memory multi-kernel strand"),
+    "genes": ("accepts", "decouples an in-memory multi-gene chromosome"),
+    "recover_diploid": ("accepts", "decouples an in-memory diploid strand"),
+    "gene_express": ("accepts", "decouples the expressed turns of an in-memory strand"),
+    "gene_express_levels": ("accepts", "as gene_express, with graded dose levels"),
+    "gene_express_plan": ("accepts", "plans + decodes; the strand form has no marker"),
+    "modulator_consistent": ("accepts", "reuses the forward gene_express decode"),
+    "kernel_pack": ("accepts", "couples a flat kernel AND records the rung in the header"),
+    "kernel_unpack": ("accepts", "for an in-memory strand; DERIVES for a path"),
+    "graph_to_kernel": ("accepts", "storage rung for the packed graph chromosome"),
+    "kernel_to_graph": ("accepts", "forwards to kernel_unpack; derives for a path"),
+    "genome_from_graph": ("accepts", "threads the rung to each community's chromosome"),
+    "mint_strand": ("accepts", "re-reads the strand's turns to content-address it"),
+    "genome_save": ("accepts", "bit-packs in-memory turns to disk at the rung's width"),
+    # ── derived: the store/strand self-describes its carrier ────────────────
+    "genome_load": ("derived", "the on-disk turn MARKER keys the codec, per block"),
+    "genome_window": ("derived", "pages a region; the same marker-keyed walk"),
+    "genome_catalog": ("derived", "reports the head's `carrier` field"),
+    "genome_census": ("derived", "reads the catalog, carrier included"),
+    "genome_registry": ("derived", "walks catalogs; each reports its own carrier"),
+    "genome_genes": ("derived", "threads the head's `carrier` into the gene decode"),
+    "genome_genes_expressed": ("derived", "threads the head's `carrier` into the decode"),
+    "genome_append": ("derived", "a genome is carrier-UNIFORM; appends at the store's rung"),
+    "genome_append_kernel": ("derived", "header enum = the store's rung; an argument asserts"),
+    "genome_replace": ("derived", "rebuilds the region at the surrounding body's rung"),
+    "genome_remove": ("derived", "splices bytes out; the rebuilt manifest re-derives carrier"),
+    "genome_import": ("derived", "rebuilds the manifest by scanning the merged body"),
+    "genome_pack": ("derived", "rebuilds the manifest by scanning the packed body"),
+    "genome_explode": ("derived", "each written sub-genome re-derives its own carrier"),
+    "genome_export": ("derived", "copies a region verbatim; markers ride along"),
+    "upgrade_v15_to_v16": ("derived", "the v16 head's `carrier` IS what it computes"),
+    # ── fixed: the carrier is the op's identity, not a parameter ────────────
+    "genome_fiber_holonomy": ("fixed", "Q8 by construction — the non-abelian fold IS the op"),
+    "genome_add_fiber": ("fixed", "writes the Q8 fiber cap"),
+    "genome_read_fiber": ("fixed", "reads the Q8 fiber cap"),
+    "genome_octonion_holonomy": ("fixed", "octonion by construction"),
+    "genome_octonion_associator": ("fixed", "measures 𝕆 non-associativity; 𝕆-only by nature"),
+    "genome_add_octonion_fiber": ("fixed", "writes the octonion fiber cap"),
+    "genome_read_octonion_fiber": ("fixed", "reads the octonion fiber cap"),
+    "codon_read": ("fixed", "projects Q8 -> V4 (q8_project_v4); the projection IS the op"),
+    "codon_frame_monodromy": ("fixed", "the codon frame's Q8 projection, as codon_read"),
+    # ── free: no carrier exists in the operation ────────────────────────────
+    "telomere": ("free", "a cap is a content-addressed sentinel block, never a coupled turn"),
+    "active_telomere": ("free", "a cap carrying an integer count; not a turn"),
+    "centromere": ("free", "an interior cap; position and orientation, no algebra"),
+    "centromere_of": ("free", "reads a cap's inline orientation byte"),
+    "telomere_tick": ("free", "decrements a cap's inline count; decodes no turn"),
+    "copy_number_of": ("free", "reads a gene cap's inline copy number"),
+    "chromatin_of": ("free", "reads chromatin cap state"),
+    "condense": ("free", "sets chromatin cap state; turns are untouched"),
+    "decondense": ("free", "clears chromatin cap state; turns are untouched"),
+    "accessible": ("free", "gates on cap masks only — no turn is decoded"),
+    "amplify": ("free", "duplicates whole blocks verbatim; never decodes one"),
+    "integrate": ("free", "concatenates self-describing blocks; no re-coupling (that is why it is free)"),
+    "encode_shape": ("free", "an integer criterion on a COUNT; no strand exists"),
+    "mint_plan": ("free", "reports the shape pick from leaf COUNTS; builds nothing"),
+    "genome_partition": ("free", "a Class-L spectral read of a GRAPH; no strand exists yet"),
+    "discrete_writhe": ("free", "a geometric embedding, not a strand"),
+    "cwf_consistency_mod2": ("free", "edges + gains; a graph, not a strand"),
+    "modulator_constraint": ("free", "pure cap-mask boolean algebra; no turn decoded"),
+    "modulator_constraint_satisfies": ("free", "evaluates a constraint against a bitmask"),
+    "modulator_recover": ("free", "solves over cap masks; no turn decoded"),
+    "genome_register_attested": ("free", "attestation + filesystem registration"),
+    "set_type_aliases": ("free", "a name->name mapping; no strand, no turns"),
+    "clear_type_aliases": ("free", "clears that mapping"),
+    "load_type_aliases_toml": ("free", "reads that mapping from TOML"),
+}
+
+#: The four relationships :data:`GENOME_CARRIER_SURFACE` classifies ops into.
+GENOME_CARRIER_RELATIONSHIPS: Tuple[str, ...] = ("accepts", "derived", "fixed", "free")
+
 #: §60 kernel-header fixed prefix layout (bytes; NUL-padded to ``leaf_dim``):
 #:   ``[0]``      marker ``0x4B``
 #:   ``[1:9]``    true length ``D``  — uint64 BIG-ENDIAN (8 bytes; caps at 2**64-1,
@@ -2228,14 +2347,18 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     4-sector biaxial "+" (:func:`srmech.amsc.cascade.parallel_sector_dispatch`, CAP=4); that
     dispatch and base-4 leaf addressing assemble at the chromosome level.
     """
-    # The int enum is the HOT path (one compare per turn, unchanged since rc311); the
-    # rc340 name form ("q8") falls through to the normaliser and re-enters with its code.
-    if element_type == ELEMENT_TYPE_KLEIN4:
-        return _klein4_bind(turn, coupling)
-    if element_type == ELEMENT_TYPE_Q8:
-        return _q8_couple(turn, coupling)
-    if element_type == ELEMENT_TYPE_OCTONION:
-        return _oct_couple(turn, coupling)
+    # The int enum is the HOT path (one type check + one compare per turn); the rc340
+    # name form ("q8") falls through to the normaliser and re-enters with its code.
+    # The type check is EXACT (`is int`, not isinstance) so `True`/`False`/`1.0` do NOT
+    # slip through the `==` comparisons — bool is an int subclass and `False == 0`, so
+    # a plain `==` fast path would silently read `False` as klein4 and `True` as q8.
+    if element_type.__class__ is int:
+        if element_type == ELEMENT_TYPE_KLEIN4:
+            return _klein4_bind(turn, coupling)
+        if element_type == ELEMENT_TYPE_Q8:
+            return _q8_couple(turn, coupling)
+        if element_type == ELEMENT_TYPE_OCTONION:
+            return _oct_couple(turn, coupling)
     return quad_turn(turn, coupling,
                      element_type=_element_type_code(element_type, op="quad_turn"))
 
@@ -2341,15 +2464,18 @@ def _quad_unturn(hv, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     **Q8 (§Q8 / rc311).** The Q₈ group-INVERSE decouple (:func:`_q8_uncouple_bytes`) — Q₈ is
     non-abelian so uncouple ≠ couple; ``recovered[i] = q8_mult(stored[i], conj(one[i]))``.
     Returns a ``sectors=8`` (:data:`OCT`) HV."""
-    if element_type == ELEMENT_TYPE_KLEIN4:
-        return _klein4_bind(hv, coupling)             # involution — identical to shipped path
-    if element_type == ELEMENT_TYPE_Q8:
-        return _HV.from_sequence(
-            _q8_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)), sectors=OCT)
-    if element_type == ELEMENT_TYPE_OCTONION:
-        return _HV.from_sequence(
-            _oct_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)),
-            sectors=OCTONION_SECTORS)
+    # Exact `is int` for the same reason as quad_turn: a bare `==` would read False as
+    # klein4 and True as q8 (bool subclasses int), silently picking a rung.
+    if element_type.__class__ is int:
+        if element_type == ELEMENT_TYPE_KLEIN4:
+            return _klein4_bind(hv, coupling)         # involution — identical to shipped path
+        if element_type == ELEMENT_TYPE_Q8:
+            return _HV.from_sequence(
+                _q8_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)), sectors=OCT)
+        if element_type == ELEMENT_TYPE_OCTONION:
+            return _HV.from_sequence(
+                _oct_uncouple_bytes(_hv_bytes(hv), _hv_bytes(coupling)),
+                sectors=OCTONION_SECTORS)
     return _quad_unturn(hv, coupling,
                         element_type=_element_type_code(element_type, op="_quad_unturn"))
 
@@ -5005,7 +5131,8 @@ def modulator_recover(strand, coupling, expressed_labels):
     return _modulator_recover_pure(strand, labels)
 
 
-def modulator_consistent(strand, coupling, expressed_labels, candidate_cell_state):
+def modulator_consistent(strand, coupling, expressed_labels, candidate_cell_state,
+                         *, element_type=ELEMENT_TYPE_KLEIN4):
     """Forward-CHECK one candidate cell_state — M2, the consistency verdict (§133 / #733).
 
     Is ``candidate_cell_state`` a cell_state that could have produced ``expressed_labels``?
@@ -5038,10 +5165,20 @@ def modulator_consistent(strand, coupling, expressed_labels, candidate_cell_stat
             f"modulator_consistent: candidate_cell_state must be non-negative (a bitmask "
             f"is never signed, so never abs()); got {candidate_cell_state}")
     labels = _modulator_labels(expressed_labels, "modulator_consistent")
-    native = _modulator_consistent_native(strand, coupling, labels, candidate_cell_state)
-    if native is not None:
-        return native
-    produced = {lab for lab, _leaves in gene_express(strand, coupling, candidate_cell_state)}
+    element_type = _element_type_code(element_type, op="modulator_consistent")
+    # §Q8/rc340 (#965): the native verdict peer walks the klein4 XOR decouple; a
+    # non-klein4 strand takes the pure path, which threads the rung into the forward
+    # gene_express it reuses. Without this a Q8 strand was checked with klein4
+    # semantics — the ONE op in the modulator family that decodes turns at all
+    # (constraint / satisfies / recover are pure cap-mask algebra, carrier-free).
+    if element_type == ELEMENT_TYPE_KLEIN4:
+        native = _modulator_consistent_native(strand, coupling, labels,
+                                              candidate_cell_state)
+        if native is not None:
+            return native
+    produced = {lab for lab, _leaves in gene_express(strand, coupling,
+                                                    candidate_cell_state,
+                                                    element_type=element_type)}
     return "CONSISTENT" if produced == set(labels) else "INCONSISTENT"
 
 
@@ -9977,12 +10114,21 @@ def _gene_express_plan_strand(strand, coupling, cell_state,
     leaf_dim = len(list(coupling))
     # On-disk data-turn width is element_type-dependent: klein4 packs 4 symbols/byte
     # (§55/v3 → 1 + ceil(leaf_dim/4)); Q₈ packs 3 bits/symbol (§Q8/v16 → 1 + ceil(leaf_dim*3/8),
-    # WIDER). The plan SEEKS PAST data turns to reach the next cap, so it must stride at THIS
+    # WIDER); octonion packs 4 bits/symbol (§𝕆-TURN/v19 → 1 + ceil(leaf_dim*4/8), WIDER STILL).
+    # The plan SEEKS PAST data turns to reach the next cap, so it must stride at THIS
     # genome's real turn width or the emitted byte offsets drift — a Q₈ gene genome has klein4
     # gene caps but Q₈ data turns (rc315).
-    turn_width = 1 + (_packed_payload_len_q8(leaf_dim)
-                      if element_type == ELEMENT_TYPE_Q8
-                      else _packed_payload_len(leaf_dim))   # §55/v3 or §Q8/v16 packed-turn width
+    #
+    # rc340 (#965): this was a TWO-way klein4/Q₈ branch that never learned about the
+    # octonion rung rc326 put on the wire, so an octonion genome strode at the klein4
+    # width and every emitted byte offset after the first data turn was WRONG. The
+    # three rungs are now enumerated from one mapping, so a fourth could not be added
+    # to the ladder without this stride being confronted.
+    turn_width = 1 + {
+        ELEMENT_TYPE_KLEIN4: _packed_payload_len,
+        ELEMENT_TYPE_Q8: _packed_payload_len_q8,
+        ELEMENT_TYPE_OCTONION: _packed_payload_len_octonion,
+    }[element_type](leaf_dim)                    # §55/v3, §Q8/v16 or §𝕆-TURN/v19 width
     plan = []
     pos = 0
     pending = None                              # (label, cap_hv, gene_byte_start)
