@@ -47,13 +47,36 @@ from srmech.amsc.hv import HV
 # never raise them. rc340 measured 70 public callables.
 # ──────────────────────────────────────────────────────────────────────
 
-#: Ops with NO ``element_type`` on the PYTHON surface. rc339: 56. rc340: 48.
-CEIL_GENOME_CARRIER_GAP_PY = 48
+#: Ops with NO ``element_type`` on the PYTHON surface. rc339: 56. rc340: 48. rc345: 49.
+#:
+#: rc345 NOTE — THIS NUMBER TRACKS SURFACE SIZE, NOT COVERAGE, and that is the flaw
+#: the floors below exist to cover. rc345 added ONE public op (``genome_content``, a
+#: carrier-AGNOSTIC counter: it returns block counts, and a cap is a cap on every rung)
+#: so the gap moved 48 -> 49 while coverage did not move at all — 22 accepting ops
+#: before and after, on both surfaces. A pure gap ceiling cannot tell "coverage
+#: regressed" from "the surface grew", so on its own it would either block every new
+#: carrier-free op or be raised on trust each time.
+#:
+#: The ACCEPTS FLOORS are therefore the real ratchet, and they make this file STRICTLY
+#: STRONGER than before: a change that stripped ``element_type`` from one op while
+#: adding a new accepting one keeps the gap constant and used to pass here — the floor
+#: catches it. Lower these ceilings whenever coverage genuinely improves; raise one
+#: ONLY alongside a new carrier-free op, and only with the floors held.
+CEIL_GENOME_CARRIER_GAP_PY = 49
 
 #: Ops with NO ``element_type`` on the MCP / tool-schema surface. rc339: 65 (of 67
 #: registered entries — only kernel_pack + genome_append_kernel published it).
-#: rc340: 45.
-CEIL_GENOME_CARRIER_GAP_MCP = 45
+#: rc340: 45. rc345: 46 (``genome_content``; see the note above).
+CEIL_GENOME_CARRIER_GAP_MCP = 46
+
+#: Ops that DO accept ``element_type``. **UP ONLY** — this is the invariant the gap
+#: ceilings only approximate. rc340: 22. rc345: 22 (unchanged; the rc added a
+#: carrier-free op, so the denominator grew and the numerator did not).
+FLOOR_GENOME_CARRIER_ACCEPTS_PY = 22
+
+#: The same floor on the MCP / tool-schema surface — the one that bounds a REMOTE
+#: caller. rc340: 22. rc345: 22.
+FLOOR_GENOME_CARRIER_ACCEPTS_MCP = 22
 
 #: Ops accepting ``element_type`` in Python whose MCP entry does NOT publish it —
 #: the silent-default crack. rc339: 19 (quad_turn among them). rc340: 0, and it
@@ -218,6 +241,40 @@ def test_no_python_mcp_carrier_crack():
         f"entry in tool_schema.py AND regenerate c/src/srmech_tool_registry.c — "
         f"tool_schema_view() serves the C table when HAS_NATIVE, so a Python-only "
         f"edit leaves the served surface stale."
+    )
+
+
+def test_carrier_coverage_never_regresses():
+    """rc345 — the UP-ONLY floor on ops that ACCEPT a carrier.
+
+    This is the invariant the gap ceilings only approximate. A gap count conflates two
+    different events: coverage falling (bad) and the public surface growing by a
+    carrier-free op (fine). Counting the accepting ops directly separates them, and it
+    closes a hole the gap ceiling had — strip ``element_type`` from one op while adding
+    a new accepting one and the gap is unchanged, so the old guard passed. This one
+    does not.
+    """
+    public = _public_callables()
+    py_accepts = sum(1 for n, o in public.items() if _accepts_python(n, o))
+    mcp = _mcp_parameters()
+    mcp_accepts = sum(1 for params in mcp.values() if "element_type" in params)
+    assert py_accepts >= FLOOR_GENOME_CARRIER_ACCEPTS_PY, (
+        f"PYTHON carrier coverage FELL to {py_accepts} from a floor of "
+        f"{FLOOR_GENOME_CARRIER_ACCEPTS_PY} — an op lost its element_type."
+    )
+    assert mcp_accepts >= FLOOR_GENOME_CARRIER_ACCEPTS_MCP, (
+        f"MCP carrier coverage FELL to {mcp_accepts} from a floor of "
+        f"{FLOOR_GENOME_CARRIER_ACCEPTS_MCP} — an op stopped publishing element_type "
+        f"on the wire; regenerate c/src/srmech_tool_registry.c after any schema edit."
+    )
+    # Raise the floors when coverage improves, exactly as the ceilings are lowered.
+    assert py_accepts == FLOOR_GENOME_CARRIER_ACCEPTS_PY, (
+        f"PYTHON carrier coverage ROSE to {py_accepts} — raise "
+        f"FLOOR_GENOME_CARRIER_ACCEPTS_PY to {py_accepts} to lock the gain in."
+    )
+    assert mcp_accepts == FLOOR_GENOME_CARRIER_ACCEPTS_MCP, (
+        f"MCP carrier coverage ROSE to {mcp_accepts} — raise "
+        f"FLOOR_GENOME_CARRIER_ACCEPTS_MCP to {mcp_accepts} to lock the gain in."
     )
 
 
