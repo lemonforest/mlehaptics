@@ -13,6 +13,32 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc344]
+
+_**`kron` documented itself as BYTE-IDENTICAL to an exact-integer parity oracle while riding float64 (`#T973`). The claim was false, and the ratchet guarding it compared `complex(g) == complex(w)` — rounding the exact oracle value to float64 before comparing, so it could never observe the loss. rc344 fixes the OP, not the claim. `SRMECH_ABI_VERSION` stays 10.**_
+
+- **THE DEFECT.** `spectral_cascades.kron` claimed integer / Gaussian-integer input was "BYTE-IDENTICAL to the pure element loop (the parity oracle below)". That oracle is `_kron_ref` (`tests/test_residue_c_rc155.py`), which multiplies `a[i][j] * b[k][ell]` in native Python integer arithmetic — exact at any magnitude. `kron` routed the products through `laplacian.mat_matmul`, which is `array('d')`-backed on **both** its native and its pure-Python branch. So the claim was false for any product past float64's significand.
+
+  A refutation that reads "parity oracle" as the pure-Python *fallback* does not save it: `mat_matmul`'s fallback also accumulates into `array("d")`, and `kron` has no pure fallback of its own. Both readings ride float.
+
+- **THE MEASURED INVARIANT — significand width, NOT operand scale.** Generating code: `docs/srmech/notes/rc344_kron_significand_invariant.py`; re-derived in `tests/test_residue_c_rc155.py` on every run.
+
+  | fixture | product bits | significand | float64-representable | exact pre-rc344 |
+  |---|---|---|---|---|
+  | `small_int` | 5 | 5 | yes | yes |
+  | `gaussian_small` | 2 | 1 | yes | yes |
+  | **`806bit_product_sig6`** (`7·2⁴⁰⁰ ⊗ 9·2⁴⁰⁰`) | **806** | **6** | yes | **yes** |
+  | **`2**53+1_significand_54`** (`3 × 3002399751580331`) | 54 | **54** | no | **NO** |
+  | `odd_square_significand_63` | 63 | 63 | no | **NO** |
+
+  Exactness tracks `float64-representable` in every row. So `"kron exact" == "every entrywise product is float64-representable"`. This **refutes "goes wrong at operand scale 2²⁸"**: the 806-bit row multiplies 401-bit operands and is exact, because its significand is 6 bits. "Product exceeds 2⁵³" is closer but still wrong for the same row.
+
+- **THE FIX — the op, not the docstring.** `kron` now runs an exact ℤ cascade for integer / Gaussian-integer input (`_int_components` + `_exact_kron`), mirroring how `dft` / `fft` in the same module already route integer signals through the exact `ℤ[ζ_N]` engine — *don't use floats for bit-exact math*. All-real integer input returns exact Python `int` at unbounded magnitude, so exactness survives the return value. Float input is untouched and still rides the C matmul (measured max error 0.0 vs the float oracle). **Measured cost: 1.19× at 64×64, 1.14× at 256×256, 0.97× (faster) at 576×576** — the exact path skips the `Mat` / interleaved-buffer marshalling, so it pays for itself at size. `kron` stays `composition_of_c`: the float path composes the C matmul, the exact path composes `srmech_bigint_mul`.
+
+- **THE RATCHET WAS THE REAL DEFECT.** `complex(g) == complex(w)` coerces **both** sides — including the exact-integer oracle — into float64, so the assertion cannot see a lost integer regardless of fixture. Replaced with `_eq_exact`, which compares `.real`/`.imag` components directly and keeps Python `int`s on ℤ (Python's int-vs-float comparison is exact). Fixtures now span both sides of the significand, with `3 × 3002399751580331 == 2⁵³+1` — the smallest positive integer float64 cannot represent — pinned as the discriminating case. **Verified non-vacuous: the new ratchet run against clean `origin/main` fails 3 tests**, reporting `9007199254740992.0 != 9007199254740993`.
+
+- **SIBLING AUDIT.** `tests/test_spectral_cascades_rc36.py::test_kron_matches_definition` carried the same float-blind comparison and a "bit-exact" comment, but against a FLOAT oracle (`complex(a) * complex(b)`) — so it was mislabelled rather than false. Comment corrected to say it tests float-path parity only, and a new `test_kron_is_exact_beyond_float64_significand` pins the exact contract there. `einsum` was checked and is **clean**: its docstring scopes "exact glue" to the gather/re-index (true — pure index permutation), it asserts against its oracle at `1e-9` tolerance, and it returns a `Mat`, so it never claimed byte-identity. No other op in `spectral_cascades.py` or `matrix_cascades.py` claims exactness against an exact-integer oracle while riding float; `curvature`'s `is_flat` certificate already scopes itself to "the exactly-float-representable entry regime".
+
 ## [0.9.0rc343]
 
 _**rc339 replaced one false claim with a worse one: it gave the turn ceiling `bounded_by: "associativity"` — a RESTATEMENT OF THE DEFINITION — and published `max_dim: 4` as a GLOBAL statement that two rows in its own payload contradict (`#T972`). The ceiling is now PER-CARRIER, `bounded_by` names a MECHANISM, and the ratchet fails if any carrier row contradicts a stated bound. `SRMECH_ABI_VERSION` stays 10.**_
