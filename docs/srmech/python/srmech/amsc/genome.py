@@ -50,7 +50,7 @@ import json
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from srmech.amsc import _native
 from srmech.amsc.cyclic import gcd as _gcd
@@ -113,7 +113,7 @@ __all__ = [
     "PACKED_TURN_MARKER", "Q8_PACKED_TURN_MARKER", "OCTONION_PACKED_TURN_MARKER",
     "KERNEL_HEADER_MARKER", "KERNEL_TELOMERE_MARKER",
     "ACTIVE_TELOMERE_MARKER", "ELEMENT_TYPE_KLEIN4", "ELEMENT_TYPE_Q8",
-    "ELEMENT_TYPE_OCTONION", "OCTONION_SECTORS",
+    "ELEMENT_TYPE_OCTONION", "OCTONION_SECTORS", "ELEMENT_TYPE_CAPABILITY",
     "FIBER_CAP_MARKER", "OCT_FIBER_CAP_MARKER",
     "CHROMATIN_MARKER", "CHROMATIN_TYPE_BINARY", "CHROMATIN_TYPE_GRADED",
     "CHROMATIN_GATE_NONE", "CHROMATIN_GATE_KLEIN4", "CHROMATIN_GATE_BOOLEAN",
@@ -742,11 +742,56 @@ GENOME_STATUS_CANCELLED = "cancelled"
 _PROGRESS_STRUCT_SIZE = _native.PROGRESS_STRUCT_SIZE
 _PHASE_MINTING = _native.SRMECH_PHASE_MINTING
 
+#: **THE ELEMENT-TYPE LADDER IS A CAPABILITY LADDER** (rc339, `#967`) — read the
+#: three ``ELEMENT_TYPE_*`` codes below as *abelian → non-abelian associative →
+#: non-associative*, NOT as a truncated Hurwitz tower (there is no ℝ or ℂ rung
+#: here, and adding one would not mean anything: the genome's turn needs a
+#: discrete group / loop, not a scalar field). Each rung BUYS structure and PAYS
+#: a capability. Exhaustively measured — generating code + NDJSON at
+#: ``docs/srmech/notes/carrier_capability_ontology_rc339.py``::
+#:
+#:     element_type              commutes   associates   turns compose
+#:     ELEMENT_TYPE_KLEIN4 = 0     16/16       64/64          16/16
+#:     ELEMENT_TYPE_Q8     = 1     40/64      512/512         64/64
+#:     ELEMENT_TYPE_OCTONION = 2  88/256     2752/4096       88/256
+#:
+#: A *turn composes* iff left-coupling is a representation — ``L_x ∘ L_y ==
+#: L_{x·y}``, i.e. ``x·(y·z) == (x·y)·z`` for every ``z``. That is what lets a
+#: chromosome fold a run of turns into ONE stored turn instead of replaying them.
+#:
+#: The load-bearing result is a SET identity, not matching counts:
+#:
+#: * At **Q8** the turn-composing pairs STRICTLY CONTAIN the commuting pairs —
+#:   40 commute, 64 compose, so **24 NON-COMMUTING pairs still compose**
+#:   (commute-only 0, turn-only 24). Q₈ is where a which-way turn survives being
+#:   folded.
+#: * At **OCTONION** the turn-composing set and the commuting set are **THE SAME
+#:   SET** — 88 == 88, and BOTH set differences are empty.
+#:
+#: So the precise statement is NOT "turns stop at ℍ" (the imprecise version is
+#: already in circulation; do not propagate it). Turns **DEGRADE TO
+#: ABELIAN-ONLY** at 𝕆: the only surviving turn compositions are the commuting
+#: ones. What dies at the octonion rung is specifically **NON-COMMUTING TURN
+#: COMPOSITION**. Addressing and zero-divisor-free composition both survive
+#: there — which is exactly why the rung is worth having, and exactly why
+#: reporting only the permissive ceiling would mislead.
+#:
+#: Programmatic form: :func:`srmech.introspect.describe`'s ``limits`` block;
+#: the dimension ceilings are
+#: :data:`~srmech.amsc.cascade.cayley_dickson.CD_TURN_MAX_DIM` (4) and
+#: :data:`~srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` (8).
+#:
 #: Declared ``element_type`` enum for the §60 kernel header. ``0 = klein4`` (the
 #: genome-native 2-bit ``{0,1,2,3}`` symbol — siona's 8192-dim Klein-4 kernel). New
 #: element types slot in as fresh codes WITHOUT another format bump (that IS the
 #: size-agnostic discipline — the header carries the type, so the reader never
 #: assumes one). A header-less body defaults to :data:`ELEMENT_TYPE_KLEIN4`.
+#:
+#: **CAPABILITY (rc339).** ``V4 = (F2)²`` is ABELIAN: 16/16 pairs commute, 64/64
+#: triples associate, 16/16 turns compose. Every turn composes and every turn
+#: commutes, so the fold is free — and there is no which-way to carry. That
+#: absence is the thing :data:`ELEMENT_TYPE_Q8` buys. address ✓ / compose ✓ /
+#: turn abelian-only (vacuously — the carrier IS commutative).
 ELEMENT_TYPE_KLEIN4 = 0
 #: §Q8 (rc311) — the DISCRETE quaternion group ``Q₈ = {±1, ±i, ±j, ±k}`` element type: a
 #: 3-bit symbol ``(sign_bit << 2) | v4_coset`` (:mod:`srmech.amsc.q8`), the NON-abelian
@@ -757,6 +802,15 @@ ELEMENT_TYPE_KLEIN4 = 0
 #: GENOME_FORMAT_VERSION bump (the size-agnostic header discipline — the reader is told the
 #: type; a header-less body still defaults to :data:`ELEMENT_TYPE_KLEIN4`). The §55 8-sector
 #: packer + the format bump land in rc312.
+#:
+#: **CAPABILITY (rc339).** THE RUNG WHERE A NON-COMMUTING TURN STILL FOLDS.
+#: 40/64 pairs commute (so it is genuinely non-abelian), 512/512 triples
+#: associate, and 64/64 turns compose — the turn-composing set STRICTLY CONTAINS
+#: the commuting set, with **24 non-commuting pairs that still compose** and
+#: none that commute without composing. This is the only rung of the three that
+#: carries which-way AND folds it, and it is why
+#: :data:`~srmech.amsc.cascade.cayley_dickson.CD_TURN_MAX_DIM` is 4, not 8.
+#: address ✓ / compose ✓ / turn ✓ non-commuting.
 ELEMENT_TYPE_Q8 = 1
 #: §𝕆 (rc324) — the DISCRETE octonion Moufang loop ``{±e₀, …, ±e₇}`` element type: a
 #: 4-bit symbol ``(sign_bit << 3) | index`` (:mod:`srmech.amsc.octonion`), the Cayley–
@@ -769,10 +823,72 @@ ELEMENT_TYPE_Q8 = 1
 #: size-agnostic header discipline — the reader is told the type; a header-less body still
 #: defaults to :data:`ELEMENT_TYPE_KLEIN4`). This rc ships the CARRIER only; the octonion
 #: associator / fiber-holonomy channel + the on-disk 4-bit turn wiring land in a later rc.
+#:
+#: **CAPABILITY (rc339) — THE RUNG THAT PAYS.** 88/256 pairs commute, only
+#: 2752/4096 triples associate (𝕆 is alternative, not associative), and 88/256
+#: turns compose. 88 == 88 is not a coincidence of counts: the turn-composing
+#: set and the commuting set are **THE SAME SET**, both differences empty.
+#: Non-commuting turn composition is GONE here — what survives is exactly the
+#: abelian part, so a fold at this rung silently loses the which-way that
+#: :data:`ELEMENT_TYPE_Q8` folds correctly. Addressing and zero-divisor-free
+#: composition BOTH still hold (𝕆 is the last division algebra, Hurwitz 1898),
+#: which is what the rung is for: reach the non-quaternionic units ``e₄..e₇``
+#: and address them exactly. address ✓ / compose ✓ (the ceiling —
+#: :data:`~srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` = 8) / turn
+#: ABELIAN-ONLY.
 ELEMENT_TYPE_OCTONION = 2
 _ELEMENT_TYPE_NAMES = {ELEMENT_TYPE_KLEIN4: "klein4", ELEMENT_TYPE_Q8: "q8",
                        ELEMENT_TYPE_OCTONION: "octonion"}
 _ELEMENT_TYPE_CODES = {name: code for code, name in _ELEMENT_TYPE_NAMES.items()}
+
+#: The element-type ladder as MACHINE-READABLE capability (rc339, `#967`) — the
+#: programmatic form of the prose above, in ladder order (weakest first). This is
+#: what :func:`srmech.introspect.describe` publishes under
+#: ``limits["element_types"]``, so a caller — or an LLM on the MCP surface — can
+#: ask "what can this rung actually do?" instead of inferring it from a
+#: dimension number that belongs to a different capability.
+#:
+#: Each row carries the VERDICT (``address`` / ``compose`` / ``turn`` /
+#: ``commutative``) **and the evidence it was read from** (``commutes`` /
+#: ``associates`` / ``turns_compose``, each ``(passing, total)``), so the report
+#: is checkable rather than asserted. Exhaustively measured — generating code +
+#: NDJSON: ``docs/srmech/notes/carrier_capability_ontology_rc339.py``.
+#:
+#: ``turn == "abelian_only"`` means only the COMMUTING pairs fold. Read it with
+#: ``commutative``: True makes it vacuous (klein4 has no non-commuting pairs to
+#: lose); **False makes it a DEGRADATION** — which is exactly the octonion row,
+#: where the turn-composing set and the commuting set are the same 88 pairs.
+#:
+#: ``cd_dim`` is the Cayley–Dickson rung the carrier's units live in — 4 (ℍ) for
+#: Q₈, 8 (𝕆) for the octonion loop. ``None`` for klein4: ``V4 = Q₈/{±1}`` is a
+#: coset group, not a CD rung, and inventing a dim for it would be the same
+#: category error as reading an addressing ceiling as a turn ceiling.
+ELEMENT_TYPE_CAPABILITY: Tuple[Dict[str, Any], ...] = (
+    {
+        "code": ELEMENT_TYPE_KLEIN4, "name": "klein4",
+        "algebra": "V4 = (F2)^2 (Q8 modulo its +/-1 center)",
+        "order": 4, "cd_dim": None, "commutative": True,
+        "address": "exact", "compose": "full", "turn": "abelian_only",
+        "commutes": (16, 16), "associates": (64, 64),
+        "turns_compose": (16, 16),
+    },
+    {
+        "code": ELEMENT_TYPE_Q8, "name": "q8",
+        "algebra": "Q8 = {+/-1, +/-i, +/-j, +/-k}",
+        "order": 8, "cd_dim": 4, "commutative": False,
+        "address": "exact", "compose": "full", "turn": "non_commuting",
+        "commutes": (40, 64), "associates": (512, 512),
+        "turns_compose": (64, 64),
+    },
+    {
+        "code": ELEMENT_TYPE_OCTONION, "name": "octonion",
+        "algebra": "{+/-e0 .. +/-e7} (the octonion Moufang loop)",
+        "order": 16, "cd_dim": 8, "commutative": False,
+        "address": "exact", "compose": "full", "turn": "abelian_only",
+        "commutes": (88, 256), "associates": (2752, 4096),
+        "turns_compose": (88, 256),
+    },
+)
 
 #: §60 kernel-header fixed prefix layout (bytes; NUL-padded to ``leaf_dim``):
 #:   ``[0]``      marker ``0x4B``
@@ -2037,6 +2153,37 @@ def quad_turn(turn, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     corrupts silently (there is no round-trip error to catch it downstream), the side is a
     HARD RUNTIME ASSERTION here (:func:`_q8_side_ok`), not a doc note. ``turn`` / ``coupling``
     are Q₈ vectors (``sectors=8`` = :data:`OCT`, bytes ``0..7``).
+
+    **𝕆 (``element_type=ELEMENT_TYPE_OCTONION``, §𝕆 / rc324).** The turn is RIGHT-coupled by
+    the octonion loop product over ``sectors=16`` (:data:`OCTONION_SECTORS`) turns, decoupled
+    by the Class-C loop inverse via the Moufang inverse property. Read the capability note
+    below before folding turns at this rung.
+
+    WHICH element_type CAN DO WHAT (rc339, `#967`)
+    ----------------------------------------------
+    ``element_type`` is not a size knob — it is a **capability ladder**, *abelian →
+    non-abelian associative → non-associative*. Two turns FOLD INTO ONE iff left-coupling is
+    a representation, ``L_x ∘ L_y == L_{x·y}``. Exhaustively measured (generating code +
+    NDJSON at ``docs/srmech/notes/carrier_capability_ontology_rc339.py``)::
+
+        element_type    commutes   associates   turns compose   non-commuting fold?
+        KLEIN4  = 0       16/16       64/64         16/16        n/a — abelian
+        Q8      = 1       40/64      512/512        64/64        YES — 24 such pairs
+        OCTONION = 2     88/256     2752/4096      88/256        NO
+
+    At Q8 the turn-composing pairs STRICTLY CONTAIN the commuting pairs (24 non-commuting
+    pairs still compose; 0 commute without composing). At OCTONION the two are **THE SAME
+    SET** — 88 == 88, both set differences empty.
+
+    So the honest statement is NOT "turns stop at ℍ". Turns **DEGRADE TO ABELIAN-ONLY** at 𝕆:
+    the only surviving compositions are the commuting ones. What dies at the octonion rung is
+    specifically **NON-COMMUTING TURN COMPOSITION**. Addressing (``e_i·e_j = ±e_{i XOR j}``,
+    exact with zero failures through dim 64) and zero-divisor-free composition (Hurwitz, dim
+    ≤ 8) both survive there — the rung is worth having, which is exactly why quoting only its
+    permissive ceiling would mislead. The programmatic form of this table is
+    :func:`srmech.introspect.describe`'s ``limits`` block; the dimension ceilings are
+    :data:`~srmech.amsc.cascade.cayley_dickson.CD_TURN_MAX_DIM` (4) and
+    :data:`~srmech.amsc.cascade.cayley_dickson.CD_COMPOSE_MAX_DIM` (8).
 
     Class-M (bind) ∘ Class-C (the chirality the sectors carry). Each turn sits in the native
     4-sector biaxial "+" (:func:`srmech.amsc.cascade.parallel_sector_dispatch`, CAP=4); that
