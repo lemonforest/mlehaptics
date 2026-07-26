@@ -19847,7 +19847,16 @@ def genome_genome_genes_c(dir_: str, label: str, coupling: bytes, leaf_dim: int)
     via ``srmech_genome_genome_genes``. Returns ``[(label_str, [leaf_bytes, …]), …]`` (empty list
     for a chromosome with NO gene caps — the caller then raises the "no inline GENE caps"
     ValueError), or ``None`` when the symbol is absent / the C declines (bad label / IO), so the
-    caller takes the pure body. Byte-identical to the pure ``genome_genes``."""
+    caller takes the pure body. Byte-identical to the pure ``genome_genes``.
+
+    rc342 (#T969): the C entry point now REJECTS a body modified out of band (the read-side
+    bound against the committed ``body_sha256``). This wrapper maps every non-OK status to a
+    DECLINE, so an integrity rejection arrives here as ``None`` and the caller runs the pure
+    body — which raises ``GenomeBoundingError`` from ``_catalog_data``. The PUBLIC surface is
+    therefore bound either way, but note what that means: this wrapper cannot distinguish "the
+    C cannot do this shape" from "the object is corrupt", so it is NOT the place to read the
+    compiled projection's integrity verdict. A bare-C host sees the real
+    ``SRMECH_ERR_BAD_INPUT``; ``c/test/test_srmech_genome.c`` asserts it there."""
     if not has_native_genome_genome_genes() or not has_native_genome():
         return None
     body = _turns_size(dir_)
@@ -19878,7 +19887,10 @@ def genome_genes_expressed_c(dir_: str, cell_state: int, coupling: bytes, leaf_d
     """§102/G7 native dispatch for :func:`srmech.amsc.genome.genome_genes_expressed`: walk the
     manifest, page ONLY the expressed communities' regions, filter each by gene_express, and collect
     ``[(label_str, [leaf_bytes, …]), …]`` in C via ``srmech_genome_genes_expressed``, or ``None``
-    when the symbol is absent / the C declines, so the caller takes the pure body. Byte-identical to
+    when the symbol is absent / the C declines — which as of rc342 (#T969) includes the C
+    REJECTING a body modified out of band; the caller then takes the pure body, which raises
+    ``GenomeBoundingError`` from ``_catalog_data``. See ``genome_genome_genes_c`` for why this
+    wrapper is not the place to read the compiled projection's integrity verdict. Byte-identical to
     the pure ``genome_genes_expressed``. A SEPARATE ``region_ws`` stages one region at a time (the
     manifest tree persists in ``ws`` across the chromosome loop)."""
     if not has_native_genome_genes_expressed() or not has_native_genome():
