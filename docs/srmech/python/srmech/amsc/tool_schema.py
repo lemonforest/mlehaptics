@@ -2968,7 +2968,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.quad_turn", owner="srmech", category="genome",
-            summary="Couple one helix turn through coupling — the genome's turn operation (F713). The turn is bound to the_one (the held invariant) by the REVERSIBLE Klein-4 bind (V4=(F2)^2 XOR, so quad_turn(quad_turn(t, one), one) == t): the duality held WITHOUT collapse, numpy-free. coupling is the shared invariant in every turn's coupling, so a chromosome navigates across its turns through coupling and recovers any turn by re-binding. Each turn sits in the native 4-sector biaxial '+' (cascade.parallel_sector_dispatch, CAP=4) — per F712 the 4-way is ONE chirality level, the deeper leaf-tree is base-4 radix addressing. Class M (bind) composed with Class C (the Klein-4 chirality).",
+            summary="Couple one helix turn through coupling — the genome's turn operation (F713). The turn is bound to the_one (the held invariant) by the REVERSIBLE Klein-4 bind (V4=(F2)^2 XOR, so quad_turn(quad_turn(t, one), one) == t): the duality held WITHOUT collapse, numpy-free. coupling is the shared invariant in every turn's coupling, so a chromosome navigates across its turns through coupling and recovers any turn by re-binding. Each turn sits in the native 4-sector biaxial '+' (cascade.parallel_sector_dispatch, CAP=4) — per F712 the 4-way is ONE chirality level, the deeper leaf-tree is base-4 radix addressing. Class M (bind) composed with Class C (the Klein-4 chirality). CAPABILITY (rc339 / #967): this MCP surface is the KLEIN-4 rung of the genome's element_type ladder — V4 is ABELIAN, so every turn here composes and none of them carries a which-way. The library kwarg element_type selects the rung: klein4=0 (abelian), q8=1 (the ONLY rung where a NON-COMMUTING turn still folds — 24 such pairs measured), octonion=2 (addressing reaches e4..e7 and composition is still zero-divisor-free, but turn composition DEGRADES TO ABELIAN-ONLY: the turn-composing set and the commuting set are the same 88 pairs). See introspect.describe()['limits'].",
             parameters=(P("turn", "HV", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the helix turn (e.g. from hdc.klein4_expand)"),
                         P("coupling", "HV", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the held invariant coupled into every turn")),
             returns=R("HV", "the coupled turn (re-apply quad_turn with the same coupling to recover turn)"),
@@ -9747,7 +9747,28 @@ def _register_introspect_tools() -> None:
                 "error-type detail come from later voxels. Framework "
                 "reading: Class H (self-introspection) at package scale "
                 "— the package recognising the shape of its own A–N "
-                "tool surface. No parameters."
+                "tool surface. No parameters. "
+                "rc339 (#967) — CAPABILITY, not just size. The report also "
+                "carries `classes` (every shipped domain class + its "
+                "declaration route), `carriers` (every operand carrier WITH "
+                "what it can do), `limits` (the dimensional ceilings, keyed "
+                "BY CAPABILITY), and `c_claims` (whether the C symbols the "
+                "ops claim are really in the loaded library). READ `limits` "
+                "BEFORE ASSUMING A DIMENSION IS USABLE: srmech's carriers "
+                "have THREE different ceilings and they are not the same "
+                "number. ADDRESS (content-key an element; e_i*e_j = "
+                "+/- e_(i XOR j)) is effectively unbounded — verified exact "
+                "to dim 64, the build admits 256. COMPOSE (multiply with no "
+                "zero divisors) stops at dim 8, Hurwitz. TURN (fold two "
+                "turns into one: L_x o L_y == L_(x*y)) stops at dim 4. So "
+                "the permissive 256 is an ADDRESSING number and says nothing "
+                "about turning: at dim 8 and above only the COMMUTING turns "
+                "still compose (measured: at the octonion rung the "
+                "turn-composing set and the commuting set are the same 88 "
+                "pairs), so non-commuting turn composition is gone there. "
+                "`limits['element_types']` gives the same ladder per genome "
+                "element_type rung (klein4 / q8 / octonion) with the "
+                "exhaustive measurement each verdict was read from."
             ),
             parameters=(),
             returns=ToolReturn(
@@ -9760,7 +9781,28 @@ def _register_introspect_tools() -> None:
                     "'handle_pending': int, 'by_category': {category: "
                     "count, ...}}, 'handle_pending': [sorted "
                     "handle-pending tool names], 'categories': [sorted "
-                    "category names]}"
+                    "category names], "
+                    "'classes': {'total': int, 'names': [sorted class "
+                    "names], 'routes': {name: 'toml' | 'python', ...}, "
+                    "'toml_total': int}, "
+                    "'carriers': {'total': int, 'capabilities': {carrier: "
+                    "{'product': str | None, 'address': 'exact' | None, "
+                    "'compose': 'full' | 'zero_divisors' | 'unclassified' | "
+                    "None, 'turn': 'non_commuting' | 'abelian_only' | "
+                    "'unclassified' | None, 'commutative': bool | None, "
+                    "'varies_with': 'dim' | 'element_type' | None}, ...}}, "
+                    "'limits': {'capabilities': {'address' | 'compose' | "
+                    "'turn': {'means': str, 'max_dim': int, "
+                    "'beyond_ceiling': str | None, 'bounded_by': str, "
+                    "'holds_through': str | None, ...}}, 'element_types': "
+                    "[{'code': int, 'name': str, 'algebra': str, 'order': "
+                    "int, 'cd_dim': int | None, 'commutative': bool, "
+                    "'address': str, 'compose': str, 'turn': str, "
+                    "'commutes': [pass, total], 'associates': [pass, "
+                    "total], 'turns_compose': [pass, total]}, ...]}, "
+                    "'c_claims': {'native': bool, 'checked_ops': int, "
+                    "'checked_symbols': int, 'unresolved': {op: [symbol, "
+                    "...]}, 'unverifiable': int, 'consistent': bool}}"
                 ),
             ),
         )
