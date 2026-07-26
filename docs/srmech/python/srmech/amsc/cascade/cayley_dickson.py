@@ -148,7 +148,42 @@ ASSOCIATIVE_ALGEBRA_DIMS: Tuple[int, int, int] = (1, 2, 4)
 CD_COMPOSE_MAX_DIM = 8
 
 #: **TURN ceiling** (rc339, `#T967`): the largest dim at which NON-COMMUTING
-#: turn composition survives — ``max ASSOCIATIVE_ALGEBRA_DIMS`` = 4 (ℍ).
+#: turn composition survives **ON THE CAYLEY–DICKSON LADDER** —
+#: ``max ASSOCIATIVE_ALGEBRA_DIMS`` = 4 (ℍ).
+#:
+#: **SCOPE (rc343, `#T972`) — this is a CD fact, not a universal one.** rc339
+#: published this number in ``describe()["limits"]`` with no carrier attached,
+#: and as a GLOBAL statement it is false: any ASSOCIATIVE carrier keeps folding
+#: non-commuting turns at any dim. srmech's own :class:`~srmech.amsc.mat.Mat`
+#: (product ``mat_matmul``) was MEASURED over the matrix units of ``M_n(ℝ)`` at
+#: 81/81 turn-composing pairs for ``n=3`` (algebra dim 9), 42 of them
+#: non-commuting, and 256/256 for ``n=4`` (dim 16), 108 non-commuting — both
+#: above 4. The ceiling is therefore **PER-CARRIER**: each capability row in
+#: :mod:`srmech.amsc.carrier_schema` publishes its own ``max_dim`` /
+#: ``bounded_by``, and the ``limits`` row carries ``family`` =
+#: ``"cayley_dickson"`` plus a derived ``exceeded_by``.
+#:
+#: **WHY it stops here, on this ladder — the index/sign split.** NOT
+#: "associativity": turn composition IS associativity, so that reason restates
+#: the definition and nothing could contradict it. The CD product FACTORS into
+#: an XOR on the INDEX and a COCYCLE on the SIGN, measured over
+#: :func:`cd_basis_product`::
+#:
+#:     dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE assoc
+#:       2 |       4/4        |        1  (1)           |     8/8      100%
+#:       4 |      16/16       |        6  (6)           |    64/64     100%
+#:       8 |      64/64       |       28  (28)          |   344/512     67%
+#:      16 |     256/256      |      120  (120)         |  2248/4096    55%
+#:      32 |    1024/1024     |      496  (496)         |  (cost-skipped)
+#:
+#: The index lane is exact at EVERY rung; the SIGN is what stops being
+#: associative, abruptly, at dim 8. **Addressing is unbounded because XOR is
+#: associative at every dim forever; turns and composition break because the
+#: SIGN COCYCLE stops being associative.** That is why rc298 (`#T933`) could
+#: lift :data:`CD_MAX_DIM` 64 → 256 by DECOUPLING the caps — the wall was never
+#: in the addressing. (``index == XOR`` is close to DEFINITIONAL for a CD basis,
+#: so that column is a CHECK, not a discovery; the READING it supports — a free
+#: index and a load-bearing sign — is the part that is not definitional.)
 #:
 #: A "turn" composes iff left multiplication is a representation::
 #:

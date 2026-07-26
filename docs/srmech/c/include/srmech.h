@@ -4646,9 +4646,41 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
 #define SRMECH_CD_COMPOSE_MAX_DIM 8
 
 /* TURN ceiling: the largest dim at which NON-COMMUTING turn composition
- * survives. A turn composes iff left multiplication is a representation —
- * L_x o L_y == L_(x*y), i.e. x*(y*z) == (x*y)*z for every z — so this is
- * associativity read as a statement about turns, and it stops at H (dim 4).
+ * survives ON THIS LADDER. A turn composes iff left multiplication is a
+ * representation — L_x o L_y == L_(x*y), i.e. x*(y*z) == (x*y)*z for every z.
+ *
+ * SCOPE (rc343, `#T972`): this is a CAYLEY-DICKSON ceiling, NOT a universal
+ * one. The earlier wording here — "this is associativity read as a statement
+ * about turns, and it stops at H" — was the GENERAL form of a ladder-specific
+ * fact, and it is false for any associative carrier at dimension. srmech's own
+ * Mat (product mat_matmul, associative at every dim) was MEASURED over the
+ * matrix units of M_n(R): 81/81 turn-composing pairs at n=3 (algebra dim 9),
+ * 42 of them NON-commuting, and 256/256 at n=4 (dim 16), 108 non-commuting.
+ * The ceiling is PER-CARRIER — every carrier row in srmech_carrier_registry
+ * publishes its own max_dim / bounded_by — and
+ * describe()["limits"]["capabilities"]["turn"] carries `family` =
+ * "cayley_dickson" plus a DERIVED `exceeded_by` naming what outruns it.
+ *
+ * WHY it stops here, on THIS ladder. Not "associativity": turn composition IS
+ * associativity, so that reason merely restates the definition and no carrier
+ * row could ever contradict it. The Cayley-Dickson product FACTORS into an XOR
+ * on the INDEX and a COCYCLE on the SIGN, and the halves behave differently
+ * (measured over srmech_cd_basis_product):
+ *
+ *     dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE assoc
+ *       2 |       4/4        |        1  (1)           |     8/8      100%
+ *       4 |      16/16       |        6  (6)           |    64/64     100%
+ *       8 |      64/64       |       28  (28)          |   344/512     67%
+ *      16 |     256/256      |      120  (120)         |  2248/4096    55%
+ *      32 |    1024/1024     |      496  (496)         |  (cost-skipped)
+ *
+ * The index lane is exact at EVERY rung; the SIGN is what stops being
+ * associative, abruptly, at dim 8. So addressing is unbounded because XOR is
+ * associative forever, and turns/composition break because the sign cocycle is
+ * not — which is also why rc298 could lift SRMECH_CD_MAX_DIM 64 -> 256 by
+ * DECOUPLING the caps. (`index == XOR` is close to definitional for a CD
+ * basis, so that column is a CHECK; the READING it supports — a free index
+ * and a load-bearing sign — is the part that is not.)
  *
  * MEASURED over the basis of each rung (generating code + NDJSON:
  * docs/srmech/notes/carrier_capability_ontology_rc339.py):
@@ -12637,8 +12669,14 @@ srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
  * consume / produce it) — so a bare-C host (no Python) discovers BOTH the
  * verbs and the nouns (the Siona / RBS-LM self-hosting ask).
  *
- * CAPABILITY (rc339) — what the carrier can DO, not only what it is:
- * {product, address, compose, turn, commutative, varies_with}. It reports the
+ * CAPABILITY (rc339, extended rc343 `#T972`) — what the carrier can DO, not
+ * only what it is: {product, address, compose, turn, commutative, varies_with,
+ * max_dim, bounded_by}. The last two are the PER-CARRIER ceiling: `max_dim` is
+ * the largest algebra dim (real dimension) at which the row's verdicts hold,
+ * NULL/absent meaning UNBOUNDED in dim, and `bounded_by` names the mechanism.
+ * They exist because rc339 published ONE turn ceiling of 4, globally, and rows
+ * in this very table beat it — Mat's mat_matmul is associative at every dim.
+ * It reports the
  * WORST case over everything the carrier admits (CDRegister publishes the
  * dim-256 answer, not the dim-4 one), so a permissive number elsewhere can
  * never be read as a capability the carrier does not have; `varies_with` names

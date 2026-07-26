@@ -652,10 +652,12 @@ def describe() -> Dict[str, Any]:
                                ...}},
               "limits": {"capabilities": {<capability>: {
                              "means": <str>,
+                             "family": <carrier-family name>,
                              "max_dim": <int>,
                              "beyond_ceiling": <str|None>,
-                             "bounded_by": <str>,
+                             "bounded_by": <mechanism name>,
                              "holds_through": <element-type name|None>,
+                             "exceeded_by": [<carrier>, ...],
                              ...}},
                          "element_types": [{"code": <int>, "name": <str>,
                              "algebra": <str>, "order": <int>,
@@ -719,6 +721,49 @@ def describe() -> Dict[str, Any]:
     turn        fold two turns into one:                      dim 4 — ℍ. Past
                 ``L_x ∘ L_y == L_{x·y}``                      it, abelian-only.
     ==========  ============================================  ==============
+
+    **Every ceiling in that table is a CAYLEY–DICKSON fact, and rc343 (`#T972`)
+    made it say so.** rc339 published them unscoped, which is a different false
+    green from the one it fixed: as GLOBAL statements the ``compose`` and
+    ``turn`` numbers are false, and rows in rc339's own ``carriers`` block
+    contradict them. ``Mat``'s product ``mat_matmul`` is associative at every
+    dim, so its non-commuting turns keep folding — MEASURED over the matrix
+    units of ``M_n(ℝ)`` at 81/81 composing pairs for ``n=3`` (algebra dim 9), 42
+    non-commuting, and 256/256 for ``n=4`` (dim 16), 108 non-commuting.
+    ``Poly`` and the rest of the polynomial ladder are integral domains at
+    unbounded degree, so ``compose`` is ``"full"`` far above 8.
+
+    So each capability row carries ``family`` (the carrier family the number IS
+    a fact about) and a DERIVED ``exceeded_by`` naming every carrier row that
+    outruns it — ``turn`` → ``["Mat"]``. The payload names its own
+    counterexamples, and each carrier row carries its OWN ``max_dim`` /
+    ``bounded_by``.
+
+    ``bounded_by`` names a MECHANISM, from the closed
+    :data:`srmech.amsc.carrier_schema.CEILING_MECHANISMS` vocabulary, and the
+    admission rule is that it must be measurable SEPARATELY from the
+    capability's own ``means``. rc339 gave ``turn`` ``bounded_by:
+    "associativity"`` — but ``means`` DEFINES turn as ``x·(y·z) == (x·y)·z``,
+    so the field restated the definition: anything associative turns, anything
+    that turns is associative, and no carrier row could contradict it. The
+    replacement is ``"sign_cocycle"``, and it has content. The CD product
+    FACTORS, and the halves behave differently (measured over
+    ``cd_basis_product``)::
+
+        dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE assoc
+          2 |       4/4        |        1  (1)           |     8/8      100%
+          4 |      16/16       |        6  (6)           |    64/64     100%
+          8 |      64/64       |       28  (28)          |   344/512     67%
+         16 |     256/256      |      120  (120)         |  2248/4096    55%
+         32 |    1024/1024     |      496  (496)         |  (cost-skipped)
+
+    The INDEX lane is exact at every rung; the SIGN is what stops being
+    associative, abruptly, at dim 8. **Addressing is unbounded because XOR is
+    associative at every dim forever; turns and composition break because the
+    SIGN COCYCLE stops being associative** — which is also why rc298 (`#T933`)
+    could lift ``CD_MAX_DIM`` 64 → 256 by DECOUPLING the caps. (``index == XOR``
+    is close to definitional for a CD basis, so that column is a CHECK; the
+    READING — a free index and a load-bearing sign — is what it supports.)
 
     So a caller — or an LLM driving the MCP surface, which is an explicit design
     goal — could read 256 and reach for a TURN there, where non-commuting turn
