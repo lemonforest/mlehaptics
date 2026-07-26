@@ -520,18 +520,32 @@ static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
     srmech_json_value_t *rarr = srmech_json_new_array(b, region_items, s->n_chroms);
     (void)body_len;                 /* §55/v3: n_turns is the scanned BLOCK count */
     int64_t n_turns = (int64_t)s->n_blocks;
-    const char *keys[8] = { "format_version", "carrier", "leaf_dim", "n_turns",
-                            "coupling", "body_sha256", "regions", "chromosomes" };
-    srmech_json_value_t *vals[8];
+    /* rc345 (task T964): the two DERIVED scalars, mirroring genome.py
+     * _build_manifest_data_from_hexes. n_chromosomes was previously carried by the FULL
+     * data ONLY as the length of its chromosomes[] array while the HEAD carried the
+     * scalar, so a caller reading the full catalog got no "n_chromosomes" key. n_content
+     * is n_turns - n_chroms: each chromosome opens with exactly ONE boundary cap and a
+     * cap IS a block, so the subtraction removes the container overhead with no residual.
+     * Both are computed HERE from counts already in `s` — no extra scan, read, or hash —
+     * and NEITHER is added to the head_only branch above, so the ON-DISK manifest is
+     * byte-identical and SRMECH_GENOME_FORMAT_VERSION does not move: the strand
+     * determines both, and one datum gets one encoding. */
+    int64_t n_content = n_turns - (int64_t)s->n_chroms;
+    const char *keys[10] = { "format_version", "carrier", "leaf_dim", "n_turns",
+                             "n_chromosomes", "n_content",
+                             "coupling", "body_sha256", "regions", "chromosomes" };
+    srmech_json_value_t *vals[10];
     vals[0] = srmech_json_new_int(b, (int64_t)SRMECH_GENOME_FORMAT_VERSION);
     vals[1] = srmech_json_new_string(b, carrier, (uint32_t)strlen(carrier));
     vals[2] = srmech_json_new_int(b, (int64_t)leaf_dim);
     vals[3] = srmech_json_new_int(b, n_turns);
-    vals[4] = genome_build_coupling(b, s);
-    vals[5] = srmech_json_new_string(b, s->body_sha, (uint32_t)strlen(s->body_sha));
-    vals[6] = rarr;
-    vals[7] = arr;
-    return srmech_json_new_object(b, keys, vals, 8u);
+    vals[4] = srmech_json_new_int(b, (int64_t)s->n_chroms);
+    vals[5] = srmech_json_new_int(b, n_content);
+    vals[6] = genome_build_coupling(b, s);
+    vals[7] = srmech_json_new_string(b, s->body_sha, (uint32_t)strlen(s->body_sha));
+    vals[8] = rarr;
+    vals[9] = arr;
+    return srmech_json_new_object(b, keys, vals, 10u);
 }
 
 /* Build the "attestation" block (9 fields; constants VERBATIM from
@@ -4089,6 +4103,94 @@ srmech_status_t srmech_genome_census(const char *dir, const unsigned char *coupl
     genome_arena_t a;
     genome_arena_init(&a, ws, ws_len);
     return genome_census_build(dir, coupling, coupling_len, &a, out_census);
+}
+
+/* rc345 (task T964) — the CONTENT root: {path, n_turns, n_chromosomes, n_content}.
+ * n_content = n_blocks - n_chroms. Each chromosome opens with exactly ONE boundary cap
+ * and a cap IS a block, so the subtraction removes container overhead with no residual;
+ * it is the count that survives repartitioning, which n_turns / n_chromosomes /
+ * body_sha256 all do not. It counts every NON-BOUNDARY block — inline §44 GENE and §95a
+ * centromere caps included — so it is not the leaf count (that is the census's
+ * total_leaves, which excludes every cap) unless the chromosomes have no inline caps. */
+static srmech_json_value_t *genome_content_root(
+    srmech_json_builder_t *b, const genome_strings_t *s, const char *path)
+{
+    assert(b != NULL && s != NULL);
+    assert(path != NULL);
+    int64_t n_turns = (int64_t)s->n_blocks;
+    int64_t n_content = n_turns - (int64_t)s->n_chroms;
+    const char *keys[4] = { "path", "n_turns", "n_chromosomes", "n_content" };
+    srmech_json_value_t *vals[4];
+    vals[0] = srmech_json_new_string(b, path, (uint32_t)strlen(path));
+    vals[1] = srmech_json_new_int(b, n_turns);
+    vals[2] = srmech_json_new_int(b, (int64_t)s->n_chroms);
+    vals[3] = srmech_json_new_int(b, n_content);
+    return srmech_json_new_object(b, keys, vals, 4u);
+}
+
+/* Scan the body, hold the derive against the head's committed body_sha256, and build
+ * the content root. Same derive + same rc342 READ-SIDE INTEGRITY BOUND as the census —
+ * s.body_sha is the freshly re-derived region CHAIN, so the bound is a 64-byte memcmp
+ * over two values already in hand (no extra open, parse, or hash). An empty-string
+ * sentinel (manifest-LESS genome, or a v<=11 FULL manifest) passes through UNBOUND;
+ * there is nothing committed to compare against. */
+static srmech_status_t genome_content_build(
+    const char *dir, const unsigned char *coupling, size_t coupling_len,
+    genome_arena_t *a, srmech_json_value_t **out)
+{
+    assert(dir != NULL && a != NULL && out != NULL);
+    assert(coupling != NULL || coupling_len == 0u);
+    unsigned char one_buf[256];
+    const unsigned char *one_ptr = NULL;
+    uint32_t leaf_dim = 0u;
+    char committed[65];
+    srmech_status_t st = genome_scan_params(dir, coupling, coupling_len, a,
+                                            one_buf, &one_ptr, &leaf_dim,
+                                            committed);
+    if (st != SRMECH_OK) { return st; }
+    genome_strings_t s;
+    st = genome_load_strings(dir, one_ptr, leaf_dim, a, &s);
+    if (st != SRMECH_OK) { return st; }
+    if (committed[0] != 0 && memcmp(s.body_sha, committed, 64u) != 0) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    /* Copy `dir` into the arena so the tree's "path" is SELF-CONTAINED (the value tree
+     * is held by reference; the caller's `dir` may not outlive the later json write). */
+    size_t dlen = strlen(dir);
+    char *path_copy = genome_arena_alloc(a, dlen + 1u);
+    if (path_copy == NULL) { return SRMECH_ERR_OVERFLOW; }
+    memcpy(path_copy, dir, dlen + 1u);
+    void *jws = NULL;
+    size_t jws_len = 0u;
+    genome_arena_tail(a, &jws, &jws_len);
+    srmech_json_builder_t b;
+    st = srmech_json_builder_init(&b, jws, jws_len);
+    if (st != SRMECH_OK) { return st; }
+    *out = genome_content_root(&b, &s, path_copy);
+    if (b.failed || *out == NULL) { return SRMECH_ERR_OVERFLOW; }
+    a->off = (size_t)((unsigned char *)jws - a->base) + b.used;  /* subtree persists */
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_genome_content(const char *dir, const unsigned char *coupling,
+                                      size_t coupling_len, void *ws, size_t ws_len,
+                                      srmech_json_value_t **out_content)
+{
+    assert(out_content != NULL);
+    assert(dir != NULL || ws == NULL);
+    if (dir == NULL || ws == NULL || out_content == NULL) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    genome_arena_t a;
+    genome_arena_init(&a, ws, ws_len);
+    return genome_content_build(dir, coupling, coupling_len, &a, out_content);
+}
+
+size_t srmech_genome_content_arena_bytes(size_t body_len, uint32_t n_chroms)
+{
+    /* The derive is the census's derive; only the emitted subtree is smaller (4 scalars
+     * against a per-chromosome array), so the census budget bounds this one. */
+    return srmech_genome_census_arena_bytes(body_len, n_chroms);
 }
 
 /* 1 iff <root>/<name> is a genome dir (holds BOTH turns.bin and manifest.json).
