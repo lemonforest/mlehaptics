@@ -475,11 +475,58 @@ static srmech_json_value_t *genome_build_region(srmech_json_builder_t *b,
     return srmech_json_new_object(b, keys, vals, 3u);
 }
 
-/* Build the "data" block. head_only (v12): the O(1) HEAD — format_version / leaf_dim /
- * n_turns / n_chromosomes / coupling / body_sha256, NO per-chromosome chromosomes/regions
- * arrays (those are a plaintext TOC, dropped from disk + derived by scanning the body).
- * !head_only (the reader-side DERIVE / a v≤11 read): the FULL data with the arrays.
- * v4 (rc115 #1245(b)): body_sha256 is the region CHAIN (s->body_sha). */
+/* §Q8/v16 + §𝕆-TURN/v19: "carrier" names the element-type packer
+ * ("klein4"/"q8"/"octonion"), derived from the body scan (a 0x39 octonion turn wins,
+ * else a 0x38 Q₈ turn → "q8", else "klein4"). A genome is carrier-UNIFORM. */
+static const char *genome_carrier_name(const genome_strings_t *s)
+{
+    assert(s != NULL);
+    assert(s->n_blocks >= s->n_chroms);          /* one boundary cap per chromosome */
+    return s->carrier_oct ? "octonion" : (s->carrier_q8 ? "q8" : "klein4");
+}
+
+/* The v12 HEAD-ONLY manifest data (no per-chromosome arrays) — what is WRITTEN TO DISK.
+ * format_version / carrier / leaf_dim / n_turns / n_chromosomes / coupling /
+ * body_sha256. The chromosomes/regions arrays are a plaintext TOC, dropped from disk and
+ * derived by scanning the body. rc345 deliberately adds NOTHING here: n_content is
+ * exactly derivable from n_turns and n_chromosomes, so persisting it would be a second
+ * encoding of the same datum, and SRMECH_GENOME_FORMAT_VERSION would have to move. The
+ * json writer SORTS keys, so build order is cosmetic; this stays byte-identical to
+ * json.dumps(sort_keys=True). */
+static srmech_json_value_t *genome_build_head_data(srmech_json_builder_t *b,
+                                                   const genome_strings_t *s,
+                                                   uint32_t leaf_dim)
+{
+    assert(b != NULL && s != NULL);
+    assert(leaf_dim > 0u);
+    const char *carrier = genome_carrier_name(s);
+    const char *hkeys[7] = { "format_version", "carrier", "leaf_dim", "n_turns",
+                             "n_chromosomes", "coupling", "body_sha256" };
+    srmech_json_value_t *hvals[7];
+    hvals[0] = srmech_json_new_int(b, (int64_t)SRMECH_GENOME_FORMAT_VERSION);
+    hvals[1] = srmech_json_new_string(b, carrier, (uint32_t)strlen(carrier));
+    hvals[2] = srmech_json_new_int(b, (int64_t)leaf_dim);
+    hvals[3] = srmech_json_new_int(b, (int64_t)s->n_blocks);
+    hvals[4] = srmech_json_new_int(b, (int64_t)s->n_chroms);
+    hvals[5] = genome_build_coupling(b, s);
+    hvals[6] = srmech_json_new_string(b, s->body_sha, (uint32_t)strlen(s->body_sha));
+    return srmech_json_new_object(b, hkeys, hvals, 7u);
+}
+
+/* Build the "data" block. head_only (v12): delegate to genome_build_head_data (the
+ * on-disk head). !head_only (the reader-side DERIVE / a v≤11 read): the FULL data with
+ * the chromosomes/regions arrays. v4 (rc115 #1245(b)): body_sha256 is the region CHAIN
+ * (s->body_sha).
+ *
+ * rc345 (task T964) — the FULL data gains the two DERIVED scalars n_chromosomes and
+ * n_content, mirroring genome.py _build_manifest_data_from_hexes. n_chromosomes was
+ * previously carried by the full data ONLY as the length of its chromosomes[] array
+ * while the HEAD carried the scalar, so a caller reading the full catalog got no
+ * "n_chromosomes" key at all. n_content is n_turns - n_chroms: each chromosome opens
+ * with exactly ONE boundary cap and a cap IS a block, so the subtraction removes the
+ * container overhead with no residual. Both come from counts already in `s` — no extra
+ * scan, read, or hash — and neither reaches the head above, so the ON-DISK manifest is
+ * byte-identical and the format version does not move. */
 static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
                                               const genome_strings_t *s,
                                               srmech_json_value_t **chrom_items,
@@ -489,47 +536,20 @@ static srmech_json_value_t *genome_build_data(srmech_json_builder_t *b,
 {
     assert(b != NULL && s != NULL);
     assert(leaf_dim > 0u);
-    assert(head_only || s->n_chroms <= s->cap_chroms);   /* head: n_chroms is a COUNT */
     (void)body_len;                 /* §55/v3: n_turns is the scanned BLOCK count */
-    /* §Q8/v16 + §𝕆-TURN/v19: "carrier" names the element-type packer
-     * ("klein4"/"q8"/"octonion"), derived from the body scan (a 0x39 octonion turn wins,
-     * else a 0x38 Q₈ turn → "q8", else "klein4"). A genome is carrier-UNIFORM. The json
-     * writer SORTS keys, so build order is cosmetic; this stays byte-identical to
-     * json.dumps(sort_keys=True). */
-    const char *carrier = s->carrier_oct ? "octonion"
-                                         : (s->carrier_q8 ? "q8" : "klein4");
-    if (head_only) {                /* v12 HEAD-ONLY manifest data (no arrays) */
-        const char *hkeys[7] = { "format_version", "carrier", "leaf_dim", "n_turns",
-                                 "n_chromosomes", "coupling", "body_sha256" };
-        srmech_json_value_t *hvals[7];
-        hvals[0] = srmech_json_new_int(b, (int64_t)SRMECH_GENOME_FORMAT_VERSION);
-        hvals[1] = srmech_json_new_string(b, carrier, (uint32_t)strlen(carrier));
-        hvals[2] = srmech_json_new_int(b, (int64_t)leaf_dim);
-        hvals[3] = srmech_json_new_int(b, (int64_t)s->n_blocks);
-        hvals[4] = srmech_json_new_int(b, (int64_t)s->n_chroms);
-        hvals[5] = genome_build_coupling(b, s);
-        hvals[6] = srmech_json_new_string(b, s->body_sha, (uint32_t)strlen(s->body_sha));
-        return srmech_json_new_object(b, hkeys, hvals, 7u);
+    if (head_only) {
+        return genome_build_head_data(b, s, leaf_dim);
     }
+    assert(s->n_chroms <= s->cap_chroms);
     assert(chrom_items != NULL || s->n_chroms == 0u);
     for (uint32_t i = 0; i < s->n_chroms; i++) {
         chrom_items[i] = genome_build_chrom(b, s, i);
         region_items[i] = genome_build_region(b, s, i);
     }
+    const char *carrier = genome_carrier_name(s);
     srmech_json_value_t *arr = srmech_json_new_array(b, chrom_items, s->n_chroms);
     srmech_json_value_t *rarr = srmech_json_new_array(b, region_items, s->n_chroms);
-    (void)body_len;                 /* §55/v3: n_turns is the scanned BLOCK count */
     int64_t n_turns = (int64_t)s->n_blocks;
-    /* rc345 (task T964): the two DERIVED scalars, mirroring genome.py
-     * _build_manifest_data_from_hexes. n_chromosomes was previously carried by the FULL
-     * data ONLY as the length of its chromosomes[] array while the HEAD carried the
-     * scalar, so a caller reading the full catalog got no "n_chromosomes" key. n_content
-     * is n_turns - n_chroms: each chromosome opens with exactly ONE boundary cap and a
-     * cap IS a block, so the subtraction removes the container overhead with no residual.
-     * Both are computed HERE from counts already in `s` — no extra scan, read, or hash —
-     * and NEITHER is added to the head_only branch above, so the ON-DISK manifest is
-     * byte-identical and SRMECH_GENOME_FORMAT_VERSION does not move: the strand
-     * determines both, and one datum gets one encoding. */
     int64_t n_content = n_turns - (int64_t)s->n_chroms;
     const char *keys[10] = { "format_version", "carrier", "leaf_dim", "n_turns",
                              "n_chromosomes", "n_content",
@@ -4190,7 +4210,10 @@ size_t srmech_genome_content_arena_bytes(size_t body_len, uint32_t n_chroms)
 {
     /* The derive is the census's derive; only the emitted subtree is smaller (4 scalars
      * against a per-chromosome array), so the census budget bounds this one. */
-    return srmech_genome_census_arena_bytes(body_len, n_chroms);
+    size_t need = srmech_genome_census_arena_bytes(body_len, n_chroms);
+    assert(need > 0u);                       /* a budget of zero would silently overflow */
+    assert(need >= body_len);                /* the scan needs at least the body resident */
+    return need;
 }
 
 /* 1 iff <root>/<name> is a genome dir (holds BOTH turns.bin and manifest.json).
