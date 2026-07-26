@@ -1,4 +1,4 @@
-"""rc340 (`#965`) — the genome CARRIER-COVERAGE ratchet, over BOTH surfaces.
+"""rc340 (`#T965`) — the genome CARRIER-COVERAGE ratchet, over BOTH surfaces.
 
 rc339 shipped the measured capability LADDER (what each element_type rung can do).
 This module pins the other half: **which genome ops can be ASKED**, and — the part a

@@ -258,7 +258,7 @@ def test_mint_strand_tool_has_docs():
                  if t.name == "srmech.amsc.genome.mint_strand")
     assert entry.explanation and entry.explanation.strip()
     assert entry.example
-    # rc340 (#965): 6 -> 7 — the shared ET_PARAM (element_type) is now published on
+    # rc340 (#T965): 6 -> 7 — the shared ET_PARAM (element_type) is now published on
     # the MCP surface for every genome op whose Python surface accepts it, so a
     # remote caller can pick the carrier rung instead of silently getting klein4.
     assert len(entry.parameters) == 7

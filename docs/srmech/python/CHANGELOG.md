@@ -2,6 +2,8 @@
 
 All notable changes to this package will be documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); this package uses semantic versioning.
 
+**Reference notation.** `#T###` is a LOCAL task-tracker item (our session task list); `F####` is an RBS-LM finding; bare `#NNNN` is reserved for a REAL GitHub issue/PR. The `T` prefix exists because GitHub autolinks `#` followed immediately by digits, so a bare task ID silently mints a cross-link to whatever issue happens to hold that number — several of ours collide with unrelated merged issues. Never write a task ID as bare `#NNNN`.
+
 ## [Unreleased]
 
 _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffer (mmap, for >1k events/sec). It stays deferred until an op proves the need — no consumer in the RBS-LM pipeline yet exceeds the Tier-1 flush-per-write rate. (The C-side `srmech_progress_cb_t` callback ABI — the OTHER deferred half — shipped in rc242 below.)_
@@ -13,7 +15,7 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 
 ## [0.9.0rc340]
 
-_**The carrier could be chosen when BUILDING a chromosome but not through the UMBRELLA that wraps it — and over the wire it could not be chosen at all (task #965, the coverage half; rc339 shipped the ontology half).**_ rc339 published *what each `element_type` rung can do*. This rc answers the other question: *which ops can be asked*. Measured at rc339: **14 of 70** public `srmech.amsc.genome` callables accepted `element_type` in Python — and only **2 of 67** published it on the MCP / tool-schema surface.
+_**The carrier could be chosen when BUILDING a chromosome but not through the UMBRELLA that wraps it — and over the wire it could not be chosen at all (#T965, the coverage half; rc339 shipped the ontology half).**_ rc339 published *what each `element_type` rung can do*. This rc answers the other question: *which ops can be asked*. Measured at rc339: **14 of 70** public `srmech.amsc.genome` callables accepted `element_type` in Python — and only **2 of 67** published it on the MCP / tool-schema surface.
 
 - **THE HALF THAT MATTERED MORE — a silently-wrong carrier, not an absent parameter.** **19 ops accepted `element_type` in Python while their tool entries did not publish it**, `quad_turn` among them. Over the wire those ops were **klein4-only**: a remote caller got the DEFAULT rung — V4, **abelian**, carrying no which-way — with no way to request q8 or octonion and **no error saying so**. The tool schema is the surface an LLM prosthetic calls through, so the MCP number is the one that actually bounds a remote caller. Same parity-crack family as `#954`, across the Python/MCP boundary instead of Python/C. **Cracks: 19 → 0**, pinned there.
 

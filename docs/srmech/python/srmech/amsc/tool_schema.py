@@ -809,7 +809,7 @@ def _register_primitive_class_tools() -> None:
     P = ToolParameter
     R = ToolReturn
 
-    # rc340 (#965) — the genome CARRIER parameter, published on the wire.
+    # rc340 (#T965) — the genome CARRIER parameter, published on the wire.
     #
     # Every genome op whose Python surface takes `element_type` declares THIS
     # parameter, so the MCP/tool-schema surface offers the same rung choice the
@@ -2992,7 +2992,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.quad_turn", owner="srmech", category="genome",
-            summary="Couple one helix turn through coupling — the genome's turn operation (F713). The turn is bound to the_one (the held invariant) by the REVERSIBLE Klein-4 bind (V4=(F2)^2 XOR, so quad_turn(quad_turn(t, one), one) == t): the duality held WITHOUT collapse, numpy-free. coupling is the shared invariant in every turn's coupling, so a chromosome navigates across its turns through coupling and recovers any turn by re-binding. Each turn sits in the native 4-sector biaxial '+' (cascade.parallel_sector_dispatch, CAP=4) — per F712 the 4-way is ONE chirality level, the deeper leaf-tree is base-4 radix addressing. Class M (bind) composed with Class C (the Klein-4 chirality). CAPABILITY (rc339 / #967): this MCP surface is the KLEIN-4 rung of the genome's element_type ladder — V4 is ABELIAN, so every turn here composes and none of them carries a which-way. The library kwarg element_type selects the rung: klein4=0 (abelian), q8=1 (the ONLY rung where a NON-COMMUTING turn still folds — 24 such pairs measured), octonion=2 (addressing reaches e4..e7 and composition is still zero-divisor-free, but turn composition DEGRADES TO ABELIAN-ONLY: the turn-composing set and the commuting set are the same 88 pairs). See introspect.describe()['limits'].",
+            summary="Couple one helix turn through coupling — the genome's turn operation (F713). The turn is bound to the_one (the held invariant) by the REVERSIBLE Klein-4 bind (V4=(F2)^2 XOR, so quad_turn(quad_turn(t, one), one) == t): the duality held WITHOUT collapse, numpy-free. coupling is the shared invariant in every turn's coupling, so a chromosome navigates across its turns through coupling and recovers any turn by re-binding. Each turn sits in the native 4-sector biaxial '+' (cascade.parallel_sector_dispatch, CAP=4) — per F712 the 4-way is ONE chirality level, the deeper leaf-tree is base-4 radix addressing. Class M (bind) composed with Class C (the Klein-4 chirality). CAPABILITY (rc339 / #T967): this MCP surface is the KLEIN-4 rung of the genome's element_type ladder — V4 is ABELIAN, so every turn here composes and none of them carries a which-way. The library kwarg element_type selects the rung: klein4=0 (abelian), q8=1 (the ONLY rung where a NON-COMMUTING turn still folds — 24 such pairs measured), octonion=2 (addressing reaches e4..e7 and composition is still zero-divisor-free, but turn composition DEGRADES TO ABELIAN-ONLY: the turn-composing set and the commuting set are the same 88 pairs). See introspect.describe()['limits'].",
             parameters=(P("turn", "HV", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the helix turn (e.g. from hdc.klein4_expand)"),
                         P("coupling", "HV", True, "a Klein-4 vector (uint8 {0,1,2,3}) — the held invariant coupled into every turn"),
                         ET_PARAM),
@@ -9792,7 +9792,7 @@ def _register_introspect_tools() -> None:
                 "reading: Class H (self-introspection) at package scale "
                 "— the package recognising the shape of its own A–N "
                 "tool surface. No parameters. "
-                "rc339 (#967) — CAPABILITY, not just size. The report also "
+                "rc339 (#T967) — CAPABILITY, not just size. The report also "
                 "carries `classes` (every shipped domain class + its "
                 "declaration route), `carriers` (every operand carrier WITH "
                 "what it can do), `limits` (the dimensional ceilings, keyed "
