@@ -212,8 +212,15 @@ def test_every_carrier_publishes_a_capability_row():
         f"{sorted(set(_CARRIERS) - set(carriers))}, extra "
         f"{sorted(set(carriers) - set(_CARRIERS))}")
     assert describe()["carriers"]["total"] == len(_CARRIERS)
+    # An EXACT key set on purpose: this is a ratchet, so growing the published
+    # row has to be a deliberate act rather than something that drifts in.
+    # rc343 (`#T972`) added the last two — the ceiling is PER-CARRIER, because
+    # rc339 published ONE turn ceiling that two rows in this same table beat
+    # (`Mat` measurably composes non-commuting turns at algebra dim 9 and 16;
+    # the polynomial ladders compose at unbounded degree). See
+    # tests/test_carrier_ceiling_rc343.py.
     required = {"product", "address", "compose", "turn", "commutative",
-                "varies_with"}
+                "varies_with", "max_dim", "bounded_by"}
     for name, cap in carriers.items():
         assert set(cap) == required, (
             f"carrier {name!r} capability row is {sorted(cap)}, expected "

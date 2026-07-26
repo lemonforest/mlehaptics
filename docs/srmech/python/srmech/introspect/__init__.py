@@ -652,10 +652,12 @@ def describe() -> Dict[str, Any]:
                                ...}},
               "limits": {"capabilities": {<capability>: {
                              "means": <str>,
+                             "family": <carrier-family name>,
                              "max_dim": <int>,
                              "beyond_ceiling": <str|None>,
-                             "bounded_by": <str>,
+                             "bounded_by": <mechanism name>,
                              "holds_through": <element-type name|None>,
+                             "exceeded_by": [<carrier>, ...],
                              ...}},
                          "element_types": [{"code": <int>, "name": <str>,
                              "algebra": <str>, "order": <int>,
@@ -719,6 +721,49 @@ def describe() -> Dict[str, Any]:
     turn        fold two turns into one:                      dim 4 — ℍ. Past
                 ``L_x ∘ L_y == L_{x·y}``                      it, abelian-only.
     ==========  ============================================  ==============
+
+    **Every ceiling in that table is a CAYLEY–DICKSON fact, and rc343 (`#T972`)
+    made it say so.** rc339 published them unscoped, which is a different false
+    green from the one it fixed: as GLOBAL statements the ``compose`` and
+    ``turn`` numbers are false, and rows in rc339's own ``carriers`` block
+    contradict them. ``Mat``'s product ``mat_matmul`` is associative at every
+    dim, so its non-commuting turns keep folding — MEASURED over the matrix
+    units of ``M_n(ℝ)`` at 81/81 composing pairs for ``n=3`` (algebra dim 9), 42
+    non-commuting, and 256/256 for ``n=4`` (dim 16), 108 non-commuting.
+    ``Poly`` and the rest of the polynomial ladder are integral domains at
+    unbounded degree, so ``compose`` is ``"full"`` far above 8.
+
+    So each capability row carries ``family`` (the carrier family the number IS
+    a fact about) and a DERIVED ``exceeded_by`` naming every carrier row that
+    outruns it — ``turn`` → ``["Mat"]``. The payload names its own
+    counterexamples, and each carrier row carries its OWN ``max_dim`` /
+    ``bounded_by``.
+
+    ``bounded_by`` names a MECHANISM, from the closed
+    :data:`srmech.amsc.carrier_schema.CEILING_MECHANISMS` vocabulary, and the
+    admission rule is that it must be measurable SEPARATELY from the
+    capability's own ``means``. rc339 gave ``turn`` ``bounded_by:
+    "associativity"`` — but ``means`` DEFINES turn as ``x·(y·z) == (x·y)·z``,
+    so the field restated the definition: anything associative turns, anything
+    that turns is associative, and no carrier row could contradict it. The
+    replacement is ``"sign_cocycle"``, and it has content. The CD product
+    FACTORS, and the halves behave differently (measured over
+    ``cd_basis_product``)::
+
+        dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE assoc
+          2 |       4/4        |        1  (1)           |     8/8      100%
+          4 |      16/16       |        6  (6)           |    64/64     100%
+          8 |      64/64       |       28  (28)          |   344/512     67%
+         16 |     256/256      |      120  (120)         |  2248/4096    55%
+         32 |    1024/1024     |      496  (496)         |  (cost-skipped)
+
+    The INDEX lane is exact at every rung; the SIGN is what stops being
+    associative, abruptly, at dim 8. **Addressing is unbounded because XOR is
+    associative at every dim forever; turns and composition break because the
+    SIGN COCYCLE stops being associative** — which is also why rc298 (`#T933`)
+    could lift ``CD_MAX_DIM`` 64 → 256 by DECOUPLING the caps. (``index == XOR``
+    is close to definitional for a CD basis, so that column is a CHECK; the
+    READING — a free index and a load-bearing sign — is what it supports.)
 
     So a caller — or an LLM driving the MCP surface, which is an explicit design
     goal — could read 256 and reach for a TURN there, where non-commuting turn
@@ -857,11 +902,24 @@ def describe() -> Dict[str, Any]:
             CD_MAX_DIM as _CD_MAX,
             CD_TURN_MAX_DIM as _CD_TURN_MAX,
         )
+        # The ladder these ceilings are facts ABOUT. Same spelling as the
+        # carrier registry's `ladder` field, so `family` joins the two views.
+        _CD_FAMILY = "cayley_dickson"
+        # rc343 (`#T972`) — every ceiling here carries `family`, because every
+        # one of these numbers is a CAYLEY-DICKSON fact and rc339 published them
+        # unscoped. `bounded_by` names a MECHANISM from
+        # carrier_schema.CEILING_MECHANISMS: admissible only if it can be
+        # measured SEPARATELY from the capability's own `means`. rc339's
+        # "associativity" on `turn` failed that test — `means` IS the
+        # associativity condition, so the field restated the definition and no
+        # carrier row could contradict it. "sign_cocycle" is measurable on its
+        # own and independently predicts 4. `exceeded_by` is DERIVED below.
         _capabilities: Dict[str, Any] = {
             "address": {
                 "means": (
                     "content-key an individual element; on the Cayley-Dickson "
                     "ladder the index lane e_i*e_j = +/- e_(i XOR j)"),
+                "family": _CD_FAMILY,
                 "max_dim": _CD_MAX,
                 "dense_max_dim": _CD_DENSE_MAX,
                 "verified_exact_to_dim": _CD_ADDR_VERIFIED,
@@ -872,6 +930,7 @@ def describe() -> Dict[str, Any]:
                 "means": (
                     "multiply with NO zero divisors (a normed composition "
                     "algebra)"),
+                "family": _CD_FAMILY,
                 "max_dim": _CD_COMPOSE_MAX,
                 "beyond_ceiling": "zero_divisors",
                 "bounded_by": "hurwitz",
@@ -880,9 +939,10 @@ def describe() -> Dict[str, Any]:
                 "means": (
                     "fold two turns into one: L_x o L_y == L_(x*y), i.e. "
                     "x*(y*z) == (x*y)*z for every z"),
+                "family": _CD_FAMILY,
                 "max_dim": _CD_TURN_MAX,
                 "beyond_ceiling": "abelian_only",
-                "bounded_by": "associativity",
+                "bounded_by": "sign_cocycle",
             },
         }
     except Exception:  # pragma: no cover — cascade surface optional
@@ -908,6 +968,32 @@ def describe() -> Dict[str, Any]:
             if _row.get(_cap_name) == _FULL_VERDICT[_cap_name]:
                 _through = _row["name"]
         _cap["holds_through"] = _through
+
+    # ``exceeded_by`` (rc343, `#T972`) — DERIVED: the carriers that deliver this
+    # capability in FULL ABOVE the family ceiling. This is the field that stops
+    # `max_dim` being read as a universal bound, and it is computed from the
+    # carrier rows rather than asserted beside them, so it cannot drift: add a
+    # carrier that outruns a ceiling and it appears here on the next call.
+    #
+    # It is NOT empty. `turn` has a ceiling of 4 and `Mat` — whose product
+    # mat_matmul is associative at every dim — composes non-commuting turns at
+    # algebra dim 9 and 16 (measured; tests/test_carrier_ceiling_rc343.py).
+    # `compose` has a ceiling of 8 and the polynomial ladders are integral
+    # domains at unbounded degree. rc339 published both numbers with no carrier
+    # attached and no counterexample named, which is how a Cayley-Dickson fact
+    # came to read as a statement about every carrier srmech ships.
+    for _cap_name, _cap in _capabilities.items():
+        _ceiling = _cap.get("max_dim")
+        _full = _FULL_VERDICT[_cap_name]
+        _over = []
+        for _cname, _crow in _carrier_caps.items():
+            if _crow.get(_cap_name) != _full:
+                continue
+            _cmax = _crow.get("max_dim")
+            # None == unbounded in dim, so it outruns any finite ceiling.
+            if _ceiling is None or _cmax is None or _cmax > _ceiling:
+                _over.append(_cname)
+        _cap["exceeded_by"] = sorted(_over)
     _limits: Dict[str, Any] = {}
     if _capabilities:
         _limits["capabilities"] = _capabilities
