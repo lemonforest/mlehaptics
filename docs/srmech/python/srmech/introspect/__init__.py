@@ -857,11 +857,24 @@ def describe() -> Dict[str, Any]:
             CD_MAX_DIM as _CD_MAX,
             CD_TURN_MAX_DIM as _CD_TURN_MAX,
         )
+        # The ladder these ceilings are facts ABOUT. Same spelling as the
+        # carrier registry's `ladder` field, so `family` joins the two views.
+        _CD_FAMILY = "cayley_dickson"
+        # rc343 (`#T972`) — every ceiling here carries `family`, because every
+        # one of these numbers is a CAYLEY-DICKSON fact and rc339 published them
+        # unscoped. `bounded_by` names a MECHANISM from
+        # carrier_schema.CEILING_MECHANISMS: admissible only if it can be
+        # measured SEPARATELY from the capability's own `means`. rc339's
+        # "associativity" on `turn` failed that test — `means` IS the
+        # associativity condition, so the field restated the definition and no
+        # carrier row could contradict it. "sign_cocycle" is measurable on its
+        # own and independently predicts 4. `exceeded_by` is DERIVED below.
         _capabilities: Dict[str, Any] = {
             "address": {
                 "means": (
                     "content-key an individual element; on the Cayley-Dickson "
                     "ladder the index lane e_i*e_j = +/- e_(i XOR j)"),
+                "family": _CD_FAMILY,
                 "max_dim": _CD_MAX,
                 "dense_max_dim": _CD_DENSE_MAX,
                 "verified_exact_to_dim": _CD_ADDR_VERIFIED,
@@ -872,6 +885,7 @@ def describe() -> Dict[str, Any]:
                 "means": (
                     "multiply with NO zero divisors (a normed composition "
                     "algebra)"),
+                "family": _CD_FAMILY,
                 "max_dim": _CD_COMPOSE_MAX,
                 "beyond_ceiling": "zero_divisors",
                 "bounded_by": "hurwitz",
@@ -880,9 +894,10 @@ def describe() -> Dict[str, Any]:
                 "means": (
                     "fold two turns into one: L_x o L_y == L_(x*y), i.e. "
                     "x*(y*z) == (x*y)*z for every z"),
+                "family": _CD_FAMILY,
                 "max_dim": _CD_TURN_MAX,
                 "beyond_ceiling": "abelian_only",
-                "bounded_by": "associativity",
+                "bounded_by": "sign_cocycle",
             },
         }
     except Exception:  # pragma: no cover — cascade surface optional
@@ -908,6 +923,32 @@ def describe() -> Dict[str, Any]:
             if _row.get(_cap_name) == _FULL_VERDICT[_cap_name]:
                 _through = _row["name"]
         _cap["holds_through"] = _through
+
+    # ``exceeded_by`` (rc343, `#T972`) — DERIVED: the carriers that deliver this
+    # capability in FULL ABOVE the family ceiling. This is the field that stops
+    # `max_dim` being read as a universal bound, and it is computed from the
+    # carrier rows rather than asserted beside them, so it cannot drift: add a
+    # carrier that outruns a ceiling and it appears here on the next call.
+    #
+    # It is NOT empty. `turn` has a ceiling of 4 and `Mat` — whose product
+    # mat_matmul is associative at every dim — composes non-commuting turns at
+    # algebra dim 9 and 16 (measured; tests/test_carrier_ceiling_rc343.py).
+    # `compose` has a ceiling of 8 and the polynomial ladders are integral
+    # domains at unbounded degree. rc339 published both numbers with no carrier
+    # attached and no counterexample named, which is how a Cayley-Dickson fact
+    # came to read as a statement about every carrier srmech ships.
+    for _cap_name, _cap in _capabilities.items():
+        _ceiling = _cap.get("max_dim")
+        _full = _FULL_VERDICT[_cap_name]
+        _over = []
+        for _cname, _crow in _carrier_caps.items():
+            if _crow.get(_cap_name) != _full:
+                continue
+            _cmax = _crow.get("max_dim")
+            # None == unbounded in dim, so it outruns any finite ceiling.
+            if _ceiling is None or _cmax is None or _cmax > _ceiling:
+                _over.append(_cname)
+        _cap["exceeded_by"] = sorted(_over)
     _limits: Dict[str, Any] = {}
     if _capabilities:
         _limits["capabilities"] = _capabilities

@@ -26,6 +26,9 @@ human-readable description per carrier, so introspection could not say *what a
           "turn":        "non_commuting" | "abelian_only" | "unclassified" | None,
           "commutative": True | False | None,
           "varies_with": "dim" | "element_type" | None,
+          "max_dim":     <int> | None,     # rc343 — largest algebra dim this
+                                           # carrier admits; None = UNBOUNDED
+          "bounded_by":  "<mechanism>" | None,   # rc343 — WHY it stops there
         },
         "ops": {                          # back-index into tool_schema
           "consumes": ["srmech....", ...],   # full ToolEntry names
@@ -84,6 +87,73 @@ knob that can improve it, and points the caller at
 ``describe()["limits"]["element_types"]`` for the per-rung answer. Publishing the
 best case is the failure mode this whole block exists to remove.
 
+``max_dim`` / ``bounded_by`` — the ceiling is PER-CARRIER (rc343, `#T972`)
+--------------------------------------------------------------------------
+rc339 published ONE ``turn`` ceiling — dim 4 — in
+``describe()["limits"]["capabilities"]``, with no carrier attached. **That number
+is a Cayley–Dickson fact stated as a universal one, and two rows in this very
+table contradict it.**
+
+* ``Mat``'s product is ``mat_matmul``, which is associative at EVERY dim. Its
+  turns compose, with the which-way intact, as far as you care to build:
+  MEASURED over the matrix units of ``M_n(ℝ)`` — 81/81 turn-composing pairs at
+  ``n=3`` (algebra dim 9), of which 42 are NON-commuting, and 256/256 at
+  ``n=4`` (dim 16), of which 108 are non-commuting. Both are above 4.
+* ``Poly`` (with ``BiPoly`` / ``TriPoly`` / ``QPoly`` / ``QBiPoly``) is an
+  integral domain at unbounded degree — ``deg(p·q) == deg p + deg q``, so
+  ``compose`` is ``"full"`` arbitrarily far above the ``compose`` ceiling of 8.
+
+So each row now carries its OWN ceiling:
+
+``max_dim``
+    The largest algebra dim (REAL dimension, so ℍ is 4 and ``M_n(ℝ)`` is ``n²``)
+    at which this row's verdicts hold. ``None`` means **unbounded in dim** — the
+    verdicts hold at every dim the carrier can be built at.
+
+``bounded_by``
+    WHY it stops there, drawn from :data:`CEILING_MECHANISMS`. Not free text: a
+    mechanism is admissible only if it can be MEASURED SEPARATELY from the
+    capability's own definition and independently predicts the ceiling. That
+    admission rule is the whole point — see below.
+
+**Why ``bounded_by`` is not "associativity".** rc339 gave the ``turn`` ceiling
+``bounded_by: "associativity"``. But ``turn`` is DEFINED as ``x·(y·z) ==
+(x·y)·z for every z`` — so "bounded by associativity" restates the definition.
+Anything associative turns; anything that turns is associative. The field could
+not discriminate between two carriers and no measurement could falsify it, which
+is the same false-green shape rc339 itself was written to remove.
+
+The replacement has content. The Cayley–Dickson product FACTORS into two halves,
+and MEASURED over the shipped ``cd_basis_product`` they behave completely
+differently::
+
+    dim | index == a XOR b | negative signs (C(d,2)) | SIGN COCYCLE associative
+      2 |       4/4        |        1  (1)           |     8/8       100%
+      4 |      16/16       |        6  (6)           |    64/64      100%
+      8 |      64/64       |       28  (28)          |   344/512      67%
+     16 |     256/256      |      120  (120)         |  2248/4096     55%
+     32 |    1024/1024     |      496  (496)         |   (cost-skipped)
+
+The INDEX lane is ``e_i·e_j → e_{i XOR j}``, exact at every rung with no
+exceptions. The SIGN is a cocycle over it, and the sign is what stops being
+associative — abruptly, at dim 8. Every doubling adds one index bit and extends
+the sign cocycle; ℝ is value-with-no-index, ℂ is value plus the first index bit.
+
+So: **addressing is unbounded because XOR is associative at every dim forever;
+turns and composition break because THE SIGN COCYCLE stops being associative.**
+The wall was never in the addressing — which is also why rc298 (`#T933`) could
+lift ``CD_MAX_DIM`` 64 → 256 by DECOUPLING the caps, and why ``Mat`` (whose sign
+handling is trivial) turns at any dim. "Bounded by the sign cocycle, not by the
+index" is falsifiable and predicts new carriers; "bounded by associativity" is
+neither.
+
+*Honest label:* ``index == XOR`` is close to DEFINITIONAL for a Cayley–Dickson
+basis — the basis product IS ``±e_{i^j}`` by construction — so that column is a
+CHECK, not a discovery. What is NOT definitional is the READING: that the ladder
+splits into a FREE index and a LOAD-BEARING sign, and that every ceiling srmech
+publishes lives on one side of that split. The ``C(d,2)`` regularity and the
+100% → 67% → 55% cocycle drop are the support. It is not stronger than that.
+
 The ``ops`` back-index is **DERIVED, never hand-maintained**: it unions
 
 * a word-boundary token scan of every registered ToolEntry's declared
@@ -125,6 +195,10 @@ import re
 from typing import Any, Dict, List, Optional
 
 from .carrier_ladder import _OP_CONTRACTS
+# rc343 (`#T972`) — CDRegister's per-carrier ceiling IS the addressing cap, read
+# from the one SSoT rather than re-typed here (cayley_dickson imports nothing
+# from this module, so there is no cycle).
+from .cascade.cayley_dickson import CD_MAX_DIM as _CD_MAX_DIM
 
 # rc241 (#839) — the generated per-carrier CONSTRUCTION example (the operand-side
 # peer of _tool_docs.py). Guarded so a stripped/missing module never breaks import.
@@ -399,11 +473,61 @@ _CAP_NON_COMMUTING = "non_commuting"
 _CAP_ABELIAN_ONLY = "abelian_only"
 _CAP_UNCLASSIFIED = "unclassified"
 
+# ── the CEILING MECHANISM vocabulary (rc343, `#T972`) ─────────────────────────
+#
+# The admissible values of `bounded_by`, here and in
+# describe()["limits"]["capabilities"]. A CLOSED set, not free text, and the
+# admission rule is strict:
+#
+#   a mechanism is admissible only if it can be MEASURED SEPARATELY from the
+#   capability's own definition, and that measurement independently predicts
+#   the ceiling.
+#
+# That rule is what rc339's `bounded_by: "associativity"` failed. `turn` is
+# DEFINED as associativity, so no measurement of "associativity" is separable
+# from the definition of the thing it claims to bound: the field restated the
+# definition and nothing could contradict it. Every value below names a
+# mechanism `tests/test_carrier_ceiling_rc343.py` measures on its own terms and
+# checks against the ceiling it is claimed to produce.
+#
+#: ``{mechanism: what it asserts}`` — the closed `bounded_by` vocabulary.
+CEILING_MECHANISMS: Dict[str, str] = {
+    "index_xor": (
+        "the index lane e_i*e_j -> e_(i XOR j) is associative at every dim, so "
+        "nothing mathematical bounds this capability; measured exact 4/4, "
+        "16/16, 64/64, 256/256, 1024/1024 at dims 2..32"),
+    "sign_cocycle": (
+        "the SIGN half of the Cayley-Dickson product stops being associative: "
+        "measured 100% at dims 2 and 4, 67% (344/512) at dim 8, 55% "
+        "(2248/4096) at dim 16 — which is what puts the ceiling at 4"),
+    "hurwitz": (
+        "Hurwitz (1898): the normed composition algebras over R are exactly "
+        "dims 1, 2, 4, 8; past dim 8 srmech ships the explicit counterexample "
+        "(cascade.sedenion_zero_divisor_witness)"),
+    "tooling": (
+        "a build constant — verification cost, not a mathematical wall; "
+        "liftable, and rc298 (`#T933`) did lift it 64 -> 256"),
+    "definition": (
+        "the carrier IS this dim; the number is the carrier's identity, not a "
+        "wall it runs into (a quaternion is dim 4 the way a byte is 8 bits)"),
+}
 
-def _cap(product, compose, turn, commutative, varies_with=None):
+
+def _cap(product, compose, turn, commutative, varies_with=None,
+         max_dim=None, bounded_by=None):
     """One capability row. ``address`` is ``"exact"`` iff the carrier has any
     structure at all — every srmech carrier is exactly addressed, and the field
-    exists so a future one that is not must say so."""
+    exists so a future one that is not must say so.
+
+    ``max_dim`` (rc343) is the largest algebra dim — REAL dimension — at which
+    the verdicts hold, ``None`` for **unbounded in dim**; ``bounded_by`` names
+    the mechanism from :data:`CEILING_MECHANISMS`. The default is the honest one
+    for a carrier with no dimensional wall: unbounded, no mechanism."""
+    assert max_dim is None or max_dim >= 1, "max_dim: a dim or None"
+    assert bounded_by is None or bounded_by in CEILING_MECHANISMS, (
+        f"bounded_by {bounded_by!r} is not in CEILING_MECHANISMS — a ceiling "
+        "reason must be a mechanism that can be measured apart from the "
+        "capability it bounds")
     return {
         "product": product,
         "address": _CAP_EXACT,
@@ -411,6 +535,8 @@ def _cap(product, compose, turn, commutative, varies_with=None):
         "turn": turn,
         "commutative": commutative,
         "varies_with": varies_with,
+        "max_dim": max_dim,
+        "bounded_by": bounded_by,
     }
 
 
@@ -421,6 +547,10 @@ _CAP_NO_PRODUCT = _cap(None, None, None, None)
 
 _CAPABILITY: Dict[str, Dict[str, Any]] = {
     # ── the polynomial ladders: commutative integral domains over ℚ ──────────
+    # UNBOUNDED in dim, and this is one of the two rows that falsify a GLOBAL
+    # `compose` ceiling of 8: deg(p·q) == deg p + deg q, so a product of nonzero
+    # polynomials is nonzero at ANY degree. `compose: full` here is not a
+    # Cayley–Dickson claim and the Hurwitz bound has no jurisdiction over it.
     "Poly": _cap("polynomial multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
     "BiPoly": _cap("polynomial multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
     "TriPoly": _cap("polynomial multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
@@ -432,26 +562,45 @@ _CAPABILITY: Dict[str, Dict[str, Any]] = {
     # EARLIER, between quaternion and octonion — the two ceilings are NOT the
     # same wall, and conflating them is how "cd_max_dim: 256" came to imply a
     # turn that does not exist.
-    "float": _cap("field multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
-    "complex": _cap("field multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    # Each CD rung IS its dim, so `bounded_by` is "definition", not a wall.
+    "float": _cap("field multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True,
+                  max_dim=1, bounded_by="definition"),
+    "complex": _cap("field multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True,
+                    max_dim=2, bounded_by="definition"),
     # ℍ — the LAST rung whose non-commuting turns fold: measured 16/16 basis
     # pairs compose while only 10/16 commute, so 6 non-commuting pairs survive.
-    "quaternion": _cap("cd_mult (H)", _CAP_FULL, _CAP_NON_COMMUTING, False),
+    "quaternion": _cap("cd_mult (H)", _CAP_FULL, _CAP_NON_COMMUTING, False,
+                       max_dim=4, bounded_by="definition"),
     # 𝕆 — still a division algebra (compose survives, and this rung exists to
     # reach e₄..e₇), but turn-composing == commuting AS SETS (88 == 88, both
     # differences empty). Non-commuting turn composition is gone.
-    "octonion": _cap("cd_mult (O)", _CAP_FULL, _CAP_ABELIAN_ONLY, False),
+    "octonion": _cap("cd_mult (O)", _CAP_FULL, _CAP_ABELIAN_ONLY, False,
+                     max_dim=8, bounded_by="definition"),
     # 𝕊 — past Hurwitz. srmech ships the witness: cascade.sedenion_zero_divisor_witness.
-    "sedenion": _cap("cd_mult (S)", _CAP_ZERO_DIVISORS, _CAP_ABELIAN_ONLY, False),
+    "sedenion": _cap("cd_mult (S)", _CAP_ZERO_DIVISORS, _CAP_ABELIAN_ONLY,
+                     False, max_dim=16, bounded_by="definition"),
     # ── the exact scalars ────────────────────────────────────────────────────
-    "int": _cap("integer multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
-    "Q": _cap("rational multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True),
+    "int": _cap("integer multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True,
+                max_dim=1, bounded_by="definition"),
+    "Q": _cap("rational multiply", _CAP_FULL, _CAP_ABELIAN_ONLY, True,
+              max_dim=1, bounded_by="definition"),
     # ── the float-LA carriers ────────────────────────────────────────────────
     # Mat's ALGEBRA product is `@` (mat_matmul): associative and NON-commutative,
     # so turns fold with their which-way intact — and it has zero divisors
     # (any singular pair), so it composes turns without being a composition
     # algebra. That combination is exactly why the two verdicts are separate
     # fields: `turn` is not downstream of `compose`.
+    #
+    # rc343: this is THE row that falsifies a GLOBAL `turn` ceiling of 4.
+    # mat_matmul is associative at EVERY dim, so Mat's turns keep folding with
+    # their which-way intact as far as you build. MEASURED over the matrix units
+    # of M_n(ℝ): n=2 (algebra dim 4) 16/16 compose, 10 non-commuting; n=3
+    # (dim 9) 81/81 compose, 42 non-commuting; n=4 (dim 16) 256/256 compose, 108
+    # non-commuting. Both n=3 and n=4 sit ABOVE CD_TURN_MAX_DIM. Hence max_dim
+    # None with no mechanism: there is no wall here to name.
+    # (`varies_with` stays None on purpose — it names a knob that can IMPROVE a
+    # worst-case verdict, and Mat's verdicts do not improve with dim: they keep
+    # holding.)
     "Mat": _cap("mat_matmul (@)", _CAP_ZERO_DIVISORS, _CAP_NON_COMMUTING, False),
     # Vec has no closed non-commutative product — `@` is the dot and leaves the
     # carrier (Vec × Vec → scalar). Its closed op is the elementwise Hadamard
@@ -494,14 +643,16 @@ _CAPABILITY: Dict[str, Dict[str, Any]] = {
     # remainder is carry/EC: the design already encodes this ceiling, and rc339
     # makes introspection say so.
     "SedenionRegister": _cap("cd_navigate (S, dim 16)", _CAP_ZERO_DIVISORS,
-                             _CAP_ABELIAN_ONLY, False),
+                             _CAP_ABELIAN_ONLY, False,
+                             max_dim=16, bounded_by="definition"),
     # Worst case over every dim in [1, CD_MAX_DIM] — NOT the dim-4 best case.
     # This row is the direct answer to the rc339 defect: a caller who read
     # cd_max_dim 256 and reached for a turn gets told here that at the dims this
     # register admits, turns are abelian-only and the product has zero divisors.
     "CDRegister": _cap("cd_navigate (CD dim n <= CD_MAX_DIM)",
                        _CAP_ZERO_DIVISORS, _CAP_ABELIAN_ONLY, False,
-                       varies_with="dim"),
+                       varies_with="dim", max_dim=_CD_MAX_DIM,
+                       bounded_by="tooling"),
 }
 
 # A new carrier MUST declare its capability. Without this, adding a carrier
