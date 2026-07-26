@@ -26,7 +26,7 @@
  *
  * The strings the manifest builder references (hex digests, the version
  * string, the parser/descriptor hashes, the chromosome labels) are held BY
- * REFERENCE by srmech_json_new_string. rc338 (#956) makes the rule explicit,
+ * REFERENCE by srmech_json_new_string. rc338 (#T956) makes the rule explicit,
  * because the loose form of it ("caller-or-this-frame buffers that stay alive
  * until after srmech_json_write") is what let a use-after-scope ship:
  *
@@ -220,7 +220,7 @@ static void genome_arena_tail(const genome_arena_t *a, void **ws, size_t *ws_len
  * below are held BY REFERENCE by srmech_json_new_string (the array-valued
  * members further down are arena-carved, so they were never at risk), which
  * makes this block's LIFETIME part of the tree's contract: it must outlive
- * srmech_json_write. rc338/#956 — a stack `genome_strings_t` is therefore legal
+ * srmech_json_write. rc338/#T956 — a stack `genome_strings_t` is therefore legal
  * only in a builder that also SERIALISES before returning; a builder that hands
  * the TREE back to its caller must carve the block from the caller arena. */
 typedef struct {
@@ -3512,7 +3512,7 @@ size_t srmech_genome_arena_bytes(size_t body_len, uint32_t n_chroms,
     size_t bodies = 2u * body_len + region_len;     /* spliced/grown body + rebuild copy */
     size_t chr = 5u * region_len + 8192u;           /* region + 2*hex + 2*io + slop */
     size_t fixed = 64u * 1024u + 4096u              /* top-level json + manifest header */
-      + sizeof(genome_strings_t) + 16u;             /* rc338/#956: the §44 rebuild's
+      + sizeof(genome_strings_t) + 16u;             /* rc338/#T956: the §44 rebuild's
                                                      * strings block is arena-resident
                                                      * (+ its alignment pad), not a
                                                      * stack local — see
@@ -3639,7 +3639,7 @@ static void genome_catalog_committed_head(const char *dir, void *ws,
     out[64] = '\0';
 }
 
-/* rc338 (#956) — the §44 REBUILD tail, split out of genome_obtain_manifest so
+/* rc338 (#T956) — the §44 REBUILD tail, split out of genome_obtain_manifest so
  * the strings block it scans into can be ARENA-RESIDENT.
  *
  * THE DEFECT THIS CLOSES. The block used to be `genome_strings_t rstrs;`, a
@@ -3688,7 +3688,7 @@ static srmech_status_t genome_rebuild_manifest_tree(
     size_t blen = 0u;
     st = genome_read_file(body_path, body, bsz, &blen);
     if (st != SRMECH_OK) { return st; }
-    /* #956: the strings block goes in the ARENA, beside the tree that points at
+    /* #T956: the strings block goes in the ARENA, beside the tree that points at
      * it — NOT on this frame, which dies while the tree is still being read. */
     genome_strings_t *s = genome_arena_alloc(a, sizeof(*s));
     if (s == NULL) { return SRMECH_ERR_OVERFLOW; }
@@ -3748,7 +3748,7 @@ static srmech_status_t genome_obtain_manifest(
         leaf_dim = (uint32_t)coupling_len;
         one_ptr = coupling;
     }
-    /* rc338/#956: the rebuild's strings block is ARENA-resident, so the tree
+    /* rc338/#T956: the rebuild's strings block is ARENA-resident, so the tree
      * returned from here does not point into this frame. */
     return genome_rebuild_manifest_tree(dir, one_ptr, leaf_dim, &a, out);
 }

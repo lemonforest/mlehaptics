@@ -27,7 +27,7 @@ static int g_failed = 0;
 /* 8 MiB workspace arena — matches the json smoke + parity harness. */
 static unsigned char g_ws[8u * 1024u * 1024u];
 
-/* rc338 (#956): a SECOND, disjoint arena. The lifetime check below holds two
+/* rc338 (#T956): a SECOND, disjoint arena. The lifetime check below holds two
  * derived manifest trees alive at once, and they must not share storage — with
  * one arena the second call would overwrite the first tree's json nodes
  * outright, which is a different (and uninteresting) failure than the
@@ -58,7 +58,7 @@ static const char *temp_dir(void)
     return dir;
 }
 
-/* rc338 (#956): a SECOND store, so the lifetime check has a genome whose digests
+/* rc338 (#T956): a SECOND store, so the lifetime check has a genome whose digests
  * are distinguishable from the first's. */
 static const char *temp_dir2(void)
 {
@@ -1769,7 +1769,7 @@ int main(void)
                    "rc337: repairing the payload byte makes the catalog read again");
     }
 
-    /* rc338 (#956) LIFETIME — a derived manifest tree must not point into the
+    /* rc338 (#T956) LIFETIME — a derived manifest tree must not point into the
      * dead frame of the function that built it.
      *
      * `genome_obtain_manifest` used to scan into a STACK-local genome_strings_t
@@ -1849,10 +1849,10 @@ int main(void)
         /* Pre-fix these two read back as genome B's digest and coupling: a
          * well-formed manifest, a success status, and the WRONG genome. */
         check_true(ba != NULL && memcmp(ba->u.str.ptr, ref_body, 64u) == 0,
-                   "rc338/#956: tree A still reports A's body_sha256 after call B");
+                   "rc338/#T956: tree A still reports A's body_sha256 after call B");
         check_true(ha != NULL &&
                    memcmp(ha->u.str.ptr, ref_hex, ha->u.str.len) == 0,
-                   "rc338/#956: tree A still reports A's coupling.hex after call B");
+                   "rc338/#T956: tree A still reports A's coupling.hex after call B");
 
         /* And the LAST writer of that frame must be right too — a "fix" that only
          * swapped which of the two trees gets corrupted would pass the above. */

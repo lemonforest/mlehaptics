@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc340"
-#define SRMECH_VERSION       "0.9.0rc340"
+#define SRMECH_VERSION_PRE   "rc341"
+#define SRMECH_VERSION       "0.9.0rc341"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4623,7 +4623,7 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * projection answers is not. */
 #define SRMECH_CD_DENSE_MAX_DIM 64
 
-/* ---- the OTHER two carrier ceilings (rc339, `#967`) ---------------------
+/* ---- the OTHER two carrier ceilings (rc339, `#T967`) ---------------------
  *
  * SRMECH_CD_MAX_DIM and SRMECH_CD_DENSE_MAX_DIM above are BOTH ADDRESSING
  * bounds. Publishing only those answers "how big can this go?" with 256 and
@@ -12521,7 +12521,7 @@ srmech_status_t srmech_mat_matmul_c128(const srmech_mat_t *a,
  * EllMonomial/EllRatio/ThetaSum, the weight-axis UnaryTheta/MockQSeries/
  * HarmonicMaass, and the HDC objects One/SedenionRegister) with, per
  * carrier: a one-line human-readable description, its promote/project
- * ladder + rung (NULL/0 off-ladder), its shift variables, the rc339 (`#967`)
+ * ladder + rung (NULL/0 off-ladder), its shift variables, the rc339 (`#T967`)
  * CAPABILITY block, and the DERIVED ops back-index (which registered tools
  * consume / produce it) — so a bare-C host (no Python) discovers BOTH the
  * verbs and the nouns (the Siona / RBS-LM self-hosting ask).
