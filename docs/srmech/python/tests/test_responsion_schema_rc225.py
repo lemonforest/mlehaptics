@@ -362,7 +362,7 @@ def test_tool_entry_registered_and_total_matches_live() -> None:
     assert entry.category == "responsion_schema"
     assert "k=3" in entry.summary
     assert "EDGE" in entry.summary
-    assert len(schema.tools) == 509
+    assert len(schema.tools) == 510
 
 
 def test_rosetta_row_is_composes_c() -> None:
@@ -380,7 +380,7 @@ def test_rosetta_row_is_composes_c() -> None:
 def test_describe_total_matches_live() -> None:
     from srmech import introspect
 
-    assert introspect.describe()["tools"]["total"] == 509
+    assert introspect.describe()["tools"]["total"] == 510
 
 
 def test_within_edge_order_is_deterministic() -> None:
