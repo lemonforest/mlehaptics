@@ -13,6 +13,23 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc341]
+
+_**Prose only — 49 residual FALSE BACKLINKS from rc338/rc339 re-notated (#T974). No behaviour change; `SRMECH_ABI_VERSION` stays 10.**_ rc340 introduced the `#T###` convention and cleaned its own references; these are the ones already on `main` from the two rcs before it.
+
+- **THE DEFECT.** `#T956` (rc338) and `#T967` / `#T965` (rc339) are LOCAL task-tracker IDs, but in this repo a bare `#NNNN` is a GitHub reference — and each of those numbers resolves to a real, merged, **unrelated** issue (956 → "general-N cyclotomic exact DFT", 965 → "genome-storage surface brick 2", 967 → "DSL class-awareness"). Every site was therefore a live cross-link posting backlinks onto work it has nothing to do with, and a future reader following one would be misled about what the rc was for. *(Collision targets are written here WITHOUT the `#` on purpose — naming the problem must not re-create it.)*
+
+  **Historical note for anyone following such a link:** the task IDs cited by rc338 (956), rc339 (967 / 965) and rc340's merge commit (965) were never issue references. Those commit messages are on `main` and cannot be cleanly rewritten, so they remain as-is; only file content is corrected here. The rc numbers are the reliable anchors — rc338 was the manifest-tree use-after-scope fix, rc339 the carrier capability ontology, rc340 the genome carrier coverage.
+
+- **CONTEXT-CHECKED, NOT SWEPT.** All 49 sites were read in situ before any edit. Every one describes rc338's use-after-scope defect (a derived manifest tree holding pointers into the dead frame that built it) or rc339's ADDRESS/COMPOSE/TURN ceilings — none describes the cyclotomic-DFT, genome-brick or DSL-class work those numbers actually name. Per file: rc338 lifetime test 11, `srmech_genome.c` 6, `test_srmech_genome.c` 5, `introspect/__init__.py` 5, `carrier_schema.py` 4, `cayley_dickson.py` 4, `test_domain_classes_rc298.py` 3, this CHANGELOG 4, `srmech.h` 2, the rc339 notes script 2, `test_carrier_capability_rc339.py` 2, `JPL_AUDIT.md` 1.
+
+- **DELIBERATELY NOT WIDENED — the larger clusters are GENUINE.** `#928` is the live "[srmech] Consolidated wishlist / asks tracker (W1–W18)" and `#936`/`#938`/`#943`/`#948`/`#962` are its children or other real references: **288 citations, every one left bare.** Prefixing them would break precisely what the convention protects, which is a worse defect than the one being fixed. Verified numerically against `origin/main` (928 → 140, 936 → 19, 938 → 41, 943 → 17, 948 → 36, 962 → 35 — all unchanged).
+
+- **THE FOURTH SURFACE.** A task ID leaks through four channels, not one: file content, commit messages, PR body, **and the PR TITLE** — `gh pr merge` mints the title verbatim as the merge-commit message, which is how rc340's trailing `(965)` reached `main` even though every one of its own commits was clean. rc341's title is `#T`-clean.
+
+- **The guard now works in BOTH directions.** The re-notation script asserts per file that no real ref is prefixed (pre-condition **and** an after-count equality check) and that no known task ID survives bare (post-condition). rc340's version only guarded the first — which is exactly how `#T954` stayed bare through an entire rc before being caught.
+
+
 ## [0.9.0rc340]
 
 _**The carrier could be chosen when BUILDING a chromosome but not through the UMBRELLA that wraps it — and over the wire it could not be chosen at all (#T965, the coverage half; rc339 shipped the ontology half).**_ rc339 published *what each `element_type` rung can do*. This rc answers the other question: *which ops can be asked*. Measured at rc339: **14 of 70** public `srmech.amsc.genome` callables accepted `element_type` in Python — and only **2 of 67** published it on the MCP / tool-schema surface.
