@@ -2007,9 +2007,14 @@ static srmech_status_t genome_strings_alloc(genome_strings_t *s,
 /* Fold ONE non-opener block (marker `m`) into the current chromosome `cur` during
  * the §44 scan: a §Q8/v16 packed turn (0x38) flags the carrier "q8", a §𝕆-TURN/v19
  * packed turn (0x39) flags "octonion"; an interior
- * §95a centromere (0x58) marks the cap-kind nuclear; a DATA turn — anything that is
- * NOT a GENE / regulatory / boolean / threshold / graded gene cap, a v5 kernel
- * header, or an interior centromere/chromatin cap — increments the leaf count. */
+ * §95a centromere (0x58) marks the cap-kind nuclear; a DATA turn — anything
+ * genome_cap_kind does NOT classify as a cap — increments the leaf count.
+ *
+ * rc351 (#T1004): this used to re-spell the cap set as an eight-term != chain that had
+ * never learned about the §Q8-FIBER (0x46) / §𝕆-FIBER (0x4F) caps, so a fiber-bearing
+ * chromosome's scanned leaf_count came back ONE HIGHER than the count the writer put in
+ * the manifest. Asking the ONE classifier cannot drift — the openers never reach here
+ * (genome_scan_chroms consumes them), so "not a cap" IS "a data turn". */
 static void genome_scan_fold_block(genome_strings_t *s, unsigned char m, int32_t cur)
 {
     assert(s != NULL);
@@ -2023,15 +2028,8 @@ static void genome_scan_fold_block(genome_strings_t *s, unsigned char m, int32_t
     if (m == SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
         s->cap_kind[cur] = SRMECH_GENOME_CAP_KIND_NUCLEAR;   /* §96 nuclear wins */
     }
-    if (m != SRMECH_GENOME_GENE_CAP_MARKER &&
-        m != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
-        m != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
-        m != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
-        m != SRMECH_GENOME_GRADED_GENE_MARKER &&
-        m != SRMECH_GENOME_KERNEL_HEADER_MARKER &&
-        m != SRMECH_GENOME_CHROMATIN_MARKER &&
-        m != SRMECH_GENOME_CENTROMERE_CAP_MARKER) {
-        s->leaf_count[cur]++;                      /* §95a/§98: an interior cap, not a turn */
+    if (genome_cap_kind(&m, 1u) < 0) {
+        s->leaf_count[cur]++;                      /* §95a/§98/§Q8-/§𝕆-FIBER: a cap is not a turn */
     }
 }
 
@@ -4877,21 +4875,14 @@ static srmech_status_t genome_scan_region(const unsigned char *region,
                           kind == SRMECH_GENOME_DIPLOID_TELOMERE_MARKER)) {  /* §95b diploid */
             return SRMECH_ERR_BAD_INPUT;  /* one append == ONE chromosome */
         }
-        /* §60/§127/§128/§130/§131/§132: a GENE cap (plain 0x47 / regulatory 0x67 / boolean 0x62 /
-         * threshold 0x77 / graded 0x64) or a v5 KERNEL HEADER (0x4B) is not a data turn; the §89
-         * kernel telomere / §127 active telomere opens the region (off==0). The §89 Klein-4 header
-         * IS a coupled turn. */
-        if (kind != SRMECH_GENOME_CHROM_CAP_MARKER &&
-            kind != SRMECH_GENOME_KERNEL_TELOMERE_MARKER &&
-            kind != SRMECH_GENOME_ACTIVE_TELOMERE_MARKER &&
-            kind != SRMECH_GENOME_GENE_CAP_MARKER &&
-            kind != SRMECH_GENOME_REGULATORY_GENE_MARKER &&
-            kind != SRMECH_GENOME_BOOLEAN_GENE_MARKER &&
-            kind != SRMECH_GENOME_THRESHOLD_GENE_MARKER &&
-            kind != SRMECH_GENOME_GRADED_GENE_MARKER &&
-            kind != SRMECH_GENOME_CENTROMERE_CAP_MARKER &&  /* §95a interior centromere */
-            kind != SRMECH_GENOME_DIPLOID_TELOMERE_MARKER &&  /* §95b diploid boundary */
-            kind != SRMECH_GENOME_KERNEL_HEADER_MARKER) { lc++; }
+        /* A cap of ANY family is not a data turn — the region opener, a GENE cap (plain 0x47 /
+         * regulatory 0x67 / boolean 0x62 / threshold 0x77 / graded 0x64), the v5 KERNEL HEADER
+         * (0x4B), the §95a centromere, the §98 chromatin cap, a §Q8-/§𝕆-FIBER cap. The §89
+         * Klein-4 header IS a coupled turn (first byte 0..3, so genome_cap_kind rejects it).
+         * rc351 (#T1004): the eleven-term != chain this replaced had never learned about
+         * CHROMATIN / FIBER / OCT_FIBER, so an appended region carrying one of those caps
+         * reported a leaf_count one too high. */
+        if (genome_cap_kind(&kind, 1u) < 0) { lc++; }
         nb++;
         off += blen;
     }
@@ -8938,8 +8929,8 @@ static srmech_status_t genome_genes_open(
 /* The SHARED per-gene splitter — the whole body of srmech.amsc.genome.genes, over a byte
  * buffer of §55/v3 dual-format blocks (fixed-width caps + legacy v2 or bit-packed data
  * turns). Mirrors the pure `genes` walk EXACTLY: a GENE cap (genome_is_gene_cap) opens a
- * gene (its inline label read back); the 4 chromosome-boundary caps (CHROM / KERNEL-header /
- * KERNEL-telomere / ACTIVE-telomere) are SKIPPED; a leading block before the first gene is
+ * gene (its inline label read back); EVERY other cap (genome_cap_kind >= 0) is SKIPPED —
+ * boundary, centromere, chromatin and fiber alike; a leading block before the first gene is
  * SKIPPED; every other block once STARTED is DECOUPLED (sc_uncouple — carrier-aware) into the
  * current gene's leaves. Emits the shared genes structure into `out`. No abs (a leaf/gene
  * count is a non-negative cardinality); a READ; caller-arena; no malloc/goto/recursion. */
@@ -8969,11 +8960,12 @@ static srmech_status_t genome_genes_split(
             if (st != SRMECH_OK) { return st; }
             cur_leaves = 0u;
             started = 1;
-        } else if (kind == (int)SRMECH_GENOME_CHROM_CAP_MARKER ||
-                   kind == (int)SRMECH_GENOME_KERNEL_HEADER_MARKER ||
-                   kind == (int)SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
-                   kind == (int)SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
-            (void)0;                                     /* a boundary cap — not gene data */
+        } else if (kind >= 0) {
+            (void)0;      /* ANY non-gene cap — a boundary (§44 CHROM / §60 v5 header / §89
+                           * kernel / §127 active / §95b diploid), the §95a centromere, the §98
+                           * chromatin cap, a §Q8-/§𝕆-FIBER cap — is not gene data. rc351
+                           * (#T1004): the four-marker list this replaced let the later cap
+                           * families through to be sc_uncoupled as if they were gene leaves. */
         } else if (started != 0) {
             st = sc_uncouple(block, leaf_dim, coupling, unc);
             if (st != SRMECH_OK) { return st; }
@@ -9120,11 +9112,40 @@ static srmech_status_t genome_community_expresses(
     return genome_gene_cap_expresses(gate, leaf_dim, cell_state, expressed);
 }
 
+/* Fold ONE non-gene CAP into the gene_express walk's §98 access gate: a chromatin cap
+ * (0x48) RE-GATES access_open (accessible iff its level numerator > 0 under cell_state); a
+ * chromosome boundary or the §60 v5 kernel header RESETS it to euchromatin; ANY other
+ * interior cap (§95a centromere, a §Q8-/§𝕆-FIBER cap) leaves it alone. rc351 (#T1004): the
+ * caller used to hand-spell FOUR boundary markers inline, so the later cap families — the
+ * §95b diploid telomere, the centromere and both fiber caps — fell through to the data
+ * branch and were sc_uncoupled into the current gene as if they were content. No abs
+ * (Class-K sign-branch on a numerator); a READ. */
+static srmech_status_t genome_express_fold_cap(const unsigned char *block, size_t dim,
+                                               uint64_t cell_state, int *access_open)
+{
+    uint64_t num = 0u, den = 0u;
+    int kind;
+    assert(block != NULL && access_open != NULL);
+    assert(dim > 0u && dim <= 256u);
+    kind = genome_cap_kind(block, dim);
+    if (kind == (int)SRMECH_GENOME_CHROMATIN_MARKER) {
+        /* dim == leaf_dim, so it always fits uint32_t; the cast silences MSVC C4267
+           (size_t->uint32_t) — Class-K width pin. */
+        srmech_status_t st = genome_chromatin_access(block, (uint32_t)dim, cell_state,
+                                                     &num, &den);
+        if (st != SRMECH_OK) { return st; }
+        *access_open = (num > 0u) ? 1 : 0;
+    } else if (genome_is_boundary_cap(block, dim) != 0 ||
+               kind == (int)SRMECH_GENOME_KERNEL_HEADER_MARKER) {
+        *access_open = 1;
+    }
+    return SRMECH_OK;
+}
+
 /* The gene_express FILTER over ONE region — the whole body of srmech.amsc.genome.gene_express,
  * emitting ONLY the EXPRESSED genes' (label, leaves) into the shared structure. Mirrors the pure
- * walk EXACTLY: a GENE cap sets cur_express = access_open AND genome_gene_cap_expresses(cap); a
- * §98 chromatin cap re-gates access_open (accessible iff its level numerator > 0); the 4
- * boundary caps RESET access_open (euchromatin); a data block of an EXPRESSED gene is decoupled
+ * walk EXACTLY: a GENE cap sets cur_express = access_open AND genome_gene_cap_expresses(cap);
+ * every OTHER cap goes to genome_express_fold_cap; a data block of an EXPRESSED gene is decoupled
  * (sc_uncouple, carrier-aware) into that gene's leaves; an unexpressed gene's turns are skipped
  * (their leaves are discarded in the pure path too). No abs (Class-K access is a sign-branch on a
  * numerator); a READ. */
@@ -9161,18 +9182,9 @@ static srmech_status_t genome_genes_express_region(
                 st = genome_genes_open(block, leaf_dim, out, out_cap, pos, &count_at);
                 if (st != SRMECH_OK) { return st; }
             }
-        } else if (kind == (int)SRMECH_GENOME_CHROMATIN_MARKER) {
-            uint64_t num = 0u, den = 0u;
-            /* dim == (size_t)leaf_dim, so it always fits uint32_t; the cast
-               silences MSVC C4267 (size_t->uint32_t) — Class-K width pin. */
-            st = genome_chromatin_access(block, (uint32_t)dim, cell_state, &num, &den);
+        } else if (kind >= 0) {
+            st = genome_express_fold_cap(block, dim, cell_state, &access_open);
             if (st != SRMECH_OK) { return st; }
-            access_open = (num > 0u) ? 1 : 0;
-        } else if (kind == (int)SRMECH_GENOME_CHROM_CAP_MARKER ||
-                   kind == (int)SRMECH_GENOME_KERNEL_HEADER_MARKER ||
-                   kind == (int)SRMECH_GENOME_KERNEL_TELOMERE_MARKER ||
-                   kind == (int)SRMECH_GENOME_ACTIVE_TELOMERE_MARKER) {
-            access_open = 1;
         } else if (started != 0 && cur_express != 0) {
             st = sc_uncouple(block, leaf_dim, coupling, unc);
             if (st != SRMECH_OK) { return st; }

@@ -1,9 +1,30 @@
 name: srmech-ci
 
-# Per-PR build + test for the srmech package. srmech is pure-Python
-# (no native binary, no cibuildwheel matrix); the CI shape mirrors
-# ephemerides-spectral-ci.yml's `build-and-test` job at a 4-cell
-# always-on matrix plus a `pure-wheel build` smoke test.
+# Per-PR build + test for the srmech package.
+#
+# srmech is a NATIVE-C-ACCELERATED package with TWO co-equal projections of one
+# capability set (ADR-0009): a compiled projection (135 C sources, 507 exported
+# symbols, ABI 10, built through scikit-build-core + cibuildwheel) and a pure /
+# scripting projection (the `pyproject-pure.toml` hatchling wheel that Pyodide,
+# WASM and toolchain-less sdist installs get). Neither is "the fallback for" the
+# other; a capability missing from either is a defect.
+#
+# This header used to read "srmech is pure-Python (no native binary, no
+# cibuildwheel matrix)" — false since the C library shipped, and self-contradicting
+# inside a file that runs a cibuildwheel-backed build and a 3-cell pedantic C
+# matrix. rc351 (task `#T1004`) corrected it, because the wrong description and the
+# missing gate below were the SAME root: a maintainer who believes there is only
+# one path does not add a cell for the second one, and for the whole life of the C
+# library no cell ever ran the suite with `HAS_NATIVE=False`. A pure install could
+# save a fiber-bearing genome and never load it back, on a clean tree, with every
+# job green.
+#
+# The jobs:
+#   build-and-test              4-cell always-on matrix, NATIVE library present
+#   fallback-no-native          the same suite with HAS_NATIVE=False (rc351)
+#   pure-wheel-build            builds the py3-none-any wheel + import smoke
+#   pedantic-build              3-cell C build, warnings-as-errors (JPL Rule 10)
+#   asserts-live-smoke          full suite against an asserts-live C build
 #
 # Triggers: pull_request changes under docs/srmech/python/**, push
 # to main affecting srmech, OR a manual workflow_dispatch.
@@ -13,11 +34,18 @@ on:
     branches: [main]
     paths:
       - "docs/srmech/python/**"
+      # rc351 (`#T1004`): the C tree was NOT in the path filter, so a C-only change
+      # ran neither the pedantic matrix nor the parity suite this file exists for —
+      # the same "this workflow does not know it has a C library" root as the header.
+      - "docs/srmech/c/**"
+      - "docs/srmech/CMakeLists.txt"
       - ".github/workflows/srmech-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "docs/srmech/python/**"
+      - "docs/srmech/c/**"
+      - "docs/srmech/CMakeLists.txt"
       - ".github/workflows/srmech-ci.yml"
   workflow_dispatch: {}
 
@@ -128,6 +156,120 @@ jobs:
         #
         # Coverage is UNCHANGED — same tests, same assertions, distributed.
         run: pytest tests/ -q -n auto --dist loadfile
+
+  fallback-no-native:
+    # rc351 (task `#T1004`) — THE CELL THAT DID NOT EXIST.
+    #
+    # Every other job here runs with a native library loaded. `pure-wheel-build`
+    # builds the py3-none-any wheel and smoke-imports it, but never runs pytest
+    # against it. So for the whole life of the C library, NO cell executed the test
+    # suite with `HAS_NATIVE=False`, and every pure-only code path in srmech was
+    # structurally invisible to CI.
+    #
+    # What that cost: `genome_load`'s no-native streaming reader — the decoder a
+    # Pyodide / WASM / toolchain-less install actually runs — carried a hand-copied
+    # block-marker list that had never learned about the §Q8-FIBER (0x46) and
+    # §𝕆-FIBER (0x4F) caps. A pure install could SAVE a fiber-bearing genome and
+    # then raise `GenomeBoundingError: unrecognised block kind byte 70` loading it
+    # back. Red on a clean tree, shipped, invisible. Under ADR-0009 that is a parity
+    # break with the polarity INVERTED — the scripting projection was the one
+    # missing the capability, which is precisely the direction a native-first CI
+    # shape cannot see.
+    #
+    # METHOD. Install through the `pyproject-pure.toml` (hatchling) backend, the
+    # same swap `pure-wheel-build` uses. No CMake runs, so no `srmech/_native/`
+    # directory is ever created and `_find_library()` finds nothing. The
+    # HAS_NATIVE=False assertion below is NOT decoration: without it a leaked
+    # library would silently turn this cell into a duplicate of `build-and-test`
+    # that reports green while observing nothing — the exact failure mode that let
+    # the defect ship.
+    #
+    # SCOPE — the WHOLE tests/ tree, no `-k`, no file list.
+    #   COVERED: every pure implementation the suite reaches, plus every
+    #     native-vs-pure differential's pure oracle.
+    #   NOT COVERED, and why:
+    #     * The C implementations themselves. By construction — that is what the
+    #       4-cell `build-and-test` matrix and `pedantic-build` are for. This cell
+    #       is the OTHER projection, not a replacement for them.
+    #     * The ~275 `skipif(not …native…)` rows, which skip here. They are
+    #       C-differentials with nothing to compare against; a differential that
+    #       asserted its own library into existence would just be red for a reason
+    #       unrelated to the code (two such rows were fixed in rc351). The step
+    #       below PRINTS the skip count so this blind spot stays a visible number
+    #       rather than an assumption.
+    #   A narrower selection was considered and rejected. A `-k` filter is how a
+    #   green gate lies: it hides ripple, and the pure paths worth defending are
+    #   spread across genome / carriers / cascade / qm / hashing, not one subtree.
+    #   The `asserts-live-smoke` job below already reversed exactly this decision
+    #   (#937: "coverage == COLLECTION") and runs the FULL suite per-PR under
+    #   `--forked`, which is heavier than this plain run. Same anti-narrowing guard
+    #   is applied here for the same reason.
+    #
+    # Linux only: the pure path is stdlib Python: there is no per-OS pure behaviour
+    # to catch, and the cross-platform burden is already carried by the matrix above.
+    name: fallback (pure-Python, no native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install via the pure (hatchling) backend — no C build
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The swap is what makes this cell pure: scikit-build-core would run
+          # CMake and produce srmech/_native/libsrmech.so, and the cell would then
+          # test the native path under a misleading name.
+          mv pyproject.toml pyproject.toml.platform
+          cp pyproject-pure.toml pyproject.toml
+          trap 'mv pyproject.toml.platform pyproject.toml' EXIT
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Verify HAS_NATIVE is False (a leaked library must fail LOUDLY)
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          python3 -c "
+          from srmech.amsc import _native
+          assert _native.HAS_NATIVE is False, (
+              f'expected HAS_NATIVE=False from a hatchling install, got '
+              f'{_native.HAS_NATIVE!r} — a native library leaked in and this cell is '
+              f'silently a duplicate of build-and-test. Resolved library: '
+              f'{_native._find_library()!r}')
+          assert _native._find_library() is None, (
+              f'_find_library() resolved {_native._find_library()!r} — a stale '
+              f'srmech/_native/ directory is polluting the search path')
+          assert not _native.has_native_genome(), 'genome C peers must be absent here'
+          print('OK: HAS_NATIVE=False; LOAD_ERROR=', repr(_native.LOAD_ERROR))
+          "
+
+      - name: Coverage tracks collection (anti-narrowing guard)
+        working-directory: docs/srmech/python
+        shell: bash
+        # Same guard, same reasoning, as the asserts-live cell below (#937): the
+        # threshold is DERIVED from the files on disk, never a frozen number, so
+        # re-introducing a `-k` or a file list turns this cell red instead of
+        # silently shrinking it back to the blindness rc351 removed.
+        run: |
+          FILES=$(ls tests/test_*.py | wc -l)
+          COLLECTED=$(pytest tests/ --collect-only -q -p no:cacheprovider 2>/dev/null \
+            | grep -oE "tests/test_[A-Za-z0-9_]+\.py" | sort -u | wc -l)
+          echo "test files on disk: $FILES ; files pytest collects: $COLLECTED"
+          [ "$COLLECTED" -ge "$((FILES - 6))" ] \
+            || { echo "::error::pure-path collection ($COLLECTED files) is materially below the tree ($FILES) — a filter crept into the run."; exit 1; }
+          echo "OK: the no-native run covers the full collection."
+
+      - name: Run the FULL suite with no native library
+        working-directory: docs/srmech/python
+        shell: bash
+        # `-rs` so the skipped rows are LISTED, and the summary line carries the
+        # skip count. The size of this cell's blind spot is then a number in the
+        # log of every run, not something a future reader has to reconstruct.
+        run: pytest tests/ -q -rs -n auto --dist loadfile
 
   pure-wheel-build:
     # Always-on lightweight build of the py3-none-any wheel via the
