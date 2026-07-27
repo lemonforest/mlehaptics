@@ -262,7 +262,7 @@ EXCLUDED: Dict[str, str] = {
 
 def _render_tool_docs(mod, *, accept_seed_drift: bool = False) -> str:
     """``gen_tool_docs`` output text, with its un-rederivable-prose guard
-    (rc291, `#916`) preserved.
+    (rc291, `#T916`) preserved.
 
     The guard is the reason this adapter exists rather than a call to
     ``main()``: it must still refuse to destroy curation that lives neither

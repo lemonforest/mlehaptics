@@ -6,10 +6,10 @@ NOT the SSoT — the human reviews/edits the emitted file. This just guarantees
 every curated EXAMPLE is a REAL executed result (never hand-typed / fabricated).
 Run:  python tools/gen_curated_probe.py   (from docs/srmech/python)
 
-**MERGES, never clobbers (rc291, #916).** This script used to write the whole
+**MERGES, never clobbers (rc291, #T916).** This script used to write the whole
 file from the ``CENTRAL`` list below, which silently deleted every curated
 entry CENTRAL does not mention — the same "generator eats curation" defect
-that #916 tracked in gen_tool_docs.py, but worse, because here the casualty
+that #T916 tracked in gen_tool_docs.py, but worse, because here the casualty
 is the curation SSoT itself. It now loads the existing CURATED, updates only
 the keys it actually probed, and reports preserved-vs-refreshed counts. A key
 present on disk is never dropped.
@@ -129,7 +129,7 @@ def merge_curated(existing, probed):
 
     The whole point is what it does NOT do: no key in ``existing`` is ever
     dropped because ``probed`` (i.e. ``CENTRAL``) fails to mention it. That
-    wholesale-rebuild was the rc291 #916 defect on this side.
+    wholesale-rebuild was the rc291 #T916 defect on this side.
     """
     merged = {k: dict(v) for k, v in existing.items()}
     for name, entry in probed.items():
@@ -157,7 +157,7 @@ def main():
             print(f"SKIP {name}: {type(e).__name__}: {e}")
     import json
     # MERGE over the existing curation — never rebuild the file from CENTRAL
-    # alone (rc291 #916). CENTRAL is a probe list, not the curation SSoT: most
+    # alone (rc291 #T916). CENTRAL is a probe list, not the curation SSoT: most
     # curated entries (the genome / plasmid / text explanations) are not in it
     # and a wholesale rewrite would delete every one of them.
     try:
@@ -168,7 +168,7 @@ def main():
     preserved = sorted(set(merged) - set(out))
 
     lines = ['"""_tool_docs_curated.py — HAND-CURATED introspection docs for the',
-             "central ops (rc240 #838). Merged OVER the docstring-seeded floor by",
+             "central ops (rc240 #T838). Merged OVER the docstring-seeded floor by",
              "tools/gen_tool_docs.py (curation wins). Every EXAMPLE here is a REAL",
              "executed result (probed by tools/gen_curated_probe.py), never typed.",
              "",

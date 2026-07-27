@@ -363,7 +363,7 @@ __all__ = [
     "cd_navmap",
     "cd_navigate",
     "cd_navmap_is_signed_permutation",
-    # the OPT layers as pure functions (v0.9.0rc301; `#938`)
+    # the OPT layers as pure functions (v0.9.0rc301; `#T938`)
     "cd_couple_working",
     "cd_uncouple_working",
     "cd_carry",

@@ -181,10 +181,10 @@ def generate() -> str:
         b("};")
     b("")
 
-    # Per-entry composes / preserves string arrays (rc305 #943; only for
+    # Per-entry composes / preserves string arrays (rc305 #T943; only for
     # composite ops — a leaf op emits NULL + 0 in the table row below).
     b("/* Per-entry composes / preserves / reads_input string arrays")
-    b(" * (rc305 #943; reads_input rc347 #T985). */")
+    b(" * (rc305 #T943; reads_input rc347 #T985). */")
     for idx, t in enumerate(tools):
         for field_name in ("composes", "preserves", "reads_input"):
             seq = getattr(t, field_name, ()) or ()
@@ -222,7 +222,7 @@ def generate() -> str:
         b(f"        {hoist.opt_expr(_fragment(t.example))},")
         b(f"        {hoist.opt_expr(_fragment(t.smoke_test_hint))},")
         b(f"        {hoist.opt_expr(t.explanation)},")
-        # rc305 (#943): composes / preserves arrays + counts (NULL + 0 for a
+        # rc305 (#T943): composes / preserves arrays + counts (NULL + 0 for a
         # leaf op; the ts_{field}_{idx} arrays are emitted above for composites).
         composes = getattr(t, "composes", ()) or ()
         preserves = getattr(t, "preserves", ()) or ()

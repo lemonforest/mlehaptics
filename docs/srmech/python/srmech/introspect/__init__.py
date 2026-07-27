@@ -1149,7 +1149,7 @@ def describe() -> Dict[str, Any]:
     if _element_types:
         _limits["element_types"] = _element_types
 
-    # C-claim resolution (rc300 `#938`) — is the C path we advertise really in
+    # C-claim resolution (rc300 `#T938`) — is the C path we advertise really in
     # the library we loaded? ``native`` above says a library loaded and its ABI
     # matched; it does NOT say the library contains the symbols the ops claim,
     # because the header adds symbols ABI-additively. A stale or partial build
@@ -1285,7 +1285,7 @@ def describe() -> Dict[str, Any]:
         # `#T967`) — what this BUILD supports, with every dimension inside the
         # capability it bounds. No resource/headroom key; see the note above.
         "limits": _limits,
-        # C-claim resolution (rc300 `#938`) — every ``c_dispatched`` op's C
+        # C-claim resolution (rc300 `#T938`) — every ``c_dispatched`` op's C
         # symbols checked against the LOADED library. ``consistent`` False means
         # a build defect: ops are running pure while claiming C.
         "c_claims": _c_claims,
