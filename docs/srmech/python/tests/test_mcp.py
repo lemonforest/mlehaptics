@@ -1030,7 +1030,9 @@ def test_describe_shape() -> None:
     # the user-declared "classes" surface — #962 Part 2; rc298 adds "carriers",
     # the operand nouns to tools' verbs — `#936`; rc300 adds "c_claims", which
     # answers what "native" cannot — whether the loaded library actually holds
-    # the C symbols our c_dispatched ops claim to route to — `#938`).
+    # the C symbols our c_dispatched ops claim to route to — `#938`; rc347 adds
+    # "lanes", the OP-side complement of "carriers": what each op READS —
+    # `#T985`).
     assert set(d.keys()) == {
         "srmech_version",
         "tool_schema_version",
@@ -1042,6 +1044,7 @@ def test_describe_shape() -> None:
         "carriers",
         "limits",
         "c_claims",
+        "lanes",
     }
     # Version agrees with the package attribute (no hardcoded literal).
     assert d["srmech_version"] == srmech.__version__
