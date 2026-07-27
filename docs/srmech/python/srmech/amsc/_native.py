@@ -1744,6 +1744,33 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_cd_basis_product.restype = ctypes.c_int
 
+    # Algebra inertia signature (v0.9.0rc349; `#T987` / `#T968`) — the ℝ→ℂ rung
+    # instrument. Reads the rank-3 structure-constant tensor, NEVER a declared
+    # dimension, so split algebras and arbitrary tables answer honestly.
+    #   size_t srmech_algebra_inertia_ws_bound(size_t dim)
+    #   int srmech_algebra_inertia_signature(
+    #           const int64_t *table, size_t dim, int form,
+    #           void *ws, size_t ws_len,
+    #           int *out_n_plus, int *out_n_minus, int *out_n_zero,
+    #           int *out_has_witness, int64_t *out_witness)
+    if hasattr(lib, "srmech_algebra_inertia_ws_bound"):
+        lib.srmech_algebra_inertia_ws_bound.argtypes = [ctypes.c_size_t]
+        lib.srmech_algebra_inertia_ws_bound.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_algebra_inertia_signature"):
+        lib.srmech_algebra_inertia_signature.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),     # table (dim*dim*dim, row-major)
+            ctypes.c_size_t,                    # dim (== len(table))
+            ctypes.c_int,                       # form (0=trace q, 1=norm N)
+            ctypes.c_void_p,                    # ws (caller arena)
+            ctypes.c_size_t,                    # ws_len
+            ctypes.POINTER(ctypes.c_int),       # out_n_plus
+            ctypes.POINTER(ctypes.c_int),       # out_n_minus
+            ctypes.POINTER(ctypes.c_int),       # out_n_zero
+            ctypes.POINTER(ctypes.c_int),       # out_has_witness (0 → ORDERED)
+            ctypes.POINTER(ctypes.c_int64),     # out_witness (caller-sized dim)
+        ]
+        lib.srmech_algebra_inertia_signature.restype = ctypes.c_int
+
     # Cayley-Dickson loop NAVIGATION (v0.9.0rc158; Qalg TAIL Batch 2) — the
     # INTEGER combinatorial layer COMPOSED over srmech_cd_basis_product. Each
     # hasattr-guarded so a stale lib (pre-rc158) keeps the rest of the surface.

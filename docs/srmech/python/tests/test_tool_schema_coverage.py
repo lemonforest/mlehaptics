@@ -378,6 +378,9 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     "srmech.amsc.cascade.cayley_dickson.left_mult_matrix",
     "srmech.amsc.cascade.cayley_dickson.left_mult_kernel",
     "srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible",
+    # rc349 (`#T987`): the ℝ→ℂ rung instrument, registered under the flat name
+    # ``srmech.amsc.cascade.inertia_signature``; this is the same object.
+    "srmech.amsc.cascade.cayley_dickson.inertia_signature",
     # cayley_dickson loop-navigation helpers (v0.7.5rc1; W15 / RBS-LM bugfix
     # wishlist) — closure / left_orbit / min_generating_set are the
     # combinatorial layer built entirely on the registered ``cd_basis_product``

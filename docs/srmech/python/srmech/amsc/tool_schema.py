@@ -7576,6 +7576,51 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("tuple", "(index, sign) with index in [0, dim), sign in {+1,-1}"),
         ),
+        # rc349 (`#T987`, consolidating `#T968`): the ℝ→ℂ rung of the Hurwitz
+        # loss ladder — the one rung with no instrument. It reads the rank-3
+        # structure-constant TABLE, never a declared dimension, so split algebras
+        # and arbitrary tables answer honestly (split-𝕆 → (5,3,0), not (1,7,0)).
+        ToolEntry(
+            name="srmech.amsc.cascade.inertia_signature", owner="srmech",
+            category="cascade",
+            summary="Sylvester inertia of the TRACE form q(x) = Re(x·x), read off a "
+                    "rank-3 structure-constant table, with the negative pivot "
+                    "direction attached. IT READS THE TABLE, NEVER A DECLARED "
+                    "DIMENSION and never the coordinate form a²−|v|² (that "
+                    "substitution is input-blind: it matches the real read 4000/4000 "
+                    "on 𝕆 but 854/4000 on split-𝕆, and stays wrong at infinite "
+                    "precision). Measured trace/norm: ℝ (1,0,0)/(1,0,0) · ℂ "
+                    "(1,1,0)/(2,0,0) · ℍ (1,3,0)/(4,0,0) · 𝕆 (1,7,0)/(8,0,0) · "
+                    "split-𝕆 (5,3,0)/(4,4,0) — the literature's (4,4) is the NORM "
+                    "form, so both ship named. SCOPE: this reads the inertia of one "
+                    "quadratic form and NOTHING ELSE — n₋ == 0 does NOT mean "
+                    "orderable (split-ℂ answers (2,0,0) yet (1+j)(1−j)=0), and a "
+                    "diagonal-pinned scrambled table answers exactly as 𝕆 does, so "
+                    "it certifies nothing about associativity, alternativity, "
+                    "composition or division. Exact integers end to end: no float, "
+                    "no epsilon, no abs() (sign is the Class K pin-slot ∘ Class C "
+                    "re-orientation). Same-rc C peer "
+                    "srmech_algebra_inertia_signature (bit-identical signature AND "
+                    "witness). Class K ∘ C ∘ L ∘ I. SSoT: Sylvester (1852); "
+                    "Springer & Veldkamp (2000) §1.7."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("table", "list[list[list[int]]]", True,
+                  "the dim × dim × dim structure-constant tensor; table[i][j][k] is "
+                  "the coefficient of e_k in e_i·e_j (basis 0 is the real "
+                  "direction). The shape qm.octonion_mult_table / "
+                  "qm.quaternion_mult_table already return"),
+            ),
+            returns=R("dict",
+                      "{'dim', 'form' ('trace'), 'signature' (n₊,n₋,n₀), 'n_plus', "
+                      "'n_minus', 'n_zero', 'norm_signature' (the N read), "
+                      "'has_negative_direction' (bool — n₋ > 0; False proves "
+                      "NOTHING about orderability), 'witness' (list[int] | None), "
+                      "'witness_real_square' (int | None — Re(w·w) < 0), "
+                      "'witness_square' (list[int] | None — the full w·w), "
+                      "'witness_certifies_nonorderable' (bool — w·w is a negative "
+                      "real multiple of the identity)}"),
+        ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
         # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).

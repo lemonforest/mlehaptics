@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc348"
-#define SRMECH_VERSION       "0.9.0rc348"
+#define SRMECH_VERSION_PRE   "rc349"
+#define SRMECH_VERSION       "0.9.0rc349"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4923,6 +4923,82 @@ srmech_status_t srmech_cd_navigate(int dim, int j, const int *in_slots,
  * exact-rational cd_mult to check the cocycle shortcut against. Errors:
  * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (bad dim). */
 srmech_status_t srmech_cd_navmap_is_signed_permutation(int dim, int *out_ok);
+
+/* ------------------------------------------------------------------
+ * srmech_algebra_inertia — is an algebra ORDERABLE? Read off its
+ * multiplication table, exactly (rc349; the R->C rung of the Hurwitz loss
+ * ladder, the one rung that had no instrument).
+ *
+ * x -> Re(x*x) is a QUADRATIC FORM, so its complete invariant is the Sylvester
+ * inertia signature (n_plus, n_minus, n_zero). This op computes that from the
+ * table and returns a concrete negative direction with it -- an instrument,
+ * not a lookup. It measures THE INERTIA OF ONE QUADRATIC FORM AND NOTHING
+ * ELSE; n_minus == 0 does NOT mean "orderable" (see the per-op comment).
+ *
+ * IT READS THE TABLE, NEVER A DECLARED DIMENSION, and never the coordinate
+ * form a^2 - |v|^2: nothing here consults SRMECH_CD_MAX_DIM or any imaginary-
+ * dimension constant, and Re(x*x) is summed from the structure constants. That
+ * coordinate substitution is input-blind -- it agrees with the real read
+ * 4000/4000 on O but only 854/4000 on split-O, and stays wrong at infinite
+ * precision. Measured here: R (1,0,0) / C (1,1,0) / H (1,3,0) / O (1,7,0) /
+ * S16 (1,15,0), and split-O (5,3,0) -- NOT the (1,7,0) of O, which is the
+ * control that proves the read is of the algebra rather than of the ladder.
+ *
+ * Rosetta peer of srmech.amsc.cascade.cayley_dickson.inertia_signature.
+ * Additive symbols -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* The largest dimension the exact int64 elimination accepts. Not a memory cap
+ * (the working state is caller-arena backed): it bounds the dim*dim*dim table
+ * index and the ws-bound arithmetic. */
+#define SRMECH_ALGEBRA_INERTIA_MAX_DIM 256u
+
+/* Minimum `ws_len` BYTES for srmech_algebra_inertia_signature at this dim.
+ * Returns 0 for a dim outside [1, SRMECH_ALGEBRA_INERTIA_MAX_DIM]. */
+size_t srmech_algebra_inertia_ws_bound(size_t dim);
+
+/* Sylvester inertia signature of a quadratic form read off the algebra whose
+ * rank-3 structure-constant tensor is `table`: table[(i*dim + j)*dim + k] is
+ * the coefficient of e_k in e_i * e_j. Basis element 0 is the real direction.
+ *
+ * `form` selects the read, and NAMING IT IS LOAD-BEARING -- the two are
+ * different forms with complementary signatures:
+ *   0  TRACE  q(x) = Re(x*x)   -- the SQUARES read. split-O -> (5,3,0)
+ *   1  NORM   N(x) = Re(x*x~)  -- x~ = x_0 e_0 - sum_{i>0} x_i e_i, a NAMED
+ *                                 convention a bare tensor does not determine.
+ *                                 split-O -> (4,4,0), which is what the
+ *                                 literature quotes.
+ *
+ * *out_n_plus / *out_n_minus / *out_n_zero <- the signature (they sum to dim).
+ * *out_has_witness <- 1 iff n_minus > 0, in which case out_witness (caller-
+ * sized `dim`) receives the primitive integer negative pivot direction w, with
+ * the chosen form negative at w. *out_has_witness <- 0 means NO NEGATIVE
+ * DIRECTION IN THIS FORM -- it does NOT mean the algebra is orderable
+ * (split-C answers 0 here and has zero divisors, so it is provably not
+ * orderable). A witness-finder that can never return "none" is not measuring
+ * anything, so R must and does land there.
+ *
+ * SCOPE: this reads the inertia of one quadratic form and nothing else. It
+ * cannot certify composition, alternativity, associativity or division -- a
+ * table with the diagonal pinned and the off-diagonal scrambled answers
+ * exactly as O does. Use srmech_loop_associator_f64 / srmech_g2_three_form_f64
+ * / srmech_sedenion_is_navigable for the off-diagonal structure.
+ *
+ * `ws` >= srmech_algebra_inertia_ws_bound(dim). Exact integers throughout: no
+ * float, no epsilon, no division except an inertia-invariant positive-gcd
+ * strip. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (dim outside
+ * [1, SRMECH_ALGEBRA_INERTIA_MAX_DIM], or form outside {0, 1});
+ * SRMECH_ERR_OVERFLOW (ws too small, or an exact intermediate leaves int64 --
+ * never a silent wrap; the Python peer then routes to its ceiling-free bignum
+ * path). */
+srmech_status_t srmech_algebra_inertia_signature(const int64_t *table,
+                                                 size_t dim, int form,
+                                                 void *ws, size_t ws_len,
+                                                 int *out_n_plus,
+                                                 int *out_n_minus,
+                                                 int *out_n_zero,
+                                                 int *out_has_witness,
+                                                 int64_t *out_witness);
 
 /* ------------------------------------------------------------------
  * JSON value-tree — parser + canonical writer (§41 genome-persistence

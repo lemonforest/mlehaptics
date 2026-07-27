@@ -203,6 +203,7 @@ from .cayley_dickson import (
     left_mult_matrix,
     left_mult_kernel,
     left_mult_is_invertible,
+    inertia_signature,
 )
 # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
 # PR #687; F465 + F468). The sedenion box made into an addressable instrument:
@@ -350,6 +351,7 @@ __all__ = [
     "left_mult_matrix",
     "left_mult_kernel",
     "left_mult_is_invertible",
+    "inertia_signature",
     # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
     "SedenionRegister",
     "sedenion_register",
