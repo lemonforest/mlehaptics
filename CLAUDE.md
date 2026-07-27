@@ -198,6 +198,69 @@ These reading-rules apply across ALL framework-research arcs. Per memory feedbac
 - `[[feedback_asymptotic_ring_vocabulary_discipline]]` — ring-vocabulary discipline for asymptotic limits
 - `[[feedback_loop_replaces_ring_in_substrate_vocabulary]]` — depth-shift from "ring" to "loop" in substrate-identity context
 
+### Issue-reference notation (load-bearing — prose in this repo SHIPS)
+
+**The one inviolable rule: a LOCAL TASK ID is never written bare.** Bare `#NNNN` is *reserved for*
+real GitHub objects — it autolinks, which is exactly what you want when the target really is a GitHub
+issue. The defect is a **task ID** wearing that form, because it then mints a live link to whatever
+unrelated issue happens to hold the number. (Canonical statement: `docs/srmech/python/CHANGELOG.md:5`.)
+
+| Form | Means | Note |
+|------|-------|------|
+| **`#T986`** | a **local task** (session task list; NOT GitHub) | **Mandatory.** Never bare. |
+| **`F1252`** | an RBS-LM **finding** | Own namespace, no `#` |
+| **`#1293`** | a real GitHub issue/PR — **correct as-is** | Autolinks on purpose |
+| **`gh #1293`** | the same, written explicitly | Optional; clearer in new prose |
+| **`` `#938` ``** | a bare ref **quoted as a code span** — legitimate when *documenting* a bad ref | A code span does **not** autolink |
+
+**Existence proves nothing; TOPICALITY decides.** Nearly every number resolves to *some* real GitHub
+object. The question is never "does #943 exist" but "does the prose around it describe *that* object,
+or one of our tasks?" `#943` is simultaneously a real merged PR and a real local task. **Read the
+surrounding prose; never batch-convert.** Two cleanups (`#T974`, `#T986`) each found legitimate bare
+refs a mechanical sweep would have broken, including block-quoted external material. **When unsure,
+leave it and say so** — a wrongly-converted working link is worse than an unconverted one, because it
+looks deliberate.
+
+**Why it is load-bearing: this prose SHIPS.** Docstrings and `ToolEntry` text are emitted into
+generated files and travel inside the wheel. Measured 2026-07-27: **15 false links were live in
+published artifacts** (`_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`), reaching users via
+`describe()`, the MCP tool list and the compiled-in C registry — `#938` as a task ID renders as
+*"srmech v0.7.5rc13: numpy-math ratchet"*, an unrelated PR. It applies to **four** surfaces, and the
+fourth is the one people miss: file content · commit messages · PR body · **the PR TITLE, which
+becomes the merge-commit subject**.
+
+⚠️ **Any mechanical check MUST exempt code spans, and MUST bound the digit range.** A naive `grep`
+over rc348's diff flagged 10 "violations" that were all backticked and all correct (0 genuinely
+bare); an unbounded digit pattern also swallows `UAX #29`, `MS #20`, `Spike #24`, `graft #1`.
+The shipped guard (`tests/test_ref_notation_emitted_rc348.py`) is therefore **strict-zero on the
+decidable class** — a number the tree spells `#TNNN` *somewhere*, written bare — and a **down-only
+CEIL** on the pre-convention residual, which it drains over time. **Four** bad ref-patterns were
+written in a single session; treat this as harder than it looks and do not "simplify" the exemptions.
+
+**Why this is not a style preference.** A bare `#NNN` in prose becomes a live hyperlink to whatever
+GitHub object happens to hold that number. Local task IDs and GitHub issue numbers occupy the same
+numeric range, so the collision is routine, not rare — `#938` as a local task renders as *"srmech
+v0.7.5rc13: numpy-math ratchet + lmmse → cascade"*, an unrelated PR. Measured 2026-07-27: **15 such
+false links had shipped inside published wheels** (`_tool_docs.py`, `_c_claims.py`,
+`srmech_tool_registry.c`), reaching users through `describe()`, the MCP tool list and the compiled-in
+C registry.
+
+**It applies to FOUR surfaces**, and the fourth is the one people miss:
+1. file content (including docstrings and `ToolEntry` prose — **these are emitted into generated
+   files and ship in the wheel**)
+2. commit messages
+3. PR body
+4. **the PR TITLE — it becomes the merge-commit subject**
+
+**Existence proves nothing; TOPICALITY decides.** Every ref will usually resolve to *some* real
+GitHub object. The question is never "does #943 exist" but "does the prose around it describe *that*
+object, or one of our tasks?" `#943` is simultaneously a real merged PR and a real local task. **Read
+the surrounding prose; never batch-convert.** Two cleanups (`#T974`, `#T986`) both found legitimate
+bare refs that a mechanical sweep would have broken — including block-quoted external material.
+
+**When in doubt, leave it and say so.** A wrongly-converted working link is worse than an unconverted
+one, because it looks deliberate.
+
 ### PR + commit hygiene
 
 - `[[feedback_no_squash_merges]]` — NEVER squash-merge; use `gh pr merge --merge` or `--rebase`
