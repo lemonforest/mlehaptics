@@ -71,6 +71,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_cd_min_generating_set',
         'srmech_cd_zero_divisor_witness',
     ),
+    'srmech.amsc.cascade.cayley_dickson.inertia_signature': (
+        'srmech_algebra_inertia_signature',
+        'srmech_algebra_inertia_ws_bound',
+    ),
     'srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible': ('srmech_sedenion_is_navigable',),
     'srmech.amsc.cascade.cayley_dickson.left_orbit': (
         'srmech_cd_closure',
