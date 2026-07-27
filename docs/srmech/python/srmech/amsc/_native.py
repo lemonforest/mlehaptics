@@ -20651,7 +20651,7 @@ def genome_pack_c(loose_dir: str, dest: str, coupling: bytes) -> None:
 
 
 # ----------------------------------------------------------------------
-# rc300 (`#938`) — CLAIM RESOLUTION: is the C path we advertise really here?
+# rc300 (`#T938`) — CLAIM RESOLUTION: is the C path we advertise really here?
 #
 # Every native dispatch site in the package is gated on
 # ``hasattr(LIB, "srmech_x")``, and a missing symbol routes to the pure-Python

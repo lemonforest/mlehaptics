@@ -1,5 +1,5 @@
 """_tool_docs_curated.py — HAND-CURATED introspection docs for the
-central ops (rc240 #838). Merged OVER the docstring-seeded floor by
+central ops (rc240 #T838). Merged OVER the docstring-seeded floor by
 tools/gen_tool_docs.py (curation wins). Every EXAMPLE here is a REAL
 executed result (probed by tools/gen_curated_probe.py), never typed.
 

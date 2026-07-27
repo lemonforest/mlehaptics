@@ -252,7 +252,7 @@ def cd_navmap_is_signed_permutation(dim: int) -> bool:
 
 def cd_couple_working(vals: Sequence[float], dim: int = WORKING_BLOCK_DIM) -> List[float]:
     """Bind ``≤ min(dim, 8) − 1`` real streams into one reversible working word —
-    the canonical Class-M **bind** on the Cayley–Dickson register (rc301, `#938`).
+    the canonical Class-M **bind** on the Cayley–Dickson register (rc301, `#T938`).
 
     The dim-scaled generalisation of :meth:`SedenionRegister.couple_working`: the
     cap is read from :func:`_working_cap` (``min(dim, 8) − 1``), never a hardcoded
@@ -297,7 +297,7 @@ def cd_couple_working(vals: Sequence[float], dim: int = WORKING_BLOCK_DIM) -> Li
 
 def cd_uncouple_working(word: Sequence[float]) -> List[float]:
     """Recover the streams bound by :func:`cd_couple_working` — the exact inverse
-    (the Class-M **unbind**; rc301, `#938`).
+    (the Class-M **unbind**; rc301, `#T938`).
 
     Applies the conjugate twiddle (``inverse=True``) and drops the anchor slot,
     returning the carrier's imaginary components (``word[1:]``): 7 for an octonion
@@ -313,7 +313,7 @@ def cd_uncouple_working(word: Sequence[float]) -> List[float]:
 
 def cd_carry(overflow_bits: Sequence[int], n: int = 3) -> List[int]:
     """Encode overflow bits (past the reversible working set) into a Hamming(2ⁿ−1)
-    single-error-correcting GF(2) codeword — the EC/carry layer (rc301, `#938`).
+    single-error-correcting GF(2) codeword — the EC/carry layer (rc301, `#T938`).
 
     The EC axis is INDEPENDENT of the register's ``dim``: the block size is set by
     ``n`` (parity-bit count; codeword ``2ⁿ−1``, data ``2ⁿ−1−n``), not by the slot
@@ -324,7 +324,7 @@ def cd_carry(overflow_bits: Sequence[int], n: int = 3) -> List[int]:
 
 def cd_correct(codeword: Sequence[int]) -> Dict[str, Any]:
     """Locate + correct a single-bit error in an EC-block codeword and recover the
-    carried payload — the EC/carry layer's read (rc301, `#938`).
+    carried payload — the EC/carry layer's read (rc301, `#T938`).
 
     Composes :func:`~srmech.amsc.cascade.hamming_decode_correct` (the syndrome
     dispatches to ``srmech_hamming_syndrome``). Returns
@@ -348,7 +348,7 @@ class CDRegister:
     :class:`SedenionRegister` **bit-exactly at every** ``D`` — that is the
     faithfulness gate this class is held to, and it is why the parameter exists.
 
-    Three layers (rc301, `#938`): the CORE **addressing** layer is always on and
+    Three layers (rc301, `#T938`): the CORE **addressing** layer is always on and
     content-AGNOSTIC — ``navmap`` is a pure function of ``dim``, storage holds
     anything, KIND is dimension-invariant. Alongside it (rc330, `#948`) the CORE
     **carrier-arithmetic** surface is likewise always on: :meth:`element` /

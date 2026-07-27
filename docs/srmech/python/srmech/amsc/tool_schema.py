@@ -267,7 +267,7 @@ class ToolEntry:
     returns: Optional[ToolReturn] = None
     smoke_test_hint: Optional[Dict[str, Any]] = None
     example: Optional[Dict[str, Any]] = None
-    #: v0.9.0rc240 (#838) — a human-readable EXPLANATION of what the tool
+    #: v0.9.0rc240 (#T838) — a human-readable EXPLANATION of what the tool
     #: does / when to use it, beyond the one-line `summary`. ``None`` when
     #: no explanation is registered (introspection consumers fall back to
     #: `summary`). Auto-seeded from each op's docstring + hand-curated for
@@ -290,7 +290,7 @@ class ToolEntry:
     #: Human-readable reason a tool is ``mcp_callable=False`` (surfaced to
     #: introspection consumers). ``None`` for callable tools.
     mcp_unavailable_reason: Optional[str] = None
-    #: v0.9.0rc305 (`#943`) — the Siona compose-a-cascade capstone. ``describe()``
+    #: v0.9.0rc305 (`#T943`) — the Siona compose-a-cascade capstone. ``describe()``
     #: / ``example`` are PER-OP; a cascade is CROSS-OP. These two fields carry the
     #: chaining knowledge that otherwise lives only in CHANGELOG prose Siona
     #: cannot read as data.
@@ -298,7 +298,7 @@ class ToolEntry:
     #: ``composes`` — the ORDERED sub-ops this op is built from (or that a
     #: declared cascade chains). Empty for a LEAF op (the correct default); the
     #: call-order sequence of registered op names for a composite. Every listed
-    #: name MUST be a real registered tool (the `#943` claim-is-true contract —
+    #: name MUST be a real registered tool (the `#T943` claim-is-true contract —
     #: ``test_composes_preserves_rc305.py`` fails otherwise). C-mirrored
     #: (``srmech_tool_entry_t.composes``) → flows through the tool_schema_sha256
     #: attestation like ``summary``/``example``.
@@ -373,7 +373,7 @@ class ToolEntry:
             out["explanation"] = self.explanation
         if self.mcp_unavailable_reason is not None:
             out["mcp_unavailable_reason"] = self.mcp_unavailable_reason
-        # v0.9.0rc305 (`#943`): the compose/preserve layer. Optional keys —
+        # v0.9.0rc305 (`#T943`): the compose/preserve layer. Optional keys —
         # omitted when empty (the leaf-op default), mirroring the C serialiser's
         # key-omission (ts_emit_entry) so the byte-identity contract holds. A
         # JSON array of op-name / invariant strings, order-preserving.
@@ -477,7 +477,7 @@ class ToolSchema:
 
 _REGISTRY: Dict[str, ToolEntry] = {}
 
-# v0.9.0rc240 (#838) — the generated introspection docs floor: per-tool
+# v0.9.0rc240 (#T838) — the generated introspection docs floor: per-tool
 # EXPLANATION (docstring-seeded) + EXAMPLE (executed I/O where safe, else an
 # honest signature snippet), hand-curation merged in at generation time. A
 # guarded import so a stripped/missing _tool_docs never breaks package import.
@@ -499,7 +499,7 @@ def _apply_docs(entry: ToolEntry) -> ToolEntry:
     expl = entry.explanation if entry.explanation is not None \
         else doc.get("explanation")
     ex = entry.example if entry.example is not None else doc.get("example")
-    # v0.9.0rc305 (`#943`): the compose/preserve layer rides the same
+    # v0.9.0rc305 (`#T943`): the compose/preserve layer rides the same
     # curation floor as explanation/example. A non-empty tuple on the
     # registration wins; else the curated list (coerced to a tuple so the
     # ToolEntry stays hashable / frozen-friendly) fills in.
@@ -7978,7 +7978,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("bool", "True iff the premise holds at this rung"),
         ),
         # The two OPTIONAL layers of the general N-slot register as pure functions
-        # (v0.9.0rc301; `#938`) — the reversible working word (couple/uncouple) +
+        # (v0.9.0rc301; `#T938`) — the reversible working word (couple/uncouple) +
         # the Hamming EC block (carry/correct), ported from SedenionRegister onto
         # CDRegister as its dim-scaled generalisation. Registered under STABLE flat
         # names ``srmech.amsc.cascade.cd_{couple_working,uncouple_working,carry,
@@ -7994,7 +7994,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Bind ≤ min(dim,8)−1 real streams into one REVERSIBLE working "
                     "word — THE canonical Class-M bind on the Cayley–Dickson register "
-                    "(`#938`). The dim-scaled generalisation of the sedenion's ≤7 "
+                    "(`#T938`). The dim-scaled generalisation of the sedenion's ≤7 "
                     "working word: the cap is min(dim,8)−1, DERIVED from Hurwitz, "
                     "never a hardcoded 7 — dim 2 couples 1 imaginary slot, dim 4 "
                     "couples 3, dim 8/16/…/256 couple 7 (the e0..e7 octonion "
@@ -8022,7 +8022,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.cascade.cd_uncouple_working", owner="srmech",
             category="cascade",
             summary="Recover the streams bound by cd_couple_working — the EXACT "
-                    "inverse (the Class-M unbind; `#938`). Applies the conjugate "
+                    "inverse (the Class-M unbind; `#T938`). Applies the conjugate "
                     "twiddle (inverse=True) and drops the anchor slot, returning the "
                     "carrier's imaginary components (7 for an octonion word, 3 for a "
                     "quaternion word). Empty in → empty out (the dim-1 boundary). "
@@ -8044,7 +8044,7 @@ def _register_primitive_class_tools() -> None:
             category="cascade",
             summary="Encode overflow bits (past the reversible working set) into a "
                     "Hamming(2ⁿ−1) single-error-correcting GF(2) codeword — the "
-                    "EC/carry layer of the register (`#938`). The EC axis is "
+                    "EC/carry layer of the register (`#T938`). The EC axis is "
                     "INDEPENDENT of the register's dim: the block size is set by n "
                     "(parity-bit count; codeword 2ⁿ−1, data 2ⁿ−1−n), NOT by the slot "
                     "count. Composes hamming_encode (the srmech_hamming_encode C "
@@ -8064,7 +8064,7 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.cascade.cd_correct", owner="srmech",
             category="cascade",
             summary="Locate + correct a single-bit error in an EC-block codeword and "
-                    "recover the carried payload — the EC/carry layer's read (`#938`). "
+                    "recover the carried payload — the EC/carry layer's read (`#T938`). "
                     "Single-error-correcting (minimum distance 3): a clean or "
                     "single-error word recovers exactly. Composes "
                     "hamming_decode_correct (the syndrome dispatches to "
