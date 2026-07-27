@@ -285,6 +285,15 @@ static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
         ts_cstr(e, ",\"preserves\":");
         ts_emit_str_array(e, t->preserves, t->preserves_count);
     }
+    /* rc347 (#T985): the lane axis. "preserves" < "reads_input" <
+     * "reads_lane" < "returns", so both keys land here, in that order. Emitted
+     * together or not at all, mirroring ToolEntry.to_jsonable. */
+    if (t->reads_lane != NULL) {
+        ts_cstr(e, ",\"reads_input\":");
+        ts_emit_str_array(e, t->reads_input, t->reads_input_count);
+        ts_cstr(e, ",\"reads_lane\":");
+        ts_json_string(e, t->reads_lane);
+    }
     if (t->returns_type != NULL) {
         ts_cstr(e, ",\"returns\":{\"shape\":");
         ts_json_string(e, t->returns_shape);

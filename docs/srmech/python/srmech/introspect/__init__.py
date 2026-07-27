@@ -586,6 +586,68 @@ def _maybe_auto_publish() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────
+# The GRANULARITY inversion (rc347 `#T985`) — one algebra, three widths
+# ─────────────────────────────────────────────────────────────────────
+#
+# *** CONFLATION GUARD — READ THE `reading` KEY BEFORE COMPARING NUMBERS ***
+#
+# The slot counts below are 8 / 4 / 2, and srmech's
+# :data:`srmech.amsc.cascade.one.BLOCK_DIMS` is (2, 4, 8). SAME THREE NUMBERS,
+# DIFFERENT OBJECTS:
+#
+#   * BLOCK_DIMS (2, 4, 8) = the real dims of THREE DIFFERENT ALGEBRAS,
+#     C and H and O.
+#   * the slot counts here  = ONE ALGEBRA (O) re-addressed at THREE WIDTHS.
+#
+# The collision is only at 2:4:8 — 11D = 1 + 3 + 7 is unambiguous. The guard
+# ships INSIDE the payload rather than as a comment because a reader of
+# describe() never sees this file, and a report that does not label which
+# reading it is teaches the confusion instead of removing it.
+#
+# The structure at each width is 1 ANCHOR + (n-1) TORSORS: the identity sits in
+# exactly one slot and only that slot is closed under the product. MEASURED via
+# the INDEX lane (closure under XOR) — which is itself the point that lane is
+# ORTHOGONAL to granularity: the index identity holds at every width.
+_GRANULARITY: Dict[str, Any] = {
+    "reading": "one_algebra_three_widths",
+    "algebra": "O",
+    "algebra_real_dim": 8,
+    "not_this_reading": {
+        "name": "block_dims",
+        "value": [2, 4, 8],
+        "symbol": "srmech.amsc.cascade.one.BLOCK_DIMS",
+        "means": "the real dims of THREE algebras: C, H, O",
+    },
+    "collision_note": (
+        "the slot counts below (8, 4, 2) are ONE algebra (O) re-addressed at "
+        "three widths; BLOCK_DIMS (2, 4, 8) are the real dims of THREE "
+        "algebras (C, H, O). Same three numbers, different objects — check "
+        "`reading` before comparing them. (11D = 1+3+7 has no such collision.)"
+    ),
+    "invariant": (
+        "1 anchor + (n-1) torsors at every width: the identity sits in exactly "
+        "ONE slot and only that slot closes under the product"),
+    "measured_by": "closure under the INDEX lane (XOR) — lane is orthogonal "
+                   "to granularity, so the same test applies at every width",
+    "index_bit_map": {"bit2": "H vs He", "bit1": "C vs Cj", "bit0": "1 vs i"},
+    "widths": [
+        {"over": "R", "slots": 8, "real_dims_per_slot": 1, "index_bits": 3,
+         "anchor_slots": 1, "torsor_slots": 7,
+         "closes": {"R_0": True, "R_1": False, "R_2": False, "R_3": False,
+                    "R_4": False, "R_5": False, "R_6": False, "R_7": False}},
+        {"over": "C", "slots": 4, "real_dims_per_slot": 2, "index_bits": 2,
+         "anchor_slots": 1, "torsor_slots": 3,
+         "closes": {"C_LL": True, "C_LR": False, "C_RL": False,
+                    "C_RR": False}},
+        {"over": "H", "slots": 2, "real_dims_per_slot": 4, "index_bits": 1,
+         "anchor_slots": 1, "torsor_slots": 1,
+         "closes": {"H_L": True, "H_R": False}},
+    ],
+    "generating_code": "docs/srmech/notes/op_lane_axis_rc347.py",
+}
+
+
+# ─────────────────────────────────────────────────────────────────────
 # describe() — the self-recognition ROOT surface (v0.5.0rc11)
 # ─────────────────────────────────────────────────────────────────────
 
@@ -673,7 +735,94 @@ def describe() -> Dict[str, Any]:
                            "unresolved": {<op>: [<symbol>, ...]},
                            "unverifiable": <int>,
                            "consistent": <bool>},
+              "lanes": {"total": <int>,
+                        "by_lane": {"index"|"sign"|"both": <count>, ...},
+                        "by_input": {"algebra"|"geometry": <count>, ...},
+                        "definitions": {<lane>: <means>, ...},
+                        "inputs": {<input>: <means>, ...},
+                        "verified_by": {"sign": {...}, "index": {...},
+                                        "rule": <str>, "test": <path>},
+                        "ops": {<op>: {"lane": <lane>,
+                                       "reads": [<input>, ...]}, ...},
+                        "worked_example": {...},
+                        "granularity": {...}},
             }
+
+    ``lanes`` (rc347, `#T985`) — the OP-side complement of ``carriers``.
+    rc339 published what each CARRIER can DO; this publishes **what each OP
+    READS**, and it is a different axis rather than a finer grain of the same
+    one. The Cayley–Dickson product FACTORS:
+
+    ==========  ======================================  ====================
+    lane        what it is                              character
+    ==========  ======================================  ====================
+    ``index``   ``e_i·e_j → e_{i XOR j}``               ABELIAN, ORDER-BLIND,
+                                                        exact at every rung,
+                                                        unbounded
+    ``sign``    the cocycle over it                     ORDER-CARRYING; every
+                                                        published ceiling
+                                                        lives here (rc343)
+    ==========  ======================================  ====================
+
+    **Lane is ORTHOGONAL to granularity, and both are orthogonal to rc339's
+    capability.** The index-lane identity ``index == i XOR j`` was measured
+    with ZERO violations at dims 2 / 4 / 8 / 16 (4/4, 16/16, 64/64, 256/256)
+    and on the shipped ``q8_mult`` (64/64) — the same statement at every
+    addressing width, which is what "orthogonal to granularity" means
+    concretely.
+
+    **Chirality is a SIGN-lane operation**, measured three ways over the basis
+    products and moving ZERO indices in every one: order reversal (the opposite
+    algebra) moves 6/16 signs at ℍ, 42/64 at 𝕆, 210/256 at 𝕊; ``cd_conjugate``
+    14/64; ``q8_conjugate`` 24/64.
+
+    **The field is not an assertion — it is verified executably.** A declared
+    lane that nothing can contradict is exactly rc339's ``bounded_by:
+    "associativity"`` in a new place, so ``reads_lane`` carries the same shape
+    of admission rule ``bounded_by`` gained in rc343. An op may declare only
+    when BOTH perturbations are applicable to its input (``cascade.
+    net_chirality`` takes bare orientations and ``cascade.cd_basis_product``
+    bare indices — neither can declare, because neither could be wrong), and
+    ``tests/test_op_lane_rc347.py`` then drives every declaring op through a
+    sigma flip and an ``Aut(V4) = S3`` index relabel and fails the build when
+    the response contradicts the declaration. Verdicts are SWEPT: a single
+    input can miss a real response, since an even number of sign flips cancels
+    inside an ordered product.
+
+    ``worked_example`` carries the Tw / Wr / Lk adjudication, read off
+    ``genome.cwf_consistency_mod2`` — the one shipped op that computes all
+    three — over 3000 trials::
+
+        read  field    sign(algebra)  index(algebra)  sign(geometry)  verdict
+        Tw    tw_mod2   3000/3000        0/3000          0/3000    SIGN, ALGEBRA
+        Wr    wr           0/3000        0/3000       3000/3000    SIGN, GEOMETRY
+        Lk    lk_mod2    735/3000      182/3000          0/3000    BOTH, ALGEBRA
+
+    The structural point: **Tw and Wr are not one quantity at two
+    resolutions.** They read DIFFERENT INPUTS — a coset-sign count over the
+    ALGEBRA versus the sign of orientation determinants over the GEOMETRY — and
+    what they share is the LANE. **Lk is the only mixer**: the only one of the
+    three whose output responds to a pure index relabel. Wr's
+    magnitude-blindness is the geometry-side proof that it reads the sign and
+    discards the magnitude it computed: ``discrete_writhe`` is IDENTICAL under
+    positive rational rescale ×1, ×3, ×100, ×1/7, ×999/4 (5/5) while NEGATING
+    under a reflection.
+
+    ``granularity`` reports the same object at three addressing widths — 𝕆 over
+    ℝ (8 slots × 1 real dim), over ℂ (4 × 2), over ℍ (2 × 4), one index bit per
+    doubling — with **1 anchor + (n−1) torsors** at each: the identity sits in
+    exactly ONE slot and only that slot closes. MEASURED: ``H_L {0,1,2,3}``
+    closes, ``H_R {4,5,6,7}`` does not; ``C_LL {0,1}`` closes, ``C_LR`` /
+    ``C_RL`` / ``C_RR`` do not.
+
+    **The 2:4:8 collision is labelled IN THE PAYLOAD.** The slot counts (8, 4,
+    2) are ONE algebra at three widths; :data:`srmech.amsc.cascade.one.
+    BLOCK_DIMS` (2, 4, 8) are the real dims of THREE algebras (ℂ, ℍ, 𝕆). Same
+    three numbers, different objects — ``granularity["reading"]`` and
+    ``granularity["not_this_reading"]`` say which is which, because a reader of
+    ``describe()`` never sees the source comment and an unlabelled report
+    teaches the confusion. (11D = 1+3+7 has no such collision.) Generating code
+    + NDJSON: ``docs/srmech/notes/op_lane_axis_rc347.py``.
 
     ``c_claims`` (rc300) answers a question ``native`` cannot: not "is a library
     loaded?" but "does the loaded library actually contain the C symbols our ops
@@ -1014,6 +1163,89 @@ def describe() -> Dict[str, Any]:
     except Exception:  # pragma: no cover — manifest optional / absent
         _c_claims = {}
 
+    # The LANE axis (rc347 `#T985`) — what each op READS. `carriers` says what
+    # each OPERAND can do; this is the complement over the VERBS, and it is a
+    # different axis rather than a finer grain of the same one: lane is
+    # orthogonal to granularity (the index-lane XOR identity holds at every
+    # addressing width) and both are orthogonal to rc339's capability.
+    #
+    # DERIVED from the tool schema, never a second list: an op declares its
+    # lane on its own ToolEntry and this block counts what is declared, so the
+    # two cannot drift.
+    _lane_ops = {
+        e.name: {"lane": e.reads_lane, "reads": builtins.list(e.reads_input)}
+        for e in schema.tools if e.reads_lane is not None
+    }
+    _by_lane: Dict[str, int] = {}
+    _by_input: Dict[str, int] = {}
+    for _row in _lane_ops.values():
+        _by_lane[_row["lane"]] = _by_lane.get(_row["lane"], 0) + 1
+        for _src in _row["reads"]:
+            _by_input[_src] = _by_input.get(_src, 0) + 1
+    try:
+        from ..amsc.tool_schema import LANES as _LANES, LANE_INPUTS as _LANE_IN
+        _lane_defs = dict(_LANES)
+        _lane_inputs = dict(_LANE_IN)
+    except Exception:  # pragma: no cover
+        _lane_defs, _lane_inputs = {}, {}
+    _lanes: Dict[str, Any] = {
+        "total": len(_lane_ops),
+        "by_lane": dict(sorted(_by_lane.items())),
+        "by_input": dict(sorted(_by_input.items())),
+        "definitions": _lane_defs,
+        "inputs": _lane_inputs,
+        # The admission rule as DATA, not prose: the two perturbations a
+        # declaration is checked against. An op that cannot be given both is
+        # inadmissible and declares nothing.
+        "verified_by": {
+            "sign": {
+                "algebra": "XOR the Q8 center sign bit (q ^ 4); index untouched",
+                "geometry": ("reverse orientation by reflecting one "
+                             "coordinate; magnitudes untouched"),
+            },
+            "index": {
+                "algebra": ("relabel the V4 coset by an element of "
+                            "Aut(V4) = S3; sign bit untouched"),
+                "geometry": ("positive-rational rescale of every coordinate; "
+                             "no orientation determinant changes sign"),
+            },
+            "rule": ("a declared lane must MOVE under its own perturbation and "
+                     "NOT move under the other; swept, never sampled"),
+            "test": "tests/test_op_lane_rc347.py",
+        },
+        "ops": _lane_ops,
+        # The Tw / Wr / Lk adjudication, measured on the one shipped op that
+        # computes all three. Tw and Wr are NOT one quantity at two
+        # resolutions: they read DIFFERENT INPUTS and share the LANE.
+        "worked_example": {
+            "op": "srmech.amsc.genome.cwf_consistency_mod2",
+            "trials": 3000,
+            "reads": [
+                {"name": "Tw", "field": "tw_mod2", "lane": "sign",
+                 "input": "algebra", "cascade": "K o I",
+                 "means": "coset-SIGN count over the gains, mod 2",
+                 "sign_algebra": 3000, "index_algebra": 0,
+                 "sign_geometry": 0},
+                {"name": "Wr", "field": "wr", "lane": "sign",
+                 "input": "geometry", "cascade": "K o C over E o D",
+                 "means": ("SIGN of orientation determinants over the "
+                           "embedding; magnitudes computed and DISCARDED"),
+                 "sign_algebra": 0, "index_algebra": 0,
+                 "sign_geometry": 3000},
+                {"name": "Lk", "field": "lk_mod2", "lane": "both",
+                 "input": "algebra", "cascade": "M o L o C thru I",
+                 "means": ("ORDERED non-abelian Q8 bind over the single "
+                           "fundamental cycle, reduced mod 2"),
+                 "sign_algebra": 735, "index_algebra": 182,
+                 "sign_geometry": 0},
+            ],
+            "reading": ("Lk is the ONLY one of the three that responds to an "
+                        "index relabel — the only mixer. Tw and Wr share the "
+                        "SIGN lane over different INPUTS."),
+        },
+        "granularity": _GRANULARITY,
+    }
+
     return {
         "srmech_version": schema.srmech_version,
         "tool_schema_version": TOOL_SCHEMA_VERSION,
@@ -1057,6 +1289,10 @@ def describe() -> Dict[str, Any]:
         # symbols checked against the LOADED library. ``consistent`` False means
         # a build defect: ops are running pure while claiming C.
         "c_claims": _c_claims,
+        # The LANE axis (rc347 `#T985`) — what each op READS, the complement of
+        # `carriers`' what-each-operand-can-DO. Every declaration is verified
+        # executably against a sigma flip and an Aut index relabel.
+        "lanes": _lanes,
     }
 
 

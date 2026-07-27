@@ -127,6 +127,102 @@ class ToolSchemaValidationError(ToolSchemaError):
 
 
 # ──────────────────────────────────────────────────────────────────────
+# The LANE axis (rc347, `#T985`) — what each op READS
+# ──────────────────────────────────────────────────────────────────────
+#
+# rc339 published what each CARRIER can DO. This is the complement, and it is
+# a different axis, not a finer grain of the same one: the Cayley-Dickson
+# product FACTORS into two lanes, and an op consumes one, the other, or both.
+#
+#   INDEX lane   e_i * e_j -> e_(i XOR j). ABELIAN, ORDER-BLIND, exact at every
+#                rung, unbounded. MEASURED index == XOR with 0 violations at
+#                dims 2/4/8/16 (4/4, 16/16, 64/64, 256/256) and on the shipped
+#                q8_mult (64/64).
+#   SIGN lane    the cocycle over it. ORDER-CARRYING. Every ceiling srmech
+#                publishes lives here (rc343 `#T972`).
+#
+# CHIRALITY IS A SIGN-LANE OPERATION, measured three ways over the basis
+# products and moving ZERO indices in all of them: order reversal (the opposite
+# algebra) moves 6/16 signs at H, 42/64 at O, 210/256 at S; cd_conjugate 14/64;
+# q8_conjugate 24/64. Index preserved 100%. Generating code + NDJSON:
+# ``docs/srmech/notes/op_lane_axis_rc347.py``.
+#
+# THE ADMISSION RULE, and why the field is not just an assertion
+# --------------------------------------------------------------
+# A declared lane is a claim about behaviour, so it has to be one a measurement
+# can CONTRADICT. rc339's ``bounded_by: "associativity"`` is the counter-example
+# this rc is written against: it restated the capability's own definition, so no
+# carrier row could ever falsify it. ``reads_lane`` is admissible only when both
+# of these hold, and ``tests/test_op_lane_rc347.py`` drives every declaring op
+# through both:
+#
+#   1. BOTH perturbations are APPLICABLE to the op's input — the harness can
+#      build an input pair differing ONLY in the sign lane, and another
+#      differing ONLY in the index lane. An op whose input carries just one of
+#      the two cannot declare: ``cascade.net_chirality`` takes bare orientations
+#      (no index to move) and ``cascade.cd_basis_product`` takes bare indices
+#      (no sign to move), so both are INADMISSIBLE rather than trivially
+#      "sign" / "index". A check that cannot fail is the thing being removed.
+#   2. The RESPONSE MATCHES THE DECLARATION. Declaring ``sign`` means the output
+#      moves under a sigma flip and does NOT move under an index relabel;
+#      ``index`` is the mirror; ``both`` must move under both. An op declaring
+#      "sign" that moves under a pure index relabel is MIS-DECLARED and the
+#      build goes red.
+#
+# Verdicts are SWEPT, never sampled. A single input can miss a real response —
+# an even number of sign flips cancels inside an ordered product, and only about
+# one gain vector in fifteen exposes the Lk index response.
+#
+# THE WORKED EXAMPLE — Tw / Wr / Lk
+# ---------------------------------
+# ``genome.cwf_consistency_mod2`` is the one shipped op that computes all three,
+# so its per-FIELD response IS the adjudication (3000 trials):
+#
+#   Tw  tw_mod2  sign(algebra) 3000/3000   index 0/3000     -> SIGN,  ALGEBRA
+#   Wr  wr       sign(geometry) 3000/3000  algebra 0/3000   -> SIGN,  GEOMETRY
+#   Lk  lk_mod2  sign 735/3000             index 182/3000   -> BOTH,  ALGEBRA
+#
+# The structural point: **Tw and Wr are not one quantity at two resolutions.**
+# They read DIFFERENT INPUTS — a coset-sign count over the algebra vs the sign
+# of orientation determinants over the geometry — and what they share is the
+# LANE. Lk is the only one of the three that responds to an index relabel, so
+# it is the only mixer. Wr's magnitude-blindness is the geometry-side proof it
+# reads the sign and nothing else: ``discrete_writhe`` is IDENTICAL under
+# positive rational rescale x1, x3, x100, x1/7, x999/4 (5/5) while NEGATING
+# under a reflection.
+
+#: The closed lane vocabulary. Not free text — an unknown lane is a
+#: registration error, exactly as an unknown ``bounded_by`` is in rc343's
+#: :data:`srmech.amsc.carrier_schema.CEILING_MECHANISMS`.
+LANES: Dict[str, str] = {
+    "index": (
+        "reads the XOR address only: the output moves under an index relabel "
+        "and is UNCHANGED by a sign flip. Abelian, order-blind, unbounded"),
+    "sign": (
+        "reads the cocycle only: the output moves under a sign flip and is "
+        "UNCHANGED by an index relabel. Order-carrying; every published "
+        "ceiling lives here"),
+    "both": (
+        "reads the address AND the cocycle: the output moves under both "
+        "perturbations. The mixer case"),
+}
+
+#: What the lane is read OF. An op can read one lane over two different inputs
+#: (Tw and Wr both read the sign lane; one reads the algebra, the other the
+#: geometry), so the input is a SEPARATE axis and not a refinement of the lane.
+LANE_INPUTS: Dict[str, str] = {
+    "algebra": (
+        "a Q8 / Cayley-Dickson element: the index lane is the V4 coset "
+        "(q & 3), the sign lane is the center bit (q >> 2)"),
+    "geometry": (
+        "an exact-rational embedding: the sign lane is the ORIENTATION of the "
+        "determinants, the sign-free half is their MAGNITUDE. The magnitude "
+        "is the geometry-side ANALOG of the index lane — named as an analogy, "
+        "not claimed as the same object"),
+}
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Data shape
 # ──────────────────────────────────────────────────────────────────────
 
@@ -213,6 +309,48 @@ class ToolEntry:
     #: Empty for a leaf op with no stated invariant. C-mirrored
     #: (``srmech_tool_entry_t.preserves``).
     preserves: Tuple[str, ...] = ()
+    #: v0.9.0rc347 (`#T985`) — the LANE axis: which lane of its input this op's
+    #: output DEPENDS ON. One of :data:`LANES` (``"index"`` / ``"sign"`` /
+    #: ``"both"``), or ``None`` when the op declares no lane. ``None`` is the
+    #: correct default and the honest one for the great majority of the
+    #: surface: an op whose input carries only ONE of the two lanes cannot
+    #: declare, because no measurement could contradict it (see the admission
+    #: rule above). Verified executably by ``tests/test_op_lane_rc347.py``,
+    #: which drives every declaring op through a sigma flip and an Aut index
+    #: relabel and fails the build on a mismatch. C-mirrored
+    #: (``srmech_tool_entry_t.reads_lane``).
+    reads_lane: Optional[str] = None
+    #: v0.9.0rc347 (`#T985`) — WHAT the lane is read of, drawn from
+    #: :data:`LANE_INPUTS`. A tuple because an op can read both an algebra and
+    #: a geometry input (``cwf_consistency_mod2`` does), and because the
+    #: Tw/Wr contrast is precisely that two ops share a LANE while reading
+    #: different INPUTS. Empty iff ``reads_lane`` is ``None``; non-empty
+    #: whenever it is not — a lane with no input is half a declaration.
+    #: C-mirrored (``srmech_tool_entry_t.reads_input``).
+    reads_input: Tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Reject a malformed lane declaration AT REGISTRATION.
+
+        A closed vocabulary is only closed if something closes it. Both halves
+        must be present together: a lane with no input names a behaviour with
+        no subject, and an input with no lane names a subject with no claim.
+        """
+        if self.reads_lane is not None and self.reads_lane not in LANES:
+            raise ToolSchemaValidationError(
+                f"{self.name}: reads_lane {self.reads_lane!r} is not in LANES "
+                f"({sorted(LANES)}) — a lane must be one a perturbation can "
+                f"contradict")
+        for src in self.reads_input:
+            if src not in LANE_INPUTS:
+                raise ToolSchemaValidationError(
+                    f"{self.name}: reads_input {src!r} is not in LANE_INPUTS "
+                    f"({sorted(LANE_INPUTS)})")
+        if (self.reads_lane is None) != (not self.reads_input):
+            raise ToolSchemaValidationError(
+                f"{self.name}: reads_lane and reads_input must be declared "
+                f"together or not at all; got reads_lane="
+                f"{self.reads_lane!r}, reads_input={self.reads_input!r}")
 
     def to_jsonable(self) -> Dict[str, Any]:
         """Render as a JSON-serialisable dict. Used by
@@ -243,6 +381,13 @@ class ToolEntry:
             out["composes"] = list(self.composes)
         if self.preserves:
             out["preserves"] = list(self.preserves)
+        # rc347 (`#T985`): the lane axis. Optional keys, omitted when the op
+        # declares no lane (the correct default) — the same key-omission the C
+        # serialiser mirrors, so the byte-identity contract holds. Both keys
+        # sort between "preserves" and "returns".
+        if self.reads_lane is not None:
+            out["reads_input"] = list(self.reads_input)
+            out["reads_lane"] = self.reads_lane
         return out
 
 
@@ -3539,6 +3684,14 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("embedding", "list", True, "the backbone vertices [(x,y,z), ...]; each coordinate an int / fractions.Fraction / (num,den) integer pair (exact rational — floats rejected)"),
                         P("closed", "bool", False, "keyword-only; True (default) closes the loop with the wrap segment P[n-1]->P[0]; False = an open polyline")),
             returns=R("dict", "{num, den (the writhe as a reduced rational — den is always 1, the directional writhe being integer-valued), writhe:(num,den), n_points, closed}"),
+            #  rc347 (`#T985`) LANE: Wr. It keeps the SIGN of each orientation
+            # determinant and DISCARDS the magnitude it computed — MEASURED
+            # identical under positive rational rescale x1, x3, x100, x1/7,
+            # x999/4 (5/5), and NEGATING under a reflection (-1 -> +1). Sign
+            # lane over a GEOMETRY input, where Tw is the sign lane over an
+            # ALGEBRA input: same lane, different subject
+            reads_lane="sign",
+            reads_input=("geometry",),
         ),
         ToolEntry(
             name="srmech.amsc.genome.cwf_consistency_mod2", owner="srmech", category="genome",
@@ -3549,6 +3702,14 @@ def _register_primitive_class_tools() -> None:
                         P("embedding", "list", False, "keyword-only; the backbone vertices (node k -> embedding[k]), each an exact rational 3-tuple; None -> intrinsic mod-2 Lk only"),
                         P("closed", "bool", False, "keyword-only; forwarded to discrete_writhe (default True)")),
             returns=R("dict", "{lk_mod2 (0/1 or None if non-central), lk_center_parity (+1/-1/0), tw_mod2, wr:(num,den) or None, wr_mod2 or None, consistent (bool or None), note}"),
+            #  rc347 (`#T985`) LANE: the mixer, and the op the whole axis was
+            # adjudicated on. Per-field over 3000 trials: tw_mod2
+            # sign(algebra) 3000/3000 index 0/3000 (SIGN, ALGEBRA); wr
+            # sign(geometry) 3000/3000 algebra 0/3000 (SIGN, GEOMETRY);
+            # lk_mod2 sign 735/3000 index 182/3000 (BOTH) — Lk is the only
+            # read that responds to an index relabel
+            reads_lane="both",
+            reads_input=("algebra", "geometry"),
         ),
         ToolEntry(
             name="srmech.amsc.genome.codon_read", owner="srmech", category="genome",
@@ -3558,6 +3719,12 @@ def _register_primitive_class_tools() -> None:
                         P("with_indices", "bool", False, "keyword-only; if True also return the raw codon indices"),
                         P("stop_at_stop", "bool", False, "keyword-only; if True stop reading at the first stop codon (inclusive)")),
             returns=R("str", "the amino-acid string (one char per codon; '*' = stop), or (amino_acids, codon_indices) when with_indices"),
+            #  rc347 (`#T985`) LANE: q8_project_v4 runs FIRST so the
+            # winding/center sign bit cannot reach amino-acid identity.
+            # MEASURED 0/400 response to a sigma flip, 400/400 to an index
+            # relabel — the design intent is now a ratchet, not a comment
+            reads_lane="index",
+            reads_input=("algebra",),
         ),
         ToolEntry(
             name="srmech.amsc.genome.codon_frame_monodromy", owner="srmech", category="genome",
@@ -3571,6 +3738,11 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("turns", "list", True, "the stored/coupled data turns — a flat bytes of n_turns*leaf_dim Q8 bytes (leaf_dim required), or a sequence of per-turn buffers (HV / bytes / list[int] of leaf_dim Q8 bytes)"),
                         P("leaf_dim", "int", False, "the per-turn width (inferred from the first buffer when a sequence of buffers is given; required for a flat buffer)")),
             returns=R("bytes", "the accumulated per-slot Q8 holonomy (leaf_dim bytes); the center-sign of each byte is that slot's accumulated Lk mod 2"),
+            #  rc347 (`#T985`) LANE: the ORDERED non-abelian fold reads the
+            # index (which slot the walk lands in) and the sign (the
+            # accumulated Lk parity). MEASURED 400/400 sign, 399/400 index
+            reads_lane="both",
+            reads_input=("algebra",),
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_add_fiber", owner="srmech", category="genome",
@@ -7422,6 +7594,11 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("a", "int", True, "a Q₈ element in [0, 8)"),
                         P("b", "int", True, "a Q₈ element in [0, 8)")),
             returns=R("int", "the product a·b as a Q₈ byte in [0, 8)"),
+            #  rc347 (`#T985`) LANE: the product factors into exactly the two
+            # lanes: index = xa XOR xb, sign = sa XOR sb XOR F[xa][xb].
+            # MEASURED 400/400 to both
+            reads_lane="both",
+            reads_input=("algebra",),
         ),
         ToolEntry(
             name="srmech.amsc.q8.q8_conjugate", owner="srmech", category="q8",
@@ -7432,6 +7609,11 @@ def _register_primitive_class_tools() -> None:
                     "Same-rc C peer srmech_q8_conjugate (byte-exact).",
             parameters=(P("a", "int", True, "a Q₈ element in [0, 8)"),),
             returns=R("int", "conj(a) as a Q₈ byte in [0, 8)"),
+            #  rc347 (`#T985`) LANE: reads the index to DECIDE (the center
+            # coset is self-inverse) and flips the sign. MEASURED 400/400 to
+            # both perturbations
+            reads_lane="both",
+            reads_input=("algebra",),
         ),
         ToolEntry(
             name="srmech.amsc.q8.q8_bind", owner="srmech", category="q8",
@@ -7442,6 +7624,10 @@ def _register_primitive_class_tools() -> None:
             parameters=(P("turn", "bytes", True, "left operand Q₈ byte buffer"),
                         P("one", "bytes", True, "right operand, same length")),
             returns=R("bytes", "the elementwise product, length len(turn)"),
+            #  rc347 (`#T985`) LANE: the buffer form of q8_mult, so it reads
+            # both lanes elementwise. MEASURED 400/400 to both
+            reads_lane="both",
+            reads_input=("algebra",),
         ),
         ToolEntry(
             name="srmech.amsc.q8.q8_project_v4", owner="srmech", category="q8",
@@ -7452,6 +7638,12 @@ def _register_primitive_class_tools() -> None:
                     "coset read). Same-rc C peer srmech_q8_project_v4 (byte-exact).",
             parameters=(P("q", "bytes", True, "a Q₈ byte buffer"),),
             returns=R("bytes", "the V4 cosets, each in {0, 1, 2, 3}"),
+            #  rc347 (`#T985`) LANE: the abelian coset read IS the index-lane
+            # projection: out = q & 3 masks the center bit away. MEASURED
+            # 0/400 response to a sigma flip, 400/400 to an Aut(V4) index
+            # relabel
+            reads_lane="index",
+            reads_input=("algebra",),
         ),
         # rc315 (§Q8 completeness): the OCT one MINTER — the Q₈ analogue of
         # hdc.klein4_from_one, so a Q₈ (substrate) genome can be MINTED + read
@@ -9329,6 +9521,11 @@ def _register_qm_tools() -> None:
                       "'center_parity': list[int] (+1/−1/0), 'cycle_edges': "
                       "list[(u,v)], 'holonomies': list[list[float]] (raw ℍ), "
                       "'balanced': bool}"),
+            #  rc347 (`#T985`) LANE: Lk. The ordered product around the cycle
+            # reads both lanes; the center_parity read is what survives the
+            # mod-2 reduction. MEASURED 400/400 sign, 308/400 index
+            reads_lane="both",
+            reads_input=("algebra",),
         ),
 
         # ────────────────────────────────────────────────────────────
