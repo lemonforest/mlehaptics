@@ -239,9 +239,9 @@ EXCLUDED: Dict[str, str] = {
         "executes central ops and refreshes _tool_docs_curated.py, which is "
         "the CURATION floor that gen_tool_docs merges OVER the auto-seed. "
         "Running it unattended would let a probe result overwrite reviewed "
-        "prose — the rc274->rc290 defect (#916) with the blast radius moved "
-        "onto the file that exists to survive regeneration. Run it by hand "
-        "when curation is the intent, then review the diff."
+        "prose — the rc274->rc290 defect (`#T916`) with the blast radius "
+        "moved onto the file that exists to survive regeneration. Run it by "
+        "hand when curation is the intent, then review the diff."
     ),
     "python/tools/gen_carrier_examples_probe.py": (
         "HUMAN-IN-THE-LOOP CURATION, NOT A SSoT REBUILD. Emits a SKELETON of "
