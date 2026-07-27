@@ -41,6 +41,7 @@ from fractions import Fraction
 
 import pytest
 
+from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import rational as R
 from srmech.amsc.rational import (
@@ -188,7 +189,7 @@ def _assert_g1_bit_identity():
 
 
 def test_g1_bit_identity_native():
-    assert _native.HAS_NATIVE, "expected the built .so present (native gate)"
+    require_native("the G1 native bit-identity baseline")
     _assert_g1_bit_identity()
 
 

@@ -38,6 +38,7 @@ import random
 
 import pytest
 
+from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import genome as G
 from srmech.amsc import octonion as O
@@ -211,7 +212,7 @@ def test_empty_and_validation():
 # 2. PYTHON ↔ C PARITY
 # =====================================================================
 def test_native_is_actually_loaded():
-    assert _native.HAS_NATIVE and _native.LIB is not None
+    require_native("the octonion carrier's C peers")
     for sym in ("srmech_oct_mult", "srmech_oct_conjugate", "srmech_oct_bind"):
         assert hasattr(_native.LIB, sym), sym
 
@@ -225,6 +226,7 @@ def _all_scalar_results():
 
 
 def test_native_equals_pure_byte_for_byte(monkeypatch):
+    require_native("the octonion native-vs-pure differential")
     native = _all_scalar_results()
     assert _native.HAS_NATIVE                      # sanity: the first pass used the C peers
     monkeypatch.setattr(_native, "HAS_NATIVE", False)
@@ -233,6 +235,7 @@ def test_native_equals_pure_byte_for_byte(monkeypatch):
 
 
 def test_c_bind_out_may_alias_in_place():
+    require_native("the C srmech_oct_bind out-aliasing contract")
     n = 8
     turn_vals = [0, 1, 2, 7, 8, 12, 14, 15]
     one_vals = [1, 1, 2, 2, 3, 4, 5, 6]
@@ -245,6 +248,7 @@ def test_c_bind_out_may_alias_in_place():
 
 
 def test_c_null_arg_rejected():
+    require_native("the C srmech_oct_bind NULL-arg rejection")
     n = 4
     out = (ctypes.c_uint8 * n)()
     one = (ctypes.c_uint8 * n)()

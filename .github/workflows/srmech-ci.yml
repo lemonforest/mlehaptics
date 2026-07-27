@@ -197,6 +197,19 @@ jobs:
     #       unrelated to the code (two such rows were fixed in rc351). The step
     #       below PRINTS the skip count so this blind spot stays a visible number
     #       rather than an assumption.
+    #     * The 20 tests gated by `require_native()` (`tests/_native_gate.py`).
+    #       These are the ANTI-FALSE-CLAIM guards of tasks `#T843` / `#918` / `#939`
+    #       — "the claim and the code must agree" — and they are written to FAIL,
+    #       not skip, when the library is missing, so a broken C build cannot pass
+    #       quietly. That is correct everywhere except here, where the library is
+    #       absent ON PURPOSE. `HAS_NATIVE == False` cannot tell "the build broke"
+    #       from "we removed it deliberately", so this cell STATES its intent with
+    #       `SRMECH_EXPECT_PURE=1` — the only place in the repo that sets it — and
+    #       those gates skip instead of failing. Nothing else changes anywhere.
+    #       The excuse is then AUDITED (last step): the set of gates that fired must
+    #       equal the set declared in the tree, so it can neither grow silently nor
+    #       quietly stop firing. It also cannot excuse a pure-path DEFECT — a gate
+    #       runs before its test body and cannot turn a failure into a skip.
     #   A narrower selection was considered and rejected. A `-k` filter is how a
     #   green gate lies: it hides ripple, and the pure paths worth defending are
     #   spread across genome / carriers / cascade / qm / hashing, not one subtree.
@@ -275,10 +288,34 @@ jobs:
       - name: Run the FULL suite with no native library
         working-directory: docs/srmech/python
         shell: bash
-        # `-rs` so the skipped rows are LISTED, and the summary line carries the
-        # skip count. The size of this cell's blind spot is then a number in the
-        # log of every run, not something a future reader has to reconstruct.
-        run: pytest tests/ -q -rs -n auto --dist loadfile
+        env:
+          # THE INTENT DECLARATION. Read once, at import, by tests/_native_gate.py.
+          # Set here and NOWHERE else in the repo: it is what distinguishes "the
+          # library is absent because we removed it" from "the library is absent
+          # because the build broke". Without it, every `require_native()` gate
+          # FAILS exactly as it does today (task `#T843`).
+          SRMECH_EXPECT_PURE: "1"
+        # `-rsfE`, not `-rs`: `-r` REPLACES the default report characters, so the
+        # first cut of this cell (`-rs` alone) silently dropped the `FAILED …` summary
+        # lines and its 26 failures had to be reconstructed from tracebacks. `s` lists
+        # the skips (the blind spot stays a number in every log), `f`/`E` keep the
+        # failure summary that `-q` would otherwise give for free.
+        #
+        # `tee` because the audit step below reads this run's skip lines. Without
+        # `pipefail` the tee would mask a red suite.
+        run: |
+          set -o pipefail
+          pytest tests/ -q -rsfE -n auto --dist loadfile 2>&1 | tee pytest-pure.log
+
+      - name: Audit the pure-by-design skips (the excuse must not become a mute button)
+        working-directory: docs/srmech/python
+        shell: bash
+        # Runs after a GREEN suite, which is precisely when a mute button would be
+        # invisible. Compares the gates that FIRED against the `require_native()` call
+        # sites in the tree — a threshold derived from the source, never a frozen
+        # number. A declared gate that stopped firing is RED (a seam that stops
+        # observing is a false green); a skip with no call site behind it is RED too.
+        run: python3 tools/audit_pure_by_design_skips.py pytest-pure.log tests
 
   pure-wheel-build:
     # Always-on lightweight build of the py3-none-any wheel via the

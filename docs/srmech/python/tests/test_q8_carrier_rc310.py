@@ -27,6 +27,7 @@ import ctypes
 
 import pytest
 
+from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import q8
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product
@@ -180,13 +181,14 @@ def _all_results():
 
 def test_native_is_actually_loaded():
     # a meaningful parity gate needs the native peers present
-    assert _native.HAS_NATIVE and _native.LIB is not None
+    require_native("the Q₈ carrier's C peers")
     for sym in ("srmech_q8_mult", "srmech_q8_conjugate",
                 "srmech_q8_bind", "srmech_q8_project_v4"):
         assert hasattr(_native.LIB, sym), sym
 
 
 def test_native_equals_pure_byte_for_byte(monkeypatch):
+    require_native("the Q₈ native-vs-pure differential")
     native = _all_results()
     assert _native.HAS_NATIVE  # sanity: the first pass used the C peers
     monkeypatch.setattr(_native, "HAS_NATIVE", False)
