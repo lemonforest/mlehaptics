@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc349"
-#define SRMECH_VERSION       "0.9.0rc349"
+#define SRMECH_VERSION_PRE   "rc350"
+#define SRMECH_VERSION       "0.9.0rc350"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -2670,11 +2670,19 @@ srmech_status_t srmech_next_prime(uint64_t n, uint64_t *out);
 /* Reduce `matrix` (an n_rows x n_cols int64 matrix, ROW-MAJOR, caller-owned)
  * to reduced row-echelon form over the field GF(p), IN PLACE. Entries may be
  * negative on input; they are canonicalised into [0, p) first and every output
- * entry lies in [0, p). Requires p an odd prime with 2 < p < 2**31 (so a*b fits
+ * entry lies in [0, p). Requires p a prime with 2 <= p < 2**31 (so a*b fits
  * uint64); returns SRMECH_ERR_BAD_INPUT otherwise. Writes the pivot column of
  * each pivot row into `out_pivots` (caller buffer of >= min(n_rows, n_cols)
  * uint32) and the rank into `*out_rank`. Primality of p is the caller's
- * contract (the arithmetic domain bound is the only thing guarded here). */
+ * contract (the arithmetic domain bound is the only thing guarded here).
+ *
+ * rc350 (task #T1003): the lower bound was 2 < p through rc349 because the rc44
+ * kernel inverted a pivot by FERMAT (a**(p-2) mod p); rc49 replaced that with
+ * the extended-Euclidean srmech_mod_inv and the bound was never revisited. Only
+ * the CEILING was ever an arithmetic-domain fact. GF(2) is now in domain and
+ * matches the Python peer exactly -- char 2 needs no division (1^-1 = 1) and the
+ * row op is XOR. Signature UNCHANGED, so no ABI bump; this widens the accepted
+ * input set only (every p that was accepted before is accepted now). */
 srmech_status_t srmech_gf_rref(int64_t  *matrix,
                                uint32_t  n_rows,
                                uint32_t  n_cols,

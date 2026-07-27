@@ -715,7 +715,10 @@ def _rref_augmented(rows, n_cols_left: int):
 # dense rref but at bounded memory (no Hadamard-envelope arena). Composes the
 # C-backed gf_rref / crt_combine / rational_reconstruct / next_prime ops.
 
-# The GF(p) field ceiling: gf_rref requires 2 < p < 2**31 (so a*b fits uint64).
+# The GF(p) field ceiling: gf_rref requires 2 <= p < 2**31 (so a*b fits uint64).
+# rc350 (task `#T1003`) admitted p = 2 to gf_rref, but the CRT walk below stays
+# ODD by design and not by domain — it descends from just under the ceiling to
+# keep each per-prime residue as wide as possible, so 2 is never a candidate.
 _GF_P_CEILING: int = 1 << 31
 # Seed for the descending prime walk — the largest odd value below the ceiling.
 # We walk DOWNWARD from here so every emitted prime is a valid GF(p) modulus.

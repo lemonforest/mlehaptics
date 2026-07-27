@@ -138,7 +138,11 @@ static void test_gf_rref(void)
     static const int64_t b[] = { 1, 2, 3, 2, 4, 6, 5, 1, 0 };             /* 3x3 dup-ish */
     static const int64_t c[] = { 7, 14, 21, 0, 7, 0 };                    /* 2x3 zero mod 7 */
     static const int64_t neg[] = { -1, -2, 3, -4, 5, -6 };                /* 2x3 negatives */
-    const uint64_t primes[] = { 3u, 5u, 7u, 101u, 65537u, 2147483647u };
+    /* rc350 (task #T1003): p = 2 leads the list. Char 2 is now in domain and is
+     * cross-checked against the SAME independent in-test oracle as every odd
+     * prime -- the point being that the kernel needs no char-2 special case
+     * (t_inv's Fermat exponent p-2 is 0 at p=2, so 1^-1 = 1 as it must be). */
+    const uint64_t primes[] = { 2u, 3u, 5u, 7u, 101u, 65537u, 2147483647u };
     size_t pi;
     for (pi = 0u; pi < sizeof(primes) / sizeof(primes[0]); pi++) {
         run_gf_rref_case(a, 3u, 4u, primes[pi], "gf_rref 3x4");
@@ -146,17 +150,33 @@ static void test_gf_rref(void)
         run_gf_rref_case(c, 2u, 3u, primes[pi], "gf_rref 2x3 zero-mod-7");
         run_gf_rref_case(neg, 2u, 3u, primes[pi], "gf_rref 2x3 neg");
     }
-    /* Bad-field guards: p <= 2 and p >= 2**31 rejected. (NULL-arg guards fire
-     * an assert in a debug build before the return, so they are not smoke-tested
-     * here -- the return-code contract is parity-tested from Python instead.) */
+    /* Bad-field guards: p < 2 and p >= 2**31 rejected; p == 2 ACCEPTED as of
+     * rc350 (task #T1003). (NULL-arg guards fire an assert in a debug build
+     * before the return, so they are not smoke-tested here -- the return-code
+     * contract is parity-tested from Python instead.) */
     {
         int64_t m[4] = { 1, 0, 0, 1 };
         uint32_t piv[2], rank = 0u;
-        CHECK(srmech_gf_rref(m, 2u, 2u, 2u, piv, &rank) == SRMECH_ERR_BAD_INPUT,
-              "gf_rref rejects p=2");
+        CHECK(srmech_gf_rref(m, 2u, 2u, 1u, piv, &rank) == SRMECH_ERR_BAD_INPUT,
+              "gf_rref rejects p=1");
+        CHECK(srmech_gf_rref(m, 2u, 2u, 0u, piv, &rank) == SRMECH_ERR_BAD_INPUT,
+              "gf_rref rejects p=0");
         CHECK(srmech_gf_rref(m, 2u, 2u, (1ull << 31), piv, &rank)
                   == SRMECH_ERR_BAD_INPUT,
               "gf_rref rejects p=2**31");
+    }
+    /* rc350 (task #T1003): the char-2 row op is XOR. [[1,1],[1,0]] over GF(2)
+     * reduces to the identity -- an explicit hand-checkable char-2 case on top
+     * of the oracle sweep above, so a regression cannot hide behind the oracle
+     * agreeing with an equally-broken kernel. */
+    {
+        int64_t m[4] = { 1, 1, 1, 0 };
+        uint32_t piv[2], rank = 0u;
+        srmech_status_t st = srmech_gf_rref(m, 2u, 2u, 2u, piv, &rank);
+        CHECK(st == SRMECH_OK, "gf_rref accepts p=2");
+        CHECK(rank == 2u && m[0] == 1 && m[1] == 0 && m[2] == 0 && m[3] == 1
+                  && piv[0] == 0u && piv[1] == 1u,
+              "gf_rref GF(2) [[1,1],[1,0]] -> identity, rank 2");
     }
 }
 

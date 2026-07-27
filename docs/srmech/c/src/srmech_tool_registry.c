@@ -359,7 +359,7 @@ static const srmech_tool_param_t ts_params_20[] = {
 };
 static const srmech_tool_param_t ts_params_21[] = {
     { "rows", "list[list[int]]", 1, "the integer matrix as a list of equal-length int rows (entries may be negative)" },
-    { "p", "int", 1, "an odd prime with 2 < p < 2**31 (the field modulus)" },
+    { "p", "int", 1, "a prime with 2 <= p < 2**31 (the field modulus; GF(2) included)" },
 };
 static const srmech_tool_param_t ts_params_22[] = {
     { "residues", "list[int]", 1, "the per-prime residues [r_0..r_k-1]" },
@@ -2841,7 +2841,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.modular_linalg.gf_rref",
         "srmech",
         "modular_linalg",
-        "Reduced row-echelon form of an integer matrix over the finite field GF(p) \342\200\224 Gaussian elimination over a prime field (cf. Cohen, *A Course in Computational Algebraic Number Theory*, 1993, Algorithm 2.3.1; von zur Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, \302\2475.4). The swell-free core of the rc44 CRT re-fibration: exact-\342\204\232 Gauss-Jordan grows numerators and denominators at every pivot (a Hadamard-bounded arena, ~GB for the order-2 Franel system), whereas GF(p) elimination has ZERO coefficient swell \342\200\224 every residue stays in [0, p). Input: an integer matrix (list of equal-length int rows; entries may be negative, reduced into [0, p) first) and a prime p with 2 < p < 2**31 (so a*b fits uint64; primality is the caller's contract). Class I (composes mod_inv / mod_mul / mod_add); Class-K sign/zero handling (compare-to-0, never abs()); bounded machine-int, no fraction growth, no bignum, no float, no numpy / math. 1:1 C peer srmech_gf_rref (in-place int64 caller-arena; native when present, pure-Python the complete alternative).",
+        "Reduced row-echelon form of an integer matrix over the finite field GF(p) \342\200\224 Gaussian elimination over a prime field (cf. Cohen, *A Course in Computational Algebraic Number Theory*, 1993, Algorithm 2.3.1; von zur Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, \302\2475.4). The swell-free core of the rc44 CRT re-fibration: exact-\342\204\232 Gauss-Jordan grows numerators and denominators at every pivot (a Hadamard-bounded arena, ~GB for the order-2 Franel system), whereas GF(p) elimination has ZERO coefficient swell \342\200\224 every residue stays in [0, p). Input: an integer matrix (list of equal-length int rows; entries may be negative, reduced into [0, p) first) and a prime p with 2 <= p < 2**31 (so a*b fits uint64; primality is the caller's contract). p = 2 is in domain as of rc350 \342\200\224 characteristic 2 needs no division (1\342\201\273\302\271 = 1) and the row op is XOR, and GF(2) is the grading field of every Cayley\342\200\223Dickson rung srmech ships (e_i\302\267e_j lands on index i XOR j at every dim in CD_DIMS), so index-lane questions about \342\204\202 / \342\204\215 / \360\235\225\206 / \360\235\225\212 are GF(2) linear algebra. Class I (composes mod_inv / mod_mul / mod_add); Class-K sign/zero handling (compare-to-0, never abs()); bounded machine-int, no fraction growth, no bignum, no float, no numpy / math. 1:1 C peer srmech_gf_rref (in-place int64 caller-arena; native when present, pure-Python the complete alternative).",
         ts_params_21, 2u,
         "dict",
         "{'rref': [[int]] (every entry in [0, p)), 'rank': int, 'pivots': [int] (the pivot column of each pivot row, ascending)}",

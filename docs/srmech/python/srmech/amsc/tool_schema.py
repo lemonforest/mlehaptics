@@ -1072,8 +1072,13 @@ def _register_primitive_class_tools() -> None:
                     "ZERO coefficient swell — every residue stays in [0, p). Input: "
                     "an integer matrix (list of equal-length int rows; entries may be "
                     "negative, reduced into [0, p) first) and a prime p with "
-                    "2 < p < 2**31 (so a*b fits uint64; primality is the caller's "
-                    "contract). Class I (composes mod_inv / mod_mul / mod_add); "
+                    "2 <= p < 2**31 (so a*b fits uint64; primality is the caller's "
+                    "contract). p = 2 is in domain as of rc350 — characteristic 2 "
+                    "needs no division (1⁻¹ = 1) and the row op is XOR, and GF(2) is "
+                    "the grading field of every Cayley–Dickson rung srmech ships "
+                    "(e_i·e_j lands on index i XOR j at every dim in CD_DIMS), so "
+                    "index-lane questions about ℂ / ℍ / 𝕆 / 𝕊 are GF(2) linear "
+                    "algebra. Class I (composes mod_inv / mod_mul / mod_add); "
                     "Class-K sign/zero handling (compare-to-0, never abs()); bounded "
                     "machine-int, no fraction growth, no bignum, no float, no numpy / "
                     "math. 1:1 C peer srmech_gf_rref (in-place int64 caller-arena; "
@@ -1082,7 +1087,8 @@ def _register_primitive_class_tools() -> None:
                           "the integer matrix as a list of equal-length int rows "
                           "(entries may be negative)"),
                         P("p", "int", True,
-                          "an odd prime with 2 < p < 2**31 (the field modulus)")),
+                          "a prime with 2 <= p < 2**31 (the field modulus; "
+                          "GF(2) included)")),
             returns=R("dict",
                       "{'rref': [[int]] (every entry in [0, p)), 'rank': int, "
                       "'pivots': [int] (the pivot column of each pivot row, "
