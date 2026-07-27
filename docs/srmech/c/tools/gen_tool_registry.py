@@ -29,9 +29,17 @@ an ASCII-only C string literal (non-ASCII bytes as ``\\NNN`` 3-digit
 octal — MSVC-safe, no source-encoding dependency), so the runtime string
 holds the genuine value the accessors return.
 
-Regenerate::
+Regenerate (rc346, `#T975` — DO NOT run this script by hand)::
 
-    python3 c/tools/gen_tool_registry.py > c/src/srmech_tool_registry.c
+    python3 tools/regen_all.py          # from docs/srmech/python
+
+This generator EMBEDS the prose in ``srmech/amsc/_tool_docs.py``, which
+``gen_tool_docs.py`` writes, so running it first leaves the table stale
+against the very docs it contains — measured at 14 bytes propagating
+827380 -> 827394. It also wrote to STDOUT, so a bare invocation with no
+redirect changed nothing while exiting 0. ``regen_all.py`` derives the
+order from ``codegen_manifest.py`` and owns the write; a direct run now
+refuses unless ``--standalone`` is passed.
 
 An idempotence test (re-run → no diff) guards drift.
 """
@@ -273,4 +281,9 @@ def generate() -> str:
 
 
 if __name__ == "__main__":
+    sys.path.insert(
+        0, str(Path(__file__).resolve().parents[2] / "python" / "tools"))
+    from codegen_manifest import require_regen_all
+
+    require_regen_all("gen_tool_registry")
     sys.stdout.write(generate())

@@ -31,9 +31,18 @@ are identical regardless of the dev machine's autocrlf setting. The engine
 output is newline-independent (it emits method results + field state, never the
 descriptor's ``doc``), so this is a determinism choice, not a correctness one.
 
-Regenerate::
+Regenerate (rc346, `#T975` — DO NOT run this script by hand)::
 
-    python3 c/tools/gen_class_registry.py > c/src/srmech_class_registry.c
+    python3 tools/regen_all.py          # from docs/srmech/python
+
+This is the one registry generator with NO srmech import at all — it reads
+only the packaged ``[class]`` TOML bytes, so no tool-surface change can
+stale it (verified at rc346: adding, editing and renaming ops all left its
+output byte-identical). It still runs in the ordered pass because it is a
+generated shipped file and ``--check`` must be able to answer "is this
+stale?" for every such file, not for a remembered subset. Its declared
+``consumes=(class_catalog_toml,)`` carries no inbound edge, so the topo
+sort is free to place it anywhere; it lands last.
 
 An idempotence test (re-run -> no diff) guards drift.
 """
@@ -134,4 +143,9 @@ def generate() -> str:
 
 
 if __name__ == "__main__":
+    sys.path.insert(
+        0, str(Path(__file__).resolve().parents[2] / "python" / "tools"))
+    from codegen_manifest import require_regen_all
+
+    require_regen_all("gen_class_registry")
     sys.stdout.write(generate())

@@ -34,9 +34,19 @@ ensure_ascii=True, hence pure ASCII). ``name`` / ``description`` / ``ladder``
 ASCII-only ``\\NNN`` octal escapes — MSVC-safe) so a bare-C consumer reads
 them without a JSON parse.
 
-Regenerate::
+Regenerate (rc346, `#T975` — DO NOT run this script by hand)::
 
-    python3 c/tools/gen_carrier_registry.py > c/src/srmech_carrier_registry.c
+    python3 tools/regen_all.py          # from docs/srmech/python
+
+**This table bakes the SORTED TOOL-NAME LIST** (the per-carrier ``ops``
+back-index over ``get_tool_schema().tools``), so it goes stale whenever the
+tool surface changes — *whether or not any carrier moved*. rc345 asked the
+semantic question ("did a carrier move?"), answered it correctly, skipped
+this generator and shipped red. The rule is MECHANICAL: ``tools.total``
+changed => this regenerates. Measured — adding one public callable moved
+this file 180889 -> 181113 bytes. ``regen_all.py`` derives that from the
+declared ``consumes=(carrier_schema,)`` edge, so it can no longer be
+reasoned away; a direct run refuses unless ``--standalone`` is passed.
 
 An idempotence test (re-run -> no diff) guards drift.
 """
@@ -212,4 +222,9 @@ def generate() -> str:
 
 
 if __name__ == "__main__":
+    sys.path.insert(
+        0, str(Path(__file__).resolve().parents[2] / "python" / "tools"))
+    from codegen_manifest import require_regen_all
+
+    require_regen_all("gen_carrier_registry")
     sys.stdout.write(generate())

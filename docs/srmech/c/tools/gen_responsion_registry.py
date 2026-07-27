@@ -36,9 +36,19 @@ ASCII). The edge ``key`` / ``operator`` / ``carrier`` additionally ride as
 first-class struct fields (all pure-ASCII dotted identifiers, asserted) so a
 bare-C consumer reads the edge refs without a JSON parse.
 
-Regenerate::
+Regenerate (rc346, `#T975` — DO NOT run this script by hand)::
 
-    python3 c/tools/gen_responsion_registry.py > c/src/srmech_responsion_registry.c
+    python3 tools/regen_all.py          # from docs/srmech/python
+
+This table's dependency on the tool surface is a VALIDATION edge, not a
+byte one: ``_validate_refs`` requires every responsion ``operator`` to be a
+live ``tool_schema`` key, so ADDING an op does not move these bytes but
+RENAMING or REMOVING one makes ``_pure_responsion_schema()`` raise outright
+(measured at rc346). It therefore belongs in the ordered pass even though a
+"did anything here change?" reading would skip it — the same reading that
+let rc345 ship a stale carrier table. ``regen_all.py`` derives its position
+from the declared ``consumes=(responsion_schema,)`` edge; a direct run
+refuses unless ``--standalone`` is passed.
 
 An idempotence test (re-run -> no diff) guards drift.
 """
@@ -222,4 +232,9 @@ def generate() -> str:
 
 
 if __name__ == "__main__":
+    sys.path.insert(
+        0, str(Path(__file__).resolve().parents[2] / "python" / "tools"))
+    from codegen_manifest import require_regen_all
+
+    require_regen_all("gen_responsion_registry")
     sys.stdout.write(generate())
