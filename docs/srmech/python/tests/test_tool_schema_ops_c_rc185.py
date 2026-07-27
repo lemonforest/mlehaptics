@@ -93,6 +93,13 @@ def _schema_from_jsonable(d: dict) -> ToolSchema:
             # rebuild to the empty-tuple leaf default.
             composes=tuple(t.get("composes", ())),
             preserves=tuple(t.get("preserves", ())),
+            # rc347 (`#T985`): the lane axis — omitted keys rebuild to the
+            # undeclared default (None + empty tuple). Both are emitted
+            # together or not at all, so one `in` test would do; both are read
+            # so a half-emitted pair fails here rather than silently
+            # reconstructing a valid-looking entry.
+            reads_lane=t.get("reads_lane"),
+            reads_input=tuple(t.get("reads_input", ())),
         ))
     return ToolSchema(
         srmech_version=d["srmech_version"],

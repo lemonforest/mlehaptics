@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc346"
-#define SRMECH_VERSION       "0.9.0rc346"
+#define SRMECH_VERSION_PRE   "rc347"
+#define SRMECH_VERSION       "0.9.0rc347"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5132,6 +5132,25 @@ typedef struct {
     uint32_t                  composes_count;
     const char *const        *preserves;       /* NULL iff preserves_count == 0 */
     uint32_t                  preserves_count;
+    /* rc347 (#T985): the LANE axis — which lane of its input this op's output
+     * DEPENDS ON. `reads_lane` is one of "index" / "sign" / "both", or NULL
+     * when the op declares no lane (the correct default for most of the
+     * surface: an op whose input carries only ONE of the two lanes cannot
+     * declare, because no measurement could contradict it). `reads_input` is
+     * what the lane is read OF — "algebra" and/or "geometry" — because two ops
+     * can share a LANE while reading different INPUTS, which is exactly the
+     * Tw-vs-Wr contrast. Both are declared together or not at all:
+     * reads_lane == NULL  iff  reads_input_count == 0. Mirrors
+     * ToolEntry.reads_lane / .reads_input and its key omission, so the
+     * byte-identity contract holds; both JSON keys sort between "preserves"
+     * and "returns". ABI-additive by the rc305 precedent (the composes /
+     * preserves fields appended to this same struct without a bump): callers
+     * receive a POINTER from srmech_tool_registry_get and never allocate the
+     * struct, so appending leaves every existing field offset unchanged.
+     * SRMECH_ABI_VERSION STAYS 10. */
+    const char               *reads_lane;      /* NULL iff no lane declared     */
+    const char *const        *reads_input;     /* NULL iff reads_input_count==0 */
+    uint32_t                  reads_input_count;
 } srmech_tool_entry_t;
 
 /* Number of registered tool entries in the const table. */

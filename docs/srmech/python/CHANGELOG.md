@@ -13,6 +13,56 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc347]
+
+_**The LANE axis: `describe()` now reports what each op READS (`#T985`). rc339 published what each CARRIER can DO; this is the complement over the VERBS, and a DIFFERENT axis rather than a finer grain of the same one. `SRMECH_ABI_VERSION` stays 10; `tools.total` stays 510.**_
+
+- **THE CAYLEY–DICKSON PRODUCT FACTORS, AND EVERY OP CONSUMES ONE HALF, THE OTHER, OR BOTH.**
+
+  | lane | what it is | character |
+  |---|---|---|
+  | **INDEX** | `e_i·e_j → e_{i XOR j}` | **abelian, order-blind**, exact at every rung, unbounded |
+  | **SIGN** | the cocycle over it | **order-carrying**; every ceiling srmech publishes lives here (rc343) |
+
+  **Lane is orthogonal to GRANULARITY** — `index == i XOR j` measured with **0 violations** at dims 2/4/8/16 (4/4, 16/16, 64/64, 256/256) and on the shipped `q8_mult` (64/64), i.e. the same statement at every addressing width — **and both are orthogonal to rc339's capability axis.** **Chirality is a SIGN-lane operation**, measured three independent ways over the basis products and moving **zero indices** in all of them: order reversal (the opposite algebra) moves 6/16 signs at ℍ, **42/64 at 𝕆**, 210/256 at 𝕊; `cd_conjugate` 14/64; `q8_conjugate` 24/64. Order reversal is the sharpest form of the claim — the index lane is order-BLIND and the sign lane order-CARRYING, which is the split stated as one measurement.
+
+- **THE FIELD IS NOT AN ASSERTION — IT IS VERIFIED EXECUTABLY.** A declared lane that nothing can contradict is rc339's `bounded_by: "associativity"` in a new place, so `ToolEntry.reads_lane` carries the same shape of admission rule that `bounded_by` gained in rc343. Because chirality is sign-only, the two lanes can be perturbed **separately**, and that is what makes the declaration falsifiable:
+
+  | | SIGN-lane perturbation | INDEX-lane perturbation |
+  |---|---|---|
+  | **algebra** | XOR the Q₈ center bit (`q ^ 4`); index untouched | relabel the V4 coset by ρ ∈ `Aut(V4) = S3`; sign bit untouched |
+  | **geometry** | reverse orientation (reflect one axis); magnitudes untouched | positive-rational rescale; no orientation determinant changes sign |
+
+  `tests/test_op_lane_rc347.py` drives **every** declaring op through both and asserts the response matches: `sign` must move under σ and **not** under a pure index relabel, `index` the mirror, `both` under both. An op declaring "sign only" that moves under an index relabel is **mis-declared and the build goes red**. A declaration with no driver also fails, because a field only *some* rows are checked against is the same false green one row at a time.
+
+- **APPLICABILITY IS HALF THE RULE, AND IT IS WHY ONLY 9 OF 510 OPS DECLARE.** An op may declare only when **both** perturbations can be built for its input. `cascade.net_chirality` takes bare orientations (no index to move) and `cascade.cd_basis_product` takes bare indices (no sign to move) — **neither may declare**, not because the answer is unknown but because no measurement could contradict it. 501 ops correctly declare nothing; silence where nothing could be falsified is the honest report, and is the defect being *removed* rather than relocated.
+
+- **Tw AND Wr ARE NOT ONE QUANTITY AT TWO RESOLUTIONS.** `genome.cwf_consistency_mod2` is the one shipped op that computes all three, so its **per-field** response IS the adjudication (3000 trials):
+
+  | read | field | cascade | sign(algebra) | index(algebra) | sign(geometry) | verdict |
+  |---|---|---|---|---|---|---|
+  | **Tw** | `tw_mod2` | K ∘ I | **3000/3000** | **0/3000** | 0/3000 | SIGN, **ALGEBRA** |
+  | **Wr** | `wr` | K ∘ C over E ∘ D | 0/3000 | 0/3000 | **3000/3000** | SIGN, **GEOMETRY** |
+  | **Lk** | `lk_mod2` | M ∘ L ∘ C thru I | 735/3000 | **182/3000** | 0/3000 | **BOTH**, ALGEBRA |
+
+  They read **different inputs** — a coset-sign count over the algebra vs the sign of orientation determinants over the geometry — and what they share is the **lane**. **Lk is the only mixer**: the only one of the three whose output answers to a pure index relabel. Wr's magnitude-blindness is the geometry-side proof it reads the sign and discards the magnitude it computed — `discrete_writhe` is **identical** under positive rational rescale ×1, ×3, ×100, ×1/7, ×999/4 (**5/5**) while **negating** under a reflection (−1 → +1). The fixture is asserted to have non-zero writhe: a writhe-0 embedding is reflection-invariant for the trivial reason, and the first one chosen was exactly that.
+
+- **THE 2:4:8 CONFLATION GUARD SHIPS IN THE PAYLOAD, NOT IN A COMMENT.** `lanes["granularity"]` reports 𝕆 re-addressed at three widths — over ℝ (8 slots × 1 real dim, 3 index bits), over ℂ (4 × 2, 2 bits), over ℍ (2 × 4, 1 bit) — with **1 anchor + (n−1) torsors** at each: the identity sits in exactly one slot and **only that slot closes**. Measured through the index lane (closure under XOR, which is itself why lane is orthogonal to granularity): `H_L {0,1,2,3}` closes / `H_R {4,5,6,7}` does not; `C_LL {0,1}` closes / `C_LR`, `C_RL`, `C_RR` do not. **Those slot counts (8, 4, 2) are ONE algebra at three widths; `BLOCK_DIMS` (2, 4, 8) are the real dims of THREE algebras (ℂ, ℍ, 𝕆). Same three numbers, different objects** — so `granularity["reading"]` and `granularity["not_this_reading"]` name which is which, and a test asserts they do. A reader of `describe()` never sees a source comment; an unlabelled report *teaches* the confusion instead of removing it. (11D = 1+3+7 has no such collision.)
+
+- **PROVEN AGAINST CLEAN `origin/main`.** `tests/test_op_lane_rc347.py` cannot itself run there — it imports `LANES` and reads `ToolEntry.reads_lane`, so it would **error on import**, and an import error proves nothing about whether the rule detects anything. The rule is therefore factored into `notes/op_lane_rc347_falsification.py` against nothing but surfaces main already publishes (`describe` / `get_tool_schema` / `q8` / `genome` / `qm.quaternion` / `cd_basis_product`) and run on both trees: **clean `origin/main` (`ea71fcbc3`, srmech 0.9.0rc346) exits 1 with 9 VIOLATIONS** — every one of the 9 ops has a *measurable* lane and `describe()` reports none of them, its top-level keys carrying no `lanes` at all — while rc347 exits 0. `--selftest` additionally injects two deliberately **wrong** declarations (`discrete_writhe` as `index`, `q8_project_v4` as `sign`) and requires the rule to catch both; it catches **2/2** on both trees, because a rule that has only ever seen correct data has not been shown to discriminate. Return codes read through `subprocess`, never `echo $?` — measured at rc346 that `wsl bash -lc '…; echo $?'` reports 0 for a control raising `SystemExit(2)`, which makes a guard look like it passed when it never ran.
+
+- **SWEPT, NEVER SAMPLED — and the sweep changed two verdicts.** A single input can miss a real response: an even number of sign flips **cancels** inside an ordered product, and roughly one gain vector in fifteen exposes the Lk index response. The first draw of the probe reported `cwf_consistency_mod2` as index-blind and `discrete_writhe` as reflection-blind; **both were artifacts**, and both would have been shipped as declarations this ratchet then blessed. Every "did not respond" verdict in this rc is the verdict over the whole sweep.
+
+- **rc346's `regen_all.py`, first real consumer.** One `python3 tools/regen_all.py` — derived order (`gen_tool_docs → gen_c_claims → gen_tool_registry → gen_carrier_registry → gen_responsion_registry → gen_class_registry`), 4 files written, **idempotence verified on the second pass**, 31.2 s. No generator was hand-sequenced and no reasoning was done about whether the carrier registry needed regenerating — the reasoning that sank rc345. `tools.total` did **not** move (510 → 510), so the carrier registry's real input (the sorted tool-name back-index) was unchanged and its delta is **its header comment only** — predicted, then **verified by reading the diff** rather than assumed.
+
+- **The emitted `.c` header comments now name `tools/regen_all.py`.** All four C registry generators had been printing the old `python3 c/tools/gen_x.py > c/src/…` invocation — trap 2 preserved in the artifact, telling every future reader to use the form that silently changes nothing when the redirect is forgotten. rc346 left them stale deliberately to keep its own zero-delta signal clean; rc347 already moves those bytes, so it fixes them. The two `gen_unicode_*` generators are untouched (excluded from the pass as non-hermetic).
+
+- **ABI stays 10.** `reads_lane` / `reads_input` are **data**, not an exported signature. Appending them to `srmech_tool_entry_t` is ABI-additive by the **rc305 precedent** — `composes` / `preserves` went onto this same struct without a bump — because callers receive a *pointer* from `srmech_tool_registry_get` and never allocate the struct, so every existing field offset is unchanged. Both JSON keys sort between `"preserves"` and `"returns"`, the C serialiser emits them there, and the `tool_schema_sha256` byte-identity contract is verified green. `GENOME_FORMAT_VERSION` unchanged.
+
+- **The two lane keys tripped JPL Rule 4, and the fix went to the root.** They took `ts_emit_entry` to **67 lines** against the 60-line cap, so `ts_emit_lane` was extracted (13 lines, 3 asserts, Rule 5 clear) and `ts_emit_entry` is back to **59** — violations only go DOWN. The helper also gives the key-order constraint one place to live. Two independent files pin `describe()`'s exact top-level key set (`test_mcp.py::test_describe_shape`, `test_domain_classes_rc298.py`), and both were updated for `"lanes"`: a new `describe()` key is meant to be a reviewed act rather than something that lands unnoticed.
+
+- **Verification.** Pedantic cmake build (`-Wall -Wextra -Wpedantic -Werror`) **clean, 0 warnings**; JPL Power-of-Ten ratchet unmoved. Targeted: the rc347 ratchet (21 passed), introspect / tool-schema / registry / MCP / Rosetta / `c_claims` / rc339 / rc343 / rc305, `regen_all --check`, and the version pin. Generating code + NDJSON: `docs/srmech/notes/op_lane_axis_rc347.py`.
+
 ## [0.9.0rc346]
 
 _**`regen-all`: the generated-file chain's run order is now DERIVED from declared dependencies, not remembered (`#T975`). Zero delta in every generated file — this rc changes how they are produced, not what. `SRMECH_ABI_VERSION` stays 10; no C source moved.**_

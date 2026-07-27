@@ -240,6 +240,28 @@ static void ts_emit_str_array(ts_emit_t *e, const char *const *items,
     ts_cstr(e, "]");
 }
 
+/* rc347 (#T985): the LANE axis keys. Factored out of ts_emit_entry rather
+ * than inlined there — the two keys took that function to 67 lines and JPL
+ * Rule 4 caps it at 60, so the helper is the rule doing its job rather than a
+ * style choice. Key order is load-bearing: "preserves" < "reads_input" <
+ * "reads_lane" < "returns", so both land between those two neighbours, in
+ * that order. Emitted together or not at all, mirroring
+ * ToolEntry.to_jsonable's key omission, so the byte-identity contract with
+ * json.dumps(..., sort_keys=True) holds. */
+static void ts_emit_lane(ts_emit_t *e, const srmech_tool_entry_t *t)
+{
+    assert(e != NULL);
+    assert(t != NULL);
+    assert(t->reads_lane != NULL || t->reads_input_count == 0u);
+    if (t->reads_lane == NULL) {
+        return;
+    }
+    ts_cstr(e, ",\"reads_input\":");
+    ts_emit_str_array(e, t->reads_input, t->reads_input_count);
+    ts_cstr(e, ",\"reads_lane\":");
+    ts_json_string(e, t->reads_lane);
+}
+
 /* Emit one entry object: keys in sorted order, optional keys omitted
  * when absent (mirroring ToolEntry.to_jsonable). */
 static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
@@ -285,6 +307,7 @@ static void ts_emit_entry(ts_emit_t *e, const srmech_tool_entry_t *t)
         ts_cstr(e, ",\"preserves\":");
         ts_emit_str_array(e, t->preserves, t->preserves_count);
     }
+    ts_emit_lane(e, t);         /* rc347 (#T985); see ts_emit_lane on order */
     if (t->returns_type != NULL) {
         ts_cstr(e, ",\"returns\":{\"shape\":");
         ts_json_string(e, t->returns_shape);
