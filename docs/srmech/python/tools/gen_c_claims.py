@@ -38,10 +38,19 @@ method, a registry indirection, ...) are NOT silently dropped — they are emitt
 as ``UNVERIFIABLE_CLAIMS`` with a down-only ceiling, so the size of the
 unchecked region is a named, ratcheted number instead of an invisible gap.
 
-Usage (writes the module in place)::
+Usage (rc346, `#T975` — run the ordered pass, not this script)::
 
-    python3 tools/gen_c_claims.py            # from srmech/python
-    python3 tools/gen_c_claims.py --check    # exit 1 if the file would change
+    python3 tools/regen_all.py               # from docs/srmech/python
+    python3 tools/regen_all.py --check       # exit 1 if anything is stale
+
+This generator is INDEPENDENT of the tool docs — it reads the Rosetta ledger
+and ``c/include/srmech.h``, and rc346 measured its output unchanged under
+adding an op, editing a summary and editing ``_tool_docs.py``. It runs in the
+pass anyway because ``--check`` must answer "is this stale?" for every
+generated file rather than for a remembered subset, and because its true
+inputs (the ledger, the header) move for reasons the tool surface does not
+predict. A direct run refuses unless ``--standalone`` is passed; the
+per-file ``--check`` below still works standalone.
 """
 from __future__ import annotations
 
@@ -293,4 +302,11 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from codegen_manifest import require_regen_all
+
+    # --check is read-only, so it stays reachable standalone: refusing it
+    # would break the per-file staleness probe with no defect to prevent.
+    if "--check" not in sys.argv[1:]:
+        require_regen_all("gen_c_claims")
     raise SystemExit(main())

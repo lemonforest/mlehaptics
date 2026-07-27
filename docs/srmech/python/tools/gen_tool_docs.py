@@ -11,7 +11,16 @@ Curation-preserving: hand-written high-quality entries live in the sibling
 the auto-seed so regeneration never clobbers curation. Byte-deterministic
 (sorted keys) so a codegen-idempotence test can pin drift.
 
-Run:  python tools/gen_tool_docs.py   (from docs/srmech/python)
+Run:  python3 tools/regen_all.py      (from docs/srmech/python)
+
+**This generator MUST run first** (rc346, `#T975`). ``tool_schema`` merges
+the ``TOOL_DOCS`` it writes into every ``ToolEntry.explanation`` /
+``.example``, and ``gen_tool_registry.py`` then bakes that merged prose into
+a C const table — so running the registry first leaves it stale against the
+very docs it contains. Measured: 14 bytes injected here propagated exactly,
+moving ``srmech_tool_registry.c`` 827380 -> 827394. ``regen_all.py`` derives
+the order from ``codegen_manifest.py``; a direct run of this script refuses
+unless ``--standalone`` is passed.
 The auto-seed NEVER fabricates an output — if an op cannot be safely executed
 its example is a ``{"call": "..."}`` usage snippet keyed off the signature.
 
@@ -378,4 +387,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from codegen_manifest import require_regen_all
+
+    require_regen_all("gen_tool_docs")
     main()
