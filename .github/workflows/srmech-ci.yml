@@ -223,6 +223,15 @@ jobs:
           # The swap is what makes this cell pure: scikit-build-core would run
           # CMake and produce srmech/_native/libsrmech.so, and the cell would then
           # test the native path under a misleading name.
+          #
+          # An editable install resolves `srmech` back to THIS source tree, so a
+          # stale hand-placed library here would pre-empt the (absent) installed
+          # one and HAS_NATIVE would come back True — the same `rm -rf` the
+          # asserts-live cell below does, for the same reason. A fresh checkout has
+          # no such directory (it is gitignored build output); this makes the cell
+          # correct rather than merely lucky, and the assertion two steps down
+          # still fires if anything recreates it.
+          rm -rf srmech/_native
           mv pyproject.toml pyproject.toml.platform
           cp pyproject-pure.toml pyproject.toml
           trap 'mv pyproject.toml.platform pyproject.toml' EXIT
