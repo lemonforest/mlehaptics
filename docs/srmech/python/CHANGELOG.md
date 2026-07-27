@@ -13,6 +13,33 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc348]
+
+_**A local task ID written as bare `#NNN` is a live link to someone else's issue — and four of them had reached SHIPPED artifacts (`#T986`). Reference-notation repair across the generator sources AND the prose they emit. No op added or removed (`tools.total` stays 510); `SRMECH_ABI_VERSION` stays 10; no behavior change. `tool_schema_sha256` DOES move — the C table is regenerated in lockstep and the byte-identity + hash ratchets recompute clean.**_
+
+- **The measurement came first, and it did not match the precedent.** Task #T974 audited a 49-site set and found, after measuring, that nothing false had reached a wheel — every site was a docstring, comment or test. That conclusion was **not** assumed to extend here, and it did not. Regenerating and grepping the GENERATED artifacts found bare local-task refs baked into files that **ship in both wheels**: `srmech/amsc/_tool_docs.py` (module header + four `TOOL_DOCS` explanation values), `srmech/amsc/_c_claims.py` (module header), and the compiled-in C const table `c/src/srmech_tool_registry.c` (a table comment plus **eight** `ToolEntry` summary/explanation strings). So a consumer reading `describe()`, the MCP tool list, or the C registry was being handed `#938` — which GitHub renders as a link to *"srmech v0.7.5rc13: numpy-math ratchet + lmmse → cascade"*, an unrelated merged PR.
+
+- **Every ref was adjudicated individually against BOTH the tracker and GitHub. A sweep would have broken a working link.** Each candidate was checked with `gh issue view` / `gh pr view` and against the owning rc's CHANGELOG entry. All six numbers resolve to real GitHub objects, so existence proves nothing — **topicality decides**:
+
+  | ref | the prose describes | the real `#NNN` on GitHub | verdict |
+  |---|---|---|---|
+  | `#943` | rc305 `ToolEntry.composes`/`.preserves` | v0.7.5rc18 matmul-kernel batch 3 | LOCAL → `#T943` |
+  | `#838` | rc240 introspection docs floor | v0.7.0rc15 DSL surface audit | LOCAL → `#T838` |
+  | `#916` | rc291 un-rederivable-prose guard | v0.7.3rc1 Cayley–Dickson demonstrator | LOCAL → `#T916` |
+  | `#924` | rc294 stale executed-I/O examples | ephemerides-spectral v0.30.0rc10 | LOCAL → `#T924` |
+  | `#938` | rc300 `c_claims` manifest / rc301 CD register | v0.7.5rc13 numpy-math ratchet | LOCAL → `#T938` |
+  | `#1293` | the `carrier_schema()` CARRIER registry | **issue #1293: "expose CARRIER TYPES (a `carrier_schema()` peer to `tool_schema`)"** | **REAL — LEFT BARE** |
+
+  `#1293` is an exact topical match and is written `gh #1293` at all nine of its sites — an authorial marker this tree already uses for genuine GitHub refs. It is a working link and was **not** touched. `#916` was independently confirmed already: `#T916` was in the tree at `codegen_manifest.py` and in this file, so the bare spellings were simply the unconverted remainder — one of which sat two lines from an existing `#T916` in the same file.
+
+- **The generator sources and the prose they emit are one surface, so both moved.** Converting the comment that documents a defect while leaving the shipped string that exhibits it would have been incoherent. `gen_tool_registry.py`, `gen_tool_docs.py`, `gen_c_claims.py`, `gen_curated_probe.py` and `codegen_manifest.py` were repaired alongside `tool_schema.py`, `cd_register.py`, `cascade/__init__.py`, `introspect/__init__.py`, `_native.py` and `_tool_docs_curated.py`.
+
+- **The un-rederivable-prose guard (`#T916`) did its job on this very change, and was not routed around.** Editing four `cd_register.py` docstrings made the committed `_tool_docs.py` explanations non-re-derivable, and `regen-all` **refused to write**, naming exactly four fields across four tools — `cd_carry`, `cd_correct`, `cd_couple_working`, `cd_uncouple_working`. That set was verified to be precisely the four docstrings edited and nothing else **before** `--accept-seed-drift` was passed, which is the documented response to a legitimate docstring change. The resulting diff was then re-checked line-by-line: the generated delta is `#838`×1, `#943`×1 and `#938`×13 replaced by their `#T` forms, plus the header lines below — no other byte moved, and no `#1293` moved.
+
+- **Part 2 — an emitted header advertised a command that now REFUSES.** `_c_claims.py` told the reader to regenerate with `python3 tools/gen_c_claims.py`, but since rc346 a direct run of that script exits non-zero unless `--standalone` is passed. It now names the real entry point, `python3 tools/regen_all.py`, matching the four `.c` registry headers (already correct — the rc346 deferral had been closed for those, and **only** the Python-side header was still stale). `_tool_docs.py`, which named no entry point at all, gains the same pointer.
+
+- **Verification.** `regen-all` ran the full derived order (`gen_tool_docs → gen_c_claims → gen_tool_registry → gen_carrier_registry → gen_responsion_registry → gen_class_registry`) and its built-in second-pass idempotence proof passed: all 6 outputs byte-identical across two passes, 3 files changed. `regen_all.py --check` reports all 6 up to date. Targeted suite green — `test_regen_all_rc346`, `test_tool_registry_c_rc184` (byte-identity + `tool_schema_sha256` hash ratchet), `test_c_claim_resolution_rc300`, `test_tool_docs_coverage_rc240`, `test_cd_register_ops_rc301`, `test_composes_preserves_rc305`, `test_carrier_schema_rc205`, `test_class_registry_codegen_rc202`, `test_signal_processing_scaffolding`, plus the `tool_schema` consumers `test_mcp`, `test_mcpb_emit`, `test_introspect`, `test_rc15_describe_resolve`, `test_rosetta_completeness`, `test_mcp_marshal_c_rc187`. The two hash ratchets failed on first run against a **stale `.so`** — the rc347 build still held the old const table — and passed once `libsrmech.so` was rebuilt from the regenerated sources (134 `.c` files, gcc-13 `-Wall -Wextra -Wpedantic`, clean), which is the artifact-under-test discipline working as intended rather than a defect in the change.
+
 ## [0.9.0rc347]
 
 _**The LANE axis: `describe()` now reports what each op READS (`#T985`). rc339 published what each CARRIER can DO; this is the complement over the VERBS, and a DIFFERENT axis rather than a finer grain of the same one. `SRMECH_ABI_VERSION` stays 10; `tools.total` stays 510.**_
