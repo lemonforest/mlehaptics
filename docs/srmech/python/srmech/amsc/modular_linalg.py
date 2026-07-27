@@ -19,10 +19,32 @@ Sign/zero handling is **Class K** — every decision is a compare-to-0 over thos
 non-negative residues; there is no ``abs()`` anywhere, no float, no numpy, no
 ``math``.
 
-The ``p < 2**31`` bound is load-bearing: with ``2 < p < 2**31`` every ``a * b``
+The ``p < 2**31`` bound is load-bearing: with ``2 <= p < 2**31`` every ``a * b``
 fits a 64-bit unsigned intermediate, so the native kernel's modular multiply
 needs no russian-peasant doubling — a single 64-bit multiply-then-reduce. This is
 exactly the int64 matrix that contrasts the dense-ℚ path's GB-scale arena.
+
+**Characteristic 2 (srmech 0.9.0rc350, task `#T1003`).** The lower bound was
+``2 < p`` from rc44 to rc349 and the message read "odd prime". That was not a
+scope decision about fields — the rc44 C peer inverted a pivot by **Fermat**
+(``a**(p-2) mod p``) and its own comment gave the reason as "so ``a*b`` fits
+uint64 *and Fermat inversion is valid*". rc49 replaced that private power with
+the extended-Euclidean :func:`~srmech.amsc.cyclic.mod_inv`, which dissolved the
+Fermat half of the rationale; the bound was simply never revisited. Only the
+**ceiling** was ever justified by the arithmetic domain. GF(2) is a field, and
+:func:`gf_rref` is now defined on it: the pivot inverse is ``1⁻¹ = 1``, the row
+operation is XOR, and the pure body measured **byte-identical to an independent
+XOR-only oracle on 2100 random matrices before any code changed** — the
+algorithm never carried an odd-``p`` assumption, only the guard did.
+
+GF(2) is not a corner case here: it is the **grading field of every
+Cayley–Dickson rung srmech ships**. ``cascade.cayley_dickson.cd_basis_product``
+sends ``e_i · e_j`` to index ``i ⊕ j`` at every dim in ``CD_DIMS``, so the index
+lane of ℂ / ℍ / 𝕆 / 𝕊 / … *is* ``(ℤ/2)^d`` and questions about it are GF(2)
+linear algebra. See ``tests/test_gf2_modular_linalg_rc350.py``, which solves the
+sedenion zero-divisor support condition ``i ⊕ j = k ⊕ l`` as an affine GF(2)
+system through this op — a combinatorial construction where sampling cannot
+work, zero divisors being measure-zero in 𝕊.
 
 C peer: ``srmech_gf_rref`` (``c/src/srmech_modular_linalg.c``) — an in-place
 int64/uint64 GF(p) RREF, caller-arena (no malloc), JPL-clean. :func:`gf_rref`
@@ -51,9 +73,9 @@ _P_CEILING: int = 1 << 31
 def _check_field(p: int) -> None:
     if not isinstance(p, int) or isinstance(p, bool):
         raise TypeError(f"gf_rref: p must be int; got {type(p).__name__}")
-    if p <= 2 or p >= _P_CEILING:
+    if p < 2 or p >= _P_CEILING:
         raise ValueError(
-            f"gf_rref: p must be an odd prime with 2 < p < 2**31; got {p}"
+            f"gf_rref: p must be a prime with 2 <= p < 2**31; got {p}"
         )
 
 
@@ -152,9 +174,12 @@ def gf_rref(rows, p: int) -> Dict[str, object]:
     """Reduced row-echelon form of the integer matrix ``rows`` over GF(p).
 
     ``rows`` is a list of equal-length lists of ``int`` (entries may be
-    negative — they are reduced into ``[0, p)`` first). ``p`` must be an **odd
-    prime** with ``2 < p < 2**31`` (the arithmetic-domain bound; primality is
-    the caller's contract).
+    negative — they are reduced into ``[0, p)`` first). ``p`` must be a
+    **prime** with ``2 <= p < 2**31`` (the arithmetic-domain bound; primality is
+    the caller's contract). ``p = 2`` is in domain as of rc350 (task `#T1003`):
+    characteristic 2 needs no division (``1⁻¹ = 1``) and the row operation is
+    XOR, so it is the *easy* end of the field range, not an excluded one — the
+    module docstring records why the old bound said "odd".
 
     Returns ``{"rref": [[int]], "rank": int, "pivots": [int]}`` — the reduced
     matrix with every entry in ``[0, p)``, the rank (number of pivots), and the
