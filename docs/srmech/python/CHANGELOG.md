@@ -59,6 +59,8 @@ _**The LANE axis: `describe()` now reports what each op READS (`#T985`). rc339 p
 
 - **ABI stays 10.** `reads_lane` / `reads_input` are **data**, not an exported signature. Appending them to `srmech_tool_entry_t` is ABI-additive by the **rc305 precedent** — `composes` / `preserves` went onto this same struct without a bump — because callers receive a *pointer* from `srmech_tool_registry_get` and never allocate the struct, so every existing field offset is unchanged. Both JSON keys sort between `"preserves"` and `"returns"`, the C serialiser emits them there, and the `tool_schema_sha256` byte-identity contract is verified green. `GENOME_FORMAT_VERSION` unchanged.
 
+- **The two lane keys tripped JPL Rule 4, and the fix went to the root.** They took `ts_emit_entry` to **67 lines** against the 60-line cap, so `ts_emit_lane` was extracted (13 lines, 3 asserts, Rule 5 clear) and `ts_emit_entry` is back to **59** — violations only go DOWN. The helper also gives the key-order constraint one place to live. Two independent files pin `describe()`'s exact top-level key set (`test_mcp.py::test_describe_shape`, `test_domain_classes_rc298.py`), and both were updated for `"lanes"`: a new `describe()` key is meant to be a reviewed act rather than something that lands unnoticed.
+
 - **Verification.** Pedantic cmake build (`-Wall -Wextra -Wpedantic -Werror`) **clean, 0 warnings**; JPL Power-of-Ten ratchet unmoved. Targeted: the rc347 ratchet (21 passed), introspect / tool-schema / registry / MCP / Rosetta / `c_claims` / rc339 / rc343 / rc305, `regen_all --check`, and the version pin. Generating code + NDJSON: `docs/srmech/notes/op_lane_axis_rc347.py`.
 
 ## [0.9.0rc346]
