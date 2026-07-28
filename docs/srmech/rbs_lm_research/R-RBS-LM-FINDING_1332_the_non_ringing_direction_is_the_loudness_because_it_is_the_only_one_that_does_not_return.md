@@ -39,6 +39,20 @@ Ringing directions **do not decay on their own** — they rotate forever. The so
 
 That is a mechanism, not a metaphor, and it is the same statement as the bell: a bell warbles because two nearly-identical modes beat, and they are only *nearly* identical because the bell is not perfectly round. **No asymmetry, no beat, no self-strike.** Which is F1324's seam result in the other register — the shape alone treats its directions as interchangeable, and it takes three *distinct* weights to single one out. **Distinct weights = split degeneracy = a beat.**
 
+## 4b — ⚠ CORRECTION to §4: the drain story needs NONLINEARITY, and in a linear system the shared loudness is an ARTIFACT
+
+**User (2026-07-28), one turn later:** *"or standard acoustics say something about loudness being some factor of input force that we need to look out for?"* — **there is, and it undercuts §4 as written.**
+
+In a **linear** resonator the amplitude is proportional to the input force. Strike it twice as hard: same mode shapes, same frequencies, same decay rates, twice the amplitude. **The overall scale factors out completely and carries no structural information** — it is a units choice. And each mode then decays at its **own** rate, **independently of every other**. That is `n × (1+1)`, not `1 + n`, and the "one shared loudness" of §2–§4 is produced by *summing*, not by the object.
+
+So §4's *"n phases drain into 1 loudness"* is **not a linear-system statement**. Draining — a genuinely shared amplitude budget — requires modes to exchange energy, i.e. **nonlinear coupling**. A bell is weakly nonlinear; a gong more so; a cymbal strongly. The story is right for the regime it belongs to and wrong outside it, and §4 did not say which.
+
+**What survives the correction:** §1–§3 are untouched — they are exact statements about our own carrier (period-4 return vs no cycle; `1 + n` at every rung; phase-blindness to elapsed ring-down), and there is no "input force" in an algebra. **What does not survive:** the claim that this *is* how a physical ring-down works, without naming nonlinearity as the precondition.
+
+**And the second hypothesis, also the user's, also open:** the `1 + n` vs `n × (1+1)` difference may be a **measurement-window artifact**. Frequency resolution goes inversely with observation length, so two near-degenerate modes read as one broad thing in a short window and separate in a long one. **How many modes you see may be a fact about the observer, not the object** — which would make the whole mapping question a resolution question. Under targeted search alongside (1); black-hole ringdown overtone counting is the sharpest real instance.
+
+**Recorded rather than quietly patched**, because the wrong version is attractive: it makes a tidy mechanism out of what may be a normalisation artifact.
+
 ## 5 — why this naming beats the ones we had
 | name | what it tells you |
 |---|---|
@@ -52,7 +66,7 @@ The first three are positional or historical; the fourth is **operational**, and
 ## Honest scope
 - `[DEMONSTRABLE]`: §1–§3, on rc349, exhaustive over the octonion unit loop and all five rungs.
 - **The `1 + n` inertia shape is DEFINITIONAL** per rc349 (`n₋ = dim − 1` on every shipped rung) — see F1328. What is new here is only the **reading**, not the numbers.
-- §4 is a **reading**, not a measurement. Nothing here measures a decay rate; we have no damping model. "Phases drain into the magnitude" is the right shape for a damped resonator but is **not** demonstrated on our carrier — there is no time evolution in any of this.
+- §4 is a **reading**, not a measurement, and **§4b now names its precondition**: the drain story requires nonlinear mode coupling. In a linear system each mode decays independently and the shared loudness is a summing artifact. Nothing here measures a decay rate; we have no damping model and no time evolution.
 - **The "loudness" word is doing interpretive work.** What is measured is *this direction does not return, those do*. Calling the non-returning one "loudness" is the physical reading, and it is the one that makes the ring-down story go — but a reader should know which half is measurement.
 - **Literature status UNCHECKED and deliberately not asserted.** At one ringing direction the identification is textbook (phasor: modulus = amplitude, argument = phase). Whether *many phases sharing ONE magnitude* is a named structure anywhere — in physics, geophysics, astrophysics or biology, not just human acoustics — **is under targeted search and is not claimed here either way.** Standard acoustics gives each mode its *own* amplitude, i.e. `n × (1+1)`, not `1 + n`; whether our arrangement appears elsewhere is exactly the open question.
 
