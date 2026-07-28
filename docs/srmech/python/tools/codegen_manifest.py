@@ -250,6 +250,13 @@ EXCLUDED: Dict[str, str] = {
         "emitted skeleton'). Same reasoning as gen_curated_probe.py."
     ),
 }
+# NB ``python/tools/run_worked_examples.py`` (rc354, gh #1530 §K) is NOT listed
+# above, and must not be: :func:`discover_generator_scripts` matches ``gen_*.py``
+# only, so a non-``gen_`` tool is never in ``found`` and listing it makes it a
+# PHANTOM (``test_every_generator_is_classified`` fails on that half of the
+# guard). It is also not a generator by nature — it produces a MEASUREMENT
+# (``tests/worked_examples_result.ndjson``), nothing in the wheel derives from
+# it, and its result legitimately differs between the native and pure cells.
 
 
 # ── render adapters ───────────────────────────────────────────────────
