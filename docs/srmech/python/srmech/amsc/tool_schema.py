@@ -7627,6 +7627,94 @@ def _register_primitive_class_tools() -> None:
                       "'witness_certifies_nonorderable' (bool — w·w is a negative "
                       "real multiple of the identity)}"),
         ),
+        # rc352 (`#T997`): the GAMMA-parameterised Cayley–Dickson doubling —
+        # the CONTROL constructor. The `−` hard-wired into cd_mult's recursion
+        # IS the γ, pinned to −1; this exposes it per rung so the negative
+        # controls (split-𝕆 / split-ℂ / split-ℍ) stop being hand-rolled.
+        ToolEntry(
+            name="srmech.amsc.cascade.algebra_table", owner="srmech",
+            category="cascade",
+            summary="The rank-3 structure-constant TABLE of the GENERALISED "
+                    "Cayley–Dickson algebra: (a1,a2)(b1,b2) = (a1·b1 + γ·conj(b2)·a2, "
+                    "b2·a1 + a2·conj(b1)) with one γ ∈ {+1, −1} PER DOUBLING, in "
+                    "LADDER order (gammas[0] = ℝ→ℂ). γ = −1 everywhere is the "
+                    "definite ladder ℝ→ℂ→ℍ→𝕆→𝕊…; a +1 anywhere makes the algebra "
+                    "SPLIT from that rung up. THE DEFAULT IS THE SHIPPED ALGEBRA, "
+                    "BIT-IDENTICALLY: gammas=None reproduces cd_basis_product at "
+                    "every (dim, i, j) to dim 64, algebra_table(8) IS "
+                    "qm.octonion_mult_table() and algebra_table(4) IS "
+                    "qm.quaternion_mult_table(), and table_product over it "
+                    "reproduces cd_mult 300/300 (int) + 200/200 (exact-ℚ) — the "
+                    "same C cocycle engine, called with and without a γ vector. "
+                    "MEASURED at dim 8 over all eight γ-triples: exactly TWO "
+                    "answers — (−1,−1,−1) → trace (1,7,0) / norm (8,0,0) = 𝕆, and "
+                    "every other triple → (5,3,0) / (4,4,0) = split-𝕆. WHY IT "
+                    "SHIPS: CONTROLS, not capability — every negative control this "
+                    "arc needed was hand-rolled for want of a constructor, while "
+                    "the whole γ-family is sign-cocycle-degenerate the same "
+                    "344/512 way and every associative twist is a matrix algebra "
+                    "the Mat carrier already publishes. The table is MONOMIAL "
+                    "(e_i·e_j = ±e_{i⊕j}), exact integers, no float / no abs(). "
+                    "Same-rc C peer srmech_algebra_table. Class K ∘ C ∘ A. SSoT: "
+                    "Schafer (1966) §III.4; Springer & Veldkamp (2000) §1.5–1.7."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("dim", "int", True,
+                  "a power of two in [1, ALGEBRA_TABLE_MAX_DIM=64]. That ceiling "
+                  "bounds MATERIALISING the dim³ tensor — not addressing "
+                  "(CD_MAX_DIM=256), not composition (CD_COMPOSE_MAX_DIM=8), not "
+                  "turn-folding (CD_TURN_MAX_DIM=4)"),
+                P("gammas", "Sequence[int] | None", False,
+                  "log2(dim) entries, each +1 (SPLIT at that doubling) or −1 "
+                  "(definite), in LADDER order: gammas[0] is ℝ→ℂ, gammas[1] is "
+                  "ℂ→ℍ, … None (default) is −1 everywhere"),
+            ),
+            returns=R("list", "dim × dim × dim nested list[int]; table[i][j][k] "
+                              "is the coefficient of e_k in e_i·e_j — the shape "
+                              "inertia_signature reads and octonion_mult_table "
+                              "returns"),
+        ),
+        # rc352 (`#T997`): cd_mult's TABLE-DRIVEN sibling. Two table-driven
+        # products already existed in-tree (a private dim-8 loop in laplacian
+        # with one caller, and a test-local oracle that existed BECAUSE no
+        # shipped product took a table) and zero shipped; this is the one both
+        # now route through.
+        ToolEntry(
+            name="srmech.amsc.cascade.table_product", owner="srmech",
+            category="cascade",
+            summary="The product of two elements read off a STRUCTURE-CONSTANT "
+                    "TABLE: (x·y)_k = Σ_ij table[i][j][k]·x_i·y_j — exact, "
+                    "table-sensitive, and defined for algebras srmech has no "
+                    "hard-wired product for (a split twist from algebra_table, a "
+                    "hand-built control, a random table with no algebraic "
+                    "structure at all). cd_mult computes the ONE Cayley–Dickson "
+                    "product its recursion is wired for; this computes whichever "
+                    "algebra the caller names. IT AGREES WITH THE SHIPPED PRODUCT "
+                    "WHERE BOTH ARE DEFINED — table_product(algebra_table(dim), x, "
+                    "y) == cd_mult(x, y), 300/300 on random dim-8 integer pairs "
+                    "and 200/200 on random exact-ℚ pairs — and the two routes are "
+                    "genuinely different (a triple loop over a materialised tensor "
+                    "versus a recursive doubling), so the agreement is a "
+                    "differential, not a tautology. Returns exact Q, the same "
+                    "carrier cd_mult returns, so the two are directly comparable. "
+                    "Zero coefficients are skipped, so a MONOMIAL table costs "
+                    "O(dim²) rather than O(dim³). No float, no epsilon, no abs(). "
+                    "Same-rc C peer srmech_algebra_table_product — the SAME "
+                    "exact-ℚ element domain as srmech_cd_mult, so no int64 "
+                    "element ceiling and no decline. Class M ∘ K ∘ N."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("table", "list[list[list[int]]]", True,
+                  "the dim × dim × dim structure-constant tensor of exact int; "
+                  "the dimension is len(table) and nothing else supplies it"),
+                P("x", "Sequence", True,
+                  "the left element, len(table) exact-rational components (int / "
+                  "Q / Fraction / float → its EXACT ratio / (num, den))"),
+                P("y", "Sequence", True, "the right element, same length"),
+            ),
+            returns=R("tuple", "dim-tuple of exact Q — the k-th entry is "
+                               "Σ_ij table[i][j][k]·x_i·y_j"),
+        ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).
         # The cascade-faithful Q8-genome foundation (ADDITIVE; no genome wiring).
