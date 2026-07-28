@@ -7556,15 +7556,36 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.amsc.cascade.cd_norm_sq", owner="srmech",
             category="cascade",
-            summary="The squared norm N(x) = Σ xᵢ² (exact rational; x·x̄ = N(x)·1). "
-                    "Positive-definite at every rung. The composition identity "
+            summary="The norm form N(x) = Re(x·x̄) of a Cayley–Dickson algebra "
+                    "(exact rational; x·x̄ = N(x)·1 at every rung). GAMMAS DECLARES "
+                    "WHICH ALGEBRA, and the declaration is load-bearing (rc352, "
+                    "`#T1001`): None — the default — is the DEFINITE ladder, on "
+                    "which N collapses to the coordinate sum Σ xᵢ² and IS "
+                    "positive-definite; a supplied gammas names a generalised twist "
+                    "(see algebra_table), and on a SPLIT twist the coordinate sum is "
+                    "simply the wrong function. MEASURED: before the gate this op "
+                    "was Σ xᵢ² unconditionally and reported N([1,−1]) = 2 for a "
+                    "GENUINE null vector of split-ℂ ((1+j)(1−j) = 0), unable to see "
+                    "isotropy at all. cd_norm_sq([1,-1]) is still 2 (the definite ℂ "
+                    "answer, right for the algebra the default declares); "
+                    "cd_norm_sq([1,-1], gammas=[1]) is 0. ON A SPLIT TWIST THE "
+                    "RESULT CAN BE NEGATIVE OR ZERO FOR A NONZERO ELEMENT — the form "
+                    "is indefinite there, and reading '_sq' as non-negative is the "
+                    "trap the parameter removes. The twisted read is O(dim), not "
+                    "O(dim³): the generalised product is monomial with index i⊕j, so "
+                    "N(x) = Σᵢ xᵢ·x̄ᵢ·sign_γ(i,i). The composition identity "
                     "N(x·y) = N(x)·N(y) holds for dims ≤ 8 and FAILS at 16 (a "
                     "zero-divisor pair has N(x·y)=0 while N(x)·N(y)≠0; §VII.6.23 C3)."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("a", "sequence", True, "a power-of-two-length element"),
+                P("gammas", "Sequence[int] | None", False,
+                  "the per-doubling ±1 twist in LADDER order (gammas[0] = ℝ→ℂ), "
+                  "log2(len(a)) entries. None (default) is the definite ladder — "
+                  "the unchanged, C-dispatched coordinate fast path"),
             ),
-            returns=R("Q", "the squared norm Σ xᵢ²"),
+            returns=R("Q", "the exact N(x); negative or zero is possible on a "
+                           "declared SPLIT twist"),
         ),
         ToolEntry(
             name="srmech.amsc.cascade.cd_basis_product", owner="srmech",
@@ -7707,10 +7728,10 @@ def _register_primitive_class_tools() -> None:
                 P("table", "list[list[list[int]]]", True,
                   "the dim × dim × dim structure-constant tensor of exact int; "
                   "the dimension is len(table) and nothing else supplies it"),
-                P("x", "Sequence", True,
+                P("x", "sequence", True,
                   "the left element, len(table) exact-rational components (int / "
                   "Q / Fraction / float → its EXACT ratio / (num, den))"),
-                P("y", "Sequence", True, "the right element, same length"),
+                P("y", "sequence", True, "the right element, same length"),
             ),
             returns=R("tuple", "dim-tuple of exact Q — the k-th entry is "
                                "Σ_ij table[i][j][k]·x_i·y_j"),
@@ -7938,10 +7959,20 @@ def _register_primitive_class_tools() -> None:
                     "a left zero divisor ⟺ multiply-by-x is non-injective ⟺ no inverse "
                     "map exists — the 'no backward direction to point' of §VII.6.23.4 "
                     "(anything past and unobserved is lost). Empty for every nonzero "
-                    "element of a division algebra (≤𝕆). Class L (linear-algebra rank)."
+                    "element of a division algebra (≤𝕆). Class L (linear-algebra rank). "
+                    "rc352 (`#T997`): pass a structure-constant TABLE and this becomes a "
+                    "zero-divisor WITNESS on any algebra a table can express — split-𝕆 "
+                    "exhibits one at dim 8, where the shipped ladder has none. Witness "
+                    "half ONLY: zero divisors are measure-zero (left_mult_is_invertible "
+                    "returned True on 300/300 random dim-16 elements), so FINDING a "
+                    "candidate is a separate problem this op does not solve."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True, "a power-of-two-length element"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "the dim × dim × dim structure-constant tensor naming the algebra "
+                  "(e.g. from algebra_table). None (default) is the shipped "
+                  "Cayley–Dickson product, unchanged"),
             ),
             returns=R("list", "kernel-basis vectors (Q tuples); empty if invertible"),
         ),
@@ -7949,11 +7980,25 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.cascade.left_mult_is_invertible", owner="srmech",
             category="cascade",
             summary="True iff u ↦ x·u is a bijection (a backward direction exists). "
-                    "Always True for nonzero x at dims ≤ 8; False for a zero divisor at "
-                    "dim ≥ 16 — the reversibility that ends at the Hurwitz wall."
+                    "Always True for nonzero x at dims ≤ 8 ON THE DEFINITE LADDER; False "
+                    "for a zero divisor at dim ≥ 16 — the reversibility that ends at the "
+                    "Hurwitz wall. rc352 (`#T997`): hand it a SPLIT table and False "
+                    "appears at dim 2 already, which is the honest answer and the "
+                    "ladder's own wall is not it. With a table the rc12 modular-rank gate "
+                    "does not apply (it rebuilds the signed XOR-circulant from the "
+                    "shipped cocycle, so it is Cayley–Dickson-specific by construction) "
+                    "and the op takes the exact-kernel route instead — NOT a degradation: "
+                    "srmech_qmat_nullspace over the srmech_algebra_table_product-composed "
+                    "L(x) is C the whole way down and exact at any magnitude, so a bare-C "
+                    "host answers identically (ADR-0009 — a different C route, not a "
+                    "decline)."
                     + PUBLISH_OPT_IN_NOTE,
             parameters=(
                 P("x", "sequence", True, "a power-of-two-length element"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "the dim × dim × dim structure-constant tensor naming the algebra "
+                  "(e.g. from algebra_table). None (default) is the shipped "
+                  "Cayley–Dickson product, unchanged"),
             ),
             returns=R("bool", "True iff multiply-by-x has a (two-sided) inverse map"),
         ),

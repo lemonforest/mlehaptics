@@ -1117,13 +1117,21 @@ def left_mult_matrix(x: Sequence[Any], table: Any = None) -> List[List[Q]]:
     it :func:`left_mult_kernel`'s zero-divisor witness on those algebras.
 
     **This is also the differential that keeps ``table_product`` honest.**
-    ``left_mult_matrix(x) @ y == cd_mult(x, y)`` was MEASURED 200/200 on random
-    dim-8 pairs, and building a matrix column-by-column then contracting it is
-    a genuinely different route from a triple loop over a tensor. So
-    ``left_mult_matrix(x, table) @ y`` versus ``table_product(table, x, y)`` is
-    a real two-route check with **zero duplicated code** — which is the reason
-    this argument exists here rather than a second table-driven product
-    existing somewhere as a test oracle.
+    Contracting ``L(x)`` against ``y`` — ``Σ_c L[r][c]·y_c`` — reproduces
+    ``cd_mult(x, y)``, MEASURED 200/200 on random dim-8 pairs; building a matrix
+    column-by-column and then contracting it is a genuinely different route from
+    a triple loop over a tensor. So contracting ``left_mult_matrix(x, table)``
+    against ``y`` versus ``table_product(table, x, y)`` is a real two-route
+    check with **zero duplicated code** — which is the reason this argument
+    exists here rather than a second table-driven product existing somewhere as
+    a test oracle.
+
+    The contraction is written out as an exact-ℚ sum, NOT as a matmul: this
+    module is numpy-free by construction (see the module docstring), and matrix
+    contraction is a **carrier op** (:func:`srmech.amsc.laplacian.mat_matmul` /
+    ``mat_matvec``) rather than an operator to reach for — numpy is a carrier,
+    never the math engine, and ``L(x)`` here is a nested list of exact
+    :class:`~srmech.amsc.q.Q`, which no numpy dtype can hold without rounding.
     """
     x = _as_elem(x)
     n = len(x)

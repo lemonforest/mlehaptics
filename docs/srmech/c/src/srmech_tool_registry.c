@@ -1905,6 +1905,7 @@ static const srmech_tool_param_t ts_params_351[] = {
 };
 static const srmech_tool_param_t ts_params_352[] = {
     { "a", "sequence", 1, "a power-of-two-length element" },
+    { "gammas", "Sequence[int] | None", 0, "the per-doubling \302\2611 twist in LADDER order (gammas[0] = \342\204\235\342\206\222\342\204\202), log2(len(a)) entries. None (default) is the definite ladder \342\200\224 the unchanged, C-dispatched coordinate fast path" },
 };
 static const srmech_tool_param_t ts_params_353[] = {
     { "dim", "int", 1, "algebra dimension (power of two \342\211\244 64)" },
@@ -1920,8 +1921,8 @@ static const srmech_tool_param_t ts_params_355[] = {
 };
 static const srmech_tool_param_t ts_params_356[] = {
     { "table", "list[list[list[int]]]", 1, "the dim \303\227 dim \303\227 dim structure-constant tensor of exact int; the dimension is len(table) and nothing else supplies it" },
-    { "x", "Sequence", 1, "the left element, len(table) exact-rational components (int / Q / Fraction / float \342\206\222 its EXACT ratio / (num, den))" },
-    { "y", "Sequence", 1, "the right element, same length" },
+    { "x", "sequence", 1, "the left element, len(table) exact-rational components (int / Q / Fraction / float \342\206\222 its EXACT ratio / (num, den))" },
+    { "y", "sequence", 1, "the right element, same length" },
 };
 static const srmech_tool_param_t ts_params_357[] = {
     { "a", "int", 1, "a Q\342\202\210 element in [0, 8)" },
@@ -1961,9 +1962,11 @@ static const srmech_tool_param_t ts_params_366[] = {
 };
 static const srmech_tool_param_t ts_params_368[] = {
     { "x", "sequence", 1, "a power-of-two-length element" },
+    { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
 };
 static const srmech_tool_param_t ts_params_369[] = {
     { "x", "sequence", 1, "a power-of-two-length element" },
+    { "table", "list[list[list[int]]] | None", 0, "the dim \303\227 dim \303\227 dim structure-constant tensor naming the algebra (e.g. from algebra_table). None (default) is the shipped Cayley\342\200\223Dickson product, unchanged" },
 };
 static const srmech_tool_param_t ts_params_370[] = {
     { "dim", "int", 1, "an algebra dimension" },
@@ -8808,13 +8811,13 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.cascade.cd_norm_sq",
         "srmech",
         "cascade",
-        "The squared norm N(x) = \316\243 x\341\265\242\302\262 (exact rational; x\302\267x\314\204 = N(x)\302\2671). Positive-definite at every rung. The composition identity N(x\302\267y) = N(x)\302\267N(y) holds for dims \342\211\244 8 and FAILS at 16 (a zero-divisor pair has N(x\302\267y)=0 while N(x)\302\267N(y)\342\211\2400; \302\247VII.6.23 C3). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_352, 1u,
+        "The norm form N(x) = Re(x\302\267x\314\204) of a Cayley\342\200\223Dickson algebra (exact rational; x\302\267x\314\204 = N(x)\302\2671 at every rung). GAMMAS DECLARES WHICH ALGEBRA, and the declaration is load-bearing (rc352, `#T1001`): None \342\200\224 the default \342\200\224 is the DEFINITE ladder, on which N collapses to the coordinate sum \316\243 x\341\265\242\302\262 and IS positive-definite; a supplied gammas names a generalised twist (see algebra_table), and on a SPLIT twist the coordinate sum is simply the wrong function. MEASURED: before the gate this op was \316\243 x\341\265\242\302\262 unconditionally and reported N([1,\342\210\2221]) = 2 for a GENUINE null vector of split-\342\204\202 ((1+j)(1\342\210\222j) = 0), unable to see isotropy at all. cd_norm_sq([1,-1]) is still 2 (the definite \342\204\202 answer, right for the algebra the default declares); cd_norm_sq([1,-1], gammas=[1]) is 0. ON A SPLIT TWIST THE RESULT CAN BE NEGATIVE OR ZERO FOR A NONZERO ELEMENT \342\200\224 the form is indefinite there, and reading '_sq' as non-negative is the trap the parameter removes. The twisted read is O(dim), not O(dim\302\263): the generalised product is monomial with index i\342\212\225j, so N(x) = \316\243\341\265\242 x\341\265\242\302\267x\314\204\341\265\242\302\267sign_\316\263(i,i). The composition identity N(x\302\267y) = N(x)\302\267N(y) holds for dims \342\211\244 8 and FAILS at 16 (a zero-divisor pair has N(x\302\267y)=0 while N(x)\302\267N(y)\342\211\2400; \302\247VII.6.23 C3). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_352, 2u,
         "Q",
-        "the squared norm \316\243 x\341\265\242\302\262",
+        "the exact N(x); negative or zero is possible on a declared SPLIT twist",
         1,
         NULL,
-        "{\"call\":\"cd_norm_sq(a=<sequence>) -> Q\"}",
+        "{\"call\":\"cd_norm_sq(a=<sequence>, gammas=<Sequence[int] | None>) -> Q\"}",
         NULL,
         "The norm form ``N(x) = Re(x\302\267x\314\204)`` of a Cayley\342\200\223Dickson algebra (exact rational; ``x\302\267x\314\204 = N(x)\302\2671`` at every rung).",
         NULL, 0u,
@@ -8886,7 +8889,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "dim-tuple of exact Q \342\200\224 the k-th entry is \316\243_ij table[i][j][k]\302\267x_i\302\267y_j",
         1,
         NULL,
-        "{\"call\":\"table_product(table=<list[list[list[int]]]>, x=<Sequence>, y=<Sequence>) -> tuple\"}",
+        "{\"call\":\"table_product(table=<list[list[list[int]]]>, x=<sequence>, y=<sequence>) -> tuple\"}",
         NULL,
         "The product of two elements read off a **structure-constant table** \342\200\224 exact, table-sensitive, and defined for algebras srmech has no hard-wired product for (rc352, `#T997`)::",
         NULL, 0u,
@@ -9096,13 +9099,13 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.cascade.left_mult_kernel",
         "srmech",
         "cascade",
-        "Exact-rational kernel basis of the map u \342\206\246 x\302\267u. NONEMPTY \342\237\272 x is a left zero divisor \342\237\272 multiply-by-x is non-injective \342\237\272 no inverse map exists \342\200\224 the 'no backward direction to point' of \302\247VII.6.23.4 (anything past and unobserved is lost). Empty for every nonzero element of a division algebra (\342\211\244\360\235\225\206). Class L (linear-algebra rank). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_368, 1u,
+        "Exact-rational kernel basis of the map u \342\206\246 x\302\267u. NONEMPTY \342\237\272 x is a left zero divisor \342\237\272 multiply-by-x is non-injective \342\237\272 no inverse map exists \342\200\224 the 'no backward direction to point' of \302\247VII.6.23.4 (anything past and unobserved is lost). Empty for every nonzero element of a division algebra (\342\211\244\360\235\225\206). Class L (linear-algebra rank). rc352 (`#T997`): pass a structure-constant TABLE and this becomes a zero-divisor WITNESS on any algebra a table can express \342\200\224 split-\360\235\225\206 exhibits one at dim 8, where the shipped ladder has none. Witness half ONLY: zero divisors are measure-zero (left_mult_is_invertible returned True on 300/300 random dim-16 elements), so FINDING a candidate is a separate problem this op does not solve. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_368, 2u,
         "list",
         "kernel-basis vectors (Q tuples); empty if invertible",
         1,
         NULL,
-        "{\"call\":\"left_mult_kernel(x=<sequence>) -> list\"}",
+        "{\"call\":\"left_mult_kernel(x=<sequence>, table=<list[list[list[int]]] | None>) -> list\"}",
         NULL,
         "Kernel basis of ``u \342\206\246 x\302\267u``. **Nonempty \342\237\272 ``x`` is a left zero divisor \342\237\272 multiply-by-``x`` has no inverse map** \342\200\224 the \"no backward direction to point\" of \302\247VII.6.23.4. Empty for every nonzero element of a division algebra (\342\211\244\360\235\225\206).",
         NULL, 0u,
@@ -9114,13 +9117,13 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "srmech.amsc.cascade.left_mult_is_invertible",
         "srmech",
         "cascade",
-        "True iff u \342\206\246 x\302\267u is a bijection (a backward direction exists). Always True for nonzero x at dims \342\211\244 8; False for a zero divisor at dim \342\211\245 16 \342\200\224 the reversibility that ends at the Hurwitz wall. Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
-        ts_params_369, 1u,
+        "True iff u \342\206\246 x\302\267u is a bijection (a backward direction exists). Always True for nonzero x at dims \342\211\244 8 ON THE DEFINITE LADDER; False for a zero divisor at dim \342\211\245 16 \342\200\224 the reversibility that ends at the Hurwitz wall. rc352 (`#T997`): hand it a SPLIT table and False appears at dim 2 already, which is the honest answer and the ladder's own wall is not it. With a table the rc12 modular-rank gate does not apply (it rebuilds the signed XOR-circulant from the shipped cocycle, so it is Cayley\342\200\223Dickson-specific by construction) and the op takes the exact-kernel route instead \342\200\224 NOT a degradation: srmech_qmat_nullspace over the srmech_algebra_table_product-composed L(x) is C the whole way down and exact at any magnitude, so a bare-C host answers identically (ADR-0009 \342\200\224 a different C route, not a decline). Events emitted only when wrapped in `srmech.introspect.publish()` or `SRMECH_PUBLISH_STATUS=1` env-var set; otherwise silent.",
+        ts_params_369, 2u,
         "bool",
         "True iff multiply-by-x has a (two-sided) inverse map",
         1,
         NULL,
-        "{\"call\":\"left_mult_is_invertible(x=<sequence>) -> bool\"}",
+        "{\"call\":\"left_mult_is_invertible(x=<sequence>, table=<list[list[list[int]]] | None>) -> bool\"}",
         NULL,
         "``True`` iff ``u \342\206\246 x\302\267u`` is a bijection (a backward direction exists).",
         NULL, 0u,
