@@ -1,14 +1,26 @@
 """numpy-math ratchet — the down-only guard that keeps numpy a *carrier*, not a
 *math engine* (#928; user direction 2026-06-08).
 
-The discipline: **all math runs through srmech cascades; numpy is only ever for
-vector packing** (array creation / dtype / shape / slicing / the ctypes bridge).
-numpy bundles a full math engine alongside its carrier — ``np.linalg.*``,
-``np.fft.*``, the ``@`` matmul, the transcendental ufuncs. Every one of those is
-libm-at-the-array-level and has (or will have) a srmech cascade equivalent that
-rides the libm-free C core. A stray ``np.linalg.solve`` is therefore a *defect*,
-not a convenience — the same class of defect the C-transpile arc drove out of
-``libsrmech`` (libm 23 → 0).
+The discipline: **all math runs through srmech cascades, and numpy is not a
+dependency at all.**
+
+**numpy is GONE, not "carriers-only"** (#564, v0.7.5; corrected here rc352). The
+older wording said numpy was *"only ever for vector packing"*, which described a
+policy that no longer exists and is actively misleading: ``pip install srmech``
+pulls **no** numpy, both pyprojects say so, the ``scientific = ["numpy"]`` extra
+was removed, and the package source contains **zero** live ``import numpy`` (the
+17 grep hits under ``srmech/`` are all prose saying there is none). The carriers
+are srmech-native — :class:`~srmech.amsc.hdc.Mat` / :class:`~srmech.amsc.coupling.Vec`
+/ :class:`~srmech.amsc.hdc.HV` — numpy-*shaped* in idiom, but not numpy, and
+dispatched to the native C surface through ctypes over plain Python lists.
+
+So this ratchet does **not** guard "how the carriers are used". It guards against
+**reaching for numpy at all** — a stray ``np.linalg.solve`` would re-introduce a
+dependency the package deliberately does not have, and would be libm-at-the-
+array-level under a core that is libm-free (the same class of defect the
+C-transpile arc drove out of ``libsrmech``, libm 23 → 0). It stays useful
+precisely because numpy is absent: the counts are the answer to *"did anyone
+reach for it?"*, and the answer must keep being no.
 
 This test is the down-only debt ledger for that goal — a sibling of the libm
 C-transpile ratchet and the Rosetta-completeness ratchet. It greps the srmech
@@ -21,8 +33,41 @@ categories and pins each at a ceiling that only ever moves **down**:
     ``np.{matmul,einsum,kron,convolve,correlate,outer,tensordot,vdot,inner,
     cross}``: the contraction surface.
   * ``ufunc``      — ``np.{sin,cos,tan,exp,log,sqrt,sign,abs,arctan,power,…}``:
-    the transcendental / sign surface (the Python-tier residue of the C-transpile
-    arc — ``libsrmech`` is already libm-free, the scientific tier is not yet).
+    the transcendental / sign surface. (This once read *"the scientific tier is
+    not yet"* libm-free; corrected rc352 — **there is no scientific tier**. The
+    ``[scientific]`` extra was removed with numpy itself at rc127, as the ledger
+    note below this file's ceilings already recorded, and both ``libsrmech`` and
+    the Python tier are libm-free. This category is at **0** and its job now is
+    to keep any ``np.`` transcendental from re-entering.)
+
+⚠️ **READ THIS BEFORE CHANGING ANYTHING: the patterns are TEXT REGEXES, so a hit
+may be PROSE.** They are deliberately run over the source **text**, not the AST
+(see the CPython-version note at the end of this docstring), which means
+``" @[ =]"``, ``np.{matmul,…}`` and ``.dot(`` match **docstrings, comments and
+``ToolEntry`` summaries exactly as readily as code**. This is not hypothetical
+and it is not rare — it is the usual case:
+
+* rc57's **"matmul-ledger reword sweep"** (CHANGELOG, the 0.9.0rc57 entry)
+  audited the 48 then-current ``matmul`` matches and found **~30 were textual**
+  ` @ ` / ``np.{vdot,einsum,convolve,correlate,kron}`` references in prose —
+  *"not compute"* — and REWORDED them, writing the op name or ``·`` instead.
+* rc352 tripped it again the same way: two ` @ ` in a **numpy-free module's own
+  docstrings**, describing a matrix contraction. Acting on the message instead
+  of the source nearly added a numpy-backed carrier call to a module that
+  imports no numpy — which would have been a real regression, since the matrix
+  in question is a nested list of exact :class:`~srmech.amsc.q.Q` and no numpy
+  dtype holds a ``Q`` without rounding.
+* Measured at rc352, **every one of the remaining live hits is prose**: the two
+  ``linalg_fft`` counts are ``laplacian.py:450`` / ``:1057``, both docstring
+  lines naming ``numpy.linalg.eigvalsh`` as the thing srmech does **not** use.
+  This was ALREADY recorded — rc127's ledger note beneath the ceilings says *"the
+  ratchet now measures only docstring residue"* — but it sat ~380 lines down,
+  below the ``CEIL_*`` block, which is not where a reader who just hit the
+  failure message is looking. That is the whole reason this warning is up here.
+
+**So: open the file and look at the hit before you change code.** If it is prose,
+reword it (rc57's convention: name the op, or write ``·``). If it is compute,
+then and only then:
 
 To close debt: route a callsite through the srmech cascade that already backs it
 (``laplacian.dense_solve`` / ``dense_matvec_complex``, the ``cascade.fft`` /
@@ -33,9 +78,11 @@ To close debt: route a callsite through the srmech cascade that already backs it
 a count *above* means numpy math was added where a cascade belongs — which is
 exactly the regression this guard exists to forbid.
 
-Carrier ops (``np.zeros`` / ``np.asarray`` / ``np.ascontiguousarray`` /
-``reshape`` / ``.T`` / elementwise ``+ - *`` on arrays / indexing) are NOT
-counted — those are legitimate vector packing.
+Array-shaping names (``np.zeros`` / ``np.asarray`` / ``np.ascontiguousarray`` /
+``reshape`` / ``.T`` / elementwise ``+ - *`` / indexing) are NOT counted. They
+were the "vector packing" carve-out from when numpy was still a dependency; with
+numpy gone they are simply not the *math-engine* surface this ledger is about,
+and the srmech-native carriers spell those operations themselves.
 
 Reductions (``np.sum`` / ``np.mean`` / ``np.prod`` / ``np.cumsum`` …) sit on the
 carrier⇄math boundary and are a DEFERRED category — not yet pinned here; revisit
@@ -445,8 +492,17 @@ def test_numpy_math_ledger_is_tight():
         + ", ".join(
             f"{k}: live={live} ceiling={ceil}" for k, (live, ceil) in mismatches.items()
         )
-        + ".\n  ABOVE ceiling → route the new callsite through a srmech cascade "
-        "(numpy is carriers-only, never the math engine).\n  BELOW ceiling → you "
+        + ".\n  FIRST: OPEN THE FILE AND LOOK AT THE HIT — these are TEXT regexes, "
+        "so ` @ `, np.{matmul,…} and .dot( match DOCSTRINGS, COMMENTS and "
+        "ToolEntry summaries as readily as code, and historically most hits have "
+        "been prose (rc57 reworded ~30; rc352 tripped it with two ` @ ` inside a "
+        "numpy-FREE module's own docstrings). If the hit is PROSE, reword it — "
+        "name the op, or write '·' (the rc57 convention).\n"
+        "  ABOVE ceiling AND genuinely compute → route the callsite through the "
+        "srmech cascade that backs it. srmech has NO numpy dependency at all; the "
+        "carriers are srmech-native (Mat / Vec / HV), so this is about not "
+        "REACHING for numpy — never about how a carrier works.\n"
+        "  BELOW ceiling → you "
         "migrated a callsite; lower the matching CEIL_* to the new exact count.\n"
         "  Current per-file breakdown:\n" + _per_file_breakdown()
     )

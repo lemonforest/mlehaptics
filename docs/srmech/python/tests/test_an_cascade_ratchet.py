@@ -8,9 +8,12 @@ This is the **bare-Python-tier sibling** of two existing ratchets:
   * the **C-transpile libm ratchet** (``tests/test_c_cascade_coherence.py`` walks
     ``*.c`` / ``*.h`` and drove ``libsrmech``'s libm calls 23 → 0 — every
     continuous-math op in C is now a cascade of the 14, no ``<math.h>``); and
-  * the **numpy-math ratchet** (``tests/test_numpy_math_ratchet.py`` — the
-    numpy-tier residue: ``np.linalg`` / ``np.fft`` / ``@`` / the transcendental
-    ufuncs).
+  * the **numpy-math ratchet** (``tests/test_numpy_math_ratchet.py`` — guards
+    against REACHING for numpy: ``np.linalg`` / ``np.fft`` / ``@`` / the
+    transcendental ufuncs. There is no "numpy tier" to hold residue — numpy was
+    removed outright at rc127 and is not a dependency; that sibling's remaining
+    counts are docstring PROSE, not compute, which is why it is regex-based and
+    this one is not).
 
 What this one guards is the **third tier**: bare-Python ``math.*`` / ``cmath.*``
 float transcendentals, ``math.pi`` / ``math.tau`` float constants, and fractional
