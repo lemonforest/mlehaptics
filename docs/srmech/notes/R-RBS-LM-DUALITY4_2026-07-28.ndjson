@@ -1,0 +1,29 @@
+{"kind": "env", "srmech_version": "0.9.0rc352"}
+{"kind": "M1_form_signature", "dim": 1, "trace": [1, 0, 0], "norm": [1, 0, 0], "shipped_trace": [1, 0, 0]}
+{"kind": "M1_form_signature", "dim": 2, "trace": [1, 1, 0], "norm": [2, 0, 0], "shipped_trace": [1, 1, 0]}
+{"kind": "M1_form_signature", "dim": 4, "trace": [1, 3, 0], "norm": [4, 0, 0], "shipped_trace": [1, 3, 0]}
+{"kind": "M1_form_signature", "dim": 8, "trace": [1, 7, 0], "norm": [8, 0, 0], "shipped_trace": [1, 7, 0]}
+{"kind": "M1_form_signature", "dim": 16, "trace": [1, 15, 0], "norm": [16, 0, 0], "shipped_trace": [1, 15, 0]}
+{"kind": "M2_multiplicativity", "dim": 2, "trials": 200, "norm_multiplicative": 200, "trace_multiplicative": 54}
+{"kind": "M2_multiplicativity", "dim": 4, "trials": 200, "norm_multiplicative": 200, "trace_multiplicative": 1}
+{"kind": "M2_multiplicativity", "dim": 8, "trials": 200, "norm_multiplicative": 200, "trace_multiplicative": 0}
+{"kind": "M2_multiplicativity", "dim": 16, "trials": 200, "norm_multiplicative": 0, "trace_multiplicative": 0}
+{"kind": "M3_walsh_congruence", "dim": 2, "form": "trace", "label_basis": [1, 1, 0], "character_basis": [1, 1, 0], "unchanged": true}
+{"kind": "M3_walsh_congruence", "dim": 2, "form": "norm", "label_basis": [2, 0, 0], "character_basis": [2, 0, 0], "unchanged": true}
+{"kind": "M3_walsh_congruence", "dim": 4, "form": "trace", "label_basis": [1, 3, 0], "character_basis": [1, 3, 0], "unchanged": true}
+{"kind": "M3_walsh_congruence", "dim": 4, "form": "norm", "label_basis": [4, 0, 0], "character_basis": [4, 0, 0], "unchanged": true}
+{"kind": "M3_walsh_congruence", "dim": 8, "form": "trace", "label_basis": [1, 7, 0], "character_basis": [1, 7, 0], "unchanged": true}
+{"kind": "M3_walsh_congruence", "dim": 8, "form": "norm", "label_basis": [8, 0, 0], "character_basis": [8, 0, 0], "unchanged": true}
+{"kind": "M3_walsh_congruence", "dim": 16, "form": "trace", "label_basis": [1, 15, 0], "character_basis": [1, 15, 0], "unchanged": true}
+{"kind": "M3_walsh_congruence", "dim": 16, "form": "norm", "label_basis": [16, 0, 0], "character_basis": [16, 0, 0], "unchanged": true}
+{"kind": "M4_period_census", "algebra": "C", "dim": 2, "gammas": null, "squares_to_plus1": 1, "squares_to_minus1": 1, "census": "1+1", "is_one_plus_n": true}
+{"kind": "M4_period_census", "algebra": "H", "dim": 4, "gammas": null, "squares_to_plus1": 1, "squares_to_minus1": 3, "census": "1+3", "is_one_plus_n": true}
+{"kind": "M4_period_census", "algebra": "O", "dim": 8, "gammas": null, "squares_to_plus1": 1, "squares_to_minus1": 7, "census": "1+7", "is_one_plus_n": true}
+{"kind": "M4_period_census", "algebra": "S", "dim": 16, "gammas": null, "squares_to_plus1": 1, "squares_to_minus1": 15, "census": "1+15", "is_one_plus_n": true}
+{"kind": "M4_period_census", "algebra": "split-C", "dim": 2, "gammas": [1], "squares_to_plus1": 2, "squares_to_minus1": 0, "census": "2+0", "is_one_plus_n": false}
+{"kind": "M4_period_census", "algebra": "split-H", "dim": 4, "gammas": [1, 1], "squares_to_plus1": 3, "squares_to_minus1": 1, "census": "3+1", "is_one_plus_n": false}
+{"kind": "M4_period_census", "algebra": "split-O", "dim": 8, "gammas": [1, 1, 1], "squares_to_plus1": 5, "squares_to_minus1": 3, "census": "5+3", "is_one_plus_n": false}
+{"kind": "M5_lane_sizes", "dim": 2, "index_lane_group_order": 2, "sign_lane_group_order": 2, "exchangeable": true}
+{"kind": "M5_lane_sizes", "dim": 4, "index_lane_group_order": 4, "sign_lane_group_order": 2, "exchangeable": false}
+{"kind": "M5_lane_sizes", "dim": 8, "index_lane_group_order": 8, "sign_lane_group_order": 2, "exchangeable": false}
+{"kind": "M5_lane_sizes", "dim": 16, "index_lane_group_order": 16, "sign_lane_group_order": 2, "exchangeable": false}

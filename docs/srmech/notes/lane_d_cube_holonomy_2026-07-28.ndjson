@@ -1,0 +1,120 @@
+{"algebra": "R", "dim": 1, "kind": "structure", "normalised_left": true, "normalised_right": true, "xor_index_violations": 0}
+{"algebra": "C", "dim": 2, "kind": "structure", "normalised_left": true, "normalised_right": true, "xor_index_violations": 0}
+{"algebra": "H", "dim": 4, "kind": "structure", "normalised_left": true, "normalised_right": true, "xor_index_violations": 0}
+{"algebra": "O", "dim": 8, "kind": "structure", "normalised_left": true, "normalised_right": true, "xor_index_violations": 0}
+{"algebra": "S(sedenion)", "dim": 16, "kind": "structure", "normalised_left": true, "normalised_right": true, "xor_index_violations": 0}
+{"algebra": "T(32)", "dim": 32, "kind": "structure", "normalised_left": true, "normalised_right": true, "xor_index_violations": 0}
+{"algebra": "P(64)", "dim": 64, "kind": "structure", "normalised_left": true, "normalised_right": true, "xor_index_violations": 0}
+{"dim": 1, "kind": "differential", "vs_algebra_table": 0, "vs_cd_mult": 0, "vs_octonion_table": 0}
+{"dim": 2, "kind": "differential", "vs_algebra_table": 0, "vs_cd_mult": 0, "vs_octonion_table": 0}
+{"dim": 4, "kind": "differential", "vs_algebra_table": 0, "vs_cd_mult": 0, "vs_octonion_table": 0}
+{"dim": 8, "kind": "differential", "vs_algebra_table": 0, "vs_cd_mult": 0, "vs_octonion_table": 0}
+{"dim": 16, "kind": "differential", "vs_algebra_table": 0, "vs_cd_mult": 0, "vs_octonion_table": 0}
+{"dim": 32, "kind": "differential", "vs_algebra_table": 0, "vs_cd_mult": 0, "vs_octonion_table": 0}
+{"dim": 64, "kind": "differential", "vs_algebra_table": 0, "vs_cd_mult": 0, "vs_octonion_table": 0}
+{"algebra": "R", "census": "1:0", "dim": 1, "kind": "degree1_square", "n_cells": 1, "negative_squares": 0, "nontrivial": false, "positive_squares": 1}
+{"algebra": "C", "census": "1:1", "dim": 2, "kind": "degree1_square", "n_cells": 2, "negative_squares": 1, "nontrivial": true, "positive_squares": 1}
+{"algebra": "H", "census": "1:3", "dim": 4, "kind": "degree1_square", "n_cells": 4, "negative_squares": 3, "nontrivial": true, "positive_squares": 1}
+{"algebra": "O", "census": "1:7", "dim": 8, "kind": "degree1_square", "n_cells": 8, "negative_squares": 7, "nontrivial": true, "positive_squares": 1}
+{"algebra": "S(sedenion)", "census": "1:15", "dim": 16, "kind": "degree1_square", "n_cells": 16, "negative_squares": 15, "nontrivial": true, "positive_squares": 1}
+{"algebra": "T(32)", "census": "1:31", "dim": 32, "kind": "degree1_square", "n_cells": 32, "negative_squares": 31, "nontrivial": true, "positive_squares": 1}
+{"algebra": "P(64)", "census": "1:63", "dim": 64, "kind": "degree1_square", "n_cells": 64, "negative_squares": 63, "nontrivial": true, "positive_squares": 1}
+{"algebra": "R", "anticommuting": 0, "dim": 1, "kind": "degree2_commutator", "nontrivial": false, "pairs": 1, "polarisation_exact": true, "polarisation_of_q_agreements": 1}
+{"algebra": "C", "anticommuting": 0, "dim": 2, "kind": "degree2_commutator", "nontrivial": false, "pairs": 4, "polarisation_exact": true, "polarisation_of_q_agreements": 4}
+{"algebra": "H", "anticommuting": 6, "dim": 4, "kind": "degree2_commutator", "nontrivial": true, "pairs": 16, "polarisation_exact": true, "polarisation_of_q_agreements": 16}
+{"algebra": "O", "anticommuting": 42, "dim": 8, "kind": "degree2_commutator", "nontrivial": true, "pairs": 64, "polarisation_exact": true, "polarisation_of_q_agreements": 64}
+{"algebra": "S(sedenion)", "anticommuting": 210, "dim": 16, "kind": "degree2_commutator", "nontrivial": true, "pairs": 256, "polarisation_exact": true, "polarisation_of_q_agreements": 256}
+{"algebra": "T(32)", "anticommuting": 930, "dim": 32, "kind": "degree2_commutator", "nontrivial": true, "pairs": 1024, "polarisation_exact": true, "polarisation_of_q_agreements": 1024}
+{"algebra": "P(64)", "anticommuting": 3906, "dim": 64, "kind": "degree2_commutator", "nontrivial": true, "pairs": 4096, "polarisation_exact": true, "polarisation_of_q_agreements": 4096}
+{"algebra": "R", "base0_equals_commutator": 0, "dim": 1, "kind": "degree2_plaquette", "n_2faces": 0, "n_direction_pairs": 0, "nontrivial": false, "nontrivial_2faces": 0, "plaquette_constant_over_basepoints": 0, "vacuous": true}
+{"algebra": "C", "base0_equals_commutator": 0, "dim": 2, "kind": "degree2_plaquette", "n_2faces": 0, "n_direction_pairs": 0, "nontrivial": false, "nontrivial_2faces": 0, "plaquette_constant_over_basepoints": 0, "vacuous": true}
+{"algebra": "H", "base0_equals_commutator": 1, "dim": 4, "kind": "degree2_plaquette", "n_2faces": 4, "n_direction_pairs": 1, "nontrivial": true, "nontrivial_2faces": 4, "plaquette_constant_over_basepoints": 1, "vacuous": false}
+{"algebra": "O", "base0_equals_commutator": 3, "dim": 8, "kind": "degree2_plaquette", "n_2faces": 24, "n_direction_pairs": 3, "nontrivial": true, "nontrivial_2faces": 24, "plaquette_constant_over_basepoints": 3, "vacuous": false}
+{"algebra": "S(sedenion)", "base0_equals_commutator": 6, "dim": 16, "kind": "degree2_plaquette", "n_2faces": 96, "n_direction_pairs": 6, "nontrivial": true, "nontrivial_2faces": 96, "plaquette_constant_over_basepoints": 6, "vacuous": false}
+{"algebra": "T(32)", "base0_equals_commutator": 10, "dim": 32, "kind": "degree2_plaquette", "n_2faces": 320, "n_direction_pairs": 10, "nontrivial": true, "nontrivial_2faces": 320, "plaquette_constant_over_basepoints": 10, "vacuous": false}
+{"algebra": "P(64)", "base0_equals_commutator": 15, "dim": 64, "kind": "degree2_plaquette", "n_2faces": 960, "n_direction_pairs": 15, "nontrivial": true, "nontrivial_2faces": 960, "plaquette_constant_over_basepoints": 15, "vacuous": false}
+{"algebra": "R", "dim": 1, "generator_case_vacuous": true, "generator_triples": 0, "kind": "degree3_associator_cochain", "nonassociative_generator_triples": 0, "nonassociative_triples": 0, "nontrivial": false, "triples": 1}
+{"algebra": "C", "dim": 2, "generator_case_vacuous": true, "generator_triples": 0, "kind": "degree3_associator_cochain", "nonassociative_generator_triples": 0, "nonassociative_triples": 0, "nontrivial": false, "triples": 8}
+{"algebra": "H", "dim": 4, "generator_case_vacuous": true, "generator_triples": 0, "kind": "degree3_associator_cochain", "nonassociative_generator_triples": 0, "nonassociative_triples": 0, "nontrivial": false, "triples": 64}
+{"algebra": "O", "dim": 8, "generator_case_vacuous": false, "generator_triples": 6, "kind": "degree3_associator_cochain", "nonassociative_generator_triples": 6, "nonassociative_triples": 168, "nontrivial": true, "triples": 512}
+{"algebra": "S(sedenion)", "dim": 16, "generator_case_vacuous": false, "generator_triples": 24, "kind": "degree3_associator_cochain", "nonassociative_generator_triples": 24, "nonassociative_triples": 1848, "nontrivial": true, "triples": 4096}
+{"algebra": "T(32)", "dim": 32, "generator_case_vacuous": false, "generator_triples": 60, "kind": "degree3_associator_cochain", "nonassociative_generator_triples": 60, "nonassociative_triples": 15960, "nontrivial": true, "triples": 32768}
+{"algebra": "P(64)", "dim": 64, "generator_case_vacuous": false, "generator_triples": 120, "kind": "degree3_associator_cochain", "nonassociative_generator_triples": 120, "nonassociative_triples": 130200, "nontrivial": true, "triples": 262144}
+{"dim": 4, "disagreements_vs_cd_mult": 0, "kind": "degree3_associator_differential"}
+{"dim": 8, "disagreements_vs_cd_mult": 0, "kind": "degree3_associator_differential"}
+{"dim": 16, "disagreements_vs_cd_mult": 0, "kind": "degree3_associator_differential"}
+{"algebra": "R", "dim": 1, "kind": "degree3_cube_boundary", "n_3cubes": 0, "n_direction_triples": 0, "nontrivial": false, "nontrivial_3cubes": 0, "vacuous": true}
+{"algebra": "C", "dim": 2, "kind": "degree3_cube_boundary", "n_3cubes": 0, "n_direction_triples": 0, "nontrivial": false, "nontrivial_3cubes": 0, "vacuous": true}
+{"algebra": "H", "dim": 4, "kind": "degree3_cube_boundary", "n_3cubes": 0, "n_direction_triples": 0, "nontrivial": false, "nontrivial_3cubes": 0, "vacuous": true}
+{"algebra": "O", "dim": 8, "kind": "degree3_cube_boundary", "n_3cubes": 8, "n_direction_triples": 1, "nontrivial": false, "nontrivial_3cubes": 0, "vacuous": false}
+{"algebra": "S(sedenion)", "dim": 16, "kind": "degree3_cube_boundary", "n_3cubes": 64, "n_direction_triples": 4, "nontrivial": false, "nontrivial_3cubes": 0, "vacuous": false}
+{"algebra": "T(32)", "dim": 32, "kind": "degree3_cube_boundary", "n_3cubes": 320, "n_direction_triples": 10, "nontrivial": false, "nontrivial_3cubes": 0, "vacuous": false}
+{"algebra": "P(64)", "dim": 64, "kind": "degree3_cube_boundary", "n_3cubes": 1280, "n_direction_triples": 20, "nontrivial": false, "nontrivial_3cubes": 0, "vacuous": false}
+{"algebra": "R", "base0_cases": 0, "base0_equals_generator_associator": 0, "dim": 1, "kind": "degree3_opposite_face", "n_oriented_triples": 0, "n_values": 0, "nontrivial": false, "nontrivial_count": 0, "vacuous": true}
+{"algebra": "C", "base0_cases": 0, "base0_equals_generator_associator": 0, "dim": 2, "kind": "degree3_opposite_face", "n_oriented_triples": 0, "n_values": 0, "nontrivial": false, "nontrivial_count": 0, "vacuous": true}
+{"algebra": "H", "base0_cases": 0, "base0_equals_generator_associator": 0, "dim": 4, "kind": "degree3_opposite_face", "n_oriented_triples": 0, "n_values": 0, "nontrivial": false, "nontrivial_count": 0, "vacuous": true}
+{"algebra": "O", "base0_cases": 6, "base0_equals_generator_associator": 0, "dim": 8, "kind": "degree3_opposite_face", "n_oriented_triples": 6, "n_values": 48, "nontrivial": false, "nontrivial_count": 0, "vacuous": false}
+{"algebra": "S(sedenion)", "base0_cases": 24, "base0_equals_generator_associator": 0, "dim": 16, "kind": "degree3_opposite_face", "n_oriented_triples": 24, "n_values": 384, "nontrivial": false, "nontrivial_count": 0, "vacuous": false}
+{"algebra": "T(32)", "base0_cases": 60, "base0_equals_generator_associator": 0, "dim": 32, "kind": "degree3_opposite_face", "n_oriented_triples": 60, "n_values": 1920, "nontrivial": false, "nontrivial_count": 0, "vacuous": false}
+{"algebra": "P(64)", "base0_cases": 120, "base0_equals_generator_associator": 0, "dim": 64, "kind": "degree3_opposite_face", "n_oriented_triples": 120, "n_values": 7680, "nontrivial": false, "nontrivial_count": 0, "vacuous": false}
+{"algebra": "O", "cube_boundary_equals_associator": 0, "dim": 8, "kind": "cube_vs_associator", "n_rows": 6, "opposite_face_equals_associator": 0, "rows": [{"associator": -1, "cube_boundary": 1, "dirs": [0, 1, 2], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [0, 2, 1], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [1, 0, 2], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [1, 2, 0], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [2, 0, 1], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [2, 1, 0], "opposite_face": 1}]}
+{"algebra": "S(sedenion)", "cube_boundary_equals_associator": 0, "dim": 16, "kind": "cube_vs_associator", "n_rows": 24, "opposite_face_equals_associator": 0, "rows": [{"associator": -1, "cube_boundary": 1, "dirs": [0, 1, 2], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [0, 1, 3], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [0, 2, 1], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [0, 2, 3], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [0, 3, 1], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [0, 3, 2], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [1, 0, 2], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [1, 0, 3], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [1, 2, 0], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [1, 2, 3], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [1, 3, 0], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [1, 3, 2], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [2, 0, 1], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [2, 0, 3], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [2, 1, 0], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [2, 1, 3], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [2, 3, 0], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [2, 3, 1], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [3, 0, 1], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [3, 0, 2], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [3, 1, 0], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [3, 1, 2], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [3, 2, 0], "opposite_face": 1}, {"associator": -1, "cube_boundary": 1, "dirs": [3, 2, 1], "opposite_face": 1}]}
+{"algebra": "R", "alternating": true, "associator_alternating_agreements": 1, "dim": 1, "flexible_violations": 0, "kind": "alternativity", "left_alternative_violations": 0, "right_alternative_violations": 0, "triples": 1}
+{"algebra": "C", "alternating": true, "associator_alternating_agreements": 8, "dim": 2, "flexible_violations": 0, "kind": "alternativity", "left_alternative_violations": 0, "right_alternative_violations": 0, "triples": 8}
+{"algebra": "H", "alternating": true, "associator_alternating_agreements": 64, "dim": 4, "flexible_violations": 0, "kind": "alternativity", "left_alternative_violations": 0, "right_alternative_violations": 0, "triples": 64}
+{"algebra": "O", "alternating": true, "associator_alternating_agreements": 512, "dim": 8, "flexible_violations": 0, "kind": "alternativity", "left_alternative_violations": 0, "right_alternative_violations": 0, "triples": 512}
+{"algebra": "S(sedenion)", "alternating": false, "associator_alternating_agreements": 3088, "dim": 16, "flexible_violations": 0, "kind": "alternativity", "left_alternative_violations": 0, "right_alternative_violations": 0, "triples": 4096}
+{"algebra": "T(32)", "alternating": false, "associator_alternating_agreements": 17648, "dim": 32, "flexible_violations": 0, "kind": "alternativity", "left_alternative_violations": 0, "right_alternative_violations": 0, "triples": 32768}
+{"algebra": "P(64)", "alternating": false, "associator_alternating_agreements": 105904, "dim": 64, "flexible_violations": 0, "kind": "alternativity", "left_alternative_violations": 0, "right_alternative_violations": 0, "triples": 262144}
+{"algebra": "R", "dim": 1, "kind": "period_census", "non_ringing": 1, "order_histogram": {"1": 1}, "ringing": 0}
+{"algebra": "C", "dim": 2, "kind": "period_census", "non_ringing": 1, "order_histogram": {"1": 1, "4": 1}, "ringing": 1}
+{"algebra": "H", "dim": 4, "kind": "period_census", "non_ringing": 1, "order_histogram": {"1": 1, "4": 3}, "ringing": 3}
+{"algebra": "O", "dim": 8, "kind": "period_census", "non_ringing": 1, "order_histogram": {"1": 1, "4": 7}, "ringing": 7}
+{"algebra": "S(sedenion)", "dim": 16, "kind": "period_census", "non_ringing": 1, "order_histogram": {"1": 1, "4": 15}, "ringing": 15}
+{"algebra": "T(32)", "dim": 32, "kind": "period_census", "non_ringing": 1, "order_histogram": {"1": 1, "4": 31}, "ringing": 31}
+{"algebra": "P(64)", "dim": 64, "kind": "period_census", "non_ringing": 1, "order_histogram": {"1": 1, "4": 63}, "ringing": 63}
+{"algebra": "R", "dim": 1, "kind": "cycle_lift", "note": "no directions"}
+{"algebra": "C", "dim": 2, "kind": "cycle_lift", "square_holonomy": null, "square_index_length": null, "square_lifted_length": null, "two_gon_holonomy": -1, "two_gon_index_length": 2, "two_gon_lifted_length": 4}
+{"algebra": "H", "dim": 4, "kind": "cycle_lift", "square_holonomy": -1, "square_index_length": 4, "square_lifted_length": 8, "two_gon_holonomy": -1, "two_gon_index_length": 2, "two_gon_lifted_length": 4}
+{"algebra": "O", "dim": 8, "kind": "cycle_lift", "square_holonomy": -1, "square_index_length": 4, "square_lifted_length": 8, "two_gon_holonomy": -1, "two_gon_index_length": 2, "two_gon_lifted_length": 4}
+{"algebra": "S(sedenion)", "dim": 16, "kind": "cycle_lift", "square_holonomy": -1, "square_index_length": 4, "square_lifted_length": 8, "two_gon_holonomy": -1, "two_gon_index_length": 2, "two_gon_lifted_length": 4}
+{"algebra": "T(32)", "dim": 32, "kind": "cycle_lift", "square_holonomy": -1, "square_index_length": 4, "square_lifted_length": 8, "two_gon_holonomy": -1, "two_gon_index_length": 2, "two_gon_lifted_length": 4}
+{"algebra": "P(64)", "dim": 64, "kind": "cycle_lift", "square_holonomy": -1, "square_index_length": 4, "square_lifted_length": 8, "two_gon_holonomy": -1, "two_gon_index_length": 2, "two_gon_lifted_length": 4}
+{"algebra": "R", "dim": 1, "kind": "plaquette_from_period", "vacuous": true}
+{"algebra": "C", "dim": 2, "kind": "plaquette_from_period", "vacuous": true}
+{"agreements": 8, "algebra": "H", "cases": 8, "dim": 4, "exact": true, "kind": "plaquette_from_period"}
+{"agreements": 48, "algebra": "O", "cases": 48, "dim": 8, "exact": true, "kind": "plaquette_from_period"}
+{"agreements": 192, "algebra": "S(sedenion)", "cases": 192, "dim": 16, "exact": true, "kind": "plaquette_from_period"}
+{"agreements": 640, "algebra": "T(32)", "cases": 640, "dim": 32, "exact": true, "kind": "plaquette_from_period"}
+{"agreements": 1920, "algebra": "P(64)", "cases": 1920, "dim": 64, "exact": true, "kind": "plaquette_from_period"}
+{"has_native": true, "kind": "provenance", "lib": "/mnt/d/GitHub/mlehaptics/docs/srmech/python/srmech/_native/libsrmech.so", "python": "3.10.12", "srmech_version": "0.9.0rc352"}
+{"algebra": "C", "all_nonzero_left_basepoint_varying": 0, "all_nonzero_left_pairs": 0, "all_nonzero_right_basepoint_varying": 0, "all_nonzero_right_pairs": 0, "dim": 2, "generators_left_basepoint_varying": 0, "generators_left_pairs": 0, "generators_right_basepoint_varying": 0, "generators_right_pairs": 0, "kind": "plaquette_basepoint_dependence"}
+{"algebra": "H", "all_nonzero_left_basepoint_varying": 0, "all_nonzero_left_pairs": 6, "all_nonzero_right_basepoint_varying": 0, "all_nonzero_right_pairs": 6, "dim": 4, "generators_left_basepoint_varying": 0, "generators_left_pairs": 2, "generators_right_basepoint_varying": 0, "generators_right_pairs": 2, "kind": "plaquette_basepoint_dependence"}
+{"algebra": "O", "all_nonzero_left_basepoint_varying": 0, "all_nonzero_left_pairs": 42, "all_nonzero_right_basepoint_varying": 0, "all_nonzero_right_pairs": 42, "dim": 8, "generators_left_basepoint_varying": 0, "generators_left_pairs": 6, "generators_right_basepoint_varying": 0, "generators_right_pairs": 6, "kind": "plaquette_basepoint_dependence"}
+{"algebra": "S(sedenion)", "all_nonzero_left_basepoint_varying": 84, "all_nonzero_left_pairs": 210, "all_nonzero_right_basepoint_varying": 84, "all_nonzero_right_pairs": 210, "dim": 16, "generators_left_basepoint_varying": 0, "generators_left_pairs": 12, "generators_right_basepoint_varying": 0, "generators_right_pairs": 12, "kind": "plaquette_basepoint_dependence"}
+{"algebra": "T(32)", "all_nonzero_left_basepoint_varying": 588, "all_nonzero_left_pairs": 930, "all_nonzero_right_basepoint_varying": 588, "all_nonzero_right_pairs": 930, "dim": 32, "generators_left_basepoint_varying": 0, "generators_left_pairs": 20, "generators_right_basepoint_varying": 0, "generators_right_pairs": 20, "kind": "plaquette_basepoint_dependence"}
+{"agreements": 0, "algebra": "C", "cases": 0, "dim": 2, "exact": true, "kind": "plaquette_equals_assoc_pair_times_commutator"}
+{"agreements": 24, "algebra": "H", "cases": 24, "dim": 4, "exact": true, "kind": "plaquette_equals_assoc_pair_times_commutator"}
+{"agreements": 336, "algebra": "O", "cases": 336, "dim": 8, "exact": true, "kind": "plaquette_equals_assoc_pair_times_commutator"}
+{"agreements": 3360, "algebra": "S(sedenion)", "cases": 3360, "dim": 16, "exact": true, "kind": "plaquette_equals_assoc_pair_times_commutator"}
+{"agreements": 29760, "algebra": "T(32)", "cases": 29760, "dim": 32, "exact": true, "kind": "plaquette_equals_assoc_pair_times_commutator"}
+{"algebra": "C", "dim": 2, "kind": "associator_needs_diagonal", "nonassoc_generator_triples_whose_second_leg_is_an_edge": 0, "note": "h XOR k is a 2-bit weight => never a hypercube edge"}
+{"algebra": "H", "dim": 4, "kind": "associator_needs_diagonal", "nonassoc_generator_triples_whose_second_leg_is_an_edge": 0, "note": "h XOR k is a 2-bit weight => never a hypercube edge"}
+{"algebra": "O", "dim": 8, "kind": "associator_needs_diagonal", "nonassoc_generator_triples_whose_second_leg_is_an_edge": 0, "note": "h XOR k is a 2-bit weight => never a hypercube edge"}
+{"algebra": "S(sedenion)", "dim": 16, "kind": "associator_needs_diagonal", "nonassoc_generator_triples_whose_second_leg_is_an_edge": 0, "note": "h XOR k is a 2-bit weight => never a hypercube edge"}
+{"algebra": "T(32)", "dim": 32, "kind": "associator_needs_diagonal", "nonassoc_generator_triples_whose_second_leg_is_an_edge": 0, "note": "h XOR k is a 2-bit weight => never a hypercube edge"}
+{"agreements": 8, "algebra": "C", "cases": 8, "dim": 2, "exact": true, "kind": "tetrahedron_face_product_is_associator"}
+{"agreements": 64, "algebra": "H", "cases": 64, "dim": 4, "exact": true, "kind": "tetrahedron_face_product_is_associator"}
+{"agreements": 512, "algebra": "O", "cases": 512, "dim": 8, "exact": true, "kind": "tetrahedron_face_product_is_associator"}
+{"agreements": 4096, "algebra": "S(sedenion)", "cases": 4096, "dim": 16, "exact": true, "kind": "tetrahedron_face_product_is_associator"}
+{"agreements": 32768, "algebra": "T(32)", "cases": 32768, "dim": 32, "exact": true, "kind": "tetrahedron_face_product_is_associator"}
+{"algebra": "C", "associator_changed": 0, "commutator_beta_changed": 0, "dim": 2, "edge_weight_changed": 0, "kind": "gauge_invariance", "plaquette_changed": 0, "regaugings": 64, "square_q_changed": 0}
+{"algebra": "H", "associator_changed": 0, "commutator_beta_changed": 0, "dim": 4, "edge_weight_changed": 33, "kind": "gauge_invariance", "plaquette_changed": 0, "regaugings": 64, "square_q_changed": 0}
+{"algebra": "O", "associator_changed": 0, "commutator_beta_changed": 0, "dim": 8, "edge_weight_changed": 60, "kind": "gauge_invariance", "plaquette_changed": 0, "regaugings": 64, "square_q_changed": 0}
+{"algebra": "S(sedenion)", "associator_changed": 0, "commutator_beta_changed": 0, "dim": 16, "edge_weight_changed": 64, "kind": "gauge_invariance", "plaquette_changed": 0, "regaugings": 64, "square_q_changed": 0}
+{"algebra": "T(32)", "associator_changed": 0, "commutator_beta_changed": 0, "dim": 32, "edge_weight_changed": 64, "kind": "gauge_invariance", "plaquette_changed": 0, "regaugings": 64, "square_q_changed": 0}
+{"algebra": "C", "degree_histogram": {"2": 1}, "dim": 2, "kind": "anf_of_eps", "max_degree": 2, "n_monomials": 1, "n_variables": 2}
+{"algebra": "H", "degree_histogram": {"2": 3}, "dim": 4, "kind": "anf_of_eps", "max_degree": 2, "n_monomials": 3, "n_variables": 4}
+{"algebra": "O", "degree_histogram": {"2": 6, "3": 3}, "dim": 8, "kind": "anf_of_eps", "max_degree": 3, "n_monomials": 9, "n_variables": 6}
+{"algebra": "S(sedenion)", "degree_histogram": {"2": 10, "3": 12, "4": 7}, "dim": 16, "kind": "anf_of_eps", "max_degree": 4, "n_monomials": 29, "n_variables": 8}
+{"algebra": "T(32)", "degree_histogram": {"2": 15, "3": 30, "4": 35, "5": 15}, "dim": 32, "kind": "anf_of_eps", "max_degree": 5, "n_monomials": 95, "n_variables": 10}
