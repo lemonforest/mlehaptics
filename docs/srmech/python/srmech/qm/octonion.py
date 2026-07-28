@@ -437,6 +437,20 @@ def octonion_norm(x: Sequence[float]) -> float:
 
     The norm form of the composition algebra. The sum-of-squares is reduced
     to a Python float, passed through the **scalar** Class K pin-slot
+    magnitude — but read the SCOPE line below first.
+
+    **SCOPE — this is the DEFINITE 𝕆, and the coordinate form is correct only
+    there** (named rc352, `#T1001`). ``Σ xᵢ²`` equals ``Re(x·x̄)`` because this
+    module's product is :func:`octonion_mult_table`'s, whose imaginary units
+    all square to ``−1``. On **split-𝕆** four of them square to ``+1``, the
+    norm form is the indefinite ``(4, 4)`` one, and this function would report
+    a positive number for a genuine null vector. That is not a latent bug here
+    — this module cannot construct a split algebra — but it IS the same
+    substitution :func:`srmech.amsc.cascade.inertia_signature` exists to avoid.
+    For a twist, use ``cd_norm_sq(x, gammas=…)`` or read ``Re(x·x̄)`` through
+    :func:`srmech.amsc.cascade.table_product`.
+
+    The sum-of-squares is passed through the **scalar** Class K pin-slot
     magnitude (:func:`srmech.amsc.cascade.magnitude` — the cascade-honest
     replacement for ``abs()`` per
     ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``), then the

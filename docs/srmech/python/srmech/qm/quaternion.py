@@ -420,8 +420,19 @@ def quaternion_conjugate(x: Sequence[float]) -> List[float]:
 def quaternion_norm(x: Sequence[float]) -> float:
     """Quaternion norm ``sqrt(sum x_i²)`` (Class K + Class C; never ``abs()``).
 
-    The norm form of the composition algebra (``N(x) = x·conj(x)``). The
-    sum-of-squares is reduced to a scalar float, passed through the Class K
+    The norm form of the composition algebra (``N(x) = x·conj(x)``).
+
+    **SCOPE — this is the DEFINITE ℍ** (named rc352, `#T1001`). ``Σ xᵢ²``
+    equals ``Re(x·x̄)`` because this module's product is
+    :func:`quaternion_mult_table`'s, whose three imaginary units all square to
+    ``−1``. On **split-ℍ** two square to ``+1``, the norm form is the
+    indefinite ``(2, 2)`` one, and this function would report a positive number
+    for a genuine null vector. Not a latent bug here — this module cannot
+    construct a split algebra — but for a twist use
+    ``cd_norm_sq(x, gammas=…)``. Peer of
+    :func:`srmech.qm.octonion.octonion_norm`, same scope.
+
+    The sum-of-squares is reduced to a scalar float, passed through the Class K
     pin-slot magnitude (:func:`srmech.amsc.cascade.magnitude` — the
     cascade-honest ``abs()`` replacement), then the Class-N
     :func:`srmech.amsc.rational.sqrt`. Mirrors
