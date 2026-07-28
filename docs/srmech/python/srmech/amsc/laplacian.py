@@ -1568,6 +1568,24 @@ def _pin_eigenvector_phases(V):
     :func:`_canonicalize_eigenvector_signs` (a real negative pivot gives the factor
     ``−1``). ``V`` is a nested ``list`` of ``complex``; returns the pinned nested list.
 
+    **The magnitude is a Class-N cascade, not an FPU power.** The first cut of this
+    wrote ``best ** 0.5`` and the A-N cascade ratchet caught it on every CI cell at
+    once (``float_pow: live=1 ceiling=0``) — ``CEIL_FLOAT_POW`` is a hard-won zero and
+    is not to be spent. ``|pivot|`` is a complex modulus, which is exactly what
+    :func:`_fhypot` (``float(rational.hypot(re, im))``) is for. Sign-handling and
+    MAGNITUDE are both cascade ops; doing the Class-K half right and then reaching for
+    the FPU for the other half is half the discipline.
+
+    A root here is genuinely unavoidable — producing a UNIT column from a non-unit one
+    is a normalisation, and every route to it (phase pin, ``Re``/``Im`` selection, or
+    ``Re(zᵣ·conj(z_k))``, all of which were checked) lands on the same ``√(re²+im²)``.
+    What IS avoidable is paying for it when there is no phase to remove: a pivot
+    already ON the real axis needs only the ``±1`` Class-K flip. **Measured over the
+    same 804-matrix corpus (3214 columns pinned): the native path needs the root for
+    0 columns — 0.00%, the C Jacobi always returns real columns — and the pure path
+    for 150, 4.67%.** So the cascade call is confined to exactly the degenerate
+    columns that motivate this function, and costs nothing anywhere else.
+
     **Measured, not assumed:** over 804 real-symmetric matrices (5 hand-built
     degenerate fixtures + 400 random-symmetric + 400 exactly-degenerate diagonals,
     n ≤ 6) the residual imaginary part after pinning is **identically 0.0** — the
@@ -1591,8 +1609,17 @@ def _pin_eigenvector_phases(V):
         if best <= 0.0:
             continue                          # an all-zero column carries no phase
         pivot = V[k][j]
-        # conj(pivot)/|pivot| — the unit phase that rotates the pivot onto ℝ₊.
-        phase = complex(pivot.real, -pivot.imag) / (best ** 0.5)
+        if pivot.imag == 0.0:
+            # Already on ℝ: the phase is ±1, so this is the Class-K sign pin alone —
+            # no modulus, no root, no cascade call. The overwhelmingly common case.
+            if pivot.real < 0.0:
+                for r in range(n_rows):
+                    V[r][j] = -V[r][j]
+            continue
+        # A genuinely complex pivot: conj(pivot)/|pivot| is the unit phase that
+        # rotates it onto ℝ₊. |pivot| is a COMPLEX MODULUS — the Class-N cascade
+        # op (_fhypot = float(rational.hypot(re, im))), never an FPU `** 0.5`.
+        phase = complex(pivot.real, -pivot.imag) / _fhypot(pivot.real, pivot.imag)
         for r in range(n_rows):
             V[r][j] = V[r][j] * phase
     return V
