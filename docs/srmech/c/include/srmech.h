@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc352"
-#define SRMECH_VERSION       "0.9.0rc352"
+#define SRMECH_VERSION_PRE   "rc353"
+#define SRMECH_VERSION       "0.9.0rc353"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -11969,7 +11969,7 @@ srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
                                void *ws, size_t ws_len);
 
-/* The TABLE-DRIVEN exact-Q product (v0.9.0rc352, `#T997`) — srmech_cd_mult's
+/* The TABLE-DRIVEN exact-Q product (v0.9.0rc353, `#T997`) — srmech_cd_mult's
  * sibling, reading a caller-supplied rank-3 structure-constant table instead
  * of the hard-wired Cayley-Dickson cocycle:
  *

@@ -751,10 +751,14 @@ def _register_amsc_tools() -> None:
             ),
             returns=ToolReturn(type="str", shape="64-char lowercase hex"),
             smoke_test_hint={"data": "b''"},
-            example={
-                "input": {"data": "b'abc'"},
-                "output": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-            },
+            # NO literal ``example=`` here on purpose (`#T1006`). A hand-written
+            # example on the REGISTRATION always wins the ``_apply_docs`` merge
+            # (see :func:`_apply_docs`), so a stub here permanently SHADOWS
+            # ``_tool_docs_curated.py`` — the file the project designates as the
+            # one to hand-edit. Both this op and ``sha256_batch`` carried a
+            # one-call ``{input, output}`` stub that silently outranked the
+            # worked, executed, sibling-disambiguating entry curation supplies.
+            # Curate in ``_tool_docs_curated.py``; leave this field absent.
         ),
         ToolEntry(
             name="srmech.amsc.format.sha256_batch",
@@ -777,10 +781,10 @@ def _register_amsc_tools() -> None:
             returns=ToolReturn(type="list[str]",
                                shape="one 64-char lowercase hex digest per input"),
             smoke_test_hint={"datas": "[b'', b'abc']"},
-            example={
-                "input": {"datas": "[b'abc']"},
-                "output": "['ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad']",
-            },
+            # NO literal ``example=`` here on purpose (`#T1006`) — see the note
+            # on ``sha256_bytes`` above. A registration literal outranks
+            # ``_tool_docs_curated.py``, so a stub here makes curation
+            # unreachable for this tool.
         ),
         ToolEntry(
             name="srmech.amsc.format.read_ndjson",
@@ -9675,7 +9679,7 @@ def _register_qm_tools() -> None:
             name="srmech.qm.quaternion.quaternion_cycle_holonomy",
             owner="srmech", category="qm.quaternion",
             summary="The NON-ABELIAN cycle holonomies of a quaternion gain "
-                    "graph (#944 follow-on) — the k=2 discrete which-way / "
+                    "graph (#T944 follow-on) — the k=2 discrete which-way / "
                     "Lk-analog channel, the associative sibling of the abelian "
                     "laplacian.cycle_holonomy. Edge gains are UNIT quaternions "
                     "(Q₈ = {±1,±i,±j,±k} or a continuous re-gauge). Per "

@@ -219,6 +219,65 @@ def test_guard_ignores_unicode_escaping(gen, built):
     assert gen.unrederivable_fields(committed, seed, curated) == {}
 
 
+def test_guard_does_not_fire_on_new_curation_over_an_auto_seed(gen, built):
+    """rc353 (`#T1006`) — ADDING curation must not read as destroying prose.
+
+    The committed file holds the machine-written seed; ``CURATED`` now holds
+    better prose for the same field. Nothing is lost: the seed is authored by
+    nobody and the generator rebuilds it on demand.
+
+    Before rc353 the predicate asked only "does the merged output still equal
+    what is committed?", so every curation addition fired. Measured on the
+    25-op Cayley–Dickson curation: 50 fields refused, 48 of them byte-equal to
+    the fresh seed. The only way through was ``--accept-seed-drift``, which
+    switches the guard off for the WHOLE run — a false positive that trains
+    authors to disarm the guard at precisely the moment the most prose is in
+    flight.
+    """
+    _docs, seed, curated = built
+    victim = "srmech.amsc.genome.accessible"
+    assert victim in seed and victim in curated, "fixture drifted"
+    assert "example" in seed[victim], "fixture drifted: op has no seed example"
+
+    committed = {victim: {"example": seed[victim]["example"]}}
+    fresh = {victim: {"example": {"input": {"x": "1"}, "output": "2"}}}
+    assert gen.unrederivable_fields(committed, seed, fresh) == {}, (
+        "adding curation for a previously auto-seeded field was reported as "
+        "destroying it — the rc353 false positive"
+    )
+
+
+def test_guard_still_fires_when_curation_covers_the_hand_edited_field(gen, built):
+    """rc353 (`#T1006`) — the weakening that was TRIED and REJECTED.
+
+    The tempting fix for the false positive above is "a field is safe when
+    ``CURATED`` owns it", since the curated value wins the merge anyway. It is
+    wrong, and not theoretically: a concurrent authoring run was caught
+    mid-flight writing worked examples straight into the generated
+    ``_tool_docs.py`` for ``laplacian`` ops whose CURATED entries already
+    existed. Under the ownership rule the generator eats them silently — the
+    exact rc274 defect, wearing a newer hat.
+
+    So: hand-written prose in the GENERATED file is reported EVEN WHEN
+    ``CURATED`` has an entry for that same tool and field.
+    """
+    _docs, seed, curated = built
+    victim = "srmech.amsc.laplacian.dense_laplacian"
+    assert victim in curated and "example" in curated[victim], "fixture drifted"
+
+    committed = {victim: {"example": {"output": "hand-written straight into "
+                                                "the generated file"}}}
+    lost = gen.unrederivable_fields(committed, seed, curated)
+    assert lost.get(victim) == ["example"], (
+        "a hand-edit to the generated file went unreported because CURATED "
+        "happened to cover the same field — the rejected ownership rule"
+    )
+
+    # ... and the same field, once it IS what regeneration produces, is silent.
+    settled = {victim: {"example": curated[victim]["example"]}}
+    assert gen.unrederivable_fields(settled, seed, curated) == {}
+
+
 # ── 3. the probe must merge, not rebuild ─────────────────────────────
 
 def test_probe_merge_preserves_entries_it_did_not_probe():

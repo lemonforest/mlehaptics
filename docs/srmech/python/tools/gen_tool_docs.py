@@ -308,6 +308,37 @@ def unrederivable_fields(
 
     A non-empty result means regeneration would DESTROY text — the rc274→rc290
     defect. Empty is the healthy state and the round-trip test pins it.
+
+    RE-DERIVABLE MEANS RE-DERIVABLE (rc353, `#T1006`). A committed value is
+    safe to overwrite in exactly two cases: the regeneration reproduces it
+    (``value == cur.get(field, sed.get(field))``, nothing changes), or the
+    fresh auto-seed reproduces it (``value == sed[field]`` — it is machine
+    output, authored by nobody, and the generator can rebuild it at will).
+    Anything else is text that exists ONLY inside the generated
+    ``DO NOT EDIT`` file, which is the rc274 casualty this guard was built for.
+
+    Until rc353 the second clause was missing: the predicate asked only "does
+    the merged output still equal what is committed?", so it also fired on
+    every legitimate curation ADDITION — new curation differs by definition
+    from the auto-seed it supersedes. MEASURED while curating the 25-op
+    Cayley–Dickson family: 50 fields across 25 tools refused, of which 48 were
+    byte-equal to the freshly-computed seed (nothing to lose) and 2 were
+    ``the_one``'s own CURATED entry being edited by its author. The only way
+    through was ``--accept-seed-drift``, which disables the check for the
+    WHOLE run — so the over-fire trained authors to disarm the guard at
+    precisely the moment the most prose was in flight.
+
+    THE FIX THAT WAS TRIED AND REJECTED, because it matters that it is not
+    this: "a field is safe when ``CURATED`` owns it" (``field not in cur``).
+    It reads plausibly — the curated value is the SSoT and wins the merge — and
+    it is wrong. It makes a hand-edit INVISIBLE whenever curation happens to
+    touch the same field, which is not a corner case: a concurrent authoring
+    run was caught mid-flight writing worked examples straight into
+    ``_tool_docs.py`` for ``laplacian`` ops that CURATED already had entries
+    for. Under the ownership rule the generator would have shrugged and eaten
+    them; under the rule below it names them. Editing an EXISTING curated entry
+    still costs one ``--accept-seed-drift``, and that is the correct price:
+    the author is replacing authored text and should say so once.
     """
     lost: Dict[str, list] = {}
     for name, entry in committed.items():
@@ -315,7 +346,7 @@ def unrederivable_fields(
         sed = seed.get(name, {})
         gone = sorted(
             field for field, value in entry.items()
-            if cur.get(field, sed.get(field)) != value
+            if cur.get(field, sed.get(field)) != value and sed.get(field) != value
         )
         if gone:
             lost[name] = gone

@@ -13,6 +13,30 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc353]
+
+**THE INTROSPECT SURFACE STOPS BEING A STENCIL — all 513 tools get an EXECUTED, domain-grounded worked example and a three-perspective explanation, behind a strict-zero gate with no CEIL and no allowlist (`#T1010`).**
+
+**The defect, measured.** Every one of the 513 `ToolEntry` examples was a SIGNATURE ECHO: 356 carried a literal `=<` type stencil (`algebra_table(dim=<int>, gammas=<Sequence[int] | None>) -> list`), the rest were zero-argument echoes, and **zero** carried executed output. `tool_schema.py` states the design as *"EXAMPLE (executed I/O where safe, else …)"* — the executed-I/O half had never been delivered, and the fallback shipped universally. It went unnoticed because the coverage ratchet asserted only that `summary` is NON-EMPTY; a stencil is non-empty, so the gate was green while the field said nothing.
+
+**Why it is a show-stopper and not polish.** In one session an Opus 5 agent queued TWO phantom gaps against already-delivered code and nearly rebuilt both: `mat_rank` (while `QMat.rank(*, method=)` ships at `qmat.py:446` with C peer `srmech_qmat_rank`) and an ordered-enumeration primitive (which exists 7× in C, with `itertools.combinations` the correct Python projection — measured tuple-identical). The stencils did not stop it. Every example is now written so a reader cannot fail to see the op already does the job, and each names the sibling ops most likely to be re-derived by accident.
+
+**What ships.** Worked examples of a FEW COHERENT CALLS with real captured output, grounded in real research subjects rather than random values — the attested CMB catalogs, the Antikythera gear arithmetic (Metonic 235/19, Saros 223, Callippic 940), the attested genetic code, Gell-Mann SU(3) and the CKM matrix, the 12-EDO circle of fifths and the nucleosome's 147 bp. Explanation length across all 513 now runs min 510 / median 1341 / max 2476 characters.
+
+**The gate** (`tests/test_worked_examples_strict_zero_rc353.py`) is strict-zero on three conditions — no `=<`, non-empty captured output, and an explanation carrying all three perspectives — with **no `CEIL_`, no allowlist and no `-k` filter**. `=<` is a zero-false-positive marker: it is a syntax error in Python everywhere (the operator is `<=`), so it can only ever be a rendered type annotation standing where an argument value belongs.
+
+**Fabrication check.** The gate certifies SHAPE, not truth, so every shipped example was re-executed in a FRESH interpreter on a numpy-absent host and diffed byte-for-byte against the shipped output: **0 mismatches**.
+
+**Three real defects surfaced by the authoring, each fixed upstream:**
+
+- **A local task ID shipping BARE in the compiled-in C registry.** `qm.quaternion.quaternion_cycle_holonomy`'s summary read `(#944 follow-on)` while the tree spells the same number `#T944` — a false link by construction, reaching users via `describe()`, the MCP tool list and `srmech_tool_registry.c`. HEAD carried three copies across two shipped artifacts. Adjudicated by reading both sides (same local task, no GitHub object), fixed at one character in `tool_schema.py`.
+- **A registration literal permanently shadowing curation.** `sha256_bytes` and `sha256_batch` each carried a one-call `example=` stub on the REGISTRATION, and a registration literal always wins the `_apply_docs` merge — so the stub silently outranked `_tool_docs_curated.py`, the file the project designates for hand-curation. Same class as the rc291 finding. Both stubs removed, with the reason recorded in place.
+- **A false docstring on `cascade.lstsq`.** It claimed to delegate to `mat_lstsq` unconditionally; that predated rc140's QR routing and was stale. Real input takes the QR path (`srmech_qr_f64`, which does not square the condition number); complex input, a rank-deficient `R`, or a native-absent host falls back to the normal equations. The `ToolEntry` summary had the QR shape right all along.
+
+**Also in this rc.** `describe()`'s granularity `collision_note` gains a second axis: `index_bits` is an EXPONENT (log2 of `slots`), never a dimension — so the 4-cube (tesseract) grades the SEDENIONS at dim 16, while ℍ's grading cube is the SQUARE (ℤ/2)². The tesseract that lives IN ℍ is a third object, 16 unit POINTS of ℝ⁴, and **128 of their 256 products leave the set** (measured), so no sign-bit XOR grades them.
+
+**Notebook.** `srmech_research_notebook.md` gains §3.45, a USAGE EXAMPLES section organised by domain subject rather than by module, and §2.5.1, a notation entry for the `ℍ ⊗ ℍℓ` Cayley–Dickson doubling recording why the two imaginary triples are not interchangeable.
+
 ## [0.9.0rc352]
 
 _**The `−` in `cd_mult`'s cross term IS the Cayley–Dickson γ, hardcoded to −1 — and the moment it becomes a parameter, `cd_norm_sq` is silently wrong on every algebra newly reachable. Two coupled tasks, shipped together because the second is only reachable once the first lands (`#T997`, `#T1001`). `tools.total` 511 → 513; `SRMECH_ABI_VERSION` stays 10 (three additive symbols; no exported signature changed).**_

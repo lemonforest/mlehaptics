@@ -19,14 +19,34 @@ from srmech.amsc.tool_schema import get_tool_schema, warmup_all
 
 warmup_all()
 
-# Monotone floor: the count of tools whose EXAMPLE is a real executed
-# input->output (vs an honest signature snippet). Curation grows this over
-# subsequent rcs — it may rise, never fall.
+# Monotone floor: the count of tools whose EXAMPLE is a real executed one (vs
+# an honest signature snippet). Curation grows this over subsequent rcs — it
+# may rise, never fall.
 _MIN_EXECUTED_EXAMPLES = 90
+
+# What counts as a record of a REAL execution: an ``output`` PLUS a record of
+# what produced it. Two forms are in the tree and both are honest:
+#
+#   {input, output}   the rc240 single-call form — the kwargs that were passed.
+#   ``worked``        the rc353 (`#T1006`) WORKED form — the executable source
+#                     of a few coherent calls that produced ``output``.
+#
+# Membership is deliberately tested by KEY PRESENCE, not by an exact key set:
+# the worked form is being adopted family-by-family and different families pair
+# it with different companions (``why``, and some also keep the original
+# ``input``). Pinning exact sets would silently drop those from the floor below
+# and let the executed-example count erode while looking green.
+_EXECUTED_SOURCE_KEYS = ("input", "worked")
 
 
 def _srmech_tools():
     return [t for t in get_tool_schema().tools if t.owner == "srmech"]
+
+
+def _is_executed(ex) -> bool:
+    """True iff ``ex`` has an ``output`` AND a record of what produced it."""
+    return (isinstance(ex, dict) and "output" in ex
+            and any(k in ex for k in _EXECUTED_SOURCE_KEYS))
 
 
 def test_every_srmech_tool_has_explanation() -> None:
@@ -48,30 +68,66 @@ def test_every_srmech_tool_has_example() -> None:
 
 
 def test_every_example_is_well_formed() -> None:
-    """An example is either a real executed {input, output} OR an honest
-    {call} usage snippet — never a fabricated output without an input."""
+    """An example is a real execution (:func:`_is_executed`) OR an honest
+    {call} usage snippet — never an output with no record of what produced it."""
     bad = []
     for t in _srmech_tools():
         ex = t.example
         if not ex:
             continue
         keys = set(ex)
-        if keys == {"input", "output"} or keys == {"call"}:
+        if _is_executed(ex) or keys == {"call"}:
             continue
-        # sha256_bytes-style hand examples are {input, output}; snippet is {call}.
-        if "output" in keys and "input" not in keys:
+        # An ``output`` with neither an ``input`` nor a ``worked`` source is a
+        # claim nobody can re-check — exactly the fabricated-output shape.
+        if "output" in keys and not ({"input", "worked"} & keys):
             bad.append(t.name)
-    assert not bad, f"examples with an output but no input (fabricated?): {bad[:5]}"
+    assert not bad, (
+        f"examples with an output but no input/worked source (fabricated?): "
+        f"{bad[:5]}"
+    )
 
 
 def test_executed_example_floor_is_monotone() -> None:
-    n = sum(1 for t in _srmech_tools()
-            if isinstance(t.example, dict) and "output" in t.example
-            and "input" in t.example)
+    n = sum(1 for t in _srmech_tools() if _is_executed(t.example))
     assert n >= _MIN_EXECUTED_EXAMPLES, (
-        f"only {n} tools have a real executed input->output example; the rc240 "
+        f"only {n} tools have a real executed example; the rc240 "
         f"floor is {_MIN_EXECUTED_EXAMPLES} (curation grows this — never lower it)"
     )
+
+
+# NOT SHIPPED YET — the TRUTH guard on the worked form (rc353, `#T1006`).
+#
+# ``_is_executed`` above is a SHAPE check, and a shape check cannot tell a real
+# capture from a typed one. The guard that closes that gap is: re-execute each
+# ``worked`` source and diff its stdout against the committed ``output``. It was
+# written, run, and deliberately NOT shipped in this rc, because the arc
+# currently carries TWO incompatible worked conventions:
+#
+#   * print-driven capture  — ``worked`` is a script whose stdout IS ``output``
+#     (the Class-L laplacian family; all 56 re-execute byte-identically in 7.7 s,
+#     which is what makes the guard cheap enough to want);
+#   * REPL transcript       — ``worked`` is a list of bare expressions and
+#     ``output`` is a hand-aligned annotated table of their return values, some
+#     of which deliberately RAISE to document a ceiling (the Class-N rational
+#     family, e.g. ``continued_fraction``'s uint64 wall).
+#
+# Re-execution verifies the first and misfires on all 160 of the second. A guard
+# that fires on correct work gets suppressed, and a suppressed guard is worse
+# than none — so the truth check waits on ONE convention being chosen for the
+# arc. Whoever settles it should land this, not re-derive it:
+#
+#     for t in _srmech_tools():
+#         ex = t.example
+#         if not (isinstance(ex, dict) and "worked" in ex):
+#             continue
+#         buf = io.StringIO()
+#         with redirect_stdout(buf), redirect_stderr(buf):
+#             exec(compile(ex["worked"], f"<{t.name}>", "exec"), {})
+#         assert buf.getvalue().rstrip("\n") == ex["output"]
+#
+# Until then "executed" is asserted per family by the authoring probe, not by
+# this suite — which is exactly the gap being recorded here rather than hidden.
 
 
 def test_curated_keys_are_all_registered() -> None:
