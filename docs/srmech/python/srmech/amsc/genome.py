@@ -611,6 +611,65 @@ THRESHOLD_GENE_MARKER = 0x77
 #: version-INDEPENDENT, so every pre-rc132 genome still reads identically.
 GRADED_GENE_MARKER = 0x64
 
+#: **THE marker set — the ONE place it may be spelled** (rc351, task ``#T1004``).
+#:
+#: Every block-kind marker byte that keys a LEAF-WIDE (``leaf_dim``-byte) on-disk block:
+#: the §44/§89/§127/§95b chromosome-opening caps, the §44/§128–§132 gene caps, the §60
+#: kernel header, and the §95a/§98/§Q8-FIBER/§𝕆-FIBER INTERIOR caps. Equivalently: every
+#: first byte that is NOT a data turn. It is the stride key for every body walker AND the
+#: classifier behind :func:`_cap_kind` / :func:`_block_is_cap`.
+#:
+#: **Why it lives here, at the markers, and why nothing may re-spell it.** rc351 shipped a
+#: pure-path defect (``#T1004``): :func:`genome_load`'s no-native streaming reader carried
+#: its OWN inline copy of this list that stopped at :data:`CHROMATIN_MARKER`, so a
+#: pure / Pyodide / WASM install could SAVE a fiber-bearing genome and never load it back
+#: (``unrecognised block kind byte 70``). Three further hand-copies had drifted the same
+#: way: :func:`_hv_from_block` (a loaded fiber cap came back with the wrong ``sectors``),
+#: :meth:`_ScanState.fold` (a fiber cap was counted as a data turn, so a rebuilt-by-scan
+#: catalog disagreed with the manifest :func:`genome_save` wrote), and
+#: :func:`_gene_express_plan_strand` (a fiber cap strode at the PACKED-turn width, so every
+#: byte offset after it was wrong). The comment on the old tuple already claimed to prevent
+#: exactly this. A shared name is not enough on its own — so
+#: ``tests/test_genome_marker_set_drift_rc351.py`` is an AST ratchet that FAILS the build if
+#: any function body re-spells this set (or a near-copy of it) as a literal instead of
+#: naming it. If you need a subset, declare it at MODULE level with a name and a docstring
+#: (the three below are the ones that exist); the ratchet reads module-level declarations as
+#: deliberate and inline literals as drift.
+#:
+#: The C peer is the single ``genome_cap_kind`` classifier in ``c/src/srmech_genome.c`` —
+#: one function, not a list repeated per call site, which is why the C side never drifted.
+_LEAF_WIDE_BLOCK_MARKERS = (
+    CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
+    BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
+    KERNEL_HEADER_MARKER,
+    KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
+    CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
+    CHROMATIN_MARKER, FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER,
+)
+
+#: The chromosome-BOUNDARY cap markers — a cap in this set OPENS a chromosome (carries a
+#: label inline), as opposed to the interior caps (gene / centromere / chromatin / fiber)
+#: that sit inside one. CHROM (0x43) / kernel-telomere (0x6B) / active-telomere (0x74) /
+#: diploid (0x44). rc351 (``#T1004``): this used to be spelled TWICE — here and again as a
+#: byte-identical ``_REGION_OPEN_MARKERS`` beside the body scan — plus three more inline
+#: copies. One name now.
+_CHROM_BOUNDARY_MARKERS = (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
+                           ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER)
+
+#: The five INTRA-chromosome gene-cap markers (plain / klein4-mask / boolean /
+#: threshold / graded). A block whose first byte is one of these OPENS a gene the
+#: modulator ops read; every other block (CHROM cap, kernel header, coupled data
+#: turn, …) is skipped.
+_GENE_MARKERS = (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
+                 THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER)
+
+#: §98: the caps that RESET the chromatin access gate back to euchromatin — a chromosome
+#: boundary, plus the §60 v5 kernel header (a kernel chromosome's first interior block).
+#: DERIVED from :data:`_CHROM_BOUNDARY_MARKERS`, so a future boundary cap joins it for free
+#: — the inline copies this replaced had never learned about the §95b diploid telomere
+#: ``0x44``, so a diploid chromosome did not reset access (rc351, ``#T1004``).
+_ACCESS_RESET_MARKERS = _CHROM_BOUNDARY_MARKERS + (KERNEL_HEADER_MARKER,)
+
 #: The regulatory-gene MASK field width — a uint64 (8 bytes, big-endian), read at the byte
 #: right after the inline label's NUL terminator (the SAME field shape as the §127 active
 #: telomere's count). 64 exact bitwise cell-state conditions; Class-I integer, no float.
@@ -2510,16 +2569,13 @@ def _cap_kind(hv):
     scanned-for, skipped-on-recall marker block. §89/v6: the kernel telomere ``0x6B``
     is the KERNEL-chromosome boundary cap (like the CHROM cap, but flags the
     chromosome as a kernel — the leaf after it is the Klein-4 header turn). §127/v7: the
-    active telomere ``0x74`` is a chromosome boundary cap carrying an inline count."""
+    active telomere ``0x74`` is a chromosome boundary cap carrying an inline count.
+
+    rc351 (``#T1004``): the marker list is :data:`_LEAF_WIDE_BLOCK_MARKERS`, never a local
+    copy — this function and :func:`_block_is_cap` are the ONLY two readers of it, and every
+    "is this block a cap?" question in the module goes through one of them."""
     first = int(hv[0]) if len(hv) else -1
-    return first if first in (
-        CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
-        KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-        CHROMATIN_MARKER, FIBER_CAP_MARKER,
-        OCT_FIBER_CAP_MARKER) else None   # §95a/§95b/§98/§Q8-FIBER/§𝕆-FIBER caps
+    return first if first in _LEAF_WIDE_BLOCK_MARKERS else None
 
 
 def _unpack_cap(hv):
@@ -4482,8 +4538,7 @@ def genes(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
     started = False
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                    THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
+        if kind in _GENE_MARKERS:
             # §128/§130/§131: a plain GENE cap (0x47), a REGULATORY GENE cap (0x67), a BOOLEAN
             # GENE cap (0x62) OR a THRESHOLD GENE cap (0x77) opens a gene; its label reads
             # UNIFORMLY (the mask(s) / gate_type + DNF / weights sit AFTER the label NUL, so
@@ -4494,11 +4549,16 @@ def genes(strand, coupling, *, element_type=ELEMENT_TYPE_KLEIN4):
             _marker, cur_label = _unpack_cap(hv)
             cur_leaves = []
             started = True
-        elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
-                      KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
-            continue                            # the chromosome telomere / §60 v5
-                                                # header / §89 kernel telomere / §127
-                                                # active telomere — skip (not gene data)
+        elif kind is not None:
+            continue                            # ANY non-gene cap — a chromosome boundary
+                                                # (§44 CHROM / §89 kernel / §127 active / §95b
+                                                # diploid), the §60 v5 header, the §95a
+                                                # centromere, the §98 chromatin cap, a
+                                                # §Q8-/§𝕆-FIBER cap — is not gene data.
+                                                # rc351 (#T1004): the hand-spelled FOUR-marker
+                                                # skip list this replaced let a diploid
+                                                # telomere / centromere / chromatin / fiber cap
+                                                # through to be DECOUPLED as a gene leaf.
         elif not started:
             continue                            # any leading cap before the first gene
         else:
@@ -4736,8 +4796,7 @@ def gene_express(strand, coupling, cell_state, *, element_type=ELEMENT_TYPE_KLEI
     access_open = True                          # §98 chromatin OUTER gate: euchromatin by default
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                    THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
+        if kind in _GENE_MARKERS:
             if started and cur_express:
                 out.append((cur_label, cur_leaves))
             _marker, cur_label = _unpack_cap(hv)
@@ -4749,11 +4808,16 @@ def gene_express(strand, coupling, cell_state, *, element_type=ELEMENT_TYPE_KLEI
         elif kind == CHROMATIN_MARKER:          # §98/§98.1 access marker — gate the stretch that follows
             _an, _ad = _chromatin_access(hv, cell_state)   # §98.1/G1 cell-state-conditional access
             access_open = _an > 0               # accessible iff the level numerator > 0 (Class-K)
-        elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
-                      KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
+        elif kind in _ACCESS_RESET_MARKERS:
             access_open = True                  # a chromosome boundary resets access (euchromatin)
             continue                            # the chromosome telomere / a header —
                                                 # skip (not gene data)
+        elif kind is not None:
+            continue                            # ANY other interior cap (§95a centromere, a
+                                                # §Q8-/§𝕆-FIBER cap) — not gene data, and NOT a
+                                                # boundary, so it does not reset access (rc351,
+                                                # #T1004: it used to fall through and be
+                                                # DECOUPLED into the current gene's leaves)
         elif not started:
             continue                            # any leading cap before the first gene
         else:
@@ -4827,8 +4891,7 @@ def gene_express_levels(strand, coupling, cell_state, *,
     access = (1, 1)                             # §98 chromatin OUTER gate level: euchromatin default
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                    THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER):
+        if kind in _GENE_MARKERS:
             if started and cur_level[0] > 0:            # expressed iff level > 0
                 out.append((cur_label, cur_leaves, cur_level))
             _marker, cur_label = _unpack_cap(hv)
@@ -4839,11 +4902,15 @@ def gene_express_levels(strand, coupling, cell_state, *,
             started = True
         elif kind == CHROMATIN_MARKER:          # §98/§98.1 access marker — the stretch level that follows
             access = _chromatin_access(hv, cell_state)     # §98.1/G1 cell-state-conditional access level
-        elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
-                      KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
+        elif kind in _ACCESS_RESET_MARKERS:
             access = (1, 1)                     # a chromosome boundary resets access (euchromatin)
             continue                            # the chromosome telomere / a header —
                                                 # skip (not gene data)
+        elif kind is not None:
+            continue                            # ANY other interior cap (§95a centromere, a
+                                                # §Q8-/§𝕆-FIBER cap) — not gene data, and NOT a
+                                                # boundary, so it does not reset access
+                                                # (rc351, #T1004)
         elif not started:
             continue                            # any leading cap before the first gene
         else:
@@ -4917,13 +4984,6 @@ def _gene_expresses(cap, cell_state):
 # irrecoverable BY CONSTRUCTION; naming that honestly IS the finding (the same
 # recoverability discipline as op_provenance / RecoverableFold / the #725 null).
 # ─────────────────────────────────────────────────────────────────────────────
-
-#: The five INTRA-chromosome gene-cap markers (plain / klein4-mask / boolean /
-#: threshold / graded). A block whose first byte is one of these OPENS a gene the
-#: modulator ops read; every other block (CHROM cap, kernel header, coupled data
-#: turn, …) is skipped.
-_GENE_MARKERS = (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                 THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER)
 
 #: The §133 M1 verdict-code → string map (mirrors the C SRMECH_GENOME_MODULATOR_*
 #: codes). One-sided, like the rc117 op_verdict EQUAL/UNKNOWN contract.
@@ -6055,22 +6115,23 @@ def partition(strand, coupling, labels=None, *, element_type=ELEMENT_TYPE_KLEIN4
     current = None
     for hv in strand:
         kind = _cap_kind(hv)
-        if kind in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
-                    ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER):
+        if kind in _CHROM_BOUNDARY_MARKERS:
             # a telomere cap (plain / §89 kernel / §127 active / §95b diploid) — start a
             # partition. _unpack_cap reads the label (bytes [1:] up to the first NUL) UNIFORMLY
             # — the active telomere's count sits AFTER that NUL, so the label is exact.
             _marker, current = _unpack_cap(hv)
             out[current] = []
-        elif kind in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                      THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER, KERNEL_HEADER_MARKER,
-                      CENTROMERE_CAP_MARKER):
-            continue                            # a gene delimiter (§44 plain / §128
-                                                # regulatory / §130 boolean / §131 threshold /
-                                                # §132 graded) / §60 v5 header / §95a the
-                                                # interior centromere anchor —
-                                                # skip, not a coupled data turn
-                                                # not data; flatten past it
+        elif kind is not None:
+            continue                            # ANY other cap — a gene delimiter (§44 plain /
+                                                # §128 regulatory / §130 boolean / §131
+                                                # threshold / §132 graded), the §60 v5 header,
+                                                # the §95a interior centromere anchor, the §98
+                                                # chromatin cap, a §Q8-/§𝕆-FIBER cap — is not a
+                                                # coupled data turn; flatten past it.
+                                                # rc351 (#T1004): this was a hand-spelled list
+                                                # of SEVEN markers, so a chromatin or fiber cap
+                                                # fell through and was DECOUPLED as if it were
+                                                # content. Asking _cap_kind cannot drift.
         elif current is not None:
             out[current].append(_quad_unturn(hv, coupling, element_type=element_type))  # §Q8: decouple
     if labels is not None:
@@ -6165,13 +6226,6 @@ def _kernel_v6_leaves(syms, leaf_dim, et_code):
         leaves.append(_HV.from_sequence(block, sectors=sectors))
         i += leaf_dim
     return leaves
-
-
-#: The chromosome-BOUNDARY cap markers — a cap in this set OPENS a chromosome (carries a
-#: label inline), as opposed to the interior caps (gene / centromere) that sit inside one.
-#: CHROM (0x43) / kernel-telomere (0x6B) / active-telomere (0x74) / diploid (0x44).
-_CHROM_BOUNDARY_MARKERS = (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
-                           ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER)
 
 
 def _integrate_coheres(host, provirus):
@@ -7773,16 +7827,14 @@ def _hv_from_block(block: bytes) -> _HV:
     so it reconstructs byte-AND-sectors identical); every other block is a Klein-4
     data turn (``sectors=QUAD``, bytes ``0..3``). Reading the first byte suffices
     because the marker bytes are out of the Klein-4 range — that IS the
-    self-describing-strand property."""
-    first = block[0] if block else -1
-    sectors = 256 if first in (
-        CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
-        KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-        CHROMATIN_MARKER) else QUAD   # §95a/§95b/§98 caps
-    return _HV.from_sequence(block, sectors=sectors)
+    self-describing-strand property.
+
+    rc351 (``#T1004``): this asks :func:`_block_is_cap` rather than carrying its own marker
+    list. Its old copy had drifted — it stopped at :data:`CHROMATIN_MARKER`, so a §Q8-FIBER
+    ``0x46`` / §𝕆-FIBER ``0x4F`` cap came back from disk as ``sectors=QUAD`` while
+    :func:`_pack_fiber_cap` mints it at ``sectors=256``. The bytes round-tripped; the carrier
+    did not."""
+    return _HV.from_sequence(block, sectors=256 if _block_is_cap(block) else QUAD)
 
 
 def _block_is_cap(block: bytes) -> bool:
@@ -7802,19 +7854,12 @@ def _block_is_cap(block: bytes) -> bool:
     likewise an intra-chromosome gene delimiter cap, stored VERBATIM + excluded from the data-turn
     count (its gate_type + weights + threshold are NOT a turn). §132: the ``0x64`` graded gene is
     likewise an intra-chromosome gene delimiter cap, stored VERBATIM + excluded from the data-turn
-    count (its gate_type + level-weights + denom are NOT a turn)."""
-    return bool(block) and block[0] in (
-        CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-        BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
-        KERNEL_HEADER_MARKER,
-        KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-        CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-        CHROMATIN_MARKER, FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER)
-    # §95a/§95b/§98/§Q8-FIBER/§𝕆-FIBER caps (a chromatin / fiber cap is stored VERBATIM, not
-    # a turn). §𝕆-TURN/v19 (rc326): OCT_FIBER_CAP_MARKER (0x4F) joins here so an octonion-
-    # fiber-bearing strand PERSISTS — it is a leaf-wide INTERIOR cap (already in
-    # _LEAF_WIDE_BLOCK_MARKERS on the READ side and in the C genome_cap_kind classifier), so
-    # _disk_block passes it through verbatim instead of mis-packing it as a 4-bit data turn.
+    count (its gate_type + level-weights + denom are NOT a turn).
+
+    rc351 (``#T1004``): the marker list is :data:`_LEAF_WIDE_BLOCK_MARKERS`, never a local
+    copy — this is the BYTES-form peer of :func:`_cap_kind` (which takes an ``HV``), and the
+    two are the module's only readers of that tuple."""
+    return bool(block) and block[0] in _LEAF_WIDE_BLOCK_MARKERS
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -8054,21 +8099,6 @@ def _disk_block(mem_block: bytes, leaf_dim: int,
     return _pack_turn_block(mem_block)
 
 
-#: Every block-kind marker byte that keys a LEAF-WIDE (``leaf_dim``-byte) on-disk
-#: block — §95a/§95b/§98 caps plus the §60 kernel header. ONE tuple shared by the
-#: strict :func:`_walk_region_blocks` and the rc280 prefix walker
-#: :func:`_walk_region_prefix_blocks`, so the two can never drift on which
-#: markers are leaf-wide (a drift would mis-stride one walker against the other).
-_LEAF_WIDE_BLOCK_MARKERS = (
-    CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-    BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
-    KERNEL_HEADER_MARKER,
-    KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-    CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-    CHROMATIN_MARKER, FIBER_CAP_MARKER, OCT_FIBER_CAP_MARKER,
-)
-
-
 def _walk_region_blocks(region: bytes, leaf_dim: int, *, context: str = "genome"):
     """Walk a raw on-disk byte region block-by-block — the dual-format (v2 |
     v3 | mixed) walker. Yields ``(raw_block, decoded_block)`` where ``raw_block``
@@ -8148,8 +8178,7 @@ def _split_into_chromosomes(strand, labels=None) -> List[Tuple[str, list]]:
     current_label: Optional[str] = None
     current_blocks: Optional[list] = None
     for hv in strand:
-        if _cap_kind(hv) in (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
-                             ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER):
+        if _cap_kind(hv) in _CHROM_BOUNDARY_MARKERS:
             if current_label is not None:
                 chroms.append((current_label, current_blocks))
             _marker, current_label = _unpack_cap(hv)
@@ -8781,14 +8810,6 @@ def _scan_body_to_chrom_specs(body_bytes, leaf_dim):
     return state.finish()
 
 
-#: The block markers that OPEN a chromosome region — the §44 CHROM cap and the §60 /
-#: §127 / §95b telomere kinds. The ONE predicate both the in-memory
-#: (:func:`_scan_body_to_chrom_specs`) and the STREAMING (:func:`_scan_body_stream`)
-#: catalog derivations use to find a region boundary, so the two cannot drift apart.
-_REGION_OPEN_MARKERS = (CHROM_CAP_MARKER, KERNEL_TELOMERE_MARKER,
-                        ACTIVE_TELOMERE_MARKER, DIPLOID_TELOMERE_MARKER)
-
-
 class _ScanState:
     """The §44 body-scan STATE MACHINE, fed ONE block at a time (rc282).
 
@@ -8809,7 +8830,7 @@ class _ScanState:
         a streaming caller uses to close the previous region's digest)."""
         opened = False
         self.n_turns += 1
-        if decoded[0] in _REGION_OPEN_MARKERS:
+        if decoded[0] in _CHROM_BOUNDARY_MARKERS:
             if self.cur is not None:
                 self.chrom_specs.append(tuple(self.cur))
             # the label is bytes [1:] up to the first NUL — UNIFORM across all telomere
@@ -8825,20 +8846,24 @@ class _ScanState:
             )
         elif decoded[0] == CENTROMERE_CAP_MARKER:
             self.cur[5] = "nuclear"           # §96: an interior centromere mints (wins)
-        elif (decoded[0] != GENE_CAP_MARKER
-              and decoded[0] != REGULATORY_GENE_MARKER
-              and decoded[0] != BOOLEAN_GENE_MARKER
-              and decoded[0] != THRESHOLD_GENE_MARKER
-              and decoded[0] != GRADED_GENE_MARKER
-              and decoded[0] != KERNEL_HEADER_MARKER
-              and decoded[0] != CHROMATIN_MARKER
-              and decoded[0] != CENTROMERE_CAP_MARKER):
-            self.cur[2] += 1                  # a data turn (packed or legacy); a GENE
-                                              # cap (§44 plain / §128 regulatory / §130
-                                              # boolean / §131 threshold / §132 graded),
-                                              # §60 v5 header, or §95a interior centromere
-                                              # is not a turn
+        elif not _block_is_cap(decoded):
+            self.cur[2] += 1                  # a data turn (packed or legacy). EVERY cap —
+                                              # GENE (§44 plain / §128 regulatory / §130
+                                              # boolean / §131 threshold / §132 graded), the
+                                              # §60 v5 header, the §95a interior centromere,
+                                              # the §98 chromatin cap and the §Q8-/§𝕆-FIBER
+                                              # caps — is not a turn
                                               # (the §89 v6 Klein-4 header IS a coupled turn)
+                                              # rc351 (#T1004): this was a hand-spelled
+                                              # not-equal chain missing FIBER_CAP_MARKER +
+                                              # OCT_FIBER_CAP_MARKER, so a fiber-bearing
+                                              # chromosome's rebuilt-by-scan leaf_count came
+                                              # back ONE HIGHER than the leaf_count
+                                              # genome_save had written into the manifest.
+                                              # Asking _block_is_cap cannot drift: the
+                                              # openers and the centromere are consumed by
+                                              # the branches above, so "not a cap" IS
+                                              # "a data turn".
         self.cur[4] += len(raw)
         self.offset += len(raw)
         return opened
@@ -9581,6 +9606,13 @@ def genome_load(path, *, labels=None, coupling=None):
         # available via sha256_bytes (no streaming API), so we accumulate the
         # body bytes we STREAM (block-by-block, never building an intermediate
         # giant HV/strand object) and verify the whole-body hash.
+        #
+        # rc351 (#T1004): the leaf-wide stride key is _LEAF_WIDE_BLOCK_MARKERS, the
+        # SAME tuple the other three walkers use. This loop used to carry its own
+        # inline copy that stopped at CHROMATIN_MARKER, omitting FIBER_CAP_MARKER
+        # (0x46) and OCT_FIBER_CAP_MARKER (0x4F) — so THIS reader, the one a pure /
+        # Pyodide / WASM install runs, raised GenomeBoundingError on a genome the
+        # same install had just written. Save worked; load could not.
         strand: List[_HV] = []
         body_acc = bytearray()
         plen = _packed_payload_len(leaf_dim)
@@ -9592,13 +9624,7 @@ def genome_load(path, *, labels=None, coupling=None):
                 if not first:
                     break
                 kind = first[0]
-                if kind in (CHROM_CAP_MARKER, GENE_CAP_MARKER, REGULATORY_GENE_MARKER,
-                            BOOLEAN_GENE_MARKER, THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER,
-                            KERNEL_HEADER_MARKER,
-                            KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER,
-                            CENTROMERE_CAP_MARKER, DIPLOID_TELOMERE_MARKER,
-                            CHROMATIN_MARKER) \
-                        or kind <= 3:
+                if kind in _LEAF_WIDE_BLOCK_MARKERS or kind <= 3:
                     rest = f.read(leaf_dim - 1)
                     if len(rest) != leaf_dim - 1:
                         raise GenomeBoundingError(
@@ -10103,9 +10129,7 @@ def genome_genes(path, label, *, coupling=None):
                 for lbl, leaves in native]
     region = _read_region(path, by_label[label], leaf_dim)
     region_strand = _region_strand(region, leaf_dim)
-    if not any(_cap_kind(hv) in (GENE_CAP_MARKER, REGULATORY_GENE_MARKER, BOOLEAN_GENE_MARKER,
-                                 THRESHOLD_GENE_MARKER, GRADED_GENE_MARKER)
-               for hv in region_strand):
+    if not any(_cap_kind(hv) in _GENE_MARKERS for hv in region_strand):
         raise ValueError(
             f"genome_genes: chromosome {label!r} has no inline GENE caps — it is a "
             f"single-kernel chromosome; use genome_window / partition"
@@ -10360,13 +10384,22 @@ def _gene_express_plan_strand(strand, coupling, cell_state,
             _an, _ad = _chromatin_access(hv, cell_state)   # §98.1/G1 cell-state-conditional access
             access_open = _an > 0               # accessible iff the level numerator > 0 (Class-K)
             pos += leaf_dim
-        elif kind in (CHROM_CAP_MARKER, KERNEL_HEADER_MARKER,
-                      KERNEL_TELOMERE_MARKER, ACTIVE_TELOMERE_MARKER):
+        elif kind in _ACCESS_RESET_MARKERS:
             if pending is not None:             # a chromosome boundary closes the gene
                 _plan_close_gene(plan, pending, pos, cell_state)
                 pending = None
             access_open = True                  # a chromosome boundary resets access (euchromatin)
             pos += leaf_dim
+        elif kind is not None:
+            pos += leaf_dim                     # ANY other cap (§95a centromere, §95b diploid,
+                                                # a §Q8-/§𝕆-FIBER cap) is stored VERBATIM at the
+                                                # LEAF width. rc351 (#T1004): the hand-spelled
+                                                # boundary list this replaced did not name them,
+                                                # so they fell to the data-turn branch and strode
+                                                # at turn_width — the SAME failure the rc340
+                                                # comment above describes, one marker family
+                                                # over: every emitted byte offset after such a
+                                                # cap was wrong.
         else:
             pos += turn_width                   # a data turn — SEEK PAST its packed payload
     if pending is not None:

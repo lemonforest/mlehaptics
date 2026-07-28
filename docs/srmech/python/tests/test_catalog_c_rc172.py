@@ -28,6 +28,7 @@ import json
 
 import pytest
 
+from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import catalog
 
@@ -107,6 +108,7 @@ def test_register_duplicate_is_idempotent(tmp_path):
 
 
 def test_use_get_clear_kernel_roundtrip_native_pure(tmp_path):
+    require_native("the use/get/clear local-kernel C peer")
     overlay = tmp_path / "kern"
     overlay.mkdir()
 
@@ -145,6 +147,11 @@ def test_use_kernel_with_adapter_class_scope_native_pure(tmp_path):
 
 
 def test_kernel_state_inactive_native_pure():
+    # Gated individually, NOT inside _native_then_pure: several callers of that helper
+    # pass fine with no library (their thunk never reaches a C peer), and gating the
+    # shared helper would skip those too — over-skipping is the mute button this
+    # mechanism exists to avoid (rc351, `#T1004`).
+    require_native("the kernel-state C peer")
     native, pure = _native_then_pure(catalog.get_local_kernel_state)
     assert native == pure
     assert pure["active"] is False and pure["path"] is None
@@ -156,6 +163,7 @@ def test_kernel_state_inactive_native_pure():
 def test_get_local_kernel_state_cache_hash_matches_manual(tmp_path):
     """When overlays exist, the C-derived cache_hash equals the manual join
     hash — the Class-A composition is byte-exact."""
+    require_native("the C-derived kernel cache_hash")
     overlay = tmp_path / "kern_overlay"
     # build an overlay tree matching a real registered source's key/table.
     src = catalog.list_attested_sources()["sources"]
@@ -187,6 +195,7 @@ def _first_real_source_key():
 
 
 def test_attestation_audit_real_source_native_pure():
+    require_native("the attestation-audit C peer")
     key = _first_real_source_key()
     if key is None:
         pytest.skip("no attested sources in this build")
@@ -204,6 +213,7 @@ def test_attestation_audit_real_source_native_pure():
 
 
 def test_attestation_audit_all_real_sources_native_pure():
+    require_native("the attestation-audit C peer, over every source")
     sources = catalog.list_attested_sources()["sources"]
     if not sources:
         pytest.skip("no attested sources in this build")

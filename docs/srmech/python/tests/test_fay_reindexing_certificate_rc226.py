@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import riemann_theta as rt
 from srmech.amsc.riemann_theta import RiemannTheta
@@ -197,6 +198,7 @@ def test_native_equals_pure(a, b):
     """The C peer's five outputs equal the pure bodies byte-for-byte (the
     parity oracle) — parallelogram verdict, window verdict + tuple count, and
     both FULL witness coefficients."""
+    require_native("the Fay-certificate C peer")
     wkey = RiemannTheta._fay_witness_key(a, b, BOX)
     got = _native.riemann_theta_fay_certificate_c(
         a[0], a[1], b[0], b[1], BOX, wkey[0], wkey[1], wkey[2])
@@ -212,6 +214,7 @@ def test_native_equals_pure(a, b):
 def test_native_rejects_bad_input():
     """The C peer rejects non-bit characteristics and an out-of-family witness
     key loudly (SRMECH_ERR_BAD_INPUT → RuntimeError), never silently."""
+    require_native("the Fay-certificate C peer's bad-input rejection")
     wkey = RiemannTheta._fay_witness_key((0, 0), (0, 0), BOX)
     with pytest.raises(RuntimeError):
         _native.riemann_theta_fay_certificate_c(
@@ -225,6 +228,7 @@ def test_certificate_reports_native_dispatch():
     """With the native lib loaded the certificate reports the native hit (the
     computational parts ran in C; the closed-form proofs always run in
     Python — they ARE the logic)."""
+    require_native("the certificate's native-dispatch report")
     cert = RiemannTheta.fay_reindexing_certificate((1, 0), (0, 0), box=BOX)
     assert cert["native"] is True
 

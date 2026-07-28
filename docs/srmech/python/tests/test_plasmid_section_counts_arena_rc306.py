@@ -40,6 +40,7 @@ from pathlib import Path
 
 import pytest
 
+from tests._native_gate import require_native
 from srmech.amsc import _native
 from srmech.amsc import plasmid as P
 from srmech.amsc.hdc import klein4_expand
@@ -162,6 +163,7 @@ def test_the_three_statics_and_two_macros_are_removed_from_the_c_source():
 def test_native_equals_pure_across_small_and_large_fixtures(n_docs, size, stride):
     """The counts the caller-arena native scan derives are byte-identical to the pure
     body, from a single section up to a store with many overlapping-vocab sections."""
+    require_native("the caller-arena section_counts C peer")
     one = _one()
     words = ["w%04d" % i for i in range(200)]
     docs = [[words[(i * stride + j * 3) % len(words)] for j in range(size)]
@@ -182,6 +184,7 @@ def test_native_equals_pure_across_small_and_large_fixtures(n_docs, size, stride
 def test_native_path_is_actually_exercised_not_silently_declining():
     """Guard against a false green: the native branch must run the C peer, not decline
     to pure and compare pure-to-pure."""
+    require_native("the section_counts native-path claim")
     assert _native.has_native_genome_section_counts(), (
         "native section_counts not loaded — the parity tests would be pure-vs-pure")
 
@@ -193,6 +196,7 @@ def test_retry_grow_engages_when_the_initial_cap_is_tiny():
     small on attempt 0, so the caller-arena retry-grow MUST re-size ``ws`` and try
     again — and still land on the exact counts. A fixed 2^18 static table could never
     exercise this path; a genuinely caller-sized one must."""
+    require_native("the caller-arena retry-grow loop")
     one = _one()
     words = ["r%04d" % i for i in range(90)]
     docs = [[words[(i * 7 + j) % len(words)] for j in range(40)] for i in range(12)]

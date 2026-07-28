@@ -251,6 +251,10 @@ def test_f3_pre_rc325_fmt17_body_still_opens(tmp_path):
 
 
 # ── F4 — native == pure ──────────────────────────────────────────────────────
+# rc351 (task `#T1004`): skip rather than assert the native lib into existence — see the
+# matching note in test_genome_fiber_channel_rc322.py.
+@pytest.mark.skipif(not _native.has_native_genome_octonion_holonomy(),
+                    reason="native octonion-holonomy symbol required for the differential")
 def test_f4_native_equals_pure_random_strands(monkeypatch):
     assert _native.has_native_genome_octonion_holonomy()
     rng = random.Random(32502)

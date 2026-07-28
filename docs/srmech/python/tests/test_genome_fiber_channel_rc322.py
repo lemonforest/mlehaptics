@@ -200,6 +200,13 @@ def test_f3_format_version_is_17():
 
 
 # ── F4 — native == pure ──────────────────────────────────────────────────────
+# rc351 (task `#T1004`): a native-vs-pure differential has nothing to compare when there is
+# no native lib, so it SKIPS rather than asserting the lib into existence. Before this, the
+# no-native run of the suite was red on these two rows for a reason that had nothing to do
+# with the code under test — which is part of why nobody ran it (see the new
+# `fallback (pure-Python, no native)` CI cell in .github/workflows/srmech-ci.yml).
+@pytest.mark.skipif(not _native.has_native_genome_fiber_holonomy(),
+                    reason="native fiber-holonomy symbol required for the differential")
 def test_f4_native_equals_pure_random_strands():
     assert _native.has_native_genome_fiber_holonomy()
     rng = random.Random(1234)

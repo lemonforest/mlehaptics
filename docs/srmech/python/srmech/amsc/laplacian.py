@@ -1541,6 +1541,90 @@ def _canonicalize_eigenvector_signs(V):
     return V
 
 
+def _pin_eigenvector_phases(V):
+    """Rotate each COMPLEX eigenvector column onto the real axis (rc351, ``#T1004``).
+
+    A Hermitian eigenvector is defined up to a ``U(1)`` phase, not merely a ``Z₂``
+    sign — and inside a DEGENERATE eigenspace the Jacobi cascade is free to hand back
+    a basis carrying an arbitrary phase, because every unitary basis of that
+    eigenspace is equally correct. :func:`symmetric_eigendecompose` used to project
+    with a bare ``.real``, whose docstring asserted *"the Hermitian path returns them
+    with imaginary part ~0"*. **That premise is false on a degenerate spectrum.**
+    ``symmetric_eigendecompose`` of the 3×3 IDENTITY measured
+
+        V = [[1, 0, 0], [0, 0, 1j], [0, 1, 0]]
+
+    — a perfectly valid unitary basis whose middle column is ``i·e₂``. ``.real``
+    annihilated it, returning a matrix with a zero row that neither reconstructs
+    (``V·diag(w)·Vᵀ`` came back 0 where ``L`` was 1) nor is orthonormal. The native
+    Jacobi peer happens to return real columns, so this was visible ONLY with no
+    native library — which is why it sat unobserved until the rc351
+    ``fallback (pure-Python, no native)`` CI cell ran the suite that way for the
+    first time.
+
+    The pin: pick each column's largest-magnitude entry (via ``re²+im²``, so no
+    ``abs()``) and multiply the column by ``conj(pivot)/|pivot|``. The pivot becomes
+    real and POSITIVE, so this SUBSUMES the ``Z₂`` pin of
+    :func:`_canonicalize_eigenvector_signs` (a real negative pivot gives the factor
+    ``−1``). ``V`` is a nested ``list`` of ``complex``; returns the pinned nested list.
+
+    **The magnitude is a Class-N cascade, not an FPU power.** The first cut of this
+    wrote ``best ** 0.5`` and the A-N cascade ratchet caught it on every CI cell at
+    once (``float_pow: live=1 ceiling=0``) — ``CEIL_FLOAT_POW`` is a hard-won zero and
+    is not to be spent. ``|pivot|`` is a complex modulus, which is exactly what
+    :func:`_fhypot` (``float(rational.hypot(re, im))``) is for. Sign-handling and
+    MAGNITUDE are both cascade ops; doing the Class-K half right and then reaching for
+    the FPU for the other half is half the discipline.
+
+    A root here is genuinely unavoidable — producing a UNIT column from a non-unit one
+    is a normalisation, and every route to it (phase pin, ``Re``/``Im`` selection, or
+    ``Re(zᵣ·conj(z_k))``, all of which were checked) lands on the same ``√(re²+im²)``.
+    What IS avoidable is paying for it when there is no phase to remove: a pivot
+    already ON the real axis needs only the ``±1`` Class-K flip. **Measured over the
+    same 804-matrix corpus (3214 columns pinned): the native path needs the root for
+    0 columns — 0.00%, the C Jacobi always returns real columns — and the pure path
+    for 150, 4.67%.** So the cascade call is confined to exactly the degenerate
+    columns that motivate this function, and costs nothing anywhere else.
+
+    **Measured, not assumed:** over 804 real-symmetric matrices (5 hand-built
+    degenerate fixtures + 400 random-symmetric + 400 exactly-degenerate diagonals,
+    n ≤ 6) the residual imaginary part after pinning is **identically 0.0** — the
+    cascade's columns are real up to a GLOBAL phase, never a genuine mixture of two
+    real eigenvectors. So the projection below is exact, not an approximation, and
+    the caller can drop the imaginary part with nothing left in it.
+    """
+    n_rows = len(V)
+    if n_rows == 0:
+        return V
+    n_cols = len(V[0])
+    for j in range(n_cols):
+        # Largest-|·| entry of column j via re²+im² (no abs()).
+        k, best = 0, -1.0
+        for r in range(n_rows):
+            z = V[r][j]
+            cur = z.real * z.real + z.imag * z.imag
+            if cur > best:
+                best = cur
+                k = r
+        if best <= 0.0:
+            continue                          # an all-zero column carries no phase
+        pivot = V[k][j]
+        if pivot.imag == 0.0:
+            # Already on ℝ: the phase is ±1, so this is the Class-K sign pin alone —
+            # no modulus, no root, no cascade call. The overwhelmingly common case.
+            if pivot.real < 0.0:
+                for r in range(n_rows):
+                    V[r][j] = -V[r][j]
+            continue
+        # A genuinely complex pivot: conj(pivot)/|pivot| is the unit phase that
+        # rotates it onto ℝ₊. |pivot| is a COMPLEX MODULUS — the Class-N cascade
+        # op (_fhypot = float(rational.hypot(re, im))), never an FPU `** 0.5`.
+        phase = complex(pivot.real, -pivot.imag) / _fhypot(pivot.real, pivot.imag)
+        for r in range(n_rows):
+            V[r][j] = V[r][j] * phase
+    return V
+
+
 def symmetric_eigendecompose(
     L,
 ) -> Tuple["Vec", "Mat"]:
@@ -1569,12 +1653,18 @@ def symmetric_eigendecompose(
 
     Numpy-free (rc129): delegates to :func:`hermitian_eigendecompose`
     (real-symmetric IS complex-Hermitian — native Jacobi peer when available,
-    else srmech's own pure-Python cyclic Jacobi). The eigenvectors of a
-    real-symmetric matrix are real (the Hermitian path returns them with
-    imaginary part ~0), so we take ``.real`` and sign-canonicalise each column
-    (Class-K, :func:`_canonicalize_eigenvector_signs`) before wrapping in a real
-    ``Mat``. Eigenvalues come out ascending as a ``Vec``. Correctness is pinned
-    by eigenvalues + reconstruction + orthonormality (the eigenvector sign /
+    else srmech's own pure-Python cyclic Jacobi).
+
+    rc351 (``#T1004``): the eigenvectors of a real-symmetric matrix are real **up to
+    a phase**, and on a DEGENERATE spectrum the pure cascade really does return a
+    column carrying one (``i·e₂`` for the 3×3 identity). This used to project with a
+    bare ``.real``, which annihilated such a column and returned a matrix that
+    neither reconstructed nor was orthonormal — a defect the native Jacobi masked, so
+    it was observable only with no native library. Each column is now rotated onto
+    the real axis first (:func:`_pin_eigenvector_phases`, which also subsumes the
+    Class-K ``Z₂`` pivot-sign pin of :func:`_canonicalize_eigenvector_signs`) and the
+    projection is exact. Eigenvalues come out ascending as a ``Vec``. Correctness is
+    pinned by eigenvalues + reconstruction + orthonormality (the eigenvector sign /
     degenerate-subspace basis is non-unique), not element-wise parity.
     """
     rows = _as_rows(L)
@@ -1584,8 +1674,10 @@ def symmetric_eigendecompose(
     if n == 0:
         return (Vec(array("d"), 0), Mat(array("d"), 0, 0))
     eigvals, V_complex = hermitian_eigendecompose(real_rows)
-    # V_complex is a complex Mat (imag ~0 for real-symmetric input); take .real.
-    V_real = [[x.real for x in r] for r in V_complex]
+    # Rotate each column onto ℝ (the U(1) gauge) BEFORE dropping the imaginary part:
+    # on a degenerate eigenspace the basis is only real up to a global phase.
+    V_pinned = _pin_eigenvector_phases([list(r) for r in V_complex])
+    V_real = [[x.real for x in r] for r in V_pinned]
     V_canon = _canonicalize_eigenvector_signs(V_real)
     return eigvals, Mat.from_rows(V_canon, is_complex=False)
 
