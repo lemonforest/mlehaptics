@@ -190,6 +190,80 @@ qubits), which is the (ℤ/2)^d character-table construction and a *different* o
 in MFO is the CMB **multipole** index; `Cℓ(p,q)` is a **Clifford** algebra. Only `ℍℓ` in the
 doubling sense is this entry.
 
+#### F1336 — the FOURTH sense of "the cube": a unit LABEL is not a basis DIRECTION
+
+rc353 shipped a collision note in `describe()["lanes"]["granularity"]["collision_note"]`
+separating three senses of a small power of two. That note is **true and incomplete**, and an
+incomplete note is as dangerous as a false one the moment a planner acts on the gap. The missing
+sense is the one that makes the *tesseract specifically* ambiguous.
+
+**The rule.** An algebra of real dimension `n` does not have `n` units. It has **`2n` signed
+units** (`±e_0 … ±e_{n-1}`), and labelling one takes **`log2(n) + 1` bits** — `log2(n)` for the
+index and **one more for the sign**. The grading cube never carries that extra bit, so the two
+cubes have different vertex counts for the same algebra:
+
+| Algebra | real dim `n` | grading cube `(ℤ/2)^log2(n)` — basis **DIRECTIONS** | signed units `2n` | unit-label cube — signed **UNITS** |
+|---|---|---|---|---|
+| ℂ | 2 | 2 vertices (a segment) | 4 | **2-cube** (a square) |
+| ℍ | 4 | 4 vertices (a **square**) | 8 | **3-CUBE** |
+| 𝕆 | 8 | 8 vertices (a 3-cube) | 16 | **4-CUBE — a TESSERACT** |
+| 𝕊 | 16 | 16 vertices (a **tesseract**) | 32 | 5-cube |
+
+**So there are two different 16s sitting on the same tesseract.** 𝕊 has 16 basis DIRECTIONS;
+𝕆 has 16 signed UNITS. rc353 named only the first. (A third 16 already in the note — the 16
+half-integer Hurwitz unit *points* of ℝ⁴ — is a fourth object again, and is not a cube in either
+sense: 128 of its 256 products leave the set.)
+
+**This is why 8 is the middle ground.** 𝕆 addresses **16 units in 4 bits** *and* contains ℍ
+**seven times over** — the seven Fano lines `{1,2,3} {1,4,5} {1,6,7} {2,4,6} {2,5,7} {3,4,7}
+{3,5,6}`, each of which spans a closed 4-dimensional subalgebra with the real unit (verified, not
+asserted, against `cascade.cd_basis_product`). Both halves land on 𝕆 and on nothing else in the
+tower.
+
+**The shadow result — where the flat hypercube is WRONG.** Take the `(log2(n)+1)`-bit label
+seriously and ask whether the product of two signed units is the XOR of their labels:
+
+- the **low `log2(n)` bits XOR exactly** — `e_i · e_j` is always `±e_(i⊕j)`, with **zero**
+  violations at every rung measured;
+- the **top (sign) bit does NOT**. The violating ordered pairs of signed units number exactly
+  **`2·dim·(dim−1)`**.
+
+The derivation is three lines: `e_0 = 1` is a two-sided identity so nothing through it violates;
+`e_a² = −1` for `a ≠ 0` gives `dim−1` violating index pairs; and for `a ≠ b` both nonzero the basis
+elements **anticommute**, so of the ordered pair `(a,b)`/`(b,a)` exactly one carries the minus —
+another `(dim−1)(dim−2)/2`. The cocycle sign is independent of the input signs, so each violating
+index pair lifts to 4 signed pairs, giving `4·[(dim−1) + (dim−1)(dim−2)/2] = 2·dim·(dim−1)`.
+
+| `dim` | signed pairs `(2·dim)²` | index-lane violations | sign-lane violations | fraction wrong `(dim−1)/(2·dim)` |
+|---|---|---|---|---|
+| 2 | 16 | **0** | 4 | 1/4 |
+| 4 | 64 | **0** | 24 | 3/8 |
+| 8 | 256 | **0** | 112 | 7/16 |
+| 16 | 1024 | **0** | 480 | 15/32 |
+| 32 | 4096 | **0** | 1984 | 31/64 |
+| 64 | 16384 | **0** | 8064 | 63/128 |
+
+**THE FLAT HYPERCUBE IS WRONG EXACTLY WHERE THE ALGEBRA ANTICOMMUTES**, and the fraction
+`(dim−1)/(2·dim) → 1/2` — it worsens monotonically up the ladder toward a coin flip. This is the
+same index-lane / sign-lane split §3 already carries: the index lane is abelian, order-blind and
+exact at every rung; every ceiling srmech publishes lives in the sign lane. The unit-label cube
+makes that split visible *on the labels themselves*.
+
+⚠️ **Bounds — read these before quoting any number above.**
+
+1. The closed form is **DERIVED and then CHECKED at six rungs** (dim 2, 4, 8, 16, 32, 64). It is
+   **not proved for all `n`**; nothing here is a theorem about the whole tower.
+2. **"𝕆 is THE right carrier" is a DESIGN argument**, built from the two facts above — **not a
+   measurement**. Nothing measured here selects a carrier, and the sentence should not be quoted
+   as if something did.
+3. **`(dim−1)/(2·dim)` is about BASIS-PAIR PRODUCTS under a flat XOR label.** It is **not** a
+   strand-misread rate, not an encoder error rate, and not a probability of anything in a running
+   cascade. It must not enter an error budget.
+
+Generating code: [`notes/unit_label_cube_rc354.py`](notes/unit_label_cube_rc354.py) (measured on
+`cascade.cd_basis_product`; also emitted into `describe()["lanes"]["granularity"]["unit_label_cube"]`
+so a planner reading the introspection surface sees it without reading this notebook).
+
 **Provenance, stated plainly.** This notation was used conversationally and **never written down** —
 a tree-wide search on 2026-07-28 found no `ℍℓ` and no cursive-`ℓ` doubling use, so the entry above
 is *reconstructed from the structure it describes*, not recovered from a prior source. The

@@ -31,11 +31,15 @@ symmetry signature, generalising the surface-form token-name classifier
 
 Pure-Python (numpy-free, #564); no new C surface (harmonic classification is
 framework-level composition over the existing A–N primitives). Class-L
-(spectral) read of the chirality structure over plain ``float`` lists.
+(spectral) read of the chirality structure, carried on the **exact Class-N
+rational** :class:`~srmech.amsc.q.Q` since rc354 — see `_spectral_scores`.
 """
 from __future__ import annotations
 
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
+
+from . import cyclic as _cyclic
+from .q import Q, to_q
 
 # F150 operator → chirality-harmonic partition (the 1-2-3 reading of the 14).
 HARMONIC_1: Tuple[str, ...] = ("A", "B", "F", "H", "N")
@@ -80,8 +84,98 @@ def classify_harmonic(class_letter: str) -> int:
     return _LETTER_TO_HARMONIC[upper]
 
 
-def _spectral_scores(hv) -> Tuple[float, float, float]:
-    """Three symmetry scores (dc, mirror, three_cycle) in [0, 1] for a vector.
+#: the exact Class-N zero — the score of a vector with no power in it.
+_Q_ZERO = Q(0)
+
+
+def _flat_scalars(hv) -> List:
+    """Flatten a ``Vec`` / ``Mat`` / nested-or-flat sequence to plain scalars.
+
+    A :class:`~srmech.amsc.mat.Mat` iterates ROW-WISE (``mat.py:192`` yields
+    lists), so a rank-2 carrier has to be descended one level; a
+    :class:`~srmech.amsc.vec.Vec` (``vec.py:127``) already yields scalars.
+    Numpy-free; ``.tolist()`` is a carrier convert, not an ndarray hop.
+
+    rc354 defect note: before this helper existed the module read ``[float(v)
+    for v in hv]`` directly, so the docstring's advertised ``Mat`` input raised
+    ``TypeError: float() argument must be … not 'list'``. The claim is now true.
+    """
+    seq = hv.tolist() if hasattr(hv, "tolist") else hv
+    flat: List = []
+    for elem in seq:
+        if isinstance(elem, (list, tuple)):
+            flat.extend(elem)
+        else:
+            flat.append(elem)
+    return flat
+
+
+def _common_denominator(xs) -> int:
+    """The Class-I lcm of the exact denominators: the ONE scale on which the
+    whole vector becomes integers with nothing rounded away.
+
+    Every ``Q`` is already reduced, so ``lcm(a, b) = a // gcd(a, b) * b`` over
+    ``cyclic.gcd`` (``srmech/amsc/cyclic.py:114``) is exact and never overflows
+    intermediate. For a vector of ``float``s every denominator is a power of two
+    and this collapses to the largest of them.
+    """
+    scale = 1
+    for q in xs:
+        den = q.denominator
+        scale = scale // _cyclic.gcd(scale, den) * den
+    return scale
+
+
+def _scores_exact(xs) -> Tuple[Q, Q, Q]:
+    """The three scores over an ALREADY-coerced list of :class:`Q` (no re-coerce).
+
+    Split out from :func:`_spectral_scores` so the classifier converts the input
+    exactly ONCE — rc353 and earlier converted twice (``classify_chirality_harmonic``
+    floated the vector, then ``_spectral_scores`` floated the result again).
+    """
+    n = len(xs)
+    if n == 0:
+        return (_Q_ZERO, _Q_ZERO, _Q_ZERO)
+
+    # Put the vector on one common denominator D. Every score below is a RATIO
+    # of two sums taken on that same D (dc: both linear in D; mirror/three: both
+    # quadratic), so D cancels identically and each score is an exact ratio of
+    # two INTEGERS — the whole probe runs in bignum integers, no rational
+    # arithmetic in the loop, and the Class-N Q is formed once per score.
+    scale = _common_denominator(xs)
+    m = [q.numerator * (scale // q.denominator) for q in xs]
+
+    energy = sum(mi * mi for mi in m)  # Class-L inner product ⟨x, x⟩ × D²
+    if energy == 0:
+        # Exactly the all-zero vector, and ONLY that: an integer square-sum is
+        # zero iff every term is. rc353's float test ``energy == 0.0`` also
+        # fired on underflow — ``[1e-200] * 3`` (a CONSTANT vector, the flagship
+        # harmonic-1 shape) squared to 0.0 and misclassified as harmonic 2.
+        return (_Q_ZERO, _Q_ZERO, _Q_ZERO)
+
+    # Σ|x_i| (L1 norm) via the explicit Class-K sign-branch, not sqrt(x²).
+    # energy > 0 ⟹ some m_i ≠ 0 ⟹ total_mag > 0, so no zero-divisor guard is
+    # reachable here; rc353 carried one because floats made the implication
+    # non-exact. A dead branch would only be a place for a false green to hide.
+    total_mag = sum(mi if mi >= 0 else -mi for mi in m)
+    s = sum(m)
+    dc = Q(s if s >= 0 else -s, total_mag)
+
+    d_mirror = sum(m[i] * m[n - 1 - i] for i in range(n))  # ⟨x, reverse(x)⟩
+    mirror = Q(d_mirror if d_mirror >= 0 else -d_mirror, energy)
+
+    if n % 3 == 0:
+        k = n // 3
+        # roll(x, k): rolled[i] = x[(i - k) mod n]; ⟨x, roll(x, n/3)⟩.
+        d_three = sum(m[i] * m[(i - k) % n] for i in range(n))
+        three = Q(d_three if d_three >= 0 else -d_three, energy)
+    else:
+        three = _Q_ZERO
+    return (dc, mirror, three)
+
+
+def _spectral_scores(hv) -> Tuple[Q, Q, Q]:
+    """Three EXACT symmetry scores (dc, mirror, three_cycle) in [0, 1].
 
     - dc: DC-dominance = |Σx| / Σ|x| — a constant / chirality-invariant signal
       concentrates all power at the zero-frequency bin (→ harmonic 1).
@@ -91,39 +185,28 @@ def _spectral_scores(hv) -> Tuple[float, float, float]:
       ⟨x, x⟩ for n divisible by 3 — a 3-periodic signal scores high
       (→ harmonic 3). 0 when n is not divisible by 3.
 
-    Pure real-arithmetic symmetry probes over a plain ``float`` list (numpy-free
-    #564). Every magnitude is an EXPLICIT Class-K sign-branch (pin-slot:
-    ``x where x >= 0 else -x``) — never an ALU ``abs()`` and never the
-    ``sqrt(·²)`` stealth-abs; ``⟨x, x⟩`` energy is a Class-L inner product.
+    **rc354 — the scores are exact Class-N rationals, not floats.** Each input
+    element is promoted to the exact :class:`~srmech.amsc.q.Q` of its own value
+    (``to_q``: a float's ``as_integer_ratio`` is EXACT, so nothing is
+    approximated on the way in), and each score comes back as a ``Q``. Call
+    ``float(score)`` for a rendering. Every magnitude is an EXPLICIT Class-K
+    sign-branch (pin-slot: ``x where x >= 0 else -x``) — never an ALU ``abs()``
+    and never the ``sqrt(·²)`` stealth-abs; ``⟨x, x⟩`` energy is a Class-L
+    inner product; numpy-free (#564), libm-free.
     """
-    x = [float(v) for v in hv]
-    n = len(x)
-    energy = sum(xi * xi for xi in x)  # Class-L inner product ⟨x, x⟩
-    if n == 0 or energy == 0.0:
-        return (0.0, 0.0, 0.0)
-    # Σ|x_i| (L1 norm) via the explicit Class-K sign-branch, not sqrt(x²).
-    total_mag = sum(xi if xi >= 0.0 else -xi for xi in x)
-    s = sum(x)
-    dc = (s if s >= 0.0 else -s) / total_mag if total_mag > 0.0 else 0.0
-    d_mirror = sum(x[i] * x[n - 1 - i] for i in range(n))  # ⟨x, reverse(x)⟩
-    mirror = (d_mirror if d_mirror >= 0.0 else -d_mirror) / energy
-    if n % 3 == 0:
-        k = n // 3
-        # roll(x, k): rolled[i] = x[(i - k) mod n]; ⟨x, roll(x, n/3)⟩.
-        d_three = sum(x[i] * x[(i - k) % n] for i in range(n))
-        three = (d_three if d_three >= 0.0 else -d_three) / energy
-    else:
-        three = 0.0
-    return (dc, mirror, three)
+    return _scores_exact([to_q(v) for v in _flat_scalars(hv)])
 
 
-def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
+def classify_chirality_harmonic(hv, dc_threshold=0.5) -> int:
     """Classify an encoded hypervector into chirality-harmonic 1/2/3 by its
     spectral symmetry signature (F150 §6.2).
 
     ``hv`` may be a :class:`~srmech.amsc.vec.Vec` / :class:`~srmech.amsc.mat.Mat`
-    / any flat ``Sequence`` (rc129); it is read element-by-element (iterating a
-    ``Vec`` yields scalars), so the carrier flip is transparent.
+    / any flat or nested ``Sequence`` (rc129; the ``Mat`` path is real as of
+    rc354 — see :func:`_flat_scalars`). ``dc_threshold`` accepts an ``int``, a
+    ``float`` or an exact :class:`~srmech.amsc.q.Q`; a float is promoted by its
+    EXACT ``as_integer_ratio`` (the 0.5 default is exactly ``Q(1, 2)``), so the
+    comparison at the boundary is decided in the rationals, never in binary.
 
     Procedure: compute three symmetry scores (DC-dominance, mirror reflection,
     3-fold rotation). A DC-dominant signal (score ≥ `dc_threshold`) is
@@ -138,15 +221,39 @@ def classify_chirality_harmonic(hv, dc_threshold: float = 0.5) -> int:
     # products (⟨x,x⟩, ⟨x,rev(x)⟩, ⟨x,roll(x)⟩), **Class-K** magnitude pin-slots
     # (the explicit ``x if x >= 0 else -x`` L1 / DC branches — no ``abs()``, no
     # ``sqrt(·²)`` stealth-abs), and **Class-N** exact ratios; the verdict is a
-    # discrete 1/2/3 label. libm-free float arithmetic reaching no non-standalone
-    # leaf → trivially C-portable / standalone-ready (the SAME status as the
-    # ``mat_dot`` pure-reduction). Value-verified by known-vector → known-sector
-    # oracles; no new C symbol.
-    x = [float(v) for v in hv]
-    if len(x) == 0:
+    # discrete 1/2/3 label. Reaches no non-standalone leaf → C-portable /
+    # standalone-ready over the ``srmech_bigint`` / ``srmech_q`` peers (the C
+    # projection must carry the SAME exact arithmetic, not a naive double fold
+    # — see the rc354 parity note below). No new C symbol.
+    #
+    # rc354 — WHY EXACT, MEASURED. rc353 read the vector as ``float`` and the
+    # "Class-N exact ratios" claim above was false of the code. Three reachable
+    # defect families, each reproduced against the shipped rc353 op:
+    #   (i)  entries past 2⁵³ — ``[3*(2**53-1), -(2**53-1)]`` has exact
+    #        dc = 1/2 → harmonic 1, and returned 2 on every interpreter,
+    #        because the loss is in ``float(v)`` BEFORE any summing;
+    #   (ii) INTERPRETER-DEPENDENT verdicts — CPython ≥ 3.12 made built-in
+    #        ``sum()`` Neumaier-compensated, so an all-double vector with exact
+    #        dc = 1/2 classified 2 on 3.10/3.11 and 1 on 3.12+, while
+    #        ``requires-python`` is ``>=3.10`` (``pyproject.toml:43``). A C
+    #        projection does a naive fold, so it tracked 3.11 — a live
+    #        multi-implementation parity break (ADR-0009), not a hypothetical;
+    #   (iii) UNDERFLOW — ``[1e-200] * 3``, a CONSTANT vector (exact dc = 1),
+    #        squared to ``energy == 0.0`` and returned harmonic 2 at no
+    #        boundary at all, on every interpreter.
+    # THE HONEST NULL: the documented ±1-hypervector domain was NEVER at risk,
+    # and that is provable rather than merely unobserved — ``Σx`` and ``Σ|x|``
+    # are exact small integers for n < 2⁵³ and IEEE division is correctly
+    # rounded, so an exact 1/2 renders as exactly 0.5. Exhaustive over every
+    # dc == 1/2 partition for n = 2..20: zero differentials. This is a
+    # correctness repair at the edges, NOT "the classifier was returning wrong
+    # harmonics" on its own worked domain.
+    xs = [to_q(v) for v in _flat_scalars(hv)]
+    if len(xs) == 0:
         raise ValueError("classify_chirality_harmonic: empty vector")
-    dc, mirror, three = _spectral_scores(x)
-    if dc >= dc_threshold:
+    threshold = to_q(dc_threshold)
+    dc, mirror, three = _scores_exact(xs)
+    if dc >= threshold:
         return 1
     return 3 if three > mirror else 2
 

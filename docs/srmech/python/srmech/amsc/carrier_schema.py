@@ -844,3 +844,177 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
         if native is not None:
             return native
     return _pure_carrier_schema()
+
+
+# -- the DOMAIN-MATCHING vocabulary (rc354, F1336) ----------------------------
+#
+# A NULL, SHIPPED AS A NULL. A four-word vocabulary was proposed for picking a
+# carrier by what a domain needs -- MAGNITUDE / PHASE / ORIENTATION / PATH, read
+# as the Cayley-Dickson ladder R -> C -> H -> O. The question put to the shipped
+# surface was: can a planner DERIVE that word from the published capability row?
+#
+# MEASURED ANSWER: NO. The row determines the word for 3 of 25 carriers.
+#
+# The decisive measurement is one line long. ``float`` (which the vocabulary
+# calls MAGNITUDE) and ``complex`` (PHASE) differ in EXACTLY ONE published
+# field, and it is not a capability:
+#
+#     float    {address: exact, compose: full, turn: abelian_only,
+#               commutative: True, varies_with: None, bounded_by: definition,
+#               product: "field multiply", max_dim: 1}
+#     complex  {... every verdict identical ...,                  max_dim: 2}
+#
+# ``max_dim`` is a real DIMENSION, not "is it orderable". It only correlates
+# with the word because R and C happen to sit at dims 1 and 2, and it is None
+# for 13 of the 25 carriers, so it cannot generalise. ``address`` is "exact" for
+# all 25 (a zero-entropy column), and ``turn`` is constant "abelian_only" across
+# all 14 commutative carriers -- no discriminating power in exactly the half
+# where MAGNITUDE and PHASE must be told apart.
+#
+# THE MISSING FIELD IS AN ORDER PREDICATE, and it is missing for a structural
+# reason: of the ladder's loss steps, the capability block measures three and
+# never measures the first one.
+#
+#     R -> C loses TOTAL ORDER      -- no published field        <- THE GAP
+#     C -> H loses COMMUTATIVITY    -- ``commutative``
+#     H -> O loses ASSOCIATIVITY    -- ``turn``
+#     O -> S loses DIVISION         -- ``compose``, but the four-word vocabulary
+#                                      has NO WORD for this loss at all
+#
+# TWO FURTHER REASONS the four words cannot label this surface injectively, both
+# readable off the shipped rows:
+#
+#   * THE VERDICT SPACE IS A LATTICE, NOT A CHAIN. ``Mat`` is
+#     (zero_divisors, non_commuting); ``octonion`` is (full, abelian_only).
+#     NEITHER DOMINATES THE OTHER, so ``Mat`` sits at no rung of R->C->H->O.
+#     This file already says so at the ``Mat`` row above: "`turn` is not
+#     downstream of `compose`". A 4-word chain asserts a chain over two
+#     independent axes.
+#   * ``Vec`` FITS ZERO BUCKETS, derivably: commutative (so not ORIENTATION or
+#     PATH), zero divisors (so not orderable, hence not MAGNITUDE), and not a
+#     cycle (not PHASE). R^n under Hadamard is a genuine fifth thing.
+#
+# WHAT WOULD CLOSE IT -- a field in the same closed-vocabulary shape as
+# ``compose`` and ``turn``:
+#
+#     "order": "total" | "none" | "unclassified" | None
+#
+# It satisfies the rc343 admission rule (measurable SEPARATELY from the
+# capability it decides): a field is formally real iff -1 is not a sum of
+# squares, and C/H/O all give -1 = i^2 in ONE square while R/Q/Z do not. For the
+# zero-divisor carriers the witness is an exhibited pair, the pattern
+# ``cascade.sedenion_zero_divisor_witness`` already ships. So ``order: "none"``
+# would be falsifiable rather than asserted.
+#
+# NOT SHIPPED, DELIBERATELY: the four words are NOT attached to any carrier row.
+# Asserting a word next to data that does not determine it is the rc339 defect
+# one level up -- a planner would read ``HV -> PATH`` and reach for a q8 bind.
+# Three things must land TOGETHER or the gap reopens: (a) the ``order`` field;
+# (b) a fifth word for the published-but-unnamed O -> S loss; (c) a worst-case
+# label on every ``varies_with`` row.
+
+#: the domain-word verdicts a capability row can carry. ``undecidable`` is a
+#: first-class verdict here, not a failure to try.
+DOMAIN_WORD_VERDICTS = ("ORIENTATION", "PATH", "none_of_the_four",
+                        "not_applicable", "undecidable")
+
+
+def _domain_word(capability: Dict[str, Any]) -> str:
+    """The domain word a single published capability row DETERMINES -- or
+    ``"undecidable"`` when the row does not determine one.
+
+    This is the honest half of the four-word MAGNITUDE / PHASE / ORIENTATION /
+    PATH proposal: the two words the row CAN decide are returned, and the two it
+    cannot are refused rather than guessed. See the block comment above for the
+    measurement, and :func:`_domain_word_gap` for the derived ledger.
+    """
+    commutative = capability.get("commutative")
+    if commutative is None:                      # no closed product at all
+        return "not_applicable"
+    if commutative is False:
+        # the swap axis IS published, so ORIENTATION vs PATH is decidable.
+        return ("ORIENTATION" if capability.get("turn") == _CAP_NON_COMMUTING
+                else "PATH")
+    if capability.get("compose") == _CAP_ZERO_DIVISORS:
+        # an ordered ring is an integral domain, so zero divisors PROVE
+        # not-orderable; and a commutative zero-divisor product is not a cycle.
+        # Neither MAGNITUDE nor PHASE nor ORIENTATION nor PATH. (``Vec``.)
+        return "none_of_the_four"
+    # commutative, no zero divisors: MAGNITUDE and PHASE are indistinguishable
+    # on the published fields. The converse of the rule above fails -- C has no
+    # zero divisors and is not orderable -- so ``compose`` cannot separate them.
+    return "undecidable"
+
+
+def _domain_word_gap(capabilities: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """The DERIVED statement of what the four-word domain vocabulary can and
+    cannot be read off the shipped carrier registry.
+
+    Recomputed live, never authored, so it cannot drift from the rows it
+    describes. ``capabilities`` lets a caller that has already built the
+    ``{name: capability}`` mapping (``describe()``) hand it over instead of
+    paying for a second :func:`carrier_schema` build; omit it and the registry
+    is read here.
+    """
+    caps = capabilities if capabilities is not None else {
+        name: spec["capability"] for name, spec in carrier_schema().items()}
+    by_verdict: Dict[str, List[str]] = {v: [] for v in DOMAIN_WORD_VERDICTS}
+    for name, cap in caps.items():
+        by_verdict[_domain_word(cap)].append(name)
+    worst_case_only = sorted(n for n, c in caps.items() if c.get("varies_with"))
+    # A word that comes back is not automatically USABLE. Two disqualifiers,
+    # both read off the row, and both counted separately so the headline number
+    # is the honest one:
+    #   * `varies_with` set  -> the word is the WORST CASE over a knob, so a
+    #     planner reading it for a different knob value gets the wrong word
+    #     (CDRegister spans all four across dim 1..8; HV spans q8 and octonion);
+    #   * PATH with zero divisors -> the row is PAST Hurwitz, and the four words
+    #     have no name for the O->S loss, so PATH collides with the octonion's.
+    qualified, unambiguous = [], []
+    for name in by_verdict["ORIENTATION"] + by_verdict["PATH"]:
+        cap = caps[name]
+        if cap.get("varies_with"):
+            qualified.append(name)
+        elif (_domain_word(cap) == "PATH"
+              and cap.get("compose") == _CAP_ZERO_DIVISORS):
+            qualified.append(name)
+        else:
+            unambiguous.append(name)
+    return {
+        "verdict": "NOT DERIVABLE from the published capability row",
+        "determined_unambiguous": len(unambiguous),
+        "of": len(caps),
+        "unambiguous": sorted(unambiguous),
+        "word_returned_but_qualified": sorted(qualified),
+        "by_verdict": {k: sorted(v) for k, v in by_verdict.items()},
+        "missing_field": {
+            "name": "order",
+            "asks": "does a total order compatible with `product` exist "
+                    "(x<y => x+z<y+z; 0<x,0<y => 0<xy)",
+            "vocabulary": ["total", "none", "unclassified", None],
+            "witness": "a field is formally real iff -1 is not a sum of "
+                       "squares -- C/H/O give -1 = i^2 in ONE square, R/Q/Z do "
+                       "not; for zero-divisor carriers, an exhibited pair",
+            "why_it_is_admissible": "measurable separately from the capability "
+                                    "it decides (the rc343 admission rule)",
+        },
+        "why": (
+            "of the ladder's four loss steps the block measures three and never "
+            "the first: R->C loses TOTAL ORDER (unpublished), C->H loses "
+            "commutativity (`commutative`), H->O loses associativity (`turn`), "
+            "O->S loses division (`compose`, and the four words have no name "
+            "for it). `float` and `complex` differ in exactly one published "
+            "field, `max_dim` -- a dimension, not an order predicate."),
+        "not_a_chain": (
+            "the verdict space is a LATTICE: Mat is (zero_divisors, "
+            "non_commuting) and octonion is (full, abelian_only), and NEITHER "
+            "DOMINATES -- so Mat sits at no rung of R->C->H->O and no 4-word "
+            "chain labels this surface injectively"),
+        "word_is_worst_case_only_for": worst_case_only,
+        "not_shipped": (
+            "MAGNITUDE and PHASE are NOT attached to any carrier row. Asserting "
+            "a word beside data that does not determine it is the rc339 defect "
+            "one level up. Closing this needs three things TOGETHER: the "
+            "`order` field, a FIFTH word for the O->S loss, and a worst-case "
+            "label on every `varies_with` row."),
+    }

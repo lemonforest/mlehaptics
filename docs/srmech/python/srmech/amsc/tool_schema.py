@@ -2599,9 +2599,14 @@ def _register_primitive_class_tools() -> None:
             name="srmech.amsc.harmonics.classify_chirality_harmonic", owner="srmech",
             category="harmonics",
             summary="Classify an encoded hypervector into chirality-harmonic 1/2/3 "
-                    "by its spectral symmetry signature (F150 §6.2).",
+                    "by its spectral symmetry signature (F150 §6.2); the three "
+                    "scores are EXACT Class-N rationals (rc354), not floats.",
             parameters=(P("hv", "HV", True, "encoded vector"),
-                        P("dc_threshold", "float", False)),
+                        P("dc_threshold", "float", False,
+                          "DC-dominance cut, default 0.5. Accepts int / float / "
+                          "exact Q — a float is promoted by its EXACT "
+                          "as_integer_ratio, so 0.5 is exactly Q(1, 2) and the "
+                          "boundary is decided in the rationals, never in binary")),
             returns=R("int", "harmonic order 1, 2, or 3"),
         ),
         ToolEntry(
