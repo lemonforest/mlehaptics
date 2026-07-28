@@ -630,8 +630,67 @@ _GRANULARITY: Dict[str, Any] = {
         "is the SQUARE (Z/2)^2. The tesseract that lives IN H is a third "
         "object: 16 unit POINTS of R^4 (the half-integer Hurwitz units), not a "
         "grading — 128 of their 256 products leave the set (measured "
-        "2026-07-28), so no sign-bit XOR grades them."
+        "2026-07-28), so no sign-bit XOR grades them. "
+        "A FOURTH sense (rc354, F1336) — and it is the one that makes the "
+        "tesseract genuinely ambiguous. An algebra of real dim n does not have "
+        "n units; it has 2n SIGNED units (±e_0 … ±e_{n-1}), so a unit LABEL "
+        "needs log2(n)+1 bits: log2(n) for the index and ONE MORE for the "
+        "sign. H (dim 4) therefore has 8 signed units = a 3-CUBE, and O (dim 8) "
+        "has 16 signed units = a 4-CUBE. The 16-vertex tesseract is ALSO O's "
+        "UNIT-LABEL cube, not only S's grading cube — two different 16s: S has "
+        "16 basis DIRECTIONS, O has 16 signed UNITS. That is why 8 is the "
+        "middle ground: O addresses 16 units in 4 bits AND contains H seven "
+        "times (the seven Fano lines, each {0,a,b,c} verified closed under the "
+        "product). THE SHADOW, DERIVED THEN MEASURED on cd_basis_product: under "
+        "a flat (log2(n)+1)-bit XOR label the low log2(n) bits XOR EXACTLY (0 "
+        "violations at every rung), but the TOP (sign) bit does NOT — the "
+        "violating ordered pairs of signed units number exactly 2*dim*(dim-1) "
+        "(4 / 24 / 112 / 480 at dims 2/4/8/16), a fraction (dim-1)/(2*dim) = "
+        "1/4, 3/8, 7/16, 15/32 -> 1/2. THE FLAT HYPERCUBE IS WRONG EXACTLY "
+        "WHERE THE ALGEBRA ANTICOMMUTES, and it worsens up the ladder. "
+        "BOUNDS, so this is not over-read: the closed form is DERIVED and "
+        "CHECKED at six rungs (2/4/8/16/32/64), NOT proved for all n; 'O is THE "
+        "right carrier' is a DESIGN argument from those two facts, NOT a "
+        "measurement; and (dim-1)/(2*dim) is about BASIS-PAIR PRODUCTS under a "
+        "flat label — it is NOT a strand-misread rate and must not enter an "
+        "error budget."
     ),
+    "unit_label_cube": {
+        "reading": "signed_unit_labels",
+        "rule": "an algebra of real dim n has 2n signed units, labelled in "
+                "log2(n)+1 bits (log2(n) index bits + 1 sign bit)",
+        "vs_grading_cube": "the grading cube (Z/2)^log2(n) has n vertices, one "
+                           "per basis DIRECTION; the unit-label cube has 2n, "
+                           "one per SIGNED unit",
+        "the_two_sixteens": {
+            "S_grading_cube": {"algebra": "S", "real_dim": 16,
+                               "vertices": 16, "counts": "basis directions"},
+            "O_unit_label_cube": {"algebra": "O", "real_dim": 8,
+                                  "vertices": 16, "counts": "signed units"},
+        },
+        "why_8_is_the_middle_ground": (
+            "O addresses 16 signed units in 4 bits AND contains H seven times "
+            "(the Fano lines) — a DESIGN argument, not a measurement"),
+        "shadow": {
+            "index_bits_xor": "exact at every rung (0 violations measured)",
+            "sign_bit_xor": "fails; violations = 2*dim*(dim-1)",
+            "violations_by_dim": {"2": 4, "4": 24, "8": 112, "16": 480,
+                                  "32": 1984, "64": 8064},
+            "fraction_wrong": {"2": [1, 4], "4": [3, 8], "8": [7, 16],
+                               "16": [15, 32], "32": [31, 64], "64": [63, 128]},
+            "limit": "(dim-1)/(2*dim) -> 1/2",
+            "reads_as": "the flat hypercube is wrong exactly where the algebra "
+                        "ANTICOMMUTES, and worsens up the ladder",
+        },
+        "bounds": [
+            "DERIVED, then checked at six rungs (2/4/8/16/32/64) — NOT proved "
+            "for all n",
+            "'O is THE right carrier' is a DESIGN argument, not a measurement",
+            "(dim-1)/(2*dim) is about BASIS-PAIR PRODUCTS, not a strand-misread "
+            "rate — do not carry it into an error budget",
+        ],
+        "generating_code": "docs/srmech/notes/unit_label_cube_rc354.py",
+    },
     "invariant": (
         "1 anchor + (n-1) torsors at every width: the identity sits in exactly "
         "ONE slot and only that slot closes under the product"),
@@ -1015,10 +1074,15 @@ def describe() -> Dict[str, Any]:
     # ceilings that bind. Each carrier now carries its capability row; the names
     # are recoverable as sorted(carriers["capabilities"]).
     try:
-        from ..amsc.carrier_schema import _CAPABILITY, _CARRIERS
+        from ..amsc.carrier_schema import (
+            _CAPABILITY, _CARRIERS, _domain_word_gap)
         _carrier_caps = {n: dict(_CAPABILITY[n]) for n in sorted(_CARRIERS)}
+        # DERIVED from the rows just built — no second registry build, and no
+        # chance of the ledger drifting from the capabilities beside it.
+        _carrier_domain_gap = _domain_word_gap(_carrier_caps)
     except Exception:  # pragma: no cover — carrier registry optional / absent
         _carrier_caps = {}
+        _carrier_domain_gap = {}
 
     # Dimensional CAPABILITY ceilings (rc298 `#936`). Before this rc describe()
     # could say whether a native library was present and its ABI, but not what
@@ -1285,9 +1349,18 @@ def describe() -> Dict[str, Any]:
         # nouns to `tools`' verbs, each with what it can DO. `capabilities` is
         # keyed by carrier name, so sorted(...) recovers the old name list. Full
         # per-carrier detail via srmech.amsc.carrier_schema.carrier_schema().
+        # `domain_word_gap` (rc354, F1336) is a NULL shipped AS a null: a
+        # four-word MAGNITUDE / PHASE / ORIENTATION / PATH vocabulary was
+        # proposed for picking a carrier by what a domain needs, and the
+        # published row DETERMINES it for only 3 of 25. The two words the row
+        # can decide are returned; the two it cannot are refused. It rides here
+        # rather than in a note because a planner who never opens
+        # carrier_schema.py is exactly the reader who would otherwise assume
+        # the word is derivable.
         "carriers": {
             "total": len(_carrier_caps),
             "capabilities": _carrier_caps,
+            "domain_word_gap": _carrier_domain_gap,
         },
         # Compiled CAPABILITY ceilings (rc298 `#936`; capability-KEYED rc339
         # `#T967`) — what this BUILD supports, with every dimension inside the
