@@ -4798,24 +4798,6 @@ def _order_node_octonion(node_id):
     return out
 
 
-def _order_omul(a, b, table):
-    """One octonion product ``a * b`` via the C-routed Cayley-Dickson structure
-    constants (``qm.so8.octonion_mult_table``) — EXACT integer arithmetic (never
-    a float Mat, never a mod)."""
-    out = [0] * 8
-    for i in range(8):
-        if a[i] == 0:
-            continue
-        for j in range(8):
-            if b[j] == 0:
-                continue
-            for k in range(8):
-                c = table[i][j][k]
-                if c:
-                    out[k] += c * a[i] * b[j]
-    return out
-
-
 def order_fingerprint(fiber_ids):
     """The path-ORDERED octonion product along a walk — an order-sensitive
     fingerprint of the fiber, 8 ints, independent of walk length (#1390 item 4b;
@@ -4823,12 +4805,22 @@ def order_fingerprint(fiber_ids):
     reorder the op / operand / responsion / ℂ-curvature faculties are blind to
     (F1079 / F1230). A VERIFIER (lossy by pigeonhole), NEVER a store. Composes
     the C-routed ``srmech.qm.so8.octonion_mult_table`` with a generic (non-basis,
-    non-uniform-component) per-node octonion."""
+    non-uniform-component) per-node octonion.
+
+    rc352 (`#T997`): the step multiplication is the SHIPPED
+    :func:`srmech.amsc.cascade.table_product`. This op previously carried its
+    own private dim-8-hardcoded triple loop (``_order_omul``) — a third copy of
+    the table-driven product, kept only because no shipped op took a table. It
+    is gone; the values are unchanged (exact integers, no mod, the same
+    ``octonion_mult_table`` constants), and the step now rides the
+    ``srmech_algebra_table_product`` C kernel."""
     from srmech.qm.so8 import octonion_mult_table
+    from srmech.amsc.cascade import table_product
     table = octonion_mult_table()
     acc = [1, 0, 0, 0, 0, 0, 0, 0]
     for nid in fiber_ids:
-        acc = _order_omul(acc, _order_node_octonion(int(nid)), table)
+        acc = [int(v) for v in
+               table_product(table, acc, _order_node_octonion(int(nid)))]
     return acc
 
 

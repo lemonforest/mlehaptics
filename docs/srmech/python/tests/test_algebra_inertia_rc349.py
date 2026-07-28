@@ -38,6 +38,7 @@ defect in the first cut of this rc:
   associativity, alternativity, composition or division.
 """
 import io
+import itertools
 import os
 import random
 import re
@@ -72,17 +73,26 @@ SKIP_IF_NO_NATIVE = pytest.mark.skipif(
 )
 
 
-# ── fixtures: the GENERALIZED Cayley–Dickson doubling ────────────────────────
+# ── fixtures: the GENERALIZED Cayley–Dickson doubling, as a LABELLED ORACLE ──
 #
 # (a, b)(c, d) = (a c + γ d̄ b, d a + b c̄) with a per-level γ ∈ {−1, +1}.
 # γ = −1 is the standard (definite) doubling srmech ships; γ = +1 at a level
-# makes that level SPLIT. So ℝ →(−1) ℂ →(−1) ℍ →(+1) split-𝕆. This lives in the
-# test, not the package: the op under test takes a table and does not care where
-# it came from, and building the controls from an INDEPENDENT construction is
-# what makes them controls. Cross-validated below against the shipped
-# ``octonion_mult_table`` / ``quaternion_mult_table``.
+# makes that level SPLIT. Ladder order: γ[0] is ℝ→ℂ, γ[1] is ℂ→ℍ, γ[2] is ℍ→𝕆,
+# so ℝ →(−1) ℂ →(−1) ℍ →(+1) split-𝕆 is ``[-1, -1, +1]``.
+#
+# rc352 (`#T997`) SHIPPED this constructor as ``cascade.algebra_table``. This
+# body stays as the **independent oracle** it always was — a RECURSIVE doubling
+# that shares no code with the shipped ITERATIVE cocycle — and
+# ``test_shipped_algebra_table_matches_the_independent_oracle`` below pins the
+# two against each other at every dim × every γ. Keeping it is not duplication
+# debt: it is the only thing in the tree that can contradict the shipped
+# cocycle's sign convention, and the fixtures below are controls precisely
+# because they do not come from the code under test.
 
-def _cd_table(dim, gammas):
+def _cd_table_oracle(dim, gammas):
+    """ORACLE ONLY — the recursive generalised doubling, in LADDER γ order.
+    Deliberately NOT the subject of any test; it is what
+    ``cascade.algebra_table`` is checked against."""
     def conj(a):
         n = len(a)
         if n == 1:
@@ -95,7 +105,7 @@ def _cd_table(dim, gammas):
         if n == 1:
             return (a[0] * b[0],)
         m = n >> 1
-        gamma = gammas[len(gammas) - (n.bit_length() - 1)]
+        gamma = gammas[n.bit_length() - 2]      # ladder index of THIS doubling
         a1, a2 = a[:m], a[m:]
         b1, b2 = b[:m], b[m:]
         left = tuple(p + gamma * q for p, q in zip(mul(a1, b1), mul(conj(b2), a2)))
@@ -128,42 +138,35 @@ def _random_general_table(dim, rng):
              for _ in range(dim)] for _ in range(dim)]
 
 
-def _oracle_product(table, x, y):
-    """ORACLE ONLY — the table-driven product, for algebras srmech has no
-    shipped product for (the split and random tables).
+def _integer_product(table, x, y):
+    """The SHIPPED ``cascade.table_product``, read back as exact ints.
 
-    Deliberately NOT the subject of any test. It is anchored to the shipped
-    ``cd_mult`` on every division-algebra rung by
-    ``test_oracle_product_agrees_with_the_shipped_cd_mult`` below, so it cannot
-    drift; on the shipped ladder the tests call ``cd_mult`` itself.
+    rc352 (`#T997`) RETIRED this file's hand-rolled ``_oracle_product``. That
+    oracle existed for exactly one reason — its own docstring said so — namely
+    that no shipped op took a table, so the split and random tables had no
+    product at all. ``cascade.table_product`` is that op, so the subject of
+    every check below is now the shipped code and this is a one-line type
+    adapter (``table_product`` returns exact ``Q``; these fixtures are
+    integers), NOT a second implementation.
     """
-    dim = len(table)
-    out = [0] * dim
-    for i in range(dim):
-        if x[i] == 0:
-            continue
-        for j in range(dim):
-            if y[j] == 0:
-                continue
-            for k, c in enumerate(table[i][j]):
-                if c:
-                    out[k] += x[i] * y[j] * c
-    return out
+    return [int(v) for v in cascade.table_product(table, x, y)]
 
 
 def _definite(dim):
-    """The standard (γ = −1 everywhere) table at a division-algebra rung."""
-    return _cd_table(dim, [-1] * (dim.bit_length() - 1))
+    """The standard (γ = −1 everywhere) table at a division-algebra rung, from
+    the independent ORACLE — deliberately not from ``cascade.algebra_table``,
+    so the split fixtures below stay controls on the shipped constructor."""
+    return _cd_table_oracle(dim, [-1] * (dim.bit_length() - 1))
 
 
 REAL = _definite(1)
 COMPLEX = _definite(2)
 QUATERNION = _definite(4)
 OCTONION = _definite(8)
-SEDENION = _cd_table(16, [-1] * 4)
-SPLIT_COMPLEX = _cd_table(2, [+1])
-SPLIT_QUATERNION = _cd_table(4, [-1, +1])
-SPLIT_OCTONION = _cd_table(8, [-1, -1, +1])
+SEDENION = _cd_table_oracle(16, [-1] * 4)
+SPLIT_COMPLEX = _cd_table_oracle(2, [+1])
+SPLIT_QUATERNION = _cd_table_oracle(4, [-1, +1])
+SPLIT_OCTONION = _cd_table_oracle(8, [-1, -1, +1])
 #: ℚ(√2) as a 2-dim ℚ-algebra: e₁·e₁ = 2e₀. A genuinely ORDERED field, and the
 #: measured limit of what a signature can separate (see the test below).
 Q_SQRT2 = [[[1, 0], [0, 1]], [[0, 1], [2, 0]]]
@@ -177,22 +180,58 @@ def test_generalised_doubling_reproduces_the_shipped_tables():
     assert QUATERNION == quaternion_mult_table()
 
 
-@pytest.mark.parametrize("dim", DIVISION_ALGEBRA_DIMS)
-def test_oracle_product_agrees_with_the_shipped_cd_mult(dim):
-    """Anchor the ORACLE to the SUBJECT's own product.
+def test_shipped_algebra_table_matches_the_independent_oracle():
+    """THE convention anchor (rc352, `#T997`).
 
-    The split and random tables have no shipped product op, so the table-driven
-    ``_oracle_product`` is unavoidable there. It is only trustworthy because it
-    is pinned to ``cd_mult`` — the shipped Cayley–Dickson product — at every
-    division-algebra rung, over the module's own ``DIVISION_ALGEBRA_DIMS``
-    rather than a hard-coded list.
+    ``cascade.algebra_table`` computes the γ-parameterised cocycle
+    ITERATIVELY (one bounded loop, JPL Rule 1, the same engine the C peer
+    runs); ``_cd_table_oracle`` above computes it by RECURSIVE doubling on
+    whole elements. They share no code. Every dim on the ladder, every γ
+    assignment — this is the check that could contradict the shipped sign
+    convention, and the reason the recursive body is kept rather than deleted
+    now that a constructor ships.
+    """
+    checked = 0
+    for dim in (1, 2, 4, 8, 16):
+        n_levels = dim.bit_length() - 1
+        combos = list(itertools.product((-1, 1), repeat=n_levels))
+        for gammas in combos:
+            assert cascade.algebra_table(dim, gammas) == \
+                _cd_table_oracle(dim, list(gammas)), (dim, gammas)
+            checked += 1
+    assert checked == 1 + 2 + 4 + 8 + 16, checked
+    # …and the DEFAULT is the definite ladder, not merely equal to some member.
+    for dim in (1, 2, 4, 8, 16):
+        assert cascade.algebra_table(dim) == \
+            _cd_table_oracle(dim, [-1] * (dim.bit_length() - 1))
+
+
+@pytest.mark.parametrize("dim", DIVISION_ALGEBRA_DIMS)
+def test_shipped_table_product_agrees_with_the_shipped_cd_mult(dim):
+    """TWO SHIPPED ROUTES to one product — no oracle on either side.
+
+    Before rc352 this test anchored a hand-rolled ``_oracle_product`` to
+    ``cd_mult``. Now both sides are shipped ops that reach the same bilinear
+    form by different routes: ``cd_mult`` recurses / calls the cocycle per
+    ``(i, j)``; ``table_product`` accumulates over a MATERIALISED rank-3
+    tensor.
+
+    **What this differential does and does not cover, stated so it cannot be
+    over-read.** The SIGN CONVENTION is shared — one cocycle engine serves
+    ``cd_basis_product`` and ``algebra_table`` alike, deliberately, because the
+    1:1-mirror discipline forbids two copies of one algebra. So a convention
+    error would pass here. What it covers is the accumulation, the tensor
+    materialisation and the exact-ℚ arithmetic path, on inputs from the
+    module's own ``DIVISION_ALGEBRA_DIMS``. The convention itself is pinned
+    against the INDEPENDENT recursive oracle by
+    ``test_shipped_algebra_table_matches_the_independent_oracle``.
     """
     rng = random.Random(1000 + dim)
     table = _definite(dim)
     for _ in range(40):
         x = [rng.randint(-3, 3) for _ in range(dim)]
         y = [rng.randint(-3, 3) for _ in range(dim)]
-        assert [int(v) for v in cd_mult(x, y)] == _oracle_product(table, x, y)
+        assert [int(v) for v in cd_mult(x, y)] == _integer_product(table, x, y)
 
 
 @pytest.mark.parametrize("dim", DIVISION_ALGEBRA_DIMS)
@@ -240,7 +279,7 @@ def test_split_octonion_has_zero_divisors_and_the_octonions_do_not():
                             x[i], x[j] = 1, 1
                             y = [0] * dim
                             y[k], y[m] = 1, s
-                            if not any(_oracle_product(table, x, y)):
+                            if not any(_integer_product(table, x, y)):
                                 return x, y
         return None
 
@@ -341,7 +380,7 @@ def test_split_complex_has_no_negative_direction_yet_is_NOT_orderable():
     one_plus_j = [1, 1]
     one_minus_j = [1, -1]
     assert any(one_plus_j) and any(one_minus_j)
-    assert not any(_oracle_product(SPLIT_COMPLEX, one_plus_j, one_minus_j))   # == 0
+    assert not any(_integer_product(SPLIT_COMPLEX, one_plus_j, one_minus_j))   # == 0
     # …and the instrument does NOT claim otherwise.
     assert "ordered" not in r
 
@@ -364,25 +403,34 @@ def test_the_norm_signature_does_NOT_separate_split_complex_from_Q_sqrt2():
     assert split["norm_signature"] == ordered_field["norm_signature"] == (1, 1, 0)
     # …yet they genuinely differ: split-ℂ has a rational null vector, ℚ(√2) does
     # not (a² = 2b² has no nonzero rational solution).
-    assert not any(_oracle_product(SPLIT_COMPLEX, [1, 1], [1, -1]))
-    assert all(any(_oracle_product(Q_SQRT2, [a, b], [a, -b]))
+    assert not any(_integer_product(SPLIT_COMPLEX, [1, 1], [1, -1]))
+    assert all(any(_integer_product(Q_SQRT2, [a, b], [a, -b]))
                for a in range(-6, 7) for b in range(-6, 7) if (a or b))
 
 
 def test_the_shipped_cd_norm_sq_cannot_serve_as_the_isotropy_test():
     """Why the obvious reuse was rejected, measured on the SHIPPED op.
 
-    ``cd_norm_sq`` is ``Σ xᵢ²`` in COORDINATES — it never reads a table — so on
-    split-ℂ it reports ``N([1,−1]) = 2`` for an element that is genuinely a
-    null vector of the split norm. Reusing it here would have reproduced
-    exactly the input-blind substitution this rc exists to avoid. (It is not a
-    live bug: the module builds no split algebra, so it is only ever handed
-    definite input today.)
+    ``cd_norm_sq()`` with no ``gammas`` is ``Σ xᵢ²`` in COORDINATES — it reads
+    no table — so it reports ``N([1,−1]) = 2`` for an element that is genuinely
+    a null vector of the SPLIT-ℂ norm. Reusing the default read as a general
+    isotropy test would have reproduced exactly the input-blind substitution
+    this rc exists to avoid.
+
+    **rc352 (`#T1001`) closed the half of this that was a live trap.** The rc349
+    note here said "not a live bug: the module builds no split algebra"; rc352's
+    ``algebra_table`` builds one, so the default became a DECLARATION rather
+    than an assumption and the twisted read ships beside it (see
+    ``test_cd_norm_sq_gate`` in ``test_algebra_table_rc352.py``). What survives
+    unchanged is the statement this test makes: the DEFAULT read is the
+    definite one and must not be pressed into service as an isotropy oracle.
     """
     assert int(cd_norm_sq([1, -1])) == 2                    # coordinate form
-    assert not any(_oracle_product(SPLIT_COMPLEX, [1, 1], [1, -1]))
+    assert not any(_integer_product(SPLIT_COMPLEX, [1, 1], [1, -1]))
     # On the DEFINITE ladder it is correct, which is why it survives in scope.
     assert int(cd_norm_sq([3, 4])) == 25
+    # …and the split read, declared, is 0 — the null vector the default misses.
+    assert int(cd_norm_sq([1, -1], gammas=(+1,))) == 0
 
 
 def test_sedenion_zero_divisor_witness_is_not_a_general_isotropy_surface():
@@ -469,7 +517,7 @@ def test_witness_is_a_negative_direction_of_the_trace_form(name, table):
     w = r["witness"]
     assert w is not None and any(v != 0 for v in w), name
     # w·w recomputed from the FULL product, not from the op's own Gram.
-    square = _oracle_product(table, w, w)
+    square = _integer_product(table, w, w)
     assert square == r["witness_square"], name
     assert square[0] < 0, (name, w, square)
     assert square[0] == r["witness_real_square"]
@@ -497,7 +545,7 @@ def test_ladder_witnesses_carry_the_STRONG_certificate(name, table):
 def test_a_negative_trace_direction_need_not_be_a_strong_certificate():
     """Guard against re-conflating the two. [3,−5] in ℂ has Re(x·x) = −16 < 0
     yet x² = −16 − 30i is not a negative real, so it certifies nothing."""
-    square = _oracle_product(COMPLEX, [3, -5], [3, -5])
+    square = _integer_product(COMPLEX, [3, -5], [3, -5])
     assert square[0] == -16 and square[0] < 0
     assert square[1] != 0                       # NOT a real multiple of 1
 
@@ -561,7 +609,7 @@ def test_dual_numbers_exercise_the_degenerate_component():
     assert r["n_zero"] == 1
     assert r["has_negative_direction"] is False
     assert r["witness"] is None
-    assert _oracle_product(DUAL_NUMBERS, [0, 1], [0, 1]) == [0, 0]     # ε² = 0
+    assert _integer_product(DUAL_NUMBERS, [0, 1], [0, 1]) == [0, 0]     # ε² = 0
 
 
 def test_n_zero_is_exercised_by_the_random_families_too():
@@ -587,7 +635,7 @@ def test_random_monomial_tables_120_witnesses_all_verify():
         if r["witness"] is None:
             assert r["n_minus"] == 0
         else:
-            assert _oracle_product(table, r["witness"], r["witness"])[0] < 0
+            assert _integer_product(table, r["witness"], r["witness"])[0] < 0
     # The op is READING each table: a fixed-output mechanism would give one
     # answer for all 120.
     assert len(signatures) >= 5, signatures
@@ -603,7 +651,7 @@ def test_random_general_tables_120_witnesses_all_verify():
         r = cascade.inertia_signature(table)
         assert r["n_plus"] + r["n_minus"] + r["n_zero"] == 6
         if r["witness"] is not None:
-            assert _oracle_product(table, r["witness"], r["witness"])[0] < 0
+            assert _integer_product(table, r["witness"], r["witness"])[0] < 0
 
 
 # ── THE CEILING, made executable ────────────────────────────────────────────
@@ -642,8 +690,8 @@ def _is_associative(table):
             for k in range(1, dim):
                 a, b, c = ([0] * dim for _ in range(3))
                 a[i], b[j], c[k] = 1, 1, 1
-                if _oracle_product(table, _oracle_product(table, a, b), c) != \
-                        _oracle_product(table, a, _oracle_product(table, b, c)):
+                if _integer_product(table, _integer_product(table, a, b), c) != \
+                        _integer_product(table, a, _integer_product(table, b, c)):
                     return False
     return True
 
@@ -841,7 +889,7 @@ def test_re_x_squared_is_summed_from_the_table_not_the_coordinate_form():
     disagreements = 0
     for _ in range(400):
         x = [rng.randint(-4, 4) for _ in range(dim)]
-        true_real_square = _oracle_product(SPLIT_OCTONION, x, x)[0]
+        true_real_square = _integer_product(SPLIT_OCTONION, x, x)[0]
         coordinate_form = x[0] * x[0] - sum(v * v for v in x[1:])
         if true_real_square != coordinate_form:
             disagreements += 1
