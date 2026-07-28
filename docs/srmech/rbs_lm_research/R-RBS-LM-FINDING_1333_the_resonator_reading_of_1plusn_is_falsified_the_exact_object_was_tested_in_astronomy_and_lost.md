@@ -5,7 +5,7 @@
 ## 1 — the verdict `[ATTESTED]`
 **The linearity argument dissolves the resonator reading.** In a linear resonator the amplitude is a pure scale factor set by the strike; each mode decays at its own rate independently. That is `n × (1+1)`. F1332 §4b already conceded this; the sweep now closes it from two further directions.
 
-**Attestation.** Benkő 2017, MNRAS, DOI `10.1093/mnras/stx2338`, arXiv:1709.02143 — the Blazhko falsification, quoted verbatim. Chaplin, Elsworth & Toutain, *Astron. Nachr.*, DOI `10.1002/asna.200710977`, arXiv:0804.3338 — the decorrelation numbers.
+**Attestation — CORRECTED (F1334).** The empirical loss belongs to **Szeidl, Jurcsik, Sódor, Hajdu & Smitola 2012, MNRAS 424, 3094**, not to Benkő. Benkő 2017 (single author; *"On the connection between almost periodic functions and Blazhko light curves"*, MNRAS, DOI `10.1093/mnras/stx2338`, arXiv:1709.02143) is about almost-periodic representation and a predicted **harmonic detuning** effect — **not** a head-to-head envelope-vs-per-harmonic fit comparison, as I originally wrote. Benkő *reports* Szeidl's better-fitting per-harmonic form and independently concludes *"the external modulation explanation of the Blazhko effect is deficient"*, so **the conclusion survives** — but the empirical comparison must be cited to Szeidl 2012, which is **second-hand here (read through Benkő, not fetched)**. Chaplin, Elsworth & Toutain, *Astron. Nachr.*, DOI `10.1002/asna.200710977`, arXiv:0804.3338 — the decorrelation numbers.
 
 ## 2 — what survives, and it is not nothing
 - **Genuine `1+n` structures do exist — over CONSERVED NORMS**, not over resonator amplitudes. That is a different object and it is the one worth keeping.
