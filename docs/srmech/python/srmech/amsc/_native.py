@@ -1771,6 +1771,21 @@ def _bind(lib: ctypes.CDLL) -> None:
         ]
         lib.srmech_algebra_inertia_signature.restype = ctypes.c_int
 
+    # Gamma-parameterised Cayley–Dickson table (v0.9.0rc352; `#T997`) — the
+    # CONTROL constructor. gammas is the per-doubling γ in LADDER order
+    # (gammas[0] = ℝ→ℂ); NULL / empty is γ = −1 everywhere = the definite
+    # ladder, which reproduces srmech_cd_basis_product bit-for-bit.
+    #   int srmech_algebra_table(int dim, const int *gammas, size_t n_gammas,
+    #                            int64_t *out_table)
+    if hasattr(lib, "srmech_algebra_table"):
+        lib.srmech_algebra_table.argtypes = [
+            ctypes.c_int,                       # dim (power of two)
+            ctypes.POINTER(ctypes.c_int),       # gammas (ladder order) or NULL
+            ctypes.c_size_t,                    # n_gammas (== log2(dim))
+            ctypes.POINTER(ctypes.c_int64),     # out_table (dim³, row-major)
+        ]
+        lib.srmech_algebra_table.restype = ctypes.c_int
+
     # Cayley-Dickson loop NAVIGATION (v0.9.0rc158; Qalg TAIL Batch 2) — the
     # INTEGER combinatorial layer COMPOSED over srmech_cd_basis_product. Each
     # hasattr-guarded so a stale lib (pre-rc158) keeps the rest of the surface.
@@ -1883,6 +1898,30 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.c_void_p, ctypes.c_size_t,
         ]
         lib.srmech_cd_mult.restype = ctypes.c_int
+    # TABLE-DRIVEN exact-ℚ product (v0.9.0rc352; `#T997`) — srmech_cd_mult's
+    # sibling, reading a caller-supplied rank-3 structure-constant table instead
+    # of the hard-wired cocycle. Backs cayley_dickson.table_product; the SAME
+    # exact-ℚ element domain as srmech_cd_mult (no int64 element ceiling).
+    #   size_t srmech_algebra_table_product_ws_bound(coeff_limbs, dim)
+    #   size_t srmech_algebra_table_product_entry_cap(coeff_limbs, dim)
+    for _atp_sz in ("srmech_algebra_table_product_ws_bound",
+                    "srmech_algebra_table_product_entry_cap"):
+        if hasattr(lib, _atp_sz):
+            getattr(lib, _atp_sz).argtypes = [ctypes.c_size_t, ctypes.c_size_t]
+            getattr(lib, _atp_sz).restype = ctypes.c_size_t
+    #   int srmech_algebra_table_product(const int64_t *table, int dim,
+    #       bigint *x_n, *x_d, *y_n, *y_d, bigint *out_n, *out_d,
+    #       void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_algebra_table_product"):
+        lib.srmech_algebra_table_product.argtypes = [
+            ctypes.POINTER(ctypes.c_int64),     # table (dim³, row-major)
+            ctypes.c_int,                       # dim
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint), ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p, ctypes.c_size_t,
+        ]
+        lib.srmech_algebra_table_product.restype = ctypes.c_int
     # Faddeev–LeVerrier exact-INTEGER characteristic polynomial (v0.9.0rc161; Qalg
     # TAIL Batch 5) — the FOUNDATION of the exact-LA tail. Backs char_poly (integer
     # matrix path); hasattr-guarded (pre-rc161 lib).
@@ -8599,6 +8638,86 @@ def cd_mult_c(x_components, y_components) -> "list | None":
     if rc != SRMECH_OK:
         return None
     return _poly_read_array(o_n, o_d, dim)
+
+
+def algebra_table_c(dim: int, gammas) -> "list | None":
+    """Native gamma-parameterised Cayley–Dickson structure-constant table →
+    the flat ``dim³`` list of ``int`` coefficients (row-major
+    ``table[(i*dim + j)*dim + k]``), or None (no-C / pre-rc352 lib).
+
+    ``gammas`` is the per-doubling γ in LADDER order (``gammas[0]`` is ℝ→ℂ) or
+    None for the definite ladder. Integer-only — no arena, no bignum: the
+    cocycle underneath IS ``srmech_cd_basis_product``'s, generalised."""
+    if not (HAS_NATIVE and LIB is not None
+            and hasattr(LIB, "srmech_algebra_table")):
+        return None
+    n = int(dim) ** 3
+    out = (ctypes.c_int64 * n)()
+    if gammas is None:
+        gbuf = None
+        n_g = 0
+    else:
+        n_g = len(gammas)
+        gbuf = (ctypes.c_int * max(n_g, 1))(*[int(g) for g in gammas])
+    rc = LIB.srmech_algebra_table(
+        int(dim),
+        ctypes.cast(gbuf, ctypes.POINTER(ctypes.c_int)) if gbuf is not None
+        else ctypes.cast(None, ctypes.POINTER(ctypes.c_int)),
+        ctypes.c_size_t(n_g), out)
+    if rc != SRMECH_OK:
+        return None
+    return [int(out[i]) for i in range(n)]
+
+
+def has_native_algebra_table_product() -> bool:
+    """True iff the rc352 TABLE-DRIVEN exact-ℚ product kernel is loaded (plus
+    the srmech_bigint decimal-marshal helpers it shares with cd_mult). False on
+    a no-C or pre-rc352 lib — the pure-Python accumulation in
+    ``srmech.amsc.cascade.cayley_dickson.table_product`` is the complete,
+    byte-identical alternative (and the parity oracle)."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (hasattr(LIB, "srmech_algebra_table_product")
+            and hasattr(LIB, "srmech_algebra_table_product_ws_bound")
+            and hasattr(LIB, "srmech_algebra_table_product_entry_cap")
+            and hasattr(LIB, "srmech_bigint_from_dec")
+            and hasattr(LIB, "srmech_bigint_to_dec"))
+
+
+def algebra_table_product_c(flat_table, dim: int,
+                            x_components, y_components) -> "list | None":
+    """Native table-driven exact-ℚ product ``(x·y)_k = Σ_ij t[i][j][k]·x_i·y_j``
+    → list of ``dim`` reduced ``(num, den)`` tuples, or None (no-C / pre-rc352
+    lib). ``flat_table`` is the row-major ``dim³`` integer sequence; ``x`` /
+    ``y`` are ``dim``-length ``(num, den)`` sequences.
+
+    Sized for a DENSE table (every one of the ``dim²`` products may land in one
+    output slot), so the arena is wider than ``cd_mult``'s; a too-small arena →
+    OVERFLOW → None → the caller's pure exact-ℚ oracle."""
+    if not has_native_algebra_table_product():
+        return None
+    d = int(dim)
+    if len(x_components) != d or len(y_components) != d:
+        return None
+    if len(flat_table) != d * d * d:
+        return None
+    cl = max(_poly_coeff_limbs(x_components), _poly_coeff_limbs(y_components))
+    out_cap = int(LIB.srmech_algebra_table_product_entry_cap(
+        ctypes.c_size_t(cl), ctypes.c_size_t(d)))
+    ws_len = int(LIB.srmech_algebra_table_product_ws_bound(
+        ctypes.c_size_t(cl), ctypes.c_size_t(d)))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    tbuf = (ctypes.c_int64 * (d * d * d))(*[int(v) for v in flat_table])
+    x_n, x_d, kx = _poly_make_array(x_components, out_cap)
+    y_n, y_d, ky = _poly_make_array(y_components, out_cap)
+    o_n, o_d, ko = _poly_blank_array(d, out_cap)
+    rc = LIB.srmech_algebra_table_product(
+        tbuf, d, x_n, x_d, y_n, y_d, o_n, o_d,
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len))
+    _ = (kx, ky, ko)
+    if rc != SRMECH_OK:
+        return None
+    return _poly_read_array(o_n, o_d, d)
 
 
 def has_native_char_poly() -> bool:

@@ -314,7 +314,7 @@ _CARRIERS: Dict[str, Dict[str, Any]] = {
         "description": (
             "srmech's exact rational scalar — a reduced (num, den) integer "
             "pair that compares like a float and collapses to one only via "
-            "float(q): THE exact-rational carrier across srmech (#845 — it "
+            "float(q): THE exact-rational carrier across srmech (#T845 — it "
             "subsumed the former stdlib-Fraction interchange carrier). It is "
             "the return carrier of the exact-LA boundaries (dense_solve "
             "exact=True, schur_complement, cd_norm_sq), the Class-N series-"

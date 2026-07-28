@@ -33,6 +33,80 @@
 #include "srmech.h"
 
 #include <assert.h>
+#include <stdint.h>
+
+/* log2(dim) for a power-of-two dim in [1, SRMECH_CD_MAX_DIM] — the number of
+ * doublings on the ladder, so also the number of gamma parameters. */
+static int cd_levels(int dim)
+{
+    int n = 0;
+    int c = dim;
+    assert(dim >= 1);
+    assert(((unsigned int)dim & ((unsigned int)dim - 1u)) == 0u);
+    while (c > 1) { c >>= 1; n++; }
+    return n;
+}
+
+/* The GAMMA-PARAMETERISED basis-unit cocycle — the single engine behind both
+ * srmech_cd_basis_product and srmech_algebra_table (rc352, `#T997`).
+ *
+ * The generalised Cayley-Dickson doubling is
+ *     (a1, a2)(b1, b2) = (a1 b1 + gamma * b2~ a2,  b2 a1 + a2 b1~)
+ * with one gamma in {-1, +1} PER DOUBLING. gamma == -1 is the definite ladder
+ * srmech ships (R -> C -> H -> O -> S ...); a +1 at any level makes the algebra
+ * SPLIT from that level up. `gammas` is in LADDER ORDER — gammas[0] is R->C,
+ * gammas[1] is C->H, and so on — and `gammas == NULL` means -1 at every level,
+ * which reproduces srmech_cd_basis_product bit-for-bit.
+ *
+ * The gamma touches EXACTLY ONE branch: the (ph, qh) == (1, 1) cross term,
+ * where conj(b2) contributes +1 at ql == 0 and -1 otherwise. gamma == -1 flips
+ * the sign exactly when ql == 0; gamma == +1 flips it exactly when ql != 0.
+ * Class-K sign composition throughout — no abs, no magnitude. */
+static srmech_status_t cd_gamma_basis(int dim, const int *gammas, int i, int j,
+                                      int *out_index, int *out_sign)
+{
+    int sign = 1;
+    int index = 0;
+    int p = i;
+    int q = j;
+    int cur = dim;
+    int nlev = cd_levels(dim);
+    assert(out_index != NULL && out_sign != NULL);
+    assert(i >= 0 && i < dim && j >= 0 && j < dim);
+    /* One doubling-step per level; bounded by log2(SRMECH_CD_MAX_DIM). */
+    for (int level = 0; level < SRMECH_CD_MAX_LEVELS && cur > 1; level++) {
+        int m = cur >> 1;
+        int ph = (p >= m) ? 1 : 0;
+        int qh = (q >= m) ? 1 : 0;
+        int pl = ph ? (p - m) : p;
+        int ql = qh ? (q - m) : q;
+        int gpos = nlev - 1 - level;         /* ladder index of THIS doubling */
+        int gamma = (gammas == NULL) ? -1 : gammas[gpos];
+        int top;
+        if (ph == 0 && qh == 0) {            /* (a1 b1) — first half */
+            top = 0; p = pl; q = ql;
+        } else if (ph == 0 && qh == 1) {     /* (b2 a1) — second half, swap */
+            top = 1; p = ql; q = pl;
+        } else if (ph == 1 && qh == 0) {     /* (a2 b1*) — second half */
+            top = 1; p = pl; q = ql;
+            if (ql != 0) { sign = -sign; }   /* conj(b1) sign-flip (Class K) */
+        } else {                             /* (gamma b2* a2) — first, swap */
+            top = 0; p = ql; q = pl;
+            if (gamma < 0) {
+                if (ql == 0) { sign = -sign; }   /* definite: flip at ql == 0 */
+            } else {
+                if (ql != 0) { sign = -sign; }   /* SPLIT: flip otherwise     */
+            }
+        }
+        if (top != 0) { index += m; }
+        cur = m;
+    }
+    assert(index >= 0 && index < dim);
+    assert(sign == 1 || sign == -1);
+    *out_index = index;
+    *out_sign = sign;
+    return SRMECH_OK;
+}
 
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign)
@@ -50,37 +124,61 @@ srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
     if (i < 0 || i >= dim || j < 0 || j >= dim) {
         return SRMECH_ERR_BAD_INPUT;
     }
-    int sign = 1;
-    int index = 0;
-    int p = i;
-    int q = j;
-    int cur = dim;
-    /* One doubling-step per level; bounded by log2(SRMECH_CD_MAX_DIM). */
-    for (int level = 0; level < SRMECH_CD_MAX_LEVELS && cur > 1; level++) {
-        int m = cur >> 1;
-        int ph = (p >= m) ? 1 : 0;
-        int qh = (q >= m) ? 1 : 0;
-        int pl = ph ? (p - m) : p;
-        int ql = qh ? (q - m) : q;
-        int top;
-        if (ph == 0 && qh == 0) {            /* (a1 b1) — first half */
-            top = 0; p = pl; q = ql;
-        } else if (ph == 0 && qh == 1) {     /* (b2 a1) — second half, swap */
-            top = 1; p = ql; q = pl;
-        } else if (ph == 1 && qh == 0) {     /* (a2 b1*) — second half */
-            top = 1; p = pl; q = ql;
-            if (ql != 0) { sign = -sign; }   /* conj(b1) sign-flip (Class K) */
-        } else {                             /* (- b2* a2) — first half, swap */
-            top = 0; p = ql; q = pl;
-            if (ql == 0) { sign = -sign; }   /* -conj(b2): flip only when ql==0 */
-        }
-        if (top != 0) { index += m; }
-        cur = m;
+    /* gammas == NULL is gamma = -1 at every level — the DEFINITE ladder this
+     * op has always computed. Not a new convention: the shared engine below
+     * reduces to the previous body exactly, verified over every (dim, i, j)
+     * up to dim 64 by tests/test_algebra_table_rc352.py. */
+    return cd_gamma_basis(dim, NULL, i, j, out_index, out_sign);
+}
+
+/* Validate a gammas vector against `dim`: NULL means the definite ladder, and
+ * a non-NULL vector must carry exactly log2(dim) entries, each +1 or -1. */
+static srmech_status_t cd_check_gammas(int dim, const int *gammas,
+                                       size_t n_gammas)
+{
+    size_t k;
+    assert(dim >= 1);
+    assert(gammas != NULL || n_gammas == 0u);
+    if (gammas == NULL) {
+        return (n_gammas == 0u) ? SRMECH_OK : SRMECH_ERR_BAD_INPUT;
     }
-    assert(index >= 0 && index < dim);
-    assert(sign == 1 || sign == -1);
-    *out_index = index;
-    *out_sign = sign;
+    if (n_gammas != (size_t)cd_levels(dim)) { return SRMECH_ERR_BAD_INPUT; }
+    for (k = 0u; k < n_gammas; k++) {
+        if (gammas[k] != 1 && gammas[k] != -1) { return SRMECH_ERR_BAD_INPUT; }
+    }
+    return SRMECH_OK;
+}
+
+srmech_status_t srmech_algebra_table(int dim, const int *gammas,
+                                     size_t n_gammas, int64_t *out_table)
+{
+    size_t d, i, j, cells;
+    int idx = 0;
+    int sgn = 1;
+    srmech_status_t st;
+    assert(out_table != NULL);
+    assert(gammas != NULL || n_gammas == 0u);
+    if (out_table == NULL || (gammas == NULL && n_gammas > 0u)) {
+        return SRMECH_ERR_NULL_ARG;
+    }
+    if (dim < 1 || dim > (int)SRMECH_ALGEBRA_TABLE_MAX_DIM ||
+        ((unsigned int)dim & ((unsigned int)dim - 1u)) != 0u) {
+        return SRMECH_ERR_BAD_INPUT;
+    }
+    st = cd_check_gammas(dim, gammas, n_gammas);
+    if (st != SRMECH_OK) { return st; }
+    d = (size_t)dim;
+    cells = d * d * d;
+    for (i = 0u; i < cells; i++) { out_table[i] = 0; }
+    for (i = 0u; i < d; i++) {
+        for (j = 0u; j < d; j++) {
+            st = cd_gamma_basis(dim, gammas, (int)i, (int)j, &idx, &sgn);
+            if (st != SRMECH_OK) { return st; }
+            /* The table is MONOMIAL by construction: e_i*e_j = sign*e_{i^j},
+             * so exactly one of the dim coefficients in cell (i, j) is set. */
+            out_table[(i * d + j) * d + (size_t)idx] = (int64_t)sgn;
+        }
+    }
     return SRMECH_OK;
 }
 

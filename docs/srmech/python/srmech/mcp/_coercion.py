@@ -1038,6 +1038,19 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "iterable[int]": _identity,
     "sequence": _identity,
     "Sequence[int]": _identity,   # v0.9.0rc121: genome.kernel_pack `data` (flat Klein-4 kernel; JSON-native)
+    # v0.9.0rc352 (`#T997` / `#T1001`): the OPTIONAL twins of two keys already
+    # above. No new handler — the payloads are the same JSON-native shapes
+    # ``Sequence[int]`` and ``list[list[list[int]]]`` already ride, and ``None``
+    # passes through to mean "the default algebra" (the definite Cayley–Dickson
+    # ladder for `gammas`, the shipped CD product for `table`). Registered
+    # explicitly because the lookup is by exact type-string, which is why
+    # ``Optional[int]`` sits beside ``int`` and ``Optional[list[float]]`` beside
+    # its own twin: an op whose declared type has no key is REGISTERED BUT
+    # UNCALLABLE over MCP.
+    #   algebra_table `gammas`, cd_norm_sq `gammas`
+    "Sequence[int] | None": _identity,
+    #   left_mult_kernel / left_mult_is_invertible `table`
+    "list[list[list[int]]] | None": _identity,
     "list|str": _identity,        # v0.9.0rc121: genome.kernel_unpack `strand_or_path` (strand list OR path str; both JSON-native)
     "int | float | str | list | dict": _identity,
     # v0.9.0rc268 (§98 chromatin): genome.condense `state` (True/False OR a (num,den) level — a

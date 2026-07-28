@@ -561,7 +561,12 @@ class CDRegister:
         ``Q`` scalar (rc330, `#948`). Delegates to
         :func:`~srmech.amsc.cascade.cayley_dickson.cd_norm_sq`. Since every occupied
         coefficient is ``±1``, this equals the number of occupied slots. Returns a
-        ``Q``, not a register — a norm is a real scalar, not a CD element."""
+        ``Q``, not a register — a norm is a real scalar, not a CD element.
+
+        **SCOPE (rc352, `#T1001`):** the register addresses the DEFINITE
+        Cayley–Dickson ladder — its navmap is ``cd_basis_product``'s cocycle,
+        with no γ parameter — so ``Σ xᵢ²`` IS ``Re(x·x̄)`` here. It is not the
+        norm of a split twist; ``cd_norm_sq(x, gammas=…)`` is."""
         return cd_norm_sq(self.element())
 
     def conjugate(self) -> Tuple[Q, ...]:

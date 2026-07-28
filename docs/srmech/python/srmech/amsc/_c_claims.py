@@ -47,6 +47,7 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_cascade_reorient_f64',
         'srmech_cascade_reorient_i64',
     ),
+    'srmech.amsc.cascade.cayley_dickson.algebra_table': ('srmech_algebra_table',),
     'srmech.amsc.cascade.cayley_dickson.cd_add': (
         'srmech_cd_qadd',
         'srmech_cd_qvec_entry_cap',
@@ -93,6 +94,13 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_cd_left_orbit',
         'srmech_cd_min_generating_set',
         'srmech_cd_zero_divisor_witness',
+    ),
+    'srmech.amsc.cascade.cayley_dickson.table_product': (
+        'srmech_algebra_table_product',
+        'srmech_algebra_table_product_entry_cap',
+        'srmech_algebra_table_product_ws_bound',
+        'srmech_bigint_from_dec',
+        'srmech_bigint_to_dec',
     ),
     'srmech.amsc.cascade.cd_register.cd_navigate': ('srmech_cd_navigate',),
     'srmech.amsc.cascade.cd_register.cd_navmap': ('srmech_cd_navmap',),

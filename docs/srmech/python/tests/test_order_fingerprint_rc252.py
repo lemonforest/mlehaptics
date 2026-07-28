@@ -32,11 +32,18 @@ def test_fingerprint_is_8_ints_and_length_independent():
 
 def test_raw_exact_no_mod():
     # a length-20 walk grows into big exact ints (NOT reduced mod 2**31-1);
-    # matches an independent manual table product exactly.
+    # matches an INDEPENDENT hand-rolled table product exactly.
+    #
+    # rc352 (`#T997`): the op under test no longer carries its own private
+    # `_order_omul` — the step is the shipped `cascade.table_product`. The
+    # reference below is therefore a genuine ORACLE (a hand-rolled triple loop
+    # sharing no code with the shipped op), which is exactly what it must be;
+    # it is labelled as one so a later reader cannot mistake it for a second
+    # implementation the package owns.
     from srmech.qm.so8 import octonion_mult_table
     C = octonion_mult_table()
 
-    def ref(fiber):
+    def _order_fingerprint_oracle(fiber):
         acc = [1, 0, 0, 0, 0, 0, 0, 0]
         for nid in fiber:
             a, b, out = acc, L._order_node_octonion(int(nid)), [0] * 8
@@ -50,7 +57,7 @@ def test_raw_exact_no_mod():
 
     w = list(range(20))
     fp = L.order_fingerprint(w)
-    assert fp == ref(w)
+    assert fp == _order_fingerprint_oracle(w)
     assert any(abs(x) > 2 ** 31 for x in fp)             # raw big ints (no mod)
 
 

@@ -209,7 +209,15 @@ CEIL_BARE_REFS_EMITTED = {
     "python/srmech/amsc/_tool_docs.py": 75,
     "python/srmech/amsc/_c_claims.py": 0,
     "c/src/srmech_tool_registry.c": 199,
-    "c/src/srmech_carrier_registry.c": 2,
+    # rc352: 2 -> 0. Both were the SAME pre-convention `#845`, emitted twice
+    # from one upstream string (`carrier_schema.py`, the `Q` carrier
+    # description). It sat here legitimately until this rc: the strict-zero
+    # rule above only covers refs the tree spells `#TNNN` SOMEWHERE, and
+    # nothing did until rc352's CHANGELOG cited `#T845` — at which point the
+    # ref became decidable and the pair went red. Fixed upstream, one
+    # character, then re-emitted. This artifact is now CLEAN; the number can
+    # never go back up.
+    "c/src/srmech_carrier_registry.c": 0,
     "c/src/srmech_responsion_registry.c": 0,
     "c/src/srmech_class_registry.c": 0,
 }

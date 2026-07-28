@@ -68,6 +68,16 @@ jobs:
     # tomllib / typing regressions that only surface on the floor.
     name: ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
+    # HANG GUARD, not a performance budget (rc352; local task `#T951`). Every
+    # job in this file previously ran to GitHub's 360-minute default. The
+    # slowest cell here is `fallback-no-native`, MEASURED at 44:01 on rc351, so
+    # 60 is comfortably above the worst observed run and far below 6 hours. If a
+    # cell ever legitimately grows past it, RAISE THIS NUMBER — do not narrow the
+    # job. A tight per-job budget would fail a genuinely slow run and force it to
+    # restart from zero, which is worse than the risk it removes. `timeout-minutes`
+    # is a JOB-level key (the workflow `defaults:` block covers only `run:`
+    # settings — shell / working-directory), so it is repeated on all five jobs.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -155,7 +165,12 @@ jobs:
         # starts to bind past ~6 workers, so it does not limit any cell here.
         #
         # Coverage is UNCHANGED — same tests, same assertions, distributed.
-        run: pytest tests/ -q -n auto --dist loadfile
+        #
+        # `--durations=30` (rc352; local task `#T1007`) so the pure cell's
+        # per-file profile has a BASELINE to be compared against. One-sided
+        # numbers would only say the pure run is slow, which is already known;
+        # the useful question is which files diverge and by how much.
+        run: pytest tests/ -q --durations=30 -n auto --dist loadfile
 
   fallback-no-native:
     # rc351 (task `#T1004`) — THE CELL THAT DID NOT EXIST.
@@ -222,6 +237,7 @@ jobs:
     # to catch, and the cross-platform burden is already carried by the matrix above.
     name: fallback (pure-Python, no native)
     runs-on: ubuntu-latest
+    timeout-minutes: 60          # hang guard; see build-and-test above
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -303,9 +319,22 @@ jobs:
         #
         # `tee` because the audit step below reads this run's skip lines. Without
         # `pipefail` the tee would mask a red suite.
+        #
+        # `--durations=30` (rc352; local task `#T1007`) is a MEASUREMENT, not a
+        # fix. This cell took 44:01 on its first run — the longest job in the
+        # repo, against 6:45 for the native suite, on 2831 FEWER tests with an
+        # IDENTICAL invocation, so the ~8.7x per test is not a config
+        # difference. What is not yet known is whether that cost is spread
+        # evenly (genuine pure-Python compute; only sharding helps) or
+        # concentrated in one file (nearly free to fix) — and it matters
+        # because `--dist loadfile` gives wall-clock a hard floor at the
+        # slowest single FILE, exactly as the comment at the native cell says.
+        # One real run on the real runner settles it. Do not act on the
+        # numbers here; `#T1007` owns the choice between `--dist load`,
+        # splitting a file, and sharding.
         run: |
           set -o pipefail
-          pytest tests/ -q -rsfE -n auto --dist loadfile 2>&1 | tee pytest-pure.log
+          pytest tests/ -q -rsfE --durations=30 -n auto --dist loadfile 2>&1 | tee pytest-pure.log
 
       - name: Audit the pure-by-design skips (the excuse must not become a mute button)
         working-directory: docs/srmech/python
@@ -327,6 +356,7 @@ jobs:
     # path stays healthy.
     name: pure-wheel build
     runs-on: ubuntu-latest
+    timeout-minutes: 60          # hang guard; see build-and-test above
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -537,6 +567,7 @@ jobs:
     # at tag time.
     name: pedantic C build • ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60          # hang guard; see build-and-test above
     strategy:
       fail-fast: false
       matrix:
@@ -605,6 +636,7 @@ jobs:
     # matrix above already carries the cross-platform C burden.
     name: asserts-live FULL suite, fork-isolated (JPL Rule 5 with teeth, #937)
     runs-on: ubuntu-latest
+    timeout-minutes: 60          # hang guard; see build-and-test above
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

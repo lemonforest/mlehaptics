@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc351"
-#define SRMECH_VERSION       "0.9.0rc351"
+#define SRMECH_VERSION_PRE   "rc352"
+#define SRMECH_VERSION       "0.9.0rc352"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4716,6 +4716,58 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  * power of two in range, or i/j out of range). */
 srmech_status_t srmech_cd_basis_product(int dim, int i, int j,
                                         int *out_index, int *out_sign);
+
+/* ------------------------------------------------------------------
+ * srmech_algebra_table — the GAMMA-PARAMETERISED Cayley-Dickson doubling,
+ * materialised as a rank-3 structure-constant table (rc352, `#T997`).
+ *
+ * The generalised doubling carries one parameter per rung:
+ *     (a1, a2)(b1, b2) = (a1 b1 + gamma * b2~ a2,  b2 a1 + a2 b1~)
+ * gamma == -1 at every level IS the definite ladder R -> C -> H -> O -> S ...
+ * that srmech_cd_basis_product / srmech_cd_mult compute; a +1 anywhere makes
+ * the algebra SPLIT. Both are served by ONE cocycle engine in
+ * src/srmech_cayley_dickson.c, so `gammas == NULL` reproduces
+ * srmech_cd_basis_product bit-for-bit rather than paralleling it.
+ *
+ * WHY IT EXISTS: CONTROLS. Every negative control the split-algebra work needs
+ * -- split-O, split-C, split-H, arbitrary hand-built tables -- had to be
+ * hand-rolled because no constructor shipped. It is NOT a capability claim:
+ * the whole 8-member gamma family at dim 8 is sign-cocycle-degenerate in the
+ * same 344/512 way (see SRMECH_CD_TURN_MAX_DIM above), and every associative
+ * twist is a matrix algebra the Mat carrier already publishes. See
+ * `[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]`.
+ *
+ * Rosetta peers of srmech.amsc.cascade.{algebra_table, table_product}.
+ * Additive symbols -> SRMECH_ABI_VERSION unchanged (stays 10).
+ * ------------------------------------------------------------------ */
+
+/* Largest dim srmech_algebra_table will MATERIALISE. Lower than
+ * SRMECH_CD_MAX_DIM (256) and than SRMECH_ALGEBRA_INERTIA_MAX_DIM (256)
+ * because the table itself is dim*dim*dim int64 -- 2 MiB at 64, 128 MiB at
+ * 256. A THIRD ceiling with a THIRD name, so none of them can stand in for
+ * another: this one bounds MATERIALISATION, not addressing and not the
+ * elimination. The cocycle underneath is exact at every dim
+ * srmech_cd_basis_product accepts. */
+#define SRMECH_ALGEBRA_TABLE_MAX_DIM 64u
+
+/* Fill `out_table` (caller-sized, dim*dim*dim int64) with the structure
+ * constants of the generalised Cayley-Dickson algebra:
+ * out_table[(i*dim + j)*dim + k] is the coefficient of e_k in e_i * e_j --
+ * the SAME layout srmech_algebra_inertia_signature reads.
+ *
+ *   dim      : power of two in [1, SRMECH_ALGEBRA_TABLE_MAX_DIM].
+ *   gammas   : n_gammas entries, each +1 or -1, in LADDER ORDER (gammas[0] is
+ *              the R->C doubling, gammas[1] is C->H, ...). NULL (with
+ *              n_gammas == 0) means -1 at every level -- the definite ladder.
+ *   n_gammas : must be log2(dim) when gammas != NULL.
+ *
+ * The result is MONOMIAL: e_i * e_j = sign * e_{i XOR j}, so exactly dim*dim
+ * of the dim*dim*dim cells are nonzero. Integer-only: no float, no libm, no
+ * malloc, no recursion. Errors: SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT
+ * (dim out of range or not a power of two; n_gammas mismatched; a gamma
+ * outside {+1, -1}). */
+srmech_status_t srmech_algebra_table(int dim, const int *gammas,
+                                     size_t n_gammas, int64_t *out_table);
 
 /* ------------------------------------------------------------------
  * Cayley-Dickson loop NAVIGATION (v0.9.0rc158; Qalg TAIL Batch 2) — the
@@ -11916,6 +11968,42 @@ srmech_status_t srmech_cd_mult(const srmech_bigint_t *x_n,
                                const srmech_bigint_t *y_d, int dim,
                                srmech_bigint_t *out_n, srmech_bigint_t *out_d,
                                void *ws, size_t ws_len);
+
+/* The TABLE-DRIVEN exact-Q product (v0.9.0rc352, `#T997`) — srmech_cd_mult's
+ * sibling, reading a caller-supplied rank-3 structure-constant table instead
+ * of the hard-wired Cayley-Dickson cocycle:
+ *
+ *     (x*y)_k = sum_{i,j} table[(i*dim + j)*dim + k] * x_i * y_j
+ *
+ * `table` is dim*dim*dim int64 in the SAME layout srmech_algebra_table writes
+ * and srmech_algebra_inertia_signature reads. x, y, out are each `dim`
+ * exact-Q (num, den) components; out may not alias x or y. Feeding it
+ * srmech_algebra_table(dim, NULL, 0, ...) reproduces srmech_cd_mult exactly --
+ * the same bilinear form by two routes, which is the differential the split
+ * and control tables are checked against.
+ *
+ * The structure constants are INTEGER by contract; the ELEMENTS are arbitrary
+ * exact rationals, so the domain is exactly srmech_cd_mult's -- there is no
+ * int64 element ceiling and no decline. `ws` >=
+ * srmech_algebra_table_product_ws_bound(coeff_limbs, dim); each output entry
+ * needs srmech_algebra_table_product_entry_cap limbs (both sized for a DENSE
+ * table, which can steer all dim*dim products into one slot). Errors:
+ * SRMECH_ERR_NULL_ARG; SRMECH_ERR_BAD_INPUT (dim outside
+ * [1, SRMECH_ALGEBRA_TABLE_MAX_DIM]); SRMECH_ERR_OVERFLOW (arena or entry
+ * too small -- never a silent wrap; the Python peer then routes to its
+ * ceiling-free bignum path). Rosetta peer of
+ * srmech.amsc.cascade.cayley_dickson.table_product. Additive symbols ->
+ * SRMECH_ABI_VERSION unchanged (stays 10). */
+size_t srmech_algebra_table_product_ws_bound(size_t coeff_limbs, size_t dim);
+size_t srmech_algebra_table_product_entry_cap(size_t coeff_limbs, size_t dim);
+srmech_status_t srmech_algebra_table_product(const int64_t *table, int dim,
+                                             const srmech_bigint_t *x_n,
+                                             const srmech_bigint_t *x_d,
+                                             const srmech_bigint_t *y_n,
+                                             const srmech_bigint_t *y_d,
+                                             srmech_bigint_t *out_n,
+                                             srmech_bigint_t *out_d,
+                                             void *ws, size_t ws_len);
 
 /* srmech_faddeev_leverrier — the exact-INTEGER characteristic polynomial of an
  * n×n integer matrix via the Faddeev–LeVerrier recursion (v0.9.0rc161; Qalg TAIL
