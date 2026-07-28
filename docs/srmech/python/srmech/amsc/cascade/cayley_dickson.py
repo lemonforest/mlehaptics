@@ -215,6 +215,19 @@ CD_COMPOSE_MAX_DIM = 8
 #: the signed octonion loop — two independent routes, one number.
 CD_TURN_MAX_DIM = 4
 
+#: **MATERIALISATION ceiling** (rc352, `#T997`): the largest dim
+#: :func:`algebra_table` will BUILD a table at. Strictly below
+#: :data:`CD_MAX_DIM` (256) and below the elimination's own
+#: ``SRMECH_ALGEBRA_INERTIA_MAX_DIM`` (also 256) because the object here is the
+#: rank-3 tensor itself — ``dim³`` coefficients, so 262144 at 64 and 16.7 M at
+#: 256. A FOURTH ceiling with a FOURTH name, for the same reason the other
+#: three have their own: it bounds MATERIALISATION, not addressing
+#: (:data:`CD_MAX_DIM`), not composition (:data:`CD_COMPOSE_MAX_DIM`), and not
+#: turn-folding (:data:`CD_TURN_MAX_DIM`). The gamma cocycle underneath is
+#: exact at every dim :func:`cd_basis_product` accepts; only the dense tensor
+#: stops here.
+ALGEBRA_TABLE_MAX_DIM = 64
+
 #: The Cayley–Dickson ladder up to the demonstrator ceiling.
 CD_DIMS: Tuple[int, ...] = (1, 2, 4, 8, 16, 32, 64, 128, 256)
 
@@ -349,13 +362,75 @@ def cd_add(a: Sequence[Any], b: Sequence[Any]) -> Tuple[Q, ...]:
     return tuple(p + q for p, q in zip(a, b))
 
 
-def cd_norm_sq(a: Sequence[Any]) -> Q:
-    """The squared norm ``N(x) = Σ x_i²`` (exact rational; ``x·x̄ = N(x)·1``).
+def cd_norm_sq(a: Sequence[Any], gammas: Any = None) -> Q:
+    """The norm form ``N(x) = Re(x·x̄)`` of a Cayley–Dickson algebra
+    (exact rational; ``x·x̄ = N(x)·1`` at every rung).
 
-    Positive-definite at every rung: ``N(x) = 0`` iff ``x = 0``. The composition
-    identity ``N(x·y) = N(x)·N(y)`` holds for dims ≤ 8 and **fails** at 16.
+    **``gammas`` DECLARES WHICH ALGEBRA, and the declaration is load-bearing**
+    (rc352, `#T1001`). ``None`` — the default — is the DEFINITE ladder
+    ℝ → ℂ → ℍ → 𝕆 → 𝕊 …, on which ``N(x)`` collapses to the coordinate sum
+    ``Σ x_i²``: positive-definite, ``N(x) = 0`` iff ``x = 0``. A supplied
+    ``gammas`` (per-doubling ±1 in LADDER order — see :func:`algebra_table`)
+    names a **generalised** twist, and on a SPLIT twist the coordinate sum is
+    simply the wrong function.
+
+    **The defect this parameter removes, MEASURED.** Before rc352 this op was
+    ``Σ x_i²`` unconditionally while its docstring asserted positive-definiteness
+    "at every rung". On split-ℂ it answers ``N([1, −1]) = 2`` for an element
+    that is a **genuine null vector** — ``(1+j)(1−j) = 0``, so ``N`` must be 0
+    — and it cannot see isotropy at all. That was dormant only because the
+    module could not construct a split algebra; :func:`algebra_table` makes one
+    reachable in the same rc, so the gate ships with it rather than after it.
+    ``cd_norm_sq([1, -1])`` still returns ``2`` (the definite ℂ answer, and the
+    right one for the algebra the default declares); ``cd_norm_sq([1, -1],
+    gammas=(+1,))`` returns ``0``.
+
+    **How the twisted read is computed — no table, no ``O(dim³)``.** The
+    generalised product is monomial with index ``i⊕j``, so the real part of
+    ``x·x̄`` picks up exactly the diagonal ``i == j`` terms::
+
+        N(x) = Σ_i  x_i · x̄_i · sign_γ(i, i)
+
+    with ``x̄`` the standard conjugation (``x̄_0 = x_0``, ``x̄_i = −x_i``) and
+    ``sign_γ`` the γ-parameterised cocycle. That is ``O(dim)`` — the same cost
+    as the coordinate form, and exact. Verified against the full
+    :func:`table_product` read of ``Re(x·x̄)`` over every γ-twist at dims 1–32
+    (1110/1110), and against the shipped coordinate path on the definite ladder
+    at dims 1–32 (0 mismatches).
+
+    Args:
+        a: the element, ``dim`` exact-rational components.
+        gammas: ``None`` for the definite ladder (the C-dispatched fast path,
+            unchanged), or the per-doubling ±1 vector in LADDER order.
+
+    Returns:
+        The exact ``N(x)``. **On a split twist this can be negative or zero for
+        a nonzero element** — that is the whole point; the form is indefinite
+        there, and reading ``_sq`` as "non-negative" is the trap the parameter
+        exists to remove.
+
+    Note:
+        The composition identity ``N(x·y) = N(x)·N(y)`` holds for dims ≤ 8 and
+        **fails** at 16 on the definite ladder. ``gammas=None`` dispatches to
+        ``srmech_cd_qnorm_sq`` exactly as before — bit-identical, no new
+        arithmetic on the default path. Never ``abs()``: the conjugation is the
+        Class-K sign-flip and the cocycle sign is the Class-K pin-slot.
     """
     a = _as_elem(a)
+    if gammas is not None:
+        g = _normalise_gammas(len(a), gammas)
+        if any(v > 0 for v in g):
+            # A SPLIT twist: the coordinate sum is the wrong function here, so
+            # read the norm through the algebra's own cocycle instead. The
+            # DEFINITE case falls through to the fast path below — proven
+            # identical, not assumed (the γ = −1 diagonal is +1 at e₀ and −1
+            # elsewhere, which is exactly Σ x_i² after the conjugation sign).
+            s = Q(0)
+            for i, x in enumerate(a):
+                conj_i = x if i == 0 else -x       # Class-K sign-flip; no abs()
+                _idx, sign = _gamma_basis_product(len(a), g, i, i)
+                s += Q(sign) * x * conj_i
+            return s
     # rc159: the sum-of-squares Σ x_i² dispatches to srmech_cd_qnorm_sq (the
     # exact-ℚ vector C peer). Byte-identical reduced (num, den) to the pure
     # Q accumulate below, which stays the Pyodide / no-native fallback.
@@ -535,6 +610,278 @@ def cd_basis_product(dim: int, i: int, j: int) -> Tuple[int, int]:
             index += m
         cur = m
     return index, sign
+
+
+# ──────────────────────────────────────────────────────────────────────
+# The GAMMA-PARAMETERISED doubling — the CONTROL constructor (rc352, `#T997`).
+#
+# The generalised Cayley–Dickson product carries one parameter per rung:
+#
+#     (a1, a2)(b1, b2) = (a1·b1 + γ·conj(b2)·a2,  b2·a1 + a2·conj(b1))
+#
+# and the ``−`` hard-wired into :func:`_mult` above IS that γ, pinned to −1 at
+# every level. γ = −1 everywhere is the DEFINITE ladder ℝ → ℂ → ℍ → 𝕆 → 𝕊 …
+# that this module has always built; a ``+1`` anywhere makes the algebra SPLIT
+# from that rung up.
+#
+# WHY IT SHIPS: **controls, not capability.** Every negative control the
+# split-algebra work has needed — split-𝕆, split-ℂ, split-ℍ, Cl(0,7), 100+
+# random tables — was hand-rolled in a test file because no constructor
+# existed, and `[[feedback_negative_controls_for_carrier_claims_split_octonion
+# _and_random_anticommutative]]` makes those controls mandatory. The capability
+# argument was MEASURED and is dead: the whole 8-member γ-family at dim 8 is
+# sign-cocycle-degenerate in the same 344/512 way (see :data:`CD_TURN_MAX_DIM`),
+# and the associative twists are matrix algebras
+# :mod:`srmech.amsc.carrier_schema` already publishes ``Mat`` for.
+#
+# WHY IT IS NOT A ``twist=`` PARAMETER ON ``cd_mult`` / ``cd_basis_product``:
+# those two are ABI-exported and content-addressed. ``cd_basis_product`` is a C
+# export, three ``lru_cache(maxsize=1)`` tables downstream assume ONE twist by
+# construction, and ``octonion_table_attestation()`` content-addresses THE one
+# 512-byte table — a twist parameter would silently change what that Class-A
+# content-address means. The table is the honest carrier of a second algebra.
+# ──────────────────────────────────────────────────────────────────────
+
+def _normalise_gammas(dim: int, gammas: Any) -> Tuple[int, ...]:
+    """Validate a per-doubling γ vector against ``dim`` → a tuple of ±1.
+
+    ``None`` is the DEFINITE ladder (γ = −1 at every level) and normalises to
+    ``(-1,) * log2(dim)``. A supplied vector is in **LADDER order**:
+    ``gammas[0]`` is the ℝ→ℂ doubling, ``gammas[1]`` is ℂ→ℍ, and so on — the
+    order the rungs are named in, not the order the recursion meets them.
+    """
+    if not _is_pow2(dim) or dim > CD_MAX_DIM:
+        raise ValueError(f"dim must be a power of two ≤ {CD_MAX_DIM}; got {dim}")
+    n_levels = dim.bit_length() - 1
+    if gammas is None:
+        return (-1,) * n_levels
+    g = tuple(gammas)
+    if len(g) != n_levels:
+        raise ValueError(
+            f"a dim-{dim} generalised Cayley–Dickson algebra has {n_levels} "
+            f"doubling(s), so gammas needs {n_levels} entries in LADDER order "
+            f"(gammas[0] = ℝ→ℂ); got {len(g)}")
+    for k, v in enumerate(g):
+        if isinstance(v, bool) or v not in (1, -1):
+            raise ValueError(
+                f"gammas[{k}] = {v!r}; each γ is exactly +1 (SPLIT at that "
+                f"doubling) or −1 (definite). The Cayley–Dickson parameter is "
+                f"a sign, not a scale")
+    return g
+
+
+def _gamma_basis_product(dim: int, gammas: Tuple[int, ...],
+                         i: int, j: int) -> Tuple[int, int]:
+    """``e_i·e_j = sign·e_{i⊕j}`` for the γ-parameterised doubling — the single
+    engine behind :func:`algebra_table`, and the generalisation of
+    :func:`cd_basis_product` (which is this with γ = −1 at every level).
+
+    γ touches EXACTLY ONE branch: the ``(ph, qh) == (1, 1)`` cross term, where
+    ``conj(b2)`` contributes ``+1`` at ``ql == 0`` and ``−1`` otherwise. γ = −1
+    flips the sign exactly when ``ql == 0``; γ = +1 flips it exactly when it
+    does not. Class-K sign composition throughout — never ``abs()``.
+    """
+    sign = 1
+    index = 0
+    p, q = i, j
+    cur = dim
+    while cur > 1:
+        m = cur >> 1
+        gamma = gammas[cur.bit_length() - 2]   # ladder index of THIS doubling
+        ph = 1 if p >= m else 0
+        qh = 1 if q >= m else 0
+        pl = p - m if ph else p
+        ql = q - m if qh else q
+        if ph == 0 and qh == 0:                 # (a1 b1) in first half
+            top, p, q = 0, pl, ql
+        elif ph == 0 and qh == 1:               # (b2 a1) in second half — swap
+            top, p, q = 1, ql, pl
+        elif ph == 1 and qh == 0:               # (a2 b1*) in second half
+            top, p, q = 1, pl, ql
+            if ql != 0:                         # conj(b1) sign-flip (Class K)
+                sign = -sign
+        else:                                   # (γ b2* a2) in first — swap
+            top, p, q = 0, ql, pl
+            if (ql == 0) if gamma < 0 else (ql != 0):
+                sign = -sign
+        if top:
+            index += m
+        cur = m
+    return index, sign
+
+
+def algebra_table(dim: int, gammas: Any = None) -> List[List[List[int]]]:
+    """The rank-3 structure-constant table of the **generalised**
+    Cayley–Dickson algebra — the CONTROL constructor (rc352, `#T997`).
+
+    ``table[i][j][k]`` is the coefficient of ``e_k`` in ``e_i·e_j`` — the exact
+    shape :func:`srmech.qm.octonion.octonion_mult_table` returns and
+    :func:`inertia_signature` reads. The table is MONOMIAL by construction
+    (``e_i·e_j = ±e_{i⊕j}``), so ``dim²`` of the ``dim³`` cells are nonzero.
+
+    Args:
+        dim: a power of two in ``[1, ALGEBRA_TABLE_MAX_DIM]``.
+        gammas: the per-doubling parameter, in **LADDER order** —
+            ``gammas[0]`` is the ℝ→ℂ doubling, ``gammas[1]`` is ℂ→ℍ, and so on.
+            Each entry is ``+1`` (SPLIT at that rung) or ``−1`` (definite).
+            ``None`` — the default — is ``−1`` everywhere.
+
+    **The default is the shipped algebra, bit-identically.** ``gammas=None``
+    reproduces :func:`cd_basis_product` at every ``(dim, i, j)`` up to dim 64
+    (4096 pairs at 64, 0 disagreements), ``algebra_table(8)`` IS
+    ``octonion_mult_table()`` and ``algebra_table(4)`` IS
+    ``quaternion_mult_table()`` — element-for-element, not merely equivalent —
+    and :func:`table_product` over it reproduces :func:`cd_mult` 300/300 on
+    random dim-8 integer pairs and 200/200 on random exact-ℚ pairs. That is not
+    a coincidence of two implementations agreeing: the C peer
+    ``srmech_cd_basis_product`` and ``srmech_algebra_table`` are the SAME
+    cocycle engine, called with and without a γ vector.
+
+    **What a ``+1`` buys, MEASURED (dim 8, all eight γ-triples).** Exactly two
+    answers appear::
+
+        gammas (ladder)   trace inertia   norm inertia   algebra
+        (−1, −1, −1)      (1, 7, 0)       (8, 0, 0)      𝕆
+        every other       (5, 3, 0)       (4, 4, 0)      split-𝕆
+
+    — one definite algebra and one split algebra, seven ways. The split answer
+    matches rc349's ``inertia_signature`` differential, reached there through a
+    third, independent construction.
+
+    **SCOPE — this is a CONTROL constructor, not a substrate extension.** A
+    split algebra is not a new carrier: the sign cocycle is degenerate in the
+    same 344/512 way at dim 8 for every member of the family, and every
+    associative twist is a matrix algebra ``Mat`` already publishes. Nothing in
+    the closed simulation is built on a γ ≠ −1 rung.
+
+    Returns:
+        ``dim × dim × dim`` nested ``list[int]``.
+
+    Raises:
+        ValueError: ``dim`` not a power of two in range, or ``gammas`` the
+            wrong length / not all ±1.
+
+    Note:
+        Exact integers end to end — no float, no ``abs()`` (the sign is the
+        Class-K pin-slot composition inside :func:`_gamma_basis_product`).
+        Rosetta peer ``srmech_algebra_table``. Class K ∘ C ∘ A.
+
+    Canonical SSoT:
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.4
+      — the Cayley–Dickson process with a general scalar parameter.
+    - Springer, T.A. & Veldkamp, F.D. (2000), *Octonions, Jordan Algebras and
+      Exceptional Groups*, §1.5–1.7 — the split composition algebras.
+    - ``[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]``
+    """
+    if not _is_pow2(dim) or dim > ALGEBRA_TABLE_MAX_DIM:
+        raise ValueError(
+            f"algebra_table: dim must be a power of two ≤ "
+            f"ALGEBRA_TABLE_MAX_DIM={ALGEBRA_TABLE_MAX_DIM}; got {dim}. That "
+            f"ceiling bounds MATERIALISING the dim³ tensor, not the cocycle — "
+            f"cd_basis_product answers to CD_MAX_DIM={CD_MAX_DIM}")
+    g = _normalise_gammas(dim, gammas)
+    # rc352: the integer cocycle + table fill dispatch to srmech_algebra_table
+    # (the same C engine srmech_cd_basis_product rides, with the γ vector
+    # threaded). Bit-identical integers to the pure loop below, which stays the
+    # Pyodide / no-native fallback.
+    native = _native.algebra_table_c(dim, None if gammas is None else list(g))
+    if native is not None:
+        return [[[native[(i * dim + j) * dim + k] for k in range(dim)]
+                 for j in range(dim)] for i in range(dim)]
+    table = [[[0] * dim for _ in range(dim)] for _ in range(dim)]
+    for i in range(dim):
+        for j in range(dim):
+            idx, sign = _gamma_basis_product(dim, g, i, j)
+            table[i][j][idx] = sign
+    return table
+
+
+def table_product(table: Any, x: Sequence[Any], y: Sequence[Any]
+                  ) -> Tuple[Q, ...]:
+    """The product of two elements read off a **structure-constant table** —
+    exact, table-sensitive, and defined for algebras srmech has no hard-wired
+    product for (rc352, `#T997`)::
+
+        (x·y)_k = Σ_{i,j} table[i][j][k] · x_i · y_j
+
+    This is :func:`cd_mult`'s table-driven sibling. ``cd_mult`` computes the
+    ONE Cayley–Dickson product its recursion is wired for; this computes the
+    product of whatever algebra the caller hands it — a split twist from
+    :func:`algebra_table`, ``octonion_mult_table()``, or a random table with no
+    algebraic structure at all. **Two table-driven products already existed in
+    this tree and neither shipped** (a private dim-8-hardcoded loop in
+    :mod:`srmech.amsc.laplacian` with one caller, and a test-local oracle that
+    existed *because* no shipped product took a table); this is the one both
+    now route through.
+
+    **It agrees with the shipped product where both are defined.**
+    ``table_product(algebra_table(dim), x, y) == cd_mult(x, y)`` — 300/300 on
+    random dim-8 integer pairs and 200/200 on random exact-ℚ pairs. The two
+    routes are genuinely different (a triple loop over a materialised tensor
+    versus a recursive doubling / a cocycle call), which is what makes the
+    agreement a differential rather than a tautology.
+
+    Args:
+        table: the ``dim × dim × dim`` structure-constant tensor of exact
+            ``int``. ``table[i][j][k]`` is the coefficient of ``e_k`` in
+            ``e_i·e_j``; the dimension is ``len(table)`` and nothing else
+            supplies it.
+        x, y: ``dim``-length elements. Every exact-rational scalar
+            :func:`cd_mult` accepts is accepted here (``int`` / ``Q`` /
+            ``fractions.Fraction`` / ``float`` → its EXACT ratio /
+            ``(num, den)``).
+
+    Returns:
+        A ``dim``-tuple of exact :class:`~srmech.amsc.q.Q` — the same carrier
+        :func:`cd_mult` returns, so the two are directly comparable.
+
+    Raises:
+        ValueError: ragged / empty table, or an element whose length is not
+            ``len(table)``.
+        TypeError: a structure constant that is not an exact ``int``.
+
+    Note:
+        Exact end to end: no float, no epsilon, no ``abs()``. Cost is
+        ``O(dim³)`` exact-rational operations (the zero coefficients are
+        skipped, so a MONOMIAL table costs ``O(dim²)``). Rosetta peer
+        ``srmech_algebra_table_product`` — the SAME exact-ℚ element domain as
+        ``srmech_cd_mult``, so there is no int64 element ceiling and no
+        decline. Class M ∘ K ∘ N.
+    """
+    tbl = _structure_table(table)
+    dim = len(tbl)
+    ex = tuple(_coerce_frac(v) for v in x)
+    ey = tuple(_coerce_frac(v) for v in y)
+    if len(ex) != dim or len(ey) != dim:
+        raise ValueError(
+            f"table_product: the table is dim {dim}; got operands of length "
+            f"{len(ex)} and {len(ey)}")
+    # rc352: the bilinear accumulation dispatches to srmech_algebra_table_
+    # product (the exact-ℚ table kernel beside srmech_cd_mult, sharing the same
+    # qmat ℚ scalar arithmetic). Byte-identical reduced (num, den) to the pure
+    # accumulation below at any magnitude; the pure body stays the Pyodide /
+    # no-native fallback and the parity oracle.
+    flat = [tbl[i][j][k] for i in range(dim) for j in range(dim)
+            for k in range(dim)]
+    native = _native.algebra_table_product_c(
+        flat, dim,
+        [(f.numerator, f.denominator) for f in ex],
+        [(f.numerator, f.denominator) for f in ey])
+    if native is not None:
+        return tuple(Q(n, d) for n, d in native)
+    out = [Q(0)] * dim
+    for i in range(dim):
+        if ex[i] == 0:
+            continue
+        for j in range(dim):
+            if ey[j] == 0:
+                continue
+            coeff = ex[i] * ey[j]
+            cell = tbl[i][j]
+            for k in range(dim):
+                if cell[k]:
+                    out[k] += Q(cell[k]) * coeff
+    return tuple(out)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -752,7 +1099,7 @@ def sedenion_zero_divisor_witness() -> Dict[str, Any]:
     )
 
 
-def left_mult_matrix(x: Sequence[Any]) -> List[List[Q]]:
+def left_mult_matrix(x: Sequence[Any], table: Any = None) -> List[List[Q]]:
     """The ``n×n`` rational matrix of the linear map ``u ↦ x·u`` (column ``c`` is
     ``x·e_c``), row-major.
 
@@ -761,10 +1108,34 @@ def left_mult_matrix(x: Sequence[Any]) -> List[List[Q]]:
     so this is a ``composition_of_c`` (a Python loop over the C multiplication
     building the matrix, the ``mat_dot`` precedent). Byte-identical to the pure
     recursive doubling either way.
+
+    **``table`` names a DIFFERENT algebra** (rc352, `#T997`). ``None`` — the
+    default — is the shipped Cayley–Dickson product, unchanged. A rank-3
+    structure-constant table (from :func:`algebra_table`, or hand-built) routes
+    the columns through :func:`table_product` instead, so the left-regular
+    representation of a split twist or a control table is reachable — and with
+    it :func:`left_mult_kernel`'s zero-divisor witness on those algebras.
+
+    **This is also the differential that keeps ``table_product`` honest.**
+    ``left_mult_matrix(x) @ y == cd_mult(x, y)`` was MEASURED 200/200 on random
+    dim-8 pairs, and building a matrix column-by-column then contracting it is
+    a genuinely different route from a triple loop over a tensor. So
+    ``left_mult_matrix(x, table) @ y`` versus ``table_product(table, x, y)`` is
+    a real two-route check with **zero duplicated code** — which is the reason
+    this argument exists here rather than a second table-driven product
+    existing somewhere as a test oracle.
     """
     x = _as_elem(x)
     n = len(x)
-    cols = [cd_mult(x, cd_basis(n, c)) for c in range(n)]
+    if table is None:
+        cols = [cd_mult(x, cd_basis(n, c)) for c in range(n)]
+    else:
+        tbl = _structure_table(table)
+        if len(tbl) != n:
+            raise ValueError(
+                f"left_mult_matrix: the table is dim {len(tbl)} but the element "
+                f"has {n} components")
+        cols = [table_product(tbl, x, cd_basis(n, c)) for c in range(n)]
     return [[cols[c][r] for c in range(n)] for r in range(n)]
 
 
@@ -804,7 +1175,7 @@ def _rational_nullspace(matrix: List[List[Q]]) -> List[Tuple[Q, ...]]:
     return basis
 
 
-def left_mult_kernel(x: Sequence[Any]) -> List[Tuple[Q, ...]]:
+def left_mult_kernel(x: Sequence[Any], table: Any = None) -> List[Tuple[Q, ...]]:
     """Kernel basis of ``u ↦ x·u``. **Nonempty ⟺ ``x`` is a left zero divisor ⟺
     multiply-by-``x`` has no inverse map** — the "no backward direction to point"
     of §VII.6.23.4. Empty for every nonzero element of a division algebra (≤𝕆).
@@ -816,8 +1187,16 @@ def left_mult_kernel(x: Sequence[Any]) -> List[Tuple[Q, ...]]:
     is the byte-identical fallback: both build the SAME classical free-variable
     basis (leading-1 RREF, free variables set to a unit column), so the basis is
     element-for-element identical.
+
+    **``table``** (rc352, `#T997`) routes ``L(x)`` through
+    :func:`table_product`, so this becomes a zero-divisor **witness** on any
+    algebra a table can express — split-𝕆 at dim 8, where the shipped ladder
+    has none. It is the witness half only: zero divisors are measure-zero
+    (``left_mult_is_invertible`` returned True on 300/300 random dim-16
+    elements), so FINDING a candidate is a separate problem and this op does
+    not solve it.
     """
-    mat = left_mult_matrix(x)
+    mat = left_mult_matrix(x, table)
     n = len(mat)
     native = _native.qmat_nullspace_c(
         [(mat[r][c].numerator, mat[r][c].denominator)
@@ -863,11 +1242,13 @@ def _native_is_invertible(el: Tuple[Q, ...]):
     return out.value == 1
 
 
-def left_mult_is_invertible(x: Sequence[Any]) -> bool:
+def left_mult_is_invertible(x: Sequence[Any], table: Any = None) -> bool:
     """``True`` iff ``u ↦ x·u`` is a bijection (a backward direction exists).
 
-    Always ``True`` for nonzero ``x`` at dims ≤ 8; ``False`` for a zero divisor
-    at dim ≥ 16 — the reversibility that ends at the Hurwitz wall.
+    Always ``True`` for nonzero ``x`` at dims ≤ 8 on the DEFINITE ladder;
+    ``False`` for a zero divisor at dim ≥ 16 — the reversibility that ends at
+    the Hurwitz wall. Hand it a SPLIT table and ``False`` appears at dim 2
+    already, which is the honest answer and the ladder's own wall is not it.
 
     rc12: dispatches the decision to the native modular-rank gate
     ``srmech_sedenion_is_navigable`` when present (NO bignum: the n×n signed
@@ -875,12 +1256,22 @@ def left_mult_is_invertible(x: Sequence[Any]) -> bool:
     identical bool to the kernel-emptiness test below). The exact-rational
     kernel is the complete alternative for no-C environments and the
     unbounded-magnitude tail.
+
+    **``table``** (rc352, `#T997`) answers for the algebra the table names.
+    That gate is Cayley–Dickson-specific by construction — it rebuilds the
+    signed XOR-circulant from the shipped cocycle — so it does not apply, and
+    the op takes the exact-kernel route instead. That route is NOT a
+    degradation: ``srmech_qmat_nullspace`` over the ``srmech_algebra_table_
+    product``-composed ``L(x)`` is C the whole way down and exact at any
+    magnitude, so a bare-C host answers this identically (ADR-0009 — a
+    different C route, not a decline).
     """
     el = _as_elem(x)
-    native = _native_is_invertible(el)
-    if native is not None:
-        return native
-    return len(left_mult_kernel(el)) == 0
+    if table is None:
+        native = _native_is_invertible(el)
+        if native is not None:
+            return native
+    return len(left_mult_kernel(el, table)) == 0
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -928,23 +1319,23 @@ def _structure_table(table: Any) -> List[List[List[int]]]:
     rows = [list(r) for r in table]
     dim = len(rows)
     if dim < 1:
-        raise ValueError("inertia_signature: the table must have dimension ≥ 1")
+        raise ValueError("structure table: the table must have dimension ≥ 1")
     out: List[List[List[int]]] = []
     for i, row in enumerate(rows):
         cells = [list(c) for c in row]
         if len(cells) != dim:
             raise ValueError(
-                f"inertia_signature: row {i} has {len(cells)} columns; a "
+                f"structure table: row {i} has {len(cells)} columns; a "
                 f"structure-constant table is dim × dim × dim (dim={dim})")
         for j, cell in enumerate(cells):
             if len(cell) != dim:
                 raise ValueError(
-                    f"inertia_signature: cell ({i}, {j}) has {len(cell)} "
+                    f"structure table: cell ({i}, {j}) has {len(cell)} "
                     f"coefficients; expected dim={dim}")
             for k, v in enumerate(cell):
                 if isinstance(v, bool) or not isinstance(v, int):
                     raise TypeError(
-                        f"inertia_signature: structure constant ({i}, {j}, {k}) "
+                        f"structure table: structure constant ({i}, {j}, {k}) "
                         f"is {type(v).__name__}; exact integers only (this op is "
                         f"float-free by contract)")
         out.append(cells)

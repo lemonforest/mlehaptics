@@ -186,6 +186,7 @@ from .cayley_dickson import (
     CD_COMPOSE_MAX_DIM,
     CD_TURN_MAX_DIM,
     CD_ADDRESS_VERIFIED_DIM,
+    ALGEBRA_TABLE_MAX_DIM,
     CD_DIMS,
     DIVISION_ALGEBRA_DIMS,
     ASSOCIATIVE_ALGEBRA_DIMS,
@@ -204,6 +205,8 @@ from .cayley_dickson import (
     left_mult_kernel,
     left_mult_is_invertible,
     inertia_signature,
+    algebra_table,
+    table_product,
 )
 # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
 # PR #687; F465 + F468). The sedenion box made into an addressable instrument:
@@ -352,6 +355,10 @@ __all__ = [
     "left_mult_kernel",
     "left_mult_is_invertible",
     "inertia_signature",
+    # The gamma-parameterised CD control constructor (rc352; `#T997`)
+    "ALGEBRA_TABLE_MAX_DIM",
+    "algebra_table",
+    "table_product",
     # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
     "SedenionRegister",
     "sedenion_register",
