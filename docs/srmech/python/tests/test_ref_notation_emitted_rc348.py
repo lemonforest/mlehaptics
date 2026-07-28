@@ -206,9 +206,100 @@ def _bare_refs(path: Path) -> "list[tuple[int, int, str]]":
 # here is always correct; RAISING one is a defect unless the added ref is
 # provably a real GitHub object AND could not be written `gh #NNNN`.
 CEIL_BARE_REFS_EMITTED = {
-    "python/srmech/amsc/_tool_docs.py": 75,
+    # rc353 (`#T1006`) STANDING NOTE — READ BEFORE LOWERING THESE TWO.
+    # The worked-example curation arc rewrites hundreds of auto-seeded
+    # explanations, so these two numbers move on every regeneration until the
+    # arc lands, and the NET can hide moves in OPPOSITE directions. Measured
+    # mid-arc by diffing the emitted refs against HEAD rather than trusting
+    # the total (75 -> 74 at that instant):
+    #   DRAINED 3 — #1407 (x2) and #1245, carried by stale genome auto-seeds
+    #     that regeneration simply re-derived away. Nobody swept refs; the
+    #     tree had not been regenerated since those docstrings moved.
+    #   ADDED 2 — #447 and #460, newly EMITTED by worked-example curation on
+    #     `rational.exp_series_truncate` / `rational.pi_cascade_digits`.
+    # The two ADDED refs are NOT adjudicated. They pass the strict-zero rule
+    # (neither number is spelled `#TNNN` anywhere in the tree, so neither is a
+    # decidable local-task ID) and so ride as pre-convention residual pending
+    # topicality review — read the surrounding prose, never batch-convert.
+    # Recorded here because a net "-1" would otherwise bury them.
+    #   CLASS-L family (56 laplacian ops) measured against HEAD the same way:
+    #     DRAINED 27 from _tool_docs.py, ADDED 0. All 27 were auto-seed
+    #     carry-through from the laplacian docstrings — #1390 (x6), #564 (x6),
+    #     #897 (x3), #1234 (x2), #1097 (x2), #741, plus #1-#5 which are the
+    #     "issue #NNNN Item 3" style false positives the same docstrings carry.
+    #     Curation replaced every one of those explanations, so the laplacian
+    #     category now emits ZERO bare refs. Nothing was adjudicated and nothing
+    #     was swept; the refs left with the text that carried them.
+    #   rc353 DELIVERABLE ASSEMBLY — the ten-family measurement, and the
+    #   topicality review this note left PENDING is now DONE. Measured against
+    #   HEAD by ref MULTISET (not by total), both artifacts identically:
+    #     _tool_docs.py          75 -> 48   (DRAINED 31, ADDED 4)
+    #     srmech_tool_registry.c 199 -> 172 (DRAINED 31, ADDED 4)
+    #   The net -27 hides the four additions exactly as this note predicted.
+    #   ADDED, each adjudicated by reading the surrounding prose:
+    #     #447 gh MERGED "Spike #28 — falsify infinity + asymptotic_calculus
+    #          catalog" <- rational.exp_series_truncate cites it as the catalog
+    #          seed. TOPICAL. Should be written `gh #447` in the upstream prose.
+    #     #460 gh MERGED "spike-32: pi spectral shape is scalar-invariant"
+    #          <- rational.pi_cascade_digits cites it as the no-math.pi gate.
+    #          TOPICAL. Should be written `gh #460`.
+    #     #812 gh CLOSED "[srmech][glue/gauge] Loop-bind capacity
+    #          characterization vs Klein-4" <- hdc.loop_bind_hd cites it for the
+    #          measured capacity claim. TOPICAL. Should be written `gh #812`.
+    #     #437 gh MERGED "docs(mfo): AoE / hyperbubble / dark-sector-
+    #          oscillation" <- reaches the wheel through dsl.list_ops's CAPTURED
+    #          OUTPUT, which quotes the cosmos_validation descriptor's own
+    #          purpose string ("Spike #27 PR #437"). UPSTREAM DATA, NOT
+    #          AUTHORED PROSE: editing it would fabricate a captured output.
+    #          Fix at srmech/amsc/attested/cosmos_validation/descriptor.toml or
+    #          leave it; do NOT touch the emitted example.
+    #   THE ARC HAS NOW LANDED — rc353 close-out, 2026-07-28. The note below
+    #   used to say these two "stay at 75 / 199 for now BY DESIGN … until the
+    #   arc lands", because pinning a MID-arc measurement asserts as settled a
+    #   count the next family's curation moves again. That condition is
+    #   discharged: tests/test_worked_examples_strict_zero_rc353.py is GREEN,
+    #   0 of 513 examples remain un-authored, so this is the final post-arc
+    #   regen and the ratchet is lowered ONCE, here, from it.
+    #   Measured against HEAD with THIS suite's own _bare_refs predicate (code
+    #   spans exempt, `gh ` prefix exempt, 3-4 digit bound) by ref MULTISET —
+    #   never by total, since the net hides moves in opposite directions.
+    #   Both artifacts moved identically:
+    #     _tool_docs.py           75 -> 7    (DRAINED 72, ADDED 4)
+    #     srmech_tool_registry.c 199 -> 130  (DRAINED 72 + 1, ADDED 4)
+    #   The C registry's extra -1 is NOT curation: draining the example/
+    #   explanation copies of `#944` left the SUMMARY copy alone in the
+    #   registry (the C artifact embeds summaries, _tool_docs.py does not) and
+    #   the strict-zero test above went red on it — correctly, since the tree
+    #   spells the same number `#T944` at srmech_research_notebook.md:179.
+    #   ADJUDICATED by reading the prose both sides: the notebook's `#T944` is
+    #   the finding "𝕆 measured to have no frame-free invariant" and the
+    #   summary's is the BUILD TASK that shipped quaternion_cycle_holonomy —
+    #   the same LOCAL task, no GitHub object. Fixed upstream at
+    #   srmech/amsc/tool_schema.py:9682 (one character, `#944` -> `#T944`),
+    #   then regenerated. HEAD carried THREE copies of this false link across
+    #   the two shipped artifacts; it now carries none.
+    #   DRAINED 72, every one of them auto-seed carry-through that left with
+    #   the docstring text curation replaced — no ref was adjudicated and none
+    #   was swept: #1390 (x8), #1248 (x7), #564 (x6), #1234 (x5), #718 /
+    #   #1239 / #733 / #1407 (x4 each), #712 / #897 (x3 each), #697 / #719 /
+    #   #723 / #741 / #863 / #1097 / #1273 (x2 each), and one each of #698,
+    #   #726, #728, #730, #732, #736, #797, #944, #1245, #1261.
+    #   ADDED 4 — exactly the four already adjudicated in the block above
+    #   (#437, #447, #460, #812) and NOT one more: the final family (the 31
+    #   carrier_ladder / carrier_schema / carrier_spectrum / coupling /
+    #   octonion / q8 / responsion_schema / srmech.spectral entries) emitted
+    #   ZERO bare refs. Their `gh ` prefixes remain the open follow-up; the
+    #   #437 one is CAPTURED OUTPUT and must be fixed at
+    #   srmech/amsc/attested/cosmos_validation/descriptor.toml, never in the
+    #   emitted example.
+    #   The two artifacts do NOT hold the same population — the C registry
+    #   also embeds each op's SUMMARY, which _tool_docs.py does not — but they
+    #   move together, and here they moved by exactly -68 each (the rc346
+    #   measurement: bytes injected into _tool_docs.py propagate exactly into
+    #   srmech_tool_registry.c).
+    "python/srmech/amsc/_tool_docs.py": 7,
     "python/srmech/amsc/_c_claims.py": 0,
-    "c/src/srmech_tool_registry.c": 199,
+    "c/src/srmech_tool_registry.c": 130,
     # rc352: 2 -> 0. Both were the SAME pre-convention `#845`, emitted twice
     # from one upstream string (`carrier_schema.py`, the `Q` carrier
     # description). It sat here legitimately until this rc: the strict-zero

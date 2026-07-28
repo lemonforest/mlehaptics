@@ -339,10 +339,19 @@ def _qr_lstsq_real(a_real, b_real):
 def lstsq(a, b):
     """Least-squares solution of ``A x = b`` (minimising ``‖A x − b‖``), numpy-free.
 
-    Delegates to the Mat-carrier :func:`srmech.amsc.laplacian.mat_lstsq` (the
-    normal-equations ``(AᴴA)⁻¹Aᴴb`` over the native ``mat_*`` trio). Supports the
-    overdetermined / square case ``m ≥ n`` (full column rank); ``b`` may be a
-    vector ``(m,)`` or a stack of right-hand sides ``(m, k)``.
+    Supports the overdetermined / square case ``m ≥ n`` (full column rank);
+    ``b`` may be a vector ``(m,)`` or a stack of right-hand sides ``(m, k)``.
+
+    Two engines, and which one runs is observable (rc140, Foundation F2). A
+    **real** ``a``/``b`` takes the QR path — ``srmech_qr_f64`` then the
+    back-substituted ``R x = Qᵀ b`` (Golub & Van Loan §5.3.3), which does NOT
+    square the condition number. **Complex** input, a rank-deficient ``R``
+    (zero pivot), or a host with no native library falls back to the
+    Mat-carrier :func:`srmech.amsc.laplacian.mat_lstsq` normal equations
+    ``(AᴴA)⁻¹Aᴴb`` — the complete alternative and the parity oracle. (This
+    paragraph read "delegates to ``mat_lstsq``" unconditionally until rc353;
+    that predated the rc140 QR routing and was stale — the ``ToolEntry``
+    summary in ``tool_schema.py`` had the QR shape right all along.)
 
     Returns the solution ``x`` in the numpy-free **carrier** (rc131): a 1-D
     :class:`~srmech.amsc.vec.Vec` for a vector ``b`` (``.shape == (n,)`` + scalar

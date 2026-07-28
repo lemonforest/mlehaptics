@@ -622,7 +622,15 @@ _GRANULARITY: Dict[str, Any] = {
         "the slot counts below (8, 4, 2) are ONE algebra (O) re-addressed at "
         "three widths; BLOCK_DIMS (2, 4, 8) are the real dims of THREE "
         "algebras (C, H, O). Same three numbers, different objects — check "
-        "`reading` before comparing them. (11D = 1+3+7 has no such collision.)"
+        "`reading` before comparing them. (11D = 1+3+7 has no such collision.) "
+        "A SECOND axis collides the same way: `index_bits` is an EXPONENT "
+        "(log2 of `slots`), NEVER a dimension. The (Z/2)^d grading cube of a "
+        "dim-2^d algebra has 2^d vertices, one per basis direction, so the "
+        "4-cube (tesseract) grades the SEDENIONS at dim 16 — H's grading cube "
+        "is the SQUARE (Z/2)^2. The tesseract that lives IN H is a third "
+        "object: 16 unit POINTS of R^4 (the half-integer Hurwitz units), not a "
+        "grading — 128 of their 256 products leave the set (measured "
+        "2026-07-28), so no sign-bit XOR grades them."
     ),
     "invariant": (
         "1 anchor + (n-1) torsors at every width: the identity sits in exactly "

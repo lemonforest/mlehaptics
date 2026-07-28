@@ -1,0 +1,78 @@
+{"kind": "env", "srmech_version": "0.9.0rc352"}
+{"kind": "A1_shipped_regular_rep", "quaternion_left_mult_is_regular_rep": true, "octonion_left_mult_is_regular_rep": true, "qm_table_equals_algebra_table_4": true, "qm_table_equals_algebra_table_8": true, "note": "L(e_i)[k][j] = table[i][j][k]; the regular rep ALREADY SHIPS"}
+{"kind": "A2_left_homomorphism", "dim": 1, "pairs": 1, "failures": 0, "is_homomorphism": true}
+{"kind": "A2_left_homomorphism", "dim": 2, "pairs": 4, "failures": 0, "is_homomorphism": true}
+{"kind": "A2_left_homomorphism", "dim": 4, "pairs": 16, "failures": 0, "is_homomorphism": true}
+{"kind": "A2_left_homomorphism", "dim": 8, "pairs": 64, "failures": 42, "is_homomorphism": false}
+{"kind": "A2_left_homomorphism", "dim": 16, "pairs": 256, "failures": 210, "is_homomorphism": false}
+{"kind": "A3_orthogonal_generators", "dim": 1, "all_orthogonal": true, "note": "orthogonal generators => invariant inner product => the module is SEMISIMPLE, so Wedderburn/blocks are the right tool"}
+{"kind": "A3_orthogonal_generators", "dim": 2, "all_orthogonal": true, "note": "orthogonal generators => invariant inner product => the module is SEMISIMPLE, so Wedderburn/blocks are the right tool"}
+{"kind": "A3_orthogonal_generators", "dim": 4, "all_orthogonal": true, "note": "orthogonal generators => invariant inner product => the module is SEMISIMPLE, so Wedderburn/blocks are the right tool"}
+{"kind": "A3_orthogonal_generators", "dim": 8, "all_orthogonal": true, "note": "orthogonal generators => invariant inner product => the module is SEMISIMPLE, so Wedderburn/blocks are the right tool"}
+{"kind": "A3_orthogonal_generators", "dim": 16, "all_orthogonal": true, "note": "orthogonal generators => invariant inner product => the module is SEMISIMPLE, so Wedderburn/blocks are the right tool"}
+{"kind": "B1_cd_cocycle", "dim": 1, "d": 0, "monomial_xor": true, "triples": 1, "cocycle_failures": 0, "is_2_cocycle": true, "order": 2, "order_census": {"1": 1, "2": 1}, "centre_order": 2, "abelian": true, "extension_name": "Z/2"}
+{"kind": "B1_cd_cocycle", "dim": 2, "d": 1, "monomial_xor": true, "triples": 8, "cocycle_failures": 0, "is_2_cocycle": true, "order": 4, "order_census": {"1": 1, "2": 1, "4": 2}, "centre_order": 4, "abelian": true, "extension_name": "Z/4"}
+{"kind": "B1_cd_cocycle", "dim": 4, "d": 2, "monomial_xor": true, "triples": 64, "cocycle_failures": 0, "is_2_cocycle": true, "order": 8, "order_census": {"1": 1, "2": 1, "4": 6}, "centre_order": 2, "abelian": false, "extension_name": "Q8  (extraspecial 2-group 2^{1+2}_-)"}
+{"kind": "B1_cd_cocycle", "dim": 8, "d": 3, "monomial_xor": true, "triples": 512, "cocycle_failures": 168, "is_2_cocycle": false, "extension_name": "NONE \u2014 eps is not a 2-cocycle, so there is no central extension and no projective representation"}
+{"kind": "B1_cd_cocycle", "dim": 16, "d": 4, "monomial_xor": true, "triples": 4096, "cocycle_failures": 1848, "is_2_cocycle": false, "extension_name": "NONE \u2014 eps is not a 2-cocycle, so there is no central extension and no projective representation"}
+{"kind": "C1_clifford", "d": 0, "dim": 1, "cocycle_failures": 0, "is_2_cocycle": true, "associative": true, "equals_cayley_dickson_table": true, "omega_squared": 1, "order": 2, "order_census": {"1": 1, "2": 1}, "centre_order": 2, "abelian": true, "extension_name": "Z/2"}
+{"kind": "C1_clifford", "d": 1, "dim": 2, "cocycle_failures": 0, "is_2_cocycle": true, "associative": true, "equals_cayley_dickson_table": true, "omega_squared": -1, "order": 4, "order_census": {"1": 1, "2": 1, "4": 2}, "centre_order": 4, "abelian": true, "extension_name": "Z/4"}
+{"kind": "C1_clifford", "d": 2, "dim": 4, "cocycle_failures": 0, "is_2_cocycle": true, "associative": true, "equals_cayley_dickson_table": true, "omega_squared": -1, "order": 8, "order_census": {"1": 1, "2": 1, "4": 6}, "centre_order": 2, "abelian": false, "extension_name": "Q8  (extraspecial 2-group 2^{1+2}_-)"}
+{"kind": "C1_clifford", "d": 3, "dim": 8, "cocycle_failures": 0, "is_2_cocycle": true, "associative": true, "equals_cayley_dickson_table": false, "omega_squared": 1, "order": 16, "order_census": {"1": 1, "2": 3, "4": 12}, "centre_order": 4, "abelian": false, "extension_name": "order-16, centre order 4 -> ALMOST-extraspecial (d odd)"}
+{"kind": "C1_clifford", "d": 4, "dim": 16, "cocycle_failures": 0, "is_2_cocycle": true, "associative": true, "equals_cayley_dickson_table": false, "omega_squared": 1, "order": 32, "order_census": {"1": 1, "2": 11, "4": 20}, "centre_order": 2, "abelian": false, "extension_name": "order-32, centre order 2 -> extraspecial 2^{1+4}"}
+{"kind": "D1_cd_blocks", "algebra": "R", "dim": 1, "left_mult_algebra_dim": 1, "ambient_M_n_dim": 1, "commutant_dim": 1, "block_dims": [1], "irreducible": true}
+{"kind": "D1_cd_blocks", "algebra": "C", "dim": 2, "left_mult_algebra_dim": 2, "ambient_M_n_dim": 4, "commutant_dim": 2, "block_dims": [2], "irreducible": true}
+{"kind": "D1_cd_blocks", "algebra": "H", "dim": 4, "left_mult_algebra_dim": 4, "ambient_M_n_dim": 16, "commutant_dim": 4, "block_dims": [4], "irreducible": true}
+{"kind": "D1_cd_blocks", "algebra": "O", "dim": 8, "left_mult_algebra_dim": 64, "ambient_M_n_dim": 64, "commutant_dim": 1, "block_dims": [8], "irreducible": true}
+{"kind": "D1_cd_blocks", "algebra": "S(sedenion)", "dim": 16, "left_mult_algebra_dim": 256, "ambient_M_n_dim": 256, "commutant_dim": 1, "block_dims": [16], "irreducible": true}
+{"kind": "G1_wedderburn_basis", "algebra": "split-C (gammas=(1,))", "dim": 2, "n_nontrivial_idempotents_found": 2, "n_orthogonal_blocks": 2, "cube_nnz": 4, "dim_sq": 4, "peirce_labels": ["p0Ap0", "p1Ap1"], "block_basis_nnz": 2, "block_basis_zero_product_pairs": 2, "sparser_than_cube": true}
+{"kind": "G1_wedderburn_basis", "algebra": "split-H (gammas=(1,1))", "dim": 4, "n_nontrivial_idempotents_found": 4, "n_orthogonal_blocks": 2, "cube_nnz": 16, "dim_sq": 16, "peirce_labels": ["p0Ap0", "p0Ap1", "p1Ap0", "p1Ap1"], "block_basis_nnz": 8, "block_basis_zero_product_pairs": 8, "sparser_than_cube": true}
+{"kind": "G1_wedderburn_basis", "algebra": "Cl(0,1) = C", "dim": 2, "n_nontrivial_idempotents_found": 0, "n_orthogonal_blocks": 1, "cube_nnz": 4, "dim_sq": 4, "block_basis_nnz": 4, "sparser_than_cube": false, "note": "no non-trivial idempotent => the algebra does NOT split => the block basis IS the cube basis"}
+{"kind": "G1_wedderburn_basis", "algebra": "Cl(0,2) = H", "dim": 4, "n_nontrivial_idempotents_found": 0, "n_orthogonal_blocks": 1, "cube_nnz": 16, "dim_sq": 16, "block_basis_nnz": 16, "sparser_than_cube": false, "note": "no non-trivial idempotent => the algebra does NOT split => the block basis IS the cube basis"}
+{"kind": "G1_wedderburn_basis", "algebra": "Cl(0,3)", "dim": 8, "n_nontrivial_idempotents_found": 2, "n_orthogonal_blocks": 2, "cube_nnz": 64, "dim_sq": 64, "peirce_labels": ["p0Ap0", "p0Ap0", "p0Ap0", "p0Ap0", "p1Ap1", "p1Ap1", "p1Ap1", "p1Ap1"], "block_basis_nnz": 32, "block_basis_zero_product_pairs": 32, "sparser_than_cube": true}
+{"kind": "G1_wedderburn_basis", "algebra": "H (definite, CD)", "dim": 4, "n_nontrivial_idempotents_found": 0, "n_orthogonal_blocks": 1, "cube_nnz": 16, "dim_sq": 16, "block_basis_nnz": 16, "sparser_than_cube": false, "note": "no non-trivial idempotent => the algebra does NOT split => the block basis IS the cube basis"}
+{"kind": "G1_wedderburn_basis", "algebra": "O (definite, CD)", "dim": 8, "n_nontrivial_idempotents_found": 0, "n_orthogonal_blocks": 1, "cube_nnz": 64, "dim_sq": 64, "block_basis_nnz": 64, "sparser_than_cube": false, "note": "no non-trivial idempotent => the algebra does NOT split => the block basis IS the cube basis"}
+{"kind": "E1_basis_nnz", "dim": 2, "basis": "cube(monomial)", "nnz": 4, "zero_product_pairs": 0, "dim_sq": 4, "dim_cube": 8}
+{"kind": "E1_basis_nnz", "dim": 2, "basis": "walsh(character)", "nnz": 8, "zero_product_pairs": 0, "dim_sq": 4, "dim_cube": 8}
+{"kind": "E1_basis_nnz", "dim": 2, "basis": "generic-unimodular", "nnz": 8, "zero_product_pairs": 0, "dim_sq": 4, "dim_cube": 8}
+{"kind": "E1_basis_nnz", "dim": 4, "basis": "cube(monomial)", "nnz": 16, "zero_product_pairs": 0, "dim_sq": 16, "dim_cube": 64}
+{"kind": "E1_basis_nnz", "dim": 4, "basis": "walsh(character)", "nnz": 64, "zero_product_pairs": 0, "dim_sq": 16, "dim_cube": 64}
+{"kind": "E1_basis_nnz", "dim": 4, "basis": "generic-unimodular", "nnz": 50, "zero_product_pairs": 0, "dim_sq": 16, "dim_cube": 64}
+{"kind": "E1_basis_nnz", "dim": 8, "basis": "cube(monomial)", "nnz": 64, "zero_product_pairs": 0, "dim_sq": 64, "dim_cube": 512}
+{"kind": "E1_basis_nnz", "dim": 8, "basis": "walsh(character)", "nnz": 512, "zero_product_pairs": 0, "dim_sq": 64, "dim_cube": 512}
+{"kind": "E1_basis_nnz", "dim": 8, "basis": "generic-unimodular", "nnz": 246, "zero_product_pairs": 0, "dim_sq": 64, "dim_cube": 512}
+{"kind": "E1_basis_nnz", "dim": 16, "basis": "cube(monomial)", "nnz": 256, "zero_product_pairs": 0, "dim_sq": 256, "dim_cube": 4096}
+{"kind": "E1_basis_nnz", "dim": 16, "basis": "walsh(character)", "nnz": 4096, "zero_product_pairs": 0, "dim_sq": 256, "dim_cube": 4096}
+{"kind": "E1_basis_nnz", "dim": 16, "basis": "generic-unimodular", "nnz": 1541, "zero_product_pairs": 0, "dim_sq": 256, "dim_cube": 4096}
+{"kind": "E2_split_control", "algebra": "split-C  (gammas=(1,))", "dim": 2, "cube_nnz": 4, "dim_sq": 4, "commutant_dim": 2, "block_dims": [1, 1]}
+{"kind": "E2_split_control", "algebra": "split-H  (gammas=(1,1))", "dim": 4, "cube_nnz": 16, "dim_sq": 16, "commutant_dim": 4, "block_dims": [2, 2]}
+{"kind": "E2_split_control", "algebra": "split-O  (gammas=(1,1,1))", "dim": 8, "cube_nnz": 64, "dim_sq": 64, "commutant_dim": 1, "block_dims": [8]}
+{"kind": "E3_clifford_blocks", "d": 0, "dim": 1, "cube_nnz": 1, "dim_sq": 1, "commutant_dim": 1, "block_dims": [1]}
+{"kind": "E3_clifford_blocks", "d": 1, "dim": 2, "cube_nnz": 4, "dim_sq": 4, "commutant_dim": 2, "block_dims": [2]}
+{"kind": "E3_clifford_blocks", "d": 2, "dim": 4, "cube_nnz": 16, "dim_sq": 16, "commutant_dim": 4, "block_dims": [4]}
+{"kind": "E3_clifford_blocks", "d": 3, "dim": 8, "cube_nnz": 64, "dim_sq": 64, "commutant_dim": 8, "block_dims": [4, 4]}
+{"kind": "E4_matrix_units", "algebra": "M_2(R)", "dim": 4, "matrix_unit_nnz": 8, "cube_would_be": 16, "zero_product_pairs": 8, "ratio": "8/16"}
+{"kind": "E4_matrix_units", "algebra": "M_3(R)", "dim": 9, "matrix_unit_nnz": 27, "cube_would_be": 81, "zero_product_pairs": 54, "ratio": "27/81"}
+{"kind": "E4_matrix_units", "algebra": "M_4(R)", "dim": 16, "matrix_unit_nnz": 64, "cube_would_be": 256, "zero_product_pairs": 192, "ratio": "64/256"}
+{"kind": "E4_matrix_units", "algebra": "M_8(R)", "dim": 64, "matrix_unit_nnz": 512, "cube_would_be": 4096, "zero_product_pairs": 3584, "ratio": "512/4096"}
+{"kind": "E5_complexified_H", "algebra": "H (x) C = M_2(C)", "dim": 4, "real_cube_nnz": 16, "complex_matrix_unit_nnz": 8, "block_dims_over_C": [2, 2], "block_dims_over_R": [4], "note": "the halving 16 -> 8 costs the REAL carrier; over R the module is one irreducible 4-dim block and no basis splits it"}
+{"kind": "F1_lower_bound_probe", "algebra": "C", "dim": 2, "dim_sq": 4, "min_nnz_over_random_bases": 4, "trials_with_a_vanishing_product_pair": 0, "cube_nnz": 4}
+{"kind": "F1_lower_bound_probe", "algebra": "H", "dim": 4, "dim_sq": 16, "min_nnz_over_random_bases": 30, "trials_with_a_vanishing_product_pair": 0, "cube_nnz": 16}
+{"kind": "F1_lower_bound_probe", "algebra": "O", "dim": 8, "dim_sq": 64, "min_nnz_over_random_bases": 294, "trials_with_a_vanishing_product_pair": 0, "cube_nnz": 64}
+{"kind": "F1_lower_bound_probe", "algebra": "S(sedenion)", "dim": 16, "dim_sq": 256, "min_nnz_over_random_bases": 2544, "trials_with_a_vanishing_product_pair": 0, "cube_nnz": 256}
+{"kind": "F2_basis_zero_products", "algebra": "H", "dim": 4, "zero_product_basis_pairs": 0}
+{"kind": "F2_basis_zero_products", "algebra": "O", "dim": 8, "zero_product_basis_pairs": 0}
+{"kind": "F2_basis_zero_products", "algebra": "S(sedenion)", "dim": 16, "zero_product_basis_pairs": 0}
+{"kind": "F3_sedenion_random_zero_divisor_hits", "trials": 400, "random_pairs_with_zero_product": 0, "note": "zero divisors in S are a measure-zero variety; random sampling will not hit them \u2014 the STRUCTURED ones are the (e_i+e_j)(e_k+e_l) family, tested next"}
+{"kind": "F4_sedenion_structured_zero_divisors", "pairs_tested": 11025, "zero_product_pairs": 84, "sample": [[[1, 10], [5, 14]], [[1, 10], [7, 12]], [[1, 11], [4, 14]], [[1, 11], [5, 15]], [[1, 12], [2, 15]], [[1, 12], [6, 11]]], "note": "S is NOT a division algebra, so the dim^2 floor does not bind there \u2014 but the CD cube basis still has 0 vanishing basis products, so the floor is still ACHIEVED at 256"}
+{"kind": "env", "srmech_version": "0.9.0rc352"}
+{"kind": "H1_group_algebra", "group": "Z/4  (CD d=1 == Clifford d=1)", "group_order": 4, "n_conjugacy_classes": 4, "n_complex_irreps": 4, "sum_of_squares_check": 4, "ideal_dims": {"plus(z->+1, untwisted)": 2, "minus(z->-1, TWISTED)": 2}, "twisted_part_real_dim": 2, "note": "R[G] splits on the central idempotent; the MINUS ideal has real dim 2 and IS R^eps[(Z/2)^d] \u2014 for Q8 that is H, the unique 4-dim real irrep block; the PLUS ideal is the untwisted R[(Z/2)^d] = R^d, all 1-dim blocks"}
+{"kind": "H1_group_algebra", "group": "Q8   (CD d=2 == Clifford d=2)", "group_order": 8, "n_conjugacy_classes": 5, "n_complex_irreps": 5, "sum_of_squares_check": 8, "ideal_dims": {"plus(z->+1, untwisted)": 4, "minus(z->-1, TWISTED)": 4}, "twisted_part_real_dim": 4, "note": "R[G] splits on the central idempotent; the MINUS ideal has real dim 4 and IS R^eps[(Z/2)^d] \u2014 for Q8 that is H, the unique 4-dim real irrep block; the PLUS ideal is the untwisted R[(Z/2)^d] = R^d, all 1-dim blocks"}
+{"kind": "H1_group_algebra", "group": "Clifford d=3 extension (order 16)", "group_order": 16, "n_conjugacy_classes": 10, "n_complex_irreps": 10, "sum_of_squares_check": 16, "ideal_dims": {"plus(z->+1, untwisted)": 8, "minus(z->-1, TWISTED)": 8}, "twisted_part_real_dim": 8, "note": "R[G] splits on the central idempotent; the MINUS ideal has real dim 8 and IS R^eps[(Z/2)^d] \u2014 for Q8 that is H, the unique 4-dim real irrep block; the PLUS ideal is the untwisted R[(Z/2)^d] = R^d, all 1-dim blocks"}
+{"kind": "I1_simplicity", "algebra": "C", "dim": 2, "min_left_ideal_dim": 2, "elements_generating_a_PROPER_left_ideal": 0, "two_sided_ideal_of_e1_dim": 2, "no_proper_left_ideal_found": true, "simple_module_real_dim": 2}
+{"kind": "I1_simplicity", "algebra": "H", "dim": 4, "min_left_ideal_dim": 4, "elements_generating_a_PROPER_left_ideal": 0, "two_sided_ideal_of_e1_dim": 4, "no_proper_left_ideal_found": true, "simple_module_real_dim": 4}
+{"kind": "I1_simplicity", "algebra": "O", "dim": 8, "min_left_ideal_dim": 8, "elements_generating_a_PROPER_left_ideal": 0, "two_sided_ideal_of_e1_dim": 8, "no_proper_left_ideal_found": true, "simple_module_real_dim": 8}
+{"kind": "I1_simplicity", "algebra": "S(sedenion)", "dim": 16, "min_left_ideal_dim": 12, "elements_generating_a_PROPER_left_ideal": 84, "two_sided_ideal_of_e1_dim": 16, "no_proper_left_ideal_found": false, "simple_module_real_dim": 12}
+{"kind": "S1_zero_divisor_pairs", "n": 84}
+{"kind": "S2_annihilator", "x": "e1+e10", "rank_L_x": 12, "kernel_dim": 4, "note": "at most this many basis vectors can be annihilated by ONE basis vector"}
+{"kind": "S3_sedenion_best_zero_divisor_basis", "trials": 300, "best_nnz": 1004, "vanishing_product_pairs": 14, "cube_nnz": 256, "dim_sq": 256}
