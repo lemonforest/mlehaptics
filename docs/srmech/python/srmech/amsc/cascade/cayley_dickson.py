@@ -1285,9 +1285,44 @@ def left_mult_is_invertible(x: Sequence[Any], table: Any = None) -> bool:
 # ──────────────────────────────────────────────────────────────────────
 # The ℝ→ℂ rung instrument — ORDERABILITY, read off a multiplication table.
 #
-# rc349 (`#T987`, consolidating `#T968`). The Hurwitz loss ladder loses ONE
-# capability per doubling: ℝ→ℂ ordering, ℂ→ℍ commutativity, ℍ→𝕆 associativity,
-# 𝕆→𝕊 composition. The last three already had instruments in this tree
+# rc349 (`#T987`, consolidating `#T968`); CORRECTED rc358 (`#T1032`) — the old
+# wording ("loses ONE capability per doubling: … 𝕆→𝕊 composition") named the
+# WRONG PROPERTY at the fourth rung, not the wrong SHAPE. It IS one loss per
+# doubling: ℝ→ℂ ordering, ℂ→ℍ commutativity, ℍ→𝕆 associativity, 𝕆→𝕊
+# ALTERNATIVITY. Composition is not a second casualty. Every Cayley–Dickson
+# algebra is quadratic (x² − 2Re(x)x + N(x) = 0) and its conjugation is the
+# ADJOINT of left multiplication (⟨xy,w⟩ = ⟨y, x̄w⟩ — measured here with ZERO
+# violations over all 16³ and all 32³ basis triples), so L_x* = L_x̄ makes
+# T = L_x̄∘L_x − N(x)·Id SELF-ADJOINT and, for a FIXED x,
+#     [x,x,y] = 0 for all y   ⟺   T = 0   ⟺   N(xy) = N(x)·N(y) for all y.
+# The two are the same condition per element; the classical rung name states
+# the CONSEQUENCE. (Per PAIR they separate, the weak way round: x = e₁+e₁₀,
+# y = e₄ has [x,x,y] = 2·e₁₅ ≠ 0 while N(xy) = 2 = N(x)·N(y).)
+# ZERO-DIVISOR-FREENESS is a ONE-WAY corollary and needs a hypothesis the
+# ladder never states: composition AND AN ANISOTROPIC NORM ⟹ no zero divisors.
+# Bare "composition ⟹ no zero divisors" is FALSE — split-𝕆 is a composition
+# algebra (exact, all seven γ-twists) WITH zero divisors: (e₀+e₁)(e₀−e₁) = 0,
+# gated cd_norm_sq(e₀+e₁, gammas=γ) = 0, left-multiplication kernel dim 4.
+# Losing composition therefore does not by itself PRODUCE zero divisors: at
+# dim 16 they are EXHIBITED (:func:`sedenion_zero_divisor_witness`), never
+# inferred — and :func:`left_mult_is_invertible` returns True on 200/200 random
+# dim-16 elements, so the wall is invisible to sampling at dim 16 AND at
+# split-𝕆 dim 8. Exhibit, do not sample.
+# The ladder is BOUNDED because the law that never dies is FLEXIBILITY: the
+# linearised [a,b,c] + [c,b,a] has ZERO violations on EVERY basis triple at
+# dim 1…64 (exhaustive — 262 144 triples at dim 64 — and on all 16 γ-families
+# at dim 16 and all 32 at dim 32), while the linearised [a,b,c] + [b,a,c] has
+# 0 / 0 / 672 / 10 080 / 104 160 violations at dim 4 / 8 / 16 / 32 / 64.
+# A linearised identity checked on a basis is a PROOF for all elements, not a
+# sample (char ≠ 2). Schafer (1954), already cited above: flexibility and
+# conjugation survive every rung — and they are the same fact, since
+# [a,b,c] = −[c,b,a] IS the reversal anti-automorphism.
+# ⚠️ NEVER instrument this with the DIAGONAL BASIS SHAPES. (a,a,b), (a,b,b)
+# and (a,b,a) have ZERO nonzero associators at every dim measured INCLUDING 64,
+# so a basis-shape count reports alternativity ALIVE at dim 64. The
+# random-anticommutative control has aba_nonzero = 0 while failing flexibility
+# outright. Only the linearised identity decides. The three rungs after the
+# first already had instruments in this tree
 # (:func:`srmech.amsc.cascade.cd_basis_product` commuting-pair counts;
 # ``hdc.loop_associator`` / ``genome_octonion_associator``;
 # :func:`sedenion_zero_divisor_witness` / :func:`left_mult_is_invertible`).
