@@ -45,9 +45,17 @@ The correction is precise about *which half* is false: a `commutator` **does** s
 
 ### (4) `#T1032` (doc half only) — the Hurwitz ladder was wrong at rung 4
 
-`cayley_dickson.py:1288-1290` claimed the ladder *"loses ONE capability per doubling: ℝ→ℂ ordering, ℂ→ℍ commutativity, ℍ→𝕆 associativity, 𝕆→𝕊 composition."* False three ways: at 𝕆→𝕊 composition, **alternativity** and **zero-divisor-freeness** die **together**, not one at a time; alternativity was omitted from the list entirely; and "one per doubling" implies an unbounded ladder that **dim 32 refutes** (it loses none of the named properties further).
+`cayley_dickson.py:1288-1290` claimed the ladder *"loses ONE capability per doubling: ℝ→ℂ ordering, ℂ→ℍ commutativity, ℍ→𝕆 associativity, 𝕆→𝕊 composition."* It named the **wrong property** at the fourth rung — not the wrong *shape*. It **is** one loss per doubling; the fourth loss is **ALTERNATIVITY**, which the old list omitted entirely.
 
-**The tree already contradicted itself here** — the peer statement on `trace_form_inertia` (`:1721`) honestly lists three rungs and grades them DEFINITIONAL. Corrected to: three singleton rungs → a **cluster collapse** at 𝕆→𝕊 → no further loss.
+**Composition is not a second casualty — it is the SAME condition per element.** Every Cayley–Dickson algebra is quadratic and its conjugation is the **adjoint** of left multiplication (`⟨xy,w⟩ = ⟨y, x̄w⟩` — measured with **zero** violations over all 16³ and all 32³ basis triples), so `T = L_x̄∘L_x − N(x)·Id` is **self-adjoint** and, for a fixed `x`, `[x,x,y] = 0 ∀y  ⟺  T = 0  ⟺  N(xy) = N(x)·N(y) ∀y`. The classical rung name states the *consequence*. (Per **pair** they separate, the weak way round: `x = e₁+e₁₀`, `y = e₄` gives `[x,x,y] = 2e₁₅ ≠ 0` while `N(xy) = 2 = N(x)·N(y)`.)
+
+**Zero-divisor-freeness is a ONE-WAY corollary needing a hypothesis the ladder never states** — composition **and an anisotropic norm**. Bare *"composition ⟹ no zero divisors"* is **FALSE**: split-𝕆 is a composition algebra (exact, all seven γ-twists) **with** zero divisors — `(e₀+e₁)(e₀−e₁) = 0`, gated `cd_norm_sq(e₀+e₁, gammas=γ) = 0`, left-mult kernel dim 4. So at dim 16 the zero divisors are **exhibited**, never inferred; `left_mult_is_invertible` returns True on 200/200 random dim-16 elements, so the wall is invisible to sampling at dim 16 **and** at split-𝕆 dim 8.
+
+**The ladder is BOUNDED because the law that never dies is FLEXIBILITY.** The linearised `[a,b,c] + [c,b,a]` has **zero** violations on every basis triple at dim 1…64 (exhaustive — 262 144 triples at dim 64; all 16 γ-families at 16, all 32 at 32), while the linearised `[a,b,c] + [b,a,c]` has 0 / 0 / 672 / 10 080 / 104 160 violations at dim 4 / 8 / 16 / 32 / 64. A linearised identity checked on a basis is a **proof** for all elements (char ≠ 2), not a sample. Schafer (1954), already cited in-tree: flexibility and conjugation survive every rung — and they are the **same fact**, since `[a,b,c] = −[c,b,a]` *is* the reversal anti-automorphism.
+
+⚠️ **Never instrument this with the diagonal basis shapes.** `(a,a,b)`, `(a,b,b)` and `(a,b,a)` have **zero** nonzero associators at every dim measured **including 64**, so a basis-shape count reports alternativity alive at dim 64; the random-anticommutative control has `aba_nonzero = 0` while failing flexibility outright. Only the linearised identity decides.
+
+**An earlier draft of this entry said "cluster collapse" and that was also wrong** — it named the right *rung* and the wrong *relationship*, treating one condition as three casualties.
 
 **Docstring only.** The `associator` + `random_anticommutative_table` **ops** from `#T1032` are **rc359**, not this rc; neither exists in the tree today, so the doc fix is cleanly separable.
 
