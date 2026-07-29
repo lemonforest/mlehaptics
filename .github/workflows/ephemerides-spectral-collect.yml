@@ -32,6 +32,13 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — hang guard, UNDERIVED and deliberately labelled so.
+    # The srmech jobs carry per-job timeouts derived from measured runtimes;
+    # this subtree is dormant, and deriving a real number would mean running a
+    # dormant workflow just to time it. 60 is therefore an honest placeholder,
+    # not a measurement: it still reclaims 6x against GitHub's 360-minute
+    # default. Tighten it with real numbers if this subtree reactivates.
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: docs/antikythera-maths/ephemerides-spectral

@@ -118,10 +118,18 @@ static srmech_status_t exp_series_accumulate(int64_t *sum_num,
                                              bool     term_negative)
 {
     assert(sum_num != NULL);
-    assert(term_abs <= (uint64_t)INT64_MAX || term_abs == 0);
+    /* rc357 (`#T980`): a term in (INT64_MAX, UINT64_MAX] is an EXPECTED,
+     * in-contract input — it is exactly the "too big for the int64 tier, use
+     * bignum" signal the two-tier design rests on, and rational.py:505 acts on
+     * it ("On overflow, fall through to bignum path"). Asserting its negation
+     * ABOVE the guard made the supported outcome abort the host on an
+     * asserts-live build while NDEBUG returned the right answer. The assert is
+     * right in content and was wrong in POSITION; below the guard it states an
+     * invariant that holds by construction. */
     if (term_abs > (uint64_t)INT64_MAX) {
         return SRMECH_ERR_OVERFLOW;
     }
+    assert(term_abs <= (uint64_t)INT64_MAX);
     int64_t term_signed = term_negative
                           ? -(int64_t)term_abs
                           :  (int64_t)term_abs;

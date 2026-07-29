@@ -41,6 +41,13 @@ jobs:
   build-wheel:
     name: build wheel
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — hang guard, UNDERIVED and deliberately labelled so.
+    # The srmech jobs carry per-job timeouts derived from measured runtimes;
+    # this subtree is dormant, and deriving a real number would mean running a
+    # dormant workflow just to time it. 60 is therefore an honest placeholder,
+    # not a measurement: it still reclaims 6x against GitHub's 360-minute
+    # default. Tighten it with real numbers if this subtree reactivates.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -74,6 +81,13 @@ jobs:
   build-sdist:
     name: build sdist
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — hang guard, UNDERIVED and deliberately labelled so.
+    # The srmech jobs carry per-job timeouts derived from measured runtimes;
+    # this subtree is dormant, and deriving a real number would mean running a
+    # dormant workflow just to time it. 60 is therefore an honest placeholder,
+    # not a measurement: it still reclaims 6x against GitHub's 360-minute
+    # default. Tighten it with real numbers if this subtree reactivates.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -97,6 +111,13 @@ jobs:
     name: publish (${{ github.event_name == 'workflow_dispatch' && inputs.target || 'pypi' }})
     needs: [build-wheel, build-sdist]
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — hang guard, UNDERIVED and deliberately labelled so.
+    # The srmech jobs carry per-job timeouts derived from measured runtimes;
+    # this subtree is dormant, and deriving a real number would mean running a
+    # dormant workflow just to time it. 60 is therefore an honest placeholder,
+    # not a measurement: it still reclaims 6x against GitHub's 360-minute
+    # default. Tighten it with real numbers if this subtree reactivates.
+    timeout-minutes: 60
     if: >-
       github.event_name == 'workflow_dispatch'
       || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/antikythera-spectral-v'))

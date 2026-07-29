@@ -13,6 +13,100 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc357]
+
+**THE RELEASE TAX.** Two items sat in the tracker classified as *infrastructure* — "a flaky C test" and "some missing CI timeouts" — and were deprioritised on that basis. **That classification is the defect being fixed here.** Neither is a background condition. One is a live `abort()` in a shipped C source file that fires on **1.33% of its own input domain**; the other is a **5-of-42** timeout-coverage rate across the workflows that build and publish every release, including all four publish jobs. "Infrastructure" is what a release-blocking defect gets called when nobody has measured it. Both are measured here, and both are release tax: they are paid on every rc, by everyone, forever, until someone stops calling them background.
+
+*One correction to this rc's own opening framing, because the measurement did not support it.* This rc was opened on the premise that each item had cost a full CI cycle in a single day. **It did not, and the record says so plainly.** rc354's publish failure was repaired with "Re-run failed jobs", not a rebuild: attempt 2's 17 build jobs carry **byte-identical start timestamps** to attempt 1, so they never re-ran — real cost **1:19 of compute and 6:44 of calendar, most of it human reaction time**. And rc356's red run (30419622648) was **not** `#T980`'s flake at all: its only failed job was `pedantic C build • windows-latest` — the genuine MSVC `C4456` shadowing defect that rc356's own commit message takes credit for finding. Re-checked directly for this rc: across the **three** most recent red `srmech-ci` runs (30419622648, 30385819304, 30324962867) there are **11 failed jobs, every one of them a real build or test failure and none transient**. The reclassification from *infrastructure* to *release tax* stands on its own evidence — a 1.33%-per-input abort and a ~12%-per-run flake need no inflated cost estimate — so the estimate is **retracted rather than repeated**. Per `[[feedback_every_doc_edit_faces_falsification]]`, a changelog is not exempt from the discipline it documents.
+
+### (1) `#T980` — an assert that asserted the NEGATION of its own recoverable guard. FIXED AT ROOT.
+
+Filed as *"flaky SIGABRT in the 512-term series test"*. It is not flaky, it is not about 512 terms, and it is not in the test. It is a **deterministic C defect** at `c/src/srmech_rational.c:121`, in `exp_series_accumulate`:
+
+```c
+assert(sum_num != NULL);
+assert(term_abs <= (uint64_t)INT64_MAX || term_abs == 0);   /* <- line 121 */
+if (term_abs > (uint64_t)INT64_MAX) {
+    return SRMECH_ERR_OVERFLOW;                             /* <- the SUPPORTED outcome */
+}
+```
+
+`SRMECH_ERR_OVERFLOW` is a **documented, in-contract result** of `srmech_exp_series_truncate`. `srmech/amsc/rational.py:505` says so in as many words — *"On overflow, fall through to bignum path"* — and does exactly that. So the assert stated the negation of a supported outcome, one line above the guard that returns it. For any input whose common-denominator term `|p|^k · q^(N−k) · (N!/k!)` lands in the band `(INT64_MAX, UINT64_MAX]` — fits u64, so every `exp_series_mul_u64` overflow check passes, but exceeds i64 — an **NDEBUG build returns the correct answer while an asserts-live build `abort()`s the host.**
+
+This is the rc289 `genome_list_genomes` defect class recurring verbatim: **one projection correct, the other killing the host** — precisely what ADR-0009's co-equal-projections invariant exists to forbid. The `asserts-live-smoke` cell (#937) was doing exactly the job it was built for.
+
+**The fix is positional, not logical.** An `assert` may only encode something impossible *by construction*; a condition that a recoverable guard exists to handle is by definition possible. The assert was right in content and wrong in **position** — below the guard it becomes a genuine by-construction invariant, and the JPL Rule-5 count is preserved (2 asserts, no ratchet movement):
+
+```c
+assert(sum_num != NULL);
+if (term_abs > (uint64_t)INT64_MAX) {
+    return SRMECH_ERR_OVERFLOW;
+}
+assert(term_abs <= (uint64_t)INT64_MAX);   /* invariant by construction here */
+```
+
+**Evidence — reproduced, then killed, then bounded exhaustively.**
+
+| step | result |
+|---|---|
+| Direct ctypes, asserts-live build, `(p=-40, q=1, N=12)` | `srmech_rational.c:121: exp_series_accumulate: Assertion ... failed` — **SIGABRT, exit 134, 100% deterministic** |
+| Same input, same build, after the fix | `rc=4` (`SRMECH_ERR_OVERFLOW`), wrapper completes on the bignum path |
+| **Exhaustive** sweep of the entire int64 fast-path domain (`p∈[-40,40] × q∈[1,40] × N∈[0,20]` = **68,040** combos), asserts-live | **0 aborts.** 34,310 `OK`; 33,730 `ERR_OVERFLOW` |
+| Independent Python replication of the same arithmetic | **902 combos (1.33%)** would have hit the old assert; its `OK` count of **34,310 matches the C library exactly**, validating the model |
+| Affected test, **100 runs**, `PYTHONHASHSEED` 0–99, asserts-live | **100 passed, 0 failed, 0 SIGABRT** (19 tests/run) |
+
+**The flake is dead at the root, not routed around.** The 100 runs span `PYTHONHASHSEED` 0–99 against an asserts-live library (`nm -D` confirms `__assert_fail` is present, so a green result is not a stripped-assert artifact), and they include **seed 21 — the seed that was 8/8 SIGABRT before this fix**. No retry decorator, no skip, no `-k` filter, no rerun was added: routing around a flake is the thing this rc exists to stop.
+
+The 33,730 overflow returns decompose as **902** that reach the moved assert, **32,431** that overflow earlier in u64 and never get there, and **397** at the sum accumulation *after* it — so the assert-firing subset is the 1.33%, not the whole overflow class. **No shipped wheel was ever affected**: `pyproject.toml:163` pins `cmake.build-type = "Release"`, so every published artifact is NDEBUG and returns the correct value.
+
+*Ruled out, with reasons.* **Not** stack overflow or 512-term recursion — there is no recursion on this path, and the crashing path is the int64 fast path gated to `num_terms <= 20` (`_SAFE_C_N`, `rational.py:485`); the "512" in the tracker title is the parametrize `max_terms`, the upper bound of a random draw, not the N at the crash (observed crashing N: 4–20). **Not** a C arena or memory error — line 496 is plain `c_int64` scalars, and the caller-arena bignum path at line 516 is never reached for these inputs. **Not** fork-plus-threads — the reproduction used no xdist, no `--forked`, one process, one thread; `--forked` is the *containment* that stopped the abort coring the whole CI run, not the cause.
+
+**The same defect shape, found and fixed in three more places.** A scan of all 135 `c/src/*.c` for asserts whose condition is the logical negation of the recoverable guard immediately following (excluding the correct NULL-contract idiom) found three peers:
+
+| site | before | status |
+|---|---|---|
+| `srmech_rational.c:121` | asserted `term_abs <= INT64_MAX` above the guard returning `ERR_OVERFLOW` | the live bug; **actively firing** |
+| `srmech_platform.c` `srmech_plat_mkdir` | asserted `path[0] != '\0'` above the guard returning `ERR_BAD_INPUT` | latent only because no test drives an empty path |
+| `srmech_platform.c` `srmech_plat_file_remove` | identical | latent, same reason |
+| `srmech_platform.c` `srmech_plat_file_replace` | **strictly worse** — asserted non-empty `src`/`dst` while its guard checked **only NULL** | an empty string aborted with **no recoverable peer at all**; the empty-path case now returns `ERR_BAD_INPUT`, matching its two siblings |
+
+**Honest bound on that scan:** it finds only the *"assert negates its own guard within 3 lines"* shape. rc289's `genome_list_genomes` was the **wider** kind — assert in the callee, recoverable contract in the caller — which this scan cannot see. That class is not claimed closed.
+
+**(1b) A second, independent defect: the failure was not reproducible from its own report.** `tests/test_qalg_series_c_rc156.py:78` seeded its RNG as `random.Random(0xC156 ^ hash(name) & 0xFFFF)`. **`hash(str)` is `PYTHONHASHSEED`-salted and nothing pinned it** — CI runs `pytest tests/ -q -n auto --forked -p no:randomly` (`srmech-ci.yml:743`), and `-p no:randomly` disables the one plugin that would have set it. So the 120 draws were a **fresh random sample in every process**: this was never a fixed-seed test, and a red run could not be replayed from its own failure output. That is the entire *"same commit, red then green"* signature. Measured: `PYTHONHASHSEED=21` → 8/8 SIGABRT, `PYTHONHASHSEED=22` → 8/8 pass — fully deterministic per seed, a lottery across seeds. **Both defects are real and neither substitutes for the other:** fixing only the seed would have *hidden* a live C abort; fixing only the assert would have left a test whose failures cannot be reproduced. The seed is now a literal per op, and the four inputs that actually aborted — `(-40,1,12)`, `(-28,1,16)`, `(-32,25,14)`, `(34,32,9)` — ship as **explicit regression pins** that run in every process instead of ~6% of them.
+
+### (2) `#T951` — 5 of 42 jobs had a timeout. Now 42 of 42.
+
+Three premises in the tracker entry did not survive measurement, and correcting them changed the ranking. "No job timeouts" was **false for the hot path** — rc352 already put `timeout-minutes: 60` on all five `srmech-ci` jobs under this same task ID. But **37 of 42 jobs repo-wide had none**, including **all four publish jobs, which is where rc354 actually died**, and they ran to GitHub's 360-minute default.
+
+**Timeouts are now derived, not felt.** One rule, applied uniformly and documented in the YAML at each site:
+
+> `T = ⌈max_observed⌉ + max(⌈0.5 × max_observed⌉, 10 min)`
+
+The 50% term covers growth across an rc sprint. The **10-minute floor** is load-bearing: measured p50→max spread is ≤2 min in *absolute* terms on every job regardless of length (a slow pip/apt/image fetch costs minutes whether a job runs 30s or 45min), so purely proportional headroom would make the **shortest** jobs the tightest and turn the guard itself into a flake source.
+
+| workflow | job | max observed | timeout |
+|---|---|---|---|
+| `srmech-ci` | `build-and-test` | 15:17 | 60 → **26** |
+| | `asserts-live-smoke` | 19:10 | 60 → **30** |
+| | `pedantic-build` | 1:47 | 60 → **12** |
+| | `pure-wheel-build` | 0:51 | 60 → **11** |
+| | `fallback-no-native` | 45:34 | 60 → **70** *(raised)* |
+| `srmech-publish` | `build-wheels` | 4:08 | none → **15** |
+| | `build-sdist` / `build-pure-wheel` | 0:32 / 0:29 | none → **11** |
+| | `publish` | 1:43 | none → **12** |
+| `srmech-autotag` | `maybe-tag` | 0:20 | none → **11** |
+| `codeql` | `analyze` | 1:37 | none → **20** |
+
+Two of these are deliberate departures, flagged rather than silently fudged. **`fallback-no-native` goes UP.** Its uniform 60 gave **31.7% headroom — the tightest ratio in the repo** — over a job that has grown 44:01 (rc351) → 45:34 (rc356), ≈18.6 s/rc; at that rate 60:00 binds in ~47 rcs, about two weeks, and it binds as a *false* timeout on a healthy run. The asymmetry decides it: a false trip costs a full 45-minute cycle, while catching a genuine hang at 70 instead of 60 costs 10 extra minutes. Reverse it when the pure-suite split (`#T1007`) lands. **`codeql` gets 20, not the rule's 12**, because its runtime scales with tree growth rather than per-run variance and 24 samples of a growing repo is weak evidence for a ceiling. The **31 dormant** sister-subtree jobs (antikythera / chess / ephemerides, last run 5–7 weeks ago) get a uniform **60** labelled in the YAML as **explicitly UNDERIVED** — deriving real numbers would mean running dormant workflows just to time them, and 60 still reclaims 6× against the 360-minute default.
+
+**One retry, on one leg, for one mechanically-defined failure class.** rc354 died in `publish` when the runner failed to pull `ghcr.io/pypa/gh-action-pypi-publish:release-v1` — the action's `action.yml` is a composite that generates a Docker trampoline — with `net/http: request canceled (Client.Timeout awaiting headers)` **19 seconds in, before the entrypoint ran, with zero bytes uploaded**. Retry coverage across all 15 workflows was **zero**. The TestPyPI leg now gets exactly one retry, gated on three **conjunctive** conditions satisfied by rc354 and by no other observed failure: **position** (failed during image resolution, before the entrypoint), **effect** (no bytes uploaded, so a retry resumes from identical state), and **signature** (a *transport* error, not an HTTP application error — a 400/403/409 from TestPyPI is not transient). It is a duplicate step keyed on `steps.tpypi_1.outcome`, **not** a third-party retry action, because such an action is itself an external fetch and would reintroduce the exact failure mode it is meant to remove.
+
+The load-bearing property: **this cannot convert red→green for a deterministic failure.** A bad token, bad metadata or a duplicate filename fails attempt 2 identically and the job goes red, costing one extra ~1:23 attempt. A partial upload also stays red. The **production PyPI leg is deliberately left single-shot** — clean releases are rare and human-gated, and a failure there should reach a human.
+
+**What was deliberately NOT shipped, and why.** A **blanket retry on test steps** would be *worse than the status quo*: all 11 failed jobs across the three most recent red `srmech-ci` runs were real failures and none were transient, so a blanket retry would have masked eleven true reds and doubled the cost of each. **`-x` / `--maxfail=N`** on the pure suite — the obvious "make red runs cheap" move — destroys the full failure inventory that cell exists to produce, and is the same family as the `-k` narrowing the job's own comment already rejects on record. **`fail-fast: true`** is deliberately `false` in 13 places; under ADR-0009 every projection must report. **Pre-pulling the ghcr.io image** was rejected on mechanics: `docker pull` always resolves tag→digest against the registry, so it removes no network dependency — it would look like hardening while doing nothing, i.e. a dead instrumentation seam. **`skip-existing: true`** changes semantics and masks a genuine already-published signal for a case never observed.
+
+**Finally, the pure cell's evidence is preserved.** One pytest step is **42:56 of a 43:32 job (98.6%)**, structurally all-or-nothing: a failure at any point discarded all of it *and* skipped the downstream skip-audit, so a red run lost that signal too. `pytest-pure.log` was `tee`'d and **never uploaded** (`grep -c upload-artifact srmech-ci.yml` → 0), surviving only in the web log. It now uploads with `if: always()` — the failing run being exactly the one whose log is worth having. This does not make the run faster; it makes a red run **informative** instead of merely expensive.
+
 ## [0.9.0rc356]
 
 **THE SAME SWEEP AS rc355, ONE LAYER DOWN.** rc355 closed four places where the *Python* verification layer could not detect a defect. This rc is the C-side and cross-projection instance of the identical shape: **a C ratchet that never runs, a test that lost its own contract, and two projections that disagree about what an error IS.** ADR-0003 says the C host stands alone; ADR-0009 says the projections are co-equal. Neither was verifiable while these held. Every guard ships with its red-then-green recorded, and — per rc355's own lesson — with evidence that the guard is REACHED.
