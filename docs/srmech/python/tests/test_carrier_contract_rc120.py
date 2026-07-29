@@ -259,7 +259,7 @@ def test_tools_total_matches_live():
     """FORM (2): the contract is a descriptor FIELD, not a new callable → 0 delta
     on tools.total (no new ToolEntry, no rosetta / coverage change)."""
     from srmech import introspect
-    assert introspect.describe()["tools"]["total"] == 517
+    assert introspect.describe()["tools"]["total"] == 516
 
 
 def test_descriptor_shape_still_has_carriers_and_ladders():

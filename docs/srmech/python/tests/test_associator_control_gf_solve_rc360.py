@@ -1,11 +1,8 @@
-"""rc360 (`#T1032` + `#T1024`) — the four exact ops, and their differentials.
+"""rc360 (`#T1032` + `#T1024`) — the three exact ops, and their differentials.
 
 WHAT LANDED
 ===========
 * ``cascade.associator(x, y, z, table=None)`` — the associativity defect.
-* ``cascade.random_anticommutative_table(dim, key, *, keep_xor_lane=True)`` —
-  the SECOND mandatory negative control (rc352's ``algebra_table(gammas=)``
-  was the first, the split half).
 * ``modular_linalg.gf_solve(A, b, p)`` / ``gf_nullspace(A, p)`` — the two reads
   the GF(p) RREF was always for.
 
@@ -24,13 +21,15 @@ here reaches the same number by a genuinely different route:
 * ``gf_nullspace`` is checked against ``QMat.nullspace``, the exact-ℚ kernel,
   reduced mod p — a different field and a different implementation.
 
-THE CONTROL MUST BREAK SOMETHING
-================================
+THE CONTROL MUST BREAK SOMETHING — AND IT MUST BE STRUCTURED
+============================================================
 A negative control that satisfies every law the subject satisfies is not a
-control. FLEXIBILITY is the law that separates them: every Cayley–Dickson
-algebra is flexible, and so is every γ-twist, while the random cocycle is not.
-``test_control_breaks_flexibility`` is therefore the load-bearing test in this
-file — if the generator ever stops breaking it, the generator is wrong.
+control. FLEXIBILITY is the law that separates: every Cayley–Dickson algebra is
+flexible, and MEASURED here so is every γ-twist AND every group ring — so
+neither of those controls a flexibility claim at all. ONE NAMED SIGN FLIP does,
+at 4 violations per rung, with no random draw anywhere. The control-section
+comment below records why the DRAWN control this file first shipped was the
+wrong shape, and what replaced it.
 
 ⚠️ STATE THE MATRIX ENCODING — AND IT IS NOT A GAUGE. rc359 adjudicated this
 already (``cascade/cd_register.py`` "There is no gauge freedom here to fix"):
@@ -51,8 +50,7 @@ import pytest
 
 from srmech.amsc.cascade import (algebra_table, associator, cd_basis,
                                  cd_basis_product, cd_mult, inertia_signature,
-                                 left_mult_kernel, random_anticommutative_table,
-                                 table_product)
+                                 left_mult_kernel, table_product)
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.modular_linalg import gf_nullspace, gf_rref, gf_solve
 from srmech.amsc.qmat import QMat
@@ -151,83 +149,40 @@ def test_associator_rejects_mismatched_operands():
 
 
 # ══════════════════════════════════════════════════════════════════════
-# random_anticommutative_table — the negative control
+# The STRUCTURED negative controls
+#
+# rc360 first shipped a `random_anticommutative_table(dim, key)` op that drew
+# its sign cocycle from SHA-256. IT WAS DROPPED BEFORE RELEASE, and the reason
+# is worth keeping next to the tests that replaced it: a control drawn from a
+# structureless hash tests GENERICITY, not structure — it answers "is the
+# ladder unlike a random algebra", which nothing needed asking. It was also
+# spelled in the wrong alphabet. srmech's resonant alphabet is TERNARY
+# {−1, 0, +1} (`hdc.polar_random` draws `_randbelow(3)`, not `_randbelow(2)`)
+# because the 0 is the rest / non-ringing value; an earlier ±1-only design that
+# encoded "only what changes" was superseded once the 0 was recognised as
+# necessary. A uniform ±1 sign draw is that abandoned alphabet, and the absent
+# ±1 C stream was never a gap to fill.
+#
+# So every control below is STRUCTURED: a single named perturbation of the
+# ladder, reproducible from its own description, with no stream to agree about
+# across implementations. MEASURED at dim 4 / 8 / 16 — and the three are
+# COMPLEMENTARY, each biting exactly one axis, which is what lets a measured
+# difference be attributed to something:
+#
+#   control                       flexibility bite    inertia bite
+#   ---------------------------   -----------------   ----------------------
+#   algebra_table(gammas=)        0  (all 8 flex)     YES (5,3,0) vs (1,7,0)
+#   ONE named sign flip           4  at EVERY rung    none (signature intact)
+#   R[Z/dim] wrong quotient       0  (associative)    YES (5,3,0) vs (1,7,0)
+#
+# ⚠️ THE NAMED FLIP IS THE ONLY ONE OF THE THREE THAT BREAKS FLEXIBILITY, and
+# it beats the dropped random op on every axis: no draw at all, a CONSTANT 4
+# per rung rather than a key-dependent 12–28 range, and it works at dim 4 —
+# where the drawn control silently failed (key `control-01` was flexible there,
+# which is to say it was not a control). Promoting it to a named op is filed:
+# hand-rolling a control beside a test is the exact defect `#T1032` was opened
+# for, and this file is currently committing it on purpose, in the open.
 # ══════════════════════════════════════════════════════════════════════
-
-_KEYS = ("negative-control-A", "negative-control-B", "k3")
-
-
-def test_control_is_reproducible_from_its_key_alone():
-    """A KEY, not a seed. The point of hashing rather than seeding an MT19937
-    is that the table is re-derivable in EVERY implementation (ADR-0009: the
-    capability is the invariant, the projections co-equal), so the first thing
-    to pin is that the key alone determines the table."""
-    for keep in (True, False):
-        a = random_anticommutative_table(8, "negative-control-A", keep_xor_lane=keep)
-        assert a == random_anticommutative_table(8, "negative-control-A",
-                                                 keep_xor_lane=keep)
-        assert a == random_anticommutative_table(8, b"negative-control-A",
-                                                 keep_xor_lane=keep)
-        assert a != random_anticommutative_table(8, "negative-control-B",
-                                                 keep_xor_lane=keep)
-    assert (random_anticommutative_table(8, "k3", keep_xor_lane=True)
-            != random_anticommutative_table(8, "k3", keep_xor_lane=False))
-
-
-def test_control_signs_are_domain_separated_across_dims():
-    """The bare key is never hashed alone: the material carries the op name, a
-    format version, the dim and the lane mode, so one key cannot collide across
-    ops or dims. The observable consequence is that the dim-16 table does not
-    contain the dim-8 one as a corner."""
-    small = random_anticommutative_table(8, "k3")
-    big = random_anticommutative_table(16, "k3")
-    assert any(big[i][j][i ^ j] != small[i][j][i ^ j]
-               for i in range(1, 8) for j in range(1, 8) if i != j)
-
-
-@pytest.mark.parametrize("dim", (4, 8, 16))
-def test_control_is_exhaustively_anticommutative_and_unital(dim: int):
-    """EXHAUSTIVE at dim 4 / 8 / 16.
-
-    Anticommutativity is asserted on distinct IMAGINARY pairs, and ``e₀`` is
-    checked separately as the two-sided unit. Those are not two weakenings of
-    one law — a unital algebra CANNOT anticommute against its unit
-    (``e₀·e_j = e_j = e_j·e₀``), and keeping the unit is what makes this a
-    control for a unital algebra rather than a different kind of object.
-    """
-    for keep in (True, False):
-        t = random_anticommutative_table(dim, "negative-control-A",
-                                         keep_xor_lane=keep)
-        assert len(t) == dim and all(len(r) == dim for r in t)
-        for i in range(dim):
-            assert t[0][i][i] == 1 and t[i][0][i] == 1
-            assert sum(1 for k in range(dim) if t[0][i][k]) == 1
-        for i in range(1, dim):
-            assert t[i][i][0] == -1
-            assert sum(1 for k in range(dim) if t[i][i][k]) == 1
-        for i in range(1, dim):
-            for j in range(1, dim):
-                if i == j:
-                    continue
-                assert all(t[i][j][k] == -t[j][i][k] for k in range(dim))
-                nz = [k for k in range(dim) if t[i][j][k]]
-                assert len(nz) == 1 and t[i][j][nz[0]] in (1, -1)
-                if keep:
-                    assert nz[0] == i ^ j
-                else:
-                    assert 1 <= nz[0] < dim
-
-
-def test_keep_xor_lane_false_actually_leaves_the_xor_lane():
-    """``keep_xor_lane`` is load-bearing, not a convenience — so prove the two
-    modes are genuinely different objects and not a renamed flag."""
-    for dim in (8, 16):
-        t = random_anticommutative_table(dim, "negative-control-A",
-                                         keep_xor_lane=False)
-        off = sum(1 for i in range(1, dim) for j in range(1, dim)
-                  if i != j and t[i][j][i ^ j] == 0)
-        assert off > 0, f"dim {dim}: every pair still sits on the XOR lane"
-
 
 def _flex_violations(dim: int, table) -> int:
     """Violations of the LINEARISED flexible law ``(x,y,z) + (z,y,x) = 0`` over
@@ -242,121 +197,168 @@ def _flex_violations(dim: int, table) -> int:
                           associator(basis[k], basis[j], basis[i], table=table))))
 
 
-def test_control_breaks_flexibility():
-    """⚠️ THE LOAD-BEARING TEST. A control that satisfies everything the subject
-    satisfies is not a control.
+def _nonassoc(dim: int, table) -> int:
+    """Ordered basis triples with a NONZERO associator — the complement of the
+    census :func:`test_associator_reproduces_the_published_census` pins."""
+    basis = [cd_basis(dim, i) for i in range(dim)]
+    return sum(1 for i in range(dim) for j in range(dim) for k in range(dim)
+               if any(v != 0 for v in associator(basis[i], basis[j], basis[k],
+                                                 table=table)))
 
-    Every Cayley–Dickson algebra is flexible, and MEASURED here so is every
-    γ-twist — 0/512 for the ladder and 0/512 for the split-𝕆 twist. The random
-    cocycle is not. The exact per-key counts are pinned because the table is a
-    deterministic function of its key: these are reproducible numbers, not a
-    sampled range.
+
+def _flip_pair(dim: int, i: int, j: int):
+    """The FLIP CONTROL — negate ``e_i·e_j`` and ``e_j·e_i`` on the ladder,
+    keeping anticommutativity. ONE named bit away from the definite table.
+
+    No key, no hash, no RNG: the control is named by the pair ``(i, j)`` and any
+    implementation with :func:`algebra_table` rebuilds it identically. The
+    diagonal (``e_i² = −e₀``) is untouched, so the trace form — and therefore
+    the inertia signature — is unchanged BY CONSTRUCTION; whatever it perturbs,
+    it perturbs in the off-diagonal cocycle and nowhere else.
     """
-    assert _flex_violations(8, algebra_table(8)) == 0
-    assert _flex_violations(8, algebra_table(8, [1, -1, -1])) == 0
-
-    pinned_xor = {"negative-control-A": 24, "negative-control-B": 16, "k3": 20}
-    pinned_free = {"negative-control-A": 70, "negative-control-B": 70, "k3": 67}
-    for key in _KEYS:
-        xor = _flex_violations(8, random_anticommutative_table(
-            8, key, keep_xor_lane=True))
-        free = _flex_violations(8, random_anticommutative_table(
-            8, key, keep_xor_lane=False))
-        assert xor > 0 and free > 0, (
-            f"key {key!r} produced a FLEXIBLE control at dim 8 — the generator "
-            f"is wrong, not the assertion. A control that breaks no law the "
-            f"ladder keeps cannot separate a claim from an artifact.")
-        assert (xor, free) == (pinned_xor[key], pinned_free[key])
+    table = [[list(row) for row in plane] for plane in algebra_table(dim)]
+    lane = i ^ j
+    table[i][j][lane] = -table[i][j][lane]
+    table[j][i][lane] = -table[j][i][lane]
+    return table
 
 
-#: The NAMED twelve-key set every published range in this op's prose is
-#: measured over. A range quoted over an unnamed key set is not reproducible,
-#: which is why the set is spelled out here and in the docstrings.
-_KEYS12 = tuple("control-%02d" % n for n in range(1, 13))
+def _group_ring(dim: int):
+    """The WRONG-QUOTIENT control — ``ℝ[ℤ/dim]``, the cyclic group ring, whose
+    lane is ``(i + j) mod dim`` instead of the CD ``i ⊕ j`` and whose signs are
+    all ``+1``. Structured, and wrong in a NAMED way: it replaces the sign
+    cocycle with the trivial one over a different group."""
+    table = [[[0] * dim for _ in range(dim)] for _ in range(dim)]
+    for i in range(dim):
+        for j in range(dim):
+            table[i][j][(i + j) % dim] = 1
+    return table
 
 
-def test_control_at_dim_4_needs_the_free_lane():
-    """The honest limit of the XOR-lane control, MEASURED rather than assumed.
+def test_gamma_family_controls_the_metric_not_the_laws():
+    """⚠️ THE γ-FAMILY HAS ZERO BITE ON THE ASSOCIATIVITY LAWS — measured, and
+    it is the reason a second control is needed at all.
 
-    At dim 4 there are only three imaginary pairs, so ``keep_xor_lane=True``
-    has few sign patterns to draw from and some of them ARE ℍ up to
-    relabelling. The free lane breaks flexibility at every key. This is why the
-    docstring says to control at dim ≥ 8, or with ``keep_xor_lane=False``.
+    All eight dim-8 γ-twists are flexible (0/512) AND carry the identical
+    non-associating count (168/512). What the γ parameter moves is the METRIC:
+    seven twists sit at signature (5,3,0) and only γ = (−1,−1,−1) — which IS
+    ``algebra_table(8)``'s default, the definite ladder — sits at (1,7,0).
+
+    So a claim resting on flexibility or on the associativity census cannot be
+    controlled with a γ-twist. Quoting one as "the negative control" for such a
+    claim would be an instrument that could not have returned otherwise.
     """
-    keys = ("negative-control-A", "negative-control-B", "k3", "control-01")
-    xor = [_flex_violations(4, random_anticommutative_table(
-        4, k, keep_xor_lane=True)) for k in keys]
-    free = [_flex_violations(4, random_anticommutative_table(
-        4, k, keep_xor_lane=False)) for k in keys]
-    assert xor == [0, 4, 4, 4]
-    assert all(v > 0 for v in free), free
+    import itertools
+    rows = {}
+    for gammas in itertools.product((1, -1), repeat=3):
+        table = algebra_table(8, list(gammas))
+        rows[gammas] = (_flex_violations(8, table), _nonassoc(8, table),
+                        inertia_signature(table)["signature"])
+
+    assert all(flex == 0 for flex, _, _ in rows.values()), rows
+    assert {na for _, na, _ in rows.values()} == {168}, rows
+
+    definite = [g for g, (_, _, sig) in rows.items() if sig == (1, 7, 0)]
+    split = [g for g, (_, _, sig) in rows.items() if sig == (5, 3, 0)]
+    assert definite == [(-1, -1, -1)], definite
+    assert len(split) == 7, split
+    assert (inertia_signature(algebra_table(8))["signature"]
+            == inertia_signature(algebra_table(8, [-1, -1, -1]))["signature"]
+            == (1, 7, 0))
 
 
-def test_published_twelve_key_ranges_are_what_the_prose_says():
-    """⚠️ THE DRIFT GATE FOR THE PUBLISHED RANGES.
+def test_one_named_sign_flip_is_the_flexibility_control():
+    """⚠️ THE LOAD-BEARING CONTROL. A single named bit breaks flexibility at
+    every rung, and the count is a CONSTANT 4 — not a range.
 
-    The docstring and the ``ToolEntry`` summary both quote flexibility-violation
-    RANGES over a twelve-key set. An unnamed set makes a range unfalsifiable, so
-    the set is named (``control-01`` … ``control-12``) and its measured extremes
-    are pinned here. If the generator changes, this fails and the prose gets
-    corrected with it — which is the failure mode rc360 shipped with once
-    already: the ranges first written down (16–28 / 58–80... and "4 of 12" at
-    dim 4) did not match ANY reproducible key set.
+    Every Cayley–Dickson algebra is flexible, so any nonzero count is decisive.
+    Flipping one imaginary pair's sign gives exactly 4 violations at dim 4, 8
+    and 16 alike, and it does so for EVERY pair — uniformly, with no key to
+    choose and no draw to reproduce. The inertia signature is unchanged, which
+    is the attribution: the perturbation is in the cocycle and nowhere else.
     """
-    x8 = {k: _flex_violations(8, random_anticommutative_table(
-        8, k, keep_xor_lane=True)) for k in _KEYS12}
-    f8 = {k: _flex_violations(8, random_anticommutative_table(
-        8, k, keep_xor_lane=False)) for k in _KEYS12}
-    assert (min(x8.values()), max(x8.values())) == (12, 28), x8
-    assert (min(f8.values()), max(f8.values())) == (58, 80), f8
-    # At dim 8 the control is ALWAYS a control, in both lane modes.
-    assert all(v > 0 for v in x8.values()) and all(v > 0 for v in f8.values())
+    # The subject is flexible at every rung — the baseline the control breaks.
+    for dim in (4, 8, 16):
+        assert _flex_violations(dim, algebra_table(dim)) == 0
 
-    x4 = {k: _flex_violations(4, random_anticommutative_table(
-        4, k, keep_xor_lane=True)) for k in _KEYS12}
-    f4 = {k: _flex_violations(4, random_anticommutative_table(
-        4, k, keep_xor_lane=False)) for k in _KEYS12}
-    assert sorted(k for k, v in x4.items() if v == 0) == [
-        "control-03", "control-05", "control-09"], x4
-    assert (min(f4.values()), max(f4.values())) == (7, 10), f4
-    assert all(v > 0 for v in f4.values())
+    # dim 4: all three imaginary pairs. The DRAWN control failed here.
+    d4 = {(i, j): (_flex_violations(4, _flip_pair(4, i, j)),
+                   _nonassoc(4, _flip_pair(4, i, j)),
+                   inertia_signature(_flip_pair(4, i, j))["signature"])
+          for i in range(1, 4) for j in range(i + 1, 4)}
+    assert set(d4.values()) == {(4, 12, (1, 3, 0))}, d4
+
+    # dim 8: all twenty-one pairs, and the result is uniform over them.
+    d8 = {(i, j): (_flex_violations(8, _flip_pair(8, i, j)),
+                   _nonassoc(8, _flip_pair(8, i, j)),
+                   inertia_signature(_flip_pair(8, i, j))["signature"])
+          for i in range(1, 8) for j in range(i + 1, 8)}
+    assert len(d8) == 21
+    assert set(d8.values()) == {(4, 148, (1, 7, 0))}, d8
+
+    # dim 16: one representative pair — 4096 triples × two exact-ℚ products is
+    # seconds per pair, so the rung is covered without the full 120-pair sweep.
+    flip16 = _flip_pair(16, 1, 2)
+    assert _flex_violations(16, flip16) == 4
+    assert _nonassoc(16, flip16) == 1828
+    assert inertia_signature(flip16)["signature"] == (1, 15, 0)
+    assert (inertia_signature(algebra_table(16))["signature"] == (1, 15, 0))
 
 
-def test_control_drops_into_the_table_consumers_unchanged():
-    """Same shape ``algebra_table`` returns, so every existing table-taking op
-    accepts it with no adapter — that is what makes it usable as a control at
-    all, rather than a second object needing its own plumbing."""
-    t = random_anticommutative_table(8, "negative-control-A")
+def test_wrong_quotient_group_ring_bites_the_metric_and_its_diff_is_a_tautology():
+    """The ℝ[ℤ/dim] control, and ⚠️ A NUMBER THAT LOOKS LIKE EVIDENCE AND IS NOT.
+
+    The group ring is ASSOCIATIVE and commutative, so it has 0 non-associating
+    triples and 0 flexibility violations at every rung — no bite on either law.
+    Its real bite is the metric: the trace form is far more positive than the
+    ladder's, separating them at every rung.
+
+    ⚠️ The tempting statistic — "the control's associator differs from the
+    ladder's on 168 of 512 triples at dim 8, 1848 of 4096 at dim 16" — is a
+    FORCED IDENTITY, not a measurement. The group ring's defect is identically
+    zero, so it differs from the ladder EXACTLY where the ladder is nonzero:
+    the number is the ladder's own non-associating census wearing a disguise
+    (512 − 344 = 168, 4096 − 2248 = 1848). It is asserted here as an identity,
+    in the one place it cannot be mistaken for a differential.
+    """
+    expected_sig = {2: (2, 0, 0), 4: (3, 1, 0), 8: (5, 3, 0), 16: (9, 7, 0)}
+    for dim in (2, 4, 8, 16):
+        ring = _group_ring(dim)
+        assert _nonassoc(dim, ring) == 0, dim
+        assert _flex_violations(dim, ring) == 0, dim
+        assert inertia_signature(ring)["signature"] == expected_sig[dim], dim
+        # ... and it does separate from the ladder on the metric.
+        assert (inertia_signature(ring)["signature"]
+                != inertia_signature(algebra_table(dim))["signature"]), dim
+
+    # The tautology, stated as one. differs == the ladder's own nonassoc count.
+    for dim, published_nonassoc in ((8, 168), (16, 1848)):
+        basis = [cd_basis(dim, i) for i in range(dim)]
+        ring, ladder = _group_ring(dim), algebra_table(dim)
+        differs = sum(
+            1 for i in range(dim) for j in range(dim) for k in range(dim)
+            if associator(basis[i], basis[j], basis[k], table=ladder)
+            != associator(basis[i], basis[j], basis[k], table=ring))
+        assert differs == published_nonassoc == _nonassoc(dim, ladder), dim
+
+
+def test_structured_controls_drop_into_the_table_consumers_unchanged():
+    """Both controls are the same rank-3 shape ``algebra_table`` returns, so
+    every table-taking op accepts them with no adapter — which is what makes
+    them usable as controls rather than second objects needing their own
+    plumbing."""
     e0, x, y = cd_basis(8, 0), cd_basis(8, 1), cd_basis(8, 2)
-
-    # table_product: e0 really is the two-sided unit on this table.
-    assert table_product(t, e0, x) == x and table_product(t, x, e0) == x
-    # associator: any triple containing the unit associates.
-    assert all(v == 0 for v in associator(x, y, e0, table=t))
-    assert all(v == 0 for v in associator(e0, x, y, table=t))
-    # inertia_signature + left_mult_kernel read it without complaint — and the
-    # SIGNATURE IS 𝕆's, exactly. That is not a null result: the trace/norm Gram
-    # is built from the DIAGONAL (e_i² = −e₀), which the control keeps
-    # unchanged, so it is positive evidence that the one thing the control
-    # perturbs is the off-diagonal cocycle — the difference is where it was
-    # designed to be, and nowhere else. Flexibility, not inertia, is therefore
-    # the law that separates them (test_control_breaks_flexibility).
-    sig, ref = inertia_signature(t), inertia_signature(algebra_table(8))
-    assert sig["signature"] == ref["signature"] == (1, 7, 0)
-    assert sig["norm_signature"] == ref["norm_signature"] == (8, 0, 0)
-    assert sig["n_plus"] == 1 and sig["n_minus"] == 7 and sig["n_zero"] == 0
-    assert left_mult_kernel(x, table=t) == []      # x is not a zero divisor here
-
-
-def test_control_rejects_a_bad_key_or_dim():
-    with pytest.raises(ValueError, match="power of two"):
-        random_anticommutative_table(6, "k")
-    with pytest.raises(ValueError, match="power of two"):
-        random_anticommutative_table(128, "k")
-    with pytest.raises(ValueError, match="non-empty"):
-        random_anticommutative_table(8, "")
-    with pytest.raises(TypeError, match="str or bytes"):
-        random_anticommutative_table(8, 12345)
+    for label, table in (("flip", _flip_pair(8, 1, 2)),
+                         ("group-ring", _group_ring(8))):
+        # table_product: e0 is still the two-sided unit on both.
+        assert table_product(table, e0, x) == x, label
+        assert table_product(table, x, e0) == x, label
+        # associator: any triple containing the unit still associates.
+        assert all(v == 0 for v in associator(x, y, e0, table=table)), label
+        # inertia_signature + left_mult_kernel read them without complaint.
+        sig = inertia_signature(table)
+        assert sig["n_plus"] + sig["n_minus"] + sig["n_zero"] == 8, label
+        assert left_mult_kernel(x, table=table) == [], label
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -577,6 +579,5 @@ def test_gf_solve_is_exported_and_classified():
               / "rosetta_classification.ndjson").read_text(encoding="utf-8")
     for name in ("srmech.amsc.modular_linalg.gf_solve",
                  "srmech.amsc.modular_linalg.gf_nullspace",
-                 "srmech.amsc.cascade.cayley_dickson.associator",
-                 "srmech.amsc.cascade.cayley_dickson.random_anticommutative_table"):
+                 "srmech.amsc.cascade.cayley_dickson.associator"):
         assert f'"{name}"' in ledger, f"{name} has no Rosetta bucket"

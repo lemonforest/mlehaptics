@@ -198,7 +198,7 @@ def test_frame_carrier_rejects_bad_input(bad):
 def test_registration_and_coverage():
     from srmech import introspect
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 517
+    assert schema["tools"]["total"] == 516
 
     from srmech.amsc.tool_schema import get_tool_schema
     reg = {t.name for t in get_tool_schema().tools}

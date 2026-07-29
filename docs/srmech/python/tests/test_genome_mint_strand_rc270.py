@@ -247,7 +247,7 @@ def test_mint_strand_registered_and_total_matches_live():
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
     assert "srmech.amsc.genome.mint_strand" in names
-    assert len(names) == 517
+    assert len(names) == 516
     assert "mint_strand" in G.__all__
 
 

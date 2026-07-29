@@ -7839,18 +7839,20 @@ def _register_primitive_class_tools() -> None:
             returns=R("tuple", "dim-tuple of exact Q — the k-th entry is "
                                "Σ_ij table[i][j][k]·x_i·y_j"),
         ),
-        # rc360 (`#T1032`): the ASSOCIATIVITY DEFECT, and the SECOND mandatory
-        # negative control. The per-rung associativity census pinned at five
-        # sites IS count(associator == 0) over the ordered basis triples; it
-        # had no named home and was re-derived inline every time.
+        # rc360 (`#T1032`): the ASSOCIATIVITY DEFECT. The per-rung associativity
+        # census pinned at five sites IS count(associator == 0) over the ordered
+        # basis triples; it had no named home and was re-derived inline every
+        # time. It reads ANY algebra a structure table names, so the STRUCTURED
+        # negative controls — algebra_table(gammas=)'s split algebras, and a
+        # wrong-quotient table — go through it unchanged.
         ToolEntry(
             name="srmech.amsc.cascade.associator", owner="srmech",
             category="cascade",
             summary="The ASSOCIATIVITY DEFECT (x·y)·z − x·(y·z), exact ℚ, any "
                     "rung, on the definite ladder (table=None → cd_mult) or on "
                     "ANY algebra a structure table names (table= → "
-                    "table_product): a split γ-twist from algebra_table, the "
-                    "random_anticommutative_table control, or a hand-built table. "
+                    "table_product): a split γ-twist from algebra_table (the "
+                    "STRUCTURED negative control), or a hand-built table. "
                     "The zero tuple ⟺ the ordered triple associates. THE PER-RUNG "
                     "ASSOCIATIVITY CENSUS srmech already pins at five sites IS "
                     "this op counted over the ordered basis triples — dim 2: 8/8, "
@@ -7879,78 +7881,12 @@ def _register_primitive_class_tools() -> None:
                 P("z", "sequence", True, "the right element, same length"),
                 P("table", "list[list[list[int]]] | None", False,
                   "an optional dim × dim × dim structure-constant tensor "
-                  "(algebra_table / random_anticommutative_table / any table "
-                  "table_product reads); None — the default — is the definite "
-                  "Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
+                  "(algebra_table — including its gammas= split controls — or "
+                  "any table table_product reads); None — the default — is the "
+                  "definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
             ),
             returns=R("tuple", "dim-tuple of exact Q — the all-zero tuple iff "
                                "the ordered triple (x, y, z) associates"),
-        ),
-        ToolEntry(
-            name="srmech.amsc.cascade.random_anticommutative_table",
-            owner="srmech", category="cascade",
-            summary="The RANDOM ANTICOMMUTATIVE structure table — the SECOND "
-                    "mandatory negative control (rc352's algebra_table(gammas=) "
-                    "was the first, the split half), content-addressed by a KEY. "
-                    "Same rank-3 shape algebra_table returns, so it drops into "
-                    "table_product / associator / inertia_signature / "
-                    "left_mult_kernel unchanged. e₀ is the two-sided unit and "
-                    "e_i·e_i = −e₀ for i ≥ 1 EXACTLY as on the ladder, and every "
-                    "distinct imaginary pair anticommutes e_i·e_j = −e_j·e_i; "
-                    "ONE thing differs — the sign cocycle — because a control "
-                    "differing in two places cannot attribute a measured "
-                    "difference to either. IT TAKES A KEY, NOT A SEED: an MT19937 "
-                    "seed names a table only a Python host can rebuild, and under "
-                    "ADR-0009 (srmech is multi-implementation; the capability is "
-                    "the invariant, the projections co-equal) a control only one "
-                    "projection can generate is not a control — so every sign is "
-                    "derived from sha256_bytes over domain-separated material "
-                    "(op name + version + dim + lane mode + the SORTED index "
-                    "pair + the key), making the table reproducible from its "
-                    "IDENTIFIER ALONE in any implementation that has Class A. "
-                    "sign(i<j) = +1 if the first digest byte is even else −1; "
-                    "e_i·e_j = sign·e_lane and e_j·e_i = −sign·e_lane. IT BREAKS "
-                    "FLEXIBILITY, which is the point — a control satisfying every "
-                    "law the ladder satisfies is not a control. MEASURED at dim 8 "
-                    "over the 512 ordered basis triples via the linearised "
-                    "flexible law (x,y,z)+(z,y,x)=0 through associator, over the "
-                    "NAMED twelve-key set 'control-01'…'control-12' (a range "
-                    "quoted over an unnamed key set is not reproducible): the "
-                    "definite ladder 0/512 and all eight γ-twists 0/512 each, "
-                    "versus 12–28/512 with keep_xor_lane=True and 58–80/512 with "
-                    "keep_xor_lane=False, no key flexible in either mode. AT DIM 4 "
-                    "the keep_xor_lane=True control is NOT a reliable "
-                    "discriminator (3 of those 12 keys — control-03 / -05 / -09 — "
-                    "give 0/64, because with the XOR lane pinned and only three "
-                    "imaginary pairs the sign space is too small to escape ℍ); use "
-                    "keep_xor_lane=False there (7–10/64, no key gave 0), or "
-                    "control at dim ≥ 8. Exact "
-                    "integers, no float, no abs() (the sign is Class-K pin-slot ∘ "
-                    "Class-C reorient). composition_of_c over the c_dispatched "
-                    "sha256_bytes — NO new C symbol and no RNG stream to agree "
-                    "about. Class A ∘ K ∘ C. SSoT: Schafer (1966) §III.1, §III.5."
-                    + PUBLISH_OPT_IN_NOTE,
-            parameters=(
-                P("dim", "int", True,
-                  "a power of two in [1, ALGEBRA_TABLE_MAX_DIM=64] — the same "
-                  "MATERIALISATION ceiling algebra_table carries, for the same "
-                  "reason (the object is the dim³ tensor)"),
-                P("key", "str | bytes", True,
-                  "non-empty; str is encoded UTF-8. This NAMES the control — "
-                  "cite the key and the control is re-derivable, in every "
-                  "implementation"),
-                P("keep_xor_lane", "bool", False,
-                  "LOAD-BEARING, not a convenience. True (default) keeps the CD "
-                  "index lane e_i·e_j = ±e_{i⊕j} and randomises ONLY the signs, "
-                  "so a difference is attributable to the sign cocycle alone; "
-                  "False randomises the lane too (uniform over [1, dim), "
-                  "rejection-sampled, no modulo bias), which also destroys the "
-                  "XOR addressing. Running BOTH is how a measurement separates "
-                  "'lane artifact' from 'CD structure'"),
-            ),
-            returns=R("list", "dim × dim × dim nested list[int]; table[i][j][k] "
-                              "is the coefficient of e_k in e_i·e_j. MONOMIAL by "
-                              "construction"),
         ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).

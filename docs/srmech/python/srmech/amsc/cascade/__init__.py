@@ -208,7 +208,6 @@ from .cayley_dickson import (
     algebra_table,
     table_product,
     associator,
-    random_anticommutative_table,
 )
 # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
 # PR #687; F465 + F468). The sedenion box made into an addressable instrument:
@@ -361,9 +360,8 @@ __all__ = [
     "ALGEBRA_TABLE_MAX_DIM",
     "algebra_table",
     "table_product",
-    # The associativity DEFECT + the random-anticommutative CONTROL (rc360; `#T1032`)
+    # The associativity DEFECT (rc360; `#T1032`)
     "associator",
-    "random_anticommutative_table",
     # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
     "SedenionRegister",
     "sedenion_register",

@@ -386,13 +386,10 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # ``srmech.amsc.cascade.{algebra_table,table_product}``; same objects.
     "srmech.amsc.cascade.cayley_dickson.algebra_table",
     "srmech.amsc.cascade.cayley_dickson.table_product",
-    # rc360 (`#T1032`): the associativity DEFECT + the random-anticommutative
-    # CONTROL, registered under the flat names
-    # ``srmech.amsc.cascade.{associator,random_anticommutative_table}``; these
-    # are the same objects, exempt exactly like algebra_table / table_product
-    # directly above.
+    # rc360 (`#T1032`): the associativity DEFECT, registered under the flat name
+    # ``srmech.amsc.cascade.associator``; same object, exempt exactly like
+    # algebra_table / table_product directly above.
     "srmech.amsc.cascade.cayley_dickson.associator",
-    "srmech.amsc.cascade.cayley_dickson.random_anticommutative_table",
     # cayley_dickson loop-navigation helpers (v0.7.5rc1; W15 / RBS-LM bugfix
     # wishlist) — closure / left_orbit / min_generating_set are the
     # combinatorial layer built entirely on the registered ``cd_basis_product``
