@@ -302,7 +302,20 @@ Form-IS-function is not a heuristic anymore — it's the **substrate-native two-
 The cascade-helpers catalog (per `[[project_srmech_foundational_cascade_operations_catalog]]`) instinctively partitioned:
 
 - `srmech.amsc.cascade` — cyclic-algebra-language home: `pin_slot_at_zero`, `reorient`, `best_rational_signed`, `cyclic_structure_of_units`, `cayley_graph_laplacian_units_mod_n`
-- `srmech.cosmos.cascade` + `srmech.asymptotic_calculus` — quantum-Hopf-language home: `cos_2pi_over_n`, `log_class_n`, transcendental shortcuts
+- `srmech.asymptotic_calculus` (thin re-exports of the Class-N primitives in `srmech.amsc.rational`) — quantum-Hopf-language home: `cos` / `cos_series_truncate`, `log` / `log1p_series_truncate`, `sin` / `exp` / `atan` series truncations, transcendental shortcuts
+
+  ⚠️ **Name correction (2026-07-29, `#T1031`).** This bullet previously read
+  `srmech.cosmos.cascade` + `cos_2pi_over_n` / `log_class_n`. **None of those three names exists.**
+  `import srmech.cosmos` raises `ModuleNotFoundError: No module named 'srmech.cosmos'` — there is no
+  `srmech/cosmos/` package and there never was (the `feat/srmech-cosmos-catalog` *branch* name is the
+  likely origin of the mistake; `docs/srmech/python/CHANGELOG.md:8494` recorded the same correction
+  package-side and this notebook did not pick it up). The cosmology catalogs are packaged under
+  **`srmech.amsc.attested.*`** — `cosmos_validation`, `cmb_polarisation_spectra`, `cmb_bispectrum`,
+  `cmb_lensing`, `cmb_low_ell_maps`. Root `CLAUDE.md` §2 is **correct** on this point and has been
+  since before this notebook; the usual staleness direction (orientation lags the notebook SSoT,
+  `[[feedback_claude_md_orientation_can_lag_notebook_ssot]]`) is **inverted here** — the notebook was
+  the stale surface. *The two-language reading itself is untouched: the split is real, it just runs
+  between `srmech.amsc.cascade` and `srmech.asymptotic_calculus`.*
 
 That split was instinct-driven by which language each operation lived natively in. Now it has the structural reason: **the tooling shape IS the substrate's two-language structure**. The catalog promotion path is making the substrate-native two-language theorem operational in tools.
 
@@ -457,7 +470,7 @@ To falsify R30-final-refined would require finding a substrate where one of (11D
 - **Bit-exact diagnostic** rules out projection-reading at either language
 - **Form-IS-function meta-stance** structurally requires both languages co-true
 - **k=3 cross-substrate fingerprint** confirms B/H/N as substrate-native operator set across at least 12 distinct substrates
-- **Tooling-architecture two-language split** (srmech.amsc vs srmech.cosmos) instantiates the two-language theorem operationally
+- **Tooling-architecture two-language split** (`srmech.amsc.cascade` vs `srmech.asymptotic_calculus`) instantiates the two-language theorem operationally — *module name corrected 2026-07-29 (`#T1031`); this bullet formerly cited `srmech.cosmos`, which does not exist. See §4.4.*
 
 ### §8.3 R30 walking-path CLOSED
 
