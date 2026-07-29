@@ -73,9 +73,18 @@ jobs:
 
       - name: Install package (pure path — this guard needs no native build)
         working-directory: docs/srmech/python
+        # The `[dev]` extra is what carries pytest — a bare `pip install -e .`
+        # installs the package and NOT the test runner, and the job then dies on
+        # `No module named pytest` before either guard executes. That is exactly
+        # what this job's FIRST run did. It failed in the SAFE direction (loud,
+        # not a silent pass on an empty run — contrast `ctest`, `#T1036`), but it
+        # was still a real gap: the build proved the TESTS pass locally, where
+        # pytest is already present, and never proved the JOB runs in CI.
+        # Mirrors `srmech-ci.yml:112` / `:288` rather than inventing a lighter
+        # install — a second install convention is a second thing to drift.
         run: |
           python -m pip install --upgrade pip
-          pip install -e .
+          python -m pip install -e ".[dev]"
 
       - name: Reference-notation ratchet (emitted artifacts + decoded payloads)
         working-directory: docs/srmech/python
