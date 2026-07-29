@@ -367,7 +367,7 @@
 {"markers_fired": [], "n_markers": 0, "name": "srmech.qm.gauge.su3_generators", "problems": [], "src_sha256": "d401d7ddd7e7a814fdcb10ab74b406fe551b7bd3f1062d2b694497aba9534287", "statements": 7, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.qm.gauge.su3_structure_constants", "problems": [], "src_sha256": "c25a5e75c628596bcb798920036f3d1b737e0735fef48796e0e5cb20ded5b81c", "statements": 8, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.qm.gauge.wilson_loop_from_segments", "problems": [], "src_sha256": "42a3ca05be342cc7092bae038fe21417f9897e3d6e624f0c0ef4a1426f04d5f7", "statements": 10, "status": "ok"}
-{"markers_fired": [], "n_markers": 0, "name": "srmech.qm.hurwitz.hurwitz_planes", "problems": [], "src_sha256": "4c6dab5125e0678ce5b71d53702d857d5fdca16046d4031361f0a5da6b7762ef", "statements": 14, "status": "ok"}
+{"markers_fired": [], "n_markers": 0, "name": "srmech.qm.hurwitz.hurwitz_planes", "problems": [], "src_sha256": "32be8a6efbfe01f2b9c0feb4dfb7085557449783b6501baacba3ddd082f23873", "statements": 14, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.qm.octonion.octonion_conjugate", "problems": [], "src_sha256": "0c59c93179e15d7bc798afbfb2501dc0dd01edc8aa0c1e84fb21e3dedd366fd0", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.qm.octonion.octonion_exp", "problems": [], "src_sha256": "8168c38a1cf5654eef035f652618bf89086bf1ea3f820a1a04cc906f1b8fc8f4", "statements": 12, "status": "ok"}
 {"markers_fired": [], "n_markers": 0, "name": "srmech.qm.octonion.octonion_exp_series_truncate", "problems": [], "src_sha256": "8ee52c8a1834686b540c1a1c7cf2541eb45e9b7b5f103573b2b008495e986d26", "statements": 9, "status": "ok"}
