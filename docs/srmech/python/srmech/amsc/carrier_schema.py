@@ -132,7 +132,7 @@ differently::
       4 |      16/16       |        6  (6)           |    64/64      100%
       8 |      64/64       |       28  (28)          |   344/512      67%
      16 |     256/256      |      120  (120)         |  2248/4096     55%
-     32 |    1024/1024     |      496  (496)         |   (cost-skipped)
+     32 |    1024/1024     |      496  (496)         | 16808/32768    51%
 
 The INDEX lane is ``e_i·e_j → e_{i XOR j}``, exact at every rung with no
 exceptions. The SIGN is a cocycle over it, and the sign is what stops being

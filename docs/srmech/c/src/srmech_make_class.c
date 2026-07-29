@@ -1950,6 +1950,29 @@ const char *srmech_class_descriptor_lookup(const char *name, size_t *out_len)
     return NULL;                                   /* unknown / user class */
 }
 
+/* rc359 (`#T1009`) — ENUMERATION accessors, the peers of
+ * srmech_carrier_registry_count / _get. Lookup-by-name can only confirm names
+ * the CALLER already knows, so a class present in C but absent from Python (or
+ * the reverse) stays invisible to it. Enumeration is what lets a test compare
+ * the two registries as SETS, and read each descriptor BODY, without the
+ * caller having to name anything first. Additive symbols -> ABI stays 10. */
+size_t srmech_class_registry_count(void)
+{
+    assert(srmech_class_registry_table != NULL);
+    assert(srmech_class_registry_len > 0u);
+    return srmech_class_registry_len;
+}
+
+const srmech_class_descriptor_t *srmech_class_registry_get(size_t index)
+{
+    assert(srmech_class_registry_table != NULL);
+    assert(srmech_class_registry_len > 0u);
+    if (index >= srmech_class_registry_len) {
+        return NULL;
+    }
+    return &srmech_class_registry_table[index];
+}
+
 size_t srmech_run_class_method_arena_bytes(const char *class_name,
                                            size_t fields_len, size_t args_len)
 {

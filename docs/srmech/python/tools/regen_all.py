@@ -44,6 +44,22 @@ all set mtimes in arbitrary order, so such a guard false-fires constantly and
 gets suppressed, and a suppressed guard is worse than none. The robust form
 is CONTENT equality: recompute what each file would be and compare. That is
 ``--check``.
+
+THE OTHER STALENESS, AND WHY IT IS A WARNING (rc359, `#T1009`)
+==============================================================
+Every "stale" above means a generated FILE is behind its generator. There is a
+second staleness this runner used to say nothing about: the generated ``.c``
+is current, and the COMPILED ``libsrmech`` is not. Regenerating writes C
+SOURCE; it does not rebuild. So the honest post-regen state is routinely
+"sources correct, loaded library one edit behind", and any native test run in
+that window measures the OLD bytes while reporting on the new ones.
+
+It is a WARNING, never a failure, and the distinction is deliberate: a pure /
+Pyodide checkout has no library at all and must stay green, and rebuilding is
+not this tool's job. It is also a CONTENT check, not mtime — the same reason
+as above. The loaded library is asked what class descriptors it actually
+carries (``srmech_class_registry_get``, added in rc359) and that is compared
+to the on-disk TOML. No timestamps are consulted.
 """
 
 from __future__ import annotations
@@ -179,6 +195,66 @@ def cmd_list() -> int:
     return 0
 
 
+def warn_if_native_is_stale() -> bool:
+    """WARN when the loaded ``libsrmech`` does not carry the on-disk descriptors.
+
+    Regenerating writes C SOURCE; it does not rebuild the library. A native
+    test run between those two moments measures bytes that no longer exist on
+    disk and reports them as current -- the same false-green shape this runner
+    was written to remove, one layer down.
+
+    CONTENT, not mtime: the library is asked what it actually carries. Returns
+    True when a mismatch was reported. Silent (and False) when there is no
+    native library, which is the normal pure / Pyodide state and not a defect.
+    """
+    try:
+        from srmech.amsc import _native
+    except Exception:                                  # pragma: no cover
+        return False
+    if not getattr(_native, "HAS_NATIVE", False):
+        return False
+    if not getattr(_native, "has_native_class_registry", lambda: False)():
+        # Pre-rc359 library: the accessor does not exist, so staleness is
+        # exactly what we cannot rule out. Say so rather than implying clean.
+        print("\n  note: the loaded libsrmech predates the rc359 class-registry "
+              "accessors, so its freshness could not be checked. Rebuild if "
+              "you are about to run native tests.")
+        return False
+
+    catalog = (Path(__file__).resolve().parents[1] / "srmech" / "amsc"
+               / "_research" / "class_catalog")
+    on_disk = {}
+    for toml in sorted(catalog.glob("*.toml")):
+        # Universal newlines + LF, matching gen_class_registry.py's own read.
+        on_disk[toml.stem] = toml.read_text(encoding="utf-8")
+
+    drifted: List[str] = []
+    n = _native.class_registry_count_c() or 0
+    in_lib = {}
+    for i in range(n):
+        d = _native.class_descriptor_c(i)
+        if d is not None:
+            in_lib[d["name"]] = d["toml"]
+    disk_texts = set(on_disk.values())
+    for name, text in sorted(in_lib.items()):
+        if text not in disk_texts:
+            drifted.append(name)
+
+    if drifted:
+        print("\n  WARNING — the loaded libsrmech is STALE against these "
+              "sources:", file=sys.stderr)
+        for name in drifted:
+            print(f"    [class] {name}: the compiled descriptor differs from "
+                  f"the on-disk .toml", file=sys.stderr)
+        print("  The generated C is current; the LIBRARY is not. Any native "
+              "test run now\n  measures the old bytes. Rebuild before "
+              "trusting a native result:\n"
+              "    cmake --build <builddir> && cp <builddir>/libsrmech.so "
+              "srmech/_native/", file=sys.stderr)
+        return True
+    return False
+
+
 def cmd_check(accept_seed_drift: bool) -> int:
     """Content-equality: is every generated file what its generator would
     produce right now? Writes nothing. This is the CI half."""
@@ -209,6 +285,7 @@ def cmd_check(accept_seed_drift: bool) -> int:
               file=sys.stderr)
         return 1
     print(f"\nall {len(texts)} generated files are up to date ({dt:.1f}s)")
+    warn_if_native_is_stale()
     return 0
 
 
@@ -264,6 +341,7 @@ def cmd_regen(accept_seed_drift: bool, verify: bool) -> int:
     print(f"  idempotent: all {len(order)} outputs byte-identical across "
           f"two passes")
     print(f"\nregen-all OK — {n_moved} file(s) changed, {dt:.1f}s")
+    warn_if_native_is_stale()
     return 0
 
 

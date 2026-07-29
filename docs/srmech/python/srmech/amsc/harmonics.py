@@ -182,8 +182,16 @@ def _spectral_scores(hv) -> Tuple[Q, Q, Q]:
     - mirror: even/odd reflection self-agreement = |⟨x, reverse(x)⟩| / ⟨x, x⟩ —
       a mirror-symmetric (period-2) signal scores high (→ harmonic 2).
     - three_cycle: 3-fold rotational self-agreement = |⟨x, roll(x, n/3)⟩| /
-      ⟨x, x⟩ for n divisible by 3 — a 3-periodic signal scores high
-      (→ harmonic 3). 0 when n is not divisible by 3.
+      ⟨x, x⟩ for n divisible by 3. It scores EXACTLY 1 iff x is ONE BLOCK of
+      length n/3 repeated three times — equivalently, iff x is invariant
+      under rotation by n/3 (Cauchy–Schwarz gives the ceiling; verified
+      exhaustively over the small-integer cubes at n = 3, 6, 9, zero
+      mismatches against that predicate). It is NOT a period-3 detector:
+      the period-3 vector ``[2, -1, -1] * (n // 3)`` scores 1 only when
+      9 | n, and scores 1/2 at n = 3, 6, 12, 15, 21, 24 … (verified
+      n = 3..90) — which classifies as harmonic 2, not 3. FORCED ZERO when
+      3 ∤ n: Z_n then has no order-3 rotation to measure, so the value is a
+      closed-form function of ``n mod 3`` and not a measurement of x.
 
     **rc354 — the scores are exact Class-N rationals, not floats.** Each input
     element is promoted to the exact :class:`~srmech.amsc.q.Q` of its own value
@@ -215,6 +223,15 @@ def classify_chirality_harmonic(hv, dc_threshold=0.5) -> int:
     mirror/self-inverse default). Works on any encoded vector regardless of
     provenance — the spectral generalisation of the surface-form token-name
     classifier (R-RBS-NN-14a).
+
+    **The codomain is {1, 2} whenever 3 ∤ len(x) — not {1, 2, 3}.** The
+    3-fold score is a forced zero there, the mirror score is never negative,
+    and verdict 3 requires ``three > mirror``; so 3 is unreachable. This is
+    not an edge case. ``hdc.DEFAULT_HDC_BYTES`` is 128 and ``128 % 3 == 2``,
+    and every Cayley–Dickson dim srmech ships is ≢ 0 mod 3 (8→2, 16→1,
+    32→2, 64→1). MEASURED: 10000 random vectors over n ∈ {8, 16, 32, 64,
+    128} returned verdict 3 exactly zero times, while the same period-3
+    pattern at n = 9 returns 3.
     """
     # rc154 (BATCH B10, ``composition_of_c``): the classifier is a pure
     # composition of primitive-class ops over the vector — **Class-L** inner

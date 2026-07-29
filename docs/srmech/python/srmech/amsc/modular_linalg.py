@@ -46,6 +46,11 @@ sedenion zero-divisor support condition ``i ⊕ j = k ⊕ l`` as an affine GF(2)
 system through this op — a combinatorial construction where sampling cannot
 work, zero divisors being measure-zero in 𝕊.
 
+The same op decides the CD sign cocycle itself: ``δt = ε`` is inconsistent at
+every rung (``rank([A|b]) = rank(A) + 1``, with ``nullity(A) = log2(dim)`` — the
+GF(2)-linear functionals), which is what makes the sign cohomological rather
+than a relabelling — see ``cascade/cd_register.py``.
+
 C peer: ``srmech_gf_rref`` (``c/src/srmech_modular_linalg.c``) — an in-place
 int64/uint64 GF(p) RREF, caller-arena (no malloc), JPL-clean. :func:`gf_rref`
 routes through it when ``HAS_NATIVE``

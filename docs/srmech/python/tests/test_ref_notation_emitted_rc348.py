@@ -49,6 +49,31 @@ WHAT IS PINNED, AND WHY THE SPLIT
    and may only fall. A NEW bare ref fails the build and the author writes
    ``gh #NNNN`` (or ``#TNNN``) instead -- which is how the residual drains.
 
+rc359 — TWO WAYS THIS GUARD WAS ITSELF LYING
+============================================
+Both are the file's own theme turned on itself: a measurement surface
+reporting a value it did not measure.
+
+1. **THE DECODED PAYLOAD.** Three artifacts embed their text as decimal
+   byte arrays (``{ 35, 57, 54, 50 }`` is ``#962``). The regex above reads
+   integers and finds nothing, so ``srmech_class_registry.c`` pinned a
+   perfectly true ``0`` while the compiled library shipped 5 bare refs a
+   bare-C host reads straight out of the table. ``srmech_tool_registry.c``
+   carried 3 more that nobody had filed. Fixed by a SECOND predicate with
+   its own ceiling (``CEIL_BARE_REFS_DECODED``) rather than by raising the
+   textual one -- the textual count was never wrong, it was counting a
+   different thing, and a down-only ratchet you have to argue upward has
+   stopped being a ratchet.
+
+2. **THE TRIGGER GAP.** ``_local_task_ids`` rglobs ALL of ``docs/srmech``,
+   but ``srmech-ci.yml`` only fires on ``python/**`` + ``c/**``. 846 tracked
+   files -- 727 of them the high-churn ``notes/`` -- could mint a ``#TNNN``
+   with no job running, and 3 of the 45 ids are decidable ONLY out there.
+   Fixed by ``.github/workflows/srmech-ref-guard.yml`` (a dedicated ~1-2
+   CI-min job; widening the full matrix would have cost ~213 billed min)
+   plus the SCAN_ROOTS meta-test at the bottom of this file, which asserts
+   the two sets cannot drift apart again.
+
 ``CHANGELOG.md`` IS DELIBERATELY NOT COVERED
 ============================================
 It holds ~360 bare refs across ~113 distinct numbers in the region the
@@ -344,8 +369,118 @@ CEIL_BARE_REFS_EMITTED = {
     # never go back up.
     "c/src/srmech_carrier_registry.c": 0,
     "c/src/srmech_responsion_registry.c": 0,
+    # rc359 (`#T1035`): STAYS 0, and 0 is TRUE — for the TEXT predicate. This
+    # artifact embeds its descriptors as DECIMAL BYTE ARRAYS, so the textual
+    # scan above has nothing to read and reports a clean 0 while the compiled
+    # library ships real bare refs inside the payload. That is not a wrong
+    # count; it is a count of the wrong thing. The decoded population is pinned
+    # SEPARATELY in CEIL_BARE_REFS_DECODED below rather than folded in here,
+    # because merging them would force this number UP and a down-only ratchet
+    # that has to be argued upward stops being a ratchet. Two predicates, two
+    # ceilings, neither lying.
     "c/src/srmech_class_registry.c": 0,
 }
+
+
+# ── the DECODED payload — the same defect, one indirection down ───────
+#
+# rc359 (`#T1035`). Three of the six artifacts embed UTF-8 text as
+# `static const unsigned char x[] = { 35, 32, 67, ... };`. To `_bare_refs`
+# that is a wall of integers: `#962` is stored as `35, 57, 54, 50` and the
+# regex never fires. The bytes still reach users — a bare-C host resolves a
+# class name straight out of this table, and `describe()` surfaces the tool
+# long-strings — so the text ships with exactly the autolink defect the
+# textual ratchet exists to stop, while the ratchet reads green.
+#
+# MEASURED at rc359 across all four registry artifacts, not assumed:
+#   srmech_class_registry.c      TEXT 0  DECODED 5  <- the blind spot
+#   srmech_tool_registry.c       TEXT 126 DECODED 3  <- ALSO blind, unfiled
+#   srmech_carrier_registry.c    TEXT 0  DECODED 0   (control: has byte arrays,
+#                                                     and they are genuinely clean)
+#   srmech_responsion_registry.c TEXT 0  DECODED 0   (control: no byte arrays)
+# The tool-registry hits were NOT in the rc359 brief; they were found by
+# running the decoder over every artifact instead of only the one filed. The
+# carrier control matters as much as the finding: it proves the decoder can
+# report zero, so a zero here is evidence rather than silence.
+CEIL_BARE_REFS_DECODED = {
+    # ADJUDICATED individually by reading the prose against `gh issue view`,
+    # never swept. rc359 drained 3 of 5 from the class registry:
+    #   `#962` -> `gh #962`. DECIDABLE (the tree spells `#T962`), so the
+    #     strict-zero rule below REQUIRED it. gh #962 is "srmech: genome
+    #     storage perspective + native A-N binding"; the prose is "Genome (the
+    #     seed worked-instance)". TOPICAL — the `gh ` prefix, not the `T`.
+    #   `#887` x2 -> `gh #887`. gh #887 is "The two alphabets — operator
+    #     (1:3:7 cyclic) vs operand (2:4:8 spatial)"; the prose is "the
+    #     substrate generator" / "the 1+3+7+3 = 14-D A–N substrate". TOPICAL.
+    # LEFT BARE, deliberately, and this is the whole point of a CEIL:
+    #   `#566` in genome.toml. gh #566 is "Spike #136 — Quantum computing
+    #     without brute-forcing the universe"; the prose is the genome seed.
+    #     Read the body: Clifford algorithms, Gottesman-Knill, T-gate density.
+    #     NOT the genome. Converting it would mint a false link that looks
+    #     deliberate, which is worse than leaving it.
+    #   `#564` in hurwitz.toml. gh #564 is "research(MS-14 wave-2 integration):
+    #     12 PRs merged + 6 stances"; the prose is "the numpy-Rosetta-peer
+    #     dissolution POC". Body read: wave-2 spikes, MS #14 adapter scope.
+    #     NOT the carrier arc. The rc359 research proposed converting this one;
+    #     reading the issue body refuted it. Left bare on purpose.
+    "c/src/srmech_class_registry.c": 2,
+    # `#728` / `#729` / `#730`, one line of one long-string: "UPSTREAM §128 /
+    # #728; §129 / #729 KLEIN-4 REGULATORY". None is spelled `#TNNN` anywhere,
+    # so all three are pre-convention residual, not decidable. They drain by
+    # individual adjudication like every other row here.
+    "c/src/srmech_tool_registry.c": 3,
+    "c/src/srmech_carrier_registry.c": 0,
+    "c/src/srmech_responsion_registry.c": 0,
+}
+
+#: A C byte-array literal: `static const unsigned char NAME[] = { 1, 2, ... };`
+_BYTE_ARRAY = re.compile(
+    r"static\s+const\s+unsigned\s+char\s+(\w+)\s*\[\]\s*=\s*\{(.*?)\}\s*;",
+    re.DOTALL)
+
+
+def _decoded_blobs(path: Path) -> "list[tuple[str, str]]":
+    """Every embedded byte array in ``path``, decoded to the text it carries.
+
+    Returns ``(array_name, text)``. Non-UTF-8 bytes are replaced rather than
+    raising: the point is to read any REFS present, not to validate encoding.
+    """
+    if path.suffix != ".c":
+        return []
+    text = path.read_text(encoding="utf-8", errors="replace")
+    out: "list[tuple[str, str]]" = []
+    for m in _BYTE_ARRAY.finditer(text):
+        nums = [int(t) for t in re.findall(r"\d+", m.group(2))]
+        if not nums or any(n > 255 for n in nums):
+            continue                       # not a byte payload
+        out.append((m.group(1), bytes(nums).decode("utf-8", errors="replace")))
+    return out
+
+
+def _bare_refs_in_text(text: str) -> "list[tuple[int, int, str]]":
+    """``_bare_refs``' predicate, applied to a string instead of a file.
+
+    Kept as the SAME rules (``gh `` prefix exempt, code spans exempt, 3-4 digit
+    bound) so the decoded ceiling means the same thing as the textual one.
+    """
+    out: "list[tuple[int, int, str]]" = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        for m in _REF.finditer(line):
+            if line[:m.start()].endswith("gh "):
+                continue
+            if _in_code_span(line, m.start(), m.end()):
+                continue
+            out.append((lineno, int(m.group(1)), line.strip()[:100]))
+    return out
+
+
+def _decoded_bare_refs(path: Path) -> "list[tuple[str, int, int, str]]":
+    """Every bare ref inside ``path``'s embedded byte arrays."""
+    out: "list[tuple[str, int, int, str]]" = []
+    for name, blob in _decoded_blobs(path):
+        for lineno, number, line in _bare_refs_in_text(blob):
+            out.append((name, lineno, number, line))
+    return out
 
 
 def test_every_emitted_artifact_is_pinned() -> None:
@@ -424,3 +559,246 @@ def test_bare_ref_population_is_down_only(rel_path: str) -> None:
             f"to {len(found)} in CEIL_BARE_REFS_EMITTED so the gain cannot "
             f"be given back."
         )
+
+
+# ── rc359: the DECODED-payload pair ───────────────────────────────────
+
+def test_the_decoder_can_still_see_something() -> None:
+    """The decoder must actually decode. A seam that stops observing is a
+    false green, and every assertion below would pass trivially on a decoder
+    that silently returned nothing (a changed generator template, a switch to
+    hex literals, a renamed array). Pin the SHAPE, not a ref count.
+    """
+    blobs = _decoded_blobs(_SR_ROOT / "c/src/srmech_class_registry.c")
+    assert len(blobs) == 4, (
+        f"expected 4 embedded [class] descriptors, decoded {len(blobs)} - the "
+        "byte-array extraction has stopped matching the generator's output, "
+        "so every decoded-payload assertion below is now vacuous."
+    )
+    names = {n for n, _ in blobs}
+    assert names == {"cls_desc_0", "cls_desc_1", "cls_desc_2", "cls_desc_3"}
+    joined = "\n".join(t for _, t in blobs)
+    assert "[class]" in joined and "Genome" in joined, (
+        "the decoded blobs no longer look like TOML [class] descriptors"
+    )
+
+
+def test_no_local_task_id_is_written_bare_in_a_DECODED_payload() -> None:
+    """STRICT ZERO, one indirection down.
+
+    The same rule as the textual strict-zero test, applied to text the
+    artifacts carry as byte arrays. A `#962` stored as `35, 57, 54, 50` is
+    still `#962` by the time a user reads it.
+    """
+    task_ids = _local_task_ids()
+    assert task_ids, "derived no local task IDs at all - the scan is broken"
+
+    violations: list[str] = []
+    for path in _emitted_artifacts():
+        rel = path.relative_to(_SR_ROOT).as_posix()
+        for arr, lineno, number, line in _decoded_bare_refs(path):
+            if number in task_ids:
+                violations.append(
+                    f"  {rel} [{arr}]:{lineno}: #{number} is a LOCAL TASK ID "
+                    f"(the tree writes it as #T{number}) but is written bare "
+                    f"INSIDE AN EMBEDDED BYTE ARRAY, where the textual scan "
+                    f"cannot see it.\n      {line}")
+
+    assert not violations, (
+        f"{len(violations)} local task ID(s) written BARE inside an embedded "
+        "payload:\n" + "\n".join(violations)
+        + "\n\nFix the UPSTREAM source (a .toml descriptor under "
+          "srmech/amsc/_research/class_catalog/, or a ToolEntry summary - not "
+          "the generated file), then re-run:  python3 tools/regen_all.py"
+    )
+
+
+@pytest.mark.parametrize("rel_path", sorted(CEIL_BARE_REFS_DECODED))
+def test_decoded_bare_ref_population_is_down_only(rel_path: str) -> None:
+    """DOWN-ONLY CEIL on the residual inside embedded byte arrays."""
+    path = _SR_ROOT / rel_path
+    found = _decoded_bare_refs(path)
+    ceiling = CEIL_BARE_REFS_DECODED[rel_path]
+
+    assert len(found) <= ceiling, (
+        f"{rel_path}: {len(found)} bare refs inside embedded byte arrays, "
+        f"ceiling {ceiling} - the population GREW by {len(found) - ceiling}.\n"
+        "These do not show up in the textual scan, but they ship: a bare-C "
+        "host reads this table directly. Write `gh #NNNN` or `#TNNN` in the "
+        "UPSTREAM source, then re-run `python3 tools/regen_all.py`.\n"
+        + "\n".join(f"    [{a}]:{ln}: #{num}  {txt}"
+                    for a, ln, num, txt in found[-8:]))
+
+    if len(found) < ceiling:
+        pytest.fail(
+            f"{rel_path}: {len(found)} decoded bare refs but the ceiling says "
+            f"{ceiling}. GOOD NEWS - lower CEIL_BARE_REFS_DECODED to "
+            f"{len(found)} so the gain cannot be given back.")
+
+
+def test_every_emitted_artifact_is_pinned_for_decoded_refs() -> None:
+    """The decoded ceiling must cover the same artifact set as the textual one.
+
+    Without this, adding a seventh generator that embeds byte arrays would
+    ship an unguarded payload while every other test stayed green.
+    """
+    declared = {g.output for g in cm.GENERATORS}
+    pinned = set(CEIL_BARE_REFS_DECODED)
+    missing = {d for d in declared - pinned if d.endswith(".c")}
+    assert not missing, (
+        f"C artifacts not pinned in CEIL_BARE_REFS_DECODED: {sorted(missing)}. "
+        "Measure each with _decoded_bare_refs and add it.")
+    assert not pinned - declared, (
+        f"pinned but no longer generated: {sorted(pinned - declared)}")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# rc359 (`#T1035`) — SCAN ROOT vs CI TRIGGER
+#
+# This test exists because the two sets have now drifted TWICE. A test that
+# READS a directory CI does not WATCH is a guard that cannot fire: the file it
+# would have caught changes, no workflow runs, and the next unrelated PR
+# inherits a red — or worse, the bad text ships and the guard reports green
+# because it was never asked.
+#
+# The invariant: every directory a test scans must lie inside some workflow's
+# trigger paths. Checked mechanically here rather than trusted to review,
+# because the failure is SILENT by construction and review has already missed
+# it twice.
+# ══════════════════════════════════════════════════════════════════════
+
+_REPO_ROOT = _SR_ROOT.parent.parent
+_WORKFLOWS = _REPO_ROOT / ".github" / "workflows"
+
+#: The directories the suite READS, repo-relative POSIX, with the site that
+#: does the reading. MEASURED by reading each expression, not inferred from
+#: the filename. `parents[2]` from a test file is `docs/srmech`; anything
+#: deeper than `docs/srmech/python` can escape the srmech-ci trigger.
+SCAN_ROOTS = {
+    # THE WIDE ONE: rglobs the entire subtree to derive the `#TNNN` vocabulary.
+    "tests/test_ref_notation_emitted_rc348.py": ("docs/srmech",),
+    # Reads the committed proof NDJSON under notes/ and re-measures against it.
+    "tests/test_cd_register_ops_rc301.py": ("docs/srmech/notes",),
+    # The rest stay inside python/ + c/, i.e. inside srmech-ci's own trigger.
+    "tests/test_regen_all_rc346.py": ("docs/srmech/python", "docs/srmech/c"),
+    "tests/test_c_cascade_coherence.py": ("docs/srmech/c",),
+    "tests/test_carrier_capability_rc339.py": ("docs/srmech/c",),
+    "tests/test_carrier_ceiling_rc343.py": ("docs/srmech/c",),
+    "tests/test_fips_constants_attested.py": ("docs/srmech/c",),
+    "tests/test_genome_add_plasmid_c_rc334.py": ("docs/srmech/c",),
+    "tests/test_genome_marker_set_drift_rc351.py": ("docs/srmech/c",),
+    "tests/test_rosetta_transitive_standalone.py": ("docs/srmech/c",),
+    "tests/test_worked_examples_execute_rc354.py": ("docs/srmech/python",),
+    "tests/test_laplacian_numpy_free.py": ("docs/srmech/python",),
+}
+
+#: Reach expressions that can climb ABOVE `docs/srmech/python/`. `parents[1]`
+#: from a test file is still `docs/srmech/python`, so it cannot escape and is
+#: not listed. Each of these must appear in SCAN_ROOTS.
+_REACH = re.compile(r"parents\[[23]\]|_SR_ROOT\s*=|_SRMECH_ROOT\s*=")
+
+
+def _trigger_paths() -> "set[str]":
+    """Every `paths:` entry under `on:` across the srmech workflows.
+
+    Hand-parsed rather than via PyYAML: pyyaml is NOT a declared dependency of
+    this package, and this suite must run in the numpy-absent / pure venv.
+    The parser is deliberately narrow -- a `paths:` key, then the `- "..."`
+    items indented under it -- and the caller asserts it found something, so a
+    format change fails LOUD instead of silently returning an empty set that
+    would make every assertion below vacuous.
+    """
+    found: "set[str]" = set()
+    for wf in sorted(_WORKFLOWS.glob("srmech-*.yml")):
+        in_paths = False
+        indent = 0
+        for raw in wf.read_text(encoding="utf-8").splitlines():
+            stripped = raw.strip()
+            if not stripped or stripped.startswith("#"):
+                continue
+            cur = len(raw) - len(raw.lstrip())
+            if in_paths:
+                if stripped.startswith("- "):
+                    found.add(stripped[2:].strip().strip('"').strip("'"))
+                    continue
+                if cur <= indent:
+                    in_paths = False
+            if stripped in ("paths:", "paths-ignore:"):
+                in_paths = stripped == "paths:"
+                indent = cur
+    return found
+
+
+def _covers(trigger: str, root: str) -> bool:
+    """True when a workflow trigger path watches everything under ``root``."""
+    prefix = trigger[:-3] if trigger.endswith("/**") else trigger
+    return root == prefix or root.startswith(prefix + "/")
+
+
+def test_the_trigger_parser_can_still_see_something() -> None:
+    """The parser must parse. An empty result would make the coverage test
+    below pass by vacuity -- the exact false-green shape this file guards.
+    """
+    paths = _trigger_paths()
+    assert len(paths) >= 5, (
+        f"parsed only {len(paths)} trigger paths from {_WORKFLOWS} - the "
+        "workflow `paths:` format has changed and this parser has stopped "
+        "observing.")
+    assert "docs/srmech/python/**" in paths, (
+        "the srmech-ci python trigger is missing from the parsed set")
+
+
+def test_every_scanned_root_is_inside_a_ci_trigger_path() -> None:
+    """A test that reads a directory no workflow watches cannot fire.
+
+    This is the rc359 root cause, stated as an assertion: 846 tracked files
+    under docs/srmech/ sat outside every trigger while two tests read them.
+    """
+    triggers = _trigger_paths()
+    uncovered: list[str] = []
+    for site, roots in sorted(SCAN_ROOTS.items()):
+        for root in roots:
+            if not any(_covers(t, root) for t in triggers):
+                uncovered.append(
+                    f"  {site} scans {root!r}, which NO workflow trigger "
+                    f"watches - a change there runs nothing, so this guard is "
+                    f"armed and silent.")
+    assert not uncovered, (
+        "scan roots outside every CI trigger:\n" + "\n".join(uncovered)
+        + "\n\nEither narrow what the test reads, or add the path to a "
+          "workflow trigger. Prefer a DEDICATED cheap job over widening the "
+          "full matrix: .github/workflows/srmech-ref-guard.yml is the model "
+          "(~1-2 CI-min vs ~213 billed min for the full matrix).")
+
+
+def test_no_test_reaches_out_of_tree_without_declaring_it() -> None:
+    """SCAN_ROOTS must stay complete, or the coverage test above goes blind.
+
+    Declaring a root is what forces the author to check the trigger. A new
+    `parents[2]` reach in an undeclared file is therefore RED here -- not
+    because reaching is wrong, but because an UNDECLARED reach is exactly how
+    the drift happened both previous times.
+    """
+    undeclared: list[str] = []
+    for path in sorted(_HERE.glob("test_*.py")):
+        rel = f"tests/{path.name}"
+        if rel in SCAN_ROOTS:
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            m = _REACH.search(line)
+            # A CODE SPAN is prose about a reach, not a reach -- the same
+            # exemption the ref scanner above makes, for the same reason.
+            # This test caught its own author writing "`parents[2]`" inside a
+            # docstring explaining why that file deliberately does NOT reach.
+            if m and not _in_code_span(line, m.start(), m.end()):
+                undeclared.append(f"  {rel}:{lineno}: {line.strip()[:90]}")
+                break
+    assert not undeclared, (
+        "test file(s) reach above docs/srmech/python/ without a SCAN_ROOTS "
+        "entry:\n" + "\n".join(undeclared)
+        + "\n\nAdd each to SCAN_ROOTS with the directory it actually reads, "
+          "so test_every_scanned_root_is_inside_a_ci_trigger_path can check "
+          "that CI watches it.")

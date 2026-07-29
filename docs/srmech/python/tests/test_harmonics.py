@@ -67,9 +67,98 @@ def test_classify_chirality_harmonic_zero_mean_mirror_is_h2():
         [x - 2 / 3 for x in (2., 1, -1, -1, 1, 2)]) == 2
 
 
-def test_classify_chirality_harmonic_three_periodic_is_h3():
-    v = [2., -1, -1, 2, -1, -1, 2, -1, -1]  # period-3, zero-mean
+def test_classify_chirality_harmonic_block_repeated_three_times_is_h3():
+    """rc359 (`#T1028`) — RENAMED. This was `..._three_periodic_is_h3`, and it
+    passed for a reason its name got wrong: at n=9 the vector is BOTH
+    period-3 AND one block of length 3 repeated three times, and it is the
+    SECOND property the score measures. The differential below separates them.
+    """
+    v = [2., -1, -1, 2, -1, -1, 2, -1, -1]   # n=9: block [2,-1,-1] x3
     assert harmonics.classify_chirality_harmonic(v) == 3
+
+
+# ── rc359 (`#T1028` + N4): what the 3-fold score ACTUALLY measures ─────────
+#
+# Two defects, both of the shape "a measurement surface reporting a value it
+# did not measure":
+#
+#  1. FORCED ZERO. `three` was documented as a score. When 3 does not divide
+#     n it is a closed-form function of `n mod 3` and not a function of x at
+#     all — Z_n simply has no order-3 rotation to measure. The score itself is
+#     CORRECT BY DESIGN and is deliberately left alone; the CONTRACT was wrong.
+#  2. NOT A PERIOD-3 DETECTOR. The docstring claimed "a 3-periodic signal
+#     scores high". The score rotates by n/3, so it detects THREE REPEATS OF
+#     ONE BLOCK. For a genuinely period-3 vector the two coincide only when
+#     9 | n — which is exactly why the pre-existing test above never caught it.
+
+def test_three_fold_score_is_a_forced_zero_when_three_does_not_divide_n():
+    """Not a measurement of x: a closed-form function of n mod 3."""
+    from srmech.amsc.q import Q
+    for n in (1, 2, 4, 5, 7, 8, 16, 32, 64, 127, 128):
+        for trial in range(12):
+            x = [((trial * 7919 + i * 104729) % 11) - 5 for i in range(n)]
+            assert harmonics._spectral_scores(x)[2] == Q(0), (
+                f"n={n} is not divisible by 3, so the 3-fold score must be a "
+                f"forced exact zero regardless of the vector")
+
+
+def test_verdict_three_is_unreachable_when_three_does_not_divide_n():
+    """The reachable codomain is {1, 2}, not {1, 2, 3}.
+
+    The 3-fold score is a forced zero, the mirror score is never negative, and
+    verdict 3 needs `three > mirror`. This is not an edge case: it covers
+    hdc.DEFAULT_HDC_BYTES and every Cayley-Dickson dim srmech ships.
+    """
+    from srmech.amsc import hdc
+    assert hdc.DEFAULT_HDC_BYTES % 3 == 2, (
+        "the flagship HDC width is no longer 2 mod 3 — re-derive this bound")
+    for n in (8, 16, 32, 64, 128):
+        assert n % 3 != 0
+        for trial in range(80):
+            x = [((trial * 31337 + i * 65537) % 21) - 10 for i in range(n)]
+            assert harmonics.classify_chirality_harmonic(x) in (1, 2)
+
+
+def test_three_fold_score_detects_block_repeats_not_period_three():
+    """THE DIFFERENTIAL. Same period-3 pattern, four lengths, two verdicts.
+
+    `[2,-1,-1]*m` is period-3 at every m. It scores 1 (verdict 3) only when
+    9 | n; otherwise it scores exactly 1/2 and classifies as harmonic 2. A
+    period-3 detector would return 3 for all of them.
+    """
+    from srmech.amsc.q import Q
+    for m in range(1, 31):
+        x = [2, -1, -1] * m
+        n = 3 * m
+        score = harmonics._spectral_scores(x)[2]
+        if n % 9 == 0:
+            assert score == Q(1), f"n={n}: 9|n so the block repeats exactly"
+            assert harmonics.classify_chirality_harmonic(x) == 3
+        else:
+            assert score == Q(1, 2), f"n={n}: period-3 but NOT a 3x block repeat"
+            assert harmonics.classify_chirality_harmonic(x) == 2
+
+    # The three literal cases, spelled out: same pattern, different verdicts.
+    assert harmonics.classify_chirality_harmonic([2, -1, -1] * 3) == 3   # n=9
+    assert harmonics.classify_chirality_harmonic([2, -1, -1] * 4) == 2   # n=12
+    # ...and at the flagship width the pattern cannot reach 3 at all.
+    assert harmonics.classify_chirality_harmonic(([2, -1, -1] * 43)[:128]) == 2
+
+
+def test_three_fold_score_is_one_exactly_for_a_block_repeated_three_times():
+    """EXHAUSTIVE over the small-integer cubes: `three == 1` iff x is one
+    block of length n/3 repeated three times (equivalently, x is invariant
+    under rotation by n/3). Zero mismatches against that predicate."""
+    import itertools
+    from srmech.amsc.q import Q
+    for n, alphabet in ((3, (-1, 0, 1, 2)), (6, (-1, 0, 1))):
+        k = n // 3
+        for x in itertools.product(alphabet, repeat=n):
+            if all(v == 0 for v in x):
+                continue                       # the all-zero guard path
+            is_block_repeat = all(x[i] == x[i % k] for i in range(n))
+            assert (harmonics._spectral_scores(list(x))[2] == Q(1)) \
+                is is_block_repeat, f"n={n} x={x}"
 
 
 def test_classify_chirality_harmonic_empty_raises():
