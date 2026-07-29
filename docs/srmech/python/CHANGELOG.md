@@ -13,6 +13,87 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc359]
+
+**THE INSTRUMENT LIES.** Every item in this rc is a **measurement surface reporting a value it did not measure** — a ratchet pinned at a true `0` that counts the wrong thing, a CI guard whose evidence base sits outside its own trigger, a score documented as a measurement that is a closed-form function of the input's LENGTH, a registry whose C content nothing checks, and a table cell that says *"we didn't measure"* about a number that costs 32 768 basis triples. Where rc358 fixed prose that **asserted something the tree does not do**, rc359 fixes instruments that **report something they did not observe**. The second class is worse: a false sentence can be read and doubted, but a green ratchet is evidence, and evidence that was never gathered is indistinguishable from evidence that was.
+
+**No new ops. `describe()["tools"]["total"]` stays 513. `SRMECH_ABI_VERSION` stays 10** (item 4 adds two C symbols, which is additive). Regeneration is idempotent at 0 files changed.
+
+### (1) `#T1035` — the guard's SOURCE is wider than its TRIGGER
+
+`tests/test_ref_notation_emitted_rc348.py` rglobs **all** of `docs/srmech/` to derive the `#TNNN` vocabulary its strict-zero rule depends on. `srmech-ci.yml` fires only on `docs/srmech/python/**` + `docs/srmech/c/**`. Measured on TRACKED files at `main`: **1874** guard-suffix files under `docs/srmech/`, **846 of them outside every trigger** (notes 727 · rbs_lm 82 · rbs_nn 17 · adr 12 · catalogs 4 · 4 top-level). Of the 45 distinct task ids, **three are decidable ONLY out there** (`#T959`, `#T961`, `#T971`). So a notes-only commit could mint a task ID and no job would run. The same gap covers `tests/test_cd_register_ops_rc301.py`, whose committed proof NDJSON lives in `notes/` — a guard-only job would have left that half still armed.
+
+**New workflow `.github/workflows/srmech-ref-guard.yml`** on `docs/srmech/**`, running BOTH files. ~1–2 CI-min: 1 ubuntu cell, no native build, no matrix.
+
+⚠️ **This is a SEPARATE workflow, not a job inside `srmech-ci.yml`, and the difference is not stylistic.** `paths:` is a filter on the `on:` **trigger** and is workflow-level; GitHub Actions has no per-job `paths:` key. Adding `docs/srmech/**` to `srmech-ci.yml` would therefore have run the **full matrix** — measured from run 30462044681 at **≈213 billed minutes**, 45m24s critical path — on every notes-only push, and `notes/` is 727 of the 846 files and the highest-churn path in the repo. A separate workflow buys identical coverage for **~140× less**, and `srmech-ci.yml`'s trigger block is untouched. Net effect is FEWER wasted runs: today a notes-only PR either burns nothing while arming a trap, or burns a full **red** matrix discovering it.
+
+Plus the piece that stops the recurrence — these two sets have now drifted **twice**. `SCAN_ROOTS` + `test_every_scanned_root_is_inside_a_ci_trigger_path` assert that every directory the suite reads lies inside some workflow's trigger paths, and `test_no_test_reaches_out_of_tree_without_declaring_it` makes a new undeclared `parents[2]` reach RED. The workflow `paths:` parser is hand-rolled (PyYAML is **not** a declared dependency and this suite must run in the numpy-absent venv) and is itself guarded by `test_the_trigger_parser_can_still_see_something`, because a parser that silently returns nothing would make the coverage assertion pass by vacuity.
+
+### (2) `#T1035` / N2 — a ratchet pinned at `0`, where `0` meant *unmeasurable*
+
+`srmech_class_registry.c` embeds its `[class]` descriptors as **decimal byte arrays**. To the textual scanner, `#962` is `35, 57, 54, 50` — four integers. So `CEIL_BARE_REFS_EMITTED["c/src/srmech_class_registry.c"] = 0` was **true**, and meaningless: the compiled library shipped **5** bare refs that a bare-C host reads straight out of the table.
+
+**The pinned `0` was NOT raised.** It is correct for the text predicate; the count was never wrong, it was counting a different thing. Raising it would have forced a down-only ratchet upward, and a ratchet you have to argue upward has stopped being one. Instead a **second predicate with its own ceiling** (`CEIL_BARE_REFS_DECODED`) decodes the byte arrays and applies the identical rules. Two predicates, two ceilings, neither lying.
+
+**Found by running the decoder over every artifact instead of only the one filed:** `srmech_tool_registry.c` carries **3 more** decoded refs (`#728` / `#729` / `#730`, one long-string line) that nobody had filed. `srmech_carrier_registry.c` decodes to **0** while *having* byte arrays — the control that proves the decoder can report zero, so a zero here is evidence rather than silence.
+
+Adjudicated individually against `gh issue view`, never swept:
+
+| ref | decoded context | verdict |
+|---|---|---|
+| `#962` | *"Genome (the seed worked-instance…)"* | → **`gh #962`**. DECIDABLE (the tree spells `#T962`), so strict-zero required it. gh #962 is *"srmech: genome storage perspective + native A-N binding"*. **TOPICAL.** |
+| `#887` ×2 | *"the substrate generator"* / *"the 1+3+7+3 = 14-D A–N substrate"* | → **`gh #887`**. gh #887 is *"The two alphabets — operator (1:3:7 cyclic) vs operand (2:4:8 spatial)"*. **TOPICAL.** |
+| `#566` | *"Genome (the seed worked-instance; … / #566)"* | **LEFT BARE.** gh #566 is *"Spike #136 — Quantum computing without brute-forcing the universe"* — Clifford algorithms, Gottesman-Knill, T-gate density. **NOT the genome.** |
+| `#564` | *"Hurwitz (… the numpy-Rosetta-peer dissolution POC)"* | **LEFT BARE.** gh #564 is *"research(MS-14 wave-2 integration): 12 PRs merged + 6 stances"*. **NOT the carrier arc.** |
+
+⚠️ **`#564` was proposed for conversion and reading the issue BODY refuted it.** Existence proves nothing; topicality decides — and a wrongly-converted working link is worse than an unconverted one because it looks deliberate. Both `#566` and `#564` stay as pre-convention residual under the new decoded CEIL (**2**), which is exactly what a CEIL is for. Decoded strict-zero (the decidable class): **0**.
+
+### (3) `#T1028` + N4 — a forced zero documented as a measurement
+
+`_spectral_scores`' third component was documented as a score. When `3 ∤ n` it is a **closed-form function of `n mod 3`** and not a function of `x` at all: `Z_n` has an order-3 element iff `3 | n`, so below that there is no 3-fold rotation of the index set to measure.
+
+⚠️ **`harmonics.py`'s scoring code was NOT touched.** It is **correct by design and empty** — the arithmetic is right, the CONTRACT was wrong. Verified: `three == Q(0)` on every sampled vector at n ∈ {1,2,4,5,7,8,16,32,64,127,128}, and verdict 3 is **unreachable** there (the mirror score is never negative and verdict 3 needs `three > mirror`). Not an edge case: `hdc.DEFAULT_HDC_BYTES` is **128**, `128 % 3 == 2`, and every Cayley–Dickson dim srmech ships is `≢ 0 mod 3` (8→2, 16→1, 32→2, 64→1). **The reachable codomain is {1, 2}, not {1, 2, 3}.**
+
+**A SECOND defect, unfiled, in the same three lines.** The docstring claimed *"a 3-periodic signal scores high"*. **False.** The score rotates by `n/3`, so it detects **three repeats of one block**, not period 3. Measured exhaustively: `three == 1` **iff** `x` is one block of length `n/3` repeated 3× (zero mismatches over the small-integer cubes at n = 3, 6, 9). For the genuinely period-3 vector `[2,-1,-1] * (n//3)` it scores 1 **iff `9 | n`**, and exactly `1/2` otherwise — verdict **2**, not 3 (verified n = 3…90).
+
+The pre-existing `test_classify_chirality_harmonic_three_periodic_is_h3` **passed for a reason its own name got wrong**: at n=9 the vector is *both* period-3 *and* a 3× block repeat, and it is the second property being measured. Renamed to `..._block_repeated_three_times_is_h3` and joined by the differential (`n=9 → 3` vs `n=12 → 2`, same pattern), the forced-zero pin, the unreachable-verdict pin, and the exhaustive block-repeat characterisation.
+
+`tool_schema.py:2610`'s `returns` text now states the bound. ⚠️ `:2596` carries the **byte-identical** string `"harmonic order 1, 2, or 3"` for `classify_harmonic` — the A–N **class-letter** classifier, where H3 = I/J/L genuinely exists. That one is CORRECT and was left alone; a `replace_all` here ships a false claim.
+
+**No generalised Z₃-character score was invented.** Which projection to use is a research question, not a build decision.
+
+### (4) `#T1009` — the unwitnessed class registry (and ADR-0010's prerequisite)
+
+Carrier and responsion have had byte-identity ratchets over their C schema JSON since rc205 / rc225. **CLASS had none.** The only runtime check asserted `got.startswith(b"#") or b"[class]" in got` — a **NAME** witness that every descriptor in the tree satisfies, and would keep satisfying if its content rotted entirely. `test_class_registry_codegen_rc202.py` compares regenerated **source** to on-disk source, so **a stale `.so` is invisible to it**.
+
+New: `srmech_class_registry_count()` + `srmech_class_registry_get(size_t)` (the peers of `srmech_carrier_registry_count` / `_get`), their ctypes bindings + `_SrmechClassDescriptorC` mirror, and three tests that witness the descriptor **BODY**: set-equality of the compiled table against the shipped catalog, **byte-identity** of each compiled descriptor against its on-disk TOML, and — the load-bearing one — that all **35** dotted `srmech.amsc.*` op refs baked into the C table still resolve to importable callables.
+
+**Why this lands HERE and not inside ADR-0010 (`#T1034`).** The class TOMLs bake those op refs under `srmech.amsc.genome.*` / `srmech.amsc.cascade.*` — **exactly the two prefixes ADR-0010 renames**. After that rename, a class registry that was regenerated-but-not-rebuilt still resolves `"One"` to a descriptor whose refs name dead ops; `b"[class]" in got` **still passes**; C dispatches into nothing while the pure path keeps answering because `srmech/dsl` reads the TOML off disk. An instrument built in the same arc as the change it must detect has **no green baseline**, so a red would be unattributable. It is a prerequisite of `#T1034`, not a member of it.
+
+Additive symbols → **ABI stays 10**.
+
+`tools/regen_all.py` gains the matching warning: regeneration writes C **source**, it does not rebuild, so "sources correct, loaded library one edit behind" is the routine post-regen state and any native test run in that window measures the old bytes. It is a **CONTENT** check (the library is asked what descriptors it actually carries), never mtime — the tool's own docstring already explains why an mtime guard is a trap. A **warning**, never a failure: a pure / Pyodide checkout has no library and must stay green. Both branches were proven to fire, and proven silent when clean.
+
+### (5) `#T1026` — six sites that each stated half a fact
+
+`cd_register.py` documented the index/sign split; `hdc.py` documented that `bind` is XOR and is commutative / associative / self-inverse. Neither said why those are the **same** fact. Joined, with the consequence stated: `e_i·e_j = ±e_k` pins `k = i ⊕ j` for free but does **not** pin the `±`, and solving `δt = ε` over GF(2) through the shipped `gf_rref` shows `rank([A|b]) = rank(A) + 1` at **every** rung — inconsistent everywhere, so no relabelling `t` can absorb the sign. It is **cohomological**, not representational. `bind` is the coboundary-free shadow of the same product; `cd_navmap` returns `(k, sign)` per slot precisely because the sign cannot be derived from the labels. Back-referenced from `modular_linalg.py`.
+
+⚠️ **The prepared "gauge" framing was WRONG and was corrected before shipping.** The rc359 research supplied two rank tables and said the numbers reproduce *"only under the pinned convention `t(e₀) = 0`"*. Re-derived through `gf_rref`: **`t(e₀) = 0` is a THEOREM of the system, not a gauge choice.** `e₀·e₀ = +e₀`, so the `(i,j) = (0,0)` row **is** literally `t(e₀) = 0`; adding it as an extra constraint changes no rank (measured). What actually separates the two tables is a **matrix encoding** choice — keeping the `t(e₀)` column (1/2, 2/3, 5/6, 12/13, 27/28, 58/59) versus eliminating the variable and dropping column 0 (0/1, 1/2, 4/5, 11/12, 26/27, 57/58), which removes that redundant row along with it. The docs ship the natural encoding **and** the invariant behind both: `nullity(A) = log₂(dim)` exactly, because the homogeneous solutions are precisely the GF(2)-**linear functionals**, giving `rank(A) = dim − log₂(dim)` in closed form. The `+1` defect that carries the conclusion is unchanged either way.
+
+### (6) the `(cost-skipped)` fill — five sites, one measurement
+
+The dim-32 cell of the SIGN-COCYCLE table read `(cost-skipped)`: a table stating *"we did not measure this"* in a row whose other four columns are exact. Measured through the shipped `cd_basis_product` over all 32³ basis triples: **16808/32768 ≈ 51%**. The full column is now `8/8 100% · 64/64 100% · 344/512 67% · 2248/4096 55% · 16808/32768 51%`.
+
+Filled at **five** live sites in **two** column formats — `c/include/srmech.h:4683`, `cascade/cayley_dickson.py:181`, `introspect/__init__.py:974` (18-col) and `carrier_schema.py:135`, `tests/test_carrier_ceiling_rc343.py:43` (19-col). ⚠️ `CHANGELOG.md:677` is the **rc339 historical entry** and records what was true then — deliberately NOT edited.
+
+### Deferred to rc360, and why the split is real
+
+**`#T1032`** (`associator`, `random_anticommutative_table`) and **`#T1024`** (`gf_solve`, `gf_nullspace`) — four ops, all composition over already-exported C symbols, all ABI-neutral. rc358's entry forward-referenced the first two as "rc359"; they move to **rc360**.
+
+The dividing line is checkable, not aesthetic: **does `describe()["tools"]["total"]` move?** The pin `513` is hardcoded at **60 sites across 42 test files with no shared constant**, so any op addition drags a 60-site mechanical edit plus a 6-artifact regen. Bundling that with this rc's doc + instrument work means one bad `sed` reds 42 files and buries the part that has no such blast radius. rc359 changes no op count and is independently revertable; rc360 carries the four ops and the 60-site pin move together, where the diff is legible.
+
+Also deferred: **`#T1028(b)`** — DROPPED. Its filed premise (that `hdc.loop_associator` is dim-8 bound) is refuted; `_as_loop` accepts any power of two, and the op is subsumed by `#T1032`'s exact peer. **`#T1028(c)`** (`closure` / `left_orbit` / `min_generating_set`) needs three new C kernels for honest ADR-0009 parity — its own rc.
+
 ## [0.9.0rc358]
 
 **THIS rc FIXES FALSE CLAIMS IN SHIPPED TEXT.** Not stale text, not imprecise text — text that **asserts something the tree does not do**, in five places, every one of them reachable by a user. Four of the five ship inside the wheel; one of them ships inside the compiled `libsrmech.so`. No signature changed, no symbol was added or removed, and **`SRMECH_ABI_VERSION` stays 10**.

@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc358"
-#define SRMECH_VERSION       "0.9.0rc358"
+#define SRMECH_VERSION_PRE   "rc359"
+#define SRMECH_VERSION       "0.9.0rc359"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -4680,7 +4680,7 @@ srmech_status_t srmech_hamming_decode_correct(const uint8_t *codeword, size_t le
  *       4 |      16/16       |        6  (6)           |    64/64     100%
  *       8 |      64/64       |       28  (28)          |   344/512     67%
  *      16 |     256/256      |      120  (120)         |  2248/4096    55%
- *      32 |    1024/1024     |      496  (496)         |  (cost-skipped)
+ *      32 |    1024/1024     |      496  (496)         | 16808/32768   51%
  *
  * The index lane is exact at EVERY rung; the SIGN is what stops being
  * associative, abruptly, at dim 8. So addressing is unbounded because XOR is
@@ -5856,6 +5856,17 @@ extern const size_t srmech_class_registry_len;
  * (writing its length EXCLUDING the NUL to *out_len) or NULL for an unknown /
  * user class. `out_len` may be NULL. */
 const char *srmech_class_descriptor_lookup(const char *name, size_t *out_len);
+
+/* rc359 (`#T1009`) — ENUMERATE the compiled-in class registry: the peers of
+ * srmech_carrier_registry_count / _get. srmech_class_descriptor_lookup resolves
+ * a name the caller must already hold, so it cannot answer "what does C
+ * actually carry?" — which is the question a parity ratchet has to ask. These
+ * two let a caller walk the table and read every descriptor BODY, so a stale
+ * .so (source regenerated, library not rebuilt) is DETECTABLE rather than
+ * silently trusted. `_get` returns NULL for an out-of-range index.
+ * Additive -> SRMECH_ABI_VERSION stays 10. */
+size_t srmech_class_registry_count(void);
+const srmech_class_descriptor_t *srmech_class_registry_get(size_t index);
 
 /* Workspace bytes srmech_run_class_method needs for a given class + input sizes
  * (resolves `class_name`'s descriptor length internally; a safe over-bound for

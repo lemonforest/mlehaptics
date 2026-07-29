@@ -1,6 +1,6 @@
 # The One — S(σ,θ), as a config-driven [class] over the shipped cascade.
 #
-# This is the substrate generator (srmech.amsc.cascade.the_one, #887) declared
+# This is the substrate generator (srmech.amsc.cascade.the_one, gh #887) declared
 # DECLARATIVELY: a [class] TOML whose methods bind to the module-level flat
 # accessor ops in srmech.amsc.cascade.one (the genome two-layer pattern — ship
 # each accessor as a flat op, bind it here). Per
@@ -19,7 +19,7 @@
 [class]
 name = "One"
 kind = "substrate"
-doc = "S(σ,θ) — the single generator of the 1+3+7+3 = 14-D A–N substrate (the Hurwitz ℂ/ℍ/𝕆 division-algebra ladder; #887). Construct the field value with srmech.amsc.cascade.the_one(σ, θ_num, θ_den[, terms]); the methods expose the One's exact-rational accessors + realisations as a declarative, config-driven class — prefer this [class] TOML over hand-coding the domain class."
+doc = "S(σ,θ) — the single generator of the 1+3+7+3 = 14-D A–N substrate (the Hurwitz ℂ/ℍ/𝕆 division-algebra ladder; gh #887). Construct the field value with srmech.amsc.cascade.the_one(σ, θ_num, θ_den[, terms]); the methods expose the One's exact-rational accessors + realisations as a declarative, config-driven class — prefer this [class] TOML over hand-coding the domain class."
 
 [class.field]
 one = "any"

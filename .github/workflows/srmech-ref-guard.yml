@@ -1,0 +1,86 @@
+name: srmech-ref-guard
+
+# rc359 (`#T1035`) — THE GUARD'S SOURCE IS WIDER THAN ITS TRIGGER.
+#
+# `srmech-ci.yml` fires on `docs/srmech/python/**` + `docs/srmech/c/**`. But two
+# of its tests READ the whole `docs/srmech/` subtree:
+#
+#   tests/test_ref_notation_emitted_rc348.py  rglobs ALL of docs/srmech to derive
+#     the local-task-ID vocabulary (`#TNNN`) that its strict-zero rule needs.
+#   tests/test_cd_register_ops_rc301.py       reads docs/srmech/notes/*.ndjson as
+#     the committed proof it re-measures against.
+#
+# MEASURED at `main`: 1874 guard-suffix TRACKED files under docs/srmech/, of
+# which 846 sit OUTSIDE the srmech-ci trigger (notes 727 · rbs_lm 82 · rbs_nn 17
+# · adr 12 · catalogs 4 · 4 top-level). 45 distinct `#TNNN` ids exist and THREE
+# are decidable ONLY out there (`#T959`, `#T961`, `#T971`). So a notes-only or
+# adr-only commit can mint a task ID, or invalidate a committed proof, and no
+# job runs. The guard is armed and silent — which is the same class of defect it
+# was written to catch: a measurement surface reporting a value it did not
+# measure.
+#
+# WHY A SEPARATE WORKFLOW AND NOT A JOB IN srmech-ci.yml.
+# `paths:` is a filter on the `on:` TRIGGER and is workflow-level; GitHub Actions
+# has no per-job `paths:` key. Widening srmech-ci.yml's own trigger to
+# `docs/srmech/**` would therefore run the FULL matrix — measured from run
+# 30462044681 at ~213 BILLED minutes, 45m24s critical path — on every notes-only
+# push, and `notes/` is 727 of those 846 files and the highest-churn path in the
+# repo. A separate workflow gets identical guard coverage for ~1-2 CI-min:
+# 1 ubuntu cell, no native build, no matrix. ~140x cheaper for the same
+# protection, and srmech-ci.yml's trigger block is left exactly as it was.
+#
+# NET EFFECT IS FEWER WASTED RUNS, NOT MORE. Today a notes-only PR either burns
+# nothing while arming a trap, or burns a full RED matrix discovering it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/srmech/**"
+      # The guard reads this workflow's own trigger list (the meta-test below
+      # checks scan-root ⊆ trigger-path), so both workflow files are inputs.
+      - ".github/workflows/srmech-ref-guard.yml"
+      - ".github/workflows/srmech-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/srmech/**"
+      - ".github/workflows/srmech-ref-guard.yml"
+      - ".github/workflows/srmech-ci.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ref-guard:
+    name: ref-notation + proof-NDJSON guard
+    runs-on: ubuntu-latest
+    # HANG GUARD, not a performance budget — same rule as srmech-ci.yml. Measured
+    # CPU floor is ~14.5s for the two files (12.5s + 2.0s) plus checkout/install;
+    # the local 110s wall is DrvFs filesystem wait a native ext4 runner does not
+    # pay. Budget ~2 min, guarded at 12 per the rc357 formula's 10-minute floor.
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package (pure path — this guard needs no native build)
+        working-directory: docs/srmech/python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Reference-notation ratchet (emitted artifacts + decoded payloads)
+        working-directory: docs/srmech/python
+        run: python -m pytest tests/test_ref_notation_emitted_rc348.py -q
+
+      - name: cd_register committed-proof NDJSON matches the live measurement
+        working-directory: docs/srmech/python
+        run: python -m pytest tests/test_cd_register_ops_rc301.py -q

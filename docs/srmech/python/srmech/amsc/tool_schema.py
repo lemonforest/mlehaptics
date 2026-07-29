@@ -2607,7 +2607,13 @@ def _register_primitive_class_tools() -> None:
                           "exact Q — a float is promoted by its EXACT "
                           "as_integer_ratio, so 0.5 is exactly Q(1, 2) and the "
                           "boundary is decided in the rationals, never in binary")),
-            returns=R("int", "harmonic order 1, 2, or 3"),
+            returns=R("int", "harmonic order 1, 2, or 3. NOTE the reachable "
+                             "codomain is {1, 2} whenever len(hv) is not "
+                             "divisible by 3: the 3-fold rotation score is a "
+                             "forced zero there (Z_n has no order-3 rotation), "
+                             "so verdict 3 cannot occur. This includes "
+                             "hdc.DEFAULT_HDC_BYTES = 128 and every CD dim "
+                             "(8/16/32/64)"),
         ),
         ToolEntry(
             name="srmech.amsc.dispatch.mirror_pattern", owner="srmech",

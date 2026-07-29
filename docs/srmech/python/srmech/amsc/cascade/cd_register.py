@@ -32,6 +32,49 @@ rather than assumed, and ``tests/test_cd_register_rc297.py`` enforces it against
 full exact-rational :func:`~srmech.amsc.cascade.cayley_dickson.cd_mult` — so the
 property is a gate, not a comment.
 
+The sign is not a function of the labels, and that is the whole join
+------------------------------------------------------------------
+``e_i · e_j = ±e_k`` pins ``k = i ⊕ j`` at every rung — that is the INDEX
+lane, and it is free. It does NOT pin the ``±``. Ask the sharp version: is
+the sign a COBOUNDARY? I.e. does some per-index ``t: {0..dim-1} → GF(2)``
+exist with ``t(i) + t(j) + t(i⊕j) = ε(i, j)``, where ``ε`` is 0 for ``+1``
+and 1 for ``-1``? Solved through the shipped
+:func:`~srmech.amsc.modular_linalg.gf_rref` over GF(2), one row per ordered
+basis pair, columns ``t(0..dim-1)``::
+
+    dim                     2     4     8    16     32     64
+    rank(A) / rank([A|b])  1/2   2/3   5/6  12/13  27/28  58/59
+    nullity(A)              1     2     3     4      5      6   = log2(dim)
+
+``rank([A|b]) = rank(A) + 1`` at EVERY rung: the system is inconsistent
+everywhere, so no such ``t`` exists at any dim. The sign is therefore an
+irreducible COHOMOLOGICAL datum, not a representational one.
+
+Two encoding notes, because the raw ranks are not self-describing and a
+half-quoted table is not reproducible:
+
+* ``nullity(A) = log2(dim)`` exactly. The homogeneous solutions are precisely
+  the GF(2)-LINEAR functionals on ``(ℤ/2)^d``, so ``rank(A) = dim - log2(dim)``
+  in closed form. That is the invariant worth quoting; the rank pair is the
+  frame-relative shadow of it.
+* **There is no gauge freedom here to fix.** ``t(e₀) = 0`` is a THEOREM of the
+  system, not a convention imposed on it: ``e₀·e₀ = +e₀``, so the ``(i, j) =
+  (0, 0)`` row IS literally ``t(e₀) = 0``. Adding it as an extra constraint
+  changes no rank (measured). Eliminating the variable instead — substituting
+  ``t(e₀) = 0`` and dropping column 0 — shifts BOTH ranks down by exactly one
+  (0/1, 1/2, 4/5, 11/12, 26/27, 57/58) because that redundant row leaves with
+  it. Same system, same conclusion, different matrix. The ``+1`` defect that
+  carries the result is invariant under both.
+
+This is why this module carries the sign explicitly — :func:`cd_navmap`
+returns ``(k, sign)`` per slot rather than an index alone, and the sign branch
+is a Class-K pin-slot composed with the Class-C
+:func:`~srmech.amsc.cascade.chiral_flip`. It is also why
+:func:`~srmech.amsc.hdc.bind` — a component-wise XOR, the index lane with the
+sign channel absent — is commutative, associative and self-inverse at every
+width while Cayley–Dickson turn-composition is none of those above dim 4.
+``bind`` is the coboundary-free shadow of the same product.
+
 The address namespace is a PARAMETER, and that is load-bearing
 --------------------------------------------------------------
 A register's minted addresses are content-derived from a **name**:

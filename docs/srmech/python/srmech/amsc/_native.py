@@ -508,6 +508,19 @@ class _SrmechCarrierEntryC(ctypes.Structure):
     ]
 
 
+# rc359 (`#T1009`) — ctypes mirror of srmech_class_descriptor_t (the packaged
+# DSL [class] descriptor table baked into srmech_class_registry.c). Field order
+# MUST match c/include/srmech.h exactly so the enumeration accessors read the
+# const table back. `toml` is the descriptor BODY, which is the thing the rc359
+# ratchet witnesses — the pre-existing runtime check only ever saw NAMES.
+class _SrmechClassDescriptorC(ctypes.Structure):
+    _fields_ = [
+        ("name", ctypes.c_char_p),          # the resolve key
+        ("toml", ctypes.c_char_p),          # UTF-8 descriptor bytes (LF, NUL-term)
+        ("toml_len", ctypes.c_size_t),      # EXCLUDES the NUL
+    ]
+
+
 class _SrmechResponsionEntryC(ctypes.Structure):
     _fields_ = [
         ("key", ctypes.c_char_p),           # "<operator>|<carrier>" edge key
@@ -7239,6 +7252,18 @@ def _bind(lib: ctypes.CDLL) -> None:
             ctypes.POINTER(ctypes.c_size_t),
         ]
         lib.srmech_class_descriptor_lookup.restype = ctypes.c_char_p
+    # rc359 (`#T1009`) — the ENUMERATION peers. Lookup-by-name can only confirm
+    # names Python already holds; these answer "what does the .so ACTUALLY
+    # carry?", which is what makes a stale library detectable.
+    #   size_t srmech_class_registry_count(void)
+    #   const srmech_class_descriptor_t *srmech_class_registry_get(size_t)
+    if hasattr(lib, "srmech_class_registry_count"):
+        lib.srmech_class_registry_count.argtypes = []
+        lib.srmech_class_registry_count.restype = ctypes.c_size_t
+    if hasattr(lib, "srmech_class_registry_get"):
+        lib.srmech_class_registry_get.argtypes = [ctypes.c_size_t]
+        lib.srmech_class_registry_get.restype = ctypes.POINTER(
+            _SrmechClassDescriptorC)
     #   srmech_status_t srmech_run_class_method(const char *class_name,
     #       const char *method, const char *fields_json, size_t fields_len,
     #       const char *args_json, size_t args_len, void *ws, size_t ws_len,
@@ -8015,6 +8040,68 @@ def has_native_run_class_method() -> bool:
         HAS_NATIVE and LIB is not None
         and hasattr(LIB, "srmech_run_class_method")
     )
+
+
+# ----------------------------------------------------------------------
+# rc359 (`#T1009`) — the CLASS-registry CONTENT surface.
+#
+# Carrier (`carrier_schema_json_c`) and responsion (`responsion_schema_json_c`)
+# have had byte-identity ratchets since rc205 / rc225. CLASS had none: the only
+# runtime check asserted that four NAMES resolve in C. A name-only assertion
+# cannot see a descriptor whose BODY has drifted, which is precisely the failure
+# a dotted-op-ref rename produces — C dispatches to op names that no longer
+# exist while the pure path, reading the TOML off disk, keeps answering.
+# ----------------------------------------------------------------------
+
+def has_native_class_registry() -> bool:
+    """True iff the rc359 class-registry ENUMERATION peers are bound."""
+    return bool(
+        HAS_NATIVE and LIB is not None
+        and hasattr(LIB, "srmech_class_registry_count")
+        and hasattr(LIB, "srmech_class_registry_get")
+    )
+
+
+def class_registry_count_c() -> "int | None":
+    """Number of [class] descriptors compiled into the C table, or ``None``."""
+    if not has_native_class_registry():
+        return None
+    return int(LIB.srmech_class_registry_count())
+
+
+def class_registry_names_c() -> "list[str] | None":
+    """Every class NAME from the C table in table order, or ``None`` if no C."""
+    if not has_native_class_registry():
+        return None
+    n = int(LIB.srmech_class_registry_count())
+    names: "list[str]" = []
+    for i in range(n):
+        ptr = LIB.srmech_class_registry_get(ctypes.c_size_t(i))
+        if not ptr:
+            return None
+        names.append(ptr.contents.name.decode("utf-8"))
+    return names
+
+
+def class_descriptor_c(index: int) -> "dict | None":
+    """The i-th descriptor as ``{"name", "toml", "toml_len"}``.
+
+    ``toml`` is the descriptor BODY as it exists INSIDE the loaded library —
+    the bytes a bare-C host actually dispatches on. Comparing it to the on-disk
+    TOML is what distinguishes "the source is correct" from "the .so is
+    current"; the codegen test only ever proved the former.
+    """
+    if not has_native_class_registry():
+        return None
+    ptr = LIB.srmech_class_registry_get(ctypes.c_size_t(index))
+    if not ptr:
+        return None
+    ent = ptr.contents
+    return {
+        "name": ent.name.decode("utf-8"),
+        "toml": ent.toml.decode("utf-8"),
+        "toml_len": int(ent.toml_len),
+    }
 
 
 def run_class_method_c(
