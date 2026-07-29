@@ -240,19 +240,46 @@ def test_killing_spectrum_is_two_triplets():
 
 
 def test_h_choice_invariance_spectrum_bit_identical():
-    """The Killing spectrum is bit-identical across different ℍ choices.
+    """The Killing spectrum is ℍ-choice-invariant to ``_BIT_EXACT``.
 
     The 7 Fano-line quaternion subalgebras are g2 = Aut(O)-conjugate, so
     their stabilisers are isomorphic; with the orthonormalised generator
-    basis the invariant Killing spectrum is bit-identical (the same
+    basis the invariant Killing spectrum agrees across every ℍ (the same
     so(4) = su(2) ⊕ su(2) algebra-type for every ℍ).
+
+    **The name over-claims and is kept only because it is the shipped one.**
+    "bit-identical" is NOT what holds: measured across ℍ = 2..7 the honest
+    residual is ``1.776e-15`` and **0 of 36 entries satisfy
+    ``reference[i] == spectrum[i]``**. The invariant is tolerance-exact at
+    ``_BIT_EXACT`` (1e-10), not exact. Tightening the assertion to ``== 0.0``
+    to match the name would turn this red on honest input — the name is the
+    thing that is wrong, not the tolerance.
+
+    **rc355 — the fold, not the tolerance, was the defect.** This line read
+    ``_scalar(max(reference[i] - spectrum[i] for i in range(6)))``: the
+    Class-K magnitude sat OUTSIDE the fold, so ``max`` ran over **signed**
+    differences and only rectified the already-selected extremum. Because the
+    spectrum is ``sorted()`` and every eigenvalue is negative, any UPWARD
+    corruption re-sorts to the top and leaves the leading signed differences
+    at ~0 while the outlier lands at a large NEGATIVE value — which ``max``
+    discards. The guard was therefore **one-sided**: it could only ever fire
+    on downward drift. Measured on the shipped form, ``+1e6``, ``+1e-6`` and
+    ``+1e-9`` injected on ``killing_spectrum[0]`` all reported deviation
+    ``1.776e-15`` and PASSED. Magnitude now folds per element — max-of-
+    magnitudes, which is what "worst deviation" means — and the same three
+    corruptions fail at ``9.99999e+05 / 9.99999e-07 / 9.99998e-10``.
+
+    Class-K discipline is unchanged: still ``cascade.magnitude`` via
+    :func:`_scalar`, never ``abs()``. Only the fold order moved.
     """
     reference = sorted(so8.quaternion_subalgebra_stabilizer(1)["killing_spectrum"])
     for quaternion_index in range(2, 8):
         spectrum = sorted(
             so8.quaternion_subalgebra_stabilizer(quaternion_index)["killing_spectrum"]
         )
-        deviation = _scalar(max(reference[i] - spectrum[i] for i in range(6)))
+        # Class-K magnitude INSIDE the fold: max-of-magnitudes, not
+        # magnitude-of-max. The latter is one-sided (see the docstring).
+        deviation = max(_scalar(reference[i] - spectrum[i]) for i in range(6))
         assert deviation < _BIT_EXACT, (
             f"ℍ index {quaternion_index} spectrum differs by {deviation}"
         )
