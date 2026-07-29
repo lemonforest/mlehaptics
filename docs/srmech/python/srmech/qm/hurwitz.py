@@ -9,7 +9,13 @@ block-diagonal operator
     G(\\sigma,\\theta) \\;=\\; \\bigoplus_{n=1}^{3}\\big(\\,1 \\;\\oplus\\;
         \\sigma\\, R_n(\\theta)\\,\\big),\\qquad \\dim = 2+4+8 = 14,
 
-but **derives** the Fano planes of each rotation ``R_n(θ)`` straight from
+where ``2+4+8`` is the **CARRIER** grouping of the 14 (by algebra). The
+cascade peer's ``1+3+7+3`` is the **OPERATOR** grouping of the *same* 14 (by
+role: three ``Im 𝔸ₙ`` blocks + three ``ℝ·1`` grammar anchors). They are the
+row-sums and the column-sums of one table, not rival totals — see the
+``Two partitions, one 14`` paragraph in :mod:`srmech.amsc.cascade.one`.
+
+The module **derives** the Fano planes of each rotation ``R_n(θ)`` straight from
 :func:`srmech.qm.octonion.octonion_mult_table` — not from a hardcoded list —
 so the agreement with the cascade form is a genuine cross-derivation (the
 two substrate-native languages, continuous-Hopf matrix vs discrete-cyclic
@@ -50,7 +56,8 @@ from typing import List, Tuple
 
 from srmech.qm.octonion import octonion_mult_table
 
-#: The substrate dimension (2 + 4 + 8).
+#: The substrate dimension — 2+4+8 (carrier grouping, by algebra) =
+#: 1+3+7+3 (operator grouping, by role) = 14.
 _DIM = 14
 
 #: Imaginary dimensions of ℂ / ℍ / 𝕆; the rotation axis of block ``n`` is the

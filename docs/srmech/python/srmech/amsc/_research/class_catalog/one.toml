@@ -27,7 +27,7 @@ one = "any"
 [class.method.dim]
 op = "srmech.amsc.cascade.one.one_dim"
 binds = ["one"]
-doc = "The substrate dimension — always 14 (= 2 + 4 + 8)."
+doc = "The substrate dimension — always 14; 2+4+8 the carrier way (grouped by algebra), 1+3+7+3 the operator way (grouped by role). Two groupings, one dimension."
 
 [class.method.imag_dims]
 op = "srmech.amsc.cascade.one.one_imag_dims"

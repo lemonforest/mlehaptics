@@ -16,8 +16,28 @@ division algebras above :math:`\\mathbb{R}` (the Hurwitz ladder; the
 parallelizable-sphere tower :math:`S^1, S^3, S^7`).
 
 **This is "the One":** a single ``(σ, θ)``-parameterised object that holds
-the entire 14-dimensional A–N substrate. The decomposition is *exactly* the
-``1 + 3 + 7 + 3`` partition the framework discovered piecemeal:
+the entire 14-dimensional A–N substrate.
+
+**Two partitions, one 14 — name them apart before reading the table.** The
+formula above counts ``2+4+8``; the section title counts ``1+3+7+3``. These
+are the SAME fourteen directions grouped two different ways — the row-sums
+and the column-sums of one table, not rival totals:
+
+- the **CARRIER partition** — ``(1+1) + (1+3) + (1+7) = 2 + 4 + 8 = 14``.
+  Group by *which algebra* a direction lives in; this is the ``⨁_n`` grading
+  of the formula above, and the constant :data:`BLOCK_DIMS`. Read ACROSS the
+  rows below.
+- the **OPERATOR partition** — ``1 + 3 + 7 + 3 = 14``. Group by *what role*
+  a direction plays: the three ``Im 𝔸ₙ`` operator blocks (:data:`IMAG_DIMS`,
+  ``Σ = 11``) plus the three ``ℝ·1`` grammar anchors (:data:`GRAMMAR_SLOTS`);
+  this is :attr:`One.partition`. Read DOWN the columns below.
+
+Neither refines the other and neither is *the* partition. Stating only one of
+them is what makes a reader meet the other as a contradiction, which is the
+whole reason this paragraph exists; ``_validate_slot_shape`` below mechanises
+the hinge (``1 + len(Im block) == BLOCK_DIMS``) so the two cannot drift apart
+silently. The OPERATOR reading is *exactly* the ``1 + 3 + 7 + 3`` partition
+the framework discovered piecemeal:
 
 ============  ==================  ==================  ========================
 ``n``         ``ℝ·1`` (anchor)    ``Im 𝔸ₙ`` dim       A–N slots of ``Im 𝔸ₙ``
@@ -107,16 +127,30 @@ from ..rational import (
 from ..q import Q
 
 # ──────────────────────────────────────────────────────────────────────
-# Substrate constants — the 1+3+7+3 partition, named once.
+# Substrate constants — BOTH partitions of the same 14, named once.
+#
+#   CARRIER  partition  (1+1)+(1+3)+(1+7) = 2+4+8 = 14  -> BLOCK_DIMS
+#   OPERATOR partition        1 + 3 + 7 + 3 = 14        -> IMAG_DIMS (Σ=11)
+#                                                          + GRAMMAR_SLOTS (3)
+#
+# Same fourteen directions, grouped by ALGEBRA vs by ROLE — the row-sums and
+# the column-sums of the module-docstring table. `2+4+8` is NOT a rival count
+# of `1+3+7+3`; a reader shown only one of them reads the other as a
+# contradiction, so this block states both. `_validate_slot_shape` below is
+# the executable form of the hinge.
 # ──────────────────────────────────────────────────────────────────────
 
 #: The three normed division algebras above ℝ (the Hurwitz ladder).
 ALGEBRAS: Tuple[str, str, str] = ("C", "H", "O")
 
-#: dim Im 𝔸ₙ = 2ⁿ − 1 for n = 1, 2, 3.
+#: dim Im 𝔸ₙ = 2ⁿ − 1 for n = 1, 2, 3 — the OPERATOR partition's first three
+#: terms (Σ = 11, the imaginary / operator substrate; the ``+3``
+#: :data:`GRAMMAR_SLOTS` anchors complete the 14).
 IMAG_DIMS: Tuple[int, int, int] = (1, 3, 7)
 
-#: dim 𝔸ₙ = 2ⁿ for n = 1, 2, 3  (= ℝ·1 ⊕ Im).
+#: dim 𝔸ₙ = 2ⁿ for n = 1, 2, 3  (= ℝ·1 ⊕ Im) — the CARRIER partition
+#: (2+4+8 = 14). NOT a subdivision of :data:`IMAG_DIMS`: the same 14
+#: directions grouped by algebra instead of by role.
 BLOCK_DIMS: Tuple[int, int, int] = (2, 4, 8)
 
 #: A–N class slots carried by each Im 𝔸ₙ (the 1 + 3 + 7 = 11 imaginary).
@@ -146,8 +180,66 @@ FANO_PLANES: Tuple[Tuple[Tuple[int, int, int], ...], ...] = (
     ((1, 6, -1), (2, 5, 1), (3, 4, 1)),          # n=3  𝕆
 )
 
-#: The full dimension of the substrate: 2 + 4 + 8 = 14.
+#: The full dimension of the substrate — 2+4+8 (carrier) = 1+3+7+3
+#: (operator) = 14. One number, two groupings; see the block header above.
 DIM: int = 14
+
+
+def _validate_slot_shape() -> None:
+    """SHAPE guard for the A–N slot tables — the invariant the constants
+    above state only in prose: one label per imaginary axis, one grammar
+    label per ``ℝ·1`` anchor, and the 14 labels a bijection onto A–N.
+
+    **SHAPE ONLY.** This checks HOW MANY labels sit where, and that the label
+    SET is exactly A–N. It never checks WHICH label sits at WHICH axis: the
+    within-block ordering (``D,E,F,G,K,L,M``) is ALPHABETICAL and was never
+    derived, so pinning it here would mint a claim the framework has not
+    made. The bijection check is ``sorted(...)`` precisely so it is
+    order-blind, and ``tests/test_one_rc49.py`` asserts that order-blindness
+    directly so a later "tightening" cannot quietly turn it into an ordering
+    claim.
+
+    It also mechanises the CARRIER/OPERATOR hinge documented in the block
+    header: ``1 + len(Im block)`` must equal :data:`BLOCK_DIMS`. That is the
+    one place the two partitions of the same 14 are forced to agree, and
+    before rc355 it was asserted in prose and checked nowhere.
+
+    **Scope, stated so it is not over-read.** It runs ONCE, at import, over
+    the constants as written in this file — which is the whole failure mode
+    (a wrong table COMMITTED to the source). It cannot see a post-import
+    rebinding of :data:`AN_IMAG_SLOTS`; there, only :meth:`Block.__post_init__`
+    fires, and only on per-axis length. O(14).
+    """
+    if len(AN_IMAG_SLOTS) != len(IMAG_DIMS):
+        raise ValueError(
+            f"AN_IMAG_SLOTS must hold {len(IMAG_DIMS)} blocks (one per "
+            f"Hurwitz rung); got {len(AN_IMAG_SLOTS)}")
+    lens = tuple(len(block) for block in AN_IMAG_SLOTS)
+    if lens != IMAG_DIMS:
+        raise ValueError(
+            f"AN_IMAG_SLOTS block sizes {lens} must equal IMAG_DIMS "
+            f"{IMAG_DIMS} — one A–N label per imaginary axis")
+    carrier = tuple(1 + n for n in lens)
+    if carrier != BLOCK_DIMS:
+        raise ValueError(
+            f"AN_IMAG_SLOTS plus the ℝ·1 anchor gives {carrier}, which must "
+            f"equal BLOCK_DIMS {BLOCK_DIMS} (the carrier/operator hinge)")
+    if len(GRAMMAR_SLOTS) != len(BLOCK_DIMS):
+        raise ValueError(
+            f"GRAMMAR_SLOTS must hold {len(BLOCK_DIMS)} labels (one ℝ·1 "
+            f"anchor per block); got {len(GRAMMAR_SLOTS)}")
+    labels = [c for block in AN_IMAG_SLOTS for c in block] + list(GRAMMAR_SLOTS)
+    if len(labels) != DIM:
+        raise ValueError(
+            f"expected {DIM} A–N labels in total; got {len(labels)}")
+    if sorted(labels) != list("ABCDEFGHIJKLMN"):
+        raise ValueError(
+            f"the {DIM} A–N labels must be a bijection onto A..N; got "
+            f"{sorted(labels)} (SET check — ORDER is deliberately "
+            f"unconstrained)")
+
+
+_validate_slot_shape()
 
 #: Default Taylor truncation depth for ``e^{Îθ} = cos θ + Î sin θ``. The
 #: Class-N series are exact-rational at any depth; 24 terms resolve θ across
@@ -462,6 +554,23 @@ class Block:
     imag: Tuple[Tuple[int, int], ...]
     an_imag_slots: Tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        """SHAPE guard: one A–N label per imaginary axis.
+
+        NOT a content check — WHICH label lands on WHICH axis is deliberately
+        unconstrained (the heptad's alphabetical order was never derived).
+        Closes the direct-construction hole that ``_validate_slot_shape``
+        cannot see: before rc355 ``Block`` was a bare frozen dataclass, so
+        ``Block(algebra="O", n=3, imag=<7 axes>, an_imag_slots=<8 labels>)``
+        constructed cleanly and shipped a block whose labels and axes
+        disagree. Assigns nothing, so ``frozen=True`` is unaffected.
+        """
+        if len(self.an_imag_slots) != len(self.imag):
+            raise ValueError(
+                f"Block(algebra={self.algebra!r}, n={self.n}): "
+                f"{len(self.an_imag_slots)} A–N slot labels for "
+                f"{len(self.imag)} imaginary axes — must be one per axis")
+
     @property
     def dim(self) -> int:
         """``2ⁿ`` — the full algebra dimension (real anchor + imaginary)."""
@@ -513,7 +622,12 @@ class One:
     # ── invariants (documentary + checkable) ──────────────────────────
     @property
     def dim(self) -> int:
-        """The substrate dimension — always ``14`` (= 2 + 4 + 8)."""
+        """The substrate dimension — always ``14``.
+
+        Summed the CARRIER way, ``2 + 4 + 8`` (:data:`BLOCK_DIMS`, grouped by
+        algebra). :attr:`partition` sums the SAME 14 the OPERATOR way,
+        ``1 + 3 + 7 + 3`` (grouped by role) — two groupings, one dimension.
+        """
         return DIM
 
     @property
@@ -523,7 +637,14 @@ class One:
 
     @property
     def partition(self) -> Tuple[int, int, int, int]:
-        """``(1, 3, 7, 3)`` — the canonical A–N partition (imaginary + grammar)."""
+        """``(1, 3, 7, 3)`` — the canonical A–N **operator** partition: the
+        three ``Im 𝔸ₙ`` blocks (:data:`IMAG_DIMS`) + the ``+3`` ℝ·1 grammar
+        anchors (:data:`GRAMMAR_SLOTS`).
+
+        The **carrier** partition of the same 14 is ``(2, 4, 8)``
+        (:data:`BLOCK_DIMS`, :attr:`dim`) — grouped by algebra, not by role.
+        Neither refines the other.
+        """
         return (1, 3, 7, 3)
 
     @property
