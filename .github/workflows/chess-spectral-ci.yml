@@ -56,6 +56,13 @@ jobs:
     # ${{ matrix.* }} step expressions below verbatim.
     name: ${{ matrix.os }} • py${{ matrix.python }} • ${{ matrix.preset }}
     runs-on: ${{ matrix.os }}
+    # rc357 (`#T951`) — hang guard, UNDERIVED and deliberately labelled so.
+    # The srmech jobs carry per-job timeouts derived from measured runtimes;
+    # this subtree is dormant, and deriving a real number would mean running a
+    # dormant workflow just to time it. 60 is therefore an honest placeholder,
+    # not a measurement: it still reclaims 6x against GitHub's 360-minute
+    # default. Tighten it with real numbers if this subtree reactivates.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -142,6 +149,13 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'wheel-check')
     name: verify-wheels • ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
+    # rc357 (`#T951`) — hang guard, UNDERIVED and deliberately labelled so.
+    # The srmech jobs carry per-job timeouts derived from measured runtimes;
+    # this subtree is dormant, and deriving a real number would mean running a
+    # dormant workflow just to time it. 60 is therefore an honest placeholder,
+    # not a measurement: it still reclaims 6x against GitHub's 360-minute
+    # default. Tighten it with real numbers if this subtree reactivates.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -239,6 +253,13 @@ jobs:
     # spatial_4d tests to confirm correctness.
     name: fallback (pure-Python, no native)
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — hang guard, UNDERIVED and deliberately labelled so.
+    # The srmech jobs carry per-job timeouts derived from measured runtimes;
+    # this subtree is dormant, and deriving a real number would mean running a
+    # dormant workflow just to time it. 60 is therefore an honest placeholder,
+    # not a measurement: it still reclaims 6x against GitHub's 360-minute
+    # default. Tighten it with real numbers if this subtree reactivates.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

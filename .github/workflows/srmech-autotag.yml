@@ -30,6 +30,11 @@ concurrency:
 jobs:
   maybe-tag:
     runs-on: ubuntu-latest
+    # rc357 (`#T951`) — hang guard; max observed 0:20 → 11 by the derivation
+    # rule documented in srmech-publish.yml `build-wheels`. Was: none (360-min
+    # default). This job holds `contents: write`, so a hung run sits on the tag
+    # push path for six hours.
+    timeout-minutes: 11
     permissions:
       contents: write  # needed to push tags + create releases
       actions: write   # needed to dispatch srmech-publish.yml

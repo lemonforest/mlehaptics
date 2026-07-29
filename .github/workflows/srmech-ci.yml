@@ -69,15 +69,25 @@ jobs:
     name: ${{ matrix.os }} • py${{ matrix.python }}
     runs-on: ${{ matrix.os }}
     # HANG GUARD, not a performance budget (rc352; local task `#T951`). Every
-    # job in this file previously ran to GitHub's 360-minute default. The
-    # slowest cell here is `fallback-no-native`, MEASURED at 44:01 on rc351, so
-    # 60 is comfortably above the worst observed run and far below 6 hours. If a
-    # cell ever legitimately grows past it, RAISE THIS NUMBER — do not narrow the
-    # job. A tight per-job budget would fail a genuinely slow run and force it to
-    # restart from zero, which is worse than the risk it removes. `timeout-minutes`
-    # is a JOB-level key (the workflow `defaults:` block covers only `run:`
-    # settings — shell / working-directory), so it is repeated on all five jobs.
-    timeout-minutes: 60
+    # job in this file previously ran to GitHub's 360-minute default. If a cell
+    # ever legitimately grows past its guard, RAISE THE NUMBER — do not narrow
+    # the job. A tight per-job budget would fail a genuinely slow run and force
+    # it to restart from zero, which is worse than the risk it removes.
+    # `timeout-minutes` is a JOB-level key (the workflow `defaults:` block covers
+    # only `run:` settings — shell / working-directory), so it is repeated on
+    # every job.
+    #
+    # rc357 (`#T951`): rc352 set a UNIFORM 60 sized to the slowest cell, which
+    # left the four fast jobs guarded at 30–70x their runtime. Each job is now
+    # DERIVED from its own measured max over 13 srmech-ci runs:
+    #   T = ceil(max_observed) + max(ceil(0.5 * max_observed), 10 min)
+    # The 50% term covers growth across an rc sprint; the 10-minute FLOOR exists
+    # because the measured p50→max spread is ≤2 min in ABSOLUTE terms on every
+    # job regardless of length (a slow pip/apt/image fetch costs minutes whether
+    # the job runs 30s or 45min), so purely proportional headroom would make the
+    # SHORTEST jobs the tightest and turn the guard into a flake source.
+    # build-and-test: max 15:17 (ubuntu py3.10 leg) → 26.
+    timeout-minutes: 26
     strategy:
       fail-fast: false
       matrix:
@@ -237,7 +247,17 @@ jobs:
     # to catch, and the cross-platform burden is already carried by the matrix above.
     name: fallback (pure-Python, no native)
     runs-on: ubuntu-latest
-    timeout-minutes: 60          # hang guard; see build-and-test above
+    # rc357 (`#T951`) — the one job whose guard goes UP, and the one judgment
+    # call in the set. Measured max 45:34; the rule gives 69, so 70.
+    # The uniform 60 left this job at 31.7% headroom — by far the TIGHTEST ratio
+    # in the repo — over a cell that has grown 44:01 (rc351) → 45:34 (rc356),
+    # ~18.6 s/rc. At that rate 60:00 binds in ~47 rcs, i.e. about two weeks at
+    # three rcs/day, and it would bind as a FALSE TIMEOUT on a healthy run.
+    # The asymmetry decides it: a false trip costs a full 45-minute cycle,
+    # whereas catching a genuine hang at 70 rather than 60 costs 10 extra
+    # minutes of runner time. Reverse this when the pure-suite split (`#T1007`)
+    # lands and the runtime drops.
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -336,6 +356,24 @@ jobs:
           set -o pipefail
           pytest tests/ -q -rsfE --durations=30 -n auto --dist loadfile 2>&1 | tee pytest-pure.log
 
+      # rc357 (`#T951`) — keep the evidence. This one pytest step is 42:56 of a
+      # 43:32 job (98.6%), and it is structurally all-or-nothing: a failure at
+      # any point discards all of it, AND skips the audit step below, so a red
+      # run loses the skip-gate signal too. Before this, `pytest-pure.log` was
+      # `tee`'d and never uploaded — on failure its output survived only in the
+      # web log. `if: always()` is the load-bearing part: the failing run is
+      # exactly the one whose log is worth having. This is the single largest
+      # block of discardable work in the repo; it does not make the run faster,
+      # it makes a red run INFORMATIVE instead of merely expensive.
+      - name: Preserve the pure-suite log (the 42:56 that a red run would discard)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-pure-log
+          path: docs/srmech/python/pytest-pure.log
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Audit the pure-by-design skips (the excuse must not become a mute button)
         working-directory: docs/srmech/python
         shell: bash
@@ -356,7 +394,8 @@ jobs:
     # path stays healthy.
     name: pure-wheel build
     runs-on: ubuntu-latest
-    timeout-minutes: 60          # hang guard; see build-and-test above
+    # rc357 (`#T951`) — max 0:51 → 11 (floor-dominated); see build-and-test.
+    timeout-minutes: 11
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -575,7 +614,8 @@ jobs:
     # not a claim automation could check.
     name: pedantic C build • ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60          # hang guard; see build-and-test above
+    # rc357 (`#T951`) — max 1:47 (windows leg) → 12; see build-and-test.
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
@@ -655,7 +695,9 @@ jobs:
     # matrix above already carries the cross-platform C burden.
     name: asserts-live FULL suite, fork-isolated (JPL Rule 5 with teeth, #937)
     runs-on: ubuntu-latest
-    timeout-minutes: 60          # hang guard; see build-and-test above
+    # rc357 (`#T951`) — max 19:10 → 30; see build-and-test. This is the cell
+    # that caught `#T980`, so its guard stays generous.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
