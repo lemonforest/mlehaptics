@@ -361,7 +361,7 @@ CHROMATIN_MARKER = 0x48
 #: ``0x46`` = ASCII ``'F'`` (Fiber). The fibration has TWO sides and this cap holds the SECOND:
 #: the base / sequence channel (the coupled data turns, :func:`quad_turn`) is winding-INVARIANT —
 #: ``quad_turn`` re-stamps ``q8_mult(turn, one)`` per turn (a function of the turn + the shared
-#: ``one`` ALONE, never of prior turns), so a reorder is a pure positional permutation (the #914
+#: ``one`` ALONE, never of prior turns), so a reorder is a pure positional permutation (the #T914
 #: order-discard) that leaves the abelian Watson–Crick sequence / codon read unchanged. The FIBER
 #: cap holds the strand's ORDERED accumulated Q₈ holonomy (:func:`genome_fiber_holonomy`): the
 #: non-abelian fold ``acc[s] = q8_mult(acc[s], turn_t[s])`` along the strand, which — because Q₈
@@ -1572,7 +1572,7 @@ def cwf_consistency_mod2(edges, gains, *, n: "int | None" = None,
 #   BASE  (sequence)  — the coupled data turns (:func:`quad_turn`, `stored[i] =
 #     q8_mult(turn[i], one[i])`). ABELIAN + winding-INVARIANT: each turn is a function
 #     of that turn + the shared `one` ALONE, never of prior turns, so a reorder is a
-#     pure positional permutation (the #914 order-discard) and the codon / Watson–Crick
+#     pure positional permutation (the #T914 order-discard) and the codon / Watson–Crick
 #     sequence read is unchanged. This side is KEPT byte-identical (do not modify it).
 #
 #   FIBER (topology) — :func:`genome_fiber_holonomy` folds the ORDERED non-abelian Q₈

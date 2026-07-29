@@ -6,9 +6,13 @@ compositions of the 14 A-N class operations built on srmech's own roots
 (:func:`srmech.amsc.rational.sqrt` / :func:`~srmech.amsc.rational.hypot`) and
 its own Hermitian eigendecomposition
 (:func:`srmech.amsc.laplacian.hermitian_eigendecompose`, the cyclic-Jacobi
-Class-L cascade). numpy is used ONLY as the array CONTAINER (matmul / outer /
-slicing = the Class-M bind layer) — **never** as the decomposition engine:
-there is no ``the NumPy linalg family`` anywhere in the call graph.
+Class-L cascade). numpy is **not used at all** — not as the decomposition
+engine and not as the array CONTAINER either. The containers are plain nested
+Python lists and the numpy-free :class:`~srmech.amsc.mat.Mat` carrier, which
+is numpy-SHAPED (``@``, slicing, elementwise arithmetic) but srmech-native;
+the matmul / outer / slicing that form the Class-M bind layer are its own
+methods. There is no ``import numpy`` and no call into the NumPy ``linalg``
+family anywhere in the call graph.
 
 - :func:`qr` — ``A = Q·R`` via **Householder reflections**. Q is a product
   (**Class M**) of elementary orthogonal reflectors ``H = I − β v vᴴ``; each
@@ -696,7 +700,8 @@ def char_poly(a) -> List:
     ill-conditioned (Wilkinson), so :func:`eigvals` keeps its direct float
     eigensolver and this op exposes the exact polynomial rather than rerouting the
     eigenvalues. A non-integer (or complex) matrix falls back to a float
-    Faddeev–LeVerrier. Pure-Python; numpy is a container only.
+    Faddeev–LeVerrier. Pure-Python and numpy-free at every layer — the
+    containers are plain lists / ``Mat``, never ndarrays.
 
     **Class L** (spectral / algebraic content) ∘ **Class M** (the matrix-product
     + trace accumulate) ∘ **Class K** (the exact ``// k`` step division).

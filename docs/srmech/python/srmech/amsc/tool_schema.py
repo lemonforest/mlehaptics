@@ -3142,7 +3142,7 @@ def _register_primitive_class_tools() -> None:
         # ────────────────────────────────────────────────────────────
         # Genome-storage surface — biological-structure names as cascade
         # names (genome / chromosome / telomere / quad-strand). Part 2 of
-        # #962; validated as F711-F715 on the research subtree.
+        # gh #962; validated as F711-F715 on the research subtree.
         # ────────────────────────────────────────────────────────────
         ToolEntry(
             name="srmech.amsc.genome.encode_shape", owner="srmech", category="genome",
@@ -3749,7 +3749,7 @@ def _register_primitive_class_tools() -> None:
         ),
         ToolEntry(
             name="srmech.amsc.genome.genome_fiber_holonomy", owner="srmech", category="genome",
-            summary="rc322 (§Q8-FIBER, F-HOLO-MISLOCATED) — the strand's TOPOLOGY/FIBER channel: the ORDERED accumulated Q8 holonomy of the coupled turns along a strand. The base/sequence channel (the per-turn coupled store quad_turn, stored[i]=q8_mult(turn[i], one[i])) is a function of that turn + the shared `one` ALONE, never of prior turns — so it is winding-INVARIANT (a reorder is a pure positional permutation, the #914 order-discard; the abelian Watson-Crick sequence / codon read is unchanged). This op ADDS the non-abelian complement: fold the ordered per-slot Q8 product acc[s] = q8_mult(acc[s], turn_t[s]) along the strand (identity +1 == byte 0). Because Q8 is NON-abelian (i.j=+k but j.i=-k), REORDERING the turns CHANGES the fold — this is the fiber/gauge = the accumulated Lk (biology's supercoiling channel, Lk=Tw+Wr accumulating along DNA; cwf_consistency_mod2). The per-slot center-sign holonomy[s]>>2 IS the accumulated Lk mod 2 (no abs(); the sign is a group xor-bit). Class-M (Q8 bind) ordered fold. Dispatches to the whole-op C peer srmech_genome_fiber_holonomy (c_dispatched; byte-identical pure q8_bind fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10 (the fiber CAP storage bumps GENOME_FORMAT_VERSION 16->17).",
+            summary="rc322 (§Q8-FIBER, F-HOLO-MISLOCATED) — the strand's TOPOLOGY/FIBER channel: the ORDERED accumulated Q8 holonomy of the coupled turns along a strand. The base/sequence channel (the per-turn coupled store quad_turn, stored[i]=q8_mult(turn[i], one[i])) is a function of that turn + the shared `one` ALONE, never of prior turns — so it is winding-INVARIANT (a reorder is a pure positional permutation, the #T914 order-discard; the abelian Watson-Crick sequence / codon read is unchanged). This op ADDS the non-abelian complement: fold the ordered per-slot Q8 product acc[s] = q8_mult(acc[s], turn_t[s]) along the strand (identity +1 == byte 0). Because Q8 is NON-abelian (i.j=+k but j.i=-k), REORDERING the turns CHANGES the fold — this is the fiber/gauge = the accumulated Lk (biology's supercoiling channel, Lk=Tw+Wr accumulating along DNA; cwf_consistency_mod2). The per-slot center-sign holonomy[s]>>2 IS the accumulated Lk mod 2 (no abs(); the sign is a group xor-bit). Class-M (Q8 bind) ordered fold. Dispatches to the whole-op C peer srmech_genome_fiber_holonomy (c_dispatched; byte-identical pure q8_bind fallback); ADDITIVE symbol, SRMECH_ABI_VERSION stays 10 (the fiber CAP storage bumps GENOME_FORMAT_VERSION 16->17).",
             parameters=(P("turns", "list", True, "the stored/coupled data turns — a flat bytes of n_turns*leaf_dim Q8 bytes (leaf_dim required), or a sequence of per-turn buffers (HV / bytes / list[int] of leaf_dim Q8 bytes)"),
                         P("leaf_dim", "int", False, "the per-turn width (inferred from the first buffer when a sequence of buffers is given; required for a flat buffer)")),
             returns=R("bytes", "the accumulated per-slot Q8 holonomy (leaf_dim bytes); the center-sign of each byte is that slot's accumulated Lk mod 2"),
@@ -10411,7 +10411,7 @@ def _register_dsl_tools() -> None:
             ),
         )
     )
-    rc41 = " (v0.7.5rc41 — class-from-TOML surface; #962 Part 2)."
+    rc41 = " (v0.7.5rc41 — class-from-TOML surface; gh #962 Part 2)."
     register_tool(
         ToolEntry(
             name="srmech.dsl.list_class_surface",
@@ -10493,7 +10493,7 @@ def _register_dsl_tools() -> None:
                 "make_class loop the other direction. Framework reading: Class E "
                 "(catalog enumeration) ∘ Class F (descriptor render) ∘ Class H "
                 "(self-introspection) — no new primitive class. "
-                "(v0.7.5rc49 — §39 make_class inverse; #962 Part 2.)"
+                "(v0.7.5rc49 — §39 make_class inverse; gh #962 Part 2.)"
             ),
             parameters=(
                 ToolParameter(

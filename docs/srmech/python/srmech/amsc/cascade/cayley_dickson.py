@@ -1285,9 +1285,18 @@ def left_mult_is_invertible(x: Sequence[Any], table: Any = None) -> bool:
 # ──────────────────────────────────────────────────────────────────────
 # The ℝ→ℂ rung instrument — ORDERABILITY, read off a multiplication table.
 #
-# rc349 (`#T987`, consolidating `#T968`). The Hurwitz loss ladder loses ONE
-# capability per doubling: ℝ→ℂ ordering, ℂ→ℍ commutativity, ℍ→𝕆 associativity,
-# 𝕆→𝕊 composition. The last three already had instruments in this tree
+# rc349 (`#T987`, consolidating `#T968`); CORRECTED rc358 (`#T1032`) — the old
+# wording ("loses ONE capability per doubling: … 𝕆→𝕊 composition") was FALSE on
+# three counts and is retracted here. The loss ladder is THREE SINGLETON RUNGS
+# — ℝ→ℂ ordering, ℂ→ℍ commutativity, ℍ→𝕆 associativity (this much is the
+# classical Hurwitz result, and is what the honest peer statement on
+# :func:`trace_form_inertia` grades DEFINITIONAL) — and then a CLUSTER COLLAPSE
+# at 𝕆→𝕊, where composition (norm-multiplicativity), ALTERNATIVITY and
+# zero-divisor-freeness die TOGETHER, not one at a time. Alternativity was
+# omitted from the old list entirely. The ladder is also BOUNDED: past 𝕊
+# nothing further is lost among these named properties (dim 32 loses none of
+# them), whereas "one per doubling" implies an unbounded ladder that dim 32
+# refutes. The three rungs after the first already had instruments in this tree
 # (:func:`srmech.amsc.cascade.cd_basis_product` commuting-pair counts;
 # ``hdc.loop_associator`` / ``genome_octonion_associator``;
 # :func:`sedenion_zero_divisor_witness` / :func:`left_mult_is_invertible`).
