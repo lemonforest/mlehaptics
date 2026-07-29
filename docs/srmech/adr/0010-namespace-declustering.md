@@ -60,10 +60,46 @@ A name that exists only in Python is a parity violation the moment the package i
 **Target for the declustering (and any future binding):**
 1. **The names live in a neutral, implementation-agnostic manifest**, not hardcoded in Python — the config-driven naming layer (ADR-0004; the rc261 function-aliasing TOML) is the seam: the module-namespace map (`apokatastasis` + `apo`/`winding` aliases; `math`/`physics`/`biology`/`music`) is declared there, and — the substrate-native option — is itself a **genome/attestation record** so any implementation reads the names from the store rather than from Python source.
 2. **Every implementation CODEGENS its name registry from that one manifest** at build time — Python's `tool_schema`, the four C registries, and any Go/Rust binding — so the names are byte-identical everywhere and no implementation is primary (ADR-0009).
-3. **A rename regenerates ALL name tables in lockstep** — the #930 ripple: tool + carrier + class + responsion registries + the count-pins + rosetta, gated so a desync fails loudly (a `c_dispatched` op cannot silently fall back to pure on a stale registry — the rc300 op→symbol claim manifest already enforces this shape).
+3. **A rename regenerates ALL name tables in lockstep** — the #930 ripple: tool + carrier + class + responsion registries + the count-pins + rosetta.
+
+   ⚠️ **CORRECTED rc359 (`#T1009`) — "gated so a desync fails loudly" was NOT true of all four.** It
+   held for the **tool** registry (a hash witness, which caught rc348), for **carrier** and
+   **responsion** (byte-identity ratchets at `test_carrier_schema_rc205.py:198-205` and
+   `test_responsion_schema_rc225.py:267`), and for `c_dispatched` **ops** (the rc300 op→symbol claim
+   manifest). It did **not** hold for the **class** registry, whose only witness asserted that names
+   *appeared* — never that the descriptor BODY matched. rc300 was **mis-cited** here: it stops an op
+   silently falling back to pure on a stale `.so`, which is a different failure from a registry whose
+   *content* has drifted. rc359 shipped the content witness; **35 dotted op refs are now verified
+   resolvable in C**.
+
+   ⚠️ **AND THE CLASS REGISTRY IS INVISIBLE TO GREP — this is the one that will bite this arc.** Its
+   `[class]` descriptors are embedded as **decimal byte arrays**, so the very prefixes this ADR
+   renames do not appear as text at all. Measured on `srmech_class_registry.c`:
+
+   | prefix | as text | decoded from the byte arrays |
+   |---|---|---|
+   | `srmech.amsc.cascade` | **0** | **29** |
+   | `srmech.amsc.genome` | **0** | **11** |
+
+   A verification step that greps the generated C for the old prefixes reports **CLEAN** while the
+   binary still carries all forty. **Any rename check on this file must DECODE the byte arrays** —
+   and the same question must be asked of every generated artifact before trusting a textual sweep
+   (rc359 found the identical blindness in `srmech_tool_registry.c`).
 4. **Locale note:** the Greek canonical names (`apokatastasis`/`exeligmos`) are ASCII-transliterated identifiers (module names are ASCII), so no encoding/locale hazard at the import or C-symbol layer; the Greek glyphs live only in docstrings/prose, which the introspect surface already carries UTF-8.
 
 This makes the declustering's names a **single-source, codegen-to-all-implementations** artifact — the correct shape before any rename lands.
 
+⚠️ **PREREQUISITE — established rc359, and it is an ORDERING constraint, not a checklist item.** The
+lockstep gate in (3) must land **and be green in its own rc BEFORE** the rename arc opens — never
+inside it. *An instrument built in the same arc as the change it is meant to detect has no green
+baseline, so a red is unattributable to either the rename or the instrument.* `#T1009` satisfied this
+for the class registry in rc359; ask the same of any table this ADR adds, and of the decode-aware
+check above.
+
 ## Status of adoption
-Design record only. First concrete step (`relative_writhe` → Class-N surface) shipped in rc317. Full execution deferred behind the precision migration; this ADR is the reference when that arc opens.
+Design record only. First concrete step (`relative_writhe` → Class-N surface) shipped in rc317.
+
+**Deferral condition SATISFIED (rc359).** This ADR previously read "full execution deferred behind
+the precision migration" — that migration is **complete** (the Class-N precision-contract arc shipped
+rc318/319/320), and the class-registry prerequisite above landed in rc359. The execution arc is
+tracked as `#T1034`. This ADR is the reference for it.
