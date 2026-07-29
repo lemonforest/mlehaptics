@@ -1,0 +1,5 @@
+{"agrees_with_shipped":true,"dim":2,"ordered_triples":8,"record":"sign_cocycle_assoc_crosscheck","shipped_claim":[8,8],"zero_associator_ordered_triples":8}
+{"agrees_with_shipped":true,"dim":4,"ordered_triples":64,"record":"sign_cocycle_assoc_crosscheck","shipped_claim":[64,64],"zero_associator_ordered_triples":64}
+{"agrees_with_shipped":true,"dim":8,"ordered_triples":512,"record":"sign_cocycle_assoc_crosscheck","shipped_claim":[344,512],"zero_associator_ordered_triples":344}
+{"agrees_with_shipped":true,"dim":16,"ordered_triples":4096,"record":"sign_cocycle_assoc_crosscheck","shipped_claim":[2248,4096],"zero_associator_ordered_triples":2248}
+{"agrees_with_shipped":null,"dim":32,"ordered_triples":32768,"record":"sign_cocycle_assoc_crosscheck","shipped_claim":null,"zero_associator_ordered_triples":16808}

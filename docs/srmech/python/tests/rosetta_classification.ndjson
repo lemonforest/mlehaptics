@@ -8,6 +8,8 @@
 {"exposed_as": "srmech.amsc.cascade.cd_norm_sq", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_norm_sq", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.algebra_table", "defined_at": "srmech.amsc.cascade.cayley_dickson.algebra_table", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.table_product", "defined_at": "srmech.amsc.cascade.cayley_dickson.table_product", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.cascade.associator", "defined_at": "srmech.amsc.cascade.cayley_dickson.associator", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.cascade.random_anticommutative_table", "defined_at": "srmech.amsc.cascade.cayley_dickson.random_anticommutative_table", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.cascade.inertia_signature", "defined_at": "srmech.amsc.cascade.cayley_dickson.inertia_signature", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.left_mult_is_invertible", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_is_invertible", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.cascade.left_mult_kernel", "defined_at": "srmech.amsc.cascade.cayley_dickson.left_mult_kernel", "bucket": "composition_of_c"}
@@ -528,6 +530,8 @@
 {"exposed_as": "srmech.amsc.hdc.cooccurrence_fold", "defined_at": "srmech.amsc.hdc.cooccurrence_fold", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.primes.next_prime", "defined_at": "srmech.amsc.primes.next_prime", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.modular_linalg.gf_rref", "defined_at": "srmech.amsc.modular_linalg.gf_rref", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.amsc.modular_linalg.gf_solve", "defined_at": "srmech.amsc.modular_linalg.gf_solve", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.amsc.modular_linalg.gf_nullspace", "defined_at": "srmech.amsc.modular_linalg.gf_nullspace", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.modular_linalg.crt_combine", "defined_at": "srmech.amsc.modular_linalg.crt_combine", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.rational.rational_reconstruct", "defined_at": "srmech.amsc.rational.rational_reconstruct", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.elliptic_gosper.elliptic_gosper", "defined_at": "srmech.amsc.elliptic_gosper.elliptic_gosper", "bucket": "c_dispatched"}

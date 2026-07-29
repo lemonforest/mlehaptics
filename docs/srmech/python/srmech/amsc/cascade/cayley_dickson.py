@@ -91,6 +91,7 @@ from srmech.amsc.cascade.atoms import (      # Class-K pin-slot / Class-C reorie
     reorient as _reorient,
 )
 from srmech.amsc.cyclic import gcd as _gcd   # Class-I gcd (native); NOT stdlib math
+from srmech.amsc.format import sha256_bytes as _sha256_bytes  # Class-A content-address
 from srmech.amsc.q import Q, to_q            # #845: the CD element carrier is Q
 
 from srmech.amsc import _native  # rc10: native srmech_cd_basis_product dispatch
@@ -882,6 +883,302 @@ def table_product(table: Any, x: Sequence[Any], y: Sequence[Any]
                 if cell[k]:
                     out[k] += Q(cell[k]) * coeff
     return tuple(out)
+
+
+def associator(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
+               table: Any = None) -> Tuple[Q, ...]:
+    """``(x·y)·z − x·(y·z)`` — the ASSOCIATIVITY DEFECT, exact ℚ, any rung
+    (rc360, `#T1032`).
+
+    The zero tuple ⟺ the ordered triple associates. This is the quantity the
+    Cayley–Dickson notes have been re-deriving inline at every measurement: the
+    per-rung associativity census pinned at :data:`CD_TURN_MAX_DIM` and at four
+    other sites (``carrier_schema`` / ``introspect`` / the rc343 ceiling test /
+    the C header) is exactly ``count(associator(e_i, e_j, e_k) == 0)`` over the
+    ordered basis triples::
+
+        dim  2:      8/8       dim  4:     64/64      dim  8:    344/512
+        dim 16:   2248/4096    dim 32:  16808/32768
+
+    — MEASURED through this op on the definite ladder, reproducing the shipped
+    fill exactly. It does NOT move those numbers; it is the named home for
+    computing them.
+
+    Args:
+        x, y, z: equal-length elements. With ``table=None`` the length must be
+            a power of two ``≤ CD_MAX_DIM`` (the definite ladder, via
+            :func:`cd_mult`); with a ``table`` the length must be
+            ``len(table)``. Every exact-rational scalar :func:`cd_mult` accepts
+            is accepted here.
+        table: an optional rank-3 structure-constant tensor —
+            :func:`algebra_table` (a split γ-twist),
+            :func:`random_anticommutative_table` (the negative control), or any
+            table :func:`table_product` reads. ``None`` — the default — is the
+            definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…
+
+    Returns:
+        A ``dim``-tuple of exact :class:`~srmech.amsc.q.Q`.
+
+    Raises:
+        ValueError: operands of unequal length; a non-power-of-two length when
+            ``table is None``; a ``table`` whose dim disagrees with the
+            operands.
+
+    Note:
+        Exact end to end — no float, no epsilon, no ``abs()``. Two routes, both
+        already C-backed: ``table=None`` composes ``srmech_cd_mult``, a
+        ``table`` composes ``srmech_algebra_table_product``. NO new C symbol —
+        the associator IS the composition, so a dedicated kernel would only
+        re-spell ``a·b`` twice. ``composition_of_c``. Class M ∘ K.
+
+    Canonical SSoT:
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.1
+      — the associator ``(x, y, z)`` as the trilinear defect measuring
+      departure from associativity.
+    - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
+      arXiv:math/0105155, §1–§2 — the octonion associator and alternativity.
+    """
+    ex = tuple(_coerce_frac(v) for v in x)
+    ey = tuple(_coerce_frac(v) for v in y)
+    ez = tuple(_coerce_frac(v) for v in z)
+    if not (len(ex) == len(ey) == len(ez)):
+        raise ValueError(
+            f"associator: the three operands must share dimension; got "
+            f"{len(ex)}, {len(ey)} and {len(ez)}")
+    if table is None:
+        ex, ey, ez = _as_elem(ex), _as_elem(ey), _as_elem(ez)
+        left = cd_mult(cd_mult(ex, ey), ez)
+        right = cd_mult(ex, cd_mult(ey, ez))
+    else:
+        tbl = _structure_table(table)
+        if len(tbl) != len(ex):
+            raise ValueError(
+                f"associator: the table is dim {len(tbl)}; got operands of "
+                f"length {len(ex)}")
+        left = table_product(tbl, table_product(tbl, ex, ey), ez)
+        right = table_product(tbl, ex, table_product(tbl, ey, ez))
+    return tuple(a - b for a, b in zip(left, right))
+
+
+# ──────────────────────────────────────────────────────────────────────
+# The RANDOM ANTICOMMUTATIVE control table (rc360, `#T1032`).
+#
+# `[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_
+# anticommutative]]` names TWO mandatory negative controls for any carrier
+# claim. rc352 shipped the first (``algebra_table(gammas=)`` — the split half).
+# This is the second, and until now it was hand-rolled in test files every time
+# it was needed.
+#
+# ⚠️ IT TAKES A **KEY**, NOT A SEED — and that is the whole point.
+# An MT19937 ``seed`` names a table that ONLY a Python host can rebuild. Under
+# ADR-0009 (srmech is multi-implementation; the CAPABILITY is the invariant and
+# the projections are co-equal) a control only a single projection can generate
+# is not a control — the C host, the Pyodide host and the Python host would be
+# arguing about a table two of them cannot see. So every sign is derived from
+# SHA-256 (:func:`srmech.amsc.format.sha256_bytes`, Class A, the first
+# primitive and the one surface EVERY projection has natively). The table is
+# then reproducible FROM ITS IDENTIFIER ALONE, in every implementation, with no
+# RNG stream to agree about. It also costs no new C symbol: sha256 is
+# ``c_dispatched``, so this op is an honest ``composition_of_c`` rather than the
+# "random op with no C RNG twin" that ``hdc.polar_random`` documents as
+# earning its own deterministic kernel instead.
+# ──────────────────────────────────────────────────────────────────────
+
+#: Domain-separation prefix for the control's sign/lane stream. It names the OP
+#: and carries a format version, and the material below adds the dim, the lane
+#: mode and the (ordered) index pair — so one key can never collide across ops,
+#: dims or modes, and the bare key is never hashed alone.
+_RAT_DOMAIN = b"srmech.amsc.cascade.random_anticommutative_table/v1"
+
+
+def _rat_key_bytes(key: Any) -> bytes:
+    """Normalise the control's identifier to bytes (``str`` → UTF-8)."""
+    if isinstance(key, str):
+        kb = key.encode("utf-8")
+    elif isinstance(key, (bytes, bytearray)):
+        kb = bytes(key)
+    else:
+        raise TypeError(
+            f"random_anticommutative_table: key must be str or bytes (it NAMES "
+            f"the control, and the name is what reproduces it in every "
+            f"implementation); got {type(key).__name__}")
+    if not kb:
+        raise ValueError(
+            "random_anticommutative_table: key must be non-empty — an "
+            "un-named control cannot be cited or re-derived")
+    return kb
+
+
+def _rat_digest(dim: int, key: bytes, lane_mode: bytes, tag: bytes,
+                i: int, j: int) -> str:
+    """The domain-separated SHA-256 hex digest for one unordered pair.
+
+    ORDER-INDEPENDENT by construction: the pair is sorted into ``(lo, hi)``
+    before it enters the material, so ``{i, j}`` and ``{j, i}`` hash the same
+    and the two halves of the anticommutative pair cannot disagree.
+    """
+    lo, hi = (i, j) if i < j else (j, i)
+    material = (_RAT_DOMAIN
+                + b"|dim=" + str(dim).encode("ascii")
+                + b"|lane=" + lane_mode
+                + b"|" + tag
+                + b"|" + str(lo).encode("ascii")
+                + b"," + str(hi).encode("ascii")
+                + b"|key=" + key)
+    return _sha256_bytes(material)
+
+
+def _rat_sign(dim: int, key: bytes, lane_mode: bytes, i: int, j: int) -> int:
+    """``+1`` when the first digest byte is even, ``−1`` when it is odd.
+
+    Class-K pin-slot ∘ Class-C reorient: the parity bit is the pin-slot phase
+    boundary and the ``−1`` is the re-applied orientation. Never ``abs()``.
+    """
+    h = _rat_digest(dim, key, lane_mode, b"sign", i, j)
+    return _reorient(1, orientation=-1) if int(h[0:2], 16) % 2 else 1
+
+
+def _rat_lane(dim: int, key: bytes, i: int, j: int) -> int:
+    """A lane index drawn uniformly from ``[1, dim)`` by REJECTION over the
+    digest stream — no modulo bias, and no floating point.
+
+    ``m = dim − 1`` candidate lanes; a digest byte is accepted only when it is
+    below ``(256 // m) * m``, the largest multiple of ``m`` that fits a byte.
+    Successive digests are drawn with an incrementing counter inside the
+    domain-separated material until a byte is accepted (at ``dim ≤ 64`` the
+    first digest is accepted with probability ``1 − (4/256)**32``, so the loop
+    is a formality — but it is what makes the draw EXACTLY uniform rather than
+    nearly so).
+    """
+    m = dim - 1
+    limit = (256 // m) * m
+    ctr = 0
+    while True:
+        h = _rat_digest(dim, key, b"free", b"lane#" + str(ctr).encode("ascii"),
+                        i, j)
+        for b in range(0, 64, 2):
+            v = int(h[b:b + 2], 16)
+            if v < limit:
+                return 1 + (v % m)
+        ctr += 1
+
+
+def random_anticommutative_table(dim: int, key: Any, *,
+                                 keep_xor_lane: bool = True
+                                 ) -> List[List[List[int]]]:
+    """The RANDOM ANTICOMMUTATIVE structure table — the second mandatory
+    negative control, content-addressed by a **key** (rc360, `#T1032`).
+
+    Same rank-3 shape :func:`algebra_table` returns, so it drops straight into
+    :func:`table_product` / :func:`associator` / :func:`inertia_signature` /
+    :func:`left_mult_kernel` unchanged. ``e_0`` is the two-sided unit and
+    ``e_i·e_i = −e_0`` for every ``i ≥ 1`` — EXACTLY as on the Cayley–Dickson
+    ladder — and every distinct imaginary pair anticommutes,
+    ``e_i·e_j = −e_j·e_i``. **One thing differs from ``algebra_table``: the
+    sign cocycle.** That is deliberate and it is what makes this a control at
+    all — a control that differed in two places could not attribute a measured
+    difference to either.
+
+    **It takes a KEY, not a seed.** An MT19937 ``seed`` names a table only a
+    Python host can rebuild, and under ADR-0009 (srmech is multi-implementation;
+    the capability is the invariant, the projections are co-equal) a control
+    only one projection can generate is not a control. Every sign here is
+    derived from SHA-256 over domain-separated material, so the table is
+    reproducible **from its identifier alone in any implementation that has
+    Class A** — which is all of them, C included. The derivation, spelled out
+    so a C or WASM peer can reproduce it byte-for-byte::
+
+        material = b"srmech.amsc.cascade.random_anticommutative_table/v1"
+                   + b"|dim=" + str(dim)
+                   + b"|lane=" + (b"xor" if keep_xor_lane else b"free")
+                   + b"|sign"                      (or b"|lane#<ctr>")
+                   + b"|" + str(min(i, j)) + b"," + str(max(i, j))
+                   + b"|key=" + key
+        sign(i<j)  = +1 if the FIRST BYTE of sha256(material) is even else −1
+        e_i·e_j    = sign · e_lane        e_j·e_i = −sign · e_lane
+
+    The pair is SORTED into the material, so the draw is order-independent and
+    the two halves of a pair can never disagree.
+
+    Args:
+        dim: a power of two in ``[1, ALGEBRA_TABLE_MAX_DIM]`` — the same
+            MATERIALISATION ceiling :func:`algebra_table` carries, for the same
+            reason (the object is the ``dim³`` tensor).
+        key: ``str`` (encoded UTF-8) or ``bytes``, non-empty. This NAMES the
+            control; cite the key and the control is re-derivable.
+        keep_xor_lane: **load-bearing, not a convenience.** ``True`` (default)
+            keeps the CD index lane — ``e_i·e_j = ±e_{i⊕j}`` — and randomises
+            ONLY the signs, so a difference against the ladder is attributable
+            to the sign cocycle and nothing else. ``False`` randomises the lane
+            too (uniform over ``[1, dim)``, rejection-sampled), which is the
+            stronger control: it also destroys the XOR addressing. Running BOTH
+            is how a measurement separates "lane artifact" from "CD structure";
+            a claim tested against only one of them has not been controlled.
+
+    Returns:
+        ``dim × dim × dim`` nested ``list[int]``; ``table[i][j][k]`` is the
+        coefficient of ``e_k`` in ``e_i·e_j``. MONOMIAL by construction.
+
+    Raises:
+        ValueError: ``dim`` not a power of two in range, or an empty key.
+        TypeError: a key that is neither ``str`` nor ``bytes``.
+
+    Note:
+        **The control BREAKS FLEXIBILITY, which is the point.** A control that
+        satisfied every law the ladder satisfies would not be a control.
+        MEASURED at dim 8 over the 512 ordered basis triples, counting the
+        linearised flexible law ``(x, y, z) + (z, y, x) = 0`` through
+        :func:`associator`. ⚠️ The key set is NAMED, because a quoted range
+        over an unnamed set is not reproducible — these are the twelve keys
+        ``"control-01"`` … ``"control-12"`` (rc360):
+
+        ========================================  ==================
+        table                                     violations / 512
+        ========================================  ==================
+        definite ladder ``algebra_table(8)``      **0**
+        all eight γ-twists (incl. split-𝕆)        **0** each
+        this control, ``keep_xor_lane=True``      12 – 28
+        this control, ``keep_xor_lane=False``     58 – 80
+        ========================================  ==================
+
+        No key in that set is flexible at dim 8 in either mode. The ladder is 0
+        at dim 2, 4, 8 and 16 as well — every Cayley–Dickson algebra is
+        flexible, so a nonzero count is decisive. ⚠️ **At dim 4 the
+        ``keep_xor_lane=True`` control is NOT a reliable discriminator**: 3 of
+        those 12 keys (``control-03`` / ``-05`` / ``-09``) give 0/64 there,
+        because with the XOR lane pinned and only three imaginary pairs the
+        sign space is too small to escape ℍ. Use ``keep_xor_lane=False`` at
+        dim 4 (7–10 / 64, no key gave 0), or control at dim ≥ 8.
+
+        Exact integers, no float, no ``abs()`` (the sign is Class-K pin-slot ∘
+        Class-C ``reorient``). ``composition_of_c`` over the ``c_dispatched``
+        :func:`srmech.amsc.format.sha256_bytes`; NO new C symbol and no RNG
+        stream to agree about. Class A ∘ K ∘ C.
+
+    Canonical SSoT:
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*,
+      §III.1, §III.5 — anticommutative / flexible / alternative algebras.
+    - ``[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]``
+    """
+    if not _is_pow2(dim) or dim > ALGEBRA_TABLE_MAX_DIM:
+        raise ValueError(
+            f"random_anticommutative_table: dim must be a power of two ≤ "
+            f"ALGEBRA_TABLE_MAX_DIM={ALGEBRA_TABLE_MAX_DIM}; got {dim}")
+    kb = _rat_key_bytes(key)
+    lane_mode = b"xor" if keep_xor_lane else b"free"
+    table = [[[0] * dim for _ in range(dim)] for _ in range(dim)]
+    for i in range(dim):
+        table[0][i][i] = 1                       # e_0 is the two-sided unit
+        table[i][0][i] = 1
+    for i in range(1, dim):
+        table[i][i][0] = _reorient(1, orientation=-1)        # e_i² = −e_0 (Class C)
+    for i in range(1, dim):
+        for j in range(i + 1, dim):
+            sign = _rat_sign(dim, kb, lane_mode, i, j)
+            lane = (i ^ j) if keep_xor_lane else _rat_lane(dim, kb, i, j)
+            table[i][j][lane] = sign
+            table[j][i][lane] = _reorient(sign, orientation=-1)   # anticommute (Class C)
+    return table
 
 
 # ──────────────────────────────────────────────────────────────────────
