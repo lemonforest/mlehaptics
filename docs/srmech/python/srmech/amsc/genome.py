@@ -1706,6 +1706,40 @@ def _pack_fiber_cap(holonomy, label, dim: int) -> "_HV":
     return _HV.from_sequence(block, sectors=256)
 
 
+def _decode_label(label_bytes, *, context):
+    """``label_bytes.decode("utf-8")``, or :class:`GenomeBoundingError` — the ONE
+    place the scripting projection turns strand bytes into a label (rc356, `#T954`).
+
+    §44 defines a cap label as UTF-8 bytes up to the first NUL, and both writer
+    halves enforce it (:func:`_pack_cap` encodes UTF-8; the C ``genome_pack_cap``
+    takes bytes "already UTF-8"), so **no genome srmech wrote can carry a label
+    that fails here.** One that does is ungrammatical — the same class as
+    ``_stream_body_blocks``' "unrecognised block kind byte", which is already a
+    :class:`GenomeBoundingError` three branches away in the same generator.
+
+    Before rc356 these were five bare ``.decode("utf-8")`` calls sitting INSIDE
+    the ``GenomeBoundingError`` normalisation boundary, so a raw
+    :class:`UnicodeDecodeError` leaked straight through it. That is a leak, not a
+    policy: the codec exception carries no genome identity, no path and no offset,
+    and nothing distinguishes it from a locale bug in the caller's own code. It
+    also made the two projections disagree about the TYPE of the same fault on the
+    same bytes (ADR-0009), and — once the C learned to decline the same input —
+    would have left the scripting projection the only one still leaking.
+
+    The original exception is CHAINED (``from``), so the byte offset the codec
+    reports is not lost; rc294 chained its ``OSError`` the same way.
+    """
+    try:
+        return label_bytes.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise GenomeBoundingError(
+            f"{context}: cap label is not valid UTF-8 "
+            f"({exc.reason} at byte {exc.start} of {label_bytes!r}) — §44 defines a "
+            f"cap label as UTF-8 bytes up to the first NUL, so this strand is "
+            f"ungrammatical, not merely undecodable"
+        ) from exc
+
+
 def _unpack_fiber_cap(hv):
     """Inverse of :func:`_pack_fiber_cap` — returns ``(label, holonomy_bytes)`` from a
     :data:`FIBER_CAP_MARKER` cap. The ``n_holo`` uint16 read starts right AFTER the
@@ -1715,7 +1749,7 @@ def _unpack_fiber_cap(hv):
     if not raw or raw[0] != FIBER_CAP_MARKER:
         raise ValueError("not a fiber cap (first byte != FIBER_CAP_MARKER)")
     label_bytes = raw[1:].split(b"\x00", 1)[0]
-    label = label_bytes.decode("utf-8")
+    label = _decode_label(label_bytes, context="fiber cap")
     p = 1 + len(label_bytes) + 1                # past marker + label + NUL
     n_holo = int.from_bytes(raw[p:p + 2], "big")
     p += 2
@@ -1991,7 +2025,7 @@ def _unpack_oct_fiber_cap(hv):
     if not raw or raw[0] != OCT_FIBER_CAP_MARKER:
         raise ValueError("not an octonion fiber cap (first byte != OCT_FIBER_CAP_MARKER)")
     label_bytes = raw[1:].split(b"\x00", 1)[0]
-    label = label_bytes.decode("utf-8")
+    label = _decode_label(label_bytes, context="octonion fiber cap")
     p = 1 + len(label_bytes) + 1                # past marker + label + NUL
     n_holo = int.from_bytes(raw[p:p + 2], "big")
     p += 2
@@ -2582,7 +2616,7 @@ def _unpack_cap(hv):
     """``(marker, label)`` from a fixed-width cap leaf — the inverse of
     :func:`_pack_cap`; the label is bytes ``[1:]`` up to the first NUL."""
     raw = hv.tobytes()
-    return raw[0], raw[1:].split(b"\x00", 1)[0].decode("utf-8")
+    return raw[0], _decode_label(raw[1:].split(b"\x00", 1)[0], context="cap leaf")
 
 
 def _pack_kernel_header(true_len, leaf_dim, element_type, dim):
@@ -3324,7 +3358,7 @@ def _active_telomere_label(hv):
     """The chromosome label of an active-telomere cap — bytes ``[1:]`` up to the first
     NUL (UNIFORM with :func:`_unpack_cap`; the count sits AFTER that NUL)."""
     raw = hv.tobytes()
-    return raw[1:].split(b"\x00", 1)[0].decode("utf-8")
+    return _decode_label(raw[1:].split(b"\x00", 1)[0], context="active telomere")
 
 
 def _active_telomere_count(hv):
@@ -8835,7 +8869,8 @@ class _ScanState:
                 self.chrom_specs.append(tuple(self.cur))
             # the label is bytes [1:] up to the first NUL — UNIFORM across all telomere
             # kinds (the §127 active telomere's count sits AFTER that NUL).
-            label = decoded[1:].split(b"\x00", 1)[0].decode("utf-8")
+            label = _decode_label(decoded[1:].split(b"\x00", 1)[0],
+                                  context="genome body scan")
             cap_kind = "diploid" if decoded[0] == DIPLOID_TELOMERE_MARKER else "plasmid"
             self.cur = [label, _sha256_bytes(raw), 0, self.offset, 0, cap_kind]
             opened = True

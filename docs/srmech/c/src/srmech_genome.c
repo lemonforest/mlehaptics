@@ -700,8 +700,58 @@ static srmech_status_t genome_build_manifest(const genome_strings_t *s,
     return srmech_json_write_ws(root, out, out_cap, out_len, wtail, wtail_len);
 }
 
+/* rc356 (`#T954`): is `s[0 .. n)` well-formed UTF-8? Returns 1 if yes, 0 if not.
+ *
+ * §44 DEFINES a cap label as UTF-8 bytes up to the first NUL, and the writer
+ * halves enforce it (Python `_pack_cap` encodes UTF-8; genome_pack_cap takes
+ * "raw bytes, ALREADY UTF-8") — so no strand srmech wrote can hold a label that
+ * fails here, and one that does is ungrammatical, not merely undecodable. The
+ * reader half asserted that in prose four times and checked it nowhere: labels
+ * were memcpy'd as opaque bytes, so a flipped byte rode all the way out into the
+ * canonical JSON this file emits, which RFC 8259 §8.1 then makes INVALID JSON.
+ * A bare-C host (ADR-0003) got SRMECH_OK plus a mangled label.
+ *
+ * Same acceptance set as txt_utf8_next (srmech_text.c) and as Python's
+ * bytes.decode("utf-8"): stray continuation bytes, overlong forms, truncated
+ * sequences, surrogates and > U+10FFFF are all rejected. Matching Python
+ * exactly is the point — a label the scripting projection cannot decode must be
+ * one the compiled projection declines (ADR-0009). */
+static int genome_label_is_utf8(const unsigned char *s, uint32_t n)
+{
+    assert(s != NULL || n == 0u);
+    assert(n <= SRMECH_GENOME_MAX_LABEL);
+    uint32_t i = 0u;
+    while (i < n) {
+        unsigned char b0 = s[i];
+        uint32_t cp;
+        uint32_t nb;
+        if (b0 < 0x80u)      { cp = b0;         nb = 1u; }
+        else if (b0 < 0xC2u) { return 0; }            /* continuation / overlong */
+        else if (b0 < 0xE0u) { cp = b0 & 0x1Fu; nb = 2u; }
+        else if (b0 < 0xF0u) { cp = b0 & 0x0Fu; nb = 3u; }
+        else if (b0 < 0xF5u) { cp = b0 & 0x07u; nb = 4u; }
+        else                 { return 0; }            /* > U+10FFFF lead */
+        if (nb > n - i) { return 0; }                 /* truncated at the NUL */
+        for (uint32_t j = 1u; j < nb; j++) {
+            unsigned char b = s[i + j];
+            if ((b & 0xC0u) != 0x80u) { return 0; }
+            cp = (cp << 6) | (uint32_t)(b & 0x3Fu);
+        }
+        if (nb == 3u && cp < 0x800u)  { return 0; }   /* overlong 3-byte */
+        if (nb == 4u && cp < 0x10000u) { return 0; }  /* overlong 4-byte */
+        if (cp >= 0xD800u && cp < 0xE000u) { return 0; }   /* surrogate */
+        if (cp > 0x10FFFFu) { return 0; }
+        i += nb;
+    }
+    return 1;
+}
+
 /* Decode a §44 cap leaf's INLINE label (bytes [1 .. first NUL]) into `out`
- * (NUL-terminated). The cap is `[marker] + label, NUL-padded to leaf_dim`. */
+ * (NUL-terminated). The cap is `[marker] + label, NUL-padded to leaf_dim`.
+ * rc356 (`#T954`): the label must be well-formed UTF-8 — see
+ * genome_label_is_utf8. This is the ONLY cap-label decoder in the file (callers
+ * at the manifest builder and the body scanner), so validating here covers the
+ * whole C read surface. */
 static srmech_status_t genome_decode_label(const unsigned char *cap,
                                            uint32_t leaf_dim, char *out)
 {
@@ -710,6 +760,7 @@ static srmech_status_t genome_decode_label(const unsigned char *cap,
     uint32_t n = 0u;
     while (n + 1u < leaf_dim && cap[1u + n] != 0u) { n++; }   /* up to first NUL */
     if (n + 1u > SRMECH_GENOME_MAX_LABEL) { return SRMECH_ERR_BAD_INPUT; }
+    if (!genome_label_is_utf8(cap + 1, n)) { return SRMECH_ERR_BAD_INPUT; }
     memcpy(out, cap + 1, n);
     out[n] = '\0';
     return SRMECH_OK;
@@ -2798,8 +2849,20 @@ static int genome_blob_contains(
 }
 
 /* The inline label of the gene cap at `cap[0..leaf_dim)` — cap[1..NUL). Sets
- * *label_len and returns a pointer into `cap`; NULL on a missing NUL (a
- * malformed gene). Mirrors _unpack_cap's label read. No abs; a READ. */
+ * *label_len and returns a pointer into `cap`; NULL on a malformed gene cap.
+ * Mirrors _unpack_cap's label read. No abs; a READ.
+ *
+ * rc356 (`#T954`): "malformed" now includes a label that is not well-formed
+ * UTF-8, matching genome_decode_label. This is the SECOND cap-label reader in
+ * this file and it is the one the GENE surface uses, so validating only the
+ * other one left srmech_genome_genes emitting a raw undecodable label — the
+ * `0xFF` then surfaced in the caller as a bare UnicodeDecodeError out of the
+ * ctypes shim's _decode_genes, which is C succeeding, not C declining.
+ * Both readers, or neither: a genome is not half-grammatical.
+ *
+ * All twelve call sites already treat NULL as SRMECH_ERR_BAD_INPUT (the
+ * comparison sites via genome_gene_label_eq, the emission site via
+ * genome_genes_open), so no site silently skips a gene it cannot name. */
 static const unsigned char *genome_gene_label(
     const unsigned char *cap, size_t leaf_dim, size_t *label_len)
 {
@@ -2808,6 +2871,8 @@ static const unsigned char *genome_gene_label(
     size_t i = 1u;
     while (i < leaf_dim && cap[i] != 0u) { i++; }        /* find the label NUL */
     if (i >= leaf_dim) { return NULL; }                  /* no label NUL */
+    if (i - 1u > (size_t)SRMECH_GENOME_MAX_LABEL) { return NULL; }
+    if (!genome_label_is_utf8(cap + 1u, (uint32_t)(i - 1u))) { return NULL; }
     *label_len = i - 1u;
     return cap + 1u;
 }

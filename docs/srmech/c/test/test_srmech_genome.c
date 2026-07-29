@@ -21,6 +21,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* rc356 (`#T953`): ensure_dir() does a REAL mkdir on every platform now, so it
+ * needs the platform's mkdir declaration. <direct.h> is MSVC/MinGW; <sys/stat.h>
+ * is POSIX. Nothing else in this file is platform-conditional. */
+#if defined(_WIN32)
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+
 static int g_passed = 0;
 static int g_failed = 0;
 
@@ -70,23 +79,61 @@ static const char *temp_dir2(void)
     return dir;
 }
 
-/* Best-effort mkdir of `dir` (POSIX `mkdir -p` analogue for one level).
- * The genome save itself assumes the directory exists, so we create it
- * here via a tiny system-portable shim: try to write a probe file, and
- * if that fails, mkdir via the C runtime. We keep it minimal — the WSL2
- * harness runs under Linux where the parent /tmp always exists. */
+/* Create `dir` (one level) and drop any stale genome files inside it.
+ *
+ * rc356 (`#T953`): this used to shell out to `rm -rf … && mkdir -p …` under
+ * POSIX and to be a NO-OP under _WIN32 — `return system(NULL) ? 0 : 0;`, with
+ * the comment "the parity harness runs on Linux". That was true only for as
+ * long as nothing ran this test on Windows: the directory was never created,
+ * so every save would fail there. It is the reason this file could not simply
+ * be added to the 3-OS pedantic matrix, and it made the ONE test #T953 named
+ * the ONE test that could not join it.
+ *
+ * So: real mkdir on every platform, and no shell at all. Dropping system()
+ * also removes a shell escape from the test tree, which is worth having on its
+ * own. Freshness (the documented reason for the old `rm -rf`) is what actually
+ * matters — a stale turns.bin / manifest.json would let the append
+ * "label already present" check pass for the wrong reason — so the two files a
+ * genome dir can hold are removed explicitly. Both calls are expected to fail
+ * when the dir is new; that is not an error and is why the results are void-cast.
+ *
+ * Returns 0 when `dir` exists and is writable afterwards, non-zero otherwise —
+ * an honest status, where the old Windows branch returned 0 unconditionally. */
 static int ensure_dir(const char *dir)
 {
+    char p[1200];
 #if defined(_WIN32)
-    (void)dir;
-    return system(NULL) ? 0 : 0;   /* the parity harness runs on Linux */
+    (void)_mkdir(dir);                 /* EEXIST is the normal, fine case */
 #else
-    char cmd[1200];
-    /* Fresh dir each run (drop stale turns.bin / manifest.json so the
-     * append 'label already present' check is exercised cleanly). */
-    snprintf(cmd, sizeof(cmd), "rm -rf '%s' && mkdir -p '%s'", dir, dir);
-    return system(cmd);
+    (void)mkdir(dir, 0777);
 #endif
+    snprintf(p, sizeof(p), "%s/turns.bin", dir);
+    (void)remove(p);
+    snprintf(p, sizeof(p), "%s/manifest.json", dir);
+    (void)remove(p);
+    /* Prove the directory is really there rather than assuming it: create,
+     * write and remove a probe. A silent no-op is exactly the failure this
+     * function shipped with for as long as nobody ran it — so the probe reports
+     * through check_true(), the same channel every other assertion in this file
+     * uses. Every one of the 26 call sites ignores the return value, so a status
+     * code alone would be a guard nobody reads; counting a FAIL is what makes it
+     * load-bearing. Silent on success: 26 extra PASS lines would bury the run. */
+    snprintf(p, sizeof(p), "%s/.probe", dir);
+    FILE *probe = fopen(p, "wb");
+    if (probe == NULL) {
+        fprintf(stderr, "ensure_dir: cannot create or write %s\n", dir);
+        check_true(0, "ensure_dir: temp directory is writable (see stderr)");
+        /* An unusable temp dir makes the REST of the run meaningless, and the
+         * next library call is likely to trip an assert and abort() — which
+         * discards block-buffered stdout, so without this flush the FAIL line
+         * that explains WHY is the one thing lost. Measured: the red-team run
+         * printed the stderr line and swallowed the FAIL. */
+        fflush(stdout);
+        return 1;
+    }
+    fclose(probe);
+    (void)remove(p);
+    return 0;
 }
 
 /* rc280 §101 tick: CANCEL once `done` reaches *(size_t *)user. Records the last

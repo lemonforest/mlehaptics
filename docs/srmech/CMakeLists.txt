@@ -110,6 +110,30 @@ if(SRMECH_SRCS)
     # keep their dev-time/WSL2 run convention.)
     # ─────────────────────────────────────────────────────────────────
     if(SRMECH_PEDANTIC)
+        # ─────────────────────────────────────────────────────────────
+        # rc356 (`#T953`) — the C tests are now RUN, not just compiled.
+        #
+        # Before this line existed there was no enable_testing(), no
+        # add_test() and no ctest step in any workflow, so **0 of the 30
+        # c/test/*.c binaries were executed by any automation, local or
+        # CI.** The nine below were built by the pedantic matrix and the
+        # binaries thrown away. That is the guard-that-never-fires shape,
+        # and it did what that shape always does: rc307 reinterpreted the
+        # fiedler `ws_len` unit (DOUBLES -> BYTES, ABI 9 -> 10) and left
+        # test_srmech_progress_tick.c behind on the old convention. It
+        # returned SRMECH_ERR_BAD_INPUT instead of SRMECH_CANCELLED for
+        # ~48 rcs, and nothing noticed, because compiling a test proves
+        # only that it compiles. ADR-0003 says the C host stands alone;
+        # that claim was not verifiable by automation in its entirety.
+        #
+        # The `make test` target (c/Makefile) is the OTHER half of this
+        # fix and covers all 30 on POSIX. This block deliberately carries
+        # only the tests already proven to build on the 3-OS matrix (plus
+        # genome, see below) — see tests/test_c_test_wiring_rc356.py, the
+        # down-only ratchet that drains the remainder.
+        # ─────────────────────────────────────────────────────────────
+        enable_testing()
+
         add_executable(test_srmech_trans_q61 c/test/test_srmech_trans_q61.c)
         target_link_libraries(test_srmech_trans_q61 PRIVATE srmech ${SRMECH_MATH_LIB})
 
@@ -189,6 +213,27 @@ if(SRMECH_SRCS)
         add_executable(test_srmech_text_fold c/test/test_srmech_text_fold.c)
         target_include_directories(test_srmech_text_fold PRIVATE c/src)
         target_link_libraries(test_srmech_text_fold PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # rc356 (`#T953`): §41 genome persistence — the test the finding was
+        # filed against. It was buildable all along (0 warnings, 231 assertions
+        # green), but could not join this matrix because its ensure_dir() was a
+        # NO-OP under _WIN32 ("the parity harness runs on Linux"), so every save
+        # would have failed on windows-latest. rc356 gives it a real _mkdir and
+        # drops the shell-out entirely, which is what makes this line safe.
+        add_executable(test_srmech_genome c/test/test_srmech_genome.c)
+        target_link_libraries(test_srmech_genome PRIVATE srmech ${SRMECH_MATH_LIB})
+
+        # THE RUN STEP. Every executable above is registered with ctest, so
+        # `ctest --output-on-failure` in .github/workflows/srmech-ci.yml
+        # actually executes them on all three OSes. Whole set = 551 ms wall on
+        # WSL2, so there is no runtime argument against running them.
+        foreach(t
+            test_srmech_trans_q61 test_srmech_modular_linalg
+            test_srmech_crt_reconstruct test_srmech_qmat_crt test_srmech_carrier
+            test_srmech_progress test_srmech_bigint test_srmech_progress_tick
+            test_srmech_text_fold test_srmech_genome)
+            add_test(NAME ${t} COMMAND ${t})
+        endforeach()
     endif()
 else()
     # Phase B1 only: no .c files yet. Emit a status line so the
