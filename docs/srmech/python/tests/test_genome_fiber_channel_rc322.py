@@ -5,7 +5,7 @@ The fibration has TWO sides; the register must hold BOTH and reconstruct the gau
   BASE  (sequence)  — the per-turn coupled store (quad_turn, element_type=q8) RE-STAMPS
       stored[i]=q8_mult(turn[i], one[i]) — a function of turn i + the shared `one` ALONE,
       never of prior turns — so it is winding-INVARIANT: a reorder is a PURE positional
-      permutation (the #914 order-discard). KEPT byte-identical.
+      permutation (the #T914 order-discard). KEPT byte-identical.
   FIBER (topology) — genome_fiber_holonomy folds the ORDERED non-abelian Q8 product along
       the strand. Q8 is non-abelian (i.j=+k, j.i=-k), so REORDER CHANGES it — the
       accumulated holonomy = the gauge = the accumulated Lk (Lk=Tw+Wr).

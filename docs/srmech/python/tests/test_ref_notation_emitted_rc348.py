@@ -299,7 +299,41 @@ CEIL_BARE_REFS_EMITTED = {
     #   srmech_tool_registry.c).
     "python/srmech/amsc/_tool_docs.py": 7,
     "python/srmech/amsc/_c_claims.py": 0,
-    "c/src/srmech_tool_registry.c": 130,
+    # rc358 (`#T1022`): 130 -> 129. The SAME shape as the rc353 `#944` note
+    # above, and the second instance of it — so treat it as the pattern, not
+    # the exception. `#914` rode here as pre-convention residual because the
+    # tree spelled `#T914` NOWHERE, leaving it undecidable; it is the LOCAL
+    # task (all six copies read "the #914 order-discard", the rc322 §Q8-FIBER
+    # Q8 storage-coupling finding), while `gh #914` is the topically
+    # unrelated MERGED PR "srmech v0.7.2 - production graduation to PyPI".
+    # Adjudicated by reading the prose at all six sites, not swept.
+    # Converting them made 914 decidable, which is why this is ATOMIC: the
+    # instant any ONE site is written `#T914`, the strict-zero test above
+    # demands zero bare `#914` in the emitted artifacts, so the upstream fix
+    # and the regen must land in the same commit. Only the C registry moved
+    # (-1) - it embeds each op's SUMMARY, which is where the `tool_schema.py`
+    # copy lives; `_tool_docs.py` carries no copy and stays at 7.
+    #
+    # rc358 also drains `#962` (x3), a PRE-EXISTING strict-zero RED on `main`
+    # that the rc358 brief did not file - this test was already failing at
+    # 6f2ca3bb5 and would have kept failing. `#T962` is spelled in the TRACKED
+    # note docs/srmech/notes/t962_cwf_tw_is_not_absent.py, which makes 962
+    # decidable; the naive reading is therefore "convert to `#T962`", and that
+    # would have been WRONG. Adjudicated by reading the prose BOTH sides -
+    # this is the `#943` collision the convention warns about, live:
+    #   gh #962 = a real CLOSED issue, "srmech: genome storage perspective +
+    #     native A-N binding - dev-session tracker (F708-F715, UPSTREAM
+    #     §37/§38)". The three emitting sites cite exactly that ("Part 2 of
+    #     #962; validated as F711-F715", "class-from-TOML surface; #962
+    #     Part 2"). TOPICAL -> they are REAL GitHub refs.
+    #   #T962 in the note = an unrelated LOCAL task asking whether `Tw` is
+    #     algebraically absent from `cwf_consistency_mod2`. Same number,
+    #     different object.
+    # So the fix is the `gh ` prefix, NOT the `T` - written upstream at
+    # tool_schema.py (the `rc41` string x2 emissions + the §39 make_class
+    # inverse summary), which is why this drains 3 rather than converting 3.
+    # 129 -> 126.
+    "c/src/srmech_tool_registry.c": 126,
     # rc352: 2 -> 0. Both were the SAME pre-convention `#845`, emitted twice
     # from one upstream string (`carrier_schema.py`, the `Q` carrier
     # description). It sat here legitimately until this rc: the strict-zero

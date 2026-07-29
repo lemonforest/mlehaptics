@@ -13,7 +13,12 @@ dissolves into the 14-class primitive vocabulary per
 ``[[feedback_no_privileged_primitive_classes]]``:
 
 - **TDSE / TISE / Heisenberg / Liouville-vN** — Class L (spectral evolution)
-- **[x̂, p̂] commutator** — Class C (lattice gradient) ∘ Class L (commutator)
+- **Lattice momentum ``p̂`` + the general ``[A, B]`` commutator** — Class C
+  (central-difference lattice gradient) ∘ Class L (commutator). NOTE: no
+  position operator ``x̂`` ships, so ``[x̂, p̂]`` is **not** composable from
+  this surface. On a periodic lattice it would not equal ``iħ·I`` anyway —
+  ``x̂`` is not single-valued on the ring — so it needs its own fenced
+  operator, not a naive diagonal.
 - **Pauli matrices** — Class M (Clifford binding via Cl(0,3))
 - **Hydrogen radial** — Class L (radial-Laplacian eigendecomp)
 - **Harmonic oscillator** — Class M (HDC binding for a, a†)
