@@ -288,7 +288,7 @@ int main(void)
      * size EQUALS the manifest-scaled arithmetic, NOT the body-scaled one; (3) the
      * size actually SUFFICES for a real append (run one bounded to exactly `sz`). */
     {
-        size_t msz = 0u, body = 0u;
+        size_t msz = 0u, turns_bin_len = 0u;
         char mp[1200], bp[1200];
         snprintf(mp, sizeof(mp), "%s/manifest.json", dir);
         snprintf(bp, sizeof(bp), "%s/turns.bin", dir);
@@ -297,7 +297,7 @@ int main(void)
         if (mf != NULL) { fseek(mf, 0L, SEEK_END); msz = (size_t)ftell(mf); fclose(mf); }
         FILE *bf = fopen(bp, "rb");
         check_true(bf != NULL, "open turns.bin for arena-size check");
-        if (bf != NULL) { fseek(bf, 0L, SEEK_END); body = (size_t)ftell(bf); fclose(bf); }
+        if (bf != NULL) { fseek(bf, 0L, SEEK_END); turns_bin_len = (size_t)ftell(bf); fclose(bf); }
 
         size_t sz = 0u;
         srmech_status_t as = srmech_genome_append_arena_bytes(dir, 8u, g_ws,
@@ -310,8 +310,8 @@ int main(void)
         check_true(sz == manifest_scaled,
                    "append arena is MANIFEST-scaled, n_chroms=1 (O(1) v4 path)");
         /* NOT the whole-body migration size (guards against a v12 misroute). */
-        size_t body_scaled = srmech_genome_arena_bytes(body + 8u, 1u, 8u);
-        check_true(sz != body_scaled || body + 8u == msz * 6u + 300000u,
+        size_t body_scaled = srmech_genome_arena_bytes(turns_bin_len + 8u, 1u, 8u);
+        check_true(sz != body_scaled || turns_bin_len + 8u == msz * 6u + 300000u,
                    "append arena is NOT body-scaled for v12");
         /* The size actually SUFFICES: a real append bounded to EXACTLY `sz` bytes of
          * the arena succeeds — a bare-C host would size its arena from this, no more.
@@ -1636,7 +1636,7 @@ int main(void)
         uint64_t nidC[3] = { 30u, 50u, 30u };   /* a REPEAT — counts ONCE per section */
         uint64_t ids[16], cnts[16];
         size_t n_out = 0u, n_done = 0u, nsy = 0u;
-        srmech_status_t ss, st;
+        srmech_status_t ss, counts_st;
         uint64_t cancel_at;
         for (uint32_t i = 0; i < ld; i++) { one_p[i] = 1u; }
         snprintf(scdir, sizeof(scdir), "%s_sc280", temp_dir());
@@ -1662,10 +1662,10 @@ int main(void)
                                            g_ws, sizeof(g_ws), &nsy);
         check_true(ss == SRMECH_OK, "rc280: section s2 extracted {30,50,30}");
         /* the counts themselves: ASCENDING ids, one count per DISTINCT section. */
-        st = srmech_genome_section_counts(scdir, one_p, ld, NULL, NULL,
-                                          g_ws, sizeof(g_ws),
-                                          ids, cnts, 16u, &n_out, &n_done);
-        check_true(st == SRMECH_OK, "rc280: section_counts derives OK");
+        counts_st = srmech_genome_section_counts(scdir, one_p, ld, NULL, NULL,
+                                                 g_ws, sizeof(g_ws),
+                                                 ids, cnts, 16u, &n_out, &n_done);
+        check_true(counts_st == SRMECH_OK, "rc280: section_counts derives OK");
         check_true(n_out == 5u, "rc280: 5 distinct global ids");
         check_true(n_done == 3u, "rc280: 3 sections scanned (vocab EXCLUDED)");
         check_true(ids[0] == 10u && ids[1] == 20u && ids[2] == 30u &&
@@ -1695,11 +1695,12 @@ int main(void)
             cancel_at = 1u;
             memset(ids, 0, sizeof(ids));
             memset(cnts, 0, sizeof(cnts));
-            st = srmech_genome_section_counts(scdir, one_p, ld, sc_cancel_at,
-                                              &cancel_at, g_ws, sizeof(g_ws),
-                                              ids, cnts, 16u,
-                                              &n_out, &n_done);
-            check_true(st == SRMECH_CANCELLED, "rc280: tick cancel -> SRMECH_CANCELLED");
+            counts_st = srmech_genome_section_counts(scdir, one_p, ld, sc_cancel_at,
+                                                     &cancel_at, g_ws, sizeof(g_ws),
+                                                     ids, cnts, 16u,
+                                                     &n_out, &n_done);
+            check_true(counts_st == SRMECH_CANCELLED,
+                       "rc280: tick cancel -> SRMECH_CANCELLED");
             check_true(n_done == 1u, "rc280: cancelled after 1 whole section");
             check_true(g_sc_last_phase == (uint32_t)SRMECH_PHASE_EXTRACTING &&
                        g_sc_last_total == 3u && g_sc_last_done == 1u,
