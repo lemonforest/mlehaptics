@@ -561,10 +561,18 @@ jobs:
     # ephemerides-spectral-ci's pedantic-build job (their Tasks
     # #105–#110 audit work).
     #
-    # Smoke target only — produces the shared library and the
-    # ephemerides-style test binary (when present). Doesn't ship a
-    # wheel; the wheel-build matrix in srmech-publish.yml does that
-    # at tag time.
+    # Produces the shared library and the C test binaries, and — since
+    # rc356 (`#T953`) — RUNS them. Doesn't ship a wheel; the wheel-build
+    # matrix in srmech-publish.yml does that at tag time.
+    #
+    # rc356: this job was Configure + Build with NO run step, and no
+    # workflow in this repo had one, so 0 of the 30 c/test/*.c binaries
+    # were executed by any automation. Compiling a test proves that it
+    # compiles. `test_srmech_progress_tick` was RED for ~48 rcs behind
+    # that gap (rc307 flipped the fiedler ws_len unit and left one caller
+    # on the old convention); CI built it every time and discarded the
+    # binary. ADR-0003's "the C host stands alone" was, in its entirety,
+    # not a claim automation could check.
     name: pedantic C build • ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60          # hang guard; see build-and-test above
@@ -582,6 +590,17 @@ jobs:
       - name: Build (warnings = errors)
         working-directory: docs/srmech
         run: cmake --build build --config Release
+
+      # rc356 (`#T953`) — RUN the C tests. Not `|| true`: a C test that
+      # cannot fail the build is the compile-only gate this step exists to
+      # replace. (chess-spectral-ci.yml:103 uses `|| true` because its
+      # ctest preset may not exist; ours is declared unconditionally under
+      # SRMECH_PEDANTIC, which this job always sets, so there is nothing to
+      # be tolerant of.) --output-on-failure so a red cell shows WHICH
+      # assertion went, not just a name.
+      - name: Run C tests (ctest)
+        working-directory: docs/srmech
+        run: ctest --test-dir build --build-config Release --output-on-failure
 
   asserts-live-smoke:
     # rc289 — the cell that gives JPL Rule 5 teeth.
