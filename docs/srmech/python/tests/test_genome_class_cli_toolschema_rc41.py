@@ -68,4 +68,4 @@ def test_introspect_tools_total_matches_live():
     # no C peer) — 330→331.
     # rc258 (§95a / #1407): the 4 genome-architecture ops — centromere,
     # centromere_of, mint, mint_plan — 432→436.
-    assert introspect.describe()["tools"]["total"] == 516
+    assert introspect.describe()["tools"]["total"] == 525

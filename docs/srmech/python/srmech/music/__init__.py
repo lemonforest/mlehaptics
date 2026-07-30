@@ -72,7 +72,8 @@ __all__ = [
     "membrane_partials",
     "bessel_j_fixed",
     "bessel_zero_fixed",
-    "TIER_RATIONAL",
-    "TIER_ALGEBRAIC",
-    "TIER_OPEN",
 ]
+
+# ``TIER_RATIONAL`` / ``TIER_ALGEBRAIC`` / ``TIER_OPEN`` are importable module
+# attributes but are deliberately NOT in ``__all__``: they are ints, and the
+# Rosetta ledger walk enumerates ``__all__`` expecting callables.

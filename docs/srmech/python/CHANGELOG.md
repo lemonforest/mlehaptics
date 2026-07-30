@@ -13,6 +13,81 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc362]
+
+**THE ACOUSTIC/MUSIC DOMAIN SLICE — a commensurability verdict that can return "inharmonic", plus the two shipped defects building it exposed.** `#T1041`. Nine new registered ops in a NEW top-level namespace, one new C symbol pair, `SRMECH_ABI_VERSION` stays 10 (additive), `describe()["tools"]["total"]` **516 → 525**.
+
+### The gap, stated precisely
+
+The tree could already gauge commensurability two ways and **neither can return "inharmonic"**.
+
+**Class-I gcd/lcm structurally cannot.** A finite set of rational ratios ALWAYS has an lcm, so it always yields a finite period. The instrument has one needle — it is not that it gets the answer wrong, it is that "inharmonic" is not in its codomain.
+
+**Class-N `best_rational` is worse than silent.** It does not *approximate* an inharmonic spectrum — it **CONVERTS** it into a harmonic one. Every anchor `p/q` IS a finite period `T₀·q`. Measured on a 20-digit π at `max_den` 10²/10⁴/10⁶/10⁷: `22/7`, `355/113`, `1146408/364913`, `5419351/1725033` — induced periods 7, 113, 364913, 1725033, strictly increasing and never repeating. Raising the ceiling never reaches a verdict; it only buys a longer FALSE period. (Control, in the same test: a *rational* target LOCKS — `best_rational(3, 2, D)` returns 3/2 at D = 2, 10, 10³, 10⁹ — which is what proves the instrument can return something else.) The generating code for every one of those numbers is committed in `tests/test_music_commensurability_rc362.py`, not described in prose.
+
+**The right invariant is FIELD DEGREE / RATIONAL RANK, not a period.** `Qalg` already supplied a decidable oracle and it is a genuine invariant, not a presentation count: ℚ is the unique degree-1 subfield of ℚ(α), so membership in ℚ inside ℚ[x]/(m) is field-theoretic and survives any change of ℚ-basis. Verified: in ℚ[x]/(x¹²−2), `s⁰` rational **True**, `s¹…s¹¹` **all False**, `s¹²` **True** — twelve-tone equal temperament exactly represented AND provably incommensurable with the octave except *at* the octave. No threshold, no denominator ceiling, no approximation anywhere in the decision.
+
+**The precedent this follows.** `coupling.fractal_spectrum` already returns a `spectrum_open` string rather than a list, because no finite exact carrier decides Julia-set membership. Its peer `coupling.resonant_spectrum` gauges commensurability with `best_rational` + a Class-J lock **only inside ℚ** — which is the silent-harmonisation bug above. **The gap was a missing TIER TAG, not a missing idea.**
+
+### `srmech.music` — the new namespace, and why it is not `srmech.amsc`
+
+ADR-0010 names `srmech.music.*` as the domain home for the acoustic/harmonic surface, and is **actively draining** `srmech.amsc` back to attestation under a down-only per-artifact ratchet (`CEIL_AMSC_PREFIX`). Landing nine new ops under `srmech.amsc.*` would have raised a population that ADR is reducing — the ratchet would have failed the build, correctly. The slice lands where it belongs; the ratchet holds untouched. `"srmech.music"` is APPENDED to `tests/rosetta_roots.py` per that tuple's order-is-part-of-the-value note.
+
+⚠️ **"harmonic" in this package is the ACOUSTIC word — partials, overtones, frequency ratios.** Everywhere else in the tree it means **chirality order**: `harmonics.classify_harmonic` has the signature `(class_letter: str) -> int` and returns which of the three `HARMONIC_PARTITION` rungs an A–N class letter sits on (codomain `{1, 2, 3}`; `A → 1`, `I → 3`). Its domain is a class letter and its codomain is a rung index — neither is a frequency in any sense. Nothing in `srmech.music` imports, extends or shadows it; a test asserts the two `__all__` sets are disjoint and that no `classify_*` name appears in this package.
+
+**The honesty layer — `spectrum_tier`.** Tier 1 `Q` (exact rational) · Tier 2 `Qalg` (exact algebraic irrational — `α² == 2` holds *in the field*, so it is still exact and still decidable) · Tier 3 (no exact carrier). Tiers 1 and 2 are INFERRED from the carrier. **Tier 3 must be DECLARED, and that asymmetry is the honesty layer rather than a gap in it**: `Qalg.alpha` REJECTS a non-integer minimal polynomial, so a transcendental cannot be smuggled in as if it were exact — and it follows that a rational standing in for a transcendental is, as a carrier, *just a rational*. Only the constructor knows the provenance. A test shows the identical carriers reading Tier 1 when undeclared and Tier 3 when declared, which is exactly why the declaration has to exist.
+
+**The verdict — `commensurability_verdict`.** `"harmonic"` / `"inharmonic"` / `"open"`, decided by rational rank. **Two senses of "harmonic", kept apart in two fields:** `verdict` answers *commensurable?*; `integer_series` answers the classical acoustics question *are the ratios the plain integer series 1, 2, 3, …?*. They come apart, and the split is the point — a tuned bell's canonical partials (½, 1, 6/5, 3/2, 2) are called *inharmonic* by acousticians because they are not the integer series, yet every ratio is rational, so the spectrum is exactly COMMENSURABLE: `verdict "harmonic"`, `integer_series False`, genuine common period `10·T₀`. Reporting one number for both questions is what hid the distinction.
+
+**The guard — `common_period`.** Returns the period multiplier `k` (Class-I `lcm` of the reduced denominators) only for a spectrum that earned the `"harmonic"` verdict; for `"inharmonic"` or `"open"` it **raises**, naming the offending indices. The silent conversion is not merely warned about — it is made unreachable. The only way to obtain a period from this family is to have earned the verdict first.
+
+**Four constructors, each DECLARING its tier.**
+
+| op | tier | carrier |
+|---|---|---|
+| `bell_partials` | 1 | `Q` — hum ½, prime 1, tierce **6/5**, quint 3/2, nominal 2 (Fletcher & Rossing 1998 §21.3) |
+| `equal_temperament_partials` | 2 | `Qalg` in ℚ[x]/(xᴺ−c) — the verified 12-TET case |
+| `stiff_string_partials` | 2 | `Qalg` in ℚ[x]/(x²−r) — `f_n = n·f₀·√(1+B n²)`, B rational ⇒ √(rational) |
+| `membrane_partials` | 3 | declared OPEN — Bessel zeros |
+
+`stiff_string_partials` carries a **built-in control**: at `B == 0` the radicand collapses to `n²`, a perfect square, so every ratio degenerates to the integer `n` and the Tier-2 constructor returns Tier 1 with `verdict "harmonic"`, `integer_series True` — the ideal flexible string, recovered exactly. This whole family was **already exactly carriable** by the shipped `Qalg`; what was missing was the tier tag and a verdict that could read it. A test asserts `ratio * ratio == radicand` on the nose, with no tolerance. `equal_temperament_partials` REFUSES a reducible `xⁿ − a` (Lang, *Algebra* 3rd ed., VI §9 Thm 9.1), because the quotient ring would not be a field and the ℚ-membership oracle would be meaningless — refusing beats answering from a broken carrier. Float ratios and a float stiffness are REFUSED throughout: every float IS a rational, so a float spectrum would be unconditionally Tier 1 and unconditionally commensurable — the exact silent harmonisation being fixed.
+
+**`membrane_partials` asserts NOTHING about Bessel-zero transcendence.** The ratios are exact rationals *of declared precision*; the true values are not claimed transcendental, algebraic-irrational, or rational. DLMF 10.21 was fetched and contains no transcendence statement; **Siegel's theorem was never fetched**. The field-theoretic status is UNRESOLVED, so the tier is declared open and every verdict over the spectrum returns `"open"` — never `"harmonic"`, which is precisely what reading a `best_rational` anchor off those rationals would have produced.
+
+### The Bessel kernel — PROMOTED, not rewritten, and its C peer
+
+`bessel_j_fixed` / `bessel_zero_fixed` are the Spike #40 exact primitives (`docs/srmech/notes/spike_40_exact_primitives.py`, GAP-1 / GAP-2) lifted into the package: DLMF 10.2.2 / Watson (1922) §3.1 ascending series by exact integer recurrence on a declared fixed-point grid, then McMahon (DLMF 10.21.19) + exact-rational Newton with the DLMF 10.6.1 derivative.
+
+**ONE deliberate change, and it is what buys parity.** The note wrote the alternation as `term = -((term * H2) >> bits) // d`, leaning on Python's FLOOR semantics for `>>` and `//` on negatives. C bignums are sign-magnitude and truncate, so that spelling could not be made bit-identical without emulating Python's floor. Here the running term is a **non-negative magnitude** and the alternation is an explicit **Class-K** sign-flip re-applied by **Class-C** `reorient` at the accumulation — so every shift and divide runs on a magnitude, where floor and truncate agree, and the C peer is bit-identical **by construction** rather than by luck. It is also the cascade-honest spelling the `abs()` ban asks for: no `abs()` and no reliance on ALU sign semantics anywhere in the body.
+
+**C parity.** New symbols `srmech_bessel_j_fixed_big` + `srmech_bessel_j_fixed_ws_bound` in `srmech_bigexp.c`, on the same caller-arena bigint substrate as the `*_big` series (no malloc, JPL-clean, pedantic-clean under `-Wall -Wextra -Wpedantic -Werror`). Its contract differs from its siblings' deliberately — they return an exact REDUCED rational partial sum, this returns a value on a declared fixed-point grid — and the header says so. **Measured 168/168 bit-exact** across order × argument × scale; the parity sweep is a shipped test that degrades to a pure-Python self-check when the native lib is absent. `bessel_zero_fixed` adds no new kernel (pure orchestration over `bessel_j_fixed` + the C-backed π cascade) and ships `composition_of_c`. Additive symbols → **ABI unchanged at 10**.
+
+### FIX 1 — `Qalg.__eq__` scalar coercion
+
+`Qalg.alpha([-2,0,1])**2` has coords `(Q(2,1), Q(0,1))` — the field element 2 — yet compared **True** against `Qalg.rational(2, m)` and **False** against both `2` and `Q(2,1)`. The same value, three spellings, two answers. `__mul__` / `__add__` already coerced an exact-rational scalar into the field via `rational()`; `__eq__` returned `NotImplemented`, so Python fell back to identity. A scalar now coerces on comparison exactly as it does under the ring ops, and `__hash__` follows so the data-model invariant (equal objects hash equal) holds — `Qalg.rational(2, m)`, `Q(2,1)` and `2` now share a hash bucket. Coercion did not become sloppiness: `α` itself is still ≠ 2, and cross-field comparison is `False` rather than an error, because `==` is a total predicate (unlike `+` / `*`, which legitimately raise on a field mismatch — the *result* would be ill-defined).
+
+Two new accessors name the oracle the rest of this rc rests on: **`Qalg.is_rational()`** (every coordinate above `α⁰` vanishes) and **`Qalg.as_rational()`** (the exact `Q`, or `None`). `Qalg` is a class, so it carries no `ToolEntry` and no ledger row; these are methods on an existing carrier.
+
+### FIX 2 — the `pin_slot_at_zero` origin float leak (Class-K)
+
+`cascade.pin_slot_at_zero` ended its origin branch `return 0, 0.0` **unconditionally**. Measured: `0 → (0, 0.0)` float · `Q(0,1) → (0, 0.0)` float · `5 → (+1, 5)` int ✓ · `Q(3,2) → (+1, Q(3,2))` Q ✓. The ± branches preserved type; **the origin did not** — contradicting the function's own docstring ("the int-in / int-magnitude-out type contract is preserved bit-identically"), and doing it at the Class-K phase boundary itself, in the one op that exists to replace `abs()`. Dropping an exact carrier onto the FPU at exactly that point is the failure mode the ban exists to prevent.
+
+The origin now returns the input carrier's OWN zero. **`float` is untouched** (`0.0`): that path also carries NaN and signed zero, whose documented Class-K dead-band reading is `0.0` and must stay bit-identical to the native C peer — asserted for `0.0`, `-0.0`, `nan`, `±inf`. `magnitude` inherits the fix through the `pin_slot_at_zero` it composes.
+
+**DOC-1.** Both were annotated `float`-only despite being type-preserving over any ordered real carrier — an annotation that actively discouraged the exact-carrier use the `abs()` ban REQUIRES, and that a reader could only disprove by reading the body. Both are now `Real` (a `TypeVar` documenting the true contract: whatever ordered real carrier goes in comes back out in the same type).
+
+### The domain-naming layer — a `[[alias]]` TOML that finally ships
+
+rc261 shipped the config-TOML **function-aliasing** subsystem (`srmech.dsl.alias` / `build_aliases_from_toml_str` / `load_aliases_toml`) but **no `[[alias]]` descriptor ever shipped with it** — the layer had an API and no worked example. `tests/data/music_domain_aliases.toml` is that example, and it is how the acoustic domain gets its vocabulary: the general ops keep general names, and `partials` / `bell_tuning` / `overtone_series` / `drum_modes` / `temperament` / `is_inharmonic` / `overtone_period` / `exactness` are a CONFIG BINDING over them. Change the TOML entry and the domain-referenced name changes with **no source edit and no recompile**. It mints no new op and therefore owes no C parity: `alias` returns a `functools.wraps` duplicate of a callable that already exists on every implementation, and the ledger classifies that layer `dev_tooling` = never-owed-C (see ADR-0010's own correction note on why it is NOT a namespace seam).
+
+### PRIMITIVE GAP recorded (Class N)
+
+There is **no PUBLIC exact integer root op**. `_integer_sqrt` (native `srmech_isqrt`) is private, and there is no integer `k`-th root for `k > 2` at all, so `_instruments.py` hand-rolls a pure-integer binary-search `_int_root` for the `xⁿ − a` irreducibility guard. `rational.sqrt` cannot substitute — it returns a truncated `Q` at a declared precision, which cannot decide *exactness*. Both hand-rolls are argument-validation guards using only integer multiply and compare (trivially reproducible on a bare-C host with no srmech kernel), not kernels of any returned value; both are marked `PRIMITIVE GAP` in source at the point of use.
+
+### Ripple
+
+`__all__` · 9 `ToolEntry` rows in a new `_register_music_tools()` (category `music`) · 9 `rosetta_classification.ndjson` rows (1 `c_dispatched`, 7 `composition_of_c`, 1 `non_compute`/`composes_c`) · `test_non_compute_ratchet_rc170` split 137→138 and total 209→210 · the `COMPOSES_C_ZERO_REACH_PINNED` allowlist gains `bell_partials` **with its justification written out** (a pure exact-data table — no loop, no recurrence, so reaching zero ledger ops is the correct description of it, and the question the pin exists to force is answered by reading the body) · `tests/rosetta_roots.py` gains `"srmech.music"` · `_native.py` binding + `has_native_bessel_j_fixed()` + `bessel_j_fixed_c()` · `tests/registered_op_names.txt` and `EXPECTED_N` / `EXPECTED_NAME_SET_SHA256` regenerated **in the same commit** · **60 count assertions across 54 test files** 516 → 525 · `python3 tools/regen_all.py` rewrote `_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c`, `srmech_carrier_registry.c` (idempotent on the second pass). The rc361 `CEIL_AMSC_PREFIX` decode-aware ratchet passes **unchanged** — the whole point of landing in `srmech.music`.
+
 ## [0.9.0rc361]
 
 **THE RENAME-DETECTION INSTRUMENT SUITE — three gates, no product change.** `#T1034`, the first prerequisite rc of the ADR-0010 namespace-declustering arc. **No new C symbol; `SRMECH_ABI_VERSION` stays 10; `describe()["tools"]["total"]` stays 516; no generated file was hand-edited and none needed regenerating.** This rc ships only tests plus two shared test-side modules.

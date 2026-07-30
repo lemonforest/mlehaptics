@@ -714,6 +714,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_zeilberger_out_cap',
         'srmech_zeilberger_ws_bound',
     ),
+    'srmech.music._bessel.bessel_j_fixed': (
+        'srmech_bessel_j_fixed_big',
+        'srmech_bessel_j_fixed_ws_bound',
+    ),
     'srmech.qm.gauge.su2_structure_constants': ('srmech_qm_su2_structure',),
     'srmech.qm.gauge.su3_gell_mann_matrices': ('srmech_qm_gell_mann',),
     'srmech.qm.gauge.su3_structure_constants': ('srmech_qm_su3_structure',),

@@ -10745,6 +10745,354 @@ def _register_rbs_lm_tools() -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
+def _register_music_tools() -> None:
+    """Register the ``srmech.music`` acoustic domain slice (v0.9.0rc362).
+
+    The ADR-0010 ``srmech.music.*`` domain namespace: partial spectra, the
+    exactness TIER TAG over them, and a commensurability verdict that can
+    return "inharmonic". Declarative ToolEntry data only — no ``srmech.music``
+    import here (resolved at invoke time), so no import cycle.
+
+    NOTE ON THE WORD "harmonic". In this family it is the ACOUSTIC sense —
+    partials, overtones, frequency ratios. It is NOT the chirality-order sense
+    ``classify_harmonic`` carries, which maps an A-N class letter to its
+    position in the HARMONIC_PARTITION and has nothing to do with sound. The
+    two surfaces never meet.
+    """
+    P = ToolParameter
+    R = ToolReturn
+    entries = [
+        # ────────────────────────────────────────────────────────────
+        # The honesty layer + the core verdict. Both compose already-C-backed
+        # ops only — the Qalg field algebra (Class-N/Class-J) and the Class-I
+        # cyclic lcm — so they add NO new numerical kernel and ship
+        # composition_of_c (standalone-ready; no dedicated C peer needed).
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.music.spectrum_tier", owner="srmech",
+            category="music",
+            summary="TIER-TAG an acoustic spectrum — the honesty layer over any "
+                    "spectrum-carrying value. Tier 1 = exact RATIONAL carrier "
+                    "(Q/int). Tier 2 = exact ALGEBRAIC-IRRATIONAL carrier (Qalg; "
+                    "alpha**2 == 2 holds IN THE FIELD, so it is still exact and "
+                    "still decidable). Tier 3 = NO exact carrier exists — "
+                    "transcendence unresolved or known-absent — so any number "
+                    "present is a rational of DECLARED PRECISION only. The "
+                    "spectrum's tier is the WEAKEST of its partials'. Tiers 1 and "
+                    "2 are INFERRED from the carrier; Tier 3 must be DECLARED via "
+                    "open_partials, because it cannot be inferred — a rational "
+                    "standing in for a transcendental is, as a carrier, just a "
+                    "rational, and only the constructor knows the provenance. "
+                    "That asymmetry IS the honesty layer. Precedent: "
+                    "fractal_spectrum already returns a spectrum_open string "
+                    "rather than a list because no finite exact carrier decides "
+                    "Julia-set membership. float ratios are REFUSED (every float "
+                    "IS a rational, so a float spectrum would be unconditionally "
+                    "Tier 1 and unconditionally commensurable — the exact silent "
+                    "harmonisation this layer exists to prevent). 'harmonic' here "
+                    "is the ACOUSTIC word, never the chirality order "
+                    "classify_harmonic uses. Exact-Q; numpy-free; no abs().",
+            parameters=(P("partials", "Sequence", True,
+                          "non-empty sequence of partial-to-fundamental frequency "
+                          "RATIOS, each Q, Qalg, int or an (int, int) pair"),
+                        P("open_partials", "Sequence[int]", False,
+                          "indices whose true value has NO exact carrier; "
+                          "declared by the constructor that produced them")),
+            returns=R("dict", "{'tier': 1|2|3, 'tier_name': str, 'exact': bool, "
+                              "'n_partials': int, 'per_partial': list of "
+                              "{index, carrier, tier, tier_name, field_degree, "
+                              "in_rationals (None = UNDECIDED at Tier 3)}, "
+                              "'open_indices': tuple, 'open_reason': str|None}"),
+        ),
+        ToolEntry(
+            name="srmech.music.commensurability_verdict", owner="srmech",
+            category="music",
+            summary="Decide whether an acoustic spectrum is commensurable with "
+                    "its fundamental — a verdict that CAN return 'inharmonic'. "
+                    "The invariant is RATIONAL RANK / FIELD DEGREE, not a period: "
+                    "membership in the rationals inside Q[x]/(m) is "
+                    "field-theoretic (Q is the unique degree-1 subfield of "
+                    "Q(alpha)), so it survives any change of Q-basis and is a "
+                    "genuine invariant rather than a presentation count. Every "
+                    "ratio in Q => a common period exists ('harmonic'); any ratio "
+                    "provably outside Q => that partial shares no period with the "
+                    "fundamental at any multiple ('inharmonic'); any partial "
+                    "declared Tier 3 => 'open'. WHY THIS WAS NEEDED: Class-I "
+                    "gcd/lcm STRUCTURALLY cannot return 'inharmonic' — a finite "
+                    "set of rational ratios always has an lcm, so it always "
+                    "yields a finite period. And Class-N best_rational is worse "
+                    "than silent: it does not approximate an inharmonic spectrum, "
+                    "it CONVERTS it into a harmonic one, since every anchor p/q "
+                    "IS a finite period T0*q (measured: an irrational read at "
+                    "max_den 1e2/1e4/1e6 gives 22/7, 355/113, 2917129/928551). "
+                    "Raising max_den only buys a longer FALSE period, never a "
+                    "verdict. Verified: in Q[x]/(x**12 - 2), s**0 rational True, "
+                    "s**1..s**11 all False, s**12 True — 12-tone equal "
+                    "temperament exactly represented AND provably "
+                    "incommensurable with the octave except AT the octave. TWO "
+                    "SENSES KEPT APART: 'verdict' answers *commensurable?*; "
+                    "'integer_series' answers the classical acoustics question "
+                    "*are the ratios the plain integer series 1,2,3,...?*. A "
+                    "tuned bell (1/2, 1, 6/5, 3/2, 2) is called inharmonic by "
+                    "acousticians yet is exactly commensurable — harmonic with "
+                    "integer_series False. No threshold and no denominator "
+                    "ceiling is consulted anywhere in the decision. Exact-Q; "
+                    "numpy-free; no abs().",
+            parameters=(P("partials", "Sequence", True,
+                          "partial-to-fundamental frequency ratios (Q / Qalg / "
+                          "int / (int, int) pair)"),
+                        P("open_partials", "Sequence[int]", False,
+                          "indices declared Tier 3 by their constructor")),
+            returns=R("dict", "{'verdict': 'harmonic'|'inharmonic'|'open', "
+                              "'integer_series': bool, 'rational_rank': int, "
+                              "'n_partials': int, 'field_degrees': tuple, "
+                              "'incommensurable': tuple of indices provably "
+                              "outside Q, 'open_indices': tuple, 'tier': int, "
+                              "'tier_name': str, 'period_multiplier': int|None "
+                              "(only when harmonic), 'class_i_note': str, "
+                              "'class_n_warning': str}"),
+        ),
+        ToolEntry(
+            name="srmech.music.common_period", owner="srmech",
+            category="music",
+            summary="The common period of an acoustic spectrum as an integer "
+                    "multiple k of the fundamental period T0 — and the GUARD "
+                    "that makes silent harmonisation UNREACHABLE. Returns k "
+                    "(the Class-I lcm of the reduced ratio denominators, so a "
+                    "partial at p/q completes a whole number of cycles in k*T0 "
+                    "exactly when q divides k) when, and only when, "
+                    "commensurability_verdict says 'harmonic'. For an "
+                    "'inharmonic' or 'open' spectrum it RAISES: there is no "
+                    "period to return, and handing back a best_rational anchor "
+                    "instead would silently convert the spectrum into a harmonic "
+                    "one. That conversion is the corruption this op exists to "
+                    "make impossible — the only way to obtain a period from this "
+                    "family is to have earned the verdict first. The raised "
+                    "message names the offending partial indices and why no "
+                    "period exists. Exact integer; numpy-free; no abs().",
+            parameters=(P("partials", "Sequence", True,
+                          "partial-to-fundamental frequency ratios"),
+                        P("open_partials", "Sequence[int]", False,
+                          "indices declared Tier 3 by their constructor")),
+            returns=R("int", "the period multiplier k (common period = k*T0); "
+                             "raises ValueError when the spectrum is inharmonic "
+                             "or open"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # Four closed-form constructors, one per tier. bell_partials is pure
+        # DATA (the from_bodies / cooccurrence_edges builder precedent) so it
+        # ships non_compute; the other three compose already-C-backed Qalg /
+        # primes / isqrt / Bessel ops and ship composition_of_c.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.music.bell_partials", owner="srmech",
+            category="music",
+            summary="The five tuned partials of a bell — TIER 1 (exact "
+                    "rationals). The bell founder's tuning TARGETS from Fletcher "
+                    "& Rossing, The Physics of Musical Instruments (2nd ed., "
+                    "Springer 1998) sec. 21.3: hum 1/2, prime 1, tierce 6/5 (a "
+                    "minor third — why a bell sounds minor), quint 3/2, nominal "
+                    "2. THE FINDING THIS EXPOSES: acousticians call a bell "
+                    "*inharmonic* because its partials are not the integer "
+                    "series 1,2,3,...; by the field-degree invariant it is "
+                    "nothing of the sort — every ratio is rational, so the "
+                    "spectrum is exactly COMMENSURABLE, with verdict 'harmonic', "
+                    "integer_series False, and a genuine common period of 10*T0 "
+                    "(lcm of 2,1,5,2,1). Two different questions wearing one "
+                    "word; separating them is the point. A pure exact-data "
+                    "builder — no numerical kernel — so it ships non_compute "
+                    "(the from_bodies precedent). Exact-Q; numpy-free.",
+            parameters=(),
+            returns=R("dict", "{'ratios': tuple[Q,...], 'names': tuple[str,...] "
+                              "(hum, prime, tierce, quint, nominal), 'tier': 1, "
+                              "'open_partials': (), 'profile': str, "
+                              "'cite_as': str}"),
+        ),
+        ToolEntry(
+            name="srmech.music.equal_temperament_partials", owner="srmech",
+            category="music",
+            summary="Equal temperament as EXACT algebraic numbers — TIER 2. "
+                    "Builds the number field Q[x]/(x**divisions - octave) and "
+                    "returns the requested scale degrees as exact Qalg powers of "
+                    "its generator s; the step ratio is the divisions-th root of "
+                    "the octave — irrational, and carried EXACTLY rather than "
+                    "approximated. This is the verified worked case for the whole "
+                    "family: in Q[x]/(x**12 - 2), s**0 is rational (1), s**1 "
+                    "through s**11 are ALL irrational, and s**12 is rational (2) "
+                    "— 12-tone equal temperament exactly representable AND "
+                    "provably incommensurable with the octave except AT the "
+                    "octave, decided with no threshold and no denominator "
+                    "ceiling. REFUSES a reducible x**n - a (Lang, Algebra 3rd "
+                    "ed., VI sec. 9 Thm 9.1: irreducible iff a is not a p-th "
+                    "power for every prime p | n, the -4K**4 clause being "
+                    "unreachable for an integer a >= 2), because the quotient "
+                    "ring would not be a field and the rational-membership "
+                    "oracle would be meaningless. Composes the Qalg field "
+                    "algebra + Class-J prime factorisation. Exact-Q; "
+                    "numpy-free; no abs().",
+            parameters=(P("divisions", "int", False,
+                          "steps per octave (>=1); default 12"),
+                        P("octave", "int", False,
+                          "the integer octave ratio (>=2); default 2"),
+                        P("degrees", "Sequence[int]", False,
+                          "which scale degrees to return; default 0..divisions "
+                          "inclusive")),
+            returns=R("dict", "{'ratios': tuple[Qalg,...], 'degrees': tuple, "
+                              "'tier': 2, 'open_partials': (), "
+                              "'minimal_polynomial': tuple[int,...] (low->high, "
+                              "monic), 'field_degree': int}"),
+        ),
+        ToolEntry(
+            name="srmech.music.stiff_string_partials", owner="srmech",
+            category="music",
+            summary="A stiff (piano) string's partials — TIER 2, exactly "
+                    "carriable TODAY. The textbook closed form is f_n = "
+                    "n*f0*sqrt(1 + B*n**2) (Fletcher & Rossing, The Physics of "
+                    "Musical Instruments, 2nd ed., Springer 1998, sec. 2.18 — "
+                    "bending stiffness sharpens each partial). With B RATIONAL "
+                    "the ratio to the fundamental is sqrt(rational): r_n = "
+                    "n*sqrt(1+B*n**2) = sqrt(n**2*(1+B*n**2)), a QUADRATIC SURD "
+                    "living exactly in Q[x]/(x**2 - r_n). No approximation "
+                    "anywhere — this whole family was ALREADY exactly carriable "
+                    "by the shipped Qalg; what was missing was the tier tag and "
+                    "a verdict that could read it. Each partial gets its own "
+                    "quadratic field (the radicands differ), which is correct and "
+                    "harmless: commensurability with the fundamental is a "
+                    "per-partial rational-membership question, field-theoretic in "
+                    "each field separately. BUILT-IN CONTROL: at B == 0 the "
+                    "radicand collapses to n**2, a perfect square, so every ratio "
+                    "degenerates to the integer n and the op returns Tier 1 with "
+                    "verdict 'harmonic' and integer_series True — the ideal "
+                    "flexible string, recovered exactly. A float B is REFUSED (it "
+                    "would make every radicand a float-rational and collapse the "
+                    "Tier-1/Tier-2 distinction). Exact-Q; numpy-free; no abs().",
+            parameters=(P("inharmonicity", "Q", True,
+                          "the stiffness coefficient B >= 0, as Q, int or an "
+                          "(int, int) pair; must be EXACT (floats refused)"),
+                        P("n_partials", "int", False,
+                          "how many partials, n = 1..n_partials (>=1); "
+                          "default 8")),
+            returns=R("dict", "{'ratios': tuple[Qalg|Q,...], 'orders': tuple, "
+                              "'tier': 1|2, 'open_partials': (), "
+                              "'inharmonicity': Q, 'radicands': tuple[Q,...], "
+                              "'cite_as': str}"),
+        ),
+        ToolEntry(
+            name="srmech.music.membrane_partials", owner="srmech",
+            category="music",
+            summary="A circular membrane's partials — TIER 3, DECLARED OPEN. The "
+                    "modal frequencies of an ideal circular membrane are "
+                    "proportional to the Bessel zeros, so the ratio to the "
+                    "fundamental is j_{n,m}/j_{0,1} (Fletcher & Rossing, The "
+                    "Physics of Musical Instruments, 2nd ed., Springer 1998, sec. "
+                    "3.2) — which is why a drum has no pitch the way a string "
+                    "does. EVERY partial is declared Tier 3, and NOTHING is "
+                    "asserted about why: the returned ratios are exact rationals "
+                    "OF DECLARED PRECISION from bessel_zero_fixed, are not "
+                    "claimed to be the true values, and the true values are not "
+                    "claimed to be transcendental, algebraic-irrational or "
+                    "rational. DLMF 10.21 was fetched and contains no "
+                    "transcendence statement; Siegel's theorem was never fetched. "
+                    "The honest position is that the field-theoretic status is "
+                    "UNRESOLVED, so the tier is declared open and every "
+                    "commensurability verdict over this spectrum returns 'open' "
+                    "— never 'harmonic', which is exactly what reading a "
+                    "best_rational anchor off these rationals would have "
+                    "produced. Pass open_partials straight through to "
+                    "spectrum_tier / commensurability_verdict. Exact-Q; "
+                    "numpy-free; no abs().",
+            parameters=(P("n_orders", "int", False,
+                          "how many Bessel orders n = 0..n_orders-1 (>=1); "
+                          "default 3"),
+                        P("m_zeros", "int", False,
+                          "how many zeros per order, m = 1..m_zeros (>=1); "
+                          "default 3"),
+                        P("scale_bits", "int", False,
+                          "the DECLARED fixed-point precision of the zeros; "
+                          "default 128")),
+            returns=R("dict", "{'ratios': tuple[Q,...], 'modes': tuple of (n,m), "
+                              "'tier': 3, 'open_partials': tuple(all indices), "
+                              "'scale_bits': int, 'declared_precision_only': "
+                              "True, 'transcendence_claim': 'NONE ...', "
+                              "'cite_as': str}"),
+        ),
+        # ────────────────────────────────────────────────────────────
+        # The Class-N exact Bessel kernel, PROMOTED from the Spike #40 exact
+        # primitives. bessel_j_fixed carries the dedicated C peer
+        # srmech_bessel_j_fixed_big; bessel_zero_fixed is pure orchestration
+        # over it plus the C-backed pi cascade.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.music.bessel_j_fixed", owner="srmech",
+            category="music",
+            summary="J_k(x) for integer order k >= 0 and rational x >= 0, as an "
+                    "exact rational on a DECLARED 2**-scale_bits fixed-point "
+                    "grid. The DLMF 10.2.2 / Watson (1922) sec. 3.1 ascending "
+                    "series J_k(x) = SUM_m (-1)**m (x/2)**(2m+k) / (m!(m+k)!), "
+                    "summed by the exact integer recurrence t_{m+1} = "
+                    "t_m*(x/2)**2/((m+1)(m+k+1)); the series alternates, so "
+                    "truncating when the running term underflows the scale bounds "
+                    "the truncation error BY that term. SIGN LIVES IN THE "
+                    "ORIENTATION, NOT THE DIVISOR: the running term is a "
+                    "NON-NEGATIVE magnitude and the alternation is an explicit "
+                    "Class-K sign-flip re-applied by Class-C reorient at the "
+                    "accumulation, so every shift and divide runs on a magnitude "
+                    "where C truncation and Python floor agree — which is what "
+                    "makes the C peer srmech_bessel_j_fixed_big bit-identical by "
+                    "construction (measured 168/168 across order x argument x "
+                    "scale). Negative x raises (the Class-K real-axis domain; use "
+                    "J_k(-x) = (-1)**k J_k(x)). The return is a rational OF "
+                    "DECLARED PRECISION and asserts nothing about the "
+                    "arithmetic nature of any Bessel value. Exact integer body; "
+                    "numpy-free; no float; no abs().",
+            parameters=(P("order", "int", True, "the integer Bessel order k >= 0"),
+                        P("numerator", "int", True,
+                          "the argument's numerator; the argument must be >= 0"),
+                        P("denominator", "int", True,
+                          "the argument's denominator, > 0"),
+                        P("scale_bits", "int", False,
+                          "the DECLARED fixed-point scale in bits, [8, 4096]; "
+                          "default 256")),
+            returns=R("tuple", "(num, den) with den == 2**scale_bits — the exact "
+                               "value at the declared precision"),
+        ),
+        ToolEntry(
+            name="srmech.music.bessel_zero_fixed", owner="srmech",
+            category="music",
+            summary="The index-th positive zero of J_order at a DECLARED "
+                    "precision. McMahon's asymptotic start (DLMF 10.21.19) "
+                    "beta = pi*(4*index + 2*order - 1)/4, j ~ beta - "
+                    "(4*order**2 - 1)/(8*beta), refined by exact-rational Newton "
+                    "on bessel_j_fixed with the derivative from DLMF 10.6.1 "
+                    "(J_k' = (J_{k-1} - J_{k+1})/2, J_0' = -J_1). Every iterate "
+                    "is snapped back onto the declared grid so the denominator "
+                    "stays bounded, and the sign handling in that snap is a "
+                    "Class-K split plus a Class-C re-application — never abs(), "
+                    "and never a negative floor-divide. THIS ASSERTS NOTHING "
+                    "ABOUT THE TRUE ZERO: it is a rational of declared precision. "
+                    "Whether Bessel zeros are transcendental or "
+                    "algebraic-irrational is OPEN in this project — DLMF 10.21 "
+                    "states nothing on it and Siegel's theorem was never fetched "
+                    "— so membrane_partials tags such a spectrum Tier 3 and every "
+                    "verdict over it returns 'open'. Pure orchestration over "
+                    "bessel_j_fixed (C-dispatched) and the C-backed pi cascade, "
+                    "so it adds NO new numerical kernel. Exact-Q; numpy-free; "
+                    "no abs().",
+            parameters=(P("order", "int", True, "the integer Bessel order n >= 0"),
+                        P("index", "int", True,
+                          "which positive zero, 1-based (1 = the first)"),
+                        P("scale_bits", "int", False,
+                          "the DECLARED fixed-point scale in bits; default 256"),
+                        P("newton_steps", "int", False,
+                          "Newton refinements after the McMahon start, [1, 64]; "
+                          "default 8")),
+            returns=R("tuple", "(num, den) with den == 2**scale_bits"),
+        ),
+    ]
+    for e in entries:
+        register_tool(e)
+
+
 def warmup_all() -> None:
     """Import every srmech submodule that registers ToolEntries, so the
     registry is fully populated no matter how srmech was entered (library,
@@ -10795,6 +11143,7 @@ _register_qm_tools()
 _register_introspect_tools()
 _register_dsl_tools()
 _register_rbs_lm_tools()
+_register_music_tools()
 
 
 __all__ = [

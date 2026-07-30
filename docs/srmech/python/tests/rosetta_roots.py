@@ -92,4 +92,7 @@ ROSETTA_ROOTS = (
     "srmech.rbs_lm",
     "srmech.introspect",
     "srmech.profile_loader",
+    # v0.9.0rc362 — the ADR-0010 srmech.music domain namespace (the
+    # acoustic surface). APPENDED, per the order-is-part-of-the-value note.
+    "srmech.music",
 )
