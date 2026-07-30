@@ -684,6 +684,11 @@ SCAN_ROOTS = {
         "docs/srmech/python", "docs/srmech/c"),
     # The rest stay inside python/ + c/, i.e. inside srmech-ci's own trigger.
     "tests/test_regen_all_rc346.py": ("docs/srmech/python", "docs/srmech/c"),
+    # rc362: reads c/src/srmech_tool_schema.c to compare the two HAND-MIRRORED
+    # MCP lexicons table-to-table. That file is NOT a regen_all output, so
+    # nothing syncs the copies for you and only a direct comparison can see a
+    # drift that no live op happens to expose.
+    "tests/test_tool_schema_ops_c_rc185.py": ("docs/srmech/python", "docs/srmech/c"),
     "tests/test_c_cascade_coherence.py": ("docs/srmech/c",),
     "tests/test_carrier_capability_rc339.py": ("docs/srmech/c",),
     "tests/test_carrier_ceiling_rc343.py": ("docs/srmech/c",),

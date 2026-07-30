@@ -5223,6 +5223,34 @@ def _bind(lib: ctypes.CDLL) -> None:
             getattr(lib, _bop).argtypes = list(_BIGEXP_SIG)
             getattr(lib, _bop).restype = ctypes.c_int
 
+    # v0.9.0rc362 — the FIXED-POINT Bessel J_k peer backing
+    # srmech.music.bessel_j_fixed. It shares bigexp's caller-arena bigint
+    # substrate but NOT its contract: the result is a value on a declared
+    # 2^-scale_bits grid, so there is a single `out_num` and the denominator is
+    # implicit. NEW symbols → hasattr-guarded; additive → ABI unchanged.
+    #   size_t srmech_bessel_j_fixed_ws_bound(size_t num_limbs,
+    #       size_t den_limbs, uint32_t scale_bits, uint32_t order)
+    if hasattr(lib, "srmech_bessel_j_fixed_ws_bound"):
+        lib.srmech_bessel_j_fixed_ws_bound.argtypes = [
+            ctypes.c_size_t, ctypes.c_size_t, ctypes.c_uint32, ctypes.c_uint32,
+        ]
+        lib.srmech_bessel_j_fixed_ws_bound.restype = ctypes.c_size_t
+    #   srmech_status_t srmech_bessel_j_fixed_big(uint32_t order,
+    #       const srmech_bigint_t *x_num, const srmech_bigint_t *x_den,
+    #       uint32_t scale_bits, srmech_bigint_t *out_num,
+    #       void *ws, size_t ws_len)
+    if hasattr(lib, "srmech_bessel_j_fixed_big"):
+        lib.srmech_bessel_j_fixed_big.argtypes = [
+            ctypes.c_uint32,
+            ctypes.POINTER(_SrmechBigint),
+            ctypes.POINTER(_SrmechBigint),
+            ctypes.c_uint32,
+            ctypes.POINTER(_SrmechBigint),
+            ctypes.c_void_p,
+            ctypes.c_size_t,
+        ]
+        lib.srmech_bessel_j_fixed_big.restype = ctypes.c_int
+
     # Jacobi elliptic sn/cn/dn Maclaurin truncation C peer (the C twin of
     # srmech.amsc.rational.jacobi_sncndn_series_truncate). Same caller-arena
     # srmech_bigint substrate as bigexp; two rational operands (u, m) in, three
@@ -9868,6 +9896,56 @@ def _bigexp_call(symbol: str, numerator: int, denominator: int,
     if rc != SRMECH_OK:
         raise RuntimeError(f"{symbol} returned non-OK status {rc}")
     return _bigint_to_int(out_num), _bigint_to_int(out_den)
+
+
+def has_native_bessel_j_fixed() -> bool:
+    """True iff the fixed-point Bessel C peer + the srmech_bigint decimal
+    marshal helpers are loaded + bound. False on a no-C or pre-rc362 lib — the
+    pure-Python body in ``srmech.music`` is the complete alternative (and the
+    parity oracle); both emit a byte-identical numerator."""
+    if not (HAS_NATIVE and LIB is not None):
+        return False
+    return (all(hasattr(LIB, s) for s in _BIGEXP_SYMS)
+            and hasattr(LIB, "srmech_bessel_j_fixed_big")
+            and hasattr(LIB, "srmech_bessel_j_fixed_ws_bound"))
+
+
+def bessel_j_fixed_c(order: int, numerator: int, denominator: int,
+                     scale_bits: int) -> "int | None":
+    """Invoke the fixed-point Bessel C peer; return its numerator or ``None``.
+
+    ``None`` means the native symbols are absent, and the caller falls through
+    to the pure-Python body — which is the parity oracle, not a lesser path.
+    The returned integer is over the IMPLICIT denominator ``2**scale_bits``.
+    A non-OK C status (other than absence) raises :class:`RuntimeError`.
+    """
+    if not has_native_bessel_j_fixed():
+        return None
+    if order > 64 or scale_bits < 8 or scale_bits > 4096 or numerator < 0:
+        return None                       # out of the C domain; Python answers
+    num_digits = len(str(numerator)) + len(str(denominator))
+    # The live carriers hold ~2·scale_bits bits plus the operand widths; give
+    # the marshalled bigints the same generous envelope the arena is sized to.
+    out_cap = (scale_bits // 8) + 32 * (num_digits + order) + 128
+    num_limbs = max(len(str(numerator)) // 9 + 2, 2)
+    den_limbs = max(len(str(denominator)) // 9 + 2, 2)
+    ws_len = int(LIB.srmech_bessel_j_fixed_ws_bound(
+        ctypes.c_size_t(num_limbs), ctypes.c_size_t(den_limbs),
+        ctypes.c_uint32(scale_bits), ctypes.c_uint32(order),
+    ))
+    ws = (ctypes.c_uint8 * max(ws_len, 8))()
+    x_num, _a = _bigint_from_int(numerator, out_cap)
+    x_den, _b = _bigint_from_int(denominator, out_cap)
+    out_num, _c = _bigint_from_int(0, out_cap)
+    rc = LIB.srmech_bessel_j_fixed_big(
+        ctypes.c_uint32(order), ctypes.byref(x_num), ctypes.byref(x_den),
+        ctypes.c_uint32(scale_bits), ctypes.byref(out_num),
+        ctypes.cast(ws, ctypes.c_void_p), ctypes.c_size_t(ws_len),
+    )
+    if rc != SRMECH_OK:
+        raise RuntimeError(
+            f"srmech_bessel_j_fixed_big returned non-OK status {rc}")
+    return _bigint_to_int(out_num)
 
 
 def has_native_jacobi_sncndn() -> bool:

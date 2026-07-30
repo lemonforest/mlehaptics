@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc361"
-#define SRMECH_VERSION       "0.9.0rc361"
+#define SRMECH_VERSION_PRE   "rc362"
+#define SRMECH_VERSION       "0.9.0rc362"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -9017,6 +9017,44 @@ srmech_status_t srmech_atan_series_truncate_big(const srmech_bigint_t *x_num,
                                                 void *ws, size_t ws_len);
 
 /* (p/q)^n = p^n / q^n, reduced. exp_val <= 65535. */
+/* ------------------------------------------------------------------ *
+ * srmech_bessel_j_fixed_big — FIXED-POINT Bessel J_k (v0.9.0rc362).
+ *
+ * The C peer of srmech.music.bessel_j_fixed: the DLMF 10.2.2 / Watson (1922)
+ * Sec 3.1 ascending series J_k(x) = SUM_m (-1)^m (x/2)^(2m+k) / (m!(m+k)!),
+ * summed by an exact integer recurrence on a DECLARED 2^-scale_bits grid.
+ * `out_num` is the value over the IMPLICIT denominator 2^scale_bits.
+ *
+ * Unlike its *_series_truncate_big siblings (which return an exact REDUCED
+ * rational), this returns a fixed-point value — the contract the membrane
+ * spectrum needs and the one the Python computes. Bit-identical to Python by
+ * construction: the running term is a NON-NEGATIVE magnitude and the series
+ * alternation is an explicit orientation applied at the accumulation, so no
+ * shift or divide ever sees a negative operand and C truncation and Python
+ * floor cannot diverge.
+ *
+ * Domain: order <= 64, x_num->sign >= 0 (the real-axis half-line; use
+ * J_k(-x) = (-1)^k J_k(x) for the other), x_den->sign > 0, scale_bits in
+ * [8, 4096]. Out-of-domain -> SRMECH_ERR_BAD_INPUT, matching the Python
+ * ValueError domain so C and Python accept the SAME inputs. NO transcendence
+ * claim is made about any Bessel zero.
+ *
+ * Carrier-internal (like srmech_pi): NOT a Rosetta ledger op. Additive
+ * symbols -> SRMECH_ABI_VERSION unchanged.
+ * ------------------------------------------------------------------ */
+
+/* Minimum `ws_len` BYTES for srmech_bessel_j_fixed_big at the given input
+ * limb sizes, scale and order. 8-byte-aligned uint32 bump arena. */
+size_t srmech_bessel_j_fixed_ws_bound(size_t num_limbs, size_t den_limbs,
+                                      uint32_t scale_bits, uint32_t order);
+
+srmech_status_t srmech_bessel_j_fixed_big(uint32_t order,
+                                          const srmech_bigint_t *x_num,
+                                          const srmech_bigint_t *x_den,
+                                          uint32_t scale_bits,
+                                          srmech_bigint_t *out_num,
+                                          void *ws, size_t ws_len);
+
 srmech_status_t srmech_rational_pow_uint_big(const srmech_bigint_t *base_num,
                                              const srmech_bigint_t *base_den,
                                              uint32_t exp_val,

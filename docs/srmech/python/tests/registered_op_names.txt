@@ -407,6 +407,15 @@ srmech.introspect.by_pid
 srmech.introspect.describe
 srmech.introspect.list
 srmech.introspect.publish
+srmech.music.bell_partials
+srmech.music.bessel_j_fixed
+srmech.music.bessel_zero_fixed
+srmech.music.commensurability_verdict
+srmech.music.common_period
+srmech.music.equal_temperament_partials
+srmech.music.membrane_partials
+srmech.music.spectrum_tier
+srmech.music.stiff_string_partials
 srmech.qm.bell.chsh_operator
 srmech.qm.bell.chsh_operator_norm
 srmech.qm.bell.chsh_pauli_combination

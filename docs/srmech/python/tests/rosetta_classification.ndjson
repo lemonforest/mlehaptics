@@ -739,3 +739,12 @@
 {"exposed_as": "srmech.amsc.genome.genome_octonion_associator", "defined_at": "srmech.amsc.genome.genome_octonion_associator", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_add_octonion_fiber", "defined_at": "srmech.amsc.genome.genome_add_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.genome.genome_read_octonion_fiber", "defined_at": "srmech.amsc.genome.genome_read_octonion_fiber", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.music.spectrum_tier", "defined_at": "srmech.music._spectra.spectrum_tier", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.commensurability_verdict", "defined_at": "srmech.music._spectra.commensurability_verdict", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.common_period", "defined_at": "srmech.music._spectra.common_period", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.bell_partials", "defined_at": "srmech.music._instruments.bell_partials", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.music.equal_temperament_partials", "defined_at": "srmech.music._instruments.equal_temperament_partials", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.stiff_string_partials", "defined_at": "srmech.music._instruments.stiff_string_partials", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.membrane_partials", "defined_at": "srmech.music._instruments.membrane_partials", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.bessel_j_fixed", "defined_at": "srmech.music._bessel.bessel_j_fixed", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.music.bessel_zero_fixed", "defined_at": "srmech.music._bessel.bessel_zero_fixed", "bucket": "composition_of_c"}

@@ -1393,6 +1393,15 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.introspect._event.parse",
     "srmech.introspect._event.serialize",
     "srmech.introspect.native_status",
+    # v0.9.0rc362 — a pure exact-DATA constructor, not a kernel. It
+    # returns the five Fletcher & Rossing sec. 21.3 tuned-bell tuning
+    # TARGETS as literal Q ratios (1/2, 1, 6/5, 3/2, 2) plus their
+    # names and citation; there is no loop, no recurrence and no
+    # arithmetic beyond constructing the rationals, so reaching zero
+    # ledger ops is the correct and complete description of it. The
+    # question this pin exists to force — "is this really not a compute
+    # kernel?" — is answered by reading the body: it is a table.
+    "srmech.music._instruments.bell_partials",
 })
 
 
