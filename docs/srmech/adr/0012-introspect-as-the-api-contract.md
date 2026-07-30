@@ -145,10 +145,13 @@ description, a measured capability block, and a construction example. The regist
 already says this — `srmech/amsc/carrier_schema.py:171-176`, verbatim: *"Internal exact representations
 no public op surfaces (`QMat` / `Qalg` / the genus-`RiemannTheta` family) join when an op surfaces them
 (the drift ratchet in `tests/test_carrier_schema_rc205.py` forces the addition)."* *Exhibit: rc362 is
-the first event in the tree that fires that trigger, and the addition did not happen. Baseline: of the
-25 genuine operand-carrier classes the other 516 ops surface, **24 have a registry row** — the lone
-precedent is `CarrierSpectrum`, whose own docstring calls it "a first-class carrier object". So the
-tree obeys its one rule at 96%.* **GATED (rc363)** — the exhibit was closed in rc362 *before any
+the first event in the tree that fires that trigger, and the addition did not happen. Baseline **as
+measured on the DECLARED channel** — of the 25 genuine operand-carrier classes the other 516 ops
+surface, **24 have a registry row**, the lone precedent being `CarrierSpectrum`, so the tree obeys its
+one rule at 96%. ⚠️ **That figure is channel-relative and rc363 found it wrong on the channel that
+matters**: derived from what the ops actually consume and produce, the residual is **two**, the second
+being `Theta`. §3.3 records the correction. Every carrier count in this ADR should be read with its
+channel named — the ambiguity is what produced the error.* **GATED (rc363)** — the exhibit was closed in rc362 *before any
 instrument existed*; rc363 built the instrument, which found the 96% baseline was itself measured on
 the wrong channel (§3.3).
 
@@ -472,6 +475,7 @@ point exists only for readers of the test suite.**
 | `test_every_tool_type_carrier_token_is_registered` (the C3 ratchet) | scans `parameters[].type` + `returns.type` only. Proven by counterfactual: forcing an honest `dict[str, tuple[Qalg, ...]]` return type makes the same scan return `['Qalg']` and the assert **fires**. It passes by not selecting the token | TREE-WIDE NORM — blind for **0/525**; `carrier_spectrum` (rc69) has hidden a genuine unregistered carrier from it since before the gate was written (rc205) |
 | the MCP catalog-count assertions | every one asserts `len(...) > 50`; `test_mcpb_emit.py` draws both sides of its equality from the same C-preferring source, so it is self-consistent by construction. The only instrument that can see truncation is `@skipif(not has_native)` — silent on every pure host | TREE-WIDE NORM — a count gate exists for the whole catalog or for none of it |
 | `describe()["c_claims"]["consistent"]` on a pure build | `checked_ops = 0`, `checked_symbols = 0` — **0 of 263** claimed ops checked. Green because nothing was checked | **EMPTY**, build-conditional, and the docstring says so. Anyone citing it as evidence must first check `native.has_native` |
+| `test_mcp_defs_type_lexicon_and_hint_mapping` — and **every** `@skipif(not has_native)` C-parity gate (added rc363) | it compares the Python table against **the loaded `libsrmech`**, never against the checked-in `.c`. On a host whose library predates the current sources it compares two copies of the OLD table and agrees. Measured: rc362 added `"Q"` and `"Sequence[int \| Q \| Qalg]"` to `_TYPE_LEXICON` / `_ENCODING_HINT` without mirroring them to `c/src/srmech_tool_schema.c`, and the gate was green on every developer host until rc363 rebuilt the library — **the artifact under test was not the artifact under change** (`[[feedback_verify_the_artifact_under_test_is_the_one_you_think]]`) | **BUILD-CONDITIONAL.** Green means "the loaded binary agrees", never "the tree agrees". This is the §7.3 oracle failing one step earlier than §7.3 describes: there, two current projections agreed and were consistently wrong; here, one projection was simply not the one under change. Any citation of a C-parity green must state the library's provenance |
 
 The bell-vs-siblings exhibit is worth preserving because it is internal to a single rc: `bell_partials`
 was routed to the bucket that **has** a zero-reach pin, tripped it, and had to carry a written
@@ -609,8 +613,9 @@ shape available, because nothing in the artifact reveals it.
   `srmech-rc362-acoustic-domain` at `43552be5a` plus in-flight working-tree edits, `HAS_NATIVE=False`
   on the primary host with cross-checks on a native WSL2 host. Several figures moved *during* the
   survey — `CURATED` 516 → 525, the coercer ratchet red → green — and §1.2 records which.
-- **It does not assert the §6.2 list of uninformative gates is exhaustive.** Five were found and
-  verified by counterfactual or by census; there may be others.
+- **It does not assert the §6.2 list of uninformative gates is exhaustive.** Five were found at
+  drafting and verified by counterfactual or by census; **rc363 added a sixth** — the
+  build-conditional C-parity row — which is itself evidence that the list is not exhaustive.
 - **~~It carries no C-side or codegen change.~~** True of the ADR as drafted; **false as of
   rc363**, which implements it. The implementation regenerates `srmech_tool_registry.c` and
   `srmech_carrier_registry.c` (26 → 28 carrier rows), widens eight declared param types, and adds five

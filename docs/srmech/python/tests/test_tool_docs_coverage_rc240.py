@@ -157,3 +157,98 @@ def test_every_carrier_has_construction_example() -> None:
         f"{len(missing)} carriers have no construction example (rc241 floor is "
         f"100%); regenerate srmech/amsc/_carrier_examples.py: {missing[:5]}"
     )
+
+
+# ── rc363: the curated-row PRESERVATION gate ─────────────────────────────────
+#
+# The gate above is a COVERAGE floor: it fails when a registered carrier has no
+# example at all. That is not the same property as PRESERVATION, and rc363
+# measured the difference the hard way.
+#
+# `tools/gen_carrier_examples_probe.py` has claimed since rc241 that
+# "hand-curated construction examples may be added here and are preserved".
+# They were not: `main()` rebuilt the whole file from its derived dicts, so a
+# row added by hand to `_carrier_examples.py` vanished on the next run. At rc363
+# regenerating for two new carriers silently dropped the rc362 `Qalg` row, whose
+# `yields` carries the zero-divisor / irrationality witness a bare `repr` cannot
+# show. The coverage floor would eventually have caught the ROW disappearing
+# (Qalg is a registered carrier) — but only after a commit, and it can never
+# catch the richer `yields` CONTENT being replaced by a thinner derived one, nor
+# a curated row for a key that is not a registered carrier.
+#
+# So the mechanism (`_CURATED`, applied last) gets its own gate. ADR-0012 §3.2:
+# a clause without an instrument that can return otherwise is not a clause.
+
+
+def _probe_module():
+    """Load the dev-time probe by path (it lives in tools/, not in the wheel) —
+    the same pattern tests/test_carrier_schema_rc205.py uses for the C codegen."""
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parent.parent / "tools" / "gen_carrier_examples_probe.py"
+    assert path.exists(), f"missing carrier-example probe {path}"
+    spec = importlib.util.spec_from_file_location("gen_carrier_examples_probe_rc363", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_curated_carrier_examples_are_preserved_by_regeneration() -> None:
+    """Every hand-authored `_CURATED` row survives a regeneration BYTE-IDENTICAL,
+    and the shipped file agrees with a fresh build (the idempotence half)."""
+    from srmech.amsc._carrier_examples import CARRIER_EXAMPLES
+
+    probe = _probe_module()
+    assert probe._CURATED, (
+        "gen_carrier_examples_probe._CURATED is empty — the mechanism that makes "
+        "the module's 'hand-curated examples are preserved' claim TRUE has been "
+        "removed. Either restore it or delete the claim.")
+
+    built = probe.build_examples(quiet=True)
+    assert built == CARRIER_EXAMPLES, (
+        "srmech/amsc/_carrier_examples.py is out of date — re-run "
+        "`python3 tools/gen_carrier_examples_probe.py`")
+
+    for name, row in probe._CURATED.items():
+        assert CARRIER_EXAMPLES.get(name) == row, (
+            f"the curated example for {name!r} did not survive regeneration. "
+            f"This is the rc363 defect reopening: main() rebuilds the file from "
+            f"its dicts, so a curated row must live in _CURATED (applied LAST) "
+            f"and nowhere else.")
+
+
+def test_the_curated_layer_actually_overrides() -> None:
+    """NON-VACUITY for the test above. Build the payload with the curated layer
+    SUPPRESSED and require the result to differ on exactly the curated keys.
+
+    Without this, `test_curated_carrier_examples_are_preserved_by_regeneration`
+    would still pass if `_CURATED` were quietly reduced to rows the derived
+    layers happen to reproduce — a preservation test that cannot observe the
+    un-preserved state is not a measurement of preservation."""
+    probe = _probe_module()
+    with_curated = probe.build_examples(quiet=True)
+    without = probe.build_examples(apply_curated=False, quiet=True)
+
+    differing = {k for k in with_curated
+                 if without.get(k) != with_curated[k]}
+    assert differing == set(probe._CURATED), (
+        f"suppressing the curated layer changed {sorted(differing)}, expected "
+        f"exactly {sorted(probe._CURATED)} — a curated row that the derived "
+        f"layers already reproduce is not curating anything, and one that "
+        f"changes MORE than its own key means the layers are not last-wins.")
+
+
+def test_the_curated_qalg_row_still_carries_its_witness() -> None:
+    """The reason the Qalg row is curated rather than derived: its `yields` is a
+    MEASUREMENT (an exact-arithmetic witness), not a repr. A derived row would
+    print `Qalg(degree=2, ...)` and lose both facts."""
+    from srmech.amsc._carrier_examples import CARRIER_EXAMPLES
+
+    yields = CARRIER_EXAMPLES["Qalg"]["yields"]
+    assert "as_rational() == Q(2, 1)" in yields, (
+        "the Qalg example lost its exactness witness (α·α is exactly 2)")
+    assert "is_rational() is False" in yields, (
+        "the Qalg example lost its irrationality witness — the Tier-1/Tier-2 "
+        "distinction srmech.music exists to make")

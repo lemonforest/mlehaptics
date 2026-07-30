@@ -121,7 +121,25 @@ def _rs(v):
     return r if len(r) <= 160 else r[:157] + "..."
 
 
-def main():
+def build_examples(apply_curated: bool = True, quiet: bool = False) -> dict:
+    """The CARRIER_EXAMPLES payload, built but not written.
+
+    Extracted from ``main()`` at rc363 so a test can call it. A generator whose
+    only entry point WRITES cannot be checked for idempotence without a
+    filesystem side effect, and the rc363 finding here — that the curated rows
+    this module promised to preserve were being dropped on every run — is
+    exactly the kind of defect an idempotence check catches. The three layers
+    are applied in order, LAST WINS: derived constructions, then snippets, then
+    the hand-authored ``_CURATED`` rows.
+
+    ``apply_curated=False`` builds WITHOUT the last layer. It exists so
+    ``tests/test_tool_docs_coverage_rc240.py`` can prove the layer does
+    something: a preservation test that cannot observe the un-preserved state
+    is not a measurement of preservation."""
+    def _say(msg):
+        if not quiet:
+            print(msg)
+
     out = {}
     for name, expr in _CONSTRUCT.items():
         try:
@@ -132,15 +150,21 @@ def main():
             # an uninformative default object repr adds nothing — construct-only.
             out[name] = ({"construct": expr} if r.startswith("<")
                          else {"construct": expr, "yields": r})
-            print(f"OK   {name:16} -> {r[:52]}")
+            _say(f"OK   {name:16} -> {r[:52]}")
         except Exception as e:  # noqa: BLE001
-            print(f"FAIL {name:16} {type(e).__name__}: {e}")
+            _say(f"FAIL {name:16} {type(e).__name__}: {e}")
     for name, snip in _SNIPPET.items():
         out[name] = {"construct": snip}
-        print(f"snip {name:16} {snip[:52]}")
-    for name, row in _CURATED.items():
-        out[name] = dict(row)
-        print(f"hand {name:16} {row['construct'][:52]}")
+        _say(f"snip {name:16} {snip[:52]}")
+    if apply_curated:
+        for name, row in _CURATED.items():
+            out[name] = dict(row)
+            _say(f"hand {name:16} {row['construct'][:52]}")
+    return out
+
+
+def main():
+    out = build_examples()
 
     import json
     lines = [

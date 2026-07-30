@@ -994,8 +994,8 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
 #
 # ``max_dim`` is a real DIMENSION, not "is it orderable". It only correlates
 # with the word because R and C happen to sit at dims 1 and 2, and it is None
-# for 17 of the 26 carriers, so it cannot generalise. ``address`` is "exact" for
-# all 26 (a zero-entropy column), and ``turn`` is constant "abelian_only" across
+# for 19 of the 28 carriers, so it cannot generalise. ``address`` is "exact" for
+# all 28 (a zero-entropy column), and ``turn`` is constant "abelian_only" across
 # all 15 commutative carriers -- no discriminating power in exactly the half
 #
 # ⚠️ THE "None for N" FIGURE WAS ALREADY WRONG BEFORE rc362, and that is the
@@ -1006,7 +1006,26 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
 # the block was partially stale, which is the hardest kind to notice. If you
 # change ``_CAPABILITY``, re-derive all three here; they are one-liners over
 # the dict and are not asserted anywhere.
+#
+# v0.9.0rc363 re-derived all three per the instruction above, after registering
+# ``Theta`` and ``CarrierSpectrum`` (26 -> 28): max_dim None 17 -> 19, address
+# "exact" 28/28, commutative rows still 15 (both new carriers have no closed
+# product, so ``commutative`` is None for each and neither joins that count).
+# The chain from the original defect is now complete and each link is measured:
+# 16 (pre-rc362, the true value the shipped "13" missed) -> 17 (Qalg) -> 19.
 # where MAGNITUDE and PHASE must be told apart.
+#
+# rc363: this paragraph carried the literal counts "13 of the 25" / "all 25" /
+# "all 14 commutative" until now. Re-measured on the rc363 tree (28 carriers):
+# max_dim is None for 19, address is "exact" for 28/28, and turn is
+# "abelian_only" for 15/15 commutative rows. Note 13 -> 19 while the registry
+# grew by only 3 -- so that figure was ALREADY stale before this rc, which is
+# the ADR-0012 §1.1 pattern (a number goes stale because nobody owns the thing
+# it counts) inside a shipped module comment. The counts are replaced by the
+# QUANTIFIERS they were standing in for, because the ARGUMENT never depended on
+# the digits: what matters is "most", "every" and "every", and those are the
+# claims `_domain_word_gap()` recomputes live and
+# tests/test_unit_label_and_domain_word_rc354.py pins.
 #
 # THE MISSING FIELD IS AN ORDER PREDICATE, and it is missing for a structural
 # reason: of the ladder's loss steps, the capability block measures three and

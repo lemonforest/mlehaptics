@@ -131,10 +131,19 @@ def test_the_row_determines_the_word_for_only_three_carriers():
 
     So: raise this with the carrier count, and never exclude a carrier to hold
     the number still.
+
+    v0.9.0rc363 registered ``Theta`` and ``CarrierSpectrum`` and this went
+    26 → 28, by the identical rule. Those two differ from ``Qalg`` in WHERE
+    they land: both have no closed binary product, so both are
+    ``not_applicable`` — the skip, not a verdict. So rc363 moved the
+    denominator and nothing else, and
+    :func:`test_the_rc363_registrations_moved_only_the_denominator` asserts
+    exactly that, including that the two content-bearing buckets below are
+    untouched.
     """
     gap = _domain_word_gap()
     assert gap["verdict"].startswith("NOT DERIVABLE")
-    assert gap["of"] == 26
+    assert gap["of"] == 28
     assert gap["determined_unambiguous"] == 3
     assert gap["unambiguous"] == ["Mat", "octonion", "quaternion"]
     assert gap["word_returned_but_qualified"] == [
