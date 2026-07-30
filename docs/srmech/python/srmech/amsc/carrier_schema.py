@@ -1016,16 +1016,26 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
 # where MAGNITUDE and PHASE must be told apart.
 #
 # rc363: this paragraph carried the literal counts "13 of the 25" / "all 25" /
-# "all 14 commutative" until now. Re-measured on the rc363 tree (28 carriers):
-# max_dim is None for 19, address is "exact" for 28/28, and turn is
-# "abelian_only" for 15/15 commutative rows. Note 13 -> 19 while the registry
-# grew by only 3 -- so that figure was ALREADY stale before this rc, which is
-# the ADR-0012 §1.1 pattern (a number goes stale because nobody owns the thing
-# it counts) inside a shipped module comment. The counts are replaced by the
-# QUANTIFIERS they were standing in for, because the ARGUMENT never depended on
-# the digits: what matters is "most", "every" and "every", and those are the
-# claims `_domain_word_gap()` recomputes live and
-# tests/test_unit_label_and_domain_word_rc354.py pins.
+# "all 14 commutative". Re-measured on the rc363 tree (28 carriers): max_dim is
+# None for 19, address is "exact" for 28/28, turn is "abelian_only" for 15/15
+# commutative rows.
+#
+# THE max_dim FIGURE WAS ALREADY WRONG BEFORE EITHER rc TOUCHED IT, and the
+# arithmetic says so independently: the measured pre-Qalg value was 16, so the
+# shipped "13" was stale by 3 while the registry was still at 25. The chain is
+# then exact -- 16 (pre-rc362) +1 (Qalg) = 17 at rc362, +2 (Theta,
+# CarrierSpectrum, both no-product rows with no ceiling) = 19 at rc363. That
+# 13-vs-16 is the hardest kind of stale to spot, because THE TWO FIGURES BESIDE
+# IT WERE CORRECT: a paragraph that is right twice reads as right three times.
+# Nothing catches it, because no test reads prose counts -- the ADR-0012 §1.1
+# pattern (a number goes stale because nobody owns the thing it counts) inside a
+# shipped module comment.
+#
+# So the counts are replaced by the QUANTIFIERS they were standing in for. The
+# ARGUMENT never depended on the digits: what matters is "most", "every" and
+# "every", and those three claims are recomputed live by `_domain_word_gap()`
+# and pinned by tests/test_unit_label_and_domain_word_rc354.py -- which is the
+# difference between a number a test owns and a number only prose asserts.
 #
 # THE MISSING FIELD IS AN ORDER PREDICATE, and it is missing for a structural
 # reason: of the ladder's loss steps, the capability block measures three and
