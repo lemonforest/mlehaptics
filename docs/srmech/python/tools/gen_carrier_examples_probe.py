@@ -27,7 +27,8 @@ from srmech.amsc.carrier_ladder import BiPoly, QPoly, QBiPoly  # noqa: E402
 from srmech.amsc.apagodu_zeilberger import Q  # noqa: E402
 from srmech.amsc.hdc import Mat, HV  # noqa: E402
 from srmech.amsc.coupling import Vec  # noqa: E402
-from srmech.amsc.carrier_spectrum import EllMonomial, EllRatio  # noqa: E402
+from srmech.amsc.carrier_spectrum import CarrierSpectrum, EllMonomial, EllRatio  # noqa: E402
+from srmech.amsc.ellbase import Theta  # noqa: E402  (rc363: the elliptic ATOM)
 from srmech.amsc.riemann_theta_multisum import ThetaBracketSum  # noqa: E402
 from srmech.amsc.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402
 from srmech.amsc import laplacian as _lap  # noqa: E402
@@ -39,6 +40,7 @@ _NS.update(dict(array=array, Fraction=Fraction, Q=Q, Poly=Poly, BiPoly=BiPoly,
                 TriPoly=TriPoly, QPoly=QPoly, QBiPoly=QBiPoly, Mat=Mat, Vec=Vec,
                 HV=HV, EllMonomial=EllMonomial, EllRatio=EllRatio,
                 ThetaSum=ThetaSum, ThetaBracketSum=ThetaBracketSum,
+                Theta=Theta, CarrierSpectrum=CarrierSpectrum,
                 MockQSeries=MockQSeries, UnaryTheta=UnaryTheta,
                 HarmonicMaass=HarmonicMaass, the_one=the_one,
                 sedenion_register=sedenion_register, cd_register=cd_register,
@@ -62,6 +64,13 @@ _CONSTRUCT = {
     "Vec": "fiedler_vector(dense_laplacian(4, [(0,1),(1,2),(2,0),(2,3)], [1.0]*4))",
     "HV": "hdc.klein4_bind(hdc.HV(array.array('B', [1,2,3,0])), hdc.HV(array.array('B', [3,2,1,0])))",
     "EllMonomial": "EllMonomial(Q(1), {'q': 2})",
+    # rc363 (`#T1046`): the elliptic ATOM, registered when the C3 use-derivation
+    # measured five ops accepting it directly. x is the summation variable
+    # (x = qⁿ), so θ(x; p) is the smallest genuine theta factor.
+    "Theta": "Theta(EllMonomial(Q(1), {'x': 1}))",
+    # rc363: the READ the carrier_spectrum op produces. Built from the smallest
+    # element that has a non-trivial σ-spectrum, so `yields` shows both channels.
+    "CarrierSpectrum": "CarrierSpectrum(EllRatio.theta(Theta(EllMonomial(Q(1), {'x': 1}))))",
     "MockQSeries": "MockQSeries('qpoly', Q(1), [(0, 1), (1, 1)])",
     "One": "the_one(1, 1, 4, w=(1, 0, 1))",
     "ThetaSum": "ThetaSum(terms=[(Q(1), EllMonomial(Q(1), {}), [])])",
@@ -89,6 +98,23 @@ _SNIPPET = {
     "HarmonicMaass": "HarmonicMaass(hol=MockQSeries(...), shadow=UnaryTheta(...))  # (hol, shadow) pair",
 }
 
+# Fully HAND-AUTHORED rows, applied last and never derived. The module docstring
+# has claimed since rc241 that "hand-curated construction examples ... are
+# preserved"; it was not true — `main()` rewrites the whole file from the two
+# dicts above, so a row added by hand to `_carrier_examples.py` vanished on the
+# next regeneration with nothing going red. Measured at rc363: regenerating for
+# the two new carriers silently DROPPED the rc362 `Qalg` row, whose `yields`
+# carries the zero-divisor/irrationality witness a bare repr cannot show. This
+# dict is where such a row lives so the claim is structurally true.
+_CURATED = {
+    "Qalg": {
+        "construct": "Qalg.alpha([-2, 0, 1])  # a root of x**2 - 2, carried EXACTLY",
+        "yields": ("Qalg(degree=2, coords=(Q(0, 1), Q(1, 1)), m=x**2-2); "
+                   "(α*α).as_rational() == Q(2, 1) and "
+                   "α.is_rational() is False"),
+    },
+}
+
 
 def _rs(v):
     r = repr(v)
@@ -112,6 +138,9 @@ def main():
     for name, snip in _SNIPPET.items():
         out[name] = {"construct": snip}
         print(f"snip {name:16} {snip[:52]}")
+    for name, row in _CURATED.items():
+        out[name] = dict(row)
+        print(f"hand {name:16} {row['construct'][:52]}")
 
     import json
     lines = [
