@@ -207,6 +207,7 @@ from .cayley_dickson import (
     inertia_signature,
     algebra_table,
     table_product,
+    associator,
 )
 # Sedenion-addressable hyper-loop RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31 of
 # PR #687; F465 + F468). The sedenion box made into an addressable instrument:
@@ -359,6 +360,8 @@ __all__ = [
     "ALGEBRA_TABLE_MAX_DIM",
     "algebra_table",
     "table_product",
+    # The associativity DEFECT (rc360; `#T1032`)
+    "associator",
     # Sedenion-addressable RBS-HDC instrument (v0.7.4rc1; UPSTREAM §31; F465/F468)
     "SedenionRegister",
     "sedenion_register",

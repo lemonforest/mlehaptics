@@ -13,6 +13,72 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc360]
+
+**THREE EXACT OPS THAT WERE ALREADY BEING COMPUTED BY HAND — AND A FOURTH THAT WAS BUILT, MEASURED, THEN DROPPED FOR BEING THE WRONG SHAPE.** Each of the three is a quantity the tree already derives inline at the point of use — the associativity defect, and the two reads a GF(p) RREF was always for. None of them is new mathematics; all three are named homes for a cascade that was being re-spelled at every call site. **`describe()["tools"]["total"]` 513 → 516** and `mcp_callable` 513 → 516. **`SRMECH_ABI_VERSION` stays 10 — NO new C symbol**; all three compose over already-exported ones (`srmech_cd_mult` / `srmech_algebra_table_product` / `srmech_gf_rref` / `srmech_mod_inv`). All three land `composition_of_c`, so `_TOTAL_NON_COMPUTE` stays **209** at all three of its sites and `_FULL_SPLIT` is unchanged. Regeneration is idempotent.
+
+The op-count pin moved at **60 assertion sites across 54 test files** with no shared constant — the reason rc359 deferred these rather than bundling them with its own doc work. Every one of the 60 was verified to be the pin itself (`== 517`) before the revert to `516`, because `517` also occurs as a coincidental substring inside SHA-256 hex in the curated docs, and those must not be touched.
+
+### (1) `#T1032` — `cascade.associator`: the census five sites publish had no op
+
+`associator(x, y, z, table=None)` is `(x·y)·z − x·(y·z)` in exact ℚ, dimension-general, returning a `dim`-tuple that is all-zero iff the ordered triple associates. `table=None` is the definite Cayley–Dickson ladder through `cd_mult`; a `table=` reaches any algebra a structure tensor names (a split γ-twist from `algebra_table`, a wrong-quotient group ring, or a hand-built table) through `table_product`.
+
+**It reproduces the shipped SIGN-COCYCLE census exactly, and that is a consistency check against numbers already on `main`** — the fill rc359 measured through `cd_basis_product` and pinned at five sites. MEASURED through the new op:
+
+| dim | 2 | 4 | 8 | 16 | 32 |
+|---|---|---|---|---|---|
+| associating triples | 8/8 | 64/64 | 344/512 | 2248/4096 | **16808/32768** |
+
+The op does **not** move those numbers; it is the named home for computing them. `tests/test_associator_control_gf_solve_rc360.py` PARSES the census out of `carrier_schema.py` rather than re-typing it, so op and prose cannot drift apart in either direction. The four fast rungs are re-measured in-suite; **dim 32 is checked for shape only** in-suite (32 768 triples × two exact-ℚ products is minutes, not seconds) and was measured out-of-band — generating code and results committed at `docs/srmech/notes/rc360_exact_ops_verification.{py,ndjson}`.
+
+### (2) `#T1032` — the drawn control was BUILT, MEASURED, then DROPPED; three STRUCTURED controls replaced it
+
+`[[feedback_negative_controls_for_carrier_claims_split_octonion_and_random_anticommutative]]` names two negative controls, and rc360 originally shipped the second as `cascade.random_anticommutative_table(dim, key)` — a rank-3 table with `e₀` the two-sided unit, `e_i·e_i = −e₀`, every imaginary pair anticommuting, and every SIGN drawn from `sha256_bytes` over domain-separated material. It was complete, tested at 26 cases, and registered. **It was removed before release, and the reason is the point of this entry.**
+
+⚠️ **A CONTROL DRAWN FROM A STRUCTURELESS HASH TESTS GENERICITY, NOT STRUCTURE.** It answers "is the ladder unlike a random algebra", which nothing in the tree needed asking. And it was spelled in the wrong alphabet: srmech's resonant alphabet is **TERNARY {−1, 0, +1}** — `hdc.polar_random` (`hdc.py:401`) declares exactly that set, and its native peer documents the draw as `-1 + _randbelow(3)`, a *different stream* from klein4's `_randbelow(4)`. The **0 is load-bearing**: it is the rest / non-ringing value. An earlier ±1-only design that encoded "only what changes" was superseded once the 0 was recognised as necessary. A uniform ±1 sign draw is that abandoned alphabet, so the absence of a ±1 C stream was never a gap to fill — it was the framework declining to have one.
+
+**What replaced it: three controls that are each a single NAMED perturbation, with no draw anywhere.** MEASURED at dim 4 / 8 / 16 through `associator`, counting the linearised flexible law `(x,y,z) + (z,y,x) = 0`:
+
+| control | flexibility bite | inertia bite |
+|---|---|---|
+| `algebra_table(gammas=)` — the split γ-family | **0** — all eight twists flexible | **yes** — (5,3,0) vs (1,7,0) |
+| ONE named sign flip on pair `(i, j)` | **4 at EVERY rung** | none — signature intact |
+| `ℝ[ℤ/dim]` — the wrong-quotient group ring | **0** — it is associative | **yes** — (5,3,0) vs (1,7,0) |
+
+⚠️ **The γ-family has ZERO bite on the associativity laws, and that is new here.** All eight dim-8 γ-twists are flexible *and* carry the identical non-associating count, 168/512. What γ moves is the METRIC: seven twists sit at signature (5,3,0) and only γ = (−1,−1,−1) — which IS `algebra_table(8)`'s default — sits at (1,7,0). So a flexibility claim cannot be controlled with a γ-twist; quoting one as "the negative control" there would be an instrument that could not have returned otherwise.
+
+**The named flip is the only one of the three that breaks flexibility, and it beats the drawn control on every axis.** Negating `e_i·e_j` and `e_j·e_i` on the ladder — one bit, named by the pair, rebuilt identically by any implementation that has `algebra_table` — gives exactly **4** violations at dim 4, 8 and 16 alike, uniformly over all 3 pairs at dim 4 and all 21 at dim 8. Compare the dropped op: a key-dependent **12–28** range, and ⚠️ **at dim 4 it silently failed** — keys `control-03` / `-05` / `-09` gave 0/64, which is to say they were not controls. The flip also leaves the inertia signature untouched by construction (the diagonal is not perturbed), which is what makes the attribution clean: the difference is in the off-diagonal cocycle and nowhere else.
+
+⚠️ **AND A NUMBER THAT LOOKS LIKE EVIDENCE AND IS NOT.** The tempting statistic for the group-ring control — "its associator differs from the ladder's on 168 of 512 triples at dim 8, 1848 of 4096 at dim 16" — is a **forced identity**. The group ring is associative, so its defect is identically zero and it differs from the ladder *exactly* where the ladder is nonzero: the number is the ladder's own non-associating census wearing a disguise (512 − 344 = 168, 4096 − 2248 = 1848). It is asserted in the test as an identity, in the one place it cannot be mistaken for a differential.
+
+**The honest residual.** The three replacement controls are built inline in `tests/test_associator_control_gf_solve_rc360.py`, which is the exact defect `#T1032` was opened for — a control hand-rolled beside a test cannot be cited by anything else. Promoting the named flip and the wrong-quotient ring to registered ops is filed rather than smuggled in here, because the op count and its 60 pin sites were already settled for this rc. The file says so in the open rather than leaving it to be discovered.
+
+### (3) `#T1024` — `modular_linalg.gf_solve` / `gf_nullspace`: the two reads the RREF was always for
+
+`gf_rref` shipped the elimination and stopped, so every caller wanting "is it solvable, and what is a solution" or "what is the kernel" back-substituted by hand. `gf_solve(A, b, p)` returns `{"consistent", "particular", "nullspace", "rank"}`; the solution set is `particular + span(nullspace)`, so the system is uniquely solvable iff `consistent` and `nullspace == []`. `rank` is always `rank(A)`, which keeps the number comparable between the two cases. **The nullspace is returned even when the system is inconsistent** — an inconsistent system still has a kernel, and the cohomology reads that motivate the op need the rank pair and the kernel dimension from one call. Both names were added to the module's `__all__`, without which the Rosetta ledger walk cannot see them.
+
+The differentials are genuinely different algorithms, not the subject recomputed: `gf_solve` is checked against **exhaustive enumeration over `2**unknowns`** GF(2) vectors on 60 systems (both branches exercised, set equality — not merely the same cardinality), and `gf_nullspace` against `QMat.nullspace`, the exact-ℚ kernel, reduced mod p across GF(2) / GF(3) / GF(7) / GF(101) / GF(2147483629).
+
+⚠️ **THE COCYCLE FIXTURE'S "GAUGE" FRAMING WAS WRONG, AND rc359 HAD ALREADY SAID SO.** The research handed to this rc described the rank table as holding "under the pinned gauge `t(e₀) = 0`", with the unpinned numbers "shifting up by one". `cascade/cd_register.py:60` — shipped on `main` in rc359 — states the opposite in terms: *"There is no gauge freedom here to fix. `t(e₀) = 0` is a THEOREM of the system, not a convention imposed on it"*, because `e₀·e₀ = +e₀` makes the `(0,0)` row literally that equation and adding it as a constraint changes no rank. What actually separates the two tables is a **matrix ENCODING** choice, and rc360 would have shipped a docstring, a `ToolEntry`, a curated example and a test contradicting text already in the wheel. All five surfaces were corrected:
+
+| dim | 2 | 4 | 8 | 16 | 32 | 64 |
+|---|---|---|---|---|---|---|
+| keeping column `t(e₀)` | 1/2 | 2/3 | 5/6 | 12/13 | 27/28 | 58/59 |
+| eliminating `t(e₀)` | 0/1 | 1/2 | 4/5 | 11/12 | 26/27 | 57/58 |
+| `nullity(A)` | 1 | 2 | 3 | 4 | 5 | 6 |
+
+Eliminating the variable drops the redundant row along with the column, which is why both ranks shift by exactly one. **The invariant worth quoting is `nullity(A) = log2(dim)`** — the homogeneous solutions are precisely the GF(2)-linear functionals, giving `rank(A) = dim − log2(dim)` in closed form, and the test now pins that identity too. `consistent` is `False` at every rung either way, and the `+1` defect that carries the conclusion (the CD sign is cohomological, not a relabelling) is invariant under both encodings. Also corrected: `gf_nullspace`'s curated prose called that kernel *"the exact gauge freedom the sign cocycle carries"* — the system is inconsistent, so it has no solution to be free in.
+
+### What the recovery had to fix
+
+This rc's edit pass and its verification pass were separated by an API failure, so the gates ran against unverified prose. Three classes of defect were found and fixed, and they are the three a "presence is not correctness" audit should expect:
+
+- **the tuple/list assertion** — `inertia_signature` returns `signature` / `norm_signature` as **tuples**; the test compared them to lists. Written, never run.
+- **the missing coverage exemptions** — `test_tool_schema_coverage.py` walks submodule-dotted names, and the established convention is one explicit exemption per flat re-export. The two `ToolEntry` registrations landed under the flat names; the matching `cascade.cayley_dickson.associator` exemption did not, so the coverage gate was red.
+- **the unverified numbers** — the three published ranges above, plus the retracted gauge framing.
+
+⚠️ **The version SSOT is FIVE files, not four.** `tests/test_signal_processing_scaffolding.py`'s hard-pinned version assertion is the fifth and is easy to miss because it does not carry the op count; it was correctly bumped here. And the captured `describe()` output at `_tool_docs_curated.py` still reads `version: 0.9.0rc352 | tools: 513` **deliberately** — captured outputs are DATED SNAPSHOTS, its own `why` text says so, and half-updating the count while leaving `rc352` would fabricate a capture that never existed. Whether captures should become live values stays tracked at `#T1010`.
+
 ## [0.9.0rc359]
 
 **THE INSTRUMENT LIES.** Every item in this rc is a **measurement surface reporting a value it did not measure** — a ratchet pinned at a true `0` that counts the wrong thing, a CI guard whose evidence base sits outside its own trigger, a score documented as a measurement that is a closed-form function of the input's LENGTH, a registry whose C content nothing checks, and a table cell that says *"we didn't measure"* about a number that costs 32 768 basis triples. Where rc358 fixed prose that **asserted something the tree does not do**, rc359 fixes instruments that **report something they did not observe**. The second class is worse: a false sentence can be read and doubted, but a green ratchet is evidence, and evidence that was never gathered is indistinguishable from evidence that was.

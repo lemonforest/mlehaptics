@@ -1099,6 +1099,94 @@ def _register_primitive_class_tools() -> None:
                       "ascending)}"),
         ),
         # ────────────────────────────────────────────────────────────
+        # Class I — the two READS the RREF was always for (rc360, `#T1024`).
+        # gf_rref shipped the elimination and stopped; every caller that
+        # wanted "is it solvable / what is the kernel" back-substituted by
+        # hand. Both are pure composition over the c_dispatched gf_rref.
+        # ────────────────────────────────────────────────────────────
+        ToolEntry(
+            name="srmech.amsc.modular_linalg.gf_solve", owner="srmech",
+            category="modular_linalg",
+            summary="Solve A·x ≡ b (mod p) over GF(p) and return the FULL "
+                    "solution set, not one vector: {'consistent': bool, "
+                    "'particular': list[int]|None, 'nullspace': list[list[int]], "
+                    "'rank': int}. The solution set is particular + "
+                    "span(nullspace), so the system is UNIQUELY solvable iff "
+                    "consistent and nullspace == []. 'rank' is always rank(A) — "
+                    "rank([A|b]) is rank when consistent and rank+1 when not, and "
+                    "that one-step gap IS the inconsistency (Cohen, *A Course in "
+                    "Computational Algebraic Number Theory*, 1993, §2.3; von zur "
+                    "Gathen & Gerhard, *Modern Computer Algebra*, 3rd ed. 2013, "
+                    "§5.4). The nullspace is returned EVEN WHEN INCONSISTENT: an "
+                    "inconsistent system still has a kernel, and the cohomology "
+                    "reads this op exists for need the rank pair and the kernel "
+                    "dimension from one call. WORKED FIXTURE — STATE THE MATRIX "
+                    "ENCODING: for the Cayley–Dickson sign cocycle δt = ε over "
+                    "GF(2), consistent is False at every rung and "
+                    "rank(A)/rank([A|b]) runs 1/2, 2/3, 5/6, 12/13, 27/28, 58/59 "
+                    "at dim 2…64 KEEPING column t(e₀), or 0/1, 1/2, 4/5, 11/12, "
+                    "26/27, 57/58 ELIMINATING that variable and dropping the "
+                    "column. ⚠️ That is an ENCODING difference, NOT a gauge "
+                    "choice — t(e₀) = 0 is a THEOREM of the system (e₀·e₀ = +e₀, "
+                    "so the (0,0) row IS literally t(e₀) = 0 and adding it as a "
+                    "constraint changes no rank); substituting it removes that "
+                    "redundant row, which is why both ranks shift by exactly one. "
+                    "The invariant worth quoting is nullity(A) = log2(dim) — the "
+                    "homogeneous solutions are precisely the GF(2)-LINEAR "
+                    "functionals, so rank(A) = dim − log2(dim) in closed form. "
+                    "The +1 defect that carries the conclusion — the CD sign is "
+                    "cohomological, not a relabelling — is invariant under both. "
+                    "Class I "
+                    "over the c_dispatched gf_rref (the augmented matrix is "
+                    "eliminated ONCE; rank(A) is the count of pivots left of the "
+                    "augmented column). Class-K compare-to-0, never abs(); exact "
+                    "ints, no float, no numpy / math / fractions. "
+                    "composition_of_c — no new C symbol.",
+            parameters=(P("A", "list[list[int]]", True,
+                          "the coefficient matrix as a list of equal-length int "
+                          "rows (entries may be negative)"),
+                        P("b", "list[int]", True,
+                          "the right-hand side, one entry per row of A"),
+                        P("p", "int", True,
+                          "a prime with 2 <= p < 2**31 (GF(2) included)")),
+            returns=R("dict",
+                      "{'consistent': bool (rank([A|b]) == rank(A)), "
+                      "'particular': list[int] | None (one solution, None when "
+                      "inconsistent), 'nullspace': list[list[int]] (the kernel "
+                      "basis, ALWAYS returned), 'rank': int (rank(A))}"),
+        ),
+        ToolEntry(
+            name="srmech.amsc.modular_linalg.gf_nullspace", owner="srmech",
+            category="modular_linalg",
+            summary="A basis of the kernel {x : A·x ≡ 0 (mod p)} over GF(p) — the "
+                    "classical free-variable basis in ascending free-column order: "
+                    "one vector per non-pivot column, carrying 1 there and "
+                    "(−rref[r][free]) mod p in the pivot column of each pivot row "
+                    "(Cohen 1993 §2.3; von zur Gathen & Gerhard 2013 §5.4). Exactly "
+                    "n_cols − rank(A) vectors, every entry in [0, p); empty iff A "
+                    "has full column rank. This is the SAME construction "
+                    "cascade.left_mult_kernel builds over exact ℚ (leading-1 RREF, "
+                    "free variables set to a unit column) taken over GF(p) instead, "
+                    "so the two are directly comparable on an integer system — "
+                    "which is what makes the cross-field differential a check and "
+                    "not a tautology. Reach for it whenever a GF(p) system's FREE "
+                    "DIRECTIONS are the answer (the CD sign cocycle's nullity is "
+                    "log2(dim) — the GF(2)-linear functionals; the sedenion "
+                    "zero-divisor support condition i⊕j = k⊕l is an affine GF(2) "
+                    "system) instead of re-deriving back-substitution beside "
+                    "gf_rref. Class I over the c_dispatched gf_rref; Class-K "
+                    "compare-to-0, never abs(); exact ints, no float, no numpy / "
+                    "math / fractions. composition_of_c — no new C symbol.",
+            parameters=(P("A", "list[list[int]]", True,
+                          "the matrix as a list of equal-length int rows "
+                          "(entries may be negative)"),
+                        P("p", "int", True,
+                          "a prime with 2 <= p < 2**31 (GF(2) included)")),
+            returns=R("list",
+                      "list[list[int]] — n_cols − rank(A) kernel basis vectors, "
+                      "every entry in [0, p); empty for full column rank"),
+        ),
+        # ────────────────────────────────────────────────────────────
         # Class I — CRT combine (rc45, rung 2 of the CRT-QMat re-fibration
         # arc). The per-prime-residues → one-residue-mod-product closer.
         # ────────────────────────────────────────────────────────────
@@ -7750,6 +7838,55 @@ def _register_primitive_class_tools() -> None:
             ),
             returns=R("tuple", "dim-tuple of exact Q — the k-th entry is "
                                "Σ_ij table[i][j][k]·x_i·y_j"),
+        ),
+        # rc360 (`#T1032`): the ASSOCIATIVITY DEFECT. The per-rung associativity
+        # census pinned at five sites IS count(associator == 0) over the ordered
+        # basis triples; it had no named home and was re-derived inline every
+        # time. It reads ANY algebra a structure table names, so the STRUCTURED
+        # negative controls — algebra_table(gammas=)'s split algebras, and a
+        # wrong-quotient table — go through it unchanged.
+        ToolEntry(
+            name="srmech.amsc.cascade.associator", owner="srmech",
+            category="cascade",
+            summary="The ASSOCIATIVITY DEFECT (x·y)·z − x·(y·z), exact ℚ, any "
+                    "rung, on the definite ladder (table=None → cd_mult) or on "
+                    "ANY algebra a structure table names (table= → "
+                    "table_product): a split γ-twist from algebra_table (the "
+                    "STRUCTURED negative control), or a hand-built table. "
+                    "The zero tuple ⟺ the ordered triple associates. THE PER-RUNG "
+                    "ASSOCIATIVITY CENSUS srmech already pins at five sites IS "
+                    "this op counted over the ordered basis triples — dim 2: 8/8, "
+                    "4: 64/64, 8: 344/512, 16: 2248/4096, 32: 16808/32768 — "
+                    "MEASURED through it, reproducing the shipped fill exactly; "
+                    "it does not move those numbers, it is the named home for "
+                    "computing them, so do NOT hand-roll cd_mult(cd_mult(x,y),z) "
+                    "− cd_mult(x,cd_mult(y,z)) beside a measurement again. "
+                    "SIBLINGS: cd_mult / table_product are the two products it "
+                    "composes; left_mult_kernel answers a DIFFERENT question "
+                    "(zero divisors, not associativity); qm.octonion's "
+                    "octonion-specific defect is dim-8 only. Exact end to end — "
+                    "no float, no epsilon, no abs(). NO new C symbol: the "
+                    "associator IS the composition, so a dedicated kernel would "
+                    "only re-spell a·b twice — composition_of_c over the "
+                    "c_dispatched srmech_cd_mult / srmech_algebra_table_product. "
+                    "Class M ∘ K. SSoT: Schafer (1966) §III.1; Baez, *The "
+                    "Octonions*, Bull. AMS 39 (2002) 145–205, arXiv:math/0105155."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(
+                P("x", "sequence", True,
+                  "the left element — exact-rational components (int / Q / "
+                  "Fraction / float → its EXACT ratio / (num, den)); with "
+                  "table=None the length is a power of two ≤ CD_MAX_DIM=256"),
+                P("y", "sequence", True, "the middle element, same length"),
+                P("z", "sequence", True, "the right element, same length"),
+                P("table", "list[list[list[int]]] | None", False,
+                  "an optional dim × dim × dim structure-constant tensor "
+                  "(algebra_table — including its gammas= split controls — or "
+                  "any table table_product reads); None — the default — is the "
+                  "definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…"),
+            ),
+            returns=R("tuple", "dim-tuple of exact Q — the all-zero tuple iff "
+                               "the ordered triple (x, y, z) associates"),
         ),
         # rc310: the DISCRETE quaternion group Q8 = {+-1,+-i,+-j,+-k} as 3-bit
         # bytes — the discrete peer of the continuous ℍ surface (qm.quaternion).

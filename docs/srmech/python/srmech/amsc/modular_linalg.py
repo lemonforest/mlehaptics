@@ -69,36 +69,36 @@ from .cyclic import mod_add as _mod_add
 from .cyclic import mod_inv as _mod_inv
 from .cyclic import mod_mul as _mod_mul
 
-__all__ = ["gf_rref", "crt_combine"]
+__all__ = ["gf_rref", "gf_solve", "gf_nullspace", "crt_combine"]
 
 # Field bound: 2 < p < 2**31 keeps a*b inside uint64 with no doubling needed.
 _P_CEILING: int = 1 << 31
 
 
-def _check_field(p: int) -> None:
+def _check_field(p: int, who: str = "gf_rref") -> None:
     if not isinstance(p, int) or isinstance(p, bool):
-        raise TypeError(f"gf_rref: p must be int; got {type(p).__name__}")
+        raise TypeError(f"{who}: p must be int; got {type(p).__name__}")
     if p < 2 or p >= _P_CEILING:
         raise ValueError(
-            f"gf_rref: p must be a prime with 2 <= p < 2**31; got {p}"
+            f"{who}: p must be a prime with 2 <= p < 2**31; got {p}"
         )
 
 
-def _check_rows(rows) -> tuple[int, int]:
+def _check_rows(rows, who: str = "gf_rref") -> tuple[int, int]:
     if not isinstance(rows, (list, tuple)):
-        raise TypeError("gf_rref: rows must be a list of lists of int")
+        raise TypeError(f"{who}: rows must be a list of lists of int")
     n_rows = len(rows)
     if n_rows == 0:
         return 0, 0
     n_cols = len(rows[0])
     for r in rows:
         if not isinstance(r, (list, tuple)):
-            raise TypeError("gf_rref: each row must be a list of int")
+            raise TypeError(f"{who}: each row must be a list of int")
         if len(r) != n_cols:
-            raise ValueError("gf_rref: all rows must have equal length")
+            raise ValueError(f"{who}: all rows must have equal length")
         for v in r:
             if not isinstance(v, int) or isinstance(v, bool):
-                raise TypeError("gf_rref: every entry must be int")
+                raise TypeError(f"{who}: every entry must be int")
     return n_rows, n_cols
 
 
@@ -210,6 +210,166 @@ def gf_rref(rows, p: int) -> Dict[str, object]:
 
     m, pivots, rank = _gf_rref_pure(rows, n_rows, n_cols, p)
     return {"rref": m, "rank": rank, "pivots": pivots}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Class I — the two READS the RREF was always for (rc360, task `#T1024`).
+#
+# ``gf_rref`` shipped the elimination and stopped there, so every caller that
+# wanted the two things one actually asks a linear system — "is it solvable,
+# and what is a solution" and "what is the kernel" — did the back-substitution
+# by hand. In-tree that hand-rolling is not hypothetical: the CD sign-cocycle
+# question ``δt = ε`` is decided by rank comparison at every rung, and the
+# GF(2) support condition ``i ⊕ j = k ⊕ l`` for the sedenion zero divisors is
+# an affine GF(2) system. Both are these two ops.
+#
+# Both are pure composition over the c_dispatched ``gf_rref`` + the Class-I
+# ``mod_*`` primitives — NO new C symbol, and no kernel that is not already in
+# ``libsrmech``: the augmentation is a concatenation, the consistency decision
+# is "is there a pivot in the last column", and the particular / kernel vectors
+# are reads off the reduced matrix. That is why they are ``composition_of_c``
+# and not a new C rung.
+# ──────────────────────────────────────────────────────────────────────────
+
+
+def gf_nullspace(A, p: int) -> List[List[int]]:
+    """A basis of the kernel ``{x : A·x ≡ 0 (mod p)}`` over GF(p).
+
+    ``A`` is a list of equal-length lists of ``int`` (entries may be negative —
+    they are reduced into ``[0, p)`` first); ``p`` is a **prime** with
+    ``2 <= p < 2**31`` (the arithmetic-domain bound; primality is the caller's
+    contract, exactly as for :func:`gf_rref`).
+
+    Returns the CLASSICAL free-variable basis, in ascending free-column order:
+    one vector per non-pivot column, carrying ``1`` in that column and
+    ``(-rref[r][free]) mod p`` in the pivot column of each pivot row ``r``.
+    The list has exactly ``n_cols - rank(A)`` entries — empty iff ``A`` has
+    full column rank. Every entry of every vector is in ``[0, p)``.
+
+    This is the SAME construction :func:`srmech.amsc.cascade.cayley_dickson.
+    left_mult_kernel` uses over exact ℚ (leading-1 RREF, free variables set to
+    a unit column), taken over GF(p) instead — so the two are directly
+    comparable on an integer system, which is what makes the cross-field
+    differential a real check and not a tautology.
+
+    Class I over the ``c_dispatched`` :func:`gf_rref`; Class-K compare-to-0
+    sign handling (never ``abs()``). Exact ints, bounded machine-int
+    arithmetic, no float, no numpy, no ``fractions``. ``composition_of_c`` —
+    no new C symbol.
+    """
+    _check_field(p, "gf_nullspace")
+    n_rows, n_cols = _check_rows(A, "gf_nullspace")
+    if n_rows == 0 or n_cols == 0:
+        return []
+    red = gf_rref(A, p)
+    rref = red["rref"]
+    pivots = red["pivots"]
+    pivot_set = set(pivots)
+    basis: List[List[int]] = []
+    for free in range(n_cols):
+        if free in pivot_set:
+            continue
+        vec = [0] * n_cols
+        vec[free] = 1 % p
+        for r, pc in enumerate(pivots):
+            # −rref[r][free] (mod p) == (p − v) mod p; Class-K compare-to-0,
+            # no abs(), and the residue never leaves [0, p).
+            v = rref[r][free]
+            vec[pc] = 0 if v == 0 else p - v
+        basis.append(vec)
+    return basis
+
+
+def gf_solve(A, b, p: int) -> Dict[str, object]:
+    """Solve ``A·x ≡ b (mod p)`` over GF(p) — the FULL solution set.
+
+    ``A`` is a list of equal-length lists of ``int``; ``b`` is a list of
+    ``int`` with ``len(b) == len(A)``; ``p`` is a **prime** with
+    ``2 <= p < 2**31``.
+
+    Returns::
+
+        {"consistent": bool,          # rank([A|b]) == rank(A)
+         "particular": list[int]|None, # one solution, or None when inconsistent
+         "nullspace": list[list[int]], # kernel basis (ALWAYS returned)
+         "rank": int}                  # rank(A) — NOT rank([A|b])
+
+    The full solution set is ``particular + span(nullspace)``, so
+    ``len(nullspace) == n_cols - rank`` counts the free directions and the
+    system has a UNIQUE solution iff ``consistent`` and ``nullspace == []``.
+    ``rank`` is always ``rank(A)``; ``rank([A|b])`` is ``rank`` when consistent
+    and ``rank + 1`` when not — that ONE-step gap IS the inconsistency, and
+    returning ``rank(A)`` keeps the number comparable between the two cases.
+
+    **The nullspace is returned even when the system is inconsistent.** That is
+    deliberate: an inconsistent system still has a kernel, and the cohomology
+    reads that motivate this op (a coboundary equation ``δt = ε`` that is
+    inconsistent at every Cayley–Dickson rung) need the rank pair AND the
+    kernel dimension from the same call.
+
+    **Worked regression fixture — STATE THE MATRIX ENCODING.** For the CD sign
+    cocycle ``δt = ε`` over GF(2), ``consistent`` is ``False`` at every rung and
+    ``rank(A) / rank([A|b])`` runs::
+
+        dim                          2     4     8    16     32     64
+        keeping column t(e₀)        1/2   2/3   5/6  12/13  27/28  58/59
+        eliminating t(e₀)           0/1   1/2   4/5  11/12  26/27  57/58
+        nullity(A)                   1     2     3     4      5      6
+
+    ⚠️ **This is an ENCODING difference, NOT a gauge choice** — ``t(e₀) = 0`` is
+    a THEOREM of the system, not a convention imposed on it: ``e₀·e₀ = +e₀``, so
+    the ``(i, j) = (0, 0)`` row IS literally ``t(e₀) = 0``, and adding it as an
+    extra constraint changes no rank. Substituting it and dropping column 0
+    removes that redundant row with it, which is why both ranks shift down by
+    exactly one. Same system, same conclusion, different matrix; see
+    :mod:`srmech.amsc.cascade.cd_register` for the full statement.
+
+    The INVARIANT worth quoting is ``nullity(A) = log2(dim)`` — the homogeneous
+    solutions are precisely the GF(2)-LINEAR functionals, so
+    ``rank(A) = dim - log2(dim)`` in closed form and the rank pair is the
+    frame-relative shadow of it. The ``+1`` defect that carries the conclusion
+    (the cocycle is not a coboundary — the CD sign is cohomological, not a
+    relabelling) is invariant under both encodings.
+
+    Class I over the ``c_dispatched`` :func:`gf_rref` (the augmented matrix is
+    eliminated ONCE — ``rank(A)`` is the count of pivots landing left of the
+    augmented column, so no second elimination is needed to compare the two
+    ranks) plus :func:`gf_nullspace`. Class-K compare-to-0 sign handling, never
+    ``abs()``. Exact ints, no float, no numpy, no ``fractions``.
+    ``composition_of_c`` — no new C symbol.
+    """
+    _check_field(p, "gf_solve")
+    n_rows, n_cols = _check_rows(A, "gf_solve")
+    if not isinstance(b, (list, tuple)):
+        raise TypeError("gf_solve: b must be a list of int")
+    if len(b) != n_rows:
+        raise ValueError(
+            f"gf_solve: b must have one entry per row of A; got {len(b)} "
+            f"for {n_rows} row(s)")
+    for v in b:
+        if not isinstance(v, int) or isinstance(v, bool):
+            raise TypeError("gf_solve: every entry of b must be int")
+
+    nullspace = gf_nullspace(A, p)
+    if n_rows == 0:
+        return {"consistent": True, "particular": [], "nullspace": nullspace,
+                "rank": 0}
+
+    aug = [list(A[r]) + [b[r]] for r in range(n_rows)]
+    red = gf_rref(aug, p)
+    pivots = red["pivots"]
+    # A pivot in the augmented column is the inconsistency, and it can only be
+    # the LAST pivot (RREF pivots ascend), so this comparison is exact.
+    rank_a = sum(1 for c in pivots if c < n_cols)
+    consistent = (rank_a == len(pivots))
+    if not consistent:
+        return {"consistent": False, "particular": None,
+                "nullspace": nullspace, "rank": rank_a}
+    particular = [0] * n_cols
+    for r, pc in enumerate(pivots):
+        particular[pc] = red["rref"][r][n_cols]
+    return {"consistent": True, "particular": particular,
+            "nullspace": nullspace, "rank": rank_a}
 
 
 # ──────────────────────────────────────────────────────────────────────────

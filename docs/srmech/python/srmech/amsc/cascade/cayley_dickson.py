@@ -884,6 +884,81 @@ def table_product(table: Any, x: Sequence[Any], y: Sequence[Any]
     return tuple(out)
 
 
+def associator(x: Sequence[Any], y: Sequence[Any], z: Sequence[Any],
+               table: Any = None) -> Tuple[Q, ...]:
+    """``(x·y)·z − x·(y·z)`` — the ASSOCIATIVITY DEFECT, exact ℚ, any rung
+    (rc360, `#T1032`).
+
+    The zero tuple ⟺ the ordered triple associates. This is the quantity the
+    Cayley–Dickson notes have been re-deriving inline at every measurement: the
+    per-rung associativity census pinned at :data:`CD_TURN_MAX_DIM` and at four
+    other sites (``carrier_schema`` / ``introspect`` / the rc343 ceiling test /
+    the C header) is exactly ``count(associator(e_i, e_j, e_k) == 0)`` over the
+    ordered basis triples::
+
+        dim  2:      8/8       dim  4:     64/64      dim  8:    344/512
+        dim 16:   2248/4096    dim 32:  16808/32768
+
+    — MEASURED through this op on the definite ladder, reproducing the shipped
+    fill exactly. It does NOT move those numbers; it is the named home for
+    computing them.
+
+    Args:
+        x, y, z: equal-length elements. With ``table=None`` the length must be
+            a power of two ``≤ CD_MAX_DIM`` (the definite ladder, via
+            :func:`cd_mult`); with a ``table`` the length must be
+            ``len(table)``. Every exact-rational scalar :func:`cd_mult` accepts
+            is accepted here.
+        table: an optional rank-3 structure-constant tensor —
+            :func:`algebra_table` (the definite ladder, or a split γ-twist
+            when ``gammas=`` is given: the STRUCTURED negative control), or any
+            table :func:`table_product` reads. ``None`` — the default — is the
+            definite Cayley–Dickson ladder ℝ→ℂ→ℍ→𝕆→𝕊…
+
+    Returns:
+        A ``dim``-tuple of exact :class:`~srmech.amsc.q.Q`.
+
+    Raises:
+        ValueError: operands of unequal length; a non-power-of-two length when
+            ``table is None``; a ``table`` whose dim disagrees with the
+            operands.
+
+    Note:
+        Exact end to end — no float, no epsilon, no ``abs()``. Two routes, both
+        already C-backed: ``table=None`` composes ``srmech_cd_mult``, a
+        ``table`` composes ``srmech_algebra_table_product``. NO new C symbol —
+        the associator IS the composition, so a dedicated kernel would only
+        re-spell ``a·b`` twice. ``composition_of_c``. Class M ∘ K.
+
+    Canonical SSoT:
+    - Schafer, R.D. (1966), *An Introduction to Nonassociative Algebras*, §III.1
+      — the associator ``(x, y, z)`` as the trilinear defect measuring
+      departure from associativity.
+    - Baez, J.C. (2002), *The Octonions*, Bull. AMS **39** 145–205,
+      arXiv:math/0105155, §1–§2 — the octonion associator and alternativity.
+    """
+    ex = tuple(_coerce_frac(v) for v in x)
+    ey = tuple(_coerce_frac(v) for v in y)
+    ez = tuple(_coerce_frac(v) for v in z)
+    if not (len(ex) == len(ey) == len(ez)):
+        raise ValueError(
+            f"associator: the three operands must share dimension; got "
+            f"{len(ex)}, {len(ey)} and {len(ez)}")
+    if table is None:
+        ex, ey, ez = _as_elem(ex), _as_elem(ey), _as_elem(ez)
+        left = cd_mult(cd_mult(ex, ey), ez)
+        right = cd_mult(ex, cd_mult(ey, ez))
+    else:
+        tbl = _structure_table(table)
+        if len(tbl) != len(ex):
+            raise ValueError(
+                f"associator: the table is dim {len(tbl)}; got operands of "
+                f"length {len(ex)}")
+        left = table_product(tbl, table_product(tbl, ex, ey), ez)
+        right = table_product(tbl, ex, table_product(tbl, ey, ez))
+    return tuple(a - b for a, b in zip(left, right))
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Loop navigation — the combinatorial layer over the basis cocycle.
 #
