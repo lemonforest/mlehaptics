@@ -95,7 +95,7 @@ Open fermatas: Exeligmos sub-dial counting; Athletic-games dial composition; rec
 | 7 | Heptad (ἑπτάς): seven planetary spheres + seven sages + seven musical modes + seven liberal arts trivium-quadrivium ancestor | D-M cascade-detection heptad |
 | +3 | Three musical means: arithmetic + geometric + harmonic | B + H + N meta-cascade triad |
 
-The three musical means is the load-bearing +3 reading for Pythagoreans. Per Heath 1921 + Burkert 1972 references (Burkert paywalled; cited via Wikipedia summaries per `[[feedback_paywalled_doi_cannot_be_attested]]`): the three means are explicitly meta-operations on numerical substrate (each computes a different middle-term abstraction; not numbers themselves but RULES FOR producing numbers from pairs). Direct match for R30 +3 = projection-enablers.
+The three musical means is the load-bearing +3 reading for Pythagoreans. Per Heath 1921 (OA via archive.org). ⚠️ **MPM correction 2026-07-30:** this line previously read *"Burkert paywalled; cited via Wikipedia summaries per `[[feedback_paywalled_doi_cannot_be_attested]]`"* — which **inverts the rule it cites**. That rule rejects a paywalled source and routes to an OA preprint, an open edition, or a textbook attribution chain; **an encyclopaedia summary is on none of those tiers**, so the rule licensed the opposite of what was done. **Burkert 1972 is therefore UNATTESTED here** and carries no weight until an eligible source is read; the three-means content below stands on Heath alone, which is sufficient for it. The claim that follows: the three means are meta-operations on numerical substrate (each computes a different middle-term abstraction; not numbers themselves but RULES FOR producing numbers from pairs). Direct match for R30 +3 = projection-enablers.
 
 Sources: Iamblichus *Life of Pythagoras* (Taylor 1818 trans, OA via archive.org); Heath TL 1921 *History of Greek Mathematics* (OA via archive.org); Aristotle *Metaphysics* on Pythagoreans (Ross 1924 trans, OA); Wikipedia Pythagoreanism.
 
@@ -176,7 +176,7 @@ Sources: Apollonius *Conics* Books I-IV (Heath 1896 trans, **OA via archive.org*
 
 Mapping: B (TLV-framing) = deferent (frames primary circular projection); H (self-introspection) = epicycle (body observing its own offset from primary circle); N (rational-approximation) = equant (small-denom rational anchor for non-uniform angular motion).
 
-Sources: Ptolemy *Almagest* (Toomer 1984 trans, OA via archive.org); Pedersen 2010 rev. *Survey of the Almagest* (partial OA); Wikipedia Almagest + Equant + Deferent and epicycle.
+Sources: Ptolemy *Almagest* (Toomer 1984 trans, OA via archive.org); Pedersen 2010 rev. *Survey of the Almagest* (partial OA). ⚠️ **MPM correction 2026-07-30:** this line previously also listed *"Wikipedia Almagest + Equant + Deferent and epicycle"*. **An encyclopaedia is not on the attestation ladder** — `[[feedback_paywalled_doi_cannot_be_attested]]` admits an OA preprint, an open edition, or a textbook attribution chain, and an encyclopaedia summary is none of those. Struck. The deferent / epicycle / equant content is carried by Toomer directly (*Almagest* II.10 + IV–XIII as cited above), so the removal costs this section no support; it removes a citation that was never eligible.
 
 ### §2.8 Partition 8 — Heron *Mechanica + Pneumatica* — (b) REFINED via substrate-content-specialization
 
