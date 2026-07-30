@@ -17,9 +17,9 @@ The mechanical form as literally stated is TOO NOISY — measured
 "Does the type string name what the raise text names?" was implemented first in
 its plainest form: collect the srmech-carrier tokens appearing in any ``raise``
 text in an op's defining module, and require the module's declared param types
-to name them. **Measured at rc363: 33 modules had at least one carrier token in
-a raise text, and 16 of the 33 were flagged.** Inspection of all 16 found most
-were not defects at all:
+to name them. **Measured on the rc362 tree, before this rc's fixes: 33 modules
+had at least one carrier token in a raise text, and 16 of the 33 were flagged.**
+Inspection of all 16 found most were not defects at all:
 
 * ``srmech.amsc.tripoly`` flagged ``BiPoly`` / ``Poly`` / ``Q`` because the
   *constructor* raises on them, while the registered op takes raw coefficients;

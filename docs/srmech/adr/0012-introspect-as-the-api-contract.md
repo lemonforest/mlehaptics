@@ -208,7 +208,8 @@ itself**; that is also why §7.3's parity matrix was green on the same hole.
 **Correction 1 — C2's mechanical test, as literally stated, is too noisy to ship.** §3.1 says *"does
 the type string name what the op's own coercion `raise` text names?"*. Implemented plainly — carrier
 tokens appearing in any raise text in an op's defining module, against that module's declared types —
-it flags **16 of the 33 modules it selects**, and inspection of all 16 finds most are not defects:
+it flags **16 of the 33 modules it selects** (measured on the rc362 tree, before this rc's fixes), and
+inspection of all 16 finds most are not defects:
 `amsc.tripoly`'s *constructor* raises on `BiPoly` / `Poly` / `Q` while the registered op takes raw
 coefficients; `amsc.op_provenance` raises prose explaining what is NOT provenance-tracked. A gate that
 is wrong roughly half the time trains the reader to override it. The shipped form is the **conjunct** —
