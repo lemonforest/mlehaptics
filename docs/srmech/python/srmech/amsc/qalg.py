@@ -22,7 +22,7 @@ project to a float until you give it an embedding.
 
 * ``m`` — the minimal polynomial as a tuple of ``int`` coefficients **low→high,
   MONIC**: ``m = (m₀, m₁, …, m_{n−1}, 1)``, length ``n+1``, leading coeff 1.
-* ``coords`` — a tuple of exact :class:`~srmech.amsc.q.Q` of length ``n``.
+* ``coords`` — a tuple of exact ``Q`` of length ``n``.
 * ``root`` — an OPTIONAL explicit embedding root (a Python ``float`` or
   ``complex``), used ONLY by the terminal projection. The exact field arithmetic
   is embedding-agnostic.
@@ -57,7 +57,7 @@ _Q_ONE = Q(1, 1)
 
 
 def _to_q(value):
-    """Coerce ``value`` to an exact :class:`~srmech.amsc.q.Q`, or ``None`` if it
+    """Coerce ``value`` to an exact ``Q``, or ``None`` if it
     is not an exact-rational-coercible scalar (mirrors ``qi._to_q``)."""
     if isinstance(value, Q):
         return value
@@ -289,16 +289,66 @@ class Qalg:
     def __repr__(self) -> str:
         return f"Qalg({self._m!r}, {self._coords!r})"
 
+    def is_rational(self) -> bool:
+        """True when this element lies in the prime field ℚ ⊂ ℚ[x]/(m) — i.e.
+        every coordinate above ``α⁰`` vanishes, so the element IS its own
+        ``coords[0]``.
+
+        **The decidable oracle.** Membership in ℚ is a FIELD-THEORETIC property,
+        not a presentation artefact: ℚ is the unique degree-1 subfield of ℚ(α),
+        so "is this element rational" survives any change of ℚ-basis. It is the
+        exact test the ``srmech.music`` domain slice uses to return a commensurability
+        verdict that CAN say *inharmonic* — Class-I gcd/lcm structurally cannot,
+        because a finite lcm always exists (v0.9.0rc362).
+        """
+        return all(c == 0 for c in self._coords[1:])
+
+    def as_rational(self):
+        """This element's ``Q`` value when
+        :meth:`is_rational`, else ``None`` — the exact projection down to the
+        prime field, with NO float and NO approximation anywhere."""
+        return self._coords[0] if self.is_rational() else None
+
     def __eq__(self, other) -> bool:
-        if not isinstance(other, Qalg):
+        """Exact field equality, with ``int`` / ``Q`` / ``Fraction`` COERCED into
+        the field first.
+
+        v0.9.0rc362 (`#T1041`) fixes a coercion defect: ``__mul__`` / ``__add__``
+        already coerce an exact-rational scalar into the field (via
+        :meth:`rational`), but ``__eq__`` returned ``NotImplemented`` for
+        anything that was not already a ``Qalg``. Python then fell back to
+        identity, so ``Qalg.alpha([-2, 0, 1]) ** 2`` — coords ``(Q(2,1), Q(0,1))``,
+        the field element 2 — compared **False** against both ``2`` and
+        ``Q(2, 1)`` while comparing **True** against ``Qalg.rational(2, m)``.
+        The same value, three spellings, two answers. A scalar now coerces on
+        comparison exactly as it does under the ring ops.
+
+        A ``Qalg`` from a DIFFERENT field is unequal rather than an error: ``==``
+        is a total predicate (unlike ``+`` / ``*``, which legitimately raise via
+        :meth:`_same_field` because the *result* would be ill-defined).
+        """
+        if isinstance(other, Qalg):
+            return self._m == other._m and self._coords == other._coords
+        q = _to_q(other)
+        if q is None:
             return NotImplemented
-        return self._m == other._m and self._coords == other._coords
+        # A scalar equals this element iff the element is rational AND that
+        # rational is the scalar. No field is constructed — the coordinate
+        # read is the whole test.
+        return self.is_rational() and self._coords[0] == q
 
     def __ne__(self, other) -> bool:
         eq = self.__eq__(other)
         return eq if eq is NotImplemented else not eq
 
     def __hash__(self) -> int:
+        """Hash consistent with :meth:`__eq__` (the Python data-model invariant:
+        equal objects hash equal). A RATIONAL element now hashes as its ``Q``
+        does — so ``Qalg.rational(2, m)``, ``Q(2, 1)`` and ``2`` share a hash
+        bucket, matching the rc362 coercion. A non-rational element cannot equal
+        any scalar, so it keeps the ``(m, coords)`` pair hash."""
+        if self.is_rational():
+            return hash(self._coords[0])
         return hash((self._m, self._coords))
 
     def __bool__(self) -> bool:

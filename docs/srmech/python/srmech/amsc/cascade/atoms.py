@@ -30,9 +30,19 @@ for sequence types the C ABI doesn't cover.
 from __future__ import annotations
 
 import ctypes
-from typing import Tuple
+from typing import Tuple, TypeVar
 
 from srmech.amsc import _native
+
+#: v0.9.0rc362 (`#T1041`, DOC-1) — the real domain of the Class-K sign-split.
+#: :func:`pin_slot_at_zero` / :func:`magnitude` are **type-preserving over any
+#: ordered real carrier** (``int`` → ``int``, ``Q`` → ``Q``, ``float`` →
+#: ``float``, ``Decimal`` → ``Decimal``), yet both were annotated ``float``-only
+#: — an annotation that actively discouraged the exact-carrier use the ``abs()``
+#: ban REQUIRES, and that a reader could only disprove by reading the body.
+#: ``Real`` names the true contract: whatever ordered real carrier goes in comes
+#: back out in the same type.
+Real = TypeVar("Real")
 
 # v0.4.6rc2 — introspection emit hook. Zero-cost when not publishing.
 # We use ``_is_publishing()`` (a single thread-local attribute lookup)
@@ -117,7 +127,7 @@ def _try_native_pin_slot_at_zero(x):
     return int(orient.value), float(mag.value)
 
 
-def pin_slot_at_zero(x: float) -> Tuple[int, float]:
+def pin_slot_at_zero(x: "Real") -> Tuple[int, "Real"]:
     """Class K pin-slot at zero: split ``x`` into (orientation, magnitude).
 
     The pin enters or exits the slot at the zero-crossing — sign-flip IS the
@@ -132,13 +142,27 @@ def pin_slot_at_zero(x: float) -> Tuple[int, float]:
     types) stay on the Python fallback so the int-in / int-magnitude-out
     type contract is preserved bit-identically.
 
+    v0.9.0rc362 (`#T1041`): the op is **type-preserving at the ORIGIN too**.
+    The ± branches always returned the input's own type, but the origin branch
+    ended ``return 0, 0.0`` unconditionally, so ``0 → (0, 0.0)`` and
+    ``Q(0,1) → (0, 0.0)`` leaked a float out of the very op that exists to
+    replace ``abs()`` — while ``5 → (+1, 5)`` and ``Q(3,2) → (+1, Q(3,2))``
+    did not. The origin now returns the input carrier's OWN zero. ``float``
+    is unchanged (``0.0``), which keeps NaN and signed zero bit-identical to
+    the native C peer. The annotation was ``float``-only for the same reason
+    and is now :data:`Real` (DOC-1).
+
     Args:
-        x: A real value.
+        x: A real value in ANY ordered real carrier — ``int``, ``float``,
+            ``Q``, ``Decimal``, … (NOT ``float``-only; see
+            :data:`Real`).
 
     Returns:
         ``(orientation, magnitude)`` where ``orientation ∈ {-1, 0, +1}`` and
-        ``magnitude >= 0``. The origin and NaN both map to ``(0, 0.0)``;
-        ``+inf`` / ``-inf`` map to ``(+/-1, +inf)``.
+        ``magnitude >= 0`` **in the same type as** ``x``. The origin returns
+        ``x``'s own zero (``0`` for ``int``, ``Q(0,1)`` for ``Q``, ``0.0`` for
+        ``float``); NaN maps to ``(0, 0.0)``; ``+inf`` / ``-inf`` map to
+        ``(+/-1, +inf)``.
 
     Raises:
         TypeError: If ``x`` is complex — Class K pin-slot is a real-axis
@@ -150,11 +174,28 @@ def pin_slot_at_zero(x: float) -> Tuple[int, float]:
     native = _try_native_pin_slot_at_zero(x)
     if native is not None:
         return native
-    if x > 0.0:
+    if x > 0:
         return +1, x
-    if x < 0.0:
+    if x < 0:
         return -1, -x
-    return 0, 0.0
+    # ── THE ORIGIN — the Class-K phase boundary itself. ────────────────────
+    # v0.9.0rc362 (`#T1041`): this branch used to `return 0, 0.0`
+    # UNCONDITIONALLY, so the ONE op that exists to replace `abs()` leaked a
+    # float at exactly the point it is named for: `0 -> (0, 0.0)` and
+    # `Q(0,1) -> (0, 0.0)`, while `5 -> (0..., 5)` and `Q(3,2) -> (..., Q(3,2))`
+    # preserved their type. That contradicted this function's own docstring
+    # ("the int-in / int-magnitude-out type contract is preserved
+    # bit-identically") and silently dropped an exact carrier onto the FPU —
+    # the exact failure mode the `abs()` ban exists to prevent.
+    #
+    # `float` keeps the literal `0.0`: that path also carries NaN (which is
+    # neither > 0 nor < 0) and signed zero, whose documented Class-K dead-band
+    # reading is `0.0`, bit-identical to the native C peer. Every OTHER carrier
+    # reaching here compares equal to zero in its own type, so `x` IS that
+    # type's zero and returning it is both type-preserving and exact.
+    if type(x) is float:
+        return 0, 0.0
+    return 0, x
 
 
 def _try_native_reorient(orientation, value):
@@ -290,11 +331,21 @@ def _try_native_magnitude(x):
     return float(out.value)
 
 
-def magnitude(x: float) -> float:
+def magnitude(x: "Real") -> "Real":
     """Class K pin-slot at zero, magnitude only (orientation discarded).
 
     The cascade-honest replacement for Python ``abs()`` when only the
     magnitude is needed (spectral radius, eigenvalue-magnitude proxy, …).
+
+    v0.9.0rc362 (`#T1041`, DOC-1): the annotation was ``float -> float``, which
+    understated the op — it is **type-preserving over any ordered real
+    carrier**, exactly like :func:`pin_slot_at_zero` it composes (``int`` →
+    ``int``, ``Q`` → ``Q``, ``Decimal`` → ``Decimal``). A
+    ``float``-only annotation discourages precisely the exact-carrier use the
+    ``abs()`` ban requires, so it is now :data:`Real`. The op's VALUES are
+    unchanged; only ``magnitude(0)`` / ``magnitude(Q(0,1))`` shift, and only
+    because the composed :func:`pin_slot_at_zero` origin stopped leaking a
+    float (``0`` and ``Q(0,1)`` now come back as ``0`` and ``Q(0,1)``).
 
     v0.4.5rc3: dispatches through the native C variant
     ``srmech_cascade_magnitude_f64`` when ``HAS_NATIVE`` is True and ``x``
@@ -305,10 +356,11 @@ def magnitude(x: float) -> float:
     paths.
 
     Args:
-        x: A real value.
+        x: A real value in ANY ordered real carrier (see :data:`Real`).
 
     Returns:
-        ``|x|`` as the Class K pin-slot magnitude (always ``>= 0``).
+        ``|x|`` as the Class K pin-slot magnitude (always ``>= 0``), **in the
+        same type as** ``x``.
 
     Raises:
         TypeError: If ``x`` is complex — :func:`magnitude` is the real
