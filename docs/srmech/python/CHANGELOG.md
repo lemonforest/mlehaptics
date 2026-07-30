@@ -100,6 +100,20 @@ That is ADR-0012 §1.2's *"findings no gate selected"* converted into a finding 
 
 `CEIL_AMSC_PREFIX["c/src/srmech_carrier_registry.c"]` as-text **191 → 204** and `["c/src/srmech_tool_registry.c"]` **1224 → 1225**; `TOTAL_AS_TEXT` **2943 → 2957**. Per that file's own re-pinning rule, CITATION-vs-POPULATION was decided before touching the number: ops named `srmech.amsc.*` stayed **396**, the decoded total stayed **577**, and every per-artifact decoded count is flat. The rise is the DERIVED `ops.consumes/produces` back-index growing when two carriers were registered and eight declared types widened — five of the eight widened ops live in `srmech.amsc`, so their full ToolEntry names now appear against `EllMonomial` / `Theta` as well as `EllRatio`. The tool registry's single-citation rise is a CORRECTION, not a new reference — the prose op-ref gate found `genome_register_attested`'s `'srmech.genome.<name>'`, a path that never existed, and fixing it to `'srmech.amsc.genome.<name>'` necessarily moves the counter up by one. Nothing moved into the draining namespace.
 
+### A measurement-instrument failure of my own, recorded because it is the rc's own theme
+
+`tests/test_associator_control_gf_solve_rc360.py` was reported by a local sweep as *"timeout: the monitored command dumped core"*. It is neither a crash nor a regression — **it is a slow suite under a budget I set too low**. Measured 2×2 on `test_one_named_sign_flip_is_the_flexibility_control`, each run alone:
+
+| tree | library | result |
+|---|---|---|
+| rc362 baseline | pure | **149 s, passed** |
+| rc362 baseline | native | **369 s, passed** |
+| rc363 (this branch) | native | **363 s, passed** |
+
+Baseline-native and rc363-native are identical within noise, so **rc363 changes nothing about this suite's runtime**; the ~2.5× is native-vs-pure on a call-dense workload and it is present at baseline. The whole file needs roughly 15 minutes against a 60-minute CI job budget.
+
+Three instrument failures in one rc, all the same shape and all worth naming together, because the ADR this rc implements is about exactly this: a **stale `.so`** answering for a table that had changed; a **prose count** nothing recomputes; and a **timeout** reported as a core dump. In each case the instrument, not the subject, produced the reading — `[[feedback_verify_the_artifact_under_test_is_the_one_you_think]]` and `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`.
+
 ### Also
 
 - `docs/srmech/CLAUDE.md` said the cascade catalog holds *"10 TOML descriptors"*; measured **20**. Corrected, with the same warning its sibling "five duplicated count-tests" line now carries — and with the reason nothing else caught it: per the new C6 measurement, that prose sentence is currently **the tree's only statement of how many there are**.
