@@ -491,7 +491,18 @@ static const mcp_kv_t MCP_TYPE_LEXICON[] = {
     {"ChainSpec", "object"},
     {"SpectralHandle", "object"},
     {"SpectralHandle | bytes", "object"},
-    {"numpy.random.Generator", "object"}
+    {"numpy.random.Generator", "object"},
+    /* v0.9.0rc363: the ADR-0012 C2 (TYPED HONESTLY) widenings --
+     * harmonics.classify_chirality_harmonic `dc_threshold` and
+     * coupling.fold_spectrum `margin_floor`, both of which branch on an exact
+     * Q and declared only float / number. Both are NUMBERS on the wire; the
+     * exact-Q arm rides as the [num, den] pair the inbound coercer already
+     * accepts. Keeping the pre-widening JSON token is the point: a union must
+     * not cost a param its schema type. (The rc362 Q / Sequence[int | Q | Qalg]
+     * rows this rc independently found missing are above -- rc362 landed them
+     * in the same fix, so only these two are new here.) */
+    {"float | Q", "number"},
+    {"number | Q", "number"}
 };
 
 /* type-string → per-type JSON wire-encoding hint (mirrors _ENCODING_HINT).
@@ -524,7 +535,9 @@ static const mcp_kv_t MCP_ENCODING_HINT[] = {
     /* v0.9.0rc362: the exact-Q carrier + the acoustic-spectrum sequence over
      * it. The second hint carries a U+2014 em-dash, stored as decoded UTF-8
      * (\xE2\x80\x94) and JSON-escaped on emit, byte-identical to the Python
-     * str -- the SpectralHandle precedent below. */
+     * str -- the SpectralHandle precedent below.
+     * v0.9.0rc363: `float | Q` / `number | Q` deliberately carry NO hint here,
+     * matching Python -- a number needs no wire-form explanation. */
     {"Q",
      "[numerator, denominator] as exact integers, or a bare integer; never "
      "a float (an exact rational is required)"},
