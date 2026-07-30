@@ -102,7 +102,7 @@ That is ADR-0012 §1.2's *"findings no gate selected"* converted into a finding 
 
 ### A measurement-instrument failure of my own, recorded because it is the rc's own theme
 
-`tests/test_associator_control_gf_solve_rc360.py` was reported by a local sweep as *"timeout: the monitored command dumped core"*. It is neither a crash nor a regression — **it is a slow suite under a budget I set too low**. Measured 2×2 on `test_one_named_sign_flip_is_the_flexibility_control`, each run alone:
+`tests/test_associator_control_gf_solve_rc360.py` was reported by a local sweep as *"timeout: the monitored command dumped core"*. It is neither a crash nor a regression. **Run alone it passes: 19 passed in 747.6 s** — comfortably inside the 900 s per-file budget that sweep used. So the budget was NOT too low; what killed it was **three of my own pytest processes running concurrently against one tree**, which pushed a 747 s suite past 900 s. Measured 2×2 on `test_one_named_sign_flip_is_the_flexibility_control`, each run alone:
 
 | tree | library | result |
 |---|---|---|
@@ -110,7 +110,9 @@ That is ADR-0012 §1.2's *"findings no gate selected"* converted into a finding 
 | rc362 baseline | native | **369 s, passed** |
 | rc363 (this branch) | native | **363 s, passed** |
 
-Baseline-native and rc363-native are identical within noise, so **rc363 changes nothing about this suite's runtime**; the ~2.5× is native-vs-pure on a call-dense workload and it is present at baseline. The whole file needs roughly 15 minutes against a 60-minute CI job budget.
+Baseline-native and rc363-native are identical within noise, so **rc363 changes nothing about this suite's runtime**; the ~2.5× is native-vs-pure on a call-dense workload and it is present at baseline. The whole file measures **747.6 s** against a 60-minute CI job budget.
+
+⚠️ **A wrong explanation, corrected here rather than left standing.** While the file-level run was pending, this rc first reported the cause as WSL suspending long background processes between tool calls, inferred from an elapsed-time counter that appeared to stall. That inference was WRONG — the suite ran to completion normally, which it could not have done if it were being suspended. The counter looked stalled because separate `wsl` invocations were being read as one continuous observation. The real cause is self-inflicted contention, and it is the more useful lesson: **a test sweep that runs concurrently with other test sweeps measures the scheduler, not the tree.** Serial runs, or none.
 
 Three instrument failures in one rc, all the same shape and all worth naming together, because the ADR this rc implements is about exactly this: a **stale `.so`** answering for a table that had changed; a **prose count** nothing recomputes; and a **timeout** reported as a core dump. In each case the instrument, not the subject, produced the reading — `[[feedback_verify_the_artifact_under_test_is_the_one_you_think]]` and `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`.
 
