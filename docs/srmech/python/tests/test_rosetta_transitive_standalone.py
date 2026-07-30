@@ -81,15 +81,18 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # cross-walk consistency).
 # rc218 PARITY-COMPLETENESS annex: mirror the extension to spectral/rbs_lm/
 # introspect/profile_loader (the spectral + rbs_lm compute rows ARE
-# composition_of_c, so this ratchet now walks them for hidden non-ready leaves;
-# kept identical across all four walk sites).
-_ROOTS = (
-    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
-    "srmech.bus", "srmech.dsl",
-    "srmech.mcp", "srmech.cli", "srmech.llm",
-    "srmech.spectral", "srmech.rbs_lm",
-    "srmech.introspect", "srmech.profile_loader",
-)
+# composition_of_c, so this ratchet now walks them for hidden non-ready leaves).
+#
+# rc361 (`#T1034`): "kept identical across all four walk sites" is no longer a
+# request to the next author — the tuple is SINGLE-SOURCED in
+# tests/rosetta_roots.py and the other three sites import it. The four copies
+# were measured identical before the collapse.
+import os as _os  # noqa: E402
+import sys as _sys  # noqa: E402
+_TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
+if _TESTS_DIR not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR)
+from rosetta_roots import ROSETTA_ROOTS as _ROOTS  # noqa: E402
 
 # Buckets that are NOT standalone-C-ready (a composition_of_c op must not reach
 # one transitively).
