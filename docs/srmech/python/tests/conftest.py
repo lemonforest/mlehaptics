@@ -541,20 +541,22 @@ import pkgutil as _pkgutil
 import textwrap as _textwrap
 
 _ROSETTA_FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
-# rc177 annex: mirror the test_rosetta_completeness._ROOTS extension to bus/dsl so
-# the shared non_compute live-count walk (owed ceiling / composes_c reachability /
-# dev_tooling allowlist) sees the +39 bus/dsl rows as live.
-# rc183 HOST-GLUE annex: mirror the extension to mcp/cli/llm so the shared walk
-# sees the +24 mcp/cli/llm rows as live too.
-# rc218 PARITY-COMPLETENESS annex: mirror the extension to spectral/rbs_lm/
-# introspect/profile_loader so the shared walk sees the +30 rows as live too.
-_ROSETTA_ROOTS = (
-    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
-    "srmech.bus", "srmech.dsl",
-    "srmech.mcp", "srmech.cli", "srmech.llm",
-    "srmech.spectral", "srmech.rbs_lm",
-    "srmech.introspect", "srmech.profile_loader",
-)
+
+# rc361 (`#T1034`) — the walk roots are SINGLE-SOURCED in tests/rosetta_roots.py.
+# They used to be a hardcoded 12-tuple here AND in test_rosetta_completeness.py
+# AND in test_rosetta_transitive_standalone.py AND in notes/_rosetta_inventory.py,
+# each carrying a comment asking the next author to keep all four in step. All
+# four were measured identical before the collapse; ADR-0010 now moves ~73
+# modules between namespaces and needs to edit the denominator ONCE.
+#
+# The sys.path guard is the same one test_rosetta_completeness.py uses for
+# `from conftest import`: tests/ is a package, so pytest's prepend import-mode
+# does not put this directory on sys.path, and conftest itself is imported as
+# `tests.conftest` — under which a bare `import rosetta_roots` would fail.
+_TESTS_DIR_FOR_ROOTS = str(Path(__file__).resolve().parent)
+if _TESTS_DIR_FOR_ROOTS not in _sys.path:
+    _sys.path.insert(0, _TESTS_DIR_FOR_ROOTS)
+from rosetta_roots import ROSETTA_ROOTS as _ROSETTA_ROOTS  # noqa: E402
 
 # Buckets that are NOT standalone-C-ready.
 ROSETTA_NOT_READY = frozenset(

@@ -65,6 +65,7 @@ from conftest import (  # noqa: E402
     rosetta_live_objects,
     rosetta_reached_ledger_ops,
 )
+from rosetta_roots import ROSETTA_ROOTS  # noqa: E402
 
 # #564 (numpy out the door): the qm / signal_processing surfaces are numpy-free
 # now, and this audit walks them with stdlib importlib / inspect / pkgutil only
@@ -97,17 +98,16 @@ _FIXTURE = Path(__file__).resolve().parent / "rosetta_classification.ndjson"
 # loader). The +30 rows: 8 spectral + 8 rbs_lm + 11 introspect + 3 profile_loader
 # (7 spectral + 8 rbs_lm compute rows are composition_of_c — every kernel routes
 # through already-C-backed ops; the 15 non_compute rows split 6 host_glue +
-# 5 composes_c + 4 dev_tooling). No new C symbol; all ceilings HOLD at 0. The
-# conftest _ROSETTA_ROOTS + the transitive-standalone _ROOTS + the
-# notes/_rosetta_inventory.py ROOTS mirror this extension so all four walks agree
-# on the live surface.
-_ROOTS = (
-    "srmech.amsc", "srmech.qm", "srmech.signal_processing",
-    "srmech.bus", "srmech.dsl",
-    "srmech.mcp", "srmech.cli", "srmech.llm",
-    "srmech.spectral", "srmech.rbs_lm",
-    "srmech.introspect", "srmech.profile_loader",
-)
+# 5 composes_c + 4 dev_tooling). No new C symbol; all ceilings HOLD at 0.
+#
+# rc361 (`#T1034`): the tuple that used to be spelled out here — and separately
+# in conftest.py, in test_rosetta_transitive_standalone.py, and in
+# notes/_rosetta_inventory.py — is now SINGLE-SOURCED in tests/rosetta_roots.py.
+# All four sites were measured identical before the collapse. The annex history
+# above is kept because it explains WHY the root set is 12 and not 3; the value
+# itself has exactly one definition now, so the ADR-0010 rename edits one tuple
+# instead of four that agree only by convention.
+_ROOTS = ROSETTA_ROOTS
 
 # ----- the down-only debt ceilings (rc7 baseline; issue #928) -----------
 # LOWER these as ops gain C twins. NEVER raise them.

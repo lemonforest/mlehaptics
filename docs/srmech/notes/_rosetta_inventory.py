@@ -8,31 +8,43 @@ audit's denominator is mechanical, not hand-listed.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import inspect
 import json
 import pkgutil
 import sys
+from pathlib import Path
 
-# The public submodule roots to walk. Kept IDENTICAL to the three test-side walk
-# sites (tests/test_rosetta_completeness.py _ROOTS / tests/conftest.py
-# _ROSETTA_ROOTS / tests/test_rosetta_transitive_standalone.py _ROOTS): the rc177
-# bus/dsl annex + the rc183 mcp/cli/llm host-glue annex + the rc218
-# parity-completeness annex (spectral / rbs_lm / introspect / profile_loader)
-# all extend this walk so its denominator matches the ledger's.
-ROOTS = [
-    "srmech.amsc",
-    "srmech.qm",
-    "srmech.signal_processing",
-    "srmech.bus",
-    "srmech.dsl",
-    "srmech.mcp",
-    "srmech.cli",
-    "srmech.llm",
-    "srmech.spectral",
-    "srmech.rbs_lm",
-    "srmech.introspect",
-    "srmech.profile_loader",
-]
+# rc361 (`#T1034`) — the walk roots are SINGLE-SOURCED in
+# python/tests/rosetta_roots.py. This file used to carry a fourth hardcoded copy
+# under a comment asking the next author to keep it "IDENTICAL to the three
+# test-side walk sites"; all four were measured identical before the collapse.
+# ADR-0010 moves ~73 modules between namespaces, and this walk is the ledger's
+# DENOMINATOR — a root missing here makes moved ops invisible, which surfaces as
+# "the ledger has stale rows" (the symptom of a deletion) rather than as a move.
+#
+# WHY BY PATH AND NOT BY IMPORT: this script lives outside the package AND
+# outside tests/, so `tests/` is not on sys.path and `import rosetta_roots`
+# cannot resolve. Loading the canonical module by file location is the one import
+# path that works from here. It is safe precisely because rosetta_roots.py
+# imports nothing itself — there is no dependency to resolve out of context. This
+# is a genuine single source, NOT a justified-second-copy-plus-equality-gate.
+_CANONICAL_ROOTS = (
+    Path(__file__).resolve().parents[1] / "python" / "tests" / "rosetta_roots.py")
+if not _CANONICAL_ROOTS.is_file():
+    raise SystemExit(
+        f"cannot find the canonical Rosetta walk roots at {_CANONICAL_ROOTS}.\n"
+        "This script deliberately keeps NO local copy of the root tuple — a "
+        "fallback copy is what rc361 removed. If the file moved, repoint this "
+        "path; do not re-inline the list.")
+_spec = importlib.util.spec_from_file_location(
+    "_srmech_rosetta_roots", _CANONICAL_ROOTS)
+_roots_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_roots_mod)
+
+#: A list rather than the canonical tuple only because this script's own history
+#: spelled it that way; the VALUE is the canonical one.
+ROOTS = list(_roots_mod.ROSETTA_ROOTS)
 
 
 def _iter_submodules(root_name):

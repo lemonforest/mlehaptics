@@ -13,6 +13,58 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc361]
+
+**THE RENAME-DETECTION INSTRUMENT SUITE — three gates, no product change.** `#T1034`, the first prerequisite rc of the ADR-0010 namespace-declustering arc. **No new C symbol; `SRMECH_ABI_VERSION` stays 10; `describe()["tools"]["total"]` stays 516; no generated file was hand-edited and none needed regenerating.** This rc ships only tests plus two shared test-side modules.
+
+**The finding that motivates all three, and it is an EMPTY null — not a defect in the pins.** ADR-0010 moves ~73 modules between top-level namespaces, and before this rc the tree had **no gate that detects a rename**. It had **54 test files / 60 assertions** pinning the op COUNT. A count is simply the wrong quantity: a rename relocates names and leaves cardinality untouched. Simulating the ADR's own example move (`srmech.amsc.rational` → `srmech.math.rational`) relocates **28 of 516** dotted names, the total stays **516**, and all 60 pins stay **GREEN**. `len(...)` measures cardinality and measures it correctly — the null is EMPTY about the pins and a **real gap about the arc**. Nothing here changes or deprecates a single count-pin.
+
+### (1) Instrument 1 — the op-name **SET** witness (`tests/test_op_name_set_witness_rc361.py`)
+
+Pins the SET, not the size: `tests/registered_op_names.txt`, **516** hand-committed sorted dotted names, with the digest of the normalised body pinned in source (`EXPECTED_NAME_SET_SHA256`, over `sha256_bytes`, never `hashlib`). A rename surfaces as one name in `added` and one in `removed` **at identical cardinality** — precisely the case every count-pin is blind to. Changing the set deliberately takes **two edits in one commit** (rewrite the manifest, update the digest), so a careless single-file regen cannot pass.
+
+⚠️ **The manifest is hand-committed on purpose and `test_the_manifest_is_not_codegen_emitted` asserts it stays that way.** A rename arc runs the generators as routine work, so a codegen-emitted manifest would be rewritten by the very change it exists to detect and go green unconditionally — reproducing the "probe that cannot come out otherwise" failure the file was written to fix. The non-vacuity test mutates one name at fixed cardinality and asserts **both** halves: the set comparison catches it, and a count comparison does not.
+
+### (2) Instrument 2 — the Rosetta walk roots get ONE definition (`tests/rosetta_roots.py`)
+
+The 12-entry walk-root tuple was hardcoded in **four** places, each under a comment asking the next author to keep all four in step: `tests/test_rosetta_completeness.py`, `tests/conftest.py`, `tests/test_rosetta_transitive_standalone.py`, and `notes/_rosetta_inventory.py`. **Verified identical in content first** — same 12 entries, same order; the only divergence was a shape one (`notes/` used a `list`, the three test sites a `tuple`), which nothing that reads them cares about. So this was latent duplication, not an already-diverged bug.
+
+Why it is load-bearing rather than tidy: this tuple is the **denominator** of the Rosetta ledger walk. A namespace not listed is not walked, so ops that move there vanish from `rosetta_live_objects()` — the ledger then fires its **STALE** assertion (a classified row whose live op disappeared) and never its **UNCLASSIFIED** one, reporting a *move* with the signature of a *deletion*.
+
+All four sites now resolve the single definition. `notes/_rosetta_inventory.py` is outside the package **and** outside `tests/`, so it loads the canonical module **by path** (`importlib.util.spec_from_file_location`) — which works only because `rosetta_roots.py` deliberately **imports nothing**, and a test asserts it never grows an import (that break would be silent from in-tree). This is a genuine single source: **no second copy and no equality gate were needed.** `tests/test_rosetta_roots_single_source_rc361.py` fails the build if a **fifth** copy ever appears, detecting the spelled-out literal `"srmech.profile_loader"` — measured to occur in exactly the four known copies and nowhere else in `docs/srmech` — and it feeds itself a hand-written copy to prove the detector can fire.
+
+**Deliberately NOT widened to the new namespaces**, and the reason is asserted, not asserted-about: a root naming a package that does not exist is **silently skipped** by every walker (`import_module` raises, the `except` continues), so pre-adding `srmech.math` et al. would look like preparation while changing nothing — and would make the eventual real move indistinguishable from the no-op. A test widens the roots with a non-existent package at runtime and proves the live-op set does not move. Widen the tuple in the same rc that moves the modules.
+
+### (3) Instrument 3 — the **decode-aware** prefix ratchet (`tests/test_namespace_prefix_decode_aware_rc361.py`)
+
+`srmech.amsc.` is the quantity ADR-0010 drains, and in the generated artifacts it **cannot be counted with a text search**: three of them bake their text as decimal byte arrays (`99, 46, 99, ...`). Measured across all six declared regen-all outputs, both channels:
+
+| artifact | as-text | DECODED |
+|---|---|---|
+| `srmech_carrier_registry.c` | 191 | **533** |
+| `srmech_class_registry.c` | **0** | 40 |
+| `srmech_tool_registry.c` | 1219 | 4 |
+| `srmech_responsion_registry.c` | 72 | 0 |
+| `_tool_docs.py` | 1201 | 0 |
+| `_c_claims.py` | 250 | 0 |
+| **TOTAL (generated only)** | **2933** | **577** |
+
+**The MIXED row is more dangerous than the invisible one.** A textual sweep over the carrier registry reports 191 hits, "fixes" all 191, and exits successful while **533 survive** in the compiled table a bare-C host reads straight out of the binary. A flat `0` at least invites suspicion; `191` looks like a finished job. Both channels are pinned per artifact, **down-only**, in the house pattern the sibling ref-notation ceilings already use (a gain fails; a fall fails too, telling you to lower the pin so it cannot be given back). The decoded side is pinned **separately** rather than summed, so a drop in one channel cannot mask a rise in the other.
+
+**The decoder was EXTRACTED, not written.** Introspected first, as required: srmech ships **no** op that turns an int sequence into a `str` (`amsc.tlv.tlv_unpack` and `amsc.search.byte_search` both hard-`TypeError` on non-bytes-like input and return `bytes`/`int`; `amsc.text.*` is str-in; the decode-*direction* ops return bits/ints/bytes/catalog labels) — but rc359 (`#T1035`) had **already built** one inside `test_ref_notation_emitted_rc348.py` to find bare refs hiding in the same byte arrays. It now lives in `tests/c_byte_arrays.py` and both gates import it; rc348's behaviour is unchanged. Forking it would have been the exact duplication instrument 2 exists to forbid, in the same rc.
+
+**Non-vacuity, three ways:** the class registry has 0 textual hits and 40 decoded (a decoder returning nothing fails here); a specific name — `srmech.amsc.cascade.one.one_matrix` — is asserted **present decoded and absent as text**; and the carrier registry's decoded count is asserted to **exceed** its textual one. The extraction's shape is pinned too (4 blobs, named `cls_desc_0..3`), so a changed generator template fails loudly instead of going quietly green.
+
+**A third encoding channel was found and closed by measurement.** The registries also carry text as string literals with non-ASCII bytes written as `\NNN` octal escapes — **21,474** of them across the four. **None** decodes into `[A-Za-z0-9._]`: every one is a non-ASCII UTF-8 byte, so no character *of a name* is ever escaped and the as-text count is complete. That is now a test rather than a belief; if a generator starts escaping ASCII, the as-text pins have begun undercounting and the build says so.
+
+### Two corrections to the rc361 brief, and one scope call
+
+- **`c/include/srmech.h` is NOT a generated artifact** and is deliberately not ratcheted here. `tools/codegen_manifest.GENERATORS` declares exactly **six** outputs and the header is not among them — it is hand-maintained. Its 176 textual hits are real; the brief's "TOTAL 3109" is the six generated artifacts (**2933**) plus that hand-written header (**176**). Pinning a hand-edited file in a codegen ratchet would go red on ordinary authoring.
+- **The walk roots' blindness to ADR-0010 is PARTIAL, not total.** The brief said the roots contain none of the ADR's target namespaces; the tree says otherwise — `srmech.amsc` (which KEEPS 4 modules) and `srmech.introspect` (which GAINS 10) are both destinations and both are **already** roots, and `srmech.dsl` stays put. Seven destinations are absent (`math`, `physics`, `biology`, `music`, `apokatastasis`, `cascade`, `external`), including the largest — `srmech.apokatastasis` at 31 modules, 41% of the moves. Both halves are asserted so neither can be misremembered as the whole story.
+- The two generated `.py` artifacts report `decoded 0` because they contain no byte arrays — **verified, not a construction artifact** of the decoder skipping non-`.c` files. Their long integer runs were inspected and are worked-example *output values* (octonion basis vectors, inertia signatures, index triples), not encoded text.
+
+Both new test files are registered in `test_ref_notation_emitted_rc348.py`'s `SCAN_ROOTS`, so the rc359 trigger-gap meta-test still proves every directory the suite reads lies inside some workflow trigger — the fifth-copy scan reads all of `docs/srmech` precisely because the fourth copy lived in `notes/`, outside srmech-ci's `python/**` + `c/**` trigger and inside srmech-ref-guard's.
+
 ## [0.9.0rc360]
 
 **THREE EXACT OPS THAT WERE ALREADY BEING COMPUTED BY HAND — AND A FOURTH THAT WAS BUILT, MEASURED, THEN DROPPED FOR BEING THE WRONG SHAPE.** Each of the three is a quantity the tree already derives inline at the point of use — the associativity defect, and the two reads a GF(p) RREF was always for. None of them is new mathematics; all three are named homes for a cascade that was being re-spelled at every call site. **`describe()["tools"]["total"]` 513 → 516** and `mcp_callable` 513 → 516. **`SRMECH_ABI_VERSION` stays 10 — NO new C symbol**; all three compose over already-exported ones (`srmech_cd_mult` / `srmech_algebra_table_product` / `srmech_gf_rref` / `srmech_mod_inv`). All three land `composition_of_c`, so `_TOTAL_NON_COMPUTE` stays **209** at all three of its sites and `_FULL_SPLIT` is unchanged. Regeneration is idempotent.

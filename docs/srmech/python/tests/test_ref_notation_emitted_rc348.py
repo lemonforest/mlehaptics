@@ -100,6 +100,10 @@ _TOOLS = _SR_ROOT / "python" / "tools"
 
 if str(_TOOLS) not in sys.path:
     sys.path.insert(0, str(_TOOLS))
+# rc361: tests/ onto the path too, for the shared `c_byte_arrays` decoder.
+# tests/ is a package, so pytest's prepend import-mode does not add it.
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
 
 import codegen_manifest as cm  # noqa: E402
 
@@ -433,28 +437,18 @@ CEIL_BARE_REFS_DECODED = {
     "c/src/srmech_responsion_registry.c": 0,
 }
 
-#: A C byte-array literal: `static const unsigned char NAME[] = { 1, 2, ... };`
-_BYTE_ARRAY = re.compile(
-    r"static\s+const\s+unsigned\s+char\s+(\w+)\s*\[\]\s*=\s*\{(.*?)\}\s*;",
-    re.DOTALL)
-
-
-def _decoded_blobs(path: Path) -> "list[tuple[str, str]]":
-    """Every embedded byte array in ``path``, decoded to the text it carries.
-
-    Returns ``(array_name, text)``. Non-UTF-8 bytes are replaced rather than
-    raising: the point is to read any REFS present, not to validate encoding.
-    """
-    if path.suffix != ".c":
-        return []
-    text = path.read_text(encoding="utf-8", errors="replace")
-    out: "list[tuple[str, str]]" = []
-    for m in _BYTE_ARRAY.finditer(text):
-        nums = [int(t) for t in re.findall(r"\d+", m.group(2))]
-        if not nums or any(n > 255 for n in nums):
-            continue                       # not a byte payload
-        out.append((m.group(1), bytes(nums).decode("utf-8", errors="replace")))
-    return out
+# rc361 (`#T1034`): the byte-array regex + decode step MOVED to
+# tests/c_byte_arrays.py so the rc361 namespace-prefix ratchet
+# (test_namespace_prefix_decode_aware_rc361.py) reads the payload through the
+# SAME extraction this file proved out at rc359, instead of forking a second
+# decoder that could drift into silently returning nothing. Behaviour here is
+# unchanged — `_decoded_blobs` is the same function under the same name.
+#
+# `test_the_decoder_can_still_see_something` below is the non-vacuity guard for
+# the shared decoder and stays HERE as well as in the rc361 file: two consumers,
+# two independent shape pins, so neither gate depends on the other being run.
+from c_byte_arrays import BYTE_ARRAY as _BYTE_ARRAY  # noqa: E402,F401
+from c_byte_arrays import decoded_blobs as _decoded_blobs  # noqa: E402
 
 
 def _bare_refs_in_text(text: str) -> "list[tuple[int, int, str]]":
@@ -679,6 +673,15 @@ SCAN_ROOTS = {
     "tests/test_ref_notation_emitted_rc348.py": ("docs/srmech",),
     # Reads the committed proof NDJSON under notes/ and re-measures against it.
     "tests/test_cd_register_ops_rc301.py": ("docs/srmech/notes",),
+    # rc361 (`#T1034`): WIDE, and it has to be. The fifth-copy gate scans the
+    # whole subtree because the fourth copy of the Rosetta root tuple lived in
+    # notes/_rosetta_inventory.py — outside srmech-ci's python/+c/ trigger and
+    # inside srmech-ref-guard's. A scan that stopped at python/ could not see a
+    # copy re-inlined where the original one was.
+    "tests/test_rosetta_roots_single_source_rc361.py": ("docs/srmech",),
+    # rc361: reads the generated C registries + the two generated .py artifacts.
+    "tests/test_namespace_prefix_decode_aware_rc361.py": (
+        "docs/srmech/python", "docs/srmech/c"),
     # The rest stay inside python/ + c/, i.e. inside srmech-ci's own trigger.
     "tests/test_regen_all_rc346.py": ("docs/srmech/python", "docs/srmech/c"),
     "tests/test_c_cascade_coherence.py": ("docs/srmech/c",),
