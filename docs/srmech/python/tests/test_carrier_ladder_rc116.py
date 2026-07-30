@@ -386,8 +386,20 @@ def test_new_tool_entries_present_with_declared_types():
             "carrier_ladder", {"p": "Poly | BiPoly", "n_vars": "int"}),
         "srmech.amsc.carrier_ladder.poly_project": (
             "carrier_ladder", {"p": "BiPoly | TriPoly"}),
+        # rc363 (ADR-0012 §3.1 C2): "QPoly" -> "QPoly | QBiPoly". The op has
+        # ALWAYS returned an already-rung-2 QBiPoly unchanged — promote is
+        # idempotent at the top rung — and its own coercion raise text named
+        # both. Only the declared type withheld the second arm, which
+        # carrier_schema()'s ops back-index and the rc205 drift ratchet both
+        # derive from. The asymmetry this closes is visible two rows above:
+        # the ORDINARY ladder's peer already declared the honest union
+        # ("Poly | BiPoly"), so the two ladders disagreed about how honest a
+        # promote's declared type has to be.
+        # (`qpoly_project` stays "QBiPoly": rung 2 is the only rung it can
+        # descend FROM in a two-rung ladder, and the rc363 use-derivation
+        # measures no accepted carrier on its boundary that contradicts it.)
         "srmech.amsc.carrier_ladder.qpoly_promote": (
-            "carrier_ladder", {"p": "QPoly", "n_vars": "int"}),
+            "carrier_ladder", {"p": "QPoly | QBiPoly", "n_vars": "int"}),
         "srmech.amsc.carrier_ladder.qpoly_project": (
             "carrier_ladder", {"p": "QBiPoly"}),
         "srmech.amsc.carrier_ladder.carrier_ladder_descriptor": (
