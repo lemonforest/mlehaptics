@@ -51,6 +51,14 @@ from rosetta_roots import ROSETTA_ROOTS  # noqa: E402
 _CANONICAL_REL = "python/tests/rosetta_roots.py"
 
 #: The rc361 root set, pinned so a widening is a deliberate two-file edit.
+#:
+#: v0.9.0rc362 — ``srmech.music`` APPENDED. This is the two-file edit the
+#: assertion below asks for, made for the reason it asks for it: the acoustic
+#: slice LANDED in this rc, so the package now EXISTS and the walk must reach
+#: it. Widening for a package that does not exist is what rc361 refused; this
+#: is the opposite case, and refusing it here would leave the nine
+#: ``srmech.music.*`` ops outside the ledger's denominator — the very
+#: invisibility ``tests/rosetta_roots.py`` was collapsed to prevent.
 _EXPECTED_ROOTS = (
     "srmech.amsc",
     "srmech.qm",
@@ -64,6 +72,7 @@ _EXPECTED_ROOTS = (
     "srmech.rbs_lm",
     "srmech.introspect",
     "srmech.profile_loader",
+    "srmech.music",
 )
 
 #: ADR-0010's destination namespaces that DO NOT EXIST YET.
@@ -71,11 +80,18 @@ _EXPECTED_ROOTS = (
 #: Read off the ADR's own namespace table and its per-destination count table.
 #: ``srmech.apokatastasis`` is the largest single destination (31 modules, 41%
 #: of the moves) and, like the rest of these, is absent from the walk roots.
+#:
+#: ⚠️ ``srmech.music`` LEFT THIS TUPLE at v0.9.0rc362 and moved to
+#: ``_ADR0010_EXISTING_DESTINATIONS`` below. It is the FIRST of ADR-0010's new
+#: namespaces to land, so it is no longer a member of the "does not exist yet"
+#: class — leaving it here would have made the gap claim false in the one
+#: direction that matters, asserting a blindness the tree no longer has. The
+#: gap itself is undiminished: six namespaces still do not exist, and
+#: ``srmech.apokatastasis`` (41% of the moves) is still the largest of them.
 _ADR0010_NEW_NAMESPACES = (
     "srmech.math",
     "srmech.physics",
     "srmech.biology",
-    "srmech.music",
     "srmech.apokatastasis",
     "srmech.cascade",
     "srmech.external",
@@ -88,9 +104,14 @@ _ADR0010_NEW_NAMESPACES = (
 #: ``srmech.amsc`` (which KEEPS 4 modules) and ``srmech.introspect`` (which
 #: GAINS 10) are both destinations and both are already roots, and ``srmech.dsl``
 #: stays put. So the blindness is PARTIAL, not total: ops moving to
-#: ``introspect`` stay visible to the walk, ops moving to the seven namespaces
+#: ``introspect`` stay visible to the walk, ops moving to the six namespaces
 #: above do not. Asserted below so the correction cannot be lost.
-_ADR0010_EXISTING_DESTINATIONS = ("srmech.amsc", "srmech.introspect", "srmech.dsl")
+#:
+#: v0.9.0rc362 — ``srmech.music`` joins them, by the ONE route this tuple
+#: accepts: the modules landed, so the root was widened in the SAME rc. That is
+#: the sequencing rule stated positively rather than as a prohibition.
+_ADR0010_EXISTING_DESTINATIONS = ("srmech.amsc", "srmech.introspect",
+                                  "srmech.dsl", "srmech.music")
 
 #: Detects a spelled-out copy of the root tuple: the quoted literal every copy
 #: ended with. Measured at rc361 — this token appeared in EXACTLY the four known
@@ -233,23 +254,37 @@ def test_the_roots_are_blind_to_ADR0010s_new_namespaces() -> None:
     """⚠️ THE MEASURED GAP, asserted rather than described.
 
     This is the state rc361 is documenting, not a defect to fix here: the walk
-    roots name none of ADR-0010's seven NEW namespaces, so the moment a module
+    roots name none of ADR-0010's UNLANDED namespaces, so the moment a module
     moves to one of them its ops leave the ledger's denominator.
 
     ⚠️ AND THE PARTIAL-BLINDNESS CORRECTION. ``srmech.amsc`` and
     ``srmech.introspect`` are ALSO ADR-0010 destinations and ARE already roots,
     so the blindness is partial. Both halves are asserted so neither can be
     misremembered as the whole story.
+
+    ⚠️ WHAT rc362 CHANGED, AND WHY IT IS NOT A LOOSENING. ``srmech.music`` was
+    in ``_ADR0010_NEW_NAMESPACES`` and is now in
+    ``_ADR0010_EXISTING_DESTINATIONS``, because the acoustic slice LANDED. The
+    tuple membership tracks a FACT about the tree (does this package exist?),
+    not a wish about the arc, and a namespace that has landed belongs in the
+    second list by construction. The prohibition rc361 wrote down is unmoved:
+    a root may not name a package that does not exist. Seven became six by a
+    module move, not by an exemption — and the second assertion below is what
+    keeps the migration honest, since a namespace deleted from the first tuple
+    without arriving in the second would fail there.
     """
     present = [ns for ns in _ADR0010_NEW_NAMESPACES if ns in ROSETTA_ROOTS]
     assert not present, (
         f"the walk roots now name {present}, which ADR-0010 lists as NEW "
-        "namespaces. rc361 deliberately does NOT pre-widen: a root naming a "
-        "package that does not exist is silently skipped by every walker "
-        "(import_module raises, the except continues), so pre-adding it would "
-        "look like preparation while changing nothing — and would make the "
-        "eventual real move indistinguishable from the no-op. Widen the tuple "
-        "in the SAME rc that moves the modules.")
+        "namespaces that DO NOT EXIST YET. rc361 deliberately does NOT "
+        "pre-widen: a root naming a package that does not exist is silently "
+        "skipped by every walker (import_module raises, the except continues), "
+        "so pre-adding it would look like preparation while changing nothing — "
+        "and would make the eventual real move indistinguishable from the "
+        "no-op. Widen the tuple in the SAME rc that moves the modules, and in "
+        "that rc move the namespace from _ADR0010_NEW_NAMESPACES to "
+        "_ADR0010_EXISTING_DESTINATIONS — that is what rc362 did for "
+        "srmech.music, and it is the ONLY route out of this assertion.")
 
     already = [ns for ns in _ADR0010_EXISTING_DESTINATIONS
                if ns in ROSETTA_ROOTS]

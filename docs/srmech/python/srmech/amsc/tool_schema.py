@@ -10792,9 +10792,12 @@ def _register_music_tools() -> None:
                     "harmonisation this layer exists to prevent). 'harmonic' here "
                     "is the ACOUSTIC word, never the chirality order "
                     "classify_harmonic uses. Exact-Q; numpy-free; no abs().",
-            parameters=(P("partials", "Sequence", True,
+            parameters=(P("partials", "Sequence[int | Q | Qalg]", True,
                           "non-empty sequence of partial-to-fundamental frequency "
-                          "RATIOS, each Q, Qalg, int or an (int, int) pair"),
+                          "RATIOS. Over the wire each is a bare int or an exact "
+                          "[num, den] pair; an in-process caller may also pass Q "
+                          "or Qalg (Qalg has no JSON form, so it is reachable "
+                          "in-process only). float is REFUSED"),
                         P("open_partials", "Sequence[int]", False,
                           "indices whose true value has NO exact carrier; "
                           "declared by the constructor that produced them")),
@@ -10838,9 +10841,11 @@ def _register_music_tools() -> None:
                     "integer_series False. No threshold and no denominator "
                     "ceiling is consulted anywhere in the decision. Exact-Q; "
                     "numpy-free; no abs().",
-            parameters=(P("partials", "Sequence", True,
-                          "partial-to-fundamental frequency ratios (Q / Qalg / "
-                          "int / (int, int) pair)"),
+            parameters=(P("partials", "Sequence[int | Q | Qalg]", True,
+                          "partial-to-fundamental frequency ratios. Over the wire "
+                          "each is a bare int or an exact [num, den] pair; Q and "
+                          "Qalg are additionally accepted in-process (Qalg has no "
+                          "JSON form). float is REFUSED"),
                         P("open_partials", "Sequence[int]", False,
                           "indices declared Tier 3 by their constructor")),
             returns=R("dict", "{'verdict': 'harmonic'|'inharmonic'|'open', "
@@ -10870,8 +10875,10 @@ def _register_music_tools() -> None:
                     "family is to have earned the verdict first. The raised "
                     "message names the offending partial indices and why no "
                     "period exists. Exact integer; numpy-free; no abs().",
-            parameters=(P("partials", "Sequence", True,
-                          "partial-to-fundamental frequency ratios"),
+            parameters=(P("partials", "Sequence[int | Q | Qalg]", True,
+                          "partial-to-fundamental frequency ratios; over the wire "
+                          "each is a bare int or an exact [num, den] pair (Qalg "
+                          "in-process only). float is REFUSED"),
                         P("open_partials", "Sequence[int]", False,
                           "indices declared Tier 3 by their constructor")),
             returns=R("int", "the period multiplier k (common period = k*T0); "
@@ -11086,7 +11093,13 @@ def _register_music_tools() -> None:
                         P("newton_steps", "int", False,
                           "Newton refinements after the McMahon start, [1, 64]; "
                           "default 8")),
-            returns=R("tuple", "(num, den) with den == 2**scale_bits"),
+            returns=R("tuple", "(num, den) on the declared 2**-scale_bits grid; "
+                               "den is a power of two 2**k with k <= scale_bits, "
+                               "NOT unconditionally 2**scale_bits — the value is "
+                               "an exact Q and comes back REDUCED (measured: "
+                               "bessel_zero_fixed(0, 1, scale_bits=64) has den "
+                               "2**61). bessel_j_fixed does always carry "
+                               "den == 2**scale_bits; this one does not"),
         ),
     ]
     for e in entries:

@@ -230,7 +230,15 @@ def bessel_zero_fixed(order: int,
         newton_steps: Newton refinements after the McMahon start. Default 8.
 
     Returns:
-        ``(num, den)`` with ``den == 2**scale_bits``.
+        ``(num, den)`` on the declared ``2^-scale_bits`` grid. ``den`` is a
+        power of two ``2**k`` with ``k <= scale_bits``, NOT unconditionally
+        ``2**scale_bits``: the value is an exact :class:`~srmech.amsc.q.Q` and
+        therefore comes back REDUCED, so an even numerator cancels powers of
+        two out of the denominator. Measured — ``bessel_zero_fixed(0, 1,
+        scale_bits=64)`` returns ``(5545150200591220465, 2305843009213693952)``
+        and ``2305843009213693952 == 2**61``. (This differs from
+        :func:`bessel_j_fixed`, which returns the accumulator and its scale
+        directly and so really does always carry ``den == 2**scale_bits``.)
 
     Raises:
         ValueError: bad order / index / scale_bits / newton_steps.

@@ -407,6 +407,86 @@ def _to_bipoly_or_tripoly(value: Any, *, param: str = "") -> Any:
     return _to_bipoly(value, param=param)
 
 
+def _to_q(value: Any, *, param: str = "") -> Any:
+    """Coerce a JSON value to a ``Q``-typed param — srmech's exact-ℚ carrier.
+
+    ⚠️ v0.9.0rc362: this closes a ROUND-TRIP ASYMMETRY, not merely a missing key.
+    :func:`serialise_native` has emitted ``Q -> [numerator, denominator]`` since
+    rc231, and its own comment calls that form "the inverse of the inbound
+    ``_seq_charge`` ``[num, den] -> Q``". But that inbound half only ever existed
+    INSIDE a list coercer: every other srmech carrier (``Mat`` / ``Vec`` / ``HV``
+    / ``Poly`` / ``BiPoly`` / ``TriPoly`` / ``QPoly`` / ``QBiPoly`` / ``EllRatio``
+    / ``EllMonomial`` / ``One``) had a scalar coercer and ``Q``, the most basic of
+    them, did not. No op had ever advertised a bare ``Q`` param, so the gap was
+    real and unreachable at the same time; ``music.stiff_string_partials``
+    ``inharmonicity`` is the first, and the exhaustiveness ratchet in
+    ``tests/test_mcp.py`` found it immediately, which is what that ratchet is for.
+
+    Accepts a live ``Q`` (pass-through), a bare ``int`` (``Q(n, 1)``), or the
+    canonical ``[numerator, denominator]`` 2-int pair. A ``float`` is passed
+    THROUGH UNCHANGED rather than silently rationalised: the ops that take an
+    exact ``Q`` refuse floats on purpose (a float B collapses the Tier-1/Tier-2
+    distinction ``stiff_string_partials`` exists to expose), and manufacturing an
+    exact rational here would defeat the refusal at the one layer the caller
+    cannot see. Let the op raise its own explanatory ``TypeError``."""
+    from srmech.amsc.q import Q  # exact-ℚ carrier; lazy (no import cost when unused)
+    if isinstance(value, Q):
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return Q(value, 1)
+    if (isinstance(value, (list, tuple)) and len(value) == 2
+            and isinstance(value[0], int) and not isinstance(value[0], bool)
+            and isinstance(value[1], int) and not isinstance(value[1], bool)
+            and value[1] != 0):
+        return Q(int(value[0]), int(value[1]))
+    return value
+
+
+def _seq_q_or_int(value: Any, *, param: str = "") -> Any:
+    """``Sequence[int | Q | Qalg]`` -> list of ``int`` / ``Q`` / ``Qalg``
+    (v0.9.0rc362).
+
+    The wire form of an ACOUSTIC SPECTRUM: the ``partials`` argument of
+    ``music.spectrum_tier`` / ``commensurability_verdict`` / ``common_period``,
+    a sequence of partial-to-fundamental frequency RATIOS. Each element rides as
+    a bare JSON integer or as the canonical exact ``[numerator, denominator]``
+    pair — the same encoding :func:`serialise_native` emits outbound, so a
+    spectrum round-trips exactly and never through a float.
+
+    ⚠️ WHY ``Qalg`` IS NAMED IN THE TYPE THOUGH IT CANNOT RIDE JSON. The ops
+    accept ``Qalg``, the exact ALGEBRAIC-IRRATIONAL carrier — that is the whole
+    point of Tier 2 — and it has no JSON form, so an MCP caller cannot put one on
+    the wire. It is named in the declared type ANYWAY, and the first draft of
+    this rc left it out for the plausible reason that the wire contract should
+    not promise what it cannot carry. That was wrong, and the reason is worth
+    keeping: a ToolEntry type string is the OPERAND DECLARATION that
+    ``carrier_schema``'s back-index token-scans to build each carrier's
+    ``consumes`` list — not only the wire contract. Omitting ``Qalg`` is exactly
+    what kept it out of the carrier registry from rc22 to rc362 while the human
+    descriptions had said "each Q, Qalg, int or an (int, int) pair" all along.
+    The wire limitation belongs in ``_tools._ENCODING_HINT``, and is stated
+    there. A live ``Qalg`` from an in-process caller passes through this coercer
+    untouched; an MCP caller that wants a Tier-2 spectrum builds one with
+    ``equal_temperament_partials`` / ``stiff_string_partials`` and passes the
+    result on directly.
+
+    ⚠️ AND WHY NO FLOAT ARM. ``_seq_charge`` (the nearest sibling — per-edge
+    ``cycle_holonomy`` charges) lets a bare float through because its op projects
+    to a rational. These ops REFUSE floats, deliberately and with a long error
+    message: every float IS a rational, so a float spectrum is unconditionally
+    Tier 1 and unconditionally "harmonic", which is the exact silent
+    harmonisation the family exists to make impossible. A float therefore passes
+    through unconverted and the op raises. Do not add a float arm here."""
+    if not isinstance(value, (list, tuple)):
+        raise ValueError(
+            f"expected a list of frequency ratios (int / [num, den]) for param "
+            f"{param or '<partials>'!r}; got {type(value).__name__}"
+        )
+    return [_to_q(v, param=param) for v in value]
+
+
 def _to_ellratio(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value to the natural form for an ``EllRatio``-typed param (rc61
     ``elliptic_gosper`` elliptic-hypergeometric term-ratio operand).
@@ -963,6 +1043,13 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # coercer (only PARAM types are coerced).
     "Poly | BiPoly": _to_poly_or_bipoly,
     "BiPoly | TriPoly": _to_bipoly_or_tripoly,
+    # 0.9.0rc362: srmech's exact-ℚ carrier, the LAST carrier without a scalar
+    # coercer. serialise_native has emitted Q -> [num, den] since rc231 and calls
+    # that the inverse of an inbound coercion that only existed inside a list
+    # handler; music.stiff_string_partials `inharmonicity` is the first param to
+    # advertise a bare Q and the first to need it. See _to_q on why a float is
+    # passed through rather than rationalised.
+    "Q": _to_q,
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
     "One": _to_one,            # 0.9.0rc290: the S(σ,θ) generator, via its own
                                # canonical (sigma, theta, terms) dict
@@ -987,6 +1074,17 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "Sequence[Vec]": _seq_vec,   # v0.7.5rc132: coupling.signed_sum_squared sources
     "Sequence[HV]": _seq_hv,     # v0.7.5rc132: genome / hdc bundle hypervector lists
     "Sequence[str]": _identity,  # v0.7.5rc155: hdc.cooccurrence_fold `tokens` (JSON-native)
+    # 0.9.0rc362: the ACOUSTIC SPECTRUM operand — music.spectrum_tier /
+    # commensurability_verdict / common_period `partials`. Over JSON each ratio
+    # rides as a bare int or an exact [num, den] pair. The declared type ALSO
+    # names Qalg, which has no JSON form: that arm is IN-PROCESS ONLY and a live
+    # Qalg passes through untouched. It is named anyway because the type string
+    # is the operand declaration the carrier back-index reads, not only the wire
+    # contract — leaving it out is what hid Qalg from the carrier registry until
+    # rc362 (see the carrier_schema module docstring). The wire limitation is
+    # stated in _tools._ENCODING_HINT, which is where it belongs.
+    # No float arm — see _seq_q_or_int.
+    "Sequence[int | Q | Qalg]": _seq_q_or_int,
     # v0.7.5rc155: the §50 holographic-bundle accumulator (klein4_bundle_accumulate
     # /_resolve) — a (1+2*D) uint32 array, or None for the create case.
     "array('I')": _to_uint32_acc,

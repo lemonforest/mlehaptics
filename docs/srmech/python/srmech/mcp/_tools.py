@@ -103,6 +103,14 @@ _TYPE_LEXICON: Dict[str, str] = {
     # lists; also the rc44 gf_rref `rows` matrix, which previously degraded to
     # the "string" fallback).
     "list[list[int]]": "array",
+    # 0.9.0rc362: srmech's exact-ℚ carrier and the acoustic-spectrum sequence
+    # over it. Both are ARRAYS on the wire — a Q rides as [num, den] (the form
+    # serialise_native already emits outbound), a spectrum as a list of those.
+    # Registered here as well as in _coercion so the advertised inputSchema and
+    # the runtime coercion agree; a coercer without a lexicon entry degrades the
+    # schema to "string" and tells a client the opposite of what it must send.
+    "Q": "array",
+    "Sequence[int | Q | Qalg]": "array",
     "Mapping[bytes, bytes]": "object",
     "dict": "object",
     "Optional[dict]": "object",
@@ -188,6 +196,19 @@ _ENCODING_HINT: Dict[str, str] = {
         "nested JSON array of integer lists (rows / coefficient cells)"
     ),
     "Sequence[bytes]": "array of base64-encoded byte strings",
+    # 0.9.0rc362: the exact-ℚ carrier + the acoustic-spectrum sequence over it.
+    "Q": (
+        "[numerator, denominator] as exact integers, or a bare integer; never "
+        "a float (an exact rational is required)"
+    ),
+    "Sequence[int | Q | Qalg]": (
+        "array of frequency ratios, each a bare integer or an exact "
+        "[numerator, denominator] pair; never a float. The Qalg arm of the "
+        "declared type (the exact algebraic-irrational carrier) has no JSON "
+        "form and is reachable IN-PROCESS ONLY — over the wire, build a Tier-2 "
+        "spectrum with equal_temperament_partials / stiff_string_partials and "
+        "pass its result on directly"
+    ),
     # legacy numpy-free wire-form keys (no param advertises them now).
     "np.ndarray": (
         "nested JSON array, row-major; complex elements as [re, im]"

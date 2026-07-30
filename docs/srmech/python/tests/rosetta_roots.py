@@ -35,15 +35,26 @@ rc361 collapses the four to this one definition so the later rename edits a
 single tuple.
 
 ⚠️ DELIBERATELY NOT WIDENED AT rc361. ADR-0010's new namespaces
-(``srmech.math`` / ``physics`` / ``biology`` / ``music`` /
-``apokatastasis`` / ``cascade`` / ``external``) DO NOT EXIST YET, and a root
-naming a non-existent package is silently skipped by every walker here
+(``srmech.math`` / ``physics`` / ``biology`` / ``apokatastasis`` /
+``cascade`` / ``external``) DO NOT EXIST YET, and a root naming a
+non-existent package is silently skipped by every walker here
 (``importlib.import_module`` raises, the ``except`` continues) — so
 pre-adding them would look like preparation while changing nothing, and
 would make the eventual real move indistinguishable from the no-op. Widen
 this tuple in the SAME rc that moves the modules, never before. The gap is
 asserted, not merely described, in
 ``tests/test_rosetta_roots_single_source_rc361.py``.
+
+⚠️ AND WIDENED AT rc362, FOR EXACTLY THAT REASON. ``srmech.music`` was
+listed above as not-yet-existing until v0.9.0rc362 landed the acoustic
+slice; it is the first of ADR-0010's new namespaces to become real, so it
+is appended below IN THE SAME rc as the modules, which is the rule stated
+positively. Nine ``srmech.music.*`` ops enter the walk with it, one of them
+(``bell_partials``) as a ``non_compute``/``composes_c`` row — the annex
+ratchets in ``tests/test_annex_ratchet_rc177.py`` and ``…_rc183.py`` move
+by exactly that +1, and the other eight are compute buckets. If a future
+namespace lands and the split moves by anything other than its
+``non_compute`` row count, that is a finding rather than a pin bump.
 
 ⚠️ THIS MODULE IMPORTS NOTHING, ON PURPOSE. ``notes/_rosetta_inventory.py``
 lives OUTSIDE the package and outside ``tests/``, so it cannot ``import``

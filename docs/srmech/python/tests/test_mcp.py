@@ -1853,6 +1853,17 @@ def _synth_value_for_type(type_string: str) -> Any:
         # this same value, so len(a) != len(z)+1 is a TOLERATED domain ValueError
         # (the op was CALLED with bindable + coercible args — the property tested).
         "list[EllMonomial]": ["z0", "z1"],
+        # rc362 music.stiff_string_partials `inharmonicity`: the exact-ℚ carrier
+        # rides as [num, den]. B = 1/1000 is a realistic piano stiffness and is
+        # in-domain (B >= 0), so the op returns a genuine Tier-2 spectrum rather
+        # than a tolerated domain error.
+        "Q": [1, 1000],
+        # rc362 the acoustic-spectrum wire form (music.spectrum_tier /
+        # commensurability_verdict / common_period `partials`): the Fletcher &
+        # Rossing tuned-bell profile — hum 1/2, prime 1, tierce 6/5, quint 3/2,
+        # nominal 2. In-domain for all three ops, so each returns a real answer
+        # (tier 1 / verdict "harmonic" / period 10) instead of raising.
+        "Sequence[int | Q | Qalg]": [[1, 2], [1, 1], [6, 5], [3, 2], [2, 1]],
         "np.ndarray": mat2,
         "Optional[np.ndarray]": mat2,
         # v0.7.5rc72 Mat carrier (mat_matmul): a 2x2 list-of-rows -> real Mat;
