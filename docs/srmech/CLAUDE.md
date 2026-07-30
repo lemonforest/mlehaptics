@@ -190,7 +190,14 @@ STAYS (elementwise ops use it). Each removal also touches: laplacian
 `__all__` (×2: the top list + `LAPLACIAN_OPS`), the `ToolEntry` in
 `tool_schema.py`, the `rosetta_classification.ndjson` ledger, the
 **#928 down-only Rosetta ratchet**, the `describe()["tools"]["total"]`
-count in the **five** duplicated count-tests, and `_native.py`.
+count in the duplicated count-tests, and `_native.py`.
+
+⚠️ **This line said "the FIVE duplicated count-tests" until rc362 — that was stale
+and it mis-scoped a build brief.** Measured on the rc362 branch: **61 assertion
+sites pin the op total, across ~54 test files.** "Five" was true around rc135 and
+the surface has grown by an order of magnitude since. Do not brief a count-bumping
+change as a five-file edit. Re-measure before quoting a number here — this file is
+explicitly NOT hygiene-gated, so nothing else will catch it going stale again.
 **C/Python 1:1 parity (user directive):** `srmech_dense_matmul_complex`
 stays — it still backs `mat_matmul`; but the now-orphaned
 `srmech_dense_matvec_complex` kernel is **removed** from the C surface
