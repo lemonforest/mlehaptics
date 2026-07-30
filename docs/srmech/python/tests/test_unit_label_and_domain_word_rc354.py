@@ -105,14 +105,50 @@ def test_collision_note_carries_the_fourth_sense_and_its_bounds():
 # ── PART B: the domain-word gap ───────────────────────────────────────────
 
 def test_the_row_determines_the_word_for_only_three_carriers():
+    """⚠️ ``of`` IS A LIVE DENOMINATOR, NOT A CONSTANT — it is ``len(_CARRIERS)``.
+
+    v0.9.0rc362 registered ``Qalg`` and this went 25 → 26. The number was
+    RAISED rather than the new carrier being excluded, and the reasoning
+    matters more than the digit:
+
+    * ``_domain_word_gap`` is derived live and its docstring says so —
+      "Recomputed live, never authored, so it cannot drift from the rows it
+      describes". Excluding a registered carrier would need a hand-maintained
+      exclusion list, i.e. exactly the drift that design forbids.
+    * The gap is a claim ABOUT THE REGISTRY: "of the N carriers srmech
+      publishes, the row determines a word for only 3". ``Qalg`` is published,
+      it has a capability row, so the question is meaningful for it — and it
+      HAS an answer.
+    * That answer is ``none_of_the_four``, a SUBSTANTIVE verdict, not a
+      ``not_applicable`` skip. It joins ``Vec``, and for the same derivable
+      reason: commutative (so not ORIENTATION/PATH) with zero divisors (so not
+      orderable, hence not MAGNITUDE; and a commutative zero-divisor product is
+      not a cycle, hence not PHASE).
+    * Excluding it would WEAKEN the finding. The deliverable here is that the
+      four-word vocabulary fails to cover srmech's carrier surface; a carrier it
+      also fails to label makes the gap better evidenced, not worse. Suppressing
+      that is the papering-over the sibling test below exists to forbid.
+
+    So: raise this with the carrier count, and never exclude a carrier to hold
+    the number still.
+    """
     gap = _domain_word_gap()
     assert gap["verdict"].startswith("NOT DERIVABLE")
-    assert gap["of"] == 25
+    assert gap["of"] == 26
     assert gap["determined_unambiguous"] == 3
     assert gap["unambiguous"] == ["Mat", "octonion", "quaternion"]
     assert gap["word_returned_but_qualified"] == [
         "CDRegister", "HV", "SedenionRegister", "sedenion"]
     assert len(gap["by_verdict"]["undecidable"]) == 13
+    # rc362: pinned because this is the bucket Qalg MOVED, and it was the one
+    # bucket with no assertion — so the registration changed a published
+    # verdict set and only the denominator noticed. Vec was alone here; the
+    # block comment in carrier_schema.py calls it "a genuine fifth thing", and
+    # that sentence is now about two carriers.
+    assert gap["by_verdict"]["none_of_the_four"] == ["Qalg", "Vec"]
+    # ...and the worst-case set, for the same reason: Qalg publishes a
+    # varies_with, so its word is a worst case over the minimal polynomial.
+    assert gap["word_is_worst_case_only_for"] == ["CDRegister", "HV", "Qalg"]
 
 
 def test_magnitude_and_phase_are_never_asserted_anywhere():

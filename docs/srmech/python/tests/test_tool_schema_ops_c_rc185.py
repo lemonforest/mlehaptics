@@ -28,8 +28,15 @@ pure-path structural checks always run. numpy-free.
 from __future__ import annotations
 
 import json
+import re
+from pathlib import Path
 
 import pytest
+
+#: ``docs/srmech/c`` — the hand-maintained C tree. Used by the rc362 lexicon
+#: comparison at the foot of this file, which reads C SOURCE (so it runs in the
+#: pure cell too) rather than calling into the built library.
+_SR_C_ROOT = Path(__file__).resolve().parents[2] / "c"
 
 from srmech.amsc import _native
 from srmech.amsc.tool_schema import (
@@ -287,3 +294,139 @@ def test_reconstruction_helper_round_trips_pure() -> None:
     the C bytes, not a broken helper."""
     recon = _schema_from_jsonable(json.loads(_canonical_sorted().decode("utf-8")))
     assert recon == get_tool_schema()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# 6. the two HAND-MIRRORED lexicons, compared DIRECTLY (rc362)
+# ──────────────────────────────────────────────────────────────────────
+#
+# ⚠️ ``c/src/srmech_tool_schema.c`` IS NOT GENERATED. It is absent from
+# ``tools/codegen_manifest.GENERATORS`` (six outputs, none of them this file),
+# so ``tools/regen_all.py`` will never sync it and no codegen step can. The two
+# copies of ``_TYPE_LEXICON`` / ``_ENCODING_HINT`` are kept in step BY HAND,
+# under a C comment that says they "mirror ... EXACTLY".
+#
+# rc362 broke that: two entries were added to the Python maps (the ``Q``
+# carrier and the acoustic-spectrum sequence over it) and not to C. The
+# existing guard, ``test_mcp_defs_type_lexicon_and_hint_mapping``, DID catch
+# it — but only because a live op happened to advertise the new type. It walks
+# ops, not tables, so a lexicon entry added to one side and used by NO op stays
+# invisible until some future op picks it up, at which point the failure
+# surfaces far from the edit that caused it.
+#
+# This closes that: table vs table, whole sets, no op required. It is also the
+# reason it runs in the PURE cell — it reads the C SOURCE rather than calling
+# into the library, so a numpy-absent / native-absent host still checks it.
+
+#: One C string literal: a quote, any run of non-quote / non-backslash chars or
+#: backslash-escapes, a quote. Built as a named piece because it appears three
+#: times and is exactly the sort of escape-dense expression that gets silently
+#: mangled when a file is written through a shell heredoc.
+_C_STR = r'"(?:[^"\\]|\\.)*"'
+
+_MCP_KV_ENTRY = re.compile(
+    r"\{\s*(" + _C_STR + r")\s*,\s*((?:" + _C_STR + r"\s*)+)\}", re.S)
+
+
+def _c_unescape(literal: str) -> str:
+    r"""Decode one C string literal to the ``str`` it denotes.
+
+    The tables store non-ASCII as ``\xNN`` UTF-8 bytes (the em-dash in the
+    SpectralHandle and rc362 spectrum hints), so decoding is byte-wise and then
+    UTF-8, never char-wise — a char-wise reading would silently mangle exactly
+    the entries most likely to drift.
+    """
+    body = literal[1:-1]
+    out = bytearray()
+    i = 0
+    while i < len(body):
+        if body[i] == "\\":
+            nxt = body[i + 1]
+            if nxt == "x":
+                out.append(int(body[i + 2:i + 4], 16))
+                i += 4
+            elif nxt == "n":
+                out.append(0x0A)
+                i += 2
+            elif nxt == "t":
+                out.append(0x09)
+                i += 2
+            else:
+                out.append(ord(nxt))
+                i += 2
+        else:
+            out.extend(body[i].encode("utf-8"))
+            i += 1
+    return out.decode("utf-8")
+
+
+def _c_table(name: str) -> "dict[str, str]":
+    """Parse ``static const mcp_kv_t <name>[] = { {"k", "v"}, ... };``.
+
+    Adjacent C string literals concatenate, so a value split across source
+    lines is rejoined — that is how most of the hint table is written.
+    """
+    src = (_SR_C_ROOT / "src" / "srmech_tool_schema.c").read_text(encoding="utf-8")
+    m = re.search(r"static const mcp_kv_t %s\[\] = \{(.*?)\n\};" % name, src, re.S)
+    assert m is not None, (
+        f"could not find the C table {name} — it was renamed or its "
+        f"declaration shape changed, which would make this whole comparison "
+        f"vacuous rather than passing.")
+    table: "dict[str, str]" = {}
+    for ent in _MCP_KV_ENTRY.finditer(m.group(1)):
+        key = _c_unescape(ent.group(1))
+        val = "".join(_c_unescape(p) for p in
+                      re.findall(_C_STR, ent.group(2)))
+        table[key] = val
+    return table
+
+
+def test_the_c_and_python_mcp_lexicons_are_the_same_table() -> None:
+    """STRICT EQUALITY, both directions, on both tables.
+
+    Not "the C side has at least what Python has": an entry present only in C
+    is equally a drift, and it is the direction a Python-side deletion
+    produces.
+    """
+    from srmech.mcp._tools import _ENCODING_HINT, _TYPE_LEXICON
+
+    for label, c_name, py in (("_TYPE_LEXICON", "MCP_TYPE_LEXICON", _TYPE_LEXICON),
+                              ("_ENCODING_HINT", "MCP_ENCODING_HINT", _ENCODING_HINT)):
+        c = _c_table(c_name)
+        assert len(c) > 20, (
+            f"{c_name} parsed to only {len(c)} entries — the parser has "
+            f"stopped observing and this test is vacuous.")
+        only_py = sorted(set(py) - set(c))
+        only_c = sorted(set(c) - set(py))
+        differs = sorted(k for k in set(py) & set(c) if py[k] != c[k])
+        assert not (only_py or only_c or differs), (
+            f"{label} and {c_name} have drifted apart. "
+            f"c/src/srmech_tool_schema.c is HAND-MAINTAINED and is NOT a "
+            f"regen_all output — edit it by hand, in the same commit.\n"
+            f"  in Python but not C: {only_py}\n"
+            f"  in C but not Python: {only_c}\n"
+            f"  present in both but VALUE differs: {differs}")
+
+
+def test_the_lexicon_comparison_can_actually_fail() -> None:
+    """⚠️ NON-VACUITY. A parser that returned ``{}`` would make the test above
+    pass only if Python were empty too — but a parser that silently dropped ONE
+    entry would pass nothing and fail loudly, so the real risk is the reverse:
+    a regex that matches nothing at all in a renamed table. Prove the parser
+    reads real content, and that an injected difference is detected.
+    """
+    from srmech.mcp._tools import _TYPE_LEXICON
+
+    c = _c_table("MCP_TYPE_LEXICON")
+    assert c.get("Mat") == "array" and c.get("int") == "integer", (
+        "the C type lexicon does not carry its two most stable entries — the "
+        "parser is reading the wrong thing.")
+    # the rc362 additions, named so a later removal from EITHER side is loud
+    assert c.get("Q") == "array"
+    assert c.get("Sequence[int | Q | Qalg]") == "array"
+    # an injected divergence must be detectable
+    mutated = dict(c)
+    mutated["Mat"] = "object"
+    assert mutated != _TYPE_LEXICON, (
+        "a deliberately corrupted C table still compares equal to Python — "
+        "the comparison above cannot fail and proves nothing.")

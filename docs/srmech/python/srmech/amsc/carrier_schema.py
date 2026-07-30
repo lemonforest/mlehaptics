@@ -915,7 +915,13 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
 # as the Cayley-Dickson ladder R -> C -> H -> O. The question put to the shipped
 # surface was: can a planner DERIVE that word from the published capability row?
 #
-# MEASURED ANSWER: NO. The row determines the word for 3 of 25 carriers.
+# MEASURED ANSWER: NO. The row determines the word for 3 of 26 carriers.
+# (3 of 25 until v0.9.0rc362 registered ``Qalg``. The NUMERATOR did not move --
+# the new carrier is one more the vocabulary cannot label, which widens the gap
+# rather than narrowing it. Every count in this block is a LIVE property of
+# ``_CAPABILITY``; re-measure them when a carrier lands, and see
+# ``tests/test_unit_label_and_domain_word_rc354.py`` for why a carrier is never
+# excluded to hold a number still.)
 #
 # The decisive measurement is one line long. ``float`` (which the vocabulary
 # calls MAGNITUDE) and ``complex`` (PHASE) differ in EXACTLY ONE published
@@ -928,9 +934,18 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
 #
 # ``max_dim`` is a real DIMENSION, not "is it orderable". It only correlates
 # with the word because R and C happen to sit at dims 1 and 2, and it is None
-# for 13 of the 25 carriers, so it cannot generalise. ``address`` is "exact" for
-# all 25 (a zero-entropy column), and ``turn`` is constant "abelian_only" across
-# all 14 commutative carriers -- no discriminating power in exactly the half
+# for 17 of the 26 carriers, so it cannot generalise. ``address`` is "exact" for
+# all 26 (a zero-entropy column), and ``turn`` is constant "abelian_only" across
+# all 15 commutative carriers -- no discriminating power in exactly the half
+#
+# ⚠️ THE "None for N" FIGURE WAS ALREADY WRONG BEFORE rc362, and that is the
+# more useful finding than the +1. This line read "None for 13 of the 25"; the
+# measured pre-``Qalg`` value was SIXTEEN, not thirteen. So the drift was 3, it
+# predates this rc, and nothing caught it -- because no test reads these prose
+# counts. The two figures beside it (25 exact, 14 commutative) WERE right, so
+# the block was partially stale, which is the hardest kind to notice. If you
+# change ``_CAPABILITY``, re-derive all three here; they are one-liners over
+# the dict and are not asserted anywhere.
 # where MAGNITUDE and PHASE must be told apart.
 #
 # THE MISSING FIELD IS AN ORDER PREDICATE, and it is missing for a structural
@@ -955,6 +970,10 @@ def carrier_schema() -> Dict[str, Dict[str, Any]]:
 #   * ``Vec`` FITS ZERO BUCKETS, derivably: commutative (so not ORIENTATION or
 #     PATH), zero divisors (so not orderable, hence not MAGNITUDE), and not a
 #     cycle (not PHASE). R^n under Hadamard is a genuine fifth thing.
+#     rc362: ``Qalg`` JOINS IT, by the identical derivation -- commutative, and
+#     zero divisors in the worst case (a reducible minimal polynomial makes
+#     Q[x]/(m) a non-domain). Two carriers now fit zero buckets, so the fifth
+#     thing is not a singleton curiosity.
 #
 # WHAT WOULD CLOSE IT -- a field in the same closed-vocabulary shape as
 # ``compose`` and ``turn``:
