@@ -250,14 +250,19 @@ docs/srmech/
     │   │   ├── catalog.py             ← register_attested_root, bridge surfaces
     │   │   ├── _native.py             ← ctypes shim; HAS_NATIVE / sha256_hex_c / ndjson_lines_c
     │   │   ├── gap_suggester.py
-    │   │   ├── adapters/              ← html / json / csv / netcdf / geotiff / literature_curated
-    │   │   └── _research/cascade_catalog/  ← 20 TOML cascade descriptors (lean-ISA atoms/composites + parallel_sector_dispatch + kuramoto_step + …), loaded by srmech.dsl
+    │   │   └── adapters/              ← html / json / csv / netcdf / geotiff / literature_curated
+    │   ├── cascade/                    ← ADR-0010's FIRST new top-level namespace (rc364)
+    │   │   └── catalogs/               ← the built-in descriptor catalogs, moved out of amsc/_research/
+    │   │       ├── class_catalog/      ←  4 [class] TOML descriptors, loaded by srmech.dsl.make_class
+    │   │       ├── cascade_catalog/    ← 20 [cascade] TOML descriptors, loaded by srmech.dsl
+    │   │       ├── alias_catalog/      ←  2 alias descriptors ([[alias]] + [genome.type_aliases]); NEW rc364
+    │   │       └── worked_instances/   ←  1 worked-instance descriptor
     │   └── _native/                   ← (wheel install only) libsrmech.so/.dll/.dylib
     └── tests/                         ← pytest suite
 ```
 
 The **`srmech.dsl`** operator-chain runner loads the cascade
-descriptors under `srmech/amsc/_research/cascade_catalog/`.
+descriptors under `srmech/cascade/catalogs/cascade_catalog/`.
 
 ⚠️ **This line said "10 TOML descriptors" until rc363 — measured on the
 rc363 branch: 20.** The 10 named below are the v0.6.0-era set (the 8
@@ -280,7 +285,7 @@ user direction 2026-06-13). When a domain object is a
 cascade-of-the-14 composition (state + cascade-op-chain methods),
 declare it as a `[class]` TOML descriptor consumed by
 `srmech.dsl.make_class` / `register_class_dir` (descriptors live
-under `srmech/amsc/_research/class_catalog/`; the seeds are
+under `srmech/cascade/catalogs/class_catalog/`; the seeds are
 `genome.toml` + `hurwitz.toml`). The `Mat`/`Vec`/`HV` carriers,
 `srmech.bus`, the `adapters/`, and the `srmech.qm.*` physics
 op-families STAY hand-coded Python. **Conversion follows the genome

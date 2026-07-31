@@ -23,7 +23,7 @@ Each composite carries a dedicated C symbol in
 pure-delegation alias for the Class I ``srmech_gcd`` primitive; the
 ``best_rational_signed`` C peer delegates its Class N stage to
 ``srmech_best_rational``) AND a TOML descriptor under
-``srmech/amsc/_research/cascade_catalog/``.
+``srmech/cascade/catalogs/cascade_catalog/``.
 """
 
 from __future__ import annotations

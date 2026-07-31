@@ -1,6 +1,6 @@
 # ADR-0010: srmech namespace declustering — `amsc` is the attestation framework, not the dumping ground
 
-**Status:** 🟢 **ACCEPTED — execution arc OPEN** (`#T1034`). The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; the arc executes from it. *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
+**Status:** 🟢 **ACCEPTED — execution arc OPEN, FIRST SLICE SHIPPED v0.9.0rc364** (`#T1034`). The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`, and the measured cost is there to plan the remaining slices from. *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
 **Date:** 2026-07-23.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.
@@ -52,6 +52,8 @@ The special-functions home is **`srmech.apokatastasis`** (ἀποκατάστα�
 
 ### `make_class` re-homed
 `make_class` / `register_class_dir` (the function) are already at `srmech.dsl`, but their `[class]`/`[cascade]` TOML descriptors live under `srmech/amsc/_research/{class_catalog,cascade_catalog,worked_instances}/` — buried in `amsc`. Move the **built-in** catalogs to `srmech.cascade/catalogs/` (the composition layer owns them); the **user-supplied** dirs `register_class_dir` accepts become the `srmech.external.*` extension point.
+
+✅ **EXECUTED v0.9.0rc364 — this is the arc's first execution slice.** See Amendment B for the shape it established, the alias-home hole it filled, and what it cost against the estimate.
 
 ## Consequences
 
@@ -133,7 +135,11 @@ for the class registry in rc359; ask the same of any table this ADR adds, and of
 check above.
 
 ## Status of adoption
-Design record only. First concrete step (`relative_writhe` → Class-N surface) shipped in rc317.
+~~Design record only.~~ First concrete step (`relative_writhe` → Class-N surface) shipped in rc317; the
+**first execution slice shipped v0.9.0rc364** — `srmech.cascade` created, the built-in
+`[class]`/`[cascade]`/worked-instance/alias catalogs moved out of `srmech/amsc/_research/`, and that
+subpackage deleted. `srmech/amsc/` is down to **3 subpackages**; its 76 `.py` modules are untouched.
+See Amendment B.
 
 **Deferral condition SATISFIED (rc359).** This ADR previously read "full execution deferred behind
 the precision migration" — that migration is **complete** (the Class-N precision-contract arc shipped
@@ -276,3 +282,220 @@ no green baseline, so a red is unattributable.
 3. **A decode-aware prefix check** over `srmech_carrier_registry.c` + `srmech_class_registry.c` +
    `srmech_tool_registry.c`, per A.3's table.
 4. **Fold `_tool_docs_curated.py`'s 276 hand edits into the plan** before estimating the rename rcs.
+5. **A module-and-subpackage CENSUS of `srmech/amsc/`** — added rc364 (Amendment B.5). The
+   decode-aware prefix check in (3) counts *dotted module paths*, so it is structurally blind to
+   anything that is not one; rc364 moved four directories out of `amsc` and both of its channels read
+   FLAT. The quantity the arc actually drains, module by module, has no instrument. This one must
+   land in its OWN rc with a green baseline before the first MODULE-moving slice — the same ordering
+   constraint as the rest of this list, and rc364 deliberately did not mint it inside itself.
+
+---
+
+## Amendment B — the first execution slice, v0.9.0rc364 (`#T1034`, with `#T1039`)
+
+`srmech.cascade` is real. The built-in `[class]` / `[cascade]` / worked-instance catalogs left
+`srmech/amsc/_research/` for `srmech/cascade/catalogs/`, `srmech/amsc/_research/` was deleted, and a
+fourth catalog — `alias_catalog/` — was created to fill a hole the move map did not cover. This
+amendment records the shape, the two decisions, the measured cost, and the three things the plan got
+wrong. Where it disagrees with the body or with Amendment A, **this amendment is the measurement**.
+
+### B.1 The pattern `srmech.cascade` sets — three rules for every later slice
+
+The first namespace to land decides how the rest read, so the rules are written down rather than left
+to be inferred from a diff.
+
+1. **A slice relocates a PARENT; it does not rename the LEAF.** `class_catalog` / `cascade_catalog` /
+   `worked_instances` kept their directory names verbatim. This was tempting to "fix" — under a
+   parent called `catalogs/`, the leaf `cascade_catalog` stutters — and the temptation was declined
+   for the same reason this ADR's own prerequisite section gives one level up: *an instrument built
+   in the same arc as the change it detects has no green baseline, so a red is unattributable.* A
+   slice that moves AND renames makes every red ambiguous between the two. One slice, one variable.
+   (The stutter is one path segment, and the constants `CLASS_CATALOG_DIR` / `CATALOG_DIR` already
+   read `*_CATALOG`, so the on-disk name matches the API name. A rename, if ever wanted, is its own
+   rc.)
+
+   A second, harder reason surfaced while deciding: **`class` is a Python reserved word.** A
+   "name the directory after the TOML section it declares" rule breaks on its very first member —
+   `catalogs/class/` can never carry an `__init__.py`. `class_catalog` is the name that rule would
+   have had to fall back to anyway.
+
+2. **Declarative descriptors go under `catalogs/`; imperative modules go beside it.** When the later
+   slices move `compose` / `atoms` / `the_one` / `cd_register` into this namespace they land at
+   `srmech/cascade/*.py`, with the TOML still under `srmech/cascade/catalogs/`. The two kinds of
+   content stay visually separated at the top of the package.
+
+3. **Every catalog directory carries an `__init__.py`.** Measured first, as instructed:
+   `worked_instances/` had NO marker and shipped anyway, because both backends
+   (`wheel.packages = ["srmech"]` / `[tool.hatch.build.targets.wheel].packages`) copy the package
+   tree wholesale. So the marker is not *required* — it is the difference between inclusion by
+   declaration and inclusion by each backend's heuristic. rc364 exists because an adjacent assumption
+   of exactly that kind cost two descriptors their place in the wheel (B.3), so all four directories
+   now declare themselves, and the marker doubles as where the directory documents itself.
+
+`srmech/cascade/__init__.py` imports nothing and exports nothing: the loaders reach the descriptors by
+path, so `import srmech.cascade` stays free. Asserted, not merely intended
+(`tests/test_cascade_catalog_home_rc364.py`).
+
+### B.2 The alias home — DECIDED, and why the map had a hole
+
+The move map covers *built-in catalogs* and *user-supplied dirs*. The two shipped-example alias
+descriptors are **neither**: `tests/data/genome_type_aliases_legacy.toml` (rc271, a
+`[genome.type_aliases]` VALUE alias) and `tests/data/music_domain_aliases.toml` (rc362, the tree's
+first `[[alias]]` FUNCTION alias). They are shipped worked examples of a config layer — the same kind
+of object as `genome.toml` in `class_catalog/`, not the same kind as a user's own directory.
+
+**Decision: `srmech/cascade/catalogs/alias_catalog/`, a fourth sibling.** Reasoning:
+
+- **Aliasing is composition, so the composition layer owns it.** ADR-0004's ladder is *classes →
+  pipelines → names*: `make_class` declares a class, `[chain]` declares a pipeline, `[[alias]]`
+  declares a name binding. Three rungs of one ladder; the first two live here.
+- **Sibling-of, not child-of.** `alias_catalog/` sits beside `class_catalog/` and `cascade_catalog/`
+  rather than inside either, because a name binding is not a `[class]` and not a `[cascade]`. The
+  directory is named for the TOML section it declares, which is the rule the other three follow.
+- **Not `srmech.external.*`.** That is reserved for *user-supplied* directories. A descriptor srmech
+  ships is A-tier by construction; `register_alias_dir` is the B-tier peer, and it now exists.
+- **Not a new top-level namespace.** Aliasing mints no op, owes no C parity (`dev_tooling` in the
+  rosetta ledger), and has two descriptors. A namespace for it would be a name with nothing under it.
+
+ADR-0012 clause C6 explicitly deferred this ("does not decide whether the alias layer's package home
+is a new `_research/alias_catalog/` or something else — implementation decisions for the rc that
+closes it"). It is decided here; C6's `describe()` half stays open, and is now open on a narrower
+front — an enumeration axis over a layer that finally has something to enumerate.
+
+### B.3 The live wheel defect this slice closed — and how long it had been live
+
+`genome_type_aliases_legacy.toml` is the documented migration path for rc271's **BREAKING**
+`stick`→`plasmid` / `minted`→`nuclear` rename. Its own header prints the call to make:
+
+> *"Opt in with ONE call: `genome.load_type_aliases_toml("genome_type_aliases_legacy.toml")`"*
+
+A **bare filename**. The file lived under `tests/data/`; `tests/**` is in `sdist.include` and **not**
+in the wheel (`wheel.packages = ["srmech"]`, no force-include, no `MANIFEST.in`). So: install the
+wheel, follow the header, get `FileNotFoundError` — for **93 rcs** (rc271 → rc363). The loader shipped
+in `genome.__all__` and carried an introspect entry; the thing it loads did not ship at all.
+
+rc362 then landed the tree's first-ever `[[alias]]` descriptor in the same directory, which is the
+part worth generalising: **it was not a mistake, it was the absence of an alternative.** There was no
+`ALIAS_CATALOG_DIR`, so `tests/data/` was where a descriptor went *by default rather than by
+decision*. The fix therefore had to be the directory constant, not the file move.
+
+Both halves are now **executed** in tests rather than described: the documented one-liners are run and
+their documented effects checked, and a rule — not a filename pair — forbids the next alias descriptor
+from landing in `tests/data/`.
+
+### B.4 The registered alias directory (`#T1039` made concrete)
+
+`srmech/dsl/_alias.py` gained the shape `_class_catalog.py` has had since rc39:
+
+| class layer (rc39) | alias layer (rc364) |
+|---|---|
+| `CLASS_CATALOG_DIR` | `ALIAS_CATALOG_DIR` |
+| `register_class_dir` · `SRMECH_CLASS_PATH` | `register_alias_dir` · `SRMECH_ALIAS_PATH` |
+| `list_classes` | `list_alias_descriptors` |
+| `load_class_catalog` (path → descriptor) | `resolve_alias_descriptor` (name **or** path → descriptor) |
+
+Resolution is **filesystem-first**, so no existing caller changes meaning; a bare name falls through
+to the catalog. Shipped descriptors are A-tier and a user directory may not shadow one, matching
+`load_class_catalog`.
+
+**What it enables, concretely: a domain can now SHIP its vocabulary.** An acoustic user `pip install`s
+srmech and gets `music_domain_aliases.toml` — *"partials"*, *"bell_tuning"*, *"overtone_series"* — with
+no source edit and no recompile, which is the ADR-0004 config-driven stance applied to the one rung
+that had an API and no plugin surface. A research group drops its own `*.toml` in a directory and calls
+`register_alias_dir`.
+
+Three new rosetta rows, and **the split across them is not the obvious one**:
+
+| op | bucket | why |
+|---|---|---|
+| `resolve_alias_descriptor` | **host_glue** | descriptor FS *discovery* — a bare-C host must FIND the file before `srmech_toml` can parse it. The `load_catalog` / `load_class_catalog` / `get_descriptor` precedent. |
+| `list_alias_descriptors` | **dev_tooling** | *browse*. A C host resolves the one name it was handed; it never enumerates alternatives. Peer of `list_cascade_ops` / `list_classes`. |
+| `register_alias_dir` | **dev_tooling** | *configure*. Mutates a process-local search path. Peer of `register_catalog_dir` / `register_class_dir`. |
+
+`composes_c` is **UNMOVED at 138** — none of the three composes a C op; the alias layer's `composes_c`
+rows are the rc261 *parse* ops, which route through the C `srmech_toml`, and a resolver that returns a
+`Path` parses nothing. host_glue **21 → 22**, dev_tooling **51 → 53**, total **210 → 213**.
+
+⚠️ **The discriminator is NOT "does it touch the filesystem" — all three do.** It is **LOAD/GET vs
+BROWSE/CONFIGURE**, and `srmech.dsl` already encodes that split over the *same directory*:
+`load_class_catalog` reads it (host_glue) while `list_classes` browses it (dev_tooling). rc364 first
+shipped `list_alias_descriptors` as host_glue by reasoning from the *mechanism* (it calls `glob`)
+instead of from the *capability*, which made it the only host_glue `list_*` in `srmech.dsl` against
+five dev_tooling siblings. CI reported the counts (21→23 / 51→52); **the fix was the classification,
+not the pin.** Recorded because the same mechanism-vs-capability slip is available to every later
+slice that adds a public callable.
+
+No `ToolEntry`, so no op-count pin moves — `srmech.dsl` functions carry no tool-schema rows, which is
+worth knowing before scoping a later slice.
+
+### B.5 ⚠️ THE RATCHET DID NOT MOVE, AND THE PLAN IS WHAT WAS WRONG
+
+`CEIL_AMSC_PREFIX` was expected to FALL. Measured after `tools/regen_all.py`:
+
+| channel | before | after |
+|---|---|---|
+| as-text | 2957 | **2957** |
+| decoded | 577 | **577** |
+
+Flat on every per-artifact pair. The only regen delta in the tree was one line of header COMMENT in
+`srmech_class_registry.c`.
+
+**This ratchet counts a DOTTED prefix — a module-path population.** What this slice moved was *data
+files*, whose location is only ever written as a filesystem path with slashes, which the prefix does
+not match; and the descriptor BODIES are untouched, so a `[class]` descriptor's
+`op = "srmech.amsc.genome.chromosome"` still names an op whose module has not moved. All 40 decoded
+hits in the class registry survive **by construction**.
+
+The instrument is correct about the population it names. **The wrong belief was this ADR's**: the body
+and Amendment A treat "move the catalogs" and "move the modules" as one drain, and only the second
+contributes to that counter. *A catalog move is orthogonal to the dotted-prefix ratchet.* Later slices
+should not read a flat rc as a failed one, and should not hunt for a pin to lower after a
+catalog-shaped slice.
+
+**The quantity this slice DID reduce has no instrument.** `srmech/amsc/` went from **4 subpackages to
+3** (`_research/` deleted; `adapters`, `attested`, `cascade` remain) with its 76 `.py` modules
+untouched. Nothing in the tree measures that — hence A.5 item 5 above.
+
+### B.6 Cost, measured against the estimate — the number for planning the rest
+
+Amendment A.3 budgets **5,442 hand-edit lines across 751 files** for the whole arc. This slice's share:
+
+| | A.3's expectation | rc364 actual |
+|---|---|---|
+| catalog-reference sites (`class_catalog` · `cascade_catalog` · `worked_instances`) | 135 + 57 + 14 = **206 lines / 62 files** | **28 live path literals**; the rest are CHANGELOG (DO-NOT-TOUCH), test *filenames*, dated `notes/`, and `srmech.dsl._class_catalog.*` MODULE refs the move does not touch |
+| files hand-edited | — | **29** |
+| regenerated | — | **1 of 6** artifacts, **1 line** |
+| new files | — | 6 (4 `__init__.py`, 1 test module, this amendment) |
+
+**The ratio worth carrying forward is ≈ 7:1 — 206 grep hits, 28 real edits.** A.3's bucket table
+already anticipates this shape (its DO-NOT-TOUCH and regenerated rows), but the headline "5,442
+hand-edit lines" does not, and a brief scoped from the headline over-scopes by close to an order of
+magnitude. **Classify before editing**: code imports vs. path literals vs. prose vs. dated records vs.
+generated artifacts each need different handling, and only the first two are mechanical.
+
+**What actually consumed the slice was NOT the move.** In rough order of effort: the alias-home
+decision and its two ADR write-ups; the wheel defect and its test; the new `_alias` catalog surface;
+the rosetta ripple (3 ledger rows + 2 annex pins + 1 dev-tooling allowlist entry + the root tuple);
+and, last and smallest, 28 path edits. **A path change is cheap; the ripple and the adjudication are
+not.** Scope the remaining slices by *how many public callables and ledger rows they disturb*, not by
+how many paths they rewrite.
+
+### B.7 Two defects found in passing, both fixed here
+
+1. **`srmech.cascade` was appended to the rosetta walk roots** (`tests/rosetta_roots.py`), moving it
+   from `_ADR0010_NEW_NAMESPACES` to `_ADR0010_EXISTING_DESTINATIONS` — the one route
+   `test_rosetta_roots_single_source_rc361` accepts, and the rule rc362 established for
+   `srmech.music`. It adds **zero rows**, because the namespace holds descriptors and no callables.
+   That is still the right edit and the distinction matters: a *non-existent* root is silently skipped
+   (EMPTY-because-unsupported), an *existing empty* root is a measured zero that goes red the moment a
+   later slice moves ops in.
+
+2. **Two guards were unrunnable inside a git worktree.** `test_ref_notation_emitted_rc348.py` and
+   `test_rosetta_roots_single_source_rc361.py` both excluded paths by testing
+   `"worktrees" in path.parts` on the **absolute** path. Run from a `.claude/worktrees/` checkout —
+   which is where this project's build discipline says to work — that matched EVERY file, so the
+   ref-notation scan derived an EMPTY task-ID set and both of its strict-zero tests failed on
+   *"derived no local task IDs at all - the scan is broken"*. The non-vacuity assert did its job (this
+   was loud, not silent), but the gate could not go green in the sanctioned environment. Fixed by
+   testing the parts of the path **relative to the scan root**, which preserves the intent exactly:
+   `.claude/worktrees/` sits above `docs/`, so nothing below `docs/srmech` can be a worktree.

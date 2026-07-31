@@ -105,7 +105,7 @@ def _catalog_dir():
     SCAN_ROOTS / CI-trigger invariant.
     """
     from pathlib import Path
-    from srmech.amsc._research import class_catalog
+    from srmech.cascade.catalogs import class_catalog
     return Path(class_catalog.__file__).resolve().parent
 
 

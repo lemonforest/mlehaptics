@@ -217,7 +217,7 @@ class Chain:
 
         ``op_name`` must match a ``[cascade].name`` field in one of the
         on-disk TOML descriptors under
-        ``srmech/amsc/_research/cascade_catalog/``.
+        ``srmech/cascade/catalogs/cascade_catalog/``.
 
         Extra ``kwargs`` are passed straight through to the resolved
         callable; cascade ops with keyword-only options

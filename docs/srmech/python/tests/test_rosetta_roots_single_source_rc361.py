@@ -73,6 +73,15 @@ _EXPECTED_ROOTS = (
     "srmech.introspect",
     "srmech.profile_loader",
     "srmech.music",
+    # v0.9.0rc364 — ``srmech.cascade`` APPENDED. The arc's first execution
+    # slice landed the package (the built-in descriptor catalogs), so the same
+    # two-file edit is made for the same reason. What is DIFFERENT from the
+    # rc362 music case, and worth stating: this root adds ZERO ledger rows,
+    # because the namespace holds TOML descriptors and no public callables.
+    # It is still the right edit — an existing-but-empty root is a MEASURED
+    # zero that can go red when a later slice moves ops in, whereas a missing
+    # root would let those ops arrive silently outside the denominator.
+    "srmech.cascade",
 )
 
 #: ADR-0010's destination namespaces that DO NOT EXIST YET.
@@ -88,12 +97,16 @@ _EXPECTED_ROOTS = (
 #: direction that matters, asserting a blindness the tree no longer has. The
 #: gap itself is undiminished: six namespaces still do not exist, and
 #: ``srmech.apokatastasis`` (41% of the moves) is still the largest of them.
+#: ⚠️ ``srmech.cascade`` LEFT THIS TUPLE at v0.9.0rc364, by the same one route:
+#: the arc's first execution slice landed it. Six namespaces became five. The
+#: gap is still substantial — ``srmech.apokatastasis`` (31 modules, 41% of the
+#: moves) has not landed — but it is no longer true that the walk names none of
+#: ADR-0010's structure homes.
 _ADR0010_NEW_NAMESPACES = (
     "srmech.math",
     "srmech.physics",
     "srmech.biology",
     "srmech.apokatastasis",
-    "srmech.cascade",
     "srmech.external",
 )
 
@@ -110,8 +123,13 @@ _ADR0010_NEW_NAMESPACES = (
 #: v0.9.0rc362 — ``srmech.music`` joins them, by the ONE route this tuple
 #: accepts: the modules landed, so the root was widened in the SAME rc. That is
 #: the sequencing rule stated positively rather than as a prohibition.
+#:
+#: v0.9.0rc364 — ``srmech.cascade`` joins them by the same route. It is the
+#: first STRUCTURE home (as opposed to a domain) to land, and the first to
+#: arrive carrying zero ops; see the note at ``_EXPECTED_ROOTS``.
 _ADR0010_EXISTING_DESTINATIONS = ("srmech.amsc", "srmech.introspect",
-                                  "srmech.dsl", "srmech.music")
+                                  "srmech.dsl", "srmech.music",
+                                  "srmech.cascade")
 
 #: Detects a spelled-out copy of the root tuple: the quoted literal every copy
 #: ended with. Measured at rc361 — this token appeared in EXACTLY the four known
@@ -130,7 +148,14 @@ def _files_spelling_the_tuple() -> "list[str]":
     """Every file under ``docs/srmech`` that spells the root tuple out."""
     hits: list[str] = []
     for path in sorted(_SR_ROOT.rglob("*.py")):
-        if "__pycache__" in path.parts or "worktrees" in path.parts:
+        # rc364: RELATIVE parts, not absolute — an absolute-path test for
+        # "worktrees" matches EVERY file when the scan itself runs from a
+        # `.claude/worktrees/` checkout, which emptied this scan and made the
+        # `_CANONICAL_REL in spelled` non-vacuity assert below the only thing
+        # standing between the fifth-copy gate and a silent pass. Same defect,
+        # same fix, as tests/test_ref_notation_emitted_rc348.py.
+        rel_parts = path.relative_to(_SR_ROOT).parts
+        if "__pycache__" in rel_parts or "worktrees" in rel_parts:
             continue
         try:
             text = path.read_text(encoding="utf-8", errors="replace")

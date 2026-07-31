@@ -12,7 +12,7 @@ shipped cascade op resolved by dotted srmech path (e.g.
 ``srmech.amsc.genome.chromosome``); the genome surface's flat functions are the
 primitives the methods compose. The genome/chromosome/telomere storage class
 ships as the built-in seed worked-instance
-(``srmech/amsc/_research/class_catalog/genome.toml``).
+(``srmech/cascade/catalogs/class_catalog/genome.toml``).
 
 Discovery mirrors :mod:`srmech.dsl._catalog` exactly: the packaged catalog
 (A-tier) PLUS any external dirs from ``SRMECH_CLASS_PATH`` /
@@ -41,8 +41,14 @@ else:  # pragma: no cover — 3.10-only branch
     import tomli as _toml  # type: ignore[no-redef]
 
 #: On-disk directory housing the packaged [class] TOML descriptors.
+#:
+#: Moved out of ``srmech/amsc/_research/`` by ADR-0010's first execution slice
+#: (rc364): the composition layer owns the built-in catalogs, and ``amsc`` is
+#: reserved for the collector/catalog/attestation framework it was named for.
+#: The LOADER stays here in ``srmech.dsl`` — the ADR moves descriptors, not
+#: functions.
 CLASS_CATALOG_DIR: Path = (
-    Path(__file__).parent.parent / "amsc" / "_research" / "class_catalog"
+    Path(__file__).parent.parent / "cascade" / "catalogs" / "class_catalog"
 )
 
 _PROVENANCE_SHIPPED = "srmech"

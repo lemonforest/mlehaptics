@@ -107,7 +107,7 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
         help="List cascade-catalog ops available to chain().then(...).",
         description=(
             "Read all TOML descriptors under "
-            "srmech/amsc/_research/cascade_catalog/ and print the "
+            "srmech/cascade/catalogs/cascade_catalog/ and print the "
             "available op names + their class composition."
         ),
     ).add_argument(

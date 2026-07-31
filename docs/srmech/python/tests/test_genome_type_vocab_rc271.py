@@ -28,7 +28,13 @@ from srmech.amsc import hdc
 
 _DIM = 64
 _DATA = Path(__file__).resolve().parent / "data"
-_LEGACY_TOML = _DATA / "genome_type_aliases_legacy.toml"
+# rc364: the descriptor moved OUT of tests/data/ and INTO the shipped alias catalog.
+# It had to: `tests/**` is in `sdist.include` and NOT in the wheel, so the one-call
+# migration path this file's own header documents raised FileNotFoundError on every
+# wheel install. Resolved through the loader's catalog now, which is exactly the
+# surface a wheel user has.
+from srmech.dsl import ALIAS_CATALOG_DIR                     # noqa: E402
+_LEGACY_TOML = ALIAS_CATALOG_DIR / "genome_type_aliases_legacy.toml"
 
 
 @pytest.fixture(autouse=True)

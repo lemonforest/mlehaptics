@@ -221,8 +221,8 @@ def warn_if_native_is_stale() -> bool:
               "you are about to run native tests.")
         return False
 
-    catalog = (Path(__file__).resolve().parents[1] / "srmech" / "amsc"
-               / "_research" / "class_catalog")
+    catalog = (Path(__file__).resolve().parents[1] / "srmech"
+               / "cascade" / "catalogs" / "class_catalog")
     on_disk = {}
     for toml in sorted(catalog.glob("*.toml")):
         # Universal newlines + LF, matching gen_class_registry.py's own read.

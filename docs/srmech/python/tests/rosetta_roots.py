@@ -106,4 +106,20 @@ ROSETTA_ROOTS = (
     # v0.9.0rc362 — the ADR-0010 srmech.music domain namespace (the
     # acoustic surface). APPENDED, per the order-is-part-of-the-value note.
     "srmech.music",
+    # v0.9.0rc364 — the ADR-0010 srmech.cascade STRUCTURE namespace, landed by
+    # the arc's first execution slice (the built-in [class]/[cascade]/[[alias]]
+    # /worked-instance catalogs moved out of srmech/amsc/_research/).
+    #
+    # ⚠️ IT CONTRIBUTES ZERO ROWS TODAY, AND THAT IS THE POINT OF ADDING IT
+    # NOW RATHER THAN LATER. The package exists and imports cleanly, so the
+    # walk genuinely reaches it and MEASURES an empty public surface — the
+    # namespace holds descriptors, not callables, and its __init__ declares
+    # __all__ = []. That is a real zero census, not the silent ImportError
+    # skip rc361 refused: a non-existent root is EMPTY-because-unsupported,
+    # an existing empty root is 0-because-measured, and only the second can
+    # go red the moment something lands in it. When a later slice moves
+    # `compose` / `atoms` / `the_one` / `cd_register` in, their rows enter the
+    # denominator with no root edit — which is the sequencing this file asks
+    # for, done at the earliest honest moment rather than the latest.
+    "srmech.cascade",
 )

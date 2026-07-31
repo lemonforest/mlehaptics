@@ -73,7 +73,15 @@ from ._class_surface import (
     list_class_surface,
     run_class_method,
 )
-from ._alias import alias, build_aliases_from_toml_str, load_aliases_toml
+from ._alias import (
+    ALIAS_CATALOG_DIR,
+    alias,
+    build_aliases_from_toml_str,
+    list_alias_descriptors,
+    load_aliases_toml,
+    register_alias_dir,
+    resolve_alias_descriptor,
+)
 from ._tool_surface import list_catalog_ops, list_ops, run_toml_chain
 from ._toml_chain import (
     build_chain_from_dict,
@@ -109,6 +117,14 @@ __all__ = [
     "alias",
     "build_aliases_from_toml_str",
     "load_aliases_toml",
+    # rc364 (ADR-0010 amendment B): the naming layer gets the same catalog shape the
+    # class layer already had — a shipped descriptor dir + a registration API. Without
+    # it, rc362's and rc271's alias descriptors landed in tests/data/ by default rather
+    # than by decision, and tests/** is NOT in the wheel.
+    "ALIAS_CATALOG_DIR",
+    "register_alias_dir",
+    "list_alias_descriptors",
+    "resolve_alias_descriptor",
     # User-declared classes from [class] TOML (#962 Part 2; rc39) — declarative,
     # generic runtime objects; methods bind to cascade ops by dotted path.
     "make_class",

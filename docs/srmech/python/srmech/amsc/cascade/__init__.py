@@ -46,7 +46,7 @@ scripts need no edits.
 **Full C/Python parity** — each cascade op carries a dedicated C symbol in
 ``libsrmech.{so,dll,dylib}`` (the cascade catalog is no longer Python-only
 per the v0.4.5rc1 carve-out correction) AND a TOML descriptor under
-``srmech/amsc/_research/cascade_catalog/`` declaring the cascade structure
+``srmech/cascade/catalogs/cascade_catalog/`` declaring the cascade structure
 declaratively. The Python module dispatches through native when ``HAS_NATIVE``
 is True and the input shape matches a typed C variant; falls back to Python
 for sequence types the C ABI doesn't cover (strings, mixed-type lists, etc).

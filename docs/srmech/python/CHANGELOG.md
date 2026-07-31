@@ -13,6 +13,69 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc364]
+
+**ADR-0010'S FIRST EXECUTION SLICE — `srmech.cascade` is real, and a documented migration path that raised `FileNotFoundError` for 93 rcs now works.** `#T1034` (with `#T1039`). `describe()["tools"]["total"]` stays **525**; `carrier_schema()` stays 28; `SRMECH_ABI_VERSION` stays 10 (no C signature changed — one generated header comment regenerates).
+
+### The move
+
+ADR-0010's `make_class` re-homed clause, executed verbatim: the built-in `[class]` / `[cascade]` / worked-instance TOML catalogs left `srmech/amsc/_research/` for **`srmech/cascade/catalogs/`**, and `srmech/amsc/_research/` was deleted. `srmech.cascade` is the arc's **first new top-level namespace**, so it also sets the pattern — three rules, recorded as ADR-0010 Amendment B.1:
+
+1. **A slice relocates a PARENT; it does not rename the LEAF.** `class_catalog` / `cascade_catalog` / `worked_instances` kept their names. One slice, one variable — a slice that moves AND renames makes every red ambiguous between the two, which is the unattributable-red hazard ADR-0010's own prerequisite section forbids one level up. (Also: `class` is a Python reserved word, so a "name it after the TOML section" rule breaks on its first member.)
+2. **Declarative descriptors under `catalogs/`; imperative modules beside it.** When later slices move `compose` / `atoms` / `the_one` / `cd_register` in, they land at `srmech/cascade/*.py`.
+3. **Every catalog directory carries an `__init__.py`.** Measured first: `worked_instances/` had no marker and shipped anyway, because both backends copy the package tree wholesale. The marker is the difference between inclusion by *declaration* and inclusion by *heuristic* — and this rc exists because an adjacent assumption of exactly that kind cost two descriptors their place in the wheel.
+
+`srmech/cascade/__init__.py` imports nothing and exports nothing, so `import srmech.cascade` stays free; asserted, not merely intended.
+
+### ⚠️ A LIVE WHEEL DEFECT, CLOSED — the loader shipped, the thing it loads did not
+
+`tests/data/genome_type_aliases_legacy.toml` is the documented migration path for rc271's **BREAKING** `stick`→`plasmid` / `minted`→`nuclear` rename, and its own header prints the call to make: *"Opt in with ONE call: `genome.load_type_aliases_toml("genome_type_aliases_legacy.toml")`"* — a **bare filename**. `tests/**` is in `sdist.include` and **not** in the wheel (`wheel.packages = ["srmech"]`, no force-include, no `MANIFEST.in`). **Install the wheel, follow the header, get `FileNotFoundError`** — for **93 rcs** (rc271 → rc363). `load_type_aliases_toml` was in `genome.__all__` with an introspect entry the whole time.
+
+rc362 then landed the tree's first-ever `[[alias]]` descriptor (`music_domain_aliases.toml`) in the same directory. **That was not a mistake, it was the absence of an alternative** — there was no `ALIAS_CATALOG_DIR` to land it in, so `tests/data/` was where a descriptor went *by default rather than by decision*. Both now ship at `srmech/cascade/catalogs/alias_catalog/`, and both documented one-liners are **executed** in `tests/test_cascade_catalog_home_rc364.py` rather than described. A rule — not a filename pair — forbids the next alias descriptor from landing in `tests/data/`.
+
+### The alias layer gets the catalog shape the `[class]` layer has had since rc39
+
+`srmech/dsl/_alias.py` exposed `load_aliases_toml(path)` and nothing else: no `ALIAS_CATALOG_DIR` peer to `CLASS_CATALOG_DIR`, no `register_alias_dir` peer to `register_class_dir`. Four public names close that (`#T1039`, ADR-0004's config-driven/plugin stance made concrete):
+
+| class layer (rc39) | alias layer (rc364) |
+|---|---|
+| `CLASS_CATALOG_DIR` | **`ALIAS_CATALOG_DIR`** |
+| `register_class_dir` · `SRMECH_CLASS_PATH` | **`register_alias_dir`** · **`SRMECH_ALIAS_PATH`** |
+| `list_classes` | **`list_alias_descriptors`** |
+| `load_class_catalog` | **`resolve_alias_descriptor`** (name **or** path) |
+
+Resolution is **filesystem-first**, so no existing caller changes meaning; a bare name falls through to the catalog. Shipped descriptors are A-tier and a user directory may not shadow one, matching `load_class_catalog`. **What it enables: a domain can now SHIP its vocabulary** — an acoustic user `pip install`s srmech and gets `partials` / `bell_tuning` / `overtone_series` with no source edit and no recompile.
+
+Three rosetta rows, and **the split is not the obvious one**: `resolve_alias_descriptor` is **host_glue** (descriptor FS *discovery* — a bare-C host must FIND the file before `srmech_toml` parses it), while `list_alias_descriptors` + `register_alias_dir` are **dev_tooling** (*browse* and *configure* — a C host resolves the one name it was handed; peers of `list_cascade_ops`/`list_classes` and `register_catalog_dir`/`register_class_dir`). host_glue **21 → 22**, dev_tooling **51 → 53**, total **210 → 213**; `composes_c` **UNMOVED at 138** — none of the three composes a C op. ⚠️ **The discriminator is not "does it touch the filesystem" — all three do.** It is **LOAD/GET vs BROWSE/CONFIGURE**, the split `srmech.dsl` already encodes over the *same* directory (`load_class_catalog` reads it = host_glue; `list_classes` browses it = dev_tooling). rc364 first shipped `list_alias_descriptors` as host_glue by reasoning from the mechanism (it calls `glob`) rather than the capability, making it the only host_glue `list_*` in `srmech.dsl` against five dev_tooling siblings; **the fix was the classification, not the pin**. No `ToolEntry`, so no op-count pin moves.
+
+**Pin files touched** (see the selection predicate below): `test_non_compute_ratchet_rc170.py` (`_TOTAL_NON_COMPUTE`, `_EXPECTED_SPLIT`), `test_annex_ratchet_rc177.py` + `test_annex_ratchet_rc183.py` (`_TOTAL_NON_COMPUTE`, `_FULL_SPLIT`), `test_rosetta_completeness.py` (`NON_COMPUTE_DEV_TOOLING_EXEMPT`, +2), `rosetta_classification.ndjson` (+3 rows), `rosetta_roots.py` + `test_rosetta_roots_single_source_rc361.py` (the `srmech.cascade` root).
+
+**⚠️ SELECTION PREDICATE, stated so the next slice inherits a rule rather than a list.** A slice that **adds or removes a public callable under a rosetta walk root** selects *every* file that pins a population, split, ceiling or allowlist derived from the ledger or the op registry — mechanically, every test that reads `rosetta_classification.ndjson`, calls `rosetta_live_objects()`, imports from `test_rosetta_completeness`, or reads `tool_schema_view()`. That is **51 files**, found by one grep. The *path*-edit count (28) predicts none of them. rc364's own cost finding already named this predicate — *"scope later slices by public callables and ledger rows disturbed, not by paths rewritten"* — and the first pass then selected by hand anyway and missed `test_non_compute_ratchet_rc170.py`, which carries its own `_TOTAL_NON_COMPUTE` / `_EXPECTED_SPLIT` pins **separate from** the two annex files. Six sequential targeted sweeps at ~1930 tests covered 8 of the 51.
+
+ADR-0012 clause C6's **package-home half is closed; its `describe()` half stays open** — `"alias"` still occurs 0 times in `json.dumps(describe())`. The layer is now reachable by name and still not discoverable without knowing the name. Half the defect, precisely.
+
+### ⚠️ THE RATCHET DID NOT MOVE, AND THE PLAN IS WHAT WAS WRONG
+
+`CEIL_AMSC_PREFIX` was expected to fall. Measured after `tools/regen_all.py`: as-text **2957 → 2957**, decoded **577 → 577**, every per-artifact pair flat. The only regen delta in the tree was **one line of header comment** in `srmech_class_registry.c`.
+
+The ratchet counts a **dotted** prefix — a *module-path* population. This slice moved **data files**, whose location is only ever written as a filesystem path with slashes, and the descriptor BODIES are untouched (a `[class]` descriptor's `op = "srmech.amsc.genome.chromosome"` names an op whose module did not move), so all 40 decoded hits survive by construction. **The instrument is correct; ADR-0010 was wrong to fold "move the catalogs" and "move the modules" into one drain.** Recorded at the ratchet and as Amendment B.5, so a later slice does not read a flat rc as a failed one.
+
+The quantity this slice *did* reduce — `srmech/amsc/` from **4 subpackages to 3** — has no instrument anywhere. That census is now **A.5 item 5**, and it must land in its own rc with a green baseline *before* the first module-moving slice; it was deliberately not minted here, because an instrument built in the same arc as the change it detects has no baseline to be attributed against.
+
+### Two defects found in passing
+
+- **`srmech.cascade` appended to the rosetta walk roots** (`tests/rosetta_roots.py`), moving from `_ADR0010_NEW_NAMESPACES` to `_ADR0010_EXISTING_DESTINATIONS` — the one route `test_rosetta_roots_single_source_rc361` accepts, and the rule rc362 set for `srmech.music`. It adds **zero rows**; the namespace holds descriptors, not callables. Still the right edit: a *non-existent* root is silently skipped, an *existing empty* root is a measured zero that goes red the moment a later slice moves ops in.
+- **Two guards were unrunnable inside a git worktree.** `test_ref_notation_emitted_rc348.py` and `test_rosetta_roots_single_source_rc361.py` excluded paths by testing `"worktrees" in path.parts` on the **absolute** path. Run from a `.claude/worktrees/` checkout — where this project's build discipline says to work — that matched EVERY file, so the ref-notation scan derived an **empty** task-ID set and both strict-zero tests failed on *"derived no local task IDs at all - the scan is broken"*. The non-vacuity assert did its job (loud, not silent), but the gate could not go green in the sanctioned environment. Fixed by testing the parts of the path **relative to the scan root** — `.claude/worktrees/` sits above `docs/`, so nothing below `docs/srmech` can be a worktree.
+
+### Cost, for planning the remaining slices
+
+Amendment A.3 budgets 5,442 hand-edit lines / 751 files for the whole arc. This slice: **206 grep hits → 28 live path literals → 29 files hand-edited**, a **≈7:1** ratio; the residue is CHANGELOG (do-not-touch), test *filenames*, dated `notes/`, and `srmech.dsl._class_catalog.*` module refs the move does not touch. **The move was the cheap part.** Effort went, in order, to: the alias-home decision and its ADR write-ups, the wheel defect and its test, the new `_alias` surface, the rosetta ripple — and last, the paths. Scope later slices by *public callables and ledger rows disturbed*, not by paths rewritten.
+
+### Also
+
+- `python/README.md` cascade-catalog descriptor count **15 → 20** (stale since rc363 measured it; the README ships as the PyPI long-description).
+- `docs/srmech/CLAUDE.md` package-layout diagram now shows `srmech/cascade/catalogs/` with all four catalogs and their counts.
+
 ## [0.9.0rc363]
 
 **THE ADR-0012 INSTRUMENTS — three ungated clauses become gates, and building them proved the ADR wrong twice.** `#T1045`. Implement-before-accept by user direction; ADR-0012 stays 🟡 PROPOSED. `describe()["tools"]["total"]` stays **525**; `carrier_schema()` **26 → 28**; `SRMECH_ABI_VERSION` stays 10 (no C signature changed — two generated tables regenerate).

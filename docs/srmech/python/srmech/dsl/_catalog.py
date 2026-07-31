@@ -1,7 +1,7 @@
 """TOML cascade-catalog runtime loader for the DSL runner.
 
 Reads the packaged TOML descriptors under
-``srmech/amsc/_research/cascade_catalog/`` — PLUS any external dirs a user
+``srmech/cascade/catalogs/cascade_catalog/`` — PLUS any external dirs a user
 registers via ``SRMECH_CASCADE_PATH`` / :func:`register_catalog_dir` (the
 bring-your-own cascade-TOML surface, F289 D2) — and resolves each op-name to
 its Python entry point: a shipped :mod:`srmech.amsc.cascade` callable (routes
@@ -46,8 +46,13 @@ else:  # pragma: no cover — 3.10-only branch
 #: On-disk directory housing the cascade-catalog TOML descriptors.
 #: Resolved relative to ``srmech.dsl._catalog`` so editable installs
 #: and wheel installs both work.
+#:
+#: Moved out of ``srmech/amsc/_research/`` by ADR-0010's first execution slice
+#: (rc364), alongside :data:`~srmech.dsl.CLASS_CATALOG_DIR` and
+#: :data:`~srmech.dsl.ALIAS_CATALOG_DIR`. The composition layer owns the
+#: built-in catalogs; ``amsc`` keeps only attestation.
 CATALOG_DIR: Path = (
-    Path(__file__).parent.parent / "amsc" / "_research" / "cascade_catalog"
+    Path(__file__).parent.parent / "cascade" / "catalogs" / "cascade_catalog"
 )
 
 #: Provenance tier for the shipped (packaged) catalog — A-tier, attested to

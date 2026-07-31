@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc363"
-#define SRMECH_VERSION       "0.9.0rc363"
+#define SRMECH_VERSION_PRE   "rc364"
+#define SRMECH_VERSION       "0.9.0rc364"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -429,8 +429,10 @@ srmech_status_t srmech_ndjson_iter(const char            *path,
  * discipline: a named cascade is the default, a math-library call the
  * exception). Cascades carry their own C symbols for full C/Python
  * parity per the project's full-coverage discipline, AND ship as TOML
- * descriptors under srmech/amsc/_research/cascade_catalog/ for
- * declarative composition.
+ * descriptors under srmech/cascade/catalogs/cascade_catalog/ for
+ * declarative composition. (That path was srmech/amsc/_research/
+ * cascade_catalog/ until v0.9.0rc364, when ADR-0010's first execution
+ * slice moved the built-in catalogs to the composition layer.)
  *
  * v0.4.5rc1: chiral_flip — Class C orientation reversal.
  * v0.4.5rc2: pin_slot_at_zero — Class K pin-slot at zero (sign-strip).
