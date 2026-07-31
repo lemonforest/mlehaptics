@@ -1,8 +1,26 @@
 # ADR-0012: The introspect surface IS the API contract — autonomous composition, not documentation
 
-**Status:** 🟡 **PROPOSED** — this is a proposal by the user, not an accepted standing policy. Nothing
-below is in force until it is accepted. (The README legend spells this status 🔄 Proposed; the 🟡 marker
-follows ADR-0010's usage.)
+**Status:** 🟢 **ACCEPTED — standing policy** (user direction 2026-07-30, *"mark adr12 accepted"*),
+**accepted AFTER its clauses were instrumented, not before.** Everything below is in force.
+
+**What acceptance rests on.** The criterion was: *every clause has an instrument that can return
+otherwise, proven by injection.* At acceptance — **C1, C3, C4, C5 and C2's param half are gated**, each
+with an injection proof, all three rc363 gates strict-zero with **no CEIL** (possible only because every
+residual they found was fixed rather than ceilinged). **Two clauses are ACCEPTED AS DECLARED-OPEN, not
+as satisfied**: **C2's return half** (no second channel exists; §6.3 declines the only available
+surface, and closing it needs a typed element-carrier field this ADR deliberately does not specify) and
+**C6** (stated, argued and measured in §3.4; implementation assigned to its own rc by user direction).
+Per §3.2 the sin is treating a preference as a clause **silently** — these two are labelled, and a
+future rc that closes either should amend this block rather than quietly assume it.
+
+**Why accepted with two open.** The implementation **corrected this draft twice** (§3.3) — the C2
+clause as literally written was too noisy to ship, and the C3 baseline had been measured on the very
+channel C3 exists to distrust. Both corrections are recorded here rather than silently applied. A
+design that survives contact and records where it was wrong is the opposite of the early-botch risk
+acceptance was deferred to avoid.
+
+*(The README legend spells this status ✅ Accepted; the 🟢 marker follows ADR-0010's usage. Was 🟡
+PROPOSED from 2026-07-30 until the rc363 instruments landed the same day.)*
 **Date:** 2026-07-30. **Amended 2026-07-30 (rc363)** — see §3.3.
 **Implemented before accepted, on purpose.** User direction 2026-07-30: *"adr12 implement as proposed
 tell us when to mark accepted. might seem backwards but I don't want follow up adr to fix it if we

@@ -25,7 +25,7 @@ context.
 | [ADR-0009](0009-multi-implementation-parity-capability-is-the-invariant.md) | Multi-implementation parity — the capability is the invariant, each implementation is a coherency projection (amends 0003) | ✅ Accepted | 2026-07-19 |
 | [ADR-0010](0010-namespace-declustering.md) | srmech namespace declustering — `amsc` is the attestation framework, not the dumping ground | 🔄 Proposed | 2026-07-23 |
 | [ADR-0011](0011-single-encoding-no-cache.md) | One encoding per datum — the genome has no cache (biology re-derives; a cache lives outside the genome or not at all) | ✅ Accepted | 2026-07-26 |
-| [ADR-0012](0012-introspect-as-the-api-contract.md) | The introspect surface IS the API contract — autonomous composition, not documentation | 🟡 Proposed | 2026-07-30 |
+| [ADR-0012](0012-introspect-as-the-api-contract.md) | The introspect surface IS the API contract — autonomous composition, not documentation | 🟢 Accepted | 2026-07-30 |
 
 **Status legend:** ✅ Accepted · 🔄 Proposed · ⏳ Draft · 🗑 Superseded.
 
