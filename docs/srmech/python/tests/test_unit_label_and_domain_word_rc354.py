@@ -131,10 +131,19 @@ def test_the_row_determines_the_word_for_only_three_carriers():
 
     So: raise this with the carrier count, and never exclude a carrier to hold
     the number still.
+
+    v0.9.0rc363 registered ``Theta`` and ``CarrierSpectrum`` and this went
+    26 → 28, by the identical rule. Those two differ from ``Qalg`` in WHERE
+    they land: both have no closed binary product, so both are
+    ``not_applicable`` — the skip, not a verdict. So rc363 moved the
+    denominator and nothing else, and
+    :func:`test_the_rc363_registrations_moved_only_the_denominator` asserts
+    exactly that, including that the two content-bearing buckets below are
+    untouched.
     """
     gap = _domain_word_gap()
     assert gap["verdict"].startswith("NOT DERIVABLE")
-    assert gap["of"] == 26
+    assert gap["of"] == 28
     assert gap["determined_unambiguous"] == 3
     assert gap["unambiguous"] == ["Mat", "octonion", "quaternion"]
     assert gap["word_returned_but_qualified"] == [
@@ -149,6 +158,32 @@ def test_the_row_determines_the_word_for_only_three_carriers():
     # ...and the worst-case set, for the same reason: Qalg publishes a
     # varies_with, so its word is a worst case over the minimal polynomial.
     assert gap["word_is_worst_case_only_for"] == ["CDRegister", "HV", "Qalg"]
+
+
+def test_the_rc363_registrations_moved_only_the_denominator():
+    """rc363 registered ``Theta`` and ``CarrierSpectrum``. Pin WHERE they landed,
+    so a future registration cannot quietly change a published verdict set while
+    only the total moves — the failure mode rc362 hit when ``Qalg`` joined.
+
+    Both have no closed binary product, so both are ``not_applicable`` — the
+    skip, not a verdict, which is what makes rc363 denominator-only.
+
+    SCOPE, deliberately narrow: the two content-bearing buckets
+    (``none_of_the_four`` and ``word_is_worst_case_only_for``) are already
+    pinned to exact lists by
+    :func:`test_the_row_determines_the_word_for_only_three_carriers` above, and
+    those pins are rc362's. Re-asserting them here would FORK a pin — two
+    sites that must agree, with nothing making them — which is the defect
+    rc363 removed from the carrier allowlist by single-sourcing
+    ``NON_CARRIER_CLASSES``. So this test asserts only what that one does not:
+    where the two NEW carriers landed. If a future registration moves a
+    content bucket, rc362's exact-list assertions are what go red, and they are
+    the right place for it."""
+    gap = _domain_word_gap()
+    for name in ("Theta", "CarrierSpectrum"):
+        assert name in gap["by_verdict"]["not_applicable"], (
+            f"{name} changed domain-word bucket — it has no closed binary "
+            f"product, so `not_applicable` is the only honest verdict")
 
 
 def test_magnitude_and_phase_are_never_asserted_anywhere():

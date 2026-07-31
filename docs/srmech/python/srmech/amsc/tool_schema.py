@@ -2690,7 +2690,7 @@ def _register_primitive_class_tools() -> None:
                     "by its spectral symmetry signature (F150 §6.2); the three "
                     "scores are EXACT Class-N rationals (rc354), not floats.",
             parameters=(P("hv", "HV", True, "encoded vector"),
-                        P("dc_threshold", "float", False,
+                        P("dc_threshold", "float | Q", False,
                           "DC-dominance cut, default 0.5. Accepts int / float / "
                           "exact Q — a float is promoted by its EXACT "
                           "as_integer_ratio, so 0.5 is exactly Q(1, 2) and the "
@@ -3637,7 +3637,7 @@ def _register_primitive_class_tools() -> None:
             summary="Register a directory of loose .chr bundles as AMSC attested sources (UPSTREAM §43; the bundling->AMSC compose, F729). For every <label>.chr in chr_dir (a genome_explode output) it writes a per-chromosome <amsc_root>/<label>/descriptor.toml + row.ndjson, then calls srmech.amsc.catalog.register_attested_root so each chromosome appears in srmech.amsc.catalog.list_attested_sources (one AMSC source per chromosome, keyed by its label, literature_curated adapter). The chromosome's OWN MPR attestation — carried in its .chr (attestation.response_sha256 == the region hash) and echoed into its row.ndjson — IS the provenance; this surfaces it through the AMSC catalog, it does NOT mint a parallel attestation (F730). Returns {ok, amsc_root, source, chromosomes:[{label, source_key, descriptor_path, row_path, region_sha256}], register}. Raises ValueError if chr_dir holds no .chr files or a label is not a filename-safe source key. numpy-free.",
             parameters=(P("chr_dir", "str", True, "the directory of loose .chr bundles to register (e.g. genome_explode's output)"),
                         P("amsc_root", "str", True, "where the per-chromosome <label>/descriptor.toml + row.ndjson AMSC root is written"),
-                        P("source", "str", True, "the AMSC source identifier recorded for the registration (e.g. 'srmech.genome.<name>')")),
+                        P("source", "str", True, "the AMSC source identifier recorded for the registration (e.g. 'srmech.amsc.genome.<name>')")),
             returns=R("dict", "{ok, amsc_root, source, chromosomes, register} — the per-chromosome AMSC sources registered"),
         ),
         ToolEntry(
@@ -4946,7 +4946,7 @@ def _register_primitive_class_tools() -> None:
                         P("log_terms", "int", False,
                           "the Class-N log series-truncation depth forwarded to "
                           "fractal_spectrum on a confident recovery (default 25)"),
-                        P("margin_floor", "number", False,
+                        P("margin_floor", "number | Q", False,
                           "override the separation gate (Q / (num,den) / int; "
                           "default 1/10)"),
                         P("capacity_mult", "int", False,
@@ -5557,8 +5557,10 @@ def _register_primitive_class_tools() -> None:
                     "of qpoly_project (qpoly_project(qpoly_promote(x))==x "
                     "EXACT). Pure carrier restructuring → non_compute. Exact "
                     "over ℚ[q]; numpy-free; no float; no abs().",
-            parameters=(P("p", "QPoly", True,
-                          "the QPoly (rung 1) to promote to QBiPoly (rung 2)"),
+            parameters=(P("p", "QPoly | QBiPoly", True,
+                          "the QPoly (rung 1) to promote to QBiPoly (rung 2); "
+                          "an already-rung-2 QBiPoly is accepted and returned "
+                          "unchanged (promote is idempotent at the top rung)"),
                         P("n_vars", "int", False,
                           "target rung 1/2 (default one rung up)")),
             returns=R("QBiPoly",
@@ -5966,11 +5968,12 @@ def _register_primitive_class_tools() -> None:
                     "case, pure-Python the complete alternative + the byte-identical "
                     "parity oracle — a has=0 is never a definitive 'no certificate'). "
                     "Exact bigint; no float, no abs() (Class-K sign), no numpy / math.",
-            parameters=(P("rn_num", "QPoly", True,
+            parameters=(P("rn_num", "QPoly | Poly", True,
                           "the term-ratio NUMERATOR num(x) — a Laurent-in-x exact-ℚ[q] "
                           "QPoly (or a Poly-in-q / nested-list ℚ[q] cell sequence)"),
-                        P("rn_den", "QPoly", True,
-                          "the term-ratio DENOMINATOR den(x) — a NONZERO QPoly")),
+                        P("rn_den", "QPoly | Poly", True,
+                          "the term-ratio DENOMINATOR den(x) — a NONZERO QPoly "
+                          "(a Poly-in-q is lifted)")),
             returns=R("dict | None",
                       "{'num': QPoly, 'den': QPoly} (the rational certificate R(x) "
                       "with antidifference T(k)=R(qᵏ)·t(k)), or None when no "
@@ -6134,7 +6137,7 @@ def _register_primitive_class_tools() -> None:
                     "alternative + the byte-identical parity oracle — a has=0 is never a "
                     "definitive 'no certificate'. Exact bigint; no float, no abs() (Class-K "
                     "sign), no numpy / math.",
-            parameters=(P("r", "EllRatio", True,
+            parameters=(P("r", "EllRatio | EllMonomial | Theta", True,
                           "the elliptic-hypergeometric TERM RATIO t(n+1)/t(n)=r(x), "
                           "x=qⁿ — an EllRatio (a theta-quotient over an exact-ℚ monomial "
                           "prefactor; an EllMonomial / Theta is lifted)"),),
@@ -6288,7 +6291,7 @@ def _register_primitive_class_tools() -> None:
                     "byte-for-byte rebuild + the gate (a has=0 → Python pure path). "
                     "Exact bigint; no float, no abs() (Class-K sign), no numpy / "
                     "math.",
-            parameters=(P("r", "EllRatio", True,
+            parameters=(P("r", "EllRatio | EllMonomial | Theta", True,
                           "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
                           "EllRatio (the very-well-poised theta-quotient over an "
                           "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
@@ -6349,7 +6352,7 @@ def _register_primitive_class_tools() -> None:
                     "path agrees AND the certificate re-decides ≡ 0 in exact ℚ. "
                     "Exact over the modified-theta algebra (no float on the "
                     "decision path), no abs() (Class-K sign), no numpy / math.",
-            parameters=(P("r", "EllRatio", True,
+            parameters=(P("r", "EllRatio | EllMonomial | Theta", True,
                           "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
                           "EllRatio (the very-well-poised theta-quotient over an "
                           "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
@@ -6413,7 +6416,7 @@ def _register_primitive_class_tools() -> None:
                     "after the pure path agrees AND the certificate re-decides ≡ 0 in "
                     "exact ℚ. Exact over the modified-theta algebra (no float on the "
                     "decision path), no abs() (Class-K sign), no numpy / math.",
-            parameters=(P("r", "EllRatio", True,
+            parameters=(P("r", "EllRatio | EllMonomial | Theta", True,
                           "the ₈ω₇ summand's TERM RATIO t(n+1)/t(n)=r(x), x=qⁿ — an "
                           "EllRatio (the very-well-poised theta-quotient over an "
                           "exact-ℚ monomial prefactor; an EllMonomial / Theta is "
@@ -6977,7 +6980,7 @@ def _register_primitive_class_tools() -> None:
                     "native result ONLY after the pure rebuild reproduces the same "
                     "spectrum (a miss → pure path). Exact bigint; no float, no abs() "
                     "(Class-K sign), no numpy / math.",
-            parameters=(P("r", "EllRatio", True,
+            parameters=(P("r", "EllRatio | EllMonomial | Theta", True,
                           "the carrier element to read — an EllRatio (a theta-"
                           "quotient over an exact-ℚ monomial prefactor; an "
                           "EllMonomial / Theta is lifted)"),),

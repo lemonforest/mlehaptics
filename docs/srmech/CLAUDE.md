@@ -251,17 +251,28 @@ docs/srmech/
     │   │   ├── _native.py             ← ctypes shim; HAS_NATIVE / sha256_hex_c / ndjson_lines_c
     │   │   ├── gap_suggester.py
     │   │   ├── adapters/              ← html / json / csv / netcdf / geotiff / literature_curated
-    │   │   └── _research/cascade_catalog/  ← 10 TOML cascade descriptors (lean-ISA atoms/composites + parallel_sector_dispatch + kuramoto_step), loaded by srmech.dsl
+    │   │   └── _research/cascade_catalog/  ← 20 TOML cascade descriptors (lean-ISA atoms/composites + parallel_sector_dispatch + kuramoto_step + …), loaded by srmech.dsl
     │   └── _native/                   ← (wheel install only) libsrmech.so/.dll/.dylib
     └── tests/                         ← pytest suite
 ```
 
 The **`srmech.dsl`** operator-chain runner loads the cascade
-descriptors under `srmech/amsc/_research/cascade_catalog/` — now
-**10 TOML descriptors**: the 8 lean-ISA atoms/composites
-(`chiral_flip`, `pin_slot_at_zero`, `magnitude`, `reorient`,
-`net_chirality`, `cyclic_gcd`, `best_rational_signed`,
-`chiral_dual`) plus `parallel_sector_dispatch` and `kuramoto_step`.
+descriptors under `srmech/amsc/_research/cascade_catalog/`.
+
+⚠️ **This line said "10 TOML descriptors" until rc363 — measured on the
+rc363 branch: 20.** The 10 named below are the v0.6.0-era set (the 8
+lean-ISA atoms/composites `chiral_flip`, `pin_slot_at_zero`, `magnitude`,
+`reorient`, `net_chirality`, `cyclic_gcd`, `best_rational_signed`,
+`chiral_dual`, plus `parallel_sector_dispatch` and `kuramoto_step`); the
+catalog has since doubled. Re-count before quoting a number here — this
+file is explicitly NOT hygiene-gated, which is exactly how the sibling
+"five duplicated count-tests" line reached a 12× under-scope (ADR-0012
+§1.1). **And nothing else can catch it**: ADR-0012 §3.4 (clause C6)
+measures that the 20 cascade descriptors have ZERO `describe()`
+visibility — `json.dumps(describe())` contains `"cascade_catalog"` 0
+times — so this prose sentence is currently the tree's only statement of
+how many there are. The `[class]` catalog next door IS counted
+(`describe()["classes"]["toml_total"] == 4`); the asymmetry is the point.
 
 **Discipline — PREFER config-driven `[class]` TOML over hand-coded
 domain classes** (`[[feedback_prefer_config_driven_toml_classes]]`,

@@ -373,11 +373,27 @@ def _c_table(name: str) -> "dict[str, str]":
         f"declaration shape changed, which would make this whole comparison "
         f"vacuous rather than passing.")
     table: "dict[str, str]" = {}
+    seen: "list[str]" = []
     for ent in _MCP_KV_ENTRY.finditer(m.group(1)):
         key = _c_unescape(ent.group(1))
         val = "".join(_c_unescape(p) for p in
                       re.findall(_C_STR, ent.group(2)))
         table[key] = val
+        seen.append(key)
+    # rc363: a DUPLICATE row is invisible to the set comparison below — the
+    # dict collapses it — while C's linear lookup returns the FIRST match. So a
+    # duplicate whose two values disagree would make the C host answer one way
+    # and this test agree with the other. Measured hazard, not hypothetical: a
+    # rebase auto-merge produced exactly this in MCP_TYPE_LEXICON at rc363
+    # (rc362 added {"Q","array"} near the top of the table while a concurrent
+    # branch appended the same key at the bottom), and the strict-equality test
+    # would have passed over it.
+    dupes = sorted({k for k in seen if seen.count(k) > 1})
+    assert not dupes, (
+        f"{name} declares {dupes} more than once. C resolves the FIRST match "
+        f"and this parser keeps the LAST, so the table and the host can "
+        f"disagree while every comparison below still passes. Remove the "
+        f"duplicate row.")
     return table
 
 

@@ -111,6 +111,15 @@ _TYPE_LEXICON: Dict[str, str] = {
     # schema to "string" and tells a client the opposite of what it must send.
     "Q": "array",
     "Sequence[int | Q | Qalg]": "array",
+    # 0.9.0rc363: the C2 (ADR-0012 §3.1) type-honesty widenings keep the JSON-schema
+    # token their pre-widening spelling advertised, so no client sees a narrower
+    # schema than before. Both params are NUMBERS on the wire; the exact-ℚ arm
+    # rides as the [num, den] pair `_to_q` already accepts, and (like the rc362
+    # `Qalg` arm) is primarily an in-process form. A single-token lexicon cannot
+    # express the union — recording that here is more honest than picking the
+    # rarer arm and telling a schema-obedient client the wrong thing.
+    "float | Q": "number",     # harmonics.classify_chirality_harmonic
+    "number | Q": "number",    # coupling.fold_spectrum
     "Mapping[bytes, bytes]": "object",
     "dict": "object",
     "Optional[dict]": "object",

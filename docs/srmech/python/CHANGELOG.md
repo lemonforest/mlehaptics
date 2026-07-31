@@ -13,6 +13,114 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc363]
+
+**THE ADR-0012 INSTRUMENTS — three ungated clauses become gates, and building them proved the ADR wrong twice.** `#T1045`. Implement-before-accept by user direction; ADR-0012 stays 🟡 PROPOSED. `describe()["tools"]["total"]` stays **525**; `carrier_schema()` **26 → 28**; `SRMECH_ABI_VERSION` stays 10 (no C signature changed — two generated tables regenerate).
+
+### Why implement a PROPOSED ADR
+
+User direction 2026-07-30: *"adr12 implement as proposed tell us when to mark accepted. might seem backwards but I don't want follow up adr to fix it if we botch a design choice early."* So the clauses get instruments while the ADR is still a proposal, and the acceptance decision is made against measurements rather than against a reading. It was the right order: **two of the draft's own statements did not survive being implemented** (below).
+
+ADR-0012 §3.2 is the governing line — *"a clause without an instrument that can return otherwise is not a clause, it is a preference"*. rc362 closed the C2 and C3 **exhibits** by hand, with no gate that selected them. An exhibit closed by hand is a preference that happened to be honoured once.
+
+### The shared instrument — a SECOND channel, because one channel cannot disagree with itself
+
+`tests/coercion_boundary.py` derives what an op actually accepts and produces **from its own source**: it tracks the op's declared parameters through assignment, iteration and helper calls (imported helpers included) and reads the `isinstance` guards on the way. ADR-0012 §2 states why this had to exist — both `describe()` and `carrier_schema()` derive their capability axes from the **declared type strings**, so the drift ratchet built to force a new carrier into the registry reads the same field it is supposed to police. §7.3 records the consequence: C parity was byte-green on the identical hole, *because* both projections read the same impoverished SSoT.
+
+Dataflow tracking is not an optimisation. Attributing every `isinstance` in a defining module to every op in it reports `coupling.fold_spectrum` as accepting a `Poly` — the guarded value is rebuilt from recovered HDC tokens and has no path from any parameter. Tracking removes that row and keeps every genuine one.
+
+### GATE 1 — C2 (TYPED HONESTLY): the clause as literally written is too noisy to ship
+
+ADR-0012 §3.1 says *"the test is mechanical: does the type string name what the op's own coercion `raise` text names?"*. Implemented plainly — carrier tokens in any raise text in an op's defining module, against that module's declared types — it flags **16 of the 33 modules it selects** (measured on the rc362 tree, before this rc's fixes), and all 16 were inspected: `amsc.tripoly`'s *constructor* raises on `BiPoly`/`Poly`/`Q` while the registered op takes raw coefficients; `amsc.op_provenance` raises prose explaining what is NOT provenance-tracked; `amsc.genome` (68 ops) trips on one `Q` in one helper. A gate wrong roughly half the time trains the reader to override it, so **the noisy form is not shipped**.
+
+`tests/test_declared_type_honesty_rc363.py` ships the **decidable subset**: a carrier is flagged only when the op BOTH accepts it (dataflow-tracked `isinstance`) AND names it in a raise text on that same path. Selection **27 of 525 ops**; on the rc362 tree it found **8 violations, every one genuine**, all **fixed rather than ceilinged**:
+
+| op | withheld | was declared |
+|---|---|---|
+| `carrier_ladder.qpoly_promote` | `QBiPoly` | `QPoly` |
+| `q_gosper.q_gosper` (both params) | `Poly` | `QPoly` |
+| `elliptic_gosper` · `elliptic_recurrence_8w7` · `elliptic_zeilberger` · `elliptic_wz_certificate` · `carrier_spectrum` | `EllMonomial` + `Theta` | `EllRatio` |
+| `harmonics.classify_chirality_harmonic` | `Q` | `float` |
+| `coupling.fold_spectrum` (WIDE channel only) | `Q` | `number` |
+
+**Five of the eight carried the union in their human-readable prose in the SAME TUPLE that withheld it from the machine-readable field** — each elliptic op's `description` already read *"an EllMonomial / Theta is lifted"*. That is C2's failure mode in one line of source, and it is why the clause is about a *field* and not about documentation quality.
+
+Every widened type string maps to the **same** MCP coercer its one-carrier key already used — `_to_ellratio` has accepted `EllRatio` / `EllMonomial` / `Theta` since rc61. **The wire behaviour did not change; the declaration caught up.** `float | Q` and `number | Q` also get `_TYPE_LEXICON` entries so the published JSON-schema type stays `"number"` rather than degrading to `"string"` (ADR-0012 §4.2 row 4).
+
+**Still open, and said out loud: the RETURN half of C2 is ungated.** `returns.type` has no second channel, and ADR-0012 §6.3 already declines `returns.shape` as a gate surface (403 unregistered capitalised-token occurrences over 154 distinct tokens — a wider regex floods). That verdict stands.
+
+### GATE 2 — C3 (CONSTRUCTIBLE): the existing ratchet passed by not selecting
+
+`tests/test_carrier_schema_rc205.py::test_every_tool_type_carrier_token_is_registered` is the C3 ratchet and it **stays** — it is the right instrument for what it measures. But it scans declared type strings, and at rc362 the string `"Qalg"` occurred in **0 of 525** of them, so it passed throughout the one event it exists for.
+
+`tests/test_carrier_use_derivation_rc363.py` supplies the missing channel. **27 candidate operand classes** surface across 525 ops; two structural exclusions apply as RULES rather than lists — `BaseException` subclasses (6) and `_private` names (6, all lazy aliases of a registered carrier or an internal handle). The six infra/handle exemptions (`ChainSpec` / `Endpoint` / `MPRRecord` / `RecoverableFold` / `Run` / `SpectralHandle`) are now **single-sourced** in `tests/coercion_boundary.NON_CARRIER_CLASSES` and consumed by BOTH gates, so two channels asking the same question cannot grant different exemptions.
+
+**This corrected ADR-0012's own baseline.** §3.1 records *"of the 25 genuine operand-carrier classes the other 516 ops surface, 24 have a registry row — the lone precedent is `CarrierSpectrum`"*. Measured on the USE channel the residual is **two, not one**:
+
+- **`Theta`** — the exact modified-theta symbol θ(z; p), the ATOM of the elliptic row, accepted **directly by five ops**. The draft missed it for exactly the reason the clause exists: it was measuring the declared channel, where all five said `EllRatio`.
+- **`CarrierSpectrum`** — built on `carrier_spectrum`'s return path and handed back under `'spectrum'`; its own docstring calls it *"a first-class carrier object (not a diagnostic dict)"*.
+
+Both were **registered** (26 → 28), each with a real description, a `_CAPABILITY` row (`_CAP_NO_PRODUCT` for both — neither has a closed binary product, which is distinct from `"unclassified"`) and an executed construction example. So C3 ships strict-zero rather than with a CEIL of 2. **A baseline is a measurement, and a measurement inherits the blindness of its instrument.**
+
+### GATE 3 — the prose op-ref resolution gate (`#T1045`)
+
+`#T930` closed this question for the packaged `[class]` TOML descriptors — op-refs bound by string, nothing asserting they still resolve, a rename leaving the binding orphaned while every other test stayed green. The tool schema has the same shape and had none of the guard. Measured across the introspect surface: `example` carries 563 `srmech.amsc.*` citations and fails **loudly** (`test_worked_examples_execute_rc354` runs them), while `summary` + `explanation` carry **251** and fail **silently**.
+
+`tests/test_prose_oprefs_resolve_rc363.py` takes the silent half. `example` is deliberately out of scope — execution is strictly stronger than resolution, and duplicating it adds cost with no detection.
+
+**The rule, stated:** a dotted path resolves iff, taking the LONGEST importable module prefix and walking the rest with `getattr`, every segment exists. **A module path counts** — `srmech.amsc.laplacian` (135 occurrences, the largest single citation) is a real reference, and ADR-0010 moves modules, so a dead module citation is exactly as broken as a dead op citation. Deep chains resolve too (`srmech.amsc.qmat.QMat.rank`). Two extractions are excluded **by rule**: a filename (`srmech.h`, the C public header, 24 occurrences — not a Python path at all) and a wildcard tail (`srmech.qm.*`, truncated to its module prefix).
+
+Measured: **462 occurrences of 199 distinct paths across 236 of 525 ops** — 438 attribute references, 24 module references, **0 unresolved**. Strict-zero, no CEIL. The gate also covers `parameters[].summary` and `returns.shape`/`.summary` (6 occurrences), where it found **one genuine stale citation**: `genome_register_attested`'s `source` example read `'srmech.genome.<name>'`, a module path that has never existed. Fixed.
+
+After this gate, **a module move cannot leave a stale citation behind** — which is what makes ADR-0010's decluster safe from the prose side.
+
+### Non-vacuity — demonstrated, not asserted
+
+Each gate was proven by injecting a real defect into real content, watching it go red, then restoring **byte-identically** (sha256-verified). The C3 proof is a **differential**, and it is the load-bearing one:
+
+> Restoring the rc362 pre-state exactly — `partials` declared bare `Sequence`, `Qalg` unregistered — leaves the existing declared-channel ratchet `test_every_tool_type_carrier_token_is_registered` **GREEN (1 passed)**, while the new use-derivation gate goes **RED, naming all three `srmech.music` ops**.
+
+That is ADR-0012 §1.2's *"findings no gate selected"* converted into a finding a gate selects. The C2 injection (reverting `elliptic_gosper.r` to `EllRatio`) fires 3 assertions including the CEIL-is-not-slack pin; the prose injection (`srmech.amsc.laplacian.elementwise_sqrt` → `srmech.laplacian.…` in `rational.sqrt`'s SIBLINGS prose, i.e. an ADR-0010 move that forgot a citation) fires the named parametrised case plus the aggregate.
+
+### One further defect the work surfaced — a generator whose preservation claim was false
+
+`tools/gen_carrier_examples_probe.py` has claimed since rc241 that *"hand-curated construction examples may be added here and are preserved"*. They were not: `main()` rewrites the whole file from its two dicts, and regenerating for the two new carriers **silently dropped the rc362 `Qalg` row** — whose `yields` carries the zero-divisor / irrationality witness a bare `repr` cannot show. Fixed by giving the generator a `_CURATED` dict applied last, so the claim is structurally true rather than aspirational. This is ADR-0012 §6.1's pattern (a mechanism that declares a property it does not have) caught in a third place.
+
+### ADR-0012 amendments — including a clause the draft did not have
+
+- **§3.3 (new)** records the implement-before-accept measurement, both corrections, the injection proofs, and — plainly — **what is still ungated after this rc**.
+- **§3.1 C6 (new) + §3.4 (new) — CONFIG-VISIBLE.** User direction: *"our TOML surface should even enter describe information. this is how users and LLM and srmech inference with siona will know what tools do what, with our siona project goal to actually be able to know what a cascade looks like from a word problem."* The structural argument: **introspection derived from Python source cannot see config-driven behaviour by construction** — so ADR-0004's config-driven preference and ADR-0012's introspect-as-contract standard are in direct tension, and the tension WIDENS with every descriptor added. Measured: `class_catalog/` 4 descriptors **are** visible (`describe()["classes"]["toml_total"] == 4`); `cascade_catalog/` ships **20** with **zero** visibility (`json.dumps(describe())` contains `"cascade_catalog"` 0 times); the `[[alias]]` layer has **no `describe()` axis and no package home** — `dsl.load_aliases_toml(path)` takes a path with no registered directory, which is why rc362's first-ever descriptor landed in `tests/data/`, outside every wheel. For Siona specifically, **domain-word → op is the alias layer and op → chain is the cascade catalog: both halves of the word-problem-to-cascade bridge, and neither is reachable.** The clause is **documented and deliberately NOT implemented** — the `describe()` axes are the user's own rc.
+- **§8 / §9** — the *"this ADR closes nothing"* and *"carries no C-side or codegen change"* bullets are struck-through rather than deleted, because the DATE on the measurement they report is what makes the rc363 injection meaningful.
+
+### An ADR-0009 parity break rc362 shipped, found by rebuilding the library before testing
+
+`srmech.mcp._tools._TYPE_LEXICON` and `_ENCODING_HINT` have a **C mirror** (`c/src/srmech_tool_schema.c`, `MCP_TYPE_LEXICON` / `MCP_ENCODING_HINT`) that `test_mcp_defs_type_lexicon_and_hint_mapping` pins exactly. rc362 added `"Q"` and `"Sequence[int | Q | Qalg]"` to the Python maps and **did not mirror them**, so a C-emitted `inputSchema` advertised `"string"` for four params the Python emitter advertises as `"array"` — the row-4 silent-degradation shape ADR-0012 §4.2 names, on the C side. It was invisible on any host whose `libsrmech` predated the change; it surfaced here only because rc363 rebuilt the shared library before running the suite (`[[feedback_verify_the_artifact_under_test_is_the_one_you_think]]`). All six entries — rc362's four plus rc363's two — are now mirrored, byte-identical to the Python strings. `SRMECH_ABI_VERSION` unaffected (static tables, no signature change).
+
+### The namespace-prefix ratchet re-pin, with the burden discharged
+
+`CEIL_AMSC_PREFIX["c/src/srmech_carrier_registry.c"]` as-text **191 → 204** and `["c/src/srmech_tool_registry.c"]` **1224 → 1225**; `TOTAL_AS_TEXT` **2943 → 2957**. Per that file's own re-pinning rule, CITATION-vs-POPULATION was decided before touching the number: ops named `srmech.amsc.*` stayed **396**, the decoded total stayed **577**, and every per-artifact decoded count is flat. The rise is the DERIVED `ops.consumes/produces` back-index growing when two carriers were registered and eight declared types widened — five of the eight widened ops live in `srmech.amsc`, so their full ToolEntry names now appear against `EllMonomial` / `Theta` as well as `EllRatio`. The tool registry's single-citation rise is a CORRECTION, not a new reference — the prose op-ref gate found `genome_register_attested`'s `'srmech.genome.<name>'`, a path that never existed, and fixing it to `'srmech.amsc.genome.<name>'` necessarily moves the counter up by one. Nothing moved into the draining namespace.
+
+### A measurement-instrument failure of my own, recorded because it is the rc's own theme
+
+`tests/test_associator_control_gf_solve_rc360.py` was reported by a local sweep as *"timeout: the monitored command dumped core"*. It is neither a crash nor a regression. **Run alone it passes: 19 passed in 747.6 s** — comfortably inside the 900 s per-file budget that sweep used. So the budget was NOT too low; what killed it was **three of my own pytest processes running concurrently against one tree**, which pushed a 747 s suite past 900 s. Measured 2×2 on `test_one_named_sign_flip_is_the_flexibility_control`, each run alone:
+
+| tree | library | result |
+|---|---|---|
+| rc362 baseline | pure | **149 s, passed** |
+| rc362 baseline | native | **369 s, passed** |
+| rc363 (this branch) | native | **363 s, passed** |
+
+Baseline-native and rc363-native are identical within noise, so **rc363 changes nothing about this suite's runtime**; the ~2.5× is native-vs-pure on a call-dense workload and it is present at baseline. The whole file measures **747.6 s** against a 60-minute CI job budget.
+
+⚠️ **A wrong explanation, corrected here rather than left standing.** While the file-level run was pending, this rc first reported the cause as WSL suspending long background processes between tool calls, inferred from an elapsed-time counter that appeared to stall. That inference was WRONG — the suite ran to completion normally, which it could not have done if it were being suspended. The counter looked stalled because separate `wsl` invocations were being read as one continuous observation. The real cause is self-inflicted contention, and it is the more useful lesson: **a test sweep that runs concurrently with other test sweeps measures the scheduler, not the tree.** Serial runs, or none.
+
+Three instrument failures in one rc, all the same shape and all worth naming together, because the ADR this rc implements is about exactly this: a **stale `.so`** answering for a table that had changed; a **prose count** nothing recomputes; and a **timeout** reported as a core dump. In each case the instrument, not the subject, produced the reading — `[[feedback_verify_the_artifact_under_test_is_the_one_you_think]]` and `[[feedback_an_instrument_that_cannot_return_otherwise_is_not_a_measurement]]`.
+
+### Also
+
+- `docs/srmech/CLAUDE.md` said the cascade catalog holds *"10 TOML descriptors"*; measured **20**. Corrected, with the same warning its sibling "five duplicated count-tests" line now carries — and with the reason nothing else caught it: per the new C6 measurement, that prose sentence is currently **the tree's only statement of how many there are**.
+- `docs/srmech/adr/README.md` lists ADR-0012.
+
 ## [0.9.0rc362]
 
 **THE ACOUSTIC/MUSIC DOMAIN SLICE — a commensurability verdict that can return "inharmonic", plus the two shipped defects building it exposed.** `#T1041`. Nine new registered ops in a NEW top-level namespace, one new C symbol pair, `SRMECH_ABI_VERSION` stays 10 (additive), `describe()["tools"]["total"]` **516 → 525**.

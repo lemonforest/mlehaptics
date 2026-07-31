@@ -54,6 +54,8 @@ from srmech.amsc.carrier_schema import (
 )
 from srmech.amsc.tool_schema import get_tool_schema, warmup_all
 
+from coercion_boundary import NON_CARRIER_CLASSES
+
 warmup_all()
 
 _HERE = Path(__file__).resolve().parent
@@ -69,17 +71,22 @@ _needs_native = pytest.mark.skipif(
 # (typing / infra / handle types — NOT operand carriers). The drift ratchet
 # below allows exactly these; anything else capitalized that names a srmech
 # class must join the carrier registry.
-_NON_CARRIER_TYPE_TOKENS = frozenset({
+#: Typing / stdlib spellings that appear in a declared type string and name no
+#: srmech class at all. These are specific to THIS gate, which scans free-form
+#: type STRINGS; the use-derivation gate resolves names against a live module
+#: namespace and so never sees them.
+_TYPING_TOKENS = frozenset({
     "Any", "Callable", "Iterator", "Mapping", "None", "Optional", "Path",
     "Sequence",
     "I",                 # array('I') typecode, not a type name
-    "ChainSpec",         # compose chain-spec IR (orchestration, not operand)
-    "Endpoint",          # bus endpoint handle
-    "MPRRecord",         # provenance record envelope
-    "RecoverableFold",   # coupling pair-carrier handle (in-process only)
-    "Run",               # typing artifact of "Runnable"-style summaries
-    "SpectralHandle",    # by-reference spectral handle (rc16 envelope)
 })
+
+#: The srmech-class half is SHARED with the rc363 use-derivation gate rather
+#: than re-typed here (rc363; ADR-0012 §3.1 C3): the two gates ask "is this an operand
+#: carrier?" from opposite channels — declared strings vs. what the callable
+#: branches on — and an exemption granted on one channel must be visible on the
+#: other. Before rc363 this list held its own copy of the six.
+_NON_CARRIER_TYPE_TOKENS = _TYPING_TOKENS | NON_CARRIER_CLASSES
 
 
 def _canonical_payload() -> bytes:

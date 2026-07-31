@@ -1348,7 +1348,7 @@ static const srmech_tool_param_t ts_params_91[] = {
 };
 static const srmech_tool_param_t ts_params_92[] = {
     { "hv", "HV", 1, "encoded vector" },
-    { "dc_threshold", "float", 0, "DC-dominance cut, default 0.5. Accepts int / float / exact Q \342\200\224 a float is promoted by its EXACT as_integer_ratio, so 0.5 is exactly Q(1, 2) and the boundary is decided in the rationals, never in binary" },
+    { "dc_threshold", "float | Q", 0, "DC-dominance cut, default 0.5. Accepts int / float / exact Q \342\200\224 a float is promoted by its EXACT as_integer_ratio, so 0.5 is exactly Q(1, 2) and the boundary is decided in the rationals, never in binary" },
 };
 static const srmech_tool_param_t ts_params_93[] = {
     { "pattern", "bytes", 1, "" },
@@ -1813,7 +1813,7 @@ static const srmech_tool_param_t ts_params_192[] = {
 static const srmech_tool_param_t ts_params_193[] = {
     { "chr_dir", "str", 1, "the directory of loose .chr bundles to register (e.g. genome_explode's output)" },
     { "amsc_root", "str", 1, "where the per-chromosome <label>/descriptor.toml + row.ndjson AMSC root is written" },
-    { "source", "str", 1, "the AMSC source identifier recorded for the registration (e.g. 'srmech.genome.<name>')" },
+    { "source", "str", 1, "the AMSC source identifier recorded for the registration (e.g. 'srmech.amsc.genome.<name>')" },
 };
 static const srmech_tool_param_t ts_params_194[] = {
     { "data", "Sequence[int]", 1, "the flat Klein-4 kernel \342\200\224 symbols {0,1,2,3} (HV / list / bytes) of any dimension D" },
@@ -2249,7 +2249,7 @@ static const srmech_tool_param_t ts_params_282[] = {
 static const srmech_tool_param_t ts_params_283[] = {
     { "fold", "dict", 1, "a fold store from fold_encode (the Klein-4 values may be HV or JSON-serialised uint8 lists)" },
     { "log_terms", "int", 0, "the Class-N log series-truncation depth forwarded to fractal_spectrum on a confident recovery (default 25)" },
-    { "margin_floor", "number", 0, "override the separation gate (Q / (num,den) / int; default 1/10)" },
+    { "margin_floor", "number | Q", 0, "override the separation gate (Q / (num,den) / int; default 1/10)" },
     { "capacity_mult", "int", 0, "override the capacity-floor multiple (default 4)" },
 };
 static const srmech_tool_param_t ts_params_284[] = {
@@ -2318,7 +2318,7 @@ static const srmech_tool_param_t ts_params_297[] = {
     { "p", "BiPoly | TriPoly", 1, "the carrier to project down one rung (BiPoly \342\206\222 Poly, or TriPoly \342\206\222 BiPoly)" },
 };
 static const srmech_tool_param_t ts_params_298[] = {
-    { "p", "QPoly", 1, "the QPoly (rung 1) to promote to QBiPoly (rung 2)" },
+    { "p", "QPoly | QBiPoly", 1, "the QPoly (rung 1) to promote to QBiPoly (rung 2); an already-rung-2 QBiPoly is accepted and returned unchanged (promote is idempotent at the top rung)" },
     { "n_vars", "int", 0, "target rung 1/2 (default one rung up)" },
 };
 static const srmech_tool_param_t ts_params_299[] = {
@@ -2351,8 +2351,8 @@ static const srmech_tool_param_t ts_params_308[] = {
     { "inputs", "dict", 1, "the EXACT operand inputs keyed by name (canonicalised with the rc117 float-free canon; Q / int / rational leaves ride as exact tags)" },
 };
 static const srmech_tool_param_t ts_params_309[] = {
-    { "rn_num", "QPoly", 1, "the term-ratio NUMERATOR num(x) \342\200\224 a Laurent-in-x exact-\342\204\232[q] QPoly (or a Poly-in-q / nested-list \342\204\232[q] cell sequence)" },
-    { "rn_den", "QPoly", 1, "the term-ratio DENOMINATOR den(x) \342\200\224 a NONZERO QPoly" },
+    { "rn_num", "QPoly | Poly", 1, "the term-ratio NUMERATOR num(x) \342\200\224 a Laurent-in-x exact-\342\204\232[q] QPoly (or a Poly-in-q / nested-list \342\204\232[q] cell sequence)" },
+    { "rn_den", "QPoly | Poly", 1, "the term-ratio DENOMINATOR den(x) \342\200\224 a NONZERO QPoly (a Poly-in-q is lifted)" },
 };
 static const srmech_tool_param_t ts_params_310[] = {
     { "rn_num", "QBiPoly", 1, "r_n NUMERATOR \342\200\224 the F(n+1,k)/F(n,k) numerator, a bivariate-q QBiPoly (or a QPoly-in-Y / Poly-in-q / nested-list form)" },
@@ -2368,7 +2368,7 @@ static const srmech_tool_param_t ts_params_311[] = {
     { "rk_den", "QBiPoly", 1, "r_k DENOMINATOR \342\200\224 a NONZERO bivariate-q QBiPoly" },
 };
 static const srmech_tool_param_t ts_params_312[] = {
-    { "r", "EllRatio", 1, "the elliptic-hypergeometric TERM RATIO t(n+1)/t(n)=r(x), x=q\342\201\277 \342\200\224 an EllRatio (a theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
+    { "r", "EllRatio | EllMonomial | Theta", 1, "the elliptic-hypergeometric TERM RATIO t(n+1)/t(n)=r(x), x=q\342\201\277 \342\200\224 an EllRatio (a theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
 };
 static const srmech_tool_param_t ts_params_313[] = {
     { "ratio", "EllRatio", 1, "the theta-quotient carrier \342\210\217\316\270(\316\261x;p)/\342\210\217\316\270(\316\262x;p) over an exact-\342\204\232 monomial prefactor (an EllMonomial / Theta is lifted)" },
@@ -2384,13 +2384,13 @@ static const srmech_tool_param_t ts_params_315[] = {
     { "var", "str", 0, "the summation variable of the harmonic frame (default 'x')" },
 };
 static const srmech_tool_param_t ts_params_316[] = {
-    { "r", "EllRatio", 1, "the \342\202\210\317\211\342\202\207 summand's TERM RATIO t(n+1)/t(n)=r(x), x=q\342\201\277 \342\200\224 an EllRatio (the very-well-poised theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
+    { "r", "EllRatio | EllMonomial | Theta", 1, "the \342\202\210\317\211\342\202\207 summand's TERM RATIO t(n+1)/t(n)=r(x), x=q\342\201\277 \342\200\224 an EllRatio (the very-well-poised theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
 };
 static const srmech_tool_param_t ts_params_317[] = {
-    { "r", "EllRatio", 1, "the \342\202\210\317\211\342\202\207 summand's TERM RATIO t(n+1)/t(n)=r(x), x=q\342\201\277 \342\200\224 an EllRatio (the very-well-poised theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
+    { "r", "EllRatio | EllMonomial | Theta", 1, "the \342\202\210\317\211\342\202\207 summand's TERM RATIO t(n+1)/t(n)=r(x), x=q\342\201\277 \342\200\224 an EllRatio (the very-well-poised theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
 };
 static const srmech_tool_param_t ts_params_318[] = {
-    { "r", "EllRatio", 1, "the \342\202\210\317\211\342\202\207 summand's TERM RATIO t(n+1)/t(n)=r(x), x=q\342\201\277 \342\200\224 an EllRatio (the very-well-poised theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
+    { "r", "EllRatio | EllMonomial | Theta", 1, "the \342\202\210\317\211\342\202\207 summand's TERM RATIO t(n+1)/t(n)=r(x), x=q\342\201\277 \342\200\224 an EllRatio (the very-well-poised theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
 };
 static const srmech_tool_param_t ts_params_319[] = {
     { "t", "EllMonomial", 1, "the parameter t of the elliptic Cauchy determinant (an EllMonomial over the exact-\342\204\232 argument-lattice)" },
@@ -2448,7 +2448,7 @@ static const srmech_tool_param_t ts_params_327[] = {
     { "relationship", "dict", 1, "the stored-relationship descriptor \342\200\224 an optional row=/kind= tag ('sigma'/'spectral'/'cyclic') plus the row-specific payload: \316\243 \342\206\222 rn_num/rn_den/rk_num/rk_den (definite sum) or term_ratio_num/term_ratio_den (indefinite); spectral \342\206\222 edges (+weights,+n) / adjacency / laplacian / matrix; cyclic \342\206\222 sigma + theta_num (+theta_den) or period / generator" },
 };
 static const srmech_tool_param_t ts_params_328[] = {
-    { "r", "EllRatio", 1, "the carrier element to read \342\200\224 an EllRatio (a theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
+    { "r", "EllRatio | EllMonomial | Theta", 1, "the carrier element to read \342\200\224 an EllRatio (a theta-quotient over an exact-\342\204\232 monomial prefactor; an EllMonomial / Theta is lifted)" },
 };
 static const srmech_tool_param_t ts_params_329[] = {
     { "char", "str", 1, "the character \317\207: 'trivial' (\317\207\342\211\2411) or 'minus12' (the (\342\210\22212/\302\267) Kronecker character of g\342\202\203); an in-process caller may also pass a Character or a residue table" },
@@ -8609,7 +8609,7 @@ const srmech_tool_entry_t srmech_tool_registry_table[] = {
         "{<carrier>: {'name', 'description', 'ladder', 'rung', 'variables', 'ops': {'consumes': [tool names], 'produces': [tool names]}}}",
         1,
         NULL,
-        "{\"input\":{\"(no arguments)\":\"the whole operand registry: 26 carrier types, with BiPoly read out in full and the three Cayley-Dickson rungs compared\"},\"output\":\"n carriers = 26\\nnames = ['BiPoly', 'CDRegister', 'EllMonomial', 'EllRatio', 'HV', 'HarmonicMaass', 'Mat', 'MockQSeries', 'One', 'Poly', 'Q', 'QBiPoly', 'QPoly', 'Qalg', 'SedenionRegister', 'ThetaBracketSum', 'ThetaSum', 'TriPoly', 'UnaryTheta', 'Vec', 'complex', 'float', 'int', 'octonion', 'quaternion', 'sedenion']\\nS['BiPoly'] keys = ['capability', 'description', 'example', 'ladder', 'name', 'ops', 'rung', 'variables']\\n  ladder/rung/variables = variable 2 ['n', 'k']\\n  description = Exact-\\u211a bivariate polynomial in (n, k) \\u2014 a polynomial in k whose coefficients are Poly in n. Rung 2 of the ordinary va\\n  ops['consumes'] = ['srmech.amsc.carrier_ladder.poly_project', 'srmech.amsc.carrier_ladder.poly_promote', 'srmech.amsc.wz_certificate.wz_certificate', 'srmech.amsc.zeilberger.zeilberger']\\n  capability = {'product': 'polynomial multiply', 'compose': 'full', 'turn': 'abelian_only', 'commutative': True}\\nrung distinguishes the CD carriers: quaternion 4, octonion 8, sedenion 16\\nladder/rung agree with carrier_ladder_descriptor: True\\nthe ops back-index is DERIVED, not hand-kept: True\",\"why\":\"It is the NOUN side of tool_schema: rung alone separates quaternion 4 / octonion 8 / sedenion 16, and the per-carrier ops back-index is DERIVED from the tool entries, never hand-kept.\",\"worked\":\"from srmech.amsc.carrier_schema import carrier_schema\\nfrom srmech.amsc.carrier_ladder import carrier_ladder_descriptor\\n\\nS = carrier_schema()\\nlen(S)                # -> 26\\nsorted(S)\\n# -> ['BiPoly','CDRegister','EllMonomial','EllRatio','HV','HarmonicMaass','Mat',\\n#     'MockQSeries','One','Poly','Q','QBiPoly','QPoly','Qalg',\\n#     'SedenionRegister','ThetaBracketSum','ThetaSum','TriPoly','UnaryTheta',\\n#     'Vec','complex','float','int','octonion','quaternion','sedenion']\\n\\ne = S['BiPoly']\\nsorted(e)\\n# -> ['capability','description','example','ladder','name','ops','rung','variables']\\ne['ladder'], e['rung'], e['variables']        # -> ('variable', 2, ['n', 'k'])\\ne['ops']['consumes']\\n# -> ['srmech.amsc.carrier_ladder.poly_project',\\n#     'srmech.amsc.carrier_ladder.poly_promote',\\n#     'srmech.amsc.wz_certificate.wz_certificate',\\n#     'srmech.amsc.zeilberger.zeilberger']\\n{k: e['capability'][k] for k in ('product','compose','turn','commutative')}\\n# -> {'product': 'polynomial multiply', 'compose': 'full',\\n#     'turn': 'abelian_only', 'commutative': True}\\n\\nS['quaternion']['rung'], S['octonion']['rung'], S['sedenion']['rung']\\n# -> (4, 8, 16)\\nD = carrier_ladder_descriptor()\\nall(S[c]['rung'] == D['carriers'][c]['rung'] for c in D['carriers'])   # -> True\"}",
+        "{\"input\":{\"(no arguments)\":\"the whole operand registry: 26 carrier types, with BiPoly read out in full and the three Cayley-Dickson rungs compared\"},\"output\":\"n carriers = 28\\nnames = ['BiPoly', 'CDRegister', 'CarrierSpectrum', 'EllMonomial', 'EllRatio', 'HV', 'HarmonicMaass', 'Mat', 'MockQSeries', 'One', 'Poly', 'Q', 'QBiPoly', 'QPoly', 'Qalg', 'SedenionRegister', 'Theta', 'ThetaBracketSum', 'ThetaSum', 'TriPoly', 'UnaryTheta', 'Vec', 'complex', 'float', 'int', 'octonion', 'quaternion', 'sedenion']\\nS['BiPoly'] keys = ['capability', 'description', 'example', 'ladder', 'name', 'ops', 'rung', 'variables']\\n  ladder/rung/variables = variable 2 ['n', 'k']\\n  description = Exact-\\u211a bivariate polynomial in (n, k) \\u2014 a polynomial in k whose coefficients are Poly in n. Rung 2 of the ordinary va\\n  ops['consumes'] = ['srmech.amsc.carrier_ladder.poly_project', 'srmech.amsc.carrier_ladder.poly_promote', 'srmech.amsc.wz_certificate.wz_certificate', 'srmech.amsc.zeilberger.zeilberger']\\n  capability = {'product': 'polynomial multiply', 'compose': 'full', 'turn': 'abelian_only', 'commutative': True}\\nrung distinguishes the CD carriers: quaternion 4, octonion 8, sedenion 16\\nladder/rung agree with carrier_ladder_descriptor: True\\nthe ops back-index is DERIVED, not hand-kept: True\",\"why\":\"It is the NOUN side of tool_schema: rung alone separates quaternion 4 / octonion 8 / sedenion 16, and the per-carrier ops back-index is DERIVED from the tool entries, never hand-kept.\",\"worked\":\"from srmech.amsc.carrier_schema import carrier_schema\\nfrom srmech.amsc.carrier_ladder import carrier_ladder_descriptor\\n\\nS = carrier_schema()\\nlen(S)                # -> 28\\nsorted(S)\\n# -> ['BiPoly','CDRegister','CarrierSpectrum','EllMonomial','EllRatio','HV',\\n#     'HarmonicMaass','Mat','MockQSeries','One','Poly','Q','QBiPoly','QPoly',\\n#     'Qalg','SedenionRegister','Theta','ThetaBracketSum','ThetaSum','TriPoly',\\n#     'UnaryTheta','Vec','complex','float','int','octonion','quaternion',\\n#     'sedenion']\\n\\ne = S['BiPoly']\\nsorted(e)\\n# -> ['capability','description','example','ladder','name','ops','rung','variables']\\ne['ladder'], e['rung'], e['variables']        # -> ('variable', 2, ['n', 'k'])\\ne['ops']['consumes']\\n# -> ['srmech.amsc.carrier_ladder.poly_project',\\n#     'srmech.amsc.carrier_ladder.poly_promote',\\n#     'srmech.amsc.wz_certificate.wz_certificate',\\n#     'srmech.amsc.zeilberger.zeilberger']\\n{k: e['capability'][k] for k in ('product','compose','turn','commutative')}\\n# -> {'product': 'polynomial multiply', 'compose': 'full',\\n#     'turn': 'abelian_only', 'commutative': True}\\n\\nS['quaternion']['rung'], S['octonion']['rung'], S['sedenion']['rung']\\n# -> (4, 8, 16)\\nD = carrier_ladder_descriptor()\\nall(S[c]['rung'] == D['carriers'][c]['rung'] for c in D['carriers'])   # -> True\"}",
         NULL,
         "WHAT \342\200\224 the CARRIER (operand) introspection registry (``srmech/amsc/carrier_schema.py:822``), the NOUN-side dual of ``tool_schema``. Per carrier TYPE it returns ``{'name', 'description', 'ladder', 'rung', 'variables', 'capability', 'example', 'ops'}``, covering the ordinary and q polynomial rungs, the Cayley\342\200\223Dickson rungs, ``Mat``/``Vec``/``HV``, the exact scalars, the elliptic and weight-axis carriers and the HDC objects. Two properties make it trustworthy rather than decorative: the ``ops`` back-index is DERIVED from the ``ToolEntry`` param/return types plus the per-op carrier contract \342\200\224 never hand-maintained, so it cannot drift from the verbs \342\200\224 and ``ladder``/``rung`` agree with ``carrier_ladder_descriptor`` by construction, verified above. Native-dispatched to ``srmech_carrier_schema`` over the compiled-in ``srmech_carrier_registry`` const table, canonical-JSON byte-identical to the pure path under a sha256 hash-ratchet. WHEN \342\200\224 reach for it when a consumer must DISCOVER the operands rather than the operations: an agent choosing a carrier, a reader distinguishing two carriers that differ only by a rung number (quaternion 4 vs octonion 8 vs sedenion 16 \342\200\224 nothing but the rung separates them), or a UI listing what a tool will accept. What you would otherwise wrongly hand-roll is a type-name-to-description dict: it duplicates the descriptions, it cannot derive the ``ops`` index, and it is exactly the kind of hand-kept map that reports a carrier as missing after it ships. SIBLINGS \342\200\224 ``srmech.amsc.tool_schema.get_tool_schema`` is the VERB side; ``carrier_ladder_descriptor`` (``srmech/amsc/carrier_ladder.py:432``) is the thinner routing table this agrees with; ``srmech.amsc.responsion_schema.responsion_schema`` (``srmech/amsc/responsion_schema.py:392``) is the k=3 completion \342\200\224 the EDGE binding a verb to a noun \342\200\224 so the three are one triad and none of them subsumes the others.",
         NULL, 0u,

@@ -1023,9 +1023,13 @@ def describe() -> Dict[str, Any]:
     TOML-only count preserved as ``toml_total`` for the consumers that need it
     (``srmech.dsl.describe_class`` resolves TOML-declared classes only).
 
-    ``carriers`` did not exist: the 25-entry carrier registry, which carries a
-    100% construction-example floor and a compiled-in C peer table, was
-    invisible to ``describe()`` entirely. ``tools`` are the verbs and
+    ``carriers`` did not exist: the carrier registry — **25 entries at rc298;
+    28 as of rc363, and the live number is ``describe()["carriers"]["total"]``**
+    — which carries a 100% construction-example floor and a compiled-in C peer
+    table, was invisible to ``describe()`` entirely. (The bare "25-entry" read
+    as a present-tense fact in a paragraph that is a dated rc298 record; rc363
+    moved the count and fixed the tense rather than the digit, since the digit
+    was right for the rc it describes.) ``tools`` are the verbs and
     ``carriers`` the nouns; reporting one without the other described half a
     package. Per-carrier detail stays in
     :func:`srmech.amsc.carrier_schema.carrier_schema`.

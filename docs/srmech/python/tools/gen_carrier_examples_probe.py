@@ -27,7 +27,8 @@ from srmech.amsc.carrier_ladder import BiPoly, QPoly, QBiPoly  # noqa: E402
 from srmech.amsc.apagodu_zeilberger import Q  # noqa: E402
 from srmech.amsc.hdc import Mat, HV  # noqa: E402
 from srmech.amsc.coupling import Vec  # noqa: E402
-from srmech.amsc.carrier_spectrum import EllMonomial, EllRatio  # noqa: E402
+from srmech.amsc.carrier_spectrum import CarrierSpectrum, EllMonomial, EllRatio  # noqa: E402
+from srmech.amsc.ellbase import Theta  # noqa: E402  (rc363: the elliptic ATOM)
 from srmech.amsc.riemann_theta_multisum import ThetaBracketSum  # noqa: E402
 from srmech.amsc.harmonic_maass import MockQSeries, UnaryTheta, HarmonicMaass  # noqa: E402
 from srmech.amsc import laplacian as _lap  # noqa: E402
@@ -39,6 +40,7 @@ _NS.update(dict(array=array, Fraction=Fraction, Q=Q, Poly=Poly, BiPoly=BiPoly,
                 TriPoly=TriPoly, QPoly=QPoly, QBiPoly=QBiPoly, Mat=Mat, Vec=Vec,
                 HV=HV, EllMonomial=EllMonomial, EllRatio=EllRatio,
                 ThetaSum=ThetaSum, ThetaBracketSum=ThetaBracketSum,
+                Theta=Theta, CarrierSpectrum=CarrierSpectrum,
                 MockQSeries=MockQSeries, UnaryTheta=UnaryTheta,
                 HarmonicMaass=HarmonicMaass, the_one=the_one,
                 sedenion_register=sedenion_register, cd_register=cd_register,
@@ -62,6 +64,13 @@ _CONSTRUCT = {
     "Vec": "fiedler_vector(dense_laplacian(4, [(0,1),(1,2),(2,0),(2,3)], [1.0]*4))",
     "HV": "hdc.klein4_bind(hdc.HV(array.array('B', [1,2,3,0])), hdc.HV(array.array('B', [3,2,1,0])))",
     "EllMonomial": "EllMonomial(Q(1), {'q': 2})",
+    # rc363 (`#T1046`): the elliptic ATOM, registered when the C3 use-derivation
+    # measured five ops accepting it directly. x is the summation variable
+    # (x = qⁿ), so θ(x; p) is the smallest genuine theta factor.
+    "Theta": "Theta(EllMonomial(Q(1), {'x': 1}))",
+    # rc363: the READ the carrier_spectrum op produces. Built from the smallest
+    # element that has a non-trivial σ-spectrum, so `yields` shows both channels.
+    "CarrierSpectrum": "CarrierSpectrum(EllRatio.theta(Theta(EllMonomial(Q(1), {'x': 1}))))",
     "MockQSeries": "MockQSeries('qpoly', Q(1), [(0, 1), (1, 1)])",
     "One": "the_one(1, 1, 4, w=(1, 0, 1))",
     "ThetaSum": "ThetaSum(terms=[(Q(1), EllMonomial(Q(1), {}), [])])",
@@ -89,13 +98,48 @@ _SNIPPET = {
     "HarmonicMaass": "HarmonicMaass(hol=MockQSeries(...), shadow=UnaryTheta(...))  # (hol, shadow) pair",
 }
 
+# Fully HAND-AUTHORED rows, applied last and never derived. The module docstring
+# has claimed since rc241 that "hand-curated construction examples ... are
+# preserved"; it was not true — `main()` rewrites the whole file from the two
+# dicts above, so a row added by hand to `_carrier_examples.py` vanished on the
+# next regeneration with nothing going red. Measured at rc363: regenerating for
+# the two new carriers silently DROPPED the rc362 `Qalg` row, whose `yields`
+# carries the zero-divisor/irrationality witness a bare repr cannot show. This
+# dict is where such a row lives so the claim is structurally true.
+_CURATED = {
+    "Qalg": {
+        "construct": "Qalg.alpha([-2, 0, 1])  # a root of x**2 - 2, carried EXACTLY",
+        "yields": ("Qalg(degree=2, coords=(Q(0, 1), Q(1, 1)), m=x**2-2); "
+                   "(α*α).as_rational() == Q(2, 1) and "
+                   "α.is_rational() is False"),
+    },
+}
+
 
 def _rs(v):
     r = repr(v)
     return r if len(r) <= 160 else r[:157] + "..."
 
 
-def main():
+def build_examples(apply_curated: bool = True, quiet: bool = False) -> dict:
+    """The CARRIER_EXAMPLES payload, built but not written.
+
+    Extracted from ``main()`` at rc363 so a test can call it. A generator whose
+    only entry point WRITES cannot be checked for idempotence without a
+    filesystem side effect, and the rc363 finding here — that the curated rows
+    this module promised to preserve were being dropped on every run — is
+    exactly the kind of defect an idempotence check catches. The three layers
+    are applied in order, LAST WINS: derived constructions, then snippets, then
+    the hand-authored ``_CURATED`` rows.
+
+    ``apply_curated=False`` builds WITHOUT the last layer. It exists so
+    ``tests/test_tool_docs_coverage_rc240.py`` can prove the layer does
+    something: a preservation test that cannot observe the un-preserved state
+    is not a measurement of preservation."""
+    def _say(msg):
+        if not quiet:
+            print(msg)
+
     out = {}
     for name, expr in _CONSTRUCT.items():
         try:
@@ -106,12 +150,21 @@ def main():
             # an uninformative default object repr adds nothing — construct-only.
             out[name] = ({"construct": expr} if r.startswith("<")
                          else {"construct": expr, "yields": r})
-            print(f"OK   {name:16} -> {r[:52]}")
+            _say(f"OK   {name:16} -> {r[:52]}")
         except Exception as e:  # noqa: BLE001
-            print(f"FAIL {name:16} {type(e).__name__}: {e}")
+            _say(f"FAIL {name:16} {type(e).__name__}: {e}")
     for name, snip in _SNIPPET.items():
         out[name] = {"construct": snip}
-        print(f"snip {name:16} {snip[:52]}")
+        _say(f"snip {name:16} {snip[:52]}")
+    if apply_curated:
+        for name, row in _CURATED.items():
+            out[name] = dict(row)
+            _say(f"hand {name:16} {row['construct'][:52]}")
+    return out
+
+
+def main():
+    out = build_examples()
 
     import json
     lines = [

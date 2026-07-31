@@ -329,6 +329,19 @@ def _to_qpoly(value: Any, *, param: str = "") -> Any:
     return value
 
 
+def _to_qpoly_or_qbipoly(value: Any, *, param: str = "") -> Any:
+    """``QPoly | QBiPoly`` (rc363) — ``carrier_ladder.qpoly_promote``'s operand.
+
+    Promote is IDEMPOTENT at the top rung: handed an already-rung-2 ``QBiPoly``
+    it returns it unchanged, which is why the declared type names both. Both
+    carriers ride through untouched; a bare nested list is left for the op to
+    build into the LOWEST rung (a ``QPoly``), which is the rung the promote is
+    normally asked to raise. Delegating to :func:`_to_qpoly` keeps the list
+    behaviour identical to the one-carrier form — the union widened the DECLARED
+    type to match the code, it did not change what the code does."""
+    return _to_qpoly(value, param=param)
+
+
 def _to_qbipoly(value: Any, *, param: str = "") -> Any:
     """Coerce a JSON value to the natural form for a ``QBiPoly``-typed param (rc56
     ``q_zeilberger`` bivariate-q term-ratio operands).
@@ -1037,6 +1050,15 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     "TriPoly": _to_tripoly,    # 0.9.0rc53: exact-ℚ[n,j,k] trivariate carrier (apagodu_zeilberger ratios)
     "QPoly": _to_qpoly,        # 0.9.0rc55: exact-ℚ[q] q-shift carrier (q_gosper q-term ratios)
     "QBiPoly": _to_qbipoly,    # 0.9.0rc56: exact bivariate-ℚ[q] carrier (q_zeilberger ratios)
+    # ── 0.9.0rc363: the C2 (ADR-0012 §3.1) TYPE-HONESTY widenings.
+    #    Each of these unions was ALREADY what the op accepted and already what
+    #    its own coercion raise text and prose said; only the machine-readable
+    #    `.type` withheld it, so `carrier_schema()`'s ops back-index and the
+    #    rc205 drift ratchet — both derived from that field — could not see it.
+    #    The coercers below are the SAME functions the one-carrier keys map to:
+    #    nothing about the wire behaviour changed, the declaration caught up. ──
+    "QPoly | Poly": _to_qpoly,               # q_gosper.rn_num / rn_den
+    "QPoly | QBiPoly": _to_qpoly_or_qbipoly,  # carrier_ladder.qpoly_promote.p
     # 0.9.0rc116 (#1248 / F1038): the carrier-ladder promote/project inputs —
     # a poly-ladder carrier passes through; a bare (nested) list builds the
     # lowest rung. Return-side union types (Poly | BiPoly / QPoly …) need no
@@ -1051,6 +1073,15 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # passed through rather than rationalised.
     "Q": _to_q,
     "EllRatio": _to_ellratio,  # 0.9.0rc61: exact modified-theta-quotient carrier (elliptic_gosper term ratio)
+    # 0.9.0rc363: the same coercer, under the honest union name. _to_ellratio has
+    # accepted (EllRatio, EllMonomial, Theta) since rc61 — five ops declared only
+    # the first arm while their own prose said "an EllMonomial / Theta is lifted".
+    "EllRatio | EllMonomial | Theta": _to_ellratio,
+    # 0.9.0rc363: a THRESHOLD that is decided in the rationals. Both ops promote
+    # an int / float to exact ℚ at the comparison boundary and accept a live Q;
+    # `float` / `number` alone said the boundary was decided in binary.
+    "float | Q": _to_q,        # harmonics.classify_chirality_harmonic.dc_threshold
+    "number | Q": _to_q,       # coupling.fold_spectrum.margin_floor
     "One": _to_one,            # 0.9.0rc290: the S(σ,θ) generator, via its own
                                # canonical (sigma, theta, terms) dict
                                # (hdc.klein4_from_one / ONE-A14)

@@ -157,7 +157,23 @@ CEIL_AMSC_PREFIX = {
     # total references are greppable; the other 533 are in four hoisted
     # long-string byte arrays (`cs_lstr_0..3`, the >4000-byte carrier JSON
     # fragments the generator hoists out of string literals).
-    "c/src/srmech_carrier_registry.c": (191, 533),
+    #
+    # as-text 191 -> 204 at rc363 (+13), decoded UNCHANGED at 533. CITATION, not
+    # population, and the burden this file sets was discharged before re-pinning:
+    # ops named srmech.amsc.* stayed **396**, and the decoded TOTAL stayed 577
+    # with every per-artifact decoded count flat. rc363 registered two carriers
+    # the ADR-0012 C3 use-derivation gate found (`Theta`, `CarrierSpectrum`;
+    # 26 -> 28) and widened eight ops' declared param types to the union they
+    # already accepted. Both edits grow the DERIVED `ops.consumes/produces`
+    # back-index, whose entries are full ToolEntry names — five of the eight
+    # widened ops live in srmech.amsc, so their names now appear against
+    # EllMonomial / Theta as well as EllRatio. Those back-index lists sit in the
+    # SHORT string literals (greppable) rather than the four hoisted long-string
+    # arrays, which is why this artifact moved on the text channel alone.
+    # NOT a drain regression: no module moved into srmech.amsc and no op was
+    # added there. The right fix for a genuine drain regression would be
+    # upstream; here there is nothing upstream to fix.
+    "c/src/srmech_carrier_registry.c": (204, 533),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -171,7 +187,15 @@ CEIL_AMSC_PREFIX = {
     # explanation warns against (`from srmech.amsc.rational import
     # best_rational`, x1). Ops named srmech.amsc.* stayed 396. Verified against
     # the pre-branch commit: this artifact read exactly 1219 there.
-    "c/src/srmech_tool_registry.c": (1224, 4),
+    #
+    # as-text 1224 -> 1225 at rc363 (+1), decoded UNCHANGED at 4. ONE citation,
+    # and it is a CORRECTION rather than a new reference: genome_register_attested's
+    # `source` param example read 'srmech.genome.<name>' — a module path that has
+    # never existed (the module is srmech.amsc.genome). The rc363 prose op-ref
+    # gate (tests/test_prose_oprefs_resolve_rc363.py) found it and it was fixed,
+    # which necessarily moves this counter up by one. Ops named srmech.amsc.*
+    # stayed 396; decoded flat everywhere.
+    "c/src/srmech_tool_registry.c": (1225, 4),
     # CONTROL: has no byte arrays at all, so decoded 0 is a real zero rather
     # than a decoder that stopped working.
     "c/src/srmech_responsion_registry.c": (72, 0),
@@ -198,7 +222,7 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2943
+TOTAL_AS_TEXT = 2957   # rc362 2943 -> rc363 2957 (+13 carrier registry, +1 tool registry)
 TOTAL_DECODED = 577
 
 
