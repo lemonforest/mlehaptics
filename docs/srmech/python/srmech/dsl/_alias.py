@@ -30,16 +30,151 @@ binds names to srmech's OWN surface, never arbitrary imports (a config file cann
 into importing / calling an unrelated module). Resolution reuses the robust dotted-name walk
 :func:`srmech.mcp._tools._resolve_dotted_callable`; parsing reuses the DSL's native+tomllib
 TOML loader. numpy-free; no import cost until called.
+
+**rc364 — THE LAYER GETS A CATALOG DIRECTORY** (ADR-0010 amendment B). rc261 shipped
+``load_aliases_toml(path)`` and nothing else: a bare filesystem path, with no
+``ALIAS_CATALOG_DIR`` peer to :data:`srmech.dsl.CLASS_CATALOG_DIR` and no
+``register_alias_dir`` peer to :func:`srmech.dsl.register_class_dir`. The class and cascade
+layers each had *both* halves — a shipped directory for built-in descriptors and a
+registration API for user ones — and the naming layer had neither. The consequence was not
+theoretical: with no shipped home to land in, rc362's first-ever ``[[alias]]`` descriptor went
+to ``tests/data/`` **by default rather than by decision**, and ``tests/**`` is in
+``sdist.include`` but NOT in the wheel — so zero alias descriptors shipped, and a wheel user
+following ``genome_type_aliases_legacy.toml``'s own documented one-call migration path got a
+``FileNotFoundError``.
+
+This module now carries the same shape the class layer already had:
+
+* :data:`ALIAS_CATALOG_DIR` — the packaged descriptors (``srmech/cascade/catalogs/alias_catalog/``)
+* :func:`register_alias_dir` / ``SRMECH_ALIAS_PATH`` — user-supplied dirs (the
+  ``srmech.external.*`` extension point)
+* :func:`list_alias_descriptors` — enumerate what is resolvable
+* :func:`resolve_alias_descriptor` — resolve a BARE NAME against those dirs
+
+and :func:`load_aliases_toml` resolves through it, so the documented one-liners work from a
+wheel install and not only from a source checkout. What that enables, concretely: a domain can
+now SHIP its vocabulary. An acoustic user pip-installs srmech and gets
+``music_domain_aliases.toml``; a research group drops its own ``*.toml`` in a directory and
+calls ``register_alias_dir`` — the config-driven/plugin stance applied to naming, which until
+rc364 was the one rung of the ADR-0004 ladder (classes → pipelines → names) with no
+plugin surface.
 """
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable, Dict
+import os
+from pathlib import Path
+from typing import Any, Callable, Dict, List
 
-__all__ = ["alias", "build_aliases_from_toml_str", "load_aliases_toml"]
+__all__ = [
+    "ALIAS_CATALOG_DIR",
+    "alias",
+    "build_aliases_from_toml_str",
+    "list_alias_descriptors",
+    "load_aliases_toml",
+    "register_alias_dir",
+    "resolve_alias_descriptor",
+]
 
 #: The config-driven naming layer only binds names to srmech's OWN surface.
 _ALIAS_TARGET_PREFIX = "srmech."
+
+#: On-disk directory housing the packaged alias TOML descriptors — the peer of
+#: :data:`srmech.dsl.CLASS_CATALOG_DIR` and :data:`srmech.dsl.CATALOG_DIR`, and the
+#: home the naming layer lacked from rc261 to rc363. Holds BOTH descriptor shapes the
+#: framework aliases with: ``[[alias]]`` function bindings (rc261) and
+#: ``[genome.type_aliases]`` value bindings (rc271). Resolved relative to this module so
+#: editable installs and wheel installs both work.
+ALIAS_CATALOG_DIR: Path = (
+    Path(__file__).parent.parent / "cascade" / "catalogs" / "alias_catalog"
+)
+
+#: External alias-catalog dirs registered at runtime via :func:`register_alias_dir`.
+_USER_ALIAS_DIRS: List[Path] = []
+
+
+def _env_alias_dirs() -> List[Path]:
+    """External alias-catalog dirs from ``SRMECH_ALIAS_PATH`` (os.pathsep list)."""
+    raw = os.environ.get("SRMECH_ALIAS_PATH", "")
+    return [Path(p) for p in raw.split(os.pathsep) if p.strip()]
+
+
+def _alias_dirs() -> List[Path]:
+    """Search order: packaged first, then env-var dirs, then registered dirs.
+
+    Packaged-first mirrors :func:`srmech.dsl.load_class_catalog`, where the shipped
+    A-tier is read before any user B-tier and a user name may not shadow a shipped one.
+    """
+    dirs: List[Path] = [ALIAS_CATALOG_DIR]
+    for p in _env_alias_dirs() + _USER_ALIAS_DIRS:
+        if p not in dirs:
+            dirs.append(p)
+    return dirs
+
+
+def register_alias_dir(path: Any) -> None:
+    """Register an external alias-catalog directory (bring-your-own vocabulary).
+
+    A researcher drops their own ``*.toml`` alias descriptors in ``path`` and registers
+    it; :func:`load_aliases_toml` and
+    :func:`srmech.amsc.genome.load_type_aliases_toml` then resolve those descriptors by
+    bare name exactly as they resolve the shipped ones. ``SRMECH_ALIAS_PATH``
+    (os.pathsep-separated dirs) is the zero-API equivalent.
+
+    This is the naming layer's half of the ``srmech.external.*`` extension point
+    ADR-0010 assigns to user-supplied descriptor dirs — the peer of
+    :func:`srmech.dsl.register_class_dir` and :func:`srmech.dsl.register_catalog_dir`.
+    """
+    p = Path(path)
+    if not (p.exists() and p.is_dir()):
+        raise ValueError(
+            "register_alias_dir: not an existing directory: {}".format(p))
+    if p not in _USER_ALIAS_DIRS:
+        _USER_ALIAS_DIRS.append(p)
+
+
+def list_alias_descriptors() -> Dict[str, Path]:
+    """Return ``{descriptor-stem: path}`` for every resolvable alias descriptor.
+
+    Packaged descriptors first, then env-var dirs, then dirs registered via
+    :func:`register_alias_dir`. A later directory does NOT shadow an earlier one — the
+    shipped vocabulary wins, matching the class catalog's A-tier/B-tier rule.
+    """
+    out: Dict[str, Path] = {}
+    for base in _alias_dirs():
+        if not (base.exists() and base.is_dir()):
+            continue
+        for toml_path in sorted(base.glob("*.toml")):
+            out.setdefault(toml_path.stem, toml_path)
+    return out
+
+
+def resolve_alias_descriptor(path_or_name: Any) -> Path:
+    """Resolve an alias descriptor given as a filesystem path OR a bare name.
+
+    Resolution order, filesystem-first so no existing caller changes meaning:
+
+    1. ``path_or_name`` as given, if it exists on disk;
+    2. otherwise, if it names no directory, its stem looked up in
+       :func:`list_alias_descriptors` (with or without the ``.toml`` suffix).
+
+    Raises ``FileNotFoundError`` naming every resolvable descriptor when neither hits —
+    the message is the discovery surface a bare ``open()`` never had.
+    """
+    p = Path(path_or_name)
+    if p.exists():
+        return p
+    if p.parent in (Path("."), Path("")):
+        stem = p.name[:-5] if p.name.endswith(".toml") else p.name
+        found = list_alias_descriptors().get(stem)
+        if found is not None:
+            return found
+    known = sorted(list_alias_descriptors())
+    raise FileNotFoundError(
+        "alias descriptor {!r} not found on disk and not in the alias catalog. "
+        "Shipped + registered descriptors: {}. Add a directory with "
+        "srmech.dsl.register_alias_dir(path) or the SRMECH_ALIAS_PATH env-var.".format(
+            str(path_or_name), known))
 
 
 def _resolve_target(target: str) -> Callable[..., Any]:
@@ -109,6 +244,15 @@ def build_aliases_from_toml_str(spec: str) -> Dict[str, Callable[..., Any]]:
 
 def load_aliases_toml(path) -> Dict[str, Callable[..., Any]]:
     """Read a TOML file of ``[[alias]]`` entries and build the ``{name: callable}`` mapping —
-    the on-disk counterpart of :func:`build_aliases_from_toml_str`."""
-    from pathlib import Path
-    return build_aliases_from_toml_str(Path(path).read_text(encoding="utf-8"))
+    the on-disk counterpart of :func:`build_aliases_from_toml_str`.
+
+    ``path`` may be a filesystem path OR the bare name of a shipped / registered
+    descriptor (rc364) — see :func:`resolve_alias_descriptor`. So the acoustic vocabulary
+    is one call from a wheel install::
+
+        from srmech.dsl import load_aliases_toml
+        names = load_aliases_toml("music_domain_aliases")
+        names["partials"]()            # == srmech.music.bell_partials()
+    """
+    return build_aliases_from_toml_str(
+        resolve_alias_descriptor(path).read_text(encoding="utf-8"))

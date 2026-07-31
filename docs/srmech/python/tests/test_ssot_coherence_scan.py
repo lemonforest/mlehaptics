@@ -31,7 +31,7 @@ else:  # pragma: no cover — 3.10 back-port branch
 
 _WORKED_INSTANCES_DIR = (
     Path(srmech.__file__).resolve().parent
-    / "amsc" / "_research" / "worked_instances"
+    / "cascade" / "catalogs" / "worked_instances"
 )
 
 # Ratchet: the worked-instance descriptor count. Bump CONSCIOUSLY when a new

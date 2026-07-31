@@ -978,6 +978,15 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     # name-binding (bind a user's name to a srmech.* fn); a bare-C host never aliases
     # Python functions, so it is a justified dev/LLM affordance (ADR-0004).
     "srmech.dsl._alias.alias",
+    # rc364 (ADR-0010 first execution slice): register an EXTERNAL alias-catalog
+    # directory at runtime. The exact peer of register_catalog_dir /
+    # register_class_dir two entries above, and justified on the same grounds: it
+    # mutates a process-local list of user descriptor directories, which is a
+    # host-side plugin affordance rather than a computation. Note what is NOT here
+    # — list_alias_descriptors and resolve_alias_descriptor are host_glue, not
+    # dev_tooling, because they READ the filesystem (the load_catalog /
+    # load_class_catalog precedent); only the mutator is an affordance.
+    "srmech.dsl._alias.register_alias_dir",
     # rc271 (§96 / F1251): the value-alias PRESENTATION setters — install / clear a
     # canonical→preferred cap_kind display mapping (e.g. restore the pre-rc271
     # stick/minted names). Pure Python session-state; a bare-C host emits only the

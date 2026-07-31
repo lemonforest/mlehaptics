@@ -21,7 +21,7 @@ pin-slot + Class C re-orientation per
 ``[[feedback_sign_handling_is_class_k_pin_slot_not_alu_abs]]``.
 
 Each atom carries a dedicated C symbol in ``libsrmech.{so,dll,dylib}``
-and a TOML descriptor under ``srmech/amsc/_research/cascade_catalog/``;
+and a TOML descriptor under ``srmech/cascade/catalogs/cascade_catalog/``;
 the Python wrapper dispatches through native when ``HAS_NATIVE`` is True
 and the input shape matches a typed C variant, falling back to Python
 for sequence types the C ABI doesn't cover.

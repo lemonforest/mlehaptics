@@ -2,7 +2,7 @@
 """Code-generator for ``c/src/srmech_class_registry.c`` (0.9.0rc202).
 
 The NAME -> DESCRIPTOR resolve gate for ``srmech_run_class_method``: emit the
-packaged ``[class]`` TOML descriptors (``srmech/amsc/_research/class_catalog/
+packaged ``[class]`` TOML descriptors (``srmech/cascade/catalogs/class_catalog/
 *.toml``) as a ``const`` C data table so a bare-C host (no Python, no host-FS)
 can resolve a class NAME (e.g. ``"Genome"``) to its descriptor text and run the
 rc201 ``srmech_make_class_run`` object-model engine on it.
@@ -82,8 +82,8 @@ def _byte_array(ident: str, data: bytes) -> str:
 
 def generate() -> str:
     here = Path(__file__).resolve()
-    catalog_dir = (here.parent.parent.parent / "python" / "srmech" / "amsc"
-                   / "_research" / "class_catalog")
+    catalog_dir = (here.parent.parent.parent / "python" / "srmech"
+                   / "cascade" / "catalogs" / "class_catalog")
     if not catalog_dir.is_dir():
         raise FileNotFoundError(f"class_catalog dir not found at {catalog_dir}")
 
@@ -109,7 +109,7 @@ def generate() -> str:
     w(" * own zero-delta signal clean; rc347 already moves these bytes.")
     w(" *")
     w(" * Source of truth: the .toml descriptors under")
-    w(" * srmech/amsc/_research/class_catalog/ (the packaged DSL [class] descriptors).")
+    w(" * srmech/cascade/catalogs/class_catalog/ (the packaged DSL [class] descriptors).")
     w(" * The 0.9.0rc203 NAME->DESCRIPTOR resolve gate for")
     w(" * srmech_run_class_method - the shipped descriptors as a const data table so")
     w(" * a bare-C host resolves a class NAME to its descriptor text with no Python")

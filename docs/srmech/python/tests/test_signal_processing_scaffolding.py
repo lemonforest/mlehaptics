@@ -243,7 +243,7 @@ def test_version_is_0_7_0rc10():
 
     Prior v0.6.0rc19 — MS #20 triality S₃=Aut(V₄) worked-instance voxel (the
     continuum-tier instantiation): a worked cascade INSTANCE
-    (``_research/worked_instances/triality_s3_klein4.toml``) + its executable
+    (``cascade/catalogs/worked_instances/triality_s3_klein4.toml``) + its executable
     attestation (``test_triality_s3_worked_instance.py``) showing
     ``klein4_triality_cycle`` IS the order-3 generator of Aut(V₄)=S₃ — via the
     conjugation ``T ∘ XOR_a ∘ T⁻¹ = XOR_{T(a)}`` cyclically permuting the three
@@ -601,7 +601,7 @@ def test_version_is_0_7_0rc10():
     posterior as two separate half-widths (never abs()/symmetrised) IS the
     sign / phase-boundary discipline at the data-attestation scale.
     """
-    assert srmech.__version__ == "0.9.0rc363", (
+    assert srmech.__version__ == "0.9.0rc364", (
         f"expected srmech.__version__ == '0.9.0rc362'; got "
         f"{srmech.__version__!r}"
     )

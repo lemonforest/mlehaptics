@@ -307,9 +307,14 @@ widens with every descriptor added.
 
 | layer | ships | visible at `describe()` | entry point |
 |---|---|---|---|
-| `srmech/amsc/_research/class_catalog/` | **4** descriptors, inside the wheel | **YES** — `describe()["classes"]["toml_total"] == 4`, plus three `ToolEntry`s | `dsl.CLASS_CATALOG_DIR` · `register_class_dir` |
-| `srmech/amsc/_research/cascade_catalog/` | **20** descriptors, inside the wheel | **NO** — `json.dumps(describe())` contains `"cascade_catalog"` **0** times, and none of the 20 descriptor names appears anywhere in the payload | `dsl.CATALOG_DIR` · `load_catalog` |
-| the `[[alias]]` vocabulary (ADR-0004 §4, rc261) | **0** descriptors in any wheel | **NO** — `"alias"` occurs **0** times in the payload | `dsl.load_aliases_toml(path)` — a **path**, with no registered directory |
+| `srmech/cascade/catalogs/class_catalog/` | **4** descriptors, inside the wheel | **YES** — `describe()["classes"]["toml_total"] == 4`, plus three `ToolEntry`s | `dsl.CLASS_CATALOG_DIR` · `register_class_dir` |
+| `srmech/cascade/catalogs/cascade_catalog/` | **20** descriptors, inside the wheel | **NO** — `json.dumps(describe())` contains `"cascade_catalog"` **0** times, and none of the 20 descriptor names appears anywhere in the payload | `dsl.CATALOG_DIR` · `load_catalog` |
+| the `[[alias]]` vocabulary (ADR-0004 §4, rc261) | ~~**0** descriptors in any wheel~~ → **2**, inside the wheel (rc364) | **NO** — `"alias"` occurs **0** times in the payload | ~~`dsl.load_aliases_toml(path)` — a **path**, with no registered directory~~ → `dsl.ALIAS_CATALOG_DIR` · `register_alias_dir` · `list_alias_descriptors` (rc364) |
+
+⚠️ **PATHS UPDATED rc364.** The first two rows read `srmech/amsc/_research/{class,cascade}_catalog/`
+until ADR-0010's first execution slice moved the built-in catalogs to the composition layer. The
+*measurements* (4 / 20 / visible / not-visible) are unchanged by that move — a directory move does
+not change what `describe()` can see, which is itself part of C6's point.
 
 Two of the three are unreachable, and the third proves the reachable shape is already available: the
 `[class]` layer has a packaged directory constant, a loader that reads it, a `toml_total` count and
@@ -323,6 +328,17 @@ ship a descriptor**, which is exactly why rc362's first-ever `[[alias]]` descrip
 `tests/data/music_domain_aliases.toml` — outside every wheel (§6.1). The missing `describe()` axis and
 the missing package home are the same defect seen from two sides: **a config surface with no packaged
 descriptor and no enumeration entry point exists only for readers of the test suite.**
+
+✅ **THE PACKAGE-HOME HALF CLOSED rc364; the `describe()` half is still OPEN.** ADR-0010's first
+execution slice built the shape this paragraph says is missing — `ALIAS_CATALOG_DIR`,
+`register_alias_dir`, `list_alias_descriptors`, `resolve_alias_descriptor`, and a packaged
+`srmech/cascade/catalogs/alias_catalog/` holding both shipped-example descriptors — and moved
+rc271's and rc362's descriptors into it. **That is the "two sides" claim being confirmed rather
+than merely restated:** giving the layer a home is what made the wheel defect fixable at all, and
+the fix was mechanical once the constant existed. What it does NOT do is make the layer countable
+at the root index: `"alias"` still occurs **0** times in `json.dumps(describe())`. C6 remains open
+on its own terms, and it is now open on a *narrower* front — an enumeration axis over a layer that
+finally has something to enumerate.
 
 **Why this matters for Siona specifically, in the user's framing.** The goal is *"to actually be able
 to know what a cascade looks like from a word problem"*. That is two lookups, and each one is a
@@ -345,7 +361,9 @@ countable at the root index and reachable by name — on the same terms the `[cl
 It does NOT specify the payload shape, does not require per-descriptor detail in `describe()` (which is
 a ROOT/INDEX by its own contract — surface 2), and does not decide whether the alias layer's package
 home is a new `_research/alias_catalog/` or something else. Those are implementation decisions for the
-rc that closes it.
+rc that closes it. **Decided rc364:** the home is `srmech/cascade/catalogs/alias_catalog/`, beside
+`class_catalog/` and `cascade_catalog/` — not under `_research/`, which ADR-0010's first slice
+deleted in the same commit. Reasoning recorded as ADR-0010 Amendment B.
 
 **Status: OPEN and deliberately unimplemented in rc363.** The user assigned the `describe()` axes to
 their own rc. Recording the clause without building it is the correct move here *only because it is
@@ -453,7 +471,7 @@ complete, and then the population never arrived:
 | subsystem | declared | measured today |
 |---|---|---|
 | `ToolEntry.composes` / `.preserves` | rc305, *"the Siona compose-a-cascade **CAPSTONE**"* (`#T943`) | **2 of 525** — `genome.genome_from_graph` and `genome.cwf_consistency_mod2`, both landed in the rc that shipped the field. **Nothing has been added since.** |
-| `[[alias]]` config vocabulary | ADR-0004 §4, rc261, with a security contract and a parse path | **ZERO descriptors** anywhere in the tree until rc362 added the first — and that one is `tests/data/music_domain_aliases.toml`, a **test fixture outside every wheel** (`wheel.packages = ["srmech"]`, `tests/**` only under `sdist.include`, no force-include, no `MANIFEST.in`) |
+| `[[alias]]` config vocabulary | ADR-0004 §4, rc261, with a security contract and a parse path | **ZERO descriptors** anywhere in the tree until rc362 added the first — and that one is `tests/data/music_domain_aliases.toml`, a **test fixture outside every wheel** (`wheel.packages = ["srmech"]`, `tests/**` only under `sdist.include`, no force-include, no `MANIFEST.in`). **FIXED rc364** — 2 descriptors now ship inside `srmech/cascade/catalogs/alias_catalog/`. Note the row's own words survive the fix and are worth keeping: the population was zero-in-the-wheel for **101 rcs** and no gate said so, because there was no directory to count |
 
 **Name the pattern: a field or subsystem whose population is 2 of 525, or 0 of anything, is not
 shipped — it is declared.** The mechanism works; the capstone language is what is false. And nothing
@@ -461,10 +479,16 @@ goes red, because a strict-zero ratchet over an EMPTY selected set passes — th
 return otherwise.
 
 The asymmetry that makes this diagnosable: the `[class]` half of the same config-TOML family is fully
-packaged and introspectable — 4 descriptors ship **inside** `srmech/amsc/_research/class_catalog/`,
-`describe()["classes"]["toml_total"] == 4`, and three `ToolEntry`s expose them. Two peer descriptor
-layers, opposite treatment. **A config surface with no packaged descriptor and no enumeration entry
-point exists only for readers of the test suite.**
+packaged and introspectable — 4 descriptors ship **inside** `srmech/cascade/catalogs/class_catalog/`
+(`srmech/amsc/_research/class_catalog/` before rc364), `describe()["classes"]["toml_total"] == 4`, and
+three `ToolEntry`s expose them. Two peer descriptor layers, opposite treatment. **A config surface with
+no packaged descriptor and no enumeration entry point exists only for readers of the test suite.**
+
+rc364 closed the *packaged-descriptor* half for the alias layer and left the *enumeration* half open,
+which splits this sentence into its two conjuncts and shows they are separable: the alias layer now has
+a packaged descriptor and still has no enumeration entry point at `describe()`, so it is reachable by
+name (`load_aliases_toml("music_domain_aliases")`) but not discoverable without knowing the name.
+Half the defect, precisely.
 
 ### 6.2 Green gates that carry no information about what they appear to cover
 

@@ -75,6 +75,45 @@ and the decoded totals). If decoded is flat and the op-name count is flat, the
 rise is citation and the pin may be raised WITH THAT REASON RECORDED. If either
 moved, it is a regression and the fix is upstream, not here.
 
+⚠️ rc364 — THE ARC'S FIRST EXECUTION SLICE MOVED BOTH CHANNELS BY **ZERO**, AND
+THAT IS A FINDING ABOUT THE PLAN, NOT A FAILURE OF THE MOVE
+=============================================================================
+rc364 executed ADR-0010's ``make_class`` re-homed clause: the built-in
+``class_catalog`` / ``cascade_catalog`` / ``worked_instances`` descriptor
+directories left ``srmech/amsc/_research/`` for ``srmech/cascade/catalogs/``,
+and ``srmech/amsc/_research/`` was deleted. Measured after
+``python3 tools/regen_all.py``:
+
+    as-text  2957 -> 2957   (FLAT)
+    decoded   577 ->  577   (FLAT)
+
+Every per-artifact pair is unchanged; the only regen delta in the whole tree was
+one line of header COMMENT in ``srmech_class_registry.c`` naming the new source
+directory.
+
+**Why, stated so the next slice is planned from it.** This ratchet counts the
+DOTTED prefix ``srmech.amsc.`` — a *module-path* population. What rc364 moved
+was *data files*, whose location is only ever written as a filesystem path with
+slashes (``srmech/amsc/_research/class_catalog/``), which this prefix does not
+match. And the descriptor BODIES are untouched: a ``[class]`` descriptor's
+``op = "srmech.amsc.genome.chromosome"`` names an op whose MODULE did not move,
+so all 40 decoded hits in the class registry survive by construction.
+
+The instrument is not broken — it measures exactly the population it names, and
+it correctly reports that the population did not move. **The wrong belief was
+the plan's**: ADR-0010 folds "move the catalogs" and "move the modules" into one
+drain, and only the second contributes to this counter. A catalog move is
+orthogonal to it.
+
+**Consequence for the arc.** Do not read a flat rc here as "the slice did
+nothing", and do not go looking for a pin to lower after a catalog-shaped slice.
+The quantity rc364 actually reduced — ``srmech/amsc/`` went from 4 subpackages
+to 3 — has NO ratchet in this tree. That measurement is the natural prerequisite
+rc for the first MODULE-moving slice, and per ADR-0010's own ordering constraint
+it must land in its own rc with a green baseline BEFORE any module moves; it was
+deliberately NOT minted inside rc364, because an instrument built in the same
+arc as the change it detects has no baseline to be attributed against.
+
 WHAT IS PINNED, AND WHY IT IS A RATCHET AND NOT A SNAPSHOT
 ==========================================================
 Each artifact pins BOTH channels, down-only, in the house pattern this tree

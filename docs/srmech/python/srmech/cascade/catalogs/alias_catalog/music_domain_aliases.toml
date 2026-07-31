@@ -1,6 +1,15 @@
 # srmech ACOUSTIC / MUSIC domain naming (v0.9.0rc362) — the first `[[alias]]`
 # descriptor shipped in the tree.
 #
+# ⚠️ v0.9.0rc364 — MOVED, and the move is the point. This file was written to
+# `tests/data/` because there was nowhere else: `srmech.dsl` had no
+# ALIAS_CATALOG_DIR, so a descriptor landed in the test fixtures BY DEFAULT
+# rather than by decision. `tests/**` is in `sdist.include` and NOT in the
+# wheel, so "the first [[alias]] descriptor shipped in the tree" shipped to
+# nobody. ADR-0010's first execution slice gave the naming layer a packaged
+# home (this directory) and a registration API, so it now ships and resolves
+# by BARE NAME — the one-liner below works from a plain `pip install`.
+#
 # rc261 shipped the config-TOML FUNCTION-ALIASING subsystem (`srmech.dsl.alias`
 # / `build_aliases_from_toml_str` / `load_aliases_toml`) but no descriptor ever
 # shipped with it, so the layer had an API and no worked example. This file is
@@ -12,7 +21,7 @@
 # referenced name without touching source code, no recompile."
 #
 #     from srmech.dsl import load_aliases_toml
-#     names = load_aliases_toml("tests/data/music_domain_aliases.toml")
+#     names = load_aliases_toml("music_domain_aliases")     # bare name; rc364+
 #     names["partials"]()            # == srmech.music.bell_partials()
 #     names["overtone_period"](rs)   # == srmech.music.common_period(rs)
 #

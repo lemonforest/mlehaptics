@@ -9,6 +9,17 @@
 #
 #     from srmech.amsc import genome
 #     genome.load_type_aliases_toml("genome_type_aliases_legacy.toml")
+#
+# ⚠️ THAT LINE DID NOT WORK FROM AN INSTALL UNTIL v0.9.0rc364, and this header
+# is where it was printed. The file lived under `tests/data/`; `tests/**` is in
+# `sdist.include` and NOT in the wheel, so the documented migration path for a
+# BREAKING rename raised FileNotFoundError on every wheel install for 93 rcs.
+# ADR-0010's first execution slice moved it into the shipped alias catalog
+# (`srmech/cascade/catalogs/alias_catalog/`) and taught the loader to resolve a
+# BARE NAME against it, so the line above now runs exactly as written.
+# `tests/test_cascade_catalog_home_rc364.py` EXECUTES it rather than describing
+# it — a documented call that nothing runs is how this shipped in the first
+# place.
 #     # now genome_census / genome_registry / genome_catalog present the
 #     # cap_kind / type / types-keys as "stick" / "minted" again.
 #     genome.clear_type_aliases()   # back to canonical plasmid / nuclear

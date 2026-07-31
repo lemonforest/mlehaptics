@@ -181,7 +181,25 @@ def _local_task_ids() -> "frozenset[int]":
         if not path.is_file() or path.suffix not in {
                 ".py", ".c", ".h", ".md", ".toml"}:
             continue
-        if "__pycache__" in path.parts or "worktrees" in path.parts:
+        # ⚠️ rc364 — THE EXCLUSION WAS COMPUTED ON THE ABSOLUTE PATH, AND THAT
+        # MADE THIS GATE UNRUNNABLE INSIDE A WORKTREE. The intent is "skip other
+        # sessions' `.claude/worktrees/` checkouts". Tested against
+        # ``path.parts`` of the ABSOLUTE path, it also matched EVERY file when
+        # the scan itself runs from a worktree — because ``worktrees`` is then a
+        # component of the scan ROOT, not of anything below it. Result: the
+        # derived task-ID set came back EMPTY and both strict-zero tests failed
+        # on ``"derived no local task IDs at all - the scan is broken"``. The
+        # non-vacuity assert did its job — this was loud, not silent — but the
+        # gate could not go green in the environment the build discipline says
+        # to build in.
+        #
+        # Computing the same test on the path RELATIVE to the scan root
+        # preserves the intent exactly: `.claude/worktrees/` sits at the REPO
+        # root, above ``docs/``, so nothing below ``docs/srmech`` can ever be a
+        # worktree and the relative check can only ever fire on a genuine
+        # nested one.
+        rel_parts = path.relative_to(_SR_ROOT).parts
+        if "__pycache__" in rel_parts or "worktrees" in rel_parts:
             continue
         try:
             text = path.read_text(encoding="utf-8", errors="replace")
@@ -602,7 +620,7 @@ def test_no_local_task_id_is_written_bare_in_a_DECODED_payload() -> None:
         f"{len(violations)} local task ID(s) written BARE inside an embedded "
         "payload:\n" + "\n".join(violations)
         + "\n\nFix the UPSTREAM source (a .toml descriptor under "
-          "srmech/amsc/_research/class_catalog/, or a ToolEntry summary - not "
+          "srmech/cascade/catalogs/class_catalog/, or a ToolEntry summary - not "
           "the generated file), then re-run:  python3 tools/regen_all.py"
     )
 

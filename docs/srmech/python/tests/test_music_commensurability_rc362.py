@@ -33,7 +33,12 @@ from srmech.amsc.qalg import Qalg
 from srmech import music
 
 _HERE = Path(__file__).resolve().parent
-_ALIAS_TOML = _HERE / "data" / "music_domain_aliases.toml"
+# rc364: moved out of tests/data/ into the shipped alias catalog (ADR-0010 amendment B).
+# rc362 landed the tree's first [[alias]] descriptor here by DEFAULT rather than by
+# decision — there was no ALIAS_CATALOG_DIR to land it in — and tests/** is not in the
+# wheel, so it shipped to nobody.
+from srmech.dsl import ALIAS_CATALOG_DIR                     # noqa: E402
+_ALIAS_TOML = ALIAS_CATALOG_DIR / "music_domain_aliases.toml"
 
 _X2_MINUS_2 = [-2, 0, 1]
 

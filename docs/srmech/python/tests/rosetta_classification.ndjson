@@ -648,6 +648,9 @@
 {"exposed_as": "srmech.dsl.alias", "defined_at": "srmech.dsl._alias.alias", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.dsl.build_aliases_from_toml_str", "defined_at": "srmech.dsl._alias.build_aliases_from_toml_str", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.dsl.load_aliases_toml", "defined_at": "srmech.dsl._alias.load_aliases_toml", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.dsl.list_alias_descriptors", "defined_at": "srmech.dsl._alias.list_alias_descriptors", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.dsl.resolve_alias_descriptor", "defined_at": "srmech.dsl._alias.resolve_alias_descriptor", "bucket": "non_compute", "non_compute_kind": "host_glue"}
+{"exposed_as": "srmech.dsl.register_alias_dir", "defined_at": "srmech.dsl._alias.register_alias_dir", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.mcp.invoke_tool", "defined_at": "srmech.mcp._tools.invoke_tool", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.mcp.tool_entries_to_mcp_defs", "defined_at": "srmech.mcp._tools.tool_entries_to_mcp_defs", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.mcp.serve_stdio", "defined_at": "srmech.mcp._stdio.serve_stdio", "bucket": "non_compute", "non_compute_kind": "composes_c"}

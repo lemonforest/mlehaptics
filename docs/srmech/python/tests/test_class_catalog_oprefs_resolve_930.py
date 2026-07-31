@@ -35,7 +35,7 @@ except ModuleNotFoundError:  # py3.10 floor
 
 _CATALOG_DIR = (
     Path(__file__).resolve().parent.parent
-    / "srmech" / "amsc" / "_research" / "class_catalog"
+    / "srmech" / "cascade" / "catalogs" / "class_catalog"
 )
 
 

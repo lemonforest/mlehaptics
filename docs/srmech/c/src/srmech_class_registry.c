@@ -9,7 +9,7 @@
  * own zero-delta signal clean; rc347 already moves these bytes.
  *
  * Source of truth: the .toml descriptors under
- * srmech/amsc/_research/class_catalog/ (the packaged DSL [class] descriptors).
+ * srmech/cascade/catalogs/class_catalog/ (the packaged DSL [class] descriptors).
  * The 0.9.0rc203 NAME->DESCRIPTOR resolve gate for
  * srmech_run_class_method - the shipped descriptors as a const data table so
  * a bare-C host resolves a class NAME to its descriptor text with no Python

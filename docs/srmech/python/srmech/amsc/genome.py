@@ -9141,9 +9141,22 @@ def load_type_aliases_toml(path) -> Dict[str, str]:
     A top-level ``[type_aliases]`` table is also accepted. Parsing routes through the C
     ``srmech_toml`` parser when native (the DSL's :func:`_toml_loads_native`), falling
     back to the stdlib ``tomllib`` / ``tomli`` (same dict, same decode error) — the
-    rc261 :func:`load_aliases_toml` shape. numpy-free; no external libs."""
+    rc261 :func:`load_aliases_toml` shape. numpy-free; no external libs.
+
+    ``path`` may be a filesystem path OR the bare name of a shipped / registered alias
+    descriptor (rc364; :func:`srmech.dsl.resolve_alias_descriptor`), so the documented
+    migration path works from a wheel install::
+
+        from srmech.amsc import genome
+        genome.load_type_aliases_toml("genome_type_aliases_legacy.toml")
+
+    Before rc364 that exact line — printed in the descriptor's own header — raised
+    ``FileNotFoundError`` on every wheel install, because the descriptor lived under
+    ``tests/data/`` and ``tests/**`` is in ``sdist.include`` but not in the wheel. The
+    loader shipped and the thing it loads did not."""
+    from srmech.dsl._alias import resolve_alias_descriptor
     from srmech.dsl._toml_chain import _toml, _toml_loads_native
-    spec = Path(path).read_text(encoding="utf-8")
+    spec = resolve_alias_descriptor(path).read_text(encoding="utf-8")
     data = _toml_loads_native(spec)
     if data is None:
         data = _toml.loads(spec)
