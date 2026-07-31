@@ -212,7 +212,17 @@ CEIL_AMSC_PREFIX = {
     # NOT a drain regression: no module moved into srmech.amsc and no op was
     # added there. The right fix for a genuine drain regression would be
     # upstream; here there is nothing upstream to fix.
-    "c/src/srmech_carrier_registry.c": (204, 533),
+    #
+    # as-text 204 -> 203 at rc366 (-1), decoded 533 -> 529 (-4). THIS ONE IS A
+    # DRAIN, and the good kind: srmech.amsc.harmonics moved to
+    # srmech.music.harmonics — the FIRST real module move under ADR-0010. Four
+    # harmonics op references live in the hoisted byte arrays (decoded) and one
+    # in the short back-index strings (as-text); the move rewrote all five
+    # amsc->music. This is the decoded POPULATION channel falling for the first
+    # time — exactly the event this ratchet exists to force onto the record.
+    # Re-pinned DOWN in the same commit as the move so the gain cannot be given
+    # back.
+    "c/src/srmech_carrier_registry.c": (203, 529),
     # TEXT 0 is TRUE, and true about the wrong thing. Every one of the four
     # baked [class] descriptors (`cls_desc_0..3`) is a decimal byte array, so a
     # grep has nothing to read. 37 DISTINCT dotted names live in there.
@@ -234,7 +244,12 @@ CEIL_AMSC_PREFIX = {
     # gate (tests/test_prose_oprefs_resolve_rc363.py) found it and it was fixed,
     # which necessarily moves this counter up by one. Ops named srmech.amsc.*
     # stayed 396; decoded flat everywhere.
-    "c/src/srmech_tool_registry.c": (1225, 4),
+    #
+    # as-text 1225 -> 1221 at rc366 (-4), decoded UNCHANGED at 4. The four
+    # srmech.amsc.harmonics ToolEntry citations were rewritten to srmech.music.
+    # by the ADR-0010 module move; the decoded 4 are this artifact's own hoisted
+    # strings, untouched by the move.
+    "c/src/srmech_tool_registry.c": (1221, 4),
     # CONTROL: has no byte arrays at all, so decoded 0 is a real zero rather
     # than a decoder that stopped working.
     "c/src/srmech_responsion_registry.c": (72, 0),
@@ -247,7 +262,10 @@ CEIL_AMSC_PREFIX = {
     # citations as the tool registry above — these two artifacts are the pair
     # that carry op documentation, which is why the drift is 5 x 2 and lands
     # nowhere else. Verified against the pre-branch commit: exactly 1201 there.
-    "python/srmech/amsc/_tool_docs.py": (1206, 0),
+    # as-text 1206 -> 1202 at rc366 (-4), decoded UNCHANGED at 0. The SAME four
+    # harmonics citations as the tool registry — this is the doc pair — rewritten
+    # amsc->music by the module move.
+    "python/srmech/amsc/_tool_docs.py": (1202, 0),
     "python/srmech/amsc/_c_claims.py": (250, 0),
 }
 
@@ -261,8 +279,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2957   # rc362 2943 -> rc363 2957 (+13 carrier registry, +1 tool registry)
-TOTAL_DECODED = 577
+TOTAL_AS_TEXT = 2948   # rc363 2957 -> rc366 2948 (-9: harmonics amsc->music; -1 carrier, -4 tool, -4 _tool_docs)
+TOTAL_DECODED = 573    # rc363 577 -> rc366 573 (-4: harmonics' 4 carrier-registry byte-array refs, amsc->music)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":
@@ -417,26 +435,38 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     The counterfactual is asserted below by re-namespacing the decoded text and
     watching the count move — which is what makes this a measurement rather
     than a restatement of the pin.
+
+    rc366 UPGRADE — THE EXPERIMENT IS NO LONGER ONLY A COUNTERFACTUAL. The
+    rc362 nine were named ``srmech.music`` from birth, so the amsc-count-holds
+    result was a NEGATIVE control. rc366 supplied the POSITIVE one: the
+    ``srmech.amsc.harmonics`` module actually moved to ``srmech.music.harmonics``
+    (the first real ADR-0010 module drain), and FOUR of its op references live
+    inside these hoisted byte arrays. The decoded ``srmech.amsc.`` population
+    fell 533 -> **529** and ``srmech.music.`` rose 9 -> **13**, by exactly those
+    four — a genuine population move tracked by the decoded channel, not a
+    re-namespacing thought experiment. The pins below now read 529 / 13; the
+    counterfactual (re-namespace all 13 music refs) still lands at 542.
     """
     car = _SR_ROOT / "c/src/srmech_carrier_registry.c"
     joined = "\n".join(b for _, b in decoded_blobs(car))
 
     amsc = joined.count(PREFIX)
     music = joined.count("srmech.music.")
-    assert amsc == 533, (
+    assert amsc == 529, (
         f"the carrier registry's decoded amsc population is {amsc}, expected "
-        f"533 — re-read the pins before trusting anything else in this file.")
-    assert music == 9, (
-        f"expected the 9 rc362 srmech.music op references inside the DECODED "
-        f"channel (the Q / Qalg ops.consumes back-index), found {music}. If "
-        f"this is 0 the natural experiment below is inert and this test proves "
-        f"nothing — re-measure and pick a live example.")
+        f"529 — re-read the pins before trusting anything else in this file.")
+    assert music == 13, (
+        f"expected 13 srmech.music op references inside the DECODED channel "
+        f"(9 from the rc362 Q / Qalg ops.consumes back-index + 4 from the rc366 "
+        f"harmonics module move), found {music}. If this is 0 the natural "
+        f"experiment below is inert and this test proves nothing — re-measure "
+        f"and pick a live example.")
 
-    # THE COUNTERFACTUAL: had those nine ops landed in the draining namespace,
+    # THE COUNTERFACTUAL: had those music ops landed in the draining namespace,
     # the decoded channel would have seen every one of them.
     would_be = joined.replace("srmech.music.", PREFIX).count(PREFIX)
     assert would_be == amsc + music, (
-        f"re-namespacing the 9 music references should raise the decoded amsc "
+        f"re-namespacing the 13 music references should raise the decoded amsc "
         f"count from {amsc} to {amsc + music}; got {would_be}. The decoded "
         f"counter is not responding to content, so the population half of this "
         f"ratchet is VACUOUS and the as-text pins raised at rc362 rest on "
