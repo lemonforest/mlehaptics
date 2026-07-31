@@ -404,11 +404,29 @@ no source edit and no recompile, which is the ADR-0004 config-driven stance appl
 that had an API and no plugin surface. A research group drops its own `*.toml` in a directory and calls
 `register_alias_dir`.
 
-Three new rosetta rows: `list_alias_descriptors` + `resolve_alias_descriptor` = **host_glue**
-(filesystem descriptor discovery — the `load_catalog` / `load_class_catalog` precedent),
-`register_alias_dir` = **dev_tooling** (the exact peer of `register_class_dir`). `composes_c` is
-UNMOVED at 138: none of the three composes a C op. No `ToolEntry`, so no count-pin moves — `srmech.dsl`
-functions carry no tool-schema rows, which is worth knowing before scoping a later slice.
+Three new rosetta rows, and **the split across them is not the obvious one**:
+
+| op | bucket | why |
+|---|---|---|
+| `resolve_alias_descriptor` | **host_glue** | descriptor FS *discovery* — a bare-C host must FIND the file before `srmech_toml` can parse it. The `load_catalog` / `load_class_catalog` / `get_descriptor` precedent. |
+| `list_alias_descriptors` | **dev_tooling** | *browse*. A C host resolves the one name it was handed; it never enumerates alternatives. Peer of `list_cascade_ops` / `list_classes`. |
+| `register_alias_dir` | **dev_tooling** | *configure*. Mutates a process-local search path. Peer of `register_catalog_dir` / `register_class_dir`. |
+
+`composes_c` is **UNMOVED at 138** — none of the three composes a C op; the alias layer's `composes_c`
+rows are the rc261 *parse* ops, which route through the C `srmech_toml`, and a resolver that returns a
+`Path` parses nothing. host_glue **21 → 22**, dev_tooling **51 → 53**, total **210 → 213**.
+
+⚠️ **The discriminator is NOT "does it touch the filesystem" — all three do.** It is **LOAD/GET vs
+BROWSE/CONFIGURE**, and `srmech.dsl` already encodes that split over the *same directory*:
+`load_class_catalog` reads it (host_glue) while `list_classes` browses it (dev_tooling). rc364 first
+shipped `list_alias_descriptors` as host_glue by reasoning from the *mechanism* (it calls `glob`)
+instead of from the *capability*, which made it the only host_glue `list_*` in `srmech.dsl` against
+five dev_tooling siblings. CI reported the counts (21→23 / 51→52); **the fix was the classification,
+not the pin.** Recorded because the same mechanism-vs-capability slip is available to every later
+slice that adds a public callable.
+
+No `ToolEntry`, so no op-count pin moves — `srmech.dsl` functions carry no tool-schema rows, which is
+worth knowing before scoping a later slice.
 
 ### B.5 ⚠️ THE RATCHET DID NOT MOVE, AND THE PLAN IS WHAT WAS WRONG
 

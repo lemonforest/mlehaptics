@@ -978,14 +978,28 @@ NON_COMPUTE_DEV_TOOLING_EXEMPT = frozenset({
     # name-binding (bind a user's name to a srmech.* fn); a bare-C host never aliases
     # Python functions, so it is a justified dev/LLM affordance (ADR-0004).
     "srmech.dsl._alias.alias",
-    # rc364 (ADR-0010 first execution slice): register an EXTERNAL alias-catalog
-    # directory at runtime. The exact peer of register_catalog_dir /
-    # register_class_dir two entries above, and justified on the same grounds: it
-    # mutates a process-local list of user descriptor directories, which is a
-    # host-side plugin affordance rather than a computation. Note what is NOT here
-    # — list_alias_descriptors and resolve_alias_descriptor are host_glue, not
-    # dev_tooling, because they READ the filesystem (the load_catalog /
-    # load_class_catalog precedent); only the mutator is an affordance.
+    # rc364 (ADR-0010 first execution slice): the alias layer's BROWSE-and-
+    # CONFIGURE half. Both are the exact peers of entries already above —
+    # register_alias_dir of register_catalog_dir / register_class_dir,
+    # list_alias_descriptors of list_cascade_ops / list_classes — and both are
+    # justified on the same grounds those are: a bare-C host resolves the ONE
+    # descriptor name it was handed, it never browses the catalog and never
+    # mutates a process-local search path.
+    #
+    # ⚠️ THE SIBLING THAT IS DELIBERATELY *NOT* HERE IS THE POINT.
+    # `resolve_alias_descriptor` is host_glue, not dev_tooling, and the line
+    # between them is NOT "does it touch the filesystem" — all three do. It is
+    # LOAD/GET vs BROWSE/CONFIGURE, which is the split srmech.dsl already
+    # encodes over the SAME directory: `load_class_catalog` reads it (host_glue)
+    # while `list_classes` browses it (dev_tooling). A C host must FIND the
+    # descriptor it was told to load, so the resolver is a capability it owes;
+    # it need not enumerate the alternatives.
+    #
+    # rc364 first shipped `list_alias_descriptors` as host_glue by reasoning
+    # from the mechanism (it calls glob) instead of from the capability, which
+    # made it the ONLY host_glue `list_*` in srmech.dsl against five dev_tooling
+    # siblings. CI caught the count; the fix was the classification.
+    "srmech.dsl._alias.list_alias_descriptors",
     "srmech.dsl._alias.register_alias_dir",
     # rc271 (§96 / F1251): the value-alias PRESENTATION setters — install / clear a
     # canonical→preferred cap_kind display mapping (e.g. restore the pre-rc271

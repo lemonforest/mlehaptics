@@ -305,11 +305,45 @@ _EXPECTED_SPLIT = {
     # fiber cap ASSEMBLE / READ ops, each composes the c_dispatched genome_octonion_holonomy
     # + pure cap byte-framing, sibling-consistent with the rc322 Q8 fiber ops). composes_c
     # 133 -> 136; total 205 -> 208.
+    # rc364 (ADR-0010's first execution slice): the alias layer gets the catalog
+    # shape the [class] layer has had since rc39 — a shipped descriptor
+    # directory plus a registration API. THREE rows, and the split across them
+    # is the part worth reading, because it is NOT the obvious one.
+    #
+    #   +1 host_glue   — dsl.resolve_alias_descriptor. Name-or-path -> the
+    #                    descriptor's Path. This is descriptor FS DISCOVERY,
+    #                    the first phrase in the host_glue definition, and a
+    #                    capability a bare-C host genuinely owes: it must FIND
+    #                    the file before srmech_toml can parse it. The
+    #                    load_catalog / load_class_catalog / get_descriptor
+    #                    precedent. host_glue 21 -> 22.
+    #   +2 dev_tooling — dsl.list_alias_descriptors + dsl.register_alias_dir.
+    #                    BROWSE and CONFIGURE. A bare-C host resolves the one
+    #                    name it was handed; it never enumerates the
+    #                    alternatives and never mutates a process-local search
+    #                    path. Exact peers of list_cascade_ops / list_classes
+    #                    and register_catalog_dir / register_class_dir, all
+    #                    four already dev_tooling. dev_tooling 51 -> 53.
+    #   composes_c UNMOVED at 138 — none of the three composes a C op. The
+    #                    alias layer's composes_c rows are the rc261 PARSE ops
+    #                    (build_aliases_from_toml_str / load_aliases_toml,
+    #                    which route through the C srmech_toml); a resolver
+    #                    that returns a Path parses nothing.
+    #
+    # ⚠️ THE DISCRIMINATOR IS *NOT* "DOES IT TOUCH THE FILESYSTEM" — all three
+    # do. It is LOAD/GET vs BROWSE/CONFIGURE, and srmech.dsl already encodes
+    # that split over the SAME directory: `load_class_catalog` reads it
+    # (host_glue), `list_classes` browses it (dev_tooling). rc364 first shipped
+    # list_alias_descriptors as host_glue by reasoning from the mechanism (it
+    # calls glob) rather than from the capability, which made it the only
+    # host_glue `list_*` in srmech.dsl against five dev_tooling siblings. CI
+    # reported the count (21 -> 23 / 51 -> 52); the fix was the CLASSIFICATION,
+    # not the pin, and the corrected split is 22 / 53. Total 210 -> 213.
     "composes_c": 138,
-    "host_glue": 21,
-    "dev_tooling": 51,
+    "host_glue": 22,
+    "dev_tooling": 53,
 }
-_TOTAL_NON_COMPUTE = 210        # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
+_TOTAL_NON_COMPUTE = 213        # rc364 (ADR-0010 first execution slice): 210 -> 213, the three srmech.dsl alias-catalog rows (resolve_alias_descriptor -> host_glue; list_alias_descriptors + register_alias_dir -> dev_tooling; see the split note above)  # rc325 (§𝕆-FIBER/v18): 205 -> 208, genome.genome_octonion_associator + genome_add_octonion_fiber + genome_read_octonion_fiber (rc322 §Q8-FIBER/v17: 203 -> 205, genome.genome_add_fiber + genome_read_fiber; rc312 §Q8/v16: 202 -> 203, genome.upgrade_v15_to_v16)  # rc345 (task T964): 208 -> 209, genome.genome_content
 
 
 def _rows():

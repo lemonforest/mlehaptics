@@ -319,6 +319,34 @@ def test_the_alias_surface_is_exported_from_srmech_dsl() -> None:
         assert hasattr(dsl, name)
 
 
-def test_numpy_is_not_imported_by_any_of_this() -> None:
-    """The substrate-native discipline: the whole move is numpy-free."""
-    assert "numpy" not in sys.modules
+def test_every_shipped_descriptor_parses() -> None:
+    """⚠️ Replaces a TAUTOLOGY this file shipped in its first pass.
+
+    That assertion was ``"numpy" not in sys.modules``. numpy is not installed in
+    any srmech environment — it is absent from every extra, and the suite runs
+    numpy-absent by construction (#564) — so the assertion **cannot return
+    otherwise**. A check that can only pass is not a measurement, which is the
+    exact failure mode the rest of this file is written to avoid; and the real
+    instrument for that property (``CEIL_NUMPY_CARRIER``) already exists and is
+    not this file's job.
+
+    What is worth asserting instead is a property the MOVE could actually have
+    broken: every descriptor that now ships from the new home still parses. A
+    directory move that corrupted an encoding, or that swept up a file that is
+    not a descriptor, would land here.
+    """
+    if sys.version_info >= (3, 11):
+        import tomllib as _toml
+    else:                                    # pragma: no cover — 3.10 back-port
+        import tomli as _toml                # type: ignore[no-redef]
+
+    parsed = 0
+    for name in _CATALOG_COUNTS:
+        for toml_path in sorted((_CATALOGS / name).glob("*.toml")):
+            raw = toml_path.read_bytes()
+            doc = _toml.loads(raw.decode("utf-8"))
+            assert isinstance(doc, dict) and doc, (
+                f"{toml_path} parsed to an empty document")
+            parsed += 1
+    assert parsed == sum(_CATALOG_COUNTS.values()), (
+        f"parsed {parsed} descriptors, expected {sum(_CATALOG_COUNTS.values())}")
