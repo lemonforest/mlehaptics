@@ -392,10 +392,21 @@ jobs:
         # Applied IDENTICALLY here and in the guard's collect() below (they must match).
         # This is deliberately NOT `PYTHONHASHSEED=0`: a fixed hash seed is unnecessary
         # (order is already stable) and would risk the `#T931`/`#T980` hash-salted tests.
+        #
+        # `--durations-path .test_durations --store-durations` (`#T1007`) makes the
+        # split TIME-balanced, not equal-count. pytest-split READS the committed
+        # `.test_durations` (if present) to place slow tests across shards, and each
+        # shard STORES its group's fresh per-test durations back (a SUBSET). The six
+        # subsets are unioned by the `fallback-durations-merge` job into a refreshed
+        # full `.test_durations` artifact, which a maintainer commits to update the
+        # balance. BOOTSTRAP: the very first run has no committed file, so pytest-split
+        # falls back to equal-count AND writes the first durations — that run's merged
+        # artifact is what gets committed to flip every later run to time-balanced.
         run: |
           set -o pipefail
           pytest tests/ -q -rsfE -p no:randomly --durations=30 -n auto --dist load \
             --splits 6 --group ${{ matrix.shard }} \
+            --durations-path .test_durations --store-durations \
             2>&1 | tee pytest-pure-shard-${{ matrix.shard }}.log
 
       # rc357 (`#T951`) / `#T1007` — keep the evidence, now PER SHARD. Each shard's
@@ -411,6 +422,63 @@ jobs:
           name: pytest-pure-log-shard-${{ matrix.shard }}
           path: docs/srmech/python/pytest-pure-shard-${{ matrix.shard }}.log
           if-no-files-found: warn
+          retention-days: 14
+
+      # `#T1007` — each shard stored its group's fresh per-test durations to
+      # `.test_durations`; upload it so `fallback-durations-merge` can union the six
+      # into the committed, time-balanced file.
+      - name: Upload this shard's stored durations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pure-durations-shard-${{ matrix.shard }}
+          path: docs/srmech/python/.test_durations
+          if-no-files-found: warn
+          retention-days: 14
+
+  fallback-durations-merge:
+    # `#T1007` — union the 6 shards' stored durations into ONE `.test_durations`.
+    # Each shard's `--store-durations` wrote only its 1/6 (a subset); the union is the
+    # complete per-test duration map. Commit the uploaded `test-durations-merged`
+    # artifact to `docs/srmech/python/.test_durations` to flip every later run from
+    # equal-count to TIME-balanced (the one-time bootstrap). Idempotent: re-run any
+    # time to refresh the balance as tests are added/removed.
+    name: fallback durations merge (build committed .test_durations)
+    needs: [fallback-no-native]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download the 6 per-shard durations
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pure-durations-shard-*
+          path: dur
+      - name: Union them into a complete .test_durations + fail if incomplete
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, glob
+          merged = {}
+          files = sorted(glob.glob('dur/**/.test_durations', recursive=True))
+          for f in files:
+              try:
+                  merged.update(json.load(open(f)))
+              except Exception as e:
+                  print(f'WARN: could not read {f}: {e}')
+          json.dump(merged, open('.test_durations', 'w'), indent=0, sort_keys=True)
+          mins = round(sum(merged.values()) / 60, 1)
+          print(f'merged {len(files)} shard file(s) -> {len(merged)} test durations, {mins} min CPU')
+          if len(files) < 6:
+              raise SystemExit(
+                  f'::error::expected 6 shard-duration artifacts, got {len(files)} - '
+                  'the union is INCOMPLETE and would mis-balance the split')
+          PY
+      - name: Upload the merged .test_durations (commit this to enable time-balance)
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-merged
+          path: .test_durations
           retention-days: 14
 
   fallback-shard-coverage-union:
