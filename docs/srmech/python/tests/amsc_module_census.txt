@@ -60,7 +60,6 @@ qpoly
 qprime
 quasimodular_forms_ring
 rational
-responsion_schema
 riemann_theta
 riemann_theta_multisum
 search

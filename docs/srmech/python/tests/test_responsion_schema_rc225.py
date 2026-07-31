@@ -48,7 +48,7 @@ import pytest
 from srmech.amsc import _native
 from srmech.amsc.carrier_schema import _CARRIERS
 from srmech.amsc.dispatch import _OPEN_HINTS
-from srmech.amsc.responsion_schema import (
+from srmech.introspect.responsion_schema import (
     _CONTINUOUS_VERIFIED,
     _DISCRETE_VERIFIED,
     _INFER_OP,
@@ -144,7 +144,7 @@ def test_carrier_refs_resolve_in_carrier_schema() -> None:
 
 def test_dangling_ref_raises_at_derivation() -> None:
     """A dangling ref is a BUG, not a payload: the derivation itself raises."""
-    from srmech.amsc import responsion_schema as rs
+    from srmech.introspect import responsion_schema as rs
 
     bogus = (("cyclic", "srmech.amsc.no_such.op", "One", "x"),)
     real = rs._DISCRETE_VERIFIED
@@ -357,7 +357,7 @@ def test_generated_table_holds_every_edge() -> None:
 
 def test_tool_entry_registered_and_total_matches_live() -> None:
     schema = get_tool_schema()
-    entry = schema.lookup("srmech.amsc.responsion_schema.responsion_schema")
+    entry = schema.lookup("srmech.introspect.responsion_schema.responsion_schema")
     assert entry is not None
     assert entry.category == "responsion_schema"
     assert "k=3" in entry.summary
@@ -371,7 +371,7 @@ def test_rosetta_row_is_composes_c() -> None:
             fixture.read_text(encoding="utf-8").splitlines() if l.strip()]
     row = [r for r in rows
            if r["defined_at"]
-           == "srmech.amsc.responsion_schema.responsion_schema"]
+           == "srmech.introspect.responsion_schema.responsion_schema"]
     assert len(row) == 1
     assert row[0]["bucket"] == "non_compute"
     assert row[0]["non_compute_kind"] == "composes_c"

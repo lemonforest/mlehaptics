@@ -10,7 +10,7 @@
  * with c/tools/gen_responsion_registry.py). This file provides the public
  * accessors declared in srmech.h and the whole-schema assembler
  * `srmech_responsion_schema`, whose output is BYTE-IDENTICAL to CPython
- *   json.dumps(srmech.amsc.responsion_schema._pure_responsion_schema(),
+ *   json.dumps(srmech.introspect.responsion_schema._pure_responsion_schema(),
  *              sort_keys=True, separators=(",", ":"))
  * — each per-edge payload is baked in the table as its already-canonical
  * compact-ASCII JSON array fragment, and the table rows are in

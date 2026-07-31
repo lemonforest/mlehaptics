@@ -257,10 +257,28 @@ CEIL_AMSC_PREFIX = {
     # the SLASH form (srmech/introspect/naming.py) and its siblings by slash too,
     # so no extra dotted `srmech.amsc.` refs live in its ToolEntry text. decoded
     # stays 4 — naming is not a carrier op, so it has no hoisted byte-array refs.
-    "c/src/srmech_tool_registry.c": (1219, 4),
-    # CONTROL: has no byte arrays at all, so decoded 0 is a real zero rather
-    # than a decoder that stopped working.
-    "c/src/srmech_responsion_registry.c": (72, 0),
+    #
+    # as-text 1219 -> 1216 at rc368 (-3), decoded UNCHANGED at 4. The
+    # responsion_schema slice (srmech.amsc.responsion_schema ->
+    # srmech.introspect.responsion_schema). THREE as-text here: the responsion
+    # ToolEntry `name=` citation, its worked-example import
+    # `from srmech.amsc.responsion_schema import responsion_schema`, and the
+    # carrier_schema ToolEntry's SIBLINGS prose which named responsion_schema by
+    # its dotted path — all three rewritten amsc->introspect. decoded stays 4
+    # (responsion_schema is not a carrier op; the 4 are this artifact's own
+    # hoisted strings, untouched by the move).
+    "c/src/srmech_tool_registry.c": (1216, 4),
+    # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
+    # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
+    # 0 is a real zero". It is still a real zero on the decoded channel, but the
+    # as-text channel is no longer inert here — responsion_schema IS the
+    # responsion-registry schema, so the generated source-of-truth comment
+    # (`Source of truth: srmech.<...>.responsion_schema._pure_responsion_schema()`,
+    # emitted by gen_responsion_registry.py) repointed amsc->introspect. as-text
+    # 72 -> 71 (-1), decoded UNCHANGED at 0. The 71 residual are the edge-OPERATOR
+    # names (zeilberger / dispatch / coupling / laplacian / cascade / ...), whose
+    # modules did NOT move — a rename of the schema op does not touch them.
+    "c/src/srmech_responsion_registry.c": (71, 0),
     # CONTROL: generated .py, no embedded arrays. Their long integer runs were
     # inspected at rc361 and are worked-example OUTPUT VALUES (octonion basis
     # vectors, inertia signatures, index triples) — genuine numeric data, not a
@@ -276,7 +294,11 @@ CEIL_AMSC_PREFIX = {
     # as-text 1202 -> 1200 at rc367 (-2), decoded UNCHANGED at 0. The naming
     # slice — the SAME two ToolEntry `name=` citations as the tool registry (this
     # is the doc pair), rewritten amsc->introspect.
-    "python/srmech/amsc/_tool_docs.py": (1200, 0),
+    # as-text 1200 -> 1197 at rc368 (-3), decoded UNCHANGED at 0. The
+    # responsion_schema slice — the SAME three citations as the tool registry
+    # (this is the doc pair): the responsion ToolEntry name, its worked-example
+    # import, and the carrier_schema SIBLINGS prose ref — all amsc->introspect.
+    "python/srmech/amsc/_tool_docs.py": (1197, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -285,6 +307,10 @@ CEIL_AMSC_PREFIX = {
     # ARE c_dispatched (srmech_catalog_lookup / srmech_reverse_order), so their
     # two keys moved amsc->introspect. The C SYMBOLS are unchanged — only the
     # Python-side dotted key repointed.
+    # rc368 UNCHANGED at (248, 0) — the INVERSE of rc367. responsion_schema is
+    # non_compute/composes_c (it has C REACH via srmech_responsion_schema but is
+    # not itself a `c_dispatched` leaf), so it never had a key in this op->C-symbol
+    # CLAIM manifest. A composes_c module move does not touch _c_claims.py.
     "python/srmech/amsc/_c_claims.py": (248, 0),
 }
 
@@ -298,8 +324,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2942   # rc366 2948 -> rc367 2942 (-6: naming amsc->introspect; -2 tool, -2 _tool_docs, -2 _c_claims)
-TOTAL_DECODED = 573    # rc366 573 -> rc367 573 (FLAT: naming is not a carrier op, so no decoded byte-array refs moved)
+TOTAL_AS_TEXT = 2935   # rc367 2942 -> rc368 2935 (-7: responsion_schema amsc->introspect; -3 tool, -3 _tool_docs, -1 responsion_registry source-of-truth comment)
+TOTAL_DECODED = 573    # rc367 573 -> rc368 573 (FLAT: responsion_schema is not a carrier op, so no decoded byte-array refs moved)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":

@@ -372,7 +372,6 @@ srmech.amsc.rational.sin
 srmech.amsc.rational.sin_series_truncate
 srmech.amsc.rational.sqrt
 srmech.amsc.rational.tan
-srmech.amsc.responsion_schema.responsion_schema
 srmech.amsc.riemann_theta_multisum.multivariate_riemann_theta_sum
 srmech.amsc.riemann_theta_multisum.riemann_theta_multisum_lhs
 srmech.amsc.search.byte_search
@@ -405,6 +404,7 @@ srmech.introspect.list
 srmech.introspect.naming.lookup
 srmech.introspect.naming.reverse_order
 srmech.introspect.publish
+srmech.introspect.responsion_schema.responsion_schema
 srmech.music.bell_partials
 srmech.music.bessel_j_fixed
 srmech.music.bessel_zero_fixed

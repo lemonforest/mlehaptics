@@ -13,7 +13,7 @@ against the concrete rc236 op. numpy-free.
 """
 from __future__ import annotations
 
-from srmech.amsc.responsion_schema import (
+from srmech.introspect.responsion_schema import (
     _COMMUTATIVE_CARRIERS,
     _curvature_class,
     _pure_responsion_schema,
