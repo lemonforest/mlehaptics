@@ -31,17 +31,35 @@ way. The reason is the whole point of the instrument: a declustering slice runs
 would be rewritten by the very change it is meant to detect and go green
 unconditionally — the EMPTY-probe failure mode A.5 indicts.
 
-TO CHANGE THE POPULATION DELIBERATELY (a later slice that MOVES a module), two
-edits are required, in the same commit — copy the rc361 two-edit procedure:
+TO CHANGE THE POPULATION DELIBERATELY (a later slice that MOVES a module), in
+the same commit:
   1. rewrite the manifest, dropping the module stem(s) that left::
        python scratch/gen_census.py srmech/amsc tests/amsc_module_census.txt
      (or by hand — it is a plain sorted list; subpackages carry a trailing "/")
-  2. update ``EXPECTED_CENSUS_SHA256`` (and ``EXPECTED_N_MODULES`` /
-     ``EXPECTED_N_SUBPACKAGES`` if a subpackage moved) to what the failure
-     message prints.
-Needing TWO edits is deliberate: a careless single-file rewrite cannot silently
-pass, because the digest is pinned in SOURCE and the population is pinned on
-disk.
+  2. update ``EXPECTED_CENSUS_SHA256`` (and ``EXPECTED_N_SUBPACKAGES`` if a
+     subpackage moved) to what the failure message prints.
+  3. lower ``EXPECTED_N_MODULES`` by the number that left, and add each departed
+     stem to ``LANDED`` — the ``test_the_drain_is_conserved_*`` invariant
+     requires ``EXPECTED_N_MODULES + len(LANDED) == ORIGINAL_N_MODULES``, so
+     these two move together and neither can be forgotten silently.
+Needing the digest pinned in SOURCE while the population is pinned on disk means
+a careless single-file rewrite cannot pass; ``LANDED`` + the conservation
+invariant means a manifest shrink cannot be booked without saying WHERE the
+module went.
+
+⚠️ rc366 — WHY THIS IS NOT THE ORIGINAL "TWO-EDIT" PROCEDURE. The rc365 mint
+said only "drop from the manifest + update the digest", and the FIRST real move
+(the ``harmonics`` -> ``srmech.music`` slice) proved that incomplete: the manifest
+is the CURRENT amsc population (it must shrink so the down-only ceiling drops and
+a re-add is caught), but ``NAMED_DEPARTURES`` / ``ADR_A2_DESTINATION_COUNTS`` are
+A.2's FIXED plan (``harmonics -> music`` is a correct classification forever,
+whether or not it has moved). At rc365 those agreed because nothing had moved, so
+``test_the_move_map_matches_A2`` checked "named member still in the manifest" and
+the "73 of 75" gap was stated against the live count — both rc365-snapshot
+truths. Dropping ``harmonics`` from the manifest correctly turned them red. The
+fix decouples the three quantities: ``LANDED`` (drain progress) restores the
+distinction, a named member is REAL when it is still in amsc OR landed, and the
+gap is stated against ``ORIGINAL_N_MODULES``. Step 3 above is the residue.
 """
 from __future__ import annotations
 
@@ -55,10 +73,19 @@ _AMSC = Path(srmech.__file__).resolve().parent / "amsc"
 
 # ── pinned population (the committed census) ─────────────────────────────────
 
-#: Module stems and subpackage names in ``srmech/amsc/`` at rc365. Pinned only
-#: so the failure message can say "75 -> 74" instead of dumping the set; the
-#: SET on disk and its digest below are the actual contract.
-EXPECTED_N_MODULES = 75
+#: The rc365 BASELINE module count — the denominator A.2 classified against, and
+#: a FIXED historical fact (the tree had exactly this many ``srmech/amsc/*.py``
+#: modules the moment the census was minted). It never changes as the arc drains;
+#: the "73 of 75 classified" gap and the drain-conservation invariant below are
+#: both stated against it, so neither is a moving target.
+ORIGINAL_N_MODULES = 75
+
+#: LIVE ``srmech/amsc/`` module count — the CURRENT population, which DRAINS
+#: 75 -> 4 over the arc. Pinned only so the failure message can say "74 -> 73"
+#: instead of dumping the set; the SET on disk and its digest below are the
+#: actual contract. rc366 (ADR-0010's first module-moving slice): 75 -> 74, the
+#: ``harmonics`` departure to ``srmech.music`` (see ``LANDED`` below).
+EXPECTED_N_MODULES = 74
 EXPECTED_N_SUBPACKAGES = 3
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
@@ -66,7 +93,7 @@ EXPECTED_N_SUBPACKAGES = 3
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "c3c3d1747986168629548935b67cc0fd266b49a5dd3a6b9eaf2f4ae691345353")
+    "52a34d12c31bd1b2dca29354a7eebc5c1186d2e2c1246b1f52a5326a0f5d540f")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -115,6 +142,21 @@ NAMED_DEPARTURES = {
         "tool_schema", "_tool_docs", "carrier_schema",
         "op_provenance", "naming", "responsion_schema"}),
 }
+
+#: Modules that have COMPLETED their ADR-0010 departure — they have LEFT
+#: ``srmech/amsc/`` (so they are no longer in the manifest) and ARRIVED at their
+#: A.2 destination. This is the drain's running record, and it exists because the
+#: first real move (rc366) exposed a conflation the rc365 mint could not see: the
+#: manifest is the CURRENT amsc population (it must shrink as modules leave, so
+#: the down-only ratchet's ceiling actually drops and a re-add is caught), while
+#: ``NAMED_DEPARTURES`` / ``ADR_A2_DESTINATION_COUNTS`` are A.2's FIXED plan
+#: (harmonics -> music is true forever, whether or not it has moved yet). At rc365
+#: those two agreed because nothing had moved; the move-map test below asserted
+#: "every named member is still in the manifest", which is only a rc365-snapshot
+#: truth. ``LANDED`` restores the distinction: a named member is REAL when it is
+#: still in amsc OR has already landed, and the population is CONSERVED
+#: (live + landed == original). rc366: the harmonics slice, the first entry.
+LANDED = frozenset({"harmonics"})
 
 
 # ── readers ──────────────────────────────────────────────────────────────────
@@ -275,11 +317,17 @@ def test_the_move_map_matches_A2_where_A2_is_authoritative() -> None:
     is published at.
     """
     mods = _manifest_modules()
-    # named members are real, and none is a keeper
+    # named members are real, and none is a keeper. "Real" = still in amsc OR
+    # already LANDED at its destination — A.2 classifies a module whether it has
+    # moved yet or not, so once ``harmonics`` leaves the manifest it is still a
+    # correct A.2 classification, just a completed one. Checking against ``mods``
+    # alone was a rc365-snapshot truth that the first real move (rc366) broke.
+    real = mods | LANDED
     seen: set[str] = set()
     for dest, members in NAMED_DEPARTURES.items():
-        assert members <= mods, (
-            f"{dest}: named member(s) not in the census: {sorted(members - mods)}")
+        assert members <= real, (
+            f"{dest}: named member(s) neither in the census nor landed: "
+            f"{sorted(members - real)}")
         assert not (members & KEEPERS), (
             f"{dest}: names a keeper: {sorted(members & KEEPERS)}")
         assert not (members & seen), (
@@ -296,9 +344,44 @@ def test_the_move_map_matches_A2_where_A2_is_authoritative() -> None:
         ADR_A2_DESTINATION_COUNTS["srmech.introspect"]
     # the keeps count is the keeper set
     assert ADR_A2_DESTINATION_COUNTS["srmech.amsc"] == len(KEEPERS)
-    # A.2's table sums to 74; the tree has 75 (its own "73 of 75" gap, documented)
+    # A.2's table sums to 74; the ORIGINAL tree had 75 (its own "73 of 75" gap,
+    # documented). The gap is stated against the FIXED baseline, not the draining
+    # live count — otherwise it would falsely move by 1 on every slice.
     assert sum(ADR_A2_DESTINATION_COUNTS.values()) == 74
-    assert EXPECTED_N_MODULES - sum(ADR_A2_DESTINATION_COUNTS.values()) == 1
+    assert ORIGINAL_N_MODULES - sum(ADR_A2_DESTINATION_COUNTS.values()) == 1
+
+
+def test_the_drain_is_conserved_and_landed_is_a_real_record() -> None:
+    """live + landed == original — the drain moves modules, it never loses them.
+
+    rc366 added ``LANDED`` when the first module-moving slice exposed that the
+    manifest (current amsc population) and A.2's fixed plan are DIFFERENT
+    quantities the rc365 mint had conflated. This is the invariant that keeps
+    them honest: every module the manifest has shed is accounted for as landed,
+    so ``EXPECTED_N_MODULES`` (live) + ``len(LANDED)`` always reconstructs the
+    fixed baseline. A module that "left" without being recorded as landed — or a
+    landed module still sitting in amsc — is the drift this catches.
+    """
+    assert EXPECTED_N_MODULES + len(LANDED) == ORIGINAL_N_MODULES, (
+        f"drain not conserved: live {EXPECTED_N_MODULES} + landed {len(LANDED)} "
+        f"!= original {ORIGINAL_N_MODULES}. A module left the manifest without "
+        f"being recorded in LANDED, or LANDED gained a module that is still live.")
+    live = _live_modules()
+    # A landed module has genuinely LEFT amsc (it is what makes the down-only
+    # ceiling drop) and is NOT in the committed manifest either …
+    assert not (LANDED & live), (
+        f"LANDED names a module still live in srmech/amsc: {sorted(LANDED & live)} "
+        f"— it has not actually departed, so it is not landed.")
+    assert not (LANDED & _manifest_modules()), (
+        f"LANDED names a module still in the census manifest: "
+        f"{sorted(LANDED & _manifest_modules())} — drop it from the manifest in "
+        f"the same slice that lands it.")
+    # … and A.2 actually classified it (it lands SOMEWHERE named, not nowhere).
+    a2_named = frozenset().union(*NAMED_DEPARTURES.values())
+    assert LANDED <= a2_named, (
+        f"LANDED names a module A.2 does not classify per-module: "
+        f"{sorted(LANDED - a2_named)} — a module cannot land at a destination "
+        f"the move map never named.")
 
 
 # ── 4. NON-VACUITY: prove each assertion can actually fire ────────────────────

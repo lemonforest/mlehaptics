@@ -35,7 +35,6 @@ gap_suggester
 genome
 gosper
 harmonic_maass
-harmonics
 hdc
 hv
 kepler

@@ -51,7 +51,7 @@ EXPECTED_N = 525
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a rename.
 EXPECTED_NAME_SET_SHA256 = (
-    "65f377549897eafff922ad6033879cb4c86a42c89f35892870c24a6c894355de")
+    "812dc897bc12cf8ebfdc76dd12445e9b2c29484df4b9c82bb7c9b3d7f390a509")
 
 
 def _live_names() -> list[str]:

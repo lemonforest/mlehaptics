@@ -4,11 +4,17 @@ The ADR-0010 ``srmech.music.*`` domain namespace, opened at v0.9.0rc362. It
 holds the acoustic/music surface: partial spectra, the exactness TIER TAG over
 them, and a commensurability verdict that can return **"inharmonic"**.
 
-⚠️ **"harmonic" in this package is the ACOUSTIC word.** Everywhere else in the
-tree it means **chirality order** — ``harmonics.classify_harmonic`` has the
-signature ``(class_letter: str) -> int`` and indexes the A–N partition. The two
-senses never meet; nothing here imports, extends or shadows that surface, and
-every name in this package is chosen so it cannot be read as the chirality one.
+⚠️ **"harmonic" in THIS ``__init__``'s public surface is the ACOUSTIC word** —
+partials, overtones, frequency ratios. The OTHER sense, **chirality order**, now
+also lives in this package: ADR-0010 (v0.9.0rc366) relocated ``harmonics.py``
+here from ``srmech.amsc`` (a slice moves the parent, keeps the leaf), so
+``srmech.music.harmonics.classify_harmonic`` — signature
+``(class_letter: str) -> int``, indexing the A–N ``HARMONIC_PARTITION`` — sits as
+a SIBLING submodule. The two senses still never meet: ``harmonics`` is a distinct
+module, it is deliberately NOT imported or re-exported here, and every name in
+THIS ``__init__`` is acoustic, so nothing below can be read as the chirality one.
+(`` set(__all__) & set(harmonics.__all__) == set() `` is pinned by
+``test_music_commensurability_rc362``.)
 
 WHAT IS HERE
 ============

@@ -1,6 +1,6 @@
 # ADR-0010: srmech namespace declustering — `amsc` is the attestation framework, not the dumping ground
 
-**Status:** 🟢 **ACCEPTED — execution arc OPEN, FIRST SLICE SHIPPED v0.9.0rc364** (`#T1034`). The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`, and the measured cost is there to plan the remaining slices from. *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
+**Status:** 🟢 **ACCEPTED — execution arc OPEN; STRUCTURE slice shipped v0.9.0rc364, FIRST MODULE-MOVING slice shipped v0.9.0rc366** (`#T1034`). The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`; Amendment C (2026-07-31) carries the first slice to relocate a module with public callables — `harmonics` → `srmech.music` — which is where the census and op-name-set witness got their first live test. *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
 **Date:** 2026-07-23.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.
@@ -299,6 +299,8 @@ no green baseline, so a red is unattributable.
    and moves no module, satisfying this item's own ordering constraint. **The first module-moving
    slice is unblocked.** Cheapest first real slice measured for the conductor: `compose` →
    `srmech.cascade` (the namespace already exists from rc364) or `harmonics` → `srmech.music`.
+   ✅ **`harmonics` → `srmech.music` SHIPPED v0.9.0rc366** — the first module-moving slice; it also
+   found and fixed a three-way conflation the census's rc365 mint could not see (Amendment C).
 
 ---
 
@@ -510,3 +512,60 @@ how many paths they rewrite.
    was loud, not silent), but the gate could not go green in the sanctioned environment. Fixed by
    testing the parts of the path **relative to the scan root**, which preserves the intent exactly:
    `.claude/worktrees/` sits above `docs/`, so nothing below `docs/srmech` can be a worktree.
+
+## Amendment C — the FIRST MODULE-MOVING slice, v0.9.0rc366 (`#T1034`)
+
+rc364 created a *structure* namespace (`srmech.cascade`) and moved directories; B.5 records that **the
+ratchet did not move** because no registered op relocated. rc366 is the first slice to move a **module
+carrying public callables** out of `amsc` to a domain home: **`srmech/amsc/harmonics.py` →
+`srmech/music/harmonics.py`** (the A.2 `srmech.music.* | 1 | harmonics` row). The leaf name `harmonics`
+is kept (B.1 rule 1: a slice relocates the parent, never renames the leaf), and `srmech.music` already
+existed from rc362, so this was a drop-in, not a new namespace. It is the first live exercise of the
+rc365 census and the rc361 op-name-set witness on a real move.
+
+### C.1 The census's rc365 mint conflated three quantities — the first move exposed it, and it is FIXED
+
+The census docstring's "two-edit procedure" (drop the module from the manifest + update the digest) is
+**incomplete**, and dropping `harmonics` from the manifest proved it by turning
+`test_the_move_map_matches_A2` red — *not* because harmonics was misfiled, but because the rc365 mint
+treated three different quantities as one, true only in the snapshot where nothing has moved:
+
+- the **manifest** = the CURRENT amsc population (must shrink so the down-only ceiling drops and a
+  re-add is caught);
+- `NAMED_DEPARTURES` / `ADR_A2_DESTINATION_COUNTS` = A.2's **fixed plan** (`harmonics → music` is a
+  correct classification forever, whether or not it has moved);
+- drain **progress** (which modules have actually landed).
+
+At rc365 all three agreed. The move-map test asserted "every named member is still in the manifest",
+and the "73 of 75" gap was stated against the live count — both rc365-snapshot truths. The fix
+introduces a `LANDED` record and a conservation invariant (`EXPECTED_N_MODULES + len(LANDED) ==
+ORIGINAL_N_MODULES`), makes "a named member is REAL when still in amsc OR landed", and states the gap
+against a fixed `ORIGINAL_N_MODULES`. The manifest still drops the leaver (the ceiling still falls);
+A.2's record is preserved; and a manifest shrink can no longer be booked without saying WHERE the
+module went. The census docstring's procedure is rewritten to three coupled edits. **census digest:
+`c3c3d174…` → `52a34d12…`; `harmonics` dropped (78 → 77 lines, 75 → 74 modules).**
+
+### C.2 What the prose gate did NOT catch — a real planning input for the bigger buckets
+
+The rc363 prose op-ref gate was expected to fire on the stale citation. **It did not**, and the reason
+is worth carrying forward: harmonics' only dotted `srmech.amsc.harmonics.*` strings were the ToolEntry
+`name=` fields, which the gate does not scan (it reads `summary` / `explanation` / params / returns),
+and its prose cites siblings in **slash-form** `srmech/amsc/harmonics.py:NN`, which the gate excludes as
+a filename. So a module whose cross-citations are file-path:line refs is **invisible** to the
+dotted-path gate. The slash-form citations were fixed anyway (below the gate's floor, for correctness).
+The instrument that actually caught the move was the **rc361 op-name-set witness** (the SET + digest
+changed; `EXPECTED_N` stayed 525, a move not an add/remove). The bigger `math` / `apokatastasis`
+buckets are more likely to carry genuine dotted cross-citations that WILL trip the prose gate.
+
+### C.3 Cost — a second data point for B.6's ≈7:1 rule
+
+The non-compute split did **not** move: `classify_harmonic` is `non_compute` / `composes_c` and stayed
+`composes_c` — a rename preserves the bucket, so all four non-compute counts are unchanged; only the
+row's dotted name and the `COMPOSES_C_ZERO_REACH_PINNED` pin moved (amsc → music). Measured ripple:
+**2 registered op names, 2 rosetta ledger rows, 1 zero-reach pin, 1 op-name-set digest, 1 census
+manifest + digest + the `LANDED`/conservation fix, 2 worked-example ledger rows, 3 regenerated
+artifacts (`_tool_docs.py` + 2 C registries), 6 curated-doc fields (2 harmonics + 4 siblings whose
+`harmonics.py` citation was repointed), 5 test-file imports.** As B.6 predicted, the path change itself
+was trivial; the cost was the **ledger/census ripple and the census-design adjudication**. Scope the
+`math` / `apokatastasis` buckets by public-callables-and-ledger-rows disturbed, not path count — and
+budget for the census `LANDED` list growing one entry per landed module.

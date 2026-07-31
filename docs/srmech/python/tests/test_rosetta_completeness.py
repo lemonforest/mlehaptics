@@ -1369,7 +1369,6 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     "srmech.amsc.ellbase.chirality_parity",
     "srmech.amsc.format.validate_mpr_record",
     "srmech.amsc.format.write_ndjson",
-    "srmech.amsc.harmonics.classify_harmonic",
     "srmech.amsc.hdc.klein4_project_axis",
     "srmech.amsc.laplacian.write_packed_graph",
     # hypercomplex_perspectives (v0.9.0rc308, #944) — the quaternion_laplacian /
@@ -1425,6 +1424,14 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     # question this pin exists to force — "is this really not a compute
     # kernel?" — is answered by reading the body: it is a table.
     "srmech.music._instruments.bell_partials",
+    # v0.9.0rc366 — the F150 chirality-harmonic static map, RELOCATED from
+    # srmech.amsc.harmonics by ADR-0010's first module-moving slice (the leaf
+    # name is kept; only the parent namespace moved). Still a pure STATIC
+    # dict lookup from an A–N class letter to its 1/2/3 chirality-order rung —
+    # zero compute, zero ledger reach — so it stays composes_c/zero-reach and
+    # simply carries its new dotted name. NOTE this "harmonic" is the CHIRALITY
+    # order, NOT the acoustic sense of its new music siblings above.
+    "srmech.music.harmonics.classify_harmonic",
 })
 
 

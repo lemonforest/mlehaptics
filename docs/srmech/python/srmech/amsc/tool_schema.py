@@ -2676,7 +2676,7 @@ def _register_primitive_class_tools() -> None:
         # namespace, per [[feedback_no_privileged_primitive_classes]]).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.harmonics.classify_harmonic", owner="srmech",
+            name="srmech.music.harmonics.classify_harmonic", owner="srmech",
             category="harmonics",
             summary="Chirality-harmonic order (1/2/3) of an A–N class operator "
                     "(F150): H1=ABFHN invariant, H2=CDEGKM mirror, H3=IJL 3-cycle.",
@@ -2684,7 +2684,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("int", "harmonic order 1, 2, or 3"),
         ),
         ToolEntry(
-            name="srmech.amsc.harmonics.classify_chirality_harmonic", owner="srmech",
+            name="srmech.music.harmonics.classify_chirality_harmonic", owner="srmech",
             category="harmonics",
             summary="Classify an encoded hypervector into chirality-harmonic 1/2/3 "
                     "by its spectral symmetry signature (F150 §6.2); the three "

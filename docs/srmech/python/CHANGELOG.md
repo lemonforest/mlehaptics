@@ -13,6 +13,28 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc366]
+
+**THE FIRST MODULE-MOVING SLICE — `srmech/amsc/harmonics.py` → `srmech/music/harmonics.py` (ADR-0010 execution, A.2 `srmech.music.* | harmonics` row).** `#T1034`. rc364 created a *structure* namespace and moved directories but relocated no registered op (its Amendment B.5: "the ratchet did not move"); this is the first slice to move a module that carries **public callables**. The leaf name `harmonics` is kept (ADR-0010 B.1 rule 1: a slice relocates the parent, never renames the leaf), and `srmech.music` already existed from rc362, so it is a drop-in. `describe()["tools"]["total"]` stays **525** (a move, not an add/remove); `SRMECH_ABI_VERSION` stays **10**.
+
+**⚠️ `harmonics` is NOT acoustic.** It lives beside the acoustic `_bessel` / `_instruments` / `_spectra` surface, but `classify_harmonic(class_letter: str) -> int` returns the A–N `HARMONIC_PARTITION` **chirality-order** rung and has nothing to do with sound. It is deliberately NOT re-exported through `srmech.music.__init__`, stays a distinct submodule, and its docstring says so.
+
+### The two op names + the full ripple
+
+`srmech.amsc.harmonics.classify_harmonic` → `srmech.music.harmonics.classify_harmonic` and `…classify_chirality_harmonic` likewise. Every surface a 2-op rename touches, repointed in this rc: the `ToolEntry` registrations; the **op-name-SET witness** (`tests/registered_op_names.txt` rewritten + `EXPECTED_NAME_SET_SHA256` re-pinned; `EXPECTED_N` stays **525**); the 2 rosetta ledger rows + the `COMPOSES_C_ZERO_REACH_PINNED` pin (moved amsc → music); the 3 regenerated artifacts (`_tool_docs.py` + `srmech_tool_registry.c` + `srmech_carrier_registry.c` via `tools/regen_all.py`, content-verified); the 6 curated-doc fields (`_tool_docs_curated.py` — the 2 harmonics ops' keys/examples/prose plus 4 sibling ops whose `harmonics.py` citation was repointed, one `--accept-seed-drift` for the legitimate curated edit); the 2 worked-example ledger rows (`run_worked_examples.py --only-stale`, both still `ok`); and 5 test-file imports.
+
+### The non-compute split did NOT move
+
+`classify_harmonic` is `non_compute` / `composes_c` (a static A–N dict lookup, zero ledger reach) and `classify_chirality_harmonic` is `composition_of_c`. A rename preserves the bucket, so all four non-compute counts and the `_TOTAL_NON_COMPUTE` pin are unchanged; only the row's dotted name and the zero-reach pin moved.
+
+### The census's rc365 mint conflated three quantities — the first move exposed it, and it is FIXED
+
+The census two-edit procedure (drop the module from the manifest + update the digest) turned out **incomplete**: dropping `harmonics` from the manifest turned `test_the_move_map_matches_A2` red — not because harmonics was misfiled, but because the rc365 mint treated the **current amsc population** (the manifest, which must shrink so the down-only ceiling drops), **A.2's fixed plan** (`NAMED_DEPARTURES` / `ADR_A2_DESTINATION_COUNTS` — `harmonics → music` is correct forever), and **drain progress** as one quantity — true only in the snapshot where nothing has moved. Fixed by adding a `LANDED` record and a conservation invariant (`EXPECTED_N_MODULES + len(LANDED) == ORIGINAL_N_MODULES`), making "a named member is REAL when still in amsc OR landed", and stating the "73 of 75" gap against a fixed `ORIGINAL_N_MODULES`. The manifest still drops the leaver; A.2's record is preserved; a shrink can no longer be booked without saying where the module went. **census digest `c3c3d174…` → `52a34d12…`; 78 → 77 manifest lines, 75 → 74 modules.** See ADR-0010 Amendment C.
+
+### What the prose op-ref gate did NOT catch — and why it matters for the next slices
+
+The rc363 prose gate was expected to fire on the stale citation; it did not. Harmonics' only dotted `srmech.amsc.harmonics.*` strings were the ToolEntry `name=` fields (which the gate does not scan — it reads `summary` / `explanation` / params / returns), and its prose cites siblings in **slash-form** `srmech/amsc/harmonics.py:NN`, which the gate excludes as a filename. So a module whose cross-citations are file-path refs is invisible to the dotted-path gate; the slash-form citations were fixed anyway, below the gate's floor. The instrument that actually caught the move was the **rc361 op-name-set witness**. The bigger `math` / `apokatastasis` buckets are likelier to carry genuine dotted cross-citations that WILL trip the prose gate.
+
 ## [0.9.0rc365]
 
 **THE `srmech/amsc/` MODULE-AND-SUBPACKAGE CENSUS — ADR-0010 A.5 item 5, the instrument that must land green BEFORE the first module-moving slice.** `#T1034`. Ships **alone and moves no module**, per the A.5 ordering rule: *an instrument built in the same arc as the change it detects has no green baseline, so a red is unattributable.* No op, no C surface, no registered callable — `describe()["tools"]["total"]` stays **525**, `SRMECH_ABI_VERSION` stays **10**.

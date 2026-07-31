@@ -29,7 +29,8 @@ from array import array
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import compose, coupling, harmonics, hdc, laplacian
+from srmech.amsc import compose, coupling, hdc, laplacian
+from srmech.music import harmonics
 from srmech.amsc.q import Q
 
 _I8P = ctypes.POINTER(ctypes.c_int8)

@@ -279,7 +279,7 @@ srmech.amsc.hdc.polar_unbind
 srmech.amsc.laplacian.symmetric_eigendecompose
 srmech.amsc.laplacian.three_fold_eigvec_groups
 srmech.amsc.coupling.signed_sum_squared
-srmech.amsc.harmonics.classify_chirality_harmonic
+srmech.music.harmonics.classify_chirality_harmonic
 srmech.amsc.compose.greedy_bipartite_alignment
 srmech.amsc.cascade.hypercomplex_couple
 srmech.amsc.cascade.octonion_dft
@@ -365,7 +365,7 @@ srmech.amsc.write_ndjson
 srmech.amsc.gap_suggester.register_classifier
 srmech.amsc.gap_suggester.register_probes
 srmech.amsc.gap_suggester.suggest_gap_collections
-srmech.amsc.harmonics.classify_harmonic
+srmech.music.harmonics.classify_harmonic
 srmech.amsc.tool_schema.get_tool_schema
 srmech.amsc.tool_schema.load_extension_file
 srmech.amsc.tool_schema.register_profile_tools

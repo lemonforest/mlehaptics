@@ -193,8 +193,6 @@ srmech.amsc.genome.telomere_tick
 srmech.amsc.genome.upgrade_v15_to_v16
 srmech.amsc.gosper.gosper
 srmech.amsc.harmonic_maass.harmonic_maass
-srmech.amsc.harmonics.classify_chirality_harmonic
-srmech.amsc.harmonics.classify_harmonic
 srmech.amsc.hdc.bind
 srmech.amsc.hdc.bundle
 srmech.amsc.hdc.bundle_with_ties
@@ -413,6 +411,8 @@ srmech.music.bessel_zero_fixed
 srmech.music.commensurability_verdict
 srmech.music.common_period
 srmech.music.equal_temperament_partials
+srmech.music.harmonics.classify_chirality_harmonic
+srmech.music.harmonics.classify_harmonic
 srmech.music.membrane_partials
 srmech.music.spectrum_tier
 srmech.music.stiff_string_partials

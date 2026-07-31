@@ -16,7 +16,7 @@ import time
 
 from srmech.amsc.cascade.cayley_dickson import algebra_table, left_mult_matrix
 from srmech.amsc.cascade.matrix_cascades import char_poly
-from srmech.amsc.harmonics import _spectral_scores
+from srmech.music.harmonics import _spectral_scores
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from lane2_resonance_probe import (                                    # noqa: E402

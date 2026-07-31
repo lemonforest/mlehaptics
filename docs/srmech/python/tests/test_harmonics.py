@@ -9,7 +9,8 @@ in srmech.amsc.*.
 """
 import pytest
 
-from srmech.amsc import harmonics, dispatch, naming, search, cyclic, laplacian, compose
+from srmech.amsc import dispatch, naming, search, cyclic, laplacian, compose
+from srmech.music import harmonics
 
 
 # ── F150 operator → harmonic partition ────────────────────────────────────
