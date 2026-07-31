@@ -1,7 +1,7 @@
 """rc171 — the ORCHESTRATION→C spine, batch 1: the op-provenance verdict /
 carry / re-verify logic gains C peers (v0.9.0rc171).
 
-The five ``srmech.amsc.op_provenance`` verdict/carry ops move
+The five ``srmech.introspect.op_provenance`` verdict/carry ops move
 ``owed_orchestration`` → ``composes_c`` — each now dispatches its provenance
 LOGIC to a C peer so a bare-C host (no Python, no ``json.dumps``) builds +
 compares op-provenance records:
@@ -30,7 +30,7 @@ from fractions import Fraction
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import op_provenance as op
+from srmech.introspect import op_provenance as op
 
 _HAS_NATIVE = _native.HAS_NATIVE and _native.LIB is not None
 

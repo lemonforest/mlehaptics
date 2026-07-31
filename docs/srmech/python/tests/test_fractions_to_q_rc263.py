@@ -103,7 +103,7 @@ def test_negative_float_snaps_via_signed_cascade():
 def test_op_provenance_rational_roundtrip_is_q():
     # a stdlib Fraction canonicalises via the duck-typed numerator/denominator
     # branch, and decanon rebuilds the exact rational as a srmech Q (#845).
-    from srmech.amsc.op_provenance import _canon, _decanon
+    from srmech.introspect.op_provenance import _canon, _decanon
     canon, exact = _canon(F(1, 2))                         # Fraction INPUT
     assert exact and canon == {"__rational__": [1, 2]}
     back = _decanon(canon)

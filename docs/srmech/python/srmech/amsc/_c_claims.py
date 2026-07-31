@@ -497,10 +497,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     'srmech.amsc.octonion.oct_bind': ('srmech_oct_bind',),
     'srmech.amsc.octonion.oct_conjugate': ('srmech_oct_conjugate',),
     'srmech.amsc.octonion.oct_mult': ('srmech_oct_mult',),
-    'srmech.amsc.op_provenance.op_provenance_hash': (
-        'srmech_op_provenance_hash',
-        'srmech_op_provenance_hash_arena_bytes',
-    ),
     'srmech.amsc.plasmid.conserved_core': ('srmech_genome_conserved_core',),
     'srmech.amsc.plasmid.section_counts': (
         'srmech_genome_section_counts',
@@ -714,6 +710,10 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
     ),
     'srmech.introspect.naming.lookup': ('srmech_catalog_lookup',),
     'srmech.introspect.naming.reverse_order': ('srmech_reverse_order',),
+    'srmech.introspect.op_provenance.op_provenance_hash': (
+        'srmech_op_provenance_hash',
+        'srmech_op_provenance_hash_arena_bytes',
+    ),
     'srmech.music._bessel.bessel_j_fixed': (
         'srmech_bessel_j_fixed_big',
         'srmech_bessel_j_fixed_ws_bound',

@@ -1,6 +1,6 @@
 # ADR-0010: srmech namespace declustering — `amsc` is the attestation framework, not the dumping ground
 
-**Status:** 🟢 **ACCEPTED — execution arc OPEN; STRUCTURE slice shipped v0.9.0rc364, FIRST + SECOND MODULE-MOVING slices shipped v0.9.0rc366 / rc367** (`#T1034`). The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`; Amendment C (2026-07-31) carries the first slice to relocate a module with public callables — `harmonics` → `srmech.music` — which is where the census and op-name-set witness got their first live test; Amendment D (2026-07-31) carries the second — `naming` → `srmech.introspect` — which corrected the module-move instrument set to THREE (the decode-aware prefix ratchet, missed by rc366's first commit) and hit the first C-side entanglement (`srmech_invoke.c` hardcodes the dotted tool name). *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
+**Status:** 🟢 **ACCEPTED — execution arc OPEN; STRUCTURE slice shipped v0.9.0rc364, FIRST–FOURTH MODULE-MOVING slices shipped v0.9.0rc366 / rc367 / rc368 / rc369** (`#T1034`). The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`; Amendment C (2026-07-31) carries the first slice to relocate a module with public callables — `harmonics` → `srmech.music` — which is where the census and op-name-set witness got their first live test; Amendment D (2026-07-31) carries the second — `naming` → `srmech.introspect` — which corrected the module-move instrument set to THREE (the decode-aware prefix ratchet, missed by rc366's first commit) and hit the first C-side entanglement (`srmech_invoke.c` hardcodes the dotted tool name). *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
 **Date:** 2026-07-23.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.
@@ -789,3 +789,114 @@ as filenames). So the prose op-ref gate stayed green through a real move a third
 (harmonics, naming, responsion_schema) are "slash-form-cited" modules; the `math` / `apokatastasis`
 buckets remain the ones expected to carry genuine dotted cross-citations that WILL finally trip the prose
 gate.
+
+## Amendment F — the FOURTH module-moving slice, `op_provenance` → `srmech.introspect`, v0.9.0rc369 (`#T1034`)
+
+rc368 moved `responsion_schema` (1 op, `composes_c`) and its headline was "the first `composes_c` move —
+`_c_claims.py` stayed flat". rc369 moves **`srmech/amsc/op_provenance.py` →
+`srmech/introspect/op_provenance.py`** — the OPERATOR⊗OPERAND-as-one-addressable-object surface (`carry`
+the record, `op_provenance_hash` the Class-A canonical hasher, `op_verdict` / `family_verdict` the
+one-sided EQUAL/UNKNOWN verdicts, `reproject` the re-verify, `lossy_projection_record`) — an A.2
+`srmech.introspect | 10` member the census's `NAMED_DEPARTURES` already named. Leaf name `op_provenance`
+kept (B.1 rule 1); `srmech.introspect` already existed and is already a rosetta root, so it is a drop-in.
+The SIX `srmech.amsc.op_provenance.*` op names → `srmech.introspect.op_provenance.*`. It is the arc's
+**first move with a MIXED rosetta bucket set** (five `composes_c` ops + one `c_dispatched` op in the same
+module) and the **largest single doc move so far** (6 ops × the name+worked-example doc pair).
+
+### F.1 ⚠️ The "NOT c_dispatched" prediction was WRONG for one of the six ops — this slice is rc367-shaped
+
+The build brief predicted "NOT c_dispatched, NOT in invoke.c". The **`invoke.c` half held** (grep-verified
+zero `op_provenance` hits in `c/src/srmech_invoke.c`, before and after — so NO MCP dispatch-string edit,
+unlike `naming.lookup`). The **`c_dispatched` half did not**: `op_provenance_hash` is a genuine
+`c_dispatched` leaf. It has a dedicated C peer `srmech_op_provenance.c` (symbols `srmech_op_provenance_hash`
++ `srmech_op_provenance_hash_arena_bytes`), a real ctypes binding in `_native.py`, the `c_dispatched`
+bucket in the rosetta ledger, and therefore ONE key in the op→C-symbol claim manifest `_c_claims.py`.
+Consequence, the mirror of rc368 and a return to the rc367 shape:
+
+1. **`_c_claims.py` DRAINED (248 → 247).** The single `srmech.amsc.op_provenance.op_provenance_hash` key
+   repointed amsc→introspect. A `c_dispatched` move drains this manifest (naming: 250→248; op_provenance:
+   248→247); `responsion_schema`'s `composes_c` move left it flat. The five sibling ops
+   (`carry` / `op_verdict` / `family_verdict` / `reproject` / `lossy_projection_record`) are
+   `non_compute`/`composes_c` and never had a `_c_claims.py` key — so the module drains the manifest by
+   exactly ONE despite moving six ops.
+2. **The C capability symbols are untouched** — C symbol names are independent of the Python module path.
+   The rosetta buckets are preserved exactly across the move: `op_provenance_hash` stays `c_dispatched`,
+   the other five stay `non_compute`/`composes_c`.
+
+**Planning input:** the `c_dispatched` predicate must be checked PER-OP, not per-module. A module can carry
+a mixed bucket set, and the presence of a `srmech_<module>.c` peer is the tell that at least one op is
+likely C-backed — check `_c_claims.py` + the `_native.py` ctypes bindings, not only the module name.
+
+### F.2 The C fan-out — THREE surfaces (lighter than `responsion_schema`'s five): a C-cost data point
+
+`op_provenance` has a dedicated C peer translation unit but — unlike a schema module — NO dedicated
+generated registry and NO dedicated generator, so its dotted Python path is cited across **THREE** C
+surfaces, every one repointed amsc→introspect:
+
+| # | C surface | Kind | How repointed |
+|---|-----------|------|---------------|
+| 1 | `c/include/srmech.h` | hand-authored doc comment (×2) | direct edit (NOT ratcheted; a stale string here passes the pedantic build and ships silently) |
+| 2 | `c/src/srmech_op_provenance.c` | hand-authored C peer, doc + symbol-map comments (×6) | direct edit |
+| 3 | `c/src/srmech_tool_registry.c` | GENERATED tool table | via `regen_all` |
+
+Only one (#3) is regenerated; two (#1, #2) are hand-edited SOURCE. **The dangerous class is again #1 / #2:
+a stale dotted name in a C COMMENT does not fail `-Wpedantic -Werror` and is not covered by the
+decode-aware ratchet.** Guard: `git grep srmech.amsc.op_provenance -- docs/srmech/c/` verified ZERO remain
+after the edits + regen. **The C-cost model, now three data points:** a module with a `srmech_<module>.c`
+peer but NO `gen_<module>_registry.py` costs **3** C surfaces (op_provenance); a schema module with a peer
++ a dedicated table + generator costs **5** (responsion_schema); a module with neither costs **0–1**
+(harmonics/naming's C surfaces were the generated tool registry alone, plus naming's `srmech_invoke.c`
+dispatch spine). The `math` / `apokatastasis` buckets are dominated by peer-carrying non-schema modules, so
+the **3-surface** cost is the one to budget by default.
+
+### F.3 The measured ripple — the THREE-instrument set, all re-pinned in the move commit (per C.4)
+
+- **Census** (`test_amsc_module_census_rc365.py` + manifest): `op_provenance` dropped, **72 → 71
+  modules**; digest **`36c987f0…` → `ae010cc1…`**; `LANDED` `{harmonics, naming, responsion_schema}` →
+  **`{harmonics, naming, responsion_schema, op_provenance}`**; conservation **`71 + 4 == 75`** holds.
+  `NAMED_DEPARTURES["srmech.introspect"]` already listed `op_provenance`, so the A.2 move map needed no
+  edit.
+- **Op-name-set witness** (`test_op_name_set_witness_rc361.py` + manifest): the SET moves SIX names
+  amsc→introspect; digest **`91ce6e78…` → `79f1ddfc…`**; `EXPECTED_N` **stays 525**.
+- **Decode-aware prefix ratchet** (`test_namespace_prefix_decode_aware_rc361.py`):
+  `srmech_tool_registry.c` **(1216, 4) → (1202, 4)**; `_tool_docs.py` **(1197, 0) → (1183, 0)**;
+  `_c_claims.py` **(248, 0) → (247, 0)** (the `c_dispatched` drain, F.1); carrier / class / responsion
+  registries **unchanged**; **`TOTAL_AS_TEXT` 2935 → 2906** (−29), **`TOTAL_DECODED` 573 → 573** (flat);
+  the fifth decoded-population test (`amsc == 529`, `music == 13`) untouched. The −14 on each of the two
+  doc-carrying artifacts is the 6 `name=` citations + their worked-example imports + the sibling-prose
+  refs (`format.sha256_bytes`, `genome.telomere_tick`, `gene_express`, and the four op_provenance
+  cross-references), all amsc→introspect.
+- **Rosetta ledger** (`rosetta_classification.ndjson`): SIX rows repoint `exposed_as` + `defined_at`
+  amsc→introspect; buckets preserved (`op_provenance_hash` stays `c_dispatched`, the five siblings stay
+  `non_compute`/`composes_c`); all six stay rosetta-visible under the `srmech.introspect` root.
+- **Regenerated artifacts** (`tools/regen_all.py --accept-seed-drift`, content-equality + idempotent):
+  `_tool_docs.py`, `_c_claims.py`, `srmech_tool_registry.c` (the three that carry the dotted name);
+  carrier + class + responsion registries verified byte-identical. The worked-example ledger regenerated,
+  now `ok` under the introspect imports. (The seed-drift accept was required because the moved module's
+  own docstring self-path and the curated sibling refs are docstring/curation seeds that legitimately
+  changed — the drift set was exactly the 8 op_provenance-related tools, nothing else.)
+- **Source + curated citations**: 6 ToolEntry `name=` (`tool_schema.py`); `coupling.py`'s lazy
+  `from . import op_provenance` → `from ..introspect import op_provenance` (a consumer that STAYS in amsc
+  and now reaches UP to introspect — the first cross-namespace consumer repoint of the arc); the moved
+  module's 15 lazy `from .<amsc-sibling>` imports → `from ..amsc.<sibling>` (`format`, `_native` ×7,
+  `laplacian` ×4, `coupling`, `rational` ×2) and its own docstring self-path; the curated docs for the 6
+  op_provenance entries + the `format.sha256_bytes` sibling entry; `_native.py`'s two source-of-truth
+  comments; `genome.py`'s six sibling-pattern `:func:` refs; the two hand-written C comments (F.2).
+- **Consuming tests**: six live-import / prose repoints (`test_op_provenance_rc117`,
+  `test_op_provenance_c_rc171`, `test_recoverable_fold_rc125`, `test_fractions_to_q_rc263`,
+  `test_declared_type_honesty_rc363`, `test_rosetta_completeness`). Historical CHANGELOG / spike-note refs
+  to the old path are **frozen records** (rc366/rc367/rc368 precedent) and were left.
+
+### F.4 A NEW ripple class — the first cross-namespace CONSUMER repoint
+
+Every prior slice moved a module whose amsc-sibling dependencies moved WITH it or were only cited in prose.
+op_provenance is the first to expose a **live consumer that stays behind**: `srmech/amsc/coupling.py`
+(`RecoverableFold.identity`) lazily imports `op_provenance` to compute its chain hash. Its relative
+`from . import op_provenance` (which resolved to the amsc sibling) had to become
+`from ..introspect import op_provenance` — an amsc module now reaching UP into `srmech.introspect`. This is
+the inverse of the moved module's OWN import fixups (which reach DOWN from introspect back into amsc for
+`format` / `_native` / `laplacian` / …). **Planning input:** a module-move must grep for BOTH directions —
+the moved module's imports of its old siblings, AND its old siblings' imports of it — because a stale
+relative import in a STAYING consumer is a runtime `ImportError`, not a silent comment. Verified: the
+`coupling → op_provenance` lazy import re-derives the shipped gasket-fold address `f8a09890b9e8…` unchanged
+after the move.

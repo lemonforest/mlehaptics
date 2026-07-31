@@ -1379,7 +1379,7 @@ COMPOSES_C_ZERO_REACH_PINNED = frozenset({
     # reaches zero — the write_packed_graph accessor precedent above.
     "srmech.amsc.laplacian.hypercomplex_perspectives",
     "srmech.amsc.modular_forms_ring.modular_forms_ring",
-    "srmech.amsc.op_provenance.family_verdict",
+    "srmech.introspect.op_provenance.family_verdict",
     "srmech.amsc.poly.poly_from_coeffs",
     "srmech.amsc.qbipoly.qbipoly_from_coeffs",
     "srmech.amsc.qpoly.qpoly_from_coeffs",

@@ -1522,14 +1522,14 @@ class RecoverableFold:
     def identity(self) -> Optional[str]:
         """The op_provenance chain-hash of this fold's EXACT recoverable content
         (the decimation ``R`` coefficients + the branch count) via
-        :func:`srmech.amsc.op_provenance.lossy_projection_record` — the fold's
+        :func:`srmech.introspect.op_provenance.lossy_projection_record` — the fold's
         DECIDABLE identity when the complement is present, else ``None`` (you
         cannot decide identity from a lossy bundle alone). dim/seed are NOT part
         of the identity: two folds of the same ``(R, branches)`` at different
         dims recover the SAME object and share this address."""
         if self._exact_seed_R is None:
             return None
-        from . import op_provenance as _op    # rc117 canonical machinery (lazy)
+        from ..introspect import op_provenance as _op  # rc117 canonical machinery (lazy)
         rec = _op.lossy_projection_record(
             "srmech.amsc.coupling.fold_encode",
             {"R": list(self._exact_seed_R.coeffs), "branches": int(self._branches)},
@@ -1608,7 +1608,7 @@ def fold_identity(a, b) -> str:
       is decidable only when you hold the complement). NEVER a false
       EQUAL/NOT_EQUAL from lossy bundles.
 
-    This IS :func:`srmech.amsc.op_provenance.op_verdict`'s EQUAL/UNKNOWN
+    This IS :func:`srmech.introspect.op_provenance.op_verdict`'s EQUAL/UNKNOWN
     one-sidedness — but here the one-sidedness comes from PRESENCE-vs-ABSENCE of
     the complement, and the exactness of the carried complement is what upgrades
     the EQUAL/UNKNOWN pair to the DECIDABLE EQUAL/NOT_EQUAL when both are

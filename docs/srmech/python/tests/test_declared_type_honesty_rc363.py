@@ -23,7 +23,7 @@ Inspection of all 16 found most were not defects at all:
 
 * ``srmech.amsc.tripoly`` flagged ``BiPoly`` / ``Poly`` / ``Q`` because the
   *constructor* raises on them, while the registered op takes raw coefficients;
-* ``srmech.amsc.op_provenance`` flagged ``Mat`` / ``Q`` / ``Vec`` from prose in a
+* ``srmech.introspect.op_provenance`` flagged ``Mat`` / ``Q`` / ``Vec`` from prose in a
   raise that explains what is NOT provenance-tracked;
 * ``srmech.amsc.genome`` (68 ops) flagged ``Q`` from one raise in one helper.
 
