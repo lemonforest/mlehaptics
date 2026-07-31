@@ -5673,7 +5673,7 @@ def _register_primitive_class_tools() -> None:
         # Mechanism is named for, previously un-introspectable).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.responsion_schema.responsion_schema",
+            name="srmech.introspect.responsion_schema.responsion_schema",
             owner="srmech", category="responsion_schema",
             summary="The RESPONSION (stored-relationship) introspection "
                     "registry (rc225; user design 2026-07-12) — the k=3 "

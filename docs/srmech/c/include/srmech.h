@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc367"
-#define SRMECH_VERSION       "0.9.0rc367"
+#define SRMECH_VERSION_PRE   "rc368"
+#define SRMECH_VERSION       "0.9.0rc368"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -13050,7 +13050,7 @@ srmech_status_t srmech_carrier_schema(char *buf, size_t buf_len,
  * whole-schema assembler live in srmech_responsion_schema.c.
  *
  * srmech_responsion_schema emits bytes BYTE-IDENTICAL to CPython
- *   json.dumps(srmech.amsc.responsion_schema._pure_responsion_schema(),
+ *   json.dumps(srmech.introspect.responsion_schema._pure_responsion_schema(),
  *              sort_keys=True, separators=(",", ":"))
  * (each per-edge payload is baked pre-canonical; rows are in
  * byte-sorted key order == the sort_keys key order, so the assembler is

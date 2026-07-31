@@ -1,4 +1,4 @@
-"""srmech.amsc.responsion_schema — the RESPONSION (relationship) introspection
+"""srmech.introspect.responsion_schema — the RESPONSION (relationship) introspection
 surface (rc225; user design 2026-07-12) — the k=3 completion of the
 introspection triad.
 
@@ -308,8 +308,8 @@ def _validate_refs(edges: Dict[str, List[Dict[str, Any]]]) -> None:
     """Every responsion's ``operator`` must be a registered tool_schema key
     and its ``carrier`` a carrier registry key — the k=3 edge binds the k=2
     nodes; a dangling ref is a bug and raises (never ships silently)."""
-    from .carrier_schema import _CARRIERS
-    from .tool_schema import get_tool_schema, warmup_all
+    from ..amsc.carrier_schema import _CARRIERS
+    from ..amsc.tool_schema import get_tool_schema, warmup_all
 
     warmup_all()
     tools = {t.name for t in get_tool_schema().tools}
@@ -335,7 +335,7 @@ def _pure_responsion_schema() -> Dict[str, List[Dict[str, Any]]]:
     responsion relation derived from the F929 dispatch rows (verified
     reducers + the VERBATIM _OPEN_HINTS residues) and the response-function
     ops. Fresh (mutation-safe) structures each call; refs validated."""
-    from .dispatch import _OPEN_HINTS
+    from ..amsc.dispatch import _OPEN_HINTS
 
     edges: Dict[str, List[Dict[str, Any]]] = {}
 
@@ -380,7 +380,7 @@ def _native_responsion_schema() -> Optional[Dict[str, List[Dict[str, Any]]]]:
     dict, or ``None`` when the native peer is unavailable / returns non-OK
     (caller falls back to the pure path)."""
     try:
-        from . import _native
+        from ..amsc import _native
     except Exception:  # pragma: no cover — defensive; _native always imports
         return None
     raw = _native.responsion_schema_json_c()
@@ -403,7 +403,7 @@ def responsion_schema() -> Dict[str, List[Dict[str, Any]]]:
     ``srmech_responsion_registry`` const table — VALUE-identical to the pure
     path (byte-identical in canonical form; the sha256 hash-ratchet in tests
     locks the two). Otherwise the pure path derives it live."""
-    from .tool_schema import _REGISTRY
+    from ..amsc.tool_schema import _REGISTRY
 
     if not any(e.owner != "srmech" for e in _REGISTRY.values()):
         native = _native_responsion_schema()

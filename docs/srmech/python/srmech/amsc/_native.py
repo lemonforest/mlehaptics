@@ -7574,7 +7574,7 @@ def carrier_registry_find_c(name: str) -> "dict | None":
 # per-edge (operator ⊗ carrier) → responsion data + the canonical
 # responsion-schema JSON from the compiled-in srmech_responsion_registry
 # const table, byte-identical to the Python SSoT
-# (srmech.amsc.responsion_schema._pure_responsion_schema). These helpers
+# (srmech.introspect.responsion_schema._pure_responsion_schema). These helpers
 # exercise that surface from Python (the dispatch path + the hash-ratchet
 # + accessor round-trip tests).
 # ----------------------------------------------------------------------

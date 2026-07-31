@@ -671,3 +671,121 @@ op-name-set witness + the decode-aware ratchet are what caught it. The `math` / 
 are still the ones expected to carry genuine dotted cross-citations that WILL trip the prose gate; the
 two module moves so far are both "slash-form-cited" modules, which is why that gate has yet to fire on a
 move.
+
+## Amendment E — the THIRD module-moving slice, `responsion_schema` → `srmech.introspect`, v0.9.0rc368 (`#T1034`)
+
+rc367 moved `naming` (2 ops, `c_dispatched`) and its planning-input headline was "the first C-side
+entanglement". rc368 moves **`srmech/amsc/responsion_schema.py` → `srmech/introspect/responsion_schema.py`**
+— the RESPONSION (stored-relationship) introspection surface, the k=3 EDGE face binding `tool_schema`
+(verbs) and `carrier_schema` (nouns), an A.2 `srmech.introspect | 10` member the census's
+`NAMED_DEPARTURES` already named. Leaf name `responsion_schema` kept (B.1 rule 1); `srmech.introspect`
+already existed and is already a rosetta root, so it is a drop-in. Op name:
+`srmech.amsc.responsion_schema.responsion_schema` → `srmech.introspect.responsion_schema.responsion_schema`.
+It is the arc's **first `composes_c` (C-reaching but not `c_dispatched`) module move** and its **first
+move to touch the `responsion_registry` decode pin** — both departures from the naming analog, and both
+the data the bigger buckets need.
+
+### E.1 The "no C entanglement for a non-`c_dispatched` op" prediction HELD — the inverse of rc367
+
+The build brief predicted, and grep confirmed both before and after the move, that the dotted name does
+**not** appear in the hand-authored MCP dispatch spine `c/src/srmech_invoke.c` (zero `responsion` hits
+in that file). So, UNLIKE `naming.lookup` (which was hardcoded in a `strcmp` shape-guard AND the
+shape-vtable row and needed the amsc→introspect repoint), **`responsion_schema` needed no C
+dispatch-string edit**. The reason is its bucket: the op is `non_compute`/`composes_c` — it has C REACH
+(it dispatches to the `srmech_responsion_schema` assembler over the compiled-in `srmech_responsion_registry`
+const table) but it is **not a `c_dispatched` leaf**, and the MCP `tools/call` vtable routes only the
+`c_dispatched` leaves. Two consequences follow, both the mirror image of rc367:
+
+1. **`_c_claims.py` stayed FLAT at (248, 0).** That manifest is keyed only for `c_dispatched` ops, so
+   `responsion_schema` never had a key in it. A `c_dispatched` move (naming) drained it 250→248; a
+   `composes_c` move does not touch it at all.
+2. **No `COMPOSES_C_ZERO_REACH_PINNED` entry to repoint — but for the OPPOSITE reason to naming.** naming
+   had none because its ops are `c_dispatched` leaves (not `composes_c`). `responsion_schema` IS
+   `composes_c`, so one might expect a zero-reach pin — but it is a `composes_c` op **WITH** C reach (its
+   AST walk reaches the `srmech_responsion_schema` dispatch), so it was never in the zero-reach set. The
+   rosetta bucket is preserved exactly (`non_compute`/`composes_c`) across the move.
+
+The C **capability** symbol `srmech_responsion_schema` and the `srmech_responsion_registry_table` are
+untouched — C symbol names are independent of the Python module path. **Confirmed prediction, stated as a
+planning input:** a `composes_c`/C-reaching op with no `c_dispatched` vtable entry moves with NO C dispatch
+edit; only its generator + hand-written source-of-truth comments (E.2) follow the Python path.
+
+### E.2 A NEW data point — the first module move to move the `responsion_registry` decode pin
+
+Through harmonics (rc366) and naming (rc367) the decode-aware ratchet's `srmech_responsion_registry.c` row
+was a documented CONTROL: "no byte arrays, decoded 0 is a real zero", and untouched by either move. This
+slice touches it, because `responsion_schema` **is** the responsion-registry's own schema. Its generator
+`c/tools/gen_responsion_registry.py` (a) imports `_pure_responsion_schema` from the module — a LIVE import
+that would `ImportError` in `regen_all` if left unrepointed — and (b) emits a `Source of truth:` comment
+naming the module path. Both repointed amsc→introspect, so the generated `srmech_responsion_registry.c`
+fell **as-text 72 → 71** (decoded stays 0). The 71 residual are the edge-OPERATOR names
+(`zeilberger` / `dispatch` / `coupling` / `laplacian` / `cascade` / …), whose modules did **not** move — a
+rename of the schema op leaves every `(operator, carrier)` edge intact.
+
+⚠️ **The build brief's "no C source change except the version bump" was WRONG, and this is the general
+planning input the bigger buckets need.** What held was the narrower, correct prediction — **no C
+DISPATCH entanglement** (`srmech_invoke.c` clean; E.1). But `responsion_schema` has a **dedicated C peer
+translation unit** (`srmech_responsion_schema.c`) and a **dedicated generated data table**
+(`srmech_responsion_registry.c` + its generator), so its dotted Python path is cited across **FIVE** C
+surfaces, every one of which needed the amsc→introspect repoint:
+
+| # | C surface | Kind | How repointed |
+|---|-----------|------|---------------|
+| 1 | `c/include/srmech.h` | hand-authored doc comment | direct edit (NOT ratcheted; a stale string here passes the pedantic build and ships silently) |
+| 2 | `c/src/srmech_responsion_registry.c` | GENERATED data table | via the generator (#5) + `regen_all` |
+| 3 | `c/src/srmech_responsion_schema.c` | hand-authored C peer, doc comment (`json.dumps(…_pure_responsion_schema()…)` ~line 13) | direct edit |
+| 4 | `c/src/srmech_tool_registry.c` | GENERATED tool table | via `regen_all` |
+| 5 | `c/tools/gen_responsion_registry.py` | the GENERATOR that emits #2 (live import + emitted comment) | direct edit of the SOURCE |
+
+Two of the five (#2, #4) are regenerated; three (#1, #3, #5) are hand-edited SOURCE. **The dangerous class
+is #1 / #3: a stale dotted name in a C COMMENT does not fail `-Wpedantic -Werror` and is not covered by
+the decode-aware ratchet, so it would ship as a silent stale citation in the C distribution.** The only
+guard is a grep — verified ZERO `srmech.amsc.responsion_schema` remain anywhere under `docs/srmech/c/`
+after the edits + regen. **Every module has a `srmech_<module>.c` peer** (and many have a dedicated
+generated table + generator), so the `math` / `apokatastasis` buckets will hit this same 3-to-5-surface C
+citation fan-out repeatedly — the module-move checklist must include `git grep srmech.amsc.<module> --
+docs/srmech/c/` and a post-regen zero-grep, not only the `srmech_invoke.c` dispatch check.
+
+### E.3 The measured ripple — the THREE-instrument set, all re-pinned in the move commit (per C.4)
+
+- **Census** (`test_amsc_module_census_rc365.py` + manifest): `responsion_schema` dropped, **73 → 72
+  modules**; digest **`e4f88591…` → `36c987f0…`**; `LANDED` `{harmonics, naming}` →
+  **`{harmonics, naming, responsion_schema}`**; conservation **`72 + 3 == 75`** holds. `NAMED_DEPARTURES
+  ["srmech.introspect"]` already listed `responsion_schema`, so the A.2 move map needed no edit.
+- **Op-name-set witness** (`test_op_name_set_witness_rc361.py` + manifest): the SET moves ONE name
+  amsc→introspect; digest **`eef53539…` → `91ce6e78…`**; `EXPECTED_N` **stays 525**.
+- **Decode-aware prefix ratchet** (`test_namespace_prefix_decode_aware_rc361.py`):
+  `srmech_tool_registry.c` **(1219, 4) → (1216, 4)**; `_tool_docs.py` **(1200, 0) → (1197, 0)**;
+  `srmech_responsion_registry.c` **(72, 0) → (71, 0)** (the new data point); `_c_claims.py` **(248, 0)**
+  unchanged; carrier / class registries **unchanged**; **`TOTAL_AS_TEXT` 2942 → 2935** (−7),
+  **`TOTAL_DECODED` 573 → 573** (flat); the fifth decoded-population test (`amsc == 529`, `music == 13`)
+  untouched. The −3 on each of the two doc-carrying artifacts is the responsion `name=` citation + its
+  worked-example import + the `carrier_schema` SIBLINGS-prose ref that named it by dotted path — all
+  amsc→introspect; the −1 on the responsion registry is the source-of-truth comment (E.2).
+- **Rosetta ledger** (`rosetta_classification.ndjson`): ONE row repoints `exposed_as` + `defined_at`
+  amsc→introspect; **bucket stays `non_compute`/`composes_c`**; the op stays rosetta-visible under the
+  `srmech.introspect` root and the C reach it composes over is unchanged.
+- **Regenerated artifacts** (`tools/regen_all.py --accept-seed-drift`, content-equality + idempotent):
+  `_tool_docs.py`, `srmech_tool_registry.c`, `srmech_responsion_registry.c` (the three that carry the
+  dotted name); `_c_claims.py` + carrier + class registries verified byte-identical. One worked-example
+  ledger row regenerated (`--only-stale`, now `ok` under the introspect import).
+- **Source + curated citations**: 1 ToolEntry `name=` (`tool_schema.py`); the moved module's five lazy
+  `from .<amsc-sibling>` imports → `from ..amsc.<sibling>` and its own docstring self-path; the curated
+  docs for `responsion_schema`'s own entry plus the `carrier_schema` sibling entry whose dotted + slash
+  citations repointed; `_native.py`'s source-of-truth comment; the generator + two hand-written C
+  comments (E.2).
+- **Consuming tests**: three live-import repoints (`test_responsion_schema_rc225`,
+  `test_responsion_curvature_rc237`, `test_an_elliptic_jackson_rc227`). The annex / non-compute ratchet
+  narrative comments naming the old path are **frozen historical records** (rc366/rc367 precedent) and were
+  left; the edge KEYS in `test_responsion_schema_rc225` (`srmech.amsc.laplacian.responsion|Mat`, …) name
+  NON-moving operator modules and were correctly NOT touched.
+
+### E.4 The prose op-ref gate again did NOT fire — same reason as C.2 / D.3, third time
+
+`responsion_schema`'s only dotted `srmech.amsc.responsion_schema.*` strings are the ToolEntry `name=` field
+(not scanned) and its cross-citations are **slash-form** `srmech/amsc/responsion_schema.py:392` (excluded
+as filenames). So the prose op-ref gate stayed green through a real move a third consecutive time — census
++ op-name-set witness + decode-aware ratchet are what caught it. All three module moves to date
+(harmonics, naming, responsion_schema) are "slash-form-cited" modules; the `math` / `apokatastasis`
+buckets remain the ones expected to carry genuine dotted cross-citations that WILL finally trip the prose
+gate.

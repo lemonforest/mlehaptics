@@ -8,7 +8,7 @@
  * ORDER this file depends on. rc346 left it stale on purpose to keep its
  * own zero-delta signal clean; rc347 already moves these bytes.
  *
- * Source of truth: srmech.amsc.responsion_schema._pure_responsion_schema()
+ * Source of truth: srmech.introspect.responsion_schema._pure_responsion_schema()
  * (the F929 dispatch reduce-back rows + their verbatim _OPEN_HINTS
  * residues + the continuous response-function ops). The 0.9.0rc225
  * RESPONSION (stored-relationship) introspection registry -- the k=3

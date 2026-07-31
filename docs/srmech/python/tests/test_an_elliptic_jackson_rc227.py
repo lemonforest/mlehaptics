@@ -341,7 +341,7 @@ def test_registration():
 # ── (9) the rc225 responsion edges: the new verified reducer edge + the row's
 #        honest-OPEN edge (answers_with VERBATIM from _OPEN_HINTS) ──────────────────────
 def test_responsion_edges():
-    from srmech.amsc.responsion_schema import responsion_schema
+    from srmech.introspect.responsion_schema import responsion_schema
     schema = responsion_schema()
     v_key = ("srmech.amsc.elliptic_jackson_an.multivariate_elliptic_jackson_an"
              "|EllMonomial")

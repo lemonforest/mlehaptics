@@ -3,7 +3,7 @@
 
 The RESPONSION (stored-relationship) introspection registry — the k=3
 completion of the introspection triad (user design 2026-07-12): emit the
-``srmech.amsc.responsion_schema`` per-EDGE data (the ``(operator, carrier)``
+``srmech.introspect.responsion_schema`` per-EDGE data (the ``(operator, carrier)``
 edge key + the responsions riding it — kind / regime / answers_with /
 verified-or-OPEN status) as a ``const`` C data table so a bare-C host (no
 Python) produces the responsion registry DATA and the canonical
@@ -144,7 +144,7 @@ def generate() -> str:
     here = Path(__file__).resolve()
     python_dir = here.parent.parent.parent / "python"
     sys.path.insert(0, str(python_dir))
-    from srmech.amsc.responsion_schema import _pure_responsion_schema
+    from srmech.introspect.responsion_schema import _pure_responsion_schema
 
     schema = _pure_responsion_schema()
     # Byte-order key sort == CPython json.dumps(sort_keys=True) top-level
@@ -187,7 +187,7 @@ def generate() -> str:
     w(" * own zero-delta signal clean; rc347 already moves these bytes.")
     w(" *")
     w(" * Source of truth: "
-      "srmech.amsc.responsion_schema._pure_responsion_schema()")
+      "srmech.introspect.responsion_schema._pure_responsion_schema()")
     w(" * (the F929 dispatch reduce-back rows + their verbatim _OPEN_HINTS")
     w(" * residues + the continuous response-function ops). The 0.9.0rc225")
     w(" * RESPONSION (stored-relationship) introspection registry -- the k=3")
