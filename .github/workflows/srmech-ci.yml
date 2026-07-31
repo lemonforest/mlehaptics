@@ -393,20 +393,22 @@ jobs:
         # This is deliberately NOT `PYTHONHASHSEED=0`: a fixed hash seed is unnecessary
         # (order is already stable) and would risk the `#T931`/`#T980` hash-salted tests.
         #
-        # `--durations-path .test_durations --store-durations` (`#T1007`) makes the
-        # split TIME-balanced, not equal-count. pytest-split READS the committed
-        # `.test_durations` (if present) to place slow tests across shards, and each
-        # shard STORES its group's fresh per-test durations back (a SUBSET). The six
-        # subsets are unioned by the `fallback-durations-merge` job into a refreshed
-        # full `.test_durations` artifact, which a maintainer commits to update the
-        # balance. BOOTSTRAP: the very first run has no committed file, so pytest-split
-        # falls back to equal-count AND writes the first durations — that run's merged
-        # artifact is what gets committed to flip every later run to time-balanced.
+        # `--durations-path .test_durations` (`#T1007`) makes the split TIME-balanced,
+        # not equal-count: pytest-split READS the committed `.test_durations` (if
+        # present) to place slow tests across shards. (READ is xdist-safe; pytest-split's
+        # `--store-durations` WRITE is NOT — under `-n auto` it silently writes nothing,
+        # confirmed in CI — so durations are harvested from the log instead.)
+        # `--durations=0` prints EVERY node's call/setup/teardown time to this shard's
+        # log (xdist aggregates correctly); `fallback-durations-merge` parses all six
+        # logs, sums per node, and unions them into a complete `.test_durations` a
+        # maintainer commits to refresh the balance. BOOTSTRAP: the first run has no
+        # committed file, so pytest-split falls back to equal-count; that run's merged
+        # log-durations are what get committed to flip every later run to time-balanced.
         run: |
           set -o pipefail
-          pytest tests/ -q -rsfE -p no:randomly --durations=30 -n auto --dist load \
+          pytest tests/ -q -rsfE -p no:randomly --durations=0 -n auto --dist load \
             --splits 6 --group ${{ matrix.shard }} \
-            --durations-path .test_durations --store-durations \
+            --durations-path .test_durations \
             2>&1 | tee pytest-pure-shard-${{ matrix.shard }}.log
 
       # rc357 (`#T951`) / `#T1007` — keep the evidence, now PER SHARD. Each shard's
@@ -424,55 +426,54 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      # `#T1007` — each shard stored its group's fresh per-test durations to
-      # `.test_durations`; upload it so `fallback-durations-merge` can union the six
-      # into the committed, time-balanced file.
-      - name: Upload this shard's stored durations
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pure-durations-shard-${{ matrix.shard }}
-          path: docs/srmech/python/.test_durations
-          if-no-files-found: warn
-          retention-days: 14
-
   fallback-durations-merge:
-    # `#T1007` — union the 6 shards' stored durations into ONE `.test_durations`.
-    # Each shard's `--store-durations` wrote only its 1/6 (a subset); the union is the
-    # complete per-test duration map. Commit the uploaded `test-durations-merged`
-    # artifact to `docs/srmech/python/.test_durations` to flip every later run from
-    # equal-count to TIME-balanced (the one-time bootstrap). Idempotent: re-run any
-    # time to refresh the balance as tests are added/removed.
+    # `#T1007` — build the committed `.test_durations` from the six shard LOGS.
+    # pytest-split's `--store-durations` does NOT work under xdist (writes nothing;
+    # confirmed in CI — the first cut got 0 files), so each shard runs `--durations=0`
+    # (every node's call/setup/teardown time, which xdist DOES aggregate) and tees it
+    # to its log. This job parses all six logs, sums per node, and writes the union.
+    # Commit the uploaded `test-durations-merged` artifact to
+    # `docs/srmech/python/.test_durations` to flip every later run from equal-count to
+    # TIME-balanced (the one-time bootstrap). Each node runs in exactly one shard, so
+    # the union is complete iff all six logs are present — which this job asserts.
+    # Idempotent: re-run any time to refresh the balance as tests are added/removed.
     name: fallback durations merge (build committed .test_durations)
     needs: [fallback-no-native]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Download the 6 per-shard durations
+      - name: Download the 6 shard logs
         uses: actions/download-artifact@v4
         with:
-          pattern: pure-durations-shard-*
-          path: dur
-      - name: Union them into a complete .test_durations + fail if incomplete
+          pattern: pytest-pure-log-shard-*
+          path: logs
+      - name: Parse per-node durations from the logs + fail if incomplete
         shell: bash
         run: |
           python3 - <<'PY'
-          import json, glob
-          merged = {}
-          files = sorted(glob.glob('dur/**/.test_durations', recursive=True))
-          for f in files:
-              try:
-                  merged.update(json.load(open(f)))
-              except Exception as e:
-                  print(f'WARN: could not read {f}: {e}')
-          json.dump(merged, open('.test_durations', 'w'), indent=0, sort_keys=True)
-          mins = round(sum(merged.values()) / 60, 1)
-          print(f'merged {len(files)} shard file(s) -> {len(merged)} test durations, {mins} min CPU')
-          if len(files) < 6:
+          import json, glob, re
+          # pytest --durations=0 line: "<secs>s <phase>    <nodeid>". The nodeid can
+          # contain spaces (parametrized ids), so capture to end-of-line, not \S+.
+          pat = re.compile(r'^([0-9.]+)s\s+(call|setup|teardown)\s+(tests/.+?)\s*$')
+          dur = {}
+          logs = sorted(glob.glob('logs/**/pytest-pure-shard-*.log', recursive=True))
+          for lg in logs:
+              for line in open(lg, encoding='utf-8', errors='replace'):
+                  m = pat.match(line.rstrip('\n'))
+                  if m:
+                      dur[m.group(3)] = dur.get(m.group(3), 0.0) + float(m.group(1))
+          json.dump(dur, open('.test_durations', 'w'), indent=0, sort_keys=True)
+          mins = round(sum(dur.values()) / 60, 1)
+          print(f'parsed {len(logs)} shard log(s) -> {len(dur)} node durations, {mins} min CPU')
+          if len(logs) < 6:
               raise SystemExit(
-                  f'::error::expected 6 shard-duration artifacts, got {len(files)} - '
-                  'the union is INCOMPLETE and would mis-balance the split')
+                  f'::error::expected 6 shard logs, got {len(logs)} - the union is '
+                  'INCOMPLETE and would mis-balance the split')
+          if len(dur) < 500:
+              raise SystemExit(
+                  f'::error::only {len(dur)} node durations parsed from 6 logs - the '
+                  'parse regex likely no longer matches pytest --durations output')
           PY
       - name: Upload the merged .test_durations (commit this to enable time-balance)
         uses: actions/upload-artifact@v4
