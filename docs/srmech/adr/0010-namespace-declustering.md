@@ -289,6 +289,17 @@ no green baseline, so a red is unattributable.
    land in its OWN rc with a green baseline before the first MODULE-moving slice — the same ordering
    constraint as the rest of this list, and rc364 deliberately did not mint it inside itself.
 
+   ✅ **DONE — v0.9.0rc365 (`#T1034`).** `tests/test_amsc_module_census_rc365.py` + the hand-committed
+   manifest `tests/amsc_module_census.txt` pin the population as a name-SET (75 module stems + 3
+   subpackage names) plus a `sha256_bytes` digest, mirroring the rc361 op-name-SET witness. It is
+   **down-only** (live ⊆ committed; a module may leave, one appearing is red), it checks departures
+   against A.2's move map (removed ⊆ the 71 non-keepers; the four keepers never depart), and its
+   non-vacuity is proved by four injections — mapped-departure (digest changes), unmapped-departure
+   (move-map red), new-module (down-only red), keeper-departure (keeper red). It ships alone, green,
+   and moves no module, satisfying this item's own ordering constraint. **The first module-moving
+   slice is unblocked.** Cheapest first real slice measured for the conductor: `compose` →
+   `srmech.cascade` (the namespace already exists from rc364) or `harmonics` → `srmech.music`.
+
 ---
 
 ## Amendment B — the first execution slice, v0.9.0rc364 (`#T1034`, with `#T1039`)
