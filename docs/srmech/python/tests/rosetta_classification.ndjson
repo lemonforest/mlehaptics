@@ -122,8 +122,8 @@
 {"exposed_as": "srmech.amsc.laplacian.cotangent_weights", "defined_at": "srmech.amsc.laplacian.cotangent_weights", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.laplacian.quaternion_laplacian", "defined_at": "srmech.amsc.laplacian.quaternion_laplacian", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.laplacian.hypercomplex_perspectives", "defined_at": "srmech.amsc.laplacian.hypercomplex_perspectives", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.naming.lookup", "defined_at": "srmech.amsc.naming.lookup", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.naming.reverse_order", "defined_at": "srmech.amsc.naming.reverse_order", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.introspect.naming.lookup", "defined_at": "srmech.introspect.naming.lookup", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.introspect.naming.reverse_order", "defined_at": "srmech.introspect.naming.reverse_order", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.primes.cyclic_period", "defined_at": "srmech.amsc.primes.cyclic_period", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.primes.factor", "defined_at": "srmech.amsc.primes.factor", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.primes.is_prime", "defined_at": "srmech.amsc.primes.is_prime", "bucket": "c_dispatched"}

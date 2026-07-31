@@ -10,7 +10,8 @@ import random
 
 import pytest
 
-from srmech.amsc import _native, dispatch, naming, template
+from srmech.amsc import _native, dispatch, template
+from srmech.introspect import naming
 
 
 # ---------------------------------------------------------------------

@@ -87,9 +87,9 @@ _BATCH2_CASES = [
     ("srmech.amsc.dispatch.match",
      {"input_bytes": _b64(b"abc"), "rules": []}),                      # empty rules -> [false, 0]
     # (bytes, list[(bytes, bytes)]) -> bytes | null
-    ("srmech.amsc.naming.lookup",
+    ("srmech.introspect.naming.lookup",
      {"key": _b64(b"k2"), "pairs": [[_b64(b"k1"), _b64(b"v1")], [_b64(b"k2"), _b64(b"v2")]]}),
-    ("srmech.amsc.naming.lookup",
+    ("srmech.introspect.naming.lookup",
      {"key": _b64(b"zz"), "pairs": [[_b64(b"k1"), _b64(b"v1")]]}),     # miss -> null
     # (bytes, Mapping[bytes, bytes]) -> bytes
     ("srmech.amsc.template.render",

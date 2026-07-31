@@ -1,5 +1,14 @@
 """Class E — catalog / naming primitive (Task #217 Phase C1).
 
+⚠️ **This module lives under ``srmech.introspect`` — ADR-0010 relocated it from
+``srmech.amsc`` at v0.9.0rc367 (a slice relocates the parent namespace, never
+renames the leaf), so the two registered ops are now
+``srmech.introspect.naming.lookup`` / ``srmech.introspect.naming.reverse_order``.
+The Class-E capability is unchanged; only its namespace home moved (A.2 groups
+it with the cross-cutting introspect meta). The C peer is named by CAPABILITY
+(``srmech_catalog_lookup`` / ``srmech_reverse_order``), so the dispatch symbol is
+untouched by the move.**
+
 Single operation: :func:`lookup` — given a search key and a sorted
 list of (key, value) pairs, find the entry whose key equals the
 search key and return its value bytes. Binary search over ascending
@@ -25,7 +34,7 @@ from __future__ import annotations
 import ctypes
 from typing import Iterable, Optional, Tuple
 
-from . import _native
+from ..amsc import _native
 
 __all__ = ["lookup", "reverse_order"]
 

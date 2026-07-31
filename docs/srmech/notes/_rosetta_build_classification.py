@@ -67,8 +67,8 @@ srmech.amsc.laplacian.elementwise_transcendental
 srmech.amsc.laplacian.hermitian_eigendecompose
 srmech.amsc.laplacian.jacobi_eigvals
 srmech.amsc.laplacian.normalized_laplacian
-srmech.amsc.naming.lookup
-srmech.amsc.naming.reverse_order
+srmech.introspect.naming.lookup
+srmech.introspect.naming.reverse_order
 srmech.amsc.primes.cyclic_period
 srmech.amsc.primes.factor
 srmech.amsc.primes.is_prime

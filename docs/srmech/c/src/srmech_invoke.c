@@ -1115,7 +1115,7 @@ static srmech_status_t iv_shape_naming_lookup(const srmech_tool_entry_t *e,
     bool found = false; srmech_status_t st;
     assert(e != NULL && argv != NULL && a != NULL && out != NULL);
     assert(argc >= 1u);
-    if (argc != 2u || strcmp(e->name, "srmech.amsc.naming.lookup") != 0) {
+    if (argc != 2u || strcmp(e->name, "srmech.introspect.naming.lookup") != 0) {
         return SRMECH_ERR_NOT_IMPL;
     }
     if (!iv_arg_bytes(argv[0], &kp, &kl)) { return SRMECH_ERR_NOT_IMPL; }
@@ -1435,7 +1435,7 @@ static const iv_vtable_row_t IV_VTABLE[] = {
     { "srmech.amsc.hdc.bundle",              iv_shape_bundle },
     { "srmech.amsc.format.sha256_batch",     iv_shape_sha256_batch },
     { "srmech.amsc.dispatch.match",          iv_shape_dispatch_match },
-    { "srmech.amsc.naming.lookup",           iv_shape_naming_lookup },
+    { "srmech.introspect.naming.lookup",     iv_shape_naming_lookup },
     { "srmech.amsc.template.render",         iv_shape_template_render },
     /* rc190 FLOAT-CARRIER BATCH — Mat/Vec (real) via the dense kernel / a lone
      * multiply; the result serialises repr-exact via srmech_double_repr. */
