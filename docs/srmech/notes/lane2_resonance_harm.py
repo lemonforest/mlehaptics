@@ -14,7 +14,7 @@ import sys
 
 from srmech.amsc.cascade.cayley_dickson import algebra_table, left_mult_matrix
 from srmech.amsc.cascade.matrix_cascades import char_poly, eigvals_exact
-from srmech.amsc.harmonics import _spectral_scores, classify_chirality_harmonic
+from srmech.music.harmonics import _spectral_scores, classify_chirality_harmonic
 
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from lane2_resonance_probe import (                                    # noqa: E402

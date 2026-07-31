@@ -22,7 +22,7 @@ from srmech.amsc.cascade.cayley_dickson import (
     algebra_table, table_product, left_mult_matrix, cd_basis, inertia_signature,
 )
 from srmech.amsc.cascade.matrix_cascades import char_poly, eigvals_exact
-from srmech.amsc.harmonics import _spectral_scores
+from srmech.music.harmonics import _spectral_scores
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.q import Q
 

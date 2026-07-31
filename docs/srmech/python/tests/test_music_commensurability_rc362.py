@@ -539,7 +539,7 @@ def test_music_never_collides_with_the_chirality_sense_of_harmonic():
     """``classify_harmonic`` is NOT acoustic — it maps an A–N class letter to
     its chirality order. Nothing in ``srmech.music`` shadows or imports it, and
     the two surfaces answer entirely different questions."""
-    from srmech.amsc import harmonics
+    from srmech.music import harmonics
 
     # It answers a CHIRALITY question: which of the three HARMONIC_PARTITION
     # rungs an A-N class letter sits on. Its whole codomain is {1, 2, 3}, and

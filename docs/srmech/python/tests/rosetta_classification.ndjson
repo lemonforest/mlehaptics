@@ -270,7 +270,7 @@
 {"exposed_as": "srmech.amsc.get_attested_dataset", "defined_at": "srmech.amsc.catalog.get_attested_dataset", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.get_attested_descriptor", "defined_at": "srmech.amsc.catalog.get_attested_descriptor", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.get_local_kernel_state", "defined_at": "srmech.amsc.catalog.get_local_kernel_state", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.harmonics.classify_harmonic", "defined_at": "srmech.amsc.harmonics.classify_harmonic", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.music.harmonics.classify_harmonic", "defined_at": "srmech.music.harmonics.classify_harmonic", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.iter_attested_dataset", "defined_at": "srmech.amsc.catalog.iter_attested_dataset", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.list_attested_sources", "defined_at": "srmech.amsc.catalog.list_attested_sources", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.list_registered_roots", "defined_at": "srmech.amsc.catalog.list_registered_roots", "bucket": "non_compute", "non_compute_kind": "composes_c"}
@@ -347,7 +347,7 @@
 {"exposed_as": "srmech.amsc.q_zeilberger.q_zeilberger", "defined_at": "srmech.amsc.q_zeilberger.q_zeilberger", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.q_wz_certificate.q_wz_certificate", "defined_at": "srmech.amsc.q_wz_certificate.q_wz_certificate", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.dispatch.infer", "defined_at": "srmech.amsc.dispatch.infer", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.harmonics.classify_chirality_harmonic", "defined_at": "srmech.amsc.harmonics.classify_chirality_harmonic", "bucket": "composition_of_c"}
+{"exposed_as": "srmech.music.harmonics.classify_chirality_harmonic", "defined_at": "srmech.music.harmonics.classify_chirality_harmonic", "bucket": "composition_of_c"}
 {"exposed_as": "srmech.amsc.hdc.bundle_with_ties", "defined_at": "srmech.amsc.hdc.bundle_with_ties", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_chirality_flip_gamma5", "defined_at": "srmech.amsc.hdc.klein4_chirality_flip_gamma5", "bucket": "c_dispatched"}
 {"exposed_as": "srmech.amsc.hdc.klein4_chirality_flip_omega7", "defined_at": "srmech.amsc.hdc.klein4_chirality_flip_omega7", "bucket": "c_dispatched"}

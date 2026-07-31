@@ -2,7 +2,8 @@
 
 WHAT THIS PINS, AND WHY IT IS A CORRECTNESS TEST AND NOT A STYLE TEST
 ====================================================================
-``srmech/amsc/harmonics.py`` carried, since rc154, a comment claiming the
+``srmech/music/harmonics.py`` (``srmech/amsc/harmonics.py`` until the ADR-0010
+rc366 slice relocated it) carried, since rc154, a comment claiming the
 classifier composes "**Class-N** exact ratios". Through rc353 the code read the
 vector as ``float`` at ``harmonics.py:99`` and ``:145``, so the claim was false
 of the code. Three reachable defect families were reproduced against the
@@ -41,7 +42,7 @@ import itertools
 
 import pytest
 
-from srmech.amsc.harmonics import _spectral_scores, classify_chirality_harmonic
+from srmech.music.harmonics import _spectral_scores, classify_chirality_harmonic
 from srmech.amsc.mat import Mat
 from srmech.amsc.q import Q
 from srmech.amsc.vec import Vec

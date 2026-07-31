@@ -1,4 +1,13 @@
-"""srmech.amsc.harmonics — per-operator chirality-harmonic classification (F150).
+"""srmech.music.harmonics — per-operator chirality-harmonic classification (F150).
+
+⚠️ **"harmonic" HERE MEANS CHIRALITY ORDER, NOT THE ACOUSTIC SENSE.** This
+module lives under ``srmech.music`` (ADR-0010 relocated it from ``srmech.amsc``
+at v0.9.0rc366 — a slice relocates the parent, never renames the leaf), so it
+sits beside the acoustic ``_bessel`` / ``_instruments`` / ``_spectra`` surface;
+but ``classify_harmonic(class_letter: str) -> int`` returns the A–N
+``HARMONIC_PARTITION`` chirality-order rung and has NOTHING to do with sound.
+It does not import, extend or shadow the acoustic surface, and it is deliberately
+NOT re-exported through ``srmech.music.__init__`` — the two senses never meet.
 
 The 14 A–N class operators do NOT carry uniform chirality. Per Finding 150
 (RBS-LM research subtree, 2026-05-28) they partition into a **1-2-3 harmonic**
@@ -38,8 +47,8 @@ from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
-from . import cyclic as _cyclic
-from .q import Q, to_q
+from ..amsc import cyclic as _cyclic
+from ..amsc.q import Q, to_q
 
 # F150 operator → chirality-harmonic partition (the 1-2-3 reading of the 14).
 HARMONIC_1: Tuple[str, ...] = ("A", "B", "F", "H", "N")

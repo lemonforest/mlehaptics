@@ -7,7 +7,7 @@ SUBJECT (shipped srmech ops only — no hand-rolled math in the measured path):
   - ``srmech.amsc.cascade.cayley_dickson.table_product``    (the cascade STEP, applied)
   - ``srmech.amsc.qmat.QMat.matmul``                        (exact-Q composition of steps)
   - ``srmech.amsc.cascade.matrix_cascades.char_poly``       (the EXACT spectral signature)
-  - ``srmech.amsc.harmonics.classify_chirality_harmonic``   (the shipped harmonic surface)
+  - ``srmech.music.harmonics.classify_chirality_harmonic``   (the shipped harmonic surface)
 
 THE CASCADE.  An accumulator ``u`` in a dim-D algebra; each STEP is a left
 multiplication ``u <- e_i . u``.  A cascade is a WORD in the step generators.
@@ -44,7 +44,7 @@ from srmech.amsc.cascade.cayley_dickson import (
     table_product,
 )
 from srmech.amsc.cascade.matrix_cascades import char_poly
-from srmech.amsc.harmonics import classify_chirality_harmonic, _spectral_scores
+from srmech.music.harmonics import classify_chirality_harmonic, _spectral_scores
 from srmech.amsc.mat import Mat
 from srmech.amsc.qmat import QMat
 

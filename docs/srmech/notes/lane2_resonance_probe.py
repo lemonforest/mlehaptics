@@ -11,8 +11,8 @@ SUBJECT (all shipped srmech ops — nothing hand-rolled in the measurement path)
   srmech.amsc.cascade.cayley_dickson.inertia_signature
   srmech.amsc.cascade.matrix_cascades.char_poly      -- EXACT integer spectral signature
   srmech.amsc.cascade.matrix_cascades.eigvals_exact  -- exact eigen isolation (demo)
-  srmech.amsc.harmonics._spectral_scores             -- EXACT Q (dc, mirror, three)
-  srmech.amsc.harmonics.classify_chirality_harmonic
+  srmech.music.harmonics._spectral_scores             -- EXACT Q (dc, mirror, three)
+  srmech.music.harmonics.classify_chirality_harmonic
   srmech.amsc.format.sha256_bytes                    -- Class A, deterministic control seed
 
 NO floats in any decision.  NO abs().  NO numpy.  NO stdlib fractions.
@@ -28,7 +28,7 @@ from srmech.amsc.cascade.cayley_dickson import (
     algebra_table, table_product, left_mult_matrix, cd_basis, inertia_signature,
 )
 from srmech.amsc.cascade.matrix_cascades import char_poly, eigvals_exact
-from srmech.amsc.harmonics import _spectral_scores, classify_chirality_harmonic
+from srmech.music.harmonics import _spectral_scores, classify_chirality_harmonic
 from srmech.amsc.format import sha256_bytes
 from srmech.amsc.q import Q
 
