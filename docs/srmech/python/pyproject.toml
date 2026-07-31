@@ -93,7 +93,7 @@ collectors = [
 ]
 # Tests extra: runs srmech's own pytest suite. numpy-FREE (#564) — the suite
 # itself runs with numpy NOT installed (no numpy oracle, no numpy fixtures).
-tests = ["pytest>=7.0", "pytest-xdist>=3.5", "pytest-forked>=1.6"]
+tests = ["pytest>=7.0", "pytest-xdist>=3.5", "pytest-forked>=1.6", "pytest-split>=0.8"]
 # Crypto extra (v0.5.0rc7): enables UTLP-exact AES-128-CTR Bio-TOTP
 # backend for the bus wire cipher (Claim 255). Without this extra
 # the bus falls back to a stdlib HMAC-SHA-256 keystream of the same
@@ -115,6 +115,9 @@ dev = [
     "pytest>=7.0",
     "pytest-xdist>=3.5",
     "pytest-forked>=1.6",
+    # pytest-split (`#T1007`): shards the pure-Python CI cell into 6 groups so the
+    # parametrized per-op nodes spread across MACHINES, not just cores.
+    "pytest-split>=0.8",
     "build",
     "twine",
     "scikit-build-core>=0.10",

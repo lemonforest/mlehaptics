@@ -28,7 +28,7 @@ import pytest
 import srmech.bus  # noqa: F401 — import side-effect
 
 import srmech
-from srmech.amsc.tool_schema import get_tool_schema
+from srmech.amsc.tool_schema import get_tool_schema, warmup_all
 from srmech.mcp import (
     MCP_PROTOCOL_VERSION,
     MCPError,
@@ -64,6 +64,27 @@ import sys as _sys
 _TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
 if _TESTS_DIR not in _sys.path:
     _sys.path.insert(0, _TESTS_DIR)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# `#T1007` — the advertised-tool list, computed ONCE at COLLECTION time.
+#
+# The two exhaustive per-op smokes (this file's every-tool invocation smoke
+# and test_immolation's return-type honesty gate) used to be a SINGLE function
+# each, looping ``for entry in advertised: invoke_tool(...)`` over every
+# ``mcp_callable`` ToolEntry. That is one atomic pytest node ~30 min long that
+# ``--dist loadfile`` pins to ONE xdist worker and no runner-matrix can split —
+# the single most expensive thing in the pure-Python CI cell. Parametrising
+# over this list makes EACH advertised tool its own node (spread across workers
+# under ``--dist load``), and a broken tool NAMES itself instead of hiding in an
+# accumulated list.
+#
+# ``warmup_all()`` guarantees the registry is fully populated regardless of the
+# order pytest happens to collect test modules in, so the parametrised node set
+# equals the live ``describe()`` surface (and matches test_immolation, which
+# imports this same list). It is idempotent (the whole suite calls it).
+warmup_all()
+_ADVERTISED = [e for e in get_tool_schema().tools if e.mcp_callable]
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1987,17 +2008,31 @@ def _is_binding_error(exc: BaseException) -> bool:
     return any(m in msg for m in binding_markers)
 
 
-def test_every_advertised_tool_invocable() -> None:
-    """§10.1 — THE EVERY-TOOL INVOCATION SMOKE.
+def test_advertised_tool_registry_not_small() -> None:
+    """Aggregate guard split out of the (now parametrized) every-tool smoke
+    (`#T1007`): the advertised registry must not have silently shrunk. The
+    per-op nodes below name any single broken tool; this asserts the SET is
+    the expected size (the old ``assert len(advertised) > 50``)."""
+    assert len(_ADVERTISED) > 50, "advertised tool registry unexpectedly small"
 
-    For EVERY ``mcp_callable=True`` ToolEntry: synthesise minimal valid
-    args from its schema (rc14 encodings per declared type), then invoke it
-    via ``invoke_tool``. Assert no BINDING error (the schema declares a
-    param the callable can't bind) and no COERCION error (the advertised
-    encoding doesn't round-trip). DOMAIN errors (ValueError, non-square
-    matrix, length mismatch, ZeroDivision, op-internal AssertionError) are
-    TOLERATED — they prove the tool was CALLED with bindable + coercible
-    args (we test callability, not domain validity).
+
+@pytest.mark.parametrize("entry", _ADVERTISED, ids=lambda e: e.name)
+def test_advertised_tool_invocable(entry: Any) -> None:
+    """§10.1 — THE EVERY-TOOL INVOCATION SMOKE, one node PER advertised tool
+    (`#T1007`; was a single ~30-min loop over every ``mcp_callable`` ToolEntry —
+    an atomic node ``--dist loadfile`` could not split).
+
+    For THIS ``mcp_callable=True`` ToolEntry: synthesise minimal valid args from
+    its schema (rc14 encodings per declared type), then invoke it via
+    ``invoke_tool``. FAIL on a BINDING error (the schema declares a param the
+    callable can't bind), a COERCION error (the advertised encoding doesn't
+    round-trip), a non-serialisable result, or a RETURN-TYPE mismatch. DOMAIN
+    errors (ValueError, non-square matrix, length mismatch, ZeroDivision,
+    op-internal AssertionError / TypeError) are TOLERATED — they prove the tool
+    was CALLED with bindable + coercible args (we test callability, not domain
+    validity). The tolerance logic and the exact fail conditions are UNCHANGED
+    from the pre-`#T1007` accumulate-then-assert loop; only the granularity is
+    finer (a broken tool NAMES itself instead of hiding in an accumulated list).
 
     This is the empirical complement to the rc14 ``has_coercer`` ratchet,
     which could not tell a real coercer from the ``_identity`` pass-through
@@ -2005,96 +2040,61 @@ def test_every_advertised_tool_invocable() -> None:
     """
     from srmech.mcp._tools import _coerce_arguments
 
-    schema = get_tool_schema()
-    advertised = [e for e in schema.tools if e.mcp_callable]
-    assert len(advertised) > 50, "advertised tool registry unexpectedly small"
+    synth = _synth_args_for_entry(entry)
 
-    failures: List[Tuple[str, Dict[str, Any], str]] = []
-    invoked_ok = 0
-
-    for entry in advertised:
-        synth = _synth_args_for_entry(entry)
-
-        # Phase 1 — coercion in isolation. A failure here means the
-        # advertised wire-encoding for some declared type does not coerce
-        # to the native type (a real, fixable surface bug).
-        try:
-            _coerce_arguments(entry, synth)
-        except Exception as exc:  # noqa: BLE001 — classify below
-            failures.append(
-                (entry.name, synth, f"COERCION {type(exc).__name__}: {exc}")
-            )
-            continue
-
-        # Phase 2 — full invoke (coerce + resolve + call). Tolerate domain
-        # errors; flag only binding errors. The result itself must
-        # JSON-serialise (the server slot is textual JSON) — a result that
-        # cannot serialise is also a real surface bug.
-        try:
-            raw = invoke_tool(entry.name, synth)
-        except TypeError as exc:
-            if _is_binding_error(exc):
-                failures.append(
-                    (entry.name, synth, f"BINDING TypeError: {exc}")
-                )
-            else:
-                invoked_ok += 1  # op-internal TypeError == reached the op
-            continue
-        except Exception:  # noqa: BLE001 — tolerated domain error
-            # ValueError / numpy LinAlgError / ZeroDivisionError /
-            # AssertionError / MCPToolError-from-domain etc. — the tool WAS
-            # called with bindable + coercible args. That is the property
-            # under test; the domain rejection is expected for synth data.
-            invoked_ok += 1
-            continue
-
-        # Reached the op AND returned — the result must be serialisable.
-        try:
-            serialise_result(raw)
-        except Exception as exc:  # noqa: BLE001
-            failures.append(
-                (entry.name, synth,
-                 f"RESULT not serialisable {type(exc).__name__}: {exc}")
-            )
-            continue
-
-        # rc131 — RETURN-TYPE AGREEMENT. The harness already holds ``raw``; the
-        # gap §10.1 historically left open was never asserting that ``type(raw)``
-        # AGREES with the advertised ``returns.type``. Assert it here too (the
-        # immolation gate owns the canonical guard; this folds the inspection
-        # into the existing every-tool harness). ``None`` agreement (an
-        # unassertable handle / unknown type) is skipped, exactly as the
-        # immolation gate skips it.
-        if entry.returns is not None:
-            from conftest import return_type_agrees
-            agrees = return_type_agrees(raw, entry.returns.type)
-            if agrees is False:
-                failures.append(
-                    (entry.name, synth,
-                     f"RETURN-TYPE mismatch: observed "
-                     f"{type(raw).__name__!r} does not match advertised "
-                     f"{entry.returns.type!r}")
-                )
-                continue
-        invoked_ok += 1
-
-    print(
-        f"\n{invoked_ok}/{len(advertised)} advertised tools invocable "
-        f"(binding+coercion+return-type clean)"
-    )
-    assert not failures, (
-        "every-tool invocation smoke found tools that are advertised but "
-        "NOT invocable with their advertised schema (binding / coercion / "
-        "non-serialisable-result — the gap the static has_coercer ratchet "
-        f"missed):\n"
-        + "\n".join(
-            f"  - {name}: {err}\n      args={args!r}"
-            for name, args, err in failures
+    # Phase 1 — coercion in isolation. A failure here means the advertised
+    # wire-encoding for some declared type does not coerce to the native type
+    # (a real, fixable surface bug).
+    try:
+        _coerce_arguments(entry, synth)
+    except Exception as exc:  # noqa: BLE001 — classify below
+        pytest.fail(
+            f"{entry.name}: COERCION {type(exc).__name__}: {exc}\n"
+            f"      args={synth!r}"
         )
-    )
-    # All advertised tools reached their op (or returned) — none failed on
-    # binding/coercion.
-    assert invoked_ok == len(advertised)
+
+    # Phase 2 — full invoke (coerce + resolve + call). Tolerate domain errors;
+    # flag only binding errors. The result itself must JSON-serialise (the
+    # server slot is textual JSON) — a result that cannot serialise is also a
+    # real surface bug.
+    try:
+        raw = invoke_tool(entry.name, synth)
+    except TypeError as exc:
+        if _is_binding_error(exc):
+            pytest.fail(
+                f"{entry.name}: BINDING TypeError: {exc}\n      args={synth!r}"
+            )
+        return  # op-internal TypeError == reached the op (tolerated domain)
+    except Exception:  # noqa: BLE001 — tolerated domain error
+        # ValueError / ZeroDivisionError / AssertionError /
+        # MCPToolError-from-domain etc. — the tool WAS called with bindable +
+        # coercible args. That is the property under test; the domain rejection
+        # is expected for synth data.
+        return
+
+    # Reached the op AND returned — the result must be serialisable.
+    try:
+        serialise_result(raw)
+    except Exception as exc:  # noqa: BLE001
+        pytest.fail(
+            f"{entry.name}: RESULT not serialisable "
+            f"{type(exc).__name__}: {exc}\n      args={synth!r}"
+        )
+
+    # rc131 — RETURN-TYPE AGREEMENT. Assert ``type(raw)`` AGREES with the
+    # advertised ``returns.type`` (the immolation gate owns the canonical
+    # guard; this folds the inspection into the every-tool harness). ``None``
+    # agreement (an unassertable handle / unknown type) is skipped, exactly as
+    # the immolation gate skips it.
+    if entry.returns is not None:
+        from conftest import return_type_agrees
+        agrees = return_type_agrees(raw, entry.returns.type)
+        if agrees is False:
+            pytest.fail(
+                f"{entry.name}: RETURN-TYPE mismatch: observed "
+                f"{type(raw).__name__!r} does not match advertised "
+                f"{entry.returns.type!r}\n      args={synth!r}"
+            )
 
 
 def test_handle_pending_absent_from_advertised_catalogs() -> None:

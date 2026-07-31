@@ -240,24 +240,52 @@ jobs:
     #   spread across genome / carriers / cascade / qm / hashing, not one subtree.
     #   The `asserts-live-smoke` job below already reversed exactly this decision
     #   (#937: "coverage == COLLECTION") and runs the FULL suite per-PR under
-    #   `--forked`, which is heavier than this plain run. Same anti-narrowing guard
-    #   is applied here for the same reason.
+    #   `--forked`, which is heavier than this plain run. Under the `#T1007` 6-shard
+    #   split each shard collects only its 1/6, so "collected ~= disk" cannot be
+    #   asserted per-shard; the anti-narrowing guard MOVES to the dedicated
+    #   `fallback-shard-coverage-union` job, which proves the 6 groups PARTITION the
+    #   full collection (union == full AND pairwise-disjoint). A `-k` or file-list
+    #   creeping into the shard run would break that partition invariant and turn
+    #   that job red — the same "coverage == collection" contract, shard-aware.
     #
     # Linux only: the pure path is stdlib Python: there is no per-OS pure behaviour
     # to catch, and the cross-platform burden is already carried by the matrix above.
-    name: fallback (pure-Python, no native)
+    #
+    # `#T1007` — 6-SHARD MATRIX. Parametrizing the two monster per-op tests (below)
+    # and switching to `--dist load` was the necessary PREREQUISITE but, MEASURED on
+    # CI, gave NO wall-clock speedup on its own: this cell is CPU-bound and `-n auto`
+    # only gets ONE runner's ~2 vCPUs, so ~90 core-min of pure-Python compute stayed
+    # ~45 min of wall time regardless of dist mode. The fix is more CORES, which on
+    # GitHub means more MACHINES. pytest-split partitions collection into 6 DISJOINT
+    # groups (`--splits 6 --group N`), each group runs on its own runner, and xdist
+    # (`-n auto --dist load`) then spreads that group across the runner's cores —
+    # total_CPU / (6 runners x ~2 cores) ~= 8-10 min/shard. This ONLY beats the old
+    # ~30-min atomic-test floor because those two tests are now individual nodes; the
+    # parametrization had to land first. Equal-COUNT partitioning (no committed
+    # `.test_durations` file) is an acceptable first cut now that the monsters are
+    # many small nodes; a durations file for TIME-balance is a later optional
+    # refinement (the per-shard `--durations` output below is the raw material for it).
+    #
+    # TWO discipline gates that were per-run are now SHARD-AWARE, in dedicated jobs:
+    #   * anti-narrowing / coverage (#937) -> `fallback-shard-coverage-union` proves
+    #     the 6 groups exactly PARTITION the full collection (union == full AND
+    #     pairwise-disjoint), so no test can fall through a shard boundary. A per-shard
+    #     "collected ~= disk" check is meaningless here (a shard collects its subset).
+    #   * pure-by-design skip audit (`#T1004`) -> `fallback-skip-audit` fans in over
+    #     all 6 shard logs so it still sees every fired require_native() gate once.
+    name: fallback (pure-Python, no native) • shard ${{ matrix.shard }}/6
     runs-on: ubuntu-latest
-    # rc357 (`#T951`) — the one job whose guard goes UP, and the one judgment
-    # call in the set. Measured max 45:34; the rule gives 69, so 70.
-    # The uniform 60 left this job at 31.7% headroom — by far the TIGHTEST ratio
-    # in the repo — over a cell that has grown 44:01 (rc351) → 45:34 (rc356),
-    # ~18.6 s/rc. At that rate 60:00 binds in ~47 rcs, i.e. about two weeks at
-    # three rcs/day, and it would bind as a FALSE TIMEOUT on a healthy run.
-    # The asymmetry decides it: a false trip costs a full 45-minute cycle,
-    # whereas catching a genuine hang at 70 rather than 60 costs 10 extra
-    # minutes of runner time. Reverse this when the pure-suite split (`#T1007`)
-    # lands and the runtime drops.
-    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    # `#T1007` — the pure-suite split has LANDED, so the rc357 judgment call (a
+    # single 70-min guard over the whole ~45-min monolith) is reversed as that note
+    # said it should be. This is now a PER-SHARD guard: each shard is ~2-min install
+    # + ~8-10 min of its 1/6 of the suite, so ~25 gives generous headroom without
+    # over-tightening (a false trip still only costs one ~10-min shard, not 45 min).
+    # If a shard legitimately grows past this, RAISE the number — do not narrow.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -305,23 +333,11 @@ jobs:
           print('OK: HAS_NATIVE=False; LOAD_ERROR=', repr(_native.LOAD_ERROR))
           "
 
-      - name: Coverage tracks collection (anti-narrowing guard)
-        working-directory: docs/srmech/python
-        shell: bash
-        # Same guard, same reasoning, as the asserts-live cell below (#937): the
-        # threshold is DERIVED from the files on disk, never a frozen number, so
-        # re-introducing a `-k` or a file list turns this cell red instead of
-        # silently shrinking it back to the blindness rc351 removed.
-        run: |
-          FILES=$(ls tests/test_*.py | wc -l)
-          COLLECTED=$(pytest tests/ --collect-only -q -p no:cacheprovider 2>/dev/null \
-            | grep -oE "tests/test_[A-Za-z0-9_]+\.py" | sort -u | wc -l)
-          echo "test files on disk: $FILES ; files pytest collects: $COLLECTED"
-          [ "$COLLECTED" -ge "$((FILES - 6))" ] \
-            || { echo "::error::pure-path collection ($COLLECTED files) is materially below the tree ($FILES) — a filter crept into the run."; exit 1; }
-          echo "OK: the no-native run covers the full collection."
+      # (The per-run "coverage tracks collection" guard moved to the dedicated
+      #  `fallback-shard-coverage-union` job — a shard collects only its 1/6, so the
+      #  file-count check is meaningless here; the partition-union proof replaces it.)
 
-      - name: Run the FULL suite with no native library
+      - name: Run this shard's 1/6 of the suite with no native library
         working-directory: docs/srmech/python
         shell: bash
         env:
@@ -337,52 +353,244 @@ jobs:
         # the skips (the blind spot stays a number in every log), `f`/`E` keep the
         # failure summary that `-q` would otherwise give for free.
         #
-        # `tee` because the audit step below reads this run's skip lines. Without
-        # `pipefail` the tee would mask a red suite.
+        # `tee` to a PER-SHARD log because the audit is now a FAN-IN job
+        # (`fallback-skip-audit`) that concatenates all 6 shard logs and audits the
+        # UNION of fired require_native() gates. Without `pipefail` the tee would
+        # mask a red suite.
         #
-        # `--durations=30` (rc352; local task `#T1007`) is a MEASUREMENT, not a
-        # fix. This cell took 44:01 on its first run — the longest job in the
-        # repo, against 6:45 for the native suite, on 2831 FEWER tests with an
-        # IDENTICAL invocation, so the ~8.7x per test is not a config
-        # difference. What is not yet known is whether that cost is spread
-        # evenly (genuine pure-Python compute; only sharding helps) or
-        # concentrated in one file (nearly free to fix) — and it matters
-        # because `--dist loadfile` gives wall-clock a hard floor at the
-        # slowest single FILE, exactly as the comment at the native cell says.
-        # One real run on the real runner settles it. Do not act on the
-        # numbers here; `#T1007` owns the choice between `--dist load`,
-        # splitting a file, and sharding.
+        # `--splits 6 --group N` (pytest-split) + `-n auto --dist load` (xdist) —
+        # local task `#T1007`. pytest-split filters COLLECTION to this shard's group
+        # (equal-COUNT 1/6, no committed `.test_durations`); xdist then distributes
+        # that group across this runner's cores. `--dist load` (NOT `loadfile`) is
+        # load-bearing WITH the parametrization: the two former monsters —
+        # `test_mcp.py::test_every_advertised_tool_invocable` (~1789 s) and
+        # `test_immolation.py::test_every_advertised_return_type_is_honest`
+        # (~1583 s) — are now one node PER advertised tool, and `load` spreads those
+        # nodes by NODE (loadfile would pin the whole file to one worker and
+        # re-serialise them). The 6-way machine split × per-runner cores turns a
+        # ~45-min monolith into ~8-10 min/shard. Only this pure cell shards; the
+        # native `build-and-test` cell keeps `loadfile` deliberately (chdir/environ
+        # confinement; its slowest-file floor is not binding on a ~6:45 suite). The
+        # suite is order- and worker-independent (conftest.py autouse fixtures
+        # snapshot the signal_processing registry per-test and give each bus module a
+        # private HOME), which is what makes both node-distribution AND the arbitrary
+        # shard partition safe.
+        #
+        # `--durations=30` STAYS per shard: its slowest-node table is exactly the raw
+        # material for a future committed `.test_durations` file (the TIME-balance
+        # refinement noted at the job header; equal-count is the acceptable first cut).
+        #
+        # `-p no:randomly` is a CORRECTNESS pin, not decoration (`#T1007`). pytest-split
+        # partitions by COLLECTION ORDER, and all 6 shards + the coverage-union guard
+        # are separate processes that MUST agree on that order or a test silently runs
+        # zero times or twice. Measured: srmech's collection order is already identical
+        # across processes (no `pytest-randomly` in the dep tree; order is stable even
+        # under a random PYTHONHASHSEED), so this is a no-op TODAY. It is here so that
+        # ADDING `pytest-randomly` later — whose whole job is to shuffle collection per
+        # run by a per-process seed — cannot silently break the partition; it would just
+        # be pinned off in this cell (exactly as the asserts-live cell already does).
+        # Applied IDENTICALLY here and in the guard's collect() below (they must match).
+        # This is deliberately NOT `PYTHONHASHSEED=0`: a fixed hash seed is unnecessary
+        # (order is already stable) and would risk the `#T931`/`#T980` hash-salted tests.
+        #
+        # `--durations-path .test_durations` (`#T1007`) makes the split TIME-balanced,
+        # not equal-count: pytest-split READS the committed `.test_durations` (if
+        # present) to place slow tests across shards. (READ is xdist-safe; pytest-split's
+        # `--store-durations` WRITE is NOT — under `-n auto` it silently writes nothing,
+        # confirmed in CI — so durations are harvested from the log instead.)
+        # `--durations=0` prints EVERY node's call/setup/teardown time to this shard's
+        # log (xdist aggregates correctly); `fallback-durations-merge` parses all six
+        # logs, sums per node, and unions them into a complete `.test_durations` a
+        # maintainer commits to refresh the balance. BOOTSTRAP: the first run has no
+        # committed file, so pytest-split falls back to equal-count; that run's merged
+        # log-durations are what get committed to flip every later run to time-balanced.
         run: |
           set -o pipefail
-          pytest tests/ -q -rsfE --durations=30 -n auto --dist loadfile 2>&1 | tee pytest-pure.log
+          pytest tests/ -q -rsfE -p no:randomly --durations=0 -n auto --dist load \
+            --splits 6 --group ${{ matrix.shard }} \
+            --durations-path .test_durations \
+            2>&1 | tee pytest-pure-shard-${{ matrix.shard }}.log
 
-      # rc357 (`#T951`) — keep the evidence. This one pytest step is 42:56 of a
-      # 43:32 job (98.6%), and it is structurally all-or-nothing: a failure at
-      # any point discards all of it, AND skips the audit step below, so a red
-      # run loses the skip-gate signal too. Before this, `pytest-pure.log` was
-      # `tee`'d and never uploaded — on failure its output survived only in the
-      # web log. `if: always()` is the load-bearing part: the failing run is
-      # exactly the one whose log is worth having. This is the single largest
-      # block of discardable work in the repo; it does not make the run faster,
-      # it makes a red run INFORMATIVE instead of merely expensive.
-      - name: Preserve the pure-suite log (the 42:56 that a red run would discard)
+      # rc357 (`#T951`) / `#T1007` — keep the evidence, now PER SHARD. Each shard's
+      # `tee`'d log is uploaded (`if: always()`) so (a) a RED shard's output survives
+      # in an artifact rather than only the web log, and (b) the `fallback-skip-audit`
+      # fan-in job below can reassemble the whole run's skip set from all 6. The pure
+      # suite has no C asserts (no native library), so a shard cannot SIGABRT — a red
+      # shard is a plain test failure whose log is exactly the one worth having.
+      - name: Preserve this shard's pure-suite log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pytest-pure-log
-          path: docs/srmech/python/pytest-pure.log
+          name: pytest-pure-log-shard-${{ matrix.shard }}
+          path: docs/srmech/python/pytest-pure-shard-${{ matrix.shard }}.log
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Audit the pure-by-design skips (the excuse must not become a mute button)
+  fallback-durations-merge:
+    # `#T1007` — build the committed `.test_durations` from the six shard LOGS.
+    # pytest-split's `--store-durations` does NOT work under xdist (writes nothing;
+    # confirmed in CI — the first cut got 0 files), so each shard runs `--durations=0`
+    # (every node's call/setup/teardown time, which xdist DOES aggregate) and tees it
+    # to its log. This job parses all six logs, sums per node, and writes the union.
+    # Commit the uploaded `test-durations-merged` artifact to
+    # `docs/srmech/python/.test_durations` to flip every later run from equal-count to
+    # TIME-balanced (the one-time bootstrap). Each node runs in exactly one shard, so
+    # the union is complete iff all six logs are present — which this job asserts.
+    # Idempotent: re-run any time to refresh the balance as tests are added/removed.
+    name: fallback durations merge (build committed .test_durations)
+    needs: [fallback-no-native]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download the 6 shard logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pytest-pure-log-shard-*
+          path: logs
+      - name: Parse per-node durations from the logs + fail if incomplete
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, glob, re
+          # pytest --durations=0 line: "<secs>s <phase>    <nodeid>". The nodeid can
+          # contain spaces (parametrized ids), so capture to end-of-line, not \S+.
+          pat = re.compile(r'^([0-9.]+)s\s+(call|setup|teardown)\s+(tests/.+?)\s*$')
+          dur = {}
+          logs = sorted(glob.glob('logs/**/pytest-pure-shard-*.log', recursive=True))
+          for lg in logs:
+              for line in open(lg, encoding='utf-8', errors='replace'):
+                  m = pat.match(line.rstrip('\n'))
+                  if m:
+                      dur[m.group(3)] = dur.get(m.group(3), 0.0) + float(m.group(1))
+          json.dump(dur, open('.test_durations', 'w'), indent=0, sort_keys=True)
+          mins = round(sum(dur.values()) / 60, 1)
+          print(f'parsed {len(logs)} shard log(s) -> {len(dur)} node durations, {mins} min CPU')
+          if len(logs) < 6:
+              raise SystemExit(
+                  f'::error::expected 6 shard logs, got {len(logs)} - the union is '
+                  'INCOMPLETE and would mis-balance the split')
+          if len(dur) < 500:
+              raise SystemExit(
+                  f'::error::only {len(dur)} node durations parsed from 6 logs - the '
+                  'parse regex likely no longer matches pytest --durations output')
+          PY
+      - name: Upload the merged .test_durations (commit this to enable time-balance)
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-durations-merged
+          path: .test_durations
+          retention-days: 14
+
+  fallback-shard-coverage-union:
+    # `#T1007` — SHARD-AWARE anti-narrowing guard (#937 "coverage == COLLECTION",
+    # reshaped for the 6-way split). A per-shard "collected files ~= disk files" check
+    # is meaningless (a shard is 1/6 by construction), so the invariant that actually
+    # matters is proved ONCE here: the 6 pytest-split groups must exactly PARTITION the
+    # full collection — union == the full set AND pairwise-disjoint — so no test can
+    # fall through a shard boundary (dropped) or run in two shards (double-counted).
+    # The threshold is DERIVED from the live full collection, never a frozen number:
+    # equality of three counts (sum-of-group-sizes == union-size == full-size) IS the
+    # partition proof (union==full ⇒ complete; sum==union ⇒ disjoint). A `-k`/file-list
+    # creeping into the shard run would break it and turn this job red. Lightweight:
+    # collect-only, no test executes.
+    name: fallback shard coverage-union (partition guard)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install via the pure (hatchling) backend — no C build
         working-directory: docs/srmech/python
         shell: bash
-        # Runs after a GREEN suite, which is precisely when a mute button would be
-        # invisible. Compares the gates that FIRED against the `require_native()` call
-        # sites in the tree — a threshold derived from the source, never a frozen
-        # number. A declared gate that stopped firing is RED (a seam that stops
-        # observing is a false green); a skip with no call site behind it is RED too.
-        run: python3 tools/audit_pure_by_design_skips.py pytest-pure.log tests
+        # Same pure swap as the shards, so pytest-split resolves from the hatchling
+        # `[dev]` extra and collection sees exactly the shards' environment.
+        run: |
+          set -euo pipefail
+          rm -rf srmech/_native
+          mv pyproject.toml pyproject.toml.platform
+          cp pyproject-pure.toml pyproject.toml
+          trap 'mv pyproject.toml.platform pyproject.toml' EXIT
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Prove the 6 groups PARTITION the full collection
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          set -euo pipefail
+          # `-p no:randomly` MUST match the shard run's flag exactly (see that step):
+          # the guard certifies the partition the shards actually execute, so both
+          # processes have to collect in the same order. Measured stable already; this
+          # keeps guard and shard on identical footing so the guard cannot certify a
+          # partition that differs from what runs.
+          collect() { pytest tests/ --collect-only -q -p no:cacheprovider -p no:randomly "$@" 2>/dev/null \
+            | grep -E '^tests/.+::' | sort -u; }
+          collect > full.ids
+          FULL=$(wc -l < full.ids)
+          : > union.raw
+          SUM=0
+          for K in 1 2 3 4 5 6; do
+            collect --splits 6 --group "$K" > "group-$K.ids"
+            N=$(wc -l < "group-$K.ids")
+            echo "group $K: $N node ids"
+            SUM=$((SUM + N))
+            cat "group-$K.ids" >> union.raw
+          done
+          UNION=$(sort -u union.raw | wc -l)
+          echo "full=$FULL  sum-of-groups=$SUM  union=$UNION"
+          if [ "$UNION" -ne "$FULL" ] || [ "$SUM" -ne "$FULL" ]; then
+            echo "::error::the 6 pytest-split groups do NOT partition the full collection (need union==full AND sum==full; got full=$FULL union=$UNION sum=$SUM). union<full ⇒ a test falls through a shard boundary; sum>union ⇒ a test runs in two shards."
+            echo "--- in FULL but no group (DROPPED) ---"; comm -23 full.ids <(sort -u union.raw) | head -20
+            echo "--- in a group but not FULL (collection drifted) ---"; comm -13 full.ids <(sort -u union.raw) | head -20
+            exit 1
+          fi
+          [ "$FULL" -gt 50 ] || { echo "::error::full collection ($FULL) implausibly small — collection is broken."; exit 1; }
+          echo "OK: the 6 groups partition the full collection ($FULL nodes) — complete and disjoint."
+
+  fallback-skip-audit:
+    # `#T1007` — FAN-IN of the pure-by-design skip audit (`#T1004`) over all 6 shards.
+    # A `require_native()` gate fires in whichever shard holds its test, so no single
+    # shard log is complete. This job downloads all 6 shard logs, concatenates them,
+    # and runs the SAME audit on the UNION — so every DECLARED gate must be OBSERVED
+    # exactly once across the six, the "the excuse must not become a mute button"
+    # contract rc351 shipped, now shard-aware. `if: always()` so a red shard still gets
+    # audited (a gate that stopped firing because its shard died is itself worth
+    # surfacing). The audit tool is pure stdlib — no srmech install needed here.
+    name: fallback pure-by-design skip audit (fan-in over 6 shards)
+    needs: [fallback-no-native]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download all 6 shard logs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pytest-pure-log-shard-*
+          path: shard-logs
+          merge-multiple: true
+
+      - name: Audit the UNION of every shard's pure-by-design skips
+        working-directory: docs/srmech/python
+        shell: bash
+        run: |
+          set -o pipefail
+          mapfile -t logs < <(find "$GITHUB_WORKSPACE/shard-logs" -name 'pytest-pure-shard-*.log' | sort)
+          if [ "${#logs[@]}" -eq 0 ]; then
+            echo "::error::no shard logs downloaded — every shard failed before producing a log?"
+            exit 1
+          fi
+          echo "auditing ${#logs[@]} shard logs:"; printf '  %s\n' "${logs[@]}"
+          cat "${logs[@]}" > pytest-pure-union.log
+          python3 tools/audit_pure_by_design_skips.py pytest-pure-union.log tests
 
   pure-wheel-build:
     # Always-on lightweight build of the py3-none-any wheel via the
