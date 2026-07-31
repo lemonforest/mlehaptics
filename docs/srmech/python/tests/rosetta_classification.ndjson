@@ -600,12 +600,12 @@
 {"exposed_as": "srmech.introspect.responsion_schema.responsion_schema", "defined_at": "srmech.introspect.responsion_schema.responsion_schema", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.cascade.cd_promote", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_promote", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.amsc.cascade.cd_project", "defined_at": "srmech.amsc.cascade.cayley_dickson.cd_project", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.op_provenance.carry", "defined_at": "srmech.amsc.op_provenance.carry", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.op_provenance.op_provenance_hash", "defined_at": "srmech.amsc.op_provenance.op_provenance_hash", "bucket": "c_dispatched"}
-{"exposed_as": "srmech.amsc.op_provenance.op_verdict", "defined_at": "srmech.amsc.op_provenance.op_verdict", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.op_provenance.family_verdict", "defined_at": "srmech.amsc.op_provenance.family_verdict", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.op_provenance.reproject", "defined_at": "srmech.amsc.op_provenance.reproject", "bucket": "non_compute", "non_compute_kind": "composes_c"}
-{"exposed_as": "srmech.amsc.op_provenance.lossy_projection_record", "defined_at": "srmech.amsc.op_provenance.lossy_projection_record", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.op_provenance.carry", "defined_at": "srmech.introspect.op_provenance.carry", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.op_provenance.op_provenance_hash", "defined_at": "srmech.introspect.op_provenance.op_provenance_hash", "bucket": "c_dispatched"}
+{"exposed_as": "srmech.introspect.op_provenance.op_verdict", "defined_at": "srmech.introspect.op_provenance.op_verdict", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.op_provenance.family_verdict", "defined_at": "srmech.introspect.op_provenance.family_verdict", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.op_provenance.reproject", "defined_at": "srmech.introspect.op_provenance.reproject", "bucket": "non_compute", "non_compute_kind": "composes_c"}
+{"exposed_as": "srmech.introspect.op_provenance.lossy_projection_record", "defined_at": "srmech.introspect.op_provenance.lossy_projection_record", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.bus.channel_id_from_name", "defined_at": "srmech.bus._bio_totp.channel_id_from_name", "bucket": "non_compute", "non_compute_kind": "composes_c"}
 {"exposed_as": "srmech.bus.cipher_backend_name", "defined_at": "srmech.bus._bio_totp.cipher_backend_name", "bucket": "non_compute", "non_compute_kind": "dev_tooling"}
 {"exposed_as": "srmech.bus.decode_splice", "defined_at": "srmech.bus._bio_totp.decode_splice", "bucket": "non_compute", "non_compute_kind": "composes_c"}

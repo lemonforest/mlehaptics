@@ -43,7 +43,6 @@ mat
 modular_forms_ring
 modular_linalg
 octonion
-op_provenance
 plasmid
 poly
 primes

@@ -317,12 +317,6 @@ srmech.amsc.modular_linalg.gf_solve
 srmech.amsc.octonion.oct_bind
 srmech.amsc.octonion.oct_conjugate
 srmech.amsc.octonion.oct_mult
-srmech.amsc.op_provenance.carry
-srmech.amsc.op_provenance.family_verdict
-srmech.amsc.op_provenance.lossy_projection_record
-srmech.amsc.op_provenance.op_provenance_hash
-srmech.amsc.op_provenance.op_verdict
-srmech.amsc.op_provenance.reproject
 srmech.amsc.plasmid.add_plasmid
 srmech.amsc.plasmid.conserved_core
 srmech.amsc.plasmid.genome_integrate_plasmids
@@ -403,6 +397,12 @@ srmech.introspect.describe
 srmech.introspect.list
 srmech.introspect.naming.lookup
 srmech.introspect.naming.reverse_order
+srmech.introspect.op_provenance.carry
+srmech.introspect.op_provenance.family_verdict
+srmech.introspect.op_provenance.lossy_projection_record
+srmech.introspect.op_provenance.op_provenance_hash
+srmech.introspect.op_provenance.op_verdict
+srmech.introspect.op_provenance.reproject
 srmech.introspect.publish
 srmech.introspect.responsion_schema.responsion_schema
 srmech.music.bell_partials

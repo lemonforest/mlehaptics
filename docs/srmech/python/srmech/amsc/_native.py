@@ -4725,7 +4725,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # ------------------------------------------------------------------
     # Class A — op-provenance canonical record hasher (0.9.0rc117; the
     # op-carrying carrier, dives #718/#719). The C peer of
-    # srmech.amsc.op_provenance.op_provenance_hash:
+    # srmech.introspect.op_provenance.op_provenance_hash:
     # sha256(canonical_json(record MINUS "chain_sha256")) — a composite
     # over srmech_json_parse / srmech_json_write_ws / srmech_sha256_hex.
     # NEW symbols → hasattr-guarded (a stale ABI-3 lib keeps the rest of
@@ -4751,7 +4751,7 @@ def _bind(lib: ctypes.CDLL) -> None:
     # ------------------------------------------------------------------
     # Op-provenance VERDICT / RECORD / RE-VERIFY logic (0.9.0rc171; the
     # ORCHESTRATION→C spine, batch 1). The C peers backing the five
-    # srmech.amsc.op_provenance verdict/carry ops (op_verdict, family_verdict,
+    # srmech.introspect.op_provenance verdict/carry ops (op_verdict, family_verdict,
     # carry-the-record, lossy_projection_record, reproject-the-re-verify) —
     # each composes srmech_op_provenance_hash / the srmech_json parser+writer /
     # srmech_sha256_hex. NEW symbols → hasattr-guarded (a stale ABI-3 lib keeps

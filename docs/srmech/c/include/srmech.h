@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE   "rc368"
-#define SRMECH_VERSION       "0.9.0rc368"
+#define SRMECH_VERSION_PRE   "rc369"
+#define SRMECH_VERSION       "0.9.0rc369"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -5968,7 +5968,7 @@ srmech_status_t srmech_cli_dispatch(const char *parsed_json, size_t len,
 /* ------------------------------------------------------------------
  * Op-provenance canonical record hasher (0.9.0rc117; the op-carrying
  * carrier, dives #718/#719) — the C peer of
- * srmech.amsc.op_provenance.op_provenance_hash.
+ * srmech.introspect.op_provenance.op_provenance_hash.
  *
  * digest = sha256( canonical_json( record MINUS "chain_sha256" ) )
  *
@@ -6015,7 +6015,7 @@ size_t srmech_op_provenance_hash_arena_bytes(size_t record_len);
 /* ------------------------------------------------------------------
  * Op-provenance VERDICT / RECORD / RE-VERIFY logic (0.9.0rc171; the
  * ORCHESTRATION→C spine, batch 1) — the C peers of the five
- * srmech.amsc.op_provenance verdict/carry ops, so a bare-C host (no
+ * srmech.introspect.op_provenance verdict/carry ops, so a bare-C host (no
  * Python) builds + compares op-provenance records with no json.dumps.
  * Each COMPOSES the existing kernels: the srmech_json parser / canonical
  * writer / builder, srmech_sha256_hex (Class A), and

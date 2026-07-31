@@ -46,7 +46,7 @@ import tokenize
 import pytest
 
 from srmech.amsc import coupling
-from srmech.amsc import op_provenance
+from srmech.introspect import op_provenance
 from srmech.amsc.coupling import (
     RecoverableFold,
     fold_encode,
@@ -309,7 +309,7 @@ def test_new_ops_registered_fold_identity_exempt():
     schema = tool_schema.get_tool_schema()
     for name, cat in (
         ("srmech.amsc.coupling.fold_encode_recoverable", "coupling"),
-        ("srmech.amsc.op_provenance.lossy_projection_record", "op_provenance"),
+        ("srmech.introspect.op_provenance.lossy_projection_record", "op_provenance"),
     ):
         entry = schema.lookup(name)
         assert entry is not None, f"{name} not registered"
@@ -336,7 +336,7 @@ def test_rosetta_rows_are_non_compute():
                       ledger.read_text(encoding="utf-8").splitlines() if l.strip())}
     for op in ("srmech.amsc.coupling.fold_encode_recoverable",
                "srmech.amsc.coupling.fold_identity",
-               "srmech.amsc.op_provenance.lossy_projection_record"):
+               "srmech.introspect.op_provenance.lossy_projection_record"):
         assert rows.get(op) == "non_compute", op
 
 
@@ -345,7 +345,7 @@ def test_rosetta_rows_are_non_compute():
 # ─────────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("rel", [
     ("srmech", "amsc", "coupling.py"),
-    ("srmech", "amsc", "op_provenance.py"),
+    ("srmech", "introspect", "op_provenance.py"),  # moved amsc->introspect (rc369)
 ])
 def test_source_is_numpy_math_abs_free(rel):
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

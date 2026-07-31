@@ -5713,7 +5713,7 @@ def _register_primitive_class_tools() -> None:
         ),
         # ────────────────────────────────────────────────────────────
         # rc117 (dives #718/#719): OPERATORS⊗OPERANDS as ONE addressable
-        # object — the op-carrying carrier (srmech.amsc.op_provenance).
+        # object — the op-carrying carrier (srmech.introspect.op_provenance).
         # The value of an inexact-frontier op is a PROJECTION; the exact
         # generating operation is the SSOT. carry() attaches the operation
         # to the result over a name-keyed registry (the genome op-log /
@@ -5726,7 +5726,7 @@ def _register_primitive_class_tools() -> None:
         # different rung (the operation-as-SSOT win).
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.op_provenance.carry", owner="srmech",
+            name="srmech.introspect.op_provenance.carry", owner="srmech",
             category="op_provenance",
             summary="Run a registered value-inexact-frontier op AND attach "
                     "its exact generating operation — the op-carrying "
@@ -5772,7 +5772,7 @@ def _register_primitive_class_tools() -> None:
                       "rung, leaves_exact, chain_sha256}}"),
         ),
         ToolEntry(
-            name="srmech.amsc.op_provenance.op_provenance_hash",
+            name="srmech.introspect.op_provenance.op_provenance_hash",
             owner="srmech", category="op_provenance",
             summary="The canonical op-provenance record hasher (Class A; "
                     "rc117): SHA-256 of the record's MPRRecord-style "
@@ -5801,7 +5801,7 @@ def _register_primitive_class_tools() -> None:
                              "image"),
         ),
         ToolEntry(
-            name="srmech.amsc.op_provenance.op_verdict", owner="srmech",
+            name="srmech.introspect.op_provenance.op_verdict", owner="srmech",
             category="op_provenance",
             summary="The honest ONE-SIDED op-equality verdict (rc117; dive "
                     "#718 — the load-bearing contract): 'EQUAL' when the two "
@@ -5828,7 +5828,7 @@ def _register_primitive_class_tools() -> None:
                              "false UNEQUAL)"),
         ),
         ToolEntry(
-            name="srmech.amsc.op_provenance.family_verdict", owner="srmech",
+            name="srmech.introspect.op_provenance.family_verdict", owner="srmech",
             category="op_provenance",
             summary="The honest ONE-SIDED family verdict (rc117; dive #719): "
                     "'SAME_TARGET' when BOTH provenances carry a family (a "
@@ -5857,7 +5857,7 @@ def _register_primitive_class_tools() -> None:
                              "a false DIFFERENT)"),
         ),
         ToolEntry(
-            name="srmech.amsc.op_provenance.reproject", owner="srmech",
+            name="srmech.introspect.op_provenance.reproject", owner="srmech",
             category="op_provenance",
             summary="Re-run the carried operation at a (possibly different) "
                     "rung — the value RE-COMPUTED from the operation-as-SSOT "
@@ -5894,7 +5894,7 @@ def _register_primitive_class_tools() -> None:
                       "carry-result at the new rung (same family)"),
         ),
         ToolEntry(
-            name="srmech.amsc.op_provenance.lossy_projection_record",
+            name="srmech.introspect.op_provenance.lossy_projection_record",
             owner="srmech", category="op_provenance",
             summary="Build the exact op-address RECORD for a LOSSY-PROJECTION op "
                     "whose recovery is EXACT from its CARRIED complement (rc125; "

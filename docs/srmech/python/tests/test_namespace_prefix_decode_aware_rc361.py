@@ -267,7 +267,17 @@ CEIL_AMSC_PREFIX = {
     # its dotted path — all three rewritten amsc->introspect. decoded stays 4
     # (responsion_schema is not a carrier op; the 4 are this artifact's own
     # hoisted strings, untouched by the move).
-    "c/src/srmech_tool_registry.c": (1216, 4),
+    #
+    # as-text 1216 -> 1202 at rc369 (-14), decoded UNCHANGED at 4. The
+    # op_provenance slice (srmech.amsc.op_provenance -> srmech.introspect.
+    # op_provenance) — the LARGEST doc move of the arc so far: 6 registered ops,
+    # each with a dotted ToolEntry `name=` citation AND a worked-example import
+    # (`from srmech.amsc.op_provenance import ...`), plus the sibling-prose refs
+    # from format.sha256_bytes / genome.telomere_tick / gene_express / the four
+    # op_provenance cross-references — 14 amsc. citations in all, rewritten
+    # amsc->introspect. decoded stays 4 (op_provenance is not a carrier op; the 4
+    # are this artifact's own hoisted strings, untouched by the move).
+    "c/src/srmech_tool_registry.c": (1202, 4),
     # rc368 — THE FIRST MODULE MOVE TO MOVE THIS ARTIFACT (the new data point).
     # This was the CONTROL row through harmonics/naming: "no byte arrays, decoded
     # 0 is a real zero". It is still a real zero on the decoded channel, but the
@@ -298,7 +308,11 @@ CEIL_AMSC_PREFIX = {
     # responsion_schema slice — the SAME three citations as the tool registry
     # (this is the doc pair): the responsion ToolEntry name, its worked-example
     # import, and the carrier_schema SIBLINGS prose ref — all amsc->introspect.
-    "python/srmech/amsc/_tool_docs.py": (1197, 0),
+    # as-text 1197 -> 1183 at rc369 (-14), decoded UNCHANGED at 0. The
+    # op_provenance slice — the SAME 14 citations as the tool registry (this is
+    # the doc pair): the 6 ToolEntry names, their worked-example imports, and the
+    # sibling-prose refs — all amsc->introspect.
+    "python/srmech/amsc/_tool_docs.py": (1183, 0),
     # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
     # FIRST module move to move THIS artifact — a departure from the harmonics
     # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
@@ -311,7 +325,14 @@ CEIL_AMSC_PREFIX = {
     # non_compute/composes_c (it has C REACH via srmech_responsion_schema but is
     # not itself a `c_dispatched` leaf), so it never had a key in this op->C-symbol
     # CLAIM manifest. A composes_c module move does not touch _c_claims.py.
-    "python/srmech/amsc/_c_claims.py": (248, 0),
+    # as-text 248 -> 247 at rc369 (-1), decoded UNCHANGED at 0. BACK to the rc367
+    # behaviour: op_provenance_hash IS a `c_dispatched` leaf (C peer
+    # srmech_op_provenance_hash + a real ctypes binding in _native.py), so it has
+    # exactly ONE key in this manifest, repointed amsc->introspect. The op's five
+    # SIBLINGS (carry / op_verdict / family_verdict / reproject /
+    # lossy_projection_record) are non_compute/composes_c and never appeared here.
+    # The C SYMBOLS are unchanged — only the Python-side dotted key repointed.
+    "python/srmech/amsc/_c_claims.py": (247, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -324,8 +345,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2935   # rc367 2942 -> rc368 2935 (-7: responsion_schema amsc->introspect; -3 tool, -3 _tool_docs, -1 responsion_registry source-of-truth comment)
-TOTAL_DECODED = 573    # rc367 573 -> rc368 573 (FLAT: responsion_schema is not a carrier op, so no decoded byte-array refs moved)
+TOTAL_AS_TEXT = 2906   # rc368 2935 -> rc369 2906 (-29: op_provenance amsc->introspect; -14 tool, -14 _tool_docs, -1 _c_claims op_provenance_hash key)
+TOTAL_DECODED = 573    # rc368 573 -> rc369 573 (FLAT: op_provenance is not a carrier op, so no decoded byte-array refs moved)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":

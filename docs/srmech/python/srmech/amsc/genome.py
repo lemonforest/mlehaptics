@@ -229,7 +229,7 @@ KERNEL_TELOMERE_MARKER = 0x6B
 #: op⊗operand fused — the **op** is the gating rule (:func:`telomere_tick`'s
 #: proceed/senesce decision), the **operand** is the count — and the count MODULATES
 #: that op (count>0 → a divide proceeds + decrements; count==0 → honest senescence).
-#: It is the SAME (operand, op) pattern as :mod:`srmech.amsc.op_provenance` ``carry``
+#: It is the SAME (operand, op) pattern as :mod:`srmech.introspect.op_provenance` ``carry``
 #: (value, operation) and :class:`srmech.amsc.coupling.RecoverableFold`
 #: (lossy_bundle, exact_seed_R) — the proven op-carrying carrier — but with an ACTIVE
 #: op, which is precisely what makes the chromosome GENUINELY op⊗operand (in #726 the
@@ -446,7 +446,7 @@ _CHROMATIN_GATE_NAMES = {CHROMATIN_GATE_NONE: "none", CHROMATIN_GATE_KLEIN4: "kl
 #: applied CELL-STATE. :func:`gene_express` (the **op**) is MODULATED by the ``cell_state``
 #: (the **operand**): same chromosome, different cell_state → different expressed gene
 #: subset. That inequality IS the theorem (parallel to rc127's count-modulates-divide) —
-#: the SAME (operand, op) pattern as :func:`srmech.amsc.op_provenance.carry`
+#: the SAME (operand, op) pattern as :func:`srmech.introspect.op_provenance.carry`
 #: ``(value, operation)`` and :class:`srmech.amsc.coupling.RecoverableFold`
 #: ``(lossy_bundle, exact_seed_R)``, now with a CELL-STATE operand + an EXPRESSION operator.
 #:
@@ -3388,7 +3388,7 @@ def active_telomere(label, count, dim=64):
     That is what makes the chromosome GENUINELY op⊗operand (a PASSIVE plain telomere is
     an op-slot only — swapping it leaves the leaves unchanged, #726).
 
-    This is the SAME (operand, op) pattern as :func:`srmech.amsc.op_provenance.carry`
+    This is the SAME (operand, op) pattern as :func:`srmech.introspect.op_provenance.carry`
     ``(value, operation)`` and :class:`srmech.amsc.coupling.RecoverableFold`
     ``(lossy_bundle, exact_seed_R)`` — the proven op-carrying carrier — but with an
     ACTIVE op (the count changes how the operator works), which is the theorem #726
@@ -4789,7 +4789,7 @@ def gene_express(strand, coupling, cell_state, *, element_type=ELEMENT_TYPE_KLEI
     divide/senesce BINARY by a carried COUNT; here the ``gene_express`` **operator** is
     MODULATED by the ``cell_state`` **operand** to gate a SELECTION over MANY genes — SAME
     DNA, DIFFERENT ``cell_state`` → DIFFERENT expressed subset. That inequality IS the
-    theorem (the SAME (operand, op) pattern as :func:`srmech.amsc.op_provenance.carry` and
+    theorem (the SAME (operand, op) pattern as :func:`srmech.introspect.op_provenance.carry` and
     :class:`srmech.amsc.coupling.RecoverableFold`, now with a CELL-STATE operand + an
     EXPRESSION operator).
 
@@ -5180,7 +5180,7 @@ def modulator_recover(strand, coupling, expressed_labels):
     expression must look like. It is UNDER-DETERMINED (many cell_states → the same
     expressed subset), so the exact cell_state is IRRECOVERABLE BY CONSTRUCTION — the
     only honest form is the ONE-SIDED FLOOR, the same recoverability discipline as
-    :func:`srmech.amsc.op_provenance.op_provenance_hash`'s op_verdict EQUAL/UNKNOWN
+    :func:`srmech.introspect.op_provenance.op_provenance_hash`'s op_verdict EQUAL/UNKNOWN
     contract, :class:`srmech.amsc.coupling.RecoverableFold`, and the #725 null:
     **recover the EXACT complement we can PROVE, flag the rest UNKNOWN.**
 
@@ -7539,7 +7539,7 @@ def telomere_tick(strand):
     An active telomere of count ``N`` therefore allows EXACTLY ``N`` divides, then the
     ``N+1``-th refuses. THE op⊗operand DUALITY, made testable: op = the gating rule
     here, operand = the count, FUSED in the ONE cap — the SAME ``(operand, op)`` pattern
-    as :func:`srmech.amsc.op_provenance.carry` and
+    as :func:`srmech.introspect.op_provenance.carry` and
     :class:`srmech.amsc.coupling.RecoverableFold`, but with an ACTIVE op (the operand
     changes how the operator works), which is precisely why the chromosome is now a
     GENUINE op⊗operand (in #726 a plain telomere was a passive op-slot).

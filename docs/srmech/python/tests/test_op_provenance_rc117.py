@@ -1,5 +1,5 @@
 """rc117 — OPERATORS⊗OPERANDS as ONE addressable object: the op-carrying
-carrier (`srmech.amsc.op_provenance`; dives #718/#719 + the joint review).
+carrier (`srmech.introspect.op_provenance`; dives #718/#719 + the joint review).
 
 The value of an inexact-frontier op is a PROJECTION; the exact generating
 operation is the SSOT. rc117 ships five genuinely NEW public ops
@@ -46,7 +46,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.op_provenance import (
+from srmech.introspect.op_provenance import (
     carry,
     family_verdict,
     op_provenance_hash,
@@ -382,16 +382,16 @@ def test_new_tool_entries_present_with_declared_types():
     from srmech.amsc.tool_schema import get_tool_schema
     schema = get_tool_schema()
     expected = {
-        "srmech.amsc.op_provenance.carry": (
+        "srmech.introspect.op_provenance.carry": (
             {"op": "str", "inputs": "dict", "params": "dict",
              "family": "dict"}),
-        "srmech.amsc.op_provenance.op_provenance_hash": (
+        "srmech.introspect.op_provenance.op_provenance_hash": (
             {"record": "dict"}),
-        "srmech.amsc.op_provenance.op_verdict": (
+        "srmech.introspect.op_provenance.op_verdict": (
             {"p1": "dict", "p2": "dict"}),
-        "srmech.amsc.op_provenance.family_verdict": (
+        "srmech.introspect.op_provenance.family_verdict": (
             {"p1": "dict", "p2": "dict"}),
-        "srmech.amsc.op_provenance.reproject": (
+        "srmech.introspect.op_provenance.reproject": (
             {"provenance": "dict", "overrides": "dict", "inputs": "dict"}),
     }
     for name, params in expected.items():
@@ -413,9 +413,9 @@ def test_rosetta_buckets():
                       ledger.read_text(encoding="utf-8").splitlines()
                       if l.strip())}
     assert rows.get(
-        "srmech.amsc.op_provenance.op_provenance_hash") == "c_dispatched"
+        "srmech.introspect.op_provenance.op_provenance_hash") == "c_dispatched"
     for leaf in ("carry", "op_verdict", "family_verdict", "reproject"):
-        assert rows.get(f"srmech.amsc.op_provenance.{leaf}") == "non_compute"
+        assert rows.get(f"srmech.introspect.op_provenance.{leaf}") == "non_compute"
 
 
 def test_new_param_types_are_coercible():
@@ -427,7 +427,7 @@ def test_new_param_types_are_coercible():
 # ── (8) hygiene: numpy-free / math-free / abs()-free source ──────────────────
 
 def test_module_is_numpy_math_abs_free():
-    import srmech.amsc.op_provenance as OP
+    import srmech.introspect.op_provenance as OP
     text = open(OP.__file__, encoding="utf-8").read()
     assert "import numpy" not in text
     assert "import math" not in text

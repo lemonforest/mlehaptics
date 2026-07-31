@@ -1,4 +1,4 @@
-"""srmech.amsc.op_provenance — OPERATORS⊗OPERANDS as ONE addressable object
+"""srmech.introspect.op_provenance — OPERATORS⊗OPERANDS as ONE addressable object
 (rc117; the op-carrying carrier — dives #718 / #719 + the joint review).
 
 The value of a lossy-projection-frontier op (a float64 eigensolve, a
@@ -101,7 +101,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from srmech.amsc.q import Q  # #845: exact-ℚ carrier (was fractions.Fraction)
 
-from .format import sha256_bytes
+from ..amsc.format import sha256_bytes
 
 __all__ = [
     "carry",
@@ -303,7 +303,7 @@ def _hash_native(record_min: Dict[str, Any]) -> Optional[str]:
     bytes to ``srmech_op_provenance_hash`` (parse → canonical rewrite →
     ``srmech_sha256_hex``). Returns the 64-hex digest, or ``None`` on any
     missing symbol / non-OK status (caller runs the pure path)."""
-    from . import _native
+    from ..amsc import _native
     if not (
         _native.HAS_NATIVE
         and _native.LIB is not None
@@ -376,7 +376,7 @@ def op_provenance_hash(record: Dict[str, Any]) -> str:
 def _native_lib(*symbols: str):
     """Return the native LIB iff HAS_NATIVE and every named rc171 symbol is
     bound (a stale ABI-3 lib missing them → ``None`` → pure path)."""
-    from . import _native
+    from ..amsc import _native
     if not (_native.HAS_NATIVE and _native.LIB is not None):
         return None
     lib = _native.LIB
@@ -403,7 +403,7 @@ def _verdict_native(r1: Dict[str, Any], r2: Dict[str, Any]) -> Optional[str]:
     if lib is None or j1 is None or j2 is None:
         return None
     import ctypes
-    from . import _native
+    from ..amsc import _native
     ws_bytes = int(lib.srmech_op_verdict_arena_bytes(
         ctypes.c_size_t(len(j1)), ctypes.c_size_t(len(j2))))
     ws = (ctypes.c_char * ws_bytes)()
@@ -426,7 +426,7 @@ def _family_verdict_native(r1: Dict[str, Any],
     if lib is None or j1 is None or j2 is None:
         return None
     import ctypes
-    from . import _native
+    from ..amsc import _native
     ws_bytes = int(lib.srmech_family_verdict_arena_bytes(
         ctypes.c_size_t(len(j1)), ctypes.c_size_t(len(j2))))
     ws = (ctypes.c_char * ws_bytes)()
@@ -452,7 +452,7 @@ def _carry_record_native(op: str, canon_inputs: Dict[str, Any],
     if lib is None or ij is None or pj is None or fj is None or rj is None:
         return None
     import ctypes
-    from . import _native
+    from ..amsc import _native
     ob = op.encode("utf-8")
     ws_bytes = int(lib.srmech_op_carry_arena_bytes(
         ctypes.c_size_t(len(ij)), ctypes.c_size_t(len(pj)),
@@ -479,7 +479,7 @@ def _lossy_record_native(op: str, canon_inputs: Dict[str, Any],
     if lib is None or ij is None:
         return None
     import ctypes
-    from . import _native
+    from ..amsc import _native
     ob = op.encode("utf-8")
     pk = projection_kind.encode("utf-8")
     ws_bytes = int(lib.srmech_lossy_projection_record_arena_bytes(
@@ -506,7 +506,7 @@ def _reproject_verify_native(record: Dict[str, Any],
     if lib is None or rj is None or ij is None:
         return None
     import ctypes
-    from . import _native
+    from ..amsc import _native
     ws_bytes = int(lib.srmech_op_reproject_arena_bytes(
         ctypes.c_size_t(len(rj)), ctypes.c_size_t(len(ij))))
     ws = (ctypes.c_char * ws_bytes)()
@@ -684,24 +684,24 @@ def _matrix_family(label: str):
 
 
 def _jacobi_runner(inputs, params):
-    from . import laplacian as _L
+    from ..amsc import laplacian as _L
     return _L.jacobi_eigvals(inputs["matrix"],
                              max_sweeps=int(params["max_sweeps"]),
                              tolerance=float(params["tolerance"]))
 
 
 def _symmetric_runner(inputs, params):
-    from . import laplacian as _L
+    from ..amsc import laplacian as _L
     return _L.symmetric_eigendecompose(inputs["matrix"])
 
 
 def _hermitian_runner(inputs, params):
-    from . import laplacian as _L
+    from ..amsc import laplacian as _L
     return _L.hermitian_eigendecompose(inputs["matrix"])
 
 
 def _heat_trace_runner(inputs, params):
-    from . import laplacian as _L
+    from ..amsc import laplacian as _L
     t = inputs["t"]
     if not isinstance(t, (int, float, list, tuple)):
         # An exact rational time (Fraction / Q) is the PINNED input; the
@@ -721,7 +721,7 @@ def _heat_trace_family(inputs, canon_inputs, input_hashes, leaves_exact):
 
 
 def _resonant_runner(inputs, params):
-    from . import coupling as _coupling
+    from ..amsc import coupling as _coupling
     return _coupling.resonant_spectrum(inputs["L"],
                                        orders=int(params["orders"]),
                                        max_den=int(params["max_den"]))
@@ -736,7 +736,7 @@ def _resonant_family(inputs, canon_inputs, input_hashes, leaves_exact):
 
 
 def _best_rational_runner(inputs, params):
-    from . import rational as _rational
+    from ..amsc import rational as _rational
     return _rational.best_rational(int(inputs["numerator"]),
                                    int(inputs["denominator"]),
                                    int(params["max_denominator"]))
@@ -750,7 +750,7 @@ def _best_rational_family(inputs, canon_inputs, input_hashes, leaves_exact):
 
 
 def _build_registry() -> Dict[str, _OpSpec]:
-    from . import rational as _rational
+    from ..amsc import rational as _rational
     reg: Dict[str, _OpSpec] = {}
     # Class-N series-truncate family — the INTERIOR (Taylor additive) towers.
     # rung = num_terms (the truncation order).

@@ -86,9 +86,10 @@ ORIGINAL_N_MODULES = 75
 #: actual contract. rc366 (ADR-0010's first module-moving slice): 75 -> 74, the
 #: ``harmonics`` departure to ``srmech.music``. rc367 (the second slice): 74 ->
 #: 73, the ``naming`` departure to ``srmech.introspect``. rc368 (the third
-#: slice): 73 -> 72, the ``responsion_schema`` departure to ``srmech.introspect``
-#: (see ``LANDED`` below).
-EXPECTED_N_MODULES = 72
+#: slice): 73 -> 72, the ``responsion_schema`` departure to ``srmech.introspect``.
+#: rc369 (the fourth slice): 72 -> 71, the ``op_provenance`` departure to
+#: ``srmech.introspect`` (see ``LANDED`` below).
+EXPECTED_N_MODULES = 71
 EXPECTED_N_SUBPACKAGES = 3
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
@@ -96,7 +97,7 @@ EXPECTED_N_SUBPACKAGES = 3
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "36c987f0c65f93de10f53599ed6ca72e151e7fed2964b689f02af795c689be7c")
+    "ae010cc1d011d223322a1dac6bbcbf77b025f6cb6ebf03994f52b99bbaefadf1")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -161,7 +162,8 @@ NAMED_DEPARTURES = {
 #: (live + landed == original). rc366: the harmonics slice, the first entry.
 #: rc367: the ``naming`` slice (amsc -> srmech.introspect), the second entry.
 #: rc368: the ``responsion_schema`` slice (amsc -> srmech.introspect), the third.
-LANDED = frozenset({"harmonics", "naming", "responsion_schema"})
+#: rc369: the ``op_provenance`` slice (amsc -> srmech.introspect), the fourth.
+LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance"})
 
 
 # ── readers ──────────────────────────────────────────────────────────────────
