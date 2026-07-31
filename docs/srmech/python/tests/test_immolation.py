@@ -38,7 +38,9 @@ genuinely absent (a representative slice is re-run with numpy hard-blocked).
 from __future__ import annotations
 
 import builtins
-from typing import Any, List, Tuple
+from typing import Any
+
+import pytest
 
 from srmech.amsc.tool_schema import get_tool_schema
 from srmech.amsc.mat import Mat
@@ -55,7 +57,11 @@ import sys as _sys
 _TESTS_DIR = _os.path.dirname(_os.path.abspath(__file__))
 if _TESTS_DIR not in _sys.path:
     _sys.path.insert(0, _TESTS_DIR)
-from test_mcp import _synth_args_for_entry, _is_binding_error
+# `#T1007` — the advertised-tool list, computed ONCE at collection time in
+# test_mcp (warmup_all() + mcp_callable filter). Imported here so the
+# return-type honesty gate PARAMETRIZES over the SAME node set as test_mcp's
+# every-tool invocation smoke.
+from test_mcp import _synth_args_for_entry, _is_binding_error, _ADVERTISED
 
 # The carrier-aware return-type agreement check lives in conftest (shared with
 # the §10.1 every-tool smoke; no cross-test import cycle).
@@ -64,59 +70,88 @@ from conftest import return_type_agrees as _return_type_agrees
 
 # ──────────────────────────────────────────────────────────────────────
 # 1. Return-type HONESTY: every clean return AGREES with its advertised type
+#
+# `#T1007` — one pytest node PER advertised tool (was a single ~26-min loop over
+# every ``mcp_callable`` ToolEntry, an atomic node ``--dist loadfile`` could not
+# split — the second-most-expensive test in the pure-Python CI cell). The per-op
+# tolerance logic is UNCHANGED: domain / binding errors on synth data are
+# TOLERATED (the type is unobservable); a clean return whose observed type
+# DISAGREES with the advertised type FAILS. Per-op granularity is the
+# improvement — a dishonest op NAMES itself instead of hiding in an accumulated
+# list. The two cross-op aggregates (registry not small; the harness drives
+# enough clean returns) move to a dedicated guard below.
 # ──────────────────────────────────────────────────────────────────────
-def test_every_advertised_return_type_is_honest() -> None:
-    """For EVERY ``mcp_callable`` ToolEntry, synth + invoke; when the op returns
-    cleanly assert ``type(raw)`` AGREES with the advertised ``returns.type`` — the
-    inspection the §10.1 smoke never did. Domain / binding errors on synth data
-    are TOLERATED (the type is unobservable), exactly as §10.1 tolerates them."""
-    schema = get_tool_schema()
-    advertised = [e for e in schema.tools if e.mcp_callable]
-    assert len(advertised) > 50, "advertised tool registry unexpectedly small"
+@pytest.mark.parametrize("entry", _ADVERTISED, ids=lambda e: e.name)
+def test_advertised_return_type_is_honest(entry: Any) -> None:
+    """For THIS ``mcp_callable`` ToolEntry, synth + invoke; when the op returns
+    cleanly assert ``type(raw)`` AGREES with the advertised ``returns.type`` —
+    the inspection the §10.1 smoke never did. Domain / binding errors on synth
+    data are TOLERATED (the type is unobservable), exactly as §10.1 tolerates
+    them. An op with no advertised return type is a no-op node (nothing to
+    check), matching the pre-`#T1007` loop's ``if entry.returns is None:
+    continue``."""
+    if entry.returns is None:
+        return
+    synth = _synth_args_for_entry(entry)
+    try:
+        raw = invoke_tool(entry.name, synth)
+    except TypeError as exc:
+        if _is_binding_error(exc):
+            pytest.fail(
+                f"{entry.name}: advertised={entry.returns.type!r} :: "
+                f"BINDING TypeError: {exc}"
+            )
+        return  # op-internal TypeError — domain rejection, type unobservable
+    except Exception:  # noqa: BLE001 — tolerated domain error (can't observe type)
+        return
 
-    mismatches: List[Tuple[str, str, str]] = []
+    agrees = _return_type_agrees(raw, entry.returns.type)
+    if agrees is None:
+        return  # no assertable token (handle / unknown type)
+    if agrees is False:
+        pytest.fail(
+            f"{entry.name}: advertised={entry.returns.type!r} :: OBSERVED "
+            f"{type(raw).__name__!r} does not match advertised (the "
+            f"self-description the package can no longer honour)"
+        )
+
+
+def test_return_type_honesty_harness_is_live() -> None:
+    """Aggregate sanity split out of the (now parametrized) honesty gate
+    (`#T1007`), preserving its two non-per-op assertions: the advertised
+    registry is not small (the old ``len(advertised) > 50``), and the synth
+    harness can DRIVE enough ops to a clean, type-observable return (the old
+    ``checked > 30``). The second guards against a synth-harness regression that
+    silently turns every op into a tolerated domain error — which would otherwise
+    leave every per-op node green while NOTHING was actually type-checked.
+
+    Bounded on purpose: it iterates the advertised surface only until it has
+    observed 35 clean type-checked returns and then STOPS, so in the healthy
+    case it costs a handful of fast invokes rather than re-creating the ~26-min
+    full-surface scan the per-op parametrization exists to remove. (A genuinely
+    degraded surface that never reaches 35 will scan further before failing —
+    the expensive path is then the RED one, which is already broken.)"""
+    assert len(_ADVERTISED) > 50, "advertised tool registry unexpectedly small"
+
     checked = 0
-    tolerated = 0
-
-    for entry in advertised:
+    for entry in _ADVERTISED:
+        if checked >= 35:
+            break
         if entry.returns is None:
             continue
         synth = _synth_args_for_entry(entry)
         try:
             raw = invoke_tool(entry.name, synth)
-        except TypeError as exc:
-            if _is_binding_error(exc):
-                mismatches.append((entry.name, entry.returns.type,
-                                   f"BINDING TypeError: {exc}"))
-            else:
-                tolerated += 1  # op-internal TypeError — domain rejection
+        except Exception:  # noqa: BLE001 — binding or domain: unobservable here
             continue
-        except Exception:  # noqa: BLE001 — tolerated domain error (can't observe type)
-            tolerated += 1
-            continue
-
-        agrees = _return_type_agrees(raw, entry.returns.type)
-        if agrees is None:
-            tolerated += 1  # no assertable token (handle / unknown type)
+        if _return_type_agrees(raw, entry.returns.type) is None:
             continue
         checked += 1
-        if not agrees:
-            mismatches.append(
-                (entry.name, entry.returns.type,
-                 f"OBSERVED {type(raw).__name__!r} does not match advertised")
-            )
 
-    print(f"\n{checked} advertised returns type-checked "
-          f"({tolerated} tolerated/unobservable)")
-    assert not mismatches, (
-        "advertised return types that DISAGREE with the observed return (the "
-        "self-description the package can no longer honour):\n"
-        + "\n".join(f"  - {name}: advertised={adv!r} :: {err}"
-                    for name, adv, err in mismatches)
-    )
     assert checked > 30, (
-        f"only {checked} returns observed cleanly; the harness should drive "
-        f"more — a regression in the synth harness?"
+        f"only {checked} advertised returns were type-observable before the "
+        f"scan bound; the synth harness should drive more — a regression in "
+        f"_synth_args_for_entry?"
     )
 
 

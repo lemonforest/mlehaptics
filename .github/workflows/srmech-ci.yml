@@ -340,21 +340,43 @@ jobs:
         # `tee` because the audit step below reads this run's skip lines. Without
         # `pipefail` the tee would mask a red suite.
         #
-        # `--durations=30` (rc352; local task `#T1007`) is a MEASUREMENT, not a
-        # fix. This cell took 44:01 on its first run — the longest job in the
-        # repo, against 6:45 for the native suite, on 2831 FEWER tests with an
-        # IDENTICAL invocation, so the ~8.7x per test is not a config
-        # difference. What is not yet known is whether that cost is spread
-        # evenly (genuine pure-Python compute; only sharding helps) or
-        # concentrated in one file (nearly free to fix) — and it matters
-        # because `--dist loadfile` gives wall-clock a hard floor at the
-        # slowest single FILE, exactly as the comment at the native cell says.
-        # One real run on the real runner settles it. Do not act on the
-        # numbers here; `#T1007` owns the choice between `--dist load`,
-        # splitting a file, and sharding.
+        # `--dist load` (NOT `loadfile`) — local task `#T1007`. The rc366
+        # `--durations=30` measurement settled the open question the previous
+        # comment posed: this cell's ~45-min cost was NOT spread evenly, it was
+        # CONCENTRATED in a few atomic per-op loop tests. Two single functions
+        # each looped `for entry in advertised: invoke_tool(...)` over every
+        # `mcp_callable` ToolEntry — `test_mcp.py::test_every_advertised_tool_
+        # invocable` (~1789 s) and `test_immolation.py::test_every_advertised_
+        # return_type_is_honest` (~1583 s) — i.e. two ~26-30-min ATOMIC nodes.
+        # `--dist loadfile` pins a whole FILE to one worker, and no runner
+        # matrix can split a single test node, so those two dominated wall-clock
+        # regardless of worker count.
+        #
+        # The fix (`#T1007`): those two loops are now PARAMETRIZED — one pytest
+        # node per advertised tool (~N nodes each, N = mcp_callable count). But
+        # under `loadfile` all ~N nodes of `test_mcp.py` would STILL run serially
+        # on the one worker the file is pinned to, defeating the split. `--dist
+        # load` distributes by NODE, so the parametrized per-op nodes spread
+        # across this runner's xdist workers. Coverage is UNCHANGED — same tools,
+        # same assertions, distributed. (`#T923` — loadfile also discards a
+        # dying worker's failure report — is corroborating, not the driver.)
+        #
+        # Only THIS pure cell changes. The native `build-and-test` cell keeps
+        # `loadfile` deliberately: it confines the process-global os.chdir /
+        # os.environ mutations a few files perform, and its slowest-single-file
+        # floor (~453 s) is not binding on a ~6:45 native suite where these two
+        # files are not the bottleneck. The suite is already designed to be
+        # order- and worker-independent (see the autouse fixtures in conftest.py
+        # snapshotting the signal_processing registry per-test and giving each
+        # bus module a private HOME), which is what makes per-node distribution
+        # safe here.
+        #
+        # `--durations=30` STAYS: it now has a baseline and remains the cheapest
+        # way to see any NEW per-op node regress (a parametrized node that goes
+        # slow names itself in the durations table).
         run: |
           set -o pipefail
-          pytest tests/ -q -rsfE --durations=30 -n auto --dist loadfile 2>&1 | tee pytest-pure.log
+          pytest tests/ -q -rsfE --durations=30 -n auto --dist load 2>&1 | tee pytest-pure.log
 
       # rc357 (`#T951`) — keep the evidence. This one pytest step is 42:56 of a
       # 43:32 job (98.6%), and it is structurally all-or-nothing: a failure at
