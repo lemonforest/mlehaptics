@@ -13,6 +13,30 @@ _Next development line: the deferred-from-v0.4.6 Tier-2 introspection ring buffe
 <!-- pypi-readme-changelog: the markers below slice ONLY the current-minor (0.9.0) entries into the PyPI long-description (fancy-pypi-readme hook in both pyprojects). MOVE BOTH MARKERS at each minor bump: -start- before the first 0.9.x entry, -end- immediately before the prior minor (currently [0.8.2], the top of the 0.8.x block). -->
 <!-- pypi-readme-changelog-start -->
 
+## [0.9.0rc365]
+
+**THE `srmech/amsc/` MODULE-AND-SUBPACKAGE CENSUS — ADR-0010 A.5 item 5, the instrument that must land green BEFORE the first module-moving slice.** `#T1034`. Ships **alone and moves no module**, per the A.5 ordering rule: *an instrument built in the same arc as the change it detects has no green baseline, so a red is unattributable.* No op, no C surface, no registered callable — `describe()["tools"]["total"]` stays **525**, `SRMECH_ABI_VERSION` stays **10**.
+
+### Why it exists
+
+rc364's Amendment B.5 measured it: `CEIL_AMSC_PREFIX` counts **dotted module PATHS**, so it is structurally blind to a directory/module MOVE — rc364 moved four directories out of `amsc` and both channels read FLAT. *"The quantity the arc actually drains, module by module, has no instrument."* `srmech/amsc/` is draining **75 modules → 4** (only `format` / `catalog` / `descriptor` / `gap_suggester` keep, per A.2); nothing in the tree measured that population. This rc is that instrument.
+
+### What it is — a name-SET, not a name-COUNT
+
+`tests/test_amsc_module_census_rc365.py` + the hand-committed manifest `tests/amsc_module_census.txt`. Mirrors the rc361 op-name-SET witness precedent: a count of 75 is blind to a rename-in-place, and this arc moves *named* modules out, so the SET is the right quantity. The manifest is the **75 module stems + 3 subpackage names** (subpackages marked with a trailing `/`), sorted, plus a `srmech.amsc.format.sha256_bytes` digest over the normalised body (`"\n".join(sorted) + "\n"`, so a CRLF checkout cannot split the Windows/Linux digest).
+
+- **DOWN-ONLY.** The live module set must stay a **subset** of the committed manifest — a module may LEAVE, but one *appearing* in `amsc` is the regression this catches. The floor is the four keepers; when the live set equals them the arc is DONE (documented in the test).
+- **Departures respect A.2.** The removed set (committed − live) must be ⊆ the departure allowlist (all 71 non-keepers, derived from A.2's authoritative "only 4 keep"), and the four keepers are asserted **never** to be in the removed set. A.2's per-destination counts (apokatastasis 31 / math 22 / introspect 10 / biology 4 / cascade 1 / music 1 / _native 1, keeps 4) are encoded as documentation data; only the destinations A.2 names per-module (biology / cascade / music / _native / the named introspect members) are checked member-by-member — the winding/math/introspect split is published only as an aggregate, so reproducing it per-module would fabricate authority A.2 does not carry. A.2's table sums to 74 against 75 modules; the residual 1 is A.2's own acknowledged "73 of 75" classification gap, and the census does not depend on resolving it.
+- **⚠️ HAND-COMMITTED, NOT codegen-emitted.** `test_the_manifest_is_not_codegen_emitted` asserts nothing under `tools/` writes the manifest — a declustering slice runs `tools/regen_all.py` as routine work, and a generated census would be rewritten by the very change it must detect and go green unconditionally (A.5 item 1's rule). The two-edit procedure (rewrite the manifest AND update the digest in source, same commit) is copied from the rc361 witness.
+
+### Non-vacuity — proved by injection on the real population
+
+`test_the_census_can_actually_fail` runs four injections and proves exactly the intended assertion fires while the others stay green: (1) a module leaving for a mapped destination (`rational` → `srmech.math`) keeps down-only green and **changes the digest** — the move is detected; (2) a departure the map does not classify → the **move-map** assert goes red; (3) a NEW module appearing in `amsc` → the **down-only** assert goes red; (4) a keeper (`format`) leaving → the **keeper** assert goes red. A census that cannot be shown to fail is the EMPTY probe A.5 warns against.
+
+### Selection predicate (rc364's lesson, confirmed not assumed)
+
+Adding this test file changes **no** op-population pin, split, ceiling or allowlist — it adds a test, not a registered op, and registers no `ToolEntry`. Confirmed: the rc361 op-name-SET witness (which pins both the op-name set and `EXPECTED_N = 525`) stays green, as do the rc364 cascade-catalog-home test, the version pin, and the ref-notation guard. **A.5 item 5 is now DONE — the first module-moving slice (rc366) is unblocked.**
+
 ## [0.9.0rc364]
 
 **ADR-0010'S FIRST EXECUTION SLICE — `srmech.cascade` is real, and a documented migration path that raised `FileNotFoundError` for 93 rcs now works.** `#T1034` (with `#T1039`). `describe()["tools"]["total"]` stays **525**; `carrier_schema()` stays 28; `SRMECH_ABI_VERSION` stays 10 (no C signature changed — one generated header comment regenerates).
