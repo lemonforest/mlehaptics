@@ -20,7 +20,7 @@ THE DUAL GRAMMAR (the locked concept — we never force both halves into one
   addressing as ``"spectral:" + content_sha[:12]`` (``content_sha`` is the
   Class A SHA-256 already on the frozen dataclass — so NO new
   ``hashlib.sha256`` call is introduced; the route-through-``sha256_bytes``
-  discipline is honoured). The recon CORRECTION that ``srmech.amsc.naming``
+  discipline is honoured). The recon CORRECTION that ``srmech.introspect.naming``
   is Class E binary-search (NOT a name registry) is decisive: the name is
   derived from the handle's content_sha, not built on ``naming.py``.
 

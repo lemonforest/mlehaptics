@@ -494,8 +494,6 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_spectral_spine_arena_bytes',
     ),
     'srmech.amsc.modular_linalg.gf_rref': ('srmech_gf_rref',),
-    'srmech.amsc.naming.lookup': ('srmech_catalog_lookup',),
-    'srmech.amsc.naming.reverse_order': ('srmech_reverse_order',),
     'srmech.amsc.octonion.oct_bind': ('srmech_oct_bind',),
     'srmech.amsc.octonion.oct_conjugate': ('srmech_oct_conjugate',),
     'srmech.amsc.octonion.oct_mult': ('srmech_oct_mult',),
@@ -714,6 +712,8 @@ C_CLAIMS: Dict[str, Tuple[str, ...]] = {
         'srmech_zeilberger_out_cap',
         'srmech_zeilberger_ws_bound',
     ),
+    'srmech.introspect.naming.lookup': ('srmech_catalog_lookup',),
+    'srmech.introspect.naming.reverse_order': ('srmech_reverse_order',),
     'srmech.music._bessel.bessel_j_fixed': (
         'srmech_bessel_j_fixed_big',
         'srmech_bessel_j_fixed_ws_bound',

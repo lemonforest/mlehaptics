@@ -2656,7 +2656,7 @@ def _register_primitive_class_tools() -> None:
         # Class E — catalog / naming (primitive lookup)
         # ────────────────────────────────────────────────────────────
         ToolEntry(
-            name="srmech.amsc.naming.lookup", owner="srmech", category="naming",
+            name="srmech.introspect.naming.lookup", owner="srmech", category="naming",
             summary="Binary search over a sorted (key, value) catalog. Keys MUST "
                     "be pre-sorted ascending lexicographic by caller.",
             # rc13 drift fix: the param is `pairs` (the iterable of
@@ -2712,7 +2712,7 @@ def _register_primitive_class_tools() -> None:
             returns=R("bytes", "byte-reversed pattern"),
         ),
         ToolEntry(
-            name="srmech.amsc.naming.reverse_order", owner="srmech", category="naming",
+            name="srmech.introspect.naming.reverse_order", owner="srmech", category="naming",
             summary="Harmonic-2 chiral mirror of a sorted Class-E catalog (F150): "
                     "the order-reversed (key, value) list; period-2 involution.",
             parameters=(P("sorted_pairs", "list[tuple[bytes, bytes]]", True,

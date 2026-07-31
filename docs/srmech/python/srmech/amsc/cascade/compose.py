@@ -813,7 +813,7 @@ def top_k_by_score(scores: Sequence[float], k: int, *, largest: bool = True) -> 
     """Indices of the ``k`` highest- (or lowest-) scoring items — the catalog
     selection composite (UPSTREAM_NOTES §1.3).
 
-    **Class E** (sorted-key ordering, ``srmech.amsc.naming``) ∘ **Class K**
+    **Class E** (sorted-key ordering, ``srmech.introspect.naming``) ∘ **Class K**
     (sparse truncate — keep the top/bottom ``k``, drop the rest). Stable: ties in
     score keep ascending index order. The everyday band-selection / weak-coupling-
     prune step (top-K bands by magnitude; bottom-K bits by coupling-square).

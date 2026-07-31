@@ -314,8 +314,6 @@ srmech.amsc.modular_linalg.crt_combine
 srmech.amsc.modular_linalg.gf_nullspace
 srmech.amsc.modular_linalg.gf_rref
 srmech.amsc.modular_linalg.gf_solve
-srmech.amsc.naming.lookup
-srmech.amsc.naming.reverse_order
 srmech.amsc.octonion.oct_bind
 srmech.amsc.octonion.oct_conjugate
 srmech.amsc.octonion.oct_mult
@@ -404,6 +402,8 @@ srmech.dsl.run_toml_chain
 srmech.introspect.by_pid
 srmech.introspect.describe
 srmech.introspect.list
+srmech.introspect.naming.lookup
+srmech.introspect.naming.reverse_order
 srmech.introspect.publish
 srmech.music.bell_partials
 srmech.music.bessel_j_fixed

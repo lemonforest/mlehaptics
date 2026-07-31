@@ -249,7 +249,15 @@ CEIL_AMSC_PREFIX = {
     # srmech.amsc.harmonics ToolEntry citations were rewritten to srmech.music.
     # by the ADR-0010 module move; the decoded 4 are this artifact's own hoisted
     # strings, untouched by the move.
-    "c/src/srmech_tool_registry.c": (1221, 4),
+    #
+    # as-text 1221 -> 1219 at rc367 (-2), decoded UNCHANGED at 4. The naming
+    # slice (srmech.amsc.naming -> srmech.introspect.naming). Only TWO as-text
+    # here, not four like harmonics: naming's two ToolEntry `name=` citations
+    # dropped, but its worked-example / SIBLINGS prose cites its own module by
+    # the SLASH form (srmech/introspect/naming.py) and its siblings by slash too,
+    # so no extra dotted `srmech.amsc.` refs live in its ToolEntry text. decoded
+    # stays 4 — naming is not a carrier op, so it has no hoisted byte-array refs.
+    "c/src/srmech_tool_registry.c": (1219, 4),
     # CONTROL: has no byte arrays at all, so decoded 0 is a real zero rather
     # than a decoder that stopped working.
     "c/src/srmech_responsion_registry.c": (72, 0),
@@ -265,8 +273,19 @@ CEIL_AMSC_PREFIX = {
     # as-text 1206 -> 1202 at rc366 (-4), decoded UNCHANGED at 0. The SAME four
     # harmonics citations as the tool registry — this is the doc pair — rewritten
     # amsc->music by the module move.
-    "python/srmech/amsc/_tool_docs.py": (1202, 0),
-    "python/srmech/amsc/_c_claims.py": (250, 0),
+    # as-text 1202 -> 1200 at rc367 (-2), decoded UNCHANGED at 0. The naming
+    # slice — the SAME two ToolEntry `name=` citations as the tool registry (this
+    # is the doc pair), rewritten amsc->introspect.
+    "python/srmech/amsc/_tool_docs.py": (1200, 0),
+    # as-text 250 -> 248 at rc367 (-2), decoded UNCHANGED at 0. rc367 is the
+    # FIRST module move to move THIS artifact — a departure from the harmonics
+    # analog. _c_claims.py is the op -> C-symbol CLAIM manifest, keyed only for
+    # ops the ledger classifies `c_dispatched`. harmonics' ops are compute (int
+    # from a str), so they never appeared here; naming's lookup / reverse_order
+    # ARE c_dispatched (srmech_catalog_lookup / srmech_reverse_order), so their
+    # two keys moved amsc->introspect. The C SYMBOLS are unchanged — only the
+    # Python-side dotted key repointed.
+    "python/srmech/amsc/_c_claims.py": (248, 0),
 }
 
 #: The generated-artifact totals, pinned so a per-file edit cannot quietly move
@@ -279,8 +298,8 @@ CEIL_AMSC_PREFIX = {
 #:
 #: as-text 2933 (rc361) -> 2943 (rc362, +10 = the 5 citations x 2 artifacts).
 #: decoded 577 (rc361)  ->  577 (rc362, FLAT — the population did not move).
-TOTAL_AS_TEXT = 2948   # rc363 2957 -> rc366 2948 (-9: harmonics amsc->music; -1 carrier, -4 tool, -4 _tool_docs)
-TOTAL_DECODED = 573    # rc363 577 -> rc366 573 (-4: harmonics' 4 carrier-registry byte-array refs, amsc->music)
+TOTAL_AS_TEXT = 2942   # rc366 2948 -> rc367 2942 (-6: naming amsc->introspect; -2 tool, -2 _tool_docs, -2 _c_claims)
+TOTAL_DECODED = 573    # rc366 573 -> rc367 573 (FLAT: naming is not a carrier op, so no decoded byte-array refs moved)
 
 
 def _counts(rel_path: str) -> "tuple[int, int]":

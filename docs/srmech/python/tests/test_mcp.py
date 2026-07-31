@@ -1174,7 +1174,7 @@ def test_dsl_run_toml_chain_one_shot_via_mcp_invoke() -> None:
 # ``klein4_expand``; ``klein4_random`` is STOCHASTIC-only and refuses a
 # seed. These tests target the op that now carries each regime.
 #
-# BUG B — ``srmech.amsc.naming.lookup``'s ToolEntry declared a param
+# BUG B — ``srmech.introspect.naming.lookup``'s ToolEntry declared a param
 # (``entries``) the shipped ``lookup(key, pairs)`` does not accept, so the
 # tool was uncallable (``TypeError: unexpected keyword argument 'entries'``).
 # Fix: align the SCHEMA to the shipped signature (``pairs``).
@@ -1333,18 +1333,18 @@ def test_klein4_regime_ops_are_registered_and_invokable() -> None:
 
 
 def test_naming_lookup_callable_via_invoke_tool() -> None:
-    """``srmech.amsc.naming.lookup`` is callable through ``invoke_tool``
+    """``srmech.introspect.naming.lookup`` is callable through ``invoke_tool``
     and returns a real result — NOT a ``TypeError`` from a phantom param
     name. This is the BUG B acceptance test (the schema declared a param
     the shipped ``lookup(key, pairs)`` does not accept)."""
     pairs = [(b"a", b"x"), (b"b", b"y"), (b"c", b"z")]  # pre-sorted
     result = invoke_tool(
-        "srmech.amsc.naming.lookup", {"key": b"b", "pairs": pairs}
+        "srmech.introspect.naming.lookup", {"key": b"b", "pairs": pairs}
     )
     assert result == b"y"
     # A miss returns None (still a real result, no TypeError).
     miss = invoke_tool(
-        "srmech.amsc.naming.lookup", {"key": b"zzz", "pairs": pairs}
+        "srmech.introspect.naming.lookup", {"key": b"zzz", "pairs": pairs}
     )
     assert miss is None
 
@@ -1571,7 +1571,7 @@ def test_invoke_naming_lookup_base64_params() -> None:
     """``naming.lookup`` with base64 key + base64 (key, value) pairs
     returns the matching value — no TypeError — and serialises to JSON."""
     raw = invoke_tool(
-        "srmech.amsc.naming.lookup",
+        "srmech.introspect.naming.lookup",
         {
             "key": _b64(b"A"),
             "pairs": [[_b64(b"A"), _b64(b"content-addressing")]],

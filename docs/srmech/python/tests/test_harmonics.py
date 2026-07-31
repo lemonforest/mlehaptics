@@ -9,7 +9,8 @@ in srmech.amsc.*.
 """
 import pytest
 
-from srmech.amsc import dispatch, naming, search, cyclic, laplacian, compose
+from srmech.amsc import dispatch, search, cyclic, laplacian, compose
+from srmech.introspect import naming
 from srmech.music import harmonics
 
 

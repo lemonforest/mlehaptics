@@ -1,6 +1,6 @@
 # ADR-0010: srmech namespace declustering — `amsc` is the attestation framework, not the dumping ground
 
-**Status:** 🟢 **ACCEPTED — execution arc OPEN; STRUCTURE slice shipped v0.9.0rc364, FIRST MODULE-MOVING slice shipped v0.9.0rc366** (`#T1034`). The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`; Amendment C (2026-07-31) carries the first slice to relocate a module with public callables — `harmonics` → `srmech.music` — which is where the census and op-name-set witness got their first live test. *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
+**Status:** 🟢 **ACCEPTED — execution arc OPEN; STRUCTURE slice shipped v0.9.0rc364, FIRST + SECOND MODULE-MOVING slices shipped v0.9.0rc366 / rc367** (`#T1034`). The deferral condition is satisfied: the Class-N precision migration completed (rc318→320) and the class-registry prerequisite landed in rc359. Amendment A (2026-07-29) carries the measured move map, budget and rejected-shorthand record; Amendment B (2026-07-30) carries the first executed slice — `srmech.cascade` is real, the built-in catalogs moved out of `amsc/_research/`; Amendment C (2026-07-31) carries the first slice to relocate a module with public callables — `harmonics` → `srmech.music` — which is where the census and op-name-set witness got their first live test; Amendment D (2026-07-31) carries the second — `naming` → `srmech.introspect` — which corrected the module-move instrument set to THREE (the decode-aware prefix ratchet, missed by rc366's first commit) and hit the first C-side entanglement (`srmech_invoke.c` hardcodes the dotted tool name). *(Was 🟡 Proposed — target design, deferred behind the precision migration.)*
 **Date:** 2026-07-23.
 **Authors:** Steven Kirkland + Claude Opus 4.8.
 **Supersedes:** none.
@@ -569,3 +569,105 @@ artifacts (`_tool_docs.py` + 2 C registries), 6 curated-doc fields (2 harmonics 
 was trivial; the cost was the **ledger/census ripple and the census-design adjudication**. Scope the
 `math` / `apokatastasis` buckets by public-callables-and-ledger-rows disturbed, not path count — and
 budget for the census `LANDED` list growing one entry per landed module.
+
+### C.4 ⚠️ CORRECTION (rc367) — the module-move instrument set is THREE, not two, and rc366's first commit missed the third
+
+C.2 and C.3 named the **census** and the **op-name-set witness** as the instruments a module move trips.
+That is **incomplete**. There is a THIRD: the **decode-aware `srmech.amsc.` prefix ratchet**
+(`test_namespace_prefix_decode_aware_rc361.py`), and rc366's *move* commit (`6063f25f1`) shipped WITHOUT
+re-pinning it — it took a **separate follow-up commit** (`72ca82734`, "record the harmonics drain") to
+catch the drain. That gap is the finding, and it must be carried into the bigger-bucket plan:
+
+- **Why it was missed.** rc366's own selection predicate was "files pinning a *ledger/registry-derived
+  population*" (the callable-delta set). The census and op-name-set witness both key on the **op/module
+  SET**, which a module move visibly changes, so the predicate selected them. The decode-aware ratchet
+  keys on **NAMESPACE-MEMBERSHIP** — the count of `srmech.amsc.` *textual + decoded prefix references* in
+  the six generated artifacts. A module move adds/removes **no public callable**, so a callable-delta
+  predicate does not select it, even though its *reference population* drains by exactly the moved op's
+  citations. It is the one instrument in the set whose subject is the dotted-string population rather
+  than the op set.
+- **The corrected module-move ripple set** (what a `math` / `apokatastasis` slice MUST re-pin, in the
+  same commit as the move): **(1)** the census manifest + digest + `LANDED`/conservation; **(2)** the
+  op-name-set witness manifest + digest (`EXPECTED_N` holds — a move is not an add/remove); **(3)** the
+  decode-aware prefix ratchet — per-file `(as_text, decoded)` pairs for every artifact the move touches,
+  plus `TOTAL_AS_TEXT` / `TOTAL_DECODED`, plus the fifth test's hard `amsc` / `music` decoded pins IF the
+  move touches the carrier registry's byte arrays (a *carrier* op does; a non-carrier op does not).
+  Instruments (1) and (2) go red on the SET; instrument (3) goes red on the POPULATION and is the one a
+  callable-delta sweep will walk straight past.
+
+## Amendment D — the SECOND module-moving slice, `naming` → `srmech.introspect`, v0.9.0rc367 (`#T1034`)
+
+rc366 moved `harmonics` (2 pure-compute ops) to `srmech.music`. rc367 moves **`srmech/amsc/naming.py` →
+`srmech/introspect/naming.py`** — the Class-E catalog primitive (`lookup` binary-search + `reverse_order`
+harmonic-2 chiral mirror), an A.2 `srmech.introspect | 10` member (one of the six the map names). Leaf
+name `naming` kept (B.1 rule 1); `srmech.introspect` already existed and is already a rosetta root, so
+this is a drop-in. It is the arc's **first `c_dispatched` module move** and its **first C-side
+entanglement** — both are departures from the harmonics analog, and both are the data the bigger buckets
+need.
+
+### D.1 Two departures from the harmonics analog — say them plainly, they are planning inputs
+
+1. **A hand-authored C-source entanglement (harmonics had NONE).** `naming.lookup` is in the MCP
+   `tools/call` DISPATCH SPINE — `c/src/srmech_invoke.c`, which is **hand-authored**, hardcodes the
+   dotted tool name `"srmech.amsc.naming.lookup"` in a `strcmp` shape-guard AND in the shape-vtable row
+   (`iv_shape_naming_lookup`). Both were repointed to `srmech.introspect.naming.lookup` so the C
+   dispatch matches the renamed op. This is a **C-source edit a module move can force**, and the
+   decode-aware ratchet does NOT cover `srmech_invoke.c` (not in its six generated artifacts), so nothing
+   automated flags it — it must be found by grep. **ABI is unchanged** (an internal dispatch string is
+   not wire format), and the C **capability** symbols (`srmech_catalog_lookup` / `srmech_reverse_order`)
+   are untouched — only the Python-facing dotted routing string moved. Harmonics' `classify_*` ops are
+   not in the invoke vtable, so rc366 never saw this. **Any `math` / `apokatastasis` op that is MCP-C-
+   invokable (in the `srmech_invoke.c` shape table) carries this same hidden C edit.**
+2. **`_c_claims.py` moved — the first module move to touch it (harmonics did not).** `_c_claims.py` is
+   the op→C-symbol CLAIM manifest, keyed ONLY for `c_dispatched` ops. `naming`'s two ops ARE
+   `c_dispatched`, so their keys repointed amsc→introspect and the decode-aware `_c_claims.py` pin fell
+   250→248. Harmonics' ops are compute, so they never appeared there. **A `c_dispatched` module move
+   drains one more artifact than a compute one.**
+
+And one thing that did NOT ripple, for the same reason it did for harmonics but inverted: the **decoded
+channel stayed FLAT**. `naming` is not a carrier op, so it has no reference in the carrier registry's
+hoisted byte arrays. The harmonics drain was `-9 as-text / -4 decoded` (four carrier byte-array refs);
+the naming drain is `-6 as-text / 0 decoded`. The fifth decoded-population test (hard `amsc == 529`,
+`music == 13`) is untouched. There is also **no `COMPOSES_C_ZERO_REACH_PINNED` entry to repoint** —
+harmonics' `classify_harmonic` was a `composes_c`/zero-reach op and moved in that set; `naming`'s ops are
+`c_dispatched` (leaves), so they are not in that set at all.
+
+### D.2 The measured ripple — the corrected THREE-instrument set, all re-pinned in the move commit
+
+- **Census** (`test_amsc_module_census_rc365.py` + manifest): `naming` dropped, **74 → 73 modules**;
+  digest **`52a34d12…` → `e4f88591…`**; `LANDED` `{harmonics}` → **`{harmonics, naming}`**; conservation
+  **`73 + 2 == 75`** holds.
+- **Op-name-set witness** (`test_op_name_set_witness_rc361.py` + manifest): the SET moves two names
+  amsc→introspect; digest **`812dc897…` → `eef53539…`**; `EXPECTED_N` **stays 525** (a move, not an
+  add/remove).
+- **Decode-aware prefix ratchet** (`test_namespace_prefix_decode_aware_rc361.py`) — the instrument
+  rc366's first commit missed (C.4): `srmech_tool_registry.c` **(1221, 4) → (1219, 4)**;
+  `_tool_docs.py` **(1202, 0) → (1200, 0)**; `_c_claims.py` **(250, 0) → (248, 0)**; carrier / class /
+  responsion registries **unchanged**; **`TOTAL_AS_TEXT` 2948 → 2942** (−6 = the two ToolEntry `name=`
+  citations × the three doc-carrying artifacts), **`TOTAL_DECODED` 573 → 573** (flat).
+- **Rosetta ledger** (`rosetta_classification.ndjson`): two rows repoint `exposed_as` + `defined_at`
+  amsc→introspect; **bucket stays `c_dispatched`**; both ops stay rosetta-visible (the walk finds
+  `srmech.introspect.naming.{lookup,reverse_order}` under the `srmech.introspect` root, whose `__all__`
+  exposes them with `__module__ == srmech.introspect.naming`), and the C symbols they claim are unchanged.
+- **Regenerated artifacts** (`tools/regen_all.py`, content-equality + idempotent): `_tool_docs.py`,
+  `_c_claims.py`, `srmech_tool_registry.c` (the three that carry naming's dotted name); the other three
+  generated outputs unchanged.
+- **Source + curated citations**: 2 ToolEntry `name=` (`tool_schema.py`); the moved module's own
+  `from . import _native` → `from ..amsc import _native`; two source docstrings (`_handles.py`,
+  `compose.py`); the curated docs for `naming`'s 2 ops plus 5 SIBLING ops
+  (`dispatch.match` / `dispatch.mirror_pattern` / `search.byte_search` / `search.byte_search_backward` /
+  `music.harmonics.classify_harmonic`) whose `srmech/amsc/naming.py:NN` slash-citation repointed; the
+  rosetta build note (`notes/_rosetta_build_classification.py`).
+- **Consuming tests**: three multi-import splits (`test_def_parity`, `test_chiral_EL_c_parity`,
+  `test_harmonics` — `naming` pulled out of `from srmech.amsc import …` into `from srmech.introspect
+  import naming`); two invoke-name repoints (`test_mcp`, `test_invoke_tool_clean_batch2_c_rc189`).
+
+### D.3 The prose op-ref gate again did NOT fire — same reason as C.2
+
+As with harmonics, `naming`'s only dotted `srmech.amsc.naming.*` strings were the ToolEntry `name=`
+fields (not scanned) and its cross-citations are **slash-form** `srmech/amsc/naming.py:NN` (excluded as
+filenames). So the prose op-ref gate stayed green through a real move a second time — the census + the
+op-name-set witness + the decode-aware ratchet are what caught it. The `math` / `apokatastasis` buckets
+are still the ones expected to carry genuine dotted cross-citations that WILL trip the prose gate; the
+two module moves so far are both "slash-form-cited" modules, which is why that gate has yet to fire on a
+move.
