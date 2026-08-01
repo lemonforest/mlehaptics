@@ -141,7 +141,7 @@ def test_native_parity(n):
 def test_registration_and_coverage():
     from srmech import introspect
     schema = introspect.describe()
-    assert schema["tools"]["total"] == 525
+    assert schema["tools"]["total"] == 526
     # name check via the raw tool schema
     from srmech.introspect.tool_schema import get_tool_schema
     reg = {t.name for t in get_tool_schema().tools}

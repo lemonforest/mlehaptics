@@ -343,6 +343,6 @@ def test_registration_and_count():
     from srmech.introspect.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
     assert "srmech.math.laplacian.propagate_wound" in names
-    assert len(get_tool_schema().tools) == 525
-    assert srmech.describe()["tools"]["total"] == 525
+    assert len(get_tool_schema().tools) == 526
+    assert srmech.describe()["tools"]["total"] == 526
     assert "propagate_wound" in L.LAPLACIAN_OPS
