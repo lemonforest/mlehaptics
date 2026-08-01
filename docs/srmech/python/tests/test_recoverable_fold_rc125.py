@@ -45,9 +45,9 @@ import tokenize
 
 import pytest
 
-from srmech.amsc import coupling
+from srmech.biology import coupling
 from srmech.introspect import op_provenance
-from srmech.amsc.coupling import (
+from srmech.biology.coupling import (
     RecoverableFold,
     fold_encode,
     fold_encode_recoverable,
@@ -261,14 +261,14 @@ def test_lossy_projection_record_shape():
     projection_kind='hdc' (the genuine non-asymptotic kind — never a faked
     interior/edge tower), leaves_exact True, a 64-hex chain hash."""
     rec = op_provenance.lossy_projection_record(
-        "srmech.amsc.coupling.fold_encode",
+        "srmech.biology.coupling.fold_encode",
         {"R": [Q(0, 1), Q(5, 1), Q(-4, 1)], "branches": 3},
     )
     assert rec["family"] is None
     assert rec["rung"] == {}
     assert rec["projection_kind"] == "hdc"
     assert rec["leaves_exact"] is True
-    assert rec["op"] == "srmech.amsc.coupling.fold_encode"
+    assert rec["op"] == "srmech.biology.coupling.fold_encode"
     assert isinstance(rec["chain_sha256"], str) and len(rec["chain_sha256"]) == 64
     # re-verify: the hash is op_provenance_hash of the record (excl. chain field)
     assert op_provenance.op_provenance_hash(rec) == rec["chain_sha256"]
@@ -279,7 +279,7 @@ def test_lossy_projection_record_hash_agrees_with_fold_identity():
     over (R.coeffs, branches)."""
     rf = fold_encode_recoverable(_GASKET, 3, dim=64)
     rec = op_provenance.lossy_projection_record(
-        "srmech.amsc.coupling.fold_encode",
+        "srmech.biology.coupling.fold_encode",
         {"R": list(Poly.from_coeffs(_GASKET).coeffs), "branches": 3},
     )
     assert rf.identity() == rec["chain_sha256"]
@@ -308,7 +308,7 @@ def test_new_ops_registered_fold_identity_exempt():
 
     schema = tool_schema.get_tool_schema()
     for name, cat in (
-        ("srmech.amsc.coupling.fold_encode_recoverable", "coupling"),
+        ("srmech.biology.coupling.fold_encode_recoverable", "coupling"),
         ("srmech.introspect.op_provenance.lossy_projection_record", "op_provenance"),
     ):
         entry = schema.lookup(name)
@@ -320,10 +320,10 @@ def test_new_ops_registered_fold_identity_exempt():
 
     # fold_identity is EXEMPT (its RecoverableFold operands cannot ride JSON) —
     # a public + tested verdict op, NOT an MCP ToolEntry.
-    assert schema.lookup("srmech.amsc.coupling.fold_identity") is None
+    assert schema.lookup("srmech.biology.coupling.fold_identity") is None
     assert hasattr(coupling, "fold_identity")
 
-    enc = schema.lookup("srmech.amsc.coupling.fold_encode_recoverable")
+    enc = schema.lookup("srmech.biology.coupling.fold_encode_recoverable")
     assert {p.name: p.type for p in enc.parameters}["R"] == "Poly"
 
 
@@ -334,8 +334,8 @@ def test_rosetta_rows_are_non_compute():
     rows = {r["defined_at"]: r["bucket"]
             for r in (json.loads(l) for l in
                       ledger.read_text(encoding="utf-8").splitlines() if l.strip())}
-    for op in ("srmech.amsc.coupling.fold_encode_recoverable",
-               "srmech.amsc.coupling.fold_identity",
+    for op in ("srmech.biology.coupling.fold_encode_recoverable",
+               "srmech.biology.coupling.fold_identity",
                "srmech.introspect.op_provenance.lossy_projection_record"):
         assert rows.get(op) == "non_compute", op
 
@@ -344,7 +344,7 @@ def test_rosetta_rows_are_non_compute():
 # (h) discipline — the touched sources stay abs()-free
 # ─────────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("rel", [
-    ("srmech", "amsc", "coupling.py"),
+    ("srmech", "biology", "coupling.py"),
     ("srmech", "introspect", "op_provenance.py"),  # moved amsc->introspect (rc369)
 ])
 def test_source_is_numpy_math_abs_free(rel):

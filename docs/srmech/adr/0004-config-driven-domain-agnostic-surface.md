@@ -52,7 +52,7 @@ a constraint.** Two commitments:
    conventions (e.g. the rc260 `genome` = biology-aware umbrella, `plasmid` = all-stick builder).
    A user who prefers different vocabulary — `build`, `stick`, a domain term, another language —
    binds it in a `[[alias]]` TOML with **no code change**. So a framework rename (like rc260's) is
-   never a user-layer break: `alias("my_name", "srmech.amsc.genome.plasmid")` restores any name.
+   never a user-layer break: `alias("my_name", "srmech.biology.genome.plasmid")` restores any name.
    This is the property that makes the naming decisions internal — the config layer owns the
    user's vocabulary.
 

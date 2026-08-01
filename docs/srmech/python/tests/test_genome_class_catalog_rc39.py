@@ -103,7 +103,7 @@ coupling = "hv"
 strands = "list"
 
 [class.method.pack]
-op = "srmech.amsc.genome.chromosome"
+op = "srmech.biology.genome.chromosome"
 binds = ["leaves", "coupling"]
 appends = "strands"
 """

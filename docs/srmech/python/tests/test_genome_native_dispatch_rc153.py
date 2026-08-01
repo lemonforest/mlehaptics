@@ -2,7 +2,7 @@
 dispatch.
 
 The C library ships all 11 ``srmech_genome_*`` symbols (the §41/§43/§44/§45 mirror);
-rc153 binds them in ``srmech.amsc._native`` and routes ``srmech.amsc.genome`` through
+rc153 binds them in ``srmech.amsc._native`` and routes ``srmech.biology.genome`` through
 them when ``HAS_NATIVE`` (the §38 / F708 treatment, genome family). The native path is a
 PURE ACCELERATOR — it writes ``turns.bin`` + ``manifest.json`` (and the ``.chr`` bundles)
 byte-for-byte identically to the pure-Python path, falling back on ANY native error.
@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 import srmech.amsc._native as _native
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.math.hdc import klein4_expand
 
 pytestmark = pytest.mark.skipif(

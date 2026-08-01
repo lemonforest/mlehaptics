@@ -6227,7 +6227,7 @@ dim Fix(tau)   : 13.999999999999995
 Subject: the sha256-attested NCBI translation table 1 shipped in the wheel at `srmech/amsc/attested/genetic_code/row.ndjson`, `attestation.response_sha256 = ddda97af80cf929bcf22de86d80547e05da0f4eb24fa275e8869c51e63cb10d6`. Nothing below is typed — the 21 families are **derived** by calling the shipped op `genome.codon_read` on all 64 codons.
 
 ```python
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc.cascade import (cd_basis_product, cd_navmap, cd_navigate,
                                  cd_couple_working, cd_uncouple_working)
 BASES = "TCAG"                                  # the attested base order
@@ -6288,7 +6288,7 @@ couple->uncouple : [8.000000000000002, 1.999999999999995, 128.00000000000003]
 One rung **below** the float register sits the discrete byte carrier a Q8 genome strand is actually stored on, and it is where the code's *orientation* lives:
 
 ```python
-from srmech.amsc.q8 import q8_mult, q8_bind, q8_project_v4
+from srmech.biology.q8 import q8_mult, q8_bind, q8_project_v4
 from srmech.math.octonion import oct_mult
 from srmech.math.hdc import klein4_bind
 B = {b: i for i, b in enumerate("TCAG")}        # T:+1  C:+i  A:+j  G:+k
@@ -6359,7 +6359,7 @@ chain: friedmann_dark_fraction | steps: 9 | classes: NNNNNNNNN
 The same subject at the **gravitational** rung: a body set becomes a coupling graph, and the graph is read as a *stored* object with no excitation applied. Subject is the F928 prototype — Jupiter with the four Galilean moons, masses in Jupiter masses and semi-major axes in 10³ km.
 
 ```python
-from srmech.amsc.coupling import (from_bodies, resonant_spectrum,
+from srmech.biology.coupling import (from_bodies, resonant_spectrum,
                                   resonant_spectrum_sparse, fractal_spectrum)
 from srmech.math.laplacian import dense_laplacian
 from srmech.amsc.poly import poly_from_coeffs
@@ -6883,7 +6883,7 @@ This reading has **living, still-practiced human attestation** — the "living s
 
 ### §8.2 — Where Siona learns: the genome storage substrate + the self-naming class layer (F716/F717; srmech 0.7.5rc42)
 
-§8.1 said *thinking is a grounded path*. This subsection lands **where that path is stored and learned into** — the storage substrate Siona accumulates onto — now shipped as a first-class srmech surface (`srmech.amsc.genome.*` + the class-from-TOML loader, srmech 0.7.5rc42, verified F716). The whole storage object, validated as F711–F715 on the research subtree, is now the package:
+§8.1 said *thinking is a grounded path*. This subsection lands **where that path is stored and learned into** — the storage substrate Siona accumulates onto — now shipped as a first-class srmech surface (`srmech.biology.genome.*` + the class-from-TOML loader, srmech 0.7.5rc42, verified F716). The whole storage object, validated as F711–F715 on the research subtree, is now the package:
 
 > **GENOME** (multi-kernel strand) → **CHROMOSOMES** (one kernel's strand, telomere-capped) → **helix of QUAD-TURNS** (the kernel's history; RAM-bounded, disk-paged) → **QUAD-TURN** = one native 4-sector biaxial "+" (`cascade.parallel_sector_dispatch`, CAP=4) + a base-4 leaf address (radix 4ᵏ) → **LEAF ≤ 256 = 2⁸** (a dense "tome") — **every turn coupled through `the_one`** (native `klein4_bind`, reversible), **telomeres** the non-data content-address caps that partition the chromosomes.
 
@@ -6925,7 +6925,7 @@ This reading has **living, still-practiced human attestation** — the "living s
 
 **Where it sits in the three-faced result.** This capacity law is one of three faces of a single object — **the operand-irrepresentable f⁻ shadow** — surfaced by the same delta dive: (Q1) the capacity **ceiling** here; (Q2) `fractal_spectrum` as the **reader** that diagnoses why symmetric folds are useless (Ch-1 isometry, no new mode) and asymmetric folds separate the distribution (Ch-2 decimation, distinct `d_s`/`|q|` rungs); (Q3) the elliptic quasi-periodicity multiplier `−z⁻¹` as the **exact** per-level form of the asymmetric fold (F995), exact up to the mock-theta shadow. The exact-operations machinery **formalises the representable skeleton and names the shadow each time** — F996's "operations bit-exact / information continuous" made formal (Q1), instrumental (Q2), and exact (Q3).
 
-*Composes F996 (the ontological inversion) + F991 (tome-size = resonant-mode capacity lever) + F896 (the capacity wall) + F552 (the model↔biology gap = the continuous substrate) + F172 (the Laplacian eigenspectrum IS the srmech-native storage signature, Class L) + F971/F968–970 (harmonic-Maass f⁺/f⁻; the mock-theta residue = the discarded f⁻) + the DUALITY.md/TRIALITY.md field/continuous-vs-excitation/discrete layer (F400 reading: duality = the fibration of triality). srmech surfaces: `srmech.amsc.coupling.fractal_spectrum` (0.9.0rc100, the Ch-2 subharmonic reader) + `resonant_spectrum` (the Ch-1 harmonic reader) + `carrier_spectrum` (0.9.0rc69, the two channels). Delta-dive probe: `scratchpad/delta_probe.py` (committed to the dive record). Candidate reading; held open (F394).*
+*Composes F996 (the ontological inversion) + F991 (tome-size = resonant-mode capacity lever) + F896 (the capacity wall) + F552 (the model↔biology gap = the continuous substrate) + F172 (the Laplacian eigenspectrum IS the srmech-native storage signature, Class L) + F971/F968–970 (harmonic-Maass f⁺/f⁻; the mock-theta residue = the discarded f⁻) + the DUALITY.md/TRIALITY.md field/continuous-vs-excitation/discrete layer (F400 reading: duality = the fibration of triality). srmech surfaces: `srmech.biology.coupling.fractal_spectrum` (0.9.0rc100, the Ch-2 subharmonic reader) + `resonant_spectrum` (the Ch-1 harmonic reader) + `carrier_spectrum` (0.9.0rc69, the two channels). Delta-dive probe: `scratchpad/delta_probe.py` (committed to the dive record). Candidate reading; held open (F394).*
 
 
 ## How to cite this notebook

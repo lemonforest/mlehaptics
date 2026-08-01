@@ -657,7 +657,7 @@ added or removed, the ripple is minimal:**
   forwards.
 - `docs/srmech/python/srmech/amsc/laplacian.py` — `recursive_cut` + `fiedler_sparse_file`
   `progress=`.
-- `docs/srmech/python/srmech/amsc/genome.py` — `genome_partition`, `genome_from_graph`,
+- `docs/srmech/python/srmech/biology/genome.py` — `genome_partition`, `genome_from_graph`,
   `genome()`/`mint`, `mint_strand` `progress=`; `_PROGRESS_STRUCT_SIZE`/`_PHASE_*` consts.
 - `docs/srmech/python/srmech/amsc/_native.py` — `_ProgressEv`, `_TICK_CFUNCTYPE`,
   `_make_tick_trampoline`, `*_progress` bindings (`hasattr`-gated); `EXPECTED_ABI_VERSION`

@@ -59,9 +59,9 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # format.validate_mpr_record loader/config helpers below; mirrors rc261's
     # srmech.dsl function-alias binder (rosetta-classified, off the MCP tool surface).
     # Classified dev_tooling / composes_c in rosetta_classification.ndjson.
-    "srmech.amsc.genome.set_type_aliases",
-    "srmech.amsc.genome.clear_type_aliases",
-    "srmech.amsc.genome.load_type_aliases_toml",
+    "srmech.biology.genome.set_type_aliases",
+    "srmech.biology.genome.clear_type_aliases",
+    "srmech.biology.genome.load_type_aliases_toml",
     # catalog.* — additional helpers that compose `list_attested_sources`,
     # `get_attested_dataset`, `register_attested_root` (already registered).
     "srmech.amsc.catalog.list_registered_roots",
@@ -259,7 +259,7 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # verdict op reachable via Python (`non_compute` in the Rosetta ledger). The
     # PAIR CONSTRUCTOR (fold_encode_recoverable) IS a registered ToolEntry;
     # only the carrier-param verdict is exempt.
-    "srmech.amsc.coupling.fold_identity",
+    "srmech.biology.coupling.fold_identity",
     # cascade.one.* — "the One" S(σ,θ) generator (#887). Registered under its
     # STABLE FLAT public name ``srmech.amsc.cascade.the_one`` (which IS
     # registered); ``one.the_one`` is the same object re-exported flat, and

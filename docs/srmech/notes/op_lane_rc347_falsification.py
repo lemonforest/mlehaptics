@@ -53,8 +53,8 @@ import random
 import sys
 from fractions import Fraction
 
-from srmech.amsc import genome as G
-from srmech.amsc import q8 as Q
+from srmech.biology import genome as G
+from srmech.biology import q8 as Q
 from srmech.amsc.cascade.cayley_dickson import cd_basis_product
 from srmech.amsc.tool_schema import get_tool_schema, warmup_all
 from srmech.introspect import describe
@@ -98,20 +98,20 @@ def cwf(g, emb):
 
 
 DRIVERS = {
-    "srmech.amsc.q8.q8_project_v4": ("algebra", Q.q8_project_v4),
-    "srmech.amsc.q8.q8_conjugate":
+    "srmech.biology.q8.q8_project_v4": ("algebra", Q.q8_project_v4),
+    "srmech.biology.q8.q8_conjugate":
         ("algebra", lambda s: bytes(Q.q8_conjugate(b) for b in s)),
-    "srmech.amsc.q8.q8_mult":
+    "srmech.biology.q8.q8_mult":
         ("algebra", lambda s: bytes(Q.q8_mult(a, b) for a, b in zip(s, ONE12))),
-    "srmech.amsc.q8.q8_bind": ("algebra", lambda s: Q.q8_bind(s, ONE12)),
-    "srmech.amsc.genome.genome_fiber_holonomy":
+    "srmech.biology.q8.q8_bind": ("algebra", lambda s: Q.q8_bind(s, ONE12)),
+    "srmech.biology.genome.genome_fiber_holonomy":
         ("algebra", lambda s: G.genome_fiber_holonomy(s, leaf_dim=4)),
-    "srmech.amsc.genome.codon_read": ("algebra", G.codon_read),
+    "srmech.biology.genome.codon_read": ("algebra", G.codon_read),
     "srmech.qm.quaternion.quaternion_cycle_holonomy":
         ("gains",
          lambda g: quaternion_cycle_holonomy(EDGES, [gain(x) for x in g], n=6)),
-    "srmech.amsc.genome.cwf_consistency_mod2": ("gains+geometry", None),
-    "srmech.amsc.genome.discrete_writhe": ("geometry", G.discrete_writhe),
+    "srmech.biology.genome.cwf_consistency_mod2": ("gains+geometry", None),
+    "srmech.biology.genome.discrete_writhe": ("geometry", G.discrete_writhe),
 }
 
 
@@ -229,8 +229,8 @@ def main(argv) -> int:
     if "--selftest" in argv:
         print("\n--- selftest: does rule 2 catch a WRONG declaration? ---")
         wrong = dict(reported)
-        wrong["srmech.amsc.genome.discrete_writhe"] = "index"
-        wrong["srmech.amsc.q8.q8_project_v4"] = "sign"
+        wrong["srmech.biology.genome.discrete_writhe"] = "index"
+        wrong["srmech.biology.q8.q8_project_v4"] = "sign"
         caught = [n for n, lane in measured.items()
                   if lane is not None and wrong.get(n) not in (None, lane)]
         print("injected 2 mis-declarations; rule 2 caught %d: %s"

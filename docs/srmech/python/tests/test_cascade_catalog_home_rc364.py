@@ -50,7 +50,7 @@ import pytest
 
 import srmech
 from srmech import dsl
-from srmech.amsc import genome
+from srmech.biology import genome
 
 _PKG = Path(srmech.__file__).resolve().parent
 _PY_ROOT = _PKG.parent                       # docs/srmech/python

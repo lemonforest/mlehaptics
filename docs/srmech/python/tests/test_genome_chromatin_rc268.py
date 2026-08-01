@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native as _N
 from srmech.math.hdc import klein4_expand
 

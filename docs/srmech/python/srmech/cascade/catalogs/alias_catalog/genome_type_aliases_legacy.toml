@@ -7,7 +7,7 @@
 # This example restores the PRE-rc271 srmech names for anyone whose scripts /
 # habits expect them. Opt in with ONE call:
 #
-#     from srmech.amsc import genome
+#     from srmech.biology import genome
 #     genome.load_type_aliases_toml("genome_type_aliases_legacy.toml")
 #
 # ⚠️ THAT LINE DID NOT WORK FROM AN INSTALL UNTIL v0.9.0rc364, and this header

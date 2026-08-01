@@ -500,7 +500,7 @@ def _try_spectral(rel: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     eigenvalues stay the OPERAND: on a symmetric L the ``resonant_spectrum``
     payload is materialised as the closed form (the float payload, never the
     verdict)."""
-    from ..amsc import coupling as _c  # lazy
+    from ..biology import coupling as _c  # lazy
     from . import laplacian as _L
     from .mat import Mat
 
@@ -910,7 +910,7 @@ def infer(relationship: Dict[str, Any]) -> Dict[str, Any]:
       is real-symmetric, checked BIT-EXACT (rc224 — the spectral theorem's own
       hypothesis; an exact operator-level structural fact, never a float
       tolerance). On a symmetric L the closed form is the
-      :func:`~srmech.amsc.coupling.resonant_spectrum` payload (the eigenvalues
+      :func:`~srmech.biology.coupling.resonant_spectrum` payload (the eigenvalues
       are the OPERAND, never the verdict).
     * **cyclic** (``row="cyclic"`` / a ``sigma`` / ``theta_num`` / ``period`` /
       ``generator`` payload) — builds the One ``S(σ,θ)`` via

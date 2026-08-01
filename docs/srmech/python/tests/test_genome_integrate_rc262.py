@@ -5,7 +5,7 @@ a Tier-2 host genome (a eukaryote — MINTED + DIPLOID chromosomes), and thereaf
 still recovers — because rc258 centromere, rc259 diploid, and the mint umbrella ALL couple every
 turn through the SAME coupling (one k=3 cascade at different rungs, ADR-0005). The translation
 between the Tier-1 and Tier-2 levels is FREE: it needs no conversion because they are the same
-cascade. srmech.amsc.genome.integrate(host, provirus, at=) splices the provirus into the host at
+cascade. srmech.biology.genome.integrate(host, provirus, at=) splices the provirus into the host at
 a chromosome boundary; the coherence is the point.
 
 Proven here: integration grows the strand; partition recovers all chromosomes; the host's minted
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.math.hdc import klein4_expand
 
 

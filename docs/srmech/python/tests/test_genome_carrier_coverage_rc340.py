@@ -6,8 +6,8 @@ plain count cannot see — whether an op that ACCEPTS the argument actually HONO
 
 Three guards, all down-only or exact:
 
-1. **Classification completeness.** Every public ``srmech.amsc.genome`` callable
-   appears exactly once in :data:`~srmech.amsc.genome.GENOME_CARRIER_SURFACE`. A new
+1. **Classification completeness.** Every public ``srmech.biology.genome`` callable
+   appears exactly once in :data:`~srmech.biology.genome.GENOME_CARRIER_SURFACE`. A new
    op must be classified deliberately; it cannot default into an unexamined bucket.
 
 2. **The coverage ratchet, on BOTH surfaces.** The count of ops LACKING
@@ -37,7 +37,7 @@ from collections import Counter
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import tool_schema as TS
 from srmech.math.hv import HV
 
@@ -86,7 +86,7 @@ CEIL_GENOME_CARRIER_PYTHON_MCP_CRACKS = 0
 
 
 def _public_callables():
-    """Every public callable DEFINED in ``srmech.amsc.genome`` (not re-exports,
+    """Every public callable DEFINED in ``srmech.biology.genome`` (not re-exports,
     not exception classes, not typing imports)."""
     out = {}
     for name in dir(G):
@@ -121,7 +121,7 @@ def _mcp_parameters():
     out = {}
     for tool in TS.tool_schema_view()["tools"]:
         name = tool["name"]
-        if name.startswith("srmech.amsc.genome."):
+        if name.startswith("srmech.biology.genome."):
             out[name.rsplit(".", 1)[1]] = {p["name"] for p in tool["parameters"]}
     return out
 

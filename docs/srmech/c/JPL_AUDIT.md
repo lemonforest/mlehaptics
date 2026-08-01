@@ -672,7 +672,7 @@ the toolchain-level Rule-10 ratchet.
   macros only). No new mechanical violations; ratchet stays at 0.
 
 - **§41 genome-persistence disk surface — `srmech_genome.c`.** The C mirror
-  of `srmech.amsc.genome`'s disk `save` / `load` / `catalog` / `append` /
+  of `srmech.biology.genome`'s disk `save` / `load` / `catalog` / `append` /
   `window`. A genome directory holds `manifest.json` (an MPRRecord, MPR v1,
   built with the `srmech_json` BUILDER + serialised with `srmech_json_write`,
   BYTE-IDENTICAL to the Python `genome_save` manifest's

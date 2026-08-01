@@ -56,14 +56,14 @@ from srmech.amsc.cascade.cayley_dickson import (
     cd_basis,
     cd_mult,
 )
-from srmech.amsc.genome import (
+from srmech.biology.genome import (
     ELEMENT_TYPE_CAPABILITY,
     ELEMENT_TYPE_KLEIN4,
     ELEMENT_TYPE_OCTONION,
     ELEMENT_TYPE_Q8,
 )
 from srmech.math.octonion import oct_mult
-from srmech.amsc.q8 import q8_mult
+from srmech.biology.q8 import q8_mult
 from srmech.introspect import describe
 
 #: The three capability axes. Every dimensional ceiling srmech publishes

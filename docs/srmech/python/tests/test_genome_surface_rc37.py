@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome
+from srmech.biology import genome
 from srmech.math.hdc import klein4_expand
 
 

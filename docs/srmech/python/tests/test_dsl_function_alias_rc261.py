@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 
 from srmech import dsl
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.math.hdc import klein4_expand
 
 
@@ -35,15 +35,15 @@ def _bl(hvs):
 # ── 1. single alias ─────────────────────────────────────────────────────────
 
 def test_alias_binds_a_name_to_a_srmech_function():
-    build = dsl.alias("build", "srmech.amsc.genome.genome")
+    build = dsl.alias("build", "srmech.biology.genome.genome")
     assert build.__name__ == "build"
-    assert build.srmech_alias_target == "srmech.amsc.genome.genome"
+    assert build.srmech_alias_target == "srmech.biology.genome.genome"
     one, kernels = _one(), _kernels()
     assert _bl(build(kernels, one)) == _bl(G.genome(kernels, one))   # byte-identical to target
 
 
 def test_alias_preserves_the_target_docstring():
-    plant = dsl.alias("plant", "srmech.amsc.genome.plasmid")
+    plant = dsl.alias("plant", "srmech.biology.genome.plasmid")
     assert (plant.__doc__ or "") == (G.plasmid.__doc__ or "")        # functools.wraps
 
 
@@ -51,8 +51,8 @@ def test_alias_preserves_the_target_docstring():
 
 def test_build_aliases_from_toml_str():
     names = dsl.build_aliases_from_toml_str(
-        '[[alias]]\nname = "build"\ntarget = "srmech.amsc.genome.genome"\n'
-        '[[alias]]\nname = "stick"\ntarget = "srmech.amsc.genome.plasmid"\n')
+        '[[alias]]\nname = "build"\ntarget = "srmech.biology.genome.genome"\n'
+        '[[alias]]\nname = "stick"\ntarget = "srmech.biology.genome.plasmid"\n')
     assert set(names) == {"build", "stick"}
     one, kernels = _one(), _kernels()
     assert _bl(names["build"](kernels, one)) == _bl(G.genome(kernels, one))
@@ -61,10 +61,10 @@ def test_build_aliases_from_toml_str():
 
 def test_load_aliases_toml_from_file(tmp_path):
     p = tmp_path / "aliases.toml"
-    p.write_text('[[alias]]\nname = "recover"\ntarget = "srmech.amsc.genome.recover_diploid"\n',
+    p.write_text('[[alias]]\nname = "recover"\ntarget = "srmech.biology.genome.recover_diploid"\n',
                  encoding="utf-8")
     names = dsl.load_aliases_toml(p)
-    assert names["recover"].srmech_alias_target == "srmech.amsc.genome.recover_diploid"
+    assert names["recover"].srmech_alias_target == "srmech.biology.genome.recover_diploid"
 
 
 def test_empty_alias_doc_yields_empty_mapping():
@@ -91,13 +91,13 @@ def test_malformed_alias_entries_raise():
     with pytest.raises(ValueError):
         dsl.build_aliases_from_toml_str('[[alias]]\nname = "x"\n')          # no target
     with pytest.raises(ValueError):
-        dsl.build_aliases_from_toml_str('[[alias]]\ntarget = "srmech.amsc.genome.genome"\n')  # no name
+        dsl.build_aliases_from_toml_str('[[alias]]\ntarget = "srmech.biology.genome.genome"\n')  # no name
     with pytest.raises(ValueError):
-        dsl.alias("", "srmech.amsc.genome.genome")                          # empty name
+        dsl.alias("", "srmech.biology.genome.genome")                          # empty name
     with pytest.raises(TypeError):
         dsl.build_aliases_from_toml_str(123)                                # not a str
 
 
 def test_alias_target_must_resolve_to_a_callable():
     with pytest.raises((ValueError, Exception)):
-        dsl.alias("x", "srmech.amsc.genome.GENOME_FORMAT_VERSION")          # a constant, not callable
+        dsl.alias("x", "srmech.biology.genome.GENOME_FORMAT_VERSION")          # a constant, not callable

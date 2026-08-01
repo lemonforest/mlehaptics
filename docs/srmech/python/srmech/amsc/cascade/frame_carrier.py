@@ -28,7 +28,7 @@ carrier. This carrier fixes exactly that:
   carries a truncated-Taylor VALUE across a seam.
 
 **The ``(value, frame)`` pair — the rc125 recoverable-fold analogue.** This carrier
-is the exact structural sibling of :class:`~srmech.amsc.coupling.RecoverableFold`'s
+is the exact structural sibling of :class:`~srmech.biology.coupling.RecoverableFold`'s
 ``(lossy_bundle, exact_seed_R)`` PAIR, with the **frame as the exact second leg**:
 
 * ``value``       — the LOSSY leg: the raw local truncated series ``σ·series(θ, N)``.

@@ -79,8 +79,8 @@ import tempfile
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc import plasmid as P
+from srmech.biology import genome as G
+from srmech.biology import plasmid as P
 from srmech.math.hdc import klein4_expand
 
 _DIM = 64                                           # >= 52 (the §89 kernel header)

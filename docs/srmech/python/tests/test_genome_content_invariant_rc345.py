@@ -19,7 +19,7 @@ import json
 
 import pytest
 
-import srmech.amsc.genome as G
+import srmech.biology.genome as G
 from srmech.math.hdc import klein4_expand
 
 DIM = 64

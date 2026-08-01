@@ -15,7 +15,7 @@
 
 ## 1. What srmech already has (the rc268/rc269 chromatin layer)
 
-Read from `docs/srmech/python/srmech/amsc/genome.py` + `CHANGELOG.md` [0.9.0rc268]/[rc269]/[rc272]:
+Read from `docs/srmech/python/srmech/biology/genome.py` + `CHANGELOG.md` [0.9.0rc268]/[rc269]/[rc272]:
 
 - **`CHROMATIN_MARKER = 0x48`** (`'H'`, histone/heterochromatin), format v14→v15 — an *interior*
   cap (like the `0x58` centromere it never opens a chromosome). Wire form (genome.py:285, :1790):

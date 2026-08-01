@@ -10,7 +10,7 @@ policy that no longer exists and is actively misleading: ``pip install srmech``
 pulls **no** numpy, both pyprojects say so, the ``scientific = ["numpy"]`` extra
 was removed, and the package source contains **zero** live ``import numpy`` (the
 17 grep hits under ``srmech/`` are all prose saying there is none). The carriers
-are srmech-native — :class:`~srmech.math.hdc.Mat` / :class:`~srmech.amsc.coupling.Vec`
+are srmech-native — :class:`~srmech.math.hdc.Mat` / :class:`~srmech.biology.coupling.Vec`
 / :class:`~srmech.math.hdc.HV` — numpy-*shaped* in idiom, but not numpy, and
 dispatched to the native C surface through ctypes over plain Python lists.
 

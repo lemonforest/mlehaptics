@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import pytest
 
-from srmech.amsc import genome
-from srmech.amsc.genome import (
+from srmech.biology import genome
+from srmech.biology.genome import (
     CHROM_CAP_MARKER,
     GENE_CAP_MARKER,
     chromosome,

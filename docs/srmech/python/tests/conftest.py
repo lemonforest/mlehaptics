@@ -745,7 +745,7 @@ def rosetta_reached_ledger_ops(start, cls):
 # opening through ``builtins.open`` where the suite was hooking ``Path.open``.
 # ──────────────────────────────────────────────────────────────────────
 
-from srmech.amsc import genome as _G
+from srmech.biology import genome as _G
 
 
 

@@ -21,7 +21,7 @@ def test_describe_class_shape_is_jsonable():
     assert set(d["fields"]) == {"coupling", "chromosomes"}
     assert {"shape", "cap", "add_chromosome", "recall"} <= set(d["methods"])
     m = d["methods"]["add_chromosome"]
-    assert m["op"] == "srmech.amsc.genome.chromosome"
+    assert m["op"] == "srmech.biology.genome.chromosome"
     assert m["binds"] == ["leaves", "coupling"] and m["appends"] == "chromosomes"
     json.dumps(d)                                   # fully JSON-serialisable
 

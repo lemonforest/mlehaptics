@@ -28,7 +28,7 @@ import tempfile
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native
 from srmech.math.hdc import klein4_expand
 
@@ -371,8 +371,8 @@ def test_new_ops_registered_and_total_matches_live():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     names = [t.name for t in get_tool_schema().tools]
-    assert "srmech.amsc.genome.genome_partition" in names
-    assert "srmech.amsc.genome.genome_from_graph" in names
+    assert "srmech.biology.genome.genome_partition" in names
+    assert "srmech.biology.genome.genome_from_graph" in names
     assert len(names) == 525
     assert "genome_partition" in G.__all__
     assert "genome_from_graph" in G.__all__
@@ -382,8 +382,8 @@ def test_new_ops_have_docs():
     from srmech.amsc.tool_schema import get_tool_schema, warmup_all
     warmup_all()
     tools = {t.name: t for t in get_tool_schema().tools}
-    for name in ("srmech.amsc.genome.genome_partition",
-                 "srmech.amsc.genome.genome_from_graph"):
+    for name in ("srmech.biology.genome.genome_partition",
+                 "srmech.biology.genome.genome_from_graph"):
         entry = tools[name]
         assert entry.explanation and entry.explanation.strip()
         assert entry.example

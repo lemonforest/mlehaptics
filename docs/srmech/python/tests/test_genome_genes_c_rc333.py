@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native as _N
 from srmech.math.hdc import klein4_expand
 
@@ -282,12 +282,12 @@ def test_rc333_peers_declared_and_gaps_closed():
     symbols and none is still a gap. The full transitive ratchet + the DOWN-ONLY global ceiling
     pin live in test_rosetta_transitive_standalone.py; this is a local coherence pin for THESE ops."""
     r = _load_rosetta()
-    assert r._WHOLE_OP_C_PEER["srmech.amsc.genome.genes"] == "srmech_genome_genes"
-    assert r._WHOLE_OP_C_PEER["srmech.amsc.genome.genome_genes"] == "srmech_genome_genome_genes"
-    assert (r._WHOLE_OP_C_PEER["srmech.amsc.genome.genome_genes_expressed"]
+    assert r._WHOLE_OP_C_PEER["srmech.biology.genome.genes"] == "srmech_genome_genes"
+    assert r._WHOLE_OP_C_PEER["srmech.biology.genome.genome_genes"] == "srmech_genome_genome_genes"
+    assert (r._WHOLE_OP_C_PEER["srmech.biology.genome.genome_genes_expressed"]
             == "srmech_genome_genes_expressed")
     for op in ("genes", "genome_genes", "genome_genes_expressed"):
-        assert f"srmech.amsc.genome.{op}" not in r._KNOWN_GLUE_GAPS
+        assert f"srmech.biology.genome.{op}" not in r._KNOWN_GLUE_GAPS
     # rc334 closed the last gap (add_plasmid): _KNOWN_GLUE_GAPS is now EMPTY and the
     # DOWN-ONLY ceiling agrees at 0 (see test_genome_add_plasmid_c_rc334.py).
     assert set(r._KNOWN_GLUE_GAPS) == set()
@@ -299,9 +299,9 @@ def test_rc333_peers_are_actually_dispatched():
     dispatch glue (the rc273 failure mode was a declared-but-unreached symbol)."""
     r = _load_rosetta()
     objs = r._live_objects()
-    for op, sym in (("srmech.amsc.genome.genes", "srmech_genome_genes"),
-                    ("srmech.amsc.genome.genome_genes", "srmech_genome_genome_genes"),
-                    ("srmech.amsc.genome.genome_genes_expressed",
+    for op, sym in (("srmech.biology.genome.genes", "srmech_genome_genes"),
+                    ("srmech.biology.genome.genome_genes", "srmech_genome_genome_genes"),
+                    ("srmech.biology.genome.genome_genes_expressed",
                      "srmech_genome_genes_expressed")):
         fn = objs.get(op)
         assert fn is not None, f"{op} not importable"

@@ -1,7 +1,7 @@
 """§Q8 / rc311 — native Q8 genome coupling + recall-inverse PROVE-GATES.
 
-The rc310 Q8 carrier ops (:mod:`srmech.amsc.q8`) are wired into the GENOME as a NEW
-``element_type`` path (:data:`~srmech.amsc.genome.ELEMENT_TYPE_Q8`) that COEXISTS with the
+The rc310 Q8 carrier ops (:mod:`srmech.biology.q8`) are wired into the GENOME as a NEW
+``element_type`` path (:data:`~srmech.biology.genome.ELEMENT_TYPE_Q8`) that COEXISTS with the
 shipped klein4 path (``ELEMENT_TYPE_KLEIN4``, byte-untouched). Q₈ is the NON-abelian central
 extension of the Klein-4 coset, so its coupling is the Q₈ group product (RIGHT-couple) and its
 recall is the group INVERSE (the Class-C conjugate) — NOT the XOR self-inverse klein4 uses.
@@ -29,8 +29,8 @@ import random
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
-from srmech.amsc.genome import (
+from srmech.biology import genome as G
+from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4,
     ELEMENT_TYPE_Q8,
     OCT,
@@ -44,7 +44,7 @@ from srmech.amsc.genome import (
 )
 from srmech.math.hdc import klein4_bind
 from srmech.math.hv import HV
-from srmech.amsc.q8 import q8_bind, q8_conjugate, q8_mult, q8_project_v4
+from srmech.biology.q8 import q8_bind, q8_conjugate, q8_mult, q8_project_v4
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

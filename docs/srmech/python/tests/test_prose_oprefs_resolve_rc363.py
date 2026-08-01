@@ -75,7 +75,7 @@ The other ToolEntry prose fields (``parameters[].summary``, ``returns.shape`` /
 ``returns.summary``) are covered too — 6 occurrences, of which **1 was a genuine
 stale citation** found by this gate and fixed in the same rc:
 ``genome_register_attested``'s ``source`` example read ``'srmech.genome.<name>'``,
-a module path that has never existed (the module is ``srmech.amsc.genome``).
+a module path that has never existed (the module is ``srmech.biology.genome``).
 
 Pure stdlib + srmech; numpy-free; no ``abs()``.
 """

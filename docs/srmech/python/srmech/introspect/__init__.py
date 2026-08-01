@@ -1173,7 +1173,7 @@ def describe() -> Dict[str, Any]:
     except Exception:  # pragma: no cover — cascade surface optional
         _capabilities = {}
     try:
-        from ..amsc.genome import ELEMENT_TYPE_CAPABILITY as _ET_CAP
+        from ..biology.genome import ELEMENT_TYPE_CAPABILITY as _ET_CAP
         _element_types = [
             {k: (builtins.list(v) if isinstance(v, tuple) else v)
              for k, v in row.items()}
@@ -1294,7 +1294,7 @@ def describe() -> Dict[str, Any]:
         # computes all three. Tw and Wr are NOT one quantity at two
         # resolutions: they read DIFFERENT INPUTS and share the LANE.
         "worked_example": {
-            "op": "srmech.amsc.genome.cwf_consistency_mod2",
+            "op": "srmech.biology.genome.cwf_consistency_mod2",
             "trials": 3000,
             "reads": [
                 {"name": "Tw", "field": "tw_mod2", "lane": "sign",

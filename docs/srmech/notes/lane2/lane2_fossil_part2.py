@@ -19,10 +19,10 @@ from __future__ import annotations
 import itertools, random, sys
 sys.path.insert(0, '/mnt/d/GitHub/mlehaptics/docs/srmech/python')
 
-from srmech.amsc.genome import (
+from srmech.biology.genome import (
     chromosome, genome_fiber_holonomy, ELEMENT_TYPE_Q8, _cap_kind, _hv_bytes,
 )
-from srmech.amsc.q8 import q8_bind, q8_project_v4, q8_from_one
+from srmech.biology.q8 import q8_bind, q8_project_v4, q8_from_one
 from srmech.amsc.cascade.one import the_one
 from srmech.amsc.hv import HV
 from srmech.amsc.format import sha256_bytes

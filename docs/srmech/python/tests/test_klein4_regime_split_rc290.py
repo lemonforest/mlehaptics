@@ -401,7 +401,7 @@ def test_genome_takes_coupling_and_the_one_is_gone():
     a reader. With ONE-A14 the slot holds something DERIVED FROM the One but not
     the One, so the old name got MORE misleading, not less. No alias: a caller
     who passes ``the_one=`` must see a failure, not a silent success."""
-    from srmech.amsc import genome as G
+    from srmech.biology import genome as G
     one = the_one(1, 1, 4)
     coupling = hdc.klein4_from_one(one, 64)
     leaves = [hdc.klein4_expand(64, s) for s in range(3)]
@@ -415,7 +415,7 @@ def test_one_a14_works_as_a_genome_coupling_end_to_end():
     """The whole point: a genome whose coupling is a DECLARED FUNCTION of
     (sigma, theta, terms) rather than a magic integer — reproducible from the
     parameters alone, with no stored key."""
-    from srmech.amsc import genome as G
+    from srmech.biology import genome as G
     leaves = [hdc.klein4_expand(64, s) for s in range(5)]
     c1 = hdc.klein4_from_one(the_one(1, 1, 4), 64)
     strand = G.chromosome(leaves, c1, label="astronomy")

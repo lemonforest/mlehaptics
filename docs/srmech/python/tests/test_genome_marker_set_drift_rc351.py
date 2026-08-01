@@ -3,7 +3,7 @@
 **What shipped broken.** ``genome.py`` defines fourteen block-kind marker bytes and one
 tuple, ``_LEAF_WIDE_BLOCK_MARKERS``, naming the set of them. Four walkers need that set.
 Three read the tuple. The fourth — the no-native streaming reader *inside*
-:func:`srmech.amsc.genome.genome_load`, the one a pure / Pyodide / WASM install runs —
+:func:`srmech.biology.genome.genome_load`, the one a pure / Pyodide / WASM install runs —
 carried an inline hand-copy that stopped at ``CHROMATIN_MARKER``, omitting
 ``FIBER_CAP_MARKER`` (``0x46``) and ``OCT_FIBER_CAP_MARKER`` (``0x4F``). The C classifier
 knew both. So a pure install could **save a fiber-bearing genome and never load it back**:
@@ -38,16 +38,16 @@ import pathlib
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc.cascade.one import the_one
-from srmech.amsc.genome import (
+from srmech.biology.genome import (
     ELEMENT_TYPE_KLEIN4, ELEMENT_TYPE_OCTONION, ELEMENT_TYPE_Q8, FIBER_CAP_MARKER,
     OCT_FIBER_CAP_MARKER, OCTONION_SECTORS, QUAD, _cap_kind, chromosome,
     genome_add_fiber, genome_add_octonion_fiber, genome_load, genome_read_fiber,
     genome_read_octonion_fiber, genome_save, telomere,
 )
 from srmech.math.hv import HV
-from srmech.amsc.q8 import q8_from_one
+from srmech.biology.q8 import q8_from_one
 
 #: 32, not 16 — an 𝕆 fiber cap 4-bit-packs its holonomy, so `[0x4F] + label + NUL + n_holo`
 #: does not fit a 16-byte leaf (the rc325 suite uses 32 for the same reason).

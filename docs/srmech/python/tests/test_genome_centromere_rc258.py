@@ -26,7 +26,7 @@ import math
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native
 from srmech.math.hdc import klein4_expand
 

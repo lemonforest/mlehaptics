@@ -25,7 +25,7 @@ Inspection of all 16 found most were not defects at all:
   *constructor* raises on them, while the registered op takes raw coefficients;
 * ``srmech.introspect.op_provenance`` flagged ``Mat`` / ``Q`` / ``Vec`` from prose in a
   raise that explains what is NOT provenance-tracked;
-* ``srmech.amsc.genome`` (68 ops) flagged ``Q`` from one raise in one helper.
+* ``srmech.biology.genome`` (68 ops) flagged ``Q`` from one raise in one helper.
 
 A gate that is wrong roughly half the time is not a gate; it trains the reader
 to override it. So the noisy form is **not shipped**, and this file ships the

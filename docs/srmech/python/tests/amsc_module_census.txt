@@ -11,11 +11,7 @@ carrier_schema
 cascade/
 catalog
 compose
-coupling
 descriptor
 format
 gap_suggester
-genome
-plasmid
-q8
 tool_schema

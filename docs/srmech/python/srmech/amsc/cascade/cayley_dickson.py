@@ -1792,7 +1792,7 @@ def inertia_signature(table: Any) -> Dict[str, Any]:
     composition.** The op reads the inertia of the trace form and nothing else.
     For the off-diagonal structure use the complementary instruments already in
     this tree: ``srmech.math.hdc.loop_associator`` / ``g2_three_form``,
-    ``srmech.amsc.genome.genome_octonion_associator``, and
+    ``srmech.biology.genome.genome_octonion_associator``, and
     :func:`left_mult_is_invertible`.
 
     **What genuinely discriminates.** Split-𝕆 ``(5, 3, 0)`` against 𝕆

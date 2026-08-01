@@ -15,14 +15,14 @@ from __future__ import annotations
 import itertools, random, sys, os
 sys.path.insert(0, '/mnt/d/GitHub/mlehaptics/docs/srmech/python')
 
-from srmech.amsc import genome as G
-from srmech.amsc.genome import (
+from srmech.biology import genome as G
+from srmech.biology.genome import (
     quad_turn, chromosome, genome_fiber_holonomy,
     genome_octonion_holonomy, genome_octonion_associator,
     ELEMENT_TYPE_Q8, ELEMENT_TYPE_KLEIN4, ELEMENT_TYPE_OCTONION,
     _cap_kind, _hv_bytes,
 )
-from srmech.amsc.q8 import q8_bind, q8_project_v4, q8_from_one
+from srmech.biology.q8 import q8_bind, q8_project_v4, q8_from_one
 from srmech.amsc.octonion import oct_bind
 from srmech.amsc.hdc import klein4_from_one
 from srmech.amsc.cascade.one import the_one

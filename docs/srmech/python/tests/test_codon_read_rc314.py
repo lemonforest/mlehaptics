@@ -2,8 +2,8 @@
 
 Biology reads the genome in CODONS (triplets — the genetic code); that reading
 is a PROCESS the ribosome imposes over the stored strand, not stored substrate.
-:func:`srmech.amsc.genome.codon_read` is therefore a PURE READ (stores nothing,
-changes no format) and :func:`srmech.amsc.genome.codon_frame_monodromy` reads the
+:func:`srmech.biology.genome.codon_read` is therefore a PURE READ (stores nothing,
+changes no format) and :func:`srmech.biology.genome.codon_frame_monodromy` reads the
 Z3 reading-frame monodromy of a circular strand.
 
 Three distinct invariants are kept SEPARATE (C3):
@@ -23,13 +23,13 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc.genome import (
+from srmech.biology.genome import (
     CODON_BASES,
     codon_frame_monodromy,
     codon_read,
 )
 from srmech.math.hdc import klein4_triality_cycle
-from srmech.amsc.q8 import q8_project_v4
+from srmech.biology.q8 import q8_project_v4
 
 # Base labelling of the read layer: coset 0->U/T, 1->C, 2->A, 3->G (CODON_BASES).
 _B = {"U": 0, "T": 0, "C": 1, "A": 2, "G": 3}
@@ -292,11 +292,11 @@ def test_hv_input_reads_the_same():
 
 def test_native_equals_pure_codon_read():
     from srmech.amsc import _native
-    from srmech.amsc.genome import (
+    from srmech.biology.genome import (
         _codon_native_ready, _codon_read_native, _codon_read_pure,
         _genetic_code_table,
     )
-    from srmech.amsc.q8 import q8_project_v4
+    from srmech.biology.q8 import q8_project_v4
     if not _codon_native_ready("srmech_genome_codon_read"):
         pytest.skip("native srmech_genome_codon_read not loaded")
     ncbieaa, _ = _genetic_code_table()
@@ -313,7 +313,7 @@ def test_native_equals_pure_codon_read():
 
 def test_native_equals_pure_frame_monodromy():
     from srmech.amsc import _native
-    from srmech.amsc.genome import _codon_native_ready, codon_frame_monodromy
+    from srmech.biology.genome import _codon_native_ready, codon_frame_monodromy
     if not _codon_native_ready("srmech_genome_codon_frame_monodromy"):
         pytest.skip("native srmech_genome_codon_frame_monodromy not loaded")
     # codon_frame_monodromy already routes through the C peer when present; the

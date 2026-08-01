@@ -19,7 +19,7 @@ single node, empty), plus the ``path=`` save + census round-trip.
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome
+from srmech.biology import genome
 
 
 pytestmark = pytest.mark.skipif(
@@ -226,6 +226,6 @@ def test_rosetta_ratchet_closed_g2():
     # ratchet module (and the per-rc test); this per-op G2 test asserts only
     # that genome_from_graph is CLOSED, so it stays green as later rcs (rc329+)
     # lower the ceiling further. (rc329: dropped the stale `== 8` global pin.)
-    assert R._WHOLE_OP_C_PEER["srmech.amsc.genome.genome_from_graph"] == \
+    assert R._WHOLE_OP_C_PEER["srmech.biology.genome.genome_from_graph"] == \
         "srmech_genome_from_graph"
-    assert "srmech.amsc.genome.genome_from_graph" not in R._KNOWN_GLUE_GAPS
+    assert "srmech.biology.genome.genome_from_graph" not in R._KNOWN_GLUE_GAPS

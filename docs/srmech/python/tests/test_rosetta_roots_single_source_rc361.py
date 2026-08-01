@@ -100,6 +100,16 @@ _EXPECTED_ROOTS = (
     # PARTIALLY drained (3 of 22 modules), but package existence is binary — so
     # the root is added on the FIRST module, per the rc370 rule below.
     "srmech.math",
+    # v0.9.0rc375 — ``srmech.biology`` APPENDED. The two-file edit again: the
+    # biological-substrate domain LANDED its ONLY slice this rc (genome / plasmid /
+    # q8 / coupling — the whole 4-module roster in one move), so the package now
+    # EXISTS and the walk must reach its ops. Like ``srmech.apokatastasis`` /
+    # ``srmech.math`` and UNLIKE the zero-op ``srmech.cascade``, this root arrives
+    # carrying walked rows (the genome / q8 / coupling operator surface). Unlike the
+    # partially-drained math bucket, biology is FULLY drained by this one slice (4
+    # of 4 modules). genome is the arc's single largest C surface; the
+    # srmech_genome_* C symbols are capability-named and DO NOT rename (ABI 10).
+    "srmech.biology",
 )
 
 #: ADR-0010's destination namespaces that DO NOT EXIST YET.
@@ -131,9 +141,14 @@ _EXPECTED_ROOTS = (
 #: existence is binary, so the root migrates on the FIRST slice. Four namespaces
 #: became three; ``srmech.physics`` / ``srmech.biology`` / ``srmech.external``
 #: are what remain absent.
+#: ⚠️ ``srmech.biology`` LEFT THIS TUPLE at v0.9.0rc375, by that same route: its
+#: ONLY slice (genome / plasmid / q8 / coupling — the whole 4-module roster) landed
+#: the package. Unlike the domains before it, biology is FULLY drained by this one
+#: slice, but the migration rule is unchanged (package existence is binary; the root
+#: migrates the moment ANY module lands). Three namespaces became two;
+#: ``srmech.physics`` / ``srmech.external`` are what remain absent.
 _ADR0010_NEW_NAMESPACES = (
     "srmech.physics",
-    "srmech.biology",
     "srmech.external",
 )
 
@@ -163,10 +178,14 @@ _ADR0010_NEW_NAMESPACES = (
 #: v0.9.0rc372 — ``srmech.math`` joins them by the same route. Its first slice
 #: (``octonion`` / ``kepler`` / ``modular_linalg``) arrives carrying 10 walked
 #: rows (7 ``c_dispatched`` + 3 ``composition_of_c``); see ``_EXPECTED_ROOTS``.
+#:
+#: v0.9.0rc375 — ``srmech.biology`` joins them by the same route. Its ONLY slice
+#: (genome / plasmid / q8 / coupling — the whole 4-module roster) arrives carrying
+#: the genome / q8 / coupling operator surface; see ``_EXPECTED_ROOTS``.
 _ADR0010_EXISTING_DESTINATIONS = ("srmech.amsc", "srmech.introspect",
                                   "srmech.dsl", "srmech.music",
                                   "srmech.cascade", "srmech.apokatastasis",
-                                  "srmech.math")
+                                  "srmech.math", "srmech.biology")
 
 #: Detects a spelled-out copy of the root tuple: the quoted literal every copy
 #: ended with. Measured at rc361 — this token appeared in EXACTLY the four known

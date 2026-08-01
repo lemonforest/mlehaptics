@@ -30,14 +30,14 @@ from pathlib import Path
 
 import pytest
 
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.amsc import _native
-from srmech.amsc.genome import (
+from srmech.biology.genome import (
     ELEMENT_TYPE_Q8, FIBER_CAP_MARKER, GENOME_FORMAT_VERSION,
     genome_fiber_holonomy, genome_add_fiber, genome_read_fiber,
     quad_turn, chromosome, codon_read, cwf_consistency_mod2, _cap_kind, _hv_bytes,
 )
-from srmech.amsc.q8 import q8_from_one, q8_bind, q8_project_v4
+from srmech.biology.q8 import q8_from_one, q8_bind, q8_project_v4
 from srmech.amsc.cascade.one import the_one
 from srmech.math.hv import HV
 
@@ -268,4 +268,4 @@ def test_fiber_ops_are_public_and_registered():
     from srmech.amsc import tool_schema
     tools = {t.name for t in tool_schema.get_tool_schema().tools}
     for op in ("genome_fiber_holonomy", "genome_add_fiber", "genome_read_fiber"):
-        assert f"srmech.amsc.genome.{op}" in tools
+        assert f"srmech.biology.genome.{op}" in tools

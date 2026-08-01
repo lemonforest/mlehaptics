@@ -112,7 +112,14 @@ ORIGINAL_N_MODULES = 75
 #: this slice srmech.math holds all 28 of its A.2 members (see the H.2 over-count
 #: reconciliation at ADR_A2_DESTINATION_COUNTS below). carrier_schema STAYS in
 #: amsc (it is the introspect surface, not a carrier).
-EXPECTED_N_MODULES = 18
+#: rc375 (the tenth slice, the BIOLOGY bucket — opens AND drains srmech.biology in
+#: ONE slice, the roster being small enough): 18 -> 14, the four biology modules
+#: coupling / genome / plasmid / q8 departing to srmech.biology (the biology
+#: domain's whole 4-module roster). genome is the arc's single largest C surface
+#: (many srmech_genome_* peers); those C symbols are capability-named and DO NOT
+#: rename, so the ABI stays 10. Takes LANDED from 57 to 61 and the live amsc count
+#: from 18 to 14 (conservation 14 + 61 == 75).
+EXPECTED_N_MODULES = 14
 EXPECTED_N_SUBPACKAGES = 3
 
 #: sha256 over the NORMALISED manifest body — "\n".join(sorted entries) + "\n",
@@ -120,7 +127,7 @@ EXPECTED_N_SUBPACKAGES = 3
 #: the digest disagree between the Windows and Linux CI cells; that would be a
 #: platform artifact masquerading as a move (the rc361 rationale, verbatim).
 EXPECTED_CENSUS_SHA256 = (
-    "ae5704eabe0728ec11a031e8e380e822262f858d39f822fe69617309a584fb83")
+    "b7443cd00a388f24b2d212ee8ac9cb6b1c669a94fd8d70d2d8f16dbe8eb0a8fe")
 
 # ── the four keepers, and the A.2 move map (as DATA the test reads) ──────────
 
@@ -249,6 +256,10 @@ NAMED_DEPARTURES = {
 #: carrier_spectrum) land in srmech.math — the math bucket's LAST slice, taking
 #: LANDED from 42 to 57 and the live amsc count from 33 to 18 (conservation
 #: 18 + 57 == 75).
+#: rc375: the four BIOLOGY modules (coupling / genome / plasmid / q8) land in
+#: srmech.biology — the biology bucket opened AND drained in one slice, taking
+#: LANDED from 57 to 61 and the live amsc count from 18 to 14 (conservation
+#: 14 + 61 == 75).
 LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance",
                     "elliptic_partial_fraction",
                     "apagodu_zeilberger", "eisenstein", "ellbase",
@@ -265,7 +276,8 @@ LANDED = frozenset({"harmonics", "naming", "responsion_schema", "op_provenance",
                     "rational", "search", "template", "tlv", "text",
                     "mat", "vec", "hv", "q", "qmat", "qi", "qalg", "qprime",
                     "poly", "qpoly", "qbipoly", "tripoly", "complex128",
-                    "carrier_ladder", "carrier_spectrum"})
+                    "carrier_ladder", "carrier_spectrum",
+                    "coupling", "genome", "plasmid", "q8"})
 
 
 # ── readers ──────────────────────────────────────────────────────────────────
@@ -515,11 +527,13 @@ def test_the_census_can_actually_fail() -> None:
         "the digest helper disagrees with the pinned value — the injection "
         "proofs below would be measuring the wrong thing.")
 
-    # (1) a module leaves for a MAPPED destination (genome -> srmech.biology):
+    # (1) a module leaves for a MAPPED destination (compose -> srmech.cascade):
     #     down-only stays GREEN (a departure is legal), and the digest CHANGES
-    #     — the move is detected. (Was ``poly`` until rc374, when poly departed to
-    #     srmech.math and could no longer stand in for a still-present leaver.)
-    leaver = "genome"
+    #     — the move is detected. (Was ``poly`` until rc374 then ``genome`` until
+    #     rc375, each retired as a stand-in once it actually departed — genome to
+    #     srmech.biology this slice; ``compose`` is the remaining still-present
+    #     non-keeper A.2 maps, to srmech.cascade.)
+    leaver = "compose"
     assert leaver in allowed and leaver not in KEEPERS
     live1 = committed - {leaver}
     removed1 = _departures(committed, live1)

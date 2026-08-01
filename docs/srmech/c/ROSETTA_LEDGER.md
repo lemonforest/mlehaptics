@@ -454,7 +454,7 @@ decrements it).
   quad-turn unit). Watch the regex ratchet: a `numpy.linalg.eigh` MENTION in a
   new comment counts — write "the LAPACK `eigh` path" (no `numpy.linalg.`).
 - **rc37 (done) — genome-storage surface, brick 1 (#962 Part 2; F711–F715).**
-  New module `srmech.amsc.genome` (biological-structure names as cascade names):
+  New module `srmech.biology.genome` (biological-structure names as cascade names):
   `encode_shape(n)` — the encode CRITERION (tome ≤256 / mobius ≤1024 / quad_strand
   >1024; `depth = ceil(log4(ceil(n/256)))` in pure integer arithmetic, no float
   log) → bucket `non_compute`; `quad_turn(turn, the_one)` — the reversible Klein-4
@@ -466,7 +466,7 @@ decrements it).
   has none). No C twin yet (the quad-turn is pure-Python reversible XOR); the
   chromosome (telomere-capped strand) + genome (multi-kernel) assemble next.
 - **rc38 (done) — genome-storage surface, brick 2: the chromosome (#962 Part 2).**
-  `srmech.amsc.genome` gains the LAYER-1 cascade primitives: `telomere(label,
+  `srmech.biology.genome` gains the LAYER-1 cascade primitives: `telomere(label,
   dim)` — the non-data content-address cap (sha256_bytes → seed → Klein-4
   sentinel; Class A ∘ M) → `composition_of_c`; `chromosome(leaves, the_one,
   label=)` — pack a kernel into a telomere-capped strand of quad-turns →
@@ -513,7 +513,7 @@ decrements it).
   `test_introspection_version_native_matches` false-fail is the stale hand-built
   DLL (version string vs a fresh CI build), not a regression.
 - **rc42 (done) — genome-storage brick 3: multi-kernel `genome` + `partition`
-  (#962 Part 2).** `srmech.amsc.genome.genome(kernels, the_one)` packs many
+  (#962 Part 2).** `srmech.biology.genome.genome(kernels, the_one)` packs many
   `{label: leaves}` kernels into ONE telomere-partitioned strand (each a
   telomere-capped `chromosome` coupled through `the_one`, concatenated); the
   inverse `partition(strand, the_one, labels)` knows ALL caps so it never

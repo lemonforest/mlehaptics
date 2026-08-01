@@ -12,16 +12,16 @@ Two entry points::
 
     from srmech.dsl import alias, build_aliases_from_toml_str
 
-    build = alias("build", "srmech.amsc.genome.genome")     # one binding
+    build = alias("build", "srmech.biology.genome.genome")     # one binding
     build({"a": leaves}, one)                                # == genome({"a": leaves}, one)
 
     names = build_aliases_from_toml_str('''                  # many, from TOML
         [[alias]]
         name = "build"
-        target = "srmech.amsc.genome.genome"
+        target = "srmech.biology.genome.genome"
         [[alias]]
         name = "stick"
-        target = "srmech.amsc.genome.plasmid"
+        target = "srmech.biology.genome.plasmid"
     ''')
     names["build"](kernels, one); names["stick"](kernels, one)
 
@@ -117,7 +117,7 @@ def register_alias_dir(path: Any) -> None:
 
     A researcher drops their own ``*.toml`` alias descriptors in ``path`` and registers
     it; :func:`load_aliases_toml` and
-    :func:`srmech.amsc.genome.load_type_aliases_toml` then resolve those descriptors by
+    :func:`srmech.biology.genome.load_type_aliases_toml` then resolve those descriptors by
     bare name exactly as they resolve the shipped ones. ``SRMECH_ALIAS_PATH``
     (os.pathsep-separated dirs) is the zero-API equivalent.
 

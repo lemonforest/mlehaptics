@@ -20,7 +20,7 @@ geometry, no numpy, no ``abs()``.
 
 Run:  PYTHONPATH=docs/srmech/python python docs/srmech/notes/t962_cwf_tw_is_not_absent.py
 """
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 
 # the 20 exact-INTEGER Pythagorean points on the radius-25 circle (the ring
 # srmech.amsc.rational.relative_writhe uses at rational.py:3223)

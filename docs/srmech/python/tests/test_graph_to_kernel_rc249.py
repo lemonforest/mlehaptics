@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from srmech.amsc import _native
-from srmech.amsc import genome as G
+from srmech.biology import genome as G
 from srmech.math import hdc
 
 NATIVE = _native.has_native_graph_kernel_codec()
@@ -87,8 +87,8 @@ def test_edges_weights_mismatch_raises():
 def test_registered_in_tool_schema():
     from srmech.amsc.tool_schema import get_tool_schema
     names = {t.name for t in get_tool_schema().tools}
-    assert "srmech.amsc.genome.graph_to_kernel" in names
-    assert "srmech.amsc.genome.kernel_to_graph" in names
+    assert "srmech.biology.genome.graph_to_kernel" in names
+    assert "srmech.biology.genome.kernel_to_graph" in names
 
 
 # ── native parity ──────────────────────────────────────────────────────────
